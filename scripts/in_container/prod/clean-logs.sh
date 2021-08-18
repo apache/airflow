@@ -30,7 +30,7 @@ echo "Cleaning logs every $EVERY seconds"
 
 while true; do
   echo "Trimming airflow logs to ${RETENTION} days."
-  find "${DIRECTORY}"/logs -mtime +"${RETENTION}" -name '*.log' -delete
+  find "${DIRECTORY}"/logs -type d -name 'lost+found' -prune -mtime +"${RETENTION}" -name '*.log' -delete
 
   seconds=$(( $(date -u +%s) % EVERY))
   (( seconds < 1 )) || sleep $((EVERY - seconds))

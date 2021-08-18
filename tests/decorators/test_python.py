@@ -268,6 +268,7 @@ class TestAirflowTaskDecorator(TestPythonBase):
         self.dag.create_dagrun(
             run_id=DagRunType.MANUAL,
             execution_date=DEFAULT_DATE,
+            data_interval=(DEFAULT_DATE, DEFAULT_DATE),
             start_date=DEFAULT_DATE,
             state=State.RUNNING,
         )
@@ -299,6 +300,7 @@ class TestAirflowTaskDecorator(TestPythonBase):
         self.dag.create_dagrun(
             run_id=DagRunType.MANUAL,
             execution_date=DEFAULT_DATE,
+            data_interval=(DEFAULT_DATE, DEFAULT_DATE),
             start_date=DEFAULT_DATE,
             state=State.RUNNING,
         )

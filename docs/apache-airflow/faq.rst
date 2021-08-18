@@ -220,7 +220,7 @@ Airflow was developed as a solution for ETL needs. In the ETL world, you typical
 summarize data for 2016-02-19, You would do it at 2016-02-20 midnight UTC, which would be right after all data for
 2016-02-19 becomes available.
 
-This datetime value is available to you as :ref:`Macros<macros:default_variables>` as various forms in Jinja templated
+This datetime value is available to you as :ref:`Template variables<templates:variables>` with various formats in Jinja templated
 fields. They are also included in the context dictionary given to an Operator's execute function.
 
 .. code-block:: python

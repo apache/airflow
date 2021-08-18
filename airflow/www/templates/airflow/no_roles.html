@@ -20,20 +20,18 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <title>Airflow 404 = lots of circles</title>
+  <title>Airflow</title>
   <link rel="icon" type="image/png" href="{{ url_for('static', filename='pin_32.png') }}">
 </head>
-
 <body>
-    <div style="font-family: verdana;">
-        <h1>Airflow 404 = lots of circles</h1>
-        <p>{{ hostname }}</p>
-    </div>
-    <div id="div_svg"
-         class="centered text-center"
-         style="border: 1px solid #ccc;padding:0;margin:0;">
-        <svg id="circles-svg"></svg>
-    </div>
-    <script src="{{ url_for_asset('circles.js') }}"></script>
+  <div style="font-family: verdana; text-align: center; margin-top: 200px;">
+    <img src="{{ url_for('static', filename='pin_100.png') }}" width="50px" alt="pin-logo" />
+    <h1>Your user has no roles!</h1>
+    <p>Unfortunately your user has no roles, and therefore you cannot use Airflow.</p>
+    <p>Please contact your Airflow administrator
+      (<a href="https://airflow.apache.org/docs/apache-airflow/stable/security/webserver.html#web-authentication">authentication</a>
+      may be misconfigured) or <a href="{{ logout_url }}">log out</a> to try again.</p>
+    <p>{{ hostname }}</p>
+  </div>
 </body>
 </html>

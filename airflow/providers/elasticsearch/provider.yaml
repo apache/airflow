@@ -46,3 +46,6 @@ hooks:
 
 hook-class-names:
   - airflow.providers.elasticsearch.hooks.elasticsearch.ElasticsearchHook
+
+logging:
+  - airflow.providers.elasticsearch.log.es_task_handler.ElasticsearchTaskHandler

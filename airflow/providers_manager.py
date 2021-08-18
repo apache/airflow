@@ -22,8 +22,9 @@ import json
 import logging
 import os
 from collections import OrderedDict
+from functools import wraps
 from time import perf_counter
-from typing import Any, Dict, NamedTuple, Set
+from typing import Any, Callable, Dict, List, NamedTuple, Set, TypeVar, cast
 
 import jsonschema
 from wtforms import BooleanField, Field, IntegerField, PasswordField, StringField
@@ -31,6 +32,7 @@ from wtforms import BooleanField, Field, IntegerField, PasswordField, StringFiel
 from airflow.utils import yaml
 from airflow.utils.entry_points import entry_points_with_dist
 from airflow.utils.log.logging_mixin import LoggingMixin
+from airflow.utils.module_loading import import_string
 
 try:
     import importlib.resources as importlib_resources
@@ -61,6 +63,35 @@ def _create_customized_form_field_behaviours_schema_validator():
     return validator
 
 
+def _sanity_check(provider_package: str, class_name: str) -> bool:
+    """
+    Performs sanity check on provider classes.
+    For apache-airflow providers - it checks if it starts with appropriate package. For all providers
+    it tries to import the provider - checking that there are no exceptions during importing.
+    """
+    if provider_package.startswith("apache-airflow"):
+        provider_path = provider_package[len("apache-") :].replace("-", ".")
+        if not class_name.startswith(provider_path):
+            log.warning(
+                "Sanity check failed when importing '%s' from '%s' package. It should start with '%s'",
+                class_name,
+                provider_package,
+                provider_path,
+            )
+            return False
+    try:
+        import_string(class_name)
+    except Exception as e:
+        log.warning(
+            "Exception when importing '%s' from '%s' package: %s",
+            class_name,
+            provider_package,
+            e,
+        )
+        return False
+    return True
+
+
 class ProviderInfo(NamedTuple):
     """Provider information"""
 
@@ -85,6 +116,40 @@ class ConnectionFormWidgetInfo(NamedTuple):
     field: Field
 
 
+T = TypeVar("T", bound=Callable)
+
+logger = logging.getLogger(__name__)
+
+
+# We want to have better control over initialization of parameters and be able to debug and test it
+# So we add our own decorator
+def provider_info_cache(cache_name: str) -> Callable[[T], T]:
+    """
+    Decorator factory that create decorator that caches initialization of provider's parameters
+    :param cache_name: Name of the cache
+    """
+
+    def provider_info_cache_decorator(func: T):
+        @wraps(func)
+        def wrapped_function(*args, **kwargs):
+            providers_manager_instance = args[0]
+            if cache_name in providers_manager_instance._initialized_cache:
+                return
+            start_time = perf_counter()
+            logger.debug("Initializing Providers Manager[%s]", cache_name)
+            func(*args, **kwargs)
+            providers_manager_instance._initialized_cache[cache_name] = True
+            logger.debug(
+                "Initialization of Providers Manager[%s] took %.2f seconds",
+                cache_name,
+                perf_counter() - start_time,
+            )
+
+        return cast(T, wrapped_function)
+
+    return provider_info_cache_decorator
+
+
 class ProvidersManager(LoggingMixin):
     """
     Manages all provider packages. This is a Singleton class. The first time it is
@@ -102,6 +167,7 @@ class ProvidersManager(LoggingMixin):
 
     def __init__(self):
         """Initializes the manager."""
+        self._initialized_cache: Dict[str, bool] = {}
         # Keeps dict of providers keyed by module name
         self._provider_dict: Dict[str, ProviderInfo] = {}
         # Keeps dict of hooks keyed by connection type
@@ -111,25 +177,17 @@ class ProvidersManager(LoggingMixin):
         # Customizations for javascript fields are kept here
         self._field_behaviours: Dict[str, Dict] = {}
         self._extra_link_class_name_set: Set[str] = set()
+        self._logging_class_name_set: Set[str] = set()
+        self._secrets_backend_class_name_set: Set[str] = set()
+        self._api_auth_backend_module_names: Set[str] = set()
         self._provider_schema_validator = _create_provider_info_schema_validator()
         self._customized_form_fields_schema_validator = (
             _create_customized_form_field_behaviours_schema_validator()
         )
-        self._providers_list_initialized = False
-        self._providers_hooks_initialized = False
-        self._providers_extra_links_initialized = False
 
+    @provider_info_cache("list")
     def initialize_providers_list(self):
         """Lazy initialization of providers list."""
-        # We cannot use @cache here because it does not work during pytest, apparently each test
-        # runs it it's own namespace and ProvidersManager is a different object in each namespace
-        # even if it is singleton but @cache on the initialize_providers_*  still works in the
-        # way that it is called only once for one of the objects (at least this is how it looks like
-        # from running tests)
-        if self._providers_list_initialized:
-            return
-        start_time = perf_counter()
-        self.log.debug("Initializing Providers Manager list")
         # Local source folders are loaded first. They should take precedence over the package ones for
         # Development purpose. In production provider.yaml files are not present in the 'airflow" directory
         # So there is no risk we are going to override package provider accidentally. This can only happen
@@ -137,39 +195,39 @@ class ProvidersManager(LoggingMixin):
         self._discover_all_airflow_builtin_providers_from_local_sources()
         self._discover_all_providers_from_packages()
         self._provider_dict = OrderedDict(sorted(self._provider_dict.items()))
-        self.log.debug(
-            "Initialization of Providers Manager list took %.2f seconds", perf_counter() - start_time
-        )
-        self._providers_list_initialized = True
 
+    @provider_info_cache("hooks")
     def initialize_providers_hooks(self):
         """Lazy initialization of providers hooks."""
-        if self._providers_hooks_initialized:
-            return
         self.initialize_providers_list()
-        start_time = perf_counter()
-        self.log.debug("Initializing Providers Hooks")
         self._discover_hooks()
         self._hooks_dict = OrderedDict(sorted(self._hooks_dict.items()))
         self._connection_form_widgets = OrderedDict(sorted(self._connection_form_widgets.items()))
         self._field_behaviours = OrderedDict(sorted(self._field_behaviours.items()))
-        self.log.debug(
-            "Initialization of Providers Manager hooks took %.2f seconds", perf_counter() - start_time
-        )
-        self._providers_hooks_initialized = True
 
+    @provider_info_cache("extra_links")
     def initialize_providers_extra_links(self):
         """Lazy initialization of providers extra links."""
-        if self._providers_extra_links_initialized:
-            return
         self.initialize_providers_list()
-        start_time = perf_counter()
-        self.log.debug("Initializing Providers Extra Links")
         self._discover_extra_links()
-        self.log.debug(
-            "Initialization of Providers Manager extra links took %.2f seconds", perf_counter() - start_time
-        )
-        self._providers_extra_links_initialized = True
+
+    @provider_info_cache("logging")
+    def initialize_providers_logging(self):
+        """Lazy initialization of providers logging information."""
+        self.initialize_providers_list()
+        self._discover_logging()
+
+    @provider_info_cache("secrets_backends")
+    def initialize_providers_secrets_backends(self):
+        """Lazy initialization of providers secrets_backends information."""
+        self.initialize_providers_list()
+        self._discover_secrets_backends()
+
+    @provider_info_cache("auth_backends")
+    def initialize_providers_auth_backends(self):
+        """Lazy initialization of providers API auth_backends information."""
+        self.initialize_providers_list()
+        self._discover_auth_backends()
 
     def _discover_all_providers_from_packages(self) -> None:
         """
@@ -285,16 +343,8 @@ class ProvidersManager(LoggingMixin):
         :param hook_class_name: name of the Hook class
         :param provider_package: provider package adding the hook
         """
-        if provider_package.startswith("apache-airflow"):
-            provider_path = provider_package[len("apache-") :].replace("-", ".")
-            if not hook_class_name.startswith(provider_path):
-                log.warning(
-                    "Sanity check failed when importing '%s' from '%s' package. It should start with '%s'",
-                    hook_class_name,
-                    provider_package,
-                    provider_path,
-                )
-                return
+        if not _sanity_check(provider_package, hook_class_name):
+            return
         if hook_class_name in self._hooks_dict:
             log.warning(
                 "The hook_class '%s' has been already registered.",
@@ -406,27 +456,33 @@ class ProvidersManager(LoggingMixin):
         """Retrieves all extra links defined in the providers"""
         for provider_package, (_, provider) in self._provider_dict.items():
             if provider.get("extra-links"):
-                for extra_link in provider["extra-links"]:
-                    self._add_extra_link(extra_link, provider_package)
+                for extra_link_class_name in provider["extra-links"]:
+                    if _sanity_check(provider_package, extra_link_class_name):
+                        self._extra_link_class_name_set.add(extra_link_class_name)
 
-    def _add_extra_link(self, extra_link_class_name, provider_package) -> None:
-        """
-        Adds extra link class name to the list of classes
-        :param extra_link_class_name: name of the class to add
-        :param provider_package: provider package adding the link
-        :return:
-        """
-        if provider_package.startswith("apache-airflow"):
-            provider_path = provider_package[len("apache-") :].replace("-", ".")
-            if not extra_link_class_name.startswith(provider_path):
-                log.warning(
-                    "Sanity check failed when importing '%s' from '%s' package. It should start with '%s'",
-                    extra_link_class_name,
-                    provider_package,
-                    provider_path,
-                )
-                return
-        self._extra_link_class_name_set.add(extra_link_class_name)
+    def _discover_logging(self) -> None:
+        """Retrieves all logging defined in the providers"""
+        for provider_package, (_, provider) in self._provider_dict.items():
+            if provider.get("logging"):
+                for logging_class_name in provider["logging"]:
+                    if _sanity_check(provider_package, logging_class_name):
+                        self._logging_class_name_set.add(logging_class_name)
+
+    def _discover_secrets_backends(self) -> None:
+        """Retrieves all secrets backends defined in the providers"""
+        for provider_package, (_, provider) in self._provider_dict.items():
+            if provider.get("secrets-backends"):
+                for secrets_backends_class_name in provider["secrets-backends"]:
+                    if _sanity_check(provider_package, secrets_backends_class_name):
+                        self._secrets_backend_class_name_set.add(secrets_backends_class_name)
+
+    def _discover_auth_backends(self) -> None:
+        """Retrieves all API auth backends defined in the providers"""
+        for provider_package, (_, provider) in self._provider_dict.items():
+            if provider.get("auth-backends"):
+                for auth_backend_module_name in provider["auth-backends"]:
+                    if _sanity_check(provider_package, auth_backend_module_name + ".init_app"):
+                        self._api_auth_backend_module_names.add(auth_backend_module_name)
 
     @property
     def providers(self) -> Dict[str, ProviderInfo]:
@@ -441,7 +497,7 @@ class ProvidersManager(LoggingMixin):
         return self._hooks_dict
 
     @property
-    def extra_links_class_names(self) -> Set[str]:
+    def extra_links_class_names(self) -> List[str]:
         """Returns set of extra link class names."""
         self.initialize_providers_extra_links()
         return sorted(self._extra_link_class_name_set)
@@ -457,3 +513,21 @@ class ProvidersManager(LoggingMixin):
         """Returns dictionary with field behaviours for connection types."""
         self.initialize_providers_hooks()
         return self._field_behaviours
+
+    @property
+    def logging_class_names(self) -> List[str]:
+        """Returns set of log task handlers class names."""
+        self.initialize_providers_logging()
+        return sorted(self._logging_class_name_set)
+
+    @property
+    def secrets_backend_class_names(self) -> List[str]:
+        """Returns set of secret backend class names."""
+        self.initialize_providers_secrets_backends()
+        return sorted(self._secrets_backend_class_name_set)
+
+    @property
+    def auth_backend_module_names(self) -> List[str]:
+        """Returns set of API auth backend class names."""
+        self.initialize_providers_auth_backends()
+        return sorted(self._api_auth_backend_module_names)

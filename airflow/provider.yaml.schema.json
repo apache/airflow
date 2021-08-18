@@ -210,6 +210,27 @@
     "additional-extras": {
       "type": "object",
       "description": "Additional extras that the provider should have"
+    },
+    "secrets-backends": {
+      "type": "array",
+      "description": "Secrets Backend class names",
+      "items": {
+          "type": "string"
+      }
+    },
+    "logging": {
+      "type": "array",
+      "description": "Logging Task Handlers class names",
+      "items": {
+          "type": "string"
+      }
+    },
+    "auth-backends": {
+      "type": "array",
+      "description": "API Auth Backend module names",
+      "items": {
+          "type": "string"
+      }
     }
   },
   "additionalProperties": false,

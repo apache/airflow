@@ -165,3 +165,9 @@ hook-class-names:
   - airflow.providers.microsoft.azure.hooks.wasb.WasbHook
   - airflow.providers.microsoft.azure.hooks.azure_data_factory.AzureDataFactoryHook
   - airflow.providers.microsoft.azure.hooks.azure_container_registry.AzureContainerRegistryHook
+
+secrets-backends:
+  - airflow.providers.microsoft.azure.secrets.azure_key_vault.AzureKeyVaultBackend
+
+logging:
+  - airflow.providers.microsoft.azure.log.wasb_task_handler.WasbTaskHandler

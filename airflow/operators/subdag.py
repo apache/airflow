@@ -21,8 +21,9 @@ The module which provides a way to nest your DAGs and so your levels of complexi
 """
 
 import warnings
+from datetime import datetime
 from enum import Enum
-from typing import Dict, Optional
+from typing import Dict, Optional, Tuple
 
 from sqlalchemy.orm.session import Session
 
@@ -159,12 +160,17 @@ class SubDagOperator(BaseSensorOperator):
         dag_run = self._get_dagrun(execution_date)
 
         if dag_run is None:
+            if context['data_interval_start'] is None or context['data_interval_end'] is None:
+                data_interval: Optional[Tuple[datetime, datetime]] = None
+            else:
+                data_interval = (context['data_interval_start'], context['data_interval_end'])
             dag_run = self.subdag.create_dagrun(
                 run_type=DagRunType.SCHEDULED,
                 execution_date=execution_date,
                 state=State.RUNNING,
                 conf=self.conf,
                 external_trigger=True,
+                data_interval=data_interval,
             )
             self.log.info("Created DagRun: %s", dag_run.run_id)
         else:

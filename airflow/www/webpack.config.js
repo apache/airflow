@@ -57,7 +57,6 @@ const config = {
     tiLog: `${JS_DIR}/ti_log.js`,
     tree: [`${CSS_DIR}/tree.css`, `${JS_DIR}/tree.js`],
     calendar: [`${CSS_DIR}/calendar.css`, `${JS_DIR}/calendar.js`],
-    circles: `${JS_DIR}/circles.js`,
     durationChart: `${JS_DIR}/duration_chart.js`,
     trigger: `${JS_DIR}/trigger.js`,
     variableEdit: `${JS_DIR}/variable_edit.js`,

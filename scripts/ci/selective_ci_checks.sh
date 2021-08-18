@@ -478,6 +478,7 @@ function check_if_any_py_files_changed() {
 
 
 AIRFLOW_SOURCES_TRIGGERING_TESTS=(
+    "^.pre-commit-config.yaml$"
     "^airflow"
     "^chart"
     "^tests"

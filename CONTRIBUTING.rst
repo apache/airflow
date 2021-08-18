@@ -593,8 +593,8 @@ devel_all, devel_ci, devel_hadoop, dingding, discord, doc, docker, druid, elasti
 facebook, ftp, gcp, gcp_api, github_enterprise, google, google_auth, grpc, hashicorp, hdfs, hive,
 http, imap, jdbc, jenkins, jira, kerberos, kubernetes, ldap, leveldb, microsoft.azure,
 microsoft.mssql, microsoft.psrp, microsoft.winrm, mongo, mssql, mysql, neo4j, odbc, openfaas,
-opsgenie, oracle, pagerduty, papermill, password, pinot, plexus, postgres, presto, qds, qubole,
-rabbitmq, redis, s3, salesforce, samba, segment, sendgrid, sentry, sftp, singularity, slack,
+opsgenie, oracle, pagerduty, pandas, papermill, password, pinot, plexus, postgres, presto, qds,
+qubole, rabbitmq, redis, s3, salesforce, samba, segment, sendgrid, sentry, sftp, singularity, slack,
 snowflake, spark, sqlite, ssh, statsd, tableau, telegram, trino, vertica, virtualenv, webhdfs,
 winrm, yandex, zendesk
 
@@ -1230,11 +1230,11 @@ How to sync your fork
 When you have your fork, you should periodically synchronize the main of your fork with the
 Apache Airflow main. In order to do that you can ``git pull --rebase`` to your local git repository from
 apache remote and push the main (often with ``--force`` to your fork). There is also an easy
-way using ``Force sync main from apache/airflow`` workflow. You can go to "Actions" in your repository and
-choose the workflow and manually trigger the workflow using "Run workflow" command.
+way to sync your fork in GitHub's web UI with the `Fetch upstream feature
+<https://docs.github.com/en/github/collaborating-with-pull-requests/working-with-forks/syncing-a-fork#syncing-a-fork-from-the-web-ui>`_.
 
-This will force-push the main from apache/airflow to the main in your fork. Note that in case you
-modified the main in your fork, you might loose those changes.
+This will force-push the ``main`` branch from ``apache/airflow`` to the ``main`` branch
+in your fork. Note that in case you modified the main in your fork, you might loose those changes.
 
 
 How to rebase PR

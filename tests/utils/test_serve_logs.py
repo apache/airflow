@@ -20,7 +20,7 @@ import pytest
 from itsdangerous import TimedJSONWebSignatureSerializer
 
 from airflow.configuration import conf
-from airflow.utils.serve_logs import flask_app
+from airflow.utils.serve_logs import create_app
 from tests.test_utils.config import conf_vars
 
 if TYPE_CHECKING:
@@ -32,7 +32,7 @@ LOG_DATA = "Airflow log data" * 20
 @pytest.fixture
 def client(tmpdir):
     with conf_vars({('logging', 'base_log_folder'): str(tmpdir)}):
-        app = flask_app()
+        app = create_app()
 
         yield app.test_client()
 

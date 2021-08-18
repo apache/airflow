@@ -27,6 +27,27 @@
       "items": {
         "type": "string"
       }
+    },
+    "secrets-backends": {
+      "type": "array",
+      "description": "Secrets Backend class names",
+      "items": {
+        "type": "string"
+      }
+    },
+    "logging": {
+      "type": "array",
+      "description": "Logging Task Handlers class names",
+      "items": {
+          "type": "string"
+      }
+    },
+    "auth-backends": {
+      "type": "array",
+      "description": "API Auth Backend module names",
+      "items": {
+          "type": "string"
+      }
     }
   },
   "required": [

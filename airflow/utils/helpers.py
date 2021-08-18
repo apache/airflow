@@ -35,25 +35,36 @@ if TYPE_CHECKING:
     from airflow.models import TaskInstance
 
 KEY_REGEX = re.compile(r'^[\w.-]+$')
+GROUP_KEY_REGEX = re.compile(r'^[\w-]+$')
 CAMELCASE_TO_SNAKE_CASE_REGEX = re.compile(r'(?!^)([A-Z]+)')
 
 T = TypeVar('T')
 S = TypeVar('S')
 
 
-def validate_key(k: str, max_length: int = 250) -> bool:
+def validate_key(k: str, max_length: int = 250):
     """Validates value used as a key."""
     if not isinstance(k, str):
-        raise TypeError("The key has to be a string")
-    elif len(k) > max_length:
+        raise TypeError(f"The key has to be a string and is {type(k)}:{k}")
+    if len(k) > max_length:
         raise AirflowException(f"The key has to be less than {max_length} characters")
-    elif not KEY_REGEX.match(k):
+    if not KEY_REGEX.match(k):
         raise AirflowException(
             "The key ({k}) has to be made of alphanumeric characters, dashes, "
             "dots and underscores exclusively".format(k=k)
         )
-    else:
-        return True
+
+
+def validate_group_key(k: str, max_length: int = 200):
+    """Validates value used as a group key."""
+    if not isinstance(k, str):
+        raise TypeError(f"The key has to be a string and is {type(k)}:{k}")
+    if len(k) > max_length:
+        raise AirflowException(f"The key has to be less than {max_length} characters")
+    if not GROUP_KEY_REGEX.match(k):
+        raise AirflowException(
+            f"The key ({k}) has to be made of alphanumeric characters, dashes " "and underscores exclusively"
+        )
 
 
 def alchemy_to_dict(obj: Any) -> Optional[Dict]:
