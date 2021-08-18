@@ -651,7 +651,7 @@ class SerializedDAG(DAG, BaseSerialization):
     not pickle-able. SerializedDAG works for all DAGs.
     """
 
-    _decorated_fields = {'schedule_interval', 'default_args', '_access_control'}
+    _decorated_fields = {'schedule_interval', 'default_args', 'params', '_access_control'}
 
     @staticmethod
     def __get_constructor_defaults():
