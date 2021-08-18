@@ -3443,7 +3443,7 @@ class DagRunModelView(AirflowModelView):
         permissions.ACTION_CAN_ACCESS_MENU,
     ]
 
-    add_columns = ['state', 'dag_id', 'execution_date', 'run_id', 'external_trigger', 'conf']
+    add_columns = ['state', 'dag_id', 'execution_date', 'run_id', 'external_trigger']
     list_columns = [
         'state',
         'dag_id',
@@ -3453,7 +3453,6 @@ class DagRunModelView(AirflowModelView):
         'start_date',
         'end_date',
         'external_trigger',
-        'conf',
     ]
     search_columns = [
         'state',
@@ -3465,7 +3464,7 @@ class DagRunModelView(AirflowModelView):
         'end_date',
         'external_trigger',
     ]
-    edit_columns = ['state', 'dag_id', 'execution_date', 'start_date', 'end_date', 'run_id', 'conf']
+    edit_columns = ['state', 'dag_id', 'execution_date', 'start_date', 'end_date', 'run_id']
 
     base_order = ('execution_date', 'desc')
 
