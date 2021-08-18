@@ -9,7 +9,8 @@ from plugins.utils.logger import generate_logger
 from plugins.entities.entity import ClsEntity
 from plugins.models.result import ResultModel
 from airflow.utils.db import provide_session
-
+from psycopg2 import errors
+from sqlalchemy.exc import IntegrityError
 RUNTIME_ENV = os.environ.get('RUNTIME_ENV', 'dev')
 
 _logger = generate_logger(__name__)
@@ -31,6 +32,9 @@ class ClsResultStorage(ClsEntity):
             with create_session() as session:
                 result = ResultModel(**data)
                 session.add(result)
+        except IntegrityError as e:
+            assert isinstance(e.orig, errors.UniqueViolation)  # proves the original exception
+            _logger.error("Error: {}".format(e))
         except Exception as e:
             _logger.error("Error: {}".format(e))
             raise e
