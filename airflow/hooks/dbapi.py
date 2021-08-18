@@ -310,6 +310,7 @@ class DbApiHook(BaseHook):
                         lst.append(self._serialize_cell(cell, conn))
                     values = tuple(lst)
                     sql = self._generate_insert_sql(table, values, target_fields, replace, **kwargs)
+                    self.log.info(f"Generated sql: {sql}")
                     cur.execute(sql, values)
                     if commit_every and i % commit_every == 0:
                         conn.commit()
