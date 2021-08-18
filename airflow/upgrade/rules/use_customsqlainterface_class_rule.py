@@ -16,7 +16,7 @@
 # under the License.
 
 from airflow.upgrade.rules.base_rule import BaseRule
-from airflow.www_rbac.utils import CustomSQLAInterface
+from airflow.www.utils import CustomSQLAInterface
 
 
 class UseCustomSQLAInterfaceClassRule(BaseRule):
@@ -33,7 +33,7 @@ For Non-RBAC replace:
 
 with RBAC (in 1.10):
 
-`from airflow.www_rbac.utils import CustomSQLAInterface`
+`from airflow.www.utils import CustomSQLAInterface`
 `datamodel = CustomSQLAInterface(your_data_model)`
 
 and in 2.0:

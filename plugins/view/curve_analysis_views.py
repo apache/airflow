@@ -2,9 +2,9 @@
 
 from plugins.view.tightening_controller_views import TighteningControllerView
 from plugins import PAGE_SIZE, AirflowModelView
-from airflow.www_rbac.widgets import AirflowModelListWidget
+from airflow.www.widgets import AirflowModelListWidget
 from flask_babel import lazy_gettext, gettext
-from airflow.www_rbac import utils as wwwutils
+from airflow.www import utils as wwwutils
 from flask_appbuilder.models.sqla.filters import BaseFilter
 
 from airflow.plugins_manager import AirflowPlugin

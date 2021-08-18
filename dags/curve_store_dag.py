@@ -7,7 +7,7 @@ from airflow.operators.python_operator import PythonOperator
 from plugins.utils.logger import generate_logger
 
 # MAX_ACTIVE_ANALYSIS = os.environ.get('MAX_ACTIVE_ANALYSIS', 100)
-MAX_ACTIVE_ANALYSIS = 100
+MAX_ACTIVE_ANALYSIS = 8
 
 _logger = generate_logger(__name__)
 
@@ -47,7 +47,7 @@ dag = DAG(
         'on_retry_callback': None,
         'trigger_rule': 'all_success'
     },
-    concurrency=100,
+    concurrency=MAX_ACTIVE_ANALYSIS,
     max_active_runs=MAX_ACTIVE_ANALYSIS
 )
 
@@ -55,7 +55,7 @@ store_task = PythonOperator(
     provide_context=True,
     task_id='store_result_curve',
     dag=dag,
-    priority_weight=2,
+    priority_weight=9,
     python_callable=on_curve_receive
 )
 

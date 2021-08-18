@@ -17,7 +17,6 @@ from airflow.settings import TIMEZONE
 from airflow.utils.db import provide_session
 from flask_appbuilder.models.sqla.filters import BaseFilter, get_field_setup_query
 from plugins.models.error_tag import ErrorTag
-from airflow.www_rbac.decorators import has_dag_access
 from plugins.utils.custom_log import CUSTOM_LOG_FORMAT, CUSTOM_EVENT_NAME_MAP, CUSTOM_PAGE_NAME_MAP
 import logging
 import pprint
@@ -101,7 +100,6 @@ class ErrorTagModelView(AirflowModelView):
 
     @action('muldelete', 'Delete', 'Are you sure you want to delete selected records?',
             single=False)
-    @has_dag_access(can_dag_edit=True)
     def action_muldelete(self, items):
         self.datamodel.delete_all(items)
         self.update_redirect()

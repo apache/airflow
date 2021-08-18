@@ -15,7 +15,7 @@ from plugins import AirflowModelView
 from plugins.models.curve_template import CurveTemplateModel
 import uuid
 from flask_appbuilder.actions import action
-from airflow.www_rbac.decorators import action_logging
+from airflow.www.decorators import action_logging
 from flask_babel import gettext
 from flask._compat import PY2
 from flask import (

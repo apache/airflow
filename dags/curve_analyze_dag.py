@@ -15,7 +15,7 @@ try:
 except:
     ENV_ALWAYS_TRIGGER_ANAY = True
 
-MAX_ACTIVE_ANALYSIS = 100
+MAX_ACTIVE_ANALYSIS = 8
 
 
 dag = DAG(
@@ -42,7 +42,7 @@ dag = DAG(
 trigger_anay_task = TriggerAnalyzeOperator(
             task_id='trigger_anay_task',
             dag=dag,
-            priority_weight=9
+            priority_weight=8
         )
 
 # test

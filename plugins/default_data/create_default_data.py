@@ -88,7 +88,7 @@ def create_device_type_support(session=None):
 #         'password': 'password',
 #         'role': 'role'
 #     })
-#     from airflow.www_rbac.app import cached_appbuilder
+#     from airflow.www.app import cached_appbuilder
 #     appbuilder = cached_appbuilder()
 #     for user in default_users:
 #         try:
