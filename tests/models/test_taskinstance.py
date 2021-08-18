@@ -1790,8 +1790,8 @@ class TestTaskInstance:
     def test_generate_command_default_param(self):
         dag_id = 'test_generate_command_default_param'
         task_id = 'task'
-        assert_command = ['airflow', 'tasks', 'run', dag_id, task_id, DEFAULT_DATE.isoformat()]
-        generate_command = TI.generate_command(dag_id=dag_id, task_id=task_id, execution_date=DEFAULT_DATE)
+        assert_command = ['airflow', 'tasks', 'run', dag_id, task_id, 'run_1']
+        generate_command = TI.generate_command(dag_id=dag_id, task_id=task_id, run_id='run_1')
         assert assert_command == generate_command
 
     def test_generate_command_specific_param(self):
@@ -1803,11 +1803,11 @@ class TestTaskInstance:
             'run',
             dag_id,
             task_id,
-            DEFAULT_DATE.isoformat(),
+            'run_1',
             '--mark-success',
         ]
         generate_command = TI.generate_command(
-            dag_id=dag_id, task_id=task_id, execution_date=DEFAULT_DATE, mark_success=True
+            dag_id=dag_id, task_id=task_id, run_id='run_1', mark_success=True
         )
         assert assert_command == generate_command
 
@@ -1839,8 +1839,9 @@ class TestTaskInstance:
     def test_render_k8s_pod_yaml(self, pod_mutation_hook, dag_maker):
         with dag_maker('test_get_rendered_k8s_spec'):
             task = BashOperator(task_id='op1', bash_command="{{ task.task_id }}")
-        dag_maker.create_dagrun()
-        ti = TI(task=task, execution_date=DEFAULT_DATE)
+        dr = dag_maker.create_dagrun(run_id='test_run_id')
+        ti = dr.get_task_instance(task.task_id)
+        ti.task = task
 
         expected_pod_spec = {
             'metadata': {
@@ -1871,7 +1872,7 @@ class TestTaskInstance:
                             'run',
                             'test_get_rendered_k8s_spec',
                             'op1',
-                            '2016-01-01T00:00:00+00:00',
+                            'test_run_id',
                             '--subdir',
                             __file__,
                         ],
