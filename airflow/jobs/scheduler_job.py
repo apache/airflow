@@ -947,7 +947,7 @@ class SchedulerJob(BaseJob):
             of=TI,
             session=session,
             **skip_locked(session=session),
-        ).limit(10000).all()
+        ).all()
         # TODO[HA]: This was wrong before anyway, as it only looked at a sub-set of dags, not everything.
         # Stats.gauge('scheduler.tasks.pending', len(task_instances_to_examine))
 

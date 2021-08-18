@@ -240,7 +240,6 @@ class DagRun(Base, LoggingMixin):
         session: Session = None,
         execution_start_date: Optional[datetime] = None,
         execution_end_date: Optional[datetime] = None,
-        limit=None
     ) -> List["DagRun"]:
         """
         Returns a set of dag runs for the given search criteria.
@@ -295,12 +294,7 @@ class DagRun(Base, LoggingMixin):
         if no_backfills:
             qry = qry.filter(DR.run_type != DagRunType.BACKFILL_JOB)
 
-        if not limit:
-            dr = qry.order_by(DR.execution_date).all()
-        else:
-            dr = qry.order_by(DR.execution_date).limit(limit).all()
-
-        return dr
+        return qry.order_by(DR.execution_date).all()
 
     @staticmethod
     def generate_run_id(run_type: DagRunType, execution_date: datetime) -> str:
