@@ -39,7 +39,7 @@ the connection metadata is structured as follows:
    * - Parameter
      - Input
    * - Host: string
-     - MySql hostname
+     - Sqlite database file
    * - Schema: string
      - Set schema to execute Sql operations on by default
    * - Login: string
