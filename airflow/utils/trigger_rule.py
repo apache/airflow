@@ -32,6 +32,7 @@ class TriggerRule:
     NONE_SKIPPED = 'none_skipped'
     DUMMY = 'dummy'
     ALWAYS = 'always'
+    NONE_FAILED_MIN_ONE_SUCCESS = "none_failed_min_one_success"
 
     _ALL_TRIGGER_RULES: Set[str] = set()
 

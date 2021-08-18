@@ -299,12 +299,12 @@ class TestTriggerRuleDep(unittest.TestCase):
         assert len(dep_statuses) == 1
         assert not dep_statuses[0].passed
 
-    def test_none_failed_or_skipped_tr_success(self):
+    def test_none_failed_min_one_success_tr_success(self):
         """
         All success including skip trigger rule success
         """
         ti = self._get_task_instance(
-            TriggerRule.NONE_FAILED_OR_SKIPPED, upstream_task_ids=["FakeTaskID", "OtherFakeTaskID"]
+            TriggerRule.NONE_FAILED_MIN_ONE_SUCCESS, upstream_task_ids=["FakeTaskID", "OtherFakeTaskID"]
         )
         dep_statuses = tuple(
             TriggerRuleDep()._evaluate_trigger_rule(
@@ -320,12 +320,12 @@ class TestTriggerRuleDep(unittest.TestCase):
         )
         assert len(dep_statuses) == 0
 
-    def test_none_failed_or_skipped_tr_skipped(self):
+    def test_none_failed_min_one_success_tr_skipped(self):
         """
         All success including all upstream skips trigger rule success
         """
         ti = self._get_task_instance(
-            TriggerRule.NONE_FAILED_OR_SKIPPED, upstream_task_ids=["FakeTaskID", "OtherFakeTaskID"]
+            TriggerRule.NONE_FAILED_MIN_ONE_SUCCESS, upstream_task_ids=["FakeTaskID", "OtherFakeTaskID"]
         )
         dep_statuses = tuple(
             TriggerRuleDep()._evaluate_trigger_rule(
@@ -342,12 +342,12 @@ class TestTriggerRuleDep(unittest.TestCase):
         assert len(dep_statuses) == 0
         assert ti.state == State.SKIPPED
 
-    def test_none_failed_or_skipped_tr_failure(self):
+    def test_none_failed_min_one_success_tr_failure(self):
         """
         All success including skip trigger rule failure
         """
         ti = self._get_task_instance(
-            TriggerRule.NONE_FAILED_OR_SKIPPED,
+            TriggerRule.NONE_FAILED_MIN_ONE_SUCCESS,
             upstream_task_ids=["FakeTaskID", "OtherFakeTaskID", "FailedFakeTaskID"],
         )
         dep_statuses = tuple(
