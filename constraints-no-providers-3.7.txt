@@ -63,7 +63,7 @@ filelock==3.0.12
 flower==0.9.7
 fsspec==2021.7.0
 gevent==21.8.0
-google-auth==1.35.0
+google-auth==2.0.0
 graphviz==0.17
 greenlet==1.1.1
 gunicorn==20.1.0
