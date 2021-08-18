@@ -111,15 +111,18 @@ class TestSqliteHook(unittest.TestCase):
         expected_sql = "INSERT INTO Customer (first_name, last_name) VALUES (?,?)"
         rows = ('James', '1')
         target_fields = ['first_name', 'last_name']
-        sql = self.db_hook._generate_insert_sql(table='Customer', values=rows, target_fields=target_fields, replace=False)
+        sql = self.db_hook._generate_insert_sql(
+            table='Customer', values=rows, target_fields=target_fields, replace=False
+        )
 
         assert sql == expected_sql
 
-    def test_generate_insert_sql_replace_false(self):
+    def test_generate_insert_sql_replace_true(self):
         expected_sql = "REPLACE INTO Customer (first_name, last_name) VALUES (?,?)"
         rows = ('James', '1')
         target_fields = ['first_name', 'last_name']
-        sql = self.db_hook._generate_insert_sql(table='Customer', values=rows, target_fields=target_fields, replace=True)
+        sql = self.db_hook._generate_insert_sql(
+            table='Customer', values=rows, target_fields=target_fields, replace=True
+        )
 
         assert sql == expected_sql
-

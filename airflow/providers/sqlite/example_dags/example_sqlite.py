@@ -54,6 +54,7 @@ create_table_sqlite_task = SqliteOperator(
 
 # [END howto_operator_sqlite]
 
+
 def insert_sqlite_hook():
     sqlite_hook = SqliteHook("sqlite_default")
     sqlite_hook.get_conn()
