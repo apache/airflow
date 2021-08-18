@@ -374,7 +374,7 @@
       const baseInfo = {
         entity_id: {
           label: '曲线编号',
-          value: '<a target="_blank" href="' + "{{url_for('CurvesView.view_curves',bolt_no=result.bolt_number,craft_type=result.craft_type,curves=result.entity_id.replace('/','@'))}}" + '">{{result.entity_id}}</a>'
+          value: '<a target="_blank" href="' + "{{url_for('CurvesView.view_curves',bolt_no=result.bolt_number,craft_type=result.craft_type,curves=result.get('entity_id','').replace('/','@'))}}" + '">{{result.entity_id}}</a>'
         },
         bolt_number: {
           label: "{{ '编号' if result.device_type == 'servo_press' else '螺栓编号'}}",
