@@ -98,7 +98,6 @@ class InfluxDBHook(BaseHook):
         Function to to run the query.
         Note: The bucket name
         should be included in the query
-        'from(bucket:"my-bucket") |> range(start: -10m)'
 
         :param query: InfluxDB query
         :return: List[FluxTable]
@@ -114,7 +113,6 @@ class InfluxDBHook(BaseHook):
         return a pandas dataframe
         Note: The bucket name
         should be included in the query
-        'from(bucket:"my-bucket") |> range(start: -10m)'
 
         :param query: InfluxDB query
         :return: pd.DataFrame

@@ -19,7 +19,7 @@
 .. _howto/connection:influxdb:
 
 InfluxDB Connection
-================
+====================
 The InfluxDB connection type provides connection to a InfluxDB database.
 
 Configuring the Connection
