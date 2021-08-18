@@ -254,7 +254,7 @@ class TestDagRun(unittest.TestCase):
         # Set the localize_dag_run_id to True
         conf.set("core", "localize_dag_run_id", "True")
         run_id_7 = DagRun.generate_run_id(run_type, execution_date_summer)
-        assert run_id_7 == "manual__2021-08-08T02:08:08.123456+02:00__DST"
+        assert run_id_7 == "manual__2021-08-08T02:08:08.123456+02:00"
         run_id_8 = DagRun.generate_run_id(run_type, execution_date_winter)
         assert run_id_8 == "manual__2021-02-08T01:08:08.123456+01:00"
 
@@ -275,7 +275,7 @@ class TestDagRun(unittest.TestCase):
         execution_date = pendulum.datetime(2021, 3, 28, 3, 8, 0, 123456, tz="Europe/Athens",
                                            dst_rule=pendulum.POST_TRANSITION)
         run_id_10 = DagRun.generate_run_id(run_type, execution_date)
-        assert run_id_10 == "manual__2021-03-28T04:08:00.123456+03:00__DST"
+        assert run_id_10 == "manual__2021-03-28T04:08:00.123456+03:00"
 
         # Part3 :
         # Test from DST to non-DST
@@ -284,7 +284,7 @@ class TestDagRun(unittest.TestCase):
         execution_date = pendulum.datetime(2021, 10, 31, 3, 8, 0, 123456, tz="Europe/Athens",
                                            dst_rule=pendulum.PRE_TRANSITION)
         run_id_11 = DagRun.generate_run_id(run_type, execution_date)
-        assert run_id_11 == "manual__2021-10-31T03:08:00.123456+03:00__DST"
+        assert run_id_11 == "manual__2021-10-31T03:08:00.123456+03:00"
         execution_date = pendulum.datetime(2021, 10, 31, 3, 8, 0, 123456, tz="Europe/Athens",
                                            dst_rule=pendulum.POST_TRANSITION)
         run_id_12 = DagRun.generate_run_id(run_type, execution_date)
