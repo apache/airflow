@@ -192,7 +192,7 @@ class TestGKEPodOperator(unittest.TestCase):
                 name=TASK_NAME,
                 namespace=NAMESPACE,
                 image=IMAGE,
-                config_file = "/path/to/alternative/kubeconfig"
+                config_file="/path/to/alternative/kubeconfig"
             )
 
     @mock.patch.dict(os.environ, {})
