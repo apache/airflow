@@ -94,7 +94,7 @@ echo "Getting Configurations..."
 BASE_LOG_FOLDER="{{params.directory}}"
 WORKER_SLEEP_TIME="{{params.sleep_time}}"
 sleep ${WORKER_SLEEP_TIME}s
-MAX_LOG_AGE_IN_DAYS="{{dag_run.conf.maxLogAgeInDays}}"
+MAX_LOG_AGE_IN_DAYS="{{dag_run.conf.get('maxLogAgeInDays', '')}}"
 if [ "${MAX_LOG_AGE_IN_DAYS}" == "" ]; then
     echo "maxLogAgeInDays conf variable isn't included. Using Default '""" + str(DEFAULT_MAX_LOG_AGE_IN_DAYS) + """'."
     MAX_LOG_AGE_IN_DAYS='""" + str(DEFAULT_MAX_LOG_AGE_IN_DAYS) + """'
