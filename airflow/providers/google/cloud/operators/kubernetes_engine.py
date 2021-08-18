@@ -292,6 +292,12 @@ class GKEStartPodOperator(KubernetesPodOperator):
                 "Credentials (ADC) strategy for authorization, create an empty connection "
                 "called `google_cloud_default`.",
             )
+        # There is no need to manage the kube_config file, as it will be generated automatically.
+        # All Kubernetes parameters (except config_file) are also valid for the GKEStartPodOperator.
+        if self.config_file:
+            raise AirflowException(
+                "config_file is not an allowed parameter for the GKEStartPodOperator."
+            )
 
     def execute(self, context) -> Optional[str]:
         hook = GoogleBaseHook(gcp_conn_id=self.gcp_conn_id)
@@ -303,12 +309,7 @@ class GKEStartPodOperator(KubernetesPodOperator):
                 "keyword project_id parameter or as project_id extra "
                 "in Google Cloud connection definition. Both are not set!"
             )
-        # There is no need to manage the kube_config file, as it will be generated automatically.
-        # All Kubernetes parameters (except config_file) are also valid for the GKEStartPodOperator.
-        if self.config_file:
-            raise AirflowException(
-                "config_file is not an allowed parameter for the GKEStartPodOperator."
-            )
+       
 
         # Write config to a temp file and set the environment variable to point to it.
         # This is to avoid race conditions of reading/writing a single file
