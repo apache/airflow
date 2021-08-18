@@ -113,3 +113,39 @@ def extra_links_list(args):
             "extra_link_class_name": x,
         },
     )
+
+
+@suppress_logs_and_warning
+def logging_list(args):
+    """Lists all log task handlers at the command line"""
+    AirflowConsole().print_as(
+        data=list(ProvidersManager().logging_class_names),
+        output=args.output,
+        mapper=lambda x: {
+            "logging_class_name": x,
+        },
+    )
+
+
+@suppress_logs_and_warning
+def secrets_backends_list(args):
+    """Lists all secrets backends at the command line"""
+    AirflowConsole().print_as(
+        data=list(ProvidersManager().secrets_backend_class_names),
+        output=args.output,
+        mapper=lambda x: {
+            "secrets_backend_class_name": x,
+        },
+    )
+
+
+@suppress_logs_and_warning
+def auth_backend_list(args):
+    """Lists all API auth backend modules at the command line"""
+    AirflowConsole().print_as(
+        data=list(ProvidersManager().auth_backend_module_names),
+        output=args.output,
+        mapper=lambda x: {
+            "api_auth_backand_module": x,
+        },
+    )

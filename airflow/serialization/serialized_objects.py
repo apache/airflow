@@ -752,7 +752,6 @@ class SerializedDAG(DAG, BaseSerialization):
         for k in keys_to_set_none:
             setattr(dag, k, None)
 
-        setattr(dag, 'full_filepath', dag.fileloc)
         for task in dag.task_dict.values():
             task.dag = dag
             serializable_task: BaseOperator = task

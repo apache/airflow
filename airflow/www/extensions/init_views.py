@@ -144,7 +144,7 @@ def init_error_handlers(app: Flask):
     from airflow.www import views
 
     app.register_error_handler(500, views.show_traceback)
-    app.register_error_handler(404, views.circles)
+    app.register_error_handler(404, views.not_found)
 
 
 def set_cors_headers_on_response(response):
@@ -177,7 +177,7 @@ def init_api_connexion(app: Flask) -> None:
             # here on the application level
             return common_error_handler(ex)
         else:
-            return views.circles(ex)
+            return views.not_found(ex)
 
     spec_dir = path.join(ROOT_APP_DIR, 'api_connexion', 'openapi')
     connexion_app = connexion.App(__name__, specification_dir=spec_dir, skip_error_handlers=True)

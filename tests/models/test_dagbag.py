@@ -246,7 +246,7 @@ class TestDagBag(unittest.TestCase):
         expected = {
             'example_bash_operator': 'airflow/example_dags/example_bash_operator.py',
             'example_subdag_operator': 'airflow/example_dags/example_subdag_operator.py',
-            'example_subdag_operator.section-1': 'airflow/example_dags/subdags/subdag.py',
+            'example_subdag_operator.section-1': 'airflow/example_dags/example_subdag_operator.py',
             'test_zip_dag': 'dags/test_zip.zip/test_zip.py',
         }
 
@@ -507,11 +507,14 @@ class TestDagBag(unittest.TestCase):
         assert len(test_dag.subdags) == 6
 
         # Perform processing dag
-        dagbag, found_dags, _ = self.process_dag(nested_subdags)
+        dagbag, found_dags, filename = self.process_dag(nested_subdags)
 
         # Validate correctness
         # all dags from test_dag should be listed
         self.validate_dags(test_dag, found_dags, dagbag)
+
+        for dag in dagbag.dags.values():
+            assert dag.fileloc == filename
 
     def test_skip_cycle_dags(self):
         """

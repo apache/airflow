@@ -93,13 +93,16 @@ Variables
 ---------
 
 You should avoid usage of Variables outside an operator's ``execute()`` method or Jinja templates if possible,
-as Variables create a connection to metadata DB of Airflow to fetch the value, which can slow down parsing and place extra load on the DB.
+as Variables create a connection to metadata DB of Airflow to fetch the value, which can slow down parsing and
+place extra load on the DB.
 
 Airflow parses all the DAGs in the background at a specific period.
-The default period is set using ``processor_poll_interval`` config, which is by default 1 second. During parsing, Airflow creates a new connection to the metadata DB for each DAG.
+The default period is set using the ``processor_poll_interval`` config, which is 1 second by default.
+During parsing, Airflow creates a new connection to the metadata DB for each DAG.
 This can result in a lot of open connections.
 
-The best way of using variables is via a Jinja template, which will delay reading the value until the task execution. The template syntax to do this is:
+The best way of using variables is via a Jinja template, which will delay reading the value until the task execution.
+The template syntax to do this is:
 
 .. code-block::
 
@@ -111,8 +114,12 @@ or if you need to deserialize a json object from the variable :
 
     {{ var.json.<variable_name> }}
 
-An alternative option is to use environment variables in the top-level python code or use Environment Variables to create and manage Airflow variables. to manage Airflow Variables. This will avoid new connections to Airflow metadata DB every time Airflow parses the python file. For more information, see: :ref:`managing_variables`.
+For security purpose, you're recommended to use the :ref:`Secrets Backend<secrets_backend_configuration>`
+for any variable that contains sensitive data.
 
+An alternative option is to use environment variables in the top-level Python code or use environment variables to
+create and manage Airflow variables. This will avoid new connections to Airflow metadata DB every time
+Airflow parses the Python file. For more information, see: :ref:`managing_variables`.
 
 Top level Python Code
 ---------------------

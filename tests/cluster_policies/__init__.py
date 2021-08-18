@@ -52,7 +52,7 @@ def _check_task_rules(current_task: BaseOperator):
     if notices:
         notices_list = " * " + "\n * ".join(notices)
         raise AirflowClusterPolicyViolation(
-            f"DAG policy violation (DAG ID: {current_task.dag_id}, Path: {current_task.dag.filepath}):\n"
+            f"DAG policy violation (DAG ID: {current_task.dag_id}, Path: {current_task.dag.fileloc}):\n"
             f"Notices:\n"
             f"{notices_list}"
         )
@@ -70,7 +70,7 @@ def dag_policy(dag: DAG):
     """Ensure that DAG has at least one tag"""
     if not dag.tags:
         raise AirflowClusterPolicyViolation(
-            f"DAG {dag.dag_id} has no tags. At least one tag required. File path: {dag.filepath}"
+            f"DAG {dag.dag_id} has no tags. At least one tag required. File path: {dag.fileloc}"
         )
 
 

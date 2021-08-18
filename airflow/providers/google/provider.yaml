@@ -757,3 +757,13 @@ extra-links:
 additional-extras:
   apache.beam: apache-beam[gcp]
   leveldb: plyvel
+
+secrets-backends:
+  - airflow.providers.google.cloud.secrets.secret_manager.CloudSecretManagerBackend
+
+auth-backends:
+  - airflow.providers.google.common.auth_backend.google_openid
+
+logging:
+  - airflow.providers.google.cloud.log.gcs_task_handler.GCSTaskHandler
+  - airflow.providers.google.cloud.log.stackdriver_task_handler.StackdriverTaskHandler

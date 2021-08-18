@@ -178,7 +178,7 @@ class AwsGlueJobHook(AwsBaseHook):
                     Name=self.job_name,
                     Description=self.desc,
                     LogUri=s3_log_path,
-                    Role=execution_role['Role']['RoleName'],
+                    Role=execution_role['Role']['Arn'],
                     ExecutionProperty={"MaxConcurrentRuns": self.concurrent_run_limit},
                     Command={"Name": "glueetl", "ScriptLocation": self.script_location},
                     MaxRetries=self.retry_limit,

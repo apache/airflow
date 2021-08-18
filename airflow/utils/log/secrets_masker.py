@@ -144,6 +144,13 @@ class SecretsMasker(logging.Filter):
         )
         return frozenset(record.__dict__).difference({'msg', 'args'})
 
+    def _redact_exception_with_context(self, exception):
+        exception.args = (self.redact(v) for v in exception.args)
+        if exception.__context__:
+            self._redact_exception_with_context(exception.__context__)
+        if exception.__cause__ and exception.__cause__ is not exception.__context__:
+            self._redact_exception_with_context(exception.__cause__)
+
     def filter(self, record) -> bool:
         if self.ALREADY_FILTERED_FLAG in record.__dict__:
             # Filters are attached to multiple handlers and logs, keep a
@@ -157,8 +164,7 @@ class SecretsMasker(logging.Filter):
                 record.__dict__[k] = self.redact(v)
             if record.exc_info and record.exc_info[1] is not None:
                 exc = record.exc_info[1]
-                # I'm not sure if this is a good idea!
-                exc.args = (self.redact(v) for v in exc.args)
+                self._redact_exception_with_context(exc)
         record.__dict__[self.ALREADY_FILTERED_FLAG] = True
 
         return True
