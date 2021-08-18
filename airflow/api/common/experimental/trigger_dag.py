@@ -66,7 +66,7 @@ def _trigger_dag(
                 f"[{min_dag_start_date.isoformat()}] from DAG's default_args"
             )
 
-    run_id = run_id or DagRun.generate_run_id(DagRunType.MANUAL, execution_date)
+    run_id = run_id or DagRun.generate_run_id(DagRunType.MANUAL, execution_date, dag_timezone=dag.timezone)
     dag_run = DagRun.find(dag_id=dag_id, run_id=run_id)
 
     if dag_run:

@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 import warnings
-from datetime import datetime
+from datetime import datetime, tzinfo
 from typing import TYPE_CHECKING, Any, Iterable, List, NamedTuple, Optional, Tuple, Union
 
 from sqlalchemy import (
@@ -336,12 +336,13 @@ class DagRun(Base, LoggingMixin):
         return qry.order_by(DR.execution_date).all()
 
     @staticmethod
-    def generate_run_id(run_type: DagRunType, execution_date: datetime) -> str:
+    def generate_run_id(run_type: DagRunType, execution_date: datetime,
+                        dag_timezone: tzinfo = settings.TIMEZONE) -> str:
         """Generate Run ID based on Run Type and Execution Date"""
         from airflow.configuration import conf
-        local_run_id = conf.getboolean("core", "localize_dag_run_id", fallback=False)
-        if local_run_id:
-            local_time = pendulum.instance(execution_date).astimezone(tz=settings.TIMEZONE)
+        localize_dag_run_id = conf.getboolean("core", "localize_dag_run_id", fallback=False)
+        if localize_dag_run_id:
+            local_time = pendulum.instance(execution_date).astimezone(tz=dag_timezone)
             return f"{run_type}__{local_time.isoformat()}"
         else:
             return f"{run_type}__{execution_date.isoformat()}"
