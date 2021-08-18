@@ -26,11 +26,6 @@ from tempfile import TemporaryDirectory
 from textwrap import dedent
 from typing import Any, Callable, Collection, Dict, Iterable, List, Mapping, Optional, Sequence, Union
 
-try:
-    from typing import Literal
-except ImportError:
-    from typing_extensions import Literal
-
 import dill
 
 from airflow.exceptions import AirflowException
@@ -277,11 +272,6 @@ class ShortCircuitOperator(PythonOperator, SkipMixin):
                 # Explicitly setting the state of the direct, downstream task(s) to "skipped" and letting the
                 # Scheduler handle the remaining downstream task(s) appropriately.
                 self.skip(dag_run, execution_date, context["task"].get_direct_relatives(upstream=False))
-            else:
-                raise ValueError(
-                    f"The provided short-circuiting mode value, '{self.mode}', is not supported. "
-                    + "Please use either 'hard' or 'soft'."
-                )
 
         self.log.info("Done.")
 
