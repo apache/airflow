@@ -77,37 +77,36 @@ def create_device_type_support(session=None):
         merge_data(model=DeviceTypeModel, data=data, is_exist=DeviceTypeModel.name == data.name, session=session)
 
 
-# fixme: 该方法在1.10版本中不可用，2.x版本中可用，需要在升级后稍作修改
-# def create_default_users():
-#     current_dir = os.path.dirname(os.path.abspath(__file__))
-#     default_users = load_data_from_csv(os.path.join(current_dir, 'data/nd/default_users.csv'), {
-#         'username': 'username',
-#         'email': 'email',
-#         'lastname': 'lastname',
-#         'firstname': 'firstname',
-#         'password': 'password',
-#         'role': 'role'
-#     })
-#     from airflow.www.app import cached_appbuilder
-#     appbuilder = cached_appbuilder()
-#     for user in default_users:
-#         try:
-#             role = appbuilder.sm.find_role(user['role'])
-#             if not role:
-#                 raise SystemExit('{} is not a valid role.'.format(user['role']))
-#             user_created = appbuilder.sm.add_user(
-#                 user['username'],
-#                 user['firstname'],
-#                 user['lastname'],
-#                 user['email'],
-#                 role,
-#                 user['password'])
-#             if user_created:
-#                 log.info('{} user {} created.'.format(user['role'], user['username']))
-#             else:
-#                 raise SystemExit('Failed to create user.')
-#         except Exception as e:
-#             log.error(e)
+def create_default_users(factory):
+    current_dir = os.path.dirname(os.path.abspath(__file__))
+    default_users = load_data_from_csv(os.path.join(current_dir, f'data/{factory}/default_users.csv'), {
+        'username': 'username',
+        'email': 'email',
+        'lastname': 'lastname',
+        'firstname': 'firstname',
+        'password': 'password',
+        'role': 'role'
+    })
+    from airflow.www.app import cached_app
+    appbuilder = cached_app().appbuilder
+    for user in default_users:
+        try:
+            role = appbuilder.sm.find_role(user['role'])
+            if not role:
+                raise SystemExit('{} is not a valid role.'.format(user['role']))
+            user_created = appbuilder.sm.add_user(
+                user['username'],
+                user['firstname'],
+                user['lastname'],
+                user['email'],
+                role,
+                user['password'])
+            if user_created:
+                log.info('{} user {} created.'.format(user['role'], user['username']))
+            else:
+                raise SystemExit('Failed to create user.')
+        except Exception as e:
+            log.error(e)
 
 
 # Defining the plugin class
@@ -116,7 +115,6 @@ class LoadDefaultDataPlugin(AirflowPlugin):
 
     @classmethod
     def on_load(cls, *args, **kwargs):
-        # create_default_users()
         try:
             if conf.getboolean('core', 'LOAD_DEFAULT_ERROR_TAG', fallback=True):
                 create_default_error_tags()
@@ -129,8 +127,13 @@ class LoadDefaultDataPlugin(AirflowPlugin):
         except Exception as e:
             log.error(e)
 
+        factory_code = get_factory_code()
         try:
-            factory_code = get_factory_code()
+            create_default_users(factory_code)
+        except Exception as e:
+            log.error(e)
+
+        try:
             load_default_controller(factory_code)
         except Exception as e:
             log.error(e)
