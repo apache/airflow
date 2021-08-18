@@ -531,6 +531,20 @@ class Airflow(AirflowBaseView):
 
         return wwwutils.json_response(payload)
 
+    @expose('/no_roles')
+    def no_roles(self):
+        """Show 'user has no roles' on screen (instead of an endless redirect loop)"""
+        if g.user.is_anonymous or g.user.roles:
+            return redirect(url_for("Airflow.index"))
+
+        return render_template(
+            'airflow/no_roles.html',
+            hostname=socket.getfqdn()
+            if conf.getboolean('webserver', 'EXPOSE_HOSTNAME', fallback=True)
+            else 'redact',
+            logout_url=current_app.appbuilder.get_url_for_logout,
+        )
+
     @expose('/home')
     @auth.has_access(
         [
