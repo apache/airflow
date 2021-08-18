@@ -664,7 +664,7 @@ This install additional pypi dependency - torchio in specified version.
      ./breeze build-image --production-image --additional-dev-apt-deps "libasound2-dev" \
         --additional-runtime-apt-deps "libasound2"
 
-This install additional apt dependencies - ``libasound2-dev`` in build image and ``libasound`` in the
+This installs additional apt dependencies - ``libasound2-dev`` in the build image and ``libasound`` in the
 final image. Those are development dependencies that might be needed to build and use python packages added
 via the ``--additional-python-deps`` flag. The ``dev`` dependencies are not installed in the final
 production image, they are only installed in the build "segment" of the production image that is used
@@ -797,8 +797,8 @@ Constraints are generated separately for each python version and there are separ
   providers. If you want to manage airflow separately and then add providers individually, you can
   use those. Use ``no-providers`` mode for that.
 
-In case someone modifies setup.py, the ``CRON`` scheduled CI build automatically upgrades and
-pushes changed to the constraint files, however you can also perform test run of this locally using
+In case someone modifies setup.py, the scheduled CI Tests automatically upgrades and
+pushes changes to the constraint files, however you can also perform test run of this locally using
 the procedure described in `<CONTRIBUTING.rst#manually-generating-constraint-files>`_ which utilises
 multiple processors on your local machine to generate such constraints faster.
 
@@ -1501,7 +1501,7 @@ This is the current syntax for  `./breeze <./breeze>`_:
         Generates pinned constraint files with all extras from setup.py. Those files are generated in
         files folder - separate files for different python version. Those constraint files when
         pushed to orphan constraints-main, constraints-2-0 branches are used
-        to generate repeatable CI builds as well as run repeatable production image builds and
+        to generate repeatable CI test runs as well as run repeatable production image builds and
         upgrades when you want to include installing or updating some of the released providers
         released at the time particular airflow version was released. You can use those
         constraints to predictably install released Airflow versions. This is mainly used to test

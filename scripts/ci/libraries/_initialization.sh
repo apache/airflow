@@ -733,7 +733,7 @@ EOF
     if [[ "${CI}" == "true" ]]; then
         cat <<EOF
 
-Detected CI build environment:
+Detected CI test environment:
 
     CI_TARGET_REPO=${CI_TARGET_REPO}
     CI_TARGET_BRANCH=${CI_TARGET_BRANCH}

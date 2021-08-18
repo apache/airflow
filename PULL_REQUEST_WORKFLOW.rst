@@ -45,7 +45,7 @@ We approached the problem by:
    to control which parts of the tests are run during the tests. This is implemented by the
    ``scripts/ci/selective_ci_checks.sh`` script in our repository. This script analyses which part of the
    code has changed and based on that it sets the right outputs that control which tests are executed in
-   the CI build, and whether we need to build CI images necessary to run those steps. This allowed to
+   the ``Tests`` workflow, and whether we need to build CI images necessary to run those steps. This allowed to
    heavily decrease the strain especially for the Pull Requests that were not touching code (in which case
    the builds can complete in < 2 minutes) but also by limiting the number of tests executed in PRs that do
    not touch the "core" of Airflow, or only touching some - standalone - parts of Airflow such as
@@ -92,7 +92,7 @@ We approached the problem by:
 Selective CI Checks
 -------------------
 
-In order to optimise our CI builds, we've implemented optimisations to only run selected checks for some
+In order to optimise our CI jobs, we've implemented optimisations to only run selected checks for some
 kind of changes. The logic implemented reflects the internal architecture of Airflow 2.0 packages
 and it helps to keep down both the usage of jobs in GitHub Actions as well as CI feedback time to
 contributors in case of simpler changes.
