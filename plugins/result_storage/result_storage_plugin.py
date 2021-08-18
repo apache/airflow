@@ -81,6 +81,7 @@ class ResultStorageHook(BaseHook, ABC):
         result = params.get('result')
         controller_name = result.get('controller_name', None)
         job = result.get('job', None)
+        vin = result.get('vin', None)
         batch_count = result.get('batch_count', None)
         pset = result.get('pset', None)
         bolt_number = generate_bolt_number(controller_name, job, batch_count, pset)
@@ -114,7 +115,8 @@ class ResultStorageHook(BaseHook, ABC):
                 device_type=result.get('device_type', 'tightening'),
                 type=TriggerAnalyzeHook.get_result_type(params),
                 craft_type=craft_type,
-                controller_id=controller_id
+                controller_id=controller_id,
+                car_code=vin
             )
 
             ResultStorageHook.save_curve(params)

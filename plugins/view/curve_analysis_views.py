@@ -40,7 +40,7 @@ class CurveAnalysisControllerView(TighteningControllerView):
 class CurveAnalysisTrackNoView(AirflowModelView):
     route_base = '/curves_analysis_track'
     from plugins.models.result import ResultModel
-    datamodel = wwwutils.DistinctSQLAInterface(ResultModel)
+    datamodel = wwwutils.CustomSQLAInterface(ResultModel)
 
     page_size = PAGE_SIZE
 
