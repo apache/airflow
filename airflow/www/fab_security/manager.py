@@ -15,6 +15,10 @@
 # specific language governing permissions and limitations
 # under the License.
 
+# This product contains a modified portion of 'Flask App Builder' developed by Daniel Vaz Gaspar.
+# (https://github.com/dpgaspar/Flask-AppBuilder).
+# Copyright 2013, Daniel Vaz Gaspar
+
 import base64
 import datetime
 import json
