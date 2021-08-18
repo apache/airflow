@@ -5,6 +5,7 @@ from airflow.plugins_manager import AirflowPlugin
 from plugins.utils.load_data_from_csv import load_data_from_csv
 from airflow.configuration import conf
 from plugins.factory_code.factory_code import get_factory_code
+import json
 
 log = LoggingMixin().log
 
@@ -109,12 +110,87 @@ def create_default_users(factory):
             log.error(e)
 
 
+@provide_session
+def create_default_connection(session=None):
+    from airflow.utils import db
+    from airflow.models import Connection
+
+    db.merge_conn(
+        Connection(
+            conn_id='qcos_rabbitmq', conn_type='rabbitmq',
+            login='admin',
+            password='admin',
+            schema='amqp',
+            extra=json.dumps({
+                'vhost': '/',
+                'heartbeat': '0',
+                'exchange': ''
+            }),
+            host='172.17.0.1', port=5672), session)
+
+    db.merge_conn(
+        Connection(
+            conn_id='qcos_kafka', conn_type='kafka',
+            login='admin',
+            password='admin',
+            schema='qcos_{}'.format(os.environ.get('FACTORY_CODE', '')),  # topic
+            host='localhost:9092',  # bootstrap_servers, 服务器或者服务器列表(cluster)
+            extra=json.dumps({
+                # 为空会创建失败
+                'group_id': 'qcos_{}'.format(os.environ.get('FACTORY_CODE', '')),
+                'security_protocol': 'SSL_PLAINTEXT',
+                'auth_type': 'SCRAM-SHA-256',
+            })
+        ), session)
+
+    db.merge_conn(
+        Connection(
+            conn_id='qcos_redis', conn_type='redis',
+            host='172.17.0.1', port=6379,
+            extra='{"db": 0}'), session)
+
+    db.merge_conn(
+        Connection(
+            conn_id='qcos_minio', conn_type='http',
+            host='172.17.0.1', port=9000
+        ), session)
+
+    db.merge_conn(
+        Connection(
+            conn_id='qcos_report', conn_type='http',
+            host='172.17.0.1', port=8686
+        ), session)
+
+    db.merge_conn(
+        Connection(
+            conn_id='cas_analysis', conn_type='http',
+            host='127.0.0.1', port=9095
+        ), session)
+
+    db.merge_conn(
+        Connection(
+            conn_id='cas_training', conn_type='http',
+            host='127.0.0.1', port=9095
+        ), session)
+
+    db.merge_conn(
+        Connection(
+            conn_id='cas_server', conn_type='http',
+            host='127.0.0.1', port=9095
+        ), session)
+
 # Defining the plugin class
 class LoadDefaultDataPlugin(AirflowPlugin):
     name = "load_default_data_plugin"
 
     @classmethod
     def on_load(cls, *args, **kwargs):
+
+        try:
+            create_default_connection()
+        except Exception as e:
+            log.error(e)
+
         try:
             if conf.getboolean('core', 'LOAD_DEFAULT_ERROR_TAG', fallback=True):
                 create_default_error_tags()

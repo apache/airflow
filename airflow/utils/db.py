@@ -575,34 +575,6 @@ def initdb():
         session.execute(text('CREATE EXTENSION IF NOT EXISTS timescaledb;'))
         session.commit()
 
-    merge_conn(
-        Connection(
-            conn_id='qcos_rabbitmq', conn_type='rabbitmq',
-            login='admin',
-            password='admin',
-            schema='amqp',
-            extra=json.dumps({
-                'vhost': '/',
-                'heartbeat': '0',
-                'exchange': ''
-            }),
-            host='172.17.0.1', port=5672), session)
-
-    merge_conn(
-        Connection(
-            conn_id='qcos_kafka', conn_type='kafka',
-            login='admin',
-            password='admin',
-            schema= 'qcos_{}'.format(os.environ.get('FACTORY_CODE', '')), # topic
-            host='localhost:9092', # bootstrap_servers, 服务器或者服务器列表(cluster)
-            extra=json.dumps({
-                # 为空会创建失败
-                'group_id': 'qcos_{}'.format(os.environ.get('FACTORY_CODE', '')),
-                'security_protocol': 'SSL_PLAINTEXT',
-                'auth_type': 'SCRAM-SHA-256',
-            })
-        ), session)
-
     dagbag = DagBag()
     # Save DAGs in the ORM
     dagbag.sync_to_db()
