@@ -948,7 +948,9 @@ class Airflow(AirflowBaseView):
                 "Exception encountered during "
                 + f"dag_id retrieval/dag retrieval fallback/code highlighting:\n\n{e}\n"
             )
-            html_code = Markup('<p>Failed to load file.</p><p>Details: {}</p>').format(escape(all_errors))
+            html_code = Markup('<p>Failed to load DAG file Code.</p><p>Details: {}</p>').format(
+                escape(all_errors)
+            )
 
         return self.render_template(
             'airflow/dag_code.html',
