@@ -93,9 +93,6 @@ def test_plugin_endpoint_should_not_be_unauthenticated(app):
     check_content_in_response("Sign In - Airflow", resp)
 
 
-# cd = re.sub("[`_]", "", description.strip(" \n.").strip("\""))
-# cd = re.sub("<", "<a href=\"", cd)
-# cd = re.sub(">", "\">[site]</a>", cd)
 def test_should_list_providers_on_page_with_details(admin_client):
     resp = admin_client.get('/provider')
     beam_package = "<td>apache-airflow-providers-apache-beam</td>"
