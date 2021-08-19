@@ -17,7 +17,7 @@ _logger = logging.getLogger(__name__)
 class CurveView(BaseView):
     route_base = ''
 
-    base_permissions = ['can_view_curve_page']
+    base_permissions = [permissions.ACTION_CAN_READ]
 
     class_permission_name = permissions.RESOURCE_CURVE
 

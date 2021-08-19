@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-
 
 import json
-from flask_babel import gettext
 from plugins import AirflowModelView
 from datetime import datetime
 from flask_login import current_user

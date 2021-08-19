@@ -1,12 +1,13 @@
 from plugins.models.result import ResultModel
 import json
-from flask_babel import gettext
 from plugins import AirflowModelView
 from flask_babel import lazy_gettext
 from airflow.plugins_manager import AirflowPlugin
 from plugins.models.error_tag import ErrorTag
 from airflow.configuration import conf
 from airflow.security import permissions
+from flask_appbuilder import expose
+from flask import redirect, abort, url_for
 
 PAGE_SIZE = conf.getint('webserver', 'page_size')
 
@@ -73,6 +74,14 @@ class ResultModelView(AirflowModelView):
         'error_tag': error_tag_f,
         'type': type_f,
     }
+
+    @expose("/show/<pk>", methods=["GET"])
+    def show(self, pk):
+        pk = self._deserialize_pk_if_composite(pk)
+        item = self.datamodel.get(pk, self._base_filters)
+        if not item:
+            abort(404)
+        return redirect(url_for('CurveView.view_curve_page', entity_id=item.entity_id.replace('/', '@')))
 
 
 result_view = ResultModelView()
