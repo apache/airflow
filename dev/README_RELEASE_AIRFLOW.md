@@ -119,14 +119,18 @@ The Release Candidate artifacts we vote upon should be the exact ones we vote ag
 
     ```shell script
     ./breeze prepare-airflow-packages --package-format both
-    ${AIRFLOW_REPO_ROOT}/dev/sign.sh dist/*
+    pushd dist
+    ${AIRFLOW_REPO_ROOT}/dev/sign.sh *
+    popd
     ```
 
 - If you aren't using Breeze for packaging, build the distribution and wheel files directly
 
     ```shell script
     python setup.py compile_assets sdist bdist_wheel
-    ${AIRFLOW_REPO_ROOT}/dev/sign.sh dist/*
+    pushd dist
+    ${AIRFLOW_REPO_ROOT}/dev/sign.sh *
+    popd
     ```
 
 - Tag & Push the latest constraints files. This pushes constraints with rc suffix (this is expected)!
