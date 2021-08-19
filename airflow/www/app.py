@@ -136,7 +136,7 @@ def create_app(config=None, testing=False):
         init_appbuilder(flask_app)
 
         init_appbuilder_views(flask_app)
-        init_appbuilder_links(flask_app)
+        # init_appbuilder_links(flask_app)
         init_plugins(flask_app)
         init_connection_form()
         init_error_handlers(flask_app)
