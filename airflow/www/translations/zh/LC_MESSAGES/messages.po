@@ -1,0 +1,535 @@
+# Chinese translations for PROJECT.
+# Copyright (C) 2020 ORGANIZATION
+# This file is distributed under the same license as the PROJECT project.
+# FIRST AUTHOR <EMAIL@ADDRESS>, 2020.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: PROJECT VERSION\n"
+"Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
+"POT-Creation-Date: 2021-08-19 16:37+0800\n"
+"PO-Revision-Date: 2020-03-23 18:12+0800\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language: zh\n"
+"Language-Team: zh <LL@li.org>\n"
+"Plural-Forms: nplurals=1; plural=0\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=utf-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Generated-By: Babel 2.9.1\n"
+
+#: airflow/security/permissions.py:20
+msgid "Admin"
+msgstr "管理"
+
+#: airflow/security/permissions.py:21
+msgid "Airflow"
+msgstr ""
+
+#: airflow/security/permissions.py:22
+msgid "Audit Logs"
+msgstr ""
+
+#: airflow/security/permissions.py:23
+msgid "Browse"
+msgstr "浏览"
+
+#: airflow/security/permissions.py:24
+msgid "DAGs"
+msgstr ""
+
+#: airflow/security/permissions.py:25
+msgid "DAG:"
+msgstr ""
+
+#: airflow/security/permissions.py:26
+#, fuzzy
+msgid "Logins"
+msgstr "用户名"
+
+#: airflow/security/permissions.py:27
+msgid "Docs"
+msgstr ""
+
+#: airflow/security/permissions.py:28
+msgid "Documentation"
+msgstr ""
+
+#: airflow/security/permissions.py:29
+msgid "Configurations"
+msgstr "配置"
+
+#: airflow/security/permissions.py:30
+msgid "Connections"
+msgstr "连接"
+
+#: airflow/security/permissions.py:31
+msgid "DAG Dependencies"
+msgstr ""
+
+#: airflow/security/permissions.py:32
+#, fuzzy
+msgid "DAG Code"
+msgstr "车辆代码"
+
+#: airflow/security/permissions.py:33
+msgid "DAG Runs"
+msgstr "DAG运行"
+
+#: airflow/security/permissions.py:34
+msgid "ImportError"
+msgstr ""
+
+#: airflow/security/permissions.py:35
+msgid "Jobs"
+msgstr "工作"
+
+#: airflow/security/permissions.py:36
+#, fuzzy
+msgid "My Password"
+msgstr "密码"
+
+#: airflow/security/permissions.py:37
+#, fuzzy
+msgid "My Profile"
+msgstr "档案"
+
+#: airflow/security/permissions.py:38
+#, fuzzy
+msgid "Passwords"
+msgstr "密码"
+
+#: airflow/security/permissions.py:39
+#, fuzzy
+msgid "Permissions"
+msgstr "版本"
+
+#: airflow/security/permissions.py:40
+msgid "Permission Views"
+msgstr ""
+
+#: airflow/security/permissions.py:41
+msgid "Pools"
+msgstr "池"
+
+#: airflow/security/permissions.py:42
+msgid "Plugins"
+msgstr ""
+
+#: airflow/security/permissions.py:43
+msgid "Providers"
+msgstr ""
+
+#: airflow/security/permissions.py:44
+#, fuzzy
+msgid "Roles"
+msgstr "档案"
+
+#: airflow/security/permissions.py:45
+msgid "SLA Misses"
+msgstr "服务水平未达成"
+
+#: airflow/security/permissions.py:46
+msgid "Task Instances"
+msgstr "任务实例"
+
+#: airflow/security/permissions.py:47
+msgid "Task Logs"
+msgstr ""
+
+#: airflow/security/permissions.py:48
+msgid "Task Reschedules"
+msgstr ""
+
+#: airflow/security/permissions.py:49
+msgid "Users"
+msgstr ""
+
+#: airflow/security/permissions.py:50
+msgid "User Stats Chart"
+msgstr ""
+
+#: airflow/security/permissions.py:51
+msgid "Variables"
+msgstr "变量"
+
+#: airflow/security/permissions.py:52
+msgid "View Menus"
+msgstr ""
+
+#: airflow/security/permissions.py:53
+msgid "Website"
+msgstr ""
+
+#: airflow/security/permissions.py:54
+msgid "XComs"
+msgstr "任务间消息"
+
+#: airflow/security/permissions.py:57
+msgid "Curve Template"
+msgstr "曲线模板"
+
+#: airflow/security/permissions.py:58
+msgid "Curve"
+msgstr "曲线"
+
+#: airflow/security/permissions.py:59
+msgid "Curves"
+msgstr "曲线"
+
+#: airflow/security/permissions.py:60
+msgid "Results"
+msgstr "结果"
+
+#: airflow/security/permissions.py:61
+msgid "Error Tag"
+msgstr "错误标签"
+
+#: airflow/security/permissions.py:62
+msgid "Equipments"
+msgstr "设备"
+
+#: airflow/security/permissions.py:63
+msgid "Device Type"
+msgstr "设备类型"
+
+#: airflow/security/permissions.py:64
+msgid "Analysis Via Track No"
+msgstr "根据车号分析"
+
+#: airflow/security/permissions.py:65
+msgid "Analysis Via Controller"
+msgstr "根据控制器分析"
+
+#: airflow/security/permissions.py:66
+msgid "Analysis Via Bolt No"
+msgstr "根据螺栓分析"
+
+#: airflow/security/permissions.py:69
+msgid "Master Data Management"
+msgstr "主数据管理"
+
+#: airflow/security/permissions.py:70
+msgid "Analysis"
+msgstr "分析"
+
+#: airflow/www/forms.py:88
+msgid "Not a valid datetime value"
+msgstr "不是有效的日期时间值"
+
+#: airflow/www/templates/appbuilder/navbar_right.html:79
+msgid "Your Profile"
+msgstr "个人资料"
+
+#: airflow/www/templates/appbuilder/navbar_right.html:81
+msgid "Log Out"
+msgstr "登出"
+
+#: airflow/www/templates/appbuilder/navbar_right.html:86
+msgid "Log In"
+msgstr "登录"
+
+#: docs/exts/exampleinclude.py:201
+msgid "View Source"
+msgstr "查看源代码"
+
+#: plugins/view/curve_template_view.py:105
+msgid "Key"
+msgstr "键"
+
+#: plugins/view/curve_template_view.py:106
+msgid "Val"
+msgstr "值"
+
+#: plugins/view/curve_template_view.py:107
+msgid "Active"
+msgstr "启用"
+
+#: plugins/view/templates/curves.html:19
+msgid "Search"
+msgstr "搜索"
+
+#: plugins/view/templates/curves.html:35
+msgid "curve"
+msgstr "曲线"
+
+#: plugins/view/templates/curves.html:62
+msgid "Execution Date"
+msgstr "执行时间"
+
+#: plugins/view/templates/curves.html:63
+msgid "Car Code"
+msgstr "车辆代码"
+
+#: plugins/view/templates/curves.html:64
+msgid "Measure Result"
+msgstr "测量结果"
+
+#: plugins/view/templates/curves.html:69
+msgid "Result"
+msgstr "分析结果"
+
+#: plugins/view/templates/curves.html:73
+msgid "Final State"
+msgstr "最终结果"
+
+#: plugins/view/templates/curves.html:77
+msgid "Error Tags"
+msgstr "错误标签"
+
+#~ msgid "Bolt Number"
+#~ msgstr "螺栓编号"
+
+#~ msgid "Tightening Controller"
+#~ msgstr "拧紧控制器"
+
+#~ msgid "Invalid field name '%s'."
+#~ msgstr ""
+
+#~ msgid "Field must be greater than or equal to %(other_label)s."
+#~ msgstr ""
+
+#~ msgid "Clear"
+#~ msgstr "清除"
+
+#~ msgid ""
+#~ "Are you sure you want to clear "
+#~ "the state of the selected task "
+#~ "instance(s) and set their dagruns to "
+#~ "the running state?"
+#~ msgstr ""
+
+#~ msgid "Delete"
+#~ msgstr "删除"
+
+#~ msgid "Logs"
+#~ msgstr "日志"
+
+#~ msgid "About"
+#~ msgstr "关于"
+
+#~ msgid "Value"
+#~ msgstr "值"
+
+#~ msgid "Is Curve Template"
+#~ msgstr "曲线模板"
+
+#~ msgid "Dag Id"
+#~ msgstr "DAG"
+
+#~ msgid "Start Date"
+#~ msgstr "开始日期"
+
+#~ msgid "End Date"
+#~ msgstr "结束日期"
+
+#~ msgid "Run Id"
+#~ msgstr "运行Id"
+
+#~ msgid "State"
+#~ msgstr "状态"
+
+#~ msgid "External Trigger"
+#~ msgstr "外部触发"
+
+#~ msgid "Conf"
+#~ msgstr "配置"
+
+#~ msgid "Conn Id"
+#~ msgstr "连接Id"
+
+#~ msgid "Conn Type"
+#~ msgstr "连接类型"
+
+#~ msgid "Host"
+#~ msgstr "主机"
+
+#~ msgid "Schema"
+#~ msgstr "提要"
+
+#~ msgid "Port"
+#~ msgstr "端口"
+
+#~ msgid "Extra"
+#~ msgstr "其他"
+
+#~ msgid "Driver Path"
+#~ msgstr "驱动路径"
+
+#~ msgid "Driver Class"
+#~ msgstr "驱动类"
+
+#~ msgid "Project Id"
+#~ msgstr "项目Id"
+
+#~ msgid "Keyfile Path"
+#~ msgstr ""
+
+#~ msgid "Keyfile JSON"
+#~ msgstr ""
+
+#~ msgid "Scopes (comma separated)"
+#~ msgstr ""
+
+#~ msgid "Number of Retries"
+#~ msgstr "重试次数"
+
+#~ msgid "Grpc Auth Type"
+#~ msgstr "Grpc授权类型"
+
+#~ msgid "Credential Keyfile Path"
+#~ msgstr ""
+
+#~ msgid "Label"
+#~ msgstr "标签"
+
+#~ msgid "Equipment Name"
+#~ msgstr "设备名称"
+
+#~ msgid "Line Code"
+#~ msgstr "工段编号"
+
+#~ msgid "Line Name"
+#~ msgstr "工段名称"
+
+#~ msgid "Work Center Code"
+#~ msgstr "工作中心编号"
+
+#~ msgid "Work Center Name"
+#~ msgstr "工作中心名称"
+
+#~ msgid "Task Id"
+#~ msgstr "任务Id"
+
+#~ msgid "Email Sent"
+#~ msgstr "邮件发送"
+
+#~ msgid "Timestamp"
+#~ msgstr "时间戳"
+
+#~ msgid "DAG Id"
+#~ msgstr "DAG"
+
+#~ msgid "Is Encrypted"
+#~ msgstr "加密"
+
+#~ msgid "Is Extra Encrypted"
+#~ msgstr "额外加密"
+
+#~ msgid "Controller Name"
+#~ msgstr "控制器名称"
+
+#~ msgid "Pool"
+#~ msgstr "池"
+
+#~ msgid "Slots"
+#~ msgstr "插槽"
+
+#~ msgid "Used Slots"
+#~ msgstr "已用插槽"
+
+#~ msgid "Queued Slots"
+#~ msgstr "已排队插槽"
+
+#~ msgid "Id"
+#~ msgstr ""
+
+#~ msgid "Job Type"
+#~ msgstr "工作类型"
+
+#~ msgid "Latest Heartbeat"
+#~ msgstr "最近心跳"
+
+#~ msgid "Executor Class"
+#~ msgstr "执行器"
+
+#~ msgid "Hostname"
+#~ msgstr "主机名称"
+
+#~ msgid "Unixname"
+#~ msgstr "Unix名称"
+
+#~ msgid "Dttm"
+#~ msgstr ""
+
+#~ msgid "Event"
+#~ msgstr "事件"
+
+#~ msgid "Owner"
+#~ msgstr "所有者"
+
+#~ msgid "Entity Id"
+#~ msgstr "实体编号"
+
+#~ msgid "Task Instance Type"
+#~ msgstr "类型"
+
+#~ msgid "Duration"
+#~ msgstr "耗时"
+
+#~ msgid "Job Id"
+#~ msgstr "工作Id"
+
+#~ msgid "Priority Weight"
+#~ msgstr "优先权重"
+
+#~ msgid "Try Number"
+#~ msgstr "尝试次数"
+
+#~ msgid "Log Url"
+#~ msgstr "日志URL"
+
+#~ msgid "Task Instance Rework"
+#~ msgstr "返工"
+
+#~ msgid "Task Instance Normal"
+#~ msgstr "正常"
+
+#~ msgid "Is Paused"
+#~ msgstr "已暂停"
+
+#~ msgid "Last Scheduler Run"
+#~ msgstr "最后一次执行"
+
+#~ msgid "Last Expired"
+#~ msgstr "最后一次失败"
+
+#~ msgid "Scheduler Lock"
+#~ msgstr "调度器锁"
+
+#~ msgid "Fileloc"
+#~ msgstr "文件位置"
+
+#~ msgid "Owners"
+#~ msgstr "所有者"
+
+#~ msgid "Filter tags"
+#~ msgstr "过滤标签"
+
+#~ msgid "Reset"
+#~ msgstr "清除过滤"
+
+#~ msgid "Search:"
+#~ msgstr "搜索："
+
+#~ msgid "Schedule"
+#~ msgstr "时间表"
+
+#~ msgid "Recent Tasks"
+#~ msgstr "最近任务"
+
+#~ msgid "Last Run"
+#~ msgstr "最后运行"
+
+#~ msgid "Links"
+#~ msgstr "链接"
+
+#~ msgid "Hide Paused DAGs"
+#~ msgstr "隐藏暂停的DAG"
+
+#~ msgid "Show Paused DAGs"
+#~ msgstr "显示暂停的DAG"
+
+#~ msgid "Logout"
+#~ msgstr "登出"
+

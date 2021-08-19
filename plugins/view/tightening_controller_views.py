@@ -229,12 +229,12 @@ class DeviceTypeView(AirflowModelView):
 
 tightening_controller_view = TighteningControllerView()
 tightening_controller_package = {"name": permissions.RESOURCE_CONTROLLER,
-                                 "category": gettext("Master Data Management"),
+                                 "category": permissions.RESOURCE_MASTER_DATA_MANAGEMENT,
                                  "view": tightening_controller_view}
 
 device_type_view = DeviceTypeView()
-device_type_package = {"name": gettext("Device Type"),
-                       "category": gettext("Master Data Management"),
+device_type_package = {"name": permissions.RESOURCE_DEVICE_TYPE,
+                       "category": permissions.RESOURCE_MASTER_DATA_MANAGEMENT,
                        "view": device_type_view}
 
 
