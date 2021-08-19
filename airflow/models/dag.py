@@ -2097,15 +2097,16 @@ class DAG(LoggingMixin):
         :param data_interval: Data interval of the DagRun
         :type data_interval: tuple[datetime, datetime] | None
         """
-        if run_id and not run_type:
+        if run_id:  # Infer run_type from run_id if needed.
             if not isinstance(run_id, str):
                 raise ValueError(f"`run_id` expected to be a str is {type(run_id)}")
-            run_type: DagRunType = DagRunType.from_run_id(run_id)
-        elif run_type and execution_date:
+            if not run_type:
+                run_type = DagRunType.from_run_id(run_id)
+        elif run_type and execution_date is not None:  # Generate run_id from run_type and execution_date.
             if not isinstance(run_type, DagRunType):
                 raise ValueError(f"`run_type` expected to be a DagRunType is {type(run_type)}")
             run_id = DagRun.generate_run_id(run_type, execution_date)
-        elif not run_id:
+        else:
             raise AirflowException(
                 "Creating DagRun needs either `run_id` or both `run_type` and `execution_date`"
             )
