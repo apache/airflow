@@ -5,7 +5,7 @@ from flask_babel import lazy_gettext, gettext
 from datetime import datetime
 from flask_login import current_user
 from flask_appbuilder.actions import action
-from flask_appbuilder import ModelView, expose, has_access
+from flask_appbuilder import expose
 from flask import redirect
 from plugins import AirflowModelView
 from airflow.plugins_manager import AirflowPlugin
@@ -68,10 +68,6 @@ class TighteningControllerForm(DynamicForm):
     )
 
 
-class AirflowControllerListWidget(RenderTemplateWidget):
-    template = 'tightening_controller_list.html'
-
-
 class TighteningControllerView(AirflowModelView):
     route_base = '/tightening_controller'
     from plugins.models.tightening_controller import TighteningController
@@ -84,7 +80,7 @@ class TighteningControllerView(AirflowModelView):
     add_form = edit_form = TighteningControllerForm
     add_template = 'tightening_controller_create.html'
     edit_template = 'tightening_controller_edit.html'
-    list_widget = AirflowControllerListWidget
+    list_template = 'curve_template_list.html'
     label_columns = {
         'controller_name': lazy_gettext('Controller Name'),
         'line_code': lazy_gettext('Line Code'),
@@ -152,7 +148,6 @@ class TighteningControllerView(AirflowModelView):
         return redirect(self.get_redirect())
 
     @expose('/controllerimport', methods=["POST"])
-    @has_access
     @action_logging
     def controllerimport(self):
         try:
@@ -197,23 +192,43 @@ class TighteningControllerView(AirflowModelView):
         return response
 
     @expose("/list/")
-    @has_access
     def list(self):
         msg = CUSTOM_LOG_FORMAT.format(datetime.now(tz=TIMEZONE).strftime("%Y-%m-%d %H:%M:%S"),
                                        current_user, getattr(current_user, 'last_name', ''),
                                        CUSTOM_EVENT_NAME_MAP['VIEW'], CUSTOM_PAGE_NAME_MAP['TIGHTENING_CONTROLLER'],
                                        '查看控制器')
         logging.info(msg)
-        return super(TighteningControllerView, self).list()
+        _has_access = self.appbuilder.sm.has_access
+        can_import = _has_access(permissions.ACTION_CAN_CREATE, permissions.RESOURCE_CONTROLLER)
+        widgets = self._list()
+        return self.render_template(
+            self.list_template, title=self.list_title, widgets=widgets, can_import=can_import
+        )
 
 
 class DeviceTypeView(AirflowModelView):
     from plugins.models.device_type import DeviceTypeModel
     datamodel = AirflowModelView.CustomSQLAInterface(DeviceTypeModel)
 
+    method_permission_name = {
+        'list': 'read',
+        'show': 'read',
+        'add': 'create',
+    }
+
+    class_permission_name = permissions.RESOURCE_DEVICE_TYPE
+
+    base_permissions = [
+        permissions.ACTION_CAN_CREATE,
+        permissions.ACTION_CAN_READ,
+        permissions.ACTION_CAN_EDIT,
+        permissions.ACTION_CAN_DELETE,
+        permissions.ACTION_CAN_ACCESS_MENU
+    ]
+
 
 tightening_controller_view = TighteningControllerView()
-tightening_controller_package = {"name": gettext("Equipments"),
+tightening_controller_package = {"name": permissions.RESOURCE_CONTROLLER,
                                  "category": gettext("Master Data Management"),
                                  "view": tightening_controller_view}
 

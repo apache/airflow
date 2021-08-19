@@ -10,7 +10,7 @@ from wtforms.fields import StringField
 from flask_appbuilder.forms import DynamicForm
 from flask_babel import lazy_gettext
 from flask_appbuilder.actions import action
-from flask_appbuilder import expose, has_access
+from flask_appbuilder import expose
 from flask import make_response, redirect
 from airflow.plugins_manager import AirflowPlugin
 from airflow.settings import TIMEZONE
@@ -130,7 +130,6 @@ class ErrorTagModelView(AirflowModelView):
 
     # 重写list
     @expose("/list/")
-    @has_access
     def list(self):
         msg = CUSTOM_LOG_FORMAT.format(datetime.now(tz=TIMEZONE).strftime("%Y-%m-%d %H:%M:%S"),
                                        current_user, getattr(current_user, 'last_name', ''),
@@ -140,8 +139,8 @@ class ErrorTagModelView(AirflowModelView):
 
 
 error_tag_view = ErrorTagModelView()
-error_tag_package = {"name": gettext("Error Tags"),
-                     "category": gettext("Master Data Management"),
+error_tag_package = {"name": permissions.RESOURCE_ERROR_TAG,
+                     "category": permissions.RESOURCE_MASTER_DATA_MANAGEMENT,
                      "view": error_tag_view}
 
 

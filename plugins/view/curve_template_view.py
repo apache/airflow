@@ -128,8 +128,7 @@ class CurveTemplateView(AirflowModelView):
                                                              default_var=None
                                                              )[1]
         _has_access = self.appbuilder.sm.has_access
-        can_delete = _has_access('can_edit', 'CurveTemplateView') and _has_access('can_remove_curve_template',
-                                                                                  'Airflow')
+        can_delete = _has_access(permissions.ACTION_CAN_EDIT, permissions.RESOURCE_CURVE_TEMPLATE)
 
         if curve_template is None:
             # todo: 不要返回错误页面
@@ -161,7 +160,7 @@ class CurveTemplateView(AirflowModelView):
     @expose('/<string:bolt_no>/<string:craft_type>/remove_curve', methods=['PUT'])
     def remove_curve_template(self, bolt_no, craft_type):
         _has_access = self.appbuilder.sm.has_access
-        can_delete = _has_access('can_edit', 'CurveTemplateView')
+        can_delete = _has_access(permissions.ACTION_CAN_EDIT, permissions.RESOURCE_CURVE_TEMPLATE)
         if not can_delete:
             return {'error': u'没有权限'}
 
@@ -189,7 +188,12 @@ class CurveTemplateView(AirflowModelView):
                                        CUSTOM_EVENT_NAME_MAP['VIEW'], CUSTOM_PAGE_NAME_MAP['TIGHTENING_CURVE_TEMPLATE'],
                                        '曲线模板：查看列表')
         logging.info(msg)
-        return super(CurveTemplateView, self).list()
+        _has_access = self.appbuilder.sm.has_access
+        can_import = _has_access(permissions.ACTION_CAN_CREATE, permissions.RESOURCE_CURVE_TEMPLATE)
+        widgets = self._list()
+        return self.render_template(
+            self.list_template, title=self.list_title, widgets=widgets, can_import=can_import
+        )
 
     @staticmethod
     def generateCurveParamKey(key):
@@ -285,8 +289,8 @@ class CurveTemplateView(AirflowModelView):
 
 curve_template_view = CurveTemplateView()
 curve_template_view_package = {
-    "name": gettext("Curve Template"),
-    "category": gettext("Master Data Management"),
+    "name": permissions.RESOURCE_CURVE_TEMPLATE,
+    "category": permissions.RESOURCE_MASTER_DATA_MANAGEMENT,
     "view": curve_template_view
 }
 

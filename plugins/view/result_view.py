@@ -76,8 +76,8 @@ class ResultModelView(AirflowModelView):
 
 
 result_view = ResultModelView()
-result_view_package = {"name": gettext("Results"),
-                       "category": gettext("Analysis"),
+result_view_package = {"name": permissions.RESOURCE_RESULT,
+                       "category": permissions.RESOURCE_ANALYSIS,
                        "view": result_view}
 
 

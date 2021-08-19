@@ -21,6 +21,7 @@
 
 
 {% block begin_content scoped %}
+  {% if can_import %}
   <form class="form-inline" action="{{ url_for('TighteningControllerView.controllerimport') }}" method=post enctype=multipart/form-data style="margin-top: 50px;">
     {% if csrf_token %}
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
@@ -29,6 +30,7 @@
     <input class="btn btn-default" type="submit" value="Import Devices"/>
   </form>
   <hr/>
+  {% endif %}
   <div class="table-responsive" style="max-height: 80vh">
   <table class="table table-bordered table-hover">
 {% endblock %}

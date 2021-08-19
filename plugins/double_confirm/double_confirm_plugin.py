@@ -1,6 +1,6 @@
 import datetime
 from flask import jsonify, request
-from flask_appbuilder import BaseView, expose, has_access
+from flask_appbuilder import BaseView, expose
 from flask_login import current_user
 import logging
 from airflow.plugins_manager import AirflowPlugin
@@ -10,6 +10,7 @@ from airflow.exceptions import AirflowException
 from plugins.utils.utils import trigger_training_dag, get_result
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.www.app import csrf
+from airflow.security import permissions
 
 _log = LoggingMixin().log
 
@@ -17,10 +18,21 @@ _log = LoggingMixin().log
 class DoubleConfirmView(BaseView):
     route_base = ''
 
-    base_permissions = ['can_double_confirm_task']
+    base_permissions = [permissions.ACTION_CAN_EDIT]
+
+    class_permission_name = permissions.RESOURCE_RESULT
+
+    method_permission_name = {
+        'double_confirm_task': 'edit',
+        'save_curve_error_tag_w_csrf': 'edit',
+        'save_curve_error_tag': 'edit'
+    }
+
+    base_permissions = [
+        permissions.ACTION_CAN_READ
+    ]
 
     @expose('/double-confirm/<string:entity_id>', methods=['POST'])
-    @has_access
     def double_confirm_task(self, entity_id):
         try:
             msg = CUSTOM_LOG_FORMAT.format(datetime.datetime.now(tz=TIMEZONE).strftime("%Y-%m-%d %H:%M:%S"),
@@ -47,13 +59,11 @@ class DoubleConfirmView(BaseView):
 
     @csrf.exempt
     @expose('/dags/<string:dag_id>/tasks/<string:task_id>/<string:execution_date>/error_tag', methods=['POST'])
-    @has_access
     def save_curve_error_tag(self, dag_id, task_id, execution_date):
         return self._save_curve_error_tag(dag_id, task_id, execution_date)
 
     @csrf.exempt
     @expose('/error_tag/dags/<string:dag_id>/tasks/<string:task_id>/<string:execution_date>', methods=['POST'])
-    @has_access
     def save_curve_error_tag_w_csrf(self, dag_id, task_id, execution_date):
         return self._save_curve_error_tag(dag_id, task_id, execution_date)
 

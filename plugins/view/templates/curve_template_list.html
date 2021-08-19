@@ -18,6 +18,7 @@
 {% extends 'appbuilder/general/model/list.html' %}
 
 {% block content %}
+  {% if can_import %}
   <form class="form-inline" action="{{ url_for('CurveTemplateView.varimport') }}" method=post enctype=multipart/form-data style="margin-top: 50px;">
     {% if csrf_token %}
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
@@ -26,5 +27,6 @@
     <input class="btn btn-default" type="submit" value="Import Curve Templates"/>
   </form>
   <hr/>
+  {% endif %}
   {{ super() }}
 {% endblock %}

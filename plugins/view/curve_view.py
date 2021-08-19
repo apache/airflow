@@ -61,7 +61,7 @@ class CurveView(BaseView):
         error_tags = ErrorTag.get_all()
         ENV_CURVE_GRAPH_SHOW_RANGE = os.environ.get('CURVE_GRAPH_SHOW_RANGE')
         show_range = (ENV_CURVE_GRAPH_SHOW_RANGE is True) or (ENV_CURVE_GRAPH_SHOW_RANGE == 'True')
-        can_verify = _has_access('can_double_confirm_task', 'DoubleConfirmView')
+        can_verify = _has_access(permissions.ACTION_CAN_EDIT, permissions.RESOURCE_RESULT)
         msg = CUSTOM_LOG_FORMAT.format(datetime.now(tz=TIMEZONE).strftime("%Y-%m-%d %H:%M:%S"),
                                        current_user, getattr(current_user, 'last_name', ''),
                                        CUSTOM_EVENT_NAME_MAP['VIEW'], CUSTOM_PAGE_NAME_MAP['CURVE'], '查看单条曲线')

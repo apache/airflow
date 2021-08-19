@@ -298,12 +298,14 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
         (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_MASTER_DATA_MANAGEMENT),
         (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_ANALYSIS),
         (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_CURVE_TEMPLATE),
-        # (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_CURVE),
         (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_CURVES),
         (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_RESULT),
         (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_ERROR_TAG),
         (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_CONTROLLER),
         (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_DEVICE_TYPE),
+        (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_ANALYSIS_VIA_CONTROLLER),
+        (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_ANALYSIS_VIA_TRACK_NO),
+        (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_ANALYSIS_VIA_BOLT_NO),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_CURVE_TEMPLATE),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_CURVE),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_CURVES),
@@ -311,11 +313,16 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_ERROR_TAG),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_CONTROLLER),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_DEVICE_TYPE),
-
+        (permissions.ACTION_CAN_READ, permissions.RESOURCE_ANALYSIS_VIA_CONTROLLER),
+        (permissions.ACTION_CAN_READ, permissions.RESOURCE_ANALYSIS_VIA_TRACK_NO),
+        (permissions.ACTION_CAN_READ, permissions.RESOURCE_ANALYSIS_VIA_BOLT_NO),
     ]
 
     CURVE_ADMIN_PERMISSIONS = [
         (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_CURVE_TEMPLATE),
+        (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_RESULT),
+        (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_ERROR_TAG),
+        (permissions.ACTION_CAN_CREATE, permissions.RESOURCE_ERROR_TAG),
         (permissions.ACTION_CAN_DELETE, permissions.RESOURCE_CURVE_TEMPLATE),
         (permissions.ACTION_CAN_CREATE, permissions.RESOURCE_CURVE_TEMPLATE)
     ]
@@ -357,7 +364,7 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
         },
         {
             'role': '运维人员',
-            'perms': VIEWER_PERMISSIONS + USER_PERMISSIONS + OP_PERMISSIONS,
+            'perms': VIEWER_PERMISSIONS + USER_PERMISSIONS + OP_PERMISSIONS + CURVE_VIEW_PERMISSIONS,
         },
     ]
 

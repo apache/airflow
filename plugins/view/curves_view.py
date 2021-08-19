@@ -71,7 +71,6 @@ class CurvesView(AirflowModelView):
         view_name = 'curves'
         curves = request.args.get('curves')
         curves_list = curves.replace('@', '/').split(',') if curves is not None else []
-        _has_access = self.appbuilder.sm.has_access
         pages = get_page_args()
         page = pages.get(view_name, 0)
         get_filter_args(self._filters)

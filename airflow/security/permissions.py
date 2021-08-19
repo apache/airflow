@@ -14,6 +14,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from flask_babel import gettext
 
 # Resource Constants
 RESOURCE_ADMIN_MENU = "Admin"
@@ -53,17 +54,20 @@ RESOURCE_WEBSITE = "Website"
 RESOURCE_XCOM = "XComs"
 
 # curve resources
-RESOURCE_CURVE_TEMPLATE = 'Curve Template'
-RESOURCE_CURVE = 'Curve'
-RESOURCE_CURVES = 'Curves'
-RESOURCE_RESULT = 'Results'
-RESOURCE_ERROR_TAG = 'Error Tag'
-RESOURCE_CONTROLLER = 'Controller'
-RESOURCE_DEVICE_TYPE = 'Device Type'
+RESOURCE_CURVE_TEMPLATE = gettext('Curve Template')
+RESOURCE_CURVE = gettext('Curve')
+RESOURCE_CURVES = gettext('Curves')
+RESOURCE_RESULT = gettext('Results')
+RESOURCE_ERROR_TAG = gettext('Error Tag')
+RESOURCE_CONTROLLER = gettext('Equipments')
+RESOURCE_DEVICE_TYPE = gettext('Device Type')
+RESOURCE_ANALYSIS_VIA_TRACK_NO = gettext('Analysis Via Track No')
+RESOURCE_ANALYSIS_VIA_CONTROLLER = gettext('Analysis Via Controller')
+RESOURCE_ANALYSIS_VIA_BOLT_NO = gettext('Analysis Via Bolt No')
 
 # curve menus
-RESOURCE_MASTER_DATA_MANAGEMENT = 'Master Data Management'
-RESOURCE_ANALYSIS = 'Analysis'
+RESOURCE_MASTER_DATA_MANAGEMENT = gettext('Master Data Management')
+RESOURCE_ANALYSIS = gettext('Analysis')
 
 
 # Action Constants
