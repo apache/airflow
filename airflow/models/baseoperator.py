@@ -554,7 +554,7 @@ class BaseOperator(Operator, LoggingMixin, TaskMixin, metaclass=BaseOperatorMeta
         if trigger_rule == "none_failed_or_skipped":
             warnings.warn(
                 "none_failed_or_skipped Trigger Rule is deprecated. "
-                "Please use `TriggerRule.NONE_FAILED_MIN_ONE_SUCCESS`.",
+                "Please use `none_failed_min_one_success`.",
                 DeprecationWarning,
                 stacklevel=2,
             )
