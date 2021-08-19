@@ -206,7 +206,7 @@
     },
     "connection-types": {
       "type": "array",
-      "description": "Map of connection types mapped to hook class names",
+      "description": "Array of connection types mapped to hook class names",
       "items": {
           "type": "object",
           "properties": {
