@@ -357,5 +357,5 @@ $(window).on('load', () => {
 const nextRuns = document.getElementsByClassName('next-run');
 Array.from(nextRuns).forEach((run) => {
   const value = run.innerText;
-  run.innerText = `${moment(value).isValid() ? formatDateTime(value) : value}`;
+  run.innerText = `${moment(value).isValid() ? formatDateTime(value) : ''}`;
 });
