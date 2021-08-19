@@ -4,6 +4,7 @@
   ],
   "amazon": [
     "apache.hive",
+    "cncf.kubernetes",
     "exasol",
     "ftp",
     "google",
