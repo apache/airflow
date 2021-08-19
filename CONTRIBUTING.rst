@@ -399,7 +399,11 @@ these guidelines:
 
 -   Run tests locally before opening PR.
 
--   Make sure the pull request works for Python 3.6 and 3.7.
+-   You can use any supported python version to run the tests, but the best is to check
+    if it works for the oldest supported version (Python 3.6 currently). In rare cases
+    tests might fail with the oldest version when you use features that are available in newer Python
+    versions. For that purpose we have ``airflow.compat`` package where we keep back-ported
+    useful features from newer versions.
 
 -   Adhere to guidelines for commit messages described in this `article <http://chris.beams.io/posts/git-commit/>`__.
     This makes the lives of those who come after you a lot easier.
