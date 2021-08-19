@@ -280,9 +280,7 @@ class TestFlowerService:
                         "type": "LoadBalancer",
                         "loadBalancerIP": "127.0.0.1",
                         "annotations": {"foo": "bar"},
-                        "loadBalancerSourceRanges": [
-                            "10.123.0.0/16"
-                        ]
+                        "loadBalancerSourceRanges": ["10.123.0.0/16"]
                     }
                 },
             },
