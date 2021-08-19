@@ -53,3 +53,7 @@ transfers:
 
 hook-class-names:
   - airflow.providers.oracle.hooks.oracle.OracleHook
+
+connection-types:
+  - hook-class-name: airflow.providers.oracle.hooks.oracle.OracleHook
+    connection-type: oracle

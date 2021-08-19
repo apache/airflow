@@ -47,3 +47,7 @@ hooks:
 
 hook-class-names:
   - airflow.providers.grpc.hooks.grpc.GrpcHook
+
+connection-types:
+  - hook-class-name: airflow.providers.grpc.hooks.grpc.GrpcHook
+    connection-type: grpc

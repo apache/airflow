@@ -21,10 +21,12 @@ import importlib
 import json
 import logging
 import os
+import sys
+import warnings
 from collections import OrderedDict
 from functools import wraps
 from time import perf_counter
-from typing import Any, Callable, Dict, List, NamedTuple, Set, TypeVar, cast
+from typing import Any, Callable, Dict, List, MutableMapping, NamedTuple, Optional, Set, TypeVar, Union, cast
 
 import jsonschema
 from wtforms import BooleanField, Field, IntegerField, PasswordField, StringField
@@ -43,6 +45,44 @@ except ImportError:
 ALLOWED_FIELD_CLASSES = [IntegerField, PasswordField, StringField, BooleanField]
 
 log = logging.getLogger(__name__)
+
+if sys.version_info >= (3, 9):
+    from functools import cache
+else:
+    from functools import lru_cache
+
+    cache = lru_cache(maxsize=None)
+
+
+class LazyDictWithCache(MutableMapping):
+    """
+    Dictionary, which in case you set callable, executes the passed callable with `key` attribute
+    at first use - and returns and caches the result.
+    """
+
+    def __init__(self, *args, **kw):
+        self._raw_dict = dict(*args, **kw)
+
+    def __setitem__(self, key, value):
+        self._raw_dict.__setitem__(key, value)
+
+    def __getitem__(self, key):
+        value = self._raw_dict.__getitem__(key)
+        if callable(value):
+            # exchange callable with result of calling it
+            value = value(key)
+            if value:
+                self._raw_dict.__setitem__(key, value)
+        return value
+
+    def __delitem__(self, key):
+        self._raw_dict.__delitem__(key)
+
+    def __iter__(self):
+        return iter(self._raw_dict)
+
+    def __len__(self):
+        return len(self._raw_dict)
 
 
 def _create_provider_info_schema_validator():
@@ -68,6 +108,12 @@ def _sanity_check(provider_package: str, class_name: str) -> bool:
     Performs sanity check on provider classes.
     For apache-airflow providers - it checks if it starts with appropriate package. For all providers
     it tries to import the provider - checking that there are no exceptions during importing.
+    It logs appropriate warning in case it detects any problems.
+
+    :param provider_package: name of the provider package
+    :param class_name: name of the class to import
+
+    :return True if the class is OK, False otherwise.
     """
     if provider_package.startswith("apache-airflow"):
         provider_path = provider_package[len("apache-") :].replace("-", ".")
@@ -99,19 +145,27 @@ class ProviderInfo(NamedTuple):
     provider_info: Dict
 
 
+class HookClassProvider(NamedTuple):
+    """Hook class and Provider it comes from"""
+
+    hook_class_name: str
+    package_name: str
+
+
 class HookInfo(NamedTuple):
     """Hook information"""
 
-    connection_class: str
+    hook_class_name: str
     connection_id_attribute_name: str
     package_name: str
     hook_name: str
+    connection_type: str
 
 
 class ConnectionFormWidgetInfo(NamedTuple):
     """Connection Form Widget information"""
 
-    connection_class: str
+    hook_class_name: str
     package_name: str
     field: Field
 
@@ -167,11 +221,14 @@ class ProvidersManager(LoggingMixin):
 
     def __init__(self):
         """Initializes the manager."""
+        super().__init__()
         self._initialized_cache: Dict[str, bool] = {}
         # Keeps dict of providers keyed by module name
         self._provider_dict: Dict[str, ProviderInfo] = {}
-        # Keeps dict of hooks keyed by connection type
-        self._hooks_dict: Dict[str, HookInfo] = {}
+        # keeps mapping between connection_types and hook class, package they come from
+        self._hook_provider_dict: Dict[str, HookClassProvider] = {}
+        # Keeps dict of hooks keyed by connection type. They are lazy evaluated at access time
+        self._hooks_lazy_dict: LazyDictWithCache[str, Union[HookInfo, Callable]] = LazyDictWithCache()
         # Keeps methods that should be used to add custom widgets tuple of keyed by name of the extra field
         self._connection_form_widgets: Dict[str, ConnectionFormWidgetInfo] = {}
         # Customizations for javascript fields are kept here
@@ -201,9 +258,7 @@ class ProvidersManager(LoggingMixin):
         """Lazy initialization of providers hooks."""
         self.initialize_providers_list()
         self._discover_hooks()
-        self._hooks_dict = OrderedDict(sorted(self._hooks_dict.items()))
-        self._connection_form_widgets = OrderedDict(sorted(self._connection_form_widgets.items()))
-        self._field_behaviours = OrderedDict(sorted(self._field_behaviours.items()))
+        self._hook_provider_dict = OrderedDict(sorted(self._hook_provider_dict.items()))
 
     @provider_info_cache("extra_links")
     def initialize_providers_extra_links(self):
@@ -317,40 +372,183 @@ class ProvidersManager(LoggingMixin):
                     package_name,
                 )
         except Exception as e:
-            log.warning("Error when loading '%s': %s", path, e)
+            log.warning("Error when loading '%s'", path, exc_info=e)
+
+    def _discover_hooks_from_connection_types(
+        self,
+        hook_class_names_registered: Set[str],
+        already_registered_warning_connection_types: Set[str],
+        package_name: str,
+        provider: ProviderInfo,
+    ):
+        """
+        Discover  hooks from the "connection-types" property. This is new, better method that replaces
+        discovery from hook-class-names as it allows to lazy import individual Hook classes when they
+        are accessed. The "connection-types" keeps information about both - connection type and class
+        name so we can discover all connection-types without importing the classes.
+        :param hook_class_names_registered: set of registered hook class names for this provider
+        :param already_registered_warning_connection_types: set of connections for which warning should be
+            printed in logs as they were already registered before
+        :param package_name:
+        :param provider:
+        :return:
+        """
+        provider_uses_connection_types = False
+        connection_types = provider.provider_info.get("connection-types")
+        if connection_types:
+            for connection_type_dict in connection_types:
+                connection_type = connection_type_dict['connection-type']
+                hook_class_name = connection_type_dict['hook-class-name']
+                hook_class_names_registered.add(hook_class_name)
+                already_registered = self._hook_provider_dict.get(connection_type)
+                if already_registered:
+                    if already_registered.package_name != package_name:
+                        already_registered_warning_connection_types.add(connection_type)
+                else:
+                    self._hook_provider_dict[connection_type] = HookClassProvider(
+                        hook_class_name=hook_class_name, package_name=package_name
+                    )
+                    # Defer importing hook to access time by setting import hook method as dict value
+                    self._hooks_lazy_dict[connection_type] = self._import_hook
+            provider_uses_connection_types = True
+        return provider_uses_connection_types
+
+    def _discover_hooks_from_hook_class_names(
+        self,
+        hook_class_names_registered: Set[str],
+        already_registered_warning_connection_types: Set[str],
+        package_name: str,
+        provider: ProviderInfo,
+        provider_uses_connection_types: bool,
+    ):
+        """
+        Discovers hooks from "hook-class-names' property. This property is deprecated but we should
+        support it in Airflow 2. The hook-class-names array contained just Hook names without connection
+        type, therefore we need to import all those classes immediately to know which connection types
+        are supported. This makes it impossible to selectively only import those hooks that are used.
+        :param already_registered_warning_connection_types: list of connection hooks that we should warn
+            about when finished discovery
+        :param package_name: name of the provider package
+        :param provider: class that keeps information about version and details of the provider
+        :param provider_uses_connection_types: determines whether the provider uses "connection-types" new
+           form of passing connection types
+        :return:
+        """
+        hook_class_names = provider.provider_info.get("hook-class-names")
+        if hook_class_names:
+            for hook_class_name in hook_class_names:
+                if hook_class_name in hook_class_names_registered:
+                    # Silently ignore the hook class - it's already marked for lazy-import by
+                    # connection-types discovery
+                    continue
+                hook_info = self._import_hook(
+                    connection_type=None, hook_class_name=hook_class_name, package_name=package_name
+                )
+                if not hook_info:
+                    # Problem why importing class - we ignore it. Log is written at import time
+                    continue
+                already_registered = self._hook_provider_dict.get(hook_info.connection_type)
+                if already_registered:
+                    if already_registered.package_name != package_name:
+                        already_registered_warning_connection_types.add(hook_info.connection_type)
+                    else:
+                        if already_registered.hook_class_name != hook_class_name:
+                            log.warning(
+                                "The hook connection type '%s' is registered twice in the"
+                                " package '%s' with different class names: '%s' and '%s'. "
+                                " Please fix it!",
+                                hook_info.connection_type,
+                                package_name,
+                                already_registered.hook_class_name,
+                                hook_class_name,
+                            )
+                else:
+                    self._hook_provider_dict[hook_info.connection_type] = HookClassProvider(
+                        hook_class_name=hook_class_name, package_name=package_name
+                    )
+                    self._hooks_lazy_dict[hook_info.connection_type] = hook_info
+
+            if not provider_uses_connection_types:
+                warnings.warn(
+                    f"The provider {package_name} uses `hook-class-names` "
+                    "property in provider-info and has no `connection-types` one. "
+                    "The 'hook-class-names' property has been deprecated in favour "
+                    "of 'connection-types' in Airflow 2.2. Use **both** in case you want to "
+                    "have backwards compatibility with Airflow < 2.2",
+                    DeprecationWarning,
+                )
+        for already_registered_connection_type in already_registered_warning_connection_types:
+            log.warning(
+                "The connection_type '%s' has been already registered by provider '%s.'",
+                already_registered_connection_type,
+                self._hook_provider_dict[already_registered_connection_type].package_name,
+            )
 
     def _discover_hooks(self) -> None:
-        """Retrieves all connections defined in the providers"""
-        for name, provider in self._provider_dict.items():
-            provider_package = name
-            hook_class_names = provider[1].get("hook-class-names")
-            if hook_class_names:
-                for hook_class_name in hook_class_names:
-                    self._add_hook(hook_class_name, provider_package)
+        """Retrieves all connections defined in the providers via Hooks"""
+        for package_name, provider in self._provider_dict.items():
+            duplicated_connection_types: Set[str] = set()
+            hook_class_names_registered: Set[str] = set()
+            provider_uses_connection_types = self._discover_hooks_from_connection_types(
+                hook_class_names_registered, duplicated_connection_types, package_name, provider
+            )
+            self._discover_hooks_from_hook_class_names(
+                hook_class_names_registered,
+                duplicated_connection_types,
+                package_name,
+                provider,
+                provider_uses_connection_types,
+            )
+        self._hook_provider_dict = OrderedDict(sorted(self._hook_provider_dict.items()))
+
+    @provider_info_cache("import_all_hooks")
+    def _import_info_from_all_hooks(self):
+        """Force-import all hooks and initialize the connections/fields"""
+        # Retrieve all hooks to make sure that all of them are imported
+        _ = list(self._hooks_lazy_dict.values())
+        self._connection_form_widgets = OrderedDict(sorted(self._connection_form_widgets.items()))
+        self._field_behaviours = OrderedDict(sorted(self._field_behaviours.items()))
 
     @staticmethod
     def _get_attr(obj: Any, attr_name: str):
         """Retrieves attributes of an object, or warns if not found"""
         if not hasattr(obj, attr_name):
-            log.warning("The '%s' is missing %s attribute and cannot be registered", obj, attr_name)
+            log.warning("The object '%s' is missing %s attribute and cannot be registered", obj, attr_name)
             return None
         return getattr(obj, attr_name)
 
-    def _add_hook(self, hook_class_name: str, provider_package: str) -> None:
+    def _import_hook(
+        self, connection_type: Optional[str], hook_class_name: str = None, package_name: str = None
+    ) -> Optional[HookInfo]:
         """
-        Adds hook class name to list of hooks
+        Imports hook and retrieves hook information. Either connection_type (for lazy loading)
+        or hook_class_name must be set - but not both). Only needs package_name if hook_class_name is
+        passed (for lazy loading, package_name is retrieved from _connection_type_class_provider_dict
+        together with hook_class_name).
 
-        :param hook_class_name: name of the Hook class
-        :param provider_package: provider package adding the hook
+        :param connection_type: type of the connection
+        :param hook_class_name: name of the hook class
+        :param package_name: provider package - only needed in case connection_type is missing
+        : return
         """
-        if not _sanity_check(provider_package, hook_class_name):
-            return
-        if hook_class_name in self._hooks_dict:
-            log.warning(
-                "The hook_class '%s' has been already registered.",
-                hook_class_name,
+        if connection_type is None and hook_class_name is None:
+            raise ValueError("Either connection_type or hook_class_name must be set")
+        if connection_type and hook_class_name:
+            raise ValueError(
+                f"Both connection_type ({connection_type} and "
+                f"hook_class_name {hook_class_name} are set. Only one should be set!"
             )
-            return
+        if connection_type:
+            class_provider = self._hook_provider_dict[connection_type]
+            package_name = class_provider.package_name
+            hook_class_name = class_provider.hook_class_name
+        else:
+            if not package_name:
+                raise ValueError(
+                    f"Provider package name is not set when hook_class_name ({hook_class_name}) " f"is used"
+                )
+        if not _sanity_check(package_name, hook_class_name):
+            return None
         try:
             module, class_name = hook_class_name.rsplit('.', maxsplit=1)
             hook_class = getattr(importlib.import_module(module), class_name)
@@ -369,44 +567,62 @@ class ProvidersManager(LoggingMixin):
                                 widget.field_class,
                                 ALLOWED_FIELD_CLASSES,
                             )
-                            return
-                    self._add_widgets(provider_package, hook_class, widgets)
+                            return None
+                    self._add_widgets(package_name, hook_class, widgets)
             if 'get_ui_field_behaviour' in hook_class.__dict__:
                 field_behaviours = hook_class.get_ui_field_behaviour()
                 if field_behaviours:
-                    self._add_customized_fields(provider_package, hook_class, field_behaviours)
-
+                    self._add_customized_fields(package_name, hook_class, field_behaviours)
         except ImportError as e:
             # When there is an ImportError we turn it into debug warnings as this is
             # an expected case when only some providers are installed
             log.debug(
                 "Exception when importing '%s' from '%s' package: %s",
                 hook_class_name,
-                provider_package,
+                package_name,
                 e,
             )
-            return
+            return None
         except Exception as e:
             log.warning(
                 "Exception when importing '%s' from '%s' package: %s",
                 hook_class_name,
-                provider_package,
+                package_name,
                 e,
             )
-            return
-
-        conn_type: str = self._get_attr(hook_class, 'conn_type')
+            return None
+        hook_connection_type = self._get_attr(hook_class, 'conn_type')
+        if connection_type:
+            if hook_connection_type != connection_type:
+                log.warning(
+                    "Inconsistency! The hook class '%s' declares connection type '%s'"
+                    " but it is added by provider '%s' as connection_type '%s' in provider info. "
+                    "This should be fixed!",
+                    hook_class,
+                    hook_connection_type,
+                    package_name,
+                    connection_type,
+                )
+        connection_type = hook_connection_type
         connection_id_attribute_name: str = self._get_attr(hook_class, 'conn_name_attr')
         hook_name: str = self._get_attr(hook_class, 'hook_name')
 
-        if not conn_type or not connection_id_attribute_name or not hook_name:
-            return
+        if not connection_type or not connection_id_attribute_name or not hook_name:
+            log.warning(
+                "The hook misses one of the key attributes: "
+                "conn_type: %s, conn_id_attribute_name: %s, hook_name: %s",
+                connection_type,
+                connection_id_attribute_name,
+                hook_name,
+            )
+            return None
 
-        self._hooks_dict[conn_type] = HookInfo(
-            hook_class_name,
-            connection_id_attribute_name,
-            provider_package,
-            hook_name,
+        return HookInfo(
+            hook_class_name=hook_class_name,
+            connection_id_attribute_name=connection_id_attribute_name,
+            package_name=package_name,
+            hook_name=hook_name,
+            connection_type=connection_type,
         )
 
     def _add_widgets(self, package_name: str, hook_class: type, widgets: Dict[str, Field]):
@@ -491,10 +707,14 @@ class ProvidersManager(LoggingMixin):
         return self._provider_dict
 
     @property
-    def hooks(self) -> Dict[str, HookInfo]:
-        """Returns dictionary of connection_type-to-hook mapping"""
+    def hooks(self) -> Dict[str, Optional[HookInfo]]:
+        """
+        Returns dictionary of connection_type-to-hook mapping. Note that the dict can contain
+        None values if a hook discovered cannot be imported!
+        """
         self.initialize_providers_hooks()
-        return self._hooks_dict
+        # When we return hooks here it will only be used to retrieve hook information
+        return self._hooks_lazy_dict  # type: ignore
 
     @property
     def extra_links_class_names(self) -> List[str]:
@@ -506,12 +726,14 @@ class ProvidersManager(LoggingMixin):
     def connection_form_widgets(self) -> Dict[str, ConnectionFormWidgetInfo]:
         """Returns widgets for connection forms."""
         self.initialize_providers_hooks()
+        self._import_info_from_all_hooks()
         return self._connection_form_widgets
 
     @property
     def field_behaviours(self) -> Dict[str, Dict]:
         """Returns dictionary with field behaviours for connection types."""
         self.initialize_providers_hooks()
+        self._import_info_from_all_hooks()
         return self._field_behaviours
 
     @property

@@ -3101,8 +3101,9 @@ def lazy_add_provider_discovered_options_to_connection_form():
             ('mesos_framework-id', 'Mesos Framework ID'),
         ]
         providers_manager = ProvidersManager()
-        for connection_type, (_, _, _, hook_name) in providers_manager.hooks.items():
-            _connection_types.append((connection_type, hook_name))
+        for connection_type, provider_info in providers_manager.hooks.items():
+            if provider_info:
+                _connection_types.append((connection_type, provider_info.hook_name))
         return _connection_types
 
     ConnectionForm.conn_type = SelectField(

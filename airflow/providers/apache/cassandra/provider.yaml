@@ -50,3 +50,7 @@ hooks:
 
 hook-class-names:
   - airflow.providers.apache.cassandra.hooks.cassandra.CassandraHook
+
+connection-types:
+  - hook-class-name: airflow.providers.apache.cassandra.hooks.cassandra.CassandraHook
+    connection-type: cassandra

@@ -415,6 +415,14 @@ hook-class-names:
   - airflow.providers.amazon.aws.hooks.base_aws.AwsBaseHook
   - airflow.providers.amazon.aws.hooks.emr.EmrHook
 
+connection-types:
+  - hook-class-name: airflow.providers.amazon.aws.hooks.s3.S3Hook
+    connection-type: s3
+  - hook-class-name: airflow.providers.amazon.aws.hooks.base_aws.AwsBaseHook
+    connection-type: aws
+  - hook-class-name: airflow.providers.amazon.aws.hooks.emr.EmrHook
+    connection-type: emr
+
 secrets-backends:
   - airflow.providers.amazon.aws.secrets.secrets_manager.SecretsManagerBackend
   - airflow.providers.amazon.aws.secrets.systems_manager.SystemsManagerParameterStoreBackend

@@ -55,3 +55,7 @@ hooks:
 
 hook-class-names:
   - airflow.providers.tableau.hooks.tableau.TableauHook
+
+connection-types:
+  - hook-class-name: airflow.providers.tableau.hooks.tableau.TableauHook
+    connection-type: tableau
