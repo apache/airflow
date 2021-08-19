@@ -66,6 +66,13 @@ from tests.test_utils.timetables import cron_timetable, delta_timetable
 TEST_DATE = datetime_tz(2015, 1, 2, 0, 0)
 
 
+@pytest.fixture
+def session():
+    with create_session() as session:
+        yield session
+        session.rollback()
+
+
 class TestDag(unittest.TestCase):
     def setUp(self) -> None:
         clear_db_runs()
@@ -448,13 +455,24 @@ class TestDag(unittest.TestCase):
         test_dag = DAG(dag_id=test_dag_id, start_date=DEFAULT_DATE)
         test_task = DummyOperator(task_id=test_task_id, dag=test_dag)
 
-        ti1 = TI(task=test_task, execution_date=DEFAULT_DATE)
+        dr1 = test_dag.create_dagrun(state=None, run_id="test1", execution_date=DEFAULT_DATE)
+        dr2 = test_dag.create_dagrun(
+            state=None, run_id="test2", execution_date=DEFAULT_DATE + datetime.timedelta(days=1)
+        )
+        dr3 = test_dag.create_dagrun(
+            state=None, run_id="test3", execution_date=DEFAULT_DATE + datetime.timedelta(days=2)
+        )
+        dr4 = test_dag.create_dagrun(
+            state=None, run_id="test4", execution_date=DEFAULT_DATE + datetime.timedelta(days=3)
+        )
+
+        ti1 = TI(task=test_task, run_id=dr1.run_id)
         ti1.state = None
-        ti2 = TI(task=test_task, execution_date=DEFAULT_DATE + datetime.timedelta(days=1))
+        ti2 = TI(task=test_task, run_id=dr2.run_id)
         ti2.state = State.RUNNING
-        ti3 = TI(task=test_task, execution_date=DEFAULT_DATE + datetime.timedelta(days=2))
+        ti3 = TI(task=test_task, run_id=dr3.run_id)
         ti3.state = State.QUEUED
-        ti4 = TI(task=test_task, execution_date=DEFAULT_DATE + datetime.timedelta(days=3))
+        ti4 = TI(task=test_task, run_id=dr4.run_id)
         ti4.state = State.RUNNING
         session = settings.Session()
         session.merge(ti1)
@@ -1972,7 +1990,7 @@ class TestDagDecorator(unittest.TestCase):
         assert dag.params['value'] == self.VALUE
 
 
-def test_set_task_instance_state():
+def test_set_task_instance_state(session):
     """Test that set_task_instance_state updates the TaskInstance state and clear downstream failed"""
 
     start_date = datetime_tz(2020, 1, 1)
@@ -1986,7 +2004,11 @@ def test_set_task_instance_state():
         task_1 >> [task_2, task_3, task_4, task_5]
 
     dagrun = dag.create_dagrun(
-        start_date=start_date, execution_date=start_date, state=State.FAILED, run_type=DagRunType.SCHEDULED
+        start_date=start_date,
+        execution_date=start_date,
+        state=State.FAILED,
+        run_type=DagRunType.SCHEDULED,
+        session=session,
     )
 
     def get_task_instance(session, task):
@@ -1995,39 +2017,37 @@ def test_set_task_instance_state():
             .filter(
                 TI.dag_id == dag.dag_id,
                 TI.task_id == task.task_id,
-                TI.execution_date == start_date,
+                TI.run_id == dagrun.run_id,
             )
             .one()
         )
 
-    with create_session() as session:
-        get_task_instance(session, task_1).state = State.FAILED
-        get_task_instance(session, task_2).state = State.SUCCESS
-        get_task_instance(session, task_3).state = State.UPSTREAM_FAILED
-        get_task_instance(session, task_4).state = State.FAILED
-        get_task_instance(session, task_5).state = State.SKIPPED
+    get_task_instance(session, task_1).state = State.FAILED
+    get_task_instance(session, task_2).state = State.SUCCESS
+    get_task_instance(session, task_3).state = State.UPSTREAM_FAILED
+    get_task_instance(session, task_4).state = State.FAILED
+    get_task_instance(session, task_5).state = State.SKIPPED
 
-        session.commit()
+    session.flush()
 
     altered = dag.set_task_instance_state(
-        task_id=task_1.task_id, execution_date=start_date, state=State.SUCCESS
+        task_id=task_1.task_id, execution_date=start_date, state=State.SUCCESS, session=session
     )
 
-    with create_session() as session:
-        # After _mark_task_instance_state, task_1 is marked as SUCCESS
-        assert get_task_instance(session, task_1).state == State.SUCCESS
-        # task_2 remains as SUCCESS
-        assert get_task_instance(session, task_2).state == State.SUCCESS
-        # task_3 and task_4 are cleared because they were in FAILED/UPSTREAM_FAILED state
-        assert get_task_instance(session, task_3).state == State.NONE
-        assert get_task_instance(session, task_4).state == State.NONE
-        # task_5 remains as SKIPPED
-        assert get_task_instance(session, task_5).state == State.SKIPPED
-        dagrun.refresh_from_db(session=session)
-        # dagrun should be set to QUEUED
-        assert dagrun.get_state() == State.QUEUED
+    # After _mark_task_instance_state, task_1 is marked as SUCCESS
+    assert get_task_instance(session, task_1).state == State.SUCCESS
+    # task_2 remains as SUCCESS
+    assert get_task_instance(session, task_2).state == State.SUCCESS
+    # task_3 and task_4 are cleared because they were in FAILED/UPSTREAM_FAILED state
+    assert get_task_instance(session, task_3).state == State.NONE
+    assert get_task_instance(session, task_4).state == State.NONE
+    # task_5 remains as SKIPPED
+    assert get_task_instance(session, task_5).state == State.SKIPPED
+    dagrun.refresh_from_db(session=session)
+    # dagrun should be set to QUEUED
+    assert dagrun.get_state() == State.QUEUED
 
-    assert {t.key for t in altered} == {('test_set_task_instance_state', 'task_1', start_date, 1)}
+    assert {t.key for t in altered} == {('test_set_task_instance_state', 'task_1', dagrun.run_id, 1)}
 
 
 @pytest.mark.parametrize(

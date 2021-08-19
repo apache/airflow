@@ -48,10 +48,10 @@ class TaskReschedule(Base):
         ),
     )
 
-    def __init__(self, task, execution_date, try_number, start_date, end_date, reschedule_date):
+    def __init__(self, task, run_id, try_number, start_date, end_date, reschedule_date):
         self.dag_id = task.dag_id
         self.task_id = task.task_id
-        self.execution_date = execution_date
+        self.run_id = run_id
         self.try_number = try_number
         self.start_date = start_date
         self.end_date = end_date
@@ -81,7 +81,7 @@ class TaskReschedule(Base):
         qry = session.query(TR).filter(
             TR.dag_id == task_instance.dag_id,
             TR.task_id == task_instance.task_id,
-            TR.execution_date == task_instance.execution_date,
+            TR.run_id == task_instance.run_id,
             TR.try_number == try_number,
         )
         if descending:

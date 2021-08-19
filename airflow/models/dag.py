@@ -1172,7 +1172,8 @@ class DAG(LoggingMixin):
                 as_pk_tuple=False,
                 session=session,
             )
-            .order_by(TaskInstance.execution_date)
+            .join(TaskInstance.dag_run)
+            .order_by(DagRun.execution_date)
             .all()
         )
 
@@ -2274,7 +2275,7 @@ class DAG(LoggingMixin):
                         orm_dag.tags.append(dag_tag_orm)
                         session.add(dag_tag_orm)
 
-        DagCode.bulk_sync_to_db(filelocs)
+        DagCode.bulk_sync_to_db(filelocs, session=session)
 
         # Issue SQL/finish "Unit of Work", but let @provide_session commit (or if passed a session, let caller
         # decide when to commit

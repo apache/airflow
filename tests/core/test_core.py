@@ -17,7 +17,6 @@
 # under the License.
 
 import logging
-import multiprocessing
 import os
 import signal
 from datetime import timedelta
@@ -29,13 +28,14 @@ import pytest
 from airflow import settings
 from airflow.exceptions import AirflowException, AirflowTaskTimeout
 from airflow.hooks.base import BaseHook
-from airflow.jobs.local_task_job import LocalTaskJob
 from airflow.models import DagBag, TaskFail, TaskInstance
 from airflow.models.baseoperator import BaseOperator
 from airflow.operators.bash import BashOperator
 from airflow.operators.check_operator import CheckOperator, ValueCheckOperator
 from airflow.operators.dummy import DummyOperator
 from airflow.operators.python import PythonOperator
+from airflow.utils.dates import days_ago
+from airflow.utils.session import create_session
 from airflow.utils.state import State
 from airflow.utils.timezone import datetime
 from airflow.utils.types import DagRunType
@@ -45,6 +45,13 @@ from tests.test_utils.db import clear_db_dags, clear_db_runs, clear_db_task_fail
 DEV_NULL = '/dev/null'
 DEFAULT_DATE = datetime(2015, 1, 1)
 TEST_DAG_ID = 'unit_tests'
+
+
+@pytest.fixture
+def session():
+    with create_session() as session:
+        yield session
+        session.rollback()
 
 
 class OperatorSubclass(BaseOperator):
@@ -108,10 +115,18 @@ class TestCore:
 
         captain_hook.run("drop table operator_test_table")
 
-    def test_clear_api(self):
+    def test_clear_api(self, session):
         task = self.dag_bash.tasks[0]
-        task.clear(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, upstream=True, downstream=True)
-        ti = TaskInstance(task=task, execution_date=DEFAULT_DATE)
+
+        dr = self.dag_bash.create_dagrun(
+            run_type=DagRunType.MANUAL,
+            state=State.RUNNING,
+            execution_date=days_ago(1),
+            session=session,
+        )
+        task.clear(start_date=dr.execution_date, end_date=dr.execution_date, upstream=True, downstream=True)
+        ti = dr.get_task_instance(task.task_id, session=session)
+        ti.task = task
         ti.are_dependents_done()
 
     def test_illegal_args(self, dag_maker):
@@ -268,15 +283,16 @@ class TestCore:
         dag_maker.create_dagrun()
         op.resolve_template_files()
 
-    def test_task_get_template(self):
-        ti = TaskInstance(task=self.runme_0, execution_date=DEFAULT_DATE)
-        ti.dag = self.dag_bash
-        self.dag_bash.create_dagrun(
+    def test_task_get_template(self, session):
+        dr = self.dag_bash.create_dagrun(
             run_type=DagRunType.MANUAL,
             state=State.RUNNING,
             execution_date=DEFAULT_DATE,
             data_interval=(DEFAULT_DATE, DEFAULT_DATE + timedelta(days=1)),
+            session=session,
         )
+        ti = TaskInstance(task=self.runme_0, run_id=dr.run_id)
+        ti.dag = self.dag_bash
         ti.run(ignore_ti_state=True)
         context = ti.get_template_context()
 
@@ -314,63 +330,11 @@ class TestCore:
             assert value == expected_value
             assert [str(m.message) for m in recorder] == [message]
 
-    def test_local_task_job(self):
-        TI = TaskInstance
-        ti = TI(task=self.runme_0, execution_date=DEFAULT_DATE)
-        job = LocalTaskJob(task_instance=ti, ignore_ti_state=True)
-        job.run()
-
-    def test_raw_job(self):
-        TI = TaskInstance
-        ti = TI(task=self.runme_0, execution_date=DEFAULT_DATE)
-        ti.dag = self.dag_bash
-        self.dag_bash.create_dagrun(
-            run_type=DagRunType.MANUAL, state=State.RUNNING, execution_date=DEFAULT_DATE
-        )
-        ti.run(ignore_ti_state=True)
-
     def test_bad_trigger_rule(self, dag_maker):
         with pytest.raises(AirflowException):
             with dag_maker():
                 DummyOperator(task_id='test_bad_trigger', trigger_rule="non_existent")
             dag_maker.create_dagrun()
-
-    def test_terminate_task(self):
-        """If a task instance's db state get deleted, it should fail"""
-        from airflow.executors.sequential_executor import SequentialExecutor
-
-        TI = TaskInstance
-        dag = self.dagbag.dags.get('test_utils')
-        task = dag.task_dict.get('sleeps_forever')
-
-        ti = TI(task=task, execution_date=DEFAULT_DATE)
-        job = LocalTaskJob(task_instance=ti, ignore_ti_state=True, executor=SequentialExecutor())
-
-        # Running task instance asynchronously
-        proc = multiprocessing.Process(target=job.run)
-        proc.start()
-        sleep(5)
-        settings.engine.dispose()
-        session = settings.Session()
-        ti.refresh_from_db(session=session)
-        # making sure it's actually running
-        assert State.RUNNING == ti.state
-        ti = (
-            session.query(TI)
-            .filter_by(dag_id=task.dag_id, task_id=task.task_id, execution_date=DEFAULT_DATE)
-            .one()
-        )
-
-        # deleting the instance should result in a failure
-        session.delete(ti)
-        session.commit()
-        # waiting for the async task to finish
-        proc.join()
-
-        # making sure that the task ended up as failed
-        ti.refresh_from_db(session=session)
-        assert State.FAILED == ti.state
-        session.close()
 
     def test_task_fail_duration(self, dag_maker):
         """If a task fails, the duration should be recorded in TaskFail"""
@@ -382,6 +346,7 @@ class TestCore:
                 execution_timeout=timedelta(seconds=3),
                 retry_delay=timedelta(seconds=0),
             )
+        dag_maker.create_dagrun()
         session = settings.Session()
         try:
             op1.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)

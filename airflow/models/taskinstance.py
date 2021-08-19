@@ -418,7 +418,8 @@ class TaskInstance(Base, LoggingMixin):
             warnings.warn(
                 "Passing an execution_date to `TaskInstance()` is deprecated in favour of passing a run_id",
                 DeprecationWarning,
-                stacklevel=2,
+                # Stack level is 4 because SQLA adds some wrappers around the constructor
+                stacklevel=4,
             )
             # make sure we have a localized execution_date stored in UTC
             if execution_date and not timezone.is_localized(execution_date):
@@ -1633,7 +1634,7 @@ class TaskInstance(Base, LoggingMixin):
         session.add(
             TaskReschedule(
                 self.task,
-                self.execution_date,
+                self.run_id,
                 self._try_number,
                 actual_start_date,
                 self.end_date,
@@ -1736,9 +1737,11 @@ class TaskInstance(Base, LoggingMixin):
 
         return self.task.retries and self.try_number <= self.max_tries
 
-    @provide_session
-    def get_template_context(self, session=None) -> Context:
+    def get_template_context(self, session: Session = None) -> Context:
         """Return TI Context"""
+        # Do not use provide_session here -- it expunges everything on exit!
+        if not session:
+            session = settings.Session()
         task = self.task
         from airflow import macros
 
@@ -2007,11 +2010,12 @@ class TaskInstance(Base, LoggingMixin):
             'yesterday_ds_nodash': deprecated_proxy(get_yesterday_ds_nodash, key='yesterday_ds_nodash'),
         }
 
-    def get_rendered_template_fields(self):
+    @provide_session
+    def get_rendered_template_fields(self, session=None):
         """Fetch rendered template fields from DB"""
         from airflow.models.renderedtifields import RenderedTaskInstanceFields
 
-        rendered_task_instance_fields = RenderedTaskInstanceFields.get_templated_fields(self)
+        rendered_task_instance_fields = RenderedTaskInstanceFields.get_templated_fields(self, session=session)
         if rendered_task_instance_fields:
             for field_name, rendered_value in rendered_task_instance_fields.items():
                 setattr(self.task, field_name, rendered_value)

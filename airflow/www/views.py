@@ -1047,9 +1047,10 @@ class Airflow(AirflowBaseView):
 
         logging.info("Retrieving rendered templates.")
         dag = current_app.dag_bag.get_dag(dag_id)
+        dag_run = dag.get_dagrun(execution_date=execution_date)
 
         task = copy.copy(dag.get_task(task_id))
-        ti = models.TaskInstance(task=task, execution_date=dttm)
+        ti = dag_run.get_task_instance(task_id=task.task_id)
         try:
             ti.get_rendered_template_fields()
         except AirflowException as e:
@@ -1125,7 +1126,8 @@ class Airflow(AirflowBaseView):
         logging.info("Retrieving rendered templates.")
         dag = current_app.dag_bag.get_dag(dag_id)
         task = dag.get_task(task_id)
-        ti = models.TaskInstance(task=task, execution_date=dttm)
+        dag_run = dag.get_dagrun(execution_date=execution_date)
+        ti = dag_run.get_task_instance(task_id=task.task_id)
 
         pod_spec = None
         try:
@@ -1357,8 +1359,8 @@ class Airflow(AirflowBaseView):
             return redirect(url_for('Airflow.index'))
         task = copy.copy(dag.get_task(task_id))
         task.resolve_template_files()
-        ti = TaskInstance(task=task, execution_date=dttm)
-        ti.refresh_from_db()
+        dag_run = dag.get_dagrun(execution_date=execution_date)
+        ti = dag_run.get_task_instance(task_id=task.task_id)
 
         ti_attrs = []
         for attr_name in dir(ti):
@@ -1514,8 +1516,8 @@ class Airflow(AirflowBaseView):
             flash("Only works with the Celery or Kubernetes executors, sorry", "error")
             return redirect(origin)
 
-        ti = models.TaskInstance(task=task, execution_date=execution_date)
-        ti.refresh_from_db()
+        dag_run = dag.get_dagrun(execution_date=execution_date)
+        ti = dag_run.get_task_instance(task_id=task.task_id)
 
         # Make sure the task instance can be run
         dep_context = DepContext(

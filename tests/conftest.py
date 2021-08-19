@@ -497,7 +497,7 @@ def dag_maker(request):
             if type is not None:
                 return
 
-            dag.clear()
+            dag.clear(session=self.session)
             dag.sync_to_db(self.session)
             self.dag_model = self.session.query(DagModel).get(dag.dag_id)
 
@@ -622,6 +622,7 @@ def create_dummy_dag(dag_maker):
         on_failure_callback=None,
         on_retry_callback=None,
         email=None,
+        with_dagrun=True,
         **kwargs,
     ):
         with dag_maker(dag_id, **kwargs) as dag:
@@ -637,7 +638,33 @@ def create_dummy_dag(dag_maker):
                 pool=pool,
                 trigger_rule=trigger_rule,
             )
-        dag_maker.create_dagrun(run_type=DagRunType.SCHEDULED)
+        if with_dagrun:
+            dag_maker.create_dagrun(run_type=DagRunType.SCHEDULED)
         return dag, op
 
     return create_dag
+
+
+@pytest.fixture
+def create_task_instance(dag_maker, create_dummy_dag):
+    """
+    Create a TaskInstance, and associated DB rows (DagRun, DagModel, etc)
+
+    Uses ``create_dummy_dag`` to create the dag structure.
+    """
+
+    def maker(execution_date=None, dagrun_state=None, state=None, run_id='test', **kwargs):
+        if execution_date is None:
+            from airflow.utils import timezone
+
+            execution_date = timezone.utcnow()
+        _, task = create_dummy_dag(with_dagrun=False, **kwargs)
+
+        dr = dag_maker.create_dagrun(execution_date=execution_date, state=dagrun_state, run_id=run_id)
+        ti = dr.task_instances[0]
+        ti.task = task
+        ti.state = state
+
+        return ti
+
+    return maker

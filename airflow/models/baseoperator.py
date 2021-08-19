@@ -52,7 +52,7 @@ from sqlalchemy.orm import Session
 import airflow.templates
 from airflow.compat.functools import cached_property
 from airflow.configuration import conf
-from airflow.exceptions import AirflowException, TaskDeferred
+from airflow.exceptions import AirflowException, DagRunNotFound, TaskDeferred
 from airflow.lineage import apply_lineage, prepare_lineage
 from airflow.models.base import Operator
 from airflow.models.pool import Pool
@@ -1284,6 +1284,7 @@ class BaseOperator(Operator, LoggingMixin, TaskMixin, metaclass=BaseOperatorMeta
         dag: DAG = self._dag
         return list(map(lambda task_id: dag.task_dict[task_id], self.get_flat_relative_ids(upstream)))
 
+    @provide_session
     def run(
         self,
         start_date: Optional[datetime] = None,
@@ -1291,6 +1292,7 @@ class BaseOperator(Operator, LoggingMixin, TaskMixin, metaclass=BaseOperatorMeta
         ignore_first_depends_on_past: bool = True,
         ignore_ti_state: bool = False,
         mark_success: bool = False,
+        session: Session = None,
     ) -> None:
         """Run a set of task instances for a date range."""
         start_date = start_date or self.start_date
@@ -1298,10 +1300,30 @@ class BaseOperator(Operator, LoggingMixin, TaskMixin, metaclass=BaseOperatorMeta
 
         for info in self.dag.iter_dagrun_infos_between(start_date, end_date, align=False):
             ignore_depends_on_past = info.logical_date == start_date and ignore_first_depends_on_past
-            TaskInstance(self, info.logical_date).run(
+            try:
+                ti = TaskInstance(self, info.logical_date)
+            except DagRunNotFound:
+                from airflow.models import DagRun
+                from airflow.utils.types import DagRunType
+
+                # This is _mostly_ only used in tests
+                dr = DagRun(
+                    dag_id=self.dag_id,
+                    run_id=DagRun.generate_run_id(DagRunType.MANUAL, info.logical_date),
+                    run_type=DagRunType.MANUAL,
+                    execution_date=info.logical_date,
+                    data_interval=info.data_interval,
+                )
+                ti = TaskInstance(self, run_id=None)
+                ti.dag_run = dr
+                session.add(dr)
+                session.flush()
+
+            ti.run(
                 mark_success=mark_success,
                 ignore_depends_on_past=ignore_depends_on_past,
                 ignore_ti_state=ignore_ti_state,
+                session=session,
             )
 
     def dry_run(self) -> None:
