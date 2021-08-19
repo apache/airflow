@@ -40,7 +40,7 @@ under the License.
 
     {% for provider in providers %}
       <tr>
-          <td>{{ provider["package_name"] }}</td>
+          <td><a href="{{ provider['documentation_url'] }}">{{ provider["package_name"] }}</a></td>
           <td>{{ provider["version"] }}</td>
           <td>{{ provider["description"]}}</td>
       </tr>
