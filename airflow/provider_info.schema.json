@@ -16,7 +16,7 @@
     },
     "hook-class-names": {
       "type": "array",
-      "description": "Hook class names that provide connection types to core((deprecated by connection-types)",
+      "description": "Hook class names that provide connection types to core (deprecated by connection-types)",
       "items": {
         "type": "string"
       },
