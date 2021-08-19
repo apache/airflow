@@ -89,6 +89,7 @@ installing Airflow, example for Python 3.8 and Airflow 2.1.2:
 pip install -U "apache-airflow[pandas]==2.1.2" \
   --constraint https://raw.githubusercontent.com/apache/airflow/constraints-2.1.2/constraints-3.8.txt"
 ```
+
 ### `none_failed_or_skipped` trigger rule has been deprecated
 
 `TriggerRule.NONE_FAILED_OR_SKIPPED` is replaced by `TriggerRule.NONE_FAILED_MIN_ONE_SUCCESS`.
