@@ -719,6 +719,113 @@ webserver:
             topologyKey: "kubernetes.io/hostname"
   tolerations: []
 
+# Airflow Triggerer Config
+triggerers:
+  # Number of airflow triggerers in StatefulSet
+  replicas: 1
+
+  # Command to use when running Airflow triggerers (templated).
+  command: ~
+  # Args to use when running Airflow triggerers (templated).
+  args:
+    - "bash"
+    - "-c"
+    # The format below is necessary to get `helm lint` happy
+    - |-
+      exec \
+      airflow triggerer
+
+  # Update Strategy when triggerers are deployed as a StatefulSet
+  updateStrategy: ~
+  # Update Strategy when triggerers are deployed as a Deployment
+  strategy:
+    rollingUpdate:
+      maxSurge: "100%"
+      maxUnavailable: "50%"
+
+  # Create ServiceAccount
+  serviceAccount:
+    # Specifies whether a ServiceAccount should be created
+    create: true
+    # The name of the ServiceAccount to use.
+    # If not set and create is true, a name is generated using the release name
+    name: ~
+
+    # Annotations to add to triggerer kubernetes service account.
+    annotations: {}
+
+  persistence:
+    # Enable persistent volumes
+    enabled: false
+    # Volume size for triggerer StatefulSet
+    size: 100Gi
+    # If using a custom storageClass, pass name ref to all statefulSets here
+    storageClassName:
+    # Execute init container to chown log directory.
+    # This is currently only needed in kind, due to usage
+    # of local-path provisioner.
+    fixPermissions: false
+
+  resources: {}
+  #  limits:
+  #   cpu: 100m
+  #   memory: 128Mi
+  #  requests:
+  #   cpu: 100m
+  #   memory: 128Mi
+
+  # Grace period for triggerer to finish after SIGTERM is sent from kubernetes
+  terminationGracePeriodSeconds: 60
+
+  # This setting tells kubernetes that its ok to evict
+  # when it wants to scale a node down.
+  safeToEvict: true
+
+  # Launch additional containers into triggerer.
+  extraContainers: []
+  # Add additional init containers into triggerers.
+  extraInitContainers: []
+
+  # Mount additional volumes into triggerer.
+  extraVolumes: []
+  extraVolumeMounts: []
+
+  # Select certain nodes for airflow triggerer pods.
+  nodeSelector: {}
+  affinity:
+    podAntiAffinity:
+      preferredDuringSchedulingIgnoredDuringExecution:
+        - weight: 100
+          podAffinityTerm:
+            labelSelector:
+              matchLabels:
+                component: triggerer
+            topologyKey: "kubernetes.io/hostname"
+  tolerations: []
+  # hostAliases to use in triggerer pods.
+  # See:
+  # https://kubernetes.io/docs/concepts/services-networking/add-entries-to-pod-etc-hosts-with-host-aliases/
+  hostAliases: []
+  # - ip: "127.0.0.2"
+  #   hostnames:
+  #   - "test.hostname.one"
+  # - ip: "127.0.0.3"
+  #   hostnames:
+  #   - "test.hostname.two"
+
+  logGroomerSidecar:
+    # Command to use when running the Airflow triggerer log groomer sidecar (templated).
+    command: ~
+    # Args to use when running the Airflow triggerer log groomer sidecar (templated).
+    args: ["bash", "/clean-logs"]
+    resources: {}
+    #  limits:
+    #   cpu: 100m
+    #   memory: 128Mi
+    #  requests:
+    #   cpu: 100m
+    #   memory: 128Mi
+
 # Flower settings
 flower:
   # Enable flower.

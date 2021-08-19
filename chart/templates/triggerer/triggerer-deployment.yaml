@@ -1,0 +1,212 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+
+################################
+## Airflow Triggerer Deployment
+#################################
+{{- $persistence := .Values.triggerers.persistence.enabled }}
+{{- if semverCompare ">=2.2.0" .Values.airflowVersion }}
+{{- $nodeSelector := or .Values.nodeSelector .Values.triggerers.nodeSelector }}
+{{- $affinity := or .Values.affinity .Values.triggerers.affinity }}
+{{- $tolerations := or .Values.tolerations .Values.triggerers.tolerations }}
+kind: {{ if $persistence }}StatefulSet{{ else }}Deployment{{ end }}
+apiVersion: apps/v1
+metadata:
+  name: {{ .Release.Name }}-triggerer
+  labels:
+    tier: airflow
+    component: triggerer
+    release: {{ .Release.Name }}
+    chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
+    heritage: {{ .Release.Service }}
+{{- with .Values.labels }}
+{{ toYaml . | indent 4 }}
+{{- end }}
+spec:
+{{- if $persistence }}
+  serviceName: {{ .Release.Name }}-triggerer
+{{- end }}
+  replicas: {{ .Values.triggerers.replicas }}
+  selector:
+    matchLabels:
+      tier: airflow
+      component: triggerer
+      release: {{ .Release.Name }}
+  {{- if and $persistence .Values.triggerers.updateStrategy }}
+  updateStrategy:
+    {{- toYaml .Values.triggerers.updateStrategy | nindent 4 }}
+  {{- end }}
+  {{- if and (not $persistence) (.Values.triggerers.strategy) }}
+  strategy:
+    {{- toYaml .Values.triggerers.strategy | nindent 4 }}
+  {{- end }}
+  template:
+    metadata:
+      labels:
+        tier: airflow
+        component: triggerer
+        release: {{ .Release.Name }}
+{{- with .Values.labels }}
+{{ toYaml . | indent 8 }}
+{{- end }}
+      annotations:
+        checksum/metadata-secret: {{ include (print $.Template.BasePath "/secrets/metadata-connection-secret.yaml") . | sha256sum }}
+        checksum/result-backend-secret: {{ include (print $.Template.BasePath "/secrets/result-backend-connection-secret.yaml") . | sha256sum }}
+        checksum/pgbouncer-config-secret: {{ include (print $.Template.BasePath "/secrets/pgbouncer-config-secret.yaml") . | sha256sum }}
+        checksum/airflow-config: {{ include (print $.Template.BasePath "/configmaps/configmap.yaml") . | sha256sum }}
+        checksum/extra-configmaps: {{ include (print $.Template.BasePath "/configmaps/extra-configmaps.yaml") . | sha256sum }}
+        checksum/extra-secrets: {{ include (print $.Template.BasePath "/secrets/extra-secrets.yaml") . | sha256sum }}
+        {{- if .Values.triggerers.safeToEvict }}
+        cluster-autoscaler.kubernetes.io/safe-to-evict: "true"
+        {{- end }}
+        {{- if .Values.airflowPodAnnotations }}
+        {{- toYaml .Values.airflowPodAnnotations | nindent 8 }}
+        {{- end }}
+    spec:
+      nodeSelector:
+{{ toYaml $nodeSelector | indent 8 }}
+      affinity:
+{{ toYaml $affinity | indent 8 }}
+      tolerations:
+{{ toYaml $tolerations | indent 8 }}
+{{- if .Values.triggerers.hostAliases }}
+      hostAliases:
+{{ toYaml .Values.triggerers.hostAliases | indent 8 }}
+{{- end }}
+      terminationGracePeriodSeconds: {{ .Values.triggerers.terminationGracePeriodSeconds }}
+      restartPolicy: Always
+      serviceAccountName: {{ include "triggerer.serviceAccountName" . }}
+      securityContext:
+        runAsUser: {{ .Values.uid }}
+        fsGroup: {{ .Values.gid }}
+      {{- if or .Values.registry.secretName .Values.registry.connection }}
+      imagePullSecrets:
+        - name: {{ template "registry_secret" . }}
+      {{- end }}
+      initContainers:
+      {{- if and $persistence .Values.triggerers.persistence.fixPermissions }}
+        - name: volume-permissions
+          resources:
+{{ toYaml .Values.triggerers.resources | indent 12 }}
+          image: {{ template "airflow_image" . }}
+          imagePullPolicy: {{ .Values.images.airflow.pullPolicy }}
+          command:
+            - chown
+            - -R
+            - "{{ .Values.uid }}:{{ .Values.gid }}"
+            - {{ template "airflow_logs" . }}
+          securityContext:
+            runAsUser: 0
+          volumeMounts:
+            - name: logs
+              mountPath: {{ template "airflow_logs" . }}
+      {{- end }}
+        - name: wait-for-airflow-migrations
+          resources:
+{{ toYaml .Values.triggerers.resources | indent 12 }}
+          image: {{ template "airflow_image" . }}
+          imagePullPolicy: {{ .Values.images.airflow.pullPolicy }}
+          args:
+          {{- include "wait-for-migrations-command" . | indent 10 }}
+          envFrom:
+          {{- include "custom_airflow_environment_from" . | default "\n  []" | indent 10 }}
+          env:
+          {{- include "custom_airflow_environment" . | indent 10 }}
+          {{- include "standard_airflow_environment" . | indent 10 }}
+        {{- if .Values.triggerers.extraInitContainers }}
+        {{- toYaml .Values.triggerers.extraInitContainers | nindent 8 }}
+        {{- end }}
+      containers:
+        - name: triggerer
+          image: {{ template "airflow_image" . }}
+          imagePullPolicy: {{ .Values.images.airflow.pullPolicy }}
+          {{- if .Values.triggerers.command }}
+          command: {{ tpl (toYaml .Values.triggerers.command) . | nindent 12 }}
+          {{- end }}
+          {{- if .Values.triggerers.args }}
+          args: {{ tpl (toYaml .Values.triggerers.args) . | nindent 12 }}
+          {{- end }}
+          resources:
+{{ toYaml .Values.triggerers.resources | indent 12 }}
+          volumeMounts:
+{{- if .Values.triggerers.extraVolumeMounts }}
+{{ toYaml .Values.triggerers.extraVolumeMounts | indent 12 }}
+{{- end }}
+            - name: logs
+              mountPath: {{ template "airflow_logs" . }}
+            - name: config
+              mountPath: {{ template "airflow_config_path" . }}
+              subPath: airflow.cfg
+              readOnly: true
+            {{- if .Values.airflowLocalSettings }}
+            - name: config
+              mountPath: {{ template "airflow_local_setting_path" . }}
+              subPath: airflow_local_settings.py
+              readOnly: true
+            {{- end }}
+          envFrom:
+          {{- include "custom_airflow_environment_from" . | default "\n  []" | indent 10 }}
+          env:
+          {{- include "custom_airflow_environment" . | indent 10 }}
+          {{- include "standard_airflow_environment" . | indent 10 }}
+{{- if $persistence }}
+        - name: triggerer-log-groomer
+          image: {{ template "airflow_image" . }}
+          imagePullPolicy: {{ .Values.images.airflow.pullPolicy }}
+          {{- if .Values.triggerers.logGroomerSidecar.command }}
+          command: {{ tpl (toYaml .Values.triggerers.logGroomerSidecar.command) . | nindent 12 }}
+          {{- end }}
+          {{- if .Values.triggerers.logGroomerSidecar.args }}
+          args: {{ tpl (toYaml .Values.triggerers.logGroomerSidecar.args) . | nindent 12 }}
+          {{- end }}
+          resources:
+{{ toYaml .Values.triggerers.logGroomerSidecar.resources | indent 12 }}
+          volumeMounts:
+            - name: logs
+              mountPath: {{ template "airflow_logs" . }}
+{{- end }}
+{{- if .Values.triggerers.extraContainers }}
+{{- toYaml .Values.triggerers.extraContainers | nindent 8 }}
+{{- end }}
+      volumes:
+{{- if .Values.triggerers.extraVolumes }}
+{{ toYaml .Values.triggerers.extraVolumes | indent 8 }}
+{{- end }}
+        - name: config
+          configMap:
+            name: {{ template "airflow_config" . }}
+{{- if .Values.logs.persistence.enabled }}
+        - name: logs
+          persistentVolumeClaim:
+            claimName: {{ template "airflow_logs_volume_claim" . }}
+{{- else if not $persistence }}
+        - name: logs
+          emptyDir: {}
+{{- else }}
+  volumeClaimTemplates:
+    - metadata:
+        name: logs
+      spec:
+      {{- if .Values.triggerers.persistence.storageClassName }}
+        storageClassName: {{ .Values.triggerers.persistence.storageClassName }}
+      {{- end }}
+        accessModes: ["ReadWriteOnce"]
+        resources:
+          requests:
+            storage: {{ .Values.triggerers.persistence.size }}
+{{- end }}
+{{- end }}
