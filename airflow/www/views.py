@@ -970,6 +970,7 @@ class Airflow(AirflowBaseView):
         """Get Dag details."""
         dag_id = request.args.get('dag_id')
         dag = current_app.dag_bag.get_dag(dag_id)
+        dag_model = DagModel.get_dagmodel(dag_id)
 
         title = "DAG Details"
         root = request.args.get('root', '')
@@ -994,6 +995,7 @@ class Airflow(AirflowBaseView):
             State=State,
             active_runs=active_runs,
             tags=tags,
+            dag_model=dag_model,
         )
 
     @expose('/rendered-templates')
@@ -2164,6 +2166,7 @@ class Airflow(AirflowBaseView):
         """Get Dag as tree."""
         dag_id = request.args.get('dag_id')
         dag = current_app.dag_bag.get_dag(dag_id)
+        dag_model = DagModel.get_dagmodel(dag_id)
         if not dag:
             flash(f'DAG "{dag_id}" seems to be missing from DagBag.', "error")
             return redirect(url_for('Airflow.index'))
@@ -2224,6 +2227,7 @@ class Airflow(AirflowBaseView):
             num_runs=num_runs,
             show_external_log_redirect=task_log_reader.supports_external_link,
             external_log_name=external_log_name,
+            dag_model=dag_model,
         )
 
     @expose('/calendar')
@@ -2247,6 +2251,7 @@ class Airflow(AirflowBaseView):
 
         dag_id = request.args.get('dag_id')
         dag = current_app.dag_bag.get_dag(dag_id)
+        dag_model = DagModel.get_dagmodel(dag_id)
         if not dag:
             flash(f'DAG "{dag_id}" seems to be missing from DagBag.', "error")
             return redirect(url_for('Airflow.index'))
@@ -2296,6 +2301,7 @@ class Airflow(AirflowBaseView):
             doc_md=doc_md,
             data=data,
             root=root,
+            dag_model=dag_model,
         )
 
     @expose('/graph')
@@ -2313,6 +2319,7 @@ class Airflow(AirflowBaseView):
         """Get DAG as Graph."""
         dag_id = request.args.get('dag_id')
         dag = current_app.dag_bag.get_dag(dag_id)
+        dag_model = DagModel.get_dagmodel(dag_id)
         if not dag:
             flash(f'DAG "{dag_id}" seems to be missing.', "error")
             return redirect(url_for('Airflow.index'))
@@ -2384,6 +2391,7 @@ class Airflow(AirflowBaseView):
             show_external_log_redirect=task_log_reader.supports_external_link,
             external_log_name=external_log_name,
             dag_run_state=dt_nr_dr_data['dr_state'],
+            dag_model=dag_model,
         )
 
     @expose('/duration')
@@ -2399,6 +2407,7 @@ class Airflow(AirflowBaseView):
         """Get Dag as duration graph."""
         default_dag_run = conf.getint('webserver', 'default_dag_run_display_number')
         dag_id = request.args.get('dag_id')
+        dag_model = DagModel.get_dagmodel(dag_id)
 
         try:
             dag = current_app.dag_bag.get_dag(dag_id)
@@ -2516,6 +2525,7 @@ class Airflow(AirflowBaseView):
             form=form,
             chart=Markup(chart.htmlcontent),
             cum_chart=Markup(cum_chart.htmlcontent),
+            dag_model=dag_model,
         )
 
     @expose('/tries')
@@ -2532,6 +2542,7 @@ class Airflow(AirflowBaseView):
         default_dag_run = conf.getint('webserver', 'default_dag_run_display_number')
         dag_id = request.args.get('dag_id')
         dag = current_app.dag_bag.get_dag(dag_id)
+        dag_model = DagModel.get_dagmodel(dag_id)
         base_date = request.args.get('base_date')
         num_runs = request.args.get('num_runs', default=default_dag_run, type=int)
 
@@ -2588,6 +2599,7 @@ class Airflow(AirflowBaseView):
             form=form,
             chart=Markup(chart.htmlcontent),
             tab_title='Tries',
+            dag_model=dag_model,
         )
 
     @expose('/landing_times')
@@ -2604,6 +2616,7 @@ class Airflow(AirflowBaseView):
         default_dag_run = conf.getint('webserver', 'default_dag_run_display_number')
         dag_id = request.args.get('dag_id')
         dag = current_app.dag_bag.get_dag(dag_id)
+        dag_model = DagModel.get_dagmodel(dag_id)
         base_date = request.args.get('base_date')
         num_runs = request.args.get('num_runs', default=default_dag_run, type=int)
 
@@ -2672,6 +2685,7 @@ class Airflow(AirflowBaseView):
             root=root,
             form=form,
             tab_title='Landing times',
+            dag_model=dag_model,
         )
 
     @expose('/paused', methods=['POST'])
@@ -2701,6 +2715,7 @@ class Airflow(AirflowBaseView):
         """Show GANTT chart."""
         dag_id = request.args.get('dag_id')
         dag = current_app.dag_bag.get_dag(dag_id)
+        dag_model = DagModel.get_dagmodel(dag_id)
 
         root = request.args.get('root')
         if root:
@@ -2780,6 +2795,7 @@ class Airflow(AirflowBaseView):
             data=data,
             base_date='',
             root=root,
+            dag_model=dag_model,
         )
 
     @expose('/extra_links')
