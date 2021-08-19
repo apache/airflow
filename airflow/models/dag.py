@@ -173,9 +173,9 @@ class DAG(LoggingMixin):
         accessible in templates, namespaced under `params`. These
         params can be overridden at the task level.
     :type params: dict
-    :param concurrency: the number of task instances allowed to run
+    :param max_active_tasks: the number of task instances allowed to run
         concurrently
-    :type concurrency: int
+    :type max_active_tasks: int
     :param max_active_runs: maximum number of active DAG runs, beyond this
         number of DAG runs in a running state, the scheduler won't create
         new active DAG runs
