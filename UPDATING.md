@@ -180,7 +180,7 @@ While DAG Serialization is a strict requirements since Airflow 2, we allowed use
 where the Webserver looked for when showing the **Code View**.
 
 If `[core] store_dag_code` was set to `True`, the Scheduler stored the code in the DAG file in the
-DB (in `dag_code` table) as plain string. And the webserver just read it from the same table.
+DB (in `dag_code` table) as a plain string, and the webserver just read it from the same table.
 If the value was set to `False`, the webserver read it from the DAG file.
 
 While this setting made sense for Airflow < 2, it caused some confusion to some users where they thought
