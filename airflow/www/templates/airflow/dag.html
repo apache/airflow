@@ -84,8 +84,13 @@
         {{ state_token }}
       {% endif %}
       <a class="label label-default" href="{{ url_for('DagRunModelView.list') }}?_flt_3_dag_id={{ dag.dag_id }}">
-        schedule: {{ dag.schedule_interval }}
+        Schedule: {{ dag.schedule_interval }}
       </a>
+      {% if dag.next_dagrun %}
+        <p class="label label-default">
+          Next Run: {{ dag.next_dagrun }}
+        </p>
+      {% endif %}
     </h4>
   </div>
   <div class="clearfix"></div>
