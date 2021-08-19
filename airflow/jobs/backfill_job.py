@@ -587,14 +587,14 @@ class BackfillJob(BaseJob):
                                 "Not scheduling since DAG max_active_tasks limit is reached."
                             )
 
-                        if task.task_concurrency:
+                        if task.max_active_tis_per_dag:
                             num_running_task_instances_in_task = DAG.get_num_task_instances(
                                 dag_id=self.dag_id,
                                 task_ids=[task.task_id],
                                 states=self.STATES_COUNT_AS_RUNNING,
                             )
 
-                            if num_running_task_instances_in_task >= task.task_concurrency:
+                            if num_running_task_instances_in_task >= task.max_active_tis_per_dag:
                                 raise TaskConcurrencyLimitReached(
                                     "Not scheduling since Task concurrency limit is reached."
                                 )
