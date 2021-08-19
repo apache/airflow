@@ -449,9 +449,9 @@ workers:
   #   - "test.hostname.two"
 
   logGroomerSidecar:
-    # Command to use when running the Airflow scheduler log groomer sidecar (templated).
+    # Command to use when running the Airflow worker log groomer sidecar (templated).
     command: ~
-    # Args to use when running the Airflow scheduler log groomer sidecar (templated).
+    # Args to use when running the Airflow worker log groomer sidecar (templated).
     args: ["bash", "/clean-logs"]
     resources: {}
     #  limits:
