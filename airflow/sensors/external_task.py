@@ -55,6 +55,11 @@ class ExternalTaskSensor(BaseSensorOperator):
     :param external_task_id: The task_id that contains the task you want to
         wait for. If ``None`` (default value) the sensor waits for the DAG
     :type external_task_id: str or None
+    :param external_task_ids: The list of task_ids that you want to wait for.
+        If ``None`` (default value) the sensor waits for the DAG. Either
+        external_task_id or external_task_ids can be passed to
+        ExternalTaskSensor, but not both.
+    :type external_task_ids: Iterable of task_ids or None, default is None
     :param allowed_states: Iterable of allowed states, default is ``['success']``
     :type allowed_states: Iterable
     :param failed_states: Iterable of failed or dis-allowed states, default is ``None``
@@ -91,6 +96,7 @@ class ExternalTaskSensor(BaseSensorOperator):
         *,
         external_dag_id: str,
         external_task_id: Optional[str] = None,
+        external_task_ids: Optional[Iterable[str]] = None,
         allowed_states: Optional[Iterable[str]] = None,
         failed_states: Optional[Iterable[str]] = None,
         execution_delta: Optional[datetime.timedelta] = None,
@@ -111,12 +117,23 @@ class ExternalTaskSensor(BaseSensorOperator):
                 "`{}` and failed states `{}`".format(self.allowed_states, self.failed_states)
             )
 
-        if external_task_id:
+        if external_task_id is not None and external_task_ids is not None:
+            raise ValueError(
+                'Only one of `external_task_id` or `external_task_ids` may '
+                'be provided to ExternalTaskSensor; not both.'
+            )
+
+        if external_task_id is not None:
+            external_task_ids = [external_task_id]
+
+        if external_task_ids:
             if not total_states <= set(State.task_states):
                 raise ValueError(
                     f'Valid values for `allowed_states` and `failed_states` '
-                    f'when `external_task_id` is not `None`: {State.task_states}'
+                    f'when `external_task_id` or `external_task_ids` is not `None`: {State.task_states}'
                 )
+            if len(external_task_ids) > len(set(external_task_ids)):
+                raise ValueError('Duplicate task_ids passed in external_task_ids parameter')
         elif not total_states <= set(State.dag_states):
             raise ValueError(
                 f'Valid values for `allowed_states` and `failed_states` '
@@ -133,6 +150,7 @@ class ExternalTaskSensor(BaseSensorOperator):
         self.execution_date_fn = execution_date_fn
         self.external_dag_id = external_dag_id
         self.external_task_id = external_task_id
+        self.external_task_ids = external_task_ids
         self.check_existence = check_existence
         self._has_checked_existence = False
 
@@ -149,7 +167,10 @@ class ExternalTaskSensor(BaseSensorOperator):
         serialized_dttm_filter = ','.join(dt.isoformat() for dt in dttm_filter)
 
         self.log.info(
-            'Poking for %s.%s on %s ... ', self.external_dag_id, self.external_task_id, serialized_dttm_filter
+            'Poking for tasks %s in dag %s on %s ... ',
+            self.external_task_ids,
+            self.external_dag_id,
+            serialized_dttm_filter,
         )
 
         # In poke mode this will check dag existence only once
@@ -163,9 +184,10 @@ class ExternalTaskSensor(BaseSensorOperator):
             count_failed = self.get_count(dttm_filter, session, self.failed_states)
 
         if count_failed == len(dttm_filter):
-            if self.external_task_id:
+            if self.external_task_ids:
                 raise AirflowException(
-                    f'The external task {self.external_task_id} in DAG {self.external_dag_id} failed.'
+                    f'Some of the external tasks {self.external_task_ids} '
+                    f'in DAG {self.external_dag_id} failed.'
                 )
             else:
                 raise AirflowException(f'The external DAG {self.external_dag_id} failed.')
@@ -181,13 +203,14 @@ class ExternalTaskSensor(BaseSensorOperator):
         if not os.path.exists(dag_to_wait.fileloc):
             raise AirflowException(f'The external DAG {self.external_dag_id} was deleted.')
 
-        if self.external_task_id:
+        if self.external_task_ids:
             refreshed_dag_info = DagBag(dag_to_wait.fileloc).get_dag(self.external_dag_id)
-            if not refreshed_dag_info.has_task(self.external_task_id):
-                raise AirflowException(
-                    f'The external task {self.external_task_id} in '
-                    f'DAG {self.external_dag_id} does not exist.'
-                )
+            for external_task_id in self.external_task_ids:
+                if not refreshed_dag_info.has_task(external_task_id):
+                    raise AirflowException(
+                        f'The external task {external_task_id} in '
+                        f'DAG {self.external_dag_id} does not exist.'
+                    )
         self._has_checked_existence = True
 
     def get_count(self, dttm_filter, session, states) -> int:
@@ -204,17 +227,18 @@ class ExternalTaskSensor(BaseSensorOperator):
         """
         TI = TaskInstance
         DR = DagRun
-        if self.external_task_id:
+        if self.external_task_ids:
             count = (
                 session.query(func.count())  # .count() is inefficient
                 .filter(
                     TI.dag_id == self.external_dag_id,
-                    TI.task_id == self.external_task_id,
+                    TI.task_id.in_(self.external_task_ids),
                     TI.state.in_(states),
                     TI.execution_date.in_(dttm_filter),
                 )
                 .scalar()
             )
+            count = count / len(self.external_task_ids)
         else:
             count = (
                 session.query(func.count())
