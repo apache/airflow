@@ -703,7 +703,7 @@ webserver:
     loadBalancerIP: ~
     ## Limit load balancer source ips to list of CIDRs
     # loadBalancerSourceRanges:
-    #   - "143.231.0.0/16"
+    #   - "10.123.0.0/16"
     loadBalancerSourceRanges: []
 
   # Select certain nodes for airflow webserver pods.
@@ -787,7 +787,7 @@ flower:
     loadBalancerIP: ~
     ## Limit load balancer source ips to list of CIDRs
     # loadBalancerSourceRanges:
-    #   - "143.231.0.0/16"
+    #   - "10.123.0.0/16"
     loadBalancerSourceRanges: []
 
   # Launch additional containers into the flower pods.
