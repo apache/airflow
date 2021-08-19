@@ -289,11 +289,11 @@ class TestTaskInstance:
         ti.run()
         assert ti.state == State.NONE
 
-    def test_requeue_over_task_concurrency(self, create_dummy_dag):
+    def test_requeue_over_max_active_tis_per_dag(self, create_dummy_dag):
         _, task = create_dummy_dag(
-            dag_id='test_requeue_over_task_concurrency',
-            task_id='test_requeue_over_task_concurrency_op',
-            task_concurrency=0,
+            dag_id='test_requeue_over_max_active_tis_per_dag',
+            task_id='test_requeue_over_max_active_tis_per_dag_op',
+            max_active_tis_per_dag=0,
             max_active_runs=1,
             max_active_tasks=2,
         )
@@ -310,7 +310,7 @@ class TestTaskInstance:
         _, task = create_dummy_dag(
             dag_id='test_requeue_over_pool_concurrency',
             task_id='test_requeue_over_pool_concurrency_op',
-            task_concurrency=0,
+            max_active_tis_per_dag=0,
             max_active_runs=1,
             max_active_tasks=2,
         )

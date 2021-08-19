@@ -148,6 +148,28 @@ dag = DAG(
 
 If you are using DAGs Details API endpoint, use `max_active_tasks` instead of `concurrency`.
 
+### Task concurrency parameter has been renamed
+
+`BaseOperator.task_concurrency` has been deprecated and renamed to `max_active_tis_per_dag` for
+better understanding.
+
+This parameter controls the number of concurrent running task instances across ``dag_runs``
+per task.
+
+**Before**:
+
+```python
+with DAG(dag_id="task_concurrency_example"):
+    BashOperator(task_id="t1", task_concurrency=2, bash_command="echo Hi")
+```
+
+**After**:
+
+```python
+with DAG(dag_id="task_concurrency_example"):
+    BashOperator(task_id="t1", max_active_tis_per_dag=2, bash_command="echo Hi")
+```
+
 ### Marking success/failed automatically clears failed downstream tasks
 
 When marking a task success/failed in Graph View, its downstream tasks that are in failed/upstream_failed state are automatically cleared.

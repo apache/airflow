@@ -100,7 +100,7 @@ DAGs have configurations that improves efficiency:
 
 Operators or tasks also have configurations that improves efficiency and scheduling priority:
 
-- ``task_concurrency``: This parameter controls the number of concurrent running task instances across ``dag_runs``
+- ``max_active_tis_per_dag``: This parameter controls the number of concurrent running task instances across ``dag_runs``
   per task.
 - ``pool``: See :ref:`concepts:pool`.
 - ``priority_weight``: See :ref:`concepts:priority-weight`.
