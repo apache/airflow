@@ -27,6 +27,8 @@ assists users migrating to a new version.
 **Table of contents**
 
 - [Main](#main)
+- [Airflow 2.1.3](#airflow-213)
+- [Airflow 2.1.2](#airflow-212)
 - [Airflow 2.1.1](#airflow-211)
 - [Airflow 2.1.0](#airflow-210)
 - [Airflow 2.0.2](#airflow-202)
@@ -183,6 +185,14 @@ Previously this was controlled by `non_pooled_task_slot_count` in `[core]` secti
 Now that the DAG parser syncs DAG permissions there is no longer a need for manually refreshing DAGs. As such, the buttons to refresh a DAG have been removed from the UI.
 
 In addition, the `/refresh` and `/refresh_all` webserver endpoints have also been removed.
+
+## Airflow 2.1.3
+
+No breaking changes.
+
+## Airflow 2.1.2
+
+No breaking changes.
 
 ## Airflow 2.1.1
 
