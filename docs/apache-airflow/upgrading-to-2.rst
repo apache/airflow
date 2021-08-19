@@ -27,8 +27,9 @@ users to migrate from Airflow 1.10.x to Airflow 2.0.
 Step 1: Upgrade to Python 3
 '''''''''''''''''''''''''''
 
-Airflow 1.10 will be the last release series to support Python 2. Airflow 2.0.0
-requires Python 3.6+ and has been tested with Python versions 3.6, 3.7 and 3.8, but does not yet support Python 3.9.
+Airflow 1.10 was the last release series to support Python 2. Airflow 2.0.0
+requires Python 3.6+ and has been tested with Python versions 3.6, 3.7 and 3.8.
+Python 3.9 support was added from Airflow 2.1.2.
 
 If you have a specific task that still requires Python 2 then you can use the :class:`~airflow.operators.python.PythonVirtualenvOperator` or the ``KubernetesPodOperator`` for this.
 
@@ -41,13 +42,13 @@ Step 2: Upgrade to Airflow 1.10.15 (a.k.a our "bridge" release)
 '''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
 
 To minimize friction for users upgrading from Airflow 1.10 to Airflow 2.0 and beyond, Airflow 1.10.15 "a bridge release" has
-been created. This is intended to be the final 1.10 feature release. Airflow 1.10.15 includes support for various features
+been created. This is the final 1.10 feature release. Airflow 1.10.15 includes support for various features
 that have been backported from Airflow 2.0 to make it easy for users to test their Airflow
 environment before upgrading to Airflow 2.0.
 
 We strongly recommend that all users upgrading to Airflow 2.0, first
 upgrade to Airflow 1.10.15 and test their Airflow deployment and only then upgrade to Airflow 2.0.
-The Airflow 1.10.x release tree will be supported for six months from Airflow 2.0 release date.
+Airflow 1.10.x reached end of life on 17 June 2021. No new Airflow 1.x versions will be released.
 
 Features in 1.10.15 include:
 
@@ -1191,14 +1192,9 @@ depending on the development packages then you should use ``devel_all``.
 Support for Airflow 1.10.x releases
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-The Airflow 1.10.x release tree will be supported for **six months** from Airflow 2.0 release date.
-Specifically, only "critical fixes" defined as fixes
-to bugs that take down Production systems, will be backported to 1.10.x core for
-**six months** after Airflow 2.0.0 is released.
+Airflow 1.10.x reached end of life on 17 June 2021. No new Airflow 1.x versions will be released.
 
-In addition, Backport providers within
-1.10.x, will be supported for critical fixes for **three months** from Airflow 2.0.0
-release date.
+Support of Backport providers ended on 17 March 2021. No new versions of backport providers will be released.
 
 We plan to take a strict Semantic Versioning approach to our versioning and release process. This
 means that we do not plan to make any backwards-incompatible changes in the 2.* releases. Any
