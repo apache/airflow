@@ -95,7 +95,7 @@ class ComputeEngineSSHHook(SSHHook):
     """
 
     conn_name_attr = 'gcp_conn_id'
-    default_conn_name = 'google_cloud_default'
+    default_conn_name = 'google_cloud_ssh_default'
     conn_type = 'gcpssh'
     hook_name = 'Google Cloud SSH'
 

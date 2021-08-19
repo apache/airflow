@@ -204,10 +204,6 @@ jobs:
         run: ./scripts/ci/images/ci_prepare_ci_image_on_ci.sh
       - name: "Push CI images ${{ matrix.python-version }}:${{ env.TARGET_COMMIT_SHA }}"
         run: ./scripts/ci/images/ci_push_ci_images.sh
-      # Remove me on 15th of August 2021 after all users had chance to rebase
-      - name: "Push Legacy CI images ${{ matrix.python-version }}:${{ env.TARGET_COMMIT_SHA }}"
-        run: ./scripts/ci/images/ci_push_legacy_ci_images.sh
-        if: github.event_name == 'pull_request_target'
 
   build-prod-images:
     permissions:
@@ -299,10 +295,6 @@ jobs:
         env:
           # GITHUB_REGISTRY_PULL_IMAGE_TAG is overriden to latest in order to build PROD image using "latest"
           GITHUB_REGISTRY_PULL_IMAGE_TAG: "latest"
-      # Remove me on 15th of August 2021 after all users had chance to rebase
-      - name: "Push Legacy PROD images ${{ matrix.python-version }}:${{ env.TARGET_COMMIT_SHA }}"
-        run: ./scripts/ci/images/ci_push_legacy_prod_images.sh
-        if: github.event_name == 'pull_request_target'
 
   cancel-on-ci-build:
     permissions:

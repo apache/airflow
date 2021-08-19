@@ -63,3 +63,7 @@ hooks:
 
 hook-class-names:
   - airflow.providers.cncf.kubernetes.hooks.kubernetes.KubernetesHook
+
+connection-types:
+  - hook-class-name: airflow.providers.cncf.kubernetes.hooks.kubernetes.KubernetesHook
+    connection-type: kubernetes

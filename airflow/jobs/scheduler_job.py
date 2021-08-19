@@ -430,7 +430,7 @@ class SchedulerJob(BaseJob):
                     if serialized_dag.has_task(task_instance.task_id):
                         task_concurrency_limit = serialized_dag.get_task(
                             task_instance.task_id
-                        ).task_concurrency
+                        ).max_active_tis_per_dag
 
                     if task_concurrency_limit is not None:
                         current_task_concurrency = task_concurrency_map[

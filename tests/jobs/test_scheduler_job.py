@@ -692,12 +692,12 @@ class TestSchedulerJob:
         session.rollback()
 
     # TODO: This is a hack, I think I need to just remove the setting and have it on always
-    def test_find_executable_task_instances_task_concurrency(self, dag_maker):
-        dag_id = 'SchedulerJobTest.test_find_executable_task_instances_task_concurrency'
+    def test_find_executable_task_instances_max_active_tis_per_dag(self, dag_maker):
+        dag_id = 'SchedulerJobTest.test_find_executable_task_instances_max_active_tis_per_dag'
         task_id_1 = 'dummy'
         task_id_2 = 'dummy2'
         with dag_maker(dag_id=dag_id, max_active_tasks=16) as dag:
-            task1 = DummyOperator(task_id=task_id_1, task_concurrency=2)
+            task1 = DummyOperator(task_id=task_id_1, max_active_tis_per_dag=2)
             task2 = DummyOperator(task_id=task_id_2)
 
         executor = MockExecutor(do_update=True)
@@ -2911,15 +2911,15 @@ class TestSchedulerJob:
             ],
         ],
     )
-    def test_dag_file_processor_process_task_instances_with_task_concurrency(
+    def test_dag_file_processor_process_task_instances_with_max_active_tis_per_dag(
         self, state, start_date, end_date, dag_maker
     ):
         """
         Test if _process_task_instances puts the right task instances into the
         mock_list.
         """
-        with dag_maker(dag_id='test_scheduler_process_execute_task_with_task_concurrency'):
-            BashOperator(task_id='dummy', task_concurrency=2, bash_command='echo Hi')
+        with dag_maker(dag_id='test_scheduler_process_execute_task_with_max_active_tis_per_dag'):
+            BashOperator(task_id='dummy', max_active_tis_per_dag=2, bash_command='echo Hi')
 
         self.scheduler_job = SchedulerJob(subdir=os.devnull)
         self.scheduler_job.processor_agent = mock.MagicMock()

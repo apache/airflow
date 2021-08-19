@@ -47,3 +47,7 @@ hooks:
 
 hook-class-names:
   - airflow.providers.discord.hooks.discord_webhook.DiscordWebhookHook
+
+connection-types:
+  - hook-class-name: airflow.providers.discord.hooks.discord_webhook.DiscordWebhookHook
+    connection-type: discord

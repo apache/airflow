@@ -562,6 +562,7 @@ class TestLocalTaskJob:
                 python_callable=task_function,
                 on_failure_callback=failure_callback,
             )
+        dag_maker.create_dagrun()
 
         ti = TaskInstance(task=task, execution_date=DEFAULT_DATE)
         ti.refresh_from_db()
@@ -599,6 +600,7 @@ class TestLocalTaskJob:
                 on_failure_callback=failure_callback,
             )
         dag_maker.create_dagrun()
+
         ti = TaskInstance(task=task, execution_date=DEFAULT_DATE)
         ti.refresh_from_db()
         job1 = LocalTaskJob(task_instance=ti, ignore_ti_state=True, executor=SequentialExecutor())

@@ -21,8 +21,7 @@ from unittest import mock
 
 import pytest
 import requests
-from docker import APIClient
-from docker.types import Mount
+from docker import APIClient, types
 from parameterized import parameterized
 
 from airflow.exceptions import AirflowException
@@ -66,22 +65,31 @@ class TestDockerSwarmOperator(unittest.TestCase):
             mem_limit='128m',
             user='unittest',
             task_id='unittest',
-            mounts=[Mount(source='/host/path', target='/container/path', type='bind')],
+            mounts=[types.Mount(source='/host/path', target='/container/path', type='bind')],
             auto_remove=True,
             tty=True,
+            configs=[types.ConfigReference(config_id="dummy_cfg_id", config_name="dummy_cfg_name")],
+            secrets=[types.SecretReference(secret_id="dummy_secret_id", secret_name="dummy_secret_name")],
+            mode=types.ServiceMode(mode="replicated", replicas=3),
+            networks=["dummy_network"],
         )
         operator.execute(None)
 
         types_mock.TaskTemplate.assert_called_once_with(
-            container_spec=mock_obj, restart_policy=mock_obj, resources=mock_obj
+            container_spec=mock_obj,
+            restart_policy=mock_obj,
+            resources=mock_obj,
+            networks=["dummy_network"],
         )
         types_mock.ContainerSpec.assert_called_once_with(
             image='ubuntu:latest',
             command='env',
             user='unittest',
-            mounts=[Mount(source='/host/path', target='/container/path', type='bind')],
+            mounts=[types.Mount(source='/host/path', target='/container/path', type='bind')],
             tty=True,
             env={'UNIT': 'TEST', 'AIRFLOW_TMP_DIR': '/tmp/airflow'},
+            configs=[types.ConfigReference(config_id="dummy_cfg_id", config_name="dummy_cfg_name")],
+            secrets=[types.SecretReference(secret_id="dummy_secret_id", secret_name="dummy_secret_name")],
         )
         types_mock.RestartPolicy.assert_called_once_with(condition='none')
         types_mock.Resources.assert_called_once_with(mem_limit='128m')
@@ -99,6 +107,7 @@ class TestDockerSwarmOperator(unittest.TestCase):
         assert csargs == (mock_obj,)
         assert cskwargs['labels'] == {'name': 'airflow__adhoc_airflow__unittest'}
         assert cskwargs['name'].startswith('airflow-')
+        assert cskwargs['mode'] == types.ServiceMode(mode="replicated", replicas=3)
         assert client_mock.tasks.call_count == 5
         client_mock.remove_service.assert_called_once_with('some_id')
 

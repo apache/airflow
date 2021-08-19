@@ -119,6 +119,8 @@ See the following example on how this occurs:
     :language: python
     :start-after: [START howto_operator_k8s_write_xcom]
     :end-before: [END howto_operator_k8s_write_xcom]
+.. note::
+  XCOMs will be pushed only for tasks marked as ``State.SUCCESS``.
 
 Reference
 ^^^^^^^^^
