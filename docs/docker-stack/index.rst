@@ -44,12 +44,12 @@ Every time a new version of Airflow is released, the images are prepared in the
 `apache/airflow DockerHub <https://hub.docker.com/r/apache/airflow>`_
 for all the supported Python versions.
 
-You can find the following images there (Assuming Airflow version |version|):
+You can find the following images there (Assuming Airflow version |airflow-version|):
 
-* ``apache/airflow:latest``              - the latest released Airflow image with default Python version (3.6 currently)
-* ``apache/airflow:latest-pythonX.Y``    - the latest released Airflow image with specific Python version
-* ``apache/airflow:|version|``           - the versioned Airflow image with default Python version (3.6 currently)
-* ``apache/airflow:|version|-pythonX.Y`` - the versioned Airflow image with specific Python version
+* :subst-code:`apache/airflow:latest`              - the latest released Airflow image with default Python version (3.6 currently)
+* :subst-code:`apache/airflow:latest-pythonX.Y`    - the latest released Airflow image with specific Python version
+* :subst-code:`apache/airflow:|airflow-version|`           - the versioned Airflow image with default Python version (3.6 currently)
+* :subst-code:`apache/airflow:|airflow-version|-pythonX.Y` - the versioned Airflow image with specific Python version
 
 Those are "reference" images. They contain the most common set of extras, dependencies and providers that are
 often used by the users and they are good to "try-things-out" when you want to just take airflow for a spin,
