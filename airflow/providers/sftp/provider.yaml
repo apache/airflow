@@ -56,3 +56,7 @@ hooks:
 
 hook-class-names:
   - airflow.providers.sftp.hooks.sftp.SFTPHook
+
+connection-types:
+  - hook-class-name: airflow.providers.sftp.hooks.sftp.SFTPHook
+    connection-type: sftp

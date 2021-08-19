@@ -27,45 +27,45 @@ Basic arguments
 
 Those are the most common arguments that you use when you want to build a custom image.
 
-+------------------------------------------+------------------------------------------+------------------------------------------+
-| Build argument                           | Default value                            | Description                              |
-+==========================================+==========================================+==========================================+
-| ``PYTHON_BASE_IMAGE``                    | ``python:3.6-slim-buster``               | Base python image.                       |
-+------------------------------------------+------------------------------------------+------------------------------------------+
-| ``AIRFLOW_VERSION``                      | :subst-code:`|version|`                  | version of Airflow.                      |
-+------------------------------------------+------------------------------------------+------------------------------------------+
-| ``AIRFLOW_EXTRAS``                       | (see Dockerfile)                         | Default extras with which airflow is     |
-|                                          |                                          | installed.                               |
-+------------------------------------------+------------------------------------------+------------------------------------------+
-| ``ADDITIONAL_AIRFLOW_EXTRAS``            |                                          | Optional additional extras with which    |
-|                                          |                                          | airflow is installed.                    |
-+------------------------------------------+------------------------------------------+------------------------------------------+
-| ``AIRFLOW_HOME``                         | ``/opt/airflow``                         | Airflow’s HOME (that’s where logs and    |
-|                                          |                                          | SQLite databases are stored).            |
-+------------------------------------------+------------------------------------------+------------------------------------------+
-| ``AIRFLOW_USER_HOME_DIR``                | ``/home/airflow``                        | Home directory of the Airflow user.      |
-+------------------------------------------+------------------------------------------+------------------------------------------+
-| ``AIRFLOW_PIP_VERSION``                  | ``21.1``                                 | PIP version used.                        |
-+------------------------------------------+------------------------------------------+------------------------------------------+
-| ``PIP_PROGRESS_BAR``                     | ``on``                                   | Progress bar for PIP installation        |
-+------------------------------------------+------------------------------------------+------------------------------------------+
-| ``AIRFLOW_UID``                          | ``50000``                                | Airflow user UID.                        |
-+------------------------------------------+------------------------------------------+------------------------------------------+
-| ``AIRFLOW_GID``                          | ``50000``                                | Airflow group GID. Note that writable    |
-|                                          |                                          | files/dirs, created on behalf of airflow |
-|                                          |                                          | user are set to the ``root`` group (0)   |
-|                                          |                                          | to allow arbitrary UID to run the image. |
-+------------------------------------------+------------------------------------------+------------------------------------------+
-| ``AIRFLOW_CONSTRAINTS_REFERENCE``        |                                          | Reference (branch or tag) from GitHub    |
-|                                          |                                          | where constraints file is taken from     |
-|                                          |                                          | It can be ``constraints-main`` or        |
-|                                          |                                          | ``constraints-2-0`` for                  |
-|                                          |                                          | 2.0.* installation. In case of building  |
-|                                          |                                          | specific version you want to point it    |
-|                                          |                                          | to specific tag, for example             |
-|                                          |                                          | :subst-code:`constraints-|version|`.     |
-|                                          |                                          | Auto-detected if empty.                  |
-+------------------------------------------+------------------------------------------+------------------------------------------+
++------------------------------------------+------------------------------------------+---------------------------------------------+
+| Build argument                           | Default value                            | Description                                 |
++==========================================+==========================================+=============================================+
+| ``PYTHON_BASE_IMAGE``                    | ``python:3.6-slim-buster``               | Base python image.                          |
++------------------------------------------+------------------------------------------+---------------------------------------------+
+| ``AIRFLOW_VERSION``                      | :subst-code:`|airflow-version|`          | version of Airflow.                         |
++------------------------------------------+------------------------------------------+---------------------------------------------+
+| ``AIRFLOW_EXTRAS``                       | (see Dockerfile)                         | Default extras with which airflow is        |
+|                                          |                                          | installed.                                  |
++------------------------------------------+------------------------------------------+---------------------------------------------+
+| ``ADDITIONAL_AIRFLOW_EXTRAS``            |                                          | Optional additional extras with which       |
+|                                          |                                          | airflow is installed.                       |
++------------------------------------------+------------------------------------------+---------------------------------------------+
+| ``AIRFLOW_HOME``                         | ``/opt/airflow``                         | Airflow’s HOME (that’s where logs and       |
+|                                          |                                          | SQLite databases are stored).               |
++------------------------------------------+------------------------------------------+---------------------------------------------+
+| ``AIRFLOW_USER_HOME_DIR``                | ``/home/airflow``                        | Home directory of the Airflow user.         |
++------------------------------------------+------------------------------------------+---------------------------------------------+
+| ``AIRFLOW_PIP_VERSION``                  | ``21.1``                                 | PIP version used.                           |
++------------------------------------------+------------------------------------------+---------------------------------------------+
+| ``PIP_PROGRESS_BAR``                     | ``on``                                   | Progress bar for PIP installation           |
++------------------------------------------+------------------------------------------+---------------------------------------------+
+| ``AIRFLOW_UID``                          | ``50000``                                | Airflow user UID.                           |
++------------------------------------------+------------------------------------------+---------------------------------------------+
+| ``AIRFLOW_GID``                          | ``50000``                                | Airflow group GID. Note that writable       |
+|                                          |                                          | files/dirs, created on behalf of airflow    |
+|                                          |                                          | user are set to the ``root`` group (0)      |
+|                                          |                                          | to allow arbitrary UID to run the image.    |
++------------------------------------------+------------------------------------------+---------------------------------------------+
+| ``AIRFLOW_CONSTRAINTS_REFERENCE``        |                                          | Reference (branch or tag) from GitHub       |
+|                                          |                                          | where constraints file is taken from        |
+|                                          |                                          | It can be ``constraints-main`` or           |
+|                                          |                                          | ``constraints-2-0`` for                     |
+|                                          |                                          | 2.0.* installation. In case of building     |
+|                                          |                                          | specific version you want to point it       |
+|                                          |                                          | to specific tag, for example                |
+|                                          |                                          | :subst-code:`constraints-|airflow-version|`.|
+|                                          |                                          | Auto-detected if empty.                     |
++------------------------------------------+------------------------------------------+---------------------------------------------+
 
 Image optimization options
 ..........................

@@ -44,5 +44,9 @@ hooks:
 hook-class-names:
   - airflow.providers.hashicorp.hooks.vault.VaultHook
 
+connection-types:
+  - hook-class-name: airflow.providers.hashicorp.hooks.vault.VaultHook
+    connection-type: vault
+
 secrets-backends:
   - airflow.providers.hashicorp.secrets.vault.VaultBackend

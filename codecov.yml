@@ -37,9 +37,9 @@ coverage:
         # advanced
         branches:
           - main
-          - v1-10-stable
-          - v1-10-test
+          - v2-0-stable
           - v2-0-test
+          - v2-1-stable
           - v2-1-test
         if_not_found: success
         if_ci_failed: error
@@ -54,9 +54,9 @@ coverage:
         # advanced
         branches:
           - main
-          - v1-10-stable
-          - v1-10-test
+          - v2-0-stable
           - v2-0-test
+          - v2-1-stable
           - v2-1-test
         if_no_uploads: error
         if_not_found: success

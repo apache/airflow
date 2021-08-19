@@ -397,7 +397,7 @@ For example, here is a DAG that uses a ``for`` loop to define some Tasks::
     with DAG("loop_example") as dag:
 
         first = DummyOperator(task_id="first")
-        last = DummyOperator( task_id="last")
+        last = DummyOperator(task_id="last")
 
         options = ["branch_a", "branch_b", "branch_c", "branch_d"]
         for option in options:

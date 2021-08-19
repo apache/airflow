@@ -513,14 +513,17 @@ def dag_maker(request):
             from airflow.utils.state import State
 
             dag = self.dag
-            defaults = dict(
-                run_id='test',
-                state=State.RUNNING,
-                execution_date=self.start_date,
-                start_date=self.start_date,
-                session=self.session,
-            )
-            kwargs = {**defaults, **kwargs}
+            kwargs = {
+                "state": State.RUNNING,
+                "execution_date": self.start_date,
+                "start_date": self.start_date,
+                "session": self.session,
+                **kwargs,
+            }
+            # Need to provide run_id if the user does not either provide one
+            # explicitly, or pass run_type for inference in dag.create_dagrun().
+            if "run_id" not in kwargs and "run_type" not in kwargs:
+                kwargs["run_id"] = "test"
             self.dag_run = dag.create_dagrun(**kwargs)
             return self.dag_run
 
