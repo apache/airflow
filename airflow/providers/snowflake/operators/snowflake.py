@@ -101,7 +101,7 @@ class SnowflakeOperator(BaseOperator):
         self.session_parameters = session_parameters
         self.query_ids = []
 
-    def get_db_hook(self) -> SnowflakeHook:
+    def get_hook(self) -> SnowflakeHook:
         """
         Create and return SnowflakeHook.
         :return: a SnowflakeHook instance.
@@ -120,7 +120,7 @@ class SnowflakeOperator(BaseOperator):
     def execute(self, context: Any) -> None:
         """Run query on snowflake"""
         self.log.info('Executing: %s', self.sql)
-        hook = self.get_db_hook()
+        hook = self.get_hook()
         execution_info = hook.run(self.sql, autocommit=self.autocommit, parameters=self.parameters)
         self.query_ids = hook.query_ids
 
