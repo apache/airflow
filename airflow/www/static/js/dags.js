@@ -17,7 +17,7 @@
  * under the License.
  */
 
-/* global document, window, $, d3, STATE_COLOR, isoDateToTimeEl */
+/* global document, window, $, d3, STATE_COLOR, isoDateToTimeEl, moment */
 
 import getMetaValue from './meta_value';
 import { formatDateTime } from './datetime_utils';
@@ -357,5 +357,5 @@ $(window).on('load', () => {
 const nextRuns = document.getElementsByClassName('next-run');
 Array.from(nextRuns).forEach((run) => {
   const value = run.innerText;
-  run.innerText = value === 'None' ? '' : formatDateTime(value);
+  run.innerText = `${moment(value).isValid() ? formatDateTime(value) : value}`;
 });

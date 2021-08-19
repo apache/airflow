@@ -38,7 +38,7 @@ $(window).on('load', function onLoad() {
   $('.never_active').removeClass('active');
 });
 
-// Format next run dates once the page loads
+// Format next run date once the page loads
 const nextRun = document.getElementById('next-run');
 if (nextRun) {
   const nextRunText = nextRun.innerText;
