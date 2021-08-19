@@ -231,48 +231,72 @@ class EKSCreateFargateProfileOperator(BaseOperator):
     """
     Creates an AWS Fargate profile for an Amazon EKS cluster.
 
-    :param cluster_name: The name of the Amazon EKS cluster to apply the Fargate profile to.
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:EKSCreateFargateProfileOperator`
+
+    :param cluster_name: The name of the Amazon EKS cluster to apply the Fargate profile to. (templated)
     :type cluster_name: str
-    :param fargate_profile_name: The name of the Fargate profile.
-    :type fargate_profile_name: str
     :param pod_execution_role_arn:
         The Amazon Resource Name (ARN) of the pod execution role to use for pods that match
-        the selectors in the Fargate profile.
+        the selectors in the Fargate profile. (templated)
     :type pod_execution_role_arn: str
-    :param aws_conn_id: The Airflow connection used for AWS credentials.
+    :param selectors: The selectors to match for pods to use this Fargate profile. (templated)
+    :type selectors: List
+    :param fargate_profile_name: The unique name to give your Fargate profile. (templated)
+    :type fargate_profile_name: str
+
+    :param aws_conn_id: The Airflow connection used for AWS credentials. (templated)
          If this is None or empty then the default boto3 behaviour is used. If
          running Airflow in a distributed manner and aws_conn_id is None or
          empty, then the default boto3 configuration would be used (and must be
          maintained on each worker node).
-     :type aws_conn_id: str
+    :type aws_conn_id: str
+    :param region: Which AWS region the connection should use. (templated)
+        If this is None or empty then the default boto3 behaviour is used.
+    :type region: str
     """
+
+    template_fields: Iterable[str] = (
+        "cluster_name",
+        "pod_execution_role_arn",
+        "selectors",
+        "fargate_profile_name",
+        "aws_conn_id",
+        "region",
+    )
 
     def __init__(
         self,
         cluster_name: str,
         pod_execution_role_arn: str,
-        fargate_profile_name: Optional[str],
-        conn_id: Optional[str] = CONN_ID,
+        selectors: List,
+        fargate_profile_name: Optional[str] = None,
+        aws_conn_id: str = DEFAULT_CONN_ID,
         region: Optional[str] = None,
         **kwargs,
     ) -> None:
-        super().__init__(**kwargs)
-        self.clusterName = cluster_name
-        self.podExecutionRoleArn = pod_execution_role_arn
-        self.fargateProfileName = fargate_profile_name or cluster_name + "_fargate_profile_" + datetime.now().strftime("%Y%m%d_%H%M%S")
-        self.conn_id = conn_id
+        self.cluster_name = cluster_name
+        self.pod_execution_role_arn = pod_execution_role_arn
+        self.selectors = selectors
+        self.fargate_profile_name = fargate_profile_name or cluster_name + datetime.now().strftime(
+            "%Y%m%d_%H%M%S"
+        )
+        self.aws_conn_id = aws_conn_id
         self.region = region
+        super().__init__(**kwargs)
 
     def execute(self, context):
         eks_hook = EKSHook(
-            aws_conn_id=self.conn_id,
+            aws_conn_id=self.aws_conn_id,
             region_name=self.region,
         )
 
-        return eks_hook.create_fargate_profile(
-            clusterName=self.clusterName,
-            fargateProfileName=self.fargateProfileName,
-            podExecutionRoleArn=self.podExecutionRoleArn,
+        eks_hook.create_fargate_profile(
+            clusterName=self.cluster_name,
+            fargateProfileName=self.fargate_profile_name,
+            podExecutionRoleArn=self.pod_execution_role_arn,
+            selectors=self.selectors,
         )
 
 
@@ -419,39 +443,55 @@ class EKSDeleteFargateProfileOperator(BaseOperator):
     """
     Deletes an AWS Fargate profile from an Amazon EKS Cluster.
 
-    :param cluster_name: The name of the Amazon EKS cluster associated with the Fargate profile to delete.
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:EKSDeleteFargateProfileOperator`
+
+    :param cluster_name: The name of the Amazon EKS cluster associated with your Fargate profile. (templated)
     :type cluster_name: str
-    :param fargate_profile_name: The name of the Fargate profile to delete.
+    :param fargate_profile_name: The name of the Fargate profile to delete. (templated)
     :type fargate_profile_name: str
-    :param aws_conn_id: The Airflow connection used for AWS credentials.
-         If this is None or empty then the default boto3 behaviour is used. If
+    :param aws_conn_id: The Airflow connection used for AWS credentials. (templated)
+         If this is None or empty then the default boto3 behaviour is used.  If
          running Airflow in a distributed manner and aws_conn_id is None or
          empty, then the default boto3 configuration would be used (and must be
          maintained on each worker node).
-     :type aws_conn_id: str
+    :type aws_conn_id: str
+    :param region: Which AWS region the connection should use. (templated)
+        If this is None or empty then the default boto3 behaviour is used.
+    :type region: str
     """
+
+    template_fields: Iterable[str] = (
+        "cluster_name",
+        "fargate_profile_name",
+        "aws_conn_id",
+        "region",
+    )
 
     def __init__(
         self,
         cluster_name: str,
         fargate_profile_name: str,
-        conn_id: Optional[str] = CONN_ID,
+        aws_conn_id: str = DEFAULT_CONN_ID,
         region: Optional[str] = None,
-        **kwargs
+        **kwargs,
     ) -> None:
         super().__init__(**kwargs)
-        self.clusterName = cluster_name
-        self.fargateProfileName = fargate_profile_name
-        self.conn_id = conn_id
+        self.cluster_name = cluster_name
+        self.fargate_profile_name = fargate_profile_name
+        self.aws_conn_id = aws_conn_id
         self.region = region
 
     def execute(self, context):
         eks_hook = EKSHook(
-            aws_conn_id=self.conn_id,
+            aws_conn_id=self.aws_conn_id,
             region_name=self.region,
         )
 
-        return eks_hook.delete_fargate_profile(clusterName=self.clusterName, fargateProfileName=self.fargateProfileName)
+        eks_hook.delete_fargate_profile(
+            clusterName=self.cluster_name, fargateProfileName=self.fargate_profile_name
+        )
 
 
 class EKSPodOperator(KubernetesPodOperator):
