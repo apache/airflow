@@ -17,9 +17,8 @@
 # under the License.
 
 """Example DAG demonstrating the usage of XComs."""
-from airflow.operators.bash import BashOperator
-
 from airflow import DAG
+from airflow.operators.bash import BashOperator
 from airflow.operators.python import PythonOperator
 from airflow.utils.dates import days_ago
 
@@ -59,6 +58,14 @@ def puller(**kwargs):
         raise ValueError(f'The two values differ {pulled_value_2} and {value_2}')
 
 
+def pull_value_from_bash_push(**kwargs):
+    ti = kwargs['ti']
+    bash_pushed_via_return_value = ti.xcom_pull(key="xcom_pushed_value", task_ids=['bash_push'])
+    bash_manually_pushed_value = ti.xcom_pull(key="xcom_pushed_value", task_ids=['bash_push'])
+    print(f"The xcom value pushed by task push via return value is {bash_pushed_via_return_value}")
+    print(f"The xcom value pushed by task push manually is {bash_manually_pushed_value}")
+
+
 with DAG(
     'example_xcom',
     schedule_interval="@once",
@@ -87,16 +94,24 @@ with DAG(
     bash_push = BashOperator(
         task_id='bash_push',
         bash_command='echo "bash_push demo"  && '
-                     'echo "Manually set xcom value {{ti.xcom_push(key="xcom_pushed_value", value="value_by_push_manually") }}" && '
-                     'echo "value_by_return"',
+        'echo "Manually set xcom value '
+        '{{ti.xcom_push(key="manually_pushed_value", value="manually_pushed_value") }}" && '
+        'echo "value_by_return"',
     )
     bash_pull = BashOperator(
         task_id='bash_pull',
         bash_command='echo "bash pull demo" && '
-                     'echo "The xcom pushed manually is "{{ ti.xcom_pull(task_ids="bash_push",key="xcom_pushed_value") }}" && '
-                     'echo "The returned_value xcom is "{{ ti.xcom_pull(task_ids="bash_push",key="return_value") }}" && '
-                     'echo "finished"',
-        do_xcom_push=False
+        'echo "The xcom pushed manually is '
+        '"{{ ti.xcom_pull(task_ids="bash_push",key="manually_pushed_value") }}" && '
+        'echo "The returned_value xcom is '
+        '"{{ ti.xcom_pull(task_ids="bash_push",key="return_value") }}" && '
+        'echo "finished"',
+        do_xcom_push=False,
     )
 
-    bash_pull << bash_push
+    python_pull_from_bash = PythonOperator(
+        task_id='python_pull_from_bash',
+        python_callable=pull_value_from_bash_push,
+    )
+
+    [bash_pull, python_pull_from_bash] << bash_push
