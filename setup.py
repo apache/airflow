@@ -41,7 +41,7 @@ PY39 = sys.version_info >= (3, 9)
 
 logger = logging.getLogger(__name__)
 
-from version import version
+from airflow.version import version
 
 my_dir = dirname(__file__)
 

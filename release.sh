@@ -11,7 +11,7 @@
 # - `pip3 install wheel twine`
 
 # define the file containing the version here
-VERSION_FILE="version.py"
+VERSION_FILE="airflow/version.py"
 
 # run checks
 command -v auto-changelog >/dev/null 2>&1 || { echo >&2 "auto-changelog is not installed. Install via npm!"; exit 1; }
@@ -39,7 +39,7 @@ PUSHING_MSG="${NOTICE_FLAG} Pushing new version to the ${WHITE}origin${CYAN}..."
 
 LATEST_HASH="$(git log --pretty=format:'%h' -n 1)"
 # get the semver version
-BASE_STRING=$(grep -Eo '[0-9]+\.[0-9]+\.[0-9]+' "$VERSION_FILE")
+BASE_STRING=$(grep -Eo 'c[0-9]+\.[0-9]+\.[0-9]+' "$VERSION_FILE")
 BASE_LIST=(`echo $BASE_STRING | tr '.' ' '`)
 V_MAJOR=${BASE_LIST[0]}
 V_MINOR=${BASE_LIST[1]}
