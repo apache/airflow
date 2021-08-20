@@ -150,7 +150,7 @@ class BashOperator(BaseOperator):
             if not os.path.exists(self.cwd):
                 raise AirflowException(f"Can not find the cwd: {cwd}")
             if not os.path.isdir(self.cwd):
-                raise AirflowException(f"The cwd {cwd} must be a folder")
+                raise AirflowException(f"The cwd {cwd} must be a directory")
         if kwargs.get('xcom_push') is not None:
             raise AirflowException("'xcom_push' was deprecated, use 'BaseOperator.do_xcom_push' instead")
 

@@ -14,7 +14,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
+import contextlib
 import os
 import signal
 from collections import namedtuple
@@ -56,8 +56,10 @@ class SubprocessHook(BaseHook):
             or stdout
         """
         self.log.info('Tmp dir root location: \n %s', gettempdir())
+        with contextlib.ExitStack() as stack:
+            if cwd is None:
+                cwd = stack.enter_context(TemporaryDirectory(prefix='airflowtmp'))
 
-        def __run_subprocess(cwd):
             def pre_exec():
                 # Restore default signal disposition and invoke setsid
                 for sig in ('SIGPIPE', 'SIGXFZ', 'SIGXFSZ'):
@@ -85,13 +87,6 @@ class SubprocessHook(BaseHook):
             self.sub_process.wait()
 
             self.log.info('Command exited with return code %s', self.sub_process.returncode)
-            return line
-
-        if cwd is None:
-            with TemporaryDirectory(prefix='airflowtmp') as tmp_dir:
-                line = __run_subprocess(tmp_dir)
-        else:
-            line = __run_subprocess(cwd)
 
         return SubprocessResult(exit_code=self.sub_process.returncode, output=line)
 
