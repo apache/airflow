@@ -33,8 +33,10 @@ class DateTimeTrigger(BaseTrigger):
 
     def __init__(self, moment: datetime.datetime):
         super().__init__()
+        if not isinstance(moment, datetime.datetime):
+            raise TypeError(f"Expected datetime.datetime type for moment. Got {type(moment)}")
         # Make sure it's in UTC
-        if moment.tzinfo is None:
+        elif moment.tzinfo is None:
             raise ValueError("You cannot pass naive datetimes")
         elif not hasattr(moment.tzinfo, "offset") or moment.tzinfo.offset != 0:
             raise ValueError(f"The passed datetime must be using Pendulum's UTC, not {moment.tzinfo!r}")
