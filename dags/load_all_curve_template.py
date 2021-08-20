@@ -152,9 +152,10 @@ dag = DAG(
     schedule_interval=schedule_interval,
     default_args=desoutter_default_args,
     max_active_runs=100,
-    catchup=False
+    catchup=False,
 )
 
 load_curve_tmpl_task = PythonOperator(provide_context=True,
                                       task_id=STORE_TASK, dag=dag,
+                                      priority_weight=9,
                                       python_callable=doLoadCurveTmplsTask)

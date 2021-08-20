@@ -132,7 +132,6 @@ class TriggerAnalyzeOperator(BaseOperator):
     def execute(self, context):
         params = context['dag_run'].conf
         task_instance = context['task_instance']
-        from plugins.trigger_analyze.trigger_analyze_plugin import TriggerAnalyzeHook
         TriggerAnalyzeHook.do_trigger_analyze(params, task_instance)
 
 

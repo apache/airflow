@@ -138,4 +138,5 @@ dag = DAG(
 )
 
 upgrade_curve_template_task = PythonOperator(dag=dag, provide_context=True, task_id=CURVE_TEMPLATE_UPGRADE_TASK,
+                                             priority_weight=9,
                                              python_callable=curve_template_upgrade_task)

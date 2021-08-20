@@ -55,7 +55,7 @@ store_task = PythonOperator(
     provide_context=True,
     task_id='store_result_curve',
     dag=dag,
-    priority_weight=9,
+    priority_weight=7,
     python_callable=on_curve_receive
 )
 
