@@ -400,6 +400,7 @@ class TestGetTaskInstances(TestTaskInstanceEndpoint):
     )
     @provide_session
     def test_should_respond_200(self, _, task_instances, update_extras, url, expected_ti, session):
+
         self.create_task_instances(
             session,
             update_extras=update_extras,

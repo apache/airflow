@@ -92,7 +92,7 @@ def upgrade():
     with op.batch_alter_table('task_reschedule', schema=None) as batch_op:
         batch_op.alter_column('run_id', existing_type=run_id_col_type, existing_nullable=True, nullable=False)
 
-        batch_op.drop_constraint('task_reschedule_dag_task_date_fkey', 'foreign')
+        batch_op.drop_constraint('task_reschedule_dag_task_date_fkey', 'foreignkey')
         batch_op.drop_index('idx_task_reschedule_dag_task_date')
 
     with op.batch_alter_table('task_instance', schema=None) as batch_op:

@@ -62,8 +62,8 @@ class BigQueryConsoleLink(BaseOperatorLink):
 
     def get_link(self, operator, dttm):
         job_id = XCom.get_one(
-            dag_ids=operator.dag.dag_id,
-            task_ids=operator.task_id,
+            dag_id=operator.dag.dag_id,
+            task_id=operator.task_id,
             execution_date=dttm,
             key='job_id',
         )

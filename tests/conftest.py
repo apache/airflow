@@ -23,6 +23,8 @@ from datetime import datetime, timedelta
 import freezegun
 import pytest
 
+from airflow.timetables.base import DataInterval
+
 # We should set these before loading _any_ of the rest of airflow so that the
 # unit test mode config is set as early as possible.
 assert "airflow" not in sys.modules, "No airflow module can be imported before these lines"
@@ -525,6 +527,9 @@ def dag_maker(request):
             # explicitly, or pass run_type for inference in dag.create_dagrun().
             if "run_id" not in kwargs and "run_type" not in kwargs:
                 kwargs["run_id"] = "test"
+
+            kwargs["data_interval"] = DataInterval.exact(kwargs["execution_date"])
+
             self.dag_run = dag.create_dagrun(**kwargs)
             return self.dag_run
 
