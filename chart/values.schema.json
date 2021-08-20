@@ -1817,6 +1817,14 @@
                                 "null"
                             ],
                             "default": null
+                        },
+                        "loadBalancerSourceRanges": {
+                            "description": "Webserver Service loadBalancerSourceRanges.",
+                            "type": "array",
+                            "default": [],
+                            "examples": [
+                                "10.123.0.0/16"
+                            ]
                         }
                     }
                 },
@@ -1995,6 +2003,14 @@
                                 "null"
                             ],
                             "default": null
+                        },
+                        "loadBalancerSourceRanges": {
+                            "description": "Flower Service loadBalancerSourceRanges.",
+                            "type": "array",
+                            "default": [],
+                            "examples": [
+                                "10.123.0.0/16"
+                            ]
                         }
                     }
                 },
