@@ -3,3 +3,5 @@ python-dev
 libsasl2-dev
 gcc
 libmysqlclient-dev
+libldap2-dev
+libssl-dev
