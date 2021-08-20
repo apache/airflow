@@ -11,7 +11,7 @@
 # - `pip3 install wheel twine`
 
 # define the file containing the version here
-VERSION_FILE="airflow/version.py"
+VERSION_FILE="version.py"
 
 # run checks
 command -v auto-changelog >/dev/null 2>&1 || { echo >&2 "auto-changelog is not installed. Install via npm!"; exit 1; }
