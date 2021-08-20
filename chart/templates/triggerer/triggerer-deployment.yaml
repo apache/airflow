@@ -18,12 +18,11 @@
 ################################
 ## Airflow Triggerer Deployment
 #################################
-{{- $persistence := .Values.triggerers.persistence.enabled }}
 {{- if semverCompare ">=2.2.0" .Values.airflowVersion }}
 {{- $nodeSelector := or .Values.nodeSelector .Values.triggerers.nodeSelector }}
 {{- $affinity := or .Values.affinity .Values.triggerers.affinity }}
 {{- $tolerations := or .Values.tolerations .Values.triggerers.tolerations }}
-kind: {{ if $persistence }}StatefulSet{{ else }}Deployment{{ end }}
+kind: Deployment
 apiVersion: apps/v1
 metadata:
   name: {{ .Release.Name }}-triggerer
@@ -37,20 +36,13 @@ metadata:
 {{ toYaml . | indent 4 }}
 {{- end }}
 spec:
-{{- if $persistence }}
-  serviceName: {{ .Release.Name }}-triggerer
-{{- end }}
   replicas: {{ .Values.triggerers.replicas }}
   selector:
     matchLabels:
       tier: airflow
       component: triggerer
       release: {{ .Release.Name }}
-  {{- if and $persistence .Values.triggerers.updateStrategy }}
-  updateStrategy:
-    {{- toYaml .Values.triggerers.updateStrategy | nindent 4 }}
-  {{- end }}
-  {{- if and (not $persistence) (.Values.triggerers.strategy) }}
+  {{- if .Values.triggerers.strategy }}
   strategy:
     {{- toYaml .Values.triggerers.strategy | nindent 4 }}
   {{- end }}
@@ -98,23 +90,6 @@ spec:
         - name: {{ template "registry_secret" . }}
       {{- end }}
       initContainers:
-      {{- if and $persistence .Values.triggerers.persistence.fixPermissions }}
-        - name: volume-permissions
-          resources:
-{{ toYaml .Values.triggerers.resources | indent 12 }}
-          image: {{ template "airflow_image" . }}
-          imagePullPolicy: {{ .Values.images.airflow.pullPolicy }}
-          command:
-            - chown
-            - -R
-            - "{{ .Values.uid }}:{{ .Values.gid }}"
-            - {{ template "airflow_logs" . }}
-          securityContext:
-            runAsUser: 0
-          volumeMounts:
-            - name: logs
-              mountPath: {{ template "airflow_logs" . }}
-      {{- end }}
         - name: wait-for-airflow-migrations
           resources:
 {{ toYaml .Values.triggerers.resources | indent 12 }}
@@ -163,22 +138,6 @@ spec:
           env:
           {{- include "custom_airflow_environment" . | indent 10 }}
           {{- include "standard_airflow_environment" . | indent 10 }}
-{{- if $persistence }}
-        - name: triggerer-log-groomer
-          image: {{ template "airflow_image" . }}
-          imagePullPolicy: {{ .Values.images.airflow.pullPolicy }}
-          {{- if .Values.triggerers.logGroomerSidecar.command }}
-          command: {{ tpl (toYaml .Values.triggerers.logGroomerSidecar.command) . | nindent 12 }}
-          {{- end }}
-          {{- if .Values.triggerers.logGroomerSidecar.args }}
-          args: {{ tpl (toYaml .Values.triggerers.logGroomerSidecar.args) . | nindent 12 }}
-          {{- end }}
-          resources:
-{{ toYaml .Values.triggerers.logGroomerSidecar.resources | indent 12 }}
-          volumeMounts:
-            - name: logs
-              mountPath: {{ template "airflow_logs" . }}
-{{- end }}
 {{- if .Values.triggerers.extraContainers }}
 {{- toYaml .Values.triggerers.extraContainers | nindent 8 }}
 {{- end }}
@@ -193,20 +152,8 @@ spec:
         - name: logs
           persistentVolumeClaim:
             claimName: {{ template "airflow_logs_volume_claim" . }}
-{{- else if not $persistence }}
+{{- else }}
         - name: logs
           emptyDir: {}
-{{- else }}
-  volumeClaimTemplates:
-    - metadata:
-        name: logs
-      spec:
-      {{- if .Values.triggerers.persistence.storageClassName }}
-        storageClassName: {{ .Values.triggerers.persistence.storageClassName }}
-      {{- end }}
-        accessModes: ["ReadWriteOnce"]
-        resources:
-          requests:
-            storage: {{ .Values.triggerers.persistence.size }}
 {{- end }}
 {{- end }}

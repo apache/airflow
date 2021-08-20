@@ -721,7 +721,7 @@ webserver:
 
 # Airflow Triggerer Config
 triggerers:
-  # Number of airflow triggerers in StatefulSet
+  # Number of airflow triggerers in the deployment
   replicas: 1
 
   # Command to use when running Airflow triggerers (templated).
@@ -735,8 +735,6 @@ triggerers:
       exec \
       airflow triggerer
 
-  # Update Strategy when triggerers are deployed as a StatefulSet
-  updateStrategy: ~
   # Update Strategy when triggerers are deployed as a Deployment
   strategy:
     rollingUpdate:
@@ -753,18 +751,6 @@ triggerers:
 
     # Annotations to add to triggerer kubernetes service account.
     annotations: {}
-
-  persistence:
-    # Enable persistent volumes
-    enabled: false
-    # Volume size for triggerer StatefulSet
-    size: 100Gi
-    # If using a custom storageClass, pass name ref to all statefulSets here
-    storageClassName:
-    # Execute init container to chown log directory.
-    # This is currently only needed in kind, due to usage
-    # of local-path provisioner.
-    fixPermissions: false
 
   resources: {}
   #  limits:
@@ -812,19 +798,6 @@ triggerers:
   # - ip: "127.0.0.3"
   #   hostnames:
   #   - "test.hostname.two"
-
-  logGroomerSidecar:
-    # Command to use when running the Airflow triggerer log groomer sidecar (templated).
-    command: ~
-    # Args to use when running the Airflow triggerer log groomer sidecar (templated).
-    args: ["bash", "/clean-logs"]
-    resources: {}
-    #  limits:
-    #   cpu: 100m
-    #   memory: 128Mi
-    #  requests:
-    #   cpu: 100m
-    #   memory: 128Mi
 
 # Flower settings
 flower:
