@@ -52,7 +52,6 @@ from sqlalchemy import (
 from sqlalchemy.ext.associationproxy import association_proxy
 from sqlalchemy.orm import reconstructor, relationship
 from sqlalchemy.orm.attributes import NO_VALUE, set_committed_value
-from sqlalchemy.orm.exc import NoResultFound
 from sqlalchemy.orm.session import Session
 from sqlalchemy.sql.elements import BooleanClauseList
 from sqlalchemy.sql.sqltypes import BigInteger
@@ -434,13 +433,12 @@ class TaskInstance(Base, LoggingMixin):
 
                 execution_date = timezone.convert_to_utc(execution_date)
             with create_session() as session:
-                try:
-                    (run_id,) = (
-                        session.query(DagRun.run_id)
-                        .filter_by(dag_id=self.dag_id, execution_date=execution_date)
-                        .one()
-                    )
-                except NoResultFound:
+                run_id = (
+                    session.query(DagRun.run_id)
+                    .filter_by(dag_id=self.dag_id, execution_date=execution_date)
+                    .scalar()
+                )
+                if run_id is None:
                     raise DagRunNotFound(
                         f"DagRun for {self.dag_id!r} with date {execution_date} not found"
                     ) from None
@@ -1111,7 +1109,7 @@ class TaskInstance(Base, LoggingMixin):
 
         dr = session.query(DagRun).filter(DagRun.dag_id == self.dag_id, DagRun.run_id == self.run_id).one()
 
-        # Record it in the instance for next timme. This means that `self.execution_date` will work correctly
+        # Record it in the instance for next time. This means that `self.execution_date` will work correctly
         set_committed_value(self, 'dag_run', dr)
 
         return dr
@@ -1747,12 +1745,8 @@ class TaskInstance(Base, LoggingMixin):
 
         integrate_macros_plugins()
 
-        params = {}  # type: Dict[str, Any]
         # Ensure that the dag_run is loaded -- otherwise `self.execution_date` may not work
         dag_run = self.get_dagrun(session)
-        if hasattr(task, 'dag'):
-            if task.dag.params:
-                params.update(task.dag.params)
 
         params = {}  # type: Dict[str, Any]
         with contextlib.suppress(AttributeError):

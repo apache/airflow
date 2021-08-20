@@ -25,6 +25,7 @@ from contextlib import contextmanager, redirect_stderr, redirect_stdout
 from typing import List
 
 from pendulum.parsing.exceptions import ParserError
+from sqlalchemy.orm.exc import NoResultFound
 
 from airflow import settings
 from airflow.cli.simple_table import AirflowConsole
@@ -58,11 +59,15 @@ def _get_ti(task, exec_date_or_run_id, session):
     if not dag_run:
         try:
             execution_date = timezone.parse(exec_date_or_run_id)
-            dag_run.session.query(DagRun).filter(
-                DagRun.dag_id == task.dag_id,
-                DagRun.execution_date == execution_date,
-            ).one()
-        except (ParserError, TypeError):
+            dag_run = (
+                session.query(DagRun)
+                .filter(
+                    DagRun.dag_id == task.dag_id,
+                    DagRun.execution_date == execution_date,
+                )
+                .one()
+            )
+        except (ParserError, TypeError, NoResultFound):
             raise AirflowException(f"DagRun with run_id: {exec_date_or_run_id} not found")
     ti = dag_run.get_task_instance(task.task_id)
     ti.refresh_from_task(task)

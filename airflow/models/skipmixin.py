@@ -17,13 +17,19 @@
 # under the License.
 
 import warnings
-from typing import Iterable, Union
+from typing import TYPE_CHECKING, Iterable, Union
 
 from airflow.models.taskinstance import TaskInstance
 from airflow.utils import timezone
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.session import create_session, provide_session
 from airflow.utils.state import State
+
+if TYPE_CHECKING:
+    from sqlalchemy import Session
+
+    from airflow.models import DagRun
+    from airflow.models.baseoperator import BaseOperator
 
 # The key used by SkipMixin to store XCom data.
 XCOM_SKIPMIXIN_KEY = "skipmixin_key"
@@ -38,7 +44,7 @@ XCOM_SKIPMIXIN_FOLLOWED = "followed"
 class SkipMixin(LoggingMixin):
     """A Mixin to skip Tasks Instances"""
 
-    def _set_state_to_skipped(self, dag_run, tasks, session):
+    def _set_state_to_skipped(self, dag_run: "DagRun", tasks: "Iterable[BaseOperator]", session: "Session"):
         """Used internally to set state of task instances to skipped from the same dag run."""
         task_ids = [d.task_id for d in tasks]
         now = timezone.utcnow()
@@ -59,10 +65,10 @@ class SkipMixin(LoggingMixin):
     @provide_session
     def skip(
         self,
-        dag_run,
-        execution_date,
-        tasks,
-        session=None,
+        dag_run: "DagRun",
+        execution_date: "timezone.DateTime",
+        tasks: "Iterable[BaseOperator]",
+        session: "Session" = None,
     ):
         """
         Sets tasks instances to skipped from the same dag run.
@@ -95,6 +101,10 @@ class SkipMixin(LoggingMixin):
                     DagRun.execution_date == execution_date,
                 )
                 .one()
+            )
+        elif execution_date and dag_run and execution_date != dag_run.execution_date:
+            raise ValueError(
+                "execution_date has a different value to  dag_run.execution_date -- please only pass dag_run"
             )
 
         if dag_run is None:

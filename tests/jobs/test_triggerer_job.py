@@ -303,7 +303,7 @@ def test_invalid_trigger(session, dag_maker):
     session.commit()
 
     # Create the test DAG and task
-    with dag_maker(dag_id='test_invalid_trigger'):
+    with dag_maker(dag_id='test_invalid_trigger', session=session):
         DummyOperator(task_id='dummy1')
 
     dr = dag_maker.create_dagrun()

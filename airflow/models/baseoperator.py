@@ -48,11 +48,12 @@ import attr
 import jinja2
 from dateutil.relativedelta import relativedelta
 from sqlalchemy.orm import Session
+from sqlalchemy.orm.exc import NoResultFound
 
 import airflow.templates
 from airflow.compat.functools import cached_property
 from airflow.configuration import conf
-from airflow.exceptions import AirflowException, DagRunNotFound, TaskDeferred
+from airflow.exceptions import AirflowException, TaskDeferred
 from airflow.lineage import apply_lineage, prepare_lineage
 from airflow.models.base import Operator
 from airflow.models.pool import Pool
@@ -1295,17 +1296,25 @@ class BaseOperator(Operator, LoggingMixin, TaskMixin, metaclass=BaseOperatorMeta
         session: Session = None,
     ) -> None:
         """Run a set of task instances for a date range."""
+        from airflow.models import DagRun
+        from airflow.utils.types import DagRunType
+
         start_date = start_date or self.start_date
         end_date = end_date or self.end_date or timezone.utcnow()
 
         for info in self.dag.iter_dagrun_infos_between(start_date, end_date, align=False):
             ignore_depends_on_past = info.logical_date == start_date and ignore_first_depends_on_past
             try:
-                ti = TaskInstance(self, info.logical_date)
-            except DagRunNotFound:
-                from airflow.models import DagRun
-                from airflow.utils.types import DagRunType
-
+                dag_run = (
+                    session.query(DagRun)
+                    .filter(
+                        DagRun.dag_id == self.dag_id,
+                        DagRun.execution_date == info.logical_date,
+                    )
+                    .one()
+                )
+                ti = TaskInstance(self, run_id=dag_run.run_id)
+            except NoResultFound:
                 # This is _mostly_ only used in tests
                 dr = DagRun(
                     dag_id=self.dag_id,
