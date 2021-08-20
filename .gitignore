@@ -219,3 +219,6 @@ pip-wheel-metadata
 # Dev files
 /dev/packages.txt
 /dev/Dockerfile.pmc
+
+build-qcos-airflow/dags
+build-qcos-airflow/plugins

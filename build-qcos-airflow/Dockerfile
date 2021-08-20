@@ -2,9 +2,9 @@ FROM docker.pkg.github.com/masami10/airflow/airflow-base:latest
 
 COPY requirements-airflow-prod.txt /tmp/requirements.txt
 
-COPY dags/* /usr/local/airflow/dags/
+COPY dags/ /usr/local/airflow/dags/
 
-COPY plugins/* /usr/local/airflow/plugins/
+COPY plugins/ /usr/local/airflow/plugins/
 
 ENV RUNTIME_ENV prod
 
