@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 import json
-from plugins import AirflowModelView
+from plugins.common import AirflowModelView
 from datetime import datetime
 from flask_login import current_user
 from flask_appbuilder.fieldwidgets import BS3TextFieldWidget

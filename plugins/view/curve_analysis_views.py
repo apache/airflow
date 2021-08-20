@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 from plugins.view.tightening_controller_views import TighteningControllerView
-from plugins import PAGE_SIZE, AirflowModelView
+from plugins.common import PAGE_SIZE, AirflowModelView
 from airflow.www.widgets import AirflowModelListWidget
 from flask_babel import lazy_gettext, gettext
 from airflow.www import utils as wwwutils

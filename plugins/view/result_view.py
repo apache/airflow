@@ -1,6 +1,6 @@
 from plugins.models.result import ResultModel
 import json
-from plugins import AirflowModelView
+from plugins.common import AirflowModelView
 from flask_babel import lazy_gettext
 from airflow.plugins_manager import AirflowPlugin
 from plugins.models.error_tag import ErrorTag

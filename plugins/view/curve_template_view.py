@@ -11,7 +11,7 @@ from airflow.exceptions import AirflowNotFoundException
 from plugins.utils.custom_log import CUSTOM_LOG_FORMAT, CUSTOM_EVENT_NAME_MAP, CUSTOM_PAGE_NAME_MAP
 import logging
 from airflow.api.common.experimental import trigger_dag as trigger
-from plugins import AirflowModelView
+from plugins.common import AirflowModelView
 from plugins.models.curve_template import CurveTemplateModel
 import uuid
 from flask_appbuilder.actions import action

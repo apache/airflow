@@ -23,7 +23,7 @@ import pandas as pd
 from pathlib import Path
 from airflow.configuration import AIRFLOW_HOME
 from airflow.plugins_manager import AirflowPlugin
-from plugins import AirflowModelView
+from plugins.common import AirflowModelView
 from flask import jsonify, request
 from airflow.exceptions import AirflowException
 from airflow.security import permissions
