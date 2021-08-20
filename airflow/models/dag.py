@@ -2233,7 +2233,7 @@ class DAG(LoggingMixin):
             orm_dag.description = dag.description
             orm_dag.schedule_interval = dag.schedule_interval
             orm_dag.max_active_tasks = dag.max_active_tasks
-            orm_dag.has_task_concurrency_limits = any(t.task_concurrency is not None for t in dag.tasks)
+            orm_dag.has_task_concurrency_limits = any(t.max_active_tis_per_dag is not None for t in dag.tasks)
 
             orm_dag.calculate_dagrun_date_fields(
                 dag,
@@ -2253,8 +2253,7 @@ class DAG(LoggingMixin):
                         orm_dag.tags.append(dag_tag_orm)
                         session.add(dag_tag_orm)
 
-        if settings.STORE_DAG_CODE:
-            DagCode.bulk_sync_to_db(filelocs)
+        DagCode.bulk_sync_to_db(filelocs)
 
         # Issue SQL/finish "Unit of Work", but let @provide_session commit (or if passed a session, let caller
         # decide when to commit

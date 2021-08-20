@@ -52,7 +52,7 @@ with DAG(
 
     join = DummyOperator(
         task_id='join',
-        trigger_rule='none_failed_or_skipped',
+        trigger_rule='none_failed_min_one_success',
     )
 
     for option in options:
