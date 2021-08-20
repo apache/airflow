@@ -139,23 +139,23 @@ class TestBashOperator(unittest.TestCase):
         # The command is echo a string to a file into cwd folder and return the string as the output
         test_cmd = f'set -e; echo "xxxx" |tee {test_file_name}'
 
-        # Test the the bash_cwd doesn't exist
+        # Test the the cwd doesn't exist
         if os.path.exists(test_cwd_folder):
             _shutil.rmtree(test_cwd_folder)
-        with pytest.raises(AirflowException, match=f"Can not find the bash_cwd: {test_cwd_folder}"):
-            BashOperator(task_id='abc', bash_command=test_cmd, bash_cwd=test_cwd_folder).execute({})
+        with pytest.raises(AirflowException, match=f"Can not find the cwd: {test_cwd_folder}"):
+            BashOperator(task_id='abc', bash_command=test_cmd, cwd=test_cwd_folder).execute({})
 
         os.makedirs(test_cwd_folder)
 
-        # Test if the bash_cwd is a file_path
+        # Test if the cwd is a file_path
         with open(test_cwd_file_path, 'w') as tmp_file:
             tmp_file.write("xxxxx")
-            with pytest.raises(AirflowException, match=f"The bash_cwd {test_cwd_file_path} must be a folder"):
-                BashOperator(task_id='abc', bash_command=test_cmd, bash_cwd=test_cwd_file_path).execute({})
+            with pytest.raises(AirflowException, match=f"The cwd {test_cwd_file_path} must be a folder"):
+                BashOperator(task_id='abc', bash_command=test_cmd, cwd=test_cwd_file_path).execute({})
         os.remove(test_cwd_file_path)
 
         # Test everything goes alright
-        result = BashOperator(task_id='abc', bash_command=test_cmd, bash_cwd=test_cwd_folder).execute({})
+        result = BashOperator(task_id='abc', bash_command=test_cmd, cwd=test_cwd_folder).execute({})
         assert result == "xxxx"
         with open(test_cwd_file_path) as tmp_file:
             assert tmp_file.read().splitlines()[0] == "xxxx"

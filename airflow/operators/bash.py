@@ -50,9 +50,9 @@ class BashOperator(BaseOperator):
         in ``skipped`` state (default: 99). If set to ``None``, any non-zero
         exit code will be treated as a failure.
     :type skip_exit_code: int
-    :param bash_cwd: The folder that the command is executed.
+    :param cwd: The folder that the command is executed.
         If it is None, the operator will a temporary directory which will be cleaned afterwards.
-    :type bash_cwd: str
+    :type cwd: str
 
     Airflow will evaluate the exit code of the bash command. In general, a non-zero exit code will result in
     task failure and zero will result in task success. Exit code ``99`` (or another set in ``skip_exit_code``)
@@ -137,7 +137,7 @@ class BashOperator(BaseOperator):
         env: Optional[Dict[str, str]] = None,
         output_encoding: str = 'utf-8',
         skip_exit_code: int = 99,
-        bash_cwd: str = None,
+        cwd: str = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -145,12 +145,12 @@ class BashOperator(BaseOperator):
         self.env = env
         self.output_encoding = output_encoding
         self.skip_exit_code = skip_exit_code
-        self.bash_cwd = bash_cwd
-        if self.bash_cwd is not None:
-            if not os.path.exists(self.bash_cwd):
-                raise AirflowException(f"Can not find the bash_cwd: {bash_cwd}")
-            if not os.path.isdir(self.bash_cwd):
-                raise AirflowException(f"The bash_cwd {bash_cwd} must be a folder")
+        self.cwd = cwd
+        if self.cwd is not None:
+            if not os.path.exists(self.cwd):
+                raise AirflowException(f"Can not find the cwd: {cwd}")
+            if not os.path.isdir(self.cwd):
+                raise AirflowException(f"The cwd {cwd} must be a folder")
         if kwargs.get('xcom_push') is not None:
             raise AirflowException("'xcom_push' was deprecated, use 'BaseOperator.do_xcom_push' instead")
 
@@ -179,7 +179,7 @@ class BashOperator(BaseOperator):
             command=['bash', '-c', self.bash_command],
             env=env,
             output_encoding=self.output_encoding,
-            bash_cwd=self.bash_cwd,
+            cwd=self.cwd,
         )
         if self.skip_exit_code is not None and result.exit_code == self.skip_exit_code:
             raise AirflowSkipException(f"Bash command returned exit code {self.skip_exit_code}. Skipping.")

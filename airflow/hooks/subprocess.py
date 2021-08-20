@@ -39,19 +39,19 @@ class SubprocessHook(BaseHook):
         command: List[str],
         env: Optional[Dict[str, str]] = None,
         output_encoding: str = 'utf-8',
-        bash_cwd: str = None,
+        cwd: str = None,
     ) -> SubprocessResult:
         """
         Execute the command.
 
-        If `bash_cwd` is None, execute the command in a temporary directory which will be cleaned afterwards.
+        If `cwd` is None, execute the command in a temporary directory which will be cleaned afterwards.
         If ``env`` is not supplied, ``os.environ`` is passed
 
         :param command: the command to run
         :param env: Optional dict containing environment variables to be made available to the shell
             environment in which ``command`` will be executed.  If omitted, ``os.environ`` will be used.
         :param output_encoding: encoding to use for decoding stdout
-        :param bash_cwd: the bash cwd. If it is None, generate a temporary directory which will be cleaned afterwards
+        :param cwd: the bash cwd. If it is None, generate a temporary directory which will be cleaned afterwards
         :return: :class:`namedtuple` containing ``exit_code`` and ``output``, the last line from stderr
             or stdout
         """
@@ -87,11 +87,11 @@ class SubprocessHook(BaseHook):
             self.log.info('Command exited with return code %s', self.sub_process.returncode)
             return line
 
-        if bash_cwd is None:
+        if cwd is None:
             with TemporaryDirectory(prefix='airflowtmp') as tmp_dir:
                 line = __run_subprocess(tmp_dir)
         else:
-            line = __run_subprocess(bash_cwd)
+            line = __run_subprocess(cwd)
 
         return SubprocessResult(exit_code=self.sub_process.returncode, output=line)
 
