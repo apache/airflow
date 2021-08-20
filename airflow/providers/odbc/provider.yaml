@@ -42,3 +42,7 @@ hooks:
 
 hook-class-names:
   - airflow.providers.odbc.hooks.odbc.OdbcHook
+
+connection-types:
+  - hook-class-name: airflow.providers.odbc.hooks.odbc.OdbcHook
+    connection-type: odbc

@@ -44,7 +44,7 @@ from airflow.ti_deps.dep_context import DepContext
 from airflow.ti_deps.dependencies_deps import BACKFILL_QUEUED_DEPS
 from airflow.timetables.base import DagRunInfo
 from airflow.utils import helpers, timezone
-from airflow.utils.configuration import tmp_configuration_copy
+from airflow.utils.configuration import conf as airflow_conf, tmp_configuration_copy
 from airflow.utils.session import provide_session
 from airflow.utils.state import State
 from airflow.utils.types import DagRunType
@@ -423,6 +423,8 @@ class BackfillJob(BaseJob):
         """
         executed_run_dates = []
 
+        is_unit_test = airflow_conf.getboolean('core', 'unit_test_mode')
+
         while (len(ti_status.to_run) > 0 or len(ti_status.running) > 0) and len(ti_status.deadlocked) == 0:
             self.log.debug("*** Clearing out not_ready list ***")
             ti_status.not_ready.clear()
@@ -585,14 +587,14 @@ class BackfillJob(BaseJob):
                                 "Not scheduling since DAG max_active_tasks limit is reached."
                             )
 
-                        if task.task_concurrency:
+                        if task.max_active_tis_per_dag:
                             num_running_task_instances_in_task = DAG.get_num_task_instances(
                                 dag_id=self.dag_id,
                                 task_ids=[task.task_id],
                                 states=self.STATES_COUNT_AS_RUNNING,
                             )
 
-                            if num_running_task_instances_in_task >= task.task_concurrency:
+                            if num_running_task_instances_in_task >= task.max_active_tis_per_dag:
                                 raise TaskConcurrencyLimitReached(
                                     "Not scheduling since Task concurrency limit is reached."
                                 )
@@ -601,8 +603,8 @@ class BackfillJob(BaseJob):
             except (NoAvailablePoolSlot, DagConcurrencyLimitReached, TaskConcurrencyLimitReached) as e:
                 self.log.debug(e)
 
+            self.heartbeat(only_if_necessary=is_unit_test)
             # execute the tasks in the queue
-            self.heartbeat()
             executor.heartbeat()
 
             # If the set of tasks that aren't ready ever equals the set of

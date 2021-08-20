@@ -42,3 +42,7 @@ hooks:
 
 hook-class-names:
   - airflow.providers.samba.hooks.samba.SambaHook
+
+connection-types:
+  - hook-class-name: airflow.providers.samba.hooks.samba.SambaHook
+    connection-type: samba

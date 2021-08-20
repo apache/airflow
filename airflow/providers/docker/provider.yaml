@@ -58,3 +58,7 @@ hooks:
 
 hook-class-names:
   - airflow.providers.docker.hooks.docker.DockerHook
+
+connection-types:
+  - hook-class-name: airflow.providers.docker.hooks.docker.DockerHook
+    connection-type: docker

@@ -60,3 +60,7 @@ hooks:
 
 hook-class-names:
   - airflow.providers.apache.hdfs.hooks.hdfs.HDFSHook
+
+connection-types:
+  - hook-class-name: airflow.providers.apache.hdfs.hooks.hdfs.HDFSHook
+    connection-type: hdfs

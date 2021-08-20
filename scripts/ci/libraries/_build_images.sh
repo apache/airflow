@@ -880,17 +880,12 @@ function build_images::tag_image() {
 # Parameters:
 #  $1 - image name to wait for
 #  $2 - fallback image to wait for
-#  $3 - suffix of the image to wait for (Remove me on 15th of August 2021 after all users had chance to rebase)
-#  $4, $5, ... - target tags to tag the image with
+#  $3, $4, ... - target tags to tag the image with
 function build_images::wait_for_image_tag() {
 
     local image_name="${1}"
     local image_suffix="${2}"
     shift 2
-
-    # Remove me 7th of August 2021
-    local legacy_image_to_pull="${1}"
-    shift
 
     local image_to_wait_for="${image_name}${image_suffix}"
     start_end::group_start "Wait for image tag ${image_to_wait_for}"
@@ -904,32 +899,11 @@ function build_images::wait_for_image_tag() {
         image_hash="$(docker images -q "${image_to_wait_for}" 2>>"${OUTPUT_LOG}" || true)"
         if [[ -z "${image_hash}" ]]; then
             echo
-            echo "The image ${image_to_wait_for} is not yet available. No local hash for the image. Falling bacl to legacy."
+            echo "The image ${image_to_wait_for} is not yet available. No local hash for the image"
             echo
             echo "Last log:"
             cat "${OUTPUT_LOG}" || true
             echo
-            echo "Checking Legacy image!"
-            # Legacy - Remove me 7th of August 2021
-            set +e
-            echo "${COLOR_BLUE}Docker pull ${legacy_image_to_pull} ${COLOR_RESET}" >"${OUTPUT_LOG}"
-            docker_v pull "${legacy_image_to_pull}" >>"${OUTPUT_LOG}" 2>&1
-            set -e
-            echo "${COLOR_BLUE} Docker images -q ${legacy_image_to_pull}${COLOR_RESET}" >>"${OUTPUT_LOG}"
-            image_hash="$(docker images -q "${legacy_image_to_pull}" 2>>"${OUTPUT_LOG}" || true)"
-            if [[ -z "${image_hash}" ]]; then
-                echo
-                echo "The image ${legacy_image_to_pull} is not yet available. No local hash for the image. Waiting."
-                echo
-                echo "Last log:"
-                cat "${OUTPUT_LOG}" || true
-                sleep 10
-            else
-                # Legacy - Rremove me 7th of August 2021
-                # Pretend that the image we waited for was downloaded :)
-                build_images::tag_image "${legacy_image_to_pull}" "${image_to_wait_for}" "${image_name}:latest" "${@}"
-                break
-            fi
         else
             build_images::tag_image "${image_to_wait_for}" "${image_name}:latest" "${@}"
             break

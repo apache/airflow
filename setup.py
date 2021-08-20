@@ -506,7 +506,7 @@ devel = [
     'jira',
     'jsondiff',
     'mongomock',
-    'moto~=2.0',
+    'moto~=2.2, >=2.2.1.dev9',
     'mypy==0.770',
     'parameterized',
     'paramiko',
