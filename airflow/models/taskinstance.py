@@ -679,7 +679,7 @@ class TaskInstance(Base, LoggingMixin):
             .filter(
                 TaskInstance.dag_id == self.dag_id,
                 TaskInstance.task_id == self.task_id,
-                TaskInstance.execution_date == self.execution_date,
+                TaskInstance.run_id == self.run_id,
             )
             .all()
         )
@@ -847,7 +847,7 @@ class TaskInstance(Base, LoggingMixin):
         ti = session.query(func.count(TaskInstance.task_id)).filter(
             TaskInstance.dag_id == self.dag_id,
             TaskInstance.task_id.in_(task.downstream_task_ids),
-            TaskInstance.execution_date == self.execution_date,
+            TaskInstance.run_id == self.run_id,
             TaskInstance.state.in_([State.SKIPPED, State.SUCCESS]),
         )
         count = ti[0][0]
@@ -1298,20 +1298,22 @@ class TaskInstance(Base, LoggingMixin):
         self.job_id = job_id
         self.hostname = get_hostname()
         self.pid = os.getpid()
-        session.merge(self)
-        session.commit()
+        if not test_mode:
+            session.merge(self)
+            session.commit()
         actual_start_date = timezone.utcnow()
         Stats.incr(f'ti.start.{task.dag_id}.{task.task_id}')
         try:
             if not mark_success:
                 context = self.get_template_context()
                 self._prepare_and_execute_task_with_callbacks(context, task)
-            self.refresh_from_db(lock_for_update=True)
+            if not test_mode:
+                self.refresh_from_db(lock_for_update=True, session=session)
             self.state = State.SUCCESS
         except TaskDeferred as defer:
             # The task has signalled it wants to defer execution based on
             # a trigger.
-            self._defer_task(defer=defer)
+            self._defer_task(defer=defer, session=session)
             self.log.info(
                 'Pausing task as DEFERRED. dag_id=%s, task_id=%s, execution_date=%s, start_date=%s',
                 self.dag_id,
@@ -1322,7 +1324,7 @@ class TaskInstance(Base, LoggingMixin):
             if not test_mode:
                 session.add(Log(self.state, self))
                 session.merge(self)
-            session.commit()
+                session.commit()
             return
         except AirflowSmartSensorException as e:
             self.log.info(e)
@@ -1332,29 +1334,27 @@ class TaskInstance(Base, LoggingMixin):
             # log only if exception has any arguments to prevent log flooding
             if e.args:
                 self.log.info(e)
-            self.refresh_from_db(lock_for_update=True)
+            if not test_mode:
+                self.refresh_from_db(lock_for_update=True, session=session)
             self.state = State.SKIPPED
         except AirflowRescheduleException as reschedule_exception:
-            self.refresh_from_db()
-            self._handle_reschedule(actual_start_date, reschedule_exception, test_mode)
+            self._handle_reschedule(actual_start_date, reschedule_exception, test_mode, session=session)
             return
         except (AirflowFailException, AirflowSensorTimeout) as e:
             # If AirflowFailException is raised, task should not retry.
             # If a sensor in reschedule mode reaches timeout, task should not retry.
-            self.refresh_from_db()
-            self.handle_failure(e, test_mode, force_fail=True, error_file=error_file)
+            self.handle_failure(e, test_mode, force_fail=True, error_file=error_file, session=session)
             raise
         except AirflowException as e:
-            self.refresh_from_db()
             # for case when task is marked as success/failed externally
             # current behavior doesn't hit the success callback
             if self.state in {State.SUCCESS, State.FAILED}:
                 return
             else:
-                self.handle_failure(e, test_mode, error_file=error_file)
+                self.handle_failure(e, test_mode, error_file=error_file, session=session)
                 raise
         except (Exception, KeyboardInterrupt) as e:
-            self.handle_failure(e, test_mode, error_file=error_file)
+            self.handle_failure(e, test_mode, error_file=error_file, session=session)
             raise
         finally:
             Stats.incr(f'ti.finish.{task.dag_id}.{task.task_id}.{self.state}')
@@ -1367,7 +1367,7 @@ class TaskInstance(Base, LoggingMixin):
             session.add(Log(self.state, self))
             session.merge(self)
 
-        session.commit()
+            session.commit()
 
     def _prepare_and_execute_task_with_callbacks(self, context, task):
         """Prepare Task for Execution"""
@@ -1624,6 +1624,7 @@ class TaskInstance(Base, LoggingMixin):
         # Don't record reschedule request in test mode
         if test_mode:
             return
+        self.refresh_from_db(session)
 
         self.end_date = timezone.utcnow()
         self.set_duration()
@@ -1673,6 +1674,8 @@ class TaskInstance(Base, LoggingMixin):
             # can send its runtime errors for access by failure callback
             if error_file:
                 set_error_file(error_file, error)
+        if not test_mode:
+            self.refresh_from_db(session)
 
         task = self.task
         self.end_date = timezone.utcnow()
@@ -1682,8 +1685,8 @@ class TaskInstance(Base, LoggingMixin):
         if not test_mode:
             session.add(Log(State.FAILED, self))
 
-        # Log failure duration
-        session.add(TaskFail(task, self.execution_date, self.start_date, self.end_date))
+            # Log failure duration
+            session.add(TaskFail(task, self.execution_date, self.start_date, self.end_date))
 
         # Set state correctly and figure out how to log it and decide whether
         # to email
@@ -1713,7 +1716,7 @@ class TaskInstance(Base, LoggingMixin):
 
         if not test_mode:
             session.merge(self)
-        session.commit()
+            session.flush()
 
     @provide_session
     def handle_failure_with_callback(
@@ -2348,7 +2351,7 @@ class SimpleTaskInstance:
     def __init__(self, ti: TaskInstance):
         self._dag_id: str = ti.dag_id
         self._task_id: str = ti.task_id
-        self._execution_date: datetime = ti.execution_date
+        self._run_id: datetime = ti.run_id
         self._start_date: datetime = ti.start_date
         self._end_date: datetime = ti.end_date
         self._try_number: int = ti.try_number
@@ -2373,8 +2376,8 @@ class SimpleTaskInstance:
         return self._task_id
 
     @property
-    def execution_date(self) -> datetime:
-        return self._execution_date
+    def run_id(self) -> str:
+        return self._run_id
 
     @property
     def start_date(self) -> datetime:
@@ -2411,29 +2414,6 @@ class SimpleTaskInstance:
     @property
     def executor_config(self):
         return self._executor_config
-
-    @provide_session
-    def construct_task_instance(self, session=None, lock_for_update=False) -> TaskInstance:
-        """
-        Construct a TaskInstance from the database based on the primary key
-
-        :param session: DB session.
-        :param lock_for_update: if True, indicates that the database should
-            lock the TaskInstance (issuing a FOR UPDATE clause) until the
-            session is committed.
-        :return: the task instance constructed
-        """
-        qry = session.query(TaskInstance).filter(
-            TaskInstance.dag_id == self._dag_id,
-            TaskInstance.task_id == self._task_id,
-            TaskInstance.execution_date == self._execution_date,
-        )
-
-        if lock_for_update:
-            ti = qry.with_for_update().first()
-        else:
-            ti = qry.first()
-        return ti
 
 
 STATICA_HACK = True

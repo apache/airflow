@@ -23,7 +23,7 @@ import os
 import re
 import unittest
 from contextlib import redirect_stdout
-from datetime import datetime, timedelta
+from datetime import datetime
 from unittest import mock
 
 import pytest
@@ -32,17 +32,17 @@ from parameterized import parameterized
 from airflow.cli import cli_parser
 from airflow.cli.commands import task_command
 from airflow.configuration import conf
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, DagRunNotFound
 from airflow.models import DagBag, DagRun, TaskInstance
 from airflow.utils import timezone
-from airflow.utils.cli import get_dag
+from airflow.utils.dates import days_ago
 from airflow.utils.session import create_session
 from airflow.utils.state import State
 from airflow.utils.types import DagRunType
 from tests.test_utils.config import conf_vars
-from tests.test_utils.db import clear_db_pools, clear_db_runs
+from tests.test_utils.db import clear_db_runs
 
-DEFAULT_DATE = timezone.make_aware(datetime(2016, 1, 1))
+DEFAULT_DATE = days_ago(1)
 ROOT_FOLDER = os.path.realpath(
     os.path.join(os.path.dirname(os.path.realpath(__file__)), os.pardir, os.pardir)
 )
@@ -58,13 +58,22 @@ def reset(dag_id):
 
 # TODO: Check if tests needs side effects - locally there's missing DAG
 class TestCliTasks(unittest.TestCase):
+    run_id = 'TEST_RUN_ID'
+    dag_id = 'example_python_operator'
+
     @classmethod
     def setUpClass(cls):
         cls.dagbag = DagBag(include_examples=True)
         cls.parser = cli_parser.get_parser()
         clear_db_runs()
 
-    def tearDown(self) -> None:
+        cls.dag = cls.dagbag.get_dag(cls.dag_id)
+        cls.dag_run = cls.dag.create_dagrun(
+            state=State.NONE, run_id=cls.run_id, run_type=DagRunType.MANUAL, execution_date=DEFAULT_DATE
+        )
+
+    @classmethod
+    def tearDownClass(cls) -> None:
         clear_db_runs()
 
     def test_cli_list_tasks(self):
@@ -89,76 +98,33 @@ class TestCliTasks(unittest.TestCase):
 
     def test_test_with_existing_dag_run(self):
         """Test the `airflow test` command"""
-        dag_id = 'example_python_operator'
-        run_id = 'TEST_RUN_ID'
         task_id = 'print_the_context'
-        dag = self.dagbag.get_dag(dag_id)
 
-        dag.create_dagrun(state=State.NONE, run_id=run_id, run_type=DagRunType.MANUAL, external_trigger=True)
-
-        args = self.parser.parse_args(["tasks", "test", dag_id, task_id, run_id])
+        args = self.parser.parse_args(["tasks", "test", self.dag_id, task_id, DEFAULT_DATE.isoformat()])
 
         with redirect_stdout(io.StringIO()) as stdout:
             task_command.task_test(args)
 
         # Check that prints, and log messages, are shown
-        assert f"Marking task as SUCCESS. dag_id={dag_id}, task_id={task_id}" in stdout.getvalue()
-
-    @mock.patch("airflow.cli.commands.task_command.LocalTaskJob")
-    def test_run_naive_taskinstance(self, mock_local_job):
-        """
-        Test that we can run naive (non-localized) task instances
-        """
-        naive_date = datetime(2016, 1, 1)
-        dag_id = 'test_run_ignores_all_dependencies'
-
-        dag = self.dagbag.get_dag('test_run_ignores_all_dependencies')
-
-        task0_id = 'test_run_dependent_task'
-        args0 = [
-            'tasks',
-            'run',
-            '--ignore-all-dependencies',
-            '--local',
-            dag_id,
-            task0_id,
-            naive_date.isoformat(),
-        ]
-
-        task_command.task_run(self.parser.parse_args(args0), dag=dag)
-        mock_local_job.assert_called_once_with(
-            task_instance=mock.ANY,
-            mark_success=False,
-            ignore_all_deps=True,
-            ignore_depends_on_past=False,
-            ignore_task_deps=False,
-            ignore_ti_state=False,
-            pickle_id=None,
-            pool=None,
-        )
+        assert f"Marking task as SUCCESS. dag_id={self.dag_id}, task_id={task_id}" in stdout.getvalue()
 
     @mock.patch("airflow.cli.commands.task_command.LocalTaskJob")
     def test_run_with_existing_dag_run_id(self, mock_local_job):
         """
         Test that we can run with existing dag_run_id
         """
-        dag_id = 'test_run_ignores_all_dependencies'
-
-        dag = self.dagbag.get_dag(dag_id)
-        task0_id = 'test_run_dependent_task'
-        run_id = 'TEST_RUN_ID'
-        dag.create_dagrun(state=State.NONE, run_id=run_id, run_type=DagRunType.MANUAL, external_trigger=True)
+        task0_id = self.dag.task_ids[0]
         args0 = [
             'tasks',
             'run',
             '--ignore-all-dependencies',
             '--local',
-            dag_id,
+            self.dag_id,
             task0_id,
-            run_id,
+            self.run_id,
         ]
 
-        task_command.task_run(self.parser.parse_args(args0), dag=dag)
+        task_command.task_run(self.parser.parse_args(args0), dag=self.dag)
         mock_local_job.assert_called_once_with(
             task_instance=mock.ANY,
             mark_success=False,
@@ -188,21 +154,8 @@ class TestCliTasks(unittest.TestCase):
             task0_id,
             run_id,
         ]
-        with self.assertRaises(AirflowException) as err:
+        with self.assertRaises(DagRunNotFound):
             task_command.task_run(self.parser.parse_args(args0), dag=dag)
-        assert str(err.exception) == f"DagRun with run_id: {run_id} not found"
-
-    def test_cli_test(self):
-        task_command.task_test(
-            self.parser.parse_args(
-                ['tasks', 'test', 'example_bash_operator', 'runme_0', DEFAULT_DATE.isoformat()]
-            )
-        )
-        task_command.task_test(
-            self.parser.parse_args(
-                ['tasks', 'test', 'example_bash_operator', 'runme_0', '--dry-run', DEFAULT_DATE.isoformat()]
-            )
-        )
 
     def test_cli_test_with_params(self):
         task_command.task_test(
@@ -250,13 +203,6 @@ class TestCliTasks(unittest.TestCase):
         output = stdout.getvalue()
         assert 'foo=bar' in output
         assert 'AIRFLOW_TEST_MODE=True' in output
-
-    def test_cli_run(self):
-        task_command.task_run(
-            self.parser.parse_args(
-                ['tasks', 'run', 'example_bash_operator', 'runme_0', '--local', DEFAULT_DATE.isoformat()]
-            )
-        )
 
     @parameterized.expand(
         [
@@ -307,7 +253,7 @@ class TestCliTasks(unittest.TestCase):
         """
         with redirect_stdout(io.StringIO()) as stdout:
             task_command.task_render(
-                self.parser.parse_args(['tasks', 'render', 'tutorial', 'templated', DEFAULT_DATE.isoformat()])
+                self.parser.parse_args(['tasks', 'render', 'tutorial', 'templated', '2016-01-01'])
             )
 
         output = stdout.getvalue()
@@ -326,7 +272,6 @@ class TestCliTasks(unittest.TestCase):
             AirflowException,
             match=re.escape("You cannot use the --pickle option when using DAG.cli() method."),
         ):
-            dag = self.dagbag.get_dag('test_run_ignores_all_dependencies')
             task_command.task_run(
                 self.parser.parse_args(
                     [
@@ -339,13 +284,13 @@ class TestCliTasks(unittest.TestCase):
                         pickle_id,
                     ]
                 ),
-                dag,
+                self.dag,
             )
 
     def test_task_state(self):
         task_command.task_state(
             self.parser.parse_args(
-                ['tasks', 'state', 'example_bash_operator', 'runme_0', DEFAULT_DATE.isoformat()]
+                ['tasks', 'state', self.dag_id, 'print_the_context', DEFAULT_DATE.isoformat()]
             )
         )
 
@@ -395,7 +340,7 @@ class TestCliTasks(unittest.TestCase):
         """
         task_states_for_dag_run should return an AirflowException when invalid dag id is passed
         """
-        with pytest.raises(AirflowException, match="DagRun does not exist."):
+        with pytest.raises(DagRunNotFound):
             default_date2 = timezone.make_aware(datetime(2016, 1, 9))
             task_command.task_states_for_dag_run(
                 self.parser.parse_args(
@@ -425,31 +370,6 @@ class TestCliTasks(unittest.TestCase):
             ['tasks', 'clear', 'example_subdag_operator.section-1', '--yes', '--exclude-parentdag']
         )
         task_command.task_clear(args)
-
-    @pytest.mark.quarantined
-    def test_local_run(self):
-        args = self.parser.parse_args(
-            [
-                'tasks',
-                'run',
-                'example_python_operator',
-                'print_the_context',
-                '2018-04-27T08:39:51.298439+00:00',
-                '--interactive',
-                '--subdir',
-                '/root/dags/example_python_operator.py',
-            ]
-        )
-
-        dag = get_dag(args.subdir, args.dag_id)
-        reset(dag.dag_id)
-
-        task_command.task_run(args)
-        task = dag.get_task(task_id=args.task_id)
-        ti = TaskInstance(task, args.execution_date)
-        ti.refresh_from_db()
-        state = ti.current_state()
-        assert state == State.SUCCESS
 
 
 # For this test memory spins out of control on Python 3.6. TODO(potiuk): FIXME")
@@ -650,66 +570,3 @@ class TestLogsfromTaskRunCommand(unittest.TestCase):
                 assert captured.output == ["WARNING:foo.bar:not redirected"]
 
         settings.DONOT_MODIFY_HANDLERS = old_value
-
-
-class TestCliTaskBackfill(unittest.TestCase):
-    @classmethod
-    def setUpClass(cls):
-        cls.dagbag = DagBag(include_examples=True)
-
-    def setUp(self):
-        clear_db_runs()
-        clear_db_pools()
-
-        self.parser = cli_parser.get_parser()
-
-    def test_run_ignores_all_dependencies(self):
-        """
-        Test that run respects ignore_all_dependencies
-        """
-        dag_id = 'test_run_ignores_all_dependencies'
-
-        dag = self.dagbag.get_dag('test_run_ignores_all_dependencies')
-        dag.clear()
-
-        task0_id = 'test_run_dependent_task'
-        args0 = ['tasks', 'run', '--ignore-all-dependencies', dag_id, task0_id, DEFAULT_DATE.isoformat()]
-        task_command.task_run(self.parser.parse_args(args0))
-        ti_dependent0 = TaskInstance(task=dag.get_task(task0_id), execution_date=DEFAULT_DATE)
-
-        ti_dependent0.refresh_from_db()
-        assert ti_dependent0.state == State.FAILED
-
-        task1_id = 'test_run_dependency_task'
-        args1 = [
-            'tasks',
-            'run',
-            '--ignore-all-dependencies',
-            dag_id,
-            task1_id,
-            (DEFAULT_DATE + timedelta(days=1)).isoformat(),
-        ]
-        task_command.task_run(self.parser.parse_args(args1))
-
-        ti_dependency = TaskInstance(
-            task=dag.get_task(task1_id), execution_date=DEFAULT_DATE + timedelta(days=1)
-        )
-        ti_dependency.refresh_from_db()
-        assert ti_dependency.state == State.FAILED
-
-        task2_id = 'test_run_dependent_task'
-        args2 = [
-            'tasks',
-            'run',
-            '--ignore-all-dependencies',
-            dag_id,
-            task2_id,
-            (DEFAULT_DATE + timedelta(days=1)).isoformat(),
-        ]
-        task_command.task_run(self.parser.parse_args(args2))
-
-        ti_dependent = TaskInstance(
-            task=dag.get_task(task2_id), execution_date=DEFAULT_DATE + timedelta(days=1)
-        )
-        ti_dependent.refresh_from_db()
-        assert ti_dependent.state == State.SUCCESS
