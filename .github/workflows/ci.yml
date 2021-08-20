@@ -44,7 +44,7 @@ jobs:
           pip install -r requirements.txt --cache-dir .pip_cache
       - name: Compile translation
         run: |
-          cd $GITHUB_WORKSPACE/airflow/airflow
+          cd $GITHUB_WORKSPACE/airflow
           /bin/bash ./compile_translation.sh
       - name: Build
         run: |
