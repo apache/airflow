@@ -37,14 +37,13 @@ Prerequisite Tasks
 This example assumes that you already have an EMR on EKS virtual cluster configured. See the `EMR on EKS Getting Started guide <https://docs.aws.amazon.com/emr/latest/EMR-on-EKS-DevelopmentGuide/getting-started.html>`__ for more information.
 
 
-Create EMR on EKS job with sample script
-----------------------------------------
+Run a Spark job on EMR on EKS
+-----------------------------
 
 Purpose
 """""""
 
-This example dag ``example_emr_eks_job.py`` uses ``EMRContainerOperator`` to create a new EMR on EKS job calculating the mathematical constant ``Pi``, and monitors the progress
-with ``EMRContainerSensor``.
+The ``EMRContainerOperator`` will submit a new job to an EMR on EKS virtual cluster and wait for the job to complete. The example job below calculates the mathematical constant ``Pi``, and monitors the progress with ``EMRContainerSensor``. In a production job, you would usually refer to a Spark script on Amazon S3.
 
 Job configuration
 """""""""""""""""
@@ -53,7 +52,7 @@ To create a job for EMR on EKS, you need to specify your virtual cluster ID, the
 
 You can also optionally provide configuration overrides such as Spark, Hive, or Log4j properties as well as monitoring configuration that sends Spark logs to S3 or Cloudwatch.
 
-In the example, we show how to use use the AWS Glue data catalog and send logs to the ``/aws/emr-eks-spark`` log group in CloudWatch.
+In the example, we show how to add an ``applicationConfiguration`` to use the AWS Glue data catalog and ``monitoringConfiguration`` to send logs to the ``/aws/emr-eks-spark`` log group in CloudWatch. Refer to the `EMR on EKS guide <https://docs.aws.amazon.com/emr/latest/EMR-on-EKS-DevelopmentGuide/emr-eks-jobs-CLI.html#emr-eks-jobs-parameters>`__ for more details on job configuration.
 
 .. exampleinclude:: /../../airflow/providers/amazon/aws/example_dags/example_emr_eks_job.py
     :language: python
@@ -61,7 +60,7 @@ In the example, we show how to use use the AWS Glue data catalog and send logs t
     :end-before: [END howto_operator_emr_eks_config]
 
 
-We pass the ``virtual_cluster_id`` and ``execution_role_arn`` values as operator parameters, but you can store them in a Connection or provide them in the DAG.
+We pass the ``virtual_cluster_id`` and ``execution_role_arn`` values as operator parameters, but you can store them in a connection or provide them in the DAG. Your AWS region should be defined either in the ``aws_default`` connection as ``{"region_name": "us-east-1"}`` or a custom connection name that gets passed to the operator with the ``aws_conn_id`` parameter.
 
 .. exampleinclude:: /../../airflow/providers/amazon/aws/example_dags/example_emr_eks_job.py
     :language: python
