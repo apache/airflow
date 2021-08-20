@@ -44,7 +44,7 @@ ARG AIRFLOW_GID="50000"
 
 ARG PYTHON_BASE_IMAGE="python:3.6-slim-buster"
 
-ARG AIRFLOW_PIP_VERSION=21.2.2
+ARG AIRFLOW_PIP_VERSION=21.2.4
 ARG AIRFLOW_IMAGE_REPOSITORY="https://github.com/apache/airflow"
 
 # By default PIP has progress bar but you can disable it.
