@@ -51,7 +51,7 @@ jobs:
           cd $GITHUB_WORKSPACE/airflow
           echo $(pwd)
           echo creating a build
-          /bin/bash ./airflow/www_rbac/compile_assets.sh
+          /bin/bash ./airflow/www/compile_assets.sh
           python setup.py sdist bdist_wheel
           echo "$(ls dist/ | grep whl)" > $GITHUB_WORKSPACE/AIRFLOW_RELEASE_NAME
           echo "$(ls dist/)"
