@@ -469,11 +469,9 @@ class CustomSQLAInterface(SQLAInterface):
     filter_converter_class = UtcAwareFilterConverter
 
 
-from plugins.models.error_tag import ErrorTag
-
-
 class ErrorTagField(StringField):
     def iter_choices(self):
+        from plugins.models.error_tag import ErrorTag
         d = ErrorTag.get_all_dict()
         for value, label in d.items():
             yield (value, label, self.data is None)
