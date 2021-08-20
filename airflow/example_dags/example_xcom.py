@@ -81,3 +81,20 @@ with DAG(
     )
 
     pull << [push1, push2]
+
+    bash_push = BashOperator(
+        task_id='bash_push',
+        bash_command='echo "bash_push demo"  && '
+                     'echo "Manually set xcom value {{ti.xcom_push(key="xcom_pushed_value", value="value_by_push_manually") }}" && '
+                     'echo "value_by_return"',
+    )
+    bash_pull = BashOperator(
+        task_id='bash_pull',
+        bash_command='echo "bash pull demo" && '
+                     'echo "The xcom pushed manually is "{{ ti.xcom_pull(task_ids="bash_push",key="xcom_pushed_value") }}" && '
+                     'echo "The returned_value xcom is "{{ ti.xcom_pull(task_ids="bash_push",key="return_value") }}" && '
+                     'echo "finished"',
+        do_xcom_push=False
+    )
+
+    bash_pull << bash_push
