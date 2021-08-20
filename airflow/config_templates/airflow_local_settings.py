@@ -31,7 +31,6 @@ from airflow.exceptions import AirflowException
 # settings.py and cli.py. Please see AIRFLOW-1455.
 LOG_LEVEL: str = conf.get('logging', 'LOGGING_LEVEL').upper()
 
-
 # Flask appbuilder's info level log is very verbose,
 # so it's set to 'WARN' by default.
 FAB_LOG_LEVEL: str = conf.get('logging', 'FAB_LOGGING_LEVEL').upper()
@@ -39,6 +38,10 @@ FAB_LOG_LEVEL: str = conf.get('logging', 'FAB_LOGGING_LEVEL').upper()
 LOG_FORMAT: str = conf.get('logging', 'LOG_FORMAT')
 
 CUSTOM_LOG_FILE_PATH = conf.get('logging', 'CUSTOM_LOG_FILE_PATH')
+CUSTOM_LOG_FILE_PATH_DIR = os.path.dirname(CUSTOM_LOG_FILE_PATH)
+if not os.path.exists(CUSTOM_LOG_FILE_PATH_DIR):
+    os.mkdir(CUSTOM_LOG_FILE_PATH_DIR)
+
 CUSTOM_LOG_MAX_BYTES = conf.get('logging', 'CUSTOM_LOG_MAX_BYTES')
 CUSTOM_LOG_BACKUP_COUNT = conf.get('logging', 'CUSTOM_LOG_BACKUP_COUNT')
 
