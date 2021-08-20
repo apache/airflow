@@ -92,6 +92,12 @@ pip install -U "apache-airflow[pandas]==2.1.2" \
   --constraint https://raw.githubusercontent.com/apache/airflow/constraints-2.1.2/constraints-3.8.txt"
 ```
 
+### `none_failed_or_skipped` trigger rule has been deprecated
+
+`TriggerRule.NONE_FAILED_OR_SKIPPED` is replaced by `TriggerRule.NONE_FAILED_MIN_ONE_SUCCESS`.
+This is only name change, no functionality changes made.
+This change is backward compatible however `TriggerRule.NONE_FAILED_OR_SKIPPED` will be removed in next major release.
+
 ### Dummy trigger rule has been deprecated
 
 `TriggerRule.DUMMY` is replaced by `TriggerRule.ALWAYS`.

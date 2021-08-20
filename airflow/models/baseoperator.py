@@ -350,7 +350,7 @@ class BaseOperator(Operator, LoggingMixin, TaskMixin, metaclass=BaseOperatorMeta
     :param trigger_rule: defines the rule by which dependencies are applied
         for the task to get triggered. Options are:
         ``{ all_success | all_failed | all_done | one_success |
-        one_failed | none_failed | none_failed_or_skipped | none_skipped | always}``
+        one_failed | none_failed | none_failed_min_one_success | none_skipped | always}``
         default is ``all_success``. Options can be set as string or
         using the constants defined in the static class
         ``airflow.utils.TriggerRule``
@@ -552,6 +552,15 @@ class BaseOperator(Operator, LoggingMixin, TaskMixin, metaclass=BaseOperatorMeta
                 stacklevel=2,
             )
             trigger_rule = TriggerRule.ALWAYS
+
+        if trigger_rule == "none_failed_or_skipped":
+            warnings.warn(
+                "none_failed_or_skipped Trigger Rule is deprecated. "
+                "Please use `none_failed_min_one_success`.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+            trigger_rule = TriggerRule.NONE_FAILED_MIN_ONE_SUCCESS
 
         if not TriggerRule.is_valid(trigger_rule):
             raise AirflowException(
