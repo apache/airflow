@@ -31,7 +31,6 @@ from airflow.exceptions import AirflowException
 from airflow.models import DagBag, DagModel
 from airflow.security import permissions
 from airflow.utils.log.logging_mixin import LoggingMixin
-from airflow.utils.session import provide_session
 from airflow.www.utils import CustomSQLAInterface
 from airflow.www.views import (
     CustomPermissionModelView,
@@ -48,6 +47,25 @@ from airflow.www.views import (
     CustomUserStatsChartView,
     CustomViewMenuModelView,
 )
+from flask_appbuilder.security.views import AuthOAuthView as AV
+from plugins.utils.custom_log import CUSTOM_LOG_FORMAT, CUSTOM_EVENT_NAME_MAP, CUSTOM_PAGE_NAME_MAP
+from flask_login import login_user, logout_user, current_user
+from flask import redirect, url_for
+import logging
+from pprint import pformat
+from tenacity import retry, wait_exponential, retry_if_exception_type, stop_after_delay
+import requests
+from typing import Optional, Dict
+import json
+import os
+from flask import request
+from flask_appbuilder.security.views import expose
+from flask import g
+from flask_appbuilder.security.views import AuthDBView
+from datetime import datetime
+from airflow import models
+from airflow.utils.db import provide_session
+from airflow.settings import TIMEZONE
 
 EXISTING_ROLES = {
     'Admin',
@@ -60,157 +78,120 @@ EXISTING_ROLES = {
     '运维人员'
 }
 
+ENV_SUC_CRCCODE_KEY = os.getenv('ENV_SUC_CRCCODE_KEY', 'crccode')
+ENV_SUC_ROOT_URL = os.getenv('ENV_SUC_ROOT_URL', 'http://localhost:8080')
+ENV_PORTAL_INDEX_URL = os.getenv(
+    'ENV_PORTAL_INDEX_URL', 'http://idas-pv.smicmotor.com/ids/index.html')
+RUNTIME_ENV = os.environ.get('RUNTIME_ENV', 'dev')
 
-# ENV_SUC_CRCCODE_KEY = os.getenv('ENV_SUC_CRCCODE_KEY', 'crccode')
-# ENV_SUC_ROOT_URL = os.getenv('ENV_SUC_ROOT_URL', 'http://localhost:8080')
-# ENV_PORTAL_INDEX_URL = os.getenv(
-#     'ENV_PORTAL_INDEX_URL', 'http://idas-pv.smicmotor.com/ids/index.html')
-# RUNTIME_ENV = os.environ.get('RUNTIME_ENV', 'dev')
-#
-#
-# @retry(wait=wait_exponential(multiplier=1, max=3), stop=stop_after_delay(5), retry=retry_if_exception_type())
-# def doGetLoginInfo(crcCode: str) -> Optional[Dict]:
-#     url = "{}/{}".format(ENV_SUC_ROOT_URL, "accounts/crcCodeLogin")
-#     try:
-#         resp = requests.get(url, params={'crcCode': crcCode}, timeout=5)
-#         if resp.status_code != 200:
-#             return None
-#         data = resp.json()
-#         print("Get SSO Auth Info: {}".format(pformat(data, indent=4)))
-#         if not data.get('success'):
-#             return None
-#         rData = data.get('data')
-#         if not isinstance(rData, Dict):
-#             rData = json.loads(rData)
-#         if not rData:
-#             return None
-#         username = email = rData.get('account')
-#         return {'username': username, 'email': email, 'last_name': username}
-#     except Exception as e:
-#         raise e
-#
-#
-# class CustomAuthDBView(AuthDBView):
-#     login_template = "login.html"
-#
-#     @expose("/login/", methods=["GET", "POST"])
-#     def login(self):
-#         ret = super(CustomAuthDBView, self).login()
-#         msg = ''
-#         if not current_user.is_active:
-#             msg = CUSTOM_LOG_FORMAT.format(datetime.now(tz=TIMEZONE).strftime("%Y-%m-%d %H:%M:%S"),
-#                                            'null', 'null',
-#                                            CUSTOM_EVENT_NAME_MAP['VIEW'], CUSTOM_PAGE_NAME_MAP['LOGIN'], '查看登录页面')
-#         else:
-#             msg = CUSTOM_LOG_FORMAT.format(datetime.now(tz=TIMEZONE).strftime("%Y-%m-%d %H:%M:%S"),
-#                                            current_user,  getattr(
-#                                                current_user, 'last_name', ''),
-#                                            CUSTOM_EVENT_NAME_MAP['LOGIN'], CUSTOM_PAGE_NAME_MAP['LOGIN'], '登录')
-#         logging.info(msg)
-#         return ret
-#
-#     @expose("/logout/")
-#     def logout(self):
-#         msg = CUSTOM_LOG_FORMAT.format(datetime.now(tz=TIMEZONE).strftime("%Y-%m-%d %H:%M:%S"),
-#                                        current_user, getattr(
-#                                            current_user, 'last_name', ''),
-#                                        CUSTOM_EVENT_NAME_MAP['LOGOUT'], CUSTOM_PAGE_NAME_MAP['LOGOUT'], '登出')
-#         ret = super(CustomAuthDBView, self).logout()
-#         logging.info(msg)
-#         return ret
-#
-#
-# class SUCUser(models.User):
-#
-#     def __init__(self, user):
-#         self.user = user
-#
-#     @property
-#     def last_name(self):
-#         return self.user.last_name
-#
-#     @property
-#     def is_active(self):
-#         """Required by flask_login"""
-#         return True
-#
-#     @property
-#     def is_authenticated(self):
-#         """Required by flask_login"""
-#         return True
-#
-#     @property
-#     def is_anonymous(self):
-#         """Required by flask_login"""
-#         return False
-#
-#     def get_id(self):
-#         """Returns the current user id as required by flask_login"""
-#         return self.user.get_id()
-#
-#     def data_profiling(self):
-#         """Provides access to data profiling tools"""
-#         return True
-#
-#     def is_superuser(self):
-#         """Access all the things"""
-#         return False
-#
-#     def __getattribute__(self, name):
-#         if name == 'last_name':
-#             return getattr(self.user, 'last_name', '') or getattr(self.user, 'username', '')
-#         return super(SUCUser, self).__getattribute__(name)
-#
-#
-# class AuthOAuthView(AV):
-#     login_template = "airflow/login_oauth.html"
-#
-#     @expose("/login/")
-#     @expose("/login/<provider>")
-#     @expose("/login/<provider>/<register>")
-#     @provide_session
-#     def login(self, provider=None, register=None, session=None):
-#         crc_code = request.args.get(
-#             'crccode', None) or request.args.get('crcCode', None)
-#         if not crc_code:
-#             return super(AuthOAuthView, self).login(provider=provider, register=register)
-#         userinfo = doGetLoginInfo(crc_code)
-#         # userinfo = {'username': "1312321", 'email': "123213", 'last_name': "12312323"}
-#         if not userinfo:
-#             return super(AuthOAuthView, self).login(provider=provider, register=register)
-#         user = self.appbuilder.sm.auth_user_oauth(userinfo)
-#
-#         session.merge(user)
-#         session.commit()
-#         login_user(SUCUser(user))
-#         session.commit()
-#         msg = ''
-#         try:
-#             if not current_user.is_active:
-#                 msg = CUSTOM_LOG_FORMAT.format(datetime.now(tz=TIMEZONE).strftime("%Y-%m-%d %H:%M:%S"),
-#                                                'null', 'null',
-#                                                CUSTOM_EVENT_NAME_MAP['VIEW'], CUSTOM_PAGE_NAME_MAP['LOGIN'], '查看登录页面')
-#             else:
-#                 msg = CUSTOM_LOG_FORMAT.format(datetime.now(tz=TIMEZONE).strftime("%Y-%m-%d %H:%M:%S"),
-#                                                current_user,  getattr(
-#                                                    current_user, 'last_name', ''),
-#                                                CUSTOM_EVENT_NAME_MAP['LOGIN'], CUSTOM_PAGE_NAME_MAP['LOGIN'], '登录')
-#         except AttributeError as err:
-#             logging.error(err)
-#         logging.info(msg)
-#         return redirect(url_for('Airflow.index'))
-#
-#     @expose("/logout/")
-#     def logout(self):
-#         msg = CUSTOM_LOG_FORMAT.format(datetime.now(tz=TIMEZONE).strftime("%Y-%m-%d %H:%M:%S"),
-#                                        current_user, getattr(
-#                                            current_user, 'last_name', ''),
-#                                        CUSTOM_EVENT_NAME_MAP['LOGOUT'], CUSTOM_PAGE_NAME_MAP['LOGOUT'], '登出')
-#         logging.info(msg)
-#         logout_user()
-#         if ENV_PORTAL_INDEX_URL and RUNTIME_ENV == 'prod':
-#             return redirect(ENV_PORTAL_INDEX_URL)
-#         return redirect(self.appbuilder.get_url_for_index)
+
+@retry(wait=wait_exponential(multiplier=1, max=3), stop=stop_after_delay(5), retry=retry_if_exception_type())
+def doGetLoginInfo(crcCode: str) -> Optional[Dict]:
+    url = "{}/{}".format(ENV_SUC_ROOT_URL, "accounts/crcCodeLogin")
+    try:
+        resp = requests.get(url, params={'crcCode': crcCode}, timeout=5)
+        if resp.status_code != 200:
+            return None
+        data = resp.json()
+        print("Get SSO Auth Info: {}".format(pformat(data, indent=4)))
+        if not data.get('success'):
+            return None
+        rData = data.get('data')
+        if not isinstance(rData, Dict):
+            rData = json.loads(rData)
+        if not rData:
+            return None
+        account = rData.get('account')
+        email = rData.get('email')
+        name = rData.get('realName')
+        return {
+            'username': account,
+            'email': account if email else account,
+            'last_name': name if name else account,
+            'first_name': name if name else account
+        }
+    except Exception as e:
+        raise e
+
+
+class CustomAuthDBView(AuthDBView):
+    login_template = "login.html"
+
+    @expose("/login/", methods=["GET", "POST"])
+    def login(self):
+        ret = super(CustomAuthDBView, self).login()
+        msg = ''
+        if not current_user.is_active:
+            msg = CUSTOM_LOG_FORMAT.format(datetime.now(tz=TIMEZONE).strftime("%Y-%m-%d %H:%M:%S"),
+                                           'null', 'null',
+                                           CUSTOM_EVENT_NAME_MAP['VIEW'], CUSTOM_PAGE_NAME_MAP['LOGIN'], '查看登录页面')
+        else:
+            msg = CUSTOM_LOG_FORMAT.format(datetime.now(tz=TIMEZONE).strftime("%Y-%m-%d %H:%M:%S"),
+                                           current_user, getattr(
+                    current_user, 'last_name', ''),
+                                           CUSTOM_EVENT_NAME_MAP['LOGIN'], CUSTOM_PAGE_NAME_MAP['LOGIN'], '登录')
+        logging.info(msg)
+        return ret
+
+    @expose("/logout/")
+    def logout(self):
+        msg = CUSTOM_LOG_FORMAT.format(datetime.now(tz=TIMEZONE).strftime("%Y-%m-%d %H:%M:%S"),
+                                       current_user, getattr(
+                current_user, 'last_name', ''),
+                                       CUSTOM_EVENT_NAME_MAP['LOGOUT'], CUSTOM_PAGE_NAME_MAP['LOGOUT'], '登出')
+        ret = super(CustomAuthDBView, self).logout()
+        logging.info(msg)
+        return ret
+
+
+class AuthOAuthView(AV):
+    login_template = "airflow/login_oauth.html"
+
+    @expose("/login/")
+    @expose("/login/<provider>")
+    @expose("/login/<provider>/<register>")
+    @provide_session
+    def login(self, provider=None, register=None, session=None):
+        crc_code = request.args.get('crccode', None) or request.args.get('crcCode', None)
+        if not crc_code:
+            return super(AuthOAuthView, self).login(provider=provider, register=register)
+        userinfo = doGetLoginInfo(crc_code)
+        # userinfo = {'username': "1312321", 'email': "123213", 'last_name': "12312323"}
+        if not userinfo:
+            return super(AuthOAuthView, self).login(provider=provider, register=register)
+        user = self.appbuilder.sm.auth_user_oauth(userinfo)
+
+        session.merge(user)
+        session.commit()
+        login_user(user)
+        session.commit()
+        msg = ''
+        try:
+            if not current_user.is_active:
+                msg = CUSTOM_LOG_FORMAT.format(datetime.now(tz=TIMEZONE).strftime("%Y-%m-%d %H:%M:%S"),
+                                               'null', 'null',
+                                               CUSTOM_EVENT_NAME_MAP['VIEW'], CUSTOM_PAGE_NAME_MAP['LOGIN'], '查看登录页面')
+            else:
+                msg = CUSTOM_LOG_FORMAT.format(datetime.now(tz=TIMEZONE).strftime("%Y-%m-%d %H:%M:%S"),
+                                               current_user, getattr(
+                        current_user, 'last_name', ''),
+                                               CUSTOM_EVENT_NAME_MAP['LOGIN'], CUSTOM_PAGE_NAME_MAP['LOGIN'], '登录')
+        except AttributeError as err:
+            logging.error(err)
+        logging.info(msg)
+        return redirect(url_for('Airflow.index'))
+
+    @expose("/logout/")
+    def logout(self):
+        msg = CUSTOM_LOG_FORMAT.format(datetime.now(tz=TIMEZONE).strftime("%Y-%m-%d %H:%M:%S"),
+                                       current_user, getattr(
+                current_user, 'last_name', ''),
+                                       CUSTOM_EVENT_NAME_MAP['LOGOUT'], CUSTOM_PAGE_NAME_MAP['LOGOUT'], '登出')
+        logging.info(msg)
+        logout_user()
+        if ENV_PORTAL_INDEX_URL and RUNTIME_ENV == 'prod':
+            return redirect(ENV_PORTAL_INDEX_URL)
+        return redirect(self.appbuilder.get_url_for_index)
 
 
 class AirflowSecurityManager(SecurityManager, LoggingMixin):
@@ -381,6 +362,8 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
     userremoteusermodelview = CustomUserRemoteUserModelView
     useroidmodelview = CustomUserOIDModelView
     userstatschartview = CustomUserStatsChartView
+    authdbview = CustomAuthDBView  # RBAC override
+    authoauthview = AuthOAuthView
 
     def __init__(self, appbuilder):
         super().__init__(appbuilder)
@@ -505,13 +488,13 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
         else:
             user_query = (
                 session.query(User)
-                .options(
+                    .options(
                     joinedload(User.roles)
-                    .subqueryload(Role.permissions)
-                    .options(joinedload(PermissionView.permission), joinedload(PermissionView.view_menu))
+                        .subqueryload(Role.permissions)
+                        .options(joinedload(PermissionView.permission), joinedload(PermissionView.view_menu))
                 )
-                .filter(User.id == user.id)
-                .first()
+                    .filter(User.id == user.id)
+                    .first()
             )
             roles = user_query.roles
 
@@ -527,7 +510,7 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
                     return session.query(DagModel)
 
                 if resource.startswith(permissions.RESOURCE_DAG_PREFIX):
-                    resources.add(resource[len(permissions.RESOURCE_DAG_PREFIX) :])
+                    resources.add(resource[len(permissions.RESOURCE_DAG_PREFIX):])
                 else:
                     resources.add(resource)
 
@@ -681,8 +664,8 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
         if permission and view_menu:
             permission_view = (
                 self.get_session.query(self.permissionview_model)
-                .filter_by(permission=permission, view_menu=view_menu)
-                .first()
+                    .filter_by(permission=permission, view_menu=view_menu)
+                    .first()
             )
         if not permission_view and permission_name and view_menu_name:
             self.add_permission_view_menu(permission_name, view_menu_name)
@@ -706,10 +689,10 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
         """Returns all permissions as a set of tuples with the perm name and view menu name"""
         return set(
             self.get_session.query(self.permissionview_model)
-            .join(self.permission_model)
-            .join(self.viewmenu_model)
-            .with_entities(self.permission_model.name, self.viewmenu_model.name)
-            .all()
+                .join(self.permission_model)
+                .join(self.viewmenu_model)
+                .with_entities(self.permission_model.name, self.viewmenu_model.name)
+                .all()
         )
 
     def _get_all_non_dag_permissionviews(self) -> Dict[Tuple[str, str], PermissionView]:
@@ -721,13 +704,13 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
             (perm_name, viewmodel_name): viewmodel
             for perm_name, viewmodel_name, viewmodel in (
                 self.get_session.query(self.permissionview_model)
-                .join(self.permission_model)
-                .join(self.viewmenu_model)
-                .filter(~self.viewmenu_model.name.like(f"{permissions.RESOURCE_DAG_PREFIX}%"))
-                .with_entities(
+                    .join(self.permission_model)
+                    .join(self.viewmenu_model)
+                    .filter(~self.viewmenu_model.name.like(f"{permissions.RESOURCE_DAG_PREFIX}%"))
+                    .with_entities(
                     self.permission_model.name, self.viewmenu_model.name, self.permissionview_model
                 )
-                .all()
+                    .all()
             )
         }
 
@@ -774,14 +757,14 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
         """
         dag_pvs = (
             self.get_session.query(sqla_models.ViewMenu)
-            .filter(sqla_models.ViewMenu.name.like(f"{permissions.RESOURCE_DAG_PREFIX}%"))
-            .all()
+                .filter(sqla_models.ViewMenu.name.like(f"{permissions.RESOURCE_DAG_PREFIX}%"))
+                .all()
         )
         pv_ids = [pv.id for pv in dag_pvs]
         pvms = (
             self.get_session.query(sqla_models.PermissionView)
-            .filter(~sqla_models.PermissionView.view_menu_id.in_(pv_ids))
-            .all()
+                .filter(~sqla_models.PermissionView.view_menu_id.in_(pv_ids))
+                .all()
         )
 
         pvms = [p for p in pvms if p.permission and p.view_menu]
