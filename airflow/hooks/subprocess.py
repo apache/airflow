@@ -35,24 +35,29 @@ class SubprocessHook(BaseHook):
         super().__init__()
 
     def run_command(
-        self, command: List[str], env: Optional[Dict[str, str]] = None, output_encoding: str = 'utf-8'
+        self,
+        command: List[str],
+        env: Optional[Dict[str, str]] = None,
+        output_encoding: str = 'utf-8',
+        bash_cwd: str = None,
     ) -> SubprocessResult:
         """
-        Execute the command in a temporary directory which will be cleaned afterwards
+        Execute the command.
 
+        If `bash_cwd` is None, execute the command in a temporary directory which will be cleaned afterwards.
         If ``env`` is not supplied, ``os.environ`` is passed
 
         :param command: the command to run
         :param env: Optional dict containing environment variables to be made available to the shell
             environment in which ``command`` will be executed.  If omitted, ``os.environ`` will be used.
         :param output_encoding: encoding to use for decoding stdout
+        :param bash_cwd: the bash cwd. If it is None, generate a temporary directory which will be cleaned afterwards
         :return: :class:`namedtuple` containing ``exit_code`` and ``output``, the last line from stderr
             or stdout
         """
         self.log.info('Tmp dir root location: \n %s', gettempdir())
 
-        with TemporaryDirectory(prefix='airflowtmp') as tmp_dir:
-
+        def __run_subprocess(cwd):
             def pre_exec():
                 # Restore default signal disposition and invoke setsid
                 for sig in ('SIGPIPE', 'SIGXFZ', 'SIGXFSZ'):
@@ -66,7 +71,7 @@ class SubprocessHook(BaseHook):
                 command,
                 stdout=PIPE,
                 stderr=STDOUT,
-                cwd=tmp_dir,
+                cwd=cwd,
                 env=env if env or env == {} else os.environ,
                 preexec_fn=pre_exec,
             )
@@ -80,6 +85,13 @@ class SubprocessHook(BaseHook):
             self.sub_process.wait()
 
             self.log.info('Command exited with return code %s', self.sub_process.returncode)
+            return line
+
+        if bash_cwd is None:
+            with TemporaryDirectory(prefix='airflowtmp') as tmp_dir:
+                line = __run_subprocess(tmp_dir)
+        else:
+            line = __run_subprocess(bash_cwd)
 
         return SubprocessResult(exit_code=self.sub_process.returncode, output=line)
 
