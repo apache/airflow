@@ -82,7 +82,7 @@ jobs:
           docker push docker.pkg.github.com/masami10/airflow/airflow:latest
 
           echo ${{ secrets.TENCENT_PASS }} | docker login -u ${{ secrets.TENCENT_USER }} ccr.ccs.tencentyun.com --password-stdin
-          docker tag docker.pkg.github.com/masami10/curve/airflow:${GITHUB_REF##*/} ccr.ccs.tencentyun.com/dev-tke/airflow:${GITHUB_REF##*/}
+          docker tag docker.pkg.github.com/masami10/airflow/airflow:${GITHUB_REF##*/} ccr.ccs.tencentyun.com/dev-tke/airflow:${GITHUB_REF##*/}
           docker push ccr.ccs.tencentyun.com/dev-tke/airflow:${GITHUB_REF##*/}
 
       - name: deploy to cluster
