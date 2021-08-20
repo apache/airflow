@@ -17,7 +17,7 @@
 import os
 import subprocess
 import sys
-from contextlib import ExitStack
+from contextlib import ExitStack, suppress
 from datetime import datetime, timedelta
 
 import freezegun
@@ -587,7 +587,8 @@ def dag_maker(request):
         yield factory
     finally:
         factory.cleanup()
-        del factory.session
+        with suppress(AttributeError):
+            del factory.session
 
 
 @pytest.fixture

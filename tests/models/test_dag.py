@@ -36,6 +36,7 @@ import pytest
 from dateutil.relativedelta import relativedelta
 from freezegun import freeze_time
 from parameterized import parameterized
+from sqlalchemy import inspect
 
 from airflow import models, settings
 from airflow.configuration import conf
@@ -2035,7 +2036,10 @@ def test_set_task_instance_state(session):
     )
 
     # After _mark_task_instance_state, task_1 is marked as SUCCESS
-    assert get_task_instance(session, task_1).state == State.SUCCESS
+    ti1 = get_task_instance(session, task_1)
+    assert ti1.state == State.SUCCESS
+    # TIs should have DagRun pre-loaded
+    assert inspect(ti1).attrs.dag_run.loaded_value is dagrun
     # task_2 remains as SUCCESS
     assert get_task_instance(session, task_2).state == State.SUCCESS
     # task_3 and task_4 are cleared because they were in FAILED/UPSTREAM_FAILED state
