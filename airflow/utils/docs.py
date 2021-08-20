@@ -31,3 +31,8 @@ def get_docs_url(page: Optional[str] = None) -> str:
     if page:
         result = result + page
     return result
+
+
+def get_doc_url_for_provider(provider_name: str, provider_version: str) -> str:
+    """Prepare link to Airflow Provider documentation."""
+    return f'https://airflow.apache.org/docs/{provider_name}/{provider_version}/'

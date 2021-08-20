@@ -111,7 +111,7 @@ from airflow.ti_deps.dep_context import DepContext
 from airflow.ti_deps.dependencies_deps import RUNNING_DEPS, SCHEDULER_QUEUED_DEPS
 from airflow.utils import json as utils_json, timezone, yaml
 from airflow.utils.dates import infer_time_unit, scale_time_units
-from airflow.utils.docs import get_docs_url
+from airflow.utils.docs import get_doc_url_for_provider, get_docs_url
 from airflow.utils.helpers import alchemy_to_dict
 from airflow.utils.log import secrets_masker
 from airflow.utils.log.log_reader import TaskLogReader
@@ -3405,6 +3405,7 @@ class ProviderView(AirflowBaseView):
                 "package_name": provider_info["package-name"],
                 "description": self._clean_description(provider_info["description"]),
                 "version": pi[0],
+                "documentation_url": get_doc_url_for_provider(provider_info["package-name"], pi[0]),
             }
             providers.append(provider_data)
 
