@@ -612,7 +612,7 @@ def create_dummy_dag(dag_maker):
     def create_dag(
         dag_id='dag',
         task_id='op1',
-        task_concurrency=16,
+        max_active_tis_per_dag=16,
         pool='default_pool',
         executor_config={},
         trigger_rule='all_done',
@@ -626,7 +626,7 @@ def create_dummy_dag(dag_maker):
         with dag_maker(dag_id, **kwargs) as dag:
             op = DummyOperator(
                 task_id=task_id,
-                task_concurrency=task_concurrency,
+                max_active_tis_per_dag=max_active_tis_per_dag,
                 executor_config=executor_config,
                 on_success_callback=on_success_callback,
                 on_execute_callback=on_execute_callback,

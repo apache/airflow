@@ -309,40 +309,26 @@ def test_last_dagruns_success_when_selecting_dags(admin_client):
 def test_code(admin_client):
     url = 'code?dag_id=example_bash_operator'
     resp = admin_client.get(url, follow_redirects=True)
-    check_content_not_in_response('Failed to load file', resp)
+    check_content_not_in_response('Failed to load DAG file Code', resp)
     check_content_in_response('example_bash_operator', resp)
 
 
-def test_code_no_file(admin_client):
-    url = 'code?dag_id=example_bash_operator'
-    mock_open_patch = unittest.mock.mock_open(read_data='')
-    mock_open_patch.side_effect = FileNotFoundError
-    with unittest.mock.patch('builtins.open', mock_open_patch), unittest.mock.patch(
-        "airflow.models.dagcode.STORE_DAG_CODE", False
-    ):
-        resp = admin_client.get(url, follow_redirects=True)
-        check_content_in_response('Failed to load file', resp)
-        check_content_in_response('example_bash_operator', resp)
-
-
-@conf_vars({("core", "store_dag_code"): "True"})
 def test_code_from_db(admin_client):
     dag = DagBag(include_examples=True).get_dag("example_bash_operator")
     DagCode(dag.fileloc, DagCode._get_code_from_file(dag.fileloc)).sync_to_db()
     url = 'code?dag_id=example_bash_operator'
     resp = admin_client.get(url)
-    check_content_not_in_response('Failed to load file', resp)
+    check_content_not_in_response('Failed to load DAG file Code', resp)
     check_content_in_response('example_bash_operator', resp)
 
 
-@conf_vars({("core", "store_dag_code"): "True"})
 def test_code_from_db_all_example_dags(admin_client):
     dagbag = DagBag(include_examples=True)
     for dag in dagbag.dags.values():
         DagCode(dag.fileloc, DagCode._get_code_from_file(dag.fileloc)).sync_to_db()
     url = 'code?dag_id=example_bash_operator'
     resp = admin_client.get(url)
-    check_content_not_in_response('Failed to load file', resp)
+    check_content_not_in_response('Failed to load DAG file Code', resp)
     check_content_in_response('example_bash_operator', resp)
 
 
