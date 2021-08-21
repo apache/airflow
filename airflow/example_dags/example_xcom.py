@@ -102,9 +102,9 @@ with DAG(
         task_id='bash_pull',
         bash_command='echo "bash pull demo" && '
         'echo "The xcom pushed manually is '
-        '"{{ ti.xcom_pull(task_ids="bash_push",key="manually_pushed_value") }}" && '
+        '"{{ ti.xcom_pull(task_ids="bash_push", key="manually_pushed_value") }}" && '
         'echo "The returned_value xcom is '
-        '"{{ ti.xcom_pull(task_ids="bash_push",key="return_value") }}" && '
+        '"{{ ti.xcom_pull(task_ids="bash_push", key="return_value") }}" && '
         'echo "finished"',
         do_xcom_push=False,
     )
