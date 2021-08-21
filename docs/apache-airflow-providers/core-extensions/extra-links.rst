@@ -15,11 +15,20 @@
     specific language governing permissions and limitations
     under the License.
 
-Writing logs to Google Cloud Platform
--------------------------------------
+Extra Links
+-----------
 
-.. toctree::
-    :maxdepth: 1
-    :glob:
+This is a summary of all Apache Airflow Community provided implementations of operator extra links
+exposed via community-managed providers.
 
-    *
+Airflow can be extended by providers with custom operator extra links. For each operator, you can define
+its own extra links that can redirect users to external systems. The extra link buttons
+will be available on the task page.
+
+The operator extra links are explained in
+:doc:`apache-airflow:howto/define_extra_link` and here you can also see the extra links
+provided by the community-managed providers:
+
+.. airflow-extra-links::
+   :tags: None
+   :header-separator: "

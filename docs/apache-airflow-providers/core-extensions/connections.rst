@@ -15,11 +15,21 @@
     specific language governing permissions and limitations
     under the License.
 
-Writing logs to Google Cloud Platform
--------------------------------------
+Connections
+-----------
 
-.. toctree::
-    :maxdepth: 1
-    :glob:
+This is a summary of all Apache Airflow Community provided implementations of connections
+exposed via community-managed providers.
 
-    *
+Airflow can be extended by providers with custom connections. Each provider can define their own custom
+connections, that can define their own custom parameters and UI customizations/field behaviours for each
+connection, when the connection is managed via Airflow UI. Those connections also define connection types,
+that can be used to automatically create Airflow Hooks for specific connection types.
+
+The connection management is explained in
+:doc:`apache-airflow:concepts/connections` and you can also see those
+provided by the community-managed providers:
+
+.. airflow-connections::
+   :tags: None
+   :header-separator: "

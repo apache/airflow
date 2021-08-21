@@ -15,11 +15,20 @@
     specific language governing permissions and limitations
     under the License.
 
-Writing logs to Google Cloud Platform
--------------------------------------
+Auth backends
+-------------
 
-.. toctree::
-    :maxdepth: 1
-    :glob:
+This is a summary of all Apache Airflow Community provided implementations of authentication backends
+exposed via community-managed providers.
 
-    *
+Airflow's authentication for web server and API is based on Flask Application Builder's authentication
+capabilities. You can read more about those in
+`FAB security docs <https://flask-appbuilder.readthedocs.io/en/latest/security.html>`_.
+
+You can also
+take a look at Auth backends available in the core Airflow in :doc:`apache-airflow:security/webserver`
+or see those provided by the community-managed providers:
+
+.. airflow-auth-backends::
+   :tags: None
+   :header-separator: "

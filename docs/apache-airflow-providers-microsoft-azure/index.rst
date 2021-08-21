@@ -29,7 +29,7 @@ Content
     Connection types <connections/index>
     Operators <operators/index>
     Secrets backends <secrets-backends/azure-key-vault>
-    Logging for Tasks <logging>
+    Logging for Tasks <logging/index>
 
 .. toctree::
     :maxdepth: 1

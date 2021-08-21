@@ -26,7 +26,7 @@ Content
     :maxdepth: 1
     :caption: Guides
 
-    Logging for Tasks <logging>
+    Logging for Tasks <logging/index>
 
 .. toctree::
     :maxdepth: 1

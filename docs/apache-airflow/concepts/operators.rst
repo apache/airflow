@@ -48,11 +48,16 @@ If the operator you need isn't installed with Airflow by default, you can probab
 - :class:`~airflow.providers.mysql.transfers.presto_to_mysql.PrestoToMySqlOperator`
 - :class:`~airflow.providers.slack.operators.slack.SlackAPIOperator`
 
-But there are many, many more - you can see the list of those in our :doc:`providers packages <apache-airflow-providers:operators-and-hooks-ref/index>` documentation.
+But there are many, many more - you can see the full list of all community-managed operators, hooks, sensors
+and transfers in our
+:doc:`providers packages <apache-airflow-providers:operators-and-hooks-ref/index>` documentation.
 
 .. note::
 
-    Inside Airflow's code, we often mix the concepts of :doc:`tasks` and Operators, and they are mostly interchangeable. However, when we talk about a *Task*, we mean the generic "unit of execution" of a DAG; when we talk about an *Operator*, we mean a reusable, pre-made Task template whose logic is all done for you and that just needs some arguments.
+    Inside Airflow's code, we often mix the concepts of :doc:`tasks` and Operators, and they are mostly
+    interchangeable. However, when we talk about a *Task*, we mean the generic "unit of execution" of a
+    DAG; when we talk about an *Operator*, we mean a reusable, pre-made Task template whose logic
+    is all done for you and that just needs some arguments.
 
 
 .. _concepts:jinja-templating:
