@@ -140,7 +140,7 @@ class TestSlackAPIFileOperator(unittest.TestCase):
         self.test_username = 'test_username'
         self.test_channel = '#test_slack_channel'
         self.test_initial_comment = 'test text file test_filename.txt'
-        self.test_filename = 'test_filename.txt'
+        self.filename = 'test_filename.txt'
         self.test_filetype = 'text'
         self.test_content = 'This is a test text file!'
 
@@ -150,7 +150,7 @@ class TestSlackAPIFileOperator(unittest.TestCase):
         self.expected_api_params = {
             'channel': self.test_channel,
             'initial_comment': self.test_initial_comment,
-            'filename': self.test_filename,
+            'file': self.filename,
             'filetype': self.test_filetype,
             'content': self.test_content,
         }
@@ -162,7 +162,7 @@ class TestSlackAPIFileOperator(unittest.TestCase):
             slack_conn_id=test_slack_conn_id,
             channel=self.test_channel,
             initial_comment=self.test_initial_comment,
-            filename=self.test_filename,
+            filename=self.filename,
             filetype=self.test_filetype,
             content=self.test_content,
             api_params=test_api_params,
@@ -179,7 +179,7 @@ class TestSlackAPIFileOperator(unittest.TestCase):
         assert slack_api_post_operator.initial_comment == self.test_initial_comment
         assert slack_api_post_operator.channel == self.test_channel
         assert slack_api_post_operator.api_params == self.test_api_params
-        assert slack_api_post_operator.filename == self.test_filename
+        assert slack_api_post_operator.filename == self.filename
         assert slack_api_post_operator.filetype == self.test_filetype
         assert slack_api_post_operator.content == self.test_content
 
@@ -208,8 +208,17 @@ class TestSlackAPIFileOperator(unittest.TestCase):
     def test_api_call_params_with_file_args(self, mock_hook):
         test_slack_conn_id = 'test_slack_conn_id'
 
+        import os
+
+        # Look for your absolute directory path
+        absolute_path = os.path.dirname(os.path.abspath(__file__))
+        # Or: file_path = os.path.join(absolute_path, 'folder', 'my_file.py')
+        file_path = absolute_path + '/test.csv'
+
+        print(f"full path ${file_path}")
+
         slack_api_post_operator = SlackAPIFileOperator(
-            task_id='slack', slack_conn_id=test_slack_conn_id, filename='test.csv', filetype='csv'
+            task_id='slack', slack_conn_id=test_slack_conn_id, filename=file_path, filetype='csv'
         )
 
         slack_api_post_operator.execute()
@@ -217,10 +226,7 @@ class TestSlackAPIFileOperator(unittest.TestCase):
         expected_api_params = {
             'channels': '#general',
             'initial_comment': 'No message has been set!',
-            'filename': 'test.csv',
+            'filename': file_path,
             'filetype': 'csv',
         }
-
-        expected_file_params = {'file': 'test.csv'}
         assert expected_api_params == slack_api_post_operator.api_params
-        assert expected_file_params == slack_api_post_operator.file_params

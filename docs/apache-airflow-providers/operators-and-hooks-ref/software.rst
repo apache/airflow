@@ -18,8 +18,8 @@
 Software integrations
 ---------------------
 
-Software operators and hooks
-''''''''''''''''''''''''''''
+Software
+''''''''
 
 These integrations allow you to perform various operations using various software.
 
@@ -28,8 +28,8 @@ These integrations allow you to perform various operations using various softwar
    :header-separator: "
 
 
-Transfer operators and hooks
-''''''''''''''''''''''''''''
+Transfers
+'''''''''
 
 These integrations allow you to copy data.
 

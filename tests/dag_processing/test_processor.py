@@ -19,7 +19,6 @@
 
 import datetime
 import os
-from datetime import timedelta
 from tempfile import NamedTemporaryFile
 from unittest import mock
 from unittest.mock import MagicMock, patch
@@ -30,7 +29,7 @@ import pytest
 from airflow import settings
 from airflow.configuration import conf
 from airflow.dag_processing.processor import DagFileProcessor
-from airflow.models import DAG, DagBag, DagModel, SlaMiss, TaskInstance, errors
+from airflow.models import DagBag, SlaMiss, TaskInstance, errors
 from airflow.models.taskinstance import SimpleTaskInstance
 from airflow.operators.dummy import DummyOperator
 from airflow.utils import timezone
@@ -97,34 +96,12 @@ class TestDagFileProcessor:
             self.scheduler_job = None
         self.clean_db()
 
-    def create_test_dag(self, start_date=DEFAULT_DATE, end_date=DEFAULT_DATE + timedelta(hours=1), **kwargs):
-        dag = DAG(
-            dag_id='test_scheduler_reschedule',
-            start_date=start_date,
-            # Make sure it only creates a single DAG Run
-            end_date=end_date,
-        )
-        dag.clear()
-        dag.is_subdag = False
-        with create_session() as session:
-            orm_dag = DagModel(dag_id=dag.dag_id, is_paused=False)
-            session.merge(orm_dag)
-            session.commit()
-        return dag
-
-    @classmethod
-    def setup_class(cls):
-        # Ensure the DAGs we are looking at from the DB are up-to-date
-        non_serialized_dagbag = DagBag(read_dags_from_db=False, include_examples=False)
-        non_serialized_dagbag.sync_to_db()
-        cls.dagbag = DagBag(read_dags_from_db=True)
-
     def _process_file(self, file_path, session):
         dag_file_processor = DagFileProcessor(dag_ids=[], log=mock.MagicMock())
 
         dag_file_processor.process_file(file_path, [], False, session)
 
-    def test_dag_file_processor_sla_miss_callback(self):
+    def test_dag_file_processor_sla_miss_callback(self, create_dummy_dag):
         """
         Test that the dag file processor calls the sla miss callback
         """
@@ -135,13 +112,12 @@ class TestDagFileProcessor:
         # Create dag with a start of 1 day ago, but an sla of 0
         # so we'll already have an sla_miss on the books.
         test_start_date = days_ago(1)
-        dag = DAG(
+        dag, task = create_dummy_dag(
             dag_id='test_sla_miss',
+            task_id='dummy',
             sla_miss_callback=sla_callback,
             default_args={'start_date': test_start_date, 'sla': datetime.timedelta()},
         )
-
-        task = DummyOperator(task_id='dummy', dag=dag, owner='airflow')
 
         session.merge(TaskInstance(task=task, execution_date=test_start_date, state='success'))
 
@@ -152,7 +128,7 @@ class TestDagFileProcessor:
 
         assert sla_callback.called
 
-    def test_dag_file_processor_sla_miss_callback_invalid_sla(self):
+    def test_dag_file_processor_sla_miss_callback_invalid_sla(self, create_dummy_dag):
         """
         Test that the dag file processor does not call the sla miss callback when
         given an invalid sla
@@ -165,13 +141,12 @@ class TestDagFileProcessor:
         # so we'll already have an sla_miss on the books.
         # Pass anything besides a timedelta object to the sla argument.
         test_start_date = days_ago(1)
-        dag = DAG(
+        dag, task = create_dummy_dag(
             dag_id='test_sla_miss',
+            task_id='dummy',
             sla_miss_callback=sla_callback,
             default_args={'start_date': test_start_date, 'sla': None},
         )
-
-        task = DummyOperator(task_id='dummy', dag=dag, owner='airflow')
 
         session.merge(TaskInstance(task=task, execution_date=test_start_date, state='success'))
 
@@ -181,7 +156,7 @@ class TestDagFileProcessor:
         dag_file_processor.manage_slas(dag=dag, session=session)
         sla_callback.assert_not_called()
 
-    def test_dag_file_processor_sla_miss_callback_sent_notification(self):
+    def test_dag_file_processor_sla_miss_callback_sent_notification(self, create_dummy_dag):
         """
         Test that the dag file processor does not call the sla_miss_callback when a
         notification has already been sent
@@ -194,13 +169,12 @@ class TestDagFileProcessor:
         # Create dag with a start of 2 days ago, but an sla of 1 day
         # ago so we'll already have an sla_miss on the books
         test_start_date = days_ago(2)
-        dag = DAG(
+        dag, task = create_dummy_dag(
             dag_id='test_sla_miss',
+            task_id='dummy',
             sla_miss_callback=sla_callback,
             default_args={'start_date': test_start_date, 'sla': datetime.timedelta(days=1)},
         )
-
-        task = DummyOperator(task_id='dummy', dag=dag, owner='airflow')
 
         # Create a TaskInstance for two days ago
         session.merge(TaskInstance(task=task, execution_date=test_start_date, state='success'))
@@ -222,7 +196,7 @@ class TestDagFileProcessor:
 
         sla_callback.assert_not_called()
 
-    def test_dag_file_processor_sla_miss_callback_exception(self):
+    def test_dag_file_processor_sla_miss_callback_exception(self, create_dummy_dag):
         """
         Test that the dag file processor gracefully logs an exception if there is a problem
         calling the sla_miss_callback
@@ -232,13 +206,12 @@ class TestDagFileProcessor:
         sla_callback = MagicMock(side_effect=RuntimeError('Could not call function'))
 
         test_start_date = days_ago(2)
-        dag = DAG(
+        dag, task = create_dummy_dag(
             dag_id='test_sla_miss',
+            task_id='dummy',
             sla_miss_callback=sla_callback,
-            default_args={'start_date': test_start_date},
+            default_args={'start_date': test_start_date, 'sla': datetime.timedelta(hours=1)},
         )
-
-        task = DummyOperator(task_id='dummy', dag=dag, owner='airflow', sla=datetime.timedelta(hours=1))
 
         session.merge(TaskInstance(task=task, execution_date=test_start_date, state='Success'))
 
@@ -255,18 +228,18 @@ class TestDagFileProcessor:
         )
 
     @mock.patch('airflow.dag_processing.processor.send_email')
-    def test_dag_file_processor_only_collect_emails_from_sla_missed_tasks(self, mock_send_email):
+    def test_dag_file_processor_only_collect_emails_from_sla_missed_tasks(
+        self, mock_send_email, create_dummy_dag
+    ):
         session = settings.Session()
 
         test_start_date = days_ago(2)
-        dag = DAG(
-            dag_id='test_sla_miss',
-            default_args={'start_date': test_start_date, 'sla': datetime.timedelta(days=1)},
-        )
-
         email1 = 'test1@test.com'
-        task = DummyOperator(
-            task_id='sla_missed', dag=dag, owner='airflow', email=email1, sla=datetime.timedelta(hours=1)
+        dag, task = create_dummy_dag(
+            dag_id='test_sla_miss',
+            task_id='sla_missed',
+            email=email1,
+            default_args={'start_date': test_start_date, 'sla': datetime.timedelta(hours=1)},
         )
 
         session.merge(TaskInstance(task=task, execution_date=test_start_date, state='Success'))
@@ -288,7 +261,9 @@ class TestDagFileProcessor:
 
     @mock.patch('airflow.dag_processing.processor.Stats.incr')
     @mock.patch("airflow.utils.email.send_email")
-    def test_dag_file_processor_sla_miss_email_exception(self, mock_send_email, mock_stats_incr):
+    def test_dag_file_processor_sla_miss_email_exception(
+        self, mock_send_email, mock_stats_incr, create_dummy_dag
+    ):
         """
         Test that the dag file processor gracefully logs an exception if there is a problem
         sending an email
@@ -299,14 +274,13 @@ class TestDagFileProcessor:
         mock_send_email.side_effect = RuntimeError('Could not send an email')
 
         test_start_date = days_ago(2)
-        dag = DAG(
+        dag, task = create_dummy_dag(
             dag_id='test_sla_miss',
-            default_args={'start_date': test_start_date, 'sla': datetime.timedelta(days=1)},
+            task_id='dummy',
+            email='test@test.com',
+            default_args={'start_date': test_start_date, 'sla': datetime.timedelta(hours=1)},
         )
-
-        task = DummyOperator(
-            task_id='dummy', dag=dag, owner='airflow', email='test@test.com', sla=datetime.timedelta(hours=1)
-        )
+        mock_stats_incr.reset_mock()
 
         session.merge(TaskInstance(task=task, execution_date=test_start_date, state='Success'))
 
@@ -322,7 +296,7 @@ class TestDagFileProcessor:
         )
         mock_stats_incr.assert_called_once_with('sla_email_notification_failure')
 
-    def test_dag_file_processor_sla_miss_deleted_task(self):
+    def test_dag_file_processor_sla_miss_deleted_task(self, create_dummy_dag):
         """
         Test that the dag file processor will not crash when trying to send
         sla miss notification for a deleted task
@@ -330,13 +304,11 @@ class TestDagFileProcessor:
         session = settings.Session()
 
         test_start_date = days_ago(2)
-        dag = DAG(
+        dag, task = create_dummy_dag(
             dag_id='test_sla_miss',
-            default_args={'start_date': test_start_date, 'sla': datetime.timedelta(days=1)},
-        )
-
-        task = DummyOperator(
-            task_id='dummy', dag=dag, owner='airflow', email='test@test.com', sla=datetime.timedelta(hours=1)
+            task_id='dummy',
+            email='test@test.com',
+            default_args={'start_date': test_start_date, 'sla': datetime.timedelta(hours=1)},
         )
 
         session.merge(TaskInstance(task=task, execution_date=test_start_date, state='Success'))

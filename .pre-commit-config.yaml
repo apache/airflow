@@ -215,8 +215,7 @@ repos:
         name: Check YAML files with yamllint
         entry: yamllint -c yamllint-config.yml --strict
         types: [yaml]
-        exclude:
-          ^.*init_git_sync\.template\.yaml$|^.*airflow\.template\.yaml$|^chart/(?:templates|files)/.*\.yaml$|^airflow/_vendor/
+        exclude: ^.*init_git_sync\.template\.yaml$|^.*airflow\.template\.yaml$|^chart/(?:templates|files)/.*\.yaml$|openapi/.*\.yaml|pre-commit-config|^airflow/_vendor/
   - repo: https://github.com/timothycrosley/isort
     rev: 5.9.3
     hooks:
@@ -248,6 +247,13 @@ repos:
     rev: v1.2.3
     hooks:
       - id: yesqa
+        exclude: |
+          (?x)
+          ^airflow/_vendor/
+  - repo: https://github.com/ikamensh/flynt/
+    rev: '0.66'
+    hooks:
+      - id: flynt
         exclude: |
           (?x)
           ^airflow/_vendor/
@@ -623,14 +629,6 @@ repos:
         files: airflow/config_templates/config\.yml$
         require_serial: true
         additional_dependencies: ['jsonschema==3.2.0', 'PyYAML==5.3.1', 'requests==2.25.0']
-      - id: flynt
-        name: Convert to f-strings with flynt
-        entry: flynt
-        language: python
-        language_version: python3
-        additional_dependencies: ['flynt==0.63']
-        files: \.py$
-        exclude: ^airflow/_vendor/
       - id: ui-lint
         name: ESLint against airflow/ui
         language: node

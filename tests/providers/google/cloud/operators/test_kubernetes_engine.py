@@ -182,6 +182,19 @@ class TestGKEPodOperator(unittest.TestCase):
 
         assert self.gke_op.config_file == FILE_NAME
 
+    def test_config_file_throws_error(self):
+        with pytest.raises(AirflowException):
+            GKEStartPodOperator(
+                project_id=TEST_GCP_PROJECT_ID,
+                location=PROJECT_LOCATION,
+                cluster_name=CLUSTER_NAME,
+                task_id=PROJECT_TASK_ID,
+                name=TASK_NAME,
+                namespace=NAMESPACE,
+                image=IMAGE,
+                config_file="/path/to/alternative/kubeconfig",
+            )
+
     @mock.patch.dict(os.environ, {})
     @mock.patch(
         "airflow.hooks.base.BaseHook.get_connections",

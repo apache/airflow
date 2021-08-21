@@ -51,3 +51,7 @@ hooks:
 
 hook-class-names:
   - airflow.providers.postgres.hooks.postgres.PostgresHook
+
+connection-types:
+  - hook-class-name: airflow.providers.postgres.hooks.postgres.PostgresHook
+    connection-type: postgres

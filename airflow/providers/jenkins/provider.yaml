@@ -48,3 +48,7 @@ hooks:
 
 hook-class-names:
   - airflow.providers.jenkins.hooks.jenkins.JenkinsHook
+
+connection-types:
+  - hook-class-name: airflow.providers.jenkins.hooks.jenkins.JenkinsHook
+    connection-type: jenkins

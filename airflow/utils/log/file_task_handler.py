@@ -162,7 +162,7 @@ class FileTaskHandler(logging.Handler):
                 log += f'*** Unable to fetch logs from worker pod {ti.hostname} ***\n{str(f)}\n\n'
         else:
             url = os.path.join("http://{ti.hostname}:{worker_log_server_port}/log", log_relative_path).format(
-                ti=ti, worker_log_server_port=conf.get('celery', 'WORKER_LOG_SERVER_PORT')
+                ti=ti, worker_log_server_port=conf.get('logging', 'WORKER_LOG_SERVER_PORT')
             )
             log += f"*** Log file does not exist: {location}\n"
             log += f"*** Fetching from: {url}\n"

@@ -43,3 +43,7 @@ hooks:
 
 hook-class-names:
   - airflow.providers.presto.hooks.presto.PrestoHook
+
+connection-types:
+  - hook-class-name: airflow.providers.presto.hooks.presto.PrestoHook
+    connection-type: presto

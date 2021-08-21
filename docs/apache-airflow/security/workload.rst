@@ -30,10 +30,10 @@ Impersonation
 Airflow has the ability to impersonate a unix user while running task
 instances based on the task's ``run_as_user`` parameter, which takes a user's name.
 
-**NOTE:** For impersonations to work, Airflow must be run with ``sudo`` as subtasks are run
-with ``sudo -u`` and permissions of files are changed. Furthermore, the unix user needs to
-exist on the worker. Here is what a simple sudoers file entry could look like to achieve
-this, assuming as airflow is running as the ``airflow`` user. Note that this means that
+**NOTE:** For impersonations to work, Airflow requires ``sudo`` as subtasks are run
+with ``sudo -u`` and permissions of files are changed. Furthermore, the unix user
+needs to exist on the worker. Here is what a simple sudoers file entry could look
+like to achieve this, assuming airflow is running as the ``airflow`` user. This means
 the airflow user must be trusted and treated the same way as the root user.
 
 .. code-block:: none

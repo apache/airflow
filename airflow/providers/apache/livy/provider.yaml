@@ -53,3 +53,7 @@ hooks:
 
 hook-class-names:
   - airflow.providers.apache.livy.hooks.livy.LivyHook
+
+connection-types:
+  - hook-class-name: airflow.providers.apache.livy.hooks.livy.LivyHook
+    connection-type: livy

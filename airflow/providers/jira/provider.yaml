@@ -53,3 +53,7 @@ hooks:
 
 hook-class-names:
   - airflow.providers.jira.hooks.jira.JiraHook
+
+connection-types:
+  - hook-class-name: airflow.providers.jira.hooks.jira.JiraHook
+    connection-type: jira

@@ -44,7 +44,7 @@ from airflow.models.dag import DagModel
 from airflow.models.dagbag import DagBag
 from airflow.models.dagrun import DagRun
 from airflow.models.serialized_dag import SerializedDagModel
-from airflow.models.taskinstance import SimpleTaskInstance, TaskInstanceKey
+from airflow.models.taskinstance import SimpleTaskInstance, TaskInstance, TaskInstanceKey
 from airflow.stats import Stats
 from airflow.ti_deps.dependencies_states import EXECUTION_STATES
 from airflow.utils import timezone
@@ -430,7 +430,7 @@ class SchedulerJob(BaseJob):
                     if serialized_dag.has_task(task_instance.task_id):
                         task_concurrency_limit = serialized_dag.get_task(
                             task_instance.task_id
-                        ).task_concurrency
+                        ).max_active_tis_per_dag
 
                     if task_concurrency_limit is not None:
                         current_task_concurrency = task_concurrency_map[
@@ -700,6 +700,11 @@ class SchedulerJob(BaseJob):
         )
 
         timers.call_regular_interval(
+            conf.getfloat('scheduler', 'trigger_timeout_check_interval', fallback=15.0),
+            self.check_trigger_timeouts,
+        )
+
+        timers.call_regular_interval(
             conf.getfloat('scheduler', 'pool_metrics_interval', fallback=5.0),
             self._emit_pool_metrics,
         )
@@ -768,7 +773,13 @@ class SchedulerJob(BaseJob):
                 )
 
                 self._change_state_for_tis_without_dagrun(
-                    old_states=[State.QUEUED, State.SCHEDULED, State.UP_FOR_RESCHEDULE, State.SENSING],
+                    old_states=[
+                        State.QUEUED,
+                        State.SCHEDULED,
+                        State.UP_FOR_RESCHEDULE,
+                        State.SENSING,
+                        State.DEFERRED,
+                    ],
                     new_state=State.NONE,
                     session=session,
                 )
@@ -942,14 +953,13 @@ class SchedulerJob(BaseJob):
                     run_type=DagRunType.SCHEDULED,
                     execution_date=dag_model.next_dagrun,
                     state=State.QUEUED,
+                    data_interval=dag_model.next_dagrun_data_interval,
                     external_trigger=False,
                     session=session,
                     dag_hash=dag_hash,
                     creating_job_id=self.id,
                 )
-            dag_model.next_dagrun, dag_model.next_dagrun_create_after = dag.next_dagrun_info(
-                dag_model.next_dagrun
-            )
+            dag_model.calculate_dagrun_date_fields(dag, dag_model.next_dagrun, 0)
 
         # TODO[HA]: Should we do a session.flush() so we don't have to keep lots of state/object in
         # memory for larger dags? or expunge_all()
@@ -1207,3 +1217,26 @@ class SchedulerJob(BaseJob):
                     raise
 
         return len(to_reset)
+
+    @provide_session
+    def check_trigger_timeouts(self, session: Session = None):
+        """
+        Looks at all tasks that are in the "deferred" state and whose trigger
+        or execution timeout has passed, so they can be marked as failed.
+        """
+        num_timed_out_tasks = (
+            session.query(TaskInstance)
+            .filter(TaskInstance.state == State.DEFERRED, TaskInstance.trigger_timeout < timezone.utcnow())
+            .update(
+                # We have to schedule these to fail themselves so it doesn't
+                # happen inside the scheduler.
+                {
+                    "state": State.SCHEDULED,
+                    "next_method": "__fail__",
+                    "next_kwargs": {"error": "Trigger/execution timeout"},
+                    "trigger_id": None,
+                }
+            )
+        )
+        if num_timed_out_tasks:
+            self.log.info("Timed out %i deferred tasks without fired triggers", num_timed_out_tasks)

@@ -52,3 +52,7 @@ hooks:
 
 hook-class-names:
   - airflow.providers.alibaba.cloud.hooks.oss.OSSHook
+
+connection-types:
+  - hook-class-name: airflow.providers.alibaba.cloud.hooks.oss.OSSHook
+    connection-type: oss

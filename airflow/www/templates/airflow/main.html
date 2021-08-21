@@ -65,6 +65,21 @@
       <p>The DAGs list may not update, and new tasks will not be scheduled.</p>
     </div>
   {% endif %}
+  {% if triggerer_job is defined and (not triggerer_job or not triggerer_job.is_alive()) %}
+    <div class="alert alert-warning">
+      <p>The triggerer does not appear to be running.
+      {% if triggerer_job %}
+      Last heartbeat was received
+      <time class="scheduler-last-heartbeat"
+        title="{{ triggerer_job.latest_heartbeat.isoformat() }}"
+        datetime="{{ triggerer_job.latest_heartbeat.isoformat() }}"
+        data-datetime-convert="false"
+      >{{ macros.datetime_diff_for_humans(triggerer_job.latest_heartbeat) }}</time>.
+      {% endif %}
+      </p>
+      <p>Triggers will not run, and any deferred operator will remain deferred until it times out and fails.</p>
+    </div>
+  {% endif %}
 {% endblock %}
 
 {% block footer %}

@@ -93,6 +93,23 @@ def test_plugin_endpoint_should_not_be_unauthenticated(app):
     check_content_in_response("Sign In - Airflow", resp)
 
 
+def test_should_list_providers_on_page_with_details(admin_client):
+    resp = admin_client.get('/provider')
+    beam_href = "<a href=\"https://airflow.apache.org/docs/apache-airflow-providers-apache-beam/"
+    beam_text = "apache-airflow-providers-apache-beam</a>"
+    beam_description = "<a href=\"https://beam.apache.org/\">Apache Beam</a>"
+    check_content_in_response(beam_href, resp)
+    check_content_in_response(beam_text, resp)
+    check_content_in_response(beam_description, resp)
+    check_content_in_response("Providers", resp)
+
+
+def test_endpoint_should_not_be_unauthenticated(app):
+    resp = app.test_client().get('/provider', follow_redirects=True)
+    check_content_not_in_response("Providers", resp)
+    check_content_in_response("Sign In - Airflow", resp)
+
+
 @pytest.mark.parametrize(
     "url, content",
     [
@@ -112,6 +129,23 @@ def test_task_start_date_filter(admin_client, url, content):
     # We aren't checking the logic of the date filter itself (that is built
     # in to FAB) but simply that our UTC conversion was run - i.e. it
     # doesn't blow up!
+    check_content_in_response(content, resp)
+
+
+@pytest.mark.parametrize(
+    "url, content",
+    [
+        (
+            "/taskinstance/list/?_flt_3_dag_id=test_dag",
+            "List Task Instance",
+        )
+    ],
+    ids=["instance"],
+)
+def test_task_dag_id_equals_filter(admin_client, url, content):
+    resp = admin_client.get(url)
+    # We aren't checking the logic of the dag_id filter itself (that is built
+    # in to FAB) but simply that dag_id filter was run
     check_content_in_response(content, resp)
 
 

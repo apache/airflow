@@ -45,3 +45,7 @@ hooks:
 
 hook-class-names:
   - airflow.providers.ftp.hooks.ftp.FTPHook
+
+connection-types:
+  - hook-class-name: airflow.providers.ftp.hooks.ftp.FTPHook
+    connection-type: ftp

@@ -15,24 +15,28 @@
 # specific language governing permissions and limitations
 # under the License.
 
-"""Tests for Timetable.iter_between()."""
 
-from datetime import datetime, timedelta
+import os
 
-import pytest
+from airflow import models
+from airflow.providers.amazon.aws.transfers.local_to_s3 import LocalFilesystemToS3Operator
+from airflow.utils.dates import datetime
 
-from airflow.settings import TIMEZONE
-from airflow.timetables.interval import DeltaDataIntervalTimetable
+S3_BUCKET = os.environ.get("S3_BUCKET", "test-bucket")
+S3_KEY = os.environ.get("S3_KEY", "key")
 
+with models.DAG(
+    "example_local_to_s3",
+    schedule_interval=None,
+    start_date=datetime(2021, 1, 1),  # Override to match your needs
+) as dag:
+    # [START howto_local_transfer_data_to_s3]
+    create_local_to_s3_job = LocalFilesystemToS3Operator(
+        task_id="create_local_to_s3_job",
+        filename="relative/path/to/file.csv",
+        dest_key=S3_KEY,
+        dest_bucket=S3_BUCKET,
+    )
 
-@pytest.fixture()
-def timetable_1s():
-    return DeltaDataIntervalTimetable(timedelta(seconds=1))
-
-
-def test_end_date_before_start_date(timetable_1s):
-    start = datetime(2016, 2, 1, tzinfo=TIMEZONE)
-    end = datetime(2016, 1, 1, tzinfo=TIMEZONE)
-    message = r"start \([- :+\d]{25}\) > end \([- :+\d]{25}\)"
-    with pytest.raises(ValueError, match=message):
-        list(timetable_1s.iter_between(start, end, align=True))
+    create_local_to_s3_job
+    # [END howto_local_transfer_data_to_s3]

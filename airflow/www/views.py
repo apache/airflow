@@ -34,6 +34,7 @@ from typing import Iterable, List, Optional, Tuple
 from urllib.parse import parse_qsl, unquote, urlencode, urlparse
 
 import lazy_object_proxy
+import markupsafe
 import nvd3
 import sqlalchemy as sqla
 from flask import (
@@ -93,10 +94,11 @@ from airflow.api.common.experimental.mark_tasks import (
     set_dag_run_state_to_success,
 )
 from airflow.configuration import AIRFLOW_CONFIG, conf
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, SerializedDagNotFound
 from airflow.executors.executor_loader import ExecutorLoader
 from airflow.jobs.base_job import BaseJob
 from airflow.jobs.scheduler_job import SchedulerJob
+from airflow.jobs.triggerer_job import TriggererJob
 from airflow.models import DAG, Connection, DagModel, DagTag, Log, SlaMiss, TaskFail, XCom, errors
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.dagcode import DagCode
@@ -109,7 +111,7 @@ from airflow.ti_deps.dep_context import DepContext
 from airflow.ti_deps.dependencies_deps import RUNNING_DEPS, SCHEDULER_QUEUED_DEPS
 from airflow.utils import json as utils_json, timezone, yaml
 from airflow.utils.dates import infer_time_unit, scale_time_units
-from airflow.utils.docs import get_docs_url
+from airflow.utils.docs import get_doc_url_for_provider, get_docs_url
 from airflow.utils.helpers import alchemy_to_dict
 from airflow.utils.log import secrets_masker
 from airflow.utils.log.log_reader import TaskLogReader
@@ -410,11 +412,11 @@ def dag_edges(dag):
 ######################################################################################
 
 
-def circles(error):
-    """Show Circles on screen for any error in the Webserver"""
+def not_found(error):
+    """Show Not Found on screen for any error in the Webserver"""
     return (
         render_template(
-            'airflow/circles.html',
+            'airflow/not_found.html',
             hostname=socket.getfqdn()
             if conf.getboolean('webserver', 'EXPOSE_HOSTNAME', fallback=True)
             else 'redact',
@@ -463,6 +465,9 @@ class AirflowBaseView(BaseView):
     }
 
     def render_template(self, *args, **kwargs):
+        # Add triggerer_job only if we need it
+        if TriggererJob.is_needed():
+            kwargs["triggerer_job"] = lazy_object_proxy.Proxy(TriggererJob.most_recent_job)
         return super().render_template(
             *args,
             # Cache this at most once per request, not for the lifetime of the view instance
@@ -526,6 +531,20 @@ class Airflow(AirflowBaseView):
         }
 
         return wwwutils.json_response(payload)
+
+    @expose('/no_roles')
+    def no_roles(self):
+        """Show 'user has no roles' on screen (instead of an endless redirect loop)"""
+        if g.user.is_anonymous or g.user.roles:
+            return redirect(url_for("Airflow.index"))
+
+        return render_template(
+            'airflow/no_roles.html',
+            hostname=socket.getfqdn()
+            if conf.getboolean('webserver', 'EXPOSE_HOSTNAME', fallback=True)
+            else 'redact',
+            logout_url=current_app.appbuilder.get_url_for_logout,
+        )
 
     @expose('/home')
     @auth.has_access(
@@ -929,7 +948,9 @@ class Airflow(AirflowBaseView):
                 "Exception encountered during "
                 + f"dag_id retrieval/dag retrieval fallback/code highlighting:\n\n{e}\n"
             )
-            html_code = Markup('<p>Failed to load file.</p><p>Details: {}</p>').format(escape(all_errors))
+            html_code = Markup('<p>Failed to load DAG file Code.</p><p>Details: {}</p>').format(
+                escape(all_errors)
+            )
 
         return self.render_template(
             'airflow/dag_code.html',
@@ -1519,6 +1540,14 @@ class Airflow(AirflowBaseView):
         except DagFileExists:
             flash(f"Dag id {dag_id} is still in DagBag. Remove the DAG file first.", 'error')
             return redirect(request.referrer)
+        except AirflowException:
+            flash(
+                f"Cannot delete DAG with id {dag_id} because some task instances of the DAG "
+                "are still running. Please mark the  task instances as "
+                "failed/succeeded before deleting the DAG",
+                "error",
+            )
+            return redirect(request.referrer)
 
         flash(f"Deleting DAG with id {dag_id}. May take a couple minutes to fully disappear.")
 
@@ -1761,7 +1790,10 @@ class Airflow(AirflowBaseView):
         payload = []
         for dag_id, active_dag_runs in dags:
             max_active_runs = 0
-            dag = current_app.dag_bag.get_dag(dag_id)
+            try:
+                dag = current_app.dag_bag.get_dag(dag_id)
+            except SerializedDagNotFound:
+                dag = None
             if dag:
                 # TODO: Make max_active_runs a column so we can query for it directly
                 max_active_runs = dag.max_active_runs
@@ -3072,8 +3104,9 @@ def lazy_add_provider_discovered_options_to_connection_form():
             ('mesos_framework-id', 'Mesos Framework ID'),
         ]
         providers_manager = ProvidersManager()
-        for connection_type, (_, _, _, hook_name) in providers_manager.hooks.items():
-            _connection_types.append((connection_type, hook_name))
+        for connection_type, provider_info in providers_manager.hooks.items():
+            if provider_info:
+                _connection_types.append((connection_type, provider_info.hook_name))
         return _connection_types
 
     ConnectionForm.conn_type = SelectField(
@@ -3337,6 +3370,64 @@ class PluginView(AirflowBaseView):
             title=title,
             doc_url=doc_url,
         )
+
+
+class ProviderView(AirflowBaseView):
+    """View to show Airflow Providers"""
+
+    default_view = 'list'
+
+    class_permission_name = permissions.RESOURCE_PROVIDER
+
+    method_permission_name = {
+        'list': 'read',
+    }
+
+    base_permissions = [
+        permissions.ACTION_CAN_READ,
+        permissions.ACTION_CAN_ACCESS_MENU,
+    ]
+
+    @expose('/provider')
+    @auth.has_access(
+        [
+            (permissions.ACTION_CAN_READ, permissions.RESOURCE_PROVIDER),
+        ]
+    )
+    def list(self):
+        """List providers."""
+        providers_manager = ProvidersManager()
+
+        providers = []
+        for pi in providers_manager.providers.values():
+            provider_info = pi[1]
+            provider_data = {
+                "package_name": provider_info["package-name"],
+                "description": self._clean_description(provider_info["description"]),
+                "version": pi[0],
+                "documentation_url": get_doc_url_for_provider(provider_info["package-name"], pi[0]),
+            }
+            providers.append(provider_data)
+
+        title = "Providers"
+        doc_url = get_docs_url("apache-airflow-providers/index.html")
+        return self.render_template(
+            'airflow/providers.html',
+            providers=providers,
+            title=title,
+            doc_url=doc_url,
+        )
+
+    def _clean_description(self, description):
+        def _build_link(match_obj):
+            text = match_obj.group(1)
+            url = match_obj.group(2)
+            return markupsafe.Markup(f'<a href="{url}">{text}</a>')
+
+        cd = markupsafe.escape(description)
+        cd = re.sub(r"`(.*)[\s+]+&lt;(.*)&gt;`__", _build_link, cd)
+        cd = re.sub(r"\n", r"<br>", cd)
+        return markupsafe.Markup(cd)
 
 
 class PoolModelView(AirflowModelView):
@@ -3898,6 +3989,8 @@ class TaskInstanceModelView(AirflowModelView):
         'start_date',
         'end_date',
     ]
+
+    add_exclude_columns = ["next_method", "next_kwargs", "trigger_id"]
 
     edit_form = TaskInstanceEditForm
 

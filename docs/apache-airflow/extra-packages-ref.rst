@@ -62,6 +62,8 @@ python dependencies for the provided package.
 +---------------------+-----------------------------------------------------+----------------------------------------------------------------------------+
 | leveldb             | ``pip install 'apache-airflow[leveldb]'``           | Required for use leveldb extra in google provider                          |
 +---------------------+-----------------------------------------------------+----------------------------------------------------------------------------+
+| pandas              | ``pip install 'apache-airflow[pandas]'``            | Install Pandas library compatible with Airflow                             |
++---------------------+-----------------------------------------------------+----------------------------------------------------------------------------+
 | password            | ``pip install 'apache-airflow[password]'``          | Password authentication for users                                          |
 +---------------------+-----------------------------------------------------+----------------------------------------------------------------------------+
 | rabbitmq            | ``pip install 'apache-airflow[rabbitmq]'``          | RabbitMQ support as a Celery backend                                       |
@@ -299,7 +301,7 @@ Those are extras that install one ore more extras as a bundle.
 +---------------------+-----------------------------------------------------+----------------------------------------------------------------------+
 | devel_all           | ``pip install 'apache-airflow[devel_all]'``         | Everything needed for development (``devel_hadoop`` +  providers)    |
 +---------------------+-----------------------------------------------------+----------------------------------------------------------------------+
-| devel_ci            | ``pip install 'apache-airflow[devel_ci]'``          | All dependencies required for CI build.                              |
+| devel_ci            | ``pip install 'apache-airflow[devel_ci]'``          | All dependencies required for CI tests.                              |
 +---------------------+-----------------------------------------------------+----------------------------------------------------------------------+
 
 Doc extras

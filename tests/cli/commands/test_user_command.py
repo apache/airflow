@@ -126,7 +126,9 @@ class TestCliUsers:
                 'test3',
             ]
         )
-        user_command.users_delete(args)
+        with redirect_stdout(io.StringIO()) as stdout:
+            user_command.users_delete(args)
+        assert 'User "test3" deleted' in stdout.getvalue()
 
     def test_cli_delete_user_by_email(self):
         args = self.parser.parse_args(
@@ -155,7 +157,9 @@ class TestCliUsers:
                 'jdoe2@example.com',
             ]
         )
-        user_command.users_delete(args)
+        with redirect_stdout(io.StringIO()) as stdout:
+            user_command.users_delete(args)
+        assert 'User "test4" deleted' in stdout.getvalue()
 
     @pytest.mark.parametrize(
         'args,raise_match',
@@ -198,7 +202,7 @@ class TestCliUsers:
             ),
         ],
     )
-    def test_find_user(self, args, raise_match):
+    def test_find_user_exceptions(self, args, raise_match):
         args = self.parser.parse_args(args)
         with pytest.raises(
             SystemExit,
@@ -342,7 +346,8 @@ class TestCliUsers:
             user_command.users_export(args)
             return f.name
 
-    def test_cli_add_user_role(self):
+    @pytest.fixture()
+    def create_user_test4(self):
         args = self.parser.parse_args(
             [
                 'users',
@@ -362,44 +367,47 @@ class TestCliUsers:
         )
         user_command.users_create(args)
 
+    def test_cli_add_user_role(self, create_user_test4):
         assert not _does_user_belong_to_role(
             appbuilder=self.appbuilder, email=TEST_USER1_EMAIL, rolename='Op'
         ), "User should not yet be a member of role 'Op'"
 
         args = self.parser.parse_args(['users', 'add-role', '--username', 'test4', '--role', 'Op'])
-        user_command.users_manage_role(args, remove=False)
+        with redirect_stdout(io.StringIO()) as stdout:
+            user_command.users_manage_role(args, remove=False)
+        assert 'User "test4" added to role "Op"' in stdout.getvalue()
 
         assert _does_user_belong_to_role(
             appbuilder=self.appbuilder, email=TEST_USER1_EMAIL, rolename='Op'
         ), "User should have been added to role 'Op'"
 
-    def test_cli_remove_user_role(self):
-        args = self.parser.parse_args(
-            [
-                'users',
-                'create',
-                '--username',
-                'test4',
-                '--lastname',
-                'doe',
-                '--firstname',
-                'jon',
-                '--email',
-                TEST_USER1_EMAIL,
-                '--role',
-                'Viewer',
-                '--use-random-password',
-            ]
-        )
-        user_command.users_create(args)
-
+    def test_cli_remove_user_role(self, create_user_test4):
         assert _does_user_belong_to_role(
             appbuilder=self.appbuilder, email=TEST_USER1_EMAIL, rolename='Viewer'
         ), "User should have been created with role 'Viewer'"
 
         args = self.parser.parse_args(['users', 'remove-role', '--username', 'test4', '--role', 'Viewer'])
-        user_command.users_manage_role(args, remove=True)
+        with redirect_stdout(io.StringIO()) as stdout:
+            user_command.users_manage_role(args, remove=True)
+        assert 'User "test4" removed from role "Viewer"' in stdout.getvalue()
 
         assert not _does_user_belong_to_role(
             appbuilder=self.appbuilder, email=TEST_USER1_EMAIL, rolename='Viewer'
         ), "User should have been removed from role 'Viewer'"
+
+    @pytest.mark.parametrize(
+        "action, role, message",
+        [
+            ["add-role", "Viewer", 'User "test4" is already a member of role "Viewer"'],
+            ["add-role", "Foo", '"Foo" is not a valid role. Valid roles are'],
+            ["remove-role", "Admin", 'User "test4" is not a member of role "Admin"'],
+            ["remove-role", "Foo", '"Foo" is not a valid role. Valid roles are'],
+        ],
+    )
+    def test_cli_manage_roles_exceptions(self, create_user_test4, action, role, message):
+        args = self.parser.parse_args(['users', action, '--username', 'test4', '--role', role])
+        with pytest.raises(SystemExit, match=message):
+            if action == 'add-role':
+                user_command.add_role(args)
+            else:
+                user_command.remove_role(args)

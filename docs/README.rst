@@ -25,8 +25,6 @@ Development documentation preview
 
 Documentation from the development version is built and automatically published: `s.apache.org/airflow-docs <https://s.apache.org/airflow-docs>`_
 
-Documentation for your PRs is available as downloadable artifact in GitHub Actions after the CI builds your PR.
-
 Building documentation
 ======================
 

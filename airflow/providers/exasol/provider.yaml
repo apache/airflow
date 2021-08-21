@@ -48,3 +48,7 @@ hooks:
 
 hook-class-names:
   - airflow.providers.exasol.hooks.exasol.ExasolHook
+
+connection-types:
+  - hook-class-name: airflow.providers.exasol.hooks.exasol.ExasolHook
+    connection-type: exasol

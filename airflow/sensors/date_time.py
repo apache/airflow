@@ -20,6 +20,7 @@ import datetime
 from typing import Dict, Union
 
 from airflow.sensors.base import BaseSensorOperator
+from airflow.triggers.temporal import DateTimeTrigger
 from airflow.utils import timezone
 
 
@@ -58,9 +59,11 @@ class DateTimeSensor(BaseSensorOperator):
     def __init__(self, *, target_time: Union[str, datetime.datetime], **kwargs) -> None:
         super().__init__(**kwargs)
         if isinstance(target_time, datetime.datetime):
-            self.target_time = target_time.isoformat()
-        elif isinstance(target_time, str):
+            if timezone.is_naive(target_time):
+                target_time = timezone.make_aware(target_time)
             self.target_time = target_time
+        elif isinstance(target_time, str):
+            self.target_time = timezone.parse(target_time)
         else:
             raise TypeError(
                 f"Expected str or datetime.datetime type for target_time. Got {type(target_time)}"
@@ -68,4 +71,23 @@ class DateTimeSensor(BaseSensorOperator):
 
     def poke(self, context: Dict) -> bool:
         self.log.info("Checking if the time (%s) has come", self.target_time)
-        return timezone.utcnow() > timezone.parse(self.target_time)
+        return timezone.utcnow() > self.target_time
+
+
+class DateTimeSensorAsync(DateTimeSensor):
+    """
+    Waits until the specified datetime, deferring itself to avoid taking up
+    a worker slot while it is waiting.
+
+    It is a drop-in replacement for DateTimeSensor.
+
+    :param target_time: datetime after which the job succeeds. (templated)
+    :type target_time: str or datetime.datetime
+    """
+
+    def execute(self, context):
+        self.defer(trigger=DateTimeTrigger(moment=self.target_time), method_name="execute_complete")
+
+    def execute_complete(self, context, event=None):  # pylint: disable=unused-argument
+        """Callback for when the trigger fires - returns immediately."""
+        return None
