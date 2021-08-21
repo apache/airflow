@@ -336,7 +336,7 @@ class TestLocalTaskJob:
         session.merge(ti)
         session.commit()
 
-        ti_run = TaskInstance(task=task, execution_date=DEFAULT_DATE)
+        ti_run = TaskInstance(task=task, run_id=dr.run_id)
         ti_run.refresh_from_db()
         job1 = LocalTaskJob(task_instance=ti_run, executor=SequentialExecutor())
         with patch.object(StandardTaskRunner, 'start', return_value=None) as mock_method:

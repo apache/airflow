@@ -35,7 +35,6 @@ from airflow.operators.check_operator import CheckOperator, ValueCheckOperator
 from airflow.operators.dummy import DummyOperator
 from airflow.operators.python import PythonOperator
 from airflow.utils.dates import days_ago
-from airflow.utils.session import create_session
 from airflow.utils.state import State
 from airflow.utils.timezone import datetime
 from airflow.utils.types import DagRunType
@@ -45,13 +44,6 @@ from tests.test_utils.db import clear_db_dags, clear_db_runs, clear_db_task_fail
 DEV_NULL = '/dev/null'
 DEFAULT_DATE = datetime(2015, 1, 1)
 TEST_DAG_ID = 'unit_tests'
-
-
-@pytest.fixture
-def session():
-    with create_session() as session:
-        yield session
-        session.rollback()
 
 
 class OperatorSubclass(BaseOperator):

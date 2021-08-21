@@ -668,9 +668,18 @@ def create_task_instance(dag_maker, create_dummy_dag):
 
         dr = dag_maker.create_dagrun(execution_date=execution_date, state=dagrun_state, run_id=run_id)
         ti = dr.task_instances[0]
-        ti.task = task
+        ti.refresh_from_task(task)
         ti.state = state
 
         return ti
 
     return maker
+
+
+@pytest.fixture
+def session():
+    from airflow.utils.session import create_session
+
+    with create_session() as session:
+        yield session
+        session.rollback()
