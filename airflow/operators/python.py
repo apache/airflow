@@ -355,13 +355,22 @@ class PythonVirtualenvOperator(PythonOperator):
         return super().execute(context=serializable_context)
 
     def execute_callable(self):
-        if not self.system_site_packages and self.use_dill:
-            if isinstance(self.requirements, List) and 'dill' not in self.requirements:
-                self.requirements.append('dill')
-            else:
-                self.requirements += '\ndill'
-
         with TemporaryDirectory(prefix='venv') as tmp_dir:
+            requirements_file_name = f'{tmp_dir}/requirements.txt'
+
+            if isinstance(self.requirements, List):
+                requirements_file_contents = "\n".join(str(dependency) for dependency in self.requirements)
+            else:
+                requirements_file_contents = self.requirements
+
+            if not self.system_site_packages:
+                requirements_file_contents += '\nlazy-object-proxy'
+                if self.use_dill:
+                    requirements_file_contents += '\ndill'
+
+            with open(requirements_file_name, 'w') as file:
+                file.write(requirements_file_contents)
+
             if self.templates_dict:
                 self.op_kwargs['templates_dict'] = self.templates_dict
 
@@ -374,7 +383,7 @@ class PythonVirtualenvOperator(PythonOperator):
                 venv_directory=tmp_dir,
                 python_bin=f'python{self.python_version}' if self.python_version else None,
                 system_site_packages=self.system_site_packages,
-                requirements=self.requirements,
+                requirements=requirements_file_name,
             )
 
             self._write_args(input_filename)

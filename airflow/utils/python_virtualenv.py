@@ -20,7 +20,7 @@
 import os
 import sys
 from collections import deque
-from typing import List, Optional, Union
+from typing import List, Optional
 
 import jinja2
 
@@ -36,16 +36,12 @@ def _generate_virtualenv_cmd(tmp_dir: str, python_bin: str, system_site_packages
     return cmd
 
 
-def _generate_pip_install_cmd(tmp_dir: str, requirements: Union[List[str], str]) -> Optional[List[str]]:
+def _generate_pip_install_cmd(tmp_dir: str, requirements: str) -> Optional[List[str]]:
     if not requirements:
         return None
     # direct path alleviates need to activate
-    if isinstance(requirements, str):
-        cmd = [f'{tmp_dir}/bin/pip', 'install', '-r']
-        return cmd + [requirements]
-    else:
-        cmd = [f'{tmp_dir}/bin/pip', 'install']
-        return cmd + requirements
+    cmd = [f'{tmp_dir}/bin/pip', 'install', '-r']
+    return cmd + [requirements]
 
 
 def _balance_parens(after_decorator):
@@ -79,7 +75,7 @@ def remove_task_decorator(python_source: str, task_decorator_name: str) -> str:
 
 
 def prepare_virtualenv(
-    venv_directory: str, python_bin: str, system_site_packages: bool, requirements: Union[List[str], str]
+    venv_directory: str, python_bin: str, system_site_packages: bool, requirements: str
 ) -> str:
     """
     Creates a virtual environment and installs the additional python packages
@@ -91,21 +87,14 @@ def prepare_virtualenv(
     :param system_site_packages: Whether to include system_site_packages in your virtualenv.
         See virtualenv documentation for more information.
     :type system_site_packages: bool
-    :param requirements: List of additional python packages
-    :type requirements: List[str]
+    :param requirements: Path to the requirements.txt file
+    :type requirements: str
     :return: Path to a binary file with Python in a virtual environment.
     :rtype: str
     """
     virtualenv_cmd = _generate_virtualenv_cmd(venv_directory, python_bin, system_site_packages)
     execute_in_subprocess(virtualenv_cmd)
-
-    if isinstance(requirements, str):
-        requirements_file_name = f'{venv_directory}/requirements.txt'
-        with open(requirements_file_name, 'w') as file:
-            file.write(requirements)
-        pip_cmd = _generate_pip_install_cmd(venv_directory, requirements_file_name)
-    else:
-        pip_cmd = _generate_pip_install_cmd(venv_directory, requirements)
+    pip_cmd = _generate_pip_install_cmd(venv_directory, requirements)
 
     if pip_cmd:
         execute_in_subprocess(pip_cmd)
