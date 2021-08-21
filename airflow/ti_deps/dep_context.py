@@ -16,9 +16,15 @@
 # specific language governing permissions and limitations
 # under the License.
 
+from typing import TYPE_CHECKING, List
+
 from sqlalchemy.orm.session import Session
 
 from airflow.utils.state import State
+
+if TYPE_CHECKING:
+    from airflow.models.dagrun import DagRun
+    from airflow.models.taskinstance import TaskInstance
 
 
 class DepContext:
@@ -84,7 +90,7 @@ class DepContext:
         self.ignore_ti_state = ignore_ti_state
         self.finished_tasks = finished_tasks
 
-    def ensure_finished_tasks(self, dag_run, session: Session):
+    def ensure_finished_tasks(self, dag_run: "DagRun", session: Session) -> "List[TaskInstance]":
         """
         This method makes sure finished_tasks is populated if it's currently None.
         This is for the strange feature of running tasks without dag_run.

@@ -30,7 +30,7 @@ from typing import DefaultDict, Dict, Iterable, List, Optional, Tuple
 
 from sqlalchemy import and_, func, not_, or_, tuple_
 from sqlalchemy.exc import OperationalError
-from sqlalchemy.orm import load_only, selectinload
+from sqlalchemy.orm import eagerload, load_only, selectinload
 from sqlalchemy.orm.session import Session, make_transient
 
 from airflow import models, settings
@@ -246,7 +246,8 @@ class SchedulerJob(BaseJob):
         # and the dag is not paused
         query = (
             session.query(TI)
-            .outerjoin(TI.dag_run)
+            .join(TI.dag_run)
+            .options(eagerload(TI.dag_run))
             .filter(DR.run_type != DagRunType.BACKFILL_JOB, DR.state != DagRunState.QUEUED)
             .join(TI.dag_model)
             .filter(not_(DM.is_paused))

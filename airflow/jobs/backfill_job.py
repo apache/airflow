@@ -22,6 +22,7 @@ from collections import OrderedDict
 from typing import Optional, Set
 
 import pendulum
+from sqlalchemy.orm import eagerload
 from sqlalchemy.orm.session import Session, make_transient
 from tabulate import tabulate
 
@@ -864,6 +865,7 @@ class BackfillJob(BaseJob):
             resettable_tis = (
                 session.query(TaskInstance)
                 .join(TaskInstance.dag_run)
+                .options(eagerload(TaskInstance.dag_run))
                 .filter(
                     DagRun.state == State.RUNNING,
                     DagRun.run_type != DagRunType.BACKFILL_JOB,
