@@ -27,7 +27,7 @@ Content
     :caption: Guides
 
     Connection types <connections/elasticsearch>
-    Logging for Tasks <logging>
+    Logging for Tasks <logging/index>
 
 .. toctree::
     :maxdepth: 1

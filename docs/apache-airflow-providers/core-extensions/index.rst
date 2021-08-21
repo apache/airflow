@@ -1,3 +1,4 @@
+
  .. Licensed to the Apache Software Foundation (ASF) under one
     or more contributor license agreements.  See the NOTICE file
     distributed with this work for additional information
@@ -15,11 +16,14 @@
     specific language governing permissions and limitations
     under the License.
 
-Writing logs to Google Cloud Platform
--------------------------------------
+Core Extensions
+===============
+
+Here is a list of extensions of the core functionalities of ``Apache Airflow``. They can be used to extend
+core by implementations of Core features, specific to certain providers.
 
 .. toctree::
-    :maxdepth: 1
+    :maxdepth: 2
     :glob:
 
     *
