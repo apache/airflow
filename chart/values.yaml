@@ -720,26 +720,28 @@ webserver:
   tolerations: []
 
 # Airflow Triggerer Config
-triggerers:
+triggerer:
   # Number of airflow triggerers in the deployment
   replicas: 1
 
   # Command to use when running Airflow triggerers (templated).
   command: ~
-  # Args to use when running Airflow triggerers (templated).
-  args:
-    - "bash"
-    - "-c"
-    # The format below is necessary to get `helm lint` happy
-    - |-
-      exec \
-      airflow triggerer
+  # Args to use when running Airflow triggerer (templated).
+  args: ["bash", "-c", "exec airflow triggerer"]
 
   # Update Strategy when triggerers are deployed as a Deployment
   strategy:
     rollingUpdate:
       maxSurge: "100%"
       maxUnavailable: "50%"
+
+  # If the triggerer stops heartbeating for 5 minutes (10*30s) kill the
+  # triggerer and let Kubernetes restart it
+  livenessProbe:
+    initialDelaySeconds: 10
+    timeoutSeconds: 5
+    failureThreshold: 10
+    periodSeconds: 30
 
   # Create ServiceAccount
   serviceAccount:
@@ -788,16 +790,6 @@ triggerers:
                 component: triggerer
             topologyKey: "kubernetes.io/hostname"
   tolerations: []
-  # hostAliases to use in triggerer pods.
-  # See:
-  # https://kubernetes.io/docs/concepts/services-networking/add-entries-to-pod-etc-hosts-with-host-aliases/
-  hostAliases: []
-  # - ip: "127.0.0.2"
-  #   hostnames:
-  #   - "test.hostname.one"
-  # - ip: "127.0.0.3"
-  #   hostnames:
-  #   - "test.hostname.two"
 
 # Flower settings
 flower:
