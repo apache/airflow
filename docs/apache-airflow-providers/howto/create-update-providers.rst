@@ -279,11 +279,22 @@ In the ``airflow/providers/<NEW_PROVIDER>/provider.yaml`` add information of you
           python-modules:
             - airflow.providers.<NEW_PROVIDER>.sensors.<NEW_PROVIDER>
 
-      hook-class-names:
+      connection-types:
+        - hook-class-name: airflow.providers.<NEW_PROVIDER>.hooks.<NEW_PROVIDER>.NewProviderHook
+        - connection-type: provider-connection-type
+
+      hook-class-names:  # deprecated in Airflow 2.2.0
         - airflow.providers.<NEW_PROVIDER>.hooks.<NEW_PROVIDER>.NewProviderHook
 
-You only need to add ``hook-class-names`` in case you have some hooks that have customized UI behavior.
-For more information see `Custom connection types <http://airflow.apache.org/docs/apache-airflow/stable/howto/connection.html#custom-connection-types>`_
+.. note:: Defining your own connection types
+
+    You only need to add ``connection-types`` in case you have some hooks that have customized UI behavior. However
+    it is only supported for Airflow 2.2.0. If your providers are also targeting Airflow below 2.2.0 you should
+    provide the deprecated ``hook-class-names`` array. The ``connection-types`` array allows for optimization
+    of importing of individual connections and while Airflow 2.2.0 is able to handle both definition, the
+    ``connection-types`` is recommended.
+
+    For more information see `Custom connection types <http://airflow.apache.org/docs/apache-airflow/stable/howto/connection.html#custom-connection-types>`_
 
 
 After changing and creating these files you can build the documentation locally. The two commands below will

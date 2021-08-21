@@ -143,9 +143,17 @@ Exposing customized functionality to the Airflow's core:
   capability. See :doc:`apache-airflow:howto/define_extra_link` for description of how to add extra link
   capability to the operators of yours.
 
-* ``hook-class-names`` - this field should contain the list of all hook class names that provide
-  custom connection types with custom extra fields and field behaviour. See
-  :doc:`apache-airflow:howto/connection` for more details.
+* ``connection-types`` - this field should contain the list of all connection types together with hook
+  class names implementing those custom connection types (providing custom extra fields and
+  custom field behaviour). This field is available as of Airflow 2.2.0 and it replaces deprecated
+  ``hook-class-names``. See :doc:`apache-airflow:howto/connection` for more details
+
+* ``hook-class-names`` (deprecated) - this field should contain the list of all hook class names that provide
+  custom connection types with custom extra fields and field behaviour. The ``hook-class-names`` array
+  is deprecated as of Airflow 2.2.0 (for optimization reasons) and will be removed in Airflow 3. If your
+  providers are targeting Airflow 2.2.0+ you do not have to include the ``hook-class-names`` array, if
+  you want to also target earlier versions of Airflow 2, you should include both ``hook-class-names`` and
+  ``connection-types`` arrays. See :doc:`apache-airflow:howto/connection` for more details.
 
 
 When your providers are installed you can query the installed providers and their capabilities with the
@@ -209,7 +217,8 @@ Creating your own providers
 **When I write my own provider, do I need to do anything special to make it available to others?**
 
 You do not need to do anything special besides creating the ``apache_airflow_provider`` entry point
-returning properly formatted meta-data (dictionary with ``extra-links`` and ``hook-class-names`` fields).
+returning properly formatted meta-data  - dictionary with ``extra-links`` and ``connection-types`` fields
+(and deprecated ``hook-class-names`` field if you are also targeting versions of Airflow before 2.2.0).
 
 Anyone who runs airflow in an environment that has your Python package installed will be able to use the
 package as a provider package.
