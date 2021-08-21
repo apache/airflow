@@ -52,7 +52,7 @@ hooks:
     python-modules:
       - airflow.providers.http.hooks.http
 
-hook-class-names:
+hook-class-names:  # deprecated - to be removed after providers add dependency on Airflow 2.2.0+
   - airflow.providers.http.hooks.http.HttpHook
 
 connection-types:
