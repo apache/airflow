@@ -39,7 +39,7 @@ hooks:
     python-modules:
       - airflow.providers.trino.hooks.trino
 
-hook-class-names:
+hook-class-names:  # deprecated - to be removed after providers add dependency on Airflow 2.2.0+
   - airflow.providers.trino.hooks.trino.TrinoHook
 
 connection-types:

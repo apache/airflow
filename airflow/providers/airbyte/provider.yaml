@@ -52,7 +52,7 @@ sensors:
     python-modules:
       - airflow.providers.airbyte.sensors.airbyte
 
-hook-class-names:
+hook-class-names:  # deprecated - to be removed after providers add dependency on Airflow 2.2.0+
   - airflow.providers.airbyte.hooks.airbyte.AirbyteHook
 
 connection-types:
