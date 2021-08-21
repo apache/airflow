@@ -15,11 +15,14 @@
     specific language governing permissions and limitations
     under the License.
 
-Writing logs to Google Cloud Platform
--------------------------------------
+Writing logs
+------------
 
-.. toctree::
-    :maxdepth: 1
-    :glob:
+This is a summary of all Apache Airflow Community provided implementations of writing task logs
+exposed via community-managed providers. You can also see logging options available in the core Airflow in
+:doc:`apache-airflow:logging-monitoring/logging-tasks` and here you can see those
+provided by the community-managed providers:
 
-    *
+.. airflow-logging::
+   :tags: None
+   :header-separator: "
