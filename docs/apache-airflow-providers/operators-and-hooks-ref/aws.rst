@@ -24,8 +24,8 @@ Airflow has support for `Amazon Web Services <https://aws.amazon.com/>`__.
 
 All hooks are based on :mod:`airflow.providers.amazon.aws.hooks.base_aws`.
 
-Service operators and hooks
-'''''''''''''''''''''''''''
+Services
+''''''''
 
 These integrations allow you to perform various operations within the Amazon Web Services.
 
@@ -33,8 +33,8 @@ These integrations allow you to perform various operations within the Amazon Web
    :tags: aws
    :header-separator: "
 
-Transfer operators and hooks
-''''''''''''''''''''''''''''
+Transfers
+'''''''''
 
 These integrations allow you to copy data from/to Amazon Web Services.
 
