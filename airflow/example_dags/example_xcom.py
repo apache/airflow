@@ -95,7 +95,7 @@ with DAG(
         task_id='bash_push',
         bash_command='echo "bash_push demo"  && '
         'echo "Manually set xcom value '
-        '{{ti.xcom_push(key="manually_pushed_value", value="manually_pushed_value") }}" && '
+        '{{ ti.xcom_push(key="manually_pushed_value", value="manually_pushed_value") }}" && '
         'echo "value_by_return"',
     )
     bash_pull = BashOperator(
