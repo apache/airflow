@@ -74,9 +74,13 @@ def upgrade():
 
     run_id_col_type = sa.String(length=ID_LEN, **COLLATION_ARGS)
 
+    if dialect_name == 'mysql':
+        op.alter_column('dag_run', 'dag_id', existing_type=sa.String(length=ID_LEN), type_=run_id_col_type)
+        op.alter_column('dag_run', 'run_id', existing_type=sa.String(length=ID_LEN), type_=run_id_col_type)
+
     # First create column nullable
-    op.add_column('task_instance', sa.Column('run_id', run_id_col_type, nullable=True))
-    op.add_column('task_reschedule', sa.Column('run_id', run_id_col_type, nullable=True))
+    op.add_column('task_instance', sa.Column('run_id', type_=run_id_col_type, nullable=True))
+    op.add_column('task_reschedule', sa.Column('run_id', type_=run_id_col_type, nullable=True))
 
     # Then update the new column by selecting the right value from DagRun
     update_query = _multi_table_update(dialect_name, task_instance, task_instance.c.run_id)
@@ -100,7 +104,8 @@ def upgrade():
         batch_op.alter_column('run_id', existing_type=run_id_col_type, existing_nullable=True, nullable=False)
 
         # TODO: Is this right for non-postgres?
-        batch_op.drop_constraint('task_instance_pkey', type_='primary')
+        if dialect_name not in ('sqlite'):
+            batch_op.drop_constraint('task_instance_pkey', type_='primary')
         batch_op.create_primary_key('task_instance_pkey', ['dag_id', 'task_id', 'run_id'])
 
         batch_op.drop_index('ti_dag_date')
