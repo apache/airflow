@@ -27,6 +27,7 @@ import threading
 import unittest
 from datetime import datetime, timedelta
 from tempfile import TemporaryDirectory
+from textwrap import dedent
 from unittest import mock
 from unittest.mock import MagicMock, PropertyMock
 
@@ -693,6 +694,48 @@ class TestDagFileProcessorManager:
             parent_pipe.close()
             child_pipe.close()
             thread.join(timeout=1.0)
+
+    @conf_vars({('core', 'load_examples'): 'False'})
+    @mock.patch('airflow.dag_processing.manager.Stats.timing')
+    def test_send_file_processing_statsd_timing(self, statsd_timing_mock, tmpdir):
+        # arrange
+        filename_to_parse = tmpdir / 'temp_dag.py'
+        # Generate dag
+        dag_code = dedent(
+            """
+        from airflow import DAG
+        dag = DAG(dag_id='temp_dag', schedule_interval='0 0 * * *')
+        """
+        )
+        with open(filename_to_parse, 'w') as file_to_parse:
+            file_to_parse.writelines(dag_code)
+
+        child_pipe, parent_pipe = multiprocessing.Pipe()
+
+        async_mode = 'sqlite' not in conf.get('core', 'sql_alchemy_conn')
+        manager = DagFileProcessorManager(
+            dag_directory=tmpdir,
+            max_runs=1,
+            processor_timeout=timedelta.max,
+            signal_conn=child_pipe,
+            dag_ids=[],
+            pickle_dags=False,
+            async_mode=async_mode,
+        )
+
+        # act
+        with create_session():
+            self.run_processor_manager_one_loop(manager, parent_pipe)
+
+        child_pipe.close()
+        parent_pipe.close()
+
+        # assert
+        # we check that after processing the file and removing it from DagFileProcessorManager._processors,
+        # the statistics on the last processing was sent to the statsd
+        statsd_timing_mock.assert_called_once_with(
+            'dag_processing.last_duration.temp_dag', manager.get_last_runtime(manager.file_paths[0])
+        )
 
 
 class TestDagFileProcessorAgent(unittest.TestCase):

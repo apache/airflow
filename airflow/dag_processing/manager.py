@@ -724,8 +724,8 @@ class DagFileProcessorManager(LoggingMixin):
             if last_run:
                 seconds_ago = (now - last_run).total_seconds()
                 Stats.gauge(f'dag_processing.last_run.seconds_ago.{file_name}', seconds_ago)
-            if runtime:
-                Stats.timing(f'dag_processing.last_duration.{file_name}', runtime)
+            if last_runtime:
+                Stats.timing(f'dag_processing.last_duration.{file_name}', last_runtime)
 
             rows.append((file_path, processor_pid, runtime, num_dags, num_errors, last_runtime, last_run))
 
