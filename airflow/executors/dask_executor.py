@@ -34,6 +34,11 @@ from airflow.executors.base_executor import NOT_STARTED_MESSAGE, BaseExecutor, C
 from airflow.models.taskinstance import TaskInstanceKey
 
 
+# queue="default" is a special case since this is the base config default queue name,
+# with respect to DaskExecutor, treat it as if no queue is provided
+_UNDEFINED_QUEUES = {None, 'default'}
+
+
 class DaskExecutor(BaseExecutor):
     """DaskExecutor submits tasks to a Dask Distributed cluster."""
 
@@ -82,7 +87,7 @@ class DaskExecutor(BaseExecutor):
             raise AirflowException(NOT_STARTED_MESSAGE)
 
         resources = None
-        if queue is not None:
+        if queue not in _UNDEFINED_QUEUES:
             scheduler_info = self.client.scheduler_info()
             avail_queues = {
                 resource for d in scheduler_info['workers'].values() for resource in d['resources']
