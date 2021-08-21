@@ -41,8 +41,8 @@ Airflow has extensive support for the `Google Cloud <https://cloud.google.com/>`
     <https://github.com/apache/airflow/tree/main/airflow/providers/google/cloud/example_dags/>`_
 
 
-Service operators and hooks
-"""""""""""""""""""""""""""
+Services
+""""""""
 
 These integrations allow you to perform various operations within the Google Cloud.
 
@@ -51,8 +51,8 @@ These integrations allow you to perform various operations within the Google Clo
    :header-separator: !
 
 
-Transfer operators and hooks
-""""""""""""""""""""""""""""
+Transfers
+"""""""""
 
 These integrations allow you to copy data from/to Google Cloud.
 
