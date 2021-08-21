@@ -453,6 +453,8 @@ workers:
     command: ~
     # Args to use when running the Airflow worker log groomer sidecar (templated).
     args: ["bash", "/clean-logs"]
+    # Number of days to retain logs
+    retentionDays: 15
     resources: {}
     #  limits:
     #   cpu: 100m
@@ -546,6 +548,8 @@ scheduler:
     command: ~
     # Args to use when running the Airflow scheduler log groomer sidecar (templated).
     args: ["bash", "/clean-logs"]
+    # Number of days to retain logs
+    retentionDays: 15
     resources: {}
     #  limits:
     #   cpu: 100m

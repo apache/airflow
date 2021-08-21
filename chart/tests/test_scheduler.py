@@ -353,6 +353,12 @@ class SchedulerTest(unittest.TestCase):
 
         assert jmespath.search("spec.template.spec.containers[1].command", docs[0]) is None
         assert ["bash", "/clean-logs"] == jmespath.search("spec.template.spec.containers[1].args", docs[0])
+    
+    def test_log_groomer_collector_default_retention_days(self):
+        docs = render_chart(show_only=["templates/scheduler/scheduler-deployment.yaml"])
+
+        assert "AIRFLOW__LOG_RETENTION_DAYS" == jmespath.search("spec.template.spec.containers[1].env[0].name", docs[0])
+        assert "15" == jmespath.search("spec.template.spec.containers[1].env[0].value", docs[0]) 
 
     @parameterized.expand(
         [
