@@ -33,7 +33,6 @@ from airflow.exceptions import AirflowException
 from airflow.executors.base_executor import NOT_STARTED_MESSAGE, BaseExecutor, CommandType
 from airflow.models.taskinstance import TaskInstanceKey
 
-
 # queue="default" is a special case since this is the base config default queue name,
 # with respect to DaskExecutor, treat it as if no queue is provided
 _UNDEFINED_QUEUES = {None, 'default'}
