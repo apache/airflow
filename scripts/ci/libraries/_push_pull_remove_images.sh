@@ -278,18 +278,13 @@ function push_pull_remove_images::check_image_manifest() {
 }
 
 # waits for an image to be available in the GitHub registry
-# Remove the fallback on 7th of August 2021
 function push_pull_remove_images::wait_for_image() {
     set +e
-    echo " Waiting for github registry image: $1 with $2 fallback"
+    echo " Waiting for github registry image: $1"
     while true
     do
         if push_pull_remove_images::check_image_manifest "$1"; then
             export IMAGE_AVAILABLE="$1"
-            break
-        fi
-        if push_pull_remove_images::check_image_manifest "$2"; then
-            export IMAGE_AVAILABLE="$2"
             break
         fi
         sleep 30

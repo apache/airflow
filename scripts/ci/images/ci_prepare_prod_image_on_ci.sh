@@ -32,10 +32,7 @@ function build_prod_images_on_ci() {
     build_images::prepare_prod_build
 
     if [[ ${GITHUB_REGISTRY_WAIT_FOR_IMAGE} == "true" ]]; then
-        # Tries to wait for the images indefinitely
-        # Remove me on 15th of August 2021 after all users had chance to rebase
-        legacy_prod_image="ghcr.io/${GITHUB_REPOSITORY}-${BRANCH_NAME}-python${PYTHON_MAJOR_MINOR_VERSION}-v2:${GITHUB_REGISTRY_PULL_IMAGE_TAG}"
-        build_images::wait_for_image_tag "${AIRFLOW_PROD_IMAGE}" ":${GITHUB_REGISTRY_PULL_IMAGE_TAG}" "${legacy_prod_image}"
+        build_images::wait_for_image_tag "${AIRFLOW_PROD_IMAGE}" ":${GITHUB_REGISTRY_PULL_IMAGE_TAG}"
     else
         build_images::build_prod_images_from_locally_built_airflow_packages
     fi

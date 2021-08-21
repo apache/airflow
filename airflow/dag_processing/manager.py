@@ -42,7 +42,6 @@ from airflow.dag_processing.processor import DagFileProcessorProcess
 from airflow.models import DagModel, errors
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.taskinstance import SimpleTaskInstance
-from airflow.settings import STORE_DAG_CODE
 from airflow.stats import Stats
 from airflow.utils import timezone
 from airflow.utils.callback_requests import CallbackRequest, SlaCallbackRequest, TaskCallbackRequest
@@ -443,8 +442,6 @@ class DagFileProcessorManager(LoggingMixin):
         # How many seconds do we wait for tasks to heartbeat before mark them as zombies.
         self._zombie_threshold_secs = conf.getint('scheduler', 'scheduler_zombie_task_threshold')
 
-        # Should store dag file source in a database?
-        self.store_dag_code = STORE_DAG_CODE
         # Map from file path to the processor
         self._processors: Dict[str, DagFileProcessorProcess] = {}
 
@@ -667,10 +664,9 @@ class DagFileProcessorManager(LoggingMixin):
             SerializedDagModel.remove_deleted_dags(self._file_paths)
             DagModel.deactivate_deleted_dags(self._file_paths)
 
-            if self.store_dag_code:
-                from airflow.models.dagcode import DagCode
+            from airflow.models.dagcode import DagCode
 
-                DagCode.remove_deleted_code(self._file_paths)
+            DagCode.remove_deleted_code(self._file_paths)
 
     def _print_stat(self):
         """Occasionally print out stats about how fast the files are getting processed"""

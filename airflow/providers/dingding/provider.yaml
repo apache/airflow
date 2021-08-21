@@ -50,3 +50,7 @@ hooks:
 
 hook-class-names:
   - airflow.providers.dingding.hooks.dingding.DingdingHook
+
+connection-types:
+  - hook-class-name: airflow.providers.dingding.hooks.dingding.DingdingHook
+    connection-type: dingding

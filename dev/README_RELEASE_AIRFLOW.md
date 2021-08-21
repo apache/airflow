@@ -24,7 +24,6 @@
   - [Selecting what to cherry-pick](#selecting-what-to-cherry-pick)
 - [Prepare the Apache Airflow Package RC](#prepare-the-apache-airflow-package-rc)
   - [Build RC artifacts](#build-rc-artifacts)
-  - [Manually prepare production Docker Image](#manually-prepare-production-docker-image)
   - [[\Optional\] Create new release branch](#%5Coptional%5C-create-new-release-branch)
   - [Prepare PyPI convenience "snapshot" packages](#prepare-pypi-convenience-snapshot-packages)
   - [Prepare production Docker Image](#prepare-production-docker-image)
@@ -40,7 +39,7 @@
   - [Publish release to SVN](#publish-release-to-svn)
   - [Prepare PyPI "release" packages](#prepare-pypi-release-packages)
   - [Update CHANGELOG.md](#update-changelogmd)
-  - [Manually prepare production Docker Image](#manually-prepare-production-docker-image-1)
+  - [Manually prepare production Docker Image](#manually-prepare-production-docker-image)
   - [Publish documentation](#publish-documentation)
   - [Notify developers of release](#notify-developers-of-release)
   - [Update Announcements page](#update-announcements-page)
@@ -116,12 +115,22 @@ The Release Candidate artifacts we vote upon should be the exact ones we vote ag
         -o dist/apache-airflow-${VERSION_WITHOUT_RC}-source.tar.gz
     ```
 
-
 - Generate SHA512/ASC (If you have not generated a key yet, generate it by following instructions on http://www.apache.org/dev/openpgp.html#key-gen-generate-key)
 
     ```shell script
     ./breeze prepare-airflow-packages --package-format both
-    ${AIRFLOW_REPO_ROOT}/dev/sign.sh dist/*
+    pushd dist
+    ${AIRFLOW_REPO_ROOT}/dev/sign.sh *
+    popd
+    ```
+
+- If you aren't using Breeze for packaging, build the distribution and wheel files directly
+
+    ```shell script
+    python setup.py compile_assets sdist bdist_wheel
+    pushd dist
+    ${AIRFLOW_REPO_ROOT}/dev/sign.sh *
+    popd
     ```
 
 - Tag & Push the latest constraints files. This pushes constraints with rc suffix (this is expected)!
@@ -148,18 +157,6 @@ The Release Candidate artifacts we vote upon should be the exact ones we vote ag
     svn add *
     svn commit -m "Add artifacts for Airflow ${VERSION}"
     ```
-
-
-## Manually prepare production Docker Image
-
-
-```shell script
-./scripts/ci/tools/prepare_prod_docker_images.sh ${VERSION}
-```
-
-This will wipe Breeze cache and docker-context-files in order to make sure the build is "clean". It
-also performs image verification before pushing the images.
-
 
 ## [\Optional\] Create new release branch
 

@@ -42,3 +42,7 @@ hooks:
 
 hook-class-names:
   - airflow.providers.cloudant.hooks.cloudant.CloudantHook
+
+connection-types:
+  - hook-class-name: airflow.providers.cloudant.hooks.cloudant.CloudantHook
+    connection-type: cloudant

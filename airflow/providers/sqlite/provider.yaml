@@ -48,3 +48,7 @@ hooks:
 
 hook-class-names:
   - airflow.providers.sqlite.hooks.sqlite.SqliteHook
+
+connection-types:
+  - hook-class-name: airflow.providers.sqlite.hooks.sqlite.SqliteHook
+    connection-type: sqlite

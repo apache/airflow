@@ -31,11 +31,7 @@ function build_ci_image_on_ci() {
         # Pretend that the image was build. We already have image with the right sources baked in!
         # so all the checksums are assumed to be correct
         md5sum::calculate_md5sum_for_all_files
-
-        # Remove me on 15th of August 2021 after all users had chance to rebase
-        legacy_ci_image="ghcr.io/${GITHUB_REPOSITORY}-${BRANCH_NAME}-python${PYTHON_MAJOR_MINOR_VERSION}-ci-v2:${GITHUB_REGISTRY_PULL_IMAGE_TAG}"
-
-        build_images::wait_for_image_tag "${AIRFLOW_CI_IMAGE}" ":${GITHUB_REGISTRY_PULL_IMAGE_TAG}" "${legacy_ci_image}"
+        build_images::wait_for_image_tag "${AIRFLOW_CI_IMAGE}" ":${GITHUB_REGISTRY_PULL_IMAGE_TAG}"
         md5sum::update_all_md5_with_group
     else
         build_images::rebuild_ci_image_if_needed

@@ -111,6 +111,7 @@ release = PACKAGE_VERSION
 
 rst_epilog = f"""
 .. |version| replace:: {version}
+.. |airflow-version| replace:: {airflow.__version__}
 """
 
 # -- General configuration -----------------------------------------------------

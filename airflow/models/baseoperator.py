@@ -221,7 +221,8 @@ class BaseOperator(Operator, LoggingMixin, TaskMixin, metaclass=BaseOperatorMeta
 
     :param task_id: a unique, meaningful id for the task
     :type task_id: str
-    :param owner: the owner of the task, using the unix username is recommended
+    :param owner: the owner of the task. Using a meaningful description
+        (e.g. user/person/team/role name) to clarify ownership is recommended.
     :type owner: str
     :param email: the 'to' email address(es) used in email alerts. This can be a
         single email or multiple ones. Multiple addresses can be specified as a
@@ -349,7 +350,7 @@ class BaseOperator(Operator, LoggingMixin, TaskMixin, metaclass=BaseOperatorMeta
     :param trigger_rule: defines the rule by which dependencies are applied
         for the task to get triggered. Options are:
         ``{ all_success | all_failed | all_done | one_success |
-        one_failed | none_failed | none_failed_or_skipped | none_skipped | always}``
+        one_failed | none_failed | none_failed_min_one_success | none_skipped | always}``
         default is ``all_success``. Options can be set as string or
         using the constants defined in the static class
         ``airflow.utils.TriggerRule``
@@ -359,9 +360,9 @@ class BaseOperator(Operator, LoggingMixin, TaskMixin, metaclass=BaseOperatorMeta
     :type resources: dict
     :param run_as_user: unix username to impersonate while running the task
     :type run_as_user: str
-    :param task_concurrency: When set, a task will be able to limit the concurrent
-        runs across execution_dates
-    :type task_concurrency: int
+    :param max_active_tis_per_dag: When set, a task will be able to limit the concurrent
+        runs across execution_dates.
+    :type max_active_tis_per_dag: int
     :param executor_config: Additional task-level configuration parameters that are
         interpreted by a specific executor. Parameters are namespaced by the name of
         executor.
@@ -491,6 +492,7 @@ class BaseOperator(Operator, LoggingMixin, TaskMixin, metaclass=BaseOperatorMeta
         resources: Optional[Dict] = None,
         run_as_user: Optional[str] = None,
         task_concurrency: Optional[int] = None,
+        max_active_tis_per_dag: Optional[int] = None,
         executor_config: Optional[Dict] = None,
         do_xcom_push: bool = True,
         inlets: Optional[Any] = None,
@@ -550,6 +552,15 @@ class BaseOperator(Operator, LoggingMixin, TaskMixin, metaclass=BaseOperatorMeta
                 stacklevel=2,
             )
             trigger_rule = TriggerRule.ALWAYS
+
+        if trigger_rule == "none_failed_or_skipped":
+            warnings.warn(
+                "none_failed_or_skipped Trigger Rule is deprecated. "
+                "Please use `none_failed_min_one_success`.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+            trigger_rule = TriggerRule.NONE_FAILED_MIN_ONE_SUCCESS
 
         if not TriggerRule.is_valid(trigger_rule):
             raise AirflowException(
@@ -623,7 +634,15 @@ class BaseOperator(Operator, LoggingMixin, TaskMixin, metaclass=BaseOperatorMeta
         self.weight_rule = weight_rule
         self.resources: Optional[Resources] = Resources(**resources) if resources else None
         self.run_as_user = run_as_user
-        self.task_concurrency = task_concurrency
+        if task_concurrency and not max_active_tis_per_dag:
+            # TODO: Remove in Airflow 3.0
+            warnings.warn(
+                "The 'task_concurrency' parameter is deprecated. Please use 'max_active_tis_per_dag'.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+            max_active_tis_per_dag = task_concurrency
+        self.max_active_tis_per_dag = max_active_tis_per_dag
         self.executor_config = executor_config or {}
         self.do_xcom_push = do_xcom_push
 

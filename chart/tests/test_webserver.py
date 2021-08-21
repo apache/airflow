@@ -452,6 +452,7 @@ class WebserverServiceTest(unittest.TestCase):
                         "type": "LoadBalancer",
                         "loadBalancerIP": "127.0.0.1",
                         "annotations": {"foo": "bar"},
+                        "loadBalancerSourceRanges": ["10.123.0.0/16"],
                     }
                 },
             },
@@ -462,6 +463,7 @@ class WebserverServiceTest(unittest.TestCase):
         assert "LoadBalancer" == jmespath.search("spec.type", docs[0])
         assert {"name": "airflow-ui", "port": 9000} in jmespath.search("spec.ports", docs[0])
         assert "127.0.0.1" == jmespath.search("spec.loadBalancerIP", docs[0])
+        assert ["10.123.0.0/16"] == jmespath.search("spec.loadBalancerSourceRanges", docs[0])
 
     @parameterized.expand(
         [

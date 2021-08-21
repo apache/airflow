@@ -58,3 +58,11 @@ hook-class-names:
   - airflow.providers.apache.spark.hooks.spark_jdbc.SparkJDBCHook
   - airflow.providers.apache.spark.hooks.spark_sql.SparkSqlHook
   - airflow.providers.apache.spark.hooks.spark_submit.SparkSubmitHook
+
+connection-types:
+  - hook-class-name: airflow.providers.apache.spark.hooks.spark_jdbc.SparkJDBCHook
+    connection-type: spark_jdbc
+  - hook-class-name: airflow.providers.apache.spark.hooks.spark_sql.SparkSqlHook
+    connection-type: spark_sql
+  - hook-class-name: airflow.providers.apache.spark.hooks.spark_submit.SparkSubmitHook
+    connection-type: spark
