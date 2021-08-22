@@ -15,6 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+import datetime
 
 from airflow.sensors.base import BaseSensorOperator
 from airflow.triggers.temporal import DateTimeTrigger
@@ -50,9 +51,15 @@ class TimeSensorAsync(BaseSensorOperator):
     def __init__(self, *, target_time, **kwargs):
         super().__init__(**kwargs)
         self.target_time = target_time
+        current_time = timezone.make_naive(timezone.utcnow(), self.dag.timezone)
+        todays_date = current_time.date()
+        self.target_datetime = datetime.datetime.combine(todays_date, self.target_time, current_time.tzinfo)
 
     def execute(self, context):
-        self.defer(trigger=DateTimeTrigger(moment=self.target_time), method_name="execute_complete")
+        self.defer(
+            trigger=DateTimeTrigger(moment=self.target_datetime),
+            method_name="execute_complete",
+        )
 
     def execute_complete(self, context, event=None):  # pylint: disable=unused-argument
         """Callback for when the trigger fires - returns immediately."""
