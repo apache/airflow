@@ -19,6 +19,7 @@
 
 import unittest
 from datetime import timedelta
+from unittest import mock
 from unittest.mock import Mock, patch
 
 import pytest
@@ -26,6 +27,7 @@ from freezegun import freeze_time
 
 from airflow.exceptions import AirflowException, AirflowRescheduleException, AirflowSensorTimeout
 from airflow.models import DagBag, TaskInstance, TaskReschedule
+from airflow.models.base import get_id_collation_args
 from airflow.models.dag import DAG
 from airflow.operators.dummy import DummyOperator
 from airflow.sensors.base import BaseSensorOperator, poke_mode_only
@@ -655,3 +657,42 @@ class TestPokeModeOnly(unittest.TestCase):
         sensor = DummyPokeOnlySensor(task_id='foo', mode='poke', poke_changes_mode=True, dag=self.dag)
         with pytest.raises(ValueError):
             sensor.poke({})
+
+
+class TestCollation(unittest.TestCase):
+    @mock.patch.dict(
+        'os.environ',
+        AIRFLOW__CORE__SQL_ALCHEMY_CONN='postgres://host/the_database',
+    )
+    def test_collation_empty_on_non_mysql(self):
+        assert {} == get_id_collation_args()
+
+    @mock.patch.dict(
+        'os.environ',
+        AIRFLOW__CORE__SQL_ALCHEMY_CONN='mysql://host/the_database',
+    )
+    def test_collation_set_on_mysql(self):
+        assert {"collation": "utf8mb3_general_ci"} == get_id_collation_args()
+
+    @mock.patch.dict(
+        'os.environ',
+        AIRFLOW__CORE__SQL_ALCHEMY_CONN='mysql+pymsql://host/the_database',
+    )
+    def test_collation_set_on_mysql_with_pymsql(self):
+        assert {"collation": "utf8mb3_general_ci"} == get_id_collation_args()
+
+    @mock.patch.dict(
+        'os.environ',
+        AIRFLOW__CORE__SQL_ALCHEMY_CONN='mysql://host/the_database',
+        AIRFLOW__CORE__SQL_ENGINE_COLLATION_FOR_IDS='ascii',
+    )
+    def test_collation_override_on_non_mysql(self):
+        assert {"collation": "ascii"} == get_id_collation_args()
+
+    @mock.patch.dict(
+        'os.environ',
+        AIRFLOW__CORE__SQL_ALCHEMY_CONN='postgres://host/the_database',
+        AIRFLOW__CORE__SQL_ENGINE_COLLATION_FOR_IDS='ascii',
+    )
+    def test_collation_override_on_mysql(self):
+        assert {"collation": "ascii"} == get_id_collation_args()
