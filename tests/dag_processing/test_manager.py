@@ -698,9 +698,7 @@ class TestDagFileProcessorManager:
     @conf_vars({('core', 'load_examples'): 'False'})
     @mock.patch('airflow.dag_processing.manager.Stats.timing')
     def test_send_file_processing_statsd_timing(self, statsd_timing_mock, tmpdir):
-        # arrange
         filename_to_parse = tmpdir / 'temp_dag.py'
-        # Generate dag
         dag_code = dedent(
             """
         from airflow import DAG
@@ -723,19 +721,16 @@ class TestDagFileProcessorManager:
             async_mode=async_mode,
         )
 
-        # act
         with create_session():
+            self.run_processor_manager_one_loop(manager, parent_pipe)
+            last_runtime = manager.get_last_runtime(manager.file_paths[0])
+            manager.last_stat_print_time = 0
             self.run_processor_manager_one_loop(manager, parent_pipe)
 
         child_pipe.close()
         parent_pipe.close()
 
-        # assert
-        # we check that after processing the file and removing it from DagFileProcessorManager._processors,
-        # the statistics on the last processing was sent to the statsd
-        statsd_timing_mock.assert_called_once_with(
-            'dag_processing.last_duration.temp_dag', manager.get_last_runtime(manager.file_paths[0])
-        )
+        statsd_timing_mock.assert_called_once_with('dag_processing.last_duration.temp_dag', last_runtime)
 
 
 class TestDagFileProcessorAgent(unittest.TestCase):
