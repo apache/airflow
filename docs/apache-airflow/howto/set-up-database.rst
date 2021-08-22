@@ -214,7 +214,7 @@ We recommend using the ``psycopg2`` driver and specifying it in your SqlAlchemy 
    postgresql+psycopg2://<user>:<password>@<host>/<db>
 
 Also note that since SqlAlchemy does not expose a way to target a specific schema in the database URI, you may
-want to set a default schema for your role with a SQL statement similar to ``ALTER ROLE airflow_user SET search_path = airflow, public, utility;``
+want to set a default schema for your user with a SQL statement similar to ``ALTER USER airflow_user SET search_path = airflow, public, utility;``
 
 For more information regarding setup of the PostgresSQL connection, see `PostgreSQL dialect <https://docs.sqlalchemy.org/en/13/dialects/postgresql.html>`__ in SQLAlchemy documentation.
 
