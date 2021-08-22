@@ -48,7 +48,7 @@ Commit                                                                          
 `d01cc945d <https://github.com/apache/airflow/commit/d01cc945ddb03620216159335729a36c1a20f9f2>`_  2021-07-26   ``Fixes several failing tests after broken main (#17222)``
 `babc4250f <https://github.com/apache/airflow/commit/babc4250f3c5420e8d8059d500ba8d0e95d70873>`_  2021-07-26   ``Fixes statich check failures (#17218)``
 `5d2224795 <https://github.com/apache/airflow/commit/5d2224795b3548516311025d5549094a9b168f3b>`_  2021-07-25   ``Google Ads Hook: Support newer versions of the google-ads library (#17160)``
-`966b25019 <https://github.com/apache/airflow/commit/966b2501995279b7b5f2e1d0bf1c63a511dd382e>`_  2021-07-25   ``Fix GCStoGCS operator with replace diabled and existing destination object (#16991)``
+`966b25019 <https://github.com/apache/airflow/commit/966b2501995279b7b5f2e1d0bf1c63a511dd382e>`_  2021-07-25   ``Fix GCStoGCS operator with replace disabled and existing destination object (#16991)``
 `763919d41 <https://github.com/apache/airflow/commit/763919d4152ffa13433e2489fec85ed286b7b196>`_  2021-07-25   ``Adding custom Salesforce connection type + SalesforceToS3Operator updates (#17162)``
 `81bd40933 <https://github.com/apache/airflow/commit/81bd40933ea85a0d7807cf7f9a841157ec885cdf>`_  2021-07-23   ``[CASSANDRA-16814] Fix cassandra to gcs type inconsistency. (#17183)``
 `026ffe65d <https://github.com/apache/airflow/commit/026ffe65d4738674512f691a56b922e82d0a2309>`_  2021-07-19   ``fix: dataprocpysparkjob project_id as self.project_id (#17075)``
@@ -250,7 +250,7 @@ Latest change: 2020-12-09
 Commit                                                                                            Committed    Subject
 ================================================================================================  ===========  ======================================================================================================================================================================
 `32971a1a2 <https://github.com/apache/airflow/commit/32971a1a2de1db0b4f7442ed26facdf8d3b7a36f>`_  2020-12-09   ``Updates providers versions to 1.0.0 (#12955)``
-`b40dffa08 <https://github.com/apache/airflow/commit/b40dffa08547b610162f8cacfa75847f3c4ca364>`_  2020-12-08   ``Rename remaing modules to match AIP-21 (#12917)``
+`b40dffa08 <https://github.com/apache/airflow/commit/b40dffa08547b610162f8cacfa75847f3c4ca364>`_  2020-12-08   ``Rename remaining modules to match AIP-21 (#12917)``
 `9b39f2478 <https://github.com/apache/airflow/commit/9b39f24780e85f859236672e9060b2fbeee81b36>`_  2020-12-08   ``Add support for dynamic connection form fields per provider (#12558)``
 `1dcd3e13f <https://github.com/apache/airflow/commit/1dcd3e13fd0a078fc9440e91b77f6f87aa60dd3b>`_  2020-12-05   ``Add support for extra links coming from the providers (#12472)``
 `2037303ee <https://github.com/apache/airflow/commit/2037303eef93fd36ab13746b045d1c1fee6aa143>`_  2020-11-29   ``Adds support for Connection/Hook discovery from providers (#12466)``
@@ -284,7 +284,7 @@ Commit                                                                          
 `2ef3b7ef8 <https://github.com/apache/airflow/commit/2ef3b7ef8cafe3bdc8bf8db70fbc519b98576366>`_  2020-11-08   ``Fix ERROR - Object of type 'bytes' is not JSON serializable when using store_to_xcom_key parameter (#12172)``
 `0caec9fd3 <https://github.com/apache/airflow/commit/0caec9fd32bee2b3036b5d7bdcb56bd6a3b9dccf>`_  2020-11-06   ``Dataflow - add waiting for successful job cancel (#11501)``
 `cf9437d79 <https://github.com/apache/airflow/commit/cf9437d79f9658d1309e4bfe847fe63d52ec7b99>`_  2020-11-06   ``Simplify string expressions (#12123)``
-`91a64db50 <https://github.com/apache/airflow/commit/91a64db505e50712cd53928b4f2b84aece3cc1c0>`_  2020-11-04   ``Format all files (without excepions) by black (#12091)``
+`91a64db50 <https://github.com/apache/airflow/commit/91a64db505e50712cd53928b4f2b84aece3cc1c0>`_  2020-11-04   ``Format all files (without exceptions) by black (#12091)``
 `fd3db778e <https://github.com/apache/airflow/commit/fd3db778e715d0f164dda7ee8f672d477a323291>`_  2020-11-04   ``Add server side cursor support for postgres to GCS operator (#11793)``
 `f1f194026 <https://github.com/apache/airflow/commit/f1f1940261744b4fdb67b0b5654488494efa9c64>`_  2020-11-04   ``Add DataflowStartSQLQuery operator (#8553)``
 `41bf172c1 <https://github.com/apache/airflow/commit/41bf172c1dc75099f4f9d8b3f3350b4b1f523ef9>`_  2020-11-04   ``Simplify string expressions (#12093)``
@@ -365,9 +365,9 @@ Commit                                                                          
 `2f2d8dbfa <https://github.com/apache/airflow/commit/2f2d8dbfafefb4be3dd80f22f31c649c8498f148>`_  2020-08-25   ``Remove all "noinspection" comments native to IntelliJ (#10525)``
 `3734876d9 <https://github.com/apache/airflow/commit/3734876d9898067ee933b84af522d53df6160d7f>`_  2020-08-24   ``Implement impersonation in google operators (#10052)``
 `b0598b535 <https://github.com/apache/airflow/commit/b0598b5351d2d027286e2333231b6c0c0704dba2>`_  2020-08-24   ``Add support for creating multiple replicated clusters in Bigtable hook and operator (#10475)``
-`ee7ca128a <https://github.com/apache/airflow/commit/ee7ca128a17937313566f2badb6cc569c614db94>`_  2020-08-22   ``Fix broken Markdown refernces in Providers README (#10483)``
+`ee7ca128a <https://github.com/apache/airflow/commit/ee7ca128a17937313566f2badb6cc569c614db94>`_  2020-08-22   ``Fix broken Markdown references in Providers README (#10483)``
 `515cc72c9 <https://github.com/apache/airflow/commit/515cc72c995429c8c007f853ade385d79fcbac90>`_  2020-08-22   ``Fix typo in timed_out (#10459)``
-`7c206a82a <https://github.com/apache/airflow/commit/7c206a82a6f074abcc4898a005ecd2c84a920054>`_  2020-08-22   ``Replace assigment with Augmented assignment (#10468)``
+`7c206a82a <https://github.com/apache/airflow/commit/7c206a82a6f074abcc4898a005ecd2c84a920054>`_  2020-08-22   ``Replace assignment with Augmented assignment (#10468)``
 `88c7d2e52 <https://github.com/apache/airflow/commit/88c7d2e526af4994066f65f830e2fa8edcbbce2e>`_  2020-08-21   ``Dataflow operators don't not always create a virtualenv (#10373)``
 `083c3c129 <https://github.com/apache/airflow/commit/083c3c129bc3458d410f5ff37d7f5a9a7ad548b7>`_  2020-08-18   ``Simplified GCSTaskHandler configuration (#10365)``
 `1ae5bdf23 <https://github.com/apache/airflow/commit/1ae5bdf23e3ac7cca05325ef8b255a7cf067e18e>`_  2020-08-17   ``Add test for GCSTaskHandler (#9600) (#9861)``
@@ -394,7 +394,7 @@ Commit                                                                          
 `b79466c12 <https://github.com/apache/airflow/commit/b79466c12f3ae717c31804acc2e9ffcd60f9611c>`_  2020-08-02   ``Fix sensor not providing arguments for GCSHook (#10074)``
 `4ee35d027 <https://github.com/apache/airflow/commit/4ee35d027988c6456767faeb108a7f686d5117f2>`_  2020-08-02   ``Fix hook not passing gcp_conn_id to base class (#10075)``
 `aeea71274 <https://github.com/apache/airflow/commit/aeea71274d4527ff2351102e94aa38bda6099e7f>`_  2020-08-02   ``Remove 'args' parameter from provider operator constructors (#10097)``
-`4c84661ad <https://github.com/apache/airflow/commit/4c84661adb5bb5c581bb4193b4c7e935cbe07758>`_  2020-07-31   ``Split Display Video 360 example into smaler DAGs (#10077)``
+`4c84661ad <https://github.com/apache/airflow/commit/4c84661adb5bb5c581bb4193b4c7e935cbe07758>`_  2020-07-31   ``Split Display Video 360 example into smaller DAGs (#10077)``
 `59cbff087 <https://github.com/apache/airflow/commit/59cbff0874dd5318cda4b9ce7b7eeb1aad1dad4d>`_  2020-07-29   ``Fix docstrings in BigQueryGetDataOperator (#10042)``
 `81b87d48e <https://github.com/apache/airflow/commit/81b87d48ed002d7a7f7bcb72a58e82d40a176fe2>`_  2020-07-27   ``Add unit tests for GcpBodyFieldSanitizer in Google providers (#9996)``
 `7d24b088c <https://github.com/apache/airflow/commit/7d24b088cd736cfa18f9214e4c9d6ce2d5865f3d>`_  2020-07-25   ``Stop using start_date in default_args in example_dags (2) (#9985)``
@@ -458,7 +458,7 @@ Commit                                                                          
 `a779c4dfc <https://github.com/apache/airflow/commit/a779c4dfc278d6ece480b012764ea5814dc78dee>`_  2020-05-29   ``add separate example dags and system tests for GCSToGoogleSheetsOperator (#9066)``
 `ada26be23 <https://github.com/apache/airflow/commit/ada26be23c913796c2ae77b91cb7d113dfec75a6>`_  2020-05-29   ``Add correct description for dst param in LocalFilesystemToGCSOperator (#9055)``
 `81b2761b8 <https://github.com/apache/airflow/commit/81b2761b86dae2d21a6ee859d49c08d46fea6def>`_  2020-05-29   ``add example dag and system test for GoogleSheetsToGCSOperator (#9056)``
-`0b0e4f7a4 <https://github.com/apache/airflow/commit/0b0e4f7a4cceff3efe15161fb40b984782760a34>`_  2020-05-26   ``Preparing for RC3 relase of backports (#9026)``
+`0b0e4f7a4 <https://github.com/apache/airflow/commit/0b0e4f7a4cceff3efe15161fb40b984782760a34>`_  2020-05-26   ``Preparing for RC3 release of backports (#9026)``
 `00642a46d <https://github.com/apache/airflow/commit/00642a46d019870c4decb3d0e47c01d6a25cb88c>`_  2020-05-26   ``Fixed name of 20 remaining wrongly named operators. (#8994)``
 `3994030ea <https://github.com/apache/airflow/commit/3994030ea678727daaf9c2bfed0ca94a096f8d2a>`_  2020-05-26   ``Refactor BigQuery operators (#8858)``
 `cdb3f2545 <https://github.com/apache/airflow/commit/cdb3f25456e49d0199cd7ccd680626dac01c9be6>`_  2020-05-26   ``All classes in backport providers are now importable in Airflow 1.10 (#8991)``

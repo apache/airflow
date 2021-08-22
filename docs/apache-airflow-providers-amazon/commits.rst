@@ -168,7 +168,7 @@ Commit                                                                          
 `88bdcfa0d <https://github.com/apache/airflow/commit/88bdcfa0df5bcb4c489486e05826544b428c8f43>`_  2021-02-04   ``Prepare to release a new wave of providers. (#14013)``
 `ac2f72c98 <https://github.com/apache/airflow/commit/ac2f72c98dc0821b33721054588adbf2bb53bb0b>`_  2021-02-01   ``Implement provider versioning tools (#13767)``
 `01049ddce <https://github.com/apache/airflow/commit/01049ddce210f475d6eae9b1cb306f750a1d6dd8>`_  2021-01-31   ``Add aws ses email backend for use with EmailOperator. (#13986)``
-`ecfdc60bb <https://github.com/apache/airflow/commit/ecfdc60bb607fe0d13fa7e315476c607813abab6>`_  2021-01-29   ``Add bucket_name to template fileds in S3 operators (#13973)``
+`ecfdc60bb <https://github.com/apache/airflow/commit/ecfdc60bb607fe0d13fa7e315476c607813abab6>`_  2021-01-29   ``Add bucket_name to template fields in S3 operators (#13973)``
 `d0ab7f6d3 <https://github.com/apache/airflow/commit/d0ab7f6d3a2976167f9c4fb309c502a4f866f983>`_  2021-01-25   ``Add ExasolToS3Operator (#13847)``
 `6d55f329f <https://github.com/apache/airflow/commit/6d55f329f93c5cd1e94973194c0cd7caa65309e1>`_  2021-01-25   ``AWS Glue Crawler Integration (#13072)``
 `f473ca713 <https://github.com/apache/airflow/commit/f473ca7130f844bc59477674e641b42b80698bb7>`_  2021-01-24   ``Replace 'google_cloud_storage_conn_id' by 'gcp_conn_id' when using 'GCSHook' (#13851)``
@@ -200,7 +200,7 @@ Commit                                                                          
 ================================================================================================  ===========  ======================================================================================================================================================================
 `32971a1a2 <https://github.com/apache/airflow/commit/32971a1a2de1db0b4f7442ed26facdf8d3b7a36f>`_  2020-12-09   ``Updates providers versions to 1.0.0 (#12955)``
 `d5589673a <https://github.com/apache/airflow/commit/d5589673a95aaced0b851ea0a4061a010a924a82>`_  2020-12-08   ``Move dummy_operator.py to dummy.py (#11178) (#11293)``
-`b40dffa08 <https://github.com/apache/airflow/commit/b40dffa08547b610162f8cacfa75847f3c4ca364>`_  2020-12-08   ``Rename remaing modules to match AIP-21 (#12917)``
+`b40dffa08 <https://github.com/apache/airflow/commit/b40dffa08547b610162f8cacfa75847f3c4ca364>`_  2020-12-08   ``Rename remaining modules to match AIP-21 (#12917)``
 `9b39f2478 <https://github.com/apache/airflow/commit/9b39f24780e85f859236672e9060b2fbeee81b36>`_  2020-12-08   ``Add support for dynamic connection form fields per provider (#12558)``
 `bd90136aa <https://github.com/apache/airflow/commit/bd90136aaf5035e3234fe545b79a3e4aad21efe2>`_  2020-11-30   ``Move operator guides to provider documentation packages (#12681)``
 `02d94349b <https://github.com/apache/airflow/commit/02d94349be3d201ce9d37d7358573c937fd010df>`_  2020-11-29   ``Don't use time.time() or timezone.utcnow() for duration calculations (#12353)``
@@ -273,9 +273,9 @@ Commit                                                                          
 `fdd9b6f65 <https://github.com/apache/airflow/commit/fdd9b6f65b608c516b8a062b058972d9a45ec9e3>`_  2020-08-25   ``Enable Black on Providers Packages (#10543)``
 `3696c34c2 <https://github.com/apache/airflow/commit/3696c34c28c6bc7b442deab999d9ecba24ed0e34>`_  2020-08-24   ``Fix typo in the word "release" (#10528)``
 `3734876d9 <https://github.com/apache/airflow/commit/3734876d9898067ee933b84af522d53df6160d7f>`_  2020-08-24   ``Implement impersonation in google operators (#10052)``
-`ee7ca128a <https://github.com/apache/airflow/commit/ee7ca128a17937313566f2badb6cc569c614db94>`_  2020-08-22   ``Fix broken Markdown refernces in Providers README (#10483)``
+`ee7ca128a <https://github.com/apache/airflow/commit/ee7ca128a17937313566f2badb6cc569c614db94>`_  2020-08-22   ``Fix broken Markdown references in Providers README (#10483)``
 `c6358045f <https://github.com/apache/airflow/commit/c6358045f9d61af63c96833cb6682d6f382a6408>`_  2020-08-22   ``Fixes S3ToRedshift COPY query (#10436)``
-`7c206a82a <https://github.com/apache/airflow/commit/7c206a82a6f074abcc4898a005ecd2c84a920054>`_  2020-08-22   ``Replace assigment with Augmented assignment (#10468)``
+`7c206a82a <https://github.com/apache/airflow/commit/7c206a82a6f074abcc4898a005ecd2c84a920054>`_  2020-08-22   ``Replace assignment with Augmented assignment (#10468)``
 `27d08b76a <https://github.com/apache/airflow/commit/27d08b76a2d171d716a1599157a8a60a121dbec6>`_  2020-08-21   ``Amazon SES Hook (#10391)``
 `dea345b05 <https://github.com/apache/airflow/commit/dea345b05c2cd226e70f97a3934d7456aa1cc754>`_  2020-08-17   ``Fix AwsGlueJobSensor to stop running after the Glue job finished (#9022)``
 `f6734b3b8 <https://github.com/apache/airflow/commit/f6734b3b850d33d3712763f93c114e80f5af9ffb>`_  2020-08-12   ``Enable Sphinx spellcheck for doc generation (#10280)``
@@ -323,7 +323,7 @@ Commit                                                                          
 `17adcea83 <https://github.com/apache/airflow/commit/17adcea835cb7b0cf2d8da0ac7dda5549cfa3e45>`_  2020-06-02   ``Fix handling of subprocess error handling in s3_file_transform and gcs (#9106)``
 `357e11e0c <https://github.com/apache/airflow/commit/357e11e0cfb4c02833018e073bc4f5e5b52fae4f>`_  2020-05-29   ``Add Delete/Create S3 bucket operators (#8895)``
 `1ed171bfb <https://github.com/apache/airflow/commit/1ed171bfb265ded8674058bdc425640d25f1f4fc>`_  2020-05-28   ``Add script_args for S3FileTransformOperator (#9019)``
-`0b0e4f7a4 <https://github.com/apache/airflow/commit/0b0e4f7a4cceff3efe15161fb40b984782760a34>`_  2020-05-26   ``Preparing for RC3 relase of backports (#9026)``
+`0b0e4f7a4 <https://github.com/apache/airflow/commit/0b0e4f7a4cceff3efe15161fb40b984782760a34>`_  2020-05-26   ``Preparing for RC3 release of backports (#9026)``
 `00642a46d <https://github.com/apache/airflow/commit/00642a46d019870c4decb3d0e47c01d6a25cb88c>`_  2020-05-26   ``Fixed name of 20 remaining wrongly named operators. (#8994)``
 `1d36b0303 <https://github.com/apache/airflow/commit/1d36b0303b8632fce6de78ca4e782ae26ee06fea>`_  2020-05-23   ``Fix references in docs (#8984)``
 `f946f96da <https://github.com/apache/airflow/commit/f946f96da45d8e6101805450d8cab7ccb2774ad0>`_  2020-05-23   ``Old json boto compat removed from dynamodb_to_s3 operator (#8987)``
