@@ -721,16 +721,15 @@ class TestDagFileProcessorManager:
             async_mode=async_mode,
         )
 
-        with create_session():
-            self.run_processor_manager_one_loop(manager, parent_pipe)
-            last_runtime = manager.get_last_runtime(manager.file_paths[0])
-            manager.last_stat_print_time = 0
-            self.run_processor_manager_one_loop(manager, parent_pipe)
+        self.run_processor_manager_one_loop(manager, parent_pipe)
+        last_runtime = manager.get_last_runtime(manager.file_paths[0])
+        manager.last_stat_print_time = 0
+        self.run_processor_manager_one_loop(manager, parent_pipe)
 
         child_pipe.close()
         parent_pipe.close()
 
-        statsd_timing_mock.assert_called_once_with('dag_processing.last_duration.temp_dag', last_runtime)
+        statsd_timing_mock.assert_called_with('dag_processing.last_duration.temp_dag', last_runtime)
 
 
 class TestDagFileProcessorAgent(unittest.TestCase):
