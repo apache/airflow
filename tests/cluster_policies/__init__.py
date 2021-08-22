@@ -58,7 +58,7 @@ def _check_task_rules(current_task: BaseOperator):
         )
 
 
-def cluster_policy(task: BaseOperator):
+def task_policy(task: BaseOperator):
     """Ensure Tasks have non-default owners."""
     _check_task_rules(task)
 
