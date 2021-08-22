@@ -23,8 +23,6 @@ from datetime import datetime, timedelta
 import freezegun
 import pytest
 
-from airflow.timetables.base import DataInterval
-
 # We should set these before loading _any_ of the rest of airflow so that the
 # unit test mode config is set as early as possible.
 assert "airflow" not in sys.modules, "No airflow module can be imported before these lines"
@@ -513,6 +511,7 @@ def dag_maker(request):
                 self.dagbag.bag_dag(self.dag, self.dag)
 
         def create_dagrun(self, **kwargs):
+            from airflow.timetables.base import DataInterval
             from airflow.utils.state import State
 
             dag = self.dag
