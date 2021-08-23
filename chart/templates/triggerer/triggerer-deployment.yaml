@@ -157,7 +157,7 @@ spec:
 
                 with create_session() as session:
                     job = session.query(TriggererJob).filter_by(hostname=get_hostname()).order_by(
-                        SchedulerJob.latest_heartbeat.desc()).limit(1).first()
+                        TriggererJob.latest_heartbeat.desc()).limit(1).first()
 
                 sys.exit(0 if job.is_alive() else 1)
         {{- if .Values.triggerer.extraContainers }}
