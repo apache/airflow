@@ -155,7 +155,7 @@ dag = DAG(
 
 store_task = PythonOperator(provide_context=True,
                             task_id=TASK_ID, dag=dag,
-                            python_callable=trigger_training_task)
+                            python_callable=trigger_training_task, priority_weight=10)
 
 # test
 # https://airflow.apache.org/docs/apache-airflow/1.10.12/executor/debug.html
