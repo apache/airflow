@@ -45,7 +45,7 @@ click==7.1.2
 clickclick==20.10.2
 cloudpickle==1.4.1
 colorama==0.4.4
-colorlog==5.0.1
+colorlog==6.4.1
 commonmark==0.9.1
 croniter==1.0.15
 cryptography==3.4.7
