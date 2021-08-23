@@ -723,8 +723,6 @@ class TestDagFileProcessorManager:
 
         self.run_processor_manager_one_loop(manager, parent_pipe)
         last_runtime = manager.get_last_runtime(manager.file_paths[0])
-        manager.last_stat_print_time = 0
-        self.run_processor_manager_one_loop(manager, parent_pipe)
 
         child_pipe.close()
         parent_pipe.close()
