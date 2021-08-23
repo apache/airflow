@@ -203,7 +203,7 @@ Below is an example of using the ``@task.docker`` decorator to run a python task
 If you don't want to run your image on a Docker environment, and instead want to create a separate virtual
 environment on the same machine, you can use the ``@task.virtualenv`` decorator instead. The ``@task.virtualenv``
 decorator will allow you to create a new virtualenv with custom libraries and even a different
-python version to run your function.
+Python version to run your function.
 
 .. exampleinclude:: /../../airflow/example_dags/tutorial_taskflow_api_etl_docker_virtualenv.py
     :language: python
