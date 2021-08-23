@@ -44,7 +44,7 @@ class SubprocessHook(BaseHook):
         """
         Execute the command.
 
-        If `cwd` is None, execute the command in a temporary directory which will be cleaned afterwards.
+        If ``cwd`` is None, execute the command in a temporary directory which will be cleaned afterwards.
         If ``env`` is not supplied, ``os.environ`` is passed
 
         :param command: the command to run
