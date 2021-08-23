@@ -52,6 +52,7 @@ jobs:
           echo $(pwd)
           echo creating a build
           /bin/bash ./airflow/www/compile_assets.sh
+          export INSTALL_PROVIDERS_FROM_SOURCES=true
           python setup.py sdist bdist_wheel
           echo "$(ls dist/ | grep whl)" > $GITHUB_WORKSPACE/AIRFLOW_RELEASE_NAME
           echo "$(ls dist/)"

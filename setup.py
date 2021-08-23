@@ -821,7 +821,7 @@ PREINSTALLED_PROVIDERS = [
     'ftp',
     # 'http',
     'imap',
-    'sqlite',
+    'sqlite'
 ]
 
 
@@ -999,7 +999,7 @@ def do_setup() -> None:
         The kwargs in setup() call override those that are specified in setup.cfg.
         """
         if os.getenv(INSTALL_PROVIDERS_FROM_SOURCES) == 'true':
-            setup_kwargs['packages'] = find_namespace_packages(include=['airflow*'])
+            setup_kwargs['packages'] = find_namespace_packages(include=['airflow*', 'plugins*'])
 
     include_provider_namespace_packages_when_installing_from_sources()
     if os.getenv(INSTALL_PROVIDERS_FROM_SOURCES) == 'true':

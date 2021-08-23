@@ -10,13 +10,9 @@ ENV RUNTIME_ENV prod
 
 USER root
 
-ENV PYTHONPATH "${PYTHONPATH}:/usr/local/airflow/plugins"
-
 RUN set -ex \
     && chown -R airflow:airflow /usr/local/airflow/plugins/ \
     && chown -R airflow:airflow /usr/local/airflow/dags/
-
-RUN ln -s  /usr/local/airflow/plugins /usr/local/lib/python3.7/site-packages/
 
 USER airflow
 
