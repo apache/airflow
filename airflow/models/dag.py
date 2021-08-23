@@ -2656,7 +2656,6 @@ class DagModel(Base):
 
         :param dag: The DAG object
         :param most_recent_dag_run: DateTime of most recent run of this dag, or none if not yet scheduled.
-        :param active_runs_of_dag: Number of currently active runs of this dag
         """
         next_dagrun_info = dag.next_dagrun_info(most_recent_dag_run)
         if next_dagrun_info is None:
