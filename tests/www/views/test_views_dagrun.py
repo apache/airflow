@@ -45,20 +45,20 @@ def reset_dagrun():
 @pytest.fixture()
 def running_dag_run(session):
     dag = DagBag().get_dag("example_bash_operator")
-    task0 = dag.get_task("runme_0")
-    task1 = dag.get_task("runme_1")
     execution_date = timezone.datetime(2016, 1, 9)
-    tis = [
-        TaskInstance(task0, execution_date, state="success"),
-        TaskInstance(task1, execution_date, state="failed"),
-    ]
-    session.bulk_save_objects(tis)
     dr = dag.create_dagrun(
         state="running",
         execution_date=execution_date,
         run_id="test_dag_runs_action",
         session=session,
     )
+    session.add(dr)
+    tis = [
+        TaskInstance(dag.get_task("runme_0"), run_id=dr.run_id, state="success"),
+        TaskInstance(dag.get_task("runme_1"), run_id=dr.run_id, state="failed"),
+    ]
+    session.bulk_save_objects(tis)
+    session.flush()
     return dr
 
 
@@ -132,5 +132,5 @@ def test_muldelete_dag_runs_action(session, admin_client, running_dag_run):
         follow_redirects=True,
     )
     assert resp.status_code == 200
-    assert session.query(TaskInstance).count() == 2  # Does not delete TIs.
+    assert session.query(TaskInstance).count() == 0  # Deletes associated TIs.
     assert session.query(DagRun).filter(DagRun.id == dag_run_id).count() == 0
