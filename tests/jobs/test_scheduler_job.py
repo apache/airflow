@@ -609,6 +609,37 @@ class TestSchedulerJob:
         assert 0 == len(self.scheduler_job._executable_task_instances_to_queued(max_tis=32, session=session))
         session.rollback()
 
+    def test_tis_for_queued_dagruns_are_not_run(self, dag_maker):
+        """
+        This tests that tis from queued dagruns are not queued
+        """
+        dag_id = "test_tis_for_queued_dagruns_are_not_run"
+        task_id_1 = 'dummy'
+
+        with dag_maker(dag_id) as dag:
+            task1 = DummyOperator(task_id=task_id_1)
+        dr1 = dag_maker.create_dagrun(state=State.QUEUED)
+        dr2 = dag_maker.create_dagrun(
+            run_id='test2', execution_date=dag.following_schedule(dr1.execution_date)
+        )
+        self.scheduler_job = SchedulerJob(subdir=os.devnull)
+        session = settings.Session()
+        ti1 = TaskInstance(task1, dr1.execution_date)
+        ti2 = TaskInstance(task1, dr2.execution_date)
+        ti1.state = State.SCHEDULED
+        ti2.state = State.SCHEDULED
+        session.merge(ti1)
+        session.merge(ti2)
+        session.flush()
+        res = self.scheduler_job._executable_task_instances_to_queued(max_tis=32, session=session)
+
+        assert 1 == len(res)
+        assert ti2.key == res[0].key
+        ti1.refresh_from_db()
+        ti2.refresh_from_db()
+        assert ti1.state == State.SCHEDULED
+        assert ti2.state == State.QUEUED
+
     def test_find_executable_task_instances_concurrency(self, dag_maker):
         dag_id = 'SchedulerJobTest.test_find_executable_task_instances_concurrency'
         task_id_1 = 'dummy'
