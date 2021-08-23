@@ -1,7 +1,6 @@
 from airflow import settings
 from plugins.utils.logger import generate_logger
 import os
-from influxdb_client.client.write_api import SYNCHRONOUS, ASYNCHRONOUS
 from airflow.api.common.experimental import trigger_dag as trigger
 import json
 from typing import Optional
@@ -22,10 +21,8 @@ CURVE_MODE_MAP = {
 
 if RUNTIME_ENV == 'prod':
     schedule_interval = None
-    write_options = SYNCHRONOUS
 else:
     schedule_interval = None
-    write_options = ASYNCHRONOUS
 
 _logger = generate_logger(__name__)
 

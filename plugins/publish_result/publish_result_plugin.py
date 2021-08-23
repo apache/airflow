@@ -9,7 +9,6 @@ from typing import Dict
 from plugins.utils.logger import generate_logger
 import os
 from airflow.models import Variable
-from influxdb_client.client.write_api import SYNCHRONOUS, ASYNCHRONOUS
 from distutils.util import strtobool
 from plugins.utils.utils import gen_template_key
 import pika
@@ -27,10 +26,8 @@ except Exception as err:
 
 if RUNTIME_ENV == 'prod':
     schedule_interval = None
-    write_options = SYNCHRONOUS
 else:
     schedule_interval = None
-    write_options = ASYNCHRONOUS
 
 _logger = generate_logger(__name__)
 

@@ -4,7 +4,6 @@ import json
 from plugins.utils.logger import generate_logger
 import os
 from airflow.models import DAG, DagRun
-from influxdb_client.client.write_api import SYNCHRONOUS, ASYNCHRONOUS
 from datetime import timedelta
 from airflow.operators.python_operator import PythonOperator
 import datetime as dt
@@ -18,10 +17,8 @@ MAX_ACTIVE_TRAINING = os.environ.get('MAX_ACTIVE_TRAINING', 100)
 
 if RUNTIME_ENV == 'prod':
     schedule_interval = None
-    write_options = SYNCHRONOUS
 else:
     schedule_interval = None
-    write_options = ASYNCHRONOUS
 
 _logger = generate_logger(__name__)
 
