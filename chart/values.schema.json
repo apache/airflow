@@ -12,6 +12,7 @@
         "Scheduler",
         "Webserver",
         "Workers",
+        "Triggerer",
         "Flower",
         "Redis",
         "Statsd",
