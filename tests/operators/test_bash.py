@@ -150,7 +150,7 @@ class TestBashOperator(unittest.TestCase):
 
         test_cmd = f'set -e; echo "xxxx" |tee outputs.txt'
         with TemporaryDirectory(prefix='test_command_with_cwd') as test_cwd_folder:
-            # Test everything goes alright
+            # Test everything went alright
             result = BashOperator(task_id='abc', bash_command=test_cmd, cwd=test_cwd_folder).execute({})
             assert result == "xxxx"
             with open(f'{test_cwd_folder}/outputs.txt') as tmp_file:
