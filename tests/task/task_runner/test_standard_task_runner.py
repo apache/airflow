@@ -62,15 +62,12 @@ class TestStandardTaskRunner:
         (as the test environment does not have enough context for the normal
         way to run) and ensures they reset back to normal on the way out.
         """
+        clear_db_runs()
         dictConfig(LOGGING_CONFIG)
         yield
         airflow_logger = logging.getLogger('airflow')
         airflow_logger.handlers = []
-        try:
-            clear_db_runs()
-        except Exception:
-            # It might happen that we lost connection to the server here so we need to ignore any errors here
-            pass
+        clear_db_runs()
 
     def test_start_and_terminate(self):
         local_task_job = mock.Mock()
@@ -227,6 +224,8 @@ class TestStandardTaskRunner:
 
         for process in processes:
             assert not psutil.pid_exists(process.pid), f"{process} is still alive"
+
+        session.close()
 
     @staticmethod
     def _procs_in_pgroup(pgid):
