@@ -494,7 +494,7 @@ toml==0.10.2
 tomli==1.2.1
 toolz==0.11.1
 tornado==6.1
-tqdm==4.62.1
+tqdm==4.62.2
 traitlets==5.0.5
 trino==0.305.0
 typed-ast==1.4.3
