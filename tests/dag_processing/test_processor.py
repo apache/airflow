@@ -37,6 +37,7 @@ from airflow.utils.callback_requests import TaskCallbackRequest
 from airflow.utils.dates import days_ago
 from airflow.utils.session import create_session
 from airflow.utils.state import State
+from airflow.utils.types import DagRunType
 from tests.test_utils.config import conf_vars, env_vars
 from tests.test_utils.db import (
     clear_db_dags,
@@ -82,9 +83,10 @@ class TestDagFileProcessor:
         clear_db_jobs()
         clear_db_serialized_dags()
 
-    def setup_method(self):
+    def setup_class(self):
         self.clean_db()
 
+    def setup_method(self):
         # Speed up some tests by not running the tasks, just look at what we
         # enqueue!
         self.null_exec = MockExecutor()
@@ -329,23 +331,24 @@ class TestDagFileProcessor:
         with create_session() as session:
             session.query(TaskInstance).delete()
             dag = dagbag.get_dag('example_branch_operator')
-            task = dag.get_task(task_id='run_this_first')
-
-            ti = TaskInstance(task, DEFAULT_DATE, State.RUNNING)
-
-            session.add(ti)
-            session.commit()
-
-            requests = [
-                TaskCallbackRequest(
-                    full_filepath="A", simple_task_instance=SimpleTaskInstance(ti), msg="Message"
-                )
-            ]
-            dag_file_processor.execute_callbacks(dagbag, requests)
-            mock_ti_handle_failure.assert_called_once_with(
-                error="Message",
-                test_mode=conf.getboolean('core', 'unit_test_mode'),
+            dagrun = dag.create_dagrun(
+                state=State.RUNNING,
+                execution_date=DEFAULT_DATE,
+                run_type=DagRunType.SCHEDULED,
+                session=session,
             )
+            task = dag.get_task(task_id='run_this_first')
+            ti = TaskInstance(task, run_id=dagrun.run_id, state=State.RUNNING)
+            session.add(ti)
+
+        requests = [
+            TaskCallbackRequest(full_filepath="A", simple_task_instance=SimpleTaskInstance(ti), msg="Message")
+        ]
+        dag_file_processor.execute_callbacks(dagbag, requests)
+        mock_ti_handle_failure.assert_called_once_with(
+            error="Message",
+            test_mode=conf.getboolean('core', 'unit_test_mode'),
+        )
 
     def test_failure_callbacks_should_not_drop_hostname(self):
         dagbag = DagBag(dag_folder="/dev/null", include_examples=True, read_dags_from_db=False)
@@ -355,18 +358,22 @@ class TestDagFileProcessor:
         with create_session() as session:
             dag = dagbag.get_dag('example_branch_operator')
             task = dag.get_task(task_id='run_this_first')
-
-            ti = TaskInstance(task, DEFAULT_DATE, State.RUNNING)
+            dagrun = dag.create_dagrun(
+                state=State.RUNNING,
+                execution_date=DEFAULT_DATE,
+                run_type=DagRunType.SCHEDULED,
+                session=session,
+            )
+            ti = TaskInstance(task, run_id=dagrun.run_id, state=State.RUNNING)
             ti.hostname = "test_hostname"
             session.add(ti)
 
+        requests = [
+            TaskCallbackRequest(full_filepath="A", simple_task_instance=SimpleTaskInstance(ti), msg="Message")
+        ]
+        dag_file_processor.execute_callbacks(dagbag, requests)
+
         with create_session() as session:
-            requests = [
-                TaskCallbackRequest(
-                    full_filepath="A", simple_task_instance=SimpleTaskInstance(ti), msg="Message"
-                )
-            ]
-            dag_file_processor.execute_callbacks(dagbag, requests)
             tis = session.query(TaskInstance)
             assert tis[0].hostname == "test_hostname"
 
@@ -381,26 +388,30 @@ class TestDagFileProcessor:
             dag = dagbag.get_dag('test_om_failure_callback_dag')
             task = dag.get_task(task_id='test_om_failure_callback_task')
 
-            ti = TaskInstance(task, DEFAULT_DATE, State.RUNNING)
-
+            dagrun = dag.create_dagrun(
+                state=State.RUNNING,
+                execution_date=DEFAULT_DATE,
+                run_type=DagRunType.SCHEDULED,
+                session=session,
+            )
+            ti = TaskInstance(task, run_id=dagrun.run_id, state=State.RUNNING)
             session.add(ti)
-            session.commit()
 
-            requests = [
-                TaskCallbackRequest(
-                    full_filepath=dag.fileloc,
-                    simple_task_instance=SimpleTaskInstance(ti),
-                    msg="Message",
-                )
-            ]
-            callback_file.close()
+        requests = [
+            TaskCallbackRequest(
+                full_filepath=dag.fileloc,
+                simple_task_instance=SimpleTaskInstance(ti),
+                msg="Message",
+            )
+        ]
+        callback_file.close()
 
-            with mock.patch.dict("os.environ", {"AIRFLOW_CALLBACK_FILE": callback_file.name}):
-                dag_file_processor.process_file(dag_file, requests)
-            with open(callback_file.name) as callback_file2:
-                content = callback_file2.read()
-            assert "Callback fired" == content
-            os.remove(callback_file.name)
+        with mock.patch.dict("os.environ", {"AIRFLOW_CALLBACK_FILE": callback_file.name}):
+            dag_file_processor.process_file(dag_file, requests)
+        with open(callback_file.name) as callback_file2:
+            content = callback_file2.read()
+        assert "Callback fired" == content
+        os.remove(callback_file.name)
 
     @conf_vars({("core", "dagbag_import_error_tracebacks"): "False"})
     def test_add_unparseable_file_before_sched_start_creates_import_error(self, tmpdir):

@@ -24,7 +24,7 @@ import threading
 from contextlib import redirect_stderr, redirect_stdout, suppress
 from datetime import timedelta
 from multiprocessing.connection import Connection as MultiprocessingConnection
-from typing import List, Optional, Set, Tuple
+from typing import Iterator, List, Optional, Set, Tuple
 
 from setproctitle import setproctitle
 from sqlalchemy import func, or_
@@ -49,6 +49,7 @@ from airflow.utils.mixins import MultiprocessingStartMethodMixin
 from airflow.utils.session import provide_session
 from airflow.utils.state import State
 
+DR = models.DagRun
 TI = models.TaskInstance
 
 
@@ -378,7 +379,8 @@ class DagFileProcessor(LoggingMixin):
             return
 
         qry = (
-            session.query(TI.task_id, func.max(TI.execution_date).label('max_ti'))
+            session.query(TI.task_id, func.max(DR.execution_date).label('max_ti'))
+            .join(TI.dag_run)
             .with_hint(TI, 'USE INDEX (PRIMARY)', dialect_name='mysql')
             .filter(TI.dag_id == dag.dag_id)
             .filter(or_(TI.state == State.SUCCESS, TI.state == State.SKIPPED))
@@ -387,14 +389,10 @@ class DagFileProcessor(LoggingMixin):
             .subquery('sq')
         )
 
-        max_tis: List[TI] = (
-            session.query(TI)
-            .filter(
-                TI.dag_id == dag.dag_id,
-                TI.task_id == qry.c.task_id,
-                TI.execution_date == qry.c.max_ti,
-            )
-            .all()
+        max_tis: Iterator[TI] = session.query(TI).filter(
+            TI.dag_id == dag.dag_id,
+            TI.task_id == qry.c.task_id,
+            TI.execution_date == qry.c.max_ti,
         )
 
         ts = timezone.utcnow()
