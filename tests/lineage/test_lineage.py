@@ -134,17 +134,12 @@ class TestLineage:
             op1 = DummyOperator(task_id='task1')
         dag_run = dag_maker.create_dagrun(run_type=DagRunType.SCHEDULED)
 
-        ti = TI(task=op1)
-        # Establishes the ti.execution_date association proxy.
-        # This allows us to use the value, which is needed in apply_lineage's
-        # xcom_push call, without saving ti to the database.
-        ti.dag_run = dag_run
-
         file1 = File("/tmp/some_file")
 
         op1.inlets.append(file1)
         op1.outlets.append(file1)
 
+        (ti,) = dag_run.task_instances
         ctx1 = {"ti": ti, "execution_date": DEFAULT_DATE}
 
         prep = prepare_lineage(func)
