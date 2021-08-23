@@ -180,11 +180,12 @@ and even a different python version to run your function.
 
 This option should allow for far greater flexibility for users who wish to keep their workflows more simple
 and pythonic.
+
 Using the Taskflow API with Docker or Virtual Environments
 ----------------------------------------------------------
 
 As of Airflow 2.2, you will have the ability to use the Taskflow API with either a
-docker container or python virtual environment. This added functionality will allow a much more
+Docker container or Python virtual environment. This added functionality will allow a much more
 comprehensive range of use-cases for the Taskflow API, as you will not be limited to the
 packages and system libraries of the Airflow worker.
 

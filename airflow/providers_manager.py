@@ -171,6 +171,7 @@ class ConnectionFormWidgetInfo(NamedTuple):
     package_name: str
     field: Any
 
+
 class TaskflowDecoratorInfo(NamedTuple):
     """Taskflow decorator information"""
 
@@ -287,7 +288,6 @@ class ProvidersManager(LoggingMixin):
     @provider_info_cache("taskflow_decorators")
     def initialize_providers_taskflow_decorator(self):
         """Lazy initialization of providers hooks."""
-
         self.initialize_providers_list()
         self._discover_taskflow_decorators()
 
@@ -570,8 +570,9 @@ class ProvidersManager(LoggingMixin):
                 return
         if decorator_name in self._taskflow_decorator_dict:
             log.warning(
-                "The hook_class '%s' has been already registered.",
-                decorator_class_name,
+                "The taskflow decoraotr '%s' has been already registered (by %s).",
+                decorator_name,
+                self._taskflow_decorator_dict[decorator_name].__name__,
             )
             return
         try:
@@ -600,7 +601,6 @@ class ProvidersManager(LoggingMixin):
             )
             return
 
-    def _add_hook(self, hook_class_name: str, provider_package: str) -> None:
     def _import_hook(
         self, connection_type: Optional[str], hook_class_name: str = None, package_name: str = None
     ) -> Optional[HookInfo]:
