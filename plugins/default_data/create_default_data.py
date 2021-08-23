@@ -94,7 +94,7 @@ def create_default_users(factory):
         try:
             role = appbuilder.sm.find_role(user['role'])
             if not role:
-                raise SystemExit('{} is not a valid role.'.format(user['role']))
+                raise Exception('{} is not a valid role.'.format(user['role']))
             user_created = appbuilder.sm.add_user(
                 user['username'],
                 user['firstname'],
@@ -105,7 +105,7 @@ def create_default_users(factory):
             if user_created:
                 log.info('{} user {} created.'.format(user['role'], user['username']))
             else:
-                raise SystemExit('Failed to create user.')
+                raise Exception('Failed to create user.')
         except Exception as e:
             log.error(e)
 
