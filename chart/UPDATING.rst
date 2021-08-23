@@ -33,6 +33,16 @@ assists users migrating to a new version.
 .. More tips can be found in the guide:
    https://developers.google.com/style/inclusive-documentation
 
+Run ``helm repo update`` before upgrading the chart to the latest version.
+
+Airflow Helm Chart 1.2.0 (dev)
+------------------------------
+
+Default Airflow version is updated to ``2.1.2``
+"""""""""""""""""""""""""""""""""""""""""""""""
+
+The default Airflow version that is installed with the Chart is now ``2.1.3``, previously it was ``2.1.2``.
+
 Airflow Helm Chart 1.1.0
 ------------------------
 
