@@ -1395,6 +1395,174 @@
                 }
             }
         },
+        "triggerer": {
+            "description": "Airflow triggerer settings.",
+            "type": "object",
+            "x-docsSection": "Triggerer",
+            "additionalProperties": false,
+            "properties": {
+                "livenessProbe": {
+                    "description": "Liveness probe configuration.",
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                        "initialDelaySeconds": {
+                            "description": "Triggerer Liveness probe initial delay.",
+                            "type": "integer",
+                            "default": 10
+                        },
+                        "timeoutSeconds": {
+                            "description": "Triggerer Liveness probe timeout seconds.",
+                            "type": "integer",
+                            "default": 5
+                        },
+                        "failureThreshold": {
+                            "description": "Triggerer Liveness probe failure threshold.",
+                            "type": "integer",
+                            "default": 10
+                        },
+                        "periodSeconds": {
+                            "description": "Triggerer Liveness probe period seconds.",
+                            "type": "integer",
+                            "default": 30
+                        }
+                    }
+                },
+                "replicas": {
+                    "description": "Number of triggerers to run.",
+                    "type": "integer",
+                    "default": 1
+                },
+                "command": {
+                    "description": "Command to use when running the Airflow triggerer (templated).",
+                    "type": [
+                        "array",
+                        "null"
+                    ],
+                    "items": {
+                        "type": "string"
+                    },
+                    "default": null
+                },
+                "args": {
+                    "description": "Args to use when running the Airflow triggerer (templated).",
+                    "type": [
+                        "array",
+                        "null"
+                    ],
+                    "items": {
+                        "type": "string"
+                    },
+                    "default": [
+                        "bash",
+                        "-c",
+                        "exec airflow triggerer"
+                    ]
+                },
+                "strategy": {
+                    "description": "Specifies the strategy used to replace old Pods by new ones when deployed as a Deployment.",
+                    "type": [
+                        "null",
+                        "object"
+                    ],
+                    "default": {
+                        "rollingUpdate": {
+                            "maxSurge": "100%",
+                            "maxUnavailable": "50%"
+                        }
+                    }
+                },
+                "serviceAccount": {
+                    "description": "Create ServiceAccount.",
+                    "type": "object",
+                    "properties": {
+                        "create": {
+                            "description": "Specifies whether a ServiceAccount should be created.",
+                            "type": "boolean",
+                            "default": true
+                        },
+                        "name": {
+                            "description": "The name of the ServiceAccount to use. If not set and create is true, a name is generated using the release name.",
+                            "type": [
+                                "string",
+                                "null"
+                            ],
+                            "default": null
+                        },
+                        "annotations": {
+                            "description": "Annotations to add to the triggerer Kubernetes ServiceAccount.",
+                            "type": "object",
+                            "default": {}
+                        }
+                    }
+                },
+                "resources": {
+                    "description": "Resources for triggerer pods.",
+                    "type": "object",
+                    "default": {},
+                    "examples": [
+                        {
+                            "limits": {
+                                "cpu": "100m",
+                                "memory": "128Mi"
+                            },
+                            "requests": {
+                                "cpu": "100m",
+                                "memory": "128Mi"
+                            }
+                        }
+                    ]
+                },
+                "safeToEvict": {
+                    "description": "This setting tells Kubernetes that its ok to evict when it wants to scale a node down.",
+                    "type": "boolean",
+                    "default": true
+                },
+                "extraContainers": {
+                    "description": "Launch additional containers into triggerer.",
+                    "type": "array",
+                    "default": []
+                },
+                "extraInitContainers": {
+                    "description": "Add additional init containers into triggerer.",
+                    "type": "array",
+                    "default": []
+                },
+                "extraVolumes": {
+                    "description": "Mount additional volumes into triggerer.",
+                    "type": "array",
+                    "default": []
+                },
+                "extraVolumeMounts": {
+                    "description": "Mount additional volumes into triggerer.",
+                    "type": "array",
+                    "default": []
+                },
+                "nodeSelector": {
+                    "description": "Select certain nodes for triggerer pods.",
+                    "type": "object",
+                    "default": {},
+                    "additionalProperties": {
+                        "type": "string"
+                    }
+                },
+                "affinity": {
+                    "description": "Specify scheduling constraints for triggerer pods.",
+                    "type": "object",
+                    "default": "See values.yaml"
+                },
+                "tolerations": {
+                    "description": "Specify Tolerations for triggerer pods.",
+                    "type": "array",
+                    "default": []
+                },
+                "terminationGracePeriodSeconds": {
+                    "description": "Grace period for tasks to finish after SIGTERM is sent from Kubernetes.",
+                    "type": "integer",
+                    "default": 60
+                }
+            }
+        },
         "createUserJob": {
             "description": "Airflow job to create a user settings.",
             "type": "object",

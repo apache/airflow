@@ -719,6 +719,78 @@ webserver:
             topologyKey: "kubernetes.io/hostname"
   tolerations: []
 
+# Airflow Triggerer Config
+triggerer:
+  # Number of airflow triggerers in the deployment
+  replicas: 1
+
+  # Command to use when running Airflow triggerers (templated).
+  command: ~
+  # Args to use when running Airflow triggerer (templated).
+  args: ["bash", "-c", "exec airflow triggerer"]
+
+  # Update Strategy for triggerers
+  strategy:
+    rollingUpdate:
+      maxSurge: "100%"
+      maxUnavailable: "50%"
+
+  # If the triggerer stops heartbeating for 5 minutes (10*30s) kill the
+  # triggerer and let Kubernetes restart it
+  livenessProbe:
+    initialDelaySeconds: 10
+    timeoutSeconds: 5
+    failureThreshold: 10
+    periodSeconds: 30
+
+  # Create ServiceAccount
+  serviceAccount:
+    # Specifies whether a ServiceAccount should be created
+    create: true
+    # The name of the ServiceAccount to use.
+    # If not set and create is true, a name is generated using the release name
+    name: ~
+
+    # Annotations to add to triggerer kubernetes service account.
+    annotations: {}
+
+  resources: {}
+  #  limits:
+  #   cpu: 100m
+  #   memory: 128Mi
+  #  requests:
+  #   cpu: 100m
+  #   memory: 128Mi
+
+  # Grace period for triggerer to finish after SIGTERM is sent from kubernetes
+  terminationGracePeriodSeconds: 60
+
+  # This setting tells kubernetes that its ok to evict
+  # when it wants to scale a node down.
+  safeToEvict: true
+
+  # Launch additional containers into triggerer.
+  extraContainers: []
+  # Add additional init containers into triggerers.
+  extraInitContainers: []
+
+  # Mount additional volumes into triggerer.
+  extraVolumes: []
+  extraVolumeMounts: []
+
+  # Select certain nodes for airflow triggerer pods.
+  nodeSelector: {}
+  affinity:
+    podAntiAffinity:
+      preferredDuringSchedulingIgnoredDuringExecution:
+        - weight: 100
+          podAffinityTerm:
+            labelSelector:
+              matchLabels:
+                component: triggerer
+            topologyKey: "kubernetes.io/hostname"
+  tolerations: []
+
 # Flower settings
 flower:
   # Enable flower.
