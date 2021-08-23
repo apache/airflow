@@ -57,7 +57,6 @@ SUMMARY_TMP = os.environ.get("GCP_MLENGINE_DATAFLOW_TMP", "gs://INVALID BUCKET N
 SUMMARY_STAGING = os.environ.get("GCP_MLENGINE_DATAFLOW_STAGING", "gs://INVALID BUCKET NAME/staging/")
 
 
-
 with models.DAG(
     "example_gcp_mlengine",
     schedule_interval=None,  # Override to match your needs
@@ -114,7 +113,7 @@ with models.DAG(
         training_python_module=TRAINER_PY_MODULE,
         training_args=[],
         labels={"job_type": "training"},
-        hyperparameters=hyperparams
+        hyperparameters=hyperparams,
     )
     # [END howto_operator_gcp_mlengine_training]
 
