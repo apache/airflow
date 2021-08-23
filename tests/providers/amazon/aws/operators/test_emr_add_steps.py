@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
+import json
 import os
 import unittest
 from datetime import timedelta
@@ -25,9 +26,7 @@ import pytest
 from jinja2 import StrictUndefined
 
 from airflow.exceptions import AirflowException
-from airflow.models import TaskInstance
-from airflow.models.dag import DAG
-from airflow.operators.dummy import DummyOperator
+from airflow.models import DAG, DagRun, TaskInstance
 from airflow.providers.amazon.aws.operators.emr_add_steps import EmrAddStepsOperator
 from airflow.utils import timezone
 from tests.test_utils import AIRFLOW_MAIN_FOLDER
@@ -80,7 +79,9 @@ class TestEmrAddStepsOperator(unittest.TestCase):
         assert self.operator.aws_conn_id == 'aws_default'
 
     def test_render_template(self):
-        ti = TaskInstance(self.operator, DEFAULT_DATE)
+        dag_run = DagRun(dag_id=self.operator.dag.dag_id, execution_date=DEFAULT_DATE, run_id="test")
+        ti = TaskInstance(task=self.operator)
+        ti.dag_run = dag_run
         ti.render_templates()
 
         expected_args = [
@@ -100,45 +101,6 @@ class TestEmrAddStepsOperator(unittest.TestCase):
 
         assert self.operator.steps == expected_args
 
-    def test_render_template_2(self):
-        dag = DAG(dag_id='test_xcom', default_args=self.args)
-
-        xcom_steps = [
-            {
-                'Name': 'test_step1',
-                'ActionOnFailure': 'CONTINUE',
-                'HadoopJarStep': {'Jar': 'command-runner.jar', 'Args': ['/usr/lib/spark/bin/run-example1']},
-            },
-            {
-                'Name': 'test_step2',
-                'ActionOnFailure': 'CONTINUE',
-                'HadoopJarStep': {'Jar': 'command-runner.jar', 'Args': ['/usr/lib/spark/bin/run-example2']},
-            },
-        ]
-
-        make_steps = DummyOperator(task_id='make_steps', dag=dag, owner='airflow')
-        execution_date = timezone.utcnow()
-        ti1 = TaskInstance(task=make_steps, execution_date=execution_date)
-        ti1.xcom_push(key='steps', value=xcom_steps)
-
-        self.emr_client_mock.add_job_flow_steps.return_value = ADD_STEPS_SUCCESS_RETURN
-
-        test_task = EmrAddStepsOperator(
-            task_id='test_task',
-            job_flow_id='j-8989898989',
-            aws_conn_id='aws_default',
-            steps="{{ ti.xcom_pull(task_ids='make_steps',key='steps') }}",
-            dag=dag,
-        )
-
-        with patch('boto3.session.Session', self.boto3_session_mock):
-            ti = TaskInstance(task=test_task, execution_date=execution_date)
-            ti.run()
-
-        self.emr_client_mock.add_job_flow_steps.assert_called_once_with(
-            JobFlowId='j-8989898989', Steps=xcom_steps
-        )
-
     def test_render_template_from_file(self):
         dag = DAG(
             dag_id='test_file',
@@ -155,8 +117,6 @@ class TestEmrAddStepsOperator(unittest.TestCase):
             }
         ]
 
-        execution_date = timezone.utcnow()
-
         self.emr_client_mock.add_job_flow_steps.return_value = ADD_STEPS_SUCCESS_RETURN
 
         test_task = EmrAddStepsOperator(
@@ -165,11 +125,18 @@ class TestEmrAddStepsOperator(unittest.TestCase):
             aws_conn_id='aws_default',
             steps='steps.j2.json',
             dag=dag,
+            do_xcom_push=False,
         )
+        dag_run = DagRun(dag_id=dag.dag_id, execution_date=timezone.utcnow(), run_id="test")
+        ti = TaskInstance(task=test_task)
+        ti.dag_run = dag_run
+        ti.render_templates()
 
+        assert json.loads(test_task.steps) == file_steps
+
+        # String in job_flow_overrides (i.e. from loaded as a file) is not "parsed" until inside execute()
         with patch('boto3.session.Session', self.boto3_session_mock):
-            ti = TaskInstance(task=test_task, execution_date=execution_date)
-            ti.run()
+            test_task.execute(None)
 
         self.emr_client_mock.add_job_flow_steps.assert_called_once_with(
             JobFlowId='j-8989898989', Steps=file_steps
