@@ -1819,7 +1819,7 @@
                             "default": null
                         },
                         "loadBalancerSourceRanges": {
-                            "description": "Webserver Service loadBalancerSourceRanges.",
+                            "description": "Webserver Service ``loadBalancerSourceRanges``.",
                             "type": "array",
                             "default": [],
                             "examples": [
@@ -2005,7 +2005,7 @@
                             "default": null
                         },
                         "loadBalancerSourceRanges": {
-                            "description": "Flower Service loadBalancerSourceRanges.",
+                            "description": "Flower Service ``loadBalancerSourceRanges``.",
                             "type": "array",
                             "default": [],
                             "examples": [
