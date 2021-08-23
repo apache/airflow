@@ -171,6 +171,12 @@ class ConnectionFormWidgetInfo(NamedTuple):
     package_name: str
     field: Any
 
+class TaskflowDecoratorInfo(NamedTuple):
+    """Taskflow decorator information"""
+
+    name: str
+    decorator: object
+
 
 T = TypeVar("T", bound=Callable)
 
@@ -227,6 +233,10 @@ class ProvidersManager(LoggingMixin):
         self._initialized_cache: Dict[str, bool] = {}
         # Keeps dict of providers keyed by module name
         self._provider_dict: Dict[str, ProviderInfo] = {}
+        # Keeps dict of hooks keyed by connection type
+        self._hooks_dict: Dict[str, HookInfo] = {}
+
+        self._taskflow_decorator_dict: Dict[str, object] = {}
         # keeps mapping between connection_types and hook class, package they come from
         self._hook_provider_dict: Dict[str, HookClassProvider] = {}
         # Keeps dict of hooks keyed by connection type. They are lazy evaluated at access time
@@ -273,6 +283,13 @@ class ProvidersManager(LoggingMixin):
         self.initialize_providers_list()
         self._discover_hooks()
         self._hook_provider_dict = OrderedDict(sorted(self._hook_provider_dict.items()))
+
+    @provider_info_cache("taskflow_decorators")
+    def initialize_providers_taskflow_decorator(self):
+        """Lazy initialization of providers hooks."""
+
+        self.initialize_providers_list()
+        self._discover_taskflow_decorators()
 
     @provider_info_cache("extra_links")
     def initialize_providers_extra_links(self):
@@ -523,6 +540,13 @@ class ProvidersManager(LoggingMixin):
         self._connection_form_widgets = OrderedDict(sorted(self._connection_form_widgets.items()))
         self._field_behaviours = OrderedDict(sorted(self._field_behaviours.items()))
 
+    def _discover_taskflow_decorators(self) -> None:
+        for name, provider in self._provider_dict.items():
+            taskflow_decorators = provider[1].get("task-decorators")
+            if taskflow_decorators:
+                for taskflow_decorator in taskflow_decorators:
+                    self._add_taskflow_decorator(taskflow_decorator["name"], taskflow_decorator["path"], name)
+
     @staticmethod
     def _get_attr(obj: Any, attr_name: str):
         """Retrieves attributes of an object, or warns if not found"""
@@ -531,6 +555,52 @@ class ProvidersManager(LoggingMixin):
             return None
         return getattr(obj, attr_name)
 
+    def _add_taskflow_decorator(
+        self, decorator_name, decorator_class_name: str, provider_package: str
+    ) -> None:
+        if provider_package.startswith("apache-airflow"):
+            provider_path = provider_package[len("apache-") :].replace("-", ".")
+            if not decorator_class_name.startswith(provider_path):
+                log.warning(
+                    "Sanity check failed when importing '%s' from '%s' package. It should start with '%s'",
+                    decorator_class_name,
+                    provider_package,
+                    provider_path,
+                )
+                return
+        if decorator_name in self._taskflow_decorator_dict:
+            log.warning(
+                "The hook_class '%s' has been already registered.",
+                decorator_class_name,
+            )
+            return
+        try:
+            module, class_name = decorator_class_name.rsplit('.', maxsplit=1)
+            decorator_class = getattr(importlib.import_module(module), class_name)
+            self._taskflow_decorator_dict[decorator_name] = decorator_class
+            # Do not use attr here. We want to check only direct class fields not those
+            # inherited from parent hook. This way we add form fields only once for the whole
+            # hierarchy and we add it only from the parent hook that provides those!
+        except ImportError as e:
+            # When there is an ImportError we turn it into debug warnings as this is
+            # an expected case when only some providers are installed
+            log.debug(
+                "Exception when importing '%s' from '%s' package: %s",
+                decorator_name,
+                provider_package,
+                e,
+            )
+            return
+        except Exception as e:
+            log.warning(
+                "Exception when importing '%s' from '%s' package: %s",
+                decorator_name,
+                provider_package,
+                e,
+            )
+            return
+
+    def _add_hook(self, hook_class_name: str, provider_package: str) -> None:
     def _import_hook(
         self, connection_type: Optional[str], hook_class_name: str = None, package_name: str = None
     ) -> Optional[HookInfo]:
@@ -732,6 +802,11 @@ class ProvidersManager(LoggingMixin):
         self.initialize_providers_hooks()
         # When we return hooks here it will only be used to retrieve hook information
         return self._hooks_lazy_dict  # type: ignore
+
+    @property
+    def taskflow_decorators(self) -> Dict[str, TaskflowDecoratorInfo]:
+        self.initialize_providers_taskflow_decorator()
+        return self._taskflow_decorator_dict
 
     @property
     def extra_links_class_names(self) -> List[str]:

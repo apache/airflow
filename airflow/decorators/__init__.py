@@ -17,39 +17,32 @@
 
 from typing import Callable, Optional
 
-import importlib_metadata as metadata
-
+from airflow.decorators.python import python_task
+from airflow.decorators.python_virtualenv import _virtualenv_task
+from airflow.decorators.task_group import task_group  # noqa
+from airflow.exceptions import AirflowException
 from airflow.models.dag import dag  # noqa
+from airflow.providers_manager import ProvidersManager
 
 
 class _TaskDecorator:
     def __init__(self):
-        self.store = {}
+        self.store = {"python": python_task, "virtualenv": _virtualenv_task}
+        decorator = ProvidersManager().taskflow_decorators
+        for decorator_name, decorator_class in decorator.items():
+            self.store[decorator_name] = decorator_class
 
     def __call__(
         self, python_callable: Optional[Callable] = None, multiple_outputs: Optional[bool] = None, **kwargs
     ):
-        """
-        Python operator decorator. Wraps a function into an Airflow operator.
-        Accepts kwargs for operator kwarg. This decorator can be reused in a single DAG.
-
-        :param python_callable: Function to decorate
-        :type python_callable: Optional[Callable]
-        :param multiple_outputs: if set, function return value will be
-            unrolled to multiple XCom values. List/Tuples will unroll to xcom values
-            with index as key. Dict will unroll to xcom values with keys as XCom keys.
-            Defaults to False.
-        :type multiple_outputs: bool
-        """
-        return self.python(python_callable=python_callable, multiple_outputs=multiple_outputs, **kwargs)
+        return self.store["python"](
+            python_callable=python_callable, multiple_outputs=multiple_outputs, **kwargs
+        )
 
     def __getattr__(self, name):
         if self.store.get(name, None):
             return self.store[name]
-        connections = [e for e in metadata.entry_points()['task_decorator_connections'] if e.name == name]
-        mod = connections[0].load()
-        self.store[name] = mod
-        return mod
+        raise AirflowException("Decorator %s not found", name)
 
 
 task = _TaskDecorator()
