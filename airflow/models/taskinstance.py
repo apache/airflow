@@ -253,16 +253,16 @@ def clear_task_instances(
     if dag_run_state is not False and tis:
         from airflow.models.dagrun import DagRun  # Avoid circular import
 
-        dates_by_dag_id = defaultdict(set)
+        run_ids_by_dag_id = defaultdict(set)
         for instance in tis:
-            dates_by_dag_id[instance.dag_id].add(instance.execution_date)
+            run_ids_by_dag_id[instance.dag_id].add(instance.run_id)
 
         drs = (
             session.query(DagRun)
             .filter(
                 or_(
-                    and_(DagRun.dag_id == dag_id, DagRun.execution_date.in_(dates))
-                    for dag_id, dates in dates_by_dag_id.items()
+                    and_(DagRun.dag_id == dag_id, DagRun.run_id.in_(run_ids))
+                    for dag_id, run_ids in run_ids_by_dag_id.items()
                 )
             )
             .all()

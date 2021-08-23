@@ -344,31 +344,6 @@ class TestBranchOperator(unittest.TestCase):
             session.query(DagRun).delete()
             session.query(TI).delete()
 
-    def test_without_dag_run(self):
-        """This checks the defensive against non existent tasks in a dag run"""
-        branch_op = BranchPythonOperator(
-            task_id='make_choice', dag=self.dag, python_callable=lambda: 'branch_1'
-        )
-        self.branch_1.set_upstream(branch_op)
-        self.branch_2.set_upstream(branch_op)
-        self.dag.clear()
-
-        branch_op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
-
-        with create_session() as session:
-            tis = session.query(TI).filter(TI.dag_id == self.dag.dag_id, TI.execution_date == DEFAULT_DATE)
-
-            for ti in tis:
-                if ti.task_id == 'make_choice':
-                    assert ti.state == State.SUCCESS
-                elif ti.task_id == 'branch_1':
-                    # should exist with state None
-                    assert ti.state == State.NONE
-                elif ti.task_id == 'branch_2':
-                    assert ti.state == State.SKIPPED
-                else:
-                    raise ValueError(f'Invalid task id {ti.task_id} found!')
-
     def test_branch_list_without_dag_run(self):
         """This checks if the BranchPythonOperator supports branching off to a list of tasks."""
         branch_op = BranchPythonOperator(
@@ -1144,11 +1119,11 @@ class TestCurrentContextRuntime:
         ("join", [State.SUCCESS, State.SKIPPED, State.SUCCESS]),
     ],
 )
-def test_empty_branch(choice, expected_states):
+def test_empty_branch(dag_maker, choice, expected_states):
     """
     Tests that BranchPythonOperator handles empty branches properly.
     """
-    with DAG(
+    with dag_maker(
         'test_empty_branch',
         start_date=DEFAULT_DATE,
     ) as dag:
@@ -1160,12 +1135,13 @@ def test_empty_branch(choice, expected_states):
         task1 >> join
 
     dag.clear(start_date=DEFAULT_DATE)
+    dag_run = dag_maker.create_dagrun()
 
     task_ids = ["branch", "task1", "join"]
 
     tis = {}
-    for task_id in task_ids:
-        task_instance = TI(dag.get_task(task_id), execution_date=DEFAULT_DATE)
+    for task_id, task_instance in zip(task_ids, dag_run.task_instances):
+        task_instance.refresh_from_task(dag.get_task(task_id))
         tis[task_id] = task_instance
         task_instance.run()
 
