@@ -44,6 +44,7 @@ Booleans
 Boto
 BounceX
 Bq
+cwd
 CSRFProtect
 Cancelled
 Cassanda
