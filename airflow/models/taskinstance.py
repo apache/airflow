@@ -1339,11 +1339,13 @@ class TaskInstance(Base, LoggingMixin):
             self.state = State.SKIPPED
         except AirflowRescheduleException as reschedule_exception:
             self._handle_reschedule(actual_start_date, reschedule_exception, test_mode, session=session)
+            session.commit()
             return
         except (AirflowFailException, AirflowSensorTimeout) as e:
             # If AirflowFailException is raised, task should not retry.
             # If a sensor in reschedule mode reaches timeout, task should not retry.
             self.handle_failure(e, test_mode, force_fail=True, error_file=error_file, session=session)
+            session.commit()
             raise
         except AirflowException as e:
             # for case when task is marked as success/failed externally
@@ -1352,9 +1354,11 @@ class TaskInstance(Base, LoggingMixin):
                 return
             else:
                 self.handle_failure(e, test_mode, error_file=error_file, session=session)
+                session.commit()
                 raise
         except (Exception, KeyboardInterrupt) as e:
             self.handle_failure(e, test_mode, error_file=error_file, session=session)
+            session.commit()
             raise
         finally:
             Stats.incr(f'ti.finish.{task.dag_id}.{task.task_id}.{self.state}')

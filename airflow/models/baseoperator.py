@@ -1293,6 +1293,7 @@ class BaseOperator(Operator, LoggingMixin, TaskMixin, metaclass=BaseOperatorMeta
         ignore_first_depends_on_past: bool = True,
         ignore_ti_state: bool = False,
         mark_success: bool = False,
+        test_mode: bool = False,
         session: Session = None,
     ) -> None:
         """Run a set of task instances for a date range."""
@@ -1332,6 +1333,7 @@ class BaseOperator(Operator, LoggingMixin, TaskMixin, metaclass=BaseOperatorMeta
                 mark_success=mark_success,
                 ignore_depends_on_past=ignore_depends_on_past,
                 ignore_ti_state=ignore_ti_state,
+                test_mode=test_mode,
                 session=session,
             )
 
