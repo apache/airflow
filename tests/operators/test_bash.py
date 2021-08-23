@@ -20,7 +20,7 @@ import os
 import shutil as _shutil
 import unittest
 from datetime import datetime, timedelta
-from tempfile import NamedTemporaryFile, TemporaryDirectory
+from tempfile import NamedTemporaryFile, TemporaryDirectory, TemporaryFile
 from unittest import mock
 
 import pytest
@@ -125,35 +125,36 @@ class TestBashOperator(unittest.TestCase):
         ):
             BashOperator(task_id='abc', bash_command='set -e; something-that-isnt-on-path').execute({})
 
-    def test_command_without_cwd(self):
+    def test_unset_cwd(self):
         val = "xxxx"
         op = BashOperator(task_id='abc', bash_command=f'set -e; echo "{val}";')
         line = op.execute({})
         assert line == val
 
-    def test_command_with_cwd(self):
-
-        # The command is echo a string to a file into cwd folder and return the string as the output
+    def test_cwd_does_not_exist(self):
         test_cmd = f'set -e; echo "xxxx" |tee outputs.txt'
+        with TemporaryDirectory(prefix='test_command_with_cwd') as tmp_dir:
+            # There should be no exceptions when creating the operator
+            bash_operator = BashOperator(task_id='abc', bash_command=test_cmd, cwd=tmp_dir)
+        with pytest.raises(AirflowException, match=f"Can not find the cwd: {tmp_dir}"):
+            bash_operator.execute({})
 
-        with TemporaryDirectory(prefix='test_command_with_cwd') as test_cwd_folder:
+    def test_cwd_is_file(self):
+        test_cmd = f'set -e; echo "xxxx" |tee outputs.txt'
+        with NamedTemporaryFile(suffix="var.env") as tmp_file:
             # Test if the cwd is a file_path
-            test_1_file_path = f'{test_cwd_folder}/test1.txt'
-            with open(test_1_file_path, 'w') as tmp_file:
-                tmp_file.write("xxxxx")
-                with pytest.raises(AirflowException, match=f"The cwd {test_1_file_path} must be a directory"):
-                    BashOperator(
-                        task_id='abc', bash_command=test_cmd, cwd=f'{test_cwd_folder}/test1.txt'
-                    ).execute({})
+            with pytest.raises(AirflowException, match=f"The cwd {tmp_file.name} must be a directory"):
+                BashOperator(task_id='abc', bash_command=test_cmd, cwd=tmp_file.name).execute({})
 
+    def test_valid_cwd(self):
+
+        test_cmd = f'set -e; echo "xxxx" |tee outputs.txt'
+        with TemporaryDirectory(prefix='test_command_with_cwd') as test_cwd_folder:
             # Test everything goes alright
             result = BashOperator(task_id='abc', bash_command=test_cmd, cwd=test_cwd_folder).execute({})
             assert result == "xxxx"
             with open(f'{test_cwd_folder}/outputs.txt') as tmp_file:
                 assert tmp_file.read().splitlines()[0] == "xxxx"
-        bash_operator = BashOperator(task_id='abc', bash_command=test_cmd, cwd=test_cwd_folder)
-        with pytest.raises(AirflowException, match=f"Can not find the cwd: {test_cwd_folder}"):
-            bash_operator.execute({})
 
     @parameterized.expand(
         [
