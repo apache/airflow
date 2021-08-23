@@ -729,7 +729,7 @@ triggerer:
   # Args to use when running Airflow triggerer (templated).
   args: ["bash", "-c", "exec airflow triggerer"]
 
-  # Update Strategy when triggerers are deployed as a Deployment
+  # Update Strategy for triggerers
   strategy:
     rollingUpdate:
       maxSurge: "100%"
