@@ -232,16 +232,13 @@ function build_images::check_for_docker_context_files() {
     fi
 }
 
-# Builds local image manifest
-# It contains only one .json file - result of docker inspect - describing the image
-# We cannot use docker registry APIs as they are available only with authorisation
-# But this image can be pulled without authentication
+# Builds local image manifest. It contains only one random file generated during Docker.ci build
 function build_images::build_ci_image_manifest() {
     docker_v build \
         --tag="${AIRFLOW_CI_LOCAL_MANIFEST_IMAGE}" \
         -f- . <<EOF
 FROM scratch
-COPY "manifests/local-build-cache-hash" /build-cache-hash
+COPY "manifests/local-build-cache-hash-${PYTHON_MAJOR_MINOR_VERSION}" /build-cache-hash
 LABEL org.opencontainers.image.source="https://github.com/${GITHUB_REPOSITORY}"
 CMD ""
 EOF
@@ -249,9 +246,13 @@ EOF
 
 #
 # Retrieves information about build cache hash random file from the local image
+# The random file is generated during the build and is best indicator whether your local CI image
+# has been built using the same pulled image as the remote one
 #
 function build_images::get_local_build_cache_hash() {
     set +e
+    local local_image_build_cache_file
+    local_image_build_cache_file="${AIRFLOW_SOURCES}/manifests/local-build-cache-hash-${PYTHON_MAJOR_MINOR_VERSION}"
     # Remove the container just in case
     docker_v rm --force "local-airflow-ci-container" 2>/dev/null >/dev/null
     if ! docker_v inspect "${AIRFLOW_CI_IMAGE}" 2>/dev/null >/dev/null; then
@@ -260,34 +261,37 @@ function build_images::get_local_build_cache_hash() {
         verbosity::print_info
         LOCAL_MANIFEST_IMAGE_UNAVAILABLE="true"
         export LOCAL_MANIFEST_IMAGE_UNAVAILABLE
-        touch "${LOCAL_IMAGE_BUILD_CACHE_HASH_FILE}"
+        touch "${local_image_build_cache_file}"
         set -e
         return
 
     fi
     docker_v create --name "local-airflow-ci-container" "${AIRFLOW_CI_IMAGE}" 2>/dev/null
     docker_v cp "local-airflow-ci-container:/build-cache-hash" \
-        "${LOCAL_IMAGE_BUILD_CACHE_HASH_FILE}" 2>/dev/null ||
-        touch "${LOCAL_IMAGE_BUILD_CACHE_HASH_FILE}"
+        "${local_image_build_cache_file}" 2>/dev/null ||
+        touch "${local_image_build_cache_file}"
     set -e
     verbosity::print_info
-    verbosity::print_info "Local build cache hash: '$(cat "${LOCAL_IMAGE_BUILD_CACHE_HASH_FILE}")'"
+    verbosity::print_info "Local build cache hash: '$(cat "${local_image_build_cache_file}")'"
     verbosity::print_info
 }
 
 # Retrieves information about the build cache hash random file from the remote image.
-# We actually use manifest image for that, which is a really, really small image to pull!
-# The problem is that inspecting information about remote image cannot be done easily with existing APIs
-# of Dockerhub because they require additional authentication even for public images.
-# Therefore instead we are downloading a specially prepared manifest image
-# which is built together with the main image and pushed with it. This special manifest image is prepared
-# during building of the main image and contains single file which is randomly built during the docker
-# build in the right place in the image (right after installing all dependencies of Apache Airflow
-# for the first time). When this random file gets regenerated it means that either base image has
-# changed or some of the earlier layers was modified - which means that it is usually faster to pull
-# that image first and then rebuild it - because this will likely be faster
+# We use manifest image for that, which is a really, really small image to pull!
+# The image is a specially prepared manifest image which is built together with the main image and
+# pushed with it. This special manifest image is prepared during building of the CI image and contains
+# single file which is generated with random content during the docker
+# build in the right step of the image build (right after installing all dependencies of Apache Airflow
+# for the first time).
+# When this random file gets regenerated it means that either base image has changed before that step
+# or some of the earlier layers was modified - which means that it is usually faster to pull
+# that image first and then rebuild it.
 function build_images::get_remote_image_build_cache_hash() {
     set +e
+    local remote_image_container_id_file
+    remote_image_container_id_file="${AIRFLOW_SOURCES}/manifests/remote-airflow-manifest-image-${PYTHON_MAJOR_MINOR_VERSION}"
+    local remote_image_build_cache_file
+    remote_image_build_cache_file="${AIRFLOW_SOURCES}/manifests/remote-build-cache-hash-${PYTHON_MAJOR_MINOR_VERSION}"
     # Pull remote manifest image
     if ! docker_v pull "${AIRFLOW_CI_REMOTE_MANIFEST_IMAGE}" 2>/dev/null >/dev/null; then
         verbosity::print_info
@@ -295,32 +299,36 @@ function build_images::get_remote_image_build_cache_hash() {
         verbosity::print_info
         REMOTE_DOCKER_REGISTRY_UNREACHABLE="true"
         export REMOTE_DOCKER_REGISTRY_UNREACHABLE
-        touch "${REMOTE_IMAGE_BUILD_CACHE_HASH_FILE}"
+        touch "${remote_image_build_cache_file}"
         set -e
         return
     fi
     set -e
-    rm -f "${REMOTE_IMAGE_CONTAINER_ID_FILE}"
+    rm -f "${remote_image_container_id_file}"
     # Create container dump out of the manifest image without actually running it
-    docker_v create --cidfile "${REMOTE_IMAGE_CONTAINER_ID_FILE}" "${AIRFLOW_CI_REMOTE_MANIFEST_IMAGE}"
+    docker_v create --cidfile "${remote_image_container_id_file}" "${AIRFLOW_CI_REMOTE_MANIFEST_IMAGE}"
     # Extract manifest and store it in local file
-    docker_v cp "$(cat "${REMOTE_IMAGE_CONTAINER_ID_FILE}"):/build-cache-hash" \
-        "${REMOTE_IMAGE_BUILD_CACHE_HASH_FILE}"
-    docker_v rm --force "$(cat "${REMOTE_IMAGE_CONTAINER_ID_FILE}")"
-    rm -f "${REMOTE_IMAGE_CONTAINER_ID_FILE}"
+    docker_v cp "$(cat "${remote_image_container_id_file}"):/build-cache-hash" \
+        "${remote_image_build_cache_file}"
+    docker_v rm --force "$(cat "${remote_image_container_id_file}")"
+    rm -f "${remote_image_container_id_file}"
     verbosity::print_info
-    verbosity::print_info "Remote build cache hash: '$(cat "${REMOTE_IMAGE_BUILD_CACHE_HASH_FILE}")'"
+    verbosity::print_info "Remote build cache hash: '$(cat "${remote_image_build_cache_file}")'"
     verbosity::print_info
 }
 
 # Compares layers from both remote and local image and set FORCE_PULL_IMAGES to true in case
-# More than the last NN layers are different.
+# The random has in remote image is different than that in the local image
+# indicating that it is likely faster to pull the image from cache rather than let the
+# image rebuild fully locally
 function build_images::compare_local_and_remote_build_cache_hash() {
     set +e
+    local local_image_build_cache_file
+    local_image_build_cache_file="${AIRFLOW_SOURCES}/manifests/local-build-cache-hash-${PYTHON_MAJOR_MINOR_VERSION}"
     local remote_hash
-    remote_hash=$(cat "${REMOTE_IMAGE_BUILD_CACHE_HASH_FILE}")
+    remote_hash=$(cat "${remote_image_build_cache_file}")
     local local_hash
-    local_hash=$(cat "${LOCAL_IMAGE_BUILD_CACHE_HASH_FILE}")
+    local_hash=$(cat "${local_image_build_cache_file}")
 
     if [[ ${remote_hash} != "${local_hash}" || -z ${local_hash} ]] \
         ; then
