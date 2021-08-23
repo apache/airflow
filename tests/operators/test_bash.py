@@ -137,10 +137,6 @@ class TestBashOperator(unittest.TestCase):
         test_cmd = f'set -e; echo "xxxx" |tee outputs.txt'
 
         with TemporaryDirectory(prefix='test_command_with_cwd') as test_cwd_folder:
-
-            with pytest.raises(AirflowException, match=f"Can not find the cwd: {test_cwd_folder}"):
-                BashOperator(task_id='abc', bash_command=test_cmd, cwd=f"{test_cwd_folder}/aa/").execute({})
-
             # Test if the cwd is a file_path
             test_1_file_path = f'{test_cwd_folder}/test1.txt'
             with open(test_1_file_path, 'w') as tmp_file:
@@ -155,6 +151,9 @@ class TestBashOperator(unittest.TestCase):
             assert result == "xxxx"
             with open(f'{test_cwd_folder}/outputs.txt') as tmp_file:
                 assert tmp_file.read().splitlines()[0] == "xxxx"
+        bash_operator = BashOperator(task_id='abc', bash_command=test_cmd, cwd=test_cwd_folder)
+        with pytest.raises(AirflowException, match=f"Can not find the cwd: {test_cwd_folder}"):
+            bash_operator.execute({})
 
     @parameterized.expand(
         [

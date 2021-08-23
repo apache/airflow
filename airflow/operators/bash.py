@@ -146,11 +146,6 @@ class BashOperator(BaseOperator):
         self.output_encoding = output_encoding
         self.skip_exit_code = skip_exit_code
         self.cwd = cwd
-        if self.cwd is not None:
-            if not os.path.exists(self.cwd):
-                raise AirflowException(f"Can not find the cwd: {cwd}")
-            if not os.path.isdir(self.cwd):
-                raise AirflowException(f"The cwd {cwd} must be a directory")
         if kwargs.get('xcom_push') is not None:
             raise AirflowException("'xcom_push' was deprecated, use 'BaseOperator.do_xcom_push' instead")
 
@@ -174,6 +169,11 @@ class BashOperator(BaseOperator):
         return env
 
     def execute(self, context):
+        if self.cwd is not None:
+            if not os.path.exists(self.cwd):
+                raise AirflowException(f"Can not find the cwd: {self.cwd}")
+            if not os.path.isdir(self.cwd):
+                raise AirflowException(f"The cwd {self.cwd} must be a directory")
         env = self.get_env(context)
         result = self.subprocess_hook.run_command(
             command=['bash', '-c', self.bash_command],
