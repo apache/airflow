@@ -50,8 +50,8 @@ class BashOperator(BaseOperator):
         in ``skipped`` state (default: 99). If set to ``None``, any non-zero
         exit code will be treated as a failure.
     :type skip_exit_code: int
-    :param cwd: The folder that the command is executed.
-        If it is None, the operator will a temporary directory which will be cleaned afterwards.
+    :param cwd: Working directory to execute the command in.
+        If None (default), the command is run in a temporary directory.
     :type cwd: str
 
     Airflow will evaluate the exit code of the bash command. In general, a non-zero exit code will result in
