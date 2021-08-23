@@ -631,6 +631,14 @@ class TestPodGenerator(unittest.TestCase):
         client_spec.active_deadline_seconds = 100
         assert client_spec == res
 
+    def test_reconcile_specs_init_containers(self):
+        base_spec = k8s.V1PodSpec(containers=[], init_containers=[k8s.V1Container(name='base_container1')])
+        client_spec = k8s.V1PodSpec(
+            containers=[], init_containers=[k8s.V1Container(name='client_container1')]
+        )
+        res = PodGenerator.reconcile_specs(base_spec, client_spec)
+        assert res.init_containers == base_spec.init_containers + client_spec.init_containers
+
     def test_deserialize_model_file(self):
         path = sys.path[0] + '/tests/kubernetes/pod.yaml'
         result = PodGenerator.deserialize_model_file(path)

@@ -15,8 +15,7 @@
     specific language governing permissions and limitations
     under the License.
 
-
-Secrets backend
+Secrets Backend
 ---------------
 
 .. versionadded:: 1.10.10

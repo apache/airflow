@@ -15,7 +15,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
+import io
+import json
 import logging
 import os
 import shutil
@@ -24,6 +25,7 @@ from unittest import mock
 from urllib.parse import quote
 
 import elasticsearch
+import freezegun
 import pendulum
 from parameterized import parameterized
 
@@ -442,3 +444,44 @@ class TestElasticsearchTaskHandler(unittest.TestCase):
     def test_supports_external_link(self, frontend, expected):
         self.es_task_handler.frontend = frontend
         assert self.es_task_handler.supports_external_link == expected
+
+    @mock.patch('sys.__stdout__', new_callable=io.StringIO)
+    def test_dynamic_offset(self, stdout_mock):
+        # arrange
+        handler = ElasticsearchTaskHandler(
+            base_log_folder=self.local_log_location,
+            filename_template=self.filename_template,
+            log_id_template=self.log_id_template,
+            end_of_log_mark=self.end_of_log_mark,
+            write_stdout=True,
+            json_format=True,
+            json_fields=self.json_fields,
+            host_field=self.host_field,
+            offset_field=self.offset_field,
+        )
+        handler.formatter = logging.Formatter()
+
+        logger = logging.getLogger(__name__)
+        logger.handlers = [handler]
+        logger.propagate = False
+
+        self.ti._log = logger
+        handler.set_context(self.ti)
+
+        t1 = pendulum.naive(year=2017, month=1, day=1, hour=1, minute=1, second=15)
+        t2, t3 = t1 + pendulum.duration(seconds=5), t1 + pendulum.duration(seconds=10)
+
+        # act
+        with freezegun.freeze_time(t1):
+            self.ti.log.info("Test")
+        with freezegun.freeze_time(t2):
+            self.ti.log.info("Test2")
+        with freezegun.freeze_time(t3):
+            self.ti.log.info("Test3")
+
+        # assert
+        first_log, second_log, third_log = map(json.loads, stdout_mock.getvalue().strip().split("\n"))
+        assert first_log['offset'] < second_log['offset'] < third_log['offset']
+        assert first_log['asctime'] == t1.format("YYYY-MM-DD HH:mm:ss,SSS")
+        assert second_log['asctime'] == t2.format("YYYY-MM-DD HH:mm:ss,SSS")
+        assert third_log['asctime'] == t3.format("YYYY-MM-DD HH:mm:ss,SSS")

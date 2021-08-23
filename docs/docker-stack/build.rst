@@ -53,7 +53,7 @@ In the simplest case building your image consists of those steps:
 
 1) Create your own ``Dockerfile`` (name it ``Dockerfile``) where you add:
 
-* information what your image should be based on (for example ``FROM: apache/airflow:|version|-python3.8``
+* information what your image should be based on (for example ``FROM: apache/airflow:|airflow-version|-python3.8``
 
 * additional steps that should be executed in your image (typically in the form of ``RUN <command>``)
 
@@ -249,6 +249,19 @@ You should be aware, about a few things:
 
 Examples of image extending
 ---------------------------
+
+Example of upgrading Airflow Provider packages
+..............................................
+
+The :ref:`Airflow Providers <providers:community-maintained-providers>` are released independently of core
+Airflow and sometimes you might want to upgrade specific providers only to fix some problems or
+use features available in that provider version. Here is an example of how you can do it
+
+.. exampleinclude:: docker-examples/extending/add-providers/Dockerfile
+    :language: Dockerfile
+    :start-after: [START Dockerfile]
+    :end-before: [END Dockerfile]
+
 
 Example of adding ``apt`` package
 .................................

@@ -77,12 +77,12 @@ class TestBackfillJob:
         dag_maker_fixture,
         dag_id='test_dag',
         pool=Pool.DEFAULT_POOL_NAME,
-        task_concurrency=None,
+        max_active_tis_per_dag=None,
         task_id='op',
         **kwargs,
     ):
         with dag_maker_fixture(dag_id=dag_id, schedule_interval='@daily', **kwargs) as dag:
-            DummyOperator(task_id=task_id, pool=pool, task_concurrency=task_concurrency)
+            DummyOperator(task_id=task_id, pool=pool, max_active_tis_per_dag=max_active_tis_per_dag)
 
         return dag
 
@@ -295,12 +295,12 @@ class TestBackfillJob:
         assert conf_ == dr[0].conf
 
     @patch('airflow.jobs.backfill_job.BackfillJob.log')
-    def test_backfill_respect_task_concurrency_limit(self, mock_log, dag_maker):
-        task_concurrency = 2
+    def test_backfill_respect_max_active_tis_per_dag_limit(self, mock_log, dag_maker):
+        max_active_tis_per_dag = 2
         dag = self._get_dummy_dag(
             dag_maker,
-            dag_id='test_backfill_respect_task_concurrency_limit',
-            task_concurrency=task_concurrency,
+            dag_id='test_backfill_respect_max_active_tis_per_dag_limit',
+            max_active_tis_per_dag=max_active_tis_per_dag,
         )
         dag_maker.create_dagrun()
 
@@ -321,9 +321,9 @@ class TestBackfillJob:
 
         num_running_task_instances = 0
         for running_task_instances in executor.history:
-            assert len(running_task_instances) <= task_concurrency
+            assert len(running_task_instances) <= max_active_tis_per_dag
             num_running_task_instances += len(running_task_instances)
-            if len(running_task_instances) == task_concurrency:
+            if len(running_task_instances) == max_active_tis_per_dag:
                 task_concurrency_limit_reached_at_least_once = True
 
         assert 8 == num_running_task_instances
@@ -955,8 +955,8 @@ class TestBackfillJob:
                 # reached, so it is waiting
                 dag_run_created_cond.wait(timeout=1.5)
                 dagruns = DagRun.find(dag_id=dag_id)
-                dr = dagruns[0]
                 assert 1 == len(dagruns)
+                dr = dagruns[0]
                 assert dr.run_id == run_id
 
                 # allow the backfill to execute
@@ -1330,30 +1330,34 @@ class TestBackfillJob:
 
         session.close()
 
-    def test_dag_get_run_dates(self, dag_maker):
+    def test_dag_dagrun_infos_between(self, dag_maker):
         with dag_maker(
-            dag_id='test_get_dates', start_date=DEFAULT_DATE, schedule_interval="@hourly"
+            dag_id='dagrun_infos_between', start_date=DEFAULT_DATE, schedule_interval="@hourly"
         ) as test_dag:
             DummyOperator(
                 task_id='dummy',
                 owner='airflow',
             )
 
-        assert [DEFAULT_DATE] == test_dag.get_run_dates(
-            start_date=DEFAULT_DATE,
-            end_date=DEFAULT_DATE,
-            align=True,
-        )
+        assert [DEFAULT_DATE] == [
+            info.logical_date
+            for info in test_dag.iter_dagrun_infos_between(
+                earliest=DEFAULT_DATE,
+                latest=DEFAULT_DATE,
+            )
+        ]
         assert [
             DEFAULT_DATE - datetime.timedelta(hours=3),
             DEFAULT_DATE - datetime.timedelta(hours=2),
             DEFAULT_DATE - datetime.timedelta(hours=1),
             DEFAULT_DATE,
-        ] == test_dag.get_run_dates(
-            start_date=DEFAULT_DATE - datetime.timedelta(hours=3),
-            end_date=DEFAULT_DATE,
-            align=True,
-        )
+        ] == [
+            info.logical_date
+            for info in test_dag.iter_dagrun_infos_between(
+                earliest=DEFAULT_DATE - datetime.timedelta(hours=3),
+                latest=DEFAULT_DATE,
+            )
+        ]
 
     def test_backfill_run_backwards(self):
         dag = self.dagbag.get_dag("test_start_date_scheduling")

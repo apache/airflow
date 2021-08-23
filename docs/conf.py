@@ -111,6 +111,7 @@ release = PACKAGE_VERSION
 
 rst_epilog = f"""
 .. |version| replace:: {version}
+.. |airflow-version| replace:: {airflow.__version__}
 """
 
 # -- General configuration -----------------------------------------------------
@@ -500,6 +501,7 @@ autodoc_mock_imports = [
     'jira',
     'kubernetes',
     'msrestazure',
+    'oss2',
     'pandas',
     'pandas_gbq',
     'paramiko',

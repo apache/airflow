@@ -162,6 +162,7 @@ class TestPythonOperator(TestPythonBase):
         self.dag.create_dagrun(
             run_type=DagRunType.MANUAL,
             execution_date=DEFAULT_DATE,
+            data_interval=(DEFAULT_DATE, DEFAULT_DATE),
             start_date=DEFAULT_DATE,
             state=State.RUNNING,
         )
@@ -199,6 +200,7 @@ class TestPythonOperator(TestPythonBase):
         self.dag.create_dagrun(
             run_type=DagRunType.MANUAL,
             execution_date=DEFAULT_DATE,
+            data_interval=(DEFAULT_DATE, DEFAULT_DATE),
             start_date=DEFAULT_DATE,
             state=State.RUNNING,
         )
@@ -929,6 +931,9 @@ class TestPythonVirtualenvOperator(unittest.TestCase):
 
         self._run_as_operator(f, templates_dict={'ds': '{{ ds }}'})
 
+    # This tests might take longer than default 60 seconds as it is serializing a lot of
+    # context using dill (which is slow apparently).
+    @pytest.mark.execution_timeout(120)
     def test_airflow_context(self):
         def f(
             # basic
@@ -1149,7 +1154,7 @@ def test_empty_branch(choice, expected_states):
     ) as dag:
         branch = BranchPythonOperator(task_id='branch', python_callable=lambda: choice)
         task1 = DummyOperator(task_id='task1')
-        join = DummyOperator(task_id='join', trigger_rule="none_failed_or_skipped")
+        join = DummyOperator(task_id='join', trigger_rule="none_failed_min_one_success")
 
         branch >> [task1, join]
         task1 >> join

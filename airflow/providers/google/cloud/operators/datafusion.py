@@ -23,7 +23,7 @@ from google.api_core.retry import exponential_sleep_generator
 from googleapiclient.errors import HttpError
 
 from airflow.models import BaseOperator
-from airflow.providers.google.cloud.hooks.datafusion import DataFusionHook
+from airflow.providers.google.cloud.hooks.datafusion import SUCCESS_STATES, DataFusionHook, PipelineStates
 
 
 class CloudDataFusionRestartInstanceOperator(BaseOperator):
@@ -808,9 +808,7 @@ class CloudDataFusionStartPipelineOperator(BaseOperator):
     ) -> None:
         super().__init__(**kwargs)
         self.pipeline_name = pipeline_name
-        self.success_states = success_states
         self.runtime_args = runtime_args
-        self.pipeline_timeout = pipeline_timeout
         self.namespace = namespace
         self.instance_name = instance_name
         self.location = location
@@ -819,6 +817,13 @@ class CloudDataFusionStartPipelineOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
+
+        if success_states:
+            self.success_states = success_states
+            self.pipeline_timeout = pipeline_timeout
+        else:
+            self.success_states = SUCCESS_STATES + [PipelineStates.RUNNING]
+            self.pipeline_timeout = 5 * 60
 
     def execute(self, context: dict) -> None:
         hook = DataFusionHook(
@@ -840,17 +845,15 @@ class CloudDataFusionStartPipelineOperator(BaseOperator):
             namespace=self.namespace,
             runtime_args=self.runtime_args,
         )
-
+        hook.wait_for_pipeline_state(
+            success_states=self.success_states,
+            pipeline_id=pipeline_id,
+            pipeline_name=self.pipeline_name,
+            namespace=self.namespace,
+            instance_url=api_url,
+            timeout=self.pipeline_timeout,
+        )
         self.log.info("Pipeline started")
-        if self.success_states:
-            hook.wait_for_pipeline_state(
-                success_states=self.success_states,
-                pipeline_id=pipeline_id,
-                pipeline_name=self.pipeline_name,
-                namespace=self.namespace,
-                instance_url=api_url,
-                timeout=self.pipeline_timeout,
-            )
 
 
 class CloudDataFusionStopPipelineOperator(BaseOperator):

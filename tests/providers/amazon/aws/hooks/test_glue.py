@@ -53,6 +53,9 @@ class TestGlueJobHook(unittest.TestCase):
         )
         iam_role = hook.get_iam_execution_role()
         assert iam_role is not None
+        assert "Role" in iam_role
+        assert "Arn" in iam_role['Role']
+        assert iam_role['Role']['Arn'] == "arn:aws:iam::123456789012:role/my_test_role"
 
     @mock.patch.object(AwsGlueJobHook, "get_iam_execution_role")
     @mock.patch.object(AwsGlueJobHook, "get_conn")

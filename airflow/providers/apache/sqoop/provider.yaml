@@ -48,3 +48,7 @@ hooks:
 
 hook-class-names:
   - airflow.providers.apache.sqoop.hooks.sqoop.SqoopHook
+
+connection-types:
+  - hook-class-name: airflow.providers.apache.sqoop.hooks.sqoop.SqoopHook
+    connection-type: sqoop

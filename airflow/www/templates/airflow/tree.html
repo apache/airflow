@@ -36,6 +36,7 @@
 {% block head_meta %}
   {{ super() }}
   <meta name="num_runs" content="{{ num_runs }}">
+  <meta name="root" content="{{ root if root else '' }}">
 {% endblock %}
 
 {% block content %}

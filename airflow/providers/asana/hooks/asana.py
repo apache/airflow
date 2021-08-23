@@ -21,7 +21,11 @@ from typing import Any, Dict
 
 from asana import Client
 from asana.error import NotFoundError
-from cached_property import cached_property
+
+try:
+    from functools import cached_property
+except ImportError:
+    from cached_property import cached_property
 
 from airflow.hooks.base import BaseHook
 

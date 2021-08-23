@@ -18,7 +18,7 @@
 from functools import wraps
 from typing import Callable, Optional, Sequence, Tuple, TypeVar, cast
 
-from flask import current_app, flash, redirect, request, url_for
+from flask import current_app, flash, g, redirect, request, url_for
 
 T = TypeVar("T", bound=Callable)
 
@@ -30,6 +30,9 @@ def has_access(permissions: Optional[Sequence[Tuple[str, str]]] = None) -> Calla
         @wraps(func)
         def decorated(*args, **kwargs):
             appbuilder = current_app.appbuilder
+            if not g.user.is_anonymous and not g.user.roles:
+                return redirect(url_for("Airflow.no_roles"))
+
             if appbuilder.sm.check_authorization(permissions, request.args.get('dag_id', None)):
                 return func(*args, **kwargs)
             else:

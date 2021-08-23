@@ -381,16 +381,12 @@ class DagBag(LoggingMixin):
     def _process_modules(self, filepath, mods, file_last_changed_on_disk):
         from airflow.models.dag import DAG  # Avoid circular import
 
-        is_zipfile = zipfile.is_zipfile(filepath)
-        top_level_dags = [o for m in mods for o in list(m.__dict__.values()) if isinstance(o, DAG)]
+        top_level_dags = ((o, m) for m in mods for o in m.__dict__.values() if isinstance(o, DAG))
 
         found_dags = []
 
-        for dag in top_level_dags:
-            if not dag.full_filepath:
-                dag.full_filepath = filepath
-                if dag.fileloc != filepath and not is_zipfile:
-                    dag.fileloc = filepath
+        for (dag, mod) in top_level_dags:
+            dag.fileloc = mod.__file__
             try:
                 dag.is_subdag = False
                 dag.timetable.validate()
@@ -398,17 +394,17 @@ class DagBag(LoggingMixin):
                 found_dags.append(dag)
                 found_dags += dag.subdags
             except AirflowTimetableInvalid as exception:
-                self.log.exception("Failed to bag_dag: %s", dag.full_filepath)
-                self.import_errors[dag.full_filepath] = f"Invalid timetable expression: {exception}"
-                self.file_last_changed[dag.full_filepath] = file_last_changed_on_disk
+                self.log.exception("Failed to bag_dag: %s", dag.fileloc)
+                self.import_errors[dag.fileloc] = f"Invalid timetable expression: {exception}"
+                self.file_last_changed[dag.fileloc] = file_last_changed_on_disk
             except (
                 AirflowDagCycleException,
                 AirflowDagDuplicatedIdException,
                 AirflowClusterPolicyViolation,
             ) as exception:
-                self.log.exception("Failed to bag_dag: %s", dag.full_filepath)
-                self.import_errors[dag.full_filepath] = str(exception)
-                self.file_last_changed[dag.full_filepath] = file_last_changed_on_disk
+                self.log.exception("Failed to bag_dag: %s", dag.fileloc)
+                self.import_errors[dag.fileloc] = str(exception)
+                self.file_last_changed[dag.fileloc] = file_last_changed_on_disk
         return found_dags
 
     def bag_dag(self, dag, root_dag):
@@ -444,17 +440,17 @@ class DagBag(LoggingMixin):
             # into further _bag_dag() calls.
             if recursive:
                 for subdag in subdags:
-                    subdag.full_filepath = dag.full_filepath
+                    subdag.fileloc = dag.fileloc
                     subdag.parent_dag = dag
                     subdag.is_subdag = True
                     self._bag_dag(dag=subdag, root_dag=root_dag, recursive=False)
 
             prev_dag = self.dags.get(dag.dag_id)
-            if prev_dag and prev_dag.full_filepath != dag.full_filepath:
+            if prev_dag and prev_dag.fileloc != dag.fileloc:
                 raise AirflowDagDuplicatedIdException(
                     dag_id=dag.dag_id,
-                    incoming=dag.full_filepath,
-                    existing=self.dags[dag.dag_id].full_filepath,
+                    incoming=dag.fileloc,
+                    existing=self.dags[dag.dag_id].fileloc,
                 )
             self.dags[dag.dag_id] = dag
             self.log.debug('Loaded DAG %s', dag)

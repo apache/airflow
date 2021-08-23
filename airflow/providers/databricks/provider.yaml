@@ -48,3 +48,7 @@ hooks:
 
 hook-class-names:
   - airflow.providers.databricks.hooks.databricks.DatabricksHook
+
+connection-types:
+  - hook-class-name: airflow.providers.databricks.hooks.databricks.DatabricksHook
+    connection-type: databricks

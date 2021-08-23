@@ -15,6 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+import datetime
 from unittest.mock import patch
 
 import pytest
@@ -38,9 +39,13 @@ class TestDateTimeSensor:
             (
                 "valid_datetime",
                 timezone.datetime(2020, 7, 6, 13, tzinfo=timezone.utc),
-                "2020-07-06T13:00:00+00:00",
+                timezone.datetime(2020, 7, 6, 13, tzinfo=timezone.utc),
             ),
-            ("valid_str", "20200706T210000+8", "20200706T210000+8"),
+            (
+                "valid_str",
+                "20200706T210000+8",
+                timezone.datetime(2020, 7, 6, 21, tzinfo=datetime.timezone(datetime.timedelta(hours=8))),
+            ),
         ]
     )
     def test_valid_input(self, task_id, target_time, expected):

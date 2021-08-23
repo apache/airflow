@@ -23,10 +23,11 @@ import os
 import pickle
 import signal
 import warnings
-from collections import defaultdict
+from collections import defaultdict, namedtuple
 from datetime import datetime, timedelta
+from functools import partial
 from tempfile import NamedTemporaryFile
-from typing import IO, Any, Dict, Iterable, List, NamedTuple, Optional, Tuple, Union
+from typing import IO, TYPE_CHECKING, Any, Dict, Iterable, List, NamedTuple, Optional, Tuple, Union
 from urllib.parse import quote
 
 import dill
@@ -34,12 +35,28 @@ import jinja2
 import lazy_object_proxy
 import pendulum
 from jinja2 import TemplateAssertionError, UndefinedError
-from sqlalchemy import Column, Float, Index, Integer, PickleType, String, and_, func, or_, tuple_
+from sqlalchemy import (
+    Column,
+    Float,
+    ForeignKeyConstraint,
+    Index,
+    Integer,
+    PickleType,
+    String,
+    and_,
+    func,
+    inspect,
+    or_,
+)
 from sqlalchemy.orm import reconstructor, relationship
+from sqlalchemy.orm.attributes import NO_VALUE
 from sqlalchemy.orm.session import Session
 from sqlalchemy.sql.elements import BooleanClauseList
+from sqlalchemy.sql.expression import tuple_
+from sqlalchemy.sql.sqltypes import BigInteger
 
 from airflow import settings
+from airflow.compat.functools import cache
 from airflow.configuration import conf
 from airflow.exceptions import (
     AirflowException,
@@ -50,6 +67,8 @@ from airflow.exceptions import (
     AirflowSkipException,
     AirflowSmartSensorException,
     AirflowTaskTimeout,
+    TaskDeferralError,
+    TaskDeferred,
 )
 from airflow.models.base import COLLATION_ARGS, ID_LEN, Base
 from airflow.models.connection import Connection
@@ -72,7 +91,7 @@ from airflow.utils.net import get_hostname
 from airflow.utils.operator_helpers import context_to_airflow_vars
 from airflow.utils.platform import getuser
 from airflow.utils.session import provide_session
-from airflow.utils.sqlalchemy import UtcDateTime
+from airflow.utils.sqlalchemy import ExtendedJSON, UtcDateTime
 from airflow.utils.state import DagRunState, State
 from airflow.utils.timeout import timeout
 
@@ -89,6 +108,10 @@ Context = Dict[str, Any]
 
 _CURRENT_CONTEXT: List[Context] = []
 log = logging.getLogger(__name__)
+
+
+if TYPE_CHECKING:
+    from airflow.models.dag import DAG, DagModel
 
 
 @contextlib.contextmanager
@@ -319,6 +342,18 @@ class TaskInstance(Base, LoggingMixin):
     executor_config = Column(PickleType(pickler=dill))
 
     external_executor_id = Column(String(ID_LEN, **COLLATION_ARGS))
+
+    # The trigger to resume on if we are in state DEFERRED
+    trigger_id = Column(BigInteger)
+
+    # Optional timeout datetime for the trigger (past this, we'll fail)
+    trigger_timeout = Column(UtcDateTime)
+
+    # The method to call next, and any extra arguments to pass to it.
+    # Usually used when resuming from DEFERRED.
+    next_method = Column(String(1000))
+    next_kwargs = Column(ExtendedJSON)
+
     # If adding new fields here then remember to add them to
     # refresh_from_db() or they won't display in the UI correctly
 
@@ -329,6 +364,13 @@ class TaskInstance(Base, LoggingMixin):
         Index('ti_state_lkp', dag_id, task_id, execution_date, state),
         Index('ti_pool', pool, state, priority_weight),
         Index('ti_job_id', job_id),
+        Index('ti_trigger_id', trigger_id),
+        ForeignKeyConstraint(
+            [trigger_id],
+            ['trigger.id'],
+            name='task_instance_trigger_id_fkey',
+            ondelete='CASCADE',
+        ),
     )
 
     dag_model = relationship(
@@ -339,11 +381,18 @@ class TaskInstance(Base, LoggingMixin):
         innerjoin=True,
     )
 
+    trigger = relationship(
+        "Trigger",
+        primaryjoin="TaskInstance.trigger_id == Trigger.id",
+        foreign_keys=trigger_id,
+        uselist=False,
+        innerjoin=True,
+    )
+
     def __init__(self, task, execution_date: datetime, state: Optional[str] = None):
         super().__init__()
         self.dag_id = task.dag_id
         self.task_id = task.task_id
-        self.task = task
         self.refresh_from_task(task)
         self._log = logging.getLogger("airflow.task")
 
@@ -417,6 +466,22 @@ class TaskInstance(Base, LoggingMixin):
         """Setting Next Try Number"""
         return self._try_number + 1
 
+    @property
+    def run_id(self):
+        """Fetches the run_id from the associated DagRun"""
+        # TODO: Remove this once run_id is added as a column in TaskInstance
+
+        # IF we have pre-loaded it, just use that
+        info = inspect(self)
+        if info.attrs.dag_run.loaded_value is not NO_VALUE:
+            return self.dag_un.run_id
+        # _Don't_ use provide/create_session here, as we do not want to commit on this session (as this is
+        # called from the scheduler critical section)!
+        dag_run = self.get_dagrun(session=settings.Session())
+
+        if dag_run:
+            return dag_run.run_id
+
     def command_as_list(
         self,
         mark_success=False,
@@ -436,20 +501,31 @@ class TaskInstance(Base, LoggingMixin):
         installed. This command is part of the message sent to executors by
         the orchestrator.
         """
-        dag = self.task.dag
+        dag: Union["DAG", "DagModel"]
+        # Use the dag if we have it, else fallback to the ORM dag_model, which might not be loaded
+        if hasattr(self, 'task') and hasattr(self.task, 'dag'):
+            dag = self.task.dag
+        else:
+            dag = self.dag_model
 
         should_pass_filepath = not pickle_id and dag
-        if should_pass_filepath and dag.full_filepath != dag.filepath:
-            path = f"DAGS_FOLDER/{dag.filepath}"
-        elif should_pass_filepath and dag.full_filepath:
-            path = dag.full_filepath
-        else:
-            path = None
+        path = None
+        if should_pass_filepath:
+            if dag.is_subdag:
+                path = dag.parent_dag.relative_fileloc
+            else:
+                path = dag.relative_fileloc
+
+            if path:
+                if not path.is_absolute():
+                    path = 'DAGS_FOLDER' / path
+                path = str(path)
 
         return TaskInstance.generate_command(
             self.dag_id,
             self.task_id,
-            self.execution_date,
+            run_id=self.run_id,
+            execution_date=self.execution_date,
             mark_success=mark_success,
             ignore_all_deps=ignore_all_deps,
             ignore_task_deps=ignore_task_deps,
@@ -468,7 +544,8 @@ class TaskInstance(Base, LoggingMixin):
     def generate_command(
         dag_id: str,
         task_id: str,
-        execution_date: datetime,
+        run_id: str = None,
+        execution_date: datetime = None,
         mark_success: bool = False,
         ignore_all_deps: bool = False,
         ignore_depends_on_past: bool = False,
@@ -485,12 +562,14 @@ class TaskInstance(Base, LoggingMixin):
         """
         Generates the shell command required to execute this task instance.
 
+        One of run_id or execution_date must be passed
+
         :param dag_id: DAG ID
         :type dag_id: str
         :param task_id: Task ID
         :type task_id: str
-        :param execution_date: Execution date for the task
-        :type execution_date: datetime
+        :param run_id: The run_id of this task's DagRun
+        :type run_id: datetime
         :param mark_success: Whether to mark the task as successful
         :type mark_success: bool
         :param ignore_all_deps: Ignore all ignorable dependencies.
@@ -522,8 +601,13 @@ class TaskInstance(Base, LoggingMixin):
         :return: shell command that can be used to run the task instance
         :rtype: list[str]
         """
-        iso = execution_date.isoformat()
-        cmd = ["airflow", "tasks", "run", dag_id, task_id, iso]
+        cmd = ["airflow", "tasks", "run", dag_id, task_id]
+        if run_id:
+            cmd.append(run_id)
+        elif execution_date:
+            cmd.append(execution_date.isoformat())
+        else:
+            raise ValueError("One of run_id and execution_date must be provided")
         if mark_success:
             cmd.extend(["--mark-success"])
         if pickle_id:
@@ -657,6 +741,9 @@ class TaskInstance(Base, LoggingMixin):
             self.pid = ti.pid
             self.executor_config = ti.executor_config
             self.external_executor_id = ti.external_executor_id
+            self.trigger_id = ti.trigger_id
+            self.next_method = ti.next_method
+            self.next_kwargs = ti.next_kwargs
         else:
             self.state = None
 
@@ -671,6 +758,7 @@ class TaskInstance(Base, LoggingMixin):
         :param pool_override: Use the pool_override instead of task's pool
         :type pool_override: str
         """
+        self.task = task
         self.queue = task.queue
         self.pool = pool_override or task.pool
         self.pool_slots = task.pool_slots
@@ -689,12 +777,12 @@ class TaskInstance(Base, LoggingMixin):
         :type session: Session
         """
         self.log.debug("Clearing XCom data")
-        session.query(XCom).filter(
-            XCom.dag_id == self.dag_id,
-            XCom.task_id == self.task_id,
-            XCom.execution_date == self.execution_date,
-        ).delete()
-        session.commit()
+        XCom.clear(
+            dag_id=self.dag_id,
+            task_id=self.task_id,
+            execution_date=self.execution_date,
+            session=session,
+        )
         self.log.debug("XCom data cleared")
 
     @property
@@ -758,6 +846,55 @@ class TaskInstance(Base, LoggingMixin):
         return count == len(task.downstream_task_ids)
 
     @provide_session
+    def get_previous_dagrun(
+        self,
+        state: Optional[str] = None,
+        session: Optional[Session] = None,
+    ) -> Optional["DagRun"]:
+        """The DagRun that ran before this task instance's DagRun.
+
+        :param state: If passed, it only take into account instances of a specific state.
+        :param session: SQLAlchemy ORM Session.
+        """
+        dag = self.task.dag
+        if dag is None:
+            return None
+
+        dr = self.get_dagrun(session=session)
+
+        # LEGACY: most likely running from unit tests
+        if not dr:
+            # Means that this TaskInstance is NOT being run from a DR, but from a catchup
+            try:
+                # XXX: This uses DAG internals, but as the outer comment
+                # said, the block is only reached for legacy reasons for
+                # development code, so that's OK-ish.
+                schedule = dag.timetable._schedule
+            except AttributeError:
+                return None
+            dt = pendulum.instance(self.execution_date)
+            return TaskInstance(
+                task=self.task,
+                execution_date=schedule.get_prev(dt),
+            )
+
+        dr.dag = dag
+
+        # We always ignore schedule in dagrun lookup when `state` is given or `schedule_interval is None`.
+        # For legacy reasons, when `catchup=True`, we use `get_previous_scheduled_dagrun` unless
+        # `ignore_schedule` is `True`.
+        ignore_schedule = state is not None or dag.schedule_interval is None
+        if dag.catchup is True and not ignore_schedule:
+            last_dagrun = dr.get_previous_scheduled_dagrun(session=session)
+        else:
+            last_dagrun = dr.get_previous_dagrun(session=session, state=state)
+
+        if last_dagrun:
+            return last_dagrun
+
+        return None
+
+    @provide_session
     def get_previous_ti(
         self, state: Optional[str] = None, session: Session = None
     ) -> Optional['TaskInstance']:
@@ -767,41 +904,10 @@ class TaskInstance(Base, LoggingMixin):
         :param state: If passed, it only take into account instances of a specific state.
         :param session: SQLAlchemy ORM Session
         """
-        dag = self.task.dag
-        if dag:
-            dr = self.get_dagrun(session=session)
-
-            # LEGACY: most likely running from unit tests
-            if not dr:
-                # Means that this TaskInstance is NOT being run from a DR, but from a catchup
-                try:
-                    # XXX: This uses DAG internals, but as the outer comment
-                    # said, the block is only reached for legacy reasons for
-                    # development code, so that's OK-ish.
-                    schedule = dag.timetable._schedule
-                except AttributeError:
-                    return None
-                dt = pendulum.instance(self.execution_date)
-                return TaskInstance(
-                    task=self.task,
-                    execution_date=schedule.get_prev(dt),
-                )
-
-            dr.dag = dag
-
-            # We always ignore schedule in dagrun lookup when `state` is given or `schedule_interval is None`.
-            # For legacy reasons, when `catchup=True`, we use `get_previous_scheduled_dagrun` unless
-            # `ignore_schedule` is `True`.
-            ignore_schedule = state is not None or dag.schedule_interval is None
-            if dag.catchup is True and not ignore_schedule:
-                last_dagrun = dr.get_previous_scheduled_dagrun(session=session)
-            else:
-                last_dagrun = dr.get_previous_dagrun(session=session, state=state)
-
-            if last_dagrun:
-                return last_dagrun.get_task_instance(self.task_id, session=session)
-
-        return None
+        dagrun = self.get_previous_dagrun(state, session=session)
+        if dagrun is None:
+            return None
+        return dagrun.get_task_instance(self.task_id, session=session)
 
     @property
     def previous_ti(self):
@@ -1044,6 +1150,7 @@ class TaskInstance(Base, LoggingMixin):
         self.refresh_from_db(session=session, lock_for_update=True)
         self.job_id = job_id
         self.hostname = get_hostname()
+        self.pid = None
 
         if not ignore_all_deps and not ignore_ti_state and self.state == State.SUCCESS:
             Stats.incr('previously_succeeded', 1, 1)
@@ -1189,6 +1296,22 @@ class TaskInstance(Base, LoggingMixin):
                 self._prepare_and_execute_task_with_callbacks(context, task)
             self.refresh_from_db(lock_for_update=True)
             self.state = State.SUCCESS
+        except TaskDeferred as defer:
+            # The task has signalled it wants to defer execution based on
+            # a trigger.
+            self._defer_task(defer=defer)
+            self.log.info(
+                'Pausing task as DEFERRED. dag_id=%s, task_id=%s, execution_date=%s, start_date=%s',
+                self.dag_id,
+                self.task_id,
+                self._date_or_empty('execution_date'),
+                self._date_or_empty('start_date'),
+            )
+            if not test_mode:
+                session.add(Log(self.state, self))
+                session.merge(self)
+            session.commit()
+            return
         except AirflowSmartSensorException as e:
             self.log.info(e)
             return
@@ -1309,21 +1432,84 @@ class TaskInstance(Base, LoggingMixin):
 
     def _execute_task(self, context, task_copy):
         """Executes Task (optionally with a Timeout) and pushes Xcom results"""
+        # If the task has been deferred and is being executed due to a trigger,
+        # then we need to pick the right method to come back to, otherwise
+        # we go for the default execute
+        execute_callable = task_copy.execute
+        if self.next_method:
+            # __fail__ is a special signal value for next_method that indicates
+            # this task was scheduled specifically to fail.
+            if self.next_method == "__fail__":
+                next_kwargs = self.next_kwargs or {}
+                raise TaskDeferralError(next_kwargs.get("error", "Unknown"))
+            # Grab the callable off the Operator/Task and add in any kwargs
+            execute_callable = getattr(task_copy, self.next_method)
+            if self.next_kwargs:
+                execute_callable = partial(execute_callable, **self.next_kwargs)
         # If a timeout is specified for the task, make it fail
         # if it goes beyond
         if task_copy.execution_timeout:
+            # If we are coming in with a next_method (i.e. from a deferral),
+            # calculate the timeout from our start_date.
+            if self.next_method:
+                timeout_seconds = (
+                    task_copy.execution_timeout - (timezone.utcnow() - self.start_date)
+                ).total_seconds()
+            else:
+                timeout_seconds = task_copy.execution_timeout.total_seconds()
             try:
-                with timeout(task_copy.execution_timeout.total_seconds()):
-                    result = task_copy.execute(context=context)
+                # It's possible we're already timed out, so fast-fail if true
+                if timeout_seconds <= 0:
+                    raise AirflowTaskTimeout()
+                # Run task in timeout wrapper
+                with timeout(timeout_seconds):
+                    result = execute_callable(context=context)
             except AirflowTaskTimeout:
                 task_copy.on_kill()
                 raise
         else:
-            result = task_copy.execute(context=context)
+            result = execute_callable(context=context)
         # If the task returns a result, push an XCom containing it
         if task_copy.do_xcom_push and result is not None:
             self.xcom_push(key=XCOM_RETURN_KEY, value=result)
         return result
+
+    @provide_session
+    def _defer_task(self, session, defer: TaskDeferred):
+        """
+        Marks the task as deferred and sets up the trigger that is needed
+        to resume it.
+        """
+        from airflow.models.trigger import Trigger
+
+        # First, make the trigger entry
+        trigger_row = Trigger.from_object(defer.trigger)
+        session.add(trigger_row)
+        session.flush()
+
+        # Then, update ourselves so it matches the deferral request
+        self.state = State.DEFERRED
+        self.trigger_id = trigger_row.id
+        self.next_method = defer.method_name
+        self.next_kwargs = defer.kwargs or {}
+
+        # Decrement try number so the next one is the same try
+        self._try_number -= 1
+
+        # Calculate timeout too if it was passed
+        if defer.timeout is not None:
+            self.trigger_timeout = timezone.utcnow() + defer.timeout
+        else:
+            self.trigger_timeout = None
+
+        # If an execution_timeout is set, set the timeout to the minimum of
+        # it and the trigger timeout
+        execution_timeout = self.task.execution_timeout
+        if execution_timeout:
+            if self.trigger_timeout:
+                self.trigger_timeout = min(self.start_date + execution_timeout, self.trigger_timeout)
+            else:
+                self.trigger_timeout = self.start_date + execution_timeout
 
     def _run_execute_callback(self, context: Context, task):
         """Functions that need to be run before a Task is executed"""
@@ -1345,18 +1531,27 @@ class TaskInstance(Base, LoggingMixin):
             if task.on_failure_callback is not None:
                 context = self.get_template_context()
                 context["exception"] = error
-                task.on_failure_callback(context)
+                try:
+                    task.on_failure_callback(context)
+                except Exception:
+                    self.log.exception("Error when executing on_failure_callback")
         elif self.state == State.SUCCESS:
             task = self.task
             if task.on_success_callback is not None:
                 context = self.get_template_context()
-                task.on_success_callback(context)
+                try:
+                    task.on_success_callback(context)
+                except Exception:
+                    self.log.exception("Error when executing on_success_callback")
         elif self.state == State.UP_FOR_RETRY:
             task = self.task
             if task.on_retry_callback is not None:
                 context = self.get_template_context()
                 context["exception"] = error
-                task.on_retry_callback(context)
+                try:
+                    task.on_retry_callback(context)
+                except Exception:
+                    self.log.exception("Error when executing on_retry_callback")
 
     @provide_session
     def run(
@@ -1536,66 +1731,63 @@ class TaskInstance(Base, LoggingMixin):
 
         integrate_macros_plugins()
 
-        params = {}  # type: Dict[str, Any]
-        run_id = ''
-        dag_run = None
-        if hasattr(task, 'dag'):
-            if task.dag.params:
-                params.update(task.dag.params)
-            from airflow.models.dagrun import DagRun  # Avoid circular import
+        dag_run = self.get_dagrun()
 
-            dag_run = (
-                session.query(DagRun)
-                .filter_by(dag_id=task.dag.dag_id, execution_date=self.execution_date)
-                .first()
+        # FIXME: Many tests don't create a DagRun. We should fix the tests.
+        if dag_run is None:
+            FakeDagRun = namedtuple(
+                "FakeDagRun",
+                # A minimal set of attributes to keep things working.
+                "conf data_interval_start data_interval_end external_trigger run_id",
             )
-            run_id = dag_run.run_id if dag_run else None
-            session.expunge_all()
-            session.commit()
+            dag_run = FakeDagRun(
+                conf=None,
+                data_interval_start=None,
+                data_interval_end=None,
+                external_trigger=False,
+                run_id="",
+            )
 
-        ds = self.execution_date.strftime('%Y-%m-%d')
-        ts = self.execution_date.isoformat()
-        yesterday_ds = (self.execution_date - timedelta(1)).strftime('%Y-%m-%d')
-        tomorrow_ds = (self.execution_date + timedelta(1)).strftime('%Y-%m-%d')
-
-        # For manually triggered dagruns that aren't run on a schedule, next/previous
-        # schedule dates don't make sense, and should be set to execution date for
-        # consistency with how execution_date is set for manually triggered tasks, i.e.
-        # triggered_date == execution_date.
-        if dag_run and dag_run.external_trigger:
-            prev_execution_date = self.execution_date
-            next_execution_date = self.execution_date
-        else:
-            prev_execution_date = task.dag.previous_schedule(self.execution_date)
-            next_execution_date = task.dag.following_schedule(self.execution_date)
-
-        next_ds = None
-        next_ds_nodash = None
-        if next_execution_date:
-            next_ds = next_execution_date.strftime('%Y-%m-%d')
-            next_ds_nodash = next_ds.replace('-', '')
-            next_execution_date = pendulum.instance(next_execution_date)
-
-        prev_ds = None
-        prev_ds_nodash = None
-        if prev_execution_date:
-            prev_ds = prev_execution_date.strftime('%Y-%m-%d')
-            prev_ds_nodash = prev_ds.replace('-', '')
-            prev_execution_date = pendulum.instance(prev_execution_date)
-
-        ds_nodash = ds.replace('-', '')
-        ts_nodash = self.execution_date.strftime('%Y%m%dT%H%M%S')
-        ts_nodash_with_tz = ts.replace('-', '').replace(':', '')
-        yesterday_ds_nodash = yesterday_ds.replace('-', '')
-        tomorrow_ds_nodash = tomorrow_ds.replace('-', '')
-
-        ti_key_str = f"{task.dag_id}__{task.task_id}__{ds_nodash}"
-
+        params = {}  # type: Dict[str, Any]
+        with contextlib.suppress(AttributeError):
+            params.update(task.dag.params)
         if task.params:
             params.update(task.params)
-
         if conf.getboolean('core', 'dag_run_conf_overrides_params'):
             self.overwrite_params_with_dag_run_conf(params=params, dag_run=dag_run)
+
+        # DagRuns scheduled prior to Airflow 2.2 and by tests don't always have
+        # a data interval, and we default to execution_date for compatibility.
+        compat_interval_start = timezone.coerce_datetime(dag_run.data_interval_start or self.execution_date)
+        ds = compat_interval_start.strftime('%Y-%m-%d')
+        ds_nodash = ds.replace('-', '')
+        ts = compat_interval_start.isoformat()
+        ts_nodash = compat_interval_start.strftime('%Y%m%dT%H%M%S')
+        ts_nodash_with_tz = ts.replace('-', '').replace(':', '')
+
+        @cache  # Prevent multiple database access.
+        def _get_previous_dagrun_success() -> Optional["DagRun"]:
+            return self.get_previous_dagrun(state=State.SUCCESS, session=session)
+
+        def get_prev_data_interval_start_success() -> Optional[pendulum.DateTime]:
+            dagrun = _get_previous_dagrun_success()
+            if dagrun is None:
+                return None
+            return timezone.coerce_datetime(dagrun.data_interval_start)
+
+        def get_prev_data_interval_end_success() -> Optional[pendulum.DateTime]:
+            dagrun = _get_previous_dagrun_success()
+            if dagrun is None:
+                return None
+            return timezone.coerce_datetime(dagrun.data_interval_end)
+
+        def get_prev_start_date_success() -> Optional[pendulum.DateTime]:
+            dagrun = _get_previous_dagrun_success()
+            if dagrun is None:
+                return None
+            return timezone.coerce_datetime(dagrun.start_date)
+
+        # Custom accessors.
 
         class VariableAccessor:
             """
@@ -1677,37 +1869,129 @@ class TaskInstance(Base, LoggingMixin):
                 except AirflowNotFoundException:
                     return default_conn
 
+        # Create lazy proxies for deprecated stuff.
+
+        def deprecated_proxy(func, *, key, replacement=None) -> lazy_object_proxy.Proxy:
+            def deprecated_func():
+                message = (
+                    f"Accessing {key!r} from the template is deprecated and "
+                    f"will be removed in a future version."
+                )
+                if replacement:
+                    message += f" Please use {replacement!r} instead."
+                warnings.warn(message, DeprecationWarning)
+                return func()
+
+            return lazy_object_proxy.Proxy(deprecated_func)
+
+        @cache
+        def get_yesterday_ds() -> str:
+            return (self.execution_date - timedelta(1)).strftime('%Y-%m-%d')
+
+        def get_yesterday_ds_nodash() -> str:
+            return get_yesterday_ds().replace('-', '')
+
+        @cache
+        def get_tomorrow_ds() -> str:
+            return (self.execution_date + timedelta(1)).strftime('%Y-%m-%d')
+
+        def get_tomorrow_ds_nodash() -> str:
+            return get_tomorrow_ds().replace('-', '')
+
+        @cache
+        def get_next_execution_date() -> Optional[pendulum.DateTime]:
+            # For manually triggered dagruns that aren't run on a schedule,
+            # next/previous execution dates don't make sense, and should be set
+            # to execution date for consistency with how execution_date is set
+            # for manually triggered tasks, i.e. triggered_date == execution_date.
+            if dag_run.external_trigger:
+                next_execution_date = self.execution_date
+            else:
+                next_execution_date = task.dag.following_schedule(self.execution_date)
+            if next_execution_date is None:
+                return None
+            return timezone.coerce_datetime(next_execution_date)
+
+        def get_next_ds() -> Optional[str]:
+            execution_date = get_next_execution_date()
+            if execution_date is None:
+                return None
+            return execution_date.strftime('%Y-%m-%d')
+
+        def get_next_ds_nodash() -> Optional[str]:
+            ds = get_next_ds()
+            if ds is None:
+                return ds
+            return ds.replace('-', '')
+
+        @cache
+        def get_prev_execution_date():
+            if dag_run.external_trigger:
+                return timezone.coerce_datetime(self.execution_date)
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore", DeprecationWarning)
+                return task.dag.previous_schedule(self.execution_date)
+
+        @cache
+        def get_prev_ds() -> Optional[str]:
+            execution_date = get_prev_execution_date()
+            if execution_date is None:
+                return None
+            return execution_date.strftime(r'%Y-%m-%d')
+
+        def get_prev_ds_nodash() -> Optional[str]:
+            prev_ds = get_prev_ds()
+            if prev_ds is None:
+                return None
+            return prev_ds.replace('-', '')
+
         return {
             'conf': conf,
             'dag': task.dag,
             'dag_run': dag_run,
+            'data_interval_end': timezone.coerce_datetime(dag_run.data_interval_end),
+            'data_interval_start': timezone.coerce_datetime(dag_run.data_interval_start),
             'ds': ds,
             'ds_nodash': ds_nodash,
-            'execution_date': pendulum.instance(self.execution_date),
+            'execution_date': deprecated_proxy(
+                lambda: timezone.coerce_datetime(self.execution_date),
+                key='execution_date',
+                replacement='data_interval_start',
+            ),
             'inlets': task.inlets,
             'macros': macros,
-            'next_ds': next_ds,
-            'next_ds_nodash': next_ds_nodash,
-            'next_execution_date': next_execution_date,
+            'next_ds': deprecated_proxy(get_next_ds, key="next_ds", replacement="data_interval_end | ds"),
+            'next_ds_nodash': deprecated_proxy(
+                get_next_ds_nodash,
+                key="next_ds_nodash",
+                replacement="data_interval_end | ds_nodash",
+            ),
+            'next_execution_date': deprecated_proxy(
+                get_next_execution_date,
+                key='next_execution_date',
+                replacement='data_interval_end',
+            ),
             'outlets': task.outlets,
             'params': params,
-            'prev_ds': prev_ds,
-            'prev_ds_nodash': prev_ds_nodash,
-            'prev_execution_date': prev_execution_date,
-            'prev_execution_date_success': lazy_object_proxy.Proxy(
-                lambda: self.get_previous_execution_date(state=State.SUCCESS)
+            'prev_data_interval_start_success': lazy_object_proxy.Proxy(get_prev_data_interval_start_success),
+            'prev_data_interval_end_success': lazy_object_proxy.Proxy(get_prev_data_interval_end_success),
+            'prev_ds': deprecated_proxy(get_prev_ds, key="prev_ds"),
+            'prev_ds_nodash': deprecated_proxy(get_prev_ds_nodash, key="prev_ds_nodash"),
+            'prev_execution_date': deprecated_proxy(get_prev_execution_date, key='prev_execution_date'),
+            'prev_execution_date_success': deprecated_proxy(
+                lambda: self.get_previous_execution_date(state=State.SUCCESS, session=session),
+                key='prev_execution_date_success',
+                replacement='prev_data_interval_start_success',
             ),
-            'prev_start_date_success': lazy_object_proxy.Proxy(
-                lambda: self.get_previous_start_date(state=State.SUCCESS)
-            ),
-            'run_id': run_id,
+            'prev_start_date_success': lazy_object_proxy.Proxy(get_prev_start_date_success),
+            'run_id': dag_run.run_id,
             'task': task,
             'task_instance': self,
-            'task_instance_key_str': ti_key_str,
+            'task_instance_key_str': f"{task.dag_id}__{task.task_id}__{ds_nodash}",
             'test_mode': self.test_mode,
             'ti': self,
-            'tomorrow_ds': tomorrow_ds,
-            'tomorrow_ds_nodash': tomorrow_ds_nodash,
+            'tomorrow_ds': deprecated_proxy(get_tomorrow_ds, key='tomorrow_ds'),
+            'tomorrow_ds_nodash': deprecated_proxy(get_tomorrow_ds_nodash, key='tomorrow_ds_nodash'),
             'ts': ts,
             'ts_nodash': ts_nodash,
             'ts_nodash_with_tz': ts_nodash_with_tz,
@@ -1716,8 +2000,8 @@ class TaskInstance(Base, LoggingMixin):
                 'value': VariableAccessor(),
             },
             'conn': ConnectionAccessor(),
-            'yesterday_ds': yesterday_ds,
-            'yesterday_ds_nodash': yesterday_ds_nodash,
+            'yesterday_ds': deprecated_proxy(get_yesterday_ds, key='yesterday_ds'),
+            'yesterday_ds_nodash': deprecated_proxy(get_yesterday_ds_nodash, key='yesterday_ds_nodash'),
         }
 
     def get_rendered_template_fields(self):
@@ -2153,7 +2437,7 @@ STATICA_HACK = True
 globals()['kcah_acitats'[::-1].upper()] = False
 if STATICA_HACK:  # pragma: no cover
 
-    from airflow.job.base_job import BaseJob
+    from airflow.jobs.base_job import BaseJob
     from airflow.models.dagrun import DagRun
 
     TaskInstance.dag_run = relationship(DagRun)

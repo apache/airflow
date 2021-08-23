@@ -111,7 +111,7 @@ def dags(log_app):
     bag.bag_dag(dag=dag_removed, root_dag=dag_removed)
 
     # Since we don't want to store the code for the DAG defined in this file
-    with unittest.mock.patch.object(settings, "STORE_DAG_CODE", False):
+    with unittest.mock.patch('airflow.models.dag.DagCode.bulk_sync_to_db'):
         dag.sync_to_db()
         dag_removed.sync_to_db()
         bag.sync_to_db()

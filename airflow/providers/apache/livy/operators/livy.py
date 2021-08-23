@@ -166,6 +166,7 @@ class LivyOperator(BaseOperator):
             sleep(self._polling_interval)
             state = hook.get_batch_state(batch_id)
         self.log.info("Batch with id %s terminated with state: %s", batch_id, state.value)
+        hook.dump_batch_logs(batch_id)
         if state != BatchState.SUCCESS:
             raise AirflowException(f"Batch {batch_id} did not succeed")
 
