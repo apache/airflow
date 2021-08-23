@@ -16,11 +16,9 @@
 # specific language governing permissions and limitations
 # under the License.
 
-import os
-import shutil as _shutil
 import unittest
 from datetime import datetime, timedelta
-from tempfile import NamedTemporaryFile, TemporaryDirectory, TemporaryFile
+from tempfile import NamedTemporaryFile, TemporaryDirectory
 from unittest import mock
 
 import pytest
@@ -132,7 +130,7 @@ class TestBashOperator(unittest.TestCase):
         assert line == val
 
     def test_cwd_does_not_exist(self):
-        test_cmd = f'set -e; echo "xxxx" |tee outputs.txt'
+        test_cmd = 'set -e; echo "xxxx" |tee outputs.txt'
         with TemporaryDirectory(prefix='test_command_with_cwd') as tmp_dir:
             # There should be no exceptions when creating the operator
             bash_operator = BashOperator(task_id='abc', bash_command=test_cmd, cwd=tmp_dir)
@@ -140,7 +138,7 @@ class TestBashOperator(unittest.TestCase):
             bash_operator.execute({})
 
     def test_cwd_is_file(self):
-        test_cmd = f'set -e; echo "xxxx" |tee outputs.txt'
+        test_cmd = 'set -e; echo "xxxx" |tee outputs.txt'
         with NamedTemporaryFile(suffix="var.env") as tmp_file:
             # Test if the cwd is a file_path
             with pytest.raises(AirflowException, match=f"The cwd {tmp_file.name} must be a directory"):
@@ -148,7 +146,7 @@ class TestBashOperator(unittest.TestCase):
 
     def test_valid_cwd(self):
 
-        test_cmd = f'set -e; echo "xxxx" |tee outputs.txt'
+        test_cmd = 'set -e; echo "xxxx" |tee outputs.txt'
         with TemporaryDirectory(prefix='test_command_with_cwd') as test_cwd_folder:
             # Test everything went alright
             result = BashOperator(task_id='abc', bash_command=test_cmd, cwd=test_cwd_folder).execute({})

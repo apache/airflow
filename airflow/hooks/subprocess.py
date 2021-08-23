@@ -51,7 +51,8 @@ class SubprocessHook(BaseHook):
         :param env: Optional dict containing environment variables to be made available to the shell
             environment in which ``command`` will be executed.  If omitted, ``os.environ`` will be used.
         :param output_encoding: encoding to use for decoding stdout
-        :param cwd: the bash cwd. If it is None, generate a temporary directory which will be cleaned afterwards
+        :param cwd: the bash cwd.
+            If it is None, generate a temporary directory which will be cleaned afterwards
         :return: :class:`namedtuple` containing ``exit_code`` and ``output``, the last line from stderr
             or stdout
         """
