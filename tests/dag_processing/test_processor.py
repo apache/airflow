@@ -418,6 +418,23 @@ class TestDagFileProcessor:
             assert import_error.stacktrace == f"invalid syntax ({TEMP_DAG_FILENAME}, line 1)"
             session.rollback()
 
+    @conf_vars({("core", "dagbag_import_error_tracebacks"): "False"})
+    def test_add_unparseable_zip_file_creates_import_error(self, tmpdir):
+        zip_filename = tmpdir / "test_zip.zip"
+        invalid_dag_filename = zip_filename / TEMP_DAG_FILENAME
+        with ZipFile(zip_filename, "w") as zip_file:
+            zip_file.writestr(TEMP_DAG_FILENAME, UNPARSEABLE_DAG_FILE_CONTENTS)
+
+        with create_session() as session:
+            self._process_file(zip_filename, session)
+            import_errors = session.query(errors.ImportError).all()
+
+            assert len(import_errors) == 1
+            import_error = import_errors[0]
+            assert import_error.filename == invalid_dag_filename
+            assert import_error.stacktrace == f"invalid syntax ({TEMP_DAG_FILENAME}, line 1)"
+            session.rollback()
+
     def test_no_import_errors_with_parseable_dag(self, tmpdir):
         parseable_filename = tmpdir / TEMP_DAG_FILENAME
 
@@ -426,6 +443,19 @@ class TestDagFileProcessor:
 
         with create_session() as session:
             self._process_file(parseable_file, session)
+            import_errors = session.query(errors.ImportError).all()
+
+            assert len(import_errors) == 0
+
+            session.rollback()
+
+    def test_no_import_errors_with_parseable_dag_in_zip(self, tmpdir):
+        zip_filename = tmpdir / "test_zip.zip"
+        with ZipFile(zip_filename, "w") as zip_file:
+            zip_file.writestr(TEMP_DAG_FILENAME, PARSEABLE_DAG_FILE_CONTENTS)
+
+        with create_session() as session:
+            self._process_file(zip_filename, session)
             import_errors = session.query(errors.ImportError).all()
 
             assert len(import_errors) == 0
@@ -474,6 +504,28 @@ class TestDagFileProcessor:
 
         import_errors = session.query(errors.ImportError).all()
 
+        assert len(import_errors) == 0
+
+        session.rollback()
+
+    def test_remove_error_clears_import_error_zip(self, tmpdir):
+        session = settings.Session()
+
+        # Generate original import error
+        zip_filename = tmpdir / "test_zip.zip"
+        with ZipFile(zip_filename, "w") as zip_file:
+            zip_file.writestr(TEMP_DAG_FILENAME, UNPARSEABLE_DAG_FILE_CONTENTS)
+        self._process_file(zip_filename, session)
+
+        import_errors = session.query(errors.ImportError).all()
+        assert len(import_errors) == 1
+
+        # Remove the import error from the file
+        with ZipFile(zip_filename, "w") as zip_file:
+            zip_file.writestr(TEMP_DAG_FILENAME, 'import os # airflow DAG')
+        self._process_file(zip_filename, session)
+
+        import_errors = session.query(errors.ImportError).all()
         assert len(import_errors) == 0
 
         session.rollback()
@@ -538,7 +590,7 @@ class TestDagFileProcessor:
 
             assert len(import_errors) == 1
             import_error = import_errors[0]
-            assert import_error.filename == invalid_zip_filename
+            assert import_error.filename == invalid_dag_filename
             expected_stacktrace = (
                 "Traceback (most recent call last):\n"
                 '  File "{}", line 3, in <module>\n'
@@ -565,7 +617,7 @@ class TestDagFileProcessor:
 
             assert len(import_errors) == 1
             import_error = import_errors[0]
-            assert import_error.filename == invalid_zip_filename
+            assert import_error.filename == invalid_dag_filename
             expected_stacktrace = (
                 "Traceback (most recent call last):\n"
                 '  File "{}", line 2, in something\n'

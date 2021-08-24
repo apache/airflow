@@ -369,13 +369,14 @@ class DagBag(LoggingMixin):
                     current_module = importlib.import_module(mod_name)
                     mods.append(current_module)
                 except Exception as e:
-                    self.log.exception("Failed to import: %s", filepath)
+                    fileloc = os.path.join(filepath, zip_info.filename)
+                    self.log.exception("Failed to import: %s", fileloc)
                     if self.dagbag_import_error_tracebacks:
-                        self.import_errors[filepath] = traceback.format_exc(
+                        self.import_errors[fileloc] = traceback.format_exc(
                             limit=-self.dagbag_import_error_traceback_depth
                         )
                     else:
-                        self.import_errors[filepath] = str(e)
+                        self.import_errors[fileloc] = str(e)
         return mods
 
     def _process_modules(self, filepath, mods, file_last_changed_on_disk):

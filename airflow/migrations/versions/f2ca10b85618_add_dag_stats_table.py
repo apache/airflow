@@ -26,6 +26,8 @@ Create Date: 2016-07-20 15:08:28.247537
 import sqlalchemy as sa
 from alembic import op
 
+from airflow.models.base import COLLATION_ARGS
+
 # revision identifiers, used by Alembic.
 revision = 'f2ca10b85618'
 down_revision = '64de9cddf6c9'
@@ -36,7 +38,7 @@ depends_on = None
 def upgrade():
     op.create_table(
         'dag_stats',
-        sa.Column('dag_id', sa.String(length=250), nullable=False),
+        sa.Column('dag_id', sa.String(length=250, **COLLATION_ARGS), nullable=False),
         sa.Column('state', sa.String(length=50), nullable=False),
         sa.Column('count', sa.Integer(), nullable=False, default=0),
         sa.Column('dirty', sa.Boolean(), nullable=False, default=False),

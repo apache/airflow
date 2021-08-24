@@ -27,9 +27,9 @@ Create Date: 2020-03-12 12:39:01.797462
 import sqlalchemy as sa
 from alembic import op
 
-# revision identifiers, used by Alembic.
 from airflow.models.dagcode import DagCode
 
+# revision identifiers, used by Alembic.
 revision = '952da73b5eff'
 down_revision = '852ae6c715af'
 branch_labels = None
