@@ -462,6 +462,9 @@ function groupTooltip(nodeId, tis) {
 function updateNodesStates(tis) {
   g.nodes().forEach((nodeId) => {
     const { elem } = g.node(nodeId);
+    if (!elem) {
+        return;
+    }
     elem.setAttribute('class', `node enter ${getNodeState(nodeId, tis)}`);
     elem.setAttribute('data-toggle', 'tooltip');
 
@@ -598,7 +601,7 @@ function focusGroup(nodeId) {
 }
 
 // Expands a group node
-function expandGroup(nodeId, node, focus = true) {
+function expandGroup(nodeId, node, focus = true, do_draw = true) {
   node.children.forEach((val) => {
     // Set children nodes
     g.setNode(val.id, val.value);
@@ -635,7 +638,9 @@ function expandGroup(nodeId, node, focus = true) {
     }
   });
 
-  draw();
+  if (do_draw) {
+    draw();
+  }
 
   if (focus) {
     focusGroup(nodeId);
@@ -687,7 +692,7 @@ function expandSavedGroups(expandedGroups, node) {
 
   node.children.forEach((childNode) => {
     if (expandedGroups.has(childNode.id)) {
-      expandGroup(childNode.id, g.node(childNode.id), false);
+      expandGroup(childNode.id, g.node(childNode.id), false, false);
 
       expandSavedGroups(expandedGroups, childNode);
     }
@@ -699,10 +704,13 @@ const focusNodeId = localStorage.getItem(focusedGroupKey(dagId));
 const expandedGroups = getSavedGroups(dagId);
 
 // Always expand the root node
-expandGroup(null, nodes);
+expandGroup(null, nodes, false, false);
 
 // Expand the node that were previously expanded
 expandSavedGroups(expandedGroups, nodes);
+
+// Draw once after all groups have been expanded
+draw();
 
 // Restore focus (if available)
 if (g.hasNode(focusNodeId)) {
