@@ -354,7 +354,7 @@ $(window).on('load', () => {
 });
 
 // Format next run dates once the page loads
-const nextRuns = document.getElementsByClassName('next-run');
+const nextRuns = document.getElementsByClassName('js-next-run');
 Array.from(nextRuns).forEach((run) => {
   const value = run.innerText;
   run.innerText = `${moment(value).isValid() ? formatDateTime(value) : ''}`;

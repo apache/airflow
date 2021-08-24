@@ -98,7 +98,7 @@
               </th>
               <th>Schedule</th>
               <th style="width:180px;">Last Run
-                <span class="material-icons text-muted js-tooltip" aria-hidden="true" title="Logical Date/Time of the latest Dag Run.">info</span>
+                <span class="material-icons text-muted js-tooltip" aria-hidden="true" title="Date/Time of the latest Dag Run.">info</span>
               </th>
               <th style="width:180px;">Next Run
                 <span class="material-icons text-muted js-tooltip" aria-hidden="true" title="Expected Date/Time of the next Dag Run.">info</span>
@@ -116,7 +116,6 @@
             {% endif %}
             {% for dag in dags %}
               <tr>
-                {# Column 1: Turn dag on/off #}
                 <td style="padding-right:0;">
                   {% if dag.can_edit %}
                     {% set switch_tooltip = 'Pause/Unpause DAG' %}
@@ -130,7 +129,6 @@
                     <span class="switch" aria-hidden="true"></span>
                   </label>
                 </td>
-                {# Column 2: Name #}
                 <td>
                   <a href="{{ url_for('Airflow.'+ dag.get_default_view(), dag_id=dag.dag_id) }}"
                      title="{{ dag.description[0:80] + '…' if dag.description and dag.description|length > 80 else dag.description|default('', true) }}">
@@ -146,7 +144,6 @@
                     {% endfor %}
                   </div>
                 </td>
-                {# Column 3: Dag Owners #}
                 <td>
                   {% for owner in dag.owners.split(",") %}
                   <a class="label label-default"
@@ -156,33 +153,27 @@
                   </a>
                   {% endfor %}
                 </td>
-                {# Column 4: Dag Runs #}
                 <td style="padding:0; width:120px;">
                   {{ loading_dots(classes='js-loading-dag-stats text-muted') }}
                   <svg height="10" width="10" id="dag-run-{{ dag.safe_dag_id }}" style="display: block;"></svg>
                 </td>
-                {# Column 5: Dag Schedule #}
                 <td>
                   <a class="label label-default schedule" href="{{ url_for('DagRunModelView.list') }}?_flt_3_dag_id={{ dag.dag_id }}" data-dag-id="{{ dag.dag_id }}">
                     {{ dag.schedule_interval }}
                   </a>
                 </td>
-                {# Column 6: Last Run #}
                 <td id="last-run-{{ dag.safe_dag_id }}" class="text-nowrap latest_dag_run">
                   {{ loading_dots(classes='js-loading-last-run text-muted') }}
                   <a></a>
                   <span aria-hidden="true" title=" " class="material-icons text-muted js-tooltip" style="display:none">info</span>
                 </td>
-                {# Column 7: Next Run #}
-                <td class="text-nowrap next-run">
-                  {{ dag.next_dagrun }}
+                <td class="text-nowrap js-next-run">
+                  {{ dag.next_dagrun_create_after }}
                 </td>
-                {# Column 8: Recent Tasks #}
                 <td style="padding:0; width:323px; height:10px;">
                   {{ loading_dots(classes='js-loading-task-stats text-muted') }}
                   <svg height="10" width="10" id='task-run-{{ dag.safe_dag_id }}' style="display: block;"></svg>
                 </td>
-                {# Column 9: Actions #}
                 <td class="text-center">
                   <div class="btn-group">
                     {% if dag %}
@@ -209,7 +200,6 @@
                     </a>
                   </div>
                 </td>
-                {# Column 10: Links #}
                 <td class="dags-table-more">
                   {% if dag %}
                     <div class="dags-table-more__menu">

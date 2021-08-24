@@ -86,13 +86,13 @@
       <a class="label label-default" href="{{ url_for('DagRunModelView.list') }}?_flt_3_dag_id={{ dag.dag_id }}">
         Schedule: {{ dag.schedule_interval }}
       </a>
-      {% if dag_model is defined and dag_model.next_dagrun is defined %}
+      {% if dag_model is defined and dag_model.next_dagrun_create_after is defined %}
         <p class="label label-default" style="margin-left: 5px">
-          Next Run: <span id="next-run">{{ dag_model.next_dagrun }}</span>
+          Next Run: <span id="next-run">{{ dag_model.next_dagrun_create_after }}</span>
         </p>
-      {% elif dag.next_dagrun is defined %}
+      {% elif dag.next_dagrun_create_after is defined %}
         <p class="label label-default" style="margin-left: 5px">
-          Next Run: <span id="next-run">{{ dag.next_dagrun }}</span>
+          Next Run: <span id="next-run">{{ dag.next_dagrun_create_after }}</span>
         </p>
       {% endif %}
     </h4>
