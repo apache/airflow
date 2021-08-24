@@ -1131,6 +1131,11 @@
                                 "/clean-logs"
                             ]
                         },
+                        "retentionDays": {
+                            "description": "Number of days to retain the logs when running the Airflow workers log groomer sidecar.",
+                            "type": "integer",
+                            "default": 15
+                        },
                         "resources": {
                             "description": "Resources for Airflow workers log groomer sidecar.",
                             "type": "object",
@@ -1373,6 +1378,11 @@
                                 "bash",
                                 "/clean-logs"
                             ]
+                        },
+                        "retentionDays": {
+                            "description": "Number of days to retain the logs when running the Airflow scheduler log groomer sidecar.",
+                            "type": "integer",
+                            "default": 15
                         },
                         "resources": {
                             "description": "Resources for log groomer sidecar.",
