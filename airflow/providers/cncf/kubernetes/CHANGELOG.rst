@@ -19,6 +19,20 @@
 Changelog
 ---------
 
+2.0.2
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix using XCom with &#39;&#39;KubernetesPodOperator&#39;&#39; (#17760)``
+* ``Import Hooks lazily individually in providers manager (#17682)``
+
+.. Review and move the new changes to one of the sections above:
+   * ``Fix messed-up changelog in 3 providers (#17380)``
+   * ``Fix static checks (#17256)``
+   * ``Update spark_kubernetes.py (#17237)``
+
 2.0.1
 .....
 
