@@ -49,14 +49,13 @@ class MockSubProcess:
         return
 
 
-class MockConnectionCursor:
-    def __init__(self, empty_table_flag=False, *args, **kwargs):
+class BaseMockConnectionCursor:
+    def __init__(self, *args, **kwargs):
         self.arraysize = None
         self.description = [
             ('hive_server_hook.a', 'INT_TYPE', None, None, None, None, True),
             ('hive_server_hook.b', 'INT_TYPE', None, None, None, None, True),
         ]
-        self.iterable = [] if empty_table_flag else [(1, 1), (2, 2)]
         self.conn_exists = kwargs.get('exists', True)
 
     def close(self):
@@ -85,3 +84,15 @@ class MockConnectionCursor:
 
     def __iter__(self):
         yield from self.iterable
+
+
+class MockConnectionCursor(BaseMockConnectionCursor):
+    def __init__(self, *args, **kwargs):
+        super().__init__()
+        self.iterable = [(1, 1), (2, 2)]
+
+
+class EmptyMockConnectionCursor(BaseMockConnectionCursor):
+    def __init__(self, *args, **kwargs):
+        super().__init__()
+        self.iterable = []
