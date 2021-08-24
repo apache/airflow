@@ -81,6 +81,8 @@ if TYPE_CHECKING:
 ScheduleInterval = Union[str, timedelta, relativedelta]
 
 TaskStateChangeCallback = Callable[[Context], None]
+TaskPreExecuteHook = Callable[[Context], None]
+TaskPostExecuteHook = Callable[[Context, Any], None]
 
 T = TypeVar('T', bound=Callable)
 
@@ -347,6 +349,14 @@ class BaseOperator(Operator, LoggingMixin, TaskMixin, metaclass=BaseOperatorMeta
     :param on_success_callback: much like the ``on_failure_callback`` except
         that it is executed when the task succeeds.
     :type on_success_callback: TaskStateChangeCallback
+    :param pre_execute: a function to be called immediately before task
+        execution, receiving a context dictionary; raising an exception will
+        prevent the task from being executed.
+    :type pre_execute: TaskPreExecuteHook
+    :param post_execute: a function to be called immediately after task
+        execution, receiving a context dictionary and task result; raising an
+        exception will prevent the task from succeeding.
+    :type post_execute: TaskPostExecuteHook
     :param trigger_rule: defines the rule by which dependencies are applied
         for the task to get triggered. Options are:
         ``{ all_success | all_failed | all_done | one_success |
@@ -488,6 +498,8 @@ class BaseOperator(Operator, LoggingMixin, TaskMixin, metaclass=BaseOperatorMeta
         on_failure_callback: Optional[TaskStateChangeCallback] = None,
         on_success_callback: Optional[TaskStateChangeCallback] = None,
         on_retry_callback: Optional[TaskStateChangeCallback] = None,
+        pre_execute: Optional[TaskPreExecuteHook] = None,
+        post_execute: Optional[TaskPostExecuteHook] = None,
         trigger_rule: str = TriggerRule.ALL_SUCCESS,
         resources: Optional[Dict] = None,
         run_as_user: Optional[str] = None,
@@ -599,6 +611,8 @@ class BaseOperator(Operator, LoggingMixin, TaskMixin, metaclass=BaseOperatorMeta
         self.on_failure_callback = on_failure_callback
         self.on_success_callback = on_success_callback
         self.on_retry_callback = on_retry_callback
+        self._pre_execute_hook = pre_execute
+        self._post_execute_hook = post_execute
 
         if isinstance(retry_delay, timedelta):
             self.retry_delay = retry_delay
@@ -960,6 +974,8 @@ class BaseOperator(Operator, LoggingMixin, TaskMixin, metaclass=BaseOperatorMeta
     @prepare_lineage
     def pre_execute(self, context: Any):
         """This hook is triggered right before self.execute() is called."""
+        if self._pre_execute_hook is not None:
+            self._pre_execute_hook(context)
 
     def execute(self, context: Any):
         """
@@ -977,6 +993,8 @@ class BaseOperator(Operator, LoggingMixin, TaskMixin, metaclass=BaseOperatorMeta
         It is passed the execution context and any results returned by the
         operator.
         """
+        if self._post_execute_hook is not None:
+            self._post_execute_hook(context, result)
 
     def on_kill(self) -> None:
         """

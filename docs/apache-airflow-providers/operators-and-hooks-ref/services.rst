@@ -18,8 +18,8 @@
 Services
 --------
 
-Service operators and hooks
-'''''''''''''''''''''''''''
+Services
+''''''''
 
 These integrations allow you to perform various operations within various services.
 
@@ -28,8 +28,8 @@ These integrations allow you to perform various operations within various servic
    :header-separator: "
 
 
-Transfer operators and hooks
-''''''''''''''''''''''''''''
+Transfers
+'''''''''
 
 These integrations allow you to perform various operations within various services.
 

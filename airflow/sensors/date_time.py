@@ -59,9 +59,11 @@ class DateTimeSensor(BaseSensorOperator):
     def __init__(self, *, target_time: Union[str, datetime.datetime], **kwargs) -> None:
         super().__init__(**kwargs)
         if isinstance(target_time, datetime.datetime):
-            self.target_time = target_time.isoformat()
-        elif isinstance(target_time, str):
+            if timezone.is_naive(target_time):
+                target_time = timezone.make_aware(target_time)
             self.target_time = target_time
+        elif isinstance(target_time, str):
+            self.target_time = timezone.parse(target_time)
         else:
             raise TypeError(
                 f"Expected str or datetime.datetime type for target_time. Got {type(target_time)}"
@@ -69,7 +71,7 @@ class DateTimeSensor(BaseSensorOperator):
 
     def poke(self, context: Dict) -> bool:
         self.log.info("Checking if the time (%s) has come", self.target_time)
-        return timezone.utcnow() > timezone.parse(self.target_time)
+        return timezone.utcnow() > self.target_time
 
 
 class DateTimeSensorAsync(DateTimeSensor):
