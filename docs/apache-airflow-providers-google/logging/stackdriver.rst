@@ -17,7 +17,7 @@
 
 .. _write-logs-stackdriver:
 
-Writing Logs to Google Stackdriver
+Writing logs to Google Stackdriver
 ----------------------------------
 
 Airflow can be configured to read and write task logs in `Google Stackdriver Logging <https://cloud.google.com/logging/>`__.
@@ -40,7 +40,7 @@ All configuration options are in the ``[logging]`` section.
 The value of field ``remote_logging`` must always be set to ``True`` for this feature to work.
 Turning this option off will result in data not being sent to Stackdriver.
 The ``remote_base_log_folder`` option contains the URL that specifies the type of handler to be used.
-For integration with Stackdriver, this option should start with ``stackdriver:///``.
+For integration with Stackdriver, this option should start with ``stackdriver://``.
 The path section of the URL specifies the name of the log e.g. ``stackdriver://airflow-tasks`` writes
 logs under the name ``airflow-tasks``.
 

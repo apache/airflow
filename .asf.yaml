@@ -53,3 +53,10 @@ github:
     v2-1-stable:
       required_pull_request_reviews:
         required_approving_review_count: 1
+
+  collaborators:
+    - bbovenzi
+    - auvipy
+    - paolaperaza
+    - petedejoy
+    - gmcdonald

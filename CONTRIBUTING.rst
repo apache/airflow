@@ -208,27 +208,40 @@ You can configure the Docker-based Breeze development environment as follows:
 1. Install the latest versions of the Docker Community Edition
    and Docker Compose and add them to the PATH.
 
-2. Enter Breeze: ``./breeze``
+2. Install jq on your machine. The exact command depends on the operating system (or Linux distribution) you use.
+For example, on Ubuntu:
+
+.. code-block:: bash
+
+  sudo apt install jq
+
+or on macOS with `Homebrew <https://formulae.brew.sh/formula/jq>`_
+
+.. code-block:: bash
+
+  brew install jq
+
+3. Enter Breeze: ``./breeze``
 
    Breeze starts with downloading the Airflow CI image from
    the Docker Hub and installing all required dependencies.
 
-3. Enter the Docker environment and mount your local sources
+4. Enter the Docker environment and mount your local sources
    to make them immediately visible in the environment.
 
-4. Create a local virtualenv, for example:
+5. Create a local virtualenv, for example:
 
 .. code-block:: bash
 
    mkvirtualenv myenv --python=python3.6
 
-5. Initialize the created environment:
+6. Initialize the created environment:
 
 .. code-block:: bash
 
    ./breeze initialize-local-virtualenv --python 3.6
 
-6. Open your IDE (for example, PyCharm) and select the virtualenv you created
+7. Open your IDE (for example, PyCharm) and select the virtualenv you created
    as the project's default virtualenv in your IDE.
 
 Step 3: Connect with People
@@ -386,7 +399,11 @@ these guidelines:
 
 -   Run tests locally before opening PR.
 
--   Make sure the pull request works for Python 3.6 and 3.7.
+-   You can use any supported python version to run the tests, but the best is to check
+    if it works for the oldest supported version (Python 3.6 currently). In rare cases
+    tests might fail with the oldest version when you use features that are available in newer Python
+    versions. For that purpose we have ``airflow.compat`` package where we keep back-ported
+    useful features from newer versions.
 
 -   Adhere to guidelines for commit messages described in this `article <http://chris.beams.io/posts/git-commit/>`__.
     This makes the lives of those who come after you a lot easier.
@@ -419,15 +436,11 @@ against main is done to ``v2-*-test`` branches, but PRs from contributors toward
 The ``v2-*-test`` branches and ``v2-*-stable`` ones are merged just before the release and that's the
 time when they converge.
 
-The production images are build in DockerHub from:
+The production images are released in DockerHub from:
 
 * main branch for development
-* v2-*-test branches for testing 2.*.x release
 * ``2.*.*``, ``2.*.*rc*`` releases from the ``v2-*-stable`` branch when we prepare release candidates and
-  final releases. There are no production images prepared from v2-*-stable branch.
-
-Similar rules apply to ``1.10.x`` releases until June 2021. We have ``v1-10-test`` and ``v1-10-stable``
-branches there.
+  final releases.
 
 Development Environments
 ========================
@@ -576,17 +589,18 @@ This is the full list of those extras:
 
   .. START EXTRAS HERE
 
-airbyte, all, all_dbs, amazon, apache.atlas, apache.beam, apache.cassandra, apache.druid,
-apache.hdfs, apache.hive, apache.kylin, apache.livy, apache.pig, apache.pinot, apache.spark,
-apache.sqoop, apache.webhdfs, asana, async, atlas, aws, azure, cassandra, celery, cgroups, cloudant,
-cncf.kubernetes, crypto, dask, databricks, datadog, deprecated_api, devel, devel_all, devel_ci,
-devel_hadoop, dingding, discord, doc, docker, druid, elasticsearch, exasol, facebook, ftp, gcp,
-gcp_api, github_enterprise, google, google_auth, grpc, hashicorp, hdfs, hive, http, imap, jdbc,
-jenkins, jira, kerberos, kubernetes, ldap, leveldb, microsoft.azure, microsoft.mssql,
-microsoft.winrm, mongo, mssql, mysql, neo4j, odbc, openfaas, opsgenie, oracle, pagerduty, papermill,
-password, pinot, plexus, postgres, presto, qds, qubole, rabbitmq, redis, s3, salesforce, samba,
-segment, sendgrid, sentry, sftp, singularity, slack, snowflake, spark, sqlite, ssh, statsd, tableau,
-telegram, trino, vertica, virtualenv, webhdfs, winrm, yandex, zendesk
+airbyte, alibaba, all, all_dbs, amazon, apache.atlas, apache.beam, apache.cassandra, apache.drill,
+apache.druid, apache.hdfs, apache.hive, apache.kylin, apache.livy, apache.pig, apache.pinot,
+apache.spark, apache.sqoop, apache.webhdfs, asana, async, atlas, aws, azure, cassandra, celery,
+cgroups, cloudant, cncf.kubernetes, crypto, dask, databricks, datadog, deprecated_api, devel,
+devel_all, devel_ci, devel_hadoop, dingding, discord, doc, docker, druid, elasticsearch, exasol,
+facebook, ftp, gcp, gcp_api, github_enterprise, google, google_auth, grpc, hashicorp, hdfs, hive,
+http, imap, jdbc, jenkins, jira, kerberos, kubernetes, ldap, leveldb, microsoft.azure,
+microsoft.mssql, microsoft.psrp, microsoft.winrm, mongo, mssql, mysql, neo4j, odbc, openfaas,
+opsgenie, oracle, pagerduty, pandas, papermill, password, pinot, plexus, postgres, presto, qds,
+qubole, rabbitmq, redis, s3, salesforce, samba, segment, sendgrid, sentry, sftp, singularity, slack,
+snowflake, spark, sqlite, ssh, statsd, tableau, telegram, trino, vertica, virtualenv, webhdfs,
+winrm, yandex, zendesk
 
   .. END EXTRAS HERE
 
@@ -645,7 +659,7 @@ Here is the list of packages and their extras:
 Package                    Extras
 ========================== ===========================
 airbyte                    http
-amazon                     apache.hive,exasol,ftp,google,imap,mongo,mysql,postgres,ssh
+amazon                     apache.hive,cncf.kubernetes,exasol,ftp,google,imap,mongo,mysql,postgres,salesforce,ssh
 apache.beam                google
 apache.druid               apache.hive
 apache.hive                amazon,microsoft.mssql,mysql,presto,samba,vertica
@@ -862,44 +876,6 @@ If you want to update just airflow dependencies, without paying attention to pro
 The ``constraints-<PYTHON_MAJOR_MINOR_VERSION>.txt`` and ``constraints-no-providers-<PYTHON_MAJOR_MINOR_VERSION>.txt``
 will be automatically regenerated by CI job every time after the ``setup.py`` is updated and pushed
 if the tests are successful.
-
-Manually generating constraint files
-------------------------------------
-
-The constraint files are generated automatically by the CI job. Sometimes however it is needed to regenerate
-them manually (committers only). For example when main build did not succeed for quite some time).
-This can be done by running this (it utilizes parallel preparation of the constraints):
-
-.. code-block:: bash
-
-    export CURRENT_PYTHON_MAJOR_MINOR_VERSIONS_AS_STRING="3.6 3.7 3.8 3.9"
-    for python_version in $(echo "${CURRENT_PYTHON_MAJOR_MINOR_VERSIONS_AS_STRING}")
-    do
-      ./breeze build-image --upgrade-to-newer-dependencies --python ${python_version} --build-cache-local
-      ./breeze build-image --upgrade-to-newer-dependencies --python ${python_version} --build-cache-local
-      ./breeze build-image --upgrade-to-newer-dependencies --python ${python_version} --build-cache-local
-    done
-
-    GENERATE_CONSTRAINTS_MODE="pypi-providers" ./scripts/ci/constraints/ci_generate_all_constraints.sh
-    GENERATE_CONSTRAINTS_MODE="source-providers" ./scripts/ci/constraints/ci_generate_all_constraints.sh
-    GENERATE_CONSTRAINTS_MODE="no-providers" ./scripts/ci/constraints/ci_generate_all_constraints.sh
-
-    AIRFLOW_SOURCES=$(pwd)
-
-
-The constraints will be generated in "files/constraints-PYTHON_VERSION/constraints-*.txt files. You need to
-checkout the right 'constraints-' branch in a separate repository and then you can copy, commit and push the
-generated files:
-
-.. code-block:: bash
-
-    cd <AIRFLOW_WITH_CONSTRAINT_main_DIRECTORY>
-    git pull
-    cp ${AIRFLOW_SOURCES}/files/constraints-*/constraints*.txt .
-    git diff
-    git add .
-    git commit -m "Your commit message here" --no-verify
-    git push
 
 
 Documentation
@@ -1222,11 +1198,11 @@ How to sync your fork
 When you have your fork, you should periodically synchronize the main of your fork with the
 Apache Airflow main. In order to do that you can ``git pull --rebase`` to your local git repository from
 apache remote and push the main (often with ``--force`` to your fork). There is also an easy
-way using ``Force sync main from apache/airflow`` workflow. You can go to "Actions" in your repository and
-choose the workflow and manually trigger the workflow using "Run workflow" command.
+way to sync your fork in GitHub's web UI with the `Fetch upstream feature
+<https://docs.github.com/en/github/collaborating-with-pull-requests/working-with-forks/syncing-a-fork#syncing-a-fork-from-the-web-ui>`_.
 
-This will force-push the main from apache/airflow to the main in your fork. Note that in case you
-modified the main in your fork, you might loose those changes.
+This will force-push the ``main`` branch from ``apache/airflow`` to the ``main`` branch
+in your fork. Note that in case you modified the main in your fork, you might loose those changes.
 
 
 How to rebase PR

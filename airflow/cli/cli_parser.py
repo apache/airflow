@@ -57,11 +57,14 @@ class DefaultHelpParser(argparse.ArgumentParser):
 
     def _check_value(self, action, value):
         """Override _check_value and check conditionally added command"""
-        executor = conf.get('core', 'EXECUTOR')
-        if value == 'celery' and executor not in (CELERY_EXECUTOR, CELERY_KUBERNETES_EXECUTOR):
-            message = f'celery subcommand works only with CeleryExecutor, your current executor: {executor}'
-            raise ArgumentError(action, message)
-        if value == 'kubernetes':
+        if action.dest == 'subcommand' and value == 'celery':
+            executor = conf.get('core', 'EXECUTOR')
+            if executor not in (CELERY_EXECUTOR, CELERY_KUBERNETES_EXECUTOR):
+                message = (
+                    f'celery subcommand works only with CeleryExecutor, your current executor: {executor}'
+                )
+                raise ArgumentError(action, message)
+        if action.dest == 'subcommand' and value == 'kubernetes':
             try:
                 import kubernetes.client  # noqa: F401
             except ImportError:
@@ -734,6 +737,13 @@ ARG_INCLUDE_DAGS = Arg(
     ("--include-dags",), help="If passed, DAG specific permissions will also be synced.", action="store_true"
 )
 
+# triggerer
+ARG_CAPACITY = Arg(
+    ("--capacity",),
+    type=str,
+    help="The maximum number of triggers that a Triggerer will run at one time.",
+)
+
 ALTERNATIVE_CONN_SPECS_ARGS = [
     ARG_CONN_TYPE,
     ARG_CONN_DESCRIPTION,
@@ -1257,6 +1267,24 @@ PROVIDERS_COMMANDS = (
         func=lazy_load_command('airflow.cli.commands.provider_command.connection_field_behaviours'),
         args=(ARG_OUTPUT, ARG_VERBOSE),
     ),
+    ActionCommand(
+        name='logging',
+        help='Get information about task logging handlers provided',
+        func=lazy_load_command('airflow.cli.commands.provider_command.logging_list'),
+        args=(ARG_OUTPUT, ARG_VERBOSE),
+    ),
+    ActionCommand(
+        name='secrets',
+        help='Get information about secrets backends provided',
+        func=lazy_load_command('airflow.cli.commands.provider_command.secrets_backends_list'),
+        args=(ARG_OUTPUT, ARG_VERBOSE),
+    ),
+    ActionCommand(
+        name='auth',
+        help='Get information about API auth backends provided',
+        func=lazy_load_command('airflow.cli.commands.provider_command.auth_backend_list'),
+        args=(ARG_OUTPUT, ARG_VERBOSE),
+    ),
 )
 
 USERS_COMMANDS = (
@@ -1380,7 +1408,7 @@ CELERY_COMMANDS = (
         name='stop',
         help="Stop the Celery worker gracefully",
         func=lazy_load_command('airflow.cli.commands.celery_command.stop_worker'),
-        args=(),
+        args=(ARG_PID,),
     ),
 )
 
@@ -1526,6 +1554,19 @@ airflow_commands: List[CLICommand] = [
             '\n'
             '    Example:\n'
             '        pkill -f -USR2 "airflow scheduler"'
+        ),
+    ),
+    ActionCommand(
+        name='triggerer',
+        help="Start a triggerer instance",
+        func=lazy_load_command('airflow.cli.commands.triggerer_command.triggerer'),
+        args=(
+            ARG_PID,
+            ARG_DAEMON,
+            ARG_STDOUT,
+            ARG_STDERR,
+            ARG_LOG_FILE,
+            ARG_CAPACITY,
         ),
     ),
     ActionCommand(

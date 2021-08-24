@@ -111,6 +111,7 @@ release = PACKAGE_VERSION
 
 rst_epilog = f"""
 .. |version| replace:: {version}
+.. |airflow-version| replace:: {airflow.__version__}
 """
 
 # -- General configuration -----------------------------------------------------
@@ -240,16 +241,16 @@ html_favicon = "../airflow/www/static/pin_32.png"
 # Add any paths that contain custom static files (such as style sheets) here,
 # relative to this directory. They are copied after the builtin static files,
 # so a file named "default.css" will overwrite the builtin "default.css".
-if PACKAGE_NAME == 'apache-airflow':
-    html_static_path = ['apache-airflow/static']
+if PACKAGE_NAME in ['apache-airflow', 'helm-chart']:
+    html_static_path = [f'{PACKAGE_NAME}/static']
 else:
     html_static_path = []
 # A list of JavaScript filename. The entry must be a filename string or a
 # tuple containing the filename string and the attributes dictionary. The
 # filename must be relative to the html_static_path, or a full URI with
 # scheme like http://example.org/script.js.
-if PACKAGE_NAME == 'apache-airflow':
-    html_js_files = ['jira-links.js']
+if PACKAGE_NAME in ['apache-airflow', 'helm-chart']:
+    html_js_files = ['gh-jira-links.js']
 else:
     html_js_files = []
 if PACKAGE_NAME == 'apache-airflow':
@@ -500,6 +501,7 @@ autodoc_mock_imports = [
     'jira',
     'kubernetes',
     'msrestazure',
+    'oss2',
     'pandas',
     'pandas_gbq',
     'paramiko',
@@ -517,6 +519,7 @@ autodoc_mock_imports = [
     'slack_sdk',
     'smbclient',
     'snowflake',
+    'sqlalchemy-drill',
     'sshtunnel',
     'telegram',
     'tenacity',
@@ -648,6 +651,8 @@ redirects_file = 'redirects.txt'
 spelling_word_list_filename = [os.path.join(CONF_DIR, 'spelling_wordlist.txt')]
 if PACKAGE_NAME == 'apache-airflow':
     spelling_exclude_patterns = ['project.rst', 'changelog.rst']
+if PACKAGE_NAME == 'helm-chart':
+    spelling_exclude_patterns = ['changelog.rst']
 spelling_ignore_contributor_names = False
 
 # -- Options for sphinxcontrib.redoc -------------------------------------------

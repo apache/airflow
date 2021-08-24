@@ -94,36 +94,18 @@ You can read more about it in the "Support arbitrary user ids" chapter in the
 Waits for Airflow DB connection
 -------------------------------
 
-In case Postgres or MySQL DB is used, the entrypoint will wait until the airflow DB connection becomes
-available. This happens always when you use the default entrypoint.
+The entrypoint is waiting for a connection to the database independent of the database engine. This allows us to increase
+the stability of the environment.
 
-The script detects backend type depending on the URL schema and assigns default port numbers if not specified
-in the URL. Then it loops until the connection to the host/port specified can be established
+Waiting for connection involves executing ``airflow db check`` command, which means that a ``select 1 as is_alive;`` statement
+is executed. Then it loops until the the command will be successful.
 It tries :envvar:`CONNECTION_CHECK_MAX_COUNT` times and sleeps :envvar:`CONNECTION_CHECK_SLEEP_TIME` between checks
 To disable check, set ``CONNECTION_CHECK_MAX_COUNT=0``.
-
-Supported schemes:
-
-* ``postgres://`` - default port 5432
-* ``mysql://``    - default port 3306
-* ``sqlite://``
-
-In case of SQLite backend, there is no connection to establish and waiting is skipped.
-
-For older than Airflow 1.10.14, waiting for connection involves checking if a matching port is open.
-The host information is derived from the variables :envvar:`AIRFLOW__CORE__SQL_ALCHEMY_CONN` and
-:envvar:`AIRFLOW__CORE__SQL_ALCHEMY_CONN_CMD`. If :envvar:`AIRFLOW__CORE__SQL_ALCHEMY_CONN_CMD` variable
-is passed to the container, it is evaluated as a command to execute and result of this evaluation is used
-as :envvar:`AIRFLOW__CORE__SQL_ALCHEMY_CONN`. The :envvar:`AIRFLOW__CORE__SQL_ALCHEMY_CONN_CMD` variable
-takes precedence over the :envvar:`AIRFLOW__CORE__SQL_ALCHEMY_CONN` variable.
-
-For newer versions, the ``airflow db check`` command is used, which means that a ``select 1 as is_alive;`` query
-is executed. This also means that you can keep your password in secret backend.
 
 Waits for celery broker connection
 ----------------------------------
 
-In case Postgres or MySQL DB is used, and one of the ``scheduler``, ``celery``, ``worker``, or ``flower``
+In case CeleryExecutor is used, and one of the ``scheduler``, ``celery``
 commands are used the entrypoint will wait until the celery broker DB connection is available.
 
 The script detects backend type depending on the URL schema and assigns default port numbers if not specified
@@ -138,12 +120,7 @@ Supported schemes:
 * ``postgres://``            - default port 5432
 * ``mysql://``               - default port 3306
 
-Waiting for connection involves checking if a matching port is open.
-The host information is derived from the variables :envvar:`AIRFLOW__CELERY__BROKER_URL` and
-:envvar:`AIRFLOW__CELERY__BROKER_URL_CMD`. If :envvar:`AIRFLOW__CELERY__BROKER_URL_CMD` variable
-is passed to the container, it is evaluated as a command to execute and result of this evaluation is used
-as :envvar:`AIRFLOW__CELERY__BROKER_URL`. The :envvar:`AIRFLOW__CELERY__BROKER_URL_CMD` variable
-takes precedence over the :envvar:`AIRFLOW__CELERY__BROKER_URL` variable.
+Waiting for connection involves checking if a matching port is open. The host information is derived from the Airflow configuration.
 
 .. _entrypoint:commands:
 
@@ -155,7 +132,7 @@ if you specify extra arguments. For example:
 
 .. code-block:: bash
 
-  docker run -it apache/airflow:2.1.0-python3.6 bash -c "ls -la"
+  docker run -it apache/airflow:2.1.2-python3.6 bash -c "ls -la"
   total 16
   drwxr-xr-x 4 airflow root 4096 Jun  5 18:12 .
   drwxr-xr-x 1 root    root 4096 Jun  5 18:12 ..
@@ -167,7 +144,7 @@ you pass extra parameters. For example:
 
 .. code-block:: bash
 
-  > docker run -it apache/airflow:2.1.0-python3.6 python -c "print('test')"
+  > docker run -it apache/airflow:2.1.2-python3.6 python -c "print('test')"
   test
 
 If first argument equals to "airflow" - the rest of the arguments is treated as an airflow command
@@ -175,14 +152,14 @@ to execute. Example:
 
 .. code-block:: bash
 
-   docker run -it apache/airflow:2.1.0-python3.6 airflow webserver
+   docker run -it apache/airflow:2.1.2-python3.6 airflow webserver
 
 If there are any other arguments - they are simply passed to the "airflow" command
 
 .. code-block:: bash
 
-  > docker run -it apache/airflow:2.1.0-python3.6 version
-  2.1.0
+  > docker run -it apache/airflow:2.1.2-python3.6 version
+  2.1.2
 
 Additional quick test options
 -----------------------------
@@ -262,11 +239,28 @@ and Admin role. They also forward local port ``8080`` to the webserver port and 
 Installing additional requirements
 ..................................
 
+.. warning:: Installing requirements this way is a very convenient method of running Airflow, very useful for
+    testing and debugging. However, do not be tricked by its convenience. You should never, ever use it in
+    production environment. We have deliberately chose to make it a development/test dependency and we print
+    a warning, whenever it is used. There is an inherent security-related issue with using this method in
+    production. Installing the requirements this way can happen at literally any time - when your containers
+    get restarted, when your machines in K8S cluster get restarted. In a K8S Cluster those events can happen
+    literally any time. This opens you up to a serious vulnerability where your production environment
+    might be brought down by a single dependency being removed from PyPI - or even dependency of your
+    dependency. This means that you put your production service availability in hands of 3rd-party developers.
+    At any time, any moment including weekends and holidays those 3rd party developers might bring your
+    production Airflow instance down, without you even knowing it. This is a serious vulnerability that
+    is similar to the infamous
+    `leftpad <https://qz.com/646467/how-one-programmer-broke-the-internet-by-deleting-a-tiny-piece-of-code/>`_
+    problem. You can fully protect against this case by building your own, immutable custom image, where the
+    dependencies are baked in. You have been warned.
+
 Installing additional requirements can be done by specifying ``_PIP_ADDITIONAL_REQUIREMENTS`` variable.
 The variable should contain a list of requirements that should be installed additionally when entering
 the containers. Note that this option slows down starting of Airflow as every time any container starts
-it must install new packages. Therefore this option should only be used for testing. When testing is
-finished, you should create your custom image with dependencies baked in.
+it must install new packages and it opens up huge potential security vulnerability when used in production
+(see below). Therefore this option should only be used for testing. When testing is finished,
+you should create your custom image with dependencies baked in.
 
 Example:
 

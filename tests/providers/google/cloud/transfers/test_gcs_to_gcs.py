@@ -530,3 +530,21 @@ class TestGoogleCloudStorageToCloudStorageOperator(unittest.TestCase):
             mock.call(TEST_BUCKET, 'test_object/file3.json', DESTINATION_BUCKET, 'test_object/file3.json'),
         ]
         mock_hook.return_value.rewrite.assert_has_calls(mock_calls_none)
+
+    @mock.patch('airflow.providers.google.cloud.transfers.gcs_to_gcs.GCSHook')
+    def test_execute_wildcard_with_replace_flag_false_with_destination_object(self, mock_hook):
+        operator = GCSToGCSOperator(
+            task_id=TASK_ID,
+            source_bucket=TEST_BUCKET,
+            source_object=SOURCE_OBJECT_WILDCARD_SUFFIX,
+            destination_bucket=DESTINATION_BUCKET,
+            destination_object=DESTINATION_OBJECT_PREFIX,
+            replace=False,
+        )
+
+        operator.execute(None)
+        mock_calls = [
+            mock.call(TEST_BUCKET, prefix="test_object", delimiter=""),
+            mock.call(DESTINATION_BUCKET, prefix="foo/bar", delimiter=""),
+        ]
+        mock_hook.return_value.list.assert_has_calls(mock_calls)

@@ -23,6 +23,9 @@
 function parallel::initialize_monitoring() {
     PARALLEL_MONITORED_DIR="$(mktemp -d)"
     export PARALLEL_MONITORED_DIR
+
+    PARALLEL_TAIL_LENGTH=${PARALLEL_TAIL_LENGTH:=2}
+    export PARALLEL_TAIL_LENGTH
 }
 
 function parallel::make_sure_gnu_parallel_is_installed() {
@@ -49,6 +52,7 @@ function parallel::kill_stale_semaphore_locks() {
             rm -f "${s}" 2>/dev/null
         fi
     done
+    rm -rf "${HOME}/.parallel"
 }
 
 
@@ -82,9 +86,9 @@ function parallel::monitor_loop() {
               continue
             fi
 
-            echo "${COLOR_BLUE}### The last lines for ${parallel_process} process: ${directory}/stdout ###${COLOR_RESET}"
+            echo "${COLOR_BLUE}### The last ${PARALLEL_TAIL_LENGTH} lines for ${parallel_process} process: ${directory}/stdout ###${COLOR_RESET}"
             echo
-            tail -2 "${directory}/stdout" || true
+            tail "-${PARALLEL_TAIL_LENGTH}" "${directory}/stdout" || true
             echo
 
             if [[ -s "${directory}/status" ]]; then
@@ -216,9 +220,7 @@ function parallel::cleanup_runner() {
     start_end::group_start "Cleanup runner"
     parallel::kill_all_running_docker_containers
     parallel::system_prune_docker
-    docker_engine_resources::get_available_memory_in_docker
-    docker_engine_resources::get_available_cpus_in_docker
-    docker_engine_resources::get_available_disk_space_in_docker
+    docker_engine_resources::check_all_resources
     docker_engine_resources::print_overall_stats
     parallel::kill_stale_semaphore_locks
     start_end::group_end

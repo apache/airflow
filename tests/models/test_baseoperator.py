@@ -24,11 +24,14 @@ import jinja2
 import pytest
 from parameterized import parameterized
 
+from airflow.decorators import task as task_decorator
 from airflow.exceptions import AirflowException
 from airflow.lineage.entities import File
 from airflow.models import DAG
 from airflow.models.baseoperator import BaseOperatorMeta, chain, cross_downstream
 from airflow.operators.dummy import DummyOperator
+from airflow.utils.edgemodifier import Label
+from airflow.utils.trigger_rule import TriggerRule
 from tests.models import DEFAULT_DATE
 from tests.test_utils.mock_operators import DeprecatedOperator, MockNamedTuple, MockOperator
 
@@ -383,15 +386,61 @@ class TestBaseOperatorMethods(unittest.TestCase):
         for start_task in start_tasks:
             assert set(start_task.get_direct_relatives(upstream=False)) == set(end_tasks)
 
+        # Begin test for `XComArgs`
+        xstart_tasks = [
+            task_decorator(task_id=f"xcomarg_task{i}", python_callable=lambda: None, dag=dag)()
+            for i in range(1, 4)
+        ]
+        xend_tasks = [
+            task_decorator(task_id=f"xcomarg_task{i}", python_callable=lambda: None, dag=dag)()
+            for i in range(4, 7)
+        ]
+        cross_downstream(from_tasks=xstart_tasks, to_tasks=xend_tasks)
+
+        for xstart_task in xstart_tasks:
+            assert set(xstart_task.operator.get_direct_relatives(upstream=False)) == {
+                xend_task.operator for xend_task in xend_tasks
+            }
+
     def test_chain(self):
         dag = DAG(dag_id='test_chain', start_date=datetime.now())
+
+        # Begin test for classic operators
+        [label1, label2] = [Label(label=f"label{i}") for i in range(1, 3)]
         [op1, op2, op3, op4, op5, op6] = [DummyOperator(task_id=f't{i}', dag=dag) for i in range(1, 7)]
-        chain(op1, [op2, op3], [op4, op5], op6)
+        chain(op1, [label1, label2], [op2, op3], [op4, op5], op6)
 
         assert {op2, op3} == set(op1.get_direct_relatives(upstream=False))
         assert [op4] == op2.get_direct_relatives(upstream=False)
         assert [op5] == op3.get_direct_relatives(upstream=False)
         assert {op4, op5} == set(op6.get_direct_relatives(upstream=True))
+
+        assert {"label": "label1"} == dag.get_edge_info(
+            upstream_task_id=op1.task_id, downstream_task_id=op2.task_id
+        )
+        assert {"label": "label2"} == dag.get_edge_info(
+            upstream_task_id=op1.task_id, downstream_task_id=op3.task_id
+        )
+
+        # Begin test for `XComArgs`
+        [xlabel1, xlabel2] = [Label(label=f"xcomarg_label{i}") for i in range(1, 3)]
+        [xop1, xop2, xop3, xop4, xop5, xop6] = [
+            task_decorator(task_id=f"xcomarg_task{i}", python_callable=lambda: None, dag=dag)()
+            for i in range(1, 7)
+        ]
+        chain(xop1, [xlabel1, xlabel2], [xop2, xop3], [xop4, xop5], xop6)
+
+        assert {xop2.operator, xop3.operator} == set(xop1.operator.get_direct_relatives(upstream=False))
+        assert [xop4.operator] == xop2.operator.get_direct_relatives(upstream=False)
+        assert [xop5.operator] == xop3.operator.get_direct_relatives(upstream=False)
+        assert {xop4.operator, xop5.operator} == set(xop6.operator.get_direct_relatives(upstream=True))
+
+        assert {"label": "xcomarg_label1"} == dag.get_edge_info(
+            upstream_task_id=xop1.operator.task_id, downstream_task_id=xop2.operator.task_id
+        )
+        assert {"label": "xcomarg_label2"} == dag.get_edge_info(
+            upstream_task_id=xop1.operator.task_id, downstream_task_id=xop3.operator.task_id
+        )
 
     def test_chain_not_support_type(self):
         dag = DAG(dag_id='test_chain', start_date=datetime.now())
@@ -399,11 +448,41 @@ class TestBaseOperatorMethods(unittest.TestCase):
         with pytest.raises(TypeError):
             chain([op1, op2], 1)
 
+        # Begin test for `XComArgs`
+        [xop1, xop2] = [
+            task_decorator(task_id=f"xcomarg_task{i}", python_callable=lambda: None, dag=dag)()
+            for i in range(1, 3)
+        ]
+
+        with pytest.raises(TypeError):
+            chain([xop1, xop2], 1)
+
+        with pytest.raises(TypeError):
+            chain([Label("labe1"), Label("label2")], 1)
+
     def test_chain_different_length_iterable(self):
         dag = DAG(dag_id='test_chain', start_date=datetime.now())
+        [label1, label2] = [Label(label=f"label{i}") for i in range(1, 3)]
         [op1, op2, op3, op4, op5] = [DummyOperator(task_id=f't{i}', dag=dag) for i in range(1, 6)]
+
         with pytest.raises(AirflowException):
             chain([op1, op2], [op3, op4, op5])
+
+        with pytest.raises(AirflowException):
+            chain([op1, op2, op3], [label1, label2])
+
+        # Begin test for `XComArgs`
+        [label3, label4] = [Label(label=f"xcomarg_label{i}") for i in range(1, 3)]
+        [xop1, xop2, xop3, xop4, xop5] = [
+            task_decorator(task_id=f"xcomarg_task{i}", python_callable=lambda: None, dag=dag)()
+            for i in range(1, 6)
+        ]
+
+        with pytest.raises(AirflowException):
+            chain([xop1, xop2], [xop3, xop4, xop5])
+
+        with pytest.raises(AirflowException):
+            chain([xop1, xop2, xop3], [label1, label2])
 
     def test_lineage_composition(self):
         """
@@ -462,6 +541,30 @@ class TestBaseOperatorMethods(unittest.TestCase):
             # where the deprecated class was used
             assert warning.filename == __file__
 
+    def test_pre_execute_hook(self):
+        called = False
+
+        def hook(context):
+            nonlocal called
+            called = True
+
+        op = DummyOperator(task_id="test_task", pre_execute=hook)
+        op_copy = op.prepare_for_execution()
+        op_copy.pre_execute({})
+        assert called
+
+    def test_post_execute_hook(self):
+        called = False
+
+        def hook(context, result):
+            nonlocal called
+            called = True
+
+        op = DummyOperator(task_id="test_task", post_execute=hook)
+        op_copy = op.prepare_for_execution()
+        op_copy.post_execute({})
+        assert called
+
 
 class CustomOp(DummyOperator):
     template_fields = ("field", "field2")
@@ -516,3 +619,48 @@ class TestXComArgsRelationsAreResolved:
         with pytest.raises(AirflowException):
             op1 = DummyOperator(task_id="op1")
             CustomOp(task_id="op2", field=op1.output)
+
+    def test_invalid_trigger_rule(self):
+        with pytest.raises(
+            AirflowException,
+            match=(
+                f"The trigger_rule must be one of {TriggerRule.all_triggers()},"
+                "'.op1'; received 'some_rule'."
+            ),
+        ):
+            DummyOperator(task_id="op1", trigger_rule="some_rule")
+
+    @parameterized.expand((("string", "dummy"), ("enum", TriggerRule.DUMMY)))
+    def test_replace_dummy_trigger_rule(self, name, rule):
+        with pytest.warns(
+            DeprecationWarning, match="dummy Trigger Rule is deprecated. Please use `TriggerRule.ALWAYS`."
+        ):
+            op1 = DummyOperator(task_id="op1", trigger_rule=rule)
+
+            assert op1.trigger_rule == TriggerRule.ALWAYS
+
+
+class InitSubclassOp(DummyOperator):
+    def __init_subclass__(cls, class_arg=None, **kwargs) -> None:
+        cls._class_arg = class_arg
+        super().__init_subclass__(**kwargs)
+
+    def execute(self, context):
+        self.context_arg = context
+
+
+class TestInitSubclassOperator:
+    def test_init_subclass_args(self):
+        class_arg = "foo"
+        context = {"key": "value"}
+
+        class ConcreteSubclassOp(InitSubclassOp, class_arg=class_arg):
+            pass
+
+        task = ConcreteSubclassOp(task_id="op1")
+        task_copy = task.prepare_for_execution()
+
+        task_copy.execute(context)
+
+        assert task_copy._class_arg == class_arg
+        assert task_copy.context_arg == context

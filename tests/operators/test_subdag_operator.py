@@ -148,13 +148,20 @@ class TestSubDagOperator(unittest.TestCase):
         subdag_task._get_dagrun = Mock()
         subdag_task._get_dagrun.side_effect = [None, self.dag_run_success, self.dag_run_success]
 
-        subdag_task.pre_execute(context={'execution_date': DEFAULT_DATE})
-        subdag_task.execute(context={'execution_date': DEFAULT_DATE})
-        subdag_task.post_execute(context={'execution_date': DEFAULT_DATE})
+        context = {
+            'data_interval_start': None,
+            'data_interval_end': None,
+            'execution_date': DEFAULT_DATE,
+        }
+
+        subdag_task.pre_execute(context=context)
+        subdag_task.execute(context=context)
+        subdag_task.post_execute(context=context)
 
         subdag.create_dagrun.assert_called_once_with(
             run_type=DagRunType.SCHEDULED,
             execution_date=DEFAULT_DATE,
+            data_interval=None,
             conf=None,
             state=State.RUNNING,
             external_trigger=True,
@@ -178,13 +185,20 @@ class TestSubDagOperator(unittest.TestCase):
         subdag_task._get_dagrun = Mock()
         subdag_task._get_dagrun.side_effect = [None, self.dag_run_success, self.dag_run_success]
 
-        subdag_task.pre_execute(context={'execution_date': DEFAULT_DATE})
-        subdag_task.execute(context={'execution_date': DEFAULT_DATE})
-        subdag_task.post_execute(context={'execution_date': DEFAULT_DATE})
+        context = {
+            'data_interval_start': None,
+            'data_interval_end': None,
+            'execution_date': DEFAULT_DATE,
+        }
+
+        subdag_task.pre_execute(context=context)
+        subdag_task.execute(context=context)
+        subdag_task.post_execute(context=context)
 
         subdag.create_dagrun.assert_called_once_with(
             run_type=DagRunType.SCHEDULED,
             execution_date=DEFAULT_DATE,
+            data_interval=None,
             conf=conf,
             state=State.RUNNING,
             external_trigger=True,
@@ -206,10 +220,16 @@ class TestSubDagOperator(unittest.TestCase):
         subdag_task._get_dagrun = Mock()
         subdag_task._get_dagrun.side_effect = [None, self.dag_run_failed, self.dag_run_failed]
 
+        context = {
+            'data_interval_start': None,
+            'data_interval_end': None,
+            'execution_date': DEFAULT_DATE,
+        }
+
         with pytest.raises(AirflowException):
-            subdag_task.pre_execute(context={'execution_date': DEFAULT_DATE})
-            subdag_task.execute(context={'execution_date': DEFAULT_DATE})
-            subdag_task.post_execute(context={'execution_date': DEFAULT_DATE})
+            subdag_task.pre_execute(context=context)
+            subdag_task.execute(context=context)
+            subdag_task.post_execute(context=context)
 
     def test_execute_skip_if_dagrun_success(self):
         """
@@ -223,9 +243,15 @@ class TestSubDagOperator(unittest.TestCase):
         subdag_task._get_dagrun = Mock()
         subdag_task._get_dagrun.return_value = self.dag_run_success
 
-        subdag_task.pre_execute(context={'execution_date': DEFAULT_DATE})
-        subdag_task.execute(context={'execution_date': DEFAULT_DATE})
-        subdag_task.post_execute(context={'execution_date': DEFAULT_DATE})
+        context = {
+            'data_interval_start': None,
+            'data_interval_end': None,
+            'execution_date': DEFAULT_DATE,
+        }
+
+        subdag_task.pre_execute(context=context)
+        subdag_task.execute(context=context)
+        subdag_task.post_execute(context=context)
 
         subdag.create_dagrun.assert_not_called()
         assert 3 == len(subdag_task._get_dagrun.mock_calls)
@@ -307,3 +333,12 @@ class TestSubDagOperator(unittest.TestCase):
             mock_skip.assert_called_once_with(context['dag_run'], context['execution_date'], [dummy_dag_task])
         else:
             mock_skip.assert_not_called()
+
+    def test_deprecation_warning(self):
+        dag = DAG('parent', default_args=default_args)
+        subdag = DAG('parent.test', default_args=default_args)
+        warning_message = """This class is deprecated. Please use `airflow.utils.task_group.TaskGroup`."""
+
+        with pytest.warns(DeprecationWarning) as warnings:
+            SubDagOperator(task_id='test', subdag=subdag, dag=dag)
+        assert warning_message == str(warnings[0].message)

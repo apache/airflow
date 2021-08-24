@@ -48,5 +48,9 @@ hooks:
     python-modules:
       - airflow.providers.dingding.hooks.dingding
 
-hook-class-names:
+hook-class-names:  # deprecated - to be removed after providers add dependency on Airflow 2.2.0+
   - airflow.providers.dingding.hooks.dingding.DingdingHook
+
+connection-types:
+  - hook-class-name: airflow.providers.dingding.hooks.dingding.DingdingHook
+    connection-type: dingding

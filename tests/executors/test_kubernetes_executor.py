@@ -64,6 +64,9 @@ class TestAirflowKubernetesScheduler(unittest.TestCase):
             ("MYDAGID", "MYTASKID"),
             ("my_dag_id", "my_task_id"),
             ("mydagid" * 200, "my_task_id" * 200),
+            ("my_dág_id", "my_tásk_id"),
+            ("Компьютер", "niedołężność"),
+            ("影師嗎", "中華民國;$"),
         ]
 
         cases.extend(

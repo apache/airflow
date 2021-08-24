@@ -39,13 +39,15 @@ class TaskInstanceState(str, Enum):
     QUEUED = "queued"  # Executor has enqueued the task
     RUNNING = "running"  # Task is executing
     SUCCESS = "success"  # Task completed
-    SHUTDOWN = "shutdown"  # External request to shut down
+    SHUTDOWN = "shutdown"  # External request to shut down (e.g. marked failed when running)
+    RESTARTING = "restarting"  # External request to restart (e.g. cleared when running)
     FAILED = "failed"  # Task errored out
     UP_FOR_RETRY = "up_for_retry"  # Task failed but has retries left
     UP_FOR_RESCHEDULE = "up_for_reschedule"  # A waiting `reschedule` sensor
     UPSTREAM_FAILED = "upstream_failed"  # One or more upstream deps failed
     SKIPPED = "skipped"  # Skipped by branching or some other mechanism
     SENSING = "sensing"  # Smart sensor offloaded to the sensor DAG
+    DEFERRED = "deferred"  # Deferrable operator waiting on a trigger
 
     def __str__(self) -> str:  # pylint: disable=invalid-str-returned
         return self.value
@@ -84,11 +86,13 @@ class State:
     SCHEDULED = TaskInstanceState.SCHEDULED
     QUEUED = TaskInstanceState.QUEUED
     SHUTDOWN = TaskInstanceState.SHUTDOWN
+    RESTARTING = TaskInstanceState.RESTARTING
     UP_FOR_RETRY = TaskInstanceState.UP_FOR_RETRY
     UP_FOR_RESCHEDULE = TaskInstanceState.UP_FOR_RESCHEDULE
     UPSTREAM_FAILED = TaskInstanceState.UPSTREAM_FAILED
     SKIPPED = TaskInstanceState.SKIPPED
     SENSING = TaskInstanceState.SENSING
+    DEFERRED = TaskInstanceState.DEFERRED
 
     task_states: Tuple[Optional[TaskInstanceState], ...] = (None,) + tuple(TaskInstanceState)
 
@@ -105,6 +109,7 @@ class State:
         TaskInstanceState.RUNNING: 'lime',
         TaskInstanceState.SUCCESS: 'green',
         TaskInstanceState.SHUTDOWN: 'blue',
+        TaskInstanceState.RESTARTING: 'violet',
         TaskInstanceState.FAILED: 'red',
         TaskInstanceState.UP_FOR_RETRY: 'gold',
         TaskInstanceState.UP_FOR_RESCHEDULE: 'turquoise',
@@ -113,6 +118,7 @@ class State:
         TaskInstanceState.REMOVED: 'lightgrey',
         TaskInstanceState.SCHEDULED: 'tan',
         TaskInstanceState.SENSING: 'lightseagreen',
+        TaskInstanceState.DEFERRED: 'lightseagreen',
     }
     state_color.update(STATE_COLORS)  # type: ignore
 
@@ -129,7 +135,9 @@ class State:
             return 'white'
         return 'black'
 
-    running: FrozenSet[TaskInstanceState] = frozenset([TaskInstanceState.RUNNING, TaskInstanceState.SENSING])
+    running: FrozenSet[TaskInstanceState] = frozenset(
+        [TaskInstanceState.RUNNING, TaskInstanceState.SENSING, TaskInstanceState.DEFERRED]
+    )
     """
     A list of states indicating that a task is being executed.
     """
@@ -159,8 +167,10 @@ class State:
             TaskInstanceState.RUNNING,
             TaskInstanceState.SENSING,
             TaskInstanceState.SHUTDOWN,
+            TaskInstanceState.RESTARTING,
             TaskInstanceState.UP_FOR_RETRY,
             TaskInstanceState.UP_FOR_RESCHEDULE,
+            TaskInstanceState.DEFERRED,
         ]
     )
     """
@@ -180,6 +190,11 @@ class State:
     )
     """
     A list of states indicating that a task or dag is a success state.
+    """
+
+    terminating_states = frozenset([TaskInstanceState.SHUTDOWN, TaskInstanceState.RESTARTING])
+    """
+    A list of states indicating that a task has been terminated.
     """
 
 

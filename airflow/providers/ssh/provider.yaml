@@ -22,6 +22,7 @@ description: |
     `Secure Shell (SSH) <https://tools.ietf.org/html/rfc4251>`__
 
 versions:
+  - 2.1.0
   - 2.0.0
   - 1.3.0
   - 1.2.0
@@ -47,5 +48,9 @@ hooks:
     python-modules:
       - airflow.providers.ssh.hooks.ssh
 
-hook-class-names:
+hook-class-names:  # deprecated - to be removed after providers add dependency on Airflow 2.2.0+
   - airflow.providers.ssh.hooks.ssh.SSHHook
+
+connection-types:
+  - hook-class-name: airflow.providers.ssh.hooks.ssh.SSHHook
+    connection-type: ssh

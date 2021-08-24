@@ -28,14 +28,49 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+2.0.2
+.....
+
+Latest change: 2021-08-23
+
+================================================================================================  ===========  ============================================================================
+Commit                                                                                            Committed    Subject
+================================================================================================  ===========  ============================================================================
+`be75dcd39 <https://github.com/apache/airflow/commit/be75dcd39cd10264048c86e74110365bd5daf8b7>`_  2021-08-23   ``Update description about the new ''connection-types'' provider meta-data``
+`73d2b720e <https://github.com/apache/airflow/commit/73d2b720e0c79323a29741882a07eb8962256762>`_  2021-08-21   ``Fix using XCom with ''KubernetesPodOperator'' (#17760)``
+`76ed2a49c <https://github.com/apache/airflow/commit/76ed2a49c6cd285bf59706cf04f39a7444c382c9>`_  2021-08-19   ``Import Hooks lazily individually in providers manager (#17682)``
+`97428efc4 <https://github.com/apache/airflow/commit/97428efc41e5902183827fb9e4e56d067ca771df>`_  2021-08-02   ``Fix messed-up changelog in 3 providers (#17380)``
+`b0b259107 <https://github.com/apache/airflow/commit/b0b25910713dd39e0193bdcd95b2cfd9e3fed5e7>`_  2021-07-27   ``Fix static checks (#17256)``
+`997f7d0be <https://github.com/apache/airflow/commit/997f7d0beb1f0a954ba0127efeb3b250daf8b290>`_  2021-07-27   ``Update spark_kubernetes.py (#17237)``
+================================================================================================  ===========  ============================================================================
+
+2.0.1
+.....
+
+Latest change: 2021-07-26
+
+================================================================================================  ===========  ==========================================================================================
+Commit                                                                                            Committed    Subject
+================================================================================================  ===========  ==========================================================================================
+`87f408b1e <https://github.com/apache/airflow/commit/87f408b1e78968580c760acb275ae5bb042161db>`_  2021-07-26   ``Prepares docs for Rc2 release of July providers (#17116)``
+`d48b4e0ca <https://github.com/apache/airflow/commit/d48b4e0caf6218558378c7c3349b22adfc5c0785>`_  2021-07-21   ``Simplify 'default_args' in Kubernetes example DAGs (#16870)``
+`3939e8416 <https://github.com/apache/airflow/commit/3939e841616d70ea2d930f55e6a5f73a2a99be07>`_  2021-07-20   ``Enable using custom pod launcher in Kubernetes Pod Operator (#16945)``
+`d02ded65e <https://github.com/apache/airflow/commit/d02ded65eaa7d2281e249b3fa028605d1b4c52fb>`_  2021-07-15   ``Fixed wrongly escaped characters in amazon's changelog (#17020)``
+`b916b7507 <https://github.com/apache/airflow/commit/b916b7507921129dc48d6add1bdc4b923b60c9b9>`_  2021-07-15   ``Prepare documentation for July release of providers. (#17015)``
+`b2c66e45b <https://github.com/apache/airflow/commit/b2c66e45b7c27d187491ec6a1dd5cc92ac7a1e32>`_  2021-07-11   ``BugFix: Using 'json' string in template_field causes issue with K8s Operators (#16930)``
+`9d6ae609b <https://github.com/apache/airflow/commit/9d6ae609b60449bd274c2f96e72486d73ad2b8f9>`_  2021-06-28   ``Updating task dependencies (#16624)``
+`866a601b7 <https://github.com/apache/airflow/commit/866a601b76e219b3c043e1dbbc8fb22300866351>`_  2021-06-28   ``Removes pylint from our toolchain (#16682)``
+================================================================================================  ===========  ==========================================================================================
+
 2.0.0
 .....
 
-Latest change: 2021-06-17
+Latest change: 2021-06-18
 
 ================================================================================================  ===========  ===============================================================================================
 Commit                                                                                            Committed    Subject
 ================================================================================================  ===========  ===============================================================================================
+`bbc627a3d <https://github.com/apache/airflow/commit/bbc627a3dab17ba4cf920dd1a26dbed6f5cebfd1>`_  2021-06-18   ``Prepares documentation for rc2 release of Providers (#16501)``
 `4c9735ff9 <https://github.com/apache/airflow/commit/4c9735ff9b0201758564fcd64166abde318ec8a7>`_  2021-06-17   ``Fix unsuccessful KubernetesPod final_state call when 'is_delete_operator_pod=True' (#15490)``
 `cbf8001d7 <https://github.com/apache/airflow/commit/cbf8001d7630530773f623a786f9eb319783b33c>`_  2021-06-16   ``Synchronizes updated changelog after buggfix release (#16464)``
 `1fba5402b <https://github.com/apache/airflow/commit/1fba5402bb14b3ffa6429fdc683121935f88472f>`_  2021-06-15   ``More documentation update for June providers release (#16405)``

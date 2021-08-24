@@ -136,9 +136,9 @@ class CassandraToGCSOperator(BaseOperator):
 
     # Default Cassandra to BigQuery type mapping
     CQL_TYPE_MAP = {
-        'BytesType': 'BYTES',
+        'BytesType': 'STRING',
         'DecimalType': 'FLOAT',
-        'UUIDType': 'BYTES',
+        'UUIDType': 'STRING',
         'BooleanType': 'BOOL',
         'ByteType': 'INTEGER',
         'AsciiType': 'STRING',
@@ -152,7 +152,7 @@ class CassandraToGCSOperator(BaseOperator):
         'DateType': 'TIMESTAMP',
         'SimpleDateType': 'DATE',
         'TimestampType': 'TIMESTAMP',
-        'TimeUUIDType': 'BYTES',
+        'TimeUUIDType': 'STRING',
         'ShortType': 'INTEGER',
         'TimeType': 'TIME',
         'DurationType': 'INTEGER',

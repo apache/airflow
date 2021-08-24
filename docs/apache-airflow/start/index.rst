@@ -15,7 +15,7 @@
     specific language governing permissions and limitations
     under the License.
 
-Quick start
+Quick Start
 ===========
 
 This section contains quick start guides to help you get up and running with Apache Airflow.

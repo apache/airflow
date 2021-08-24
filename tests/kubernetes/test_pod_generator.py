@@ -50,7 +50,7 @@ class TestPodGenerator(unittest.TestCase):
                     {
                         'args': ['--vm', '1', '--vm-bytes', '150M', '--vm-hang', '1'],
                         'command': ['stress'],
-                        'image': 'apache/airflow-ci:stress-2021.04.28-1.0.4',
+                        'image': 'ghcr.io/apache/airflow-stress:1.0.4-2021.07.04',
                         'name': 'memory-demo-ctr',
                         'resources': {'limits': {'memory': '200Mi'}, 'requests': {'memory': '100Mi'}},
                     }
@@ -631,6 +631,14 @@ class TestPodGenerator(unittest.TestCase):
         client_spec.active_deadline_seconds = 100
         assert client_spec == res
 
+    def test_reconcile_specs_init_containers(self):
+        base_spec = k8s.V1PodSpec(containers=[], init_containers=[k8s.V1Container(name='base_container1')])
+        client_spec = k8s.V1PodSpec(
+            containers=[], init_containers=[k8s.V1Container(name='client_container1')]
+        )
+        res = PodGenerator.reconcile_specs(base_spec, client_spec)
+        assert res.init_containers == base_spec.init_containers + client_spec.init_containers
+
     def test_deserialize_model_file(self):
         path = sys.path[0] + '/tests/kubernetes/pod.yaml'
         result = PodGenerator.deserialize_model_file(path)
@@ -688,7 +696,7 @@ metadata:
 spec:
   containers:
     - name: memory-demo-ctr
-      image: apache/airflow-ci:stress-2021.04.28-1.0.4
+      image: ghcr.io/apache/airflow-stress:1.0.4-2021.07.04
       resources:
         limits:
           memory: "200Mi"

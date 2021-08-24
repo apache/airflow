@@ -29,8 +29,8 @@ class YandexCloudBaseHook(BaseHook):
     """
     A base hook for Yandex.Cloud related tasks.
 
-    :param connection_id: The connection ID to use when fetching connection info.
-    :type connection_id: str
+    :param yandex_conn_id: The connection ID to use when fetching connection info.
+    :type yandex_conn_id: str
     """
 
     conn_name_attr = 'yandex_conn_id'

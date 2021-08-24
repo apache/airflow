@@ -87,7 +87,7 @@ class CloudSQLHook(GoogleBaseHook):
     """
 
     conn_name_attr = 'gcp_conn_id'
-    default_conn_name = 'google_cloud_default'
+    default_conn_name = 'google_cloud_sql_default'
     conn_type = 'gcpcloudsql'
     hook_name = 'Google Cloud SQL'
 
@@ -725,7 +725,7 @@ class CloudSQLDatabaseHook(BaseHook):
     """
 
     conn_name_attr = 'gcp_cloudsql_conn_id'
-    default_conn_name = 'google_cloud_sql_default'
+    default_conn_name = 'google_cloud_sqldb_default'
     conn_type = 'gcpcloudsqldb'
     hook_name = 'Google Cloud SQL Database'
 

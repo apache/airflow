@@ -30,13 +30,14 @@ class TestWebHDFSHook(unittest.TestCase):
     def setUp(self):
         self.webhdfs_hook = WebHDFSHook()
 
+    @patch('airflow.providers.apache.hdfs.hooks.webhdfs.requests.Session', return_value="session")
     @patch('airflow.providers.apache.hdfs.hooks.webhdfs.InsecureClient')
     @patch(
         'airflow.providers.apache.hdfs.hooks.webhdfs.WebHDFSHook.get_connections',
         return_value=[Connection(host='host_1', port=123), Connection(host='host_2', port=321, login='user')],
     )
     @patch("airflow.providers.apache.hdfs.hooks.webhdfs.socket")
-    def test_get_conn(self, socket_mock, mock_get_connections, mock_insecure_client):
+    def test_get_conn(self, socket_mock, mock_get_connections, mock_insecure_client, mock_session):
         mock_insecure_client.side_effect = [HdfsError('Error'), mock_insecure_client.return_value]
         socket_mock.socket.return_value.connect_ex.return_value = 0
         conn = self.webhdfs_hook.get_conn()
@@ -46,6 +47,7 @@ class TestWebHDFSHook(unittest.TestCase):
                 call(
                     f'http://{connection.host}:{connection.port}',
                     user=connection.login,
+                    session=mock_session.return_value,
                 )
                 for connection in mock_get_connections.return_value
             ]
@@ -53,6 +55,7 @@ class TestWebHDFSHook(unittest.TestCase):
         mock_insecure_client.return_value.status.assert_called_once_with('/')
         assert conn == mock_insecure_client.return_value
 
+    @patch('airflow.providers.apache.hdfs.hooks.webhdfs.requests.Session', return_value="session")
     @patch('airflow.providers.apache.hdfs.hooks.webhdfs.KerberosClient', create=True)
     @patch(
         'airflow.providers.apache.hdfs.hooks.webhdfs.WebHDFSHook.get_connections',
@@ -61,13 +64,20 @@ class TestWebHDFSHook(unittest.TestCase):
     @patch('airflow.providers.apache.hdfs.hooks.webhdfs._kerberos_security_mode', return_value=True)
     @patch("airflow.providers.apache.hdfs.hooks.webhdfs.socket")
     def test_get_conn_kerberos_security_mode(
-        self, socket_mock, mock_kerberos_security_mode, mock_get_connections, mock_kerberos_client
+        self,
+        socket_mock,
+        mock_kerberos_security_mode,
+        mock_get_connections,
+        mock_kerberos_client,
+        mock_session,
     ):
         socket_mock.socket.return_value.connect_ex.return_value = 0
         conn = self.webhdfs_hook.get_conn()
 
         connection = mock_get_connections.return_value[0]
-        mock_kerberos_client.assert_called_once_with(f'http://{connection.host}:{connection.port}')
+        mock_kerberos_client.assert_called_once_with(
+            f'http://{connection.host}:{connection.port}', session=mock_session.return_value
+        )
         assert conn == mock_kerberos_client.return_value
 
     @patch('airflow.providers.apache.hdfs.hooks.webhdfs.WebHDFSHook._find_valid_server', return_value=None)
@@ -106,3 +116,36 @@ class TestWebHDFSHook(unittest.TestCase):
     def test_init_proxy_user(self):
         hook = WebHDFSHook(proxy_user='someone')
         assert 'someone' == hook.proxy_user
+
+    @patch('airflow.providers.apache.hdfs.hooks.webhdfs.KerberosClient', create=True)
+    @patch(
+        'airflow.providers.apache.hdfs.hooks.webhdfs.WebHDFSHook.get_connections',
+        return_value=[
+            Connection(host='host_1', port=123, extra={"use_ssl": "True", "verify": "/ssl/cert/path"})
+        ],
+    )
+    @patch('airflow.providers.apache.hdfs.hooks.webhdfs._kerberos_security_mode', return_value=True)
+    @patch("airflow.providers.apache.hdfs.hooks.webhdfs.socket")
+    def test_conn_kerberos_ssl(
+        self, socket_mock, mock_kerberos_security_mode, mock_get_connections, mock_kerberos_client
+    ):
+        socket_mock.socket.return_value.connect_ex.return_value = 0
+        self.webhdfs_hook.get_conn()
+        connection = mock_get_connections.return_value[0]
+
+        assert f'https://{connection.host}:{connection.port}' == mock_kerberos_client.call_args[0][0]
+        assert "/ssl/cert/path" == mock_kerberos_client.call_args[1]['session'].verify
+
+    @patch('airflow.providers.apache.hdfs.hooks.webhdfs.InsecureClient')
+    @patch(
+        'airflow.providers.apache.hdfs.hooks.webhdfs.WebHDFSHook.get_connections',
+        return_value=[Connection(host='host_1', port=123, extra={"use_ssl": "True", "verify": False})],
+    )
+    @patch("airflow.providers.apache.hdfs.hooks.webhdfs.socket")
+    def test_conn_insecure_ssl(self, socket_mock, mock_get_connections, mock_insecure_client):
+        socket_mock.socket.return_value.connect_ex.return_value = 0
+        self.webhdfs_hook.get_conn()
+        connection = mock_get_connections.return_value[0]
+
+        assert f'https://{connection.host}:{connection.port}' == mock_insecure_client.call_args[0][0]
+        assert not mock_insecure_client.call_args[1]['session'].verify

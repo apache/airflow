@@ -29,17 +29,21 @@ from airflow.utils import cli as cli_utils
 from airflow.utils.cli import process_subdir, setup_locations, setup_logging, sigint_handler, sigquit_handler
 
 
+def _create_scheduler_job(args):
+    job = SchedulerJob(
+        subdir=process_subdir(args.subdir),
+        num_runs=args.num_runs,
+        do_pickle=args.do_pickle,
+    )
+    return job
+
+
 @cli_utils.action_logging
 def scheduler(args):
     """Starts Airflow Scheduler"""
     skip_serve_logs = args.skip_serve_logs
 
     print(settings.HEADER)
-    job = SchedulerJob(
-        subdir=process_subdir(args.subdir),
-        num_runs=args.num_runs,
-        do_pickle=args.do_pickle,
-    )
 
     if args.daemon:
         pid, stdout, stderr, log_file = setup_locations(
@@ -54,9 +58,11 @@ def scheduler(args):
                 stderr=stderr_handle,
             )
             with ctx:
+                job = _create_scheduler_job(args)
                 sub_proc = _serve_logs(skip_serve_logs)
                 job.run()
     else:
+        job = _create_scheduler_job(args)
         signal.signal(signal.SIGINT, sigint_handler)
         signal.signal(signal.SIGTERM, sigint_handler)
         signal.signal(signal.SIGQUIT, sigquit_handler)

@@ -27,6 +27,7 @@ Content
     :caption: References
 
     Connection Types <connections/tableau>
+    Operators <operators>
     Python API <_api/airflow/providers/tableau/index>
 
 .. toctree::
@@ -52,7 +53,7 @@ Package apache-airflow-providers-tableau
 `Tableau <https://www.tableau.com/>`__
 
 
-Release: 2.0.0
+Release: 2.1.0
 
 Provider package
 ----------------

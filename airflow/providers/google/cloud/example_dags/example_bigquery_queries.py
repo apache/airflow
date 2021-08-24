@@ -160,7 +160,7 @@ for location in [None, LOCATION]:
 
         get_data_result = BashOperator(
             task_id="get_data_result",
-            bash_command="echo \"{{ task_instance.xcom_pull('get_data') }}\"",
+            bash_command=f"echo {get_data.output}",
         )
 
         # [START howto_operator_bigquery_check]
@@ -199,3 +199,5 @@ for location in [None, LOCATION]:
         execute_insert_query >> get_data >> get_data_result >> delete_dataset
         execute_insert_query >> execute_query_save >> bigquery_execute_multi_query >> delete_dataset
         execute_insert_query >> [check_count, check_value, check_interval] >> delete_dataset
+
+    globals()[dag_id] = dag_with_locations

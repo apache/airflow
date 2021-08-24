@@ -288,9 +288,13 @@ class Connection(Base, LoggingMixin):
 
     def get_hook(self):
         """Return hook based on conn_type."""
-        hook_class_name, conn_id_param, package_name, hook_name = ProvidersManager().hooks.get(
-            self.conn_type, (None, None, None, None)
-        )
+        (
+            hook_class_name,
+            conn_id_param,
+            package_name,
+            hook_name,
+            connection_type,
+        ) = ProvidersManager().hooks.get(self.conn_type, (None, None, None, None, None))
 
         if not hook_class_name:
             raise AirflowException(f'Unknown hook type "{self.conn_type}"')

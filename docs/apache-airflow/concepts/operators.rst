@@ -26,16 +26,17 @@ An Operator is conceptually a template for a predefined :doc:`Task <tasks>`, tha
 
         ping >> email
 
-Airflow has a very extensive set of operators available, with some built-in to the core or pre-installed providers, like:
+Airflow has a very extensive set of operators available, with some built-in to the core or pre-installed providers. Some popular operators from core include:
 
 - :class:`~airflow.operators.bash.BashOperator` - executes a bash command
 - :class:`~airflow.operators.python.PythonOperator` - calls an arbitrary Python function
 - :class:`~airflow.operators.email.EmailOperator` - sends an email
-- :class:`~airflow.providers.http.operators.http.SimpleHttpOperator` - sends an HTTP request
-- :class:`~airflow.providers.sqlite.operators.sqlite.SqliteOperator` - SQLite DB operator
 
-If the operator you need isn't installed with Airflow by default, you can probably find it as part of our huge set of community :doc:`apache-airflow-providers:index`. Some popular operators from here include:
+For a list of all core operators, see: :doc:`Core Operators and Hooks Reference </operators-and-hooks-ref>`.
 
+If the operator you need isn't installed with Airflow by default, you can probably find it as part of our huge set of community :doc:`provider packages <apache-airflow-providers:index>`. Some popular operators from here include:
+
+- :class:`~airflow.providers.http.operators.http.SimpleHttpOperator`
 - :class:`~airflow.providers.mysql.operators.mysql.MySqlOperator`
 - :class:`~airflow.providers.postgres.operators.postgres.PostgresOperator`
 - :class:`~airflow.providers.microsoft.mssql.operators.mssql.MsSqlOperator`
@@ -47,18 +48,23 @@ If the operator you need isn't installed with Airflow by default, you can probab
 - :class:`~airflow.providers.mysql.transfers.presto_to_mysql.PrestoToMySqlOperator`
 - :class:`~airflow.providers.slack.operators.slack.SlackAPIOperator`
 
-But there are many, many more - you can see the list of those in our :doc:`apache-airflow-providers:index` documentation.
+But there are many, many more - you can see the full list of all community-managed operators, hooks, sensors
+and transfers in our
+:doc:`providers packages <apache-airflow-providers:operators-and-hooks-ref/index>` documentation.
 
 .. note::
 
-    Inside Airflow's code, we often mix the concepts of :doc:`tasks` and Operators, and they are mostly interchangeable. However, when we talk about a *Task*, we mean the generic "unit of execution" of a DAG; when we talk about an *Operator*, we mean a reusable, pre-made Task template whose logic is all done for you and that just needs some arguments.
+    Inside Airflow's code, we often mix the concepts of :doc:`tasks` and Operators, and they are mostly
+    interchangeable. However, when we talk about a *Task*, we mean the generic "unit of execution" of a
+    DAG; when we talk about an *Operator*, we mean a reusable, pre-made Task template whose logic
+    is all done for you and that just needs some arguments.
 
 
 .. _concepts:jinja-templating:
 
 Jinja Templating
 ----------------
-Airflow leverages the power of `Jinja Templating <http://jinja.pocoo.org/docs/dev/>`_ and this can be a powerful tool to use in combination with :doc:`macros </macros-ref>`.
+Airflow leverages the power of `Jinja Templating <http://jinja.pocoo.org/docs/dev/>`_ and this can be a powerful tool to use in combination with :ref:`macros <templates-ref>`.
 
 For example, say you want to pass the execution date as an environment variable to a Bash script using the ``BashOperator``:
 
@@ -73,7 +79,7 @@ For example, say you want to pass the execution date as an environment variable 
       env={"EXECUTION_DATE": date},
   )
 
-Here, ``{{ ds }}`` is a macro, and because the ``env`` parameter of the ``BashOperator`` is templated with Jinja, the execution date will be available as an environment variable named ``EXECUTION_DATE`` in your Bash script.
+Here, ``{{ ds }}`` is a templated variable, and because the ``env`` parameter of the ``BashOperator`` is templated with Jinja, the execution date will be available as an environment variable named ``EXECUTION_DATE`` in your Bash script.
 
 You can use Jinja templating with every parameter that is marked as "templated" in the documentation. Template substitution occurs just before the ``pre_execute`` function of your operator is called.
 

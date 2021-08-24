@@ -193,7 +193,7 @@ function build_images::confirm_image_rebuild() {
         echo  "${COLOR_RED}ERROR: The ${THE_IMAGE_TYPE} needs to be rebuilt - it is outdated.   ${COLOR_RESET}"
         echo """
 
-   Make sure you build the images bu running
+   Make sure you build the images by running:
 
       ./breeze --python ${PYTHON_MAJOR_MINOR_VERSION} build-image
 
@@ -232,28 +232,27 @@ function build_images::check_for_docker_context_files() {
     fi
 }
 
-# Builds local image manifest
-# It contains only one .json file - result of docker inspect - describing the image
-# We cannot use docker registry APIs as they are available only with authorisation
-# But this image can be pulled without authentication
+# Builds local image manifest. It contains only one random file generated during Docker.ci build
 function build_images::build_ci_image_manifest() {
     docker_v build \
         --tag="${AIRFLOW_CI_LOCAL_MANIFEST_IMAGE}" \
         -f- . <<EOF
 FROM scratch
-
-COPY "manifests/local-build-cache-hash" /build-cache-hash
-
+COPY "manifests/local-build-cache-hash-${PYTHON_MAJOR_MINOR_VERSION}" /build-cache-hash
+LABEL org.opencontainers.image.source="https://github.com/${GITHUB_REPOSITORY}"
 CMD ""
 EOF
 }
 
 #
 # Retrieves information about build cache hash random file from the local image
+# The random file is generated during the build and is best indicator whether your local CI image
+# has been built using the same pulled image as the remote one
 #
 function build_images::get_local_build_cache_hash() {
-
     set +e
+    local local_image_build_cache_file
+    local_image_build_cache_file="${AIRFLOW_SOURCES}/manifests/local-build-cache-hash-${PYTHON_MAJOR_MINOR_VERSION}"
     # Remove the container just in case
     docker_v rm --force "local-airflow-ci-container" 2>/dev/null >/dev/null
     if ! docker_v inspect "${AIRFLOW_CI_IMAGE}" 2>/dev/null >/dev/null; then
@@ -262,33 +261,37 @@ function build_images::get_local_build_cache_hash() {
         verbosity::print_info
         LOCAL_MANIFEST_IMAGE_UNAVAILABLE="true"
         export LOCAL_MANIFEST_IMAGE_UNAVAILABLE
-        touch "${LOCAL_IMAGE_BUILD_CACHE_HASH_FILE}"
+        touch "${local_image_build_cache_file}"
+        set -e
         return
 
     fi
     docker_v create --name "local-airflow-ci-container" "${AIRFLOW_CI_IMAGE}" 2>/dev/null
     docker_v cp "local-airflow-ci-container:/build-cache-hash" \
-        "${LOCAL_IMAGE_BUILD_CACHE_HASH_FILE}" 2>/dev/null ||
-        touch "${LOCAL_IMAGE_BUILD_CACHE_HASH_FILE}"
+        "${local_image_build_cache_file}" 2>/dev/null ||
+        touch "${local_image_build_cache_file}"
     set -e
     verbosity::print_info
-    verbosity::print_info "Local build cache hash: '$(cat "${LOCAL_IMAGE_BUILD_CACHE_HASH_FILE}")'"
+    verbosity::print_info "Local build cache hash: '$(cat "${local_image_build_cache_file}")'"
     verbosity::print_info
 }
 
 # Retrieves information about the build cache hash random file from the remote image.
-# We actually use manifest image for that, which is a really, really small image to pull!
-# The problem is that inspecting information about remote image cannot be done easily with existing APIs
-# of Dockerhub because they require additional authentication even for public images.
-# Therefore instead we are downloading a specially prepared manifest image
-# which is built together with the main image and pushed with it. This special manifest image is prepared
-# during building of the main image and contains single file which is randomly built during the docker
-# build in the right place in the image (right after installing all dependencies of Apache Airflow
-# for the first time). When this random file gets regenerated it means that either base image has
-# changed or some of the earlier layers was modified - which means that it is usually faster to pull
-# that image first and then rebuild it - because this will likely be faster
+# We use manifest image for that, which is a really, really small image to pull!
+# The image is a specially prepared manifest image which is built together with the main image and
+# pushed with it. This special manifest image is prepared during building of the CI image and contains
+# single file which is generated with random content during the docker
+# build in the right step of the image build (right after installing all dependencies of Apache Airflow
+# for the first time).
+# When this random file gets regenerated it means that either base image has changed before that step
+# or some of the earlier layers was modified - which means that it is usually faster to pull
+# that image first and then rebuild it.
 function build_images::get_remote_image_build_cache_hash() {
     set +e
+    local remote_image_container_id_file
+    remote_image_container_id_file="${AIRFLOW_SOURCES}/manifests/remote-airflow-manifest-image-${PYTHON_MAJOR_MINOR_VERSION}"
+    local remote_image_build_cache_file
+    remote_image_build_cache_file="${AIRFLOW_SOURCES}/manifests/remote-build-cache-hash-${PYTHON_MAJOR_MINOR_VERSION}"
     # Pull remote manifest image
     if ! docker_v pull "${AIRFLOW_CI_REMOTE_MANIFEST_IMAGE}" 2>/dev/null >/dev/null; then
         verbosity::print_info
@@ -296,31 +299,36 @@ function build_images::get_remote_image_build_cache_hash() {
         verbosity::print_info
         REMOTE_DOCKER_REGISTRY_UNREACHABLE="true"
         export REMOTE_DOCKER_REGISTRY_UNREACHABLE
-        touch "${REMOTE_IMAGE_BUILD_CACHE_HASH_FILE}"
+        touch "${remote_image_build_cache_file}"
+        set -e
         return
     fi
     set -e
-    rm -f "${REMOTE_IMAGE_CONTAINER_ID_FILE}"
+    rm -f "${remote_image_container_id_file}"
     # Create container dump out of the manifest image without actually running it
-    docker_v create --cidfile "${REMOTE_IMAGE_CONTAINER_ID_FILE}" "${AIRFLOW_CI_REMOTE_MANIFEST_IMAGE}"
+    docker_v create --cidfile "${remote_image_container_id_file}" "${AIRFLOW_CI_REMOTE_MANIFEST_IMAGE}"
     # Extract manifest and store it in local file
-    docker_v cp "$(cat "${REMOTE_IMAGE_CONTAINER_ID_FILE}"):/build-cache-hash" \
-        "${REMOTE_IMAGE_BUILD_CACHE_HASH_FILE}"
-    docker_v rm --force "$(cat "${REMOTE_IMAGE_CONTAINER_ID_FILE}")"
-    rm -f "${REMOTE_IMAGE_CONTAINER_ID_FILE}"
+    docker_v cp "$(cat "${remote_image_container_id_file}"):/build-cache-hash" \
+        "${remote_image_build_cache_file}"
+    docker_v rm --force "$(cat "${remote_image_container_id_file}")"
+    rm -f "${remote_image_container_id_file}"
     verbosity::print_info
-    verbosity::print_info "Remote build cache hash: '$(cat "${REMOTE_IMAGE_BUILD_CACHE_HASH_FILE}")'"
+    verbosity::print_info "Remote build cache hash: '$(cat "${remote_image_build_cache_file}")'"
     verbosity::print_info
 }
 
 # Compares layers from both remote and local image and set FORCE_PULL_IMAGES to true in case
-# More than the last NN layers are different.
+# The random has in remote image is different than that in the local image
+# indicating that it is likely faster to pull the image from cache rather than let the
+# image rebuild fully locally
 function build_images::compare_local_and_remote_build_cache_hash() {
     set +e
+    local local_image_build_cache_file
+    local_image_build_cache_file="${AIRFLOW_SOURCES}/manifests/local-build-cache-hash-${PYTHON_MAJOR_MINOR_VERSION}"
     local remote_hash
-    remote_hash=$(cat "${REMOTE_IMAGE_BUILD_CACHE_HASH_FILE}")
+    remote_hash=$(cat "${remote_image_build_cache_file}")
     local local_hash
-    local_hash=$(cat "${LOCAL_IMAGE_BUILD_CACHE_HASH_FILE}")
+    local_hash=$(cat "${local_image_build_cache_file}")
 
     if [[ ${remote_hash} != "${local_hash}" || -z ${local_hash} ]] \
         ; then
@@ -348,119 +356,95 @@ function build_images::print_build_info() {
     verbosity::print_info
 }
 
-function build_images::get_docker_image_names() {
-    # python image version to use
-    export PYTHON_BASE_IMAGE_VERSION=${PYTHON_BASE_IMAGE_VERSION:=${PYTHON_MAJOR_MINOR_VERSION}}
+# Retrieves GitHub Container Registry image prefix from repository name
+# GitHub Container Registry stores all images at the organization level, they are just
+# linked to the repository via docker label - however we assume a convention where we will
+# add repository name to organisation separated by '-' and convert everything to lowercase
+# this is because in order for it to work for internal PR for users or other organisation's
+# repositories, the other organisations and repositories can be uppercase
+# container registry image name has to be lowercase
+function build_images::get_github_container_registry_image_prefix() {
+    echo "${GITHUB_REPOSITORY}" | tr '[:upper:]' '[:lower:]'
+}
 
+function build_images::get_docker_cache_image_names() {
     # Python base image to use
-    export PYTHON_BASE_IMAGE="python:${PYTHON_BASE_IMAGE_VERSION}-slim-buster"
+    export PYTHON_BASE_IMAGE="python:${PYTHON_MAJOR_MINOR_VERSION}-slim-buster"
 
-    # CI image base tag
-    export AIRFLOW_CI_BASE_TAG="${BRANCH_NAME}-python${PYTHON_MAJOR_MINOR_VERSION}-ci"
-    # CI image to build
-    export AIRFLOW_CI_IMAGE="${DOCKERHUB_USER}/${DOCKERHUB_REPO}:${AIRFLOW_CI_BASE_TAG}"
-    # Default CI image
-    export AIRFLOW_PYTHON_BASE_IMAGE="${DOCKERHUB_USER}/${DOCKERHUB_REPO}:python${PYTHON_MAJOR_MINOR_VERSION}-${BRANCH_NAME}"
-    # CI image to build
-    export AIRFLOW_CI_IMAGE="${DOCKERHUB_USER}/${DOCKERHUB_REPO}:${AIRFLOW_CI_BASE_TAG}"
+    local image_name
+    image_name="${GITHUB_REGISTRY}/$(build_images::get_github_container_registry_image_prefix)"
 
-    # Base production image tag - used to build kubernetes tag as well
-    if [[ -z "${FORCE_AIRFLOW_PROD_BASE_TAG=}" ]]; then
-        export AIRFLOW_PROD_BASE_TAG="${BRANCH_NAME}-python${PYTHON_MAJOR_MINOR_VERSION}"
-    else
-        export AIRFLOW_PROD_BASE_TAG="${FORCE_AIRFLOW_PROD_BASE_TAG}"
-    fi
+    # Example:
+    #  ghcr.io/apache/airflow/main/python:3.8-slim-buster
+    export AIRFLOW_PYTHON_BASE_IMAGE="${image_name}/${BRANCH_NAME}/python:${PYTHON_MAJOR_MINOR_VERSION}-slim-buster"
 
-    # PROD image to build
-    export AIRFLOW_PROD_IMAGE="${DOCKERHUB_USER}/${DOCKERHUB_REPO}:${AIRFLOW_PROD_BASE_TAG}"
+    # Example:
+    #  ghcr.io/apache/airflow/main/ci/python3.8
+    export AIRFLOW_CI_IMAGE="${image_name}/${BRANCH_NAME}/ci/python${PYTHON_MAJOR_MINOR_VERSION}"
 
-    # PROD build segment
-    export AIRFLOW_PROD_BUILD_IMAGE="${DOCKERHUB_USER}/${DOCKERHUB_REPO}:${AIRFLOW_PROD_BASE_TAG}-build"
+    # Example:
+    #  local-airflow-ci-manifest/main/python3.8
+    export AIRFLOW_CI_LOCAL_MANIFEST_IMAGE="local-airflow-ci-manifest/${BRANCH_NAME}/python${PYTHON_MAJOR_MINOR_VERSION}"
 
-    # PROD Kubernetes image to build
-    export AIRFLOW_PROD_IMAGE_KUBERNETES="${DOCKERHUB_USER}/${DOCKERHUB_REPO}:${AIRFLOW_PROD_BASE_TAG}-kubernetes"
-
-    # PROD default image
-    export AIRFLOW_PROD_IMAGE_DEFAULT="${DOCKERHUB_USER}/${DOCKERHUB_REPO}:${BRANCH_NAME}"
+    # Example:
+    #  ghcr.io/apache/airflow/main/ci-manifest/python3.8
+    export AIRFLOW_CI_REMOTE_MANIFEST_IMAGE="${image_name}/${BRANCH_NAME}/ci-manifest/python${PYTHON_MAJOR_MINOR_VERSION}"
 
     # File that is touched when the CI image is built for the first time locally
     export BUILT_CI_IMAGE_FLAG_FILE="${BUILD_CACHE_DIR}/${BRANCH_NAME}/.built_${PYTHON_MAJOR_MINOR_VERSION}"
 
-    local image_name
-    image_name="${GITHUB_REGISTRY}/$(get_github_container_registry_image_prefix)"
-    local image_separator
-    if [[ ${GITHUB_REGISTRY} == "ghcr.io" ]]; then
-        image_separator="-"
-    elif [[ ${GITHUB_REGISTRY} == "docker.pkg.github.com" ]]; then
-        image_separator="/"
-    else
-        echo
-        echo  "${COLOR_RED}ERROR: Bad value of '${GITHUB_REGISTRY}'. Should be either 'ghcr.io' or 'docker.pkg.github.com'!${COLOR_RESET}"
-        echo
-        exit 1
-    fi
+    # Example:
+    #  ghcr.io/apache/airflow/main/prod/python3.8
+    export AIRFLOW_PROD_IMAGE="${image_name}/${BRANCH_NAME}/prod/python${PYTHON_MAJOR_MINOR_VERSION}"
 
     # Example:
-    #  docker.pkg.github.com/apache/airflow/main-python3.6-v2
-    #  ghcr.io/apache/airflow-v2-1-test-python-v2:3.6-slim-buster
-    #  ghcr.io/apache/airflow-python-v2:3.6-slim-buster-<COMMIT_SHA>
-    export GITHUB_REGISTRY_AIRFLOW_PROD_IMAGE="${image_name}${image_separator}${AIRFLOW_PROD_BASE_TAG}${GITHUB_REGISTRY_IMAGE_SUFFIX}"
-    # Example:
-    #   docker.pkg.github.com/apache/airflow/main-python3.6-build-v2
-    #   ghcr.io/apache/airflow-main-python3.6-build-v2
-    export GITHUB_REGISTRY_AIRFLOW_PROD_BUILD_IMAGE="${image_name}${image_separator}${AIRFLOW_PROD_BASE_TAG}-build${GITHUB_REGISTRY_IMAGE_SUFFIX}"
+    #   ghcr.io/apache/airflow/main/prod-build/python3.8
+    export AIRFLOW_PROD_BUILD_IMAGE="${image_name}/${BRANCH_NAME}/prod-build/python${PYTHON_MAJOR_MINOR_VERSION}"
 
-    # Example:
-    #  docker.pkg.github.com/apache/airflow/python-v2:3.6-slim-buster
-    #  ghcr.io/apache/airflow-python-v2:3.6-slim-buster
-    #  ghcr.io/apache/airflow-python-v2:3.6-slim-buster-<COMMIT_SHA>
-    export GITHUB_REGISTRY_PYTHON_BASE_IMAGE="${image_name}${image_separator}python${GITHUB_REGISTRY_IMAGE_SUFFIX}:${PYTHON_BASE_IMAGE_VERSION}-slim-buster"
+    # Kubernetes image to build
+    #  ghcr.io/apache/airflow/main/kubernetes/python3.8
+    export AIRFLOW_IMAGE_KUBERNETES="${image_name}/${BRANCH_NAME}/kubernetes/python${PYTHON_MAJOR_MINOR_VERSION}"
 
-    # Example:
-    #  docker.pkg.github.com/apache/airflow/main-python3.8-ci-v2
-    export GITHUB_REGISTRY_AIRFLOW_CI_IMAGE="${image_name}${image_separator}${AIRFLOW_CI_BASE_TAG}${GITHUB_REGISTRY_IMAGE_SUFFIX}"
+
+
 }
 
 # If GitHub Registry is used, login to the registry using GITHUB_USERNAME and
 # GITHUB_TOKEN. In case Personal Access token is not set, skip logging in
 # Also enable experimental features of docker (we need `docker manifest` command)
 function build_images::configure_docker_registry() {
-    if [[ ${USE_GITHUB_REGISTRY} == "true" ]]; then
-        local token="${GITHUB_TOKEN}"
-        if [[ -z "${token}" ]] ; then
-            verbosity::print_info
-            verbosity::print_info "Skip logging in to GitHub Registry. No Token available!"
-            verbosity::print_info
-        fi
-        if [[ -n "${token}" ]]; then
-            echo "${token}" | docker_v login \
-                --username "${GITHUB_USERNAME:-apache}" \
-                --password-stdin \
-                "${GITHUB_REGISTRY}"
-        else
-            verbosity::print_info "Skip Login to GitHub Registry ${GITHUB_REGISTRY} as token is missing"
-        fi
-        local new_config
-        new_config=$(jq '.experimental = "enabled"' "${HOME}/.docker/config.json")
-        echo "${new_config}" > "${HOME}/.docker/config.json"
+    local token="${GITHUB_TOKEN}"
+    if [[ -z "${token}" ]]; then
+        verbosity::print_info
+        verbosity::print_info "Skip logging in to GitHub Registry. No Token available!"
+        verbosity::print_info
+    elif [[ ${AIRFLOW_LOGIN_TO_GITHUB_REGISTRY=} != "true" ]]; then
+        verbosity::print_info
+        verbosity::print_info "Skip logging in to GitHub Registry. AIRFLOW_LOGIN_TO_GITHUB_REGISTRY != true"
+        verbosity::print_info
+    elif [[ -n "${token}" ]]; then
+        echo "${token}" | docker_v login \
+            --username "${GITHUB_USERNAME:-apache}" \
+            --password-stdin \
+            "${GITHUB_REGISTRY}"
+    else
+        verbosity::print_info "Skip Login to GitHub Registry ${GITHUB_REGISTRY} as token is missing"
     fi
+    local new_config
+    new_config=$(jq '.experimental = "enabled"' "${HOME}/.docker/config.json")
+    echo "${new_config}" > "${HOME}/.docker/config.json"
 }
 
 
 # Prepares all variables needed by the CI build. Depending on the configuration used (python version
 # DockerHub user etc. the variables are set so that other functions can use those variables.
 function build_images::prepare_ci_build() {
-    export AIRFLOW_CI_LOCAL_MANIFEST_IMAGE="local/${DOCKERHUB_REPO}:${AIRFLOW_CI_BASE_TAG}-manifest"
-    export AIRFLOW_CI_REMOTE_MANIFEST_IMAGE="${DOCKERHUB_USER}/${DOCKERHUB_REPO}:${AIRFLOW_CI_BASE_TAG}-manifest"
     export THE_IMAGE_TYPE="CI"
     export IMAGE_DESCRIPTION="Airflow CI"
 
     # Those constants depend on the type of image run so they are only made constants here
     export AIRFLOW_EXTRAS="${AIRFLOW_EXTRAS:="${DEFAULT_CI_EXTRAS}"}"
     readonly AIRFLOW_EXTRAS
-
-    export AIRFLOW_IMAGE="${AIRFLOW_CI_IMAGE}"
-    readonly AIRFLOW_IMAGE
 
     build_images::configure_docker_registry
     sanity_checks::go_to_airflow_sources
@@ -525,7 +509,7 @@ function build_images::rebuild_ci_image_if_needed() {
                 local root_files_count
                 root_files_count=$(find "airflow" "tests" -user root | wc -l | xargs)
                 if [[ ${root_files_count} != "0" ]]; then
-                    ./scripts/ci/tools/ci_fix_ownership.sh || true
+                    ./scripts/ci/tools/fix_ownership.sh || true
                 fi
             fi
             verbosity::print_info
@@ -594,18 +578,6 @@ function build_images::rebuild_ci_image_if_needed_and_confirmed() {
         fi
     fi
 }
-
-# Retrieves GitHub Container Registry image prefix from repository name
-# GitHub Container Registry stores all images at the organization level, they are just
-# linked to the repository via docker label - however we assume a convention where we will
-# add repository name to organisation separated by '-' and convert everything to lowercase
-# this is because in order for it to work for internal PR for users or other organisation's
-# repositories, the other organisations and repositories can be uppercase
-# container registry image name has to be lowercase
-function get_github_container_registry_image_prefix() {
-    echo "${GITHUB_REPOSITORY}" | tr '[:upper:]' '[:lower:]'
-}
-
 
 # Builds CI image - depending on the caching strategy (pulled, local, disabled) it
 # passes the necessary docker build flags via DOCKER_CACHE_CI_DIRECTIVE array
@@ -701,7 +673,6 @@ Docker building ${AIRFLOW_CI_IMAGE}.
         --build-arg ADDITIONAL_RUNTIME_APT_DEPS="${ADDITIONAL_RUNTIME_APT_DEPS}" \
         --build-arg ADDITIONAL_RUNTIME_APT_ENV="${ADDITIONAL_RUNTIME_APT_ENV}" \
         --build-arg UPGRADE_TO_NEWER_DEPENDENCIES="${UPGRADE_TO_NEWER_DEPENDENCIES}" \
-        --build-arg CONTINUE_ON_PIP_CHECK_FAILURE="${CONTINUE_ON_PIP_CHECK_FAILURE}" \
         --build-arg CONSTRAINTS_GITHUB_REPOSITORY="${CONSTRAINTS_GITHUB_REPOSITORY}" \
         --build-arg AIRFLOW_CONSTRAINTS_REFERENCE="${DEFAULT_CONSTRAINTS_BRANCH}" \
         --build-arg AIRFLOW_CONSTRAINTS="${AIRFLOW_CONSTRAINTS}" \
@@ -716,10 +687,6 @@ Docker building ${AIRFLOW_CI_IMAGE}.
         --target "main" \
         . -f Dockerfile.ci
     set -u
-    if [[ -n "${DEFAULT_CI_IMAGE=}" ]]; then
-        echo "Tagging additionally image ${AIRFLOW_CI_IMAGE} with ${DEFAULT_CI_IMAGE}"
-        docker_v tag "${AIRFLOW_CI_IMAGE}" "${DEFAULT_CI_IMAGE}"
-    fi
     if [[ -n "${IMAGE_TAG=}" ]]; then
         echo "Tagging additionally image ${AIRFLOW_CI_IMAGE} with ${IMAGE_TAG}"
         docker_v tag "${AIRFLOW_CI_IMAGE}" "${IMAGE_TAG}"
@@ -769,20 +736,12 @@ function build_images::prepare_prod_build() {
             "--build-arg" "AIRFLOW_CONSTRAINTS_REFERENCE=${DEFAULT_CONSTRAINTS_BRANCH}"
         )
     fi
-    if [[ "${DEFAULT_PYTHON_MAJOR_MINOR_VERSION}" == "${PYTHON_MAJOR_MINOR_VERSION}" ]]; then
-        export DEFAULT_CI_IMAGE="${AIRFLOW_PROD_IMAGE_DEFAULT}"
-    else
-        export DEFAULT_CI_IMAGE=""
-    fi
     export THE_IMAGE_TYPE="PROD"
     export IMAGE_DESCRIPTION="Airflow production"
 
     # Those constants depend on the type of image run so they are only made constants here
     export AIRFLOW_EXTRAS="${AIRFLOW_EXTRAS:="${DEFAULT_PROD_EXTRAS}"}"
     readonly AIRFLOW_EXTRAS
-
-    export AIRFLOW_IMAGE="${AIRFLOW_PROD_IMAGE}"
-    readonly AIRFLOW_IMAGE
 
     build_images::configure_docker_registry
     AIRFLOW_BRANCH_FOR_PYPI_PRELOADING="${BRANCH_NAME}"
@@ -854,7 +813,6 @@ function build_images::build_prod_images() {
         --build-arg INSTALL_FROM_PYPI="${INSTALL_FROM_PYPI}" \
         --build-arg INSTALL_FROM_DOCKER_CONTEXT_FILES="${INSTALL_FROM_DOCKER_CONTEXT_FILES}" \
         --build-arg UPGRADE_TO_NEWER_DEPENDENCIES="${UPGRADE_TO_NEWER_DEPENDENCIES}" \
-        --build-arg CONTINUE_ON_PIP_CHECK_FAILURE="${CONTINUE_ON_PIP_CHECK_FAILURE}" \
         --build-arg BUILD_ID="${CI_BUILD_ID}" \
         --build-arg COMMIT_SHA="${COMMIT_SHA}" \
         --build-arg CONSTRAINTS_GITHUB_REPOSITORY="${CONSTRAINTS_GITHUB_REPOSITORY}" \
@@ -889,7 +847,6 @@ function build_images::build_prod_images() {
         --build-arg INSTALL_FROM_PYPI="${INSTALL_FROM_PYPI}" \
         --build-arg INSTALL_FROM_DOCKER_CONTEXT_FILES="${INSTALL_FROM_DOCKER_CONTEXT_FILES}" \
         --build-arg UPGRADE_TO_NEWER_DEPENDENCIES="${UPGRADE_TO_NEWER_DEPENDENCIES}" \
-        --build-arg CONTINUE_ON_PIP_CHECK_FAILURE="${CONTINUE_ON_PIP_CHECK_FAILURE}" \
         --build-arg AIRFLOW_VERSION="${AIRFLOW_VERSION}" \
         --build-arg AIRFLOW_BRANCH="${AIRFLOW_BRANCH_FOR_PYPI_PRELOADING}" \
         --build-arg AIRFLOW_EXTRAS="${AIRFLOW_EXTRAS}" \
@@ -906,20 +863,31 @@ function build_images::build_prod_images() {
         --target "main" \
         . -f Dockerfile
     set -u
-    if [[ -n "${DEFAULT_PROD_IMAGE:=}" ]]; then
-        echo "Tagging additionally image ${AIRFLOW_PROD_IMAGE} with ${DEFAULT_PROD_IMAGE}"
-        docker_v tag "${AIRFLOW_PROD_IMAGE}" "${DEFAULT_PROD_IMAGE}"
-    fi
     if [[ -n "${IMAGE_TAG=}" ]]; then
         echo "Tagging additionally image ${AIRFLOW_PROD_IMAGE} with ${IMAGE_TAG}"
         docker_v tag "${AIRFLOW_PROD_IMAGE}" "${IMAGE_TAG}"
     fi
 }
 
+# Tags source image with names provided
+# $1 source image
+# $2, $3 - target image names
+function build_images::tag_image() {
+    local source_image_name="$1"
+    shift
+    local target_image_name
+    for target_image_name in "${@}"; do
+        echo
+        echo "Tagging ${source_image_name} as ${target_image_name}."
+        echo
+        docker_v tag "${source_image_name}" "${target_image_name}"
+    done
+}
+
 # Waits for image tag to appear in GitHub Registry, pulls it and tags with the target tag
 # Parameters:
 #  $1 - image name to wait for
-#  $2 - suffix of the image to wait for
+#  $2 - fallback image to wait for
 #  $3, $4, ... - target tags to tag the image with
 function build_images::wait_for_image_tag() {
 
@@ -939,26 +907,13 @@ function build_images::wait_for_image_tag() {
         image_hash="$(docker images -q "${image_to_wait_for}" 2>>"${OUTPUT_LOG}" || true)"
         if [[ -z "${image_hash}" ]]; then
             echo
-            echo "The image ${image_to_wait_for} is not yet available. No local hash for the image. Waiting."
+            echo "The image ${image_to_wait_for} is not yet available. No local hash for the image"
             echo
             echo "Last log:"
             cat "${OUTPUT_LOG}" || true
             echo
-            sleep 10
         else
-            echo
-            echo "The image ${image_to_wait_for} with '${image_name}' tag"
-            echo
-            echo
-            echo "Tagging ${image_to_wait_for} as ${image_name}."
-            echo
-            docker_v tag "${image_to_wait_for}" "${image_name}"
-            for TARGET_TAG in "${@}"; do
-                echo
-                echo "Tagging ${image_to_wait_for} as ${TARGET_TAG}."
-                echo
-                docker_v tag "${image_to_wait_for}" "${TARGET_TAG}"
-            done
+            build_images::tag_image "${image_to_wait_for}" "${image_name}:latest" "${@}"
             break
         fi
     done
@@ -975,7 +930,6 @@ function build_images::determine_docker_cache_strategy() {
             export DOCKER_CACHE="pulled"
         fi
     fi
-    readonly DOCKER_CACHE
     verbosity::print_info
     verbosity::print_info "Using ${DOCKER_CACHE} cache strategy for the build."
     verbosity::print_info
@@ -1060,23 +1014,6 @@ Production image:
 
 ${COLOR_BLUE}
      ./breeze build-image --production-image --upgrade-to-newer-dependencies --python 3.6
-${COLOR_RESET}
-
-* If you want to build the image regardless if 'pip check' fails for it, you can add
-  --continue-on-pip-check-failure flag and enter the image and inspect dependencies.
-
-CI image:
-
-${COLOR_BLUE}
-     ./breeze build-image --upgrade-to-newer-dependencies --python 3.6 --continue-on-pip-check-failure
-     docker run -it apache/airflow:main-3.6-ci bash
-${COLOR_RESET}
-
-Production image:
-
-${COLOR_BLUE}
-     ./breeze build-image --production-image --upgrade-to-newer-dependencies --python 3.6 --continue-on-pip-check-failure
-     docker run -it apache/airflow:main-3.6 bash
 ${COLOR_RESET}
 
 * You will see error messages there telling which requirements are conflicting and which packages caused the

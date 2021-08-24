@@ -44,6 +44,7 @@ Prerequisites
 1. Docker Community Edition
 2. Docker Compose
 3. pyenv (you can also use pyenv-virtualenv or virtualenvwrapper)
+4. jq
 
 
 Installing Prerequisites on Ubuntu
@@ -176,6 +177,18 @@ Pyenv and setting up virtual-env
 
 
 
+Installing jq
+--------------------------------
+
+``jq`` is a lightweight and flexible command-line JSON processor.
+
+Install ``jq`` with the following command:
+
+.. code-block:: bash
+
+  $ sudo apt install jq
+
+
 
 Setup Airflow with Breeze and PyCharm
 #####################################
@@ -263,14 +276,14 @@ Setting up Breeze
 
   $ ./breeze --python 3.8 --backend mysql
 
-4. Creating airflow tables and users. ``airflow db reset`` is required to execute at least once for Airflow Breeze to get
-   the database/tables created.
+4. Once the breeze environment is initialized, create airflow tables and users from the breeze CLI. ``airflow db reset``
+   is required to execute at least once for Airflow Breeze to get the database/tables created.
 
 .. code-block:: bash
 
-  $ airflow db reset
-  $ airflow users create --role Admin --username admin --password admin --email admin@example.com --firstname\
-    foo --lastname bar
+  root@b76fcb399bb6:/opt/airflow# airflow db reset
+  root@b76fcb399bb6:/opt/airflow# airflow users create --role Admin --username admin --password admin \
+    --email admin@example.com --firstname foo --lastname bar
 
 
 5. Closing Breeze environment. After successfully finishing above command will leave you in container,
@@ -321,8 +334,6 @@ Using Breeze
    Docker image:           apache/airflow:main-python3.8-ci
    Airflow source version: 2.0.0b2
    Python version:         3.8
-   DockerHub user:         apache
-   DockerHub repo:         airflow
    Backend:                mysql 5.7
 
 

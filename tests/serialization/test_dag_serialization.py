@@ -380,10 +380,6 @@ class TestStringifiedDAGs(unittest.TestCase):
         for task_id in dag.task_ids:
             self.validate_deserialized_task(serialized_dag.get_task(task_id), dag.get_task(task_id))
 
-        # Verify that the DAG object has 'full_filepath' attribute
-        # and is equal to fileloc
-        assert serialized_dag.full_filepath == dag.fileloc
-
     def validate_deserialized_task(
         self,
         serialized_task,
@@ -876,6 +872,8 @@ class TestStringifiedDAGs(unittest.TestCase):
             '_log': base_operator.log,
             '_outlets': [],
             '_upstream_task_ids': set(),
+            '_pre_execute_hook': None,
+            '_post_execute_hook': None,
             'depends_on_past': False,
             'do_xcom_push': True,
             'doc': None,
@@ -891,6 +889,7 @@ class TestStringifiedDAGs(unittest.TestCase):
             'executor_config': {},
             'inlets': [],
             'label': '10',
+            'max_active_tis_per_dag': None,
             'max_retry_delay': None,
             'on_execute_callback': None,
             'on_failure_callback': None,
@@ -911,7 +910,6 @@ class TestStringifiedDAGs(unittest.TestCase):
             'sla': None,
             'start_date': None,
             'subdag': None,
-            'task_concurrency': None,
             'task_id': '10',
             'trigger_rule': 'all_success',
             'wait_for_downstream': False,

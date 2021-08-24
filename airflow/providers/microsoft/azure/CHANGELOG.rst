@@ -19,6 +19,27 @@
 Changelog
 ---------
 
+3.1.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add support for managed identity in WASB hook (#16628)``
+* ``Reduce log messages for happy path (#16626)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix multiple issues in Microsoft AzureContainerInstancesOperator (#15634)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Removes pylint from our toolchain (#16682)``
+   * ``Prepare documentation for July release of providers. (#17015)``
+   * ``Fixed wrongly escaped characters in amazon&#39;s changelog (#17020)``
+   * ``Remove/refactor default_args pattern for Microsoft example DAGs (#16873)``
+
 3.0.0
 .....
 

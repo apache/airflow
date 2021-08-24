@@ -20,7 +20,15 @@
 Logging for Tasks
 =================
 
-Writing Logs Locally
+Airflow writes logs for tasks in a way that allows to see the logs for each task separately via Airflow UI.
+The Core Airflow implements writing and serving logs locally. However you can also write logs to remote
+services - via community providers, but you can also write your own loggers.
+
+Below we describe the local task logging, but Apache Airflow Community also releases providers for many
+services (:doc:`apache-airflow-providers:index`) and some of them also provide handlers that extend logging
+capability of Apache Airflow. You can see all those providers in :doc:`apache-airflow-providers:core-extensions/logging`.
+
+Writing logs Locally
 --------------------
 
 Users can specify the directory to place log files in ``airflow.cfg`` using
@@ -38,6 +46,7 @@ In the Airflow Web UI, remote logs take precedence over local logs when remote l
 can not be found or accessed, local logs will be displayed. Note that logs
 are only sent to remote storage once a task is complete (including failure); In other words, remote logs for
 running tasks are unavailable (but local logs are available).
+
 
 Troubleshooting
 ---------------
@@ -107,3 +116,16 @@ External Links
 When using remote logging, users can configure Airflow to show a link to an external UI within the Airflow Web UI. Clicking the link redirects a user to the external UI.
 
 Some external systems require specific configuration in Airflow for redirection to work but others do not.
+
+Serving logs from workers
+-------------------------
+
+Most task handlers send logs upon completion of a task. In order to view logs in real time, airflow automatically starts an http server to serve the logs in the following cases:
+
+- If ``SchedulerExecutor`` or ``LocalExecutor`` is used, then when ``airflow scheduler`` is running.
+- If ``CeleryExecutor`` is used, then when ``airflow worker`` is running.
+
+The server is running on the port specified by ``worker_log_server_port`` option in ``[logging]`` section. By default, it is ``8793``.
+Communication between the webserver and the worker is signed with the key specified by ``secret_key`` option  in ``[webserver]`` section. You must ensure that the key matches so that communication can take place without problems.
+
+We are using `Gunicorm <https://gunicorn.org/>`__ as a WSGI server. Its configuration options can be overridden with the ``GUNICORN_CMD_ARGS`` env variable. For details, see `Gunicorn settings <https://docs.gunicorn.org/en/latest/settings.html#settings>`__.

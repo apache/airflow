@@ -92,6 +92,7 @@ STATE_COLORS = {
     "upstream_failed": "orange",
     "skipped": "pink",
     "scheduled": "tan",
+    "deferred": "lightseagreen",
 }
 
 
@@ -431,8 +432,18 @@ def import_local_settings():
             del globals()["policy"]
 
         log.info("Loaded airflow_local_settings from %s .", airflow_local_settings.__file__)
+    except ModuleNotFoundError as e:
+        if e.name == "airflow_local_settings":
+            log.debug("No airflow_local_settings to import.", exc_info=True)
+        else:
+            log.critical(
+                "Failed to import airflow_local_settings due to a transitive module not found error.",
+                exc_info=True,
+            )
+            raise
     except ImportError:
-        log.debug("Failed to import airflow_local_settings.", exc_info=True)
+        log.critical("Failed to import airflow_local_settings.", exc_info=True)
+        raise
 
 
 def initialize():
@@ -465,10 +476,6 @@ MIN_SERIALIZED_DAG_UPDATE_INTERVAL = conf.getint('core', 'min_serialized_dag_upd
 # Fetching serialized DAG can not be faster than a minimum interval to reduce database
 # read rate. This config controls when your DAGs are updated in the Webserver
 MIN_SERIALIZED_DAG_FETCH_INTERVAL = conf.getint('core', 'min_serialized_dag_fetch_interval', fallback=10)
-
-# Whether to persist DAG files code in DB. If set to True, Webserver reads file contents
-# from DB instead of trying to access files in a DAG folder.
-STORE_DAG_CODE = conf.getboolean("core", "store_dag_code", fallback=True)
 
 # If donot_modify_handlers=True, we do not modify logging handlers in task_run command
 # If the flag is set to False, we remove all handlers from the root logger

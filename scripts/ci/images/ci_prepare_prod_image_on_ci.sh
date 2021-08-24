@@ -28,41 +28,14 @@ export VERBOSE="true"
 . "$( dirname "${BASH_SOURCE[0]}" )/../libraries/_script_init.sh"
 
 # Builds or waits for the PROD image in the CI environment
-# Depending on the "USE_GITHUB_REGISTRY" and "GITHUB_REGISTRY_WAIT_FOR_IMAGE" setting
 function build_prod_images_on_ci() {
     build_images::prepare_prod_build
 
-    if [[ ${USE_GITHUB_REGISTRY} == "true" && ${GITHUB_REGISTRY_WAIT_FOR_IMAGE} == "true" ]]; then
-        # Tries to wait for the images indefinitely
-        # skips further image checks - since we already have the target image
-
-        local python_tag_suffix=""
-        if [[ ${GITHUB_REGISTRY_PULL_IMAGE_TAG} != "latest" ]]; then
-            python_tag_suffix="-${GITHUB_REGISTRY_PULL_IMAGE_TAG}"
-        fi
-
-        if [[ "${WAIT_FOR_PYTHON_BASE_IMAGE=}" == "true" ]]; then
-            # first we pull base python image. We will need it to re-push it after main build
-            # Becoming the new "latest" image for other builds
-            build_images::wait_for_image_tag "${GITHUB_REGISTRY_PYTHON_BASE_IMAGE}" \
-                "${python_tag_suffix}" "${AIRFLOW_PYTHON_BASE_IMAGE}"
-        fi
-
-        # And then the actual image
-        build_images::wait_for_image_tag "${GITHUB_REGISTRY_AIRFLOW_PROD_IMAGE}" \
-            ":${GITHUB_REGISTRY_PULL_IMAGE_TAG}" "${AIRFLOW_PROD_IMAGE}"
-
-        # And the prod build image
-        if [[ "${WAIT_FOR_PROD_BUILD_IMAGE=}" == "true" ]]; then
-            # If specified in variable - also waits for the build image
-            build_images::wait_for_image_tag "${GITHUB_REGISTRY_AIRFLOW_PROD_BUILD_IMAGE}" \
-                ":${GITHUB_REGISTRY_PULL_IMAGE_TAG}" "${AIRFLOW_PROD_BUILD_IMAGE}"
-        fi
-
+    if [[ ${GITHUB_REGISTRY_WAIT_FOR_IMAGE} == "true" ]]; then
+        build_images::wait_for_image_tag "${AIRFLOW_PROD_IMAGE}" ":${GITHUB_REGISTRY_PULL_IMAGE_TAG}"
     else
         build_images::build_prod_images_from_locally_built_airflow_packages
     fi
-
 
     # Disable force pulling forced above this is needed for the subsequent scripts so that
     # They do not try to pull/build images again

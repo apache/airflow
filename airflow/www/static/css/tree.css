@@ -67,6 +67,10 @@ rect.shutdown {
   fill: blue;
 }
 
+rect.restarting {
+  fill: violet;
+}
+
 rect.upstream_failed {
   fill: orange;
 }
@@ -84,6 +88,10 @@ rect.skipped {
 }
 
 rect.sensing {
+  fill: lightseagreen;
+}
+
+rect.deferred {
   fill: lightseagreen;
 }
 

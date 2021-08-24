@@ -34,7 +34,7 @@
 #                        much smaller.
 #
 ARG AIRFLOW_VERSION="2.2.0.dev0"
-ARG AIRFLOW_EXTRAS="async,amazon,celery,cncf.kubernetes,docker,dask,elasticsearch,ftp,grpc,hashicorp,http,ldap,google,microsoft.azure,mysql,postgres,redis,sendgrid,sftp,slack,ssh,statsd,virtualenv"
+ARG AIRFLOW_EXTRAS="async,amazon,celery,cncf.kubernetes,docker,dask,elasticsearch,ftp,grpc,hashicorp,http,ldap,google,google_auth,microsoft.azure,mysql,pandas,postgres,redis,sendgrid,sftp,slack,ssh,statsd,virtualenv"
 ARG ADDITIONAL_AIRFLOW_EXTRAS=""
 ARG ADDITIONAL_PYTHON_DEPS=""
 
@@ -44,7 +44,8 @@ ARG AIRFLOW_GID="50000"
 
 ARG PYTHON_BASE_IMAGE="python:3.6-slim-buster"
 
-ARG AIRFLOW_PIP_VERSION=21.1.2
+ARG AIRFLOW_PIP_VERSION=21.2.4
+ARG AIRFLOW_IMAGE_REPOSITORY="https://github.com/apache/airflow"
 
 # By default PIP has progress bar but you can disable it.
 ARG PIP_PROGRESS_BAR="on"
@@ -108,12 +109,13 @@ ARG DEV_APT_COMMAND="\
     && curl https://dl.yarnpkg.com/debian/pubkey.gpg | apt-key add - > /dev/null \
     && echo 'deb https://dl.yarnpkg.com/debian/ stable main' > /etc/apt/sources.list.d/yarn.list"
 ARG ADDITIONAL_DEV_APT_COMMAND="echo"
+ARG ADDITIONAL_DEV_APT_ENV=""
 
 ENV DEV_APT_DEPS=${DEV_APT_DEPS} \
     ADDITIONAL_DEV_APT_DEPS=${ADDITIONAL_DEV_APT_DEPS} \
     DEV_APT_COMMAND=${DEV_APT_COMMAND} \
     ADDITIONAL_DEV_APT_COMMAND=${ADDITIONAL_DEV_APT_COMMAND} \
-    ADDITIONAL_DEV_APT_ENV=""
+    ADDITIONAL_DEV_APT_ENV=${ADDITIONAL_DEV_APT_ENV}
 
 # Note missing man directories on debian-buster
 # https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=863199
@@ -216,7 +218,7 @@ ENV AIRFLOW_PRE_CACHED_PIP_PACKAGES=${AIRFLOW_PRE_CACHED_PIP_PACKAGES} \
 RUN bash /scripts/docker/install_pip_version.sh; \
     if [[ ${AIRFLOW_PRE_CACHED_PIP_PACKAGES} == "true" && \
           ${UPGRADE_TO_NEWER_DEPENDENCIES} == "false" ]]; then \
-        bash /scripts/docker/install_airflow_from_branch_tip.sh; \
+        bash /scripts/docker/install_airflow_dependencies_from_branch_tip.sh; \
     fi
 
 COPY ${AIRFLOW_SOURCES_FROM} ${AIRFLOW_SOURCES_TO}
@@ -236,26 +238,24 @@ ARG INSTALL_FROM_PYPI="true"
 # * pyjwt<2.0.0: flask-jwt-extended requires it
 # * dill<0.3.3 required by apache-beam
 ARG EAGER_UPGRADE_ADDITIONAL_REQUIREMENTS="pyjwt<2.0.0 dill<0.3.3 certifi<2021.0.0"
-ARG CONTINUE_ON_PIP_CHECK_FAILURE="false"
-
 
 ENV ADDITIONAL_PYTHON_DEPS=${ADDITIONAL_PYTHON_DEPS} \
     INSTALL_FROM_DOCKER_CONTEXT_FILES=${INSTALL_FROM_DOCKER_CONTEXT_FILES} \
     INSTALL_FROM_PYPI=${INSTALL_FROM_PYPI} \
-    EAGER_UPGRADE_ADDITIONAL_REQUIREMENTS=${EAGER_UPGRADE_ADDITIONAL_REQUIREMENTS} \
-    CONTINUE_ON_PIP_CHECK_FAILURE=${CONTINUE_ON_PIP_CHECK_FAILURE}
+    EAGER_UPGRADE_ADDITIONAL_REQUIREMENTS=${EAGER_UPGRADE_ADDITIONAL_REQUIREMENTS}
 
 WORKDIR /opt/airflow
 
 # hadolint ignore=SC2086, SC2010
-RUN if [[ ${INSTALL_FROM_DOCKER_CONTEXT_FILES} == "true" ]]; then \
-        bash /scripts/docker/install_from_docker_context_files.sh; \
-    elif [[ ${INSTALL_FROM_PYPI} == "true" ]]; then \
-        bash /scripts/docker/install_airflow.sh; \
-    else \
+RUN if [[ ${AIRFLOW_INSTALLATION_METHOD} == "." ]]; then \
         # only compile assets if the prod image is build from sources
         # otherwise they are already compiled-in
         bash /scripts/docker/compile_www_assets.sh; \
+    fi; \
+    if [[ ${INSTALL_FROM_DOCKER_CONTEXT_FILES} == "true" ]]; then \
+        bash /scripts/docker/install_from_docker_context_files.sh; \
+    elif [[ ${INSTALL_FROM_PYPI} == "true" ]]; then \
+        bash /scripts/docker/install_airflow.sh; \
     fi; \
     if [[ -n "${ADDITIONAL_PYTHON_DEPS}" ]]; then \
         bash /scripts/docker/install_additional_dependencies.sh; \
@@ -275,7 +275,7 @@ RUN if [[ -f /docker-context-files/requirements.txt ]]; then \
 
 ARG BUILD_ID
 ARG COMMIT_SHA
-ARG AIRFLOW_IMAGE_REPOSITORY="https://github.com/apache/airflow"
+ARG AIRFLOW_IMAGE_REPOSITORY
 ARG AIRFLOW_IMAGE_DATE_CREATED
 
 ENV BUILD_ID=${BUILD_ID} COMMIT_SHA=${COMMIT_SHA}
@@ -292,15 +292,14 @@ LABEL org.apache.airflow.distro="debian" \
   org.opencontainers.image.created=${AIRFLOW_IMAGE_DATE_CREATED} \
   org.opencontainers.image.authors="dev@airflow.apache.org" \
   org.opencontainers.image.url="https://airflow.apache.org" \
-  org.opencontainers.image.documentation="https://airflow.apache.org/docs/apache-airflow/stable/production-deployment.html" \
-  org.opencontainers.image.source="https://github.com/apache/airflow" \
+  org.opencontainers.image.documentation="https://airflow.apache.org/docs/docker-stack/index.html" \
   org.opencontainers.image.version="${AIRFLOW_VERSION}" \
   org.opencontainers.image.revision="${COMMIT_SHA}" \
   org.opencontainers.image.vendor="Apache Software Foundation" \
   org.opencontainers.image.licenses="Apache-2.0" \
   org.opencontainers.image.ref.name="airflow-build-image" \
   org.opencontainers.image.title="Build Image Segment for Production Airflow Image" \
-  org.opencontainers.image.description="Installed Apache Airflow with build-time dependencies"
+  org.opencontainers.image.description="Reference build-time dependencies image for production-ready Apache Airflow image"
 
 ##############################################################################################
 # This is the actual Airflow image - much smaller than the build one. We copy
@@ -378,7 +377,7 @@ ARG AIRFLOW_HOME
 ARG AIRFLOW_INSTALLATION_METHOD="apache-airflow"
 ARG BUILD_ID
 ARG COMMIT_SHA
-ARG AIRFLOW_IMAGE_REPOSITORY="https://github.com/apache/airflow"
+ARG AIRFLOW_IMAGE_REPOSITORY
 ARG AIRFLOW_IMAGE_DATE_CREATED
 # By default PIP will install everything in ~/.local
 ARG PIP_USER="true"
@@ -467,15 +466,14 @@ LABEL org.apache.airflow.distro="debian" \
   org.opencontainers.image.created=${AIRFLOW_IMAGE_DATE_CREATED} \
   org.opencontainers.image.authors="dev@airflow.apache.org" \
   org.opencontainers.image.url="https://airflow.apache.org" \
-  org.opencontainers.image.documentation="https://airflow.apache.org/docs/apache-airflow/stable/production-deployment.html" \
-  org.opencontainers.image.source="https://github.com/apache/airflow" \
+  org.opencontainers.image.documentation="https://airflow.apache.org/docs/docker-stack/index.html" \
   org.opencontainers.image.version="${AIRFLOW_VERSION}" \
   org.opencontainers.image.revision="${COMMIT_SHA}" \
   org.opencontainers.image.vendor="Apache Software Foundation" \
   org.opencontainers.image.licenses="Apache-2.0" \
   org.opencontainers.image.ref.name="airflow" \
   org.opencontainers.image.title="Production Airflow Image" \
-  org.opencontainers.image.description="Installed Apache Airflow"
+  org.opencontainers.image.description="Reference, production-ready Apache Airflow image"
 
 
 ENTRYPOINT ["/usr/bin/dumb-init", "--", "/entrypoint"]

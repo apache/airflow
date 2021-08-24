@@ -66,6 +66,7 @@ const stateFocusMap = {
   up_for_reschedule: false,
   up_for_retry: false,
   queued: false,
+  deferred: false,
   no_status: false,
 };
 const taskTip = d3.tip()
@@ -536,7 +537,7 @@ function getNodeState(nodeId, tis) {
   // In this order, if any of these states appeared in childrenStates, return it as
   // the group state.
   const priority = ['failed', 'upstream_failed', 'up_for_retry', 'up_for_reschedule',
-    'queued', 'scheduled', 'sensing', 'running', 'shutdown', 'removed',
+    'queued', 'scheduled', 'sensing', 'running', 'shutdown', 'restarting', 'removed',
     'no_status', 'success', 'skipped'];
 
   return priority.find((state) => childrenStates.has(state)) || 'no_status';

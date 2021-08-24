@@ -223,8 +223,6 @@ Get DAG as duration graph              DAGs.can_read, Task Instances.can_read   
 Show all tries                         DAGs.can_read, Task Instances.can_read                                  Viewer
 Show landing times                     DAGs.can_read, Task Instances.can_read                                  Viewer
 Toggle DAG paused status               DAGs.can_edit                                                           User
-Refresh DAG                            DAGs.can_edit                                                           User
-Refresh all DAGs                       DAGs.can_edit                                                           User
 Show Gantt Chart                       DAGs.can_read, Task Instances.can_read                                  Viewer
 Get external links                     DAGs.can_read, Task Instances.can_read                                  Viewer
 Show Task Instances                    DAGs.can_read, Task Instances.can_read                                  Viewer

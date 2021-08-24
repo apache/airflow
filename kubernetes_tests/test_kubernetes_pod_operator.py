@@ -867,7 +867,7 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
                         'command': ['stress'],
                         'env': [],
                         'envFrom': [],
-                        'image': 'apache/airflow-ci:stress-2021.04.28-1.0.4',
+                        'image': 'ghcr.io/apache/airflow-stress:1.0.4-2021.07.04',
                         'name': 'base',
                         'ports': [],
                         'resources': {'limits': {'memory': '200Mi'}, 'requests': {'memory': '100Mi'}},

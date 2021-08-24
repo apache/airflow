@@ -15,7 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-set -euo pipefail
+set -uo pipefail
 
 if [[ -n "${FORCE_ANSWER_TO_QUESTIONS=}" ]]; then
     RESPONSE=${FORCE_ANSWER_TO_QUESTIONS}
@@ -31,8 +31,8 @@ if [[ -n "${FORCE_ANSWER_TO_QUESTIONS=}" ]]; then
     esac
 else
     echo
-    echo "Please confirm ${1}. Are you sure? [y/N/q]"
-    read -r RESPONSE
+    echo "Please confirm ${1} (or wait 4 seconds to skip it). Are you sure? [y/N/q]"
+    read -t 4 -r RESPONSE
 fi
 
 case "${RESPONSE}" in

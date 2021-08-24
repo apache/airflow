@@ -19,6 +19,45 @@
 Changelog
 ---------
 
+2.0.2
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix using XCom with &#39;&#39;KubernetesPodOperator&#39;&#39; (#17760)``
+* ``Import Hooks lazily individually in providers manager (#17682)``
+
+.. Review and move the new changes to one of the sections above:
+   * ``Fix messed-up changelog in 3 providers (#17380)``
+   * ``Fix static checks (#17256)``
+   * ``Update spark_kubernetes.py (#17237)``
+
+2.0.1
+.....
+
+
+Features
+~~~~~~~~
+
+* ``Enable using custom pod launcher in Kubernetes Pod Operator (#16945)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fixed wrongly escaped characters in amazon&#39;s changelog (#17020)``
+* ``BugFix: Using &#39;json&#39; string in template_field causes issue with K8s Operators (#16930)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Simplify &#39;default_args&#39; in Kubernetes example DAGs (#16870)``
+   * ``Enable using custom pod launcher in Kubernetes Pod Operator (#16945)``
+   * ``Prepare documentation for July release of providers. (#17015)``
+   * ``Updating task dependencies (#16624)``
+   * ``Removes pylint from our toolchain (#16682)``
+   * ``Prepare documentation for July release of providers. (#17015)``
+   * ``Fixed wrongly escaped characters in amazon&#39;s changelog (#17020)``
+
 2.0.0
 .....
 
