@@ -256,7 +256,7 @@ Apache Airflow version life cycle:
 | 1.10    | 1.10.15             | EOL       | Aug 27, 2018  | Dec 17, 2020    | June 17, 2021  |
 | 1.9     | 1.9.0               | EOL       | Jan 03, 2018  | Aug 27, 2018    | Aug 27, 2018   |
 | 1.8     | 1.8.2               | EOL       | Mar 19, 2017  | Jan 03, 2018    | Jan 03, 2018   |
-| 1.7     | 1.7.12              | EOL       | Mar 28, 2016  | Mar 19, 2017    | Mar 19, 2017   |
+| 1.7     | 1.7.1.2             | EOL       | Mar 28, 2016  | Mar 19, 2017    | Mar 19, 2017   |
 
 Limited support versions will be supported with security and critical bug fix only.
 EOL versions will not get any fixes nor support.
