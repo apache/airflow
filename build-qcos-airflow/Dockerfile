@@ -2,22 +2,23 @@ FROM docker.pkg.github.com/masami10/airflow/airflow-base:latest
 
 COPY requirements-airflow-prod.txt /tmp/requirements.txt
 
-COPY dags/ /usr/local/airflow/dags/
+COPY dags/ /default/dags/
 
-COPY plugins/ /usr/local/airflow/plugins/
+COPY plugins/ /default/plugins/
 
 ENV RUNTIME_ENV prod
+ARG AIRFLOW_DEFAULT=/default
 
 USER root
 
 RUN set -ex \
-    && chown -R airflow:airflow /usr/local/airflow/plugins/ \
-    && chown -R airflow:airflow /usr/local/airflow/dags/
+    && chown -R airflow:airflow ${AIRFLOW_DEFAULT}/plugins/ \
+    && chown -R airflow:airflow ${AIRFLOW_DEFAULT}/dags/
 
 USER airflow
 
 RUN set -ex \
-    && ls -al  /usr/local/airflow/plugins/ \
-    && sed -i 's/rbac = False/rbac = True/g' ${AIRFLOW_HOME}/airflow.cfg \
-    && cat ${AIRFLOW_HOME}/airflow.cfg \
+    && ls -al  ${AIRFLOW_DEFAULT}/plugins/ \
+    && sed -i 's/rbac = False/rbac = True/g' ${AIRFLOW_DEFAULT}/airflow.cfg \
+    && cat ${AIRFLOW_DEFAULT}/airflow.cfg \
     && pip install -r /tmp/requirements.txt --user -i https://pypi.douban.com/simple
