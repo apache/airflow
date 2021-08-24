@@ -583,12 +583,6 @@ function initialization::initialize_package_variables() {
 }
 
 
-function initialization::initialize_build_image_variables() {
-    REMOTE_IMAGE_CONTAINER_ID_FILE="${AIRFLOW_SOURCES}/manifests/remote-airflow-manifest-image"
-    LOCAL_IMAGE_BUILD_CACHE_HASH_FILE="${AIRFLOW_SOURCES}/manifests/local-build-cache-hash"
-    REMOTE_IMAGE_BUILD_CACHE_HASH_FILE="${AIRFLOW_SOURCES}/manifests/remote-build-cache-hash"
-}
-
 function initialization::set_output_color_variables() {
     COLOR_BLUE=$'\e[34m'
     COLOR_GREEN=$'\e[32m'
@@ -622,7 +616,6 @@ function initialization::initialize_common_environment() {
     initialization::initialize_github_variables
     initialization::initialize_test_variables
     initialization::initialize_package_variables
-    initialization::initialize_build_image_variables
 }
 
 function initialization::set_default_python_version_if_empty() {
@@ -868,10 +861,6 @@ function initialization::make_constants_read_only() {
     readonly AIRFLOW_IMAGE_KUBERNETES
     readonly BUILT_CI_IMAGE_FLAG_FILE
     readonly INIT_SCRIPT_FILE
-
-    readonly REMOTE_IMAGE_CONTAINER_ID_FILE
-    readonly LOCAL_IMAGE_BUILD_CACHE_HASH_FILE
-    readonly REMOTE_IMAGE_BUILD_CACHE_HASH_FILE
 
     readonly INSTALLED_EXTRAS
     readonly INSTALLED_PROVIDERS

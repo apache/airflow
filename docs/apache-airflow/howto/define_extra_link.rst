@@ -21,9 +21,7 @@
 Define an operator extra link
 =============================
 
-For each operator, you can define its own extra links that can
-redirect users to external systems. The extra link buttons
-will be available on the task page:
+
 
 .. image:: ../img/operator_extra_link.png
 
@@ -65,6 +63,9 @@ The following code shows how to add extra links to an operator via Plugins:
 You can also add a global operator extra link that will be available to
 all the operators through an airflow plugin or through airflow providers. You can learn more about it in the
 :ref:`plugin example <plugin-example>` and in :doc:`apache-airflow-providers:index`.
+
+You can see all the extra links available via community-managed providers in
+:doc:`apache-airflow-providers:core-extensions/extra-links`.
 
 
 Add or override Links to Existing Operators

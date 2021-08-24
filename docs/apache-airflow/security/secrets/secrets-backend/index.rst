@@ -20,10 +20,10 @@ Secrets Backend
 
 .. versionadded:: 1.10.10
 
-In addition to retrieving connections & variables from environment variables or the metastore database, you can enable
-an alternative secrets backend to retrieve Airflow connections or Airflow variables,
-such as :ref:`Google Cloud Secret Manager<google_cloud_secret_manager_backend>`,
-:ref:`Hashicorp Vault Secrets<hashicorp_vault_secrets>` or you can :ref:`roll your own <roll_your_own_secrets_backend>`.
+In addition to retrieving connections & variables from environment variables or the metastore database, you
+can also enable alternative secrets backend to retrieve Airflow connections or Airflow variables via
+:ref:`Apache Airflow Community provided backends <community_secret_backends>` in
+:doc:`apache-airflow-providers:core-extensions/secrets-backends`.
 
 .. note::
 
@@ -67,14 +67,25 @@ the example below.
     $ airflow config get-value secrets backend
     airflow.providers.google.cloud.secrets.secret_manager.CloudSecretManagerBackend
 
-Supported backends
-^^^^^^^^^^^^^^^^^^
+Supported core backends
+^^^^^^^^^^^^^^^^^^^^^^^
 
 .. toctree::
     :maxdepth: 1
     :glob:
 
     *
+
+.. _community_secret_backends:
+
+Apache Airflow Community provided secret backends
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Apache Airflow Community also releases community developed providers (:doc:`apache-airflow-providers:index`)
+and some of them also provide handlers that extend secret backends
+capability of Apache Airflow. You can see all those providers in
+:doc:`apache-airflow-providers:core-extensions/secrets-backends`.
+
 
 .. _roll_your_own_secrets_backend:
 

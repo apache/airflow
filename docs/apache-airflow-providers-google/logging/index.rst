@@ -15,8 +15,8 @@
     specific language governing permissions and limitations
     under the License.
 
-Task handlers
--------------
+Writing logs to Google Cloud Platform
+-------------------------------------
 
 .. toctree::
     :maxdepth: 1
