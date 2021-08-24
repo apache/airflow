@@ -86,7 +86,7 @@ Also make sure to :ref:`Add init file to your folders <add_init_py_to_your_folde
 Typical structure of packages
 -----------------------------
 
-This is an example structure that you might have in your ``dags`` folder (see below)
+This is an example structure that you might have in your ``dags`` folder:
 
 .. code-block:: none
 
