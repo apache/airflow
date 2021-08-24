@@ -718,8 +718,8 @@ The above will run mypy check for all files.
       </a>
     </div>
 
-If you will ever need to get a list of the files that will be checked (for troubleshooting when playing with the
-``--from-ref`` and ``--to-ref``) use these commands:
+If you ever need to get a list of the files that will be checked (for troubleshooting when playing with 
+``--from-ref`` and ``--to-ref``), use these commands:
 
 .. code-block:: bash
 
