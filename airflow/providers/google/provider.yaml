@@ -738,7 +738,7 @@ transfers:
     target-integration-name: Google Cloud Storage (GCS)
     python-module: airflow.providers.google.ads.transfers.ads_to_gcs
 
-hook-class-names:
+hook-class-names:  # deprecated - to be removed after providers add dependency on Airflow 2.2.0+
   - airflow.providers.google.common.hooks.base_google.GoogleBaseHook
   - airflow.providers.google.cloud.hooks.dataprep.GoogleDataprepHook
   - airflow.providers.google.cloud.hooks.cloud_sql.CloudSQLHook
