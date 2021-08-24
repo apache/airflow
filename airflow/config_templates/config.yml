@@ -1943,6 +1943,20 @@
       type: string
       example: ~
       default: "airflow.keytab"
+    - name: forwardable
+      description: |
+        Allow to disable ticket forwardability.
+      version_added: ~
+      type: boolean
+      example: ~
+      default: "True"
+    - name: include_ip
+      description: |
+        Allow to remove source IP from token, useful when using token behind NATted Docker host.
+      version_added: ~
+      type: boolean
+      example: ~
+      default: "True"
 - name: github_enterprise
   description: ~
   options:
