@@ -903,20 +903,42 @@ class Airflow(AirflowBaseView):
         if not filter_dag_ids:
             return wwwutils.json_response({})
 
+        last_runs_subquery = (
+            session.query(
+                DagRun.dag_id,
+                sqla.func.max(DagRun.execution_date).label("max_execution_date"),
+            )
+            .group_by(DagRun.dag_id)
+            .filter(DagRun.dag_id.in_(filter_dag_ids))  # Only include accessible/selected DAGs.
+            .subquery("last_runs")
+        )
+
         query = session.query(
             DagRun.dag_id,
-            sqla.func.max(DagRun.execution_date).label('execution_date'),
-            sqla.func.max(DagRun.start_date).label('start_date'),
-        ).group_by(DagRun.dag_id)
+            DagRun.start_date,
+            DagRun.execution_date,
+            DagRun.data_interval_start,
+            DagRun.data_interval_end,
+        ).join(
+            last_runs_subquery,
+            and_(
+                last_runs_subquery.c.dag_id == DagRun.dag_id,
+                last_runs_subquery.c.max_execution_date == DagRun.execution_date,
+            ),
+        )
 
-        # Filter to only ask for accessible and selected dags
-        query = query.filter(DagRun.dag_id.in_(filter_dag_ids))
+        def _datetime_to_string(value: Optional[DateTime]) -> Optional[str]:
+            if value is None:
+                return None
+            return value.isoformat()
 
         resp = {
             r.dag_id.replace('.', '__dot__'): {
-                'dag_id': r.dag_id,
-                'execution_date': r.execution_date.isoformat(),
-                'start_date': r.start_date.isoformat(),
+                "dag_id": r.dag_id,
+                "execution_date": _datetime_to_string(r.execution_date),
+                "start_date": _datetime_to_string(r.start_date),
+                "data_interval_start": _datetime_to_string(r.data_interval_start),
+                "data_interval_end": _datetime_to_string(r.data_interval_end),
             }
             for r in query
         }
