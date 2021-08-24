@@ -88,7 +88,9 @@ class MockMySqlHook(MySqlHook):
 class MockHiveServer2Hook(HiveServer2Hook):
     def __init__(self, empty_table_flag=False, *args, **kwargs):
         super().__init__()
-        self.mock_cursor = kwargs.get('connection_cursor', MockConnectionCursor(empty_table_flag = empty_table_flag))
+        self.mock_cursor = kwargs.get(
+            'connection_cursor', MockConnectionCursor(empty_table_flag=empty_table_flag)
+        )
         self.mock_cursor.execute = mock.MagicMock()
         self.get_conn = mock.MagicMock(return_value=self.mock_cursor)
         self.get_connection = mock.MagicMock(return_value=MockDBConnection({}))

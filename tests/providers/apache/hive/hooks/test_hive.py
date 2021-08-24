@@ -687,7 +687,7 @@ class TestHiveServer2Hook(unittest.TestCase):
         hook.mock_cursor.execute.assert_any_call('set airflow.ctx.dag_owner=airflow')
         hook.mock_cursor.execute.assert_any_call('set airflow.ctx.dag_email=test@airflow.com')
 
-        hook = MockHiveServer2Hook(empty_table_flag = True)
+        hook = MockHiveServer2Hook(empty_table_flag=True)
         query = f"SELECT * FROM {self.table}"
 
         df = hook.get_pandas_df(query, schema=self.database)
