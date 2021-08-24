@@ -325,6 +325,8 @@ function build_images::compare_local_and_remote_build_cache_hash() {
     set +e
     local local_image_build_cache_file
     local_image_build_cache_file="${AIRFLOW_SOURCES}/manifests/local-build-cache-hash-${PYTHON_MAJOR_MINOR_VERSION}"
+    local remote_image_build_cache_file
+    remote_image_build_cache_file="${AIRFLOW_SOURCES}/manifests/remote-build-cache-hash-${PYTHON_MAJOR_MINOR_VERSION}"
     local remote_hash
     remote_hash=$(cat "${remote_image_build_cache_file}")
     local local_hash
