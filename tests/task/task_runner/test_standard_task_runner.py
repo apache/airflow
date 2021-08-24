@@ -24,12 +24,13 @@ from unittest import mock
 import psutil
 import pytest
 
-from airflow import models, settings
 from airflow.jobs.local_task_job import LocalTaskJob
-from airflow.models import TaskInstance as TI
+from airflow.models.dagbag import DagBag
+from airflow.models.taskinstance import TaskInstance
 from airflow.task.task_runner.standard_task_runner import StandardTaskRunner
 from airflow.utils import timezone
 from airflow.utils.platform import getuser
+from airflow.utils.session import create_session
 from airflow.utils.state import State
 from tests.test_utils.db import clear_db_runs
 
@@ -178,40 +179,40 @@ class TestStandardTaskRunner:
         except OSError:
             pass
 
-        dagbag = models.DagBag(
+        dagbag = DagBag(
             dag_folder=TEST_DAG_FOLDER,
             include_examples=False,
         )
         dag = dagbag.dags.get('test_on_kill')
         task = dag.get_task('task1')
 
-        session = settings.Session()
+        with create_session() as session:
+            dag.clear()
+            dag.create_dagrun(
+                run_id="test",
+                state=State.RUNNING,
+                execution_date=DEFAULT_DATE,
+                start_date=DEFAULT_DATE,
+                session=session,
+            )
+            ti = TaskInstance(task=task, execution_date=DEFAULT_DATE)
+            job1 = LocalTaskJob(task_instance=ti, ignore_ti_state=True)
 
-        dag.clear()
-        dag.create_dagrun(
-            run_id="test",
-            state=State.RUNNING,
-            execution_date=DEFAULT_DATE,
-            start_date=DEFAULT_DATE,
-            session=session,
-        )
-        ti = TI(task=task, execution_date=DEFAULT_DATE)
-        job1 = LocalTaskJob(task_instance=ti, ignore_ti_state=True)
-        session.commit()
+            runner = StandardTaskRunner(job1)
+            runner.start()
 
-        runner = StandardTaskRunner(job1)
-        runner.start()
+            # give the task some time to startup
+            time.sleep(3)
 
-        # give the task some time to startup
-        time.sleep(3)
+            pgid = os.getpgid(runner.process.pid)
+            assert pgid > 0
+            assert pgid != os.getpgid(0), "Task should be in a different process group to us"
 
-        pgid = os.getpgid(runner.process.pid)
-        assert pgid > 0
-        assert pgid != os.getpgid(0), "Task should be in a different process group to us"
+            processes = list(self._procs_in_pgroup(pgid))
 
-        processes = list(self._procs_in_pgroup(pgid))
+            runner.terminate()
 
-        runner.terminate()
+            session.close()  # explicitly close as `create_session`s commit will blow up otherwise
 
         # Wait some time for the result
         for _ in range(20):
@@ -224,8 +225,6 @@ class TestStandardTaskRunner:
 
         for process in processes:
             assert not psutil.pid_exists(process.pid), f"{process} is still alive"
-
-        session.close()
 
     @staticmethod
     def _procs_in_pgroup(pgid):
