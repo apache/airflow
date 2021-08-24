@@ -31,6 +31,7 @@ from tests.test_utils.config import conf_vars
 
 TEST_DAG_ID = 'unit_tests_ssh_test_op'
 TEST_CONN_ID = "conn_id_for_testing"
+DEFAULT_TIMEOUT = 10
 CONN_TIMEOUT = 5
 CMD_TIMEOUT = 7
 TIMEOUT = 12
@@ -242,6 +243,24 @@ class TestSSHOperator(unittest.TestCase):
             pass
         assert task_5.cmd_timeout == TIMEOUT
         assert task_5.ssh_hook.conn_timeout == TIMEOUT
+
+        # if no timeouts are provided (conn_timeout, cmd_timeout, timeout), use the hook default
+        # for the conn_timeout and the operator default for the cmd_timeout
+        task_6 = SSHOperator(
+            task_id="task_6",
+            ssh_conn_id=TEST_CONN_ID,
+            command=COMMAND,
+            conn_timeout=None,
+            timeout=None,
+            cmd_timeout=None,
+            dag=self.dag,
+        )
+        try:
+            task_6.execute(None)
+        except Exception:
+            pass
+        assert task_6.cmd_timeout == DEFAULT_TIMEOUT
+        assert task_6.ssh_hook.conn_timeout == DEFAULT_TIMEOUT
 
     @parameterized.expand(
         [

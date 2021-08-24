@@ -26,7 +26,7 @@ from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.ssh.hooks.ssh import SSHHook
 
-TIMEOUT_DEFAULT = 10
+CMD_TIMEOUT = 10
 
 
 class SSHOperator(BaseOperator):
@@ -47,6 +47,8 @@ class SSHOperator(BaseOperator):
     :param command: command to execute on remote host. (templated)
     :type command: str
     :param conn_timeout: timeout (in seconds) for maintaining the connection. The default is 10 seconds.
+        Nullable. If provided, it will replace the `conn_timeout` which was
+        predefined in the connection of `ssh_conn_id`.
     :type conn_timeout: int
     :param cmd_timeout: timeout (in seconds) for executing the command. The default is 10 seconds.
     :type cmd_timeout: int
@@ -89,10 +91,10 @@ class SSHOperator(BaseOperator):
         self.timeout = timeout
         self.conn_timeout = conn_timeout
         self.cmd_timeout = cmd_timeout
-        if self.conn_timeout is None:
-            self.conn_timeout = self.timeout if self.timeout else TIMEOUT_DEFAULT
+        if self.conn_timeout is None and self.timeout:
+            self.conn_timeout = self.timeout
         if self.cmd_timeout is None:
-            self.cmd_timeout = self.timeout if self.timeout else TIMEOUT_DEFAULT
+            self.cmd_timeout = self.timeout if self.timeout else CMD_TIMEOUT
         self.environment = environment
         self.get_pty = (self.command.startswith('sudo') or get_pty) if self.command else get_pty
 
