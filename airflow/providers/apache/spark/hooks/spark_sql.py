@@ -160,15 +160,14 @@ class SparkSqlHook(BaseHook):
                 connection_cmd += ["-f", sql]
             else:
                 connection_cmd += ["-e", sql]
-        if len(self._conn.host) > 0:
-            if self._conn.port:
-                master_url= f"{self._conn.host}:{self._conn.port}"
-            else:
-                master_url = self._conn.host
-        else:
-            master_url = self._master
-        if master_url:
-            connection_cmd += ["--master", master_url]
+        if not self._master:
+            if self._conn_host:
+                if self._conn.port:
+                    self._master= f"{self._conn.host}:{self._conn.port}"
+                else:
+                    self._master = self._conn.host
+        if self._master:
+            connection_cmd += ["--master", self._master]
         if self._name:
             connection_cmd += ["--name", self._name]
         if self._verbose:
