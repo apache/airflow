@@ -51,7 +51,7 @@ colorlog==6.4.1
 commonmark==0.9.1
 contextvars==2.4
 croniter==1.0.15
-cryptography==3.4.7
+cryptography==3.4.8
 dask==2021.3.0
 dataclasses==0.8
 defusedxml==0.7.1

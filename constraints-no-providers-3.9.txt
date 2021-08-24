@@ -48,7 +48,7 @@ colorama==0.4.4
 colorlog==6.4.1
 commonmark==0.9.1
 croniter==1.0.15
-cryptography==3.4.7
+cryptography==3.4.8
 dask==2021.6.0
 defusedxml==0.7.1
 dill==0.3.2
