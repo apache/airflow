@@ -410,7 +410,7 @@ transfers:
     how-to-guide: /docs/apache-airflow-providers-amazon/operators/salesforce_to_s3.rst
     python-module: airflow.providers.amazon.aws.transfers.salesforce_to_s3
 
-hook-class-names:
+hook-class-names:  # deprecated - to be removed after providers add dependency on Airflow 2.2.0+
   - airflow.providers.amazon.aws.hooks.s3.S3Hook
   - airflow.providers.amazon.aws.hooks.base_aws.AwsBaseHook
   - airflow.providers.amazon.aws.hooks.emr.EmrHook

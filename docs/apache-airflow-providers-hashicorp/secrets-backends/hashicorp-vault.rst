@@ -44,6 +44,15 @@ key to ``backend_kwargs``:
 
     export VAULT_ADDR="http://127.0.0.1:8200"
 
+Set up a Vault mount point
+""""""""""""""""""""""""""
+
+You can make a ``mount_point`` for ``airflow`` as follows:
+
+.. code-block:: bash
+
+    vault secrets enable -path=airflow -version=2 kv
+
 Optional lookup
 """""""""""""""
 
@@ -60,8 +69,8 @@ For example, if you want to set parameter ``connections_path`` to ``"airflow-con
     backend = airflow.providers.hashicorp.secrets.vault.VaultBackend
     backend_kwargs = {"connections_path": "airflow-connections", "variables_path": null, "mount_point": "airflow", "url": "http://127.0.0.1:8200"}
 
-Storing and Retrieving Connections
-""""""""""""""""""""""""""""""""""
+Storing and Retrieving Connections using connection URI representation
+""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
 If you have set ``connections_path`` as ``connections`` and ``mount_point`` as ``airflow``, then for a connection id of
 ``smtp_default``, you would want to store your secret as:
@@ -72,12 +81,6 @@ If you have set ``connections_path`` as ``connections`` and ``mount_point`` as `
 
 Note that the ``Key`` is ``conn_uri``, ``Value`` is ``postgresql://airflow:airflow@host:5432/airflow`` and
 ``mount_point`` is ``airflow``.
-
-You can make a ``mount_point`` for ``airflow`` as follows:
-
-.. code-block:: bash
-
-    vault secrets enable -path=airflow -version=2 kv
 
 Verify that you can get the secret from ``vault``:
 
@@ -99,6 +102,40 @@ Verify that you can get the secret from ``vault``:
 
 The value of the Vault key must be the :ref:`connection URI representation <generating_connection_uri>`
 of the connection object to get connection.
+
+Storing and Retrieving Connections using Connection class representation
+""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+If you have set ``connections_path`` as ``connections`` and ``mount_point`` as ``airflow``, then for a connection id of
+``smtp_default``, you would want to store your secret as:
+
+.. code-block:: bash
+
+    vault kv put airflow/connections/smtp_default conn_type=smtps login=user password=host host=relay.example.com port=465
+
+Note that the ``Keys`` are parameters of the ``Connection`` class and the ``Value`` their argument.
+
+Verify that you can get the secret from ``vault``:
+
+.. code-block:: console
+
+    ❯ vault kv get airflow/connections/smtp_default
+    ====== Metadata ======
+    Key              Value
+    ---              -----
+    created_time     2020-03-19T19:17:51.281721Z
+    deletion_time    n/a
+    destroyed        false
+    version          1
+
+    ====== Data ======
+    Key         Value
+    ---         -----
+    conn_type   smtps
+    login       user
+    password    host
+    host        relay.example.com
+    port        465
 
 Storing and Retrieving Variables
 """"""""""""""""""""""""""""""""

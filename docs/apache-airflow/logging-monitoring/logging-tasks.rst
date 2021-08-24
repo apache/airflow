@@ -20,7 +20,15 @@
 Logging for Tasks
 =================
 
-Writing Logs Locally
+Airflow writes logs for tasks in a way that allows to see the logs for each task separately via Airflow UI.
+The Core Airflow implements writing and serving logs locally. However you can also write logs to remote
+services - via community providers, but you can also write your own loggers.
+
+Below we describe the local task logging, but Apache Airflow Community also releases providers for many
+services (:doc:`apache-airflow-providers:index`) and some of them also provide handlers that extend logging
+capability of Apache Airflow. You can see all those providers in :doc:`apache-airflow-providers:core-extensions/logging`.
+
+Writing logs Locally
 --------------------
 
 Users can specify the directory to place log files in ``airflow.cfg`` using
@@ -38,6 +46,7 @@ In the Airflow Web UI, remote logs take precedence over local logs when remote l
 can not be found or accessed, local logs will be displayed. Note that logs
 are only sent to remote storage once a task is complete (including failure); In other words, remote logs for
 running tasks are unavailable (but local logs are available).
+
 
 Troubleshooting
 ---------------
