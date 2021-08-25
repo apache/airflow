@@ -26,14 +26,12 @@ import pytest
 
 from airflow import settings
 from airflow.config_templates.airflow_local_settings import DEFAULT_LOGGING_CONFIG
-from airflow.models import TaskInstance
 from airflow.utils import timezone
 from airflow.utils.log.log_reader import TaskLogReader
 from airflow.utils.log.logging_mixin import ExternalLoggingMixin
-from airflow.utils.session import create_session
 from airflow.utils.state import TaskInstanceState
 from tests.test_utils.config import conf_vars
-from tests.test_utils.db import clear_db_runs
+from tests.test_utils.db import clear_db_dags, clear_db_runs
 
 
 class TestLogView:
@@ -88,18 +86,19 @@ class TestLogView:
                 f.flush()
 
     @pytest.fixture(autouse=True)
-    def prepare_db(self, create_dummy_dag):
-        _, op = create_dummy_dag(self.DAG_ID, start_date=self.DEFAULT_DATE)
-        with create_session() as session:
-            self.ti = TaskInstance(
-                task=op,
-                execution_date=self.DEFAULT_DATE,
-                state=TaskInstanceState.RUNNING,
-            )
-            self.ti.try_number = 3
-            session.merge(self.ti)
+    def prepare_db(self, session, create_task_instance):
+        ti = create_task_instance(
+            dag_id=self.DAG_ID,
+            task_id=self.TASK_ID,
+            start_date=self.DEFAULT_DATE,
+            execution_date=self.DEFAULT_DATE,
+            state=TaskInstanceState.RUNNING,
+        )
+        ti.try_number = 3
+        self.ti = ti
         yield
         clear_db_runs()
+        clear_db_dags()
 
     def test_test_read_log_chunks_should_read_one_try(self):
         task_log_reader = TaskLogReader()
