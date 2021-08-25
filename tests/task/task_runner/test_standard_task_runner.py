@@ -187,7 +187,6 @@ class TestStandardTaskRunner:
         task = dag.get_task('task1')
 
         with create_session() as session:
-            dag.clear()
             dag.create_dagrun(
                 run_id="test",
                 state=State.RUNNING,
@@ -197,6 +196,7 @@ class TestStandardTaskRunner:
             )
             ti = TaskInstance(task=task, execution_date=DEFAULT_DATE)
             job1 = LocalTaskJob(task_instance=ti, ignore_ti_state=True)
+            session.commit()
 
             runner = StandardTaskRunner(job1)
             runner.start()
