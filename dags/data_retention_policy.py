@@ -150,7 +150,7 @@ def do_saic_data_retention_policy_task(test_mode, **kwargs):
     results, end_date = get_all_need_delete_results(test_mode, **kwargs)
     need_delete_curve_files = get_all_need_delete_curves(results)
     _logger.info("Try To Remove Object: {}".format(','.join(need_delete_curve_files)))
-    ret = clear_tasks(end_date=end_date, limit=LIMIT)
+    ret = clear_tasks(end_date=end_date)
     _logger.info("Clear Task Return: {}".format(ret))
     clear_curve_files(need_delete_curve_files)
 
