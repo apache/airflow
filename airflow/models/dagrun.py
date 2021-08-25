@@ -679,7 +679,7 @@ class DagRun(Base, LoggingMixin):
             session.flush()
         except IntegrityError as err:
             self.log.info(str(err))
-            self.log.info('Hit IntegrityError while creating the TIs for %x- %s', dag.dag_id, self.run_id)
+            self.log.info('Hit IntegrityError while creating the TIs for %s- %s', dag.dag_id, self.run_id)
             self.log.info('Doing session rollback.')
             # TODO[HA]: We probably need to savepoint this so we can keep the transaction alive.
             session.rollback()
