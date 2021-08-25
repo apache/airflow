@@ -64,7 +64,7 @@ class BaseMockConnectionCursor:
     def cursor(self):
         return self
 
-    def execute(self):
+    def execute(self, values=None):
         pass
 
     def exists(self):
