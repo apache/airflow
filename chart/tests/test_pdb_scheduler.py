@@ -22,26 +22,18 @@ import jmespath
 from tests.helm_template_generator import render_chart
 
 
-class IngressFlowerTest(unittest.TestCase):
-    def test_should_pass_validation_with_just_ingress_enabled_v1(self):
+class SchedulerPdbTest(unittest.TestCase):
+    def test_should_pass_validation_with_just_pdb_enabled_v1(self):
         render_chart(
-            values={"ingress": {"enabled": True}, "executor": "CeleryExecutor"},
-            show_only=["templates/flower/flower-ingress.yaml"],
+            values={"scheduler": {"podDisruptionBudget": {"enabled": True}}},
+            show_only=["templates/scheduler/scheduler-poddisruptionbudget.yaml"],
         )  # checks that no validation exception is raised
 
-    def test_should_pass_validation_with_just_ingress_enabled_v1beta1(self):
+    def test_should_pass_validation_with_just_pdb_enabled_v1beta1(self):
         render_chart(
-            values={"ingress": {"enabled": True}, "executor": "CeleryExecutor"},
-            show_only=["templates/flower/flower-ingress.yaml"],
+            values={"scheduler": {"podDisruptionBudget": {"enabled": True}}},
+            show_only=["templates/scheduler/scheduler-poddisruptionbudget.yaml"],
             kubernetes_version='1.16.0',
         )  # checks that no validation exception is raised
 
-    def test_should_allow_more_than_one_annotation(self):
-        docs = render_chart(
-            values={
-                "ingress": {"enabled": True, "flower": {"annotations": {"aa": "bb", "cc": "dd"}}},
-                "executor": "CeleryExecutor",
-            },
-            show_only=["templates/flower/flower-ingress.yaml"],
-        )
-        assert jmespath.search("metadata.annotations", docs[0]) == {"aa": "bb", "cc": "dd"}
+

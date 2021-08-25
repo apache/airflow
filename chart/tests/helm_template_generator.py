@@ -32,6 +32,7 @@ from kubernetes.client.api_client import ApiClient
 api_client = ApiClient()
 
 BASE_URL_SPEC = "https://raw.githubusercontent.com/yannh/kubernetes-json-schema/master/v"
+DEFAULT_KUBERNETES_VERSION = "1.22.0"
 
 crd_lookup = {
     'keda.sh/v1alpha1::ScaledObject': 'https://raw.githubusercontent.com/kedacore/keda/v2.0.0/config/crd/bases/keda.sh_scaledobjects.yaml',  # noqa: E501
@@ -89,7 +90,7 @@ def validate_k8s_object(instance, kubernetes_version):
     validate.validate(instance)
 
 
-def render_chart(name="RELEASE-NAME", values=None, show_only=None, chart_dir=None, kubernetes_version="1.19.0"):
+def render_chart(name="RELEASE-NAME", values=None, show_only=None, chart_dir=None, kubernetes_version=DEFAULT_KUBERNETES_VERSION):
     """
     Function that renders a helm chart into dictionaries. For helm chart testing only
     """
