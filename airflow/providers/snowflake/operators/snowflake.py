@@ -178,9 +178,6 @@ class SnowflakeCheckOperator(_SnowflakeDbHookMixin, SQLCheckOperator):
     :type sql: Can receive a str representing a sql statement,
         a list of str (sql statements), or reference to a template file.
         Template reference are recognized by str ending in '.sql'
-    :param use_legacy_sql: Whether to use legacy SQL (true)
-        or standard SQL (false).
-    :type use_legacy_sql: bool
     :param snowflake_conn_id: Reference to
         :ref:`Snowflake connection id<howto/connection:snowflake>`
     :type snowflake_conn_id: str
@@ -222,7 +219,6 @@ class SnowflakeCheckOperator(_SnowflakeDbHookMixin, SQLCheckOperator):
         self,
         *,
         sql: Any,
-        use_legacy_sql: bool = True,
         snowflake_conn_id: str = 'snowflake_default',
         parameters: Optional[dict] = None,
         autocommit: bool = True,
@@ -238,7 +234,6 @@ class SnowflakeCheckOperator(_SnowflakeDbHookMixin, SQLCheckOperator):
         super().__init__(sql=sql, **kwargs)
         self.snowflake_conn_id = snowflake_conn_id
         self.sql = sql
-        self.use_legacy_sql = use_legacy_sql
         self.autocommit = autocommit
         self.do_xcom_push = do_xcom_push
         self.parameters = parameters
@@ -257,9 +252,6 @@ class SnowflakeValueCheckOperator(_SnowflakeDbHookMixin, SQLValueCheckOperator):
 
     :param sql: the sql to be executed
     :type sql: str
-    :param use_legacy_sql: Whether to use legacy SQL (true)
-        or standard SQL (false).
-    :type use_legacy_sql: bool
     :param snowflake_conn_id: Reference to
         :ref:`Snowflake connection id<howto/connection:snowflake>`
     :type snowflake_conn_id: str
@@ -299,7 +291,6 @@ class SnowflakeValueCheckOperator(_SnowflakeDbHookMixin, SQLValueCheckOperator):
         sql: Any,
         pass_value: Any,
         tolerance: Any = None,
-        use_legacy_sql: bool = True,
         snowflake_conn_id: str = 'snowflake_default',
         parameters: Optional[dict] = None,
         autocommit: bool = True,
@@ -315,7 +306,6 @@ class SnowflakeValueCheckOperator(_SnowflakeDbHookMixin, SQLValueCheckOperator):
         super().__init__(sql=sql, pass_value=pass_value, tolerance=tolerance, **kwargs)
         self.snowflake_conn_id = snowflake_conn_id
         self.sql = sql
-        self.use_legacy_sql = use_legacy_sql
         self.autocommit = autocommit
         self.do_xcom_push = do_xcom_push
         self.parameters = parameters
@@ -347,9 +337,6 @@ class SnowflakeIntervalCheckOperator(_SnowflakeDbHookMixin, SQLIntervalCheckOper
         example 'COUNT(*)': 1.5 would require a 50 percent or less difference
         between the current day, and the prior days_back.
     :type metrics_thresholds: dict
-    :param use_legacy_sql: Whether to use legacy SQL (true)
-        or standard SQL (false).
-    :type use_legacy_sql: bool
     :param snowflake_conn_id: Reference to
         :ref:`Snowflake connection id<howto/connection:snowflake>`
     :type snowflake_conn_id: str
@@ -390,7 +377,6 @@ class SnowflakeIntervalCheckOperator(_SnowflakeDbHookMixin, SQLIntervalCheckOper
         metrics_thresholds: dict,
         date_filter_column: str = 'ds',
         days_back: SupportsAbs[int] = -7,
-        use_legacy_sql: bool = True,
         snowflake_conn_id: str = 'snowflake_default',
         parameters: Optional[dict] = None,
         autocommit: bool = True,
@@ -411,7 +397,6 @@ class SnowflakeIntervalCheckOperator(_SnowflakeDbHookMixin, SQLIntervalCheckOper
             **kwargs,
         )
         self.snowflake_conn_id = snowflake_conn_id
-        self.use_legacy_sql = use_legacy_sql
         self.autocommit = autocommit
         self.do_xcom_push = do_xcom_push
         self.parameters = parameters
