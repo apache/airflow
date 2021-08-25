@@ -15,8 +15,6 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
-
 from datetime import datetime
 from unittest.mock import Mock
 
@@ -349,7 +347,7 @@ class TestTriggerRuleDep:
         All success including skip trigger rule failure
         """
         ti = get_task_instance(
-            TriggerRule.NOND_FAILED_MIN_ONE_SUCCESS,
+            TriggerRule.NONE_FAILED_MIN_ONE_SUCCESS,
             upstream_task_ids=["FakeTaskID", "OtherFakeTaskID", "FailedFakeTaskID"],
         )
         dep_statuses = tuple(
