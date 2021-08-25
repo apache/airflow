@@ -17,7 +17,7 @@
 
 .. _write-logs-azure:
 
-Writing Logs to Azure Blob Storage
+Writing logs to Azure Blob Storage
 ----------------------------------
 
 Airflow can be configured to read and write task logs in Azure Blob Storage. It uses an existing

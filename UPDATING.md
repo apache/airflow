@@ -27,6 +27,8 @@ assists users migrating to a new version.
 **Table of contents**
 
 - [Main](#main)
+- [Airflow 2.1.3](#airflow-213)
+- [Airflow 2.1.2](#airflow-212)
 - [Airflow 2.1.1](#airflow-211)
 - [Airflow 2.1.0](#airflow-210)
 - [Airflow 2.0.2](#airflow-202)
@@ -90,6 +92,12 @@ pip install -U "apache-airflow[pandas]==2.1.2" \
   --constraint https://raw.githubusercontent.com/apache/airflow/constraints-2.1.2/constraints-3.8.txt"
 ```
 
+### `none_failed_or_skipped` trigger rule has been deprecated
+
+`TriggerRule.NONE_FAILED_OR_SKIPPED` is replaced by `TriggerRule.NONE_FAILED_MIN_ONE_SUCCESS`.
+This is only name change, no functionality changes made.
+This change is backward compatible however `TriggerRule.NONE_FAILED_OR_SKIPPED` will be removed in next major release.
+
 ### Dummy trigger rule has been deprecated
 
 `TriggerRule.DUMMY` is replaced by `TriggerRule.ALWAYS`.
@@ -146,9 +154,45 @@ dag = DAG(
 
 If you are using DAGs Details API endpoint, use `max_active_tasks` instead of `concurrency`.
 
+### Task concurrency parameter has been renamed
+
+`BaseOperator.task_concurrency` has been deprecated and renamed to `max_active_tis_per_dag` for
+better understanding.
+
+This parameter controls the number of concurrent running task instances across ``dag_runs``
+per task.
+
+**Before**:
+
+```python
+with DAG(dag_id="task_concurrency_example"):
+    BashOperator(task_id="t1", task_concurrency=2, bash_command="echo Hi")
+```
+
+**After**:
+
+```python
+with DAG(dag_id="task_concurrency_example"):
+    BashOperator(task_id="t1", max_active_tis_per_dag=2, bash_command="echo Hi")
+```
+
 ### Marking success/failed automatically clears failed downstream tasks
 
 When marking a task success/failed in Graph View, its downstream tasks that are in failed/upstream_failed state are automatically cleared.
+
+### `[core] store_dag_code` has been removed
+
+While DAG Serialization is a strict requirements since Airflow 2, we allowed users to control
+where the Webserver looked for when showing the **Code View**.
+
+If `[core] store_dag_code` was set to `True`, the Scheduler stored the code in the DAG file in the
+DB (in `dag_code` table) as a plain string, and the webserver just read it from the same table.
+If the value was set to `False`, the webserver read it from the DAG file.
+
+While this setting made sense for Airflow < 2, it caused some confusion to some users where they thought
+this setting controlled DAG Serialization.
+
+From Airflow 2.2, Airflow will only look for DB when a user clicks on **Code View** for a DAG.
 
 ### Clearing a running task sets its state to `RESTARTING`
 
@@ -183,6 +227,14 @@ Previously this was controlled by `non_pooled_task_slot_count` in `[core]` secti
 Now that the DAG parser syncs DAG permissions there is no longer a need for manually refreshing DAGs. As such, the buttons to refresh a DAG have been removed from the UI.
 
 In addition, the `/refresh` and `/refresh_all` webserver endpoints have also been removed.
+
+## Airflow 2.1.3
+
+No breaking changes.
+
+## Airflow 2.1.2
+
+No breaking changes.
 
 ## Airflow 2.1.1
 

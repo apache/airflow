@@ -53,7 +53,7 @@ In the simplest case building your image consists of those steps:
 
 1) Create your own ``Dockerfile`` (name it ``Dockerfile``) where you add:
 
-* information what your image should be based on (for example ``FROM: apache/airflow:|version|-python3.8``
+* information what your image should be based on (for example ``FROM: apache/airflow:|airflow-version|-python3.8``
 
 * additional steps that should be executed in your image (typically in the form of ``RUN <command>``)
 

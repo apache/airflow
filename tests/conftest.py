@@ -25,6 +25,7 @@ import pytest
 
 # We should set these before loading _any_ of the rest of airflow so that the
 # unit test mode config is set as early as possible.
+assert "airflow" not in sys.modules, "No airflow module can be imported before these lines"
 tests_directory = os.path.dirname(os.path.realpath(__file__))
 
 os.environ["AIRFLOW__CORE__DAGS_FOLDER"] = os.path.join(tests_directory, "dags")
@@ -513,14 +514,17 @@ def dag_maker(request):
             from airflow.utils.state import State
 
             dag = self.dag
-            defaults = dict(
-                run_id='test',
-                state=State.RUNNING,
-                execution_date=self.start_date,
-                start_date=self.start_date,
-                session=self.session,
-            )
-            kwargs = {**defaults, **kwargs}
+            kwargs = {
+                "state": State.RUNNING,
+                "execution_date": self.start_date,
+                "start_date": self.start_date,
+                "session": self.session,
+                **kwargs,
+            }
+            # Need to provide run_id if the user does not either provide one
+            # explicitly, or pass run_type for inference in dag.create_dagrun().
+            if "run_id" not in kwargs and "run_type" not in kwargs:
+                kwargs["run_id"] = "test"
             self.dag_run = dag.create_dagrun(**kwargs)
             return self.dag_run
 
@@ -609,7 +613,7 @@ def create_dummy_dag(dag_maker):
     def create_dag(
         dag_id='dag',
         task_id='op1',
-        task_concurrency=16,
+        max_active_tis_per_dag=16,
         pool='default_pool',
         executor_config={},
         trigger_rule='all_done',
@@ -623,7 +627,7 @@ def create_dummy_dag(dag_maker):
         with dag_maker(dag_id, **kwargs) as dag:
             op = DummyOperator(
                 task_id=task_id,
-                task_concurrency=task_concurrency,
+                max_active_tis_per_dag=max_active_tis_per_dag,
                 executor_config=executor_config,
                 on_success_callback=on_success_callback,
                 on_execute_callback=on_execute_callback,

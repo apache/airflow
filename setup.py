@@ -244,6 +244,7 @@ deprecated_api = [
     'requests>=2.26.0',
 ]
 doc = [
+    'click>=7.1,<9',
     # Sphinx is limited to < 3.5.0 because of https://github.com/sphinx-doc/sphinx/issues/8880
     'sphinx>=2.1.2, <3.5.0',
     'sphinx-airflow-theme',
@@ -505,7 +506,7 @@ devel = [
     'jira',
     'jsondiff',
     'mongomock',
-    'moto~=2.0',
+    'moto~=2.2, >=2.2.1.dev9',
     'mypy==0.770',
     'parameterized',
     'paramiko',

@@ -1154,7 +1154,7 @@ def test_empty_branch(choice, expected_states):
     ) as dag:
         branch = BranchPythonOperator(task_id='branch', python_callable=lambda: choice)
         task1 = DummyOperator(task_id='task1')
-        join = DummyOperator(task_id='join', trigger_rule="none_failed_or_skipped")
+        join = DummyOperator(task_id='join', trigger_rule="none_failed_min_one_success")
 
         branch >> [task1, join]
         task1 >> join

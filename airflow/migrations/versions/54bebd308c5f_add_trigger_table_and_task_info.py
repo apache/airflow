@@ -19,7 +19,7 @@
 """Add trigger table and task info
 
 Revision ID: 54bebd308c5f
-Revises: 97cdd93827b8
+Revises: 30867afad44a
 Create Date: 2021-04-14 12:56:40.688260
 
 """
@@ -31,7 +31,7 @@ from airflow.utils.sqlalchemy import ExtendedJSON
 
 # revision identifiers, used by Alembic.
 revision = '54bebd308c5f'
-down_revision = '97cdd93827b8'
+down_revision = '30867afad44a'
 branch_labels = None
 depends_on = None
 

@@ -82,7 +82,7 @@ Elasticsearch
 -------------
 
 If your cluster forwards logs to Elasticsearch, you can configure Airflow to retrieve task logs from it.
-See the :doc:`Elasticsearch providers guide <apache-airflow-providers-elasticsearch:logging>` for more details.
+See the :doc:`Elasticsearch providers guide <apache-airflow-providers-elasticsearch:logging/index>` for more details.
 
 .. code-block:: bash
 

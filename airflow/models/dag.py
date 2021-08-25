@@ -173,9 +173,9 @@ class DAG(LoggingMixin):
         accessible in templates, namespaced under `params`. These
         params can be overridden at the task level.
     :type params: dict
-    :param concurrency: the number of task instances allowed to run
+    :param max_active_tasks: the number of task instances allowed to run
         concurrently
-    :type concurrency: int
+    :type max_active_tasks: int
     :param max_active_runs: maximum number of active DAG runs, beyond this
         number of DAG runs in a running state, the scheduler won't create
         new active DAG runs
@@ -2097,15 +2097,16 @@ class DAG(LoggingMixin):
         :param data_interval: Data interval of the DagRun
         :type data_interval: tuple[datetime, datetime] | None
         """
-        if run_id and not run_type:
+        if run_id:  # Infer run_type from run_id if needed.
             if not isinstance(run_id, str):
                 raise ValueError(f"`run_id` expected to be a str is {type(run_id)}")
-            run_type: DagRunType = DagRunType.from_run_id(run_id)
-        elif run_type and execution_date:
+            if not run_type:
+                run_type = DagRunType.from_run_id(run_id)
+        elif run_type and execution_date is not None:  # Generate run_id from run_type and execution_date.
             if not isinstance(run_type, DagRunType):
                 raise ValueError(f"`run_type` expected to be a DagRunType is {type(run_type)}")
             run_id = DagRun.generate_run_id(run_type, execution_date)
-        elif not run_id:
+        else:
             raise AirflowException(
                 "Creating DagRun needs either `run_id` or both `run_type` and `execution_date`"
             )
@@ -2201,17 +2202,6 @@ class DAG(LoggingMixin):
             .all()
         )
 
-        # Get number of active dagruns for all dags we are processing as a single query.
-        num_active_runs = dict(
-            session.query(DagRun.dag_id, func.count('*'))
-            .filter(
-                DagRun.dag_id.in_(existing_dag_ids),
-                DagRun.state == State.RUNNING,
-                DagRun.external_trigger == expression.false(),
-            )
-            .group_by(DagRun.dag_id)
-            .all()
-        )
         filelocs = []
 
         for orm_dag in sorted(orm_dags, key=lambda d: d.dag_id):
@@ -2232,12 +2222,11 @@ class DAG(LoggingMixin):
             orm_dag.description = dag.description
             orm_dag.schedule_interval = dag.schedule_interval
             orm_dag.max_active_tasks = dag.max_active_tasks
-            orm_dag.has_task_concurrency_limits = any(t.task_concurrency is not None for t in dag.tasks)
+            orm_dag.has_task_concurrency_limits = any(t.max_active_tis_per_dag is not None for t in dag.tasks)
 
             orm_dag.calculate_dagrun_date_fields(
                 dag,
                 most_recent_dag_runs.get(dag.dag_id),
-                num_active_runs.get(dag.dag_id, 0),
             )
 
             for orm_tag in list(orm_dag.tags):
@@ -2252,8 +2241,7 @@ class DAG(LoggingMixin):
                         orm_dag.tags.append(dag_tag_orm)
                         session.add(dag_tag_orm)
 
-        if settings.STORE_DAG_CODE:
-            DagCode.bulk_sync_to_db(filelocs)
+        DagCode.bulk_sync_to_db(filelocs)
 
         # Issue SQL/finish "Unit of Work", but let @provide_session commit (or if passed a session, let caller
         # decide when to commit
@@ -2661,14 +2649,13 @@ class DagModel(Base):
         return with_row_locks(query, of=cls, session=session, **skip_locked(session=session))
 
     def calculate_dagrun_date_fields(
-        self, dag: DAG, most_recent_dag_run: Optional[pendulum.DateTime], active_runs_of_dag: int
+        self, dag: DAG, most_recent_dag_run: Optional[pendulum.DateTime]
     ) -> None:
         """
         Calculate ``next_dagrun`` and `next_dagrun_create_after``
 
         :param dag: The DAG object
         :param most_recent_dag_run: DateTime of most recent run of this dag, or none if not yet scheduled.
-        :param active_runs_of_dag: Number of currently active runs of this dag
         """
         next_dagrun_info = dag.next_dagrun_info(most_recent_dag_run)
         if next_dagrun_info is None:
@@ -2677,16 +2664,6 @@ class DagModel(Base):
             self.next_dagrun_data_interval = next_dagrun_info.data_interval
             self.next_dagrun = next_dagrun_info.logical_date
             self.next_dagrun_create_after = next_dagrun_info.run_after
-
-        if dag.max_active_runs and active_runs_of_dag >= dag.max_active_runs:
-            # Since this happens every time the dag is parsed it would be quite spammy at info
-            log.debug(
-                "DAG %s is at (or above) max_active_runs (%d of %d), not creating any more runs",
-                dag.dag_id,
-                active_runs_of_dag,
-                dag.max_active_runs,
-            )
-            self.next_dagrun_create_after = None
 
         log.info("Setting next_dagrun for %s to %s", dag.dag_id, self.next_dagrun)
 
