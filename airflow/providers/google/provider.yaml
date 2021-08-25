@@ -738,7 +738,7 @@ transfers:
     target-integration-name: Google Cloud Storage (GCS)
     python-module: airflow.providers.google.ads.transfers.ads_to_gcs
 
-hook-class-names:
+hook-class-names:  # deprecated - to be removed after providers add dependency on Airflow 2.2.0+
   - airflow.providers.google.common.hooks.base_google.GoogleBaseHook
   - airflow.providers.google.cloud.hooks.dataprep.GoogleDataprepHook
   - airflow.providers.google.cloud.hooks.cloud_sql.CloudSQLHook
@@ -746,6 +746,22 @@ hook-class-names:
   - airflow.providers.google.cloud.hooks.compute_ssh.ComputeEngineSSHHook
   - airflow.providers.google.cloud.hooks.bigquery.BigQueryHook
   - airflow.providers.google.leveldb.hooks.leveldb.LevelDBHook
+
+connection-types:
+  - hook-class-name: airflow.providers.google.common.hooks.base_google.GoogleBaseHook
+    connection-type: google_cloud_platform
+  - hook-class-name: airflow.providers.google.cloud.hooks.dataprep.GoogleDataprepHook
+    connection-type: dataprep
+  - hook-class-name: airflow.providers.google.cloud.hooks.cloud_sql.CloudSQLHook
+    connection-type: gcpcloudsql
+  - hook-class-name: airflow.providers.google.cloud.hooks.cloud_sql.CloudSQLDatabaseHook
+    connection-type: gcpcloudsqldb
+  - hook-class-name: airflow.providers.google.cloud.hooks.bigquery.BigQueryHook
+    connection-type: gcpbigquery
+  - hook-class-name: airflow.providers.google.cloud.hooks.compute_ssh.ComputeEngineSSHHook
+    connection-type: gcpssh
+  - hook-class-name: airflow.providers.google.leveldb.hooks.leveldb.LevelDBHook
+    connection-type: leveldb
 
 extra-links:
   - airflow.providers.google.cloud.operators.bigquery.BigQueryConsoleLink
@@ -757,3 +773,13 @@ extra-links:
 additional-extras:
   apache.beam: apache-beam[gcp]
   leveldb: plyvel
+
+secrets-backends:
+  - airflow.providers.google.cloud.secrets.secret_manager.CloudSecretManagerBackend
+
+auth-backends:
+  - airflow.providers.google.common.auth_backend.google_openid
+
+logging:
+  - airflow.providers.google.cloud.log.gcs_task_handler.GCSTaskHandler
+  - airflow.providers.google.cloud.log.stackdriver_task_handler.StackdriverTaskHandler

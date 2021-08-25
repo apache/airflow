@@ -93,6 +93,23 @@ def test_plugin_endpoint_should_not_be_unauthenticated(app):
     check_content_in_response("Sign In - Airflow", resp)
 
 
+def test_should_list_providers_on_page_with_details(admin_client):
+    resp = admin_client.get('/provider')
+    beam_href = "<a href=\"https://airflow.apache.org/docs/apache-airflow-providers-apache-beam/"
+    beam_text = "apache-airflow-providers-apache-beam</a>"
+    beam_description = "<a href=\"https://beam.apache.org/\">Apache Beam</a>"
+    check_content_in_response(beam_href, resp)
+    check_content_in_response(beam_text, resp)
+    check_content_in_response(beam_description, resp)
+    check_content_in_response("Providers", resp)
+
+
+def test_endpoint_should_not_be_unauthenticated(app):
+    resp = app.test_client().get('/provider', follow_redirects=True)
+    check_content_not_in_response("Providers", resp)
+    check_content_in_response("Sign In - Airflow", resp)
+
+
 @pytest.mark.parametrize(
     "url, content",
     [

@@ -103,7 +103,7 @@ def serve_logs():
     setproctitle("airflow serve-logs")
     wsgi_app = create_app()
 
-    worker_log_server_port = conf.getint('celery', 'WORKER_LOG_SERVER_PORT')
+    worker_log_server_port = conf.getint('logging', 'WORKER_LOG_SERVER_PORT')
     options = {
         'bind': f"0.0.0.0:{worker_log_server_port}",
         'workers': 2,

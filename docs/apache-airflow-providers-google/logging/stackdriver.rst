@@ -17,7 +17,7 @@
 
 .. _write-logs-stackdriver:
 
-Writing Logs to Google Stackdriver
+Writing logs to Google Stackdriver
 ----------------------------------
 
 Airflow can be configured to read and write task logs in `Google Stackdriver Logging <https://cloud.google.com/logging/>`__.

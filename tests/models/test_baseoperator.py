@@ -541,6 +541,30 @@ class TestBaseOperatorMethods(unittest.TestCase):
             # where the deprecated class was used
             assert warning.filename == __file__
 
+    def test_pre_execute_hook(self):
+        called = False
+
+        def hook(context):
+            nonlocal called
+            called = True
+
+        op = DummyOperator(task_id="test_task", pre_execute=hook)
+        op_copy = op.prepare_for_execution()
+        op_copy.pre_execute({})
+        assert called
+
+    def test_post_execute_hook(self):
+        called = False
+
+        def hook(context, result):
+            nonlocal called
+            called = True
+
+        op = DummyOperator(task_id="test_task", post_execute=hook)
+        op_copy = op.prepare_for_execution()
+        op_copy.post_execute({})
+        assert called
+
 
 class CustomOp(DummyOperator):
     template_fields = ("field", "field2")

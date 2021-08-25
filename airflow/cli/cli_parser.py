@@ -1267,6 +1267,24 @@ PROVIDERS_COMMANDS = (
         func=lazy_load_command('airflow.cli.commands.provider_command.connection_field_behaviours'),
         args=(ARG_OUTPUT, ARG_VERBOSE),
     ),
+    ActionCommand(
+        name='logging',
+        help='Get information about task logging handlers provided',
+        func=lazy_load_command('airflow.cli.commands.provider_command.logging_list'),
+        args=(ARG_OUTPUT, ARG_VERBOSE),
+    ),
+    ActionCommand(
+        name='secrets',
+        help='Get information about secrets backends provided',
+        func=lazy_load_command('airflow.cli.commands.provider_command.secrets_backends_list'),
+        args=(ARG_OUTPUT, ARG_VERBOSE),
+    ),
+    ActionCommand(
+        name='auth',
+        help='Get information about API auth backends provided',
+        func=lazy_load_command('airflow.cli.commands.provider_command.auth_backend_list'),
+        args=(ARG_OUTPUT, ARG_VERBOSE),
+    ),
 )
 
 USERS_COMMANDS = (

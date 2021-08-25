@@ -19,7 +19,7 @@
 """Add queued_at column to dagrun table
 
 Revision ID: 97cdd93827b8
-Revises: 30867afad44a
+Revises: a13f7613ad25
 Create Date: 2021-06-29 21:53:48.059438
 
 """
@@ -30,7 +30,7 @@ from sqlalchemy.dialects import mssql
 
 # revision identifiers, used by Alembic.
 revision = '97cdd93827b8'
-down_revision = '30867afad44a'
+down_revision = 'a13f7613ad25'
 branch_labels = None
 depends_on = None
 

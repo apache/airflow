@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#!/bin/bash
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -15,13 +15,24 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-# shellcheck source=scripts/ci/libraries/_script_init.sh
-. "$( dirname "${BASH_SOURCE[0]}" )/../libraries/_script_init.sh"
 
-# This script pushes legacy images to old-naming-convention images
-# It should be removed ~ 7th of August, giving users time to rebase their old pull requests
-build_images::prepare_ci_build
+set -euo pipefail
+rm -rf docker-context-files/*.whl
+rm -rf docker-context-files/*.tgz
+export FORCE_ANSWER_TO_QUESTIONS="true"
+export CI="true"
 
-legacy_ci_image="ghcr.io/${GITHUB_REPOSITORY}-${BRANCH_NAME}-python${PYTHON_MAJOR_MINOR_VERSION}-ci-v2:${GITHUB_REGISTRY_PUSH_IMAGE_TAG}"
-docker tag "${AIRFLOW_CI_IMAGE}" "${legacy_ci_image}"
-docker push "${legacy_ci_image}"
+if [[ $1 == "" ]]; then
+  echo
+  echo ERROR! Please specify python version as parameter
+  echo
+  exit 1
+fi
+
+python_version=$1
+
+./breeze build-image --python "${python_version}" --build-cache-pulled  --check-if-base-python-image-updated --verbose
+./breeze build-image --python "${python_version}" --build-cache-pulled  --production-image --verbose
+
+./breeze push-image --python "${python_version}"
+./breeze push-image --production-image --python "${python_version}"

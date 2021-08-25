@@ -26,7 +26,7 @@ from airflow.providers.alibaba.cloud.hooks.oss import OSSHook
 from tests.providers.alibaba.cloud.utils.test_utils import skip_test_if_no_valid_conn_id
 
 TEST_CONN_ID = os.environ.get('TEST_OSS_CONN_ID', 'oss_default')
-TEST_REGION = os.environ.get('TEST_OSS_REGION', 'cn-hangzhou')
+TEST_REGION = os.environ.get('TEST_OSS_REGION', 'us-east-1')
 TEST_BUCKET = os.environ.get('TEST_OSS_BUCKET', 'test-bucket')
 
 

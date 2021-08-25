@@ -20,14 +20,16 @@ import unittest
 
 import pytest
 
-from airflow import models
+from airflow import models, settings
 from airflow.api.common.experimental.delete_dag import delete_dag
-from airflow.exceptions import DagNotFound
+from airflow.exceptions import AirflowException, DagNotFound
 from airflow.operators.dummy import DummyOperator
+from airflow.utils import timezone
 from airflow.utils.dates import days_ago
 from airflow.utils.session import create_session
 from airflow.utils.state import State
 from airflow.utils.types import DagRunType
+from tests.test_utils.db import clear_db_dags, clear_db_runs
 
 DM = models.DagModel
 DR = models.DagRun
@@ -50,6 +52,29 @@ class TestDeleteDAGCatchError(unittest.TestCase):
     def test_delete_dag_non_existent_dag(self):
         with pytest.raises(DagNotFound):
             delete_dag("non-existent DAG")
+
+
+class TestDeleteDAGErrorsOnRunningTI:
+    def setup_method(self):
+        clear_db_dags()
+        clear_db_runs()
+
+    def teardown_method(self):
+        clear_db_dags()
+        clear_db_runs()
+
+    def test_delete_dag_running_taskinstances(self, create_dummy_dag):
+        dag_id = 'test-dag'
+        _, task = create_dummy_dag(dag_id)
+
+        ti = TI(task, execution_date=timezone.utcnow())
+        ti.refresh_from_db()
+        session = settings.Session()
+        ti.state = State.RUNNING
+        session.merge(ti)
+        session.commit()
+        with pytest.raises(AirflowException):
+            delete_dag(dag_id)
 
 
 class TestDeleteDAGSuccessfulDelete(unittest.TestCase):

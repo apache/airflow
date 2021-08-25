@@ -178,7 +178,7 @@ export function callModal(t, d, extraLinks, tryNumbers, sd) {
       }&dag_id=${encodeURIComponent(dagId)
       }&execution_date=${encodeURIComponent(executionDate)
       }&link_name=${encodeURIComponent(link)}`;
-      const externalLink = $('<a href="#" class="btn btn-primary disabled" target="_blank"></a>');
+      const externalLink = $('<a href="#" class="btn btn-primary disabled"></a>');
       const linkTooltip = $('<span class="tool-tip" data-toggle="tooltip" style="padding-right: 2px; padding-left: 3px" data-placement="top" '
         + 'title="link not yet available"></span>');
       linkTooltip.append(externalLink);
@@ -190,6 +190,11 @@ export function callModal(t, d, extraLinks, tryNumbers, sd) {
           cache: false,
           success(data) {
             externalLink.attr('href', data.url);
+            // open absolute (external) links in a new tab/window and relative (local) links
+            // directly
+            if (/^(?:[a-z]+:)?\/\//.test(data.url)) {
+              externalLink.attr('target', '_blank');
+            }
             externalLink.removeClass('disabled');
             linkTooltip.tooltip('disable');
           },

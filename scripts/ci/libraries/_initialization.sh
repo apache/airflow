@@ -83,6 +83,10 @@ function initialization::create_directories() {
 
 # Very basic variables that MUST be set
 function initialization::initialize_base_variables() {
+    # until we have support for ARM images, we set docker default platform to AMD
+    # so that all breeze commands use emulation
+    export DOCKER_DEFAULT_PLATFORM=linux/amd64
+
     # Default port numbers for forwarded ports
     export SSH_PORT=${SSH_PORT:="12322"}
     export WEBSERVER_HOST_PORT=${WEBSERVER_HOST_PORT:="28080"}
@@ -423,7 +427,7 @@ function initialization::initialize_image_build_variables() {
     export INSTALLED_PROVIDERS
     export INSTALLED_EXTRAS="async,amazon,celery,cncf.kubernetes,docker,dask,elasticsearch,ftp,grpc,hashicorp,http,imap,ldap,google,microsoft.azure,mysql,postgres,redis,sendgrid,sftp,slack,ssh,statsd,virtualenv"
 
-    AIRFLOW_PIP_VERSION=${AIRFLOW_PIP_VERSION:="21.2.2"}
+    AIRFLOW_PIP_VERSION=${AIRFLOW_PIP_VERSION:="21.2.4"}
     export AIRFLOW_PIP_VERSION
 
     # We also pin version of wheel used to get consistent builds
@@ -579,12 +583,6 @@ function initialization::initialize_package_variables() {
 }
 
 
-function initialization::initialize_build_image_variables() {
-    REMOTE_IMAGE_CONTAINER_ID_FILE="${AIRFLOW_SOURCES}/manifests/remote-airflow-manifest-image"
-    LOCAL_IMAGE_BUILD_CACHE_HASH_FILE="${AIRFLOW_SOURCES}/manifests/local-build-cache-hash"
-    REMOTE_IMAGE_BUILD_CACHE_HASH_FILE="${AIRFLOW_SOURCES}/manifests/remote-build-cache-hash"
-}
-
 function initialization::set_output_color_variables() {
     COLOR_BLUE=$'\e[34m'
     COLOR_GREEN=$'\e[32m'
@@ -618,7 +616,6 @@ function initialization::initialize_common_environment() {
     initialization::initialize_github_variables
     initialization::initialize_test_variables
     initialization::initialize_package_variables
-    initialization::initialize_build_image_variables
 }
 
 function initialization::set_default_python_version_if_empty() {
@@ -729,7 +726,7 @@ EOF
     if [[ "${CI}" == "true" ]]; then
         cat <<EOF
 
-Detected CI build environment:
+Detected CI test environment:
 
     CI_TARGET_REPO=${CI_TARGET_REPO}
     CI_TARGET_BRANCH=${CI_TARGET_BRANCH}
@@ -864,10 +861,6 @@ function initialization::make_constants_read_only() {
     readonly AIRFLOW_IMAGE_KUBERNETES
     readonly BUILT_CI_IMAGE_FLAG_FILE
     readonly INIT_SCRIPT_FILE
-
-    readonly REMOTE_IMAGE_CONTAINER_ID_FILE
-    readonly LOCAL_IMAGE_BUILD_CACHE_HASH_FILE
-    readonly REMOTE_IMAGE_BUILD_CACHE_HASH_FILE
 
     readonly INSTALLED_EXTRAS
     readonly INSTALLED_PROVIDERS

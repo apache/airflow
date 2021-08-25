@@ -82,7 +82,7 @@ Airflow is not a streaming solution, but it is often used to process real-time d
 
 Apache Airflow is tested with:
 
-|                      | Main version (dev)        | Stable version (2.1.2)   |
+|                      | Main version (dev)        | Stable version (2.1.3)   |
 | -------------------- | ------------------------- | ------------------------ |
 | Python               | 3.6, 3.7, 3.8, 3.9        | 3.6, 3.7, 3.8, 3.9       |
 | Kubernetes           | 1.20, 1.19, 1.18          | 1.20, 1.19, 1.18         |
@@ -142,15 +142,15 @@ them to appropriate format and workflow that your tool requires.
 
 
 ```bash
-pip install 'apache-airflow==2.1.2' \
- --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-2.1.2/constraints-3.7.txt"
+pip install 'apache-airflow==2.1.3' \
+ --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-2.1.3/constraints-3.7.txt"
 ```
 
 2. Installing with extras (for example postgres,google)
 
 ```bash
-pip install 'apache-airflow[postgres,google]==2.1.2' \
- --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-2.1.2/constraints-3.7.txt"
+pip install 'apache-airflow[postgres,google]==2.1.3' \
+ --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-2.1.3/constraints-3.7.txt"
 ```
 
 For information on installing provider packages check
@@ -241,7 +241,7 @@ packages:
 * **Airflow Helm Chart**: SemVer rules apply to changes in the chart only. SemVer MAJOR and MINOR
   versions for the chart are independent from the Airflow version. We aim to keep backwards
   compatibility of the Helm Chart with all released Airflow 2 versions, but some new features might
-  only work starting from specific Airlfow releases. We might however limit the Helm
+  only work starting from specific Airflow releases. We might however limit the Helm
   Chart to depend on minimal Airflow version.
 * **Airflow API clients**: SemVer MAJOR and MINOR versions follow MAJOR and MINOR version of Airflow.
   The first MAJOR or MINOR X.Y.0 release of Airflow should always be followed by X.Y.0 release of
@@ -254,7 +254,7 @@ Apache Airflow version life cycle:
 
 | Version | Current Patch/Minor | State     | First Release | Limited Support | EOL/Terminated |
 |---------|---------------------|-----------|---------------|-----------------|----------------|
-| 2       | 2.1.2               | Supported | Dec 17, 2020  | Dec 2021        | TBD            |
+| 2       | 2.1.3               | Supported | Dec 17, 2020  | Dec 2021        | TBD            |
 | 1.10    | 1.10.15             | EOL       | Aug 27, 2018  | Dec 17, 2020    | June 17, 2021  |
 | 1.9     | 1.9.0               | EOL       | Jan 03, 2018  | Aug 27, 2018    | Aug 27, 2018   |
 | 1.8     | 1.8.2               | EOL       | Mar 19, 2017  | Jan 03, 2018    | Jan 03, 2018   |
@@ -280,7 +280,7 @@ They are based on the official release schedule of Python and Kubernetes, nicely
 
 2. The "oldest" supported version of Python/Kubernetes is the default one. "Default" is only meaningful
    in terms of "smoke tests" in CI PRs which are run using this default version and default reference
-   image available. Currently `apache/airflow:latest` and `apache/airflow:2.1.2` images
+   image available. Currently `apache/airflow:latest` and `apache/airflow:2.1.3` images
    are both Python 3.6 images, however the first MINOR/MAJOR release of Airflow release after 23.12.2021 will
    become Python 3.7 images.
 
