@@ -27,12 +27,14 @@ Content
     :caption: Guides
 
     Connection types <connections/influxdb>
+    Operators (Not Implemented) <operators/influxdb>
 
 .. toctree::
     :maxdepth: 1
     :caption: References
 
     Python API <_api/airflow/providers/influxdb/index>
+    Python API <_api/influxdb/index>
 
 .. toctree::
     :maxdepth: 1

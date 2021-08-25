@@ -100,7 +100,7 @@ class InfluxDBHook(BaseHook):
         should be included in the query
 
         :param query: InfluxDB query
-        :return: List[FluxTable]
+        :return: List
         """
         client = self.get_conn()
 
