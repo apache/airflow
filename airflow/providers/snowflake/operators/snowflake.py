@@ -132,6 +132,7 @@ class _SnowflakeDbHookMixin:
     def get_db_hook(self) -> SnowflakeHook:
         """
         Create and return SnowflakeHook.
+
         :return: a SnowflakeHook instance.
         :rtype: SnowflakeHook
         """
