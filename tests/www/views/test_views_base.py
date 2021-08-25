@@ -18,15 +18,12 @@
 import datetime
 import json
 
-import flask
 import pytest
 
 from airflow import version
 from airflow.jobs.base_job import BaseJob
 from airflow.utils import timezone
 from airflow.utils.session import create_session
-from airflow.utils.state import State
-from airflow.www.views import FILTER_STATUS_COOKIE, FILTER_TAGS_COOKIE
 from tests.test_utils.asserts import assert_queries_count
 from tests.test_utils.config import conf_vars
 from tests.test_utils.www import check_content_in_response, check_content_not_in_response
@@ -49,29 +46,6 @@ def test_doc_urls(admin_client):
 
     check_content_in_response(airflow_doc_site, resp)
     check_content_in_response("/api/v1/ui", resp)
-
-
-def test_home(capture_templates, admin_client):
-    with capture_templates() as templates:
-        resp = admin_client.get('home', follow_redirects=True)
-        check_content_in_response('DAGs', resp)
-        val_state_color_mapping = (
-            'const STATE_COLOR = {'
-            '"deferred": "lightseagreen", "failed": "red", '
-            '"null": "lightblue", "queued": "gray", '
-            '"removed": "lightgrey", "restarting": "violet", "running": "lime", '
-            '"scheduled": "tan", "sensing": "lightseagreen", '
-            '"shutdown": "blue", "skipped": "pink", '
-            '"success": "green", "up_for_reschedule": "turquoise", '
-            '"up_for_retry": "gold", "upstream_failed": "orange"};'
-        )
-        check_content_in_response(val_state_color_mapping, resp)
-
-    assert len(templates) == 1
-    assert templates[0].name == 'airflow/dags.html'
-    state_color_mapping = State.state_color.copy()
-    state_color_mapping["null"] = state_color_mapping.pop(None)
-    assert templates[0].local_context['state_color'] == state_color_mapping
 
 
 @pytest.fixture()
@@ -393,30 +367,6 @@ def test_delete_user(app, admin_client, exist_username):
         follow_redirects=True,
     )
     check_content_in_response("Deleted Row", resp)
-
-
-def test_home_filter_tags(admin_client):
-    with admin_client:
-        admin_client.get('home?tags=example&tags=data', follow_redirects=True)
-        assert 'example,data' == flask.session[FILTER_TAGS_COOKIE]
-
-        admin_client.get('home?reset_tags', follow_redirects=True)
-        assert flask.session[FILTER_TAGS_COOKIE] is None
-
-
-def test_home_status_filter_cookie(admin_client):
-    with admin_client:
-        admin_client.get('home', follow_redirects=True)
-        assert 'all' == flask.session[FILTER_STATUS_COOKIE]
-
-        admin_client.get('home?status=active', follow_redirects=True)
-        assert 'active' == flask.session[FILTER_STATUS_COOKIE]
-
-        admin_client.get('home?status=paused', follow_redirects=True)
-        assert 'paused' == flask.session[FILTER_STATUS_COOKIE]
-
-        admin_client.get('home?status=all', follow_redirects=True)
-        assert 'all' == flask.session[FILTER_STATUS_COOKIE]
 
 
 @conf_vars({("webserver", "show_recent_stats_for_completed_runs"): "False"})
