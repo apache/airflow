@@ -530,6 +530,8 @@ def dag_maker(request):
             kwargs["data_interval"] = DataInterval.exact(kwargs["execution_date"])
 
             self.dag_run = dag.create_dagrun(**kwargs)
+            for ti in self.dag_run.task_instances:
+                ti.task = dag.get_task(ti.task_id)
             return self.dag_run
 
         def __call__(
