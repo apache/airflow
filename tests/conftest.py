@@ -526,8 +526,9 @@ def dag_maker(request):
             # explicitly, or pass run_type for inference in dag.create_dagrun().
             if "run_id" not in kwargs and "run_type" not in kwargs:
                 kwargs["run_id"] = "test"
-
-            kwargs["data_interval"] = DataInterval.exact(kwargs["execution_date"])
+            # Fill data_interval is not provided.
+            if not kwargs.get("data_interval"):
+                kwargs["data_interval"] = DataInterval.exact(kwargs["execution_date"])
 
             self.dag_run = dag.create_dagrun(**kwargs)
             for ti in self.dag_run.task_instances:
