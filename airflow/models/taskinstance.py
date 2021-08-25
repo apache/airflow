@@ -411,7 +411,7 @@ class TaskInstance(Base, LoggingMixin):
         self.refresh_from_task(task)
         self._log = logging.getLogger("airflow.task")
 
-        if execution_date:
+        if run_id is None and execution_date is not None:
             from airflow.models.dagrun import DagRun  # Avoid circular import
 
             warnings.warn(
@@ -723,7 +723,7 @@ class TaskInstance(Base, LoggingMixin):
         )
 
         if lock_for_update:
-            ti = qry.with_for_update().first()
+            ti: Optional[TaskInstance] = qry.with_for_update().first()
         else:
             ti = qry.first()
         if ti:
