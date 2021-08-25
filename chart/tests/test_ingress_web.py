@@ -27,6 +27,7 @@ class IngressWebTest(unittest.TestCase):
         render_chart(
             values={"ingress": {"enabled": True}},
             show_only=["templates/webserver/webserver-ingress.yaml"],
+            kubernetes_version='1.22.0',
         )  # checks that no validation exception is raised
 
     def test_should_allow_more_than_one_annotation(self):

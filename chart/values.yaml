@@ -99,7 +99,7 @@ ingress:
     annotations: {}
 
     # The path for the web Ingress
-    path: ""
+    path: "/"
 
     # The pathType for the above path (used only with Kubernetes v1.19 and above)
     pathType: "ImplementationSpecific"
@@ -129,7 +129,7 @@ ingress:
     annotations: {}
 
     # The path for the flower Ingress
-    path: ""
+    path: "/"
 
     # The pathType for the above path (used only with Kubernetes v1.19 and above)
     pathType: "ImplementationSpecific"
