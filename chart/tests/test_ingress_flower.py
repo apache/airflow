@@ -45,3 +45,13 @@ class IngressFlowerTest(unittest.TestCase):
             show_only=["templates/flower/flower-ingress.yaml"],
         )
         assert jmespath.search("metadata.annotations", docs[0]) == {"aa": "bb", "cc": "dd"}
+
+    def test_should_set_ingress_class_name(self):
+        docs = render_chart(
+            values={
+                "ingress": {"enabled": True, "flower": {"ingressClassName": "foo"}},
+                "executor": "CeleryExecutor",
+            },
+            show_only=["templates/flower/flower-ingress.yaml"],
+        )
+        assert "foo" == jmespath.search("spec.ingressClassName", docs[0])

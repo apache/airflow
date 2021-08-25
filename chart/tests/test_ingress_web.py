@@ -42,3 +42,10 @@ class IngressWebTest(unittest.TestCase):
             show_only=["templates/webserver/webserver-ingress.yaml"],
         )
         assert {"aa": "bb", "cc": "dd"} == jmespath.search("metadata.annotations", docs[0])
+
+    def test_should_set_ingress_class_name(self):
+        docs = render_chart(
+            values={"ingress": {"enabled": True, "web": {"ingressClassName": "foo"}}},
+            show_only=["templates/webserver/webserver-ingress.yaml"],
+        )
+        assert "foo" == jmespath.search("spec.ingressClassName", docs[0])
