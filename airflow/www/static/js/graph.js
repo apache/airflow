@@ -601,7 +601,7 @@ function focusGroup(nodeId) {
 }
 
 // Expands a group node
-function expandGroup(nodeId, node, focus = true, do_draw = true) {
+function expandGroup(nodeId, node, focus = true, shouldDraw = true) {
   node.children.forEach((val) => {
     // Set children nodes
     g.setNode(val.id, val.value);
@@ -638,7 +638,7 @@ function expandGroup(nodeId, node, focus = true, do_draw = true) {
     }
   });
 
-  if (do_draw) {
+  if (shouldDraw) {
     draw();
   }
 
