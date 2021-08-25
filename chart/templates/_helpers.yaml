@@ -501,6 +501,17 @@ Create the name of the worker service account to use
 {{- end -}}
 
 {{/*
+Create the name of the triggerer service account to use
+*/}}
+{{- define "triggerer.serviceAccountName" -}}
+{{- if .Values.triggerer.serviceAccount.create -}}
+    {{ default (printf "%s-triggerer" (include "airflow.fullname" .)) .Values.triggerer.serviceAccount.name }}
+{{- else -}}
+    {{ default "default" .Values.triggerer.serviceAccount.name }}
+{{- end -}}
+{{- end -}}
+
+{{/*
 Create the name of the pgbouncer service account to use
 */}}
 {{- define "pgbouncer.serviceAccountName" -}}

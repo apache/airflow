@@ -243,6 +243,56 @@ class LivyHook(HttpHook, LoggingMixin):
 
         return response.json()
 
+    def get_batch_logs(self, session_id: Union[int, str], log_start_position, log_batch_size) -> Any:
+        """
+        Gets the session logs for a specified batch.
+        :param session_id: identifier of the batch sessions
+        :type session_id: int
+        :param log_start_position: Position from where to pull the logs
+        :type log_start_position: int
+        :param log_batch_size: Number of lines to pull in one batch
+        :type log_batch_size: int
+
+        :return: response body
+        :rtype: dict
+        """
+        self._validate_session_id(session_id)
+        log_params = {'from': log_start_position, 'size': log_batch_size}
+        response = self.run_method(endpoint=f'/batches/{session_id}/log', data=log_params)
+        try:
+            response.raise_for_status()
+        except requests.exceptions.HTTPError as err:
+            self.log.warning("Got status code %d for session %d", err.response.status_code, session_id)
+            raise AirflowException(
+                "Could not fetch the logs for batch with session id: {}. Message: {}".format(
+                    session_id, err.response.text
+                )
+            )
+        return response.json()
+
+    def dump_batch_logs(self, session_id: Union[int, str]) -> Any:
+        """
+        Dumps the session logs for a specified batch
+
+        :param session_id: identifier of the batch sessions
+        :type session_id: int
+        :return: response body
+        :rtype: dict
+        """
+        self.log.info("Fetching the logs for batch session with id: %d", session_id)
+        log_start_line = 0
+        log_total_lines = 0
+        log_batch_size = 100
+
+        while log_start_line <= log_total_lines:
+            # Livy log  endpoint is paginated.
+            response = self.get_batch_logs(session_id, log_start_line, log_batch_size)
+            log_total_lines = self._parse_request_response(response, 'total')
+            log_start_line += log_batch_size
+            log_lines = self._parse_request_response(response, 'log')
+            for log_line in log_lines:
+                self.log.info(log_line)
+
     @staticmethod
     def _validate_session_id(session_id: Union[int, str]) -> None:
         """
@@ -267,6 +317,18 @@ class LivyHook(HttpHook, LoggingMixin):
         :rtype: int
         """
         return response.get('id')
+
+    @staticmethod
+    def _parse_request_response(response: Dict[Any, Any], parameter) -> Any:
+        """
+        Parse batch response for batch id
+
+        :param response: response body
+        :type response: dict
+        :return: value of parameter
+        :rtype: Union[int, list]
+        """
+        return response.get(parameter)
 
     @staticmethod
     def build_post_batch_body(

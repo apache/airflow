@@ -153,7 +153,7 @@ transfers:
     how-to-guide: /docs/apache-airflow-providers-microsoft-azure/operators/azure_blob_to_gcs.rst
     python-module: airflow.providers.microsoft.azure.transfers.azure_blob_to_gcs
 
-hook-class-names:
+hook-class-names:  # deprecated - to be removed after providers add dependency on Airflow 2.2.0+
   - airflow.providers.microsoft.azure.hooks.base_azure.AzureBaseHook
   - airflow.providers.microsoft.azure.hooks.adx.AzureDataExplorerHook
   - airflow.providers.microsoft.azure.hooks.azure_batch.AzureBatchHook

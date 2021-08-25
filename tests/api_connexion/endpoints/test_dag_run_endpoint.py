@@ -15,6 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 from datetime import timedelta
+from unittest import mock
 
 import pytest
 from parameterized import parameterized
@@ -211,6 +212,7 @@ class TestGetDagRun(TestDagRunEndpoint):
             'dag_run_id': 'TEST_DAG_RUN_ID',
             'end_date': None,
             'state': 'running',
+            'logical_date': self.default_time,
             'execution_date': self.default_time,
             'external_trigger': True,
             'start_date': self.default_time,
@@ -265,6 +267,7 @@ class TestGetDagRuns(TestDagRunEndpoint):
                     'end_date': None,
                     'state': 'running',
                     'execution_date': self.default_time,
+                    'logical_date': self.default_time,
                     'external_trigger': True,
                     'start_date': self.default_time,
                     'conf': {},
@@ -275,6 +278,7 @@ class TestGetDagRuns(TestDagRunEndpoint):
                     'end_date': None,
                     'state': 'running',
                     'execution_date': self.default_time_2,
+                    'logical_date': self.default_time_2,
                     'external_trigger': True,
                     'start_date': self.default_time,
                     'conf': {},
@@ -313,6 +317,7 @@ class TestGetDagRuns(TestDagRunEndpoint):
                     'end_date': None,
                     'state': 'running',
                     'execution_date': self.default_time_2,
+                    'logical_date': self.default_time_2,
                     'external_trigger': True,
                     'start_date': self.default_time,
                     'conf': {},
@@ -323,6 +328,7 @@ class TestGetDagRuns(TestDagRunEndpoint):
                     'end_date': None,
                     'state': 'running',
                     'execution_date': self.default_time,
+                    'logical_date': self.default_time,
                     'external_trigger': True,
                     'start_date': self.default_time,
                     'conf': {},
@@ -566,6 +572,7 @@ class TestGetDagRunBatch(TestDagRunEndpoint):
                     'end_date': None,
                     'state': 'running',
                     'execution_date': self.default_time,
+                    'logical_date': self.default_time,
                     'external_trigger': True,
                     'start_date': self.default_time,
                     'conf': {},
@@ -576,6 +583,7 @@ class TestGetDagRunBatch(TestDagRunEndpoint):
                     'end_date': None,
                     'state': 'running',
                     'execution_date': self.default_time_2,
+                    'logical_date': self.default_time_2,
                     'external_trigger': True,
                     'start_date': self.default_time,
                     'conf': {},
@@ -600,6 +608,7 @@ class TestGetDagRunBatch(TestDagRunEndpoint):
                     'end_date': None,
                     'state': 'running',
                     'execution_date': self.default_time_2,
+                    'logical_date': self.default_time_2,
                     'external_trigger': True,
                     'start_date': self.default_time,
                     'conf': {},
@@ -610,6 +619,7 @@ class TestGetDagRunBatch(TestDagRunEndpoint):
                     'end_date': None,
                     'state': 'running',
                     'execution_date': self.default_time,
+                    'logical_date': self.default_time,
                     'external_trigger': True,
                     'start_date': self.default_time,
                     'conf': {},
@@ -645,6 +655,7 @@ class TestGetDagRunBatch(TestDagRunEndpoint):
                     'end_date': None,
                     'state': 'running',
                     'execution_date': self.default_time,
+                    'logical_date': self.default_time,
                     'external_trigger': True,
                     'start_date': self.default_time,
                     'conf': {},
@@ -655,6 +666,7 @@ class TestGetDagRunBatch(TestDagRunEndpoint):
                     'end_date': None,
                     'state': 'running',
                     'execution_date': self.default_time_2,
+                    'logical_date': self.default_time_2,
                     'external_trigger': True,
                     'start_date': self.default_time,
                     'conf': {},
@@ -905,41 +917,101 @@ class TestGetDagRunBatchDateFilters(TestDagRunEndpoint):
 
 
 class TestPostDagRun(TestDagRunEndpoint):
-    @parameterized.expand(
+    @pytest.mark.parametrize("logical_date_field_name", ["execution_date", "logical_date"])
+    @pytest.mark.parametrize(
+        "dag_run_id, logical_date",
         [
-            (
-                "All fields present",
-                {
-                    "dag_run_id": "TEST_DAG_RUN",
-                    "execution_date": "2020-06-11T18:00:00+00:00",
-                },
-            ),
-            ("dag_run_id missing", {"execution_date": "2020-06-11T18:00:00+00:00"}),
-            ("dag_run_id and execution_date missing", {}),
-        ]
+            pytest.param("TEST_DAG_RUN", "2020-06-11T18:00:00+00:00", id="both-present"),
+            pytest.param(None, "2020-06-11T18:00:00+00:00", id="only-date"),
+            pytest.param(None, None, id="both-missing"),
+        ],
     )
-    def test_should_respond_200(self, name, request_json):
-        del name
+    def test_should_respond_200(self, logical_date_field_name, dag_run_id, logical_date):
         self._create_dag("TEST_DAG_ID")
-        response = self.client.post(
-            "api/v1/dags/TEST_DAG_ID/dagRuns", json=request_json, environ_overrides={'REMOTE_USER': "test"}
-        )
+
+        # We'll patch airflow.utils.timezone.utcnow to always return this so we
+        # can check the returned dates.
+        fixed_now = timezone.utcnow()
+
+        request_json = {}
+        if logical_date is not None:
+            request_json[logical_date_field_name] = logical_date
+        if dag_run_id is not None:
+            request_json["dag_run_id"] = dag_run_id
+
+        with mock.patch("airflow.utils.timezone.utcnow", lambda: fixed_now):
+            response = self.client.post(
+                "api/v1/dags/TEST_DAG_ID/dagRuns",
+                json=request_json,
+                environ_overrides={"REMOTE_USER": "test"},
+            )
         assert response.status_code == 200
+
+        if logical_date is None:
+            expected_logical_date = fixed_now.isoformat()
+        else:
+            expected_logical_date = logical_date
+        if dag_run_id is None:
+            expected_dag_run_id = f"manual__{expected_logical_date}"
+        else:
+            expected_dag_run_id = dag_run_id
         assert {
             "conf": {},
             "dag_id": "TEST_DAG_ID",
-            "dag_run_id": response.json["dag_run_id"],
+            "dag_run_id": expected_dag_run_id,
             "end_date": None,
-            "execution_date": response.json["execution_date"],
+            "execution_date": expected_logical_date,
+            "logical_date": expected_logical_date,
             "external_trigger": True,
             "start_date": None,
             "state": "queued",
         } == response.json
 
+    def test_should_response_200_for_matching_execution_date_logical_date(self):
+        self._create_dag("TEST_DAG_ID")
+        response = self.client.post(
+            "api/v1/dags/TEST_DAG_ID/dagRuns",
+            json={
+                "execution_date": "2020-11-10T08:25:56.939143+00:00",
+                "logical_date": "2020-11-10T08:25:56.939143+00:00",
+            },
+            environ_overrides={"REMOTE_USER": "test"},
+        )
+        assert response.status_code == 200
+        assert {
+            "conf": {},
+            "dag_id": "TEST_DAG_ID",
+            "dag_run_id": "manual__2020-11-10T08:25:56.939143+00:00",
+            "end_date": None,
+            "execution_date": "2020-11-10T08:25:56.939143+00:00",
+            "logical_date": "2020-11-10T08:25:56.939143+00:00",
+            "external_trigger": True,
+            "start_date": None,
+            "state": "queued",
+        } == response.json
+
+    def test_should_response_400_for_conflicting_execution_date_logical_date(self):
+        self._create_dag("TEST_DAG_ID")
+        response = self.client.post(
+            "api/v1/dags/TEST_DAG_ID/dagRuns",
+            json={
+                "execution_date": "2020-11-10T08:25:56.939143+00:00",
+                "logical_date": "2020-11-11T08:25:56.939143+00:00",
+            },
+            environ_overrides={"REMOTE_USER": "test"},
+        )
+        assert response.status_code == 400
+        assert response.json["title"] == "logical_date conflicts with execution_date"
+        assert response.json["detail"] == (
+            "'2020-11-11T08:25:56.939143+00:00' != '2020-11-10T08:25:56.939143+00:00'"
+        )
+
     @parameterized.expand(
         [
             ({'execution_date': "2020-11-10T08:25:56.939143"}, 'Naive datetime is disallowed'),
-            ({'execution_date': "2020-11-10T08:25:56P"}, "{'execution_date': ['Not a valid datetime.']}"),
+            ({'execution_date': "2020-11-10T08:25:56P"}, "{'logical_date': ['Not a valid datetime.']}"),
+            ({'logical_date': "2020-11-10T08:25:56.939143"}, 'Naive datetime is disallowed'),
+            ({'logical_date': "2020-11-10T08:25:56P"}, "{'logical_date': ['Not a valid datetime.']}"),
         ]
     )
     def test_should_response_400_for_naive_datetime_and_bad_datetime(self, data, expected):
@@ -1054,7 +1126,7 @@ class TestPostDagRun(TestDagRunEndpoint):
         assert response.status_code == 409, response.data
         assert response.json == {
             "detail": "DAGRun with DAG ID: 'TEST_DAG_ID' and "
-            "DAGRun ExecutionDate: '2020-06-11 18:00:00+00:00' already exists",
+            "DAGRun logical date: '2020-06-11 18:00:00+00:00' already exists",
             "status": 409,
             "title": "Conflict",
             "type": EXCEPTIONS_LINK_MAP[409],
