@@ -50,7 +50,7 @@ class MockSubProcess:
 
 
 class BaseMockConnectionCursor:
-    def __init__(self, *args, **kwargs):
+    def __init__(self, **kwargs):
         self.arraysize = None
         self.description = [
             ('hive_server_hook.a', 'INT_TYPE', None, None, None, None, True),
@@ -64,16 +64,16 @@ class BaseMockConnectionCursor:
     def cursor(self):
         return self
 
-    def execute(self, values=None):
+    def execute(self):
         pass
 
-    def exists(self, *args):
+    def exists(self):
         return self.conn_exists
 
-    def isfile(self, *args):
+    def isfile(self):
         return True
 
-    def remove(self, *args):
+    def remove(self):
         pass
 
     def upload(self, local_filepath, destination_filepath):
@@ -87,12 +87,12 @@ class BaseMockConnectionCursor:
 
 
 class MockConnectionCursor(BaseMockConnectionCursor):
-    def __init__(self, *args, **kwargs):
+    def __init__(self):
         super().__init__()
         self.iterable = [(1, 1), (2, 2)]
 
 
 class EmptyMockConnectionCursor(BaseMockConnectionCursor):
-    def __init__(self, *args, **kwargs):
+    def __init__(self):
         super().__init__()
         self.iterable = []
