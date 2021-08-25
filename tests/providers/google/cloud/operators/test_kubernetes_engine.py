@@ -69,9 +69,9 @@ class TestGoogleCloudPlatformContainerOperator(unittest.TestCase):
         for body in [
             None,
             {'missing_name': 'test-name', 'initial_node_count': 1},
-            {'name': 'test-name', 'missing_initial_node_count': 1},
+            {'name': 'test-name', 'missing_initial_node_count': 1, 'missing_node_pools': [{'name': 'a_node_pool', 'initial_node_count': 1}]},
             type('Cluster', (object,), {'missing_name': 'test-name', 'initial_node_count': 1})(),
-            type('Cluster', (object,), {'name': 'test-name', 'missing_initial_node_count': 1})(),
+            type('Cluster', (object,), {'name': 'test-name', 'missing_initial_node_count': 1, 'missing_node_pools': [{'name': 'a_node_pool', 'initial_node_count': 1}]})(),
         ]
     )
     @mock.patch('airflow.providers.google.cloud.operators.kubernetes_engine.GKEHook')
