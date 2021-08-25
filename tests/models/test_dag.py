@@ -1991,11 +1991,11 @@ class TestDagDecorator(unittest.TestCase):
         assert dag.params['value'] == self.VALUE
 
 
-def test_set_task_instance_state(session):
+def test_set_task_instance_state(session, dag_maker):
     """Test that set_task_instance_state updates the TaskInstance state and clear downstream failed"""
 
     start_date = datetime_tz(2020, 1, 1)
-    with DAG("test_set_task_instance_state", start_date=start_date) as dag:
+    with dag_maker("test_set_task_instance_state", start_date=start_date, session=session) as dag:
         task_1 = DummyOperator(task_id="task_1")
         task_2 = DummyOperator(task_id="task_2")
         task_3 = DummyOperator(task_id="task_3")
@@ -2004,15 +2004,9 @@ def test_set_task_instance_state(session):
 
         task_1 >> [task_2, task_3, task_4, task_5]
 
-    dagrun = dag.create_dagrun(
-        start_date=start_date,
-        execution_date=start_date,
-        state=State.FAILED,
-        run_type=DagRunType.SCHEDULED,
-        session=session,
-    )
+    dagrun = dag_maker.create_dagrun(state=State.FAILED, run_type=DagRunType.SCHEDULED)
 
-    def get_task_instance(session, task):
+    def get_ti_from_db(task):
         return (
             session.query(TI)
             .filter(
@@ -2023,11 +2017,11 @@ def test_set_task_instance_state(session):
             .one()
         )
 
-    get_task_instance(session, task_1).state = State.FAILED
-    get_task_instance(session, task_2).state = State.SUCCESS
-    get_task_instance(session, task_3).state = State.UPSTREAM_FAILED
-    get_task_instance(session, task_4).state = State.FAILED
-    get_task_instance(session, task_5).state = State.SKIPPED
+    get_ti_from_db(task_1).state = State.FAILED
+    get_ti_from_db(task_2).state = State.SUCCESS
+    get_ti_from_db(task_3).state = State.UPSTREAM_FAILED
+    get_ti_from_db(task_4).state = State.FAILED
+    get_ti_from_db(task_5).state = State.SKIPPED
 
     session.flush()
 
@@ -2036,17 +2030,17 @@ def test_set_task_instance_state(session):
     )
 
     # After _mark_task_instance_state, task_1 is marked as SUCCESS
-    ti1 = get_task_instance(session, task_1)
+    ti1 = get_ti_from_db(task_1)
     assert ti1.state == State.SUCCESS
     # TIs should have DagRun pre-loaded
-    assert inspect(ti1).attrs.dag_run.loaded_value is dagrun
+    assert isinstance(inspect(ti1).attrs.dag_run.loaded_value, DagRun)
     # task_2 remains as SUCCESS
-    assert get_task_instance(session, task_2).state == State.SUCCESS
+    assert get_ti_from_db(task_2).state == State.SUCCESS
     # task_3 and task_4 are cleared because they were in FAILED/UPSTREAM_FAILED state
-    assert get_task_instance(session, task_3).state == State.NONE
-    assert get_task_instance(session, task_4).state == State.NONE
+    assert get_ti_from_db(task_3).state == State.NONE
+    assert get_ti_from_db(task_4).state == State.NONE
     # task_5 remains as SKIPPED
-    assert get_task_instance(session, task_5).state == State.SKIPPED
+    assert get_ti_from_db(task_5).state == State.SKIPPED
     dagrun.refresh_from_db(session=session)
     # dagrun should be set to QUEUED
     assert dagrun.get_state() == State.QUEUED
