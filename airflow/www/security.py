@@ -343,6 +343,12 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
             perms.update({(perm.permission.name, perm.view_menu.name) for perm in role.permissions})
         return perms
 
+    def current_user_has_permissions(self) -> bool:
+        for role in self.get_user_roles():
+            if role.permissions:
+                return True
+        return False
+
     def get_readable_dags(self, user):
         """Gets the DAGs readable by authenticated user."""
         return self.get_accessible_dags([permissions.ACTION_CAN_READ], user)

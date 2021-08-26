@@ -343,6 +343,27 @@ class TestSecurity(unittest.TestCase):
             mock_get_user_roles.return_value = []
             assert len(self.security_manager.get_current_user_permissions()) == 0
 
+    @mock.patch('airflow.www.security.g')
+    def test_current_user_has_permissions(self, mock_g):
+        with self.app.app_context():
+            user = api_connexion_utils.create_user(
+                self.app,
+                "current_user_has_permissions",
+                "current_user_has_permissions",
+                permissions=[("can_some_action", "SomeBaseView")],
+            )
+            mock_g.user = user
+            assert self.security_manager.current_user_has_permissions()
+
+            # Role, but no permissions
+            role = user.roles[0]
+            role.permissions = []
+            assert not self.security_manager.current_user_has_permissions()
+
+            # No role
+            user.roles = []
+            assert not self.security_manager.current_user_has_permissions()
+
     def test_get_accessible_dag_ids(self):
         role_name = 'MyRole1'
         permission_action = [permissions.ACTION_CAN_READ]

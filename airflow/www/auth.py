@@ -33,7 +33,7 @@ def has_access(permissions: Optional[Sequence[Tuple[str, str]]] = None) -> Calla
         @wraps(func)
         def decorated(*args, **kwargs):
             appbuilder = current_app.appbuilder
-            if not g.user.is_anonymous and not appbuilder.sm.get_current_user_permissions():
+            if not g.user.is_anonymous and not appbuilder.sm.current_user_has_permissions():
                 return (
                     render_template(
                         'airflow/no_roles_permissions.html',
