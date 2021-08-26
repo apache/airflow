@@ -746,6 +746,8 @@ fn
 fo
 followsa
 formatter
+forwardability
+forwardable
 fot
 fqdn
 frontend

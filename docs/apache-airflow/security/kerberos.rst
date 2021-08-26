@@ -68,6 +68,7 @@ your ``airflow.cfg``
 If you need more granular options for your kerberos ticket the following options are available with the following default values: 
 
 .. code-block:: ini
+
     [kerberos]
     # Location of your ccache file once kinit has been performed
     ccache = /tmp/airflow_krb5_ccache
