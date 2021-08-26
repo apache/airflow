@@ -690,7 +690,6 @@ def create_task_instance(dag_maker, create_dummy_dag):
 @pytest.fixture()
 def create_task_instance_of_operator(dag_maker):
     def _create_task_instance(operator_class, *, dag_id, session=None, **operator_kwargs):
-
         with dag_maker(dag_id=dag_id, session=session):
             operator_class(**operator_kwargs)
         (ti,) = dag_maker.create_dagrun().task_instances
