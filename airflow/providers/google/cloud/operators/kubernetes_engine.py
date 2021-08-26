@@ -222,7 +222,8 @@ class GKECreateClusterOperator(BaseOperator):
     def _check_input(self) -> None:
         if not all([self.project_id, self.location, self.body]) \
             or (isinstance(self.body, dict) and not("name" in self.body)) \
-            or (isinstance(self.body, dict) and ("initial_node_count" not in self.body and "node_pools" not in self.body)):
+            or (isinstance(self.body, dict) and ("initial_node_count" not in self.body and "node_pools" not in self.body)) \
+            or (not(isinstance(self.body, dict)) and not(getattr(self.body, "name", None))):
             self.log.error(
                 "One of (project_id, location, body, body['name'], "
                 "body['initial_node_count']), body['node_pools'] is missing or incorrect"

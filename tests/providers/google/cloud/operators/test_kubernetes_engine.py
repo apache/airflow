@@ -43,7 +43,7 @@ PROJECT_BODY_CREATE_DICT = {'name': 'test-name', 'initial_node_count': 1}
 PROJECT_BODY_CREATE_DICT_NODE_POOLS = {'name': 'test-name', 'node_pools': [{'name': 'a_node_pool', 'initial_node_count': 1}]}
 
 PROJECT_BODY_CREATE_CLUSTER = type("Cluster", (object,), {"name": "test-name", "initial_node_count": 1})()
-PROJECT_BODY_CREATE_CLUSTER_NODE_POOLS = type('Cluster', (object,), {'name': 'test-name', 'node_pools': [{'name': 'a_node_pool', 'initial_node_count': 1}]})(),
+PROJECT_BODY_CREATE_CLUSTER_NODE_POOLS = type('Cluster', (object,), {'name': 'test-name', 'node_pools': [{'name': 'a_node_pool', 'initial_node_count': 1}]})()
 
 TASK_NAME = 'test-task-name'
 NAMESPACE = ('default',)
