@@ -770,7 +770,7 @@ class TestBigQueryCheckOperators:
 
 class TestBigQueryConnIdDeprecationWarning:
     @pytest.mark.parametrize(
-        "oeprator_class, kwargs",
+        "operator_class, kwargs",
         [
             (BigQueryCheckOperator, dict(sql='Select * from test_table')),
             (BigQueryValueCheckOperator, dict(sql='Select * from test_table', pass_value=95)),
