@@ -283,19 +283,16 @@ def post_dag_run(dag_id, session):
     ]
 )
 @provide_session
-def post_abort_dag_run(dag_id, dag_run_id):
+def set_dag_run_state(dag_id, run_id, state):
     """Set a state of a dag run."""
     dag: DAG = current_app.dag_bag.get_dag(dag_id)
     if not dag:
         raise NotFound(title="DAG not found", detail=f"DAG with dag_id: '{dag_id}' not found")
 
-    dag_run: DagRun = dag.get_dagrun(run_id=dag_run_id)
+    dag_run: DagRun = dag.get_dagrun(run_id=run_id)
     if not dag_run:
-        error_message = f'Dag Run id {dag_run_id} not found in dag {dag_id}'
+        error_message = f'Dag Run id {run_id} not found in dag {dag_id}'
         raise DagRunNotFound(error_message)
 
-    dag_run.set_state(state=State.FAILED)
-    task_instances = dag_run.get_task_instances()
-    for ti in task_instances:
-        dag.set_task_instance_state(task_id=ti.task_id, execution_date=ti.execution_date, state=State.FAILED)
+    dag_run.set_state(state=state)
     return dagrun_schema.dump(dag_run)

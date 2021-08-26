@@ -610,11 +610,11 @@ paths:
       - $ref: '#/components/parameters/DAGRunID'
 
     post:
-      summary: Abort a DAG run
+      summary: Set the state of a DAG run
       description: >
-        Sets a DAG run and all of its task instances to a failed state
+        Set the state of a DAG run
       x-openapi-router-controller: airflow.api_connexion.endpoints.dag_run_endpoint
-      operationId: post_abort_dag_run
+      operationId: set_dag_run_state
       tags: [DAGRun]
       requestBody:
         required: true
