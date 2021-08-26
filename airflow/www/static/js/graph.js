@@ -151,6 +151,8 @@ function draw() {
       // A group node
       if (d3.event.defaultPrevented) return;
       expandGroup(nodeId, node);
+      draw();
+      focusGroup(nodeId);
     } else if (nodeId in tasks) {
       // A task node
       const task = tasks[nodeId];
@@ -601,7 +603,7 @@ function focusGroup(nodeId) {
 }
 
 // Expands a group node
-function expandGroup(nodeId, node, focus = true, shouldDraw = true) {
+function expandGroup(nodeId, node) {
   node.children.forEach((val) => {
     // Set children nodes
     g.setNode(val.id, val.value);
@@ -637,14 +639,6 @@ function expandGroup(nodeId, node, focus = true, shouldDraw = true) {
       g.removeEdge(edge.v, edge.w);
     }
   });
-
-  if (shouldDraw) {
-    draw();
-  }
-
-  if (focus) {
-    focusGroup(nodeId);
-  }
 
   saveExpandedGroup(nodeId);
 }
@@ -692,7 +686,7 @@ function expandSavedGroups(expandedGroups, node) {
 
   node.children.forEach((childNode) => {
     if (expandedGroups.has(childNode.id)) {
-      expandGroup(childNode.id, g.node(childNode.id), false, false);
+      expandGroup(childNode.id, g.node(childNode.id));
 
       expandSavedGroups(expandedGroups, childNode);
     }
@@ -704,7 +698,7 @@ const focusNodeId = localStorage.getItem(focusedGroupKey(dagId));
 const expandedGroups = getSavedGroups(dagId);
 
 // Always expand the root node
-expandGroup(null, nodes, false, false);
+expandGroup(null, nodes);
 
 // Expand the node that were previously expanded
 expandSavedGroups(expandedGroups, nodes);
