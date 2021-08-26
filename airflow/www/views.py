@@ -1047,7 +1047,7 @@ class Airflow(AirflowBaseView):
 
         logging.info("Retrieving rendered templates.")
         dag = current_app.dag_bag.get_dag(dag_id)
-        dag_run = dag.get_dagrun(execution_date=execution_date)
+        dag_run = dag.get_dagrun(execution_date=dttm)
 
         task = copy.copy(dag.get_task(task_id))
         ti = dag_run.get_task_instance(task_id=task.task_id)
@@ -1126,7 +1126,7 @@ class Airflow(AirflowBaseView):
         logging.info("Retrieving rendered templates.")
         dag = current_app.dag_bag.get_dag(dag_id)
         task = dag.get_task(task_id)
-        dag_run = dag.get_dagrun(execution_date=execution_date)
+        dag_run = dag.get_dagrun(execution_date=dttm)
         ti = dag_run.get_task_instance(task_id=task.task_id)
 
         pod_spec = None
@@ -1359,30 +1359,35 @@ class Airflow(AirflowBaseView):
             return redirect(url_for('Airflow.index'))
         task = copy.copy(dag.get_task(task_id))
         task.resolve_template_files()
-        dag_run = dag.get_dagrun(execution_date=execution_date)
-        ti = dag_run.get_task_instance(task_id=task.task_id)
 
-        ti_attrs = []
-        for attr_name in dir(ti):
-            if not attr_name.startswith('_'):
-                attr = getattr(ti, attr_name)
-                if type(attr) != type(self.task):  # noqa
-                    ti_attrs.append((attr_name, str(attr)))
+        with create_session() as session:
+            dag_run = dag.get_dagrun(execution_date=dttm, session=session)
+            ti = dag_run.get_task_instance(task_id=task.task_id, session=session)
+            ti.refresh_from_task(task)
 
-        task_attrs = []
-        for attr_name in dir(task):
-            if not attr_name.startswith('_'):
-                attr = getattr(task, attr_name)
+            ti_attrs = []
+            for attr_name in dir(ti):
+                if not attr_name.startswith('_'):
+                    attr = getattr(ti, attr_name)
+                    if type(attr) != type(self.task):  # noqa
+                        ti_attrs.append((attr_name, str(attr)))
 
-                if type(attr) != type(self.task) and attr_name not in wwwutils.get_attr_renderer():  # noqa
+            task_attrs = []
+            for attr_name in dir(task):
+                if not attr_name.startswith('_'):
+                    attr = getattr(task, attr_name)
+                    if type(attr) == type(self.task):  # noqa
+                        continue
+                    if attr_name in wwwutils.get_attr_renderer():
+                        continue
                     task_attrs.append((attr_name, str(attr)))
 
-        # Color coding the special attributes that are code
-        special_attrs_rendered = {}
-        for attr_name in wwwutils.get_attr_renderer():
-            if getattr(task, attr_name, None) is not None:
-                source = getattr(task, attr_name)
-                special_attrs_rendered[attr_name] = wwwutils.get_attr_renderer()[attr_name](source)
+            # Color coding the special attributes that are code
+            special_attrs_rendered = {}
+            for attr_name in wwwutils.get_attr_renderer():
+                if getattr(task, attr_name, None) is not None:
+                    source = getattr(task, attr_name)
+                    special_attrs_rendered[attr_name] = wwwutils.get_attr_renderer()[attr_name](source)
 
         no_failed_deps_result = [
             (
@@ -1518,6 +1523,7 @@ class Airflow(AirflowBaseView):
 
         dag_run = dag.get_dagrun(execution_date=execution_date)
         ti = dag_run.get_task_instance(task_id=task.task_id)
+        ti.refresh_from_task(task)
 
         # Make sure the task instance can be run
         dep_context = DepContext(
@@ -2091,14 +2097,20 @@ class Airflow(AirflowBaseView):
             State.SUCCESS,
         )
 
-    def _get_tree_data(self, dag_runs: Iterable[DagRun], dag: DAG, base_date: DateTime):
+    def _get_tree_data(
+        self,
+        dag_runs: Iterable[DagRun],
+        dag: DAG,
+        base_date: DateTime,
+        session: settings.Session,
+    ):
         """Returns formatted dag_runs for Tree view"""
         dates = sorted(dag_runs.keys())
         min_date = min(dag_runs, default=None)
 
         task_instances = {
             (ti.task_id, ti.execution_date): ti
-            for ti in dag.get_task_instances(start_date=min_date, end_date=base_date)
+            for ti in dag.get_task_instances(start_date=min_date, end_date=base_date, session=session)
         }
 
         expanded = set()
@@ -2223,6 +2235,7 @@ class Airflow(AirflowBaseView):
             .all()
         )
         dag_runs = {dr.execution_date: alchemy_to_dict(dr) for dr in dag_runs}
+        data = self._get_tree_data(dag_runs, dag, base_date, session=session)
 
         max_date = max(dag_runs.keys(), default=None)
 
@@ -2240,8 +2253,6 @@ class Airflow(AirflowBaseView):
             external_log_name = task_log_reader.log_handler.log_name
         else:
             external_log_name = None
-
-        data = self._get_tree_data(dag_runs, dag, base_date)
 
         # avoid spaces to reduce payload size
         data = htmlsafe_json_dumps(data, separators=(',', ':'))
@@ -2961,9 +2972,8 @@ class Airflow(AirflowBaseView):
                 .limit(num_runs)
                 .all()
             )
-        dag_runs = {dr.execution_date: alchemy_to_dict(dr) for dr in dag_runs}
-
-        tree_data = self._get_tree_data(dag_runs, dag, base_date)
+            dag_runs = {dr.execution_date: alchemy_to_dict(dr) for dr in dag_runs}
+            tree_data = self._get_tree_data(dag_runs, dag, base_date, session=session)
 
         # avoid spaces to reduce payload size
         return htmlsafe_json_dumps(tree_data, separators=(',', ':'))
