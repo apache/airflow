@@ -230,7 +230,8 @@ class GKECreateClusterOperator(BaseOperator):
                 "body['initial_node_count']), body['node_pools'] is missing or incorrect"
             )
             raise AirflowException("Operator has incorrect or missing input.")
-        elif (isinstance(self.body, dict) and ("initial_node_count" in self.body and "node_pools" in self.body)):
+        elif (isinstance(self.body, dict) and ("initial_node_count" in self.body and "node_pools" in self.body)) \
+            or (not(isinstance(self.body, dict)) and (getattr(self.body, "initial_node_count", None) and getattr(self.body, "node_pools", None))):
             self.log.error(
                 "Only one of body['initial_node_count']) and body['node_pools'] may be specified"
             )
