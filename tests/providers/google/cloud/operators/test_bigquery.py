@@ -362,18 +362,6 @@ class TestBigQueryOperator:
         clear_db_serialized_dags()
         clear_db_dags()
 
-    @pytest.fixture()
-    def create_task_instance(self, dag_maker):
-        def _create_task_instance(operator_cls, **operator_kwargs):
-            with dag_maker(dag_id=TEST_DAG_ID, start_date=DEFAULT_DATE):
-                operator = operator_cls(**operator_kwargs)
-            dagrun = dag_maker.create_dagrun()
-            (ti,) = dagrun.task_instances
-            ti.refresh_from_task(operator)
-            return ti
-
-        return _create_task_instance
-
     @mock.patch('airflow.providers.google.cloud.operators.bigquery.BigQueryHook')
     def test_execute(self, mock_hook):
         encryption_configuration = {'key': 'kk'}
@@ -522,9 +510,10 @@ class TestBigQueryOperator:
             operator.execute(MagicMock())
 
     @mock.patch('airflow.providers.google.cloud.operators.bigquery.BigQueryHook')
-    def test_bigquery_operator_defaults(self, mock_hook, create_task_instance):
-        ti = create_task_instance(
+    def test_bigquery_operator_defaults(self, mock_hook, create_task_instance_of_operator):
+        ti = create_task_instance_of_operator(
             BigQueryExecuteQueryOperator,
+            dag_id=TEST_DAG_ID,
             task_id=TASK_ID,
             sql='Select * from test_table',
             schema_update_options=None,
@@ -559,10 +548,11 @@ class TestBigQueryOperator:
     def test_bigquery_operator_extra_serialized_field_when_single_query(
         self,
         dag_maker,
-        create_task_instance,
+        create_task_instance_of_operator,
     ):
-        ti = create_task_instance(
+        ti = create_task_instance_of_operator(
             BigQueryExecuteQueryOperator,
+            dag_id=TEST_DAG_ID,
             task_id=TASK_ID,
             sql='SELECT * FROM test_table',
         )
@@ -599,10 +589,11 @@ class TestBigQueryOperator:
     def test_bigquery_operator_extra_serialized_field_when_multiple_queries(
         self,
         dag_maker,
-        create_task_instance,
+        create_task_instance_of_operator,
     ):
-        ti = create_task_instance(
+        ti = create_task_instance_of_operator(
             BigQueryExecuteQueryOperator,
+            dag_id=TEST_DAG_ID,
             task_id=TASK_ID,
             sql=['SELECT * FROM test_table', 'SELECT * FROM test_table2'],
         )
@@ -640,9 +631,12 @@ class TestBigQueryOperator:
         )
 
     @mock.patch('airflow.providers.google.cloud.operators.bigquery.BigQueryHook')
-    def test_bigquery_operator_extra_link_when_missing_job_id(self, mock_hook, create_task_instance):
-        bigquery_task = create_task_instance(
+    def test_bigquery_operator_extra_link_when_missing_job_id(
+        self, mock_hook, create_task_instance_of_operator
+    ):
+        bigquery_task = create_task_instance_of_operator(
             BigQueryExecuteQueryOperator,
+            dag_id=TEST_DAG_ID,
             task_id=TASK_ID,
             sql='SELECT * FROM test_table',
         ).task
@@ -650,9 +644,12 @@ class TestBigQueryOperator:
         assert '' == bigquery_task.get_extra_links(DEFAULT_DATE, BigQueryConsoleLink.name)
 
     @mock.patch('airflow.providers.google.cloud.operators.bigquery.BigQueryHook')
-    def test_bigquery_operator_extra_link_when_single_query(self, mock_hook, create_task_instance):
-        ti = create_task_instance(
+    def test_bigquery_operator_extra_link_when_single_query(
+        self, mock_hook, create_task_instance_of_operator
+    ):
+        ti = create_task_instance_of_operator(
             BigQueryExecuteQueryOperator,
+            dag_id=TEST_DAG_ID,
             task_id=TASK_ID,
             sql='SELECT * FROM test_table',
         )
@@ -668,9 +665,12 @@ class TestBigQueryOperator:
         assert '' == bigquery_task.get_extra_links(datetime(2019, 1, 1), BigQueryConsoleLink.name)
 
     @mock.patch('airflow.providers.google.cloud.operators.bigquery.BigQueryHook')
-    def test_bigquery_operator_extra_link_when_multiple_query(self, mock_hook, create_task_instance):
-        ti = create_task_instance(
+    def test_bigquery_operator_extra_link_when_multiple_query(
+        self, mock_hook, create_task_instance_of_operator
+    ):
+        ti = create_task_instance_of_operator(
             BigQueryExecuteQueryOperator,
+            dag_id=TEST_DAG_ID,
             task_id=TASK_ID,
             sql=['SELECT * FROM test_table', 'SELECT * FROM test_table2'],
         )

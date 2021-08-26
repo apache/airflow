@@ -2191,10 +2191,11 @@ class TaskInstance(Base, LoggingMixin):
         :param session: Sqlalchemy ORM Session
         :type session: Session
         """
-        if execution_date and execution_date < self.execution_date:
+        self_execution_date = self.get_dagrun(session).execution_date
+        if execution_date and execution_date < self_execution_date:
             raise ValueError(
                 'execution_date can not be in the past (current '
-                'execution_date is {}; received {})'.format(self.execution_date, execution_date)
+                'execution_date is {}; received {})'.format(self_execution_date, execution_date)
             )
 
         XCom.set(
@@ -2202,7 +2203,7 @@ class TaskInstance(Base, LoggingMixin):
             value=value,
             task_id=self.task_id,
             dag_id=self.dag_id,
-            execution_date=execution_date or self.execution_date,
+            execution_date=execution_date or self_execution_date,
             session=session,
         )
 

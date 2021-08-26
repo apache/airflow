@@ -542,7 +542,7 @@ def dag_maker(request):
 
             self.dag_run = dag.create_dagrun(**kwargs)
             for ti in self.dag_run.task_instances:
-                ti.task = dag.get_task(ti.task_id)
+                ti.refresh_from_task(dag.get_task(ti.task_id))
             return self.dag_run
 
         def __call__(
@@ -676,16 +676,27 @@ def create_task_instance(dag_maker, create_dummy_dag):
             from airflow.utils import timezone
 
             execution_date = timezone.utcnow()
-        _, task = create_dummy_dag(with_dagrun=False, **kwargs)
+        create_dummy_dag(with_dagrun=False, **kwargs)
 
         dr = dag_maker.create_dagrun(execution_date=execution_date, state=dagrun_state, run_id=run_id)
         ti = dr.task_instances[0]
-        ti.refresh_from_task(task)
         ti.state = state
 
         return ti
 
     return maker
+
+
+@pytest.fixture()
+def create_task_instance_of_operator(dag_maker):
+    def _create_task_instance(operator_class, *, dag_id, session=None, **operator_kwargs):
+
+        with dag_maker(dag_id=dag_id, session=session):
+            operator_class(**operator_kwargs)
+        (ti,) = dag_maker.create_dagrun().task_instances
+        return ti
+
+    return _create_task_instance
 
 
 @pytest.fixture
