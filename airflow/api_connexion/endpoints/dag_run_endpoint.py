@@ -28,11 +28,13 @@ from airflow.api_connexion.schemas.dag_run_schema import (
     dagrun_schema,
     dagruns_batch_form_schema,
 )
+from airflow import DAG
 from airflow.models import DagModel, DagRun
 from airflow.security import permissions
 from airflow.utils.session import provide_session
 from airflow.utils.state import State
 from airflow.utils.types import DagRunType
+from airflow.exceptions import DagRunNotFound
 
 
 @security.requires_access(
@@ -270,4 +272,28 @@ def post_dag_run(dag_id, session):
             detail=f"DAGRun with DAG ID: '{dag_id}' and DAGRun logical date: '{logical_date}' already exists"
         )
 
-    raise AlreadyExists(detail=f"DAGRun with DAG ID: '{dag_id}' and DAGRun ID: '{run_id}' already exists")
+
+@security.requires_access(
+    [
+        (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
+        (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_DAG_RUN),
+        (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_TASK_INSTANCE)
+    ]
+)
+@provide_session
+def post_abort_dag_run(dag_id, dag_run_id):
+    """Set a state of a dag run."""
+    dag: DAG = current_app.dag_bag.get_dag(dag_id)
+    if not dag:
+        raise NotFound(title="DAG not found", detail=f"DAG with dag_id: '{dag_id}' not found")
+
+    dag_run: DagRun = dag.get_dagrun(run_id=dag_run_id)
+    if not dag_run:
+        error_message = f'Dag Run id {dag_run_id} not found in dag {dag_id}'
+        raise DagRunNotFound(error_message)
+
+    dag_run.set_state(state=State.FAILED)
+    task_instances = dag_run.get_task_instances()
+    for ti in task_instances:
+        dag.set_task_instance_state(task_id=ti.task_id, execution_date=ti.execution_date, state=State.FAILED)
+    return dagrun_schema.dump(dag_run)
