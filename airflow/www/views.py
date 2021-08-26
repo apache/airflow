@@ -694,8 +694,16 @@ class Airflow(AirflowBaseView):
 
             import_errors = session.query(errors.ImportError).order_by(errors.ImportError.id).all()
 
-        for import_error in import_errors:
-            flash("Broken DAG: [{ie.filename}] {ie.stacktrace}".format(ie=import_error), "dag_import_error")
+        if import_errors:
+            dag_filenames = {dag.fileloc for dag in dags}
+            all_dags_readable = (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG) in user_permissions
+
+            for import_error in import_errors:
+                if all_dags_readable or import_error.filename in dag_filenames:
+                    flash(
+                        "Broken DAG: [{ie.filename}] {ie.stacktrace}".format(ie=import_error),
+                        "dag_import_error",
+                    )
 
         from airflow.plugins_manager import import_errors as plugin_import_errors
 

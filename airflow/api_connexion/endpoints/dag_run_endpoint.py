@@ -272,6 +272,8 @@ def post_dag_run(dag_id, session):
             detail=f"DAGRun with DAG ID: '{dag_id}' and DAGRun logical date: '{logical_date}' already exists"
         )
 
+    raise AlreadyExists(detail=f"DAGRun with DAG ID: '{dag_id}' and DAGRun ID: '{run_id}' already exists")
+
 
 @security.requires_access(
     [
