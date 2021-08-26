@@ -41,8 +41,8 @@ from .elasticmock import elasticmock
 
 
 class TestElasticsearchTaskHandler(unittest.TestCase):
-    DAG_ID = 'dag_for_testing_file_task_handler'
-    TASK_ID = 'task_for_testing_file_log_handler'
+    DAG_ID = 'dag_for_testing_es_task_handler'
+    TASK_ID = 'task_for_testing_es_log_handler'
     EXECUTION_DATE = datetime(2016, 1, 1)
     LOG_ID = f'{DAG_ID}-{TASK_ID}-2016-01-01T00:00:00+00:00-1'
     JSON_LOG_ID = f'{DAG_ID}-{TASK_ID}-{ElasticsearchTaskHandler._clean_execution_date(EXECUTION_DATE)}-1'

@@ -46,8 +46,8 @@ class TestWasbTaskHandler(unittest.TestCase):
         )
 
         date = datetime(2020, 8, 10)
-        self.dag = DAG('dag_for_testing_file_task_handler', start_date=date)
-        task = DummyOperator(task_id='task_for_testing_file_log_handler', dag=self.dag)
+        self.dag = DAG('dag_for_testing_wasb_task_handler', start_date=date)
+        task = DummyOperator(task_id='task_for_testing_wasb_log_handler', dag=self.dag)
         self.ti = TaskInstance(task=task, execution_date=date)
         self.ti.try_number = 1
         self.ti.state = State.RUNNING
