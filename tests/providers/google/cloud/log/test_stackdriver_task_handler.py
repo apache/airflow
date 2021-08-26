@@ -49,7 +49,7 @@ def clean_stackdriver_handlers():
 @pytest.mark.usefixtures("clean_stackdriver_handlers")
 @mock.patch('airflow.providers.google.cloud.log.stackdriver_task_handler.get_credentials_and_project_id')
 @mock.patch('airflow.providers.google.cloud.log.stackdriver_task_handler.gcp_logging.Client')
-def test_should_pass_message_to_client(self, mock_client, mock_get_creds_and_project_id):
+def test_should_pass_message_to_client(mock_client, mock_get_creds_and_project_id):
     mock_get_creds_and_project_id.return_value = ('creds', 'project_id')
 
     transport_type = mock.MagicMock()
