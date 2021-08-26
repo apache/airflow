@@ -14,6 +14,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+import json
 import os
 import subprocess
 import sys
@@ -466,8 +467,8 @@ def dag_maker(request):
 
     want_serialized = False
 
-    # Allow changing default serialized behaviour with `@ptest.mark.need_serialized_dag` or
-    # `@ptest.mark.need_serialized_dag(False)`
+    # Allow changing default serialized behaviour with `@pytest.mark.need_serialized_dag` or
+    # `@pytest.mark.need_serialized_dag(False)`
     serialized_marker = request.node.get_closest_marker("need_serialized_dag")
     if serialized_marker:
         (want_serialized,) = serialized_marker.args or (True,)
@@ -487,6 +488,15 @@ def dag_maker(request):
 
         def _serialized_dag(self):
             return self.serialized_model.dag
+
+        def get_serialized_data(self):
+            try:
+                data = self.serialized_model.data
+            except AttributeError:
+                raise RuntimeError("DAG serialization not requested")
+            if isinstance(data, str):
+                return json.loads(data)
+            return data
 
         def __exit__(self, type, value, traceback):
             from airflow.models import DagModel

@@ -17,17 +17,14 @@
 # under the License.
 
 import unittest
-from datetime import datetime
 from unittest import mock
 from unittest.mock import MagicMock
 
 import pytest
 from google.cloud.exceptions import Conflict
-from parameterized import parameterized
 
-from airflow import models
 from airflow.exceptions import AirflowException
-from airflow.models import DAG, TaskFail, TaskInstance, XCom
+from airflow.models import DAG
 from airflow.providers.google.cloud.operators.bigquery import (
     BigQueryCheckOperator,
     BigQueryConsoleIndexableLink,
@@ -51,8 +48,8 @@ from airflow.providers.google.cloud.operators.bigquery import (
     BigQueryValueCheckOperator,
 )
 from airflow.serialization.serialized_objects import SerializedDAG
-from airflow.settings import Session
-from airflow.utils.session import provide_session
+from airflow.utils.timezone import datetime
+from tests.test_utils.db import clear_db_dags, clear_db_runs, clear_db_serialized_dags, clear_db_xcom
 
 TASK_ID = 'test-bq-generic-operator'
 TEST_DATASET = 'test-dataset'
@@ -358,18 +355,24 @@ class TestBigQueryUpdateDatasetOperator(unittest.TestCase):
         )
 
 
-class TestBigQueryOperator(unittest.TestCase):
-    def setUp(self):
-        self.dagbag = models.DagBag(dag_folder='/dev/null', include_examples=True)
-        self.args = {'owner': 'airflow', 'start_date': DEFAULT_DATE}
-        self.dag = DAG(TEST_DAG_ID, default_args=self.args)
+class TestBigQueryOperator:
+    def teardown_method(self):
+        clear_db_xcom()
+        clear_db_runs()
+        clear_db_serialized_dags()
+        clear_db_dags()
 
-    def tearDown(self):
-        session = Session()
-        session.query(models.TaskInstance).filter_by(dag_id=TEST_DAG_ID).delete()
-        session.query(TaskFail).filter_by(dag_id=TEST_DAG_ID).delete()
-        session.commit()
-        session.close()
+    @pytest.fixture()
+    def create_task_instance(self, dag_maker):
+        def _create_task_instance(operator_cls, **operator_kwargs):
+            with dag_maker(dag_id=TEST_DAG_ID, start_date=DEFAULT_DATE):
+                operator = operator_cls(**operator_kwargs)
+            dagrun = dag_maker.create_dagrun()
+            (ti,) = dagrun.task_instances
+            ti.refresh_from_task(operator)
+            return ti
+
+        return _create_task_instance
 
     @mock.patch('airflow.providers.google.cloud.operators.bigquery.BigQueryHook')
     def test_execute(self, mock_hook):
@@ -519,14 +522,14 @@ class TestBigQueryOperator(unittest.TestCase):
             operator.execute(MagicMock())
 
     @mock.patch('airflow.providers.google.cloud.operators.bigquery.BigQueryHook')
-    def test_bigquery_operator_defaults(self, mock_hook):
-        operator = BigQueryExecuteQueryOperator(
+    def test_bigquery_operator_defaults(self, mock_hook, create_task_instance):
+        ti = create_task_instance(
+            BigQueryExecuteQueryOperator,
             task_id=TASK_ID,
             sql='Select * from test_table',
-            dag=self.dag,
-            default_args=self.args,
             schema_update_options=None,
         )
+        operator = ti.task
 
         operator.execute(MagicMock())
         mock_hook.return_value.run_query.assert_called_once_with(
@@ -549,17 +552,21 @@ class TestBigQueryOperator(unittest.TestCase):
             encryption_configuration=None,
         )
         assert isinstance(operator.sql, str)
-        ti = TaskInstance(task=operator, execution_date=DEFAULT_DATE)
         ti.render_templates()
         assert isinstance(ti.task.sql, str)
 
-    def test_bigquery_operator_extra_serialized_field_when_single_query(self):
-        with self.dag:
-            BigQueryExecuteQueryOperator(
-                task_id=TASK_ID,
-                sql='SELECT * FROM test_table',
-            )
-        serialized_dag = SerializedDAG.to_dict(self.dag)
+    @pytest.mark.need_serialized_dag
+    def test_bigquery_operator_extra_serialized_field_when_single_query(
+        self,
+        dag_maker,
+        create_task_instance,
+    ):
+        ti = create_task_instance(
+            BigQueryExecuteQueryOperator,
+            task_id=TASK_ID,
+            sql='SELECT * FROM test_table',
+        )
+        serialized_dag = dag_maker.get_serialized_data()
         assert "sql" in serialized_dag["dag"]["tasks"][0]
 
         dag = SerializedDAG.from_dict(serialized_dag)
@@ -578,7 +585,6 @@ class TestBigQueryOperator(unittest.TestCase):
         # Check DeSerialized version of operator link
         assert isinstance(list(simple_task.operator_extra_links)[0], BigQueryConsoleLink)
 
-        ti = TaskInstance(task=simple_task, execution_date=DEFAULT_DATE)
         ti.xcom_push('job_id', 12345)
 
         # check for positive case
@@ -589,13 +595,18 @@ class TestBigQueryOperator(unittest.TestCase):
         url2 = simple_task.get_extra_links(datetime(2017, 1, 2), BigQueryConsoleLink.name)
         assert url2 == ''
 
-    def test_bigquery_operator_extra_serialized_field_when_multiple_queries(self):
-        with self.dag:
-            BigQueryExecuteQueryOperator(
-                task_id=TASK_ID,
-                sql=['SELECT * FROM test_table', 'SELECT * FROM test_table2'],
-            )
-        serialized_dag = SerializedDAG.to_dict(self.dag)
+    @pytest.mark.need_serialized_dag
+    def test_bigquery_operator_extra_serialized_field_when_multiple_queries(
+        self,
+        dag_maker,
+        create_task_instance,
+    ):
+        ti = create_task_instance(
+            BigQueryExecuteQueryOperator,
+            task_id=TASK_ID,
+            sql=['SELECT * FROM test_table', 'SELECT * FROM test_table2'],
+        )
+        serialized_dag = dag_maker.get_serialized_data()
         assert "sql" in serialized_dag["dag"]["tasks"][0]
 
         dag = SerializedDAG.from_dict(serialized_dag)
@@ -615,7 +626,6 @@ class TestBigQueryOperator(unittest.TestCase):
         # Check DeSerialized version of operator link
         assert isinstance(list(simple_task.operator_extra_links)[0], BigQueryConsoleIndexableLink)
 
-        ti = TaskInstance(task=simple_task, execution_date=DEFAULT_DATE)
         job_id = ['123', '45']
         ti.xcom_push(key='job_id', value=job_id)
 
@@ -629,34 +639,24 @@ class TestBigQueryOperator(unittest.TestCase):
             DEFAULT_DATE, 'BigQuery Console #2'
         )
 
-    @provide_session
     @mock.patch('airflow.providers.google.cloud.operators.bigquery.BigQueryHook')
-    def test_bigquery_operator_extra_link_when_missing_job_id(self, mock_hook, session):
-        bigquery_task = BigQueryExecuteQueryOperator(
+    def test_bigquery_operator_extra_link_when_missing_job_id(self, mock_hook, create_task_instance):
+        bigquery_task = create_task_instance(
+            BigQueryExecuteQueryOperator,
             task_id=TASK_ID,
             sql='SELECT * FROM test_table',
-            dag=self.dag,
-        )
-        self.dag.clear()
-        session.query(XCom).delete()
+        ).task
 
         assert '' == bigquery_task.get_extra_links(DEFAULT_DATE, BigQueryConsoleLink.name)
 
-    @provide_session
     @mock.patch('airflow.providers.google.cloud.operators.bigquery.BigQueryHook')
-    def test_bigquery_operator_extra_link_when_single_query(self, mock_hook, session):
-        bigquery_task = BigQueryExecuteQueryOperator(
+    def test_bigquery_operator_extra_link_when_single_query(self, mock_hook, create_task_instance):
+        ti = create_task_instance(
+            BigQueryExecuteQueryOperator,
             task_id=TASK_ID,
             sql='SELECT * FROM test_table',
-            dag=self.dag,
         )
-        self.dag.clear()
-        session.query(XCom).delete()
-
-        ti = TaskInstance(
-            task=bigquery_task,
-            execution_date=DEFAULT_DATE,
-        )
+        bigquery_task = ti.task
 
         job_id = '12345'
         ti.xcom_push(key='job_id', value=job_id)
@@ -667,21 +667,14 @@ class TestBigQueryOperator(unittest.TestCase):
 
         assert '' == bigquery_task.get_extra_links(datetime(2019, 1, 1), BigQueryConsoleLink.name)
 
-    @provide_session
     @mock.patch('airflow.providers.google.cloud.operators.bigquery.BigQueryHook')
-    def test_bigquery_operator_extra_link_when_multiple_query(self, mock_hook, session):
-        bigquery_task = BigQueryExecuteQueryOperator(
+    def test_bigquery_operator_extra_link_when_multiple_query(self, mock_hook, create_task_instance):
+        ti = create_task_instance(
+            BigQueryExecuteQueryOperator,
             task_id=TASK_ID,
             sql=['SELECT * FROM test_table', 'SELECT * FROM test_table2'],
-            dag=self.dag,
         )
-        self.dag.clear()
-        session.query(XCom).delete()
-
-        ti = TaskInstance(
-            task=bigquery_task,
-            execution_date=DEFAULT_DATE,
-        )
+        bigquery_task = ti.task
 
         job_id = ['123', '45']
         ti.xcom_push(key='job_id', value=job_id)
@@ -775,8 +768,9 @@ class TestBigQueryCheckOperators:
         mock_get_db_hook.assert_called_once()
 
 
-class TestBigQueryConnIdDeprecationWarning(unittest.TestCase):
-    @parameterized.expand(
+class TestBigQueryConnIdDeprecationWarning:
+    @pytest.mark.parametrize(
+        "oeprator_class, kwargs",
         [
             (BigQueryCheckOperator, dict(sql='Select * from test_table')),
             (BigQueryValueCheckOperator, dict(sql='Select * from test_table', pass_value=95)),
@@ -786,7 +780,7 @@ class TestBigQueryConnIdDeprecationWarning(unittest.TestCase):
             (BigQueryDeleteDatasetOperator, dict(dataset_id=TEST_DATASET)),
             (BigQueryCreateEmptyDatasetOperator, dict(dataset_id=TEST_DATASET)),
             (BigQueryDeleteTableOperator, dict(deletion_dataset_table=TEST_DATASET)),
-        ]
+        ],
     )
     def test_bigquery_conn_id_deprecation_warning(self, operator_class, kwargs):
         bigquery_conn_id = 'google_cloud_default'
@@ -1039,7 +1033,8 @@ class TestBigQueryInsertJobOperator:
     @mock.patch('airflow.providers.google.cloud.operators.bigquery.hashlib.md5')
     @pytest.mark.parametrize(
         "test_dag_id, expected_job_id",
-        [("test-dag-id-1.1", "airflow_test_dag_id_1_1_test_job_id_2020_01_23T00_00_00_hash")],
+        [("test-dag-id-1.1", "airflow_test_dag_id_1_1_test_job_id_2020_01_23T00_00_00_00_00_hash")],
+        ids=["test-dag-id-1.1"],
     )
     def test_job_id_validity(self, mock_md5, test_dag_id, expected_job_id):
         hash_ = "hash"
