@@ -325,7 +325,7 @@ class TestGcpStorageTransferJobCreateOperator:
         'airflow.providers.google.cloud.operators.cloud_storage_transfer_service.CloudDataTransferServiceHook'
     )
     def test_templates(self, _, create_task_instance_of_operator):
-        dag_id = 'test_dag_id'
+        dag_id = 'TestGcpStorageTransferJobCreateOperator_test_templates'
         ti = create_task_instance_of_operator(
             CloudDataTransferServiceCreateJobOperator,
             dag_id=dag_id,
@@ -371,7 +371,7 @@ class TestGcpStorageTransferJobUpdateOperator:
         'airflow.providers.google.cloud.operators.cloud_storage_transfer_service.CloudDataTransferServiceHook'
     )
     def test_templates(self, _, create_task_instance_of_operator):
-        dag_id = 'test_dag_id'
+        dag_id = 'TestGcpStorageTransferJobUpdateOperator_test_templates'
         ti = create_task_instance_of_operator(
             CloudDataTransferServiceUpdateJobOperator,
             dag_id=dag_id,
@@ -412,7 +412,7 @@ class TestGcpStorageTransferJobDeleteOperator:
         'airflow.providers.google.cloud.operators.cloud_storage_transfer_service.CloudDataTransferServiceHook'
     )
     def test_job_delete_with_templates(self, _, create_task_instance_of_operator):
-        dag_id = 'test_dag_id'
+        dag_id = 'test_job_delete_with_templates'
         ti = create_task_instance_of_operator(
             CloudDataTransferServiceDeleteJobOperator,
             dag_id=dag_id,
@@ -465,7 +465,7 @@ class TestGpcStorageTransferOperationsGetOperator:
         'airflow.providers.google.cloud.operators.cloud_storage_transfer_service.CloudDataTransferServiceHook'
     )
     def test_operation_get_with_templates(self, _, create_task_instance_of_operator):
-        dag_id = 'test_dag_id'
+        dag_id = 'test_operation_get_with_templates'
         ti = create_task_instance_of_operator(
             CloudDataTransferServiceGetOperationOperator,
             dag_id=dag_id,
@@ -514,7 +514,7 @@ class TestGcpStorageTransferOperationListOperator:
         'airflow.providers.google.cloud.operators.cloud_storage_transfer_service.CloudDataTransferServiceHook'
     )
     def test_templates(self, _, create_task_instance_of_operator):
-        dag_id = 'test_dag_id'
+        dag_id = 'TestGcpStorageTransferOperationListOperator_test_templates'
         ti = create_task_instance_of_operator(
             CloudDataTransferServiceListOperationsOperator,
             dag_id=dag_id,
@@ -553,7 +553,7 @@ class TestGcpStorageTransferOperationsPauseOperator:
         'airflow.providers.google.cloud.operators.cloud_storage_transfer_service.CloudDataTransferServiceHook'
     )
     def test_operation_pause_with_templates(self, _, create_task_instance_of_operator):
-        dag_id = 'test_dag_id'
+        dag_id = 'test_operation_pause_with_templates'
         ti = create_task_instance_of_operator(
             CloudDataTransferServicePauseOperationOperator,
             dag_id=dag_id,
@@ -607,7 +607,7 @@ class TestGcpStorageTransferOperationsResumeOperator:
         'airflow.providers.google.cloud.operators.cloud_storage_transfer_service.CloudDataTransferServiceHook'
     )
     def test_operation_resume_with_templates(self, _, create_task_instance_of_operator):
-        dag_id = 'test_dag_id'
+        dag_id = 'test_operation_resume_with_templates'
         ti = create_task_instance_of_operator(
             CloudDataTransferServiceResumeOperationOperator,
             dag_id=dag_id,
@@ -661,7 +661,7 @@ class TestGcpStorageTransferOperationsCancelOperator:
         'airflow.providers.google.cloud.operators.cloud_storage_transfer_service.CloudDataTransferServiceHook'
     )
     def test_operation_cancel_with_templates(self, _, create_task_instance_of_operator):
-        dag_id = 'test_dag_id'
+        dag_id = 'test_operation_cancel_with_templates'
         ti = create_task_instance_of_operator(
             CloudDataTransferServiceCancelOperationOperator,
             dag_id=dag_id,
@@ -712,7 +712,7 @@ class TestS3ToGoogleCloudStorageTransferOperator:
         'airflow.providers.google.cloud.operators.cloud_storage_transfer_service.CloudDataTransferServiceHook'
     )
     def test_templates(self, _, create_task_instance_of_operator):
-        dag_id = 'test_dag_id'
+        dag_id = 'TestS3ToGoogleCloudStorageTransferOperator_test_templates'
         ti = create_task_instance_of_operator(
             CloudDataTransferServiceS3ToGCSOperator,
             dag_id=dag_id,
@@ -865,7 +865,7 @@ class TestGoogleCloudStorageToGoogleCloudStorageTransferOperator:
         'airflow.providers.google.cloud.operators.cloud_storage_transfer_service.CloudDataTransferServiceHook'
     )
     def test_templates(self, _, create_task_instance_of_operator):
-        dag_id = 'test_dag_id'
+        dag_id = 'TestGoogleCloudStorageToGoogleCloudStorageTransferOperator_test_templates'
         ti = create_task_instance_of_operator(
             CloudDataTransferServiceGCSToGCSOperator,
             dag_id=dag_id,
