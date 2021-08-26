@@ -513,7 +513,9 @@ class DagFileProcessor(LoggingMixin):
         """
         # Clear the errors of the processed files
         for dagbag_file in dagbag.file_last_changed:
-            session.query(errors.ImportError).filter(errors.ImportError.filename == dagbag_file).delete()
+            session.query(errors.ImportError).filter(
+                errors.ImportError.filename.startswith(dagbag_file)
+            ).delete(synchronize_session="fetch")
 
         # Add the errors of the processed files
         for filename, stacktrace in dagbag.import_errors.items():
