@@ -40,7 +40,7 @@ def has_access(permissions: Optional[Sequence[Tuple[str, str]]] = None) -> Calla
                         hostname=socket.getfqdn()
                         if conf.getboolean('webserver', 'EXPOSE_HOSTNAME', fallback=True)
                         else 'redact',
-                        logout_url=current_app.appbuilder.get_url_for_logout,
+                        logout_url=appbuilder.get_url_for_logout,
                     ),
                     403,
                 )
