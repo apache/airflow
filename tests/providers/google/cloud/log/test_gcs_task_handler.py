@@ -31,7 +31,7 @@ class TestGCSTaskHandler:
     @pytest.fixture(autouse=True)
     def task_instance(self, create_task_instance):
         self.ti = ti = create_task_instance(
-            dag_id="dag_for_testing_task_handler",
+            dag_id="dag_for_testing_gcs_task_handler",
             task_id="task_for_testing_gcs_task_handler",
             execution_date=datetime(2020, 1, 1),
             state=TaskInstanceState.RUNNING,
