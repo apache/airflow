@@ -209,16 +209,6 @@ class GKECreateClusterOperator(BaseOperator):
         self.impersonation_chain = impersonation_chain
         self._check_input()
 
-    # def _check_input(self) -> None:
-    #     if not all([self.project_id, self.location, self.body]) or not (
-    #         (isinstance(self.body, dict) and "name" in self.body and (("initial_node_count" in self.body) or ("node_pools" in self.body)))
-    #         or (getattr(self.body, "name", None) and getattr(self.body, "initial_node_count", None))
-    #     ):
-    #         self.log.error(
-    #             "One of (project_id, location, body, body['name'], "
-    #             "body['initial_node_count']), body['node_pools'] is missing or incorrect"
-    #         )
-    #         raise AirflowException("Operator has incorrect or missing input.")
     def _check_input(self) -> None:
         if not all([self.project_id, self.location, self.body]) \
             or (isinstance(self.body, dict) and not("name" in self.body)) \
@@ -237,12 +227,6 @@ class GKECreateClusterOperator(BaseOperator):
             )
             raise AirflowException("Operator has incorrect or missing input.")
             
-
-        # if not all([self.project_id, self.location, self.body]) or not (
-        #     (isinstance(self.body, dict) and "name" in self.body and (("initial_node_count" in self.body) or ("node_pools" in self.body)))
-        #     or (getattr(self.body, "name", None) and getattr(self.body, "initial_node_count", None))
-        # ):
-
     def execute(self, context) -> str:
         hook = GKEHook(
             gcp_conn_id=self.gcp_conn_id,
