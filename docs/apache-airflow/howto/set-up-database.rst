@@ -154,14 +154,18 @@ In the example below, a database ``airflow_db`` and user  with username ``airflo
 
 .. code-block:: sql
 
-   CREATE DATABASE airflow_db CHARACTER SET utf8 COLLATE utf8_general_ci;
+   CREATE DATABASE airflow_db CHARACTER SET utf8 COLLATE utf8mb4_unicode_ci;
    CREATE USER 'airflow_user' IDENTIFIED BY 'airflow_pass';
    GRANT ALL PRIVILEGES ON airflow_db.* TO 'airflow_user';
 
 
 .. note::
 
-   The database must use a UTF-8 character set
+   The database must use a UTF-8 character set. A small caveat that you must be aware of is that utf8 in newer versions of MySQL is really utf8mb4 which
+   causes Airflow indexes to grow too large (see https://github.com/apache/airflow/pull/17603#issuecomment-901121618). Therefore as of Airflow 2.2
+   all MySQL databases have ``sql_engine_collation_for_ids`` set automatically to ``utf8mb3_general_ci`` (unless you override it). This might
+   lead to a mixture of collation ids for id fields in Airflow Database, but it has no negative consequences since all relevant IDs in Airflow use
+   ASCII characters only.
 
 We rely on more strict ANSI SQL settings for MySQL in order to have sane defaults.
 Make sure to have specified ``explicit_defaults_for_timestamp=1`` option under ``[mysqld]`` section

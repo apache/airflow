@@ -36,7 +36,7 @@ def apply_defaults(func: T) -> T:
     warnings.warn(
         "This decorator is deprecated. \n"
         "\n"
-        "In previous versions, all subclasses of BaseOperator must use apply_default decorator for the"
+        "In previous versions, all subclasses of BaseOperator must use apply_default decorator for the "
         "`default_args` feature to work properly.\n"
         "\n"
         "In current version, it is optional. The decorator is applied automatically using the metaclass.\n",

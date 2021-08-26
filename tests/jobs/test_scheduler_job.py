@@ -119,12 +119,9 @@ class TestSchedulerJob:
         self.null_exec = MockExecutor()
 
         # Since we don't want to store the code for the DAG defined in this file
-        with patch('airflow.dag_processing.manager.SerializedDagModel.remove_deleted_dags'), patch.object(
-            settings,
-            "STORE_DAG_CODE",
-            False,
+        with patch('airflow.dag_processing.manager.SerializedDagModel.remove_deleted_dags'), patch(
+            'airflow.models.dag.DagCode.bulk_sync_to_db'
         ):
-
             yield
 
         if self.scheduler_job and self.scheduler_job.processor_agent:
@@ -612,6 +609,37 @@ class TestSchedulerJob:
         assert 0 == len(self.scheduler_job._executable_task_instances_to_queued(max_tis=32, session=session))
         session.rollback()
 
+    def test_tis_for_queued_dagruns_are_not_run(self, dag_maker):
+        """
+        This tests that tis from queued dagruns are not queued
+        """
+        dag_id = "test_tis_for_queued_dagruns_are_not_run"
+        task_id_1 = 'dummy'
+
+        with dag_maker(dag_id) as dag:
+            task1 = DummyOperator(task_id=task_id_1)
+        dr1 = dag_maker.create_dagrun(state=State.QUEUED)
+        dr2 = dag_maker.create_dagrun(
+            run_id='test2', execution_date=dag.following_schedule(dr1.execution_date)
+        )
+        self.scheduler_job = SchedulerJob(subdir=os.devnull)
+        session = settings.Session()
+        ti1 = TaskInstance(task1, dr1.execution_date)
+        ti2 = TaskInstance(task1, dr2.execution_date)
+        ti1.state = State.SCHEDULED
+        ti2.state = State.SCHEDULED
+        session.merge(ti1)
+        session.merge(ti2)
+        session.flush()
+        res = self.scheduler_job._executable_task_instances_to_queued(max_tis=32, session=session)
+
+        assert 1 == len(res)
+        assert ti2.key == res[0].key
+        ti1.refresh_from_db()
+        ti2.refresh_from_db()
+        assert ti1.state == State.SCHEDULED
+        assert ti2.state == State.QUEUED
+
     def test_find_executable_task_instances_concurrency(self, dag_maker):
         dag_id = 'SchedulerJobTest.test_find_executable_task_instances_concurrency'
         task_id_1 = 'dummy'
@@ -692,12 +720,12 @@ class TestSchedulerJob:
         session.rollback()
 
     # TODO: This is a hack, I think I need to just remove the setting and have it on always
-    def test_find_executable_task_instances_task_concurrency(self, dag_maker):
-        dag_id = 'SchedulerJobTest.test_find_executable_task_instances_task_concurrency'
+    def test_find_executable_task_instances_max_active_tis_per_dag(self, dag_maker):
+        dag_id = 'SchedulerJobTest.test_find_executable_task_instances_max_active_tis_per_dag'
         task_id_1 = 'dummy'
         task_id_2 = 'dummy2'
         with dag_maker(dag_id=dag_id, max_active_tasks=16) as dag:
-            task1 = DummyOperator(task_id=task_id_1, task_concurrency=2)
+            task1 = DummyOperator(task_id=task_id_1, max_active_tis_per_dag=2)
             task2 = DummyOperator(task_id=task_id_2)
 
         executor = MockExecutor(do_update=True)
@@ -2911,15 +2939,15 @@ class TestSchedulerJob:
             ],
         ],
     )
-    def test_dag_file_processor_process_task_instances_with_task_concurrency(
+    def test_dag_file_processor_process_task_instances_with_max_active_tis_per_dag(
         self, state, start_date, end_date, dag_maker
     ):
         """
         Test if _process_task_instances puts the right task instances into the
         mock_list.
         """
-        with dag_maker(dag_id='test_scheduler_process_execute_task_with_task_concurrency'):
-            BashOperator(task_id='dummy', task_concurrency=2, bash_command='echo Hi')
+        with dag_maker(dag_id='test_scheduler_process_execute_task_with_max_active_tis_per_dag'):
+            BashOperator(task_id='dummy', max_active_tis_per_dag=2, bash_command='echo Hi')
 
         self.scheduler_job = SchedulerJob(subdir=os.devnull)
         self.scheduler_job.processor_agent = mock.MagicMock()
@@ -3305,7 +3333,6 @@ class TestSchedulerJobQueriesCount:
         ), conf_vars(
             {
                 ('scheduler', 'use_job_schedule'): 'True',
-                ('core', 'store_serialized_dags'): 'True',
                 # For longer running tests under heavy load, the min_serialized_dag_fetch_interval
                 # and min_serialized_dag_update_interval might kick-in and re-retrieve the record.
                 # This will increase the count of serliazied_dag.py.get() count.

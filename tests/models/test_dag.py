@@ -70,7 +70,7 @@ class TestDag(unittest.TestCase):
     def setUp(self) -> None:
         clear_db_runs()
         clear_db_dags()
-        self.patcher_dag_code = patch.object(settings, "STORE_DAG_CODE", False)
+        self.patcher_dag_code = mock.patch('airflow.models.dag.DagCode.bulk_sync_to_db')
         self.patcher_dag_code.start()
 
     def tearDown(self) -> None:
@@ -678,7 +678,7 @@ class TestDag(unittest.TestCase):
         clear_db_dags()
         dags = [DAG(f'dag-bulk-sync-{i}', start_date=DEFAULT_DATE, tags=["test-dag"]) for i in range(0, 4)]
 
-        with assert_queries_count(5):
+        with assert_queries_count(4):
             DAG.bulk_write_to_db(dags)
         with create_session() as session:
             assert {'dag-bulk-sync-0', 'dag-bulk-sync-1', 'dag-bulk-sync-2', 'dag-bulk-sync-3'} == {
@@ -695,14 +695,14 @@ class TestDag(unittest.TestCase):
                 assert row[0] is not None
 
         # Re-sync should do fewer queries
-        with assert_queries_count(4):
+        with assert_queries_count(3):
             DAG.bulk_write_to_db(dags)
-        with assert_queries_count(4):
+        with assert_queries_count(3):
             DAG.bulk_write_to_db(dags)
         # Adding tags
         for dag in dags:
             dag.tags.append("test-dag2")
-        with assert_queries_count(5):
+        with assert_queries_count(4):
             DAG.bulk_write_to_db(dags)
         with create_session() as session:
             assert {'dag-bulk-sync-0', 'dag-bulk-sync-1', 'dag-bulk-sync-2', 'dag-bulk-sync-3'} == {
@@ -721,7 +721,7 @@ class TestDag(unittest.TestCase):
         # Removing tags
         for dag in dags:
             dag.tags.remove("test-dag")
-        with assert_queries_count(5):
+        with assert_queries_count(4):
             DAG.bulk_write_to_db(dags)
         with create_session() as session:
             assert {'dag-bulk-sync-0', 'dag-bulk-sync-1', 'dag-bulk-sync-2', 'dag-bulk-sync-3'} == {
@@ -768,8 +768,8 @@ class TestDag(unittest.TestCase):
 
         model = session.query(DagModel).get((dag.dag_id,))
         assert model.next_dagrun == period_end
-        # We signal "at max active runs" by saying this run is never eligible to be created
-        assert model.next_dagrun_create_after is None
+        # Next dagrun after is not None because the dagrun would be in queued state
+        assert model.next_dagrun_create_after is not None
 
     def test_sync_to_db(self):
         dag = DAG(
@@ -939,7 +939,7 @@ class TestDag(unittest.TestCase):
         )
         dag.fileloc = dag_fileloc
         session = settings.Session()
-        with mock.patch.object(settings, "STORE_DAG_CODE", False):
+        with mock.patch('airflow.models.dag.DagCode.bulk_sync_to_db'):
             dag.sync_to_db(session=session)
 
         orm_dag = session.query(DagModel).filter(DagModel.dag_id == dag_id).one()

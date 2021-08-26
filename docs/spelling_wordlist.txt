@@ -102,6 +102,7 @@ DeidentifyTemplate
 Deprecations
 Deserialize
 Deserialized
+DevOps
 Dingding
 Dlp
 DlpJob
@@ -239,6 +240,8 @@ Namespace
 Neo4j
 NetBIOS
 Nextdoor
+Nodegroup
+Nodegroups
 Nones
 NotFound
 Nullable
@@ -407,6 +410,7 @@ alibaba
 allAuthenticatedUsers
 allUsers
 allowinsert
+amazonaws
 amqp
 analyse
 analytics
@@ -683,6 +687,8 @@ ec
 ecb
 editorconfig
 eg
+eks
+eladkal
 elasticsearch
 emr
 enableAutoScale
@@ -981,11 +987,14 @@ neo
 neo4j
 neq
 networkUri
+nextToken
 nginx
 nobr
 nodash
 nodeName
 nodeSelector
+nodegroup
+nodegroups
 nonterminal
 noqa
 nosasl
@@ -1250,6 +1259,7 @@ subfolder
 subfolders
 submodules
 subnet
+subnets
 subnetwork
 subpackage
 subpackages

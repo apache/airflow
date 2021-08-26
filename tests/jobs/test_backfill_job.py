@@ -77,12 +77,12 @@ class TestBackfillJob:
         dag_maker_fixture,
         dag_id='test_dag',
         pool=Pool.DEFAULT_POOL_NAME,
-        task_concurrency=None,
+        max_active_tis_per_dag=None,
         task_id='op',
         **kwargs,
     ):
         with dag_maker_fixture(dag_id=dag_id, schedule_interval='@daily', **kwargs) as dag:
-            DummyOperator(task_id=task_id, pool=pool, task_concurrency=task_concurrency)
+            DummyOperator(task_id=task_id, pool=pool, max_active_tis_per_dag=max_active_tis_per_dag)
 
         return dag
 
@@ -295,12 +295,12 @@ class TestBackfillJob:
         assert conf_ == dr[0].conf
 
     @patch('airflow.jobs.backfill_job.BackfillJob.log')
-    def test_backfill_respect_task_concurrency_limit(self, mock_log, dag_maker):
-        task_concurrency = 2
+    def test_backfill_respect_max_active_tis_per_dag_limit(self, mock_log, dag_maker):
+        max_active_tis_per_dag = 2
         dag = self._get_dummy_dag(
             dag_maker,
-            dag_id='test_backfill_respect_task_concurrency_limit',
-            task_concurrency=task_concurrency,
+            dag_id='test_backfill_respect_max_active_tis_per_dag_limit',
+            max_active_tis_per_dag=max_active_tis_per_dag,
         )
         dag_maker.create_dagrun()
 
@@ -321,9 +321,9 @@ class TestBackfillJob:
 
         num_running_task_instances = 0
         for running_task_instances in executor.history:
-            assert len(running_task_instances) <= task_concurrency
+            assert len(running_task_instances) <= max_active_tis_per_dag
             num_running_task_instances += len(running_task_instances)
-            if len(running_task_instances) == task_concurrency:
+            if len(running_task_instances) == max_active_tis_per_dag:
                 task_concurrency_limit_reached_at_least_once = True
 
         assert 8 == num_running_task_instances

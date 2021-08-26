@@ -262,7 +262,7 @@ class TestDagRun(unittest.TestCase):
         dag = DAG('test_dagrun_no_deadlock', start_date=DEFAULT_DATE)
         with dag:
             DummyOperator(task_id='dop', depends_on_past=True)
-            DummyOperator(task_id='tc', task_concurrency=1)
+            DummyOperator(task_id='tc', max_active_tis_per_dag=1)
 
         dag.clear()
         dr = dag.create_dagrun(

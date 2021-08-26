@@ -464,15 +464,7 @@ class DataFusionHook(GoogleBaseHook):
             raise AirflowException(f"Starting a pipeline failed with code {response.status}")
 
         response_json = json.loads(response.data)
-        pipeline_id = response_json[0]["runId"]
-        self.wait_for_pipeline_state(
-            success_states=SUCCESS_STATES + [PipelineStates.RUNNING],
-            pipeline_name=pipeline_name,
-            pipeline_id=pipeline_id,
-            namespace=namespace,
-            instance_url=instance_url,
-        )
-        return pipeline_id
+        return response_json[0]["runId"]
 
     def stop_pipeline(self, pipeline_name: str, instance_url: str, namespace: str = "default") -> None:
         """
