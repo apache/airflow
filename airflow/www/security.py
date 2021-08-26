@@ -274,6 +274,12 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
             )
         return perms_views
 
+    def current_user_has_permissions(self) -> bool:
+        for role in self.get_user_roles():
+            if role.permissions:
+                return True
+        return False
+
     def get_readable_dags(self, user):
         """Gets the DAGs readable by authenticated user."""
         return self.get_accessible_dags([permissions.ACTION_CAN_READ], user)
