@@ -29,17 +29,16 @@ additional-dependencies:
   - pypsrp>=0.5.0
 
 integrations:
-  - integration-name: Windows Remote Management (WinRM)
-    external-doc-url: https://docs.microsoft.com/en-us/windows/win32/winrm/portal
-    logo: /integration-logos/winrm/WinRM.png
+  - integration-name: Windows PowerShell Remoting Protocol
+    external-doc-url: https://docs.microsoft.com/en-us/openspecs/windows_protocols/ms-psrp/
     tags: [protocol]
 
 operators:
-  - integration-name: Windows Remote Management (WinRM)
+  - integration-name: Windows PowerShell Remoting Protocol
     python-modules:
-      - airflow.providers.microsoft.winrm.operators.winrm
+      - airflow.providers.microsoft.psrp.operators.psrp
 
 hooks:
-  - integration-name: Windows Remote Management (WinRM)
+  - integration-name: Windows PowerShell Remoting Protocol
     python-modules:
-      - airflow.providers.microsoft.winrm.hooks.winrm
+      - airflow.providers.microsoft.psrp.hooks.psrp
