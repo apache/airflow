@@ -281,14 +281,14 @@ def post_dag_run(dag_id, session):
     ]
 )
 @provide_session
-def post_set_dag_run_state(dag_id, session) -> dict:
+def post_set_dag_run_state(dag_id: str, session) -> dict:
     """Set a state of a dag run."""
     try:
         post_body = dagrun_schema.load(request.json, session=session, unknown="include")
     except ValidationError as err:
         raise BadRequest(detail=str(err))
     dag_run_id, state = post_body['run_id'], post_body['state']
-    dag_run = session.query(DagRun).filter(DagRun.dag_id == dag_id, DagRun.run_id == dag_run_id).one_or_none()
+    dag_run: DagRun = session.query(DagRun).filter(DagRun.dag_id == dag_id, DagRun.run_id == dag_run_id).one_or_none()
     if dag_run is None:
         raise NotFound(
             "DAGRun not found",
@@ -300,4 +300,5 @@ def post_set_dag_run_state(dag_id, session) -> dict:
         raise DagRunNotFound(error_message)
 
     dag_run.set_state(state=DagRunState(state.lower()).value)
+    session.merge(dag_run)
     return dagrun_schema.dump(dag_run)
