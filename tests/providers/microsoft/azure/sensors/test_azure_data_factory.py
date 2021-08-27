@@ -40,31 +40,11 @@ from airflow.utils.session import create_session
 class TestPipelineRunStatusSensor(unittest.TestCase):
     def setUp(self):
         self.dag = DAG("test", start_date=datetime(2021, 8, 16), schedule_interval=None, catchup=False)
-        self.conn = Connection(
-            conn_id="azure_data_factory_test",
-            conn_type="azure_data_factory",
-            login="client_id",
-            password="client_secret",
-            extra=json.dumps(
-                {
-                    "extra__azure_data_factory__tenantId": "tenantId",
-                    "extra__azure_data_factory__subscriptionId": "subscriptionId",
-                    "extra__azure_data_factory__resource_group_name": "resource-group-name",
-                    "extra__azure_data_factory__factory_name": "factory-name",
-                },
-            ),
-        )
-
-        with create_session() as session:
-            session.query(Connection).filter(Connection.conn_id == self.conn.conn_id).delete()
-            session.add(self.conn)
-            session.commit()
-
         self.config = {
             "conn_id": "azure_data_factory_test",
             "run_id": "run_id",
-            "resource_group_name": self.conn.extra_dejson["extra__azure_data_factory__resource_group_name"],
-            "factory_name": self.conn.extra_dejson["extra__azure_data_factory__resource_group_name"],
+            "resource_group_name": "resource-group-name",
+            "factory_name": "factory-name",
             "timeout": 100,
             "poke_interval": 15,
         }
