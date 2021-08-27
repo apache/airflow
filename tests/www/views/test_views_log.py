@@ -165,7 +165,7 @@ def log_admin_client(log_app):
 @pytest.mark.parametrize(
     "state, try_number, num_logs",
     [
-        (TaskInstanceState.NONE, 0, 0),
+        (None, 0, 0),
         (TaskInstanceState.UP_FOR_RETRY, 2, 2),
         (TaskInstanceState.UP_FOR_RESCHEDULE, 0, 1),
         (TaskInstanceState.UP_FOR_RESCHEDULE, 1, 2),
