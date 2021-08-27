@@ -258,27 +258,22 @@ class TestSchedulerJob:
         # task instance key
         assert event_buffer == {}
 
-    def test_execute_task_instances_is_paused_wont_execute(self, dag_maker):
+    def test_execute_task_instances_is_paused_wont_execute(self, session, dag_maker):
         dag_id = 'SchedulerJobTest.test_execute_task_instances_is_paused_wont_execute'
         task_id_1 = 'dummy_task'
 
-        with dag_maker(dag_id=dag_id) as dag:
-            task1 = DummyOperator(task_id=task_id_1)
+        with dag_maker(dag_id=dag_id, session=session) as dag:
+            DummyOperator(task_id=task_id_1)
         assert isinstance(dag, SerializedDAG)
 
         self.scheduler_job = SchedulerJob(subdir=os.devnull)
-        session = settings.Session()
 
         dr1 = dag_maker.create_dagrun(run_type=DagRunType.BACKFILL_JOB)
-        ti1 = TaskInstance(task1, DEFAULT_DATE)
+        (ti1,) = dr1.task_instances
         ti1.state = State.SCHEDULED
-        session.merge(ti1)
-        session.merge(dr1)
-        session.flush()
 
         self.scheduler_job._critical_section_execute_task_instances(session)
-        session.flush()
-        ti1.refresh_from_db()
+        ti1.refresh_from_db(session=session)
         assert State.SCHEDULED == ti1.state
         session.rollback()
 
@@ -2569,10 +2564,8 @@ class TestSchedulerJob:
         run2_ti = run2.get_task_instance(task1.task_id, session)
         assert run2_ti.state == State.QUEUED
 
-    def test_do_schedule_max_active_runs_task_removed(self, dag_maker):
+    def test_do_schedule_max_active_runs_task_removed(self, session, dag_maker):
         """Test that tasks in removed state don't count as actively running."""
-        session = settings.Session()
-
         with dag_maker(
             dag_id='test_do_schedule_max_active_runs_task_removed',
             start_date=DEFAULT_DATE,
@@ -2594,11 +2587,12 @@ class TestSchedulerJob:
         self.scheduler_job.processor_agent = mock.MagicMock(spec=DagFileProcessorAgent)
 
         num_queued = self.scheduler_job._do_scheduling(session)
-
-        run1 = session.merge(run1)
-
         assert num_queued == 1
+
+        session.merge(run1)
+        session.flush()
         ti = run1.task_instances[0]
+        ti.refresh_from_db(session=session)
         assert ti.state == State.QUEUED
 
     def test_do_schedule_max_active_runs_and_manual_trigger(self, dag_maker):
