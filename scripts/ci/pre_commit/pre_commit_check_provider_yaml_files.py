@@ -96,7 +96,7 @@ def check_integration_duplicates(yaml_files: Dict[str, Dict]):
             "Please delete duplicates."
         )
         print(tabulate(duplicates, headers=["Integration name", "Number of occurrences"]))
-        sys.exit(0)
+        sys.exit(3)
 
 
 def assert_sets_equal(set1, set2):
