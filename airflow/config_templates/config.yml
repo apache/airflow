@@ -1687,7 +1687,8 @@
       description: |
         Task instances listen for external kill signal (when you clear tasks
         from the CLI or the UI), this defines the frequency at which they should
-        listen (in seconds).
+        listen (in seconds). Make sure that this value is not higher than scheduler_health_check_threshold
+        (default value 30) or tasks may be spuriously marked as zombie.
       version_added: ~
       type: string
       example: ~
@@ -1758,7 +1759,8 @@
       description: |
         If the last scheduler heartbeat happened more than scheduler_health_check_threshold
         ago (in seconds), scheduler is considered unhealthy.
-        This is used by the health check in the "/health" endpoint
+        This is used by the health check in the "/health" endpoint. Make sure that this value is higher
+        than job_heartbeat_sec (default value 5) or tasks may be spuriously marked as zombie.
       version_added: 1.10.2
       type: string
       example: ~
