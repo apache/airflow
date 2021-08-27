@@ -568,7 +568,7 @@ class DagFileProcessor(LoggingMixin):
             if simple_ti.task_id in dag.task_ids:
                 task = dag.get_task(simple_ti.task_id)
                 if request.is_failure_callback:
-                    ti = TI(task, simple_ti.execution_date)
+                    ti = TI(task, run_id=simple_ti.run_id)
                     # TODO: Use simple_ti to improve performance here in the future
                     ti.refresh_from_db()
                     ti.handle_failure_with_callback(error=request.msg, test_mode=self.UNIT_TEST_MODE)
