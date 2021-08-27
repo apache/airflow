@@ -119,7 +119,7 @@ def upgrade():
             ondelete='CASCADE',
         )
 
-        batch_op.create_index('ti_dag_run', ['dag_id', 'run_id', 'state'])
+        batch_op.create_index('ti_dag_run', ['dag_id', 'run_id'])
         batch_op.create_index('ti_state_lkp', ['dag_id', 'task_id', 'run_id', 'state'])
 
     with op.batch_alter_table('task_reschedule', schema=None) as batch_op:

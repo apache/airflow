@@ -41,8 +41,8 @@ class TaskReschedule(Base):
     __table_args__ = (
         Index('idx_task_reschedule_dag_task_run', dag_id, task_id, run_id, unique=False),
         ForeignKeyConstraint(
-            [task_id, dag_id, run_id],
-            ['task_instance.task_id', 'task_instance.dag_id', 'task_instance.run_id'],
+            [dag_id, task_id, run_id],
+            ['task_instance.dag_id', 'task_instance.task_id', 'task_instance.run_id'],
             name='task_reschedule_ti_fkey',
             ondelete='CASCADE',
         ),
