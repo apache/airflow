@@ -570,6 +570,7 @@ class TestMLEngineStartTrainingJobOperator:
         ti = create_task_instance_of_operator(
             MLEngineStartTrainingJobOperator,
             dag_id="test_console_extra_link",
+            execution_date=DEFAULT_DATE,
             **self.TRAINING_DEFAULT_ARGS,
         )
 
@@ -591,6 +592,7 @@ class TestMLEngineStartTrainingJobOperator:
         ti = create_task_instance_of_operator(
             MLEngineStartTrainingJobOperator,
             dag_id="test_console_extra_link_serialized_field",
+            execution_date=DEFAULT_DATE,
             **self.TRAINING_DEFAULT_ARGS,
         )
         serialized_dag = dag_maker.get_serialized_data()
