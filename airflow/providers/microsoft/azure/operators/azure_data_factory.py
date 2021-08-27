@@ -137,11 +137,12 @@ class AzureDataFactoryRunPipelineOperator(BaseOperator):
                 if start_time + self.timeout < time.monotonic():
                     raise AirflowException(
                         f"Pipeline run {self.run_id} has not reached a terminal status after "
-                        + f"{self.timeout} seconds."
+                        f"{self.timeout} seconds."
                     )
 
                 # Wait to check the status of the pipeline based on the ``poke_interval`` configured.
                 time.sleep(self.poke_interval)
+
                 self.log.info(f"Checking on the status of run ID {self.run_id}.")
                 pipeline_run = self.hook.get_pipeline_run(
                     run_id=self.run_id,
