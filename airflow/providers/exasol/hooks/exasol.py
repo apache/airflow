@@ -21,8 +21,10 @@ from typing import Any, Dict, List, Optional, Tuple, Union
 
 import pandas as pd
 import pyexasol
-from airflow.hooks.dbapi import DbApiHook
+
 from pyexasol import ExaConnection
+
+from airflow.hooks.dbapi import DbApiHook
 
 
 class ExasolHook(DbApiHook):
