@@ -28,11 +28,10 @@ from airflow.api_connexion.schemas.dag_run_schema import (
     dagrun_schema,
     dagruns_batch_form_schema,
 )
-from airflow import DAG
 from airflow.models import DagModel, DagRun
 from airflow.security import permissions
 from airflow.utils.session import provide_session
-from airflow.utils.state import State
+from airflow.utils.state import State, DagRunState
 from airflow.utils.types import DagRunType
 from airflow.exceptions import DagRunNotFound
 
@@ -278,21 +277,27 @@ def post_dag_run(dag_id, session):
 @security.requires_access(
     [
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
-        (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_DAG_RUN),
-        (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_TASK_INSTANCE)
+        (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_DAG_RUN)
     ]
 )
 @provide_session
-def set_dag_run_state(dag_id, run_id, state):
+def post_set_dag_run_state(dag_id, session) -> dict:
     """Set a state of a dag run."""
-    dag: DAG = current_app.dag_bag.get_dag(dag_id)
-    if not dag:
-        raise NotFound(title="DAG not found", detail=f"DAG with dag_id: '{dag_id}' not found")
+    try:
+        post_body = dagrun_schema.load(request.json, session=session, unknown="include")
+    except ValidationError as err:
+        raise BadRequest(detail=str(err))
+    dag_run_id, state = post_body['run_id'], post_body['state']
+    dag_run = session.query(DagRun).filter(DagRun.dag_id == dag_id, DagRun.run_id == dag_run_id).one_or_none()
+    if dag_run is None:
+        raise NotFound(
+            "DAGRun not found",
+            detail=f"DAGRun with DAG ID: '{dag_id}' and DagRun ID: '{dag_run_id}' not found",
+        )
 
-    dag_run: DagRun = dag.get_dagrun(run_id=run_id)
     if not dag_run:
-        error_message = f'Dag Run id {run_id} not found in dag {dag_id}'
+        error_message = f'Dag Run id {dag_run_id} not found in dag {dag_id}'
         raise DagRunNotFound(error_message)
 
-    dag_run.set_state(state=state)
+    dag_run.set_state(state=DagRunState(state.lower()).value)
     return dagrun_schema.dump(dag_run)

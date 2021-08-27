@@ -104,6 +104,14 @@ class DAGRunSchema(SQLAlchemySchema):
         return data
 
 
+class SetDagRunStateFormSchema(Schema):
+    """Schema for handling the request of setting state of DAG run"""
+
+    run_id = auto_field(data_key='dag_run_id')
+    dag_id = auto_field(dump_only=True)
+    state = DagStateField(dump_only=True)
+
+
 class DAGRunCollection(NamedTuple):
     """List of DAGRuns with metadata"""
 

@@ -19,12 +19,14 @@ from unittest import mock
 
 import pytest
 from parameterized import parameterized
+from freezegun import freeze_time
 
 from airflow.api_connexion.exceptions import EXCEPTIONS_LINK_MAP
 from airflow.models import DAG, DagModel, DagRun
 from airflow.security import permissions
 from airflow.utils import timezone
 from airflow.utils.session import create_session, provide_session
+from airflow.utils.state import DagRunState
 from airflow.utils.types import DagRunType
 from tests.test_utils.api_connexion_utils import assert_401, create_user, delete_user
 from tests.test_utils.config import conf_vars
@@ -1154,3 +1156,116 @@ class TestPostDagRun(TestDagRunEndpoint):
             environ_overrides={'REMOTE_USER': "test_view_dags"},
         )
         assert response.status_code == 403
+
+
+class TestPostSetDagRunState(TestDagRunEndpoint):
+
+    @parameterized.expand([
+        ("TEST_DAG_ID", "TEST_DAG_RUN_ID_1", "failed"),
+        ("TEST_DAG_ID", "TEST_DAG_RUN_ID_1", "success")
+    ])
+    @freeze_time(TestDagRunEndpoint.default_time)
+    def test_should_respond_200(self, dag_id, dag_run_id, state):
+        test_time = timezone.parse(self.default_time)
+        with create_session() as session:
+            dag = DagModel(dag_id=dag_id)
+            dag_run = DagRun(
+                dag_id=dag_id,
+                run_id=dag_run_id,
+                state=DagRunState.RUNNING,
+                run_type=DagRunType.MANUAL,
+                execution_date=test_time,
+                start_date=test_time,
+                external_trigger=True
+            )
+            session.add(dag)
+            session.add(dag_run)
+
+        request_json = {
+            "dag_run_id": dag_run_id,
+            "state": state
+        }
+
+        response = self.client.post(
+            "api/v1/dags/TEST_DAG_ID/dagRuns/updateDagRunState",
+            json=request_json,
+            environ_overrides={"REMOTE_USER": "test"},
+        )
+
+        assert response.status_code == 200
+        assert response.json == {
+            'conf': {},
+            'dag_id': 'TEST_DAG_ID',
+            'dag_run_id': 'TEST_DAG_RUN_ID_1',
+            'end_date': self.default_time,
+            'execution_date': self.default_time,
+            'external_trigger': True,
+            'logical_date': self.default_time,
+            'start_date': self.default_time,
+            'state': state
+        }
+
+    def test_should_response_400_for_non_existing_dag_run_state(self):
+        test_time = timezone.parse(self.default_time)
+        with create_session() as session, freeze_time(self.default_time):
+            dag_id = "TEST_DAG_ID"
+            dag_run_id = "TEST_DAG_RUN_ID_1"
+            dag = DagModel(dag_id=dag_id)
+            dag_run = DagRun(
+                dag_id=dag_id,
+                run_id=dag_run_id,
+                state=DagRunState.RUNNING,
+                run_type=DagRunType.MANUAL,
+                execution_date=test_time,
+                start_date=test_time,
+                external_trigger=True
+            )
+            session.add(dag)
+            session.add(dag_run)
+
+            request_json = {
+                "dag_run_id": dag_run_id,
+                "state": "madeUpState"
+            }
+
+            response = self.client.post(
+                "api/v1/dags/TEST_DAG_ID/dagRuns/updateDagRunState",
+                json=request_json,
+                environ_overrides={"REMOTE_USER": "test"},
+            )
+            assert response.status_code == 400
+            assert response.json == {
+                'detail': "'madeUpState' is not one of ['queued', 'running', 'success', 'failed'] - 'state'",
+                'status': 400,
+                'title': 'Bad Request',
+                'type': EXCEPTIONS_LINK_MAP[400]
+            }
+
+    def test_should_raises_401_unauthenticated(self, session):
+        response = self.client.post(
+            "api/v1/dags/TEST_DAG_ID/dagRuns/updateDagRunState",
+            json={
+                "run_id": "TEST_DAG_RUN_ID_1",
+                "state": 'success',
+            },
+        )
+
+        assert_401(response)
+
+    def test_should_raise_403_forbidden(self):
+        response = self.client.get(
+            "api/v1/dags/TEST_DAG_ID/dagRuns/updateDagRunState",
+            environ_overrides={'REMOTE_USER': "test_no_permissions"},
+        )
+        assert response.status_code == 403
+
+    def test_should_respond_404(self):
+        response = self.client.get(
+            "api/v1/dags/INVALID_DAG_ID/dagRuns/updateDagRunState",
+            json={
+                "run_id": "TEST_DAG_RUN_ID_1",
+                "state": 'success',
+            },
+            environ_overrides={"REMOTE_USER": "test"}
+        )
+        assert response.status_code == 404
