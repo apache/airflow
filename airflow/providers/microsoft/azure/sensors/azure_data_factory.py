@@ -15,7 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from typing import Dict, Optional, Set, Union
+from typing import Dict, List, Optional, Union
 
 from airflow.exceptions import AirflowException
 from airflow.providers.microsoft.azure.hooks.azure_data_factory import (
@@ -38,7 +38,7 @@ class AzureDataFactoryPipelineRunStatusSensor(BaseSensorOperator):
     :param factory_name: The data factory name.
     :type factory_name: str
     :param expected_statuses: The status(es) which are desired for the pipeline run.
-    :type expected_statuses: str or Set[str]
+    :type expected_statuses: str or List[str]
     """
 
     template_fields = ("resource_group_name", "factory_name", "run_id")
@@ -50,7 +50,7 @@ class AzureDataFactoryPipelineRunStatusSensor(BaseSensorOperator):
         run_id: str,
         resource_group_name: Optional[str] = None,
         factory_name: Optional[str] = None,
-        expected_statuses: Optional[Union[Set[str], str]] = AzureDataFactoryPipelineRunStatus.SUCCEEDED,
+        expected_statuses: Optional[Union[List[str], str]] = AzureDataFactoryPipelineRunStatus.SUCCEEDED,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -58,8 +58,9 @@ class AzureDataFactoryPipelineRunStatusSensor(BaseSensorOperator):
         self.run_id = run_id
         self.resource_group_name = resource_group_name
         self.factory_name = factory_name
+        # Normalize input of ``expected_status`` to a list.
         self.expected_statuses = (
-            {expected_statuses} if isinstance(expected_statuses, str) else expected_statuses
+            [expected_statuses] if isinstance(expected_statuses, str) else expected_statuses
         )
 
     def poke(self, context: Dict) -> bool:
