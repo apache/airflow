@@ -280,9 +280,15 @@ flask_appbuilder_authlib = [
 google = [
     'PyOpenSSL',
     'google-ads>=12.0.0',
-    'google-api-core>=1.25.1,<2.0.0',
+    # Maintainers, please do not require google-api-core>=2.x.x
+    # Until this issue is closed
+    # https://github.com/googleapis/google-cloud-python/issues/10566
+    'google-api-core>=1.25.1,<3.0.0',
     'google-api-python-client>=1.6.0,<2.0.0',
-    'google-auth>=1.0.0,<2.0.0',
+    # Maintainers, please do not require google-auth>=2.x.x
+    # Until this issue is closed
+    # https://github.com/googleapis/google-cloud-python/issues/10566
+    'google-auth>=1.0.0,<3.0.0',
     'google-auth-httplib2>=0.0.1',
     'google-cloud-automl>=2.1.0,<3.0.0',
     'google-cloud-bigquery-datatransfer>=3.0.0,<4.0.0',
@@ -319,7 +325,7 @@ google = [
     'pandas-gbq<0.15.0',
 ]
 grpc = [
-    'google-auth>=1.0.0, <2.0.0dev',
+    'google-auth>=1.0.0, <3.0.0',
     'google-auth-httplib2>=0.0.1',
     'grpcio>=1.15.0',
 ]
