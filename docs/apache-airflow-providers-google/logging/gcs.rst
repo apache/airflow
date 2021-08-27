@@ -17,7 +17,7 @@
 
 .. _write-logs-gcp:
 
-Writing Logs to Google Cloud Storage
+Writing logs to Google Cloud Storage
 ------------------------------------
 
 Remote logging to Google Cloud Storage uses an existing Airflow connection to read or write logs. If you

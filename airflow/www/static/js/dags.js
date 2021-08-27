@@ -167,7 +167,7 @@ function lastDagRunsHandler(error, json) {
 function drawDagStatsForDag(dagId, states) {
   const g = d3.select(`svg#dag-run-${dagId.replace(/\./g, '__dot__')}`)
     .attr('height', diameter + (strokeWidthHover * 2))
-    .attr('width', '110px')
+    .attr('width', '120px')
     .selectAll('g')
     .data(states)
     .enter()

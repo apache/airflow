@@ -23,18 +23,28 @@ from urllib.parse import urlencode
 import markdown
 import sqlalchemy as sqla
 from flask import Markup, Response, request, url_for
+from flask.helpers import flash
 from flask_appbuilder.forms import FieldConverter
 from flask_appbuilder.models.sqla import filters as fab_sqlafilters
 from flask_appbuilder.models.sqla.interface import SQLAInterface
 from pygments import highlight, lexers
 from pygments.formatters import HtmlFormatter
 
+from airflow.models import errors
 from airflow.utils import timezone
 from airflow.utils.code_utils import get_python_source
 from airflow.utils.json import AirflowJsonEncoder
 from airflow.utils.state import State
 from airflow.www.forms import DateTimeWithTimezoneField
 from airflow.www.widgets import AirflowDateTimePickerWidget
+
+
+def check_import_errors(fileloc, session):
+    # Check dag import errors
+    import_errors = session.query(errors.ImportError).filter(errors.ImportError.filename == fileloc).all()
+    if import_errors:
+        for import_error in import_errors:
+            flash("Broken DAG: [{ie.filename}] {ie.stacktrace}".format(ie=import_error), "dag_import_error")
 
 
 def get_sensitive_variables_fields():

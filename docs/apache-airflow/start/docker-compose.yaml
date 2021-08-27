@@ -144,6 +144,20 @@ services:
       airflow-init:
         condition: service_completed_successfully
 
+  airflow-triggerer:
+    <<: *airflow-common
+    command: triggerer
+    healthcheck:
+      test: ["CMD-SHELL", 'airflow jobs check --job-type TriggererJob --hostname "$${HOSTNAME}"']
+      interval: 10s
+      timeout: 10s
+      retries: 5
+    restart: always
+    depends_on:
+      <<: *airflow-common-depends-on
+      airflow-init:
+        condition: service_completed_successfully
+
   airflow-init:
     <<: *airflow-common
     entrypoint: /bin/bash
@@ -155,7 +169,7 @@ services:
         }
         airflow_version=$$(gosu airflow airflow version)
         airflow_version_comparable=$$(ver $${airflow_version})
-        min_airflow_version=2.1.0
+        min_airflow_version=2.2.0
         min_airflow_version_comparable=$$(ver $${min_airflow_version})
         if (( airflow_version_comparable < min_airflow_version_comparable )); then
           echo -e "\033[1;31mERROR!!!: Too old Airflow version $${airflow_version}!\e[0m"

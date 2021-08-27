@@ -1838,7 +1838,7 @@ components:
               type: string
               format: password
               writeOnly: true
-              description: Paasword of the connection.
+              description: Password of the connection.
             extra:
               type: string
               nullable: true
