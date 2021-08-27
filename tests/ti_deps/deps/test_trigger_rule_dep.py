@@ -34,9 +34,9 @@ from tests.test_utils.db import clear_db_runs
 
 
 @pytest.fixture
-def get_task_instance(dag_maker):
+def get_task_instance(session, dag_maker):
     def _get_task_instance(trigger_rule=TriggerRule.ALL_SUCCESS, state=None, upstream_task_ids=None):
-        with dag_maker():
+        with dag_maker(session=session):
             task = BaseOperator(
                 task_id='test_task', trigger_rule=trigger_rule, start_date=datetime(2015, 1, 1)
             )
@@ -342,7 +342,7 @@ class TestTriggerRuleDep:
         assert len(dep_statuses) == 0
         assert ti.state == State.SKIPPED
 
-    def test_none_failed_min_one_success_tr_failure(self, get_task_instance):
+    def test_none_failed_min_one_success_tr_failure(self, session, get_task_instance):
         """
         All success including skip trigger rule failure
         """
