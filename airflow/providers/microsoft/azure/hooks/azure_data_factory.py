@@ -77,6 +77,8 @@ class AzureDataFactoryPipelineRunStatus:
     CANCELING = "Canceling"
     CANCELLED = "Cancelled"
 
+    TERMINAL_STATUSES = {CANCELLED, FAILED, SUCCEEDED}
+
 
 class AzureDataFactoryHook(BaseHook):
     """
