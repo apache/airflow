@@ -15,7 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from typing import Dict, List, Optional, Union
+from typing import Dict, Optional
 
 from airflow.exceptions import AirflowException
 from airflow.providers.microsoft.azure.hooks.azure_data_factory import (
@@ -37,8 +37,6 @@ class AzureDataFactoryPipelineRunStatusSensor(BaseSensorOperator):
     :type resource_group_name: str
     :param factory_name: The data factory name.
     :type factory_name: str
-    :param expected_statuses: The status(es) which are desired for the pipeline run.
-    :type expected_statuses: str or List[str]
     """
 
     template_fields = ("resource_group_name", "factory_name", "run_id")
@@ -50,7 +48,6 @@ class AzureDataFactoryPipelineRunStatusSensor(BaseSensorOperator):
         run_id: str,
         resource_group_name: Optional[str] = None,
         factory_name: Optional[str] = None,
-        expected_statuses: Optional[Union[List[str], str]] = AzureDataFactoryPipelineRunStatus.SUCCEEDED,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -58,16 +55,9 @@ class AzureDataFactoryPipelineRunStatusSensor(BaseSensorOperator):
         self.run_id = run_id
         self.resource_group_name = resource_group_name
         self.factory_name = factory_name
-        # Normalize input of ``expected_status`` to a list.
-        self.expected_statuses = (
-            [expected_statuses] if isinstance(expected_statuses, str) else expected_statuses
-        )
 
     def poke(self, context: Dict) -> bool:
-        self.log.info(
-            f"Checking for pipeline run {self.run_id} to be in one of the following statuses: "
-            f"{', '.join(self.expected_statuses)}.",
-        )
+        self.log.info(f"Checking the status for pipeline run {self.run_id}.")
         self.hook = AzureDataFactoryHook(conn_id=self.conn_id)
         pipeline_run = self.hook.get_pipeline_run(
             run_id=self.run_id,
@@ -77,14 +67,15 @@ class AzureDataFactoryPipelineRunStatusSensor(BaseSensorOperator):
         pipeline_run_status = pipeline_run.status
         self.log.info(f"Current status for pipeline run {self.run_id}: {pipeline_run_status}.")
 
-        if pipeline_run_status in self.expected_statuses:
+        if pipeline_run_status == AzureDataFactoryPipelineRunStatus.SUCCEEDED:
+            self.log.info(f"The pipeline run {self.run_id} has succeeded.")
             return True
         elif pipeline_run_status in {
             AzureDataFactoryPipelineRunStatus.FAILED,
             AzureDataFactoryPipelineRunStatus.CANCELLED,
         }:
             raise AirflowException(
-                f"Pipeline run {self.run_id} is in a terminal status: {pipeline_run_status}"
+                f"Pipeline run {self.run_id} is in a negative terminal status: {pipeline_run_status}"
             )
 
         return False
