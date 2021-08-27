@@ -816,22 +816,20 @@ def clean_db_helper():
 
 
 @pytest.mark.usefixtures("clean_db_helper")
-class TestLocalTaskJobPerformance:
-    @pytest.mark.parametrize("return_codes", [[0], 9 * [None] + [0]])  # type: ignore
-    @mock.patch("airflow.jobs.local_task_job.get_task_runner")
-    def test_number_of_queries_single_loop(self, mock_get_task_runner, return_codes, dag_maker):
-        unique_prefix = str(uuid.uuid4())
-        with dag_maker(dag_id=f'{unique_prefix}_test_number_of_queries'):
-            task = DummyOperator(task_id='test_state_succeeded1')
+@pytest.mark.parametrize("return_codes", [[0], 9 * [None] + [0]])
+@mock.patch("airflow.jobs.local_task_job.get_task_runner")
+def test_number_of_queries_single_loop(mock_get_task_runner, return_codes, dag_maker):
+    mock_get_task_runner.return_value.return_code.side_effects = return_codes
 
-        dr = dag_maker.create_dagrun(run_id=unique_prefix, state=State.NONE)
+    unique_prefix = str(uuid.uuid4())
+    with dag_maker(dag_id=f'{unique_prefix}_test_number_of_queries'):
+        task = DummyOperator(task_id='test_state_succeeded1')
 
-        ti = dr.task_instances[0]
-        ti.refresh_from_task(task)
-        ti.get_dagrun()
+    dr = dag_maker.create_dagrun(run_id=unique_prefix, state=State.NONE)
 
-        mock_get_task_runner.return_value.return_code.side_effects = return_codes
+    ti = dr.task_instances[0]
+    ti.refresh_from_task(task)
 
-        job = LocalTaskJob(task_instance=ti, executor=MockExecutor())
-        with assert_queries_count(22):
-            job.run()
+    job = LocalTaskJob(task_instance=ti, executor=MockExecutor())
+    with assert_queries_count(25):
+        job.run()
