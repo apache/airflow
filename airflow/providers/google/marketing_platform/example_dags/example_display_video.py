@@ -84,7 +84,7 @@ DOWNLOAD_LINE_ITEMS_REQUEST: Dict = {"filterType": ADVERTISER_ID, "format": "CSV
 
 with models.DAG(
     "example_display_video",
-    schedule_interval=None,  # Override to match your needs,
+    schedule_interval='@once',  # Override to match your needs,
     start_date=dates.days_ago(1),
 ) as dag1:
     # [START howto_google_display_video_createquery_report_operator]
@@ -126,7 +126,7 @@ with models.DAG(
 
 with models.DAG(
     "example_display_video_misc",
-    schedule_interval=None,  # Override to match your needs,
+    schedule_interval='@once',  # Override to match your needs,
     start_date=dates.days_ago(1),
 ) as dag2:
     # [START howto_google_display_video_upload_multiple_entity_read_files_to_big_query]
@@ -159,7 +159,7 @@ with models.DAG(
 
 with models.DAG(
     "example_display_video_sdf",
-    schedule_interval=None,  # Override to match your needs,
+    schedule_interval='@once',  # Override to match your needs,
     start_date=dates.days_ago(1),
 ) as dag3:
     # [START howto_google_display_video_create_sdf_download_task_operator]

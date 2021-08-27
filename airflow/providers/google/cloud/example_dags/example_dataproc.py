@@ -151,7 +151,7 @@ WORKFLOW_TEMPLATE = {
 }
 
 
-with models.DAG("example_gcp_dataproc", start_date=days_ago(1), schedule_interval=None) as dag:
+with models.DAG("example_gcp_dataproc", schedule_interval='@once', start_date=days_ago(1)) as dag:
     # [START how_to_cloud_dataproc_create_cluster_operator]
     create_cluster = DataprocCreateClusterOperator(
         task_id="create_cluster",

@@ -57,7 +57,7 @@ DATA_SAMPLE_GCS_OBJECT_NAME = DATA_SAMPLE_GCS_URL_PARTS.path[1:]
 
 with models.DAG(
     "example_bigquery_operations",
-    schedule_interval=None,  # Override to match your needs
+    schedule_interval='@once',  # Override to match your needs
     start_date=days_ago(1),
     tags=["example"],
 ) as dag:
@@ -238,10 +238,10 @@ with models.DAG(
 
 with models.DAG(
     "example_bigquery_operations_location",
-    schedule_interval=None,  # Override to match your needs
+    schedule_interval='@once',  # Override to match your needs
     start_date=days_ago(1),
     tags=["example"],
-):
+) as dag_with_location:
     create_dataset_with_location = BigQueryCreateEmptyDatasetOperator(
         task_id="create_dataset_with_location",
         dataset_id=LOCATION_DATASET_NAME,
