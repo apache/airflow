@@ -288,7 +288,7 @@ def post_set_dag_run_state(dag_id: str, session) -> dict:
     except ValidationError as err:
         raise BadRequest(detail=str(err))
     dag_run_id, state = post_body['run_id'], post_body['state']
-    dag_run: DagRun = session.query(DagRun).filter(DagRun.dag_id == dag_id, DagRun.run_id == dag_run_id).one_or_none()
+    dag_run: Optional[DagRun] = session.query(DagRun).filter(DagRun.dag_id == dag_id, DagRun.run_id == dag_run_id).one_or_none()
     if dag_run is None:
         raise NotFound(
             "DAGRun not found",
