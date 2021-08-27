@@ -18,7 +18,6 @@ import importlib
 import random
 import string
 import subprocess
-import unittest
 from unittest import mock
 
 import pytest
@@ -31,13 +30,18 @@ from airflow.utils.session import provide_session
 from tests.providers.google.cloud.utils.gcp_authenticator import GCP_STACKDRIVER
 from tests.test_utils.config import conf_vars
 from tests.test_utils.db import clear_db_runs
-from tests.test_utils.gcp_system_helpers import provide_gcp_context, resolve_full_gcp_key_path
+from tests.test_utils.gcp_system_helpers import (
+    GoogleSystemTest,
+    provide_gcp_context,
+    resolve_full_gcp_key_path,
+)
 
 
 @pytest.mark.system("google")
 @pytest.mark.credential_file(GCP_STACKDRIVER)
-class TestStackdriverLoggingHandlerSystemTest(unittest.TestCase):
+class TestStackdriverLoggingHandlerSystemTest(GoogleSystemTest):
     def setUp(self) -> None:
+        super().setUp()
         clear_db_runs()
         self.log_name = 'stackdriver-tests-'.join(random.sample(string.ascii_lowercase, 16))
 
@@ -47,6 +51,7 @@ class TestStackdriverLoggingHandlerSystemTest(unittest.TestCase):
         importlib.reload(airflow_local_settings)
         settings.configure_logging()
         clear_db_runs()
+        super().tearDown()
 
     @provide_session
     def test_should_support_key_auth(self, session):

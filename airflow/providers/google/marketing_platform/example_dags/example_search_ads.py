@@ -46,7 +46,7 @@ REPORT = {
 
 with models.DAG(
     "example_search_ads",
-    schedule_interval=None,  # Override to match your needs,
+    schedule_interval='@once',  # Override to match your needs,
     start_date=dates.days_ago(1),
 ) as dag:
     # [START howto_search_ads_generate_report_operator]

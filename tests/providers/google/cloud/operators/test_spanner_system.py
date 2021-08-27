@@ -29,6 +29,9 @@ from tests.test_utils.gcp_system_helpers import CLOUD_DAG_FOLDER, GoogleSystemTe
 @pytest.mark.backend("mysql", "postgres")
 @pytest.mark.credential_file(GCP_SPANNER_KEY)
 class CloudSpannerExampleDagsTest(GoogleSystemTest):
+    def setUp(self):
+        super().setUp()
+
     @provide_gcp_context(GCP_SPANNER_KEY)
     def tearDown(self):
         self.execute_with_ctx(
