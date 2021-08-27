@@ -57,15 +57,15 @@ class AzureDataFactoryRunPipelineOperator(BaseOperator):
     :param parameters: Parameters of the pipeline run. These parameters will be used only if the
         ``reference_pipeline_run_id`` is not specified.
     :type start_from_failure: Dict[str, Any]
-    :param do_asynchronous_wait: Flag to exit after creating a pipeline run.  Typically this flag would be
-        enabled to wait for a long-running pipeline execution using the
-        ``AzureDataFactoryPipelineRunStatusSensor`` rather than this operator.
-    :type do_asynchronous_wait: bool
-    :param timeout: Time in seconds to wait for a pipeline to reach a terminal status for
-        non-asynchronous waits. Use only if ``do_asynchronous_wait`` is False.
+    :param wait_for_completion: Flag to wait on a pipeline run's completion.  By default, this feature is
+        enabled but could be disabled to wait for a long-running pipeline execution using the
+        ``AzureDataFactoryPipelineRunSensor`` rather than this operator.
+    :type wait_for_completion: bool
+    :param timeout: Time in seconds to wait for a pipeline to reach a terminal status for non-asynchronous
+        waits. Used only if ``wait_for_completion`` is True.
     :type timeout: int
-    :param poke_interval: Time in seconds to check on a pipeline run's status for non-asynchronous waits. Use
-        only if ``do_asynchronous_wait`` is False.
+    :param poke_interval: Time in seconds to check on a pipeline run's status for non-asynchronous waits. Used
+        only if ``wait_for_completion`` is True.
     :type poke_interval: int
     """
 
@@ -90,8 +90,8 @@ class AzureDataFactoryRunPipelineOperator(BaseOperator):
         start_activity_name: Optional[str] = None,
         start_from_failure: Optional[bool] = None,
         parameters: Optional[Dict[str, Any]] = None,
-        do_asynchronous_wait: Optional[bool] = False,
-        timeout: Optional[int] = 60 * 60 * 5,
+        wait_for_completion: Optional[bool] = True,
+        timeout: Optional[int] = 60 * 60 * 24 * 7,
         poke_interval: Optional[int] = 30,
         **kwargs,
     ) -> None:
@@ -105,7 +105,7 @@ class AzureDataFactoryRunPipelineOperator(BaseOperator):
         self.start_activity_name = start_activity_name
         self.start_from_failure = start_from_failure
         self.parameters = parameters
-        self.do_asynchronous_wait = do_asynchronous_wait
+        self.wait_for_completion = wait_for_completion
         self.timeout = timeout
         self.poke_interval = poke_interval
 
@@ -128,7 +128,7 @@ class AzureDataFactoryRunPipelineOperator(BaseOperator):
         # an async wait.
         context["ti"].xcom_push(key="run_id", value=self.run_id)
 
-        if not self.do_asynchronous_wait:
+        if self.wait_for_completion:
             self.log.info(f"Waiting for run ID {self.run_id} of pipeline '{self.pipeline_name}' to complete.")
             start_time = time.monotonic()
             pipeline_run_status = None
