@@ -70,15 +70,20 @@ class SparkKubernetesOperator(BaseOperator):
         
         try:
             with open(self.application_file, encoding='utf-8') as app_file:
-                content = app_file.read()
+                response = hook.create_custom_object(
+                    group=self.api_group,
+                    version=self.api_version,
+                    plural="sparkapplications",
+                    body=app_file.read(),
+                    namespace=self.namespace
+                )
+                return response
         except FileNotFoundError:
-            content = self.application_file
-        
-        response = hook.create_custom_object(
-            group=self.api_group,
-            version=self.api_version,
-            plural="sparkapplications",
-            body=content,
-            namespace=self.namespace,
-        )
-        return response
+            response = hook.create_custom_object(
+                    group=self.api_group,
+                    version=self.api_version,
+                    plural="sparkapplications",
+                    body=self.application_file,
+                    namespace=self.namespace
+                )
+                return response
