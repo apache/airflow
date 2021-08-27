@@ -553,6 +553,7 @@ class TestBigQueryOperator:
         ti = create_task_instance_of_operator(
             BigQueryExecuteQueryOperator,
             dag_id=TEST_DAG_ID,
+            execution_date=DEFAULT_DATE,
             task_id=TASK_ID,
             sql='SELECT * FROM test_table',
         )
@@ -577,13 +578,8 @@ class TestBigQueryOperator:
 
         ti.xcom_push('job_id', 12345)
 
-        # check for positive case
         url = simple_task.get_extra_links(DEFAULT_DATE, BigQueryConsoleLink.name)
         assert url == 'https://console.cloud.google.com/bigquery?j=12345'
-
-        # check for negative case
-        url2 = simple_task.get_extra_links(datetime(2017, 1, 2), BigQueryConsoleLink.name)
-        assert url2 == ''
 
     @pytest.mark.need_serialized_dag
     def test_bigquery_operator_extra_serialized_field_when_multiple_queries(
@@ -594,6 +590,7 @@ class TestBigQueryOperator:
         ti = create_task_instance_of_operator(
             BigQueryExecuteQueryOperator,
             dag_id=TEST_DAG_ID,
+            execution_date=DEFAULT_DATE,
             task_id=TASK_ID,
             sql=['SELECT * FROM test_table', 'SELECT * FROM test_table2'],
         )
@@ -650,6 +647,7 @@ class TestBigQueryOperator:
         ti = create_task_instance_of_operator(
             BigQueryExecuteQueryOperator,
             dag_id=TEST_DAG_ID,
+            execution_date=DEFAULT_DATE,
             task_id=TASK_ID,
             sql='SELECT * FROM test_table',
         )
@@ -662,8 +660,6 @@ class TestBigQueryOperator:
             DEFAULT_DATE, BigQueryConsoleLink.name
         )
 
-        assert '' == bigquery_task.get_extra_links(datetime(2019, 1, 1), BigQueryConsoleLink.name)
-
     @mock.patch('airflow.providers.google.cloud.operators.bigquery.BigQueryHook')
     def test_bigquery_operator_extra_link_when_multiple_query(
         self, mock_hook, create_task_instance_of_operator
@@ -671,6 +667,7 @@ class TestBigQueryOperator:
         ti = create_task_instance_of_operator(
             BigQueryExecuteQueryOperator,
             dag_id=TEST_DAG_ID,
+            execution_date=DEFAULT_DATE,
             task_id=TASK_ID,
             sql=['SELECT * FROM test_table', 'SELECT * FROM test_table2'],
         )
