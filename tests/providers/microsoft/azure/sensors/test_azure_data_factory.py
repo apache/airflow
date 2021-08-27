@@ -16,16 +16,14 @@
 # specific language governing permissions and limitations
 # under the License.
 
-import json
 import unittest
 from datetime import datetime
-from unittest import mock
+from unittest.mock import MagicMock, patch
 
 import pytest
 from parameterized import parameterized
 
 from airflow.exceptions import AirflowException
-from airflow.models.connection import Connection
 from airflow.models.dag import DAG
 from airflow.providers.microsoft.azure.hooks.azure_data_factory import (
     AzureDataFactoryHook,
@@ -34,7 +32,6 @@ from airflow.providers.microsoft.azure.hooks.azure_data_factory import (
 from airflow.providers.microsoft.azure.sensors.azure_data_factory import (
     AzureDataFactoryPipelineRunStatusSensor,
 )
-from airflow.utils.session import create_session
 
 
 class TestPipelineRunStatusSensor(unittest.TestCase):
@@ -49,8 +46,11 @@ class TestPipelineRunStatusSensor(unittest.TestCase):
             "poke_interval": 15,
         }
 
-    def create_pipeline_run(self, status: str):
-        run = mock.Mock()
+    @staticmethod
+    def create_pipeline_run(status: str):
+        """Helper function to create a mock pipeline run with a given execution status."""
+
+        run = MagicMock()
         run.status = status
         return run
 
@@ -76,14 +76,17 @@ class TestPipelineRunStatusSensor(unittest.TestCase):
         ]
     )
     def test_poke(self, pipeline_run_status, expected_status):
-        mock_pipeline_run = self.create_pipeline_run(pipeline_run_status)
+        mock_pipeline_run = TestPipelineRunStatusSensor.create_pipeline_run(pipeline_run_status)
 
-        with mock.patch.object(AzureDataFactoryHook, "get_pipeline_run", return_value=mock_pipeline_run):
+        with patch.object(
+            AzureDataFactoryHook, "get_pipeline_run", return_value=mock_pipeline_run
+        ) as mock_get_pipeline_run:
             sensor = AzureDataFactoryPipelineRunStatusSensor(
                 task_id="pipeline_run_sensor_poke", dag=self.dag, **self.config
             )
 
             if expected_status == "AirflowException":
+                # The sensor should fail if the pipeline run fails or is canceled.
                 with pytest.raises(
                     AirflowException,
                     match=f"Pipeline run {self.config['run_id']} is in a negative terminal status: "
@@ -92,3 +95,9 @@ class TestPipelineRunStatusSensor(unittest.TestCase):
                     sensor.poke({})
             else:
                 assert sensor.poke({}) == expected_status
+
+            mock_get_pipeline_run.assert_called_once_with(
+                run_id=self.config["run_id"],
+                factory_name=self.config["factory_name"],
+                resource_group_name=self.config["resource_group_name"],
+            )

@@ -123,9 +123,9 @@ class AzureDataFactoryRunPipelineOperator(BaseOperator):
             parameters=self.parameters,
         )
         self.run_id = vars(response)["run_id"]
-        # Push the ``run_id`` value to XCom regardless of what happens during execution. This allows users to
-        # retrieve the ``run_id`` as an output of this operator for downstream tasks especially if performing
-        # an async wait.
+        # Push the ``run_id`` value to XCom regardless of what happens during execution. This allows users
+        # to retrieve the ``run_id`` as an output of this operator for downstream tasks especially if
+        # performing an async wait.
         context["ti"].xcom_push(key="run_id", value=self.run_id)
 
         if self.wait_for_completion:
