@@ -17,6 +17,7 @@
 from flask import current_app, g, request
 from marshmallow import ValidationError
 from sqlalchemy import or_
+from typing import Optional
 
 from airflow._vendor.connexion import NoContent
 from airflow.api_connexion import security
