@@ -18,12 +18,13 @@
 
 import json
 import unittest
-# from azure.mgmt.datafactory import DataFactoryManagementClient
 from datetime import datetime
-from parameterized import parameterized
-from pytest import fixture
 from unittest import mock
 
+import pytest
+from parameterized import parameterized
+
+from airflow.exceptions import AirflowException
 from airflow.models.connection import Connection
 from airflow.models.dag import DAG
 from airflow.providers.microsoft.azure.hooks.azure_data_factory import (
@@ -35,32 +36,10 @@ from airflow.providers.microsoft.azure.sensors.azure_data_factory import (
 )
 from airflow.utils.session import create_session
 
-@fixture
-def data_factory_client():
-    client = AzureDataFactoryHook(conn_id="azure_data_factory_test")
-    client._conn = mock.MagicMock(
-        spec=[
-            "factories",
-            "linked_services",
-            "datasets",
-            "pipelines",
-            "pipeline_runs",
-            "triggers",
-            "trigger_runs",
-        ]
-    )
-
-    return client
 
 class TestPipelineRunStatusSensor(unittest.TestCase):
     def setUp(self):
         self.dag = DAG("test", start_date=datetime(2021, 8, 16), schedule_interval=None, catchup=False)
-        self.config = {
-            "conn_id": "azure_data_factory_test",
-            "run_id": "run_id",
-            "timeout": 100,
-            "poke_interval": 15,
-        }
         self.conn = Connection(
             conn_id="azure_data_factory_test",
             conn_type="azure_data_factory",
@@ -70,10 +49,10 @@ class TestPipelineRunStatusSensor(unittest.TestCase):
                 {
                     "extra__azure_data_factory__tenantId": "tenantId",
                     "extra__azure_data_factory__subscriptionId": "subscriptionId",
-                    "extra__azure_data_factory__resource_group_name": "default-resource-group-name",
-                    "extra__azure_data_factory__factory_name": "default-factory-name",
+                    "extra__azure_data_factory__resource_group_name": "resource-group-name",
+                    "extra__azure_data_factory__factory_name": "factory-name",
                 },
-            )
+            ),
         )
 
         with create_session() as session:
@@ -81,9 +60,19 @@ class TestPipelineRunStatusSensor(unittest.TestCase):
             session.add(self.conn)
             session.commit()
 
-    @fixture(autouse=True)
-    def hook(self, data_factory_client):
-        self.hook = data_factory_client
+        self.config = {
+            "conn_id": "azure_data_factory_test",
+            "run_id": "run_id",
+            "resource_group_name": self.conn.extra_dejson["extra__azure_data_factory__resource_group_name"],
+            "factory_name": self.conn.extra_dejson["extra__azure_data_factory__resource_group_name"],
+            "timeout": 100,
+            "poke_interval": 15,
+        }
+
+    def create_pipeline_run(self, state: str):
+        run = mock.Mock()
+        run.status = state
+        return run
 
     def test_init(self):
         sensor = AzureDataFactoryPipelineRunStatusSensor(
@@ -91,51 +80,35 @@ class TestPipelineRunStatusSensor(unittest.TestCase):
         )
         assert sensor.conn_id == self.config["conn_id"]
         assert sensor.run_id == self.config["run_id"]
-        assert sensor.resource_group_name == None
-        assert sensor.factory_name == None
-        assert sensor.expected_statuses == {AzureDataFactoryPipelineRunStatus.SUCCEEDED}
+        assert sensor.resource_group_name == self.config["resource_group_name"]
+        assert sensor.factory_name == self.config["factory_name"]
         assert sensor.timeout == self.config["timeout"]
         assert sensor.poke_interval == self.config["poke_interval"]
 
-
-    @mock.patch(
-        "airflow.providers.microsoft.azure.hooks.azure_data_factory.AzureDataFactoryHook",
-        autospec=True,
+    @parameterized.expand(
+        [
+            (AzureDataFactoryPipelineRunStatus.SUCCEEDED, True),
+            (AzureDataFactoryPipelineRunStatus.FAILED, "AirflowException"),
+            (AzureDataFactoryPipelineRunStatus.CANCELLED, "AirflowException"),
+            (AzureDataFactoryPipelineRunStatus.CANCELING, False),
+            (AzureDataFactoryPipelineRunStatus.QUEUED, False),
+            (AzureDataFactoryPipelineRunStatus.IN_PROGRESS, False),
+        ]
     )
-    @mock.patch.object(AzureDataFactoryHook, 'get_pipeline_run')
-    def test_poke(self, mock_hook, mock_get_pipeline_run):
-        mock_run = mock_get_pipeline_run.return_value
+    def test_poke(self, pipeline_run_status, expected_status):
+        mock_pipeline_run = self.create_pipeline_run(pipeline_run_status)
 
-        sensor = AzureDataFactoryPipelineRunStatusSensor(
-            task_id="pipeline_run_sensor_poke", dag=self.dag, **self.config
-        )
-        result = sensor.poke({})
+        with mock.patch.object(AzureDataFactoryHook, "get_pipeline_run", return_value=mock_pipeline_run):
+            sensor = AzureDataFactoryPipelineRunStatusSensor(
+                task_id="pipeline_run_sensor_poke", dag=self.dag, **self.config
+            )
 
-        mock_run.get_pipeline_run.assert_called_once_with(
-            run_id="run_id",
-            factory_name="default_factory_name",
-            resource_group_name="default_resource_group_name",
-        )
-
-        assert result == False
-
-    # @mock.patch(
-    #     "airflow.providers.microsoft.azure.hooks.azure_data_factory.AzureDataFactoryHook",
-    #     autospec=True,
-    # )
-    # def test_poke_(self, mock_hook):
-    #     mock_run = mock_hook.get_pipeline_run.return_value
-    #     mock_run.return_value = DataFactoryManagementClient
-    #
-    #     sensor = AzureDataFactoryPipelineRunStatusSensor(
-    #         task_id="pipeline_run_sensor_poke", dag=self.dag, **self.config
-    #     )
-    #     result = sensor.poke({})
-    #
-    #     mock_run.get_pipeline_run.assert_called_once_with(
-    #         run_id="run_id",
-    #         factory_name="default_factory_name",
-    #         resource_group_name="default_resource_group_name",
-    #     )
-    #
-    #     assert result == False
+            if expected_status == "AirflowException":
+                with pytest.raises(
+                    AirflowException,
+                    match=f"Pipeline run {self.config['run_id']} is in a negative terminal status: "
+                    f"{pipeline_run_status}",
+                ):
+                    sensor.poke({})
+            else:
+                assert sensor.poke({}) == expected_status
