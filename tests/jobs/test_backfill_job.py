@@ -1445,7 +1445,7 @@ class TestBackfillJob:
         for state, ti in zip(states, dr2_tis):
             assert state == ti.state
 
-    def test_reset_orphaned_tasks_specified_dagrun(self, dag_maker):
+    def test_reset_orphaned_tasks_specified_dagrun(self, session, dag_maker):
         """Try to reset when we specify a dagrun and ensure nothing else is."""
         dag_id = 'test_reset_orphaned_tasks_specified_dagrun'
         task_id = dag_id + '_task'
@@ -1453,14 +1453,14 @@ class TestBackfillJob:
             dag_id=dag_id,
             start_date=DEFAULT_DATE,
             schedule_interval='@daily',
+            session=session,
         ) as dag:
             DummyOperator(task_id=task_id, dag=dag)
 
         job = BackfillJob(dag=dag)
-        session = settings.Session()
         # make two dagruns, only reset for one
         dr1 = dag_maker.create_dagrun(state=State.SUCCESS)
-        dr2 = dag.create_dagrun(run_id='test2', state=State.RUNNING)
+        dr2 = dag.create_dagrun(run_id='test2', state=State.RUNNING, session=session)
         ti1 = dr1.get_task_instances(session=session)[0]
         ti2 = dr2.get_task_instances(session=session)[0]
         ti1.state = State.SCHEDULED
@@ -1470,7 +1470,7 @@ class TestBackfillJob:
         session.merge(ti2)
         session.merge(dr1)
         session.merge(dr2)
-        session.commit()
+        session.flush()
 
         num_reset_tis = job.reset_state_for_orphaned_tasks(filter_by_dag_run=dr2, session=session)
         assert 1 == num_reset_tis

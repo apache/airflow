@@ -860,6 +860,7 @@ class BackfillJob(BaseJob):
         # also consider running as the state might not have changed in the db yet
         running_tis = self.executor.running
 
+        # Can't use an update here since it doesn't support joins.
         resettable_states = [State.SCHEDULED, State.QUEUED]
         if filter_by_dag_run is None:
             resettable_tis = (
@@ -874,12 +875,8 @@ class BackfillJob(BaseJob):
             ).all()
         else:
             resettable_tis = filter_by_dag_run.get_task_instances(state=resettable_states, session=session)
-        tis_to_reset = []
-        # Can't use an update here since it doesn't support joins
-        for ti in resettable_tis:
-            if ti.key not in queued_tis and ti.key not in running_tis:
-                tis_to_reset.append(ti)
 
+        tis_to_reset = [ti for ti in resettable_tis if ti.key not in queued_tis and ti.key not in running_tis]
         if not tis_to_reset:
             return 0
 
@@ -904,7 +901,7 @@ class BackfillJob(BaseJob):
         reset_tis = helpers.reduce_in_chunks(query, tis_to_reset, [], self.max_tis_per_query)
 
         task_instance_str = '\n\t'.join(repr(x) for x in reset_tis)
-        session.commit()
+        session.flush()
 
         self.log.info("Reset the following %s TaskInstances:\n\t%s", len(reset_tis), task_instance_str)
         return len(reset_tis)
