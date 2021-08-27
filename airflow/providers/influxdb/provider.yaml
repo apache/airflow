@@ -34,5 +34,6 @@ hooks:
     python-modules:
       - airflow.providers.influxdb.hooks.influxdb
 
-hook-class-names:
-  - airflow.providers.influxdb.hooks.influxdb.InfluxDBHook
+connection-types:
+  - hook-class-name: airflow.providers.influxdb.hooks.influxdb.InfluxDBHook
+    connection-type: influxdb
