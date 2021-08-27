@@ -49,9 +49,9 @@ class TestPipelineRunStatusSensor(unittest.TestCase):
             "poke_interval": 15,
         }
 
-    def create_pipeline_run(self, state: str):
+    def create_pipeline_run(self, status: str):
         run = mock.Mock()
-        run.status = state
+        run.status = status
         return run
 
     def test_init(self):
