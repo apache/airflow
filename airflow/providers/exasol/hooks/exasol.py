@@ -63,7 +63,9 @@ class ExasolHook(DbApiHook):
         conn = pyexasol.connect(**conn_args)
         return conn
 
-    def get_pandas_df(self, sql: Union[str, list], parameters: Optional[dict] = None, **kwargs) -> pd.DataFrame:
+    def get_pandas_df(
+        self, sql: Union[str, list], parameters: Optional[dict] = None, **kwargs
+    ) -> pd.DataFrame:
         """
         Executes the sql and returns a pandas dataframe
 
