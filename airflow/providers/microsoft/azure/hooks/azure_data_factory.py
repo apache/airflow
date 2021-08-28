@@ -85,7 +85,7 @@ class AzureDataFactoryHook(BaseHook):
     A hook to interact with Azure Data Factory.
 
     :param conn_id: The :ref:`Azure Data Factory connection id<howto/connection:adf>`.
-    :type: str
+    :type conn_id: str
     """
 
     conn_type: str = 'azure_data_factory'
