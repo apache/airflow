@@ -29,10 +29,10 @@
 /airflow/api_connexion/ @mik-laj @kaxil @ephraimbuddy
 
 # UI
-/airflow/ui/ @ryanahamilton @ashb
+/airflow/ui/ @ryanahamilton @ashb @bbovenzi
 
 # WWW
-/airflow/www/ @ryanahamilton @ashb
+/airflow/www/ @ryanahamilton @ashb @bbovenzi
 
 # Security/Permissions
 /airflow/security/permissions.py @jhtimmins

@@ -79,6 +79,12 @@ integrations:
       - /docs/apache-airflow-providers-amazon/operators/emr.rst
     logo: /integration-logos/aws/Amazon-EMR_light-bg@4x.png
     tags: [aws]
+  - integration-name: Amazon EMR on EKS
+    external-doc-url: https://docs.aws.amazon.com/emr/latest/EMR-on-EKS-DevelopmentGuide/emr-eks.html
+    how-to-guide:
+      - /docs/apache-airflow-providers-amazon/operators/emr_eks.rst
+    logo: /integration-logos/aws/Amazon-EMR_light-bg@4x.png
+    tags: [aws]
   - integration-name: Amazon Glacier
     external-doc-url: https://aws.amazon.com/glacier/
     logo: /integration-logos/aws/Amazon-S3-Glacier_light-bg@4x.png
@@ -188,6 +194,9 @@ operators:
       - airflow.providers.amazon.aws.operators.emr_create_job_flow
       - airflow.providers.amazon.aws.operators.emr_modify_cluster
       - airflow.providers.amazon.aws.operators.emr_terminate_job_flow
+  - integration-name: Amazon EMR on EKS
+    python-modules:
+      - airflow.providers.amazon.aws.operators.emr_containers
   - integration-name: Amazon Glacier
     python-modules:
       - airflow.providers.amazon.aws.operators.glacier
@@ -245,6 +254,9 @@ sensors:
       - airflow.providers.amazon.aws.sensors.emr_base
       - airflow.providers.amazon.aws.sensors.emr_job_flow
       - airflow.providers.amazon.aws.sensors.emr_step
+  - integration-name: Amazon EMR on EKS
+    python-modules:
+      - airflow.providers.amazon.aws.sensors.emr_containers
   - integration-name: Amazon Glacier
     python-modules:
       - airflow.providers.amazon.aws.sensors.glacier
@@ -311,6 +323,9 @@ hooks:
   - integration-name: Amazon EMR
     python-modules:
       - airflow.providers.amazon.aws.hooks.emr
+  - integration-name: Amazon EMR on EKS
+    python-modules:
+      - airflow.providers.amazon.aws.hooks.emr_containers
   - integration-name: Amazon Glacier
     python-modules:
       - airflow.providers.amazon.aws.hooks.glacier
