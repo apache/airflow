@@ -32,7 +32,8 @@ function build_prod_images_on_ci() {
     build_images::prepare_prod_build
 
     if [[ ${GITHUB_REGISTRY_WAIT_FOR_IMAGE} == "true" ]]; then
-        build_images::wait_for_image_tag "${AIRFLOW_PROD_IMAGE}" ":${GITHUB_REGISTRY_PULL_IMAGE_TAG}"
+        local image_name_with_tag="${AIRFLOW_PROD_IMAGE}:${GITHUB_REGISTRY_PULL_IMAGE_TAG}"
+        push_pull_remove_images::wait_for_image "${image_name_with_tag}"
     else
         build_images::build_prod_images_from_locally_built_airflow_packages
     fi
