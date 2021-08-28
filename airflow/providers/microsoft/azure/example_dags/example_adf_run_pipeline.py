@@ -34,23 +34,25 @@ with DAG(
         "retries": 1,
         "retry_delay": timedelta(minutes=3),
         "conn_id": "azure_data_factory",
-        "factory_name": "my-data-factory", # This can also be specified in the ADF connection.
-        "resource_group_name": "my-resource-group", # This can also be specified in the ADF connection.
+        "factory_name": "my-data-factory",  # This can also be specified in the ADF connection.
+        "resource_group_name": "my-resource-group",  # This can also be specified in the ADF connection.
     },
     default_view="graph",
 ) as dag:
     begin = DummyOperator(task_id="begin")
     end = DummyOperator(task_id="end")
 
+    # [START howto_operator_adf_run_pipeline]
     run_pipeline1 = AzureDataFactoryRunPipelineOperator(
         task_id="run_pipeline1",
         pipeline_name="pipeline1",
         parameters={"myParam": "value"},
     )
+    # [END howto_operator_adf_run_pipeline]
 
     run_pipeline2 = AzureDataFactoryRunPipelineOperator(
         task_id="run_pipeline2",
-        pipeline_name="extractDailyExchangeRates",
+        pipeline_name="run_pipeline2",
         wait_for_completion=False,
     )
 

@@ -30,6 +30,10 @@ class AzureDataFactoryRunPipelineOperator(BaseOperator):
     """
     Executes a data factory pipeline.
 
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:AzureDataFactoryRunPipelineOperator`
+
     :param conn_id: The connection identifier for connecting to Azure Data Factory.
     :type conn_id: str
     :param pipeline_name: The name of the pipeline to execute.

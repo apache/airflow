@@ -19,7 +19,7 @@
 
 .. _howto/connection:adf:
 
-Microsoft Azure Data Factory Connection
+Microsoft Azure Data Factory
 =======================================
 
 The Microsoft Azure Data Factory connection type enables the Azure Data Factory Integrations.
@@ -49,13 +49,13 @@ Secret
     Specify the ``secret`` used for the initial connection.
     This is needed for *token credentials* authentication mechanism.
 
-Tenant ID (optional)
+Tenant ID
     Specify the ``tenantId`` used for the initial connection.
     This is needed for *token credentials* authentication mechanism.
 
-Subscription ID (optional)
+Subscription ID
     Specify the ``subscriptionId`` used for the initial connection.
-    This is meeded for *token credentials* authentication mechanism.
+    This is needed for *token credentials* authentication mechanism.
 
 Factory Name (optional)
     Specify the Azure Data Factory to interface with.
