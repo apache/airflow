@@ -39,7 +39,7 @@ You can use the operator for the following tasks:
         local_filepath="/tmp/transfer_file/put_file_file1.txt",
         remote_filepath="/tmp/transfer_file/remote/put_file_file1.txt",
         operation=SFTPOperation.PUT,
-        create_intermediate_dirs=True
+        create_intermediate_dirs=True,
     )
 
 2. Send multiple files to the specified directory on the remote server
@@ -49,10 +49,13 @@ You can use the operator for the following tasks:
     put_files = SFTPOperator(
         task_id="put_files",
         ssh_conn_id="ssh_default",
-        local_filepath=["/tmp/transfer_file/put_files_file1.txt", "/tmp/transfer_file/put_files_file2.txt"],
+        local_filepath=[
+            "/tmp/transfer_file/put_files_file1.txt",
+            "/tmp/transfer_file/put_files_file2.txt",
+        ],
         remote_filepath="/tmp/transfer_file/remote/",
         operation=SFTPOperation.PUT,
-        create_intermediate_dirs=True
+        create_intermediate_dirs=True,
     )
 
 3. Send all files from local directory to remote server
@@ -65,7 +68,7 @@ You can use the operator for the following tasks:
         local_folder="/tmp/dir_for_remote_transfer/",
         remote_folder="/tmp/dir_for_remote_transfer/remote/",
         operation=SFTPOperation.PUT,
-        create_intermediate_dirs=True
+        create_intermediate_dirs=True,
     )
 
 4. Send all files from the local directory that match the specified pattern to the remote server
@@ -79,7 +82,7 @@ You can use the operator for the following tasks:
       remote_folder="/tmp/dir_for_remote_transfer/remote/txt/",
       regexp_mask=".*.txt",
       operation=SFTPOperation.PUT,
-      create_intermediate_dirs=True
+      create_intermediate_dirs=True,
   )
 
 The operator also supports transfer files from a remote server to a local,

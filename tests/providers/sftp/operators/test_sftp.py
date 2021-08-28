@@ -337,8 +337,10 @@ class TestSFTPOperator(unittest.TestCase):
         put_files = SFTPOperator(
             task_id="put_files",
             ssh_hook=self.hook,
-            local_filepath=[f"{self.test_local_dir}/{self.test_txt_file}",
-                            f"{self.test_local_dir}/{self.test_csv_file}"],
+            local_filepath=[
+                f"{self.test_local_dir}/{self.test_txt_file}",
+                f"{self.test_local_dir}/{self.test_csv_file}",
+            ],
             remote_filepath=self.test_remote_dir,
             operation=SFTPOperation.PUT,
             create_intermediate_dirs=True,
@@ -357,10 +359,7 @@ class TestSFTPOperator(unittest.TestCase):
         )
         ti2 = TaskInstance(task=show_files, execution_date=timezone.utcnow())
         ti2.run()
-        assert (
-            ti2.xcom_pull(task_ids=show_files.task_id, key='return_value').strip()
-            == test_output.encode('utf8')
-        )
+        assert ti2.xcom_pull(task_ids=show_files.task_id, key='return_value').strip() == test_output.encode('utf8')
 
     @conf_vars({('core', 'enable_xcom_pickling'): 'True'})
     def test_transfer_regexp_files(self):
@@ -388,16 +387,13 @@ class TestSFTPOperator(unittest.TestCase):
         show_files = SSHOperator(
             task_id="show_files",
             ssh_hook=self.hook,
-            command=f"find {self.test_remote_dir} -maxdepth 1 -type f -not -path '*/\.*' | wc -l",
+            command=fr"find {self.test_remote_dir} -maxdepth 1 -type f -not -path '*/\.*' | wc -l",
             do_xcom_push=True,
             dag=self.dag,
         )
         ti2 = TaskInstance(task=show_files, execution_date=timezone.utcnow())
         ti2.run()
-        assert (
-            ti2.xcom_pull(task_ids=show_files.task_id, key='return_value').strip()
-            == b"1"
-        )
+        assert ti2.xcom_pull(task_ids=show_files.task_id, key='return_value').strip() == b"1"
 
     @conf_vars({('core', 'enable_xcom_pickling'): 'True'})
     def test_transfer_many_files_to_local(self):
@@ -407,8 +403,8 @@ class TestSFTPOperator(unittest.TestCase):
             task_id="test_create_file",
             ssh_hook=self.hook,
             command=f"mkdir -p {self.test_remote_dir} |"
-                    f"echo '{test_txt_file_content}' >> {self.test_remote_dir}/{self.test_txt_file} | "
-                    f"echo '{test_csv_file_content}' >> {self.test_remote_dir}/{self.test_csv_file}",
+            f"echo '{test_txt_file_content}' >> {self.test_remote_dir}/{self.test_txt_file} | "
+            f"echo '{test_csv_file_content}' >> {self.test_remote_dir}/{self.test_csv_file}",
             do_xcom_push=False,
             dag=self.dag,
         )
@@ -433,16 +429,13 @@ class TestSFTPOperator(unittest.TestCase):
         show_files = SSHOperator(
             task_id="show_files",
             ssh_hook=self.hook,
-            command=f"find {self.test_local_dir} -maxdepth 1 -type f -not -path '*/\.*' | wc -l",
+            command=fr"find {self.test_local_dir} -maxdepth 1 -type f -not -path '*/\.*' | wc -l",
             do_xcom_push=True,
             dag=self.dag,
         )
         ti2 = TaskInstance(task=show_files, execution_date=timezone.utcnow())
         ti2.run()
-        assert (
-            ti2.xcom_pull(task_ids=show_files.task_id, key='return_value').strip()
-            == b"2"
-        )
+        assert ti2.xcom_pull(task_ids=show_files.task_id, key='return_value').strip() == b"2"
 
     @conf_vars({('core', 'enable_xcom_pickling'): 'True'})
     def test_transfer_all_files_to_local(self):
@@ -453,8 +446,8 @@ class TestSFTPOperator(unittest.TestCase):
             task_id="test_create_file",
             ssh_hook=self.hook,
             command=f"mkdir -p {self.test_remote_dir} |"
-                    f"echo '{test_txt_file_content}' >> {self.test_remote_dir}/{self.test_txt_file} | "
-                    f"echo '{test_csv_file_content}' >> {self.test_remote_dir}/{self.test_csv_file}",
+            f"echo '{test_txt_file_content}' >> {self.test_remote_dir}/{self.test_txt_file} | "
+            f"echo '{test_csv_file_content}' >> {self.test_remote_dir}/{self.test_csv_file}",
             do_xcom_push=False,
             dag=self.dag,
         )
@@ -478,16 +471,13 @@ class TestSFTPOperator(unittest.TestCase):
         show_files = SSHOperator(
             task_id="show_files",
             ssh_hook=self.hook,
-            command=f"find {self.test_local_dir} -maxdepth 1 -type f -not -path '*/\.*' | wc -l",
+            command=fr"find {self.test_local_dir} -maxdepth 1 -type f -not -path '*/\.*' | wc -l",
             do_xcom_push=True,
             dag=self.dag,
         )
         ti2 = TaskInstance(task=show_files, execution_date=timezone.utcnow())
         ti2.run()
-        assert (
-            ti2.xcom_pull(task_ids=show_files.task_id, key='return_value').strip()
-            == b"2"
-        )
+        assert ti2.xcom_pull(task_ids=show_files.task_id, key='return_value').strip() == b"2"
 
     @conf_vars({('core', 'enable_xcom_pickling'): 'True'})
     def test_transfer_all_files_to_remote(self):
