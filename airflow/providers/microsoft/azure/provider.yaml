@@ -69,6 +69,8 @@ integrations:
     logo: /integration-logos/azure/Microsoft-Azure-Fileshare.png
     tags: [azure]
   - integration-name: Microsoft Azure Data Factory
+    how-to-guide:
+      - /docs/apache-airflow-providers-microsoft-azure/operators/adf_run_pipeline.rst
     external-doc-url: https://azure.microsoft.com/en-us/services/data-factory/
     logo: /integration-logos/azure/Azure Data Factory.svg
     tags: [azure]
