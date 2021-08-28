@@ -28,6 +28,32 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+2.0.3
+.....
+
+Latest change: 2021-08-23
+
+================================================================================================  ===========  ============================================================================
+Commit                                                                                            Committed    Subject
+================================================================================================  ===========  ============================================================================
+`be75dcd39 <https://github.com/apache/airflow/commit/be75dcd39cd10264048c86e74110365bd5daf8b7>`_  2021-08-23   ``Update description about the new ''connection-types'' provider meta-data``
+`76ed2a49c <https://github.com/apache/airflow/commit/76ed2a49c6cd285bf59706cf04f39a7444c382c9>`_  2021-08-19   ``Import Hooks lazily individually in providers manager (#17682)``
+`29aab6434 <https://github.com/apache/airflow/commit/29aab6434ffe0fb8c83b6fd6c9e44310966d496a>`_  2021-08-17   ``Adds secrets backend/logging/auth information to provider yaml (#17625)``
+`944dc32c2 <https://github.com/apache/airflow/commit/944dc32c2b4a758564259133a08f2ea8d28dcb6c>`_  2021-08-12   ``Fix Invalid log order in ElasticsearchTaskHandler (#17551)``
+================================================================================================  ===========  ============================================================================
+
+2.0.2
+.....
+
+Latest change: 2021-06-28
+
+================================================================================================  ===========  ===========================================================
+Commit                                                                                            Committed    Subject
+================================================================================================  ===========  ===========================================================
+`866a601b7 <https://github.com/apache/airflow/commit/866a601b76e219b3c043e1dbbc8fb22300866351>`_  2021-06-28   ``Removes pylint from our toolchain (#16682)``
+`6f445e69c <https://github.com/apache/airflow/commit/6f445e69c3c9d95bff18f327aeeab126cc36a6e1>`_  2021-06-26   ``Update release documentation for elasticsearch (#16662)``
+================================================================================================  ===========  ===========================================================
+
 2.0.1
 .....
 

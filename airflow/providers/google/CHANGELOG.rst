@@ -18,6 +18,38 @@
 Changelog
 ---------
 
+5.1.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add error check for config_file parameter in GKEStartPodOperator (#17700)``
+* ``Gcp ai hyperparameter tuning (#17790)``
+* ``Allow omission of 'initial_node_count' if 'node_pools' is specified (#17820)``
+* ``[Airflow 13779] use provided parameters in the wait_for_pipeline_state hook (#17137)``
+* ``Enable specifying dictionary paths in 'template_fields_renderers' (#17321)``
+* ``Don't cache Google Secret Manager client (#17539)``
+* ``[AIRFLOW-9300] Add DatafusionPipelineStateSensor and aync option to the CloudDataFusionStartPipelineOperator (#17787)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``GCP Secret Manager error handling for missing credentials (#17264)``
+
+Misc
+~~~~
+
+* ``Optimise connection importing for Airflow 2.2.0``
+* ``Adds secrets backend/logging/auth information to provider yaml (#17625)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Update description about the new ''connection-types'' provider meta-data (#17767)``
+   * ``Import Hooks lazily individually in providers manager (#17682)``
+   * ``Fix missing Data Fusion sensor integration (#17914)``
+   * ``Remove all deprecation warnings in providers (#17900)``
+
 5.0.0
 .....
 
@@ -55,7 +87,7 @@ Bug Fixes
    appropriate section above if needed. Do not delete the lines(!):
    * ``Removes pylint from our toolchain (#16682)``
    * ``Prepare documentation for July release of providers. (#17015)``
-   * ``Fixed wrongly escaped characters in amazon&#39;s changelog (#17020)``
+   * ``Fixed wrongly escaped characters in amazon's changelog (#17020)``
    * ``Fixes several failing tests after broken main (#17222)``
    * ``Fixes statich check failures (#17218)``
    * ``[CASSANDRA-16814] Fix cassandra to gcs type inconsistency. (#17183)``
