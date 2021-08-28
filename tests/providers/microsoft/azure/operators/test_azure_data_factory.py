@@ -41,6 +41,7 @@ class TestAzureDataFactoryRunPipelineOperator(unittest.TestCase):
             "pipeline_name": "pipeline1",
             "resource_group_name": "resource-group-name",
             "factory_name": "factory-name",
+            "poke_interval": 1,
         }
 
     @staticmethod
@@ -49,6 +50,7 @@ class TestAzureDataFactoryRunPipelineOperator(unittest.TestCase):
 
         run = MagicMock()
         run.status = status
+
         return run
 
     @parameterized.expand(
@@ -60,21 +62,14 @@ class TestAzureDataFactoryRunPipelineOperator(unittest.TestCase):
     )
     @patch.object(AzureDataFactoryHook, "run_pipeline", return_value=MagicMock(**PIPELINE_RUN_RESPONSE))
     def test_execute_wait_for_completion(self, pipeline_run_status, expected_status, mock_run_pipeline):
-        operator = AzureDataFactoryRunPipelineOperator(poke_interval=1, **self.config)
+        operator = AzureDataFactoryRunPipelineOperator(**self.config)
 
         assert operator.conn_id == self.config["conn_id"]
         assert operator.pipeline_name == self.config["pipeline_name"]
         assert operator.resource_group_name == self.config["resource_group_name"]
         assert operator.factory_name == self.config["factory_name"]
+        assert operator.poke_interval == self.config["poke_interval"]
         assert operator.wait_for_completion
-        assert operator.timeout == 60 * 60 * 24 * 7
-        assert operator.poke_interval == 1
-
-        self.assertIsNone(operator.reference_pipeline_run_id)
-        self.assertIsNone(operator.is_recovery)
-        self.assertIsNone(operator.start_activity_name)
-        self.assertIsNone(operator.start_from_failure)
-        self.assertIsNone(operator.parameters)
 
         with patch.object(AzureDataFactoryHook, "get_pipeline_run") as mock_get_pipeline_run:
             mock_get_pipeline_run.return_value = TestAzureDataFactoryRunPipelineOperator.create_pipeline_run(
@@ -84,7 +79,8 @@ class TestAzureDataFactoryRunPipelineOperator(unittest.TestCase):
             assert mock_get_pipeline_run.return_value.status == pipeline_run_status
 
             if not expected_status:
-                self.assertIsNone(operator.execute(context=self.mock_context))
+                # A successful operator execution should not return any values.
+                assert not operator.execute(context=self.mock_context)
             elif expected_status == "AirflowException":
                 if mock_get_pipeline_run.return_value.status == AzureDataFactoryPipelineRunStatus.CANCELLED:
                     error_message = (
@@ -127,26 +123,17 @@ class TestAzureDataFactoryRunPipelineOperator(unittest.TestCase):
 
     @patch.object(AzureDataFactoryHook, "run_pipeline", return_value=MagicMock(**PIPELINE_RUN_RESPONSE))
     def test_execute_no_wait_for_completion(self, mock_run_pipeline):
-        operator = AzureDataFactoryRunPipelineOperator(
-            poke_interval=1, wait_for_completion=False, **self.config
-        )
+        operator = AzureDataFactoryRunPipelineOperator(wait_for_completion=False, **self.config)
 
         assert operator.conn_id == self.config["conn_id"]
         assert operator.pipeline_name == self.config["pipeline_name"]
         assert operator.resource_group_name == self.config["resource_group_name"]
         assert operator.factory_name == self.config["factory_name"]
+        assert operator.poke_interval == self.config["poke_interval"]
         assert not operator.wait_for_completion
-        assert operator.timeout == 60 * 60 * 24 * 7
-        assert operator.poke_interval == 1
-
-        self.assertIsNone(operator.reference_pipeline_run_id)
-        self.assertIsNone(operator.is_recovery)
-        self.assertIsNone(operator.start_activity_name)
-        self.assertIsNone(operator.start_from_failure)
-        self.assertIsNone(operator.parameters)
 
         with patch.object(AzureDataFactoryHook, "get_pipeline_run") as mock_get_pipeline_run:
-            self.assertIsNone(operator.execute(context=self.mock_context))
+            operator.execute(context=self.mock_context)
 
             # Check the ``run_id`` attr is assigned after executing the pipeline.
             assert operator.run_id == PIPELINE_RUN_RESPONSE["run_id"]
@@ -169,34 +156,3 @@ class TestAzureDataFactoryRunPipelineOperator(unittest.TestCase):
 
             # Checking the pipeline run status should _not_ be called when ``wait_for_completion`` is False.
             mock_get_pipeline_run.assert_not_called()
-
-    # @mock.patch(DATAPROC_PATH.format("DataprocHook"))
-    # def test_on_kill(self, mock_hook):
-    #     job = {}
-    #     job_id = "job_id"
-    #     mock_hook.return_value.wait_for_job.return_value = None
-    #     mock_hook.return_value.submit_job.return_value.reference.job_id = job_id
-    #
-    #     op = DataprocSubmitJobOperator(
-    #         task_id=TASK_ID,
-    #         region=GCP_LOCATION,
-    #         project_id=GCP_PROJECT,
-    #         job=job,
-    #         gcp_conn_id=GCP_CONN_ID,
-    #         retry=RETRY,
-    #         timeout=TIMEOUT,
-    #         metadata=METADATA,
-    #         request_id=REQUEST_ID,
-    #         impersonation_chain=IMPERSONATION_CHAIN,
-    #         cancel_on_kill=False,
-    #     )
-    #     op.execute(context=self.mock_context)
-    #
-    #     op.on_kill()
-    #     mock_hook.return_value.cancel_job.assert_not_called()
-    #
-    #     op.cancel_on_kill = True
-    #     op.on_kill()
-    #     mock_hook.return_value.cancel_job.assert_called_once_with(
-    #         project_id=GCP_PROJECT, region=GCP_LOCATION, job_id=job_id
-    #     )
