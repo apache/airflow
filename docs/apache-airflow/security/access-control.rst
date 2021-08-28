@@ -238,4 +238,5 @@ List Jobs                              Jobs.can_read                            
 List SLA Misses                        SLA Misses.can_read                                                     Viewer
 List Plugins                           Plugins.can_read                                                        Viewer
 List Task Reschedules                  Task Reschedules.can_read                                               Admin
+List Triggers                          Triggers.can_read                                                       Admin
 ====================================== ======================================================================= ============

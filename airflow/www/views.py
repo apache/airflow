@@ -4070,6 +4070,48 @@ class TaskRescheduleModelView(AirflowModelView):
     }
 
 
+class TriggerModelView(AirflowModelView):
+    """View to show records from Task Reschedule table"""
+
+    route_base = '/triggerview'
+
+    datamodel = AirflowModelView.CustomSQLAInterface(models.Trigger)  # type: ignore
+
+    class_permission_name = permissions.RESOURCE_TRIGGER
+    method_permission_name = {
+        'list': 'read',
+    }
+
+    base_permissions = [
+        permissions.ACTION_CAN_READ,
+        permissions.ACTION_CAN_ACCESS_MENU,
+    ]
+
+    list_columns = [
+        'id',
+        'classpath',
+        'created_date',
+        'triggerer_id',
+        'kwargs',
+    ]
+
+    search_columns = [
+        'id',
+        'classpath',
+        'created_date',
+        'triggerer_id',
+    ]
+
+    # add_exclude_columns = ["kwargs"]
+
+    base_order = ('id', 'created_date')
+
+    formatters_columns = {
+        'created_date': wwwutils.datetime_f('created_date'),
+        'kwargs': wwwutils.serialized_json_f('kwargs'),
+    }
+
+
 class TaskInstanceModelView(AirflowModelView):
     """View to show records from TaskInstance table"""
 
