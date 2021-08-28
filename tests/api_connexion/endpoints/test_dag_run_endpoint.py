@@ -1182,12 +1182,11 @@ class TestPostSetDagRunState(TestDagRunEndpoint):
             session.add(dag_run)
 
         request_json = {
-            "dag_run_id": dag_run_id,
             "state": state
         }
 
         response = self.client.post(
-            "api/v1/dags/TEST_DAG_ID/dagRuns/updateDagRunState",
+            "api/v1/dags/TEST_DAG_ID/dagRuns/TEST_DAG_RUN_ID_1/state",
             json=request_json,
             environ_overrides={"REMOTE_USER": "test"},
         )
@@ -1224,12 +1223,11 @@ class TestPostSetDagRunState(TestDagRunEndpoint):
             session.add(dag_run)
 
             request_json = {
-                "dag_run_id": dag_run_id,
                 "state": "madeUpState"
             }
 
             response = self.client.post(
-                "api/v1/dags/TEST_DAG_ID/dagRuns/updateDagRunState",
+                "api/v1/dags/TEST_DAG_ID/dagRuns/TEST_DAG_RUN_ID_1/state",
                 json=request_json,
                 environ_overrides={"REMOTE_USER": "test"},
             )
@@ -1243,9 +1241,8 @@ class TestPostSetDagRunState(TestDagRunEndpoint):
 
     def test_should_raises_401_unauthenticated(self, session):
         response = self.client.post(
-            "api/v1/dags/TEST_DAG_ID/dagRuns/updateDagRunState",
+            "api/v1/dags/TEST_DAG_ID/dagRuns/TEST_DAG_RUN_ID_1/state",
             json={
-                "run_id": "TEST_DAG_RUN_ID_1",
                 "state": 'success',
             },
         )
@@ -1253,17 +1250,19 @@ class TestPostSetDagRunState(TestDagRunEndpoint):
         assert_401(response)
 
     def test_should_raise_403_forbidden(self):
-        response = self.client.get(
-            "api/v1/dags/TEST_DAG_ID/dagRuns/updateDagRunState",
+        response = self.client.post(
+            "api/v1/dags/TEST_DAG_ID/dagRuns/TEST_DAG_RUN_ID_1/state",
+            json={
+                "state": 'success',
+            },
             environ_overrides={'REMOTE_USER': "test_no_permissions"},
         )
         assert response.status_code == 403
 
     def test_should_respond_404(self):
-        response = self.client.get(
-            "api/v1/dags/INVALID_DAG_ID/dagRuns/updateDagRunState",
+        response = self.client.post(
+            "api/v1/dags/INVALID_DAG_ID/dagRuns/TEST_DAG_RUN_ID_1/state",
             json={
-                "run_id": "TEST_DAG_RUN_ID_1",
                 "state": 'success',
             },
             environ_overrides={"REMOTE_USER": "test"}

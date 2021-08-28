@@ -604,9 +604,10 @@ paths:
         '404':
           $ref: '#/components/responses/NotFound'
 
-  /dags/{dag_id}/dagRuns/updateDagRunState:
+  /dags/{dag_id}/dagRuns/{dag_run_id}/state:
     parameters:
       - $ref: '#/components/parameters/DAGID'
+      - $ref: '#/components/parameters/DAGRunID'
 
     post:
       summary: Set a state of DAG run
@@ -2033,27 +2034,10 @@ components:
     UpdateDagRunState:
       type: object
       properties:
-        dag_run_id:
-          type: string
-          nullable: true
-          description: |
-            Run ID.
-
-            The value of this field can be set only when creating the object. If you try to modify the
-            field of an existing object, the request fails with an BAD_REQUEST error.
-
-            If not provided, a value will be generated based on execution_date.
-
-            If the specified dag_run_id is in use, the creation request fails with an ALREADY_EXISTS error.
-
-            This together with DAG_ID are a unique key.
-        dag_id:
-          type: string
-          readOnly: true
         state:
           $ref: '#/components/schemas/DagState'
       required:
-        - dag_id
+        - state
 
     DAGRunCollection:
       type: object
