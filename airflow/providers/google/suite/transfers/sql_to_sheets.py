@@ -94,16 +94,18 @@ class SQLToGoogleSheetsOperator(BaseSQLOperator):
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
 
-    def _data_prep(self, cursor):
-        for row in cursor:
+    def _data_prep(self, data):
+        for row in data:
+            item_list = []
             for item in row:
                 if type(item) is datetime.date:
                     item = item.strftime("%Y-%m-%d")
                 elif type(item) is datetime.datetime:
-                    item = item.strftime("%Y-%m-%d %H:%M:%S")
+                    item = item.strftime("%Y-%m-%d")
                 elif type(item) is decimal.Decimal:
                     item = float(item)
-                yield item
+                item_list.append(item)
+            yield item_list
 
     def _get_data(self):
         hook = self.get_db_hook()
