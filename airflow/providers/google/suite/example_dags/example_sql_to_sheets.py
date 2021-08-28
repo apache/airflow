@@ -16,8 +16,6 @@
 # specific language governing permissions and limitations
 # under the License.
 
-import os
-
 from airflow import models
 from airflow.providers.google.suite.transfers.sql_to_sheets import SQLToGoogleSheetsOperator
 from airflow.utils.dates import days_ago
