@@ -14,10 +14,11 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from typing import Optional
+
 from flask import current_app, g, request
 from marshmallow import ValidationError
 from sqlalchemy import or_
-from typing import Optional
 
 from airflow._vendor.connexion import NoContent
 from airflow.api_connexion import security
@@ -28,13 +29,14 @@ from airflow.api_connexion.schemas.dag_run_schema import (
     dagrun_collection_schema,
     dagrun_schema,
     dagruns_batch_form_schema,
+    set_dagrun_state_form_schema,
 )
+from airflow.exceptions import DagRunNotFound
 from airflow.models import DagModel, DagRun
 from airflow.security import permissions
 from airflow.utils.session import provide_session
-from airflow.utils.state import State, DagRunState
+from airflow.utils.state import DagRunState, State
 from airflow.utils.types import DagRunType
-from airflow.exceptions import DagRunNotFound
 
 
 @security.requires_access(
@@ -278,19 +280,24 @@ def post_dag_run(dag_id, session):
 @security.requires_access(
     [
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
-        (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_DAG_RUN)
+        (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_DAG_RUN),
     ]
 )
 @provide_session
 def post_set_dag_run_state(dag_id: str, dag_run_id: str, session) -> dict:
     """Set a state of a dag run."""
-    dag_run: Optional[DagRun] = session.query(DagRun) \
-        .filter(DagRun.dag_id == dag_id, DagRun.run_id == dag_run_id).one_or_none()
+    dag_run: Optional[DagRun] = (
+        session.query(DagRun).filter(DagRun.dag_id == dag_id, DagRun.run_id == dag_run_id).one_or_none()
+    )
     if dag_run is None:
         error_message = f'Dag Run id {dag_run_id} not found in dag {dag_id}'
         raise NotFound(error_message)
+    try:
+        post_body = set_dagrun_state_form_schema.load(request.json, session=session)
+    except ValidationError as err:
+        raise BadRequest(detail=str(err))
 
-    state = request.json['state']
-    dag_run.set_state(state=DagRunState(state.lower()).value)
+    state = post_body['state']
+    dag_run.set_state(state=state)
     session.merge(dag_run)
     return dagrun_schema.dump(dag_run)

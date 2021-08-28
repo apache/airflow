@@ -18,8 +18,8 @@ from datetime import timedelta
 from unittest import mock
 
 import pytest
-from parameterized import parameterized
 from freezegun import freeze_time
+from parameterized import parameterized
 
 from airflow.api_connexion.exceptions import EXCEPTIONS_LINK_MAP
 from airflow.models import DAG, DagModel, DagRun
@@ -1159,11 +1159,9 @@ class TestPostDagRun(TestDagRunEndpoint):
 
 
 class TestPostSetDagRunState(TestDagRunEndpoint):
-
-    @parameterized.expand([
-        ("TEST_DAG_ID", "TEST_DAG_RUN_ID_1", "failed"),
-        ("TEST_DAG_ID", "TEST_DAG_RUN_ID_1", "success")
-    ])
+    @parameterized.expand(
+        [("TEST_DAG_ID", "TEST_DAG_RUN_ID_1", "failed"), ("TEST_DAG_ID", "TEST_DAG_RUN_ID_1", "success")]
+    )
     @freeze_time(TestDagRunEndpoint.default_time)
     def test_should_respond_200(self, dag_id, dag_run_id, state):
         test_time = timezone.parse(self.default_time)
@@ -1176,14 +1174,12 @@ class TestPostSetDagRunState(TestDagRunEndpoint):
                 run_type=DagRunType.MANUAL,
                 execution_date=test_time,
                 start_date=test_time,
-                external_trigger=True
+                external_trigger=True,
             )
             session.add(dag)
             session.add(dag_run)
 
-        request_json = {
-            "state": state
-        }
+        request_json = {"state": state}
 
         response = self.client.post(
             "api/v1/dags/TEST_DAG_ID/dagRuns/TEST_DAG_RUN_ID_1/state",
@@ -1201,7 +1197,7 @@ class TestPostSetDagRunState(TestDagRunEndpoint):
             'external_trigger': True,
             'logical_date': self.default_time,
             'start_date': self.default_time,
-            'state': state
+            'state': state,
         }
 
     def test_should_response_400_for_non_existing_dag_run_state(self):
@@ -1217,14 +1213,12 @@ class TestPostSetDagRunState(TestDagRunEndpoint):
                 run_type=DagRunType.MANUAL,
                 execution_date=test_time,
                 start_date=test_time,
-                external_trigger=True
+                external_trigger=True,
             )
             session.add(dag)
             session.add(dag_run)
 
-            request_json = {
-                "state": "madeUpState"
-            }
+            request_json = {"state": "madeUpState"}
 
             response = self.client.post(
                 "api/v1/dags/TEST_DAG_ID/dagRuns/TEST_DAG_RUN_ID_1/state",
@@ -1236,7 +1230,7 @@ class TestPostSetDagRunState(TestDagRunEndpoint):
                 'detail': "'madeUpState' is not one of ['queued', 'running', 'success', 'failed'] - 'state'",
                 'status': 400,
                 'title': 'Bad Request',
-                'type': EXCEPTIONS_LINK_MAP[400]
+                'type': EXCEPTIONS_LINK_MAP[400],
             }
 
     def test_should_raises_401_unauthenticated(self, session):
@@ -1265,6 +1259,6 @@ class TestPostSetDagRunState(TestDagRunEndpoint):
             json={
                 "state": 'success',
             },
-            environ_overrides={"REMOTE_USER": "test"}
+            environ_overrides={"REMOTE_USER": "test"},
         )
         assert response.status_code == 404
