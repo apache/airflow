@@ -102,10 +102,10 @@ class AzureDataFactoryHook(BaseHook):
 
         return {
             "extra__azure_data_factory__tenantId": StringField(
-                lazy_gettext('Azure Tenant ID'), widget=BS3TextFieldWidget()
+                lazy_gettext('Tenant ID'), widget=BS3TextFieldWidget()
             ),
             "extra__azure_data_factory__subscriptionId": StringField(
-                lazy_gettext('Azure Subscription ID'), widget=BS3TextFieldWidget()
+                lazy_gettext('Subscription ID'), widget=BS3TextFieldWidget()
             ),
             "extra__azure_data_factory__resource_group_name": StringField(
                 lazy_gettext('Resource Group Name'), widget=BS3TextFieldWidget()
@@ -121,8 +121,8 @@ class AzureDataFactoryHook(BaseHook):
         return {
             "hidden_fields": ['schema', 'port', 'host', 'extra'],
             "relabeling": {
-                'login': 'Azure Client ID',
-                'password': 'Azure Secret',
+                'login': 'Client ID',
+                'password': 'Secret',
             },
         }
 
