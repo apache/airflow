@@ -39,7 +39,7 @@ class AzureDataFactoryPipelineRunStatusSensor(BaseSensorOperator):
     :type factory_name: str
     """
 
-    template_fields = ("resource_group_name", "factory_name", "run_id")
+    template_fields = ("conn_id", "resource_group_name", "factory_name", "run_id")
 
     def __init__(
         self,

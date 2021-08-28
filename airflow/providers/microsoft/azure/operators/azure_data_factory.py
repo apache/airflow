@@ -54,8 +54,9 @@ class AzureDataFactoryRunPipelineOperator(BaseOperator):
     :param start_from_failure: In recovery mode, if set to true, the rerun will start from failed activities.
         The property will be used only if ``start_activity_name`` is not specified.
     :type start_from_failure: bool
-    :param parameters: Parameters of the pipeline run. These parameters will be used only if the
-        ``reference_pipeline_run_id`` is not specified.
+    :param parameters: Parameters of the pipeline run. These parameters are referenced in a pipeline via
+        ``@pipeline().parameters.parameterName`` and will be used only if the ``reference_pipeline_run_id`` is
+        not specified.
     :type start_from_failure: Dict[str, Any]
     :param wait_for_completion: Flag to wait on a pipeline run's completion.  By default, this feature is
         enabled but could be disabled to wait for a long-running pipeline execution using the
@@ -70,6 +71,7 @@ class AzureDataFactoryRunPipelineOperator(BaseOperator):
     """
 
     template_fields = (
+        "conn_id",
         "resource_group_name",
         "factory_name",
         "pipeline_name",
@@ -123,13 +125,13 @@ class AzureDataFactoryRunPipelineOperator(BaseOperator):
             parameters=self.parameters,
         )
         self.run_id = vars(response)["run_id"]
-        # Push the ``run_id`` value to XCom regardless of what happens during execution. This allows users
-        # to retrieve the ``run_id`` as an output of this operator for downstream tasks especially if
-        # performing an async wait.
+        # Push the ``run_id`` value to XCom regardless of what happens during execution. This allows for
+        # retrieval the executed pipeline's ``run_id`` for downstream tasks especially if performing an
+        # asynchronous wait.
         context["ti"].xcom_push(key="run_id", value=self.run_id)
 
         if self.wait_for_completion:
-            self.log.info(f"Waiting for run ID {self.run_id} of pipeline '{self.pipeline_name}' to complete.")
+            self.log.info(f"Waiting for run ID {self.run_id} of pipeline {self.pipeline_name} to complete.")
             start_time = time.monotonic()
             pipeline_run_status = None
             while pipeline_run_status not in AzureDataFactoryPipelineRunStatus.TERMINAL_STATUSES:

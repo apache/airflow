@@ -34,8 +34,8 @@ with DAG(
         "retries": 1,
         "retry_delay": timedelta(minutes=3),
         "conn_id": "azure_data_factory",
-        "factory_name": "my-data-factory",
-        "resource_group_name": "my-resource-group",
+        "factory_name": "my-data-factory", # This can also be specified in the ADF connection.
+        "resource_group_name": "my-resource-group", # This can also be specified in the ADF connection.
     },
     default_view="graph",
 ) as dag:
@@ -51,7 +51,7 @@ with DAG(
     run_pipeline2 = AzureDataFactoryRunPipelineOperator(
         task_id="run_pipeline2",
         pipeline_name="extractDailyExchangeRates",
-        do_asynchronous_wait=True,
+        wait_for_completion=False,
     )
 
     wait_for_pipeline_run = AzureDataFactoryPipelineRunStatusSensor(
@@ -60,9 +60,9 @@ with DAG(
         poke_interval=10,
     )
 
+    begin >> Label("No async wait") >> run_pipeline1 >> end
     begin >> Label("Do async wait with sensor") >> run_pipeline2
     wait_for_pipeline_run >> end
-    begin >> Label("No async wait") >> run_pipeline1 >> end
 
     # Task dependency created via `XComArgs`:
     #   run_pipeline2 >> wait_for_pipeline_run
