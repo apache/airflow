@@ -42,6 +42,7 @@ from airflow.exceptions import (
     AirflowTimetableInvalid,
     SerializedDagNotFound,
 )
+from airflow.models.dagcode import DagCode
 from airflow.stats import Stats
 from airflow.utils import timezone
 from airflow.utils.dag_cycle_tester import check_cycle
@@ -446,12 +447,12 @@ class DagBag(LoggingMixin):
                     subdag.is_subdag = True
                     self._bag_dag(dag=subdag, root_dag=root_dag, recursive=False)
 
-            prev_dag = self.dags.get(dag.dag_id)
-            if prev_dag and prev_dag.fileloc != dag.fileloc:
+            conflict_fileloc = self._check_if_dupe(dag)
+            if conflict_fileloc is not None:
                 raise AirflowDagDuplicatedIdException(
                     dag_id=dag.dag_id,
                     incoming=dag.fileloc,
-                    existing=self.dags[dag.dag_id].fileloc,
+                    existing=conflict_fileloc,
                 )
             self.dags[dag.dag_id] = dag
             self.log.debug('Loaded DAG %s', dag)
@@ -465,6 +466,34 @@ class DagBag(LoggingMixin):
                     if subdag.dag_id in self.dags:
                         del self.dags[subdag.dag_id]
             raise
+
+    @provide_session
+    def _check_if_dupe(self, dag, session=None):
+        """
+        Checks if a DAG with the same ID already exists.
+        If present, returns the fileloc of the existing DAG.
+        """
+        from airflow.models.serialized_dag import SerializedDagModel  # Avoid circular import
+
+        other_dag = session.query(SerializedDagModel).filter(
+            SerializedDagModel.dag_id == dag.dag_id,
+            SerializedDagModel.fileloc_hash != DagCode.dag_fileloc_hash(dag.fileloc)
+        ).first()
+        if other_dag:
+            # If a DAG was just moved from one file to another, this condition may sometimes check out.
+            # Heuristics below try to avoid a false-positive alert
+            if not os.path.exists(other_dag.fileloc):
+                # Other file is no more, nothing to worry about
+                return None
+            # Not feasible here to parse that other file to check if it still has the DAG,
+            # so resort to just checking the task ids
+            task_ids = [task.task_id for task in dag.tasks]
+            other_dag_task_ids = [task['label'] for task in other_dag.data['dag']['tasks']]
+            if task_ids != other_dag_task_ids:
+                return other_dag.fileloc
+            else:
+                return None
+        return None
 
     def collect_dags(
         self,
