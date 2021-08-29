@@ -402,8 +402,8 @@ class TestSFTPOperator(unittest.TestCase):
         create_file_task = SSHOperator(
             task_id="test_create_file",
             ssh_hook=self.hook,
-            command=f"mkdir -p {self.test_remote_dir} |"
-            f"echo '{test_txt_file_content}' >> {self.test_remote_dir}/{self.test_txt_file} | "
+            command=f"mkdir -p {self.test_remote_dir} && "
+            f"echo '{test_txt_file_content}' >> {self.test_remote_dir}/{self.test_txt_file} && "
             f"echo '{test_csv_file_content}' >> {self.test_remote_dir}/{self.test_csv_file}",
             do_xcom_push=False,
             dag=self.dag,
@@ -445,8 +445,8 @@ class TestSFTPOperator(unittest.TestCase):
         create_file_task = SSHOperator(
             task_id="test_create_file",
             ssh_hook=self.hook,
-            command=f"mkdir -p {self.test_remote_dir} |"
-            f"echo '{test_txt_file_content}' >> {self.test_remote_dir}/{self.test_txt_file} | "
+            command=f"mkdir -p {self.test_remote_dir} && "
+            f"echo '{test_txt_file_content}' >> {self.test_remote_dir}/{self.test_txt_file} && "
             f"echo '{test_csv_file_content}' >> {self.test_remote_dir}/{self.test_csv_file}",
             do_xcom_push=False,
             dag=self.dag,
