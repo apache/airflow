@@ -15,12 +15,13 @@
 # specific language governing permissions and limitations
 # under the License.
 
+import unittest
 from unittest.mock import Mock, patch
 
 from airflow.providers.google.suite.transfers.sql_to_sheets import SQLToGoogleSheetsOperator
 
 
-class TestSQLToGoogleSheets:
+class TestSQLToGoogleSheets(unittest.TestCase):
     """
     Test class for SQLToGoogleSheetsOperator
     """
@@ -31,6 +32,8 @@ class TestSQLToGoogleSheets:
         """
 
         self.gcp_conn_id = "test"
+        self.sql_conn_id = "test"
+        self.sql = "select 1 as my_col"
         self.spreadsheet_id = "1234567890"
         self.values = [[1, 2, 3]]
 
@@ -41,6 +44,8 @@ class TestSQLToGoogleSheets:
             task_id="test_task",
             spreadsheet_id=self.spreadsheet_id,
             gcp_conn_id=self.gcp_conn_id,
+            sql_conn_id=self.sql_conn_id,
+            sql=self.sql,
         )
 
         op._get_data = Mock(return_value=self.values)
