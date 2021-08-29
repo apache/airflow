@@ -20,7 +20,7 @@
 import os
 import sys
 from collections import deque
-from typing import List, Optional
+from typing import List
 
 import jinja2
 
@@ -80,8 +80,8 @@ def prepare_virtualenv(
     venv_directory: str,
     python_bin: str,
     system_site_packages: bool,
-    requirements: Optional[List[str]],
-    requirements_file_path: Optional[str],
+    requirements: List[str] = None,
+    requirements_file_path: str = None,
 ) -> str:
     """
     Creates a virtual environment and installs the additional python packages
