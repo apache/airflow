@@ -1195,9 +1195,14 @@ class SchedulerJob(BaseJob):
                         reset_tis_message.append(repr(ti))
                         ti.state = State.NONE
                         ti.queued_by_job_id = None
+                        # We have to reset this as the new Scheduler will spawn new
+                        # instances(LocalTaskJobs). Without this, when the old instances are marked
+                        # failed, zombie would kill this task
+                        ti.job_id = None
 
                     for ti in set(tis_to_reset_or_adopt) - set(to_reset):
                         ti.queued_by_job_id = self.id
+                        ti.job_id = None
 
                     Stats.incr('scheduler.orphaned_tasks.cleared', len(to_reset))
                     Stats.incr('scheduler.orphaned_tasks.adopted', len(tis_to_reset_or_adopt) - len(to_reset))

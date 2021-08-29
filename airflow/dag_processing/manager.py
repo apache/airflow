@@ -33,7 +33,7 @@ from multiprocessing.connection import Connection as MultiprocessingConnection
 from typing import TYPE_CHECKING, Any, Dict, List, NamedTuple, Optional, Union, cast
 
 from setproctitle import setproctitle
-from sqlalchemy import or_
+from sqlalchemy.sql.elements import and_
 from tabulate import tabulate
 
 import airflow.models
@@ -1042,7 +1042,9 @@ class DagFileProcessorManager(LoggingMixin):
                 .join(DM, TI.dag_id == DM.dag_id)
                 .filter(TI.state == State.RUNNING)
                 .filter(
-                    or_(
+                    # We should use and_ so that Scheduler.adopt_and_reset_orphaned
+                    # would run and fail the job before this act on the taskinstance
+                    and_(
                         LJ.state != State.RUNNING,
                         LJ.latest_heartbeat < limit_dttm,
                     )

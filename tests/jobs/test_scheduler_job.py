@@ -2466,6 +2466,7 @@ class TestSchedulerJob:
 
         session.refresh(ti1)
         assert ti1.state is None
+        assert ti1.job_id is None
         session.refresh(ti2)
         assert ti2.state == State.QUEUED
         session.rollback()

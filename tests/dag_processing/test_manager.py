@@ -435,6 +435,7 @@ class TestDagFileProcessorManager:
             ti = TI(task, DEFAULT_DATE, State.RUNNING)
             local_job = LJ(ti)
             local_job.state = State.SHUTDOWN
+            local_job.latest_heartbeat = timezone.utcnow() - timedelta(days=2)
 
             session.add(local_job)
             session.commit()
@@ -480,6 +481,7 @@ class TestDagFileProcessorManager:
                 ti = TI(task, DEFAULT_DATE, State.RUNNING)
                 local_job = LJ(ti)
                 local_job.state = State.SHUTDOWN
+                local_job.latest_heartbeat = timezone.utcnow() - timedelta(days=2)
                 session.add(local_job)
                 session.commit()
 
