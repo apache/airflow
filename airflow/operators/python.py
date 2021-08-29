@@ -383,7 +383,7 @@ class PythonVirtualenvOperator(PythonOperator):
                 venv_directory=tmp_dir,
                 python_bin=f'python{self.python_version}' if self.python_version else None,
                 system_site_packages=self.system_site_packages,
-                requirements=requirements_file_name,
+                requirements_file_path=requirements_file_name,
             )
 
             self._write_args(input_filename)

@@ -36,12 +36,14 @@ def _generate_virtualenv_cmd(tmp_dir: str, python_bin: str, system_site_packages
     return cmd
 
 
-def _generate_pip_install_cmd(tmp_dir: str, requirements: str) -> Optional[List[str]]:
-    if not requirements:
-        return None
-    # direct path alleviates need to activate
+def _generate_pip_install_cmd_from_file(tmp_dir: str, requirements_file_path: str) -> List[str]:
     cmd = [f'{tmp_dir}/bin/pip', 'install', '-r']
-    return cmd + [requirements]
+    return cmd + [requirements_file_path]
+
+
+def _generate_pip_install_cmd_from_list(tmp_dir: str, requirements: List[str]) -> List[str]:
+    cmd = [f'{tmp_dir}/bin/pip', 'install']
+    return cmd + requirements
 
 
 def _balance_parens(after_decorator):
@@ -75,7 +77,11 @@ def remove_task_decorator(python_source: str, task_decorator_name: str) -> str:
 
 
 def prepare_virtualenv(
-    venv_directory: str, python_bin: str, system_site_packages: bool, requirements: str
+    venv_directory: str,
+    python_bin: str,
+    system_site_packages: bool,
+    requirements: Optional[List[str]],
+    requirements_file_path: Optional[str],
 ) -> str:
     """
     Creates a virtual environment and installs the additional python packages
@@ -87,14 +93,24 @@ def prepare_virtualenv(
     :param system_site_packages: Whether to include system_site_packages in your virtualenv.
         See virtualenv documentation for more information.
     :type system_site_packages: bool
-    :param requirements: Path to the requirements.txt file
-    :type requirements: str
+    :param requirements: List of additional python packages
+    :type requirements: List[str]
+    :param requirements_file_path: Path to the requirements.txt file
+    :type requirements_file_path: str
     :return: Path to a binary file with Python in a virtual environment.
     :rtype: str
     """
     virtualenv_cmd = _generate_virtualenv_cmd(venv_directory, python_bin, system_site_packages)
     execute_in_subprocess(virtualenv_cmd)
-    pip_cmd = _generate_pip_install_cmd(venv_directory, requirements)
+
+    if requirements is not None and requirements_file_path is not None:
+        raise Exception("Either requirements OR requirements_file_path has to be passed, but not both")
+
+    pip_cmd = None
+    if requirements is not None:
+        pip_cmd = _generate_pip_install_cmd_from_list(venv_directory, requirements)
+    if requirements_file_path is not None:
+        pip_cmd = _generate_pip_install_cmd_from_file(venv_directory, requirements_file_path)
 
     if pip_cmd:
         execute_in_subprocess(pip_cmd)
