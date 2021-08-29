@@ -60,8 +60,8 @@ def puller(**kwargs):
 
 def pull_value_from_bash_push(**kwargs):
     ti = kwargs['ti']
-    bash_pushed_via_return_value = ti.xcom_pull(key="xcom_pushed_value", task_ids=['bash_push'])
-    bash_manually_pushed_value = ti.xcom_pull(key="xcom_pushed_value", task_ids=['bash_push'])
+    bash_pushed_via_return_value = ti.xcom_pull(key="return_value", task_ids='bash_push')
+    bash_manually_pushed_value = ti.xcom_pull(key="manually_pushed_value", task_ids='bash_push')
     print(f"The xcom value pushed by task push via return value is {bash_pushed_via_return_value}")
     print(f"The xcom value pushed by task push manually is {bash_manually_pushed_value}")
 
