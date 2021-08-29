@@ -23,7 +23,6 @@ from google.cloud.bigquery.table import TableReference
 from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.bigquery import BigQueryHook
 from airflow.providers.microsoft.mssql.hooks.mssql import MsSqlHook
-from airflow.utils.decorators import apply_defaults
 
 
 class BigQueryToMsSqlOperator(BaseOperator):
@@ -89,7 +88,6 @@ class BigQueryToMsSqlOperator(BaseOperator):
         'impersonation_chain',
     )
 
-    @apply_defaults
     def __init__(
         self,
         *,
