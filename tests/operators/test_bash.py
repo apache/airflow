@@ -132,8 +132,10 @@ class TestBashOperator(unittest.TestCase):
     def test_cwd_does_not_exist(self):
         test_cmd = 'set -e; echo "xxxx" |tee outputs.txt'
         with TemporaryDirectory(prefix='test_command_with_cwd') as tmp_dir:
-            # There should be no exceptions when creating the operator
-            bash_operator = BashOperator(task_id='abc', bash_command=test_cmd, cwd=tmp_dir)
+            # Get a temporary folder
+            pass
+        # There should be no exceptions when creating the operator even the `cwd` doesn't exist
+        bash_operator = BashOperator(task_id='abc', bash_command=test_cmd, cwd=tmp_dir)
         with pytest.raises(AirflowException, match=f"Can not find the cwd: {tmp_dir}"):
             bash_operator.execute({})
 
