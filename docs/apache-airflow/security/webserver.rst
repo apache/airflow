@@ -149,8 +149,10 @@ Here is an example of what you might have in your webserver_config.py:
     import os
 
     AUTH_TYPE = AUTH_OAUTH
-    AUTH_ROLES_SYNC_AT_LOGIN = True  # checks roles on every login
-    AUTH_USER_REGISTRATION = True  # allow users who are not already in the FAB DB to register
+    AUTH_ROLES_SYNC_AT_LOGIN = True  # Checks roles on every login
+    AUTH_USER_REGISTRATION = (
+        True  # allow users who are not already in the FAB DB to register
+    )
     # Make sure to replace this with the path to your security manager class
     FAB_SECURITY_MANAGER_CLASS = "your_module.your_security_manager_class"
     AUTH_ROLES_MAPPING = {
@@ -191,9 +193,9 @@ webserver_config.py itself if you wish.
 
     FAB_ADMIN_ROLE = "Admin"
     FAB_VIEWER_ROLE = "Viewer"
-    FAB_PUBLIC_ROLE = "Public"  # public means unauthorized
-    TEAM_ID_A_FROM_GITHUB = 123 # Replace these with real team IDs for your org
-    TEAM_ID_B_FROM_GITHUB = 456 # Replace these with real team IDs for your org
+    FAB_PUBLIC_ROLE = "Public"  # "Public" role is given no permissions
+    TEAM_ID_A_FROM_GITHUB = 123  # Replace these with real team IDs for your org
+    TEAM_ID_B_FROM_GITHUB = 456  # Replace these with real team IDs for your org
 
 
     def team_parser(team_payload: Dict[str, Any]) -> List[int]:
@@ -204,7 +206,7 @@ webserver_config.py itself if you wish.
     def map_roles(team_list: List[int]) -> List[str]:
         # Associate the team IDs with Roles here.
         # The expected output is a list of roles that FAB will use to Authorize the user.
-        
+
         team_role_map = {
             TEAM_ID_A_FROM_GITHUB: FAB_ADMIN_ROLE,
             TEAM_ID_B_FROM_GITHUB: FAB_VIEWER_ROLE,
@@ -220,7 +222,7 @@ webserver_config.py itself if you wish.
         def get_oauth_user_info(
             self, provider: str, resp: Any
         ) -> Dict[str, Union[str, List[str]]]:
-            
+
             # Creates the user info payload from Github.
             # The user previously allowed your app to act on thier behalf,
             #   so now we can query the user and teams endpoints for their data.
@@ -233,8 +235,7 @@ webserver_config.py itself if you wish.
             teams = team_parser(team_data.json())
             roles = map_roles(teams)
             log.debug(
-                f"User info from Github: {user_data}\n"
-                f"Team info from Github: {teams}"
+                f"User info from Github: {user_data}\n" f"Team info from Github: {teams}"
             )
             return {"username": "github_" + user_data.get("login"), "role_keys": roles}
 
