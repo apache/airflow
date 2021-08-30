@@ -165,10 +165,30 @@
                 <td id="last-run-{{ dag.safe_dag_id }}" class="text-nowrap latest_dag_run">
                   {{ loading_dots(classes='js-loading-last-run text-muted') }}
                   <a></a>
-                  <span aria-hidden="true" title=" " class="material-icons text-muted js-tooltip" style="display:none">info</span>
+                  <span
+                    aria-hidden="true"
+                    title=""
+                    class="material-icons text-muted js-tooltip js-last-run-tooltip"
+                    data-html="true"
+                    style="display:none"
+                  >
+                    info
+                  </span>
                 </td>
-                <td class="text-nowrap js-next-run">
-                  <time datetime="{{ dag.next_dagrun_create_after }}">{{ dag.next_dagrun_create_after }}</time>
+                <td class="text-nowrap">
+                  <time datetime="{{ dag.next_dagrun }}">{{ dag.next_dagrun }}</time>
+                  {% if dag.next_dagrun_create_after %}
+                    {# data-nextrun is being used to pass next_dagrun dates to js to build the full tooltip #}
+                    <span
+                      aria-hidden="true"
+                      data-nextrun="{{ dag.next_dagrun_create_after }},{{ dag.next_dagrun_data_interval_start }},{{ dag.next_dagrun_data_interval_end }}"
+                      title=""
+                      class="material-icons text-muted js-tooltip js-next-run-tooltip"
+                      data-html="true"
+                    >
+                      info
+                    </span>
+                  {% endif %}
                 </td>
                 <td style="padding:0; width:323px; height:10px;">
                   {{ loading_dots(classes='js-loading-task-stats text-muted') }}

@@ -917,6 +917,8 @@ class Airflow(AirflowBaseView):
         query = session.query(
             DagRun.dag_id,
             DagRun.start_date,
+            DagRun.end_date,
+            DagRun.state,
             DagRun.execution_date,
             DagRun.data_interval_start,
             DagRun.data_interval_end,
@@ -936,8 +938,10 @@ class Airflow(AirflowBaseView):
         resp = {
             r.dag_id.replace('.', '__dot__'): {
                 "dag_id": r.dag_id,
+                "state": r.state,
                 "execution_date": _datetime_to_string(r.execution_date),
                 "start_date": _datetime_to_string(r.start_date),
+                "end_date": _datetime_to_string(r.end_date),
                 "data_interval_start": _datetime_to_string(r.data_interval_start),
                 "data_interval_end": _datetime_to_string(r.data_interval_end),
             }
@@ -980,6 +984,7 @@ class Airflow(AirflowBaseView):
             'airflow/dag_code.html',
             html_code=html_code,
             dag=dag_orm,
+            dag_model=dag_orm,
             title=dag_id,
             root=request.args.get('root'),
             wrapped=conf.getboolean('webserver', 'default_wrap'),
