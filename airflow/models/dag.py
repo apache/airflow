@@ -1266,6 +1266,8 @@ class DAG(LoggingMixin):
             tis = tis.filter(or_(*conditions))
         else:
             tis = tis.filter(TaskInstance.dag_id == self.dag_id, TaskInstance.task_id.in_(self.task_ids))
+        if run_id:
+            tis = tis.filter(TaskInstance.run_id == run_id)
         if start_date:
             tis = tis.filter(TaskInstance.execution_date >= start_date)
         if task_ids:
