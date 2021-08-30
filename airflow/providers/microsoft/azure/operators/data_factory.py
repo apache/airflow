@@ -20,7 +20,7 @@ from typing import Any, Dict, Optional
 
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
-from airflow.providers.microsoft.azure.hooks.azure_data_factory import (
+from airflow.providers.microsoft.azure.hooks.data_factory import (
     AzureDataFactoryHook,
     AzureDataFactoryPipelineRunStatus,
 )
@@ -34,8 +34,8 @@ class AzureDataFactoryRunPipelineOperator(BaseOperator):
         For more information on how to use this operator, take a look at the guide:
         :ref:`howto/operator:AzureDataFactoryRunPipelineOperator`
 
-    :param conn_id: The connection identifier for connecting to Azure Data Factory.
-    :type conn_id: str
+    :param azure_data_factory_conn_id: The connection identifier for connecting to Azure Data Factory.
+    :type azure_data_factory_conn_id: str
     :param pipeline_name: The name of the pipeline to execute.
     :type pipeline_name: str
     :param resource_group_name: The resource group name. If a value is not passed in to the operator, the
@@ -75,7 +75,7 @@ class AzureDataFactoryRunPipelineOperator(BaseOperator):
     """
 
     template_fields = (
-        "conn_id",
+        "azure_data_factory_conn_id",
         "resource_group_name",
         "factory_name",
         "pipeline_name",
@@ -87,7 +87,7 @@ class AzureDataFactoryRunPipelineOperator(BaseOperator):
     def __init__(
         self,
         *,
-        conn_id: str,
+        azure_data_factory_conn_id: str,
         pipeline_name: str,
         resource_group_name: Optional[str] = None,
         factory_name: Optional[str] = None,
@@ -102,7 +102,7 @@ class AzureDataFactoryRunPipelineOperator(BaseOperator):
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
-        self.conn_id = conn_id
+        self.azure_data_factory_conn_id = azure_data_factory_conn_id
         self.pipeline_name = pipeline_name
         self.resource_group_name = resource_group_name
         self.factory_name = factory_name
@@ -116,7 +116,7 @@ class AzureDataFactoryRunPipelineOperator(BaseOperator):
         self.poke_interval = poke_interval
 
     def execute(self, context: Dict) -> None:
-        self.hook = AzureDataFactoryHook(conn_id=self.conn_id)
+        self.hook = AzureDataFactoryHook(azure_data_factory_conn_id=self.azure_data_factory_conn_id)
         self.log.info(f"Executing the '{self.pipeline_name}' pipeline.")
         response = self.hook.run_pipeline(
             pipeline_name=self.pipeline_name,

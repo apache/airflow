@@ -101,7 +101,7 @@ operators:
       - airflow.providers.microsoft.azure.operators.wasb_delete_blob
   - integration-name: Microsoft Azure Data Factory
     python-modules:
-      - airflow.providers.microsoft.azure.operators.azure_data_factory
+      - airflow.providers.microsoft.azure.operators.data_factory
 
 sensors:
   - integration-name: Microsoft Azure Cosmos DB
@@ -112,7 +112,7 @@ sensors:
       - airflow.providers.microsoft.azure.sensors.wasb
   - integration-name: Microsoft Azure Data Factory
     python-modules:
-      - airflow.providers.microsoft.azure.sensors.azure_data_factory
+      - airflow.providers.microsoft.azure.sensors.data_factory
 
 hooks:
   - integration-name: Microsoft Azure Container Instances
@@ -143,7 +143,7 @@ hooks:
       - airflow.providers.microsoft.azure.hooks.wasb
   - integration-name: Microsoft Azure Data Factory
     python-modules:
-      - airflow.providers.microsoft.azure.hooks.azure_data_factory
+      - airflow.providers.microsoft.azure.hooks.data_factory
 
 transfers:
   - source-integration-name: Local
@@ -171,7 +171,7 @@ hook-class-names:  # deprecated - to be removed after providers add dependency o
   - airflow.providers.microsoft.azure.hooks.azure_container_volume.AzureContainerVolumeHook
   - airflow.providers.microsoft.azure.hooks.azure_container_instance.AzureContainerInstanceHook
   - airflow.providers.microsoft.azure.hooks.wasb.WasbHook
-  - airflow.providers.microsoft.azure.hooks.azure_data_factory.AzureDataFactoryHook
+  - airflow.providers.microsoft.azure.hooks.data_factory.AzureDataFactoryHook
   - airflow.providers.microsoft.azure.hooks.azure_container_registry.AzureContainerRegistryHook
 
 connection-types:
@@ -194,7 +194,7 @@ connection-types:
     connection-type: azure_container_instance
   - hook-class-name: airflow.providers.microsoft.azure.hooks.wasb.WasbHook
     connection-type: wasb
-  - hook-class-name: airflow.providers.microsoft.azure.hooks.azure_data_factory.AzureDataFactoryHook
+  - hook-class-name: airflow.providers.microsoft.azure.hooks.data_factory.AzureDataFactoryHook
     connection-type: azure_data_factory
   - hook-class-name: >-
       airflow.providers.microsoft.azure.hooks.azure_container_registry.AzureContainerRegistryHook

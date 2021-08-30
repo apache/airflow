@@ -19,10 +19,8 @@ from datetime import datetime, timedelta
 
 from airflow.models import DAG
 from airflow.operators.dummy import DummyOperator
-from airflow.providers.microsoft.azure.operators.azure_data_factory import AzureDataFactoryRunPipelineOperator
-from airflow.providers.microsoft.azure.sensors.azure_data_factory import (
-    AzureDataFactoryPipelineRunStatusSensor,
-)
+from airflow.providers.microsoft.azure.operators.data_factory import AzureDataFactoryRunPipelineOperator
+from airflow.providers.microsoft.azure.sensors.data_factory import AzureDataFactoryPipelineRunStatusSensor
 from airflow.utils.edgemodifier import Label
 
 with DAG(
@@ -33,7 +31,7 @@ with DAG(
     default_args={
         "retries": 1,
         "retry_delay": timedelta(minutes=3),
-        "conn_id": "azure_data_factory",
+        "azure_data_factory_conn_id": "azure_data_factory",
         "factory_name": "my-data-factory",  # This can also be specified in the ADF connection.
         "resource_group_name": "my-resource-group",  # This can also be specified in the ADF connection.
     },

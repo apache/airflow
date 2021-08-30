@@ -22,11 +22,11 @@ import pytest
 from parameterized import parameterized
 
 from airflow.exceptions import AirflowException
-from airflow.providers.microsoft.azure.hooks.azure_data_factory import (
+from airflow.providers.microsoft.azure.hooks.data_factory import (
     AzureDataFactoryHook,
     AzureDataFactoryPipelineRunStatus,
 )
-from airflow.providers.microsoft.azure.operators.azure_data_factory import AzureDataFactoryRunPipelineOperator
+from airflow.providers.microsoft.azure.operators.data_factory import AzureDataFactoryRunPipelineOperator
 
 PIPELINE_RUN_RESPONSE = {"additional_properties": {}, "run_id": "run_id"}
 
@@ -37,7 +37,7 @@ class TestAzureDataFactoryRunPipelineOperator(unittest.TestCase):
         self.mock_context = {"ti": self.mock_ti}
         self.config = {
             "task_id": "run_pipeline_op",
-            "conn_id": "azure_data_factory_test",
+            "azure_data_factory_conn_id": "azure_data_factory_test",
             "pipeline_name": "pipeline1",
             "resource_group_name": "resource-group-name",
             "factory_name": "factory-name",
@@ -64,7 +64,7 @@ class TestAzureDataFactoryRunPipelineOperator(unittest.TestCase):
     def test_execute_wait_for_completion(self, pipeline_run_status, expected_status, mock_run_pipeline):
         operator = AzureDataFactoryRunPipelineOperator(**self.config)
 
-        assert operator.conn_id == self.config["conn_id"]
+        assert operator.azure_data_factory_conn_id == self.config["azure_data_factory_conn_id"]
         assert operator.pipeline_name == self.config["pipeline_name"]
         assert operator.resource_group_name == self.config["resource_group_name"]
         assert operator.factory_name == self.config["factory_name"]
@@ -125,7 +125,7 @@ class TestAzureDataFactoryRunPipelineOperator(unittest.TestCase):
     def test_execute_no_wait_for_completion(self, mock_run_pipeline):
         operator = AzureDataFactoryRunPipelineOperator(wait_for_completion=False, **self.config)
 
-        assert operator.conn_id == self.config["conn_id"]
+        assert operator.azure_data_factory_conn_id == self.config["azure_data_factory_conn_id"]
         assert operator.pipeline_name == self.config["pipeline_name"]
         assert operator.resource_group_name == self.config["resource_group_name"]
         assert operator.factory_name == self.config["factory_name"]

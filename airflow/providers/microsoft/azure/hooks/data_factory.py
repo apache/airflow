@@ -52,7 +52,7 @@ def provide_targeted_factory(func: Callable) -> Callable:
             # Check if arg was not included in the function signature or, if it is, the value is not provided.
             if arg not in bound_args.arguments or bound_args.arguments[arg] is None:
                 self = args[0]
-                conn = self.get_connection(self.conn_id)
+                conn = self.get_connection(self.azure_data_factory_conn_id)
                 default_value = conn.extra_dejson.get(default_key)
                 if not default_value:
                     raise AirflowException("Could not determine the targeted data factory.")
@@ -84,8 +84,8 @@ class AzureDataFactoryHook(BaseHook):
     """
     A hook to interact with Azure Data Factory.
 
-    :param conn_id: The :ref:`Azure Data Factory connection id<howto/connection:adf>`.
-    :type conn_id: str
+    :param azure_data_factory_conn_id: The :ref:`Azure Data Factory connection id<howto/connection:adf>`.
+    :type azure_data_factory_conn_id: str
     """
 
     conn_type: str = 'azure_data_factory'
@@ -126,16 +126,16 @@ class AzureDataFactoryHook(BaseHook):
             },
         }
 
-    def __init__(self, conn_id: Optional[str] = default_conn_name):
+    def __init__(self, azure_data_factory_conn_id: Optional[str] = default_conn_name):
         self._conn: DataFactoryManagementClient = None
-        self.conn_id = conn_id
+        self.azure_data_factory_conn_id = azure_data_factory_conn_id
         super().__init__()
 
     def get_conn(self) -> DataFactoryManagementClient:
         if self._conn is not None:
             return self._conn
 
-        conn = self.get_connection(self.conn_id)
+        conn = self.get_connection(self.azure_data_factory_conn_id)
         tenant = conn.extra_dejson.get('extra__azure_data_factory__tenantId')
         subscription_id = conn.extra_dejson.get('extra__azure_data_factory__subscriptionId')
 

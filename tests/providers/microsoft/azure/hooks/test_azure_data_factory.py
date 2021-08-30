@@ -24,7 +24,7 @@ from pytest import fixture
 
 from airflow.exceptions import AirflowException
 from airflow.models.connection import Connection
-from airflow.providers.microsoft.azure.hooks.azure_data_factory import (
+from airflow.providers.microsoft.azure.hooks.data_factory import (
     AzureDataFactoryHook,
     provide_targeted_factory,
 )
@@ -62,7 +62,7 @@ def setup_module():
 
 @fixture
 def hook():
-    client = AzureDataFactoryHook(conn_id="azure_data_factory_test")
+    client = AzureDataFactoryHook(azure_data_factory_conn_id="azure_data_factory_test")
     client._conn = MagicMock(
         spec=[
             "factories",

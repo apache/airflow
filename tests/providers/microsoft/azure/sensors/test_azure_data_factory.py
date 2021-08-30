@@ -25,20 +25,18 @@ from parameterized import parameterized
 
 from airflow.exceptions import AirflowException
 from airflow.models.dag import DAG
-from airflow.providers.microsoft.azure.hooks.azure_data_factory import (
+from airflow.providers.microsoft.azure.hooks.data_factory import (
     AzureDataFactoryHook,
     AzureDataFactoryPipelineRunStatus,
 )
-from airflow.providers.microsoft.azure.sensors.azure_data_factory import (
-    AzureDataFactoryPipelineRunStatusSensor,
-)
+from airflow.providers.microsoft.azure.sensors.data_factory import AzureDataFactoryPipelineRunStatusSensor
 
 
 class TestPipelineRunStatusSensor(unittest.TestCase):
     def setUp(self):
         self.dag = DAG("test", start_date=datetime(2021, 8, 16), schedule_interval=None, catchup=False)
         self.config = {
-            "conn_id": "azure_data_factory_test",
+            "azure_data_factory_conn_id": "azure_data_factory_test",
             "run_id": "run_id",
             "resource_group_name": "resource-group-name",
             "factory_name": "factory-name",
@@ -58,7 +56,7 @@ class TestPipelineRunStatusSensor(unittest.TestCase):
         sensor = AzureDataFactoryPipelineRunStatusSensor(
             task_id="pipeline_run_sensor", dag=self.dag, **self.config
         )
-        assert sensor.conn_id == self.config["conn_id"]
+        assert sensor.azure_data_factory_conn_id == self.config["azure_data_factory_conn_id"]
         assert sensor.run_id == self.config["run_id"]
         assert sensor.resource_group_name == self.config["resource_group_name"]
         assert sensor.factory_name == self.config["factory_name"]
