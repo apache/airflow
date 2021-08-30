@@ -322,6 +322,7 @@ class SchedulerJob(BaseJob):
             session.query(TI)
             .outerjoin(TI.dag_run)
             .filter(or_(DR.run_id.is_(None), DR.run_type != DagRunType.BACKFILL_JOB))
+            .filter(or_(DR.state.is_(None), DR.state != DagRunState.QUEUED))
             .join(TI.dag_model)
             .filter(not_(DM.is_paused))
             .filter(TI.state == State.SCHEDULED)
@@ -959,7 +960,7 @@ class SchedulerJob(BaseJob):
                     dag_hash=dag_hash,
                     creating_job_id=self.id,
                 )
-            dag_model.calculate_dagrun_date_fields(dag, dag_model.next_dagrun, 0)
+            dag_model.calculate_dagrun_date_fields(dag, dag_model.next_dagrun)
 
         # TODO[HA]: Should we do a session.flush() so we don't have to keep lots of state/object in
         # memory for larger dags? or expunge_all()

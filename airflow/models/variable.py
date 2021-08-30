@@ -33,7 +33,7 @@ from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.log.secrets_masker import mask_secret
 from airflow.utils.session import provide_session
 
-log = logging.getLogger()
+log = logging.getLogger(__name__)
 
 
 class Variable(Base, LoggingMixin):
@@ -201,7 +201,14 @@ class Variable(Base, LoggingMixin):
         :return: Variable Value
         """
         for secrets_backend in ensure_secrets_loaded():
-            var_val = secrets_backend.get_variable(key=key)
-            if var_val is not None:
-                return var_val
+            try:
+                var_val = secrets_backend.get_variable(key=key)
+                if var_val is not None:
+                    return var_val
+            except Exception:  # pylint: disable=broad-except
+                log.exception(
+                    'Unable to retrieve variable from secrets backend (%s). '
+                    'Checking subsequent secrets backend.',
+                    type(secrets_backend).__name__,
+                )
         return None

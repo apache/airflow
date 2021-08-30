@@ -30,7 +30,7 @@ class BaseTrigger(abc.ABC):
 
     We use the same class for both situations, and rely on all Trigger classes
     to be able to return the (Airflow-JSON-encodable) arguments that will
-    let them be reinsantiated elsewhere.
+    let them be re-instantiated elsewhere.
     """
 
     def __init__(self):

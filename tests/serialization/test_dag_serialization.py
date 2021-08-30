@@ -872,6 +872,8 @@ class TestStringifiedDAGs(unittest.TestCase):
             '_log': base_operator.log,
             '_outlets': [],
             '_upstream_task_ids': set(),
+            '_pre_execute_hook': None,
+            '_post_execute_hook': None,
             'depends_on_past': False,
             'do_xcom_push': True,
             'doc': None,
