@@ -193,7 +193,7 @@ webserver_config.py itself if you wish.
 
     FAB_ADMIN_ROLE = "Admin"
     FAB_VIEWER_ROLE = "Viewer"
-    FAB_PUBLIC_ROLE = "Public"  # "Public" role is given no permissions
+    FAB_PUBLIC_ROLE = "Public"  # The "Public" role is given no permissions
     TEAM_ID_A_FROM_GITHUB = 123  # Replace these with real team IDs for your org
     TEAM_ID_B_FROM_GITHUB = 456  # Replace these with real team IDs for your org
 
