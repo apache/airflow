@@ -233,10 +233,16 @@ class SnowflakeCheckOperator(_SnowflakeDbHookMixin, SQLCheckOperator):
 
 class SnowflakeValueCheckOperator(_SnowflakeDbHookMixin, SQLValueCheckOperator):
     """
-    Performs a simple value check using sql code.
+    Performs a simple check using sql code against a specified value, within a
+    certain level of tolerance.
 
     :param sql: the sql to be executed
     :type sql: str
+    :param pass_value: the value to check against
+    :type pass_value: Any
+    :param tolerance: (optional) the tolerance allowed to accept the query as
+        passing
+    :type tolerance: Any
     :param snowflake_conn_id: Reference to
         :ref:`Snowflake connection id<howto/connection:snowflake>`
     :type snowflake_conn_id: str
@@ -273,7 +279,7 @@ class SnowflakeValueCheckOperator(_SnowflakeDbHookMixin, SQLValueCheckOperator):
     def __init__(
         self,
         *,
-        sql: Any,
+        sql: str,
         pass_value: Any,
         tolerance: Any = None,
         snowflake_conn_id: str = 'snowflake_default',
