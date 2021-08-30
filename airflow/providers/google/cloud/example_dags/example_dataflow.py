@@ -25,11 +25,13 @@ from urllib.parse import urlparse
 
 from airflow import models
 from airflow.exceptions import AirflowException
+from airflow.providers.apache.beam.operators.beam import (
+    BeamRunJavaPipelineOperator,
+    BeamRunPythonPipelineOperator,
+)
 from airflow.providers.google.cloud.hooks.dataflow import DataflowJobStatus
 from airflow.providers.google.cloud.operators.dataflow import (
     CheckJobRunning,
-    DataflowCreateJavaJobOperator,
-    DataflowCreatePythonJobOperator,
     DataflowTemplatedJobStartOperator,
 )
 from airflow.providers.google.cloud.sensors.dataflow import (
@@ -66,17 +68,18 @@ with models.DAG(
 ) as dag_native_java:
 
     # [START howto_operator_start_java_job_jar_on_gcs]
-    start_java_job = DataflowCreateJavaJobOperator(
+    start_java_job = BeamRunJavaPipelineOperator(
         task_id="start-java-job",
         jar=GCS_JAR,
-        job_name='{{task.task_id}}',
-        options={
+        pipeline_options={
             'output': GCS_OUTPUT,
         },
-        poll_sleep=10,
         job_class='org.apache.beam.examples.WordCount',
-        check_if_running=CheckJobRunning.IgnoreJob,
-        location='europe-west3',
+        dataflow_config={
+            "check_if_running": CheckJobRunning.IgnoreJob,
+            "location": 'europe-west3',
+            "poll_sleep": 10,
+        },
     )
     # [END howto_operator_start_java_job_jar_on_gcs]
 
@@ -88,16 +91,18 @@ with models.DAG(
         filename="/tmp/dataflow-{{ ds_nodash }}.jar",
     )
 
-    start_java_job_local = DataflowCreateJavaJobOperator(
+    start_java_job_local = BeamRunJavaPipelineOperator(
         task_id="start-java-job-local",
         jar="/tmp/dataflow-{{ ds_nodash }}.jar",
-        job_name='{{task.task_id}}',
-        options={
+        pipeline_options={
             'output': GCS_OUTPUT,
         },
-        poll_sleep=10,
         job_class='org.apache.beam.examples.WordCount',
-        check_if_running=CheckJobRunning.WaitForRun,
+        dataflow_config={
+            "check_if_running": CheckJobRunning.WaitForRun,
+            "location": 'europe-west3',
+            "poll_sleep": 10,
+        },
     )
     jar_to_local >> start_java_job_local
     # [END howto_operator_start_java_job_local_jar]
@@ -111,27 +116,25 @@ with models.DAG(
 ) as dag_native_python:
 
     # [START howto_operator_start_python_job]
-    start_python_job = DataflowCreatePythonJobOperator(
+    start_python_job = BeamRunPythonPipelineOperator(
         task_id="start-python-job",
         py_file=GCS_PYTHON,
         py_options=[],
-        job_name='{{task.task_id}}',
-        options={
+        pipeline_options={
             'output': GCS_OUTPUT,
         },
         py_requirements=['apache-beam[gcp]==2.21.0'],
         py_interpreter='python3',
         py_system_site_packages=False,
-        location='europe-west3',
+        dataflow_config={'location': 'europe-west3'},
     )
     # [END howto_operator_start_python_job]
 
-    start_python_job_local = DataflowCreatePythonJobOperator(
+    start_python_job_local = BeamRunPythonPipelineOperator(
         task_id="start-python-job-local",
         py_file='apache_beam.examples.wordcount',
         py_options=['-m'],
-        job_name='{{task.task_id}}',
-        options={
+        pipeline_options={
             'output': GCS_OUTPUT,
         },
         py_requirements=['apache-beam[gcp]==2.14.0'],
@@ -147,19 +150,17 @@ with models.DAG(
     tags=['example'],
 ) as dag_native_python_async:
     # [START howto_operator_start_python_job_async]
-    start_python_job_async = DataflowCreatePythonJobOperator(
+    start_python_job_async = BeamRunPythonPipelineOperator(
         task_id="start-python-job-async",
         py_file=GCS_PYTHON,
         py_options=[],
-        job_name='{{task.task_id}}',
-        options={
+        pipeline_options={
             'output': GCS_OUTPUT,
         },
         py_requirements=['apache-beam[gcp]==2.25.0'],
         py_interpreter='python3',
         py_system_site_packages=False,
-        location='europe-west3',
-        wait_until_finished=False,
+        dataflow_config={"location": 'europe-west3', "wait_until_finished": False},
     )
     # [END howto_operator_start_python_job_async]
 

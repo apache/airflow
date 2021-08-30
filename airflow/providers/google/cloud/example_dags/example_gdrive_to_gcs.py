@@ -44,8 +44,8 @@ with models.DAG(
         task_id="upload_gdrive_object_to_gcs",
         folder_id=FOLDER_ID,
         file_name=FILE_NAME,
-        destination_bucket=BUCKET,
-        destination_object=OBJECT,
+        bucket_name=BUCKET,
+        object_name=OBJECT,
     )
     # [END upload_gdrive_to_gcs]
     detect_file >> upload_gdrive_to_gcs

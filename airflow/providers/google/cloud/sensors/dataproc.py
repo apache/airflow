@@ -63,7 +63,7 @@ class DataprocJobSensor(BaseSensorOperator):
                     "Parameter `location` will be deprecated. "
                     "Please provide value through `region` parameter instead.",
                     DeprecationWarning,
-                    stacklevel=1,
+                    stacklevel=2,
                 )
                 region = location
             else:

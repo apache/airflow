@@ -421,7 +421,7 @@ MySQL Workbench with Host ``127.0.0.1``, port ``23306``, user ``root`` and passw
 
 .. code-block:: bash
 
-  root@f3619b74c59a:/opt/airflow# ./stop_airflow.sh
+  root@f3619b74c59a:/opt/airflow# stop_airflow.sh
   root@f3619b74c59a:/opt/airflow# exit
   $ breeze stop
 
