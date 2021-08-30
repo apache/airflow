@@ -247,6 +247,8 @@ class BaseSerialization:
 
             if key in decorated_fields:
                 serialized_object[key] = cls._serialize(value)
+            elif key == "timetable":
+                serialized_object[key] = encode_timetable(value)
             else:
                 value = cls._serialize(value)
                 if isinstance(value, dict) and "__type" in value:
@@ -729,7 +731,13 @@ class SerializedDAG(DAG, BaseSerialization):
         try:
             serialize_dag = cls.serialize_to_json(dag, cls._decorated_fields)
 
-            serialize_dag["timetable"] = encode_timetable(dag.timetable)
+            # If schedule_interval is backed by timetable, serialize only
+            # timetable; vice versa for a timetable backed by schedule_interval.
+            if dag.timetable.summary == dag.schedule_interval:
+                del serialize_dag["schedule_interval"]
+            else:
+                del serialize_dag["timetable"]
+
             serialize_dag["tasks"] = [cls._serialize(task) for _, task in dag.task_dict.items()]
             serialize_dag["dag_dependencies"] = [
                 vars(t)
@@ -757,7 +765,6 @@ class SerializedDAG(DAG, BaseSerialization):
         """Deserializes a DAG from a JSON object."""
         dag = SerializedDAG(dag_id=encoded_dag['_dag_id'])
 
-        has_timetable = False
         for k, v in encoded_dag.items():
             if k == "_downstream_task_ids":
                 v = set(v)
@@ -778,16 +785,18 @@ class SerializedDAG(DAG, BaseSerialization):
                 pass
             elif k == "timetable":
                 v = decode_timetable(v)
-                has_timetable = True
             elif k in cls._decorated_fields:
                 v = cls._deserialize(v)
             # else use v as it is
 
             setattr(dag, k, v)
 
-        # A DAG serialized prior to Airflow 2.2 (AIP-39) will not be able to
-        # populate timetable, so we back-populate it from schedule_interval.
-        if not has_timetable:
+        # A DAG is always serialized with only one of schedule_interval and
+        # timetable. This back-populates the other to ensure the two attributes
+        # line up correctly on the DAG instance.
+        if "timetable" in encoded_dag:
+            dag.schedule_interval = dag.timetable.summary
+        else:
             dag.timetable = create_timetable(dag.schedule_interval, dag.timezone)
 
         # Set _task_group

@@ -233,9 +233,6 @@ class DeltaDataIntervalTimetable(_DataIntervalTimetable):
     def __init__(self, delta: Delta) -> None:
         self._delta = delta
 
-    def infer_data_interval(self, run_after: DateTime) -> DataInterval:
-        return DataInterval(start=self._schedule.get_prev(run_after), end=run_after)
-
     @classmethod
     def deserialize(cls, data: Dict[str, Any]) -> "Timetable":
         from airflow.serialization.serialized_objects import decode_relativedelta
@@ -292,3 +289,6 @@ class DeltaDataIntervalTimetable(_DataIntervalTimetable):
         if earliest is None:
             return new_start
         return max(new_start, earliest)
+
+    def infer_data_interval(self, run_after: DateTime) -> DataInterval:
+        return DataInterval(start=self._get_prev(run_after), end=run_after)
