@@ -780,6 +780,10 @@ class CloudDataFusionStartPipelineOperator(BaseOperator):
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
     :type impersonation_chain: Union[str, Sequence[str]]
+    :param asynchronous: Flag to return after submitting the pipeline Id to the Data Fusion API.
+        This is useful for submitting long running pipelines and
+        waiting on them asynchronously using the CloudDataFusionPipelineStateSensor
+    :type asynchronous: bool
     """
 
     template_fields = (
@@ -804,6 +808,7 @@ class CloudDataFusionStartPipelineOperator(BaseOperator):
         gcp_conn_id: str = "google_cloud_default",
         delegate_to: Optional[str] = None,
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        asynchronous=False,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -817,6 +822,7 @@ class CloudDataFusionStartPipelineOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
+        self.asynchronous = asynchronous
 
         if success_states:
             self.success_states = success_states
@@ -825,7 +831,7 @@ class CloudDataFusionStartPipelineOperator(BaseOperator):
             self.success_states = SUCCESS_STATES + [PipelineStates.RUNNING]
             self.pipeline_timeout = 5 * 60
 
-    def execute(self, context: dict) -> None:
+    def execute(self, context: dict) -> str:
         hook = DataFusionHook(
             gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,
@@ -845,15 +851,20 @@ class CloudDataFusionStartPipelineOperator(BaseOperator):
             namespace=self.namespace,
             runtime_args=self.runtime_args,
         )
-        hook.wait_for_pipeline_state(
-            success_states=self.success_states,
-            pipeline_id=pipeline_id,
-            pipeline_name=self.pipeline_name,
-            namespace=self.namespace,
-            instance_url=api_url,
-            timeout=self.pipeline_timeout,
-        )
-        self.log.info("Pipeline started")
+        self.log.info("Pipeline %s submitted successfully.", pipeline_id)
+
+        if not self.asynchronous:
+            self.log.info("Waiting when pipeline %s will be in one of the success states", pipeline_id)
+            hook.wait_for_pipeline_state(
+                success_states=self.success_states,
+                pipeline_id=pipeline_id,
+                pipeline_name=self.pipeline_name,
+                namespace=self.namespace,
+                instance_url=api_url,
+                timeout=self.pipeline_timeout,
+            )
+            self.log.info("Job %s discover success state.", pipeline_id)
+        return pipeline_id
 
 
 class CloudDataFusionStopPipelineOperator(BaseOperator):

@@ -3578,6 +3578,10 @@ function breeze::determine_python_version_to_use_in_breeze() {
 
 breeze::setup_default_breeze_constants
 
+initialization::create_directories
+
+breeze::read_saved_environment_variables
+
 initialization::initialize_common_environment
 
 initialization::get_environment_for_builds_on_ci
@@ -3596,8 +3600,6 @@ breeze::parse_arguments "${@}"
 breeze::print_header_line
 
 build_images::forget_last_answer
-
-breeze::read_saved_environment_variables
 
 breeze::check_and_save_all_params
 

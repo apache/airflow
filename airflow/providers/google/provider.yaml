@@ -462,6 +462,9 @@ sensors:
   - integration-name: Google Dataflow
     python-modules:
       - airflow.providers.google.cloud.sensors.dataflow
+  - integration-name: Google Data Fusion
+    python-modules:
+      - airflow.providers.google.cloud.sensors.datafusion
   - integration-name: Google Dataproc
     python-modules:
       - airflow.providers.google.cloud.sensors.dataproc
