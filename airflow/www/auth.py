@@ -15,10 +15,13 @@
 # specific language governing permissions and limitations
 # under the License.
 
+import socket
 from functools import wraps
 from typing import Callable, Optional, Sequence, Tuple, TypeVar, cast
 
-from flask import current_app, flash, g, redirect, request, url_for
+from flask import current_app, flash, g, redirect, render_template, request, url_for
+
+from airflow.configuration import conf
 
 T = TypeVar("T", bound=Callable)
 
@@ -30,8 +33,17 @@ def has_access(permissions: Optional[Sequence[Tuple[str, str]]] = None) -> Calla
         @wraps(func)
         def decorated(*args, **kwargs):
             appbuilder = current_app.appbuilder
-            if not g.user.is_anonymous and not g.user.roles:
-                return redirect(url_for("Airflow.no_roles"))
+            if not g.user.is_anonymous and not appbuilder.sm.current_user_has_permissions():
+                return (
+                    render_template(
+                        'airflow/no_roles_permissions.html',
+                        hostname=socket.getfqdn()
+                        if conf.getboolean('webserver', 'EXPOSE_HOSTNAME', fallback=True)
+                        else 'redact',
+                        logout_url=appbuilder.get_url_for_logout,
+                    ),
+                    403,
+                )
 
             if appbuilder.sm.check_authorization(permissions, request.args.get('dag_id', None)):
                 return func(*args, **kwargs)

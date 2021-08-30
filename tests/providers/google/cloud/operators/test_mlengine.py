@@ -457,6 +457,45 @@ class TestMLEngineStartTrainingJobOperator(unittest.TestCase):
         training_input['trainingInput']['jobDir'] = 'gs://some-bucket/jobs/test_training'
         training_input['trainingInput']['serviceAccount'] = 'test@serviceaccount.com'
 
+        hyperparams = {
+            'goal': 'MAXIMIZE',
+            'hyperparameterMetricTag': 'metric1',
+            'maxTrials': 30,
+            'maxParallelTrials': 1,
+            'enableTrialEarlyStopping': True,
+            'params': [],
+        }
+
+        hyperparams['params'].append(
+            {
+                'parameterName': 'hidden1',
+                'type': 'INTEGER',
+                'minValue': 40,
+                'maxValue': 400,
+                'scaleType': 'UNIT_LINEAR_SCALE',
+            }
+        )
+
+        hyperparams['params'].append(
+            {'parameterName': 'numRnnCells', 'type': 'DISCRETE', 'discreteValues': [1, 2, 3, 4]}
+        )
+
+        hyperparams['params'].append(
+            {
+                'parameterName': 'rnnCellType',
+                'type': 'CATEGORICAL',
+                'categoricalValues': [
+                    'BasicLSTMCell',
+                    'BasicRNNCell',
+                    'GRUCell',
+                    'LSTMCell',
+                    'LayerNormBasicLSTMCell',
+                ],
+            }
+        )
+
+        training_input['trainingInput']['hyperparameters'] = hyperparams
+
         success_response = self.TRAINING_INPUT.copy()
         success_response['state'] = 'SUCCEEDED'
         hook_instance = mock_hook.return_value
@@ -468,6 +507,7 @@ class TestMLEngineStartTrainingJobOperator(unittest.TestCase):
             job_dir='gs://some-bucket/jobs/test_training',
             service_account='test@serviceaccount.com',
             **self.TRAINING_DEFAULT_ARGS,
+            hyperparameters=hyperparams,
         )
         training_op.execute(MagicMock())
 
