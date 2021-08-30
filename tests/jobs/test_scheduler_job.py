@@ -2589,7 +2589,6 @@ class TestSchedulerJob:
         num_queued = self.scheduler_job._do_scheduling(session)
         assert num_queued == 1
 
-        session.merge(run1)
         session.flush()
         ti = run1.task_instances[0]
         ti.refresh_from_db(session=session)
