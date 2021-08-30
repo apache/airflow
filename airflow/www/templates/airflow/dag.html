@@ -88,11 +88,11 @@
       </a>
       {% if dag_model is defined and dag_model.next_dagrun_create_after is defined %}
         <p class="label label-default" style="margin-left: 5px">
-          Next Run: <span id="next-run">{{ dag_model.next_dagrun_create_after }}</span>
+          Next Run: <time id="next-run" datetime="{{ dag_model.next_dagrun_create_after }}">{{ dag_model.next_dagrun_create_after }}</time>
         </p>
       {% elif dag.next_dagrun_create_after is defined %}
         <p class="label label-default" style="margin-left: 5px">
-          Next Run: <span id="next-run">{{ dag.next_dagrun_create_after }}</span>
+          Next Run: <time id="next-run" title datetime="{{ dag.next_dagrun_create_after }}">{{ dag.next_dagrun_create_after }}</time>
         </p>
       {% endif %}
     </h4>

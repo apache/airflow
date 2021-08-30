@@ -17,7 +17,7 @@
  * under the License.
  */
 
-/* global document, window, $, moment */
+/* global document, window, $ */
 
 import getMetaValue from './meta_value';
 import { formatDateTime } from './datetime_utils';
@@ -37,13 +37,6 @@ $(window).on('load', function onLoad() {
   $(`a[href*="${this.location.pathname}"]`).parent().addClass('active');
   $('.never_active').removeClass('active');
 });
-
-// Format next run date once the page loads
-const nextRun = document.getElementById('next-run');
-if (nextRun) {
-  const nextRunText = nextRun.innerText;
-  nextRun.innerText = `${moment(nextRunText).isValid() ? formatDateTime(nextRunText) : nextRunText}`;
-}
 
 const dagId = getMetaValue('dag_id');
 export const dagTZ = getMetaValue('dag_timezone');

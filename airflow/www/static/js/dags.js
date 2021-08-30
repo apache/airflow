@@ -17,10 +17,9 @@
  * under the License.
  */
 
-/* global document, window, $, d3, STATE_COLOR, isoDateToTimeEl, moment */
+/* global document, window, $, d3, STATE_COLOR, isoDateToTimeEl */
 
 import getMetaValue from './meta_value';
-import { formatDateTime } from './datetime_utils';
 
 const DAGS_INDEX = getMetaValue('dags_index');
 const ENTER_KEY_CODE = 13;
@@ -351,11 +350,4 @@ $(window).on('load', () => {
   $('body').on('mouseout', '.has-svg-tooltip', () => {
     hideSvgTooltip();
   });
-});
-
-// Format next run dates once the page loads
-const nextRuns = document.getElementsByClassName('js-next-run');
-Array.from(nextRuns).forEach((run) => {
-  const value = run.innerText;
-  run.innerText = `${moment(value).isValid() ? formatDateTime(value) : ''}`;
 });

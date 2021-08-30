@@ -168,7 +168,7 @@
                   <span aria-hidden="true" title=" " class="material-icons text-muted js-tooltip" style="display:none">info</span>
                 </td>
                 <td class="text-nowrap js-next-run">
-                  {{ dag.next_dagrun_create_after }}
+                  <time datetime="{{ dag.next_dagrun_create_after }}">{{ dag.next_dagrun_create_after }}</time>
                 </td>
                 <td style="padding:0; width:323px; height:10px;">
                   {{ loading_dots(classes='js-loading-task-stats text-muted') }}
