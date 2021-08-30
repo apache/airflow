@@ -724,8 +724,6 @@ class DagFileProcessorManager(LoggingMixin):
             if last_run:
                 seconds_ago = (now - last_run).total_seconds()
                 Stats.gauge(f'dag_processing.last_run.seconds_ago.{file_name}', seconds_ago)
-            if runtime:
-                Stats.timing(f'dag_processing.last_duration.{file_name}', runtime)
 
             rows.append((file_path, processor_pid, runtime, num_dags, num_errors, last_runtime, last_run))
 
@@ -892,6 +890,9 @@ class DagFileProcessorManager(LoggingMixin):
             run_count=self.get_run_count(processor.file_path) + 1,
         )
         self._file_stats[processor.file_path] = stat
+
+        file_name = os.path.splitext(os.path.basename(processor.file_path))[0].replace(os.sep, '.')
+        Stats.timing(f'dag_processing.last_duration.{file_name}', stat.last_duration)
 
     def collect_results(self) -> None:
         """Collect the result from any finished DAG processors"""

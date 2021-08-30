@@ -594,7 +594,7 @@
       type: string
       example: ~
       default: "task"
-    - name: extra_loggers
+    - name: extra_logger_names
       description: |
         A comma\-separated list of third-party logger names that will be configured to print messages to
         consoles\.

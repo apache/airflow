@@ -30,8 +30,8 @@ import dill
 from airflow import DAG
 from airflow.exceptions import AirflowException
 from airflow.operators.python import PythonOperator
+from airflow.providers.apache.beam.operators.beam import BeamRunPythonPipelineOperator
 from airflow.providers.google.cloud.hooks.gcs import GCSHook
-from airflow.providers.google.cloud.operators.dataflow import DataflowCreatePythonJobOperator
 from airflow.providers.google.cloud.operators.mlengine import MLEngineStartBatchPredictionJobOperator
 
 T = TypeVar("T", bound=Callable)
@@ -242,11 +242,11 @@ def create_evaluate_ops(
     )
 
     metric_fn_encoded = base64.b64encode(dill.dumps(metric_fn, recurse=True)).decode()
-    evaluate_summary = DataflowCreatePythonJobOperator(
+    evaluate_summary = BeamRunPythonPipelineOperator(
         task_id=(task_prefix + "-summary"),
         py_file=os.path.join(os.path.dirname(__file__), 'mlengine_prediction_summary.py'),
-        dataflow_default_options=dataflow_options,
-        options={
+        default_pipeline_options=dataflow_options,
+        pipeline_options={
             "prediction_path": prediction_path,
             "metric_fn_encoded": metric_fn_encoded,
             "metric_keys": ','.join(metric_keys),
