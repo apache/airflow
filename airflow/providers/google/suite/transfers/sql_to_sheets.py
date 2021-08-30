@@ -17,7 +17,7 @@
 
 
 import datetime
-import decimal
+import numbers
 from contextlib import closing
 from typing import Any, Iterable, Mapping, Optional, Sequence, Union
 
@@ -58,14 +58,16 @@ class SQLToGoogleSheetsOperator(BaseSQLOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = [
+    template_fields = (
         "sql",
         "spreadsheet_id",
         "spreadsheet_range",
         "impersonation_chain",
-    ]
+    )
 
+    template_fields_renderers = {"sql": "sql"}
     template_ext = (".sql",)
+
     ui_color = "#a0e08c"
 
     def __init__(
@@ -98,27 +100,23 @@ class SQLToGoogleSheetsOperator(BaseSQLOperator):
         for row in data:
             item_list = []
             for item in row:
-                if type(item) is datetime.date:
-                    item = item.strftime("%Y-%m-%d")
-                elif type(item) is datetime.datetime:
-                    item = item.strftime("%Y-%m-%d")
-                elif type(item) is decimal.Decimal:
+                if isinstance(item, (datetime.date, datetime.datetime)):
+                    item = item.isoformat()
+                elif isinstance(item, int):  # To exclude int from the number check.
+                    pass
+                elif isinstance(item, numbers.Number):
                     item = float(item)
                 item_list.append(item)
             yield item_list
 
     def _get_data(self):
         hook = self.get_db_hook()
-        with closing(hook.get_conn()) as conn:
-            with closing(conn.cursor()) as cur:
-                self.log.info("Executing query")
-                if self.parameters is not None:
-                    cur.execute(self.sql, self.parameters)
-                else:
-                    cur.execute(self.sql)
+        with closing(hook.get_conn()) as conn, closing(conn.cursor()) as cur:
+            self.log.info("Executing query")
+            cur.execute(self.sql, self.parameters or ())
 
-                yield [field[0] for field in cur.description]
-                yield from self._data_prep(cur.fetchall())
+            yield [field[0] for field in cur.description]
+            yield from self._data_prep(cur.fetchall())
 
     def execute(self, context: Any) -> None:
         self.log.info("Getting data")
