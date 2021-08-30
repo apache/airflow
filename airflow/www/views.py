@@ -807,7 +807,7 @@ class Airflow(AirflowBaseView):
             filter_dag_ids = allowed_dag_ids
 
         running_dag_run_query_result = (
-            session.query(DagRun.dag_id, DagRun.execution_date)
+            session.query(DagRun.dag_id, DagRun.run_id)
             .join(DagModel, DagModel.dag_id == DagRun.dag_id)
             .filter(DagRun.state == State.RUNNING, DagModel.is_active)
         )
@@ -823,7 +823,7 @@ class Airflow(AirflowBaseView):
             running_dag_run_query_result,
             and_(
                 running_dag_run_query_result.c.dag_id == TaskInstance.dag_id,
-                running_dag_run_query_result.c.execution_date == TaskInstance.execution_date,
+                running_dag_run_query_result.c.run_id == TaskInstance.run_id,
             ),
         )
 
