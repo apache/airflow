@@ -22,7 +22,26 @@ from airflow.operators.sql import SQLCheckOperator, SQLIntervalCheckOperator, SQ
 from airflow.providers.snowflake.hooks.snowflake import SnowflakeHook
 
 
-class SnowflakeOperator(BaseOperator):
+class _SnowflakeDbHookMixin:
+    def get_db_hook(self) -> SnowflakeHook:
+        """
+        Create and return SnowflakeHook.
+
+        :return: a SnowflakeHook instance.
+        :rtype: SnowflakeHook
+        """
+        return SnowflakeHook(
+            snowflake_conn_id=self.snowflake_conn_id,
+            warehouse=self.warehouse,
+            database=self.database,
+            role=self.role,
+            schema=self.schema,
+            authenticator=self.authenticator,
+            session_parameters=self.session_parameters,
+        )
+
+
+class SnowflakeOperator(_SnowflakeDbHookMixin, BaseOperator):
     """
     Executes SQL code in a Snowflake database
 
@@ -101,22 +120,6 @@ class SnowflakeOperator(BaseOperator):
         self.session_parameters = session_parameters
         self.query_ids = []
 
-    def get_hook(self) -> SnowflakeHook:
-        """
-        Create and return SnowflakeHook.
-        :return: a SnowflakeHook instance.
-        :rtype: SnowflakeHook
-        """
-        return SnowflakeHook(
-            snowflake_conn_id=self.snowflake_conn_id,
-            warehouse=self.warehouse,
-            database=self.database,
-            role=self.role,
-            schema=self.schema,
-            authenticator=self.authenticator,
-            session_parameters=self.session_parameters,
-        )
-
     def execute(self, context: Any) -> None:
         """Run query on snowflake"""
         self.log.info('Executing: %s', self.sql)
@@ -126,25 +129,6 @@ class SnowflakeOperator(BaseOperator):
 
         if self.do_xcom_push:
             return execution_info
-
-
-class _SnowflakeDbHookMixin:
-    def get_db_hook(self) -> SnowflakeHook:
-        """
-        Create and return SnowflakeHook.
-
-        :return: a SnowflakeHook instance.
-        :rtype: SnowflakeHook
-        """
-        return SnowflakeHook(
-            snowflake_conn_id=self.snowflake_conn_id,
-            warehouse=self.warehouse,
-            database=self.database,
-            role=self.role,
-            schema=self.schema,
-            authenticator=self.authenticator,
-            session_parameters=self.session_parameters,
-        )
 
 
 class SnowflakeCheckOperator(_SnowflakeDbHookMixin, SQLCheckOperator):
