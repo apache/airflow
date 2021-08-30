@@ -25,8 +25,7 @@ body:
     attributes:
       label: Official Helm Chart version
       description: >
-        What Apache Airflow version are you using? Only Airflow 2 is supported for bugs. If you wish to
-        discuss Airflow 1.10, open [Discussion](https://github.com/apache/airflow/discussions) instead!
+        What Apache Airflow Helm Chart version are you using?
       multiple: false
       options:
         - "1.1.0 (latest released)"
