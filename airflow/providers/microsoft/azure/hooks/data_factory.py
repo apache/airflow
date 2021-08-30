@@ -15,6 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 import inspect
+import time
 from functools import wraps
 from typing import Any, Callable, Dict, Optional
 
@@ -33,6 +34,7 @@ from azure.mgmt.datafactory.models import (
 
 from airflow.exceptions import AirflowException
 from airflow.hooks.base import BaseHook
+from airflow.typing_compat import Literal
 
 
 def provide_targeted_factory(func: Callable) -> Callable:
@@ -52,7 +54,7 @@ def provide_targeted_factory(func: Callable) -> Callable:
             # Check if arg was not included in the function signature or, if it is, the value is not provided.
             if arg not in bound_args.arguments or bound_args.arguments[arg] is None:
                 self = args[0]
-                conn = self.get_connection(self.azure_data_factory_conn_id)
+                conn = self.get_connection(self.conn_id)
                 default_value = conn.extra_dejson.get(default_key)
                 if not default_value:
                     raise AirflowException("Could not determine the targeted data factory.")
@@ -78,6 +80,10 @@ class AzureDataFactoryPipelineRunStatus:
     CANCELLED = "Cancelled"
 
     TERMINAL_STATUSES = {CANCELLED, FAILED, SUCCEEDED}
+
+
+class AzureDataFactoryPipelineRunException(AirflowException):
+    """An exception that indicates a pipeline run failed to complete."""
 
 
 class AzureDataFactoryHook(BaseHook):
@@ -128,14 +134,14 @@ class AzureDataFactoryHook(BaseHook):
 
     def __init__(self, azure_data_factory_conn_id: Optional[str] = default_conn_name):
         self._conn: DataFactoryManagementClient = None
-        self.azure_data_factory_conn_id = azure_data_factory_conn_id
+        self.conn_id = azure_data_factory_conn_id
         super().__init__()
 
     def get_conn(self) -> DataFactoryManagementClient:
         if self._conn is not None:
             return self._conn
 
-        conn = self.get_connection(self.azure_data_factory_conn_id)
+        conn = self.get_connection(self.conn_id)
         tenant = conn.extra_dejson.get('extra__azure_data_factory__tenantId')
         subscription_id = conn.extra_dejson.get('extra__azure_data_factory__subscriptionId')
 
@@ -578,6 +584,83 @@ class AzureDataFactoryHook(BaseHook):
         :return: The pipeline run.
         """
         return self.get_conn().pipeline_runs.get(resource_group_name, factory_name, run_id, **config)
+
+    @provide_targeted_factory
+    def check_pipeline_run_status(
+        self,
+        run_id: str,
+        mode: Literal["poke", "wait"] = "wait",
+        expected_status: str = AzureDataFactoryPipelineRunStatus.SUCCEEDED,
+        check_interval: Optional[int] = 60,
+        timeout: Optional[int] = 60 * 60 * 24 * 7,
+        resource_group_name: Optional[str] = None,
+        factory_name: Optional[str] = None,
+        **config: Any,
+    ) -> bool:
+        """
+        Checks a pipeline run's status with a configurable option to do so until the run has reached a
+        terminal status or the desired status.
+
+        :param run_id: The pipeline run identifier.
+        :param mode: If set to "wait", periodically check a pipeline run's status to see if it has reached a
+            terminal or desired status. If set to "poke", check a pipeline run's status only once and return
+            whether or not the status matches the ``expected_status``.
+        :param expected_status: The desired status of a pipeline run.
+        :param check_interval: Time in seconds to check a pipeline run's status when ``mode`` is set to
+            "wait".
+        :param timeout: Time in seconds to wait for a pipeline to reach a terminal status when ``mode`` is set
+            to "wait".
+        :param resource_group_name: The resource group name.
+        :param factory_name: The factory name.
+        :return: Boolean value indicating if the current pipeline run's status matches the
+            ``expected_status``.
+        """
+        if mode not in ("wait", "poke"):
+            raise ValueError(
+                f"The configured mode, '{mode}', is not supported.  Please use 'wait' or 'poke'."
+            )
+
+        pipeline_run = self.get_pipeline_run(
+            run_id=run_id,
+            factory_name=factory_name,
+            resource_group_name=resource_group_name,
+            **config,
+        )
+        pipeline_run_status = pipeline_run.status
+
+        if mode == "wait":
+            start_time = time.monotonic()
+
+            while (
+                pipeline_run_status not in AzureDataFactoryPipelineRunStatus.TERMINAL_STATUSES
+                and pipeline_run_status != expected_status
+            ):
+                # Check if the pipeline-run duration has exceeded the ``timeout`` configured.
+                if start_time + timeout < time.monotonic():
+                    raise AzureDataFactoryPipelineRunException(
+                        f"Pipeline run {run_id} has not reached a terminal status after {timeout} seconds."
+                    )
+
+                # Wait to check the status of the pipeline based on the ``check_interval`` configured.
+                time.sleep(check_interval)
+
+                self.log.info(f"Checking on the status of run ID {run_id}.")
+                pipeline_run = self.get_pipeline_run(
+                    run_id=run_id,
+                    factory_name=factory_name,
+                    resource_group_name=resource_group_name,
+                    **config,
+                )
+                pipeline_run_status = pipeline_run.status
+                self.log.info(f"Current status of run ID {run_id}: {pipeline_run_status}")
+
+        if pipeline_run_status == AzureDataFactoryPipelineRunStatus.FAILED:
+            raise AzureDataFactoryPipelineRunException(f"Pipeline run {run_id} has failed.")
+
+        if pipeline_run_status == AzureDataFactoryPipelineRunStatus.CANCELLED:
+            raise AzureDataFactoryPipelineRunException(f"Pipeline run {run_id} has been cancelled.")
+
+        return pipeline_run_status == expected_status
 
     @provide_targeted_factory
     def cancel_pipeline_run(

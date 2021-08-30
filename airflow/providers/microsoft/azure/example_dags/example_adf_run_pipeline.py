@@ -48,17 +48,18 @@ with DAG(
     )
     # [END howto_operator_adf_run_pipeline]
 
+    # [START howto_operator_adf_run_pipeline_async]
     run_pipeline2 = AzureDataFactoryRunPipelineOperator(
         task_id="run_pipeline2",
         pipeline_name="pipeline2",
-        wait_for_completion=False,
+        wait_for_pipeline_run=False,
     )
 
     wait_for_pipeline_run = AzureDataFactoryPipelineRunStatusSensor(
         task_id="wait_for_pipeline_run",
         run_id=run_pipeline2.output["run_id"],
-        poke_interval=10,
     )
+    # [END howto_operator_adf_run_pipeline_async]
 
     begin >> Label("No async wait") >> run_pipeline1 >> end
     begin >> Label("Do async wait with sensor") >> run_pipeline2

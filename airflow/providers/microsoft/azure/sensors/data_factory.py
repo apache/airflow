@@ -17,11 +17,7 @@
 
 from typing import Dict, Optional
 
-from airflow.exceptions import AirflowException
-from airflow.providers.microsoft.azure.hooks.data_factory import (
-    AzureDataFactoryHook,
-    AzureDataFactoryPipelineRunStatus,
-)
+from airflow.providers.microsoft.azure.hooks.data_factory import AzureDataFactoryHook
 from airflow.sensors.base import BaseSensorOperator
 
 
@@ -59,23 +55,10 @@ class AzureDataFactoryPipelineRunStatusSensor(BaseSensorOperator):
     def poke(self, context: Dict) -> bool:
         self.log.info(f"Checking the status for pipeline run {self.run_id}.")
         self.hook = AzureDataFactoryHook(azure_data_factory_conn_id=self.azure_data_factory_conn_id)
-        pipeline_run = self.hook.get_pipeline_run(
+
+        return self.hook.check_pipeline_run_status(
             run_id=self.run_id,
-            factory_name=self.factory_name,
+            mode="poke",
             resource_group_name=self.resource_group_name,
+            factory_name=self.factory_name,
         )
-        pipeline_run_status = pipeline_run.status
-        self.log.info(f"Current status for pipeline run {self.run_id}: {pipeline_run_status}.")
-
-        if pipeline_run_status == AzureDataFactoryPipelineRunStatus.SUCCEEDED:
-            self.log.info(f"The pipeline run {self.run_id} has succeeded.")
-            return True
-        elif pipeline_run_status in {
-            AzureDataFactoryPipelineRunStatus.FAILED,
-            AzureDataFactoryPipelineRunStatus.CANCELLED,
-        }:
-            raise AirflowException(
-                f"Pipeline run {self.run_id} is in a negative terminal status: {pipeline_run_status}"
-            )
-
-        return False
