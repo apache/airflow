@@ -23,7 +23,7 @@ import pytest
 
 from airflow import exceptions, settings
 from airflow.exceptions import AirflowException, AirflowSensorTimeout
-from airflow.models import DagBag, TaskInstance
+from airflow.models import DagBag, DagRun, TaskInstance
 from airflow.models.dag import DAG
 from airflow.operators.bash import BashOperator
 from airflow.operators.dummy import DummyOperator
@@ -31,7 +31,7 @@ from airflow.sensors.external_task import ExternalTaskMarker, ExternalTaskSensor
 from airflow.sensors.time_sensor import TimeSensor
 from airflow.serialization.serialized_objects import SerializedBaseOperator
 from airflow.utils.session import provide_session
-from airflow.utils.state import State
+from airflow.utils.state import DagRunState, State, TaskInstanceState
 from airflow.utils.timezone import datetime
 from airflow.utils.types import DagRunType
 from tests.test_utils.db import clear_db_runs
@@ -866,9 +866,8 @@ def dag_bag_head_tail():
     | tail/|     | tail/|          /      | tail |
     +------+     +------+                 +------+
     """
-    clear_db_runs()
-
     dag_bag = DagBag(dag_folder=DEV_NULL, include_examples=False)
+
     with DAG("head_tail", start_date=DEFAULT_DATE, schedule_interval="@daily") as dag:
         head = ExternalTaskSensor(
             task_id='head',
@@ -888,33 +887,29 @@ def dag_bag_head_tail():
 
     dag_bag.bag_dag(dag=dag, root_dag=dag)
 
-    yield dag_bag
-
-    clear_db_runs()
+    return dag_bag
 
 
 @provide_session
 def test_clear_overlapping_external_task_marker(dag_bag_head_tail, session):
-    dag = dag_bag_head_tail.get_dag("head_tail")
+    dag: DAG = dag_bag_head_tail.get_dag('head_tail')
 
-    dagrun = dag.create_dagrun(
-        state=State.RUNNING,
-        execution_date=DEFAULT_DATE,
-        start_date=DEFAULT_DATE,
-        run_type=DagRunType.MANUAL,
-        session=session,
-    )
-    for ti in dagrun.task_instances:
-        ti.refresh_from_task(dag.get_task(ti.task_id))
-        if ti.task_id == "head":  # Mark first head task success.
-            ti.run(mark_success=True, session=session)
-        else:
-            ti.run(session=session)
-
-    # Run 9 more times.
-    for delta in range(1, 10):
+    # "Run" 10 times.
+    for delta in range(0, 10):
         execution_date = DEFAULT_DATE + timedelta(days=delta)
-        run_tasks(dag_bag_head_tail, execution_date=execution_date, session=session)
+        dagrun = DagRun(
+            dag_id=dag.dag_id,
+            state=DagRunState.SUCCESS,
+            execution_date=execution_date,
+            run_type=DagRunType.MANUAL,
+            run_id=f"test_{delta}",
+        )
+        session.add(dagrun)
+        for task in dag.tasks:
+            ti = TaskInstance(task=task)
+            dagrun.task_instances.append(ti)
+            ti.state = TaskInstanceState.SUCCESS
+    session.flush()
 
     # The next two lines are doing the same thing. Clearing the first "head" with "Future"
     # selected is the same as not selecting "Future". They should take similar amount of

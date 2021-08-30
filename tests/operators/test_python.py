@@ -344,35 +344,6 @@ class TestBranchOperator(unittest.TestCase):
             session.query(DagRun).delete()
             session.query(TI).delete()
 
-    def test_branch_list_without_dag_run(self):
-        """This checks if the BranchPythonOperator supports branching off to a list of tasks."""
-        branch_op = BranchPythonOperator(
-            task_id='make_choice', dag=self.dag, python_callable=lambda: ['branch_1', 'branch_2']
-        )
-        self.branch_1.set_upstream(branch_op)
-        self.branch_2.set_upstream(branch_op)
-        self.branch_3 = DummyOperator(task_id='branch_3', dag=self.dag)
-        self.branch_3.set_upstream(branch_op)
-        self.dag.clear()
-
-        branch_op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
-
-        with create_session() as session:
-            tis = session.query(TI).filter(TI.dag_id == self.dag.dag_id, TI.execution_date == DEFAULT_DATE)
-
-            expected = {
-                "make_choice": State.SUCCESS,
-                "branch_1": State.NONE,
-                "branch_2": State.NONE,
-                "branch_3": State.SKIPPED,
-            }
-
-            for ti in tis:
-                if ti.task_id in expected:
-                    assert ti.state == expected[ti.task_id]
-                else:
-                    raise ValueError(f'Invalid task id {ti.task_id} found!')
-
     def test_with_dag_run(self):
         branch_op = BranchPythonOperator(
             task_id='make_choice', dag=self.dag, python_callable=lambda: 'branch_1'
@@ -555,54 +526,6 @@ class TestShortCircuitOperator(unittest.TestCase):
         with create_session() as session:
             session.query(DagRun).delete()
             session.query(TI).delete()
-
-    def test_without_dag_run(self):
-        """This checks the defensive against non existent tasks in a dag run"""
-        value = False
-        dag = DAG(
-            'shortcircuit_operator_test_without_dag_run',
-            default_args={'owner': 'airflow', 'start_date': DEFAULT_DATE},
-            schedule_interval=INTERVAL,
-        )
-        short_op = ShortCircuitOperator(task_id='make_choice', dag=dag, python_callable=lambda: value)
-        branch_1 = DummyOperator(task_id='branch_1', dag=dag)
-        branch_1.set_upstream(short_op)
-        branch_2 = DummyOperator(task_id='branch_2', dag=dag)
-        branch_2.set_upstream(branch_1)
-        upstream = DummyOperator(task_id='upstream', dag=dag)
-        upstream.set_downstream(short_op)
-        dag.clear()
-
-        short_op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
-
-        with create_session() as session:
-            tis = session.query(TI).filter(TI.dag_id == dag.dag_id, TI.execution_date == DEFAULT_DATE)
-
-            for ti in tis:
-                if ti.task_id == 'make_choice':
-                    assert ti.state == State.SUCCESS
-                elif ti.task_id == 'upstream':
-                    # should not exist
-                    raise ValueError(f'Invalid task id {ti.task_id} found!')
-                elif ti.task_id == 'branch_1' or ti.task_id == 'branch_2':
-                    assert ti.state == State.SKIPPED
-                else:
-                    raise ValueError(f'Invalid task id {ti.task_id} found!')
-
-            value = True
-            dag.clear()
-
-            short_op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
-            for ti in tis:
-                if ti.task_id == 'make_choice':
-                    assert ti.state == State.SUCCESS
-                elif ti.task_id == 'upstream':
-                    # should not exist
-                    raise ValueError(f'Invalid task id {ti.task_id} found!')
-                elif ti.task_id == 'branch_1' or ti.task_id == 'branch_2':
-                    assert ti.state == State.NONE
-                else:
-                    raise ValueError(f'Invalid task id {ti.task_id} found!')
 
     def test_with_dag_run(self):
         value = False
