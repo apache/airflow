@@ -16,7 +16,6 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module contains SFTP operator."""
-import ntpath
 import os
 import re
 from pathlib import Path
@@ -209,7 +208,7 @@ class SFTPOperator(BaseOperator):
                     elif self.operation.lower() == SFTPOperation.GET:
                         files_list = self._search_files(sftp_client.listdir(self.remote_folder))
                         for file in files_list:
-                            remote_file = ntpath.basename(file)
+                            remote_file = os.path.basename(file)
                             file_msg = file
                             self._transfer(sftp_client, self.local_folder, remote_file, self.remote_folder)
                 else:
