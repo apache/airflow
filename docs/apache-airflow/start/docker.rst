@@ -112,7 +112,7 @@ Initializing Environment
 
 Before starting Airflow for the first time, You need to prepare your environment, i.e. create the necessary files, directories and initialize the database.
 
-On **all operating systems**, the quick-start needs to know your host user id and needs to have group id set to 0. You have to make sure to configure them for the docker-compose:
+On **all operating systems**, the quick-start needs to know your host user id and needs to have group id set to ``0``. You have to make sure to configure them for the docker-compose:
 
 .. code-block:: bash
 
