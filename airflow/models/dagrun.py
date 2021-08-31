@@ -22,7 +22,7 @@ from typing import TYPE_CHECKING, Any, Iterable, List, NamedTuple, Optional, Tup
 from sqlalchemy import Boolean, Column, Index, Integer, PickleType, String, UniqueConstraint, and_, func, or_
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.declarative import declared_attr
-from sqlalchemy.orm import relationship, synonym
+from sqlalchemy.orm import joinedload, relationship, synonym
 from sqlalchemy.orm.session import Session
 from sqlalchemy.sql import expression
 
@@ -299,9 +299,13 @@ class DagRun(Base, LoggingMixin):
         self, state: Optional[Iterable[TaskInstanceState]] = None, session=None
     ) -> Iterable[TI]:
         """Returns the task instances for this dag run"""
-        tis = session.query(TI).filter(
-            TI.dag_id == self.dag_id,
-            TI.run_id == self.run_id,
+        tis = (
+            session.query(TI)
+            .options(joinedload(TI.dag_run))
+            .filter(
+                TI.dag_id == self.dag_id,
+                TI.run_id == self.run_id,
+            )
         )
 
         if state:

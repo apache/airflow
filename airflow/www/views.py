@@ -1038,7 +1038,8 @@ class Airflow(AirflowBaseView):
         ]
     )
     @action_logging
-    def rendered_templates(self):
+    @provide_session
+    def rendered_templates(self, session):
         """Get rendered Dag."""
         dag_id = request.args.get('dag_id')
         task_id = request.args.get('task_id')
@@ -1052,7 +1053,8 @@ class Airflow(AirflowBaseView):
         dag_run = dag.get_dagrun(execution_date=dttm)
 
         task = copy.copy(dag.get_task(task_id))
-        ti = dag_run.get_task_instance(task_id=task.task_id)
+        ti = dag_run.get_task_instance(task_id=task.task_id, session=session)
+        ti.refresh_from_task(task)
         try:
             ti.get_rendered_template_fields()
         except AirflowException as e:

@@ -1256,6 +1256,9 @@ class DAG(LoggingMixin):
         else:
             tis = session.query(TaskInstance)
 
+        # TaskInstance almost always need to load the associated DagRun.
+        tis = tis.options(joinedload(TaskInstance.dag_run))
+
         if include_subdags:
             # Crafting the right filter for dag_id and task_ids combo
             conditions = []

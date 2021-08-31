@@ -22,10 +22,13 @@ from unittest import mock
 
 import pytest
 
-from airflow.models import DAG, TaskInstance
+from airflow.models import DAG
 from airflow.models.baseoperator import BaseOperator, BaseOperatorLink
 from airflow.utils import dates, timezone
 from airflow.utils.session import create_session
+from airflow.utils.state import DagRunState, TaskInstanceState
+from airflow.utils.types import DagRunType
+from tests.test_utils.db import clear_db_runs
 from tests.test_utils.mock_operators import Dummy2TestOperator, Dummy3TestOperator
 from tests.test_utils.www import check_content_in_response
 
@@ -76,6 +79,19 @@ def dag():
     return DAG("dag", start_date=DEFAULT_DATE)
 
 
+@pytest.fixture(scope="module")
+def create_dag_run(dag):
+    def _create_dag_run(*, execution_date, session):
+        return dag.create_dagrun(
+            state=DagRunState.RUNNING,
+            execution_date=execution_date,
+            run_type=DagRunType.MANUAL,
+            session=session,
+        )
+
+    return _create_dag_run
+
+
 @pytest.fixture(scope="module", autouse=True)
 def patched_app(app, dag):
     with mock.patch.object(app, "dag_bag") as mock_dag_bag:
@@ -104,15 +120,13 @@ def init_blank_task_instances():
 
     This really shouldn't be needed, but tests elsewhere leave the db dirty.
     """
-    with create_session() as session:
-        session.query(TaskInstance).delete()
+    clear_db_runs()
 
 
 @pytest.fixture(autouse=True)
 def reset_task_instances():
     yield
-    with create_session() as session:
-        session.query(TaskInstance).delete()
+    clear_db_runs()
 
 
 def test_extra_links_works(dag, task_1, viewer_client):
@@ -151,17 +165,19 @@ def test_global_extra_links_works(dag, task_1, viewer_client):
     }
 
 
-def test_extra_link_in_gantt_view(dag, viewer_client):
+def test_extra_link_in_gantt_view(dag, create_dag_run, viewer_client):
     exec_date = dates.days_ago(2)
     start_date = timezone.datetime(2020, 4, 10, 2, 0, 0)
     end_date = exec_date + datetime.timedelta(seconds=30)
 
     with create_session() as session:
-        for task in dag.tasks:
-            ti = TaskInstance(task=task, execution_date=exec_date, state="success")
+        dag_run = create_dag_run(execution_date=exec_date, session=session)
+        for ti in dag_run.task_instances:
+            ti.refresh_from_task(dag.get_task(ti.task_id))
+            ti.state = TaskInstanceState.SUCCESS
             ti.start_date = start_date
             ti.end_date = end_date
-            session.add(ti)
+            session.merge(ti)
 
     url = f'gantt?dag_id={dag.dag_id}&execution_date={exec_date}'
     resp = viewer_client.get(url, follow_redirects=True)
