@@ -34,6 +34,7 @@ from airflow.www.extensions.init_appbuilder_links import init_appbuilder_links
 from airflow.www.extensions.init_dagbag import init_dagbag
 from airflow.www.extensions.init_jinja_globals import init_jinja_globals
 from airflow.www.extensions.init_manifest_files import configure_manifest_files
+from airflow.www.extensions.init_robots import init_robots
 from airflow.www.extensions.init_security import init_api_experimental_auth, init_xframe_protection
 from airflow.www.extensions.init_session import init_airflow_session_interface, init_permanent_session
 from airflow.www.extensions.init_views import (
@@ -109,6 +110,8 @@ def create_app(config=None, testing=False):
     init_dagbag(flask_app)
 
     init_api_experimental_auth(flask_app)
+
+    init_robots(flask_app)
 
     Cache(app=flask_app, config={'CACHE_TYPE': 'filesystem', 'CACHE_DIR': '/tmp'})
 
