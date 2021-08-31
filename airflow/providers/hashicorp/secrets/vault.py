@@ -16,9 +16,8 @@
 # specific language governing permissions and limitations
 # under the License.
 """Objects relating to sourcing connections & variables from Hashicorp Vault"""
-from typing import Optional
+from typing import TYPE_CHECKING, Optional
 
-from airflow.models.connection import Connection
 from airflow.providers.hashicorp._internal_client.vault_client import _VaultClient
 from airflow.secrets import BaseSecretsBackend
 from airflow.utils.log.logging_mixin import LoggingMixin
@@ -206,7 +205,12 @@ class VaultBackend(BaseSecretsBackend, LoggingMixin):
 
         return response.get("conn_uri") if response else None
 
-    def get_connection(self, conn_id: str) -> Optional[Connection]:
+    # Make sure connection is imported this way for type checking, otherwise when importing
+    # the backend it will get a circular dependency and fail
+    if TYPE_CHECKING:
+        from airflow.models.connection import Connection
+
+    def get_connection(self, conn_id: str) -> 'Optional[Connection]':
         """
         Get connection from Vault as secret. Prioritize conn_uri if exists,
         if not fall back to normal Connection creation.
@@ -215,6 +219,10 @@ class VaultBackend(BaseSecretsBackend, LoggingMixin):
         :rtype: Connection
         :return: A Connection object constructed from Vault data
         """
+        # The Connection needs to be locally imported because otherwise we get into cyclic import
+        # problems when instantiating the backend during configuration
+        from airflow.models.connection import Connection
+
         response = self.get_response(conn_id)
         if response is None:
             return None

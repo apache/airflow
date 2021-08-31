@@ -67,6 +67,9 @@ class DagRunState(str, Enum):
     SUCCESS = "success"
     FAILED = "failed"
 
+    def __str__(self) -> str:
+        return self.value
+
 
 class State:
     """

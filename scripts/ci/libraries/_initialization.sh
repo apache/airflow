@@ -601,7 +601,6 @@ function initialization::set_output_color_variables() {
 # Common environment that is initialized by both Breeze and CI scripts
 function initialization::initialize_common_environment() {
     initialization::set_output_color_variables
-    initialization::create_directories
     initialization::initialize_base_variables
     initialization::initialize_branch_variables
     initialization::initialize_available_integrations

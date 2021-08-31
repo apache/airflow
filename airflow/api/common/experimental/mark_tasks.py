@@ -249,13 +249,13 @@ def get_execution_dates(dag, execution_date, future, past):
     else:
         start_date = execution_date
     start_date = execution_date if not past else start_date
-    if dag.schedule_interval == '@once':
-        dates = [start_date]
-    elif not dag.schedule_interval:
-        # If schedule_interval is None, need to look at existing DagRun if the user wants future or
+    if not dag.timetable.can_run:
+        # If the DAG never schedules, need to look at existing DagRun if the user wants future or
         # past runs.
         dag_runs = dag.get_dagruns_between(start_date=start_date, end_date=end_date)
         dates = sorted({d.execution_date for d in dag_runs})
+    elif not dag.timetable.periodic:
+        dates = [start_date]
     else:
         dates = [
             info.logical_date for info in dag.iter_dagrun_infos_between(start_date, end_date, align=False)

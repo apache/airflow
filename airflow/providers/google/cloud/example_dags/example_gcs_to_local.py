@@ -30,7 +30,7 @@ PATH_TO_LOCAL_FILE = os.environ.get("GCP_GCS_PATH_TO_SAVED_FILE", "test-gcs-exam
 with models.DAG(
     "example_gcs_to_local",
     start_date=days_ago(1),
-    schedule_interval=None,
+    schedule_interval='@once',
     tags=['example'],
 ) as dag:
     # [START howto_operator_gcs_download_file_task]

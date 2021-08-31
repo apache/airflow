@@ -880,10 +880,11 @@ class TaskInstance(Base, LoggingMixin):
 
         dr.dag = dag
 
-        # We always ignore schedule in dagrun lookup when `state` is given or `schedule_interval is None`.
-        # For legacy reasons, when `catchup=True`, we use `get_previous_scheduled_dagrun` unless
+        # We always ignore schedule in dagrun lookup when `state` is given
+        # or the DAG is never scheduled. For legacy reasons, when
+        # `catchup=True`, we use `get_previous_scheduled_dagrun` unless
         # `ignore_schedule` is `True`.
-        ignore_schedule = state is not None or dag.schedule_interval is None
+        ignore_schedule = state is not None or not dag.timetable.can_run
         if dag.catchup is True and not ignore_schedule:
             last_dagrun = dr.get_previous_scheduled_dagrun(session=session)
         else:

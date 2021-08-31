@@ -28,6 +28,19 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+2.1.1
+.....
+
+Latest change: 2021-08-23
+
+================================================================================================  ===========  ============================================================================
+Commit                                                                                            Committed    Subject
+================================================================================================  ===========  ============================================================================
+`be75dcd39 <https://github.com/apache/airflow/commit/be75dcd39cd10264048c86e74110365bd5daf8b7>`_  2021-08-23   ``Update description about the new ''connection-types'' provider meta-data``
+`76ed2a49c <https://github.com/apache/airflow/commit/76ed2a49c6cd285bf59706cf04f39a7444c382c9>`_  2021-08-19   ``Import Hooks lazily individually in providers manager (#17682)``
+`5df99d6c6 <https://github.com/apache/airflow/commit/5df99d6c690fbdd728c9fd9482ec9a7479dfd3c2>`_  2021-08-09   ``New generic tableau operator: TableauOperator  (#16915)``
+================================================================================================  ===========  ============================================================================
+
 2.1.0
 .....
 
@@ -36,6 +49,7 @@ Latest change: 2021-07-26
 ================================================================================================  ===========  =============================================================================
 Commit                                                                                            Committed    Subject
 ================================================================================================  ===========  =============================================================================
+`87f408b1e <https://github.com/apache/airflow/commit/87f408b1e78968580c760acb275ae5bb042161db>`_  2021-07-26   ``Prepares docs for Rc2 release of July providers (#17116)``
 `0dbd0f420 <https://github.com/apache/airflow/commit/0dbd0f420cc08e011317e2a9f21f92fff4a64c1b>`_  2021-07-26   ``Remove/refactor default_args pattern for miscellaneous providers (#16872)``
 `29b6be848 <https://github.com/apache/airflow/commit/29b6be8482f4cd5da46511e91d3b910014980308>`_  2021-07-21   ``Refactored waiting function for Tableau Jobs (#17034)``
 `ef3c75df1 <https://github.com/apache/airflow/commit/ef3c75df17d87b292f8c06b250a41633aaccbdc0>`_  2021-07-21   ``Fix bool conversion Verify parameter in Tableau Hook (#17125)``

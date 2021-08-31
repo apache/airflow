@@ -41,7 +41,7 @@ Content
     Example DAGs <https://github.com/apache/airflow/tree/main/airflow/providers/apache/spark/example_dags>
     PyPI Repository <https://pypi.org/project/apache-airflow-providers-apache-spark/>
 
-.. THE REMINDER OF THE FILE IS AUTOMATICALLY GENERATED. IT WILL BE OVERWRITTEN AT RELEASE TIME!
+.. THE REMAINDER OF THE FILE IS AUTOMATICALLY GENERATED. IT WILL BE OVERWRITTEN AT RELEASE TIME!
 
 
 .. toctree::
@@ -57,7 +57,7 @@ Package apache-airflow-providers-apache-spark
 `Apache Spark <https://spark.apache.org/>`__
 
 
-Release: 2.0.0
+Release: 2.0.1
 
 Provider package
 ----------------

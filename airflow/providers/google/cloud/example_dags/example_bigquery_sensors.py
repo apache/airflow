@@ -27,7 +27,7 @@ from airflow.providers.google.cloud.operators.bigquery import (
     BigQueryCreateEmptyDatasetOperator,
     BigQueryCreateEmptyTableOperator,
     BigQueryDeleteDatasetOperator,
-    BigQueryExecuteQueryOperator,
+    BigQueryInsertJobOperator,
 )
 from airflow.providers.google.cloud.sensors.bigquery import (
     BigQueryTableExistenceSensor,
@@ -54,7 +54,7 @@ dag_id = "example_bigquery_sensors"
 
 with models.DAG(
     dag_id,
-    schedule_interval=None,  # Override to match your needs
+    schedule_interval='@once',  # Override to match your needs
     start_date=days_ago(1),
     tags=["example"],
     user_defined_macros={"DATASET": DATASET_NAME, "TABLE": TABLE_NAME},
@@ -80,8 +80,14 @@ with models.DAG(
     )
     # [END howto_sensor_bigquery_table]
 
-    execute_insert_query = BigQueryExecuteQueryOperator(
-        task_id="execute_insert_query", sql=INSERT_ROWS_QUERY, use_legacy_sql=False
+    execute_insert_query = BigQueryInsertJobOperator(
+        task_id="execute_insert_query",
+        configuration={
+            "query": {
+                "query": INSERT_ROWS_QUERY,
+                "useLegacySql": False,
+            }
+        },
     )
 
     # [START howto_sensor_bigquery_table_partition]

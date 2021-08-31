@@ -457,4 +457,4 @@ class EKSPodOperator(KubernetesPodOperator):
             pod_username=self.pod_username,
             pod_context=self.pod_context,
         ) as self.config_file:
-            super().execute(context)
+            return super().execute(context)

@@ -691,6 +691,7 @@ if (($# < 1)); then
     FULL_TESTS_NEEDED_LABEL="true"
     readonly FULL_TESTS_NEEDED_LABEL
     output_all_basic_variables
+    check_upgrade_to_newer_dependencies_needed
     set_outputs_run_everything_and_exit
 else
     INCOMING_COMMIT_SHA="${1}"

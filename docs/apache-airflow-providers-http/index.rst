@@ -42,7 +42,7 @@ Content
     Example DAGs <https://github.com/apache/airflow/tree/main/airflow/providers/http/example_dags>
     PyPI Repository <https://pypi.org/project/apache-airflow-providers-http/>
 
-.. THE REMINDER OF THE FILE IS AUTOMATICALLY GENERATED. IT WILL BE OVERWRITTEN AT RELEASE TIME!
+.. THE REMAINDER OF THE FILE IS AUTOMATICALLY GENERATED. IT WILL BE OVERWRITTEN AT RELEASE TIME!
 
 
 .. toctree::
@@ -58,7 +58,7 @@ Package apache-airflow-providers-http
 `Hypertext Transfer Protocol (HTTP) <https://www.w3.org/Protocols/>`__
 
 
-Release: 2.0.0
+Release: 2.0.1
 
 Provider package
 ----------------
@@ -75,11 +75,10 @@ You can install this package on top of an existing airflow 2.1+ installation via
 PIP requirements
 ----------------
 
-==================  ==================
-PIP package         Version required
-==================  ==================
-``apache-airflow``  ``>=2.1.0``
-``requests``        ``>=2.20.0``
-==================  ==================
+=============  ==================
+PIP package    Version required
+=============  ==================
+``requests``   ``>=2.26.0``
+=============  ==================
 
 .. include:: ../../airflow/providers/http/CHANGELOG.rst
