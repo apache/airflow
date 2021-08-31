@@ -60,7 +60,7 @@ BUCKET_FILE_LOCATION = PATH_TO_UPLOAD_FILE.rpartition("/")[-1]
 with models.DAG(
     "example_gcs",
     start_date=days_ago(1),
-    schedule_interval=None,
+    schedule_interval='@once',
     tags=['example'],
 ) as dag:
     create_bucket1 = GCSCreateBucketOperator(
@@ -160,7 +160,7 @@ with models.DAG(
 with models.DAG(
     "example_gcs_sensors",
     start_date=days_ago(1),
-    schedule_interval=None,
+    schedule_interval='@once',
     tags=['example'],
 ) as dag2:
     create_bucket = GCSCreateBucketOperator(

@@ -48,7 +48,7 @@ SOURCE_LANGUAGE = None  # type: None
 
 with models.DAG(
     "example_gcp_translate_speech",
-    schedule_interval=None,  # Override to match your needs
+    schedule_interval='@once',  # Override to match your needs
     start_date=dates.days_ago(1),
     tags=['example'],
 ) as dag:
