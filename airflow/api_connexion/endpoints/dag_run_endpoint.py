@@ -284,7 +284,7 @@ def post_dag_run(dag_id, session):
     ]
 )
 @provide_session
-def post_set_dag_run_state(dag_id: str, dag_run_id: str, session) -> dict:
+def update_dag_run_state(dag_id: str, dag_run_id: str, session) -> dict:
     """Set a state of a dag run."""
     dag_run: Optional[DagRun] = (
         session.query(DagRun).filter(DagRun.dag_id == dag_id, DagRun.run_id == dag_run_id).one_or_none()
@@ -293,11 +293,11 @@ def post_set_dag_run_state(dag_id: str, dag_run_id: str, session) -> dict:
         error_message = f'Dag Run id {dag_run_id} not found in dag {dag_id}'
         raise NotFound(error_message)
     try:
-        post_body = set_dagrun_state_form_schema.load(request.json, session=session)
+        post_body = set_dagrun_state_form_schema.load(request.json)
     except ValidationError as err:
         raise BadRequest(detail=str(err))
 
     state = post_body['state']
-    dag_run.set_state(state=state)
+    dag_run.set_state(state=DagRunState(state).value)
     session.merge(dag_run)
     return dagrun_schema.dump(dag_run)

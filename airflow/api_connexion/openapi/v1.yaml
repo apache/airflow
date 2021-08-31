@@ -614,7 +614,7 @@ paths:
       description: >
         Set a state of DAG run
       x-openapi-router-controller: airflow.api_connexion.endpoints.dag_run_endpoint
-      operationId: post_set_dag_run_state
+      operationId: update_dag_run_state
       tags: [UpdateDagRunState]
       requestBody:
         required: true
@@ -2035,9 +2035,11 @@ components:
       type: object
       properties:
         state:
-          $ref: '#/components/schemas/DagState'
-      required:
-        - state
+          description: The state to set this DagRun
+          type: string
+          enum:
+            - success
+            - failed
 
     DAGRunCollection:
       type: object

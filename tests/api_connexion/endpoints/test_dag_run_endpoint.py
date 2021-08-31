@@ -1159,11 +1159,11 @@ class TestPostDagRun(TestDagRunEndpoint):
 
 
 class TestPostSetDagRunState(TestDagRunEndpoint):
-    @parameterized.expand(
-        [("TEST_DAG_ID", "TEST_DAG_RUN_ID_1", "failed"), ("TEST_DAG_ID", "TEST_DAG_RUN_ID_1", "success")]
-    )
+    @parameterized.expand([("failed",), ("success",)])
     @freeze_time(TestDagRunEndpoint.default_time)
-    def test_should_respond_200(self, dag_id, dag_run_id, state):
+    def test_should_respond_200(self, state):
+        dag_id = "TEST_DAG_ID"
+        dag_run_id = "TEST_DAG_RUN_ID_1"
         test_time = timezone.parse(self.default_time)
         with create_session() as session:
             dag = DagModel(dag_id=dag_id)
@@ -1200,9 +1200,11 @@ class TestPostSetDagRunState(TestDagRunEndpoint):
             'state': state,
         }
 
-    def test_should_response_400_for_non_existing_dag_run_state(self):
+    @parameterized.expand([("running",), ("queued",)])
+    @freeze_time(TestDagRunEndpoint.default_time)
+    def test_should_response_400_for_non_existing_dag_run_state(self, invalid_state):
         test_time = timezone.parse(self.default_time)
-        with create_session() as session, freeze_time(self.default_time):
+        with create_session() as session:
             dag_id = "TEST_DAG_ID"
             dag_run_id = "TEST_DAG_RUN_ID_1"
             dag = DagModel(dag_id=dag_id)
@@ -1218,20 +1220,20 @@ class TestPostSetDagRunState(TestDagRunEndpoint):
             session.add(dag)
             session.add(dag_run)
 
-            request_json = {"state": "madeUpState"}
+        request_json = {"state": invalid_state}
 
-            response = self.client.post(
-                "api/v1/dags/TEST_DAG_ID/dagRuns/TEST_DAG_RUN_ID_1/state",
-                json=request_json,
-                environ_overrides={"REMOTE_USER": "test"},
-            )
-            assert response.status_code == 400
-            assert response.json == {
-                'detail': "'madeUpState' is not one of ['queued', 'running', 'success', 'failed'] - 'state'",
-                'status': 400,
-                'title': 'Bad Request',
-                'type': EXCEPTIONS_LINK_MAP[400],
-            }
+        response = self.client.post(
+            "api/v1/dags/TEST_DAG_ID/dagRuns/TEST_DAG_RUN_ID_1/state",
+            json=request_json,
+            environ_overrides={"REMOTE_USER": "test"},
+        )
+        assert response.status_code == 400
+        assert response.json == {
+            'detail': f"'{invalid_state}' is not one of ['success', 'failed'] - 'state'",
+            'status': 400,
+            'title': 'Bad Request',
+            'type': EXCEPTIONS_LINK_MAP[400],
+        }
 
     def test_should_raises_401_unauthenticated(self, session):
         response = self.client.post(
