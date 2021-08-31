@@ -1050,13 +1050,13 @@ class Airflow(AirflowBaseView):
 
         logging.info("Retrieving rendered templates.")
         dag = current_app.dag_bag.get_dag(dag_id)
-        dag_run = dag.get_dagrun(execution_date=dttm)
+        dag_run = dag.get_dagrun(execution_date=dttm, session=session)
 
         task = copy.copy(dag.get_task(task_id))
         ti = dag_run.get_task_instance(task_id=task.task_id, session=session)
         ti.refresh_from_task(task)
         try:
-            ti.get_rendered_template_fields()
+            ti.get_rendered_template_fields(session=session)
         except AirflowException as e:
             msg = "Error rendering template: " + escape(e)
             if e.__cause__:

@@ -22,6 +22,7 @@ import pytest
 
 from airflow.models import DAG, RenderedTaskInstanceFields
 from airflow.operators.bash import BashOperator
+from airflow.serialization.serialized_objects import SerializedDAG
 from airflow.utils import timezone
 from airflow.utils.session import create_session
 from airflow.utils.state import DagRunState, TaskInstanceState
@@ -91,10 +92,9 @@ def create_dag_run(dag, task1, task2):
         )
         ti1 = dag_run.get_task_instance(task1.task_id, session=session)
         ti1.state = TaskInstanceState.SUCCESS
-        session.merge(ti1)
         ti2 = dag_run.get_task_instance(task2.task_id, session=session)
         ti2.state = TaskInstanceState.SCHEDULED
-        session.merge(ti2)
+        session.flush()
         return dag_run
 
     return _create_dag_run
@@ -103,7 +103,7 @@ def create_dag_run(dag, task1, task2):
 @pytest.fixture()
 def patch_app(app, dag):
     with mock.patch.object(app, "dag_bag") as mock_dag_bag:
-        mock_dag_bag.get_dag.return_value = dag
+        mock_dag_bag.get_dag.return_value = SerializedDAG.from_dict(SerializedDAG.to_dict(dag))
         yield app
 
 
@@ -138,7 +138,7 @@ def test_rendered_template_view_for_unexecuted_tis(admin_client, create_dag_run,
     with create_session() as session:
         create_dag_run(execution_date=DEFAULT_DATE, session=session)
 
-    url = f'rendered-templates?task_id=task1&dag_id=task1&execution_date={quote_plus(str(DEFAULT_DATE))}'
+    url = f'rendered-templates?task_id=task1&dag_id=testdag&execution_date={quote_plus(str(DEFAULT_DATE))}'
 
     resp = admin_client.get(url, follow_redirects=True)
     check_content_in_response("testdag__task1__20200301", resp)
