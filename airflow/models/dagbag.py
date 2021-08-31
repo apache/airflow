@@ -447,7 +447,7 @@ class DagBag(LoggingMixin):
                     subdag.is_subdag = True
                     self._bag_dag(dag=subdag, root_dag=root_dag, recursive=False)
 
-            conflict_fileloc = self._check_if_dupe(dag)
+            conflict_fileloc = self._check_if_duplicate(dag)
             if conflict_fileloc is not None:
                 raise AirflowDagDuplicatedIdException(
                     dag_id=dag.dag_id,
