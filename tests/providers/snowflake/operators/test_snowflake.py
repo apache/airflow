@@ -35,7 +35,7 @@ DEFAULT_DATE_ISO = DEFAULT_DATE.isoformat()
 DEFAULT_DATE_DS = DEFAULT_DATE_ISO[:10]
 TEST_DAG_ID = 'unit_test_dag'
 LONG_MOCK_PATH = "airflow.providers.snowflake.operators.snowflake."
-LONG_MOCK_PATH += 'SnowflakeOperator.get_hook'
+LONG_MOCK_PATH += 'SnowflakeOperator.get_db_hook'
 
 
 class TestSnowflakeOperator(unittest.TestCase):
