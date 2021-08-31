@@ -18,7 +18,7 @@
 """Interact with Amazon EKS, using the boto3 library."""
 import base64
 import json
-import re
+import sys
 import tempfile
 import warnings
 from contextlib import contextmanager
@@ -35,6 +35,7 @@ from airflow.utils.json import AirflowJsonEncoder
 
 DEFAULT_PAGINATION_TOKEN = ''
 STS_TOKEN_EXPIRES_IN = 60
+AUTHENTICATION_API_VERSION = "client.authentication.k8s.io/v1alpha1"
 _POD_USERNAME = 'aws'
 _CONTEXT_NAME = 'aws'
 
@@ -385,8 +386,6 @@ class EKSHook(AwsBaseHook):
         cluster_cert = cluster["cluster"]["certificateAuthority"]["data"]
         cluster_ep = cluster["cluster"]["endpoint"]
 
-        token = self._fetch_sts_token(cluster_id=eks_cluster_name)
-
         cluster_config = {
             "apiVersion": "v1",
             "kind": "Config",
@@ -412,7 +411,33 @@ class EKSHook(AwsBaseHook):
                 {
                     "name": _POD_USERNAME,
                     "user": {
-                        "token": token,
+                        "exec": {
+                            "apiVersion": AUTHENTICATION_API_VERSION,
+                            "command": sys.executable,
+                            "args": [
+                                "-m",
+                                "airflow.providers.amazon.aws.utils.eks_get_token",
+                                *(
+                                    ["--region-name", self.region_name]
+                                    if self.region_name is not None
+                                    else []
+                                ),
+                                *(
+                                    ["--aws-conn-id", self.aws_conn_id]
+                                    if self.aws_conn_id is not None
+                                    else []
+                                ),
+                                "--cluster-name",
+                                eks_cluster_name,
+                            ],
+                            "env": [
+                                {
+                                    "name": "AIRFLOW__LOGGING__LOGGING_LEVEL",
+                                    "value": "fatal",
+                                }
+                            ],
+                            "interactiveMode": "Never",
+                        }
                     },
                 }
             ],
@@ -424,7 +449,7 @@ class EKSHook(AwsBaseHook):
             config_file.flush()
             yield config_file.name
 
-    def _fetch_sts_token(self, cluster_id: str) -> str:
+    def fetch_access_token_for_cluster(self, eks_cluster_name: str) -> str:
         session = self.get_session()
         service_id = self.conn.meta.service_model.service_id
         sts_url = (
@@ -444,7 +469,7 @@ class EKSHook(AwsBaseHook):
             'method': 'GET',
             'url': sts_url,
             'body': {},
-            'headers': {'x-k8s-aws-id': cluster_id},
+            'headers': {'x-k8s-aws-id': eks_cluster_name},
             'context': {},
         }
 
@@ -458,4 +483,4 @@ class EKSHook(AwsBaseHook):
         base64_url = base64.urlsafe_b64encode(signed_url.encode('utf-8')).decode('utf-8')
 
         # remove any base64 encoding padding:
-        return 'k8s-aws-v1.' + re.sub(r'=*', '', base64_url)
+        return 'k8s-aws-v1.' + base64_url.rstrip("=")
