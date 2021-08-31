@@ -42,3 +42,37 @@ Content
     :caption: Commits
 
     Detailed list of commits <commits>
+
+
+Package apache-airflow-providers-microsoft-psrp
+------------------------------------------------------
+
+`PowerShell Remoting Protocol (PSRP)
+<https://docs.microsoft.com/en-us/openspecs/windows_protocols/ms-psrp/>`__
+
+
+Release: 1.0.0
+
+Provider package
+----------------
+
+This is a provider package for ``microsoft.psrp`` provider. All classes for this provider package
+are in ``airflow.providers.microsoft.psrp`` python package.
+
+Installation
+------------
+
+You can install this package on top of an existing airflow 2.1+ installation via
+``pip install apache-airflow-providers-microsoft-psrp``
+
+PIP requirements
+----------------
+
+=============  ==================
+PIP package    Version required
+=============  ==================
+``pypsrp``     ``>=0.5.0``
+``pypsrp``     ``~=0.5``
+=============  ==================
+
+.. include:: ../../airflow/providers/microsoft/psrp/CHANGELOG.rst

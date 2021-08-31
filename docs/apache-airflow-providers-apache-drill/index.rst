@@ -41,7 +41,7 @@ Content
     Example DAGs <https://github.com/apache/airflow/tree/main/airflow/providers/apache/drill/example_dags>
     PyPI Repository <https://pypi.org/project/apache-airflow-providers-apache-drill/>
 
-.. THE REMINDER OF THE FILE IS AUTOMATICALLY GENERATED. IT WILL BE OVERWRITTEN AT RELEASE TIME!
+.. THE REMAINDER OF THE FILE IS AUTOMATICALLY GENERATED. IT WILL BE OVERWRITTEN AT RELEASE TIME!
 
 
 .. toctree::
@@ -57,7 +57,7 @@ Package apache-airflow-providers-apache-drill
 `Apache Drill <https://drill.apache.org/>`__.
 
 
-Release: 1.0.0
+Release: 1.0.1
 
 Provider package
 ----------------
