@@ -28,6 +28,19 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+2.1.1
+.....
+
+Latest change: 2021-08-23
+
+================================================================================================  ===========  ============================================================================================
+Commit                                                                                            Committed    Subject
+================================================================================================  ===========  ============================================================================================
+`be75dcd39 <https://github.com/apache/airflow/commit/be75dcd39cd10264048c86e74110365bd5daf8b7>`_  2021-08-23   ``Update description about the new ''connection-types'' provider meta-data``
+`76ed2a49c <https://github.com/apache/airflow/commit/76ed2a49c6cd285bf59706cf04f39a7444c382c9>`_  2021-08-19   ``Import Hooks lazily individually in providers manager (#17682)``
+`4da4c186e <https://github.com/apache/airflow/commit/4da4c186ecdcdae308fe8b4a7994c21faf42bc96>`_  2021-08-19   ``Add support for configs, secrets, networks and replicas for DockerSwarmOperator (#17474)``
+================================================================================================  ===========  ============================================================================================
+
 2.1.0
 .....
 
@@ -36,6 +49,7 @@ Latest change: 2021-07-26
 ================================================================================================  ===========  ===============================================================================
 Commit                                                                                            Committed    Subject
 ================================================================================================  ===========  ===============================================================================
+`87f408b1e <https://github.com/apache/airflow/commit/87f408b1e78968580c760acb275ae5bb042161db>`_  2021-07-26   ``Prepares docs for Rc2 release of July providers (#17116)``
 `b10ed95a2 <https://github.com/apache/airflow/commit/b10ed95a2aded01eb5580120ab2abbde1bac633b>`_  2021-07-26   ``Updating Docker example DAGs to use XComArgs (#16871)``
 `cd3307ff2 <https://github.com/apache/airflow/commit/cd3307ff2147b170dc3feb5999edf5c8eebed4ba>`_  2021-07-26   ``fix string encoding when using xcom / json (#13536)``
 `24d02bfa8 <https://github.com/apache/airflow/commit/24d02bfa840ae2a315af4280b2c185122e3c30e1>`_  2021-07-19   ``Prepares documentation for RC2 release of Docker Provider (#17066)``

@@ -51,7 +51,7 @@ from airflow.providers.google.cloud.operators.bigquery import (
     BigQueryCreateEmptyDatasetOperator,
     BigQueryCreateExternalTableOperator,
     BigQueryDeleteDatasetOperator,
-    BigQueryExecuteQueryOperator,
+    BigQueryInsertJobOperator,
 )
 from airflow.providers.google.firebase.operators.firestore import CloudFirestoreExportDatabaseOperator
 from airflow.utils import dates
@@ -99,19 +99,39 @@ with models.DAG(
     create_external_table_multiple_types = BigQueryCreateExternalTableOperator(
         task_id="create_external_table",
         bucket=BUCKET_NAME,
+        table_resource={
+            "tableReference": {
+                "projectId": GCP_PROJECT_ID,
+                "datasetId": DATASET_NAME,
+                "tableId": "firestore_data",
+            },
+            "schema": {
+                "fields": [
+                    {"name": "name", "type": "STRING"},
+                    {"name": "post_abbr", "type": "STRING"},
+                ]
+            },
+            "externalDataConfiguration": {
+                "sourceFormat": "DATASTORE_BACKUP",
+                "compression": "NONE",
+                "csvOptions": {"skipLeadingRows": 1},
+            },
+        },
         source_objects=[
             f"{EXPORT_PREFIX}/all_namespaces/kind_{EXPORT_COLLECTION_ID}"
             f"/all_namespaces_kind_{EXPORT_COLLECTION_ID}.export_metadata"
         ],
-        source_format="DATASTORE_BACKUP",
-        destination_project_dataset_table=f"{GCP_PROJECT_ID}.{DATASET_NAME}.firestore_data",
     )
     # [END howto_operator_create_external_table_multiple_types]
 
-    read_data_from_gcs_multiple_types = BigQueryExecuteQueryOperator(
+    read_data_from_gcs_multiple_types = BigQueryInsertJobOperator(
         task_id="execute_query",
-        sql=f"SELECT COUNT(*) FROM `{GCP_PROJECT_ID}.{DATASET_NAME}.firestore_data`",
-        use_legacy_sql=False,
+        configuration={
+            "query": {
+                "query": f"SELECT COUNT(*) FROM `{GCP_PROJECT_ID}.{DATASET_NAME}.firestore_data`",
+                "useLegacySql": False,
+            }
+        },
     )
 
     # Firestore

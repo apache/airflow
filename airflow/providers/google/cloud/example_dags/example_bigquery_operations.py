@@ -33,7 +33,6 @@ from airflow.providers.google.cloud.operators.bigquery import (
     BigQueryDeleteTableOperator,
     BigQueryGetDatasetOperator,
     BigQueryGetDatasetTablesOperator,
-    BigQueryPatchDatasetOperator,
     BigQueryUpdateDatasetOperator,
     BigQueryUpdateTableOperator,
     BigQueryUpdateTableSchemaOperator,
@@ -134,14 +133,26 @@ with models.DAG(
     # [START howto_operator_bigquery_create_external_table]
     create_external_table = BigQueryCreateExternalTableOperator(
         task_id="create_external_table",
+        table_resource={
+            "tableReference": {
+                "projectId": PROJECT_ID,
+                "datasetId": DATASET_NAME,
+                "tableId": "external_table",
+            },
+            "schema": {
+                "fields": [
+                    {"name": "name", "type": "STRING"},
+                    {"name": "post_abbr", "type": "STRING"},
+                ]
+            },
+            "externalDataConfiguration": {
+                "sourceFormat": "CSV",
+                "compression": "NONE",
+                "csvOptions": {"skipLeadingRows": 1},
+            },
+        },
         bucket=DATA_SAMPLE_GCS_BUCKET_NAME,
         source_objects=[DATA_SAMPLE_GCS_OBJECT_NAME],
-        destination_project_dataset_table=f"{DATASET_NAME}.external_table",
-        skip_leading_rows=1,
-        schema_fields=[
-            {"name": "name", "type": "STRING"},
-            {"name": "post_abbr", "type": "STRING"},
-        ],
     )
     # [END howto_operator_bigquery_create_external_table]
 
@@ -191,17 +202,6 @@ with models.DAG(
     )
     # [END howto_operator_bigquery_update_table]
 
-    # [START howto_operator_bigquery_patch_dataset]
-    patch_dataset = BigQueryPatchDatasetOperator(
-        task_id="patch_dataset",
-        dataset_id=DATASET_NAME,
-        dataset_resource={
-            "friendlyName": "Patched Dataset",
-            "description": "Patched dataset",
-        },
-    )
-    # [END howto_operator_bigquery_patch_dataset]
-
     # [START howto_operator_bigquery_update_dataset]
     update_dataset = BigQueryUpdateDatasetOperator(
         task_id="update_dataset",
@@ -216,7 +216,7 @@ with models.DAG(
     )
     # [END howto_operator_bigquery_delete_dataset]
 
-    create_dataset >> patch_dataset >> update_dataset >> get_dataset >> get_dataset_result >> delete_dataset
+    create_dataset >> update_dataset >> get_dataset >> get_dataset_result >> delete_dataset
 
     (
         update_dataset

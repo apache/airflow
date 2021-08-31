@@ -75,6 +75,7 @@ function run_nc() {
     nc -zvvn "${ip}" "${port}"
 }
 
+
 function wait_for_connection {
     # Waits for Connection to the backend specified via URL passed as first parameter
     # Detects backend type depending on the URL schema and assigns
@@ -83,24 +84,12 @@ function wait_for_connection {
     # It tries `CONNECTION_CHECK_MAX_COUNT` times and sleeps `CONNECTION_CHECK_SLEEP_TIME` between checks
     local connection_url
     connection_url="${1}"
-    local detected_backend=""
-    local detected_host=""
-    local detected_port=""
-
-    # Auto-detect DB parameters
-    # Examples:
-    #  postgres://YourUserName:password@YourHostname:5432/YourDatabaseName
-    #  postgres://YourUserName:password@YourHostname:5432/YourDatabaseName
-    #  postgres://YourUserName:@YourHostname:/YourDatabaseName
-    #  postgres://YourUserName@YourHostname/YourDatabaseName
-    [[ ${connection_url} =~ ([^:]*)://([^:@]*):?([^@]*)@?([^/:]*):?([0-9]*)/([^\?]*)\??(.*) ]] && \
-        detected_backend=${BASH_REMATCH[1]} &&
-        # Not used USER match
-        # Not used PASSWORD match
-        detected_host=${BASH_REMATCH[4]} &&
-        detected_port=${BASH_REMATCH[5]} &&
-        # Not used SCHEMA match
-        # Not used PARAMS match
+    local detected_backend
+    detected_backend=$(python -c "from urllib.parse import urlsplit; import sys; print(urlsplit(sys.argv[1]).scheme)" "${connection_url}")
+    local detected_host
+    detected_host=$(python -c "from urllib.parse import urlsplit; import sys; print(urlsplit(sys.argv[1]).hostname)" "${connection_url}")
+    local detected_port
+    detected_port=$(python -c "from urllib.parse import urlsplit; import sys; print(urlsplit(sys.argv[1]).port or '')" "${connection_url}")
 
     echo BACKEND="${BACKEND:=${detected_backend}}"
     readonly BACKEND

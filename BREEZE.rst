@@ -718,13 +718,13 @@ The above will run mypy check for all files.
       </a>
     </div>
 
-If you want ever need to get a list of the files that will be checked (for troubleshooting when playing with the
-``--from-ref`` and ``--to-ref``
+If you ever need to get a list of the files that will be checked (for troubleshooting when playing with
+``--from-ref`` and ``--to-ref``), use these commands:
 
 .. code-block:: bash
 
-     breeze static-check identity --verbose # currently staged files
-     breeze static-check identity --verbose -- --from-ref $(git merge-base main HEAD) --to-ref HEAD #  branch updates
+     ./breeze static-check identity --verbose # currently staged files
+     ./breeze static-check identity --verbose -- --from-ref $(git merge-base main HEAD) --to-ref HEAD #  branch updates
 
 Building the Documentation
 --------------------------

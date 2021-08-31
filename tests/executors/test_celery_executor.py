@@ -415,9 +415,9 @@ class TestBulkStateFetcher(unittest.TestCase):
     def test_should_support_kv_backend(self, mock_mget):
         with _prepare_app():
             mock_backend = BaseKeyValueStoreBackend(app=celery_executor.app)
-            with mock.patch.object(celery_executor.app, 'backend', mock_backend), self.assertLogs(
-                "airflow.executors.celery_executor.BulkStateFetcher", level="DEBUG"
-            ) as cm:
+            with mock.patch(
+                'airflow.executors.celery_executor.Celery.backend', mock_backend
+            ), self.assertLogs("airflow.executors.celery_executor.BulkStateFetcher", level="DEBUG") as cm:
                 fetcher = BulkStateFetcher()
                 result = fetcher.get_many(
                     [
@@ -444,9 +444,9 @@ class TestBulkStateFetcher(unittest.TestCase):
         with _prepare_app():
             mock_backend = DatabaseBackend(app=celery_executor.app, url="sqlite3://")
 
-            with mock.patch.object(celery_executor.app, 'backend', mock_backend), self.assertLogs(
-                "airflow.executors.celery_executor.BulkStateFetcher", level="DEBUG"
-            ) as cm:
+            with mock.patch(
+                'airflow.executors.celery_executor.Celery.backend', mock_backend
+            ), self.assertLogs("airflow.executors.celery_executor.BulkStateFetcher", level="DEBUG") as cm:
                 mock_session = mock_backend.ResultSession.return_value
                 mock_session.query.return_value.filter.return_value.all.return_value = [
                     mock.MagicMock(**{"to_dict.return_value": {"status": "SUCCESS", "task_id": "123"}})
@@ -472,9 +472,9 @@ class TestBulkStateFetcher(unittest.TestCase):
         with _prepare_app():
             mock_backend = mock.MagicMock(autospec=BaseBackend)
 
-            with mock.patch.object(celery_executor.app, 'backend', mock_backend), self.assertLogs(
-                "airflow.executors.celery_executor.BulkStateFetcher", level="DEBUG"
-            ) as cm:
+            with mock.patch(
+                'airflow.executors.celery_executor.Celery.backend', mock_backend
+            ), self.assertLogs("airflow.executors.celery_executor.BulkStateFetcher", level="DEBUG") as cm:
                 fetcher = BulkStateFetcher(1)
                 result = fetcher.get_many(
                     [

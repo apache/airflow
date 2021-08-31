@@ -34,7 +34,7 @@ Content
     Example DAGs <https://github.com/apache/airflow/tree/main/airflow/providers/apache/pig/example_dags>
     PyPI Repository <https://pypi.org/project/apache-airflow-providers-apache-pig/>
 
-.. THE REMINDER OF THE FILE IS AUTOMATICALLY GENERATED. IT WILL BE OVERWRITTEN AT RELEASE TIME!
+.. THE REMAINDER OF THE FILE IS AUTOMATICALLY GENERATED. IT WILL BE OVERWRITTEN AT RELEASE TIME!
 
 
 .. toctree::
@@ -50,7 +50,7 @@ Package apache-airflow-providers-apache-pig
 `Apache Pig <https://pig.apache.org/>`__
 
 
-Release: 2.0.0
+Release: 2.0.1
 
 Provider package
 ----------------

@@ -31,6 +31,8 @@ readonly AIRFLOW_SOURCES
 # shellcheck source=scripts/ci/libraries/_all_libs.sh
 . "${AIRFLOW_SOURCES}/scripts/ci/libraries/_all_libs.sh"
 
+initialization::create_directories
+
 initialization::initialize_common_environment
 
 sanity_checks::basic_sanity_checks

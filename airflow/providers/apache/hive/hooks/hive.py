@@ -1066,6 +1066,5 @@ class HiveServer2Hook(DbApiHook):
         :return: pandas.DateFrame
         """
         res = self.get_results(hql, schema=schema, hive_conf=hive_conf)
-        df = pandas.DataFrame(res['data'], **kwargs)
-        df.columns = [c[0] for c in res['header']]
+        df = pandas.DataFrame(res['data'], columns=[c[0] for c in res['header']], **kwargs)
         return df

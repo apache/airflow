@@ -18,6 +18,7 @@
 
 """Unit tests for stringified DAGs."""
 
+import copy
 import importlib
 import importlib.util
 import multiprocessing
@@ -43,7 +44,7 @@ from airflow.serialization.json_schema import load_dag_schema_dict
 from airflow.serialization.serialized_objects import SerializedBaseOperator, SerializedDAG
 from airflow.timetables.simple import NullTimetable, OnceTimetable
 from tests.test_utils.mock_operators import CustomOperator, CustomOpLink, GoogleLink
-from tests.test_utils.timetables import cron_timetable, delta_timetable
+from tests.test_utils.timetables import CustomSerializationTimetable, cron_timetable, delta_timetable
 
 executor_config_pod = k8s.V1Pod(
     metadata=k8s.V1ObjectMeta(name="my-name"),
@@ -137,6 +138,7 @@ serialized_simple_dag_ground_truth = {
                 'label': 'custom_task',
             },
         ],
+        "schedule_interval": {"__type": "timedelta", "__var": 86400.0},
         "timezone": "UTC",
         "_access_control": {
             "__type": "dict",
@@ -247,6 +249,14 @@ def collect_dags(dag_folder=None):
     return dags
 
 
+def get_timetable_based_simple_dag(timetable):
+    """Create a simple_dag variant that uses timetable instead of schedule_interval."""
+    dag = collect_dags(["airflow/example_dags"])["simple_dag"]
+    dag.timetable = timetable
+    dag.schedule_interval = timetable.summary
+    return dag
+
+
 def serialize_subprocess(queue, dag_folder):
     """Validate pickle in a subprocess."""
     dags = collect_dags(dag_folder)
@@ -287,6 +297,36 @@ class TestStringifiedDAGs(unittest.TestCase):
 
         # Compares with the ground truth of JSON string.
         self.validate_serialized_dag(serialized_dags['simple_dag'], serialized_simple_dag_ground_truth)
+
+    @parameterized.expand(
+        [
+            (
+                cron_timetable("0 0 * * *"),
+                {
+                    "type": "airflow.timetables.interval.CronDataIntervalTimetable",
+                    "value": {"expression": "0 0 * * *", "timezone": "UTC"},
+                },
+            ),
+            (
+                CustomSerializationTimetable("foo"),
+                {
+                    "type": "tests.test_utils.timetables.CustomSerializationTimetable",
+                    "value": {"value": "foo"},
+                },
+            ),
+        ],
+    )
+    def test_dag_serialization_to_timetable(self, timetable, serialized_timetable):
+        """Verify a timetable-backed schedule_interval is excluded in serialization."""
+        dag = get_timetable_based_simple_dag(timetable)
+        serialized_dag = SerializedDAG.to_dict(dag)
+        SerializedDAG.validate_schema(serialized_dag)
+
+        expected = copy.deepcopy(serialized_simple_dag_ground_truth)
+        del expected["dag"]["schedule_interval"]
+        expected["dag"]["timetable"] = serialized_timetable
+
+        self.validate_serialized_dag(serialized_dag, expected)
 
     def validate_serialized_dag(self, json_dag, ground_truth_dag):
         """Verify serialized DAGs match the ground truth."""
@@ -348,15 +388,23 @@ class TestStringifiedDAGs(unittest.TestCase):
             serialized_dag = SerializedDAG.from_json(SerializedDAG.to_json(dag))
             self.validate_deserialized_dag(serialized_dag, dag)
 
+    @parameterized.expand([(cron_timetable("0 0 * * *"),), (CustomSerializationTimetable("foo"),)])
+    def test_dag_roundtrip_from_timetable(self, timetable):
+        """Verify a timetable-backed serialization can be deserialized."""
+        dag = get_timetable_based_simple_dag(timetable)
+        roundtripped = SerializedDAG.from_json(SerializedDAG.to_json(dag))
+        self.validate_deserialized_dag(roundtripped, dag)
+
     def validate_deserialized_dag(self, serialized_dag, dag):
         """
         Verify that all example DAGs work with DAG Serialization by
         checking fields between Serialized Dags & non-Serialized Dags
         """
         fields_to_check = dag.get_serialized_fields() - {
-            # Doesn't implement __eq__ properly. Check manually
+            # Doesn't implement __eq__ properly. Check manually.
+            'timetable',
             'timezone',
-            # Need to check fields in it, to exclude functions
+            # Need to check fields in it, to exclude functions.
             'default_args',
             "_task_group",
         }
@@ -375,6 +423,8 @@ class TestStringifiedDAGs(unittest.TestCase):
                         v == serialized_dag.default_args[k]
                     ), f'{dag.dag_id}.default_args[{k}] does not match'
 
+        assert serialized_dag.timetable.summary == dag.timetable.summary
+        assert serialized_dag.timetable.serialize() == dag.timetable.serialize()
         assert serialized_dag.timezone.name == dag.timezone.name
 
         for task_id in dag.task_ids:
@@ -501,12 +551,51 @@ class TestStringifiedDAGs(unittest.TestCase):
 
     @parameterized.expand(
         [
-            (None, None, NullTimetable()),
-            ("@weekly", "@weekly", cron_timetable("0 0 * * 0")),
-            ("@once", "@once", OnceTimetable()),
+            ({"type": "airflow.timetables.simple.NullTimetable", "value": {}}, NullTimetable()),
+            (
+                {
+                    "type": "airflow.timetables.interval.CronDataIntervalTimetable",
+                    "value": {"expression": "@weekly", "timezone": "UTC"},
+                },
+                cron_timetable("0 0 * * 0"),
+            ),
+            ({"type": "airflow.timetables.simple.OnceTimetable", "value": {}}, OnceTimetable()),
+            (
+                {
+                    "type": "airflow.timetables.interval.DeltaDataIntervalTimetable",
+                    "value": {"delta": 86400.0},
+                },
+                delta_timetable(timedelta(days=1)),
+            ),
+        ]
+    )
+    def test_deserialization_timetable(
+        self,
+        serialized_timetable,
+        expected_timetable,
+    ):
+        serialized = {
+            "__version": 1,
+            "dag": {
+                "default_args": {"__type": "dict", "__var": {}},
+                "_dag_id": "simple_dag",
+                "fileloc": __file__,
+                "tasks": [],
+                "timezone": "UTC",
+                "timetable": serialized_timetable,
+            },
+        }
+        SerializedDAG.validate_schema(serialized)
+        dag = SerializedDAG.from_dict(serialized)
+        assert dag.timetable == expected_timetable
+
+    @parameterized.expand(
+        [
+            (None, NullTimetable()),
+            ("@weekly", cron_timetable("0 0 * * 0")),
+            ("@once", OnceTimetable()),
             (
                 {"__type": "timedelta", "__var": 86400.0},
-                timedelta(days=1),
                 delta_timetable(timedelta(days=1)),
             ),
         ]
@@ -514,9 +603,9 @@ class TestStringifiedDAGs(unittest.TestCase):
     def test_deserialization_schedule_interval(
         self,
         serialized_schedule_interval,
-        expected_schedule_interval,
         expected_timetable,
     ):
+        """Test DAGs serialized before 2.2 can be correctly deserialized."""
         serialized = {
             "__version": 1,
             "dag": {
@@ -530,10 +619,7 @@ class TestStringifiedDAGs(unittest.TestCase):
         }
 
         SerializedDAG.validate_schema(serialized)
-
         dag = SerializedDAG.from_dict(serialized)
-
-        assert dag.schedule_interval == expected_schedule_interval
         assert dag.timetable == expected_timetable
 
     @parameterized.expand(
