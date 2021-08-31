@@ -18,6 +18,8 @@
 import unittest
 from enum import Enum
 
+from parameterized import parameterized
+
 from airflow.utils.weekday import WeekDay
 
 
@@ -38,3 +40,34 @@ class TestWeekDay(unittest.TestCase):
             assert isinstance(weekday_enum, WeekDay)
             assert isinstance(weekday_enum, int)
             assert isinstance(weekday_enum, Enum)
+
+    @parameterized.expand(
+        [
+            ("with-string", "Monday", 1),
+            ("with-enum", WeekDay.MONDAY, 1),
+        ]
+    )
+    def test_convert(self, _, weekday, expected):
+        result = WeekDay.convert(weekday)
+        self.assertEqual(result, 1)
+
+    def test_convert_with_incorrect_input(self):
+        invalid = "Sun"
+        with self.assertRaisesRegex(
+            AttributeError,
+            f'Invalid Week Day passed: "{invalid}"',
+        ):
+            WeekDay.convert(invalid)
+
+    @parameterized.expand(
+        [
+            ("with-string", "Monday", {WeekDay.MONDAY}),
+            ("with-enum", WeekDay.MONDAY, {WeekDay.MONDAY}),
+            ("with-dict", {"Thursday": "1"}, {WeekDay.THURSDAY}),
+            ("with-list", ["Thursday"], {WeekDay.THURSDAY}),
+            ("with-mix", ["Thursday", WeekDay.MONDAY], {WeekDay.MONDAY, WeekDay.THURSDAY}),
+        ]
+    )
+    def test_validate_week_day(self, _, weekday, expected):
+        result = WeekDay.validate_week_day(weekday)
+        self.assertEqual(expected, result)
