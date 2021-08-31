@@ -89,7 +89,7 @@ Because they are not dependent on other classes, Mixin classes are great for mul
 
 In the DockerDecorator we created a Mixin class that looks like this
 
-.. exampleinclude:: ../apache-airflow/docker_decorator.py
+.. exampleinclude:: ../howto/docker_decorator.py
     :language: python
     :dedent: 4
     :start-after: [START decoratormixin]
@@ -99,7 +99,7 @@ Notice that the function does not actually need to return anything. We will only
 
 Once you have your Mixin class ready, go to ``airflow.decorators.__init__.pyi`` and add section similar to this
 
-.. exampleinclude:: ../../airflow/decorators/__init__.pyi
+.. exampleinclude:: ../../../airflow/decorators/__init__.pyi
     :language: python
     :dedent: 4
     :start-after: [START import_docker]

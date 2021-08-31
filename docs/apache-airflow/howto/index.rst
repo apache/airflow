@@ -31,6 +31,7 @@ configuring an Airflow environment.
 
     add-dag-tags
     set-config
+    create-custom-decorators
     set-up-database
     operator/index
     customize-state-colors-ui
