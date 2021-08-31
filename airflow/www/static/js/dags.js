@@ -17,9 +17,11 @@
  * under the License.
  */
 
-/* global document, window, $, d3, STATE_COLOR, isoDateToTimeEl, */
+/* global document, window, $, d3, STATE_COLOR, isoDateToTimeEl */
 
 import getMetaValue from './meta_value';
+import tiTooltip from './task_instances';
+import { formatDateTime } from './datetime_utils';
 
 const DAGS_INDEX = getMetaValue('dags_index');
 const ENTER_KEY_CODE = 13;
@@ -150,19 +152,29 @@ function lastDagRunsHandler(error, json) {
   Object.keys(json).forEach((safeDagId) => {
     const dagId = json[safeDagId].dag_id;
     const executionDate = json[safeDagId].execution_date;
-    const startDate = json[safeDagId].start_date;
     const g = d3.select(`#last-run-${safeDagId}`);
+
+    // Show last run as a link to the graph view
     g.selectAll('a')
       .attr('href', `${graphUrl}?dag_id=${encodeURIComponent(dagId)}&execution_date=${encodeURIComponent(executionDate)}`)
       .insert(isoDateToTimeEl.bind(null, executionDate, { title: false }));
+
+    // Only show the tooltip when we have a last run and add the json to a custom data- attribute
     g.selectAll('span')
-    // We don't translate the timezone in the tooltip, that stays in UTC.
-      .attr('data-original-title', `Start Date: ${startDate}`)
-      .style('display', null);
+      .style('display', null)
+      .attr('data-lastrun', JSON.stringify(json[safeDagId]));
+
     g.selectAll('.js-loading-last-run').remove();
     $('.js-loading-last-run').remove();
   });
 }
+
+// Load data-lastrun attribute data to populate the tooltip on hover
+d3.selectAll('.js-last-run-tooltip')
+  .on('mouseover', function mouseoverLastRun() {
+    const lastRunData = JSON.parse(d3.select(this).attr('data-lastrun'));
+    d3.select(this).attr('data-original-title', tiTooltip(lastRunData));
+  });
 
 function drawDagStatsForDag(dagId, states) {
   const g = d3.select(`svg#dag-run-${dagId.replace(/\./g, '__dot__')}`)
@@ -349,5 +361,20 @@ $(window).on('load', () => {
 
   $('body').on('mouseout', '.has-svg-tooltip', () => {
     hideSvgTooltip();
+  });
+});
+
+$('.js-next-run-tooltip').each((i, run) => {
+  $(run).on('mouseover', () => {
+    $(run).attr('data-original-title', () => {
+      const nextRunData = $(run).attr('data-nextrun');
+      const [createAfter, intervalStart, intervalEnd] = nextRunData.split(',');
+      let newTitle = '';
+      newTitle += `<strong>Run After:</strong> ${formatDateTime(createAfter)}<br><br>`;
+      newTitle += '<strong>Data Interval</strong><br>';
+      newTitle += `Start: ${formatDateTime(intervalStart)}<br>`;
+      newTitle += `End: ${formatDateTime(intervalEnd)}`;
+      return newTitle;
+    });
   });
 });

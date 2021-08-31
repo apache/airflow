@@ -17,7 +17,7 @@
  * under the License.
  */
 
-/* global document, window, $, */
+/* global document, window, $ */
 
 import getMetaValue from './meta_value';
 import { formatDateTime } from './datetime_utils';
@@ -44,6 +44,11 @@ const logsWithMetadataUrl = getMetaValue('logs_with_metadata_url');
 const externalLogUrl = getMetaValue('external_log_url');
 const extraLinksUrl = getMetaValue('extra_links_url');
 const pausedUrl = getMetaValue('paused_url');
+const nextRun = {
+  createAfter: getMetaValue('next_dagrun_create_after'),
+  intervalStart: getMetaValue('next_dagrun_data_interval_start'),
+  intervalEnd: getMetaValue('next_dagrun_data_interval_end'),
+};
 let taskId = '';
 let executionDate = '';
 let subdagId = '';
@@ -266,5 +271,16 @@ $('#pause_resume').on('change', function onChange() {
       $input.prop('checked', !isPaused);
       $input.addClass('switch-input--error');
     }, 500);
+  });
+});
+
+$('#next-run').on('mouseover', () => {
+  $('#next-run').attr('data-original-title', () => {
+    let newTitle = '';
+    newTitle += `<strong>Run After:</strong> ${formatDateTime(nextRun.createAfter)}<br><br>`;
+    newTitle += '<strong>Data Interval</strong><br>';
+    newTitle += `Start: ${formatDateTime(nextRun.intervalStart)}<br>`;
+    newTitle += `End: ${formatDateTime(nextRun.intervalEnd)}`;
+    return newTitle;
   });
 });

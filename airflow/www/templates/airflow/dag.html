@@ -36,6 +36,11 @@
   <meta name="extra_links_url" content="{{ url_for('Airflow.extra_links') }}">
   <meta name="paused_url" content="{{ url_for('Airflow.paused') }}">
   <meta name="tree_data" content="{{ url_for('Airflow.tree_data') }}">
+  {% if dag_model is defined and dag_model.next_dagrun_create_after is defined %}
+    <meta name="next_dagrun_create_after" content="{{ dag_model.next_dagrun_create_after }}">
+    <meta name="next_dagrun_data_interval_start" content="{{ dag_model.next_dagrun_data_interval_start }}">
+    <meta name="next_dagrun_data_interval_end" content="{{ dag_model.next_dagrun_data_interval_end }}">
+  {% endif %}
   {% if show_external_log_redirect is defined %}
     <meta name="show_external_log_redirect" content="{{ show_external_log_redirect }}">
   {% endif %}
@@ -84,8 +89,13 @@
         {{ state_token }}
       {% endif %}
       <a class="label label-default" href="{{ url_for('DagRunModelView.list') }}?_flt_3_dag_id={{ dag.dag_id }}">
-        schedule: {{ dag.schedule_interval }}
+        Schedule: {{ dag.schedule_interval }}
       </a>
+      {% if dag_model is defined and dag_model.next_dagrun is defined %}
+        <p class="label label-default js-tooltip" style="margin-left: 5px" id="next-run" data-html="true" data-placement="bottom">
+          Next Run: <time datetime="{{ dag_model.next_dagrun }}">{{ dag_model.next_dagrun }}</time>
+        </p>
+      {% endif %}
     </h4>
   </div>
   <div class="clearfix"></div>
