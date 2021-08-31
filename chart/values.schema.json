@@ -3088,6 +3088,14 @@
                             ],
                             "default": null
                         },
+                        "sshKeyCustomFile": {
+                            "description": "Use a custom file containing the key instead of `sshKeySecret`.",
+                            "type": [
+                                "string",
+                                "null"
+                            ],
+                            "default": null
+                        },
                         "knownHosts": {
                             "description": "When using a ssh private key, the contents of your `known_hosts` file.",
                             "type": [

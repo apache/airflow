@@ -146,9 +146,13 @@ If release name contains chart name it will be used as a full name.
   securityContext:
     runAsUser: {{ .Values.dags.gitSync.uid }}
   env:
-    {{- if .Values.dags.gitSync.sshKeySecret }}
+    {{- if or .Values.dags.gitSync.sshKeySecret .Values.dags.gitSync.sshKeyCustomFile}}
     - name: GIT_SSH_KEY_FILE
+      {{- if .Values.dags.gitSync.sshKeyCustomFile}}
+      value: {{ .Values.dags.gitSync.sshKeyCustomFile | quote }}
+      {{- else }}
       value: "/etc/git-secret/ssh"
+      {{- end }}
     - name: GIT_SYNC_SSH
       value: "true"
     {{- if .Values.dags.gitSync.knownHosts }}
@@ -204,7 +208,11 @@ If release name contains chart name it will be used as a full name.
     mountPath: /git
   {{- if .Values.dags.gitSync.sshKeySecret }}
   - name: git-sync-ssh-key
+    {{- if empty .Values.dags.gitSync.sshKeyCustomFile }}
     mountPath: /etc/git-secret/ssh
+    {{- else }}
+    mountPath: {{.Values.dags.gitSync.sshKeyCustomFile | quote}}
+    {{- end }}
     readOnly: true
     subPath: gitSshKey
   {{- if .Values.dags.gitSync.knownHosts }}

@@ -1308,6 +1308,7 @@ dags:
     extraVolumeMounts: []
     env: []
     resources: {}
+    sshKeyCustomFile:
     #  limits:
     #   cpu: 100m
     #   memory: 128Mi
