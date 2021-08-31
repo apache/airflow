@@ -27,7 +27,7 @@ Here is a sample configuration:
 
     [secrets]
     backend = airflow.providers.amazon.aws.secrets.secrets_manager.SecretsManagerBackend
-    backend_kwargs = {"connections_prefix": "airflow/connections", "variables_prefix": "airflow/variables", "profile_name": "default"}
+    backend_kwargs = {"connections_prefix": "airflow/connections", "variables_prefix": "airflow/variables", "profile_name": "default", "full_url_mode": False}
 
 To authenticate you can either supply a profile name to reference aws profile, e.g. defined in ``~/.aws/config`` or set
 environment variables like ``AWS_ACCESS_KEY_ID``, ``AWS_SECRET_ACCESS_KEY``.
@@ -35,8 +35,8 @@ environment variables like ``AWS_ACCESS_KEY_ID``, ``AWS_SECRET_ACCESS_KEY``.
 
 Storing and Retrieving Connections
 """"""""""""""""""""""""""""""""""
-The backend is made in a way you can store the different values for the secret in different fields in Amazon Secrets
-Manager, as follow:
+You can store the different values for a secret in two forms: storing the conn URI in one field (default mode) or using different
+fields in Amazon Secrets Manager (setting ``full_url_mode`` as False in the backend config), as follow:
 .. image:: img/aws-secrets-manager.png
 
 You must, however, use some of the following words for each kind of field:
@@ -49,7 +49,7 @@ You must, however, use some of the following words for each kind of field:
   connection_type or engine. Valid values for this field are postgres, mysql, snowflake, google_cloud, mongo...
 * For the extra value of the connections, you have to type a dictionary.
 
-For example, if you have set ``connections_prefix`` as ``airflow/connections``, then for a connection id of ``smtp_default``,
+As an example, if you have set ``connections_prefix`` as ``airflow/connections``, then for a connection id of ``smtp_default``,
 you would want to store your connection at ``airflow/connections/smtp_default``. This can be done through the AWS web
 console or through Amazon CLI as shown below:
 
@@ -99,8 +99,8 @@ For example, if you want to set parameter ``connections_prefix`` to ``"airflow/c
     backend = airflow.providers.amazon.aws.secrets.secrets_manager.SecretsManagerBackend
     backend_kwargs = {"connections_prefix": "airflow/connections", "variables_prefix": null, "profile_name": "default"}
 
-Storing Google Cloud Secrets
-""""""""""""""""""""""""""""
+Example of storing Google Secrets in AWS Secrets Manger
+""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 For connecting to a google cloud conn, all the fields must be in the extra field, and their names follow the pattern
 ``extra_google_cloud_platform__value``. For example:
 

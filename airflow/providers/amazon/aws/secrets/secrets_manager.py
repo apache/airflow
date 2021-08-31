@@ -68,6 +68,9 @@ class SecretsManagerBackend(BaseSecretsBackend, LoggingMixin):
     :type profile_name: str
     :param sep: separator used to concatenate secret_prefix and secret_id. Default: "/"
     :type sep: str
+    :param full_url_mode: if True, the secrets must be stored as one conn URI in just one field per secret.
+        Otherwise, you can store the secret using different fields (password, user...)
+    :type full_url_mode: bool
     """
 
     def __init__(
@@ -77,6 +80,7 @@ class SecretsManagerBackend(BaseSecretsBackend, LoggingMixin):
         config_prefix: str = 'airflow/config',
         profile_name: Optional[str] = None,
         sep: str = "/",
+        full_url_mode: bool = True,
         **kwargs,
     ):
         super().__init__()
@@ -94,6 +98,7 @@ class SecretsManagerBackend(BaseSecretsBackend, LoggingMixin):
             self.config_prefix = config_prefix
         self.profile_name = profile_name
         self.sep = sep
+        self.full_url_mode = full_url_mode
         self.kwargs = kwargs
 
     @cached_property
@@ -147,18 +152,24 @@ class SecretsManagerBackend(BaseSecretsBackend, LoggingMixin):
         :param conn_id: connection id
         :type conn_id: str
         """
-        try:
-            secret_string = self._get_secret(self.connections_prefix, conn_id)
-            secret = ast.literal_eval(secret_string)  # json.loads gives error
-        except ValueError:  # 'malformed node or string: ' error, for empty conns
-            connection = None
-            secret = None
+        if self.full_url_mode:
+            if self.connections_prefix is None:
+                return None
 
-        # These lines will check if we have with some denomination stored an username, password and host
-        if secret:
-            connection = self.get_uri_from_secret(secret)
+            return self._get_secret(self.connections_prefix, conn_id)
+        else:
+            try:
+                secret_string = self._get_secret(self.connections_prefix, conn_id)
+                secret = ast.literal_eval(secret_string)  # json.loads gives error
+            except ValueError:  # 'malformed node or string: ' error, for empty conns
+                connection = None
+                secret = None
 
-        return connection
+            # These lines will check if we have with some denomination stored an username, password and host
+            if secret:
+                connection = self.get_uri_from_secret(secret)
+
+            return connection
 
     def get_variable(self, key: str) -> Optional[str]:
         """

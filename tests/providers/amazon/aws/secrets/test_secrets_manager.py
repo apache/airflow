@@ -44,7 +44,7 @@ class TestSecretsManagerBackend(TestCase):
             '"port": 5432, "schema": "airflow", "engine": "postgresql",}',
         }
 
-        secrets_manager_backend = SecretsManagerBackend()
+        secrets_manager_backend = SecretsManagerBackend(full_url_mode=False)
         secrets_manager_backend.client.create_secret(**create_param)
         secrets_manager_backend.client.put_secret_value(**param)
 
