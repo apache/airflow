@@ -224,6 +224,26 @@ class DagRun(Base, LoggingMixin):
             query.limit(max_number), of=cls, session=session, **skip_locked(session=session)
         )
 
+    @classmethod
+    def get_next_queued_dagruns_for_dag(cls, dag_id: str, session: Session, max_number: Optional[int] = None):
+        """Get queued dagruns for a particular dag to examine"""
+        if max_number is None:
+            max_number = cls.DEFAULT_DAGRUNS_TO_EXAMINE
+        query = (
+            session.query(cls)
+            .filter(cls.dag_id == dag_id, cls.state == State.QUEUED)
+            .order_by(
+                nulls_first(cls.last_scheduling_decision, session=session),
+                cls.execution_date,
+            )
+        )
+        if not settings.ALLOW_FUTURE_EXEC_DATES:
+            query = query.filter(DagRun.execution_date <= func.now())
+
+        return with_row_locks(
+            query.limit(max_number), of=cls, session=session, **skip_locked(session=session)
+        )
+
     @staticmethod
     @provide_session
     def find(

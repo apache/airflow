@@ -1003,6 +1003,7 @@ class SchedulerJob(BaseJob):
                 continue
             active_runs = active_runs_of_dags[dag_run.dag_id]
             if dag.max_active_runs and active_runs >= dag.max_active_runs:
+                dag_run.last_scheduling_decision = timezone.utcnow()
                 self.log.debug(
                     "DAG %s already has %d active runs, not moving any more runs to RUNNING state %s",
                     dag.dag_id,
