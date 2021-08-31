@@ -359,7 +359,9 @@ class TestSFTPOperator(unittest.TestCase):
         )
         ti2 = TaskInstance(task=show_files, execution_date=timezone.utcnow())
         ti2.run()
-        assert ti2.xcom_pull(task_ids=show_files.task_id, key='return_value').strip() == test_output.encode('utf8')
+        assert ti2.xcom_pull(task_ids=show_files.task_id, key='return_value').strip() == test_output.encode(
+            'utf8'
+        )
 
     @conf_vars({('core', 'enable_xcom_pickling'): 'True'})
     def test_transfer_regexp_files(self):
@@ -416,8 +418,10 @@ class TestSFTPOperator(unittest.TestCase):
             task_id="get_files",
             ssh_hook=self.hook,
             local_filepath=self.test_local_dir,
-            remote_filepath=[f"{self.test_remote_dir}/{self.test_txt_file}",
-                             f"{self.test_remote_dir}/{self.test_csv_file}"],
+            remote_filepath=[
+                f"{self.test_remote_dir}/{self.test_txt_file}",
+                f"{self.test_remote_dir}/{self.test_csv_file}",
+            ],
             operation=SFTPOperation.GET,
             create_intermediate_dirs=True,
             dag=self.dag,
@@ -504,16 +508,13 @@ class TestSFTPOperator(unittest.TestCase):
         show_files = SSHOperator(
             task_id="show_files",
             ssh_hook=self.hook,
-            command=f"find {self.test_remote_dir} -maxdepth 1 -type f -not -path '*/\.*' | wc -l",
+            command=fr"find {self.test_remote_dir} -maxdepth 1 -type f -not -path '*/\.*' | wc -l",
             do_xcom_push=True,
             dag=self.dag,
         )
         ti2 = TaskInstance(task=show_files, execution_date=timezone.utcnow())
         ti2.run()
-        assert (
-            ti2.xcom_pull(task_ids=show_files.task_id, key='return_value').strip()
-            == b"2"
-        )
+        assert ti2.xcom_pull(task_ids=show_files.task_id, key='return_value').strip() == b"2"
 
     @conf_vars({('core', 'enable_xcom_pickling'): 'True'})
     def test_file_transfer_with_intermediate_dir_error_get(self):
@@ -665,6 +666,7 @@ class TestSFTPOperator(unittest.TestCase):
             os.remove(self.test_remote_filepath_int_dir)
         if os.path.exists(self.test_remote_dir):
             import shutil
+
             shutil.rmtree(self.test_remote_dir)
 
     def tearDown(self):

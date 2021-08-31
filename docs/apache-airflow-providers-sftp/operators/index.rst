@@ -23,7 +23,7 @@ Use the :class:`~airflow.providers.sftp.operators.sftp.py` to
 transfer data between servers under sftp.
 
 Using the Operator
-^^^^^^^^^^^^^^^^^^
+------------------
 To start working with an operator, you need to register an SFTP \ SSH connection in Airflow Connections.
 Use ssh_conn_id to specify the name of the connection.
 
@@ -62,7 +62,7 @@ You can use the operator for the following tasks:
 
 .. code-block:: python
 
-     put_dir_files = SFTPOperator(
+    put_dir_files = SFTPOperator(
         task_id="put_dir_files",
         ssh_conn_id="ssh_default",
         local_folder="/tmp/dir_for_remote_transfer/",
