@@ -528,6 +528,9 @@ scheduler:
   extraVolumes: []
   extraVolumeMounts: []
 
+  # scheduler specific pod annotations
+  podAnnotations: {}
+
   # Select certain nodes for airflow scheduler pods.
   nodeSelector: {}
   affinity:
@@ -675,6 +678,9 @@ webserver:
   extraVolumes: []
   extraVolumeMounts: []
 
+  # webserver specific pod annotations
+  podAnnotations: {}
+
   # This string (can be templated) will be mounted into the Airflow Webserver as a custom
   # webserver_config.py. You can bake a webserver_config.py in to your image instead.
   webserverConfig: ~
@@ -758,6 +764,9 @@ triggerer:
     # Annotations to add to triggerer kubernetes service account.
     annotations: {}
 
+  # triggerer specific pod annotations
+  podAnnotations: {}
+
   resources: {}
   #  limits:
   #   cpu: 100m
@@ -821,6 +830,9 @@ flower:
       # Ports for flower NetworkPolicy ingress (if ingressPeers is set)
       ports:
         - port: flower-ui
+
+  # flower specific pod annotations
+  podAnnotations: {}
 
   resources: {}
   #   limits:
