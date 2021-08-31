@@ -115,7 +115,7 @@ class TestFTPToS3Operator(unittest.TestCase):
         )
 
     @mock.patch("airflow.providers.ftp.hooks.ftp.FTPHook.list_directory")
-    def test_execute_multiple_files_preffix(
+    def test_execute_multiple_files_prefix(
         self,
         mock_ftp_hook_list_directory,
     ):
@@ -125,8 +125,8 @@ class TestFTPToS3Operator(unittest.TestCase):
             s3_bucket=BUCKET,
             s3_key=S3_KEY_MULTIPLE,
             ftp_path=FTP_PATH_MULTIPLE,
-            ftp_filenames='test_preffix',
-            s3_filenames='s3_preffix',
+            ftp_filenames='test_prefix',
+            s3_filenames='s3_prefix',
         )
         operator.execute(None)
 
