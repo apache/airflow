@@ -1346,7 +1346,8 @@ class Airflow(AirflowBaseView):
         ]
     )
     @action_logging
-    def task(self):
+    @provide_session
+    def task(self, session):
         """Retrieve task."""
         dag_id = request.args.get('dag_id')
         task_id = request.args.get('task_id')
@@ -1362,34 +1363,51 @@ class Airflow(AirflowBaseView):
         task = copy.copy(dag.get_task(task_id))
         task.resolve_template_files()
 
-        with create_session() as session:
-            dag_run = dag.get_dagrun(execution_date=dttm, session=session)
-            ti = dag_run.get_task_instance(task_id=task.task_id, session=session)
-            ti.refresh_from_task(task)
+        ti = (
+            session.query(TaskInstance)
+            .options(
+                # HACK: Eager-load relationships. This is needed because
+                # multiple properties mis-use provide_session() that destroys
+                # the session object ti is bounded to.
+                joinedload(TaskInstance.queued_by_job, innerjoin=False),
+                joinedload(TaskInstance.trigger, innerjoin=False),
+            )
+            .join(TaskInstance.dag_run)
+            .filter(
+                DagRun.execution_date == dttm,
+                TaskInstance.dag_id == dag_id,
+                TaskInstance.task_id == task_id,
+            )
+            .one()
+        )
+        ti.refresh_from_task(task)
 
-            ti_attrs = []
-            for attr_name in dir(ti):
-                if not attr_name.startswith('_'):
-                    attr = getattr(ti, attr_name)
-                    if type(attr) != type(self.task):  # noqa
-                        ti_attrs.append((attr_name, str(attr)))
+        ti_attrs = [
+            (attr_name, attr)
+            for attr_name, attr in (
+                (attr_name, getattr(ti, attr_name)) for attr_name in dir(ti) if not attr_name.startswith("_")
+            )
+            if not callable(attr)
+        ]
+        ti_attrs = sorted(ti_attrs)
 
-            task_attrs = []
-            for attr_name in dir(task):
-                if not attr_name.startswith('_'):
-                    attr = getattr(task, attr_name)
-                    if type(attr) == type(self.task):  # noqa
-                        continue
-                    if attr_name in wwwutils.get_attr_renderer():
-                        continue
-                    task_attrs.append((attr_name, str(attr)))
+        attr_renderers = wwwutils.get_attr_renderer()
+        task_attrs = [
+            (attr_name, attr)
+            for attr_name, attr in (
+                (attr_name, getattr(task, attr_name))
+                for attr_name in dir(task)
+                if not attr_name.startswith("_") and attr_name not in attr_renderers
+            )
+            if not callable(attr)
+        ]
 
-            # Color coding the special attributes that are code
-            special_attrs_rendered = {}
-            for attr_name in wwwutils.get_attr_renderer():
-                if getattr(task, attr_name, None) is not None:
-                    source = getattr(task, attr_name)
-                    special_attrs_rendered[attr_name] = wwwutils.get_attr_renderer()[attr_name](source)
+        # Color coding the special attributes that are code
+        special_attrs_rendered = {
+            attr_name: renderer(getattr(task, attr_name))
+            for attr_name, renderer in attr_renderers.items()
+            if hasattr(task, attr_name)
+        }
 
         no_failed_deps_result = [
             (
