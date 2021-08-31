@@ -110,7 +110,7 @@ This statement will prevent Airflow from failing if your provider does not exist
 
 Then at the bottom add a section to import your Mixin class
 
-.. exampleinclude:: ../../airflow/decorators/__init__.pyi
+.. exampleinclude:: ../../../airflow/decorators/__init__.pyi
     :language: python
     :dedent: 4
     :start-after: [START extend_docker]
