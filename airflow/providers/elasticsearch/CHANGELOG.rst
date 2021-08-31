@@ -19,6 +19,25 @@
 Changelog
 ---------
 
+2.0.3
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix Invalid log order in ElasticsearchTaskHandler (#17551)``
+
+Misc
+~~~~
+
+* ``Optimise connection importing for Airflow 2.2.0``
+* ``Adds secrets backend/logging/auth information to provider yaml (#17625)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Update description about the new ''connection-types'' provider meta-data (#17767)``
+   * ``Import Hooks lazily individually in providers manager (#17682)``
+
 2.0.2
 .....
 
@@ -61,7 +80,7 @@ Bug fixes
 ~~~~~~~~~
 
 * ``Fix external elasticsearch logs link (#16357)``
-* ``Fix Elasticsearch external log link with &#39;&#39;json_format&#39;&#39; (#16467)``
+* ``Fix Elasticsearch external log link with ''json_format'' (#16467)``
 
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):
