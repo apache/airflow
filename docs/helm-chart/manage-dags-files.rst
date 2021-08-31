@@ -177,6 +177,38 @@ In this example, you will create a yaml file called ``override-values.yaml`` to 
 
 Don't forget to copy in your private key base64 string.
 
+Using SSH Key from Hashicorp Vault instead of Secret
+----------------------------------------------------
+
+To be able to deploy a file with an ssh key located in Vault you first should have the Hashicorp Agent configured on
+your Kubernetes cluster. Then paste the SSH Private key in a Vault secret and use the path to configure
+the Agent inject in your ``custom-values.yaml`` file:
+
+.. code-block:: yaml
+
+    airflowPodAnnotations:
+      vault.hashicorp.com/agent-init-first: "true"
+      vault.hashicorp.com/agent-inject: "true"
+      vault.hashicorp.com/tls-secret: vault-ca
+      vault.hashicorp.com/ca-cert: /vault/tls/vault-ca.crt
+      vault.hashicorp.com/role: "airflow"
+      vault.hashicorp.com/agent-inject-secret-gitssh: "k8s-secrets/bi/airflow"
+      vault.hashicorp.com/agent-inject-template-gitssh: |
+        {{- with secret "k8s-secrets/bi/airflow" -}}
+        {{ .Data.gitssh -}}
+        {{- end }}
+
+This will create a file ``/vault/secrets/gitssh`` which contains your SSH key. As the Vault's init container
+mush be initialized before the git-sync container adding ``vault.hashicorp.com/agent-init-first: "true"`` is
+mandatory! Now the new key path should be configured in the ``dags.gitSync.sshKeyCustomFile`` setting:
+
+.. code-block:: yaml
+
+    # sshKeySecret: airflow-ssh-secret
+    sshKeyCustomFile: "/vault/secrets/gitssh"
+
+Please note that ``sshKeySecret`` is disabled which prevents mounting the secret as ``/etc/git-secret/ssh``
+
 Finally, from the context of your Airflow Helm chart directory, you can install Airflow:
 
 .. code-block:: bash
