@@ -138,6 +138,14 @@ def upgrade():
             ondelete='CASCADE',
         )
 
+        batch_op.create_foreign_key(
+            'task_reschedule_dr_fkey',
+            'dag_run',
+            ['dag_id', 'run_id'],
+            ['dag_id', 'run_id'],
+            ondelete='CASCADE',
+        )
+
 
 def downgrade():
     """Unapply TaskInstance keyed to DagRun"""
@@ -164,6 +172,7 @@ def downgrade():
 
         # Can't drop PK index while there is a FK referencing it
         batch_op.drop_constraint('task_reschedule_ti_fkey')
+        batch_op.drop_constraint('task_reschedule_dr_fkey')
         batch_op.drop_index('idx_task_reschedule_dag_task_run')
 
     with op.batch_alter_table('task_instance', schema=None) as batch_op:

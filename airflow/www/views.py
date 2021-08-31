@@ -841,14 +841,16 @@ class Airflow(AirflowBaseView):
 
             # Select all task_instances from active dag_runs.
             # If no dag_run is active, return task instances from most recent dag_run.
-            last_task_instance_query_result = session.query(
-                TaskInstance.dag_id.label('dag_id'), TaskInstance.state.label('state')
-            ).join(
-                last_dag_run,
-                and_(
-                    last_dag_run.c.dag_id == TaskInstance.dag_id,
-                    last_dag_run.c.execution_date == TaskInstance.execution_date,
-                ),
+            last_task_instance_query_result = (
+                session.query(TaskInstance.dag_id.label('dag_id'), TaskInstance.state.label('state'))
+                .join(TaskInstance.dag_run)
+                .join(
+                    last_dag_run,
+                    and_(
+                        last_dag_run.c.dag_id == TaskInstance.dag_id,
+                        last_dag_run.c.execution_date == DagRun.execution_date,
+                    ),
+                )
             )
 
             final_task_instance_query_result = union_all(
@@ -3961,8 +3963,9 @@ class TaskRescheduleModelView(AirflowModelView):
     list_columns = [
         'id',
         'dag_id',
+        'run_id',
+        'dag_run.execution_date',
         'task_id',
-        'execution_date',
         'try_number',
         'start_date',
         'end_date',
@@ -3970,7 +3973,19 @@ class TaskRescheduleModelView(AirflowModelView):
         'reschedule_date',
     ]
 
-    search_columns = ['dag_id', 'task_id', 'execution_date', 'start_date', 'end_date', 'reschedule_date']
+    label_columns = {
+        'dag_run.execution_date': 'Execution Date',
+    }
+
+    search_columns = [
+        'dag_id',
+        'task_id',
+        'run_id',
+        'execution_date',
+        'start_date',
+        'end_date',
+        'reschedule_date',
+    ]
 
     base_order = ('id', 'desc')
 
@@ -3989,7 +4004,7 @@ class TaskRescheduleModelView(AirflowModelView):
         'task_id': wwwutils.task_instance_link,
         'start_date': wwwutils.datetime_f('start_date'),
         'end_date': wwwutils.datetime_f('end_date'),
-        'execution_date': wwwutils.datetime_f('execution_date'),
+        'dag_run.execution_date': wwwutils.datetime_f('dag_run.execution_date'),
         'reschedule_date': wwwutils.datetime_f('reschedule_date'),
         'duration': duration_f,
     }
@@ -4026,7 +4041,7 @@ class TaskInstanceModelView(AirflowModelView):
         'dag_id',
         'task_id',
         'run_id',
-        'execution_date',
+        'dag_run.execution_date',
         'operator',
         'start_date',
         'end_date',
@@ -4047,6 +4062,10 @@ class TaskInstanceModelView(AirflowModelView):
     order_columns = [
         item for item in list_columns if item not in ['try_number', 'log_url', 'external_executor_id']
     ]
+
+    label_columns = {
+        'dag_run.execution_date': 'Execution Date',
+    }
 
     search_columns = [
         'state',
@@ -4095,9 +4114,10 @@ class TaskInstanceModelView(AirflowModelView):
     formatters_columns = {
         'log_url': log_url_formatter,
         'task_id': wwwutils.task_instance_link,
+        'run_id': wwwutils.dag_run_link,
         'hostname': wwwutils.nobr_f('hostname'),
         'state': wwwutils.state_f,
-        'execution_date': wwwutils.datetime_f('execution_date'),
+        'dag_run.execution_date': wwwutils.datetime_f('dag_run.execution_date'),
         'start_date': wwwutils.datetime_f('start_date'),
         'end_date': wwwutils.datetime_f('end_date'),
         'queued_dttm': wwwutils.datetime_f('queued_dttm'),

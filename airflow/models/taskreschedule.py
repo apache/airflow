@@ -17,6 +17,8 @@
 # under the License.
 """TaskReschedule tracks rescheduled task instances."""
 from sqlalchemy import Column, ForeignKeyConstraint, Index, Integer, String, asc, desc
+from sqlalchemy.ext.associationproxy import association_proxy
+from sqlalchemy.orm import relationship
 
 from airflow.models.base import COLLATION_ARGS, ID_LEN, Base
 from airflow.utils.session import provide_session
@@ -46,7 +48,15 @@ class TaskReschedule(Base):
             name='task_reschedule_ti_fkey',
             ondelete='CASCADE',
         ),
+        ForeignKeyConstraint(
+            [dag_id, run_id],
+            ['dag_run.dag_id', 'dag_run.run_id'],
+            name='task_reschedule_dr_fkey',
+            ondelete='CASCADE',
+        ),
     )
+    dag_run = relationship("DagRun")
+    execution_date = association_proxy("dag_run", "execution_date")
 
     def __init__(self, task, run_id, try_number, start_date, end_date, reschedule_date):
         self.dag_id = task.dag_id

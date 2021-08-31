@@ -30,6 +30,7 @@ from flask_appbuilder.models.sqla import filters as fab_sqlafilters
 from flask_appbuilder.models.sqla.interface import SQLAInterface
 from pygments import highlight, lexers
 from pygments.formatters import HtmlFormatter
+from sqlalchemy.ext.associationproxy import AssociationProxy
 
 from airflow.models import errors
 from airflow.utils import timezone
@@ -226,8 +227,8 @@ def task_instance_link(attr):
     """Generates a URL to the Graph view for a TaskInstance."""
     dag_id = attr.get('dag_id')
     task_id = attr.get('task_id')
-    execution_date = attr.get('execution_date')
-    url = url_for('Airflow.task', dag_id=dag_id, task_id=task_id, execution_date=execution_date.isoformat())
+    execution_date = attr.get('dag_run.execution_date') or attr.get('execution_date') or timezone.utcnow()
+    url = url_for('Airflow.task', dag_id=dag_id, task_id=task_id)
     url_root = url_for(
         'Airflow.graph', dag_id=dag_id, root=task_id, execution_date=execution_date.isoformat()
     )
@@ -312,7 +313,7 @@ def dag_run_link(attr):
     """Generates a URL to the Graph view for a DagRun."""
     dag_id = attr.get('dag_id')
     run_id = attr.get('run_id')
-    execution_date = attr.get('execution_date')
+    execution_date = attr.get('dag_run.exectuion_date') or attr.get('execution_date')
     url = url_for('Airflow.graph', dag_id=dag_id, run_id=run_id, execution_date=execution_date)
     return Markup('<a href="{url}">{run_id}</a>').format(url=url, run_id=run_id)
 
@@ -457,6 +458,13 @@ class CustomSQLAInterface(SQLAInterface):
                 self.list_columns = {k.lstrip('_'): v for k, v in self.list_columns.items()}
 
         clean_column_names()
+        # Support for AssociationProxy in search and list columns
+        for desc in self.obj.__mapper__.all_orm_descriptors:
+            if not isinstance(desc, AssociationProxy):
+                continue
+            proxy_instance = getattr(self.obj, desc.value_attr)
+            self.list_columns[desc.value_attr] = proxy_instance.remote_attr.prop.columns[0]
+            self.list_properties[desc.value_attr] = proxy_instance.remote_attr.prop
 
     def is_utcdatetime(self, col_name):
         """Check if the datetime is a UTC one."""
