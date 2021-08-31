@@ -468,7 +468,7 @@ class DagBag(LoggingMixin):
             raise
 
     @provide_session
-    def _check_if_dupe(self, dag, session=None):
+    def _check_if_duplicate(self, dag, session=None):
         """
         Checks if a DAG with the same ID already exists.
         If present, returns the fileloc of the existing DAG.
