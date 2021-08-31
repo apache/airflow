@@ -50,15 +50,19 @@ body:
   - type: dropdown
     attributes:
       label: Deployment
-      description: What kind of deployment do you have?
+      description: >
+        What kind of deployment do you have? If you use Managed Service, consider first using regular
+        channels of reporting issues for the service.
       multiple: false
       options:
-        - "Managed Services (Astronomer, Composer, MWAA etc.)"
         - "Official Apache Airflow Helm Chart"
         - "Other 3rd-party Helm chart"
         - "Docker-Compose"
         - "Other Docker-based deployment"
         - "Virtualenv installation"
+        - "Astronomer"
+        - "Composer"
+        - "MWAA"
         - "Other"
     validations:
       required: true

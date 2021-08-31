@@ -48,6 +48,7 @@ from airflow.utils.timeout import timeout
 from airflow.utils.types import DagRunType
 from tests.test_utils.db import clear_db_dags, clear_db_pools, clear_db_runs, set_default_pool_slots
 from tests.test_utils.mock_executor import MockExecutor
+from tests.test_utils.timetables import cron_timetable
 
 logger = logging.getLogger(__name__)
 
@@ -1120,7 +1121,7 @@ class TestBackfillJob:
         subdag_op_task = dag.get_task('section-1')
 
         subdag = subdag_op_task.subdag
-        subdag.schedule_interval = '@daily'
+        subdag.timetable = cron_timetable('@daily')
 
         start_date = timezone.utcnow()
         executor = MockExecutor()

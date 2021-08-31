@@ -14,7 +14,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
+import contextlib
 import os
 import signal
 from collections import namedtuple
@@ -35,23 +35,31 @@ class SubprocessHook(BaseHook):
         super().__init__()
 
     def run_command(
-        self, command: List[str], env: Optional[Dict[str, str]] = None, output_encoding: str = 'utf-8'
+        self,
+        command: List[str],
+        env: Optional[Dict[str, str]] = None,
+        output_encoding: str = 'utf-8',
+        cwd: str = None,
     ) -> SubprocessResult:
         """
-        Execute the command in a temporary directory which will be cleaned afterwards
+        Execute the command.
 
+        If ``cwd`` is None, execute the command in a temporary directory which will be cleaned afterwards.
         If ``env`` is not supplied, ``os.environ`` is passed
 
         :param command: the command to run
         :param env: Optional dict containing environment variables to be made available to the shell
             environment in which ``command`` will be executed.  If omitted, ``os.environ`` will be used.
         :param output_encoding: encoding to use for decoding stdout
+        :param cwd: Working directory to run the command in.
+            If None (default), the command is run in a temporary directory.
         :return: :class:`namedtuple` containing ``exit_code`` and ``output``, the last line from stderr
             or stdout
         """
         self.log.info('Tmp dir root location: \n %s', gettempdir())
-
-        with TemporaryDirectory(prefix='airflowtmp') as tmp_dir:
+        with contextlib.ExitStack() as stack:
+            if cwd is None:
+                cwd = stack.enter_context(TemporaryDirectory(prefix='airflowtmp'))
 
             def pre_exec():
                 # Restore default signal disposition and invoke setsid
@@ -66,7 +74,7 @@ class SubprocessHook(BaseHook):
                 command,
                 stdout=PIPE,
                 stderr=STDOUT,
-                cwd=tmp_dir,
+                cwd=cwd,
                 env=env if env or env == {} else os.environ,
                 preexec_fn=pre_exec,
             )

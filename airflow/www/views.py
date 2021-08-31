@@ -2641,7 +2641,7 @@ class Airflow(AirflowBaseView):
             x_points[task_id] = []
             for ti in tis:
                 ts = ti.execution_date
-                if dag.schedule_interval and dag.following_schedule(ts):
+                if dag.following_schedule(ts):
                     ts = dag.following_schedule(ts)
                 if ti.end_date:
                     dttm = wwwutils.epoch(ti.execution_date)

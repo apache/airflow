@@ -34,6 +34,7 @@ from airflow.providers.google.cloud.operators.datafusion import (
     CloudDataFusionStopPipelineOperator,
     CloudDataFusionUpdateInstanceOperator,
 )
+from airflow.providers.google.cloud.sensors.datafusion import CloudDataFusionPipelineStateSensor
 from airflow.utils import dates
 from airflow.utils.state import State
 
@@ -205,6 +206,28 @@ with models.DAG(
     )
     # [END howto_cloud_data_fusion_start_pipeline]
 
+    # [START howto_cloud_data_fusion_start_pipeline_async]
+    start_pipeline_async = CloudDataFusionStartPipelineOperator(
+        location=LOCATION,
+        pipeline_name=PIPELINE_NAME,
+        instance_name=INSTANCE_NAME,
+        asynchronous=True,
+        task_id="start_pipeline_async",
+    )
+
+    # [END howto_cloud_data_fusion_start_pipeline_async]
+
+    # [START howto_cloud_data_fusion_start_pipeline_sensor]
+    start_pipeline_sensor = CloudDataFusionPipelineStateSensor(
+        task_id="pipeline_state_sensor",
+        pipeline_name=PIPELINE_NAME,
+        pipeline_id=start_pipeline_async.output,
+        expected_statuses=["COMPLETED"],
+        instance_name=INSTANCE_NAME,
+        location=LOCATION,
+    )
+    # [END howto_cloud_data_fusion_start_pipeline_sensor]
+
     # [START howto_cloud_data_fusion_stop_pipeline]
     stop_pipeline = CloudDataFusionStopPipelineOperator(
         location=LOCATION,
@@ -233,7 +256,16 @@ with models.DAG(
     sleep = BashOperator(task_id="sleep", bash_command="sleep 60")
 
     create_instance >> get_instance >> restart_instance >> update_instance >> sleep
-    sleep >> create_pipeline >> list_pipelines >> start_pipeline >> stop_pipeline >> delete_pipeline
+    (
+        sleep
+        >> create_pipeline
+        >> list_pipelines
+        >> start_pipeline_async
+        >> start_pipeline_sensor
+        >> start_pipeline
+        >> stop_pipeline
+        >> delete_pipeline
+    )
     delete_pipeline >> delete_instance
 
 if __name__ == "__main__":

@@ -16,5 +16,27 @@
     specific language governing permissions and limitations
     under the License.
 
+
 Package apache-airflow-providers-microsoft-psrp
------------------------------------------------
+------------------------------------------------------
+
+`PowerShell Remoting Protocol (PSRP)
+<https://docs.microsoft.com/en-us/openspecs/windows_protocols/ms-psrp/>`__
+
+
+This is detailed commit list of changes for versions provider package: ``microsoft.psrp``.
+For high-level changelog, see :doc:`package information including changelog <index>`.
+
+
+
+1.0.0
+.....
+
+Latest change: 2021-08-27
+
+================================================================================================  ===========  ============================================================
+Commit                                                                                            Committed    Subject
+================================================================================================  ===========  ============================================================
+`41632e03b <https://github.com/apache/airflow/commit/41632e03b8caf71de308414c48e9cb211a083761>`_  2021-08-27   ``Fix provider.yaml errors due to exit(0) in test (#17858)``
+`69d2ed65c <https://github.com/apache/airflow/commit/69d2ed65cb7c9384d309ae5e499d5798c2c3ac96>`_  2021-08-08   ``Add Microsoft PSRP provider (#17361)``
+================================================================================================  ===========  ============================================================

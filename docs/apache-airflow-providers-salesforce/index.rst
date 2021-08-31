@@ -41,7 +41,7 @@ Content
     Example DAGs <https://github.com/apache/airflow/tree/main/airflow/providers/salesforce/example_dags>
     PyPI Repository <https://pypi.org/project/apache-airflow-providers-salesforce/>
 
-.. THE REMINDER OF THE FILE IS AUTOMATICALLY GENERATED. IT WILL BE OVERWRITTEN AT RELEASE TIME!
+.. THE REMAINDER OF THE FILE IS AUTOMATICALLY GENERATED. IT WILL BE OVERWRITTEN AT RELEASE TIME!
 
 
 .. toctree::
@@ -57,7 +57,7 @@ Package apache-airflow-providers-salesforce
 `Salesforce <https://www.salesforce.com/>`__
 
 
-Release: 3.1.0
+Release: 3.2.0
 
 Provider package
 ----------------
@@ -107,7 +107,7 @@ Downloading official packages
 You can download officially released packages and verify their checksums and signatures from the
 `Official Apache Download site <https://downloads.apache.org/airflow/providers/>`_
 
-* `The apache-airflow-providers-salesforce 3.1.0 sdist package <https://downloads.apache.org/airflow/providers/apache-airflow-providers-salesforce-3.1.0.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache-airflow-providers-salesforce-3.1.0.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache-airflow-providers-salesforce-3.1.0.tar.gz.sha512>`__)
-* `The apache-airflow-providers-salesforce 3.1.0 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_salesforce-3.1.0-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_salesforce-3.1.0-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_salesforce-3.1.0-py3-none-any.whl.sha512>`__)
+* `The apache-airflow-providers-salesforce 3.2.0 sdist package <https://downloads.apache.org/airflow/providers/apache-airflow-providers-salesforce-3.2.0.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache-airflow-providers-salesforce-3.2.0.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache-airflow-providers-salesforce-3.2.0.tar.gz.sha512>`__)
+* `The apache-airflow-providers-salesforce 3.2.0 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_salesforce-3.2.0-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_salesforce-3.2.0-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_salesforce-3.2.0-py3-none-any.whl.sha512>`__)
 
 .. include:: ../../airflow/providers/salesforce/CHANGELOG.rst

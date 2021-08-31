@@ -51,9 +51,10 @@ class TimeSensorAsync(BaseSensorOperator):
     def __init__(self, *, target_time, **kwargs):
         super().__init__(**kwargs)
         self.target_time = target_time
-        current_time = timezone.make_naive(timezone.utcnow(), self.dag.timezone)
-        todays_date = current_time.date()
-        self.target_datetime = datetime.datetime.combine(todays_date, self.target_time, current_time.tzinfo)
+
+        self.target_datetime = timezone.coerce_datetime(
+            datetime.datetime.combine(datetime.datetime.today(), self.target_time)
+        )
 
     def execute(self, context):
         self.defer(

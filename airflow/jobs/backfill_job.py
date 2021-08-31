@@ -298,7 +298,7 @@ class BackfillJob(BaseJob):
         run_date = dagrun_info.logical_date
 
         # consider max_active_runs but ignore when running subdags
-        respect_dag_max_active_limit = bool(dag.schedule_interval and not dag.is_subdag)
+        respect_dag_max_active_limit = bool(dag.timetable.can_run and not dag.is_subdag)
 
         current_active_dag_count = dag.get_num_active_runs(external_trigger=False)
 
