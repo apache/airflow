@@ -1137,8 +1137,7 @@ class TestDag(unittest.TestCase):
         it is called, and not scheduled the second.
         """
         dag_id = "test_schedule_dag_once"
-        dag = DAG(dag_id=dag_id)
-        dag.schedule_interval = '@once'
+        dag = DAG(dag_id=dag_id, schedule_interval="@once")
         assert isinstance(dag.timetable, OnceTimetable)
         dag.add_task(BaseOperator(task_id="faketastic", owner='Also fake', start_date=TEST_DATE))
 
@@ -1161,8 +1160,7 @@ class TestDag(unittest.TestCase):
         Tests if fractional seconds are stored in the database
         """
         dag_id = "test_fractional_seconds"
-        dag = DAG(dag_id=dag_id)
-        dag.schedule_interval = '@once'
+        dag = DAG(dag_id=dag_id, schedule_interval="@once")
         dag.add_task(BaseOperator(task_id="faketastic", owner='Also fake', start_date=TEST_DATE))
 
         start_date = timezone.utcnow()
@@ -1261,11 +1259,9 @@ class TestDag(unittest.TestCase):
             (datetime.timedelta(days=1), delta_timetable(datetime.timedelta(days=1))),
         ]
     )
-    def test_timetable(self, schedule_interval, expected_timetable):
+    def test_timetable_from_schedule_interval(self, schedule_interval, expected_timetable):
         dag = DAG("test_schedule_interval", schedule_interval=schedule_interval)
-
         assert dag.timetable == expected_timetable
-        assert dag.schedule_interval == schedule_interval
 
     def test_create_dagrun_run_id_is_generated(self):
         dag = DAG(dag_id="run_id_is_generated")

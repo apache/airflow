@@ -21,7 +21,6 @@ from typing import Iterable, Optional
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.dms import DmsHook
 from airflow.sensors.base import BaseSensorOperator
-from airflow.utils.decorators import apply_defaults
 
 
 class DmsTaskBaseSensor(BaseSensorOperator):
@@ -45,7 +44,6 @@ class DmsTaskBaseSensor(BaseSensorOperator):
     template_fields = ['replication_task_arn']
     template_ext = ()
 
-    @apply_defaults
     def __init__(
         self,
         replication_task_arn: str,
@@ -104,7 +102,6 @@ class DmsTaskCompletedSensor(DmsTaskBaseSensor):
     template_fields = ['replication_task_arn']
     template_ext = ()
 
-    @apply_defaults
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.target_statuses = ['stopped']

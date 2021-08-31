@@ -19,6 +19,20 @@
 Changelog
 ---------
 
+2.1.1
+.....
+
+Misc
+~~~~
+
+* ``Optimise connection importing for Airflow 2.2.0``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Update description about the new ''connection-types'' provider meta-data (#17767)``
+   * ``Import Hooks lazily individually in providers manager (#17682)``
+   * ``New generic tableau operator: TableauOperator  (#16915)``
+
 2.1.0
 .....
 
@@ -32,7 +46,7 @@ Features
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):
    * ``Prepare documentation for July release of providers. (#17015)``
-   * ``Fixed wrongly escaped characters in amazon&#39;s changelog (#17020)``
+   * ``Fixed wrongly escaped characters in amazon's changelog (#17020)``
    * ``Refactored waiting function for Tableau Jobs (#17034)``
    * ``Remove/refactor default_args pattern for miscellaneous providers (#16872)``
 
