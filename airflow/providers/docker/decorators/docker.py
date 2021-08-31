@@ -23,6 +23,8 @@ from tempfile import TemporaryDirectory
 from textwrap import dedent
 from typing import Callable, Dict, Iterable, List, Optional, TypeVar, Union
 
+import dill
+
 from airflow.decorators.base import DecoratedOperator, task_decorator_factory
 from airflow.providers.docker.operators.docker import DockerOperator
 from airflow.utils.decorators import apply_defaults
@@ -70,12 +72,13 @@ class _DockerDecoratedOperator(DecoratedOperator, DockerOperator):
     @apply_defaults
     def __init__(
         self,
+        use_dill=False,
         **kwargs,
     ) -> None:
         self.string_args = [1, 2, 1]
         self._output_filename = ""
         command = "dummy command"
-        self.pickling_library = pickle
+        self.pickling_library = dill if use_dill else pickle
         super().__init__(
             command=command, retrieve_output=True, retrieve_output_path="/tmp/script.out", **kwargs
         )
@@ -168,6 +171,7 @@ class DockerDecoratorMixin:
         self,
         python_callable: Optional[Callable] = None,
         multiple_outputs: Optional[bool] = None,
+        use_dill: bool = False,
         image: str = "",
         api_version: Optional[str] = None,
         container_name: Optional[str] = None,
@@ -209,6 +213,8 @@ class DockerDecoratorMixin:
             with index as key. Dict will unroll to xcom values with keys as XCom keys.
             Defaults to False.
         :type multiple_outputs: bool
+        :param use_dill: Whether to use dill or pickle for serialization
+        :type use_dill: bool
         :param image: Docker image from which to create the container.
             If image tag is omitted, "latest" will be used.
         :type image: str
@@ -299,6 +305,7 @@ class DockerDecoratorMixin:
 def docker_decorator(  # pylint: disable=too-many-arguments,too-many-locals
     python_callable: Optional[Callable] = None,
     multiple_outputs: Optional[bool] = None,
+    use_dill: bool = False,
     image: str = "",
     api_version: Optional[str] = None,
     container_name: Optional[str] = None,
@@ -340,6 +347,8 @@ def docker_decorator(  # pylint: disable=too-many-arguments,too-many-locals
         with index as key. Dict will unroll to xcom values with keys as XCom keys.
         Defaults to False.
     :type multiple_outputs: bool
+    :param use_dill: Whether to use dill or pickle for serialization
+    :type use_dill: bool
     :param image: Docker image from which to create the container.
         If image tag is omitted, "latest" will be used.
     :type image: str
@@ -424,6 +433,7 @@ def docker_decorator(  # pylint: disable=too-many-arguments,too-many-locals
     return _docker_task(
         python_callable=python_callable,
         multiple_outputs=multiple_outputs,
+        use_dill=use_dill,
         image=image,
         api_version=api_version,
         container_name=container_name,
