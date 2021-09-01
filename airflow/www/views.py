@@ -51,6 +51,7 @@ from flask import (
     redirect,
     render_template,
     request,
+    send_from_directory,
     session as flask_session,
     url_for,
 )
@@ -2967,6 +2968,16 @@ class Airflow(AirflowBaseView):
 
         # avoid spaces to reduce payload size
         return htmlsafe_json_dumps(tree_data, separators=(',', ':'))
+
+    @expose('/robots.txt')
+    @action_logging
+    def robots(self):
+        """
+        Returns a robots.txt file for blocking certain search engine crawlers. This mitigates some
+        of the risk associated with exposing Airflow to the public internet, however it does not
+        address the real security risks associated with such a deployment.
+        """
+        return send_from_directory(current_app.static_folder, 'robots.txt')
 
 
 class ConfigurationView(AirflowBaseView):
