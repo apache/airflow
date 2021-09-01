@@ -116,7 +116,7 @@ class FileTaskHandler(logging.Handler):
 
         if os.path.exists(location):
             try:
-                with open(location) as file:
+                with open(location, encoding="utf-8", errors="surrogateescape") as file:
                     log += f"*** Reading local file: {location}\n"
                     log += "".join(file.readlines())
             except Exception as e:
