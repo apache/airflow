@@ -18,7 +18,6 @@
 #
 import collections
 import copy
-import itertools
 import json
 import logging
 import math
@@ -2801,22 +2800,25 @@ class Airflow(AirflowBaseView):
         form = DateTimeWithNumRunsWithDagRunsForm(data=dt_nr_dr_data)
         form.execution_date.choices = dt_nr_dr_data['dr_choices']
 
-        tis = [ti for ti in dag.get_task_instances(dttm, dttm) if ti.start_date and ti.state]
-        tis = sorted(tis, key=lambda ti: ti.start_date)
-        ti_fails = list(
-            itertools.chain(
-                *(
-                    (
-                        session.query(TaskFail)
-                        .filter(
-                            TaskFail.dag_id == ti.dag_id,
-                            TaskFail.task_id == ti.task_id,
-                            TaskFail.execution_date == ti.execution_date,
-                        )
-                        .all()
-                    )
-                    for ti in tis
-                )
+        tis = list(
+            session.query(TaskInstance)
+            .join(TaskInstance.dag_run)
+            .filter(
+                DagRun.execution_date == dttm,
+                TaskInstance.dag_id == dag_id,
+                TaskInstance.start_date.isnot(None),
+                TaskInstance.state.isnot(None),
+            )
+            .order_by(TaskInstance.start_date)
+        )
+
+        ti_fails = (
+            session.query(TaskFail)
+            .join(DagRun, DagRun.execution_date == TaskFail.execution_date)
+            .filter(
+                DagRun.execution_date == dttm,
+                TaskFail.dag_id == dag_id,
+                TaskFail.task_id.in_(ti.task_id for ti in tis),
             )
         )
 
