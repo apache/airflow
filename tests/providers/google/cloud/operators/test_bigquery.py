@@ -930,7 +930,7 @@ class TestBigQueryInsertJobOperator:
             }
         }
 
-        mock_hook.return_value.insert_job.return_value.result.side_effect = Conflict("any")
+        mock_hook.return_value.insert_job.side_effect = Conflict("any")
         job = MagicMock(
             job_id=real_job_id,
             error_result=False,

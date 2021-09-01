@@ -2247,16 +2247,13 @@ class BigQueryInsertJobOperator(BaseOperator):
         hook: BigQueryHook,
         job_id: str,
     ) -> BigQueryJob:
-        # Submit a new job
-        job = hook.insert_job(
+        # Submit a new job and wait for it to complete and get the result.
+        return hook.insert_job(
             configuration=self.configuration,
             project_id=self.project_id,
             location=self.location,
             job_id=job_id,
         )
-        # Start the job and wait for it to complete and get the result.
-        job.result()
-        return job
 
     @staticmethod
     def _handle_job_error(job: BigQueryJob) -> None:
