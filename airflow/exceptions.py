@@ -109,7 +109,10 @@ class AirflowDagDuplicatedIdException(AirflowException):
         self.existing = existing
 
     def __str__(self) -> str:
-        return f"Ignoring DAG {self.dag_id} from {self.incoming} - also found in {self.existing}"
+        if self.incoming == self.existing:
+            return f"Found multiple DAGs with ID {self.dag_id} in {self.incoming}, only one will be considered"
+        else:
+            return f"Ignoring DAG {self.dag_id} from {self.incoming} - also found in {self.existing}"
 
 
 class AirflowClusterPolicyViolation(AirflowException):

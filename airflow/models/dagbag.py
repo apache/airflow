@@ -475,6 +475,11 @@ class DagBag(LoggingMixin):
         """
         from airflow.models.serialized_dag import SerializedDagModel  # Avoid circular import
 
+        # Check for duplicate ID DAGs in the same file/dagbag
+        other_dag = self.dags.get(dag.dag_id)
+        if other_dag is not None:
+            return other_dag.fileloc
+
         other_dag = session.query(SerializedDagModel).filter(
             SerializedDagModel.dag_id == dag.dag_id,
             SerializedDagModel.fileloc_hash != DagCode.dag_fileloc_hash(dag.fileloc)
