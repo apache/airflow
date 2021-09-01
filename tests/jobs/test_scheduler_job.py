@@ -1627,6 +1627,7 @@ class TestSchedulerJob:
 
         assert len(task_instances_list) == 1
 
+    @pytest.mark.need_serialized_dag
     def test_scheduler_verify_pool_full_2_slots_per_task(self, dag_maker):
         """
         Test task instances not queued when pool is full.
