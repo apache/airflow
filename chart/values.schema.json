@@ -2862,6 +2862,32 @@
                     "type": "string",
                     "default": "*/15 * * * *"
                 },
+                "command": {
+                    "description": "Command to use when running the cleanup cronjob (templated).",
+                    "type": [
+                        "array",
+                        "null"
+                    ],
+                    "items": {
+                        "type": "string"
+                    },
+                    "default": null
+                },
+                "args": {
+                    "description": "Args to use when running the cleanup cronjob (templated).",
+                    "type": [
+                        "array",
+                        "null"
+                    ],
+                    "items": {
+                        "type": "string"
+                    },
+                    "default": [
+                        "bash",
+                        "-c",
+                        "exec airflow kubernetes cleanup-pods --namespace={{ .Release.Namespace }}"
+                    ]
+                },
                 "nodeSelector": {
                     "description": "Select certain nodes for cleanup pods.",
                     "type": "object",
