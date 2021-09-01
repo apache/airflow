@@ -2800,7 +2800,7 @@ class Airflow(AirflowBaseView):
         form = DateTimeWithNumRunsWithDagRunsForm(data=dt_nr_dr_data)
         form.execution_date.choices = dt_nr_dr_data['dr_choices']
 
-        tis = list(
+        tis = (
             session.query(TaskInstance)
             .join(TaskInstance.dag_run)
             .filter(
@@ -2815,11 +2815,7 @@ class Airflow(AirflowBaseView):
         ti_fails = (
             session.query(TaskFail)
             .join(DagRun, DagRun.execution_date == TaskFail.execution_date)
-            .filter(
-                DagRun.execution_date == dttm,
-                TaskFail.dag_id == dag_id,
-                TaskFail.task_id.in_(ti.task_id for ti in tis),
-            )
+            .filter(DagRun.execution_date == dttm, TaskFail.dag_id == dag_id)
         )
 
         tasks = []
@@ -2855,10 +2851,11 @@ class Airflow(AirflowBaseView):
             task_dict['extraLinks'] = task.extra_links
             tasks.append(task_dict)
 
+        task_names = [ti.task_id for ti in tis]
         data = {
-            'taskNames': [ti.task_id for ti in tis],
+            'taskNames': task_names,
             'tasks': tasks,
-            'height': len(tis) * 25 + 25,
+            'height': len(task_names) * 25 + 25,
         }
 
         session.commit()
