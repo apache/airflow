@@ -104,7 +104,19 @@ def upgrade():
 
     run_id_col_type = sa.String(length=ID_LEN, **COLLATION_ARGS)
 
-    if dialect_name == 'mysql':
+    if dialect_name == 'sqlite':
+        naming_convention = {
+            "uq": "%(table_name)s_%(column_0_N_name)s_key",
+        }
+        with op.batch_alter_table('dag_run', naming_convention=naming_convention) as batch_op:
+            # For some reason the naming_convention corrects _one_ of the
+            # unique constraints, but not the other!
+            batch_op.drop_constraint('uq_dag_run_dag_id_execution_date', 'unique')
+            batch_op.create_unique_constraint(
+                'dag_run_dag_id_execution_date_key', ['dag_id', 'execution_date']
+            )
+            pass
+    elif dialect_name == 'mysql':
         with op.batch_alter_table('dag_run') as batch_op:
             batch_op.alter_column('dag_id', existing_type=sa.String(length=ID_LEN), type_=run_id_col_type)
             batch_op.alter_column('run_id', existing_type=sa.String(length=ID_LEN), type_=run_id_col_type)
