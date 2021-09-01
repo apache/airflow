@@ -107,9 +107,9 @@ def prepare_virtualenv(
         raise Exception("Either requirements OR requirements_file_path has to be passed, but not both")
 
     pip_cmd = None
-    if requirements is not None:
+    if requirements is not None and len(requirements) != 0:
         pip_cmd = _generate_pip_install_cmd_from_list(venv_directory, requirements)
-    if requirements_file_path is not None:
+    if requirements_file_path is not None and requirements_file_path:
         pip_cmd = _generate_pip_install_cmd_from_file(venv_directory, requirements_file_path)
 
     if pip_cmd:
