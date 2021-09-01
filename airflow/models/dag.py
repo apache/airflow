@@ -1255,9 +1255,7 @@ class DAG(LoggingMixin):
             tis = session.query(TI.dag_id, TI.task_id, TI.run_id)
         else:
             tis = session.query(TaskInstance)
-
-        # TaskInstance almost always need to load the associated DagRun.
-        tis = tis.options(joinedload(TaskInstance.dag_run))
+        tis = tis.join(TaskInstance.dag_run)
 
         if include_subdags:
             # Crafting the right filter for dag_id and task_ids combo
@@ -1272,14 +1270,14 @@ class DAG(LoggingMixin):
         if run_id:
             tis = tis.filter(TaskInstance.run_id == run_id)
         if start_date:
-            tis = tis.filter(TaskInstance.execution_date >= start_date)
+            tis = tis.filter(DagRun.execution_date >= start_date)
         if task_ids:
             tis = tis.filter(TaskInstance.task_id.in_(task_ids))
 
         # This allows allow_trigger_in_future config to take affect, rather than mandating exec_date <= UTC
         if end_date or not self.allow_future_exec_dates:
             end_date = end_date or timezone.utcnow()
-            tis = tis.filter(TaskInstance.execution_date <= end_date)
+            tis = tis.filter(DagRun.execution_date <= end_date)
 
         if state:
             if isinstance(state, str):
@@ -1364,10 +1362,14 @@ class DAG(LoggingMixin):
                         )
                     )
                 ti.render_templates()
-                external_tis = session.query(TI).filter(
-                    TI.dag_id == task.external_dag_id,
-                    TI.task_id == task.external_task_id,
-                    TI.execution_date == pendulum.parse(task.execution_date),
+                external_tis = (
+                    session.query(TI)
+                    .join(TI.dag_run)
+                    .filter(
+                        TI.dag_id == task.external_dag_id,
+                        TI.task_id == task.external_task_id,
+                        DagRun.execution_date == pendulum.parse(task.execution_date),
+                    )
                 )
 
                 for tii in external_tis:
