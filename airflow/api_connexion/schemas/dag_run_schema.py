@@ -29,7 +29,7 @@ from airflow.api_connexion.parameters import validate_istimezone
 from airflow.api_connexion.schemas.enum_schemas import DagStateField
 from airflow.models.dagrun import DagRun
 from airflow.utils import timezone
-from airflow.utils.state import State
+from airflow.utils.state import DagRunState
 from airflow.utils.types import DagRunType
 
 
@@ -108,7 +108,7 @@ class DAGRunSchema(SQLAlchemySchema):
 class SetDagRunStateFormSchema(Schema):
     """Schema for handling the request of setting state of DAG run"""
 
-    state = DagStateField(validate=validate.OneOf([State.SUCCESS.value, State.FAILED.value]))
+    state = DagStateField(validate=validate.OneOf([DagRunState.SUCCESS.value, DagRunState.FAILED.value]))
 
 
 class DAGRunCollection(NamedTuple):
