@@ -38,7 +38,7 @@ from airflow.utils import timezone
 from airflow.utils.operator_helpers import AIRFLOW_VAR_NAME_FORMAT_MAPPING
 from tests.test_utils.asserts import assert_equal_ignore_multiple_spaces
 from tests.test_utils.mock_hooks import MockHiveCliHook, MockHiveServer2Hook
-from tests.test_utils.mock_process import MockSubProcess
+from tests.test_utils.mock_process import EmptyMockConnectionCursor, MockSubProcess
 
 DEFAULT_DATE = timezone.datetime(2015, 1, 1)
 DEFAULT_DATE_ISO = DEFAULT_DATE.isoformat()
@@ -686,6 +686,13 @@ class TestHiveServer2Hook(unittest.TestCase):
         hook.mock_cursor.execute.assert_any_call('set airflow.ctx.dag_run_id=55')
         hook.mock_cursor.execute.assert_any_call('set airflow.ctx.dag_owner=airflow')
         hook.mock_cursor.execute.assert_any_call('set airflow.ctx.dag_email=test@airflow.com')
+
+        hook = MockHiveServer2Hook(connection_cursor=EmptyMockConnectionCursor())
+        query = f"SELECT * FROM {self.table}"
+
+        df = hook.get_pandas_df(query, schema=self.database)
+
+        assert len(df) == 0
 
     def test_get_results_header(self):
         hook = MockHiveServer2Hook()

@@ -27,7 +27,6 @@ except ImportError:
 
 from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.emr_containers import EMRContainerHook
-from airflow.utils.decorators import apply_defaults
 
 
 class EMRContainerOperator(BaseOperator):
@@ -63,7 +62,6 @@ class EMRContainerOperator(BaseOperator):
     template_fields = ["name", "virtual_cluster_id", "execution_role_arn", "release_label", "job_driver"]
     ui_color = "#f9c915"
 
-    @apply_defaults
     def __init__(  # pylint: disable=too-many-arguments
         self,
         *,

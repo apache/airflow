@@ -39,7 +39,7 @@ OBJECT_1 = os.environ.get("GCP_GCS_OBJECT_1", "test-gcs-to-gcs-1")
 OBJECT_2 = os.environ.get("GCP_GCS_OBJECT_2", "test-gcs-to-gcs-2")
 
 with models.DAG(
-    "example_gcs_to_gcs", start_date=days_ago(1), schedule_interval=None, tags=['example']
+    "example_gcs_to_gcs", schedule_interval='@once', start_date=days_ago(1), tags=['example']
 ) as dag:
     # [START howto_synch_bucket]
     sync_bucket = GCSSynchronizeBucketsOperator(

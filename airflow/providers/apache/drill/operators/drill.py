@@ -21,7 +21,6 @@ import sqlparse
 
 from airflow.models import BaseOperator
 from airflow.providers.apache.drill.hooks.drill import DrillHook
-from airflow.utils.decorators import apply_defaults
 
 
 class DrillOperator(BaseOperator):
@@ -48,7 +47,6 @@ class DrillOperator(BaseOperator):
     template_ext = ('.sql',)
     ui_color = '#ededed'
 
-    @apply_defaults
     def __init__(
         self,
         *,

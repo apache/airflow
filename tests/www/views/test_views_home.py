@@ -152,9 +152,10 @@ def test_home_importerrors(broken_dags, user_client):
         check_content_in_response(f"/{dag_id}.py", resp)
 
 
-def test_home_importerrors_filtered_singledag_user(broken_dags, client_single_dag):
+@pytest.mark.parametrize('page', ['home', 'home?status=active', 'home?status=paused', 'home?status=all'])
+def test_home_importerrors_filtered_singledag_user(broken_dags, client_single_dag, page):
     # Users that can only see certain DAGs get a filtered list of import errors
-    resp = client_single_dag.get('home', follow_redirects=True)
+    resp = client_single_dag.get(page, follow_redirects=True)
     check_content_in_response("Import Errors", resp)
     # They can see the first DAGs import error
     check_content_in_response(f"/{TEST_FILTER_DAG_IDS[0]}.py", resp)
