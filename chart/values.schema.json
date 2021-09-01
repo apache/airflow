@@ -1287,10 +1287,10 @@
                     }
                 },
                 "podAnnotations": {
-                  "description": "Annotations specific to the scheduler pod.",
-                  "type": "object",
-                  "default": {},
-                  "x-docsSection": "Kubernetes"
+                    "description": "Annotations specific to the scheduler pod.",
+                    "type": "object",
+                    "default": {},
+                    "x-docsSection": "Kubernetes"
                 },
                 "resources": {
                     "description": "Resources for scheduler pods.",
@@ -1556,10 +1556,10 @@
                     "default": []
                 },
                 "podAnnotations": {
-                  "description": "Annotations specific to the triggerer pod.",
-                  "type": "object",
-                  "default": {},
-                  "x-docsSection": "Kubernetes"
+                    "description": "Annotations specific to the triggerer pod.",
+                    "type": "object",
+                    "default": {},
+                    "x-docsSection": "Kubernetes"
                 },
                 "nodeSelector": {
                     "description": "Select certain nodes for triggerer pods.",
@@ -2020,10 +2020,10 @@
                     }
                 },
                 "podAnnotations": {
-                  "description": "Annotations specific to the webserver pod.",
-                  "type": "object",
-                  "default": {},
-                  "x-docsSection": "Kubernetes"
+                    "description": "Annotations specific to the webserver pod.",
+                    "type": "object",
+                    "default": {},
+                    "x-docsSection": "Kubernetes"
                 },
                 "nodeSelector": {
                     "description": "Select certain nodes for webserver pods.",
@@ -2246,10 +2246,10 @@
                     "default": []
                 },
                 "podAnnotations": {
-                  "description": "Annotations specific to the flower pod.",
-                  "type": "object",
-                  "default": {},
-                  "x-docsSection": "Kubernetes"
+                    "description": "Annotations specific to the flower pod.",
+                    "type": "object",
+                    "default": {},
+                    "x-docsSection": "Kubernetes"
                 },
                 "nodeSelector": {
                     "description": "Select certain nodes for Flower pods.",
