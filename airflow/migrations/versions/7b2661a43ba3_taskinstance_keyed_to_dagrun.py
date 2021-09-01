@@ -108,13 +108,9 @@ def upgrade():
         naming_convention = {
             "uq": "%(table_name)s_%(column_0_N_name)s_key",
         }
-        with op.batch_alter_table('dag_run', naming_convention=naming_convention) as batch_op:
-            # For some reason the naming_convention corrects _one_ of the
-            # unique constraints, but not the other!
-            batch_op.drop_constraint('uq_dag_run_dag_id_execution_date', 'unique')
-            batch_op.create_unique_constraint(
-                'dag_run_dag_id_execution_date_key', ['dag_id', 'execution_date']
-            )
+        with op.batch_alter_table('dag_run', naming_convention=naming_convention, recreate="always"):
+            # The naming_convention force the previously un-named UNIQUE constraints to have the right name --
+            # but we still need to enter the context manager to trigger it
             pass
     elif dialect_name == 'mysql':
         with op.batch_alter_table('dag_run') as batch_op:
