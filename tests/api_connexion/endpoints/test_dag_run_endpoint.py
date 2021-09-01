@@ -1158,19 +1158,17 @@ class TestPostDagRun(TestDagRunEndpoint):
 
 class TestPostSetDagRunState(TestDagRunEndpoint):
     @parameterized.expand([("failed",), ("success",)])
-    @pytest.fixture(scope="module")
     def test_should_respond_200(self, state, dag_maker):
         dag_id = "TEST_DAG_ID"
-        with create_session() as session:
-            dag = DagModel(dag_id=dag_id)
-            dag_run = dag_maker.create_dagrun()
-            session.add(dag)
-            session.add(dag_run)
+        dag_run_id = 'TEST_DAG_RUN_ID'
+        with dag_maker(dag_id):
+            DummyOperator(task_id='task_id')
+        dag_maker.create_dagrun(run_id=dag_run_id)
 
         request_json = {"state": state}
 
         response = self.client.post(
-            "api/v1/dags/TEST_DAG_ID/dagRuns/TEST_DAG_RUN_ID_1/state",
+            f"api/v1/dags/{dag_id}/dagRuns/{dag_run_id}/state",
             json=request_json,
             environ_overrides={"REMOTE_USER": "test"},
         )
@@ -1178,8 +1176,8 @@ class TestPostSetDagRunState(TestDagRunEndpoint):
         assert response.status_code == 200
         assert response.json == {
             'conf': {},
-            'dag_id': 'TEST_DAG_ID',
-            'dag_run_id': 'TEST_DAG_RUN_ID_1',
+            'dag_id': dag_id,
+            'dag_run_id': dag_run_id,
             'end_date': self.default_time,
             'execution_date': self.default_time,
             'external_trigger': True,
