@@ -22,19 +22,19 @@ from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 
 
-class S3ListOperator(BaseOperator):
+class S3ListPrefixesOperator(BaseOperator):
     """
-    List all objects from the bucket with the given string prefix in name.
+    List all subfolders from the bucket with the given string prefix in name.
 
-    This operator returns a python list with the name of objects which can be
-    used by `xcom` in the downstream task.
+    This operator returns a python list with the name of all subfolders which
+    can be used by `xcom` in the downstream task.
 
-    :param bucket: The S3 bucket where to find the objects. (templated)
+    :param bucket: The S3 bucket where to find the subfolders. (templated)
     :type bucket: str
-    :param prefix: Prefix string to filters the objects whose name begin with
+    :param prefix: Prefix string to filter the subfolders whose name begin with
         such prefix. (templated)
     :type prefix: str
-    :param delimiter: the delimiter marks key hierarchy. (templated)
+    :param delimiter: the delimiter marks subfolder hierarchy. (templated)
     :type delimiter: str
     :param aws_conn_id: The connection ID to use when connecting to S3 storage.
     :type aws_conn_id: str
@@ -52,12 +52,11 @@ class S3ListOperator(BaseOperator):
 
 
     **Example**:
-        The following operator would list all the files
-        (excluding subfolders) from the S3
-        ``customers/2018/04/`` key in the ``data`` bucket. ::
+        The following operator would list all the subfolders
+        from the S3 ``customers/2018/04/`` prefix in the ``data`` bucket. ::
 
-            s3_file = S3ListOperator(
-                task_id='list_3s_files',
+            s3_file = S3ListPrefixesOperator(
+                task_id='list_s3_prefixes',
                 bucket='data',
                 prefix='customers/2018/04/',
                 delimiter='/',
@@ -89,10 +88,10 @@ class S3ListOperator(BaseOperator):
         hook = S3Hook(aws_conn_id=self.aws_conn_id, verify=self.verify)
 
         self.log.info(
-            'Getting the list of files from bucket: %s in prefix: %s (Delimiter %s)',
+            'Getting the list of subfolders from bucket: %s in prefix: %s (Delimiter {%s)',
             self.bucket,
             self.prefix,
             self.delimiter,
         )
 
-        return hook.list_keys(bucket_name=self.bucket, prefix=self.prefix, delimiter=self.delimiter)
+        return hook.list_prefixes(bucket_name=self.bucket, prefix=self.prefix, delimiter=self.delimiter)

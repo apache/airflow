@@ -217,6 +217,7 @@ operators:
       - airflow.providers.amazon.aws.operators.s3_delete_objects
       - airflow.providers.amazon.aws.operators.s3_file_transform
       - airflow.providers.amazon.aws.operators.s3_list
+      - airflow.providers.amazon.aws.operators.s3_list_prefixes
   - integration-name: Amazon SageMaker
     python-modules:
       - airflow.providers.amazon.aws.operators.sagemaker_base

@@ -123,15 +123,12 @@ class TestAwsS3Hook:
         hook = S3Hook()
         bucket = hook.get_bucket(s3_bucket)
         bucket.put_object(Key='a', Body=b'a')
-        bucket.put_object(Key='dir/b', Body=b'b')
-        bucket.put_object(Key='dir/sub_dir/c', Body=b'c')
+        bucket.put_object(Key='dir/dir2/b', Body=b'b')
+        bucket.put_object(Key='dir/dir2/c', Body=b'c')
 
         assert [] == hook.list_prefixes(s3_bucket, prefix='non-existent/')
-        assert [] == hook.list_prefixes(s3_bucket)
         assert ['dir/'] == hook.list_prefixes(s3_bucket, delimiter='/')
-        assert [] == hook.list_prefixes(s3_bucket, prefix='dir/')
-        assert ['dir/sub_dir/'] == hook.list_prefixes(s3_bucket, delimiter='/', prefix='dir/')
-        assert [] == hook.list_prefixes(s3_bucket, prefix='dir/sub_dir/')
+        assert ['dir/dir2/'] == hook.list_prefixes(s3_bucket, delimiter='/', prefix='dir/')
 
     def test_list_prefixes_paged(self, s3_bucket):
         hook = S3Hook()
@@ -150,14 +147,11 @@ class TestAwsS3Hook:
         bucket = hook.get_bucket(s3_bucket)
         bucket.put_object(Key='a', Body=b'a')
         bucket.put_object(Key='dir/b', Body=b'b')
-        bucket.put_object(Key='dir/sub_dir/c', Body=b'c')
 
-        assert ([], []) == hook.list_keys(s3_bucket, prefix='non-existent/')
-        assert (['a', 'dir/b', 'dir/sub_dir/c'], []) == hook.list_keys(s3_bucket)
-        assert (['a'], ['dir/']) == hook.list_keys(s3_bucket, delimiter='/')
-        assert (['dir/b', 'dir/sub_dir/c'], []) == hook.list_keys(s3_bucket, prefix='dir/')
-        assert (['dir/b'], ['dir/sub_dir/']) == hook.list_keys(s3_bucket, delimiter='/', prefix='dir/')
-        assert (['dir/sub_dir/c'], []) == hook.list_keys(s3_bucket, delimiter='/', prefix='dir/sub_dir/')
+        assert [] == hook.list_keys(s3_bucket, prefix='non-existent/')
+        assert ['a', 'dir/b'] == hook.list_keys(s3_bucket)
+        assert ['a'] == hook.list_keys(s3_bucket, delimiter='/')
+        assert ['dir/b'] == hook.list_keys(s3_bucket, prefix='dir/')
 
     def test_list_keys_paged(self, s3_bucket):
         hook = S3Hook()
@@ -167,7 +161,7 @@ class TestAwsS3Hook:
         for key in keys:
             bucket.put_object(Key=key, Body=b'a')
 
-        assert [[], sorted(keys)] == sorted(hook.list_keys(s3_bucket, delimiter='/', page_size=1))
+        assert sorted(keys) == sorted(hook.list_keys(s3_bucket, delimiter='/', page_size=1))
 
     def test_check_for_key(self, s3_bucket):
         hook = S3Hook()

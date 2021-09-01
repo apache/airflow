@@ -19,26 +19,26 @@
 import unittest
 from unittest import mock
 
-from airflow.providers.amazon.aws.operators.s3_list import S3ListOperator
+from airflow.providers.amazon.aws.operators.s3_list_prefixes import S3ListPrefixesOperator
 
-TASK_ID = 'test-s3-list-operator'
+TASK_ID = 'test-s3-list-prefixes-operator'
 BUCKET = 'test-bucket'
-DELIMITER = '.csv'
-PREFIX = 'TEST'
-MOCK_FILES = ["TEST1.csv", "TEST2.csv", "TEST3.csv"]
+DELIMITER = '/'
+PREFIX = 'test/'
+MOCK_SUBFOLDERS = ['test/']
 
 
 class TestS3ListOperator(unittest.TestCase):
-    @mock.patch('airflow.providers.amazon.aws.operators.s3_list.S3Hook')
+    @mock.patch('airflow.providers.amazon.aws.operators.s3_list_prefixes.S3Hook')
     def test_execute(self, mock_hook):
 
-        mock_hook.return_value.list_keys.return_value = MOCK_FILES
+        mock_hook.return_value.list_prefixes.return_value = MOCK_SUBFOLDERS
 
-        operator = S3ListOperator(task_id=TASK_ID, bucket=BUCKET, prefix=PREFIX, delimiter=DELIMITER)
+        operator = S3ListPrefixesOperator(task_id=TASK_ID, bucket=BUCKET, prefix=PREFIX, delimiter=DELIMITER)
 
-        files = operator.execute(None)
+        subfolders = operator.execute(None)
 
-        mock_hook.return_value.list_keys.assert_called_once_with(
+        mock_hook.return_value.list_prefixes.assert_called_once_with(
             bucket_name=BUCKET, prefix=PREFIX, delimiter=DELIMITER
         )
-        assert sorted(files) == sorted(MOCK_FILES)
+        assert sorted(subfolders) == sorted(MOCK_SUBFOLDERS)
