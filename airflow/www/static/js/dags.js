@@ -94,6 +94,8 @@ $.each($('[id^=toggle]'), function toggleId() {
     const isPaused = $input.is(':checked');
     const url = `${pausedUrl}?is_paused=${isPaused}&dag_id=${encodeURIComponent(dagId)}`;
     $input.removeClass('switch-input--error');
+    // Remove focus on element so the tooltip will go away
+    $input.trigger('blur');
     $.post(url).fail(() => {
       setTimeout(() => {
         $input.prop('checked', !isPaused);
