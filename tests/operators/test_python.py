@@ -704,16 +704,13 @@ class TestShortCircuitOperator(unittest.TestCase):
     def test_invalid_short_mode(self):
         """Checking a ValueError is raised when an invalid ``mode`` value is provided."""
 
-        self.short_circuit = ShortCircuitOperator(
-            task_id="short_circuit",
-            python_callable=lambda: False,
-            mode="medium",
-            dag=self.dag,
-        )
-        self.short_circuit.set_downstream(self.op1)
-
         with pytest.raises(ValueError):
-            self.short_circuit.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
+            self.short_circuit = ShortCircuitOperator(
+                task_id="short_circuit",
+                python_callable=lambda: False,
+                mode="medium",
+                dag=self.dag,
+            )
 
     def test_clear_skipped_downstream_task(self):
         """
