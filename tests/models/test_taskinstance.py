@@ -2039,7 +2039,7 @@ class TestRunRawTaskQueriesCount:
 
         # an extra query is fired in RenderedTaskInstanceFields.delete_old_records
         # for other DBs
-        expected_query_count_based_on_db = 13 if session.bind.dialect.name == "mssql" else 5
+        expected_query_count_based_on_db = 5
 
         session.flush()
 
