@@ -91,7 +91,6 @@ In the DockerDecorator we created a Mixin class that looks like this
 
 .. exampleinclude:: ../howto/docker_decorator.py
     :language: python
-    :dedent: 4
     :start-after: [START decoratormixin]
     :end-before: [END decoratormixin]
 
@@ -99,9 +98,8 @@ Notice that the function does not actually need to return anything. We will only
 
 Once you have your Mixin class ready, go to ``airflow.decorators.__init__.pyi`` and add section similar to this
 
-.. exampleinclude:: ../../../airflow/decorators/__init__.pyi
+.. exampleinclude:: ../../../airflow/decorators/__init__.py
     :language: python
-    :dedent: 4
     :start-after: [START import_docker]
     :end-before: [END import_docker]
 
@@ -110,9 +108,8 @@ This statement will prevent Airflow from failing if your provider does not exist
 
 Then at the bottom add a section to import your Mixin class
 
-.. exampleinclude:: ../../../airflow/decorators/__init__.pyi
+.. exampleinclude:: ../../../airflow/decorators/__init__.py
     :language: python
-    :dedent: 4
     :start-after: [START extend_docker]
     :end-before: [END extend_docker]
 

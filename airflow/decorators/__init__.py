@@ -15,29 +15,27 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from typing import Callable, Optional
-
-from airflow.decorators.python import python_task
-from airflow.decorators.python_virtualenv import _virtualenv_task
+from airflow.decorators.python import PythonDecoratorMixin
+from airflow.decorators.python_virtualenv import PythonVirtualenvDecoratorMixin
 from airflow.decorators.task_group import task_group  # noqa
 from airflow.exceptions import AirflowException
 from airflow.models.dag import dag  # noqa
 from airflow.providers_manager import ProvidersManager
 
+# [START import_docker]
+try:
+    from airflow.providers.docker.decorators.docker import DockerDecoratorMixin
+except ImportError:
+    DockerDecoratorMixin = None
+# [END import_docker]
+
 
 class _TaskDecorator:
     def __init__(self):
-        self.store = {"python": python_task, "virtualenv": _virtualenv_task}
+        self.store = {}
         decorator = ProvidersManager().taskflow_decorators
         for decorator_name, decorator_class in decorator.items():
             self.store[decorator_name] = decorator_class
-
-    def __call__(
-        self, python_callable: Optional[Callable] = None, multiple_outputs: Optional[bool] = None, **kwargs
-    ):
-        return self.store["python"](
-            python_callable=python_callable, multiple_outputs=multiple_outputs, **kwargs
-        )
 
     def __getattr__(self, name):
         if self.store.get(name, None):
@@ -45,4 +43,30 @@ class _TaskDecorator:
         raise AirflowException("Decorator %s not found", name)
 
 
-task = _TaskDecorator()
+_target = _TaskDecorator
+
+classes_to_mixin = [PythonDecoratorMixin, DockerDecoratorMixin]
+
+
+class _PythonTask(_target, PythonDecoratorMixin):
+    pass
+
+
+_target = _PythonTask
+
+
+class _VirtualenvTask(_target, PythonVirtualenvDecoratorMixin):
+    pass
+
+
+_target = _VirtualenvTask
+
+# [START extend_docker]
+if DockerDecoratorMixin:
+
+    class _DockerTask(_target, DockerDecoratorMixin):
+        pass
+
+    _target = _DockerTask
+task = _target()
+# [END extend_docker]
