@@ -58,7 +58,9 @@ class SSHHook(BaseHook):
     :type key_file: str
     :param port: port of remote host to connect (Default is paramiko SSH_PORT)
     :type port: int
-    :param conn_timeout: timeout for the attempt to connect to the remote_host.
+    :param conn_timeout: timeout (in seconds) for the attempt to connect to the remote_host.
+        The default is 10 seconds. If provided, it will replace the `conn_timeout` which was
+        predefined in the connection of `ssh_conn_id`.
     :type conn_timeout: int
     :param timeout: (Deprecated). timeout for the attempt to connect to the remote_host.
         Use conn_timeout instead.
