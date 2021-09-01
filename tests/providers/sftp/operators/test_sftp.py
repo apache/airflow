@@ -92,11 +92,12 @@ class TestSFTPOperator:
                 do_xcom_push=True,
             )
 
-        ti2, ti3 = dag_maker.create_dagrun().task_instances
-        ti2.run()
-        ti3.run()
+        tis = {ti.task_id: ti for ti in dag_maker.create_dagrun().task_instances}
+        tis["put_test_task"].run()
+        tis["check_file_task"].run()
 
-        assert ti3.xcom_pull(task_ids=ti3.task_id, key='return_value').strip() == test_local_file_content
+        pulled = tis["check_file_task"].xcom_pull(task_ids="check_file_task", key='return_value')
+        assert pulled.strip() == test_local_file_content
 
     @conf_vars({('core', 'enable_xcom_pickling'): 'True'})
     def test_file_transfer_no_intermediate_dir_error_put(self, create_task_instance_of_operator):
@@ -151,12 +152,13 @@ class TestSFTPOperator:
                 do_xcom_push=True,
             )
 
-        ti2, ti3 = dag_maker.create_dagrun(execution_date=timezone.utcnow()).task_instances
-        ti2.run()
-        ti3.run()
-        assert (
-            ti3.xcom_pull(task_ids='test_check_file', key='return_value').strip() == test_local_file_content
-        )
+        dagrun = dag_maker.create_dagrun(execution_date=timezone.utcnow())
+        tis = {ti.task_id: ti for ti in dagrun.task_instances}
+        tis["test_sftp"].run()
+        tis["test_check_file"].run()
+
+        pulled = tis["test_check_file"].xcom_pull(task_ids='test_check_file', key='return_value')
+        assert pulled.strip() == test_local_file_content
 
     @conf_vars({('core', 'enable_xcom_pickling'): 'False'})
     def test_json_file_transfer_put(self, dag_maker):
@@ -183,12 +185,13 @@ class TestSFTPOperator:
                 do_xcom_push=True,
             )
 
-        ti2, ti3 = dag_maker.create_dagrun(execution_date=timezone.utcnow()).task_instances
-        ti2.run()
-        ti3.run()
-        assert ti3.xcom_pull(task_ids="check_file_task", key='return_value').strip() == b64encode(
-            test_local_file_content
-        ).decode('utf-8')
+        dagrun = dag_maker.create_dagrun(execution_date=timezone.utcnow())
+        tis = {ti.task_id: ti for ti in dagrun.task_instances}
+        tis["put_test_task"].run()
+        tis["check_file_task"].run()
+
+        pulled = tis["check_file_task"].xcom_pull(task_ids="check_file_task", key='return_value')
+        assert pulled.strip() == b64encode(test_local_file_content).decode('utf-8')
 
     @conf_vars({('core', 'enable_xcom_pickling'): 'True'})
     def test_pickle_file_transfer_get(self, dag_maker):

@@ -1061,11 +1061,11 @@ def test_empty_branch(dag_maker, choice, expected_states):
     dag_run = dag_maker.create_dagrun()
 
     task_ids = ["branch", "task1", "join"]
+    tis = {ti.task_id: ti for ti in dag_run.task_instances}
 
-    tis = {}
-    for task_id, task_instance in zip(task_ids, dag_run.task_instances):
+    for task_id in task_ids:  # Mimic the specific order the scheduling would run the tests.
+        task_instance = tis[task_id]
         task_instance.refresh_from_task(dag.get_task(task_id))
-        tis[task_id] = task_instance
         task_instance.run()
 
     def get_state(ti):
