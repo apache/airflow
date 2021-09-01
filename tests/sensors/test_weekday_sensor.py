@@ -103,9 +103,9 @@ class TestDayOfWeekSensor(unittest.TestCase):
         invalid_week_day = 5
         with pytest.raises(
             TypeError,
-            match='Unsupported Type for is_today parameter: {}.'
-            'Input should be iterable type.'
-            'str, set, list, dict or Weekday enum type'.format(type(invalid_week_day)),
+            match=f"Unsupported Type for week_day parameter: {type(invalid_week_day)}."
+            "Input should be iterable type:"
+            "str, set, list, dict or Weekday enum type",
         ):
             DayOfWeekSensor(
                 task_id='weekday_sensor_check_true',

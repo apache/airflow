@@ -55,18 +55,18 @@ class WeekDay(enum.IntEnum):
         return cls.get_weekday_number(week_day_str=day)
 
     @classmethod
-    def validate_week_day(cls, day_iterable: Union[str, 'WeekDay', Set[str], List[str]]):
+    def validate_week_day(cls, week_day: Union[str, 'WeekDay', Set[str], List[str]]):
         """Validate each item of iterable and create a set to ease compare of values"""
-        if not isinstance(day_iterable, Iterable):
-            if isinstance(day_iterable, WeekDay):
-                day_iterable = {day_iterable}
+        if not isinstance(week_day, Iterable):
+            if isinstance(week_day, WeekDay):
+                week_day = {week_day}
             else:
                 raise TypeError(
-                    "Unsupported Type for is_today parameter: {}."
-                    "Input should be iterable type."
-                    "str, set, list, dict or Weekday enum type".format(type(day_iterable))
+                    f"Unsupported Type for week_day parameter: {type(week_day)}."
+                    "Input should be iterable type:"
+                    "str, set, list, dict or Weekday enum type"
                 )
-        if isinstance(day_iterable, str):
-            day_iterable = {day_iterable}
+        if isinstance(week_day, str):
+            week_day = {week_day}
 
-        return {cls.convert(item) for item in day_iterable}
+        return {cls.convert(item) for item in week_day}

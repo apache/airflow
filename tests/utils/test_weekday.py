@@ -18,6 +18,7 @@
 import unittest
 from enum import Enum
 
+import pytest
 from parameterized import parameterized
 
 from airflow.utils.weekday import WeekDay
@@ -49,7 +50,7 @@ class TestWeekDay(unittest.TestCase):
     )
     def test_convert(self, _, weekday, expected):
         result = WeekDay.convert(weekday)
-        self.assertEqual(result, 1)
+        self.assertEqual(result, expected)
 
     def test_convert_with_incorrect_input(self):
         invalid = "Sun"
@@ -71,3 +72,13 @@ class TestWeekDay(unittest.TestCase):
     def test_validate_week_day(self, _, weekday, expected):
         result = WeekDay.validate_week_day(weekday)
         self.assertEqual(expected, result)
+
+    def test_validate_week_day_with_invalid_type(self):
+        invalid_week_day = 5
+        with pytest.raises(
+            TypeError,
+            match=f"Unsupported Type for week_day parameter: {type(invalid_week_day)}."
+            "Input should be iterable type:"
+            "str, set, list, dict or Weekday enum type",
+        ):
+            WeekDay.validate_week_day(invalid_week_day)
