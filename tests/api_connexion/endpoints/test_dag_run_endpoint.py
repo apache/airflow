@@ -18,10 +18,12 @@ from datetime import timedelta
 from unittest import mock
 
 import pytest
+from freezegun import freeze_time
 from parameterized import parameterized
 
 from airflow.api_connexion.exceptions import EXCEPTIONS_LINK_MAP
 from airflow.models import DAG, DagModel, DagRun
+from airflow.operators.dummy import DummyOperator
 from airflow.security import permissions
 from airflow.utils import timezone
 from airflow.utils.session import create_session, provide_session
@@ -1157,7 +1159,8 @@ class TestPostDagRun(TestDagRunEndpoint):
 
 
 class TestPostSetDagRunState(TestDagRunEndpoint):
-    @parameterized.expand([("failed",), ("success",)])
+    @pytest.mark.parametrize("state", ["failed", "success"])
+    @freeze_time(TestDagRunEndpoint.default_time)
     def test_should_respond_200(self, state, dag_maker):
         dag_id = "TEST_DAG_ID"
         dag_run_id = 'TEST_DAG_RUN_ID'
@@ -1179,22 +1182,21 @@ class TestPostSetDagRunState(TestDagRunEndpoint):
             'dag_id': dag_id,
             'dag_run_id': dag_run_id,
             'end_date': self.default_time,
-            'execution_date': self.default_time,
-            'external_trigger': True,
-            'logical_date': self.default_time,
-            'start_date': self.default_time,
+            'execution_date': dag_maker.start_date.isoformat(),
+            'external_trigger': False,
+            'logical_date': dag_maker.start_date.isoformat(),
+            'start_date': dag_maker.start_date.isoformat(),
             'state': state,
         }
 
-    @parameterized.expand([("running",), ("queued",)])
-    @pytest.fixture(scope="module")
+    @pytest.mark.parametrize('invalid_state', ["running", "queued"])
+    @freeze_time(TestDagRunEndpoint.default_time)
     def test_should_response_400_for_non_existing_dag_run_state(self, invalid_state, dag_maker):
-        with create_session() as session:
-            dag_id = "TEST_DAG_ID"
-            dag = DagModel(dag_id=dag_id)
-            dag_run = dag_maker.create_dagrun()
-            session.add(dag)
-            session.add(dag_run)
+        dag_id = "TEST_DAG_ID"
+        dag_run_id = 'TEST_DAG_RUN_ID'
+        with dag_maker(dag_id):
+            DummyOperator(task_id='task_id')
+        dag_maker.create_dagrun(run_id=dag_run_id)
 
         request_json = {"state": invalid_state}
 
