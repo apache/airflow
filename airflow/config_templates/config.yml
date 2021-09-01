@@ -1800,11 +1800,8 @@
     - name: max_tis_per_query
       description: |
         This changes the batch size of queries in the scheduling main loop.
-        If this is too high, SQL query performance may be impacted by one
-        or more of the following:
-        - reversion to full table scan
-        - complexity of query predicate
-        - excessive locking
+        If this is too high, SQL query performance may be impacted by
+        reversion to full table scan, complexity of query predicate, and/or excessive locking.
         Additionally, you may hit the maximum allowable query length for your db.
         Set this to 0 for no limit (not advised)
       version_added: ~
