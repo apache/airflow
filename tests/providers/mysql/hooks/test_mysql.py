@@ -348,6 +348,32 @@ class TestMySqlHook(unittest.TestCase):
             """
         )
 
+    def test_insert_ignore(self):
+        actual = self.db_hook._generate_insert_sql(
+            table="test",
+            values=(1, 2),
+            target_fields=("col1", "col2"),
+            replace=False,
+            before_statement=MySqlHook.insert_ignore(),
+        )
+
+        expected = "INSERT IGNORE test (col1, col2) VALUES (%s,%s)"
+
+        assert actual == expected
+
+    def test_on_duplicate_key_update(self):
+        actual = self.db_hook._generate_insert_sql(
+            table="test",
+            values=(1, 2),
+            target_fields=("col1", "col2"),
+            replace=False,
+            after_statement=MySqlHook.on_duplicate_key_update({"col1": "VALUES(col1)"}),
+        )
+
+        expected = "INSERT INTO test (col1, col2) VALUES (%s,%s) ON DUPLICATE KEY UPDATE col1=VALUES(col1)"
+
+        assert actual == expected
+
 
 DEFAULT_DATE = timezone.datetime(2015, 1, 1)
 DEFAULT_DATE_ISO = DEFAULT_DATE.isoformat()

@@ -282,3 +282,25 @@ class MySqlHook(DbApiHook):
 
         cursor.close()
         conn.commit()
+
+    @staticmethod
+    def insert_ignore() -> str:
+        return "INSERT IGNORE"
+
+    @staticmethod
+    def on_duplicate_key_update(columns: Dict[str, str]):
+        """Implement ON DUPLICATE KEY UPDATE statement in mysql
+
+        :param columns: a dictionary that map columns to their update value
+
+            .. seealso:: https://dev.mysql.com/doc/refman/8.0/en/insert-on-duplicate.html
+        :type  columns: Dict[str, str]
+
+         >>> print(MySqlHook.on_duplicate_key_update({"updated_at": "now()"}))
+         ON DUPLICATE KEY UPDATE updated_at=now()
+
+         >>> print(MySqlHook.on_duplicate_key_update({"col1": "VALUES(col1)"}))
+         ON DUPLICATE KEY UPDATE updated_at=VALUES(col1)
+        """
+        update_columns_list = [f"{key}={value}" for key, value in columns.items()]
+        return f"ON DUPLICATE KEY UPDATE {', '.join(update_columns_list)}"

@@ -232,3 +232,69 @@ class TestDbApiHook(unittest.TestCase):
         assert called == 2
         assert self.conn.commit.called
         assert result == [obj, obj]
+
+    def test__generate_insert_sql(self):
+        actual_sql = self.db_hook._generate_insert_sql(
+            table="test-table",
+            values=(("col1_value", "col2_value")),
+            target_fields=("col1", "col2"),
+            replace=False,
+        )
+
+        expected_sql = "INSERT INTO test-table (col1, col2) VALUES (%s,%s)"
+
+        assert expected_sql == actual_sql
+
+    def test__generate_insert_sql_with_replace(self):
+        actual_sql = self.db_hook._generate_insert_sql(
+            table="test-table",
+            values=("col1_value", "col2_value"),
+            target_fields=("col1", "col2"),
+            replace=True,
+        )
+
+        expected_sql = "REPLACE INTO test-table (col1, col2) VALUES (%s,%s)"
+
+        assert expected_sql == actual_sql
+
+    def test__generate_insert_sql_with_before_statement(self):
+        actual_sql = self.db_hook._generate_insert_sql(
+            table="test-table",
+            values=("col1_value", "col2_value"),
+            target_fields=("col1", "col2"),
+            replace=False,
+            before_statement="INSERT IGNORE",
+        )
+
+        expected_sql = "INSERT IGNORE test-table (col1, col2) VALUES (%s,%s)"
+
+        assert expected_sql == actual_sql
+
+    def test__generate_insert_sql_with_after_statement(self):
+        actual_sql = self.db_hook._generate_insert_sql(
+            table="test-table",
+            values=("col1_value", "col2_value"),
+            target_fields=("pkey", "col1", "col2"),
+            replace=False,
+            after_statement="ON CONFLICT DO NOTHING",
+        )
+
+        expected_sql = "INSERT INTO test-table (pkey, col1, col2) VALUES (%s,%s) ON CONFLICT DO NOTHING"
+
+        assert expected_sql == actual_sql
+
+    def test_test__generate_insert_sql_with_before_and_after_statement(self):
+        actual_sql = self.db_hook._generate_insert_sql(
+            table="test-table",
+            values=("pdate_value", "col1_value", "col2_value"),
+            target_fields=("pkey", "pdate", "col1", "col2"),
+            replace=False,
+            before_statement="INSERT HIGH_PRIORITY",
+            after_statement="ON DUPLICATE KEY UPDATE col1=VALUE(col1)",
+        )
+
+        expected_sql = (
+            "INSERT HIGH_PRIORITY test-table (pkey, pdate, col1, col2) VALUES (%s,%s,%s) "
+            "ON DUPLICATE KEY UPDATE col1=VALUE(col1)"
+        )
+        assert expected_sql == actual_sql

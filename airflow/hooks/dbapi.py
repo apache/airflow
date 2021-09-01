@@ -260,7 +260,15 @@ class DbApiHook(BaseHook):
         return self.get_conn().cursor()
 
     @staticmethod
-    def _generate_insert_sql(table, values, target_fields, replace, **kwargs):
+    def _generate_insert_sql(
+        table,
+        values,
+        target_fields,
+        replace,
+        *args,
+        before_statement: Optional[str] = None,
+        after_statement: Optional[str] = None,
+    ):
         """
         Static helper method that generate the INSERT SQL statement.
         The REPLACE variant is specific to MySQL syntax.
@@ -273,6 +281,12 @@ class DbApiHook(BaseHook):
         :type target_fields: iterable of strings
         :param replace: Whether to replace instead of insert
         :type replace: bool
+
+        :param before_statement: before statement sql eg: `INSERT IGNORE INTO TABLE`
+        :type before_statement: Optional[str]
+        :param after_statement: before statement sql eg: `INSERT IGNORE INTO TABLE`
+        :type after_statement: Optional[str]
+
         :return: The generated INSERT or REPLACE SQL statement
         :rtype: str
         """
@@ -286,11 +300,19 @@ class DbApiHook(BaseHook):
         else:
             target_fields = ''
 
-        if not replace:
-            sql = "INSERT INTO "
+        if not before_statement:
+            if not replace:
+                sql = "INSERT INTO"
+            else:
+                sql = "REPLACE INTO"
         else:
-            sql = "REPLACE INTO "
-        sql += f"{table} {target_fields} VALUES ({','.join(placeholders)})"
+            sql = f"{before_statement}"
+
+        sql = f"{sql} {table} {target_fields} VALUES ({','.join(placeholders)})"
+
+        if after_statement:
+            sql = f"{sql} {after_statement}"
+
         return sql
 
     def insert_rows(self, table, rows, target_fields=None, commit_every=1000, replace=False, **kwargs):
