@@ -18,7 +18,6 @@ from datetime import timedelta
 from unittest import mock
 
 import pytest
-from freezegun import freeze_time
 from parameterized import parameterized
 
 from airflow.api_connexion.exceptions import EXCEPTIONS_LINK_MAP
@@ -26,7 +25,6 @@ from airflow.models import DAG, DagModel, DagRun
 from airflow.security import permissions
 from airflow.utils import timezone
 from airflow.utils.session import create_session, provide_session
-from airflow.utils.state import DagRunState
 from airflow.utils.types import DagRunType
 from tests.test_utils.api_connexion_utils import assert_401, create_user, delete_user
 from tests.test_utils.config import conf_vars
@@ -1160,22 +1158,12 @@ class TestPostDagRun(TestDagRunEndpoint):
 
 class TestPostSetDagRunState(TestDagRunEndpoint):
     @parameterized.expand([("failed",), ("success",)])
-    @freeze_time(TestDagRunEndpoint.default_time)
-    def test_should_respond_200(self, state):
+    @pytest.fixture(scope="module")
+    def test_should_respond_200(self, state, dag_maker):
         dag_id = "TEST_DAG_ID"
-        dag_run_id = "TEST_DAG_RUN_ID_1"
-        test_time = timezone.parse(self.default_time)
         with create_session() as session:
             dag = DagModel(dag_id=dag_id)
-            dag_run = DagRun(
-                dag_id=dag_id,
-                run_id=dag_run_id,
-                state=DagRunState.RUNNING,
-                run_type=DagRunType.MANUAL,
-                execution_date=test_time,
-                start_date=test_time,
-                external_trigger=True,
-            )
+            dag_run = dag_maker.create_dagrun()
             session.add(dag)
             session.add(dag_run)
 
@@ -1201,22 +1189,12 @@ class TestPostSetDagRunState(TestDagRunEndpoint):
         }
 
     @parameterized.expand([("running",), ("queued",)])
-    @freeze_time(TestDagRunEndpoint.default_time)
-    def test_should_response_400_for_non_existing_dag_run_state(self, invalid_state):
-        test_time = timezone.parse(self.default_time)
+    @pytest.fixture(scope="module")
+    def test_should_response_400_for_non_existing_dag_run_state(self, invalid_state, dag_maker):
         with create_session() as session:
             dag_id = "TEST_DAG_ID"
-            dag_run_id = "TEST_DAG_RUN_ID_1"
             dag = DagModel(dag_id=dag_id)
-            dag_run = DagRun(
-                dag_id=dag_id,
-                run_id=dag_run_id,
-                state=DagRunState.RUNNING,
-                run_type=DagRunType.MANUAL,
-                execution_date=test_time,
-                start_date=test_time,
-                external_trigger=True,
-            )
+            dag_run = dag_maker.create_dagrun()
             session.add(dag)
             session.add(dag_run)
 

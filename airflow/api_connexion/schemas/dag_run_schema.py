@@ -108,7 +108,7 @@ class DAGRunSchema(SQLAlchemySchema):
 class SetDagRunStateFormSchema(Schema):
     """Schema for handling the request of setting state of DAG run"""
 
-    state = DagStateField(validate=validate.OneOf([State.SUCCESS, State.FAILED]))
+    state = DagStateField(validate=validate.OneOf([State.SUCCESS.value, State.FAILED.value]))
 
 
 class DAGRunCollection(NamedTuple):

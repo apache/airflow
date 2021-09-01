@@ -298,6 +298,6 @@ def update_dag_run_state(dag_id: str, dag_run_id: str, session) -> dict:
         raise BadRequest(detail=str(err))
 
     state = post_body['state']
-    dag_run.set_state(state=DagRunState(state).value)
+    dag_run.set_state(state=DagRunState(state))
     session.merge(dag_run)
     return dagrun_schema.dump(dag_run)

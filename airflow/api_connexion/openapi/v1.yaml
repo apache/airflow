@@ -611,8 +611,7 @@ paths:
 
     post:
       summary: Set a state of DAG run
-      description: >
-        Set a state of DAG run
+      description: Set a state of DAG run
       x-openapi-router-controller: airflow.api_connexion.endpoints.dag_run_endpoint
       operationId: update_dag_run_state
       tags: [UpdateDagRunState]
