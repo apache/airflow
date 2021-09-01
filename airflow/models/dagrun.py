@@ -581,7 +581,7 @@ class DagRun(Base, LoggingMixin):
         This method will be used in the update_state method when the state of the DagRun
         is updated to a completed status (either success or failure). The method will find the first
         started task within the DAG and calculate the expected DagRun start time (based on
-        dag.execution_date & dag.schedule_interval), and minus these two values to get the delay.
+        dag.execution_date & dag.timetable), and minus these two values to get the delay.
         The emitted data may contains outlier (e.g. when the first task was cleared, so
         the second task's start_date will be used), but we can get rid of the outliers
         on the stats side through the dashboards tooling built.
@@ -598,7 +598,7 @@ class DagRun(Base, LoggingMixin):
         try:
             dag = self.get_dag()
 
-            if not self.dag.schedule_interval or self.dag.schedule_interval == "@once":
+            if not self.dag.timetable.periodic:
                 # We can't emit this metric if there is no following schedule to calculate from!
                 return
 

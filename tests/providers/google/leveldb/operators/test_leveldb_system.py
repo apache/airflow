@@ -37,6 +37,12 @@ def provide_leveldb_connection():
 
 @pytest.mark.system("google.leveldb")
 class LevelDBSystemTest(GoogleSystemTest):
+    def setUp(self):
+        super().setUp()
+
     @provide_leveldb_connection()
     def test_run_example_dag(self):
         self.run_dag('example_leveldb', LEVELDB_DAG_FOLDER)
+
+    def tearDown(self):
+        super().tearDown()

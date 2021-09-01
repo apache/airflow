@@ -28,13 +28,12 @@ import dill
 import sqlalchemy as sa
 from alembic import op
 from sqlalchemy import Column, Float, Integer, PickleType, String
-
-# revision identifiers, used by Alembic.
 from sqlalchemy.ext.declarative import declarative_base
 
 from airflow.models.base import COLLATION_ARGS
 from airflow.utils.sqlalchemy import UtcDateTime
 
+# revision identifiers, used by Alembic.
 revision = '8646922c8a04'
 down_revision = '449b4072c2da'
 branch_labels = None

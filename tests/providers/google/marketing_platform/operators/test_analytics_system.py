@@ -48,7 +48,13 @@ def helper():
 @pytest.mark.system("google.marketing_platform")
 @pytest.mark.credential_file(GMP_KEY)
 class TestSystemGoogleAds(GoogleSystemTest):
+    def setUp(self):
+        super().setUp()
+
     @pytest.mark.usefixtures("helper")
     @provide_gcp_context(GMP_KEY, scopes=SCOPES)
     def test_run_example_dag(self):
         self.run_dag('example_google_analytics', MARKETING_DAG_FOLDER)
+
+    def tearDown(self):
+        super().tearDown()

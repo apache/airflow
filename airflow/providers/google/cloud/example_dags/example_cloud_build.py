@@ -77,7 +77,7 @@ create_build_from_repo_body = {
 with models.DAG(
     "example_gcp_cloud_build",
     default_args=dict(start_date=dates.days_ago(1)),
-    schedule_interval=None,
+    schedule_interval='@once',
     tags=['example'],
 ) as dag:
     # [START howto_operator_create_build_from_storage]

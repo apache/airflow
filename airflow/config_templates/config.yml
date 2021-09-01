@@ -594,7 +594,7 @@
       type: string
       example: ~
       default: "task"
-    - name: extra_loggers
+    - name: extra_logger_names
       description: |
         A comma\-separated list of third-party logger names that will be configured to print messages to
         consoles\.
@@ -1800,11 +1800,8 @@
     - name: max_tis_per_query
       description: |
         This changes the batch size of queries in the scheduling main loop.
-        If this is too high, SQL query performance may be impacted by one
-        or more of the following:
-        - reversion to full table scan
-        - complexity of query predicate
-        - excessive locking
+        If this is too high, SQL query performance may be impacted by
+        reversion to full table scan, complexity of query predicate, and/or excessive locking.
         Additionally, you may hit the maximum allowable query length for your db.
         Set this to 0 for no limit (not advised)
       version_added: ~
@@ -1943,6 +1940,20 @@
       type: string
       example: ~
       default: "airflow.keytab"
+    - name: forwardable
+      description: |
+        Allow to disable ticket forwardability.
+      version_added: ~
+      type: boolean
+      example: ~
+      default: "True"
+    - name: include_ip
+      description: |
+        Allow to remove source IP from token, useful when using token behind NATted Docker host.
+      version_added: ~
+      type: boolean
+      example: ~
+      default: "True"
 - name: github_enterprise
   description: ~
   options:

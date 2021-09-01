@@ -15,7 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from typing import NamedTuple, Optional
+from typing import Any, Dict, NamedTuple, Optional
 
 from pendulum import DateTime
 
@@ -94,27 +94,78 @@ class DagRunInfo(NamedTuple):
 class Timetable(Protocol):
     """Protocol that all Timetable classes are expected to implement."""
 
+    periodic: bool = True
+    """Whether this timetable runs periodically.
+
+    This defaults to and should generally be *True*, but some special setups
+    like ``schedule_interval=None`` and ``"@once"`` set it to *False*.
+    """
+
+    can_run: bool = True
+    """Whether this timetable can actually schedule runs.
+
+    This defaults to and should generally be *True*, but ``NullTimetable`` sets
+    this to *False*.
+    """
+
+    @classmethod
+    def deserialize(cls, data: Dict[str, Any]) -> "Timetable":
+        """Deserialize a timetable from data.
+
+        This is called when a serialized DAG is deserialized. ``data`` will be
+        whatever was returned by ``serialize`` during DAG serialization. The
+        default implementation constructs the timetable without any arguments.
+        """
+        return cls()
+
+    def serialize(self) -> Dict[str, Any]:
+        """Serialize the timetable for JSON encoding.
+
+        This is called during DAG serialization to store timetable information
+        in the database. This should return a JSON-serializable dict that will
+        be fed into ``deserialize`` when the DAG is deserialized. The default
+        implementation returns an empty dict.
+        """
+        return {}
+
     def validate(self) -> None:
         """Validate the timetable is correctly specified.
 
-        This should raise AirflowTimetableInvalid on validation failure.
-        """
-        raise NotImplementedError()
+        Override this method to provide run-time validation raised when a DAG
+        is put into a dagbag. The default implementation does nothing.
 
-    def infer_data_interval(self, run_after: DateTime) -> DataInterval:
+        :raises: AirflowTimetableInvalid on validation failure.
+        """
+        pass
+
+    @property
+    def summary(self) -> str:
+        """A short summary for the timetable.
+
+        This is used to display the timetable in the web UI. A cron expression
+        timetable, for example, can use this to display the expression. The
+        default implementation returns the timetable's type name.
+        """
+        return type(self).__name__
+
+    def infer_data_interval(self, *, run_after: DateTime) -> DataInterval:
         """When a DAG run is manually triggered, infer a data interval for it.
 
         This is used for e.g. manually-triggered runs, where ``run_after`` would
-        be when the user triggers the run.
+        be when the user triggers the run. The default implementation raises
+        ``NotImplementedError``.
         """
         raise NotImplementedError()
 
     def next_dagrun_info(
         self,
+        *,
         last_automated_dagrun: Optional[DateTime],
         restriction: TimeRestriction,
     ) -> Optional[DagRunInfo]:
         """Provide information to schedule the next DagRun.
+
+        The default implementation raises ``NotImplementedError``.
 
         :param last_automated_dagrun: The ``execution_date`` of the associated
             DAG's last scheduled or backfilled run (manual runs not considered).

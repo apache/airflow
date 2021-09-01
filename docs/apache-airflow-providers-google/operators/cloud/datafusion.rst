@@ -158,7 +158,7 @@ The result is saved to :ref:`XCom <concepts:xcom>`, which allows it to be used b
 Start a DataFusion pipeline
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-To start Data Fusion pipeline use:
+To start Data Fusion pipeline using synchronous mode:
 :class:`~airflow.providers.google.cloud.operators.datafusion.CloudDataFusionStartPipelineOperator`.
 
 .. exampleinclude:: /../../airflow/providers/google/cloud/example_dags/example_datafusion.py
@@ -166,6 +166,15 @@ To start Data Fusion pipeline use:
     :dedent: 4
     :start-after: [START howto_cloud_data_fusion_start_pipeline]
     :end-before: [END howto_cloud_data_fusion_start_pipeline]
+
+To start Data Fusion pipeline using asynchronous mode:
+:class:`~airflow.providers.google.cloud.operators.datafusion.CloudDataFusionStartPipelineOperator`.
+
+.. exampleinclude:: /../../airflow/providers/google/cloud/example_dags/example_datafusion.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_cloud_data_fusion_start_pipeline_async]
+    :end-before: [END howto_cloud_data_fusion_start_pipeline_async]
 
 You can use :ref:`Jinja templating <concepts:jinja-templating>` with
 :template-fields:`airflow.providers.google.cloud.operators.datafusion.CloudDataFusionStartPipelineOperator`
@@ -229,3 +238,18 @@ You can use :ref:`Jinja templating <concepts:jinja-templating>` with
 :template-fields:`airflow.providers.google.cloud.operators.datafusion.CloudDataFusionListPipelinesOperator`
 parameters which allows you to dynamically determine values.
 The result is saved to :ref:`XCom <concepts:xcom>`, which allows it to be used by other operators.
+
+Sensors
+^^^^^^^
+
+When start pipeline is triggered asynchronously sensors may be used to run checks and verify that the pipeline in in correct state.
+
+:class:`~airflow.providers.google.cloud.sensors.datafusion.CloudDataFusionPipelineStateSensor`.
+
+.. exampleinclude:: /../../airflow/providers/google/cloud/example_dags/example_datafusion.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_cloud_data_fusion_start_pipeline_sensor]
+    :end-before: [END howto_cloud_data_fusion_start_pipeline_sensor]
+
+:class:`~airflow.providers.google.cloud.sensors.datafusion.CloudDataFusionPipelineStateSensor`.

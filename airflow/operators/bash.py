@@ -50,6 +50,9 @@ class BashOperator(BaseOperator):
         in ``skipped`` state (default: 99). If set to ``None``, any non-zero
         exit code will be treated as a failure.
     :type skip_exit_code: int
+    :param cwd: Working directory to execute the command in.
+        If None (default), the command is run in a temporary directory.
+    :type cwd: str
 
     Airflow will evaluate the exit code of the bash command. In general, a non-zero exit code will result in
     task failure and zero will result in task success. Exit code ``99`` (or another set in ``skip_exit_code``)
@@ -134,6 +137,7 @@ class BashOperator(BaseOperator):
         env: Optional[Dict[str, str]] = None,
         output_encoding: str = 'utf-8',
         skip_exit_code: int = 99,
+        cwd: str = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -141,6 +145,7 @@ class BashOperator(BaseOperator):
         self.env = env
         self.output_encoding = output_encoding
         self.skip_exit_code = skip_exit_code
+        self.cwd = cwd
         if kwargs.get('xcom_push') is not None:
             raise AirflowException("'xcom_push' was deprecated, use 'BaseOperator.do_xcom_push' instead")
 
@@ -164,11 +169,17 @@ class BashOperator(BaseOperator):
         return env
 
     def execute(self, context):
+        if self.cwd is not None:
+            if not os.path.exists(self.cwd):
+                raise AirflowException(f"Can not find the cwd: {self.cwd}")
+            if not os.path.isdir(self.cwd):
+                raise AirflowException(f"The cwd {self.cwd} must be a directory")
         env = self.get_env(context)
         result = self.subprocess_hook.run_command(
             command=['bash', '-c', self.bash_command],
             env=env,
             output_encoding=self.output_encoding,
+            cwd=self.cwd,
         )
         if self.skip_exit_code is not None and result.exit_code == self.skip_exit_code:
             raise AirflowSkipException(f"Bash command returned exit code {self.skip_exit_code}. Skipping.")

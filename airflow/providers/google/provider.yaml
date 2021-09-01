@@ -29,6 +29,7 @@ description: |
       - `Google Workspace <https://workspace.google.pl/>`__ (formerly Google Suite)
 
 versions:
+  - 5.1.0
   - 5.0.0
   - 4.0.0
   - 3.0.0
@@ -462,6 +463,9 @@ sensors:
   - integration-name: Google Dataflow
     python-modules:
       - airflow.providers.google.cloud.sensors.dataflow
+  - integration-name: Google Data Fusion
+    python-modules:
+      - airflow.providers.google.cloud.sensors.datafusion
   - integration-name: Google Dataproc
     python-modules:
       - airflow.providers.google.cloud.sensors.dataproc
@@ -715,6 +719,10 @@ transfers:
     target-integration-name: Google Spreadsheet
     how-to-guide: /docs/apache-airflow-providers-google/operators/transfer/gcs_to_sheets.rst
     python-module: airflow.providers.google.suite.transfers.gcs_to_sheets
+  - source-integration-name: SQL
+    target-integration-name: Google Spreadsheet
+    how-to-guide: /docs/apache-airflow-providers-google/operators/transfer/sql_to_sheets.rst
+    python-module: airflow.providers.google.suite.transfers.sql_to_sheets
   - source-integration-name: Local
     target-integration-name: Google Cloud Storage (GCS)
     how-to-guide: /docs/apache-airflow-providers-google/operators/transfer/local_to_gcs.rst

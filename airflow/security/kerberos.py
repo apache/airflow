@@ -60,8 +60,20 @@ def renew_from_kt(principal: str, keytab: str, exit_on_fail: bool = True):
 
     cmd_principal = principal or conf.get('kerberos', 'principal').replace("_HOST", socket.getfqdn())
 
+    if conf.getboolean('kerberos', 'forwardable'):
+        forwardable = '-f'
+    else:
+        forwardable = '-F'
+
+    if conf.getboolean('kerberos', 'include_ip'):
+        include_ip = '-a'
+    else:
+        include_ip = '-A'
+
     cmdv = [
         conf.get('kerberos', 'kinit_path'),
+        forwardable,
+        include_ip,
         "-r",
         renewal_lifetime,
         "-k",  # host ticket

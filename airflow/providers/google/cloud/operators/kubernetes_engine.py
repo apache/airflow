@@ -210,14 +210,34 @@ class GKECreateClusterOperator(BaseOperator):
         self._check_input()
 
     def _check_input(self) -> None:
-        if not all([self.project_id, self.location, self.body]) or not (
-            (isinstance(self.body, dict) and "name" in self.body and "initial_node_count" in self.body)
-            or (getattr(self.body, "name", None) and getattr(self.body, "initial_node_count", None))
+        if (
+            not all([self.project_id, self.location, self.body])
+            or (isinstance(self.body, dict) and not ("name" in self.body))
+            or (
+                isinstance(self.body, dict)
+                and ("initial_node_count" not in self.body and "node_pools" not in self.body)
+            )
+            or (not (isinstance(self.body, dict)) and not (getattr(self.body, "name", None)))
+            or (
+                not (isinstance(self.body, dict))
+                and (
+                    not (getattr(self.body, "initial_node_count", None))
+                    and not (getattr(self.body, "node_pools", None))
+                )
+            )
         ):
             self.log.error(
                 "One of (project_id, location, body, body['name'], "
-                "body['initial_node_count']) is missing or incorrect"
+                "body['initial_node_count']), body['node_pools'] is missing or incorrect"
             )
+            raise AirflowException("Operator has incorrect or missing input.")
+        elif (
+            isinstance(self.body, dict) and ("initial_node_count" in self.body and "node_pools" in self.body)
+        ) or (
+            not (isinstance(self.body, dict))
+            and (getattr(self.body, "initial_node_count", None) and getattr(self.body, "node_pools", None))
+        ):
+            self.log.error("Only one of body['initial_node_count']) and body['node_pools'] may be specified")
             raise AirflowException("Operator has incorrect or missing input.")
 
     def execute(self, context) -> str:

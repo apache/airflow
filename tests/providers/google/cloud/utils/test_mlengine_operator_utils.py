@@ -27,8 +27,8 @@ import pytest
 from airflow.exceptions import AirflowException
 from airflow.models import DAG
 from airflow.operators.python import PythonOperator
+from airflow.providers.apache.beam.operators.beam import BeamRunPythonPipelineOperator
 from airflow.providers.google.cloud.hooks.gcs import GCSHook
-from airflow.providers.google.cloud.operators.dataflow import DataflowCreatePythonJobOperator
 from airflow.providers.google.cloud.utils.mlengine_operator_utils import create_evaluate_ops
 
 TASK_PREFIX = "test-task-prefix"
@@ -93,8 +93,8 @@ def validate_err_and_count(summary):
 
 class TestMlengineOperatorUtils(unittest.TestCase):
     @mock.patch.object(PythonOperator, "set_upstream")
-    @mock.patch.object(DataflowCreatePythonJobOperator, "set_upstream")
-    def test_create_evaluate_ops(self, mock_dataflow, mock_python):
+    @mock.patch.object(BeamRunPythonPipelineOperator, "set_upstream")
+    def test_create_evaluate_ops(self, mock_beam_pipeline, mock_python):
         result = create_evaluate_ops(
             task_prefix=TASK_PREFIX,
             data_format=DATA_FORMAT,
@@ -111,7 +111,7 @@ class TestMlengineOperatorUtils(unittest.TestCase):
 
         evaluate_prediction, evaluate_summary, evaluate_validation = result
 
-        mock_dataflow.assert_called_once_with(evaluate_prediction)
+        mock_beam_pipeline.assert_called_once_with(evaluate_prediction)
         mock_python.assert_called_once_with(evaluate_summary)
 
         assert TASK_PREFIX_PREDICTION == evaluate_prediction.task_id
@@ -124,17 +124,17 @@ class TestMlengineOperatorUtils(unittest.TestCase):
         assert MODEL_URI == evaluate_prediction._uri
 
         assert TASK_PREFIX_SUMMARY == evaluate_summary.task_id
-        assert DATAFLOW_OPTIONS == evaluate_summary.dataflow_default_options
-        assert PREDICTION_PATH == evaluate_summary.options["prediction_path"]
-        assert METRIC_FN_ENCODED == evaluate_summary.options["metric_fn_encoded"]
-        assert METRIC_KEYS_EXPECTED == evaluate_summary.options["metric_keys"]
+        assert DATAFLOW_OPTIONS == evaluate_summary.default_pipeline_options
+        assert PREDICTION_PATH == evaluate_summary.pipeline_options["prediction_path"]
+        assert METRIC_FN_ENCODED == evaluate_summary.pipeline_options["metric_fn_encoded"]
+        assert METRIC_KEYS_EXPECTED == evaluate_summary.pipeline_options["metric_keys"]
 
         assert TASK_PREFIX_VALIDATION == evaluate_validation.task_id
         assert PREDICTION_PATH == evaluate_validation.templates_dict["prediction_path"]
 
     @mock.patch.object(PythonOperator, "set_upstream")
-    @mock.patch.object(DataflowCreatePythonJobOperator, "set_upstream")
-    def test_create_evaluate_ops_model_and_version_name(self, mock_dataflow, mock_python):
+    @mock.patch.object(BeamRunPythonPipelineOperator, "set_upstream")
+    def test_create_evaluate_ops_model_and_version_name(self, mock_beam_pipeline, mock_python):
         result = create_evaluate_ops(
             task_prefix=TASK_PREFIX,
             data_format=DATA_FORMAT,
@@ -152,7 +152,7 @@ class TestMlengineOperatorUtils(unittest.TestCase):
 
         evaluate_prediction, evaluate_summary, evaluate_validation = result
 
-        mock_dataflow.assert_called_once_with(evaluate_prediction)
+        mock_beam_pipeline.assert_called_once_with(evaluate_prediction)
         mock_python.assert_called_once_with(evaluate_summary)
 
         assert TASK_PREFIX_PREDICTION == evaluate_prediction.task_id
@@ -166,16 +166,16 @@ class TestMlengineOperatorUtils(unittest.TestCase):
         assert VERSION_NAME == evaluate_prediction._version_name
 
         assert TASK_PREFIX_SUMMARY == evaluate_summary.task_id
-        assert DATAFLOW_OPTIONS == evaluate_summary.dataflow_default_options
-        assert PREDICTION_PATH == evaluate_summary.options["prediction_path"]
-        assert METRIC_FN_ENCODED == evaluate_summary.options["metric_fn_encoded"]
-        assert METRIC_KEYS_EXPECTED == evaluate_summary.options["metric_keys"]
+        assert DATAFLOW_OPTIONS == evaluate_summary.default_pipeline_options
+        assert PREDICTION_PATH == evaluate_summary.pipeline_options["prediction_path"]
+        assert METRIC_FN_ENCODED == evaluate_summary.pipeline_options["metric_fn_encoded"]
+        assert METRIC_KEYS_EXPECTED == evaluate_summary.pipeline_options["metric_keys"]
 
         assert TASK_PREFIX_VALIDATION == evaluate_validation.task_id
         assert PREDICTION_PATH == evaluate_validation.templates_dict["prediction_path"]
 
     @mock.patch.object(PythonOperator, "set_upstream")
-    @mock.patch.object(DataflowCreatePythonJobOperator, "set_upstream")
+    @mock.patch.object(BeamRunPythonPipelineOperator, "set_upstream")
     def test_create_evaluate_ops_dag(self, mock_dataflow, mock_python):
         result = create_evaluate_ops(
             task_prefix=TASK_PREFIX,
@@ -204,18 +204,18 @@ class TestMlengineOperatorUtils(unittest.TestCase):
         assert VERSION_NAME == evaluate_prediction._version_name
 
         assert TASK_PREFIX_SUMMARY == evaluate_summary.task_id
-        assert DATAFLOW_OPTIONS == evaluate_summary.dataflow_default_options
-        assert PREDICTION_PATH == evaluate_summary.options["prediction_path"]
-        assert METRIC_FN_ENCODED == evaluate_summary.options["metric_fn_encoded"]
-        assert METRIC_KEYS_EXPECTED == evaluate_summary.options["metric_keys"]
+        assert DATAFLOW_OPTIONS == evaluate_summary.default_pipeline_options
+        assert PREDICTION_PATH == evaluate_summary.pipeline_options["prediction_path"]
+        assert METRIC_FN_ENCODED == evaluate_summary.pipeline_options["metric_fn_encoded"]
+        assert METRIC_KEYS_EXPECTED == evaluate_summary.pipeline_options["metric_keys"]
 
         assert TASK_PREFIX_VALIDATION == evaluate_validation.task_id
         assert PREDICTION_PATH == evaluate_validation.templates_dict["prediction_path"]
 
     @mock.patch.object(GCSHook, "download")
     @mock.patch.object(PythonOperator, "set_upstream")
-    @mock.patch.object(DataflowCreatePythonJobOperator, "set_upstream")
-    def test_apply_validate_fn(self, mock_dataflow, mock_python, mock_download):
+    @mock.patch.object(BeamRunPythonPipelineOperator, "set_upstream")
+    def test_apply_validate_fn(self, mock_beam_pipeline, mock_python, mock_download):
         result = create_evaluate_ops(
             task_prefix=TASK_PREFIX,
             data_format=DATA_FORMAT,
