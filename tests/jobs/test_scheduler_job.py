@@ -2885,7 +2885,6 @@ class TestSchedulerJob:
         session = settings.Session()
         with dag_maker('test_dag1', max_active_runs=1) as dag:
             DummyOperator(task_id='mytask')
-        # dag_maker.create_dagrun()
         date = dag.following_schedule(DEFAULT_DATE)
         for _ in range(30):
             dr = dag.create_dagrun(run_type=DagRunType.SCHEDULED, state=State.QUEUED, execution_date=date)
