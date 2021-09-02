@@ -604,40 +604,6 @@ paths:
         '404':
           $ref: '#/components/responses/NotFound'
 
-  /dags/{dag_id}/dagRuns/{dag_run_id}/state:
-    parameters:
-      - $ref: '#/components/parameters/DAGID'
-      - $ref: '#/components/parameters/DAGRunID'
-
-    post:
-      summary: Set a state of DAG run
-      description: Set a state of DAG run
-      x-openapi-router-controller: airflow.api_connexion.endpoints.dag_run_endpoint
-      operationId: update_dag_run_state
-      tags: [UpdateDagRunState]
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/UpdateDagRunState'
-
-      responses:
-        '200':
-          description: Success.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/DAGRun'
-        '400':
-          $ref: '#/components/responses/BadRequest'
-        '401':
-          $ref: '#/components/responses/Unauthenticated'
-        '403':
-          $ref: '#/components/responses/PermissionDenied'
-        '404':
-          $ref: '#/components/responses/NotFound'
-
   /dags/~/dagRuns/list:
     post:
       summary: List DAG runs (batch)
@@ -699,6 +665,35 @@ paths:
       responses:
         '204':
           description: Success.
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/PermissionDenied'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    patch:
+      summary: Set a state of DAG run
+      description: Set a state of DAG run
+      x-openapi-router-controller: airflow.api_connexion.endpoints.dag_run_endpoint
+      operationId: update_dag_run_state
+      tags: [ UpdateDagRunState ]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateDagRunState'
+
+      responses:
+        '200':
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DAGRun'
         '400':
           $ref: '#/components/responses/BadRequest'
         '401':

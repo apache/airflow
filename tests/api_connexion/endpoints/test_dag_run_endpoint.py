@@ -1170,8 +1170,8 @@ class TestPostSetDagRunState(TestDagRunEndpoint):
 
         request_json = {"state": state}
 
-        response = self.client.post(
-            f"api/v1/dags/{dag_id}/dagRuns/{dag_run_id}/state",
+        response = self.client.patch(
+            f"api/v1/dags/{dag_id}/dagRuns/{dag_run_id}",
             json=request_json,
             environ_overrides={"REMOTE_USER": "test"},
         )
@@ -1200,8 +1200,8 @@ class TestPostSetDagRunState(TestDagRunEndpoint):
 
         request_json = {"state": invalid_state}
 
-        response = self.client.post(
-            "api/v1/dags/TEST_DAG_ID/dagRuns/TEST_DAG_RUN_ID_1/state",
+        response = self.client.patch(
+            "api/v1/dags/TEST_DAG_ID/dagRuns/TEST_DAG_RUN_ID_1",
             json=request_json,
             environ_overrides={"REMOTE_USER": "test"},
         )
@@ -1214,8 +1214,8 @@ class TestPostSetDagRunState(TestDagRunEndpoint):
         }
 
     def test_should_raises_401_unauthenticated(self, session):
-        response = self.client.post(
-            "api/v1/dags/TEST_DAG_ID/dagRuns/TEST_DAG_RUN_ID_1/state",
+        response = self.client.patch(
+            "api/v1/dags/TEST_DAG_ID/dagRuns/TEST_DAG_RUN_ID_1",
             json={
                 "state": 'success',
             },
@@ -1224,8 +1224,8 @@ class TestPostSetDagRunState(TestDagRunEndpoint):
         assert_401(response)
 
     def test_should_raise_403_forbidden(self):
-        response = self.client.post(
-            "api/v1/dags/TEST_DAG_ID/dagRuns/TEST_DAG_RUN_ID_1/state",
+        response = self.client.patch(
+            "api/v1/dags/TEST_DAG_ID/dagRuns/TEST_DAG_RUN_ID_1",
             json={
                 "state": 'success',
             },
@@ -1234,8 +1234,8 @@ class TestPostSetDagRunState(TestDagRunEndpoint):
         assert response.status_code == 403
 
     def test_should_respond_404(self):
-        response = self.client.post(
-            "api/v1/dags/INVALID_DAG_ID/dagRuns/TEST_DAG_RUN_ID_1/state",
+        response = self.client.patch(
+            "api/v1/dags/INVALID_DAG_ID/dagRuns/TEST_DAG_RUN_ID_1",
             json={
                 "state": 'success',
             },
