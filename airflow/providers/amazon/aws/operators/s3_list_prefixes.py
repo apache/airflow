@@ -88,7 +88,7 @@ class S3ListPrefixesOperator(BaseOperator):
         hook = S3Hook(aws_conn_id=self.aws_conn_id, verify=self.verify)
 
         self.log.info(
-            'Getting the list of subfolders from bucket: %s in prefix: %s (Delimiter {%s)',
+            'Getting the list of subfolders from bucket: %s in prefix: %s (Delimiter %s)',
             self.bucket,
             self.prefix,
             self.delimiter,
