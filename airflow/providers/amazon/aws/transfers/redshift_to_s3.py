@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """Transfers data from AWS Redshift into a S3 Bucket."""
-from typing import List, Optional, Union
+from typing import Iterable, List, Mapping, Optional, Union
 
 from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
@@ -66,6 +66,8 @@ class RedshiftToS3Operator(BaseOperator):
     :type autocommit: bool
     :param include_header: If set to True the s3 file contains the header columns.
     :type include_header: bool
+    :param parameters: (optional) the parameters to render the SQL query with.
+    :type parameters: dict or iterable
     :param table_as_file_name: If set to True, the s3 file will be named as the table.
         Applicable when ``table`` param provided.
     :type table_as_file_name: bool
@@ -90,6 +92,7 @@ class RedshiftToS3Operator(BaseOperator):
         unload_options: Optional[List] = None,
         autocommit: bool = False,
         include_header: bool = False,
+        parameters: Optional[Union[Mapping, Iterable]] = None,
         table_as_file_name: bool = True,  # Set to True by default for not breaking current workflows
         **kwargs,
     ) -> None:
@@ -104,6 +107,7 @@ class RedshiftToS3Operator(BaseOperator):
         self.unload_options = unload_options or []  # type: List
         self.autocommit = autocommit
         self.include_header = include_header
+        self.parameters = parameters
         self.table_as_file_name = table_as_file_name
 
         if select_query:
@@ -144,5 +148,5 @@ class RedshiftToS3Operator(BaseOperator):
         )
 
         self.log.info('Executing UNLOAD command...')
-        postgres_hook.run(unload_query, self.autocommit)
+        postgres_hook.run(unload_query, self.autocommit, parameters=self.parameters)
         self.log.info("UNLOAD command complete...")

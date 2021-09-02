@@ -41,7 +41,7 @@ PATH_TO_TRANSFORM_SCRIPT = os.environ.get(
 with models.DAG(
     "example_gcs_timespan_file_transform",
     start_date=days_ago(1),
-    schedule_interval=None,
+    schedule_interval='@once',
     tags=['example'],
 ) as dag:
 

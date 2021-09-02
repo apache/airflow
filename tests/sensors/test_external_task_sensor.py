@@ -15,6 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+import logging
 import unittest
 from datetime import time, timedelta
 
@@ -36,6 +37,7 @@ from tests.test_utils.db import clear_db_runs
 DEFAULT_DATE = datetime(2015, 1, 1)
 TEST_DAG_ID = 'unit_test_dag'
 TEST_TASK_ID = 'time_sensor_check'
+TEST_TASK_ID_ALTERNATE = 'time_sensor_check_alternate'
 DEV_NULL = '/dev/null'
 
 
@@ -50,8 +52,8 @@ class TestExternalTaskSensor(unittest.TestCase):
         self.args = {'owner': 'airflow', 'start_date': DEFAULT_DATE}
         self.dag = DAG(TEST_DAG_ID, default_args=self.args)
 
-    def test_time_sensor(self):
-        op = TimeSensor(task_id=TEST_TASK_ID, target_time=time(0), dag=self.dag)
+    def test_time_sensor(self, task_id=TEST_TASK_ID):
+        op = TimeSensor(task_id=task_id, target_time=time(0), dag=self.dag)
         op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
 
     def test_external_task_sensor(self):
@@ -60,6 +62,17 @@ class TestExternalTaskSensor(unittest.TestCase):
             task_id='test_external_task_sensor_check',
             external_dag_id=TEST_DAG_ID,
             external_task_id=TEST_TASK_ID,
+            dag=self.dag,
+        )
+        op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
+
+    def test_external_task_sensor_multiple_task_ids(self):
+        self.test_time_sensor(task_id=TEST_TASK_ID)
+        self.test_time_sensor(task_id=TEST_TASK_ID_ALTERNATE)
+        op = ExternalTaskSensor(
+            task_id='test_external_task_sensor_check_task_ids',
+            external_dag_id=TEST_DAG_ID,
+            external_task_ids=[TEST_TASK_ID, TEST_TASK_ID_ALTERNATE],
             dag=self.dag,
         )
         op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
@@ -106,9 +119,43 @@ class TestExternalTaskSensor(unittest.TestCase):
             failed_states=["success"],
             dag=self.dag,
         )
-        with pytest.raises(AirflowException) as ctx:
-            op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
-        assert str(ctx.value) == "The external task " "time_sensor_check in DAG " "unit_test_dag failed."
+        with self.assertLogs(op.log, level=logging.INFO) as cm:
+            with pytest.raises(AirflowException) as ctx:
+                op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
+            assert (
+                'INFO:airflow.task.operators:Poking for tasks [\'time_sensor_check\']'
+                ' in dag unit_test_dag on %s ... ' % DEFAULT_DATE.isoformat() in cm.output
+            )
+            assert (
+                str(ctx.value) == "Some of the external tasks "
+                "['time_sensor_check'] in DAG "
+                "unit_test_dag failed."
+            )
+
+    def test_external_task_sensor_failed_states_as_success_mulitple_task_ids(self):
+        self.test_time_sensor(task_id=TEST_TASK_ID)
+        self.test_time_sensor(task_id=TEST_TASK_ID_ALTERNATE)
+        op = ExternalTaskSensor(
+            task_id='test_external_task_sensor_check_task_ids',
+            external_dag_id=TEST_DAG_ID,
+            external_task_ids=[TEST_TASK_ID, TEST_TASK_ID_ALTERNATE],
+            allowed_states=["failed"],
+            failed_states=["success"],
+            dag=self.dag,
+        )
+        with self.assertLogs(op.log, level=logging.INFO) as cm:
+            with pytest.raises(AirflowException) as ctx:
+                op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
+            assert (
+                'INFO:airflow.task.operators:Poking for tasks '
+                '[\'time_sensor_check\', \'time_sensor_check_alternate\'] '
+                'in dag unit_test_dag on %s ... ' % DEFAULT_DATE.isoformat() in cm.output
+            )
+            assert (
+                str(ctx.value) == "Some of the external tasks "
+                "['time_sensor_check', 'time_sensor_check_alternate'] in DAG "
+                "unit_test_dag failed."
+            )
 
     def test_external_dag_sensor(self):
         other_dag = DAG('other_dag', default_args=self.args, end_date=DEFAULT_DATE, schedule_interval='@once')
@@ -297,6 +344,31 @@ exit 0
                 external_task_id=TEST_TASK_ID,
                 execution_delta=timedelta(0),
                 execution_date_fn=lambda dt: dt,
+                allowed_states=['success'],
+                dag=self.dag,
+            )
+
+    def test_external_task_sensor_error_task_id_and_task_ids(self):
+        self.test_time_sensor()
+        # Test that providing execution_delta and a function raises an error
+        with pytest.raises(ValueError):
+            ExternalTaskSensor(
+                task_id='test_external_task_sensor_task_id_and_task_ids',
+                external_dag_id=TEST_DAG_ID,
+                external_task_id=TEST_TASK_ID,
+                external_task_ids=[TEST_TASK_ID],
+                allowed_states=['success'],
+                dag=self.dag,
+            )
+
+    def test_catch_duplicate_task_ids(self):
+        self.test_time_sensor()
+        # Test By passing same task_id multiple times
+        with pytest.raises(ValueError):
+            ExternalTaskSensor(
+                task_id='test_external_task_duplicate_task_ids',
+                external_dag_id=TEST_DAG_ID,
+                external_task_ids=[TEST_TASK_ID, TEST_TASK_ID],
                 allowed_states=['success'],
                 dag=self.dag,
             )

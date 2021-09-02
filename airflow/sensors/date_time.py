@@ -58,6 +58,8 @@ class DateTimeSensor(BaseSensorOperator):
 
     def __init__(self, *, target_time: Union[str, datetime.datetime], **kwargs) -> None:
         super().__init__(**kwargs)
+
+        # self.target_time can't be a datetime object as it is a template_field
         if isinstance(target_time, datetime.datetime):
             self.target_time = target_time.isoformat()
         elif isinstance(target_time, str):
@@ -84,7 +86,10 @@ class DateTimeSensorAsync(DateTimeSensor):
     """
 
     def execute(self, context):
-        self.defer(trigger=DateTimeTrigger(moment=self.target_time), method_name="execute_complete")
+        self.defer(
+            trigger=DateTimeTrigger(moment=timezone.parse(self.target_time)),
+            method_name="execute_complete",
+        )
 
     def execute_complete(self, context, event=None):  # pylint: disable=unused-argument
         """Callback for when the trigger fires - returns immediately."""

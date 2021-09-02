@@ -412,7 +412,7 @@ class DagRun(Base, LoggingMixin):
             unfinished_tasks = info.unfinished_tasks
 
             none_depends_on_past = all(not t.task.depends_on_past for t in unfinished_tasks)
-            none_task_concurrency = all(t.task.task_concurrency is None for t in unfinished_tasks)
+            none_task_concurrency = all(t.task.max_active_tis_per_dag is None for t in unfinished_tasks)
             none_deferred = all(t.state != State.DEFERRED for t in unfinished_tasks)
 
             if unfinished_tasks and none_depends_on_past and none_task_concurrency and none_deferred:
@@ -581,7 +581,7 @@ class DagRun(Base, LoggingMixin):
         This method will be used in the update_state method when the state of the DagRun
         is updated to a completed status (either success or failure). The method will find the first
         started task within the DAG and calculate the expected DagRun start time (based on
-        dag.execution_date & dag.schedule_interval), and minus these two values to get the delay.
+        dag.execution_date & dag.timetable), and minus these two values to get the delay.
         The emitted data may contains outlier (e.g. when the first task was cleared, so
         the second task's start_date will be used), but we can get rid of the outliers
         on the stats side through the dashboards tooling built.
@@ -598,7 +598,7 @@ class DagRun(Base, LoggingMixin):
         try:
             dag = self.get_dag()
 
-            if not self.dag.schedule_interval or self.dag.schedule_interval == "@once":
+            if not self.dag.timetable.periodic:
                 # We can't emit this metric if there is no following schedule to calculate from!
                 return
 

@@ -42,7 +42,7 @@ Content
     Example DAGs <https://github.com/apache/airflow/tree/main/airflow/providers/databricks/example_dags>
     PyPI Repository <https://pypi.org/project/apache-airflow-providers-databricks/>
 
-.. THE REMINDER OF THE FILE IS AUTOMATICALLY GENERATED. IT WILL BE OVERWRITTEN AT RELEASE TIME!
+.. THE REMAINDER OF THE FILE IS AUTOMATICALLY GENERATED. IT WILL BE OVERWRITTEN AT RELEASE TIME!
 
 
 .. toctree::
@@ -58,7 +58,7 @@ Package apache-airflow-providers-databricks
 `Databricks <https://databricks.com/>`__
 
 
-Release: 2.0.0
+Release: 2.0.1
 
 Provider package
 ----------------
@@ -79,7 +79,7 @@ PIP requirements
 PIP package         Version required
 ==================  ==================
 ``apache-airflow``  ``>=2.1.0``
-``requests``        ``>=2.20.0, <3``
+``requests``        ``>=2.26.0, <3``
 ==================  ==================
 
 .. include:: ../../airflow/providers/databricks/CHANGELOG.rst

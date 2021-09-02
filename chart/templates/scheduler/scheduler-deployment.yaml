@@ -144,6 +144,7 @@ spec:
             periodSeconds: {{ .Values.scheduler.livenessProbe.periodSeconds }}
             exec:
               command:
+              - /entrypoint
               - python
               - -Wignore
               - -c
@@ -209,6 +210,11 @@ spec:
           {{- end }}
           {{- if .Values.scheduler.logGroomerSidecar.args }}
           args: {{ tpl (toYaml .Values.scheduler.logGroomerSidecar.args) . | nindent 12 }}
+          {{- end }}
+          {{ if .Values.scheduler.logGroomerSidecar.retentionDays }}
+          env:
+            - name: AIRFLOW__LOG_RETENTION_DAYS
+              value: "{{ .Values.scheduler.logGroomerSidecar.retentionDays }}"
           {{- end }}
           volumeMounts:
             - name: logs

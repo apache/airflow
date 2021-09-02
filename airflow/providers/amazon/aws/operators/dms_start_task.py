@@ -20,7 +20,6 @@ from typing import Optional
 
 from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.dms import DmsHook
-from airflow.utils.decorators import apply_defaults
 
 
 class DmsStartTaskOperator(BaseOperator):
@@ -54,7 +53,6 @@ class DmsStartTaskOperator(BaseOperator):
     template_ext = ()
     template_fields_renderers = {'start_task_kwargs': 'json'}
 
-    @apply_defaults
     def __init__(
         self,
         *,

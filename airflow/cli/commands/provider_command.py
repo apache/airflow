@@ -21,6 +21,8 @@ from airflow.cli.simple_table import AirflowConsole
 from airflow.providers_manager import ProvidersManager
 from airflow.utils.cli import suppress_logs_and_warning
 
+ERROR_IMPORTING_HOOK = "Error when importing hook!"
+
 
 def _remove_rst_syntax(value: str) -> str:
     return re.sub("[`_<>]", "", value.strip(" \n."))
@@ -68,10 +70,10 @@ def hooks_list(args):
         output=args.output,
         mapper=lambda x: {
             "connection_type": x[0],
-            "class": x[1].connection_class,
-            "conn_id_attribute_name": x[1].connection_id_attribute_name,
-            'package_name': x[1].package_name,
-            'hook_name': x[1].hook_name,
+            "class": x[1].hook_class_name if x[1] else ERROR_IMPORTING_HOOK,
+            "conn_id_attribute_name": x[1].connection_id_attribute_name if x[1] else ERROR_IMPORTING_HOOK,
+            'package_name': x[1].package_name if x[1] else ERROR_IMPORTING_HOOK,
+            'hook_name': x[1].hook_name if x[1] else ERROR_IMPORTING_HOOK,
         },
     )
 
@@ -84,7 +86,7 @@ def connection_form_widget_list(args):
         output=args.output,
         mapper=lambda x: {
             "connection_parameter_name": x[0],
-            "class": x[1].connection_class,
+            "class": x[1].hook_class_name,
             'package_name': x[1].package_name,
             'field_type': x[1].field.field_class.__name__,
         },

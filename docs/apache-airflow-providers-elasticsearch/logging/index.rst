@@ -17,7 +17,7 @@
 
 .. _write-logs-elasticsearch:
 
-Writing Logs to Elasticsearch
+Writing logs to Elasticsearch
 -----------------------------
 
 Airflow can be configured to read task logs from Elasticsearch and optionally write logs to stdout in standard or json format. These logs can later be collected and forwarded to the Elasticsearch cluster using tools like fluentd, logstash or others.
@@ -64,7 +64,7 @@ To output task logs to stdout in JSON format, the following config could be used
 
 .. _write-logs-elasticsearch-tls:
 
-Writing Logs to Elasticsearch over TLS
+Writing logs to Elasticsearch over TLS
 ''''''''''''''''''''''''''''''''''''''
 
 To add custom configurations to ElasticSearch (e.g. turning on ``ssl_verify``, adding a custom self-signed
@@ -91,7 +91,7 @@ Elasticsearch External Link
 
 A user can configure Airflow to show a link to an Elasticsearch log viewing system (e.g. Kibana).
 
-To enable it, ``airflow.cfg`` must be configured as in the example below. Note the required ``{log_id}`` in the URL, when constructing the external link, Airflow replaces this parameter with the same ``log_id_template`` used for writing logs (see `Writing Logs to Elasticsearch`_).
+To enable it, ``airflow.cfg`` must be configured as in the example below. Note the required ``{log_id}`` in the URL, when constructing the external link, Airflow replaces this parameter with the same ``log_id_template`` used for writing logs (see `Writing logs to Elasticsearch`_).
 
 .. code-block:: ini
 
