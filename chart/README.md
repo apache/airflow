@@ -38,9 +38,9 @@ cluster using the [Helm](https://helm.sh) package manager.
 
 * Supported executors: ``LocalExecutor``, ``CeleryExecutor``, ``CeleryKubernetesExecutor``, ``KubernetesExecutor``.
 * Supported Airflow version: ``1.10+``, ``2.0+``
-* Supported database backend: ``PostgresSQL``, ``MySQL``
+* Supported database backend: ``PostgreSQL``, ``MySQL``
 * Autoscaling for ``CeleryExecutor`` provided by KEDA
-* PostgresSQL and PgBouncer with a battle-tested configuration
+* PostgreSQL and PgBouncer with a battle-tested configuration
 * Monitoring:
    * StatsD/Prometheus metrics for Airflow
    * Prometheus metrics for PgBouncer

@@ -2203,7 +2203,7 @@ class ClassifiedChanges(NamedTuple):
 
 def get_changes_classified(changes: List[Change]) -> ClassifiedChanges:
     """
-    Pre-classifies changes based on commit messsage, it's wildly guessing now,
+    Pre-classifies changes based on commit message, it's wildly guessing now,
     but if we switch to semantic commits, it could be automated. This list is supposed to be manually
     reviewed and re-classified by release manager anyway.
 

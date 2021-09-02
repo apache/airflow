@@ -640,7 +640,7 @@ class DataflowHook(GoogleBaseHook):
                 <https://cloud.google.com/dataflow/docs/reference/rest/v1b3/RuntimeEnvironment>`__
 
         :type variables: dict
-        :param parameters: Parameters fot the template
+        :param parameters: Parameters for the template
         :type parameters: dict
         :param dataflow_template: GCS path to the template.
         :type dataflow_template: str

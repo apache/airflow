@@ -99,7 +99,7 @@ jobs:
           fi
       - name: "Label when approved by committers for PRs that require full tests"
         uses: ./.github/actions/label-when-approved-action
-        id: label-full-test-prs-when-approved-by-commiters
+        id: label-full-test-prs-when-approved-by-committers
         if: >
           steps.selective-checks.outputs.run-tests == 'true' &&
           contains(steps.selective-checks.outputs.test-types, 'Core')
@@ -117,7 +117,7 @@ jobs:
       - name: "Initiate GitHub Check forcing rerun of SH ${{ github.event.pull_request.head.sha }}"
         uses: ./.github/actions/checks-action
         id: full-test-check
-        if: steps.label-full-test-prs-when-approved-by-commiters.outputs.labelSet == 'true'
+        if: steps.label-full-test-prs-when-approved-by-committers.outputs.labelSet == 'true'
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           name: "Please rebase or amend, and force push the PR to run full tests"
@@ -131,7 +131,7 @@ jobs:
             "}
       - name: "Label when approved by committers for PRs that do not require full tests"
         uses: ./.github/actions/label-when-approved-action
-        id: label-simple-test-prs-when-approved-by-commiters
+        id: label-simple-test-prs-when-approved-by-committers
         if: >
           steps.selective-checks.outputs.run-tests == 'true' &&
           ! contains(steps.selective-checks.outputs.test-types, 'Core')
@@ -148,7 +148,7 @@ jobs:
             of the PR, and push it with --force-with-lease.
       - name: "Label when approved by committers for PRs that do not require tests at all"
         uses: ./.github/actions/label-when-approved-action
-        id: label-no-test-prs-when-approved-by-commiters
+        id: label-no-test-prs-when-approved-by-committers
         if: steps.selective-checks.outputs.run-tests != 'true'
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
