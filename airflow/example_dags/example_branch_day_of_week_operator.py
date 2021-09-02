@@ -25,14 +25,9 @@ from airflow.operators.dummy import DummyOperator
 from airflow.operators.weekday import BranchDayOfWeekOperator
 from airflow.utils.dates import days_ago
 
-args = {
-    "owner": "airflow",
-}
-
 with DAG(
     dag_id="example_weekday_branch_operator",
     start_date=days_ago(2),
-    default_args=args,
     tags=["example"],
     schedule_interval="@daily",
 ) as dag:

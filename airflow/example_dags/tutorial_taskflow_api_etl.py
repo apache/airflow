@@ -26,17 +26,9 @@ from airflow.utils.dates import days_ago
 
 # [END import_module]
 
-# [START default_args]
-# These args will get passed on to each operator
-# You can override them on a per-task basis during operator initialization
-default_args = {
-    'owner': 'airflow',
-}
-# [END default_args]
-
 
 # [START instantiate_dag]
-@dag(default_args=default_args, schedule_interval=None, start_date=days_ago(2), tags=['example'])
+@dag(schedule_interval=None, start_date=days_ago(2), tags=['example'])
 def tutorial_taskflow_api_etl():
     """
     ### TaskFlow API Tutorial Documentation
