@@ -1628,13 +1628,13 @@ class TestSchedulerJob:
         assert len(task_instances_list) == 1
 
     @pytest.mark.need_serialized_dag
-    def test_scheduler_verify_pool_full_2_slots_per_task(self, dag_maker):
+    def test_scheduler_verify_pool_full_2_slots_per_task(self, dag_maker, session):
         """
         Test task instances not queued when pool is full.
 
         Variation with non-default pool_slots
         """
-        with dag_maker(dag_id='test_scheduler_verify_pool_full_2_slots_per_task') as dag:
+        with dag_maker(dag_id='test_scheduler_verify_pool_full_2_slots_per_task', session=session) as dag:
             BashOperator(
                 task_id='dummy',
                 pool='test_scheduler_verify_pool_full_2_slots_per_task',
@@ -1642,7 +1642,6 @@ class TestSchedulerJob:
                 bash_command='echo hi',
             )
 
-        session = settings.Session()
         pool = Pool(pool='test_scheduler_verify_pool_full_2_slots_per_task', slots=6)
         session.add(pool)
         session.flush()
@@ -1658,6 +1657,7 @@ class TestSchedulerJob:
                 run_type=DagRunType.SCHEDULED,
                 execution_date=date,
                 state=State.RUNNING,
+                session=session,
             )
             self.scheduler_job._schedule_dag_run(dr, session)
 
