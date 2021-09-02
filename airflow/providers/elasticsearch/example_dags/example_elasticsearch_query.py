@@ -18,7 +18,7 @@
 from datetime import datetime, timedelta
 
 from airflow import DAG
-from airflow.operators.python_operator import PythonOperator
+from airflow.operators.python import PythonOperator
 from airflow.providers.elasticsearch.hooks.elasticsearch import ElasticsearchHook
 
 
