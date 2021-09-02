@@ -176,11 +176,9 @@ function run_airflow_testing_in_docker() {
     if [[ ${exit_code} == 0 ]]; then
         echo
         echo "${COLOR_GREEN}Test type: ${TEST_TYPE} succeeded.${COLOR_RESET}"
-        echo
     else
         echo
         echo "${COLOR_RED}Test type: ${TEST_TYPE} failed.${COLOR_RESET}"
-        echo
     fi
     return "${exit_code}"
 }
