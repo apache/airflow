@@ -42,7 +42,6 @@ def print_value(value):
 
 with DAG(
     dag_id='example_xcom_args',
-    default_args={'owner': 'airflow'},
     start_date=days_ago(2),
     schedule_interval=None,
     tags=['example'],
@@ -57,7 +56,6 @@ with DAG(
 
 with DAG(
     "example_xcom_args_with_operators",
-    default_args={'owner': 'airflow'},
     start_date=days_ago(2),
     schedule_interval=None,
     tags=['example'],

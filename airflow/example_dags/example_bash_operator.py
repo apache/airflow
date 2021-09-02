@@ -25,13 +25,8 @@ from airflow.operators.bash import BashOperator
 from airflow.operators.dummy import DummyOperator
 from airflow.utils.dates import days_ago
 
-args = {
-    'owner': 'airflow',
-}
-
 with DAG(
     dag_id='example_bash_operator',
-    default_args=args,
     schedule_interval='0 0 * * *',
     start_date=days_ago(2),
     dagrun_timeout=timedelta(minutes=60),
