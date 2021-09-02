@@ -34,7 +34,6 @@ from azure.mgmt.datafactory.models import (
 
 from airflow.exceptions import AirflowException
 from airflow.hooks.base import BaseHook
-from airflow.typing_compat import Literal
 
 
 def provide_targeted_factory(func: Callable) -> Callable:
@@ -585,11 +584,10 @@ class AzureDataFactoryHook(BaseHook):
         """
         return self.get_conn().pipeline_runs.get(resource_group_name, factory_name, run_id, **config)
 
-    @provide_targeted_factory
     def check_pipeline_run_status(
         self,
         run_id: str,
-        mode: Literal["poke", "wait"] = "wait",
+        wait_for_completion: bool = True,
         expected_status: str = AzureDataFactoryPipelineRunStatus.SUCCEEDED,
         check_interval: Optional[int] = 60,
         timeout: Optional[int] = 60 * 60 * 24 * 7,
@@ -602,12 +600,12 @@ class AzureDataFactoryHook(BaseHook):
         terminal status or the desired status.
 
         :param run_id: The pipeline run identifier.
-        :param mode: If set to "wait", periodically check a pipeline run's status to see if it has reached a
-            terminal or desired status. If set to "poke", check a pipeline run's status only once and return
-            whether or not the status matches the ``expected_status``.
+        :param wait_for_completion: If enabled, periodically check a pipeline run's status to see if it has
+            reached a terminal or the desired status. Otherwise, check a pipeline run's status only once and
+            return whether or not the status matches the ``expected_status``.
         :param expected_status: The desired status of a pipeline run.
-        :param check_interval: Time in seconds to check a pipeline run's status when ``mode`` is set to
-            "wait".
+        :param check_interval: Time in seconds to check a pipeline run's status when ``wait_for_completion``
+            is enabled.
         :param timeout: Time in seconds to wait for a pipeline to reach a terminal status when ``mode`` is set
             to "wait".
         :param resource_group_name: The resource group name.
@@ -615,11 +613,6 @@ class AzureDataFactoryHook(BaseHook):
         :return: Boolean value indicating if the current pipeline run's status matches the
             ``expected_status``.
         """
-        if mode not in ("wait", "poke"):
-            raise ValueError(
-                f"The configured mode, '{mode}', is not supported.  Please use 'wait' or 'poke'."
-            )
-
         pipeline_run = self.get_pipeline_run(
             run_id=run_id,
             factory_name=factory_name,
@@ -628,7 +621,7 @@ class AzureDataFactoryHook(BaseHook):
         )
         pipeline_run_status = pipeline_run.status
 
-        if mode == "wait":
+        if wait_for_completion:
             start_time = time.monotonic()
 
             while (
