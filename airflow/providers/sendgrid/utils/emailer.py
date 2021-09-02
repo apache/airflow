@@ -37,6 +37,7 @@ from sendgrid.helpers.mail import (
     SandBoxMode,
 )
 
+from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.hooks.base import BaseHook
 from airflow.utils.email import get_email_address_list
@@ -68,7 +69,13 @@ def send_email(
 
     mail = Mail()
     from_email = kwargs.get('from_email') or os.environ.get('SENDGRID_MAIL_FROM')
+    if not from_email and conf.has_option('sendgrid', 'sendgrid_mail_from'):
+        from_email = conf.get('sendgrid', 'sendgrid_mail_from')
+
     from_name = kwargs.get('from_name') or os.environ.get('SENDGRID_MAIL_SENDER')
+    if not from_name and conf.has_option('sendgrid', 'sendgrid_mail_sender'):
+        from_name = conf.get('sendgrid', 'sendgrid_mail_sender')
+
     mail.from_email = Email(from_email, from_name)
     mail.subject = subject
     mail.mail_settings = MailSettings()

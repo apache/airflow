@@ -24,6 +24,7 @@ import unittest
 from unittest import mock
 
 from airflow.providers.sendgrid.utils.emailer import send_email
+from tests.test_utils.config import conf_vars
 
 
 class TestSendEmailSendGrid(unittest.TestCase):
@@ -63,6 +64,12 @@ class TestSendEmailSendGrid(unittest.TestCase):
         self.expected_mail_data_sender['from'] = {
             'name': 'Foo Bar',
             'email': 'foo@foo.bar',
+        }
+        # sender from conf
+        self.expected_mail_data_conf_sender = copy.deepcopy(self.expected_mail_data)
+        self.expected_mail_data_conf_sender['from'] = {
+            'name': 'Foo Conf',
+            'email': 'foo@conf.com',
         }
 
     # Test the right email is constructed.
@@ -125,3 +132,16 @@ class TestSendEmailSendGrid(unittest.TestCase):
             from_name='Foo Bar',
         )
         mock_post.assert_called_once_with(self.expected_mail_data_sender, "sendgrid_default")
+
+    @mock.patch('airflow.providers.sendgrid.utils.emailer._post_sendgrid_mail')
+    @conf_vars({("sendgrid", 'sendgrid_mail_from'): 'foo@conf.com',
+                ("sendgrid", 'sendgrid_mail_sender'): 'Foo Conf'})
+    def test_send_email_sendgrid_sender_conf(self, mock_post):
+        send_email(
+            self.recipients,
+            self.subject,
+            self.html_content,
+            cc=self.carbon_copy,
+            bcc=self.bcc
+        )
+        mock_post.assert_called_once_with(self.expected_mail_data_conf_sender, "sendgrid_default")

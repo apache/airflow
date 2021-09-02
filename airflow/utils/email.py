@@ -24,7 +24,7 @@ import warnings
 from email.mime.application import MIMEApplication
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
-from email.utils import formatdate
+from email.utils import formatdate, formataddr
 from typing import Any, Dict, Iterable, List, Optional, Tuple, Union
 
 from airflow.configuration import conf
@@ -85,7 +85,18 @@ def send_email_smtp(
 
     >>> send_email('test@example.com', 'foo', '<b>Foo</b> bar', ['/dev/null'], dryrun=True)
     """
-    smtp_mail_from = conf.get('smtp', 'SMTP_MAIL_FROM')
+    from_email = kwargs.get('from_email') or os.environ.get('SMTP_MAIL_FROM')
+    if not from_email and conf.has_option('smtp', 'smtp_mail_from'):
+        from_email = conf.get('smtp', 'smtp_mail_from')
+
+    from_name = kwargs.get('from_name') or os.environ.get('SMTP_MAIL_SENDER')
+    if not from_name and conf.has_option('smtp', 'smtp_mail_sender'):
+        from_name = conf.get('smtp', 'smtp_mail_sender')
+
+    if from_email:
+        smtp_mail_from = formataddr((from_name, from_email))
+    else:
+        smtp_mail_from = None
 
     msg, recipients = build_mime_message(
         mail_from=smtp_mail_from,
