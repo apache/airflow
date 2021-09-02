@@ -1572,6 +1572,7 @@ class BaseOperator(Operator, LoggingMixin, TaskMixin, metaclass=BaseOperatorMeta
                     'subdag',
                     'ui_color',
                     'ui_fgcolor',
+                    'template_ext',
                     'template_fields',
                     'template_fields_renderers',
                 }

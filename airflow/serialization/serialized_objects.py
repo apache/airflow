@@ -434,6 +434,7 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
         # Move class attributes into object attributes.
         self.ui_color = BaseOperator.ui_color
         self.ui_fgcolor = BaseOperator.ui_fgcolor
+        self.template_ext = BaseOperator.template_ext
         self.template_fields = BaseOperator.template_fields
         self.operator_extra_links = BaseOperator.operator_extra_links
 
