@@ -31,7 +31,6 @@ from airflow.api_connexion.schemas.dag_run_schema import (
     dagruns_batch_form_schema,
     set_dagrun_state_form_schema,
 )
-from airflow.exceptions import DagRunNotFound
 from airflow.models import DagModel, DagRun
 from airflow.security import permissions
 from airflow.utils.session import provide_session
