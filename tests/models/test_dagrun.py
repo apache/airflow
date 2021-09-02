@@ -736,53 +736,6 @@ class TestDagRun(unittest.TestCase):
         runs = DagRun.next_dagruns_to_examine(state, session).all()
         assert runs == []
 
-    def test_next_queued_dagruns_to_examine_only_for_a_particular_dag(self):
-        """
-        Check that only queued dagruns for a particular dag is retrieved
-        from the get_next_queued_dagruns_for_dag method
-        """
-
-        dag = DAG(dag_id='test_dags', start_date=DEFAULT_DATE)
-        DummyOperator(task_id='dummy', dag=dag, owner='airflow')
-
-        dag2 = DAG(dag_id='test_dags2', start_date=DEFAULT_DATE)
-        DummyOperator(task_id='dummy', dag=dag2, owner='airflow')
-
-        session = settings.Session()
-        orm_dag = DagModel(
-            dag_id=dag.dag_id,
-            has_task_concurrency_limits=False,
-            next_dagrun=dag.start_date,
-            next_dagrun_create_after=dag.following_schedule(DEFAULT_DATE),
-            is_active=True,
-        )
-        orm_dag2 = DagModel(
-            dag_id=dag2.dag_id,
-            has_task_concurrency_limits=False,
-            next_dagrun=dag2.start_date,
-            next_dagrun_create_after=dag.following_schedule(DEFAULT_DATE),
-            is_active=True,
-        )
-
-        session.add_all([orm_dag, orm_dag2])
-        session.flush()
-        dr = dag.create_dagrun(
-            run_type=DagRunType.SCHEDULED,
-            state=State.QUEUED,
-            execution_date=DEFAULT_DATE,
-            session=session,
-        )
-        dag2.create_dagrun(
-            run_type=DagRunType.SCHEDULED,
-            state=State.QUEUED,
-            execution_date=DEFAULT_DATE,
-            session=session,
-        )
-
-        runs = DagRun.get_next_queued_dagruns_for_dag(dag.dag_id, session).all()
-
-        assert runs == [dr]
-
     @mock.patch.object(Stats, 'timing')
     def test_no_scheduling_delay_for_nonscheduled_runs(self, stats_mock):
         """
