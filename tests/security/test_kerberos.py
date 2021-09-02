@@ -43,6 +43,49 @@ class TestKerberos(unittest.TestCase):
         """
         assert renew_from_kt(principal=self.args.principal, keytab=self.args.keytab) is None
 
+    @conf_vars({('kerberos', 'keytab'): KRB5_KTNAME, ('kerberos', 'include_ip'): ''})
+    def test_renew_from_kt_include_ip_empty(self):
+        """
+        We expect no result, but a successful run.
+        """
+        assert renew_from_kt(principal=self.args.principal, keytab=self.args.keytab) is None
+
+    @conf_vars({('kerberos', 'keytab'): KRB5_KTNAME, ('kerberos', 'include_ip'): 'False'})
+    def test_renew_from_kt_include_ip_false(self):
+        """
+        We expect no result, but a successful run.
+        """
+        assert renew_from_kt(principal=self.args.principal, keytab=self.args.keytab) is None
+
+    @conf_vars({('kerberos', 'keytab'): KRB5_KTNAME, ('kerberos', 'include_ip'): 'True'})
+    def test_renew_from_kt_include_ip_true(self):
+        """
+        We expect no result, but a successful run.
+        """
+        assert renew_from_kt(principal=self.args.principal, keytab=self.args.keytab) is None
+
+    # Validate forwardable kerberos option
+    @conf_vars({('kerberos', 'keytab'): KRB5_KTNAME, ('kerberos', 'forwardable'): ''})
+    def test_renew_from_kt_forwardable_empty(self):
+        """
+        We expect no result, but a successful run.
+        """
+        assert renew_from_kt(principal=self.args.principal, keytab=self.args.keytab) is None
+
+    @conf_vars({('kerberos', 'keytab'): KRB5_KTNAME, ('kerberos', 'forwardable'): 'False'})
+    def test_renew_from_kt_forwardable_false(self):
+        """
+        We expect no result, but a successful run.
+        """
+        assert renew_from_kt(principal=self.args.principal, keytab=self.args.keytab) is None
+
+    @conf_vars({('kerberos', 'keytab'): KRB5_KTNAME, ('kerberos', 'forwardable'): 'True'})
+    def test_renew_from_kt_forwardable_true(self):
+        """
+        We expect no result, but a successful run.
+        """
+        assert renew_from_kt(principal=self.args.principal, keytab=self.args.keytab) is None
+
     @conf_vars({('kerberos', 'keytab'): ''})
     def test_args_from_cli(self):
         """

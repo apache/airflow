@@ -1117,6 +1117,11 @@ cleanup:
   enabled: false
   # Run every 15 minutes
   schedule: "*/15 * * * *"
+  # Command to use when running the cleanup cronjob (templated).
+  command: ~
+  # Args to use when running the cleanup cronjob (templated).
+  args: ["bash", "-c", "exec airflow kubernetes cleanup-pods --namespace={{ .Release.Namespace }}"]
+
 
   # Select certain nodes for airflow cleanup pods.
   nodeSelector: {}
