@@ -52,7 +52,7 @@ with DAG(
     run_pipeline2 = AzureDataFactoryRunPipelineOperator(
         task_id="run_pipeline2",
         pipeline_name="pipeline2",
-        wait_for_pipeline_run=False,
+        wait_for_completion=False,
     )
 
     wait_for_pipeline_run = AzureDataFactoryPipelineRunStatusSensor(

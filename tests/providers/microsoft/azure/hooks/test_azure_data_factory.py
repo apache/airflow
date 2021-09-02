@@ -17,7 +17,7 @@
 
 
 import json
-from unittest.mock import MagicMock, Mock
+from unittest.mock import MagicMock, Mock, patch
 
 import pytest
 from pytest import fixture
@@ -26,6 +26,8 @@ from airflow.exceptions import AirflowException
 from airflow.models.connection import Connection
 from airflow.providers.microsoft.azure.hooks.data_factory import (
     AzureDataFactoryHook,
+    AzureDataFactoryPipelineRunException,
+    AzureDataFactoryPipelineRunStatus,
     provide_targeted_factory,
 )
 from airflow.utils import db
@@ -340,6 +342,44 @@ def test_get_pipeline_run(hook: AzureDataFactoryHook, user_args, sdk_args):
     hook.get_pipeline_run(*user_args)
 
     hook._conn.pipeline_runs.get.assert_called_with(*sdk_args)
+
+
+def test_check_pipeline_run_status(hook):
+    config = {"run_id": ID, "timeout": 5, "check_interval": 1}
+
+    with patch.object(AzureDataFactoryHook, "get_pipeline_run") as mock_pipeline_run:
+        # Begin tests when ``wait_for_completion`` is enabled -- the default behavior.
+        mock_pipeline_run.return_value.status = AzureDataFactoryPipelineRunStatus.SUCCEEDED
+        assert hook.check_pipeline_run_status(**config)
+
+        mock_pipeline_run.return_value.status = AzureDataFactoryPipelineRunStatus.FAILED
+        with pytest.raises(AzureDataFactoryPipelineRunException):
+            hook.check_pipeline_run_status(**config)
+
+        mock_pipeline_run.return_value.status = AzureDataFactoryPipelineRunStatus.CANCELLED
+        with pytest.raises(AzureDataFactoryPipelineRunException):
+            hook.check_pipeline_run_status(**config)
+
+        # Begin tests when ``wait_for_completion`` is disabled (aka poking for status).
+        mock_pipeline_run.return_value.status = AzureDataFactoryPipelineRunStatus.SUCCEEDED
+        assert hook.check_pipeline_run_status(wait_for_completion=False, **config)
+
+        mock_pipeline_run.return_value.status = AzureDataFactoryPipelineRunStatus.IN_PROGRESS
+        assert not hook.check_pipeline_run_status(wait_for_completion=False, **config)
+
+        mock_pipeline_run.return_value.status = AzureDataFactoryPipelineRunStatus.QUEUED
+        assert not hook.check_pipeline_run_status(wait_for_completion=False, **config)
+
+        mock_pipeline_run.return_value.status = AzureDataFactoryPipelineRunStatus.CANCELING
+        assert not hook.check_pipeline_run_status(wait_for_completion=False, **config)
+
+        mock_pipeline_run.return_value.status = AzureDataFactoryPipelineRunStatus.FAILED
+        with pytest.raises(AzureDataFactoryPipelineRunException):
+            hook.check_pipeline_run_status(wait_for_completion=False, **config)
+
+        mock_pipeline_run.return_value.status = AzureDataFactoryPipelineRunStatus.CANCELLED
+        with pytest.raises(AzureDataFactoryPipelineRunException):
+            hook.check_pipeline_run_status(wait_for_completion=False, **config)
 
 
 @parametrize(

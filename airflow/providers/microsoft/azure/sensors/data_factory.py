@@ -58,7 +58,7 @@ class AzureDataFactoryPipelineRunStatusSensor(BaseSensorOperator):
 
         return self.hook.check_pipeline_run_status(
             run_id=self.run_id,
-            mode="poke",
+            wait_for_completion=False,
             resource_group_name=self.resource_group_name,
             factory_name=self.factory_name,
         )
