@@ -109,210 +109,210 @@ are run in "CI Build" or "Build Image" workflows they can take different values.
 
 You can use those variables when you try to reproduce the build locally.
 
-+-----------------------------------------+-------------+-------------+------------+-------------------------------------------------+
-| Variable                                | Local       | Build Image | Main CI    | Comment                                         |
-|                                         | development | CI workflow | Workflow   |                                                 |
-+=========================================+=============+=============+============+=================================================+
-|                                                           Basic variables                                                          |
-+-----------------------------------------+-------------+-------------+------------+-------------------------------------------------+
-| ``PYTHON_MAJOR_MINOR_VERSION``          |             |             |            | Major/Minor version of Python used.             |
-+-----------------------------------------+-------------+-------------+------------+-------------------------------------------------+
-| ``DB_RESET``                            |    false    |     true    |    true    | Determines whether database should be reset     |
-|                                         |             |             |            | at the container entry. By default locally      |
-|                                         |             |             |            | the database is not reset, which allows to      |
-|                                         |             |             |            | keep the database content between runs in       |
-|                                         |             |             |            | case of Postgres or MySQL. However,             |
-|                                         |             |             |            | it requires to perform manual init/reset        |
-|                                         |             |             |            | if you stop the environment.                    |
-+-----------------------------------------+-------------+-------------+------------+-------------------------------------------------+
-|                                                           Mount variables                                                          |
-+-----------------------------------------+-------------+-------------+------------+-------------------------------------------------+
-| ``MOUNT_SELECTED_LOCAL_SOURCES``        |     true    |    false    |    false   | Determines whether local sources are            |
-|                                         |             |             |            | mounted to inside the container. Useful for     |
-|                                         |             |             |            | local development, as changes you make          |
-|                                         |             |             |            | locally can be immediately tested in            |
-|                                         |             |             |            | the container. We mount only selected,          |
-|                                         |             |             |            | important folders. We do not mount the whole    |
-|                                         |             |             |            | project folder in order to avoid accidental     |
-|                                         |             |             |            | use of artifacts (such as ``egg-info``          |
-|                                         |             |             |            | directories) generated locally on the           |
-|                                         |             |             |            | host during development.                        |
-+-----------------------------------------+-------------+-------------+------------+-------------------------------------------------+
-| ``MOUNT_ALL_LOCAL_SOURCES``             |     false   |    false    |    false   | Determines whether all local sources are        |
-|                                         |             |             |            | mounted to inside the container. Useful for     |
-|                                         |             |             |            | local development when you need to access .git  |
-|                                         |             |             |            | folders and other folders excluded when         |
-|                                         |             |             |            | ``MOUNT_SELECTED_LOCAL_SOURCES`` is true.       |
-|                                         |             |             |            | You might need to manually delete egg-info      |
-|                                         |             |             |            | folder when you enter breeze and the folder was |
-|                                         |             |             |            | generated using different Python versions.      |
-+-----------------------------------------+-------------+-------------+------------+-------------------------------------------------+
-|                                                           Force variables                                                          |
-+-----------------------------------------+-------------+-------------+------------+-------------------------------------------------+
-| ``FORCE_PULL_IMAGES``                   |    true     |    true     |    true    | Determines if images are force-pulled,          |
-|                                         |             |             |            | no matter if they are already present           |
-|                                         |             |             |            | locally. This includes not only the             |
-|                                         |             |             |            | CI/PROD images but also the Python base         |
-|                                         |             |             |            | images. Note that if Python base images         |
-|                                         |             |             |            | change, also the CI and PROD images             |
-|                                         |             |             |            | need to be fully rebuild unless they were       |
-|                                         |             |             |            | already built with that base Python             |
-|                                         |             |             |            | image. This is false for local development      |
-|                                         |             |             |            | to avoid often pulling and rebuilding           |
-|                                         |             |             |            | the image. It is true for CI workflow in        |
-|                                         |             |             |            | case waiting from images is enabled             |
-|                                         |             |             |            | as the images needs to be force-pulled from     |
-|                                         |             |             |            | GitHub Registry, but it is set to               |
-|                                         |             |             |            | false when waiting for images is disabled.      |
-+-----------------------------------------+-------------+-------------+------------+-------------------------------------------------+
-| ``FORCE_BUILD_IMAGES``                  |    false    |    false    |    false   | Forces building images. This is generally not   |
-|                                         |             |             |            | very useful in CI as in CI environment image    |
-|                                         |             |             |            | is built or pulled only once, so there is no    |
-|                                         |             |             |            | need to set the variable to true. For local     |
-|                                         |             |             |            | builds it forces rebuild, regardless if it      |
-|                                         |             |             |            | is determined to be needed.                     |
-+-----------------------------------------+-------------+-------------+------------+-------------------------------------------------+
-| ``FORCE_ANSWER_TO_QUESTIONS``           |             |     yes     |     yes    | This variable determines if answer to questions |
-|                                         |             |             |            | during the build process should be              |
-|                                         |             |             |            | automatically given. For local development,     |
-|                                         |             |             |            | the user is occasionally asked to provide       |
-|                                         |             |             |            | answers to questions such as - whether          |
-|                                         |             |             |            | the image should be rebuilt. By default         |
-|                                         |             |             |            | the user has to answer but in the CI            |
-|                                         |             |             |            | environment, we force "yes" answer.             |
-+-----------------------------------------+-------------+-------------+------------+-------------------------------------------------+
-| ``SKIP_CHECK_REMOTE_IMAGE``             |    false    |     true    |    true    | Determines whether we check if remote image     |
-|                                         |             |             |            | is "fresher" than the current image.            |
-|                                         |             |             |            | When doing local breeze runs we try to          |
-|                                         |             |             |            | determine if it will be faster to rebuild       |
-|                                         |             |             |            | the image or whether the image should be        |
-|                                         |             |             |            | pulled first from the cache because it has      |
-|                                         |             |             |            | been rebuilt. This is slightly experimental     |
-|                                         |             |             |            | feature and will be improved in the future      |
-|                                         |             |             |            | as the current mechanism does not always        |
-|                                         |             |             |            | work properly.                                  |
-+-----------------------------------------+-------------+-------------+------------+-------------------------------------------------+
-|                                                           Host variables                                                           |
-+-----------------------------------------+-------------+-------------+------------+-------------------------------------------------+
-| ``HOST_USER_ID``                        |             |             |            | User id of the host user.                       |
-+-----------------------------------------+-------------+-------------+------------+-------------------------------------------------+
-| ``HOST_GROUP_ID``                       |             |             |            | Group id of the host user.                      |
-+-----------------------------------------+-------------+-------------+------------+-------------------------------------------------+
-| ``HOST_OS``                             |             |    Linux    |    Linux   | OS of the Host (Darwin/Linux).                  |
-+-----------------------------------------+-------------+-------------+------------+-------------------------------------------------+
-| ``HOST_HOME``                           |             |             |            | Home directory on the host.                     |
-+-----------------------------------------+-------------+-------------+------------+-------------------------------------------------+
-|                                                      Version suffix variables                                                      |
-+-----------------------------------------+-------------+-------------+------------+-------------------------------------------------+
-| ``VERSION_SUFFIX_FOR_PYPI``             |             |             |            | Version suffix used during provider             |
-|                                         |             |             |            | package preparation for PyPI builds.            |
-+-----------------------------------------+-------------+-------------+------------+-------------------------------------------------+
-|                                                            Git variables                                                           |
-+-----------------------------------------+-------------+-------------+------------+-------------------------------------------------+
-| COMMIT_SHA                              |             | GITHUB_SHA  | GITHUB_SHA | SHA of the commit of the build is run           |
-+-----------------------------------------+-------------+-------------+------------+-------------------------------------------------+
-|                                                         Verbosity variables                                                        |
-+-----------------------------------------+-------------+-------------+------------+-------------------------------------------------+
-| ``PRINT_INFO_FROM_SCRIPTS``             |   true\*    |    true\*   |    true\*  | Allows to print output to terminal from running |
-|                                         |             |             |            | scripts. It prints some extra outputs if true   |
-|                                         |             |             |            | including what the commands do, results of some |
-|                                         |             |             |            | operations, summary of variable values, exit    |
-|                                         |             |             |            | status from the scripts, outputs of failing     |
-|                                         |             |             |            | commands. If verbose is on it also prints the   |
-|                                         |             |             |            | commands executed by docker, kind, helm,        |
-|                                         |             |             |            | kubectl. Disabled in pre-commit checks.         |
-|                                         |             |             |            |                                                 |
-|                                         |             |             |            | \* set to false in pre-commits                  |
-+-----------------------------------------+-------------+-------------+------------+-------------------------------------------------+
-| ``VERBOSE``                             |    false    |     true    |    true    | Determines whether docker, helm, kind,          |
-|                                         |             |             |            | kubectl commands should be printed before       |
-|                                         |             |             |            | execution. This is useful to determine          |
-|                                         |             |             |            | what exact commands were executed for           |
-|                                         |             |             |            | debugging purpose as well as allows             |
-|                                         |             |             |            | to replicate those commands easily by           |
-|                                         |             |             |            | copy&pasting them from the output.              |
-|                                         |             |             |            | requires ``PRINT_INFO_FROM_SCRIPTS`` set to     |
-|                                         |             |             |            | true.                                           |
-+-----------------------------------------+-------------+-------------+------------+-------------------------------------------------+
-| ``VERBOSE_COMMANDS``                    |    false    |    false    |    false   | Determines whether every command                |
-|                                         |             |             |            | executed in bash should also be printed         |
-|                                         |             |             |            | before execution. This is a low-level           |
-|                                         |             |             |            | debugging feature of bash (set -x) and          |
-|                                         |             |             |            | it should only be used if you are lost          |
-|                                         |             |             |            | at where the script failed.                     |
-+-----------------------------------------+-------------+-------------+------------+-------------------------------------------------+
-|                                                        Image build variables                                                       |
-+-----------------------------------------+-------------+-------------+------------+-------------------------------------------------+
-| ``UPGRADE_TO_NEWER_DEPENDENCIES``       |    false    |    false    |   false\*  | Determines whether the build should             |
-|                                         |             |             |            | attempt to upgrade Python base image and all    |
-|                                         |             |             |            | PIP dependencies to latest ones matching        |
-|                                         |             |             |            | ``setup.py`` limits. This tries to replicate    |
-|                                         |             |             |            | the situation of "fresh" user who just installs |
-|                                         |             |             |            | airflow and uses latest version of matching     |
-|                                         |             |             |            | dependencies. By default we are using a         |
-|                                         |             |             |            | tested set of dependency constraints            |
-|                                         |             |             |            | stored in separated "orphan" branches           |
-|                                         |             |             |            | of the airflow repository                       |
-|                                         |             |             |            | ("constraints-main, "constraints-2-0")          |
-|                                         |             |             |            | but when this flag is set to anything but false |
-|                                         |             |             |            | (for example commit SHA), they are not used     |
-|                                         |             |             |            | used and "eager" upgrade strategy is used       |
-|                                         |             |             |            | when installing dependencies. We set it         |
-|                                         |             |             |            | to true in case of direct pushes (merges)       |
-|                                         |             |             |            | to main and scheduled builds so that            |
-|                                         |             |             |            | the constraints are tested. In those builds,    |
-|                                         |             |             |            | in case we determine that the tests pass        |
-|                                         |             |             |            | we automatically push latest set of             |
-|                                         |             |             |            | "tested" constraints to the repository.         |
-|                                         |             |             |            |                                                 |
-|                                         |             |             |            | Setting the value to commit SHA is best way     |
-|                                         |             |             |            | to assure that constraints are upgraded even if |
-|                                         |             |             |            | there is no change to setup.py                  |
-|                                         |             |             |            |                                                 |
-|                                         |             |             |            | This way our constraints are automatically      |
-|                                         |             |             |            | tested and updated whenever new versions        |
-|                                         |             |             |            | of libraries are released.                      |
-|                                         |             |             |            |                                                 |
-|                                         |             |             |            | \* true in case of direct pushes and            |
-|                                         |             |             |            |    scheduled builds                             |
-+-----------------------------------------+-------------+-------------+------------+-------------------------------------------------+
-| ``CHECK_IMAGE_FOR_REBUILD``             |     true    |     true    |   true\*   | Determines whether attempt should be            |
-|                                         |             |             |            | made to rebuild the CI image with latest        |
-|                                         |             |             |            | sources. It is true by default for              |
-|                                         |             |             |            | local builds, however it is set to              |
-|                                         |             |             |            | true in case we know that the image             |
-|                                         |             |             |            | we pulled or built already contains             |
-|                                         |             |             |            | the right sources. In such case we              |
-|                                         |             |             |            | should set it to false, especially              |
-|                                         |             |             |            | in case our local sources are not the           |
-|                                         |             |             |            | ones we intend to use (for example              |
-|                                         |             |             |            | when ``--github-image-id`` is used              |
-|                                         |             |             |            | in Breeze.                                      |
-|                                         |             |             |            |                                                 |
-|                                         |             |             |            | In CI builds it is set to true                  |
-|                                         |             |             |            | in case of the "Build Image"                    |
-|                                         |             |             |            | workflow or when                                |
-|                                         |             |             |            | waiting for images is disabled                  |
-|                                         |             |             |            | in the CI workflow.                             |
-|                                         |             |             |            |                                                 |
-|                                         |             |             |            | \* if waiting for images the variable is set    |
-|                                         |             |             |            |    to false automatically.                      |
-+-----------------------------------------+-------------+-------------+------------+-------------------------------------------------+
-| ``SKIP_BUILDING_PROD_IMAGE``            |     false   |     false   |   false\*  | Determines whether we should skip building      |
-|                                         |             |             |            | the PROD image with latest sources.             |
-|                                         |             |             |            | It is set to false, but in deploy app for       |
-|                                         |             |             |            | kubernetes step it is set to "true", because at |
-|                                         |             |             |            | this stage we know we have good image build or  |
-|                                         |             |             |            | pulled.                                         |
-|                                         |             |             |            |                                                 |
-|                                         |             |             |            | \* set to true in "Deploy App to Kubernetes"    |
-|                                         |             |             |            |    to false automatically.                      |
-+-----------------------------------------+-------------+-------------+------------+-------------------------------------------------+
++-----------------------------------------+-------------+--------------+------------+-------------------------------------------------+
+| Variable                                | Local       | Build Images | Tests      | Comment                                         |
+|                                         | development | CI workflow  | Workflow   |                                                 |
++=========================================+=============+==============+============+=================================================+
+|                                                           Basic variables                                                           |
++-----------------------------------------+-------------+--------------+------------+-------------------------------------------------+
+| ``PYTHON_MAJOR_MINOR_VERSION``          |             |              |            | Major/Minor version of Python used.             |
++-----------------------------------------+-------------+--------------+------------+-------------------------------------------------+
+| ``DB_RESET``                            |    false    |     true     |    true    | Determines whether database should be reset     |
+|                                         |             |              |            | at the container entry. By default locally      |
+|                                         |             |              |            | the database is not reset, which allows to      |
+|                                         |             |              |            | keep the database content between runs in       |
+|                                         |             |              |            | case of Postgres or MySQL. However,             |
+|                                         |             |              |            | it requires to perform manual init/reset        |
+|                                         |             |              |            | if you stop the environment.                    |
++-----------------------------------------+-------------+--------------+-------------+------------------------------------------------+
+|                                                           Mount variables                                                           |
++-----------------------------------------+-------------+--------------+------------+-------------------------------------------------+
+| ``MOUNT_SELECTED_LOCAL_SOURCES``        |     true    |    false     |    false   | Determines whether local sources are            |
+|                                         |             |              |            | mounted to inside the container. Useful for     |
+|                                         |             |              |            | local development, as changes you make          |
+|                                         |             |              |            | locally can be immediately tested in            |
+|                                         |             |              |            | the container. We mount only selected,          |
+|                                         |             |              |            | important folders. We do not mount the whole    |
+|                                         |             |              |            | project folder in order to avoid accidental     |
+|                                         |             |              |            | use of artifacts (such as ``egg-info``          |
+|                                         |             |              |            | directories) generated locally on the           |
+|                                         |             |              |            | host during development.                        |
++-----------------------------------------+-------------+--------------+------------+-------------------------------------------------+
+| ``MOUNT_ALL_LOCAL_SOURCES``             |     false   |    false     |    false   | Determines whether all local sources are        |
+|                                         |             |              |            | mounted to inside the container. Useful for     |
+|                                         |             |              |            | local development when you need to access .git  |
+|                                         |             |              |            | folders and other folders excluded when         |
+|                                         |             |              |            | ``MOUNT_SELECTED_LOCAL_SOURCES`` is true.       |
+|                                         |             |              |            | You might need to manually delete egg-info      |
+|                                         |             |              |            | folder when you enter breeze and the folder was |
+|                                         |             |              |            | generated using different Python versions.      |
++-----------------------------------------+-------------+--------------+------------+-------------------------------------------------+
+|                                                           Force variables                                                           |
++-----------------------------------------+-------------+--------------+------------+-------------------------------------------------+
+| ``FORCE_PULL_IMAGES``                   |    true     |    true      |    true    | Determines if images are force-pulled,          |
+|                                         |             |              |            | no matter if they are already present           |
+|                                         |             |              |            | locally. This includes not only the             |
+|                                         |             |              |            | CI/PROD images but also the Python base         |
+|                                         |             |              |            | images. Note that if Python base images         |
+|                                         |             |              |            | change, also the CI and PROD images             |
+|                                         |             |              |            | need to be fully rebuild unless they were       |
+|                                         |             |              |            | already built with that base Python             |
+|                                         |             |              |            | image. This is false for local development      |
+|                                         |             |              |            | to avoid often pulling and rebuilding           |
+|                                         |             |              |            | the image. It is true for CI workflow in        |
+|                                         |             |              |            | case waiting from images is enabled             |
+|                                         |             |              |            | as the images needs to be force-pulled from     |
+|                                         |             |              |            | GitHub Registry, but it is set to               |
+|                                         |             |              |            | false when waiting for images is disabled.      |
++-----------------------------------------+-------------+--------------+------------+-------------------------------------------------+
+| ``FORCE_BUILD_IMAGES``                  |    false    |    false     |    false   | Forces building images. This is generally not   |
+|                                         |             |              |            | very useful in CI as in CI environment image    |
+|                                         |             |              |            | is built or pulled only once, so there is no    |
+|                                         |             |              |            | need to set the variable to true. For local     |
+|                                         |             |              |            | builds it forces rebuild, regardless if it      |
+|                                         |             |              |            | is determined to be needed.                     |
++-----------------------------------------+-------------+--------------+------------+-------------------------------------------------+
+| ``FORCE_ANSWER_TO_QUESTIONS``           |             |     yes      |     yes    | This variable determines if answer to questions |
+|                                         |             |              |            | during the build process should be              |
+|                                         |             |              |            | automatically given. For local development,     |
+|                                         |             |              |            | the user is occasionally asked to provide       |
+|                                         |             |              |            | answers to questions such as - whether          |
+|                                         |             |              |            | the image should be rebuilt. By default         |
+|                                         |             |              |            | the user has to answer but in the CI            |
+|                                         |             |              |            | environment, we force "yes" answer.             |
++-----------------------------------------+-------------+--------------+------------+-------------------------------------------------+
+| ``SKIP_CHECK_REMOTE_IMAGE``             |    false    |     true     |    true    | Determines whether we check if remote image     |
+|                                         |             |              |            | is "fresher" than the current image.            |
+|                                         |             |              |            | When doing local breeze runs we try to          |
+|                                         |             |              |            | determine if it will be faster to rebuild       |
+|                                         |             |              |            | the image or whether the image should be        |
+|                                         |             |              |            | pulled first from the cache because it has      |
+|                                         |             |              |            | been rebuilt. This is slightly experimental     |
+|                                         |             |              |            | feature and will be improved in the future      |
+|                                         |             |              |            | as the current mechanism does not always        |
+|                                         |             |              |            | work properly.                                  |
++-----------------------------------------+-------------+--------------+------------+-------------------------------------------------+
+|                                                           Host variables                                                            |
++-----------------------------------------+-------------+--------------+------------+-------------------------------------------------+
+| ``HOST_USER_ID``                        |             |              |            | User id of the host user.                       |
++-----------------------------------------+-------------+--------------+------------+-------------------------------------------------+
+| ``HOST_GROUP_ID``                       |             |              |            | Group id of the host user.                      |
++-----------------------------------------+-------------+--------------+------------+-------------------------------------------------+
+| ``HOST_OS``                             |             |    Linux     |    Linux   | OS of the Host (Darwin/Linux).                  |
++-----------------------------------------+-------------+--------------+------------+-------------------------------------------------+
+| ``HOST_HOME``                           |             |              |            | Home directory on the host.                     |
++-----------------------------------------+-------------+--------------+------------+-------------------------------------------------+
+|                                                      Version suffix variables                                                       |
++-----------------------------------------+-------------+--------------+------------+-------------------------------------------------+
+| ``VERSION_SUFFIX_FOR_PYPI``             |             |              |            | Version suffix used during provider             |
+|                                         |             |              |            | package preparation for PyPI builds.            |
++-----------------------------------------+-------------+--------------+------------+-------------------------------------------------+
+|                                                            Git variables                                                            |
++-----------------------------------------+-------------+--------------+------------+-------------------------------------------------+
+| ``COMMIT_SHA``                          |             | GITHUB_SHA   | GITHUB_SHA | SHA of the commit of the build is run           |
++-----------------------------------------+-------------+--------------+------------+-------------------------------------------------+
+|                                                         Verbosity variables                                                         |
++-----------------------------------------+-------------+--------------+------------+-------------------------------------------------+
+| ``PRINT_INFO_FROM_SCRIPTS``             |   true\*    |    true\*    |    true\*  | Allows to print output to terminal from running |
+|                                         |             |              |            | scripts. It prints some extra outputs if true   |
+|                                         |             |              |            | including what the commands do, results of some |
+|                                         |             |              |            | operations, summary of variable values, exit    |
+|                                         |             |              |            | status from the scripts, outputs of failing     |
+|                                         |             |              |            | commands. If verbose is on it also prints the   |
+|                                         |             |              |            | commands executed by docker, kind, helm,        |
+|                                         |             |              |            | kubectl. Disabled in pre-commit checks.         |
+|                                         |             |              |            |                                                 |
+|                                         |             |              |            | \* set to false in pre-commits                  |
++-----------------------------------------+-------------+--------------+------------+-------------------------------------------------+
+| ``VERBOSE``                             |    false    |     true     |    true    | Determines whether docker, helm, kind,          |
+|                                         |             |              |            | kubectl commands should be printed before       |
+|                                         |             |              |            | execution. This is useful to determine          |
+|                                         |             |              |            | what exact commands were executed for           |
+|                                         |             |              |            | debugging purpose as well as allows             |
+|                                         |             |              |            | to replicate those commands easily by           |
+|                                         |             |              |            | copy&pasting them from the output.              |
+|                                         |             |              |            | requires ``PRINT_INFO_FROM_SCRIPTS`` set to     |
+|                                         |             |              |            | true.                                           |
++-----------------------------------------+-------------+--------------+------------+-------------------------------------------------+
+| ``VERBOSE_COMMANDS``                    |    false    |    false     |    false   | Determines whether every command                |
+|                                         |             |              |            | executed in bash should also be printed         |
+|                                         |             |              |            | before execution. This is a low-level           |
+|                                         |             |              |            | debugging feature of bash (set -x) and          |
+|                                         |             |              |            | it should only be used if you are lost          |
+|                                         |             |              |            | at where the script failed.                     |
++-----------------------------------------+-------------+--------------+------------+-------------------------------------------------+
+|                                                        Image build variables                                                        |
++-----------------------------------------+-------------+--------------+------------+-------------------------------------------------+
+| ``UPGRADE_TO_NEWER_DEPENDENCIES``       |    false    |    false     |   false\*  | Determines whether the build should             |
+|                                         |             |              |            | attempt to upgrade Python base image and all    |
+|                                         |             |              |            | PIP dependencies to latest ones matching        |
+|                                         |             |              |            | ``setup.py`` limits. This tries to replicate    |
+|                                         |             |              |            | the situation of "fresh" user who just installs |
+|                                         |             |              |            | airflow and uses latest version of matching     |
+|                                         |             |              |            | dependencies. By default we are using a         |
+|                                         |             |              |            | tested set of dependency constraints            |
+|                                         |             |              |            | stored in separated "orphan" branches           |
+|                                         |             |              |            | of the airflow repository                       |
+|                                         |             |              |            | ("constraints-main, "constraints-2-0")          |
+|                                         |             |              |            | but when this flag is set to anything but false |
+|                                         |             |              |            | (for example random value), they are not used   |
+|                                         |             |              |            | used and "eager" upgrade strategy is used       |
+|                                         |             |              |            | when installing dependencies. We set it         |
+|                                         |             |              |            | to true in case of direct pushes (merges)       |
+|                                         |             |              |            | to main and scheduled builds so that            |
+|                                         |             |              |            | the constraints are tested. In those builds,    |
+|                                         |             |              |            | in case we determine that the tests pass        |
+|                                         |             |              |            | we automatically push latest set of             |
+|                                         |             |              |            | "tested" constraints to the repository.         |
+|                                         |             |              |            |                                                 |
+|                                         |             |              |            | Setting the value to random value is best way   |
+|                                         |             |              |            | to assure that constraints are upgraded even if |
+|                                         |             |              |            | there is no change to setup.py                  |
+|                                         |             |              |            |                                                 |
+|                                         |             |              |            | This way our constraints are automatically      |
+|                                         |             |              |            | tested and updated whenever new versions        |
+|                                         |             |              |            | of libraries are released.                      |
+|                                         |             |              |            |                                                 |
+|                                         |             |              |            | \* true in case of direct pushes and            |
+|                                         |             |              |            |    scheduled builds                             |
++-----------------------------------------+-------------+--------------+------------+-------------------------------------------------+
+| ``CHECK_IMAGE_FOR_REBUILD``             |     true    |     true     |   true\*   | Determines whether attempt should be            |
+|                                         |             |              |            | made to rebuild the CI image with latest        |
+|                                         |             |              |            | sources. It is true by default for              |
+|                                         |             |              |            | local builds, however it is set to              |
+|                                         |             |              |            | true in case we know that the image             |
+|                                         |             |              |            | we pulled or built already contains             |
+|                                         |             |              |            | the right sources. In such case we              |
+|                                         |             |              |            | should set it to false, especially              |
+|                                         |             |              |            | in case our local sources are not the           |
+|                                         |             |              |            | ones we intend to use (for example              |
+|                                         |             |              |            | when ``--github-image-id`` is used              |
+|                                         |             |              |            | in Breeze.                                      |
+|                                         |             |              |            |                                                 |
+|                                         |             |              |            | In CI jobs it is set to true                    |
+|                                         |             |              |            | in case of the ``Build Images``                 |
+|                                         |             |              |            | workflow or when                                |
+|                                         |             |              |            | waiting for images is disabled                  |
+|                                         |             |              |            | in the "Tests" workflow.                        |
+|                                         |             |              |            |                                                 |
+|                                         |             |              |            | \* if waiting for images the variable is set    |
+|                                         |             |              |            |    to false automatically.                      |
++-----------------------------------------+-------------+--------------+------------+-------------------------------------------------+
+| ``SKIP_BUILDING_PROD_IMAGE``            |     false   |     false    |   false\*  | Determines whether we should skip building      |
+|                                         |             |              |            | the PROD image with latest sources.             |
+|                                         |             |              |            | It is set to false, but in deploy app for       |
+|                                         |             |              |            | kubernetes step it is set to "true", because at |
+|                                         |             |              |            | this stage we know we have good image build or  |
+|                                         |             |              |            | pulled.                                         |
+|                                         |             |              |            |                                                 |
+|                                         |             |              |            | \* set to true in "Deploy App to Kubernetes"    |
+|                                         |             |              |            |    to false automatically.                      |
++-----------------------------------------+-------------+--------------+------------+-------------------------------------------------+
 
-Running CI Builds locally
-=========================
+Running CI Jobs locally
+=======================
 
-The scripts and configuration files for CI builds are all in ``scripts/ci`` - so that in the
+The scripts and configuration files for CI jobs are all in ``scripts/ci`` - so that in the
 ``pull_request_target`` target workflow, we can copy those scripts from the ``main`` branch and use them
 regardless of the changes done in the PR. This way we are kept safe from PRs injecting code into the builds.
 
