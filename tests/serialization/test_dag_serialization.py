@@ -99,6 +99,7 @@ serialized_simple_dag_ground_truth = {
                 "_outlets": [],
                 "ui_color": "#f0ede4",
                 "ui_fgcolor": "#000",
+                "template_ext": ['.sh', '.bash'],
                 "template_fields": ['bash_command', 'env'],
                 "template_fields_renderers": {'bash_command': 'bash', 'env': 'json'},
                 "bash_command": "echo {{ task.task_id }}",
@@ -130,6 +131,7 @@ serialized_simple_dag_ground_truth = {
                 "_operator_extra_links": [{"tests.test_utils.mock_operators.CustomOpLink": {}}],
                 "ui_color": "#fff",
                 "ui_fgcolor": "#000",
+                "template_ext": [],
                 "template_fields": ['bash_command'],
                 "template_fields_renderers": {},
                 "_task_type": "CustomOperator",
@@ -447,6 +449,7 @@ class TestStringifiedDAGs(unittest.TestCase):
             # Type is excluded, so don't check it
             '_log',
             # List vs tuple. Check separately
+            'template_ext',
             'template_fields',
             # We store the string, real dag has the actual code
             'on_failure_callback',
@@ -457,6 +460,8 @@ class TestStringifiedDAGs(unittest.TestCase):
         }
 
         assert serialized_task.task_type == task.task_type
+
+        assert set(serialized_task.template_ext) == set(task.template_ext)
         assert set(serialized_task.template_fields) == set(task.template_fields)
 
         assert serialized_task.upstream_task_ids == task.upstream_task_ids
