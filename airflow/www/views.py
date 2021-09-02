@@ -2256,7 +2256,6 @@ class Airflow(AirflowBaseView):
             .all()
         )
         dag_runs = {dr.execution_date: alchemy_to_dict(dr) for dr in dag_runs}
-        data = self._get_tree_data(dag_runs, dag, base_date, session=session)
 
         max_date = max(dag_runs.keys(), default=None)
 
@@ -2274,6 +2273,8 @@ class Airflow(AirflowBaseView):
             external_log_name = task_log_reader.log_handler.log_name
         else:
             external_log_name = None
+
+        data = self._get_tree_data(dag_runs, dag, base_date, session=session)
 
         # avoid spaces to reduce payload size
         data = htmlsafe_json_dumps(data, separators=(',', ':'))
