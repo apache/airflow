@@ -433,12 +433,15 @@ class AwsBaseHook(BaseHook):
 
     def get_client_type(
         self,
-        client_type: str,
+        client_type: Optional[str] = None,
         region_name: Optional[str] = None,
         config: Optional[Config] = None,
     ) -> boto3.client:
         """Get the underlying boto3 client using boto3 session"""
         session, endpoint_url = self._get_credentials(region_name)
+
+        if client_type is None:
+            client_type = self.client_type
 
         # No AWS Operators use the config argument to this method.
         # Keep backward compatibility with other users who might use it

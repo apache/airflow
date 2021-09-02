@@ -112,10 +112,20 @@ class TestAwsBaseHook(unittest.TestCase):
         if client.list_clusters()['Clusters']:
             raise ValueError('AWS not properly mocked')
 
-        hook = AwsBaseHook(aws_conn_id='aws_default', client_type='emr')
-        client_from_hook = hook.get_client_type('emr')
+        with self.subTest("client_type set in both class and function"):
+            hook = AwsBaseHook(aws_conn_id='aws_default', client_type='emr')
+            client_from_hook = hook.get_client_type(client_type='emr')
+            assert client_from_hook.list_clusters()['Clusters'] == []
 
-        assert client_from_hook.list_clusters()['Clusters'] == []
+        with self.subTest("client_type set only in class"):
+            hook = AwsBaseHook(aws_conn_id='aws_default', client_type='emr')
+            client_from_hook = hook.get_client_type()
+            assert client_from_hook.list_clusters()['Clusters'] == []
+
+        with self.subTest("client_type overwrite by function"):
+            hook = AwsBaseHook(aws_conn_id='aws_default', client_type='dynamodb')
+            client_from_hook = hook.get_client_type(client_type='emr')
+            assert client_from_hook.list_clusters()['Clusters'] == []
 
     @unittest.skipIf(mock_dynamodb2 is None, 'mock_dynamo2 package not present')
     @mock_dynamodb2
