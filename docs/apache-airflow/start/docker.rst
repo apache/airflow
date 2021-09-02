@@ -112,7 +112,7 @@ Initializing Environment
 
 Before starting Airflow for the first time, You need to prepare your environment, i.e. create the necessary files, directories and initialize the database.
 
-On **Linux**, the mounted volumes in container use the native Linux filesystem user/group permissions, so you have to make sure the container and host computer have matching file permissions.
+On **all operating systems**, the quick-start needs to know your host user id and needs to have group id set to ``0``. You have to make sure to configure them for the docker-compose:
 
 .. code-block:: bash
 

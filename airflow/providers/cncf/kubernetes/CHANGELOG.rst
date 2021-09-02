@@ -25,7 +25,7 @@ Changelog
 Bug Fixes
 ~~~~~~~~~
 
-* ``Fix using XCom with &#39;&#39;KubernetesPodOperator&#39;&#39; (#17760)``
+* ``Fix using XCom with ''KubernetesPodOperator'' (#17760)``
 * ``Import Hooks lazily individually in providers manager (#17682)``
 
 .. Review and move the new changes to one of the sections above:
@@ -45,18 +45,18 @@ Features
 Bug Fixes
 ~~~~~~~~~
 
-* ``Fixed wrongly escaped characters in amazon&#39;s changelog (#17020)``
-* ``BugFix: Using &#39;json&#39; string in template_field causes issue with K8s Operators (#16930)``
+* ``BugFix: Using 'json' string in template_field causes issue with K8s Operators (#16930)``
 
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):
-   * ``Simplify &#39;default_args&#39; in Kubernetes example DAGs (#16870)``
+   * ``Fixed wrongly escaped characters in amazon's changelog (#17020)``
+   * ``Simplify 'default_args' in Kubernetes example DAGs (#16870)``
    * ``Enable using custom pod launcher in Kubernetes Pod Operator (#16945)``
    * ``Prepare documentation for July release of providers. (#17015)``
    * ``Updating task dependencies (#16624)``
    * ``Removes pylint from our toolchain (#16682)``
    * ``Prepare documentation for July release of providers. (#17015)``
-   * ``Fixed wrongly escaped characters in amazon&#39;s changelog (#17020)``
+   * ``Fixed wrongly escaped characters in amazon's changelog (#17020)``
 
 2.0.0
 .....
@@ -83,7 +83,7 @@ Bug Fixes
 * ``Bug Fix Pod-Template Affinity Ignored due to empty Affinity K8S Object (#15787)``
 * ``Bug Pod Template File Values Ignored (#16095)``
 * ``Fix issue with parsing error logs in the KPO (#15638)``
-* ``Fix unsuccessful KubernetesPod final_state call when &#39;is_delete_operator_pod=True&#39; (#15490)``
+* ``Fix unsuccessful KubernetesPod final_state call when 'is_delete_operator_pod=True' (#15490)``
 
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):

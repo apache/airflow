@@ -18,20 +18,20 @@
 
 
 
-Tutorial on the Taskflow API
+Tutorial on the TaskFlow API
 ============================
 
 This tutorial builds on the regular Airflow Tutorial and focuses specifically
-on writing data pipelines using the Taskflow API paradigm which is introduced as
+on writing data pipelines using the TaskFlow API paradigm which is introduced as
 part of Airflow 2.0 and contrasts this with DAGs written using the traditional paradigm.
 
 The data pipeline chosen here is a simple ETL pattern with
 three separate tasks for Extract, Transform, and Load.
 
-Example "Taskflow API" ETL Pipeline
+Example "TaskFlow API" ETL Pipeline
 -----------------------------------
 
-Here is very simple ETL pipeline using the Taskflow API paradigm. A more detailed
+Here is very simple ETL pipeline using the TaskFlow API paradigm. A more detailed
 explanation is given below.
 
 .. exampleinclude:: /../../airflow/example_dags/tutorial_taskflow_api_etl.py
@@ -129,7 +129,7 @@ As we see here, the data being processed in the Transform function is passed to 
 variables. In turn, the summarized data from the Transform function is also placed
 into another Xcom variable which will then be used by the Load task.
 
-Contrasting that with Taskflow API in Airflow 2.0 as shown below.
+Contrasting that with TaskFlow API in Airflow 2.0 as shown below.
 
 .. exampleinclude:: /../../airflow/example_dags/tutorial_taskflow_api_etl.py
     :language: python
@@ -151,7 +151,7 @@ dependencies specified as shown below.
     :start-after: [START main_flow]
     :end-before: [END main_flow]
 
-In contrast, with the Taskflow API in Airflow 2.0, the invocation itself automatically generates
+In contrast, with the TaskFlow API in Airflow 2.0, the invocation itself automatically generates
 the dependencies as shown below.
 
 .. exampleinclude:: /../../airflow/example_dags/tutorial_taskflow_api_etl.py
@@ -160,12 +160,12 @@ the dependencies as shown below.
     :start-after: [START main_flow]
     :end-before: [END main_flow]
 
-Using the Taskflow API with Virtual Environments
+Using the TaskFlow API with Virtual Environments
 ----------------------------------------------------------
 
-As of Airflow 2.0.3, you will have the ability to use the Taskflow API with a
+As of Airflow 2.0.3, you will have the ability to use the TaskFlow API with a
 virtual environment. This added functionality will allow a much more
-comprehensive range of use-cases for the Taskflow API, as you will not be limited to the
+comprehensive range of use-cases for the TaskFlow API, as you will not be limited to the
 packages and system libraries of the Airflow worker.
 
 To run your Airflow task in a virtual environment, switch your ``@task`` decorator to a ``@task.virtualenv``
@@ -234,6 +234,6 @@ Finally, a dependency between this Sensor task and the python-based task is spec
 What's Next?
 ------------
 
-You have seen how simple it is to write DAGs using the Taskflow API paradigm within Airflow 2.0. Please do
+You have seen how simple it is to write DAGs using the TaskFlow API paradigm within Airflow 2.0. Please do
 read the :doc:`Concepts section </concepts/index>` for detailed explanation of Airflow concepts such as DAGs, Tasks,
 Operators, and more. There's also a whole section on the :doc:`TaskFlow API </concepts/taskflow>` and the ``@task`` decorator.

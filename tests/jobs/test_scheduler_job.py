@@ -2881,6 +2881,43 @@ class TestSchedulerJob:
         # Assert that the other one is queued
         assert len(DagRun.find(dag_id=dag.dag_id, state=State.QUEUED, session=session)) == 1
 
+    def test_max_active_runs_in_a_dag_doesnt_stop_running_dagruns_in_otherdags(self, dag_maker):
+        session = settings.Session()
+        with dag_maker('test_dag1', max_active_runs=1) as dag:
+            DummyOperator(task_id='mytask')
+        date = dag.following_schedule(DEFAULT_DATE)
+        for _ in range(30):
+            dr = dag.create_dagrun(run_type=DagRunType.SCHEDULED, state=State.QUEUED, execution_date=date)
+            date = dr.execution_date + timedelta(hours=1)
+
+        date = timezone.datetime(2020, 1, 1)
+        with dag_maker('test_dag2', start_date=date) as dag2:
+            DummyOperator(task_id='mytask')
+
+        for _ in range(10):
+            dr = dag2.create_dagrun(run_type=DagRunType.SCHEDULED, state=State.QUEUED, execution_date=date)
+            date = dr.execution_date + timedelta(hours=1)
+
+        self.scheduler_job = SchedulerJob(subdir=os.devnull)
+        self.scheduler_job.executor = MockExecutor(do_update=False)
+        self.scheduler_job.processor_agent = mock.MagicMock(spec=DagFileProcessorAgent)
+
+        self.scheduler_job._start_queued_dagruns(session)
+        session.flush()
+        self.scheduler_job._start_queued_dagruns(session)
+        session.flush()
+
+        assert (
+            len(
+                session.query(DagRun)
+                .filter(DagRun.dag_id == dag.dag_id)
+                .filter(DagRun.state == State.RUNNING)
+                .all()
+            )
+            == 1
+        )
+        assert len(session.query(DagRun).filter(DagRun.state == State.RUNNING).all()) == 11
+
     @pytest.mark.parametrize(
         "state, start_date, end_date",
         [

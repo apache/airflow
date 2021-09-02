@@ -20,10 +20,11 @@ import base64
 import json
 import re
 import tempfile
+import warnings
 from contextlib import contextmanager
 from enum import Enum
 from functools import partial
-from typing import Callable, Dict, List
+from typing import Callable, Dict, List, Optional
 
 import yaml
 from botocore.exceptions import ClientError
@@ -32,10 +33,10 @@ from botocore.signers import RequestSigner
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 from airflow.utils.json import AirflowJsonEncoder
 
-DEFAULT_CONTEXT_NAME = 'aws'
 DEFAULT_PAGINATION_TOKEN = ''
-DEFAULT_POD_USERNAME = 'aws'
 STS_TOKEN_EXPIRES_IN = 60
+_POD_USERNAME = 'aws'
+_CONTEXT_NAME = 'aws'
 
 
 class ClusterStates(Enum):
@@ -351,21 +352,31 @@ class EKSHook(AwsBaseHook):
         self,
         eks_cluster_name: str,
         pod_namespace: str,
-        pod_username: str = DEFAULT_POD_USERNAME,
-        pod_context: str = DEFAULT_CONTEXT_NAME,
+        pod_username: Optional[str] = None,
+        pod_context: Optional[str] = None,
     ) -> str:
         """
         Writes the kubeconfig file given an EKS Cluster.
 
-        :param eks_cluster_name: The name of the cluster to create the EKS Managed Nodegroup in.
+        :param eks_cluster_name: The name of the cluster to generate kubeconfig file for.
         :type eks_cluster_name: str
         :param pod_namespace: The namespace to run within kubernetes.
         :type pod_namespace: str
-        :param pod_username: The username under which to execute the pod.
-        :type pod_username: str
-        :param pod_context: The name of the context access parameters to use.
-        :type pod_context: str
         """
+        if pod_username:
+            warnings.warn(
+                "This pod_username parameter is deprecated, because changing the value does not make any "
+                "visible changes to the user.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+        if pod_context:
+            warnings.warn(
+                "This pod_context parameter is deprecated, because changing the value does not make any "
+                "visible changes to the user.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
         # Set up the client
         eks_client = self.conn
 
@@ -390,23 +401,22 @@ class EKSHook(AwsBaseHook):
                     "context": {
                         "cluster": eks_cluster_name,
                         "namespace": pod_namespace,
-                        "user": pod_username,
+                        "user": _POD_USERNAME,
                     },
-                    "name": pod_context,
+                    "name": _CONTEXT_NAME,
                 }
             ],
-            "current-context": pod_context,
+            "current-context": _CONTEXT_NAME,
             "preferences": {},
             "users": [
                 {
-                    "name": pod_username,
+                    "name": _POD_USERNAME,
                     "user": {
                         "token": token,
                     },
                 }
             ],
         }
-
         config_text = yaml.dump(cluster_config, default_flow_style=False)
 
         with tempfile.NamedTemporaryFile(mode='w') as config_file:

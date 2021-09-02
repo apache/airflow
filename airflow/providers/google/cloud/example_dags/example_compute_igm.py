@@ -91,7 +91,7 @@ UPDATE_POLICY = {
 
 with models.DAG(
     'example_gcp_compute_igm',
-    schedule_interval=None,  # Override to match your needs
+    schedule_interval='@once',  # Override to match your needs
     start_date=days_ago(1),
     tags=['example'],
 ) as dag:

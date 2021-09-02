@@ -48,6 +48,7 @@ class DataprepExampleDagsTest(GoogleSystemTest):
 
     def tearDown(self):
         clear_db_connections()
+        super().tearDown()
 
     def test_run_example_dag(self):
         self.run_dag(dag_id="example_dataprep", dag_folder=CLOUD_DAG_FOLDER)

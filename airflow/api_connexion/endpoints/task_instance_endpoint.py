@@ -252,7 +252,7 @@ def post_clear_task_instances(dag_id: str, session=None):
     task_instances = dag.clear(dry_run=True, dag_bag=current_app.dag_bag, **data)
     if not dry_run:
         clear_task_instances(
-            task_instances, session, dag=dag, dag_run_state=State.RUNNING if reset_dag_runs else False
+            task_instances.all(), session, dag=dag, dag_run_state=State.RUNNING if reset_dag_runs else False
         )
     task_instances = task_instances.join(
         DR, and_(DR.dag_id == TI.dag_id, DR.execution_date == TI.execution_date)
