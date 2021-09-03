@@ -31,11 +31,14 @@ For high-level changelog, see :doc:`package information including changelog <ind
 2.1.0
 .....
 
-Latest change: 2021-08-23
+Latest change: 2021-09-01
 
 ================================================================================================  ===========  ============================================================================
 Commit                                                                                            Committed    Subject
 ================================================================================================  ===========  ============================================================================
+`16b47cecf <https://github.com/apache/airflow/commit/16b47cecfb5cf88b0176a59589cbd77e0eaccfd3>`_  2021-09-01   ``Invalidate Vault cached prop when not authenticated (#17387)``
+`a29503e1b <https://github.com/apache/airflow/commit/a29503e1baf7534c85ebf6685ba91003051c1cea>`_  2021-08-31   ``Fix instantiating Vault Secret Backend during configuration (#17935)``
+`0a6858847 <https://github.com/apache/airflow/commit/0a68588479e34cf175d744ea77b283d9d78ea71a>`_  2021-08-30   ``Add August 2021 Provider's documentation (#17890)``
 `be75dcd39 <https://github.com/apache/airflow/commit/be75dcd39cd10264048c86e74110365bd5daf8b7>`_  2021-08-23   ``Update description about the new ''connection-types'' provider meta-data``
 `6301faa38 <https://github.com/apache/airflow/commit/6301faa3888371ef361e704844f36d9bf768f731>`_  2021-08-23   ``Enable Connection creation from Vault parameters (#15013)``
 `76ed2a49c <https://github.com/apache/airflow/commit/76ed2a49c6cd285bf59706cf04f39a7444c382c9>`_  2021-08-19   ``Import Hooks lazily individually in providers manager (#17682)``
