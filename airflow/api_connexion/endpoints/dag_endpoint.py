@@ -118,6 +118,6 @@ def delete_dag(dag_id: str, session: Session):
     except DagNotFound:
         raise NotFound(f"Dag with id: '{dag_id}' not found")
     except AirflowException:
-        raise AlreadyExists(detail=f"Task instances of fag with id: '{dag_id}' are still running")
+        raise AlreadyExists(detail=f"Task instances of dag with id: '{dag_id}' are still running")
 
     return NoContent, 204
