@@ -43,16 +43,14 @@ else
 fi
 
 function check_upgrade_to_newer_dependencies_needed() {
-    # shellcheck disable=SC2153
-    if [[ "${UPGRADE_TO_NEWER_DEPENDENCIES}" != "false" ||
-            ${GITHUB_EVENT_NAME=} == 'push' || ${GITHUB_EVENT_NAME=} == "scheduled" ]]; then
-        # Trigger upgrading to latest constraints when we are in push or schedule event or when it is forced
-        # By UPGRADE_TO_NEWER_DEPENDENCIES set to non-false. The variable is set to
-        # SHA of the merge commit - so that it always triggers rebuilding layer in the docker image
+    if [[ ${GITHUB_EVENT_NAME=} == 'push' || ${GITHUB_EVENT_NAME=} == "scheduled" ]]; then
+        # Trigger upgrading to latest constraints when we are in push or schedule event. We use the
+        # random string so that it always triggers rebuilding layer in the docker image
         # Each build that upgrades to latest constraints will get truly latest constraints, not those
-        # Cached in the image if we set it to "true". This upgrade_to_newer_dependencies variable
-        # can later be overridden in case we find that setup.* files changed (see below)
-        upgrade_to_newer_dependencies="${INCOMING_COMMIT_SHA}"
+        # cached in the image because docker layer will get invalidated.
+        # This upgrade_to_newer_dependencies variable can later be overridden
+        # in case we find that any of the setup.* files changed (see below)
+        upgrade_to_newer_dependencies="${RANDOM}"
     fi
 }
 
@@ -353,8 +351,9 @@ function check_if_setup_files_changed() {
 
     if [[ $(count_changed_files) != "0" ]]; then
         # In case the setup files changed, we automatically force upgrading to newer dependencies
-        # no matter what was set before
-        upgrade_to_newer_dependencies="${INCOMING_COMMIT_SHA}"
+        # no matter what was set before. We set it to random number to make sure that it will be
+        # always invalidating the layer in Docker that triggers installing the dependencies
+        upgrade_to_newer_dependencies="${RANDOM}"
     fi
     start_end::group_end
 }

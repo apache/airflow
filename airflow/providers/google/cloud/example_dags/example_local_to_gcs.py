@@ -31,7 +31,7 @@ DESTINATION_FILE_LOCATION = os.environ.get('GCP_GCS_DESTINATION_FILE_LOCATION', 
 with models.DAG(
     'example_local_to_gcs',
     default_args=dict(start_date=dates.days_ago(1)),
-    schedule_interval=None,
+    schedule_interval='@once',
     tags=['example'],
 ) as dag:
     # [START howto_operator_local_filesystem_to_gcs]

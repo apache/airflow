@@ -16,17 +16,13 @@
 # under the License.
 
 """This module contains Amazon EKS operators."""
+import warnings
 from datetime import datetime
 from time import sleep
 from typing import Dict, Iterable, List, Optional
 
 from airflow.models import BaseOperator
-from airflow.providers.amazon.aws.hooks.eks import (
-    DEFAULT_CONTEXT_NAME,
-    DEFAULT_POD_USERNAME,
-    ClusterStates,
-    EKSHook,
-)
+from airflow.providers.amazon.aws.hooks.eks import ClusterStates, EKSHook
 from airflow.providers.cncf.kubernetes.operators.kubernetes_pod import KubernetesPodOperator
 
 CHECK_INTERVAL_SECONDS = 15
@@ -386,12 +382,8 @@ class EKSPodOperator(KubernetesPodOperator):
     :type in_cluster: bool
     :param namespace: The namespace in which to execute the pod. (templated)
     :type namespace: str
-    :param pod_context: The security context to use while executing the pod. (templated)
-    :type pod_context: str
     :param pod_name: The unique name to give the pod. (templated)
     :type pod_name: str
-    :param pod_username: The username to use while executing the pod. (templated)
-    :type pod_username: str
     :param aws_profile: The named profile containing the credentials for the AWS CLI tool to use.
     :param aws_profile: str
     :param region: Which AWS region the connection should use. (templated)
@@ -409,9 +401,7 @@ class EKSPodOperator(KubernetesPodOperator):
         "cluster_name",
         "in_cluster",
         "namespace",
-        "pod_context",
         "pod_name",
-        "pod_username",
         "aws_conn_id",
         "region",
     } | set(KubernetesPodOperator.template_fields)
@@ -423,9 +413,9 @@ class EKSPodOperator(KubernetesPodOperator):
         # file is stored locally in the worker and not in the cluster.
         in_cluster: bool = False,
         namespace: str = DEFAULT_NAMESPACE_NAME,
-        pod_context: str = DEFAULT_CONTEXT_NAME,
+        pod_context: str = None,
         pod_name: str = DEFAULT_POD_NAME,
-        pod_username: str = DEFAULT_POD_USERNAME,
+        pod_username: str = None,
         aws_conn_id: str = DEFAULT_CONN_ID,
         region: Optional[str] = None,
         **kwargs,
@@ -433,9 +423,7 @@ class EKSPodOperator(KubernetesPodOperator):
         self.cluster_name = cluster_name
         self.in_cluster = in_cluster
         self.namespace = namespace
-        self.pod_context = pod_context
         self.pod_name = pod_name
-        self.pod_username = pod_username
         self.aws_conn_id = aws_conn_id
         self.region = region
         super().__init__(
@@ -444,17 +432,27 @@ class EKSPodOperator(KubernetesPodOperator):
             name=self.pod_name,
             **kwargs,
         )
+        if pod_username:
+            warnings.warn(
+                "This pod_username parameter is deprecated, because changing the value does not make any "
+                "visible changes to the user.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+        if pod_context:
+            warnings.warn(
+                "This pod_context parameter is deprecated, because changing the value does not make any "
+                "visible changes to the user.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
 
     def execute(self, context):
         eks_hook = EKSHook(
             aws_conn_id=self.aws_conn_id,
             region_name=self.region,
         )
-
         with eks_hook.generate_config_file(
-            eks_cluster_name=self.cluster_name,
-            pod_namespace=self.namespace,
-            pod_username=self.pod_username,
-            pod_context=self.pod_context,
+            eks_cluster_name=self.cluster_name, pod_namespace=self.namespace
         ) as self.config_file:
             return super().execute(context)

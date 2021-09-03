@@ -52,6 +52,7 @@ class TestGCSTaskHandlerSystemTest(GoogleSystemTest):
         cls.delete_gcs_bucket(cls.bucket_name)  # type: ignore
 
     def setUp(self) -> None:
+        super().setUp()
         clear_db_runs()
 
     def tearDown(self) -> None:
@@ -60,6 +61,7 @@ class TestGCSTaskHandlerSystemTest(GoogleSystemTest):
         importlib.reload(airflow_local_settings)
         settings.configure_logging()
         clear_db_runs()
+        super().tearDown()
 
     @provide_session
     def test_should_read_logs(self, session):

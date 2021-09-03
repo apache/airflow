@@ -719,6 +719,10 @@ transfers:
     target-integration-name: Google Spreadsheet
     how-to-guide: /docs/apache-airflow-providers-google/operators/transfer/gcs_to_sheets.rst
     python-module: airflow.providers.google.suite.transfers.gcs_to_sheets
+  - source-integration-name: SQL
+    target-integration-name: Google Spreadsheet
+    how-to-guide: /docs/apache-airflow-providers-google/operators/transfer/sql_to_sheets.rst
+    python-module: airflow.providers.google.suite.transfers.sql_to_sheets
   - source-integration-name: Local
     target-integration-name: Google Cloud Storage (GCS)
     how-to-guide: /docs/apache-airflow-providers-google/operators/transfer/local_to_gcs.rst

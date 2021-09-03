@@ -230,7 +230,7 @@ info:
     ## AlreadyExists
 
     The request could not be completed due to a conflict with the current state of the target
-    resource, meaning that the resource already exists
+    resource, e.g. the resource it tries to create already exists.
 
     ## Unknown
 
@@ -478,6 +478,28 @@ paths:
         '404':
           $ref: '#/components/responses/NotFound'
 
+    delete:
+      summary: Delete a DAG
+      description: >
+        Deletes all metadata related to the DAG, including finished DAG Runs and Tasks.
+        Logs are not deleted. This action cannot be undone.
+      x-openapi-router-controller: airflow.api_connexion.endpoints.dag_endpoint
+      operationId: delete_dag
+      tags: [DAG]
+      responses:
+        '204':
+          description: Success.
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/PermissionDenied'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/AlreadyExists'
+
   /dags/{dag_id}/clearTaskInstances:
     parameters:
       - $ref: '#/components/parameters/DAGID'
@@ -665,6 +687,35 @@ paths:
       responses:
         '204':
           description: Success.
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/PermissionDenied'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    patch:
+      summary: Modify a DAG run
+      description: Modify a DAG run
+      x-openapi-router-controller: airflow.api_connexion.endpoints.dag_run_endpoint
+      operationId: update_dag_run_state
+      tags: [ UpdateDagRunState ]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateDagRunState'
+
+      responses:
+        '200':
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DAGRun'
         '400':
           $ref: '#/components/responses/BadRequest'
         '401':
@@ -1995,6 +2046,16 @@ components:
             field of an existing object, the request fails with an BAD_REQUEST error.
       required:
         - dag_id
+
+    UpdateDagRunState:
+      type: object
+      properties:
+        state:
+          description: The state to set this DagRun
+          type: string
+          enum:
+            - success
+            - failed
 
     DAGRunCollection:
       type: object
@@ -3522,7 +3583,7 @@ components:
             $ref: '#/components/schemas/Error'
     # 409
     'AlreadyExists':
-      description: The resource that a client tried to create already exists.
+      description: An existing resource conflicts with the request.
       content:
         application/json:
           schema:

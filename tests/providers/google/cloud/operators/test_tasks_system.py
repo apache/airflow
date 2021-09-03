@@ -23,6 +23,12 @@ from tests.test_utils.gcp_system_helpers import CLOUD_DAG_FOLDER, GoogleSystemTe
 
 @pytest.mark.credential_file(GCP_TASKS_KEY)
 class GcpTasksExampleDagsSystemTest(GoogleSystemTest):
+    def setUp(self):
+        super().setUp()
+
     @provide_gcp_context(GCP_TASKS_KEY)
     def test_run_example_dag_function(self):
         self.run_dag('example_gcp_tasks', CLOUD_DAG_FOLDER)
+
+    def tearDown(self):
+        super().tearDown()
