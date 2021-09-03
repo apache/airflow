@@ -1556,7 +1556,7 @@ class Airflow(AirflowBaseView):
     def delete(self):
         """Deletes DAG."""
         from airflow.api.common.experimental import delete_dag
-        from airflow.exceptions import DagFileExists, DagNotFound
+        from airflow.exceptions import DagNotFound
 
         dag_id = request.values.get('dag_id')
         origin = get_safe_url(request.values.get('origin'))
@@ -1565,9 +1565,6 @@ class Airflow(AirflowBaseView):
             delete_dag.delete_dag(dag_id)
         except DagNotFound:
             flash(f"DAG with id {dag_id} not found. Cannot delete", 'error')
-            return redirect(request.referrer)
-        except DagFileExists:
-            flash(f"Dag id {dag_id} is still in DagBag. Remove the DAG file first.", 'error')
             return redirect(request.referrer)
         except AirflowException:
             flash(
