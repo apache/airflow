@@ -23,10 +23,6 @@ from airflow.exceptions import AirflowSkipException
 from airflow.operators.dummy import DummyOperator
 from airflow.utils.dates import days_ago
 
-args = {
-    'owner': 'airflow',
-}
-
 
 # Create some placeholder operators
 class DummySkipOperator(DummyOperator):
@@ -56,6 +52,6 @@ def create_test_pipeline(suffix, trigger_rule, dag_):
     join >> final
 
 
-with DAG(dag_id='example_skip_dag', default_args=args, start_date=days_ago(2), tags=['example']) as dag:
+with DAG(dag_id='example_skip_dag', start_date=days_ago(2), tags=['example']) as dag:
     create_test_pipeline('1', 'all_success', dag)
     create_test_pipeline('2', 'one_success', dag)

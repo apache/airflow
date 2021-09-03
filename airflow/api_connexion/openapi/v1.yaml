@@ -674,6 +674,35 @@ paths:
         '404':
           $ref: '#/components/responses/NotFound'
 
+    patch:
+      summary: Modify a DAG run
+      description: Modify a DAG run
+      x-openapi-router-controller: airflow.api_connexion.endpoints.dag_run_endpoint
+      operationId: update_dag_run_state
+      tags: [ UpdateDagRunState ]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateDagRunState'
+
+      responses:
+        '200':
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DAGRun'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/PermissionDenied'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
   /eventLogs:
     get:
       summary: List log entries
@@ -1995,6 +2024,16 @@ components:
             field of an existing object, the request fails with an BAD_REQUEST error.
       required:
         - dag_id
+
+    UpdateDagRunState:
+      type: object
+      properties:
+        state:
+          description: The state to set this DagRun
+          type: string
+          enum:
+            - success
+            - failed
 
     DAGRunCollection:
       type: object
