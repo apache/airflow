@@ -276,7 +276,6 @@ class TestSSHOperator(unittest.TestCase):
             task_id="test",
             ssh_hook=self.hook,
             command=command,
-            # timeout=TIMEOUT,
             conn_timeout=TIMEOUT,
             cmd_timeout=TIMEOUT,
             get_pty=get_pty_in,
