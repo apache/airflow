@@ -3570,6 +3570,10 @@ class PoolModelView(AirflowModelView):
     validators_columns = {'pool': [validators.DataRequired()], 'slots': [validators.NumberRange(min=-1)]}
 
 
+def _can_create_variable() -> bool:
+    return current_app.appbuilder.sm.has_access(permissions.ACTION_CAN_CREATE, permissions.RESOURCE_VARIABLE)
+
+
 class VariableModelView(AirflowModelView):
     """View to show records from Variable table"""
 
@@ -3624,6 +3628,8 @@ class VariableModelView(AirflowModelView):
     def prefill_form(self, form, request_id):
         if secrets_masker.should_hide_value_for_key(form.key.data):
             form.val.data = '*' * 8
+
+    extra_args = {"can_create_variable": _can_create_variable}
 
     @action('muldelete', 'Delete', 'Are you sure you want to delete selected records?', single=False)
     def action_muldelete(self, items):
