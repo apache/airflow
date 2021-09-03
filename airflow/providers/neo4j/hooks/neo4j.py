@@ -114,7 +114,8 @@ class Neo4jHook(BaseHook):
         if not self.connection.schema:
             with driver.session() as session:
                 result = session.run(query)
+                return result.data()
         else:
             with driver.session(database=self.connection.schema) as session:
                 result = session.run(query)
-        return result
+                return result.data()
