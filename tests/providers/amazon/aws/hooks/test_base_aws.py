@@ -140,9 +140,6 @@ class TestAwsBaseHook(unittest.TestCase):
     @unittest.skipIf(mock_emr is None, 'mock_emr package not present')
     @mock_emr
     def test_get_client_type_deprecation_warning(self):
-        client = boto3.client('emr', region_name='us-east-1')
-        if client.list_clusters()['Clusters']:
-            raise ValueError('AWS not properly mocked')
         hook = AwsBaseHook(aws_conn_id='aws_default', client_type='emr')
         warning_message = """client_type is deprecated. Set client_type from class attribute."""
         with pytest.warns(DeprecationWarning) as warnings:
