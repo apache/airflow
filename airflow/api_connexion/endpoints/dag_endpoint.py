@@ -20,7 +20,7 @@ from marshmallow import ValidationError
 from airflow import DAG
 from airflow._vendor.connexion import NoContent
 from airflow.api_connexion import security
-from airflow.api_connexion.exceptions import BadRequest, NotFound
+from airflow.api_connexion.exceptions import AlreadyExists, BadRequest, NotFound
 from airflow.api_connexion.parameters import check_limit, format_parameters
 from airflow.api_connexion.schemas.dag_schema import (
     DAGCollection,
@@ -28,7 +28,7 @@ from airflow.api_connexion.schemas.dag_schema import (
     dag_schema,
     dags_collection_schema,
 )
-from airflow.exceptions import DagNotFound, SerializedDagNotFound
+from airflow.exceptions import AirflowException, DagNotFound, SerializedDagNotFound
 from airflow.models.dag import DagModel
 from airflow.security import permissions
 from airflow.settings import Session
@@ -117,5 +117,7 @@ def delete_dag(dag_id: str, session: Session):
         delete_dag.delete_dag(dag_id, session=session)
     except DagNotFound:
         raise NotFound(f"Dag with id: '{dag_id}' not found")
+    except AirflowException:
+        raise AlreadyExists(detail=f"Task instances of fag with id: '{dag_id}' are still running")
 
     return NoContent, 204
