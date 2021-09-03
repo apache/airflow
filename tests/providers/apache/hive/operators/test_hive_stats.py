@@ -20,13 +20,14 @@ import os
 import re
 import unittest
 from collections import OrderedDict
+from unittest import mock
 from unittest.mock import patch
 
 import pytest
 
 from airflow.exceptions import AirflowException
 from airflow.providers.apache.hive.operators.hive_stats import HiveStatsCollectionOperator
-from tests.providers.apache.hive import DEFAULT_DATE, DEFAULT_DATE_DS, TestHiveEnvironment
+from tests.providers.apache.hive import DEFAULT_DATE_DS, TestHiveEnvironment
 from tests.test_utils.mock_hooks import MockHiveMetastoreHook, MockMySqlHook, MockPrestoHook
 
 
@@ -295,17 +296,16 @@ class TestHiveStatsCollectionOperator(TestHiveEnvironment):
         mock_presto_hook = MockPrestoHook()
         with patch(
             'airflow.providers.apache.hive.operators.hive_stats.PrestoHook', return_value=mock_presto_hook
+        ), patch(
+            'airflow.providers.apache.hive.operators.hive_stats.MySqlHook', return_value=mock_mysql_hook
         ):
-            with patch(
-                'airflow.providers.apache.hive.operators.hive_stats.MySqlHook', return_value=mock_mysql_hook
-            ):
-                op = HiveStatsCollectionOperator(
-                    task_id='hive_stats_check',
-                    table="airflow.static_babynames_partitioned",
-                    partition={'ds': DEFAULT_DATE_DS},
-                    dag=self.dag,
-                )
-                op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
+            op = HiveStatsCollectionOperator(
+                task_id='hive_stats_check',
+                table="airflow.static_babynames_partitioned",
+                partition={'ds': DEFAULT_DATE_DS},
+                dag=self.dag,
+            )
+            op.execute(mock.MagicMock())
 
         select_count_query = (
             "SELECT COUNT(*) AS __count FROM airflow."

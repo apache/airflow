@@ -18,9 +18,10 @@
 
 import os
 import unittest
+from unittest import mock
 
 from airflow.providers.apache.hdfs.sensors.hdfs import HdfsSensor
-from tests.providers.apache.hive import DEFAULT_DATE, TestHiveEnvironment
+from tests.providers.apache.hive import TestHiveEnvironment
 
 
 @unittest.skipIf('AIRFLOW_RUNALL_TESTS' not in os.environ, "Skipped because AIRFLOW_RUNALL_TESTS is not set")
@@ -31,4 +32,4 @@ class TestHdfsSensor(TestHiveEnvironment):
             filepath='hdfs://user/hive/warehouse/airflow.db/static_babynames',
             dag=self.dag,
         )
-        op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
+        op.execute(mock.MagicMock())

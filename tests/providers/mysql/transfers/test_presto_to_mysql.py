@@ -17,10 +17,11 @@
 # under the License.
 import os
 import unittest
+from unittest import mock
 from unittest.mock import patch
 
 from airflow.providers.mysql.transfers.presto_to_mysql import PrestoToMySqlOperator
-from tests.providers.apache.hive import DEFAULT_DATE, TestHiveEnvironment
+from tests.providers.apache.hive import TestHiveEnvironment
 
 
 class TestPrestoToMySqlTransfer(TestHiveEnvironment):
@@ -70,4 +71,4 @@ class TestPrestoToMySqlTransfer(TestHiveEnvironment):
             mysql_preoperator='TRUNCATE TABLE test_static_babynames;',
             dag=self.dag,
         )
-        op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
+        op.execute(mock.MagicMock())

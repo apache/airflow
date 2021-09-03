@@ -17,6 +17,7 @@
 # under the License.
 
 import unittest
+from unittest import mock
 
 import pytest
 
@@ -53,7 +54,7 @@ class TestSqliteOperator(unittest.TestCase):
         );
         """
         op = SqliteOperator(task_id='basic_sqlite', sql=sql, dag=self.dag)
-        op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
+        op.execute(mock.MagicMock())
 
     def test_sqlite_operator_with_multiple_statements(self):
         sql = [
@@ -61,7 +62,7 @@ class TestSqliteOperator(unittest.TestCase):
             "INSERT INTO test_airflow VALUES ('X')",
         ]
         op = SqliteOperator(task_id='sqlite_operator_with_multiple_statements', sql=sql, dag=self.dag)
-        op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
+        op.execute(mock.MagicMock())
 
     def test_sqlite_operator_with_invalid_sql(self):
         sql = [
@@ -71,9 +72,6 @@ class TestSqliteOperator(unittest.TestCase):
 
         from sqlite3 import OperationalError
 
-        try:
+        with pytest.raises(OperationalError, match=r"no such table: test_airflow2"):
             op = SqliteOperator(task_id='sqlite_operator_with_multiple_statements', sql=sql, dag=self.dag)
-            op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
-            pytest.fail("An exception should have been thrown")
-        except OperationalError as e:
-            assert 'no such table: test_airflow2' in str(e)
+            op.execute(mock.MagicMock())

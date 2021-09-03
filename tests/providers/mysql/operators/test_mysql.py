@@ -19,6 +19,7 @@ import os
 import unittest
 from contextlib import closing
 from tempfile import NamedTemporaryFile
+from unittest import mock
 
 import pytest
 from parameterized import parameterized
@@ -63,7 +64,7 @@ class TestMySql(unittest.TestCase):
             );
             """
             op = MySqlOperator(task_id='basic_mysql', sql=sql, dag=self.dag)
-            op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
+            op.execute(mock.MagicMock())
 
     @parameterized.expand(
         [
@@ -83,7 +84,7 @@ class TestMySql(unittest.TestCase):
                 sql=sql,
                 dag=self.dag,
             )
-            op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
+            op.execute(mock.MagicMock())
 
     @parameterized.expand(
         [
@@ -106,10 +107,8 @@ class TestMySql(unittest.TestCase):
 
             from MySQLdb import OperationalError
 
-            try:
-                op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
-            except OperationalError as e:
-                assert "Unknown database 'foobar'" in str(e)
+            with pytest.raises(OperationalError, match=r".+Unknown database 'foobar'.+"):
+                op.execute(mock.MagicMock())
 
     def test_mysql_operator_resolve_parameters_template_json_file(self):
 

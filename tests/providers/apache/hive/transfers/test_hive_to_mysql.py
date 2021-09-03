@@ -18,6 +18,7 @@
 import os
 import re
 import unittest
+from unittest import mock
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -140,29 +141,26 @@ class TestHiveToMySqlTransfer(TestHiveEnvironment):
         with patch(
             'airflow.providers.apache.hive.transfers.hive_to_mysql.HiveServer2Hook',
             return_value=mock_hive_hook,
+        ), patch(
+            'airflow.providers.apache.hive.transfers.hive_to_mysql.MySqlHook',
+            return_value=mock_mysql_hook,
         ):
-            with patch(
-                'airflow.providers.apache.hive.transfers.hive_to_mysql.MySqlHook',
-                return_value=mock_mysql_hook,
-            ):
-
-                op = HiveToMySqlOperator(
-                    mysql_conn_id='airflow_db',
-                    task_id='hive_to_mysql_check',
-                    sql="""
-                        SELECT name
-                        FROM airflow.static_babynames
-                        LIMIT 100
-                        """,
-                    mysql_table='test_static_babynames',
-                    mysql_preoperator=[
-                        'DROP TABLE IF EXISTS test_static_babynames;',
-                        'CREATE TABLE test_static_babynames (name VARCHAR(500))',
-                    ],
-                    dag=self.dag,
-                )
-                op.clear(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
-                op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
+            op = HiveToMySqlOperator(
+                mysql_conn_id='airflow_db',
+                task_id='hive_to_mysql_check',
+                sql="""
+                    SELECT name
+                    FROM airflow.static_babynames
+                    LIMIT 100
+                    """,
+                mysql_table='test_static_babynames',
+                mysql_preoperator=[
+                    'DROP TABLE IF EXISTS test_static_babynames;',
+                    'CREATE TABLE test_static_babynames (name VARCHAR(500))',
+                ],
+                dag=self.dag,
+            )
+            op.execute(mock.MagicMock())
 
         raw_select_name_query = mock_hive_hook.get_records.call_args_list[0][0][0]
         actual_select_name_query = re.sub(r'\s{2,}', ' ', raw_select_name_query).strip()

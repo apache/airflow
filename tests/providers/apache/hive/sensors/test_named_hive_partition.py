@@ -66,7 +66,7 @@ class TestNamedHivePartitionSensor(unittest.TestCase):
             hql=self.hql,
             dag=self.dag,
         )
-        op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
+        op.execute(mock.MagicMock())
 
     def test_parse_partition_name_correct(self):
         schema = 'default'
@@ -136,7 +136,7 @@ class TestPartitions(TestHiveEnvironment):
             hook=mock_hive_metastore_hook,
         )
 
-        op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
+        op.execute(mock.MagicMock())
 
         mock_hive_metastore_hook.check_for_named_partition.assert_called_once_with(
             'airflow', 'static_babynames_partitioned', 'ds=2015-01-01'
@@ -155,7 +155,7 @@ class TestPartitions(TestHiveEnvironment):
             dag=self.dag,
             hook=mock_hive_metastore_hook,
         )
-        op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
+        op.execute(mock.MagicMock())
         mock_hive_metastore_hook.check_for_named_partition.assert_any_call(
             'airflow', 'static_babynames_partitioned', 'ds=2015-01-01'
         )
@@ -187,4 +187,4 @@ class TestPartitions(TestHiveEnvironment):
                 dag=self.dag,
                 hook=mock_hive_metastore_hook,
             )
-            op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
+            op.execute(mock.MagicMock())

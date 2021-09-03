@@ -17,6 +17,7 @@
 # under the License.
 import os
 import unittest
+from unittest import mock
 from unittest.mock import MagicMock, Mock, PropertyMock, patch
 
 import pytest
@@ -24,7 +25,7 @@ import pytest
 from airflow import PY39
 from airflow.providers.apache.hive.transfers.hive_to_samba import HiveToSambaOperator
 from airflow.utils.operator_helpers import context_to_airflow_vars
-from tests.providers.apache.hive import DEFAULT_DATE, TestHiveEnvironment
+from tests.providers.apache.hive import TestHiveEnvironment
 from tests.test_utils.mock_hooks import MockHiveServer2Hook, MockSambaHook
 
 
@@ -92,6 +93,6 @@ class TestHive2SambaOperator(TestHiveEnvironment):
                 destination_filepath='test_airflow.csv',
                 dag=self.dag,
             )
-            op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
+            op.execute(mock.MagicMock())
 
         samba_hook.conn.upload.assert_called_with('/tmp/tmptst', 'test_airflow.csv')

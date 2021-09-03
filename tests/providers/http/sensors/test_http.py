@@ -35,10 +35,6 @@ TEST_DAG_ID = 'unit_test_dag'
 
 
 class TestHttpSensor(unittest.TestCase):
-    def setUp(self):
-        args = {'owner': 'airflow', 'start_date': DEFAULT_DATE}
-        self.dag = DAG(TEST_DAG_ID, default_args=args)
-
     @patch("airflow.providers.http.hooks.http.requests.Session.send")
     def test_poke_exception(self, mock_session_send):
         """
@@ -75,7 +71,6 @@ class TestHttpSensor(unittest.TestCase):
         mock_session_send.return_value = response
 
         task = HttpSensor(
-            dag=self.dag,
             task_id='http_sensor_poke_for_code_500',
             http_conn_id='http_default',
             endpoint='',
@@ -96,7 +91,6 @@ class TestHttpSensor(unittest.TestCase):
             return True
 
         task = HttpSensor(
-            dag=self.dag,
             task_id='http_sensor_head_method',
             http_conn_id='http_default',
             endpoint='',
@@ -136,7 +130,6 @@ class TestHttpSensor(unittest.TestCase):
             response_check=resp_check,
             timeout=5,
             poke_interval=1,
-            dag=self.dag,
         )
 
         task_instance = TaskInstance(task=task, execution_date=DEFAULT_DATE)
@@ -154,7 +147,6 @@ class TestHttpSensor(unittest.TestCase):
         mock_session_send.return_value = response
 
         task = HttpSensor(
-            dag=self.dag,
             task_id='http_sensor_head_method',
             http_conn_id='http_default',
             endpoint='',
@@ -221,7 +213,7 @@ class TestHttpOpSensor(unittest.TestCase):
             headers={},
             dag=self.dag,
         )
-        op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
+        op.execute(mock.MagicMock())
 
     @mock.patch('requests.Session', FakeSession)
     def test_get_response_check(self):
@@ -234,11 +226,11 @@ class TestHttpOpSensor(unittest.TestCase):
             headers={},
             dag=self.dag,
         )
-        op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
+        op.execute(mock.MagicMock())
 
     @mock.patch('requests.Session', FakeSession)
     def test_sensor(self):
-        sensor = HttpSensor(
+        op = HttpSensor(
             task_id='http_sensor_check',
             http_conn_id='http_default',
             endpoint='/search',
@@ -251,4 +243,4 @@ class TestHttpOpSensor(unittest.TestCase):
             timeout=15,
             dag=self.dag,
         )
-        sensor.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
+        op.execute(mock.MagicMock())

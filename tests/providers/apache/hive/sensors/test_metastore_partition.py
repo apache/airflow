@@ -21,7 +21,7 @@ import unittest
 from unittest import mock
 
 from airflow.providers.apache.hive.sensors.metastore_partition import MetastorePartitionSensor
-from tests.providers.apache.hive import DEFAULT_DATE, DEFAULT_DATE_DS, TestHiveEnvironment
+from tests.providers.apache.hive import DEFAULT_DATE_DS, TestHiveEnvironment
 from tests.test_utils.mock_process import MockDBConnection
 
 
@@ -37,4 +37,4 @@ class TestHivePartitionSensor(TestHiveEnvironment):
             dag=self.dag,
         )
         op._get_hook = mock.MagicMock(return_value=MockDBConnection({}))
-        op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
+        op.execute(mock.MagicMock())

@@ -58,4 +58,4 @@ class TestNeo4jOperator(unittest.TestCase):
             MATCH (tom {name: "Tom Hanks"}) RETURN tom
             """
         op = Neo4jOperator(task_id='basic_neo4j', sql=sql, dag=self.dag)
-        op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
+        op.execute(mock.MagicMock())

@@ -18,10 +18,11 @@
 
 import os
 import unittest
+from unittest import mock
 from unittest.mock import patch
 
 from airflow.providers.apache.hive.sensors.hive_partition import HivePartitionSensor
-from tests.providers.apache.hive import DEFAULT_DATE, TestHiveEnvironment
+from tests.providers.apache.hive import TestHiveEnvironment
 from tests.test_utils.mock_hooks import MockHiveMetastoreHook
 
 
@@ -35,4 +36,4 @@ class TestHivePartitionSensor(TestHiveEnvironment):
         op = HivePartitionSensor(
             task_id='hive_partition_check', table='airflow.static_babynames_partitioned', dag=self.dag
         )
-        op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
+        op.execute(mock.MagicMock())

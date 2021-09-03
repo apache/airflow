@@ -24,7 +24,7 @@ from airflow.configuration import conf
 from airflow.models import TaskInstance
 from airflow.providers.apache.hive.operators.hive import HiveOperator
 from airflow.utils import timezone
-from tests.providers.apache.hive import DEFAULT_DATE, TestHiveEnvironment
+from tests.providers.apache.hive import TestHiveEnvironment
 from tests.test_utils.mock_operators import MockHiveOperator
 from tests.test_utils.mock_process import MockSubProcess
 
@@ -108,7 +108,7 @@ class TestHivePresto(TestHiveEnvironment):
         mock_temp_dir.return_value = "tst"
         op = HiveOperator(task_id='basic_hql', hql=self.hql, dag=self.dag, mapred_job_name="test_job_name")
 
-        op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
+        op.execute(mock.MagicMock())
         hive_cmd = [
             'beeline',
             '-u',
@@ -190,7 +190,7 @@ class TestHivePresto(TestHiveEnvironment):
             mapred_job_name='airflow.test_hive_queues',
             dag=self.dag,
         )
-        op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
+        op.execute(mock.MagicMock())
 
         mock_popen.assert_called_with(
             hive_cmd,
@@ -287,7 +287,7 @@ class TestHivePresto(TestHiveEnvironment):
             dag=self.dag,
             mapred_job_name="test_job_name",
         )
-        op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
+        op.execute(mock.MagicMock())
         mock_popen.assert_called_with(
             hive_cmd,
             stdout=mock_subprocess.PIPE,
