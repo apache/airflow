@@ -29,6 +29,7 @@ from time import perf_counter
 from typing import Any, Callable, Dict, List, MutableMapping, NamedTuple, Optional, Set, TypeVar, Union, cast
 
 import jsonschema
+from packaging import version as packaging_version
 from wtforms import BooleanField, Field, IntegerField, PasswordField, StringField
 
 from airflow.utils import yaml
@@ -52,6 +53,10 @@ else:
     from functools import lru_cache
 
     cache = lru_cache(maxsize=None)
+
+MIN_PROVIDER_VERSIONS = {
+    "apache-airflow-providers-celery": "2.1.0",
+}
 
 
 class LazyDictWithCache(MutableMapping):
@@ -251,7 +256,19 @@ class ProvidersManager(LoggingMixin):
         # in case of local development
         self._discover_all_airflow_builtin_providers_from_local_sources()
         self._discover_all_providers_from_packages()
+        self._verify_all_providers_all_compatible()
         self._provider_dict = OrderedDict(sorted(self._provider_dict.items()))
+
+    def _verify_all_providers_all_compatible(self):
+        for provider_id, info in self._provider_dict.items():
+            min_version = MIN_PROVIDER_VERSIONS.get(provider_id)
+            if min_version:
+                if packaging_version.parse(min_version) > packaging_version.parse(info.version):
+                    log.warning(
+                        f"The package {provider_id} is not compatible with this version of Airflow. "
+                        f"The package has version {info.version} but the minimum supported version "
+                        f"of the package is {min_version}"
+                    )
 
     @provider_info_cache("hooks")
     def initialize_providers_hooks(self):
