@@ -820,7 +820,7 @@
     - name: access_control_allow_origins
       description: |
         Indicates whether the response can be shared with requesting code from the given origins.
-        Separate urls with space.
+        Separate URLs with space.
       type: string
       version_added: ~
       example: ~
