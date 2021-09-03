@@ -21,20 +21,14 @@ import enum
 import logging
 from dataclasses import dataclass
 from inspect import Parameter, signature
-from typing import TYPE_CHECKING, Any, Dict, Iterable, List, Optional, Set, Union
+from typing import TYPE_CHECKING, Any, Dict, Iterable, List, Optional, Set, Type, Union
 
 import cattr
 import pendulum
 from dateutil import relativedelta
-
-try:
-    from functools import cache
-except ImportError:
-    from functools import lru_cache
-
-    cache = lru_cache(maxsize=None)
 from pendulum.tz.timezone import FixedTimezone, Timezone
 
+from airflow.compat.functools import cache
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException, SerializationError
 from airflow.models.baseoperator import BaseOperator, BaseOperatorLink
@@ -128,22 +122,47 @@ def decode_timezone(var: Union[str, int]) -> Timezone:
     return pendulum.timezone(var)
 
 
-def encode_timetable(var: Timetable) -> Dict[str, Any]:
+def _get_registered_timetable(importable_string: str) -> Optional[Type[Timetable]]:
+    from airflow import plugins_manager
+
+    if importable_string.startswith("airflow.timetables."):
+        return import_string(importable_string)
+    plugins_manager.initialize_timetables_plugins()
+    return plugins_manager.timetable_classes.get(importable_string)
+
+
+class _TimetableNotRegistered(ValueError):
+    def __init__(self, type_string: str) -> None:
+        self.type_string = type_string
+
+    def __str__(self) -> str:
+        return f"Timetable class {self.type_string!r} is not registered"
+
+
+def _encode_timetable(var: Timetable) -> Dict[str, Any]:
     """Encode a timetable instance.
 
     This delegates most of the serialization work to the type, so the behavior
     can be completely controlled by a custom subclass.
     """
-    return {"type": as_importable_string(type(var)), "value": var.serialize()}
+    timetable_class = type(var)
+    importable_string = as_importable_string(timetable_class)
+    if _get_registered_timetable(importable_string) != timetable_class:
+        raise _TimetableNotRegistered(importable_string)
+    return {"__type": importable_string, "__var": var.serialize()}
 
 
-def decode_timetable(var: Dict[str, Any]) -> Timetable:
+def _decode_timetable(var: Dict[str, Any]) -> Timetable:
     """Decode a previously serialized timetable.
 
     Most of the deserialization logic is delegated to the actual type, which
     we import from string.
     """
-    return import_string(var["type"]).deserialize(var["value"])
+    importable_string = var["__type"]
+    timetable_class = _get_registered_timetable(importable_string)
+    if timetable_class is None:
+        raise _TimetableNotRegistered(importable_string)
+    return timetable_class.deserialize(var["__var"])
 
 
 class BaseSerialization:
@@ -248,7 +267,7 @@ class BaseSerialization:
             if key in decorated_fields:
                 serialized_object[key] = cls._serialize(value)
             elif key == "timetable":
-                serialized_object[key] = encode_timetable(value)
+                serialized_object[key] = _encode_timetable(value)
             else:
                 value = cls._serialize(value)
                 if isinstance(value, dict) and "__type" in value:
@@ -758,8 +777,8 @@ class SerializedDAG(DAG, BaseSerialization):
             return serialize_dag
         except SerializationError:
             raise
-        except Exception:
-            raise SerializationError(f'Failed to serialize dag {dag.dag_id!r}')
+        except Exception as e:
+            raise SerializationError(f'Failed to serialize DAG {dag.dag_id!r}: {e}')
 
     @classmethod
     def deserialize_dag(cls, encoded_dag: Dict[str, Any]) -> 'SerializedDAG':
@@ -785,7 +804,7 @@ class SerializedDAG(DAG, BaseSerialization):
                 # Value structure matches exactly
                 pass
             elif k == "timetable":
-                v = decode_timetable(v)
+                v = _decode_timetable(v)
             elif k in cls._decorated_fields:
                 v = cls._deserialize(v)
             # else use v as it is
