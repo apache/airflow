@@ -54,6 +54,8 @@ class FileProcessorHandler(logging.Handler):
         :param filename: filename in which the dag is located
         """
         local_loc = self._init_file(filename)
+        if self.handler:
+            self.handler.close()
         self.handler = logging.FileHandler(local_loc)
         self.handler.setFormatter(self.formatter)
         self.handler.setLevel(self.level)
