@@ -131,6 +131,14 @@ def _get_registered_timetable(importable_string: str) -> Optional[Type[Timetable
     return plugins_manager.timetable_classes.get(importable_string)
 
 
+class _TimetableNotRegistered(ValueError):
+    def __init__(self, type_string: str) -> None:
+        self.type_string = type_string
+
+    def __str__(self) -> str:
+        return f"Timetable class {self.type_string!r} is not registered"
+
+
 def _encode_timetable(var: Timetable) -> Dict[str, Any]:
     """Encode a timetable instance.
 
@@ -140,7 +148,7 @@ def _encode_timetable(var: Timetable) -> Dict[str, Any]:
     timetable_class = type(var)
     importable_string = as_importable_string(timetable_class)
     if _get_registered_timetable(importable_string) != timetable_class:
-        raise AirflowException(f"Cannot encode unregistered timetable class {importable_string!r}")
+        raise _TimetableNotRegistered(importable_string)
     return {"__type": importable_string, "__var": var.serialize()}
 
 
@@ -153,7 +161,7 @@ def _decode_timetable(var: Dict[str, Any]) -> Timetable:
     importable_string = var["__type"]
     timetable_class = _get_registered_timetable(importable_string)
     if timetable_class is None:
-        raise AirflowException(f"Cannot decode unregistered timetable class {importable_string!r}")
+        raise _TimetableNotRegistered(importable_string)
     return timetable_class.deserialize(var["__var"])
 
 
@@ -769,8 +777,8 @@ class SerializedDAG(DAG, BaseSerialization):
             return serialize_dag
         except SerializationError:
             raise
-        except Exception:
-            raise SerializationError(f'Failed to serialize dag {dag.dag_id!r}')
+        except Exception as e:
+            raise SerializationError(f'Failed to serialize DAG {dag.dag_id!r}: {e}')
 
     @classmethod
     def deserialize_dag(cls, encoded_dag: Dict[str, Any]) -> 'SerializedDAG':

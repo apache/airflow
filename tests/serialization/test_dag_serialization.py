@@ -32,7 +32,7 @@ import pytest
 from dateutil.relativedelta import FR, relativedelta
 from kubernetes.client import models as k8s
 
-from airflow.exceptions import AirflowException, SerializationError
+from airflow.exceptions import SerializationError
 from airflow.hooks.base import BaseHook
 from airflow.kubernetes.pod_generator import PodGenerator
 from airflow.models import DAG, Connection, DagBag, TaskInstance
@@ -355,17 +355,12 @@ class TestStringifiedDAGs:
         with pytest.raises(SerializationError) as ctx:
             SerializedDAG.to_dict(dag)
 
-        exception = ctx.value
-        assert str(exception) == "Failed to serialize dag 'simple_dag'"
-
-        # Check timetable registration is the root cause.
-        while getattr(exception, "__context__", None):
-            exception = exception.__context__
-        root_cause_message = (
-            "Cannot encode unregistered timetable class "
-            "'tests.test_utils.timetables.CustomSerializationTimetable'"
+        message = (
+            "Failed to serialize DAG 'simple_dag': Timetable class "
+            "'tests.test_utils.timetables.CustomSerializationTimetable' "
+            "is not registered"
         )
-        assert str(exception) == root_cause_message
+        assert str(ctx.value) == message
 
     def validate_serialized_dag(self, json_dag, ground_truth_dag):
         """Verify serialized DAGs match the ground truth."""
@@ -653,11 +648,12 @@ class TestStringifiedDAGs:
             },
         }
         SerializedDAG.validate_schema(serialized)
-        with pytest.raises(AirflowException) as ctx:
+        with pytest.raises(ValueError) as ctx:
             SerializedDAG.from_dict(serialized)
         message = (
-            "Cannot decode unregistered timetable class "
-            "'tests.test_utils.timetables.CustomSerializationTimetable'"
+            "Timetable class "
+            "'tests.test_utils.timetables.CustomSerializationTimetable' "
+            "is not registered"
         )
         assert str(ctx.value) == message
 
