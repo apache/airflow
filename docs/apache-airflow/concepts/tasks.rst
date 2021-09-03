@@ -47,7 +47,7 @@ Option 2: The more explicit ``set_upstream`` and ``set_downstream`` methods::
     first_task.set_downstream(second_task)
     third_task.set_upstream(second_task)
     
-Option 3: The @task decorator provided by TaskFlow API, see :ref:`concepts:taskflow`::
+Option 3: The @task decorator provided by TaskFlow API, see :ref:`TaskFlow <concepts:taskflow>`::
 
     @task
     def second_task(some_parameter):
@@ -59,7 +59,7 @@ Option 3: The @task decorator provided by TaskFlow API, see :ref:`concepts:taskf
     second_task(first_task())
     
 
-The former two do exactly the same thing and work on any type of Operator, but in general we recommend you use the bitshift operators, as they are easier to read in most cases. The TaskFlow API likewise connects dependencies between tasks, but is tailored to python functions written with the @task-decorator, note that the functions here are not executed inline, rather they are converted to tasks to be scheduled and sent to Executors, for more information see see :ref:`TaskFlow <concepts:taskflow>`.
+The former two do exactly the same thing and work on any type of Operator, but in general we recommend you use the bitshift operators, as they are easier to read in most cases. The TaskFlow API likewise connects dependencies between tasks, but is tailored to python functions written with the @task-decorator, note that the functions here are not executed inline, rather they are converted to tasks to be scheduled and sent to Executors, for more information see :ref:`TaskFlow <concepts:taskflow>`.
 
 By default, a Task will run when all of its upstream (parent) tasks have succeeded, but there are many ways of modifying this behaviour to add branching, only wait for some upstream tasks, or change behaviour based on where the current run is in history. For more, see :ref:`concepts:control-flow`.
 
