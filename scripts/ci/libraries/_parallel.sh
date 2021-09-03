@@ -73,7 +73,7 @@ function parallel::monitor_loop() {
     while true
     do
         echo
-        echo "${COLOR_YELLOW}########### Monitoring progress start: ${progress_report_number} #################${COLOR_RESET}"
+        echo "${COLOR_YELLOW}########## Monitoring progress start: ${progress_report_number}  ##########${COLOR_RESET}"
         echo
         echo "${COLOR_BLUE}########### STATISTICS #################"
         docker_engine_resources::print_overall_stats
@@ -87,31 +87,22 @@ function parallel::monitor_loop() {
             fi
 
             echo "${COLOR_BLUE}### The last ${PARALLEL_TAIL_LENGTH} lines for ${parallel_process} process: ${directory}/stdout ###${COLOR_RESET}"
-            echo
             tail "-${PARALLEL_TAIL_LENGTH}" "${directory}/stdout" || true
             echo
 
             if [[ -s "${directory}/status" ]]; then
               finished_jobs+=("$parallel_process")
-              status=$(cat "${directory}/status")
-
-              if [[ $status == 0 ]]; then
-                local color="$COLOR_GREEN"
-              else
-                local color="$COLOR_RED"
-              fi
-              echo "${color}### Test ${parallel_process} exited with ${status}${COLOR_RESET}"
+              # The last line of output (which we've already shown) will be a line about the success/failure
+              # of this job
             fi
 
             echo
 
         done
-        echo
-        echo "${COLOR_YELLOW}########### Monitoring progress end: ${progress_report_number} #################${COLOR_RESET}"
-        echo
+
         end_time=${SECONDS}
-        echo "${COLOR_YELLOW}############## $((end_time - start_time)) seconds passed since start ####################### ${COLOR_RESET}"
-        sleep 10
+        echo "${COLOR_YELLOW}########## $((end_time - start_time)) seconds passed since start ##########${COLOR_RESET}"
+        sleep 15
         progress_report_number=$((progress_report_number + 1))
     done
 }
