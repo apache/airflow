@@ -1891,7 +1891,7 @@ class DAG(LoggingMixin):
 
         return dag
 
-    def has_task_group(self, group_id: str):
+    def has_task_group(self, group_id: str) -> bool:
         return group_id in self.task_group_dict
 
     def has_task(self, task_id: str):
