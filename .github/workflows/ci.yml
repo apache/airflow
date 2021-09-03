@@ -61,29 +61,29 @@ jobs:
           echo  "$(cat $GITHUB_WORKSPACE/AIRFLOW_RELEASE_NAME)"
       - name: Docker login
         run: |
-          docker login docker.pkg.github.com -u ${{ github.actor }} -p ${{ secrets.airflow_curve }}
+          docker login ghcr.io -u ${{ github.actor }} -p ${{ secrets.airflow_curve }}
       - name: Build airflow-base
         run: |
           cd $GITHUB_WORKSPACE/docker-airflow
           echo $(pwd)
           cp $GITHUB_WORKSPACE/airflow/dist/$(cat $GITHUB_WORKSPACE/AIRFLOW_RELEASE_NAME) ./$(cat $GITHUB_WORKSPACE/AIRFLOW_RELEASE_NAME)
-          docker build --build-arg AIRFLOW_WHEEL_NAME=$(cat $GITHUB_WORKSPACE/AIRFLOW_RELEASE_NAME) -t docker.pkg.github.com/masami10/airflow/airflow-base:latest --no-cache .
-          docker tag docker.pkg.github.com/masami10/airflow/airflow-base:latest docker.pkg.github.com/masami10/airflow/airflow-base:$(cat $GITHUB_WORKSPACE/AIRFLOW_RELEASE_VERSION)
-          docker push docker.pkg.github.com/masami10/airflow/airflow-base:$(cat $GITHUB_WORKSPACE/AIRFLOW_RELEASE_VERSION)
-          docker push docker.pkg.github.com/masami10/airflow/airflow-base:latest
+          docker build --build-arg AIRFLOW_WHEEL_NAME=$(cat $GITHUB_WORKSPACE/AIRFLOW_RELEASE_NAME) -t ghcr.io/masami10/airflow/airflow-base:latest --no-cache .
+          docker tag ghcr.io/masami10/airflow/airflow-base:latest ghcr.io/masami10/airflow/airflow-base:$(cat $GITHUB_WORKSPACE/AIRFLOW_RELEASE_VERSION)
+          docker push ghcr.io/masami10/airflow/airflow-base:$(cat $GITHUB_WORKSPACE/AIRFLOW_RELEASE_VERSION)
+          docker push ghcr.io/masami10/airflow/airflow-base:latest
       - name: Build airflow
         run: |
           cd $GITHUB_WORKSPACE/airflow/build-qcos-airflow
           echo $(pwd)
           cp -r ../dags ./dags
           cp -r ../plugins ./plugins
-          docker build -t docker.pkg.github.com/masami10/airflow/airflow:latest --no-cache .
-          docker tag docker.pkg.github.com/masami10/airflow/airflow:latest docker.pkg.github.com/masami10/airflow/airflow:$(cat $GITHUB_WORKSPACE/AIRFLOW_RELEASE_VERSION)
-          docker push docker.pkg.github.com/masami10/airflow/airflow:$(cat $GITHUB_WORKSPACE/AIRFLOW_RELEASE_VERSION)
-          docker push docker.pkg.github.com/masami10/airflow/airflow:latest
+          docker build -t ghcr.io/masami10/airflow/airflow:latest --no-cache .
+          docker tag ghcr.io/masami10/airflow/airflow:latest ghcr.io/masami10/airflow/airflow:$(cat $GITHUB_WORKSPACE/AIRFLOW_RELEASE_VERSION)
+          docker push ghcr.io/masami10/airflow/airflow:$(cat $GITHUB_WORKSPACE/AIRFLOW_RELEASE_VERSION)
+          docker push ghcr.io/masami10/airflow/airflow:latest
 
           echo ${{ secrets.TENCENT_PASS }} | docker login -u ${{ secrets.TENCENT_USER }} ccr.ccs.tencentyun.com --password-stdin
-          docker tag docker.pkg.github.com/masami10/airflow/airflow:${GITHUB_REF##*/} ccr.ccs.tencentyun.com/dev-tke/airflow:${GITHUB_REF##*/}
+          docker tag ghcr.io/masami10/airflow/airflow:${GITHUB_REF##*/} ccr.ccs.tencentyun.com/dev-tke/airflow:${GITHUB_REF##*/}
           docker push ccr.ccs.tencentyun.com/dev-tke/airflow:${GITHUB_REF##*/}
 
       - name: deploy to cluster
