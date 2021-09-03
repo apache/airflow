@@ -87,10 +87,7 @@ class BaseTaskRunner(LoggingMixin):
 
         self._error_file = NamedTemporaryFile(delete=True)
         if self.run_as_user:
-            try:
-                os.chown(self._error_file.name, getpwnam(self.run_as_user).pw_uid, -1)
-            except Exception:
-                pass
+            os.chown(self._error_file.name, getpwnam(self.run_as_user).pw_uid, -1)
 
         self._cfg_path = cfg_path
         self._command = (
