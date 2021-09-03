@@ -452,13 +452,15 @@ class AwsBaseHook(BaseHook):
 
     def get_resource_type(
         self,
-        resource_type: str,
+        resource_type: Optional[str] = None,
         region_name: Optional[str] = None,
         config: Optional[Config] = None,
     ) -> boto3.resource:
         """Get the underlying boto3 resource using boto3 session"""
         session, endpoint_url = self._get_credentials(region_name)
 
+        if resource_type is None:
+            resource_type = self.resource_type
         # No AWS Operators use the config argument to this method.
         # Keep backward compatibility with other users who might use it
         if config is None:

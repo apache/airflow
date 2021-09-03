@@ -159,6 +159,46 @@ class TestAwsBaseHook(unittest.TestCase):
 
     @unittest.skipIf(mock_dynamodb2 is None, 'mock_dynamo2 package not present')
     @mock_dynamodb2
+    def test_get_resource_type_set_in_class_attribute(self):
+        hook = AwsBaseHook(aws_conn_id='aws_default', resource_type='dynamodb')
+        resource_from_hook = hook.get_resource_type()
+
+        # this table needs to be created in production
+        table = resource_from_hook.create_table(
+            TableName='test_airflow',
+            KeySchema=[
+                {'AttributeName': 'id', 'KeyType': 'HASH'},
+            ],
+            AttributeDefinitions=[{'AttributeName': 'id', 'AttributeType': 'S'}],
+            ProvisionedThroughput={'ReadCapacityUnits': 10, 'WriteCapacityUnits': 10},
+        )
+
+        table.meta.client.get_waiter('table_exists').wait(TableName='test_airflow')
+
+        assert table.item_count == 0
+
+    @unittest.skipIf(mock_dynamodb2 is None, 'mock_dynamo2 package not present')
+    @mock_dynamodb2
+    def test_get_resource_type_overwrite(self):
+        hook = AwsBaseHook(aws_conn_id='aws_default', resource_type='s3')
+        resource_from_hook = hook.get_resource_type('dynamodb')
+
+        # this table needs to be created in production
+        table = resource_from_hook.create_table(
+            TableName='test_airflow',
+            KeySchema=[
+                {'AttributeName': 'id', 'KeyType': 'HASH'},
+            ],
+            AttributeDefinitions=[{'AttributeName': 'id', 'AttributeType': 'S'}],
+            ProvisionedThroughput={'ReadCapacityUnits': 10, 'WriteCapacityUnits': 10},
+        )
+
+        table.meta.client.get_waiter('table_exists').wait(TableName='test_airflow')
+
+        assert table.item_count == 0
+
+    @unittest.skipIf(mock_dynamodb2 is None, 'mock_dynamo2 package not present')
+    @mock_dynamodb2
     def test_get_session_returns_a_boto3_session(self):
         hook = AwsBaseHook(aws_conn_id='aws_default', resource_type='dynamodb')
         session_from_hook = hook.get_session()
