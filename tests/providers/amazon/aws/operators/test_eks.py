@@ -24,6 +24,7 @@ from airflow.providers.amazon.aws.operators.eks import (
     EKSCreateNodegroupOperator,
     EKSDeleteClusterOperator,
     EKSDeleteNodegroupOperator,
+    EKSPodOperator,
 )
 from tests.providers.amazon.aws.utils.eks_test_constants import (
     NODEROLE_ARN,
@@ -160,3 +161,32 @@ class TestEKSDeleteNodegroupOperator(unittest.TestCase):
         mock_delete_nodegroup.assert_called_once_with(
             clusterName=self.cluster_name, nodegroupName=self.nodegroup_name
         )
+
+
+class TestEKSPodOperator(unittest.TestCase):
+    @mock.patch('airflow.providers.cncf.kubernetes.operators.kubernetes_pod.KubernetesPodOperator.execute')
+    @mock.patch('airflow.providers.amazon.aws.hooks.eks.EKSHook.generate_config_file')
+    @mock.patch('airflow.providers.amazon.aws.hooks.eks.EKSHook.__init__', return_value=None)
+    def test_existing_nodegroup(
+        self, mock_eks_hook, mock_generate_config_file, mock_k8s_pod_operator_execute
+    ):
+        ti_context = mock.MagicMock(name="ti_context")
+
+        op = EKSPodOperator(
+            task_id="run_pod",
+            cluster_name=CLUSTER_NAME,
+            image="amazon/aws-cli:latest",
+            cmds=["sh", "-c", "ls"],
+            labels={"demo": "hello_world"},
+            get_logs=True,
+            # Delete the pod when it reaches its final state, or the execution is interrupted.
+            is_delete_operator_pod=True,
+        )
+        op_return_value = op.execute(ti_context)
+        mock_k8s_pod_operator_execute.assert_called_once_with(ti_context)
+        mock_eks_hook.assert_called_once_with(aws_conn_id='aws_default', region_name=None)
+        mock_generate_config_file.assert_called_once_with(
+            eks_cluster_name=CLUSTER_NAME, pod_namespace='default'
+        )
+        self.assertEqual(mock_k8s_pod_operator_execute.return_value, op_return_value)
+        self.assertEqual(mock_generate_config_file.return_value.__enter__.return_value, op.config_file)

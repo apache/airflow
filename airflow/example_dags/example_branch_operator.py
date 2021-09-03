@@ -26,13 +26,8 @@ from airflow.operators.python import BranchPythonOperator
 from airflow.utils.dates import days_ago
 from airflow.utils.edgemodifier import Label
 
-args = {
-    'owner': 'airflow',
-}
-
 with DAG(
     dag_id='example_branch_operator',
-    default_args=args,
     start_date=days_ago(2),
     schedule_interval="@daily",
     tags=['example', 'example2'],

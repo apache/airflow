@@ -4294,7 +4294,10 @@ class DagDependenciesView(AirflowBaseView):
         """Display DAG dependencies"""
         title = "DAG Dependencies"
 
-        if timezone.utcnow() > self.last_refresh + self.refresh_interval:
+        if not self.nodes or not self.edges:
+            self._calculate_graph()
+            self.last_refresh = timezone.utcnow()
+        elif timezone.utcnow() > self.last_refresh + self.refresh_interval:
             max_last_updated = SerializedDagModel.get_max_last_updated_datetime()
             if max_last_updated is None or max_last_updated > self.last_refresh:
                 self._calculate_graph()
@@ -4305,7 +4308,7 @@ class DagDependenciesView(AirflowBaseView):
             title=title,
             nodes=self.nodes,
             edges=self.edges,
-            last_refresh=self.last_refresh.strftime("%Y-%m-%d %H:%M:%S"),
+            last_refresh=self.last_refresh,
             arrange=conf.get("webserver", "dag_orientation"),
             width=request.args.get("width", "100%"),
             height=request.args.get("height", "800"),

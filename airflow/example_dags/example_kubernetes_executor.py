@@ -25,13 +25,8 @@ from airflow.example_dags.libs.helper import print_stuff
 from airflow.operators.python import PythonOperator
 from airflow.utils.dates import days_ago
 
-args = {
-    'owner': 'airflow',
-}
-
 with DAG(
     dag_id='example_kubernetes_executor',
-    default_args=args,
     schedule_interval=None,
     start_date=days_ago(2),
     tags=['example', 'example2'],
