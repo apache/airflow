@@ -3570,7 +3570,7 @@ class PoolModelView(AirflowModelView):
     validators_columns = {'pool': [validators.DataRequired()], 'slots': [validators.NumberRange(min=-1)]}
 
 
-def _can_create_variable():
+def _can_create_variable() -> bool:
     return current_app.appbuilder.sm.has_access(permissions.ACTION_CAN_CREATE, permissions.RESOURCE_VARIABLE)
 
 
