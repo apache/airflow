@@ -817,9 +817,10 @@
       version_added: ~
       example: ~
       default: ""
-    - name: access_control_allow_origin
+    - name: access_control_allow_origins
       description: |
-        Indicates whether the response can be shared with requesting code from the given origin.
+        Indicates whether the response can be shared with requesting code from the given origins.
+        Separate urls with space.
       type: string
       version_added: ~
       example: ~
