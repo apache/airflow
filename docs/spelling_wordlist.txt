@@ -1365,6 +1365,7 @@ uris
 url
 urlencoded
 urlparse
+urls
 useHCatalog
 useLegacySQL
 useQueryCache
