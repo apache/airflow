@@ -19,6 +19,7 @@
 import os
 import subprocess
 import threading
+from pwd import getpwnam
 from tempfile import NamedTemporaryFile
 from typing import Optional, Union
 
@@ -85,6 +86,9 @@ class BaseTaskRunner(LoggingMixin):
             cfg_path = tmp_configuration_copy(chmod=0o600)
 
         self._error_file = NamedTemporaryFile(delete=True)
+        if self.run_as_user:
+            os.chown(self._error_file.name, getpwnam(self.run_as_user).pw_uid, -1)
+
         self._cfg_path = cfg_path
         self._command = (
             popen_prepend
