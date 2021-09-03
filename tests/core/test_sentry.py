@@ -73,6 +73,8 @@ class TestSentryHook:
 
         yield ti
 
+        dag_maker.session.rollback()
+
     @pytest.fixture
     def sentry(self):
         with conf_vars({('sentry', 'sentry_on'): 'True'}):
