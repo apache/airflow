@@ -122,13 +122,16 @@ def test_parent_skip_branch(session, dag_maker):
         op3 = DummyOperator(task_id="op3")
         op1 >> [op2, op3]
 
-    ti1, ti2, _ = dag_maker.create_dagrun(run_type=DagRunType.MANUAL, state=State.RUNNING).task_instances
-    ti1.run()
+    tis = {
+        ti.task_id: ti
+        for ti in dag_maker.create_dagrun(run_type=DagRunType.MANUAL, state=State.RUNNING).task_instances
+    }
+    tis["op1"].run()
 
     dep = NotPreviouslySkippedDep()
-    assert len(list(dep.get_dep_statuses(ti2, session, DepContext()))) == 1
-    assert not dep.is_met(ti2, session)
-    assert ti2.state == State.SKIPPED
+    assert len(list(dep.get_dep_statuses(tis["op2"], session, DepContext()))) == 1
+    assert not dep.is_met(tis["op2"], session)
+    assert tis["op2"].state == State.SKIPPED
 
 
 def test_parent_not_executed(session, dag_maker):
