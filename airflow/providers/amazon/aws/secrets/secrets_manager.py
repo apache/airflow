@@ -58,7 +58,7 @@ class SecretsManagerBackend(BaseSecretsBackend, LoggingMixin):
     There are two ways of storing secrets in Secret Manager for using them with this operator:
     storing them as a conn URI in one field, or taking advantage of native approach of Secrets Manager
     and storing them in multiple fields. There are certain words that will be searched in the name
-    of fileds for trying to retrieve a connection part. Those words are:
+    of fields for trying to retrieve a connection part. Those words are:
 
     .. code-block:: ini
 
