@@ -22,6 +22,7 @@ description: |
     `Oracle <https://www.oracle.com/en/database/>`__
 
 versions:
+  - 2.0.1
   - 2.0.0
   - 1.1.0
   - 1.0.1
@@ -51,5 +52,9 @@ transfers:
     target-integration-name: Oracle
     python-module: airflow.providers.oracle.transfers.oracle_to_oracle
 
-hook-class-names:
+hook-class-names:  # deprecated - to be removed after providers add dependency on Airflow 2.2.0+
   - airflow.providers.oracle.hooks.oracle.OracleHook
+
+connection-types:
+  - hook-class-name: airflow.providers.oracle.hooks.oracle.OracleHook
+    connection-type: oracle

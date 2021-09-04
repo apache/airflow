@@ -34,7 +34,7 @@ Content
 
     PyPI Repository <https://pypi.org/project/apache-airflow-providers-samba/>
 
-.. THE REMINDER OF THE FILE IS AUTOMATICALLY GENERATED. IT WILL BE OVERWRITTEN AT RELEASE TIME!
+.. THE REMAINDER OF THE FILE IS AUTOMATICALLY GENERATED. IT WILL BE OVERWRITTEN AT RELEASE TIME!
 
 
 .. toctree::
@@ -50,7 +50,7 @@ Package apache-airflow-providers-samba
 `Samba <https://www.samba.org/>`__
 
 
-Release: 2.0.0
+Release: 3.0.0
 
 Provider package
 ----------------
@@ -71,7 +71,7 @@ PIP requirements
 PIP package         Version required
 ==================  ==================
 ``apache-airflow``  ``>=2.1.0``
-``pysmbclient``     ``>=0.1.3``
+``smbprotocol``     ``>=1.5.0``
 ==================  ==================
 
 .. include:: ../../airflow/providers/samba/CHANGELOG.rst

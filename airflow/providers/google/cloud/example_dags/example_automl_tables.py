@@ -84,7 +84,7 @@ def get_target_column_spec(columns_specs: List[Dict], column_name: str) -> str:
 # Example DAG to create dataset, train model_id and deploy it.
 with models.DAG(
     "example_create_and_deploy",
-    schedule_interval=None,  # Override to match your needs
+    schedule_interval='@once',  # Override to match your needs
     start_date=days_ago(1),
     user_defined_macros={
         "get_target_column_spec": get_target_column_spec,
@@ -101,7 +101,7 @@ with models.DAG(
         project_id=GCP_PROJECT_ID,
     )
 
-    dataset_id = "{{ task_instance.xcom_pull('create_dataset_task', key='dataset_id') }}"
+    dataset_id = create_dataset_task.output['dataset_id']
     # [END howto_operator_automl_create_dataset]
 
     MODEL["dataset_id"] = dataset_id
@@ -156,7 +156,7 @@ with models.DAG(
         project_id=GCP_PROJECT_ID,
     )
 
-    model_id = "{{ task_instance.xcom_pull('create_model_task', key='model_id') }}"
+    model_id = create_model_task.output['model_id']
     # [END howto_operator_automl_create_model]
 
     # [START howto_operator_automl_delete_model]
@@ -176,21 +176,27 @@ with models.DAG(
     )
 
     (
-        create_dataset_task
-        >> import_dataset_task
+        import_dataset_task
         >> list_tables_spec_task
         >> list_columns_spec_task
         >> update_dataset_task
         >> create_model_task
-        >> delete_model_task
-        >> delete_datasets_task
     )
+    delete_model_task >> delete_datasets_task
+
+    # Task dependencies created via `XComArgs`:
+    #   create_dataset_task >> import_dataset_task
+    #   create_dataset_task >> list_tables_spec_task
+    #   create_dataset_task >> list_columns_spec_task
+    #   create_dataset_task >> create_model_task
+    #   create_model_task >> delete_model_task
+    #   create_dataset_task >> delete_datasets_task
 
 
 # Example DAG for AutoML datasets operations
 with models.DAG(
     "example_automl_dataset",
-    schedule_interval=None,  # Override to match your needs
+    schedule_interval='@once',  # Override to match your needs
     start_date=days_ago(1),
     user_defined_macros={"extract_object_id": extract_object_id},
 ) as example_dag:
@@ -201,7 +207,7 @@ with models.DAG(
         project_id=GCP_PROJECT_ID,
     )
 
-    dataset_id = '{{ task_instance.xcom_pull("create_dataset_task", key="dataset_id") }}'
+    dataset_id = create_dataset_task.output['dataset_id']
 
     import_dataset_task = AutoMLImportDataOperator(
         task_id="import_dataset_task",
@@ -243,17 +249,22 @@ with models.DAG(
     # [END howto_operator_delete_dataset]
 
     (
-        create_dataset_task
-        >> import_dataset_task
+        import_dataset_task
         >> list_tables_spec_task
         >> list_columns_spec_task
         >> list_datasets_task
         >> delete_datasets_task
     )
 
+    # Task dependencies created via `XComArgs`:
+    # create_dataset_task >> import_dataset_task
+    # create_dataset_task >> list_tables_spec_task
+    # create_dataset_task >> list_columns_spec_task
+
+
 with models.DAG(
     "example_gcp_get_deploy",
-    schedule_interval=None,  # Override to match your needs
+    schedule_interval='@once',  # Override to match your needs
     start_date=days_ago(1),
     tags=["example"],
 ) as get_deploy_dag:
@@ -278,7 +289,7 @@ with models.DAG(
 
 with models.DAG(
     "example_gcp_predict",
-    schedule_interval=None,  # Override to match your needs
+    schedule_interval='@once',  # Override to match your needs
     start_date=days_ago(1),
     tags=["example"],
 ) as predict_dag:

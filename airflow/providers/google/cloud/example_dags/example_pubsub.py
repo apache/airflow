@@ -49,7 +49,7 @@ echo_cmd = """
 
 with models.DAG(
     "example_gcp_pubsub_sensor",
-    schedule_interval=None,  # Override to match your needs
+    schedule_interval='@once',  # Override to match your needs
     start_date=days_ago(1),
 ) as example_sensor_dag:
     # [START howto_operator_gcp_pubsub_create_topic]
@@ -65,7 +65,7 @@ with models.DAG(
     # [END howto_operator_gcp_pubsub_create_subscription]
 
     # [START howto_operator_gcp_pubsub_pull_message_with_sensor]
-    subscription = "{{ task_instance.xcom_pull('subscribe_task') }}"
+    subscription = subscribe_task.output
 
     pull_messages = PubSubPullSensor(
         task_id="pull_messages",
@@ -92,7 +92,7 @@ with models.DAG(
     unsubscribe_task = PubSubDeleteSubscriptionOperator(
         task_id="unsubscribe_task",
         project_id=GCP_PROJECT_ID,
-        subscription="{{ task_instance.xcom_pull('subscribe_task') }}",
+        subscription=subscription,
     )
     # [END howto_operator_gcp_pubsub_unsubscribe]
 
@@ -102,13 +102,17 @@ with models.DAG(
     )
     # [END howto_operator_gcp_pubsub_delete_topic]
 
-    create_topic >> subscribe_task >> [publish_task, pull_messages]
+    create_topic >> subscribe_task >> publish_task
     pull_messages >> pull_messages_result >> unsubscribe_task >> delete_topic
+
+    # Task dependencies created via `XComArgs`:
+    #   subscribe_task >> pull_messages
+    #   subscribe_task >> unsubscribe_task
 
 
 with models.DAG(
     "example_gcp_pubsub_operator",
-    schedule_interval=None,  # Override to match your needs
+    schedule_interval='@once',  # Override to match your needs
     start_date=days_ago(1),
 ) as example_operator_dag:
     # [START howto_operator_gcp_pubsub_create_topic]
@@ -124,7 +128,7 @@ with models.DAG(
     # [END howto_operator_gcp_pubsub_create_subscription]
 
     # [START howto_operator_gcp_pubsub_pull_message_with_operator]
-    subscription = "{{ task_instance.xcom_pull('subscribe_task') }}"
+    subscription = subscribe_task.output
 
     pull_messages_operator = PubSubPullOperator(
         task_id="pull_messages",
@@ -151,7 +155,7 @@ with models.DAG(
     unsubscribe_task = PubSubDeleteSubscriptionOperator(
         task_id="unsubscribe_task",
         project_id=GCP_PROJECT_ID,
-        subscription="{{ task_instance.xcom_pull('subscribe_task') }}",
+        subscription=subscription,
     )
     # [END howto_operator_gcp_pubsub_unsubscribe]
 
@@ -170,3 +174,7 @@ with models.DAG(
         >> unsubscribe_task
         >> delete_topic
     )
+
+    # Task dependencies created via `XComArgs`:
+    #   subscribe_task >> pull_messages_operator
+    #   subscribe_task >> unsubscribe_task

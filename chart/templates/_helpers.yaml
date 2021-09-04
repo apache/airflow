@@ -52,6 +52,11 @@ If release name contains chart name it will be used as a full name.
       secretKeyRef:
         name: {{ template "airflow_metadata_secret" . }}
         key: connection
+  - name: AIRFLOW__WEBSERVER__SECRET_KEY
+    valueFrom:
+      secretKeyRef:
+        name: {{ template "webserver_secret_key_secret" . }}
+        key: webserver-secret-key
   {{- if or (eq .Values.executor "CeleryExecutor") (eq .Values.executor "CeleryKubernetesExecutor") }}
   - name: AIRFLOW__CELERY__CELERY_RESULT_BACKEND
     valueFrom:
@@ -254,6 +259,10 @@ If release name contains chart name it will be used as a full name.
 
 {{ define "fernet_key_secret" -}}
 {{ default (printf "%s-fernet-key" .Release.Name) .Values.fernetKeySecretName }}
+{{- end }}
+
+{{ define "webserver_secret_key_secret" -}}
+{{ default (printf "%s-webserver-secret-key" .Release.Name) .Values.webserverSecretKeySecretName }}
 {{- end }}
 
 {{ define "redis_password_secret" -}}
@@ -488,6 +497,17 @@ Create the name of the worker service account to use
     {{ default (printf "%s-worker" (include "airflow.fullname" .)) .Values.workers.serviceAccount.name }}
 {{- else -}}
     {{ default "default" .Values.workers.serviceAccount.name }}
+{{- end -}}
+{{- end -}}
+
+{{/*
+Create the name of the triggerer service account to use
+*/}}
+{{- define "triggerer.serviceAccountName" -}}
+{{- if .Values.triggerer.serviceAccount.create -}}
+    {{ default (printf "%s-triggerer" (include "airflow.fullname" .)) .Values.triggerer.serviceAccount.name }}
+{{- else -}}
+    {{ default "default" .Values.triggerer.serviceAccount.name }}
 {{- end -}}
 {{- end -}}
 

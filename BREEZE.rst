@@ -664,7 +664,7 @@ This install additional pypi dependency - torchio in specified version.
      ./breeze build-image --production-image --additional-dev-apt-deps "libasound2-dev" \
         --additional-runtime-apt-deps "libasound2"
 
-This install additional apt dependencies - ``libasound2-dev`` in build image and ``libasound`` in the
+This installs additional apt dependencies - ``libasound2-dev`` in the build image and ``libasound`` in the
 final image. Those are development dependencies that might be needed to build and use python packages added
 via the ``--additional-python-deps`` flag. The ``dev`` dependencies are not installed in the final
 production image, they are only installed in the build "segment" of the production image that is used
@@ -718,13 +718,13 @@ The above will run mypy check for all files.
       </a>
     </div>
 
-If you want ever need to get a list of the files that will be checked (for troubleshooting when playing with the
-``--from-ref`` and ``--to-ref``
+If you ever need to get a list of the files that will be checked (for troubleshooting when playing with
+``--from-ref`` and ``--to-ref``), use these commands:
 
 .. code-block:: bash
 
-     breeze static-check identity --verbose # currently staged files
-     breeze static-check identity --verbose -- --from-ref $(git merge-base main HEAD) --to-ref HEAD #  branch updates
+     ./breeze static-check identity --verbose # currently staged files
+     ./breeze static-check identity --verbose -- --from-ref $(git merge-base main HEAD) --to-ref HEAD #  branch updates
 
 Building the Documentation
 --------------------------
@@ -797,9 +797,9 @@ Constraints are generated separately for each python version and there are separ
   providers. If you want to manage airflow separately and then add providers individually, you can
   use those. Use ``no-providers`` mode for that.
 
-In case someone modifies setup.py, the ``CRON`` scheduled CI build automatically upgrades and
-pushes changed to the constraint files, however you can also perform test run of this locally using
-the procedure described in `<CONTRIBUTING.rst#mnully-generating-constraint-files>`_ which utilises
+In case someone modifies setup.py, the scheduled CI Tests automatically upgrades and
+pushes changes to the constraint files, however you can also perform test run of this locally using
+the procedure described in `<CONTRIBUTING.rst#manually-generating-constraint-files>`_ which utilises
 multiple processors on your local machine to generate such constraints faster.
 
 This bumps the constraint files to latest versions and stores hash of setup.py. The generated constraint
@@ -1280,9 +1280,6 @@ This is the current syntax for  `./breeze <./breeze>`_:
   --upgrade-to-newer-dependencies
           Upgrades PIP packages to latest versions available without looking at the constraints.
 
-  --continue-on-pip-check-failure
-          Continue even if 'pip check' fails.
-
   -I, --production-image
           Use production image for entering the environment and builds (not for tests).
 
@@ -1318,8 +1315,8 @@ This is the current syntax for  `./breeze <./breeze>`_:
 
           Production image:
                  async,amazon,celery,cncf.kubernetes,docker,dask,elasticsearch,ftp,grpc,hashicorp,
-                 http,ldap,google,microsoft.azure,mysql,postgres,redis,sendgrid,sftp,slack,ssh,statsd,
-                 virtualenv
+                 http,ldap,google,google_auth,microsoft.azure,mysql,pandas,postgres,redis,sendgrid,
+                 sftp,slack,ssh,statsd,virtualenv
 
   --image-tag TAG
           Additional tag in the image.
@@ -1504,7 +1501,7 @@ This is the current syntax for  `./breeze <./breeze>`_:
         Generates pinned constraint files with all extras from setup.py. Those files are generated in
         files folder - separate files for different python version. Those constraint files when
         pushed to orphan constraints-main, constraints-2-0 branches are used
-        to generate repeatable CI builds as well as run repeatable production image builds and
+        to generate repeatable CI test runs as well as run repeatable production image builds and
         upgrades when you want to include installing or updating some of the released providers
         released at the time particular airflow version was released. You can use those
         constraints to predictably install released Airflow versions. This is mainly used to test
@@ -1830,9 +1827,14 @@ This is the current syntax for  `./breeze <./breeze>`_:
                  9.6 10 11 12 13
 
   --mysql-version MYSQL_VERSION
-          Mysql version used. One of:
+          MySql version used. One of:
 
                  5.7 8
+
+  --mssql-version MSSQL_VERSION
+          MSSql version used. One of:
+
+                 2017-latest 2019-latest
 
   -v, --verbose
           Show verbose information about executed docker, kind, kubectl, helm commands. Useful for
@@ -1912,8 +1914,8 @@ This is the current syntax for  `./breeze <./breeze>`_:
 
           Production image:
                  async,amazon,celery,cncf.kubernetes,docker,dask,elasticsearch,ftp,grpc,hashicorp,
-                 http,ldap,google,microsoft.azure,mysql,postgres,redis,sendgrid,sftp,slack,ssh,statsd,
-                 virtualenv
+                 http,ldap,google,google_auth,microsoft.azure,mysql,pandas,postgres,redis,sendgrid,
+                 sftp,slack,ssh,statsd,virtualenv
 
   --image-tag TAG
           Additional tag in the image.
@@ -2299,9 +2301,14 @@ This is the current syntax for  `./breeze <./breeze>`_:
                  9.6 10 11 12 13
 
   --mysql-version MYSQL_VERSION
-          Mysql version used. One of:
+          MySql version used. One of:
 
                  5.7 8
+
+  --mssql-version MSSQL_VERSION
+          MSSql version used. One of:
+
+                 2017-latest 2019-latest
 
   ****************************************************************************************************
    Enable production image
@@ -2383,9 +2390,9 @@ This is the current syntax for  `./breeze <./breeze>`_:
           Helm version - only used in case one of kind-cluster commands is used.
           One of:
 
-                 v3.2.4
+                 v3.6.3
 
-          Default: v3.2.4
+          Default: v3.6.3
 
   --executor EXECUTOR
           Executor to use in a kubernetes cluster.
@@ -2435,9 +2442,6 @@ This is the current syntax for  `./breeze <./breeze>`_:
 
   --upgrade-to-newer-dependencies
           Upgrades PIP packages to latest versions available without looking at the constraints.
-
-  --continue-on-pip-check-failure
-          Continue even if 'pip check' fails.
 
   ****************************************************************************************************
    Use different Airflow version at runtime in CI image
@@ -2497,8 +2501,8 @@ This is the current syntax for  `./breeze <./breeze>`_:
 
           Production image:
                  async,amazon,celery,cncf.kubernetes,docker,dask,elasticsearch,ftp,grpc,hashicorp,
-                 http,ldap,google,microsoft.azure,mysql,postgres,redis,sendgrid,sftp,slack,ssh,statsd,
-                 virtualenv
+                 http,ldap,google,google_auth,microsoft.azure,mysql,pandas,postgres,redis,sendgrid,
+                 sftp,slack,ssh,statsd,virtualenv
 
   --image-tag TAG
           Additional tag in the image.

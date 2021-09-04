@@ -399,6 +399,18 @@ def create_default_connections(session=None):
     )
     merge_conn(
         Connection(
+            conn_id="oss_default",
+            conn_type="oss",
+            extra='''{
+                "auth_type": "AK",
+                "access_key_id": "<ACCESS_KEY_ID>",
+                "access_key_secret": "<ACCESS_KEY_SECRET>"}
+                ''',
+        ),
+        session,
+    )
+    merge_conn(
+        Connection(
             conn_id="pig_cli_default",
             conn_type="pig_cli",
             schema="default",
@@ -575,18 +587,19 @@ def create_default_connections(session=None):
 @provide_session
 def initdb(session=None):
     """Initialize Airflow database."""
-    with create_global_lock(session=session):
-        upgradedb()
+    upgradedb(session=session)
 
-        if conf.getboolean('core', 'LOAD_DEFAULT_CONNECTIONS'):
-            create_default_connections()
+    if conf.getboolean('core', 'LOAD_DEFAULT_CONNECTIONS'):
+        create_default_connections(session=session)
+
+    with create_global_lock(session=session):
 
         dagbag = DagBag()
         # Save DAGs in the ORM
-        dagbag.sync_to_db()
+        dagbag.sync_to_db(session=session)
 
         # Deactivate the unknown ones
-        DAG.deactivate_unknown_dags(dagbag.dags.keys())
+        DAG.deactivate_unknown_dags(dagbag.dags.keys(), session=session)
 
         from flask_appbuilder.models.sqla import Base
 
@@ -718,7 +731,7 @@ def upgradedb(session=None):
         return
     with create_global_lock(session=session, pg_lock_id=2, lock_name="upgrade"):
         command.upgrade(config, 'heads')
-        add_default_pool_if_not_exists()
+    add_default_pool_if_not_exists()
 
 
 @provide_session
@@ -728,11 +741,11 @@ def resetdb(session=None):
 
     connection = settings.engine.connect()
 
-    with create_global_lock(session=session, pg_lock_id=3, lock_name="reset"):
+    with create_global_lock(session=session, pg_lock_id=4, lock_name="reset"):
         drop_airflow_models(connection)
         drop_flask_models(connection)
 
-        initdb()
+    initdb(session=session)
 
 
 def drop_airflow_models(connection):

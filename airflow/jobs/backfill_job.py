@@ -19,9 +19,9 @@
 
 import time
 from collections import OrderedDict
-from datetime import datetime
 from typing import Optional, Set
 
+import pendulum
 from sqlalchemy import and_
 from sqlalchemy.orm.session import Session, make_transient
 from tabulate import tabulate
@@ -42,8 +42,9 @@ from airflow.models.dagrun import DagRun
 from airflow.models.taskinstance import TaskInstance, TaskInstanceKey
 from airflow.ti_deps.dep_context import DepContext
 from airflow.ti_deps.dependencies_deps import BACKFILL_QUEUED_DEPS
+from airflow.timetables.base import DagRunInfo
 from airflow.utils import helpers, timezone
-from airflow.utils.configuration import tmp_configuration_copy
+from airflow.utils.configuration import conf as airflow_conf, tmp_configuration_copy
 from airflow.utils.session import provide_session
 from airflow.utils.state import State
 from airflow.utils.types import DagRunType
@@ -283,19 +284,21 @@ class BackfillJob(BaseJob):
                 ti.handle_failure_with_callback(error=msg)
 
     @provide_session
-    def _get_dag_run(self, run_date: datetime, dag: DAG, session: Session = None):
+    def _get_dag_run(self, dagrun_info: DagRunInfo, dag: DAG, session: Session = None):
         """
         Returns a dag run for the given run date, which will be matched to an existing
         dag run if available or create a new dag run otherwise. If the max_active_runs
         limit is reached, this function will return None.
 
-        :param run_date: the execution date for the dag run
+        :param dagrun_info: Schedule information for the dag run
         :param dag: DAG
         :param session: the database session object
         :return: a DagRun in state RUNNING or None
         """
+        run_date = dagrun_info.logical_date
+
         # consider max_active_runs but ignore when running subdags
-        respect_dag_max_active_limit = bool(dag.schedule_interval and not dag.is_subdag)
+        respect_dag_max_active_limit = bool(dag.timetable.can_run and not dag.is_subdag)
 
         current_active_dag_count = dag.get_num_active_runs(external_trigger=False)
 
@@ -317,6 +320,7 @@ class BackfillJob(BaseJob):
 
         run = run or dag.create_dagrun(
             execution_date=run_date,
+            data_interval=dagrun_info.data_interval,
             start_date=timezone.utcnow(),
             state=State.RUNNING,
             external_trigger=False,
@@ -418,6 +422,8 @@ class BackfillJob(BaseJob):
         :rtype: list
         """
         executed_run_dates = []
+
+        is_unit_test = airflow_conf.getboolean('core', 'unit_test_mode')
 
         while (len(ti_status.to_run) > 0 or len(ti_status.running) > 0) and len(ti_status.deadlocked) == 0:
             self.log.debug("*** Clearing out not_ready list ***")
@@ -581,14 +587,14 @@ class BackfillJob(BaseJob):
                                 "Not scheduling since DAG max_active_tasks limit is reached."
                             )
 
-                        if task.task_concurrency:
+                        if task.max_active_tis_per_dag:
                             num_running_task_instances_in_task = DAG.get_num_task_instances(
                                 dag_id=self.dag_id,
                                 task_ids=[task.task_id],
                                 states=self.STATES_COUNT_AS_RUNNING,
                             )
 
-                            if num_running_task_instances_in_task >= task.task_concurrency:
+                            if num_running_task_instances_in_task >= task.max_active_tis_per_dag:
                                 raise TaskConcurrencyLimitReached(
                                     "Not scheduling since Task concurrency limit is reached."
                                 )
@@ -597,8 +603,8 @@ class BackfillJob(BaseJob):
             except (NoAvailablePoolSlot, DagConcurrencyLimitReached, TaskConcurrencyLimitReached) as e:
                 self.log.debug(e)
 
+            self.heartbeat(only_if_necessary=is_unit_test)
             # execute the tasks in the queue
-            self.heartbeat()
             executor.heartbeat()
 
             # If the set of tasks that aren't ready ever equals the set of
@@ -690,14 +696,14 @@ class BackfillJob(BaseJob):
         return err
 
     @provide_session
-    def _execute_for_run_dates(self, run_dates, ti_status, executor, pickle_id, start_date, session=None):
+    def _execute_dagruns(self, dagrun_infos, ti_status, executor, pickle_id, start_date, session=None):
         """
         Computes the dag runs and their respective task instances for
         the given run dates and executes the task instances.
         Returns a list of execution dates of the dag runs that were executed.
 
-        :param run_dates: Execution dates for dag runs
-        :type run_dates: list
+        :param dagrun_infos: Schedule information for dag runs
+        :type dagrun_infos: list[DagRunInfo]
         :param ti_status: internal BackfillJob status structure to tis track progress
         :type ti_status: BackfillJob._DagRunTaskStatus
         :param executor: the executor to use, it must be previously started
@@ -709,9 +715,9 @@ class BackfillJob(BaseJob):
         :param session: the current session object
         :type session: sqlalchemy.orm.session.Session
         """
-        for next_run_date in run_dates:
+        for dagrun_info in dagrun_infos:
             for dag in [self.dag] + self.dag.subdags:
-                dag_run = self._get_dag_run(next_run_date, dag, session=session)
+                dag_run = self._get_dag_run(dagrun_info, dag, session=session)
                 tis_map = self._task_instances_for_dag_run(dag_run, session=session)
                 if dag_run is None:
                     continue
@@ -755,8 +761,13 @@ class BackfillJob(BaseJob):
 
         start_date = self.bf_start_date
 
-        # Get intervals between the start/end dates, which will turn into dag runs
-        run_dates = self.dag.get_run_dates(start_date=start_date, end_date=self.bf_end_date, align=True)
+        # Get DagRun schedule between the start/end dates, which will turn into dag runs.
+        dagrun_start_date = timezone.coerce_datetime(start_date)
+        if self.bf_end_date is None:
+            dagrun_end_date = pendulum.now(timezone.utc)
+        else:
+            dagrun_end_date = pendulum.instance(self.bf_end_date)
+        dagrun_infos = list(self.dag.iter_dagrun_infos_between(dagrun_start_date, dagrun_end_date))
         if self.run_backwards:
             tasks_that_depend_on_past = [t.task_id for t in self.dag.task_dict.values() if t.depends_on_past]
             if tasks_that_depend_on_past:
@@ -765,9 +776,10 @@ class BackfillJob(BaseJob):
                         ",".join(tasks_that_depend_on_past)
                     )
                 )
-            run_dates = run_dates[::-1]
+            dagrun_infos = dagrun_infos[::-1]
 
-        if len(run_dates) == 0:
+        dagrun_info_count = len(dagrun_infos)
+        if dagrun_info_count == 0:
             self.log.info("No run dates were found for the given dates and dag interval.")
             return
 
@@ -788,17 +800,18 @@ class BackfillJob(BaseJob):
         executor.job_id = "backfill"
         executor.start()
 
-        ti_status.total_runs = len(run_dates)  # total dag runs in backfill
+        ti_status.total_runs = dagrun_info_count  # total dag runs in backfill
 
         try:
             remaining_dates = ti_status.total_runs
             while remaining_dates > 0:
-                dates_to_process = [
-                    run_date for run_date in run_dates if run_date not in ti_status.executed_dag_run_dates
+                dagrun_infos_to_process = [
+                    dagrun_info
+                    for dagrun_info in dagrun_infos
+                    if dagrun_info.logical_date not in ti_status.executed_dag_run_dates
                 ]
-
-                self._execute_for_run_dates(
-                    run_dates=dates_to_process,
+                self._execute_dagruns(
+                    dagrun_infos=dagrun_infos_to_process,
                     ti_status=ti_status,
                     executor=executor,
                     pickle_id=pickle_id,

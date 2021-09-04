@@ -354,6 +354,14 @@ class SchedulerTest(unittest.TestCase):
         assert jmespath.search("spec.template.spec.containers[1].command", docs[0]) is None
         assert ["bash", "/clean-logs"] == jmespath.search("spec.template.spec.containers[1].args", docs[0])
 
+    def test_log_groomer_collector_default_retention_days(self):
+        docs = render_chart(show_only=["templates/scheduler/scheduler-deployment.yaml"])
+
+        assert "AIRFLOW__LOG_RETENTION_DAYS" == jmespath.search(
+            "spec.template.spec.containers[1].env[0].name", docs[0]
+        )
+        assert "15" == jmespath.search("spec.template.spec.containers[1].env[0].value", docs[0])
+
     @parameterized.expand(
         [
             (None, None),
@@ -386,6 +394,28 @@ class SchedulerTest(unittest.TestCase):
 
         assert ["RELEASE-NAME"] == jmespath.search("spec.template.spec.containers[1].command", docs[0])
         assert ["Helm"] == jmespath.search("spec.template.spec.containers[1].args", docs[0])
+
+    @parameterized.expand(
+        [
+            (None, None),
+            (30, "30"),
+        ]
+    )
+    def test_log_groomer_retention_days_overrides(self, retention_days, retention_result):
+        docs = render_chart(
+            values={"scheduler": {"logGroomerSidecar": {"retentionDays": retention_days}}},
+            show_only=["templates/scheduler/scheduler-deployment.yaml"],
+        )
+
+        if retention_result:
+            assert "AIRFLOW__LOG_RETENTION_DAYS" == jmespath.search(
+                "spec.template.spec.containers[1].env[0].name", docs[0]
+            )
+            assert retention_result == jmespath.search(
+                "spec.template.spec.containers[1].env[0].value", docs[0]
+            )
+        else:
+            assert jmespath.search("spec.template.spec.containers[1].env", docs[0]) is None
 
     @parameterized.expand(
         [

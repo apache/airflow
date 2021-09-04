@@ -51,7 +51,14 @@ class ConnectorProtocol(Protocol):
 #                                                                                       #
 #########################################################################################
 class DbApiHook(BaseHook):
-    """Abstract base class for sql hooks."""
+    """
+    Abstract base class for sql hooks.
+
+    :param schema: Optional DB schema that overrides the schema specified in the connection. Make sure that
+        if you change the schema parameter value in the constructor of the derived Hook, such change
+        should be done before calling the ``DBApiHook.__init__()``.
+    :type schema: Optional[str]
+    """
 
     # Override to provide the connection name.
     conn_name_attr = None  # type: str
@@ -62,7 +69,7 @@ class DbApiHook(BaseHook):
     # Override with the object that exposes the connect method
     connector = None  # type: Optional[ConnectorProtocol]
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, schema: Optional[str] = None, **kwargs):
         super().__init__()
         if not self.conn_name_attr:
             raise AirflowException("conn_name_attr is not defined")
@@ -72,7 +79,11 @@ class DbApiHook(BaseHook):
             setattr(self, self.conn_name_attr, self.default_conn_name)
         else:
             setattr(self, self.conn_name_attr, kwargs[self.conn_name_attr])
-        self.schema: Optional[str] = kwargs.pop("schema", None)
+        # We should not make schema available in deriving hooks for backwards compatibility
+        # If a hook deriving from DBApiHook has a need to access schema, then it should retrieve it
+        # from kwargs and store it on its own. We do not run "pop" here as we want to give the
+        # Hook deriving from the DBApiHook to still have access to the field in it's constructor
+        self.__schema = schema
 
     def get_conn(self):
         """Returns a connection object"""
@@ -92,7 +103,7 @@ class DbApiHook(BaseHook):
         host = conn.host
         if conn.port is not None:
             host += f':{conn.port}'
-        schema = self.schema or conn.schema or ''
+        schema = self.__schema or conn.schema or ''
         return urlunsplit((conn.conn_type, f'{login}{host}', schema, '', ''))
 
     def get_sqlalchemy_engine(self, engine_kwargs=None):
@@ -118,7 +129,10 @@ class DbApiHook(BaseHook):
         :param kwargs: (optional) passed into pandas.io.sql.read_sql method
         :type kwargs: dict
         """
-        from pandas.io import sql as psql
+        try:
+            from pandas.io import sql as psql
+        except ImportError:
+            raise Exception("pandas library not installed, run: pip install 'apache-airflow[pandas]'.")
 
         with closing(self.get_conn()) as conn:
             return psql.read_sql(sql, con=conn, params=parameters, **kwargs)
@@ -310,6 +324,7 @@ class DbApiHook(BaseHook):
                         lst.append(self._serialize_cell(cell, conn))
                     values = tuple(lst)
                     sql = self._generate_insert_sql(table, values, target_fields, replace, **kwargs)
+                    self.log.debug("Generated sql: %s", sql)
                     cur.execute(sql, values)
                     if commit_every and i % commit_every == 0:
                         conn.commit()

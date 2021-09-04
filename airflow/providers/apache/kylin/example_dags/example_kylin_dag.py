@@ -25,13 +25,8 @@ from airflow.operators.python import PythonOperator
 from airflow.providers.apache.kylin.operators.kylin_cube import KylinCubeOperator
 from airflow.utils.dates import days_ago
 
-args = {
-    'owner': 'airflow',
-}
-
 dag = DAG(
     dag_id='example_kylin_operator',
-    default_args=args,
     schedule_interval=None,
     start_date=days_ago(1),
     tags=['example'],
@@ -57,8 +52,8 @@ build_task1 = KylinCubeOperator(
     project='learn_kylin',
     cube='kylin_sales_cube',
     command='build',
-    start_time="{{ task_instance.xcom_pull(task_ids='gen_build_time',key='date_start') }}",
-    end_time="{{ task_instance.xcom_pull(task_ids='gen_build_time',key='date_end') }}",
+    start_time=gen_build_time_task.output['date_start'],
+    end_time=gen_build_time_task.output['date_end'],
     is_track_job=True,
     dag=dag,
 )
@@ -128,5 +123,8 @@ build_task3 = KylinCubeOperator(
     dag=dag,
 )
 
-gen_build_time_task >> build_task1 >> build_task2 >> refresh_task1 >> merge_task
+build_task1 >> build_task2 >> refresh_task1 >> merge_task
 merge_task >> disable_task >> purge_task >> build_task3
+
+# Task dependency created via `XComArgs`:
+#   gen_build_time_task >> build_task1

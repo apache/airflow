@@ -694,21 +694,9 @@ def test_failed_success(client_all_dags_edit_tis):
     check_content_in_response('Marked failed on 1 task instances', resp)
 
 
-@pytest.mark.parametrize(
-    "url, expected_content",
-    [
-        ("paused?dag_id=example_bash_operator&is_paused=false", "OK"),
-        ("refresh?dag_id=example_bash_operator", ""),
-    ],
-    ids=[
-        "paused",
-        "refresh",
-    ],
-)
-def test_post_success(dag_test_client, url, expected_content):
-    # post request failure won't test
-    resp = dag_test_client.post(url, follow_redirects=True)
-    check_content_in_response(expected_content, resp)
+def test_paused_post_success(dag_test_client):
+    resp = dag_test_client.post("paused?dag_id=example_bash_operator&is_paused=false", follow_redirects=True)
+    check_content_in_response("OK", resp)
 
 
 @pytest.fixture(scope="module")
@@ -773,7 +761,58 @@ def test_get_logs_with_metadata_failure(dag_faker_client):
     check_content_not_in_response('"metadata":', resp)
 
 
-def test_refresh_failure_for_viewer(viewer_client):
-    # viewer role can't refresh
-    resp = viewer_client.post('refresh?dag_id=example_bash_operator')
-    check_content_in_response('Redirecting', resp, resp_code=302)
+@pytest.fixture(scope="module")
+def user_no_roles(acl_app):
+    user = create_user(
+        acl_app,
+        username="no_roles_user",
+        role_name="no_roles_user_role",
+    )
+    user.roles = []
+    return user
+
+
+@pytest.fixture()
+def client_no_roles(acl_app, user_no_roles):
+    return client_with_login(
+        acl_app,
+        username="no_roles_user",
+        password="no_roles_user",
+    )
+
+
+@pytest.fixture(scope="module")
+def user_no_permissions(acl_app):
+    return create_user(
+        acl_app,
+        username="no_permissions_user",
+        role_name="no_permissions_role",
+    )
+
+
+@pytest.fixture()
+def client_no_permissions(acl_app, user_no_permissions):
+    return client_with_login(
+        acl_app,
+        username="no_permissions_user",
+        password="no_permissions_user",
+    )
+
+
+@pytest.fixture()
+def client_anonymous(acl_app):
+    return acl_app.test_client()
+
+
+@pytest.mark.parametrize(
+    "client, url, status_code, expected_content",
+    [
+        ["client_no_roles", "/home", 403, "Your user has no roles and/or permissions!"],
+        ["client_no_permissions", "/home", 403, "Your user has no roles and/or permissions!"],
+        ["client_all_dags", "/home", 200, "DAGs - Airflow"],
+        ["client_anonymous", "/home", 200, "Sign In"],
+    ],
+)
+def test_no_roles_permissions(request, client, url, status_code, expected_content):
+    resp = request.getfixturevalue(client).get(url, follow_redirects=True)
+    check_content_in_response(expected_content, resp, status_code)

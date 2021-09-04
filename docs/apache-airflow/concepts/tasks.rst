@@ -70,12 +70,15 @@ The possible states for a Task Instance are:
 * ``queued``: The task has been assigned to an Executor and is awaiting a worker
 * ``running``: The task is running on a worker (or on a local/synchronous executor)
 * ``success``: The task finished running without errors
+* ``shutdown``: The task was externally requested to shut down when it was running
+* ``restarting``: The task was externally requested to restart when it was running
 * ``failed``: The task had an error during execution and failed to run
 * ``skipped``: The task was skipped due to branching, LatestOnly, or similar.
 * ``upstream_failed``: An upstream task failed and the :ref:`Trigger Rule <concepts:trigger-rules>` says we needed it
 * ``up_for_retry``: The task failed, but has retry attempts left and will be rescheduled.
 * ``up_for_reschedule``: The task is a :doc:`Sensor <sensors>` that is in ``reschedule`` mode
 * ``sensing``: The task is a :doc:`Smart Sensor <smart-sensors>`
+* ``deferred``: The task has been :doc:`deferred to a trigger <deferring>`
 * ``removed``: The task has vanished from the DAG since the run started
 
 .. image:: /img/task_lifecycle_diagram.png

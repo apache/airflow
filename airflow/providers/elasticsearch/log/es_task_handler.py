@@ -250,6 +250,11 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
 
         return logs
 
+    def emit(self, record):
+        if self.handler:
+            record.offset = int(time() * (10 ** 9))
+            self.handler.emit(record)
+
     def set_context(self, ti: TaskInstance) -> None:
         """
         Provide task_instance context to airflow task handler.
@@ -261,14 +266,13 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
         if self.json_format:
             self.formatter = JSONFormatter(
                 fmt=self.formatter._fmt,
-                json_fields=self.json_fields,
+                json_fields=self.json_fields + [self.offset_field],
                 extras={
                     'dag_id': str(ti.dag_id),
                     'task_id': str(ti.task_id),
                     'execution_date': self._clean_execution_date(ti.execution_date),
                     'try_number': str(ti.try_number),
                     'log_id': self._render_log_id(ti, ti.try_number),
-                    'offset': int(time() * (10 ** 9)),
                 },
             )
 

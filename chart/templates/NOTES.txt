@@ -87,7 +87,7 @@ You are using ssh authentication for your gitsync repo, however you currently ha
 making you susceptible to man-in-the-middle attacks!
 
 Information on how to set knownHosts can be found here:
-https://airflow.apache.org/docs/helm-chart/latest/production-guide.html#knownhosts
+https://airflow.apache.org/docs/helm-chart/stable/production-guide.html#knownhosts
 
 {{- end }}
 

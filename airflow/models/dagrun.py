@@ -76,6 +76,9 @@ class DagRun(Base, LoggingMixin):
     external_trigger = Column(Boolean, default=True)
     run_type = Column(String(50), nullable=False)
     conf = Column(PickleType)
+    # These two must be either both NULL or both datetime.
+    data_interval_start = Column(UtcDateTime)
+    data_interval_end = Column(UtcDateTime)
     # When a scheduler last attempted to schedule TIs for this DagRun
     last_scheduling_decision = Column(UtcDateTime)
     dag_hash = Column(String(32))
@@ -91,7 +94,7 @@ class DagRun(Base, LoggingMixin):
 
     task_instances = relationship(
         TI,
-        primaryjoin=and_(TI.dag_id == dag_id, TI.execution_date == execution_date),  # type: ignore
+        primaryjoin=and_(TI.dag_id == dag_id, TI.execution_date == execution_date),
         foreign_keys=(dag_id, execution_date),
         backref=backref('dag_run', uselist=False),
     )
@@ -115,7 +118,14 @@ class DagRun(Base, LoggingMixin):
         run_type: Optional[str] = None,
         dag_hash: Optional[str] = None,
         creating_job_id: Optional[int] = None,
+        data_interval: Optional[Tuple[datetime, datetime]] = None,
     ):
+        if data_interval is None:
+            # Legacy: Only happen for runs created prior to Airflow 2.2.
+            self.data_interval_start = self.data_interval_end = None
+        else:
+            self.data_interval_start, self.data_interval_end = data_interval
+
         self.dag_id = dag_id
         self.run_id = run_id
         self.execution_date = execution_date
@@ -402,9 +412,10 @@ class DagRun(Base, LoggingMixin):
             unfinished_tasks = info.unfinished_tasks
 
             none_depends_on_past = all(not t.task.depends_on_past for t in unfinished_tasks)
-            none_task_concurrency = all(t.task.task_concurrency is None for t in unfinished_tasks)
+            none_task_concurrency = all(t.task.max_active_tis_per_dag is None for t in unfinished_tasks)
+            none_deferred = all(t.state != State.DEFERRED for t in unfinished_tasks)
 
-            if unfinished_tasks and none_depends_on_past and none_task_concurrency:
+            if unfinished_tasks and none_depends_on_past and none_task_concurrency and none_deferred:
                 # small speed up
                 are_runnable_tasks = (
                     schedulable_tis
@@ -446,7 +457,13 @@ class DagRun(Base, LoggingMixin):
                 )
 
         # if *all tasks* are deadlocked, the run failed
-        elif unfinished_tasks and none_depends_on_past and none_task_concurrency and not are_runnable_tasks:
+        elif (
+            unfinished_tasks
+            and none_depends_on_past
+            and none_task_concurrency
+            and none_deferred
+            and not are_runnable_tasks
+        ):
             self.log.error('Deadlock; marking run %s failed', self)
             self.set_state(State.FAILED)
             if execute_callbacks:
@@ -477,7 +494,7 @@ class DagRun(Base, LoggingMixin):
         schedulable_tis: List[TI] = []
         changed_tis = False
 
-        tis = list(self.get_task_instances(session=session, state=State.task_states + (State.SHUTDOWN,)))
+        tis = list(self.get_task_instances(session=session, state=State.task_states))
         self.log.debug("number of tis tasks for %s: %s task(s)", self, len(tis))
         for ti in tis:
             try:
@@ -564,7 +581,7 @@ class DagRun(Base, LoggingMixin):
         This method will be used in the update_state method when the state of the DagRun
         is updated to a completed status (either success or failure). The method will find the first
         started task within the DAG and calculate the expected DagRun start time (based on
-        dag.execution_date & dag.schedule_interval), and minus these two values to get the delay.
+        dag.execution_date & dag.timetable), and minus these two values to get the delay.
         The emitted data may contains outlier (e.g. when the first task was cleared, so
         the second task's start_date will be used), but we can get rid of the outliers
         on the stats side through the dashboards tooling built.
@@ -581,7 +598,7 @@ class DagRun(Base, LoggingMixin):
         try:
             dag = self.get_dag()
 
-            if not self.dag.schedule_interval or self.dag.schedule_interval == "@once":
+            if not self.dag.timetable.periodic:
                 # We can't emit this metric if there is no following schedule to calculate from!
                 return
 

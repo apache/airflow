@@ -1596,7 +1596,7 @@ class DataprocSubmitPySparkJobOperator(DataprocJobBaseOperator):
         #  Check if the file is local, if that is the case, upload it to a bucket
         if os.path.isfile(self.main):
             cluster_info = self.hook.get_cluster(
-                project_id=self.hook.project_id, region=self.region, cluster_name=self.cluster_name
+                project_id=self.project_id, region=self.region, cluster_name=self.cluster_name
             )
             bucket = cluster_info['config']['config_bucket']
             self.main = f"gs://{bucket}/{self.main}"
@@ -1613,7 +1613,7 @@ class DataprocSubmitPySparkJobOperator(DataprocJobBaseOperator):
         #  Check if the file is local, if that is the case, upload it to a bucket
         if os.path.isfile(self.main):
             cluster_info = self.hook.get_cluster(
-                project_id=self.hook.project_id, region=self.region, cluster_name=self.cluster_name
+                project_id=self.project_id, region=self.region, cluster_name=self.cluster_name
             )
             bucket = cluster_info['config']['config_bucket']
             self.main = self._upload_file_temp(bucket, self.main)
@@ -1673,7 +1673,7 @@ class DataprocCreateWorkflowTemplateOperator(BaseOperator):
                     "Parameter `location` will be deprecated. "
                     "Please provide value through `region` parameter instead.",
                     DeprecationWarning,
-                    stacklevel=1,
+                    stacklevel=2,
                 )
                 region = location
             else:
@@ -1974,7 +1974,7 @@ class DataprocSubmitJobOperator(BaseOperator):
                     "Parameter `location` will be deprecated. "
                     "Please provide value through `region` parameter instead.",
                     DeprecationWarning,
-                    stacklevel=1,
+                    stacklevel=2,
                 )
                 region = location
             else:
@@ -2116,7 +2116,7 @@ class DataprocUpdateClusterOperator(BaseOperator):
                     "Parameter `location` will be deprecated. "
                     "Please provide value through `region` parameter instead.",
                     DeprecationWarning,
-                    stacklevel=1,
+                    stacklevel=2,
                 )
                 region = location
             else:

@@ -166,7 +166,7 @@ def create_dag_runs(dag, num_runs, session):
     last_dagrun_at = None
     for _ in range(num_runs):
         next_info = dag.next_dagrun_info(last_dagrun_at)
-        last_dagrun_at = next_info.data_interval.start
+        last_dagrun_at = next_info.logical_date
         dag.create_dagrun(
             run_id=f"{id_prefix}{last_dagrun_at.isoformat()}",
             execution_date=last_dagrun_at,

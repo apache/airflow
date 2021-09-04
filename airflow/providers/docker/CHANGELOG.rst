@@ -19,6 +19,24 @@
 Changelog
 ---------
 
+2.1.1
+.....
+
+Features
+~~~~~~~~
+
+* ``Add support for configs, secrets, networks and replicas for DockerSwarmOperator (#17474)``
+
+Misc
+~~~~
+
+* ``Optimise connection importing for Airflow 2.2.0``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Update description about the new ''connection-types'' provider meta-data (#17767)``
+   * ``Import Hooks lazily individually in providers manager (#17682)``
+
 2.1.0
 .....
 
@@ -27,9 +45,13 @@ Features
 
 * ``Adds option to disable mounting temporary folder in DockerOperator (#16932)``
 
-
 Bug Fixes
 ~~~~~~~~~
+
+* ``[FIX] Docker provider - retry docker in docker (#17061)``
+* ``fix string encoding when using xcom / json (#13536)``
+* if ``xcom_all`` is set to ``False``, only the last line of the log (separated by ``\n``) will be
+  included in the XCom value
 
 The ``DockerOperator`` in version 2.0.0 did not work for remote Docker Engine or Docker-In-Docker case.
 That was an unintended side effect of #15843 that has been fixed in #16932. There is a fallback mode
@@ -40,6 +62,9 @@ using the new parameter to disable mounting the folder.
    appropriate section above if needed. Do not delete the lines(!):
    * ``Removes pylint from our toolchain (#16682)``
    * ``Prepare documentation for July release of providers. (#17015)``
+   * ``Fixed wrongly escaped characters in amazon's changelog (#17020)``
+   * ``Prepares documentation for RC2 release of Docker Provider (#17066)``
+   * ``Updating Docker example DAGs to use XComArgs (#16871)``
 
 2.0.0
 .....

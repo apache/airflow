@@ -126,14 +126,12 @@ class TestCeleryExecutor(unittest.TestCase):
                 task_tuples_to_send = [
                     (
                         ('success', 'fake_simple_ti', execute_date, 0),
-                        None,
                         success_command,
                         celery_executor.celery_configuration['task_default_queue'],
                         celery_executor.execute_command,
                     ),
                     (
                         ('fail', 'fake_simple_ti', execute_date, 0),
-                        None,
                         fail_command,
                         celery_executor.celery_configuration['task_default_queue'],
                         celery_executor.execute_command,
@@ -141,8 +139,8 @@ class TestCeleryExecutor(unittest.TestCase):
                 ]
 
                 # "Enqueue" them. We don't have a real SimpleTaskInstance, so directly edit the dict
-                for (key, simple_ti, command, queue, task) in task_tuples_to_send:
-                    executor.queued_tasks[key] = (command, 1, queue, simple_ti)
+                for (key, command, queue, task) in task_tuples_to_send:
+                    executor.queued_tasks[key] = (command, 1, queue, None)
                     executor.task_publish_retries[key] = 1
 
                 executor._process_tasks(task_tuples_to_send)
@@ -417,9 +415,9 @@ class TestBulkStateFetcher(unittest.TestCase):
     def test_should_support_kv_backend(self, mock_mget):
         with _prepare_app():
             mock_backend = BaseKeyValueStoreBackend(app=celery_executor.app)
-            with mock.patch.object(celery_executor.app, 'backend', mock_backend), self.assertLogs(
-                "airflow.executors.celery_executor.BulkStateFetcher", level="DEBUG"
-            ) as cm:
+            with mock.patch(
+                'airflow.executors.celery_executor.Celery.backend', mock_backend
+            ), self.assertLogs("airflow.executors.celery_executor.BulkStateFetcher", level="DEBUG") as cm:
                 fetcher = BulkStateFetcher()
                 result = fetcher.get_many(
                     [
@@ -446,9 +444,9 @@ class TestBulkStateFetcher(unittest.TestCase):
         with _prepare_app():
             mock_backend = DatabaseBackend(app=celery_executor.app, url="sqlite3://")
 
-            with mock.patch.object(celery_executor.app, 'backend', mock_backend), self.assertLogs(
-                "airflow.executors.celery_executor.BulkStateFetcher", level="DEBUG"
-            ) as cm:
+            with mock.patch(
+                'airflow.executors.celery_executor.Celery.backend', mock_backend
+            ), self.assertLogs("airflow.executors.celery_executor.BulkStateFetcher", level="DEBUG") as cm:
                 mock_session = mock_backend.ResultSession.return_value
                 mock_session.query.return_value.filter.return_value.all.return_value = [
                     mock.MagicMock(**{"to_dict.return_value": {"status": "SUCCESS", "task_id": "123"}})
@@ -474,9 +472,9 @@ class TestBulkStateFetcher(unittest.TestCase):
         with _prepare_app():
             mock_backend = mock.MagicMock(autospec=BaseBackend)
 
-            with mock.patch.object(celery_executor.app, 'backend', mock_backend), self.assertLogs(
-                "airflow.executors.celery_executor.BulkStateFetcher", level="DEBUG"
-            ) as cm:
+            with mock.patch(
+                'airflow.executors.celery_executor.Celery.backend', mock_backend
+            ), self.assertLogs("airflow.executors.celery_executor.BulkStateFetcher", level="DEBUG") as cm:
                 fetcher = BulkStateFetcher(1)
                 result = fetcher.get_many(
                     [

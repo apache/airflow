@@ -23,15 +23,10 @@ from airflow import models
 from airflow.providers.google.leveldb.operators.leveldb import LevelDBOperator
 from airflow.utils.dates import days_ago
 
-default_args = {
-    'owner': 'airflow',
-}
-
 with models.DAG(
     'example_leveldb',
-    default_args=default_args,
     start_date=days_ago(2),
-    schedule_interval=None,
+    schedule_interval='@once',
     tags=['example'],
 ) as dag:
     # [START howto_operator_leveldb_get_key]

@@ -268,7 +268,7 @@ tasks = []
 
 with models.DAG(
     dag_id='example_gcp_sql_query',
-    schedule_interval=None,
+    schedule_interval='@once',
     start_date=days_ago(1),
     tags=['example'],
 ) as dag:

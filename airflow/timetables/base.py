@@ -14,7 +14,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from typing import Iterator, NamedTuple, Optional
+
+from typing import Any, Dict, NamedTuple, Optional
 
 from pendulum import DateTime
 
@@ -23,13 +24,15 @@ from airflow.typing_compat import Protocol
 
 
 class DataInterval(NamedTuple):
-    """A data interval for a DagRun to operate over.
-
-    The represented interval is ``[start, end)``.
-    """
+    """A data interval for a DagRun to operate over."""
 
     start: DateTime
     end: DateTime
+
+    @classmethod
+    def exact(cls, at: DateTime) -> "DagRunInfo":
+        """Represent an "interval" containing only an exact time."""
+        return cls(start=at, end=at)
 
 
 class TimeRestriction(NamedTuple):
@@ -62,12 +65,12 @@ class DagRunInfo(NamedTuple):
     """The earliest time this DagRun is created and its tasks scheduled."""
 
     data_interval: DataInterval
-    """The data interval this DagRun to operate over, if applicable."""
+    """The data interval this DagRun to operate over."""
 
     @classmethod
     def exact(cls, at: DateTime) -> "DagRunInfo":
         """Represent a run on an exact time."""
-        return cls(run_after=at, data_interval=DataInterval(at, at))
+        return cls(run_after=at, data_interval=DataInterval.exact(at))
 
     @classmethod
     def interval(cls, start: DateTime, end: DateTime) -> "DagRunInfo":
@@ -78,6 +81,15 @@ class DagRunInfo(NamedTuple):
         applies to all schedules prior to AIP-39 except ``@once`` and ``None``.
         """
         return cls(run_after=end, data_interval=DataInterval(start, end))
+
+    @property
+    def logical_date(self) -> DateTime:
+        """Infer the logical date to represent a DagRun.
+
+        This replaces ``execution_date`` in Airflow 2.1 and prior. The idea is
+        essentially the same, just a different name.
+        """
+        return self.data_interval.start
 
 
 class Timetable(Protocol):
@@ -92,19 +104,78 @@ class Timetable(Protocol):
         """
         return None
 
+    periodic: bool = True
+    """Whether this timetable runs periodically.
+
+    This defaults to and should generally be *True*, but some special setups
+    like ``schedule_interval=None`` and ``"@once"`` set it to *False*.
+    """
+
+    can_run: bool = True
+    """Whether this timetable can actually schedule runs.
+
+    This defaults to and should generally be *True*, but ``NullTimetable`` sets
+    this to *False*.
+    """
+
+    @classmethod
+    def deserialize(cls, data: Dict[str, Any]) -> "Timetable":
+        """Deserialize a timetable from data.
+
+        This is called when a serialized DAG is deserialized. ``data`` will be
+        whatever was returned by ``serialize`` during DAG serialization. The
+        default implementation constructs the timetable without any arguments.
+        """
+        return cls()
+
+    def serialize(self) -> Dict[str, Any]:
+        """Serialize the timetable for JSON encoding.
+
+        This is called during DAG serialization to store timetable information
+        in the database. This should return a JSON-serializable dict that will
+        be fed into ``deserialize`` when the DAG is deserialized. The default
+        implementation returns an empty dict.
+        """
+        return {}
+
     def validate(self) -> None:
         """Validate the timetable is correctly specified.
 
-        This should raise AirflowTimetableInvalid on validation failure.
+        Override this method to provide run-time validation raised when a DAG
+        is put into a dagbag. The default implementation does nothing.
+
+        :raises: AirflowTimetableInvalid on validation failure.
+        """
+        pass
+
+    @property
+    def summary(self) -> str:
+        """A short summary for the timetable.
+
+        This is used to display the timetable in the web UI. A cron expression
+        timetable, for example, can use this to display the expression. The
+        default implementation returns the timetable's type name.
+        """
+        return type(self).__name__
+
+    def infer_data_interval(self, *, run_after: DateTime) -> DataInterval:
+        """When a DAG run is manually triggered, infer a data interval for it.
+
+        This is used for e.g. manually-triggered runs, where ``run_after`` would
+        be when the user triggers the run. The default implementation raises
+        ``NotImplementedError``.
         """
         raise NotImplementedError()
 
     def next_dagrun_info(
         self,
+        *,
         last_automated_dagrun: Optional[DateTime],
         restriction: TimeRestriction,
     ) -> Optional[DagRunInfo]:
         """Provide information to schedule the next DagRun.
+
+        The default implementation raises ``NotImplementedError``.
 
         :param last_automated_dagrun: The ``execution_date`` of the associated
             DAG's last scheduled or backfilled run (manual runs not considered).
@@ -117,26 +188,3 @@ class Timetable(Protocol):
             a DagRunInfo object when asked at another time.
         """
         raise NotImplementedError()
-
-    def iter_between(
-        self,
-        start: DateTime,
-        end: DateTime,
-        *,
-        align: bool,
-    ) -> Iterator[DateTime]:
-        """Get schedules between the *start* and *end*."""
-        if start > end:
-            raise ValueError(f"start ({start}) > end ({end})")
-        between = TimeRestriction(start, end, catchup=True)
-
-        if align:
-            next_info = self.next_dagrun_info(None, between)
-        else:
-            yield start
-            next_info = self.next_dagrun_info(start, between)
-
-        while next_info is not None:
-            dagrun_start = next_info.data_interval.start
-            yield dagrun_start
-            next_info = self.next_dagrun_info(dagrun_start, between)

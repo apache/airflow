@@ -27,7 +27,7 @@ from airflow.providers.google.cloud.operators.bigquery import (
     BigQueryCreateEmptyDatasetOperator,
     BigQueryCreateEmptyTableOperator,
     BigQueryDeleteDatasetOperator,
-    BigQueryExecuteQueryOperator,
+    BigQueryInsertJobOperator,
 )
 from airflow.providers.google.cloud.operators.gcs import GCSCreateBucketOperator, GCSDeleteBucketOperator
 from airflow.providers.google.cloud.transfers.facebook_ads_to_gcs import FacebookAdsReportToGcsOperator
@@ -56,7 +56,7 @@ PARAMS = {'level': 'ad', 'date_preset': 'yesterday'}
 
 with models.DAG(
     "example_facebook_ads_to_gcs",
-    schedule_interval=None,  # Override to match your needs
+    schedule_interval='@once',  # Override to match your needs
     start_date=days_ago(1),
 ) as dag:
 
@@ -105,10 +105,14 @@ with models.DAG(
         write_disposition='WRITE_TRUNCATE',
     )
 
-    read_data_from_gcs_many_chunks = BigQueryExecuteQueryOperator(
+    read_data_from_gcs_many_chunks = BigQueryInsertJobOperator(
         task_id="read_data_from_gcs_many_chunks",
-        sql=f"SELECT COUNT(*) FROM `{GCP_PROJECT_ID}.{DATASET_NAME}.{TABLE_NAME}`",
-        use_legacy_sql=False,
+        configuration={
+            "query": {
+                "query": f"SELECT COUNT(*) FROM `{GCP_PROJECT_ID}.{DATASET_NAME}.{TABLE_NAME}`",
+                "useLegacySql": False,
+            }
+        },
     )
 
     delete_bucket = GCSDeleteBucketOperator(

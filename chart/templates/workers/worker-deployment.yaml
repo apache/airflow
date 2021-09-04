@@ -200,6 +200,11 @@ spec:
           {{- if .Values.workers.logGroomerSidecar.args }}
           args: {{ tpl (toYaml .Values.workers.logGroomerSidecar.args) . | nindent 12 }}
           {{- end }}
+          {{ if .Values.workers.logGroomerSidecar.retentionDays }}
+          env:
+            - name: AIRFLOW__LOG_RETENTION_DAYS
+              value: "{{ .Values.workers.logGroomerSidecar.retentionDays }}"
+          {{- end }}
           resources:
 {{ toYaml .Values.workers.logGroomerSidecar.resources | indent 12 }}
           volumeMounts:

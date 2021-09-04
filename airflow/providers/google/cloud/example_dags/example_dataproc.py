@@ -151,7 +151,7 @@ WORKFLOW_TEMPLATE = {
 }
 
 
-with models.DAG("example_gcp_dataproc", start_date=days_ago(1), schedule_interval=None) as dag:
+with models.DAG("example_gcp_dataproc", schedule_interval='@once', start_date=days_ago(1)) as dag:
     # [START how_to_cloud_dataproc_create_cluster_operator]
     create_cluster = DataprocCreateClusterOperator(
         task_id="create_cluster",
@@ -209,7 +209,7 @@ with models.DAG("example_gcp_dataproc", start_date=days_ago(1), schedule_interva
         task_id='spark_task_async_sensor_task',
         region=REGION,
         project_id=PROJECT_ID,
-        dataproc_job_id="{{task_instance.xcom_pull(task_ids='spark_task_async')}}",
+        dataproc_job_id=spark_task_async.output,
         poke_interval=10,
     )
     # [END cloud_dataproc_async_submit_sensor]
@@ -244,7 +244,11 @@ with models.DAG("example_gcp_dataproc", start_date=days_ago(1), schedule_interva
     scale_cluster >> pig_task >> delete_cluster
     scale_cluster >> spark_sql_task >> delete_cluster
     scale_cluster >> spark_task >> delete_cluster
-    scale_cluster >> spark_task_async >> spark_task_async_sensor >> delete_cluster
+    scale_cluster >> spark_task_async
+    spark_task_async_sensor >> delete_cluster
     scale_cluster >> pyspark_task >> delete_cluster
     scale_cluster >> sparkr_task >> delete_cluster
     scale_cluster >> hadoop_task >> delete_cluster
+
+    # Task dependency created via `XComArgs`:
+    #   spark_task_async >> spark_task_async_sensor

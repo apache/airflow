@@ -489,6 +489,9 @@ class BigQueryExecuteQueryOperator(BaseOperator):
     Executes BigQuery SQL queries in a specific BigQuery database.
     This operator does not assert idempotency.
 
+    This operator is deprecated.
+    Please use :class:`airflow.providers.google.cloud.operators.bigquery.BigQueryInsertJobOperator`
+
     :param sql: the sql code to be executed (templated)
     :type sql: Can receive a str representing a sql statement,
         a list of str (sql statements), or reference to a template file.
@@ -1084,14 +1087,14 @@ class BigQueryCreateExternalTableOperator(BaseOperator):
         *,
         bucket: str,
         source_objects: List,
-        destination_project_dataset_table: str,
+        destination_project_dataset_table: str = None,
         table_resource: Optional[Dict[str, Any]] = None,
         schema_fields: Optional[List] = None,
         schema_object: Optional[str] = None,
-        source_format: str = 'CSV',
-        compression: str = 'NONE',
-        skip_leading_rows: int = 0,
-        field_delimiter: str = ',',
+        source_format: Optional[str] = None,
+        compression: Optional[str] = None,
+        skip_leading_rows: Optional[int] = None,
+        field_delimiter: Optional[str] = None,
         max_bad_records: int = 0,
         quote_character: Optional[str] = None,
         allow_quoted_newlines: bool = False,
@@ -1140,6 +1143,14 @@ class BigQueryCreateExternalTableOperator(BaseOperator):
                 DeprecationWarning,
                 stacklevel=2,
             )
+            if not source_format:
+                source_format = 'CSV'
+            if not compression:
+                compression = 'NONE'
+            if not skip_leading_rows:
+                skip_leading_rows = 0
+            if not field_delimiter:
+                field_delimiter = ","
 
         if table_resource and kwargs_passed:
             raise ValueError("You provided both `table_resource` and exclusive keywords arguments.")
@@ -1579,9 +1590,8 @@ class BigQueryPatchDatasetOperator(BaseOperator):
     This operator is used to patch dataset for your Project in BigQuery.
     It only replaces fields that are provided in the submitted dataset resource.
 
-    .. seealso::
-        For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:BigQueryPatchDatasetOperator`
+    This operator is deprecated.
+    Please use :class:`airflow.providers.google.cloud.operators.bigquery.BigQueryUpdateTableOperator`
 
     :param dataset_id: The id of dataset. Don't need to provide,
         if datasetId in dataset_reference.
@@ -2196,7 +2206,7 @@ class BigQueryInsertJobOperator(BaseOperator):
         "impersonation_chain",
     )
     template_ext = (".json",)
-    template_fields_renderers = {"configuration": "json"}
+    template_fields_renderers = {"configuration": "json", "configuration.query.query": "sql"}
     ui_color = BigQueryUIColors.QUERY.value
 
     def __init__(
@@ -2237,16 +2247,13 @@ class BigQueryInsertJobOperator(BaseOperator):
         hook: BigQueryHook,
         job_id: str,
     ) -> BigQueryJob:
-        # Submit a new job
-        job = hook.insert_job(
+        # Submit a new job and wait for it to complete and get the result.
+        return hook.insert_job(
             configuration=self.configuration,
             project_id=self.project_id,
             location=self.location,
             job_id=job_id,
         )
-        # Start the job and wait for it to complete and get the result.
-        job.result()
-        return job
 
     @staticmethod
     def _handle_job_error(job: BigQueryJob) -> None:

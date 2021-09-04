@@ -55,12 +55,8 @@ class TestGenerateDagYamlCommand(unittest.TestCase):
 
 
 class TestCleanUpPodsCommand(unittest.TestCase):
-    label_selector = kubernetes.client.V1LabelSelector(
-        match_expressions=[
-            kubernetes.client.V1LabelSelectorRequirement(key=label, operator="Exists")
-            for label in ['dag_id', 'task_id', 'execution_date', 'try_number', 'airflow_version']
-        ]
-    )
+
+    label_selector = ','.join(['dag_id', 'task_id', 'execution_date', 'try_number', 'airflow_version'])
 
     @classmethod
     def setUpClass(cls):

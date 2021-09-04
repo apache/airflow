@@ -24,7 +24,7 @@ Airflow has two main images (build from Dockerfiles):
 
   * Production image (Dockerfile) - that can be used to build your own production-ready Airflow installation
     You can read more about building and using the production image in the
-    `Production Deployments <https://airflow.apache.org/docs/apache-airflow/stable/production-deployment.html>`_ document.
+    `Docker stack <https://airflow.apache.org/docs/docker-stack/index.html>`_ documentation.
     The image is built using `Dockerfile <Dockerfile>`_
 
   * CI image (Dockerfile.ci) - used for running tests and local development. The image is built using
@@ -41,7 +41,7 @@ to run Kubernetes tests. See below for the list of arguments that should be prov
 production image from the local sources.
 
 The image is primarily optimised for size of the final image, but also for speed of rebuilds - the
-'airflow-build-image' segment uses the same technique as the CI builds for pre-installing PIP dependencies.
+'airflow-build-image' segment uses the same technique as the CI jobs for pre-installing PIP dependencies.
 It first pre-installs them from the right GitHub branch and only after that final airflow installation is
 done from either local sources or remote location (PIP or GitHub repository).
 
@@ -52,7 +52,7 @@ You can read more details about building, extending and customizing the PROD ima
 CI image
 --------
 
-The CI image is used by `Breeze <BREEZE.rst>`_ as shell image but it is also used during CI build.
+The CI image is used by `Breeze <BREEZE.rst>`_ as the shell image but it is also used during CI tests.
 The image is single segment image that contains Airflow installation with "all" dependencies installed.
 It is optimised for rebuild speed. It installs PIP dependencies from the current branch first -
 so that any changes in setup.py do not trigger reinstalling of all dependencies.
@@ -178,9 +178,9 @@ Using cache during builds
 =========================
 
 Default mechanism used in Breeze for building CI images uses images pulled from
-GitHub Container Registry. This is done to speed up local builds and CI builds - instead of 15 minutes
-for rebuild of CI images, it takes usually less than 3 minutes when cache is used. For CI builds this is
-usually the best strategy - to use default "pull" cache. This is default strategy when
+GitHub Container Registry. This is done to speed up local builds and building images for CI runs - instead of
+> 12 minutes for rebuild of CI images, it takes usually about 1 minute when cache is used.
+For CI images this is usually the best strategy - to use default "pull" cache. This is default strategy when
 `<BREEZE.rst>`_ builds are performed.
 
 For Production Image - which is far smaller and faster to build, it's better to use local build cache (the
@@ -246,23 +246,25 @@ Images with a commit SHA (built for pull requests and pushes)
 
 .. code-block:: bash
 
-  ghcr.io/apache/airflow-<BRANCH>-pythonX.Y-ci-v2:<COMMIT_SHA>    - for CI images
-  ghcr.io/apache/airflow-<BRANCH>-pythonX.Y-v2:<COMMIT_SHA>       - for production images
-  ghcr.io/apache/airflow-<BRANCH>-pythonX.Y-build-v2:<COMMIT_SHA> - for production build stage
-  ghcr.io/apache/airflow-python-v2:X.Y-slim-buster-<COMMIT_SHA>   - for base Python images
+  ghcr.io/apache/airflow/<BRANCH>/ci/python<X.Y>:<COMMIT_SHA>         - for CI images
+  ghcr.io/apache/airflow/<BRANCH>/prod/python<X.Y>:<COMMIT_SHA>       - for production images
+
+We do not push Base Python images and prod-build images when we prepare COMMIT builds, because those
+images are never rebuilt locally, so there is no need to store base images specific for those builds.
 
 Latest images (pushed when main merge succeeds):
 
 .. code-block:: bash
 
-  ghcr.io/apache/airflow-<BRANCH>-pythonX.Y-ci-v2:latest    - for CI images
-  ghcr.io/apache/airflow-<BRANCH>-pythonX.Y-v2:latest       - for production images
-  ghcr.io/apache/airflow-<BRANCH>-pythonX.Y-build-v2:latest - for production build stage
-  ghcr.io/apache/airflow-python-v2:X.Y-slim-buster          - for base Python images
+  ghcr.io/apache/airflow/<BRANCH>/python:<X.Y>-slim-buster        - for base Python images
+  ghcr.io/apache/airflow/<BRANCH>/ci/python<X.Y>:latest           - for CI images
+  ghcr.io/apache/airflow/<BRANCH>/ci-manifest/python<X.Y>:latest  - for CI Manifest images
+  ghcr.io/apache/airflow/<BRANCH>/prod/python<X.Y>:latest         - for production images
+  ghcr.io/apache/airflow/<BRANCH>/prod-build/python<X.Y>:latest   - for production build stage
 
 You can see all the current GitHub images at `<https://github.com/apache/airflow/packages>`_
 
-You can read more about the CI configuration and how CI builds are using GitHub images
+You can read more about the CI configuration and how CI jobs are using GitHub images
 in `<CI.rst>`_.
 
 Note that you need to be committer and have the right to push to GitHub and you need to
@@ -303,7 +305,7 @@ Building Python 3.8 CI image using cache pulled from GitHub Container Registry a
 You can also pull and run images being result of a specific CI run in GitHub Actions. This is a powerful
 tool that allows to reproduce CI failures locally, enter the images and fix them much faster. It is enough
 to pass ``--github-image-id`` and the registry and Breeze will download and execute commands using
-the same image that was used during the CI build.
+the same image that was used during the CI tests.
 
 For example this command will run the same Python 3.8 image as was used in build identified with
 9a621eaa394c0a0a336f8e1b31b35eff4e4ee86e commit SHA  with enabled Kerberos integration.
@@ -445,16 +447,10 @@ The following build arguments (``--build-arg`` in docker build command) can be u
 |                                          |                                          | upgraded to newer versions matching      |
 |                                          |                                          | setup.py before installation.            |
 +------------------------------------------+------------------------------------------+------------------------------------------+
-| ``CONTINUE_ON_PIP_CHECK_FAILURE``        | ``false``                                | By default the image will fail if pip    |
-|                                          |                                          | check fails for it. This is good for     |
-|                                          |                                          | interactive building but on CI the       |
-|                                          |                                          | image should be built regardless - we    |
-|                                          |                                          | have a separate step to verify image.    |
-+------------------------------------------+------------------------------------------+------------------------------------------+
 | ``AIRFLOW_PRE_CACHED_PIP_PACKAGES``      | ``true``                                 | Allows to pre-cache airflow PIP packages |
 |                                          |                                          | from the GitHub of Apache Airflow        |
 |                                          |                                          | This allows to optimize iterations for   |
-|                                          |                                          | Image builds and speeds up CI builds     |
+|                                          |                                          | Image builds and speeds up CI jobs       |
 |                                          |                                          | But in some corporate environments it    |
 |                                          |                                          | might be forbidden to download anything  |
 |                                          |                                          | from public repositories.                |
@@ -496,7 +492,7 @@ The following build arguments (``--build-arg`` in docker build command) can be u
 | ``ADDITIONAL_RUNTIME_APT_ENV``           |                                          | Additional env variables defined         |
 |                                          |                                          | when installing runtime deps             |
 +------------------------------------------+------------------------------------------+------------------------------------------+
-| ``AIRFLOW_PIP_VERSION``                  | ``21.1``                                 | PIP version used.                        |
+| ``AIRFLOW_PIP_VERSION``                  | ``21.2.4``                               | PIP version used.                        |
 +------------------------------------------+------------------------------------------+------------------------------------------+
 | ``PIP_PROGRESS_BAR``                     | ``on``                                   | Progress bar for PIP installation        |
 +------------------------------------------+------------------------------------------+------------------------------------------+
@@ -558,8 +554,8 @@ way of querying image details via API. You really need to download the image to 
 We workaround it in the way that always when we build the image we build a very small image manifest
 containing randomly generated UUID and push it to registry together with the main CI image.
 The tag for the manifest image reflects the image it refers to with added ``-manifest`` suffix.
-The manifest image for ``ghcr.io/apache/airflow-main-python3.6-ci-v2`` is named
-``ghcr.io/apache/airflow-main-python3.6-ci-v2-manifest``.
+The manifest image for ``ghcr.io/apache/airflow/main/ci/python3.6`` is named
+``ghcr.io/apache/airflow/main/ci-manifest/python3.6``.
 
 The image is quickly pulled (it is really, really small) when important files change and the content
 of the randomly generated UUID is compared with the one in our image. If the contents are different
@@ -596,7 +592,7 @@ Refreshing Base Python images
 
 Python base images are updated from time-to-time, usually as a result of implementing security fixes.
 When you build your image locally using ``docker build`` you use the version of image that you have locally.
-For the CI builds using ``breeze`` we use the image that is stored in our repository in order to use cache
+For image builds using ``breeze`` we use the image that is stored in our repository in order to use cache
 efficiently. However CI push build have ``CHECK_IF_BASE_PYTHON_IMAGE_UPDATED`` variable set to ``true``
 which checks if the image has been released and will pull it and rebuild it if needed
 

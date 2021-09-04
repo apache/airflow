@@ -60,7 +60,7 @@ BUCKET_FILE_LOCATION = PATH_TO_UPLOAD_FILE.rpartition("/")[-1]
 with models.DAG(
     "example_gcs",
     start_date=days_ago(1),
-    schedule_interval=None,
+    schedule_interval='@once',
     tags=['example'],
 ) as dag:
     create_bucket1 = GCSCreateBucketOperator(
@@ -75,7 +75,7 @@ with models.DAG(
 
     list_buckets_result = BashOperator(
         task_id="list_buckets_result",
-        bash_command="echo \"{{ task_instance.xcom_pull('list_buckets') }}\"",
+        bash_command=f"echo {list_buckets.output}",
     )
 
     upload_file = LocalFilesystemToGCSOperator(
@@ -156,10 +156,11 @@ with models.DAG(
     copy_file >> delete_bucket_2
     delete_files >> delete_bucket_1
 
+
 with models.DAG(
     "example_gcs_sensors",
     start_date=days_ago(1),
-    schedule_interval=None,
+    schedule_interval='@once',
     tags=['example'],
 ) as dag2:
     create_bucket = GCSCreateBucketOperator(

@@ -49,7 +49,7 @@ class TaskInstanceSchema(Schema):
     queued_dttm = fields.DateTime(data_key="queued_when")
     pid = fields.Int()
     executor_config = fields.Str()
-    sla_miss = fields.Nested(SlaMissSchema, default=None)
+    sla_miss = fields.Nested(SlaMissSchema, dump_default=None)
 
     def get_attribute(self, obj, attr, default):
         if attr == "sla_miss":
@@ -78,33 +78,33 @@ class TaskInstanceCollectionSchema(Schema):
 class TaskInstanceBatchFormSchema(Schema):
     """Schema for the request form passed to Task Instance Batch endpoint"""
 
-    page_offset = fields.Int(missing=0, min=0)
-    page_limit = fields.Int(missing=100, min=1)
-    dag_ids = fields.List(fields.Str(), missing=None)
-    execution_date_gte = fields.DateTime(missing=None, validate=validate_istimezone)
-    execution_date_lte = fields.DateTime(missing=None, validate=validate_istimezone)
-    start_date_gte = fields.DateTime(missing=None, validate=validate_istimezone)
-    start_date_lte = fields.DateTime(missing=None, validate=validate_istimezone)
-    end_date_gte = fields.DateTime(missing=None, validate=validate_istimezone)
-    end_date_lte = fields.DateTime(missing=None, validate=validate_istimezone)
-    duration_gte = fields.Int(missing=None)
-    duration_lte = fields.Int(missing=None)
-    state = fields.List(fields.Str(), missing=None)
-    pool = fields.List(fields.Str(), missing=None)
-    queue = fields.List(fields.Str(), missing=None)
+    page_offset = fields.Int(load_default=0, validate=validate.Range(min=0))
+    page_limit = fields.Int(load_default=100, validate=validate.Range(min=1))
+    dag_ids = fields.List(fields.Str(), load_default=None)
+    execution_date_gte = fields.DateTime(load_default=None, validate=validate_istimezone)
+    execution_date_lte = fields.DateTime(load_default=None, validate=validate_istimezone)
+    start_date_gte = fields.DateTime(load_default=None, validate=validate_istimezone)
+    start_date_lte = fields.DateTime(load_default=None, validate=validate_istimezone)
+    end_date_gte = fields.DateTime(load_default=None, validate=validate_istimezone)
+    end_date_lte = fields.DateTime(load_default=None, validate=validate_istimezone)
+    duration_gte = fields.Int(load_default=None)
+    duration_lte = fields.Int(load_default=None)
+    state = fields.List(fields.Str(), load_default=None)
+    pool = fields.List(fields.Str(), load_default=None)
+    queue = fields.List(fields.Str(), load_default=None)
 
 
 class ClearTaskInstanceFormSchema(Schema):
     """Schema for handling the request of clearing task instance of a Dag"""
 
-    dry_run = fields.Boolean(missing=True)
-    start_date = fields.DateTime(missing=None, validate=validate_istimezone)
-    end_date = fields.DateTime(missing=None, validate=validate_istimezone)
-    only_failed = fields.Boolean(missing=True)
-    only_running = fields.Boolean(missing=False)
-    include_subdags = fields.Boolean(missing=False)
-    include_parentdag = fields.Boolean(missing=False)
-    reset_dag_runs = fields.Boolean(missing=False)
+    dry_run = fields.Boolean(load_default=True)
+    start_date = fields.DateTime(load_default=None, validate=validate_istimezone)
+    end_date = fields.DateTime(load_default=None, validate=validate_istimezone)
+    only_failed = fields.Boolean(load_default=True)
+    only_running = fields.Boolean(load_default=False)
+    include_subdags = fields.Boolean(load_default=False)
+    include_parentdag = fields.Boolean(load_default=False)
+    reset_dag_runs = fields.Boolean(load_default=False)
     task_ids = fields.List(fields.String(), validate=validate.Length(min=1))
 
     @validates_schema
@@ -120,7 +120,7 @@ class ClearTaskInstanceFormSchema(Schema):
 class SetTaskInstanceStateFormSchema(Schema):
     """Schema for handling the request of setting state of task instance of a DAG"""
 
-    dry_run = fields.Boolean(default=True)
+    dry_run = fields.Boolean(dump_default=True)
     task_id = fields.Str(required=True)
     execution_date = fields.DateTime(required=True, validate=validate_istimezone)
     include_upstream = fields.Boolean(required=True)

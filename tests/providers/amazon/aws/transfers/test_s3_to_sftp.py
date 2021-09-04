@@ -51,12 +51,11 @@ class TestS3ToSFTPOperator(unittest.TestCase):
         hook = SSHHook(ssh_conn_id='ssh_default')
         s3_hook = S3Hook('aws_default')
         hook.no_host_key_check = True
-        args = {
-            'owner': 'airflow',
-            'start_date': DEFAULT_DATE,
-        }
-        dag = DAG(TEST_DAG_ID + 'test_schedule_dag_once', default_args=args)
-        dag.schedule_interval = '@once'
+        dag = DAG(
+            TEST_DAG_ID + 'test_schedule_dag_once',
+            start_date=DEFAULT_DATE,
+            schedule_interval='@once',
+        )
 
         self.hook = hook
         self.s3_hook = s3_hook

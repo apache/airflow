@@ -251,6 +251,43 @@ sql_alchemy_conn = airflow
 
         assert 'sqlite:////Users/airflow/airflow/airflow.db' == test_conf.get('test', 'sql_alchemy_conn')
 
+    @mock.patch("airflow.providers.hashicorp._internal_client.vault_client.hvac")
+    @conf_vars(
+        {
+            ("secrets", "backend"): "airflow.providers.hashicorp.secrets.vault.VaultBackend",
+            ("secrets", "backend_kwargs"): '{"url": "http://127.0.0.1:8200", "token": "token"}',
+        }
+    )
+    def test_config_raise_exception_from_secret_backend_connection_error(self, mock_hvac):
+        """Get Config Value from a Secret Backend"""
+
+        mock_client = mock.MagicMock()
+        # mock_client.side_effect = AirflowConfigException
+        mock_hvac.Client.return_value = mock_client
+        mock_client.secrets.kv.v2.read_secret_version.return_value = Exception
+
+        test_config = '''[test]
+sql_alchemy_conn_secret = sql_alchemy_conn
+'''
+        test_config_default = '''[test]
+sql_alchemy_conn = airflow
+'''
+        test_conf = AirflowConfigParser(default_config=parameterized_config(test_config_default))
+        test_conf.read_string(test_config)
+        test_conf.sensitive_config_values = test_conf.sensitive_config_values | {
+            ('test', 'sql_alchemy_conn'),
+        }
+
+        with pytest.raises(
+            AirflowConfigException,
+            match=re.escape(
+                'Cannot retrieve config from alternative secrets backend. '
+                'Make sure it is configured properly and that the Backend '
+                'is accessible.'
+            ),
+        ):
+            test_conf.get('test', 'sql_alchemy_conn')
+
     def test_getboolean(self):
         """Test AirflowConfigParser.getboolean"""
         test_config = """
@@ -653,21 +690,3 @@ notacommand = OK
 
     def test_confirm_unittest_mod(self):
         assert conf.get('core', 'unit_test_mode')
-
-    @conf_vars({})
-    def test_store_dag_code_default_config(self):
-        store_dag_code = conf.getboolean("core", "store_dag_code")
-        assert conf.has_option("core", "store_dag_code")
-        assert store_dag_code
-
-    @conf_vars({("core", "store_dag_code"): "True"})
-    def test_store_dag_code_config_when_set_to_true(self):
-        store_dag_code = conf.getboolean("core", "store_dag_code")
-        assert conf.has_option("core", "store_dag_code")
-        assert store_dag_code
-
-    @conf_vars({("core", "store_dag_code"): "False"})
-    def test_store_dag_code_config_when_set(self):
-        store_dag_code = conf.getboolean("core", "store_dag_code")
-        assert conf.has_option("core", "store_dag_code")
-        assert not store_dag_code

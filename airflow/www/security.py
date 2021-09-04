@@ -85,6 +85,7 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_XCOM),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_WEBSITE),
         (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_BROWSE_MENU),
+        (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_DAG_DEPENDENCIES),
         (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_DAG_RUN),
         (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_DOCS),
         (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_DOCS_MENU),
@@ -113,6 +114,7 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
     OP_PERMISSIONS = [
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_CONFIG),
         (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_ADMIN_MENU),
+        (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_CONFIG),
         (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_CONNECTION),
         (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_POOL),
         (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_VARIABLE),
@@ -342,6 +344,12 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
         for role in self.get_user_roles():
             perms.update({(perm.permission.name, perm.view_menu.name) for perm in role.permissions})
         return perms
+
+    def current_user_has_permissions(self) -> bool:
+        for role in self.get_user_roles():
+            if role.permissions:
+                return True
+        return False
 
     def get_readable_dags(self, user):
         """Gets the DAGs readable by authenticated user."""

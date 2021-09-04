@@ -96,3 +96,20 @@ class ElasticsearchSecretTest(unittest.TestCase):
             "http://username%21%40%23$%25%25%5E&%2A%28%29:password%21%40%23$%25%25%5E&%2A%28%29@"
             "elastichostname:80" == connection
         )
+
+    def test_should_generate_secret_with_specified_port(self):
+        connection = self._get_connection(
+            {
+                "elasticsearch": {
+                    "enabled": True,
+                    "connection": {
+                        "user": "username",
+                        "pass": "password",
+                        "host": "elastichostname",
+                        "port": 2222,
+                    },
+                }
+            }
+        )
+
+        assert "http://username:password@elastichostname:2222" == connection

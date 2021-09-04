@@ -32,4 +32,6 @@ class TestTriggerRule(unittest.TestCase):
         assert TriggerRule.is_valid(TriggerRule.NONE_FAILED_OR_SKIPPED)
         assert TriggerRule.is_valid(TriggerRule.NONE_SKIPPED)
         assert TriggerRule.is_valid(TriggerRule.DUMMY)
-        assert len(TriggerRule.all_triggers()) == 9
+        assert TriggerRule.is_valid(TriggerRule.ALWAYS)
+        assert TriggerRule.is_valid(TriggerRule.NONE_FAILED_MIN_ONE_SUCCESS)
+        assert len(TriggerRule.all_triggers()) == 11

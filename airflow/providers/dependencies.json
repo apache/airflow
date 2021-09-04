@@ -4,6 +4,7 @@
   ],
   "amazon": [
     "apache.hive",
+    "cncf.kubernetes",
     "exasol",
     "ftp",
     "google",
@@ -11,6 +12,7 @@
     "mongo",
     "mysql",
     "postgres",
+    "salesforce",
     "ssh"
   ],
   "apache.beam": [

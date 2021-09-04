@@ -38,7 +38,7 @@ Prerequisite Tasks
 .. _howto/operator:WorkflowsCreateWorkflowOperator:
 
 Create workflow
-===============
+---------------
 
 To create a workflow use
 :class:`~airflow.providers.google.cloud.operators.dataproc.WorkflowsCreateWorkflowOperator`.
@@ -64,7 +64,7 @@ production documentation `<Product documentation <https://cloud.google.com/workf
 .. _howto/operator:WorkflowsUpdateWorkflowOperator:
 
 Update workflow
-===============
+---------------
 
 To update a workflow use
 :class:`~airflow.providers.google.cloud.operators.dataproc.WorkflowsUpdateWorkflowOperator`.
@@ -78,7 +78,7 @@ To update a workflow use
 .. _howto/operator:WorkflowsGetWorkflowOperator:
 
 Get workflow
-============
+------------
 
 To get a workflow use
 :class:`~airflow.providers.google.cloud.operators.dataproc.WorkflowsGetWorkflowOperator`.
@@ -92,7 +92,7 @@ To get a workflow use
 .. _howto/operator:WorkflowsListWorkflowsOperator:
 
 List workflows
-==============
+--------------
 
 To list workflows use
 :class:`~airflow.providers.google.cloud.operators.dataproc.WorkflowsListWorkflowsOperator`.
@@ -106,7 +106,7 @@ To list workflows use
 .. _howto/operator:WorkflowsDeleteWorkflowOperator:
 
 Delete workflow
-===============
+---------------
 
 To delete a workflow use
 :class:`~airflow.providers.google.cloud.operators.dataproc.WorkflowsDeleteWorkflowOperator`.
@@ -120,7 +120,7 @@ To delete a workflow use
 .. _howto/operator:WorkflowsCreateExecutionOperator:
 
 Create execution
-================
+----------------
 
 To create an execution use
 :class:`~airflow.providers.google.cloud.operators.dataproc.WorkflowsCreateExecutionOperator`.
@@ -144,7 +144,7 @@ The create operator does not wait for execution to complete. To wait for executi
 .. _howto/operator:WorkflowsGetExecutionOperator:
 
 Get execution
-================
+-------------
 
 To get an execution use
 :class:`~airflow.providers.google.cloud.operators.dataproc.WorkflowsGetExecutionOperator`.
@@ -158,7 +158,7 @@ To get an execution use
 .. _howto/operator:WorkflowsListExecutionsOperator:
 
 List executions
-===============
+---------------
 
 To list executions use
 :class:`~airflow.providers.google.cloud.operators.dataproc.WorkflowsListExecutionsOperator`.
@@ -173,7 +173,7 @@ By default this operator will return only executions for last 60 minutes.
 .. _howto/operator:WorkflowsCancelExecutionOperator:
 
 Cancel execution
-================
+----------------
 
 To cancel an execution use
 :class:`~airflow.providers.google.cloud.operators.dataproc.WorkflowsCancelExecutionOperator`.

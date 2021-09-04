@@ -43,14 +43,14 @@ else
 fi
 
 function check_upgrade_to_newer_dependencies_needed() {
-    # shellcheck disable=SC2153
-    if [[ "${UPGRADE_TO_NEWER_DEPENDENCIES}" != "false" ||
-            ${GITHUB_EVENT_NAME=} == 'push' || ${GITHUB_EVENT_NAME=} == "scheduled" ]]; then
-        # Trigger upgrading to latest constraints where label is set or when
-        # SHA of the merge commit triggers rebuilding layer in the docker image
+    if [[ ${GITHUB_EVENT_NAME=} == 'push' || ${GITHUB_EVENT_NAME=} == "scheduled" ]]; then
+        # Trigger upgrading to latest constraints when we are in push or schedule event. We use the
+        # random string so that it always triggers rebuilding layer in the docker image
         # Each build that upgrades to latest constraints will get truly latest constraints, not those
-        # Cached in the image this way
-        upgrade_to_newer_dependencies="${INCOMING_COMMIT_SHA}"
+        # cached in the image because docker layer will get invalidated.
+        # This upgrade_to_newer_dependencies variable can later be overridden
+        # in case we find that any of the setup.* files changed (see below)
+        upgrade_to_newer_dependencies="${RANDOM}"
     fi
 }
 
@@ -350,7 +350,10 @@ function check_if_setup_files_changed() {
     show_changed_files
 
     if [[ $(count_changed_files) != "0" ]]; then
-        upgrade_to_newer_dependencies="${INCOMING_COMMIT_SHA}"
+        # In case the setup files changed, we automatically force upgrading to newer dependencies
+        # no matter what was set before. We set it to random number to make sure that it will be
+        # always invalidating the layer in Docker that triggers installing the dependencies
+        upgrade_to_newer_dependencies="${RANDOM}"
     fi
     start_end::group_end
 }
@@ -474,6 +477,7 @@ function check_if_any_py_files_changed() {
 
 
 AIRFLOW_SOURCES_TRIGGERING_TESTS=(
+    "^.pre-commit-config.yaml$"
     "^airflow"
     "^chart"
     "^tests"
@@ -686,6 +690,7 @@ if (($# < 1)); then
     FULL_TESTS_NEEDED_LABEL="true"
     readonly FULL_TESTS_NEEDED_LABEL
     output_all_basic_variables
+    check_upgrade_to_newer_dependencies_needed
     set_outputs_run_everything_and_exit
 else
     INCOMING_COMMIT_SHA="${1}"

@@ -15,6 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+
 from unittest.mock import patch
 
 import pytest
@@ -40,10 +41,20 @@ class TestDateTimeSensor:
                 timezone.datetime(2020, 7, 6, 13, tzinfo=timezone.utc),
                 "2020-07-06T13:00:00+00:00",
             ),
-            ("valid_str", "20200706T210000+8", "20200706T210000+8"),
+            (
+                "valid_str",
+                "20200706T210000+8",
+                "20200706T210000+8",
+            ),
+            (
+                "jinja_str_is_accepted",
+                "{{ ds }}",
+                "{{ ds }}",
+            ),
         ]
     )
     def test_valid_input(self, task_id, target_time, expected):
+        """target_time should be a string as it is a template field"""
         op = DateTimeSensor(
             task_id=task_id,
             target_time=target_time,

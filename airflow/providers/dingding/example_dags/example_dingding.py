@@ -24,11 +24,6 @@ from airflow import DAG
 from airflow.providers.dingding.operators.dingding import DingdingOperator
 from airflow.utils.dates import days_ago
 
-args = {
-    'owner': 'airflow',
-    'retries': 3,
-}
-
 
 # [START howto_operator_dingding_failure_callback]
 def failure_callback(context):
@@ -55,12 +50,11 @@ def failure_callback(context):
     ).execute(context)
 
 
-args['on_failure_callback'] = failure_callback
 # [END howto_operator_dingding_failure_callback]
 
 with DAG(
     dag_id='example_dingding_operator',
-    default_args=args,
+    default_args={'retries': 3, 'on_failure_callback': failure_callback},
     schedule_interval='@once',
     dagrun_timeout=timedelta(minutes=60),
     start_date=days_ago(2),

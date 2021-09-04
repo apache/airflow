@@ -335,9 +335,9 @@ However, this is just the default behaviour, and you can control it using the ``
 * ``one_failed``: At least one upstream task has failed (does not wait for all upstream tasks to be done)
 * ``one_success``: At least one upstream task has succeeded (does not wait for all upstream tasks to be done)
 * ``none_failed``: All upstream tasks have not ``failed`` or ``upstream_failed`` - that is, all upstream tasks have succeeded or been skipped
-* ``none_failed_or_skipped``: All upstream tasks have not ``failed`` or ``upstream_failed``, and at least one upstream task has succeeded.
+* ``none_failed_min_one_success``: All upstream tasks have not ``failed`` or ``upstream_failed``, and at least one upstream task has succeeded.
 * ``none_skipped``: No upstream task is in a ``skipped`` state - that is, all upstream tasks are in a ``success``, ``failed``, or ``upstream_failed`` state
-* ``dummy``: No dependencies at all, run this task at any time
+* ``always``: No dependencies at all, run this task at any time
 
 You can also combine this with the :ref:`concepts:depends-on-past` functionality if you wish.
 
@@ -382,7 +382,7 @@ You can also combine this with the :ref:`concepts:depends-on-past` functionality
 
     .. image:: /img/branch_without_trigger.png
 
-    By setting ``trigger_rule`` to ``none_failed_or_skipped`` in the ``join`` task, we can instead get the intended behaviour:
+    By setting ``trigger_rule`` to ``none_failed_min_one_success`` in the ``join`` task, we can instead get the intended behaviour:
 
     .. image:: /img/branch_with_trigger.png
 
@@ -397,7 +397,7 @@ For example, here is a DAG that uses a ``for`` loop to define some Tasks::
     with DAG("loop_example") as dag:
 
         first = DummyOperator(task_id="first")
-        last = DummyOperator( task_id="last")
+        last = DummyOperator(task_id="last")
 
         options = ["branch_a", "branch_b", "branch_c", "branch_d"]
         for option in options:

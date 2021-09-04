@@ -19,7 +19,9 @@
 # Note: Any AirflowException raised is expected to cause the TaskInstance
 #       to be marked in an ERROR state
 """Exceptions used by Airflow"""
-from typing import List, NamedTuple, Optional
+import datetime
+import warnings
+from typing import Any, Dict, List, NamedTuple, Optional
 
 from airflow.utils.code_utils import prepare_code_snippet
 from airflow.utils.platform import is_tty
@@ -138,6 +140,10 @@ class DagRunAlreadyExists(AirflowBadRequest):
 class DagFileExists(AirflowBadRequest):
     """Raise when a DAG ID is still in DagBag i.e., DAG file is in DAG folder"""
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        warnings.warn("DagFileExists is deprecated and will be removed.", DeprecationWarning, stacklevel=2)
+
 
 class DuplicateTaskIdFound(AirflowException):
     """Raise when a Task with duplicate task_id is defined in the same DAG"""
@@ -229,3 +235,34 @@ class AirflowFileParseException(AirflowException):
 
 class ConnectionNotUnique(AirflowException):
     """Raise when multiple values are found for the same conn_id"""
+
+
+class TaskDeferred(BaseException):
+    """
+    Special exception raised to signal that the operator it was raised from
+    wishes to defer until a trigger fires.
+    """
+
+    def __init__(
+        self,
+        *,
+        trigger,
+        method_name: str,
+        kwargs: Optional[Dict[str, Any]] = None,
+        timeout: Optional[datetime.timedelta] = None,
+    ):
+        super().__init__()
+        self.trigger = trigger
+        self.method_name = method_name
+        self.kwargs = kwargs
+        self.timeout = timeout
+        # Check timeout type at runtime
+        if self.timeout is not None and not hasattr(self.timeout, "total_seconds"):
+            raise ValueError("Timeout value must be a timedelta")
+
+    def __repr__(self) -> str:
+        return f"<TaskDeferred trigger={self.trigger} method={self.method_name}>"
+
+
+class TaskDeferralError(AirflowException):
+    """Raised when a task failed during deferral for some reason."""

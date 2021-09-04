@@ -191,8 +191,25 @@ class _VaultClient(LoggingMixin):
         self.radius_secret = radius_secret
         self.radius_port = radius_port
 
+    @property
+    def client(self):
+        """
+        Authentication to Vault can expire. This wrapper function checks that
+        it is still authenticated to Vault, and invalidates the cache if this
+        is not the case.
+
+        :rtype: hvac.Client
+        :return: Vault Client
+
+        """
+        if not self._client.is_authenticated():
+            # Invalidate the cache:
+            # https://github.com/pydanny/cached-property#invalidating-the-cache
+            self.__dict__.pop('_client', None)
+        return self._client
+
     @cached_property
-    def client(self) -> hvac.Client:
+    def _client(self) -> hvac.Client:
         """
         Return an authenticated Hashicorp Vault client.
 

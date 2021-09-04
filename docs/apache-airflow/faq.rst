@@ -20,8 +20,8 @@
 FAQ
 ========
 
-Scheduling
-^^^^^^^^^^
+Scheduling / DAG file parsing
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Why is task not getting scheduled?
 ----------------------------------
@@ -100,7 +100,7 @@ DAGs have configurations that improves efficiency:
 
 Operators or tasks also have configurations that improves efficiency and scheduling priority:
 
-- ``task_concurrency``: This parameter controls the number of concurrent running task instances across ``dag_runs``
+- ``max_active_tis_per_dag``: This parameter controls the number of concurrent running task instances across ``dag_runs``
   per task.
 - ``pool``: See :ref:`concepts:pool`.
 - ``priority_weight``: See :ref:`concepts:priority-weight`.
@@ -118,6 +118,52 @@ How do I trigger tasks based on another task's failure?
 -------------------------------------------------------
 
 You can achieve this with :ref:`concepts:trigger-rules`.
+
+When there are a lot (>1000) of dags files, how to speed up parsing of new files?
+---------------------------------------------------------------------------------
+
+(only valid for Airflow >= 2.1.1)
+
+Change the :ref:`config:scheduler__file_parsing_sort_mode` to ``modified_time``, raise
+the :ref:`config:scheduler__min_file_process_interval` to ``600`` (10 minutes), ``6000`` (100 minutes)
+or a higher value.
+
+The dag parser will skip the ``min_file_process_interval`` check if a file is recently modified.
+
+This might not work for case where the DAG is imported/created from a separate file. Example:
+``dag_file.py`` that imports ``dag_loader.py`` where the actual logic of the DAG file is as shown below.
+In this case if ``dag_loader.py`` is updated but ``dag_file.py`` is not updated, the changes won't be reflected
+until ``min_file_process_interval`` is reached since DAG Parser will look for modified time for ``dag_file.py`` file.
+
+.. code-block:: python
+   :caption: dag_file.py
+   :name: dag_file.py
+
+    from dag_loader import create_dag
+
+    globals()[dag.dag_id] = create_dag(dag_id, schedule, dag_number, default_args)
+
+.. code-block:: python
+   :caption: dag_loader.py
+   :name: dag_loader.py
+
+    from airflow import DAG
+    from airflow.operators.python_operator import PythonOperator
+    from datetime import datetime
+
+
+    def create_dag(dag_id, schedule, dag_number, default_args):
+        def hello_world_py(*args):
+            print("Hello World")
+            print("This is DAG: {}".format(str(dag_number)))
+
+        dag = DAG(dag_id, schedule_interval=schedule, default_args=default_args)
+
+        with dag:
+            t1 = PythonOperator(task_id="hello_world", python_callable=hello_world_py)
+
+        return dag
+
 
 DAG construction
 ^^^^^^^^^^^^^^^^
@@ -174,7 +220,7 @@ Airflow was developed as a solution for ETL needs. In the ETL world, you typical
 summarize data for 2016-02-19, You would do it at 2016-02-20 midnight UTC, which would be right after all data for
 2016-02-19 becomes available.
 
-This datetime value is available to you as :ref:`Macros<macros:default_variables>` as various forms in Jinja templated
+This datetime value is available to you as :ref:`Template variables<templates:variables>` with various formats in Jinja templated
 fields. They are also included in the context dictionary given to an Operator's execute function.
 
 .. code-block:: python

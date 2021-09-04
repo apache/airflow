@@ -145,10 +145,10 @@ class TestS3ToRedshiftTransfer(unittest.TestCase):
                         'aws_access_key_id=aws_access_key_id;aws_secret_access_key=aws_secret_access_key'
                         ;
                      '''
-        truncate_statement = f'TRUNCATE TABLE {schema}.{table};'
+        delete_statement = f'DELETE FROM {schema}.{table};'
         transaction = f"""
                     BEGIN;
-                    {truncate_statement}
+                    {delete_statement}
                     {copy_statement}
                     COMMIT
                     """

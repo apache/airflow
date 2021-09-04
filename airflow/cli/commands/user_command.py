@@ -65,7 +65,7 @@ def users_create(args):
         return
     user = appbuilder.sm.add_user(args.username, args.firstname, args.lastname, args.email, role, password)
     if user:
-        print(f'{args.role} user {args.username} created')
+        print(f'User "{args.username}" created with role "{args.role}"')
     else:
         raise SystemExit('Failed to create user')
 
@@ -93,7 +93,7 @@ def users_delete(args):
     appbuilder = cached_app().appbuilder
 
     if appbuilder.sm.del_register_user(user):
-        print(f'User {args.username} deleted')
+        print(f'User "{user.username}" deleted')
     else:
         raise SystemExit('Failed to delete user')
 
@@ -108,22 +108,22 @@ def users_manage_role(args, remove=False):
     role = appbuilder.sm.find_role(args.role)
     if not role:
         valid_roles = appbuilder.sm.get_all_roles()
-        raise SystemExit(f'{args.role} is not a valid role. Valid roles are: {valid_roles}')
+        raise SystemExit(f'"{args.role}" is not a valid role. Valid roles are: {valid_roles}')
 
     if remove:
-        if role in user.roles:
-            user.roles = [r for r in user.roles if r != role]
-            appbuilder.sm.update_user(user)
-            print(f'User "{user}" removed from role "{args.role}"')
-        else:
-            raise SystemExit(f'User "{user}" is not a member of role "{args.role}"')
+        if role not in user.roles:
+            raise SystemExit(f'User "{user.username}" is not a member of role "{args.role}"')
+
+        user.roles = [r for r in user.roles if r != role]
+        appbuilder.sm.update_user(user)
+        print(f'User "{user.username}" removed from role "{args.role}"')
     else:
         if role in user.roles:
-            raise SystemExit(f'User "{user}" is already a member of role "{args.role}"')
-        else:
-            user.roles.append(role)
-            appbuilder.sm.update_user(user)
-            print(f'User "{user}" added to role "{args.role}"')
+            raise SystemExit(f'User "{user.username}" is already a member of role "{args.role}"')
+
+        user.roles.append(role)
+        appbuilder.sm.update_user(user)
+        print(f'User "{user.username}" added to role "{args.role}"')
 
 
 def users_export(args):
@@ -185,9 +185,9 @@ def _import_users(users_list):
             role = appbuilder.sm.find_role(rolename)
             if not role:
                 valid_roles = appbuilder.sm.get_all_roles()
-                raise SystemExit(f"Error: '{rolename}' is not a valid role. Valid roles are: {valid_roles}")
-            else:
-                roles.append(role)
+                raise SystemExit(f'Error: "{rolename}" is not a valid role. Valid roles are: {valid_roles}')
+
+            roles.append(role)
 
         required_fields = ['username', 'firstname', 'lastname', 'email', 'roles']
         for field in required_fields:
@@ -197,10 +197,6 @@ def _import_users(users_list):
         existing_user = appbuilder.sm.find_user(email=user['email'])
         if existing_user:
             print(f"Found existing user with email '{user['email']}'")
-            existing_user.roles = roles
-            existing_user.first_name = user['firstname']
-            existing_user.last_name = user['lastname']
-
             if existing_user.username != user['username']:
                 raise SystemExit(
                     "Error: Changing the username is not allowed - "
@@ -208,6 +204,9 @@ def _import_users(users_list):
                     "email '{}'".format(user['email'])
                 )
 
+            existing_user.roles = roles
+            existing_user.first_name = user['firstname']
+            existing_user.last_name = user['lastname']
             appbuilder.sm.update_user(existing_user)
             users_updated.append(user['email'])
         else:

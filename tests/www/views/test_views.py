@@ -22,7 +22,7 @@ import pytest
 
 from airflow.configuration import initialize_config
 from airflow.plugins_manager import AirflowPlugin, EntryPointSource
-from airflow.www.views import get_safe_url, truncate_task_duration
+from airflow.www.views import get_key_paths, get_safe_url, get_value_from_path, truncate_task_duration
 from tests.test_utils.config import conf_vars
 from tests.test_utils.mock_plugins import mock_plugin_manager
 from tests.test_utils.www import check_content_in_response, check_content_not_in_response
@@ -93,6 +93,23 @@ def test_plugin_endpoint_should_not_be_unauthenticated(app):
     check_content_in_response("Sign In - Airflow", resp)
 
 
+def test_should_list_providers_on_page_with_details(admin_client):
+    resp = admin_client.get('/provider')
+    beam_href = "<a href=\"https://airflow.apache.org/docs/apache-airflow-providers-apache-beam/"
+    beam_text = "apache-airflow-providers-apache-beam</a>"
+    beam_description = "<a href=\"https://beam.apache.org/\">Apache Beam</a>"
+    check_content_in_response(beam_href, resp)
+    check_content_in_response(beam_text, resp)
+    check_content_in_response(beam_description, resp)
+    check_content_in_response("Providers", resp)
+
+
+def test_endpoint_should_not_be_unauthenticated(app):
+    resp = app.test_client().get('/provider', follow_redirects=True)
+    check_content_not_in_response("Providers", resp)
+    check_content_in_response("Sign In - Airflow", resp)
+
+
 @pytest.mark.parametrize(
     "url, content",
     [
@@ -112,6 +129,23 @@ def test_task_start_date_filter(admin_client, url, content):
     # We aren't checking the logic of the date filter itself (that is built
     # in to FAB) but simply that our UTC conversion was run - i.e. it
     # doesn't blow up!
+    check_content_in_response(content, resp)
+
+
+@pytest.mark.parametrize(
+    "url, content",
+    [
+        (
+            "/taskinstance/list/?_flt_3_dag_id=test_dag",
+            "List Task Instance",
+        )
+    ],
+    ids=["instance"],
+)
+def test_task_dag_id_equals_filter(admin_client, url, content):
+    resp = admin_client.get(url)
+    # We aren't checking the logic of the dag_id filter itself (that is built
+    # in to FAB) but simply that dag_id filter was run
     check_content_in_response(content, resp)
 
 
@@ -243,3 +277,26 @@ def test_mark_task_instance_state(test_app):
         dagrun.refresh_from_db(session=session)
         # dagrun should be set to QUEUED
         assert dagrun.get_state() == State.QUEUED
+
+
+TEST_CONTENT_DICT = {"key1": {"key2": "val2", "key3": "val3", "key4": {"key5": "val5"}}}
+
+
+@pytest.mark.parametrize(
+    "test_content_dict, expected_paths", [(TEST_CONTENT_DICT, ("key1.key2", "key1.key3", "key1.key4.key5"))]
+)
+def test_generate_key_paths(test_content_dict, expected_paths):
+    for key_path in get_key_paths(test_content_dict):
+        assert key_path in expected_paths
+
+
+@pytest.mark.parametrize(
+    "test_content_dict, test_key_path, expected_value",
+    [
+        (TEST_CONTENT_DICT, "key1.key2", "val2"),
+        (TEST_CONTENT_DICT, "key1.key3", "val3"),
+        (TEST_CONTENT_DICT, "key1.key4.key5", "val5"),
+    ],
+)
+def test_get_value_from_path(test_content_dict, test_key_path, expected_value):
+    assert expected_value == get_value_from_path(test_key_path, test_content_dict)

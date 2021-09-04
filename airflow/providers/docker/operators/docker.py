@@ -247,12 +247,12 @@ class DockerOperator(BaseOperator):
         if not self.cli:
             raise Exception("The 'cli' should be initialized before!")
         if self.mount_tmp_dir:
-            with TemporaryDirectory(prefix='airflowtmp', dir=self.host_tmp_dir) as host_tmp_dir:
-                tmp_mount = Mount(self.tmp_dir, host_tmp_dir, "bind")
+            with TemporaryDirectory(prefix='airflowtmp', dir=self.host_tmp_dir) as host_tmp_dir_generated:
+                tmp_mount = Mount(self.tmp_dir, host_tmp_dir_generated, "bind")
                 try:
                     return self._run_image_with_mounts(self.mounts + [tmp_mount], add_tmp_variable=True)
                 except APIError as e:
-                    if self.host_tmp_dir in str(e):
+                    if host_tmp_dir_generated in str(e):
                         self.log.warning(
                             "Using remote engine or docker-in-docker and mounting temporary "
                             "volume from host is not supported. Falling back to "
@@ -299,10 +299,10 @@ class DockerOperator(BaseOperator):
             line = ''
             res_lines = []
             for line in lines:
-                line = line.strip()
                 if hasattr(line, 'decode'):
                     # Note that lines returned can also be byte sequences so we have to handle decode here
                     line = line.decode('utf-8')
+                line = line.strip()
                 res_lines.append(line)
                 self.log.info(line)
 
@@ -310,11 +310,8 @@ class DockerOperator(BaseOperator):
             if result['StatusCode'] != 0:
                 res_lines = "\n".join(res_lines)
                 raise AirflowException('docker container failed: ' + repr(result) + f"lines {res_lines}")
-
-            ret = None
             if self.do_xcom_push:
-                ret = self.cli.logs(container=self.container['Id']) if self.xcom_all else line.encode('utf-8')
-            return ret
+                return res_lines if self.xcom_all else line
         finally:
             if self.auto_remove:
                 self.cli.remove_container(self.container['Id'])

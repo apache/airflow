@@ -40,7 +40,7 @@ CLUSTER = {"name": CLUSTER_NAME, "initial_node_count": 1}
 
 with models.DAG(
     "example_gcp_gke",
-    schedule_interval=None,  # Override to match your needs
+    schedule_interval='@once',  # Override to match your needs
     start_date=days_ago(1),
     tags=['example'],
 ) as dag:

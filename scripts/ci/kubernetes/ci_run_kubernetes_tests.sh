@@ -89,11 +89,19 @@ function create_virtualenv() {
 
     pip install --upgrade "pip==${AIRFLOW_PIP_VERSION}" "wheel==${WHEEL_VERSION}"
 
-    pip install pytest freezegun \
-      --constraint "https://raw.githubusercontent.com/${CONSTRAINTS_GITHUB_REPOSITORY}/${DEFAULT_CONSTRAINTS_BRANCH}/constraints-${HOST_PYTHON_VERSION}.txt"
+    local constraints=(
+        --constraint
+        "https://raw.githubusercontent.com/${CONSTRAINTS_GITHUB_REPOSITORY}/${DEFAULT_CONSTRAINTS_BRANCH}/constraints-${HOST_PYTHON_VERSION}.txt"
+    )
+    if [[ -n ${GITHUB_REGISTRY_PULL_IMAGE_TAG=} ]]; then
+        # Disable constraints when building in CI with specific version of sources
+        # In case there will be conflicting constraints
+        constraints=()
+    fi
 
-    pip install -e ".[cncf.kubernetes,postgres]" \
-      --constraint "https://raw.githubusercontent.com/${CONSTRAINTS_GITHUB_REPOSITORY}/${DEFAULT_CONSTRAINTS_BRANCH}/constraints-${HOST_PYTHON_VERSION}.txt"
+    pip install pytest freezegun "${constraints[@]}"
+
+    pip install -e ".[cncf.kubernetes,postgres]" "${constraints[@]}"
 }
 
 function run_tests() {

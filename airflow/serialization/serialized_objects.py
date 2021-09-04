@@ -21,32 +21,27 @@ import enum
 import logging
 from dataclasses import dataclass
 from inspect import Parameter, signature
-from typing import TYPE_CHECKING, Any, Dict, Iterable, List, Optional, Set, Union
+from typing import TYPE_CHECKING, Any, Dict, Iterable, List, Optional, Set, Type, Union
 
 import cattr
 import pendulum
 from dateutil import relativedelta
+from pendulum.tz.timezone import FixedTimezone, Timezone
 
-try:
-    from functools import cache
-except ImportError:
-    from functools import lru_cache
-
-    cache = lru_cache(maxsize=None)
-from pendulum.tz.timezone import Timezone
-
+from airflow.compat.functools import cache
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException, SerializationError
 from airflow.models.baseoperator import BaseOperator, BaseOperatorLink
 from airflow.models.connection import Connection
-from airflow.models.dag import DAG
+from airflow.models.dag import DAG, create_timetable
 from airflow.providers_manager import ProvidersManager
 from airflow.serialization.enums import DagAttributeTypes as DAT, Encoding
 from airflow.serialization.helpers import serialize_template_field
 from airflow.serialization.json_schema import Validator, load_dag_schema
 from airflow.settings import json
+from airflow.timetables.base import Timetable
 from airflow.utils.code_utils import get_python_source
-from airflow.utils.module_loading import import_string
+from airflow.utils.module_loading import as_importable_string, import_string
 from airflow.utils.task_group import TaskGroup
 
 try:
@@ -85,6 +80,89 @@ def get_operator_extra_links():
     """
     _OPERATOR_EXTRA_LINKS.update(ProvidersManager().extra_links_class_names)
     return _OPERATOR_EXTRA_LINKS
+
+
+def encode_relativedelta(var: relativedelta.relativedelta) -> Dict[str, Any]:
+    encoded = {k: v for k, v in var.__dict__.items() if not k.startswith("_") and v}
+    if var.weekday and var.weekday.n:
+        # Every n'th Friday for example
+        encoded['weekday'] = [var.weekday.weekday, var.weekday.n]
+    elif var.weekday:
+        encoded['weekday'] = [var.weekday.weekday]
+    return encoded
+
+
+def decode_relativedelta(var: Dict[str, Any]) -> relativedelta.relativedelta:
+    if 'weekday' in var:
+        var['weekday'] = relativedelta.weekday(*var['weekday'])  # type: ignore
+    return relativedelta.relativedelta(**var)
+
+
+def encode_timezone(var: Timezone) -> Union[str, int]:
+    """Encode a Pendulum Timezone for serialization.
+
+    Airflow only supports timezone objects that implements Pendulum's Timezone
+    interface. We try to keep as much information as possible to make conversion
+    round-tripping possible (see ``decode_timezone``). We need to special-case
+    UTC; Pendulum implements it as a FixedTimezone (i.e. it gets encoded as
+    0 without the special case), but passing 0 into ``pendulum.timezone`` does
+    not give us UTC (but ``+00:00``).
+    """
+    if isinstance(var, FixedTimezone):
+        if var.offset == 0:
+            return "UTC"
+        return var.offset
+    if isinstance(var, Timezone):
+        return var.name
+    raise ValueError(f"DAG timezone should be a pendulum.tz.Timezone, not {var!r}")
+
+
+def decode_timezone(var: Union[str, int]) -> Timezone:
+    """Decode a previously serialized Pendulum Timezone."""
+    return pendulum.timezone(var)
+
+
+def _get_registered_timetable(importable_string: str) -> Optional[Type[Timetable]]:
+    from airflow import plugins_manager
+
+    if importable_string.startswith("airflow.timetables."):
+        return import_string(importable_string)
+    plugins_manager.initialize_timetables_plugins()
+    return plugins_manager.timetable_classes.get(importable_string)
+
+
+class _TimetableNotRegistered(ValueError):
+    def __init__(self, type_string: str) -> None:
+        self.type_string = type_string
+
+    def __str__(self) -> str:
+        return f"Timetable class {self.type_string!r} is not registered"
+
+
+def _encode_timetable(var: Timetable) -> Dict[str, Any]:
+    """Encode a timetable instance.
+
+    This delegates most of the serialization work to the type, so the behavior
+    can be completely controlled by a custom subclass.
+    """
+    timetable_class = type(var)
+    importable_string = as_importable_string(timetable_class)
+    if _get_registered_timetable(importable_string) != timetable_class:
+        raise _TimetableNotRegistered(importable_string)
+    return {"__type": importable_string, "__var": var.serialize()}
+
+
+def _decode_timetable(var: Dict[str, Any]) -> Timetable:
+    """Decode a previously serialized timetable.
+
+    Most of the deserialization logic is delegated to the actual type, which
+    we import from string.
+    """
+    importable_string = var["__type"]
+    timetable_class = _get_registered_timetable(importable_string)
+    if timetable_class is None:
+        raise _TimetableNotRegistered(importable_string)
+    return timetable_class.deserialize(var["__var"])
 
 
 class BaseSerialization:
@@ -188,6 +266,8 @@ class BaseSerialization:
 
             if key in decorated_fields:
                 serialized_object[key] = cls._serialize(value)
+            elif key == "timetable":
+                serialized_object[key] = _encode_timetable(value)
             else:
                 value = cls._serialize(value)
                 if isinstance(value, dict) and "__type" in value:
@@ -228,15 +308,9 @@ class BaseSerialization:
         elif isinstance(var, datetime.timedelta):
             return cls._encode(var.total_seconds(), type_=DAT.TIMEDELTA)
         elif isinstance(var, Timezone):
-            return cls._encode(str(var.name), type_=DAT.TIMEZONE)
+            return cls._encode(encode_timezone(var), type_=DAT.TIMEZONE)
         elif isinstance(var, relativedelta.relativedelta):
-            encoded = {k: v for k, v in var.__dict__.items() if not k.startswith("_") and v}
-            if var.weekday and var.weekday.n:
-                # Every n'th Friday for example
-                encoded['weekday'] = [var.weekday.weekday, var.weekday.n]
-            elif var.weekday:
-                encoded['weekday'] = [var.weekday.weekday]
-            return cls._encode(encoded, type_=DAT.RELATIVEDELTA)
+            return cls._encode(encode_relativedelta(var), type_=DAT.RELATIVEDELTA)
         elif callable(var):
             return str(get_python_source(var))
         elif isinstance(var, set):
@@ -284,11 +358,9 @@ class BaseSerialization:
         elif type_ == DAT.TIMEDELTA:
             return datetime.timedelta(seconds=var)
         elif type_ == DAT.TIMEZONE:
-            return Timezone(var)
+            return decode_timezone(var)
         elif type_ == DAT.RELATIVEDELTA:
-            if 'weekday' in var:
-                var['weekday'] = relativedelta.weekday(*var['weekday'])  # type: ignore
-            return relativedelta.relativedelta(**var)
+            return decode_relativedelta(var)
         elif type_ == DAT.SET:
             return {cls._deserialize(v) for v in var}
         elif type_ == DAT.TUPLE:
@@ -381,6 +453,7 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
         # Move class attributes into object attributes.
         self.ui_color = BaseOperator.ui_color
         self.ui_fgcolor = BaseOperator.ui_fgcolor
+        self.template_ext = BaseOperator.template_ext
         self.template_fields = BaseOperator.template_fields
         self.operator_extra_links = BaseOperator.operator_extra_links
 
@@ -678,6 +751,13 @@ class SerializedDAG(DAG, BaseSerialization):
         try:
             serialize_dag = cls.serialize_to_json(dag, cls._decorated_fields)
 
+            # If schedule_interval is backed by timetable, serialize only
+            # timetable; vice versa for a timetable backed by schedule_interval.
+            if dag.timetable.summary == dag.schedule_interval:
+                del serialize_dag["schedule_interval"]
+            else:
+                del serialize_dag["timetable"]
+
             serialize_dag["tasks"] = [cls._serialize(task) for _, task in dag.task_dict.items()]
             serialize_dag["dag_dependencies"] = [
                 vars(t)
@@ -697,8 +777,8 @@ class SerializedDAG(DAG, BaseSerialization):
             return serialize_dag
         except SerializationError:
             raise
-        except Exception:
-            raise SerializationError(f'Failed to serialize dag {dag.dag_id!r}')
+        except Exception as e:
+            raise SerializationError(f'Failed to serialize DAG {dag.dag_id!r}: {e}')
 
     @classmethod
     def deserialize_dag(cls, encoded_dag: Dict[str, Any]) -> 'SerializedDAG':
@@ -716,18 +796,28 @@ class SerializedDAG(DAG, BaseSerialization):
                 k = "task_dict"
             elif k == "timezone":
                 v = cls._deserialize_timezone(v)
-            elif k in {"dagrun_timeout"}:
+            elif k == "dagrun_timeout":
                 v = cls._deserialize_timedelta(v)
             elif k.endswith("_date"):
                 v = cls._deserialize_datetime(v)
             elif k == "edge_info":
                 # Value structure matches exactly
                 pass
+            elif k == "timetable":
+                v = _decode_timetable(v)
             elif k in cls._decorated_fields:
                 v = cls._deserialize(v)
             # else use v as it is
 
             setattr(dag, k, v)
+
+        # A DAG is always serialized with only one of schedule_interval and
+        # timetable. This back-populates the other to ensure the two attributes
+        # line up correctly on the DAG instance.
+        if "timetable" in encoded_dag:
+            dag.schedule_interval = dag.timetable.summary
+        else:
+            dag.timetable = create_timetable(dag.schedule_interval, dag.timezone)
 
         # Set _task_group
 
@@ -752,7 +842,6 @@ class SerializedDAG(DAG, BaseSerialization):
         for k in keys_to_set_none:
             setattr(dag, k, None)
 
-        setattr(dag, 'full_filepath', dag.fileloc)
         for task in dag.task_dict.values():
             task.dag = dag
             serializable_task: BaseOperator = task

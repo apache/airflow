@@ -19,7 +19,7 @@
 """improve mssql compatibility
 
 Revision ID: 83f031fd9f1c
-Revises: a13f7613ad25
+Revises: 97cdd93827b8
 Create Date: 2021-04-06 12:22:02.197726
 
 """
@@ -32,7 +32,7 @@ from sqlalchemy.dialects import mssql
 
 # revision identifiers, used by Alembic.
 revision = '83f031fd9f1c'
-down_revision = 'a13f7613ad25'
+down_revision = '97cdd93827b8'
 branch_labels = None
 depends_on = None
 

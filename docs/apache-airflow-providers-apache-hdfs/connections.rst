@@ -36,9 +36,16 @@ Host
 Port
     Specify the port in case of host be an URL.
 
+Login
+    Effective user for HDFS operations (non-Kerberized).
+
 Extra (optional, connection parameters)
     Specify the extra parameters (as json dictionary) that can be used in HDFS connection. The following
     parameters out of the standard python parameters are supported:
 
-    * ``proxy_user`` - Effective user for HDFS operations.
     * ``autoconfig`` - Default value is bool: False. Use snakebite's automatically configured client. This HDFSHook implementation requires snakebite.
+
+    The following extra parameters can be used to configure SSL for Web HDFS Hook:
+
+    * ``use_ssl`` - If SSL should be used. By default is set to `false`.
+    * ``verify`` - How to verify SSL. For more information refer to https://docs.python-requests.org/en/master/user/advanced/#ssl-cert-verification.

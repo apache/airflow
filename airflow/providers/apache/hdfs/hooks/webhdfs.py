@@ -20,6 +20,7 @@ import logging
 import socket
 from typing import Any, Optional
 
+import requests
 from hdfs import HdfsError, InsecureClient
 
 from airflow.configuration import conf
@@ -93,12 +94,17 @@ class WebHDFSHook(BaseHook):
 
     def _get_client(self, connection: Connection) -> Any:
         connection_str = f'http://{connection.host}:{connection.port}'
+        session = requests.Session()
+
+        if connection.extra_dejson.get('use_ssl', False):
+            connection_str = f'https://{connection.host}:{connection.port}'
+            session.verify = connection.extra_dejson.get('verify', True)
 
         if _kerberos_security_mode:
-            client = KerberosClient(connection_str)
+            client = KerberosClient(connection_str, session=session)
         else:
             proxy_user = self.proxy_user or connection.login
-            client = InsecureClient(connection_str, user=proxy_user)
+            client = InsecureClient(connection_str, user=proxy_user, session=session)
 
         return client
 

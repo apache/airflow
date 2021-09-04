@@ -81,10 +81,18 @@ def run_command(command):
 
 def _get_config_value_from_secret_backend(config_key):
     """Get Config option values from Secret Backend"""
-    secrets_client = get_custom_secret_backend()
-    if not secrets_client:
-        return None
-    return secrets_client.get_config(config_key)
+    try:
+        secrets_client = get_custom_secret_backend()
+        if not secrets_client:
+            return None
+        return secrets_client.get_config(config_key)
+    except Exception as e:  # pylint: disable=broad-except
+        raise AirflowConfigException(
+            'Cannot retrieve config from alternative secrets backend. '
+            'Make sure it is configured properly and that the Backend '
+            'is accessible.\n'
+            f'{e}'
+        )
 
 
 def _default_config_file_path(file_name: str):
@@ -163,6 +171,8 @@ class AirflowConfigParser(ConfigParser):
         ('core', 'sensitive_var_conn_names'): ('admin', 'sensitive_variable_fields', '2.1.0'),
         ('core', 'default_pool_task_slot_count'): ('core', 'non_pooled_task_slot_count', '1.10.4'),
         ('core', 'max_active_tasks_per_dag'): ('core', 'dag_concurrency', '2.2.0'),
+        ('logging', 'worker_log_server_port'): ('celery', 'worker_log_server_port', '2.3.0'),
+        ('api', 'access_control_allow_origins'): ('api', 'access_control_allow_origin', '2.2.0'),
     }
 
     # A mapping of old default values that we want to change and warn the user
@@ -242,7 +252,7 @@ class AirflowConfigParser(ConfigParser):
             if StrictVersion(sqlite3.sqlite_version) < StrictVersion(min_sqlite_version):
                 raise AirflowConfigException(
                     f"error: sqlite C library version too old (< {min_sqlite_version}). "
-                    f"See {get_docs_url('howto/set-up-database.rst#setting-up-a-sqlite-database')}"
+                    f"See {get_docs_url('howto/set-up-database.html#setting-up-a-sqlite-database')}"
                 )
 
         if self.has_option('core', 'mp_start_method'):

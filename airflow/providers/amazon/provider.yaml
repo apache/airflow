@@ -22,6 +22,7 @@ description: |
     Amazon integration (including `Amazon Web Services (AWS) <https://aws.amazon.com/>`__).
 
 versions:
+  - 2.2.0
   - 2.1.0
   - 2.0.0
   - 1.4.0
@@ -63,6 +64,12 @@ integrations:
     external-doc-url: https://aws.amazon.com/ecs/
     logo: /integration-logos/aws/Amazon-Elastic-Container-Service_light-bg@4x.png
     tags: [aws]
+  - integration-name: Amazon Elastic Kubernetes Service (EKS)
+    external-doc-url: https://aws.amazon.com/eks/
+    logo: /integration-logos/aws/Amazon-Elastic-Kubernetes-Service_light-bg@4x.png
+    how-to-guide:
+      - /docs/apache-airflow-providers-amazon/operators/eks.rst
+    tags: [aws]
   - integration-name: Amazon ElastiCache
     external-doc-url: https://aws.amazon.com/elasticache/redis//
     logo: /integration-logos/aws/Amazon-ElastiCache_light-bg@4x.png
@@ -71,6 +78,12 @@ integrations:
     external-doc-url: https://aws.amazon.com/emr/
     how-to-guide:
       - /docs/apache-airflow-providers-amazon/operators/emr.rst
+    logo: /integration-logos/aws/Amazon-EMR_light-bg@4x.png
+    tags: [aws]
+  - integration-name: Amazon EMR on EKS
+    external-doc-url: https://docs.aws.amazon.com/emr/latest/EMR-on-EKS-DevelopmentGuide/emr-eks.html
+    how-to-guide:
+      - /docs/apache-airflow-providers-amazon/operators/emr_eks.rst
     logo: /integration-logos/aws/Amazon-EMR_light-bg@4x.png
     tags: [aws]
   - integration-name: Amazon Glacier
@@ -173,12 +186,18 @@ operators:
   - integration-name: Amazon ECS
     python-modules:
       - airflow.providers.amazon.aws.operators.ecs
+  - integration-name: Amazon Elastic Kubernetes Service (EKS)
+    python-modules:
+      - airflow.providers.amazon.aws.operators.eks
   - integration-name: Amazon EMR
     python-modules:
       - airflow.providers.amazon.aws.operators.emr_add_steps
       - airflow.providers.amazon.aws.operators.emr_create_job_flow
       - airflow.providers.amazon.aws.operators.emr_modify_cluster
       - airflow.providers.amazon.aws.operators.emr_terminate_job_flow
+  - integration-name: Amazon EMR on EKS
+    python-modules:
+      - airflow.providers.amazon.aws.operators.emr_containers
   - integration-name: Amazon Glacier
     python-modules:
       - airflow.providers.amazon.aws.operators.glacier
@@ -228,11 +247,17 @@ sensors:
   - integration-name: Amazon EC2
     python-modules:
       - airflow.providers.amazon.aws.sensors.ec2_instance_state
+  - integration-name: Amazon Elastic Kubernetes Service (EKS)
+    python-modules:
+      - airflow.providers.amazon.aws.sensors.eks
   - integration-name: Amazon EMR
     python-modules:
       - airflow.providers.amazon.aws.sensors.emr_base
       - airflow.providers.amazon.aws.sensors.emr_job_flow
       - airflow.providers.amazon.aws.sensors.emr_step
+  - integration-name: Amazon EMR on EKS
+    python-modules:
+      - airflow.providers.amazon.aws.sensors.emr_containers
   - integration-name: Amazon Glacier
     python-modules:
       - airflow.providers.amazon.aws.sensors.glacier
@@ -293,9 +318,15 @@ hooks:
   - integration-name: Amazon ElastiCache
     python-modules:
       - airflow.providers.amazon.aws.hooks.elasticache_replication_group
+  - integration-name: Amazon Elastic Kubernetes Service (EKS)
+    python-modules:
+      - airflow.providers.amazon.aws.hooks.eks
   - integration-name: Amazon EMR
     python-modules:
       - airflow.providers.amazon.aws.hooks.emr
+  - integration-name: Amazon EMR on EKS
+    python-modules:
+      - airflow.providers.amazon.aws.hooks.emr_containers
   - integration-name: Amazon Glacier
     python-modules:
       - airflow.providers.amazon.aws.hooks.glacier
@@ -375,9 +406,11 @@ transfers:
     python-module: airflow.providers.amazon.aws.transfers.s3_to_redshift
   - source-integration-name: Amazon Simple Storage Service (S3)
     target-integration-name: SSH File Transfer Protocol (SFTP)
+    how-to-guide: /docs/apache-airflow-providers-amazon/operators/transfer/s3_to_sftp.rst
     python-module: airflow.providers.amazon.aws.transfers.s3_to_sftp
   - source-integration-name: SSH File Transfer Protocol (SFTP)
     target-integration-name: Amazon Simple Storage Service (S3)
+    how-to-guide: /docs/apache-airflow-providers-amazon/operators/transfer/sftp_to_s3.rst
     python-module: airflow.providers.amazon.aws.transfers.sftp_to_s3
   - source-integration-name: Amazon Simple Storage Service (S3)
     target-integration-name: File Transfer Protocol (FTP)
@@ -388,8 +421,31 @@ transfers:
   - source-integration-name: File Transfer Protocol (FTP)
     target-integration-name: Amazon Simple Storage Service (S3)
     python-module: airflow.providers.amazon.aws.transfers.ftp_to_s3
+  - source-integration-name: Salesforce
+    target-integration-name: Amazon Simple Storage Service (S3)
+    how-to-guide: /docs/apache-airflow-providers-amazon/operators/salesforce_to_s3.rst
+    python-module: airflow.providers.amazon.aws.transfers.salesforce_to_s3
+  - source-integration-name: Local
+    target-integration-name: Amazon Simple Storage Service (S3)
+    python-module: airflow.providers.amazon.aws.transfers.local_to_s3
 
-hook-class-names:
+hook-class-names:  # deprecated - to be removed after providers add dependency on Airflow 2.2.0+
   - airflow.providers.amazon.aws.hooks.s3.S3Hook
   - airflow.providers.amazon.aws.hooks.base_aws.AwsBaseHook
   - airflow.providers.amazon.aws.hooks.emr.EmrHook
+
+connection-types:
+  - hook-class-name: airflow.providers.amazon.aws.hooks.s3.S3Hook
+    connection-type: s3
+  - hook-class-name: airflow.providers.amazon.aws.hooks.base_aws.AwsBaseHook
+    connection-type: aws
+  - hook-class-name: airflow.providers.amazon.aws.hooks.emr.EmrHook
+    connection-type: emr
+
+secrets-backends:
+  - airflow.providers.amazon.aws.secrets.secrets_manager.SecretsManagerBackend
+  - airflow.providers.amazon.aws.secrets.systems_manager.SystemsManagerParameterStoreBackend
+
+logging:
+  - airflow.providers.amazon.aws.log.s3_task_handler.S3TaskHandler
+  - airflow.providers.amazon.aws.log.cloudwatch_task_handler.CloudwatchTaskHandler

@@ -22,7 +22,7 @@ on:  # yamllint disable-line rule:truthy
     - cron: '28 0 * * *'
   pull_request_target:
   push:
-    branches: ['main', 'v1-10-test', 'v1-10-stable', 'v2-0-test']
+    branches: ['main', 'v[0-9]+-[0-9]+-test']
 permissions:
   # all other permissions are set to none
   contents: read
@@ -47,6 +47,7 @@ env:
   GITHUB_REGISTRY_WAIT_FOR_IMAGE: "false"
   INSTALL_PROVIDERS_FROM_SOURCES: "true"
   TARGET_COMMIT_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+  AIRFLOW_LOGIN_TO_GITHUB_REGISTRY: "true"
 
 concurrency:
   group: build-${{ github.event.pull_request.number || github.ref }}
@@ -73,6 +74,7 @@ jobs:
       image-build: ${{ steps.dynamic-outputs.outputs.image-build }}
       cacheDirective: ${{ steps.dynamic-outputs.outputs.cacheDirective }}
       targetBranch: ${{ steps.dynamic-outputs.outputs.targetBranch }}
+      defaultBranch: ${{ steps.selective-checks.outputs.default-branch }}
     steps:
       # Retrieve it to be able to determine which files has changed in the incoming commit of the PR
       # we checkout the target commit and it's parent to be able to compare them
@@ -147,7 +149,6 @@ jobs:
       BACKEND: postgres
       PYTHON_MAJOR_MINOR_VERSION: ${{ matrix.python-version }}
       UPGRADE_TO_NEWER_DEPENDENCIES: ${{ needs.build-info.outputs.upgradeToNewerDependencies }}
-      CONTINUE_ON_PIP_CHECK_FAILURE: "true"
       DOCKER_CACHE: ${{ needs.build-info.outputs.cacheDirective }}
       CHECK_IF_BASE_PYTHON_IMAGE_UPDATED: >
         ${{ github.event_name == 'pull_request_target' && 'false' || 'true' }}
@@ -227,10 +228,15 @@ jobs:
       CHECK_IF_BASE_PYTHON_IMAGE_UPDATED: >
         ${{ github.event_name == 'pull_request_target' && 'false' || 'true' }}
       VERSION_SUFFIX_FOR_PYPI: ".dev0"
+      INSTALL_PROVIDERS_FROM_SOURCES: >
+        ${{ needs.build-info.outputs.defaultBranch == 'main' && 'true' || 'false' }}
     steps:
       - name: Set envs
+        # Set pull image tag for CI image build, in order to pull the image pushed
+        # Just a moment ago by build-ci-images job
         run: |
           echo "GITHUB_REGISTRY_PUSH_IMAGE_TAG=${TARGET_COMMIT_SHA}" >> "$GITHUB_ENV"
+          echo "GITHUB_REGISTRY_PULL_IMAGE_TAG=${TARGET_COMMIT_SHA}" >> "$GITHUB_ENV"
       - uses: actions/checkout@v2
         with:
           ref: ${{ env.TARGET_COMMIT_SHA }}
@@ -278,15 +284,22 @@ jobs:
         # Pull images built in the previous step
         env:
           GITHUB_REGISTRY_WAIT_FOR_IMAGE: "true"
+          # Here we are using PULL_IMAGE_TAG set in the environment variables above
       - name: "Build PROD images ${{ matrix.python-version }}:${{ env.TARGET_COMMIT_SHA }}"
         run: ./scripts/ci/images/ci_prepare_prod_image_on_ci.sh
+        env:
+          # GITHUB_REGISTRY_PULL_IMAGE_TAG is overriden to latest in order to build PROD image using "latest"
+          GITHUB_REGISTRY_PULL_IMAGE_TAG: "latest"
       - name: "Push PROD images ${{ matrix.python-version }}:${{ env.TARGET_COMMIT_SHA }}"
         run: ./scripts/ci/images/ci_push_production_images.sh
+        env:
+          # GITHUB_REGISTRY_PULL_IMAGE_TAG is overriden to latest in order to build PROD image using "latest"
+          GITHUB_REGISTRY_PULL_IMAGE_TAG: "latest"
 
   cancel-on-ci-build:
     permissions:
       actions: write
-    name: "Cancel 'CI Build' jobs on workflow failed/cancelled"
+    name: "Cancel `Tests` jobs on workflow failed/cancelled"
     runs-on: ${{ github.repository == 'apache/airflow' && 'self-hosted' || 'ubuntu-20.04' }}
     if: failure() || cancelled()
     needs: [build-ci-images, build-prod-images]
@@ -294,7 +307,7 @@ jobs:
       branch: ${{ github.event.pull_request.head.ref }}
       thisRun: ${{ github.run_id }}
     steps:
-      - name: Find running CI Build jobs for ${{ env.TARGET_COMMIT_SHA }}
+      - name: "Find running `Tests` jobs for ${{ env.TARGET_COMMIT_SHA }}"
         run: |
           if [[ "${{ github.event_name }}" == 'pull_request_target' ]]; then
             event_filter="event=pull_request&"

@@ -67,11 +67,10 @@ function run_test_types_in_parallel() {
 #   * TEST_TYPES  - contains all test types that should be executed
 #   * MEMORY_REQUIRED_FOR_INTEGRATION_TEST_PARALLEL_RUN - memory in bytes required to run integration tests
 #             in parallel to other tests
-#   * MEMORY_AVAILABLE_FOR_DOCKER - memory that is available in docker (set by cleanup_runners)
 #
 function run_all_test_types_in_parallel() {
     parallel::cleanup_runner
-
+    docker_engine_resources::get_available_memory_in_docker
     start_end::group_start "Determine how to run the tests"
     echo
     echo "${COLOR_YELLOW}Running maximum ${MAX_PARALLEL_TEST_JOBS} test types in parallel${COLOR_RESET}"
@@ -134,5 +133,9 @@ testing::get_maximum_parallel_test_jobs
 testing::get_test_types_to_run
 
 testing::get_docker_compose_local
+
+# We don't include this in a group so that the failure output is always visible in CI
+traps::add_trap 'python ./scripts/ci/testing/summarize_junit_failures.py files/test_result-*.xml' 'EXIT'
+rm files/test_result-*.xml 2>/dev/null || true
 
 run_all_test_types_in_parallel "${@}"

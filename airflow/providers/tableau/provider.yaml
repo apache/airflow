@@ -22,6 +22,7 @@ description: |
     `Tableau <https://www.tableau.com/>`__
 
 versions:
+  - 2.1.1
   - 2.1.0
   - 2.0.0
   - 1.0.0
@@ -32,12 +33,15 @@ additional-dependencies:
 integrations:
   - integration-name: Tableau
     external-doc-url: https://www.tableau.com/
+    how-to-guide:
+      - /docs/apache-airflow-providers-tableau/operators.rst
     logo: /integration-logos/tableau/tableau.png
     tags: [service]
 
 operators:
   - integration-name: Tableau
     python-modules:
+      - airflow.providers.tableau.operators.tableau
       - airflow.providers.tableau.operators.tableau_refresh_workbook
 
 sensors:
@@ -50,5 +54,9 @@ hooks:
     python-modules:
       - airflow.providers.tableau.hooks.tableau
 
-hook-class-names:
+hook-class-names:  # deprecated - to be removed after providers add dependency on Airflow 2.2.0+
   - airflow.providers.tableau.hooks.tableau.TableauHook
+
+connection-types:
+  - hook-class-name: airflow.providers.tableau.hooks.tableau.TableauHook
+    connection-type: tableau

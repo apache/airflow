@@ -36,6 +36,11 @@
   <meta name="extra_links_url" content="{{ url_for('Airflow.extra_links') }}">
   <meta name="paused_url" content="{{ url_for('Airflow.paused') }}">
   <meta name="tree_data" content="{{ url_for('Airflow.tree_data') }}">
+  {% if dag_model is defined and dag_model.next_dagrun_create_after is defined %}
+    <meta name="next_dagrun_create_after" content="{{ dag_model.next_dagrun_create_after }}">
+    <meta name="next_dagrun_data_interval_start" content="{{ dag_model.next_dagrun_data_interval_start }}">
+    <meta name="next_dagrun_data_interval_end" content="{{ dag_model.next_dagrun_data_interval_end }}">
+  {% endif %}
   {% if show_external_log_redirect is defined %}
     <meta name="show_external_log_redirect" content="{{ show_external_log_redirect }}">
   {% endif %}
@@ -84,8 +89,13 @@
         {{ state_token }}
       {% endif %}
       <a class="label label-default" href="{{ url_for('DagRunModelView.list') }}?_flt_3_dag_id={{ dag.dag_id }}">
-        schedule: {{ dag.schedule_interval }}
+        Schedule: {{ dag.schedule_interval }}
       </a>
+      {% if dag_model is defined and dag_model.next_dagrun is defined %}
+        <p class="label label-default js-tooltip" style="margin-left: 5px" id="next-run" data-html="true" data-placement="bottom">
+          Next Run: <time datetime="{{ dag_model.next_dagrun }}">{{ dag_model.next_dagrun }}</time>
+        </p>
+      {% endif %}
       {% if dag.timetable.interval_description is not none %}
       <span id="schedule-description-{{ dag.safe_dag_id }}" class="material-icons text-muted js-tooltip" aria-hidden="true" data-original-title="{{ dag.timetable.interval_description|string }}">info</span>
       {% endif %}
@@ -140,6 +150,7 @@
                 <form method="POST" action="{{ url_for('Airflow.trigger') }}">
                   <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                   <input type="hidden" name="dag_id" value="{{ dag.dag_id }}">
+                  <input type="hidden" name="unpause" value="True">
                   <input type="hidden" name="origin" value="{{ url_for('Airflow.' + dag.default_view, dag_id=dag.dag_id) }}">
                   <button type="submit" class="dropdown-form-btn">Trigger DAG</button>
                 </form>
@@ -147,9 +158,6 @@
               <li><a href="{{ url_for('Airflow.trigger', dag_id=dag.dag_id, origin=url_for('Airflow.' + dag.default_view, dag_id=dag.dag_id)) }}">Trigger DAG w/ config</a></li>
             </ul>
           </div>
-          <a href="{{ url_for('Airflow.refresh', dag_id=dag.dag_id) }}" title="Refresh DAG" aria-label="Refresh DAG" onclick="postAsForm(this.href); return false" class="btn btn-default btn-icon-only{{ ' disabled' if not dag.can_edit }}">
-            <span class="material-icons" aria-hidden="true">refresh</span>
-          </a>
           <a href="{{ url_for('Airflow.delete', dag_id=dag.dag_id) }}" title="Delete&nbsp;DAG" class="btn btn-default btn-icon-only{{ ' disabled' if not dag.can_delete }}"
             onclick="return confirmDeleteDag(this, '{{ dag.safe_dag_id }}')" aria-label="Delete DAG">
             <span class="material-icons text-danger" aria-hidden="true">delete_outline</span>

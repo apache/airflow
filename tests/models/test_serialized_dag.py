@@ -71,7 +71,7 @@ class SerializedDagModelTest(unittest.TestCase):
                 assert SDM.has_dag(dag.dag_id)
                 result = session.query(SDM.fileloc, SDM.data).filter(SDM.dag_id == dag.dag_id).one()
 
-                assert result.fileloc == dag.full_filepath
+                assert result.fileloc == dag.fileloc
                 # Verifies JSON schema.
                 SerializedDAG.validate_schema(result.data)
 
@@ -138,8 +138,8 @@ class SerializedDagModelTest(unittest.TestCase):
         # Tests removing by file path.
         dag_removed_by_file = filtered_example_dags_list[0]
         # remove repeated files for those DAGs that define multiple dags in the same file (set comprehension)
-        example_dag_files = list({dag.full_filepath for dag in filtered_example_dags_list})
-        example_dag_files.remove(dag_removed_by_file.full_filepath)
+        example_dag_files = list({dag.fileloc for dag in filtered_example_dags_list})
+        example_dag_files.remove(dag_removed_by_file.fileloc)
         SDM.remove_deleted_dags(example_dag_files)
         assert not SDM.has_dag(dag_removed_by_file.dag_id)
 

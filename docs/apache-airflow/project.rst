@@ -44,6 +44,7 @@ Committers
 - Ash Berlin-Taylor (@ashb)
 - Bas Harenslak (@basph)
 - Bolke de Bruin (@bolkedebruin)
+- Brent Bovenzi (@bbovenzi)
 - Chao-Han Tsai (@milton0825)
 - Chris Riccomini (@criccomini)
 - Dan Davydov (@aoen)
