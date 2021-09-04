@@ -16,7 +16,6 @@
 # under the License.
 
 import warnings
-from contextlib import closing
 from typing import List, Optional, Union
 
 from airflow.exceptions import AirflowException
@@ -144,18 +143,16 @@ class S3ToRedshiftOperator(BaseOperator):
             and kcu.table_name = %s
         """
 
-        with closing(postgres_hook.get_conn()) as conn, closing(conn.cursor()) as cur:
-            self.log.info("Executing query")
-            cur.execute(sql, (self.schema, self.table))
-            result = cur.fetchall()
-            if len(result) == 0:
-                raise AirflowException(
-                    f"""
-                    No primary key on {self.schema}.{self.table}.
-                    Please provide keys on 'upsert_keys' parameter.
-                    """
-                )
-            return [row[0] for row in result]
+        result = postgres_hook.get_records(sql, (self.schema, self.table))
+
+        if len(result) == 0:
+            raise AirflowException(
+                f"""
+                No primary key on {self.schema}.{self.table}.
+                Please provide keys on 'upsert_keys' parameter.
+                """
+            )
+        return [row[0] for row in result]
 
     def execute(self, context) -> None:
         postgres_hook = PostgresHook(postgres_conn_id=self.redshift_conn_id)
