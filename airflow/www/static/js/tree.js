@@ -332,7 +332,15 @@ document.addEventListener('DOMContentLoaded', () => {
       .attr('ry', (d) => (isDagRun(d) ? '5' : '1'))
       .style('shape-rendering', (d) => (isDagRun(d) ? 'auto' : 'crispEdges'))
       .style('stroke-width', (d) => (isDagRun(d) ? '2' : '1'))
-      .style('stroke-opacity', (d) => (d.external_trigger ? '0' : '1'))
+      .style('stroke-opacity', (d) => {
+        if (!d.external_trigger) {
+          return 1;
+        }
+        if (d.state === null) {
+          return 0.5;
+        }
+        return 0;
+      })
       .on('mouseover', function (d) {
         // Calculate duration if it doesn't exist
         const tt = tiTooltip({
