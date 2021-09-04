@@ -55,6 +55,24 @@ class SecretsManagerBackend(BaseSecretsBackend, LoggingMixin):
     You can also pass additional keyword arguments like ``aws_secret_access_key``, ``aws_access_key_id``
     or ``region_name`` to this class and they would be passed on to Boto3 client.
 
+    There are two ways of storing secrets in Secret Manager for using them with this operator:
+    storing them as a conn URI in one field, or taking advantage of native approach of Secrets Manager
+    and storing them in multiple fields. There are certain words that will be searched in the name
+    of fileds for trying to retrieve a connection part. Those words are:
+
+    .. code-block:: ini
+
+        possible_words_for_conn_fields = {
+                'user': ['user', 'username', 'login', 'user_name'],
+                'password': ['password', 'pass', 'key'],
+                'host': ['host', 'remote_host', 'server'],
+                'port': ['port'],
+                'schema': ['database', 'schema'],
+                'conn_type': ['conn_type', 'conn_id', 'connection_type', 'engine'],
+            }
+
+    However, these lists can be extended using the configuration parameter ``extra_conn_words``.
+
     :param connections_prefix: Specifies the prefix of the secret to read to get Connections.
         If set to None (null), requests for connections will not be sent to AWS Secrets Manager
     :type connections_prefix: str
@@ -71,6 +89,12 @@ class SecretsManagerBackend(BaseSecretsBackend, LoggingMixin):
     :param full_url_mode: if True, the secrets must be stored as one conn URI in just one field per secret.
         Otherwise, you can store the secret using different fields (password, user...)
     :type full_url_mode: bool
+    :param extra_conn_words: for using just when you set full_url_mode as False and store
+        the secrets in different fields of secrets manager. You can add more words for each connection
+        part beyond the default ones. The extra words to be searched should be passed as a dict of lists,
+        each list corresponding to a connection part. The optional keys of the dict must be: user,
+        password, host, schema, conn_type.
+    :type extra_conn_words: dict
     """
 
     def __init__(
@@ -81,6 +105,7 @@ class SecretsManagerBackend(BaseSecretsBackend, LoggingMixin):
         profile_name: Optional[str] = None,
         sep: str = "/",
         full_url_mode: bool = True,
+        extra_conn_words: Optional[dict] = {},
         **kwargs,
     ):
         super().__init__()
@@ -99,6 +124,7 @@ class SecretsManagerBackend(BaseSecretsBackend, LoggingMixin):
         self.profile_name = profile_name
         self.sep = sep
         self.full_url_mode = full_url_mode
+        self.extra_conn_words = extra_conn_words
         self.kwargs = kwargs
 
     @cached_property
@@ -108,11 +134,12 @@ class SecretsManagerBackend(BaseSecretsBackend, LoggingMixin):
 
         return session.client(service_name="secretsmanager", **self.kwargs)
 
-    def _get_extra(self, secret, conn_string):
-        if 'extra' in secret:
+    def _format_uri_with_extra(self, secret, conn_string):
+        try:
             extra_dict = secret['extra']
-            conn_string = f"{conn_string}?{urlencode(extra_dict)}"
+        except KeyError:
             return conn_string
+        conn_string = f"{conn_string}?{urlencode(extra_dict)}"
 
         return conn_string
 
@@ -126,6 +153,9 @@ class SecretsManagerBackend(BaseSecretsBackend, LoggingMixin):
             'conn_type': ['conn_type', 'conn_id', 'connection_type', 'engine'],
         }
 
+        for conn_field, extra_words in self.extra_conn_words.items():
+            possible_words_for_conn_fields[conn_field].extend(extra_words)
+
         conn_d = {}
         for conn_field, possible_words in possible_words_for_conn_fields.items():
             try:
@@ -133,15 +163,9 @@ class SecretsManagerBackend(BaseSecretsBackend, LoggingMixin):
             except IndexError:
                 conn_d[conn_field] = ''
 
-        conn_type = conn_d['conn_type']
-        user = conn_d['user']
-        password = conn_d['password']
-        host = conn_d['host']
-        port = conn_d['port']
-        schema = conn_d['schema']
-        conn_string = f'{conn_type}://{user}:{password}@{host}:{port}/{schema}'
+        conn_string = "{conn_type}://{user}:{password}@{host}:{port}/{schema}".format(**conn_d)
 
-        connection = self._get_extra(secret, conn_string)
+        connection = self._format_uri_with_extra(secret, conn_string)
 
         return connection
 

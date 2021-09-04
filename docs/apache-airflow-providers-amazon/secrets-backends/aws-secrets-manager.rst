@@ -39,7 +39,7 @@ You can store the different values for a secret in two forms: storing the conn U
 fields in Amazon Secrets Manager (setting ``full_url_mode`` as False in the backend config), as follow:
 .. image:: img/aws-secrets-manager.png
 
-You must, however, use some of the following words for each kind of field:
+By default you must use some of the following words for each kind of field:
 
 * For storing passwords, valid key names are password, pass and key
 * Users: user, username, login, user_name
@@ -49,6 +49,8 @@ You must, however, use some of the following words for each kind of field:
   connection_type or engine. Valid values for this field are postgres, mysql, snowflake, google_cloud, mongo...
 * For the extra value of the connections, you have to type a dictionary.
 
+However, more words can be added to the list using the parameter ``extra_conn_words`` in the configuration. This
+parameter has to be a dict of lists with the following optional keys: user, password, host, schema, conn_type
 As an example, if you have set ``connections_prefix`` as ``airflow/connections``, then for a connection id of ``smtp_default``,
 you would want to store your connection at ``airflow/connections/smtp_default``. This can be done through the AWS web
 console or through Amazon CLI as shown below:
