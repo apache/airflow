@@ -60,7 +60,7 @@ class SecretsManagerBackend(BaseSecretsBackend, LoggingMixin):
     and storing them in multiple fields. There are certain words that will be searched in the name
     of fields for trying to retrieve a connection part. Those words are:
 
-    .. code-block:: ini
+    .. code-block:: python
 
         possible_words_for_conn_fields = {
                 'user': ['user', 'username', 'login', 'user_name'],
@@ -105,7 +105,7 @@ class SecretsManagerBackend(BaseSecretsBackend, LoggingMixin):
         profile_name: Optional[str] = None,
         sep: str = "/",
         full_url_mode: bool = True,
-        extra_conn_words: Optional[dict] = {},
+        extra_conn_words: Optional[dict] = None,
         **kwargs,
     ):
         super().__init__()
@@ -124,7 +124,7 @@ class SecretsManagerBackend(BaseSecretsBackend, LoggingMixin):
         self.profile_name = profile_name
         self.sep = sep
         self.full_url_mode = full_url_mode
-        self.extra_conn_words = extra_conn_words
+        self.extra_conn_words = extra_conn_words if extra_conn_words else {}
         self.kwargs = kwargs
 
     @cached_property
