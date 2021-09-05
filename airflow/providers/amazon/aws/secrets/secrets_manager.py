@@ -63,13 +63,13 @@ class SecretsManagerBackend(BaseSecretsBackend, LoggingMixin):
     .. code-block:: python
 
         possible_words_for_conn_fields = {
-                'user': ['user', 'username', 'login', 'user_name'],
-                'password': ['password', 'pass', 'key'],
-                'host': ['host', 'remote_host', 'server'],
-                'port': ['port'],
-                'schema': ['database', 'schema'],
-                'conn_type': ['conn_type', 'conn_id', 'connection_type', 'engine'],
-            }
+            "user": ["user", "username", "login", "user_name"],
+            "password": ["password", "pass", "key"],
+            "host": ["host", "remote_host", "server"],
+            "port": ["port"],
+            "schema": ["database", "schema"],
+            "conn_type": ["conn_type", "conn_id", "connection_type", "engine"],
+        }
 
     However, these lists can be extended using the configuration parameter ``extra_conn_words``.
 
