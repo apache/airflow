@@ -33,7 +33,7 @@ from airflow.utils.timezone import convert_to_utc, make_aware, make_naive
 Delta = Union[datetime.timedelta, relativedelta]
 from airflow.compat.functools import cached_property
 from airflow.timetables.base import DagRunInfo, TimeRestriction, Timetable
-from airflow.timetables.schedules import CronSchedule, Delta, DeltaSchedule, Schedule
+# from airflow.timetables.schedules import CronSchedule, Delta, DeltaSchedule, Schedule
 
 
 class _DataIntervalTimetable(Timetable):

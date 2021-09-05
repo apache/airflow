@@ -640,7 +640,6 @@ class DAG(LoggingMixin, DagBase):
             latest = None
         return TimeRestriction(earliest, latest, self.catchup)
 
-    def get_run_dates(self, start_date, end_date=None, *, align: bool = True):
     def iter_dagrun_infos_between(
         self,
         earliest: Optional[pendulum.DateTime],
