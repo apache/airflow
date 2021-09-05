@@ -57,6 +57,10 @@ ENV DEV_APT_COMMAND=${DEV_APT_COMMAND} \
     ADDITIONAL_DEV_APT_DEPS=${ADDITIONAL_DEV_APT_DEPS} \
     ADDITIONAL_DEV_APT_COMMAND=${ADDITIONAL_DEV_APT_COMMAND}
 
+# As of August 2021, Debian buster-slim does not include Python2 by default and we need it
+# as we still support running Python2 via PythonVirtualenvOperator
+# TODO: Remove python2 when we stop supporting it
+
 # Install basic and additional apt dependencies
 RUN mkdir -pv /usr/share/man/man1 \
     && mkdir -pv /usr/share/man/man7 \
@@ -86,6 +90,7 @@ RUN mkdir -pv /usr/share/man/man1 \
            locales  \
            netcat \
            nodejs \
+           python2 \
            rsync \
            sasl2-bin \
            sudo \
