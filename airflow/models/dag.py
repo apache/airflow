@@ -135,8 +135,6 @@ def get_last_dagrun(dag_id, session, include_externally_triggered=False):
     return query.first()
 
 
-
-
 @functools.total_ordering
 class DAG(LoggingMixin):
     """
@@ -392,6 +390,7 @@ class DAG(LoggingMixin):
         self.template_undefined = template_undefined
         self.parent_dag: Optional[DAG] = None  # Gets set when DAGs are loaded
         self.last_loaded = timezone.utcnow()
+        self.safe_dag_id = dag_id.replace('.', '__dot__')
         self.max_active_runs = max_active_runs
         self.dagrun_timeout = dagrun_timeout
         self.sla_miss_callback = sla_miss_callback
