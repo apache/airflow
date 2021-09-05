@@ -135,30 +135,10 @@ def get_last_dagrun(dag_id, session, include_externally_triggered=False):
     return query.first()
 
 
-class DagBase:
-    """Base Class for DAG and DagModel for containing common properties and methods"""
-
-    @property
-    def safe_dag_id(self):
-        return self.dag_id.replace('.', '__dot__')
-
-    @cached_property
-    def timetable(self) -> Timetable:
-        interval = self.schedule_interval
-        if interval is None:
-            return NullTimetable()
-        if interval == "@once":
-            return OnceTimetable()
-        if isinstance(interval, (timedelta, relativedelta)):
-            return DeltaDataIntervalTimetable(interval)
-        if isinstance(interval, str):
-            return CronDataIntervalTimetable(interval, self.timezone)
-        type_name = type(interval).__name__
-        raise TypeError(f"{type_name} is not a valid DAG.schedule_interval.")
 
 
 @functools.total_ordering
-class DAG(LoggingMixin, DagBase):
+class DAG(LoggingMixin):
     """
     A dag (directed acyclic graph) is a collection of tasks with directional
     dependencies. A dag also has a schedule, a start date and an end date
@@ -2454,7 +2434,7 @@ class DagTag(Base):
         return self.name
 
 
-class DagModel(Base, DagBase):
+class DagModel(Base):
     """Table containing DAG properties"""
 
     __tablename__ = "dag"
@@ -2541,6 +2521,10 @@ class DagModel(Base, DagBase):
 
     def __repr__(self):
         return f"<DAG: {self.dag_id}>"
+
+    @cached_property
+    def timetable(self) -> Timetable:
+        return create_timetable(self.schedule_interval, self.timezone)
 
     @property
     def next_dagrun_data_interval(self) -> Optional[Tuple[datetime, datetime]]:

@@ -163,7 +163,7 @@
                   </a>
 
                   {% if dag.timetable.interval_description is not none %}
-                  <span id="schedule-description-{{ dag.safe_dag_id }}" class="material-icons text-muted js-tooltip" aria-hidden="true" data-original-title="{{ dag.timetable.interval_description|string }}">info</span>
+                  <span id="schedule-description-{{ dag.safe_dag_id }}" class="material-icons text-muted js-tooltip" aria-hidden="true" data-original-title="Runs: {{ dag.timetable.interval_description|string }}">info</span>
                   {% endif %}
 
                 </td>

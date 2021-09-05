@@ -24,16 +24,14 @@ from dateutil.relativedelta import relativedelta
 from pendulum import DateTime
 from pendulum.tz.timezone import Timezone
 
-from airflow.compat.functools import cached_property
 from airflow.exceptions import AirflowTimetableInvalid
-from airflow.timetables.base import DagRunInfo, DataInterval, TimeRestriction, Timetable
+from airflow.timetables.base import DataInterval
 from airflow.utils.dates import cron_presets
 from airflow.utils.timezone import convert_to_utc, make_aware, make_naive
 
 Delta = Union[datetime.timedelta, relativedelta]
 from airflow.compat.functools import cached_property
 from airflow.timetables.base import DagRunInfo, TimeRestriction, Timetable
-# from airflow.timetables.schedules import CronSchedule, Delta, DeltaSchedule, Schedule
 
 
 class _DataIntervalTimetable(Timetable):
@@ -229,7 +227,7 @@ class CronDataIntervalTimetable(_DataIntervalTimetable):
     def interval_description(self) -> Optional[str]:
         """Returns chron description for a schedule interval"""
         descriptor = ExpressionDescriptor(
-            expression=self._schedule.expression,
+            expression=self._expression,
             casing_type=CasingTypeEnum.Sentence,
             use_24hour_time_format=True,
         )
