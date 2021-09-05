@@ -414,12 +414,21 @@ class EKSPodOperator(KubernetesPodOperator):
         in_cluster: bool = False,
         namespace: str = DEFAULT_NAMESPACE_NAME,
         pod_context: str = None,
-        pod_name: str = DEFAULT_POD_NAME,
+        pod_name: str = None,
         pod_username: str = None,
         aws_conn_id: str = DEFAULT_CONN_ID,
         region: Optional[str] = None,
         **kwargs,
     ) -> None:
+        if pod_name is None:
+            warnings.warn(
+                "Default value of pod name is deprecated. "
+                "We recommend that you pass pod name explicitly. ",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+            pod_name = DEFAULT_POD_NAME
+
         self.cluster_name = cluster_name
         self.in_cluster = in_cluster
         self.namespace = namespace
