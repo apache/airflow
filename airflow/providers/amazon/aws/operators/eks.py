@@ -21,6 +21,7 @@ from datetime import datetime
 from time import sleep
 from typing import Dict, Iterable, List, Optional
 
+from airflow import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.eks import ClusterStates, EKSHook
 from airflow.providers.cncf.kubernetes.operators.kubernetes_pod import KubernetesPodOperator
@@ -455,6 +456,10 @@ class EKSPodOperator(KubernetesPodOperator):
                 DeprecationWarning,
                 stacklevel=2,
             )
+        # There is no need to manage the kube_config file, as it will be generated automatically.
+        # All Kubernetes parameters (except config_file) are also valid for the EKSPodOperator.
+        if self.config_file:
+            raise AirflowException("The config_file is not an allowed parameter for the EKSPodOperator.")
 
     def execute(self, context):
         eks_hook = EKSHook(
