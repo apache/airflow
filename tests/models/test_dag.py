@@ -1260,7 +1260,7 @@ class TestDag(unittest.TestCase):
             (datetime.timedelta(days=1), delta_timetable(datetime.timedelta(days=1)), None),
         ]
     )
-    def test_timetable(self, schedule_interval, expected_timetable, interval_description):
+    def test_timetable_from_schedule_interval(self, schedule_interval, expected_timetable, interval_description):
         dag = DAG("test_schedule_interval", schedule_interval=schedule_interval)
         assert dag.timetable == expected_timetable
         assert dag.schedule_interval == schedule_interval
