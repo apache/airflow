@@ -22,8 +22,7 @@ from unittest import TestCase, mock
 
 import pytest
 from google.api_core.retry import Retry
-from google.cloud.datacatalog_v1beta1 import CreateTagRequest, CreateTagTemplateRequest
-from google.cloud.datacatalog_v1beta1.types import Entry, Tag, TagTemplate
+from google.cloud.datacatalog import CreateTagRequest, CreateTagTemplateRequest, Entry, Tag, TagTemplate
 
 from airflow import AirflowException
 from airflow.providers.google.cloud.hooks.datacatalog import CloudDataCatalogHook
