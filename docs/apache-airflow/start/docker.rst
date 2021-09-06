@@ -22,15 +22,43 @@ Running Airflow in Docker
 
 This quick-start guide will allow you to quickly start Airflow with :doc:`CeleryExecutor </executor/celery>` in Docker. This is the fastest way to start Airflow.
 
+Production readiness
+====================
+
+.. warning::
+    DO NOT expect the Docker Compose below will be enough to run production-ready Docker Compose Airflow installation using it.
+    This is truly ``quick-start`` docker-compose for you to get Airflow up and running locally and get your hands dirty with
+    Airflow. Configuring a Docker-Compose installation that is ready for production requires an intrinsic knowledge of
+    Docker Compose, a lot of customization and possibly even writing the Docker Compose file that will suit your needs
+    from the scratch. It's probably OK if you want to run Docker Compose-based deployment, but short of becoming a
+    Docker Compose expert, it's highly unlikely you will get robust deployment with it.
+
+    If you want to get an easy to configure Docker-based deployment that Airflow Community develops, supports and
+    can provide support with deployment, you should consider using Kubernetes and deploying Airflow using
+    :doc:`Official Airflow Community Helm Chart<helm-chart:index>`.
+
 Before you begin
 ================
 
 Follow these steps to install the necessary tools.
 
 1. Install `Docker Community Edition (CE) <https://docs.docker.com/engine/installation/>`__ on your workstation. Depending on the OS, you may need to configure your Docker instance to use 4.00 GB of memory for all containers to run properly. Please refer to the Resources section if using `Docker for Windows <https://docs.docker.com/docker-for-windows/#resources>`__ or `Docker for Mac <https://docs.docker.com/docker-for-mac/#resources>`__ for more information.
-2. Install `Docker Compose <https://docs.docker.com/compose/install/>`__ v1.27.0 and newer on your workstation.
+2. Install `Docker Compose <https://docs.docker.com/compose/install/>`__ v1.29.1 and newer on your workstation.
 
-Older versions of ``docker-compose`` do not support all features required by ``docker-compose.yaml`` file, so double check that it meets the minimum version requirements.
+Older versions of ``docker-compose`` do not support all the features required by ``docker-compose.yaml`` file, so double check that your version meets the minimum version requirements.
+
+.. warning::
+    Default amount of memory available for Docker on MacOS is often not enough to get Airflow up and running.
+    If you have not enough memory available it might lead to airflow webserver continuously restarting.
+    You should have at least 4GB memory allocated for the Docker Engine (ideally 8GB). You can check
+    and change the amount of memory in `Resources <https://docs.docker.com/docker-for-mac/#resources>`_
+
+    You can also check if you have enough memory by running this command:
+
+    .. code-block:: bash
+
+        docker run --rm "debian:buster-slim" bash -c 'numfmt --to iec $(echo $(($(getconf _PHYS_PAGES) * $(getconf PAGE_SIZE))))'
+
 
 ``docker-compose.yaml``
 =======================
@@ -82,9 +110,15 @@ apt packages and more can be found in :doc:`Building the image <docker-stack:bui
 Initializing Environment
 ========================
 
-Before starting Airflow for the first time, You need to prepare your environment, i.e. create the necessary files, directories and initialize the database.
+Before starting Airflow for the first time, You need to prepare your environment, i.e. create the necessary
+files, directories and initialize the database.
 
-On **Linux**, the mounted volumes in container use the native Linux filesystem user/group permissions, so you have to make sure the container and host computer have matching file permissions.
+Setting the right Airflow user
+------------------------------
+
+On **Linux**, the quick-start needs to know your host user id and needs to have group id set to ``0``.
+Otherwise the files created in ``dags``, ``logs`` and ``plugins`` will be created with ``root`` iser.
+You have to make sure to configure them for the docker-compose:
 
 .. code-block:: bash
 
@@ -92,6 +126,18 @@ On **Linux**, the mounted volumes in container use the native Linux filesystem u
     echo -e "AIRFLOW_UID=$(id -u)\nAIRFLOW_GID=0" > .env
 
 See :ref:`Docker Compose environment variables <docker-compose-env-variables>`
+
+For other operating systems, you will get warning that ``AIRFLOW_UID`` is not set, but you can
+ignore it. You can also manually create the ``.env`` file in the same folder your
+``docker-compose.yaml`` is placed with this content to get rid of the warning:
+
+.. code-block:: text
+
+  AIRFLOW_UID=50000
+  AIRFLOW_GID=0
+
+Initialize the database
+-----------------------
 
 On **all operating systems**, you need to run database migrations and create the first user account. To do it, run.
 
@@ -114,7 +160,7 @@ Cleaning-up the environment
 ===========================
 
 The docker-compose we prepare is a "Quick-start" one. It is not intended to be used in production
-and it has a number of caveats - one of them that the best way to recover from any problem is to clean it
+and it has a number of caveats - one of them being that the best way to recover from any problem is to clean it
 up and restart from the scratch.
 
 The best way to do it is to:
