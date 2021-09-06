@@ -96,19 +96,21 @@ document.addEventListener('DOMContentLoaded', () => {
 
       // check that the dataInstance and the row are valid
       if (dataInstance && dataInstance.execution_date) {
-        if (row && row.length) {
-          const taskInstance = {
-            state: row[0],
-            try_number: row[1],
-            start_ts: row[2],
-            duration: row[3],
-          };
-          node.instances[j] = taskInstance;
+        const taskInstance = {
+          task_id: node.name,
+          operator: node.operator,
+          execution_date: dataInstance.execution_date,
+          external_trigger: dataInstance.external_trigger,
+        };
+        node.instances[j] = taskInstance;
 
-          taskInstance.task_id = node.name;
-          taskInstance.operator = node.operator;
-          taskInstance.execution_date = dataInstance.execution_date;
-          taskInstance.external_trigger = dataInstance.external_trigger;
+        if (row && row.length) {
+          [
+            taskInstance.state,
+            taskInstance.try_number,
+            taskInstance.start_ts,
+            taskInstance.duration,
+          ] = row;
 
           // compute start_date and end_date if applicable
           if (taskInstance.start_ts !== null) {
@@ -119,12 +121,6 @@ document.addEventListener('DOMContentLoaded', () => {
               taskInstance.end_date = toDateString(taskInstance.start_ts + taskInstance.duration);
             }
           }
-        } else {
-          node.instances[j] = {
-            task_id: node.name,
-            execution_date: dataInstance.execution_date,
-            external_trigger: dataInstance.external_trigger,
-          };
         }
       }
     }
