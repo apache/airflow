@@ -123,6 +123,7 @@ document.addEventListener('DOMContentLoaded', () => {
           node.instances[j] = {
             task_id: node.name,
             execution_date: dataInstance.execution_date,
+            external_trigger: dataInstance.external_trigger,
           };
         }
       }
