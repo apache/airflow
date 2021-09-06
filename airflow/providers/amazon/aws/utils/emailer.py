@@ -37,7 +37,6 @@ def send_email(
     **kwargs,
 ) -> None:
     """Email backend for SES."""
-
     from_email = kwargs.get('from_email') or os.environ.get('SES_MAIL_FROM')
     if not from_email and conf.has_option('ses', 'ses_mail_from'):
         from_email = conf.get('ses', 'ses_mail_from')

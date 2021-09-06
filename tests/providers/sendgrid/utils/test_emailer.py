@@ -134,14 +134,9 @@ class TestSendEmailSendGrid(unittest.TestCase):
         mock_post.assert_called_once_with(self.expected_mail_data_sender, "sendgrid_default")
 
     @mock.patch('airflow.providers.sendgrid.utils.emailer._post_sendgrid_mail')
-    @conf_vars({("sendgrid", 'sendgrid_mail_from'): 'foo@conf.com',
-                ("sendgrid", 'sendgrid_mail_sender'): 'Foo Conf'})
+    @conf_vars(
+        {("sendgrid", 'sendgrid_mail_from'): 'foo@conf.com', ("sendgrid", 'sendgrid_mail_sender'): 'Foo Conf'}
+    )
     def test_send_email_sendgrid_sender_conf(self, mock_post):
-        send_email(
-            self.recipients,
-            self.subject,
-            self.html_content,
-            cc=self.carbon_copy,
-            bcc=self.bcc
-        )
+        send_email(self.recipients, self.subject, self.html_content, cc=self.carbon_copy, bcc=self.bcc)
         mock_post.assert_called_once_with(self.expected_mail_data_conf_sender, "sendgrid_default")

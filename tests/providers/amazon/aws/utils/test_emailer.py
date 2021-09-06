@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 #
-from unittest import mock, TestCase
+from unittest import TestCase, mock
 
 from airflow.providers.amazon.aws.utils.emailer import send_email
 from tests.test_utils.config import conf_vars
@@ -28,11 +28,7 @@ class TestSendEmailSes(TestCase):
 
     @mock.patch("airflow.providers.amazon.aws.utils.emailer.SESHook")
     def test_send_ses_email(self, mock_hook):
-        send_email(
-            to="to@test.com",
-            subject="subject",
-            html_content="content"
-        )
+        send_email(to="to@test.com", subject="subject", html_content="content")
 
         mock_hook.return_value.send_email.assert_called_once_with(
             mail_from=None,
@@ -53,7 +49,7 @@ class TestSendEmailSes(TestCase):
             subject="subject",
             html_content="content",
             from_email='from.kwargs@test.com',
-            from_name='From Kwargs'
+            from_name='From Kwargs',
         )
 
         _, call_args = mock_hook.return_value.send_email.call_args
@@ -72,8 +68,7 @@ class TestSendEmailSes(TestCase):
         _, call_args = mock_hook.return_value.send_email.call_args
         assert call_args['mail_from'] == "From Env <from.env@test.com>"
 
-    @conf_vars({('ses', 'ses_mail_from'): 'from.conf@test.com',
-                ('ses', 'ses_mail_sender'): 'From Conf'})
+    @conf_vars({('ses', 'ses_mail_from'): 'from.conf@test.com', ('ses', 'ses_mail_sender'): 'From Conf'})
     @mock.patch("airflow.providers.amazon.aws.utils.emailer.SESHook")
     def test_send_ses_email_sender_conf(self, mock_hook):
         send_email(
