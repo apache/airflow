@@ -352,7 +352,7 @@ document.addEventListener('DOMContentLoaded', () => {
         taskTip.direction('n');
         taskTip.show(tt, this);
         d3.select(this).transition().duration(duration)
-          .style('stroke-width', 3);
+          .style('stroke-width', (dd) => (dd.external_trigger ? '1' : '3'));
       })
       .on('mouseout', function (d) {
         taskTip.hide(d);
