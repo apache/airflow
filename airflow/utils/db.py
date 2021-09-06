@@ -766,7 +766,7 @@ def upgradedb(session=None):
     config.set_main_option('sqlalchemy.url', settings.SQL_ALCHEMY_CONN.replace('%', '%%'))
 
     errors_seen = False
-    for err in _check_migration_errors():
+    for err in _check_migration_errors(session=session):
         if not errors_seen:
             log.error("Automatic migration is not available")
             errors_seen = True
