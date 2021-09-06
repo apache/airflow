@@ -28,7 +28,7 @@ from airflow.utils.log.remote_file_task_handler import RemoteFileTaskHandler
 class S3TaskHandler(RemoteFileTaskHandler):
     """
     S3TaskHandler is a python log handler that handles and reads
-    task instance logs. It extends airflow FileTaskHandler and
+    task instance logs. It extends airflow RemoteFileTaskHandler and
     uploads to and reads from S3 remote storage.
     """
 
@@ -57,7 +57,7 @@ class S3TaskHandler(RemoteFileTaskHandler):
     def remote_write(self, log: str, remote_log_location: str, append: bool = True) -> bool:
         try:
             if append and self.remote_log_exists(remote_log_location):
-                old_log = self.s3_read(remote_log_location)
+                old_log = self.hook.read_key(remote_log_location)
                 log = '\n'.join([old_log, log]) if old_log else log
         except Exception:
             self.log.exception('Could not verify previous log to append')
@@ -75,19 +75,8 @@ class S3TaskHandler(RemoteFileTaskHandler):
         else:
             return True
 
-    def remote_read(self, location: str) -> str:
-        return self.s3_read(location, True)
+    def remote_read(self, remote_log_location: str) -> str:
+        return self.hook.read_key(remote_log_location)
 
     def remote_log_exists(self, remote_log_location: str) -> bool:
         return self.hook.check_for_key(remote_log_location)
-
-    def s3_read(self, remote_log_location: str, return_error: bool = False) -> str:
-        try:
-            return self.hook.read_key(remote_log_location)
-        except Exception as error:
-            msg = f'Could not read logs from {remote_log_location} with error: {error}'
-            self.log.exception(msg)
-            # return error if needed
-            if return_error:
-                return msg
-        return ''

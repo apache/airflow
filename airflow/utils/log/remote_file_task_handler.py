@@ -1,12 +1,33 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+
 import os
 import shutil
 
-from airflow.utils.log.file_task_handler import FileTaskHandler
 from airflow.configuration import conf
+from airflow.utils.log.file_task_handler import FileTaskHandler
 from airflow.utils.log.logging_mixin import LoggingMixin
 
 
 class RemoteFileTaskHandler(FileTaskHandler, LoggingMixin):
+    """
+    RemoteFileTaskHandler is an abstract python log handler that handles and reads remote task instance logs.
+    Extending classes should implement the write and read functions for the respective remote backends.
+    """
 
     def __init__(self, base_log_folder: str, filename_template: str, remote_base: str):
         super().__init__(base_log_folder, filename_template)
@@ -117,12 +138,15 @@ class RemoteFileTaskHandler(FileTaskHandler, LoggingMixin):
             log = f'*** Failed to verify remote log exists {remote_loc}.\n{error}\n'
 
         if log_exists:
-            # If remote file exists, we do not fetch logs from task instance
-            # local machine even if there are errors reading remote logs, as
-            # returned remote_log will contain error messages.
-            remote_log = self.remote_read(remote_loc)
-            log = f'*** Reading remote log from {remote_loc}.\n{remote_log}\n'
-            return log, {'end_of_log': True}
+            try:
+                remote_log = self.remote_read(remote_loc)
+                log = f'*** Reading remote log from {remote_loc}.\n{remote_log}\n'
+                return log, {'end_of_log': True}
+            except Exception as error:
+                log = f'*** Unable to read remote log from {remote_loc}\n*** {str(error)}\n\n'
+                self.log.error(log)
+                local_log, metadata = super()._read(ti, try_number)
+                return log + local_log, metadata
         else:
             log += '*** Falling back to local log\n'
             local_log, metadata = super()._read(ti, try_number)

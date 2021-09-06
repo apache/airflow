@@ -79,7 +79,7 @@ class TestGCSTaskHandler(unittest.TestCase):
         mock_blob.from_string.return_value.download_as_bytes.return_value = b"CONTENT"
 
         logs, metadata = self.gcs_task_handler._read(self.ti, self.ti.try_number)
-        mock_blob.from_string.assert_called_once_with(
+        mock_blob.from_string.assert_called_with(
             "gs://bucket/remote/log/location/1.log", mock_client.return_value
         )
 
@@ -103,7 +103,7 @@ class TestGCSTaskHandler(unittest.TestCase):
             f"Failed to connect\n\n*** Reading local file: {self.local_log_location}/1.log\n"
         )
         assert metadata == {"end_of_log": True}
-        mock_blob.from_string.assert_called_once_with(
+        mock_blob.from_string.assert_called_with(
             "gs://bucket/remote/log/location/1.log", mock_client.return_value
         )
 

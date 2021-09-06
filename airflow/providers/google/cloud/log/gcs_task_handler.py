@@ -15,8 +15,6 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-import os
-import shutil
 from typing import Collection, Optional
 
 try:
@@ -27,10 +25,8 @@ from google.api_core.client_info import ClientInfo
 from google.cloud import storage
 
 from airflow import version
-from airflow.configuration import conf
 from airflow.providers.google.cloud.utils.credentials_provider import get_credentials_and_project_id
-from airflow.utils.log.file_task_handler import FileTaskHandler
-from airflow.utils.log.logging_mixin import LoggingMixin
+from airflow.utils.log.remote_file_task_handler import RemoteFileTaskHandler
 
 _DEFAULT_SCOPESS = frozenset(
     [
@@ -39,10 +35,10 @@ _DEFAULT_SCOPESS = frozenset(
 )
 
 
-class GCSTaskHandler(FileTaskHandler, LoggingMixin):
+class GCSTaskHandler(RemoteFileTaskHandler):
     """
     GCSTaskHandler is a python log handler that handles and reads
-    task instance logs. It extends airflow FileTaskHandler and
+    task instance logs. It extends airflow RemoteFileTaskHandler and
     uploads to and reads from GCS remote storage. Upon log reading
     failure, it reads from host machine's local disk.
 
@@ -79,12 +75,8 @@ class GCSTaskHandler(FileTaskHandler, LoggingMixin):
         gcp_scopes: Optional[Collection[str]] = _DEFAULT_SCOPESS,
         project_id: Optional[str] = None,
     ):
-        super().__init__(base_log_folder, filename_template)
-        self.remote_base = gcs_log_folder
-        self.log_relative_path = ''
+        super().__init__(base_log_folder, filename_template, gcs_log_folder)
         self._hook = None
-        self.closed = False
-        self.upload_on_close = True
         self.gcp_key_path = gcp_key_path
         self.gcp_keyfile_dict = gcp_keyfile_dict
         self.scopes = gcp_scopes
@@ -105,81 +97,7 @@ class GCSTaskHandler(FileTaskHandler, LoggingMixin):
             project=self.project_id if self.project_id else project_id,
         )
 
-    def set_context(self, ti):
-        super().set_context(ti)
-        # Log relative path is used to construct local and remote
-        # log path to upload log files into GCS and read from the
-        # remote location.
-        self.log_relative_path = self._render_filename(ti, ti.try_number)
-        self.upload_on_close = not ti.raw
-
-    def close(self):
-        """Close and upload local log file to remote storage GCS."""
-        # When application exit, system shuts down all handlers by
-        # calling close method. Here we check if logger is already
-        # closed to prevent uploading the log to remote storage multiple
-        # times when `logging.shutdown` is called.
-        if self.closed:
-            return
-
-        super().close()
-
-        if not self.upload_on_close:
-            return
-
-        local_loc = os.path.join(self.local_base, self.log_relative_path)
-        remote_loc = os.path.join(self.remote_base, self.log_relative_path)
-        if os.path.exists(local_loc):
-            # read log and remove old logs to get just the latest additions
-            with open(local_loc) as logfile:
-                log = logfile.read()
-            success = self.gcs_write(log, remote_loc)
-            keep_local = conf.getboolean('logging', 'KEEP_LOCAL_LOGS')
-            if success and not keep_local:
-                shutil.rmtree(os.path.dirname(local_loc))
-
-        # Mark closed so we don't double write if close is called twice
-        self.closed = True
-
-    def _read(self, ti, try_number, metadata=None):
-        """
-        Read logs of given task instance and try_number from GCS.
-        If failed, read the log from task instance host machine.
-
-        :param ti: task instance object
-        :param try_number: task instance try_number to read logs from
-        :param metadata: log metadata,
-                         can be used for steaming log reading and auto-tailing.
-        """
-        # Explicitly getting log relative path is necessary as the given
-        # task instance might be different than task instance passed in
-        # in set_context method.
-        log_relative_path = self._render_filename(ti, try_number)
-        remote_loc = os.path.join(self.remote_base, log_relative_path)
-
-        try:
-            blob = storage.Blob.from_string(remote_loc, self.client)
-            remote_log = blob.download_as_bytes().decode()
-            log = f'*** Reading remote log from {remote_loc}.\n{remote_log}\n'
-            return log, {'end_of_log': True}
-        except Exception as e:
-            log = f'*** Unable to read remote log from {remote_loc}\n*** {str(e)}\n\n'
-            self.log.error(log)
-            local_log, metadata = super()._read(ti, try_number)
-            log += local_log
-            return log, metadata
-
-    def gcs_write(self, log, remote_log_location) -> bool:
-        """
-        Writes the log to the remote_log_location. Fails silently if no log
-        was created.
-
-        :param log: the log to write to the remote_log_location
-        :type log: str
-        :param remote_log_location: the log's location in remote storage
-        :type remote_log_location: str (path)
-        :return: True if log was successfully uploaded, False otherwise
-        """
+    def remote_write(self, log: str, remote_log_location: str, append: bool = True) -> bool:
         try:
             blob = storage.Blob.from_string(remote_log_location, self.client)
             old_log = blob.download_as_bytes().decode()
@@ -197,3 +115,11 @@ class GCSTaskHandler(FileTaskHandler, LoggingMixin):
             return False
         else:
             return True
+
+    def remote_read(self, remote_log_location: str) -> str:
+        blob = storage.Blob.from_string(remote_log_location, self.client)
+        remote_log = blob.download_as_bytes().decode()
+        return remote_log
+
+    def remote_log_exists(self, remote_log_location: str) -> bool:
+        return storage.Blob.from_string(remote_log_location, self.client).exists()
