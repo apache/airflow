@@ -89,6 +89,8 @@ class TestEmail(unittest.TestCase):
         with conf_vars({('email', 'email_backend'): 'tests.utils.test_email.send_email_test'}):
             utils.email.send_email('to', 'subject', 'content')
         send_email_test.assert_called_once_with(
+            None,
+            None,
             'to',
             'subject',
             'content',
@@ -101,6 +103,20 @@ class TestEmail(unittest.TestCase):
             conn_id='smtp_default',
         )
         assert not mock_send_email.called
+
+    @mock.patch('airflow.utils.email.send_email_smtp')
+    @conf_vars(
+        {
+            ('email', 'email_backend'): 'tests.utils.test_email.send_email_test',
+            ('email', 'email_from_email'): 'from@test.com',
+            ('email', 'email_from_name'): 'From Test',
+        }
+    )
+    def test_custom_backend_sender(self, mock_send_email_smtp):
+        utils.email.send_email('to', 'subject', 'content')
+        call_args, _ = send_email_test.call_args
+        assert call_args == ('from@test.com', 'From Test', 'to', 'subject', 'content')
+        assert not mock_send_email_smtp.called
 
     def test_build_mime_message(self):
         mail_from = 'from@example.com'
@@ -131,7 +147,7 @@ class TestEmailSmtp(unittest.TestCase):
         with tempfile.NamedTemporaryFile() as attachment:
             attachment.write(b'attachment')
             attachment.seek(0)
-            utils.email.send_email_smtp('to', 'subject', 'content', files=[attachment.name])
+            utils.email.send_email_smtp(None, None, 'to', 'subject', 'content', files=[attachment.name])
             assert mock_send_mime.called
             _, call_args = mock_send_mime.call_args
             assert conf.get('smtp', 'SMTP_MAIL_FROM') == call_args['e_from']
@@ -147,7 +163,7 @@ class TestEmailSmtp(unittest.TestCase):
 
     @mock.patch('airflow.utils.email.send_mime_email')
     def test_send_smtp_with_multibyte_content(self, mock_send_mime):
-        utils.email.send_email_smtp('to', 'subject', '🔥', mime_charset='utf-8')
+        utils.email.send_email_smtp(None, None, 'to', 'subject', '🔥', mime_charset='utf-8')
         assert mock_send_mime.called
         _, call_args = mock_send_mime.call_args
         msg = call_args['mime_msg']
@@ -160,7 +176,7 @@ class TestEmailSmtp(unittest.TestCase):
             attachment.write(b'attachment')
             attachment.seek(0)
             utils.email.send_email_smtp(
-                'to', 'subject', 'content', files=[attachment.name], cc='cc', bcc='bcc'
+                None, None, 'to', 'subject', 'content', files=[attachment.name], cc='cc', bcc='bcc'
             )
             assert mock_send_mime.called
             _, call_args = mock_send_mime.call_args
@@ -334,36 +350,3 @@ class TestEmailSmtp(unittest.TestCase):
         assert final_mock.starttls.called
         final_mock.sendmail.assert_called_once_with('from', 'to', msg.as_string())
         assert final_mock.quit.called
-
-    @mock.patch('airflow.utils.email.send_mime_email')
-    def test_send_smtp_correct_sender_from_kwargs(self, mock_send_mime):
-        utils.email.send_email_smtp(
-            'to', 'subject', 'content', from_email='from.kwargs@test.com', from_name='From Kwargs'
-        )
-        assert mock_send_mime.called
-        _, call_args = mock_send_mime.call_args
-        assert call_args['e_from'] == 'From Kwargs <from.kwargs@test.com>'
-
-    @mock.patch('airflow.utils.email.send_mime_email')
-    @mock.patch.dict('os.environ', SMTP_MAIL_FROM='from.env@test.com', SMTP_MAIL_SENDER='From Env')
-    def test_send_smtp_correct_sender_from_env(self, mock_send_mime):
-        utils.email.send_email_smtp('to', 'subject', 'content')
-        assert mock_send_mime.called
-        _, call_args = mock_send_mime.call_args
-        assert call_args['e_from'] == 'From Env <from.env@test.com>'
-
-    @mock.patch('airflow.utils.email.send_mime_email')
-    @conf_vars({('smtp', 'smtp_mail_from'): 'from.conf@test.com', ('smtp', 'smtp_mail_sender'): 'From Conf'})
-    def test_send_smtp_correct_sender_from_conf(self, mock_send_mime):
-        utils.email.send_email_smtp('to', 'subject', 'content')
-        assert mock_send_mime.called
-        _, call_args = mock_send_mime.call_args
-        assert call_args['e_from'] == 'From Conf <from.conf@test.com>'
-
-    @mock.patch('airflow.utils.email.send_mime_email')
-    @conf_vars({('smtp', 'smtp_mail_from'): 'from.conf@test.com'})
-    def test_send_smtp_correct_sender_from_conf_no_name(self, mock_send_mime):
-        utils.email.send_email_smtp('to', 'subject', 'content')
-        assert mock_send_mime.called
-        _, call_args = mock_send_mime.call_args
-        assert call_args['e_from'] == 'from.conf@test.com'

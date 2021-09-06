@@ -49,10 +49,17 @@ def send_email(
     """Send email using backend specified in EMAIL_BACKEND."""
     backend = conf.getimport('email', 'EMAIL_BACKEND')
     backend_conn_id = conn_id or conf.get("email", "EMAIL_CONN_ID")
+    from_email = (
+        conf.get('email', 'email_from_email') if conf.has_option('email', 'email_from_email') else None
+    )
+    from_name = conf.get('email', 'email_from_name') if conf.has_option('email', 'email_from_name') else None
+
     to_list = get_email_address_list(to)
     to_comma_separated = ", ".join(to_list)
 
     return backend(
+        from_email,
+        from_name,
         to_comma_separated,
         subject,
         html_content,
@@ -68,6 +75,8 @@ def send_email(
 
 
 def send_email_smtp(
+    from_email: str,
+    from_name: str,
     to: Union[str, Iterable[str]],
     subject: str,
     html_content: str,
@@ -85,21 +94,12 @@ def send_email_smtp(
 
     >>> send_email('test@example.com', 'foo', '<b>Foo</b> bar', ['/dev/null'], dryrun=True)
     """
-    from_email = kwargs.get('from_email') or os.environ.get('SMTP_MAIL_FROM')
-    if not from_email and conf.has_option('smtp', 'smtp_mail_from'):
-        from_email = conf.get('smtp', 'smtp_mail_from')
+    smtp_mail_from = conf.get('smtp', 'SMTP_MAIL_FROM')
 
-    from_name = kwargs.get('from_name') or os.environ.get('SMTP_MAIL_SENDER')
-    if not from_name and conf.has_option('smtp', 'smtp_mail_sender'):
-        from_name = conf.get('smtp', 'smtp_mail_sender')
-
-    if from_email:
-        smtp_mail_from = formataddr((from_name, from_email))
-    else:
-        smtp_mail_from = None
+    from_formatted = formataddr((from_name, smtp_mail_from or from_email))
 
     msg, recipients = build_mime_message(
-        mail_from=smtp_mail_from,
+        mail_from=from_formatted,
         to=to,
         subject=subject,
         html_content=html_content,
@@ -110,7 +110,7 @@ def send_email_smtp(
         mime_charset=mime_charset,
     )
 
-    send_mime_email(e_from=smtp_mail_from, e_to=recipients, mime_msg=msg, conn_id=conn_id, dryrun=dryrun)
+    send_mime_email(e_from=from_formatted, e_to=recipients, mime_msg=msg, conn_id=conn_id, dryrun=dryrun)
 
 
 def build_mime_message(

@@ -16,15 +16,15 @@
 # specific language governing permissions and limitations
 # under the License.
 """Airflow module for email backend using AWS SES"""
-import os
 from email.utils import formataddr
 from typing import List, Optional, Union
 
-from airflow.configuration import conf
 from airflow.providers.amazon.aws.hooks.ses import SESHook
 
 
 def send_email(
+    from_email: str,
+    from_name: str,
     to: Union[List[str], str],
     subject: str,
     html_content: str,
@@ -37,22 +37,11 @@ def send_email(
     **kwargs,
 ) -> None:
     """Email backend for SES."""
-    from_email = kwargs.get('from_email') or os.environ.get('SES_MAIL_FROM')
-    if not from_email and conf.has_option('ses', 'ses_mail_from'):
-        from_email = conf.get('ses', 'ses_mail_from')
-
-    from_name = kwargs.get('from_name') or os.environ.get('SES_MAIL_SENDER')
-    if not from_name and conf.has_option('ses', 'ses_mail_sender'):
-        from_name = conf.get('ses', 'ses_mail_sender')
-
-    if from_email:
-        mail_from = formataddr((from_name, from_email))
-    else:
-        mail_from = None
+    from_formatted = formataddr((from_name, from_email))
 
     hook = SESHook(aws_conn_id=conn_id)
     hook.send_email(
-        mail_from=mail_from,
+        mail_from=from_formatted,
         to=to,
         subject=subject,
         html_content=html_content,
