@@ -16,10 +16,12 @@
 # specific language governing permissions and limitations
 # under the License.
 import abc
-import logging
 import re
 import sys
-from logging import Handler, Logger, StreamHandler
+from logging import Handler, Logger, StreamHandler, getLogger
+from typing import Optional
+
+from airflow.compat.functools import cached_property
 
 # 7-bit C1 ANSI escape sequences
 ANSI_ESCAPE = re.compile(r'\x1B[@-_][0-?]*[ -/]*[@-~]')
@@ -36,18 +38,19 @@ def remove_escape_codes(text: str) -> str:
 class LoggingMixin:
     """Convenience super-class to have a logger configured with the class name"""
 
+    _log: Optional[Logger] = None
+
     def __init__(self, context=None):
         self._set_context(context)
 
-    @property
+    @cached_property
     def log(self) -> Logger:
         """Returns a logger."""
-        try:
-            # FIXME: LoggingMixin should have a default _log field.
-            return self._log  # type: ignore
-        except AttributeError:
-            self._log = logging.getLogger(self.__class__.__module__ + '.' + self.__class__.__name__)
-            return self._log
+        if self.__class__._log is None:
+            logger = getLogger(self.__class__.__module__ + '.' + self.__class__.__name__)
+            self.__class__._log = logger
+            return logger
+        return self.__class__._log
 
     def _set_context(self, context):
         if context is not None:
