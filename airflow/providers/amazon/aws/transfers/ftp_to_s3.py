@@ -25,13 +25,13 @@ from airflow.providers.ftp.hooks.ftp import FTPHook
 
 class FTPToS3Operator(BaseOperator):
     """
-    This operator enables the transfer of files from FTP server to S3. It can be used for
+    This operator enables the transfer of files from a FTP server to S3. It can be used to
     transfer one or multiple files.
 
     :param ftp_path: The ftp remote path. For one file it is mandatory to include the file as well.
         For multiple files, it is the route where the files will be found.
     :type ftp_path: str
-    :param s3_bucket: The targeted s3 bucket in which upload the file(s) to.
+    :param s3_bucket: The targeted s3 bucket in which to upload the file(s).
     :type s3_bucket: str
     :param s3_key: The targeted s3 key. For one file it must include the file path. For several,
         it must end with "/".
@@ -40,8 +40,8 @@ class FTPToS3Operator(BaseOperator):
         with exact filenames present in the ftp path, or a prefix that all files must meet. It can also
         be the word 'all' for moving all the files withiin the ftp path.
     :type ftp_filenames: Union(str, list)
-    :param s3_filenames: Only used if you want to move multiple files and name them different than
-        the originals from the ftp. It can be a list of filenames or a files prefix (that will replace
+    :param s3_filenames: Only used if you want to move multiple files and name them different from
+        the originals from the ftp. It can be a list of filenames or file prefix (that will replace
         the ftp prefix).
     :type s3_filenames: Union(str, list)
     :param ftp_conn_id: The ftp connection id. The name or identifier for
