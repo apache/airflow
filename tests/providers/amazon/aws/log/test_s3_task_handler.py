@@ -101,24 +101,24 @@ class TestS3TaskHandler(unittest.TestCase):
 
     def test_log_exists(self):
         self.conn.put_object(Bucket='bucket', Key=self.remote_log_key, Body=b'')
-        assert self.s3_task_handler.s3_log_exists(self.remote_log_location)
+        assert self.s3_task_handler.remote_log_exists(self.remote_log_location)
 
     def test_log_exists_none(self):
-        assert not self.s3_task_handler.s3_log_exists(self.remote_log_location)
+        assert not self.s3_task_handler.remote_log_exists(self.remote_log_location)
 
     def test_log_exists_raises(self):
-        assert not self.s3_task_handler.s3_log_exists('s3://nonexistentbucket/foo')
+        assert not self.s3_task_handler.remote_log_exists('s3://nonexistentbucket/foo')
 
     def test_log_exists_no_hook(self):
         with mock.patch("airflow.providers.amazon.aws.hooks.s3.S3Hook") as mock_hook:
             mock_hook.side_effect = Exception('Failed to connect')
             with pytest.raises(Exception):
-                self.s3_task_handler.s3_log_exists(self.remote_log_location)
+                self.s3_task_handler.remote_log_exists(self.remote_log_location)
 
     def test_set_context_raw(self):
         self.ti.raw = True
         mock_open = mock.mock_open()
-        with mock.patch('airflow.providers.amazon.aws.log.s3_task_handler.open', mock_open):
+        with mock.patch('airflow.utils.log.remote_file_task_handler.open', mock_open):
             self.s3_task_handler.set_context(self.ti)
 
         assert not self.s3_task_handler.upload_on_close
@@ -126,7 +126,7 @@ class TestS3TaskHandler(unittest.TestCase):
 
     def test_set_context_not_raw(self):
         mock_open = mock.mock_open()
-        with mock.patch('airflow.providers.amazon.aws.log.s3_task_handler.open', mock_open):
+        with mock.patch('airflow.utils.log.remote_file_task_handler.open', mock_open):
             self.s3_task_handler.set_context(self.ti)
 
         assert self.s3_task_handler.upload_on_close
@@ -176,7 +176,7 @@ class TestS3TaskHandler(unittest.TestCase):
 
     def test_write(self):
         with mock.patch.object(self.s3_task_handler.log, 'error') as mock_error:
-            self.s3_task_handler.s3_write('text', self.remote_log_location)
+            self.s3_task_handler.remote_write('text', self.remote_log_location)
             # We shouldn't expect any error logs in the default working case.
             mock_error.assert_not_called()
         body = boto3.resource('s3').Object('bucket', self.remote_log_key).get()['Body'].read()
@@ -185,7 +185,7 @@ class TestS3TaskHandler(unittest.TestCase):
 
     def test_write_existing(self):
         self.conn.put_object(Bucket='bucket', Key=self.remote_log_key, Body=b'previous ')
-        self.s3_task_handler.s3_write('text', self.remote_log_location)
+        self.s3_task_handler.remote_write('text', self.remote_log_location)
         body = boto3.resource('s3').Object('bucket', self.remote_log_key).get()['Body'].read()
 
         assert body == b'previous \ntext'
@@ -194,7 +194,7 @@ class TestS3TaskHandler(unittest.TestCase):
         handler = self.s3_task_handler
         url = 's3://nonexistentbucket/foo'
         with mock.patch.object(handler.log, 'error') as mock_error:
-            handler.s3_write('text', url)
+            handler.remote_write('text', url)
             mock_error.assert_called_once_with('Could not write logs to %s', url, exc_info=True)
 
     def test_close(self):
