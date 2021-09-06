@@ -337,7 +337,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!d.external_trigger) {
           return 1;
         }
-        if (d.state === null) {
+        if (!d.state) {
           return 0.5;
         }
         return 0;
