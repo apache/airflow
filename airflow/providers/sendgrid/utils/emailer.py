@@ -68,9 +68,7 @@ def send_email(
 
     mail = Mail()
     from_email = kwargs.get('from_email') or os.environ.get('SENDGRID_MAIL_FROM')
-
     from_name = kwargs.get('from_name') or os.environ.get('SENDGRID_MAIL_SENDER')
-
     mail.from_email = Email(from_email, from_name)
     mail.subject = subject
     mail.mail_settings = MailSettings()
