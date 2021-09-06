@@ -107,11 +107,11 @@ function initialization::initialize_base_variables() {
     export PRODUCTION_IMAGE="false"
 
     # All supported major/minor versions of python in all versions of Airflow
-    ALL_PYTHON_MAJOR_MINOR_VERSIONS+=("3.6" "3.7" "3.8" "3.9")
+    ALL_PYTHON_MAJOR_MINOR_VERSIONS+=("3.7" "3.8" "3.9" "3.6")
     export ALL_PYTHON_MAJOR_MINOR_VERSIONS
 
     # Currently supported major/minor versions of python
-    CURRENT_PYTHON_MAJOR_MINOR_VERSIONS+=("3.6" "3.7" "3.8" "3.9")
+    CURRENT_PYTHON_MAJOR_MINOR_VERSIONS+=("3.7" "3.8" "3.9" "3.6")
     export CURRENT_PYTHON_MAJOR_MINOR_VERSIONS
 
     # Currently supported versions of Postgres
@@ -618,8 +618,8 @@ function initialization::initialize_common_environment() {
 }
 
 function initialization::set_default_python_version_if_empty() {
-    # default version of python used to tag the "main" and "latest" images in DockerHub
-    export DEFAULT_PYTHON_MAJOR_MINOR_VERSION=3.6
+    # default version of python used to run CI test with
+    export DEFAULT_PYTHON_MAJOR_MINOR_VERSION=3.7
 
     # default python Major/Minor version
     export PYTHON_MAJOR_MINOR_VERSION=${PYTHON_MAJOR_MINOR_VERSION:=${DEFAULT_PYTHON_MAJOR_MINOR_VERSION}}

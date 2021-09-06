@@ -50,7 +50,9 @@ echo
 # Re-tag the image to be published in "apache/airflow"
 docker tag "${AIRFLOW_PROD_IMAGE}" "${RELEASE_IMAGE}"
 docker push "${RELEASE_IMAGE}"
-if [[ ${PYTHON_MAJOR_MINOR_VERSION} == "${DEFAULT_PYTHON_MAJOR_MINOR_VERSION}" ]]; then
+
+# For DockerHub, the default image is still 3.6 - From 2.2 we will change it to 3.7 if everyone agrees to
+if [[ ${PYTHON_MAJOR_MINOR_VERSION} == "3.6" ]]; then
     export DEFAULT_VERSION_IMAGE="apache/airflow:${INSTALL_AIRFLOW_VERSION}"
     echo
     echo "Pushing default airflow image as ${DEFAULT_VERSION_IMAGE}"
