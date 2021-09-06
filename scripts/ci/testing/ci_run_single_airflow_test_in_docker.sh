@@ -85,7 +85,7 @@ function run_airflow_testing_in_docker() {
     local backend_docker_compose=("-f" "${SCRIPTS_CI_DIR}/docker-compose/backend-${BACKEND}.yml")
     if [[ ${BACKEND} == "mssql" ]]; then
         local docker_filesystem
-        docker_filesystem=$(stat "-f" "-c" "%T" /var/lib/docker || echo "unknown")
+        docker_filesystem=$(stat "-f" "-c" "%T" /var/lib/docker 2>/dev/null || echo "unknown")
         if [[ ${docker_filesystem} == "tmpfs" ]]; then
             # In case of tmpfs backend for docker, mssql fails because TMPFS does not support
             # O_DIRECT parameter for direct writing to the filesystem
