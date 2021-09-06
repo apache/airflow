@@ -29,6 +29,8 @@ in the ``[email]`` section.
   subject_template = /path/to/my_subject_template_file
   html_content_template = /path/to/my_html_content_template_file
 
+You can configure sender's email address and name by setting ``email_from_email`` and ``email_from_name`` in the ``[email]`` section.
+
 To configure SMTP settings, checkout the :ref:`SMTP <config:smtp>` section in the standard configuration.
 If you do not want to store the SMTP credentials in the config or in the environment variables, you can create a
 connection called ``smtp_default`` of ``Email`` type, or choose a custom connection name and set the ``email_conn_id`` with it's name in
@@ -54,9 +56,6 @@ For example a ``html_content_template`` file could look like this:
   Log: <a href="{{ti.log_url}}">Link</a><br>
   Host: {{ti.hostname}}<br>
   Mark success: <a href="{{ti.mark_success_url}}">Link</a><br>
-
-You can configure sender's email address and name either by exporting the environment variables ``SMTP_MAIL_FROM`` and ``SMTP_MAIL_SENDER`` or
-in your ``airflow.cfg`` by setting ``smtp_mail_from`` and ``smtp_mail_sender`` in the ``[smtp]`` section.
 
 .. note::
     For more information on setting the configuration, see :doc:`set-config`
@@ -95,7 +94,7 @@ or
    are used from the connection.
 
 4. Configure sender's email address and name either by exporting the environment variables ``SENDGRID_MAIL_FROM`` and ``SENDGRID_MAIL_SENDER`` or
-   in your ``airflow.cfg`` by setting ``sendgrid_mail_from`` and ``sendgrid_mail_sender`` in the ``[sendgrid]`` section.
+   in your ``airflow.cfg`` by setting ``email_from_email`` and ``email_from_name`` in the ``[email]`` section.
 
 .. _email-configuration-ses:
 
@@ -123,5 +122,4 @@ Follow the steps below to enable it:
 3. Create a connection called ``aws_default``, or choose a custom connection
    name and set it in ``email_conn_id``. The type of connection should be ``Amazon Web Services``.
 
-4. Configure sender's email address and name either by exporting the environment variables ``SES_MAIL_FROM`` and ``SES_MAIL_SENDER`` or
-   in your ``airflow.cfg`` by setting ``ses_mail_from`` and ``ses_mail_sender`` in the ``[ses]`` section.
+4. Configure sender's email address and name in your ``airflow.cfg`` by setting ``email_from_email`` and ``email_from_name`` in the ``[email]`` section.
