@@ -439,9 +439,8 @@ class BackfillJob(BaseJob):
                 task = self.dag.get_task(ti.task_id, include_subdags=True)
                 ti.task = task
 
-                ignore_depends_on_past = self.ignore_first_depends_on_past and ti.get_dagrun(
-                    session
-                ).execution_date == (start_date or ti.start_date)
+                dagrun = self.ignore_first_depends_on_past and ti.get_dagrun(session=session)
+                ignore_depends_on_past = dagrun.execution_date == (start_date or ti.start_date)
                 self.log.debug("Task instance to run %s state %s", ti, ti.state)
 
                 # The task was already marked successful or skipped by a

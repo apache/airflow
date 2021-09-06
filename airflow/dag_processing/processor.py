@@ -389,10 +389,14 @@ class DagFileProcessor(LoggingMixin):
             .subquery('sq')
         )
 
-        max_tis: Iterator[TI] = session.query(TI).filter(
-            TI.dag_id == dag.dag_id,
-            TI.task_id == qry.c.task_id,
-            TI.execution_date == qry.c.max_ti,
+        max_tis: Iterator[TI] = (
+            session.query(TI)
+            .join(TI.dag_run)
+            .filter(
+                TI.dag_id == dag.dag_id,
+                TI.task_id == qry.c.task_id,
+                DR.execution_date == qry.c.max_ti,
+            )
         )
 
         ts = timezone.utcnow()
