@@ -20,6 +20,7 @@
 #       to be marked in an ERROR state
 """Exceptions used by Airflow"""
 import datetime
+import warnings
 from typing import Any, Dict, List, NamedTuple, Optional
 
 from airflow.utils.code_utils import prepare_code_snippet
@@ -138,6 +139,10 @@ class DagRunAlreadyExists(AirflowBadRequest):
 
 class DagFileExists(AirflowBadRequest):
     """Raise when a DAG ID is still in DagBag i.e., DAG file is in DAG folder"""
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        warnings.warn("DagFileExists is deprecated and will be removed.", DeprecationWarning, stacklevel=2)
 
 
 class DuplicateTaskIdFound(AirflowException):

@@ -24,7 +24,7 @@ import threading
 from contextlib import redirect_stderr, redirect_stdout, suppress
 from datetime import timedelta
 from multiprocessing.connection import Connection as MultiprocessingConnection
-from typing import List, Optional, Set, Tuple
+from typing import Iterator, List, Optional, Set, Tuple
 
 from setproctitle import setproctitle
 from sqlalchemy import func, or_
@@ -49,6 +49,7 @@ from airflow.utils.mixins import MultiprocessingStartMethodMixin
 from airflow.utils.session import provide_session
 from airflow.utils.state import State
 
+DR = models.DagRun
 TI = models.TaskInstance
 
 
@@ -378,7 +379,8 @@ class DagFileProcessor(LoggingMixin):
             return
 
         qry = (
-            session.query(TI.task_id, func.max(TI.execution_date).label('max_ti'))
+            session.query(TI.task_id, func.max(DR.execution_date).label('max_ti'))
+            .join(TI.dag_run)
             .with_hint(TI, 'USE INDEX (PRIMARY)', dialect_name='mysql')
             .filter(TI.dag_id == dag.dag_id)
             .filter(or_(TI.state == State.SUCCESS, TI.state == State.SKIPPED))
@@ -387,14 +389,14 @@ class DagFileProcessor(LoggingMixin):
             .subquery('sq')
         )
 
-        max_tis: List[TI] = (
+        max_tis: Iterator[TI] = (
             session.query(TI)
+            .join(TI.dag_run)
             .filter(
                 TI.dag_id == dag.dag_id,
                 TI.task_id == qry.c.task_id,
-                TI.execution_date == qry.c.max_ti,
+                DR.execution_date == qry.c.max_ti,
             )
-            .all()
         )
 
         ts = timezone.utcnow()
@@ -558,7 +560,7 @@ class DagFileProcessor(LoggingMixin):
     @provide_session
     def _execute_dag_callbacks(self, dagbag: DagBag, request: DagCallbackRequest, session: Session):
         dag = dagbag.dags[request.dag_id]
-        dag_run = dag.get_dagrun(execution_date=request.execution_date, session=session)
+        dag_run = dag.get_dagrun(run_id=request.run_id, session=session)
         dag.handle_callback(
             dagrun=dag_run, success=not request.is_failure_callback, reason=request.msg, session=session
         )
@@ -570,7 +572,7 @@ class DagFileProcessor(LoggingMixin):
             if simple_ti.task_id in dag.task_ids:
                 task = dag.get_task(simple_ti.task_id)
                 if request.is_failure_callback:
-                    ti = TI(task, simple_ti.execution_date)
+                    ti = TI(task, run_id=simple_ti.run_id)
                     # TODO: Use simple_ti to improve performance here in the future
                     ti.refresh_from_db()
                     ti.handle_failure_with_callback(error=request.msg, test_mode=self.UNIT_TEST_MODE)

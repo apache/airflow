@@ -227,7 +227,7 @@ class LocalTaskJob(BaseJob):
             dag_run = with_row_locks(
                 session.query(DagRun).filter_by(
                     dag_id=self.dag_id,
-                    execution_date=self.task_instance.execution_date,
+                    run_id=self.task_instance.run_id,
                 ),
                 session=session,
             ).one()

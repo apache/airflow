@@ -123,7 +123,6 @@ Name                                                Description
 ``dag_processing.total_parse_time``                 Seconds taken to scan and import all DAG files once
 ``dag_processing.last_run.seconds_ago.<dag_file>``  Seconds since ``<dag_file>`` was last processed
 ``dag_processing.processor_timeouts``               Number of file processors that have been killed due to taking too long
-``scheduler.tasks.without_dagrun``                  Number of tasks without DagRuns or with DagRuns not in Running state
 ``scheduler.tasks.running``                         Number of tasks running in executor
 ``scheduler.tasks.starving``                        Number of tasks that cannot be scheduled because of no open slot in pool
 ``scheduler.tasks.executable``                      Number of tasks that are ready for execution (set to queued)

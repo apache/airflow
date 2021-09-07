@@ -17,44 +17,45 @@
 # under the License.
 
 import datetime
-import unittest
 
-from parameterized import parameterized
+import pytest
 
 from airflow import settings
 from airflow.models import DAG, TaskInstance as TI, TaskReschedule, clear_task_instances
 from airflow.operators.dummy import DummyOperator
 from airflow.sensors.python import PythonSensor
 from airflow.utils.session import create_session
-from airflow.utils.state import State
+from airflow.utils.state import State, TaskInstanceState
 from airflow.utils.types import DagRunType
 from tests.models import DEFAULT_DATE
 from tests.test_utils import db
 
 
-class TestClearTasks(unittest.TestCase):
-    def setUp(self) -> None:
+class TestClearTasks:
+    @pytest.fixture(autouse=True, scope="class")
+    def clean(self):
         db.clear_db_runs()
 
-    def tearDown(self):
+        yield
+
         db.clear_db_runs()
 
-    def test_clear_task_instances(self):
-        dag = DAG(
+    def test_clear_task_instances(self, dag_maker):
+        with dag_maker(
             'test_clear_task_instances',
             start_date=DEFAULT_DATE,
             end_date=DEFAULT_DATE + datetime.timedelta(days=10),
-        )
-        task0 = DummyOperator(task_id='0', owner='test', dag=dag)
-        task1 = DummyOperator(task_id='1', owner='test', dag=dag, retries=2)
-        ti0 = TI(task=task0, execution_date=DEFAULT_DATE)
-        ti1 = TI(task=task1, execution_date=DEFAULT_DATE)
+        ) as dag:
+            task0 = DummyOperator(task_id='0')
+            task1 = DummyOperator(task_id='1', retries=2)
 
-        dag.create_dagrun(
-            execution_date=ti0.execution_date,
+        dr = dag_maker.create_dagrun(
             state=State.RUNNING,
             run_type=DagRunType.SCHEDULED,
         )
+        ti0, ti1 = dr.task_instances
+        ti0.refresh_from_task(task0)
+        ti1.refresh_from_task(task1)
 
         ti0.run()
         ti1.run()
@@ -66,19 +67,22 @@ class TestClearTasks(unittest.TestCase):
         ti0.refresh_from_db()
         ti1.refresh_from_db()
         # Next try to run will be try 2
+        assert ti0.state is None
         assert ti0.try_number == 2
         assert ti0.max_tries == 1
+        assert ti1.state is None
         assert ti1.try_number == 2
         assert ti1.max_tries == 3
 
-    def test_clear_task_instances_external_executor_id(self):
-        dag = DAG(
+    def test_clear_task_instances_external_executor_id(self, dag_maker):
+        with dag_maker(
             'test_clear_task_instances_external_executor_id',
             start_date=DEFAULT_DATE,
             end_date=DEFAULT_DATE + datetime.timedelta(days=10),
-        )
-        task0 = DummyOperator(task_id='task0', owner='test', dag=dag)
-        ti0 = TI(task=task0, execution_date=DEFAULT_DATE)
+        ) as dag:
+            DummyOperator(task_id='task0')
+
+        ti0 = dag_maker.create_dagrun().task_instances[0]
         ti0.state = State.SUCCESS
         ti0.external_executor_id = "some_external_executor_id"
 
@@ -94,57 +98,59 @@ class TestClearTasks(unittest.TestCase):
             assert ti0.state is None
             assert ti0.external_executor_id is None
 
-    @parameterized.expand([(State.QUEUED, None), (State.RUNNING, DEFAULT_DATE)])
-    def test_clear_task_instances_dr_state(self, state, last_scheduling):
+    @pytest.mark.parametrize(
+        ["state", "last_scheduling"], [(State.QUEUED, None), (State.RUNNING, DEFAULT_DATE)]
+    )
+    def test_clear_task_instances_dr_state(self, state, last_scheduling, dag_maker):
         """Test that DR state is set to None after clear.
         And that DR.last_scheduling_decision is handled OK.
         start_date is also set to None
         """
-        dag = DAG(
+        with dag_maker(
             'test_clear_task_instances',
             start_date=DEFAULT_DATE,
             end_date=DEFAULT_DATE + datetime.timedelta(days=10),
-        )
-        task0 = DummyOperator(task_id='0', owner='test', dag=dag)
-        task1 = DummyOperator(task_id='1', owner='test', dag=dag, retries=2)
-        ti0 = TI(task=task0, execution_date=DEFAULT_DATE)
-        ti1 = TI(task=task1, execution_date=DEFAULT_DATE)
-        session = settings.Session()
-        dr = dag.create_dagrun(
-            execution_date=ti0.execution_date,
+        ) as dag:
+            DummyOperator(task_id='0')
+            DummyOperator(task_id='1', retries=2)
+        dr = dag_maker.create_dagrun(
             state=State.RUNNING,
             run_type=DagRunType.SCHEDULED,
         )
+        ti0, ti1 = dr.task_instances
         dr.last_scheduling_decision = DEFAULT_DATE
-        session.add(dr)
-        session.commit()
+        ti0.state = TaskInstanceState.SUCCESS
+        ti1.state = TaskInstanceState.SUCCESS
+        session = dag_maker.session
+        session.flush()
 
-        ti0.run()
-        ti1.run()
         qry = session.query(TI).filter(TI.dag_id == dag.dag_id).all()
         clear_task_instances(qry, session, dag_run_state=state, dag=dag)
+        session.flush()
 
-        dr = ti0.get_dagrun()
+        session.refresh(dr)
+
         assert dr.state == state
         assert dr.start_date is None
         assert dr.last_scheduling_decision == last_scheduling
 
-    def test_clear_task_instances_without_task(self):
-        dag = DAG(
+    def test_clear_task_instances_without_task(self, dag_maker):
+        with dag_maker(
             'test_clear_task_instances_without_task',
             start_date=DEFAULT_DATE,
             end_date=DEFAULT_DATE + datetime.timedelta(days=10),
-        )
-        task0 = DummyOperator(task_id='task0', owner='test', dag=dag)
-        task1 = DummyOperator(task_id='task1', owner='test', dag=dag, retries=2)
-        ti0 = TI(task=task0, execution_date=DEFAULT_DATE)
-        ti1 = TI(task=task1, execution_date=DEFAULT_DATE)
+        ) as dag:
+            task0 = DummyOperator(task_id='task0')
+            task1 = DummyOperator(task_id='task1', retries=2)
 
-        dag.create_dagrun(
-            execution_date=ti0.execution_date,
+        dr = dag_maker.create_dagrun(
             state=State.RUNNING,
             run_type=DagRunType.SCHEDULED,
         )
+
+        ti0, ti1 = dr.task_instances
+        ti0.refresh_from_task(task0)
+        ti1.refresh_from_task(task1)
 
         ti0.run()
         ti1.run()
@@ -167,22 +173,23 @@ class TestClearTasks(unittest.TestCase):
         assert ti1.try_number == 2
         assert ti1.max_tries == 2
 
-    def test_clear_task_instances_without_dag(self):
-        dag = DAG(
+    def test_clear_task_instances_without_dag(self, dag_maker):
+        with dag_maker(
             'test_clear_task_instances_without_dag',
             start_date=DEFAULT_DATE,
             end_date=DEFAULT_DATE + datetime.timedelta(days=10),
-        )
-        task0 = DummyOperator(task_id='task_0', owner='test', dag=dag)
-        task1 = DummyOperator(task_id='task_1', owner='test', dag=dag, retries=2)
-        ti0 = TI(task=task0, execution_date=DEFAULT_DATE)
-        ti1 = TI(task=task1, execution_date=DEFAULT_DATE)
+        ) as dag:
+            task0 = DummyOperator(task_id='task0')
+            task1 = DummyOperator(task_id='task1', retries=2)
 
-        dag.create_dagrun(
-            execution_date=ti0.execution_date,
+        dr = dag_maker.create_dagrun(
             state=State.RUNNING,
             run_type=DagRunType.SCHEDULED,
         )
+
+        ti0, ti1 = dr.task_instances
+        ti0.refresh_from_task(task0)
+        ti1.refresh_from_task(task1)
 
         ti0.run()
         ti1.run()
@@ -200,10 +207,10 @@ class TestClearTasks(unittest.TestCase):
         assert ti1.try_number == 2
         assert ti1.max_tries == 2
 
-    def test_clear_task_instances_with_task_reschedule(self):
+    def test_clear_task_instances_with_task_reschedule(self, dag_maker):
         """Test that TaskReschedules are deleted correctly when TaskInstances are cleared"""
 
-        with DAG(
+        with dag_maker(
             'test_clear_task_instances_with_task_reschedule',
             start_date=DEFAULT_DATE,
             end_date=DEFAULT_DATE + datetime.timedelta(days=10),
@@ -211,15 +218,14 @@ class TestClearTasks(unittest.TestCase):
             task0 = PythonSensor(task_id='0', python_callable=lambda: False, mode="reschedule")
             task1 = PythonSensor(task_id='1', python_callable=lambda: False, mode="reschedule")
 
-        ti0 = TI(task=task0, execution_date=DEFAULT_DATE)
-        ti1 = TI(task=task1, execution_date=DEFAULT_DATE)
-
-        dag.create_dagrun(
-            execution_date=ti0.execution_date,
+        dr = dag_maker.create_dagrun(
             state=State.RUNNING,
             run_type=DagRunType.SCHEDULED,
         )
 
+        ti0, ti1 = dr.task_instances
+        ti0.refresh_from_task(task0)
+        ti1.refresh_from_task(task1)
         ti0.run()
         ti1.run()
 
@@ -231,7 +237,7 @@ class TestClearTasks(unittest.TestCase):
                     .filter(
                         TaskReschedule.dag_id == dag.dag_id,
                         TaskReschedule.task_id == task_id,
-                        TaskReschedule.execution_date == DEFAULT_DATE,
+                        TaskReschedule.run_id == dr.run_id,
                         TaskReschedule.try_number == 1,
                     )
                     .count()
@@ -244,22 +250,27 @@ class TestClearTasks(unittest.TestCase):
             assert count_task_reschedule(ti0.task_id) == 0
             assert count_task_reschedule(ti1.task_id) == 1
 
-    def test_dag_clear(self):
-        dag = DAG(
+    def test_dag_clear(self, dag_maker):
+        with dag_maker(
             'test_dag_clear', start_date=DEFAULT_DATE, end_date=DEFAULT_DATE + datetime.timedelta(days=10)
-        )
-        task0 = DummyOperator(task_id='test_dag_clear_task_0', owner='test', dag=dag)
-        ti0 = TI(task=task0, execution_date=DEFAULT_DATE)
+        ) as dag:
+            task0 = DummyOperator(task_id='test_dag_clear_task_0')
+            task1 = DummyOperator(task_id='test_dag_clear_task_1', retries=2)
 
-        dag.create_dagrun(
-            execution_date=ti0.execution_date,
+        dr = dag_maker.create_dagrun(
             state=State.RUNNING,
             run_type=DagRunType.SCHEDULED,
         )
+        session = dag_maker.session
+
+        ti0, ti1 = dr.task_instances
+        ti0.refresh_from_task(task0)
+        ti1.refresh_from_task(task1)
 
         # Next try to run will be try 1
         assert ti0.try_number == 1
         ti0.run()
+
         assert ti0.try_number == 2
         dag.clear()
         ti0.refresh_from_db()
@@ -267,12 +278,14 @@ class TestClearTasks(unittest.TestCase):
         assert ti0.state == State.NONE
         assert ti0.max_tries == 1
 
-        task1 = DummyOperator(task_id='test_dag_clear_task_1', owner='test', dag=dag, retries=2)
-        ti1 = TI(task=task1, execution_date=DEFAULT_DATE)
         assert ti1.max_tries == 2
         ti1.try_number = 1
+        session.merge(ti1)
+        session.commit()
+
         # Next try will be 2
         ti1.run()
+
         assert ti1.try_number == 3
         assert ti1.max_tries == 2
 
@@ -297,16 +310,16 @@ class TestClearTasks(unittest.TestCase):
                 start_date=DEFAULT_DATE,
                 end_date=DEFAULT_DATE + datetime.timedelta(days=10),
             )
-            ti = TI(
-                task=DummyOperator(task_id='test_task_clear_' + str(i), owner='test', dag=dag),
-                execution_date=DEFAULT_DATE,
-            )
+            task = DummyOperator(task_id='test_task_clear_' + str(i), owner='test', dag=dag)
 
-            dag.create_dagrun(
-                execution_date=ti.execution_date,
+            dr = dag.create_dagrun(
+                execution_date=DEFAULT_DATE,
                 state=State.RUNNING,
                 run_type=DagRunType.SCHEDULED,
+                session=session,
             )
+            ti = dr.task_instances[0]
+            ti.task = task
             dags.append(dag)
             tis.append(ti)
 
@@ -361,25 +374,24 @@ class TestClearTasks(unittest.TestCase):
                 assert tis[i].try_number == 3
                 assert tis[i].max_tries == 2
 
-    def test_operator_clear(self):
-        dag = DAG(
+    def test_operator_clear(self, dag_maker):
+        with dag_maker(
             'test_operator_clear',
             start_date=DEFAULT_DATE,
             end_date=DEFAULT_DATE + datetime.timedelta(days=10),
-        )
-        op1 = DummyOperator(task_id='bash_op', owner='test', dag=dag)
-        op2 = DummyOperator(task_id='dummy_op', owner='test', dag=dag, retries=1)
+        ):
+            op1 = DummyOperator(task_id='bash_op')
+            op2 = DummyOperator(task_id='dummy_op', retries=1)
+            op1 >> op2
 
-        op2.set_upstream(op1)
-
-        ti1 = TI(task=op1, execution_date=DEFAULT_DATE)
-        ti2 = TI(task=op2, execution_date=DEFAULT_DATE)
-
-        dag.create_dagrun(
-            execution_date=ti1.execution_date,
+        dr = dag_maker.create_dagrun(
             state=State.RUNNING,
             run_type=DagRunType.SCHEDULED,
         )
+
+        ti1, ti2 = dr.task_instances
+        ti1.task = op1
+        ti2.task = op2
 
         ti2.run()
         # Dependency not met

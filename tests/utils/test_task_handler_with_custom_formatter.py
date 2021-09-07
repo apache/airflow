@@ -15,7 +15,6 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 import logging
 import unittest
 
@@ -23,8 +22,11 @@ from airflow.config_templates.airflow_local_settings import DEFAULT_LOGGING_CONF
 from airflow.models import DAG, TaskInstance
 from airflow.operators.dummy import DummyOperator
 from airflow.utils.log.logging_mixin import set_context
+from airflow.utils.state import DagRunState
 from airflow.utils.timezone import datetime
+from airflow.utils.types import DagRunType
 from tests.test_utils.config import conf_vars
+from tests.test_utils.db import clear_db_runs
 
 DEFAULT_DATE = datetime(2019, 1, 1)
 TASK_LOGGER = 'airflow.task'
@@ -35,7 +37,6 @@ PREV_TASK_HANDLER = DEFAULT_LOGGING_CONFIG['handlers']['task']
 
 class TestTaskHandlerWithCustomFormatter(unittest.TestCase):
     def setUp(self):
-        super().setUp()
         DEFAULT_LOGGING_CONFIG['handlers']['task'] = {
             'class': TASK_HANDLER_CLASS,
             'formatter': 'airflow',
@@ -46,14 +47,19 @@ class TestTaskHandlerWithCustomFormatter(unittest.TestCase):
         logging.root.disabled = False
 
     def tearDown(self):
-        super().tearDown()
+        clear_db_runs()
         DEFAULT_LOGGING_CONFIG['handlers']['task'] = PREV_TASK_HANDLER
 
     @conf_vars({('logging', 'task_log_prefix_template'): "{{ti.dag_id}}-{{ti.task_id}}"})
     def test_formatter(self):
         dag = DAG('test_dag', start_date=DEFAULT_DATE)
         task = DummyOperator(task_id='test_task', dag=dag)
-        ti = TaskInstance(task=task, execution_date=DEFAULT_DATE)
+        dagrun = dag.create_dagrun(
+            DagRunState.RUNNING,
+            execution_date=DEFAULT_DATE,
+            run_type=DagRunType.MANUAL,
+        )
+        ti = TaskInstance(task=task, run_id=dagrun.run_id)
 
         logger = ti.log
         ti.log.disabled = False

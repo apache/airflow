@@ -143,12 +143,21 @@ class PodLauncher(LoggingMixin):
             read_logs_since_sec = None
             last_log_time = None
             while True:
-                logs = self.read_pod_logs(pod, timestamps=True, since_seconds=read_logs_since_sec)
-                for line in logs:
-                    timestamp, message = self.parse_log_line(line.decode('utf-8'))
-                    self.log.info(message)
-                    if timestamp:
-                        last_log_time = timestamp
+                try:
+                    logs = self.read_pod_logs(pod, timestamps=True, since_seconds=read_logs_since_sec)
+                    for line in logs:
+                        timestamp, message = self.parse_log_line(line.decode('utf-8'))
+                        self.log.info(message)
+                        if timestamp:
+                            last_log_time = timestamp
+                except BaseHTTPError:
+                    # Catches errors like ProtocolError(TimeoutError).
+                    self.log.warning(
+                        'Failed to read logs for pod %s',
+                        pod.metadata.name,
+                        exc_info=True,
+                    )
+
                 time.sleep(1)
 
                 if not self.base_container_is_running(pod):
@@ -243,8 +252,10 @@ class PodLauncher(LoggingMixin):
                 _preload_content=False,
                 **additional_kwargs,
             )
-        except BaseHTTPError as e:
-            raise AirflowException(f'There was an error reading the kubernetes API: {e}')
+        except BaseHTTPError:
+            self.log.exception('There was an error reading the kubernetes API.')
+            # Reraise to be catched by self.monitor_pod.
+            raise
 
     @tenacity.retry(stop=tenacity.stop_after_attempt(3), wait=tenacity.wait_exponential(), reraise=True)
     def read_pod_events(self, pod):

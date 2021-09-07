@@ -817,9 +817,10 @@
       version_added: ~
       example: ~
       default: ""
-    - name: access_control_allow_origin
+    - name: access_control_allow_origins
       description: |
-        Indicates whether the response can be shared with requesting code from the given origin.
+        Indicates whether the response can be shared with requesting code from the given origins.
+        Separate URLs with space.
       type: string
       version_added: ~
       example: ~
@@ -1692,14 +1693,6 @@
       type: string
       example: ~
       default: "5"
-    - name: clean_tis_without_dagrun_interval
-      description: |
-        How often (in seconds) to check and tidy up 'running' TaskInstancess
-        that no longer have a matching DagRun
-      version_added: 2.0.0
-      type: float
-      example: ~
-      default: "15.0"
     - name: scheduler_heartbeat_sec
       description: |
         The scheduler constantly tries to trigger new tasks (look at the
