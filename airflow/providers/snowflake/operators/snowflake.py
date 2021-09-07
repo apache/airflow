@@ -22,26 +22,25 @@ from airflow.operators.sql import SQLCheckOperator, SQLIntervalCheckOperator, SQ
 from airflow.providers.snowflake.hooks.snowflake import SnowflakeHook
 
 
-class _SnowflakeDbHookMixin:
-    def get_db_hook(self) -> SnowflakeHook:
-        """
-        Create and return SnowflakeHook.
+def get_db_hook(self) -> SnowflakeHook:
+    """
+    Create and return SnowflakeHook.
 
-        :return: a SnowflakeHook instance.
-        :rtype: SnowflakeHook
-        """
-        return SnowflakeHook(
-            snowflake_conn_id=self.snowflake_conn_id,
-            warehouse=self.warehouse,
-            database=self.database,
-            role=self.role,
-            schema=self.schema,
-            authenticator=self.authenticator,
-            session_parameters=self.session_parameters,
-        )
+    :return: a SnowflakeHook instance.
+    :rtype: SnowflakeHook
+    """
+    return SnowflakeHook(
+        snowflake_conn_id=self.snowflake_conn_id,
+        warehouse=self.warehouse,
+        database=self.database,
+        role=self.role,
+        schema=self.schema,
+        authenticator=self.authenticator,
+        session_parameters=self.session_parameters,
+    )
 
 
-class SnowflakeOperator(_SnowflakeDbHookMixin, BaseOperator):
+class SnowflakeOperator(BaseOperator):
     """
     Executes SQL code in a Snowflake database
 
@@ -120,6 +119,9 @@ class SnowflakeOperator(_SnowflakeDbHookMixin, BaseOperator):
         self.session_parameters = session_parameters
         self.query_ids = []
 
+    def get_db_hook(self) -> SnowflakeHook:
+        return get_db_hook(self)
+
     def execute(self, context: Any) -> None:
         """Run query on snowflake"""
         self.log.info('Executing: %s', self.sql)
@@ -131,7 +133,7 @@ class SnowflakeOperator(_SnowflakeDbHookMixin, BaseOperator):
             return execution_info
 
 
-class SnowflakeCheckOperator(_SnowflakeDbHookMixin, SQLCheckOperator):
+class SnowflakeCheckOperator(SQLCheckOperator):
     """
     Performs a check against Snowflake. The ``SnowflakeCheckOperator`` expects
     a sql query that will return a single row. Each value on that
@@ -230,8 +232,11 @@ class SnowflakeCheckOperator(_SnowflakeDbHookMixin, SQLCheckOperator):
         self.session_parameters = session_parameters
         self.query_ids = []
 
+    def get_db_hook(self) -> SnowflakeHook:
+        return get_db_hook(self)
 
-class SnowflakeValueCheckOperator(_SnowflakeDbHookMixin, SQLValueCheckOperator):
+
+class SnowflakeValueCheckOperator(SQLValueCheckOperator):
     """
     Performs a simple check using sql code against a specified value, within a
     certain level of tolerance.
@@ -308,8 +313,11 @@ class SnowflakeValueCheckOperator(_SnowflakeDbHookMixin, SQLValueCheckOperator):
         self.session_parameters = session_parameters
         self.query_ids = []
 
+    def get_db_hook(self) -> SnowflakeHook:
+        return get_db_hook(self)
 
-class SnowflakeIntervalCheckOperator(_SnowflakeDbHookMixin, SQLIntervalCheckOperator):
+
+class SnowflakeIntervalCheckOperator(SQLIntervalCheckOperator):
     """
     Checks that the values of metrics given as SQL expressions are within
     a certain tolerance of the ones from days_back before.
@@ -398,3 +406,6 @@ class SnowflakeIntervalCheckOperator(_SnowflakeDbHookMixin, SQLIntervalCheckOper
         self.authenticator = authenticator
         self.session_parameters = session_parameters
         self.query_ids = []
+
+    def get_db_hook(self) -> SnowflakeHook:
+        return get_db_hook(self)

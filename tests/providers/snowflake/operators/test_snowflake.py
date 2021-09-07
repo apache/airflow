@@ -46,7 +46,7 @@ class TestSnowflakeOperator(unittest.TestCase):
         self.dag = dag
 
     @mock.patch(LONG_MOCK_PATH)
-    def test_snowflake_operator(self, mock_get_hook):
+    def test_snowflake_operator(self, mock_get_db_hook):
         sql = """
         CREATE TABLE IF NOT EXISTS test_airflow (
             dummy VARCHAR(50)
@@ -66,7 +66,7 @@ class TestSnowflakeOperator(unittest.TestCase):
     ],
 )
 class TestSnowflakeCheckOperators:
-    @mock.patch("airflow.providers.snowflake.operators.snowflake._SnowflakeDbHookMixin.get_db_hook")
+    @mock.patch("airflow.providers.snowflake.operators.snowflake.get_db_hook")
     def test_get_db_hook(
         self,
         mock_get_db_hook,
