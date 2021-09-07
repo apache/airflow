@@ -88,11 +88,13 @@ Next, we'll start putting code into ``AfterWorkdayTimetable``. After the
 implementation is finished, we should be able to use the timetable in our DAG
 file:
 
-.. exampleinclude:: /../../airflow/example_dags/example_workday_timetable.py
-    :language: python
-    :dedent: 4
-    :start-after: [START howto_timetable_example_dag]
-    :end-before: [END howto_timetable_example_dag]
+.. code-block:: python
+
+    from airflow import DAG
+
+
+    with DAG(timetable=AfterWorkdayTimetable(), tags=["example", "timetable"]) as dag:
+        ...
 
 
 Define Scheduling Logic
