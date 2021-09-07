@@ -1187,6 +1187,7 @@ class BigQueryCreateExternalTableOperator(BaseOperator):
             bq_hook.create_empty_table(
                 table_resource=self.table_resource,
             )
+            return
 
         if not self.schema_fields and self.schema_object and self.source_format != 'DATASTORE_BACKUP':
             gcs_hook = GCSHook(
