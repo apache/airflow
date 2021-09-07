@@ -141,8 +141,8 @@ is being scheduled. ``restriction`` encapsulates how the DAG and its tasks
 specify the schedule, and contains three attributes:
 
 * ``earliest``: The earliest time the DAG may be scheduled. This is a
-  calculated ``pendulum.DateTime`` from all the ``start_date`` arguments from
-  the DAG and its tasks, or ``None`` oi there are no ``start_date`` arguments
+  ``pendulum.DateTime`` calculated from all the ``start_date`` arguments from
+  the DAG and its tasks, or ``None`` if there are no ``start_date`` arguments
   found at all.
 * ``latest``: Similar to ``earliest``, this is the latest time the DAG may be
   scheduled, calculated from ``end_date`` arguments.
@@ -189,7 +189,7 @@ A ``DagRunInfo`` can be created like this:
         run_after=run_after,
     )
 
-But since we typically wan to schedule a run as soon as the data interval ends,
+But since we typically want to schedule a run as soon as the data interval ends,
 ``end`` and ``run_after`` above are generally the same. ``DagRunInfo`` therefore
 provides a shortcut for this:
 
@@ -215,7 +215,7 @@ Parameterized Timetables
 ------------------------
 
 Sometimes we need to pass some run-time arguments to the timetable. Continuing
-with our ``AfterWorkdayTimetable`` example, maybe we may have DAGs running on
+with our ``AfterWorkdayTimetable`` example, maybe we have DAGs running on
 different timezones, and we want to schedule some DAGs at 8am the next day,
 instead of on midnight. Instead of creating a separate timetable for each
 purpose, we'd want to do something like:
