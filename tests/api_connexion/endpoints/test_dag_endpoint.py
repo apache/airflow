@@ -122,6 +122,7 @@ class TestDagEndpoint:
                 fileloc=f"/tmp/dag_{num}.py",
                 schedule_interval="2 2 * * *",
                 is_active=True,
+                is_paused=False,
             )
             session.add(dag_model)
 
@@ -162,6 +163,7 @@ class TestGetDag(TestDagEndpoint):
             dag_id="TEST_DAG_1",
             fileloc="/tmp/dag_1.py",
             schedule_interval=None,
+            is_paused=False,
         )
         session.add(dag_model)
         session.commit()

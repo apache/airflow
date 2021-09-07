@@ -20,6 +20,7 @@ import unittest
 from datetime import timedelta
 
 import pytest
+from sqlalchemy.orm import eagerload
 
 from airflow import models
 from airflow.api.common.experimental.mark_tasks import (
@@ -40,11 +41,20 @@ from tests.test_utils.db import clear_db_runs
 DEV_NULL = "/dev/null"
 
 
-class TestMarkTasks(unittest.TestCase):
+@pytest.fixture(scope="module")
+def dagbag():
+    from airflow.models.dagbag import DagBag
+
+    # Ensure the DAGs we are looking at from the DB are up-to-date
+    non_serialized_dagbag = DagBag(read_dags_from_db=False, include_examples=False)
+    non_serialized_dagbag.sync_to_db()
+    return DagBag(read_dags_from_db=True)
+
+
+class TestMarkTasks:
+    @pytest.fixture(scope="class", autouse=True, name="create_dags")
     @classmethod
-    def setUpClass(cls):
-        models.DagBag(include_examples=True, read_dags_from_db=False).sync_to_db()
-        dagbag = models.DagBag(include_examples=False, read_dags_from_db=True)
+    def create_dags(cls, dagbag):
         cls.dag1 = dagbag.get_dag('miscellaneous_test_dag')
         cls.dag2 = dagbag.get_dag('example_subdag_operator')
         cls.dag3 = dagbag.get_dag('example_trigger_target_dag')
@@ -56,7 +66,9 @@ class TestMarkTasks(unittest.TestCase):
             start_date3 + timedelta(days=2),
         ]
 
-    def setUp(self):
+    @pytest.fixture(autouse=True)
+    def setup(self):
+
         clear_db_runs()
         drs = _create_dagruns(
             self.dag1, self.execution_dates, state=State.RUNNING, run_type=DagRunType.SCHEDULED
@@ -77,24 +89,35 @@ class TestMarkTasks(unittest.TestCase):
         for dr in drs:
             dr.dag = self.dag3
 
-    def tearDown(self):
+        yield
+
         clear_db_runs()
 
     @staticmethod
     def snapshot_state(dag, execution_dates):
         TI = models.TaskInstance
+        DR = models.DagRun
         with create_session() as session:
             return (
                 session.query(TI)
-                .filter(TI.dag_id == dag.dag_id, TI.execution_date.in_(execution_dates))
+                .join(TI.dag_run)
+                .options(eagerload(TI.dag_run))
+                .filter(TI.dag_id == dag.dag_id, DR.execution_date.in_(execution_dates))
                 .all()
             )
 
     @provide_session
     def verify_state(self, dag, task_ids, execution_dates, state, old_tis, session=None):
         TI = models.TaskInstance
+        DR = models.DagRun
 
-        tis = session.query(TI).filter(TI.dag_id == dag.dag_id, TI.execution_date.in_(execution_dates)).all()
+        tis = (
+            session.query(TI)
+            .join(TI.dag_run)
+            .options(eagerload(TI.dag_run))
+            .filter(TI.dag_id == dag.dag_id, DR.execution_date.in_(execution_dates))
+            .all()
+        )
 
         assert len(tis) > 0
 

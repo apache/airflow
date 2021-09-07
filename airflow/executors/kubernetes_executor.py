@@ -151,7 +151,8 @@ class KubernetesJobWatcher(multiprocessing.Process, LoggingMixin):
             task_instance_related_annotations = {
                 'dag_id': annotations['dag_id'],
                 'task_id': annotations['task_id'],
-                'execution_date': annotations['execution_date'],
+                'execution_date': annotations.get('execution_date'),
+                'run_id': annotations.get('run_id'),
                 'try_number': annotations['try_number'],
             }
 
@@ -291,7 +292,7 @@ class AirflowKubernetesScheduler(LoggingMixin):
         """
         self.log.info('Kubernetes job is %s', str(next_job))
         key, command, kube_executor_config, pod_template_file = next_job
-        dag_id, task_id, execution_date, try_number = key
+        dag_id, task_id, run_id, try_number = key
 
         if command[0:3] != ["airflow", "tasks", "run"]:
             raise ValueError('The command must start with ["airflow", "tasks", "run"].')
@@ -311,7 +312,8 @@ class AirflowKubernetesScheduler(LoggingMixin):
             task_id=task_id,
             kube_image=self.kube_config.kube_image,
             try_number=try_number,
-            date=execution_date,
+            date=None,
+            run_id=run_id,
             args=command,
             pod_override_object=kube_executor_config,
             base_worker_pod=base_worker_pod,
@@ -453,27 +455,34 @@ class KubernetesExecutor(BaseExecutor, LoggingMixin):
         for task in queued_tasks:
 
             self.log.debug("Checking task %s", task)
-            dict_string = "dag_id={},task_id={},execution_date={},airflow-worker={}".format(
+            dict_string = "dag_id={},task_id={},airflow-worker={}".format(
                 pod_generator.make_safe_label_value(task.dag_id),
                 pod_generator.make_safe_label_value(task.task_id),
-                pod_generator.datetime_to_label_safe_datestring(task.execution_date),
                 pod_generator.make_safe_label_value(str(self.scheduler_job_id)),
             )
 
             kwargs = dict(label_selector=dict_string)
             if self.kube_config.kube_client_request_args:
-                for key, value in self.kube_config.kube_client_request_args.items():
-                    kwargs[key] = value
+                kwargs.update(**self.kube_config.kube_client_request_args)
+
+            # Try run_id first
+            kwargs['label_selector'] += ',run_id=' + pod_generator.make_safe_label_value(task.run_id)
             pod_list = self.kube_client.list_namespaced_pod(self.kube_config.kube_namespace, **kwargs)
-            if not pod_list.items:
-                self.log.info(
-                    'TaskInstance: %s found in queued state but was not launched, rescheduling', task
-                )
-                session.query(TaskInstance).filter(
-                    TaskInstance.dag_id == task.dag_id,
-                    TaskInstance.task_id == task.task_id,
-                    TaskInstance.execution_date == task.execution_date,
-                ).update({TaskInstance.state: State.NONE})
+            if pod_list.items:
+                continue
+            # Fallback to old style of using execution_date
+            kwargs['label_selector'] = dict_string + ',exectuion_date={}'.format(
+                pod_generator.datetime_to_label_safe_datestring(task.execution_date)
+            )
+            pod_list = self.kube_client.list_namespaced_pod(self.kube_config.kube_namespace, **kwargs)
+            if pod_list.items:
+                continue
+            self.log.info('TaskInstance: %s found in queued state but was not launched, rescheduling', task)
+            session.query(TaskInstance).filter(
+                TaskInstance.dag_id == task.dag_id,
+                TaskInstance.task_id == task.task_id,
+                TaskInstance.run_id == task.run_id,
+            ).update({TaskInstance.state: State.NONE})
 
     def start(self) -> None:
         """Starts the executor"""

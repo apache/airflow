@@ -23,7 +23,7 @@ import importlib
 import importlib.util
 import multiprocessing
 import os
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta
 from glob import glob
 from unittest import mock
 
@@ -35,13 +35,15 @@ from kubernetes.client import models as k8s
 from airflow.exceptions import SerializationError
 from airflow.hooks.base import BaseHook
 from airflow.kubernetes.pod_generator import PodGenerator
-from airflow.models import DAG, Connection, DagBag, TaskInstance
+from airflow.models import DAG, Connection, DagBag
 from airflow.models.baseoperator import BaseOperator, BaseOperatorLink
+from airflow.models.xcom import XCom
 from airflow.operators.bash import BashOperator
 from airflow.security import permissions
 from airflow.serialization.json_schema import load_dag_schema_dict
 from airflow.serialization.serialized_objects import SerializedBaseOperator, SerializedDAG
 from airflow.timetables.simple import NullTimetable, OnceTimetable
+from airflow.utils import timezone
 from tests.test_utils.mock_operators import CustomOperator, CustomOpLink, GoogleLink
 from tests.test_utils.timetables import CustomSerializationTimetable, cron_timetable, delta_timetable
 
@@ -770,7 +772,7 @@ class TestStringifiedDAGs:
         the Operator in ``BaseOperator.operator_extra_links``, it has the correct
         extra link.
         """
-        test_date = datetime(2019, 8, 1)
+        test_date = timezone.DateTime(2019, 8, 1, tzinfo=timezone.utc)
         dag = DAG(dag_id='simple_dag', start_date=test_date)
         CustomOperator(task_id='simple_task', dag=dag, bash_command="true")
 
@@ -792,8 +794,13 @@ class TestStringifiedDAGs:
         # Test all the extra_links are set
         assert set(simple_task.extra_links) == {'Google Custom', 'airflow', 'github', 'google'}
 
-        ti = TaskInstance(task=simple_task, execution_date=test_date)
-        ti.xcom_push('search_query', "dummy_value_1")
+        XCom.set(
+            key='search_query',
+            value="dummy_value_1",
+            task_id=simple_task.task_id,
+            dag_id=simple_task.dag_id,
+            execution_date=test_date,
+        )
 
         # Test Deserialized inbuilt link
         custom_inbuilt_link = simple_task.get_extra_links(test_date, CustomOpLink.name)
@@ -850,7 +857,7 @@ class TestStringifiedDAGs:
         the Operator in ``BaseOperator.operator_extra_links``, it has the correct
         extra link.
         """
-        test_date = datetime(2019, 8, 1)
+        test_date = timezone.DateTime(2019, 8, 1, tzinfo=timezone.utc)
         dag = DAG(dag_id='simple_dag', start_date=test_date)
         CustomOperator(task_id='simple_task', dag=dag, bash_command=["echo", "true"])
 
@@ -879,8 +886,13 @@ class TestStringifiedDAGs:
             'google',
         }
 
-        ti = TaskInstance(task=simple_task, execution_date=test_date)
-        ti.xcom_push('search_query', ["dummy_value_1", "dummy_value_2"])
+        XCom.set(
+            key='search_query',
+            value=["dummy_value_1", "dummy_value_2"],
+            task_id=simple_task.task_id,
+            dag_id=simple_task.dag_id,
+            execution_date=test_date,
+        )
 
         # Test Deserialized inbuilt link #1
         custom_inbuilt_link = simple_task.get_extra_links(test_date, "BigQuery Console #1")
