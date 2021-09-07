@@ -16,15 +16,16 @@
 # specific language governing permissions and limitations
 # under the License.
 """Used for unit tests"""
+from datetime import datetime
+
 from airflow import DAG
 from airflow.operators.bash import BashOperator
-from airflow.utils.dates import days_ago
 
 with DAG(dag_id='test_utils', schedule_interval=None, tags=['example']) as dag:
-
     task = BashOperator(
         task_id='sleeps_forever',
         bash_command="sleep 10000000000",
-        start_date=days_ago(2),
+        start_date=datetime(2021, 1, 1),
+        catchup=False,
         owner='airflow',
     )

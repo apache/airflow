@@ -19,14 +19,15 @@
 
 # [START tutorial]
 # [START import_module]
+from datetime import datetime
+
 from airflow.decorators import dag, task
-from airflow.utils.dates import days_ago
 
 # [END import_module]
 
 
 # [START instantiate_dag]
-@dag(schedule_interval=None, start_date=days_ago(2), tags=['example'])
+@dag(schedule_interval=None, start_date=datetime(2021, 1, 1), catchup=False, tags=['example'])
 def tutorial_taskflow_api_etl_virtualenv():
     """
     ### TaskFlow API Tutorial Documentation
