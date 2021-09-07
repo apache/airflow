@@ -62,7 +62,7 @@ class SFTPToS3Operator(BaseOperator):
         sftp_path: str,
         sftp_conn_id: str = 'ssh_default',
         s3_conn_id: str = 'aws_default',
-        use_temp_file = True,
+        use_temp_file: bool = True,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
