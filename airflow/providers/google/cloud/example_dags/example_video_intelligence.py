@@ -49,7 +49,7 @@ INPUT_URI = f"gs://{GCP_BUCKET_NAME}/video.mp4"
 
 with models.DAG(
     "example_gcp_video_intelligence",
-    schedule_interval=None,  # Override to match your needs
+    schedule_interval='@once',  # Override to match your needs
     start_date=days_ago(1),
     tags=['example'],
 ) as dag:

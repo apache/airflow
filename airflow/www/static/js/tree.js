@@ -29,6 +29,7 @@ import getMetaValue from './meta_value';
 const dagId = getMetaValue('dag_id');
 const treeDataUrl = getMetaValue('tree_data');
 const numRuns = getMetaValue('num_runs');
+const urlRoot = getMetaValue('root');
 
 function toDateString(ts) {
   const dt = new Date(ts * 1000);
@@ -424,7 +425,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   function handleRefresh() {
     $('#loading-dots').css('display', 'inline-block');
-    $.get(`${treeDataUrl}?dag_id=${dagId}&num_runs=${numRuns}`)
+    $.get(`${treeDataUrl}?dag_id=${dagId}&num_runs=${numRuns}&root=${urlRoot}`)
       .done(
         (runs) => {
           const newData = {

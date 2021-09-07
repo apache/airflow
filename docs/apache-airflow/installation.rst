@@ -58,7 +58,7 @@ Prerequisites
 
 Airflow is tested with:
 
-* Python: 3.6, 3.7, 3.8
+* Python: 3.6, 3.7, 3.8, 3.9
 
 * Databases:
 
@@ -75,8 +75,7 @@ running multiple schedulers -- please see: :doc:`/concepts/scheduler`. MariaDB i
 **Note:** SQLite is used in Airflow tests. Do not use it in production. We recommend
 using the latest stable version of SQLite for local development.
 
-Please note that with respect to Python 3 support, Airflow 2.0.0 has been
-tested with Python 3.6, 3.7, and 3.8, but does not yet support Python 3.9.
+Starting with Airflow 2.1.2, Airflow is tested with Python 3.6, 3.7, 3.8, and 3.9.
 
 Installation tools
 ''''''''''''''''''

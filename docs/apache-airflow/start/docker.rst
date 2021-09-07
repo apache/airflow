@@ -22,6 +22,21 @@ Running Airflow in Docker
 
 This quick-start guide will allow you to quickly start Airflow with :doc:`CeleryExecutor </executor/celery>` in Docker. This is the fastest way to start Airflow.
 
+Production readiness
+====================
+
+.. warning::
+    DO NOT expect the Docker Compose below will be enough to run production-ready Docker Compose Airflow installation using it.
+    This is truly ``quick-start`` docker-compose for you to get Airflow up and running locally and get your hands dirty with
+    Airflow, but configuring Docker-Compose installation that is ready for production, requires an intrinsic knowledge of
+    Docker Compose, a lot of customization and possibly even writing the Docker Compose file that will suit your needs
+    from the scratch. It's probably OK if you want to run Docker Compose-based deployment, but short of becoming a
+    Docker Compose expert, it's highly unlikely you will get robust deployment with it.
+
+    If you want to get an easy to configure Docker-based deployment that Airflow Community develops, supports and
+    can provide support with deployment, you should consider using Kubernetes and deploying Airflow using
+    :doc:`Official Airflow Community Helm Chart<helm-chart:index>`.
+
 Before you begin
 ================
 
@@ -97,7 +112,7 @@ Initializing Environment
 
 Before starting Airflow for the first time, You need to prepare your environment, i.e. create the necessary files, directories and initialize the database.
 
-On **Linux**, the mounted volumes in container use the native Linux filesystem user/group permissions, so you have to make sure the container and host computer have matching file permissions.
+On **all operating systems**, the quick-start needs to know your host user id and needs to have group id set to ``0``. You have to make sure to configure them for the docker-compose:
 
 .. code-block:: bash
 

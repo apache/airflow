@@ -18,14 +18,12 @@
 
 import datetime
 import importlib
-import unittest
-from unittest.mock import MagicMock, Mock
 
+import pytest
 from freezegun import freeze_time
 from sentry_sdk import configure_scope
 
-from airflow.models import TaskInstance
-from airflow.settings import Session
+from airflow.operators.python import PythonOperator
 from airflow.utils import timezone
 from airflow.utils.state import State
 from tests.test_utils.config import conf_vars
@@ -33,7 +31,7 @@ from tests.test_utils.config import conf_vars
 EXECUTION_DATE = timezone.utcnow()
 DAG_ID = "test_dag"
 TASK_ID = "test_task"
-OPERATOR = "test_operator"
+OPERATOR = "PythonOperator"
 TRY_NUMBER = 1
 STATE = State.SUCCESS
 TEST_SCOPE = {
@@ -60,46 +58,49 @@ CRUMB = {
 }
 
 
-class TestSentryHook(unittest.TestCase):
-    @conf_vars({('sentry', 'sentry_on'): 'True'})
-    def setUp(self):
-        from airflow import sentry
+class TestSentryHook:
+    @pytest.fixture
+    def task_instance(self, dag_maker):
+        # Mock the Dag
+        with dag_maker(DAG_ID):
+            task = PythonOperator(task_id=TASK_ID, python_callable=int)
+
+        dr = dag_maker.create_dagrun(execution_date=EXECUTION_DATE)
+        ti = dr.task_instances[0]
+        ti.state = STATE
+        ti.task = task
+        dag_maker.session.flush()
+
+        yield ti
+
+        dag_maker.session.rollback()
+
+    @pytest.fixture
+    def sentry(self):
+        with conf_vars({('sentry', 'sentry_on'): 'True'}):
+            from airflow import sentry
+
+            importlib.reload(sentry)
+            yield sentry.Sentry
 
         importlib.reload(sentry)
-        self.sentry = sentry.ConfiguredSentry()
 
-        # Mock the Dag
-        self.dag = Mock(dag_id=DAG_ID, params=[])
-        self.dag.task_ids = [TASK_ID]
-
-        # Mock the task
-        self.task = Mock(dag=self.dag, dag_id=DAG_ID, task_id=TASK_ID, params=[], pool_slots=1)
-        self.task.__class__.__name__ = OPERATOR
-
-        self.ti = TaskInstance(self.task, execution_date=EXECUTION_DATE)
-        self.ti.operator = OPERATOR
-        self.ti.state = STATE
-
-        self.dag.get_task_instances = MagicMock(return_value=[self.ti])
-
-        self.session = Session()
-
-    def test_add_tagging(self):
+    def test_add_tagging(self, sentry, task_instance):
         """
         Test adding tags.
         """
-        self.sentry.add_tagging(task_instance=self.ti)
+        sentry.add_tagging(task_instance=task_instance)
         with configure_scope() as scope:
             for key, value in scope._tags.items():
                 assert TEST_SCOPE[key] == value
 
     @freeze_time(CRUMB_DATE.isoformat())
-    def test_add_breadcrumbs(self):
+    def test_add_breadcrumbs(self, sentry, task_instance):
         """
         Test adding breadcrumbs.
         """
-        self.sentry.add_tagging(task_instance=self.ti)
-        self.sentry.add_breadcrumbs(task_instance=self.ti, session=self.session)
+        sentry.add_tagging(task_instance=task_instance)
+        sentry.add_breadcrumbs(task_instance=task_instance)
 
         with configure_scope() as scope:
             test_crumb = scope._breadcrumbs.pop()

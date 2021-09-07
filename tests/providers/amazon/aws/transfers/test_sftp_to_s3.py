@@ -21,12 +21,11 @@ import unittest
 import boto3
 from moto import mock_s3
 
-from airflow.models import DAG, TaskInstance
+from airflow.models import DAG
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 from airflow.providers.amazon.aws.transfers.sftp_to_s3 import SFTPToS3Operator
 from airflow.providers.ssh.hooks.ssh import SSHHook
 from airflow.providers.ssh.operators.ssh import SSHOperator
-from airflow.utils import timezone
 from airflow.utils.timezone import datetime
 from tests.test_utils.config import conf_vars
 
@@ -50,12 +49,11 @@ class TestSFTPToS3Operator(unittest.TestCase):
 
         s3_hook = S3Hook('aws_default')
         hook.no_host_key_check = True
-        args = {
-            'owner': 'airflow',
-            'start_date': DEFAULT_DATE,
-        }
-        dag = DAG(TEST_DAG_ID + 'test_schedule_dag_once', default_args=args)
-        dag.schedule_interval = '@once'
+        dag = DAG(
+            TEST_DAG_ID + 'test_schedule_dag_once',
+            schedule_interval="@once",
+            start_date=DEFAULT_DATE,
+        )
 
         self.hook = hook
         self.s3_hook = s3_hook
@@ -86,8 +84,7 @@ class TestSFTPToS3Operator(unittest.TestCase):
             dag=self.dag,
         )
         assert create_file_task is not None
-        ti1 = TaskInstance(task=create_file_task, execution_date=timezone.utcnow())
-        ti1.run()
+        create_file_task.execute(None)
 
         # Test for creation of s3 bucket
         conn = boto3.client('s3')

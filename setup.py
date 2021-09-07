@@ -192,6 +192,12 @@ apache_beam = [
 ]
 asana = ['asana>=0.10']
 async_packages = [
+    # DNS Python 2.0.0 and above breaks building documentation on Sphinx. When dnspython 2.0.0 is installed
+    # building documentation fails with trying to import google packages with
+    # TypeError("unsupported operand type(s) for +: 'SSL_VERIFY_PEER' and
+    # 'SSL_VERIFY_FAIL_IF_NO_PEER_CERT'")
+    # The issue is opened for it https://github.com/rthalley/dnspython/issues/681
+    'dnspython<2.0.0',
     'eventlet>= 0.9.7',
     'gevent>=0.13',
     'greenlet>=0.4.9',
@@ -218,9 +224,8 @@ cassandra = [
     'cassandra-driver>=3.13.0,<4',
 ]
 celery = [
-    'celery~=4.4.2',
-    'flower>=0.7.3, <1.0',
-    'vine~=1.3',  # https://stackoverflow.com/questions/32757259/celery-no-module-named-five
+    'celery~=5.1,>=5.1.2',
+    'flower~=1.0.0',
 ]
 cgroups = [
     'cgroupspy>=0.1.4',
@@ -244,6 +249,7 @@ deprecated_api = [
     'requests>=2.26.0',
 ]
 doc = [
+    'click>=7.1,<9',
     # Sphinx is limited to < 3.5.0 because of https://github.com/sphinx-doc/sphinx/issues/8880
     'sphinx>=2.1.2, <3.5.0',
     'sphinx-airflow-theme',
@@ -280,9 +286,15 @@ flask_appbuilder_authlib = [
 google = [
     'PyOpenSSL',
     'google-ads>=12.0.0',
-    'google-api-core>=1.25.1,<2.0.0',
+    # Maintainers, please do not require google-api-core>=2.x.x
+    # Until this issue is closed
+    # https://github.com/googleapis/google-cloud-python/issues/10566
+    'google-api-core>=1.25.1,<3.0.0',
     'google-api-python-client>=1.6.0,<2.0.0',
-    'google-auth>=1.0.0,<2.0.0',
+    # Maintainers, please do not require google-auth>=2.x.x
+    # Until this issue is closed
+    # https://github.com/googleapis/google-cloud-python/issues/10566
+    'google-auth>=1.0.0,<3.0.0',
     'google-auth-httplib2>=0.0.1',
     'google-cloud-automl>=2.1.0,<3.0.0',
     'google-cloud-bigquery-datatransfer>=3.0.0,<4.0.0',
@@ -319,7 +331,7 @@ google = [
     'pandas-gbq<0.15.0',
 ]
 grpc = [
-    'google-auth>=1.0.0, <2.0.0dev',
+    'google-auth>=1.0.0, <3.0.0',
     'google-auth-httplib2>=0.0.1',
     'grpcio>=1.15.0',
 ]
@@ -417,7 +429,7 @@ qubole = [
     'qds-sdk>=1.10.4',
 ]
 rabbitmq = [
-    'amqp<5.0.0',
+    'amqp',
 ]
 redis = [
     'redis~=3.2',
@@ -505,7 +517,7 @@ devel = [
     'jira',
     'jsondiff',
     'mongomock',
-    'moto~=2.0',
+    'moto~=2.2, >=2.2.1.dev9',
     'mypy==0.770',
     'parameterized',
     'paramiko',

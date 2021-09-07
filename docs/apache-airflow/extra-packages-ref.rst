@@ -301,7 +301,7 @@ Those are extras that install one ore more extras as a bundle.
 +---------------------+-----------------------------------------------------+----------------------------------------------------------------------+
 | devel_all           | ``pip install 'apache-airflow[devel_all]'``         | Everything needed for development (``devel_hadoop`` +  providers)    |
 +---------------------+-----------------------------------------------------+----------------------------------------------------------------------+
-| devel_ci            | ``pip install 'apache-airflow[devel_ci]'``          | All dependencies required for CI build.                              |
+| devel_ci            | ``pip install 'apache-airflow[devel_ci]'``          | All dependencies required for CI tests.                              |
 +---------------------+-----------------------------------------------------+----------------------------------------------------------------------+
 
 Doc extras

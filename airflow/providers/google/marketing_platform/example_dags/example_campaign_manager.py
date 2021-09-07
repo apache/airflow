@@ -86,7 +86,7 @@ CONVERSION_UPDATE = {
 
 with models.DAG(
     "example_campaign_manager",
-    schedule_interval=None,  # Override to match your needs,
+    schedule_interval='@once',  # Override to match your needs,
     start_date=dates.days_ago(1),
 ) as dag:
     # [START howto_campaign_manager_insert_report_operator]

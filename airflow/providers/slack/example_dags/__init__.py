@@ -1,4 +1,3 @@
-#!/usr/bin/env bash
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -15,13 +14,3 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-# shellcheck source=scripts/ci/libraries/_script_init.sh
-. "$( dirname "${BASH_SOURCE[0]}" )/../libraries/_script_init.sh"
-
-# This script pushes legacy images to old-naming-convention images
-# It should be removed ~ 7th of August, giving users time to rebase their old pull requests
-build_images::prepare_ci_build
-
-legacy_ci_image="ghcr.io/${GITHUB_REPOSITORY}-${BRANCH_NAME}-python${PYTHON_MAJOR_MINOR_VERSION}-ci-v2:${GITHUB_REGISTRY_PUSH_IMAGE_TAG}"
-docker tag "${AIRFLOW_CI_IMAGE}" "${legacy_ci_image}"
-docker push "${legacy_ci_image}"

@@ -16,7 +16,6 @@
 # under the License.
 
 import copy
-import datetime
 import unittest
 from unittest.mock import ANY, MagicMock, patch
 
@@ -25,7 +24,6 @@ import pytest
 from googleapiclient.errors import HttpError
 
 from airflow.exceptions import AirflowException
-from airflow.models import TaskInstance
 from airflow.models.dag import DAG
 from airflow.providers.google.cloud.operators.mlengine import (
     AIPlatformConsoleLink,
@@ -43,9 +41,10 @@ from airflow.providers.google.cloud.operators.mlengine import (
     MLEngineTrainingCancelJobOperator,
 )
 from airflow.serialization.serialized_objects import SerializedDAG
+from airflow.utils import timezone
 from airflow.utils.dates import days_ago
 
-DEFAULT_DATE = datetime.datetime(2017, 6, 6)
+DEFAULT_DATE = timezone.datetime(2017, 6, 6)
 
 TEST_DAG_ID = "test-mlengine-operators"
 TEST_PROJECT_ID = "test-project-id"
@@ -311,7 +310,7 @@ class TestMLEngineBatchPredictionOperator(unittest.TestCase):
         assert 'A failure message' == str(ctx.value)
 
 
-class TestMLEngineStartTrainingJobOperator(unittest.TestCase):
+class TestMLEngineStartTrainingJobOperator:
     TRAINING_DEFAULT_ARGS = {
         'project_id': 'test-project',
         'job_id': 'test_training',
@@ -322,7 +321,6 @@ class TestMLEngineStartTrainingJobOperator(unittest.TestCase):
         'scale_tier': 'STANDARD_1',
         'labels': {'some': 'labels'},
         'task_id': 'test-training',
-        'start_date': days_ago(1),
     }
     TRAINING_INPUT = {
         'jobId': 'test_training',
@@ -335,9 +333,6 @@ class TestMLEngineStartTrainingJobOperator(unittest.TestCase):
             'region': 'us-east1',
         },
     }
-
-    def setUp(self):
-        self.dag = DAG(TEST_DAG_ID, default_args=self.TRAINING_DEFAULT_ARGS)
 
     @patch('airflow.providers.google.cloud.operators.mlengine.MLEngineHook')
     def test_success_create_training_job(self, mock_hook):
@@ -457,6 +452,45 @@ class TestMLEngineStartTrainingJobOperator(unittest.TestCase):
         training_input['trainingInput']['jobDir'] = 'gs://some-bucket/jobs/test_training'
         training_input['trainingInput']['serviceAccount'] = 'test@serviceaccount.com'
 
+        hyperparams = {
+            'goal': 'MAXIMIZE',
+            'hyperparameterMetricTag': 'metric1',
+            'maxTrials': 30,
+            'maxParallelTrials': 1,
+            'enableTrialEarlyStopping': True,
+            'params': [],
+        }
+
+        hyperparams['params'].append(
+            {
+                'parameterName': 'hidden1',
+                'type': 'INTEGER',
+                'minValue': 40,
+                'maxValue': 400,
+                'scaleType': 'UNIT_LINEAR_SCALE',
+            }
+        )
+
+        hyperparams['params'].append(
+            {'parameterName': 'numRnnCells', 'type': 'DISCRETE', 'discreteValues': [1, 2, 3, 4]}
+        )
+
+        hyperparams['params'].append(
+            {
+                'parameterName': 'rnnCellType',
+                'type': 'CATEGORICAL',
+                'categoricalValues': [
+                    'BasicLSTMCell',
+                    'BasicRNNCell',
+                    'GRUCell',
+                    'LSTMCell',
+                    'LayerNormBasicLSTMCell',
+                ],
+            }
+        )
+
+        training_input['trainingInput']['hyperparameters'] = hyperparams
+
         success_response = self.TRAINING_INPUT.copy()
         success_response['state'] = 'SUCCEEDED'
         hook_instance = mock_hook.return_value
@@ -468,6 +502,7 @@ class TestMLEngineStartTrainingJobOperator(unittest.TestCase):
             job_dir='gs://some-bucket/jobs/test_training',
             service_account='test@serviceaccount.com',
             **self.TRAINING_DEFAULT_ARGS,
+            hyperparameters=hyperparams,
         )
         training_op.execute(MagicMock())
 
@@ -531,12 +566,12 @@ class TestMLEngineStartTrainingJobOperator(unittest.TestCase):
         assert 'A failure message' == str(ctx.value)
 
     @patch('airflow.providers.google.cloud.operators.mlengine.MLEngineHook')
-    def test_console_extra_link(self, mock_hook):
-        training_op = MLEngineStartTrainingJobOperator(**self.TRAINING_DEFAULT_ARGS)
-
-        ti = TaskInstance(
-            task=training_op,
+    def test_console_extra_link(self, mock_hook, create_task_instance_of_operator):
+        ti = create_task_instance_of_operator(
+            MLEngineStartTrainingJobOperator,
+            dag_id="test_console_extra_link",
             execution_date=DEFAULT_DATE,
+            **self.TRAINING_DEFAULT_ARGS,
         )
 
         job_id = self.TRAINING_DEFAULT_ARGS['job_id']
@@ -549,15 +584,18 @@ class TestMLEngineStartTrainingJobOperator(unittest.TestCase):
 
         assert (
             f"https://console.cloud.google.com/ai-platform/jobs/{job_id}?project={project_id}"
-            == training_op.get_extra_links(DEFAULT_DATE, AIPlatformConsoleLink.name)
+            == ti.task.get_extra_links(DEFAULT_DATE, AIPlatformConsoleLink.name)
         )
 
-        assert '' == training_op.get_extra_links(datetime.datetime(2019, 1, 1), AIPlatformConsoleLink.name)
-
-    def test_console_extra_link_serialized_field(self):
-        with self.dag:
-            training_op = MLEngineStartTrainingJobOperator(**self.TRAINING_DEFAULT_ARGS)
-        serialized_dag = SerializedDAG.to_dict(self.dag)
+    @pytest.mark.need_serialized_dag
+    def test_console_extra_link_serialized_field(self, dag_maker, create_task_instance_of_operator):
+        ti = create_task_instance_of_operator(
+            MLEngineStartTrainingJobOperator,
+            dag_id="test_console_extra_link_serialized_field",
+            execution_date=DEFAULT_DATE,
+            **self.TRAINING_DEFAULT_ARGS,
+        )
+        serialized_dag = dag_maker.get_serialized_data()
         dag = SerializedDAG.from_dict(serialized_dag)
         simple_task = dag.task_dict[self.TRAINING_DEFAULT_ARGS['task_id']]
 
@@ -576,18 +614,12 @@ class TestMLEngineStartTrainingJobOperator(unittest.TestCase):
             "project_id": project_id,
         }
 
-        ti = TaskInstance(
-            task=training_op,
-            execution_date=DEFAULT_DATE,
-        )
         ti.xcom_push(key='gcp_metadata', value=gcp_metadata)
 
         assert (
             f"https://console.cloud.google.com/ai-platform/jobs/{job_id}?project={project_id}"
             == simple_task.get_extra_links(DEFAULT_DATE, AIPlatformConsoleLink.name)
         )
-
-        assert '' == simple_task.get_extra_links(datetime.datetime(2019, 1, 1), AIPlatformConsoleLink.name)
 
 
 class TestMLEngineTrainingCancelJobOperator(unittest.TestCase):

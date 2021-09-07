@@ -19,6 +19,20 @@
 Changelog
 ---------
 
+2.0.1
+.....
+
+
+Misc
+~~~~
+
+* ``Optimise connection importing for Airflow 2.2.0``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Prepares docs for Rc2 release of July providers (#17116)``
+   * ``Remove/refactor default_args pattern for miscellaneous providers (#16872)``
+
 2.0.0
 .....
 

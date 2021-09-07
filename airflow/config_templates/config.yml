@@ -81,9 +81,10 @@
     - name: sql_engine_collation_for_ids
       description: |
         Collation for ``dag_id``, ``task_id``, ``key`` columns in case they have different encoding.
-        This is particularly useful in case of mysql with utf8mb4 encoding because
-        primary keys for XCom table has too big size and ``sql_engine_collation_for_ids`` should
-        be set to ``utf8mb3_general_ci``.
+        By default this collation is the same as the database collation, however for ``mysql`` and ``mariadb``
+        the default is ``utf8mb3_general_ci`` so that the index sizes of our index keys will not exceed
+        the maximum size of allowed index when collation is set to ``utf8mb4`` variant
+        (see https://github.com/apache/airflow/pull/17603#issuecomment-901121618).
       version_added: 2.0.0
       type: string
       example: ~
@@ -360,16 +361,6 @@
       type: string
       example: ~
       default: "10"
-    - name: store_dag_code
-      description: |
-        Whether to persist DAG files code in DB.
-        If set to True, Webserver reads file contents from DB instead of
-        trying to access files in a DAG folder.
-        (Default is ``True``)
-      version_added: 1.10.10
-      type: string
-      example: "True"
-      default: "True"
     - name: max_num_rendered_ti_fields_per_task
       description: |
         Maximum number of Rendered Task Instance Fields (Template Fields) per task to store
@@ -603,7 +594,7 @@
       type: string
       example: ~
       default: "task"
-    - name: extra_loggers
+    - name: extra_logger_names
       description: |
         A comma\-separated list of third-party logger names that will be configured to print messages to
         consoles\.
@@ -611,6 +602,17 @@
       type: string
       example: "connexion,sqlalchemy"
       default: ""
+    - name: worker_log_server_port
+      description: |
+        When you start an airflow worker, airflow starts a tiny web server
+        subprocess to serve the workers local log files to the airflow main
+        web server, who then builds pages and sends them to users. This defines
+        the port on which the logs are served. It needs to be unused, and open
+        visible from the main web server to connect into the workers.
+      version_added: "2.3.0"
+      type: string
+      example: ~
+      default: "8793"
 - name: metrics
   description: |
     StatsD (https://github.com/etsy/statsd) integration settings.
@@ -815,9 +817,10 @@
       version_added: ~
       example: ~
       default: ""
-    - name: access_control_allow_origin
+    - name: access_control_allow_origins
       description: |
-        Indicates whether the response can be shared with requesting code from the given origin.
+        Indicates whether the response can be shared with requesting code from the given origins.
+        Separate URLs with space.
       type: string
       version_added: ~
       example: ~
@@ -1476,17 +1479,6 @@
       type: integer
       example: "1"
       default: ~
-    - name: worker_log_server_port
-      description: |
-        When you start an airflow worker, airflow starts a tiny web server
-        subprocess to serve the workers local log files to the airflow main
-        web server, who then builds pages and sends them to users. This defines
-        the port on which the logs are served. It needs to be unused, and open
-        visible from the main web server to connect into the workers.
-      version_added: ~
-      type: string
-      example: ~
-      default: "8793"
     - name: worker_umask
       description: |
         Umask that will be used when starting workers with the ``airflow celery worker``
@@ -1701,14 +1693,6 @@
       type: string
       example: ~
       default: "5"
-    - name: clean_tis_without_dagrun_interval
-      description: |
-        How often (in seconds) to check and tidy up 'running' TaskInstancess
-        that no longer have a matching DagRun
-      version_added: 2.0.0
-      type: float
-      example: ~
-      default: "15.0"
     - name: scheduler_heartbeat_sec
       description: |
         The scheduler constantly tries to trigger new tasks (look at the
@@ -1809,11 +1793,8 @@
     - name: max_tis_per_query
       description: |
         This changes the batch size of queries in the scheduling main loop.
-        If this is too high, SQL query performance may be impacted by one
-        or more of the following:
-        - reversion to full table scan
-        - complexity of query predicate
-        - excessive locking
+        If this is too high, SQL query performance may be impacted by
+        reversion to full table scan, complexity of query predicate, and/or excessive locking.
         Additionally, you may hit the maximum allowable query length for your db.
         Set this to 0 for no limit (not advised)
       version_added: ~
@@ -1952,6 +1933,20 @@
       type: string
       example: ~
       default: "airflow.keytab"
+    - name: forwardable
+      description: |
+        Allow to disable ticket forwardability.
+      version_added: ~
+      type: boolean
+      example: ~
+      default: "True"
+    - name: include_ip
+      description: |
+        Allow to remove source IP from token, useful when using token behind NATted Docker host.
+      version_added: ~
+      type: boolean
+      example: ~
+      default: "True"
 - name: github_enterprise
   description: ~
   options:

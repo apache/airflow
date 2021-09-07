@@ -20,11 +20,14 @@ from urllib.parse import quote_plus
 
 import pytest
 
-from airflow.models import DAG, RenderedTaskInstanceFields, TaskInstance
-from airflow.models.serialized_dag import SerializedDagModel
+from airflow.models import DAG, RenderedTaskInstanceFields
 from airflow.operators.bash import BashOperator
+from airflow.serialization.serialized_objects import SerializedDAG
 from airflow.utils import timezone
 from airflow.utils.session import create_session
+from airflow.utils.state import DagRunState, TaskInstanceState
+from airflow.utils.types import DagRunType
+from tests.test_utils.db import clear_db_dags, clear_db_runs, clear_rendered_ti_fields
 from tests.test_utils.www import check_content_in_response, check_content_not_in_response
 
 DEFAULT_DATE = timezone.datetime(2020, 3, 1)
@@ -58,42 +61,64 @@ def task2(dag):
     )
 
 
+@pytest.fixture(scope="module", autouse=True)
+def init_blank_db():
+    """Make sure there are no runs before we test anything.
+
+    This really shouldn't be needed, but tests elsewhere leave the db dirty.
+    """
+    clear_db_dags()
+    clear_db_runs()
+    clear_rendered_ti_fields()
+
+
 @pytest.fixture(autouse=True)
 def reset_db(dag, task1, task2):
-    """Reset DB for each test.
-
-    This writes the DAG to the DB, and clears rendered fields so we have a clean
-    slate for each test. Note that task1 and task2 are included in the argument
-    to make sure they are registered to the DAG for serialization.
-
-    The pre-test cleanup really shouldn't be necessary, but the test DB was not
-    initialized in a clean state to begin with :(
-    """
-    with create_session() as session:
-        SerializedDagModel.write_dag(dag)
-        session.query(RenderedTaskInstanceFields).delete()
     yield
-    with create_session() as session:
-        session.query(RenderedTaskInstanceFields).delete()
-        session.query(SerializedDagModel).delete()
+    clear_db_dags()
+    clear_db_runs()
+    clear_rendered_ti_fields()
+
+
+@pytest.fixture()
+def create_dag_run(dag, task1, task2):
+    def _create_dag_run(*, execution_date, session):
+        dag_run = dag.create_dagrun(
+            state=DagRunState.RUNNING,
+            execution_date=execution_date,
+            data_interval=(execution_date, execution_date),
+            run_type=DagRunType.SCHEDULED,
+            session=session,
+        )
+        ti1 = dag_run.get_task_instance(task1.task_id, session=session)
+        ti1.state = TaskInstanceState.SUCCESS
+        ti2 = dag_run.get_task_instance(task2.task_id, session=session)
+        ti2.state = TaskInstanceState.SCHEDULED
+        session.flush()
+        return dag_run
+
+    return _create_dag_run
 
 
 @pytest.fixture()
 def patch_app(app, dag):
     with mock.patch.object(app, "dag_bag") as mock_dag_bag:
-        mock_dag_bag.get_dag.return_value = dag
+        mock_dag_bag.get_dag.return_value = SerializedDAG.from_dict(SerializedDAG.to_dict(dag))
         yield app
 
 
 @pytest.mark.usefixtures("patch_app")
-def test_rendered_template_view(admin_client, task1):
+def test_rendered_template_view(admin_client, create_dag_run, task1):
     """
     Test that the Rendered View contains the values from RenderedTaskInstanceFields
     """
     assert task1.bash_command == '{{ task_instance_key_str }}'
-    ti = TaskInstance(task1, DEFAULT_DATE)
 
     with create_session() as session:
+        dag_run = create_dag_run(execution_date=DEFAULT_DATE, session=session)
+        ti = dag_run.get_task_instance(task1.task_id, session=session)
+        assert ti is not None, "task instance not found"
+        ti.refresh_from_task(task1)
         session.add(RenderedTaskInstanceFields(ti))
 
     url = f'rendered-templates?task_id=task1&dag_id=testdag&execution_date={quote_plus(str(DEFAULT_DATE))}'
@@ -103,43 +128,39 @@ def test_rendered_template_view(admin_client, task1):
 
 
 @pytest.mark.usefixtures("patch_app")
-def test_rendered_template_view_for_unexecuted_tis(admin_client, task1):
+def test_rendered_template_view_for_unexecuted_tis(admin_client, create_dag_run, task1):
     """
     Test that the Rendered View is able to show rendered values
     even for TIs that have not yet executed
     """
     assert task1.bash_command == '{{ task_instance_key_str }}'
 
-    url = f'rendered-templates?task_id=task1&dag_id=task1&execution_date={quote_plus(str(DEFAULT_DATE))}'
+    with create_session() as session:
+        create_dag_run(execution_date=DEFAULT_DATE, session=session)
+
+    url = f'rendered-templates?task_id=task1&dag_id=testdag&execution_date={quote_plus(str(DEFAULT_DATE))}'
 
     resp = admin_client.get(url, follow_redirects=True)
     check_content_in_response("testdag__task1__20200301", resp)
 
 
-def test_user_defined_filter_and_macros_raise_error(app, admin_client, dag, task2):
-    """
-    Test that the Rendered View is able to show rendered values
-    even for TIs that have not yet executed
-    """
-    dag = SerializedDagModel.get(dag.dag_id).dag
-    with mock.patch.object(app, "dag_bag") as mock_dag_bag:
-        mock_dag_bag.get_dag.return_value = dag
+@pytest.mark.usefixtures("patch_app")
+def test_user_defined_filter_and_macros_raise_error(admin_client, create_dag_run, task2):
+    assert task2.bash_command == 'echo {{ fullname("Apache", "Airflow") | hello }}'
 
-        assert task2.bash_command == 'echo {{ fullname("Apache", "Airflow") | hello }}'
+    with create_session() as session:
+        create_dag_run(execution_date=DEFAULT_DATE, session=session)
 
-        url = (
-            f'rendered-templates?task_id=task2&dag_id=testdag&'
-            f'execution_date={quote_plus(str(DEFAULT_DATE))}'
-        )
+    url = f'rendered-templates?task_id=task2&dag_id=testdag&execution_date={quote_plus(str(DEFAULT_DATE))}'
 
-        resp = admin_client.get(url, follow_redirects=True)
+    resp = admin_client.get(url, follow_redirects=True)
 
-        check_content_not_in_response("echo Hello Apache Airflow", resp)
-        check_content_in_response(
-            "Webserver does not have access to User-defined Macros or Filters when "
-            "Dag Serialization is enabled. Hence for the task that have not yet "
-            "started running, please use &#39;airflow tasks render&#39; for "
-            "debugging the rendering of template_fields.<br><br>OriginalError: no "
-            "filter named &#39;hello&#39",
-            resp,
-        )
+    check_content_not_in_response("echo Hello Apache Airflow", resp)
+    check_content_in_response(
+        "Webserver does not have access to User-defined Macros or Filters when "
+        "Dag Serialization is enabled. Hence for the task that have not yet "
+        "started running, please use &#39;airflow tasks render&#39; for "
+        "debugging the rendering of template_fields.<br><br>OriginalError: no "
+        "filter named &#39;hello&#39",
+        resp,
+    )

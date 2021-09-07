@@ -42,7 +42,7 @@ try:
     )
     from airflow.kubernetes import pod_generator
     from airflow.kubernetes.kubernetes_helper_functions import annotations_to_key
-    from airflow.kubernetes.pod_generator import PodGenerator, datetime_to_label_safe_datestring
+    from airflow.kubernetes.pod_generator import PodGenerator
     from airflow.utils.state import State
 except ImportError:
     AirflowKubernetesScheduler = None  # type: ignore
@@ -226,7 +226,7 @@ class TestKubernetesExecutor(unittest.TestCase):
             # Execute a task while the Api Throws errors
             try_number = 1
             kubernetes_executor.execute_async(
-                key=('dag', 'task', datetime.utcnow(), try_number),
+                key=('dag', 'task', 'run_id', try_number),
                 queue=None,
                 command=['airflow', 'tasks', 'run', 'true', 'some_parameter'],
             )
@@ -298,10 +298,8 @@ class TestKubernetesExecutor(unittest.TestCase):
             assert executor.event_buffer == {}
             assert executor.task_queue.empty()
 
-            execution_date = datetime.utcnow()
-
             executor.execute_async(
-                key=('dag', 'task', execution_date, 1),
+                key=('dag', 'task', 'run_id', 1),
                 queue=None,
                 command=['airflow', 'tasks', 'run', 'true', 'some_parameter'],
                 executor_config={
@@ -333,7 +331,7 @@ class TestKubernetesExecutor(unittest.TestCase):
                         namespace="default",
                         annotations={
                             'dag_id': 'dag',
-                            'execution_date': execution_date.isoformat(),
+                            'run_id': 'run_id',
                             'task_id': 'task',
                             'try_number': '1',
                         },
@@ -341,7 +339,7 @@ class TestKubernetesExecutor(unittest.TestCase):
                             'airflow-worker': '5',
                             'airflow_version': mock.ANY,
                             'dag_id': 'dag',
-                            'execution_date': datetime_to_label_safe_datestring(execution_date),
+                            'run_id': 'run_id',
                             'kubernetes_executor': 'True',
                             'mylabel': 'foo',
                             'release': 'stable',
@@ -370,7 +368,7 @@ class TestKubernetesExecutor(unittest.TestCase):
     def test_change_state_running(self, mock_get_kube_client, mock_kubernetes_job_watcher):
         executor = self.kubernetes_executor
         executor.start()
-        key = ('dag_id', 'task_id', 'ex_time', 'try_number1')
+        key = ('dag_id', 'task_id', 'run_id', 'try_number1')
         executor._change_state(key, State.RUNNING, 'pod_id', 'default')
         assert executor.event_buffer[key][0] == State.RUNNING
 
@@ -380,8 +378,7 @@ class TestKubernetesExecutor(unittest.TestCase):
     def test_change_state_success(self, mock_delete_pod, mock_get_kube_client, mock_kubernetes_job_watcher):
         executor = self.kubernetes_executor
         executor.start()
-        test_time = timezone.utcnow()
-        key = ('dag_id', 'task_id', test_time, 'try_number2')
+        key = ('dag_id', 'task_id', 'run_id', 'try_number2')
         executor._change_state(key, State.SUCCESS, 'pod_id', 'default')
         assert executor.event_buffer[key][0] == State.SUCCESS
         mock_delete_pod.assert_called_once_with('pod_id', 'default')
@@ -396,8 +393,7 @@ class TestKubernetesExecutor(unittest.TestCase):
         executor.kube_config.delete_worker_pods = False
         executor.kube_config.delete_worker_pods_on_failure = False
         executor.start()
-        test_time = timezone.utcnow()
-        key = ('dag_id', 'task_id', test_time, 'try_number3')
+        key = ('dag_id', 'task_id', 'run_id', 'try_number3')
         executor._change_state(key, State.FAILED, 'pod_id', 'default')
         assert executor.event_buffer[key][0] == State.FAILED
         mock_delete_pod.assert_not_called()
@@ -408,13 +404,12 @@ class TestKubernetesExecutor(unittest.TestCase):
     def test_change_state_skip_pod_deletion(
         self, mock_delete_pod, mock_get_kube_client, mock_kubernetes_job_watcher
     ):
-        test_time = timezone.utcnow()
         executor = self.kubernetes_executor
         executor.kube_config.delete_worker_pods = False
         executor.kube_config.delete_worker_pods_on_failure = False
 
         executor.start()
-        key = ('dag_id', 'task_id', test_time, 'try_number2')
+        key = ('dag_id', 'task_id', 'run_id', 'try_number2')
         executor._change_state(key, State.SUCCESS, 'pod_id', 'default')
         assert executor.event_buffer[key][0] == State.SUCCESS
         mock_delete_pod.assert_not_called()
@@ -429,7 +424,7 @@ class TestKubernetesExecutor(unittest.TestCase):
         executor.kube_config.delete_worker_pods_on_failure = True
 
         executor.start()
-        key = ('dag_id', 'task_id', 'ex_time', 'try_number2')
+        key = ('dag_id', 'task_id', 'run_id', 'try_number2')
         executor._change_state(key, State.FAILED, 'pod_id', 'test-namespace')
         assert executor.event_buffer[key][0] == State.FAILED
         mock_delete_pod.assert_called_once_with('pod_id', 'test-namespace')
@@ -442,7 +437,7 @@ class TestKubernetesExecutor(unittest.TestCase):
         ti_key = annotations_to_key(
             {
                 'dag_id': 'dag',
-                'execution_date': datetime.utcnow().isoformat(),
+                'run_id': 'run_id',
                 'task_id': 'task',
                 'try_number': '1',
             }
@@ -525,7 +520,7 @@ class TestKubernetesExecutor(unittest.TestCase):
         executor.scheduler_job_id = "modified"
         annotations = {
             'dag_id': 'dag',
-            'execution_date': datetime.utcnow().isoformat(),
+            'run_id': 'run_id',
             'task_id': 'task',
             'try_number': '1',
         }
@@ -566,7 +561,7 @@ class TestKubernetesExecutor(unittest.TestCase):
                 labels={"airflow-worker": "bar"},
                 annotations={
                     'dag_id': 'dag',
-                    'execution_date': datetime.utcnow().isoformat(),
+                    'run_id': 'run_id',
                     'task_id': 'task',
                     'try_number': '1',
                 },
@@ -680,8 +675,9 @@ class TestKubernetesJobWatcher(unittest.TestCase):
         self.core_annotations = {
             "dag_id": "dag",
             "task_id": "task",
-            "execution_date": "dt",
+            "run_id": "run_id",
             "try_number": "1",
+            "execution_date": None,
         }
         self.pod = k8s.V1Pod(
             metadata=k8s.V1ObjectMeta(

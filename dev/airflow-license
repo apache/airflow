@@ -68,7 +68,7 @@ def parse_license_file(project_name):
 
 
 if __name__ == "__main__":
-    print("{:<30}|{:<50}||{:<20}||{:<10}".format("PROJECT", "URL", "LICENSE TYPE DEFINED", "DETECTED"))
+    print(f"{'PROJECT':<30}|{'URL':<50}||{'LICENSE TYPE DEFINED':<20}||{'DETECTED':<10}")
 
     notices = get_notices()
 

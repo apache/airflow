@@ -64,6 +64,8 @@ class TestPSRPHook(unittest.TestCase):
 
             hook.invoke_powershell("foo")
 
+        assert ws_man().__exit__.mock_calls == [call(None, None, None)]
+
         assert call('%s', '<output>') in log_info.mock_calls
         assert call('Information: %s', '<message>') in log_info.mock_calls
         assert call('Invocation state: %s', 'Completed') in log_info.mock_calls

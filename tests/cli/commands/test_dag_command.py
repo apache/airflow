@@ -39,7 +39,7 @@ from tests.test_utils.db import clear_db_dags, clear_db_runs
 
 dag_folder_path = '/'.join(os.path.realpath(__file__).split('/')[:-1])
 
-DEFAULT_DATE = timezone.make_aware(datetime(2015, 1, 1))
+DEFAULT_DATE = timezone.make_aware(datetime(2015, 1, 1), timezone=timezone.utc)
 TEST_DAG_FOLDER = os.path.join(os.path.dirname(dag_folder_path), 'dags')
 TEST_DAG_ID = 'unit_tests'
 
@@ -357,7 +357,7 @@ class TestCliDags(unittest.TestCase):
         assert "airflow" in out
         assert "paused" in out
         assert "airflow/example_dags/example_complex.py" in out
-        assert "False" in out
+        assert "- dag_id:" in out
 
     def test_cli_list_dag_runs(self):
         dag_command.dag_trigger(

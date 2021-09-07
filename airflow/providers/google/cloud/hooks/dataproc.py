@@ -216,7 +216,7 @@ class DataprocHook(GoogleBaseHook):
                 "Parameter `location` will be deprecated. "
                 "Please provide value through `region` parameter instead.",
                 DeprecationWarning,
-                stacklevel=1,
+                stacklevel=2,
             )
             region = location
         client_options = None
@@ -236,7 +236,7 @@ class DataprocHook(GoogleBaseHook):
                 "Parameter `location` will be deprecated. "
                 "Please provide value through `region` parameter instead.",
                 DeprecationWarning,
-                stacklevel=1,
+                stacklevel=2,
             )
             region = location
         client_options = None
@@ -256,7 +256,7 @@ class DataprocHook(GoogleBaseHook):
                 "Parameter `location` will be deprecated. "
                 "Please provide value through `region` parameter instead.",
                 DeprecationWarning,
-                stacklevel=1,
+                stacklevel=2,
             )
             region = location
         client_options = None
@@ -587,7 +587,7 @@ class DataprocHook(GoogleBaseHook):
                     "Parameter `location` will be deprecated. "
                     "Please provide value through `region` parameter instead.",
                     DeprecationWarning,
-                    stacklevel=1,
+                    stacklevel=2,
                 )
                 region = location
             else:
@@ -647,7 +647,7 @@ class DataprocHook(GoogleBaseHook):
                     "Parameter `location` will be deprecated. "
                     "Please provide value through `region` parameter instead.",
                     DeprecationWarning,
-                    stacklevel=1,
+                    stacklevel=2,
                 )
                 region = location
             else:
@@ -712,7 +712,7 @@ class DataprocHook(GoogleBaseHook):
                     "Parameter `location` will be deprecated. "
                     "Please provide value through `region` parameter instead.",
                     DeprecationWarning,
-                    stacklevel=1,
+                    stacklevel=2,
                 )
                 region = location
             else:
@@ -771,7 +771,7 @@ class DataprocHook(GoogleBaseHook):
                     "Parameter `location` will be deprecated. "
                     "Please provide value through `region` parameter instead.",
                     DeprecationWarning,
-                    stacklevel=1,
+                    stacklevel=2,
                 )
                 region = location
             else:
@@ -819,7 +819,7 @@ class DataprocHook(GoogleBaseHook):
                     "Parameter `location` will be deprecated. "
                     "Please provide value through `region` parameter instead.",
                     DeprecationWarning,
-                    stacklevel=1,
+                    stacklevel=2,
                 )
                 region = location
             else:
@@ -878,7 +878,7 @@ class DataprocHook(GoogleBaseHook):
                     "Parameter `location` will be deprecated. "
                     "Please provide value through `region` parameter instead.",
                     DeprecationWarning,
-                    stacklevel=1,
+                    stacklevel=2,
                 )
                 region = location
             else:
@@ -935,7 +935,7 @@ class DataprocHook(GoogleBaseHook):
                     "Parameter `location` will be deprecated. "
                     "Please provide value through `region` parameter instead.",
                     DeprecationWarning,
-                    stacklevel=1,
+                    stacklevel=2,
                 )
                 region = location
             else:
@@ -1010,7 +1010,7 @@ class DataprocHook(GoogleBaseHook):
                     "Parameter `location` will be deprecated. "
                     "Please provide value through `region` parameter instead.",
                     DeprecationWarning,
-                    stacklevel=1,
+                    stacklevel=2,
                 )
                 region = location
 

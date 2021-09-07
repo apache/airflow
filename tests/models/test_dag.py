@@ -36,6 +36,7 @@ import pytest
 from dateutil.relativedelta import relativedelta
 from freezegun import freeze_time
 from parameterized import parameterized
+from sqlalchemy import inspect
 
 from airflow import models, settings
 from airflow.configuration import conf
@@ -66,11 +67,18 @@ from tests.test_utils.timetables import cron_timetable, delta_timetable
 TEST_DATE = datetime_tz(2015, 1, 2, 0, 0)
 
 
+@pytest.fixture
+def session():
+    with create_session() as session:
+        yield session
+        session.rollback()
+
+
 class TestDag(unittest.TestCase):
     def setUp(self) -> None:
         clear_db_runs()
         clear_db_dags()
-        self.patcher_dag_code = patch.object(settings, "STORE_DAG_CODE", False)
+        self.patcher_dag_code = mock.patch('airflow.models.dag.DagCode.bulk_sync_to_db')
         self.patcher_dag_code.start()
 
     def tearDown(self) -> None:
@@ -448,13 +456,24 @@ class TestDag(unittest.TestCase):
         test_dag = DAG(dag_id=test_dag_id, start_date=DEFAULT_DATE)
         test_task = DummyOperator(task_id=test_task_id, dag=test_dag)
 
-        ti1 = TI(task=test_task, execution_date=DEFAULT_DATE)
+        dr1 = test_dag.create_dagrun(state=None, run_id="test1", execution_date=DEFAULT_DATE)
+        dr2 = test_dag.create_dagrun(
+            state=None, run_id="test2", execution_date=DEFAULT_DATE + datetime.timedelta(days=1)
+        )
+        dr3 = test_dag.create_dagrun(
+            state=None, run_id="test3", execution_date=DEFAULT_DATE + datetime.timedelta(days=2)
+        )
+        dr4 = test_dag.create_dagrun(
+            state=None, run_id="test4", execution_date=DEFAULT_DATE + datetime.timedelta(days=3)
+        )
+
+        ti1 = TI(task=test_task, run_id=dr1.run_id)
         ti1.state = None
-        ti2 = TI(task=test_task, execution_date=DEFAULT_DATE + datetime.timedelta(days=1))
+        ti2 = TI(task=test_task, run_id=dr2.run_id)
         ti2.state = State.RUNNING
-        ti3 = TI(task=test_task, execution_date=DEFAULT_DATE + datetime.timedelta(days=2))
+        ti3 = TI(task=test_task, run_id=dr3.run_id)
         ti3.state = State.QUEUED
-        ti4 = TI(task=test_task, execution_date=DEFAULT_DATE + datetime.timedelta(days=3))
+        ti4 = TI(task=test_task, run_id=dr4.run_id)
         ti4.state = State.RUNNING
         session = settings.Session()
         session.merge(ti1)
@@ -678,7 +697,7 @@ class TestDag(unittest.TestCase):
         clear_db_dags()
         dags = [DAG(f'dag-bulk-sync-{i}', start_date=DEFAULT_DATE, tags=["test-dag"]) for i in range(0, 4)]
 
-        with assert_queries_count(5):
+        with assert_queries_count(4):
             DAG.bulk_write_to_db(dags)
         with create_session() as session:
             assert {'dag-bulk-sync-0', 'dag-bulk-sync-1', 'dag-bulk-sync-2', 'dag-bulk-sync-3'} == {
@@ -695,14 +714,14 @@ class TestDag(unittest.TestCase):
                 assert row[0] is not None
 
         # Re-sync should do fewer queries
-        with assert_queries_count(4):
+        with assert_queries_count(3):
             DAG.bulk_write_to_db(dags)
-        with assert_queries_count(4):
+        with assert_queries_count(3):
             DAG.bulk_write_to_db(dags)
         # Adding tags
         for dag in dags:
             dag.tags.append("test-dag2")
-        with assert_queries_count(5):
+        with assert_queries_count(4):
             DAG.bulk_write_to_db(dags)
         with create_session() as session:
             assert {'dag-bulk-sync-0', 'dag-bulk-sync-1', 'dag-bulk-sync-2', 'dag-bulk-sync-3'} == {
@@ -721,7 +740,7 @@ class TestDag(unittest.TestCase):
         # Removing tags
         for dag in dags:
             dag.tags.remove("test-dag")
-        with assert_queries_count(5):
+        with assert_queries_count(4):
             DAG.bulk_write_to_db(dags)
         with create_session() as session:
             assert {'dag-bulk-sync-0', 'dag-bulk-sync-1', 'dag-bulk-sync-2', 'dag-bulk-sync-3'} == {
@@ -768,8 +787,8 @@ class TestDag(unittest.TestCase):
 
         model = session.query(DagModel).get((dag.dag_id,))
         assert model.next_dagrun == period_end
-        # We signal "at max active runs" by saying this run is never eligible to be created
-        assert model.next_dagrun_create_after is None
+        # Next dagrun after is not None because the dagrun would be in queued state
+        assert model.next_dagrun_create_after is not None
 
     def test_sync_to_db(self):
         dag = DAG(
@@ -939,7 +958,7 @@ class TestDag(unittest.TestCase):
         )
         dag.fileloc = dag_fileloc
         session = settings.Session()
-        with mock.patch.object(settings, "STORE_DAG_CODE", False):
+        with mock.patch('airflow.models.dag.DagCode.bulk_sync_to_db'):
             dag.sync_to_db(session=session)
 
         orm_dag = session.query(DagModel).filter(DagModel.dag_id == dag_id).one()
@@ -1094,10 +1113,12 @@ class TestDag(unittest.TestCase):
         when = TEST_DATE
         dag.add_task(BaseOperator(task_id="faketastic", owner='Also fake', start_date=when))
 
-        dag_run = dag.create_dagrun(State.RUNNING, when, run_type=DagRunType.MANUAL)
-        # should not raise any exception
-        dag.handle_callback(dag_run, success=False)
-        dag.handle_callback(dag_run, success=True)
+        with create_session() as session:
+            dag_run = dag.create_dagrun(State.RUNNING, when, run_type=DagRunType.MANUAL, session=session)
+
+            # should not raise any exception
+            dag.handle_callback(dag_run, success=False)
+            dag.handle_callback(dag_run, success=True)
 
         mock_stats.incr.assert_called_with("dag.callback_exceptions")
 
@@ -1137,8 +1158,7 @@ class TestDag(unittest.TestCase):
         it is called, and not scheduled the second.
         """
         dag_id = "test_schedule_dag_once"
-        dag = DAG(dag_id=dag_id)
-        dag.schedule_interval = '@once'
+        dag = DAG(dag_id=dag_id, schedule_interval="@once")
         assert isinstance(dag.timetable, OnceTimetable)
         dag.add_task(BaseOperator(task_id="faketastic", owner='Also fake', start_date=TEST_DATE))
 
@@ -1161,8 +1181,7 @@ class TestDag(unittest.TestCase):
         Tests if fractional seconds are stored in the database
         """
         dag_id = "test_fractional_seconds"
-        dag = DAG(dag_id=dag_id)
-        dag.schedule_interval = '@once'
+        dag = DAG(dag_id=dag_id, schedule_interval="@once")
         dag.add_task(BaseOperator(task_id="faketastic", owner='Also fake', start_date=TEST_DATE))
 
         start_date = timezone.utcnow()
@@ -1261,11 +1280,9 @@ class TestDag(unittest.TestCase):
             (datetime.timedelta(days=1), delta_timetable(datetime.timedelta(days=1))),
         ]
     )
-    def test_timetable(self, schedule_interval, expected_timetable):
+    def test_timetable_from_schedule_interval(self, schedule_interval, expected_timetable):
         dag = DAG("test_schedule_interval", schedule_interval=schedule_interval)
-
         assert dag.timetable == expected_timetable
-        assert dag.schedule_interval == schedule_interval
 
     def test_create_dagrun_run_id_is_generated(self):
         dag = DAG(dag_id="run_id_is_generated")
@@ -1974,11 +1991,11 @@ class TestDagDecorator(unittest.TestCase):
         assert dag.params['value'] == self.VALUE
 
 
-def test_set_task_instance_state():
+def test_set_task_instance_state(session, dag_maker):
     """Test that set_task_instance_state updates the TaskInstance state and clear downstream failed"""
 
     start_date = datetime_tz(2020, 1, 1)
-    with DAG("test_set_task_instance_state", start_date=start_date) as dag:
+    with dag_maker("test_set_task_instance_state", start_date=start_date, session=session) as dag:
         task_1 = DummyOperator(task_id="task_1")
         task_2 = DummyOperator(task_id="task_2")
         task_3 = DummyOperator(task_id="task_3")
@@ -1987,49 +2004,48 @@ def test_set_task_instance_state():
 
         task_1 >> [task_2, task_3, task_4, task_5]
 
-    dagrun = dag.create_dagrun(
-        start_date=start_date, execution_date=start_date, state=State.FAILED, run_type=DagRunType.SCHEDULED
-    )
+    dagrun = dag_maker.create_dagrun(state=State.FAILED, run_type=DagRunType.SCHEDULED)
 
-    def get_task_instance(session, task):
+    def get_ti_from_db(task):
         return (
             session.query(TI)
             .filter(
                 TI.dag_id == dag.dag_id,
                 TI.task_id == task.task_id,
-                TI.execution_date == start_date,
+                TI.run_id == dagrun.run_id,
             )
             .one()
         )
 
-    with create_session() as session:
-        get_task_instance(session, task_1).state = State.FAILED
-        get_task_instance(session, task_2).state = State.SUCCESS
-        get_task_instance(session, task_3).state = State.UPSTREAM_FAILED
-        get_task_instance(session, task_4).state = State.FAILED
-        get_task_instance(session, task_5).state = State.SKIPPED
+    get_ti_from_db(task_1).state = State.FAILED
+    get_ti_from_db(task_2).state = State.SUCCESS
+    get_ti_from_db(task_3).state = State.UPSTREAM_FAILED
+    get_ti_from_db(task_4).state = State.FAILED
+    get_ti_from_db(task_5).state = State.SKIPPED
 
-        session.commit()
+    session.flush()
 
     altered = dag.set_task_instance_state(
-        task_id=task_1.task_id, execution_date=start_date, state=State.SUCCESS
+        task_id=task_1.task_id, execution_date=start_date, state=State.SUCCESS, session=session
     )
 
-    with create_session() as session:
-        # After _mark_task_instance_state, task_1 is marked as SUCCESS
-        assert get_task_instance(session, task_1).state == State.SUCCESS
-        # task_2 remains as SUCCESS
-        assert get_task_instance(session, task_2).state == State.SUCCESS
-        # task_3 and task_4 are cleared because they were in FAILED/UPSTREAM_FAILED state
-        assert get_task_instance(session, task_3).state == State.NONE
-        assert get_task_instance(session, task_4).state == State.NONE
-        # task_5 remains as SKIPPED
-        assert get_task_instance(session, task_5).state == State.SKIPPED
-        dagrun.refresh_from_db(session=session)
-        # dagrun should be set to QUEUED
-        assert dagrun.get_state() == State.QUEUED
+    # After _mark_task_instance_state, task_1 is marked as SUCCESS
+    ti1 = get_ti_from_db(task_1)
+    assert ti1.state == State.SUCCESS
+    # TIs should have DagRun pre-loaded
+    assert isinstance(inspect(ti1).attrs.dag_run.loaded_value, DagRun)
+    # task_2 remains as SUCCESS
+    assert get_ti_from_db(task_2).state == State.SUCCESS
+    # task_3 and task_4 are cleared because they were in FAILED/UPSTREAM_FAILED state
+    assert get_ti_from_db(task_3).state == State.NONE
+    assert get_ti_from_db(task_4).state == State.NONE
+    # task_5 remains as SKIPPED
+    assert get_ti_from_db(task_5).state == State.SKIPPED
+    dagrun.refresh_from_db(session=session)
+    # dagrun should be set to QUEUED
+    assert dagrun.get_state() == State.QUEUED
 
-    assert {t.key for t in altered} == {('test_set_task_instance_state', 'task_1', start_date, 1)}
+    assert {t.key for t in altered} == {('test_set_task_instance_state', 'task_1', dagrun.run_id, 1)}
 
 
 @pytest.mark.parametrize(

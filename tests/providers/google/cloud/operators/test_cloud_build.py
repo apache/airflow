@@ -17,17 +17,15 @@
 # under the License.
 """Tests for Google Cloud Build operators """
 
-import tempfile
 from copy import deepcopy
-from datetime import datetime
 from unittest import TestCase, mock
 
 import pytest
 from parameterized import parameterized
 
 from airflow.exceptions import AirflowException
-from airflow.models import DAG, TaskInstance
 from airflow.providers.google.cloud.operators.cloud_build import BuildProcessor, CloudBuildCreateBuildOperator
+from airflow.utils.timezone import datetime
 
 TEST_CREATE_BODY = {
     "source": {"storageSource": {"bucket": "cloud-build-examples", "object": "node-docker-example.tar.gz"}},
@@ -209,23 +207,27 @@ class TestGcpCloudBuildCreateBuildOperator(TestCase):
         )
         assert return_value == TEST_CREATE_BODY
 
-    def test_load_templated_yaml(self):
-        dag = DAG(dag_id='example_cloudbuild_operator', start_date=TEST_DEFAULT_DATE)
-        with tempfile.NamedTemporaryFile(suffix='.yaml', mode='w+t') as build:
-            build.writelines(
-                """
-            steps:
-                - name: 'ubuntu'
-                  args: ['echo', 'Hello {{ params.name }}!']
-            """
-            )
-            build.seek(0)
-            body_path = build.name
-            operator = CloudBuildCreateBuildOperator(
-                body=body_path, task_id="task-id", dag=dag, params={'name': 'airflow'}
-            )
-            operator.prepare_template()
-            ti = TaskInstance(operator, TEST_DEFAULT_DATE)
-            ti.render_templates()
-            expected_body = {'steps': [{'name': 'ubuntu', 'args': ['echo', 'Hello airflow!']}]}
-            assert expected_body == operator.body
+
+def test_load_templated_yaml(tmp_path, session, dag_maker):
+    body_path = tmp_path.joinpath("test_load_templated.yaml")
+    body_path.write_text(
+        """
+        steps:
+          - name: 'ubuntu'
+            args: ['echo', 'Hello {{ params.name }}!']
+        """
+    )
+
+    with dag_maker(dag_id='example_cloudbuild_operator', start_date=TEST_DEFAULT_DATE, session=session):
+        operator = CloudBuildCreateBuildOperator(
+            body=str(body_path), task_id="task-id", params={'name': 'airflow'}
+        )
+    dagrun = dag_maker.create_dagrun()
+    (ti,) = dagrun.task_instances
+    ti.refresh_from_task(operator)
+
+    operator.prepare_template()
+    ti.render_templates()
+
+    expected_body = {'steps': [{'name': 'ubuntu', 'args': ['echo', 'Hello airflow!']}]}
+    assert expected_body == operator.body

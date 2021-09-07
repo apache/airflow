@@ -28,6 +28,14 @@ from airflow.triggers.temporal import DateTimeTrigger, TimeDeltaTrigger
 from airflow.utils import timezone
 
 
+def test_input_validation():
+    """
+    Tests that the DateTimeTrigger validates input to moment arg, it should only accept datetime.
+    """
+    with pytest.raises(TypeError, match="Expected datetime.datetime type for moment. Got <class 'str'>"):
+        DateTimeTrigger('2012-01-01T03:03:03+00:00')
+
+
 def test_datetime_trigger_serialization():
     """
     Tests that the DateTimeTrigger correctly serializes its arguments

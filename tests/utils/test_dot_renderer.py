@@ -16,33 +16,34 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-import datetime
-import unittest
 from unittest import mock
 
-from airflow.models import TaskInstance
 from airflow.models.dag import DAG
 from airflow.operators.bash import BashOperator
 from airflow.operators.dummy import DummyOperator
 from airflow.operators.python import PythonOperator
-from airflow.utils import dot_renderer
+from airflow.utils import dot_renderer, timezone
 from airflow.utils.state import State
 from airflow.utils.task_group import TaskGroup
+from tests.test_utils.db import clear_db_dags
 
-START_DATE = datetime.datetime.now()
+START_DATE = timezone.utcnow()
 
 
-class TestDotRenderer(unittest.TestCase):
+class TestDotRenderer:
+    def setup_class(self):
+        clear_db_dags()
+
+    def teardown_method(self):
+        clear_db_dags()
+
     def test_should_render_dag(self):
-
-        dag = DAG(dag_id="DAG_ID")
-        task_1 = BashOperator(dag=dag, start_date=START_DATE, task_id="first", bash_command="echo 1")
-        task_2 = BashOperator(dag=dag, start_date=START_DATE, task_id="second", bash_command="echo 1")
-        task_3 = PythonOperator(
-            dag=dag, start_date=START_DATE, task_id="third", python_callable=mock.MagicMock()
-        )
-        task_1 >> task_2
-        task_1 >> task_3
+        with DAG(dag_id="DAG_ID") as dag:
+            task_1 = BashOperator(start_date=START_DATE, task_id="first", bash_command="echo 1")
+            task_2 = BashOperator(start_date=START_DATE, task_id="second", bash_command="echo 1")
+            task_3 = PythonOperator(start_date=START_DATE, task_id="third", python_callable=mock.MagicMock())
+            task_1 >> task_2
+            task_1 >> task_3
 
         dot = dot_renderer.render_dag(dag)
         source = dot.source
@@ -56,21 +57,20 @@ class TestDotRenderer(unittest.TestCase):
         assert 'fillcolor="#f0ede4"' in source
         assert 'fillcolor="#f0ede4"' in source
 
-    def test_should_render_dag_with_task_instances(self):
-        dag = DAG(dag_id="DAG_ID")
-        task_1 = BashOperator(dag=dag, start_date=START_DATE, task_id="first", bash_command="echo 1")
-        task_2 = BashOperator(dag=dag, start_date=START_DATE, task_id="second", bash_command="echo 1")
-        task_3 = PythonOperator(
-            dag=dag, start_date=START_DATE, task_id="third", python_callable=mock.MagicMock()
-        )
-        task_1 >> task_2
-        task_1 >> task_3
-        tis = [
-            TaskInstance(task_1, execution_date=START_DATE, state=State.SCHEDULED),
-            TaskInstance(task_2, execution_date=START_DATE, state=State.SUCCESS),
-            TaskInstance(task_3, execution_date=START_DATE, state=State.RUNNING),
-        ]
-        dot = dot_renderer.render_dag(dag, tis=tis)
+    def test_should_render_dag_with_task_instances(self, session, dag_maker):
+        with dag_maker(dag_id="DAG_ID", session=session) as dag:
+            task_1 = BashOperator(start_date=START_DATE, task_id="first", bash_command="echo 1")
+            task_2 = BashOperator(start_date=START_DATE, task_id="second", bash_command="echo 1")
+            task_3 = PythonOperator(start_date=START_DATE, task_id="third", python_callable=mock.MagicMock())
+            task_1 >> task_2
+            task_1 >> task_3
+
+        tis = {ti.task_id: ti for ti in dag_maker.create_dagrun(execution_date=START_DATE).task_instances}
+        tis["first"].state = State.SCHEDULED
+        tis["second"].state = State.SUCCESS
+        tis["third"].state = State.RUNNING
+
+        dot = dot_renderer.render_dag(dag, tis=tis.values())
         source = dot.source
         # Should render DAG title
         assert "label=DAG_ID" in source
@@ -85,21 +85,20 @@ class TestDotRenderer(unittest.TestCase):
             'third [color=black fillcolor=lime label=third shape=rectangle style="filled,rounded"]' in source
         )
 
-    def test_should_render_dag_orientation(self):
+    def test_should_render_dag_orientation(self, session, dag_maker):
         orientation = "TB"
-        dag = DAG(dag_id="DAG_ID", orientation=orientation)
-        task_1 = BashOperator(dag=dag, start_date=START_DATE, task_id="first", bash_command="echo 1")
-        task_2 = BashOperator(dag=dag, start_date=START_DATE, task_id="second", bash_command="echo 1")
-        task_3 = PythonOperator(
-            dag=dag, start_date=START_DATE, task_id="third", python_callable=mock.MagicMock()
-        )
-        task_1 >> task_2
-        task_1 >> task_3
-        tis = [
-            TaskInstance(task_1, execution_date=START_DATE, state=State.SCHEDULED),
-            TaskInstance(task_2, execution_date=START_DATE, state=State.SUCCESS),
-            TaskInstance(task_3, execution_date=START_DATE, state=State.RUNNING),
-        ]
+        with dag_maker(dag_id="DAG_ID", orientation=orientation, session=session) as dag:
+            task_1 = BashOperator(start_date=START_DATE, task_id="first", bash_command="echo 1")
+            task_2 = BashOperator(start_date=START_DATE, task_id="second", bash_command="echo 1")
+            task_3 = PythonOperator(start_date=START_DATE, task_id="third", python_callable=mock.MagicMock())
+            task_1 >> task_2
+            task_1 >> task_3
+
+        tis = dag_maker.create_dagrun(execution_date=START_DATE).task_instances
+        tis[0].state = State.SCHEDULED
+        tis[1].state = State.SUCCESS
+        tis[2].state = State.RUNNING
+
         dot = dot_renderer.render_dag(dag, tis=tis)
         source = dot.source
         # Should render DAG title with orientation

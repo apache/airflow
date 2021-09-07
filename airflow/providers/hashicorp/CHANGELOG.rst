@@ -19,6 +19,36 @@
 Changelog
 ---------
 
+2.1.0
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix instantiating Vault Secret Backend during configuration (#17935)``
+
+Features
+~~~~~~~~
+
+* ``Invalidate Vault cached prop when not authenticated (#17387)``
+* ``Enable Connection creation from Vault parameters (#15013)``
+
+Misc
+~~~~
+
+* ``Optimise connection importing for Airflow 2.2.0``
+* ``Adds secrets backend/logging/auth information to provider yaml (#17625)``
+
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Update description about the new ''connection-types'' provider meta-data (#17767)``
+   * ``Import Hooks lazily individually in providers manager (#17682)``
+   * ``Prepares docs for Rc2 release of July providers (#17116)``
+   * ``Prepare documentation for July release of providers. (#17015)``
+   * ``Removes pylint from our toolchain (#16682)``
+   * ``Add August 2021 Provider&#39;s documentation (#17890)``
+
 2.0.0
 .....
 

@@ -31,10 +31,9 @@ from sqlalchemy.ext.declarative import declarative_base
 
 from airflow import settings
 from airflow.models import DagBag
-
-# revision identifiers, used by Alembic.
 from airflow.models.base import COLLATION_ARGS
 
+# revision identifiers, used by Alembic.
 revision = 'cc1e65623dc7'
 down_revision = '127d2bf2dfa7'
 branch_labels = None

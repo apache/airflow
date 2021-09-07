@@ -110,7 +110,8 @@ A sample output as a result of a successful run of the upgrade check is shown be
 
     Problems:
 
-    1.  Using ``airflow.operators.python_operator.PythonOperator`` will be replaced by ``airflow.operators.python.PythonOperator``. Affected file:
+    1.  Please install ``apache-airflow-backport-providers-presto``
+    2.  Using ``airflow.hooks.presto_hook.PrestoHook`` will be replaced by ``airflow.providers.presto.hooks.presto.PrestoHook``. Affected file:
 
 
 The following sections describe what is being done and how to apply the recommendations shown above.
@@ -138,12 +139,12 @@ problematic airflow.cfg and searching for the fernet_key entries would show the 
     fernet_key =
 
 The second problem was identified in one of the DAGs. In this case, this import
-statement for the ``PythonOperator`` needs to be changed, since the location is different
+statement for the ``PrestoHook`` needs to be changed, since the location is different
 in Airflow 2.0. Examining the DAG file would probably show the following:
 
 .. code-block:: python
 
-    from airflow.operators.python_operator import PythonOperator
+    from airflow.hooks.presto_hook import PrestoHook
 
 We will discuss how to fix these and make them compatible with Airflow 2.0 in the next
 section.
@@ -158,15 +159,13 @@ enough information to make the change.
 For the first problem identified above with respect to the fernet_key, the solution is
 to enter a valid value in the Airflow Configuration file airflow.cfg for the fernet_key.
 
-For the second problem, looking at the source of the DAG file and changing the import
-statement for the Python Operator to be as follows will make this DAG work in Airflow 2.0.
+For the second problem, you will need to install Presto backport provider.
+Then you are able to use provider imports which contains the updated version of the hook.
 
 .. code-block:: python
 
-    from airflow.operators.python import PythonOperator
+    from airflow.providers.presto.hooks.presto import PrestoHook
 
-However, at the time of writing, this is incompatible in Airflow 1.10.15. So, this change
-can only be made while moving to Airflow 2.0.
 
 
 Turning off checks

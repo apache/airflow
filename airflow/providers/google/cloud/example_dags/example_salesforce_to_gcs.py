@@ -25,7 +25,7 @@ from airflow.providers.google.cloud.operators.bigquery import (
     BigQueryCreateEmptyDatasetOperator,
     BigQueryCreateEmptyTableOperator,
     BigQueryDeleteDatasetOperator,
-    BigQueryExecuteQueryOperator,
+    BigQueryInsertJobOperator,
 )
 from airflow.providers.google.cloud.operators.gcs import GCSCreateBucketOperator, GCSDeleteBucketOperator
 from airflow.providers.google.cloud.transfers.gcs_to_bigquery import GCSToBigQueryOperator
@@ -44,7 +44,7 @@ SALESFORCE_CONN_ID = os.environ.get("SALESFORCE_CONN_ID", "salesforce_default")
 
 with models.DAG(
     "example_salesforce_to_gcs",
-    schedule_interval=None,  # Override to match your needs
+    schedule_interval='@once',  # Override to match your needs
     start_date=days_ago(1),
 ) as dag:
     create_bucket = GCSCreateBucketOperator(
@@ -98,10 +98,14 @@ with models.DAG(
         write_disposition='WRITE_TRUNCATE',
     )
 
-    read_data_from_gcs = BigQueryExecuteQueryOperator(
+    read_data_from_gcs = BigQueryInsertJobOperator(
         task_id="read_data_from_gcs",
-        sql=f"SELECT COUNT(*) FROM `{GCP_PROJECT_ID}.{DATASET_NAME}.{TABLE_NAME}`",
-        use_legacy_sql=False,
+        configuration={
+            "query": {
+                "query": f"SELECT COUNT(*) FROM `{GCP_PROJECT_ID}.{DATASET_NAME}.{TABLE_NAME}`",
+                "useLegacySql": False,
+            }
+        },
     )
 
     delete_bucket = GCSDeleteBucketOperator(

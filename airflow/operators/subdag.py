@@ -156,6 +156,7 @@ class SubDagOperator(BaseSensorOperator):
             session.commit()
 
     def pre_execute(self, context):
+        super().pre_execute(context)
         execution_date = context['execution_date']
         dag_run = self._get_dagrun(execution_date)
 
@@ -184,6 +185,7 @@ class SubDagOperator(BaseSensorOperator):
         return dag_run.state != State.RUNNING
 
     def post_execute(self, context, result=None):
+        super().post_execute(context)
         execution_date = context['execution_date']
         dag_run = self._get_dagrun(execution_date=execution_date)
         self.log.info("Execution finished. State is %s", dag_run.state)

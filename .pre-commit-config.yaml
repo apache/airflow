@@ -250,6 +250,13 @@ repos:
         exclude: |
           (?x)
           ^airflow/_vendor/
+  - repo: https://github.com/ikamensh/flynt/
+    rev: '0.66'
+    hooks:
+      - id: flynt
+        exclude: |
+          (?x)
+          ^airflow/_vendor/
   - repo: local
     hooks:
       - id: lint-openapi
@@ -513,7 +520,11 @@ repos:
         language: python
         require_serial: true
         files: provider\.yaml$|scripts/ci/pre_commit/pre_commit_check_provider_yaml_files\.py$|^docs/
-        additional_dependencies: ['PyYAML==5.3.1', 'jsonschema==3.2.0', 'tabulate==0.8.7']
+        additional_dependencies:
+          - 'PyYAML==5.3.1'
+          - 'jsonschema==3.2.0'
+          - 'tabulate==0.8.7'
+          - 'jsonpath-ng==1.5.3'
       - id: mermaid
         name: Generate mermaid images
         entry: ./scripts/ci/pre_commit/pre_commit_mermaid.sh
@@ -622,14 +633,6 @@ repos:
         files: airflow/config_templates/config\.yml$
         require_serial: true
         additional_dependencies: ['jsonschema==3.2.0', 'PyYAML==5.3.1', 'requests==2.25.0']
-      - id: flynt
-        name: Convert to f-strings with flynt
-        entry: flynt
-        language: python
-        language_version: python3
-        additional_dependencies: ['flynt==0.63']
-        files: \.py$
-        exclude: ^airflow/_vendor/
       - id: ui-lint
         name: ESLint against airflow/ui
         language: node

@@ -15,59 +15,71 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from typing import Any, Optional
+from typing import Any, Dict, Optional
 
 from pendulum import DateTime
 
 from airflow.timetables.base import DagRunInfo, DataInterval, TimeRestriction, Timetable
 
 
-class NullTimetable(Timetable):
+class _TrivialTimetable(Timetable):
+    """Some code reuse for "trivial" timetables that has nothing complex."""
+
+    periodic = False
+    can_run = False
+
+    @classmethod
+    def deserialize(cls, data: Dict[str, Any]) -> "Timetable":
+        return cls()
+
+    def __eq__(self, other: Any) -> bool:
+        """As long as *other* is of the same type.
+
+        This is only for testing purposes and should not be relied on otherwise.
+        """
+        if not isinstance(other, type(self)):
+            return NotImplemented
+        return True
+
+    def serialize(self) -> Dict[str, Any]:
+        return {}
+
+    def infer_data_interval(self, *, run_after: DateTime) -> DataInterval:
+        return DataInterval.exact(run_after)
+
+
+class NullTimetable(_TrivialTimetable):
     """Timetable that never schedules anything.
 
     This corresponds to ``schedule_interval=None``.
     """
 
-    def __eq__(self, other: Any) -> bool:
-        """As long as *other* is of the same type."""
-        if not isinstance(other, NullTimetable):
-            return NotImplemented
-        return True
-
-    def validate(self) -> None:
-        pass
-
-    def infer_data_interval(self, run_after: DateTime) -> DataInterval:
-        return DataInterval.exact(run_after)
+    @property
+    def summary(self) -> str:
+        return "None"
 
     def next_dagrun_info(
         self,
+        *,
         last_automated_dagrun: Optional[DateTime],
         restriction: TimeRestriction,
     ) -> Optional[DagRunInfo]:
         return None
 
 
-class OnceTimetable(Timetable):
+class OnceTimetable(_TrivialTimetable):
     """Timetable that schedules the execution once as soon as possible.
 
     This corresponds to ``schedule_interval="@once"``.
     """
 
-    def __eq__(self, other: Any) -> bool:
-        """As long as *other* is of the same type."""
-        if not isinstance(other, OnceTimetable):
-            return NotImplemented
-        return True
-
-    def validate(self) -> None:
-        pass
-
-    def infer_data_interval(self, run_after: DateTime) -> DataInterval:
-        return DataInterval.exact(run_after)
+    @property
+    def summary(self) -> str:
+        return "@once"
 
     def next_dagrun_info(
         self,
+        *,
         last_automated_dagrun: Optional[DateTime],
         restriction: TimeRestriction,
     ) -> Optional[DagRunInfo]:

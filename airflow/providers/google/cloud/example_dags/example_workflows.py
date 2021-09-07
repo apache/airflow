@@ -80,7 +80,7 @@ SLEEP_WORKFLOW = {
 }
 
 
-with DAG("example_cloud_workflows", start_date=days_ago(1), schedule_interval=None) as dag:
+with DAG("example_cloud_workflows", schedule_interval='@once', start_date=days_ago(1)) as dag:
     # [START how_to_create_workflow]
     create_workflow = WorkflowsCreateWorkflowOperator(
         task_id="create_workflow",

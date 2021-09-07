@@ -48,6 +48,7 @@ import attr
 import jinja2
 from dateutil.relativedelta import relativedelta
 from sqlalchemy.orm import Session
+from sqlalchemy.orm.exc import NoResultFound
 
 import airflow.templates
 from airflow.compat.functools import cached_property
@@ -81,6 +82,8 @@ if TYPE_CHECKING:
 ScheduleInterval = Union[str, timedelta, relativedelta]
 
 TaskStateChangeCallback = Callable[[Context], None]
+TaskPreExecuteHook = Callable[[Context], None]
+TaskPostExecuteHook = Callable[[Context, Any], None]
 
 T = TypeVar('T', bound=Callable)
 
@@ -221,7 +224,8 @@ class BaseOperator(Operator, LoggingMixin, TaskMixin, metaclass=BaseOperatorMeta
 
     :param task_id: a unique, meaningful id for the task
     :type task_id: str
-    :param owner: the owner of the task, using the unix username is recommended
+    :param owner: the owner of the task. Using a meaningful description
+        (e.g. user/person/team/role name) to clarify ownership is recommended.
     :type owner: str
     :param email: the 'to' email address(es) used in email alerts. This can be a
         single email or multiple ones. Multiple addresses can be specified as a
@@ -346,10 +350,18 @@ class BaseOperator(Operator, LoggingMixin, TaskMixin, metaclass=BaseOperatorMeta
     :param on_success_callback: much like the ``on_failure_callback`` except
         that it is executed when the task succeeds.
     :type on_success_callback: TaskStateChangeCallback
+    :param pre_execute: a function to be called immediately before task
+        execution, receiving a context dictionary; raising an exception will
+        prevent the task from being executed.
+    :type pre_execute: TaskPreExecuteHook
+    :param post_execute: a function to be called immediately after task
+        execution, receiving a context dictionary and task result; raising an
+        exception will prevent the task from succeeding.
+    :type post_execute: TaskPostExecuteHook
     :param trigger_rule: defines the rule by which dependencies are applied
         for the task to get triggered. Options are:
         ``{ all_success | all_failed | all_done | one_success |
-        one_failed | none_failed | none_failed_or_skipped | none_skipped | always}``
+        one_failed | none_failed | none_failed_min_one_success | none_skipped | always}``
         default is ``all_success``. Options can be set as string or
         using the constants defined in the static class
         ``airflow.utils.TriggerRule``
@@ -359,9 +371,9 @@ class BaseOperator(Operator, LoggingMixin, TaskMixin, metaclass=BaseOperatorMeta
     :type resources: dict
     :param run_as_user: unix username to impersonate while running the task
     :type run_as_user: str
-    :param task_concurrency: When set, a task will be able to limit the concurrent
-        runs across execution_dates
-    :type task_concurrency: int
+    :param max_active_tis_per_dag: When set, a task will be able to limit the concurrent
+        runs across execution_dates.
+    :type max_active_tis_per_dag: int
     :param executor_config: Additional task-level configuration parameters that are
         interpreted by a specific executor. Parameters are namespaced by the name of
         executor.
@@ -487,10 +499,13 @@ class BaseOperator(Operator, LoggingMixin, TaskMixin, metaclass=BaseOperatorMeta
         on_failure_callback: Optional[TaskStateChangeCallback] = None,
         on_success_callback: Optional[TaskStateChangeCallback] = None,
         on_retry_callback: Optional[TaskStateChangeCallback] = None,
+        pre_execute: Optional[TaskPreExecuteHook] = None,
+        post_execute: Optional[TaskPostExecuteHook] = None,
         trigger_rule: str = TriggerRule.ALL_SUCCESS,
         resources: Optional[Dict] = None,
         run_as_user: Optional[str] = None,
         task_concurrency: Optional[int] = None,
+        max_active_tis_per_dag: Optional[int] = None,
         executor_config: Optional[Dict] = None,
         do_xcom_push: bool = True,
         inlets: Optional[Any] = None,
@@ -551,6 +566,15 @@ class BaseOperator(Operator, LoggingMixin, TaskMixin, metaclass=BaseOperatorMeta
             )
             trigger_rule = TriggerRule.ALWAYS
 
+        if trigger_rule == "none_failed_or_skipped":
+            warnings.warn(
+                "none_failed_or_skipped Trigger Rule is deprecated. "
+                "Please use `none_failed_min_one_success`.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+            trigger_rule = TriggerRule.NONE_FAILED_MIN_ONE_SUCCESS
+
         if not TriggerRule.is_valid(trigger_rule):
             raise AirflowException(
                 "The trigger_rule must be one of {all_triggers},"
@@ -588,6 +612,8 @@ class BaseOperator(Operator, LoggingMixin, TaskMixin, metaclass=BaseOperatorMeta
         self.on_failure_callback = on_failure_callback
         self.on_success_callback = on_success_callback
         self.on_retry_callback = on_retry_callback
+        self._pre_execute_hook = pre_execute
+        self._post_execute_hook = post_execute
 
         if isinstance(retry_delay, timedelta):
             self.retry_delay = retry_delay
@@ -623,7 +649,15 @@ class BaseOperator(Operator, LoggingMixin, TaskMixin, metaclass=BaseOperatorMeta
         self.weight_rule = weight_rule
         self.resources: Optional[Resources] = Resources(**resources) if resources else None
         self.run_as_user = run_as_user
-        self.task_concurrency = task_concurrency
+        if task_concurrency and not max_active_tis_per_dag:
+            # TODO: Remove in Airflow 3.0
+            warnings.warn(
+                "The 'task_concurrency' parameter is deprecated. Please use 'max_active_tis_per_dag'.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+            max_active_tis_per_dag = task_concurrency
+        self.max_active_tis_per_dag = max_active_tis_per_dag
         self.executor_config = executor_config or {}
         self.do_xcom_push = do_xcom_push
 
@@ -941,6 +975,8 @@ class BaseOperator(Operator, LoggingMixin, TaskMixin, metaclass=BaseOperatorMeta
     @prepare_lineage
     def pre_execute(self, context: Any):
         """This hook is triggered right before self.execute() is called."""
+        if self._pre_execute_hook is not None:
+            self._pre_execute_hook(context)
 
     def execute(self, context: Any):
         """
@@ -958,6 +994,8 @@ class BaseOperator(Operator, LoggingMixin, TaskMixin, metaclass=BaseOperatorMeta
         It is passed the execution context and any results returned by the
         operator.
         """
+        if self._post_execute_hook is not None:
+            self._post_execute_hook(context, result)
 
     def on_kill(self) -> None:
         """
@@ -1247,6 +1285,7 @@ class BaseOperator(Operator, LoggingMixin, TaskMixin, metaclass=BaseOperatorMeta
         dag: DAG = self._dag
         return list(map(lambda task_id: dag.task_dict[task_id], self.get_flat_relative_ids(upstream)))
 
+    @provide_session
     def run(
         self,
         start_date: Optional[datetime] = None,
@@ -1254,17 +1293,48 @@ class BaseOperator(Operator, LoggingMixin, TaskMixin, metaclass=BaseOperatorMeta
         ignore_first_depends_on_past: bool = True,
         ignore_ti_state: bool = False,
         mark_success: bool = False,
+        test_mode: bool = False,
+        session: Session = None,
     ) -> None:
         """Run a set of task instances for a date range."""
+        from airflow.models import DagRun
+        from airflow.utils.types import DagRunType
+
         start_date = start_date or self.start_date
         end_date = end_date or self.end_date or timezone.utcnow()
 
         for info in self.dag.iter_dagrun_infos_between(start_date, end_date, align=False):
             ignore_depends_on_past = info.logical_date == start_date and ignore_first_depends_on_past
-            TaskInstance(self, info.logical_date).run(
+            try:
+                dag_run = (
+                    session.query(DagRun)
+                    .filter(
+                        DagRun.dag_id == self.dag_id,
+                        DagRun.execution_date == info.logical_date,
+                    )
+                    .one()
+                )
+                ti = TaskInstance(self, run_id=dag_run.run_id)
+            except NoResultFound:
+                # This is _mostly_ only used in tests
+                dr = DagRun(
+                    dag_id=self.dag_id,
+                    run_id=DagRun.generate_run_id(DagRunType.MANUAL, info.logical_date),
+                    run_type=DagRunType.MANUAL,
+                    execution_date=info.logical_date,
+                    data_interval=info.data_interval,
+                )
+                ti = TaskInstance(self, run_id=None)
+                ti.dag_run = dr
+                session.add(dr)
+                session.flush()
+
+            ti.run(
                 mark_success=mark_success,
                 ignore_depends_on_past=ignore_depends_on_past,
                 ignore_ti_state=ignore_ti_state,
+                test_mode=test_mode,
+                session=session,
             )
 
     def dry_run(self) -> None:
@@ -1535,6 +1605,7 @@ class BaseOperator(Operator, LoggingMixin, TaskMixin, metaclass=BaseOperatorMeta
                     'subdag',
                     'ui_color',
                     'ui_fgcolor',
+                    'template_ext',
                     'template_fields',
                     'template_fields_renderers',
                 }

@@ -18,8 +18,9 @@ from flask import current_app, g, request
 from marshmallow import ValidationError
 
 from airflow import DAG
+from airflow._vendor.connexion import NoContent
 from airflow.api_connexion import security
-from airflow.api_connexion.exceptions import BadRequest, NotFound
+from airflow.api_connexion.exceptions import AlreadyExists, BadRequest, NotFound
 from airflow.api_connexion.parameters import check_limit, format_parameters
 from airflow.api_connexion.schemas.dag_schema import (
     DAGCollection,
@@ -27,9 +28,10 @@ from airflow.api_connexion.schemas.dag_schema import (
     dag_schema,
     dags_collection_schema,
 )
-from airflow.exceptions import SerializedDagNotFound
+from airflow.exceptions import AirflowException, DagNotFound, SerializedDagNotFound
 from airflow.models.dag import DagModel
 from airflow.security import permissions
+from airflow.settings import Session
 from airflow.utils.session import provide_session
 
 
@@ -100,3 +102,22 @@ def patch_dag(session, dag_id, update_mask=None):
     setattr(dag, 'is_paused', patch_body['is_paused'])
     session.commit()
     return dag_schema.dump(dag)
+
+
+@security.requires_access([(permissions.ACTION_CAN_DELETE, permissions.RESOURCE_DAG)])
+@provide_session
+def delete_dag(dag_id: str, session: Session):
+    """Delete the specific DAG."""
+    # TODO: This function is shared with the /delete endpoint used by the web
+    # UI, so we're reusing it to simplify maintenance. Refactor the function to
+    # another place when the experimental/legacy API is removed.
+    from airflow.api.common.experimental import delete_dag
+
+    try:
+        delete_dag.delete_dag(dag_id, session=session)
+    except DagNotFound:
+        raise NotFound(f"Dag with id: '{dag_id}' not found")
+    except AirflowException:
+        raise AlreadyExists(detail=f"Task instances of dag with id: '{dag_id}' are still running")
+
+    return NoContent, 204
