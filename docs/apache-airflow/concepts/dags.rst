@@ -85,7 +85,7 @@ And if you want to chain together dependencies, you can use ``chain``::
 
     # Replaces op1 >> op2 >> op3 >> op4
     chain(op1, op2, op3, op4)
-    
+
     # You can also do it dynamically
     chain(*[DummyOperator(task_id='op' + i) for i in range(1, 6)])
 
@@ -97,8 +97,8 @@ Chain can also do *pairwise* dependencies for lists the same size (this is diffe
     # op1 >> op2 >> op4 >> op6
     # op1 >> op3 >> op5 >> op6
     chain(op1, [op2, op3], [op4, op5], op6)
-    
-    
+
+
 .. _concepts:dag-loading:
 
 Loading DAGs
