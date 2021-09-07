@@ -1,4 +1,3 @@
-#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -15,20 +14,3 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
-"""Example DAG demostrating how to implement a custom timetable for a DAG."""
-
-from plugins.workday import AfterWorkdayTimetable
-
-# [START howto_timetable]
-from airflow import DAG
-from airflow.operators.dummy import DummyOperator
-
-# [START howto_timetable_example_dag]
-with DAG(timetable=AfterWorkdayTimetable(), tags=["example", "timetable"]) as dag:
-    DummyOperator(task_id="run_this")
-# [END howto_timetable_example_dag]
-
-if __name__ == "__main__":
-    dag.cli()
-# [END howto_timetable]

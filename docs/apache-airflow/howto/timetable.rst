@@ -63,6 +63,38 @@ schedule should not include the two weekend days. What we want is:
 For simplicity, we will only deal with UTC datetimes in this example.
 
 
+Timetable Registration
+----------------------
+
+A timetable must be a subclass of :class:`~airflow.timetables.base.Timetable`,
+and be registered as a part of a :doc:`plugin </plugins>`. The following is a
+skeleton for us to implement a new timetable:
+
+.. code-block:: python
+
+    from airflow.plugins_manager import AirflowPlugin
+    from airflow.timetables.base import Timetable
+
+
+    class AfterWorkdayTimetable(Timetable):
+        pass
+
+
+    class WorkdayTimetablePlugin(AirflowPlugin):
+        name = "workday_timetable_plugin"
+        timetables = [AfterWorkdayTimetable]
+
+Next, we'll start putting code into ``AfterWorkdayTimetable``. After the
+implementation is finished, we should be able to use the timetable in our DAG
+file:
+
+.. exampleinclude:: /../../airflow/example_dags/example_workday_timetable.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_timetable_example_dag]
+    :end-before: [END howto_timetable_example_dag]
+
+
 Define Scheduling Logic
 -----------------------
 
@@ -78,7 +110,7 @@ know when to schedule the DAG's next run.
 
 We'll start with ``infer_data_interval`` since it's the easier of the two:
 
-.. exampleinclude:: /../../airflow/example_dags/example_workday_timetable.py
+.. exampleinclude:: /../../airflow/example_dags/plugins/workday.py
     :language: python
     :dedent: 4
     :start-after: [START howto_timetable_infer_data_interval]
@@ -96,7 +128,7 @@ interval.
 
 Next is the implementation of ``next_dagrun_info``:
 
-.. exampleinclude:: /../../airflow/example_dags/example_workday_timetable.py
+.. exampleinclude:: /../../airflow/example_dags/plugins/workday.py
     :language: python
     :dedent: 4
     :start-after: [START howto_timetable_next_dagrun_info]
@@ -166,7 +198,12 @@ provides a shortcut for this:
     info = DagRunInfo.interval(start=start, end=end)
     assert info.data_interval.end == info.run_after  # Always True.
 
-For reference, here's our DAG file in its entirety:
+For reference, here's our plugin and DAG files in their entirety:
+
+.. exampleinclude:: /../../airflow/example_dags/plugins/workday.py
+    :language: python
+    :start-after: [START howto_timetable]
+    :end-before: [END howto_timetable]
 
 .. exampleinclude:: /../../airflow/example_dags/example_workday_timetable.py
     :language: python
@@ -174,8 +211,8 @@ For reference, here's our DAG file in its entirety:
     :end-before: [END howto_timetable]
 
 
-DAG Serialization and Parameterized Timetables
-----------------------------------------------
+Parameterized Timetables
+------------------------
 
 Sometimes we need to pass some run-time arguments to the timetable. Continuing
 with our ``AfterWorkdayTimetable`` example, maybe we may have DAGs running on
