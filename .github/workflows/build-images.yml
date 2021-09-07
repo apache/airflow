@@ -46,8 +46,8 @@ env:
   GITHUB_REGISTRY_PULL_IMAGE_TAG: "latest"
   GITHUB_REGISTRY_WAIT_FOR_IMAGE: "false"
   INSTALL_PROVIDERS_FROM_SOURCES: "true"
+  TARGET_COMMIT_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
   AIRFLOW_LOGIN_TO_GITHUB_REGISTRY: "true"
-  GITHUB_REGISTRY_PUSH_IMAGE_TAG: ${{ github.event.pull_request.head.sha || github.sha }}
 
 concurrency:
   group: build-${{ github.event.pull_request.number || github.ref }}
@@ -60,6 +60,7 @@ jobs:
     name: "Build Info"
     runs-on: ${{ github.repository == 'apache/airflow' && 'self-hosted' || 'ubuntu-20.04' }}
     env:
+      GITHUB_CONTEXT: ${{ toJson(github) }}
       targetBranch: ${{ github.event.pull_request.base.ref }}
       pullRequestLabels: "${{ toJSON(github.event.pull_request.labels.*.name) }}"
     outputs:
@@ -74,18 +75,7 @@ jobs:
       cacheDirective: ${{ steps.dynamic-outputs.outputs.cacheDirective }}
       targetBranch: ${{ steps.dynamic-outputs.outputs.targetBranch }}
       defaultBranch: ${{ steps.selective-checks.outputs.default-branch }}
-      targetCommitSha: "${{steps.discover-pr-merge-commit.outputs.targetCommitSha ||
-          github.event.pull_request.head.sha ||
-          github.sha
-        }}"
     steps:
-      - name: Discover PR merge commit
-        id: discover-pr-merge-commit
-        run: |
-          TARGET_COMMIT_SHA="$(gh api '${{ github.event.pull_request.url }}' --jq .merge_commit_sha)"
-          echo "TARGET_COMMIT_SHA=$TARGET_COMMIT_SHA" >> $GITHUB_ENV
-          echo "::set-output name=targetCommitSha::${TARGET_COMMIT_SHA}"
-        if: github.event_name == 'pull_request_target'
       # Retrieve it to be able to determine which files has changed in the incoming commit of the PR
       # we checkout the target commit and it's parent to be able to compare them
       - uses: actions/checkout@v2
@@ -102,7 +92,6 @@ jobs:
         run: printenv
         env:
           dynamicOutputs: ${{ toJSON(steps.dynamic-outputs.outputs) }}
-          GITHUB_CONTEXT: ${{ toJson(github) }}
       - name: Selective checks
         id: selective-checks
         env:
@@ -165,9 +154,13 @@ jobs:
         ${{ github.event_name == 'pull_request_target' && 'false' || 'true' }}
       outputs: ${{toJSON(needs.build-info.outputs) }}
     steps:
+      - name: Set envs
+        # Can't refer to "global" env to set a var in a job's env context
+        run: |
+          echo "GITHUB_REGISTRY_PUSH_IMAGE_TAG=${TARGET_COMMIT_SHA}" >> "$GITHUB_ENV"
       - uses: actions/checkout@v2
         with:
-          ref: ${{ needs.build-info.outputs.targetCommitSha }}
+          ref: ${{ env.TARGET_COMMIT_SHA }}
           persist-credentials: false
           submodules: recursive
       - name: "Retrieve DEFAULTS from the _initialization.sh"
@@ -207,9 +200,9 @@ jobs:
           mv "main-airflow/scripts/ci" "scripts"
       - name: "Free space"
         run: ./scripts/ci/tools/free_space.sh
-      - name: "Build CI images ${{ matrix.python-version }}:${{ env.GITHUB_REGISTRY_PUSH_IMAGE_TAG }}"
+      - name: "Build CI images ${{ matrix.python-version }}:${{ env.TARGET_COMMIT_SHA }}"
         run: ./scripts/ci/images/ci_prepare_ci_image_on_ci.sh
-      - name: "Push CI images ${{ matrix.python-version }}:${{ env.GITHUB_REGISTRY_PUSH_IMAGE_TAG }}"
+      - name: "Push CI images ${{ matrix.python-version }}:${{ env.TARGET_COMMIT_SHA }}"
         run: ./scripts/ci/images/ci_push_ci_images.sh
 
   build-prod-images:
@@ -238,9 +231,15 @@ jobs:
       INSTALL_PROVIDERS_FROM_SOURCES: >
         ${{ needs.build-info.outputs.defaultBranch == 'main' && 'true' || 'false' }}
     steps:
+      - name: Set envs
+        # Set pull image tag for CI image build, in order to pull the image pushed
+        # Just a moment ago by build-ci-images job
+        run: |
+          echo "GITHUB_REGISTRY_PUSH_IMAGE_TAG=${TARGET_COMMIT_SHA}" >> "$GITHUB_ENV"
+          echo "GITHUB_REGISTRY_PULL_IMAGE_TAG=${TARGET_COMMIT_SHA}" >> "$GITHUB_ENV"
       - uses: actions/checkout@v2
         with:
-          ref: ${{ needs.build-info.outputs.targetCommitSha }}
+          ref: ${{ env.TARGET_COMMIT_SHA }}
           persist-credentials: false
           submodules: recursive
       - name: "Retrieve DEFAULTS from the _initialization.sh"
@@ -280,18 +279,18 @@ jobs:
           mv "main-airflow/scripts/ci" "scripts"
       - name: "Free space"
         run: ./scripts/ci/tools/free_space.sh
-      - name: "Build CI images ${{ matrix.python-version }}:${{ env.GITHUB_REGISTRY_PUSH_IMAGE_TAG }}"
+      - name: "Build CI images ${{ matrix.python-version }}:${{ env.TARGET_COMMIT_SHA }}"
         run: ./scripts/ci/images/ci_prepare_ci_image_on_ci.sh
         # Pull images built in the previous step
         env:
           GITHUB_REGISTRY_WAIT_FOR_IMAGE: "true"
           # Here we are using PULL_IMAGE_TAG set in the environment variables above
-      - name: "Build PROD images ${{ matrix.python-version }}:${{ env.GITHUB_REGISTRY_PUSH_IMAGE_TAG }}"
+      - name: "Build PROD images ${{ matrix.python-version }}:${{ env.TARGET_COMMIT_SHA }}"
         run: ./scripts/ci/images/ci_prepare_prod_image_on_ci.sh
         env:
           # GITHUB_REGISTRY_PULL_IMAGE_TAG is overriden to latest in order to build PROD image using "latest"
           GITHUB_REGISTRY_PULL_IMAGE_TAG: "latest"
-      - name: "Push PROD images ${{ matrix.python-version }}:${{ env.GITHUB_REGISTRY_PUSH_IMAGE_TAG }}"
+      - name: "Push PROD images ${{ matrix.python-version }}:${{ env.TARGET_COMMIT_SHA }}"
         run: ./scripts/ci/images/ci_push_production_images.sh
         env:
           # GITHUB_REGISTRY_PULL_IMAGE_TAG is overriden to latest in order to build PROD image using "latest"
@@ -308,7 +307,7 @@ jobs:
       branch: ${{ github.event.pull_request.head.ref }}
       thisRun: ${{ github.run_id }}
     steps:
-      - name: "Find running `Tests` jobs for ${{ env.GITHUB_REGISTRY_PUSH_IMAGE_TAG }}"
+      - name: "Find running `Tests` jobs for ${{ env.TARGET_COMMIT_SHA }}"
         run: |
           if [[ "${{ github.event_name }}" == 'pull_request_target' ]]; then
             event_filter="event=pull_request&"
@@ -321,7 +320,7 @@ jobs:
               gh api "/repos/$GITHUB_REPOSITORY/actions/runs?${event_filter}branch=${branch}" \
                   jq -r '
                     .workflow_runs[] |
-                    select(.head_sha == $ENV.GITHUB_REGISTRY_PUSH_IMAGE_TAG and .status != "completed") |
+                    select(.head_sha == $ENV.TARGET_COMMIT_SHA and .status != "completed") |
                     .cancel_url
                   ' \
           ); do
