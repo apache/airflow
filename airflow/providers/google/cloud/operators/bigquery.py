@@ -1198,12 +1198,8 @@ class BigQueryCreateExternalTableOperator(BaseOperator):
             self.table_resource["externalDataConfiguration"]["schema"] = schema_fields
 
         if self.table_resource:
-            tab_ref = TableReference.from_string(self.destination_project_dataset_table)
             bq_hook.create_empty_table(
                 table_resource=self.table_resource,
-                project_id=tab_ref.project,
-                table_id=tab_ref.table_id,
-                dataset_id=tab_ref.dataset_id,
             )
         else:
             source_uris = [f"gs://{self.bucket}/{source_object}" for source_object in self.source_objects]
