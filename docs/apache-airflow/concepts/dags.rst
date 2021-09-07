@@ -85,6 +85,9 @@ And if you want to chain together dependencies, you can use ``chain``::
 
     # Replaces op1 >> op2 >> op3 >> op4
     chain(op1, op2, op3, op4)
+    
+    # You can also do it dynamically
+    chain(*[DummyOperator(task_id='op' + i) for i in range(1, 6)])
 
 Chain can also do *pairwise* dependencies for lists the same size (this is different to the *cross dependencies* done by ``cross_downstream``!)::
 
@@ -95,12 +98,7 @@ Chain can also do *pairwise* dependencies for lists the same size (this is diffe
     # op1 >> op3 >> op5 >> op6
     chain(op1, [op2, op3], [op4, op5], op6)
     
-And if you want to chain together dependencies dyamically::
-
-   tasks=[DummyOperator(task_id=f'op_{task}') for task in range(7)]
-   for task_ind in range(1,len(tasks)):
-       tasks[task_ind-1]>>tasks[task_ind]
-
+    
 .. _concepts:dag-loading:
 
 Loading DAGs
