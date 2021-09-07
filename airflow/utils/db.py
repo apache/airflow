@@ -736,8 +736,8 @@ def check_task_tables_without_matching_dagruns(session) -> Iterable[str]:
         if num > 0:
             yield (
                 f'The {model.__tablename__} table has {num} row{"s" if num != 1 else ""} without a '
-                + f'corresponding {target.__tablename__} row. You must manually correct this problem '
-                + '(possibly by deleting the problem rows).'
+                f'corresponding {target.__tablename__} row. You must manually correct this problem '
+                '(possibly by deleting the problem rows).'
             )
 
 
