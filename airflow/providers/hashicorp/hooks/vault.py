@@ -150,10 +150,10 @@ class VaultHook(BaseHook):
 
         if auth_type in ["approle", "aws_iam"]:
             if not role_id:
-                if self.connection.login:
-                    role_id = self.connection.login
-                else:
+                if self.connection.extra_dejson.get('role_id'):
                     role_id = self.connection.extra_dejson.get('role_id')
+                else:
+                    role_id = self.connection.login
 
         azure_resource, azure_tenant_id = (
             self._get_azure_parameters_from_connection(azure_resource, azure_tenant_id)
