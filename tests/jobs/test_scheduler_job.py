@@ -2689,6 +2689,102 @@ class TestSchedulerJob:
         )
         assert len(session.query(DagRun).filter(DagRun.state == State.RUNNING).all()) == 11
 
+    def test_start_queued_dagruns_do_follow_execution_date_order(self, dag_maker):
+        session = settings.Session()
+        with dag_maker('test_dag1', max_active_runs=1) as dag:
+            DummyOperator(task_id='mytask')
+        date = dag.following_schedule(DEFAULT_DATE)
+        for i in range(30):
+            dr = dag_maker.create_dagrun(
+                run_id=f'dagrun_{i}', run_type=DagRunType.SCHEDULED, state=State.QUEUED, execution_date=date
+            )
+            date = dr.execution_date + timedelta(hours=1)
+        self.scheduler_job = SchedulerJob(subdir=os.devnull)
+        self.scheduler_job.executor = MockExecutor(do_update=False)
+        self.scheduler_job.processor_agent = mock.MagicMock(spec=DagFileProcessorAgent)
+
+        self.scheduler_job._start_queued_dagruns(session)
+        session.flush()
+        dr = DagRun.find(run_id='dagrun_0')
+        ti = dr[0].get_task_instance(task_id='mytask', session=session)
+        ti.state = State.SUCCESS
+        session.merge(ti)
+        session.commit()
+        assert dr[0].state == State.RUNNING
+        dr[0].state = State.SUCCESS
+        session.merge(dr[0])
+        session.flush()
+        assert dr[0].state == State.SUCCESS
+        self.scheduler_job._start_queued_dagruns(session)
+        session.flush()
+        dr = DagRun.find(run_id='dagrun_1')
+        assert len(session.query(DagRun).filter(DagRun.state == State.RUNNING).all()) == 1
+
+        assert dr[0].state == State.RUNNING
+
+    def test_no_dagruns_would_stuck_in_running(self, dag_maker):
+        # Test that running dagruns are not stuck in running.
+        # Create one dagrun in 'running' state and 1 in 'queued' state from one dag(max_active_runs=1)
+        # Create 16 dagruns in 'running' state and 16 in 'queued' state from another dag
+        # Create 16 dagruns in 'running' state and 16 in 'queued' state from yet another dag
+        # Finish the task of the first dag, and check that another dagrun starts running
+        # from the first dag.
+
+        session = settings.Session()
+        # first dag and dagruns
+        date = timezone.datetime(2016, 1, 1)
+        with dag_maker('test_dagrun_states_are_correct_1', max_active_runs=1, start_date=date) as dag:
+            task1 = DummyOperator(task_id='dummy_task')
+
+        dr1_running = dag_maker.create_dagrun(run_id='dr1_run_1', execution_date=date)
+        dag_maker.create_dagrun(
+            run_id='dr1_run_2',
+            state=State.QUEUED,
+            execution_date=dag.following_schedule(dr1_running.execution_date),
+        )
+        # second dag and dagruns
+        date = timezone.datetime(2020, 1, 1)
+        with dag_maker('test_dagrun_states_are_correct_2', start_date=date) as dag:
+            DummyOperator(task_id='dummy_task')
+        for i in range(16):
+            dr = dag_maker.create_dagrun(run_id=f'dr2_run_{i+1}', state=State.RUNNING, execution_date=date)
+            date = dr.execution_date + timedelta(hours=1)
+        dr16 = DagRun.find(run_id='dr2_run_16')
+        date = dr16[0].execution_date + timedelta(hours=1)
+        for i in range(16, 32):
+            dr = dag_maker.create_dagrun(run_id=f'dr2_run_{i+1}', state=State.QUEUED, execution_date=date)
+            date = dr.execution_date + timedelta(hours=1)
+
+        # third dag and dagruns
+        date = timezone.datetime(2021, 1, 1)
+        with dag_maker('test_dagrun_states_are_correct_3', start_date=date) as dag:
+            DummyOperator(task_id='dummy_task')
+        for i in range(16):
+            dr = dag_maker.create_dagrun(run_id=f'dr3_run_{i+1}', state=State.RUNNING, execution_date=date)
+            date = dr.execution_date + timedelta(hours=1)
+        dr16 = DagRun.find(run_id='dr3_run_16')
+        date = dr16[0].execution_date + timedelta(hours=1)
+        for i in range(16, 32):
+            dr = dag_maker.create_dagrun(run_id=f'dr2_run_{i+1}', state=State.QUEUED, execution_date=date)
+            date = dr.execution_date + timedelta(hours=1)
+
+        self.scheduler_job = SchedulerJob(subdir=os.devnull)
+        self.scheduler_job.executor = MockExecutor(do_update=False)
+        self.scheduler_job.processor_agent = mock.MagicMock(spec=DagFileProcessorAgent)
+
+        ti = TaskInstance(task=task1, execution_date=DEFAULT_DATE)
+        ti.refresh_from_db()
+        ti.state = State.SUCCESS
+        session.merge(ti)
+        session.flush()
+        # Run the scheduler loop
+        with mock.patch.object(settings, "USE_JOB_SCHEDULE", False):
+            self.scheduler_job._do_scheduling(session)
+            self.scheduler_job._do_scheduling(session)
+
+        assert DagRun.find(run_id='dr1_run_1')[0].state == State.SUCCESS
+        assert DagRun.find(run_id='dr1_run_2')[0].state == State.RUNNING
+
     @pytest.mark.parametrize(
         "state, start_date, end_date",
         [
