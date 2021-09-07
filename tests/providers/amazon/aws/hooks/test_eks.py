@@ -760,7 +760,7 @@ class TestEKSHook:
         with hook.generate_config_file(
             eks_cluster_name='test-cluster', pod_namespace='k8s-namespace'
         ) as config_file:
-            config = yaml.load(Path(config_file).read_text())
+            config = yaml.safe_load(Path(config_file).read_text())
             assert config == {
                 'apiVersion': 'v1',
                 'kind': 'Config',
@@ -796,8 +796,10 @@ class TestEKSHook:
 
     @mock.patch('airflow.providers.amazon.aws.hooks.eks.RequestSigner')
     @mock.patch('airflow.providers.amazon.aws.hooks.base_aws.AwsBaseHook.conn')
-    def test_fetch_access_token_for_cluster(self, mock_conn, mock_signer):
+    @mock.patch('airflow.providers.amazon.aws.hooks.base_aws.AwsBaseHook.get_session')
+    def test_fetch_access_token_for_cluster(self, mock_get_session, mock_conn, mock_signer):
         mock_signer.return_value.generate_presigned_url.return_value = 'http://example.com'
+        mock_get_session.return_value.region_name = 'us-east-1'
         hook = EKSHook()
         token = hook.fetch_access_token_for_cluster(eks_cluster_name='test-cluster')
         mock_signer.assert_called_once_with(
@@ -805,8 +807,8 @@ class TestEKSHook:
             region_name='us-east-1',
             signing_name='sts',
             signature_version='v4',
-            credentials=None,
-            event_emitter=mock.ANY,
+            credentials=mock_get_session.return_value.get_credentials.return_value,
+            event_emitter=mock_get_session.return_value.events,
         )
         mock_signer.return_value.generate_presigned_url.assert_called_once_with(
             request_dict={
