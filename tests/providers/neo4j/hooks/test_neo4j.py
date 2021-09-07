@@ -27,7 +27,7 @@ from airflow.providers.neo4j.hooks.neo4j import Neo4jHook
 class TestNeo4jHookConn(unittest.TestCase):
     @parameterized.expand(
         [
-            [dict(), "bolt://host:7687"],
+            [{}, "bolt://host:7687"],
             [{"bolt_scheme": True}, "bolt://host:7687"],
             [{"certs_self_signed": True, "bolt_scheme": True}, "bolt+ssc://host:7687"],
             [{"certs_trusted_ca": True, "bolt_scheme": True}, "bolt+s://host:7687"],
