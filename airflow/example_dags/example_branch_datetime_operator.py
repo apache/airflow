@@ -28,7 +28,7 @@ from airflow.operators.dummy import DummyOperator
 
 dag = DAG(
     dag_id="example_branch_datetime_operator",
-    start_date=datetime(2021, 1, 1),
+    start_date=datetime.datetime(2021, 1, 1),
     catchup=False,
     tags=["example"],
     schedule_interval="@daily",
