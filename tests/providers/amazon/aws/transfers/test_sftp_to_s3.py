@@ -101,6 +101,7 @@ class TestSFTPToS3Operator(unittest.TestCase):
             sftp_path=SFTP_PATH,
             sftp_conn_id=SFTP_CONN_ID,
             s3_conn_id=S3_CONN_ID,
+            use_temp_file=False,
             task_id='test_sftp_to_s3',
             dag=self.dag,
         )
