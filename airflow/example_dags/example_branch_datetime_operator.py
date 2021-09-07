@@ -54,7 +54,7 @@ cond1 >> [dummy_task_1, dummy_task_2]
 
 dag = DAG(
     dag_id="example_branch_datetime_operator_2",
-    start_date=datetime(2021, 1, 1),
+    start_date=datetime.datetime(2021, 1, 1),
     catchup=False,
     tags=["example"],
     schedule_interval="@daily",
