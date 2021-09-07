@@ -30,7 +30,6 @@ from typing import Any, Callable, Dict, List, MutableMapping, NamedTuple, Option
 
 import jsonschema
 from packaging import version as packaging_version
-from wtforms import BooleanField, Field, IntegerField, PasswordField, StringField
 
 from airflow.utils import yaml
 from airflow.utils.entry_points import entry_points_with_dist
@@ -42,8 +41,6 @@ try:
 except ImportError:
     # Try back-ported to PY<37 `importlib_resources`.
     import importlib_resources
-
-ALLOWED_FIELD_CLASSES = [IntegerField, PasswordField, StringField, BooleanField]
 
 log = logging.getLogger(__name__)
 
@@ -172,7 +169,7 @@ class ConnectionFormWidgetInfo(NamedTuple):
 
     hook_class_name: str
     package_name: str
-    field: Field
+    field: Any
 
 
 T = TypeVar("T", bound=Callable)
@@ -548,6 +545,8 @@ class ProvidersManager(LoggingMixin):
         :param package_name: provider package - only needed in case connection_type is missing
         : return
         """
+        from wtforms import BooleanField, IntegerField, PasswordField, StringField
+
         if connection_type is None and hook_class_name is None:
             raise ValueError("Either connection_type or hook_class_name must be set")
         if connection_type and hook_class_name:
@@ -564,6 +563,7 @@ class ProvidersManager(LoggingMixin):
                 raise ValueError(
                     f"Provider package name is not set when hook_class_name ({hook_class_name}) " f"is used"
                 )
+        allowed_field_classes = [IntegerField, PasswordField, StringField, BooleanField]
         if not _sanity_check(package_name, hook_class_name):
             return None
         try:
@@ -576,13 +576,13 @@ class ProvidersManager(LoggingMixin):
                 widgets = hook_class.get_connection_form_widgets()
                 if widgets:
                     for widget in widgets.values():
-                        if widget.field_class not in ALLOWED_FIELD_CLASSES:
+                        if widget.field_class not in allowed_field_classes:
                             log.warning(
                                 "The hook_class '%s' uses field of unsupported class '%s'. "
                                 "Only '%s' field classes are supported",
                                 hook_class_name,
                                 widget.field_class,
-                                ALLOWED_FIELD_CLASSES,
+                                allowed_field_classes,
                             )
                             return None
                     self._add_widgets(package_name, hook_class, widgets)
@@ -642,7 +642,7 @@ class ProvidersManager(LoggingMixin):
             connection_type=connection_type,
         )
 
-    def _add_widgets(self, package_name: str, hook_class: type, widgets: Dict[str, Field]):
+    def _add_widgets(self, package_name: str, hook_class: type, widgets: Dict[str, Any]):
         for field_name, field in widgets.items():
             if not field_name.startswith("extra__"):
                 log.warning(
