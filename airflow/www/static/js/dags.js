@@ -86,7 +86,7 @@ const encodedDagIds = new URLSearchParams();
 $.each($('[id^=toggle]'), function toggleId() {
   const $input = $(this);
   const dagId = $input.data('dag-id');
-  encodedDagIds.append('dagIds', dagId);
+  encodedDagIds.append('dag_ids', dagId);
 
   $input.on('change', () => {
     const isPaused = $input.is(':checked');
@@ -306,7 +306,7 @@ function taskStatsHandler(error, json) {
   });
 }
 
-if (encodedDagIds.has('dagIds')) {
+if (encodedDagIds.has('dag_ids')) {
   // dags on page fetch stats
   d3.json(blockedUrl)
     .header('X-CSRFToken', csrfToken)
