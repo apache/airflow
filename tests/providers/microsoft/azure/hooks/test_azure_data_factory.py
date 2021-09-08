@@ -344,42 +344,40 @@ def test_get_pipeline_run(hook: AzureDataFactoryHook, user_args, sdk_args):
     hook._conn.pipeline_runs.get.assert_called_with(*sdk_args)
 
 
-def test_check_pipeline_run_status(hook):
-    config = {"run_id": ID, "timeout": 5, "check_interval": 1}
+_wait_for_pipeline_run_status_test_args = [
+    (AzureDataFactoryPipelineRunStatus.SUCCEEDED, AzureDataFactoryPipelineRunStatus.SUCCEEDED, True),
+    (AzureDataFactoryPipelineRunStatus.FAILED, AzureDataFactoryPipelineRunStatus.SUCCEEDED, False),
+    (AzureDataFactoryPipelineRunStatus.CANCELLED, AzureDataFactoryPipelineRunStatus.SUCCEEDED, False),
+    (AzureDataFactoryPipelineRunStatus.IN_PROGRESS, AzureDataFactoryPipelineRunStatus.SUCCEEDED, "timeout"),
+    (AzureDataFactoryPipelineRunStatus.QUEUED, AzureDataFactoryPipelineRunStatus.SUCCEEDED, "timeout"),
+    (AzureDataFactoryPipelineRunStatus.CANCELING, AzureDataFactoryPipelineRunStatus.SUCCEEDED, "timeout"),
+    (AzureDataFactoryPipelineRunStatus.SUCCEEDED, AzureDataFactoryPipelineRunStatus.TERMINAL_STATUSES, True),
+    (AzureDataFactoryPipelineRunStatus.FAILED, AzureDataFactoryPipelineRunStatus.TERMINAL_STATUSES, True),
+    (AzureDataFactoryPipelineRunStatus.CANCELLED, AzureDataFactoryPipelineRunStatus.TERMINAL_STATUSES, True),
+]
+
+
+@pytest.mark.parametrize(
+    argnames=("pipeline_run_status", "expected_status", "expected_output"),
+    argvalues=_wait_for_pipeline_run_status_test_args,
+    ids=[
+        f"run_status_{argval[0]}_expected_{argval[1]}"
+        if isinstance(argval[1], str)
+        else f"run_status_{argval[0]}_expected_AnyTerminalStatus"
+        for argval in _wait_for_pipeline_run_status_test_args
+    ],
+)
+def test_wait_for_pipeline_run_status(hook, pipeline_run_status, expected_status, expected_output):
+    config = {"run_id": ID, "timeout": 3, "check_interval": 1, "expected_statuses": expected_status}
 
     with patch.object(AzureDataFactoryHook, "get_pipeline_run") as mock_pipeline_run:
-        # Begin tests when ``wait_for_completion`` is enabled -- the default behavior.
-        mock_pipeline_run.return_value.status = AzureDataFactoryPipelineRunStatus.SUCCEEDED
-        assert hook.check_pipeline_run_status(**config)
+        mock_pipeline_run.return_value.status = pipeline_run_status
 
-        mock_pipeline_run.return_value.status = AzureDataFactoryPipelineRunStatus.FAILED
-        with pytest.raises(AzureDataFactoryPipelineRunException):
-            hook.check_pipeline_run_status(**config)
-
-        mock_pipeline_run.return_value.status = AzureDataFactoryPipelineRunStatus.CANCELLED
-        with pytest.raises(AzureDataFactoryPipelineRunException):
-            hook.check_pipeline_run_status(**config)
-
-        # Begin tests when ``wait_for_completion`` is disabled (aka poking for status).
-        mock_pipeline_run.return_value.status = AzureDataFactoryPipelineRunStatus.SUCCEEDED
-        assert hook.check_pipeline_run_status(wait_for_completion=False, **config)
-
-        mock_pipeline_run.return_value.status = AzureDataFactoryPipelineRunStatus.IN_PROGRESS
-        assert not hook.check_pipeline_run_status(wait_for_completion=False, **config)
-
-        mock_pipeline_run.return_value.status = AzureDataFactoryPipelineRunStatus.QUEUED
-        assert not hook.check_pipeline_run_status(wait_for_completion=False, **config)
-
-        mock_pipeline_run.return_value.status = AzureDataFactoryPipelineRunStatus.CANCELING
-        assert not hook.check_pipeline_run_status(wait_for_completion=False, **config)
-
-        mock_pipeline_run.return_value.status = AzureDataFactoryPipelineRunStatus.FAILED
-        with pytest.raises(AzureDataFactoryPipelineRunException):
-            hook.check_pipeline_run_status(wait_for_completion=False, **config)
-
-        mock_pipeline_run.return_value.status = AzureDataFactoryPipelineRunStatus.CANCELLED
-        with pytest.raises(AzureDataFactoryPipelineRunException):
-            hook.check_pipeline_run_status(wait_for_completion=False, **config)
+        if expected_output != "timeout":
+            assert hook.wait_for_pipeline_run_status(**config) == expected_output
+        else:
+            with pytest.raises(AzureDataFactoryPipelineRunException):
+                hook.wait_for_pipeline_run_status(**config)
 
 
 @parametrize(

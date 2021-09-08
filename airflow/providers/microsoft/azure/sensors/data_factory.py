@@ -17,7 +17,11 @@
 
 from typing import Dict, Optional
 
-from airflow.providers.microsoft.azure.hooks.data_factory import AzureDataFactoryHook
+from airflow.providers.microsoft.azure.hooks.data_factory import (
+    AzureDataFactoryHook,
+    AzureDataFactoryPipelineRunException,
+    AzureDataFactoryPipelineRunStatus,
+)
 from airflow.sensors.base import BaseSensorOperator
 
 
@@ -37,11 +41,13 @@ class AzureDataFactoryPipelineRunStatusSensor(BaseSensorOperator):
 
     template_fields = ("azure_data_factory_conn_id", "resource_group_name", "factory_name", "run_id")
 
+    ui_color = "#50e6ff"
+
     def __init__(
         self,
         *,
-        azure_data_factory_conn_id: str,
         run_id: str,
+        azure_data_factory_conn_id: str = AzureDataFactoryHook.default_conn_name,
         resource_group_name: Optional[str] = None,
         factory_name: Optional[str] = None,
         **kwargs,
@@ -53,12 +59,17 @@ class AzureDataFactoryPipelineRunStatusSensor(BaseSensorOperator):
         self.factory_name = factory_name
 
     def poke(self, context: Dict) -> bool:
-        self.log.info(f"Checking the status for pipeline run {self.run_id}.")
         self.hook = AzureDataFactoryHook(azure_data_factory_conn_id=self.azure_data_factory_conn_id)
-
-        return self.hook.check_pipeline_run_status(
+        pipeline_run_status = self.hook.get_pipeline_run_status(
             run_id=self.run_id,
-            wait_for_completion=False,
             resource_group_name=self.resource_group_name,
             factory_name=self.factory_name,
         )
+
+        if pipeline_run_status == AzureDataFactoryPipelineRunStatus.FAILED:
+            raise AzureDataFactoryPipelineRunException(f"Pipeline run {self.run_id} has failed.")
+
+        if pipeline_run_status == AzureDataFactoryPipelineRunStatus.CANCELLED:
+            raise AzureDataFactoryPipelineRunException(f"Pipeline run {self.run_id} has been cancelled.")
+
+        return pipeline_run_status == AzureDataFactoryPipelineRunStatus.SUCCEEDED

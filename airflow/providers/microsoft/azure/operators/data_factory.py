@@ -18,7 +18,11 @@
 from typing import Any, Dict, Optional
 
 from airflow.models import BaseOperator
-from airflow.providers.microsoft.azure.hooks.data_factory import AzureDataFactoryHook
+from airflow.providers.microsoft.azure.hooks.data_factory import (
+    AzureDataFactoryHook,
+    AzureDataFactoryPipelineRunException,
+    AzureDataFactoryPipelineRunStatus,
+)
 
 
 class AzureDataFactoryRunPipelineOperator(BaseOperator):
@@ -33,10 +37,10 @@ class AzureDataFactoryRunPipelineOperator(BaseOperator):
     :type azure_data_factory_conn_id: str
     :param pipeline_name: The name of the pipeline to execute.
     :type pipeline_name: str
-    :param wait_for_completion: Flag to wait on a pipeline run's completion.  By default, this feature is
+    :param wait_for_termination: Flag to wait on a pipeline run's termination.  By default, this feature is
         enabled but could be disabled to perform an asynchronous wait for a long-running pipeline execution
         using the ``AzureDataFactoryPipelineRunSensor``.
-    :type wait_for_pipeline_run: bool
+    :type wait_for_termination: bool
     :param resource_group_name: The resource group name. If a value is not passed in to the operator, the
         ``AzureDataFactoryHook`` will attempt to use the resource group name provided in the corresponding
         connection.
@@ -60,12 +64,12 @@ class AzureDataFactoryRunPipelineOperator(BaseOperator):
     :param parameters: Parameters of the pipeline run. These parameters are referenced in a pipeline via
         ``@pipeline().parameters.parameterName`` and will be used only if the ``reference_pipeline_run_id`` is
         not specified.
-    :type start_from_failure: Dict[str, Any]
+    :type parameters: Dict[str, Any]
     :param timeout: Time in seconds to wait for a pipeline to reach a terminal status for non-asynchronous
-        waits. Used only if ``wait_for_completion`` is True.
+        waits. Used only if ``wait_for_termination`` is True.
     :type timeout: int
     :param check_interval: Time in seconds to check on a pipeline run's status for non-asynchronous waits.
-        Used only if ``wait_for_completion`` is True.
+        Used only if ``wait_for_termination`` is True.
     :type check_interval: int
     """
 
@@ -79,12 +83,14 @@ class AzureDataFactoryRunPipelineOperator(BaseOperator):
     )
     template_fields_renderers = {"parameters": "json"}
 
+    ui_color = "#0678d4"
+
     def __init__(
         self,
         *,
-        azure_data_factory_conn_id: str,
         pipeline_name: str,
-        wait_for_completion: bool = True,
+        azure_data_factory_conn_id: str = AzureDataFactoryHook.default_conn_name,
+        wait_for_termination: bool = True,
         resource_group_name: Optional[str] = None,
         factory_name: Optional[str] = None,
         reference_pipeline_run_id: Optional[str] = None,
@@ -99,7 +105,7 @@ class AzureDataFactoryRunPipelineOperator(BaseOperator):
         super().__init__(**kwargs)
         self.azure_data_factory_conn_id = azure_data_factory_conn_id
         self.pipeline_name = pipeline_name
-        self.wait_for_completion = wait_for_completion
+        self.wait_for_termination = wait_for_termination
         self.resource_group_name = resource_group_name
         self.factory_name = factory_name
         self.reference_pipeline_run_id = reference_pipeline_run_id
@@ -112,7 +118,7 @@ class AzureDataFactoryRunPipelineOperator(BaseOperator):
 
     def execute(self, context: Dict) -> None:
         self.hook = AzureDataFactoryHook(azure_data_factory_conn_id=self.azure_data_factory_conn_id)
-        self.log.info(f"Executing the '{self.pipeline_name}' pipeline.")
+        self.log.info(f"Executing the {self.pipeline_name} pipeline.")
         response = self.hook.run_pipeline(
             pipeline_name=self.pipeline_name,
             resource_group_name=self.resource_group_name,
@@ -129,16 +135,22 @@ class AzureDataFactoryRunPipelineOperator(BaseOperator):
         # asynchronous wait.
         context["ti"].xcom_push(key="run_id", value=self.run_id)
 
-        if self.wait_for_completion:
-            self.log.info(f"Waiting for pipeline run {self.run_id} to complete.")
-            self.hook.check_pipeline_run_status(
+        if self.wait_for_termination:
+            self.log.info(f"Waiting for pipeline run {self.run_id} to terminate.")
+
+            if self.hook.wait_for_pipeline_run_status(
                 run_id=self.run_id,
+                expected_statuses=AzureDataFactoryPipelineRunStatus.SUCCEEDED,
                 check_interval=self.check_interval,
                 timeout=self.timeout,
                 resource_group_name=self.resource_group_name,
                 factory_name=self.factory_name,
-            )
-            self.log.info(f"Pipeline run {self.run_id} has completed successfully.")
+            ):
+                self.log.info(f"Pipeline run {self.run_id} has completed successfully.")
+            else:
+                raise AzureDataFactoryPipelineRunException(
+                    f"Pipeline run {self.run_id} has failed or has been cancelled."
+                )
 
     def on_kill(self) -> None:
         if self.run_id:
@@ -147,3 +159,16 @@ class AzureDataFactoryRunPipelineOperator(BaseOperator):
                 resource_group_name=self.resource_group_name,
                 factory_name=self.factory_name,
             )
+
+            # Check to ensure the pipeline run was cancelled as expected.
+            if self.hook.wait_for_pipeline_run_status(
+                run_id=self.run_id,
+                expected_statuses=AzureDataFactoryPipelineRunStatus.CANCELLED,
+                check_interval=self.check_interval,
+                timeout=self.timeout,
+                resource_group_name=self.resource_group_name,
+                factory_name=self.factory_name,
+            ):
+                self.log.info(f"Pipeline run {self.run_id} has been cancelled successfully.")
+            else:
+                raise AzureDataFactoryPipelineRunException(f"Pipeline run {self.run_id} was not cancelled.")

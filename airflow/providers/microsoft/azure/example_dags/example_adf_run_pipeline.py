@@ -52,18 +52,18 @@ with DAG(
     run_pipeline2 = AzureDataFactoryRunPipelineOperator(
         task_id="run_pipeline2",
         pipeline_name="pipeline2",
-        wait_for_completion=False,
+        wait_for_termination=False,
     )
 
-    wait_for_pipeline_run = AzureDataFactoryPipelineRunStatusSensor(
-        task_id="wait_for_pipeline_run",
+    pipeline_run_sensor = AzureDataFactoryPipelineRunStatusSensor(
+        task_id="pipeline_run_sensor",
         run_id=run_pipeline2.output["run_id"],
     )
     # [END howto_operator_adf_run_pipeline_async]
 
-    begin >> Label("No async wait") >> run_pipeline1 >> end
+    begin >> Label("No async wait") >> run_pipeline1
     begin >> Label("Do async wait with sensor") >> run_pipeline2
-    wait_for_pipeline_run >> end
+    [run_pipeline1, pipeline_run_sensor] >> end
 
     # Task dependency created via `XComArgs`:
-    #   run_pipeline2 >> wait_for_pipeline_run
+    #   run_pipeline2 >> pipeline_run_sensor

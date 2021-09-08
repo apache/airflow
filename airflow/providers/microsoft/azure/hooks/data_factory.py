@@ -17,7 +17,7 @@
 import inspect
 import time
 from functools import wraps
-from typing import Any, Callable, Dict, Optional
+from typing import Any, Callable, Dict, Optional, Set, Union
 
 from azure.core.polling import LROPoller
 from azure.identity import ClientSecretCredential
@@ -584,76 +584,76 @@ class AzureDataFactoryHook(BaseHook):
         """
         return self.get_conn().pipeline_runs.get(resource_group_name, factory_name, run_id, **config)
 
-    def check_pipeline_run_status(
+    def get_pipeline_run_status(
         self,
         run_id: str,
-        wait_for_completion: bool = True,
-        expected_status: str = AzureDataFactoryPipelineRunStatus.SUCCEEDED,
-        check_interval: Optional[int] = 60,
-        timeout: Optional[int] = 60 * 60 * 24 * 7,
         resource_group_name: Optional[str] = None,
         factory_name: Optional[str] = None,
-        **config: Any,
-    ) -> bool:
+    ) -> str:
         """
-        Checks a pipeline run's status with a configurable option to do so until the run has reached a
-        terminal status or the desired status.
+        Get a pipeline run's current status.
 
         :param run_id: The pipeline run identifier.
-        :param wait_for_completion: If enabled, periodically check a pipeline run's status to see if it has
-            reached a terminal or the desired status. Otherwise, check a pipeline run's status only once and
-            return whether or not the status matches the ``expected_status``.
-        :param expected_status: The desired status of a pipeline run.
-        :param check_interval: Time in seconds to check a pipeline run's status when ``wait_for_completion``
-            is enabled.
-        :param timeout: Time in seconds to wait for a pipeline to reach a terminal status when ``mode`` is set
-            to "wait".
         :param resource_group_name: The resource group name.
         :param factory_name: The factory name.
-        :return: Boolean value indicating if the current pipeline run's status matches the
-            ``expected_status``.
+        :return: The status of the pipeline run.
         """
-        pipeline_run = self.get_pipeline_run(
+        self.log.info(f"Getting the status of run ID {run_id}.")
+        pipeline_run_status = self.get_pipeline_run(
             run_id=run_id,
             factory_name=factory_name,
             resource_group_name=resource_group_name,
-            **config,
-        )
-        pipeline_run_status = pipeline_run.status
+        ).status
+        self.log.info(f"Current status of pipeline run {run_id}: {pipeline_run_status}")
 
-        if wait_for_completion:
-            start_time = time.monotonic()
+        return pipeline_run_status
 
-            while (
-                pipeline_run_status not in AzureDataFactoryPipelineRunStatus.TERMINAL_STATUSES
-                and pipeline_run_status != expected_status
-            ):
-                # Check if the pipeline-run duration has exceeded the ``timeout`` configured.
-                if start_time + timeout < time.monotonic():
-                    raise AzureDataFactoryPipelineRunException(
-                        f"Pipeline run {run_id} has not reached a terminal status after {timeout} seconds."
-                    )
+    def wait_for_pipeline_run_status(
+        self,
+        run_id: str,
+        expected_statuses: Union[str, Set[str]],
+        resource_group_name: Optional[str] = None,
+        factory_name: Optional[str] = None,
+        check_interval: Optional[int] = 60,
+        timeout: Optional[int] = 60 * 60 * 24 * 7,
+    ) -> bool:
+        """
+        Waits for a pipeline run to match an expected status.
 
-                # Wait to check the status of the pipeline based on the ``check_interval`` configured.
-                time.sleep(check_interval)
+        :param run_id: The pipeline run identifier.
+        :param expected_statuses: The desired status(es) to check against a pipeline run's current status.
+        :param resource_group_name: The resource group name.
+        :param factory_name: The factory name.
+        :param check_interval: Time in seconds to check on a pipeline run's status.
+        :param timeout: Time in seconds to wait for a pipeline to reach a terminal status or the expected
+            status.
+        :return: Boolean indicating if the pipeline run has reached the ``expected_status``.
+        """
+        pipeline_run_info = {
+            "run_id": run_id,
+            "factory_name": factory_name,
+            "resource_group_name": resource_group_name,
+        }
+        pipeline_run_status = self.get_pipeline_run_status(**pipeline_run_info)
 
-                self.log.info(f"Checking on the status of run ID {run_id}.")
-                pipeline_run = self.get_pipeline_run(
-                    run_id=run_id,
-                    factory_name=factory_name,
-                    resource_group_name=resource_group_name,
-                    **config,
+        start_time = time.monotonic()
+
+        while (
+            pipeline_run_status not in AzureDataFactoryPipelineRunStatus.TERMINAL_STATUSES
+            and pipeline_run_status not in expected_statuses
+        ):
+            # Check if the pipeline-run duration has exceeded the ``timeout`` configured.
+            if start_time + timeout < time.monotonic():
+                raise AzureDataFactoryPipelineRunException(
+                    f"Pipeline run {run_id} has not reached a terminal status after {timeout} seconds."
                 )
-                pipeline_run_status = pipeline_run.status
-                self.log.info(f"Current status of run ID {run_id}: {pipeline_run_status}")
 
-        if pipeline_run_status == AzureDataFactoryPipelineRunStatus.FAILED:
-            raise AzureDataFactoryPipelineRunException(f"Pipeline run {run_id} has failed.")
+            # Wait to check the status of the pipeline run based on the ``check_interval`` configured.
+            time.sleep(check_interval)
 
-        if pipeline_run_status == AzureDataFactoryPipelineRunStatus.CANCELLED:
-            raise AzureDataFactoryPipelineRunException(f"Pipeline run {run_id} has been cancelled.")
+            pipeline_run_status = self.get_pipeline_run_status(**pipeline_run_info)
 
-        return pipeline_run_status == expected_status
+        return pipeline_run_status in expected_statuses
 
     @provide_targeted_factory
     def cancel_pipeline_run(

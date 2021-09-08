@@ -30,8 +30,8 @@ It offers a code-free UI for intuitive authoring and single-pane-of-glass monito
 AzureDataFactoryRunPipelineOperator
 -----------------------------------
 Use the :class:`~airflow.providers.microsoft.azure.operators.data_factory.AzureDataFactoryRunPipelineOperator` to execute a pipeline within a data factory.
-By default, the operator will check on the status of the executed pipeline and mirror its result (i.e. succeed if the pipeline succeeds or fail if the pipeline fails or is canceled).
-This functionality can be disabled for an asynchronous wait -- typically with the :class:`~airflow.providers.microsoft.azure.sensors.data_factory.AzureDataFactoryPipelineRunSensor` -- by setting ``wait_for_completion`` to False.
+By default, the operator will periodically check on the status of the executed pipeline to terminate with a "Succeeded" status.
+This functionality can be disabled for an asynchronous wait -- typically with the :class:`~airflow.providers.microsoft.azure.sensors.data_factory.AzureDataFactoryPipelineRunSensor` -- by setting ``wait_for_termination`` to False.
 
 Below is an example of using this operator to execute an Azure Data Factory pipeline.
 

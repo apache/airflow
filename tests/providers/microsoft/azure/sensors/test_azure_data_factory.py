@@ -1,4 +1,3 @@
-#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -64,7 +63,10 @@ class TestPipelineRunStatusSensor(unittest.TestCase):
     def test_poke(self, pipeline_run_status, expected_status, mock_pipeline_run):
         mock_pipeline_run.return_value.status = pipeline_run_status
 
-        if expected_status == "exception":
+        if expected_status != "exception":
+            assert self.sensor.poke({}) == expected_status
+        else:
+            # The sensor should fail if the pipeline run status is "Failed" or "Cancelled".
             if pipeline_run_status == AzureDataFactoryPipelineRunStatus.FAILED:
                 error_message = f"Pipeline run {self.config['run_id']} has failed."
             else:
@@ -72,5 +74,3 @@ class TestPipelineRunStatusSensor(unittest.TestCase):
 
             with pytest.raises(AzureDataFactoryPipelineRunException, match=error_message):
                 self.sensor.poke({})
-        else:
-            assert self.sensor.poke({}) == expected_status

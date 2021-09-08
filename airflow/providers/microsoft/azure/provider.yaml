@@ -144,6 +144,7 @@ hooks:
   - integration-name: Microsoft Azure Data Factory
     python-modules:
       - airflow.providers.microsoft.azure.hooks.data_factory
+      - airflow.providers.microsoft.azure.hooks.azure_data_factory
 
 transfers:
   - source-integration-name: Local
