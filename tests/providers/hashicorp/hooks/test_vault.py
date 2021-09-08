@@ -304,6 +304,23 @@ class TestVaultHook(TestCase):
             role="role",
         )
 
+    @mock.patch("airflow.providers.hashicorp._internal_client.vault_client.hvac")
+    @mock.patch.dict(
+        'os.environ',
+        AIRFLOW_CONN_VAULT_CONN_ID='https://login:pass@vault.example.com?auth_type=aws_iam&role_id=role',
+    )
+    def test_aws_uri(self, mock_hvac):
+        test_hook = VaultHook(vault_conn_id='vault_conn_id')
+        test_client = test_hook.get_conn()
+        mock_hvac.Client.assert_called_with(url='https://vault.example.com')
+        test_client.auth_aws_iam.assert_called_with(
+            access_key='login',
+            secret_key='pass',
+            role="role",
+        )
+        test_client.is_authenticated.assert_called_with()
+        assert 2 == test_hook.vault_client.kv_engine_version
+
     @mock.patch("airflow.providers.hashicorp.hooks.vault.VaultHook.get_connection")
     @mock.patch("airflow.providers.hashicorp._internal_client.vault_client.hvac")
     def test_azure_init_params(self, mock_hvac, mock_get_connection):
