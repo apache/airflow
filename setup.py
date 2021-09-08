@@ -240,8 +240,7 @@ datadog = [
     'datadog>=0.14.0',
 ]
 doc = [
-    'sphinx>=2.1.2;python_version>="3.0"',
-    'sphinx==1.8.5;python_version<"3.0"',
+    'sphinx>=2.1.2',
     'sphinx-argparse>=0.1.13',
     'sphinx-autoapi==1.0.0',
     'sphinx-copybutton;python_version>="3.6"',
@@ -429,7 +428,6 @@ all_dbs = (cassandra + cloudant + druid + hdfs + hive + mongo + mssql + mysql +
 devel = [
     'beautifulsoup4~=4.7.1',
     'click==6.7',
-    'contextdecorator;python_version<"3.4"',
     'coverage',
     'docutils>=0.14, <0.16',
     'ecdsa<0.15',  # Required for moto 1.3.14
@@ -442,7 +440,6 @@ devel = [
     'importlib-metadata>=2.0',
     'ipdb',
     'jira',
-    'mock;python_version<"3.3"',
     'mongomock',
     'moto==1.3.14',  # TODO - fix Datasync issues to get higher version of moto:
                      #        See: https://github.com/apache/airflow/issues/10985
@@ -609,11 +606,9 @@ INSTALL_REQUIREMENTS = [
     'cryptography>=0.9.3;python_version>="3.0"',
     'dill>=0.2.2, <0.4',
     'email-validator',
-    'enum34~=1.1.6;python_version<"3.4"',
     'flask>=1.1.0, <2.0',
     'flask-admin==1.5.4',
-    'flask-appbuilder>=1.12.2, <2.0.0;python_version<"3.6"',
-    'flask-appbuilder>2.3.4;python_version>="3.6"',
+    'flask-appbuilder>=3.0.0, <3.1.0',
     'flask-caching>=1.3.3, <1.4.0',
     'flask-login>=0.3, <0.5',
     'flask-swagger>=0.2.13, <0.3',
@@ -631,9 +626,8 @@ INSTALL_REQUIREMENTS = [
     'lazy_object_proxy<1.5.0',  # Required to keep pip-check happy with astroid
     'markdown>=2.5.2, <3.0',
     'marshmallow-sqlalchemy>=0.16.1, <0.24.0;python_version>="3.6"',
-    'marshmallow-sqlalchemy>=0.16.1, <0.19.0;python_version<"3.6"',
     'packaging',
-    'pandas>=0.17.1, <2.0',
+    'pandas>=1.0.0, <2.0',
     'pendulum==1.4.4',
     'pep562~=1.0;python_version<"3.7"',
     'psutil>=4.2.0, <6.0.0',
@@ -647,13 +641,10 @@ INSTALL_REQUIREMENTS = [
     'requests>=2.20.0;python_version>="3.0"',  # Required to keep snowflake happy
     'setproctitle>=1.1.8, <2',
     'sqlalchemy~=1.3',
-    'sqlalchemy_jsonfield==0.8.0;python_version<"3.5"',
-    'sqlalchemy_jsonfield~=0.9;python_version>="3.5"',
+    'sqlalchemy_jsonfield~=0.9',
     'tabulate>=0.7.5, <0.9',
     'tenacity==4.12.0',
     'thrift>=0.11.0',
-    'typing;python_version<"3.5"',
-    'typing-extensions>=3.7.4;python_version<"3.8"',
     'tzlocal>=1.4,<2.0.0',
     'unicodecsv>=0.14.1',
     'werkzeug<1.0.0',
