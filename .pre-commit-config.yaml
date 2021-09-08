@@ -513,6 +513,13 @@ repos:
         always_run: true
         entry: ./scripts/ci/pre_commit/pre_commit_check_providers_init.sh
         language: system
+      - id: providers-example-dags-init-file
+        name: Provider example_dags init file
+        pass_filenames: false
+        always_run: true
+        entry: ./scripts/ci/pre_commit/pre_commit_check_providers_example_dag_init.py
+        language: python
+        require_serial: true
       - id: provider-yamls
         name: Validate providers.yaml files
         pass_filenames: false
