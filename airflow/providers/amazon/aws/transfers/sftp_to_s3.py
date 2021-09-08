@@ -47,9 +47,9 @@ class SFTPToS3Operator(BaseOperator):
     :param s3_key: The targeted s3 key. This is the specified path for
         uploading the file to S3.
     :type s3_key: str
-    :param use_temp_file: If True, copies file first to local, 
+    :param use_temp_file: If True, copies file first to local,
         if False streams file from SFTP to S3.
-    :type use_temp_file: bool       
+    :type use_temp_file: bool
     """
 
     template_fields = ('s3_key', 'sftp_path')
