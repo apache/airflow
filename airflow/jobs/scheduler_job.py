@@ -842,6 +842,7 @@ class SchedulerJob(BaseJob):
             total_queued = queued_runs_of_dags[dag_model.dag_id]
             if total_queued >= max_queued_dagruns:
                 continue
+
             try:
                 dag = self.dagbag.get_dag(dag_model.dag_id, session=session)
             except SerializedDagNotFound:
@@ -868,6 +869,7 @@ class SchedulerJob(BaseJob):
                     dag_hash=dag_hash,
                     creating_job_id=self.id,
                 )
+                queued_runs_of_dags[dag_model.dag_id] += 1
             dag_model.calculate_dagrun_date_fields(dag, dag_model.next_dagrun)
 
         # TODO[HA]: Should we do a session.flush() so we don't have to keep lots of state/object in
