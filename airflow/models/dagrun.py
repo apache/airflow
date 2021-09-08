@@ -110,6 +110,7 @@ class DagRun(Base, LoggingMixin):
             'dag_id',
             postgres_where=text("state='running'"),
             mssql_where=text("state='running'"),
+            sqlite_where=text("state='running'"),
         ),
     )
 
