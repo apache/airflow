@@ -182,6 +182,13 @@ function initialization::initialize_base_variables() {
     # By default we only push built ci/prod images - base python images are only pushed
     # When requested
     export PUSH_PYTHON_BASE_IMAGE=${PUSH_PYTHON_BASE_IMAGE:="false"}
+
+    # We pin version of setuptools to make sure that the version released in September 2021
+    # Works properly (FlaskOpenID installation)
+    # See https://github.com/apache/airflow/issues/18075
+    SETUPTOOLS_VERSION=${SETUPTOOLS_VERSION:="58.0.3"}
+    export SETUPTOOLS_VERSION
+
 }
 
 # Determine current branch

@@ -87,7 +87,8 @@ function create_virtualenv() {
 
     . "${virtualenv_path}/bin/activate"
 
-    pip install --upgrade "pip==${AIRFLOW_PIP_VERSION}" "wheel==${WHEEL_VERSION}"
+    pip install --upgrade "pip==${AIRFLOW_PIP_VERSION}" "wheel==${WHEEL_VERSION}" \
+        "setuptools==${SETUPTOOLS_VERSION}"
 
     local constraints=(
         --constraint

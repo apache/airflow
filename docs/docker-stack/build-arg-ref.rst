@@ -66,6 +66,8 @@ Those are the most common arguments that you use when you want to build a custom
 |                                          |                                          | :subst-code:`constraints-|airflow-version|`.|
 |                                          |                                          | Auto-detected if empty.                     |
 +------------------------------------------+------------------------------------------+---------------------------------------------+
+| ``SETUPTOOLS_VERSION``                   | ``50.0.3``                               | The setuptools version used.                |
++------------------------------------------+------------------------------------------+---------------------------------------------+
 
 Image optimization options
 ..........................

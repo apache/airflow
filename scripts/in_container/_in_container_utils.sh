@@ -19,6 +19,11 @@
 OPTIONAL_VERBOSE_FLAG=()
 PROVIDER_PACKAGES_DIR="${AIRFLOW_SOURCES}/dev/provider_packages"
 
+# For now we force FlaskOpenId 1.2.6 from patched release version to workaround setuptools upgrade
+# deprecation https://github.com/apache/airflow/issues/18075
+FLASK_OPENID_DEPENDENCY=Flask-OpenID@https://github.com/apache/airflow-flask-openid-fork/releases/download/v1.2.6/Flask-OpenID-1.2.6.tar.gz
+
+
 #######################################################################################################
 #
 # Adds trap to the traps already set.
@@ -238,8 +243,10 @@ function install_released_airflow_version() {
     echo
     echo "Installing released ${version} version of airflow without extras"
     echo
-
     rm -rf "${AIRFLOW_SOURCES}"/*.egg-info
+    # For now we force FlaskOpenId 1.2.6 from patched release version to workaround setuptools upgrade
+    # deprecation https://github.com/apache/airflow/issues/18075
+    pip install "${FLASK_OPENID_DEPENDENCY}"
     pip install --upgrade "apache-airflow==${version}"
 }
 
@@ -248,6 +255,9 @@ function install_local_airflow_with_eager_upgrade() {
     extras="${1}"
     # we add eager requirements to make sure to take into account limitations that will allow us to
     # install all providers
+    # For now we force FlaskOpenId 1.2.6 from patched release version to workaround setuptools upgrade
+    # deprecation https://github.com/apache/airflow/issues/18075
+    pip install "${FLASK_OPENID_DEPENDENCY}"
     # shellcheck disable=SC2086
     pip install -e ".${extras}" ${EAGER_UPGRADE_ADDITIONAL_REQUIREMENTS} \
         --upgrade --upgrade-strategy eager
@@ -277,6 +287,9 @@ function install_all_providers_from_pypi_with_eager_upgrade() {
     # Have some new providers in the works and they might not yet be simply available in PyPI
     # Installing it with Airflow makes sure that the version of package that matches current
     # Airflow requirements will be used.
+    # For now we force FlaskOpenId 1.2.6 from patched release version to workaround setuptools upgrade
+    # deprecation https://github.com/apache/airflow/issues/18075
+    pip install "${FLASK_OPENID_DEPENDENCY}"
     # shellcheck disable=SC2086
     pip install -e ".[${NO_PROVIDERS_EXTRAS}]" "${packages_to_install[@]}" ${EAGER_UPGRADE_ADDITIONAL_REQUIREMENTS} \
         --upgrade --upgrade-strategy eager

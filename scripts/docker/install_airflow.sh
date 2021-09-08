@@ -30,6 +30,12 @@
 . "$( dirname "${BASH_SOURCE[0]}" )/common.sh"
 
 function install_airflow() {
+
+    # For now we force FlaskOpenId 1.2.6 from patched release version to workaround setuptools upgrade
+    # deprecation https://github.com/apache/airflow/issues/18075
+    local FLASK_OPENID_DEPENDENCY
+    FLASK_OPENID_DEPENDENCY=Flask-OpenID@https://github.com/apache/airflow-flask-openid-fork/releases/download/v1.2.6/Flask-OpenID-1.2.6.tar.gz
+
     # Sanity check for editable installation mode.
     if [[ ${AIRFLOW_INSTALLATION_METHOD} != "." && \
           ${AIRFLOW_INSTALL_EDITABLE_FLAG} == "--editable" ]]; then
@@ -47,6 +53,7 @@ function install_airflow() {
         echo Installing all packages with eager upgrade
         echo
         # eager upgrade
+        pip install ${FLASK_OPENID_DEPENDENCY}
         pip install ${AIRFLOW_INSTALL_USER_FLAG} --upgrade --upgrade-strategy eager \
             "${AIRFLOW_INSTALLATION_METHOD}[${AIRFLOW_EXTRAS}]${AIRFLOW_VERSION_SPECIFICATION}" \
             ${EAGER_UPGRADE_ADDITIONAL_REQUIREMENTS}
