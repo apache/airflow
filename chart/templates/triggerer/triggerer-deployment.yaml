@@ -150,7 +150,7 @@ spec:
                 os.environ['AIRFLOW__CORE__LOGGING_LEVEL'] = 'ERROR'
                 os.environ['AIRFLOW__LOGGING__LOGGING_LEVEL'] = 'ERROR'
 
-                from airflow.jobs.triggerer_job. import TriggererJob
+                from airflow.jobs.triggerer_job import TriggererJob
                 from airflow.utils.db import create_session
                 from airflow.utils.net import get_hostname
                 import sys
