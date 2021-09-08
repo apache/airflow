@@ -1119,6 +1119,7 @@ class BigQueryCreateExternalTableOperator(BaseOperator):
         # BQ config
         kwargs_passed = any(
             [
+                destination_project_dataset_table
                 schema_fields,
                 source_format,
                 compression,
