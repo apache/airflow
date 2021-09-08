@@ -238,13 +238,18 @@ class TestVaultHook(TestCase):
         test_client.is_authenticated.assert_called_with()
         assert 2 == test_hook.vault_client.kv_engine_version
 
+    @mock.patch("airflow.providers.hashicorp._internal_client.vault_client.hvac")
     @mock.patch.dict(
         'os.environ',
-        AIRFLOW_CONN_VAULT_CONN_ID='http://role:secret@https://vault.example.com?auth_type=approle',
+        AIRFLOW_CONN_VAULT_CONN_ID='https://role:secret@vault.example.com?auth_type=approle',
     )
-    def test_approle_uri(self):
+    def test_approle_uri(self, mock_hvac):
         test_hook = VaultHook(vault_conn_id='vault_conn_id')
-        assert test_hook.vault_client.role_id == 'role'
+        test_client = test_hook.get_conn()
+        mock_hvac.Client.assert_called_with(url='https://vault.example.com')
+        test_client.auth.approle.login.assert_called_with(role_id="role", secret_id="secret")
+        test_client.is_authenticated.assert_called_with()
+        assert 2 == test_hook.vault_client.kv_engine_version
 
     @mock.patch("airflow.providers.hashicorp.hooks.vault.VaultHook.get_connection")
     @mock.patch("airflow.providers.hashicorp._internal_client.vault_client.hvac")
