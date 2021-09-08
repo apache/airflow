@@ -34,7 +34,7 @@ class NonCachingFileHandler(logging.FileHandler):
     """
 
     def _open(self):
-        wrapper = logging.FileHandler._open(self)
+        wrapper = super()._open()
         try:
             fd = wrapper.fileno()
             os.posix_fadvise(fd, 0, 0, os.POSIX_FADV_DONTNEED)
