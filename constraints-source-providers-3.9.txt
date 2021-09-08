@@ -9,7 +9,7 @@ Flask-Caching==1.9.0
 Flask-JWT-Extended==3.25.1
 Flask-Login==0.4.1
 Flask-OAuthlib==0.9.5
-Flask-OpenID@https://github.com/apache/airflow-flask-openid-fork/releases/download/v1.2.6/Flask-OpenID-1.2.6.tar.gz
+Flask-OpenID==1.3.0
 Flask-SQLAlchemy==2.4.4
 Flask-WTF==0.14.3
 Flask==1.1.2
