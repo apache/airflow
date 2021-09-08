@@ -24,10 +24,8 @@ from unittest.mock import call
 from parameterized import parameterized
 
 from airflow import models, settings
-from airflow.jobs.base_job import BaseJob
 from airflow.models import DAG, DagBag, DagModel, TaskInstance as TI, clear_task_instances
 from airflow.models.dagrun import DagRun
-from airflow.operators.bash import BashOperator
 from airflow.operators.dummy import DummyOperator
 from airflow.operators.python import ShortCircuitOperator
 from airflow.serialization.serialized_objects import SerializedDAG
@@ -39,7 +37,7 @@ from airflow.utils.state import State
 from airflow.utils.trigger_rule import TriggerRule
 from airflow.utils.types import DagRunType
 from tests.models import DEFAULT_DATE
-from tests.test_utils.db import clear_db_dags, clear_db_jobs, clear_db_pools, clear_db_runs
+from tests.test_utils.db import clear_db_dags, clear_db_pools, clear_db_runs
 
 
 class TestDagRun(unittest.TestCase):
@@ -87,8 +85,7 @@ class TestDagRun(unittest.TestCase):
             for task_id, task_state in task_states.items():
                 ti = dag_run.get_task_instance(task_id)
                 ti.set_state(task_state, session)
-            session.commit()
-            session.close()
+            session.flush()
 
         return dag_run
 
@@ -377,7 +374,7 @@ class TestDagRun(unittest.TestCase):
         assert callback == DagCallbackRequest(
             full_filepath=dag_run.dag.fileloc,
             dag_id="test_dagrun_update_state_with_handle_callback_success",
-            execution_date=dag_run.execution_date,
+            run_id=dag_run.run_id,
             is_failure_callback=False,
             msg="success",
         )
@@ -412,7 +409,7 @@ class TestDagRun(unittest.TestCase):
         assert callback == DagCallbackRequest(
             full_filepath=dag_run.dag.fileloc,
             dag_id="test_dagrun_update_state_with_handle_callback_failure",
-            execution_date=dag_run.execution_date,
+            run_id=dag_run.run_id,
             is_failure_callback=True,
             msg="task_failure",
         )
@@ -825,40 +822,3 @@ class TestDagRun(unittest.TestCase):
         ti_failed = dag_run.get_task_instance(dag_task_failed.task_id)
         assert ti_success.state in State.success_states
         assert ti_failed.state in State.failed_states
-
-    def test_delete_dag_run_and_task_instance_does_not_raise_error(self):
-        clear_db_jobs()
-        clear_db_runs()
-
-        job_id = 22
-        dag = DAG(dag_id='test_delete_dag_run', start_date=days_ago(1))
-        _ = BashOperator(task_id='task1', dag=dag, bash_command="echo hi")
-
-        # Simulate DagRun is created by a job inherited by BaseJob with an id
-        # This is so that same foreign key exists on DagRun.creating_job_id & BaseJob.id
-        dag_run = self.create_dag_run(dag=dag, creating_job_id=job_id)
-        assert dag_run is not None
-
-        session = settings.Session()
-
-        job = BaseJob(id=job_id)
-        session.add(job)
-
-        # Simulate TaskInstance is created by a job inherited by BaseJob with an id
-        # This is so that same foreign key exists on TaskInstance.queued_by_job_id & BaseJob.id
-        ti1 = dag_run.get_task_instance(task_id="task1")
-        ti1.queued_by_job_id = job_id
-        session.merge(ti1)
-        session.commit()
-
-        # Test Deleting DagRun does not raise an error
-        session.delete(dag_run)
-
-        # Test Deleting TaskInstance does not raise an error
-        ti1 = dag_run.get_task_instance(task_id="task1")
-        session.delete(ti1)
-        session.commit()
-
-        # CleanUp
-        clear_db_runs()
-        clear_db_jobs()

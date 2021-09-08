@@ -130,13 +130,9 @@ if conf.getboolean("sentry", 'sentry_on', fallback=False):
             """Function to add breadcrumbs inside of a task_instance."""
             if session is None:
                 return
-            execution_date = task_instance.execution_date
-            task = task_instance.task
-            dag = task.dag
-            task_instances = dag.get_task_instances(
+            dr = task_instance.get_dagrun(session)
+            task_instances = dr.get_task_instances(
                 state={State.SUCCESS, State.FAILED},
-                end_date=execution_date,
-                start_date=execution_date,
                 session=session,
             )
 

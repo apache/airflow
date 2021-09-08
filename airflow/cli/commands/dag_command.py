@@ -89,9 +89,11 @@ def dag_backfill(args, dag=None):
 
     if args.dry_run:
         print(f"Dry run of DAG {args.dag_id} on {args.start_date}")
+        dr = DagRun(dag.dag_id, execution_date=args.start_date)
         for task in dag.tasks:
             print(f"Task {task.task_id}")
-            ti = TaskInstance(task, args.start_date)
+            ti = TaskInstance(task, run_id=None)
+            ti.dag_run = dr
             ti.dry_run()
     else:
         if args.reset_dagruns:

@@ -24,7 +24,6 @@ import threading
 from unittest.mock import patch
 
 import pytest
-import sqlalchemy
 
 from airflow import settings
 from airflow.cli import cli_parser
@@ -191,7 +190,7 @@ class TestBackfillJob:
             ("run_this_last", end_date),
         ]
         assert [
-            ((dag.dag_id, task_id, when, 1), (State.SUCCESS, None))
+            ((dag.dag_id, task_id, f'backfill__{when.isoformat()}', 1), (State.SUCCESS, None))
             for (task_id, when) in expected_execution_order
         ] == executor.sorted_tasks
 
@@ -268,7 +267,7 @@ class TestBackfillJob:
 
         job.run()
         assert [
-            ((dag_id, task_id, DEFAULT_DATE, 1), (State.SUCCESS, None))
+            ((dag_id, task_id, f'backfill__{DEFAULT_DATE.isoformat()}', 1), (State.SUCCESS, None))
             for task_id in expected_execution_order
         ] == executor.sorted_tasks
 
@@ -707,13 +706,13 @@ class TestBackfillJob:
             },
         ) as dag:
             task1 = DummyOperator(task_id="task1")
-        dag_maker.create_dagrun()
+        dr = dag_maker.create_dagrun()
 
         executor = MockExecutor(parallelism=16)
         executor.mock_task_results[
-            TaskInstanceKey(dag.dag_id, task1.task_id, DEFAULT_DATE, try_number=1)
+            TaskInstanceKey(dag.dag_id, task1.task_id, dr.run_id, try_number=1)
         ] = State.UP_FOR_RETRY
-        executor.mock_task_fail(dag.dag_id, task1.task_id, DEFAULT_DATE, try_number=2)
+        executor.mock_task_fail(dag.dag_id, task1.task_id, dr.run_id, try_number=2)
         job = BackfillJob(
             dag=dag,
             executor=executor,
@@ -739,7 +738,8 @@ class TestBackfillJob:
             op1.set_downstream(op3)
             op4.set_downstream(op5)
             op3.set_downstream(op4)
-        dag_maker.create_dagrun()
+        runid0 = f'backfill__{DEFAULT_DATE.isoformat()}'
+        dag_maker.create_dagrun(run_id=runid0)
 
         executor = MockExecutor(parallelism=16)
         job = BackfillJob(
@@ -750,25 +750,24 @@ class TestBackfillJob:
         )
         job.run()
 
-        date0 = DEFAULT_DATE
-        date1 = date0 + datetime.timedelta(days=1)
-        date2 = date1 + datetime.timedelta(days=1)
+        runid1 = f'backfill__{(DEFAULT_DATE + datetime.timedelta(days=1)).isoformat()}'
+        runid2 = f'backfill__{(DEFAULT_DATE + datetime.timedelta(days=2)).isoformat()}'
 
         # test executor history keeps a list
         history = executor.history
 
         assert [sorted(item[-1].key[1:3] for item in batch) for batch in history] == [
             [
-                ('leave1', date0),
-                ('leave1', date1),
-                ('leave1', date2),
-                ('leave2', date0),
-                ('leave2', date1),
-                ('leave2', date2),
+                ('leave1', runid0),
+                ('leave1', runid1),
+                ('leave1', runid2),
+                ('leave2', runid0),
+                ('leave2', runid1),
+                ('leave2', runid2),
             ],
-            [('upstream_level_1', date0), ('upstream_level_1', date1), ('upstream_level_1', date2)],
-            [('upstream_level_2', date0), ('upstream_level_2', date1), ('upstream_level_2', date2)],
-            [('upstream_level_3', date0), ('upstream_level_3', date1), ('upstream_level_3', date2)],
+            [('upstream_level_1', runid0), ('upstream_level_1', runid1), ('upstream_level_1', runid2)],
+            [('upstream_level_2', runid0), ('upstream_level_2', runid1), ('upstream_level_2', runid2)],
+            [('upstream_level_3', runid0), ('upstream_level_3', runid1), ('upstream_level_3', runid2)],
         ]
 
     def test_backfill_pooled_tasks(self):
@@ -1045,13 +1044,6 @@ class TestBackfillJob:
         job = BackfillJob(dag=sub_dag, start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, executor=executor)
         job.run()
 
-        with pytest.raises(sqlalchemy.orm.exc.NoResultFound):
-            dr.refresh_from_db()
-        # the run_id should have changed, so a refresh won't work
-        drs = DagRun.find(dag_id=dag.dag_id, execution_date=DEFAULT_DATE)
-        dr = drs[0]
-
-        assert DagRun.generate_run_id(DagRunType.BACKFILL_JOB, DEFAULT_DATE) == dr.run_id
         for ti in dr.get_task_instances():
             if ti.task_id == 'leave1' or ti.task_id == 'leave2':
                 assert State.SUCCESS == ti.state
@@ -1097,11 +1089,7 @@ class TestBackfillJob:
         with pytest.raises(AirflowException, match='Some task instances failed'):
             job.run()
 
-        with pytest.raises(sqlalchemy.orm.exc.NoResultFound):
-            dr.refresh_from_db()
-        # the run_id should have changed, so a refresh won't work
-        drs = DagRun.find(dag_id=dag.dag_id, execution_date=DEFAULT_DATE)
-        dr = drs[0]
+        dr.refresh_from_db()
 
         assert dr.state == State.FAILED
 
@@ -1210,18 +1198,22 @@ class TestBackfillJob:
         dag = self.dagbag.get_dag('example_subdag_operator')
         subdag = dag.get_task('section-1').subdag
 
+        session = settings.Session()
         executor = MockExecutor()
         job = BackfillJob(
             dag=subdag, start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, executor=executor, donot_pickle=True
         )
+        dr = DagRun(
+            dag_id=subdag.dag_id, execution_date=DEFAULT_DATE, run_id="test", run_type=DagRunType.BACKFILL_JOB
+        )
+        session.add(dr)
 
         removed_task_ti = TI(
-            task=DummyOperator(task_id='removed_task'), execution_date=DEFAULT_DATE, state=State.REMOVED
+            task=DummyOperator(task_id='removed_task'), run_id=dr.run_id, state=State.REMOVED
         )
         removed_task_ti.dag_id = subdag.dag_id
+        dr.task_instances.append(removed_task_ti)
 
-        session = settings.Session()
-        session.merge(removed_task_ti)
         session.commit()
 
         with timeout(seconds=30):
@@ -1378,8 +1370,9 @@ class TestBackfillJob:
         session = settings.Session()
         tis = (
             session.query(TI)
+            .join(TI.dag_run)
             .filter(TI.dag_id == 'test_start_date_scheduling' and TI.task_id == 'dummy')
-            .order_by(TI.execution_date)
+            .order_by(DagRun.execution_date)
             .all()
         )
 
@@ -1397,7 +1390,7 @@ class TestBackfillJob:
         states_to_reset = [State.QUEUED, State.SCHEDULED, State.NONE]
 
         tasks = []
-        with dag_maker(dag_id=prefix, start_date=DEFAULT_DATE, schedule_interval="@daily") as dag:
+        with dag_maker(dag_id=prefix) as dag:
             for i in range(len(states)):
                 task_id = f"{prefix}_task_{i}"
                 task = DummyOperator(task_id=task_id)
@@ -1452,7 +1445,7 @@ class TestBackfillJob:
         for state, ti in zip(states, dr2_tis):
             assert state == ti.state
 
-    def test_reset_orphaned_tasks_specified_dagrun(self, dag_maker):
+    def test_reset_orphaned_tasks_specified_dagrun(self, session, dag_maker):
         """Try to reset when we specify a dagrun and ensure nothing else is."""
         dag_id = 'test_reset_orphaned_tasks_specified_dagrun'
         task_id = dag_id + '_task'
@@ -1460,14 +1453,14 @@ class TestBackfillJob:
             dag_id=dag_id,
             start_date=DEFAULT_DATE,
             schedule_interval='@daily',
+            session=session,
         ) as dag:
             DummyOperator(task_id=task_id, dag=dag)
 
         job = BackfillJob(dag=dag)
-        session = settings.Session()
         # make two dagruns, only reset for one
         dr1 = dag_maker.create_dagrun(state=State.SUCCESS)
-        dr2 = dag.create_dagrun(run_id='test2', state=State.RUNNING)
+        dr2 = dag.create_dagrun(run_id='test2', state=State.RUNNING, session=session)
         ti1 = dr1.get_task_instances(session=session)[0]
         ti2 = dr2.get_task_instances(session=session)[0]
         ti1.state = State.SCHEDULED
@@ -1477,7 +1470,7 @@ class TestBackfillJob:
         session.merge(ti2)
         session.merge(dr1)
         session.merge(dr2)
-        session.commit()
+        session.flush()
 
         num_reset_tis = job.reset_state_for_orphaned_tasks(filter_by_dag_run=dr2, session=session)
         assert 1 == num_reset_tis
