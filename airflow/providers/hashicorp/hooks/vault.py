@@ -17,6 +17,7 @@
 
 """Hook for HashiCorp Vault"""
 import json
+import warnings
 from typing import Optional, Tuple
 
 import hvac
@@ -63,7 +64,7 @@ class VaultHook(BaseHook):
 
     Login/Password are used as credentials:
 
-        * approle: password -> secret_id
+        * approle: login -> role_id,  password -> secret_id
         * github: password -> token
         * token: password -> token
         * aws_iam: login -> key_id, password -> secret_id
@@ -148,12 +149,29 @@ class VaultHook(BaseHook):
             except ValueError:
                 raise VaultError(f"The version is not an int: {conn_version}. ")
 
-        if auth_type in ["approle", "aws_iam"]:
+        if auth_type == "approle":
             if not role_id:
                 if self.connection.extra_dejson.get('role_id'):
                     role_id = self.connection.extra_dejson.get('role_id')
                 else:
                     role_id = self.connection.login
+            else:
+                warnings.warn(
+                    """The usage of role_id has been deprecated.
+                    Please use either the connection login or extras.""",
+                    DeprecationWarning,
+                    stacklevel=2,
+                )
+
+        if auth_type == "aws_iam":
+            if not role_id:
+                role_id = self.connection.extra_dejson.get('role_id')
+            else:
+                warnings.warn(
+                    "The usage of role_id has been deprecated.  Please specify this in connection extras.",
+                    DeprecationWarning,
+                    stacklevel=2,
+                )
 
         azure_resource, azure_tenant_id = (
             self._get_azure_parameters_from_connection(azure_resource, azure_tenant_id)
