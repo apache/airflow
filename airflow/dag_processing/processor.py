@@ -28,12 +28,14 @@ from typing import Iterator, List, Optional, Set, Tuple
 
 from setproctitle import setproctitle
 from sqlalchemy import func, or_
+from sqlalchemy.orm import eagerload
 from sqlalchemy.orm.session import Session
 
 from airflow import models, settings
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException, TaskNotFound
-from airflow.models import DAG, DagModel, SlaMiss, errors
+from airflow.models import SlaMiss, errors
+from airflow.models.dag import DAG, DagModel
 from airflow.models.dagbag import DagBag
 from airflow.stats import Stats
 from airflow.utils import timezone
@@ -391,6 +393,7 @@ class DagFileProcessor(LoggingMixin):
 
         max_tis: Iterator[TI] = (
             session.query(TI)
+            .options(eagerload(TI.dag_run))
             .join(TI.dag_run)
             .filter(
                 TI.dag_id == dag.dag_id,
@@ -411,14 +414,20 @@ class DagFileProcessor(LoggingMixin):
                     f"{type(task.sla)} in {task.dag_id}:{task.task_id}"
                 )
 
-            dttm = dag.following_schedule(ti.execution_date)
-            while dttm < ts:
-                following_schedule = dag.following_schedule(dttm)
-                if following_schedule + task.sla < ts:
-                    session.merge(
-                        SlaMiss(task_id=ti.task_id, dag_id=ti.dag_id, execution_date=dttm, timestamp=ts)
+            sla_misses = []
+            next_info = dag.next_dagrun_info(dag.get_run_data_interval(ti.dag_run), restricted=False)
+            while next_info.logical_date < ts:
+                next_info = dag.next_dagrun_info(next_info.data_interval, restricted=False)
+                if next_info.logical_date + task.sla < ts:
+                    sla_miss = SlaMiss(
+                        task_id=ti.task_id,
+                        dag_id=ti.dag_id,
+                        execution_date=next_info.logical_date,
+                        timestamp=ts,
                     )
-                dttm = dag.following_schedule(dttm)
+                    sla_misses.append(sla_miss)
+            if sla_misses:
+                session.add_all(sla_misses)
         session.commit()
 
         slas: List[SlaMiss] = (

@@ -18,15 +18,15 @@
 import contextlib
 from functools import wraps
 from inspect import signature
-from typing import Callable, TypeVar
+from typing import Callable, Iterator, TypeVar
 
 from airflow import settings
 
 
 @contextlib.contextmanager
-def create_session():
+def create_session() -> Iterator[settings.SASession]:
     """Contextmanager that will create and teardown a session."""
-    session = settings.Session()
+    session: settings.SASession = settings.Session()
     try:
         yield session
         session.commit()

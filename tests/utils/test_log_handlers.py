@@ -223,6 +223,7 @@ def filename_rendering_ti(session, create_task_instance):
     return create_task_instance(
         dag_id='dag_for_testing_filename_rendering',
         task_id='task_for_testing_filename_rendering',
+        run_type=DagRunType.SCHEDULED,
         execution_date=DEFAULT_DATE,
         session=session,
     )

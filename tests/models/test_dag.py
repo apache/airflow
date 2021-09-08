@@ -772,9 +772,8 @@ class TestDag(unittest.TestCase):
 
         model = session.query(DagModel).get((dag.dag_id,))
 
-        period_end = dag.following_schedule(DEFAULT_DATE)
         assert model.next_dagrun == DEFAULT_DATE
-        assert model.next_dagrun_create_after == period_end
+        assert model.next_dagrun_create_after == DEFAULT_DATE + timedelta(days=1)
 
         dr = dag.create_dagrun(
             state=State.RUNNING,
@@ -786,7 +785,7 @@ class TestDag(unittest.TestCase):
         DAG.bulk_write_to_db([dag])
 
         model = session.query(DagModel).get((dag.dag_id,))
-        assert model.next_dagrun == period_end
+        assert model.next_dagrun == DEFAULT_DATE + timedelta(days=1)
         # Next dagrun after is not None because the dagrun would be in queued state
         assert model.next_dagrun_create_after is not None
 
@@ -1148,7 +1147,7 @@ class TestDag(unittest.TestCase):
         # Even though there is a run for this date already, it is marked as manual/external, so we should
         # create a scheduled one anyway!
         assert model.next_dagrun == DEFAULT_DATE
-        assert model.next_dagrun_create_after == dag.following_schedule(DEFAULT_DATE)
+        assert model.next_dagrun_create_after == DEFAULT_DATE + delta
 
         self._clean_up(dag_id)
 
@@ -1503,7 +1502,7 @@ class TestDag(unittest.TestCase):
         next_info = dag.next_dagrun_info(None)
         assert next_info and next_info.logical_date == timezone.datetime(2015, 1, 1)
 
-        next_info = dag.next_dagrun_info(next_info.logical_date)
+        next_info = dag.next_dagrun_info(next_info.data_interval)
         assert next_info is None
 
     def test_next_dagrun_info_start_end_dates(self):
@@ -1521,18 +1520,18 @@ class TestDag(unittest.TestCase):
 
         # Create and schedule the dag runs
         dates = []
-        date = None
+        interval = None
         for _ in range(runs):
-            next_info = dag.next_dagrun_info(date)
+            next_info = dag.next_dagrun_info(interval)
             if next_info is None:
                 dates.append(None)
             else:
-                date = next_info.logical_date
-                dates.append(date)
+                interval = next_info.data_interval
+                dates.append(interval.start)
 
         assert all(date is not None for date in dates)
         assert dates[-1] == end_date
-        assert dag.next_dagrun_info(date) is None
+        assert dag.next_dagrun_info(interval.start) is None
 
     def test_next_dagrun_info_catchup(self):
         """
@@ -1618,7 +1617,7 @@ class TestDag(unittest.TestCase):
         assert next_info and next_info.logical_date == timezone.datetime(2020, 1, 4)
 
         # The date to create is in the future, this is handled by "DagModel.dags_needing_dagruns"
-        next_info = dag.next_dagrun_info(next_info.logical_date)
+        next_info = dag.next_dagrun_info(next_info.data_interval)
         assert next_info and next_info.logical_date == timezone.datetime(2020, 1, 5)
 
     @freeze_time(timezone.datetime(2020, 5, 4))
@@ -1637,14 +1636,14 @@ class TestDag(unittest.TestCase):
         next_info = dag.next_dagrun_info(None)
         assert next_info and next_info.logical_date == timezone.datetime(2020, 5, 1)
 
-        next_info = dag.next_dagrun_info(next_info.logical_date)
+        next_info = dag.next_dagrun_info(next_info.data_interval)
         assert next_info and next_info.logical_date == timezone.datetime(2020, 5, 2)
 
-        next_info = dag.next_dagrun_info(next_info.logical_date)
+        next_info = dag.next_dagrun_info(next_info.data_interval)
         assert next_info and next_info.logical_date == timezone.datetime(2020, 5, 3)
 
         # The date to create is in the future, this is handled by "DagModel.dags_needing_dagruns"
-        next_info = dag.next_dagrun_info(next_info.logical_date)
+        next_info = dag.next_dagrun_info(next_info.data_interval)
         assert next_info and next_info.logical_date == timezone.datetime(2020, 5, 4)
 
     def test_next_dagrun_after_auto_align(self):
@@ -1790,8 +1789,8 @@ class TestDagModel:
         orm_dag = DagModel(
             dag_id=dag.dag_id,
             has_task_concurrency_limits=False,
-            next_dagrun=dag.start_date,
-            next_dagrun_create_after=dag.following_schedule(DEFAULT_DATE),
+            next_dagrun=DEFAULT_DATE,
+            next_dagrun_create_after=DEFAULT_DATE + timedelta(days=1),
             is_active=True,
         )
         session.add(orm_dag)

@@ -649,10 +649,13 @@ class DagRun(Base, LoggingMixin):
             ordered_tis_by_start_date.sort(key=lambda ti: ti.start_date, reverse=False)
             first_start_date = ordered_tis_by_start_date[0].start_date
             if first_start_date:
-                # dag.following_schedule calculates the expected start datetime for a scheduled dagrun
-                # i.e. a daily flow for execution date 1/1/20 actually runs on 1/2/20 hh:mm:ss,
-                # and ti.start_date will be 1/2/20 hh:mm:ss so the following schedule is comparison
-                true_delay = first_start_date - dag.following_schedule(self.execution_date)
+                # TODO: Logically, this should be DagRunInfo.run_after, but the
+                # information is not stored on a DagRun, only before the actual
+                # execution on DagModel.next_dagrun_create_after. We should add
+                # a field on DagRun for this instead of relying on the run
+                # always happening immediately after the data interval.
+                data_interval_end = dag.get_run_data_interval(self).end
+                true_delay = first_start_date - data_interval_end
                 if true_delay.total_seconds() > 0:
                     Stats.timing(f'dagrun.{dag.dag_id}.first_task_scheduling_delay', true_delay)
         except Exception as e:
