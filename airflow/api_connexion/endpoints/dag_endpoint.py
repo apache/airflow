@@ -16,6 +16,7 @@
 # under the License.
 from flask import current_app, g, request
 from marshmallow import ValidationError
+from sqlalchemy.sql.expression import or_
 
 from airflow import DAG
 from airflow._vendor.connexion import NoContent
@@ -29,7 +30,7 @@ from airflow.api_connexion.schemas.dag_schema import (
     dags_collection_schema,
 )
 from airflow.exceptions import AirflowException, DagNotFound, SerializedDagNotFound
-from airflow.models.dag import DagModel
+from airflow.models.dag import DagModel, DagTag
 from airflow.security import permissions
 from airflow.settings import Session
 from airflow.utils.session import provide_session
@@ -62,7 +63,7 @@ def get_dag_details(dag_id):
 @security.requires_access([(permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG)])
 @format_parameters({'limit': check_limit})
 @provide_session
-def get_dags(limit, session, offset=0, only_active=True):
+def get_dags(limit, session, offset=0, only_active=True, tags=None):
     """Get all DAGs."""
     if only_active:
         dags_query = session.query(DagModel).filter(~DagModel.is_subdag, DagModel.is_active)
@@ -72,6 +73,10 @@ def get_dags(limit, session, offset=0, only_active=True):
     readable_dags = current_app.appbuilder.sm.get_accessible_dag_ids(g.user)
 
     dags_query = dags_query.filter(DagModel.dag_id.in_(readable_dags))
+    if tags:
+        cond = [DagModel.tags.any(DagTag.name == tag) for tag in tags]
+        dags_query = dags_query.filter(or_(*cond))
+
     total_entries = len(dags_query.all())
 
     dags = dags_query.order_by(DagModel.dag_id).offset(offset).limit(limit).all()

@@ -407,6 +407,7 @@ paths:
         - $ref: '#/components/parameters/PageLimit'
         - $ref: '#/components/parameters/PageOffset'
         - $ref: '#/components/parameters/OrderBy'
+        - $ref: '#/components/parameters/FilterTags'
         - name: only_active
           in: query
           schema:
@@ -3497,6 +3498,16 @@ components:
           type: string
       description:
         The value can be repeated to retrieve multiple matching values (OR condition).
+
+    FilterTags:
+      in: query
+      name: tags
+      schema:
+        type: array
+        items:
+          type: string
+      description:
+        List of tags to filter results
 
     OrderBy:
       in: query
