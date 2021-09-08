@@ -658,3 +658,92 @@ class TestKubernetesPodOperator(unittest.TestCase):
         pod_namespace = ti.xcom_pull(task_ids=k.task_id, key='pod_namespace')
         assert pod_name and pod_name == pod.metadata.name
         assert pod_namespace and pod_namespace == pod.metadata.namespace
+
+    def test_previous_pods_ignored_for_reattached(self):
+        """
+        When looking for pods to possibly reattach to,
+        ignore pods from previous tries that were properly finished
+        """
+        k = KubernetesPodOperator(
+            namespace="default",
+            image="ubuntu:16.04",
+            name="test",
+            task_id="task",
+        )
+        self.run_pod(k)
+        self.client_mock.return_value.list_namespaced_pod.assert_called_once()
+        _, kwargs = self.client_mock.return_value.list_namespaced_pod.call_args
+        assert 'already_checked!=True' in kwargs['label_selector']
+
+    @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_launcher.PodLauncher.delete_pod")
+    @mock.patch(
+        "airflow.providers.cncf.kubernetes.operators.kubernetes_pod"
+        ".KubernetesPodOperator.patch_already_checked"
+    )
+    def test_mark_created_pod_if_not_deleted(self, mock_patch_already_checked, mock_delete_pod):
+        """If we aren't deleting pods and have a failure, mark it so we don't reattach to it"""
+        k = KubernetesPodOperator(
+            namespace="default",
+            image="ubuntu:16.04",
+            name="test",
+            task_id="task",
+            is_delete_operator_pod=False,
+        )
+        self.monitor_mock.return_value = (State.FAILED, None, None)
+        context = self.create_context(k)
+        with pytest.raises(AirflowException):
+            k.execute(context=context)
+        mock_patch_already_checked.assert_called_once()
+        mock_delete_pod.assert_not_called()
+
+    @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_launcher.PodLauncher.delete_pod")
+    @mock.patch(
+        "airflow.providers.cncf.kubernetes.operators.kubernetes_pod"
+        ".KubernetesPodOperator.patch_already_checked"
+    )
+    def test_mark_created_pod_if_not_deleted_during_exception(
+        self, mock_patch_already_checked, mock_delete_pod
+    ):
+        """If we aren't deleting pods and have an exception, mark it so we don't reattach to it"""
+        k = KubernetesPodOperator(
+            namespace="default",
+            image="ubuntu:16.04",
+            name="test",
+            task_id="task",
+            is_delete_operator_pod=False,
+        )
+        self.monitor_mock.side_effect = AirflowException("oops")
+        context = self.create_context(k)
+        with pytest.raises(AirflowException):
+            k.execute(context=context)
+        mock_patch_already_checked.assert_called_once()
+        mock_delete_pod.assert_not_called()
+
+    @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_launcher.PodLauncher.delete_pod")
+    @mock.patch(
+        "airflow.providers.cncf.kubernetes.operators.kubernetes_pod"
+        ".KubernetesPodOperator.patch_already_checked"
+    )
+    def test_mark_reattached_pod_if_not_deleted(self, mock_patch_already_checked, mock_delete_pod):
+        """If we aren't deleting pods and have a failure, mark it so we don't reattach to it"""
+        k = KubernetesPodOperator(
+            namespace="default",
+            image="ubuntu:16.04",
+            name="test",
+            task_id="task",
+            is_delete_operator_pod=False,
+        )
+        # Run it first to easily get the pod
+        pod = self.run_pod(k)
+
+        # Now try and "reattach"
+        mock_patch_already_checked.reset_mock()
+        mock_delete_pod.reset_mock()
+        self.client_mock.return_value.list_namespaced_pod.return_value.items = [pod]
+        self.monitor_mock.return_value = (State.FAILED, None, None)
+
+        context = self.create_context(k)
+        with pytest.raises(AirflowException):
+            k.execute(context=context)
+        mock_patch_already_checked.assert_called_once()
+        mock_delete_pod.assert_not_called()
