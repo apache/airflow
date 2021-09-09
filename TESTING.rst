@@ -58,7 +58,7 @@ in Airflow 2.0 development phase. That will include setUp/tearDown/context manag
 Running Unit Tests from PyCharm IDE
 -----------------------------------
 
-To run unit tests from PyCharm IDE, create the `local virtualenv <LOCAL_VIRTUALENV.rst>`_,
+To run unit tests from the PyCharm IDE, create the `local virtualenv <LOCAL_VIRTUALENV.rst>`_,
 select it as the default project's environment, then configure your test runner:
 
 .. image:: images/configure_test_runner.png

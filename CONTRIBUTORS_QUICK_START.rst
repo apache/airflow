@@ -411,9 +411,8 @@ Using Breeze
       </div>
 
 3. Setup mysql database in
-   PyCharm Database tool with Host ``127.0.0.1``, port ``23306``, user ``root`` and password
-   blank(leave empty), default schema ``airflow``. If you are using Visual Studio Code,
-   you can use any database management extension or standalone tool such as MySQL Workbench.
+   MySQL Workbench with Host ``127.0.0.1``, port ``23306``, user ``root`` and password
+   blank(leave empty), default schema ``airflow``.
 
    .. raw:: html
 
@@ -540,17 +539,19 @@ A. Using PyCharm
   machine when breeze airflow is started. So any DAG file present in this directory will be picked automatically by
   scheduler running in docker machine and same can be seen on ``http://127.0.0.1:28080``.
 
-- Copy any example DAG present in airflow project's ``\airflow\example_dags`` directory to ``\files\dags\``.
+- Copy any example DAG present in the ``\airflow\example_dags`` directory to ``\files\dags\``.
 
-- Add main block at the end of your DAG file to make it runnable. It will run a back_fill job:
+- Add a ``__main__`` block at the end of your DAG file to make it runnable. It will run a ``back_fill`` job:
 
   .. code-block:: python
 
-    if __name__ == "__main__":
-        from airflow.utils.state import State
+    from airflow.utils.state import State
 
-        dag.clear(dag_run_state=State.NONE)
-        dag.run()
+    ...
+
+    if __name__ == '__main__':
+      dag.clear(dag_run_state=State.NONE)
+      dag.run()
 
 - Add ``AIRFLOW__CORE__EXECUTOR=DebugExecutor`` to Environment variable of Run Configuration.
 
@@ -572,7 +573,7 @@ A. Using PyCharm
                alt="Add environment variable pycharm">
         </div>
 
-- Now Debug an example dag and view the entries in tables such as ``dag_run, xcom`` etc in mysql workbench.
+- Now Debug an example dag and view the entries in tables such as ``dag_run, xcom`` etc in MySQL Workbench.
 
 B. Using Visual Studio Code
 
@@ -580,20 +581,23 @@ B. Using Visual Studio Code
   machine when breeze airflow is started. So any DAG file present in this directory will be picked automatically by
   scheduler running in docker machine and same can be seen on ``http://127.0.0.1:28080``.
 
-- Copy any example DAG present in airflow project's ``\airflow\example_dags`` directory to ``\files\dags\``.
+- Copy any example DAG present in the ``\airflow\example_dags`` directory to ``\files\dags\``.
 
-- Add main block at the end of your DAG file to make it runnable. It will run a back_fill job:
+- Add a ``__main__`` block at the end of your DAG file to make it runnable. It will run a ``back_fill`` job:
 
   .. code-block:: python
 
+    from airflow.utils.state import State
+
+    ...
+
     if __name__ == '__main__':
-      from airflow.utils.state import State
       dag.clear(dag_run_state=State.NONE)
       dag.run()
 
 - Add ``"AIRFLOW__CORE__EXECUTOR": "DebugExecutor"`` to the ``"env"`` field of Debug configuration.
 
-  - Using Run view click on create a launch.json file
+  - Using the ``Run`` view click on ``Create a launch.json file``
 
     .. raw:: html
 
@@ -606,7 +610,7 @@ B. Using Visual Studio Code
                alt="Add Debug Configuration to Visual Studio Code">
         </div>
 
-  - Change ``"program"`` to point to an example dag and add ``"env"`` and ``"python"`` fields to new Python configuration
+  - Change ``"program"`` to point to an example dag and add ``"env"`` and ``"python"`` fields to the new Python configuration
 
     .. raw:: html
 
@@ -626,7 +630,7 @@ Starting development
 Creating a branch
 -----------------
 
-1. Click on branch symbol in the status bar
+1. Click on the branch symbol in the status bar
 
    .. raw:: html
 
@@ -637,15 +641,15 @@ Creating a branch
              alt="Creating a new branch">
       </div>
 
-2. Give a name to branch and checkout
+2. Give a name to a branch and checkout
 
    .. raw:: html
 
       <div align="center" style="padding-bottom:10px">
         <img src="images/quick_start/creating_branch_2.png"
-             alt="Giving name to a branch">
+             alt="Giving a name to a branch">
         <img src="images/quick_start/vscode_creating_branch_2.png"
-             alt="Giving name to a branch">
+             alt="Giving a name to a branch">
       </div>
 
 
@@ -913,7 +917,7 @@ To avoid burden on CI infrastructure and to save time, Pre-commit hooks can be r
   $ pre-commit install
   $ git commit -m "Added xyz"
 
-1. To disable Pre-commit
+9. To disable Pre-commit
 
 .. code-block:: bash
 
