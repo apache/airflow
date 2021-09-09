@@ -17,8 +17,6 @@
 
 import unittest
 
-import jmespath
-
 from tests.helm_template_generator import render_chart
 
 
@@ -35,5 +33,3 @@ class SchedulerPdbTest(unittest.TestCase):
             show_only=["templates/scheduler/scheduler-poddisruptionbudget.yaml"],
             kubernetes_version='1.16.0',
         )  # checks that no validation exception is raised
-
-

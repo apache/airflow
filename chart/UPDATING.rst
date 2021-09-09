@@ -43,6 +43,11 @@ Default Airflow version is updated to ``2.1.2``
 
 The default Airflow version that is installed with the Chart is now ``2.1.3``, previously it was ``2.1.2``.
 
+``ingress.flower.precedingPaths`` and ``ingress.flower.succeedingPaths`` parameters have been removed
+"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+``ingress.flower.precedingPaths`` and ``ingress.flower.succeedingPaths`` parameters have been removed as they had previously had no effect on rendered YAML output.
+
 Airflow Helm Chart 1.1.0
 ------------------------
 

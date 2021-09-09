@@ -15,6 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
+import json
 import subprocess
 import sys
 from functools import lru_cache
@@ -23,7 +24,6 @@ from tempfile import NamedTemporaryFile
 from typing import Any, Dict, Tuple
 
 import jmespath
-import json
 import jsonschema
 import requests
 import yaml
@@ -51,7 +51,11 @@ def get_schema_k8s(api_version, kind, kubernetes_version):
         url = f'{BASE_URL_SPEC}{kubernetes_version}/{kind}-{api_version}.json'
     request = requests.get(url)
     request.raise_for_status()
-    schema = json.loads(request.text.replace('kubernetesjsonschema.dev', 'raw.githubusercontent.com/yannh/kubernetes-json-schema/master'))
+    schema = json.loads(
+        request.text.replace(
+            'kubernetesjsonschema.dev', 'raw.githubusercontent.com/yannh/kubernetes-json-schema/master'
+        )
+    )
     return schema
 
 
@@ -90,7 +94,13 @@ def validate_k8s_object(instance, kubernetes_version):
     validate.validate(instance)
 
 
-def render_chart(name="RELEASE-NAME", values=None, show_only=None, chart_dir=None, kubernetes_version=DEFAULT_KUBERNETES_VERSION):
+def render_chart(
+    name="RELEASE-NAME",
+    values=None,
+    show_only=None,
+    chart_dir=None,
+    kubernetes_version=DEFAULT_KUBERNETES_VERSION,
+):
     """
     Function that renders a helm chart into dictionaries. For helm chart testing only
     """
@@ -100,7 +110,16 @@ def render_chart(name="RELEASE-NAME", values=None, show_only=None, chart_dir=Non
         content = yaml.dump(values)
         tmp_file.write(content.encode())
         tmp_file.flush()
-        command = ["helm", "template", name, chart_dir, '--values', tmp_file.name, '--kube-version', kubernetes_version]
+        command = [
+            "helm",
+            "template",
+            name,
+            chart_dir,
+            '--values',
+            tmp_file.name,
+            '--kube-version',
+            kubernetes_version,
+        ]
         if show_only:
             for i in show_only:
                 command.extend(["--show-only", i])
