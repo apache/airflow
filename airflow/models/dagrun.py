@@ -19,7 +19,19 @@ import warnings
 from datetime import datetime
 from typing import TYPE_CHECKING, Any, Iterable, List, NamedTuple, Optional, Tuple, Union
 
-from sqlalchemy import Boolean, Column, Index, Integer, PickleType, String, UniqueConstraint, and_, func, or_
+from sqlalchemy import (
+    Boolean,
+    Column,
+    Index,
+    Integer,
+    PickleType,
+    String,
+    UniqueConstraint,
+    and_,
+    func,
+    or_,
+    text,
+)
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.declarative import declared_attr
 from sqlalchemy.orm import joinedload, relationship, synonym
@@ -91,6 +103,15 @@ class DagRun(Base, LoggingMixin):
         UniqueConstraint('dag_id', 'execution_date', name='dag_run_dag_id_execution_date_key'),
         UniqueConstraint('dag_id', 'run_id', name='dag_run_dag_id_run_id_key'),
         Index('idx_last_scheduling_decision', last_scheduling_decision),
+        Index('idx_dag_run_dag_id', dag_id),
+        Index(
+            'idx_dag_run_running_dags',
+            'state',
+            'dag_id',
+            postgres_where=text("state='running'"),
+            mssql_where=text("state='running'"),
+            sqlite_where=text("state='running'"),
+        ),
     )
 
     task_instances = relationship(TI, back_populates="dag_run")
@@ -207,10 +228,22 @@ class DagRun(Base, LoggingMixin):
                 DagModel.is_paused == expression.false(),
                 DagModel.is_active == expression.true(),
             )
-            .order_by(
-                nulls_first(cls.last_scheduling_decision, session=session),
-                cls.execution_date,
+        )
+        if state == State.QUEUED:
+            # For dag runs in the queued state, we check if they have reached the max_active_runs limit
+            # and if so we drop them
+            running_drs = (
+                session.query(DagRun.dag_id, func.count(DagRun.state).label('num_running'))
+                .filter(DagRun.state == DagRunState.RUNNING)
+                .group_by(DagRun.dag_id)
+                .subquery()
             )
+            query = query.outerjoin(running_drs, running_drs.c.dag_id == DagRun.dag_id).filter(
+                func.coalesce(running_drs.c.num_running, 0) < DagModel.max_active_runs
+            )
+        query = query.order_by(
+            nulls_first(cls.last_scheduling_decision, session=session),
+            cls.execution_date,
         )
 
         if not settings.ALLOW_FUTURE_EXEC_DATES:
