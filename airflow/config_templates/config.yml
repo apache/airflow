@@ -235,7 +235,7 @@
         but means plugin changes picked up by tasks straight away)
       default: "False"
       example: ~
-      version_added: "2.0.0"
+      version_added: 2.0.0
       see_also: ":ref:`plugins:loading`"
       type: boolean
     - name: fernet_key
@@ -376,7 +376,7 @@
         All the template_fields for each of Task Instance are stored in the Database.
         Keeping this number small may cause an error when you try to view ``Rendered`` tab in
         TaskInstance view for older tasks.
-      version_added: 2.0.0
+      version_added: 1.10.10
       type: integer
       example: ~
       default: "30"
@@ -416,7 +416,7 @@
         Number of times the code should be retried in case of DB Operational Errors.
         Not all transactions will be retried as it can cause undesired state.
         Currently it is only used in ``DagFileProcessor.process_file`` to retry ``dagbag.sync_to_db``.
-      version_added: ~
+      version_added: 2.0.0
       type: integer
       example: ~
       default: "3"
@@ -425,7 +425,7 @@
         Hide sensitive Variables or Connection extra json keys from UI and task logs when set to True
 
         (Connection passwords are always hidden in logs)
-      version_added: ~
+      version_added: 2.1.0
       type: boolean
       example: ~
       default: "True"
@@ -433,7 +433,7 @@
       description: |
         A comma-separated list of extra sensitive keywords to look for in variables names or connection's
         extra JSON.
-      version_added: ~
+      version_added: 2.1.0
       type: string
       example: ~
       default: ""
@@ -454,7 +454,7 @@
       description: |
         The folder where airflow should store its log files
         This path must be absolute
-      version_added: ~
+      version_added: 2.0.0
       type: string
       example: ~
       default: "{AIRFLOW_HOME}/logs"
@@ -462,7 +462,7 @@
       description: |
         Airflow can store logs remotely in AWS S3, Google Cloud Storage or Elastic Search.
         Set this to True if you want to enable remote logging.
-      version_added: ~
+      version_added: 2.0.0
       type: string
       example: ~
       default: "False"
@@ -470,7 +470,7 @@
       description: |
         Users must supply an Airflow connection id that provides access to the storage
         location.
-      version_added: ~
+      version_added: 2.0.0
       type: string
       example: ~
       default: ""
@@ -480,7 +480,7 @@
         Credentials
         <https://cloud.google.com/docs/authentication/production#finding_credentials_automatically>`__ will
         be used.
-      version_added: ~
+      version_added: 2.0.0
       type: string
       example: ~
       default: ""
@@ -492,14 +492,14 @@
         GCS buckets should start with "gs://"
         WASB buckets should start with "wasb" just to help Airflow select correct handler
         Stackdriver logs should start with "stackdriver://"
-      version_added: ~
+      version_added: 2.0.0
       type: string
       example: ~
       default: ""
     - name: encrypt_s3_logs
       description: |
         Use server-side encryption for logs stored in S3
-      version_added: ~
+      version_added: 2.0.0
       type: string
       example: ~
       default: "False"
@@ -508,7 +508,7 @@
         Logging level.
 
         Supported values: ``CRITICAL``, ``ERROR``, ``WARNING``, ``INFO``, ``DEBUG``.
-      version_added: ~
+      version_added: 2.0.0
       type: string
       example: ~
       default: "INFO"
@@ -517,7 +517,7 @@
         Logging level for Flask-appbuilder UI.
 
         Supported values: ``CRITICAL``, ``ERROR``, ``WARNING``, ``INFO``, ``DEBUG``.
-      version_added: ~
+      version_added: 2.0.0
       type: string
       example: ~
       default: "WARN"
@@ -526,7 +526,7 @@
         Logging class
         Specify the class that will specify the logging configuration
         This class has to be on the python classpath
-      version_added: ~
+      version_added: 2.0.0
       type: string
       example: "my.path.default_local_settings.LOGGING_CONFIG"
       default: ""
@@ -534,14 +534,14 @@
       description: |
         Flag to enable/disable Colored logs in Console
         Colour the logs when the controlling terminal is a TTY.
-      version_added: 1.10.4
+      version_added: 2.0.0
       type: string
       example: ~
       default: "True"
     - name: colored_log_format
       description: |
         Log format for when Colored logs is enabled
-      version_added: 1.10.4
+      version_added: 2.0.0
       type: string
       example: ~
       default: >-
@@ -549,48 +549,48 @@
         %%(log_color)s%%(levelname)s%%(reset)s - %%(log_color)s%%(message)s%%(reset)s
     - name: colored_formatter_class
       description: ~
-      version_added: 1.10.4
+      version_added: 2.0.0
       type: string
       example: ~
       default: "airflow.utils.log.colored_log.CustomTTYColoredFormatter"
     - name: log_format
       description: |
         Format of Log line
-      version_added: ~
+      version_added: 2.0.0
       type: string
       example: ~
       default: "[%%(asctime)s] {{%%(filename)s:%%(lineno)d}} %%(levelname)s - %%(message)s"
     - name: simple_log_format
       description: ~
-      version_added: ~
+      version_added: 2.0.0
       type: string
       example: ~
       default: "%%(asctime)s %%(levelname)s - %%(message)s"
     - name: task_log_prefix_template
       description: |
         Specify prefix pattern like mentioned below with stream handler TaskHandlerWithCustomFormatter
-      version_added: ~
+      version_added: 2.0.0
       type: string
       example: "{{ti.dag_id}}-{{ti.task_id}}-{{execution_date}}-{{try_number}}"
       default: ""
     - name: log_filename_template
       description: |
         Formatting for how airflow generates file names/paths for each task run.
-      version_added: ~
+      version_added: 2.0.0
       type: string
       example: ~
       default: "{{{{ ti.dag_id }}}}/{{{{ ti.task_id }}}}/{{{{ ts }}}}/{{{{ try_number }}}}.log"
     - name: log_processor_filename_template
       description: |
         Formatting for how airflow generates file names for log
-      version_added: ~
+      version_added: 2.0.0
       type: string
       example: ~
       default: "{{{{ filename }}}}.log"
     - name: dag_processor_manager_log_location
       description: |
         full path of dag_processor_manager logfile
-      version_added: 1.10.2
+      version_added: 2.0.0
       type: string
       example: ~
       default: "{AIRFLOW_HOME}/logs/dag_processor_manager/dag_processor_manager.log"
@@ -598,7 +598,7 @@
       description: |
         Name of handler to read task instance logs.
         Defaults to use ``task`` handler.
-      version_added: ~
+      version_added: 2.0.0
       type: string
       example: ~
       default: "task"
@@ -606,7 +606,7 @@
       description: |
         A comma\-separated list of third-party logger names that will be configured to print messages to
         consoles\.
-      version_added: ~
+      version_added: 2.0.0
       type: string
       example: "connexion,sqlalchemy"
       default: ""
@@ -617,7 +617,7 @@
         web server, who then builds pages and sends them to users. This defines
         the port on which the logs are served. It needs to be unused, and open
         visible from the main web server to connect into the workers.
-      version_added: "2.3.0"
+      version_added: 2.3.0
       type: string
       example: ~
       default: "8793"
@@ -628,25 +628,25 @@
     - name: statsd_on
       description: |
         Enables sending metrics to StatsD.
-      version_added: ~
+      version_added: 2.0.0
       type: string
       example: ~
       default: "False"
     - name: statsd_host
       description: ~
-      version_added: ~
+      version_added: 2.0.0
       type: string
       example: ~
       default: "localhost"
     - name: statsd_port
       description: ~
-      version_added: ~
+      version_added: 2.0.0
       type: string
       example: ~
       default: "8125"
     - name: statsd_prefix
       description: ~
-      version_added: ~
+      version_added: 2.0.0
       type: string
       example: ~
       default: "airflow"
@@ -655,7 +655,7 @@
         If you want to avoid sending all the available metrics to StatsD,
         you can configure an allow list of prefixes (comma separated) to send only the metrics that
         start with the elements of the list (e.g: "scheduler,executor,dagrun")
-      version_added: 1.10.6
+      version_added: 2.0.0
       type: string
       example: ~
       default: ""
@@ -666,21 +666,21 @@
 
         The function should have the following signature:
         def func_name(stat_name: str) -> str:
-      version_added: ~
+      version_added: 2.0.0
       type: string
       example: ~
       default: ""
     - name: statsd_datadog_enabled
       description: |
         To enable datadog integration to send airflow metrics.
-      version_added: ~
+      version_added: 2.0.0
       type: string
       example: ~
       default: "False"
     - name: statsd_datadog_tags
       description: |
         List of datadog tags attached to all metrics(e.g: key1:value1,key2:value2)
-      version_added: ~
+      version_added: 2.0.0
       type: string
       example: ~
       default: ""
@@ -689,7 +689,7 @@
         If you want to utilise your own custom Statsd client set the relevant
         module path below.
         Note: The module path must exist on your PYTHONPATH for Airflow to pick it up
-      version_added: ~
+      version_added: 2.0.0
       type: string
       example: ~
       default: ~
@@ -776,7 +776,7 @@
     - name: maximum_page_limit
       description: |
         Used to set the maximum page limit for API requests
-      version_added: ~
+      version_added: 2.0.0
       type: integer
       example: ~
       default: "100"
@@ -788,14 +788,14 @@
         If no limit is supplied, the OpenApi spec default is used.
       type: integer
       example: ~
-      version_added: ~
+      version_added: 2.0.0
       default: "100"
     - name: google_oauth2_audience
       description: The intended audience for JWT token credentials used for authorization.
         This value must match on the client and server sides.
         If empty, audience will not be tested.
       type: string
-      version_added: ~
+      version_added: 2.0.0
       example: project-id-random-value.apps.googleusercontent.com
       default: ""
     - name: google_key_path
@@ -805,7 +805,7 @@
         <https://cloud.google.com/docs/authentication/production#finding_credentials_automatically>`__ will
         be used.
       type: string
-      version_added: ~
+      version_added: 2.0.0
       example: /files/service-account-json
       default: ""
     - name: access_control_allow_headers
@@ -815,14 +815,14 @@
         the server side response to the browser's
         Access-Control-Request-Headers header.
       type: string
-      version_added: ~
+      version_added: 2.1.0
       example: ~
       default: ""
     - name: access_control_allow_methods
       description: |
         Specifies the method or methods allowed when accessing the resource.
       type: string
-      version_added: ~
+      version_added: 2.1.0
       example: ~
       default: ""
     - name: access_control_allow_origins
@@ -830,7 +830,7 @@
         Indicates whether the response can be shared with requesting code from the given origins.
         Separate URLs with space.
       type: string
-      version_added: ~
+      version_added: 2.2.0
       example: ~
       default: ""
 - name: lineage
@@ -915,7 +915,7 @@
     - name: default_queue
       description: |
         Default queue that tasks get assigned to and that worker listen on.
-      version_added: ~
+      version_added: 2.1.0
       type: string
       example: ~
       default: "default"
@@ -923,7 +923,7 @@
       description: |
         Is allowed to pass additional/unused arguments (args, kwargs) to the BaseOperator operator.
         If set to False, an exception will be thrown, otherwise only the console message will be displayed.
-      version_added: ~
+      version_added: 2.0.0
       type: string
       example: ~
       default: "False"
@@ -941,7 +941,7 @@
       description: |
         Template for mapred_job_name in HiveOperator, supports the following named parameters
         hostname, dag_id, task_id, execution_date
-      version_added: ~
+      version_added: 2.0.0
       type: string
       example: ~
       default: ~
@@ -1079,7 +1079,7 @@
         Access log format for gunicorn webserver.
         default format is %%(h)s %%(l)s %%(u)s %%(t)s "%%(r)s" %%(s)s %%(b)s "%%(f)s" "%%(a)s"
         documentation - https://docs.gunicorn.org/en/stable/settings.html#access-log-format
-      version_added: ~
+      version_added: 2.0.0
       type: string
       example: ~
       default: ""
@@ -1266,7 +1266,7 @@
     - name: show_recent_stats_for_completed_runs
       description: |
         'Recent Tasks' stats will show for old DagRuns if set
-      version_added: ~
+      version_added: 2.0.0
       type: boolean
       example: ~
       default: "True"
@@ -1307,21 +1307,21 @@
       default: "airflow.utils.email.send_email_smtp"
     - name: email_conn_id
       description: Email connection to use
-      version_added: ~
+      version_added: 2.1.0
       type: string
       example: ~
       default: "smtp_default"
     - name: default_email_on_retry
       description: |
         Whether email alerts should be sent when a task is retried
-      version_added: ~
+      version_added: 2.0.0
       type: boolean
       example: ~
       default: "True"
     - name: default_email_on_failure
       description: |
         Whether email alerts should be sent when a task failed
-      version_added: ~
+      version_added: 2.0.0
       type: boolean
       example: ~
       default: "True"
@@ -1329,7 +1329,7 @@
       description: |
         File that will be used as the template for Email subject (which will be rendered using Jinja2).
         If not set, Airflow uses a base template.
-      version_added: ~
+      version_added: 2.0.1
       type: string
       example: "/path/to/my_subject_template_file"
       default: ~
@@ -1338,7 +1338,7 @@
       description: |
         File that will be used as the template for Email content (which will be rendered using Jinja2).
         If not set, Airflow uses a base template.
-      version_added: ~
+      version_added: 2.0.1
       type: string
       example: "/path/to/my_html_content_template_file"
       default: ~
@@ -1395,13 +1395,13 @@
       default: "airflow@example.com"
     - name: smtp_timeout
       description: ~
-      version_added: ~
+      version_added: 2.0.0
       type: integer
       example: ~
       default: "30"
     - name: smtp_retry_limit
       description: ~
-      version_added: ~
+      version_added: 2.0.0
       type: integer
       example: ~
       default: "5"
@@ -1415,7 +1415,7 @@
   options:
     - name: sentry_on
       description: Enable error reporting to Sentry
-      version_added: ~
+      version_added: 2.0.0
       type: string
       example: ~
       default: "false"
@@ -1483,7 +1483,7 @@
         running tasks while another worker has unutilized processes that are unable to process the already
         claimed blocked tasks.
         https://docs.celeryproject.org/en/stable/userguide/optimizing.html#prefetch-limits
-      version_added: ~
+      version_added: 2.0.0
       type: integer
       example: "1"
       default: ~
@@ -1492,7 +1492,7 @@
         Umask that will be used when starting workers with the ``airflow celery worker``
         in daemon mode. This control the file-creation mode mask which determines the initial
         value of file permission bits for newly created files.
-      version_added: ~
+      version_added: 2.0.0
       type: string
       example: ~
       default: "0o077"
@@ -1635,7 +1635,7 @@
     - name: worker_precheck
       description: |
         Worker initialisation check to validate Metadata Database connection
-      version_added: 1.10.1
+      version_added: 2.0.0
       type: string
       example: ~
       default: "False"
@@ -1886,7 +1886,7 @@
       default: "False"
     - name: dependency_detector
       description: DAG dependency detector class to use
-      version_added: ~
+      version_added: 2.1.0
       type: string
       example: ~
       default: "airflow.serialization.serialized_objects.DependencyDetector"
@@ -2166,7 +2166,7 @@
       description: |
         Enables TCP keepalive mechanism. This prevents Kubernetes API requests to hang indefinitely
         when idle connection is time-outed on services like cloud load balancers or firewalls.
-      version_added: ~
+      version_added: 2.0.0
       type: boolean
       example: ~
       default: "True"
@@ -2174,7 +2174,7 @@
       description: |
         When the `enable_tcp_keepalive` option is enabled, TCP probes a connection that has
         been idle for `tcp_keep_idle` seconds.
-      version_added: ~
+      version_added: 2.0.0
       type: integer
       example: ~
       default: "120"
@@ -2182,7 +2182,7 @@
       description: |
         When the `enable_tcp_keepalive` option is enabled, if Kubernetes API does not respond
         to a keepalive probe, TCP retransmits the probe after `tcp_keep_intvl` seconds.
-      version_added: ~
+      version_added: 2.0.0
       type: integer
       example: ~
       default: "30"
@@ -2191,14 +2191,14 @@
         When the `enable_tcp_keepalive` option is enabled, if Kubernetes API does not respond
         to a keepalive probe, TCP retransmits the probe `tcp_keep_cnt number` of times before
         a connection is considered to be broken.
-      version_added: ~
+      version_added: 2.0.0
       type: integer
       example: ~
       default: "6"
     - name: verify_ssl
       description: |
         Set this to false to skip verifying SSL certificate of Kubernetes python client.
-      version_added: ~
+      version_added: 2.1.0
       type: boolean
       example: ~
       default: "True"
@@ -2246,7 +2246,7 @@
     - name: shards
       description: |
         The number of running smart sensor processes for each service.
-      version_added: ~
+      version_added: 2.0.0
       type: integer
       example: ~
       default: "5"
