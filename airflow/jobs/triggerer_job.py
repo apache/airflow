@@ -123,6 +123,8 @@ class TriggererJob(BaseJob):
             self.handle_events()
             # Handle failed triggers
             self.handle_failed_triggers()
+            # Handle heartbeat
+            self.heartbeat(only_if_necessary=True)
             # Idle sleep
             time.sleep(1)
 
