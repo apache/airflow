@@ -84,7 +84,7 @@ class VaultHook(BaseHook):
     :param kv_engine_version: Select the version of the engine to run (``1`` or ``2``). Defaults to
           version defined in connection or ``2`` if not defined in connection.
     :type kv_engine_version: int
-    :param role_id: Role ID for Authentication (for ``approle``, ``aws_iam`` auth_types)
+    :param role_id: Role ID for ``aws_iam`` Authentication.
     :type role_id: str
     :param kubernetes_role: Role for Authentication (for ``kubernetes`` auth_type)
     :type kubernetes_role: str
@@ -157,8 +157,8 @@ class VaultHook(BaseHook):
                     role_id = self.connection.login
             else:
                 warnings.warn(
-                    """The usage of role_id has been deprecated.
-                    Please use either the connection login or extras.""",
+                    """The usage of role_id via AppRole authentication has been deprecated.
+                    Please use connection login.""",
                     DeprecationWarning,
                     stacklevel=2,
                 )
@@ -166,12 +166,6 @@ class VaultHook(BaseHook):
         if auth_type == "aws_iam":
             if not role_id:
                 role_id = self.connection.extra_dejson.get('role_id')
-            else:
-                warnings.warn(
-                    "The usage of role_id has been deprecated.  Please specify this in connection extras.",
-                    DeprecationWarning,
-                    stacklevel=2,
-                )
 
         azure_resource, azure_tenant_id = (
             self._get_azure_parameters_from_connection(azure_resource, azure_tenant_id)
