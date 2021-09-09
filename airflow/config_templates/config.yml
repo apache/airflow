@@ -195,6 +195,14 @@
       type: string
       example: ~
       default: "16"
+    - name: max_queued_runs_per_dag
+      description: |
+        The maximum number of queued dagruns for a single DAG. The scheduler will not create more DAG runs
+        if it reaches the limit. This is not configurable at the DAG level.
+      version_added: ~
+      type: string
+      example: ~
+      default: "16"
     - name: load_examples
       description: |
         Whether to load the DAG examples that ship with Airflow. It's good to

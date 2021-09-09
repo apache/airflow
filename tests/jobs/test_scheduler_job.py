@@ -1019,6 +1019,31 @@ class TestSchedulerJob:
         self.scheduler_job.executor.end.assert_called_once()
         mock_processor_agent.return_value.end.reset_mock(side_effect=True)
 
+    def test_theres_limit_to_queued_dagruns_in_a_dag(self, dag_maker):
+        """This tests that there's limit to the number of queued dagrun scheduler can create in a dag"""
+        with dag_maker() as dag:
+            DummyOperator(task_id='mytask')
+
+        session = settings.Session()
+        self.scheduler_job = SchedulerJob(subdir=os.devnull)
+        self.scheduler_job.executor = MockExecutor()
+        self.scheduler_job.processor_agent = mock.MagicMock()
+
+        self.scheduler_job.dagbag = dag_maker.dagbag
+
+        session = settings.Session()
+        orm_dag = session.query(DagModel).get(dag.dag_id)
+        assert orm_dag is not None
+        for _ in range(20):
+            self.scheduler_job._create_dag_runs([orm_dag], session)
+        assert session.query(DagRun).count() == 16
+
+        with conf_vars({('core', 'max_queued_runs_per_dag'): '5'}):
+            clear_db_runs()
+            for i in range(20):
+                self.scheduler_job._create_dag_runs([orm_dag], session)
+        assert session.query(DagRun).count() == 5
+
     def test_dagrun_timeout_verify_max_active_runs(self, dag_maker):
         """
         Test if a a dagrun will not be scheduled if max_dag_runs

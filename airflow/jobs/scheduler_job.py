@@ -823,14 +823,31 @@ class SchedulerJob(BaseJob):
         existing_dagruns = (
             session.query(DagRun.dag_id, DagRun.execution_date).filter(existing_dagruns_filter).all()
         )
+        max_queued_dagruns = conf.getint('core', 'max_queued_runs_per_dag')
+
+        queued_runs_of_dags = defaultdict(
+            int,
+            session.query(DagRun.dag_id, func.count('*'))
+            .filter(  # We use `list` here because SQLA doesn't accept a set
+                # We use set to avoid duplicate dag_ids
+                DagRun.dag_id.in_(list({dm.dag_id for dm in dag_models})),
+                DagRun.state == State.QUEUED,
+            )
+            .group_by(DagRun.dag_id)
+            .all(),
+        )
 
         for dag_model in dag_models:
+            # Lets quickly check if we have exceeded the number of queued dagruns per dags
+            total_queued = queued_runs_of_dags[dag_model.dag_id]
+            if total_queued >= max_queued_dagruns:
+                continue
+
             try:
                 dag = self.dagbag.get_dag(dag_model.dag_id, session=session)
             except SerializedDagNotFound:
                 self.log.exception("DAG '%s' not found in serialized_dag table", dag_model.dag_id)
                 continue
-
             dag_hash = self.dagbag.dags_hash.get(dag.dag_id)
             # Explicitly check if the DagRun already exists. This is an edge case
             # where a Dag Run is created but `DagModel.next_dagrun` and `DagModel.next_dagrun_create_after`
@@ -841,6 +858,7 @@ class SchedulerJob(BaseJob):
             # create a new one. This is so that in the next Scheduling loop we try to create new runs
             # instead of falling in a loop of Integrity Error.
             if (dag.dag_id, dag_model.next_dagrun) not in existing_dagruns:
+
                 dag.create_dagrun(
                     run_type=DagRunType.SCHEDULED,
                     execution_date=dag_model.next_dagrun,
@@ -851,6 +869,7 @@ class SchedulerJob(BaseJob):
                     dag_hash=dag_hash,
                     creating_job_id=self.id,
                 )
+                queued_runs_of_dags[dag_model.dag_id] += 1
             dag_model.calculate_dagrun_date_fields(dag, dag_model.next_dagrun)
 
         # TODO[HA]: Should we do a session.flush() so we don't have to keep lots of state/object in
