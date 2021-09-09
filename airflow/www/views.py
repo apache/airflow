@@ -81,7 +81,7 @@ from pendulum.datetime import DateTime
 from pendulum.parsing.exceptions import ParserError
 from pygments import highlight, lexers
 from pygments.formatters import HtmlFormatter
-from sqlalchemy import Date, and_, desc, func, or_, union_all
+from sqlalchemy import Date, and_, desc, func, union_all
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import joinedload
 from wtforms import SelectField, validators
@@ -4234,58 +4234,12 @@ class TaskInstanceModelView(AirflowModelView):
         return redirect(self.get_redirect())
 
 
-class DagModelView(AirflowModelView):
-    """View to show records from DAG table"""
+class AutocompleteView(AirflowBaseView):
+    """View to provide autocomplete results"""
 
-    route_base = '/dagmodel'
-
-    datamodel = AirflowModelView.CustomSQLAInterface(DagModel)  # type: ignore
-
-    class_permission_name = permissions.RESOURCE_DAG
-    method_permission_name = {
-        'list': 'read',
-        'show': 'read',
-    }
-    base_permissions = [
-        permissions.ACTION_CAN_READ,
-        permissions.ACTION_CAN_EDIT,
-        permissions.ACTION_CAN_DELETE,
-    ]
-
-    list_columns = [
-        'dag_id',
-        'is_paused',
-        'last_parsed_time',
-        'last_expired',
-        'scheduler_lock',
-        'fileloc',
-        'owners',
-    ]
-
-    formatters_columns = {'dag_id': wwwutils.dag_link}
-
-    base_filters = [['dag_id', DagFilter, lambda: []]]
-
-    def get_query(self):
-        """Default filters for model"""
-        return (
-            super()
-            .get_query()
-            .filter(or_(models.DagModel.is_active, models.DagModel.is_paused))
-            .filter(~models.DagModel.is_subdag)
-        )
-
-    def get_count_query(self):
-        """Default filters for model"""
-        return super().get_count_query().filter(models.DagModel.is_active).filter(~models.DagModel.is_subdag)
-
-    @auth.has_access(
-        [
-            (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
-        ]
-    )
+    @auth.has_access([(permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG)])
     @provide_session
-    @expose('/autocomplete')
+    @expose('/dagmodel/autocomplete')
     def autocomplete(self, session=None):
         """Autocomplete."""
         query = unquote(request.args.get('query', ''))
