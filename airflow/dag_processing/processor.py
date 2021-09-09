@@ -623,6 +623,7 @@ class DagFileProcessor(LoggingMixin):
         else:
             self.log.warning("No viable dags retrieved from %s", file_path)
             self.update_import_errors(session, dagbag)
+            self.delete_serialized_dags_with_parsing_errors(session, file_path)
             return 0, len(dagbag.import_errors)
 
         self.execute_callbacks(dagbag, callback_requests)
@@ -647,3 +648,17 @@ class DagFileProcessor(LoggingMixin):
             self.log.exception("Error logging import errors!")
 
         return len(dagbag.dags), len(dagbag.import_errors)
+
+    def delete_serialized_dags_with_parsing_errors(self, session, file_path):
+        from airflow.models.serialized_dag import SerializedDagModel
+
+        self.log.error("Deleting Serialized DAG(s) in %s file, please fix the parsing errors.", file_path)
+
+        session.query(SerializedDagModel).filter(SerializedDagModel.fileloc == file_path).delete()
+        for dag in session.query(DagModel).filter(DagModel.fileloc == file_path).all():
+            self.log.error(
+                "Deactivating DAG: '%s' in %s file, please fix the parsing errors.", dag.dag_id, file_path
+            )
+            dag.is_active = False
+            session.merge(dag)
+        session.commit()
