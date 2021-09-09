@@ -44,7 +44,7 @@ def upgrade():
         batch_op.create_index(
             'idx_dag_run_running_dags',
             ["state", "dag_id"],
-            postgres_where=text("state='running'"),
+            postgresql_where=text("state='running'"),
             mssql_where=text("state='running'"),
             sqlite_where=text("state='running'"),
         )
