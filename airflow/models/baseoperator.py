@@ -1644,16 +1644,16 @@ class BaseOperator(Operator, LoggingMixin, TaskMixin, metaclass=BaseOperatorMeta
         raise TaskDeferred(trigger=trigger, method_name=method_name, kwargs=kwargs, timeout=timeout)
 
 
-Chainable = Union[BaseOperator, "XComArg", EdgeModifier]
+Chainable = Union[BaseOperator, "XComArg", EdgeModifier, "TaskGroup"]
 
 
 def chain(*tasks: Union[Chainable, Sequence[Chainable]]) -> None:
     r"""
     Given a number of tasks, builds a dependency chain.
 
-    This function accepts values of BaseOperator (aka tasks), EdgeModifiers (aka Labels), XComArg, or lists
-    containing any mix of these types (or a mix in the same list). If you want to chain between two lists
-    you must ensure they have the same length.
+    This function accepts values of BaseOperator (aka tasks), EdgeModifiers (aka Labels), XComArg, TaskGroups,
+    or lists containing any mix of these types (or a mix in the same list). If you want to chain between two
+    lists you must ensure they have the same length.
 
     Using classic operators/sensors:
 
@@ -1703,12 +1703,22 @@ def chain(*tasks: Union[Chainable, Sequence[Chainable]]) -> None:
         x4.set_downstream(x6)
         x5.set_downstream(x6)
 
-
-    It is also possible to mix between classic operator/sensor, EdgeModifiers, and XComArg tasks:
+    Using TaskGroups:
 
     .. code-block:: python
 
-        chain(t1, [Label("branch one"), Label("branch two")], [x1(), x2()], t2, x3())
+        chain(t1, task_group1, task_group2, t2)
+
+        t1.set_downstream(task_group1)
+        task_group1.set_downstream(task_group2)
+        task_group2.set_downstream(t2)
+
+
+    It is also possible to mix between classic operator/sensor, EdgeModifiers, XComArg, and TaskGroups:
+
+    .. code-block:: python
+
+        chain(t1, [Label("branch one"), Label("branch two")], [x1(), x2()], task_group1, t2())
 
     is equivalent to::
 
@@ -1727,9 +1737,9 @@ def chain(*tasks: Union[Chainable, Sequence[Chainable]]) -> None:
         label1.set_downstream(x1)
         t2.set_downstream(label2)
         label2.set_downstream(x2)
-        x1.set_downstream(t2)
-        x2.set_downstream(t2)
-        t2.set_downstream(x3)
+        x1.set_downstream(task_group1)
+        x2.set_downstream(task_group1)
+        task_group1.set_downstream(x3)
 
         # or
 
@@ -1738,24 +1748,27 @@ def chain(*tasks: Union[Chainable, Sequence[Chainable]]) -> None:
         x3 = x3()
         t1.set_downstream(x1, edge_modifier=Label("branch one"))
         t1.set_downstream(x2, edge_modifier=Label("branch two"))
-        x1.set_downstream(t2)
-        x2.set_downstream(t2)
-        t2.set_downstream(x3)
+        x1.set_downstream(task_group1)
+        x2.set_downstream(task_group1)
+        task_group1.set_downstream(x3)
 
 
-    :param tasks: Individual and/or list of tasks, EdgeModifiers, or XComArgs to set dependencies
+    :param tasks: Individual and/or list of tasks, EdgeModifiers, XComArgs, or TaskGroups to set dependencies
     :type tasks: List[airflow.models.BaseOperator], airflow.models.BaseOperator,
-        List[airflow.utils.EdgeModifier], airflow.utils.EdgeModifier, List[airflow.models.XComArg],
-        or XComArg
+        List[airflow.utils.EdgeModifier], airflow.utils.EdgeModifier, List[airflow.models.XComArg], XComArg,
+        List[airflow.utils.TaskGroup], or airflow.utils.TaskGroup
     """
     from airflow.models.xcom_arg import XComArg
+    from airflow.utils.task_group import TaskGroup
+
+    chainable_types = (BaseOperator, XComArg, EdgeModifier, TaskGroup)
 
     for index, up_task in enumerate(tasks[:-1]):
         down_task = tasks[index + 1]
-        if isinstance(up_task, (BaseOperator, XComArg, EdgeModifier)):
+        if isinstance(up_task, chainable_types):
             up_task.set_downstream(down_task)
             continue
-        if isinstance(down_task, (BaseOperator, XComArg, EdgeModifier)):
+        if isinstance(down_task, chainable_types):
             down_task.set_upstream(up_task)
             continue
         if not isinstance(up_task, Sequence) or not isinstance(down_task, Sequence):
