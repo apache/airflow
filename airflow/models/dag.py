@@ -1884,6 +1884,7 @@ class DAG(LoggingMixin):
             orm_dag.description = dag.description
             orm_dag.schedule_interval = dag.schedule_interval
             orm_dag.concurrency = dag.concurrency
+            orm_dag.max_active_runs = dag.max_active_runs
             orm_dag.has_task_concurrency_limits = any(t.task_concurrency is not None for t in dag.tasks)
 
             orm_dag.calculate_dagrun_date_fields(
@@ -2116,6 +2117,7 @@ class DagModel(Base):
     tags = relationship('DagTag', cascade='all,delete-orphan', backref=backref('dag'))
 
     concurrency = Column(Integer, nullable=False)
+    max_active_runs = Column(Integer, nullable=True)
 
     has_task_concurrency_limits = Column(Boolean, nullable=False)
 
@@ -2135,6 +2137,8 @@ class DagModel(Base):
         super().__init__(**kwargs)
         if self.concurrency is None:
             self.concurrency = conf.getint('core', 'dag_concurrency')
+        if self.max_active_runs is None:
+            self.max_active_runs = conf.getint('core', 'max_active_runs_per_dag')
         if self.has_task_concurrency_limits is None:
             # Be safe -- this will be updated later once the DAG is parsed
             self.has_task_concurrency_limits = True
