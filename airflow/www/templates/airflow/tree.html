@@ -107,6 +107,7 @@
   <script src="{{ url_for_asset('d3-tip.js') }}"></script>
   <script src="{{ url_for_asset('tree.js') }}"></script>
   <script>
-    const treeData = {{ data|tojson }}
+    const treeData = {{ data|tojson }};
+    const autoRefreshInterval = {{ auto_refresh_interval }};
   </script>
 {% endblock %}
