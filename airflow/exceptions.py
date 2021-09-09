@@ -238,6 +238,14 @@ class TaskDeferred(BaseException):
     """
     Special exception raised to signal that the operator it was raised from
     wishes to defer until a trigger fires.
+
+    :param trigger: The asynchronous workload object that represents the trigger condition.
+    :param method_name:
+        The operator method that is invoked when the task resumes. The method must accept
+        a context dictionary as argument in addition to keyword arguments provided in the
+        deferred exception (see below).
+    :param kwargs: Keyword arguments passed on to the operator method on resume.
+    :param timeout: A timeout after which the deferred is cancelled.
     """
 
     def __init__(
