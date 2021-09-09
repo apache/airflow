@@ -19,7 +19,7 @@ import os
 
 import pytest
 
-from airflow.providers.microsoft.azure.example_dags.example_file_to_wasb import PATH_TO_UPLOAD_FILE
+from airflow.providers.microsoft.azure.example_dags.example_local_to_wasb import PATH_TO_UPLOAD_FILE
 from tests.test_utils.azure_system_helpers import (
     AZURE_DAG_FOLDER,
     AzureSystemTest,
@@ -33,7 +33,7 @@ CREDENTIALS_PATH = os.path.join(CREDENTIALS_DIR, WASB_DEFAULT_KEY)
 
 @pytest.mark.backend('postgres', 'mysql')
 @pytest.mark.credential_file(WASB_DEFAULT_KEY)
-class FileToWasbSystem(AzureSystemTest):
+class LocalToWasbSystem(AzureSystemTest):
     def setUp(self):
         super().setUp()
         with open(PATH_TO_UPLOAD_FILE, 'w+') as file:
@@ -44,5 +44,5 @@ class FileToWasbSystem(AzureSystemTest):
         super().tearDown()
 
     @provide_wasb_default_connection(CREDENTIALS_PATH)
-    def test_run_example_file_to_wasb(self):
-        self.run_dag('example_file_to_wasb', AZURE_DAG_FOLDER)
+    def test_run_example_local_to_wasb(self):
+        self.run_dag('example_local_to_wasb', AZURE_DAG_FOLDER)

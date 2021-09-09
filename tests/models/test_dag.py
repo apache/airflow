@@ -1759,6 +1759,26 @@ class TestDagModel:
         session.rollback()
         session.close()
 
+    def test_max_active_runs_not_none(self):
+        dag = DAG(dag_id='test_max_active_runs_not_none', start_date=timezone.datetime(2038, 1, 1))
+        DummyOperator(task_id='dummy', dag=dag, owner='airflow')
+
+        session = settings.Session()
+        orm_dag = DagModel(
+            dag_id=dag.dag_id,
+            has_task_concurrency_limits=False,
+            next_dagrun=None,
+            next_dagrun_create_after=None,
+            is_active=True,
+        )
+        session.add(orm_dag)
+        session.flush()
+
+        assert orm_dag.max_active_runs is not None
+
+        session.rollback()
+        session.close()
+
     def test_dags_needing_dagruns_only_unpaused(self):
         """
         We should never create dagruns for unpaused DAGs
