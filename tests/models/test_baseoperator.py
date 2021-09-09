@@ -565,6 +565,16 @@ class TestBaseOperatorMethods(unittest.TestCase):
         op_copy.post_execute({})
         assert called
 
+    def test_task_naive_datetime(self):
+        naive_datetime = DEFAULT_DATE.replace(tzinfo=None)
+
+        op_no_dag = DummyOperator(
+            task_id='test_task_naive_datetime', start_date=naive_datetime, end_date=naive_datetime
+        )
+
+        assert op_no_dag.start_date.tzinfo
+        assert op_no_dag.end_date.tzinfo
+
 
 class CustomOp(DummyOperator):
     template_fields = ("field", "field2")

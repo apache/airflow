@@ -14,10 +14,11 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+import json
 import os
 import subprocess
 import sys
-from contextlib import ExitStack
+from contextlib import ExitStack, suppress
 from datetime import datetime, timedelta
 
 import freezegun
@@ -466,8 +467,8 @@ def dag_maker(request):
 
     want_serialized = False
 
-    # Allow changing default serialized behaviour with `@ptest.mark.need_serialized_dag` or
-    # `@ptest.mark.need_serialized_dag(False)`
+    # Allow changing default serialized behaviour with `@pytest.mark.need_serialized_dag` or
+    # `@pytest.mark.need_serialized_dag(False)`
     serialized_marker = request.node.get_closest_marker("need_serialized_dag")
     if serialized_marker:
         (want_serialized,) = serialized_marker.args or (True,)
@@ -488,6 +489,15 @@ def dag_maker(request):
         def _serialized_dag(self):
             return self.serialized_model.dag
 
+        def get_serialized_data(self):
+            try:
+                data = self.serialized_model.data
+            except AttributeError:
+                raise RuntimeError("DAG serialization not requested")
+            if isinstance(data, str):
+                return json.loads(data)
+            return data
+
         def __exit__(self, type, value, traceback):
             from airflow.models import DagModel
             from airflow.models.serialized_dag import SerializedDagModel
@@ -497,7 +507,7 @@ def dag_maker(request):
             if type is not None:
                 return
 
-            dag.clear()
+            dag.clear(session=self.session)
             dag.sync_to_db(self.session)
             self.dag_model = self.session.query(DagModel).get(dag.dag_id)
 
@@ -511,6 +521,7 @@ def dag_maker(request):
                 self.dagbag.bag_dag(self.dag, self.dag)
 
         def create_dagrun(self, **kwargs):
+            from airflow.timetables.base import DataInterval
             from airflow.utils.state import State
 
             dag = self.dag
@@ -525,7 +536,13 @@ def dag_maker(request):
             # explicitly, or pass run_type for inference in dag.create_dagrun().
             if "run_id" not in kwargs and "run_type" not in kwargs:
                 kwargs["run_id"] = "test"
+            # Fill data_interval is not provided.
+            if not kwargs.get("data_interval"):
+                kwargs["data_interval"] = DataInterval.exact(kwargs["execution_date"])
+
             self.dag_run = dag.create_dagrun(**kwargs)
+            for ti in self.dag_run.task_instances:
+                ti.refresh_from_task(dag.get_task(ti.task_id))
             return self.dag_run
 
         def __call__(
@@ -587,7 +604,8 @@ def dag_maker(request):
         yield factory
     finally:
         factory.cleanup()
-        del factory.session
+        with suppress(AttributeError):
+            del factory.session
 
 
 @pytest.fixture
@@ -622,6 +640,7 @@ def create_dummy_dag(dag_maker):
         on_failure_callback=None,
         on_retry_callback=None,
         email=None,
+        with_dagrun=True,
         **kwargs,
     ):
         with dag_maker(dag_id, **kwargs) as dag:
@@ -637,7 +656,69 @@ def create_dummy_dag(dag_maker):
                 pool=pool,
                 trigger_rule=trigger_rule,
             )
-        dag_maker.create_dagrun(run_type=DagRunType.SCHEDULED)
+        if with_dagrun:
+            dag_maker.create_dagrun(run_type=DagRunType.SCHEDULED)
         return dag, op
 
     return create_dag
+
+
+@pytest.fixture
+def create_task_instance(dag_maker, create_dummy_dag):
+    """
+    Create a TaskInstance, and associated DB rows (DagRun, DagModel, etc)
+
+    Uses ``create_dummy_dag`` to create the dag structure.
+    """
+
+    def maker(execution_date=None, dagrun_state=None, state=None, run_id='test', **kwargs):
+        if execution_date is None:
+            from airflow.utils import timezone
+
+            execution_date = timezone.utcnow()
+        create_dummy_dag(with_dagrun=False, **kwargs)
+
+        dr = dag_maker.create_dagrun(execution_date=execution_date, state=dagrun_state, run_id=run_id)
+        ti = dr.task_instances[0]
+        ti.state = state
+
+        return ti
+
+    return maker
+
+
+@pytest.fixture()
+def create_task_instance_of_operator(dag_maker):
+    def _create_task_instance(
+        operator_class,
+        *,
+        dag_id,
+        execution_date=None,
+        session=None,
+        **operator_kwargs,
+    ):
+        with dag_maker(dag_id=dag_id, session=session):
+            operator_class(**operator_kwargs)
+        (ti,) = dag_maker.create_dagrun(execution_date=execution_date).task_instances
+        return ti
+
+    return _create_task_instance
+
+
+@pytest.fixture()
+def create_task_of_operator(dag_maker):
+    def _create_task_of_operator(operator_class, *, dag_id, session=None, **operator_kwargs):
+        with dag_maker(dag_id=dag_id, session=session):
+            task = operator_class(**operator_kwargs)
+        return task
+
+    return _create_task_of_operator
+
+
+@pytest.fixture
+def session():
+    from airflow.utils.session import create_session
+
+    with create_session() as session:
+        yield session
+        session.rollback()

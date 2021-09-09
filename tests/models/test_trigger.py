@@ -42,7 +42,7 @@ def clear_db(session):
     session.commit()
 
 
-def test_clean_unused(session):
+def test_clean_unused(session, create_task_instance):
     """
     Tests that unused triggers (those with no task instances referencing them)
     are cleaned out automatically.
@@ -60,11 +60,14 @@ def test_clean_unused(session):
     session.commit()
     assert session.query(Trigger).count() == 3
     # Tie one to a fake TaskInstance that is not deferred, and one to one that is
-    fake_task = DummyOperator(task_id="fake")
-    task_instance = TaskInstance(task=fake_task, execution_date=timezone.utcnow(), state=State.DEFERRED)
+    task_instance = create_task_instance(
+        session=session, task_id="fake", state=State.DEFERRED, execution_date=timezone.utcnow()
+    )
     task_instance.trigger_id = trigger1.id
     session.add(task_instance)
-    task_instance = TaskInstance(task=fake_task, execution_date=timezone.utcnow(), state=State.SUCCESS)
+    fake_task = DummyOperator(task_id="fake2", dag=task_instance.task.dag)
+    task_instance = TaskInstance(task=fake_task, run_id=task_instance.run_id)
+    task_instance.state = State.SUCCESS
     task_instance.trigger_id = trigger2.id
     session.add(task_instance)
     session.commit()
@@ -74,7 +77,7 @@ def test_clean_unused(session):
     assert session.query(Trigger).one().id == trigger1.id
 
 
-def test_submit_event(session):
+def test_submit_event(session, create_task_instance):
     """
     Tests that events submitted to a trigger re-wake their dependent
     task instances.
@@ -85,11 +88,11 @@ def test_submit_event(session):
     session.add(trigger)
     session.commit()
     # Make a TaskInstance that's deferred and waiting on it
-    fake_task = DummyOperator(task_id="fake")
-    task_instance = TaskInstance(task=fake_task, execution_date=timezone.utcnow(), state=State.DEFERRED)
+    task_instance = create_task_instance(
+        session=session, execution_date=timezone.utcnow(), state=State.DEFERRED
+    )
     task_instance.trigger_id = trigger.id
     task_instance.next_kwargs = {"cheesecake": True}
-    session.add(task_instance)
     session.commit()
     # Call submit_event
     Trigger.submit_event(trigger.id, TriggerEvent(42), session=session)
@@ -99,7 +102,7 @@ def test_submit_event(session):
     assert updated_task_instance.next_kwargs == {"event": 42, "cheesecake": True}
 
 
-def test_submit_failure(session):
+def test_submit_failure(session, create_task_instance):
     """
     Tests that failures submitted to a trigger fail their dependent
     task instances.
@@ -110,10 +113,10 @@ def test_submit_failure(session):
     session.add(trigger)
     session.commit()
     # Make a TaskInstance that's deferred and waiting on it
-    fake_task = DummyOperator(task_id="fake")
-    task_instance = TaskInstance(task=fake_task, execution_date=timezone.utcnow(), state=State.DEFERRED)
+    task_instance = create_task_instance(
+        task_id="fake", execution_date=timezone.utcnow(), state=State.DEFERRED
+    )
     task_instance.trigger_id = trigger.id
-    session.add(task_instance)
     session.commit()
     # Call submit_event
     Trigger.submit_failure(trigger.id, session=session)

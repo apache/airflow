@@ -36,7 +36,7 @@ Content
     Python API <_api/airflow/providers/apache/hdfs/index>
     PyPI Repository <https://pypi.org/project/apache-airflow-providers-apache-hdfs/>
 
-.. THE REMINDER OF THE FILE IS AUTOMATICALLY GENERATED. IT WILL BE OVERWRITTEN AT RELEASE TIME!
+.. THE REMAINDER OF THE FILE IS AUTOMATICALLY GENERATED. IT WILL BE OVERWRITTEN AT RELEASE TIME!
 
 
 .. toctree::
@@ -53,7 +53,7 @@ Package apache-airflow-providers-apache-hdfs
 and `WebHDFS <https://hadoop.apache.org/docs/current/hadoop-project-dist/hadoop-hdfs/WebHDFS.html>`__.
 
 
-Release: 2.0.0
+Release: 2.1.0
 
 Provider package
 ----------------

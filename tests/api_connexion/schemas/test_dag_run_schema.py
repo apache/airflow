@@ -34,11 +34,14 @@ from tests.test_utils.db import clear_db_runs
 
 DEFAULT_TIME = "2020-06-09T13:59:56.336000+00:00"
 
+SECOND_TIME = "2020-06-10T13:59:56.336000+00:00"
+
 
 class TestDAGRunBase(unittest.TestCase):
     def setUp(self) -> None:
         clear_db_runs()
         self.default_time = DEFAULT_TIME
+        self.second_time = SECOND_TIME
 
     def tearDown(self) -> None:
         clear_db_runs()
@@ -135,7 +138,7 @@ class TestDagRunCollection(TestDAGRunBase):
         dagrun_model_2 = DagRun(
             run_id="my-dag-run-2",
             state='running',
-            execution_date=timezone.parse(self.default_time),
+            execution_date=timezone.parse(self.second_time),
             start_date=timezone.parse(self.default_time),
             run_type=DagRunType.MANUAL.value,
         )
@@ -162,8 +165,8 @@ class TestDagRunCollection(TestDAGRunBase):
                     "dag_run_id": "my-dag-run-2",
                     "end_date": None,
                     "state": "running",
-                    "execution_date": self.default_time,
-                    "logical_date": self.default_time,
+                    "execution_date": self.second_time,
+                    "logical_date": self.second_time,
                     "external_trigger": True,
                     "start_date": self.default_time,
                     "conf": {},

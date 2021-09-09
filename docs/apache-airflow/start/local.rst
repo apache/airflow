@@ -20,7 +20,7 @@
 Running Airflow locally
 -----------------------
 
-This quick start guide will help you bootstrap a Airflow standalone instance on your local machine.
+This quick start guide will help you bootstrap an Airflow standalone instance on your local machine.
 
 .. note::
 

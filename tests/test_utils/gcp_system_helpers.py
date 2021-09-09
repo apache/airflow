@@ -99,8 +99,6 @@ def provide_gcp_context(
     ):
         executor = get_executor()
 
-        if project_id:
-            executor.execute_cmd(["gcloud", "config", "set", "core/project", project_id])
         if key_file_path:
             executor.execute_cmd(
                 [
@@ -110,6 +108,8 @@ def provide_gcp_context(
                     f"--key-file={key_file_path}",
                 ]
             )
+        if project_id:
+            executor.execute_cmd(["gcloud", "config", "set", "core/project", project_id])
         yield
 
 

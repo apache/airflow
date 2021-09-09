@@ -35,7 +35,7 @@ Content
 
     PyPI Repository <https://pypi.org/project/apache-airflow-providers-mongo/>
 
-.. THE REMINDER OF THE FILE IS AUTOMATICALLY GENERATED. IT WILL BE OVERWRITTEN AT RELEASE TIME!
+.. THE REMAINDER OF THE FILE IS AUTOMATICALLY GENERATED. IT WILL BE OVERWRITTEN AT RELEASE TIME!
 
 
 .. toctree::
@@ -51,7 +51,7 @@ Package apache-airflow-providers-mongo
 `MongoDB <https://www.mongodb.com/what-is-mongodb>`__
 
 
-Release: 2.0.0
+Release: 2.1.0
 
 Provider package
 ----------------
@@ -72,7 +72,7 @@ PIP requirements
 PIP package         Version required
 ==================  ===================
 ``apache-airflow``  ``>=2.1.0``
-``dnspython``       ``>=1.13.0,<2.0.0``
+``dnspython``       ``>=1.13.0,<3.0.0``
 ``pymongo``         ``>=3.6.0``
 ==================  ===================
 

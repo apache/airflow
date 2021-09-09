@@ -17,11 +17,13 @@
 # under the License.
 #
 from copy import deepcopy
+from pathlib import Path
 from typing import Dict, List, Optional, Tuple, Type
 from unittest import mock
 from urllib.parse import ParseResult, urlparse
 
 import pytest
+import yaml
 from _pytest._code import ExceptionInfo
 from botocore.exceptions import ClientError
 from freezegun import freeze_time
@@ -709,6 +711,40 @@ class TestEKSHooks:
                     expected_msg=expected_message,
                     raised_exception=raised_exception,
                 )
+
+
+class TestEKSHook:
+    @mock.patch('airflow.providers.amazon.aws.hooks.eks.EKSHook._fetch_sts_token')
+    @mock.patch('airflow.providers.amazon.aws.hooks.base_aws.AwsBaseHook.conn')
+    def test_generate_config_file(self, mock_conn, mock_fetch_sts_token):
+        mock_fetch_sts_token.return_value = 'STS-token'
+        mock_conn.describe_cluster.return_value = {
+            'cluster': {'certificateAuthority': {'data': 'test-cert'}, 'endpoint': 'test-endpoint'}
+        }
+        hook = EKSHook()
+        with hook.generate_config_file(
+            eks_cluster_name='test-cluster', pod_namespace='k8s-namespace'
+        ) as config_file:
+            config = yaml.load(Path(config_file).read_text())
+            assert config == {
+                'apiVersion': 'v1',
+                'kind': 'Config',
+                'clusters': [
+                    {
+                        'cluster': {'server': 'test-endpoint', 'certificate-authority-data': 'test-cert'},
+                        'name': 'test-cluster',
+                    }
+                ],
+                'contexts': [
+                    {
+                        'context': {'cluster': 'test-cluster', 'namespace': 'k8s-namespace', 'user': 'aws'},
+                        'name': 'aws',
+                    }
+                ],
+                'current-context': 'aws',
+                'preferences': {},
+                'users': [{'name': 'aws', 'user': {'token': 'STS-token'}}],
+            }
 
 
 # Helper methods for repeated assert combinations.

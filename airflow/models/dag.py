@@ -27,7 +27,7 @@ import sys
 import traceback
 import warnings
 from collections import OrderedDict
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, tzinfo
 from inspect import signature
 from typing import (
     TYPE_CHECKING,
@@ -72,7 +72,6 @@ from airflow.security import permissions
 from airflow.stats import Stats
 from airflow.timetables.base import DagRunInfo, TimeRestriction, Timetable
 from airflow.timetables.interval import CronDataIntervalTimetable, DeltaDataIntervalTimetable
-from airflow.timetables.schedules import Schedule
 from airflow.timetables.simple import NullTimetable, OnceTimetable
 from airflow.typing_compat import Literal, RePatternType
 from airflow.utils import timezone
@@ -92,11 +91,34 @@ if TYPE_CHECKING:
 
 log = logging.getLogger(__name__)
 
-ScheduleInterval = Union[str, timedelta, relativedelta]
 DEFAULT_VIEW_PRESETS = ['tree', 'graph', 'duration', 'gantt', 'landing_times']
 ORIENTATION_PRESETS = ['LR', 'TB', 'RL', 'BT']
 
+ScheduleIntervalArgNotSet = type("ScheduleIntervalArgNotSet", (), {})
+
 DagStateChangeCallback = Callable[[Context], None]
+ScheduleInterval = Union[str, timedelta, relativedelta]
+ScheduleIntervalArg = Union[ScheduleInterval, None, Type[ScheduleIntervalArgNotSet]]
+
+
+# Backward compatibility: If neither schedule_interval nor timetable is
+# *provided by the user*, default to a one-day interval.
+DEFAULT_SCHEDULE_INTERVAL = timedelta(days=1)
+
+
+def create_timetable(interval: ScheduleIntervalArg, timezone: tzinfo) -> Timetable:
+    """Create a Timetable instance from a ``schedule_interval`` argument."""
+    if interval is ScheduleIntervalArgNotSet:
+        return DeltaDataIntervalTimetable(DEFAULT_SCHEDULE_INTERVAL)
+    if interval is None:
+        return NullTimetable()
+    if interval == "@once":
+        return OnceTimetable()
+    if isinstance(interval, (timedelta, relativedelta)):
+        return DeltaDataIntervalTimetable(interval)
+    if isinstance(interval, str):
+        return CronDataIntervalTimetable(interval, timezone)
+    raise ValueError(f"{interval!r} is not a valid schedule_interval.")
 
 
 def get_last_dagrun(dag_id, session, include_externally_triggered=False):
@@ -256,7 +278,8 @@ class DAG(LoggingMixin):
         self,
         dag_id: str,
         description: Optional[str] = None,
-        schedule_interval: Optional[ScheduleInterval] = timedelta(days=1),
+        schedule_interval: ScheduleIntervalArg = ScheduleIntervalArgNotSet,
+        timetable: Optional[Timetable] = None,
         start_date: Optional[datetime] = None,
         end_date: Optional[datetime] = None,
         full_filepath: Optional[str] = None,
@@ -349,7 +372,18 @@ class DAG(LoggingMixin):
         if 'end_date' in self.default_args:
             self.default_args['end_date'] = timezone.convert_to_utc(self.default_args['end_date'])
 
-        self.schedule_interval = schedule_interval
+        # Calculate the DAG's timetable.
+        if timetable is None:
+            self.timetable = create_timetable(schedule_interval, self.timezone)
+            if schedule_interval is ScheduleIntervalArgNotSet:
+                schedule_interval = DEFAULT_SCHEDULE_INTERVAL
+            self.schedule_interval: ScheduleInterval = schedule_interval
+        elif schedule_interval is ScheduleIntervalArgNotSet:
+            self.timetable = timetable
+            self.schedule_interval = self.timetable.summary
+        else:
+            raise TypeError("cannot specify both 'schedule_interval' and 'timetable'")
+
         if isinstance(template_searchpath, str):
             template_searchpath = [template_searchpath]
         self.template_searchpath = template_searchpath
@@ -494,7 +528,7 @@ class DAG(LoggingMixin):
             stacklevel=2,
         )
         try:
-            return not self.timetable._schedule._should_fix_dst
+            return not self.timetable._should_fix_dst
         except AttributeError:
             return True
 
@@ -505,24 +539,25 @@ class DAG(LoggingMixin):
         :param dttm: utc datetime
         :return: utc datetime
         """
-        current = pendulum.instance(dttm)
-        between = TimeRestriction(earliest=None, latest=None, catchup=True)
-        next_info = self.timetable.next_dagrun_info(current, between)
+        next_info = self.timetable.next_dagrun_info(
+            last_automated_dagrun=pendulum.instance(dttm),
+            restriction=TimeRestriction(earliest=None, latest=None, catchup=True),
+        )
         if next_info is None:
             return None
         return next_info.data_interval.start
 
     def previous_schedule(self, dttm):
+        from airflow.timetables.interval import _DataIntervalTimetable
+
         warnings.warn(
             "`DAG.previous_schedule()` is deprecated.",
             category=DeprecationWarning,
             stacklevel=2,
         )
-        try:
-            schedule: Schedule = self.timetable._schedule
-        except AttributeError:
+        if not isinstance(self.timetable, _DataIntervalTimetable):
             return None
-        return schedule.get_prev(pendulum.instance(dttm))
+        return self.timetable._get_prev(pendulum.instance(dttm))
 
     def next_dagrun_info(
         self,
@@ -551,8 +586,8 @@ class DAG(LoggingMixin):
         # and someone is passing datetime.datetime into this function. We should
         # fix whatever is doing that.
         return self.timetable.next_dagrun_info(
-            timezone.coerce_datetime(date_last_automated_dagrun),
-            self._time_restriction,
+            last_automated_dagrun=timezone.coerce_datetime(date_last_automated_dagrun),
+            restriction=self._time_restriction,
         )
 
     def next_dagrun_after_date(self, date_last_automated_dagrun: Optional[pendulum.DateTime]):
@@ -583,20 +618,6 @@ class DAG(LoggingMixin):
         else:
             latest = None
         return TimeRestriction(earliest, latest, self.catchup)
-
-    @cached_property
-    def timetable(self) -> Timetable:
-        interval = self.schedule_interval
-        if interval is None:
-            return NullTimetable()
-        if interval == "@once":
-            return OnceTimetable()
-        if isinstance(interval, (timedelta, relativedelta)):
-            return DeltaDataIntervalTimetable(interval)
-        if isinstance(interval, str):
-            return CronDataIntervalTimetable(interval, self.timezone)
-        type_name = type(interval).__name__
-        raise TypeError(f"{type_name} is not a valid DAG.schedule_interval.")
 
     def iter_dagrun_infos_between(
         self,
@@ -637,7 +658,7 @@ class DAG(LoggingMixin):
         if self.is_subdag:
             align = False
 
-        info = self.timetable.next_dagrun_info(None, restriction)
+        info = self.timetable.next_dagrun_info(last_automated_dagrun=None, restriction=restriction)
         if info is None:
             # No runs to be scheduled between the user-supplied timeframe. But
             # if align=False, "invent" a data interval for the timeframe itself.
@@ -653,7 +674,10 @@ class DAG(LoggingMixin):
         # Generate naturally according to schedule.
         while info is not None:
             yield info
-            info = self.timetable.next_dagrun_info(info.logical_date, restriction)
+            info = self.timetable.next_dagrun_info(
+                last_automated_dagrun=info.logical_date,
+                restriction=restriction,
+            )
 
     def get_run_dates(self, start_date, end_date=None):
         """
@@ -844,7 +868,7 @@ class DAG(LoggingMixin):
 
     @property
     def allow_future_exec_dates(self) -> bool:
-        return settings.ALLOW_FUTURE_EXEC_DATES and self.schedule_interval is None
+        return settings.ALLOW_FUTURE_EXEC_DATES and not self.timetable.can_run
 
     @provide_session
     def get_concurrency_reached(self, session=None) -> bool:
@@ -925,7 +949,7 @@ class DAG(LoggingMixin):
         callback = self.on_success_callback if success else self.on_failure_callback
         if callback:
             self.log.info('Executing dag callback function: %s', callback)
-            tis = dagrun.get_task_instances()
+            tis = dagrun.get_task_instances(session=session)
             ti = tis[-1]  # get first TaskInstance of DagRun
             ti.task = self.get_task(ti.task_id)
             context = ti.get_template_context(session=session)
@@ -1139,6 +1163,7 @@ class DAG(LoggingMixin):
                 task_ids=None,
                 start_date=start_date,
                 end_date=end_date,
+                run_id=None,
                 state=state,
                 include_subdags=False,
                 include_parentdag=False,
@@ -1147,7 +1172,8 @@ class DAG(LoggingMixin):
                 as_pk_tuple=False,
                 session=session,
             )
-            .order_by(TaskInstance.execution_date)
+            .join(TaskInstance.dag_run)
+            .order_by(DagRun.execution_date)
             .all()
         )
 
@@ -1158,6 +1184,7 @@ class DAG(LoggingMixin):
         task_ids,
         start_date: Optional[datetime],
         end_date: Optional[datetime],
+        run_id: None,
         state: Union[str, List[str]],
         include_subdags: bool,
         include_parentdag: bool,
@@ -1179,6 +1206,7 @@ class DAG(LoggingMixin):
         task_ids,
         start_date: Optional[datetime],
         end_date: Optional[datetime],
+        run_id: Optional[str],
         state: Union[str, List[str]],
         include_subdags: bool,
         include_parentdag: bool,
@@ -1199,6 +1227,7 @@ class DAG(LoggingMixin):
         task_ids,
         start_date: Optional[datetime],
         end_date: Optional[datetime],
+        run_id: Optional[str],
         state: Union[str, List[str]],
         include_subdags: bool,
         include_parentdag: bool,
@@ -1223,9 +1252,10 @@ class DAG(LoggingMixin):
 
         # Do we want full objects, or just the primary columns?
         if as_pk_tuple:
-            tis = session.query(TI.dag_id, TI.task_id, TI.execution_date)
+            tis = session.query(TI.dag_id, TI.task_id, TI.run_id)
         else:
             tis = session.query(TaskInstance)
+        tis = tis.join(TaskInstance.dag_run)
 
         if include_subdags:
             # Crafting the right filter for dag_id and task_ids combo
@@ -1237,15 +1267,17 @@ class DAG(LoggingMixin):
             tis = tis.filter(or_(*conditions))
         else:
             tis = tis.filter(TaskInstance.dag_id == self.dag_id, TaskInstance.task_id.in_(self.task_ids))
+        if run_id:
+            tis = tis.filter(TaskInstance.run_id == run_id)
         if start_date:
-            tis = tis.filter(TaskInstance.execution_date >= start_date)
+            tis = tis.filter(DagRun.execution_date >= start_date)
         if task_ids:
             tis = tis.filter(TaskInstance.task_id.in_(task_ids))
 
         # This allows allow_trigger_in_future config to take affect, rather than mandating exec_date <= UTC
         if end_date or not self.allow_future_exec_dates:
             end_date = end_date or timezone.utcnow()
-            tis = tis.filter(TaskInstance.execution_date <= end_date)
+            tis = tis.filter(DagRun.execution_date <= end_date)
 
         if state:
             if isinstance(state, str):
@@ -1277,6 +1309,7 @@ class DAG(LoggingMixin):
                     task_ids=task_ids,
                     start_date=start_date,
                     end_date=end_date,
+                    run_id=None,
                     state=state,
                     include_subdags=include_subdags,
                     include_parentdag=False,
@@ -1329,10 +1362,14 @@ class DAG(LoggingMixin):
                         )
                     )
                 ti.render_templates()
-                external_tis = session.query(TI).filter(
-                    TI.dag_id == task.external_dag_id,
-                    TI.task_id == task.external_task_id,
-                    TI.execution_date == pendulum.parse(task.execution_date),
+                external_tis = (
+                    session.query(TI)
+                    .join(TI.dag_run)
+                    .filter(
+                        TI.dag_id == task.external_dag_id,
+                        TI.task_id == task.external_task_id,
+                        DagRun.execution_date == pendulum.parse(task.execution_date),
+                    )
                 )
 
                 for tii in external_tis:
@@ -1349,8 +1386,9 @@ class DAG(LoggingMixin):
                     result.update(
                         downstream._get_task_instances(
                             task_ids=None,
-                            start_date=tii.execution_date,
-                            end_date=tii.execution_date,
+                            run_id=tii.run_id,
+                            start_date=None,
+                            end_date=None,
                             state=state,
                             include_subdags=include_subdags,
                             include_dependent_dags=include_dependent_dags,
@@ -1384,7 +1422,7 @@ class DAG(LoggingMixin):
             return result
         elif result:
             # We've been asked for objects, lets combine it all back in to a result set
-            tis = tis.with_entities(TI.dag_id, TI.task_id, TI.execution_date)
+            tis = tis.with_entities(TI.dag_id, TI.task_id, TI.run_id)
 
             tis = session.query(TI).filter(TI.filter_for_tis(result))
         elif exclude_task_ids:
@@ -1643,6 +1681,7 @@ class DAG(LoggingMixin):
             task_ids=task_ids,
             start_date=start_date,
             end_date=end_date,
+            run_id=None,
             state=state,
             include_subdags=include_subdags,
             include_parentdag=include_parentdag,
@@ -2112,7 +2151,9 @@ class DAG(LoggingMixin):
             )
 
         if run_type == DagRunType.MANUAL and data_interval is None and execution_date is not None:
-            data_interval = self.timetable.infer_data_interval(timezone.coerce_datetime(execution_date))
+            data_interval = self.timetable.infer_data_interval(
+                run_after=timezone.coerce_datetime(execution_date),
+            )
 
         run = DagRun(
             dag_id=self.dag_id,
@@ -2241,7 +2282,7 @@ class DAG(LoggingMixin):
                         orm_dag.tags.append(dag_tag_orm)
                         session.add(dag_tag_orm)
 
-        DagCode.bulk_sync_to_db(filelocs)
+        DagCode.bulk_sync_to_db(filelocs, session=session)
 
         # Issue SQL/finish "Unit of Work", but let @provide_session commit (or if passed a session, let caller
         # decide when to commit

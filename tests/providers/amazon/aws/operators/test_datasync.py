@@ -22,7 +22,7 @@ import pytest
 from moto import mock_datasync
 
 from airflow.exceptions import AirflowException
-from airflow.models import DAG, TaskInstance
+from airflow.models import DAG, DagRun, TaskInstance
 from airflow.providers.amazon.aws.hooks.datasync import AWSDataSyncHook
 from airflow.providers.amazon.aws.operators.datasync import AWSDataSyncOperator
 from airflow.utils import timezone
@@ -306,16 +306,17 @@ class TestAWSDataSyncOperatorCreate(AWSDataSyncTestCaseBase):
         # ### Check mocks:
         mock_get_conn.assert_called()
 
-    def test_xcom_push(self, mock_get_conn):
+    def test_return_value(self, mock_get_conn):
+        """Test we return the right value -- that will get put in to XCom by the execution engine"""
         # ### Set up mocks:
         mock_get_conn.return_value = self.client
         # ### Begin tests:
 
         self.set_up_operator()
-        ti = TaskInstance(task=self.datasync, execution_date=timezone.utcnow())
-        ti.run()
-        xcom_result = ti.xcom_pull(task_ids=self.datasync.task_id, key="return_value")
-        assert xcom_result is not None
+        dag_run = DagRun(dag_id=self.dag.dag_id, execution_date=timezone.utcnow(), run_id="test")
+        ti = TaskInstance(task=self.datasync)
+        ti.dag_run = dag_run
+        assert self.datasync.execute(ti.get_template_context()) is not None
         # ### Check mocks:
         mock_get_conn.assert_called()
 
@@ -497,16 +498,18 @@ class TestAWSDataSyncOperatorGetTasks(AWSDataSyncTestCaseBase):
         # ### Check mocks:
         mock_get_conn.assert_called()
 
-    def test_xcom_push(self, mock_get_conn):
+    def test_return_value(self, mock_get_conn):
+        """Test we return the right value -- that will get put in to XCom by the execution engine"""
         # ### Set up mocks:
         mock_get_conn.return_value = self.client
         # ### Begin tests:
 
         self.set_up_operator()
-        ti = TaskInstance(task=self.datasync, execution_date=timezone.utcnow())
-        ti.run()
-        pushed_task_arn = ti.xcom_pull(task_ids=self.datasync.task_id, key="return_value")["TaskArn"]
-        assert pushed_task_arn == self.task_arn
+        dag_run = DagRun(dag_id=self.dag.dag_id, execution_date=timezone.utcnow(), run_id="test")
+        ti = TaskInstance(task=self.datasync)
+        ti.dag_run = dag_run
+        result = self.datasync.execute(ti.get_template_context())
+        assert result["TaskArn"] == self.task_arn
         # ### Check mocks:
         mock_get_conn.assert_called()
 
@@ -597,16 +600,18 @@ class TestAWSDataSyncOperatorUpdate(AWSDataSyncTestCaseBase):
         # ### Check mocks:
         mock_get_conn.assert_called()
 
-    def test_xcom_push(self, mock_get_conn):
+    def test_return_value(self, mock_get_conn):
+        """Test we return the right value -- that will get put in to XCom by the execution engine"""
         # ### Set up mocks:
         mock_get_conn.return_value = self.client
         # ### Begin tests:
 
         self.set_up_operator()
-        ti = TaskInstance(task=self.datasync, execution_date=timezone.utcnow())
-        ti.run()
-        pushed_task_arn = ti.xcom_pull(task_ids=self.datasync.task_id, key="return_value")["TaskArn"]
-        assert pushed_task_arn == self.task_arn
+        dag_run = DagRun(dag_id=self.dag.dag_id, execution_date=timezone.utcnow(), run_id="test")
+        ti = TaskInstance(task=self.datasync)
+        ti.dag_run = dag_run
+        result = self.datasync.execute(ti.get_template_context())
+        assert result["TaskArn"] == self.task_arn
         # ### Check mocks:
         mock_get_conn.assert_called()
 
@@ -750,16 +755,17 @@ class TestAWSDataSyncOperator(AWSDataSyncTestCaseBase):
         # ### Check mocks:
         mock_get_conn.assert_called()
 
-    def test_xcom_push(self, mock_get_conn):
+    def test_return_value(self, mock_get_conn):
+        """Test we return the right value -- that will get put in to XCom by the execution engine"""
         # ### Set up mocks:
         mock_get_conn.return_value = self.client
         # ### Begin tests:
 
         self.set_up_operator()
-        ti = TaskInstance(task=self.datasync, execution_date=timezone.utcnow())
-        ti.run()
-        xcom_result = ti.xcom_pull(task_ids=self.datasync.task_id, key="return_value")
-        assert xcom_result is not None
+        dag_run = DagRun(dag_id=self.dag.dag_id, execution_date=timezone.utcnow(), run_id="test")
+        ti = TaskInstance(task=self.datasync)
+        ti.dag_run = dag_run
+        assert self.datasync.execute(ti.get_template_context()) is not None
         # ### Check mocks:
         mock_get_conn.assert_called()
 
@@ -843,15 +849,17 @@ class TestAWSDataSyncOperatorDelete(AWSDataSyncTestCaseBase):
         # ### Check mocks:
         mock_get_conn.assert_called()
 
-    def test_xcom_push(self, mock_get_conn):
+    def test_return_value(self, mock_get_conn):
+        """Test we return the right value -- that will get put in to XCom by the execution engine"""
         # ### Set up mocks:
         mock_get_conn.return_value = self.client
         # ### Begin tests:
 
         self.set_up_operator()
-        ti = TaskInstance(task=self.datasync, execution_date=timezone.utcnow())
-        ti.run()
-        pushed_task_arn = ti.xcom_pull(task_ids=self.datasync.task_id, key="return_value")["TaskArn"]
-        assert pushed_task_arn == self.task_arn
+        dag_run = DagRun(dag_id=self.dag.dag_id, execution_date=timezone.utcnow(), run_id="test")
+        ti = TaskInstance(task=self.datasync)
+        ti.dag_run = dag_run
+        result = self.datasync.execute(ti.get_template_context())
+        assert result["TaskArn"] == self.task_arn
         # ### Check mocks:
         mock_get_conn.assert_called()

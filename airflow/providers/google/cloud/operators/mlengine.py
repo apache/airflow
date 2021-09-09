@@ -1124,6 +1124,10 @@ class MLEngineStartTrainingJobOperator(BaseOperator):
     :type mode: str
     :param labels: a dictionary containing labels for the job; passed to BigQuery
     :type labels: Dict[str, str]
+    :param hyperparameters: Optional HyperparameterSpec dictionary for hyperparameter tuning.
+        For further reference, check:
+        https://cloud.google.com/ai-platform/training/docs/reference/rest/v1/projects.jobs#HyperparameterSpec
+    :type hyperparameters: Dict
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -1149,6 +1153,7 @@ class MLEngineStartTrainingJobOperator(BaseOperator):
         '_python_version',
         '_job_dir',
         '_service_account',
+        '_hyperparameters',
         '_impersonation_chain',
     ]
 
@@ -1175,6 +1180,7 @@ class MLEngineStartTrainingJobOperator(BaseOperator):
         mode: str = 'PRODUCTION',
         labels: Optional[Dict[str, str]] = None,
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        hyperparameters: Optional[Dict] = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -1195,6 +1201,7 @@ class MLEngineStartTrainingJobOperator(BaseOperator):
         self._delegate_to = delegate_to
         self._mode = mode
         self._labels = labels
+        self._hyperparameters = hyperparameters
         self._impersonation_chain = impersonation_chain
 
         custom = self._scale_tier is not None and self._scale_tier.upper() == 'CUSTOM'
@@ -1259,6 +1266,9 @@ class MLEngineStartTrainingJobOperator(BaseOperator):
 
         if self._service_account:
             training_request['trainingInput']['serviceAccount'] = self._service_account
+
+        if self._hyperparameters:
+            training_request['trainingInput']['hyperparameters'] = self._hyperparameters
 
         if self._labels:
             training_request['labels'] = self._labels

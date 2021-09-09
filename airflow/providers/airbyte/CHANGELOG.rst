@@ -19,17 +19,31 @@
 Changelog
 ---------
 
+2.1.1
+.....
+
+Misc
+~~~~
+
+* ``Optimise connection importing for Airflow 2.2.0``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Fix messed-up changelog in 3 providers (#17380)``
+   * ``Update description about the new ''connection-types'' provider meta-data (#17767)``
+   * ``Import Hooks lazily individually in providers manager (#17682)``
+
 2.1.0
 .....
 
 Bug Fixes
 ~~~~~~~~~
 
-* ``Fixed wrongly escaped characters in amazon&#39;s changelog (#17020)``
+* ``AirbyteHook - Consider incomplete status (#16965)``
 
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):
-   * ``AirbyteHook - Consider incomplete status (#16965)``
+   * ``Fixed wrongly escaped characters in amazon's changelog (#17020)``
    * ``Prepare documentation for July release of providers. (#17015)``
    * ``Updating Airbyte example DAG to use XComArgs (#16867)``
    * ``Removes pylint from our toolchain (#16682)``

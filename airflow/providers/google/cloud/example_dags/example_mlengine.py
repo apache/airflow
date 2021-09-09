@@ -59,11 +59,47 @@ SUMMARY_STAGING = os.environ.get("GCP_MLENGINE_DATAFLOW_STAGING", "gs://INVALID 
 
 with models.DAG(
     "example_gcp_mlengine",
-    schedule_interval=None,  # Override to match your needs
+    schedule_interval='@once',  # Override to match your needs
     start_date=days_ago(1),
     tags=['example'],
     params={"model_name": MODEL_NAME},
 ) as dag:
+    hyperparams = {
+        'goal': 'MAXIMIZE',
+        'hyperparameterMetricTag': 'metric1',
+        'maxTrials': 30,
+        'maxParallelTrials': 1,
+        'enableTrialEarlyStopping': True,
+        'params': [],
+    }
+
+    hyperparams['params'].append(
+        {
+            'parameterName': 'hidden1',
+            'type': 'INTEGER',
+            'minValue': 40,
+            'maxValue': 400,
+            'scaleType': 'UNIT_LINEAR_SCALE',
+        }
+    )
+
+    hyperparams['params'].append(
+        {'parameterName': 'numRnnCells', 'type': 'DISCRETE', 'discreteValues': [1, 2, 3, 4]}
+    )
+
+    hyperparams['params'].append(
+        {
+            'parameterName': 'rnnCellType',
+            'type': 'CATEGORICAL',
+            'categoricalValues': [
+                'BasicLSTMCell',
+                'BasicRNNCell',
+                'GRUCell',
+                'LSTMCell',
+                'LayerNormBasicLSTMCell',
+            ],
+        }
+    )
     # [START howto_operator_gcp_mlengine_training]
     training = MLEngineStartTrainingJobOperator(
         task_id="training",
@@ -77,6 +113,7 @@ with models.DAG(
         training_python_module=TRAINER_PY_MODULE,
         training_args=[],
         labels={"job_type": "training"},
+        hyperparameters=hyperparams,
     )
     # [END howto_operator_gcp_mlengine_training]
 

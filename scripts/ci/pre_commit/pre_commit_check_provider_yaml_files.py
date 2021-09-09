@@ -27,6 +27,7 @@ from typing import Any, Dict, Iterable, List
 
 import jsonschema
 import yaml
+from jsonpath_ng.ext import parse
 from tabulate import tabulate
 
 try:
@@ -42,6 +43,9 @@ if __name__ != "__main__":
 ROOT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), os.pardir, os.pardir, os.pardir))
 DOCS_DIR = os.path.join(ROOT_DIR, 'docs')
 PROVIDER_DATA_SCHEMA_PATH = os.path.join(ROOT_DIR, "airflow", "provider.yaml.schema.json")
+PROVIDER_ISSUE_TEMPLATE_PATH = os.path.join(
+    ROOT_DIR, ".github", "ISSUE_TEMPLATE", "airflow_providers_bug_report.yml"
+)
 CORE_INTEGRATIONS = ["SQL", "Local"]
 
 errors = []
@@ -329,6 +333,24 @@ def check_unique_provider_name(yaml_files: Dict[str, Dict]):
         errors.append(f"Provider name must be unique. Duplicates: {duplicates}")
 
 
+def check_providers_are_mentioned_in_issue_template(yaml_files: Dict[str, Dict]):
+    prefix_len = len("apache-airflow-providers-")
+    short_provider_names = [d['package-name'][prefix_len:] for d in yaml_files.values()]
+    jsonpath_expr = parse('$.body[?(@.attributes.label == "Apache Airflow Provider(s)")]..options[*]')
+    with open(PROVIDER_ISSUE_TEMPLATE_PATH) as issue_file:
+        issue_template = yaml.safe_load(issue_file)
+    all_mentioned_providers = [match.value for match in jsonpath_expr.find(issue_template)]
+    try:
+        print(
+            f" -- Checking providers: present in code(left), "
+            f"mentioned in {PROVIDER_ISSUE_TEMPLATE_PATH} (right)"
+        )
+        assert_sets_equal(set(short_provider_names), set(all_mentioned_providers))
+    except AssertionError as ex:
+        print(ex)
+        sys.exit(1)
+
+
 if __name__ == '__main__':
     all_provider_files = sorted(glob(f"{ROOT_DIR}/airflow/providers/**/provider.yaml", recursive=True))
     if len(sys.argv) > 1:
@@ -348,6 +370,7 @@ if __name__ == '__main__':
     check_duplicates_in_list_of_transfers(all_parsed_yaml_files)
     check_hook_classes(all_parsed_yaml_files)
     check_unique_provider_name(all_parsed_yaml_files)
+    check_providers_are_mentioned_in_issue_template(all_parsed_yaml_files)
 
     if all_files_loaded:
         # Only check those if all provider files are loaded

@@ -68,9 +68,9 @@ class TestWorkerServeLogs(unittest.TestCase):
     def setUpClass(cls):
         cls.parser = cli_parser.get_parser()
 
-    @mock.patch('airflow.cli.commands.celery_command.worker_bin')
+    @mock.patch('airflow.cli.commands.celery_command.celery_app')
     @conf_vars({("core", "executor"): "CeleryExecutor"})
-    def test_serve_logs_on_worker_start(self, mock_worker):
+    def test_serve_logs_on_worker_start(self, mock_celery_app):
         with mock.patch('airflow.cli.commands.celery_command.Process') as mock_process:
             args = self.parser.parse_args(['celery', 'worker', '--concurrency', '1'])
 
@@ -79,9 +79,9 @@ class TestWorkerServeLogs(unittest.TestCase):
                 celery_command.worker(args)
                 mock_process.assert_called()
 
-    @mock.patch('airflow.cli.commands.celery_command.worker_bin')
+    @mock.patch('airflow.cli.commands.celery_command.celery_app')
     @conf_vars({("core", "executor"): "CeleryExecutor"})
-    def test_skip_serve_logs_on_worker_start(self, mock_worker):
+    def test_skip_serve_logs_on_worker_start(self, mock_celery_app):
         with mock.patch('airflow.cli.commands.celery_command.Process') as mock_popen:
             args = self.parser.parse_args(['celery', 'worker', '--concurrency', '1', '--skip-serve-logs'])
 
@@ -118,11 +118,11 @@ class TestCeleryStopCommand(unittest.TestCase):
                 mock_process.return_value.terminate.assert_called_once_with()
 
     @mock.patch("airflow.cli.commands.celery_command.read_pid_from_pidfile")
-    @mock.patch("airflow.cli.commands.celery_command.worker_bin.worker")
+    @mock.patch('airflow.cli.commands.celery_command.celery_app')
     @mock.patch("airflow.cli.commands.celery_command.setup_locations")
     @conf_vars({("core", "executor"): "CeleryExecutor"})
     def test_same_pid_file_is_used_in_start_and_stop(
-        self, mock_setup_locations, mock_celery_worker, mock_read_pid_from_pidfile
+        self, mock_setup_locations, mock_celery_app, mock_read_pid_from_pidfile
     ):
         pid_file = "test_pid_file"
         mock_setup_locations.return_value = (pid_file, None, None, None)
@@ -131,11 +131,10 @@ class TestCeleryStopCommand(unittest.TestCase):
         # Call worker
         worker_args = self.parser.parse_args(['celery', 'worker', '--skip-serve-logs'])
         celery_command.worker(worker_args)
-        run_mock = mock_celery_worker.return_value.run
-        assert run_mock.call_args
-        _, kwargs = run_mock.call_args
-        assert 'pidfile' in kwargs
-        assert kwargs['pidfile'] == pid_file
+        assert mock_celery_app.worker_main.call_args
+        args, _ = mock_celery_app.worker_main.call_args
+        args_str = ' '.join(map(str, args[0]))
+        assert f'--pidfile {pid_file}' in args_str
 
         # Call stop
         stop_args = self.parser.parse_args(['celery', 'stop'])
@@ -144,7 +143,7 @@ class TestCeleryStopCommand(unittest.TestCase):
 
     @mock.patch("airflow.cli.commands.celery_command.remove_existing_pidfile")
     @mock.patch("airflow.cli.commands.celery_command.read_pid_from_pidfile")
-    @mock.patch("airflow.cli.commands.celery_command.worker_bin.worker")
+    @mock.patch('airflow.cli.commands.celery_command.celery_app')
     @mock.patch("airflow.cli.commands.celery_command.psutil.Process")
     @mock.patch("airflow.cli.commands.celery_command.setup_locations")
     @conf_vars({("core", "executor"): "CeleryExecutor"})
@@ -152,7 +151,7 @@ class TestCeleryStopCommand(unittest.TestCase):
         self,
         mock_setup_locations,
         mock_process,
-        mock_celery_worker,
+        mock_celery_app,
         mock_read_pid_from_pidfile,
         mock_remove_existing_pidfile,
     ):
@@ -161,20 +160,13 @@ class TestCeleryStopCommand(unittest.TestCase):
         # Call worker
         worker_args = self.parser.parse_args(['celery', 'worker', '--skip-serve-logs', '--pid', pid_file])
         celery_command.worker(worker_args)
-        run_mock = mock_celery_worker.return_value.run
-        assert run_mock.call_args
-        args, kwargs = run_mock.call_args
-        assert 'pidfile' in kwargs
-        assert kwargs['pidfile'] == pid_file
-        assert not args
+        assert mock_celery_app.worker_main.call_args
+        args, _ = mock_celery_app.worker_main.call_args
+        args_str = ' '.join(map(str, args[0]))
+        assert f'--pidfile {pid_file}' in args_str
+
         stop_args = self.parser.parse_args(['celery', 'stop', '--pid', pid_file])
         celery_command.stop_worker(stop_args)
-        run_mock = mock_celery_worker.return_value.run
-        assert run_mock.call_args
-        args, kwargs = run_mock.call_args
-        assert 'pidfile' in kwargs
-        assert kwargs['pidfile'] == pid_file
-        assert not args
 
         mock_read_pid_from_pidfile.assert_called_once_with(pid_file)
         mock_process.return_value.terminate.assert_called()
@@ -189,9 +181,9 @@ class TestWorkerStart(unittest.TestCase):
 
     @mock.patch("airflow.cli.commands.celery_command.setup_locations")
     @mock.patch('airflow.cli.commands.celery_command.Process')
-    @mock.patch('airflow.cli.commands.celery_command.worker_bin')
+    @mock.patch('airflow.cli.commands.celery_command.celery_app')
     @conf_vars({("core", "executor"): "CeleryExecutor"})
-    def test_worker_started_with_required_arguments(self, mock_worker, mock_popen, mock_locations):
+    def test_worker_started_with_required_arguments(self, mock_celery_app, mock_popen, mock_locations):
         pid_file = "pid_file"
         mock_locations.return_value = (pid_file, None, None, None)
         concurrency = '1'
@@ -215,20 +207,28 @@ class TestWorkerStart(unittest.TestCase):
             ]
         )
 
-        with mock.patch('celery.platforms.check_privileges') as mock_privil:
-            mock_privil.return_value = 0
-            celery_command.worker(args)
+        celery_command.worker(args)
 
-        mock_worker.worker.return_value.run.assert_called_once_with(
-            pool='prefork',
-            optimization='fair',
-            O='fair',
-            queues=queues,
-            pidfile=pid_file,
-            concurrency=int(concurrency),
-            autoscale=autoscale,
-            hostname=celery_hostname,
-            loglevel=conf.get('logging', 'LOGGING_LEVEL'),
-            without_mingle=True,
-            without_gossip=True,
+        mock_celery_app.worker_main.assert_called_once_with(
+            [
+                'worker',
+                '-O',
+                'fair',
+                '--queues',
+                queues,
+                '--concurrency',
+                int(concurrency),
+                '--hostname',
+                celery_hostname,
+                '--loglevel',
+                conf.get('logging', 'LOGGING_LEVEL'),
+                '--pidfile',
+                pid_file,
+                '--autoscale',
+                autoscale,
+                '--without-mingle',
+                '--without-gossip',
+                '--pool',
+                'prefork',
+            ]
         )

@@ -66,7 +66,7 @@ class TriggerRuleDep(BaseTIDep):
             return
         # see if the task name is in the task upstream for our task
         successes, skipped, failed, upstream_failed, done = self._get_states_count_upstream_ti(
-            ti=ti, finished_tasks=dep_context.ensure_finished_tasks(ti.task.dag, ti.execution_date, session)
+            ti=ti, finished_tasks=dep_context.ensure_finished_tasks(ti.get_dagrun(session), session)
         )
 
         yield from self._evaluate_trigger_rule(

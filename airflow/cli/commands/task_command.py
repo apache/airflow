@@ -21,15 +21,16 @@ import json
 import logging
 import os
 import textwrap
-from contextlib import contextmanager, redirect_stderr, redirect_stdout
+from contextlib import contextmanager, redirect_stderr, redirect_stdout, suppress
 from typing import List
 
 from pendulum.parsing.exceptions import ParserError
+from sqlalchemy.orm.exc import NoResultFound
 
 from airflow import settings
 from airflow.cli.simple_table import AirflowConsole
 from airflow.configuration import conf
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, DagRunNotFound
 from airflow.executors.executor_loader import ExecutorLoader
 from airflow.jobs.local_task_job import LocalTaskJob
 from airflow.models import DagPickle, TaskInstance
@@ -51,18 +52,43 @@ from airflow.utils.net import get_hostname
 from airflow.utils.session import create_session, provide_session
 
 
-def _get_ti(task, exec_date_or_run_id):
+def _get_dag_run(dag, exec_date_or_run_id, create_if_necssary, session):
+    dag_run = dag.get_dagrun(run_id=exec_date_or_run_id, session=session)
+    if dag_run:
+        return dag_run
+
+    execution_date = None
+    with suppress(ParserError, TypeError):
+        execution_date = timezone.parse(exec_date_or_run_id)
+
+    if create_if_necssary and not execution_date:
+        return DagRun(dag_id=dag.dag_id, run_id=exec_date_or_run_id)
+    try:
+        return (
+            session.query(DagRun)
+            .filter(
+                DagRun.dag_id == dag.dag_id,
+                DagRun.execution_date == execution_date,
+            )
+            .one()
+        )
+    except NoResultFound:
+        if create_if_necssary:
+            return DagRun(dag.dag_id, execution_date=execution_date)
+        raise DagRunNotFound(
+            f"DagRun for {dag.dag_id} with run_id or execution_date of {exec_date_or_run_id!r} not found"
+        ) from None
+
+
+@provide_session
+def _get_ti(task, exec_date_or_run_id, create_if_necssary=False, session=None):
     """Get the task instance through DagRun.run_id, if that fails, get the TI the old way"""
-    dag_run = task.dag.get_dagrun(run_id=exec_date_or_run_id)
-    if not dag_run:
-        try:
-            execution_date = timezone.parse(exec_date_or_run_id)
-            ti = TaskInstance(task, execution_date)
-            ti.refresh_from_db()
-            return ti
-        except (ParserError, TypeError):
-            raise AirflowException(f"DagRun with run_id: {exec_date_or_run_id} not found")
+    dag_run = _get_dag_run(task.dag, exec_date_or_run_id, create_if_necssary, session)
+
     ti = dag_run.get_task_instance(task.task_id)
+    if not ti and create_if_necssary:
+        ti = TaskInstance(task, run_id=None)
+        ti.dag_run = dag_run
     ti.refresh_from_task(task)
     return ti
 
@@ -75,11 +101,6 @@ def _run_task_by_selected_method(args, dag: DAG, ti: TaskInstance) -> None:
     - as raw task
     - by executor
     """
-    if args.local and args.raw:
-        raise AirflowException(
-            "Option --raw and --local are mutually exclusive. "
-            "Please remove one option to execute the command."
-        )
     if args.local:
         _run_task_by_local_task_job(args, ti)
     elif args.raw:
@@ -155,17 +176,6 @@ RAW_TASK_UNSUPPORTED_OPTION = [
 
 def _run_raw_task(args, ti: TaskInstance) -> None:
     """Runs the main task handling code"""
-    unsupported_options = [o for o in RAW_TASK_UNSUPPORTED_OPTION if getattr(args, o)]
-
-    if unsupported_options:
-        raise AirflowException(
-            "Option --raw does not work with some of the other options on this command. You "
-            "can't use --raw option and the following options: {}. You provided the option {}. "
-            "Delete it to execute the command".format(
-                ", ".join(f"--{o}" for o in RAW_TASK_UNSUPPORTED_OPTION),
-                ", ".join(f"--{o}" for o in unsupported_options),
-            )
-        )
     ti._run_raw_task(
         mark_success=args.mark_success,
         job_id=args.job_id,
@@ -213,6 +223,27 @@ def _capture_task_logs(ti):
 def task_run(args, dag=None):
     """Runs a single task instance"""
     # Load custom airflow config
+
+    if args.local and args.raw:
+        raise AirflowException(
+            "Option --raw and --local are mutually exclusive. "
+            "Please remove one option to execute the command."
+        )
+
+    if args.raw:
+        unsupported_options = [o for o in RAW_TASK_UNSUPPORTED_OPTION if getattr(args, o)]
+
+        if unsupported_options:
+            raise AirflowException(
+                "Option --raw does not work with some of the other options on this command. You "
+                "can't use --raw option and the following options: {}. You provided the option {}. "
+                "Delete it to execute the command".format(
+                    ", ".join(f"--{o}" for o in RAW_TASK_UNSUPPORTED_OPTION),
+                    ", ".join(f"--{o}" for o in unsupported_options),
+                )
+            )
+    if dag and args.pickle:
+        raise AirflowException("You cannot use the --pickle option when using DAG.cli() method.")
     if args.cfg_path:
         with open(args.cfg_path) as conf_file:
             conf_dict = json.load(conf_file)
@@ -231,9 +262,7 @@ def task_run(args, dag=None):
     # processing hundreds of simultaneous tasks.
     settings.configure_orm(disable_connection_pool=True)
 
-    if dag and args.pickle:
-        raise AirflowException("You cannot use the --pickle option when using DAG.cli() method.")
-    elif args.pickle:
+    if args.pickle:
         print(f'Loading pickle id: {args.pickle}')
         dag = get_dag_by_pickle(args.pickle)
     elif not dag:
@@ -359,14 +388,17 @@ def task_states_for_dag_run(args, session=None):
             raise AirflowException(f"Error parsing the supplied execution_date. Error: {str(err)}")
 
     if dag_run is None:
-        raise AirflowException("DagRun does not exist.")
-    tis = dag_run.get_task_instances()
+        raise DagRunNotFound(
+            f"DagRun for {args.dag_id} with run_id or execution_date of {args.execution_date_or_run_id!r} "
+            "not found"
+        )
+
     AirflowConsole().print_as(
-        data=tis,
+        data=dag_run.task_instances,
         output=args.output,
         mapper=lambda ti: {
             "dag_id": ti.dag_id,
-            "execution_date": ti.execution_date.isoformat(),
+            "execution_date": dag_run.execution_date.isoformat(),
             "task_id": ti.task_id,
             "state": ti.state,
             "start_date": ti.start_date.isoformat() if ti.start_date else "",
@@ -405,7 +437,7 @@ def task_test(args, dag=None):
     if args.task_params:
         passed_in_params = json.loads(args.task_params)
         task.params.update(passed_in_params)
-    ti = _get_ti(task, args.execution_date_or_run_id)
+    ti = _get_ti(task, args.execution_date_or_run_id, create_if_necssary=True)
 
     try:
         if args.dry_run:
@@ -431,7 +463,7 @@ def task_render(args):
     """Renders and displays templated fields for a given task"""
     dag = get_dag(args.subdir, args.dag_id)
     task = dag.get_task(task_id=args.task_id)
-    ti = _get_ti(task, args.execution_date_or_run_id)
+    ti = _get_ti(task, args.execution_date_or_run_id, create_if_necssary=True)
     ti.render_templates()
     for attr in task.__class__.template_fields:
         print(

@@ -39,7 +39,7 @@ class NotPreviouslySkippedDep(BaseTIDep):
 
         upstream = ti.task.get_direct_relatives(upstream=True)
 
-        finished_tasks = dep_context.ensure_finished_tasks(ti.task.dag, ti.execution_date, session)
+        finished_tasks = dep_context.ensure_finished_tasks(ti.get_dagrun(session), session)
 
         finished_task_ids = {t.task_id for t in finished_tasks}
 

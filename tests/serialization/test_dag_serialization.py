@@ -18,12 +18,12 @@
 
 """Unit tests for stringified DAGs."""
 
+import copy
 import importlib
 import importlib.util
 import multiprocessing
 import os
-import unittest
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta
 from glob import glob
 from unittest import mock
 
@@ -31,19 +31,21 @@ import pendulum
 import pytest
 from dateutil.relativedelta import FR, relativedelta
 from kubernetes.client import models as k8s
-from parameterized import parameterized
 
+from airflow.exceptions import SerializationError
 from airflow.hooks.base import BaseHook
 from airflow.kubernetes.pod_generator import PodGenerator
-from airflow.models import DAG, Connection, DagBag, TaskInstance
+from airflow.models import DAG, Connection, DagBag
 from airflow.models.baseoperator import BaseOperator, BaseOperatorLink
+from airflow.models.xcom import XCom
 from airflow.operators.bash import BashOperator
 from airflow.security import permissions
 from airflow.serialization.json_schema import load_dag_schema_dict
 from airflow.serialization.serialized_objects import SerializedBaseOperator, SerializedDAG
 from airflow.timetables.simple import NullTimetable, OnceTimetable
+from airflow.utils import timezone
 from tests.test_utils.mock_operators import CustomOperator, CustomOpLink, GoogleLink
-from tests.test_utils.timetables import cron_timetable, delta_timetable
+from tests.test_utils.timetables import CustomSerializationTimetable, cron_timetable, delta_timetable
 
 executor_config_pod = k8s.V1Pod(
     metadata=k8s.V1ObjectMeta(name="my-name"),
@@ -98,6 +100,7 @@ serialized_simple_dag_ground_truth = {
                 "_outlets": [],
                 "ui_color": "#f0ede4",
                 "ui_fgcolor": "#000",
+                "template_ext": ['.sh', '.bash'],
                 "template_fields": ['bash_command', 'env'],
                 "template_fields_renderers": {'bash_command': 'bash', 'env': 'json'},
                 "bash_command": "echo {{ task.task_id }}",
@@ -129,6 +132,7 @@ serialized_simple_dag_ground_truth = {
                 "_operator_extra_links": [{"tests.test_utils.mock_operators.CustomOpLink": {}}],
                 "ui_color": "#fff",
                 "ui_fgcolor": "#000",
+                "template_ext": [],
                 "template_fields": ['bash_command'],
                 "template_fields_renderers": {},
                 "_task_type": "CustomOperator",
@@ -137,6 +141,7 @@ serialized_simple_dag_ground_truth = {
                 'label': 'custom_task',
             },
         ],
+        "schedule_interval": {"__type": "timedelta", "__var": 86400.0},
         "timezone": "UTC",
         "_access_control": {
             "__type": "dict",
@@ -155,6 +160,11 @@ serialized_simple_dag_ground_truth = {
 ROOT_FOLDER = os.path.realpath(
     os.path.join(os.path.dirname(os.path.realpath(__file__)), os.pardir, os.pardir)
 )
+
+CUSTOM_TIMETABLE_SERIALIZED = {
+    "__type": "tests.test_utils.timetables.CustomSerializationTimetable",
+    "__var": {"value": "foo"},
+}
 
 
 def make_example_dags(module_path):
@@ -247,6 +257,14 @@ def collect_dags(dag_folder=None):
     return dags
 
 
+def get_timetable_based_simple_dag(timetable):
+    """Create a simple_dag variant that uses timetable instead of schedule_interval."""
+    dag = collect_dags(["airflow/example_dags"])["simple_dag"]
+    dag.timetable = timetable
+    dag.schedule_interval = timetable.summary
+    return dag
+
+
 def serialize_subprocess(queue, dag_folder):
     """Validate pickle in a subprocess."""
     dags = collect_dags(dag_folder)
@@ -255,11 +273,24 @@ def serialize_subprocess(queue, dag_folder):
     queue.put(None)
 
 
-class TestStringifiedDAGs(unittest.TestCase):
+@pytest.fixture()
+def timetable_plugin(monkeypatch):
+    """Patch plugins manager to always and only return our custom timetable."""
+    from airflow import plugins_manager
+
+    monkeypatch.setattr(plugins_manager, "initialize_timetables_plugins", lambda: None)
+    monkeypatch.setattr(
+        plugins_manager,
+        "timetable_classes",
+        {"tests.test_utils.timetables.CustomSerializationTimetable": CustomSerializationTimetable},
+    )
+
+
+class TestStringifiedDAGs:
     """Unit tests for stringified DAGs."""
 
-    def setUp(self):
-        super().setUp()
+    def setup_method(self):
+        self.backup_base_hook_get_connection = BaseHook.get_connection
         BaseHook.get_connection = mock.Mock(
             return_value=Connection(
                 extra=(
@@ -276,6 +307,9 @@ class TestStringifiedDAGs(unittest.TestCase):
         )
         self.maxDiff = None
 
+    def teardown_method(self):
+        BaseHook.get_connection = self.backup_base_hook_get_connection
+
     def test_serialization(self):
         """Serialization and deserialization should work for every DAG and Operator."""
         dags = collect_dags()
@@ -287,6 +321,48 @@ class TestStringifiedDAGs(unittest.TestCase):
 
         # Compares with the ground truth of JSON string.
         self.validate_serialized_dag(serialized_dags['simple_dag'], serialized_simple_dag_ground_truth)
+
+    @pytest.mark.parametrize(
+        "timetable, serialized_timetable",
+        [
+            (
+                cron_timetable("0 0 * * *"),
+                {
+                    "__type": "airflow.timetables.interval.CronDataIntervalTimetable",
+                    "__var": {"expression": "0 0 * * *", "timezone": "UTC"},
+                },
+            ),
+            (
+                CustomSerializationTimetable("foo"),
+                CUSTOM_TIMETABLE_SERIALIZED,
+            ),
+        ],
+    )
+    @pytest.mark.usefixtures("timetable_plugin")
+    def test_dag_serialization_to_timetable(self, timetable, serialized_timetable):
+        """Verify a timetable-backed schedule_interval is excluded in serialization."""
+        dag = get_timetable_based_simple_dag(timetable)
+        serialized_dag = SerializedDAG.to_dict(dag)
+        SerializedDAG.validate_schema(serialized_dag)
+
+        expected = copy.deepcopy(serialized_simple_dag_ground_truth)
+        del expected["dag"]["schedule_interval"]
+        expected["dag"]["timetable"] = serialized_timetable
+
+        self.validate_serialized_dag(serialized_dag, expected)
+
+    def test_dag_serialization_unregistered_custom_timetable(self):
+        """Verify serialization fails without timetable registration."""
+        dag = get_timetable_based_simple_dag(CustomSerializationTimetable("bar"))
+        with pytest.raises(SerializationError) as ctx:
+            SerializedDAG.to_dict(dag)
+
+        message = (
+            "Failed to serialize DAG 'simple_dag': Timetable class "
+            "'tests.test_utils.timetables.CustomSerializationTimetable' "
+            "is not registered"
+        )
+        assert str(ctx.value) == message
 
     def validate_serialized_dag(self, json_dag, ground_truth_dag):
         """Verify serialized DAGs match the ground truth."""
@@ -348,15 +424,27 @@ class TestStringifiedDAGs(unittest.TestCase):
             serialized_dag = SerializedDAG.from_json(SerializedDAG.to_json(dag))
             self.validate_deserialized_dag(serialized_dag, dag)
 
+    @pytest.mark.parametrize(
+        "timetable",
+        [cron_timetable("0 0 * * *"), CustomSerializationTimetable("foo")],
+    )
+    @pytest.mark.usefixtures("timetable_plugin")
+    def test_dag_roundtrip_from_timetable(self, timetable):
+        """Verify a timetable-backed serialization can be deserialized."""
+        dag = get_timetable_based_simple_dag(timetable)
+        roundtripped = SerializedDAG.from_json(SerializedDAG.to_json(dag))
+        self.validate_deserialized_dag(roundtripped, dag)
+
     def validate_deserialized_dag(self, serialized_dag, dag):
         """
         Verify that all example DAGs work with DAG Serialization by
         checking fields between Serialized Dags & non-Serialized Dags
         """
         fields_to_check = dag.get_serialized_fields() - {
-            # Doesn't implement __eq__ properly. Check manually
+            # Doesn't implement __eq__ properly. Check manually.
+            'timetable',
             'timezone',
-            # Need to check fields in it, to exclude functions
+            # Need to check fields in it, to exclude functions.
             'default_args',
             "_task_group",
         }
@@ -375,6 +463,8 @@ class TestStringifiedDAGs(unittest.TestCase):
                         v == serialized_dag.default_args[k]
                     ), f'{dag.dag_id}.default_args[{k}] does not match'
 
+        assert serialized_dag.timetable.summary == dag.timetable.summary
+        assert serialized_dag.timetable.serialize() == dag.timetable.serialize()
         assert serialized_dag.timezone.name == dag.timezone.name
 
         for task_id in dag.task_ids:
@@ -397,6 +487,7 @@ class TestStringifiedDAGs(unittest.TestCase):
             # Type is excluded, so don't check it
             '_log',
             # List vs tuple. Check separately
+            'template_ext',
             'template_fields',
             # We store the string, real dag has the actual code
             'on_failure_callback',
@@ -407,6 +498,8 @@ class TestStringifiedDAGs(unittest.TestCase):
         }
 
         assert serialized_task.task_type == task.task_type
+
+        assert set(serialized_task.template_ext) == set(task.template_ext)
         assert set(serialized_task.template_fields) == set(task.template_fields)
 
         assert serialized_task.upstream_task_ids == task.upstream_task_ids
@@ -430,7 +523,8 @@ class TestStringifiedDAGs(unittest.TestCase):
         else:
             assert serialized_task.subdag is None
 
-    @parameterized.expand(
+    @pytest.mark.parametrize(
+        "dag_start_date, task_start_date, expected_task_start_date",
         [
             (datetime(2019, 8, 1, tzinfo=timezone.utc), None, datetime(2019, 8, 1, tzinfo=timezone.utc)),
             (
@@ -444,7 +538,7 @@ class TestStringifiedDAGs(unittest.TestCase):
                 datetime(2019, 8, 1, tzinfo=timezone.utc),
             ),
             (pendulum.datetime(2019, 8, 1, tz='UTC'), None, pendulum.datetime(2019, 8, 1, tz='UTC')),
-        ]
+        ],
     )
     def test_deserialization_start_date(self, dag_start_date, task_start_date, expected_task_start_date):
         dag = DAG(dag_id='simple_dag', start_date=dag_start_date)
@@ -468,7 +562,8 @@ class TestStringifiedDAGs(unittest.TestCase):
             # should not raise RuntimeError: dictionary changed size during iteration
             SerializedDAG.to_dict(dag)
 
-    @parameterized.expand(
+    @pytest.mark.parametrize(
+        "dag_end_date, task_end_date, expected_task_end_date",
         [
             (datetime(2019, 8, 1, tzinfo=timezone.utc), None, datetime(2019, 8, 1, tzinfo=timezone.utc)),
             (
@@ -481,7 +576,7 @@ class TestStringifiedDAGs(unittest.TestCase):
                 datetime(2019, 7, 30, tzinfo=timezone.utc),
                 datetime(2019, 7, 30, tzinfo=timezone.utc),
             ),
-        ]
+        ],
     )
     def test_deserialization_end_date(self, dag_end_date, task_end_date, expected_task_end_date):
         dag = DAG(dag_id='simple_dag', start_date=datetime(2019, 8, 1), end_date=dag_end_date)
@@ -499,24 +594,89 @@ class TestStringifiedDAGs(unittest.TestCase):
         simple_task = dag.task_dict["simple_task"]
         assert simple_task.end_date == expected_task_end_date
 
-    @parameterized.expand(
+    @pytest.mark.parametrize(
+        "serialized_timetable, expected_timetable",
         [
-            (None, None, NullTimetable()),
-            ("@weekly", "@weekly", cron_timetable("0 0 * * 0")),
-            ("@once", "@once", OnceTimetable()),
+            ({"__type": "airflow.timetables.simple.NullTimetable", "__var": {}}, NullTimetable()),
             (
-                {"__type": "timedelta", "__var": 86400.0},
-                timedelta(days=1),
+                {
+                    "__type": "airflow.timetables.interval.CronDataIntervalTimetable",
+                    "__var": {"expression": "@weekly", "timezone": "UTC"},
+                },
+                cron_timetable("0 0 * * 0"),
+            ),
+            ({"__type": "airflow.timetables.simple.OnceTimetable", "__var": {}}, OnceTimetable()),
+            (
+                {
+                    "__type": "airflow.timetables.interval.DeltaDataIntervalTimetable",
+                    "__var": {"delta": 86400.0},
+                },
                 delta_timetable(timedelta(days=1)),
             ),
-        ]
+            (CUSTOM_TIMETABLE_SERIALIZED, CustomSerializationTimetable("foo")),
+        ],
+    )
+    @pytest.mark.usefixtures("timetable_plugin")
+    def test_deserialization_timetable(
+        self,
+        serialized_timetable,
+        expected_timetable,
+    ):
+        serialized = {
+            "__version": 1,
+            "dag": {
+                "default_args": {"__type": "dict", "__var": {}},
+                "_dag_id": "simple_dag",
+                "fileloc": __file__,
+                "tasks": [],
+                "timezone": "UTC",
+                "timetable": serialized_timetable,
+            },
+        }
+        SerializedDAG.validate_schema(serialized)
+        dag = SerializedDAG.from_dict(serialized)
+        assert dag.timetable == expected_timetable
+
+    def test_deserialization_timetable_unregistered(self):
+        serialized = {
+            "__version": 1,
+            "dag": {
+                "default_args": {"__type": "dict", "__var": {}},
+                "_dag_id": "simple_dag",
+                "fileloc": __file__,
+                "tasks": [],
+                "timezone": "UTC",
+                "timetable": CUSTOM_TIMETABLE_SERIALIZED,
+            },
+        }
+        SerializedDAG.validate_schema(serialized)
+        with pytest.raises(ValueError) as ctx:
+            SerializedDAG.from_dict(serialized)
+        message = (
+            "Timetable class "
+            "'tests.test_utils.timetables.CustomSerializationTimetable' "
+            "is not registered"
+        )
+        assert str(ctx.value) == message
+
+    @pytest.mark.parametrize(
+        "serialized_schedule_interval, expected_timetable",
+        [
+            (None, NullTimetable()),
+            ("@weekly", cron_timetable("0 0 * * 0")),
+            ("@once", OnceTimetable()),
+            (
+                {"__type": "timedelta", "__var": 86400.0},
+                delta_timetable(timedelta(days=1)),
+            ),
+        ],
     )
     def test_deserialization_schedule_interval(
         self,
         serialized_schedule_interval,
-        expected_schedule_interval,
         expected_timetable,
     ):
+        """Test DAGs serialized before 2.2 can be correctly deserialized."""
         serialized = {
             "__version": 1,
             "dag": {
@@ -530,13 +690,11 @@ class TestStringifiedDAGs(unittest.TestCase):
         }
 
         SerializedDAG.validate_schema(serialized)
-
         dag = SerializedDAG.from_dict(serialized)
-
-        assert dag.schedule_interval == expected_schedule_interval
         assert dag.timetable == expected_timetable
 
-    @parameterized.expand(
+    @pytest.mark.parametrize(
+        "val, expected",
         [
             (relativedelta(days=-1), {"__type": "relativedelta", "__var": {"days": -1}}),
             (relativedelta(month=1, days=-1), {"__type": "relativedelta", "__var": {"month": 1, "days": -1}}),
@@ -544,7 +702,7 @@ class TestStringifiedDAGs(unittest.TestCase):
             (relativedelta(weekday=FR), {"__type": "relativedelta", "__var": {"weekday": [4]}}),
             # Every second friday
             (relativedelta(weekday=FR(2)), {"__type": "relativedelta", "__var": {"weekday": [4, 2]}}),
-        ]
+        ],
     )
     def test_roundtrip_relativedelta(self, val, expected):
         serialized = SerializedDAG._serialize(val)
@@ -553,11 +711,12 @@ class TestStringifiedDAGs(unittest.TestCase):
         round_tripped = SerializedDAG._deserialize(serialized)
         assert val == round_tripped
 
-    @parameterized.expand(
+    @pytest.mark.parametrize(
+        "val, expected_val",
         [
             (None, {}),
             ({"param_1": "value_1"}, {"param_1": "value_1"}),
-        ]
+        ],
     )
     def test_dag_params_roundtrip(self, val, expected_val):
         """
@@ -577,11 +736,12 @@ class TestStringifiedDAGs(unittest.TestCase):
         assert expected_val == deserialized_dag.params
         assert expected_val == deserialized_simple_task.params
 
-    @parameterized.expand(
+    @pytest.mark.parametrize(
+        "val, expected_val",
         [
             (None, {}),
             ({"param_1": "value_1"}, {"param_1": "value_1"}),
-        ]
+        ],
     )
     def test_task_params_roundtrip(self, val, expected_val):
         """
@@ -612,7 +772,7 @@ class TestStringifiedDAGs(unittest.TestCase):
         the Operator in ``BaseOperator.operator_extra_links``, it has the correct
         extra link.
         """
-        test_date = datetime(2019, 8, 1)
+        test_date = timezone.DateTime(2019, 8, 1, tzinfo=timezone.utc)
         dag = DAG(dag_id='simple_dag', start_date=test_date)
         CustomOperator(task_id='simple_task', dag=dag, bash_command="true")
 
@@ -634,8 +794,13 @@ class TestStringifiedDAGs(unittest.TestCase):
         # Test all the extra_links are set
         assert set(simple_task.extra_links) == {'Google Custom', 'airflow', 'github', 'google'}
 
-        ti = TaskInstance(task=simple_task, execution_date=test_date)
-        ti.xcom_push('search_query', "dummy_value_1")
+        XCom.set(
+            key='search_query',
+            value="dummy_value_1",
+            task_id=simple_task.task_id,
+            dag_id=simple_task.dag_id,
+            execution_date=test_date,
+        )
 
         # Test Deserialized inbuilt link
         custom_inbuilt_link = simple_task.get_extra_links(test_date, CustomOpLink.name)
@@ -645,7 +810,7 @@ class TestStringifiedDAGs(unittest.TestCase):
         google_link_from_plugin = simple_task.get_extra_links(test_date, GoogleLink.name)
         assert "https://www.google.com" == google_link_from_plugin
 
-    def test_extra_operator_links_logs_error_for_non_registered_extra_links(self):
+    def test_extra_operator_links_logs_error_for_non_registered_extra_links(self, caplog):
         """
         Assert OperatorLinks not registered via Plugins and if it is not an inbuilt Operator Link,
         it can still deserialize the DAG (does not error) but just logs an error
@@ -672,14 +837,13 @@ class TestStringifiedDAGs(unittest.TestCase):
 
         serialized_dag = SerializedDAG.to_dict(dag)
 
-        with self.assertLogs("airflow.serialization.serialized_objects", level="ERROR") as log_output:
+        with caplog.at_level("ERROR", logger="airflow.serialization.serialized_objects"):
             SerializedDAG.from_dict(serialized_dag)
-            received_logs = log_output.output[0]
-            expected_err_msg = (
-                "Operator Link class 'tests.serialization.test_dag_serialization.TaskStateLink' "
-                "not registered"
-            )
-            assert expected_err_msg in received_logs
+
+        expected_err_msg = (
+            "Operator Link class 'tests.serialization.test_dag_serialization.TaskStateLink' not registered"
+        )
+        assert expected_err_msg in caplog.text
 
     def test_extra_serialized_field_and_multiple_operator_links(self):
         """
@@ -693,7 +857,7 @@ class TestStringifiedDAGs(unittest.TestCase):
         the Operator in ``BaseOperator.operator_extra_links``, it has the correct
         extra link.
         """
-        test_date = datetime(2019, 8, 1)
+        test_date = timezone.DateTime(2019, 8, 1, tzinfo=timezone.utc)
         dag = DAG(dag_id='simple_dag', start_date=test_date)
         CustomOperator(task_id='simple_task', dag=dag, bash_command=["echo", "true"])
 
@@ -722,8 +886,13 @@ class TestStringifiedDAGs(unittest.TestCase):
             'google',
         }
 
-        ti = TaskInstance(task=simple_task, execution_date=test_date)
-        ti.xcom_push('search_query', ["dummy_value_1", "dummy_value_2"])
+        XCom.set(
+            key='search_query',
+            value=["dummy_value_1", "dummy_value_2"],
+            task_id=simple_task.task_id,
+            dag_id=simple_task.dag_id,
+            execution_date=test_date,
+        )
 
         # Test Deserialized inbuilt link #1
         custom_inbuilt_link = simple_task.get_extra_links(test_date, "BigQuery Console #1")
@@ -758,7 +927,8 @@ class TestStringifiedDAGs(unittest.TestCase):
         def __ne__(self, other):
             return not self.__eq__(other)
 
-    @parameterized.expand(
+    @pytest.mark.parametrize(
+        "templated_field, expected_field",
         [
             (None, None),
             ([], []),
@@ -798,7 +968,7 @@ class TestStringifiedDAGs(unittest.TestCase):
                 "'nested2': ClassWithCustomAttributes({'att3': '{{ task.task_id }}', 'att4': "
                 "'{{ task.task_id }}', 'template_fields': ['att3']}), 'template_fields': ['nested1']})",
             ),
-        ]
+        ],
     )
     def test_templated_fields_exist_in_serialized_dag(self, templated_field, expected_field):
         """
@@ -1096,11 +1266,12 @@ class TestStringifiedDAGs(unittest.TestCase):
 
         assert serialized_dag.edge_info == dag.edge_info
 
-    @parameterized.expand(
+    @pytest.mark.parametrize(
+        "mode, expect_custom_deps",
         [
             ("poke", False),
             ("reschedule", True),
-        ]
+        ],
     )
     def test_serialize_sensor(self, mode, expect_custom_deps):
         from airflow.sensors.base import BaseSensorOperator
@@ -1122,11 +1293,12 @@ class TestStringifiedDAGs(unittest.TestCase):
 
         assert op.deps == serialized_op.deps
 
-    @parameterized.expand(
+    @pytest.mark.parametrize(
+        "passed_success_callback, expected_value",
         [
             ({"on_success_callback": lambda x: print("hi")}, True),
             ({}, False),
-        ]
+        ],
     )
     def test_dag_on_success_callback_roundtrip(self, passed_success_callback, expected_value):
         """
@@ -1149,11 +1321,12 @@ class TestStringifiedDAGs(unittest.TestCase):
 
         assert deserialized_dag.has_on_success_callback is expected_value
 
-    @parameterized.expand(
+    @pytest.mark.parametrize(
+        "passed_failure_callback, expected_value",
         [
             ({"on_failure_callback": lambda x: print("hi")}, True),
             ({}, False),
-        ]
+        ],
     )
     def test_dag_on_failure_callback_roundtrip(self, passed_failure_callback, expected_value):
         """
@@ -1176,7 +1349,8 @@ class TestStringifiedDAGs(unittest.TestCase):
 
         assert deserialized_dag.has_on_failure_callback is expected_value
 
-    @parameterized.expand(
+    @pytest.mark.parametrize(
+        "object_to_serialized, expected_output",
         [
             (
                 ['task_1', 'task_5', 'task_2', 'task_4'],
@@ -1217,7 +1391,7 @@ class TestStringifiedDAGs(unittest.TestCase):
                 ('task_1', 'task_5', 'task_2', 3, ["x", "y"]),
                 ['task_1', 'task_5', 'task_2', 3, ["x", "y"]],
             ),
-        ]
+        ],
     )
     def test_serialized_objects_are_sorted(self, object_to_serialized, expected_output):
         """Test Serialized Sets are sorted while list and tuple preserve order"""

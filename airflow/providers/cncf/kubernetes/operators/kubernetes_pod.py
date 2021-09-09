@@ -409,8 +409,10 @@ class KubernetesPodOperator(BaseOperator):
 
     @staticmethod
     def _get_pod_identifying_label_string(labels) -> str:
-        filtered_labels = {label_id: label for label_id, label in labels.items() if label_id != 'try_number'}
-        return ','.join(label_id + '=' + label for label_id, label in sorted(filtered_labels.items()))
+        label_strings = [
+            f'{label_id}={label}' for label_id, label in sorted(labels.items()) if label_id != 'try_number'
+        ]
+        return ','.join(label_strings) + ',already_checked!=True'
 
     @staticmethod
     def _try_numbers_match(context, pod) -> bool:
@@ -516,6 +518,7 @@ class KubernetesPodOperator(BaseOperator):
         )
 
         self.log.debug("Starting pod:\n%s", yaml.safe_dump(self.pod.to_dict()))
+        final_state = None
         try:
             launcher.start_pod(self.pod, startup_timeout=self.startup_timeout_seconds)
             final_state, remote_pod, result = launcher.monitor_pod(pod=self.pod, get_logs=self.get_logs)
@@ -528,6 +531,8 @@ class KubernetesPodOperator(BaseOperator):
             if self.is_delete_operator_pod:
                 self.log.debug("Deleting pod for task %s", self.task_id)
                 launcher.delete_pod(self.pod)
+            elif final_state != State.SUCCESS:
+                self.patch_already_checked(self.pod)
         return final_state, remote_pod, result
 
     def patch_already_checked(self, pod: k8s.V1Pod):
@@ -553,7 +558,8 @@ class KubernetesPodOperator(BaseOperator):
             if self.log_events_on_failure:
                 for event in launcher.read_pod_events(pod).items:
                     self.log.error("Pod Event: %s - %s", event.reason, event.message)
-            self.patch_already_checked(pod)
+            if not self.is_delete_operator_pod:
+                self.patch_already_checked(pod)
             raise AirflowException(f'Pod returned a failure: {final_state}')
         return final_state, remote_pod, result
 
