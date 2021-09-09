@@ -704,11 +704,20 @@ def check_task_tables_without_matching_dagruns(session) -> Iterable[str]:
     metadata = sqlalchemy.schema.MetaData(session.bind)
     models_to_dagrun = [TaskInstance, TaskFail]
     models_to_ti = []
-    metadata.reflect(only=[model.__tablename__ for model in models_to_dagrun + models_to_ti])
+    for model in models_to_dagrun + models_to_ti:
+        try:
+            metadata.reflect(only=[model.__tablename__])
+        except exc.InvalidRequestError:
+            # Table doesn't exist, but try the other ones incase the user is upgrading from an _old_ DB
+            # version
+            pass
 
     for (model, target) in chain(
         ((m, DagRun) for m in models_to_dagrun), ((m, TaskInstance) for m in models_to_ti)
     ):
+        if model.__tablename__ not in metadata.tables:
+            # Table doesn't exist -- likley empty DB
+            continue
         if 'run_id' in metadata.tables[model.__tablename__].columns:
             # Migration already applied, don't check again
             continue
@@ -731,6 +740,7 @@ def check_task_tables_without_matching_dagruns(session) -> Iterable[str]:
                 f'corresponding {target.__tablename__} row. You must manually correct this problem '
                 '(possibly by deleting the problem rows).'
             )
+    session.rollback()
 
 
 @provide_session
