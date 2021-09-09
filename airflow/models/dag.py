@@ -31,6 +31,7 @@ from datetime import datetime, timedelta, tzinfo
 from inspect import signature
 from typing import (
     TYPE_CHECKING,
+    Any,
     Callable,
     Collection,
     Dict,
@@ -70,7 +71,7 @@ from airflow.models.dagrun import DagRun
 from airflow.models.taskinstance import Context, TaskInstance, TaskInstanceKey, clear_task_instances
 from airflow.security import permissions
 from airflow.stats import Stats
-from airflow.timetables.base import DagRunInfo, TimeRestriction, Timetable
+from airflow.timetables.base import DagRunInfo, DataInterval, TimeRestriction, Timetable
 from airflow.timetables.interval import CronDataIntervalTimetable, DeltaDataIntervalTimetable
 from airflow.timetables.simple import NullTimetable, OnceTimetable
 from airflow.typing_compat import Literal, RePatternType
@@ -104,6 +105,44 @@ ScheduleIntervalArg = Union[ScheduleInterval, None, Type[ScheduleIntervalArgNotS
 # Backward compatibility: If neither schedule_interval nor timetable is
 # *provided by the user*, default to a one-day interval.
 DEFAULT_SCHEDULE_INTERVAL = timedelta(days=1)
+
+
+class InconsistentDataInterval(AirflowException):
+    """Exception raised when a model populates data interval fields incorrectly.
+
+    The data interval fields should either both be None (for runs scheduled
+    prior to AIP-39), or both be datetime (for runs scheduled after AIP-39 is
+    implemented). This is raised if exactly one of the fields is None.
+    """
+
+    _template = (
+        "Inconsistent {cls}: {start[0]}={start[1]!r}, {end[0]}={end[1]!r}, "
+        "they must be either both None or both datetime"
+    )
+
+    def __init__(self, instance: Any, start_field_name: str, end_field_name: str) -> None:
+        self._class_name = type(instance).__name__
+        self._start_field = (start_field_name, getattr(instance, start_field_name))
+        self._end_field = (end_field_name, getattr(instance, end_field_name))
+
+    def __str__(self) -> str:
+        return self._template.format(cls=self._class_name, start=self._start_field, end=self._end_field)
+
+
+def _get_model_data_interval(
+    instance: Any,
+    start_field_name: str,
+    end_field_name: str,
+) -> Optional[DataInterval]:
+    start = timezone.coerce_datetime(getattr(instance, start_field_name))
+    end = timezone.coerce_datetime(getattr(instance, end_field_name))
+    if start is None:
+        if end is not None:
+            raise InconsistentDataInterval(instance, start_field_name, end_field_name)
+        return None
+    elif end is None:
+        raise InconsistentDataInterval(instance, start_field_name, end_field_name)
+    return DataInterval(start, end)
 
 
 def create_timetable(interval: ScheduleIntervalArg, timezone: tzinfo) -> Timetable:
@@ -539,10 +578,13 @@ class DAG(LoggingMixin):
         :param dttm: utc datetime
         :return: utc datetime
         """
-        next_info = self.timetable.next_dagrun_info(
-            last_automated_dagrun=pendulum.instance(dttm),
-            restriction=TimeRestriction(earliest=None, latest=None, catchup=True),
+        warnings.warn(
+            "`DAG.following_schedule()` is deprecated. Use `DAG.next_dagrun_info(restricted=False)` instead.",
+            category=DeprecationWarning,
+            stacklevel=2,
         )
+        data_interval = self.infer_automated_data_interval(timezone.coerce_datetime(dttm))
+        next_info = self.next_dagrun_info(data_interval, restricted=False)
         if next_info is None:
             return None
         return next_info.data_interval.start
@@ -557,11 +599,77 @@ class DAG(LoggingMixin):
         )
         if not isinstance(self.timetable, _DataIntervalTimetable):
             return None
-        return self.timetable._get_prev(pendulum.instance(dttm))
+        return self.timetable._get_prev(timezone.coerce_datetime(dttm))
+
+    def get_next_data_interval(self, dag_model: "DagModel") -> DataInterval:
+        """Get the data interval of the next scheduled run.
+
+        For compatibility, this method infers the data interval from the DAG's
+        schedule if the run does not have an explicit one set, which is possible for
+        runs created prior to AIP-39.
+
+        This function is private to Airflow core and should not be depended as a
+        part of the Python API.
+
+        :meta private:
+        """
+        if self.dag_id != dag_model.dag_id:
+            raise ValueError(f"Arguments refer to different DAGs: {self.dag_id} != {dag_model.dag_id}")
+        data_interval = dag_model.next_dagrun_data_interval
+        if data_interval is not None:
+            return data_interval
+        # Compatibility: runs scheduled before AIP-39 implementation don't have an
+        # explicit data interval. Try to infer from the logical date.
+        return self.infer_automated_data_interval(dag_model.next_dagrun)
+
+    def get_run_data_interval(self, run: DagRun) -> DataInterval:
+        """Get the data interval of this run.
+
+        For compatibility, this method infers the data interval from the DAG's
+        schedule if the run does not have an explicit one set, which is possible for
+        runs created prior to AIP-39.
+
+        This function is private to Airflow core and should not be depended as a
+        part of the Python API.
+
+        :meta private:
+        """
+        if run.dag_id is not None and run.dag_id != self.dag_id:
+            raise ValueError(f"Arguments refer to different DAGs: {self.dag_id} != {run.dag_id}")
+        data_interval = _get_model_data_interval(run, "data_interval_start", "data_interval_end")
+        if data_interval is not None:
+            return data_interval
+        # Compatibility: runs created before AIP-39 implementation don't have an
+        # explicit data interval. Try to infer from the logical date.
+        return self.infer_automated_data_interval(run.execution_date)
+
+    def infer_automated_data_interval(self, logical_date: datetime) -> DataInterval:
+        """Infer a data interval for a run against this DAG.
+
+        This method is used to bridge runs created prior to AIP-39
+        implementation, which do not have an explicit data interval. Therefore,
+        this method only considers ``schedule_interval`` values valid prior to
+        Airflow 2.2.
+
+        DO NOT use this method is there is a known data interval.
+        """
+        timetable_type = type(self.timetable)
+        if issubclass(timetable_type, (NullTimetable, OnceTimetable)):
+            return DataInterval.exact(timezone.coerce_datetime(logical_date))
+        start = timezone.coerce_datetime(logical_date)
+        if issubclass(timetable_type, CronDataIntervalTimetable):
+            end = cast(CronDataIntervalTimetable, self.timetable)._get_next(start)
+        elif issubclass(timetable_type, DeltaDataIntervalTimetable):
+            end = cast(DeltaDataIntervalTimetable, self.timetable)._get_next(start)
+        else:
+            raise ValueError(f"Not a valid timetable: {self.timetable!r}")
+        return DataInterval(start, end)
 
     def next_dagrun_info(
         self,
-        date_last_automated_dagrun: Optional[pendulum.DateTime],
+        last_automated_dagrun: Union[None, datetime, DataInterval],
+        *,
+        restricted: bool = True,
     ) -> Optional[DagRunInfo]:
         """Get information about the next DagRun of this dag after ``date_last_automated_dagrun``.
 
@@ -575,19 +683,33 @@ class DAG(LoggingMixin):
         :param date_last_automated_dagrun: The ``max(execution_date)`` of
             existing "automated" DagRuns for this dag (scheduled or backfill,
             but not manual).
+        :param restricted: If set to *False* (default is *True*), ignore
+            ``start_date``, ``end_date``, and ``catchup`` specified on the DAG
+            or tasks.
         :return: DagRunInfo of the next dagrun, or None if a dagrun is not
             going to be scheduled.
         """
         # Never schedule a subdag. It will be scheduled by its parent dag.
         if self.is_subdag:
             return None
-        # XXX: The timezone.coerce_datetime calls should not be necessary since
-        # the function annotation suggests it only accepts pendulum.DateTime,
-        # and someone is passing datetime.datetime into this function. We should
-        # fix whatever is doing that.
+        if isinstance(last_automated_dagrun, datetime):
+            warnings.warn(
+                "Passing a datetime to DAG.next_dagrun_info is deprecated. Use a DataInterval instead.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+            data_interval = self.infer_automated_data_interval(
+                timezone.coerce_datetime(last_automated_dagrun)
+            )
+        else:
+            data_interval = last_automated_dagrun
+        if restricted:
+            restriction = self._time_restriction
+        else:
+            restriction = TimeRestriction(earliest=None, latest=None, catchup=True)
         return self.timetable.next_dagrun_info(
-            last_automated_dagrun=timezone.coerce_datetime(date_last_automated_dagrun),
-            restriction=self._time_restriction,
+            last_automated_data_interval=data_interval,
+            restriction=restriction,
         )
 
     def next_dagrun_after_date(self, date_last_automated_dagrun: Optional[pendulum.DateTime]):
@@ -596,7 +718,11 @@ class DAG(LoggingMixin):
             category=DeprecationWarning,
             stacklevel=2,
         )
-        info = self.next_dagrun_info(date_last_automated_dagrun)
+        if date_last_automated_dagrun is None:
+            data_interval = None
+        else:
+            data_interval = self.infer_automated_data_interval(date_last_automated_dagrun)
+        info = self.next_dagrun_info(data_interval)
         if info is None:
             return None
         return info.run_after
@@ -658,7 +784,7 @@ class DAG(LoggingMixin):
         if self.is_subdag:
             align = False
 
-        info = self.timetable.next_dagrun_info(last_automated_dagrun=None, restriction=restriction)
+        info = self.timetable.next_dagrun_info(last_automated_data_interval=None, restriction=restriction)
         if info is None:
             # No runs to be scheduled between the user-supplied timeframe. But
             # if align=False, "invent" a data interval for the timeframe itself.
@@ -675,7 +801,7 @@ class DAG(LoggingMixin):
         while info is not None:
             yield info
             info = self.timetable.next_dagrun_info(
-                last_automated_dagrun=info.logical_date,
+                last_automated_data_interval=info.data_interval,
                 restriction=restriction,
             )
 
@@ -700,7 +826,7 @@ class DAG(LoggingMixin):
         if end_date is None:
             latest = pendulum.now(timezone.utc)
         else:
-            latest = pendulum.instance(end_date)
+            latest = timezone.coerce_datetime(end_date)
         return [info.logical_date for info in self.iter_dagrun_infos_between(earliest, latest)]
 
     def normalize_schedule(self, dttm):
@@ -709,14 +835,16 @@ class DAG(LoggingMixin):
             category=DeprecationWarning,
             stacklevel=2,
         )
-        following = self.following_schedule(dttm)
-
-        # in case of @once
-        if not following:
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", DeprecationWarning)
+            following = self.following_schedule(dttm)
+        if not following:  # in case of @once
             return dttm
-        if self.previous_schedule(following) != dttm:
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", DeprecationWarning)
+            previous_of_following = self.previous_schedule(following)
+        if previous_of_following != dttm:
             return following
-
         return dttm
 
     @provide_session
@@ -2150,15 +2278,22 @@ class DAG(LoggingMixin):
                 "Creating DagRun needs either `run_id` or both `run_type` and `execution_date`"
             )
 
-        if run_type == DagRunType.MANUAL and data_interval is None and execution_date is not None:
-            data_interval = self.timetable.infer_data_interval(
-                run_after=timezone.coerce_datetime(execution_date),
+        logical_date = timezone.coerce_datetime(execution_date)
+        if data_interval is None and logical_date is not None:
+            warnings.warn(
+                "Calling `DAG.create_dagrun()` without an explicit data interval is deprecated",
+                DeprecationWarning,
+                stacklevel=3,
             )
+            if run_type == DagRunType.MANUAL:
+                data_interval = self.timetable.infer_manual_data_interval(run_after=logical_date)
+            else:
+                data_interval = self.infer_automated_data_interval(logical_date)
 
         run = DagRun(
             dag_id=self.dag_id,
             run_id=run_id,
-            execution_date=execution_date,
+            execution_date=logical_date,
             start_date=start_date,
             external_trigger=external_trigger,
             conf=conf,
@@ -2214,7 +2349,7 @@ class DAG(LoggingMixin):
             .options(joinedload(DagModel.tags, innerjoin=False))
             .filter(DagModel.dag_id.in_(dag_ids))
         )
-        orm_dags = with_row_locks(query, of=DagModel, session=session).all()
+        orm_dags: List[DagModel] = with_row_locks(query, of=DagModel, session=session).all()
 
         existing_dag_ids = {orm_dag.dag_id for orm_dag in orm_dags}
         missing_dag_ids = dag_ids.difference(existing_dag_ids)
@@ -2230,18 +2365,20 @@ class DAG(LoggingMixin):
             orm_dags.append(orm_dag)
 
         # Get the latest dag run for each existing dag as a single query (avoid n+1 query)
-        most_recent_dag_runs = dict(
-            session.query(DagRun.dag_id, func.max_(DagRun.execution_date))
+        most_recent_subq = (
+            session.query(DagRun.dag_id, func.max(DagRun.execution_date).label("max_execution_date"))
             .filter(
                 DagRun.dag_id.in_(existing_dag_ids),
-                or_(
-                    DagRun.run_type == DagRunType.BACKFILL_JOB,
-                    DagRun.run_type == DagRunType.SCHEDULED,
-                ),
+                or_(DagRun.run_type == DagRunType.BACKFILL_JOB, DagRun.run_type == DagRunType.SCHEDULED),
             )
             .group_by(DagRun.dag_id)
-            .all()
+            .subquery()
         )
+        most_recent_runs_iter = session.query(DagRun).filter(
+            DagRun.dag_id == most_recent_subq.c.dag_id,
+            DagRun.execution_date == most_recent_subq.c.max_execution_date,
+        )
+        most_recent_runs = {run.dag_id: run for run in most_recent_runs_iter}
 
         filelocs = []
 
@@ -2266,10 +2403,12 @@ class DAG(LoggingMixin):
             orm_dag.max_active_runs = dag.max_active_runs
             orm_dag.has_task_concurrency_limits = any(t.max_active_tis_per_dag is not None for t in dag.tasks)
 
-            orm_dag.calculate_dagrun_date_fields(
-                dag,
-                most_recent_dag_runs.get(dag.dag_id),
-            )
+            run: Optional[DagRun] = most_recent_runs.get(dag.dag_id)
+            if run is None:
+                data_interval = None
+            else:
+                data_interval = dag.get_run_data_interval(run)
+            orm_dag.calculate_dagrun_date_fields(dag, data_interval)
 
             for orm_tag in list(orm_dag.tags):
                 if orm_tag.name not in orm_dag.tags:
@@ -2541,17 +2680,12 @@ class DagModel(Base):
         return f"<DAG: {self.dag_id}>"
 
     @property
-    def next_dagrun_data_interval(self) -> Optional[Tuple[datetime, datetime]]:
-        if self.next_dagrun_data_interval_start is None:
-            if self.next_dagrun_data_interval_end is not None:
-                raise AirflowException(
-                    f"Inconsistent DagModel: "
-                    f"next_dagrun_data_interval_start={self.next_dagrun_data_interval_start!r}, "
-                    f"next_dagrun_data_interval_end={self.next_dagrun_data_interval_end!r}; "
-                    f"they must be either both None or both datetime"
-                )
-            return None
-        return (self.next_dagrun_data_interval_start, self.next_dagrun_data_interval_end)
+    def next_dagrun_data_interval(self) -> Optional[DataInterval]:
+        return _get_model_data_interval(
+            self,
+            "next_dagrun_data_interval_start",
+            "next_dagrun_data_interval_end",
+        )
 
     @next_dagrun_data_interval.setter
     def next_dagrun_data_interval(self, value: Optional[Tuple[datetime, datetime]]) -> None:
@@ -2694,7 +2828,9 @@ class DagModel(Base):
         return with_row_locks(query, of=cls, session=session, **skip_locked(session=session))
 
     def calculate_dagrun_date_fields(
-        self, dag: DAG, most_recent_dag_run: Optional[pendulum.DateTime]
+        self,
+        dag: DAG,
+        most_recent_dag_run: Union[None, datetime, DataInterval],
     ) -> None:
         """
         Calculate ``next_dagrun`` and `next_dagrun_create_after``
@@ -2702,7 +2838,17 @@ class DagModel(Base):
         :param dag: The DAG object
         :param most_recent_dag_run: DateTime of most recent run of this dag, or none if not yet scheduled.
         """
-        next_dagrun_info = dag.next_dagrun_info(most_recent_dag_run)
+        if isinstance(most_recent_dag_run, datetime):
+            warnings.warn(
+                "Passing a datetime to `DagModel.calculate_dagrun_date_fields` is deprecated. "
+                "Provide a data interval instead.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+            most_recent_data_interval = dag.infer_automated_data_interval(most_recent_dag_run)
+        else:
+            most_recent_data_interval = most_recent_dag_run
+        next_dagrun_info = dag.next_dagrun_info(most_recent_data_interval)
         if next_dagrun_info is None:
             self.next_dagrun_data_interval = self.next_dagrun = self.next_dagrun_create_after = None
         else:

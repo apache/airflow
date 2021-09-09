@@ -849,6 +849,8 @@ class SchedulerJob(BaseJob):
                 self.log.exception("DAG '%s' not found in serialized_dag table", dag_model.dag_id)
                 continue
             dag_hash = self.dagbag.dags_hash.get(dag.dag_id)
+
+            data_interval = dag.get_next_data_interval(dag_model)
             # Explicitly check if the DagRun already exists. This is an edge case
             # where a Dag Run is created but `DagModel.next_dagrun` and `DagModel.next_dagrun_create_after`
             # are not updated.
@@ -858,19 +860,18 @@ class SchedulerJob(BaseJob):
             # create a new one. This is so that in the next Scheduling loop we try to create new runs
             # instead of falling in a loop of Integrity Error.
             if (dag.dag_id, dag_model.next_dagrun) not in existing_dagruns:
-
                 dag.create_dagrun(
                     run_type=DagRunType.SCHEDULED,
                     execution_date=dag_model.next_dagrun,
                     state=State.QUEUED,
-                    data_interval=dag_model.next_dagrun_data_interval,
+                    data_interval=data_interval,
                     external_trigger=False,
                     session=session,
                     dag_hash=dag_hash,
                     creating_job_id=self.id,
                 )
                 queued_runs_of_dags[dag_model.dag_id] += 1
-            dag_model.calculate_dagrun_date_fields(dag, dag_model.next_dagrun)
+            dag_model.calculate_dagrun_date_fields(dag, data_interval)
 
         # TODO[HA]: Should we do a session.flush() so we don't have to keep lots of state/object in
         # memory for larger dags? or expunge_all()
@@ -894,16 +895,18 @@ class SchedulerJob(BaseJob):
             .all(),
         )
 
-        def _update_state(dag_run):
+        def _update_state(dag: DAG, dag_run: DagRun):
             dag_run.state = State.RUNNING
             dag_run.start_date = timezone.utcnow()
-            expected_start_date = dag.following_schedule(dag_run.execution_date)
-            if expected_start_date:
+            if dag.timetable.periodic:
+                # TODO: Logically, this should be DagRunInfo.run_after, but the
+                # information is not stored on a DagRun, only before the actual
+                # execution on DagModel.next_dagrun_create_after. We should add
+                # a field on DagRun for this instead of relying on the run
+                # always happening immediately after the data interval.
+                expected_start_date = dag.get_run_data_interval(dag_run).end
                 schedule_delay = dag_run.start_date - expected_start_date
-                Stats.timing(
-                    f'dagrun.schedule_delay.{dag.dag_id}',
-                    schedule_delay,
-                )
+                Stats.timing(f'dagrun.schedule_delay.{dag.dag_id}', schedule_delay)
 
         for dag_run in dag_runs:
 
@@ -923,7 +926,7 @@ class SchedulerJob(BaseJob):
                 )
             else:
                 active_runs_of_dags[dag_run.dag_id] += 1
-                _update_state(dag_run)
+                _update_state(dag, dag_run)
 
     def _schedule_dag_run(
         self,

@@ -1694,6 +1694,7 @@ class Airflow(AirflowBaseView):
         dag.create_dagrun(
             run_type=DagRunType.MANUAL,
             execution_date=execution_date,
+            data_interval=dag.timetable.infer_manual_data_interval(run_after=execution_date),
             state=State.QUEUED,
             conf=run_conf,
             external_trigger=True,
@@ -2685,7 +2686,7 @@ class Airflow(AirflowBaseView):
         """Shows landing times."""
         default_dag_run = conf.getint('webserver', 'default_dag_run_display_number')
         dag_id = request.args.get('dag_id')
-        dag = current_app.dag_bag.get_dag(dag_id)
+        dag: DAG = current_app.dag_bag.get_dag(dag_id)
         dag_model = DagModel.get_dagmodel(dag_id)
         base_date = request.args.get('base_date')
         num_runs = request.args.get('num_runs', default=default_dag_run, type=int)
@@ -2714,9 +2715,7 @@ class Airflow(AirflowBaseView):
             y_points[task_id] = []
             x_points[task_id] = []
             for ti in tis:
-                ts = ti.execution_date
-                if dag.following_schedule(ts):
-                    ts = dag.following_schedule(ts)
+                ts = dag.get_run_data_interval(ti.dag_run).end
                 if ti.end_date:
                     dttm = wwwutils.epoch(ti.execution_date)
                     secs = (ti.end_date - ts).total_seconds()

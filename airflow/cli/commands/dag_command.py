@@ -23,8 +23,10 @@ import logging
 import signal
 import subprocess
 import sys
+from typing import Optional
 
 from graphviz.dot import Dot
+from sqlalchemy.sql.functions import func
 
 from airflow import settings
 from airflow.api.client import get_current_api_client
@@ -255,26 +257,37 @@ def dag_next_execution(args):
     if dag.get_is_paused():
         print("[INFO] Please be reminded this DAG is PAUSED now.", file=sys.stderr)
 
-    latest_execution_date = dag.get_latest_execution_date()
-    if latest_execution_date:
-        next_execution_dttm = dag.following_schedule(latest_execution_date)
+    with create_session() as session:
+        max_date_subq = (
+            session.query(func.max(DagRun.execution_date).label("max_date"))
+            .filter(DagRun.dag_id == dag.dag_id)
+            .subquery()
+        )
+        max_date_run: Optional[DagRun] = (
+            session.query(DagRun)
+            .filter(DagRun.dag_id == dag.dag_id, DagRun.execution_date == max_date_subq.c.max_date)
+            .one_or_none()
+        )
 
-        if next_execution_dttm is None:
-            print(
-                "[WARN] No following schedule can be found. "
-                + "This DAG may have schedule interval '@once' or `None`.",
-                file=sys.stderr,
-            )
+        if max_date_run is None:
+            print("[WARN] Only applicable when there is execution record found for the DAG.", file=sys.stderr)
             print(None)
-        else:
-            print(next_execution_dttm.isoformat())
+            return
 
-            for _ in range(1, args.num_executions):
-                next_execution_dttm = dag.following_schedule(next_execution_dttm)
-                print(next_execution_dttm.isoformat())
-    else:
-        print("[WARN] Only applicable when there is execution record found for the DAG.", file=sys.stderr)
+    next_info = dag.next_dagrun_info(dag.get_run_data_interval(max_date_run), restricted=False)
+    if next_info is None:
+        print(
+            "[WARN] No following schedule can be found. "
+            "This DAG may have schedule interval '@once' or `None`.",
+            file=sys.stderr,
+        )
         print(None)
+        return
+
+    print(next_info.logical_date.isoformat())
+    for _ in range(1, args.num_executions):
+        next_info = dag.next_dagrun_info(next_info.data_interval, restricted=False)
+        print(next_info.logical_date.isoformat())
 
 
 @cli_utils.action_logging

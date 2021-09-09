@@ -709,8 +709,8 @@ class TestDagRun(unittest.TestCase):
         orm_dag = DagModel(
             dag_id=dag.dag_id,
             has_task_concurrency_limits=False,
-            next_dagrun=dag.start_date,
-            next_dagrun_create_after=dag.following_schedule(DEFAULT_DATE),
+            next_dagrun=DEFAULT_DATE,
+            next_dagrun_create_after=DEFAULT_DATE + datetime.timedelta(days=1),
             is_active=True,
         )
         session.add(orm_dag)
@@ -767,13 +767,17 @@ class TestDagRun(unittest.TestCase):
 
         session = settings.Session()
         try:
-            orm_dag = DagModel(
-                dag_id=dag.dag_id,
-                has_task_concurrency_limits=False,
-                next_dagrun=dag.start_date,
-                next_dagrun_create_after=dag.following_schedule(dag.start_date),
-                is_active=True,
-            )
+            info = dag.next_dagrun_info(None)
+            orm_dag_kwargs = {"dag_id": dag.dag_id, "has_task_concurrency_limits": False, "is_active": True}
+            if info is not None:
+                orm_dag_kwargs.update(
+                    {
+                        "next_dagrun": info.logical_date,
+                        "next_dagrun_data_interval": info.data_interval,
+                        "next_dagrun_create_after": info.run_after,
+                    },
+                )
+            orm_dag = DagModel(**orm_dag_kwargs)
             session.add(orm_dag)
             session.flush()
             dag_run = dag.create_dagrun(
@@ -793,7 +797,7 @@ class TestDagRun(unittest.TestCase):
             metric_name = f'dagrun.{dag.dag_id}.first_task_scheduling_delay'
 
             if expected:
-                true_delay = ti.start_date - dag.following_schedule(dag_run.execution_date)
+                true_delay = ti.start_date - dag_run.data_interval_end
                 sched_delay_stat_call = call(metric_name, true_delay)
                 assert sched_delay_stat_call in stats_mock.mock_calls
             else:
