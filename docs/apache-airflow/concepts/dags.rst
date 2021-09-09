@@ -87,7 +87,7 @@ And if you want to chain together dependencies, you can use ``chain``::
     chain(op1, op2, op3, op4)
 
     # You can also do it dynamically
-    chain([DummyOperator(task_id='op' + i) for i in range(1, 6)])
+    chain(*[DummyOperator(task_id='op' + i) for i in range(1, 6)])
 
 Chain can also do *pairwise* dependencies for lists the same size (this is different to the *cross dependencies* done by ``cross_downstream``!)::
 

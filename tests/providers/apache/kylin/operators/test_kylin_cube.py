@@ -23,7 +23,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from airflow.exceptions import AirflowException
-from airflow.models import TaskInstance
+from airflow.models import DagRun, TaskInstance
 from airflow.models.dag import DAG
 from airflow.providers.apache.kylin.operators.kylin_cube import KylinCubeOperator
 from airflow.utils import timezone
@@ -166,7 +166,8 @@ class TestKylinCubeOperator(unittest.TestCase):
                 'end_time': '1483286400000',
             },
         )
-        ti = TaskInstance(operator, DEFAULT_DATE)
+        ti = TaskInstance(operator, run_id="kylin_test")
+        ti.dag_run = DagRun(run_id="kylin_test", execution_date=DEFAULT_DATE)
         ti.render_templates()
         assert 'learn_kylin' == getattr(operator, 'project')
         assert 'kylin_sales_cube' == getattr(operator, 'cube')

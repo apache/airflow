@@ -949,7 +949,7 @@ class DAG(LoggingMixin):
         callback = self.on_success_callback if success else self.on_failure_callback
         if callback:
             self.log.info('Executing dag callback function: %s', callback)
-            tis = dagrun.get_task_instances()
+            tis = dagrun.get_task_instances(session=session)
             ti = tis[-1]  # get first TaskInstance of DagRun
             ti.task = self.get_task(ti.task_id)
             context = ti.get_template_context(session=session)
@@ -1163,6 +1163,7 @@ class DAG(LoggingMixin):
                 task_ids=None,
                 start_date=start_date,
                 end_date=end_date,
+                run_id=None,
                 state=state,
                 include_subdags=False,
                 include_parentdag=False,
@@ -1171,7 +1172,8 @@ class DAG(LoggingMixin):
                 as_pk_tuple=False,
                 session=session,
             )
-            .order_by(TaskInstance.execution_date)
+            .join(TaskInstance.dag_run)
+            .order_by(DagRun.execution_date)
             .all()
         )
 
@@ -1182,6 +1184,7 @@ class DAG(LoggingMixin):
         task_ids,
         start_date: Optional[datetime],
         end_date: Optional[datetime],
+        run_id: None,
         state: Union[str, List[str]],
         include_subdags: bool,
         include_parentdag: bool,
@@ -1203,6 +1206,7 @@ class DAG(LoggingMixin):
         task_ids,
         start_date: Optional[datetime],
         end_date: Optional[datetime],
+        run_id: Optional[str],
         state: Union[str, List[str]],
         include_subdags: bool,
         include_parentdag: bool,
@@ -1223,6 +1227,7 @@ class DAG(LoggingMixin):
         task_ids,
         start_date: Optional[datetime],
         end_date: Optional[datetime],
+        run_id: Optional[str],
         state: Union[str, List[str]],
         include_subdags: bool,
         include_parentdag: bool,
@@ -1247,9 +1252,10 @@ class DAG(LoggingMixin):
 
         # Do we want full objects, or just the primary columns?
         if as_pk_tuple:
-            tis = session.query(TI.dag_id, TI.task_id, TI.execution_date)
+            tis = session.query(TI.dag_id, TI.task_id, TI.run_id)
         else:
             tis = session.query(TaskInstance)
+        tis = tis.join(TaskInstance.dag_run)
 
         if include_subdags:
             # Crafting the right filter for dag_id and task_ids combo
@@ -1261,15 +1267,17 @@ class DAG(LoggingMixin):
             tis = tis.filter(or_(*conditions))
         else:
             tis = tis.filter(TaskInstance.dag_id == self.dag_id, TaskInstance.task_id.in_(self.task_ids))
+        if run_id:
+            tis = tis.filter(TaskInstance.run_id == run_id)
         if start_date:
-            tis = tis.filter(TaskInstance.execution_date >= start_date)
+            tis = tis.filter(DagRun.execution_date >= start_date)
         if task_ids:
             tis = tis.filter(TaskInstance.task_id.in_(task_ids))
 
         # This allows allow_trigger_in_future config to take affect, rather than mandating exec_date <= UTC
         if end_date or not self.allow_future_exec_dates:
             end_date = end_date or timezone.utcnow()
-            tis = tis.filter(TaskInstance.execution_date <= end_date)
+            tis = tis.filter(DagRun.execution_date <= end_date)
 
         if state:
             if isinstance(state, str):
@@ -1301,6 +1309,7 @@ class DAG(LoggingMixin):
                     task_ids=task_ids,
                     start_date=start_date,
                     end_date=end_date,
+                    run_id=None,
                     state=state,
                     include_subdags=include_subdags,
                     include_parentdag=False,
@@ -1353,10 +1362,14 @@ class DAG(LoggingMixin):
                         )
                     )
                 ti.render_templates()
-                external_tis = session.query(TI).filter(
-                    TI.dag_id == task.external_dag_id,
-                    TI.task_id == task.external_task_id,
-                    TI.execution_date == pendulum.parse(task.execution_date),
+                external_tis = (
+                    session.query(TI)
+                    .join(TI.dag_run)
+                    .filter(
+                        TI.dag_id == task.external_dag_id,
+                        TI.task_id == task.external_task_id,
+                        DagRun.execution_date == pendulum.parse(task.execution_date),
+                    )
                 )
 
                 for tii in external_tis:
@@ -1373,8 +1386,9 @@ class DAG(LoggingMixin):
                     result.update(
                         downstream._get_task_instances(
                             task_ids=None,
-                            start_date=tii.execution_date,
-                            end_date=tii.execution_date,
+                            run_id=tii.run_id,
+                            start_date=None,
+                            end_date=None,
                             state=state,
                             include_subdags=include_subdags,
                             include_dependent_dags=include_dependent_dags,
@@ -1408,7 +1422,7 @@ class DAG(LoggingMixin):
             return result
         elif result:
             # We've been asked for objects, lets combine it all back in to a result set
-            tis = tis.with_entities(TI.dag_id, TI.task_id, TI.execution_date)
+            tis = tis.with_entities(TI.dag_id, TI.task_id, TI.run_id)
 
             tis = session.query(TI).filter(TI.filter_for_tis(result))
         elif exclude_task_ids:
@@ -1667,6 +1681,7 @@ class DAG(LoggingMixin):
             task_ids=task_ids,
             start_date=start_date,
             end_date=end_date,
+            run_id=None,
             state=state,
             include_subdags=include_subdags,
             include_parentdag=include_parentdag,
@@ -2267,7 +2282,7 @@ class DAG(LoggingMixin):
                         orm_dag.tags.append(dag_tag_orm)
                         session.add(dag_tag_orm)
 
-        DagCode.bulk_sync_to_db(filelocs)
+        DagCode.bulk_sync_to_db(filelocs, session=session)
 
         # Issue SQL/finish "Unit of Work", but let @provide_session commit (or if passed a session, let caller
         # decide when to commit

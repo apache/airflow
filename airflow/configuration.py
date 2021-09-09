@@ -32,7 +32,7 @@ from collections import OrderedDict
 # Ignored Mypy on configparser because it thinks the configparser module has no _UNSET attribute
 from configparser import _UNSET, ConfigParser, NoOptionError, NoSectionError  # type: ignore
 from json.decoder import JSONDecodeError
-from typing import Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional, Union
 
 from airflow.exceptions import AirflowConfigException
 from airflow.secrets import DEFAULT_SECRETS_SEARCH_PATH, BaseSecretsBackend
@@ -100,7 +100,7 @@ def _default_config_file_path(file_name: str):
     return os.path.join(templates_dir, file_name)
 
 
-def default_config_yaml() -> List[dict]:
+def default_config_yaml() -> List[Dict[str, Any]]:
     """
     Read Airflow configs from YAML file
 
@@ -172,6 +172,7 @@ class AirflowConfigParser(ConfigParser):
         ('core', 'default_pool_task_slot_count'): ('core', 'non_pooled_task_slot_count', '1.10.4'),
         ('core', 'max_active_tasks_per_dag'): ('core', 'dag_concurrency', '2.2.0'),
         ('logging', 'worker_log_server_port'): ('celery', 'worker_log_server_port', '2.3.0'),
+        ('api', 'access_control_allow_origins'): ('api', 'access_control_allow_origin', '2.2.0'),
     }
 
     # A mapping of old default values that we want to change and warn the user

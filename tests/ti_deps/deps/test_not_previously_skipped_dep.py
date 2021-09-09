@@ -17,113 +17,144 @@
 # under the License.
 
 import pendulum
+import pytest
 
-from airflow.models import DAG, DagRun, TaskInstance
+from airflow.models import DagRun, TaskInstance
 from airflow.operators.dummy import DummyOperator
 from airflow.operators.python import BranchPythonOperator
 from airflow.ti_deps.dep_context import DepContext
 from airflow.ti_deps.deps.not_previously_skipped_dep import NotPreviouslySkippedDep
-from airflow.utils.session import create_session
 from airflow.utils.state import State
 from airflow.utils.types import DagRunType
 
 
-def test_no_parent():
+@pytest.fixture(autouse=True, scope="function")
+def clean_db(session):
+    yield
+    session.query(DagRun).delete()
+    session.query(TaskInstance).delete()
+
+
+def test_no_parent(session, dag_maker):
     """
     A simple DAG with a single task. NotPreviouslySkippedDep is met.
     """
     start_date = pendulum.datetime(2020, 1, 1)
-    dag = DAG("test_test_no_parent_dag", schedule_interval=None, start_date=start_date)
-    op1 = DummyOperator(task_id="op1", dag=dag)
+    with dag_maker(
+        "test_test_no_parent_dag",
+        schedule_interval=None,
+        start_date=start_date,
+        session=session,
+    ):
+        op1 = DummyOperator(task_id="op1")
 
-    ti1 = TaskInstance(op1, start_date)
+    (ti1,) = dag_maker.create_dagrun(execution_date=start_date).task_instances
+    ti1.refresh_from_task(op1)
 
-    with create_session() as session:
-        dep = NotPreviouslySkippedDep()
-        assert len(list(dep.get_dep_statuses(ti1, session, DepContext()))) == 0
-        assert dep.is_met(ti1, session)
-        assert ti1.state != State.SKIPPED
+    dep = NotPreviouslySkippedDep()
+    assert len(list(dep.get_dep_statuses(ti1, session, DepContext()))) == 0
+    assert dep.is_met(ti1, session)
+    assert ti1.state != State.SKIPPED
 
 
-def test_no_skipmixin_parent():
+def test_no_skipmixin_parent(session, dag_maker):
     """
     A simple DAG with no branching. Both op1 and op2 are DummyOperator. NotPreviouslySkippedDep is met.
     """
     start_date = pendulum.datetime(2020, 1, 1)
-    dag = DAG("test_no_skipmixin_parent_dag", schedule_interval=None, start_date=start_date)
-    op1 = DummyOperator(task_id="op1", dag=dag)
-    op2 = DummyOperator(task_id="op2", dag=dag)
-    op1 >> op2
+    with dag_maker(
+        "test_no_skipmixin_parent_dag",
+        schedule_interval=None,
+        start_date=start_date,
+        session=session,
+    ):
+        op1 = DummyOperator(task_id="op1")
+        op2 = DummyOperator(task_id="op2")
+        op1 >> op2
 
-    ti2 = TaskInstance(op2, start_date)
+    _, ti2 = dag_maker.create_dagrun().task_instances
+    ti2.refresh_from_task(op2)
 
-    with create_session() as session:
-        dep = NotPreviouslySkippedDep()
-        assert len(list(dep.get_dep_statuses(ti2, session, DepContext()))) == 0
-        assert dep.is_met(ti2, session)
-        assert ti2.state != State.SKIPPED
+    dep = NotPreviouslySkippedDep()
+    assert len(list(dep.get_dep_statuses(ti2, session, DepContext()))) == 0
+    assert dep.is_met(ti2, session)
+    assert ti2.state != State.SKIPPED
 
 
-def test_parent_follow_branch():
+def test_parent_follow_branch(session, dag_maker):
     """
     A simple DAG with a BranchPythonOperator that follows op2. NotPreviouslySkippedDep is met.
     """
     start_date = pendulum.datetime(2020, 1, 1)
-    dag = DAG("test_parent_follow_branch_dag", schedule_interval=None, start_date=start_date)
-    dag.create_dagrun(run_type=DagRunType.MANUAL, state=State.RUNNING, execution_date=start_date)
-    op1 = BranchPythonOperator(task_id="op1", python_callable=lambda: "op2", dag=dag)
-    op2 = DummyOperator(task_id="op2", dag=dag)
-    op1 >> op2
-    TaskInstance(op1, start_date).run()
-    ti2 = TaskInstance(op2, start_date)
+    with dag_maker(
+        "test_parent_follow_branch_dag",
+        schedule_interval=None,
+        start_date=start_date,
+        session=session,
+    ):
+        op1 = BranchPythonOperator(task_id="op1", python_callable=lambda: "op2")
+        op2 = DummyOperator(task_id="op2")
+        op1 >> op2
 
-    with create_session() as session:
-        dep = NotPreviouslySkippedDep()
-        assert len(list(dep.get_dep_statuses(ti2, session, DepContext()))) == 0
-        assert dep.is_met(ti2, session)
-        assert ti2.state != State.SKIPPED
+    dagrun = dag_maker.create_dagrun(run_type=DagRunType.MANUAL, state=State.RUNNING)
+    ti, ti2 = dagrun.task_instances
+    ti.run()
+
+    dep = NotPreviouslySkippedDep()
+    assert len(list(dep.get_dep_statuses(ti2, session, DepContext()))) == 0
+    assert dep.is_met(ti2, session)
+    assert ti2.state != State.SKIPPED
 
 
-def test_parent_skip_branch():
+def test_parent_skip_branch(session, dag_maker):
     """
     A simple DAG with a BranchPythonOperator that does not follow op2. NotPreviouslySkippedDep is not met.
     """
-    with create_session() as session:
-        session.query(DagRun).delete()
-        session.query(TaskInstance).delete()
-        start_date = pendulum.datetime(2020, 1, 1)
-        dag = DAG("test_parent_skip_branch_dag", schedule_interval=None, start_date=start_date)
-        dag.create_dagrun(run_type=DagRunType.MANUAL, state=State.RUNNING, execution_date=start_date)
-        op1 = BranchPythonOperator(task_id="op1", python_callable=lambda: "op3", dag=dag)
-        op2 = DummyOperator(task_id="op2", dag=dag)
-        op3 = DummyOperator(task_id="op3", dag=dag)
+    start_date = pendulum.datetime(2020, 1, 1)
+    with dag_maker(
+        "test_parent_skip_branch_dag",
+        schedule_interval=None,
+        start_date=start_date,
+        session=session,
+    ):
+        op1 = BranchPythonOperator(task_id="op1", python_callable=lambda: "op3")
+        op2 = DummyOperator(task_id="op2")
+        op3 = DummyOperator(task_id="op3")
         op1 >> [op2, op3]
-        TaskInstance(op1, start_date).run()
-        ti2 = TaskInstance(op2, start_date)
-        dep = NotPreviouslySkippedDep()
 
-        assert len(list(dep.get_dep_statuses(ti2, session, DepContext()))) == 1
-        session.commit()
-        assert not dep.is_met(ti2, session)
-        assert ti2.state == State.SKIPPED
+    tis = {
+        ti.task_id: ti
+        for ti in dag_maker.create_dagrun(run_type=DagRunType.MANUAL, state=State.RUNNING).task_instances
+    }
+    tis["op1"].run()
+
+    dep = NotPreviouslySkippedDep()
+    assert len(list(dep.get_dep_statuses(tis["op2"], session, DepContext()))) == 1
+    assert not dep.is_met(tis["op2"], session)
+    assert tis["op2"].state == State.SKIPPED
 
 
-def test_parent_not_executed():
+def test_parent_not_executed(session, dag_maker):
     """
     A simple DAG with a BranchPythonOperator that does not follow op2. Parent task is not yet
     executed (no xcom data). NotPreviouslySkippedDep is met (no decision).
     """
     start_date = pendulum.datetime(2020, 1, 1)
-    dag = DAG("test_parent_not_executed_dag", schedule_interval=None, start_date=start_date)
-    op1 = BranchPythonOperator(task_id="op1", python_callable=lambda: "op3", dag=dag)
-    op2 = DummyOperator(task_id="op2", dag=dag)
-    op3 = DummyOperator(task_id="op3", dag=dag)
-    op1 >> [op2, op3]
+    with dag_maker(
+        "test_parent_not_executed_dag",
+        schedule_interval=None,
+        start_date=start_date,
+        session=session,
+    ):
+        op1 = BranchPythonOperator(task_id="op1", python_callable=lambda: "op3")
+        op2 = DummyOperator(task_id="op2")
+        op3 = DummyOperator(task_id="op3")
+        op1 >> [op2, op3]
 
-    ti2 = TaskInstance(op2, start_date)
+    _, ti2, _ = dag_maker.create_dagrun().task_instances
+    ti2.refresh_from_task(op2)
 
-    with create_session() as session:
-        dep = NotPreviouslySkippedDep()
-        assert len(list(dep.get_dep_statuses(ti2, session, DepContext()))) == 0
-        assert dep.is_met(ti2, session)
-        assert ti2.state == State.NONE
+    dep = NotPreviouslySkippedDep()
+    assert len(list(dep.get_dep_statuses(ti2, session, DepContext()))) == 0
+    assert dep.is_met(ti2, session)
+    assert ti2.state == State.NONE

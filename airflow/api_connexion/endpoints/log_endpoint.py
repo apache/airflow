@@ -18,12 +18,13 @@
 from flask import Response, current_app, request
 from itsdangerous.exc import BadSignature
 from itsdangerous.url_safe import URLSafeSerializer
+from sqlalchemy.orm import eagerload
 
 from airflow.api_connexion import security
 from airflow.api_connexion.exceptions import BadRequest, NotFound
 from airflow.api_connexion.schemas.log_schema import LogResponseObject, logs_schema
 from airflow.exceptions import TaskNotFound
-from airflow.models import DagRun
+from airflow.models import TaskInstance
 from airflow.security import permissions
 from airflow.utils.log.log_reader import TaskLogReader
 from airflow.utils.session import provide_session
@@ -60,15 +61,16 @@ def get_log(session, dag_id, dag_run_id, task_id, task_try_number, full_content=
     if not task_log_reader.supports_read:
         raise BadRequest("Task log handler does not support read logs.")
 
-    query = session.query(DagRun).filter(DagRun.dag_id == dag_id)
-    dag_run = query.filter(DagRun.run_id == dag_run_id).first()
-    if not dag_run:
-        raise NotFound("DAG Run not found")
-
-    ti = dag_run.get_task_instance(task_id, session)
+    ti = (
+        session.query(TaskInstance)
+        .filter(TaskInstance.task_id == task_id, TaskInstance.run_id == dag_run_id)
+        .join(TaskInstance.dag_run)
+        .options(eagerload(TaskInstance.dag_run))
+        .one_or_none()
+    )
     if ti is None:
         metadata['end_of_log'] = True
-        raise BadRequest(detail="Task instance did not exist in the DB")
+        raise NotFound(title="TaskInstance not found")
 
     dag = current_app.dag_bag.get_dag(dag_id)
     if dag:

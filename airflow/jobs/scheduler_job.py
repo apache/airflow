@@ -30,7 +30,7 @@ from typing import DefaultDict, Dict, Iterable, List, Optional, Tuple
 
 from sqlalchemy import and_, func, not_, or_, tuple_
 from sqlalchemy.exc import OperationalError
-from sqlalchemy.orm import load_only, selectinload
+from sqlalchemy.orm import eagerload, load_only, selectinload
 from sqlalchemy.orm.session import Session, make_transient
 
 from airflow import models, settings
@@ -190,80 +190,6 @@ class SchedulerJob(BaseJob):
         )
 
     @provide_session
-    def _change_state_for_tis_without_dagrun(
-        self, old_states: List[TaskInstanceState], new_state: TaskInstanceState, session: Session = None
-    ) -> None:
-        """
-        For all DAG IDs in the DagBag, look for task instances in the
-        old_states and set them to new_state if the corresponding DagRun
-        does not exist or exists but is not in the running or queued state. This
-        normally should not happen, but it can if the state of DagRuns are
-        changed manually.
-
-        :param old_states: examine TaskInstances in this state
-        :type old_states: list[airflow.utils.state.State]
-        :param new_state: set TaskInstances to this state
-        :type new_state: airflow.utils.state.State
-        """
-        tis_changed = 0
-        query = (
-            session.query(models.TaskInstance)
-            .outerjoin(models.TaskInstance.dag_run)
-            .filter(models.TaskInstance.dag_id.in_(list(self.dagbag.dag_ids)))
-            .filter(models.TaskInstance.state.in_(old_states))
-            .filter(
-                or_(
-                    models.DagRun.state.notin_([State.RUNNING, State.QUEUED]),
-                    models.DagRun.state.is_(None),
-                )
-            )
-        )
-        # We need to do this for mysql as well because it can cause deadlocks
-        # as discussed in https://issues.apache.org/jira/browse/AIRFLOW-2516
-        if self.using_sqlite or self.using_mysql:
-            tis_to_change: List[TI] = with_row_locks(
-                query, of=TI, session=session, **skip_locked(session=session)
-            ).all()
-            for ti in tis_to_change:
-                ti.set_state(new_state, session=session)
-                tis_changed += 1
-        else:
-            subq = query.subquery()
-            current_time = timezone.utcnow()
-            ti_prop_update = {
-                models.TaskInstance.state: new_state,
-                models.TaskInstance.start_date: current_time,
-            }
-
-            # Only add end_date and duration if the new_state is 'success', 'failed' or 'skipped'
-            if new_state in State.finished:
-                ti_prop_update.update(
-                    {
-                        models.TaskInstance.end_date: current_time,
-                        models.TaskInstance.duration: 0,
-                    }
-                )
-
-            tis_changed = (
-                session.query(models.TaskInstance)
-                .filter(
-                    models.TaskInstance.dag_id == subq.c.dag_id,
-                    models.TaskInstance.task_id == subq.c.task_id,
-                    models.TaskInstance.execution_date == subq.c.execution_date,
-                )
-                .update(ti_prop_update, synchronize_session=False)
-            )
-
-        if tis_changed > 0:
-            session.flush()
-            self.log.warning(
-                "Set %s task instances to state=%s as their associated DagRun was not in RUNNING state",
-                tis_changed,
-                new_state,
-            )
-            Stats.gauge('scheduler.tasks.without_dagrun', tis_changed)
-
-    @provide_session
     def __get_concurrency_maps(
         self, states: List[TaskInstanceState], session: Session = None
     ) -> Tuple[DefaultDict[str, int], DefaultDict[Tuple[str, str], int]]:
@@ -320,14 +246,14 @@ class SchedulerJob(BaseJob):
         # and the dag is not paused
         query = (
             session.query(TI)
-            .outerjoin(TI.dag_run)
-            .filter(or_(DR.run_id.is_(None), DR.run_type != DagRunType.BACKFILL_JOB))
-            .filter(or_(DR.state.is_(None), DR.state != DagRunState.QUEUED))
+            .join(TI.dag_run)
+            .options(eagerload(TI.dag_run))
+            .filter(DR.run_type != DagRunType.BACKFILL_JOB, DR.state != DagRunState.QUEUED)
             .join(TI.dag_model)
             .filter(not_(DM.is_paused))
             .filter(TI.state == State.SCHEDULED)
             .options(selectinload('dag_model'))
-            .order_by(-TI.priority_weight, TI.execution_date)
+            .order_by(-TI.priority_weight, DR.execution_date)
         )
         starved_pools = [pool_name for pool_name, stats in pools.items() if stats['open'] <= 0]
         if starved_pools:
@@ -559,11 +485,10 @@ class SchedulerJob(BaseJob):
             ti_primary_key_to_try_number_map[ti_key.primary] = ti_key.try_number
 
             self.log.info(
-                "Executor reports execution of %s.%s execution_date=%s "
-                "exited with status %s for try_number %s",
+                "Executor reports execution of %s.%s run_id=%s exited with status %s for try_number %s",
                 ti_key.dag_id,
                 ti_key.task_id,
-                ti_key.execution_date,
+                ti_key.run_id,
                 state,
                 ti_key.try_number,
             )
@@ -710,11 +635,6 @@ class SchedulerJob(BaseJob):
             self._emit_pool_metrics,
         )
 
-        timers.call_regular_interval(
-            conf.getfloat('scheduler', 'clean_tis_without_dagrun_interval', fallback=15.0),
-            self._clean_tis_without_dagrun,
-        )
-
         for loop_count in itertools.count(start=1):
             with Stats.timer() as timer:
 
@@ -764,35 +684,6 @@ class SchedulerJob(BaseJob):
                     loop_count,
                 )
                 break
-
-    @provide_session
-    def _clean_tis_without_dagrun(self, session):
-        with prohibit_commit(session) as guard:
-            try:
-                self._change_state_for_tis_without_dagrun(
-                    old_states=[State.UP_FOR_RETRY], new_state=State.FAILED, session=session
-                )
-
-                self._change_state_for_tis_without_dagrun(
-                    old_states=[
-                        State.QUEUED,
-                        State.SCHEDULED,
-                        State.UP_FOR_RESCHEDULE,
-                        State.SENSING,
-                        State.DEFERRED,
-                    ],
-                    new_state=State.NONE,
-                    session=session,
-                )
-
-                guard.commit()
-            except OperationalError as e:
-                if is_lock_not_available_error(error=e):
-                    self.log.debug("Lock held by another Scheduler")
-                    session.rollback()
-                else:
-                    raise
-            guard.commit()
 
     def _do_scheduling(self, session) -> int:
         """
@@ -1052,7 +943,7 @@ class SchedulerJob(BaseJob):
             callback_to_execute = DagCallbackRequest(
                 full_filepath=dag.fileloc,
                 dag_id=dag.dag_id,
-                execution_date=dag_run.execution_date,
+                run_id=dag_run.run_id,
                 is_failure_callback=True,
                 msg='timed_out',
             )
@@ -1182,7 +1073,7 @@ class SchedulerJob(BaseJob):
                             DagRun.run_type != DagRunType.BACKFILL_JOB,
                             DagRun.state == State.RUNNING,
                         )
-                        .options(load_only(TI.dag_id, TI.task_id, TI.execution_date))
+                        .options(load_only(TI.dag_id, TI.task_id, TI.run_id))
                     )
 
                     # Lock these rows, so that another scheduler can't try and adopt these too

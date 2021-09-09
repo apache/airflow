@@ -125,7 +125,7 @@ class BaseSensorOperator(BaseOperator, SkipMixin):
                 "The mode must be one of {valid_modes},"
                 "'{d}.{t}'; received '{m}'.".format(
                     valid_modes=self.valid_modes,
-                    d=self.dag.dag_id if self.dag else "",
+                    d=self.dag.dag_id if self.has_dag() else "",
                     t=self.task_id,
                     m=self.mode,
                 )

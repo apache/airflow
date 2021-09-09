@@ -154,13 +154,16 @@ def set_cors_headers_on_response(response):
     """Add response headers"""
     allow_headers = conf.get('api', 'access_control_allow_headers')
     allow_methods = conf.get('api', 'access_control_allow_methods')
-    allow_origin = conf.get('api', 'access_control_allow_origin')
+    allow_origins = conf.get('api', 'access_control_allow_origins')
     if allow_headers is not None:
         response.headers['Access-Control-Allow-Headers'] = allow_headers
     if allow_methods is not None:
         response.headers['Access-Control-Allow-Methods'] = allow_methods
-    if allow_origin is not None:
-        response.headers['Access-Control-Allow-Origin'] = allow_origin
+    if allow_origins is not None:
+        allowed_origins = allow_origins.split(' ')
+        origin = request.environ.get('HTTP_ORIGIN', allowed_origins[0])
+        if origin in allowed_origins:
+            response.headers['Access-Control-Allow-Origin'] = origin
     return response
 
 

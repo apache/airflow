@@ -54,6 +54,7 @@ ERRORS_ELIGIBLE_TO_REBUILD = [
     'failed to reach any of the inventories with the following issues',
     'undefined label:',
     'unknown document:',
+    'Error loading airflow.providers',
 ]
 
 ON_GITHUB_ACTIONS = os.environ.get('GITHUB_ACTIONS', 'false') == "true"

@@ -24,8 +24,7 @@ from unittest.mock import MagicMock, patch
 
 from jinja2 import StrictUndefined
 
-from airflow.models import TaskInstance
-from airflow.models.dag import DAG
+from airflow.models import DAG, DagRun, TaskInstance
 from airflow.providers.amazon.aws.operators.emr_create_job_flow import EmrCreateJobFlowOperator
 from airflow.utils import timezone
 from tests.test_utils import AIRFLOW_MAIN_FOLDER
@@ -81,7 +80,9 @@ class TestEmrCreateJobFlowOperator(unittest.TestCase):
 
     def test_render_template(self):
         self.operator.job_flow_overrides = self._config
-        ti = TaskInstance(self.operator, DEFAULT_DATE)
+        dag_run = DagRun(dag_id=self.operator.dag_id, execution_date=DEFAULT_DATE, run_id="test")
+        ti = TaskInstance(task=self.operator)
+        ti.dag_run = dag_run
         ti.render_templates()
 
         expected_args = {
@@ -109,7 +110,9 @@ class TestEmrCreateJobFlowOperator(unittest.TestCase):
         self.operator.job_flow_overrides = 'job.j2.json'
         self.operator.params = {'releaseLabel': '5.11.0'}
 
-        ti = TaskInstance(self.operator, DEFAULT_DATE)
+        dag_run = DagRun(dag_id=self.operator.dag_id, execution_date=DEFAULT_DATE, run_id="test")
+        ti = TaskInstance(task=self.operator)
+        ti.dag_run = dag_run
         ti.render_templates()
 
         self.emr_client_mock.run_job_flow.return_value = RUN_JOB_FLOW_SUCCESS_RETURN
@@ -117,6 +120,7 @@ class TestEmrCreateJobFlowOperator(unittest.TestCase):
         emr_session_mock.client.return_value = self.emr_client_mock
         boto3_session_mock = MagicMock(return_value=emr_session_mock)
 
+        # String in job_flow_overrides (i.e. from loaded as a file) is not "parsed" until inside execute()
         with patch('boto3.session.Session', boto3_session_mock):
             self.operator.execute(None)
 

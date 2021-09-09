@@ -111,11 +111,40 @@ class TestAwsBaseHook(unittest.TestCase):
         client = boto3.client('emr', region_name='us-east-1')
         if client.list_clusters()['Clusters']:
             raise ValueError('AWS not properly mocked')
-
         hook = AwsBaseHook(aws_conn_id='aws_default', client_type='emr')
         client_from_hook = hook.get_client_type('emr')
 
         assert client_from_hook.list_clusters()['Clusters'] == []
+
+    @unittest.skipIf(mock_emr is None, 'mock_emr package not present')
+    @mock_emr
+    def test_get_client_type_set_in_class_attribute(self):
+        client = boto3.client('emr', region_name='us-east-1')
+        if client.list_clusters()['Clusters']:
+            raise ValueError('AWS not properly mocked')
+        hook = AwsBaseHook(aws_conn_id='aws_default', client_type='emr')
+        client_from_hook = hook.get_client_type()
+
+        assert client_from_hook.list_clusters()['Clusters'] == []
+
+    @unittest.skipIf(mock_emr is None, 'mock_emr package not present')
+    @mock_emr
+    def test_get_client_type_overwrite(self):
+        client = boto3.client('emr', region_name='us-east-1')
+        if client.list_clusters()['Clusters']:
+            raise ValueError('AWS not properly mocked')
+        hook = AwsBaseHook(aws_conn_id='aws_default', client_type='dynamodb')
+        client_from_hook = hook.get_client_type(client_type='emr')
+        assert client_from_hook.list_clusters()['Clusters'] == []
+
+    @unittest.skipIf(mock_emr is None, 'mock_emr package not present')
+    @mock_emr
+    def test_get_client_type_deprecation_warning(self):
+        hook = AwsBaseHook(aws_conn_id='aws_default', client_type='emr')
+        warning_message = """client_type is deprecated. Set client_type from class attribute."""
+        with pytest.warns(DeprecationWarning) as warnings:
+            hook.get_client_type(client_type='emr')
+            assert warning_message == str(warnings[0].message)
 
     @unittest.skipIf(mock_dynamodb2 is None, 'mock_dynamo2 package not present')
     @mock_dynamodb2
@@ -136,6 +165,55 @@ class TestAwsBaseHook(unittest.TestCase):
         table.meta.client.get_waiter('table_exists').wait(TableName='test_airflow')
 
         assert table.item_count == 0
+
+    @unittest.skipIf(mock_dynamodb2 is None, 'mock_dynamo2 package not present')
+    @mock_dynamodb2
+    def test_get_resource_type_set_in_class_attribute(self):
+        hook = AwsBaseHook(aws_conn_id='aws_default', resource_type='dynamodb')
+        resource_from_hook = hook.get_resource_type()
+
+        # this table needs to be created in production
+        table = resource_from_hook.create_table(
+            TableName='test_airflow',
+            KeySchema=[
+                {'AttributeName': 'id', 'KeyType': 'HASH'},
+            ],
+            AttributeDefinitions=[{'AttributeName': 'id', 'AttributeType': 'S'}],
+            ProvisionedThroughput={'ReadCapacityUnits': 10, 'WriteCapacityUnits': 10},
+        )
+
+        table.meta.client.get_waiter('table_exists').wait(TableName='test_airflow')
+
+        assert table.item_count == 0
+
+    @unittest.skipIf(mock_dynamodb2 is None, 'mock_dynamo2 package not present')
+    @mock_dynamodb2
+    def test_get_resource_type_overwrite(self):
+        hook = AwsBaseHook(aws_conn_id='aws_default', resource_type='s3')
+        resource_from_hook = hook.get_resource_type('dynamodb')
+
+        # this table needs to be created in production
+        table = resource_from_hook.create_table(
+            TableName='test_airflow',
+            KeySchema=[
+                {'AttributeName': 'id', 'KeyType': 'HASH'},
+            ],
+            AttributeDefinitions=[{'AttributeName': 'id', 'AttributeType': 'S'}],
+            ProvisionedThroughput={'ReadCapacityUnits': 10, 'WriteCapacityUnits': 10},
+        )
+
+        table.meta.client.get_waiter('table_exists').wait(TableName='test_airflow')
+
+        assert table.item_count == 0
+
+    @unittest.skipIf(mock_dynamodb2 is None, 'mock_dynamo2 package not present')
+    @mock_dynamodb2
+    def test_get_resource_deprecation_warning(self):
+        hook = AwsBaseHook(aws_conn_id='aws_default', resource_type='dynamodb')
+        warning_message = """resource_type is deprecated. Set resource_type from class attribute."""
+        with pytest.warns(DeprecationWarning) as warnings:
+            hook.get_resource_type('dynamodb')
+            assert warning_message == str(warnings[0].message)
 
     @unittest.skipIf(mock_dynamodb2 is None, 'mock_dynamo2 package not present')
     @mock_dynamodb2

@@ -134,4 +134,8 @@ testing::get_test_types_to_run
 
 testing::get_docker_compose_local
 
+# We don't include this in a group so that the failure output is always visible in CI
+traps::add_trap 'python ./scripts/ci/testing/summarize_junit_failures.py files/test_result-*.xml' 'EXIT'
+rm files/test_result-*.xml 2>/dev/null || true
+
 run_all_test_types_in_parallel "${@}"

@@ -20,7 +20,7 @@
 import unittest
 from datetime import timedelta
 
-from airflow.models import TaskInstance
+from airflow.models import DagRun, TaskInstance
 from airflow.models.dag import DAG
 from airflow.providers.apache.spark.operators.spark_submit import SparkSubmitOperator
 from airflow.utils import timezone
@@ -147,7 +147,8 @@ class TestSparkSubmitOperator(unittest.TestCase):
     def test_render_template(self):
         # Given
         operator = SparkSubmitOperator(task_id='spark_submit_job', dag=self.dag, **self._config)
-        ti = TaskInstance(operator, DEFAULT_DATE)
+        ti = TaskInstance(operator, run_id="spark_test")
+        ti.dag_run = DagRun(run_id="spark_test", execution_date=DEFAULT_DATE)
 
         # When
         ti.render_templates()

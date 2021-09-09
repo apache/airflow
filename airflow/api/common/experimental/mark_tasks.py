@@ -21,6 +21,7 @@ import datetime
 from typing import Iterable
 
 from sqlalchemy import or_
+from sqlalchemy.orm import contains_eager
 
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.dagrun import DagRun
@@ -148,12 +149,14 @@ def get_all_dag_task_query(dag, session, state, task_ids, confirmed_dates):
     """Get all tasks of the main dag that will be affected by a state change"""
     qry_dag = (
         session.query(TaskInstance)
+        .join(TaskInstance.dag_run)
         .filter(
             TaskInstance.dag_id == dag.dag_id,
-            TaskInstance.execution_date.in_(confirmed_dates),
+            DagRun.execution_date.in_(confirmed_dates),
             TaskInstance.task_id.in_(task_ids),
         )
         .filter(or_(TaskInstance.state.is_(None), TaskInstance.state != state))
+        .options(contains_eager(TaskInstance.dag_run))
     )
     return qry_dag
 

@@ -18,18 +18,18 @@
 
 
 function docker_engine_resources::print_overall_stats() {
-    echo
-    echo "Docker statistics"
-    echo
-    docker stats --all --no-stream --no-trunc
-    echo
-    echo "Memory statistics"
+    docker stats --all --no-stream
     echo
     docker run --rm --entrypoint /bin/sh "alpine:latest" -c "free -m"
     echo
-    echo "Disk statistics"
-    echo
-    df -h || true
+    df -h \
+        --exclude-type devtmpfs \
+        --exclude-type overlay \
+        --exclude-type squashfs \
+        | grep -v " /run" \
+        | grep -v " /sys" \
+        | grep -v "/dev/shm" \
+    || true
 }
 
 function docker_engine_resources::get_available_cpus_in_docker() {

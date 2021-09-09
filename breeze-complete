@@ -123,6 +123,7 @@ pre-commit-hook-names
 pretty-format-json
 provide-create-sessions
 providers-changelogs
+providers-example-dags-init-file
 providers-init-file
 provider-yamls
 pydevd
