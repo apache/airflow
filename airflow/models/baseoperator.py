@@ -1645,8 +1645,10 @@ class BaseOperator(Operator, LoggingMixin, TaskMixin, metaclass=BaseOperatorMeta
         Marks this Operator as being "deferred" - that is, suspending its
         execution until the provided trigger fires an event.
 
-        This is achieved by raising a special exception (TaskDeferred)
-        which is caught in the main _execute_task wrapper.
+        This is achieved by raising a special exception which is processed internally
+        in the task execution logic.
+
+        For a description of the arguments, see :class:`~airflow.exceptions.TaskDeferred`.
         """
         raise TaskDeferred(trigger=trigger, method_name=method_name, kwargs=kwargs, timeout=timeout)
 

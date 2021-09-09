@@ -71,13 +71,13 @@ If you want to trigger deferral, at any place in your Operator you can call ``se
 * ``kwargs``: Additional keyword arguments to pass to the method when it is called. Optional, defaults to ``{}``.
 * ``timeout``: A timedelta that specifies a timeout after which this deferral will fail, and fail the task instance. Optional, defaults to ``None``, meaning no timeout.
 
+See :class:`~airflow.exceptions.TaskDeferred` for more information.
+
 When you opt to defer, your Operator will *stop executing at that point and be removed from its current worker*. No state - such as local variables, or attributes set on ``self`` - will persist, and when your Operator is resumed it will be a *brand new instance* of it. The only way you can pass state from the old instance of the Operator to the new one is via ``method_name`` and ``kwargs``.
 
-When your Operator is resumed, you will find an ``event`` item added to the kwargs passed to it, which contains the payload from the trigger event that resumed your Operator. Depending on the trigger, this may be useful to your operator (e.g. it's a status code or URL to fetch results), or it may not be important (it's just a datetime). Your ``method_name`` method, however, *must* accept ``event`` as a keyword argument.
+When your Operator is resumed, you will find an ``event`` item added to the kwargs passed to it, which contains the payload from the trigger event that resumed your Operator. Depending on the trigger, this may be useful to your operator (e.g. it's a status code or URL to fetch results), or it may not be important (it's just a datetime). Your ``method_name`` method, however, *must* accept ``event`` as a keyword argument (unless ``method_name`` is left unset in which case the operator will be restarted and no trigger event payload will be provided).
 
 If your Operator returns from either its first ``execute()`` method when it's new, or a subsequent method specified by ``method_name``, it will be considered complete and will finish executing.
-
-You are free to set ``method_name`` to ``execute`` if you want your Operator to have one entrypoint, but it, too, will have to accept ``event`` as an optional keyword argument.
 
 Here's a basic example of how a sensor might trigger deferral::
 
@@ -90,6 +90,8 @@ Here's a basic example of how a sensor might trigger deferral::
             return
 
 This Sensor is literally just a thin wrapper around the Trigger, so all it does is defer to the trigger, and specify a different method to come back to when the trigger fires - which, as it returns immediately, marks the Sensor as successful.
+
+To simply restart the operator, the ``method_name`` parameter should be left unset. The resume entrypoint will then be the ``execute`` method of the operator (just like normal execution) and in this case, keyword arguments are not allowed and similarly, the ``event`` keyword argument will not be provided. Note that you are free to actually set ``method_name`` to the string "execute" but this is then given no special treatment (the method will then again receive the ``event`` keyword argument).
 
 Under the hood, ``self.defer`` raises the ``TaskDeferred`` exception, so it will work anywhere inside your Operator's code, even buried many nested calls deep inside ``execute()``. You are free to raise ``TaskDeferred`` manually if you wish; it takes the same arguments as ``self.defer``.
 

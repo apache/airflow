@@ -239,20 +239,34 @@ class TaskDeferred(BaseException):
     Special exception raised to signal that the operator it was raised from
     wishes to defer until a trigger fires.
 
-    :param trigger: The asynchronous workload object that represents the trigger condition.
+    The method to resume execution is specified using ``method_name``. The method must accept
+    a context dictionary as argument in addition to the keyword arguments provided in ``kwargs``.
+
+    Note that in addition to ``kwargs``, the trigger event payload will be provided as the ``event``
+    keyword argument. For this reason, providing a "event" keyword argument is not allowed.
+
+    As a special case, if ``method_name`` is unset, operator execution will simply be restarted when
+    the trigger fires. In this case, keyword arguments are not allowed and the trigger event payload
+    will also not be provided.
+
+    :param trigger:
+        An instance of a Trigger that you wish to defer on. It will be serialized into the database.
     :param method_name:
-        The operator method that is invoked when the task resumes. The method must accept
-        a context dictionary as argument in addition to keyword arguments provided in the
-        deferred exception (see below).
-    :param kwargs: Keyword arguments passed on to the operator method on resume.
-    :param timeout: A timeout after which the deferred is cancelled.
+        The method name on your Operator you want Airflow to call when it resumes, other than
+        ``execute``.
+    :param kwargs:
+        Additional keyword arguments to pass to the method when it is called. Optional, defaults to
+        ``{}``.
+    :param timeout:
+        A timedelta that specifies a timeout after which this deferral will fail, and fail the task
+        instance. Optional, defaults to ``None``, meaning no timeout.
     """
 
     def __init__(
         self,
         *,
         trigger,
-        method_name: str,
+        method_name: Optional[str] = None,
         kwargs: Optional[Dict[str, Any]] = None,
         timeout: Optional[datetime.timedelta] = None,
     ):
@@ -261,9 +275,18 @@ class TaskDeferred(BaseException):
         self.method_name = method_name
         self.kwargs = kwargs
         self.timeout = timeout
+
         # Check timeout type at runtime
         if self.timeout is not None and not hasattr(self.timeout, "total_seconds"):
             raise ValueError("Timeout value must be a timedelta")
+
+        # Check keyword arguments
+        if kwargs:
+            if method_name is None:
+                raise ValueError("Keyword arguments not allowed when method is not specified")
+            else:
+                if "event" in kwargs:
+                    raise ValueError("Keyword argument must not contain reserved name 'event'")
 
     def __repr__(self) -> str:
         return f"<TaskDeferred trigger={self.trigger} method={self.method_name}>"
