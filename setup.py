@@ -41,7 +41,7 @@ PY39 = sys.version_info >= (3, 9)
 
 logger = logging.getLogger(__name__)
 
-version = '2.1.3'
+version = '2.1.4'
 
 my_dir = dirname(__file__)
 
