@@ -129,7 +129,7 @@
                         "path": {
                             "description": "The path for the web Ingress.",
                             "type": "string",
-                            "default": ""
+                            "default": "/"
                         },
                         "pathType": {
                             "description": "The pathType for the web Ingress (required for Kubernetes 1.19 and above).",
@@ -188,7 +188,7 @@
                         "path": {
                             "description": "The path for the flower Ingress.",
                             "type": "string",
-                            "default": ""
+                            "default": "/"
                         },
                         "pathType": {
                             "description": "The pathType for the flower Ingress (required for Kubernetes 1.19 and above).",
