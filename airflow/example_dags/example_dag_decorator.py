@@ -15,7 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
+from datetime import datetime
 from typing import Any, Dict
 
 import httpx
@@ -23,7 +23,6 @@ import httpx
 from airflow.decorators import dag, task
 from airflow.models.baseoperator import BaseOperator
 from airflow.operators.email import EmailOperator
-from airflow.utils.dates import days_ago
 
 
 class GetRequestOperator(BaseOperator):
@@ -38,7 +37,7 @@ class GetRequestOperator(BaseOperator):
 
 
 # [START dag_decorator_usage]
-@dag(schedule_interval=None, start_date=days_ago(2), tags=['example'])
+@dag(schedule_interval=None, start_date=datetime(2021, 1, 1), catchup=False, tags=['example'])
 def example_dag_decorator(email: str = 'example@example.com'):
     """
     DAG to send server IP to email.

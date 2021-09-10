@@ -20,12 +20,12 @@ This is an example dag for using a Kubernetes Executor Configuration.
 """
 import logging
 import os
+from datetime import datetime
 
 from airflow import DAG
 from airflow.example_dags.libs.helper import print_stuff
 from airflow.operators.python import PythonOperator
 from airflow.settings import AIRFLOW_HOME
-from airflow.utils.dates import days_ago
 
 log = logging.getLogger(__name__)
 
@@ -35,7 +35,8 @@ try:
     with DAG(
         dag_id='example_kubernetes_executor_config',
         schedule_interval=None,
-        start_date=days_ago(2),
+        start_date=datetime(2021, 1, 1),
+        catchup=False,
         tags=['example3'],
     ) as dag:
 
