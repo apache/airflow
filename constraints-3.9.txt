@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2021-09-09T18:12:30Z
+# This constraints file was automatically generated on 2021-09-10T14:54:04Z
 # via "eager-upgrade" mechanism of PIP. For the "v2-1-test" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -8,7 +8,7 @@
 # We also use those constraints after "apache-airflow" is released and the constraints are tagged with
 # "constraints-X.Y.Z" tag to build the production image for that version.
 #
-# Editable install with no version control (apache-airflow==2.1.3)
+# Editable install with no version control (apache-airflow==2.1.4)
 APScheduler==3.6.3
 Authlib==0.15.4
 Babel==2.9.1
@@ -42,7 +42,7 @@ SQLAlchemy-Utils==0.37.8
 SQLAlchemy==1.3.24
 SecretStorage==3.3.1
 Sphinx==3.4.3
-Unidecode==1.3.0
+Unidecode==1.3.1
 WTForms==2.3.3
 Werkzeug==1.0.1
 adal==1.2.7
@@ -479,7 +479,7 @@ sphinxcontrib-serializinghtml==1.1.5
 sphinxcontrib-spelling==7.2.1
 spython==0.1.15
 sqlalchemy-drill==1.1.1
-sqlparse==0.4.1
+sqlparse==0.4.2
 sshtunnel==0.1.5
 starkbank-ecdsa==1.1.1
 statsd==3.3.0
