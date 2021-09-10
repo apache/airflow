@@ -1916,37 +1916,39 @@ class TestSchedulerJob:
         session.close()
 
     @pytest.mark.quarantined
+    @pytest.mark.need_serialized_dag
     def test_retry_still_in_executor(self, dag_maker):
         """
         Checks if the scheduler does not put a task in limbo, when a task is retried
         but is still present in the executor.
         """
         executor = MockExecutor(do_update=False)
-        dagbag = DagBag(dag_folder=os.path.join(settings.DAGS_FOLDER, "no_dags.py"), include_examples=False)
-        dagbag.dags.clear()
-
-        with dag_maker(dag_id='test_retry_still_in_executor', schedule_interval="@once") as dag:
-            dag_task1 = BashOperator(
-                task_id='test_retry_handling_op',
-                bash_command='exit 1',
-                retries=1,
-            )
 
         with create_session() as session:
-            orm_dag = DagModel(dag_id=dag.dag_id)
-            orm_dag.is_paused = False
-            session.merge(orm_dag)
+            with dag_maker(
+                dag_id='test_retry_still_in_executor',
+                schedule_interval="@once",
+                session=session,
+            ):
+                dag_task1 = BashOperator(
+                    task_id='test_retry_handling_op',
+                    bash_command='exit 1',
+                    retries=1,
+                )
+            dag_maker.dag_model.calculate_dagrun_date_fields(dag_maker.dag, None)
 
-        @mock.patch('airflow.dag_processing.processor.DagBag', return_value=dagbag)
-        def do_schedule(mock_dagbag):
+        @provide_session
+        def do_schedule(session):
             # Use a empty file since the above mock will return the
             # expected DAGs. Also specify only a single file so that it doesn't
             # try to schedule the above DAG repeatedly.
-            self.scheduler_job = SchedulerJob(
-                num_runs=1, executor=executor, subdir=os.path.join(settings.DAGS_FOLDER, "no_dags.py")
-            )
+            self.scheduler_job = SchedulerJob(num_runs=1, executor=executor, subdir=os.devnull)
+            self.scheduler_job.dagbag = dag_maker.dagbag
             self.scheduler_job.heartrate = 0
-            self.scheduler_job.run()
+            # Since the DAG is not in the directory watched by scheduler job,
+            # it would've been marked as deleted and not being scheduled.
+            with mock.patch.object(DagModel, "deactivate_deleted_dags"):
+                self.scheduler_job.run()
 
         do_schedule()
         with create_session() as session:
@@ -1958,6 +1960,7 @@ class TestSchedulerJob:
                 )
                 .first()
             )
+        assert ti is not None, "Task not created by scheduler"
         ti.task = dag_task1
 
         def run_with_error(ti, ignore_ti_state=False):
