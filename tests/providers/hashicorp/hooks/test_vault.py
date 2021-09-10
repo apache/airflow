@@ -259,13 +259,10 @@ class TestVaultHook(TestCase):
         mock_connection = self.get_mock_connection()
         mock_get_connection.return_value = mock_connection
 
-        connection_dict = {
-            "auth_type": "aws_iam",
-            'role_id': "role",
-        }
+        connection_dict = {}
 
         mock_connection.extra_dejson.get.side_effect = connection_dict.get
-        kwargs = {"vault_conn_id": "vault_conn_id"}
+        kwargs = {"vault_conn_id": "vault_conn_id", "auth_type": "aws_iam", "role_id": "role"}
 
         test_hook = VaultHook(**kwargs)
         mock_get_connection.assert_called_with("vault_conn_id")
