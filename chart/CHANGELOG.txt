@@ -3,6 +3,7 @@ Airflow Helm Chart 1.1.0, 2021-07-26
 
 New Features
 """"""""""""
+- Chart: Add support for running pods with anyuid ``securityContextConstraint`` (SCC) (#18136)
 - Chart: Allow using ``krb5.conf`` with ``CeleryExecutor`` (#16822)
 - Chart: Refactor webserver and flower networkpolicy (#16619)
 - Chart: Apply worker's node assigning settings to Pod Template File (#16663)
