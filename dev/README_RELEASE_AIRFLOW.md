@@ -751,7 +751,7 @@ Update "Announcements" page at the [Official Airflow website](https://airflow.ap
 
 File `airflow/config_templates/config.yml` contains documentation on all configuration options available in Airflow. The `version_added` fields must be updated when a new Airflow version is released.
 
-- Get a diff between the released versions and the current local file:
+- Get a diff between the released versions and the current local file on `main` branch:
 
     ```shell script
     ./dev/validate_version_added_fields_in_config.py
