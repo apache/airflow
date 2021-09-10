@@ -150,18 +150,23 @@ class VaultHook(BaseHook):
                 raise VaultError(f"The version is not an int: {conn_version}. ")
 
         if auth_type == "approle":
-            if not role_id:
-                if self.connection.extra_dejson.get('role_id'):
-                    role_id = self.connection.extra_dejson.get('role_id')
-                else:
-                    role_id = self.connection.login
-            else:
+            if role_id:
                 warnings.warn(
-                    """The usage of role_id via AppRole authentication has been deprecated.
+                    """The usage of role_id for AppRole authentication has been deprecated.
                     Please use connection login.""",
                     DeprecationWarning,
                     stacklevel=2,
                 )
+            elif self.connection.extra_dejson.get('role_id'):
+                role_id = self.connection.extra_dejson.get('role_id')
+                warnings.warn(
+                    """The usage of role_id in connection extra for AppRole authentication has been
+                    deprecated. Please use connection login.""",
+                    DeprecationWarning,
+                    stacklevel=2,
+                )
+            elif self.connection.login:
+                role_id = self.connection.login
 
         if auth_type == "aws_iam":
             if not role_id:
