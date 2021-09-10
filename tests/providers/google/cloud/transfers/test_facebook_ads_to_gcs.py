@@ -59,7 +59,9 @@ class TestFacebookAdsReportToGcsOperator:
         )
         op.execute({})
         mock_ads_hook.assert_called_once_with(facebook_conn_id=FACEBOOK_ADS_CONN_ID, api_version=API_VERSION)
-        mock_ads_hook.return_value.bulk_facebook_report.assert_called_once_with(params=PARAMETERS, fields=FIELDS)
+        mock_ads_hook.return_value.bulk_facebook_report.assert_called_once_with(
+            params=PARAMETERS, fields=FIELDS
+        )
         mock_gcs_hook.assert_called_once_with(
             gcp_conn_id=GCS_CONN_ID,
             impersonation_chain=IMPERSONATION_CHAIN,

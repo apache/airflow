@@ -18,8 +18,8 @@
 """This module contains Facebook Ad Reporting to GCS operators."""
 import csv
 import tempfile
-from typing import Any, Dict, List, Optional, Sequence, Union
 import warnings
+from typing import Any, Dict, List, Optional, Sequence, Union
 
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
