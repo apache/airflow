@@ -178,8 +178,7 @@ airflowLocalSettings: ~
 rbac:
   # Specifies whether RBAC resources should be created
   create: true
-  securityContextConstraint:
-    create: false
+  createSCCRoleBinding: false
 
 # Airflow executor
 # Options: LocalExecutor, CeleryExecutor, KubernetesExecutor, CeleryKubernetesExecutor
