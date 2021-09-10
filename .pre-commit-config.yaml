@@ -250,7 +250,7 @@ repos:
         exclude: |
           (?x)
           ^airflow/_vendor/
-  - repo: https://github.com/ikamensh/flynt/
+  - repo: https://github.com/ikamensh/flynt
     rev: '0.66'
     hooks:
       - id: flynt
