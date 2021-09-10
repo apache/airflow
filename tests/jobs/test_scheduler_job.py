@@ -3176,35 +3176,35 @@ class TestSchedulerJobQueriesCount:
         "expected_query_counts, dag_count, task_count, start_ago, schedule_interval, shape",
         [
             # One DAG with one task per DAG file.
-            ([9, 9, 9, 9], 1, 1, "1d", "None", "no_structure"),
-            ([9, 9, 9, 9], 1, 1, "1d", "None", "linear"),
-            ([21, 12, 12, 12], 1, 1, "1d", "@once", "no_structure"),
-            ([21, 12, 12, 12], 1, 1, "1d", "@once", "linear"),
-            ([21, 22, 24, 26], 1, 1, "1d", "30m", "no_structure"),
-            ([21, 22, 24, 26], 1, 1, "1d", "30m", "linear"),
-            ([21, 22, 24, 26], 1, 1, "1d", "30m", "binary_tree"),
-            ([21, 22, 24, 26], 1, 1, "1d", "30m", "star"),
-            ([21, 22, 24, 26], 1, 1, "1d", "30m", "grid"),
+            ([10, 10, 10, 10], 1, 1, "1d", "None", "no_structure"),
+            ([10, 10, 10, 10], 1, 1, "1d", "None", "linear"),
+            ([23, 13, 13, 13], 1, 1, "1d", "@once", "no_structure"),
+            ([23, 13, 13, 13], 1, 1, "1d", "@once", "linear"),
+            ([23, 24, 26, 28], 1, 1, "1d", "30m", "no_structure"),
+            ([23, 24, 26, 28], 1, 1, "1d", "30m", "linear"),
+            ([23, 24, 26, 28], 1, 1, "1d", "30m", "binary_tree"),
+            ([23, 24, 26, 28], 1, 1, "1d", "30m", "star"),
+            ([23, 24, 26, 28], 1, 1, "1d", "30m", "grid"),
             # One DAG with five tasks per DAG file.
-            ([9, 9, 9, 9], 1, 5, "1d", "None", "no_structure"),
-            ([9, 9, 9, 9], 1, 5, "1d", "None", "linear"),
-            ([21, 12, 12, 12], 1, 5, "1d", "@once", "no_structure"),
-            ([22, 13, 13, 13], 1, 5, "1d", "@once", "linear"),
-            ([21, 22, 24, 26], 1, 5, "1d", "30m", "no_structure"),
-            ([22, 24, 27, 30], 1, 5, "1d", "30m", "linear"),
-            ([22, 24, 27, 30], 1, 5, "1d", "30m", "binary_tree"),
-            ([22, 24, 27, 30], 1, 5, "1d", "30m", "star"),
-            ([22, 24, 27, 30], 1, 5, "1d", "30m", "grid"),
+            ([10, 10, 10, 10], 1, 5, "1d", "None", "no_structure"),
+            ([10, 10, 10, 10], 1, 5, "1d", "None", "linear"),
+            ([23, 13, 13, 13], 1, 5, "1d", "@once", "no_structure"),
+            ([24, 14, 14, 14], 1, 5, "1d", "@once", "linear"),
+            ([23, 24, 26, 28], 1, 5, "1d", "30m", "no_structure"),
+            ([24, 26, 29, 32], 1, 5, "1d", "30m", "linear"),
+            ([24, 26, 29, 32], 1, 5, "1d", "30m", "binary_tree"),
+            ([24, 26, 29, 32], 1, 5, "1d", "30m", "star"),
+            ([24, 26, 29, 32], 1, 5, "1d", "30m", "grid"),
             # 10 DAGs with 10 tasks per DAG file.
-            ([9, 9, 9, 9], 10, 10, "1d", "None", "no_structure"),
-            ([9, 9, 9, 9], 10, 10, "1d", "None", "linear"),
-            ([84, 27, 27, 27], 10, 10, "1d", "@once", "no_structure"),
-            ([94, 40, 40, 40], 10, 10, "1d", "@once", "linear"),
-            ([84, 88, 88, 88], 10, 10, "1d", "30m", "no_structure"),
-            ([94, 114, 114, 114], 10, 10, "1d", "30m", "linear"),
-            ([94, 108, 108, 108], 10, 10, "1d", "30m", "binary_tree"),
-            ([94, 108, 108, 108], 10, 10, "1d", "30m", "star"),
-            ([94, 108, 108, 108], 10, 10, "1d", "30m", "grid"),
+            ([10, 10, 10, 10], 10, 10, "1d", "None", "no_structure"),
+            ([10, 10, 10, 10], 10, 10, "1d", "None", "linear"),
+            ([95, 28, 28, 28], 10, 10, "1d", "@once", "no_structure"),
+            ([105, 41, 41, 41], 10, 10, "1d", "@once", "linear"),
+            ([95, 99, 99, 99], 10, 10, "1d", "30m", "no_structure"),
+            ([105, 125, 125, 125], 10, 10, "1d", "30m", "linear"),
+            ([105, 119, 119, 119], 10, 10, "1d", "30m", "binary_tree"),
+            ([105, 119, 119, 119], 10, 10, "1d", "30m", "star"),
+            ([105, 119, 119, 119], 10, 10, "1d", "30m", "grid"),
         ],
     )
     def test_process_dags_queries_count(
@@ -3240,10 +3240,20 @@ class TestSchedulerJobQueriesCount:
             self.scheduler_job.executor = MockExecutor(do_update=False)
             self.scheduler_job.heartbeat = mock.MagicMock()
             self.scheduler_job.processor_agent = mock_agent
+
+            failures = []  # Collects assertion errors and report all of them at the end.
+            message = "Expected {expected_count} query, but got {current_count} located at:"
             for expected_query_count in expected_query_counts:
                 with create_session() as session:
-                    with assert_queries_count(expected_query_count):
-                        self.scheduler_job._do_scheduling(session)
+                    try:
+                        with assert_queries_count(expected_query_count, message):
+                            self.scheduler_job._do_scheduling(session)
+                    except AssertionError as e:
+                        failures.append(str(e))
+            if failures:
+                prefix = "Collected database query count mismatches:"
+                joined = "\n\n".join(failures)
+                raise AssertionError(f"{prefix}\n\n{joined}")
 
     def test_should_mark_dummy_task_as_success(self):
         dag_file = os.path.join(
