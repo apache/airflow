@@ -82,6 +82,8 @@ So, for example, if we decided to start the deprecation of a function in Airflow
 
 The exception to this deprecation policy is any feature which is marked as "experimental", which *may* suffer breaking changes or complete removal in a Feature release.
 
+.. _experimental:
+
 Experimental features
 =====================
 
