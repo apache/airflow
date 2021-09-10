@@ -716,7 +716,7 @@ evo
 exasol
 execvp
 exitcode
-explict
+explicit
 exportingmultiple
 extensibility
 externalbrowser

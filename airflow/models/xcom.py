@@ -22,8 +22,9 @@ import pickle
 from typing import Any, Iterable, Optional, Union
 
 import pendulum
-from sqlalchemy import Column, LargeBinary, String, and_
-from sqlalchemy.orm import Query, Session, reconstructor
+from sqlalchemy import Column, LargeBinary, String
+from sqlalchemy.ext.associationproxy import association_proxy
+from sqlalchemy.orm import Query, Session, reconstructor, relationship
 
 from airflow.configuration import conf
 from airflow.models.base import COLLATION_ARGS, ID_LEN, Base
@@ -55,6 +56,17 @@ class BaseXCom(Base, LoggingMixin):
     task_id = Column(String(ID_LEN, **COLLATION_ARGS), primary_key=True)
     dag_id = Column(String(ID_LEN, **COLLATION_ARGS), primary_key=True)
 
+    # For _now_, we link this via execution_date, in 2.3 we will migrate this table to use run_id too
+    dag_run = relationship(
+        "DagRun",
+        primaryjoin="""and_(
+            BaseXCom.dag_id == foreign(DagRun.dag_id),
+            BaseXCom.execution_date == foreign(DagRun.execution_date)
+        )""",
+        uselist=False,
+    )
+    run_id = association_proxy("dag_run", "run_id")
+
     @reconstructor
     def init_on_load(self):
         """
@@ -68,12 +80,22 @@ class BaseXCom(Base, LoggingMixin):
 
     @classmethod
     @provide_session
-    def set(cls, key, value, execution_date, task_id, dag_id, session=None):
+    def set(cls, key, value, task_id, dag_id, execution_date=None, run_id=None, session=None):
         """
         Store an XCom value.
 
         :return: None
         """
+        if not (execution_date is None) ^ (run_id is None):
+            raise ValueError("Exactly one of execution_date or run_id must be passed")
+
+        if run_id:
+            from airflow.models.dagrun import DagRun
+
+            dag_run = session.query(DagRun).filter_by(dag_id=dag_id, run_id=run_id).one()
+
+            execution_date = dag_run.execution_date
+
         session.expunge_all()
 
         value = XCom.serialize_value(value)
@@ -94,7 +116,8 @@ class BaseXCom(Base, LoggingMixin):
     @provide_session
     def get_one(
         cls,
-        execution_date: pendulum.DateTime,
+        execution_date: Optional[pendulum.DateTime] = None,
+        run_id: Optional[str] = None,
         key: Optional[str] = None,
         task_id: Optional[Union[str, Iterable[str]]] = None,
         dag_id: Optional[Union[str, Iterable[str]]] = None,
@@ -105,8 +128,12 @@ class BaseXCom(Base, LoggingMixin):
         Retrieve an XCom value, optionally meeting certain criteria. Returns None
         of there are no results.
 
+        ``run_id`` and ``execution_date`` are mutually exclusive.
+
         :param execution_date: Execution date for the task
         :type execution_date: pendulum.datetime
+        :param run_id: Dag run id for the task
+        :type run_id: str
         :param key: A key for the XCom. If provided, only XComs with matching
             keys will be returned. To remove the filter, pass key=None.
         :type key: str
@@ -123,8 +150,12 @@ class BaseXCom(Base, LoggingMixin):
         :param session: database session
         :type session: sqlalchemy.orm.session.Session
         """
+        if not (execution_date is None) ^ (run_id is None):
+            raise ValueError("Exactly one of execution_date or run_id must be passed")
+
         result = cls.get_many(
             execution_date=execution_date,
+            run_id=run_id,
             key=key,
             task_ids=task_id,
             dag_ids=dag_id,
@@ -139,7 +170,8 @@ class BaseXCom(Base, LoggingMixin):
     @provide_session
     def get_many(
         cls,
-        execution_date: pendulum.DateTime,
+        execution_date: Optional[pendulum.DateTime] = None,
+        run_id: Optional[str] = None,
         key: Optional[str] = None,
         task_ids: Optional[Union[str, Iterable[str]]] = None,
         dag_ids: Optional[Union[str, Iterable[str]]] = None,
@@ -150,8 +182,12 @@ class BaseXCom(Base, LoggingMixin):
         """
         Composes a query to get one or more values from the xcom table.
 
+        ``run_id`` and ``execution_date`` are mutually exclusive.
+
         :param execution_date: Execution date for the task
         :type execution_date: pendulum.datetime
+        :param run_id: Dag run id for the task
+        :type run_id: str
         :param key: A key for the XCom. If provided, only XComs with matching
             keys will be returned. To remove the filter, pass key=None.
         :type key: str
@@ -172,6 +208,9 @@ class BaseXCom(Base, LoggingMixin):
         :param session: database session
         :type session: sqlalchemy.orm.session.Session
         """
+        if not (execution_date is None) ^ (run_id is None):
+            raise ValueError("Exactly one of execution_date or run_id must be passed")
+
         filters = []
 
         if key:
@@ -190,15 +229,22 @@ class BaseXCom(Base, LoggingMixin):
                 filters.append(cls.dag_id == dag_ids)
 
         if include_prior_dates:
+            if execution_date is None:
+                # In theory it would be possible to build a subquery that joins to DagRun and then gets the
+                # execution dates. Lets do that for 2.3
+                raise ValueError("Using include_prior_dates needs an execution_date to be passed")
             filters.append(cls.execution_date <= execution_date)
-        else:
+        elif execution_date is not None:
             filters.append(cls.execution_date == execution_date)
 
-        query = (
-            session.query(cls)
-            .filter(and_(*filters))
-            .order_by(cls.execution_date.desc(), cls.timestamp.desc())
-        )
+        query = session.query(cls).filter(*filters)
+
+        if run_id:
+            from airflow.models.dagrun import DagRun
+
+            query = query.join(cls.dag_run).filter(DagRun.run_id == run_id)
+
+        query = query.order_by(cls.execution_date.desc(), cls.timestamp.desc())
 
         if limit:
             return query.limit(limit)
@@ -221,28 +267,51 @@ class BaseXCom(Base, LoggingMixin):
     @provide_session
     def clear(
         cls,
-        execution_date: pendulum.DateTime,
-        dag_id: str,
-        task_id: str,
+        execution_date: Optional[pendulum.DateTime] = None,
+        dag_id: str = None,
+        task_id: str = None,
+        run_id: str = None,
         session: Session = None,
     ) -> None:
         """
         Clears all XCom data from the database for the task instance
 
+        ``run_id`` and ``execution_date`` are mutually exclusive.
+
         :param execution_date: Execution date for the task
-        :type execution_date: pendulum.datetime
+        :type execution_date: pendulum.datetime or None
         :param dag_id: ID of DAG to clear the XCom for.
         :type dag_id: str
         :param task_id: Only XComs from task with matching id will be cleared.
         :type task_id: str
+        :param run_id: Dag run id for the task
+        :type run_id: str or None
         :param session: database session
         :type session: sqlalchemy.orm.session.Session
         """
-        session.query(cls).filter(
+        # Given the historic order of this function (execution_date was first argument) to add a new optional
+        # param we need to add default values for everything :(
+        if not dag_id:
+            raise TypeError("clear() missing required argument: dag_id")
+        if not task_id:
+            raise TypeError("clear() missing required argument: task_id")
+
+        if not (execution_date is None) ^ (run_id is None):
+            raise ValueError("Exactly one of execution_date or run_id must be passed")
+
+        query = session.query(cls).filter(
             cls.dag_id == dag_id,
             cls.task_id == task_id,
-            cls.execution_date == execution_date,
-        ).delete()
+        )
+
+        if execution_date is not None:
+            query = query.filter(cls.execution_date == execution_date)
+        else:
+            from airflow.models.dagrun import DagRun
+
+            query = query.join(cls.dag_run).filter(DagRun.run_id == run_id)
+
+        return query.delete()
 
     @staticmethod
     def serialize_value(value: Any):

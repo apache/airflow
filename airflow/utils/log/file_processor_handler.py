@@ -23,6 +23,7 @@ from pathlib import Path
 
 from airflow import settings
 from airflow.utils.helpers import parse_template_string
+from airflow.utils.log.non_caching_file_handler import NonCachingFileHandler
 
 
 class FileProcessorHandler(logging.Handler):
@@ -54,7 +55,7 @@ class FileProcessorHandler(logging.Handler):
         :param filename: filename in which the dag is located
         """
         local_loc = self._init_file(filename)
-        self.handler = logging.FileHandler(local_loc)
+        self.handler = NonCachingFileHandler(local_loc)
         self.handler.setFormatter(self.formatter)
         self.handler.setLevel(self.level)
 

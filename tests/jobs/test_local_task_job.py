@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 #
+import datetime
 import os
 import signal
 import time
@@ -782,12 +783,13 @@ class TestLocalTaskJob:
 
     def test_task_exit_should_update_state_of_finished_dagruns_with_dag_paused(self, dag_maker):
         """Test that with DAG paused, DagRun state will update when the tasks finishes the run"""
-        with dag_maker(dag_id='test_dags') as dag:
+        schedule_interval = datetime.timedelta(days=1)
+        with dag_maker(dag_id='test_dags', schedule_interval=schedule_interval) as dag:
             op1 = PythonOperator(task_id='dummy', python_callable=lambda: True)
 
         session = settings.Session()
         dagmodel = dag_maker.dag_model
-        dagmodel.next_dagrun_create_after = dag.following_schedule(DEFAULT_DATE)
+        dagmodel.next_dagrun_create_after = DEFAULT_DATE + schedule_interval
         dagmodel.is_paused = True
         session.merge(dagmodel)
         session.flush()

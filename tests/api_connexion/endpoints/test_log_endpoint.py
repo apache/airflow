@@ -74,7 +74,7 @@ class TestGetLog:
             DummyOperator(task_id=self.TASK_ID)
         dr = dag_maker.create_dagrun(
             run_id='TEST_DAG_RUN_ID',
-            run_type=DagRunType.MANUAL,
+            run_type=DagRunType.SCHEDULED,
             execution_date=timezone.parse(self.default_time),
             start_date=timezone.parse(self.default_time),
         )
@@ -111,7 +111,7 @@ class TestGetLog:
     def teardown_method(self):
         clear_db_runs()
 
-    def test_should_respond_200_json(self, session):
+    def test_should_respond_200_json(self):
         key = self.app.config["SECRET_KEY"]
         serializer = URLSafeSerializer(key)
         token = serializer.dumps({"download_logs": False})
@@ -132,7 +132,7 @@ class TestGetLog:
         assert info == {'end_of_log': True}
         assert 200 == response.status_code
 
-    def test_should_respond_200_text_plain(self, session):
+    def test_should_respond_200_text_plain(self):
         key = self.app.config["SECRET_KEY"]
         serializer = URLSafeSerializer(key)
         token = serializer.dumps({"download_logs": True})
@@ -152,7 +152,7 @@ class TestGetLog:
             == f"\n*** Reading local file: {expected_filename}\nLog for testing.\n"
         )
 
-    def test_get_logs_of_removed_task(self, session):
+    def test_get_logs_of_removed_task(self):
         # Recreate DAG without tasks
         dagbag = self.app.dag_bag
         dag = DAG(self.DAG_ID, start_date=timezone.parse(self.default_time))
@@ -178,7 +178,7 @@ class TestGetLog:
             == f"\n*** Reading local file: {expected_filename}\nLog for testing.\n"
         )
 
-    def test_get_logs_response_with_ti_equal_to_none(self, session):
+    def test_get_logs_response_with_ti_equal_to_none(self):
         key = self.app.config["SECRET_KEY"]
         serializer = URLSafeSerializer(key)
         token = serializer.dumps({"download_logs": True})
@@ -196,7 +196,7 @@ class TestGetLog:
             'type': EXCEPTIONS_LINK_MAP[404],
         }
 
-    def test_get_logs_with_metadata_as_download_large_file(self, session):
+    def test_get_logs_with_metadata_as_download_large_file(self):
         with mock.patch("airflow.utils.log.file_task_handler.FileTaskHandler.read") as read_mock:
             first_return = ([[('', '1st line')]], [{}])
             second_return = ([[('', '2nd line')]], [{'end_of_log': False}])
@@ -234,7 +234,7 @@ class TestGetLog:
         assert 400 == response.status_code
         assert 'Task log handler does not support read logs.' in response.data.decode('utf-8')
 
-    def test_bad_signature_raises(self, session):
+    def test_bad_signature_raises(self):
         token = {"download_logs": False}
 
         response = self.client.get(

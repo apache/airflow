@@ -1588,11 +1588,18 @@ class TestTaskInstance:
             schedule_interval=None,
             start_date=start_date,
             task_id="test_handle_failure_on_failure",
+            with_dagrun_type=DagRunType.MANUAL,
             on_failure_callback=mock_on_failure_1,
             on_retry_callback=mock_on_retry_1,
             session=session,
         )
-        dr = dag.create_dagrun(run_id="test2", execution_date=timezone.utcnow(), state=None, session=session)
+        dr = dag.create_dagrun(
+            run_id="test2",
+            run_type=DagRunType.MANUAL,
+            execution_date=timezone.utcnow(),
+            state=None,
+            session=session,
+        )
 
         ti1 = dr.get_task_instance(task1.task_id, session=session)
         ti1.task = task1

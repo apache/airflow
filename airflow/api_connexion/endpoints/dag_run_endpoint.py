@@ -257,10 +257,12 @@ def post_dag_run(dag_id, session):
         .first()
     )
     if not dagrun_instance:
-        dag_run = current_app.dag_bag.get_dag(dag_id).create_dagrun(
+        dag = current_app.dag_bag.get_dag(dag_id)
+        dag_run = dag.create_dagrun(
             run_type=DagRunType.MANUAL,
             run_id=run_id,
             execution_date=logical_date,
+            data_interval=dag.timetable.infer_manual_data_interval(run_after=logical_date),
             state=State.QUEUED,
             conf=post_body.get("conf"),
             external_trigger=True,

@@ -148,7 +148,7 @@ class Timetable(Protocol):
         """
         return type(self).__name__
 
-    def infer_data_interval(self, *, run_after: DateTime) -> DataInterval:
+    def infer_manual_data_interval(self, *, run_after: DateTime) -> DataInterval:
         """When a DAG run is manually triggered, infer a data interval for it.
 
         This is used for e.g. manually-triggered runs, where ``run_after`` would
@@ -160,14 +160,14 @@ class Timetable(Protocol):
     def next_dagrun_info(
         self,
         *,
-        last_automated_dagrun: Optional[DateTime],
+        last_automated_data_interval: Optional[DataInterval],
         restriction: TimeRestriction,
     ) -> Optional[DagRunInfo]:
         """Provide information to schedule the next DagRun.
 
         The default implementation raises ``NotImplementedError``.
 
-        :param last_automated_dagrun: The ``execution_date`` of the associated
+        :param last_automated_data_interval: The data interval of the associated
             DAG's last scheduled or backfilled run (manual runs not considered).
         :param restriction: Restriction to apply when scheduling the DAG run.
             See documentation of :class:`TimeRestriction` for details.

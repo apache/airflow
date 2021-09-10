@@ -148,7 +148,7 @@ class TestSparkSubmitOperator(unittest.TestCase):
         # Given
         operator = SparkSubmitOperator(task_id='spark_submit_job', dag=self.dag, **self._config)
         ti = TaskInstance(operator, run_id="spark_test")
-        ti.dag_run = DagRun(run_id="spark_test", execution_date=DEFAULT_DATE)
+        ti.dag_run = DagRun(dag_id=self.dag.dag_id, run_id="spark_test", execution_date=DEFAULT_DATE)
 
         # When
         ti.render_templates()

@@ -19,7 +19,19 @@ import warnings
 from datetime import datetime
 from typing import TYPE_CHECKING, Any, Iterable, List, NamedTuple, Optional, Tuple, Union
 
-from sqlalchemy import Boolean, Column, Index, Integer, PickleType, String, UniqueConstraint, and_, func, or_
+from sqlalchemy import (
+    Boolean,
+    Column,
+    Index,
+    Integer,
+    PickleType,
+    String,
+    UniqueConstraint,
+    and_,
+    func,
+    or_,
+    text,
+)
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.declarative import declared_attr
 from sqlalchemy.orm import joinedload, relationship, synonym
@@ -91,6 +103,25 @@ class DagRun(Base, LoggingMixin):
         UniqueConstraint('dag_id', 'execution_date', name='dag_run_dag_id_execution_date_key'),
         UniqueConstraint('dag_id', 'run_id', name='dag_run_dag_id_run_id_key'),
         Index('idx_last_scheduling_decision', last_scheduling_decision),
+        Index('idx_dag_run_dag_id', dag_id),
+        Index(
+            'idx_dag_run_running_dags',
+            'state',
+            'dag_id',
+            postgresql_where=text("state='running'"),
+            mssql_where=text("state='running'"),
+            sqlite_where=text("state='running'"),
+        ),
+        # since mysql lacks filtered/partial indices, this creates a
+        # duplicate index on mysql. Not the end of the world
+        Index(
+            'idx_dag_run_queued_dags',
+            'state',
+            'dag_id',
+            postgresql_where=text("state='queued'"),
+            mssql_where=text("state='queued'"),
+            sqlite_where=text("state='queued'"),
+        ),
     )
 
     task_instances = relationship(TI, back_populates="dag_run")
@@ -207,10 +238,22 @@ class DagRun(Base, LoggingMixin):
                 DagModel.is_paused == expression.false(),
                 DagModel.is_active == expression.true(),
             )
-            .order_by(
-                nulls_first(cls.last_scheduling_decision, session=session),
-                cls.execution_date,
+        )
+        if state == State.QUEUED:
+            # For dag runs in the queued state, we check if they have reached the max_active_runs limit
+            # and if so we drop them
+            running_drs = (
+                session.query(DagRun.dag_id, func.count(DagRun.state).label('num_running'))
+                .filter(DagRun.state == DagRunState.RUNNING)
+                .group_by(DagRun.dag_id)
+                .subquery()
             )
+            query = query.outerjoin(running_drs, running_drs.c.dag_id == DagRun.dag_id).filter(
+                func.coalesce(running_drs.c.num_running, 0) < DagModel.max_active_runs
+            )
+        query = query.order_by(
+            nulls_first(cls.last_scheduling_decision, session=session),
+            cls.execution_date,
         )
 
         if not settings.ALLOW_FUTURE_EXEC_DATES:
@@ -606,10 +649,13 @@ class DagRun(Base, LoggingMixin):
             ordered_tis_by_start_date.sort(key=lambda ti: ti.start_date, reverse=False)
             first_start_date = ordered_tis_by_start_date[0].start_date
             if first_start_date:
-                # dag.following_schedule calculates the expected start datetime for a scheduled dagrun
-                # i.e. a daily flow for execution date 1/1/20 actually runs on 1/2/20 hh:mm:ss,
-                # and ti.start_date will be 1/2/20 hh:mm:ss so the following schedule is comparison
-                true_delay = first_start_date - dag.following_schedule(self.execution_date)
+                # TODO: Logically, this should be DagRunInfo.run_after, but the
+                # information is not stored on a DagRun, only before the actual
+                # execution on DagModel.next_dagrun_create_after. We should add
+                # a field on DagRun for this instead of relying on the run
+                # always happening immediately after the data interval.
+                data_interval_end = dag.get_run_data_interval(self).end
+                true_delay = first_start_date - data_interval_end
                 if true_delay.total_seconds() > 0:
                     Stats.timing(f'dagrun.{dag.dag_id}.first_task_scheduling_delay', true_delay)
         except Exception as e:

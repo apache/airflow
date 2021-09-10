@@ -22,10 +22,10 @@ import unittest
 from unittest import mock
 
 from airflow.models.dag import DAG
-from airflow.providers.microsoft.azure.transfers.file_to_wasb import FileToWasbOperator
+from airflow.providers.microsoft.azure.transfers.local_to_wasb import LocalFilesystemToWasbOperator
 
 
-class TestFileToWasbOperator(unittest.TestCase):
+class TestLocalFilesystemToWasbOperator(unittest.TestCase):
 
     _config = {
         'file_path': 'file',
@@ -40,7 +40,7 @@ class TestFileToWasbOperator(unittest.TestCase):
         self.dag = DAG('test_dag_id', default_args=args)
 
     def test_init(self):
-        operator = FileToWasbOperator(task_id='wasb_operator_1', dag=self.dag, **self._config)
+        operator = LocalFilesystemToWasbOperator(task_id='wasb_operator_1', dag=self.dag, **self._config)
         assert operator.file_path == self._config['file_path']
         assert operator.container_name == self._config['container_name']
         assert operator.blob_name == self._config['blob_name']
@@ -48,15 +48,15 @@ class TestFileToWasbOperator(unittest.TestCase):
         assert operator.load_options == {}
         assert operator.retries == self._config['retries']
 
-        operator = FileToWasbOperator(
+        operator = LocalFilesystemToWasbOperator(
             task_id='wasb_operator_2', dag=self.dag, load_options={'timeout': 2}, **self._config
         )
         assert operator.load_options == {'timeout': 2}
 
-    @mock.patch('airflow.providers.microsoft.azure.transfers.file_to_wasb.WasbHook', autospec=True)
+    @mock.patch('airflow.providers.microsoft.azure.transfers.local_to_wasb.WasbHook', autospec=True)
     def test_execute(self, mock_hook):
         mock_instance = mock_hook.return_value
-        operator = FileToWasbOperator(
+        operator = LocalFilesystemToWasbOperator(
             task_id='wasb_sensor', dag=self.dag, load_options={'timeout': 2}, **self._config
         )
         operator.execute(None)
