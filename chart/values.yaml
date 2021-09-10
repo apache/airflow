@@ -178,6 +178,8 @@ airflowLocalSettings: ~
 rbac:
   # Specifies whether RBAC resources should be created
   create: true
+  securityContextConstraint:
+    create: false
 
 # Airflow executor
 # Options: LocalExecutor, CeleryExecutor, KubernetesExecutor, CeleryKubernetesExecutor
@@ -1271,7 +1273,7 @@ dags:
     # Volume size for dags
     size: 1Gi
     # If using a custom storageClass, pass name here
-    storageClassName:
+    storageClassName: 
     # access mode of the persistent volume
     accessMode: ReadWriteOnce
     ## the name of an existing PVC to use
