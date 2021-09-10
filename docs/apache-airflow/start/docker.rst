@@ -28,7 +28,7 @@ Production readiness
 .. warning::
     DO NOT expect the Docker Compose below will be enough to run production-ready Docker Compose Airflow installation using it.
     This is truly ``quick-start`` docker-compose for you to get Airflow up and running locally and get your hands dirty with
-    Airflow, but configuring Docker-Compose installation that is ready for production, requires an intrinsic knowledge of
+    Airflow. Configuring a Docker-Compose installation that is ready for production requires an intrinsic knowledge of
     Docker Compose, a lot of customization and possibly even writing the Docker Compose file that will suit your needs
     from the scratch. It's probably OK if you want to run Docker Compose-based deployment, but short of becoming a
     Docker Compose expert, it's highly unlikely you will get robust deployment with it.
@@ -45,7 +45,7 @@ Follow these steps to install the necessary tools.
 1. Install `Docker Community Edition (CE) <https://docs.docker.com/engine/installation/>`__ on your workstation. Depending on the OS, you may need to configure your Docker instance to use 4.00 GB of memory for all containers to run properly. Please refer to the Resources section if using `Docker for Windows <https://docs.docker.com/docker-for-windows/#resources>`__ or `Docker for Mac <https://docs.docker.com/docker-for-mac/#resources>`__ for more information.
 2. Install `Docker Compose <https://docs.docker.com/compose/install/>`__ v1.29.1 and newer on your workstation.
 
-Older versions of ``docker-compose`` do not support all features required by ``docker-compose.yaml`` file, so double check that it meets the minimum version requirements.
+Older versions of ``docker-compose`` do not support all the features required by ``docker-compose.yaml`` file, so double check that your version meets the minimum version requirements.
 
 .. warning::
     Default amount of memory available for Docker on MacOS is often not enough to get Airflow up and running.
@@ -142,7 +142,7 @@ Cleaning-up the environment
 ===========================
 
 The docker-compose we prepare is a "Quick-start" one. It is not intended to be used in production
-and it has a number of caveats - one of them that the best way to recover from any problem is to clean it
+and it has a number of caveats - one of them being that the best way to recover from any problem is to clean it
 up and restart from the scratch.
 
 The best way to do it is to:
