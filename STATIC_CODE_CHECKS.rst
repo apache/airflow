@@ -224,7 +224,7 @@ require Breeze Docker images to be installed locally.
 ------------------------------------ ---------------------------------------------------------------- ------------
 ``providers-changelogs``               Updates documentation for providers changelogs
 ------------------------------------ ---------------------------------------------------------------- ------------
-``providers-example-dags-init-file``   Check that providers' example_dags __init__.py file is present
+``providers-subpackages-init-file``    Check that providers' subpackages __init__.py files are there
 ------------------------------------ ---------------------------------------------------------------- ------------
 ``providers-init-file``                Check that provider's __init__.py file is removed
 ------------------------------------ ---------------------------------------------------------------- ------------
