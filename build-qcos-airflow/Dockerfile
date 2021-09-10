@@ -1,4 +1,4 @@
-FROM docker.pkg.github.com/masami10/airflow/airflow-base:latest
+FROM ghcr.io/masami10/airflow/airflow-base:latest
 
 COPY requirements-airflow-prod.txt /tmp/requirements.txt
 
