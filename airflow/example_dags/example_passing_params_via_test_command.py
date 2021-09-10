@@ -19,13 +19,12 @@
 """Example DAG demonstrating the usage of the params arguments in templated arguments."""
 
 import os
-from datetime import timedelta
+from datetime import datetime, timedelta
 from textwrap import dedent
 
 from airflow import DAG
 from airflow.operators.bash import BashOperator
 from airflow.operators.python import PythonOperator
-from airflow.utils.dates import days_ago
 
 
 def my_py_command(test_mode, params):
@@ -60,11 +59,11 @@ def print_env_vars(test_mode):
 with DAG(
     "example_passing_params_via_test_command",
     schedule_interval='*/1 * * * *',
-    start_date=days_ago(1),
+    start_date=datetime(2021, 1, 1),
+    catchup=False,
     dagrun_timeout=timedelta(minutes=4),
     tags=['example'],
 ) as dag:
-
     my_templated_command = dedent(
         """
         echo " 'foo was passed in via Airflow CLI Test command with value {{ params.foo }} "

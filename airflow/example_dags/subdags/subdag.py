@@ -19,9 +19,10 @@
 """Helper function to generate a DAG and operators given some arguments."""
 
 # [START subdag]
+from datetime import datetime
+
 from airflow import DAG
 from airflow.operators.dummy import DummyOperator
-from airflow.utils.dates import days_ago
 
 
 def subdag(parent_dag_name, child_dag_name, args):
@@ -37,7 +38,8 @@ def subdag(parent_dag_name, child_dag_name, args):
     dag_subdag = DAG(
         dag_id=f'{parent_dag_name}.{child_dag_name}',
         default_args=args,
-        start_date=days_ago(2),
+        start_date=datetime(2021, 1, 1),
+        catchup=False,
         schedule_interval="@daily",
     )
 

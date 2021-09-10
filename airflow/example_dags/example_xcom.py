@@ -17,10 +17,11 @@
 # under the License.
 
 """Example DAG demonstrating the usage of XComs."""
+from datetime import datetime
+
 from airflow import DAG
 from airflow.operators.bash import BashOperator
 from airflow.operators.python import PythonOperator
-from airflow.utils.dates import days_ago
 
 value_1 = [1, 2, 3]
 value_2 = {'a': 'b'}
@@ -60,10 +61,10 @@ def pull_value_from_bash_push(**kwargs):
 with DAG(
     'example_xcom',
     schedule_interval="@once",
-    start_date=days_ago(2),
+    start_date=datetime(2021, 1, 1),
+    catchup=False,
     tags=['example'],
 ) as dag:
-
     push1 = PythonOperator(
         task_id='push',
         python_callable=push,
