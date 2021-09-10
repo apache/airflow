@@ -144,11 +144,24 @@ class TestVariable(unittest.TestCase):
         assert value == Variable.get("tested_var_set_id", deserialize_json=True)
 
     def test_variable_update(self):
-        test_key = "test_key"
-        Variable.set(test_key, "value1")
-        assert "value1" == Variable.get(test_key)
-        Variable.update(test_key, "value2")
-        assert "value2" == Variable.get(test_key)
+        Variable.set("test_key", "value1")
+        assert "value1" == Variable.get("test_key")
+        Variable.update("test_key", "value2")
+        assert "value2" == Variable.get("test_key")
+
+    def test_variable_update_fails_on_non_metastore_variable(self):
+        with mock.patch.dict('os.environ', AIRFLOW_VAR_KEY="env-value"):
+            with pytest.raises(AttributeError):
+                Variable.update("key", "new-value")
+
+    def test_variable_update_preserves_description(self):
+        Variable.set("key", "value", description="a test variable")
+        assert Variable.get("key") == "value"
+        Variable.update("key", "value2")
+        session = settings.Session()
+        test_var = session.query(Variable).filter(Variable.key == 'key').one()
+        assert test_var.val == "value2"
+        assert test_var.description == "a test variable"
 
     def test_set_variable_sets_description(self):
         Variable.set('key', 'value', description="a test variable")

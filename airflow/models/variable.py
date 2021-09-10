@@ -197,11 +197,14 @@ class Variable(Base, LoggingMixin):
         """
         cls.check_for_write_conflict(key)
 
-        obj = Variable.get(key, default_var=None)
-        if obj is None:
+        if cls.get_variable_from_secrets(key) is None:
             raise KeyError(f'Variable {key} does not exist')
 
-        cls.set(key, value, serialize_json=serialize_json)
+        obj = session.query(cls).filter(cls.key == key).first()
+        if obj is None:
+            raise AttributeError(f'Variable {key} does not exist in the Database and cannot be updated.')
+
+        cls.set(key, value, description=obj.description, serialize_json=serialize_json)
 
     @classmethod
     @provide_session
