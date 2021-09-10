@@ -28,7 +28,6 @@ from unittest.mock import MagicMock, patch
 import psutil
 import pytest
 from freezegun import freeze_time
-from parameterized import parameterized
 from sqlalchemy import func
 
 import airflow.example_dags
@@ -1669,22 +1668,24 @@ class TestSchedulerJob:
         with dag_maker(
             dag_id='test_scheduler_keeps_scheduling_pool_full_d1',
             start_date=DEFAULT_DATE,
-        ) as dag_d1:
+        ):
             BashOperator(
                 task_id='test_scheduler_keeps_scheduling_pool_full_t1',
                 pool='test_scheduler_keeps_scheduling_pool_full_p1',
                 bash_command='echo hi',
             )
+        dag_d1 = dag_maker.dag
 
         with dag_maker(
             dag_id='test_scheduler_keeps_scheduling_pool_full_d2',
             start_date=DEFAULT_DATE,
-        ) as dag_d2:
+        ):
             BashOperator(
                 task_id='test_scheduler_keeps_scheduling_pool_full_t2',
                 pool='test_scheduler_keeps_scheduling_pool_full_p2',
                 bash_command='echo hi',
             )
+        dag_d2 = dag_maker.dag
 
         session = settings.Session()
         pool_p1 = Pool(pool='test_scheduler_keeps_scheduling_pool_full_p1', slots=1)
@@ -1915,37 +1916,39 @@ class TestSchedulerJob:
         session.close()
 
     @pytest.mark.quarantined
+    @pytest.mark.need_serialized_dag
     def test_retry_still_in_executor(self, dag_maker):
         """
         Checks if the scheduler does not put a task in limbo, when a task is retried
         but is still present in the executor.
         """
         executor = MockExecutor(do_update=False)
-        dagbag = DagBag(dag_folder=os.path.join(settings.DAGS_FOLDER, "no_dags.py"), include_examples=False)
-        dagbag.dags.clear()
-
-        with dag_maker(dag_id='test_retry_still_in_executor', schedule_interval="@once") as dag:
-            dag_task1 = BashOperator(
-                task_id='test_retry_handling_op',
-                bash_command='exit 1',
-                retries=1,
-            )
 
         with create_session() as session:
-            orm_dag = DagModel(dag_id=dag.dag_id)
-            orm_dag.is_paused = False
-            session.merge(orm_dag)
+            with dag_maker(
+                dag_id='test_retry_still_in_executor',
+                schedule_interval="@once",
+                session=session,
+            ):
+                dag_task1 = BashOperator(
+                    task_id='test_retry_handling_op',
+                    bash_command='exit 1',
+                    retries=1,
+                )
+            dag_maker.dag_model.calculate_dagrun_date_fields(dag_maker.dag, None)
 
-        @mock.patch('airflow.dag_processing.processor.DagBag', return_value=dagbag)
-        def do_schedule(mock_dagbag):
+        @provide_session
+        def do_schedule(session):
             # Use a empty file since the above mock will return the
             # expected DAGs. Also specify only a single file so that it doesn't
             # try to schedule the above DAG repeatedly.
-            self.scheduler_job = SchedulerJob(
-                num_runs=1, executor=executor, subdir=os.path.join(settings.DAGS_FOLDER, "no_dags.py")
-            )
+            self.scheduler_job = SchedulerJob(num_runs=1, executor=executor, subdir=os.devnull)
+            self.scheduler_job.dagbag = dag_maker.dagbag
             self.scheduler_job.heartrate = 0
-            self.scheduler_job.run()
+            # Since the DAG is not in the directory watched by scheduler job,
+            # it would've been marked as deleted and not being scheduled.
+            with mock.patch.object(DagModel, "deactivate_deleted_dags"):
+                self.scheduler_job.run()
 
         do_schedule()
         with create_session() as session:
@@ -1957,6 +1960,7 @@ class TestSchedulerJob:
                 )
                 .first()
             )
+        assert ti is not None, "Task not created by scheduler"
         ti.task = dag_task1
 
         def run_with_error(ti, ignore_ti_state=False):
@@ -3113,16 +3117,13 @@ class TestSchedulerJobQueriesCount:
             self.scheduler_job = None
         self.clean_db()
 
-    @parameterized.expand(
+    @pytest.mark.parametrize(
+        "expected_query_count, dag_count, task_count",
         [
-            # expected, dag_count, task_count
-            # One DAG with one task per DAG file
-            (24, 1, 1),
-            # One DAG with five tasks per DAG  file
-            (28, 1, 5),
-            # 10 DAGs with 10 tasks per DAG file
-            (195, 10, 10),
-        ]
+            (20, 1, 1),  # One DAG with one task per DAG file.
+            (20, 1, 5),  # One DAG with five tasks per DAG file.
+            (83, 10, 10),  # 10 DAGs with 10 tasks per DAG file.
+        ],
     )
     def test_execute_queries_count_with_harvested_dags(self, expected_query_count, dag_count, task_count):
         with mock.patch.dict(
@@ -3176,40 +3177,40 @@ class TestSchedulerJobQueriesCount:
 
                     self.scheduler_job._run_scheduler_loop()
 
-    @parameterized.expand(
+    @pytest.mark.parametrize(
+        "expected_query_counts, dag_count, task_count, start_ago, schedule_interval, shape",
         [
-            # expected, dag_count, task_count, start_ago, schedule_interval, shape
-            # One DAG with one task per DAG file
-            ([9, 9, 9, 9], 1, 1, "1d", "None", "no_structure"),
-            ([9, 9, 9, 9], 1, 1, "1d", "None", "linear"),
-            ([21, 12, 12, 12], 1, 1, "1d", "@once", "no_structure"),
-            ([21, 12, 12, 12], 1, 1, "1d", "@once", "linear"),
-            ([21, 22, 24, 26], 1, 1, "1d", "30m", "no_structure"),
-            ([21, 22, 24, 26], 1, 1, "1d", "30m", "linear"),
-            ([21, 22, 24, 26], 1, 1, "1d", "30m", "binary_tree"),
-            ([21, 22, 24, 26], 1, 1, "1d", "30m", "star"),
-            ([21, 22, 24, 26], 1, 1, "1d", "30m", "grid"),
-            # One DAG with five tasks per DAG  file
-            ([9, 9, 9, 9], 1, 5, "1d", "None", "no_structure"),
-            ([9, 9, 9, 9], 1, 5, "1d", "None", "linear"),
-            ([21, 12, 12, 12], 1, 5, "1d", "@once", "no_structure"),
-            ([22, 13, 13, 13], 1, 5, "1d", "@once", "linear"),
-            ([21, 22, 24, 26], 1, 5, "1d", "30m", "no_structure"),
-            ([22, 24, 27, 30], 1, 5, "1d", "30m", "linear"),
-            ([22, 24, 27, 30], 1, 5, "1d", "30m", "binary_tree"),
-            ([22, 24, 27, 30], 1, 5, "1d", "30m", "star"),
-            ([22, 24, 27, 30], 1, 5, "1d", "30m", "grid"),
-            # 10 DAGs with 10 tasks per DAG file
-            ([9, 9, 9, 9], 10, 10, "1d", "None", "no_structure"),
-            ([9, 9, 9, 9], 10, 10, "1d", "None", "linear"),
-            ([84, 27, 27, 27], 10, 10, "1d", "@once", "no_structure"),
-            ([94, 40, 40, 40], 10, 10, "1d", "@once", "linear"),
-            ([84, 88, 88, 88], 10, 10, "1d", "30m", "no_structure"),
-            ([94, 114, 114, 114], 10, 10, "1d", "30m", "linear"),
-            ([94, 108, 108, 108], 10, 10, "1d", "30m", "binary_tree"),
-            ([94, 108, 108, 108], 10, 10, "1d", "30m", "star"),
-            ([94, 108, 108, 108], 10, 10, "1d", "30m", "grid"),
-        ]
+            # One DAG with one task per DAG file.
+            ([10, 10, 10, 10], 1, 1, "1d", "None", "no_structure"),
+            ([10, 10, 10, 10], 1, 1, "1d", "None", "linear"),
+            ([23, 13, 13, 13], 1, 1, "1d", "@once", "no_structure"),
+            ([23, 13, 13, 13], 1, 1, "1d", "@once", "linear"),
+            ([23, 24, 26, 28], 1, 1, "1d", "30m", "no_structure"),
+            ([23, 24, 26, 28], 1, 1, "1d", "30m", "linear"),
+            ([23, 24, 26, 28], 1, 1, "1d", "30m", "binary_tree"),
+            ([23, 24, 26, 28], 1, 1, "1d", "30m", "star"),
+            ([23, 24, 26, 28], 1, 1, "1d", "30m", "grid"),
+            # One DAG with five tasks per DAG file.
+            ([10, 10, 10, 10], 1, 5, "1d", "None", "no_structure"),
+            ([10, 10, 10, 10], 1, 5, "1d", "None", "linear"),
+            ([23, 13, 13, 13], 1, 5, "1d", "@once", "no_structure"),
+            ([24, 14, 14, 14], 1, 5, "1d", "@once", "linear"),
+            ([23, 24, 26, 28], 1, 5, "1d", "30m", "no_structure"),
+            ([24, 26, 29, 32], 1, 5, "1d", "30m", "linear"),
+            ([24, 26, 29, 32], 1, 5, "1d", "30m", "binary_tree"),
+            ([24, 26, 29, 32], 1, 5, "1d", "30m", "star"),
+            ([24, 26, 29, 32], 1, 5, "1d", "30m", "grid"),
+            # 10 DAGs with 10 tasks per DAG file.
+            ([10, 10, 10, 10], 10, 10, "1d", "None", "no_structure"),
+            ([10, 10, 10, 10], 10, 10, "1d", "None", "linear"),
+            ([95, 28, 28, 28], 10, 10, "1d", "@once", "no_structure"),
+            ([105, 41, 41, 41], 10, 10, "1d", "@once", "linear"),
+            ([95, 99, 99, 99], 10, 10, "1d", "30m", "no_structure"),
+            ([105, 125, 125, 125], 10, 10, "1d", "30m", "linear"),
+            ([105, 119, 119, 119], 10, 10, "1d", "30m", "binary_tree"),
+            ([105, 119, 119, 119], 10, 10, "1d", "30m", "star"),
+            ([105, 119, 119, 119], 10, 10, "1d", "30m", "grid"),
+        ],
     )
     def test_process_dags_queries_count(
         self, expected_query_counts, dag_count, task_count, start_ago, schedule_interval, shape
@@ -3244,10 +3245,20 @@ class TestSchedulerJobQueriesCount:
             self.scheduler_job.executor = MockExecutor(do_update=False)
             self.scheduler_job.heartbeat = mock.MagicMock()
             self.scheduler_job.processor_agent = mock_agent
+
+            failures = []  # Collects assertion errors and report all of them at the end.
+            message = "Expected {expected_count} query, but got {current_count} located at:"
             for expected_query_count in expected_query_counts:
                 with create_session() as session:
-                    with assert_queries_count(expected_query_count):
-                        self.scheduler_job._do_scheduling(session)
+                    try:
+                        with assert_queries_count(expected_query_count, message):
+                            self.scheduler_job._do_scheduling(session)
+                    except AssertionError as e:
+                        failures.append(str(e))
+            if failures:
+                prefix = "Collected database query count mismatches:"
+                joined = "\n\n".join(failures)
+                raise AssertionError(f"{prefix}\n\n{joined}")
 
     def test_should_mark_dummy_task_as_success(self):
         dag_file = os.path.join(
@@ -3258,25 +3269,25 @@ class TestSchedulerJobQueriesCount:
         dagbag = DagBag(dag_folder=dag_file, include_examples=False, read_dags_from_db=False)
         dagbag.sync_to_db()
 
-        self.scheduler_job_job = SchedulerJob(subdir=os.devnull)
-        self.scheduler_job_job.processor_agent = mock.MagicMock()
-        dag = self.scheduler_job_job.dagbag.get_dag("test_only_dummy_tasks")
+        self.scheduler_job = SchedulerJob(subdir=os.devnull)
+        self.scheduler_job.processor_agent = mock.MagicMock()
+        dag = self.scheduler_job.dagbag.get_dag("test_only_dummy_tasks")
 
         # Create DagRun
         session = settings.Session()
         orm_dag = session.query(DagModel).get(dag.dag_id)
-        self.scheduler_job_job._create_dag_runs([orm_dag], session)
+        self.scheduler_job._create_dag_runs([orm_dag], session)
 
         drs = DagRun.find(dag_id=dag.dag_id, session=session)
         assert len(drs) == 1
         dr = drs[0]
 
         # Schedule TaskInstances
-        self.scheduler_job_job._schedule_dag_run(dr, session)
+        self.scheduler_job._schedule_dag_run(dr, session)
         with create_session() as session:
             tis = session.query(TaskInstance).all()
 
-        dags = self.scheduler_job_job.dagbag.dags.values()
+        dags = self.scheduler_job.dagbag.dags.values()
         assert ['test_only_dummy_tasks'] == [dag.dag_id for dag in dags]
         assert 5 == len(tis)
         assert {
@@ -3298,7 +3309,7 @@ class TestSchedulerJobQueriesCount:
                 assert end_date is None
                 assert duration is None
 
-        self.scheduler_job_job._schedule_dag_run(dr, session)
+        self.scheduler_job._schedule_dag_run(dr, session)
         with create_session() as session:
             tis = session.query(TaskInstance).all()
 
