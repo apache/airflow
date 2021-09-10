@@ -302,7 +302,7 @@ class DockerDecoratorMixin:
 # [END decoratormixin]
 
 
-def docker_decorator(  # pylint: disable=too-many-arguments,too-many-locals
+def docker_decorator(
     python_callable: Optional[Callable] = None,
     multiple_outputs: Optional[bool] = None,
     use_dill: bool = False,
