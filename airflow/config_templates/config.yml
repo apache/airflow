@@ -617,7 +617,7 @@
         web server, who then builds pages and sends them to users. This defines
         the port on which the logs are served. It needs to be unused, and open
         visible from the main web server to connect into the workers.
-      version_added: 2.3.0
+      version_added: 2.2.0
       type: string
       example: ~
       default: "8793"
