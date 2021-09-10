@@ -1280,7 +1280,7 @@ class Airflow(AirflowBaseView):
         num_logs = 0
         if ti is not None:
             num_logs = ti.next_try_number - 1
-            if ti.state == State.UP_FOR_RESCHEDULE:
+            if ti.state in (State.UP_FOR_RESCHEDULE, State.DEFERRED):
                 # Tasks in reschedule state decremented the try number
                 num_logs += 1
         logs = [''] * num_logs
