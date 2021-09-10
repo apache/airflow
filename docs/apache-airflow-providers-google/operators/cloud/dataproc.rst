@@ -61,6 +61,24 @@ With this configuration we can create the cluster:
     :start-after: [START how_to_cloud_dataproc_create_cluster_operator]
     :end-before: [END how_to_cloud_dataproc_create_cluster_operator]
 
+You can also create a dataproc cluster using YML config file. The same file can be exported from an existing cluster by running gcloud dataproc clusters export command.
+A cluster configuration yml file can be published in gcs path and same path can be passed to cluster_config parameter:
+
+.. exampleinclude:: /../../airflow/providers/google/cloud/example_dags/example_dataproc.py
+    :language: python
+    :dedent: 0
+    :start-after: [START how_to_cloud_dataproc_create_cluster_using_yml]
+    :end-before: [END how_to_cloud_dataproc_create_cluster_using_yml]
+
+With this file as config, we can create dataproc cluster:
+:class:`~airflow.providers.google.cloud.operators.dataproc.DataprocCreateClusterOperator`
+
+.. exampleinclude:: /../../airflow/providers/google/cloud/example_dags/example_dataproc.py
+    :language: python
+    :dedent: 4
+    :start-after: [START how_to_cloud_dataproc_create_cluster_using_yml_config_operator]
+    :end-before: [END how_to_cloud_dataproc_create_cluster_using_yml_config_operator]
+
 Update a cluster
 ----------------
 You can scale the cluster up or down by providing a cluster config and a updateMask.
@@ -185,6 +203,16 @@ Working with workflows templates
 
 Dataproc supports creating workflow templates that can be triggered later on.
 
+A workflow template configuration can be created using:
+:class:`~airflow.providers.google.cloud.operators.dataproc.DataprocCreateWorkflowTemplateOperator`.
+
+.. exampleinclude:: /../../airflow/providers/google/cloud/example_dags/example_dataproc.py
+    :language: python
+    :dedent: 0
+    :start-after: [START how_to_cloud_dataproc_workflow_config]
+    :end-before: [END how_to_cloud_dataproc_workflow_config]
+
+
 A workflow template can be created using:
 :class:`~airflow.providers.google.cloud.operators.dataproc.DataprocCreateWorkflowTemplateOperator`.
 
@@ -194,6 +222,16 @@ A workflow template can be created using:
     :start-after: [START how_to_cloud_dataproc_create_workflow_template]
     :end-before: [END how_to_cloud_dataproc_create_workflow_template]
 
+You can also provide cluster configuration as path to a yml file in gcs.
+:class:`~airflow.providers.google.cloud.operators.dataproc.DataprocCreateWorkflowTemplateOperator`.
+
+.. exampleinclude:: /../../airflow/providers/google/cloud/example_dags/example_dataproc.py
+    :language: python
+    :dedent: 4
+    :start-after: [START how_to_cloud_dataproc_create_workflow_using_yml_config_template]
+    :end-before: [END how_to_cloud_dataproc_create_workflow_using_yml_config_template]
+
+
 Once a workflow is created users can trigger it using
 :class:`~airflow.providers.google.cloud.operators.dataproc.DataprocInstantiateWorkflowTemplateOperator`:
 
@@ -202,6 +240,7 @@ Once a workflow is created users can trigger it using
     :dedent: 4
     :start-after: [START how_to_cloud_dataproc_trigger_workflow_template]
     :end-before: [END how_to_cloud_dataproc_trigger_workflow_template]
+
 
 
 References

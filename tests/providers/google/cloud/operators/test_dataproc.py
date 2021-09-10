@@ -94,7 +94,10 @@ CONFIG = {
         "disk_config": {"boot_disk_type": "worker_disk_type", "boot_disk_size_gb": 256},
         "is_preemptible": True,
     },
-    "software_config": {"properties": {"properties": "data"}, "optional_components": ["optional_components"]},
+    "software_config": {
+        "properties": {"properties": "data", "some.sparkRandomSparkProperties": "data"},
+        "optional_components": ["optional_components"],
+    },
     "lifecycle_config": {
         "idle_delete_ttl": {'seconds': 60},
         "auto_delete_time": "2019-09-12T00:00:00.000000Z",
@@ -106,6 +109,63 @@ CONFIG = {
         {"executable_file": "init_actions_uris", "execution_timeout": {'seconds': 600}}
     ],
 }
+YML_CONFIG_URI = "gs://dataproc-test/config.yml"
+
+YML_CONFIG = """
+config:
+  autoscalingConfig:
+    policyUri: autoscaling_policy
+  configBucket: storage_bucket
+  encryptionConfig:
+    gcePdKmsKeyName: customer_managed_key
+  gceClusterConfig:
+    internalIpOnly: true
+    metadata:
+      metadata: data
+    networkUri: network_uri
+    serviceAccount: service_account
+    serviceAccountScopes:
+    - service_account_scopes
+    subnetworkUri: subnetwork_uri
+    tags:
+    - tags
+    zoneUri: https://www.googleapis.com/compute/v1/projects/project_id/zones/zone
+  initializationActions:
+  - executableFile: init_actions_uris
+    executionTimeout: 600s
+  lifecycleConfig:
+    autoDeleteTime: '2019-09-12T00:00:00.000000Z'
+    idleDeleteTtl: 60s
+  masterConfig:
+    diskConfig:
+      bootDiskSizeGb: 128
+      bootDiskType: master_disk_type
+    imageUri: https://www.googleapis.com/compute/beta/projects/\
+custom_image_project_id/global/images/custom_image
+    machineTypeUri: projects/project_id/zones/zone/machineTypes/master_machine_type
+    numInstances: 2
+  secondaryWorkerConfig:
+    diskConfig:
+      bootDiskSizeGb: 256
+      bootDiskType: worker_disk_type
+    isPreemptible: true
+    machineTypeUri: projects/project_id/zones/zone/machineTypes/worker_machine_type
+    numInstances: 4
+  softwareConfig:
+    optionalComponents:
+    - optional_components
+    properties:
+      properties: data
+      some.sparkRandomSparkProperties: data
+  workerConfig:
+    diskConfig:
+      bootDiskSizeGb: 256
+      bootDiskType: worker_disk_type
+    imageUri: https://www.googleapis.com/compute/beta/projects/\
+custom_image_project_id/global/images/custom_image
+    machineTypeUri: projects/project_id/zones/zone/machineTypes/worker_machine_type
+    numInstances: 2
+"""
 
 CONFIG_WITH_CUSTOM_IMAGE_FAMILY = {
     "gce_cluster_config": {
@@ -167,16 +227,72 @@ METADATA = [("key", "value")]
 REQUEST_ID = "request_id_uuid"
 
 WORKFLOW_NAME = "airflow-dataproc-test"
+WOKRFLOW_CLUSTER_CONFIG = {
+    "gce_cluster_config": {
+        "zone_uri": "https://www.googleapis.com/compute/v1/projects/project_id/zones/zone",
+        "metadata": {"metadata": "data"},
+        "network_uri": "network_uri",
+        "subnetwork_uri": "subnetwork_uri",
+        "internal_ip_only": True,
+        "tags": ["tags"],
+        "service_account": "service_account",
+        "service_account_scopes": ["service_account_scopes"],
+    },
+    "master_config": {
+        "num_instances": 2,
+        "machine_type_uri": "projects/project_id/zones/zone/machineTypes/master_machine_type",
+        "disk_config": {"boot_disk_type": "master_disk_type", "boot_disk_size_gb": 128},
+        "image_uri": "https://www.googleapis.com/compute/beta/projects/"
+        "custom_image_project_id/global/images/custom_image",
+    },
+    "worker_config": {
+        "num_instances": 2,
+        "machine_type_uri": "projects/project_id/zones/zone/machineTypes/worker_machine_type",
+        "disk_config": {"boot_disk_type": "worker_disk_type", "boot_disk_size_gb": 256},
+        "image_uri": "https://www.googleapis.com/compute/beta/projects/"
+        "custom_image_project_id/global/images/custom_image",
+    },
+    "secondary_worker_config": {
+        "num_instances": 4,
+        "machine_type_uri": "projects/project_id/zones/zone/machineTypes/worker_machine_type",
+        "disk_config": {"boot_disk_type": "worker_disk_type", "boot_disk_size_gb": 256},
+        "is_preemptible": True,
+    },
+    "software_config": {
+        "properties": {"properties": "data", "some.sparkRandomSparkProperties": "data"},
+        "optional_components": ["optional_components"],
+    },
+    "encryption_config": {"gce_pd_kms_key_name": "customer_managed_key"},
+    "autoscaling_config": {"policy_uri": "autoscaling_policy"},
+    "config_bucket": "storage_bucket",
+    "initialization_actions": [
+        {"executable_file": "init_actions_uris", "execution_timeout": {'seconds': 600}}
+    ],
+}
+
+
 WORKFLOW_TEMPLATE = {
     "id": WORKFLOW_NAME,
     "placement": {
         "managed_cluster": {
             "cluster_name": CLUSTER_NAME,
-            "config": CLUSTER,
+            "config": WOKRFLOW_CLUSTER_CONFIG,
         }
     },
     "jobs": [{"step_id": "pig_job_1", "pig_job": {}}],
 }
+
+WORKFLOW_YML_TEMPLATE = {
+    "id": WORKFLOW_NAME,
+    "placement": {
+        "managed_cluster": {
+            "cluster_name": CLUSTER_NAME,
+            "config": YML_CONFIG_URI,
+        }
+    },
+    "jobs": [{"step_id": "pig_job_1", "pig_job": {}}],
+}
+
 TEST_DAG_ID = 'test-dataproc-operators'
 DEFAULT_DATE = datetime(2020, 1, 1)
 TEST_JOB_ID = "test-job"
@@ -302,7 +418,7 @@ class TestsClusterGenerator(unittest.TestCase):
             custom_image="custom_image",
             custom_image_project_id="custom_image_project_id",
             autoscaling_policy="autoscaling_policy",
-            properties={"properties": "data"},
+            properties={"properties": "data", "some.sparkRandomSparkProperties": "data"},
             optional_components=["optional_components"],
             num_masters=2,
             master_machine_type="master_machine_type",
@@ -416,6 +532,56 @@ class TestDataprocClusterCreateOperator(DataprocClusterTestBase):
             cluster_name=CLUSTER_NAME,
             project_id=GCP_PROJECT,
             cluster_config=CONFIG,
+            request_id=REQUEST_ID,
+            gcp_conn_id=GCP_CONN_ID,
+            retry=RETRY,
+            timeout=TIMEOUT,
+            metadata=METADATA,
+            impersonation_chain=IMPERSONATION_CHAIN,
+        )
+        op.execute(context=self.mock_context)
+        mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID, impersonation_chain=IMPERSONATION_CHAIN)
+        mock_hook.return_value.create_cluster.assert_called_once_with(**create_cluster_args)
+
+        # Test whether xcom push occurs before create cluster is called
+        self.extra_links_manager_mock.assert_has_calls(expected_calls, any_order=False)
+
+        to_dict_mock.assert_called_once_with(mock_hook().create_cluster().result())
+        self.mock_ti.xcom_push.assert_called_once_with(
+            key="cluster_conf",
+            value=DATAPROC_CLUSTER_CONF_EXPECTED,
+            execution_date=None,
+        )
+
+    @mock.patch(DATAPROC_PATH.format("GCSHook"))
+    @mock.patch(DATAPROC_PATH.format("Cluster.to_dict"))
+    @mock.patch(DATAPROC_PATH.format("DataprocHook"))
+    def test_execute_yml(self, mock_hook, to_dict_mock, mock_gcs_hook):
+        self.extra_links_manager_mock.attach_mock(mock_hook, 'hook')
+        mock_hook.return_value.create_cluster.result.return_value = None
+        mock_gcs_hook.return_value.download.return_value = YML_CONFIG
+        create_cluster_args = {
+            'region': GCP_LOCATION,
+            'project_id': GCP_PROJECT,
+            'cluster_name': CLUSTER_NAME,
+            'request_id': REQUEST_ID,
+            'retry': RETRY,
+            'timeout': TIMEOUT,
+            'metadata': METADATA,
+            'cluster_config': CONFIG,
+            'labels': LABELS,
+        }
+        expected_calls = self.extra_links_expected_calls_base + [
+            call.hook().create_cluster(**create_cluster_args),
+        ]
+
+        op = DataprocCreateClusterOperator(
+            task_id=TASK_ID,
+            region=GCP_LOCATION,
+            labels=LABELS,
+            cluster_name=CLUSTER_NAME,
+            project_id=GCP_PROJECT,
+            cluster_config=YML_CONFIG_URI,
             request_id=REQUEST_ID,
             gcp_conn_id=GCP_CONN_ID,
             retry=RETRY,
@@ -1197,7 +1363,7 @@ class TestDataprocWorkflowTemplateInstantiateOperator(unittest.TestCase):
 class TestDataprocWorkflowTemplateInstantiateInlineOperator(unittest.TestCase):
     @mock.patch(DATAPROC_PATH.format("DataprocHook"))
     def test_execute(self, mock_hook):
-        template = {}
+        template = WORKFLOW_TEMPLATE
 
         op = DataprocInstantiateInlineWorkflowTemplateOperator(
             task_id=TASK_ID,
@@ -1222,6 +1388,29 @@ class TestDataprocWorkflowTemplateInstantiateInlineOperator(unittest.TestCase):
             timeout=TIMEOUT,
             metadata=METADATA,
         )
+
+    @mock.patch(DATAPROC_PATH.format("GCSHook"))
+    @mock.patch(DATAPROC_PATH.format("DataprocHook"))
+    def test_resolve_yml_template(self, mock_hook, mock_gcs_hook):
+        mock_gcs_hook.return_value.download.return_value = YML_CONFIG
+
+        op = DataprocInstantiateInlineWorkflowTemplateOperator(
+            task_id=TASK_ID,
+            template=dict(WORKFLOW_YML_TEMPLATE),
+            region=GCP_LOCATION,
+            project_id=GCP_PROJECT,
+            request_id=REQUEST_ID,
+            retry=RETRY,
+            timeout=TIMEOUT,
+            metadata=METADATA,
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+        )
+        op.resolve_yml_temlate()
+        mock_gcs_hook.assert_called_once_with(
+            gcp_conn_id=GCP_CONN_ID, impersonation_chain=IMPERSONATION_CHAIN
+        )
+        assert op.template == WORKFLOW_TEMPLATE
 
 
 class TestDataProcHiveOperator(unittest.TestCase):
@@ -1616,6 +1805,23 @@ class TestDataprocCreateWorkflowTemplateOperator:
             metadata=METADATA,
             template=WORKFLOW_TEMPLATE,
         )
+
+    @mock.patch(DATAPROC_PATH.format("GCSHook"))
+    def test_resolve_template(self, mock_gcs_hook):
+        mock_gcs_hook.return_value.download.return_value = YML_CONFIG
+        op = DataprocCreateWorkflowTemplateOperator(
+            task_id=TASK_ID,
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+            region=GCP_LOCATION,
+            project_id=GCP_PROJECT,
+            retry=RETRY,
+            timeout=TIMEOUT,
+            metadata=METADATA,
+            template=dict(WORKFLOW_YML_TEMPLATE),
+        )
+        op.resolve_yml_temlate()
+        assert op.template == WORKFLOW_TEMPLATE
 
     @mock.patch(DATAPROC_PATH.format("DataprocHook"))
     def test_location_deprecation_warning(self, mock_hook):

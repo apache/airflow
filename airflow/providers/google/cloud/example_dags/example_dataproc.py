@@ -45,6 +45,8 @@ PYSPARK_MAIN = os.environ.get("PYSPARK_MAIN", "hello_world.py")
 PYSPARK_URI = f"gs://{BUCKET}/{PYSPARK_MAIN}"
 SPARKR_MAIN = os.environ.get("SPARKR_MAIN", "hello_world.R")
 SPARKR_URI = f"gs://{BUCKET}/{SPARKR_MAIN}"
+YML_CONFIG_FILE = os.environ.get("YAML_CONFIG_FILE", "config.yml")
+
 
 # Cluster definition
 # [START how_to_cloud_dataproc_create_cluster]
@@ -63,6 +65,11 @@ CLUSTER_CONFIG = {
 }
 
 # [END how_to_cloud_dataproc_create_cluster]
+
+# [START how_to_cloud_dataproc_create_cluster_using_yml]
+YML_CONFIG_URI = f"gcs://{BUCKET}/{YML_CONFIG_FILE}"
+# [END how_to_cloud_dataproc_create_cluster_using_yml]
+
 
 # Update options
 # [START how_to_cloud_dataproc_updatemask_cluster_operator]
@@ -138,6 +145,8 @@ HADOOP_JOB = {
     },
 }
 # [END how_to_cloud_dataproc_hadoop_config]
+
+# [START how_to_cloud_dataproc_workflow_config]
 WORKFLOW_NAME = "airflow-dataproc-test"
 WORKFLOW_TEMPLATE = {
     "id": WORKFLOW_NAME,
@@ -149,7 +158,22 @@ WORKFLOW_TEMPLATE = {
     },
     "jobs": [{"step_id": "pig_job_1", "pig_job": PIG_JOB["pig_job"]}],
 }
+# [END how_to_cloud_dataproc_workflow_config]
 
+
+# [START how_to_cloud_dataproc_workflow_yml_config]
+WORKFLOW_NAME_YML = "airflow-dataproc-yml-config-test"
+WORKFLOW_TEMPLATE_YML = {
+    "id": WORKFLOW_NAME_YML,
+    "placement": {
+        "managed_cluster": {
+            "cluster_name": CLUSTER_NAME,
+            "config": YML_CONFIG_URI,
+        }
+    },
+    "jobs": [{"step_id": "pig_job_1", "pig_job": PIG_JOB["pig_job"]}],
+}
+# [END how_to_cloud_dataproc_workflow_yml_config]
 
 with models.DAG("example_gcp_dataproc", schedule_interval='@once', start_date=days_ago(1)) as dag:
     # [START how_to_cloud_dataproc_create_cluster_operator]
@@ -161,6 +185,16 @@ with models.DAG("example_gcp_dataproc", schedule_interval='@once', start_date=da
         cluster_name=CLUSTER_NAME,
     )
     # [END how_to_cloud_dataproc_create_cluster_operator]
+
+    # [START how_to_cloud_dataproc_create_cluster_using_yml_config_operator]
+    create_cluster_using_yml = DataprocCreateClusterOperator(
+        task_id="create_cluster_using_yml",
+        project_id=PROJECT_ID,
+        cluster_config=YML_CONFIG_URI,
+        region=REGION,
+        cluster_name=CLUSTER_NAME,
+    )
+    # [END how_to_cloud_dataproc_create_cluster_using_yml_config_operator]
 
     # [START how_to_cloud_dataproc_update_cluster_operator]
     scale_cluster = DataprocUpdateClusterOperator(
@@ -183,11 +217,27 @@ with models.DAG("example_gcp_dataproc", schedule_interval='@once', start_date=da
     )
     # [END how_to_cloud_dataproc_create_workflow_template]
 
+    # [START how_to_cloud_dataproc_create_workflow_using_yml_config_template]
+    create_workflow_yml_config_template = DataprocCreateWorkflowTemplateOperator(
+        task_id="create_workflow_yml_config_template",
+        template=WORKFLOW_TEMPLATE_YML,
+        project_id=PROJECT_ID,
+        region=REGION,
+    )
+    # [END how_to_cloud_dataproc_create_workflow_using_yml_config_template]
+
     # [START how_to_cloud_dataproc_trigger_workflow_template]
     trigger_workflow = DataprocInstantiateWorkflowTemplateOperator(
         task_id="trigger_workflow", region=REGION, project_id=PROJECT_ID, template_id=WORKFLOW_NAME
     )
     # [END how_to_cloud_dataproc_trigger_workflow_template]
+
+    trigger_workflow_yml_config = DataprocInstantiateWorkflowTemplateOperator(
+        task_id="trigger_workflow_yml_config",
+        region=REGION,
+        project_id=PROJECT_ID,
+        template_id=WORKFLOW_NAME_YML,
+    )
 
     pig_task = DataprocSubmitJobOperator(
         task_id="pig_task", job=PIG_JOB, region=REGION, project_id=PROJECT_ID
@@ -238,8 +288,13 @@ with models.DAG("example_gcp_dataproc", schedule_interval='@once', start_date=da
     )
     # [END how_to_cloud_dataproc_delete_cluster_operator]
 
+    delete_cluster_yml = DataprocDeleteClusterOperator(
+        task_id="delete_cluster_yml", project_id=PROJECT_ID, cluster_name=CLUSTER_NAME, region=REGION
+    )
+
     create_cluster >> scale_cluster
     scale_cluster >> create_workflow_template >> trigger_workflow >> delete_cluster
+    scale_cluster >> create_workflow_yml_config_template >> trigger_workflow_yml_config >> delete_cluster
     scale_cluster >> hive_task >> delete_cluster
     scale_cluster >> pig_task >> delete_cluster
     scale_cluster >> spark_sql_task >> delete_cluster
@@ -249,6 +304,7 @@ with models.DAG("example_gcp_dataproc", schedule_interval='@once', start_date=da
     scale_cluster >> pyspark_task >> delete_cluster
     scale_cluster >> sparkr_task >> delete_cluster
     scale_cluster >> hadoop_task >> delete_cluster
+    delete_cluster >> create_cluster_using_yml >> delete_cluster_yml
 
     # Task dependency created via `XComArgs`:
     #   spark_task_async >> spark_task_async_sensor

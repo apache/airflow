@@ -189,6 +189,7 @@ class TestGoogleProviderProjectStructure(unittest.TestCase):
         'airflow.providers.google.cloud.operators.compute.ComputeEngineBaseOperator',
         'airflow.providers.google.cloud.operators.cloud_sql.CloudSQLBaseOperator',
         'airflow.providers.google.cloud.operators.dataproc.DataprocJobBaseOperator',
+        'airflow.providers.google.cloud.operators.dataproc.DataProcCreateWorkflowBaseOperator',
     }
 
     # Please at the examples to those operators at the earliest convenience :)

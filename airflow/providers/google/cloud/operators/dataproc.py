@@ -27,6 +27,12 @@ import uuid
 import warnings
 from datetime import datetime, timedelta
 from typing import Dict, List, Optional, Sequence, Set, Tuple, Union
+from urllib.parse import urlparse
+
+try:
+    import airflow.utils.yaml as yaml
+except ImportError:
+    import yaml
 
 from google.api_core.exceptions import AlreadyExists, NotFound
 from google.api_core.retry import Retry, exponential_sleep_generator
@@ -46,6 +52,101 @@ DATAPROC_JOB_LOG_LINK = DATAPROC_BASE_LINK + "/jobs/{job_id}?region={region}&pro
 DATAPROC_CLUSTER_LINK = (
     DATAPROC_BASE_LINK + "/clusters/{cluster_name}/monitoring?region={region}&project={project_id}"
 )
+
+
+class DataProcCreateWorkflowBaseOperator(BaseOperator):
+    """Helper class for preparing configs from workflow template"""
+
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+
+    def _template_has_placement(self):
+        return True if "placement" in self.template else False
+
+    def _template_is_managed_cluster(self):
+
+        if self._template_has_placement():
+            return True if "managed_cluster" in self.template["placement"] else False
+        else:
+            # Placement is required field in the template
+            raise KeyError("Placement is missing")
+
+    def _has_valid_config(self):
+        if self._template_is_managed_cluster():
+            # cluster templates can be of 2 types, managed_cluster or cluster_selector.
+            return True if "config" in self.template["placement"]["managed_cluster"] else False
+        else:
+            return False
+
+    def _is_config_path(self):
+        if self._has_valid_config():
+            return True if isinstance(self.template["placement"]["managed_cluster"]["config"], str) else False
+        else:
+            return False
+
+    def resolve_yml_temlate(self) -> None:
+
+        if self._is_config_path():
+            path = self.template["placement"]["managed_cluster"]["config"]
+            if urlparse(path).scheme == "gs":
+                config = self._build_cluster_config(path)
+
+                # Dataproc workflows do not accept life cycle_config
+                if "lifecycle_config" in config:
+                    self.log.info("Workflow does not accept lifecycle in config, removing it from config")
+                    config.pop("lifecycle_config", None)
+                self.template["placement"]["managed_cluster"]["config"] = config
+            else:
+                self.log.info(
+                    "Workflow Template config accepts only gcs path string or dictioanry type, "
+                    f"skipping build cluster config {path}"
+                )
+
+
+class DataprocClusterYMLConfigMixin:
+    """Common class for creating cluster config from yml file"""
+
+    def _build_cluster_config(self, config_path: str) -> dict:
+        def _timeout_or_value(value):
+
+            if not isinstance(value, str):
+                return value
+            match = re.match(r"^(\d+)([sm])$", value)
+
+            if match:
+                val = float(match.group(1))
+                if match.group(2) == "s":
+                    return {"seconds": int(val)}
+                elif match.group(2) == "m":
+                    return {"seconds": int(timedelta(minutes=val).total_seconds())}
+            else:
+                return value
+
+        def _snakify(config: dict) -> dict:
+            if isinstance(config, list):
+                return [_snakify(item) for item in config]
+            elif isinstance(config, dict):
+                return {
+                    str(re.sub(r"(?<!^)(?=[A-Z])", "_", key).lower()): (
+                        _snakify(value)
+                        if (isinstance(value, dict) or isinstance(value, list)) and key != 'properties'
+                        else _timeout_or_value(value)
+                    )
+                    for key, value in config.items()
+                }
+            else:
+                return _timeout_or_value(config)
+
+        parsed_url = urlparse(config_path)
+        bucket = parsed_url.netloc
+        key = parsed_url.path
+
+        yml_config = GCSHook(
+            gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain
+        ).download(bucket_name=bucket, object_name=key)
+        yml_dict = yaml.load(yml_config, Loader=yaml.FullLoader)
+        config = _snakify(yml_dict["config"])
+        return config
 
 
 class DataprocJobLink(BaseOperatorLink):
@@ -445,7 +546,7 @@ class ClusterGenerator:
         return self._build_cluster_data()
 
 
-class DataprocCreateClusterOperator(BaseOperator):
+class DataprocCreateClusterOperator(BaseOperator, DataprocClusterYMLConfigMixin):
     """
     Create a new cluster on Google Cloud Dataproc. The operator will wait until the
     creation is successful or an error occurs in the creation process. If the cluster
@@ -473,10 +574,11 @@ class DataprocCreateClusterOperator(BaseOperator):
     :type cluster_name: str
     :param labels: Labels that will be assigned to created cluster
     :type labels: Dict[str, str]
-    :param cluster_config: Required. The cluster config to create.
+    :param cluster_config: Required. The cluster config to create cluster.
+        Can be a dictionary or path to a YAML file on gcs.
         If a dict is provided, it must be of the same form as the protobuf message
-        :class:`~google.cloud.dataproc_v1.types.ClusterConfig`
-    :type cluster_config: Union[Dict, google.cloud.dataproc_v1.types.ClusterConfig]
+        :class:`~google.cloud.dataproc_v1.types.ClusterConfig`.
+    :type cluster_config: Union[Dict, google.cloud.dataproc_v1.types.ClusterConfig, str]
     :param region: The specified region where the dataproc cluster is created.
     :type region: str
     :param delete_on_error: If true the cluster will be deleted if created with ERROR state. Default
@@ -527,7 +629,7 @@ class DataprocCreateClusterOperator(BaseOperator):
         cluster_name: str,
         region: Optional[str] = None,
         project_id: Optional[str] = None,
-        cluster_config: Optional[Dict] = None,
+        cluster_config: Optional[Union[Dict, str]] = None,
         labels: Optional[Dict] = None,
         request_id: Optional[str] = None,
         delete_on_error: bool = True,
@@ -577,7 +679,6 @@ class DataprocCreateClusterOperator(BaseOperator):
 
         super().__init__(**kwargs)
 
-        self.cluster_config = cluster_config
         self.cluster_name = cluster_name
         self.labels = labels
         self.project_id = project_id
@@ -590,6 +691,7 @@ class DataprocCreateClusterOperator(BaseOperator):
         self.delete_on_error = delete_on_error
         self.use_if_exists = use_if_exists
         self.impersonation_chain = impersonation_chain
+        self.cluster_config = cluster_config
 
     def _create_cluster(self, hook: DataprocHook):
         operation = hook.create_cluster(
@@ -663,6 +765,16 @@ class DataprocCreateClusterOperator(BaseOperator):
         self.log.info('Creating cluster: %s', self.cluster_name)
         hook = DataprocHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain)
         # Save data required to display extra link no matter what the cluster status will be
+
+        if isinstance(self.cluster_config, str):
+            if urlparse(self.cluster_config).scheme == "gs":
+                self.cluster_config = self._build_cluster_config(self.cluster_config)
+            else:
+                self.log.info(
+                    "cluster_config accepts only gcs path string or dictionary type, "
+                    "skipping build cluster config from yml file"
+                )
+
         self.xcom_push(
             context,
             key="cluster_conf",
@@ -1627,7 +1739,9 @@ class DataprocSubmitPySparkJobOperator(DataprocJobBaseOperator):
         super().execute(context)
 
 
-class DataprocCreateWorkflowTemplateOperator(BaseOperator):
+class DataprocCreateWorkflowTemplateOperator(
+    DataProcCreateWorkflowBaseOperator, DataprocClusterYMLConfigMixin
+):
     """
     Creates new workflow template.
 
@@ -1691,6 +1805,7 @@ class DataprocCreateWorkflowTemplateOperator(BaseOperator):
     def execute(self, context):
         hook = DataprocHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain)
         self.log.info("Creating template")
+        self.resolve_yml_temlate()
         try:
             workflow = hook.create_workflow_template(
                 region=self.region,
@@ -1804,7 +1919,9 @@ class DataprocInstantiateWorkflowTemplateOperator(BaseOperator):
         self.log.info('Template instantiated.')
 
 
-class DataprocInstantiateInlineWorkflowTemplateOperator(BaseOperator):
+class DataprocInstantiateInlineWorkflowTemplateOperator(
+    DataProcCreateWorkflowBaseOperator, DataprocClusterYMLConfigMixin
+):
     """
     Instantiate a WorkflowTemplate Inline on Google Cloud Dataproc. The operator will
     wait until the WorkflowTemplate is finished executing.
@@ -1884,6 +2001,9 @@ class DataprocInstantiateInlineWorkflowTemplateOperator(BaseOperator):
     def execute(self, context):
         self.log.info('Instantiating Inline Template')
         hook = DataprocHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain)
+
+        self.resolve_yml_temlate()
+
         operation = hook.instantiate_inline_workflow_template(
             template=self.template,
             project_id=self.project_id,

@@ -17,8 +17,13 @@
 # under the License.
 import pytest
 
-from airflow.providers.google.cloud.example_dags.example_dataproc import BUCKET, PYSPARK_MAIN, SPARKR_MAIN
-from tests.providers.google.cloud.utils.gcp_authenticator import GCP_DATAPROC_KEY
+from airflow.providers.google.cloud.example_dags.example_dataproc import (
+    BUCKET,
+    PYSPARK_MAIN,
+    SPARKR_MAIN,
+    YML_CONFIG_FILE,
+)
+from tests.providers.google.cloud.utils.gcp_authenticator import GCP_DATAPROC_KEY, GCP_GCS_KEY
 from tests.test_utils.gcp_system_helpers import CLOUD_DAG_FOLDER, GoogleSystemTest, provide_gcp_context
 
 GCS_URI = f"gs://{BUCKET}"
@@ -44,6 +49,22 @@ df <- as.DataFrame(faithful)
 head(summarize(groupBy(df, df$waiting), count = n(df$waiting)))
 """
 
+yml_config_file = """
+config:
+  master_config:
+  disk_config:
+      boot_disk_size_gb: 1024
+      boot_disk_type: pd-standard
+  machine_type_uri: n1-standard-4
+  num_instances: 1
+  worker_config:
+  disk_config:
+      boot_disk_size_gb: 1024
+      boot_disk_type: pd-standard
+  machine_type_uri: n1-standard-4
+  num_instances: 2
+"""
+
 
 @pytest.mark.backend("mysql", "postgres")
 @pytest.mark.credential_file(GCP_DATAPROC_KEY)
@@ -54,6 +75,7 @@ class DataprocExampleDagsTest(GoogleSystemTest):
         self.create_gcs_bucket(BUCKET)
         self.upload_content_to_gcs(lines=pyspark_file, bucket=GCS_URI, filename=PYSPARK_MAIN)
         self.upload_content_to_gcs(lines=sparkr_file, bucket=GCS_URI, filename=SPARKR_MAIN)
+        self.upload_content_to_gcs(lines=yml_config_file, bucket=GCS_URI, filename=YML_CONFIG_FILE)
 
     @provide_gcp_context(GCP_DATAPROC_KEY)
     def tearDown(self):
@@ -61,5 +83,6 @@ class DataprocExampleDagsTest(GoogleSystemTest):
         super().tearDown()
 
     @provide_gcp_context(GCP_DATAPROC_KEY)
+    @provide_gcp_context(GCP_GCS_KEY)
     def test_run_example_dag(self):
         self.run_dag(dag_id="example_gcp_dataproc", dag_folder=CLOUD_DAG_FOLDER)
