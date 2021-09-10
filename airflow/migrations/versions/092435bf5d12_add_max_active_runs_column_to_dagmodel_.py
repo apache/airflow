@@ -19,7 +19,7 @@
 """Add max_active_runs column to dagmodel table
 
 Revision ID: 092435bf5d12
-Revises: 142555e44c17
+Revises: 97cdd93827b8
 Create Date: 2021-09-06 21:29:24.728923
 
 """
@@ -30,7 +30,7 @@ from sqlalchemy import text
 
 # revision identifiers, used by Alembic.
 revision = '092435bf5d12'
-down_revision = '7b2661a43ba3'
+down_revision = '97cdd93827b8'
 branch_labels = None
 depends_on = None
 
