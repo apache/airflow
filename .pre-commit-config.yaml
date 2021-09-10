@@ -508,16 +508,16 @@ repos:
         # Keep dependency versions in sync w/ airflow/www/package.json
         additional_dependencies: ['stylelint@13.3.1', 'stylelint-config-standard@20.0.0']
       - id: providers-init-file
-        name: Provider init file
+        name: Provider init file is missing
         pass_filenames: false
         always_run: true
         entry: ./scripts/ci/pre_commit/pre_commit_check_providers_init.sh
         language: system
-      - id: providers-example-dags-init-file
-        name: Provider example_dags init file
+      - id: providers-subpackages-init-file
+        name: Provider subpackage init files are there
         pass_filenames: false
         always_run: true
-        entry: ./scripts/ci/pre_commit/pre_commit_check_providers_example_dag_init.py
+        entry: ./scripts/ci/pre_commit/pre_commit_check_providers_subpackages_all_have_init.py
         language: python
         require_serial: true
       - id: provider-yamls
