@@ -15,7 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from airflow.decorators.python import PythonDecoratorMixin
+from airflow.decorators.python import PythonDecoratorMixin, python_task
 from airflow.decorators.python_virtualenv import PythonVirtualenvDecoratorMixin
 from airflow.decorators.task_group import task_group  # noqa
 from airflow.exceptions import AirflowException
