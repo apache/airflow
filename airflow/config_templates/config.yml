@@ -1293,6 +1293,14 @@
       type: string
       example: ~
       default:
+    - name: auto_refresh_interval
+      description: |
+        How frequently, in seconds, the DAG data will auto-refresh in graph or tree view
+        when auto-refresh is turned on
+      version_added: 2.2.0
+      type: integer
+      example: ~
+      default: "3"
 
 - name: email
   description: |

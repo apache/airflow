@@ -2292,6 +2292,7 @@ class Airflow(AirflowBaseView):
             show_external_log_redirect=task_log_reader.supports_external_link,
             external_log_name=external_log_name,
             dag_model=dag_model,
+            auto_refresh_interval=conf.getint('webserver', 'auto_refresh_interval'),
         )
 
     @expose('/calendar')
@@ -2459,6 +2460,7 @@ class Airflow(AirflowBaseView):
             external_log_name=external_log_name,
             dag_run_state=dt_nr_dr_data['dr_state'],
             dag_model=dag_model,
+            auto_refresh_interval=conf.getint('webserver', 'auto_refresh_interval'),
         )
 
     @expose('/duration')
