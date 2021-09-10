@@ -3269,25 +3269,25 @@ class TestSchedulerJobQueriesCount:
         dagbag = DagBag(dag_folder=dag_file, include_examples=False, read_dags_from_db=False)
         dagbag.sync_to_db()
 
-        self.scheduler_job_job = SchedulerJob(subdir=os.devnull)
-        self.scheduler_job_job.processor_agent = mock.MagicMock()
-        dag = self.scheduler_job_job.dagbag.get_dag("test_only_dummy_tasks")
+        self.scheduler_job = SchedulerJob(subdir=os.devnull)
+        self.scheduler_job.processor_agent = mock.MagicMock()
+        dag = self.scheduler_job.dagbag.get_dag("test_only_dummy_tasks")
 
         # Create DagRun
         session = settings.Session()
         orm_dag = session.query(DagModel).get(dag.dag_id)
-        self.scheduler_job_job._create_dag_runs([orm_dag], session)
+        self.scheduler_job._create_dag_runs([orm_dag], session)
 
         drs = DagRun.find(dag_id=dag.dag_id, session=session)
         assert len(drs) == 1
         dr = drs[0]
 
         # Schedule TaskInstances
-        self.scheduler_job_job._schedule_dag_run(dr, session)
+        self.scheduler_job._schedule_dag_run(dr, session)
         with create_session() as session:
             tis = session.query(TaskInstance).all()
 
-        dags = self.scheduler_job_job.dagbag.dags.values()
+        dags = self.scheduler_job.dagbag.dags.values()
         assert ['test_only_dummy_tasks'] == [dag.dag_id for dag in dags]
         assert 5 == len(tis)
         assert {
@@ -3309,7 +3309,7 @@ class TestSchedulerJobQueriesCount:
                 assert end_date is None
                 assert duration is None
 
-        self.scheduler_job_job._schedule_dag_run(dr, session)
+        self.scheduler_job._schedule_dag_run(dr, session)
         with create_session() as session:
             tis = session.query(TaskInstance).all()
 
