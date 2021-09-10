@@ -954,7 +954,7 @@ class SchedulerJob(BaseJob):
             unfinished_task_instances = (
                 session.query(TI)
                 .filter(TI.dag_id == dag_run.dag_id)
-                .filter(TI.execution_date == dag_run.execution_date)
+                .filter(TI.run_id == dag_run.run_id)
                 .filter(TI.state.in_(State.unfinished))
             )
             for task_instance in unfinished_task_instances:
