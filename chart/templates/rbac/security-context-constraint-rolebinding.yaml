@@ -16,10 +16,10 @@
 # under the License.
 
 ################################
-## Airflow Pod Reader Role Binding
+## Airflow SCC Role Binding
 #################################
 {{- if and .Values.rbac.create .Values.rbac.createSCCRoleBinding }}
-{{- $schedulerLaunchExecutors := list "LocalExecutor" "KubernetesExecutor" "CeleryKubernetesExecutor" }}
+{{- $schedulerLaunchExecutors := list "LocalExecutor" "CeleryExecutor" "KubernetesExecutor" "CeleryKubernetesExecutor" }}
 {{- $workerLaunchExecutors := list "CeleryExecutor" "KubernetesExecutor" "CeleryKubernetesExecutor" }}
 {{- if .Values.multiNamespaceMode }}
 kind: ClusterRoleBinding
@@ -45,28 +45,32 @@ roleRef:
   kind: ClusterRole
   name: system:openshift:scc:anyuid
 subjects:
+{{- if .Values.webserver.serviceAccount.create }}
   - kind: ServiceAccount
     name: {{ include "webserver.serviceAccountName" . }}
     namespace: {{ .Release.Namespace }}
-{{- if has .Values.executor $workerLaunchExecutors }}
+{{- end }} 
+{{- if and (has .Values.executor $workerLaunchExecutors) .Values.workers.serviceAccount.create }}
   - kind: ServiceAccount
     name: {{ include "worker.serviceAccountName" . }}
     namespace: {{ .Release.Namespace }}
 {{- end }}
-{{- if has .Values.executor $schedulerLaunchExecutors }}
+{{- if and (has .Values.executor $schedulerLaunchExecutors) .Values.scheduler.serviceAccount.create }}
   - kind: ServiceAccount
     name: {{ include "scheduler.serviceAccountName" . }}
     namespace: {{ .Release.Namespace }}
 {{- end }}
-{{- if .Values.statsd.enabled }}
+{{- if and .Values.statsd.enabled .Values.statsd.serviceAccount.create }}
   - kind: ServiceAccount
     name: {{ include "statsd.serviceAccountName" . }}
     namespace: {{ .Release.Namespace }}
 {{- end }}
+{{- if and .Values.flower.enabled (or (eq .Values.executor "CeleryExecutor") (eq .Values.executor "CeleryKubernetesExecutor")) .Values.flower.serviceAccount.create }}
   - kind: ServiceAccount
     name: {{ include "flower.serviceAccountName" . }}
     namespace: {{ .Release.Namespace }}
-{{- if and (semverCompare ">=2.2.0" .Values.airflowVersion) (.Values.triggerer.serviceAccount.create ) }}
+{{- end}}
+{{- if and (semverCompare ">=2.2.0" .Values.airflowVersion) .Values.triggerer.serviceAccount.create }}
   - kind: ServiceAccount
     name: {{ include "triggerer.serviceAccountName" . }}
     namespace: {{ .Release.Namespace }}
@@ -81,7 +85,7 @@ subjects:
     name: {{ include "createUserJob.serviceAccountName" . }}
     namespace: {{ .Release.Namespace }}
 {{- end }}
-{{- if .Values.cleanup.enabled }}
+{{- if and .Values.cleanup.enabled .Values.cleanup.serviceAccount.create }}
   - kind: ServiceAccount
     name: {{ include "cleanup.serviceAccountName" . }}
     namespace: {{ .Release.Namespace }}
