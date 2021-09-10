@@ -18,7 +18,7 @@
 ################################
 ## Airflow Pod Reader Role Binding
 #################################
-{{- if and .Values.rbac.create .Values.webserver.allowPodLogReading .Values.rbac.securityContextConstraint.create }}
+{{- if and .Values.rbac.create .Values.rbac.createSCCRoleBindings }}
 {{- if .Values.multiNamespaceMode }}
 kind: ClusterRoleBinding
 {{- else }}
@@ -40,11 +40,7 @@ metadata:
 {{- end }}
 roleRef:
   apiGroup: rbac.authorization.k8s.io
-{{- if .Values.multiNamespaceMode }}
   kind: ClusterRole
-{{- else }}
-  kind: ClusterRole
-{{- end }}
   name: system:openshift:scc:anyuid
 subjects:
   - kind: ServiceAccount
