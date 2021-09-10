@@ -1668,22 +1668,24 @@ class TestSchedulerJob:
         with dag_maker(
             dag_id='test_scheduler_keeps_scheduling_pool_full_d1',
             start_date=DEFAULT_DATE,
-        ) as dag_d1:
+        ):
             BashOperator(
                 task_id='test_scheduler_keeps_scheduling_pool_full_t1',
                 pool='test_scheduler_keeps_scheduling_pool_full_p1',
                 bash_command='echo hi',
             )
+        dag_d1 = dag_maker.dag
 
         with dag_maker(
             dag_id='test_scheduler_keeps_scheduling_pool_full_d2',
             start_date=DEFAULT_DATE,
-        ) as dag_d2:
+        ):
             BashOperator(
                 task_id='test_scheduler_keeps_scheduling_pool_full_t2',
                 pool='test_scheduler_keeps_scheduling_pool_full_p2',
                 bash_command='echo hi',
             )
+        dag_d2 = dag_maker.dag
 
         session = settings.Session()
         pool_p1 = Pool(pool='test_scheduler_keeps_scheduling_pool_full_p1', slots=1)
