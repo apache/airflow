@@ -1663,7 +1663,12 @@ class Airflow(AirflowBaseView):
             flash("Invalid execution date", "error")
             form = DateTimeForm(data={'execution_date': timezone.utcnow().isoformat()})
             return self.render_template(
-                'airflow/trigger.html', dag_id=dag_id, origin=origin, conf=request_conf, form=form
+                'airflow/trigger.html',
+                dag_id=dag_id,
+                origin=origin,
+                conf=request_conf,
+                form=form,
+                is_dag_run_conf_overrides_params=is_dag_run_conf_overrides_params,
             )
 
         dr = DagRun.find(dag_id=dag_id, execution_date=execution_date, run_type=DagRunType.MANUAL)
@@ -1679,13 +1684,23 @@ class Airflow(AirflowBaseView):
                     flash("Invalid JSON configuration, must be a dict", "error")
                     form = DateTimeForm(data={'execution_date': execution_date})
                     return self.render_template(
-                        'airflow/trigger.html', dag_id=dag_id, origin=origin, conf=request_conf, form=form
+                        'airflow/trigger.html',
+                        dag_id=dag_id,
+                        origin=origin,
+                        conf=request_conf,
+                        form=form,
+                        is_dag_run_conf_overrides_params=is_dag_run_conf_overrides_params,
                     )
             except json.decoder.JSONDecodeError:
                 flash("Invalid JSON configuration, not parseable", "error")
                 form = DateTimeForm(data={'execution_date': execution_date})
                 return self.render_template(
-                    'airflow/trigger.html', dag_id=dag_id, origin=origin, conf=request_conf, form=form
+                    'airflow/trigger.html',
+                    dag_id=dag_id,
+                    origin=origin,
+                    conf=request_conf,
+                    form=form,
+                    is_dag_run_conf_overrides_params=is_dag_run_conf_overrides_params,
                 )
 
         dag = current_app.dag_bag.get_dag(dag_id)
