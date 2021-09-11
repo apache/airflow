@@ -26,6 +26,7 @@ Bug Fixes
 - Improve discoverability of Provider packages' functionality
 - Do not let ``create_dagrun`` overwrite explicit ``run_id`` (#17728)
 - BugFix: Regression on pid reset to allow task start after heartbeat (#17333)
+- Set task state to failed when pod is DELETED while running (#18095)
 
 Doc only changes
 """"""""""""""""
