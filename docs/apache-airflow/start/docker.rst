@@ -117,7 +117,7 @@ Setting the right Airflow user
 ------------------------------
 
 On **Linux**, the quick-start needs to know your host user id and needs to have group id set to ``0``.
-Otherwise the files created in ``dags``, ``logs`` and ``plugins`` will be created with ``root`` iser.
+Otherwise the files created in ``dags``, ``logs`` and ``plugins`` will be created with ``root`` user.
 You have to make sure to configure them for the docker-compose:
 
 .. code-block:: bash
