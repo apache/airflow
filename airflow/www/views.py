@@ -3320,28 +3320,38 @@ class ConnectionModelView(AirflowModelView):
             else:
                 new_conn_id += '_copy1'
 
-            dup_conn = Connection(
-                new_conn_id,
-                selected_conn.conn_type,
-                selected_conn.description,
-                selected_conn.host,
-                selected_conn.login,
-                selected_conn.password,
-                selected_conn.schema,
-                selected_conn.port,
-                selected_conn.extra,
-            )
-
-            try:
-                session.add(dup_conn)
-                session.commit()
-                flash(f"Connection {new_conn_id} added successfully.", "success")
-            except IntegrityError:
+            # Before creating a new connection
+            # Query to see if connection exists.
+            connection = session.query(Connection).filter(Connection.conn_id == new_conn_id).one_or_none()
+            if connection is not None:
                 flash(
-                    f"Connection {new_conn_id} can't be added. Integrity error, probably unique constraint.",
+                    f"Connection {new_conn_id} can't be added because it lready exists",
                     "warning",
                 )
-                session.rollback()
+            else:
+
+                dup_conn = Connection(
+                    new_conn_id,
+                    selected_conn.conn_type,
+                    selected_conn.description,
+                    selected_conn.host,
+                    selected_conn.login,
+                    selected_conn.password,
+                    selected_conn.schema,
+                    selected_conn.port,
+                    selected_conn.extra,
+                )
+
+                try:
+                    session.add(dup_conn)
+                    session.commit()
+                    flash(f"Connection {new_conn_id} added successfully.", "success")
+                except IntegrityError:
+                    flash(
+                        f"Connection {new_conn_id} can't be added. Integrity error, probably unique constraint.",
+                        "warning",
+                    )
+                    session.rollback()
 
         self.update_redirect()
         return redirect(self.get_redirect())
