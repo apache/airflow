@@ -80,10 +80,10 @@ distribution directory and follow the below guide.
 
 Example:
 
-.. code-block:: bash
+.. code-block:: console
     :substitutions:
 
-    ❯ gpg --verify apache-airflow-|version|-source.tar.gz.asc apache-airflow-|version|-source.tar.gz
+    $ gpg --verify apache-airflow-|version|-source.tar.gz.asc apache-airflow-|version|-source.tar.gz
       gpg: Signature made Sat 11 Sep 12:49:54 2021 BST
       gpg:                using RSA key CDE15C6E4D3A8EC4ECF4BA4B6674E08AD7DE406F
       gpg:                issuer "kaxilnaik@apache.org"
@@ -98,11 +98,13 @@ Do not worry about the "not certified with a trusted signature" warning. Most of
 by release managers are self signed, that's why you get this warning. By importing the server in the
 previous step and importing it via ID from ``KEYS`` page, you know that this is a valid Key already.
 
-For SHA512 sum check, download the relevant sha512 and run the following:
+For SHA512 sum check, download the relevant ``sha512`` and run the following:
 
 .. code-block:: bash
 
     shasum -a 512 apache-airflow--********  | diff - apache-airflow--********.sha512
+
+The ``SHASUM`` of the file should match the one provided in ``.sha512`` file.
 
 Example:
 
