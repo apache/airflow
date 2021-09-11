@@ -1172,12 +1172,10 @@ class BaseOperator(Operator, LoggingMixin, TaskMixin, metaclass=BaseOperatorMeta
                         self.log.exception(e)
                 elif isinstance(content, list):
                     env = self.dag.get_template_env()
-                    for i in range(len(content)):
-                        if isinstance(content[i], str) and any(
-                            content[i].endswith(ext) for ext in self.template_ext
-                        ):
+                    for i, item in enumerate(content):
+                        if isinstance(item, str) and any(item.endswith(ext) for ext in self.template_ext):
                             try:
-                                content[i] = env.loader.get_source(env, content[i])[0]
+                                content[i] = env.loader.get_source(env, item)[0]
                             except Exception as e:
                                 self.log.exception(e)
         self.prepare_template()
