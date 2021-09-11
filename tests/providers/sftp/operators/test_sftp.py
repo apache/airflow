@@ -665,7 +665,6 @@ class TestSFTPOperator(unittest.TestCase):
         if os.path.exists(self.test_remote_filepath_int_dir):
             os.remove(self.test_remote_filepath_int_dir)
         if os.path.exists(self.test_remote_dir):
-            import shutil
 
             shutil.rmtree(self.test_remote_dir)
 
