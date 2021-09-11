@@ -424,7 +424,9 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
         """Determines whether a user has DAG read access."""
         if not user:
             user = g.user
-        dag_resource_name = permissions.resource_name_for_dag(dag_id)
+        # To account for SubDags
+        root_dag_id = dag_id.split(".")[0]
+        dag_resource_name = permissions.resource_name_for_dag(root_dag_id)
         return self._has_access(
             user, permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG
         ) or self._has_access(user, permissions.ACTION_CAN_READ, dag_resource_name)
@@ -433,7 +435,9 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
         """Determines whether a user has DAG edit access."""
         if not user:
             user = g.user
-        dag_resource_name = permissions.resource_name_for_dag(dag_id)
+        # To account for SubDags
+        root_dag_id = dag_id.split(".")[0]
+        dag_resource_name = permissions.resource_name_for_dag(root_dag_id)
 
         return self._has_access(
             user, permissions.ACTION_CAN_EDIT, permissions.RESOURCE_DAG
@@ -485,15 +489,11 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
 
         has_access = self._has_access(user, action_name, resource_name)
         # FAB built-in view access method. Won't work for AllDag access.
-        # breakpoint()
         if self.is_dag_resource(resource_name):
-            root_dag_resource_name = resource_name.split(".")[0]
             if action_name == permissions.ACTION_CAN_READ:
                 has_access |= self.can_read_dag(resource_name, user)
-                has_access |= self.can_read_dag(root_dag_resource_name, user)
             elif action_name == permissions.ACTION_CAN_EDIT:
                 has_access |= self.can_edit_dag(resource_name, user)
-                has_access |= self.can_edit_dag(root_dag_resource_name, user)
 
         return has_access
 
