@@ -250,13 +250,13 @@ also performs image verification before pushing the images.
 Subject:
 
 ```
-[VOTE] Airflow 2.0.2rc3
+[VOTE] Release Airflow 2.0.2 from 2.0.2rc1
 ```
 
 Body:
 
 ```
-Hey all,
+Hey fellow Airflowers,
 
 I have cut Airflow 2.0.2 RC3. This email is calling a vote on the release,
 which will last for 72 hours. Consider this my (binding) +1.
@@ -264,23 +264,30 @@ which will last for 72 hours. Consider this my (binding) +1.
 Airflow 2.0.2 RC3 is available at:
 https://dist.apache.org/repos/dist/dev/airflow/2.0.2rc3/
 
-*apache-airflow-2.0.2rc3-source.tar.gz* is a source release that comes
-with INSTALL instructions.
-*apache-airflow-2.0.2rc3-bin.tar.gz* is the binary Python "sdist" release.
+*apache-airflow-2.0.2-source.tar.gz* is a source release that comes with INSTALL instructions.
+*apache-airflow-2.0.2.tar.gz* is the binary Python "sdist" release.
+*apache_airflow-2.0.2-py3-none-any.wh*l is the binary Python wheel "binary" release.
 
 Public keys are available at:
 https://dist.apache.org/repos/dist/release/airflow/KEYS
+
+Please vote accordingly:
+
+[ ] +1 approve
+[ ] +0 no opinion
+[ ] -1 disapprove with the reason
 
 Only votes from PMC members are binding, but the release manager should encourage members of the community
 to test the release and vote with "(non-binding)".
 
 The test procedure for PMCs and Contributors who would like to test this RC are described in
-https://github.com/apache/airflow/blob/main/dev/README.md#vote-and-verify-the-apache-airflow-release-candidate
+https://github.com/apache/airflow/blob/main/dev/README_RELEASE_AIRFLOW.md#verify-the-release-candidate-by-pmcs
 
 Please note that the version number excludes the `rcX` string, so it's now
 simply 2.0.2. This will allow us to rename the artifact without modifying
 the artifact checksums when we actually release.
 
+Full Changelog: (https://github.com/apache/airflow/blob/2.0.2rc3/CHANGELOG.txt).
 
 Changes since 2.0.2rc2:
 *Bugs*:
