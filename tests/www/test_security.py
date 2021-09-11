@@ -100,7 +100,15 @@ class TestSecurity(unittest.TestCase):
 
     @classmethod
     def delete_roles(cls):
-        for role_name in ['team-a', 'MyRole1', 'MyRole5', 'Test_Role', 'MyRole3', 'MyRole2', 'dag_permission_role']:
+        for role_name in [
+            'team-a',
+            'MyRole1',
+            'MyRole5',
+            'Test_Role',
+            'MyRole3',
+            'MyRole2',
+            'dag_permission_role',
+        ]:
             api_connexion_utils.delete_role(cls.app, role_name)
 
     def expect_user_is_in_role(self, user, rolename):
@@ -673,10 +681,15 @@ class TestSecurity(unittest.TestCase):
         role_name = 'dag_permission_role'
         parent_dag_name = "parent_dag"
         with self.app.app_context():
-            mock_roles = [{'role': role_name, 'perms': [
-                    (permissions.ACTION_CAN_READ, f"DAG:{parent_dag_name}"),
-                    (permissions.ACTION_CAN_EDIT, f"DAG:{parent_dag_name}"),
-                ]}]
+            mock_roles = [
+                {
+                    'role': role_name,
+                    'perms': [
+                        (permissions.ACTION_CAN_READ, f"DAG:{parent_dag_name}"),
+                        (permissions.ACTION_CAN_EDIT, f"DAG:{parent_dag_name}"),
+                    ],
+                }
+            ]
             user = api_connexion_utils.create_user(
                 self.app,
                 username,
@@ -688,4 +701,6 @@ class TestSecurity(unittest.TestCase):
             )
             self.assert_user_has_dag_perms(perms=READ_WRITE, dag_id=parent_dag_name, user=user)
             self.assert_user_has_dag_perms(perms=READ_WRITE, dag_id=parent_dag_name + ".subdag", user=user)
-            self.assert_user_has_dag_perms(perms=READ_WRITE, dag_id=parent_dag_name + ".subdag.subsubdag", user=user)
+            self.assert_user_has_dag_perms(
+                perms=READ_WRITE, dag_id=parent_dag_name + ".subdag.subsubdag", user=user
+            )
