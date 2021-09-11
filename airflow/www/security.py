@@ -485,7 +485,7 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
 
         has_access = self._has_access(user, action_name, resource_name)
         # FAB built-in view access method. Won't work for AllDag access.
-
+        # breakpoint()
         if self.is_dag_resource(resource_name):
             root_dag_resource_name = resource_name.split(".")[0]
             if action_name == permissions.ACTION_CAN_READ:
