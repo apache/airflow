@@ -110,9 +110,15 @@ apt packages and more can be found in :doc:`Building the image <docker-stack:bui
 Initializing Environment
 ========================
 
-Before starting Airflow for the first time, You need to prepare your environment, i.e. create the necessary files, directories and initialize the database.
+Before starting Airflow for the first time, You need to prepare your environment, i.e. create the necessary
+files, directories and initialize the database.
 
-On **all operating systems**, the quick-start needs to know your host user id and needs to have group id set to ``0``. You have to make sure to configure them for the docker-compose:
+Setting the right Airflow user
+------------------------------
+
+On **Linux**, the quick-start needs to know your host user id and needs to have group id set to ``0``.
+Otherwise the files created in ``dags``, ``logs`` and ``plugins`` will be created with ``root`` iser.
+You have to make sure to configure them for the docker-compose:
 
 .. code-block:: bash
 
@@ -120,6 +126,18 @@ On **all operating systems**, the quick-start needs to know your host user id an
     echo -e "AIRFLOW_UID=$(id -u)\nAIRFLOW_GID=0" > .env
 
 See :ref:`Docker Compose environment variables <docker-compose-env-variables>`
+
+For other operating systems, you will get warning that ``AIRFLOW_UID`` is not set, but you can
+ignore it. You can also manually create the ``.env`` file in the same folder your
+``docker-compose.yaml`` is placed with this content to get rid of the warning:
+
+.. code-block:: text
+
+  AIRFLOW_UID=50000
+  AIRFLOW_GID=0
+
+Initialize the database
+-----------------------
 
 On **all operating systems**, you need to run database migrations and create the first user account. To do it, run.
 
