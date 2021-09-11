@@ -43,6 +43,7 @@
   - [Publish documentation](#publish-documentation)
   - [Notify developers of release](#notify-developers-of-release)
   - [Update Announcements page](#update-announcements-page)
+  - [Update airflow/config_templates/config.yml file](#update-airflowconfig_templatesconfigyml-file)
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
 
@@ -745,3 +746,15 @@ EOF
 ## Update Announcements page
 
 Update "Announcements" page at the [Official Airflow website](https://airflow.apache.org/announcements/)
+
+## Update airflow/config_templates/config.yml file
+
+File `airflow/config_templates/config.yml` contains documentation on all configuration options available in Airflow. The `version_added` fields must be updated when a new Airflow version is released.
+
+- Get a diff between the released versions and the current local file on `main` branch:
+
+    ```shell script
+    ./dev/validate_version_added_fields_in_config.py
+    ```
+
+- Update `airflow/config_templates/config.yml` with the details, and commit it.
