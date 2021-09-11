@@ -34,7 +34,6 @@ Content
     :caption: References
 
     Python API <_api/airflow/providers/influxdb/index>
-    Python API <_api/influxdb/index>
 
 .. toctree::
     :maxdepth: 1
