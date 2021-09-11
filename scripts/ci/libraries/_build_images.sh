@@ -713,7 +713,7 @@ function build_images::prepare_prod_build() {
     elif [[ -n "${INSTALL_AIRFLOW_VERSION=}" ]]; then
         # When --install-airflow-version is used then the image is build using released PIP package
         # For PROD image only numeric versions are allowed and RC candidates
-        if [[ ! ${INSTALL_AIRFLOW_VERSION} =~ ^[0-9\.]+(rc[0-9]+)?$ ]]; then
+        if [[ ! ${INSTALL_AIRFLOW_VERSION} =~ ^[0-9\.]+((a|b|rc|alpha|beta|pre)[0-9]+)?$ ]]; then
             echo
             echo  "${COLOR_RED}ERROR: Bad value for install-airflow-version: '${INSTALL_AIRFLOW_VERSION}'. Only numerical versions allowed for PROD image here'!${COLOR_RESET}"
             echo
