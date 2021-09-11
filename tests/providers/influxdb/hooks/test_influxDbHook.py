@@ -46,3 +46,11 @@ class TestInfluxDbHookConn(unittest.TestCase):
         assert self.influxdb_hook.get_connection.return_value.host == 'localhost'
 
         assert self.influxdb_hook.get_client is not None
+
+    def test_query(self):
+
+        self.influxdb_hook.get_connection = mock.Mock()
+        self.influxdb_hook.get_conn().query_api = mock.Mock()
+
+        self.influxdb_hook.get_conn().query_api.query('SELECT "duration" FROM "pyexample"')
+        assert self.influxdb_hook.get_conn().query_api.query.assert_called_with('test')
