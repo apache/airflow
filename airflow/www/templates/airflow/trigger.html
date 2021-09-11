@@ -47,6 +47,9 @@
     </div>
     <p>
       To access configuration in your DAG use <code>{{ '{{ dag_run.conf }}' }}</code>.
+      {% if is_dag_run_conf_overrides_params %}
+        Alternatively, you can use <code>{{ '{{ params }}' }}</code> as well to access these.
+      {% endif %}
     </p>
     <div class="form-group">
       <label class="switch-label">

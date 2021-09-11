@@ -1625,6 +1625,7 @@ class Airflow(AirflowBaseView):
         unpause = request.values.get('unpause')
         request_conf = request.values.get('conf')
         request_execution_date = request.values.get('execution_date', default=timezone.utcnow().isoformat())
+        is_dag_run_conf_overrides_params = conf.getboolean('core', 'dag_run_conf_overrides_params')
 
         if request.method == 'GET':
             # Populate conf textarea with conf requests parameter, or dag.params
@@ -1648,6 +1649,7 @@ class Airflow(AirflowBaseView):
                 conf=default_conf,
                 doc_md=doc_md,
                 form=form,
+                is_dag_run_conf_overrides_params=is_dag_run_conf_overrides_params,
             )
 
         dag_orm = session.query(models.DagModel).filter(models.DagModel.dag_id == dag_id).first()
