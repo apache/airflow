@@ -57,11 +57,15 @@ main distribution directory and not from the mirrors.
 
     gpg -i KEYS
 
-    or
+or
+
+.. code-block:: bash
 
     pgpk -a KEYS
 
-    or
+or
+
+.. code-block:: bash
 
     pgp -ka KEYS
 
@@ -72,11 +76,15 @@ distribution directory and follow the below guide.
 
     gpg --verify apache-airflow-********.asc apache-airflow-*********
 
-    or
+or
+
+.. code-block:: bash
 
     pgpv apache-airflow-********.asc
 
-    or
+or
+
+.. code-block:: bash
 
     pgp apache-airflow-********.asc
 
