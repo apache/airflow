@@ -374,6 +374,11 @@ if PACKAGE_NAME == 'apache-airflow':
                 'http://apache-airflow-docs.s3-website.eu-central-1.amazonaws.com/docs/apache-airflow/latest/'
             )
         },
+        'official_download_page': {
+            'base_url': f'https://downloads.apache.org/airflow/{PACKAGE_VERSION}',
+            'closer_lua_url': f'https://www.apache.org/dyn/closer.lua/airflow/{PACKAGE_VERSION}',
+            'airflow_version': PACKAGE_VERSION,
+        },
     }
 elif PACKAGE_NAME.startswith('apache-airflow-providers-'):
 
