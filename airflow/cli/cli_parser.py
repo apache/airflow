@@ -62,15 +62,15 @@ class DefaultHelpParser(argparse.ArgumentParser):
         if action.dest == 'subcommand' and value == 'celery':
             executor = conf.get('core', 'EXECUTOR')
             if executor not in (CELERY_EXECUTOR, CELERY_KUBERNETES_EXECUTOR):
-                executor_cls = import_string(ExecutorLoader.executors.get(executor, executor))
+                executor_cls, _ = ExecutorLoader.import_executor_cls(executor)
                 if not issubclass(
                     executor_cls,
                     (celery_executor.CeleryExecutor, celery_kubernetes_executor.CeleryKubernetesExecutor),
                 ):
                     message = (
                         f'celery subcommand works only with CeleryExecutor, CeleryKubernetesExecutor and '
-                        f'executors derived from them, your current executor: {executor}. '
-                        f'Your current executor class hierarchy: {type(executor_cls).mro()}'
+                        f'executors derived from them, your current executor: {executor}, subclassed from: '
+                        f'{", ".join([base_cls.__qualname__ for base_cls in executor_cls.__bases__])}'
                     )
                     raise ArgumentError(action, message)
         if action.dest == 'subcommand' and value == 'kubernetes':

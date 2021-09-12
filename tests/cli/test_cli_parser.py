@@ -207,7 +207,7 @@ class TestCli(TestCase):
         assert (
             "airflow command error: argument GROUP_OR_COMMAND: celery subcommand "
             "works only with CeleryExecutor, CeleryKubernetesExecutor and executors derived from them, "
-            "your current executor: SequentialExecutor"
+            "your current executor: SequentialExecutor, subclassed from: BaseExecutor, see help above."
         ) in stderr
 
     @parameterized.expand(
