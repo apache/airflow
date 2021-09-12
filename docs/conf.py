@@ -176,6 +176,11 @@ if PACKAGE_NAME == 'apache-airflow':
         'README.rst',
     ]
 elif PACKAGE_NAME.startswith('apache-airflow-providers-'):
+    extensions.extend(
+        [
+            'sphinxcontrib.jinja',
+        ]
+    )
     exclude_patterns = ['operators/_partials']
 else:
     exclude_patterns = []
@@ -392,9 +397,16 @@ elif PACKAGE_NAME.startswith('apache-airflow-providers-'):
             return yaml.load(f, SafeLoader)
 
     config = _load_config()
-    if config:
-        jinja_contexts = {'config_ctx': {"configs": config}}
-        extensions.append('sphinxcontrib.jinja')
+    jinja_contexts = {
+        'config_ctx': {"configs": config},
+        'official_download_page': {
+            'base_url': 'https://downloads.apache.org/airflow/providers',
+            'closer_lua_url': 'https://www.apache.org/dyn/closer.lua/airflow/providers',
+            'package_name': PACKAGE_NAME,
+            'package_name_underscores': PACKAGE_NAME.replace('-', '_'),
+            'package_version': PACKAGE_VERSION,
+        },
+    }
 elif PACKAGE_NAME == 'helm-chart':
 
     def _str_representer(dumper, data):

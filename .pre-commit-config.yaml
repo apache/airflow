@@ -532,6 +532,7 @@ repos:
           - 'jsonschema==3.2.0'
           - 'tabulate==0.8.7'
           - 'jsonpath-ng==1.5.3'
+          - 'rich==10.9.0'
       - id: mermaid
         name: Generate mermaid images
         entry: ./scripts/ci/pre_commit/pre_commit_mermaid.sh
