@@ -29,7 +29,6 @@ from typing import Any, Dict, Iterable, List, Optional, Sequence, Set, SupportsA
 
 import attr
 from google.api_core.exceptions import Conflict
-from google.cloud.bigquery import TableReference
 
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator, BaseOperatorLink
