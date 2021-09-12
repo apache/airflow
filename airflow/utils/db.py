@@ -18,6 +18,7 @@
 import logging
 import os
 import time
+from typing import Iterable
 
 from sqlalchemy import Table, exc, func
 
@@ -648,7 +649,7 @@ def check_migrations(timeout):
             log.info('Waiting for migrations... %s second(s)', ticker)
 
 
-def check_conn_id_duplicates(session=None) -> str:
+def check_conn_id_duplicates(session=None) -> Iterable[str]:
     """
     Check unique conn_id in connection table
 
@@ -662,17 +663,15 @@ def check_conn_id_duplicates(session=None) -> str:
         # fallback if tables hasn't been created yet
         pass
     if dups:
-        return (
+        yield (
             'Seems you have non unique conn_id in connection table.\n'
             'You have to manage those duplicate connections '
             'before upgrading the database.\n'
             f'Duplicated conn_id: {[dup.conn_id for dup in dups]}'
         )
 
-    return ''
 
-
-def check_conn_type_null(session=None) -> str:
+def check_conn_type_null(session=None) -> Iterable[str]:
     """
     Check nullable conn_type column in Connection table
 
@@ -687,30 +686,75 @@ def check_conn_type_null(session=None) -> str:
         pass
 
     if n_nulls:
-        return (
+        yield (
             'The conn_type column in the connection '
             'table must contain content.\n'
             'Make sure you don\'t have null '
             'in the conn_type column.\n'
             f'Null conn_type conn_id: {list(n_nulls)}'
         )
-    return ''
+
+
+def check_task_tables_without_matching_dagruns(session) -> Iterable[str]:
+    from itertools import chain
+
+    import sqlalchemy.schema
+    from sqlalchemy import and_, outerjoin
+
+    metadata = sqlalchemy.schema.MetaData(session.bind)
+    models_to_dagrun = [TaskInstance, TaskFail]
+    models_to_ti = []
+    for model in models_to_dagrun + models_to_ti:
+        try:
+            metadata.reflect(only=[model.__tablename__])
+        except exc.InvalidRequestError:
+            # Table doesn't exist, but try the other ones incase the user is upgrading from an _old_ DB
+            # version
+            pass
+
+    for (model, target) in chain(
+        ((m, DagRun) for m in models_to_dagrun), ((m, TaskInstance) for m in models_to_ti)
+    ):
+        if model.__tablename__ not in metadata.tables:
+            # Table doesn't exist -- likley empty DB
+            continue
+        if 'run_id' in metadata.tables[model.__tablename__].columns:
+            # Migration already applied, don't check again
+            continue
+
+        join_cond = and_(model.dag_id == target.dag_id, model.execution_date == target.execution_date)
+        if "task_id" in target.__table__.columns:
+            join_cond = and_(join_cond, model.task_id == target.task_id)
+
+        query = (
+            session.query(model.dag_id, model.task_id, model.execution_date)
+            .select_from(outerjoin(model, target, join_cond))
+            .filter(target.dag_id.is_(None))
+        )  # type: ignore
+
+        num = query.count()
+
+        if num > 0:
+            yield (
+                f'The {model.__tablename__} table has {num} row{"s" if num != 1 else ""} without a '
+                f'corresponding {target.__tablename__} row. You must manually correct this problem '
+                '(possibly by deleting the problem rows).'
+            )
+    session.rollback()
 
 
 @provide_session
-def auto_migrations_available(session=None):
+def _check_migration_errors(session=None) -> Iterable[str]:
     """
     :session: session of the sqlalchemy
     :rtype: list[str]
     """
-    errors_ = []
-
-    for check_fn in (check_conn_id_duplicates, check_conn_type_null):
-        err = check_fn(session)
-        if err:
-            errors_.append(err)
-
-    return errors_
+    for check_fn in (
+        check_conn_id_duplicates,
+        check_conn_type_null,
+        check_task_tables_without_matching_dagruns,
+    ):
+        yield from check_fn(session)
 
 
 @provide_session
@@ -719,17 +763,22 @@ def upgradedb(session=None):
     # alembic adds significant import time, so we import it lazily
     from alembic import command
 
-    log.info("Creating tables")
     config = _get_alembic_config()
 
     config.set_main_option('sqlalchemy.url', settings.SQL_ALCHEMY_CONN.replace('%', '%%'))
-    # check automatic migration is available
-    errs = auto_migrations_available()
-    if errs:
-        for err in errs:
-            log.error("Automatic migration is not available\n%s", err)
-        return
+
+    errors_seen = False
+    for err in _check_migration_errors(session=session):
+        if not errors_seen:
+            log.error("Automatic migration is not available")
+            errors_seen = True
+        log.error("%s", err)
+
+    if errors_seen:
+        exit(1)
+
     with create_global_lock(session=session, pg_lock_id=2, lock_name="upgrade"):
+        log.info("Creating tables")
         command.upgrade(config, 'heads')
     add_default_pool_if_not_exists()
 

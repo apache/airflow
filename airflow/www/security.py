@@ -85,6 +85,7 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_XCOM),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_WEBSITE),
         (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_BROWSE_MENU),
+        (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_DAG_DEPENDENCIES),
         (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_DAG_RUN),
         (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_DOCS),
         (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_DOCS_MENU),
@@ -113,6 +114,7 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
     OP_PERMISSIONS = [
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_CONFIG),
         (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_ADMIN_MENU),
+        (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_CONFIG),
         (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_CONNECTION),
         (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_POOL),
         (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_VARIABLE),
@@ -422,7 +424,9 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
         """Determines whether a user has DAG read access."""
         if not user:
             user = g.user
-        dag_resource_name = permissions.resource_name_for_dag(dag_id)
+        # To account for SubDags
+        root_dag_id = dag_id.split(".")[0]
+        dag_resource_name = permissions.resource_name_for_dag(root_dag_id)
         return self._has_access(
             user, permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG
         ) or self._has_access(user, permissions.ACTION_CAN_READ, dag_resource_name)
@@ -431,7 +435,9 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
         """Determines whether a user has DAG edit access."""
         if not user:
             user = g.user
-        dag_resource_name = permissions.resource_name_for_dag(dag_id)
+        # To account for SubDags
+        root_dag_id = dag_id.split(".")[0]
+        dag_resource_name = permissions.resource_name_for_dag(root_dag_id)
 
         return self._has_access(
             user, permissions.ACTION_CAN_EDIT, permissions.RESOURCE_DAG
@@ -483,7 +489,6 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
 
         has_access = self._has_access(user, action_name, resource_name)
         # FAB built-in view access method. Won't work for AllDag access.
-
         if self.is_dag_resource(resource_name):
             if action_name == permissions.ACTION_CAN_READ:
                 has_access |= self.can_read_dag(resource_name, user)

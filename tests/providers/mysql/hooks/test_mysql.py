@@ -298,8 +298,8 @@ class TestMySqlHook(unittest.TestCase):
         sql = ['SQL1', 'SQL2']
         self.db_hook.run(sql, autocommit=True)
         self.conn.autocommit.assert_called_once_with(True)
-        for i in range(len(self.cur.execute.call_args_list)):
-            args, kwargs = self.cur.execute.call_args_list[i]
+        for i, item in enumerate(self.cur.execute.call_args_list):
+            args, kwargs = item
             assert len(args) == 1
             assert args[0] == sql[i]
             assert kwargs == {}

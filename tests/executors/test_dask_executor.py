@@ -21,6 +21,7 @@ from unittest import mock
 
 import pytest
 
+from airflow.exceptions import AirflowException
 from airflow.jobs.backfill_job import BackfillJob
 from airflow.models import DagBag
 from airflow.utils import timezone
@@ -40,18 +41,18 @@ except ImportError:
     skip_tls_tests = True
 
 DEFAULT_DATE = timezone.datetime(2017, 1, 1)
+SUCCESS_COMMAND = ['airflow', 'tasks', 'run', '--help']
+FAIL_COMMAND = ['airflow', 'tasks', 'run', 'false']
 
 
 class TestBaseDask(unittest.TestCase):
     def assert_tasks_on_executor(self, executor):
 
-        success_command = ['airflow', 'tasks', 'run', '--help']
-        fail_command = ['airflow', 'tasks', 'run', 'false']
         # start the executor
         executor.start()
 
-        executor.execute_async(key='success', command=success_command)
-        executor.execute_async(key='fail', command=fail_command)
+        executor.execute_async(key='success', command=SUCCESS_COMMAND)
+        executor.execute_async(key='fail', command=FAIL_COMMAND)
 
         success_future = next(k for k, v in executor.futures.items() if v == 'success')
         fail_future = next(k for k, v in executor.futures.items() if v == 'fail')
@@ -145,3 +146,66 @@ class TestDaskExecutorTLS(TestBaseDask):
             mock.call('executor.running_tasks', mock.ANY),
         ]
         mock_stats_gauge.assert_has_calls(calls)
+
+
+class TestDaskExecutorQueue(unittest.TestCase):
+    def test_dask_queues_no_resources(self):
+        self.cluster = LocalCluster()
+        executor = DaskExecutor(cluster_address=self.cluster.scheduler_address)
+        executor.start()
+
+        with self.assertRaises(AirflowException):
+            executor.execute_async(key='success', command=SUCCESS_COMMAND, queue='queue1')
+
+    def test_dask_queues_not_available(self):
+        self.cluster = LocalCluster(resources={'queue1': 1})
+        executor = DaskExecutor(cluster_address=self.cluster.scheduler_address)
+        executor.start()
+
+        with self.assertRaises(AirflowException):
+            # resource 'queue2' doesn't exist on cluster
+            executor.execute_async(key='success', command=SUCCESS_COMMAND, queue='queue2')
+
+    def test_dask_queues(self):
+        self.cluster = LocalCluster(resources={'queue1': 1})
+        executor = DaskExecutor(cluster_address=self.cluster.scheduler_address)
+        executor.start()
+
+        executor.execute_async(key='success', command=SUCCESS_COMMAND, queue='queue1')
+        success_future = next(k for k, v in executor.futures.items() if v == 'success')
+
+        # wait for the futures to execute, with a timeout
+        timeout = timezone.utcnow() + timedelta(seconds=30)
+        while not success_future.done():
+            if timezone.utcnow() > timeout:
+                raise ValueError(
+                    'The futures should have finished; there is probably '
+                    'an error communicating with the Dask cluster.'
+                )
+
+        assert success_future.done()
+        assert success_future.exception() is None
+
+    def test_dask_queues_no_queue_specified(self):
+        self.cluster = LocalCluster(resources={'queue1': 1})
+        executor = DaskExecutor(cluster_address=self.cluster.scheduler_address)
+        executor.start()
+
+        # no queue specified for executing task
+        executor.execute_async(key='success', command=SUCCESS_COMMAND)
+        success_future = next(k for k, v in executor.futures.items() if v == 'success')
+
+        # wait for the futures to execute, with a timeout
+        timeout = timezone.utcnow() + timedelta(seconds=30)
+        while not success_future.done():
+            if timezone.utcnow() > timeout:
+                raise ValueError(
+                    'The futures should have finished; there is probably '
+                    'an error communicating with the Dask cluster.'
+                )
+
+        assert success_future.done()
+        assert success_future.exception() is None
+
+    def tearDown(self):
+        self.cluster.close(timeout=5)

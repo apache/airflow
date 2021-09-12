@@ -17,23 +17,19 @@
 # under the License.
 
 """Example DAG demonstrating the usage of the ShortCircuitOperator."""
+from datetime import datetime
+
 from airflow import DAG
 from airflow.models.baseoperator import chain
 from airflow.operators.dummy import DummyOperator
 from airflow.operators.python import ShortCircuitOperator
-from airflow.utils import dates
-
-args = {
-    'owner': 'airflow',
-}
 
 with DAG(
     dag_id='example_short_circuit_operator',
-    default_args=args,
-    start_date=dates.days_ago(2),
+    start_date=datetime(2021, 1, 1),
+    catchup=False,
     tags=['example'],
 ) as dag:
-
     cond_true = ShortCircuitOperator(
         task_id='condition_is_True',
         python_callable=lambda: True,

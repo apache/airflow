@@ -86,6 +86,7 @@ with DAG(
     # [START howto_operator_eks_pod_operator]
     start_pod = EKSPodOperator(
         task_id="run_pod",
+        pod_name="run_pod",
         cluster_name=CLUSTER_NAME,
         image="amazon/aws-cli:latest",
         cmds=["sh", "-c", "ls"],

@@ -42,8 +42,9 @@ def get_task_instances(task_id):
     session = settings.Session()
     return (
         session.query(TaskInstance)
+        .join(TaskInstance.dag_run)
         .filter(TaskInstance.task_id == task_id)
-        .order_by(TaskInstance.execution_date)
+        .order_by(DagRun.execution_date)
         .all()
     )
 
