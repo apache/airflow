@@ -176,7 +176,7 @@ class S3ToRedshiftOperator(BaseOperator):
             keys = self.upsert_keys or postgres_hook.get_table_primary_key(self.table, self.schema)
             if not keys:
                 raise AirflowException(
-                    f"No primary key on {self.schema}.{self.table}. Please provide keys on 'upsert_keys' parameter."
+                    f"No primary key on {self.schema}.{self.table}. Please provide keys on 'upsert_keys'"
                 )
             where_statement = ' AND '.join([f'{self.table}.{k} = {copy_destination}.{k}' for k in keys])
             sql = f"""
