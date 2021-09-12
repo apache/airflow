@@ -737,11 +737,6 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
         """Serialize Params dict of a operator"""
         serialized_params = {}
         for k, v in op_params.items():
-            # To support backward compatability with some operators, we would let str params
-            # serialized as well, after converting them into a shallow Param object.
-            if v.__class__.__name__ == 'str':
-                v = Param(v)
-
             # TODO: As of now, we would allow serialization of params which are of type Param only
             if f'{v.__module__}.{v.__class__.__name__}' == 'airflow.models.param.Param':
                 serialized_params[k] = v.dump()
@@ -925,11 +920,6 @@ class SerializedDAG(DAG, BaseSerialization):
         """Serialize Params dict for a DAG"""
         serialized_params = {}
         for k, v in dag_params.items():
-            # To support backward compatability with some operators, we would let str params
-            # serialized as well, after converting them into a shallow Param object.
-            if v.__class__.__name__ == 'str':
-                v = Param(v)
-
             # TODO: As of now, we would allow serialization of params which are of type Param only
             if f'{v.__module__}.{v.__class__.__name__}' == 'airflow.models.param.Param':
                 serialized_params[k] = v.dump()

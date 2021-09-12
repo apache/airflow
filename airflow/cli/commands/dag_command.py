@@ -125,7 +125,7 @@ def dag_backfill(args, dag=None):
                 run_backwards=args.run_backwards,
             )
         except ValueError as vr:
-            logging.error(str(vr))
+            print(str(vr))
             sys.exit(1)
 
 

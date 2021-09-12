@@ -29,7 +29,7 @@ class Param:
     Class to hold the default value of a Param and rule set to do the validations. Without the rule set
     it always validates and returns the default value.
 
-    :param default: The value of this Param object holds
+    :param default: The value this Param object holds
     :type default: Any
     :param description: Optional help text for the Param
     :type description: str
@@ -56,7 +56,7 @@ class Param:
         May raise ValueError on failed validations.
 
         :param value: The value to be updated for the Param
-        :type: Optional[Any]
+        :type value: Optional[Any]
         :param suppress_exception: To raise an exception or not when the validations fails.
             If true and validations fails, the return value would be None.
         :type suppress_exception: bool
@@ -100,7 +100,7 @@ class ParamsDict(dict):
                 params_dict[k] = Param(v)
             else:
                 params_dict[k] = v
-        dict.__init__(self, params_dict)
+        super().__init__(params_dict)
         self.suppress_exception = suppress_exception
 
     def __setitem__(self, key: str, value: Any) -> None:
@@ -114,19 +114,16 @@ class ParamsDict(dict):
             type but will be converted and stored as a Param object eventually.
         :type value: Any
         """
-        try:
-            param = dict.__getitem__(self, key)  # check if the param is in dict already
-            # if the new value is of Param type, then just use it otherwise call resolve on it
-            if isinstance(value, Param):
-                param = value
-            else:
-                param.resolve(value=value, suppress_exception=self.suppress_exception)
-        except KeyError:
-            # if the key isn't there already and if the value is of Param type,
-            # then use it otherwise create a new Param object
-            param = value if isinstance(value, Param) else Param(value)
+        if isinstance(value, Param):
+            param = value
+        elif key in self:
+            param = dict.__getitem__(self, key)
+            param.resolve(value=value, suppress_exception=self.suppress_exception)
+        else:
+            # if the key isn't there already and if the value isn't of Param type create a new Param object
+            param = Param(value)
 
-        dict.__setitem__(self, key, param)
+        super().__setitem__(key, param)
 
     def __getitem__(self, key: str) -> Any:
         """
@@ -136,7 +133,7 @@ class ParamsDict(dict):
         :param key: The key to fetch
         :type key: str
         """
-        param = dict.__getitem__(self, key)
+        param = super().__getitem__(key)
         return param.resolve(suppress_exception=self.suppress_exception)
 
     def dump(self) -> dict:
@@ -170,13 +167,13 @@ class ParamsDict(dict):
 class DagParam:
     """
     Class that represents a DAG run parameter & binds a simple Param object to a name within a DAG instance,
-    so that it can be resolved during the run time via {{ context }} dictionary. The ideal use case of this
-    class is to implicitly convert args passed to a method which is being decorated by @dag keyword.
+    so that it can be resolved during the run time via ``{{ context }}`` dictionary. The ideal use case of this
+    class is to implicitly convert args passed to a method which is being decorated by ``@dag`` keyword.
 
     It can be used to parameterize your dags. You can overwrite its value by setting it on conf
     when you trigger your DagRun.
 
-    This can also be used in templates by accessing {{context.params}} dictionary.
+    This can also be used in templates by accessing ``{{context.params}}`` dictionary.
 
     **Example**:
 
@@ -201,7 +198,7 @@ class DagParam:
         """Pull DagParam value from DagRun context. This method is run during ``op.execute()``."""
         default = self._default
         if not self._default:
-            default = context['params'][self._name] if self._name in context['params'] else None
+            default = context['params'].get('self._name')
         resolved = context['dag_run'].conf.get(self._name, default)
         if not resolved:
             raise AirflowException(f'No value could be resolved for parameter {self._name}')
