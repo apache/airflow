@@ -17,7 +17,7 @@
 """All executors."""
 import logging
 from contextlib import suppress
-from typing import Optional
+from typing import Optional, Tuple, Type
 
 from airflow.exceptions import AirflowConfigException
 from airflow.executors.base_executor import BaseExecutor
@@ -77,14 +77,36 @@ class ExecutorLoader:
         """
         if executor_name == CELERY_KUBERNETES_EXECUTOR:
             return cls.__load_celery_kubernetes_executor()
+        try:
+            executor_cls, import_source = cls.import_executor_cls(executor_name)
+            log.debug(
+                "Loading executor %s from %s", executor_name, import_source.replace("custom", "custom path")
+            )
+        except ImportError as e:
+            log.error(e)
+            raise AirflowConfigException(
+                f'The module/attribute could not be loaded. Please check "executor" key in "core" section. '
+                f'Current value: "{executor_name}".'
+            )
+        log.info("Loaded executor: %s", executor_name)
 
+        return executor_cls()
+
+    @classmethod
+    def import_executor_cls(cls, executor_name: str) -> Tuple[Type[BaseExecutor], str]:
+        """
+        Imports the executor class.
+
+        Supports the same formats as ExecutorLoader.load_executor.
+
+        :return: a tuple with executor class via executor_name and
+        import source (i.e. "core", "plugin", "custom)
+        """
         if executor_name in cls.executors:
-            log.debug("Loading core executor: %s", executor_name)
-            return import_string(cls.executors[executor_name])()
-        # If the executor name looks like "plugin executor path" then try to load plugins.
+            return import_string(cls.executors[executor_name]), "core"
         if executor_name.count(".") == 1:
             log.debug(
-                "The executor name looks like the plugin path (executor_name=%s). Trying to load a "
+                "The executor name looks like the plugin path (executor_name=%s). Trying to import a "
                 "executor from a plugin",
                 executor_name,
             )
@@ -94,20 +116,8 @@ class ExecutorLoader:
                 from airflow import plugins_manager
 
                 plugins_manager.integrate_executor_plugins()
-                return import_string(f"airflow.executors.{executor_name}")()
-
-        log.debug("Loading executor from custom path: %s", executor_name)
-        try:
-            executor = import_string(executor_name)()
-        except ImportError as e:
-            log.error(e)
-            raise AirflowConfigException(
-                f'The module/attribute could not be loaded. Please check "executor" key in "core" section. '
-                f'Current value: "{executor_name}".'
-            )
-        log.info("Loaded executor: %s", executor_name)
-
-        return executor
+                return import_string(f"airflow.executors.{executor_name}"), "plugin"
+        return import_string(executor_name), "custom"
 
     @classmethod
     def __load_celery_kubernetes_executor(cls) -> BaseExecutor:
