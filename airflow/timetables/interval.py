@@ -68,13 +68,13 @@ class _DataIntervalTimetable(Timetable):
     def next_dagrun_info(
         self,
         *,
-        last_automated_dagrun: Optional[DateTime],
+        last_automated_data_interval: Optional[DataInterval],
         restriction: TimeRestriction,
     ) -> Optional[DagRunInfo]:
         earliest = restriction.earliest
         if not restriction.catchup:
             earliest = self._skip_to_latest(earliest)
-        if last_automated_dagrun is None:
+        if last_automated_data_interval is None:
             # First run; schedule the run at the first available time matching
             # the schedule, and retrospectively create a data interval for it.
             if earliest is None:
@@ -83,7 +83,7 @@ class _DataIntervalTimetable(Timetable):
         else:
             # There's a previous run. Create a data interval starting from when
             # the end of the previous interval.
-            start = self._get_next(last_automated_dagrun)
+            start = last_automated_data_interval.end
         if restriction.latest is not None and start > restriction.latest:
             return None
         end = self._get_next(start)
@@ -214,7 +214,7 @@ class CronDataIntervalTimetable(_DataIntervalTimetable):
             return new_start
         return max(new_start, earliest)
 
-    def infer_data_interval(self, *, run_after: DateTime) -> DataInterval:
+    def infer_manual_data_interval(self, *, run_after: DateTime) -> DataInterval:
         # Get the last complete period before run_after, e.g. if a DAG run is
         # scheduled at each midnight, the data interval of a manually triggered
         # run at 1am 25th is between 0am 24th and 0am 25th.
@@ -290,5 +290,5 @@ class DeltaDataIntervalTimetable(_DataIntervalTimetable):
             return new_start
         return max(new_start, earliest)
 
-    def infer_data_interval(self, run_after: DateTime) -> DataInterval:
+    def infer_manual_data_interval(self, run_after: DateTime) -> DataInterval:
         return DataInterval(start=self._get_prev(run_after), end=run_after)

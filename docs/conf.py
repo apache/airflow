@@ -112,6 +112,7 @@ release = PACKAGE_VERSION
 rst_epilog = f"""
 .. |version| replace:: {version}
 .. |airflow-version| replace:: {airflow.__version__}
+.. |experimental| replace:: This is an :ref:`experimental feature <experimental>`.
 """
 
 # -- General configuration -----------------------------------------------------

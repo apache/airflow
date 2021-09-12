@@ -34,6 +34,7 @@ from google.cloud.bigquery import TableReference
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator, BaseOperatorLink
 from airflow.models.taskinstance import TaskInstance
+from airflow.models.xcom import XCom
 from airflow.operators.sql import SQLCheckOperator, SQLIntervalCheckOperator, SQLValueCheckOperator
 from airflow.providers.google.cloud.hooks.bigquery import BigQueryHook, BigQueryJob
 from airflow.providers.google.cloud.hooks.gcs import GCSHook, _parse_gcs_url
@@ -60,8 +61,12 @@ class BigQueryConsoleLink(BaseOperatorLink):
     name = 'BigQuery Console'
 
     def get_link(self, operator, dttm):
-        ti = TaskInstance(task=operator, execution_date=dttm)
-        job_id = ti.xcom_pull(task_ids=operator.task_id, key='job_id')
+        job_id = XCom.get_one(
+            dag_id=operator.dag.dag_id,
+            task_id=operator.task_id,
+            execution_date=dttm,
+            key='job_id',
+        )
         return BIGQUERY_JOB_DETAILS_LINK_FMT.format(job_id=job_id) if job_id else ''
 
 

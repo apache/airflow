@@ -73,6 +73,7 @@ spec:
       annotations:
         checksum/metadata-secret: {{ include (print $.Template.BasePath "/secrets/metadata-connection-secret.yaml") . | sha256sum }}
         checksum/pgbouncer-config-secret: {{ include (print $.Template.BasePath "/secrets/pgbouncer-config-secret.yaml") . | sha256sum }}
+        checksum/webserver-secret-key: {{ include (print $.Template.BasePath "/secrets/webserver-secret-key-secret.yaml") . | sha256sum }}
         checksum/airflow-config: {{ include (print $.Template.BasePath "/configmaps/configmap.yaml") . | sha256sum }}
         checksum/webserver-config: {{ include (print $.Template.BasePath "/configmaps/webserver-configmap.yaml") . | sha256sum }}
         checksum/extra-configmaps: {{ include (print $.Template.BasePath "/configmaps/extra-configmaps.yaml") . | sha256sum }}

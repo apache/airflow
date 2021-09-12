@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 #
+import datetime
 import os
 import signal
 import time
@@ -244,7 +245,7 @@ class TestLocalTaskJob:
             dag = self.dagbag.get_dag(dag_id)
             task = dag.get_task(task_id)
 
-            dag.create_dagrun(
+            dr = dag.create_dagrun(
                 run_id="test_heartbeat_failed_fast_run",
                 state=State.RUNNING,
                 execution_date=DEFAULT_DATE,
@@ -252,9 +253,9 @@ class TestLocalTaskJob:
                 session=session,
             )
 
-            ti = TaskInstance(task=task, execution_date=DEFAULT_DATE)
-            ti.refresh_from_db()
-            ti.state = State.RUNNING
+            ti = dr.task_instances[0]
+            ti.refresh_from_task(task)
+            ti.state = State.QUEUED
             ti.hostname = get_hostname()
             ti.pid = 1
             session.commit()
@@ -291,11 +292,12 @@ class TestLocalTaskJob:
             time.sleep(10)
 
         with dag_maker('test_mark_success'):
-            task1 = PythonOperator(task_id="task1", python_callable=task_function)
-        dag_maker.create_dagrun()
+            task = PythonOperator(task_id="task1", python_callable=task_function)
+        dr = dag_maker.create_dagrun()
 
-        ti = TaskInstance(task=task1, execution_date=DEFAULT_DATE)
-        ti.refresh_from_db()
+        ti = dr.task_instances[0]
+        ti.refresh_from_task(task)
+
         job1 = LocalTaskJob(task_instance=ti, ignore_ti_state=True)
 
         def dummy_return_code(*args, **kwargs):
@@ -335,7 +337,7 @@ class TestLocalTaskJob:
         session.merge(ti)
         session.commit()
 
-        ti_run = TaskInstance(task=task, execution_date=DEFAULT_DATE)
+        ti_run = TaskInstance(task=task, run_id=dr.run_id)
         ti_run.refresh_from_db()
         job1 = LocalTaskJob(task_instance=ti_run, executor=SequentialExecutor())
         with patch.object(StandardTaskRunner, 'start', return_value=None) as mock_method:
@@ -671,14 +673,14 @@ class TestLocalTaskJob:
 
             dag_run = dag.create_dagrun(run_id='test_dagrun_fast_follow', state=State.RUNNING)
 
-            task_instance_a = TaskInstance(task_a, dag_run.execution_date, init_state['A'])
+            task_instance_a = TaskInstance(task_a, run_id=dag_run.run_id, state=init_state['A'])
 
-            task_instance_b = TaskInstance(task_b, dag_run.execution_date, init_state['B'])
+            task_instance_b = TaskInstance(task_b, run_id=dag_run.run_id, state=init_state['B'])
 
-            task_instance_c = TaskInstance(task_c, dag_run.execution_date, init_state['C'])
+            task_instance_c = TaskInstance(task_c, run_id=dag_run.run_id, state=init_state['C'])
 
             if 'D' in init_state:
-                task_instance_d = TaskInstance(task_d, dag_run.execution_date, init_state['D'])
+                task_instance_d = TaskInstance(task_d, run_id=dag_run.run_id, state=init_state['D'])
                 session.merge(task_instance_d)
 
             session.merge(task_instance_a)
@@ -731,8 +733,9 @@ class TestLocalTaskJob:
                 retries=1,
                 on_retry_callback=retry_callback,
             )
-        ti = TaskInstance(task=task, execution_date=DEFAULT_DATE)
-        ti.refresh_from_db()
+        dr = dag_maker.create_dagrun()
+        ti = dr.task_instances[0]
+        ti.refresh_from_task(task)
         job1 = LocalTaskJob(task_instance=ti, ignore_ti_state=True, executor=SequentialExecutor())
         settings.engine.dispose()
         with timeout(10):
@@ -780,12 +783,13 @@ class TestLocalTaskJob:
 
     def test_task_exit_should_update_state_of_finished_dagruns_with_dag_paused(self, dag_maker):
         """Test that with DAG paused, DagRun state will update when the tasks finishes the run"""
-        with dag_maker(dag_id='test_dags') as dag:
+        schedule_interval = datetime.timedelta(days=1)
+        with dag_maker(dag_id='test_dags', schedule_interval=schedule_interval) as dag:
             op1 = PythonOperator(task_id='dummy', python_callable=lambda: True)
 
         session = settings.Session()
         dagmodel = dag_maker.dag_model
-        dagmodel.next_dagrun_create_after = dag.following_schedule(DEFAULT_DATE)
+        dagmodel.next_dagrun_create_after = DEFAULT_DATE + schedule_interval
         dagmodel.is_paused = True
         session.merge(dagmodel)
         session.flush()
@@ -814,20 +818,20 @@ def clean_db_helper():
 
 
 @pytest.mark.usefixtures("clean_db_helper")
-class TestLocalTaskJobPerformance:
-    @pytest.mark.parametrize("return_codes", [[0], 9 * [None] + [0]])  # type: ignore
-    @mock.patch("airflow.jobs.local_task_job.get_task_runner")
-    def test_number_of_queries_single_loop(self, mock_get_task_runner, return_codes, dag_maker):
-        unique_prefix = str(uuid.uuid4())
-        with dag_maker(dag_id=f'{unique_prefix}_test_number_of_queries'):
-            task = DummyOperator(task_id='test_state_succeeded1')
+@pytest.mark.parametrize("return_codes", [[0], 9 * [None] + [0]])
+@mock.patch("airflow.jobs.local_task_job.get_task_runner")
+def test_number_of_queries_single_loop(mock_get_task_runner, return_codes, dag_maker):
+    mock_get_task_runner.return_value.return_code.side_effects = return_codes
 
-        dag_maker.create_dagrun(run_id=unique_prefix, state=State.NONE)
+    unique_prefix = str(uuid.uuid4())
+    with dag_maker(dag_id=f'{unique_prefix}_test_number_of_queries'):
+        task = DummyOperator(task_id='test_state_succeeded1')
 
-        ti = TaskInstance(task=task, execution_date=DEFAULT_DATE)
+    dr = dag_maker.create_dagrun(run_id=unique_prefix, state=State.NONE)
 
-        mock_get_task_runner.return_value.return_code.side_effects = return_codes
+    ti = dr.task_instances[0]
+    ti.refresh_from_task(task)
 
-        job = LocalTaskJob(task_instance=ti, executor=MockExecutor())
-        with assert_queries_count(18):
-            job.run()
+    job = LocalTaskJob(task_instance=ti, executor=MockExecutor())
+    with assert_queries_count(25):
+        job.run()

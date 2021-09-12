@@ -47,6 +47,9 @@ class SFTPToS3Operator(BaseOperator):
     :param s3_key: The targeted s3 key. This is the specified path for
         uploading the file to S3.
     :type s3_key: str
+    :param use_temp_file: If True, copies file first to local,
+        if False streams file from SFTP to S3.
+    :type use_temp_file: bool
     """
 
     template_fields = ('s3_key', 'sftp_path')
@@ -59,6 +62,7 @@ class SFTPToS3Operator(BaseOperator):
         sftp_path: str,
         sftp_conn_id: str = 'ssh_default',
         s3_conn_id: str = 'aws_default',
+        use_temp_file: bool = True,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -67,6 +71,7 @@ class SFTPToS3Operator(BaseOperator):
         self.s3_bucket = s3_bucket
         self.s3_key = s3_key
         self.s3_conn_id = s3_conn_id
+        self.use_temp_file = use_temp_file
 
     @staticmethod
     def get_s3_key(s3_key: str) -> str:
@@ -81,7 +86,11 @@ class SFTPToS3Operator(BaseOperator):
 
         sftp_client = ssh_hook.get_conn().open_sftp()
 
-        with NamedTemporaryFile("w") as f:
-            sftp_client.get(self.sftp_path, f.name)
+        if self.use_temp_file:
+            with NamedTemporaryFile("w") as f:
+                sftp_client.get(self.sftp_path, f.name)
 
-            s3_hook.load_file(filename=f.name, key=self.s3_key, bucket_name=self.s3_bucket, replace=True)
+                s3_hook.load_file(filename=f.name, key=self.s3_key, bucket_name=self.s3_bucket, replace=True)
+        else:
+            with sftp_client.file(self.sftp_path, mode='rb') as data:
+                s3_hook.get_conn().upload_fileobj(data, self.s3_bucket, self.s3_key, Callback=self.log.info)

@@ -192,12 +192,6 @@ apache_beam = [
 ]
 asana = ['asana>=0.10']
 async_packages = [
-    # DNS Python 2.0.0 and above breaks building documentation on Sphinx. When dnspython 2.0.0 is installed
-    # building documentation fails with trying to import google packages with
-    # TypeError("unsupported operand type(s) for +: 'SSL_VERIFY_PEER' and
-    # 'SSL_VERIFY_FAIL_IF_NO_PEER_CERT'")
-    # The issue is opened for it https://github.com/rthalley/dnspython/issues/681
-    'dnspython<2.0.0',
     'eventlet>= 0.9.7',
     'gevent>=0.13',
     'greenlet>=0.4.9',

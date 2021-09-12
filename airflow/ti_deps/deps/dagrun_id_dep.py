@@ -32,7 +32,7 @@ class DagrunIdDep(BaseTIDep):
     @provide_session
     def _get_dep_statuses(self, ti, session, dep_context=None):
         """
-        Determines if the DagRun ID is valid for scheduling from scheduler.
+        Determines if the DagRun is valid for scheduling from scheduler.
 
         :param ti: the task instance to get the dependency status for
         :type ti: airflow.models.TaskInstance
@@ -44,12 +44,7 @@ class DagrunIdDep(BaseTIDep):
         """
         dagrun = ti.get_dagrun(session)
 
-        if not dagrun or not dagrun.run_id or dagrun.run_type != DagRunType.BACKFILL_JOB:
-            yield self._passing_status(
-                reason=f"Task's DagRun doesn't exist or run_id is either NULL "
-                f"or run_type is not {DagRunType.BACKFILL_JOB}"
-            )
-        else:
+        if dagrun.run_type == DagRunType.BACKFILL_JOB:
             yield self._failing_status(
-                reason=f"Task's DagRun run_id is not NULL " f"and run type is {DagRunType.BACKFILL_JOB}"
+                reason=f"Task's DagRun run_type is {dagrun.run_type} and cannot be run by the scheduler"
             )
