@@ -1747,7 +1747,7 @@ class TestDag(unittest.TestCase):
         dag = models.DAG('dummy-dag', schedule_interval=None, params={'param1': Param(type="string")})
 
         with pytest.raises(ValueError, match="Invalid input for param param1: None is not of type 'string'"):
-                dag.create_dagrun(
+            dag.create_dagrun(
                 run_id="test_dagrun_missing_param",
                 state=State.RUNNING,
                 execution_date=TEST_DATE,
