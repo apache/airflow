@@ -173,7 +173,11 @@ class S3ToRedshiftOperator(BaseOperator):
             COMMIT
             """
         elif self.method == 'UPSERT':
-            keys = self.upsert_keys or self._get_table_primary_key(postgres_hook)
+            keys = self.upsert_keys or postgres_hook.get_table_primary_key(self.table, self.schema)
+            if not keys:
+                raise AirflowException(
+                    f"No primary key on {self.schema}.{self.table}. Please provide keys on 'upsert_keys' parameter."
+                )
             where_statement = ' AND '.join([f'{self.table}.{k} = {copy_destination}.{k}' for k in keys])
             sql = f"""
             CREATE TABLE {copy_destination} (LIKE {destination});

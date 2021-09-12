@@ -228,12 +228,12 @@ class TestS3ToRedshiftTransfer(unittest.TestCase):
             s3_key=s3_key,
             copy_options=copy_options,
             method='UPSERT',
+            upsert_keys=['id'],
             redshift_conn_id="redshift_conn_id",
             aws_conn_id="aws_conn_id",
             task_id="task_id",
             dag=None,
         )
-        op._get_table_primary_key = mock.Mock(return_value=['id'])
         op.execute(None)
 
         copy_statement = f'''
@@ -306,6 +306,21 @@ class TestS3ToRedshiftTransfer(unittest.TestCase):
             'column_list',
             'copy_options',
         )
+
+    def test_execute_unavailable_method(self):
+        """
+        Test execute unavailable method
+        """
+        with pytest.raises(AirflowException):
+            S3ToRedshiftOperator(
+                schema="schema",
+                table="table",
+                s3_bucket="bucket",
+                s3_key="key",
+                method="unavailable_method",
+                task_id="task_id",
+                dag=None,
+            )
 
     def test_execute_unavailable_method(self):
         """

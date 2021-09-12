@@ -19,7 +19,7 @@
 import os
 from contextlib import closing
 from copy import deepcopy
-from typing import Iterable, Optional, Tuple, Union
+from typing import Iterable, List, Optional, Tuple, Union
 
 import psycopg2
 import psycopg2.extensions
@@ -197,6 +197,31 @@ class PostgresHook(DbApiHook):
             token = aws_hook.conn.generate_db_auth_token(conn.host, port, conn.login)
         return login, token, port
 
+    def get_table_primary_key(self, table: str, schema: Optional[str] = "public") -> List[str]:
+        """
+        Helper method that returns the table primary key
+
+        :param table: Name of the target table
+        :type table: str
+        :param table: Name of the target schema, public by default
+        :type table: str
+        :return: Primary key columns list
+        :rtype: List[str]
+        """
+        sql = """
+            select kcu.column_name
+            from information_schema.table_constraints tco
+                    join information_schema.key_column_usage kcu
+                        on kcu.constraint_name = tco.constraint_name
+                            and kcu.constraint_schema = tco.constraint_schema
+                            and kcu.constraint_name = tco.constraint_name
+            where tco.constraint_type = 'PRIMARY KEY'
+            and kcu.table_schema = %s
+            and kcu.table_name = %s
+        """
+        pk_columns = [row[0] for row in self.get_records(sql, (schema, table))]
+        return pk_columns or None
+
     @staticmethod
     def _generate_insert_sql(
         table: str, values: Tuple[str, ...], target_fields: Iterable[str], replace: bool, **kwargs
@@ -241,9 +266,7 @@ class PostgresHook(DbApiHook):
                 replace_index = [replace_index]
             replace_index_set = set(replace_index)
 
-            replace_target = [
-                "{0} = excluded.{0}".format(col) for col in target_fields if col not in replace_index_set
-            ]
+            replace_target = ["{0} = excluded.{0}".format(col) for col in target_fields if col not in replace_index_set]
             sql += " ON CONFLICT ({}) DO UPDATE SET {}".format(
                 ", ".join(replace_index),
                 ", ".join(replace_target),
