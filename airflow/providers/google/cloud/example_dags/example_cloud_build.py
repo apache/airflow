@@ -124,7 +124,7 @@ with models.DAG(
 
     # [START howto_operator_create_build_from_storage_result]
     create_build_from_storage_result = BashOperator(
-        bash_command="echo '{{ task_instance.xcom_pull('create_build_from_storage')['results'] }}'",
+        bash_command=f"echo { create_build_from_storage.output['results'] }",
         task_id="create_build_from_storage_result",
     )
     # [END howto_operator_create_build_from_storage_result]
@@ -137,7 +137,7 @@ with models.DAG(
 
     # [START howto_operator_create_build_from_repo_result]
     create_build_from_repo_result = BashOperator(
-        bash_command="echo '{{ task_instance.xcom_pull('create_build_from_repo')['results'] }}'",
+        bash_command=f"echo { create_build_from_repo.output['results'] }",
         task_id="create_build_from_repo_result",
     )
     # [END howto_operator_create_build_from_repo_result]
@@ -160,7 +160,7 @@ with models.DAG(
     # [START howto_operator_cancel_build]
     cancel_build = CloudBuildCancelBuildOperator(
         task_id="cancel_build",
-        id="{{ task_instance.xcom_pull('create_build_without_wait')['id'] }}",
+        id_=create_build_without_wait.output['id'],
         project_id=GCP_PROJECT_ID,
     )
     # [END howto_operator_cancel_build]
@@ -168,7 +168,7 @@ with models.DAG(
     # [START howto_operator_retry_build]
     retry_build = CloudBuildRetryBuildOperator(
         task_id="retry_build",
-        id="{{ task_instance.xcom_pull('cancel_build')['id'] }}",
+        id_=cancel_build.output['id'],
         project_id=GCP_PROJECT_ID,
     )
     # [END howto_operator_retry_build]
@@ -176,7 +176,7 @@ with models.DAG(
     # [START howto_operator_get_build]
     get_build = CloudBuildGetBuildOperator(
         task_id="get_build",
-        id="{{ task_instance.xcom_pull('retry_build')['id'] }}",
+        id_=retry_build.output['id'],
         project_id=GCP_PROJECT_ID,
     )
     # [END howto_operator_get_build]
@@ -214,7 +214,7 @@ with models.DAG(
     run_build_trigger = CloudBuildRunBuildTriggerOperator(
         task_id="run_build_trigger",
         project_id=GCP_PROJECT_ID,
-        trigger_id="{{ task_instance.xcom_pull('create_build_trigger')['id'] }}",
+        trigger_id=create_build_trigger.output['id'],
         source=create_build_from_repo_body['source']['repo_source'],
     )
     # [END howto_operator_run_build_trigger]
@@ -223,7 +223,7 @@ with models.DAG(
     update_build_trigger = CloudBuildUpdateBuildTriggerOperator(
         task_id="update_build_trigger",
         project_id=GCP_PROJECT_ID,
-        trigger_id="{{ task_instance.xcom_pull('create_build_trigger')['id'] }}",
+        trigger_id=create_build_trigger.output['id'],
         trigger=update_build_trigger_body,
     )
     # [END howto_operator_create_build_trigger]
@@ -232,7 +232,7 @@ with models.DAG(
     get_build_trigger = CloudBuildGetBuildTriggerOperator(
         task_id="get_build_trigger",
         project_id=GCP_PROJECT_ID,
-        trigger_id="{{ task_instance.xcom_pull('create_build_trigger')['id'] }}",
+        trigger_id=create_build_trigger.output['id'],
     )
     # [END howto_operator_get_build_trigger]
 
@@ -240,7 +240,7 @@ with models.DAG(
     delete_build_trigger = CloudBuildDeleteBuildTriggerOperator(
         task_id="delete_build_trigger",
         project_id=GCP_PROJECT_ID,
-        trigger_id="{{ task_instance.xcom_pull('create_build_trigger')['id'] }}",
+        trigger_id=create_build_trigger.output['id'],
     )
     # [END howto_operator_delete_build_trigger]
 

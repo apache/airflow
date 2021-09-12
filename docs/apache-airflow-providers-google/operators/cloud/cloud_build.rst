@@ -57,7 +57,7 @@ Cancel a build in progress with the
     :start-after: [START howto_operator_cancel_build]
     :end-before: [END howto_operator_cancel_build]
 
-You can use :ref:`Jinja templating <jinja-templating>` with
+You can use :ref:`Jinja templating <concepts:jinja-templating>` with
 :template-fields:`airflow.providers.google.cloud.operators.cloud_build.CloudBuildCancelBuildOperator`
 parameters which allows you to dynamically determine values. The result is saved to :ref:`XCom <concepts:xcom>`, which allows it
 to be used by other operators.
@@ -107,7 +107,7 @@ Trigger a build is performed with the
     :start-after: [START howto_operator_create_build_from_storage]
     :end-before: [END howto_operator_create_build_from_storage]
 
-You can use :ref:`Jinja templating <jinja-templating>` with
+You can use :ref:`Jinja templating <concepts:jinja-templating>` with
 :template-fields:`airflow.providers.google.cloud.operators.cloud_build.CloudBuildCreateBuildOperator`
 parameters which allows you to dynamically determine values. The result is saved to :ref:`XCom <concepts:xcom>`, which allows it
 to be used by other operators.
@@ -150,7 +150,7 @@ Creates a new Cloud Build trigger with the
     :start-after: [START howto_operator_create_build_trigger]
     :end-before: [END howto_operator_create_build_trigger]
 
-You can use :ref:`Jinja templating <jinja-templating>` with
+You can use :ref:`Jinja templating <concepts:jinja-templating>` with
 :template-fields:`airflow.providers.google.cloud.operators.cloud_build.CloudBuildCreateBuildTriggerOperator`
 parameters which allows you to dynamically determine values. The result is saved to :ref:`XCom <concepts:xcom>`, which allows it
 to be used by other operators.
@@ -177,7 +177,7 @@ Deletes a new Cloud Build trigger with the
     :start-after: [START howto_operator_delete_build_trigger]
     :end-before: [END howto_operator_delete_build_trigger]
 
-You can use :ref:`Jinja templating <jinja-templating>` with
+You can use :ref:`Jinja templating <concepts:jinja-templating>` with
 :template-fields:`airflow.providers.google.cloud.operators.cloud_build.CloudBuildDeleteBuildTriggerOperator`
 parameters which allows you to dynamically determine values. The result is saved to :ref:`XCom <concepts:xcom>`, which allows it
 to be used by other operators.
@@ -204,7 +204,7 @@ Returns information about a previously requested build with the
     :start-after: [START howto_operator_get_build]
     :end-before: [END howto_operator_get_build]
 
-You can use :ref:`Jinja templating <jinja-templating>` with
+You can use :ref:`Jinja templating <concepts:jinja-templating>` with
 :template-fields:`airflow.providers.google.cloud.operators.cloud_build.CloudBuildGetBuildOperator`
 parameters which allows you to dynamically determine values. The result is saved to :ref:`XCom <concepts:xcom>`, which allows it
 to be used by other operators.
@@ -231,7 +231,7 @@ Returns information about a Cloud Build trigger with the
     :start-after: [START howto_operator_get_build_trigger]
     :end-before: [END howto_operator_get_build_trigger]
 
-You can use :ref:`Jinja templating <jinja-templating>` with
+You can use :ref:`Jinja templating <concepts:jinja-templating>` with
 :template-fields:`airflow.providers.google.cloud.operators.cloud_build.CloudBuildGetBuildTriggerOperator`
 parameters which allows you to dynamically determine values. The result is saved to :ref:`XCom <concepts:xcom>`, which allows it
 to be used by other operators.
@@ -258,7 +258,7 @@ Lists all the existing Cloud Build triggers with the
     :start-after: [START howto_operator_list_build_triggers]
     :end-before: [END howto_operator_list_build_triggers]
 
-You can use :ref:`Jinja templating <jinja-templating>` with
+You can use :ref:`Jinja templating <concepts:jinja-templating>` with
 :template-fields:`airflow.providers.google.cloud.operators.cloud_build.CloudBuildListBuildTriggersOperator`
 parameters which allows you to dynamically determine values. The result is saved to :ref:`XCom <concepts:xcom>`, which allows it
 to be used by other operators.
@@ -285,7 +285,7 @@ Lists previously requested builds with the
     :start-after: [START howto_operator_list_builds]
     :end-before: [END howto_operator_list_builds]
 
-You can use :ref:`Jinja templating <jinja-templating>` with
+You can use :ref:`Jinja templating <concepts:jinja-templating>` with
 :template-fields:`airflow.providers.google.cloud.operators.cloud_build.CloudBuildListBuildsOperator`
 parameters which allows you to dynamically determine values. The result is saved to :ref:`XCom <concepts:xcom>`, which allows it
 to be used by other operators.
@@ -313,7 +313,7 @@ Creates a new build based on the specified build with the
     :start-after: [START howto_operator_retry_build]
     :end-before: [END howto_operator_retry_build]
 
-You can use :ref:`Jinja templating <jinja-templating>` with
+You can use :ref:`Jinja templating <concepts:jinja-templating>` with
 :template-fields:`airflow.providers.google.cloud.operators.cloud_build.CloudBuildRetryBuildOperator`
 parameters which allows you to dynamically determine values. The result is saved to :ref:`XCom <concepts:xcom>`, which allows it
 to be used by other operators.
@@ -340,7 +340,7 @@ Runs a trigger at a particular source revision with the
     :start-after: [START howto_operator_run_build_trigger]
     :end-before: [END howto_operator_run_build_trigger]
 
-You can use :ref:`Jinja templating <jinja-templating>` with
+You can use :ref:`Jinja templating <concepts:jinja-templating>` with
 :template-fields:`airflow.providers.google.cloud.operators.cloud_build.CloudBuildRunBuildTriggerOperator`
 parameters which allows you to dynamically determine values. The result is saved to :ref:`XCom <concepts:xcom>`, which allows it
 to be used by other operators.
@@ -367,7 +367,7 @@ Updates a Cloud Build trigger with the
     :start-after: [START howto_operator_create_build_trigger]
     :end-before: [END howto_operator_create_build_trigger]
 
-You can use :ref:`Jinja templating <jinja-templating>` with
+You can use :ref:`Jinja templating <concepts:jinja-templating>` with
 :template-fields:`airflow.providers.google.cloud.operators.cloud_build.CloudBuildUpdateBuildTriggerOperator`
 parameters which allows you to dynamically determine values. The result is saved to :ref:`XCom <concepts:xcom>`, which allows it
 to be used by other operators.

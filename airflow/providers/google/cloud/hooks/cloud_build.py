@@ -20,6 +20,7 @@
 
 from typing import Dict, List, Optional, Sequence, Tuple, Union
 
+from google.api_core.operation import Operation
 from google.api_core.retry import Retry
 from google.cloud.devtools.cloudbuild import CloudBuildClient
 from google.cloud.devtools.cloudbuild_v1.types import Build, BuildTrigger, RepoSource
@@ -63,6 +64,22 @@ class CloudBuildHook(GoogleBaseHook):
         )
         self._client: Optional[CloudBuildClient] = None
 
+    def _get_build_id_from_operation(self, operation: Operation) -> str:
+        """
+        Retrieve Cloud Build ID from Operation Object.
+
+        :param operation: The proto to append resource_label airflow
+            version to
+        :type operation: google.api_core.operation.Operation
+
+        :return: Cloud Build ID
+        :rtype: str
+        """
+        try:
+            return operation.metadata.build.id
+        except Exception:
+            raise AirflowException("Could not retrieve Build ID from Operation.")
+
     def get_conn(self) -> CloudBuildClient:
         """
         Retrieves the connection to Google Cloud Build.
@@ -77,7 +94,7 @@ class CloudBuildHook(GoogleBaseHook):
     @GoogleBaseHook.fallback_to_default_project_id
     def cancel_build(
         self,
-        id: str,
+        id_: str,
         project_id: str,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
@@ -86,8 +103,8 @@ class CloudBuildHook(GoogleBaseHook):
         """
         Cancels a build in progress.
 
-        :param id: The ID of the build.
-        :type id: str
+        :param id_: The ID of the build.
+        :type id_: str
         :param project_id: Optional, Google Cloud Project project_id where the function belongs.
             If set to None or missing, the default project_id from the GCP connection is used.
         :type project_id: Optional[str]
@@ -104,13 +121,13 @@ class CloudBuildHook(GoogleBaseHook):
         """
         client = self.get_conn()
 
-        self.log.info("Start cancelling build: %s.", id)
+        self.log.info("Start cancelling build: %s.", id_)
 
         build = client.cancel_build(
-            request={'project_id': project_id, 'id': id}, retry=retry, timeout=timeout, metadata=metadata
+            request={'project_id': project_id, 'id': id_}, retry=retry, timeout=timeout, metadata=metadata
         )
 
-        self.log.info("Build has been cancelled: %s.", id)
+        self.log.info("Build has been cancelled: %s.", id_)
 
         return build
 
@@ -157,19 +174,16 @@ class CloudBuildHook(GoogleBaseHook):
             metadata=metadata,
         )
 
-        try:
-            id = operation.metadata.build.id
-        except Exception:
-            raise AirflowException("Could not retrieve Build ID from Operation.")
+        id_ = self._get_build_id_from_operation(Operation)
 
         if not wait:
-            return self.get_build(id=id, project_id=project_id)
+            return self.get_build(id_=id_, project_id=project_id)
 
         operation.result()
 
-        self.log.info("Build has been created: %s.", id)
+        self.log.info("Build has been created: %s.", id_)
 
-        return self.get_build(id=id, project_id=project_id)
+        return self.get_build(id_=id_, project_id=project_id)
 
     @GoogleBaseHook.fallback_to_default_project_id
     def create_build_trigger(
@@ -257,7 +271,7 @@ class CloudBuildHook(GoogleBaseHook):
     @GoogleBaseHook.fallback_to_default_project_id
     def get_build(
         self,
-        id: str,
+        id_: str,
         project_id: str,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
@@ -266,8 +280,8 @@ class CloudBuildHook(GoogleBaseHook):
         """
         Returns information about a previously requested build.
 
-        :param id: The ID of the build.
-        :type id: str
+        :param id_: The ID of the build.
+        :type id_: str
         :param project_id: Optional, Google Cloud Project project_id where the function belongs.
             If set to None or missing, the default project_id from the GCP connection is used.
         :type project_id: Optional[str]
@@ -284,13 +298,13 @@ class CloudBuildHook(GoogleBaseHook):
         """
         client = self.get_conn()
 
-        self.log.info("Start retrieving build: %s.", id)
+        self.log.info("Start retrieving build: %s.", id_)
 
         build = client.get_build(
-            request={'project_id': project_id, 'id': id}, retry=retry, timeout=timeout, metadata=metadata
+            request={'project_id': project_id, 'id': id_}, retry=retry, timeout=timeout, metadata=metadata
         )
 
-        self.log.info("Build has been retrieved: %s.", id)
+        self.log.info("Build has been retrieved: %s.", id_)
 
         return build
 
@@ -400,7 +414,7 @@ class CloudBuildHook(GoogleBaseHook):
         location: str,
         page_size: Optional[int] = None,
         page_token: Optional[int] = None,
-        filter: Optional[str] = None,
+        filter_: Optional[str] = None,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
         metadata: Optional[Sequence[Tuple[str, str]]] = None,
@@ -417,8 +431,8 @@ class CloudBuildHook(GoogleBaseHook):
         :type page_size: Optional[int]
         :param page_token: Optional, token to provide to skip to a particular spot in the list.
         :type page_token: Optional[str]
-        :param filter: Optional, the raw filter text to constrain the results.
-        :type filter: Optional[str]
+        :param filter_: Optional, the raw filter text to constrain the results.
+        :type filter_: Optional[str]
         :param retry: Optional, a retry object used  to retry requests. If `None` is specified, requests
             will not be retried.
         :type retry: Optional[Retry]
@@ -442,7 +456,7 @@ class CloudBuildHook(GoogleBaseHook):
                 'project_id': project_id,
                 'page_size': page_size,
                 'page_token': page_token,
-                'filter': filter,
+                'filter': filter_,
             },
             retry=retry,
             timeout=timeout,
@@ -456,7 +470,7 @@ class CloudBuildHook(GoogleBaseHook):
     @GoogleBaseHook.fallback_to_default_project_id
     def retry_build(
         self,
-        id: str,
+        id_: str,
         project_id: str,
         wait: bool = True,
         retry: Optional[Retry] = None,
@@ -467,8 +481,8 @@ class CloudBuildHook(GoogleBaseHook):
         Creates a new build based on the specified build. This method creates a new build
         using the original build request, which may or may not result in an identical build.
 
-        :param id: Build ID of the original build.
-        :type id: str
+        :param id_: Build ID of the original build.
+        :type id_: str
         :param project_id: Optional, Google Cloud Project project_id where the function belongs.
             If set to None or missing, the default project_id from the GCP connection is used.
         :type project_id: str
@@ -487,25 +501,22 @@ class CloudBuildHook(GoogleBaseHook):
         """
         client = self.get_conn()
 
-        self.log.info("Start retrying build: %s.", id)
+        self.log.info("Start retrying build: %s.", id_)
 
         operation = client.retry_build(
-            request={'project_id': project_id, 'id': id}, retry=retry, timeout=timeout, metadata=metadata
+            request={'project_id': project_id, 'id': id_}, retry=retry, timeout=timeout, metadata=metadata
         )
 
-        try:
-            id = operation.metadata.build.id
-        except Exception:
-            raise AirflowException("Could not retrieve Build ID from Operation.")
+        id_ = self._get_build_id_from_operation(Operation)
 
         if not wait:
-            return self.get_build(id=id, project_id=project_id)
+            return self.get_build(id_=id_, project_id=project_id)
 
         operation.result()
 
-        self.log.info("Build has been retried: %s.", id)
+        self.log.info("Build has been retried: %s.", id_)
 
-        return self.get_build(id=id, project_id=project_id)
+        return self.get_build(id_=id_, project_id=project_id)
 
     @GoogleBaseHook.fallback_to_default_project_id
     def run_build_trigger(
@@ -552,20 +563,17 @@ class CloudBuildHook(GoogleBaseHook):
             timeout=timeout,
             metadata=metadata,
         )
-        print(operation)
-        try:
-            id = operation.metadata.build.id
-        except Exception:
-            raise AirflowException("Could not retrieve Build ID from Operation.")
+
+        id_ = self._get_build_id_from_operation(Operation)
 
         if not wait:
-            return self.get_build(id=id, project_id=project_id)
+            return self.get_build(id_=id_, project_id=project_id)
 
         operation.result()
 
         self.log.info("Build trigger has been run: %s.", trigger_id)
 
-        return self.get_build(id=id, project_id=project_id)
+        return self.get_build(id_=id_, project_id=project_id)
 
     @GoogleBaseHook.fallback_to_default_project_id
     def update_build_trigger(

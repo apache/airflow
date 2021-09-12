@@ -76,17 +76,18 @@ class TestCloudBuildHook(unittest.TestCase):
 
     @patch("airflow.providers.google.cloud.hooks.cloud_build.CloudBuildHook.get_conn")
     def test_cancel_build(self, get_conn):
-        self.hook.cancel_build(id=BUILD_ID, project_id=PROJECT_ID)
+        self.hook.cancel_build(id_=BUILD_ID, project_id=PROJECT_ID)
 
         get_conn.return_value.cancel_build.assert_called_once_with(
             request={'project_id': PROJECT_ID, 'id': BUILD_ID}, retry=None, timeout=None, metadata=None
         )
 
+    @patch("airflow.providers.google.cloud.hooks.cloud_build.CloudBuildHook._get_build_id_from_operation")
     @patch("airflow.providers.google.cloud.hooks.cloud_build.TIME_TO_SLEEP_IN_SECONDS")
     @patch("airflow.providers.google.cloud.hooks.cloud_build.CloudBuildHook.get_conn")
-    def test_create_build_with_wait(self, get_conn, wait_time):
-        mock_build_id = MagicMock()
-        get_conn.return_value.create_build.return_value.metadata.build.id = mock_build_id
+    def test_create_build_with_wait(self, get_conn, wait_time, mock_get_id_from_operation):
+        get_conn.return_value.run_build_trigger.return_value = MagicMock()
+        mock_get_id_from_operation.return_value = BUILD_ID
 
         wait_time.return_value = 0
 
@@ -99,13 +100,14 @@ class TestCloudBuildHook(unittest.TestCase):
         get_conn.return_value.create_build.return_value.result.assert_called_once_with()
 
         get_conn.return_value.get_build.assert_called_once_with(
-            request={'project_id': PROJECT_ID, 'id': mock_build_id}, retry=None, timeout=None, metadata=None
+            request={'project_id': PROJECT_ID, 'id': BUILD_ID}, retry=None, timeout=None, metadata=None
         )
 
+    @patch("airflow.providers.google.cloud.hooks.cloud_build.CloudBuildHook._get_build_id_from_operation")
     @patch("airflow.providers.google.cloud.hooks.cloud_build.CloudBuildHook.get_conn")
-    def test_create_build_without_wait(self, get_conn):
-        mock_build_id = MagicMock()
-        get_conn.return_value.create_build.return_value.metadata.build.id = mock_build_id
+    def test_create_build_without_wait(self, get_conn, mock_get_id_from_operation):
+        get_conn.return_value.run_build_trigger.return_value = MagicMock()
+        mock_get_id_from_operation.return_value = BUILD_ID
 
         self.hook.create_build(build=BUILD, project_id=PROJECT_ID, wait=False)
 
@@ -114,7 +116,7 @@ class TestCloudBuildHook(unittest.TestCase):
         )
 
         get_conn.return_value.get_build.assert_called_once_with(
-            request={'project_id': PROJECT_ID, 'id': mock_build_id}, retry=None, timeout=None, metadata=None
+            request={'project_id': PROJECT_ID, 'id': BUILD_ID}, retry=None, timeout=None, metadata=None
         )
 
     @patch("airflow.providers.google.cloud.hooks.cloud_build.CloudBuildHook.get_conn")
@@ -141,7 +143,7 @@ class TestCloudBuildHook(unittest.TestCase):
 
     @patch("airflow.providers.google.cloud.hooks.cloud_build.CloudBuildHook.get_conn")
     def test_get_build(self, get_conn):
-        self.hook.get_build(id=BUILD_ID, project_id=PROJECT_ID)
+        self.hook.get_build(id_=BUILD_ID, project_id=PROJECT_ID)
 
         get_conn.return_value.get_build.assert_called_once_with(
             request={'project_id': PROJECT_ID, 'id': BUILD_ID}, retry=None, timeout=None, metadata=None
@@ -186,15 +188,16 @@ class TestCloudBuildHook(unittest.TestCase):
             metadata=None,
         )
 
+    @patch("airflow.providers.google.cloud.hooks.cloud_build.CloudBuildHook._get_build_id_from_operation")
     @patch("airflow.providers.google.cloud.hooks.cloud_build.TIME_TO_SLEEP_IN_SECONDS")
     @patch("airflow.providers.google.cloud.hooks.cloud_build.CloudBuildHook.get_conn")
-    def test_retry_build_with_wait(self, get_conn, wait_time):
-        mock_build_id = MagicMock()
-        get_conn.return_value.retry_build.return_value.metadata.build.id = mock_build_id
+    def test_retry_build_with_wait(self, get_conn, wait_time, mock_get_id_from_operation):
+        get_conn.return_value.run_build_trigger.return_value = MagicMock()
+        mock_get_id_from_operation.return_value = BUILD_ID
 
         wait_time.return_value = 0
 
-        self.hook.retry_build(id=BUILD_ID, project_id=PROJECT_ID)
+        self.hook.retry_build(id_=BUILD_ID, project_id=PROJECT_ID)
 
         get_conn.return_value.retry_build.assert_called_once_with(
             request={'project_id': PROJECT_ID, 'id': BUILD_ID}, retry=None, timeout=None, metadata=None
@@ -203,29 +206,31 @@ class TestCloudBuildHook(unittest.TestCase):
         get_conn.return_value.retry_build.return_value.result.assert_called_once_with()
 
         get_conn.return_value.get_build.assert_called_once_with(
-            request={'project_id': PROJECT_ID, 'id': mock_build_id}, retry=None, timeout=None, metadata=None
+            request={'project_id': PROJECT_ID, 'id': BUILD_ID}, retry=None, timeout=None, metadata=None
         )
 
+    @patch("airflow.providers.google.cloud.hooks.cloud_build.CloudBuildHook._get_build_id_from_operation")
     @patch("airflow.providers.google.cloud.hooks.cloud_build.CloudBuildHook.get_conn")
-    def test_retry_build_without_wait(self, get_conn):
-        mock_build_id = MagicMock()
-        get_conn.return_value.retry_build.return_value.metadata.build.id = mock_build_id
+    def test_retry_build_without_wait(self, get_conn, mock_get_id_from_operation):
+        get_conn.return_value.run_build_trigger.return_value = MagicMock()
+        mock_get_id_from_operation.return_value = BUILD_ID
 
-        self.hook.retry_build(id=BUILD_ID, project_id=PROJECT_ID, wait=False)
+        self.hook.retry_build(id_=BUILD_ID, project_id=PROJECT_ID, wait=False)
 
         get_conn.return_value.retry_build.assert_called_once_with(
             request={'project_id': PROJECT_ID, 'id': BUILD_ID}, retry=None, timeout=None, metadata=None
         )
 
         get_conn.return_value.get_build.assert_called_once_with(
-            request={'project_id': PROJECT_ID, 'id': mock_build_id}, retry=None, timeout=None, metadata=None
+            request={'project_id': PROJECT_ID, 'id': BUILD_ID}, retry=None, timeout=None, metadata=None
         )
 
+    @patch("airflow.providers.google.cloud.hooks.cloud_build.CloudBuildHook._get_build_id_from_operation")
     @patch("airflow.providers.google.cloud.hooks.cloud_build.TIME_TO_SLEEP_IN_SECONDS")
     @patch("airflow.providers.google.cloud.hooks.cloud_build.CloudBuildHook.get_conn")
-    def test_run_build_trigger_with_wait(self, get_conn, wait_time):
-        mock_build_id = MagicMock()
-        get_conn.return_value.run_build_trigger.return_value.metadata.build.id = mock_build_id
+    def test_run_build_trigger_with_wait(self, get_conn, wait_time, mock_get_id_from_operation):
+        get_conn.return_value.run_build_trigger.return_value = MagicMock()
+        mock_get_id_from_operation.return_value = BUILD_ID
 
         wait_time.return_value = 0
 
@@ -247,13 +252,14 @@ class TestCloudBuildHook(unittest.TestCase):
         get_conn.return_value.run_build_trigger.return_value.result.assert_called_once_with()
 
         get_conn.return_value.get_build.assert_called_once_with(
-            request={'project_id': PROJECT_ID, 'id': mock_build_id}, retry=None, timeout=None, metadata=None
+            request={'project_id': PROJECT_ID, 'id': BUILD_ID}, retry=None, timeout=None, metadata=None
         )
 
+    @patch("airflow.providers.google.cloud.hooks.cloud_build.CloudBuildHook._get_build_id_from_operation")
     @patch("airflow.providers.google.cloud.hooks.cloud_build.CloudBuildHook.get_conn")
-    def test_run_build_trigger_without_wait(self, get_conn):
-        mock_build_id = MagicMock()
-        get_conn.return_value.run_build_trigger.return_value.metadata.build.id = mock_build_id
+    def test_run_build_trigger_without_wait(self, get_conn, mock_get_id_from_operation):
+        get_conn.return_value.run_build_trigger.return_value = MagicMock()
+        mock_get_id_from_operation.return_value = BUILD_ID
 
         self.hook.run_build_trigger(
             trigger_id=TRIGGER_ID, source=REPO_SOURCE['repo_source'], project_id=PROJECT_ID, wait=False
@@ -271,7 +277,7 @@ class TestCloudBuildHook(unittest.TestCase):
         )
 
         get_conn.return_value.get_build.assert_called_once_with(
-            request={'project_id': PROJECT_ID, 'id': mock_build_id}, retry=None, timeout=None, metadata=None
+            request={'project_id': PROJECT_ID, 'id': BUILD_ID}, retry=None, timeout=None, metadata=None
         )
 
     @patch("airflow.providers.google.cloud.hooks.cloud_build.CloudBuildHook.get_conn")

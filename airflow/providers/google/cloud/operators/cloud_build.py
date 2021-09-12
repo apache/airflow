@@ -40,8 +40,12 @@ class CloudBuildCancelBuildOperator(BaseOperator):
     """
     Cancels a build in progress.
 
-    :param id: The ID of the build.
-    :type id: str
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:CloudBuildCancelBuildOperator`
+
+    :param id_: The ID of the build.
+    :type id_: str
     :param project_id: Optional, Google Cloud Project project_id where the function belongs.
         If set to None or missing, the default project_id from the GCP connection is used.
     :type project_id: Optional[str]
@@ -68,12 +72,12 @@ class CloudBuildCancelBuildOperator(BaseOperator):
     :rtype: dict
     """
 
-    template_fields = ("project_id", "id", "gcp_conn_id")
+    template_fields = ("project_id", "id_", "gcp_conn_id")
 
     def __init__(
         self,
         *,
-        id: str,
+        id_: str,
         project_id: Optional[str] = None,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
@@ -83,7 +87,7 @@ class CloudBuildCancelBuildOperator(BaseOperator):
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
-        self.id = id
+        self.id_ = id_
         self.project_id = project_id
         self.retry = retry
         self.timeout = timeout
@@ -94,7 +98,7 @@ class CloudBuildCancelBuildOperator(BaseOperator):
     def execute(self, context):
         hook = CloudBuildHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain)
         result = hook.cancel_build(
-            id=self.id,
+            id_=self.id_,
             project_id=self.project_id,
             retry=self.retry,
             timeout=self.timeout,
@@ -106,6 +110,10 @@ class CloudBuildCancelBuildOperator(BaseOperator):
 class CloudBuildCreateBuildOperator(BaseOperator):
     """
     Starts a build with the specified configuration.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:CloudBuildCreateBuildOperator`
 
     :param build: The build resource to create. If a dict is provided, it must be of the same form
         as the protobuf message `google.cloud.devtools.cloudbuild_v1.types.Build`
@@ -172,12 +180,11 @@ class CloudBuildCreateBuildOperator(BaseOperator):
 
         if self.body:
             warnings.warn(
-                "The body parameter has been deprecated. You should pass body using " "the build parameter.",
+                "The body parameter has been deprecated. You should pass body using the build parameter.",
                 DeprecationWarning,
                 stacklevel=4,
             )
-            if not self.build:
-                self.build = self.build_raw = self.body
+            self.build = self.build_raw = self.body
 
     def prepare_template(self) -> None:
         # if no file is specified, skip
@@ -208,6 +215,10 @@ class CloudBuildCreateBuildOperator(BaseOperator):
 class CloudBuildCreateBuildTriggerOperator(BaseOperator):
     """
     Creates a new BuildTrigger.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:CloudBuildCreateBuildTriggerOperator`
 
     :param trigger: The BuildTrigger to create. If a dict is provided, it must be of the same form
         as the protobuf message `google.cloud.devtools.cloudbuild_v1.types.BuildTrigger`
@@ -277,6 +288,10 @@ class CloudBuildDeleteBuildTriggerOperator(BaseOperator):
     """
     Deletes a BuildTrigger by its project ID and trigger ID.
 
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:CloudBuildDeleteBuildTriggerOperator`
+
     :param trigger_id: The ID of the BuildTrigger to delete.
     :type trigger_id: str
     :param project_id: Optional, Google Cloud Project project_id where the function belongs.
@@ -341,8 +356,12 @@ class CloudBuildGetBuildOperator(BaseOperator):
     """
     Returns information about a previously requested build.
 
-    :param id: The ID of the build.
-    :type id: str
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:CloudBuildGetBuildOperator`
+
+    :param id_: The ID of the build.
+    :type id_: str
     :param project_id: Optional, Google Cloud Project project_id where the function belongs.
         If set to None or missing, the default project_id from the GCP connection is used.
     :type project_id: Optional[str]
@@ -369,12 +388,12 @@ class CloudBuildGetBuildOperator(BaseOperator):
     :rtype: dict
     """
 
-    template_fields = ("project_id", "id", "gcp_conn_id")
+    template_fields = ("project_id", "id_", "gcp_conn_id")
 
     def __init__(
         self,
         *,
-        id: str,
+        id_: str,
         project_id: Optional[str] = None,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
@@ -384,7 +403,7 @@ class CloudBuildGetBuildOperator(BaseOperator):
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
-        self.id = id
+        self.id_ = id_
         self.project_id = project_id
         self.retry = retry
         self.timeout = timeout
@@ -395,7 +414,7 @@ class CloudBuildGetBuildOperator(BaseOperator):
     def execute(self, context):
         hook = CloudBuildHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain)
         result = hook.get_build(
-            id=self.id,
+            id_=self.id_,
             project_id=self.project_id,
             retry=self.retry,
             timeout=self.timeout,
@@ -407,6 +426,10 @@ class CloudBuildGetBuildOperator(BaseOperator):
 class CloudBuildGetBuildTriggerOperator(BaseOperator):
     """
     Returns information about a BuildTrigger.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:CloudBuildGetBuildTriggerOperator`
 
     :param trigger_id: The ID of the BuildTrigger to get.
     :type trigger_id: str
@@ -474,6 +497,10 @@ class CloudBuildGetBuildTriggerOperator(BaseOperator):
 class CloudBuildListBuildTriggersOperator(BaseOperator):
     """
     Lists existing BuildTriggers.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:CloudBuildListBuildTriggersOperator`
 
     :param location: The location of the project.
     :type location: string
@@ -552,6 +579,10 @@ class CloudBuildListBuildsOperator(BaseOperator):
     """
     Lists previously requested builds.
 
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:CloudBuildListBuildsOperator`
+
     :param location: The location of the project.
     :type location: string
     :param project_id: Optional, Google Cloud Project project_id where the function belongs.
@@ -559,8 +590,8 @@ class CloudBuildListBuildsOperator(BaseOperator):
     :type project_id: str
     :param page_size: Optional, number of results to return in the list.
     :type page_size: Optional[int]
-    :param filter: Optional, the raw filter text to constrain the results.
-    :type filter: Optional[str]
+    :param filter_: Optional, the raw filter text to constrain the results.
+    :type filter_: Optional[str]
     :param retry: Optional, a retry object used  to retry requests. If `None` is specified, requests
         will not be retried.
     :type retry: Optional[Retry]
@@ -592,7 +623,7 @@ class CloudBuildListBuildsOperator(BaseOperator):
         location: str,
         project_id: Optional[str] = None,
         page_size: Optional[int] = None,
-        filter: Optional[str] = None,
+        filter_: Optional[str] = None,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
         metadata: Optional[Sequence[Tuple[str, str]]] = None,
@@ -604,7 +635,7 @@ class CloudBuildListBuildsOperator(BaseOperator):
         self.location = location
         self.project_id = project_id
         self.page_size = page_size
-        self.filter = filter
+        self.filter_ = filter_
         self.retry = retry
         self.timeout = timeout
         self.metadata = metadata
@@ -617,7 +648,7 @@ class CloudBuildListBuildsOperator(BaseOperator):
             project_id=self.project_id,
             location=self.location,
             page_size=self.page_size,
-            filter=self.filter,
+            filter_=self.filter_,
             retry=self.retry,
             timeout=self.timeout,
             metadata=self.metadata,
@@ -630,8 +661,12 @@ class CloudBuildRetryBuildOperator(BaseOperator):
     Creates a new build based on the specified build. This method creates a new build
     using the original build request, which may or may not result in an identical build.
 
-    :param id: Build ID of the original build.
-    :type id: str
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:CloudBuildRetryBuildOperator`
+
+    :param id_: Build ID of the original build.
+    :type id_: str
     :param project_id: Optional, Google Cloud Project project_id where the function belongs.
         If set to None or missing, the default project_id from the GCP connection is used.
     :type project_id: str
@@ -660,12 +695,12 @@ class CloudBuildRetryBuildOperator(BaseOperator):
     :rtype: dict
     """
 
-    template_fields = ("project_id", "id", "gcp_conn_id")
+    template_fields = ("project_id", "id_", "gcp_conn_id")
 
     def __init__(
         self,
         *,
-        id: str,
+        id_: str,
         project_id: Optional[str] = None,
         wait: bool = True,
         retry: Optional[Retry] = None,
@@ -676,7 +711,7 @@ class CloudBuildRetryBuildOperator(BaseOperator):
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
-        self.id = id
+        self.id_ = id_
         self.project_id = project_id
         self.wait = wait
         self.retry = retry
@@ -688,7 +723,7 @@ class CloudBuildRetryBuildOperator(BaseOperator):
     def execute(self, context):
         hook = CloudBuildHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain)
         result = hook.retry_build(
-            id=self.id,
+            id_=self.id_,
             project_id=self.project_id,
             wait=self.wait,
             retry=self.retry,
@@ -701,6 +736,10 @@ class CloudBuildRetryBuildOperator(BaseOperator):
 class CloudBuildRunBuildTriggerOperator(BaseOperator):
     """
     Runs a BuildTrigger at a particular source revision.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:CloudBuildRunBuildTriggerOperator`
 
     :param trigger_id: The ID of the trigger.
     :type trigger_id: str
@@ -779,6 +818,10 @@ class CloudBuildRunBuildTriggerOperator(BaseOperator):
 class CloudBuildUpdateBuildTriggerOperator(BaseOperator):
     """
     Updates a BuildTrigger by its project ID and trigger ID.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:CloudBuildUpdateBuildTriggerOperator`
 
     :param trigger_id: The ID of the trigger.
     :type trigger_id: str
@@ -881,23 +924,23 @@ class BuildProcessor:
         if "repo_source" not in self.build["source"]:
             return
 
-        source = self.build["source"]["repo_source"]
+        repo_source = self.build["source"]["repo_source"]
 
-        if not isinstance(source, str):
+        if not isinstance(repo_source, str):
             return
 
-        self.build["source"]["repo_source"] = self._convert_repo_url_to_dict(source)
+        self.build["source"]["repo_source"] = self._convert_repo_url_to_dict(repo_source)
 
     def _reformat_storage_source(self) -> None:
         if "storage_source" not in self.build["source"]:
             return
 
-        source = self.build["source"]["storage_source"]
+        storage_source = self.build["source"]["storage_source"]
 
-        if not isinstance(source, str):
+        if not isinstance(storage_source, str):
             return
 
-        self.build["source"]["storage_source"] = self._convert_storage_url_to_dict(source)
+        self.build["source"]["storage_source"] = self._convert_storage_url_to_dict(storage_source)
 
     def process_body(self) -> Build:
         """

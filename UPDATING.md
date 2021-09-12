@@ -1781,10 +1781,10 @@ previous one was (project_id, dataset_id, ...) (breaking change)
 
 #### `airflow.providers.google.cloud.operators.cloud_build.CloudBuildCreateBuildOperator`
 
-The `api_version` has been removed and will not be used since we migrate CloudBuildHook from using
+The `api_version` has been removed and will not be used since we migrate `CloudBuildHook` from using
  Discovery API to native google-cloud-build python library.
 
-The `body` in CloudBuildCreateBuildOperator parameter has been deprecated.
+The `body` parameter in `CloudBuildCreateBuildOperator` has been deprecated.
  Instead, you should pass body using the `build` parameter.
 
 #### `airflow.providers.google.cloud.hooks.dataflow.DataflowHook.start_python_dataflow`

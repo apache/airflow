@@ -68,11 +68,11 @@ class TestCloudBuildOperator(TestCase):
     @mock.patch("airflow.providers.google.cloud.operators.cloud_build.CloudBuildHook")
     def test_cancel_build(self, mock_hook):
         mock_hook.return_value.cancel_build.return_value = Build()
-        operator = CloudBuildCancelBuildOperator(id=TRIGGER_ID, task_id="id")
+        operator = CloudBuildCancelBuildOperator(id_=TRIGGER_ID, task_id="id")
         operator.execute(context=None)
         mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID, impersonation_chain=None)
         mock_hook.return_value.cancel_build.assert_called_once_with(
-            id=TRIGGER_ID, project_id=None, retry=None, timeout=None, metadata=None
+            id_=TRIGGER_ID, project_id=None, retry=None, timeout=None, metadata=None
         )
 
     @mock.patch("airflow.providers.google.cloud.operators.cloud_build.CloudBuildHook")
@@ -148,11 +148,11 @@ class TestCloudBuildOperator(TestCase):
     @mock.patch("airflow.providers.google.cloud.operators.cloud_build.CloudBuildHook")
     def test_get_build(self, mock_hook):
         mock_hook.return_value.get_build.return_value = Build()
-        operator = CloudBuildGetBuildOperator(id=BUILD_ID, task_id="id")
+        operator = CloudBuildGetBuildOperator(id_=BUILD_ID, task_id="id")
         operator.execute(context=None)
         mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID, impersonation_chain=None)
         mock_hook.return_value.get_build.assert_called_once_with(
-            id=BUILD_ID, project_id=None, retry=None, timeout=None, metadata=None
+            id_=BUILD_ID, project_id=None, retry=None, timeout=None, metadata=None
         )
 
     @mock.patch("airflow.providers.google.cloud.operators.cloud_build.CloudBuildHook")
@@ -191,7 +191,7 @@ class TestCloudBuildOperator(TestCase):
             project_id=None,
             location="global",
             page_size=None,
-            filter=None,
+            filter_=None,
             retry=None,
             timeout=None,
             metadata=None,
@@ -200,11 +200,11 @@ class TestCloudBuildOperator(TestCase):
     @mock.patch("airflow.providers.google.cloud.operators.cloud_build.CloudBuildHook")
     def test_retry_build(self, mock_hook):
         mock_hook.return_value.retry_build.return_value = Build()
-        operator = CloudBuildRetryBuildOperator(id=BUILD_ID, task_id="id")
+        operator = CloudBuildRetryBuildOperator(id_=BUILD_ID, task_id="id")
         operator.execute(context=None)
         mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID, impersonation_chain=None)
         mock_hook.return_value.retry_build.assert_called_once_with(
-            id=BUILD_ID, project_id=None, wait=True, retry=None, timeout=None, metadata=None
+            id_=BUILD_ID, project_id=None, wait=True, retry=None, timeout=None, metadata=None
         )
 
     @mock.patch("airflow.providers.google.cloud.operators.cloud_build.CloudBuildHook")
@@ -315,127 +315,3 @@ class TestBuildProcessor(TestCase):
 
         BuildProcessor(build=body).process_body()
         assert body == expected_body
-<<<<<<< HEAD
-=======
-
-
-class TestGcpCloudBuildCreateBuildOperator(TestCase):
-    @mock.patch("airflow.providers.google.cloud.operators.cloud_build.CloudBuildHook")
-    def test_minimal_green_path(self, mock_hook):
-        mock_hook.return_value.create_build.return_value = TEST_CREATE_BODY
-        operator = CloudBuildCreateBuildOperator(
-            body=TEST_CREATE_BODY, project_id=TEST_PROJECT_ID, task_id="task-id"
-        )
-        result = operator.execute({})
-        assert result is TEST_CREATE_BODY
-
-    @parameterized.expand([({},), (None,)])
-    def test_missing_input(self, body):
-        with pytest.raises(AirflowException, match="The required parameter 'body' is missing"):
-            CloudBuildCreateBuildOperator(body=body, project_id=TEST_PROJECT_ID, task_id="task-id")
-
-    @mock.patch("airflow.providers.google.cloud.operators.cloud_build.CloudBuildHook")
-    def test_storage_source_replace(self, hook_mock):
-        hook_mock.return_value.create_build.return_value = TEST_CREATE_BODY
-        current_body = {
-            # [START howto_operator_gcp_cloud_build_source_gcs_url]
-            "source": {"storageSource": "gs://bucket-name/object-name.tar.gz"},
-            # [END howto_operator_gcp_cloud_build_source_gcs_url]
-            "steps": [
-                {
-                    "name": "gcr.io/cloud-builders/docker",
-                    "args": ["build", "-t", "gcr.io/$PROJECT_ID/docker-image", "."],
-                }
-            ],
-            "images": ["gcr.io/$PROJECT_ID/docker-image"],
-        }
-
-        operator = CloudBuildCreateBuildOperator(
-            body=current_body, project_id=TEST_PROJECT_ID, task_id="task-id"
-        )
-        operator.execute({})
-
-        expected_result = {
-            # [START howto_operator_gcp_cloud_build_source_gcs_dict]
-            "source": {"storageSource": {"bucket": "bucket-name", "object": "object-name.tar.gz"}},
-            # [END howto_operator_gcp_cloud_build_source_gcs_dict]
-            "steps": [
-                {
-                    "name": "gcr.io/cloud-builders/docker",
-                    "args": ["build", "-t", "gcr.io/$PROJECT_ID/docker-image", "."],
-                }
-            ],
-            "images": ["gcr.io/$PROJECT_ID/docker-image"],
-        }
-        hook_mock.create_build(body=expected_result, project_id=TEST_PROJECT_ID)
-
-    @mock.patch(
-        "airflow.providers.google.cloud.operators.cloud_build.CloudBuildHook",
-    )
-    def test_repo_source_replace(self, hook_mock):
-        hook_mock.return_value.create_build.return_value = TEST_CREATE_BODY
-        current_body = {
-            # [START howto_operator_gcp_cloud_build_source_repo_url]
-            "source": {"repoSource": "https://source.developers.google.com/p/airflow-project/r/airflow-repo"},
-            # [END howto_operator_gcp_cloud_build_source_repo_url]
-            "steps": [
-                {
-                    "name": "gcr.io/cloud-builders/docker",
-                    "args": ["build", "-t", "gcr.io/$PROJECT_ID/docker-image", "."],
-                }
-            ],
-            "images": ["gcr.io/$PROJECT_ID/docker-image"],
-        }
-        operator = CloudBuildCreateBuildOperator(
-            body=current_body, project_id=TEST_PROJECT_ID, task_id="task-id"
-        )
-
-        return_value = operator.execute({})
-        expected_body = {
-            # [START howto_operator_gcp_cloud_build_source_repo_dict]
-            "source": {
-                "repoSource": {
-                    "projectId": "airflow-project",
-                    "repoName": "airflow-repo",
-                    "branchName": "master",
-                }
-            },
-            # [END howto_operator_gcp_cloud_build_source_repo_dict]
-            "steps": [
-                {
-                    "name": "gcr.io/cloud-builders/docker",
-                    "args": ["build", "-t", "gcr.io/$PROJECT_ID/docker-image", "."],
-                }
-            ],
-            "images": ["gcr.io/$PROJECT_ID/docker-image"],
-        }
-        hook_mock.return_value.create_build.assert_called_once_with(
-            body=expected_body, project_id=TEST_PROJECT_ID
-        )
-        assert return_value == TEST_CREATE_BODY
-
-
-def test_load_templated_yaml(tmp_path, session, dag_maker):
-    body_path = tmp_path.joinpath("test_load_templated.yaml")
-    body_path.write_text(
-        """
-        steps:
-          - name: 'ubuntu'
-            args: ['echo', 'Hello {{ params.name }}!']
-        """
-    )
-
-    with dag_maker(dag_id='example_cloudbuild_operator', start_date=TEST_DEFAULT_DATE, session=session):
-        operator = CloudBuildCreateBuildOperator(
-            body=str(body_path), task_id="task-id", params={'name': 'airflow'}
-        )
-    dagrun = dag_maker.create_dagrun()
-    (ti,) = dagrun.task_instances
-    ti.refresh_from_task(operator)
-
-    operator.prepare_template()
-    ti.render_templates()
-
-    expected_body = {'steps': [{'name': 'ubuntu', 'args': ['echo', 'Hello airflow!']}]}
-    assert expected_body == operator.body
->>>>>>> 15a99456c34afb0a2ee0eecd14c077ce09fb7d9c
