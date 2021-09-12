@@ -34,9 +34,11 @@ The packages are available at the
 
 The |version| downloads are available at:
 
-* `Apache Airflow |version| sdist package <https://downloads.apache.org/airflow/|version|/apache-airflow-|version|.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/|version|/apache-airflow-|version|.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/|version|/apache-airflow-|version|.tar.gz.sha512>`__)
-* `Apache Airflow |version| wheel package <https://downloads.apache.org/airflow/|version|/apache_airflow-|version|-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/|version|/apache_airflow-|version|-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/|version|/apache_airflow-|version|-py3-none-any.whl.sha512>`__)
-* `Apache Airflow |version| sources <https://downloads.apache.org/airflow/|version|/apache-airflow-|version|-source.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/|version|/apache-airflow-|version|-source.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/|version|/apache-airflow-|version|-source.tar.gz.sha512>`__)
+.. jinja:: official_download_page
+
+    * `Sdist package <{{ closer_lua_url }}/apache-airflow-{{ airflow_version }}.tar.gz>`_ (`asc <{{ base_url }}/apache-airflow-{{ airflow_version }}.tar.gz.asc>`__, `sha512 <{{ base_url }}/apache-airflow-{{ airflow_version }}.tar.gz.sha512>`__)
+    * `Wheel package <{{ closer_lua_url }}/apache_airflow-{{ airflow_version }}-py3-none-any.whl>`_ (`asc <{{ base_url }}/apache_airflow-{{ airflow_version }}-py3-none-any.whl.asc>`__, `sha512 <{{ base_url }}/apache_airflow-{{ airflow_version }}-py3-none-any.whl.sha512>`__)
+    * `Sources <{{ closer_lua_url }}/apache-airflow-{{ airflow_version }}-source.tar.gz>`_ (`asc <{{ base_url }}/apache_airflow-{{ airflow_version }}-source.tar.gz.asc>`__, `sha512 <{{ base_url }}/apache-airflow-{{ airflow_version }}-source.tar.gz.sha512>`__)
 
 If you want to install from the source code, you can download from the sources link above, it will contain
 a ``INSTALL`` file containing details on how you can build and install Airflow.
