@@ -48,7 +48,11 @@
     <p>
       To access configuration in your DAG use <code>{{ '{{ dag_run.conf }}' }}</code>.
       {% if is_dag_run_conf_overrides_params %}
-        Alternatively, you can use <code>{{ '{{ params }}' }}</code> as well to access these.
+        As <code>core.dag_run_conf_overrides_params</code> is set to <code>True</code>, so passing any configuration
+        here will override task params which can be accessed via <code>{{ '{{ params }}' }}</code>.
+      {% else %}
+        As <code>core.dag_run_conf_overrides_params</code> is set to <code>False</code>, so passing any configuration
+        here won't override task params.
       {% endif %}
     </p>
     <div class="form-group">
