@@ -1717,7 +1717,7 @@ TRANSFERS = [
         'airflow.operators.mssql_to_hive.MsSqlToHiveTransfer',
     ),
     (
-        'airflow.providers.microsoft.azure.transfers.file_to_wasb.FileToWasbOperator',
+        'airflow.providers.microsoft.azure.transfers.local_to_wasb.LocalFilesystemToWasbOperator',
         'airflow.contrib.operators.file_to_wasb.FileToWasbOperator',
     ),
     (

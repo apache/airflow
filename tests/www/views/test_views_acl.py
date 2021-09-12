@@ -21,10 +21,13 @@ import urllib.parse
 
 import pytest
 
+from airflow.models import DagModel
 from airflow.security import permissions
 from airflow.utils import timezone
+from airflow.utils.session import create_session
 from airflow.utils.state import State
 from airflow.utils.types import DagRunType
+from airflow.www.views import FILTER_STATUS_COOKIE
 from tests.test_utils.api_connexion_utils import create_user
 from tests.test_utils.db import clear_db_runs
 from tests.test_utils.www import check_content_in_response, check_content_not_in_response, client_with_login
@@ -273,6 +276,36 @@ def test_dag_autocomplete_empty(client_all_dags, query, expected):
         url = f"{url}?query={query}"
     resp = client_all_dags.get(url, follow_redirects=False)
     assert resp.json == expected
+
+
+@pytest.fixture()
+def setup_paused_dag():
+    """Pause a DAG so we can test filtering."""
+    dag_to_pause = "example_branch_operator"
+    with create_session() as session:
+        session.query(DagModel).filter(DagModel.dag_id == dag_to_pause).update({"is_paused": True})
+    yield
+    with create_session() as session:
+        session.query(DagModel).filter(DagModel.dag_id == dag_to_pause).update({"is_paused": False})
+
+
+@pytest.mark.parametrize(
+    "status, expected, unexpected",
+    [
+        ("active", "example_branch_labels", "example_branch_operator"),
+        ("paused", "example_branch_operator", "example_branch_labels"),
+    ],
+)
+@pytest.mark.usefixtures("setup_paused_dag")
+def test_dag_autocomplete_status(client_all_dags, status, expected, unexpected):
+    with client_all_dags.session_transaction() as flask_session:
+        flask_session[FILTER_STATUS_COOKIE] = status
+    resp = client_all_dags.get(
+        'dagmodel/autocomplete?query=example_branch_',
+        follow_redirects=False,
+    )
+    check_content_in_response(expected, resp)
+    check_content_not_in_response(unexpected, resp)
 
 
 @pytest.fixture(scope="module")

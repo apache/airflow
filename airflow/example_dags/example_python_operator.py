@@ -18,19 +18,19 @@
 
 """Example DAG demonstrating the usage of the PythonOperator."""
 import time
+from datetime import datetime
 from pprint import pprint
 
 from airflow import DAG
 from airflow.operators.python import PythonOperator, PythonVirtualenvOperator
-from airflow.utils.dates import days_ago
 
 with DAG(
     dag_id='example_python_operator',
     schedule_interval=None,
-    start_date=days_ago(2),
+    start_date=datetime(2021, 1, 1),
+    catchup=False,
     tags=['example'],
 ) as dag:
-
     # [START howto_operator_python]
     def print_context(ds, **kwargs):
         """Print the Airflow context and ds variable from the context."""

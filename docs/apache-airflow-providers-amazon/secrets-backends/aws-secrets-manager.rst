@@ -27,10 +27,63 @@ Here is a sample configuration:
 
     [secrets]
     backend = airflow.providers.amazon.aws.secrets.secrets_manager.SecretsManagerBackend
-    backend_kwargs = {"connections_prefix": "airflow/connections", "variables_prefix": "airflow/variables", "profile_name": "default"}
+    backend_kwargs = {"connections_prefix": "airflow/connections", "variables_prefix": "airflow/variables", "profile_name": "default", "full_url_mode": False}
 
 To authenticate you can either supply a profile name to reference aws profile, e.g. defined in ``~/.aws/config`` or set
 environment variables like ``AWS_ACCESS_KEY_ID``, ``AWS_SECRET_ACCESS_KEY``.
+
+
+Storing and Retrieving Connections
+""""""""""""""""""""""""""""""""""
+You can store the different values for a secret in two forms: storing the conn URI in one field (default mode) or using different
+fields in Amazon Secrets Manager (setting ``full_url_mode`` as False in the backend config), as follow:
+.. image:: img/aws-secrets-manager.png
+
+By default you must use some of the following words for each kind of field:
+
+* For storing passwords, valid key names are password, pass and key
+* Users: user, username, login, user_name
+* Host: host, remote_host, server
+* Port: port
+* You should also specify the type of connection, which can be done naming the key as conn_type, conn_id,
+  connection_type or engine. Valid values for this field are postgres, mysql, snowflake, google_cloud, mongo...
+* For the extra value of the connections, you have to type a dictionary.
+
+However, more words can be added to the list using the parameter ``extra_conn_words`` in the configuration. This
+parameter has to be a dict of lists with the following optional keys: user, password, host, schema, conn_type
+As an example, if you have set ``connections_prefix`` as ``airflow/connections``, then for a connection id of ``smtp_default``,
+you would want to store your connection at ``airflow/connections/smtp_default``. This can be done through the AWS web
+console or through Amazon CLI as shown below:
+
+.. code-block:: bash
+
+    aws secretsmanager put-secret-value \
+        --secret-id airflow/connections/smtp_default \
+        --secret-string [{"user": "nice_user"}, {"pass": "this_is_the_password"}, {"host": "ec2.8399.com"}, {"port": "999"}]
+
+Verify that you can get the secret:
+
+.. code-block:: console
+
+    ❯ aws secretsmanager get-secret-value --secret-id airflow/connections/smtp_default
+    {
+        "ARN": "arn:aws:secretsmanager:us-east-2:314524341751:secret:airflow/connections/smtp_default-7meuul",
+        "Name": "airflow/connections/smtp_default",
+        "VersionId": "34f90eff-ea21-455a-9c8f-5ee74b21be672",
+        "SecretString": "{\n  \"user\":\"nice_user\",\n  \"pass\":\"this_is_the_password\"\n,
+        \n  \"host\":\"ec2.8399.com\"\n,\n  \"port\":\"999\"\n}\n",
+        "VersionStages": [
+            "AWSCURRENT"
+        ],
+        "CreatedDate": "2020-04-08T02:10:35.132000+01:00"
+    }
+
+
+Storing and Retrieving Variables
+""""""""""""""""""""""""""""""""
+
+If you have set ``variables_prefix`` as ``airflow/variables``, then for an Variable key of ``hello``,
+you would want to store your Variable at ``airflow/variables/hello``.
 
 Optional lookup
 """""""""""""""
@@ -48,41 +101,12 @@ For example, if you want to set parameter ``connections_prefix`` to ``"airflow/c
     backend = airflow.providers.amazon.aws.secrets.secrets_manager.SecretsManagerBackend
     backend_kwargs = {"connections_prefix": "airflow/connections", "variables_prefix": null, "profile_name": "default"}
 
-Storing and Retrieving Connections
-""""""""""""""""""""""""""""""""""
+Example of storing Google Secrets in AWS Secrets Manger
+""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+For connecting to a google cloud conn, all the fields must be in the extra field, and their names follow the pattern
+``extra_google_cloud_platform__value``. For example:
 
-If you have set ``connections_prefix`` as ``airflow/connections``, then for a connection id of ``smtp_default``,
-you would want to store your connection at ``airflow/connections/smtp_default``.
+.. code-block:: ini
 
-Example:
-
-.. code-block:: bash
-
-    aws secretsmanager put-secret-value \
-        --secret-id airflow/connections/smtp_default \
-        --secret-string "smtps://user:host@relay.example.com:465"
-
-Verify that you can get the secret:
-
-.. code-block:: console
-
-    ❯ aws secretsmanager get-secret-value --secret-id airflow/connections/smtp_default
-    {
-        "ARN": "arn:aws:secretsmanager:us-east-2:314524341751:secret:airflow/connections/smtp_default-7meuul",
-        "Name": "airflow/connections/smtp_default",
-        "VersionId": "34f90eff-ea21-455a-9c8f-5ee74b21be672",
-        "SecretString": "smtps://user:host@relay.example.com:465",
-        "VersionStages": [
-            "AWSCURRENT"
-        ],
-        "CreatedDate": "2020-04-08T02:10:35.132000+01:00"
-    }
-
-The value of the secret must be the :ref:`connection URI representation <generating_connection_uri>`
-of the connection object.
-
-Storing and Retrieving Variables
-""""""""""""""""""""""""""""""""
-
-If you have set ``variables_prefix`` as ``airflow/variables``, then for an Variable key of ``hello``,
-you would want to store your Variable at ``airflow/variables/hello``.
+  {'extra__google_cloud_platform__key_path': '/opt/airflow/service_account.json',
+  'extra__google_cloud_platform__scope': 'https://www.googleapis.com/auth/devstorage.read_only'}

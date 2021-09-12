@@ -112,6 +112,7 @@ release = PACKAGE_VERSION
 rst_epilog = f"""
 .. |version| replace:: {version}
 .. |airflow-version| replace:: {airflow.__version__}
+.. |experimental| replace:: This is an :ref:`experimental feature <experimental>`.
 """
 
 # -- General configuration -----------------------------------------------------
@@ -357,6 +358,12 @@ if PACKAGE_NAME == 'apache-airflow':
             for key in keys_to_format:
                 if option[key] and "{{" in option[key]:
                     option[key] = option[key].replace("{{", "{").replace("}}", "}")
+    # Sort options, config and deprecated options for JINJA variables to display
+    for config in configs:
+        config["options"] = sorted(config["options"], key=lambda o: o["name"])
+    configs = sorted(configs, key=lambda l: l["name"])
+    for section in deprecated_options:
+        deprecated_options[section] = {k: v for k, v in sorted(deprecated_options[section].items())}
 
     jinja_contexts = {
         'config_ctx': {"configs": configs, "deprecated_options": deprecated_options},
@@ -366,6 +373,11 @@ if PACKAGE_NAME == 'apache-airflow':
             else (
                 'http://apache-airflow-docs.s3-website.eu-central-1.amazonaws.com/docs/apache-airflow/latest/'
             )
+        },
+        'official_download_page': {
+            'base_url': f'https://downloads.apache.org/airflow/{PACKAGE_VERSION}',
+            'closer_lua_url': f'https://www.apache.org/dyn/closer.lua/airflow/{PACKAGE_VERSION}',
+            'airflow_version': PACKAGE_VERSION,
         },
     }
 elif PACKAGE_NAME.startswith('apache-airflow-providers-'):

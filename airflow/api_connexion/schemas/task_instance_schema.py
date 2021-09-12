@@ -134,17 +134,9 @@ class TaskInstanceReferenceSchema(Schema):
     """Schema for the task instance reference schema"""
 
     task_id = fields.Str()
-    dag_run_id = fields.Str()
+    run_id = fields.Str(data_key="dag_run_id")
     dag_id = fields.Str()
     execution_date = fields.DateTime()
-
-    def get_attribute(self, obj, attr, default):
-        """Overwritten marshmallow function"""
-        task_instance_attr = ['task_id', 'execution_date', 'dag_id']
-        if attr in task_instance_attr:
-            obj = obj[0]  # As object is a tuple of task_instance and dag_run_id
-            return get_value(obj, attr, default)
-        return obj[1]
 
 
 class TaskInstanceReferenceCollection(NamedTuple):

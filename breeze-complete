@@ -124,6 +124,7 @@ pretty-format-json
 provide-create-sessions
 providers-changelogs
 providers-init-file
+providers-subpackages-init-file
 provider-yamls
 pydevd
 pydocstyle

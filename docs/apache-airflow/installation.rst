@@ -311,23 +311,6 @@ They are based on the official release schedule of Python and Kubernetes, nicely
    make them work in our CI pipeline (which might not be immediate due to dependencies catching up with
    new versions of Python mostly) we release a new images/support in Airflow based on the working CI setup.
 
-Installing Airflow From Released Sources and packages
-'''''''''''''''''''''''''''''''''''''''''''''''''''''
-
-You can also install Airflow using the official sources and packages. Those sources and packages
-released are the "official" sources of installation that you can use if you want to verify the
-origin of the packages and want to verify checksums and signatures of the packages.
-
-The packages are available at the
-`Official Apache Software Foundations Downloads page <https://downloads.apache.org/airflow/>`_
-
-The |version| downloads are available at:
-
-* `Apache Airflow |version| sdist package <https://downloads.apache.org/airflow/|version|/apache-airflow-|version|-bin.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/|version|/apache-airflow-|version|-bin.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/|version|/apache-airflow-|version|-bin.tar.gz.sha512>`__)
-* `Apache Airflow |version| wheel package <https://downloads.apache.org/airflow/|version|/apache_airflow-|version|-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/|version|/apache_airflow-|version|-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/|version|/apache_airflow-|version|-py3-none-any.whl.sha512>`__)
-* `Apache Airflow |version| sources <https://downloads.apache.org/airflow/|version|/apache-airflow-|version|-source.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/|version|/apache-airflow-|version|-source.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/|version|/apache-airflow-|version|-source.tar.gz.sha512>`__)
-
-
 Set up a database
 '''''''''''''''''
 
