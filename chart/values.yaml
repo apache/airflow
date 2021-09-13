@@ -232,6 +232,12 @@ extraEnvFrom: ~
 #   - configMapRef:
 #       name: '{{ .Release.Name }}-airflow-variables'
 
+# To avoid images with user code, you can turn this to 'true' and
+# all the 'run-airflow-migrations' and 'wait-for-airflow-migrations' containers/jobs
+# will use the images from 'defaultAirflowRepository:defaultAirflowTag' values
+# to run and wait for DB migrations .
+useDefaultImageForMigration: false
+
 # Airflow database & redis config
 data:
   # If secret names are provided, use those secrets
