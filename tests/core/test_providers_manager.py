@@ -116,6 +116,7 @@ class TestProviderManager(unittest.TestCase):
 
     @patch('airflow.providers_manager.importlib.import_module')
     def test_hooks(self, mock_import_module):
+        # Compat with importlib_resources
         mock_import_module.return_value.__spec__ = Mock()
         with pytest.warns(expected_warning=None) as warning_records:
             with self._caplog.at_level(logging.WARNING):
