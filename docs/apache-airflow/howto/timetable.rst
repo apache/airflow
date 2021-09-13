@@ -201,10 +201,22 @@ For reference, here's our plugin and DAG files in their entirety:
     :start-after: [START howto_timetable]
     :end-before: [END howto_timetable]
 
-.. exampleinclude:: /../../airflow/example_dags/example_workday_timetable.py
-    :language: python
-    :start-after: [START howto_timetable]
-    :end-before: [END howto_timetable]
+.. code-block:: python
+
+    import datetime
+
+    from airflow import DAG
+    from airflow.example_dags.plugins.workday import AfterWorkdayTimetable
+    from airflow.operators.dummy import DummyOperator
+
+
+    with DAG(
+        dag_id="example_workday_timetable",
+        start_date=datetime.datetime(2021, 1, 1),
+        timetable=AfterWorkdayTimetable(),
+        tags=["example", "timetable"],
+    ) as dag:
+        DummyOperator(task_id="run_this")
 
 
 Parameterized Timetables
