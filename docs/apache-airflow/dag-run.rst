@@ -65,10 +65,10 @@ range it operates in. For a DAG scheduled with ``@daily``, for example, each of
 its data interval would start at midnight of each day and end at midnight of the
 next day.
 
-A DAG run is scheduled *after* its associated data interval has ended, to ensure
-the run is able to collect all the data within the time period. Therefore, a run
-covering the data period of 2020-01-01 will not start to run until 2020-01-01
-has ended, i.e. after 2020-01-02 00:00:00.
+A DAG run is usually scheduled *after* its associated data interval has ended,
+to ensure the run is able to collect all the data within the time period. In
+other words, a run covering the data period of 2020-01-01 generally does not
+start to run until 2020-01-01 has ended, i.e. after 2020-01-02 00:00:00.
 
 All dates in Airflow are tied to the data interval concept in some way. The
 "logical date" (also called ``execution_date`` in Airflow versions prior to 2.2)
