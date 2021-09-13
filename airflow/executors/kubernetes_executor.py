@@ -438,7 +438,7 @@ class KubernetesExecutor(BaseExecutor, LoggingMixin):
     def clear_not_launched_queued_tasks(self, session=None) -> None:
         """
         Tasks can end up in a "Queued" state through either the executor being
-        abruptly shut down (leaving an undrained task_queue on this executor)
+        abruptly shut down (leaving a non-empty task_queue on this executor)
         or when a rescheduled/deferred operator comes back up for execution
         (with the same try_number) before the pod of its previous incarnation
         has been fully removed (we think).
