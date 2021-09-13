@@ -216,7 +216,7 @@ class TestDagParamRuntime:
         assert ti.xcom_pull() == new_value
 
     def test_dag_param_default(self, dag_maker):
-        """Test dag param is overwritten from dagrun config"""
+        """Test dag param is retrieved from default config"""
         with dag_maker(dag_id="test_xcom_pass_to_op", params={'value': 'test'}) as dag:
             value = dag.param('value')
 

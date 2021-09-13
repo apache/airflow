@@ -198,7 +198,7 @@ class DagParam:
         """Pull DagParam value from DagRun context. This method is run during ``op.execute()``."""
         default = self._default
         if not self._default:
-            default = context['params'].get('self._name')
+            default = context['params'][self._name] if self._name in context['params'] else None
         resolved = context['dag_run'].conf.get(self._name, default)
         if not resolved:
             raise AirflowException(f'No value could be resolved for parameter {self._name}')
