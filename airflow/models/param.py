@@ -167,8 +167,8 @@ class ParamsDict(dict):
 class DagParam:
     """
     Class that represents a DAG run parameter & binds a simple Param object to a name within a DAG instance,
-    so that it can be resolved during the run time via ``{{ context }}`` dictionary. The ideal use case of this
-    class is to implicitly convert args passed to a method which is being decorated by ``@dag`` keyword.
+    so that it can be resolved during the run time via ``{{ context }}`` dictionary. The ideal use case of
+    this class is to implicitly convert args passed to a method which is being decorated by ``@dag`` keyword.
 
     It can be used to parameterize your dags. You can overwrite its value by setting it on conf
     when you trigger your DagRun.
