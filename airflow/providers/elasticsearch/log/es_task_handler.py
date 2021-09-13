@@ -281,7 +281,7 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
                 extras={
                     'dag_id': str(ti.dag_id),
                     'task_id': str(ti.task_id),
-                    'execution_date': self._clean_execution_date(ti.execution_date),
+                    'execution_date': self._clean_date(ti.execution_date),
                     'try_number': str(ti.try_number),
                     'log_id': self._render_log_id(ti, ti.try_number),
                 },
