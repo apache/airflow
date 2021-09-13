@@ -23,7 +23,11 @@ from airflow import DAG
 from airflow.example_dags.plugins.workday import AfterWorkdayTimetable
 from airflow.operators.dummy import DummyOperator
 
-with DAG(timetable=AfterWorkdayTimetable(), tags=["example", "timetable"]) as dag:
+with DAG(
+    dag_id="example_workday_timetable",
+    timetable=AfterWorkdayTimetable(),
+    tags=["example", "timetable"],
+) as dag:
     DummyOperator(task_id="run_this")
 
 if __name__ == "__main__":
