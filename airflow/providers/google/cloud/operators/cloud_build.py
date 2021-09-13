@@ -115,12 +115,13 @@ class CloudBuildCreateBuildOperator(BaseOperator):
         For more information on how to use this operator, take a look at the guide:
         :ref:`howto/operator:CloudBuildCreateBuildOperator`
 
-    :param build: The build resource to create. If a dict is provided, it must be of the same form
-        as the protobuf message `google.cloud.devtools.cloudbuild_v1.types.Build`
-    :type build: Union[dict, `google.cloud.devtools.cloudbuild_v1.types.Build`]
+    :param build: Optional, the build resource to create. If a dict is provided, it must be of
+        the same form as the protobuf message `google.cloud.devtools.cloudbuild_v1.types.Build`.
+        Only either build or body should be passed.
+    :type build: Optional[Union[dict, `google.cloud.devtools.cloudbuild_v1.types.Build`]]
     :param body: (Deprecated) The build resource to create.
         This parameter has been deprecated. You should pass the build parameter instead.
-    :type body: optional[dict]
+    :type body: Optional[dict]
     :param project_id: Optional, Google Cloud Project project_id where the function belongs.
         If set to None or missing, the default project_id from the GCP connection is used.
     :type project_id: Optional[str]
@@ -154,7 +155,7 @@ class CloudBuildCreateBuildOperator(BaseOperator):
     def __init__(
         self,
         *,
-        build: Union[Dict, Build, str],
+        build: Optional[Union[Dict, Build, str]] = None,
         body: Optional[Dict] = None,
         project_id: Optional[str] = None,
         wait: bool = True,
@@ -177,6 +178,9 @@ class CloudBuildCreateBuildOperator(BaseOperator):
         self.metadata = metadata
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
+
+        if self.body and self.build:
+            raise AirflowException("Either build or body should be passed.")
 
         if self.body:
             warnings.warn(
