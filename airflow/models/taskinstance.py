@@ -1693,6 +1693,11 @@ class TaskInstance(Base, LoggingMixin):
             # Log failure duration
             session.add(TaskFail(task, self.execution_date, self.start_date, self.end_date))
 
+        # Ensure we unset next_method and next_kwargs to ensure that any
+        # retries don't re-use them.
+        self.next_method = None
+        self.next_kwargs = None
+
         # Set state correctly and figure out how to log it and decide whether
         # to email
 
