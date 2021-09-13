@@ -263,7 +263,7 @@ Misc/Internal
 - Use updated ``_get_all_non_dag_permissions`` method (#16317)
 - Add updated-name wrappers for built-in FAB methods (#16077)
 - Pins ``docutils`` to <0.17 until breaking behaviour is fixed (#16133)
-- Remove ``TaskInstance.log_filepat``h attribute (#15217)
+- Remove ``TaskInstance.log_filepath`` attribute (#15217)
 - Bump ``pyupgrade`` `` v2.13.0`` to ``v2.18.1`` (#15991)
 - Removes unnecessary function call in ``airflow/www/app.py`` (#15956)
 - Correctly implement autocomplete early return in ``airflow/www/views.py`` (#15940)
