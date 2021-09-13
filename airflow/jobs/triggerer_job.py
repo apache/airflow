@@ -341,6 +341,7 @@ class TriggerRunner(threading.Thread, LoggingMixin):
                     "to get more information on overrunning coroutines.",
                     time_elapsed,
                 )
+                Stats.incr('triggers.blocked_main_thread')
 
     # Async trigger logic
 
