@@ -20,7 +20,6 @@
 import json
 from typing import Optional, Sequence, Union
 
-from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.bigquery import BigQueryHook
 from airflow.providers.google.cloud.hooks.gcs import GCSHook
