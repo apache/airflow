@@ -24,7 +24,7 @@ Params are configured while defining the dag & tasks, that can be altered while 
 To use them, one can use the ``Param`` model for complex runtime validations or simply use primitive types,
 which won't be doing any runtime validations.
 
-.. code::
+.. code-block::
 
     from airflow import DAG
     from airflow.models.param import Param
@@ -52,7 +52,7 @@ https://json-schema.org/draft/2020-12/json-schema-validation.html to define the 
 objects.
 
 Also, it worthwhile to note that if you have any DAG which uses a mandatory param value, i.e. a ``Param``
-object with no default value or ``null`` as a allowed type, that DAG schedule has to be ``None``. However,
+object with no default value or ``null`` as an allowed type, that DAG schedule has to be ``None``. However,
 if such ``Param`` has been defined at task level, Airflow has no way to restrict that & the task would
 mostly be failing at the execution time.
 
