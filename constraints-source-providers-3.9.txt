@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2021-09-09T16:12:33Z
+# This constraints file was automatically generated on 2021-09-13T01:24:05Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package nd all available community provider packages.
@@ -356,6 +356,7 @@ pytest-xdist==2.3.0
 pytest==6.2.5
 python-daemon==2.3.0
 python-dateutil==2.8.2
+python-editor==1.0.4
 python-http-client==3.3.2
 python-jenkins==1.7.0
 python-jose==3.3.0

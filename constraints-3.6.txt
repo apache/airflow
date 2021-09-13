@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2021-09-09T16:11:57Z
+# This constraints file was automatically generated on 2021-09-13T01:23:56Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -205,7 +205,7 @@ cx-Oracle==8.2.1
 dask==2021.3.0
 dataclasses==0.8
 datadog==0.42.0
-decorator==5.0.9
+decorator==5.1.0
 defusedxml==0.7.1
 dill==0.3.1.1
 distlib==0.3.2
@@ -318,7 +318,7 @@ jsonschema==3.2.0
 jupyter-client==7.0.2
 jupyter-core==4.7.1
 jwcrypto==1.0
-keyring==23.1.0
+keyring==23.2.1
 kombu==5.1.0
 kubernetes==11.0.0
 kylinpy==2.8.4
@@ -465,7 +465,7 @@ sendgrid==6.8.1
 sentinels==1.0.0
 sentry-sdk==1.3.1
 setproctitle==1.2.2
-simple-salesforce==1.11.3
+simple-salesforce==1.11.4
 six==1.16.0
 slack-sdk==3.10.1
 smbprotocol==1.6.2
@@ -496,11 +496,11 @@ sphinxcontrib-serializinghtml==1.1.5
 sphinxcontrib-spelling==7.2.1
 spython==0.1.15
 sqlalchemy-drill==1.1.1
-sqlparse==0.4.1
+sqlparse==0.4.2
 sshtunnel==0.1.5
 starkbank-ecdsa==1.1.1
 statsd==3.3.0
-swagger-ui-bundle==0.0.8
+swagger-ui-bundle==0.0.9
 tableauserverclient==0.16.0
 tabulate==0.8.9
 tblib==1.7.0
