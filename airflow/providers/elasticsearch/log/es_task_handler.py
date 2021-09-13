@@ -101,25 +101,36 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
         self.context_set = False
 
     def _render_log_id(self, ti: TaskInstance, try_number: int) -> str:
+        dag_run = ti.dag_run
+
         if self.json_format:
-            execution_date = self._clean_execution_date(ti.execution_date)
+            data_interval_start = self._clean_date(dag_run.data_interval_start)
+            data_interval_end = self._clean_date(dag_run.data_interval_end)
+            execution_date = self._clean_date(dag_run.execution_date)
         else:
-            execution_date = ti.execution_date.isoformat()
+            data_interval_start = dag_run.data_interval_start.isoformat()
+            data_interval_end = dag_run.data_interval_end.isoformat()
+            execution_date = dag_run.execution_date.isoformat()
 
         return self.log_id_template.format(
-            dag_id=ti.dag_id, task_id=ti.task_id, execution_date=execution_date, try_number=try_number
+            dag_id=ti.dag_id,
+            task_id=ti.task_id,
+            data_interval_start=data_interval_start,
+            data_interval_end=data_interval_end,
+            execution_date=execution_date,
+            try_number=try_number,
         )
 
     @staticmethod
-    def _clean_execution_date(execution_date: datetime) -> str:
+    def _clean_date(value: datetime) -> str:
         """
-        Clean up an execution date so that it is safe to query in elasticsearch
+        Clean up a date value so that it is safe to query in elasticsearch
         by removing reserved characters.
         # https://www.elastic.co/guide/en/elasticsearch/reference/current/query-dsl-query-string-query.html#_reserved_characters
 
         :param execution_date: execution date of the dag run.
         """
-        return execution_date.strftime("%Y_%m_%dT%H_%M_%S_%f")
+        return value.strftime("%Y_%m_%dT%H_%M_%S_%f")
 
     def _group_logs_by_host(self, logs):
         grouped_logs = defaultdict(list)

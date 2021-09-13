@@ -216,12 +216,22 @@ actually start. If this were not the case, the backfill just would not start.
 What does ``execution_date`` mean?
 ----------------------------------
 
-Airflow was developed as a solution for ETL needs. In the ETL world, you typically summarize data. So, if you want to
-summarize data for 2016-02-19, You would do it at 2016-02-20 midnight UTC, which would be right after all data for
-2016-02-19 becomes available.
+*Execution date* or ``execution_date`` is a historical name for what is called a
+*logical date*, and also usually the start of the data interval represented by a
+DAG run.
 
-This datetime value is available to you as :ref:`Template variables<templates:variables>` with various formats in Jinja templated
-fields. They are also included in the context dictionary given to an Operator's execute function.
+Airflow was developed as a solution for ETL needs. In the ETL world, you
+typically summarize data. So, if you want to summarize data for 2016-02-19, You
+would do it at 2016-02-20 midnight UTC, which would be right after all data for
+2016-02-19 becomes available. This interval between midnights of 2016-02-19 and
+2016-02-20 is called the *data interval*, and since the it represents data in
+the date of 2016-02-19, this date is thus called the run's *logical date*, or
+the date that this DAG run is executed for, thus *execution date*.
+
+For backward compatibility, a datetime value ``execution_date`` is still
+as :ref:`Template variables<templates:variables>` with various formats in Jinja
+templated fields, and in Airflow's Python API. It is also included in the
+context dictionary given to an Operator's execute function.
 
 .. code-block:: python
 
@@ -229,7 +239,12 @@ fields. They are also included in the context dictionary given to an Operator's 
             def execute(self, context):
                 logging.info(context["execution_date"])
 
-Note that ``ds`` refers to date_string, not date start as may be confusing to some.
+However, you should always using ``data_interval_start`` and
+``data_interval_end`` if possible, sinc those names are semantically more
+correct and less prine to misunderstandings.
+
+Note that ``ds`` (the YYYY-MM-DD form of ``data_interval_start``) refers to
+*date* ***string***, not *date* ***start*** as may be confusing to some.
 
 
 How to create DAGs dynamically?
@@ -295,7 +310,7 @@ commonly attempted in ``user_defined_macros``.
 
         bo = BashOperator(task_id="my_task", bash_command="echo {{ my_custom_macro }}", dag=dag)
 
-This will echo "day={{ ds }}" instead of "day=2020-01-01" for a dagrun with the execution date 2020-01-01 00:00:00.
+This will echo "day={{ ds }}" instead of "day=2020-01-01" for a dagrun with ``data_interval_start`` 2020-01-01 00:00:00.
 
 .. code-block:: python
 
@@ -310,7 +325,7 @@ Why ``next_ds`` or ``prev_ds`` might not contain expected values?
 - When scheduling DAG, the ``next_ds`` ``next_ds_nodash`` ``prev_ds`` ``prev_ds_nodash`` are calculated using
   ``execution_date`` and ``schedule_interval``. If you set ``schedule_interval`` as ``None`` or ``@once``,
   the ``next_ds``, ``next_ds_nodash``, ``prev_ds``, ``prev_ds_nodash`` values will be set to ``None``.
-- When manually triggering DAG, the schedule will be ignored, and ``prev_ds == next_ds == ds``
+- When manually triggering DAG, the schedule will be ignored, and ``prev_ds == next_ds == ds``.
 
 
 Task execution interactions

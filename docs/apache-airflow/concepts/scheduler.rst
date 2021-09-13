@@ -54,19 +54,19 @@ In the UI, it appears as if Airflow is running your tasks a day **late**
 
 .. note::
 
-    If you run a DAG on a ``schedule_interval`` of one day, the run with ``execution_date`` ``2019-11-21`` triggers soon after ``2019-11-21T23:59``.
+    If you run a DAG on a ``schedule_interval`` of one day, the run with data interval starting on ``2019-11-21`` triggers after ``2019-11-21T23:59``.
 
-    **Let’s Repeat That**, the scheduler runs your job one ``schedule_interval`` AFTER the start date, at the END of the period.
+    **Let’s Repeat That**, the scheduler runs your job one ``schedule_interval`` AFTER the start date, at the END of the interval.
 
     You should refer to :doc:`/dag-run` for details on scheduling a DAG.
 
 Triggering DAG with Future Date
 -------------------------------
 
-If you want to use 'external trigger' to run future-dated execution dates, set ``allow_trigger_in_future = True`` in ``scheduler`` section in ``airflow.cfg``.
+If you want to use 'external trigger' to run future-dated data intervals, set ``allow_trigger_in_future = True`` in ``scheduler`` section in ``airflow.cfg``.
 This only has effect if your DAG has no ``schedule_interval``.
-If you keep default ``allow_trigger_in_future = False`` and try 'external trigger' to run future-dated execution dates,
-the scheduler won't execute it now but the scheduler will execute it in the future once the current date rolls over to the execution date.
+If you keep default ``allow_trigger_in_future = False`` and try 'external trigger' to run future-dated data intervals,
+the scheduler won't execute it now but the scheduler will execute it in the future once the current date rolls over to the start of the data interval.
 
 .. _scheduler:ha:
 

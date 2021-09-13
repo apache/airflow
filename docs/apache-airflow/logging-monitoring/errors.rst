@@ -52,13 +52,16 @@ Name                                    Description
 ======================================= ==================================================
 ``dag_id``                              Dag name of the dag that failed
 ``task_id``                             Task name of the task that failed
-``execution_date``                      Execution date when the task failed
+``data_interval_start``                 Start of data interval when the task failed
+``data_interval_end``                   End of data interval when the task failed
 ``operator``                            Operator name of the task that failed
 ======================================= ==================================================
 
+For backward compatibility, and additional tag ``execution_date`` is also available the represent the logical date. The tag should be considered deprecated in favour of ``data_interval_start``.
+
+
 Breadcrumbs
 ------------
-
 
 When a task fails with an error `breadcrumbs <https://docs.sentry.io/platforms/python/enriching-events/breadcrumbs/>`__ will be added for the other tasks in the current dag run.
 

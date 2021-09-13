@@ -247,10 +247,10 @@ definitions in Airflow.
         operators = [GCSToS3Operator]
 
         def get_link(self, operator, dttm):
-            return "https://s3.amazonaws.com/airflow-logs/{dag_id}/{task_id}/{execution_date}".format(
+            return "https://s3.amazonaws.com/airflow-logs/{dag_id}/{task_id}/{logical_date}".format(
                 dag_id=operator.dag_id,
                 task_id=operator.task_id,
-                execution_date=dttm,
+                logical_date=dttm,
             )
 
 

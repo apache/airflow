@@ -54,6 +54,9 @@ Cron Presets
 Your DAG will be instantiated for each schedule along with a corresponding
 DAG Run entry in the database backend.
 
+
+.. _data-interval:
+
 Data Interval
 -------------
 
@@ -69,8 +72,8 @@ has ended, i.e. after 2020-01-02 00:00:00.
 
 All dates in Airflow are tied to the data interval concept in some way. The
 "logical date" (also called ``execution_date`` in Airflow versions prior to 2.2)
-of a DAG run, for example, usually denotes the start of the data interval, not
-when the DAG is actually executed.
+of a DAG run, for example, denotes the start of the data interval, not when the
+DAG is actually executed.
 
 Similarly, since the ``start_date`` argument for the DAG and its tasks points to
 the same logical date, it marks the start of *the DAG's fist data interval*, not
@@ -94,7 +97,7 @@ Catchup
 
 An Airflow DAG with a ``start_date``, possibly an ``end_date``, and a ``schedule_interval`` defines a
 series of intervals which the scheduler turns into individual DAG Runs and executes. The scheduler, by default, will
-kick off a DAG Run for any interval that has not been run since the last execution date (or has been cleared). This concept is called Catchup.
+kick off a DAG Run for any data interval that has not been run since the last data interval (or has been cleared). This concept is called Catchup.
 
 If your DAG is not written to handle its catchup (i.e., not limited to the interval, but instead to ``Now`` for instance.),
 then you will want to turn catchup off. This can be done by setting ``catchup = False`` in DAG  or ``catchup_by_default = False``
@@ -130,9 +133,11 @@ in the configuration file. When turned off, the scheduler creates a DAG run only
         catchup=False,
     )
 
-In the example above, if the DAG is picked up by the scheduler daemon on 2016-01-02 at 6 AM,
-(or from the command line), a single DAG Run will be created, with an `execution_date` of 2016-01-01,
-and the next one will be created just after midnight on the morning of 2016-01-03 with an execution date of 2016-01-02.
+In the example above, if the DAG is picked up by the scheduler daemon on
+2016-01-02 at 6 AM, (or from the command line), a single DAG Run will be created
+with a data between 2016-01-01 and 2016-01-02, and the next one will be created
+just after midnight on the morning of 2016-01-03 with a data interval between
+2016-01-02 and 2016-01-03.
 
 If the ``dag.catchup`` value had been ``True`` instead, the scheduler would have created a DAG Run
 for each completed interval between 2015-12-01 and 2016-01-02 (but not yet one for 2016-01-02,
@@ -174,12 +179,12 @@ The executor will re-run it.
 
 There are multiple options you can select to re-run -
 
-* **Past** - All the instances of the task in the  runs before the current DAG's execution date
-* **Future** -  All the instances of the task in the  runs after the current DAG's execution date
+* **Past** - All the instances of the task in the runs before the DAG's most recent data interval
+* **Future** -  All the instances of the task in the runs after the DAG's most recent data interval
 * **Upstream** - The upstream tasks in the current DAG
 * **Downstream** - The downstream tasks in the current DAG
 * **Recursive** - All the tasks in the child DAGs and parent DAGs
-* **Failed** - Only the failed tasks in the current DAG
+* **Failed** - Only the failed tasks in the DAG's most recent run
 
 You can also clear the task through CLI using the command:
 
@@ -204,10 +209,10 @@ Note that DAG Runs can also be created manually through the CLI. Just run the
 
 .. code-block:: bash
 
-    airflow dags trigger --exec-date execution_date run_id
+    airflow dags trigger --exec-date logical_date run_id
 
 The DAG Runs created externally to the scheduler get associated with the trigger’s timestamp and are displayed
-in the UI alongside scheduled DAG runs. The execution date passed inside the DAG can be specified using the ``-e`` argument.
+in the UI alongside scheduled DAG runs. The logical date passed inside the DAG can be specified using the ``-e`` argument.
 The default is the current date in the UTC timezone.
 
 In addition, you can also manually trigger a DAG Run using the web UI (tab **DAGs** -> column **Links** -> button **Trigger Dag**)

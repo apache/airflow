@@ -43,21 +43,26 @@ Please follow our guide on :ref:`custom Operators <custom_operator>`.
 Creating a task
 ---------------
 
-You should treat tasks in Airflow equivalent to transactions in a database. This implies that you should never produce
-incomplete results from your tasks. An example is not to produce incomplete data in ``HDFS`` or ``S3`` at the end of a task.
+You should treat tasks in Airflow equivalent to transactions in a database. This
+implies that you should never produce incomplete results from your tasks. An
+example is not to produce incomplete data in ``HDFS`` or ``S3`` at the end of a
+task.
 
-Airflow can retry a task if it fails. Thus, the tasks should produce the same outcome on every re-run.
-Some of the ways you can avoid producing a different result -
+Airflow can retry a task if it fails. Thus, the tasks should produce the same
+outcome on every re-run. Some of the ways you can avoid producing a different
+result -
 
-* Do not use INSERT during a task re-run, an INSERT statement might lead to duplicate rows in your database.
-  Replace it with UPSERT.
-* Read and write in a specific partition. Never read the latest available data in a task.
-  Someone may update the input data between re-runs, which results in different outputs.
-  A better way is to read the input data from a specific partition. You can use ``execution_date`` as a partition.
-  You should follow this partitioning method while writing data in S3/HDFS, as well.
-* The Python datetime ``now()`` function gives the current datetime object.
-  This function should never be used inside a task, especially to do the critical computation, as it leads to different outcomes on each run.
-  It's fine to use it, for example, to generate a temporary log.
+* Do not use INSERT during a task re-run, an INSERT statement might lead to
+  duplicate rows in your database. Replace it with UPSERT.
+* Read and write in a specific partition. Never read the latest available data
+  in a task. Someone may update the input data between re-runs, which results in
+  different outputs. A better way is to read the input data from a specific
+  partition. You can use ``data_interval_start`` as a partition. You should
+  follow this partitioning method while writing data in S3/HDFS, as well.
+* The Python datetime ``now()`` function gives the current datetime object. This
+  function should never be used inside a task, especially to do the critical
+  computation, as it leads to different outcomes on each run. It's fine to use
+  it, for example, to generate a temporary log.
 
 .. tip::
 
@@ -270,77 +275,73 @@ Unit tests ensure that there is no incorrect code in your DAG. You can write uni
 
 .. code-block:: python
 
- from airflow.models import DagBag
- import unittest
+    import pytest
+
+    from airflow.models import DagBag
 
 
- class TestHelloWorldDAG(unittest.TestCase):
-     @classmethod
-     def setUpClass(cls):
-         cls.dagbag = DagBag()
+    @pytest.fixture(scope="scope")
+    def dagbag(self):
+        return DagBag()
 
-     def test_dag_loaded(self):
-         dag = self.dagbag.get_dag(dag_id="hello_world")
-         assert self.dagbag.import_errors == {}
-         assert dag is not None
-         assert len(dag.tasks) == 1
+
+    def test_dag_loaded(self, dagbag):
+        dag = dagbag.get_dag(dag_id="hello_world")
+        assert dagbag.import_errors == {}
+        assert dag is not None
+        assert len(dag.tasks) == 1
+
 
 **Unit test a DAG structure:**
 This is an example test want to verify the structure of a code-generated DAG against a dict object
 
 .. code-block:: python
 
- import unittest
+      def assert_dag_dict_equal(source, dag):
+          assert dag.task_dict.keys() == source.keys()
+          for task_id, downstream_list in source.items():
+              assert dag.has_task(task_id)
+              task = dag.get_task(task_id)
+              assert task.downstream_task_ids == set(downstream_list)
 
 
- class testClass(unittest.TestCase):
-     def assertDagDictEqual(self, source, dag):
-         assert dag.task_dict.keys() == source.keys()
-         for task_id, downstream_list in source.items():
-             assert dag.has_task(task_id)
-             task = dag.get_task(task_id)
-             assert task.downstream_task_ids == set(downstream_list)
+      def test_dag():
+          assert_dag_dict_equal(
+              {
+                  "DummyInstruction_0": ["DummyInstruction_1"],
+                  "DummyInstruction_1": ["DummyInstruction_2"],
+                  "DummyInstruction_2": ["DummyInstruction_3"],
+                  "DummyInstruction_3": [],
+              },
+              dag,
+          )
 
-     def test_dag(self):
-         self.assertDagDictEqual(
-             {
-                 "DummyInstruction_0": ["DummyInstruction_1"],
-                 "DummyInstruction_1": ["DummyInstruction_2"],
-                 "DummyInstruction_2": ["DummyInstruction_3"],
-                 "DummyInstruction_3": [],
-             },
-             dag,
-         )
 
 **Unit test for custom operator:**
 
 .. code-block:: python
 
- import unittest
- from airflow.utils.state import State
+    import pytest
 
- DEFAULT_DATE = "2019-10-03"
- TEST_DAG_ID = "test_my_custom_operator"
+    from airflow.utils.state import State
 
 
- class MyCustomOperatorTest(unittest.TestCase):
-     def setUp(self):
-         self.dag = DAG(
-             TEST_DAG_ID,
-             schedule_interval="@daily",
-             default_args={"start_date": DEFAULT_DATE},
-         )
-         self.op = MyCustomOperator(
-             dag=self.dag,
-             task_id="test",
-             prefix="s3://bucket/some/prefix",
-         )
-         self.ti = TaskInstance(task=self.op, execution_date=DEFAULT_DATE)
+    def test_my_custom_oeprator_execute_no_trigger(dag_maker):
+        with dag_maker(
+            dag_id="test_my_custom_oeprator_execute_no_trigger",
+            schedule_interval="@daily",
+            default_args={"start_date": DEFAULT_DATE},
+        ) as dag:
+            MyCustomOperator(
+                dag=self.dag,
+                task_id="test",
+                prefix="s3://bucket/some/prefix",
+            )
+        dagrun = dag_maker.create_dagrun()
+        (ti,) = dagrun.task_instances
+        assert ti.state == State.SUCCESS
+        # Assert something related to tasks results
 
-     def test_execute_no_trigger(self):
-         self.ti.run(ignore_ti_state=True)
-         assert self.ti.state == State.SUCCESS
-         # Assert something related to tasks results
 
 Self-Checks
 ------------

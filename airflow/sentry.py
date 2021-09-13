@@ -59,7 +59,10 @@ if conf.getboolean("sentry", 'sentry_on', fallback=False):
     class ConfiguredSentry(DummySentry):
         """Configure Sentry SDK."""
 
-        SCOPE_TAGS = frozenset(("task_id", "dag_id", "execution_date", "operator", "try_number"))
+        SCOPE_DAG_RUN_TAGS = frozenset(("data_interval_end", "data_interval_start", "execution_date"))
+        SCOPE_TASK_TAGS = frozenset(("operator",))
+        SCOPE_TASK_INSTANCE_TAGS = frozenset(("task_id", "dag_id", "try_number"))
+        SCOPE_TAGS = SCOPE_DAG_RUN_TAGS | SCOPE_TASK_TAGS | SCOPE_TASK_INSTANCE_TAGS
         SCOPE_CRUMBS = frozenset(("task_id", "state", "operator", "duration"))
 
         UNSUPPORTED_SENTRY_OPTIONS = frozenset(
@@ -116,14 +119,17 @@ if conf.getboolean("sentry", 'sentry_on', fallback=False):
 
         def add_tagging(self, task_instance):
             """Function to add tagging for a task_instance."""
+            dag_run = task_instance.dag_run
             task = task_instance.task
 
             with sentry_sdk.configure_scope() as scope:
-                for tag_name in self.SCOPE_TAGS:
+                for tag_name in self.SCOPE_TASK_INSTANCE_TAGS:
                     attribute = getattr(task_instance, tag_name)
-                    if tag_name == "operator":
-                        attribute = task.__class__.__name__
                     scope.set_tag(tag_name, attribute)
+                for tag_name in self.SCOPE_DAG_RUN_TAGS:
+                    attribute = getattr(dag_run, tag_name)
+                    scope.set_tag(tag_name, attribute)
+                scope.set_tag("operator", task.__class__.__name__)
 
         @provide_session
         def add_breadcrumbs(self, task_instance, session=None):

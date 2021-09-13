@@ -288,7 +288,7 @@ As with the callable for ``BranchPythonOperator``, this method should return the
             """
             Run an extra branch on the first day of the month
             """
-            if context['execution_date'].day == 1:
+            if context['data_interval_start'].day == 1:
                 return ['daily_task_id', 'monthly_task_id']
             else:
                 return 'daily_task_id'
@@ -328,7 +328,7 @@ Depends On Past
 
 You can also say a task can only run if the *previous* run of the task in the previous DAG Run succeeded. To use this, you just need to set the ``depends_on_past`` argument on your Task to ``True``.
 
-Note that if you are running the DAG at the very start of its life - specifically, that the ``execution_date`` matches the ``start_date`` - then the Task will still run, as there is no previous run to depend on.
+Note that if you are running the DAG at the very start of its life---specifically, its first ever *automated* run---then the Task will still run, as there is no previous run to depend on.
 
 
 .. _concepts:trigger-rules:
@@ -621,7 +621,7 @@ in which one DAG can depend on another:
 - waiting - :class:`~airflow.sensors.external_task_sensor.ExternalTaskSensor`
 
 Additional difficulty is that one DAG could wait for or trigger several runs of the other DAG
-with different execution dates. The **Dag Dependencies** view
+with different data intervals. The **Dag Dependencies** view
 ``Menu -> Browse -> DAG Dependencies`` helps visualize dependencies between DAGs. The dependencies
 are calculated by the scheduler during DAG serialization and the webserver uses them to build
 the dependency graph.
