@@ -239,9 +239,9 @@ context dictionary given to an Operator's execute function.
             def execute(self, context):
                 logging.info(context["execution_date"])
 
-However, you should always using ``data_interval_start`` and
-``data_interval_end`` if possible, sinc those names are semantically more
-correct and less prine to misunderstandings.
+However, you should always use ``data_interval_start`` or ``data_interval_end``
+if possible, since those names are semantically more correct and less prone to
+misunderstandings.
 
 Note that ``ds`` (the YYYY-MM-DD form of ``data_interval_start``) refers to
 *date* ***string***, not *date* ***start*** as may be confusing to some.
