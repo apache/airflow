@@ -250,3 +250,130 @@ class TestWorkerFailure(unittest.TestCase):
             celery_command.worker(args)
         finally:
             mock_popen().terminate.assert_called()
+
+
+@pytest.mark.backend("mysql", "postgres")
+class TestFlowerCommand(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.parser = cli_parser.get_parser()
+
+    @mock.patch('airflow.cli.commands.celery_command.celery_app')
+    @conf_vars({("core", "executor"): "CeleryExecutor"})
+    def test_run_command(self, mock_celery_app):
+        args = self.parser.parse_args(
+            [
+                'celery',
+                'flower',
+                '--basic-auth',
+                'admin:admin',
+                '--broker-api',
+                'http://username:password@rabbitmq-server-name:15672/api/',
+                '--flower-conf',
+                'flower_config',
+                '--hostname',
+                'my-hostname',
+                '--port',
+                '3333',
+                '--url-prefix',
+                'flower-monitoring',
+            ]
+        )
+
+        celery_command.flower(args)
+        mock_celery_app.start.assert_called_once_with(
+            [
+                'flower',
+                'amqp://guest:guest@rabbitmq:5672/',
+                '--address=my-hostname',
+                '--port=3333',
+                '--broker-api=http://username:password@rabbitmq-server-name:15672/api/',
+                '--url-prefix=flower-monitoring',
+                '--basic-auth=admin:admin',
+                '--conf=flower_config',
+            ]
+        )
+
+    @mock.patch('airflow.cli.commands.celery_command.TimeoutPIDLockFile')
+    @mock.patch('airflow.cli.commands.celery_command.setup_locations')
+    @mock.patch('airflow.cli.commands.celery_command.daemon')
+    @mock.patch('airflow.cli.commands.celery_command.celery_app')
+    @conf_vars({("core", "executor"): "CeleryExecutor"})
+    def test_run_command_daemon(self, mock_celery_app, mock_daemon, mock_setup_locations, mock_pid_file):
+        mock_setup_locations.return_value = (
+            mock.MagicMock(name='pidfile'),
+            mock.MagicMock(name='stdout'),
+            mock.MagicMock(name='stderr'),
+            mock.MagicMock(name="INVALID"),
+        )
+        args = self.parser.parse_args(
+            [
+                'celery',
+                'flower',
+                '--basic-auth',
+                'admin:admin',
+                '--broker-api',
+                'http://username:password@rabbitmq-server-name:15672/api/',
+                '--flower-conf',
+                'flower_config',
+                '--hostname',
+                'my-hostname',
+                '--log-file',
+                '/tmp/flower.log',
+                '--pid',
+                '/tmp/flower.pid',
+                '--port',
+                '3333',
+                '--stderr',
+                '/tmp/flower-stderr.log',
+                '--stdout',
+                '/tmp/flower-stdout.log',
+                '--url-prefix',
+                'flower-monitoring',
+                '--daemon',
+            ]
+        )
+        mock_open = mock.mock_open()
+        with mock.patch('airflow.cli.commands.celery_command.open', mock_open):
+            celery_command.flower(args)
+
+        mock_celery_app.start.assert_called_once_with(
+            [
+                'flower',
+                'amqp://guest:guest@rabbitmq:5672/',
+                '--address=my-hostname',
+                '--port=3333',
+                '--broker-api=http://username:password@rabbitmq-server-name:15672/api/',
+                '--url-prefix=flower-monitoring',
+                '--basic-auth=admin:admin',
+                '--conf=flower_config',
+            ]
+        )
+        assert mock_daemon.mock_calls == [
+            mock.call.DaemonContext(
+                pidfile=mock_pid_file.return_value,
+                stderr=mock_open.return_value,
+                stdout=mock_open.return_value,
+            ),
+            mock.call.DaemonContext().__enter__(),
+            mock.call.DaemonContext().__exit__(None, None, None),
+        ]
+
+        assert mock_setup_locations.mock_calls == [
+            mock.call(
+                log='/tmp/flower.log',
+                pid='/tmp/flower.pid',
+                process='flower',
+                stderr='/tmp/flower-stderr.log',
+                stdout='/tmp/flower-stdout.log',
+            )
+        ]
+        mock_pid_file.assert_has_calls([mock.call(mock_setup_locations.return_value[0], -1)])
+        assert mock_open.mock_calls == [
+            mock.call(mock_setup_locations.return_value[1], 'w+'),
+            mock.call().__enter__(),
+            mock.call(mock_setup_locations.return_value[2], 'w+'),
+            mock.call().__enter__(),
+            mock.call().__exit__(None, None, None),
+            mock.call().__exit__(None, None, None),
+        ]
