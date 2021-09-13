@@ -99,6 +99,8 @@ class TestEmail(unittest.TestCase):
             mime_charset='utf-8',
             mime_subtype='mixed',
             conn_id='smtp_default',
+            from_email=None,
+            from_name=None,
         )
         assert not mock_send_email.called
 

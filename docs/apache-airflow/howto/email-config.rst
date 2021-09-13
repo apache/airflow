@@ -80,6 +80,8 @@ Follow the steps below to enable it:
       [email]
       email_backend = airflow.providers.sendgrid.utils.emailer.send_email
       email_conn_id = sendgrid_default
+      from_email = airflow@example.com
+      from_name = Airflow Instance X
 
 3. Create a connection called ``sendgrid_default``, or choose a custom connection
    name and set it in ``email_conn_id``.
@@ -106,6 +108,30 @@ Follow the steps below to enable it:
       [email]
       email_backend = airflow.providers.amazon.aws.utils.emailer.send_email
       email_conn_id = aws_default
+      from_email = airflow@example.com
+      from_name = Airflow Instance X
 
 3. Create a connection called ``aws_default``, or choose a custom connection
-   name and set it in ``email_conn_id``.
+   name and set it in ``email_conn_id``. The aws connection credentials must have a
+   attached policy that allows ``ses:SendMail`` and ``ses:SendRawMail``.
+
+   .. code-block:: json
+
+      {
+          "Version": "2012-10-17",
+          "Statement": [
+              {
+                  "Effect": "Allow",
+                  "Action": [
+                      "ses:SendEmail",
+                      "ses:SendRawEmail"
+                  ],
+                  "Resource": "*",
+                  "Condition": {
+                      "StringEquals": {
+                          "ses:FromAddress": "airflow@example.com"
+                      }
+                  }
+              }
+          ]
+      }

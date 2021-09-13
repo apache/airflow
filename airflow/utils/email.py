@@ -49,6 +49,9 @@ def send_email(
     """Send email using backend specified in EMAIL_BACKEND."""
     backend = conf.getimport('email', 'EMAIL_BACKEND')
     backend_conn_id = conn_id or conf.get("email", "EMAIL_CONN_ID")
+    from_email = conf.get("email", "FROM_EMAIL", fallback=None)
+    from_name = conf.get("email", "FROM_NAME", fallback=None)
+
     to_list = get_email_address_list(to)
     to_comma_separated = ", ".join(to_list)
 
@@ -63,6 +66,8 @@ def send_email(
         mime_subtype=mime_subtype,
         mime_charset=mime_charset,
         conn_id=backend_conn_id,
+        from_email=from_email,
+        from_name=from_name,
         **kwargs,
     )
 

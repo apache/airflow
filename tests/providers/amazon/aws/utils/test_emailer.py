@@ -28,9 +28,32 @@ def test_send_email(mock_hook):
         to="to@test.com",
         subject="subject",
         html_content="content",
+        from_email='test@example.com',
     )
     mock_hook.return_value.send_email.assert_called_once_with(
-        mail_from=None,
+        mail_from='test@example.com',
+        to="to@test.com",
+        subject="subject",
+        html_content="content",
+        bcc=None,
+        cc=None,
+        files=None,
+        mime_charset="utf-8",
+        mime_subtype="mixed",
+    )
+
+
+@mock.patch("airflow.providers.amazon.aws.utils.emailer.SESHook")
+def test_send_email_name(mock_hook):
+    send_email(
+        to="to@test.com",
+        subject="subject",
+        html_content="content",
+        from_name='Airflow email notifier',
+        from_email='test@example.com',
+    )
+    mock_hook.return_value.send_email.assert_called_once_with(
+        mail_from='Airflow email notifier <test@example.com>',
         to="to@test.com",
         subject="subject",
         html_content="content",

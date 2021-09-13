@@ -17,9 +17,13 @@
 # under the License.
 """Airflow module for email backend using AWS SES"""
 
+import logging
 from typing import List, Optional, Union
 
+from airflow.exceptions import AirflowConfigException
 from airflow.providers.amazon.aws.hooks.ses import SESHook
+
+log = logging.getLogger(__name__)
 
 
 def send_email(
@@ -32,12 +36,23 @@ def send_email(
     mime_subtype: str = 'mixed',
     mime_charset: str = 'utf-8',
     conn_id: str = 'aws_default',
+    from_email: str = None,
+    from_name: str = None,
     **kwargs,
 ) -> None:
     """Email backend for SES."""
     hook = SESHook(aws_conn_id=conn_id)
+    if from_name and from_email:
+        mail_from = f'{from_name} <{from_email}>'
+    elif from_email:
+        mail_from = from_email
+    else:
+        raise AirflowConfigException("from_email must be provided")
+
+    log.info("mail_from %s", mail_from)
+
     hook.send_email(
-        mail_from=None,
+        mail_from=mail_from,
         to=to,
         subject=subject,
         html_content=html_content,
