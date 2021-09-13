@@ -147,7 +147,7 @@ Bug Fixes
 - Do not delete running DAG from the UI (#17630)
 - Fix ``triggerer`` query where limit is not supported in some MySQL version (#17601)
 - Rescue if a DagRun's DAG was removed from db (#17544)
-- fix: filter condition of TaskInstance does not work #17535 (#17548)
+- fix: filter condition of ``TaskInstance`` does not work #17535 (#17548)
 - Fixed long delays in the Temporal trigger (#17564)
 - Regression on pid reset to allow task start after heartbeat (#17333)
 - Dont use TaskInstance in CeleryExecutor.trigger_tasks (#16248)
