@@ -94,14 +94,14 @@ class TestMigrateDatabaseJob:
     def test_should_use_correct_image(self, use_default_image, expected_image):
         docs = render_chart(
             values={
-                "useDefaultImageForMigration": use_default_image,
                 "defaultAirflowRepository": "apache/airflow",
                 "defaultAirflowTag": "2.1.0",
                 "images": {
                     "airflow": {
                         "repository": "apache/airflow",
                         "tag": "user-image",
-                    }
+                    },
+                    "useDefaultImageForMigration": use_default_image,
                 },
             },
             show_only=["templates/jobs/migrate-database-job.yaml"],
