@@ -22,8 +22,8 @@ from unittest import mock
 
 from boto3.session import Session
 from parameterized import parameterized
-from airflow.models.connection import Connection
 
+from airflow.models.connection import Connection
 from airflow.providers.amazon.aws.transfers.redshift_to_s3 import RedshiftToS3Operator
 from airflow.providers.amazon.aws.utils.redshift import build_credentials_block
 from tests.test_utils.asserts import assert_equal_ignore_multiple_spaces
