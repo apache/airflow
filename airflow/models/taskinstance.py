@@ -2271,8 +2271,10 @@ class TaskInstance(Base, LoggingMixin):
         if dag_id is None:
             dag_id = self.dag_id
 
+        execution_date = self.get_dagrun(session).execution_date
+
         query = XCom.get_many(
-            run_id=self.run_id,
+            execution_date=execution_date,
             key=key,
             dag_ids=dag_id,
             task_ids=task_ids,
