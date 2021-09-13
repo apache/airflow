@@ -322,7 +322,7 @@ class S3Hook(AwsBaseHook):
             self.get_conn().head_object(Bucket=bucket_name, Key=key)
             return True
         except ClientError as e:
-            if e.response["ResponseMetadata"]["HTTPStatusCode"] == 404:
+            if e.response["ResponseMetadata"]["HTTPStatusCode"] in (404, 403):
                 return False
             else:
                 raise e
