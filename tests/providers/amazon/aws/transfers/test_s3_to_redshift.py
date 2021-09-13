@@ -23,9 +23,8 @@ from unittest import mock
 import pytest
 from boto3.session import Session
 
-
-from airflow.models.connection import Connection
 from airflow.exceptions import AirflowException
+from airflow.models.connection import Connection
 from airflow.providers.amazon.aws.transfers.s3_to_redshift import S3ToRedshiftOperator
 from tests.test_utils.asserts import assert_equal_ignore_multiple_spaces
 
@@ -127,7 +126,6 @@ class TestS3ToRedshiftTransfer(unittest.TestCase):
     @mock.patch("airflow.models.connection.Connection")
     @mock.patch("boto3.session.Session")
     @mock.patch("airflow.providers.postgres.hooks.postgres.PostgresHook.run")
-
     def test_deprecated_truncate(self, mock_run, mock_session, mock_connection, mock_hook):
         access_key = "aws_access_key_id"
         secret_key = "aws_secret_access_key"
@@ -188,6 +186,9 @@ class TestS3ToRedshiftTransfer(unittest.TestCase):
         mock_session.return_value.secret_key = secret_key
         mock_session.return_value.token = None
 
+        mock_connection.return_value = Connection()
+        mock_hook.return_value = Connection()
+
         schema = "schema"
         table = "table"
         s3_bucket = "bucket"
@@ -236,6 +237,9 @@ class TestS3ToRedshiftTransfer(unittest.TestCase):
         mock_session.return_value.access_key = access_key
         mock_session.return_value.secret_key = secret_key
         mock_session.return_value.token = None
+
+        mock_connection.return_value = Connection()
+        mock_hook.return_value = Connection()
 
         schema = "schema"
         table = "table"
