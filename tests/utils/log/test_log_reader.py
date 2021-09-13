@@ -30,6 +30,7 @@ from airflow.utils import timezone
 from airflow.utils.log.log_reader import TaskLogReader
 from airflow.utils.log.logging_mixin import ExternalLoggingMixin
 from airflow.utils.state import TaskInstanceState
+from airflow.utils.types import DagRunType
 from tests.test_utils.config import conf_vars
 from tests.test_utils.db import clear_db_dags, clear_db_runs
 
@@ -91,6 +92,7 @@ class TestLogView:
             dag_id=self.DAG_ID,
             task_id=self.TASK_ID,
             start_date=self.DEFAULT_DATE,
+            run_type=DagRunType.SCHEDULED,
             execution_date=self.DEFAULT_DATE,
             state=TaskInstanceState.RUNNING,
         )

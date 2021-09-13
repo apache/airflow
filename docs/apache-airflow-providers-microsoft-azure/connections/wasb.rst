@@ -81,4 +81,4 @@ For example connect with token credentials:
 
 .. code-block:: bash
 
-   export AIRFLOW_CONN_WASP_DEFAULT='wasb://blob%20username:blob%20password@myblob.com?tenant_id=tenant+id'
+   export AIRFLOW_CONN_WASB_DEFAULT='wasb://blob%20username:blob%20password@myblob.com?tenant_id=tenant+id'

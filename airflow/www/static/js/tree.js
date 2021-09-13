@@ -19,7 +19,7 @@
  * under the License.
  */
 
-/* global treeData, document, window, $, d3, moment, localStorage */
+/* global treeData, document, window, $, d3, moment, localStorage, autoRefreshInterval */
 import { escapeHtml } from './main';
 import tiTooltip from './task_instances';
 import { callModal, callModalDag } from './dag';
@@ -460,7 +460,7 @@ document.addEventListener('DOMContentLoaded', () => {
         } else {
           $('#auto_refresh').prop('checked', false);
         }
-      }, 3000); // run refresh every 3 seconds
+      }, autoRefreshInterval * 1000);
     } else {
       clearInterval(refreshInterval);
     }

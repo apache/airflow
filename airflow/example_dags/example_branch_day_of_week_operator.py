@@ -19,19 +19,19 @@
 """
 Example DAG demonstrating the usage of BranchDayOfWeekOperator.
 """
+from datetime import datetime
 
 from airflow import DAG
 from airflow.operators.dummy import DummyOperator
 from airflow.operators.weekday import BranchDayOfWeekOperator
-from airflow.utils.dates import days_ago
 
 with DAG(
     dag_id="example_weekday_branch_operator",
-    start_date=days_ago(2),
+    start_date=datetime(2021, 1, 1),
+    catchup=False,
     tags=["example"],
     schedule_interval="@daily",
 ) as dag:
-
     # [START howto_operator_day_of_week_branch]
     dummy_task_1 = DummyOperator(task_id='branch_true', dag=dag)
     dummy_task_2 = DummyOperator(task_id='branch_false', dag=dag)

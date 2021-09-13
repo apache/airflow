@@ -20,7 +20,8 @@
  */
 
 /*
-  global d3, document, nodes, taskInstances, tasks, edges, dagreD3, localStorage, $
+  global d3, document, nodes, taskInstances, tasks, edges, dagreD3, localStorage, $,
+  autoRefreshInterval
 */
 
 import getMetaValue from './meta_value';
@@ -408,7 +409,7 @@ function startOrStopRefresh() {
   if ($('#auto_refresh').is(':checked')) {
     refreshInterval = setInterval(() => {
       handleRefresh();
-    }, 3000); // run refresh every 3 seconds
+    }, autoRefreshInterval * 1000);
   } else {
     clearInterval(refreshInterval);
   }

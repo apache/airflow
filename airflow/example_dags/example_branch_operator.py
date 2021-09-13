@@ -19,20 +19,20 @@
 """Example DAG demonstrating the usage of the BranchPythonOperator."""
 
 import random
+from datetime import datetime
 
 from airflow import DAG
 from airflow.operators.dummy import DummyOperator
 from airflow.operators.python import BranchPythonOperator
-from airflow.utils.dates import days_ago
 from airflow.utils.edgemodifier import Label
 
 with DAG(
     dag_id='example_branch_operator',
-    start_date=days_ago(2),
+    start_date=datetime(2021, 1, 1),
+    catchup=False,
     schedule_interval="@daily",
     tags=['example', 'example2'],
 ) as dag:
-
     run_this_first = DummyOperator(
         task_id='run_this_first',
     )

@@ -415,7 +415,8 @@ def test_external_task_sensor_templated(dag_maker):
             external_task_id='task_{{ ds }}',
         )
 
-    (instance,) = dag_maker.create_dagrun(execution_date=DEFAULT_DATE).task_instances
+    dagrun = dag_maker.create_dagrun(run_type=DagRunType.SCHEDULED, execution_date=DEFAULT_DATE)
+    (instance,) = dagrun.task_instances
     instance.render_templates()
 
     assert instance.task.external_dag_id == f"dag_{DEFAULT_DATE.date()}"

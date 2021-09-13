@@ -84,6 +84,7 @@ from airflow.sentry import Sentry
 from airflow.stats import Stats
 from airflow.ti_deps.dep_context import DepContext
 from airflow.ti_deps.dependencies_deps import REQUEUEABLE_DEPS, RUNNING_DEPS
+from airflow.timetables.base import DataInterval
 from airflow.typing_compat import Literal
 from airflow.utils import timezone
 from airflow.utils.email import send_email
@@ -1748,6 +1749,7 @@ class TaskInstance(Base, LoggingMixin):
         if not session:
             session = settings.Session()
         task = self.task
+        dag: DAG = task.dag
         from airflow import macros
 
         integrate_macros_plugins()
@@ -1757,36 +1759,40 @@ class TaskInstance(Base, LoggingMixin):
 
         params = {}  # type: Dict[str, Any]
         with contextlib.suppress(AttributeError):
-            params.update(task.dag.params)
+            params.update(dag.params)
         if task.params:
             params.update(task.params)
         if conf.getboolean('core', 'dag_run_conf_overrides_params'):
             self.overwrite_params_with_dag_run_conf(params=params, dag_run=dag_run)
 
-        # DagRuns scheduled prior to Airflow 2.2 and by tests don't always have
-        # a data interval, and we default to execution_date for compatibility.
-        compat_interval_start = timezone.coerce_datetime(dag_run.data_interval_start or self.execution_date)
-        ds = compat_interval_start.strftime('%Y-%m-%d')
+        interval_start = dag.get_run_data_interval(dag_run).start
+        ds = interval_start.strftime('%Y-%m-%d')
         ds_nodash = ds.replace('-', '')
-        ts = compat_interval_start.isoformat()
-        ts_nodash = compat_interval_start.strftime('%Y%m%dT%H%M%S')
+        ts = interval_start.isoformat()
+        ts_nodash = interval_start.strftime('%Y%m%dT%H%M%S')
         ts_nodash_with_tz = ts.replace('-', '').replace(':', '')
 
         @cache  # Prevent multiple database access.
         def _get_previous_dagrun_success() -> Optional["DagRun"]:
             return self.get_previous_dagrun(state=State.SUCCESS, session=session)
 
-        def get_prev_data_interval_start_success() -> Optional[pendulum.DateTime]:
+        def _get_previous_dagrun_data_interval_success() -> Optional["DataInterval"]:
             dagrun = _get_previous_dagrun_success()
             if dagrun is None:
                 return None
-            return timezone.coerce_datetime(dagrun.data_interval_start)
+            return dag.get_run_data_interval(dagrun)
+
+        def get_prev_data_interval_start_success() -> Optional[pendulum.DateTime]:
+            data_interval = _get_previous_dagrun_data_interval_success()
+            if data_interval is None:
+                return None
+            return data_interval.start
 
         def get_prev_data_interval_end_success() -> Optional[pendulum.DateTime]:
-            dagrun = _get_previous_dagrun_success()
-            if dagrun is None:
+            data_interval = _get_previous_dagrun_data_interval_success()
+            if data_interval is None:
                 return None
-            return timezone.coerce_datetime(dagrun.data_interval_end)
+            return data_interval.end
 
         def get_prev_start_date_success() -> Optional[pendulum.DateTime]:
             dagrun = _get_previous_dagrun_success()
@@ -1912,9 +1918,11 @@ class TaskInstance(Base, LoggingMixin):
             # to execution date for consistency with how execution_date is set
             # for manually triggered tasks, i.e. triggered_date == execution_date.
             if dag_run.external_trigger:
-                next_execution_date = self.execution_date
+                next_execution_date = dag_run.execution_date
             else:
-                next_execution_date = task.dag.following_schedule(self.execution_date)
+                with warnings.catch_warnings():
+                    warnings.simplefilter("ignore", DeprecationWarning)
+                    next_execution_date = dag.following_schedule(self.execution_date)
             if next_execution_date is None:
                 return None
             return timezone.coerce_datetime(next_execution_date)
@@ -1937,7 +1945,7 @@ class TaskInstance(Base, LoggingMixin):
                 return timezone.coerce_datetime(self.execution_date)
             with warnings.catch_warnings():
                 warnings.simplefilter("ignore", DeprecationWarning)
-                return task.dag.previous_schedule(self.execution_date)
+                return dag.previous_schedule(self.execution_date)
 
         @cache
         def get_prev_ds() -> Optional[str]:
@@ -1954,7 +1962,7 @@ class TaskInstance(Base, LoggingMixin):
 
         return {
             'conf': conf,
-            'dag': task.dag,
+            'dag': dag,
             'dag_run': dag_run,
             'data_interval_end': timezone.coerce_datetime(dag_run.data_interval_end),
             'data_interval_start': timezone.coerce_datetime(dag_run.data_interval_start),

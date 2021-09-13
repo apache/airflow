@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
+import warnings
 from base64 import b64encode
 from select import select
 from typing import Optional, Union
@@ -24,6 +25,8 @@ from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.ssh.hooks.ssh import SSHHook
+
+CMD_TIMEOUT = 10
 
 
 class SSHOperator(BaseOperator):
@@ -43,7 +46,14 @@ class SSHOperator(BaseOperator):
     :type remote_host: str
     :param command: command to execute on remote host. (templated)
     :type command: str
-    :param timeout: timeout (in seconds) for executing the command. The default is 10 seconds.
+    :param conn_timeout: timeout (in seconds) for maintaining the connection. The default is 10 seconds.
+        Nullable. If provided, it will replace the `conn_timeout` which was
+        predefined in the connection of `ssh_conn_id`.
+    :type conn_timeout: int
+    :param cmd_timeout: timeout (in seconds) for executing the command. The default is 10 seconds.
+    :type cmd_timeout: int
+    :param timeout: (deprecated) timeout (in seconds) for executing the command. The default is 10 seconds.
+        Use conn_timeout and cmd_timeout parameters instead.
     :type timeout: int
     :param environment: a dict of shell environment variables. Note that the
         server will reject them silently if `AcceptEnv` is not set in SSH config.
@@ -66,7 +76,9 @@ class SSHOperator(BaseOperator):
         ssh_conn_id: Optional[str] = None,
         remote_host: Optional[str] = None,
         command: Optional[str] = None,
-        timeout: int = 10,
+        timeout: Optional[int] = None,
+        conn_timeout: Optional[int] = None,
+        cmd_timeout: Optional[int] = None,
         environment: Optional[dict] = None,
         get_pty: bool = False,
         **kwargs,
@@ -77,8 +89,23 @@ class SSHOperator(BaseOperator):
         self.remote_host = remote_host
         self.command = command
         self.timeout = timeout
+        self.conn_timeout = conn_timeout
+        self.cmd_timeout = cmd_timeout
+        if self.conn_timeout is None and self.timeout:
+            self.conn_timeout = self.timeout
+        if self.cmd_timeout is None:
+            self.cmd_timeout = self.timeout if self.timeout else CMD_TIMEOUT
         self.environment = environment
         self.get_pty = (self.command.startswith('sudo') or get_pty) if self.command else get_pty
+
+        if self.timeout:
+            warnings.warn(
+                'Parameter `timeout` is deprecated.'
+                'Please use `conn_timeout` and `cmd_timeout` instead.'
+                'The old option `timeout` will be removed in a future version.',
+                DeprecationWarning,
+                stacklevel=1,
+            )
 
     def execute(self, context) -> Union[bytes, str, bool]:
         try:
@@ -89,7 +116,7 @@ class SSHOperator(BaseOperator):
                     self.log.info(
                         "ssh_hook is not provided or invalid. Trying ssh_conn_id to create SSHHook."
                     )
-                    self.ssh_hook = SSHHook(ssh_conn_id=self.ssh_conn_id, timeout=self.timeout)
+                    self.ssh_hook = SSHHook(ssh_conn_id=self.ssh_conn_id, conn_timeout=self.conn_timeout)
 
             if not self.ssh_hook:
                 raise AirflowException("Cannot operate without ssh_hook or ssh_conn_id.")
@@ -112,7 +139,7 @@ class SSHOperator(BaseOperator):
                 stdin, stdout, stderr = ssh_client.exec_command(
                     command=self.command,
                     get_pty=self.get_pty,
-                    timeout=self.timeout,
+                    timeout=self.cmd_timeout,
                     environment=self.environment,
                 )
                 # get channels
@@ -133,7 +160,7 @@ class SSHOperator(BaseOperator):
 
                 # read from both stdout and stderr
                 while not channel.closed or channel.recv_ready() or channel.recv_stderr_ready():
-                    readq, _, _ = select([channel], [], [], self.timeout)
+                    readq, _, _ = select([channel], [], [], self.cmd_timeout)
                     for recv in readq:
                         if recv.recv_ready():
                             line = stdout.channel.recv(len(recv.in_buffer))

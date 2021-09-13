@@ -15,9 +15,9 @@
     specific language governing permissions and limitations
     under the License.
 
-=========================
-Airflow's release process
-=========================
+============================================
+Airflow's release process and version policy
+============================================
 
 Since Airflow 2.0.0 and provider packages 1.0.0 we aim to follow SemVer, meaning the release numbering works as follows:
 
@@ -81,3 +81,14 @@ So, for example, if we decided to start the deprecation of a function in Airflow
 * Airflow 3.0 (the major version that follows 2.2) will remove the feature outright
 
 The exception to this deprecation policy is any feature which is marked as "experimental", which *may* suffer breaking changes or complete removal in a Feature release.
+
+.. _experimental:
+
+Experimental features
+=====================
+
+From time-to-time a new feature will be added to Airflow that will be marked as experimental.
+
+Experimental features do not have any guarantees about deprecation, and *can* be changed in a breaking way between feature releases, or even removed entirely.
+
+We always aim to maintain compatibility even for experimental features, but make no promises. By having this "get out" it lets us build new features more quickly and get them in the hand of users without having to worry about making a feature perfect.
