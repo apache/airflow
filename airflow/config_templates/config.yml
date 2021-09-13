@@ -2224,6 +2224,13 @@
       type: integer
       example: ~
       default: "120"
+    - name: worker_pods_queued_check_interval
+      description: |
+        How often in seconds to check for task instances stuck in "queued" status without a pod
+      version_added: 2.2.0
+      type: integer
+      example: ~
+      default: "60"
     - name: worker_pods_pending_timeout_batch_size
       description: |
         How many pending pods to check for timeout violations in each check interval.
