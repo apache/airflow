@@ -228,7 +228,7 @@ ijson==3.1.4
 imagesize==1.2.0
 immutables==0.16
 importlib-metadata==4.8.1
-importlib-resources==1.5.0
+importlib-resources==5.2.2
 inflection==0.5.1
 iniconfig==1.1.1
 ipdb==0.13.9
