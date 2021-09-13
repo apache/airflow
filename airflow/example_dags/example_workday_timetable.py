@@ -19,12 +19,15 @@
 """Example DAG demostrating how to implement a custom timetable for a DAG."""
 
 # [START howto_timetable]
+import datetime
+
 from airflow import DAG
 from airflow.example_dags.plugins.workday import AfterWorkdayTimetable
 from airflow.operators.dummy import DummyOperator
 
 with DAG(
     dag_id="example_workday_timetable",
+    start_date=datetime.datetime(2021, 1, 1),
     timetable=AfterWorkdayTimetable(),
     tags=["example", "timetable"],
 ) as dag:
