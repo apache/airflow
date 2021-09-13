@@ -296,7 +296,42 @@ class DockerDecoratorMixin:
         :param cap_add: Include container capabilities
         :type cap_add: list[str]
         """
-        pass
+        return docker_decorator(
+            python_callable=python_callable,
+            multiple_outputs=multiple_outputs,
+            use_dill=use_dill,
+            image=image,
+            api_version=api_version,
+            container_name=container_name,
+            cpus=cpus,
+            docker_url=docker_url,
+            environment=environment,
+            private_environment=private_environment,
+            force_pull=force_pull,
+            mem_limit=mem_limit,
+            host_tmp_dir=host_tmp_dir,
+            network_mode=network_mode,
+            tls_ca_cert=tls_ca_cert,
+            tls_client_cert=tls_client_cert,
+            tls_client_key=tls_client_key,
+            tls_hostname=tls_hostname,
+            tls_ssl_version=tls_ssl_version,
+            tmp_dir=tmp_dir,
+            user=user,
+            mounts=mounts,
+            working_dir=working_dir,
+            xcom_all=xcom_all,
+            docker_conn_id=docker_conn_id,
+            dns=dns,
+            dns_search=dns_search,
+            auto_remove=auto_remove,
+            shm_size=shm_size,
+            tty=tty,
+            privileged=privileged,
+            cap_add=cap_add,
+            extra_hosts=extra_hosts,
+            **kwargs,
+        )
 
 
 # [END decoratormixin]
