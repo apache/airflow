@@ -287,7 +287,12 @@ class TestCeleryExecutor(unittest.TestCase):
         # Check that we validate _on the receiving_ side, not just sending side
         with mock.patch(
             'airflow.executors.celery_executor._execute_in_subprocess'
-        ) as mock_subproc, mock.patch('airflow.executors.celery_executor._execute_in_fork') as mock_fork:
+        ) as mock_subproc, mock.patch(
+            'airflow.executors.celery_executor._execute_in_fork'
+        ) as mock_fork, mock.patch(
+            "celery.app.task.Task.request"
+        ) as mock_task:
+            mock_task.id = "abcdef-124215-abcdef"
             if expected_exception:
                 with pytest.raises(expected_exception):
                     celery_executor.execute_command(command)
@@ -296,7 +301,9 @@ class TestCeleryExecutor(unittest.TestCase):
             else:
                 celery_executor.execute_command(command)
                 # One of these should be called.
-                assert mock_subproc.call_args == ((command,),) or mock_fork.call_args == ((command,),)
+                assert mock_subproc.call_args == (
+                    (command, "abcdef-124215-abcdef"),
+                ) or mock_fork.call_args == ((command, "abcdef-124215-abcdef"),)
 
     @pytest.mark.backend("mysql", "postgres")
     def test_try_adopt_task_instances_none(self):
