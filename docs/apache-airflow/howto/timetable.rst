@@ -137,10 +137,10 @@ Next is the implementation of ``next_dagrun_info``:
     :end-before: [END howto_timetable_next_dagrun_info]
 
 This method accepts two arguments. ``last_automated_dagrun`` is a
-``pendulum.DateTime`` object indicating the logical date of this DAG's previous
-non-manually-triggered run, or ``None`` if this is the first time ever the DAG
-is being scheduled. ``restriction`` encapsulates how the DAG and its tasks
-specify the schedule, and contains three attributes:
+:class:`~airflow.timetables.base.DataInterval` instance indicating the data
+interval of this DAG's previous non-manually-triggered run, or ``None`` if this
+is the first time ever the DAG is being scheduled. ``restriction`` encapsulates
+how the DAG and its tasks specify the schedule, and contains three attributes:
 
 * ``earliest``: The earliest time the DAG may be scheduled. This is a
   ``pendulum.DateTime`` calculated from all the ``start_date`` arguments from
@@ -172,15 +172,9 @@ If we decide to schedule a run, we need to describe it with a
 attributes:
 
 * ``data_interval``: A :class:`~airflow.timetables.base.DataInterval` instance
-  like ``infer_data_interval``'s return value. This describes the next run's
-  data interval.
+  describing the next run's data interval.
 * ``run_after``: A ``pendulum.DateTime`` instance that tells the scheduler when
   the DAG run can be scheduled.
-
-.. note::
-
-    In case you're wondering---yes, the argument and return value of
-    ``infer_data_interval`` are also internally combined into a ``DagRunInfo``.
 
 A ``DagRunInfo`` can be created like this:
 
@@ -224,11 +218,6 @@ purpose, we'd want to do something like:
 
 .. code-block:: python
 
-    from datetime import timedelta
-
-    from pendulum import DateTime, Time
-
-
     class SometimeAfterWorkdayTimetable(Timetable):
         def __init__(self, schedule_at: Time) -> None:
             self._schedule_at = schedule_at
@@ -238,9 +227,7 @@ purpose, we'd want to do something like:
             end = start + timedelta(days=1)
             return DagRunInfo(
                 data_interval=DataInterval(start=start, end=end),
-                run_after=DateTime.combine(end.date(), self._schedule_at).replace(
-                    tzinfo=end.tzinfo
-                ),
+                run_after=DateTime.combine(end.date(), self._schedule_at),
             )
 
 However, since the timetable is a part of the DAG, we need to tell Airflow how
@@ -249,13 +236,15 @@ implementing two additional methods on our timetable class:
 
 .. code-block:: python
 
-    def serialize(self) -> Dict[str, Any]:
-        return {"schedule_at": self._schedule_at.isoformat()}
+    class SometimeAfterWorkdayTimetable(Timetable):
+        ...
 
+        def serialize(self) -> Dict[str, Any]:
+            return {"schedule_at": self._schedule_at.isoformat()}
 
-    @classmethod
-    def deserialize(cls, value: Dict[str, Any]) -> Timetable:
-        return cls(Time.fromisoformat(value["schedule_at"]))
+        @classmethod
+        def deserialize(cls, value: Dict[str, Any]) -> Timetable:
+            return cls(Time.fromisoformat(value["schedule_at"]))
 
 When the DAG is being serialized, ``serialize`` is called to obtain a
 JSON-serializable value. That value is passed to ``deserialize`` when the
@@ -280,9 +269,6 @@ our ``SometimeAfterWorkdayTimetable`` class, for example, we could have:
 So for a DAG declared like this:
 
 .. code-block:: python
-
-    from pendulum import Time
-
 
     with DAG(
         timetable=SometimeAfterWorkdayTimetable(Time(8)),  # 8am.

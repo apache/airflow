@@ -48,35 +48,34 @@ class AfterWorkdayTimetable(Timetable):
     # [START howto_timetable_next_dagrun_info]
     def next_dagrun_info(
         self,
-        last_automated_dagrun: Optional[DateTime],
+        last_automated_dagrun: Optional[DataInterval],
         restriction: TimeRestriction,
     ) -> Optional[DagRunInfo]:
-        if last_automated_dagrun is not None:
-            # There was a previous run on the regular schedule.
-            # last_automated_dagrun os the last run's logical date.
-            weekday = last_automated_dagrun.weekday()
-            if 0 <= weekday < 4:  # Monday through Thursday -- next is tomorrow.
+        if last_automated_dagrun is not None:  # There was a previous run on the regular schedule.
+            last_start_weekday = last_automated_dagrun.start.weekday()
+            if 0 <= last_start_weekday < 4:  # Last run on Monday through Thursday -- next is tomorrow.
                 delta = timedelta(days=1)
-            else:  # Week is ending -- skip to next Monday.
-                delta = timedelta(days=(7 - weekday))
-            start = DateTime.combine((last_automated_dagrun + delta).date(), Time.min)
+            else:  # Last run on Friday -- skip to next Monday.
+                delta = timedelta(days=(7 - last_start_weekday))
+            next_start = DateTime.combine((last_automated_dagrun + delta).date(), Time.min)
         else:  # This is the first ever run on the regular schedule.
             if restriction.earliest is None:  # No start_date. Don't schedule.
                 return None
-            start = restriction.earliest
-            if start.time() != Time.min:
-                # If earliest does not fall on midnight, skip to the next day.
-                start = DateTime.combine(start.date(), Time.min).replace(tzinfo=UTC) + timedelta(days=1)
+            next_start = restriction.earliest
             if not restriction.catchup:
                 # If the DAG has catchup=False, today is the earliest to consider.
-                start = max(start, DateTime.combine(Date.today(), Time.min).replace(tzinfo=UTC))
-            weekday = start.weekday()
-            if weekday in (5, 6):  # If 'start' is in the weekend, go to next Monday.
-                delta = timedelta(days=(7 - weekday))
-                start = start + delta
-        if start > restriction.latest:  # Over the DAG's scheduled end; don't schedule.
+                next_start = max(next_start, DateTime.combine(Date.today(), Time.min).replace(tzinfo=UTC))
+            elif next_start.time() != Time.min:
+                # If earliest does not fall on midnight, skip to the next day.
+                next_day = next_start.date() + timedelta(days=1)
+                next_start = DateTime.combine(next_day, Time.min).replace(tzinfo=UTC)
+            next_start_weekday = next_start.weekday()
+            if next_start_weekday in (5, 6):  # If next start is in the weekend, go to next Monday.
+                delta = timedelta(days=(7 - next_start_weekday))
+                next_start = next_start + delta
+        if next_start > restriction.latest:  # Over the DAG's scheduled end; don't schedule.
             return None
-        return DagRunInfo.interval(start=start, end=(start + timedelta(days=1)))
+        return DagRunInfo.interval(start=next_start, end=(next_start + timedelta(days=1)))
 
     # [END howto_timetable_next_dagrun_info]
 
