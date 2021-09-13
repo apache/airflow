@@ -38,13 +38,9 @@ def _create_scheduler_job(args):
     return job
 
 
-def _run_scheduler_job(args, is_daemon):
+def _run_scheduler_job(args):
     skip_serve_logs = args.skip_serve_logs
     job = _create_scheduler_job(args)
-    if not is_daemon:
-        signal.signal(signal.SIGINT, sigint_handler)
-        signal.signal(signal.SIGTERM, sigint_handler)
-        signal.signal(signal.SIGQUIT, sigquit_handler)
     sub_proc = _serve_logs(skip_serve_logs)
     try:
         job.run()
@@ -71,9 +67,12 @@ def scheduler(args):
                 stderr=stderr_handle,
             )
             with ctx:
-                _run_scheduler_job(args=args, is_daemon=True)
+                _run_scheduler_job(args=args)
     else:
-        _run_scheduler_job(args=args, is_daemon=False)
+        signal.signal(signal.SIGINT, sigint_handler)
+        signal.signal(signal.SIGTERM, sigint_handler)
+        signal.signal(signal.SIGQUIT, sigquit_handler)
+        _run_scheduler_job(args=args)
 
 
 def _serve_logs(skip_serve_logs: bool = False) -> Optional[Process]:
