@@ -82,6 +82,7 @@ def _trigger_dag(
     for _dag in dags_to_trigger:
         trigger = _dag.create_dagrun(
             run_id=run_id,
+            start_date=timezone.utcnow(),
             execution_date=execution_date,
             state=State.RUNNING,
             conf=run_conf,

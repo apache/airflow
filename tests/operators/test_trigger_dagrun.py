@@ -255,3 +255,34 @@ class TestDagRunOperator(TestCase):
         )
         with pytest.raises(AirflowException):
             task.run(start_date=execution_date, end_date=execution_date)
+
+    def test_trigger_dagrun_triggering_itself(self):
+        """Test TriggerDagRunOperator that triggers itself"""
+        execution_date = DEFAULT_DATE
+        task = TriggerDagRunOperator(
+            task_id="test_task",
+            trigger_dag_id=self.dag.dag_id,
+            allowed_states=[State.RUNNING, State.SUCCESS],
+            dag=self.dag,
+        )
+        task.run(start_date=execution_date, end_date=execution_date)
+
+        with create_session() as session:
+            dagruns = session.query(DagRun).filter(DagRun.dag_id == self.dag.dag_id).all()
+            assert len(dagruns) == 2
+            assert isinstance(dagruns[1].start_date, datetime)
+
+    def test_trigger_dagrun_triggering_itself_with_execution_date(self):
+        """Test TriggerDagRunOperator that triggers itself with execution date, fails with DagRunAlreadyExists"""
+        execution_date = DEFAULT_DATE
+        task = TriggerDagRunOperator(
+            task_id="test_task",
+            trigger_dag_id=self.dag.dag_id,
+            execution_date=execution_date,
+            allowed_states=[State.RUNNING, State.SUCCESS],
+            dag=self.dag,
+        )
+        with pytest.raises(DagRunAlreadyExists):
+            task.run(start_date=execution_date, end_date=execution_date)
+
+
