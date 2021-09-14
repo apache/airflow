@@ -284,4 +284,3 @@ class TestDagRunOperator(TestCase):
         )
         with pytest.raises(DagRunAlreadyExists):
             task.run(start_date=execution_date, end_date=execution_date)
-
