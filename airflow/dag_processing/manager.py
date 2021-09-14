@@ -661,6 +661,7 @@ class DagFileProcessorManager(LoggingMixin):
                 self.clear_nonexistent_import_errors()
             except Exception:
                 self.log.exception("Error removing old import errors")
+
             # Check if file path is a zipfile and get the full path of the python file.
             # Without this, SerializedDagModel.remove_deleted_files would delete zipped dags.
             # Likewise DagCode.remove_deleted_code
