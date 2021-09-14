@@ -51,7 +51,8 @@ from airflow.utils import timezone
 from airflow.utils.callback_requests import CallbackRequest, TaskCallbackRequest
 from airflow.utils.net import get_hostname
 from airflow.utils.session import create_session
-from airflow.utils.state import State
+from airflow.utils.state import DagRunState, State
+from airflow.utils.types import DagRunType
 from tests.core.test_logging_config import SETTINGS_FILE_VALID, settings_context
 from tests.test_utils.config import conf_vars
 from tests.test_utils.db import clear_db_dags, clear_db_runs, clear_db_serialized_dags
@@ -108,6 +109,9 @@ class FakeDagFileProcessorRunner(DagFileProcessorProcess):
 
 class TestDagFileProcessorManager:
     def setup_method(self):
+        clear_db_runs()
+
+    def teardown_class(self):
         clear_db_runs()
 
     def run_processor_manager_one_loop(self, manager, parent_pipe):
@@ -432,16 +436,23 @@ class TestDagFileProcessorManager:
             dag.sync_to_db()
             task = dag.get_task(task_id='run_this_first')
 
-            ti = TI(task, DEFAULT_DATE, State.RUNNING)
+            dag_run = dag.create_dagrun(
+                state=DagRunState.RUNNING,
+                execution_date=DEFAULT_DATE,
+                run_type=DagRunType.SCHEDULED,
+                session=session,
+            )
+
+            ti = TI(task, run_id=dag_run.run_id, state=State.RUNNING)
             local_job = LJ(ti)
             local_job.state = State.SHUTDOWN
 
             session.add(local_job)
-            session.commit()
+            session.flush()
 
             ti.job_id = local_job.id
             session.add(ti)
-            session.commit()
+            session.flush()
 
             manager._last_zombie_query_time = timezone.utcnow() - timedelta(
                 seconds=manager._zombie_threshold_secs + 1
@@ -455,7 +466,7 @@ class TestDagFileProcessorManager:
             assert isinstance(requests[0].simple_task_instance, SimpleTaskInstance)
             assert ti.dag_id == requests[0].simple_task_instance.dag_id
             assert ti.task_id == requests[0].simple_task_instance.task_id
-            assert ti.execution_date == requests[0].simple_task_instance.execution_date
+            assert ti.run_id == requests[0].simple_task_instance.run_id
 
             session.query(TI).delete()
             session.query(LJ).delete()
@@ -475,19 +486,26 @@ class TestDagFileProcessorManager:
                 session.query(LJ).delete()
                 dag = dagbag.get_dag('test_example_bash_operator')
                 dag.sync_to_db()
+
+                dag_run = dag.create_dagrun(
+                    state=DagRunState.RUNNING,
+                    execution_date=DEFAULT_DATE,
+                    run_type=DagRunType.SCHEDULED,
+                    session=session,
+                )
                 task = dag.get_task(task_id='run_this_last')
 
-                ti = TI(task, DEFAULT_DATE, State.RUNNING)
+                ti = TI(task, run_id=dag_run.run_id, state=State.RUNNING)
                 local_job = LJ(ti)
                 local_job.state = State.SHUTDOWN
                 session.add(local_job)
-                session.commit()
+                session.flush()
 
                 # TODO: If there was an actual Relationship between TI and Job
                 # we wouldn't need this extra commit
                 session.add(ti)
                 ti.job_id = local_job.id
-                session.commit()
+                session.flush()
 
                 expected_failure_callback_requests = [
                     TaskCallbackRequest(

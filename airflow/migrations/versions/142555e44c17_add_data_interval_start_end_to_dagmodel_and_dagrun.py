@@ -19,7 +19,7 @@
 """Add data_interval_[start|end] to DagModel and DagRun.
 
 Revision ID: 142555e44c17
-Revises: e9304a3141f0
+Revises: 54bebd308c5f
 Create Date: 2021-06-09 08:28:02.089817
 
 """

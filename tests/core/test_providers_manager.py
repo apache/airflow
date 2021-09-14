@@ -18,7 +18,7 @@
 import logging
 import re
 import unittest
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 
 import pytest
 
@@ -31,17 +31,19 @@ class TestProviderManager(unittest.TestCase):
         self._caplog = caplog
 
     def test_providers_are_loaded(self):
-        provider_manager = ProvidersManager()
-        provider_list = list(provider_manager.providers.keys())
-        # No need to sort the list - it should be sorted alphabetically !
-        for provider in provider_list:
-            package_name = provider_manager.providers[provider][1]['package-name']
-            version = provider_manager.providers[provider][0]
-            assert re.search(r'[0-9]*\.[0-9]*\.[0-9]*.*', version)
-            assert package_name == provider
-        # just a sanity check - no exact number as otherwise we would have to update
-        # several tests if we add new connections/provider which is not ideal
-        assert len(provider_list) > 65
+        with self._caplog.at_level(logging.WARNING):
+            provider_manager = ProvidersManager()
+            provider_list = list(provider_manager.providers.keys())
+            # No need to sort the list - it should be sorted alphabetically !
+            for provider in provider_list:
+                package_name = provider_manager.providers[provider][1]['package-name']
+                version = provider_manager.providers[provider][0]
+                assert re.search(r'[0-9]*\.[0-9]*\.[0-9]*.*', version)
+                assert package_name == provider
+            # just a sanity check - no exact number as otherwise we would have to update
+            # several tests if we add new connections/provider which is not ideal
+            assert len(provider_list) > 65
+            assert [] == self._caplog.records
 
     def test_hooks_deprecation_warnings_generated(self):
         with pytest.warns(expected_warning=DeprecationWarning, match='hook-class-names') as warning_records:
@@ -114,6 +116,8 @@ class TestProviderManager(unittest.TestCase):
 
     @patch('airflow.providers_manager.importlib.import_module')
     def test_hooks(self, mock_import_module):
+        # Compat with importlib_resources
+        mock_import_module.return_value.__spec__ = Mock()
         with pytest.warns(expected_warning=None) as warning_records:
             with self._caplog.at_level(logging.WARNING):
                 provider_manager = ProvidersManager()

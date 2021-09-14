@@ -174,17 +174,6 @@ The following config settings can be used to control aspects of the Scheduler HA
   this, so this should be set to match the same period as your statsd roll-up
   period.
 
-- :ref:`config:scheduler__clean_tis_without_dagrun_interval`
-
-  How often should each scheduler run a check to "clean up" TaskInstance rows
-  that are found to no longer have a matching DagRun row.
-
-  In normal operation the scheduler won't do this, it is only possible to do
-  this by deleting rows via the UI, or directly in the DB. You can set this
-  lower if this check is not important to you -- tasks will be left in what
-  ever state they are until the cleanup happens, at which point they will be
-  set to failed.
-
 - :ref:`config:scheduler__orphaned_tasks_check_interval`
 
   How often (in seconds) should the scheduler check for orphaned tasks or dead

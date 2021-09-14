@@ -75,15 +75,14 @@ def unify_bucket_name_and_key(func: T) -> T:
     def wrapper(*args, **kwargs) -> T:
         bound_args = function_signature.bind(*args, **kwargs)
 
-        def get_key_name() -> Optional[str]:
-            if 'wildcard_key' in bound_args.arguments:
-                return 'wildcard_key'
-            if 'key' in bound_args.arguments:
-                return 'key'
+        if 'wildcard_key' in bound_args.arguments:
+            key_name = 'wildcard_key'
+        elif 'key' in bound_args.arguments:
+            key_name = 'key'
+        else:
             raise ValueError('Missing key parameter!')
 
-        key_name = get_key_name()
-        if key_name and 'bucket_name' not in bound_args.arguments:
+        if 'bucket_name' not in bound_args.arguments:
             bound_args.arguments['bucket_name'], bound_args.arguments[key_name] = S3Hook.parse_s3_url(
                 bound_args.arguments[key_name]
             )

@@ -36,8 +36,8 @@ in all templates
 ==========================================  ====================================
 Variable                                    Description
 ==========================================  ====================================
-``{{ data_interval_start }}``               Start of the data interval (`pendulum.Pendulum`_ or ``None``).
-``{{ data_interval_end }}``                 End of the data interval (`pendulum.Pendulum`_ or ``None``).
+``{{ data_interval_start }}``               Start of the data interval (`pendulum.Pendulum`_).
+``{{ data_interval_end }}``                 End of the data interval (`pendulum.Pendulum`_).
 ``{{ ds }}``                                Start of the data interval as ``YYYY-MM-DD``.
                                             Same as ``{{ data_interval_start | ds }}``.
 ``{{ ds_nodash }}``                         Start of the data interval as ``YYYYMMDD``.

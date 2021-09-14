@@ -67,11 +67,11 @@ class PapermillOperator(BaseOperator):
         if not self.inlets or not self.outlets:
             raise ValueError("Input notebook or output notebook is not specified")
 
-        for i in range(len(self.inlets)):
+        for i, item in enumerate(self.inlets):
             pm.execute_notebook(
-                self.inlets[i].url,
+                item.url,
                 self.outlets[i].url,
-                parameters=self.inlets[i].parameters,
+                parameters=item.parameters,
                 progress_bar=False,
                 report_mode=True,
             )

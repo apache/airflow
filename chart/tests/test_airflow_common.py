@@ -15,15 +15,14 @@
 # specific language governing permissions and limitations
 # under the License.
 
-import unittest
-
 import jmespath
+import pytest
 from parameterized import parameterized
 
 from tests.helm_template_generator import render_chart
 
 
-class AirflowCommon(unittest.TestCase):
+class TestAirflowCommon:
     """
     This class holds tests that apply to more than 1 Airflow component so
     we don't have to repeat tests everywhere
@@ -90,3 +89,34 @@ class AirflowCommon(unittest.TestCase):
             annotations = k8s_object["spec"]["template"]["metadata"]["annotations"]
             assert "test-annotation/safe-to-evict" in annotations
             assert "true" in annotations["test-annotation/safe-to-evict"]
+
+    @pytest.mark.parametrize(
+        "use_default_image,expected_image",
+        [
+            (True, "apache/airflow:2.1.0"),
+            (False, "apache/airflow:user-image"),
+        ],
+    )
+    def test_should_use_correct_image(self, use_default_image, expected_image):
+        docs = render_chart(
+            values={
+                "defaultAirflowRepository": "apache/airflow",
+                "defaultAirflowTag": "2.1.0",
+                "images": {
+                    "airflow": {
+                        "repository": "apache/airflow",
+                        "tag": "user-image",
+                    },
+                    "useDefaultImageForMigration": use_default_image,
+                },
+            },
+            show_only=[
+                "templates/scheduler/scheduler-deployment.yaml",
+                "templates/workers/worker-deployment.yaml",
+                "templates/webserver/webserver-deployment.yaml",
+                "templates/triggerer/triggerer-deployment.yaml",
+            ],
+        )
+
+        for doc in docs:
+            assert expected_image == jmespath.search("spec.template.spec.initContainers[0].image", doc)

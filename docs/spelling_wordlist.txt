@@ -342,6 +342,7 @@ TCP
 TLS
 TTY
 TZ
+TaskFlow
 TaskGroup
 TaskGroups
 TaskInstance
@@ -714,7 +715,7 @@ evo
 exasol
 execvp
 exitcode
-explict
+explicit
 exportingmultiple
 extensibility
 externalbrowser
@@ -746,6 +747,8 @@ fn
 fo
 followsa
 formatter
+forwardability
+forwardable
 fot
 fqdn
 frontend

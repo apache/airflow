@@ -40,12 +40,8 @@ Content
     :caption: Resources
 
     Example DAGs <https://github.com/apache/airflow/tree/main/airflow/providers/mysql/example_dags>
-
-.. toctree::
-    :maxdepth: 1
-    :caption: Resources
-
     PyPI Repository <https://pypi.org/project/apache-airflow-providers-mysql/>
+    Installing from sources <installing-providers-from-sources>
 
 .. THE REMAINDER OF THE FILE IS AUTOMATICALLY GENERATED. IT WILL BE OVERWRITTEN AT RELEASE TIME!
 

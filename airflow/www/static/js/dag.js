@@ -265,6 +265,8 @@ $('#pause_resume').on('change', function onChange() {
   const id = $input.data('dag-id');
   const isPaused = $input.is(':checked');
   const url = `${pausedUrl}?is_paused=${isPaused}&dag_id=${encodeURIComponent(id)}`;
+  // Remove focus on element so the tooltip will go away
+  $input.trigger('blur');
   $input.removeClass('switch-input--error');
   $.post(url).fail(() => {
     setTimeout(() => {

@@ -19,24 +19,15 @@
 
 # [START tutorial]
 # [START import_module]
-import json
+from datetime import datetime
 
 from airflow.decorators import dag, task
-from airflow.utils.dates import days_ago
 
 # [END import_module]
 
-# [START default_args]
-# These args will get passed on to each operator
-# You can override them on a per-task basis during operator initialization
-default_args = {
-    'owner': 'airflow',
-}
-# [END default_args]
-
 
 # [START instantiate_dag]
-@dag(default_args=default_args, schedule_interval=None, start_date=days_ago(2), tags=['example'])
+@dag(schedule_interval=None, start_date=datetime(2021, 1, 1), catchup=False, tags=['example'])
 def tutorial_taskflow_api_etl_virtualenv():
     """
     ### TaskFlow API Tutorial Documentation
@@ -61,6 +52,8 @@ def tutorial_taskflow_api_etl_virtualenv():
         pipeline. In this case, getting data is simulated by reading from a
         hardcoded JSON string.
         """
+        import json
+
         data_string = '{"1001": 301.27, "1002": 433.21, "1003": 502.22}'
 
         order_data_dict = json.loads(data_string)

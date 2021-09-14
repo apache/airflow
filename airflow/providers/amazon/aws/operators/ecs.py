@@ -136,13 +136,18 @@ class ECSOperator(BaseOperator):
         Only required if you want logs to be shown in the Airflow UI after your job has
         finished.
     :type awslogs_stream_prefix: str
+    :param quota_retry: Config if and how to retry the launch of a new ECS task, to handle
+        transient errors.
+    :type quota_retry: dict
     :param reattach: If set to True, will check if the task previously launched by the task_instance
         is already running. If so, the operator will attach to it instead of starting a new task.
         This is to avoid relaunching a new task when the connection drops between Airflow and ECS while
         the task is running (when the Airflow worker is restarted for example).
     :type reattach: bool
-    :param quota_retry: Config if and how to retry _start_task() for transient errors.
-    :type quota_retry: dict
+    :param number_logs_exception: Number of lines from the last Cloudwatch logs to return in the
+        AirflowException if an ECS task is stopped (to receive Airflow alerts with the logs of what
+        failed in the code running in ECS).
+    :type number_logs_exception: int
     """
 
     ui_color = '#f0ede4'
@@ -178,6 +183,7 @@ class ECSOperator(BaseOperator):
         propagate_tags: Optional[str] = None,
         quota_retry: Optional[dict] = None,
         reattach: bool = False,
+        number_logs_exception: int = 10,
         **kwargs,
     ):
         super().__init__(**kwargs)
@@ -201,6 +207,7 @@ class ECSOperator(BaseOperator):
         self.awslogs_region = awslogs_region
         self.propagate_tags = propagate_tags
         self.reattach = reattach
+        self.number_logs_exception = number_logs_exception
 
         if self.awslogs_region is None:
             self.awslogs_region = region_name
@@ -342,9 +349,12 @@ class ECSOperator(BaseOperator):
     def _aws_logs_enabled(self):
         return self.awslogs_group and self.awslogs_stream_prefix
 
+    def _last_log_messages(self, number_messages):
+        return [log["message"] for log in deque(self._cloudwatch_log_events(), maxlen=number_messages)]
+
     def _last_log_message(self):
         try:
-            return deque(self._cloudwatch_log_events(), maxlen=1).pop()["message"]
+            return self._last_log_messages(1)[0]
         except IndexError:
             return None
 
@@ -377,7 +387,11 @@ class ECSOperator(BaseOperator):
             containers = task['containers']
             for container in containers:
                 if container.get('lastStatus') == 'STOPPED' and container['exitCode'] != 0:
-                    raise AirflowException(f'This task is not in success state {task}')
+                    last_logs = "\n".join(self._last_log_messages(self.number_logs_exception))
+                    raise AirflowException(
+                        f"This task is not in success state - last {self.number_logs_exception} "
+                        f"logs from Cloudwatch:\n{last_logs}"
+                    )
                 elif container.get('lastStatus') == 'PENDING':
                     raise AirflowException(f'This task is still pending {task}')
                 elif 'error' in container.get('reason', '').lower():

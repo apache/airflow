@@ -92,10 +92,14 @@ class GCSObjectExistenceSensor(BaseSensorOperator):
 def ts_function(context):
     """
     Default callback for the GoogleCloudStorageObjectUpdatedSensor. The default
-    behaviour is check for the object being updated after execution_date +
-    schedule_interval.
+    behaviour is check for the object being updated after the data interval's
+    end, or execution_date + interval on Airflow versions prior to 2.2 (before
+    AIP-39 implementation).
     """
-    return context['dag'].following_schedule(context['execution_date'])
+    try:
+        return context["data_interval_end"]
+    except KeyError:
+        return context["dag"].following_schedule(context["execution_date"])
 
 
 class GCSObjectUpdateSensor(BaseSensorOperator):

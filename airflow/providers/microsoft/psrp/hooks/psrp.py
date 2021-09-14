@@ -57,7 +57,7 @@ class PSRPHook(BaseHook):
 
     def __exit__(self, exc_type, exc_value, traceback):
         try:
-            self._client.__exit__()
+            self._client.__exit__(exc_type, exc_value, traceback)
         finally:
             self._client = None
 

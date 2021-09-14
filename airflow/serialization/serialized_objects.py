@@ -21,25 +21,20 @@ import enum
 import logging
 from dataclasses import dataclass
 from inspect import Parameter, signature
-from typing import TYPE_CHECKING, Any, Dict, Iterable, List, Optional, Set, Union
+from typing import TYPE_CHECKING, Any, Dict, Iterable, List, Optional, Set, Type, Union
 
 import cattr
 import pendulum
 from dateutil import relativedelta
-
-try:
-    from functools import cache
-except ImportError:
-    from functools import lru_cache
-
-    cache = lru_cache(maxsize=None)
 from pendulum.tz.timezone import FixedTimezone, Timezone
 
+from airflow.compat.functools import cache
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException, SerializationError
 from airflow.models.baseoperator import BaseOperator, BaseOperatorLink
 from airflow.models.connection import Connection
 from airflow.models.dag import DAG, create_timetable
+from airflow.models.param import Param, ParamsDict
 from airflow.providers_manager import ProvidersManager
 from airflow.serialization.enums import DagAttributeTypes as DAT, Encoding
 from airflow.serialization.helpers import serialize_template_field
@@ -63,7 +58,6 @@ except ImportError:
 
 if TYPE_CHECKING:
     from airflow.ti_deps.deps.base_ti_dep import BaseTIDep
-
 
 log = logging.getLogger(__name__)
 
@@ -128,22 +122,47 @@ def decode_timezone(var: Union[str, int]) -> Timezone:
     return pendulum.timezone(var)
 
 
-def encode_timetable(var: Timetable) -> Dict[str, Any]:
+def _get_registered_timetable(importable_string: str) -> Optional[Type[Timetable]]:
+    from airflow import plugins_manager
+
+    if importable_string.startswith("airflow.timetables."):
+        return import_string(importable_string)
+    plugins_manager.initialize_timetables_plugins()
+    return plugins_manager.timetable_classes.get(importable_string)
+
+
+class _TimetableNotRegistered(ValueError):
+    def __init__(self, type_string: str) -> None:
+        self.type_string = type_string
+
+    def __str__(self) -> str:
+        return f"Timetable class {self.type_string!r} is not registered"
+
+
+def _encode_timetable(var: Timetable) -> Dict[str, Any]:
     """Encode a timetable instance.
 
     This delegates most of the serialization work to the type, so the behavior
     can be completely controlled by a custom subclass.
     """
-    return {"type": as_importable_string(type(var)), "value": var.serialize()}
+    timetable_class = type(var)
+    importable_string = as_importable_string(timetable_class)
+    if _get_registered_timetable(importable_string) != timetable_class:
+        raise _TimetableNotRegistered(importable_string)
+    return {"__type": importable_string, "__var": var.serialize()}
 
 
-def decode_timetable(var: Dict[str, Any]) -> Timetable:
+def _decode_timetable(var: Dict[str, Any]) -> Timetable:
     """Decode a previously serialized timetable.
 
     Most of the deserialization logic is delegated to the actual type, which
     we import from string.
     """
-    return import_string(var["type"]).deserialize(var["value"])
+    importable_string = var["__type"]
+    timetable_class = _get_registered_timetable(importable_string)
+    if timetable_class is None:
+        raise _TimetableNotRegistered(importable_string)
+    return timetable_class.deserialize(var["__var"])
 
 
 class BaseSerialization:
@@ -248,7 +267,7 @@ class BaseSerialization:
             if key in decorated_fields:
                 serialized_object[key] = cls._serialize(value)
             elif key == "timetable":
-                serialized_object[key] = encode_timetable(value)
+                serialized_object[key] = _encode_timetable(value)
             else:
                 value = cls._serialize(value)
                 if isinstance(value, dict) and "__type" in value:
@@ -305,6 +324,8 @@ class BaseSerialization:
             return cls._encode([cls._serialize(v) for v in var], type_=DAT.TUPLE)
         elif isinstance(var, TaskGroup):
             return SerializedTaskGroup.serialize_task_group(var)
+        elif isinstance(var, Param):
+            return cls._encode(var.dump(), type_=DAT.PARAM)
         else:
             log.debug('Cast type %s to str in serialization.', type(var))
             return str(var)
@@ -346,6 +367,10 @@ class BaseSerialization:
             return {cls._deserialize(v) for v in var}
         elif type_ == DAT.TUPLE:
             return tuple(cls._deserialize(v) for v in var)
+        elif type_ == DAT.PARAM:
+            param_class = import_string(var['_type'])
+            del var['_type']
+            return param_class(**var)
         else:
             raise TypeError(f'Invalid type {type_!s} in deserialization.')
 
@@ -434,6 +459,7 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
         # Move class attributes into object attributes.
         self.ui_color = BaseOperator.ui_color
         self.ui_fgcolor = BaseOperator.ui_fgcolor
+        self.template_ext = BaseOperator.template_ext
         self.template_fields = BaseOperator.template_fields
         self.operator_extra_links = BaseOperator.operator_extra_links
 
@@ -489,6 +515,9 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
                 value = getattr(op, template_field, None)
                 if not cls._is_excluded(value, template_field, op):
                     serialize_op[template_field] = serialize_template_field(value)
+
+        if op.params:
+            serialize_op['params'] = cls._serialize_operator_params(op.params)
 
         return serialize_op
 
@@ -554,6 +583,8 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
 
             elif k == "deps":
                 v = cls._deserialize_deps(v)
+            elif k == "params":
+                v = cls._deserialize_operator_params(v)
             elif k in cls._decorated_fields or k not in op.get_serialized_fields():
                 v = cls._deserialize(v)
             # else use v as it is
@@ -690,6 +721,29 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
 
         return serialize_operator_extra_links
 
+    @classmethod
+    def _deserialize_operator_params(cls, encoded_op_params: Dict) -> Dict[str, Param]:
+        """Deserialize Params dict of a operator"""
+        op_params = {}
+        for k, v in encoded_op_params.items():
+            param_class = import_string(v['__class'])
+            del v['__class']
+            op_params[k] = param_class(**v)
+
+        return ParamsDict(op_params)
+
+    @classmethod
+    def _serialize_operator_params(cls, op_params: ParamsDict):
+        """Serialize Params dict of a operator"""
+        serialized_params = {}
+        for k, v in op_params.items():
+            # TODO: As of now, we would allow serialization of params which are of type Param only
+            if f'{v.__module__}.{v.__class__.__name__}' == 'airflow.models.param.Param':
+                serialized_params[k] = v.dump()
+            else:
+                raise ValueError('Params to a Task can be only of type airflow.models.param.Param')
+        return serialized_params
+
 
 class SerializedDAG(DAG, BaseSerialization):
     """
@@ -748,6 +802,7 @@ class SerializedDAG(DAG, BaseSerialization):
 
             # Edge info in the JSON exactly matches our internal structure
             serialize_dag["edge_info"] = dag.edge_info
+            serialize_dag["params"] = cls._serialize_dag_params(dag.params)
 
             # has_on_*_callback are only stored if the value is True, as the default is False
             if dag.has_on_success_callback:
@@ -757,8 +812,8 @@ class SerializedDAG(DAG, BaseSerialization):
             return serialize_dag
         except SerializationError:
             raise
-        except Exception:
-            raise SerializationError(f'Failed to serialize dag {dag.dag_id!r}')
+        except Exception as e:
+            raise SerializationError(f'Failed to serialize DAG {dag.dag_id!r}: {e}')
 
     @classmethod
     def deserialize_dag(cls, encoded_dag: Dict[str, Any]) -> 'SerializedDAG':
@@ -784,9 +839,11 @@ class SerializedDAG(DAG, BaseSerialization):
                 # Value structure matches exactly
                 pass
             elif k == "timetable":
-                v = decode_timetable(v)
+                v = _decode_timetable(v)
             elif k in cls._decorated_fields:
                 v = cls._deserialize(v)
+            elif k == "params":
+                v = cls._deserialize_dag_params(v)
             # else use v as it is
 
             setattr(dag, k, v)
@@ -857,6 +914,29 @@ class SerializedDAG(DAG, BaseSerialization):
         if ver != cls.SERIALIZER_VERSION:
             raise ValueError(f"Unsure how to deserialize version {ver!r}")
         return cls.deserialize_dag(serialized_obj['dag'])
+
+    @classmethod
+    def _serialize_dag_params(cls, dag_params: ParamsDict):
+        """Serialize Params dict for a DAG"""
+        serialized_params = {}
+        for k, v in dag_params.items():
+            # TODO: As of now, we would allow serialization of params which are of type Param only
+            if f'{v.__module__}.{v.__class__.__name__}' == 'airflow.models.param.Param':
+                serialized_params[k] = v.dump()
+            else:
+                raise ValueError('Params to a DAG can be only of type airflow.models.param.Param')
+        return serialized_params
+
+    @classmethod
+    def _deserialize_dag_params(cls, encoded_dag_params: Dict) -> ParamsDict:
+        """Deserialize a DAGs Params dict"""
+        op_params = {}
+        for k, v in encoded_dag_params.items():
+            param_class = import_string(v['__class'])
+            del v['__class']
+            op_params[k] = param_class(**v)
+
+        return ParamsDict(op_params)
 
 
 class SerializedTaskGroup(TaskGroup, BaseSerialization):

@@ -233,6 +233,14 @@ If release name contains chart name it will be used as a full name.
 {{ printf "%s:%s" .Values.defaultAirflowRepository .Values.defaultAirflowTag }}
 {{- end }}
 
+{{ define "airflow_image_for_migrations" -}}
+{{- if .Values.images.useDefaultImageForMigration -}}
+{{ template "default_airflow_image" . }}
+{{- else -}}
+{{ template "airflow_image" . }}
+{{- end -}}
+{{- end }}
+
 {{ define "flower_image" -}}
 {{ printf "%s:%s" (.Values.images.flower.repository | default .Values.defaultAirflowRepository) (.Values.images.flower.tag | default .Values.defaultAirflowTag) }}
 {{- end }}

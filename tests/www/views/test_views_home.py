@@ -179,3 +179,9 @@ def test_home_dag_list_filtered_singledag_user(working_dags, client_single_dag):
     # But not the rest
     for dag_id in TEST_FILTER_DAG_IDS[1:]:
         check_content_not_in_response(f"dag_id={dag_id}", resp)
+
+
+def test_home_robots_header_in_response(user_client):
+    # Responses should include X-Robots-Tag header
+    resp = user_client.get('home', follow_redirects=True)
+    assert resp.headers['X-Robots-Tag'] == 'noindex, nofollow'
