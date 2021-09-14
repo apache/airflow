@@ -15,10 +15,10 @@
 # specific language governing permissions and limitations
 # under the License.
 
+from airflow.compat.functools import cached_property
 from airflow.decorators.python import PythonDecoratorMixin, python_task  # noqa
 from airflow.decorators.python_virtualenv import PythonVirtualenvDecoratorMixin
 from airflow.decorators.task_group import task_group  # noqa
-from airflow.exceptions import AirflowException
 from airflow.models.dag import dag  # noqa
 from airflow.providers_manager import ProvidersManager
 
@@ -30,36 +30,22 @@ except ImportError:
 # [END import_docker]
 
 
-class _TaskDecorator:
-    def __init__(self):
-        self.store = {}
+class _TaskDecorator(PythonDecoratorMixin, PythonVirtualenvDecoratorMixin):
+    @cached_property
+    def __store(self):
+        store = {}
         decorator = ProvidersManager().taskflow_decorators
         for decorator_name, decorator_class in decorator.items():
-            self.store[decorator_name] = decorator_class
+            store[decorator_name] = decorator_class
+        return store
 
     def __getattr__(self, name):
-        if self.store.get(name, None):
-            return self.store[name]
-        raise AirflowException("Decorator %s not found", name)
+        if self.__store.get(name, None):
+            return self.__store[name]
+        raise AttributeError(f"task decorator {name!r} not found")
 
 
 _target = _TaskDecorator
-
-classes_to_mixin = [PythonDecoratorMixin, DockerDecoratorMixin]
-
-
-class _PythonTask(_target, PythonDecoratorMixin):
-    pass
-
-
-_target = _PythonTask
-
-
-class _VirtualenvTask(_target, PythonVirtualenvDecoratorMixin):
-    pass
-
-
-_target = _VirtualenvTask
 
 # [START extend_docker]
 if DockerDecoratorMixin:

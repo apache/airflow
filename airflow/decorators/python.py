@@ -66,6 +66,8 @@ class PythonDecoratorMixin:
     """
     Helper class for inheritance. This class is only used for the __init__.pyi so that IDEs
     will autocomplete docker decorator functions
+
+    :meta private:
     """
 
     def __call__(
@@ -78,6 +80,7 @@ class PythonDecoratorMixin:
     ):
         """
         Python operator decorator. Wraps a function into an Airflow operator.
+
         Accepts kwargs for operator kwarg. Can be reused in a single DAG.
 
         :param python_callable: Function to decorate
@@ -100,7 +103,8 @@ def python_task(
     python_callable: Optional[Callable] = None, multiple_outputs: Optional[bool] = None, **kwargs
 ):
     """
-    Python operator decorator. Wraps a function into an Airflow operator.
+    Wraps a function into an Airflow operator.
+
     Accepts kwargs for operator kwarg. Can be reused in a single DAG.
 
     :param python_callable: Function to decorate

@@ -74,13 +74,16 @@ class PythonVirtualenvDecoratorMixin:
     """
     Helper class for inheritance. This class is only used for the __init__.pyi so that IDEs
     will autocomplete docker decorator functions
+
+    :meta private:
     """
 
     def virtualenv(
         self, python_callable: Optional[Callable] = None, multiple_outputs: Optional[bool] = None, **kwargs
     ):
         """
-        Python operator decorator. Wraps a function into an Airflow operator.
+        Wraps a python function into an Airflow operator to run via a Python virtual environment.
+
         Accepts kwargs for operator kwarg. Can be reused in a single DAG.
 
         :param python_callable: Function to decorate
