@@ -19,10 +19,12 @@ Params
 ======
 
 Params are Airflow's concept of providing runtime configuration to tasks when a dag gets triggered manually.
-Params are configured while defining the dag & tasks, that can be altered while doing a manual trigger.
+Params are configured while defining the dag & tasks, that can be altered while doing a manual trigger. The
+ability to update params while triggering a DAG depends on the flag ``core.dag_run_conf_overrides_params``,
+so if that flag is ``False``, params would behave like constants.
 
-To use them, one can use the ``Param`` model for complex runtime validations or simply use primitive types,
-which won't be doing any runtime validations.
+To use them, one can use the ``Param`` class for complex trigger-time validations or simply use primitive types,
+which won't be doing any such validations.
 
 .. code-block::
 
@@ -53,8 +55,8 @@ objects.
 
 Also, it worthwhile to note that if you have any DAG which uses a mandatory param value, i.e. a ``Param``
 object with no default value or ``null`` as an allowed type, that DAG schedule has to be ``None``. However,
-if such ``Param`` has been defined at task level, Airflow has no way to restrict that & the task would
-mostly be failing at the execution time.
+if such ``Param`` has been defined at task level, Airflow has no way to restrict that & the task would be
+failing at the execution time.
 
 .. note::
     As of now, for security reasons, one can not use Param objects derived out of custom classes. We are
