@@ -1050,10 +1050,20 @@ class Airflow(AirflowBaseView):
         logging.info("Retrieving rendered templates.")
         dag = current_app.dag_bag.get_dag(dag_id)
         dag_run = dag.get_dagrun(execution_date=dttm, session=session)
-
         task = copy.copy(dag.get_task(task_id))
-        ti = dag_run.get_task_instance(task_id=task.task_id, session=session)
-        ti.refresh_from_task(task)
+
+        if dag_run is None:
+            # No DAG run matching given logical date. This usually means this
+            # DAG has never been run. Task instance rendering does not really
+            # make sense in this situation, but "works" prior to AIP-39. This
+            # "fakes" a temporary DagRun-TaskInstance association (not saved to
+            # database) for presentation only.
+            ti = TaskInstance(task)
+            ti.dag_run = DagRun(dag_id=dag_id, execution_date=dttm)
+        else:
+            ti = dag_run.get_task_instance(task_id=task.task_id, session=session)
+            ti.refresh_from_task(task)
+
         try:
             ti.get_rendered_template_fields(session=session)
         except AirflowException as e:
@@ -1063,6 +1073,7 @@ class Airflow(AirflowBaseView):
             flash(msg, "error")
         except Exception as e:
             flash("Error rendering template: " + str(e), "error")
+
         title = "Rendered Template"
         html_dict = {}
         renderers = wwwutils.get_attr_renderer()
