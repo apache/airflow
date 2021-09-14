@@ -240,10 +240,10 @@ Building this dependency is shown in the code below:
 .. code-block:: python
 
     get_api_results_task = SimpleHttpOperator(
-        task_id="get_api_results", 
-        endpoint="/api/query", 
-        do_xcom_push=True, 
-        http_conn_id="http"
+        task_id="get_api_results",
+        endpoint="/api/query",
+        do_xcom_push=True,
+        http_conn_id="http",
     )
 
 
