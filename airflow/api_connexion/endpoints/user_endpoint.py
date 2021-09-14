@@ -77,10 +77,13 @@ def post_user():
 
     security_manager = current_app.appbuilder.sm
     username = data["username"]
+    email = data["email"]
 
-    user = security_manager.find_user(username=username)
-    if user is not None:
+    if security_manager.find_user(username=username):
         detail = f"Username `{username}` already exists. Use PATCH to update."
+        raise AlreadyExists(detail=detail)
+    if security_manager.find_user(email=email):
+        detail = f"The email `{email}` is already taken."
         raise AlreadyExists(detail=detail)
 
     roles_to_add = []
@@ -103,7 +106,8 @@ def post_user():
 
     user = security_manager.add_user(role=default_role, **data)
     if not user:
-        return Unknown(f"Failed to add user `{username}`.")
+        detail = f"Failed to add user `{username}`."
+        return Unknown(detail=detail)
 
     if roles_to_add:
         user.roles.extend(roles_to_add)
