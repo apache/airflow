@@ -69,6 +69,7 @@ class TestLocalClient(unittest.TestCase):
             self.client.trigger_dag(dag_id=test_dag_id)
             mock.assert_called_once_with(
                 run_id=run_id,
+                start_date=timezone.utcnow(),
                 execution_date=EXECDATE_NOFRACTIONS,
                 state=State.RUNNING,
                 conf=None,
@@ -81,6 +82,7 @@ class TestLocalClient(unittest.TestCase):
             self.client.trigger_dag(dag_id=test_dag_id, execution_date=EXECDATE)
             mock.assert_called_once_with(
                 run_id=run_id,
+                start_date=timezone.utcnow(),
                 execution_date=EXECDATE_NOFRACTIONS,
                 state=State.RUNNING,
                 conf=None,
@@ -94,6 +96,7 @@ class TestLocalClient(unittest.TestCase):
             self.client.trigger_dag(dag_id=test_dag_id, run_id=custom_run_id)
             mock.assert_called_once_with(
                 run_id=custom_run_id,
+                start_date=timezone.utcnow(),
                 execution_date=EXECDATE_NOFRACTIONS,
                 state=State.RUNNING,
                 conf=None,
@@ -107,6 +110,7 @@ class TestLocalClient(unittest.TestCase):
             self.client.trigger_dag(dag_id=test_dag_id, conf=conf)
             mock.assert_called_once_with(
                 run_id=run_id,
+                start_date=timezone.utcnow(),
                 execution_date=EXECDATE_NOFRACTIONS,
                 state=State.RUNNING,
                 conf=json.loads(conf),
