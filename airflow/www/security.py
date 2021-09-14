@@ -346,7 +346,7 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
         return perms
 
     def current_user_has_permissions(self) -> bool:
-        return len(self.get_current_user_permission()) > 0
+        return len(self.get_current_user_permissions()) > 0
 
     def get_readable_dags(self, user):
         """Gets the DAGs readable by authenticated user."""
