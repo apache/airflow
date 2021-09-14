@@ -29,7 +29,8 @@ TOKEN = environ.get("DATAPREP_TOKEN", "dataprep-system-test-token")
 EXTRA = {"extra__dataprep__token": TOKEN}
 
 
-@pytest.mark.skipif(environ.get("DATAPREP_TOKEN") is None, reason='Dataprep token not present')
+# no need to have this skip, because TOKEN will never be None
+@pytest.mark.skipif(TOKEN is None, reason='Dataprep token not present')
 class DataprepExampleDagsTest(GoogleSystemTest):
     """
     System tests for Dataprep operators.
