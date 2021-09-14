@@ -15,38 +15,45 @@
     specific language governing permissions and limitations
     under the License.
 
-
 Installing from Sources
 -----------------------
 
 .. contents:: :local:
 
 
-Installing Airflow from released sources and packages
-'''''''''''''''''''''''''''''''''''''''''''''''''''''
+Released packages
+'''''''''''''''''
 
-You can also install Airflow using the official sources and packages. Those sources and packages
-released are the "official" sources of installation that you can use if you want to verify the
-origin of the packages and want to verify checksums and signatures of the packages.
+.. jinja:: official_download_page
 
-The packages are available at the
-`Official Apache Software Foundations Downloads page <https://downloads.apache.org/airflow/>`_
+    This page describes downloading and verifying ``Apache Airflow`` version
+    ``{{ airflow_version }}`` using officially released packages.
+    You can also install ``Apache Airflow`` - as most Python packages - via
+    `PyPI <https://pypi.org/project/apache-airflow/{{ airflow_version }}>`__ .
+    You can choose different version of Airflow by selecting different version from the drop-down at
+    the top-left of the page.
+
+The ``source``, ``sdist`` and ``whl`` packages released are the "official" sources of installation that you
+can use if you want to verify the origin of the packages and want to verify checksums and signatures of
+the packages. The packages are available via the
+`Official Apache Software Foundations Mirrors <http://ws.apache.org/mirrors.cgi>`_
+
 
 The |version| downloads are available at:
 
 .. jinja:: official_download_page
 
-    * `Sdist package <{{ closer_lua_url }}/apache-airflow-{{ airflow_version }}.tar.gz>`_ (`asc <{{ base_url }}/apache-airflow-{{ airflow_version }}.tar.gz.asc>`__, `sha512 <{{ base_url }}/apache-airflow-{{ airflow_version }}.tar.gz.sha512>`__)
-    * `Wheel package <{{ closer_lua_url }}/apache_airflow-{{ airflow_version }}-py3-none-any.whl>`_ (`asc <{{ base_url }}/apache_airflow-{{ airflow_version }}-py3-none-any.whl.asc>`__, `sha512 <{{ base_url }}/apache_airflow-{{ airflow_version }}-py3-none-any.whl.sha512>`__)
-    * `Sources <{{ closer_lua_url }}/apache-airflow-{{ airflow_version }}-source.tar.gz>`_ (`asc <{{ base_url }}/apache_airflow-{{ airflow_version }}-source.tar.gz.asc>`__, `sha512 <{{ base_url }}/apache-airflow-{{ airflow_version }}-source.tar.gz.sha512>`__)
+    * `Sources package <{{ closer_lua_url }}/apache-airflow-{{ airflow_version }}-source.tar.gz>`__ (`asc <{{ base_url }}/apache_airflow-{{ airflow_version }}-source.tar.gz.asc>`__, `sha512 <{{ base_url }}/apache-airflow-{{ airflow_version }}-source.tar.gz.sha512>`__)
+    * `Sdist package <{{ closer_lua_url }}/apache-airflow-{{ airflow_version }}.tar.gz>`__ (`asc <{{ base_url }}/apache-airflow-{{ airflow_version }}.tar.gz.asc>`__, `sha512 <{{ base_url }}/apache-airflow-{{ airflow_version }}.tar.gz.sha512>`__)
+    * `Whl package <{{ closer_lua_url }}/apache_airflow-{{ airflow_version }}-py3-none-any.whl>`__ (`asc <{{ base_url }}/apache_airflow-{{ airflow_version }}-py3-none-any.whl.asc>`__, `sha512 <{{ base_url }}/apache_airflow-{{ airflow_version }}-py3-none-any.whl.sha512>`__)
 
 If you want to install from the source code, you can download from the sources link above, it will contain
 a ``INSTALL`` file containing details on how you can build and install Airflow.
 
-Release integrity & Verification of releases
-''''''''''''''''''''''''''''''''''''''''''''
+Release integrity
+'''''''''''''''''
 
-`PGP signatures KEYS <https://downloads.apache.org/airflow/KEYS>`_
+`PGP signatures KEYS <https://downloads.apache.org/airflow/KEYS>`__
 
 It is essential that you verify the integrity of the downloaded files using the PGP or SHA signatures.
 The PGP signatures can be verified using GPG or PGP. Please download the KEYS as well as the asc
@@ -122,3 +129,31 @@ Example:
     :substitutions:
 
     shasum -a 512 apache-airflow-|version|-source.tar.gz  | diff - apache-airflow-|version|-source.tar.gz.sha512
+
+
+Verifying PyPI releases
+'''''''''''''''''''''''
+
+You can verify the Airflow ``.whl`` packages from PyPI by locally downloading the package and signature
+and SHA sum files with the script below:
+
+
+.. jinja:: official_download_page
+
+    .. code-block:: bash
+
+        #!/bin/bash
+        AIRFLOW_VERSION="{{ airflow_version }}"
+        airflow_download_dir="$(mktemp -d)"
+        pip download --no-deps "apache-airflow==${AIRFLOW_VERSION}" --dest "${airflow_download_dir}"
+        curl "https://downloads.apache.org/airflow/${AIRFLOW_VERSION}/apache_airflow-${AIRFLOW_VERSION}-py3-none-any.whl.asc" \
+            -L -o "${airflow_download_dir}/apache_airflow-${AIRFLOW_VERSION}-py3-none-any.whl.asc"
+        curl "https://downloads.apache.org/airflow/${AIRFLOW_VERSION}/apache_airflow-${AIRFLOW_VERSION}-py3-none-any.whl.sha512" \
+            -L -o "${airflow_download_dir}/apache_airflow-${AIRFLOW_VERSION}-py3-none-any.whl.sha512"
+        echo
+        echo "Please verify files downloaded to ${airflow_download_dir}"
+        ls -la "${airflow_download_dir}"
+        echo
+
+Once you verify the files following the instructions from previous chapter you can remove the temporary
+folder created.

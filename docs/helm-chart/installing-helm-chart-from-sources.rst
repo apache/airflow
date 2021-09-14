@@ -15,8 +15,8 @@
     specific language governing permissions and limitations
     under the License.
 
-Installing from sources
------------------------
+Installing Helm Chart from sources
+----------------------------------
 
 .. contents:: :local:
 
@@ -26,33 +26,33 @@ Released packages
 
 .. jinja:: official_download_page
 
-    This page describes downloading and verifying ``{{ package_name}}`` provider version
-    ``{{ package_version }}`` using officially released packages.
-    You can also install the provider package - as most Python packages - via
-    `PyPI <https://pypi.org/project/{{ package_name }}/{{ package_version }}>`__ .
-    You can choose different version of the provider by selecting different version from the drop-down at
+    This page describes downloading and verifying ``Apache Airflow Official Helm Chart`` version
+    ``{{ package_version}}`` using officially released source packages. You can also install the chart
+    directly from the ``airflow.apache.org`` repo as described in
+    `Installing the chart <index#installing-the-chart>`_.
+    You can choose different version of the chart by selecting different version from the drop-down at
     the top-left of the page.
 
 
-The ``sdist`` and ``whl`` packages released are the "official" sources of installation that you can use if
+The sources and packages released are the "official" sources of installation that you can use if
 you want to verify the origin of the packages and want to verify checksums and signatures of the packages.
 The packages are available via the
-`Official Apache Software Foundations Mirrors <http://ws.apache.org/mirrors.cgi>`__
+`Official Apache Software Foundations Mirrors <http://ws.apache.org/mirrors.cgi>`_
 
 The downloads are available at:
 
 .. jinja:: official_download_page
 
-    * `Sdist package <{{ closer_lua_url }}/{{ package_name }}-{{ package_version }}.tar.gz>`__ (`asc <{{ base_url }}/{{ package_name }}-{{ package_version }}.tar.gz.asc>`__, `sha512 <{{ base_url }}/{{ package_name }}-{{ package_version }}.tar.gz.sha512>`__) - those are also official sources for the package
-    * `Whl package <{{ closer_lua_url }}/{{ package_name_underscores }}-{{ package_version }}-py3-none-any.whl>`__ (`asc <{{ base_url }}/{{ package_name_underscores }}-{{ package_version }}-py3-none-any.whl.asc>`__, `sha512 <{{ base_url }}/{{ package_name_underscores }}-{{ package_version }}-py3-none-any.whl.sha512>`__)
+    * `Sources package <{{ closer_lua_url }}/{{ package_version }}/airflow-chart-{{ package_version }}-source.tar.gz>`__ (`asc <{{ base_url }}/{{ package_version }}/airflow-chart-{{ package_version }}-source.tar.gz.asc>`__, `sha512 <{{ base_url }}/{{ package_version }}/airflow-chart-{{ package_version }}-source.tar.gz.sha512>`__)
+    * `Installable package <{{ closer_lua_url }}/{{ package_version }}/airflow-chart-{{ package_version }}.tar.gz>`__ (`asc <{{ base_url }}/{{ package_version }}/airflow-chart-{{ package_version }}.tar.gz.asc>`__, `sha512 <{{ base_url }}/{{ package_version }}/airflow-chart-{{ package_version }}.tar.gz.sha512>`__)
 
 If you want to install from the source code, you can download from the sources link above, it will contain
-a ``INSTALL`` file containing details on how you can build and install the provider.
+a ``INSTALL`` file containing details on how you can build and install the chart.
 
 Release integrity
 '''''''''''''''''
 
-`PGP signatures KEYS <https://downloads.apache.org/airflow/KEYS>`__
+`PGP signatures KEYS <https://downloads.apache.org/airflow/KEYS>`_
 
 It is essential that you verify the integrity of the downloaded files using the PGP or SHA signatures.
 The PGP signatures can be verified using GPG or PGP. Please download the KEYS as well as the asc
@@ -80,19 +80,19 @@ distribution directory and follow the below guide.
 
 .. code-block:: bash
 
-    gpg --verify apache-airflow-providers-********.asc apache-airflow-*********
+    gpg --verify airflow-chart-********.asc airflow-chart-*********
 
 or
 
 .. code-block:: bash
 
-    pgpv apache-airflow-providers-********.asc
+    pgpv airflow-chart-********.asc
 
 or
 
 .. code-block:: bash
 
-    pgp apache-airflow-providers-********.asc
+    pgp airflow-chart-********.asc
 
 Example:
 
@@ -101,7 +101,7 @@ Example:
     .. code-block:: console
         :substitutions:
 
-        $ gpg --verify {{ package_name }}-{{ package_version }}.tar.gz.asc {{ package_name }}-{{ package_version }}.tar.gz
+        $ gpg --verify airflow-chart-{{ package_version }}.tar.gz.asc airflow-chart-{{ package_version }}.tar.gz
           gpg: Signature made Sat 11 Sep 12:49:54 2021 BST
           gpg:                using RSA key CDE15C6E4D3A8EC4ECF4BA4B6674E08AD7DE406F
           gpg:                issuer "kaxilnaik@apache.org"
@@ -120,7 +120,7 @@ Example:
 
     .. code-block:: bash
 
-        shasum -a 512 apache-airflow-providers-********  | diff - apache-airflow-providers-********.sha512
+        shasum -a 512 airflow-chart-********  | diff - airflow-chart-********.sha512
 
     The ``SHASUM`` of the file should match the one provided in ``.sha512`` file.
 
@@ -129,32 +129,4 @@ Example:
     .. code-block:: bash
         :substitutions:
 
-        shasum -a 512 {{ package_name }}-{{ package_version }}.tar.gz  | diff - {{ package_name }}-{{ package_version }}.tar.gz.sha512
-
-
-Verifying PyPI releases
-'''''''''''''''''''''''
-
-You can verify the Provider ``.whl`` packages from PyPI by locally downloading the package and signature
-and SHA sum files with the script below:
-
-.. jinja:: official_download_page
-
-    .. code-block:: bash
-
-        #!/bin/bash
-        PACKAGE_VERSION={{ package_version }}
-        PACKAGE_NAME={{ package_name }}
-        provider_download_dir=$(mktemp -d)
-        pip download --no-deps "${PACKAGE_NAME}==${PACKAGE_VERSION}" --dest "${provider_download_dir}"
-        curl "{{ base_url }}/{{ package_name_underscores }}-{{ package_version }}-py3-none-any.whl.asc" \
-            -L -o "${provider_download_dir}/{{ package_name_underscores }}-{{ package_version }}-py3-none-any.whl.asc"
-        curl "{{ base_url }}/{{ package_name_underscores }}-{{ package_version }}-py3-none-any.whl.sha512" \
-            -L -o "${provider_download_dir}/{{ package_name_underscores }}-{{ package_version }}-py3-none-any.whl.sha512"
-        echo
-        echo "Please verify files downloaded to ${provider_download_dir}"
-        ls -la "${provider_download_dir}"
-        echo
-
-Once you verify the files following the instructions from previous chapter you can remove the temporary
-folder created.
+        shasum -a 512 airflow-chart-{{ package_version }}.tar.gz  | diff - airflow-chart-{{ package_version }}.tar.gz.sha512
