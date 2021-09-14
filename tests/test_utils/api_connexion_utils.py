@@ -27,7 +27,7 @@ def create_user(app, username, role_name, email=None, permissions=None):
     role = create_role(app, role_name, permissions)
 
     if email is None:
-        email = f"{username}@fab.org"
+        email = f"{username}@example.org"
 
     return appbuilder.sm.add_user(
         username=username,
