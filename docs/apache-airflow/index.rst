@@ -78,6 +78,7 @@ unit of work and continuity.
     license
     start/index
     installation
+    installing-from-sources
     upgrading-to-2
     upgrade-check
     tutorial

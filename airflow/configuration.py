@@ -171,7 +171,7 @@ class AirflowConfigParser(ConfigParser):
         ('core', 'sensitive_var_conn_names'): ('admin', 'sensitive_variable_fields', '2.1.0'),
         ('core', 'default_pool_task_slot_count'): ('core', 'non_pooled_task_slot_count', '1.10.4'),
         ('core', 'max_active_tasks_per_dag'): ('core', 'dag_concurrency', '2.2.0'),
-        ('logging', 'worker_log_server_port'): ('celery', 'worker_log_server_port', '2.3.0'),
+        ('logging', 'worker_log_server_port'): ('celery', 'worker_log_server_port', '2.2.0'),
         ('api', 'access_control_allow_origins'): ('api', 'access_control_allow_origin', '2.2.0'),
     }
 
@@ -215,9 +215,9 @@ class AirflowConfigParser(ConfigParser):
         for section, replacement in self.deprecated_values.items():
             for name, info in replacement.items():
                 old, new, version = info
-                current_value = self.get(section, name, fallback=None)
+                current_value = self.get(section, name, fallback="")
                 if self._using_old_value(old, current_value):
-                    new_value = re.sub(old, new, current_value)
+                    new_value = old.sub(new, current_value)
                     self._update_env_var(section=section, name=name, new_value=new_value)
                     self._create_future_warning(
                         name=name,
@@ -285,6 +285,8 @@ class AirflowConfigParser(ConfigParser):
         # would be read and used instead of the value we set
         env_var = self._env_var_name(section, name)
         os.environ.pop(env_var, None)
+        if not self.has_section(section):
+            self.add_section(section)
         self.set(section, name, new_value)
 
     @staticmethod

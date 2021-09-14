@@ -100,7 +100,15 @@ class TestSecurity(unittest.TestCase):
 
     @classmethod
     def delete_roles(cls):
-        for role_name in ['team-a', 'MyRole1', 'MyRole5', 'Test_Role', 'MyRole3', 'MyRole2']:
+        for role_name in [
+            'team-a',
+            'MyRole1',
+            'MyRole5',
+            'Test_Role',
+            'MyRole3',
+            'MyRole2',
+            'dag_permission_role',
+        ]:
             api_connexion_utils.delete_role(cls.app, role_name)
 
     def expect_user_is_in_role(self, user, rolename):
@@ -123,8 +131,6 @@ class TestSecurity(unittest.TestCase):
             ), f"User should not have '{perm}' on DAG '{dag_id}'"
 
     def _has_dag_perm(self, perm, dag_id, user):
-        # if not user:
-        #     user = self.user
         return self.security_manager.has_access(perm, permissions.resource_name_for_dag(dag_id), user)
 
     def _create_dag(self, dag_id):
@@ -669,3 +675,32 @@ class TestSecurity(unittest.TestCase):
             ),
         ):
             self.security_manager.prefixed_dag_id("hello")
+
+    def test_parent_dag_access_applies_to_subdag(self):
+        username = 'dag_permission_user'
+        role_name = 'dag_permission_role'
+        parent_dag_name = "parent_dag"
+        with self.app.app_context():
+            mock_roles = [
+                {
+                    'role': role_name,
+                    'perms': [
+                        (permissions.ACTION_CAN_READ, f"DAG:{parent_dag_name}"),
+                        (permissions.ACTION_CAN_EDIT, f"DAG:{parent_dag_name}"),
+                    ],
+                }
+            ]
+            user = api_connexion_utils.create_user(
+                self.app,
+                username,
+                role_name,
+            )
+            self.security_manager.bulk_sync_roles(mock_roles)
+            self.security_manager._sync_dag_view_permissions(
+                parent_dag_name, access_control={role_name: READ_WRITE}
+            )
+            self.assert_user_has_dag_perms(perms=READ_WRITE, dag_id=parent_dag_name, user=user)
+            self.assert_user_has_dag_perms(perms=READ_WRITE, dag_id=parent_dag_name + ".subdag", user=user)
+            self.assert_user_has_dag_perms(
+                perms=READ_WRITE, dag_id=parent_dag_name + ".subdag.subsubdag", user=user
+            )

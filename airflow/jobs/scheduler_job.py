@@ -26,7 +26,7 @@ import sys
 import time
 from collections import defaultdict
 from datetime import timedelta
-from typing import DefaultDict, Dict, Iterable, List, Optional, Tuple
+from typing import Collection, DefaultDict, Dict, List, Optional, Tuple
 
 from sqlalchemy import and_, func, not_, or_, tuple_
 from sqlalchemy.exc import OperationalError
@@ -795,7 +795,7 @@ class SchedulerJob(BaseJob):
         guard.commit()
         # END: create dagruns
 
-    def _create_dag_runs(self, dag_models: Iterable[DagModel], session: Session) -> None:
+    def _create_dag_runs(self, dag_models: Collection[DagModel], session: Session) -> None:
         """
         Unconditionally create a DAG run for the given DAG, and update the dag_model's fields to control
         if/when the next DAGRun should be created
@@ -954,7 +954,7 @@ class SchedulerJob(BaseJob):
             unfinished_task_instances = (
                 session.query(TI)
                 .filter(TI.dag_id == dag_run.dag_id)
-                .filter(TI.execution_date == dag_run.execution_date)
+                .filter(TI.run_id == dag_run.run_id)
                 .filter(TI.state.in_(State.unfinished))
             )
             for task_instance in unfinished_task_instances:

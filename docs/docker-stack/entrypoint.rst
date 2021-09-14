@@ -161,6 +161,47 @@ If there are any other arguments - they are simply passed to the "airflow" comma
   > docker run -it apache/airflow:2.1.2-python3.6 version
   2.1.2
 
+Signal propagation
+------------------
+
+Airflow uses ``dumb-init`` to run as "init" in the entrypoint. This is in order to propagate
+signals and reap child processes properly. This means that the process that you run does not have
+to install signal handlers to work properly and be killed when the container is gracefully terminated.
+The behaviour of signal propagation is configured by ``DUMB_INIT_SETSID`` variable which is set to
+``1`` by default - meaning that the signals will be propagated to the whole process group, but you can
+set it to ``0`` to enable ``single-child`` behaviour of ``dumb-init`` which only propagates the
+signals to only single child process.
+
+The table below summarizes ``DUMB_INIT_SETSID`` possible values and their use cases.
+
++----------------+----------------------------------------------------------------------+
+| Variable value | Use case                                                             |
++----------------+----------------------------------------------------------------------+
+| 1 (default)    | Propagates signals to all processes in the process group of the main |
+|                | process running in the container.                                    |
+|                |                                                                      |
+|                | If you run your processes via ``["bash", "-c"]`` command and bash    |
+|                | spawn  new processes without ``exec``, this will help to terminate   |
+|                | your container gracefully as all processes will receive the signal.  |
++----------------+----------------------------------------------------------------------+
+| 0              | Propagates signals to the main process only.                         |
+|                |                                                                      |
+|                | This is useful if your main process handles signals gracefully.      |
+|                | A good example is warm shutdown of Celery workers. The ``dumb-init`` |
+|                | in this case will only propagate the signals to the main process,    |
+|                | but not to the processes that are spawned in the same process        |
+|                | group as the main one. For example in case of Celery, the main       |
+|                | process will put the worker in "offline" mode, and will wait         |
+|                | until all running tasks complete, and only then it will              |
+|                | terminate all processes.                                             |
+|                |                                                                      |
+|                | For Airflow's Celery worker, you should set the variable to 0        |
+|                | and either use ``["celery", "worker"]`` command.                     |
+|                | If you are running it through ``["bash", "-c"]`` command,            |
+|                | you  need to start the worker via ``exec airflow celery worker``     |
+|                | as the last command executed.                                        |
++----------------+----------------------------------------------------------------------+
+
 Additional quick test options
 -----------------------------
 

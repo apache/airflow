@@ -174,6 +174,7 @@ class TestEKSPodOperator(unittest.TestCase):
 
         op = EKSPodOperator(
             task_id="run_pod",
+            pod_name="run_pod",
             cluster_name=CLUSTER_NAME,
             image="amazon/aws-cli:latest",
             cmds=["sh", "-c", "ls"],

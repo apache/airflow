@@ -15,7 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-"""index-faskfail
+"""index-taskfail
 
 Revision ID: 9635ae0956e7
 Revises: 856955da8476

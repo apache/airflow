@@ -65,9 +65,9 @@ from airflow.models.base import ID_LEN, Base
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.dagbag import DagBag
 from airflow.models.dagcode import DagCode
-from airflow.models.dagparam import DagParam
 from airflow.models.dagpickle import DagPickle
 from airflow.models.dagrun import DagRun
+from airflow.models.param import DagParam, ParamsDict
 from airflow.models.taskinstance import Context, TaskInstance, TaskInstanceKey, clear_task_instances
 from airflow.security import permissions
 from airflow.stats import Stats
@@ -357,6 +357,9 @@ class DAG(LoggingMixin):
             self.params.update(self.default_args['params'])
             del self.default_args['params']
 
+        # check self.params and convert them into ParamsDict
+        self.params = ParamsDict(self.params)
+
         if full_filepath:
             warnings.warn(
                 "Passing full_filepath to DAG() is deprecated and has no effect",
@@ -473,6 +476,7 @@ class DAG(LoggingMixin):
         self.render_template_as_native_obj = render_template_as_native_obj
         self.tags = tags
         self._task_group = TaskGroup.create_root(self)
+        self.validate_schedule_and_params()
 
     def __repr__(self):
         return f"<DAG: {self.dag_id}>"
@@ -2290,6 +2294,11 @@ class DAG(LoggingMixin):
             else:
                 data_interval = self.infer_automated_data_interval(logical_date)
 
+        # create a copy of params before validating
+        copied_params = copy.deepcopy(self.params)
+        copied_params.update(conf or {})
+        copied_params.validate()
+
         run = DagRun(
             dag_id=self.dag_id,
             run_id=run_id,
@@ -2542,6 +2551,7 @@ class DAG(LoggingMixin):
                 'user_defined_filters',
                 'user_defined_macros',
                 'partial',
+                'params',
                 '_pickle_id',
                 '_log',
                 'is_subdag',
@@ -2575,6 +2585,21 @@ class DAG(LoggingMixin):
         rather than merge with, existing info.
         """
         self.edge_info.setdefault(upstream_task_id, {})[downstream_task_id] = info
+
+    def validate_schedule_and_params(self):
+        """
+        Validates & raise exception if there are any Params in the DAG which neither have a default value nor
+        have the null in schema['type'] list, but the DAG have a schedule_interval which is not None.
+        """
+        if not self.timetable.can_run:
+            return
+
+        for k, v in self.params.items():
+            # As type can be an array, we would check if `null` is a allowed type or not
+            if v.default is None and ("type" not in v.schema or "null" not in v.schema["type"]):
+                raise AirflowException(
+                    "DAG Schedule must be None, if there are any required params without default values"
+                )
 
 
 class DagTag(Base):

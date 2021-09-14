@@ -312,6 +312,12 @@
                         }
                     }
                 },
+                "useDefaultImageForMigration": {
+                    "description": "To avoid images with user code for running and waiting for DB migrations set this to ``true``. ",
+                    "type": "boolean",
+                    "x-docsSection": "Images",
+                    "default": false
+                },
                 "pod_template": {
                     "description": "Configuration of the pod_template image.",
                     "type": "object",

@@ -119,7 +119,7 @@ spec:
         - name: wait-for-airflow-migrations
           resources:
 {{ toYaml .Values.workers.resources | indent 12 }}
-          image: {{ template "airflow_image" . }}
+          image: {{ template "airflow_image_for_migrations" . }}
           imagePullPolicy: {{ .Values.images.airflow.pullPolicy }}
           args:
           {{- include "wait-for-migrations-command" . | indent 10 }}
@@ -180,6 +180,9 @@ spec:
           envFrom:
           {{- include "custom_airflow_environment_from" . | default "\n  []" | indent 10 }}
           env:
+            # Only signal the main process, not the process group, to make Warm Shutdown work properly
+            - name: DUMB_INIT_SETSID
+              value: "0"
           {{- include "custom_airflow_environment" . | indent 10 }}
           {{- include "standard_airflow_environment" . | indent 10 }}
           {{- if .Values.workers.kerberosSidecar.enabled }}

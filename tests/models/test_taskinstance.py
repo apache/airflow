@@ -459,6 +459,36 @@ class TestTaskInstance:
         ti.refresh_from_db()
         assert ti.state == State.UP_FOR_RETRY
 
+    def test_task_retry_wipes_next_fields(self, session, dag_maker):
+        """
+        Test that ensures that tasks wipe their next_method and next_kwargs
+        fields when they are queued for retry after a failure.
+        """
+
+        with dag_maker('test_mark_failure_2'):
+            task = BashOperator(
+                task_id='test_retry_handling_op',
+                bash_command='exit 1',
+                retries=1,
+                retry_delay=datetime.timedelta(seconds=2),
+            )
+
+        dr = dag_maker.create_dagrun()
+        ti = dr.task_instances[0]
+        ti.next_method = "execute"
+        ti.next_kwargs = {}
+        session.merge(ti)
+        session.commit()
+
+        ti.task = task
+        with pytest.raises(AirflowException):
+            ti.run()
+        ti.refresh_from_db()
+
+        assert ti.next_method is None
+        assert ti.next_kwargs is None
+        assert ti.state == State.UP_FOR_RETRY
+
     def test_retry_delay(self, dag_maker):
         """
         Test that retry delays are respected

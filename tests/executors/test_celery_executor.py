@@ -529,7 +529,7 @@ def test_send_tasks_to_celery_hang(register_signals):
     executor = celery_executor.CeleryExecutor()
 
     task = MockTask()
-    task_tuples_to_send = [(None, None, None, None, task) for _ in range(26)]
+    task_tuples_to_send = [(None, None, None, task) for _ in range(26)]
 
     for _ in range(500):
         # This loop can hang on Linux if celery_executor does something wrong with
