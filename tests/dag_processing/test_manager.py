@@ -467,7 +467,7 @@ class TestDagFileProcessorManager:
             requests = manager._callback_to_execute[dag.fileloc]
             assert 1 == len(requests)
             assert requests[0].full_filepath == dag.fileloc
-            assert requests[0].msg == "Detected as zombie"
+            assert requests[0].msg == f"Detected {ti} as zombie"
             assert requests[0].is_failure_callback is True
             assert isinstance(requests[0].simple_task_instance, SimpleTaskInstance)
             assert ti.dag_id == requests[0].simple_task_instance.dag_id
