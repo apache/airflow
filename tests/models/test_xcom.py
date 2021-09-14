@@ -15,16 +15,13 @@
 # specific language governing permissions and limitations
 # under the License.
 import os
-import unittest
 from unittest import mock
 
 import pytest
 
-from airflow import settings
 from airflow.configuration import conf
 from airflow.models.xcom import BaseXCom, XCom, resolve_xcom_backend
 from airflow.utils import timezone
-from tests.test_utils import db
 from tests.test_utils.config import conf_vars
 
 
@@ -34,13 +31,7 @@ class CustomXCom(BaseXCom):
         return "custom_value"
 
 
-class TestXCom(unittest.TestCase):
-    def setUp(self) -> None:
-        db.clear_db_xcom()
-
-    def tearDown(self) -> None:
-        db.clear_db_xcom()
-
+class TestXCom:
     @conf_vars({("core", "xcom_backend"): "tests.models.test_xcom.CustomXCom"})
     def test_resolve_xcom_class(self):
         cls = resolve_xcom_backend()
@@ -61,127 +52,61 @@ class TestXCom(unittest.TestCase):
         assert issubclass(cls, BaseXCom)
         assert cls().serialize_value([1]) == b"[1]"
 
-    @conf_vars({("core", "enable_xcom_pickling"): "False"})
-    def test_xcom_disable_pickle_type(self):
+    @pytest.mark.parametrize(
+        ("enable_xcom_pickling",),
+        [
+            pytest.param(True, id='enable_xcom_pickling=True'),
+            pytest.param(False, id='enable_xcom_pickling=False'),
+        ],
+    )
+    def test_xcom_get_one_get_many(self, enable_xcom_pickling, session):
         json_obj = {"key": "value"}
         execution_date = timezone.utcnow()
         key = "xcom_test1"
         dag_id = "test_dag1"
         task_id = "test_task1"
-        XCom.set(key=key, value=json_obj, dag_id=dag_id, task_id=task_id, execution_date=execution_date)
 
-        ret_value = (
-            XCom.get_many(key=key, dag_ids=dag_id, task_ids=task_id, execution_date=execution_date)
-            .first()
-            .value
-        )
-
-        assert ret_value == json_obj
-
-        session = settings.Session()
-        ret_value = (
-            session.query(XCom)
-            .filter(
-                XCom.key == key,
-                XCom.dag_id == dag_id,
-                XCom.task_id == task_id,
-                XCom.execution_date == execution_date,
+        with conf_vars({("core", "enable_xcom_pickling"): str(enable_xcom_pickling)}):
+            XCom.set(
+                key=key,
+                value=json_obj,
+                dag_id=dag_id,
+                task_id=task_id,
+                execution_date=execution_date,
+                session=session,
             )
-            .first()
-            .value
-        )
 
-        assert ret_value == json_obj
-
-    @conf_vars({("core", "enable_xcom_pickling"): "False"})
-    def test_xcom_get_one_disable_pickle_type(self):
-        json_obj = {"key": "value"}
-        execution_date = timezone.utcnow()
-        key = "xcom_test1"
-        dag_id = "test_dag1"
-        task_id = "test_task1"
-        XCom.set(key=key, value=json_obj, dag_id=dag_id, task_id=task_id, execution_date=execution_date)
-
-        ret_value = XCom.get_one(key=key, dag_id=dag_id, task_id=task_id, execution_date=execution_date)
-
-        assert ret_value == json_obj
-
-        session = settings.Session()
-        ret_value = (
-            session.query(XCom)
-            .filter(
-                XCom.key == key,
-                XCom.dag_id == dag_id,
-                XCom.task_id == task_id,
-                XCom.execution_date == execution_date,
+            ret_value = (
+                XCom.get_many(
+                    key=key, dag_ids=dag_id, task_ids=task_id, execution_date=execution_date, session=session
+                )
+                .first()
+                .value
             )
-            .first()
-            .value
-        )
 
-        assert ret_value == json_obj
+            assert ret_value == json_obj
 
-    @conf_vars({("core", "enable_xcom_pickling"): "True"})
-    def test_xcom_enable_pickle_type(self):
-        json_obj = {"key": "value"}
-        execution_date = timezone.utcnow()
-        key = "xcom_test2"
-        dag_id = "test_dag2"
-        task_id = "test_task2"
-        XCom.set(key=key, value=json_obj, dag_id=dag_id, task_id=task_id, execution_date=execution_date)
-
-        ret_value = (
-            XCom.get_many(key=key, dag_ids=dag_id, task_ids=task_id, execution_date=execution_date)
-            .first()
-            .value
-        )
-
-        assert ret_value == json_obj
-
-        session = settings.Session()
-        ret_value = (
-            session.query(XCom)
-            .filter(
-                XCom.key == key,
-                XCom.dag_id == dag_id,
-                XCom.task_id == task_id,
-                XCom.execution_date == execution_date,
+            ret_value = XCom.get_one(
+                key=key, dag_id=dag_id, task_id=task_id, execution_date=execution_date, session=session
             )
-            .first()
-            .value
-        )
 
-        assert ret_value == json_obj
+            assert ret_value == json_obj
 
-    @conf_vars({("core", "enable_xcom_pickling"): "True"})
-    def test_xcom_get_one_enable_pickle_type(self):
-        json_obj = {"key": "value"}
-        execution_date = timezone.utcnow()
-        key = "xcom_test3"
-        dag_id = "test_dag"
-        task_id = "test_task3"
-        XCom.set(key=key, value=json_obj, dag_id=dag_id, task_id=task_id, execution_date=execution_date)
-
-        ret_value = XCom.get_one(key=key, dag_id=dag_id, task_id=task_id, execution_date=execution_date)
-
-        assert ret_value == json_obj
-
-        session = settings.Session()
-        ret_value = (
-            session.query(XCom)
-            .filter(
-                XCom.key == key,
-                XCom.dag_id == dag_id,
-                XCom.task_id == task_id,
-                XCom.execution_date == execution_date,
+            ret_value = (
+                session.query(XCom)
+                .filter(
+                    XCom.key == key,
+                    XCom.dag_id == dag_id,
+                    XCom.task_id == task_id,
+                    XCom.execution_date == execution_date,
+                )
+                .first()
+                .value
             )
-            .first()
-            .value
-        )
 
-        assert ret_value == json_obj
+            assert ret_value == json_obj
 
-    def test_xcom_deserialize_with_json_to_pickle_switch(self):
+    def test_xcom_deserialize_with_json_to_pickle_switch(self, session):
         json_obj = {"key": "value"}
         execution_date = timezone.utcnow()
         key = "xcom_test3"
@@ -189,14 +114,23 @@ class TestXCom(unittest.TestCase):
         task_id = "test_task3"
 
         with conf_vars({("core", "enable_xcom_pickling"): "False"}):
-            XCom.set(key=key, value=json_obj, dag_id=dag_id, task_id=task_id, execution_date=execution_date)
+            XCom.set(
+                key=key,
+                value=json_obj,
+                dag_id=dag_id,
+                task_id=task_id,
+                execution_date=execution_date,
+                session=session,
+            )
 
         with conf_vars({("core", "enable_xcom_pickling"): "True"}):
-            ret_value = XCom.get_one(key=key, dag_id=dag_id, task_id=task_id, execution_date=execution_date)
+            ret_value = XCom.get_one(
+                key=key, dag_id=dag_id, task_id=task_id, execution_date=execution_date, session=session
+            )
 
         assert ret_value == json_obj
 
-    def test_xcom_deserialize_with_pickle_to_json_switch(self):
+    def test_xcom_deserialize_with_pickle_to_json_switch(self, session):
         json_obj = {"key": "value"}
         execution_date = timezone.utcnow()
         key = "xcom_test3"
@@ -204,15 +138,24 @@ class TestXCom(unittest.TestCase):
         task_id = "test_task3"
 
         with conf_vars({("core", "enable_xcom_pickling"): "True"}):
-            XCom.set(key=key, value=json_obj, dag_id=dag_id, task_id=task_id, execution_date=execution_date)
+            XCom.set(
+                key=key,
+                value=json_obj,
+                dag_id=dag_id,
+                task_id=task_id,
+                execution_date=execution_date,
+                session=session,
+            )
 
         with conf_vars({("core", "enable_xcom_pickling"): "False"}):
-            ret_value = XCom.get_one(key=key, dag_id=dag_id, task_id=task_id, execution_date=execution_date)
+            ret_value = XCom.get_one(
+                key=key, dag_id=dag_id, task_id=task_id, execution_date=execution_date, session=session
+            )
 
         assert ret_value == json_obj
 
     @conf_vars({("core", "xcom_enable_pickling"): "False"})
-    def test_xcom_disable_pickle_type_fail_on_non_json(self):
+    def test_xcom_disable_pickle_type_fail_on_non_json(self, session):
         class PickleRce:
             def __reduce__(self):
                 return os.system, ("ls -alt",)
@@ -224,10 +167,11 @@ class TestXCom(unittest.TestCase):
                 dag_id="test_dag3",
                 task_id="test_task3",
                 execution_date=timezone.utcnow(),
+                session=session,
             )
 
     @conf_vars({("core", "xcom_enable_pickling"): "True"})
-    def test_xcom_get_many(self):
+    def test_xcom_get_many(self, session):
         json_obj = {"key": "value"}
         execution_date = timezone.utcnow()
         key = "xcom_test4"
@@ -236,11 +180,25 @@ class TestXCom(unittest.TestCase):
         dag_id2 = "test_dag5"
         task_id2 = "test_task5"
 
-        XCom.set(key=key, value=json_obj, dag_id=dag_id1, task_id=task_id1, execution_date=execution_date)
+        XCom.set(
+            key=key,
+            value=json_obj,
+            dag_id=dag_id1,
+            task_id=task_id1,
+            execution_date=execution_date,
+            session=session,
+        )
 
-        XCom.set(key=key, value=json_obj, dag_id=dag_id2, task_id=task_id2, execution_date=execution_date)
+        XCom.set(
+            key=key,
+            value=json_obj,
+            dag_id=dag_id2,
+            task_id=task_id2,
+            execution_date=execution_date,
+            session=session,
+        )
 
-        results = XCom.get_many(key=key, execution_date=execution_date)
+        results = XCom.get_many(key=key, execution_date=execution_date, session=session)
 
         for result in results:
             assert result.value == json_obj

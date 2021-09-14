@@ -96,8 +96,6 @@ class BaseXCom(Base, LoggingMixin):
 
             execution_date = dag_run.execution_date
 
-        session.expunge_all()
-
         value = XCom.serialize_value(value)
 
         # remove any duplicate XComs
@@ -105,12 +103,12 @@ class BaseXCom(Base, LoggingMixin):
             cls.key == key, cls.execution_date == execution_date, cls.task_id == task_id, cls.dag_id == dag_id
         ).delete()
 
-        session.commit()
+        session.flush()
 
         # insert new XCom
         session.add(XCom(key=key, value=value, execution_date=execution_date, task_id=task_id, dag_id=dag_id))
 
-        session.commit()
+        session.flush()
 
     @classmethod
     @provide_session
