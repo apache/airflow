@@ -14,17 +14,20 @@ log = LoggingMixin().log
 def load_default_controller(file_dir, session=None):
     log.info("Loading default controllers")
     current_dir = os.path.dirname(os.path.abspath(__file__))
-    file_path = os.path.join(current_dir, 'data/{}/default_controllers.csv'.format(file_dir))
+    file_path = os.path.join(
+        current_dir,
+        f'data/{file_dir}/default_controllers.csv' if file_dir else 'data/default_controllers.csv'
+    )
     if not os.path.exists(file_path):
         log.error("导入控制器目录不存在：{}".format(file_path))
         return
     from plugins.models.tightening_controller import TighteningController
-    controllers = TighteningController.list_controllers(session=session)
-    if len(controllers) > 0:
-        log.info("Controllers already exists, skipping")
-        return
+
     val = load_data_from_csv(file_path)
     for controller in val:
+        if TighteningController.controller_exists(**controller):
+            log.info(f"Controller already exists, skipping, {repr(controller)}")
+            continue
         TighteningController.add_controller(session=session, **controller)
 
 
@@ -67,7 +70,10 @@ def create_device_type_support(session=None):
 
 def create_default_users(factory):
     current_dir = os.path.dirname(os.path.abspath(__file__))
-    default_users = load_data_from_csv(os.path.join(current_dir, f'data/{factory}/default_users.csv'), {
+    default_users = load_data_from_csv(os.path.join(
+        current_dir,
+        f'data/{factory}/default_users.csv' if factory else 'data/default_users.csv'
+    ), {
         'username': 'username',
         'email': 'email',
         'lastname': 'lastname',

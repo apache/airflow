@@ -66,13 +66,23 @@ class TighteningController(Base):
 
     @classmethod
     @provide_session
+    def controller_exists(cls, session=None, **kwargs) -> bool:
+        fields_data = cls.to_db_fields(**kwargs)
+        if 'controller_name' not in fields_data:
+            return False
+        return cls.find_controller(
+            fields_data.get('controller_name', None)
+            , session=session
+        ).get('id', None) is not None
+
+    @classmethod
+    @provide_session
     def list_controllers(cls, session=None):
         controllers = list(session.query(cls).all())
         return controllers
 
     @classmethod
-    @provide_session
-    def add_controller(cls, session=None, **kwargs):
+    def to_db_fields(cls, **kwargs):
         extra_fields = kwargs.keys()
         controller_data = {}
         for f in extra_fields:
@@ -80,9 +90,13 @@ class TighteningController(Base):
                 if f in val or f == field_name:
                     controller_data[field_name] = kwargs[f]
                     continue
-        session.add(TighteningController(
-            **controller_data
-        ))
+        return controller_data
+
+    @classmethod
+    @provide_session
+    def add_controller(cls, session=None, **kwargs):
+        controller_data = cls.to_db_fields(**kwargs)
+        session.add(TighteningController(**controller_data))
 
     @staticmethod
     def get_line_code_by_controller_name(controller_name):
