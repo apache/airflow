@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2021-09-10T14:56:25Z
+# This constraints file was automatically generated on 2021-09-15T22:07:01Z
 # via "eager-upgrade" mechanism of PIP. For the "v2-1-test" branch of Airflow.
 # This variant of constraints install just the 'bare' 'apache-airflow' package build from the HEAD of
 # the branch, without installing any of the providers.
@@ -10,7 +10,7 @@
 # Editable install with no version control (apache-airflow==2.1.4)
 Authlib==0.15.4
 Babel==2.9.1
-Flask-AppBuilder==3.3.2
+Flask-AppBuilder==3.3.3
 Flask-Babel==1.0.0
 Flask-Bcrypt==0.7.1
 Flask-Caching==1.10.1
@@ -49,7 +49,7 @@ celery==4.4.7
 certifi==2020.12.5
 cffi==1.14.6
 cgroupspy==0.2.1
-charset-normalizer==2.0.4
+charset-normalizer==2.0.5
 click==7.1.2
 clickclick==20.10.2
 cloudpickle==1.4.1
@@ -71,12 +71,12 @@ filelock==3.0.12
 flower==0.9.7
 fsspec==2021.8.1
 gevent==21.8.0
-google-auth==2.0.2
+google-auth==2.1.0
 graphviz==0.17
 greenlet==1.1.1
 gunicorn==20.1.0
 h11==0.12.0
-httpcore==0.13.6
+httpcore==0.13.7
 httpx==0.19.0
 humanize==3.11.0
 idna==3.2
@@ -101,7 +101,7 @@ numpy==1.21.2
 oauthlib==3.1.1
 openapi-schema-validator==0.1.5
 openapi-spec-validator==0.3.1
-pandas==1.3.2
+pandas==1.3.3
 partd==1.2.0
 pendulum==2.1.2
 platformdirs==2.3.0
@@ -135,7 +135,7 @@ six==1.16.0
 sniffio==1.2.0
 sortedcontainers==2.4.0
 statsd==3.3.0
-swagger-ui-bundle==0.0.8
+swagger-ui-bundle==0.0.9
 tabulate==0.8.9
 tblib==1.7.0
 tenacity==6.2.0
