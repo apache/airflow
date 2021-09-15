@@ -11,7 +11,6 @@ from plugins.common import AirflowModelView
 from airflow.plugins_manager import AirflowPlugin
 from airflow.settings import TIMEZONE
 from airflow.www.decorators import action_logging
-from flask_appbuilder.widgets import RenderTemplateWidget
 from flask_wtf.csrf import CSRFProtect
 from plugins.utils.custom_log import CUSTOM_LOG_FORMAT, CUSTOM_EVENT_NAME_MAP, CUSTOM_PAGE_NAME_MAP
 import logging
@@ -25,6 +24,7 @@ from flask_appbuilder.fieldwidgets import (
 )
 from flask_appbuilder.forms import DynamicForm
 from airflow.security import permissions
+from airflow.www.widgets import AirflowModelListWidget
 
 FACTORY_CODE = os.getenv('FACTORY_CODE', 'DEFAULT_FACTORY_CODE')
 
@@ -67,6 +67,9 @@ class TighteningControllerForm(DynamicForm):
         widget=Select2Widget(extra_classes="readonly")
     )
 
+class TighteningControllerListWidget(AirflowModelListWidget):
+    template = 'tightening_controller_list_widget.html'
+
 
 class TighteningControllerView(AirflowModelView):
     route_base = '/tightening_controller'
@@ -80,7 +83,7 @@ class TighteningControllerView(AirflowModelView):
     add_form = edit_form = TighteningControllerForm
     add_template = 'tightening_controller_create.html'
     edit_template = 'tightening_controller_edit.html'
-    list_template = 'curve_template_list.html'
+    list_template = 'tightening_controller_list.html'
     label_columns = {
         'controller_name': lazy_gettext('Controller Name'),
         'line_code': lazy_gettext('Line Code'),
