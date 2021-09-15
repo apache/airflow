@@ -339,8 +339,10 @@ class CeleryExecutor(BaseExecutor):
         """
         now = utcnow()
 
+        sorted_adopted_task_timeouts = sorted(self.adopted_task_timeouts.items(), key=lambda k: k[1])
+
         timedout_keys = []
-        for key, stalled_after in self.adopted_task_timeouts.items():
+        for key, stalled_after in sorted_adopted_task_timeouts:
             if stalled_after > now:
                 # Since items are stored sorted, if we get to a stalled_after
                 # in the future then we can stop
