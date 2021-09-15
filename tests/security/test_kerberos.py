@@ -15,7 +15,6 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 import os
 import shlex
 import unittest
@@ -183,22 +182,20 @@ class TestKerberosUnit(unittest.TestCase):
             'kinit -c /tmp/airflow_krb5_ccache -R',
         ]
 
-        mock_subprocess.assert_has_calls(
-            [
-                mock.call.Popen(
-                    expected_cmd,
-                    bufsize=-1,
-                    close_fds=True,
-                    stderr=mock_subprocess.PIPE,
-                    stdout=mock_subprocess.PIPE,
-                    universal_newlines=True,
-                ),
-                mock.call.Popen().__enter__(),
-                mock.call.Popen().__enter__().wait(),
-                mock.call.Popen().__exit__(None, None, None),
-                mock.call.call(['kinit', '-c', '/tmp/airflow_krb5_ccache', '-R'], close_fds=True),
-            ]
-        )
+        assert mock_subprocess.mock_calls == [
+            mock.call.Popen(
+                expected_cmd,
+                bufsize=-1,
+                close_fds=True,
+                stderr=mock_subprocess.PIPE,
+                stdout=mock_subprocess.PIPE,
+                universal_newlines=True,
+            ),
+            mock.call.Popen().__enter__(),
+            mock.call.Popen().__enter__().wait(),
+            mock.call.Popen().__exit__(None, None, None),
+            mock.call.call(['kinit', '-c', '/tmp/airflow_krb5_ccache', '-R'], close_fds=True),
+        ]
 
     @mock.patch('airflow.security.kerberos.subprocess')
     @mock.patch('airflow.security.kerberos.NEED_KRB181_WORKAROUND', None)
@@ -215,33 +212,31 @@ class TestKerberosUnit(unittest.TestCase):
             'kinit -f -a -r 3600m -k -t keytab -c /tmp/airflow_krb5_ccache test-principal'
         ]
 
-        mock_subprocess.assert_has_calls(
-            [
-                mock.call.Popen(
-                    [
-                        'kinit',
-                        '-f',
-                        '-a',
-                        '-r',
-                        '3600m',
-                        '-k',
-                        '-t',
-                        'keytab',
-                        '-c',
-                        '/tmp/airflow_krb5_ccache',
-                        'test-principal',
-                    ],
-                    bufsize=-1,
-                    close_fds=True,
-                    stderr=mock_subprocess.PIPE,
-                    stdout=mock_subprocess.PIPE,
-                    universal_newlines=True,
-                ),
-                mock.call.Popen().__enter__(),
-                mock.call.Popen().__enter__().wait(),
-                mock.call.Popen().__exit__(None, None, None),
-            ]
-        )
+        assert mock_subprocess.mock_calls == [
+            mock.call.Popen(
+                [
+                    'kinit',
+                    '-f',
+                    '-a',
+                    '-r',
+                    '3600m',
+                    '-k',
+                    '-t',
+                    'keytab',
+                    '-c',
+                    '/tmp/airflow_krb5_ccache',
+                    'test-principal',
+                ],
+                bufsize=-1,
+                close_fds=True,
+                stderr=mock_subprocess.PIPE,
+                stdout=mock_subprocess.PIPE,
+                universal_newlines=True,
+            ),
+            mock.call.Popen().__enter__(),
+            mock.call.Popen().__enter__().wait(),
+            mock.call.Popen().__exit__(None, None, None),
+        ]
 
     @mock.patch('airflow.security.kerberos.subprocess')
     @mock.patch('airflow.security.kerberos.NEED_KRB181_WORKAROUND', None)
@@ -262,33 +257,31 @@ class TestKerberosUnit(unittest.TestCase):
             "STDERR",
         ]
 
-        mock_subprocess.assert_has_calls(
-            [
-                mock.call.Popen(
-                    [
-                        'kinit',
-                        '-f',
-                        '-a',
-                        '-r',
-                        '3600m',
-                        '-k',
-                        '-t',
-                        'keytab',
-                        '-c',
-                        '/tmp/airflow_krb5_ccache',
-                        'test-principal',
-                    ],
-                    bufsize=-1,
-                    close_fds=True,
-                    stderr=mock_subprocess.PIPE,
-                    stdout=mock_subprocess.PIPE,
-                    universal_newlines=True,
-                ),
-                mock.call.Popen().__enter__(),
-                mock.call.Popen().__enter__().wait(),
-                mock.call.Popen().__exit__(mock.ANY, mock.ANY, mock.ANY),
-            ]
-        )
+        assert mock_subprocess.mock_calls == [
+            mock.call.Popen(
+                [
+                    'kinit',
+                    '-f',
+                    '-a',
+                    '-r',
+                    '3600m',
+                    '-k',
+                    '-t',
+                    'keytab',
+                    '-c',
+                    '/tmp/airflow_krb5_ccache',
+                    'test-principal',
+                ],
+                bufsize=-1,
+                close_fds=True,
+                stderr=mock_subprocess.PIPE,
+                stdout=mock_subprocess.PIPE,
+                universal_newlines=True,
+            ),
+            mock.call.Popen().__enter__(),
+            mock.call.Popen().__enter__().wait(),
+            mock.call.Popen().__exit__(mock.ANY, mock.ANY, mock.ANY),
+        ]
 
     @mock.patch('airflow.security.kerberos.subprocess')
     @mock.patch('airflow.security.kerberos.NEED_KRB181_WORKAROUND', None)
@@ -315,34 +308,32 @@ class TestKerberosUnit(unittest.TestCase):
             "the 'test-principal/f05e202cb311' and `krbtgt' principals.",
         ]
 
-        mock_subprocess.assert_has_calls(
-            [
-                mock.call.Popen(
-                    [
-                        'kinit',
-                        '-f',
-                        '-a',
-                        '-r',
-                        '3600m',
-                        '-k',
-                        '-t',
-                        'keytab',
-                        '-c',
-                        '/tmp/airflow_krb5_ccache',
-                        'test-principal',
-                    ],
-                    bufsize=-1,
-                    close_fds=True,
-                    stderr=mock_subprocess.PIPE,
-                    stdout=mock_subprocess.PIPE,
-                    universal_newlines=True,
-                ),
-                mock.call.Popen().__enter__(),
-                mock.call.Popen().__enter__().wait(),
-                mock.call.Popen().__exit__(None, None, None),
-                mock.call.call(['kinit', '-c', '/tmp/airflow_krb5_ccache', '-R'], close_fds=True),
-            ]
-        )
+        assert mock_subprocess.mock_calls == [
+            mock.call.Popen(
+                [
+                    'kinit',
+                    '-f',
+                    '-a',
+                    '-r',
+                    '3600m',
+                    '-k',
+                    '-t',
+                    'keytab',
+                    '-c',
+                    '/tmp/airflow_krb5_ccache',
+                    'test-principal',
+                ],
+                bufsize=-1,
+                close_fds=True,
+                stderr=mock_subprocess.PIPE,
+                stdout=mock_subprocess.PIPE,
+                universal_newlines=True,
+            ),
+            mock.call.Popen().__enter__(),
+            mock.call.Popen().__enter__().wait(),
+            mock.call.Popen().__exit__(None, None, None),
+            mock.call.call(['kinit', '-c', '/tmp/airflow_krb5_ccache', '-R'], close_fds=True),
+        ]
 
     def test_run_without_keytab(self):
         with self.assertLogs(kerberos.log) as log_ctx, self.assertRaises(SystemExit):
@@ -357,3 +348,8 @@ class TestKerberosUnit(unittest.TestCase):
         mock_renew_from_kt.side_effect = [1, 1, SystemExit(42)]
         with self.assertRaises(SystemExit):
             kerberos.run(principal="test-principal", keytab="/tmp/keytab")
+        assert mock_renew_from_kt.mock_calls == [
+            mock.call('test-principal', '/tmp/keytab'),
+            mock.call('test-principal', '/tmp/keytab'),
+            mock.call('test-principal', '/tmp/keytab'),
+        ]
