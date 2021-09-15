@@ -122,7 +122,7 @@ class TestSentryHook:
             assert CRUMB == test_crumb
 
     @mock.patch('airflow.sentry.sentry_sdk.init')
-    def test_before_send(self, sentry, init):
+    def test_before_send(self, init, sentry):
         """
         Test before send callable gets passed to the sentry SDK.
         """
