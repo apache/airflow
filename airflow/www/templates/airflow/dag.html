@@ -78,7 +78,7 @@
           <span class="switch" aria-hidden="true"></span>
         </label>
         <span class="text-muted">DAG:</span> {{ dag.dag_id }}
-        <small class="text-muted">{{ dag.description[0:150] + '…' if dag.description and dag.description|length > 150 else dag.description|default('', true) }}</small>
+        <small class="text-muted" style="margin-right: 40px">{{ dag.description[0:150] + '…' if dag.description and dag.description|length > 150 else dag.description|default('', true) }}</small>
         <div></div>
       {% endif %}
       {% if root %}
