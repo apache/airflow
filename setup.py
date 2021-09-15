@@ -507,7 +507,6 @@ devel = [
     'freezegun',
     'github3.py',
     'gitpython',
-    'importlib-resources~=1.4',
     'ipdb',
     'jira',
     'jsondiff',
