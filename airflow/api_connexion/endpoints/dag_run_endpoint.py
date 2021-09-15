@@ -257,18 +257,21 @@ def post_dag_run(dag_id, session):
         .first()
     )
     if not dagrun_instance:
-        dag = current_app.dag_bag.get_dag(dag_id)
-        dag_run = dag.create_dagrun(
-            run_type=DagRunType.MANUAL,
-            run_id=run_id,
-            execution_date=logical_date,
-            data_interval=dag.timetable.infer_manual_data_interval(run_after=logical_date),
-            state=State.QUEUED,
-            conf=post_body.get("conf"),
-            external_trigger=True,
-            dag_hash=current_app.dag_bag.dags_hash.get(dag_id),
-        )
-        return dagrun_schema.dump(dag_run)
+        try:
+            dag = current_app.dag_bag.get_dag(dag_id)
+            dag_run = dag.create_dagrun(
+                run_type=DagRunType.MANUAL,
+                run_id=run_id,
+                execution_date=logical_date,
+                data_interval=dag.timetable.infer_manual_data_interval(run_after=logical_date),
+                state=State.QUEUED,
+                conf=post_body.get("conf"),
+                external_trigger=True,
+                dag_hash=current_app.dag_bag.dags_hash.get(dag_id),
+            )
+            return dagrun_schema.dump(dag_run)
+        except ValueError as ve:
+            raise BadRequest(detail=str(ve))
 
     if dagrun_instance.execution_date == logical_date:
         raise AlreadyExists(

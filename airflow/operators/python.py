@@ -273,7 +273,6 @@ class PythonVirtualenvOperator(PythonOperator):
         'next_ds',
         'next_ds_nodash',
         'outlets',
-        'params',
         'prev_ds',
         'prev_ds_nodash',
         'run_id',
@@ -294,7 +293,7 @@ class PythonVirtualenvOperator(PythonOperator):
         'prev_execution_date_success',
         'prev_start_date_success',
     }
-    AIRFLOW_SERIALIZABLE_CONTEXT_KEYS = {'macros', 'conf', 'dag', 'dag_run', 'task'}
+    AIRFLOW_SERIALIZABLE_CONTEXT_KEYS = {'macros', 'conf', 'dag', 'dag_run', 'task', 'params'}
 
     def __init__(
         self,

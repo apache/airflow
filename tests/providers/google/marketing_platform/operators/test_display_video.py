@@ -169,10 +169,10 @@ class TestGoogleDisplayVideo360RunReportOperator(TestCase):
     @mock.patch("airflow.providers.google.marketing_platform.operators.display_video.BaseOperator")
     def test_execute(self, mock_base_op, hook_mock):
         report_id = "QUERY_ID"
-        params = {"param": "test"}
+        parameters = {"param": "test"}
         op = GoogleDisplayVideo360RunReportOperator(
             report_id=report_id,
-            params=params,
+            parameters=parameters,
             api_version=API_VERSION,
             task_id="test_task",
         )
@@ -183,7 +183,7 @@ class TestGoogleDisplayVideo360RunReportOperator(TestCase):
             api_version=API_VERSION,
             impersonation_chain=None,
         )
-        hook_mock.return_value.run_query.assert_called_once_with(query_id=report_id, params=params)
+        hook_mock.return_value.run_query.assert_called_once_with(query_id=report_id, params=parameters)
 
 
 class TestGoogleDisplayVideo360DownloadLineItemsOperator(TestCase):

@@ -479,6 +479,9 @@ LABEL org.apache.airflow.distro="debian" \
   org.opencontainers.image.title="Production Airflow Image" \
   org.opencontainers.image.description="Reference, production-ready Apache Airflow image"
 
+
+# See https://airflow.apache.org/docs/docker-stack/entrypoint.html#signal-propagation
+# to learn more about the way how signals are handled by the image
 ENV DUMB_INIT_SETSID="1"
 
 ENTRYPOINT ["/usr/bin/dumb-init", "--", "/entrypoint"]

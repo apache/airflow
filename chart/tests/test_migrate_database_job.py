@@ -15,14 +15,13 @@
 # specific language governing permissions and limitations
 # under the License.
 
-import unittest
-
 import jmespath
+import pytest
 
 from tests.helm_template_generator import render_chart
 
 
-class MigrateDatabaseJobTest(unittest.TestCase):
+class TestMigrateDatabaseJob:
     def test_should_run_by_default(self):
         docs = render_chart(show_only=["templates/jobs/migrate-database-job.yaml"])
         assert "Job" == docs[0]["kind"]
@@ -84,3 +83,28 @@ class MigrateDatabaseJobTest(unittest.TestCase):
             "spec.template.spec.tolerations[0].key",
             docs[0],
         )
+
+    @pytest.mark.parametrize(
+        "use_default_image,expected_image",
+        [
+            (True, "apache/airflow:2.1.0"),
+            (False, "apache/airflow:user-image"),
+        ],
+    )
+    def test_should_use_correct_image(self, use_default_image, expected_image):
+        docs = render_chart(
+            values={
+                "defaultAirflowRepository": "apache/airflow",
+                "defaultAirflowTag": "2.1.0",
+                "images": {
+                    "airflow": {
+                        "repository": "apache/airflow",
+                        "tag": "user-image",
+                    },
+                    "useDefaultImageForMigration": use_default_image,
+                },
+            },
+            show_only=["templates/jobs/migrate-database-job.yaml"],
+        )
+
+        assert expected_image == jmespath.search("spec.template.spec.containers[0].image", docs[0])

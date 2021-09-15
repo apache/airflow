@@ -18,7 +18,7 @@ from airflow.api_connexion.exceptions import EXCEPTIONS_LINK_MAP
 from airflow.www.security import EXISTING_ROLES
 
 
-def create_user(app, username, role_name, permissions=None):
+def create_user(app, username, role_name, email=None, permissions=None):
     appbuilder = app.appbuilder
 
     # Removes user and role so each test has isolated test data.
@@ -26,11 +26,14 @@ def create_user(app, username, role_name, permissions=None):
     delete_role(app, role_name)
     role = create_role(app, role_name, permissions)
 
+    if email is None:
+        email = f"{username}@example.org"
+
     return appbuilder.sm.add_user(
         username=username,
         first_name=username,
         last_name=username,
-        email=f"{username}@fab.org",
+        email=email,
         role=role,
         password=username,
     )

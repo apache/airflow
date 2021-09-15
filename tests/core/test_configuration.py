@@ -51,7 +51,7 @@ from tests.test_utils.reset_warning_registry import reset_warning_registry
         'AIRFLOW__TESTCMDENV__NOTACOMMAND_CMD': 'echo -n "NOT OK"',
     },
 )
-class TestConf(unittest.TestCase):
+class TestConf:
     def test_airflow_home_default(self):
         with unittest.mock.patch.dict('os.environ'):
             if 'AIRFLOW_HOME' in os.environ:
@@ -530,31 +530,37 @@ AIRFLOW_HOME = /root/airflow
                 if tmp:
                     os.environ['AIRFLOW__CELERY__RESULT_BACKEND'] = tmp
 
-    def test_deprecated_values(self):
+    def test_deprecated_values_from_conf(self):
+        test_conf = AirflowConfigParser(default_config='')
+        # Guarantee we have deprecated settings, so we test the deprecation
+        # lookup even if we remove this explicit fallback
+        test_conf.deprecated_values = {
+            'core': {'hostname_callable': (re.compile(r':'), r'.', '2.1')},
+        }
+        test_conf.read_dict({'core': {'hostname_callable': 'socket:getfqdn'}})
+
+        with pytest.warns(FutureWarning):
+            test_conf.validate()
+            assert test_conf.get('core', 'hostname_callable') == 'socket.getfqdn'
+
+    @pytest.mark.parametrize(
+        "conf_dict",
+        [
+            {},  # Even if the section is absent from config file, environ still needs replacing.
+            {'core': {'hostname_callable': 'socket:getfqdn'}},
+        ],
+    )
+    def test_deprecated_values_from_environ(self, conf_dict):
         def make_config():
             test_conf = AirflowConfigParser(default_config='')
             # Guarantee we have a deprecated setting, so we test the deprecation
             # lookup even if we remove this explicit fallback
             test_conf.deprecated_values = {
-                'core': {
-                    'hostname_callable': (re.compile(r':'), r'.', '2.1'),
-                },
+                'core': {'hostname_callable': (re.compile(r':'), r'.', '2.1')},
             }
-            test_conf.read_dict(
-                {
-                    'core': {
-                        'executor': 'SequentialExecutor',
-                        'sql_alchemy_conn': 'sqlite://',
-                        'hostname_callable': 'socket:getfqdn',
-                    },
-                }
-            )
+            test_conf.read_dict(conf_dict)
             test_conf.validate()
             return test_conf
-
-        with pytest.warns(FutureWarning):
-            test_conf = make_config()
-            assert test_conf.get('core', 'hostname_callable') == 'socket.getfqdn'
 
         with pytest.warns(FutureWarning):
             with unittest.mock.patch.dict('os.environ', AIRFLOW__CORE__HOSTNAME_CALLABLE='socket:getfqdn'):

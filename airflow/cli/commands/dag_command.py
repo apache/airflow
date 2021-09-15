@@ -108,21 +108,25 @@ def dag_backfill(args, dag=None):
                 dag_run_state=State.NONE,
             )
 
-        dag.run(
-            start_date=args.start_date,
-            end_date=args.end_date,
-            mark_success=args.mark_success,
-            local=args.local,
-            donot_pickle=(args.donot_pickle or conf.getboolean('core', 'donot_pickle')),
-            ignore_first_depends_on_past=args.ignore_first_depends_on_past,
-            ignore_task_deps=args.ignore_dependencies,
-            pool=args.pool,
-            delay_on_limit_secs=args.delay_on_limit,
-            verbose=args.verbose,
-            conf=run_conf,
-            rerun_failed_tasks=args.rerun_failed_tasks,
-            run_backwards=args.run_backwards,
-        )
+        try:
+            dag.run(
+                start_date=args.start_date,
+                end_date=args.end_date,
+                mark_success=args.mark_success,
+                local=args.local,
+                donot_pickle=(args.donot_pickle or conf.getboolean('core', 'donot_pickle')),
+                ignore_first_depends_on_past=args.ignore_first_depends_on_past,
+                ignore_task_deps=args.ignore_dependencies,
+                pool=args.pool,
+                delay_on_limit_secs=args.delay_on_limit,
+                verbose=args.verbose,
+                conf=run_conf,
+                rerun_failed_tasks=args.rerun_failed_tasks,
+                run_backwards=args.run_backwards,
+            )
+        except ValueError as vr:
+            print(str(vr))
+            sys.exit(1)
 
 
 @cli_utils.action_logging

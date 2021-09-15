@@ -29,7 +29,6 @@ from typing import Any, Dict, Iterable, List, Optional, Sequence, Set, SupportsA
 
 import attr
 from google.api_core.exceptions import Conflict
-from google.cloud.bigquery import TableReference
 
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator, BaseOperatorLink
@@ -1189,6 +1188,11 @@ class BigQueryCreateExternalTableOperator(BaseOperator):
             location=self.location,
             impersonation_chain=self.impersonation_chain,
         )
+        if self.table_resource:
+            bq_hook.create_empty_table(
+                table_resource=self.table_resource,
+            )
+            return
 
         if not self.schema_fields and self.schema_object and self.source_format != 'DATASTORE_BACKUP':
             gcs_hook = GCSHook(
@@ -1200,36 +1204,24 @@ class BigQueryCreateExternalTableOperator(BaseOperator):
         else:
             schema_fields = self.schema_fields
 
-        if schema_fields and self.table_resource:
-            self.table_resource["externalDataConfiguration"]["schema"] = schema_fields
+        source_uris = [f"gs://{self.bucket}/{source_object}" for source_object in self.source_objects]
 
-        if self.table_resource:
-            tab_ref = TableReference.from_string(self.destination_project_dataset_table)
-            bq_hook.create_empty_table(
-                table_resource=self.table_resource,
-                project_id=tab_ref.project,
-                table_id=tab_ref.table_id,
-                dataset_id=tab_ref.dataset_id,
-            )
-        else:
-            source_uris = [f"gs://{self.bucket}/{source_object}" for source_object in self.source_objects]
-
-            bq_hook.create_external_table(
-                external_project_dataset_table=self.destination_project_dataset_table,
-                schema_fields=schema_fields,
-                source_uris=source_uris,
-                source_format=self.source_format,
-                compression=self.compression,
-                skip_leading_rows=self.skip_leading_rows,
-                field_delimiter=self.field_delimiter,
-                max_bad_records=self.max_bad_records,
-                quote_character=self.quote_character,
-                allow_quoted_newlines=self.allow_quoted_newlines,
-                allow_jagged_rows=self.allow_jagged_rows,
-                src_fmt_configs=self.src_fmt_configs,
-                labels=self.labels,
-                encryption_configuration=self.encryption_configuration,
-            )
+        bq_hook.create_external_table(
+            external_project_dataset_table=self.destination_project_dataset_table,
+            schema_fields=schema_fields,
+            source_uris=source_uris,
+            source_format=self.source_format,
+            compression=self.compression,
+            skip_leading_rows=self.skip_leading_rows,
+            field_delimiter=self.field_delimiter,
+            max_bad_records=self.max_bad_records,
+            quote_character=self.quote_character,
+            allow_quoted_newlines=self.allow_quoted_newlines,
+            allow_jagged_rows=self.allow_jagged_rows,
+            src_fmt_configs=self.src_fmt_configs,
+            labels=self.labels,
+            encryption_configuration=self.encryption_configuration,
+        )
 
 
 class BigQueryDeleteDatasetOperator(BaseOperator):
@@ -1497,7 +1489,6 @@ class BigQueryGetDatasetOperator(BaseOperator):
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         **kwargs,
     ) -> None:
-
         self.dataset_id = dataset_id
         self.project_id = project_id
         self.gcp_conn_id = gcp_conn_id
@@ -1646,7 +1637,6 @@ class BigQueryPatchDatasetOperator(BaseOperator):
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         **kwargs,
     ) -> None:
-
         warnings.warn(
             "This operator is deprecated. Please use BigQueryUpdateDatasetOperator.",
             DeprecationWarning,
