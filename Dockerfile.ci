@@ -86,7 +86,7 @@ RUN mkdir -pv /usr/share/man/man1 \
            libsasl2-dev \
            libsasl2-modules \
            libssl-dev \
-           libenchant-dev \
+           libenchant-2-2 \
            locales  \
            netcat \
            nodejs \
@@ -113,7 +113,7 @@ RUN bash /scripts/docker/install_mysql.sh dev \
 # To run virtualenv tests with python 2
 ARG RUNTIME_APT_DEPS="\
       gnupg \
-      libgcc-8-dev \
+      libgcc-9-dev \
       apt-transport-https \
       bash-completion \
       ca-certificates \
@@ -179,7 +179,7 @@ RUN mkdir -pv /usr/share/man/man1 \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/* \
     && curl https://packages.microsoft.com/keys/microsoft.asc | apt-key add - \
-    && curl https://packages.microsoft.com/config/debian/9/prod.list > /etc/apt/sources.list.d/mssql-release.list \
+    && curl https://packages.microsoft.com/config/debian/11/prod.list > /etc/apt/sources.list.d/mssql-release.list \
     && apt-get update -yqq \
     && apt-get upgrade -yqq \
     && ACCEPT_EULA=Y apt-get -yqq install -y --no-install-recommends \
