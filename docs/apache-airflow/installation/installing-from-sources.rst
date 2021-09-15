@@ -28,8 +28,7 @@ Released packages
 
     This page describes downloading and verifying ``Apache Airflow`` version
     ``{{ airflow_version }}`` using officially released packages.
-    You can also install ``Apache Airflow`` - as most Python packages - via
-    `PyPI <https://pypi.org/project/apache-airflow/{{ airflow_version }}>`__ .
+    You can also install ``Apache Airflow`` - as most Python packages - via :doc:`PyPI <installing-from-pypi>`.
     You can choose different version of Airflow by selecting different version from the drop-down at
     the top-left of the page.
 

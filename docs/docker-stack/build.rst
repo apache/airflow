@@ -391,8 +391,7 @@ You can also download any version of Airflow constraints and adapt it with your 
 constraints and manually set your own versions of dependencies in your own constraints and use the version
 of constraints that you manually prepared.
 
-You can read more about constraints in the documentation of the
-`Installation <http://airflow.apache.org/docs/apache-airflow/stable/installation.html#constraints-files>`_
+You can read more about constraints in :doc:`apache-airflow:installation/installing-from-pypi`
 
 Note that if you place ``requirements.txt`` in the ``docker-context-files`` folder, it will be
 used to install all requirements declared there. It is recommended that the file

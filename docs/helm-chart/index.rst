@@ -32,6 +32,7 @@ Helm Chart for Apache Airflow
     manage-logs
     keda
     using-additional-containers
+    Installing from sources<installing-helm-chart-from-sources>
 
 .. toctree::
     :hidden:
@@ -46,12 +47,6 @@ Helm Chart for Apache Airflow
     Parameters <parameters-ref>
     changelog
     Updating <updating>
-
-.. toctree::
-    :hidden:
-    :caption: Resources
-
-    Installing from sources<installing-helm-chart-from-sources>
 
 
 This chart will bootstrap an `Airflow <https://airflow.apache.org>`__
