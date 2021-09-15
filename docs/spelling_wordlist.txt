@@ -705,6 +705,7 @@ envvar
 eol
 eols
 errno
+errored
 eslint
 etl
 europe
