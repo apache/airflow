@@ -45,6 +45,12 @@ Helm Chart for Apache Airflow
 
     Installing from sources<installing-helm-chart-from-sources>
 
+.. toctree::
+    :hidden:
+    :caption: Resources
+
+    Installing from sources<installing-helm-chart-from-sources>
+
 
 This chart will bootstrap an `Airflow <https://airflow.apache.org>`__
 deployment on a `Kubernetes <http://kubernetes.io>`__ cluster using the
