@@ -128,6 +128,9 @@ class BaseXCom(Base, LoggingMixin):
 
         ``run_id`` and ``execution_date`` are mutually exclusive.
 
+        This method returns "full" XCom values (i.e. it uses ``deserialize_value`` from the XCom backend).
+        Please use :meth:`get_many` if you want the "shortened" value via ``orm_deserialize_value``
+
         :param execution_date: Execution date for the task
         :type execution_date: pendulum.datetime
         :param run_id: Dag run id for the task
@@ -151,17 +154,21 @@ class BaseXCom(Base, LoggingMixin):
         if not (execution_date is None) ^ (run_id is None):
             raise ValueError("Exactly one of execution_date or run_id must be passed")
 
-        result = cls.get_many(
-            execution_date=execution_date,
-            run_id=run_id,
-            key=key,
-            task_ids=task_id,
-            dag_ids=dag_id,
-            include_prior_dates=include_prior_dates,
-            session=session,
-        ).first()
+        result = (
+            cls.get_many(
+                execution_date=execution_date,
+                run_id=run_id,
+                key=key,
+                task_ids=task_id,
+                dag_ids=dag_id,
+                include_prior_dates=include_prior_dates,
+                session=session,
+            )
+            .with_entities(cls.value)
+            .first()
+        )
         if result:
-            return result.value
+            return cls.deserialize_value(result)
         return None
 
     @classmethod
@@ -181,6 +188,9 @@ class BaseXCom(Base, LoggingMixin):
         Composes a query to get one or more values from the xcom table.
 
         ``run_id`` and ``execution_date`` are mutually exclusive.
+
+        This function returns an SQLAlchemy query of full XCom objects. If you just want one stored value then
+        use :meth:`get_one`.
 
         :param execution_date: Execution date for the task
         :type execution_date: pendulum.datetime
