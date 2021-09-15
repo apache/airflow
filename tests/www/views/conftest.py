@@ -119,7 +119,7 @@ def client_factory(app):
     def factory(name, role_name, permissions):
         create_user(app, username=name, role_name=role_name, permissions=permissions)
         client = app.test_client()
-        resp = client.post("/login/", data={"username": name, "password": name})
+        resp = client.post("/login/", data={"username": name, "password": 'mypassword'})
         assert resp.status_code == 302
         return client
 
