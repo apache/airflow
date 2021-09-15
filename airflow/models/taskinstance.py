@@ -1719,6 +1719,8 @@ class TaskInstance(Base, LoggingMixin):
             self.state = State.FAILED
             email_for_state = task.email_on_failure
         else:
+            if self.state == State.QUEUED:
+                self.try_number += 1
             self.state = State.UP_FOR_RETRY
             email_for_state = task.email_on_retry
 

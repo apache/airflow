@@ -207,7 +207,7 @@ class TestSchedulerJob:
 
         self.scheduler_job._process_executor_events(session=session)
         ti1.refresh_from_db()
-        assert ti1.state == State.FAILED
+        assert ti1.state == State.QUEUED
         mock_task_callback.assert_called_once_with(
             full_filepath='/test_path1/',
             simple_task_instance=mock.ANY,
