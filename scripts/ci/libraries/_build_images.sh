@@ -371,14 +371,14 @@ function build_images::get_github_container_registry_image_prefix() {
 
 function build_images::get_docker_cache_image_names() {
     # Python base image to use
-    export PYTHON_BASE_IMAGE="python:${PYTHON_MAJOR_MINOR_VERSION}-slim-buster"
+    export PYTHON_BASE_IMAGE="python:${PYTHON_MAJOR_MINOR_VERSION}-slim-bullseye"
 
     local image_name
     image_name="${GITHUB_REGISTRY}/$(build_images::get_github_container_registry_image_prefix)"
 
     # Example:
-    #  ghcr.io/apache/airflow/main/python:3.8-slim-buster
-    export AIRFLOW_PYTHON_BASE_IMAGE="${image_name}/${BRANCH_NAME}/python:${PYTHON_MAJOR_MINOR_VERSION}-slim-buster"
+    #  ghcr.io/apache/airflow/main/python:3.8-slim-bullseye
+    export AIRFLOW_PYTHON_BASE_IMAGE="${image_name}/${BRANCH_NAME}/python:${PYTHON_MAJOR_MINOR_VERSION}-slim-bullseye"
 
     # Example:
     #  ghcr.io/apache/airflow/main/ci/python3.8

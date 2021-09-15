@@ -22,7 +22,7 @@ AIRFLOW_SOURCES="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../../../" && pwd)"
 cd "${AIRFLOW_SOURCES}"
 # [START build]
 docker build . \
-    --build-arg PYTHON_BASE_IMAGE="python:3.8-slim-buster" \
+    --build-arg PYTHON_BASE_IMAGE="python:3.8-slim-bullseye" \
     --build-arg AIRFLOW_INSTALLATION_METHOD="https://github.com/potiuk/airflow/archive/main.tar.gz#egg=apache-airflow" \
     --build-arg AIRFLOW_CONSTRAINTS_REFERENCE="constraints-main" \
     --build-arg CONSTRAINTS_GITHUB_REPOSITORY="potiuk/airflow" \

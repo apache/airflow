@@ -42,7 +42,7 @@ ARG AIRFLOW_HOME=/opt/airflow
 ARG AIRFLOW_UID="50000"
 ARG AIRFLOW_GID="50000"
 
-ARG PYTHON_BASE_IMAGE="python:3.6-slim-buster"
+ARG PYTHON_BASE_IMAGE="python:3.6-slim-bullseye"
 
 ARG AIRFLOW_PIP_VERSION=21.2.4
 ARG AIRFLOW_IMAGE_REPOSITORY="https://github.com/apache/airflow"
@@ -117,7 +117,7 @@ ENV DEV_APT_DEPS=${DEV_APT_DEPS} \
     ADDITIONAL_DEV_APT_COMMAND=${ADDITIONAL_DEV_APT_COMMAND} \
     ADDITIONAL_DEV_APT_ENV=${ADDITIONAL_DEV_APT_ENV}
 
-# Note missing man directories on debian-buster
+# Note missing man directories on debian-bullseye
 # https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=863199
 # Install basic and additional apt dependencies
 RUN mkdir -pv /usr/share/man/man1 \
@@ -281,7 +281,7 @@ ARG AIRFLOW_IMAGE_DATE_CREATED
 ENV BUILD_ID=${BUILD_ID} COMMIT_SHA=${COMMIT_SHA}
 
 LABEL org.apache.airflow.distro="debian" \
-  org.apache.airflow.distro.version="buster" \
+  org.apache.airflow.distro.version="bullseye" \
   org.apache.airflow.module="airflow" \
   org.apache.airflow.component="airflow" \
   org.apache.airflow.image="airflow-build-image" \
@@ -312,7 +312,7 @@ ARG AIRFLOW_UID
 ARG AIRFLOW_GID
 
 LABEL org.apache.airflow.distro="debian" \
-  org.apache.airflow.distro.version="buster" \
+  org.apache.airflow.distro.version="bullseye" \
   org.apache.airflow.module="airflow" \
   org.apache.airflow.component="airflow" \
   org.apache.airflow.image="airflow" \
@@ -339,7 +339,7 @@ RUN apt-get update \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
-# As of August 2021, Debian buster-slim does not include Python2 by default and we need it
+# As of August 2021, Debian bullseye-slim does not include Python2 by default and we need it
 # as we still support running Python2 via PythonVirtualenvOperator
 # TODO: Remove python2 when we stop supporting it
 ARG RUNTIME_APT_DEPS="\
@@ -402,7 +402,7 @@ ENV RUNTIME_APT_DEPS=${RUNTIME_APT_DEPS} \
     COMMIT_SHA=${COMMIT_SHA} \
     PIP_USER=${PIP_USER}
 
-# Note missing man directories on debian-buster
+# Note missing man directories on debian-bullseye
 # https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=863199
 # Install basic and additional apt dependencies
 RUN mkdir -pv /usr/share/man/man1 \
@@ -457,7 +457,7 @@ RUN usermod -g 0 airflow -G ${AIRFLOW_GID}
 USER ${AIRFLOW_UID}
 
 LABEL org.apache.airflow.distro="debian" \
-  org.apache.airflow.distro.version="buster" \
+  org.apache.airflow.distro.version="bullseye" \
   org.apache.airflow.module="airflow" \
   org.apache.airflow.component="airflow" \
   org.apache.airflow.image="airflow" \

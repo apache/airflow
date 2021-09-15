@@ -23,7 +23,7 @@ cd "${AIRFLOW_SOURCES}"
 
 # [START build]
 docker build . \
-    --build-arg PYTHON_BASE_IMAGE="python:3.8-slim-buster" \
+    --build-arg PYTHON_BASE_IMAGE="python:3.8-slim-bullseye" \
     --build-arg AIRFLOW_INSTALLATION_METHOD="https://github.com/apache/airflow/archive/v2-1-test.tar.gz#egg=apache-airflow" \
     --build-arg AIRFLOW_CONSTRAINTS_REFERENCE="constraints-2-0" \
     --tag "my-github-v2-1:0.0.1"

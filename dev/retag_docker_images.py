@@ -40,7 +40,7 @@ GHCR_IO_IMAGES = [
     "{prefix}/{branch}/ci/python{python_version}:latest",
     "{prefix}/{branch}/prod-build/python{python_version}-build-v2:latest",
     "{prefix}/{branch}/prod/python{python_version}-build-v2:latest",
-    "{prefix}/{branch}/python:{python_version}-slim-buster",
+    "{prefix}/{branch}/python:{python_version}-slim-bullseye",
 ]
 
 

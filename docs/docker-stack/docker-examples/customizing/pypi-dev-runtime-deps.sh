@@ -23,7 +23,7 @@ cd "${AIRFLOW_SOURCES}"
 
 # [START build]
 docker build . \
-    --build-arg PYTHON_BASE_IMAGE="python:3.6-slim-buster" \
+    --build-arg PYTHON_BASE_IMAGE="python:3.6-slim-bullseye" \
     --build-arg AIRFLOW_VERSION="2.0.2" \
     --build-arg ADDITIONAL_AIRFLOW_EXTRAS="jdbc" \
     --build-arg ADDITIONAL_PYTHON_DEPS="pandas" \

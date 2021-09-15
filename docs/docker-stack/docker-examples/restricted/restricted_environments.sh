@@ -37,7 +37,7 @@ pip download --dest docker-context-files \
 
 # [START build]
 docker build . \
-    --build-arg PYTHON_BASE_IMAGE="python:3.7-slim-buster" \
+    --build-arg PYTHON_BASE_IMAGE="python:3.7-slim-bullseye" \
     --build-arg AIRFLOW_INSTALLATION_METHOD="apache-airflow" \
     --build-arg AIRFLOW_VERSION="2.1.2" \
     --build-arg INSTALL_MYSQL_CLIENT="false" \
