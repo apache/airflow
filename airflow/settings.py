@@ -556,5 +556,5 @@ MASK_SECRETS_IN_LOGS = False
 # ("Airflow update happening next week", "warning", ["User"])
 # You can also pass the message as flask.Markup to include HTML in the message:
 # (Markup('Visit <a href="http://airflow.apache.org">airflow.apache.org</a>'), "info", None)
-FlashMessage = Tuple[Union[str, Markup], str, Optional[str]]
+FlashMessage = Tuple[Union[str, Markup], str, Optional[List[str]]]
 DASHBOARD_FLASH_MESSAGES: List[FlashMessage] = []
