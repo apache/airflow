@@ -186,3 +186,57 @@ def test_home_robots_header_in_response(user_client):
     # Responses should include X-Robots-Tag header
     resp = user_client.get('home', follow_redirects=True)
     assert resp.headers['X-Robots-Tag'] == 'noindex, nofollow'
+
+
+@pytest.mark.parametrize(
+    'client, flash_message, expected',
+    [
+        ('user_client', ("hello world", "warning", None), True),
+        ('user_client', ("hello world", "warning", ["User"]), True),
+        ('user_client', ("hello world", "warning", ["User", "Admin"]), True),
+        ('user_client', ("hello world", "warning", ["Admin"]), False),
+        ('admin_client', ("hello world", "warning", None), True),
+        ('admin_client', ("hello world", "warning", ["Admin"]), True),
+        ('admin_client', ("hello world", "warning", ["User", "Admin"]), True),
+    ],
+)
+def test_dashboard_flash_messages_role_filtering(request, client, flash_message, expected):
+    with mock.patch("airflow.settings.DASHBOARD_FLASH_MESSAGES", [flash_message]):
+        resp = request.getfixturevalue(client).get('home', follow_redirects=True)
+    if expected:
+        check_content_in_response(flash_message[0], resp)
+    else:
+        check_content_not_in_response(flash_message[0], resp)
+
+
+def test_dashboard_flash_messages_many(user_client):
+    messages = [
+        ("hello world", "warning", None),
+        ("im_not_here", "warning", ["Admin"]),
+        ("_hello_world_", "warning", None),
+    ]
+    with mock.patch("airflow.settings.DASHBOARD_FLASH_MESSAGES", messages):
+        resp = user_client.get('home', follow_redirects=True)
+    check_content_in_response("hello world", resp)
+    check_content_not_in_response("im_not_here", resp)
+    check_content_in_response("_hello_world_", resp)
+
+
+def test_dashboard_flash_messages_markup(user_client):
+    link = '<a href="http://example.com">hello world</a>'
+    messages = [
+        (flask.Markup(link), "warning", None),
+    ]
+    with mock.patch("airflow.settings.DASHBOARD_FLASH_MESSAGES", messages):
+        resp = user_client.get('home', follow_redirects=True)
+    check_content_in_response(link, resp)
+
+
+def test_dashboard_flash_messages_type(user_client):
+    messages = [
+        ("hello world", "foo", None),
+    ]
+    with mock.patch("airflow.settings.DASHBOARD_FLASH_MESSAGES", messages):
+        resp = user_client.get('home', follow_redirects=True)
+    check_content_in_response("hello world", resp)
+    check_content_in_response("alert-foo", resp)

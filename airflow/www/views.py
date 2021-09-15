@@ -564,11 +564,18 @@ class Airflow(AirflowBaseView):
                 ),
                 category="warning",
             )
+
+        for message, category, roles in settings.DASHBOARD_FLASH_MESSAGES:
+            if roles:
+                user_roles = {r.name for r in current_app.appbuilder.sm.get_user_roles()}
+                if not user_roles.intersection(set(roles)):
+                    continue
+            flash(message, category)
+
         hide_paused_dags_by_default = conf.getboolean('webserver', 'hide_paused_dags_by_default')
-
         default_dag_run = conf.getint('webserver', 'default_dag_run_display_number')
-        num_runs = request.args.get('num_runs', default=default_dag_run, type=int)
 
+        num_runs = request.args.get('num_runs', default=default_dag_run, type=int)
         current_page = request.args.get('page', default=0, type=int)
         arg_search_query = request.args.get('search')
         arg_tags_filter = request.args.getlist('tags')

@@ -22,10 +22,11 @@ import logging
 import os
 import sys
 import warnings
-from typing import Optional
+from typing import List, Optional, Tuple, Union
 
 import pendulum
 import sqlalchemy
+from flask import Markup
 from sqlalchemy import create_engine, exc
 from sqlalchemy.engine import Engine
 from sqlalchemy.orm import scoped_session, sessionmaker
@@ -547,3 +548,13 @@ HIDE_SENSITIVE_VAR_CONN_FIELDS = conf.getboolean('core', 'hide_sensitive_var_con
 # By default this is off, but is automatically configured on when running task
 # instances
 MASK_SECRETS_IN_LOGS = False
+
+# Display flash messages on the dashboard
+# Useful for warning about setup issues or announcing changes to end users
+# You can choose what role(s) the message will be shown to as well, or pass None to show to all users
+# (message, category, [role(s)]), for example:
+# ("Airflow update happening next week", "warning", ["User"])
+# You can also pass the message as flask.Markup to include HTML in the message:
+# (Markup('Visit <a href="http://airflow.apache.org">airflow.apache.org</a>'), "info", None)
+FlashMessage = Tuple[Union[str, Markup], str, Optional[str]]
+DASHBOARD_FLASH_MESSAGES: List[FlashMessage] = []
