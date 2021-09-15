@@ -221,12 +221,13 @@ What does ``execution_date`` mean?
 DAG run.
 
 Airflow was developed as a solution for ETL needs. In the ETL world, you
-typically summarize data. So, if you want to summarize data for 2016-02-19, You
-would do it at 2016-02-20 midnight UTC, which would be right after all data for
-2016-02-19 becomes available. This interval between midnights of 2016-02-19 and
-2016-02-20 is called the *data interval*, and since the it represents data in
-the date of 2016-02-19, this date is thus called the run's *logical date*, or
-the date that this DAG run is executed for, thus *execution date*.
+typically summarize data. So, if you want to summarize data for ``2016-02-19``,
+you would do it at ``2016-02-20`` midnight UTC, which would be right after all
+data for ``2016-02-19`` becomes available. This interval between midnights of
+``2016-02-19`` and ``2016-02-20`` is called the *data interval*, and since it
+represents data in the date of ``2016-02-19``, this date is also called the
+run's *logical date*, or the date that this DAG run is executed for, thus
+*execution date*.
 
 For backward compatibility, a datetime value ``execution_date`` is still
 as :ref:`Template variables<templates:variables>` with various formats in Jinja

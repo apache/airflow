@@ -58,7 +58,7 @@ result -
   in a task. Someone may update the input data between re-runs, which results in
   different outputs. A better way is to read the input data from a specific
   partition. You can use ``data_interval_start`` as a partition. You should
-  follow this partitioning method while writing data in S3/HDFS, as well.
+  follow this partitioning method while writing data in S3/HDFS as well.
 * The Python datetime ``now()`` function gives the current datetime object. This
   function should never be used inside a task, especially to do the critical
   computation, as it leads to different outcomes on each run. It's fine to use

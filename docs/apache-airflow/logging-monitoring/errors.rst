@@ -57,7 +57,9 @@ Name                                    Description
 ``operator``                            Operator name of the task that failed
 ======================================= ==================================================
 
-For backward compatibility, and additional tag ``execution_date`` is also available the represent the logical date. The tag should be considered deprecated in favor of ``data_interval_start``.
+For backward compatibility, an additional tag ``execution_date`` is also
+available to represent the logical date. The tag should be considered deprecated
+in favor of ``data_interval_start``.
 
 
 Breadcrumbs

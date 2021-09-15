@@ -185,7 +185,7 @@ A ``DagRunInfo`` can be created like this:
         run_after=run_after,
     )
 
-But since we typically want to schedule a run as soon as the data interval ends,
+Since we typically want to schedule a run as soon as the data interval ends,
 ``end`` and ``run_after`` above are generally the same. ``DagRunInfo`` therefore
 provides a shortcut for this:
 
@@ -294,5 +294,5 @@ The *Schedule* column would say ``after each workday, at 08:00:00``.
 .. seealso::
 
     Module :mod:`airflow.timetables.base`
-        The public interface is heavily documented to explain what they should
-        be implemented by subclasses.
+        The public interface is heavily documented to explain what should be
+        implemented by subclasses.
