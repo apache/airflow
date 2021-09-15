@@ -1437,6 +1437,7 @@
       description: Dotted path to a before_send function that the sentry SDK should be configured to use.
       version_added: 2.1.4
       type: string
+      example: ~
       default: ""
 - name: celery_kubernetes_executor
   description: |
