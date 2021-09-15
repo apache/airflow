@@ -37,6 +37,7 @@ from airflow.hooks.base import BaseHook
 from airflow.kubernetes.pod_generator import PodGenerator
 from airflow.models import DAG, Connection, DagBag
 from airflow.models.baseoperator import BaseOperator, BaseOperatorLink
+from airflow.models.param import Param, ParamsDict
 from airflow.models.xcom import XCom
 from airflow.operators.bash import BashOperator
 from airflow.security import permissions
@@ -154,6 +155,7 @@ serialized_simple_dag_ground_truth = {
         },
         "edge_info": {},
         "dag_dependencies": [],
+        "params": {},
     },
 }
 
@@ -447,6 +449,7 @@ class TestStringifiedDAGs:
             # Need to check fields in it, to exclude functions.
             'default_args',
             "_task_group",
+            'params',
         }
         for field in fields_to_check:
             assert getattr(serialized_dag, field) == getattr(
@@ -495,6 +498,7 @@ class TestStringifiedDAGs:
             'on_retry_callback',
             # Checked separately
             'resources',
+            'params',
         }
 
         assert serialized_task.task_type == task.task_type
@@ -514,6 +518,10 @@ class TestStringifiedDAGs:
             assert task.resources is None or task.resources == []
         else:
             assert serialized_task.resources == task.resources
+
+        # Ugly hack as some operators override params var in their init
+        if isinstance(task.params, ParamsDict):
+            assert serialized_task.params.dump() == task.params.dump()
 
         # Check that for Deserialised task, task.subdag is None for all other Operators
         # except for the SubDagOperator where task.subdag is an instance of DAG object
@@ -726,15 +734,38 @@ class TestStringifiedDAGs:
         BaseOperator(task_id='simple_task', dag=dag, start_date=datetime(2019, 8, 1))
 
         serialized_dag = SerializedDAG.to_dict(dag)
-        if val:
-            assert "params" in serialized_dag["dag"]
-        else:
-            assert "params" not in serialized_dag["dag"]
+        assert "params" in serialized_dag["dag"]
 
         deserialized_dag = SerializedDAG.from_dict(serialized_dag)
         deserialized_simple_task = deserialized_dag.task_dict["simple_task"]
-        assert expected_val == deserialized_dag.params
-        assert expected_val == deserialized_simple_task.params
+        assert expected_val == deserialized_dag.params.dump()
+        assert expected_val == deserialized_simple_task.params.dump()
+
+    def test_invalid_params(self):
+        """
+        Test to make sure that only native Param objects are being passed as dag or task params
+        """
+
+        class S3Param(Param):
+            def __init__(self, path: str):
+                schema = {"type": "string", "pattern": r"s3:\/\/(.+?)\/(.+)"}
+                super().__init__(default=path, schema=schema)
+
+        dag = DAG(dag_id='simple_dag', params={'path': S3Param('s3://my_bucket/my_path')})
+
+        with pytest.raises(SerializationError):
+            SerializedDAG.to_dict(dag)
+
+        dag = DAG(dag_id='simple_dag')
+        BaseOperator(
+            task_id='simple_task',
+            dag=dag,
+            start_date=datetime(2019, 8, 1),
+            params={'path': S3Param('s3://my_bucket/my_path')},
+        )
+
+        with pytest.raises(SerializationError):
+            SerializedDAG.to_dict(dag)
 
     @pytest.mark.parametrize(
         "val, expected_val",
@@ -758,7 +789,7 @@ class TestStringifiedDAGs:
 
         deserialized_dag = SerializedDAG.from_dict(serialized_dag)
         deserialized_simple_task = deserialized_dag.task_dict["simple_task"]
-        assert expected_val == deserialized_simple_task.params
+        assert expected_val == deserialized_simple_task.params.dump()
 
     def test_extra_serialized_field_and_operator_links(self):
         """
@@ -1001,6 +1032,7 @@ class TestStringifiedDAGs:
             "has_on_success_callback",
             "has_on_failure_callback",
             "dag_dependencies",
+            "params",
         }
 
         keys_for_backwards_compat: set = {

@@ -15,12 +15,16 @@
 # specific language governing permissions and limitations
 # under the License.
 
+import warnings
 from typing import List, Optional, Union
 
+from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 from airflow.providers.amazon.aws.utils.redshift import build_credentials_block
 from airflow.providers.postgres.hooks.postgres import PostgresHook
+
+AVAILABLE_METHODS = ['APPEND', 'REPLACE', 'UPSERT']
 
 
 class S3ToRedshiftOperator(BaseOperator):
@@ -61,8 +65,10 @@ class S3ToRedshiftOperator(BaseOperator):
     :type column_list: List[str]
     :param copy_options: reference to a list of COPY options
     :type copy_options: list
-    :param truncate_table: whether or not to truncate the destination table before the copy
-    :type truncate_table: bool
+    :param method: Action to be performed on execution. Available ``APPEND``, ``UPSERT`` and ``REPLACE``.
+    :type method: str
+    :param upsert_keys: List of fields to use as key on upsert action
+    :type upsert_keys: List[str]
     """
 
     template_fields = ('s3_bucket', 's3_key', 'schema', 'table', 'column_list', 'copy_options')
@@ -82,9 +88,21 @@ class S3ToRedshiftOperator(BaseOperator):
         column_list: Optional[List[str]] = None,
         copy_options: Optional[List] = None,
         autocommit: bool = False,
-        truncate_table: bool = False,
+        method: str = 'APPEND',
+        upsert_keys: Optional[List[str]] = None,
         **kwargs,
     ) -> None:
+
+        if 'truncate_table' in kwargs:
+            warnings.warn(
+                """`truncate_table` is deprecated. Please use `REPLACE` method.""",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+            if kwargs['truncate_table']:
+                method = 'REPLACE'
+            kwargs.pop('truncate_table', None)
+
         super().__init__(**kwargs)
         self.schema = schema
         self.table = table
@@ -96,17 +114,45 @@ class S3ToRedshiftOperator(BaseOperator):
         self.column_list = column_list
         self.copy_options = copy_options or []
         self.autocommit = autocommit
-        self.truncate_table = truncate_table
+        self.method = method
+        self.upsert_keys = upsert_keys
 
-    def _build_copy_query(self, credentials_block: str, copy_options: str) -> str:
+        if self.method not in AVAILABLE_METHODS:
+            raise AirflowException(f'Method not found! Available methods: {AVAILABLE_METHODS}')
+
+    def _build_copy_query(self, copy_destination: str, credentials_block: str, copy_options: str) -> str:
         column_names = "(" + ", ".join(self.column_list) + ")" if self.column_list else ''
         return f"""
-                    COPY {self.schema}.{self.table} {column_names}
+                    COPY {copy_destination} {column_names}
                     FROM 's3://{self.s3_bucket}/{self.s3_key}'
                     with credentials
                     '{credentials_block}'
                     {copy_options};
         """
+
+    def _get_table_primary_key(self, postgres_hook):
+        sql = """
+            select kcu.column_name
+            from information_schema.table_constraints tco
+                    join information_schema.key_column_usage kcu
+                        on kcu.constraint_name = tco.constraint_name
+                            and kcu.constraint_schema = tco.constraint_schema
+                            and kcu.constraint_name = tco.constraint_name
+            where tco.constraint_type = 'PRIMARY KEY'
+            and kcu.table_schema = %s
+            and kcu.table_name = %s
+        """
+
+        result = postgres_hook.get_records(sql, (self.schema, self.table))
+
+        if len(result) == 0:
+            raise AirflowException(
+                f"""
+                No primary key on {self.schema}.{self.table}.
+                Please provide keys on 'upsert_keys' parameter.
+                """
+            )
+        return [row[0] for row in result]
 
     def execute(self, context) -> None:
         postgres_hook = PostgresHook(postgres_conn_id=self.redshift_conn_id)
@@ -114,15 +160,31 @@ class S3ToRedshiftOperator(BaseOperator):
         credentials = s3_hook.get_credentials()
         credentials_block = build_credentials_block(credentials)
         copy_options = '\n\t\t\t'.join(self.copy_options)
+        destination = f'{self.schema}.{self.table}'
+        copy_destination = f'#{self.table}' if self.method == 'UPSERT' else destination
 
-        copy_statement = self._build_copy_query(credentials_block, copy_options)
+        copy_statement = self._build_copy_query(copy_destination, credentials_block, copy_options)
 
-        if self.truncate_table:
-            delete_statement = f'DELETE FROM {self.schema}.{self.table};'
+        if self.method == 'REPLACE':
             sql = f"""
             BEGIN;
-            {delete_statement}
+            DELETE FROM {destination};
             {copy_statement}
+            COMMIT
+            """
+        elif self.method == 'UPSERT':
+            keys = self.upsert_keys or postgres_hook.get_table_primary_key(self.table, self.schema)
+            if not keys:
+                raise AirflowException(
+                    f"No primary key on {self.schema}.{self.table}. Please provide keys on 'upsert_keys'"
+                )
+            where_statement = ' AND '.join([f'{self.table}.{k} = {copy_destination}.{k}' for k in keys])
+            sql = f"""
+            CREATE TABLE {copy_destination} (LIKE {destination});
+            {copy_statement}
+            BEGIN;
+            DELETE FROM {destination} USING {copy_destination} WHERE {where_statement};
+            INSERT INTO {destination} SELECT * FROM {copy_destination};
             COMMIT
             """
         else:

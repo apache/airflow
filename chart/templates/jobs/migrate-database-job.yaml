@@ -74,7 +74,7 @@ spec:
       {{- end }}
       containers:
         - name: run-airflow-migrations
-          image: {{ template "airflow_image" . }}
+          image: {{ template "airflow_image_for_migrations" . }}
           imagePullPolicy: {{ .Values.images.airflow.pullPolicy }}
           # Support running against 1.10.x and 2.x
           {{- if semverCompare ">=2.0.0" .Values.airflowVersion }}

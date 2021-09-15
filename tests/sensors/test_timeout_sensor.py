@@ -48,7 +48,7 @@ class TimeoutTestSensor(BaseSensorOperator):
 
     def execute(self, context):
         started_at = timezone.utcnow()
-        time_jump = self.params.get('time_jump')
+        time_jump = self.params['time_jump']
         while not self.poke(context):
             if time_jump:
                 started_at -= time_jump

@@ -738,6 +738,13 @@ class TestKubernetesJobWatcher(unittest.TestCase):
         self._run()
         self.assert_watcher_queue_called_once_with_state(None)
 
+    def test_process_status_running_deleted(self):
+        self.pod.status.phase = "Running"
+        self.events.append({"type": 'DELETED', "object": self.pod})
+
+        self._run()
+        self.assert_watcher_queue_called_once_with_state(State.FAILED)
+
     def test_process_status_running(self):
         self.pod.status.phase = "Running"
         self.events.append({"type": 'MODIFIED', "object": self.pod})

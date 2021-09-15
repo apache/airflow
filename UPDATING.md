@@ -1777,6 +1777,16 @@ previous one was (project_id, dataset_id, ...) (breaking change)
 - `get_tabledata` returns list of rows instead of API response in dict format. This method is deprecated in
  favor of `list_rows`. (breaking change)
 
+#### `airflow.providers.google.cloud.hooks.cloud_build.CloudBuildHook`
+
+#### `airflow.providers.google.cloud.operators.cloud_build.CloudBuildCreateBuildOperator`
+
+The `api_version` has been removed and will not be used since we migrate `CloudBuildHook` from using
+ Discovery API to native google-cloud-build python library.
+
+The `body` parameter in `CloudBuildCreateBuildOperator` has been deprecated.
+ Instead, you should pass body using the `build` parameter.
+
 #### `airflow.providers.google.cloud.hooks.dataflow.DataflowHook.start_python_dataflow`
 
 #### `airflow.providers.google.cloud.hooks.dataflow.DataflowHook.start_python_dataflow`

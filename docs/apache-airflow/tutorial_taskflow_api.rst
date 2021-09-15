@@ -231,6 +231,35 @@ that this is a Sensor task which waits for the file.
 Finally, a dependency between this Sensor task and the python-based task is specified.
 
 
+Consuming XCOMs with decorated tasks from regular tasks
+---------------------------------------------------------
+You may additionally find it necessary to consume an XCOM from a pre-existing task as an input into python-based tasks.
+
+Building this dependency is shown in the code below:
+
+.. code-block:: python
+
+    get_api_results_task = SimpleHttpOperator(
+        task_id="get_api_results",
+        endpoint="/api/query",
+        do_xcom_push=True,
+        http_conn_id="http",
+    )
+
+
+    @task(max_retries=2)
+    def parse_results(api_results):
+        return json.loads(api_results)
+
+
+    parsed_results = parsed_results(get_api_results_task.output)
+
+
+In the above code block, a :class:`~airflow.providers.http.operators.http.SimpleHttpOperator` result
+was captured via :doc:`XCOMs </concepts/xcoms>`. This XCOM result, which is the task output, was then passed
+to a TaskFlow decorated task which parses the response as JSON - and the rest continues as expected.
+
+
 What's Next?
 ------------
 

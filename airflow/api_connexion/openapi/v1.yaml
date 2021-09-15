@@ -1682,6 +1682,8 @@ paths:
           $ref: '#/components/responses/Unauthenticated'
         '403':
           $ref: '#/components/responses/PermissionDenied'
+        '409':
+          $ref: '#/components/responses/AlreadyExists'
 
   /users/{username}:
     parameters:
