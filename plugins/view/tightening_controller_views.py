@@ -167,6 +167,7 @@ class TighteningControllerView(AirflowModelView):
         controller: dict
         for controller in d:
             try:
+                from plugins.models.tightening_controller import TighteningController
                 TighteningController.add_controller(**controller)
             except Exception as e:
                 logging.info('Controller import failed: {}'.format(repr(e)))
