@@ -341,13 +341,13 @@ class CeleryExecutor(BaseExecutor):
         just resend them. We do that by clearing the state and letting the
         normal scheduler loop deal with that
         """
-        sorted_adopted_task_timeouts = OrderedDict(
-            sorted(self.adopted_task_timeouts.items(), key=lambda k: k[1])
-        )
+        now = utcnow()
+
+        sorted_adopted_task_timeouts = sorted(self.adopted_task_timeouts.items(), key=lambda k: k[1])
 
         timedout_keys = []
-        for key, stalled_after in sorted_adopted_task_timeouts.items():
-            if stalled_after > utcnow():
+        for key, stalled_after in sorted_adopted_task_timeouts:
+            if stalled_after > now:
                 # Since items are stored sorted, if we get to a stalled_after
                 # in the future then we can stop
                 break
