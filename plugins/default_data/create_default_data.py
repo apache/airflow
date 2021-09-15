@@ -19,26 +19,13 @@ def load_default_controller(file_dir, session=None):
         log.error("导入控制器目录不存在：{}".format(file_path))
         return
     from plugins.models.tightening_controller import TighteningController
-    val = load_data_from_csv(file_path, {
-        'controller_name': '控制器名称',
-        'line_code': '工段编号',
-        'work_center_code': '工位编号',
-        'line_name': '工段名称',
-        'work_center_name': '工位名称'
-    })
     controllers = TighteningController.list_controllers(session=session)
     if len(controllers) > 0:
         log.info("Controllers already exists, skipping")
         return
+    val = load_data_from_csv(file_path)
     for controller in val:
-        TighteningController.add_controller(
-            controller_name=controller.get('controller_name', None),
-            line_code=controller.get('line_code', None),
-            work_center_code=controller.get('work_center_code', None),
-            line_name=controller.get('line_name', None),
-            work_center_name=controller.get('work_center_name', None),
-            session=session
-        )
+        TighteningController.add_controller(session=session, **controller)
 
 
 @provide_session
@@ -178,6 +165,7 @@ def create_default_connection(session=None):
             conn_id='cas_server', conn_type='http',
             host='127.0.0.1', port=9095
         ), session)
+
 
 # Defining the plugin class
 class LoadDefaultDataPlugin(AirflowPlugin):
