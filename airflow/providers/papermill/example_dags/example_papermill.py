@@ -26,8 +26,8 @@ from datetime import timedelta
 import scrapbook as sb
 
 from airflow import DAG
+from airflow.decorators import task
 from airflow.lineage import AUTO
-from airflow.operators.python import PythonOperator
 from airflow.providers.papermill.operators.papermill import PapermillOperator
 from airflow.utils.dates import days_ago
 
@@ -48,6 +48,7 @@ with DAG(
     # [END howto_operator_papermill]
 
 
+@task
 def check_notebook(inlets, execution_date):
     """
     Verify the message in the notebook
@@ -76,6 +77,4 @@ with DAG(
         parameters={"msgs": "Ran from Airflow at {{ execution_date }}!"},
     )
 
-    check_output = PythonOperator(task_id='check_out', python_callable=check_notebook, inlets=AUTO)
-
-    check_output.set_upstream(run_this)
+    run_this >> check_notebook(inlets=AUTO, execution_date="{{ execution_date }}")
