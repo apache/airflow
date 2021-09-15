@@ -46,3 +46,16 @@ Content
     :caption: Resources
 
     PyPI Repository <https://pypi.org/project/apache-airflow-providers-influxdb/>
+
+.. toctree::
+    :maxdepth: 1
+    :caption: Resources
+
+    PyPI Repository <https://pypi.org/project/apache-airflow-providers-influxdb/>
+    Installing from sources <installing-providers-from-sources>
+
+.. toctree::
+    :maxdepth: 1
+    :caption: Commits
+
+    Detailed list of commits <commits>
