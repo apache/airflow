@@ -79,6 +79,7 @@
         </label>
         <span class="text-muted">DAG:</span> {{ dag.dag_id }}
         <small class="text-muted">{{ dag.description[0:150] + '…' if dag.description and dag.description|length > 150 else dag.description|default('', true) }}</small>
+        <div></div>
       {% endif %}
       {% if root %}
         <span class="text-muted">ROOT:</span> {{ root }}
