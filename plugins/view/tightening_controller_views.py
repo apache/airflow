@@ -67,12 +67,14 @@ class TighteningControllerForm(DynamicForm):
         widget=Select2Widget(extra_classes="readonly")
     )
 
+
 class TighteningControllerListWidget(AirflowModelListWidget):
     template = 'tightening_controller_list_widget.html'
 
 
 class TighteningControllerView(AirflowModelView):
     route_base = '/tightening_controller'
+    list_widget = TighteningControllerListWidget
     from plugins.models.tightening_controller import TighteningController
     datamodel = AirflowModelView.CustomSQLAInterface(TighteningController)
 
