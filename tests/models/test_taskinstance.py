@@ -1685,20 +1685,18 @@ class TestTaskInstance:
 
     def test_handle_failure_updates_queued_task_try_number(self, dag_maker):
         session = settings.Session()
-
-        with dag_maker() as dag:
+        with dag_maker():
             task = DummyOperator(task_id="mytask", retries=1)
-        dag_maker.create_dagrun()
-        ti = TI(task=task, execution_date=dag.start_date)
-        ti.refresh_from_db()
+        dr = dag_maker.create_dagrun()
+        ti = TI(task=task, run_id=dr.run_id)
         ti.state = State.QUEUED
         session.merge(ti)
         session.commit()
-        ti.refresh_from_db()
         assert ti.state == State.QUEUED
-        ti.handle_failure("test queued ti")
-        ti.refresh_from_db()
+        assert ti.try_number == 1
+        ti.handle_failure("test queued ti", test_mode=True)
         assert ti.state == State.UP_FOR_RETRY
+        assert ti.try_number == 3
 
     def test_does_not_retry_on_airflow_fail_exception(self, dag_maker):
         def fail():
