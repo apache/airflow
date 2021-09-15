@@ -22,7 +22,7 @@ from airflow.models import Connection
 from airflow.providers.influxdb.hooks.influxdb import InfluxDBHook
 
 
-class TestInfluxDbHookConn(unittest.TestCase):
+class TestInfluxDbHook(unittest.TestCase):
     def setUp(self):
         super().setUp()
         self.influxdb_hook = InfluxDBHook()
@@ -48,9 +48,41 @@ class TestInfluxDbHookConn(unittest.TestCase):
         assert self.influxdb_hook.get_client is not None
 
     def test_query(self):
+        self.influxdb_hook.get_conn = mock.Mock()
 
+        influxdb_query = 'SELECT "duration" FROM "pyexample"'
+        self.influxdb_hook.query(influxdb_query)
+
+        self.influxdb_hook.get_conn.assert_called()
+
+    def test_query_to_df(self):
+        self.influxdb_hook.get_conn = mock.Mock()
+
+        self.influxdb_hook.write = mock.Mock()
+        influxdb_query = 'SELECT "duration" FROM "pyexample"'
+        self.influxdb_hook.query_to_df(influxdb_query)
+
+        self.influxdb_hook.get_conn.assert_called()
+
+    def test_write(self):
         self.influxdb_hook.get_connection = mock.Mock()
-        self.influxdb_hook.get_conn().query_api = mock.Mock()
+        self.influxdb_hook.get_connection.return_value = self.connection
 
-        self.influxdb_hook.get_conn().query_api.query('SELECT "duration" FROM "pyexample"')
-        assert self.influxdb_hook.get_conn().query_api.query.assert_called_with('test')
+        self.influxdb_hook.get_conn = mock.Mock()
+        self.influxdb_hook.client = mock.Mock()
+        self.influxdb_hook.client.write_api = mock.Mock()
+
+        self.influxdb_hook.write("test_bucket", "test_point", "location", "Prague", "temperature", 25.3, True)
+
+        self.influxdb_hook.client.write_api.assert_called()
+
+    def test_find_bucket_by_id(self):
+        self.influxdb_hook.get_connection = mock.Mock()
+        self.influxdb_hook.get_connection.return_value = self.connection
+
+        self.influxdb_hook.client = mock.Mock()
+        self.influxdb_hook.client.buckets_api = mock.Mock()
+
+        self.influxdb_hook.find_bucket_id_by_name("test")
+
+        self.influxdb_hook.client.buckets_api.assert_called()
