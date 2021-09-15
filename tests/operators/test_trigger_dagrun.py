@@ -273,7 +273,8 @@ class TestDagRunOperator(TestCase):
             assert isinstance(dagruns[1].start_date, datetime)
 
     def test_trigger_dagrun_triggering_itself_with_execution_date(self):
-        """Test TriggerDagRunOperator that triggers itself with execution date, fails with DagRunAlreadyExists"""
+        """Test TriggerDagRunOperator that triggers itself with execution date,
+        fails with DagRunAlreadyExists"""
         execution_date = DEFAULT_DATE
         task = TriggerDagRunOperator(
             task_id="test_task",
