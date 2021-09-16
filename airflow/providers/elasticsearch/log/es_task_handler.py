@@ -115,6 +115,7 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
         return self.log_id_template.format(
             dag_id=ti.dag_id,
             task_id=ti.task_id,
+            run_id=ti.run_id,
             data_interval_start=data_interval_start,
             data_interval_end=data_interval_end,
             execution_date=execution_date,
