@@ -69,6 +69,35 @@ Depending on the size of you Airflow instance, you may want to adjust the follow
     # The maximum number of server connections to the result backend database from PgBouncer
     resultBackendPoolSize: 5
 
+Webserver Secret Key
+--------------------
+
+You should set a static webserver secret key when deploying with this chart as it will help ensure
+your Airflow components only restart when necessary.
+
+.. warning::
+  You should use a different secret key for every instance you run, as this key is used to sign
+  session cookies and perform other security related functions!
+
+First, generate a strong secret key:
+
+.. code-block:: bash
+
+    python3 -c 'import secrets; print(secrets.token_hex(16))'
+
+Now add the secret to your values file:
+
+.. code-block:: yaml
+
+    webserverSecretKey: <secret_key>
+
+Alternatively, create a kubernetes Secret and use ``webserverSecretKeySecretName``:
+
+.. code-block:: yaml
+
+    webserverSecretKey: my-webserver-secret
+    # where the random key is under `webserver-secret-key` in the k8s Secret
+
 Extending and customizing Airflow Image
 ---------------------------------------
 

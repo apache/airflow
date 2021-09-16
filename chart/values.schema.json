@@ -274,7 +274,7 @@
                 "null"
             ],
             "x-docsSection": "Common",
-            "default": null
+            "default": "See values.yaml"
         },
         "rbac": {
             "description": "Enable RBAC (default on most clusters these days).",
