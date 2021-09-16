@@ -311,7 +311,8 @@ commonly attempted in ``user_defined_macros``.
 
         bo = BashOperator(task_id="my_task", bash_command="echo {{ my_custom_macro }}", dag=dag)
 
-This will echo "day={{ ds }}" instead of "day=2020-01-01" for a dagrun with ``data_interval_start`` 2020-01-01 00:00:00.
+This will echo "day={{ ds }}" instead of "day=2020-01-01" for a DAG run with a
+``data_interval_start`` of 2020-01-01 00:00:00.
 
 .. code-block:: python
 
