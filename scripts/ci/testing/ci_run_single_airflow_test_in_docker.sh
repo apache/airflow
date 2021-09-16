@@ -169,6 +169,29 @@ function run_airflow_testing_in_docker() {
         echo "${COLOR_BLUE}Then you can run failed tests with:${COLOR_RESET}"
         echo "${COLOR_YELLOW}pytest [TEST_NAME]${COLOR_RESET}"
         echo "${COLOR_BLUE}***********************************************************************************************${COLOR_RESET}"
+
+
+        if [[ ${UPGRADE_TO_NEWER_DEPENDENCIES} != "false" ]]; then
+            local constraints_url="https://raw.githubusercontent.com/apache/airflow/${DEFAULT_CONSTRAINTS_BRANCH}/constraints-source-providers-${PYTHON_MAJOR_MINOR_VERSION}.txt"
+            echo "${COLOR_BLUE}***********************************************************************************************${COLOR_RESET}"
+            echo "${COLOR_BLUE}*${COLOR_RESET}"
+            echo "${COLOR_BLUE}* In case you see unrelated test failures, it can be due to newer dependencies released.${COLOR_RESET}"
+            echo "${COLOR_BLUE}* This is either because it is 'main' branch or because this PR modifies dependencies (setup.* files).${COLOR_RESET}"
+            echo "${COLOR_BLUE}* Therefore 'eager-upgrade' is used to build the image, This means that this build can have newer dependencies than the 'tested' set of constraints,${COLOR_RESET}"
+            echo "${COLOR_BLUE}*${COLOR_RESET}"
+            echo "${COLOR_BLUE}* The tested constraints for that build are available at: ${constraints_url} ${COLOR_RESET}"
+            echo "${COLOR_BLUE}*${COLOR_RESET}"
+            echo "${COLOR_BLUE}* Please double check if the same failure is in other tests and in 'main' branch and check if the dependency differences causes the problem.${COLOR_RESET}"
+            echo "${COLOR_BLUE}* In case you identify the dependency, either fix the root cause or limit the dependency if it is too difficult to fix.${COLOR_RESET}"
+            echo "${COLOR_BLUE}*${COLOR_RESET}"
+            echo "${COLOR_BLUE}* The diff between fixed constraints and those used in this build is below.${COLOR_RESET}"
+            echo "${COLOR_BLUE}*${COLOR_RESET}"
+            echo "${COLOR_BLUE}***********************************************************************************************${COLOR_RESET}"
+            echo
+            curl "${constraints_url}" | grep -ve "^#" | diff --color=always - <( docker run --entrypoint /bin/bash "${AIRFLOW_CI_IMAGE}"  -c 'pip freeze' \
+                | sort | grep -v "apache_airflow" | grep -v "@" | grep -v "/opt/airflow" | grep -ve "^#")
+            echo
+        fi
     fi
 
     echo ${exit_code} > "${PARALLEL_JOB_STATUS}"
