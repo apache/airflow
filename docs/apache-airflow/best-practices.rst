@@ -280,7 +280,7 @@ Unit tests ensure that there is no incorrect code in your DAG. You can write uni
     from airflow.models import DagBag
 
 
-    @pytest.fixture(scope="scope")
+    @pytest.fixture()
     def dagbag(self):
         return DagBag()
 
@@ -321,26 +321,47 @@ This is an example test want to verify the structure of a code-generated DAG aga
 
 .. code-block:: python
 
+    import datetime
+
     import pytest
 
-    from airflow.utils.state import State
+    from airflow.utils.state import DagRunState
+    from airflow.utils.types import DagRunType
+
+    DATA_INTERVAL_START = datetime.datetime(2021, 9, 13)
+    DATA_INTERVAL_END = DATA_INTERVAL_START + datetime.timedelta(days=1)
+
+    TEST_DAG_ID = "my_custom_operator_dag"
+    TEST_TASK_ID = "my_custom_operator_task"
 
 
-    def test_my_custom_oeprator_execute_no_trigger(dag_maker):
-        with dag_maker(
-            dag_id="test_my_custom_oeprator_execute_no_trigger",
+    @pytest.fixture()
+    def dag():
+        with DAG(
+            dag_id=TEST_DAG_ID,
             schedule_interval="@daily",
-            default_args={"start_date": DEFAULT_DATE},
+            default_args={"start_date": DATA_INTERVAL_START},
         ) as dag:
             MyCustomOperator(
-                dag=self.dag,
-                task_id="test",
+                task_id=TEST_TASK_ID,
                 prefix="s3://bucket/some/prefix",
             )
-        dagrun = dag_maker.create_dagrun()
-        (ti,) = dagrun.task_instances
+        return dag
+
+
+    def test_my_custom_operator_execute_no_trigger(dag):
+        dagrun = dag.create_dagrun(
+            state=DagRunState.RUNNING,
+            execution_date=DATA_INTERVAL_START,
+            data_interval=(DATA_INTERVAL_START, DATA_INTERVAL_END),
+            start_date=DATA_INTERVAL_END,
+            run_type=DagRunType.MANUAL,
+        )
+        ti = dagrun.get_task_instance(task_id=TEST_TASK_ID)
+        ti.task = dag.get_task(task_id=TEST_TASK_ID)
+        ti.run(ignore_ti_state=True)
         assert ti.state == State.SUCCESS
-        # Assert something related to tasks results
+        # Assert something related to tasks results.
 
 
 Self-Checks
