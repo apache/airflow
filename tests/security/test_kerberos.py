@@ -286,8 +286,9 @@ class TestKerberosUnit(unittest.TestCase):
     @mock.patch('airflow.security.kerberos.subprocess')
     @mock.patch('airflow.security.kerberos.NEED_KRB181_WORKAROUND', None)
     @mock.patch('airflow.security.kerberos.open', mock.mock_open(read_data=b'X-CACHECONF:'))
+    @mock.patch('airflow.security.kerberos.socket.getfqdn', return_value="HOST")
     @mock.patch('time.sleep', return_value=None)
-    def test_renew_from_kt_failed_workaround(self, mock_sleep, mock_subprocess):
+    def test_renew_from_kt_failed_workaround(self, mock_sleep, mock_getfqdn, mock_subprocess):
         mock_subprocess.Popen.return_value.__enter__.return_value.returncode = 0
         mock_subprocess.call.return_value = 1
 
@@ -300,12 +301,12 @@ class TestKerberosUnit(unittest.TestCase):
             'INFO:airflow.security.kerberos:Renewing kerberos ticket to work around kerberos 1.8.1: '
             'kinit -c /tmp/airflow_krb5_ccache -R',
             "ERROR:airflow.security.kerberos:Couldn't renew kerberos ticket in order to work around "
-            "Kerberos 1.8.1 issue. Please check that the ticket for 'test-principal/f05e202cb311' is still "
+            "Kerberos 1.8.1 issue. Please check that the ticket for 'test-principal/HOST' is still "
             "renewable:\n"
             "  $ kinit -f -c /tmp/airflow_krb5_ccache\n"
             "If the 'renew until' date is the same as the 'valid starting' date, the ticket cannot be "
             "renewed. Please check your KDC configuration, and the ticket renewal policy (maxrenewlife) for "
-            "the 'test-principal/f05e202cb311' and `krbtgt' principals.",
+            "the 'test-principal/HOST' and `krbtgt' principals.",
         ]
 
         assert mock_subprocess.mock_calls == [
