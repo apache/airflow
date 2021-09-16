@@ -207,6 +207,8 @@ class TestSchedulerJob:
 
         self.scheduler_job._process_executor_events(session=session)
         ti1.refresh_from_db()
+        # The state will remain in queued here and
+        # will be set to failed in dag parsing process
         assert ti1.state == State.QUEUED
         mock_task_callback.assert_called_once_with(
             full_filepath='/test_path1/',
