@@ -95,7 +95,7 @@ ARG DEV_APT_DEPS="\
      nodejs \
      openssh-client \
      postgresql-client \
-     python-selinux \
+     python3-selinux \
      sasl2-bin \
      software-properties-common \
      sqlite3 \
@@ -353,7 +353,7 @@ ARG RUNTIME_APT_DEPS="\
        gosu \
        krb5-user \
        ldap-utils \
-       libffi6 \
+       libffi7 \
        libldap-2.4-2 \
        libsasl2-2 \
        libsasl2-modules \
