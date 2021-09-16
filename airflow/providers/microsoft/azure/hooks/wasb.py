@@ -172,7 +172,7 @@ class WasbHook(BaseHook):
         :param blob_name: The name of the blob. This needs not be existing
         :type blob_name: str
         """
-        container_client = self.create_container(container_name)
+        container_client = self._get_container_client(container_name)
         return container_client.get_blob_client(blob_name)
 
     def check_for_blob(self, container_name: str, blob_name: str, **kwargs) -> bool:
