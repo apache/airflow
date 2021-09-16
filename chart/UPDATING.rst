@@ -49,7 +49,7 @@ Removed ``ingress.flower.precedingPaths`` and ``ingress.flower.succeedingPaths``
 ``ingress.flower.precedingPaths`` and ``ingress.flower.succeedingPaths`` parameters have been removed as they had previously had no effect on rendered YAML output.
 
 Change of default ``path`` on Ingress
-"""""""""""""""""""""""""""""""""""
+"""""""""""""""""""""""""""""""""""""
 
 With the move to support the stable Kubernetes Ingress API the default path has been changed from being unset to ``/``. For most Ingress controllers this should not change the behavior of the resulting Ingress resource.
 
