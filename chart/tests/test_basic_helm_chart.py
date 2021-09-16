@@ -25,7 +25,7 @@ from parameterized import parameterized
 
 from tests.helm_template_generator import render_chart
 
-OBJECT_COUNT_IN_BASIC_DEPLOYMENT = 36
+OBJECT_COUNT_IN_BASIC_DEPLOYMENT = 38
 
 
 class TestBaseChartTest(unittest.TestCase):
@@ -38,6 +38,7 @@ class TestBaseChartTest(unittest.TestCase):
                 },
                 'labels': {"TEST-LABEL": "TEST-VALUE"},
                 "fullnameOverride": "TEST-BASIC",
+                "airflowVersion": "2.2.0",
             },
         )
         list_of_kind_names_tuples = {
@@ -50,6 +51,7 @@ class TestBaseChartTest(unittest.TestCase):
             ('ServiceAccount', 'TEST-BASIC-redis'),
             ('ServiceAccount', 'TEST-BASIC-scheduler'),
             ('ServiceAccount', 'TEST-BASIC-statsd'),
+            ('ServiceAccount', 'TEST-BASIC-triggerer'),
             ('ServiceAccount', 'TEST-BASIC-webserver'),
             ('ServiceAccount', 'TEST-BASIC-worker'),
             ('Secret', 'TEST-BASIC-airflow-metadata'),
@@ -74,6 +76,7 @@ class TestBaseChartTest(unittest.TestCase):
             ('Deployment', 'TEST-BASIC-flower'),
             ('Deployment', 'TEST-BASIC-scheduler'),
             ('Deployment', 'TEST-BASIC-statsd'),
+            ('Deployment', 'TEST-BASIC-triggerer'),
             ('Deployment', 'TEST-BASIC-webserver'),
             ('StatefulSet', 'TEST-BASIC-postgresql'),
             ('StatefulSet', 'TEST-BASIC-redis'),

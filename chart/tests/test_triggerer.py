@@ -24,6 +24,21 @@ from tests.helm_template_generator import render_chart
 
 
 class TriggererTest(unittest.TestCase):
+    @parameterized.expand(
+        [
+            ("2.1.0", 0),
+            ("2.2.0", 1),
+        ]
+    )
+    def test_only_exists_on_new_airflow_versions(self, airflow_version, num_docs):
+        """Trigger was only added from Airflow 2.2 onwards"""
+        docs = render_chart(
+            values={"airflowVersion": airflow_version},
+            show_only=["templates/triggerer/triggerer-deployment.yaml"],
+        )
+
+        assert num_docs == len(docs)
+
     def test_should_add_extra_containers(self):
         docs = render_chart(
             values={
