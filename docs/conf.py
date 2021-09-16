@@ -75,6 +75,12 @@ elif PACKAGE_NAME.startswith('apache-airflow-providers-'):
         raise Exception(f"Could not find provider.yaml file for package: {PACKAGE_NAME}")
     PACKAGE_DIR = CURRENT_PROVIDER['package-dir']
     PACKAGE_VERSION = CURRENT_PROVIDER['versions'][0]
+elif PACKAGE_NAME == 'apache-airflow-providers':
+    from provider_yaml_utils import load_package_data
+
+    PACKAGE_DIR = os.path.join(ROOT_DIR, 'airflow', 'providers')
+    PACKAGE_VERSION = 'devel'
+    ALL_PROVIDER_YAMLS = load_package_data()
 elif PACKAGE_NAME == 'helm-chart':
     PACKAGE_DIR = os.path.join(ROOT_DIR, 'chart')
     CHART_YAML_FILE = os.path.join(PACKAGE_DIR, 'Chart.yaml')
@@ -155,6 +161,7 @@ if PACKAGE_NAME == 'apache-airflow':
 if PACKAGE_NAME == "apache-airflow-providers":
     extensions.extend(
         [
+            'sphinxcontrib.jinja',
             'operators_and_hooks_ref',
             'providers_packages_ref',
         ]
@@ -407,6 +414,12 @@ elif PACKAGE_NAME.startswith('apache-airflow-providers-'):
             'package_version': PACKAGE_VERSION,
         },
     }
+elif PACKAGE_NAME == 'apache-airflow-providers':
+    jinja_contexts = {
+        'official_download_page': {
+            'all_providers': ALL_PROVIDER_YAMLS,
+        },
+    }
 elif PACKAGE_NAME == 'helm-chart':
 
     def _str_representer(dumper, data):
@@ -486,7 +499,15 @@ elif PACKAGE_NAME == 'helm-chart':
     if sections:
         raise ValueError(f"Found section(s) which were not in `section_order`: {list(sections.keys())}")
 
-    jinja_contexts = {"params_ctx": {"sections": ordered_sections}}
+    jinja_contexts = {
+        "params_ctx": {"sections": ordered_sections},
+        'official_download_page': {
+            'base_url': 'https://downloads.apache.org/airflow/helm-chart',
+            'closer_lua_url': 'https://www.apache.org/dyn/closer.lua/airflow/helm-chart',
+            'package_name': PACKAGE_NAME,
+            'package_version': PACKAGE_VERSION,
+        },
+    }
 
 
 # -- Options for sphinx.ext.autodoc --------------------------------------------

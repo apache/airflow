@@ -704,7 +704,7 @@ def check_task_tables_without_matching_dagruns(session) -> Iterable[str]:
     metadata = sqlalchemy.schema.MetaData(session.bind)
     models_to_dagrun = [TaskInstance, TaskFail]
     models_to_ti = []
-    for model in models_to_dagrun + models_to_ti:
+    for model in models_to_dagrun + models_to_ti + [DagRun]:
         try:
             metadata.reflect(only=[model.__tablename__])
         except exc.InvalidRequestError:
@@ -712,32 +712,40 @@ def check_task_tables_without_matching_dagruns(session) -> Iterable[str]:
             # version
             pass
 
+    if DagRun.__tablename__ not in metadata or TaskInstance.__tablename__ not in metadata:
+        # Key table doesn't exist -- likely empty DB
+        session.rollback()
+        return
+
     for (model, target) in chain(
-        ((m, DagRun) for m in models_to_dagrun), ((m, TaskInstance) for m in models_to_ti)
+        ((m, metadata.tables[DagRun.__tablename__]) for m in models_to_dagrun),
+        ((m, metadata.tables[TaskInstance.__tablename__]) for m in models_to_ti),
     ):
-        if model.__tablename__ not in metadata.tables:
-            # Table doesn't exist -- likley empty DB
+        table = metadata.tables.get(model.__tablename__)
+        if table is None:
             continue
-        if 'run_id' in metadata.tables[model.__tablename__].columns:
+        if 'run_id' in table.columns:
             # Migration already applied, don't check again
             continue
 
-        join_cond = and_(model.dag_id == target.dag_id, model.execution_date == target.execution_date)
-        if "task_id" in target.__table__.columns:
-            join_cond = and_(join_cond, model.task_id == target.task_id)
+        # We can't use the model here (as that would have the associationproxy, we instead need to use the
+        # _reflected_ table)
+        join_cond = and_(table.c.dag_id == target.c.dag_id, table.c.execution_date == target.c.execution_date)
+        if "task_id" in target.columns:
+            join_cond = and_(join_cond, table.c.task_id == target.c.task_id)
 
         query = (
-            session.query(model.dag_id, model.task_id, model.execution_date)
-            .select_from(outerjoin(model, target, join_cond))
-            .filter(target.dag_id.is_(None))
+            session.query(table.c.dag_id, table.c.task_id, table.c.execution_date)
+            .select_from(outerjoin(table, target, join_cond))
+            .filter(target.c.dag_id.is_(None))
         )  # type: ignore
 
         num = query.count()
 
         if num > 0:
             yield (
-                f'The {model.__tablename__} table has {num} row{"s" if num != 1 else ""} without a '
-                f'corresponding {target.__tablename__} row. You must manually correct this problem '
+                f'The {table.name} table has {num} row{"s" if num != 1 else ""} without a '
+                f'corresponding {target.name} row. You must manually correct this problem '
                 '(possibly by deleting the problem rows).'
             )
     session.rollback()

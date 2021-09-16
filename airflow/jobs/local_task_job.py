@@ -52,6 +52,7 @@ class LocalTaskJob(BaseJob):
         mark_success: bool = False,
         pickle_id: Optional[str] = None,
         pool: Optional[str] = None,
+        external_executor_id: Optional[str] = None,
         *args,
         **kwargs,
     ):
@@ -64,6 +65,7 @@ class LocalTaskJob(BaseJob):
         self.pool = pool
         self.pickle_id = pickle_id
         self.mark_success = mark_success
+        self.external_executor_id = external_executor_id
         self.task_runner = None
 
         # terminating state is used so that a job don't try to
@@ -92,6 +94,7 @@ class LocalTaskJob(BaseJob):
             ignore_ti_state=self.ignore_ti_state,
             job_id=self.id,
             pool=self.pool,
+            external_executor_id=self.external_executor_id,
         ):
             self.log.info("Task is not able to be run")
             return

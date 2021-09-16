@@ -407,10 +407,9 @@ provider package will keep its own dependencies, and while we expect those provi
 backwards-compatible, particular versions of particular providers might introduce dependencies on
 specific Airflow versions.
 
-Contents
---------
 
 .. toctree::
+    :hidden:
     :maxdepth: 2
 
     Providers <self>
@@ -418,3 +417,10 @@ Contents
     Operators and hooks <operators-and-hooks-ref/index>
     Core Extensions <core-extensions/index>
     Update community providers <howto/create-update-providers>
+
+.. toctree::
+    :maxdepth: 2
+    :hidden:
+    :caption: Resources
+
+    Installing from sources <installing-from-sources>
