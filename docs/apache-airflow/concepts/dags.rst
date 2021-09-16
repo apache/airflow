@@ -156,16 +156,24 @@ The ``schedule_interval`` argument takes any value that is a valid `Crontab <htt
 
     If ``schedule_interval`` is not enough to express the DAG's schedule, see :doc:`Timetables </howto/timetable>`.
 
-Every time you run a DAG, you are creating a new instance of that DAG which Airflow calls a :doc:`DAG Run </dag-run>`. DAG Runs can run in parallel for the same DAG, and each has a defined data interval, which identifies the *logical* date and time range it is running for - not the *actual* time when it was started.
+Every time you run a DAG, you are creating a new instance of that DAG which
+Airflow calls a :doc:`DAG Run </dag-run>`. DAG Runs can run in parallel for the
+same DAG, and each has a defined data interval, which identifies the period of
+data the tasks should operate on.
 
-As an example of why this is useful, consider writing a DAG that processes a daily set of experimental data. It's been rewritten, and you want to run it on the previous 3 months of data - no problem, since Airflow can *backfill* the DAG and run copies of it for every day in those previous 3 months, all at once.
+As an example of why this is useful, consider writing a DAG that processes a
+daily set of experimental data. It's been rewritten, and you want to run it on
+the previous 3 months of data---no problem, since Airflow can *backfill* the DAG
+and run copies of it for every day in those previous 3 months, all at once.
 
 Those DAG Runs will all have been started on the same actual day, but each DAG
 run will have one data interval covering a single day in that 3 month period,
 and that data interval is all the tasks, operators and sensors inside the DAG
 look at when they run.
 
-In much the same way a DAG instantiates into a DAG Run every time it's run, Tasks specified inside a DAG also instantiate into :ref:`Task Instances <concepts:task-instances>` along with it.
+In much the same way a DAG instantiates into a DAG Run every time it's run,
+Tasks specified inside a DAG are also instantiated into
+:ref:`Task Instances <concepts:task-instances>` along with it.
 
 
 DAG Assignment
