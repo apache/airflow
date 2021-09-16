@@ -29,7 +29,7 @@ from collections import defaultdict
 from datetime import timedelta
 from json import JSONDecodeError
 from operator import itemgetter
-from typing import Iterable, List, Optional, Tuple
+from typing import Any, Iterable, List, Optional, Tuple
 from urllib.parse import parse_qsl, unquote, urlencode, urlparse
 
 import lazy_object_proxy
@@ -1050,10 +1050,20 @@ class Airflow(AirflowBaseView):
         logging.info("Retrieving rendered templates.")
         dag = current_app.dag_bag.get_dag(dag_id)
         dag_run = dag.get_dagrun(execution_date=dttm, session=session)
-
         task = copy.copy(dag.get_task(task_id))
-        ti = dag_run.get_task_instance(task_id=task.task_id, session=session)
-        ti.refresh_from_task(task)
+
+        if dag_run is None:
+            # No DAG run matching given logical date. This usually means this
+            # DAG has never been run. Task instance rendering does not really
+            # make sense in this situation, but "works" prior to AIP-39. This
+            # "fakes" a temporary DagRun-TaskInstance association (not saved to
+            # database) for presentation only.
+            ti = TaskInstance(task)
+            ti.dag_run = DagRun(dag_id=dag_id, execution_date=dttm)
+        else:
+            ti = dag_run.get_task_instance(task_id=task.task_id, session=session)
+            ti.refresh_from_task(task)
+
         try:
             ti.get_rendered_template_fields(session=session)
         except AirflowException as e:
@@ -1063,6 +1073,7 @@ class Airflow(AirflowBaseView):
             flash(msg, "error")
         except Exception as e:
             flash("Error rendering template: " + str(e), "error")
+
         title = "Rendered Template"
         html_dict = {}
         renderers = wwwutils.get_attr_renderer()
@@ -1364,7 +1375,7 @@ class Airflow(AirflowBaseView):
         task = copy.copy(dag.get_task(task_id))
         task.resolve_template_files()
 
-        ti = (
+        ti: Optional[TaskInstance] = (
             session.query(TaskInstance)
             .options(
                 # HACK: Eager-load relationships. This is needed because
@@ -1379,18 +1390,14 @@ class Airflow(AirflowBaseView):
                 TaskInstance.dag_id == dag_id,
                 TaskInstance.task_id == task_id,
             )
-            .one()
+            .one_or_none()
         )
-        ti.refresh_from_task(task)
-
-        ti_attrs = [
-            (attr_name, attr)
-            for attr_name, attr in (
-                (attr_name, getattr(ti, attr_name)) for attr_name in dir(ti) if not attr_name.startswith("_")
-            )
-            if not callable(attr)
-        ]
-        ti_attrs = sorted(ti_attrs)
+        if ti is None:
+            ti_attrs: Optional[List[Tuple[str, Any]]] = None
+        else:
+            ti.refresh_from_task(task)
+            all_ti_attrs = ((name, getattr(ti, name)) for name in dir(ti) if not name.startswith("_"))
+            ti_attrs = sorted((name, attr) for name, attr in all_ti_attrs if not callable(attr))
 
         attr_renderers = wwwutils.get_attr_renderer()
         task_attrs = [
@@ -1420,17 +1427,20 @@ class Airflow(AirflowBaseView):
                 "Airflow administrator for assistance.".format(
                     "- This task instance already ran and had it's state changed manually "
                     "(e.g. cleared in the UI)<br>"
-                    if ti.state == State.NONE
+                    if ti and ti.state == State.NONE
                     else ""
                 ),
             )
         ]
 
         # Use the scheduler's context to figure out which dependencies are not met
-        dep_context = DepContext(SCHEDULER_QUEUED_DEPS)
-        failed_dep_reasons = [
-            (dep.dep_name, dep.reason) for dep in ti.get_failed_dep_statuses(dep_context=dep_context)
-        ]
+        if ti is None:
+            failed_dep_reasons: List[Tuple[str, str]] = []
+        else:
+            dep_context = DepContext(SCHEDULER_QUEUED_DEPS)
+            failed_dep_reasons = [
+                (dep.dep_name, dep.reason) for dep in ti.get_failed_dep_statuses(dep_context=dep_context)
+            ]
 
         title = "Task Instance Details"
         return self.render_template(

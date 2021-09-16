@@ -117,7 +117,7 @@ def user_client(app):
 @pytest.fixture(scope="module")
 def client_factory(app):
     def factory(name, role_name, permissions):
-        create_user(app, name, role_name, permissions)
+        create_user(app, username=name, role_name=role_name, permissions=permissions)
         client = app.test_client()
         resp = client.post("/login/", data={"username": name, "password": name})
         assert resp.status_code == 302

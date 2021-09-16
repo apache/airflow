@@ -176,7 +176,9 @@
                   </span>
                 </td>
                 <td class="text-nowrap">
-                  <time datetime="{{ dag.next_dagrun }}">{{ dag.next_dagrun }}</time>
+                  {% if dag.next_dagrun is not none %}
+                    <time datetime="{{ dag.next_dagrun }}">{{ dag.next_dagrun }}</time>
+                  {% endif %}
                   {% if dag.next_dagrun_create_after %}
                     {# data-nextrun is being used to pass next_dagrun dates to js to build the full tooltip #}
                     <span

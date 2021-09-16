@@ -1128,6 +1128,7 @@ class TaskInstance(Base, LoggingMixin):
         test_mode: bool = False,
         job_id: Optional[str] = None,
         pool: Optional[str] = None,
+        external_executor_id: Optional[str] = None,
         session=None,
     ) -> bool:
         """
@@ -1153,6 +1154,8 @@ class TaskInstance(Base, LoggingMixin):
         :type job_id: str
         :param pool: specifies the pool to use to run the task instance
         :type pool: str
+        :param external_executor_id: The identifier of the celery executor
+        :type external_executor_id: str
         :param session: SQLAlchemy ORM Session
         :type session: Session
         :return: whether the state was changed to running or not
@@ -1234,6 +1237,7 @@ class TaskInstance(Base, LoggingMixin):
         if not test_mode:
             session.add(Log(State.RUNNING, self))
         self.state = State.RUNNING
+        self.external_executor_id = external_executor_id
         self.end_date = None
         if not test_mode:
             session.merge(self)
