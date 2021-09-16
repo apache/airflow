@@ -1438,7 +1438,7 @@
       version_added: 2.1.4
       type: string
       example: ~
-      default: ""
+      default: ~
 - name: celery_kubernetes_executor
   description: |
     This section only applies if you are using the ``CeleryKubernetesExecutor`` in

@@ -21,7 +21,6 @@ import logging
 from functools import wraps
 
 from airflow.configuration import conf
-from airflow.utils.module_loading import import_string
 from airflow.utils.session import find_session_idx, provide_session
 from airflow.utils.state import State
 
@@ -110,8 +109,7 @@ if conf.getboolean("sentry", 'sentry_on', fallback=False):
                         ", ".join(unsupported_options),
                     )
 
-                if sentry_config_opts.get('before_send'):
-                    sentry_config_opts['before_send'] = import_string(sentry_config_opts['before_send'])
+                sentry_config_opts['before_send'] = conf.getimport('sentry', 'before_send')
 
             if dsn:
                 sentry_sdk.init(dsn=dsn, integrations=integrations, **sentry_config_opts)
