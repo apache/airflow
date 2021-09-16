@@ -80,12 +80,12 @@ with DAG(
     start_date=days_ago(5),
     tags=['example'],
 ) as dag:
+    fetch_tweets = fetch_tweets()
     clean_tweets = clean_tweets()
     analyze_tweets = analyze_tweets()
     hive_to_mysql = transfer_to_db()
 
-    fetch_tweets() >> clean_tweets
-    clean_tweets >> analyze_tweets
+    fetch_tweets >> clean_tweets >> analyze_tweets
 
     # --------------------------------------------------------------------------------
     # The following tasks are generated using for loop. The first task puts the eight
@@ -106,44 +106,42 @@ with DAG(
 
     for channel in to_channels:
 
-        file_name = "to_" + channel + "_" + dt + ".csv"
+        file_name = f"to_{channel}_{dt}.csv"
 
         load_to_hdfs = BashOperator(
-            task_id="put_" + channel + "_to_hdfs",
-            bash_command="HADOOP_USER_NAME=hdfs hadoop fs -put -f "
-            + local_dir
-            + file_name
-            + hdfs_dir
-            + channel
-            + "/",
+            task_id=f"put_{channel}_to_hdfs",
+            bash_command=(
+                f"HADOOP_USER_NAME=hdfs hadoop fs -put -f {local_dir}{file_name}{hdfs_dir}{channel}/"
+            ),
         )
 
         load_to_hive = HiveOperator(
-            task_id="load_" + channel + "_to_hive",
-            hql="LOAD DATA INPATH '" + hdfs_dir + channel + "/" + file_name + "' "
-            "INTO TABLE " + channel + " "
-            "PARTITION(dt='" + dt + "')",
+            task_id=f"load_{channel}_to_hive",
+            hql=(
+                f"LOAD DATA INPATH '{hdfs_dir}{channel}/{file_name}'"
+                f"INTO TABLE {channel}"
+                f"PARTITION(dt='{dt}')"
+            ),
         )
 
         analyze_tweets >> load_to_hdfs >> load_to_hive >> hive_to_mysql
 
     for channel in from_channels:
-        file_name = "from_" + channel + "_" + dt + ".csv"
+        file_name = f"from_{channel}_{dt}.csv"
         load_to_hdfs = BashOperator(
-            task_id="put_" + channel + "_to_hdfs",
-            bash_command="HADOOP_USER_NAME=hdfs hadoop fs -put -f "
-            + local_dir
-            + file_name
-            + hdfs_dir
-            + channel
-            + "/",
+            task_id=f"put_{channel}_to_hdfs",
+            bash_command=(
+                f"HADOOP_USER_NAME=hdfs hadoop fs -put -f {local_dir}{file_name}{hdfs_dir}{channel}/"
+            ),
         )
 
         load_to_hive = HiveOperator(
-            task_id="load_" + channel + "_to_hive",
-            hql="LOAD DATA INPATH '" + hdfs_dir + channel + "/" + file_name + "' "
-            "INTO TABLE " + channel + " "
-            "PARTITION(dt='" + dt + "')",
+            task_id=f"load_{channel}_to_hive",
+            hql=(
+                f"LOAD DATA INPATH '{hdfs_dir}{channel}/{file_name}' "
+                f"INTO TABLE {channel} "
+                f"PARTITION(dt='{dt}')"
+            ),
         )
 
         analyze_tweets >> load_to_hdfs >> load_to_hive >> hive_to_mysql
