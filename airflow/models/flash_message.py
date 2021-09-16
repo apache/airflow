@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from typing import List, Optional
+from typing import List, Optional, Union
 
 from flask import Markup, flash
 
@@ -25,8 +25,8 @@ class FlashMessage:
     """
     Helper for Flask flash messages
 
-    :param message: The message to flash
-    :type message: str
+    :param message: The message to flash, either a string or Markup
+    :type message: Union[str,Markup]
     :param category: The category of the message, one of "info", "warning", "error", or any custom category.
         Defaults to "info".
     :type category: str
@@ -57,11 +57,15 @@ class FlashMessage:
         )
         fm.flash()
 
+        # or safely escape part of the message
+        # (more details: https://markupsafe.palletsprojects.com/en/2.0.x/formatting/)
+        fm = FlashMessage(Markup("Welcome <em>%s</em>") % ("John Doe",))
+        fm.flash()
     """
 
     def __init__(
         self,
-        message: str,
+        message: Union[str, Markup],
         category: str = "info",
         roles: Optional[List[str]] = None,
         html: bool = False,

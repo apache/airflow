@@ -190,20 +190,20 @@ def test_home_robots_header_in_response(user_client):
 
 
 @pytest.mark.parametrize(
-    'client, flash_message, expected',
+    "client, flash_message, expected",
     [
-        ('user_client', FlashMessage("hello world"), True),
-        ('user_client', FlashMessage("hello world", roles=["User"]), True),
-        ('user_client', FlashMessage("hello world", roles=["User", "Admin"]), True),
-        ('user_client', FlashMessage("hello world", roles=["Admin"]), False),
-        ('admin_client', FlashMessage("hello world"), True),
-        ('admin_client', FlashMessage("hello world", roles=["Admin"]), True),
-        ('admin_client', FlashMessage("hello world", roles=["User", "Admin"]), True),
+        ("user_client", FlashMessage("hello world"), True),
+        ("user_client", FlashMessage("hello world", roles=["User"]), True),
+        ("user_client", FlashMessage("hello world", roles=["User", "Admin"]), True),
+        ("user_client", FlashMessage("hello world", roles=["Admin"]), False),
+        ("admin_client", FlashMessage("hello world"), True),
+        ("admin_client", FlashMessage("hello world", roles=["Admin"]), True),
+        ("admin_client", FlashMessage("hello world", roles=["User", "Admin"]), True),
     ],
 )
 def test_dashboard_flash_messages_role_filtering(request, client, flash_message, expected):
     with mock.patch("airflow.settings.DASHBOARD_FLASH_MESSAGES", [flash_message]):
-        resp = request.getfixturevalue(client).get('home', follow_redirects=True)
+        resp = request.getfixturevalue(client).get("home", follow_redirects=True)
     if expected:
         check_content_in_response(flash_message.message, resp)
     else:
@@ -217,7 +217,7 @@ def test_dashboard_flash_messages_many(user_client):
         FlashMessage("_hello_world_"),
     ]
     with mock.patch("airflow.settings.DASHBOARD_FLASH_MESSAGES", messages):
-        resp = user_client.get('home', follow_redirects=True)
+        resp = user_client.get("home", follow_redirects=True)
     check_content_in_response("hello world", resp)
     check_content_not_in_response("im_not_here", resp)
     check_content_in_response("_hello_world_", resp)
@@ -225,12 +225,15 @@ def test_dashboard_flash_messages_many(user_client):
 
 def test_dashboard_flash_messages_markup(user_client):
     link = '<a href="http://example.com">hello world</a>'
+    user_input = flask.Markup("Hello <em>%s</em>") % ("foo&bar",)
     messages = [
         FlashMessage(link, html=True),
+        FlashMessage(user_input),
     ]
     with mock.patch("airflow.settings.DASHBOARD_FLASH_MESSAGES", messages):
-        resp = user_client.get('home', follow_redirects=True)
+        resp = user_client.get("home", follow_redirects=True)
     check_content_in_response(link, resp)
+    check_content_in_response(user_input, resp)
 
 
 def test_dashboard_flash_messages_type(user_client):
@@ -238,6 +241,6 @@ def test_dashboard_flash_messages_type(user_client):
         FlashMessage("hello world", category="foo"),
     ]
     with mock.patch("airflow.settings.DASHBOARD_FLASH_MESSAGES", messages):
-        resp = user_client.get('home', follow_redirects=True)
+        resp = user_client.get("home", follow_redirects=True)
     check_content_in_response("hello world", resp)
     check_content_in_response("alert-foo", resp)
