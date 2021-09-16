@@ -22,7 +22,7 @@ import logging
 import os
 import sys
 import warnings
-from typing import List, Optional, Tuple, Union
+from typing import Optional
 
 import pendulum
 import sqlalchemy
@@ -551,10 +551,16 @@ MASK_SECRETS_IN_LOGS = False
 
 # Display flash messages on the dashboard
 # Useful for warning about setup issues or announcing changes to end users
-# You can choose what role(s) the message will be shown to as well, or pass None to show to all users
-# (message, category, [role(s)]), for example:
-# ("Airflow update happening next week", "warning", ["User"])
-# You can also pass the message as flask.Markup to include HTML in the message:
-# (Markup('Visit <a href="http://airflow.apache.org">airflow.apache.org</a>'), "info", None)
-FlashMessage = Tuple[Union[str, Markup], str, Optional[List[str]]]
-DASHBOARD_FLASH_MESSAGES: List[FlashMessage] = []
+# List of FlashMessage's, which allows for specifiying the message, category, and roles the
+# message should be shown to. For example:
+#   from airflow.models.flash_message = FlashMessage
+#
+#   DASHBOARD_FLASH_MESSAGES = [
+#       FlashMessage("Welcome to Airflow"),  # All users
+#       FlashMessage("Airflow update happening next week", roles=["User"]),  # Only users with the User role
+#       # A flash message with html:
+#       FlashMessage('Visit <a href="http://airflow.apache.org">airflow.apache.org</a>', html=True),
+#   ]
+#
+# DASHBOARD_FLASH_MESSAGES: List["FlashMessage"]
+DASHBOARD_FLASH_MESSAGES = []

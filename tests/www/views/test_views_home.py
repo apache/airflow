@@ -22,6 +22,7 @@ import flask
 import pytest
 
 from airflow.dag_processing.processor import DagFileProcessor
+from airflow.models.flash_message import FlashMessage
 from airflow.security import permissions
 from airflow.utils.session import create_session
 from airflow.utils.state import State
@@ -191,29 +192,29 @@ def test_home_robots_header_in_response(user_client):
 @pytest.mark.parametrize(
     'client, flash_message, expected',
     [
-        ('user_client', ("hello world", "warning", None), True),
-        ('user_client', ("hello world", "warning", ["User"]), True),
-        ('user_client', ("hello world", "warning", ["User", "Admin"]), True),
-        ('user_client', ("hello world", "warning", ["Admin"]), False),
-        ('admin_client', ("hello world", "warning", None), True),
-        ('admin_client', ("hello world", "warning", ["Admin"]), True),
-        ('admin_client', ("hello world", "warning", ["User", "Admin"]), True),
+        ('user_client', FlashMessage("hello world"), True),
+        ('user_client', FlashMessage("hello world", roles=["User"]), True),
+        ('user_client', FlashMessage("hello world", roles=["User", "Admin"]), True),
+        ('user_client', FlashMessage("hello world", roles=["Admin"]), False),
+        ('admin_client', FlashMessage("hello world"), True),
+        ('admin_client', FlashMessage("hello world", roles=["Admin"]), True),
+        ('admin_client', FlashMessage("hello world", roles=["User", "Admin"]), True),
     ],
 )
 def test_dashboard_flash_messages_role_filtering(request, client, flash_message, expected):
     with mock.patch("airflow.settings.DASHBOARD_FLASH_MESSAGES", [flash_message]):
         resp = request.getfixturevalue(client).get('home', follow_redirects=True)
     if expected:
-        check_content_in_response(flash_message[0], resp)
+        check_content_in_response(flash_message.message, resp)
     else:
-        check_content_not_in_response(flash_message[0], resp)
+        check_content_not_in_response(flash_message.message, resp)
 
 
 def test_dashboard_flash_messages_many(user_client):
     messages = [
-        ("hello world", "warning", None),
-        ("im_not_here", "warning", ["Admin"]),
-        ("_hello_world_", "warning", None),
+        FlashMessage("hello world"),
+        FlashMessage("im_not_here", roles=["Admin"]),
+        FlashMessage("_hello_world_"),
     ]
     with mock.patch("airflow.settings.DASHBOARD_FLASH_MESSAGES", messages):
         resp = user_client.get('home', follow_redirects=True)
@@ -225,7 +226,7 @@ def test_dashboard_flash_messages_many(user_client):
 def test_dashboard_flash_messages_markup(user_client):
     link = '<a href="http://example.com">hello world</a>'
     messages = [
-        (flask.Markup(link), "warning", None),
+        FlashMessage(link, html=True),
     ]
     with mock.patch("airflow.settings.DASHBOARD_FLASH_MESSAGES", messages):
         resp = user_client.get('home', follow_redirects=True)
@@ -234,7 +235,7 @@ def test_dashboard_flash_messages_markup(user_client):
 
 def test_dashboard_flash_messages_type(user_client):
     messages = [
-        ("hello world", "foo", None),
+        FlashMessage("hello world", category="foo"),
     ]
     with mock.patch("airflow.settings.DASHBOARD_FLASH_MESSAGES", messages):
         resp = user_client.get('home', follow_redirects=True)
