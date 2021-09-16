@@ -16,29 +16,19 @@
 # specific language governing permissions and limitations
 # under the License.
 
-# pylint: disable=missing-function-docstring
 
 # [START tutorial]
 # [START import_module]
-import json
+from datetime import datetime
 
 from airflow.decorators import dag, task
-from airflow.utils.dates import days_ago
 
 # [END import_module]
 
-# [START default_args]
-# These args will get passed on to each operator
-# You can override them on a per-task basis during operator initialization
-default_args = {
-    'owner': 'airflow',
-}
-# [END default_args]
-
 
 # [START instantiate_dag]
-@dag(default_args=default_args, schedule_interval=None, start_date=days_ago(2), tags=['example'])
-def tutorial_taskflow_api_etl():
+@dag(schedule_interval=None, start_date=datetime(2021, 1, 1), catchup=False, tags=['example'])
+def tutorial_taskflow_api_etl_virtualenv():
     """
     ### TaskFlow API Tutorial Documentation
     This is a simple ETL data pipeline example which demonstrates the use of
@@ -62,6 +52,8 @@ def tutorial_taskflow_api_etl():
         pipeline. In this case, getting data is simulated by reading from a
         hardcoded JSON string.
         """
+        import json
+
         data_string = '{"1001": 301.27, "1002": 433.21, "1003": 502.22}'
 
         order_data_dict = json.loads(data_string)
@@ -70,11 +62,7 @@ def tutorial_taskflow_api_etl():
     # [END extract_virtualenv]
 
     # [START transform_docker]
-    @task.docker(
-        image="python:3.8.8-slim-buster",
-        force_pull=True,
-        multiple_outputs=True,
-    )
+    @task.docker(image='python:3.9-slim-buster', multiple_outputs=True)
     def transform(order_data_dict: dict):
         """
         #### Transform task
@@ -111,7 +99,7 @@ def tutorial_taskflow_api_etl():
 
 
 # [START dag_invocation]
-tutorial_etl_dag = tutorial_taskflow_api_etl()
+tutorial_etl_dag = tutorial_taskflow_api_etl_virtualenv()
 # [END dag_invocation]
 
 # [END tutorial]

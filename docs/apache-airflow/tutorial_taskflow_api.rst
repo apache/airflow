@@ -160,32 +160,12 @@ the dependencies as shown below.
     :start-after: [START main_flow]
     :end-before: [END main_flow]
 
-Using the TaskFlow API with Virtual Environments
-----------------------------------------------------------
-
-As of Airflow 2.0.3, you will have the ability to use the TaskFlow API with a
-virtual environment. This added functionality will allow a much more
-comprehensive range of use-cases for the TaskFlow API, as you will not be limited to the
-packages and system libraries of the Airflow worker.
-
-To run your Airflow task in a virtual environment, switch your ``@task`` decorator to a ``@task.virtualenv``
-decorator. The ``@task.virtualenv`` decorator will allow you to create a new virtualenv with custom libraries
-and even a different python version to run your function.
-
-.. exampleinclude:: /../../airflow/example_dags/tutorial_taskflow_api_etl_virtualenv.py
-    :language: python
-    :dedent: 4
-    :start-after: [START extract_virtualenv]
-    :end-before: [END extract_virtualenv]
-
-This option should allow for far greater flexibility for users who wish to keep their workflows more simple
-and pythonic.
-
 Using the Taskflow API with Docker or Virtual Environments
 ----------------------------------------------------------
 
-As of Airflow 2.2, you will have the ability to use the Taskflow API with either a
-Docker container or Python virtual environment. This added functionality will allow a much more
+If you have tasks that require complex or conflicting requirements then you will have the ability to use the
+Taskflow API with either a Docker container (since version 2.2.0) or Python virtual environment (since 2.0.2).
+This added functionality will allow a much more
 comprehensive range of use-cases for the Taskflow API, as you will not be limited to the
 packages and system libraries of the Airflow worker.
 

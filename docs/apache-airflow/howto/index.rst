@@ -31,12 +31,12 @@ configuring an Airflow environment.
 
     add-dag-tags
     set-config
-    create-custom-decorator
     set-up-database
     operator/index
     customize-state-colors-ui
     customize-dag-ui-page-instance-name
     custom-operator
+    create-custom-decorator
     connection
     variable
     run-behind-proxy

@@ -15,44 +15,36 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from airflow.compat.functools import cached_property
+from typing import TYPE_CHECKING
+
 from airflow.decorators.python import PythonDecoratorMixin, python_task  # noqa
 from airflow.decorators.python_virtualenv import PythonVirtualenvDecoratorMixin
 from airflow.decorators.task_group import task_group  # noqa
 from airflow.models.dag import dag  # noqa
 from airflow.providers_manager import ProvidersManager
 
-# [START import_docker]
-try:
-    from airflow.providers.docker.decorators.docker import DockerDecoratorMixin
-except ImportError:
-    DockerDecoratorMixin = None
-# [END import_docker]
-
 
 class _TaskDecorator(PythonDecoratorMixin, PythonVirtualenvDecoratorMixin):
-    @cached_property
-    def __store(self):
-        store = {}
-        decorator = ProvidersManager().taskflow_decorators
-        for decorator_name, decorator_class in decorator.items():
-            store[decorator_name] = decorator_class
-        return store
-
     def __getattr__(self, name):
-        if self.__store.get(name, None):
-            return self.__store[name]
-        raise AttributeError(f"task decorator {name!r} not found")
+        if name.startswith("__"):
+            raise AttributeError(f'{type(self).__name__} has not attriubte {name!r}')
+        decorators = ProvidersManager().taskflow_decorators
+        if name not in decorators:
+            raise AttributeError(f"task decorator {name!r} not found")
+        return decorators[name]
 
 
-_target = _TaskDecorator
+# [START mixin_for_autocomplete]
+if TYPE_CHECKING:
+    try:
+        from airflow.providers.docker.decorators.docker import DockerDecoratorMixin
 
-# [START extend_docker]
-if DockerDecoratorMixin:
+        class _DockerTask(_TaskDecorator, DockerDecoratorMixin):
+            pass
 
-    class _DockerTask(_target, DockerDecoratorMixin):
+        _TaskDecorator = _DockerTask
+    except ImportError:
         pass
+# [END mixin_for_autocomplete]
 
-    _target = _DockerTask
-task = _target()
-# [END extend_docker]
+task = _TaskDecorator()
