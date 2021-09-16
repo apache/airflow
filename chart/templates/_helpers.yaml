@@ -146,7 +146,7 @@ If release name contains chart name it will be used as a full name.
   securityContext:
     runAsUser: {{ .Values.dags.gitSync.uid }}
   env:
-    {{- if or .Values.dags.gitSync.sshKeySecret .Values.dags.gitSync.sshKeyCustomFile}}
+    {{- if or .Values.dags.gitSync.sshKeySecret .Values.dags.gitSync.sshKeyCustomFile }}
     - name: GIT_SSH_KEY_FILE
       {{- if .Values.dags.gitSync.sshKeyCustomFile}}
       value: {{ .Values.dags.gitSync.sshKeyCustomFile | quote }}
