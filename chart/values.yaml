@@ -181,7 +181,7 @@ airflowLocalSettings: |-
     FlashMessage(
       'Usage of a dynamic webserver secret key detected. We recommend a static webserver secret key instead.'
       ' See the <a href='
-      'https://airflow.apache.org/docs/helm-chart/stable/production-guide.html#webserver-secret-key">'
+      '"https://airflow.apache.org/docs/helm-chart/stable/production-guide.html#webserver-secret-key">'
       'Helm Chart Production Guide</a> for more details.',
       category="warning",
       roles=["Admin"],
