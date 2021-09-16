@@ -121,6 +121,7 @@ Console, but if we wanted to change that link we could:
 
     from airflow.plugins_manager import AirflowPlugin
     from airflow.models.baseoperator import BaseOperatorLink
+    from airflow.models.xcom import XCom
     from airflow.providers.google.cloud.operators.bigquery import BigQueryOperator
 
     # Change from https to http just to display the override
@@ -136,8 +137,11 @@ Console, but if we wanted to change that link we could:
         operators = [BigQueryOperator]
 
         def get_link(self, operator, dttm):
-            ti = TaskInstance(task=operator, execution_date=dttm)
-            job_id = ti.xcom_pull(task_ids=operator.task_id, key="job_id")
+            job_id = XCom.get_one(
+                execution_date=dttm,
+                task_id=operator.task_id,
+                key="job_id",
+            )
             return BIGQUERY_JOB_DETAILS_LINK_FMT.format(job_id=job_id) if job_id else ""
 
 
