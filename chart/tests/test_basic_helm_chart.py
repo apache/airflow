@@ -99,7 +99,13 @@ class TestBaseChartTest(unittest.TestCase):
             ), f"Missing label TEST-LABEL on {k8s_name}. Current labels: {labels}"
 
     def test_basic_deployment_without_default_users(self):
-        k8s_objects = render_chart("TEST-BASIC", {"webserver": {'defaultUser': {'enabled': False}}})
+        k8s_objects = render_chart(
+            "TEST-BASIC",
+            values={
+                "webserver": {"defaultUser": {'enabled': False}},
+                "airflowVersion": "2.2.0",
+            },
+        )
         list_of_kind_names_tuples = [
             (k8s_object['kind'], k8s_object['metadata']['name']) for k8s_object in k8s_objects
         ]
