@@ -49,10 +49,8 @@ def send_email(
     """Send email using backend specified in EMAIL_BACKEND."""
     backend = conf.getimport('email', 'EMAIL_BACKEND')
     backend_conn_id = conn_id or conf.get("email", "EMAIL_CONN_ID")
-    from_email = (
-        conf.get('email', 'email_from_email') if conf.has_option('email', 'email_from_email') else None
-    )
-    from_name = conf.get('email', 'email_from_name') if conf.has_option('email', 'email_from_name') else None
+    from_email = conf.get('email', 'email_from_email', fallback=None)
+    from_name = conf.get('email', 'email_from_name', fallback=None)
 
     to_list = get_email_address_list(to)
     to_comma_separated = ", ".join(to_list)
