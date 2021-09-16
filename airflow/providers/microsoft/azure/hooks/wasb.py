@@ -326,7 +326,8 @@ class WasbHook(BaseHook):
             but should be supplied for optimal performance.
         :type length: int
         """
-        blob_client = self._get_blob_client(container_name, blob_name)
+        container_client = self.create_container(container_name)
+        blob_client = container_client.get_blob_client(blob_name)
         return blob_client.upload_blob(data, blob_type, length=length, **kwargs)
 
     def download(
