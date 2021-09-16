@@ -270,7 +270,8 @@ class TestDagRunOperator(TestCase):
         with create_session() as session:
             dagruns = session.query(DagRun).filter(DagRun.dag_id == self.dag.dag_id).all()
             assert len(dagruns) == 2
-            assert isinstance(dagruns[1].start_date, datetime)
+            dagruns[1].set_state()
+            # assert isinstance(dagruns[1].start_date, datetime)
 
     def test_trigger_dagrun_triggering_itself_with_execution_date(self):
         """Test TriggerDagRunOperator that triggers itself with execution date,
