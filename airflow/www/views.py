@@ -849,11 +849,16 @@ class Airflow(AirflowBaseView):
         # Filter to only ask for accessible and selected dags
         query = query.filter(DagRun.dag_id.in_(filter_dag_ids))  # pylint: enable=no-member
 
+        def _datetime_to_string(value: Optional[DateTime]) -> Optional[str]:
+            if value is None:
+                return None
+            return value.isoformat()
+
         resp = {
             r.dag_id.replace('.', '__dot__'): {
                 'dag_id': r.dag_id,
-                'execution_date': r.execution_date.isoformat(),
-                'start_date': r.start_date.isoformat(),
+                'execution_date': _datetime_to_string(r.execution_date),
+                'start_date': _datetime_to_string(r.start_date),
             }
             for r in query
         }
