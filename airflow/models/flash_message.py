@@ -39,12 +39,14 @@ class FlashMessage:
     For example, so show a message to all users:
 
     .. code-block:: python
+
         fm = FlashMessage("Welcome to Airflow")
         fm.flash()
 
     Or only users to with the User role:
 
     .. code-block:: python
+
         fm = FlashMessage("Airflow update happening next week", roles=["User"])
         if fm.should_show(securitymanager):
             fm.flash()
@@ -52,14 +54,15 @@ class FlashMessage:
     You can also pass html in the message:
 
     .. code-block:: python
+
         fm = FlashMessage(
-            'Visit <a href="http://airflow.apache.org">airflow.apache.org</a>', html=True
+            'Visit <a href="https://airflow.apache.org">airflow.apache.org</a>', html=True
         )
         fm.flash()
 
         # or safely escape part of the message
         # (more details: https://markupsafe.palletsprojects.com/en/2.0.x/formatting/)
-        fm = FlashMessage(Markup("Welcome <em>%s</em>") % ("John Doe",))
+        fm = FlashMessage(Markup("Welcome <em>%s</em>") % ("John & Jane Doe",))
         fm.flash()
     """
 
