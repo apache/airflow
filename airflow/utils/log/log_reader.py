@@ -26,11 +26,11 @@ from airflow.sensors.external_task import ExternalTaskMarker
 from airflow.utils.helpers import render_log_filename
 from airflow.utils.log.logging_mixin import ExternalLoggingMixin
 
-DUMMY_TASK_LOG_MESSAGE = f"Tasks of type {DummyOperator.__class__.__name__} do not have task logs.\n"
 OPERATORS_WITHOUT_LOGS = {
     DummyOperator.__class__.__name__,
     ExternalTaskMarker.__class__.__name__,
 }
+DUMMY_TASK_LOG_MESSAGE = f"Tasks of types: {OPERATORS_WITHOUT_LOGS} do not have task logs.\n"
 
 
 def has_logs(ti: TaskInstance) -> bool:
