@@ -27,7 +27,7 @@ import pytest
 from airflow import settings
 from airflow.config_templates.airflow_local_settings import DEFAULT_LOGGING_CONFIG
 from airflow.utils import timezone
-from airflow.utils.log.log_reader import TaskLogReader, DUMMY_TASK_LOG_MESSAGE
+from airflow.utils.log.log_reader import DUMMY_TASK_LOG_MESSAGE, TaskLogReader
 from airflow.utils.log.logging_mixin import ExternalLoggingMixin
 from airflow.utils.state import TaskInstanceState
 from airflow.utils.types import DagRunType
@@ -256,7 +256,7 @@ class TestLogView:
         assert [
             (
                 '',
-		DUMMY_TASK_LOG_MESSAGE,
+                DUMMY_TASK_LOG_MESSAGE,
             )
         ] == logs[0]
         assert {"end_of_log": True} == metadatas

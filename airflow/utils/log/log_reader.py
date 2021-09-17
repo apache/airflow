@@ -21,11 +21,12 @@ from typing import Dict, Iterator, List, Optional, Tuple
 from airflow.compat.functools import cached_property
 from airflow.configuration import conf
 from airflow.models import TaskInstance
+from airflow.operators.dummy import DummyOperator
 from airflow.utils.helpers import render_log_filename
 from airflow.utils.log.logging_mixin import ExternalLoggingMixin
-from airflow.operators.dummy import DummyOperator
 
 DUMMY_TASK_LOG_MESSAGE = f"tasks of type {DummyOperator.__class__.__name__} do not have task logs \n"
+
 
 class TaskLogReader:
     """Task log reader"""
