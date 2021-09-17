@@ -309,17 +309,17 @@ class AirflowConfigParser(ConfigParser):
     def _get_env_var_option(self, section, key):
         # must have format AIRFLOW__{SECTION}__{KEY} (note double underscore)
         env_var = self._env_var_name(section, key)
-        if env_var in os.environ:
+        if os.environ.get(env_var):
             return expand_env_var(os.environ[env_var])
         # alternatively AIRFLOW__{SECTION}__{KEY}_CMD (for a command)
         env_var_cmd = env_var + '_CMD'
-        if env_var_cmd in os.environ:
+        if os.environ.get(env_var_cmd):
             # if this is a valid command key...
             if (section, key) in self.sensitive_config_values:
                 return run_command(os.environ[env_var_cmd])
         # alternatively AIRFLOW__{SECTION}__{KEY}_SECRET (to get from Secrets Backend)
         env_var_secret_path = env_var + '_SECRET'
-        if env_var_secret_path in os.environ:
+        if os.environ.get(env_var_secret_path):
             # if this is a valid secret path...
             if (section, key) in self.sensitive_config_values:
                 return _get_config_value_from_secret_backend(os.environ[env_var_secret_path])
