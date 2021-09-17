@@ -236,6 +236,14 @@ def convert_keys(original: Dict) -> Dict:
             nodegroup_name="nodegroupName",
             nodegroup_role_arn="nodeRole",
         )
+    elif "fargate_profile_name" in original.keys():
+        conversion_map = dict(
+            cluster_name="clusterName",
+            pod_execution_role_arn="podExecutionRoleArn",
+            selectors="selectors",
+            fargate_profile_name="fargateProfileName",
+            subnets="subnets",
+        )
     else:
         conversion_map = dict(
             cluster_name="name",
