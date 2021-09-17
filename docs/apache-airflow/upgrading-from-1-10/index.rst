@@ -16,19 +16,25 @@
    under the License.
 
 
-Upgrading to Airflow 2.0+
--------------------------
+Upgrading from 1.10 to 2
+------------------------
+
+.. toctree::
+    :hidden:
+
+    upgrade-check
 
 .. contents:: :local:
 
-Apache Airflow 2.0 is a major release and the purpose of this document is to assist
-users to migrate from Airflow 1.10.x to Airflow 2.0.
+Apache Airflow 2 is a major release and the purpose of this document is to assist
+users to migrate from Airflow 1.10.x to Airflow 2
 
-Step 1: Upgrade to Python 3
-'''''''''''''''''''''''''''
+Step 1: Switch to Python 3
+''''''''''''''''''''''''''
 
-Airflow 1.10 will be the last release series to support Python 2. Airflow 2.0.0
-requires Python 3.6+ and has been tested with Python versions 3.6, 3.7 and 3.8, but does not yet support Python 3.9.
+Airflow 1.10 was the last release series to support Python 2. Airflow 2.0.0
+requires Python 3.6+ and has been tested with Python versions 3.6, 3.7 and 3.8.
+Python 3.9 support was added from Airflow 2.1.2.
 
 If you have a specific task that still requires Python 2 then you can use the :class:`~airflow.operators.python.PythonVirtualenvOperator` or the ``KubernetesPodOperator`` for this.
 
@@ -37,17 +43,17 @@ For a list of breaking changes between Python 2 and Python 3, please refer to th
 from the CouchBaseDB team.
 
 
-Step 2: Upgrade to Airflow 1.10.15 (a.k.a our "bridge" release)
-'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+Step 2: Upgrade to 1.10.15
+''''''''''''''''''''''''''
 
-To minimize friction for users upgrading from Airflow 1.10 to Airflow 2.0 and beyond, Airflow 1.10.15 "a bridge release" has
-been created. This is intended to be the final 1.10 feature release. Airflow 1.10.15 includes support for various features
+To minimize friction for users upgrading from Airflow 1.10 to Airflow 2.0 and beyond, Airflow 1.10.15 a.k.a "bridge release" has
+been created. This is the final 1.10 feature release. Airflow 1.10.15 includes support for various features
 that have been backported from Airflow 2.0 to make it easy for users to test their Airflow
 environment before upgrading to Airflow 2.0.
 
 We strongly recommend that all users upgrading to Airflow 2.0, first
 upgrade to Airflow 1.10.15 and test their Airflow deployment and only then upgrade to Airflow 2.0.
-The Airflow 1.10.x release tree will be supported for six months from Airflow 2.0 release date.
+Airflow 1.10.x reached end of life on 17 June 2021. No new Airflow 1.x versions will be released.
 
 Features in 1.10.15 include:
 
@@ -70,8 +76,8 @@ simply run the following command:
 Once you have performed this step, simply write out the file path to this file in the ``pod_template_file`` config of the ``kubernetes``
 section of your ``airflow.cfg``
 
-Step 3: Install and run the Upgrade check scripts
-'''''''''''''''''''''''''''''''''''''''''''''''''
+Step 3: Run the Upgrade check scripts
+'''''''''''''''''''''''''''''''''''''
 
 After upgrading to Airflow 1.10.15, we recommend that you install the "upgrade check" scripts. These scripts will read through your ``airflow.cfg`` and all of your DAGs and will give a detailed report of all changes required before upgrading. We are testing this script diligently, and our goal is that any Airflow setup that can pass these tests will be able to upgrade to 2.0 without any issues.
 
@@ -88,8 +94,8 @@ Once this is installed, please run the upgrade check script.
 More details about this process are here :ref:`Upgrade Check Scripts<upgrade-check>`.
 
 
-Step 4: Import Operators from Backport Providers
-''''''''''''''''''''''''''''''''''''''''''''''''
+Step 4: Switch to Backport Providers
+''''''''''''''''''''''''''''''''''''
 
 Now that you are set up in Airflow 1.10.15 with Python a 3.6+ environment, you are ready to start porting your DAGs to Airflow 2.0 compliance!
 
@@ -146,14 +152,14 @@ The behavior can be reverted when instantiating a DAG.
 
     import jinja2
 
-    dag = DAG('simple_dag', template_undefined=jinja2.Undefined)
+    dag = DAG("simple_dag", template_undefined=jinja2.Undefined)
 
 Alternatively, it is also possible to override each Jinja Template variable on an individual basis
 by using the ``| default`` Jinja filter as shown below.
 
 .. code-block:: python
 
-    {{ a | default(1) }}
+    {{a | default(1)}}
 
 
 
@@ -174,23 +180,18 @@ Whereas previously a user would import each individual class to build the pod as
     from airflow.kubernetes.volume_mount import VolumeMount
 
 
-    volume_config = {
-        'persistentVolumeClaim': {
-            'claimName': 'test-volume'
-        }
-    }
-    volume = Volume(name='test-volume', configs=volume_config)
-    volume_mount = VolumeMount('test-volume',
-                               mount_path='/root/mount_file',
-                               sub_path=None,
-                               read_only=True)
+    volume_config = {"persistentVolumeClaim": {"claimName": "test-volume"}}
+    volume = Volume(name="test-volume", configs=volume_config)
+    volume_mount = VolumeMount(
+        "test-volume", mount_path="/root/mount_file", sub_path=None, read_only=True
+    )
 
-    port = Port('http', 80)
-    secret_file = Secret('volume', '/etc/sql_conn', 'airflow-secrets', 'sql_alchemy_conn')
-    secret_env = Secret('env', 'SQL_CONN', 'airflow-secrets', 'sql_alchemy_conn')
+    port = Port("http", 80)
+    secret_file = Secret("volume", "/etc/sql_conn", "airflow-secrets", "sql_alchemy_conn")
+    secret_env = Secret("env", "SQL_CONN", "airflow-secrets", "sql_alchemy_conn")
 
     k = KubernetesPodOperator(
-        namespace='default',
+        namespace="default",
         image="ubuntu:16.04",
         cmds=["bash", "-cx"],
         arguments=["echo", "10"],
@@ -219,23 +220,25 @@ Now the user can use the ``kubernetes.client.models`` class as a single point of
     from airflow.kubernetes.secret import Secret
 
 
-    configmaps = ['test-configmap-1', 'test-configmap-2']
+    configmaps = ["test-configmap-1", "test-configmap-2"]
 
     volume = k8s.V1Volume(
-        name='test-volume',
-        persistent_volume_claim=k8s.V1PersistentVolumeClaimVolumeSource(claim_name='test-volume'),
+        name="test-volume",
+        persistent_volume_claim=k8s.V1PersistentVolumeClaimVolumeSource(
+            claim_name="test-volume"
+        ),
     )
 
-    port = k8s.V1ContainerPort(name='http', container_port=80)
-    secret_file = Secret('volume', '/etc/sql_conn', 'airflow-secrets', 'sql_alchemy_conn')
-    secret_env = Secret('env', 'SQL_CONN', 'airflow-secrets', 'sql_alchemy_conn')
-    secret_all_keys = Secret('env', None, 'airflow-secrets-2')
+    port = k8s.V1ContainerPort(name="http", container_port=80)
+    secret_file = Secret("volume", "/etc/sql_conn", "airflow-secrets", "sql_alchemy_conn")
+    secret_env = Secret("env", "SQL_CONN", "airflow-secrets", "sql_alchemy_conn")
+    secret_all_keys = Secret("env", None, "airflow-secrets-2")
     volume_mount = k8s.V1VolumeMount(
-        name='test-volume', mount_path='/root/mount_file', sub_path=None, read_only=True
+        name="test-volume", mount_path="/root/mount_file", sub_path=None, read_only=True
     )
 
     k = KubernetesPodOperator(
-        namespace='default',
+        namespace="default",
         image="ubuntu:16.04",
         cmds=["bash", "-cx"],
         arguments=["echo", "10"],
@@ -247,7 +250,8 @@ Now the user can use the ``kubernetes.client.models`` class as a single point of
         name="airflow-test-pod",
         task_id="task",
         is_delete_operator_pod=True,
-        hostnetwork=False)
+        hostnetwork=False,
+    )
 
 
 We decided to keep the Secret class as users seem to really like that simplifies the complexity of mounting
@@ -297,7 +301,7 @@ When DAGs are initialized with the ``access_control`` variable set, any usage of
     as it is the only default UI.
 
     If you previously used non-RBAC UI, you have to switch to the new RBAC-UI and create users to be able
-    to access Airflow's webserver. For more details on CLI to create users see :doc:`cli-and-env-variables-ref`
+    to access Airflow's webserver. For more details on CLI to create users see :doc:`/cli-and-env-variables-ref`
 
 Please note that custom auth backends will need re-writing to target new FAB based UI.
 
@@ -338,7 +342,7 @@ the only supported UI.
     to use randomly generated secret keys instead of an insecure default and may break existing
     deployments that rely on the default.
 
-The ``flask-ouathlib`` has been replaced with ``authlib`` because ``flask-outhlib`` has
+The ``flask-oauthlib`` has been replaced with ``authlib`` because ``flask-oauthlib`` has
 been deprecated in favor of ``authlib``.
 The Old and New provider configuration keys that have changed are as follows
 
@@ -445,9 +449,9 @@ While in the deprecated version a user would mount a volume using the following 
                         "mountPath": "/foo/",
                         "name": "example-kubernetes-test-volume",
                     },
-                ]
+                ],
             }
-        }
+        },
     )
 
 In the new model a user can accomplish the same thing using the following code under the ``pod_override`` key:
@@ -459,38 +463,37 @@ In the new model a user can accomplish the same thing using the following code u
     second_task = PythonOperator(
         task_id="four_task",
         python_callable=test_volume_mount,
-        executor_config={"pod_override": k8s.V1Pod(
-            spec=k8s.V1PodSpec(
-                containers=[
-                    k8s.V1Container(
-                        name="base",
-                        volume_mounts=[
-                            k8s.V1VolumeMount(
-                                mount_path="/foo/",
-                                name="example-kubernetes-test-volume"
-                            )
-                        ]
-                    )
-                ],
-                volumes=[
-                    k8s.V1Volume(
-                        name="example-kubernetes-test-volume",
-                        host_path=k8s.V1HostPathVolumeSource(
-                            path="/tmp/"
+        executor_config={
+            "pod_override": k8s.V1Pod(
+                spec=k8s.V1PodSpec(
+                    containers=[
+                        k8s.V1Container(
+                            name="base",
+                            volume_mounts=[
+                                k8s.V1VolumeMount(
+                                    mount_path="/foo/",
+                                    name="example-kubernetes-test-volume",
+                                )
+                            ],
                         )
-                    )
-                ]
+                    ],
+                    volumes=[
+                        k8s.V1Volume(
+                            name="example-kubernetes-test-volume",
+                            host_path=k8s.V1HostPathVolumeSource(path="/tmp/"),
+                        )
+                    ],
+                )
             )
-        )
-        }
+        },
     )
 
 For Airflow 2.0, the traditional ``executor_config`` will continue operation with a deprecation warning,
 but will be removed in a future version.
 
 
-Step 7: Upgrade to Airflow 2.0
-'''''''''''''''''''''''''''''''
+Step 7: Upgrade to Airflow 2
+''''''''''''''''''''''''''''
 
 After running the upgrade checks as described above, installing the backported providers, modifying
 the DAGs to be compatible, and updating the configuration settings, you should be ready to upgrade to Airflow 2.0.
@@ -531,13 +534,6 @@ At this point, just follow the standard Airflow version upgrade process:
 
 * Restart Airflow Scheduler, Webserver, and Workers
 
-
-Frequently Asked Questions on Upgrade
-'''''''''''''''''''''''''''''''''''''
-* Q. Why doesn't the list of connection types show up in the Airflow UI after I upgrade to 2.0?
-  * A. It is because Airflow 2.0 does not ship with the provider packages. The connection type list in the Airflow UI is based on the providers you have installed with Airflow 2.0. Please note that these will only show up once you install the provider and restart Airflow. You can read more about providers at :doc:`apache-airflow-providers:index`.
-
-
 Appendix
 ''''''''
 
@@ -551,9 +547,10 @@ Before:
 .. code-block:: python
 
     from airflow.kubernetes.pod import Port
-    port = Port('http', 80)
+
+    port = Port("http", 80)
     k = KubernetesPodOperator(
-        namespace='default',
+        namespace="default",
         image="ubuntu:16.04",
         cmds=["bash", "-cx"],
         arguments=["echo 10"],
@@ -566,9 +563,10 @@ After:
 .. code-block:: python
 
     from kubernetes.client import models as k8s
-    port = k8s.V1ContainerPort(name='http', container_port=80)
+
+    port = k8s.V1ContainerPort(name="http", container_port=80)
     k = KubernetesPodOperator(
-        namespace='default',
+        namespace="default",
         image="ubuntu:16.04",
         cmds=["bash", "-cx"],
         arguments=["echo 10"],
@@ -583,12 +581,12 @@ Before:
 .. code-block:: python
 
     from airflow.kubernetes.volume_mount import VolumeMount
-    volume_mount = VolumeMount('test-volume',
-                               mount_path='/root/mount_file',
-                               sub_path=None,
-                               read_only=True)
+
+    volume_mount = VolumeMount(
+        "test-volume", mount_path="/root/mount_file", sub_path=None, read_only=True
+    )
     k = KubernetesPodOperator(
-        namespace='default',
+        namespace="default",
         image="ubuntu:16.04",
         cmds=["bash", "-cx"],
         arguments=["echo 10"],
@@ -601,11 +599,12 @@ After:
 .. code-block:: python
 
     from kubernetes.client import models as k8s
+
     volume_mount = k8s.V1VolumeMount(
-        name='test-volume', mount_path='/root/mount_file', sub_path=None, read_only=True
+        name="test-volume", mount_path="/root/mount_file", sub_path=None, read_only=True
     )
     k = KubernetesPodOperator(
-        namespace='default',
+        namespace="default",
         image="ubuntu:16.04",
         cmds=["bash", "-cx"],
         arguments=["echo 10"],
@@ -622,14 +621,10 @@ Before:
 
     from airflow.kubernetes.volume import Volume
 
-    volume_config = {
-        'persistentVolumeClaim': {
-            'claimName': 'test-volume'
-    }
-    }
-    volume = Volume(name='test-volume', configs=volume_config)
+    volume_config = {"persistentVolumeClaim": {"claimName": "test-volume"}}
+    volume = Volume(name="test-volume", configs=volume_config)
     k = KubernetesPodOperator(
-        namespace='default',
+        namespace="default",
         image="ubuntu:16.04",
         cmds=["bash", "-cx"],
         arguments=["echo 10"],
@@ -642,12 +637,15 @@ After:
 .. code-block:: python
 
     from kubernetes.client import models as k8s
+
     volume = k8s.V1Volume(
-        name='test-volume',
-        persistent_volume_claim=k8s.V1PersistentVolumeClaimVolumeSource(claim_name='test-volume'),
+        name="test-volume",
+        persistent_volume_claim=k8s.V1PersistentVolumeClaimVolumeSource(
+            claim_name="test-volume"
+        ),
     )
     k = KubernetesPodOperator(
-        namespace='default',
+        namespace="default",
         image="ubuntu:16.04",
         cmds=["bash", "-cx"],
         arguments=["echo 10"],
@@ -662,7 +660,7 @@ Before:
 .. code-block:: python
 
     k = KubernetesPodOperator(
-        namespace='default',
+        namespace="default",
         image="ubuntu:16.04",
         cmds=["bash", "-cx"],
         arguments=["echo 10"],
@@ -677,17 +675,12 @@ After:
     from kubernetes.client import models as k8s
 
     env_vars = [
-        k8s.V1EnvVar(
-            name="ENV1",
-            value="val1"
-        ),
-        k8s.V1EnvVar(
-            name="ENV2",
-            value="val2"
-        )]
+        k8s.V1EnvVar(name="ENV1", value="val1"),
+        k8s.V1EnvVar(name="ENV2", value="val2"),
+    ]
 
     k = KubernetesPodOperator(
-        namespace='default',
+        namespace="default",
         image="ubuntu:16.04",
         cmds=["bash", "-cx"],
         arguments=["echo 10"],
@@ -707,7 +700,7 @@ Before:
     from airflow.kubernetes.pod_runtime_info_env import PodRuntimeInfoEnv
 
     k = KubernetesPodOperator(
-        namespace='default',
+        namespace="default",
         image="ubuntu:16.04",
         cmds=["bash", "-cx"],
         arguments=["echo 10"],
@@ -725,15 +718,13 @@ After:
         k8s.V1EnvVar(
             name="ENV3",
             value_from=k8s.V1EnvVarSource(
-                field_ref=k8s.V1ObjectFieldSelector(
-                    field_path="status.podIP"
-                )
-            )
+                field_ref=k8s.V1ObjectFieldSelector(field_path="status.podIP")
+            ),
         )
     ]
 
     k = KubernetesPodOperator(
-        namespace='default',
+        namespace="default",
         image="ubuntu:16.04",
         cmds=["bash", "-cx"],
         arguments=["echo 10"],
@@ -750,12 +741,12 @@ Before:
 .. code-block:: python
 
     k = KubernetesPodOperator(
-        namespace='default',
+        namespace="default",
         image="ubuntu:16.04",
         cmds=["bash", "-cx"],
         arguments=["echo 10"],
-        configmaps=['test-configmap'],
-        task_id="task"
+        configmaps=["test-configmap"],
+        task_id="task",
     )
 
 
@@ -765,20 +756,18 @@ After:
 
     from kubernetes.client import models as k8s
 
-    configmap ="test-configmap"
-    env_from = [k8s.V1EnvFromSource(
-                    config_map_ref=k8s.V1ConfigMapEnvSource(
-                        name=configmap
-                    )
-                )]
+    configmap = "test-configmap"
+    env_from = [
+        k8s.V1EnvFromSource(config_map_ref=k8s.V1ConfigMapEnvSource(name=configmap))
+    ]
 
     k = KubernetesPodOperator(
-        namespace='default',
+        namespace="default",
         image="ubuntu:16.04",
         cmds=["bash", "-cx"],
         arguments=["echo 10"],
         env_from=env_from,
-        task_id="task"
+        task_id="task",
     )
 
 
@@ -789,15 +778,15 @@ Before:
 .. code-block:: python
 
     resources = {
-        'limit_cpu': 0.25,
-        'limit_memory': '64Mi',
-        'limit_ephemeral_storage': '2Gi',
-        'request_cpu': '250m',
-        'request_memory': '64Mi',
-        'request_ephemeral_storage': '1Gi',
+        "limit_cpu": 0.25,
+        "limit_memory": "64Mi",
+        "limit_ephemeral_storage": "2Gi",
+        "request_cpu": "250m",
+        "request_memory": "64Mi",
+        "request_ephemeral_storage": "1Gi",
     }
     k = KubernetesPodOperator(
-        namespace='default',
+        namespace="default",
         image="ubuntu:16.04",
         cmds=["bash", "-cx"],
         arguments=["echo 10"],
@@ -815,21 +804,17 @@ After:
 
     from kubernetes.client import models as k8s
 
-    resources=k8s.V1ResourceRequirements(
-        requests={
-            'memory': '64Mi',
-            'cpu': '250m',
-            'ephemeral-storage': '1Gi'
-        },
+    resources = k8s.V1ResourceRequirements(
+        requests={"memory": "64Mi", "cpu": "250m", "ephemeral-storage": "1Gi"},
         limits={
-            'memory': '64Mi',
-            'cpu': 0.25,
-            'nvidia.com/gpu': None,
-            'ephemeral-storage': '2Gi'
-        }
+            "memory": "64Mi",
+            "cpu": 0.25,
+            "nvidia.com/gpu": None,
+            "ephemeral-storage": "2Gi",
+        },
     )
     k = KubernetesPodOperator(
-        namespace='default',
+        namespace="default",
         image="ubuntu:16.04",
         cmds=["bash", "-cx"],
         arguments=["echo 10"],
@@ -849,14 +834,14 @@ Before:
 .. code-block:: python
 
     k = KubernetesPodOperator(
-        namespace='default',
+        namespace="default",
         image="ubuntu:16.04",
         cmds=["bash", "-cx"],
         arguments=["echo 10"],
         name="test",
         task_id="task",
         image_pull_secrets="fake-secret",
-        cluster_context='default'
+        cluster_context="default",
     )
 
 After:
@@ -864,9 +849,9 @@ After:
 .. code-block:: python
 
     quay_k8s = KubernetesPodOperator(
-        namespace='default',
-        image='quay.io/apache/bash',
-        image_pull_secrets=[k8s.V1LocalObjectReference('testquay')],
+        namespace="default",
+        image="quay.io/apache/bash",
+        image_pull_secrets=[k8s.V1LocalObjectReference("testquay")],
         cmds=["bash", "-cx"],
         name="airflow-private-image-pod",
         task_id="task-two",
@@ -1136,18 +1121,18 @@ non-RBAC UI (``flask-admin`` based UI), update it to use ``flask_appbuilder_view
 
 
     class TestView(BaseView):
-        @expose('/')
+        @expose("/")
         def test(self):
             # in this example, put your test_plugin/test.html template at airflow/plugins/templates/test_plugin/test.html
             return self.render("test_plugin/test.html", content="Hello galaxy!")
 
+
     v = TestView(category="Test Plugin", name="Test View")
 
     ml = MenuLink(
-        category='Test Plugin',
-        name='Test Menu Link',
-        url='https://airflow.apache.org/'
+        category="Test Plugin", name="Test Menu Link", url="https://airflow.apache.org/"
     )
+
 
     class AirflowTestPlugin(AirflowPlugin):
         admin_views = [v]
@@ -1161,6 +1146,7 @@ non-RBAC UI (``flask-admin`` based UI), update it to use ``flask_appbuilder_view
     from airflow.plugins_manager import AirflowPlugin
     from flask_appbuilder import expose, BaseView as AppBuilderBaseView
 
+
     class TestAppBuilderBaseView(AppBuilderBaseView):
         default_view = "test"
 
@@ -1168,16 +1154,21 @@ non-RBAC UI (``flask-admin`` based UI), update it to use ``flask_appbuilder_view
         def test(self):
             return self.render_template("test_plugin/test.html", content="Hello galaxy!")
 
+
     v_appbuilder_view = TestAppBuilderBaseView()
-    v_appbuilder_package = {"name": "Test View",
-                            "category": "Test Plugin",
-                            "view": v_appbuilder_view}
+    v_appbuilder_package = {
+        "name": "Test View",
+        "category": "Test Plugin",
+        "view": v_appbuilder_view,
+    }
 
     # Creating a flask appbuilder Menu Item
-    appbuilder_mitem = {"name": "Google",
-                        "category": "Search",
-                        "category_icon": "fa-th",
-                        "href": "https://www.google.com"}
+    appbuilder_mitem = {
+        "name": "Google",
+        "category": "Search",
+        "category_icon": "fa-th",
+        "href": "https://www.google.com",
+    }
 
 
     # Defining the plugin class
@@ -1199,14 +1190,9 @@ depending on the development packages then you should use ``devel_all``.
 Support for Airflow 1.10.x releases
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-The Airflow 1.10.x release tree will be supported for **six months** from Airflow 2.0 release date.
-Specifically, only "critical fixes" defined as fixes
-to bugs that take down Production systems, will be backported to 1.10.x core for
-**six months** after Airflow 2.0.0 is released.
+Airflow 1.10.x reached end of life on 17 June 2021. No new Airflow 1.x versions will be released.
 
-In addition, Backport providers within
-1.10.x, will be supported for critical fixes for **three months** from Airflow 2.0.0
-release date.
+Support of Backport providers ended on 17 March 2021. No new versions of backport providers will be released.
 
 We plan to take a strict Semantic Versioning approach to our versioning and release process. This
 means that we do not plan to make any backwards-incompatible changes in the 2.* releases. Any

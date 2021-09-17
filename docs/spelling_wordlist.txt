@@ -115,6 +115,7 @@ Drivy
 Dsn
 Dynamodb
 EDITMSG
+EOL
 ETag
 Eg
 EmrAddSteps

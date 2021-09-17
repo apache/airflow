@@ -805,15 +805,11 @@ I'm happy to announce that new versions of Airflow Providers packages were just 
 
 The source release, as well as the binary releases, are available here:
 
-https://dist.apache.org/repos/dist/release/airflow/providers/
+https://airflow.apache.org/docs/apache-airflow-providers/installing-from-sources
 
-We also made those versions available on PyPi for convenience ('pip install apache-airflow-providers-*'):
+You can install the providers via PyPI  https://airflow.apache.org/apache-airflow-providers/installing-from-pypi
 
-https://pypi.org/search/?q=apache-airflow-providers
-
-The documentation is available at https://airflow.apache.org/docs/ and linked from the PyPI packages:
-
-<PASTE TWINE UPLOAD LINKS HERE. SORT THEM BEFORE!>
+The documentation is available at https://airflow.apache.org/docs/ and linked from the PyPI packages.
 
 Cheers,
 <your name>

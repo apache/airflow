@@ -77,9 +77,8 @@ unit of work and continuity.
     project
     license
     start/index
-    installation
-    upgrading-to-2
-    upgrade-check
+    installation/index
+    upgrading-from-1-10/index
     tutorial
     tutorial_taskflow_api
     howto/index
@@ -117,9 +116,3 @@ unit of work and continuity.
     Configurations <configurations-ref>
     Extra packages <extra-packages-ref>
     Database Migrations <migrations-ref>
-
-.. toctree::
-    :hidden:
-    :caption: Resources
-
-    Installing from sources <installing-from-sources>
