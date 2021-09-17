@@ -1720,6 +1720,9 @@ class TaskInstance(Base, LoggingMixin):
             email_for_state = task.email_on_failure
         else:
             if self.state == State.QUEUED:
+                # We increase the try_number so as
+                # to fail the task if it fails to start
+                # after sometime
                 self.try_number += 1
             self.state = State.UP_FOR_RETRY
             email_for_state = task.email_on_retry
