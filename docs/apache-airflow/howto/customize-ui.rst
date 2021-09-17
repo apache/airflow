@@ -118,13 +118,13 @@ After
 .. image:: ../img/change-site-title/example_instance_name_configuration.png
 
 
-Add custom flash messages on the dashboard
+Add custom alert messages on the dashboard
 ------------------------------------------
 
 .. versionadded:: 2.2.0
 
-Extra flash messages can be shown on the UI dashboard. This can be useful for warning about setup issues
-or announcing changes to end users. The following example shows how to add a simple flash message:
+Extra alert messages can be shown on the UI dashboard. This can be useful for warning about setup issues
+or announcing changes to end users. The following example shows how to add a simple alert message:
 
 1.  Create ``airflow_local_settings.py`` file and put in on ``$PYTHONPATH`` or
     to ``$AIRFLOW_HOME/config`` folder. (Airflow adds ``$AIRFLOW_HOME/config`` on ``PYTHONPATH`` when
@@ -134,25 +134,23 @@ or announcing changes to end users. The following example shows how to add a sim
 
     .. code-block:: python
 
-      from airflow.models.flash_message import FlashMessage
+      from airflow.www.utils import UIAlert
 
-      DASHBOARD_FLASH_MESSAGES = [
-          FlashMessage("Welcome to Airflow"),
+      DASHBOARD_UIALERTS = [
+          UIAlert("Welcome to Airflow"),
       ]
 
 3.  Restart Airflow Webserver, and you should now see:
 
-.. image:: ../img/ui-flash-message.png
+.. image:: ../img/ui-alert-message.png
 
-You can also control the category of the flash message as well the roles it should be shown to.
+You can also control the category of the alert message as well the roles it should be shown to.
 For example, to show a warning message to users in the ``User`` role:
 
     .. code-block:: python
 
-      DASHBOARD_FLASH_MESSAGES = [
-          FlashMessage(
-              "Airflow update happening next week", category="warning", roles=["User"]
-          ),
+      DASHBOARD_UIALERTS = [
+          UIAlert("Airflow update happening next week", category="warning", roles=["User"]),
       ]
 
 HTML can also be included in the messages, though care must be taken to ensure it is done safely.
@@ -161,9 +159,9 @@ information, see `String Formatting in the MarkupSafe docs <https://markupsafe.p
 
     .. code-block:: python
 
-      DASHBOARD_FLASH_MESSAGES = [
-          FlashMessage(
+      DASHBOARD_UIALERTS = [
+          UIAlert(
               'Visit <a href="https://airflow.apache.org">airflow.apache.org</a>', html=True
           ),
-          FlashMessage(Markup("Welcome <em>%s</em>") % ("John & Jane Doe",)),
+          UIAlert(Markup("Welcome <em>%s</em>") % ("John & Jane Doe",)),
       ]

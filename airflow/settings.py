@@ -549,18 +549,18 @@ HIDE_SENSITIVE_VAR_CONN_FIELDS = conf.getboolean('core', 'hide_sensitive_var_con
 # instances
 MASK_SECRETS_IN_LOGS = False
 
-# Display flash messages on the dashboard
+# Display alerts on the dashboard
 # Useful for warning about setup issues or announcing changes to end users
-# List of FlashMessage's, which allows for specifiying the message, category, and roles the
+# List of UIAlerts, which allows for specifiying the message, category, and roles the
 # message should be shown to. For example:
-#   from airflow.models.flash_message = FlashMessage
+#   from airflow.www.utils import UIAlert
 #
-#   DASHBOARD_FLASH_MESSAGES = [
-#       FlashMessage("Welcome to Airflow"),  # All users
-#       FlashMessage("Airflow update happening next week", roles=["User"]),  # Only users with the User role
+#   DASHBOARD_UIALERTS = [
+#       UIAlert("Welcome to Airflow"),  # All users
+#       UIAlert("Airflow update happening next week", roles=["User"]),  # Only users with the User role
 #       # A flash message with html:
-#       FlashMessage('Visit <a href="http://airflow.apache.org">airflow.apache.org</a>', html=True),
+#       UIAlert('Visit <a href="http://airflow.apache.org">airflow.apache.org</a>', html=True),
 #   ]
 #
-# DASHBOARD_FLASH_MESSAGES: List["FlashMessage"]
-DASHBOARD_FLASH_MESSAGES = []
+# DASHBOARD_UIALERTS: List["UIAlert"]
+DASHBOARD_UIALERTS = []

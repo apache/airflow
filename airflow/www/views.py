@@ -565,9 +565,9 @@ class Airflow(AirflowBaseView):
                 category="warning",
             )
 
-        for fm in settings.DASHBOARD_FLASH_MESSAGES:
+        for fm in settings.DASHBOARD_UIALERTS:
             if fm.should_show(current_app.appbuilder.sm):
-                fm.flash()
+                flash(fm.message, fm.category)
 
         hide_paused_dags_by_default = conf.getboolean('webserver', 'hide_paused_dags_by_default')
         default_dag_run = conf.getint('webserver', 'default_dag_run_display_number')

@@ -22,10 +22,10 @@ import flask
 import pytest
 
 from airflow.dag_processing.processor import DagFileProcessor
-from airflow.models.flash_message import FlashMessage
 from airflow.security import permissions
 from airflow.utils.session import create_session
 from airflow.utils.state import State
+from airflow.www.utils import UIAlert
 from airflow.www.views import FILTER_STATUS_COOKIE, FILTER_TAGS_COOKIE
 from tests.test_utils.api_connexion_utils import create_user
 from tests.test_utils.db import clear_db_dags, clear_db_import_errors, clear_db_serialized_dags
@@ -192,17 +192,17 @@ def test_home_robots_header_in_response(user_client):
 @pytest.mark.parametrize(
     "client, flash_message, expected",
     [
-        ("user_client", FlashMessage("hello world"), True),
-        ("user_client", FlashMessage("hello world", roles=["User"]), True),
-        ("user_client", FlashMessage("hello world", roles=["User", "Admin"]), True),
-        ("user_client", FlashMessage("hello world", roles=["Admin"]), False),
-        ("admin_client", FlashMessage("hello world"), True),
-        ("admin_client", FlashMessage("hello world", roles=["Admin"]), True),
-        ("admin_client", FlashMessage("hello world", roles=["User", "Admin"]), True),
+        ("user_client", UIAlert("hello world"), True),
+        ("user_client", UIAlert("hello world", roles=["User"]), True),
+        ("user_client", UIAlert("hello world", roles=["User", "Admin"]), True),
+        ("user_client", UIAlert("hello world", roles=["Admin"]), False),
+        ("admin_client", UIAlert("hello world"), True),
+        ("admin_client", UIAlert("hello world", roles=["Admin"]), True),
+        ("admin_client", UIAlert("hello world", roles=["User", "Admin"]), True),
     ],
 )
 def test_dashboard_flash_messages_role_filtering(request, client, flash_message, expected):
-    with mock.patch("airflow.settings.DASHBOARD_FLASH_MESSAGES", [flash_message]):
+    with mock.patch("airflow.settings.DASHBOARD_UIALERTS", [flash_message]):
         resp = request.getfixturevalue(client).get("home", follow_redirects=True)
     if expected:
         check_content_in_response(flash_message.message, resp)
@@ -212,11 +212,11 @@ def test_dashboard_flash_messages_role_filtering(request, client, flash_message,
 
 def test_dashboard_flash_messages_many(user_client):
     messages = [
-        FlashMessage("hello world"),
-        FlashMessage("im_not_here", roles=["Admin"]),
-        FlashMessage("_hello_world_"),
+        UIAlert("hello world"),
+        UIAlert("im_not_here", roles=["Admin"]),
+        UIAlert("_hello_world_"),
     ]
-    with mock.patch("airflow.settings.DASHBOARD_FLASH_MESSAGES", messages):
+    with mock.patch("airflow.settings.DASHBOARD_UIALERTS", messages):
         resp = user_client.get("home", follow_redirects=True)
     check_content_in_response("hello world", resp)
     check_content_not_in_response("im_not_here", resp)
@@ -227,10 +227,10 @@ def test_dashboard_flash_messages_markup(user_client):
     link = '<a href="http://example.com">hello world</a>'
     user_input = flask.Markup("Hello <em>%s</em>") % ("foo&bar",)
     messages = [
-        FlashMessage(link, html=True),
-        FlashMessage(user_input),
+        UIAlert(link, html=True),
+        UIAlert(user_input),
     ]
-    with mock.patch("airflow.settings.DASHBOARD_FLASH_MESSAGES", messages):
+    with mock.patch("airflow.settings.DASHBOARD_UIALERTS", messages):
         resp = user_client.get("home", follow_redirects=True)
     check_content_in_response(link, resp)
     check_content_in_response(user_input, resp)
@@ -238,9 +238,9 @@ def test_dashboard_flash_messages_markup(user_client):
 
 def test_dashboard_flash_messages_type(user_client):
     messages = [
-        FlashMessage("hello world", category="foo"),
+        UIAlert("hello world", category="foo"),
     ]
-    with mock.patch("airflow.settings.DASHBOARD_FLASH_MESSAGES", messages):
+    with mock.patch("airflow.settings.DASHBOARD_UIALERTS", messages):
         resp = user_client.get("home", follow_redirects=True)
     check_content_in_response("hello world", resp)
     check_content_in_response("alert-foo", resp)
