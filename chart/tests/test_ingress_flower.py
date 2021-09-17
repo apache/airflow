@@ -23,10 +23,17 @@ from tests.helm_template_generator import render_chart
 
 
 class IngressFlowerTest(unittest.TestCase):
-    def test_should_pass_validation_with_just_ingress_enabled(self):
+    def test_should_pass_validation_with_just_ingress_enabled_v1(self):
         render_chart(
             values={"ingress": {"enabled": True}, "executor": "CeleryExecutor"},
             show_only=["templates/flower/flower-ingress.yaml"],
+        )  # checks that no validation exception is raised
+
+    def test_should_pass_validation_with_just_ingress_enabled_v1beta1(self):
+        render_chart(
+            values={"ingress": {"enabled": True}, "executor": "CeleryExecutor"},
+            show_only=["templates/flower/flower-ingress.yaml"],
+            kubernetes_version='1.16.0',
         )  # checks that no validation exception is raised
 
     def test_should_allow_more_than_one_annotation(self):
@@ -38,3 +45,13 @@ class IngressFlowerTest(unittest.TestCase):
             show_only=["templates/flower/flower-ingress.yaml"],
         )
         assert jmespath.search("metadata.annotations", docs[0]) == {"aa": "bb", "cc": "dd"}
+
+    def test_should_set_ingress_class_name(self):
+        docs = render_chart(
+            values={
+                "ingress": {"enabled": True, "flower": {"ingressClassName": "foo"}},
+                "executor": "CeleryExecutor",
+            },
+            show_only=["templates/flower/flower-ingress.yaml"],
+        )
+        assert "foo" == jmespath.search("spec.ingressClassName", docs[0])

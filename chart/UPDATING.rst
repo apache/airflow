@@ -43,6 +43,16 @@ Default Airflow version is updated to ``2.1.2``
 
 The default Airflow version that is installed with the Chart is now ``2.1.3``, previously it was ``2.1.2``.
 
+Removed ``ingress.flower.precedingPaths`` and ``ingress.flower.succeedingPaths`` parameters
+"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+``ingress.flower.precedingPaths`` and ``ingress.flower.succeedingPaths`` parameters have been removed as they had previously had no effect on rendered YAML output.
+
+Change of default ``path`` on Ingress
+"""""""""""""""""""""""""""""""""""""
+
+With the move to support the stable Kubernetes Ingress API the default path has been changed from being unset to ``/``. For most Ingress controllers this should not change the behavior of the resulting Ingress resource.
+
 Airflow Helm Chart 1.1.0
 ------------------------
 

@@ -23,10 +23,17 @@ from tests.helm_template_generator import render_chart
 
 
 class IngressWebTest(unittest.TestCase):
-    def test_should_pass_validation_with_just_ingress_enabled(self):
+    def test_should_pass_validation_with_just_ingress_enabled_v1(self):
         render_chart(
             values={"ingress": {"enabled": True}},
             show_only=["templates/webserver/webserver-ingress.yaml"],
+        )  # checks that no validation exception is raised
+
+    def test_should_pass_validation_with_just_ingress_enabled_v1beta1(self):
+        render_chart(
+            values={"ingress": {"enabled": True}},
+            show_only=["templates/webserver/webserver-ingress.yaml"],
+            kubernetes_version='1.16.0',
         )  # checks that no validation exception is raised
 
     def test_should_allow_more_than_one_annotation(self):
@@ -35,3 +42,10 @@ class IngressWebTest(unittest.TestCase):
             show_only=["templates/webserver/webserver-ingress.yaml"],
         )
         assert {"aa": "bb", "cc": "dd"} == jmespath.search("metadata.annotations", docs[0])
+
+    def test_should_set_ingress_class_name(self):
+        docs = render_chart(
+            values={"ingress": {"enabled": True, "web": {"ingressClassName": "foo"}}},
+            show_only=["templates/webserver/webserver-ingress.yaml"],
+        )
+        assert "foo" == jmespath.search("spec.ingressClassName", docs[0])

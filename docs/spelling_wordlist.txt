@@ -1046,6 +1046,7 @@ parameterizing
 paramiko
 params
 passwd
+pathType
 pem
 performant
 personalizations

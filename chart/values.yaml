@@ -25,6 +25,9 @@ fullnameOverride: ""
 # Provide a name to substitute for the name of the chart
 nameOverride: ""
 
+# Provide a Kubernetes version (used for API Version selection) to override the auto-detected version
+kubeVersionOverride: ""
+
 # User and group of airflow user
 uid: 50000
 gid: 0
@@ -101,10 +104,16 @@ ingress:
     annotations: {}
 
     # The path for the web Ingress
-    path: ""
+    path: "/"
+
+    # The pathType for the above path (used only with Kubernetes v1.19 and above)
+    pathType: "ImplementationSpecific"
 
     # The hostname for the web Ingress
     host: ""
+
+    # The Ingress Class for the web Ingress (used only with Kubernetes v1.19 and above)
+    ingressClassName: ""
 
     # configs for web Ingress TLS
     tls:
@@ -125,10 +134,16 @@ ingress:
     annotations: {}
 
     # The path for the flower Ingress
-    path: ""
+    path: "/"
+
+    # The pathType for the above path (used only with Kubernetes v1.19 and above)
+    pathType: "ImplementationSpecific"
 
     # The hostname for the flower Ingress
     host: ""
+
+    # The Ingress Class for the flower Ingress (used only with Kubernetes v1.19 and above)
+    ingressClassName: ""
 
     # configs for web Ingress TLS
     tls:
@@ -136,12 +151,6 @@ ingress:
       enabled: false
       # the name of a pre-created Secret containing a TLS private key and certificate
       secretName: ""
-
-    # HTTP paths to add to the flower Ingress before the default path
-    precedingPaths: []
-
-    # Http paths to add to the flower Ingress after the default path
-    succeedingPaths: []
 
 # Network policy configuration
 networkPolicies:
