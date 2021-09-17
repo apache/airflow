@@ -56,8 +56,6 @@ def send_email(
     to_comma_separated = ", ".join(to_list)
 
     return backend(
-        from_email,
-        from_name,
         to_comma_separated,
         subject,
         html_content,
@@ -68,13 +66,13 @@ def send_email(
         mime_subtype=mime_subtype,
         mime_charset=mime_charset,
         conn_id=backend_conn_id,
+        from_email=from_email,
+        from_name=from_name,
         **kwargs,
     )
 
 
 def send_email_smtp(
-    from_email: str,
-    from_name: str,
     to: Union[str, Iterable[str]],
     subject: str,
     html_content: str,
@@ -85,6 +83,8 @@ def send_email_smtp(
     mime_subtype: str = 'mixed',
     mime_charset: str = 'utf-8',
     conn_id: str = "smtp_default",
+    from_email: str = None,
+    from_name: str = None,
     **kwargs,
 ):
     """
