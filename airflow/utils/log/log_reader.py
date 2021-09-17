@@ -23,7 +23,9 @@ from airflow.configuration import conf
 from airflow.models import TaskInstance
 from airflow.utils.helpers import render_log_filename
 from airflow.utils.log.logging_mixin import ExternalLoggingMixin
+from airflow.operators.dummy import DummyOperator
 
+DUMMY_TASK_LOG_MESSAGE = f"tasks of type {DummyOperator.__class__.__name__} do not have task logs \n"
 
 class TaskLogReader:
     """Task log reader"""
@@ -54,6 +56,8 @@ class TaskLogReader:
         contain information about the task log which can enable you read logs to the
         end.
         """
+        if ti.operator == DummyOpeartor.__class__.__name__:
+            return [(('', DUMMY_TASK_LOG_MESSAGE))], {'end_of_log': True}
         logs, metadatas = self.log_handler.read(ti, try_number, metadata=metadata)
         metadata = metadatas[0]
         return logs, metadata
@@ -70,6 +74,8 @@ class TaskLogReader:
         :type metadata: dict
         :rtype: Iterator[str]
         """
+        if ti.operator == DummyOpeartor.__class__.__name__:
+            yield DUMMY_TASK_LOG_MESSAGE
         if try_number is None:
             next_try = ti.next_try_number
             try_numbers = list(range(1, next_try))

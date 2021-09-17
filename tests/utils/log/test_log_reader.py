@@ -27,7 +27,7 @@ import pytest
 from airflow import settings
 from airflow.config_templates.airflow_local_settings import DEFAULT_LOGGING_CONFIG
 from airflow.utils import timezone
-from airflow.utils.log.log_reader import TaskLogReader
+from airflow.utils.log.log_reader import TaskLogReader, DUMMY_TASK_LOG_MESSAGE
 from airflow.utils.log.logging_mixin import ExternalLoggingMixin
 from airflow.utils.state import TaskInstanceState
 from airflow.utils.types import DagRunType
@@ -38,6 +38,7 @@ from tests.test_utils.db import clear_db_dags, clear_db_runs
 class TestLogView:
     DAG_ID = "dag_log_reader"
     TASK_ID = "task_log_reader"
+    DUMMY_TASK_ID = "task_log_reader"
     DEFAULT_DATE = timezone.datetime(2017, 9, 1)
 
     @pytest.fixture(autouse=True)
@@ -98,6 +99,15 @@ class TestLogView:
         )
         ti.try_number = 3
         self.ti = ti
+        dummy_ti = create_task_instance(
+            dag_id=self.DAG_ID,
+            task_id=self.DUMMY_TASK_ID,
+            start_date=self.DEFAULT_DATE,
+            run_type=DagRunType.SCHEDULED,
+            execution_date=self.DEFAULT_DATE,
+            state=TaskInstanceState.RUNNING,
+        )
+        self.dummy_ti = dummy_ti
         yield
         clear_db_runs()
         clear_db_dags()
@@ -238,3 +248,23 @@ class TestLogView:
 
         mock_prop.return_value = True
         assert task_log_reader.supports_external_link
+
+    def test_test_read_log_chunks_dummy_operator(self):
+        task_log_reader = TaskLogReader()
+        logs, metadatas = task_log_reader.read_log_chunks(ti=self.dummy_ti, try_number=1, metadata={})
+
+        assert [
+            (
+                '',
+		DUMMY_TASK_LOG_MESSAGE,
+            )
+        ] == logs[0]
+        assert {"end_of_log": True} == metadatas
+
+    def test_test_test_read_log_stream_should_read_one_try(self):
+        task_log_reader = TaskLogReader()
+        stream = task_log_reader.read_log_stream(ti=self.dummy_ti, try_number=1, metadata={})
+
+        assert [
+            DUMMY_TASK_LOG_MESSAGE,
+        ] == list(stream)
