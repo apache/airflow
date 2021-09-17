@@ -83,7 +83,7 @@ class DebugExecutor(BaseExecutor):
         except Exception as e:
             ti.set_state(State.FAILED)
             self.change_state(key, State.FAILED)
-            ti._run_finished_callback()
+            ti._run_finished_callback(error=e)
             self.log.exception("Failed to execute task: %s.", str(e))
             return False
 

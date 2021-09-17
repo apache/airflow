@@ -57,6 +57,10 @@ if [[ -z "${USE_AIRFLOW_VERSION=}" ]]; then
     tmux send-keys 'cd /opt/airflow/airflow/www/; yarn install --frozen-lockfile; yarn dev' C-m
 fi
 
+tmux select-pane -t 0
+tmux split-window -h
+tmux send-keys 'airflow triggerer' C-m
+
 # Attach Session, on the Main window
 tmux select-pane -t 0
 tmux send-keys "/opt/airflow/scripts/in_container/run_tmux_welcome.sh" C-m

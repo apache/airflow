@@ -1073,7 +1073,7 @@ class DagFileProcessorManager(LoggingMixin):
                 request = TaskCallbackRequest(
                     full_filepath=file_loc,
                     simple_task_instance=SimpleTaskInstance(ti),
-                    msg="Detected as zombie",
+                    msg=f"Detected {ti} as zombie",
                 )
                 self.log.info("Detected zombie job: %s", request)
                 self._add_callback_to_queue(request)

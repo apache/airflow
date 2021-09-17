@@ -20,15 +20,14 @@ from unittest import mock
 import pytest
 
 from airflow.configuration import conf
-from airflow.models.xcom import BaseXCom, XCom, resolve_xcom_backend
+from airflow.models.xcom import XCOM_RETURN_KEY, BaseXCom, XCom, resolve_xcom_backend
 from airflow.utils import timezone
 from tests.test_utils.config import conf_vars
 
 
 class CustomXCom(BaseXCom):
-    @staticmethod
-    def serialize_value(_):
-        return "custom_value"
+    def orm_deserialize_value(self):
+        return 'Short value...'
 
 
 class TestXCom:
@@ -36,7 +35,6 @@ class TestXCom:
     def test_resolve_xcom_class(self):
         cls = resolve_xcom_backend()
         assert issubclass(cls, CustomXCom)
-        assert cls().serialize_value(None) == "custom_value"
 
     @conf_vars({("core", "xcom_backend"): "", ("core", "enable_xcom_pickling"): "False"})
     def test_resolve_xcom_class_fallback_to_basexcom(self):
@@ -217,3 +215,26 @@ class TestXCom:
 
         instance.init_on_load()
         mock_orm_deserialize.assert_called_once_with()
+
+    @conf_vars({("core", "xcom_backend"): "tests.models.test_xcom.CustomXCom"})
+    def test_get_one_doesnt_use_orm_deserialize_value(self, session):
+        """Test that XCom.get_one does not call orm_deserialize_value"""
+        json_obj = {"key": "value"}
+        execution_date = timezone.utcnow()
+        key = XCOM_RETURN_KEY
+        dag_id = "test_dag"
+        task_id = "test_task"
+
+        XCom = resolve_xcom_backend()
+        XCom.set(
+            key=key,
+            value=json_obj,
+            dag_id=dag_id,
+            task_id=task_id,
+            execution_date=execution_date,
+            session=session,
+        )
+
+        value = XCom.get_one(dag_id=dag_id, task_id=task_id, execution_date=execution_date, session=session)
+
+        assert value == json_obj

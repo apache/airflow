@@ -36,6 +36,11 @@ Released packages
          </ul>
 
 
+    You can also install ``Apache Airflow Providers`` - as most Python packages - via :doc:`PyPI <installing-from-pypi>`.
+    You can choose different version of Airflow by selecting different version from the drop-down at
+    the top-left of the page.
+
+
 Release integrity
 '''''''''''''''''
 
