@@ -226,18 +226,6 @@ class LocalTaskJob(BaseJob):
     @Sentry.enrich_errors
     def _run_mini_scheduler_on_child_tasks(self, session=None) -> None:
         try:
-
-            if (
-                self.task_instance.task.wait_for_downstream
-                and self.task_instance.get_previous_ti()
-                and not self.task_instance.are_dependents_done()
-            ):
-                self.log.info(
-                    "No downstream tasks scheduled because task instance "
-                    "dependents have not completed yet and wait_for_downstream is true"
-                )
-                return
-
             # Re-select the row with a lock
             dag_run = with_row_locks(
                 session.query(DagRun).filter_by(
@@ -255,7 +243,7 @@ class LocalTaskJob(BaseJob):
 
             partial_dag = task.dag.partial_subset(
                 task.downstream_task_ids,
-                include_downstream=False,
+                include_downstream=True,
                 include_upstream=False,
                 include_direct_upstream=True,
             )

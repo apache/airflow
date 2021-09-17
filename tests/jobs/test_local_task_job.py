@@ -740,13 +740,17 @@ class TestLocalTaskJob:
         job1 = LocalTaskJob(task_instance=ti2_a, ignore_ti_state=True, executor=SequentialExecutor())
         job1.task_runner = StandardTaskRunner(job1)
         job1.run()
-        ti2_a.refresh_from_db()
+
+        ti2_a.refresh_from_db(session)
+        ti2_b.refresh_from_db(session)
         assert ti2_a.state == State.SUCCESS
         assert ti2_b.state == State.NONE
-        assert (
-            "No downstream tasks scheduled because task instance "
-            "dependents have not completed yet and wait_for_downstream is true"
-        ) in caplog.text
+        assert "0 downstream tasks scheduled from follow-on schedule" in caplog.text
+
+        failed_deps = list(ti2_b.get_failed_dep_statuses(session=session))
+        assert len(failed_deps) == 1
+        assert failed_deps[0].dep_name == "Previous Dagrun State"
+        assert not failed_deps[0].passed
 
     @patch('airflow.utils.process_utils.subprocess.check_call')
     def test_task_sigkill_works_with_retries(self, _check_call, caplog, dag_maker):
