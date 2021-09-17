@@ -22,10 +22,19 @@ from airflow.compat.functools import cached_property
 from airflow.configuration import conf
 from airflow.models import TaskInstance
 from airflow.operators.dummy import DummyOperator
+from airflow.sensors.external_task import ExternalTaskMarker
 from airflow.utils.helpers import render_log_filename
 from airflow.utils.log.logging_mixin import ExternalLoggingMixin
 
-DUMMY_TASK_LOG_MESSAGE = f"tasks of type {DummyOperator.__class__.__name__} do not have task logs \n"
+DUMMY_TASK_LOG_MESSAGE = f"Tasks of type {DummyOperator.__class__.__name__} do not have task logs.\n"
+OPERATORS_WITHOUT_LOGS = {
+    DummyOperator.__class__.__name__,
+    ExternalTaskMarker.__class__.__name__,
+}
+
+
+def has_logs(ti: TaskInstance) -> bool:
+    return ti.operator not in OPERATORS_WITHOUT_LOGS
 
 
 class TaskLogReader:
@@ -57,7 +66,7 @@ class TaskLogReader:
         contain information about the task log which can enable you read logs to the
         end.
         """
-        if ti.operator == DummyOpeartor.__class__.__name__:
+        if has_logs(ti):
             return [(('', DUMMY_TASK_LOG_MESSAGE))], {'end_of_log': True}
         logs, metadatas = self.log_handler.read(ti, try_number, metadata=metadata)
         metadata = metadatas[0]
@@ -75,7 +84,7 @@ class TaskLogReader:
         :type metadata: dict
         :rtype: Iterator[str]
         """
-        if ti.operator == DummyOpeartor.__class__.__name__:
+        if has_logs(ti):
             yield DUMMY_TASK_LOG_MESSAGE
         if try_number is None:
             next_try = ti.next_try_number

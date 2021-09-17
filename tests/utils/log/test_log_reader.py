@@ -107,7 +107,18 @@ class TestLogView:
             execution_date=self.DEFAULT_DATE,
             state=TaskInstanceState.RUNNING,
         )
+        dummy_ti.operator = 'DummyOperator'
         self.dummy_ti = dummy_ti
+        external_task_marker_ti = create_task_instance(
+            dag_id=self.DAG_ID,
+            task_id=self.DUMMY_TASK_ID,
+            start_date=self.DEFAULT_DATE,
+            run_type=DagRunType.SCHEDULED,
+            execution_date=self.DEFAULT_DATE,
+            state=TaskInstanceState.RUNNING,
+        )
+        external_task_marker_ti.operator = 'ExternalTaskMarker'
+        self.external_task_marker_ti = external_task_marker_ti
         yield
         clear_db_runs()
         clear_db_dags()
@@ -253,18 +264,26 @@ class TestLogView:
         task_log_reader = TaskLogReader()
         logs, metadatas = task_log_reader.read_log_chunks(ti=self.dummy_ti, try_number=1, metadata={})
 
-        assert [
-            (
-                '',
-                DUMMY_TASK_LOG_MESSAGE,
-            )
-        ] == logs[0]
+        assert [('', DUMMY_TASK_LOG_MESSAGE)] == logs[0]
         assert {"end_of_log": True} == metadatas
 
-    def test_test_test_read_log_stream_should_read_one_try(self):
+    def test_read_log_stream_should_read_one_try_dummy_operator(self):
         task_log_reader = TaskLogReader()
         stream = task_log_reader.read_log_stream(ti=self.dummy_ti, try_number=1, metadata={})
 
-        assert [
-            DUMMY_TASK_LOG_MESSAGE,
-        ] == list(stream)
+        assert [DUMMY_TASK_LOG_MESSAGE] == list(stream)
+
+    def test_test_read_log_chunks_external_task_marker(self):
+        task_log_reader = TaskLogReader()
+        logs, metadatas = task_log_reader.read_log_chunks(
+            ti=self.external_task_marker, try_number=1, metadata={}
+        )
+
+        assert [('', DUMMY_TASK_LOG_MESSAGE)] == logs[0]
+        assert {"end_of_log": True} == metadatas
+
+    def test_read_log_stream_should_read_one_try_external_task_marker(self):
+        task_log_reader = TaskLogReader()
+        stream = task_log_reader.read_log_stream(ti=self.external_task_marker, try_number=1, metadata={})
+
+        assert [DUMMY_TASK_LOG_MESSAGE] == list(stream)
