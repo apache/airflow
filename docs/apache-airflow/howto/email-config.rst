@@ -29,7 +29,7 @@ in the ``[email]`` section.
   subject_template = /path/to/my_subject_template_file
   html_content_template = /path/to/my_html_content_template_file
 
-You can configure sender's email address and name by setting ``email_from_email`` and ``email_from_name`` in the ``[email]`` section.
+You can configure sender's email address by setting ``from_email`` in the ``[email]`` section.
 
 To configure SMTP settings, checkout the :ref:`SMTP <config:smtp>` section in the standard configuration.
 If you do not want to store the SMTP credentials in the config or in the environment variables, you can create a
@@ -94,7 +94,7 @@ or
    are used from the connection.
 
 4. Configure sender's email address and name either by exporting the environment variables ``SENDGRID_MAIL_FROM`` and ``SENDGRID_MAIL_SENDER`` or
-   in your ``airflow.cfg`` by setting ``email_from_email`` and ``email_from_name`` in the ``[email]`` section.
+   in your ``airflow.cfg`` by setting ``from_email`` in the ``[email]`` section.
 
 .. _email-configuration-ses:
 
@@ -122,4 +122,4 @@ Follow the steps below to enable it:
 3. Create a connection called ``aws_default``, or choose a custom connection
    name and set it in ``email_conn_id``. The type of connection should be ``Amazon Web Services``.
 
-4. Configure sender's email address and name in your ``airflow.cfg`` by setting ``email_from_email`` and ``email_from_name`` in the ``[email]`` section.
+4. Configure sender's email address in your ``airflow.cfg`` by setting ``from_email`` in the ``[email]`` section.

@@ -100,7 +100,6 @@ class TestEmail(unittest.TestCase):
             mime_subtype='mixed',
             conn_id='smtp_default',
             from_email=None,
-            from_name=None,
         )
         assert not mock_send_email.called
 
@@ -108,15 +107,13 @@ class TestEmail(unittest.TestCase):
     @conf_vars(
         {
             ('email', 'email_backend'): 'tests.utils.test_email.send_email_test',
-            ('email', 'email_from_email'): 'from@test.com',
-            ('email', 'email_from_name'): 'From Test',
+            ('email', 'from_email'): 'from@test.com',
         }
     )
     def test_custom_backend_sender(self, mock_send_email_smtp):
         utils.email.send_email('to', 'subject', 'content')
         _, call_kwargs = send_email_test.call_args
         assert call_kwargs['from_email'] == 'from@test.com'
-        assert call_kwargs['from_name'] == 'From Test'
         assert not mock_send_email_smtp.called
 
     def test_build_mime_message(self):
