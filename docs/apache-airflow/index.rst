@@ -78,7 +78,6 @@ unit of work and continuity.
     license
     start/index
     installation
-    installing-from-sources
     upgrading-to-2
     upgrade-check
     tutorial
@@ -118,3 +117,9 @@ unit of work and continuity.
     Configurations <configurations-ref>
     Extra packages <extra-packages-ref>
     Database Migrations <migrations-ref>
+
+.. toctree::
+    :hidden:
+    :caption: Resources
+
+    Installing from sources <installing-from-sources>

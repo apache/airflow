@@ -705,6 +705,7 @@ envvar
 eol
 eols
 errno
+errored
 eslint
 etl
 europe
@@ -1043,6 +1044,7 @@ parameterizing
 paramiko
 params
 passwd
+pathType
 pem
 performant
 personalizations

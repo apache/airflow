@@ -1,4 +1,3 @@
-#!/usr/bin/env bash
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -15,18 +14,22 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-# shellcheck source=scripts/ci/libraries/_script_init.sh
-. "$( dirname "${BASH_SOURCE[0]}" )/../libraries/_script_init.sh"
 
-if [[ ${GITHUB_REF} == 'refs/heads/main' ]]; then
-  echo "::set-output name=branch::constraints-main"
-elif [[ ${GITHUB_REF} == 'refs/heads/main' ]]; then
-  echo "::set-output name=branch::constraints-main"
-elif [[ ${GITHUB_REF} =~ refs/heads/v([0-9\-]*)\-(test|stable) ]]; then
-  echo "::set-output name=branch::constraints-${BASH_REMATCH[1]}"
-else
-  echo
-  echo "Unexpected ref ${GITHUB_REF}. Exiting!"
-  echo
-  exit 1
-fi
+import unittest
+
+from tests.helm_template_generator import render_chart
+
+
+class SchedulerPdbTest(unittest.TestCase):
+    def test_should_pass_validation_with_just_pdb_enabled_v1(self):
+        render_chart(
+            values={"scheduler": {"podDisruptionBudget": {"enabled": True}}},
+            show_only=["templates/scheduler/scheduler-poddisruptionbudget.yaml"],
+        )  # checks that no validation exception is raised
+
+    def test_should_pass_validation_with_just_pdb_enabled_v1beta1(self):
+        render_chart(
+            values={"scheduler": {"podDisruptionBudget": {"enabled": True}}},
+            show_only=["templates/scheduler/scheduler-poddisruptionbudget.yaml"],
+            kubernetes_version='1.16.0',
+        )  # checks that no validation exception is raised

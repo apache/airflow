@@ -21,6 +21,7 @@
 A DAG with subdag for testing purpose.
 """
 
+import warnings
 from datetime import datetime, timedelta
 
 from airflow.models.dag import DAG
@@ -68,11 +69,12 @@ with DAG(
         task_id='start',
     )
 
-    section_1 = SubDagOperator(
-        task_id='section-1',
-        subdag=subdag(DAG_NAME, 'section-1', DEFAULT_TASK_ARGS),
-        default_args=DEFAULT_TASK_ARGS,
-    )
+    with warnings.catch_warnings(record=True):
+        section_1 = SubDagOperator(
+            task_id='section-1',
+            subdag=subdag(DAG_NAME, 'section-1', DEFAULT_TASK_ARGS),
+            default_args=DEFAULT_TASK_ARGS,
+        )
 
     some_other_task = DummyOperator(
         task_id='some-other-task',

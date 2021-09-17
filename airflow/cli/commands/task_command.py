@@ -22,7 +22,7 @@ import logging
 import os
 import textwrap
 from contextlib import contextmanager, redirect_stderr, redirect_stdout, suppress
-from typing import List
+from typing import List, Optional
 
 from pendulum.parsing.exceptions import ParserError
 from sqlalchemy.orm.exc import NoResultFound
@@ -157,6 +157,7 @@ def _run_task_by_local_task_job(args, ti):
         ignore_task_deps=args.ignore_dependencies,
         ignore_ti_state=args.force,
         pool=args.pool,
+        external_executor_id=_extract_external_executor_id(args),
     )
     try:
         run_job.run()
@@ -182,6 +183,12 @@ def _run_raw_task(args, ti: TaskInstance) -> None:
         pool=args.pool,
         error_file=args.error_file,
     )
+
+
+def _extract_external_executor_id(args) -> Optional[str]:
+    if hasattr(args, "external_executor_id"):
+        return getattr(args, "external_executor_id")
+    return os.environ.get("external_executor_id", None)
 
 
 @contextmanager

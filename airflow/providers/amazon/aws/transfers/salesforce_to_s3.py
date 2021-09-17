@@ -56,6 +56,8 @@ class SalesforceToS3Operator(BaseOperator):
     :type record_time_added: bool
     :param aws_conn_id: The name of the connection that has the parameters we need to connect to S3.
     :type aws_conn_id: str
+    :param replace: A flag to decide whether or not to overwrite the S3 key if it already exists. If set to
+        False and the key exists an error will be raised.
     :type replace: bool
     :param encrypt: If True, the file will be encrypted on the server-side by S3 and will
         be stored in an encrypted form while at rest in S3.

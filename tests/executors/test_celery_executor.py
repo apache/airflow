@@ -287,7 +287,12 @@ class TestCeleryExecutor(unittest.TestCase):
         # Check that we validate _on the receiving_ side, not just sending side
         with mock.patch(
             'airflow.executors.celery_executor._execute_in_subprocess'
-        ) as mock_subproc, mock.patch('airflow.executors.celery_executor._execute_in_fork') as mock_fork:
+        ) as mock_subproc, mock.patch(
+            'airflow.executors.celery_executor._execute_in_fork'
+        ) as mock_fork, mock.patch(
+            "celery.app.task.Task.request"
+        ) as mock_task:
+            mock_task.id = "abcdef-124215-abcdef"
             if expected_exception:
                 with pytest.raises(expected_exception):
                     celery_executor.execute_command(command)
@@ -296,7 +301,9 @@ class TestCeleryExecutor(unittest.TestCase):
             else:
                 celery_executor.execute_command(command)
                 # One of these should be called.
-                assert mock_subproc.call_args == ((command,),) or mock_fork.call_args == ((command,),)
+                assert mock_subproc.call_args == (
+                    (command, "abcdef-124215-abcdef"),
+                ) or mock_fork.call_args == ((command, "abcdef-124215-abcdef"),)
 
     @pytest.mark.backend("mysql", "postgres")
     def test_try_adopt_task_instances_none(self):
@@ -375,6 +382,34 @@ class TestCeleryExecutor(unittest.TestCase):
         assert executor.tasks == {}
         assert executor.running == set()
         assert executor.adopted_task_timeouts == {}
+
+    @pytest.mark.backend("mysql", "postgres")
+    def test_check_for_stalled_adopted_tasks_goes_in_ordered_fashion(self):
+        start_date = timezone.utcnow() - timedelta(days=2)
+        queued_dttm = timezone.utcnow() - timedelta(minutes=30)
+        queued_dttm_2 = timezone.utcnow() - timedelta(minutes=4)
+
+        try_number = 1
+
+        with DAG("test_check_for_stalled_adopted_tasks") as dag:
+            task_1 = BaseOperator(task_id="task_1", start_date=start_date)
+            task_2 = BaseOperator(task_id="task_2", start_date=start_date)
+
+        key_1 = TaskInstanceKey(dag.dag_id, task_1.task_id, "runid", try_number)
+        key_2 = TaskInstanceKey(dag.dag_id, task_2.task_id, "runid", try_number)
+
+        executor = celery_executor.CeleryExecutor()
+        executor.adopted_task_timeouts = {
+            key_2: queued_dttm_2 + executor.task_adoption_timeout,
+            key_1: queued_dttm + executor.task_adoption_timeout,
+        }
+        executor.running = {key_1, key_2}
+        executor.tasks = {key_1: AsyncResult("231"), key_2: AsyncResult("232")}
+        executor.sync()
+        assert executor.event_buffer == {key_1: (State.FAILED, None)}
+        assert executor.tasks == {key_2: AsyncResult('232')}
+        assert executor.running == {key_2}
+        assert executor.adopted_task_timeouts == {key_2: queued_dttm_2 + executor.task_adoption_timeout}
 
 
 def test_operation_timeout_config():
