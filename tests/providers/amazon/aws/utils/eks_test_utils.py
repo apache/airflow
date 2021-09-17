@@ -239,10 +239,15 @@ def convert_keys(original: Dict) -> Dict:
     elif "fargate_profile_name" in original.keys():
         conversion_map = dict(
             cluster_name="clusterName",
-            pod_execution_role_arn="podExecutionRoleArn",
-            selectors="selectors",
             fargate_profile_name="fargateProfileName",
             subnets="subnets",
+            # The following are "duplicated" because we used the more verbose/descriptive version
+            # in the CreateCluster Operator when creating a cluster alongside a Fargate profile, but
+            # the more terse version in the CreateFargateProfile Operator for the sake of convenience.
+            pod_execution_role_arn="podExecutionRoleArn",
+            fargate_pod_execution_role_arn="podExecutionRoleArn",
+            selectors="selectors",
+            fargate_selectors="selectors",
         )
     else:
         conversion_map = dict(

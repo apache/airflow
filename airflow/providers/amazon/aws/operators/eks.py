@@ -30,6 +30,7 @@ CHECK_INTERVAL_SECONDS = 15
 TIMEOUT_SECONDS = 25 * 60
 DEFAULT_COMPUTE_TYPE = 'nodegroup'
 DEFAULT_CONN_ID = "aws_default"
+DEFAULT_FARGATE_PROFILE_NAME_SUFFIX = '-profile'
 DEFAULT_NAMESPACE_NAME = 'default'
 DEFAULT_NODEGROUP_NAME_SUFFIX = '-nodegroup'
 DEFAULT_POD_NAME = 'pod'
@@ -40,8 +41,11 @@ class EKSCreateClusterOperator(BaseOperator):
     Creates an Amazon EKS Cluster control plane.
 
     Optionally, can also create the supporting compute architecture:
-    If argument 'compute' is provided with a value of 'nodegroup', will also attempt to create an Amazon
-    EKS Managed Nodegroup for the cluster.  See EKSCreateNodegroupOperator documentation for requirements.
+     - If argument 'compute' is provided with a value of 'nodegroup', will also
+    attempt to create an Amazon EKS Managed Nodegroup for the cluster.
+    See EKSCreateNodegroupOperator documentation for requirements.
+    -  If argument 'compute' is provided with a value of 'fargate', will also attempt to create an AWS
+    Fargate profile for the cluster.  See EKSCreateFargateProfileOperator documentation for requirements.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -67,13 +71,21 @@ class EKSCreateClusterOperator(BaseOperator):
         If this is None or empty then the default boto3 behaviour is used.
     :type region: str
 
-    If compute is assigned the value of ``nodegroup``, the following are required:
-
+    If compute is assigned the value of 'nodegroup', the following are required:
     :param nodegroup_name: The unique name to give your EKS Managed Nodegroup. (templated)
     :type nodegroup_name: str
     :param nodegroup_role_arn: The Amazon Resource Name (ARN) of the IAM role to associate
          with the EKS Managed Nodegroup. (templated)
     :type nodegroup_role_arn: str
+
+    If compute is assigned the value of 'fargate', the following are required:
+    :param fargate_profile_name: The unique name to give your AWS Fargate profile. (templated)
+    :type fargate_profile_name: str
+    :param fargate_pod_execution_role_arn: The Amazon Resource Name (ARN) of the pod execution role to
+            use for pods that match the selectors in the AWS Fargate profile. (templated)
+    :type podExecutionRoleArn: str
+    :param selectors: The selectors to match for pods to use this AWS Fargate profile. (templated)
+    :type selectors: List
 
     """
 
@@ -81,9 +93,12 @@ class EKSCreateClusterOperator(BaseOperator):
         "cluster_name",
         "cluster_role_arn",
         "resources_vpc_config",
+        "compute",
         "nodegroup_name",
         "nodegroup_role_arn",
-        "compute",
+        "fargate_profile_name",
+        "fargate_pod_execution_role_arn",
+        "fargate_selectors",
         "aws_conn_id",
         "region",
     )
@@ -93,9 +108,12 @@ class EKSCreateClusterOperator(BaseOperator):
         cluster_name: str,
         cluster_role_arn: str,
         resources_vpc_config: Dict,
+        compute: Optional[str] = DEFAULT_COMPUTE_TYPE,
         nodegroup_name: Optional[str] = None,
         nodegroup_role_arn: Optional[str] = None,
-        compute: Optional[str] = DEFAULT_COMPUTE_TYPE,
+        fargate_profile_name: Optional[str] = None,
+        fargate_pod_execution_role_arn: Optional[str] = None,
+        fargate_selectors: Optional[List] = None,
         aws_conn_id: str = DEFAULT_CONN_ID,
         region: Optional[str] = None,
         **kwargs,
@@ -103,11 +121,20 @@ class EKSCreateClusterOperator(BaseOperator):
         self.compute = compute
         if (self.compute == 'nodegroup') and not nodegroup_role_arn:
             raise ValueError("Creating an EKS Managed Nodegroup requires nodegroup_role_arn to be passed in.")
+        if (self.compute == 'fargate') and not fargate_pod_execution_role_arn:
+            raise ValueError(
+                "Creating an AWS Fargate profile requires fargate_pod_execution_role_arn to be passed in."
+            )
         self.cluster_name = cluster_name
         self.cluster_role_arn = cluster_role_arn
         self.resources_vpc_config = resources_vpc_config
-        self.nodegroup_name = nodegroup_name or self.cluster_name + DEFAULT_NODEGROUP_NAME_SUFFIX
+        self.nodegroup_name = nodegroup_name or f'{self.cluster_name}{DEFAULT_NODEGROUP_NAME_SUFFIX}'
         self.nodegroup_role_arn = nodegroup_role_arn
+        self.fargate_profile_name = (
+            fargate_profile_name or f'{self.cluster_name}{DEFAULT_FARGATE_PROFILE_NAME_SUFFIX}'
+        )
+        self.fargate_pod_execution_role_arn = fargate_pod_execution_role_arn
+        self.fargate_selectors = fargate_selectors or [{"namespace": DEFAULT_NAMESPACE_NAME}]
         self.aws_conn_id = aws_conn_id
         self.region = region
         super().__init__(**kwargs)
@@ -153,6 +180,13 @@ class EKSCreateClusterOperator(BaseOperator):
                 nodegroupName=self.nodegroup_name,
                 subnets=self.resources_vpc_config.get('subnetIds'),
                 nodeRole=self.nodegroup_role_arn,
+            )
+        elif self.compute == 'fargate':
+            eks_hook.create_fargate_profile(
+                clusterName=self.cluster_name,
+                fargateProfileName=self.fargate_profile_name,
+                podExecutionRoleArn=self.fargate_pod_execution_role_arn,
+                selectors=self.fargate_selectors,
             )
 
 
@@ -235,15 +269,15 @@ class EKSCreateFargateProfileOperator(BaseOperator):
         For more information on how to use this operator, take a look at the guide:
         :ref:`howto/operator:EKSCreateFargateProfileOperator`
 
-    :param cluster_name: The name of the Amazon EKS cluster to apply the Fargate profile to. (templated)
+    :param cluster_name: The name of the Amazon EKS cluster to apply the AWS Fargate profile to. (templated)
     :type cluster_name: str
     :param pod_execution_role_arn:
         The Amazon Resource Name (ARN) of the pod execution role to use for pods that match
-        the selectors in the Fargate profile. (templated)
+        the selectors in the AWS Fargate profile. (templated)
     :type pod_execution_role_arn: str
-    :param selectors: The selectors to match for pods to use this Fargate profile. (templated)
+    :param selectors: The selectors to match for pods to use this AWS Fargate profile. (templated)
     :type selectors: List
-    :param fargate_profile_name: The unique name to give your Fargate profile. (templated)
+    :param fargate_profile_name: The unique name to give your AWS Fargate profile. (templated)
     :type fargate_profile_name: str
 
     :param aws_conn_id: The Airflow connection used for AWS credentials. (templated)
@@ -449,7 +483,7 @@ class EKSDeleteFargateProfileOperator(BaseOperator):
 
     :param cluster_name: The name of the Amazon EKS cluster associated with your Fargate profile. (templated)
     :type cluster_name: str
-    :param fargate_profile_name: The name of the Fargate profile to delete. (templated)
+    :param fargate_profile_name: The name of the AWS Fargate profile to delete. (templated)
     :type fargate_profile_name: str
     :param aws_conn_id: The Airflow connection used for AWS credentials. (templated)
          If this is None or empty then the default boto3 behaviour is used.  If

@@ -51,32 +51,61 @@ NAME_LIST = ["foo", "bar", "baz", "qux"]
 
 class TestEKSCreateClusterOperator(unittest.TestCase):
     def setUp(self) -> None:
+        # Parameters which are needed to create a cluster.
         self.create_cluster_params = dict(
             cluster_name=CLUSTER_NAME,
             cluster_role_arn=ROLE_ARN[1],
             resources_vpc_config=RESOURCES_VPC_CONFIG[1],
-        )
-        # These two are added when creating both the cluster and nodegroup together.
-        self.base_nodegroup_params = dict(
-            nodegroup_name=NODEGROUP_NAME,
-            nodegroup_role_arn=NODEROLE_ARN[1],
-        )
-
-        # This one is used in the tests to validate method calls.
-        self.create_nodegroup_params = dict(
-            **self.base_nodegroup_params,
-            cluster_name=CLUSTER_NAME,
-            subnets=SUBNET_IDS,
         )
 
         self.create_cluster_operator = EKSCreateClusterOperator(
             task_id=TASK_ID, **self.create_cluster_params, compute=None
         )
 
+        self.nodegroup_setUp()
+        self.fargate_profile_setUp()
+
+    def nodegroup_setUp(self) -> None:
+        # Parameters which are added to the cluster parameters
+        # when creating both the cluster and nodegroup together.
+        self.base_nodegroup_params = dict(
+            nodegroup_name=NODEGROUP_NAME,
+            nodegroup_role_arn=NODEROLE_ARN[1],
+        )
+
+        # Parameters expected to be passed in the CreateNodegroup hook call.
+        self.create_nodegroup_params = dict(
+            **self.base_nodegroup_params,
+            cluster_name=CLUSTER_NAME,
+            subnets=SUBNET_IDS,
+        )
+
         self.create_cluster_operator_with_nodegroup = EKSCreateClusterOperator(
             task_id=TASK_ID,
             **self.create_cluster_params,
             **self.base_nodegroup_params,
+        )
+
+    def fargate_profile_setUp(self) -> None:
+        # Parameters which are added to the cluster parameters
+        # when creating both the cluster and Fargate profile together.
+        self.base_fargate_profile_params = dict(
+            fargate_profile_name=FARGATE_PROFILE_NAME,
+            fargate_pod_execution_role_arn=POD_EXECUTION_ROLE_ARN[1],
+            fargate_selectors=SELECTORS[1],
+        )
+
+        # Parameters expected to be passed in the CreateFargateProfile hook call.
+        self.create_fargate_profile_params = dict(
+            **self.base_fargate_profile_params,
+            cluster_name=CLUSTER_NAME,
+        )
+
+        self.create_cluster_operator_with_fargate_profile = EKSCreateClusterOperator(
+            task_id=TASK_ID,
+            **self.create_cluster_params,
+            **self.base_fargate_profile_params,
+            compute='fargate',
         )
 
     @mock.patch.object(EKSHook, "create_cluster")
@@ -99,6 +128,21 @@ class TestEKSCreateClusterOperator(unittest.TestCase):
 
         mock_create_cluster.assert_called_once_with(**convert_keys(self.create_cluster_params))
         mock_create_nodegroup.assert_called_once_with(**convert_keys(self.create_nodegroup_params))
+
+    @mock.patch.object(EKSHook, "get_cluster_state")
+    @mock.patch.object(EKSHook, "create_cluster")
+    @mock.patch.object(EKSHook, "create_fargate_profile")
+    def test_execute_when_called_with_fargate_creates_both(
+        self, mock_create_fargate_profile, mock_create_cluster, mock_cluster_state
+    ):
+        mock_cluster_state.return_value = ClusterStates.ACTIVE
+
+        self.create_cluster_operator_with_fargate_profile.execute({})
+
+        mock_create_cluster.assert_called_once_with(**convert_keys(self.create_cluster_params))
+        mock_create_fargate_profile.assert_called_once_with(
+            **convert_keys(self.create_fargate_profile_params)
+        )
 
 
 class TestEKSCreateFargateProfileOperator(unittest.TestCase):
