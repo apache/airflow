@@ -16,7 +16,6 @@
 # specific language governing permissions and limitations
 # under the License.
 """Airflow module for email backend using AWS SES"""
-from email.utils import formataddr
 from typing import List, Optional, Union
 
 from airflow.providers.amazon.aws.hooks.ses import SESHook
