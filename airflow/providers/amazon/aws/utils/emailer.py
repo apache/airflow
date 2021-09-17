@@ -36,7 +36,6 @@ def send_email(
     **kwargs,
 ) -> None:
     """Email backend for SES."""
-
     hook = SESHook(aws_conn_id=conn_id)
     hook.send_email(
         mail_from=from_email,
