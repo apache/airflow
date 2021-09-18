@@ -77,7 +77,7 @@ class TestSentryHook:
 
     @pytest.fixture
     def sentry(self):
-        with conf_vars({('sentry', 'sentry_on'): 'True'}):
+        with conf_vars({('sentry', 'sentry_on'): 'True', ('sentry', 'default_integrations'): 'False'}):
             from airflow import sentry
 
             importlib.reload(sentry)
