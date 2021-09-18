@@ -3350,6 +3350,20 @@ class ConnectionModelView(AirflowModelView):
             (permissions.ACTION_CAN_READ, permissions.RESOURCE_CONNECTION),
         ]
     )
+
+    def get_existing_copy_connection(self, conn_id_prefix, session=None):
+        """Function to query the database and retrieve an
+        existing copy of the connection, so that the number
+        can be incremented for the next duplicate connection"""
+        sql_query_string = 'select conn_id from connection where '
+        for i in range(1, 10):
+            sql_query_string += f"conn_id={conn_id_prefix}_copy{i}"
+
+        print(sql_query_string)
+
+        return sql_query_string
+
+
     def action_mulduplicate(self, connections, session=None):
         """Duplicate Multiple connections"""
         for selected_conn in connections:
