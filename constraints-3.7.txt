@@ -332,7 +332,7 @@ mongomock==3.23.0
 monotonic==1.6
 more-itertools==8.9.0
 moreorless==0.4.0
-moto==2.2.7.dev22
+moto==2.2.7
 msal-extensions==0.3.0
 msal==1.14.0
 msgpack==1.0.2
