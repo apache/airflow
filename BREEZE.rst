@@ -1834,7 +1834,7 @@ This is the current syntax for  `./breeze <./breeze>`_:
   --mssql-version MSSQL_VERSION
           MSSql version used. One of:
 
-                 2017-latest 2019-latest
+                 2019-latest
 
   -v, --verbose
           Show verbose information about executed docker, kind, kubectl, helm commands. Useful for
@@ -2308,7 +2308,7 @@ This is the current syntax for  `./breeze <./breeze>`_:
   --mssql-version MSSQL_VERSION
           MSSql version used. One of:
 
-                 2017-latest 2019-latest
+                 2019-latest
 
   ****************************************************************************************************
    Enable production image
