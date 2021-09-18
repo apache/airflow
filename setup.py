@@ -511,7 +511,7 @@ devel = [
     'jira',
     'jsondiff',
     'mongomock',
-    'moto~=2.2, >=2.2.1',
+    'moto~=2.2, >=2.2.7',
     'mypy==0.770',
     'parameterized',
     'paramiko',
@@ -1037,4 +1037,4 @@ def do_setup() -> None:
 
 
 if __name__ == "__main__":
-    do_setup()
+    do_setup()  # comment

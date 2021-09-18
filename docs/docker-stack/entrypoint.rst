@@ -132,7 +132,7 @@ if you specify extra arguments. For example:
 
 .. code-block:: bash
 
-  docker run -it apache/airflow:2.1.2-python3.6 bash -c "ls -la"
+  docker run -it apache/airflow:2.2.0.dev0-python3.6 bash -c "ls -la"
   total 16
   drwxr-xr-x 4 airflow root 4096 Jun  5 18:12 .
   drwxr-xr-x 1 root    root 4096 Jun  5 18:12 ..
@@ -144,7 +144,7 @@ you pass extra parameters. For example:
 
 .. code-block:: bash
 
-  > docker run -it apache/airflow:2.1.2-python3.6 python -c "print('test')"
+  > docker run -it apache/airflow:2.2.0.dev0-python3.6 python -c "print('test')"
   test
 
 If first argument equals to "airflow" - the rest of the arguments is treated as an airflow command
@@ -152,14 +152,48 @@ to execute. Example:
 
 .. code-block:: bash
 
-   docker run -it apache/airflow:2.1.2-python3.6 airflow webserver
+   docker run -it apache/airflow:2.2.0.dev0-python3.6 airflow webserver
 
 If there are any other arguments - they are simply passed to the "airflow" command
 
 .. code-block:: bash
 
-  > docker run -it apache/airflow:2.1.2-python3.6 version
-  2.1.2
+  > docker run -it apache/airflow:2.2.0.dev0-python3.6 help
+    usage: airflow [-h] GROUP_OR_COMMAND ...
+
+    positional arguments:
+      GROUP_OR_COMMAND
+
+        Groups:
+          celery         Celery components
+          config         View configuration
+          connections    Manage connections
+          dags           Manage DAGs
+          db             Database operations
+          jobs           Manage jobs
+          kubernetes     Tools to help run the KubernetesExecutor
+          pools          Manage pools
+          providers      Display providers
+          roles          Manage roles
+          tasks          Manage tasks
+          users          Manage users
+          variables      Manage variables
+
+        Commands:
+          cheat-sheet    Display cheat sheet
+          info           Show information about current Airflow and environment
+          kerberos       Start a kerberos ticket renewer
+          plugins        Dump information about loaded plugins
+          rotate-fernet-key
+                         Rotate encrypted connection credentials and variables
+          scheduler      Start a scheduler instance
+          sync-perm      Update permissions for existing roles and optionally DAGs
+          version        Show the version
+          webserver      Start a Airflow webserver instance
+
+    optional arguments:
+      -h, --help         show this help message and exit
+
 
 Signal propagation
 ------------------
@@ -263,7 +297,7 @@ database and creating an ``admin/admin`` Admin user with the following command:
     --env "_AIRFLOW_DB_UPGRADE=true" \
     --env "_AIRFLOW_WWW_USER_CREATE=true" \
     --env "_AIRFLOW_WWW_USER_PASSWORD=admin" \
-      apache/airflow:main-python3.8 webserver
+      apache/airflow:2.2.0.dev0-python3.8 webserver
 
 
 .. code-block:: bash
@@ -272,7 +306,7 @@ database and creating an ``admin/admin`` Admin user with the following command:
     --env "_AIRFLOW_DB_UPGRADE=true" \
     --env "_AIRFLOW_WWW_USER_CREATE=true" \
     --env "_AIRFLOW_WWW_USER_PASSWORD_CMD=echo admin" \
-      apache/airflow:main-python3.8 webserver
+      apache/airflow:2.2.0.dev0-python3.8 webserver
 
 The commands above perform initialization of the SQLite database, create admin user with admin password
 and Admin role. They also forward local port ``8080`` to the webserver port and finally start the webserver.
@@ -312,6 +346,6 @@ Example:
     --env "_AIRFLOW_DB_UPGRADE=true" \
     --env "_AIRFLOW_WWW_USER_CREATE=true" \
     --env "_AIRFLOW_WWW_USER_PASSWORD_CMD=echo admin" \
-      apache/airflow:master-python3.8 webserver
+      apache/airflow:2.2.0.dev0-python3.8 webserver
 
 This method is only available starting from Docker image of Airflow 2.1.1 and above.

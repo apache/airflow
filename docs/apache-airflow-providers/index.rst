@@ -143,7 +143,7 @@ package.
 
 Each community provider has corresponding extra which can be used when installing airflow to install the
 provider together with ``Apache Airflow`` - for example you can install airflow with those extras:
-``apache-airflow[google,amazon]`` (with correct constraints -see :doc:`apache-airflow:installation`) and you
+``apache-airflow[google,amazon]`` (with correct constraints -see :doc:`apache-airflow:installation/index`) and you
 will install the appropriate versions of the ``apache-airflow-providers-amazon`` and
 ``apache-airflow-providers-google`` packages together with ``Apache Airflow``.
 
@@ -417,10 +417,5 @@ specific Airflow versions.
     Operators and hooks <operators-and-hooks-ref/index>
     Core Extensions <core-extensions/index>
     Update community providers <howto/create-update-providers>
-
-.. toctree::
-    :maxdepth: 2
-    :hidden:
-    :caption: Resources
-
     Installing from sources <installing-from-sources>
+    Installing from PyPI <installing-from-pypi>
