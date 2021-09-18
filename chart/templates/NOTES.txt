@@ -26,9 +26,31 @@ Your release is named {{ .Release.Name }}.
 {{- if .Values.ingress.enabled }}
 You can now access your service(s) by following defined Ingress urls:
 
-Airflow Webserver:     http{{ if .Values.ingress.web.tls.enabled }}s{{ end }}://{{ .Values.ingress.web.host }}{{ .Values.ingress.web.path }}/
+{{- if .Values.ingress.web.host }}
+
+DEPRECATION WARNING:
+   `ingress.web.host` has been renamed to `ingress.web.hosts` and is now an array.
+   Please change your values as support for the old name will be dropped in a future release.
+
+{{- end }}
+
+{{- if .Values.ingress.flower.host }}
+
+DEPRECATION WARNING:
+   `ingress.flower.host` has been renamed to `ingress.flower.hosts` and is now an array.
+   Please change your values as support for the old name will be dropped in a future release.
+
+{{- end }}
+
+Airflow Webserver:
+{{- range .Values.ingress.web.hosts | default (list .Values.ingress.web.host) }}
+      http{{ if $.Values.ingress.web.tls.enabled }}s{{ end }}://{{ . }}{{ $.Values.ingress.web.path }}/
+{{- end }}
 {{- if or (eq .Values.executor "CeleryExecutor") (eq .Values.executor "CeleryKubernetesExecutor") }}
-Flower dashboard:      http{{ if .Values.ingress.flower.tls.enabled }}s{{ end }}://{{ .Values.ingress.flower.host }}{{ .Values.ingress.flower.path }}/
+Flower dashboard:
+{{- range .Values.ingress.flower.hosts }}
+      http{{ if $.Values.ingress.flower.tls.enabled }}s{{ end }}://{{ . }}{{ $.Values.ingress.flower.path }}/
+{{- end }}
 {{- end }}
 {{- else }}
 You can now access your dashboard(s) by executing the following command(s) and visiting the corresponding port at localhost in your browser:

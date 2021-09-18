@@ -232,3 +232,21 @@ class TestWorkerStart(unittest.TestCase):
                 'prefork',
             ]
         )
+
+
+@pytest.mark.backend("mysql", "postgres")
+class TestWorkerFailure(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.parser = cli_parser.get_parser()
+
+    @mock.patch('airflow.cli.commands.celery_command.Process')
+    @mock.patch('airflow.cli.commands.celery_command.celery_app')
+    @conf_vars({("core", "executor"): "CeleryExecutor"})
+    def test_worker_failure_gracefull_shutdown(self, mock_celery_app, mock_popen):
+        args = self.parser.parse_args(['celery', 'worker'])
+        mock_celery_app.run.side_effect = Exception('Mock exception to trigger runtime error')
+        try:
+            celery_command.worker(args)
+        finally:
+            mock_popen().terminate.assert_called()

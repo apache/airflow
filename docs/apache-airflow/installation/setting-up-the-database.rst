@@ -15,20 +15,18 @@
     specific language governing permissions and limitations
     under the License.
 
+Setting up the database
+-----------------------
 
+Airflow requires a database. If you're just experimenting and learning Airflow, you can stick with the
+default SQLite option. If you don't want to use SQLite, then take a look at
+:doc:`/howto/set-up-database` to setup a different database.
 
-To use these operators, you must do a few things:
+Usually, you need to run ``airflow db upgrade`` in order to create the database schema that Airflow can use.
 
-  * Create necessary resources using `AZURE PORTAL`_ or `AZURE CLI`_.
-  * Install API libraries via **pip**.
+Similarly, upgrading Airflow usually requires an extra step of upgrading the database. This is done
+with ``airflow db upgrade`` CLI command. You should make sure that Airflow components are
+not running while the upgrade is being executed.
 
-    .. code-block:: bash
-
-      pip install 'apache-airflow[azure]'
-
-    Detailed information is available :doc:`apache-airflow:installation/index`
-
-  * :doc:`Setup Connection </connections/azure>`.
-
-.. _AZURE PORTAL: https://portal.azure.com
-.. _AZURE CLI: https://docs.microsoft.com/en-us/cli/azure/
+In some deployments, such as :doc:`helm-chart:index`, both initializing and running the database migration
+is executed automatically when Airflow is upgraded.

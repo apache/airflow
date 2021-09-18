@@ -38,7 +38,14 @@ Run ``helm repo update`` before upgrading the chart to the latest version.
 Airflow Helm Chart 1.2.0 (dev)
 ------------------------------
 
-Default Airflow version is updated to ``2.1.2``
+``ingress.web.host`` and ``ingress.flower.host`` parameters have been renamed and data type changed
+"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+``ingress.web.host`` and ``ingress.flower.host`` parameters have been renamed to ``ingress.web.hosts`` and ``ingress.flower.hosts``, respectively. Their types have been changed from a string to an array of strings.
+
+The old parameter names will continue to work, however support for them will be removed in a future release so please update your values file.
+
+Default Airflow version is updated to ``2.1.3``
 """""""""""""""""""""""""""""""""""""""""""""""
 
 The default Airflow version that is installed with the Chart is now ``2.1.3``, previously it was ``2.1.2``.

@@ -15,20 +15,29 @@
     specific language governing permissions and limitations
     under the License.
 
+Prerequisites
+-------------
 
+Airflow is tested with:
 
-To use these operators, you must do a few things:
+* Python: 3.6, 3.7, 3.8, 3.9
 
-  * Create necessary resources using `AZURE PORTAL`_ or `AZURE CLI`_.
-  * Install API libraries via **pip**.
+* Databases:
 
-    .. code-block:: bash
+  * PostgreSQL:  9.6, 10, 11, 12, 13
+  * MySQL: 5.7, 8
+  * SQLite: 3.15.0+
+  * MSSQL(Experimental): 2017, 2019
 
-      pip install 'apache-airflow[azure]'
+* Kubernetes: 1.18.15 1.19.7 1.20.2
 
-    Detailed information is available :doc:`apache-airflow:installation/index`
+**Note:** MySQL 5.x versions are unable to or have limitations with
+running multiple schedulers -- please see: :doc:`/concepts/scheduler`. MariaDB is not tested/recommended.
 
-  * :doc:`Setup Connection </connections/azure>`.
+**Note:** SQLite is used in Airflow tests. Do not use it in production. We recommend
+using the latest stable version of SQLite for local development.
 
-.. _AZURE PORTAL: https://portal.azure.com
-.. _AZURE CLI: https://docs.microsoft.com/en-us/cli/azure/
+Starting with Airflow 2.1.2, Airflow is tested with Python 3.6, 3.7, 3.8, and 3.9.
+
+The minimum memory required we recommend Airflow to run with is 4GB, but the actual requirements depends
+wildly on the deployment options you have
