@@ -86,7 +86,7 @@ RUN mkdir -pv /usr/share/man/man1 \
            libsasl2-dev \
            libsasl2-modules \
            libssl-dev \
-           libenchant-2-2 \
+           libenchant-2-dev \
            locales  \
            netcat \
            nodejs \
