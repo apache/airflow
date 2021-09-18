@@ -72,14 +72,17 @@ class DagRunInfo(NamedTuple):
         return cls(run_after=at, data_interval=DataInterval.exact(at))
 
     @classmethod
-    def interval(cls, start: DateTime, end: DateTime) -> "DagRunInfo":
+    def interval(cls, start: DateTime, end: DateTime, run_after: DateTime = None) -> "DagRunInfo":
         """Represent a run on a continuous schedule.
 
         In such a schedule, each data interval starts right after the previous
         one ends, and each run is scheduled right after the interval ends. This
         applies to all schedules prior to AIP-39 except ``@once`` and ``None``.
         """
-        return cls(run_after=end, data_interval=DataInterval(start, end))
+        if not run_after:
+            run_after = end
+
+        return cls(run_after=run_after, data_interval=DataInterval(start, end))
 
     @property
     def logical_date(self) -> DateTime:
