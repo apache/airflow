@@ -159,19 +159,19 @@ def execute_interactive(cmd: List[str], **kwargs):
     tty.setraw(sys.stdin.fileno())
 
     # open pseudo-terminal to interact with subprocess
-    master_fd, slave_fd = pty.openpty()
+    primary_fd, secondary_fd = pty.openpty()
     try:
         # use os.setsid() make it run in a new process group, or bash job control will not be enabled
         with subprocess.Popen(
-            cmd, stdin=slave_fd, stdout=slave_fd, stderr=slave_fd, universal_newlines=True, **kwargs
+            cmd, stdin=secondary_fd, stdout=secondary_fd, stderr=secondary_fd, universal_newlines=True, **kwargs
         ) as proc:
             while proc.poll() is None:
-                readable_fbs, _, _ = select.select([sys.stdin, master_fd], [], [])
+                readable_fbs, _, _ = select.select([sys.stdin, primary_fd], [], [])
                 if sys.stdin in readable_fbs:
                     input_data = os.read(sys.stdin.fileno(), 10240)
-                    os.write(master_fd, input_data)
-                if master_fd in readable_fbs:
-                    output_data = os.read(master_fd, 10240)
+                    os.write(primary_fd, input_data)
+                if primary_fd in readable_fbs:
+                    output_data = os.read(primary_fd, 10240)
                     if output_data:
                         os.write(sys.stdout.fileno(), output_data)
     finally:
