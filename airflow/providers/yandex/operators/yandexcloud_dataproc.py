@@ -49,7 +49,7 @@ class DataprocCreateClusterOperator(BaseOperator):
                                Service account can be created inside the folder.
     :type service_account_id: Optional[str]
     :param masternode_resource_preset: Resources preset (CPU+RAM configuration)
-                                       for the master node of the cluster.
+                                       for the primary node of the cluster.
     :type masternode_resource_preset: str
     :param masternode_disk_size: Masternode storage size in GiB.
     :type masternode_disk_size: int
