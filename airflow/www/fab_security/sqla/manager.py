@@ -401,7 +401,7 @@ class SecurityManager(BaseSecurityManager):
     def add_view_menu(self, name):
         """
         Adds a view or menu to the backend, model view_menu
-        param name:
+        :param name:
             name of the view menu to add
         """
         view_menu = self.find_view_menu(name)
