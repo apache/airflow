@@ -125,7 +125,7 @@ def patch_role(role_name, update_mask=None):
             (item['permission']['name'], item['view_menu']['name']) for item in data['permissions'] if item
         ]
         _check_action_and_resource(security_manager, perms)
-    security_manager.update_role(pk=role.id, name=data['name'])
+    security_manager.update_role(role_id=role.id, name=data['name'])
     security_manager.init_role(role_name=data['name'], perms=perms or role.permissions)
     return role_schema.dump(role)
 

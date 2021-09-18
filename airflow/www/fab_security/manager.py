@@ -1671,7 +1671,7 @@ class BaseSecurityManager:
     def add_role(self, name):
         raise NotImplementedError
 
-    def update_role(self, pk, name):
+    def update_role(self, role_id, name):
         raise NotImplementedError
 
     def get_all_roles(self):
