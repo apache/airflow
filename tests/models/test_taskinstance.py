@@ -17,15 +17,16 @@
 # under the License.
 
 import datetime
+import math
 import os
 import signal
-import time
 import urllib
 from tempfile import NamedTemporaryFile
 from typing import List, Optional, Union, cast
 from unittest import mock
 from unittest.mock import call, mock_open, patch
 
+import numpy as np
 import pendulum
 import pytest
 from freezegun import freeze_time
@@ -489,10 +490,14 @@ class TestTaskInstance:
         assert ti.next_kwargs is None
         assert ti.state == State.UP_FOR_RETRY
 
-    def test_retry_delay(self, dag_maker):
+    @patch('airflow.utils.timezone.utcnow')
+    def test_retry_delay(self, mock_utcnow, dag_maker):
         """
         Test that retry delays are respected
         """
+        utc = pendulum.tz.timezone('UTC')
+        mock_utcnow.return_value = datetime.datetime(2021, 9, 18, 2, 33, 35, 564883).replace(tzinfo=utc)
+
         with dag_maker(dag_id='test_retry_handling'):
             task = BashOperator(
                 task_id='test_retry_handling_op',
@@ -517,11 +522,15 @@ class TestTaskInstance:
         assert ti.try_number == 2
 
         # second run -- still up for retry because retry_delay hasn't expired
+        mock_utcnow.return_value += datetime.timedelta(seconds=3)
         run_with_error(ti)
         assert ti.state == State.UP_FOR_RETRY
 
         # third run -- failed
-        time.sleep(3)
+        mock_utcnow.return_value += datetime.timedelta(
+            # I think this is the smallest timedelta to create a different datetime
+            microseconds=np.nextafter(0.5, math.inf)
+        )
         run_with_error(ti)
         assert ti.state == State.FAILED
 
