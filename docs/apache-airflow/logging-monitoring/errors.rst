@@ -72,7 +72,7 @@ Name                                    Description
 ======================================= ==============================================================
 
 
-Impact os Sentry on Environment variables passed to Subprocess Hook
+Impact of Sentry on Environment variables passed to Subprocess Hook
 -------------------------------------------------------------------
 
 When Sentry is enabled, by default it changes standard library to pass all environment variables to
