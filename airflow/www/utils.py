@@ -301,24 +301,6 @@ def json_f(attr_name):
     return json_
 
 
-def serialized_json_f(attr_name):
-    """Returns a formatted string with HTML for given JSON using Airflow's serialization module"""
-
-    def json_(attr):
-        from airflow.serialization.serialized_objects import BaseSerialization
-
-        f = attr.get(attr_name)
-
-        if f is None:
-            return None
-
-        # First, encode it into our custom JSON-targeted dict format
-        serialized = BaseSerialization._serialize(f)  # pylint: disable=protected-access
-        return Markup('<nobr>{}</nobr>').format(serialized)
-
-    return json_
-
-
 def dag_link(attr):
     """Generates a URL to the Graph view for a Dag."""
     dag_id = attr.get('dag_id')

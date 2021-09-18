@@ -4092,7 +4092,6 @@ class TriggerModelView(AirflowModelView):
         'classpath',
         'created_date',
         'triggerer_id',
-        'kwargs',
     ]
 
     search_columns = [
@@ -4108,7 +4107,6 @@ class TriggerModelView(AirflowModelView):
 
     formatters_columns = {
         'created_date': wwwutils.datetime_f('created_date'),
-        'kwargs': wwwutils.serialized_json_f('kwargs'),
     }
 
 
