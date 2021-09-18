@@ -22,7 +22,8 @@ import pytest
 
 from airflow.configuration import initialize_config
 from airflow.plugins_manager import AirflowPlugin, EntryPointSource
-from airflow.www.views import get_key_paths, get_safe_url, get_value_from_path, truncate_task_duration
+from airflow.www.views import get_key_paths, get_safe_url, get_value_from_path, truncate_task_duration, \
+    get_existing_copy_connection
 from tests.test_utils.config import conf_vars
 from tests.test_utils.mock_plugins import mock_plugin_manager
 from tests.test_utils.www import check_content_in_response, check_content_not_in_response
@@ -188,6 +189,10 @@ def test_get_safe_url(mock_url_for, app, test_url, expected_url):
 )
 def test_truncate_task_duration(test_duration, expected_duration):
     assert truncate_task_duration(test_duration) == expected_duration
+
+
+def test_check_duplicate_connection_query_string():
+    assert get_existing_copy_connection("airflow_db")
 
 
 @pytest.fixture
