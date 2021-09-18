@@ -42,7 +42,7 @@ The |version| downloads are available at:
 
 .. jinja:: official_download_page
 
-    * `Sources package <{{ closer_lua_url }}/apache-airflow-{{ airflow_version }}-source.tar.gz>`__ (`asc <{{ base_url }}/apache_airflow-{{ airflow_version }}-source.tar.gz.asc>`__, `sha512 <{{ base_url }}/apache-airflow-{{ airflow_version }}-source.tar.gz.sha512>`__)
+    * `Sources package <{{ closer_lua_url }}/apache-airflow-{{ airflow_version }}-source.tar.gz>`__ (`asc <{{ base_url }}/apache-airflow-{{ airflow_version }}-source.tar.gz.asc>`__, `sha512 <{{ base_url }}/apache-airflow-{{ airflow_version }}-source.tar.gz.sha512>`__)
     * `Sdist package <{{ closer_lua_url }}/apache-airflow-{{ airflow_version }}.tar.gz>`__ (`asc <{{ base_url }}/apache-airflow-{{ airflow_version }}.tar.gz.asc>`__, `sha512 <{{ base_url }}/apache-airflow-{{ airflow_version }}.tar.gz.sha512>`__)
     * `Whl package <{{ closer_lua_url }}/apache_airflow-{{ airflow_version }}-py3-none-any.whl>`__ (`asc <{{ base_url }}/apache_airflow-{{ airflow_version }}-py3-none-any.whl.asc>`__, `sha512 <{{ base_url }}/apache_airflow-{{ airflow_version }}-py3-none-any.whl.sha512>`__)
 
