@@ -42,7 +42,7 @@ class TestProviderManager(unittest.TestCase):
                 version = provider_manager.providers[provider][0]
                 assert re.search(r'[0-9]*\.[0-9]*\.[0-9]*.*', version)
                 assert package_name == provider
-            # just a sanity check - no exact number as otherwise we would have to update
+            # just a coherence check - no exact number as otherwise we would have to update
             # several tests if we add new connections/provider which is not ideal
             assert len(provider_list) > 65
             assert [] == self._caplog.records

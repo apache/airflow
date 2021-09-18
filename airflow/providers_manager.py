@@ -107,7 +107,7 @@ def _create_customized_form_field_behaviours_schema_validator():
 
 def _sanity_check(provider_package: str, class_name: str) -> bool:
     """
-    Performs sanity check on provider classes.
+    Performs coherence check on provider classes.
     For apache-airflow providers - it checks if it starts with appropriate package. For all providers
     it tries to import the provider - checking that there are no exceptions during importing.
     It logs appropriate warning in case it detects any problems.
@@ -121,7 +121,7 @@ def _sanity_check(provider_package: str, class_name: str) -> bool:
         provider_path = provider_package[len("apache-") :].replace("-", ".")
         if not class_name.startswith(provider_path):
             log.warning(
-                "Sanity check failed when importing '%s' from '%s' package. It should start with '%s'",
+                "Coherence check failed when importing '%s' from '%s' package. It should start with '%s'",
                 class_name,
                 provider_package,
                 provider_path,
