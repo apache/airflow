@@ -49,3 +49,53 @@ class IngressWebTest(unittest.TestCase):
             show_only=["templates/webserver/webserver-ingress.yaml"],
         )
         assert "foo" == jmespath.search("spec.ingressClassName", docs[0])
+
+    def test_should_ingress_hosts_have_priority_over_host(self):
+        docs = render_chart(
+            values={
+                "ingress": {
+                    "enabled": True,
+                    "web": {
+                        "tls": {"enabled": True, "secretName": "supersecret"},
+                        "hosts": ["*.a-host", "b-host"],
+                        "host": "old-host",
+                    },
+                }
+            },
+            show_only=["templates/webserver/webserver-ingress.yaml"],
+        )
+        assert (
+            ["*.a-host", "b-host"]
+            == jmespath.search("spec.rules[*].host", docs[0])
+            == jmespath.search("spec.tls[0].hosts", docs[0])
+        )
+
+    def test_should_ingress_host_still_work(self):
+        docs = render_chart(
+            values={
+                "ingress": {
+                    "enabled": True,
+                    "web": {
+                        "tls": {"enabled": True, "secretName": "supersecret"},
+                        "host": "old-host",
+                    },
+                }
+            },
+            show_only=["templates/webserver/webserver-ingress.yaml"],
+        )
+        assert (
+            ["old-host"]
+            == jmespath.search("spec.rules[*].host", docs[0])
+            == jmespath.search("spec.tls[0].hosts", docs[0])
+        )
+
+    def test_should_ingress_host_entry_not_exist(self):
+        docs = render_chart(
+            values={
+                "ingress": {
+                    "enabled": True,
+                }
+            },
+            show_only=["templates/webserver/webserver-ingress.yaml"],
+        )
+        assert not jmespath.search("spec.rules[*].host", docs[0])

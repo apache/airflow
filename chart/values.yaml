@@ -109,8 +109,11 @@ ingress:
     # The pathType for the above path (used only with Kubernetes v1.19 and above)
     pathType: "ImplementationSpecific"
 
-    # The hostname for the web Ingress
+    # The hostname for the web Ingress (Deprecated - renamed to `ingress.web.hosts`)
     host: ""
+
+    # The hostnames for the web Ingress
+    hosts: []
 
     # The Ingress Class for the web Ingress (used only with Kubernetes v1.19 and above)
     ingressClassName: ""
@@ -139,8 +142,11 @@ ingress:
     # The pathType for the above path (used only with Kubernetes v1.19 and above)
     pathType: "ImplementationSpecific"
 
-    # The hostname for the flower Ingress
+    # The hostname for the flower Ingress (Deprecated - renamed to `ingress.flower.hosts`)
     host: ""
+
+    # The hostnames for the flower Ingress
+    hosts: []
 
     # The Ingress Class for the flower Ingress (used only with Kubernetes v1.19 and above)
     ingressClassName: ""

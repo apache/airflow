@@ -2420,12 +2420,12 @@ class DAG(LoggingMixin):
             orm_dag.calculate_dagrun_date_fields(dag, data_interval)
 
             for orm_tag in list(orm_dag.tags):
-                if orm_tag.name not in orm_dag.tags:
+                if orm_tag.name not in set(dag.tags):
                     session.delete(orm_tag)
-                orm_dag.tags.remove(orm_tag)
+                    orm_dag.tags.remove(orm_tag)
             if dag.tags:
                 orm_tag_names = [t.name for t in orm_dag.tags]
-                for dag_tag in list(dag.tags):
+                for dag_tag in set(dag.tags):
                     if dag_tag not in orm_tag_names:
                         dag_tag_orm = DagTag(name=dag_tag, dag_id=dag.dag_id)
                         orm_dag.tags.append(dag_tag_orm)

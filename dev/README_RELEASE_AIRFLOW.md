@@ -728,14 +728,9 @@ Dear Airflow community,
 
 I'm happy to announce that Airflow ${VERSION} was just released.
 
-The source release, as well as the binary "sdist" release, are available
-here:
+The released sources and packages can be downloaded via https://airflow.apache.org/installation/installing-from-sources.html
 
-https://dist.apache.org/repos/dist/release/airflow/${VERSION}/
-
-We also made this version available on PyPI for convenience (`pip install apache-airflow`):
-
-https://pypi.python.org/pypi/apache-airflow
+Other installation methods are described in https://airflow.apache.org/installation/
 
 The documentation is available on:
 https://airflow.apache.org/

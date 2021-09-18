@@ -16,16 +16,21 @@
    under the License.
 
 
-Upgrading to Airflow 2.0+
--------------------------
+Upgrading from 1.10 to 2
+------------------------
+
+.. toctree::
+    :hidden:
+
+    upgrade-check
 
 .. contents:: :local:
 
-Apache Airflow 2.0 is a major release and the purpose of this document is to assist
-users to migrate from Airflow 1.10.x to Airflow 2.0.
+Apache Airflow 2 is a major release and the purpose of this document is to assist
+users to migrate from Airflow 1.10.x to Airflow 2
 
-Step 1: Upgrade to Python 3
-'''''''''''''''''''''''''''
+Step 1: Switch to Python 3
+''''''''''''''''''''''''''
 
 Airflow 1.10 was the last release series to support Python 2. Airflow 2.0.0
 requires Python 3.6+ and has been tested with Python versions 3.6, 3.7 and 3.8.
@@ -38,10 +43,10 @@ For a list of breaking changes between Python 2 and Python 3, please refer to th
 from the CouchBaseDB team.
 
 
-Step 2: Upgrade to Airflow 1.10.15 (a.k.a our "bridge" release)
-'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+Step 2: Upgrade to 1.10.15
+''''''''''''''''''''''''''
 
-To minimize friction for users upgrading from Airflow 1.10 to Airflow 2.0 and beyond, Airflow 1.10.15 "a bridge release" has
+To minimize friction for users upgrading from Airflow 1.10 to Airflow 2.0 and beyond, Airflow 1.10.15 a.k.a "bridge release" has
 been created. This is the final 1.10 feature release. Airflow 1.10.15 includes support for various features
 that have been backported from Airflow 2.0 to make it easy for users to test their Airflow
 environment before upgrading to Airflow 2.0.
@@ -71,8 +76,8 @@ simply run the following command:
 Once you have performed this step, simply write out the file path to this file in the ``pod_template_file`` config of the ``kubernetes``
 section of your ``airflow.cfg``
 
-Step 3: Install and run the Upgrade check scripts
-'''''''''''''''''''''''''''''''''''''''''''''''''
+Step 3: Run the Upgrade check scripts
+'''''''''''''''''''''''''''''''''''''
 
 After upgrading to Airflow 1.10.15, we recommend that you install the "upgrade check" scripts. These scripts will read through your ``airflow.cfg`` and all of your DAGs and will give a detailed report of all changes required before upgrading. We are testing this script diligently, and our goal is that any Airflow setup that can pass these tests will be able to upgrade to 2.0 without any issues.
 
@@ -89,8 +94,8 @@ Once this is installed, please run the upgrade check script.
 More details about this process are here :ref:`Upgrade Check Scripts<upgrade-check>`.
 
 
-Step 4: Import Operators from Backport Providers
-''''''''''''''''''''''''''''''''''''''''''''''''
+Step 4: Switch to Backport Providers
+''''''''''''''''''''''''''''''''''''
 
 Now that you are set up in Airflow 1.10.15 with Python a 3.6+ environment, you are ready to start porting your DAGs to Airflow 2.0 compliance!
 
@@ -296,7 +301,7 @@ When DAGs are initialized with the ``access_control`` variable set, any usage of
     as it is the only default UI.
 
     If you previously used non-RBAC UI, you have to switch to the new RBAC-UI and create users to be able
-    to access Airflow's webserver. For more details on CLI to create users see :doc:`cli-and-env-variables-ref`
+    to access Airflow's webserver. For more details on CLI to create users see :doc:`/cli-and-env-variables-ref`
 
 Please note that custom auth backends will need re-writing to target new FAB based UI.
 
@@ -487,8 +492,8 @@ For Airflow 2.0, the traditional ``executor_config`` will continue operation wit
 but will be removed in a future version.
 
 
-Step 7: Upgrade to Airflow 2.0
-'''''''''''''''''''''''''''''''
+Step 7: Upgrade to Airflow 2
+''''''''''''''''''''''''''''
 
 After running the upgrade checks as described above, installing the backported providers, modifying
 the DAGs to be compatible, and updating the configuration settings, you should be ready to upgrade to Airflow 2.0.
@@ -528,13 +533,6 @@ At this point, just follow the standard Airflow version upgrade process:
       the old historical elements which are no longer of value.
 
 * Restart Airflow Scheduler, Webserver, and Workers
-
-
-Frequently Asked Questions on Upgrade
-'''''''''''''''''''''''''''''''''''''
-* Q. Why doesn't the list of connection types show up in the Airflow UI after I upgrade to 2.0?
-  * A. It is because Airflow 2.0 does not ship with the provider packages. The connection type list in the Airflow UI is based on the providers you have installed with Airflow 2.0. Please note that these will only show up once you install the provider and restart Airflow. You can read more about providers at :doc:`apache-airflow-providers:index`.
-
 
 Appendix
 ''''''''

@@ -137,9 +137,17 @@
                             "default": "ImplementationSpecific"
                         },
                         "host": {
-                            "description": "The hostname for the web Ingress.",
+                            "description": "The hostname for the web Ingress. (Deprecated - renamed to `ingress.web.hosts`)",
                             "type": "string",
                             "default": ""
+                        },
+                        "hosts": {
+                            "description": "The hostnames for the web Ingress.",
+                            "type": "array",
+                            "default": [],
+                            "items": {
+                                "type": "string"
+                            }
                         },
                         "ingressClassName": {
                             "description": "The Ingress Class for the web Ingress.",
@@ -196,9 +204,17 @@
                             "default": "ImplementationSpecific"
                         },
                         "host": {
-                            "description": "The hostname for the flower Ingress.",
+                            "description": "The hostname for the flower Ingress. (Deprecated - renamed to `ingress.flower.hosts`)",
                             "type": "string",
                             "default": ""
+                        },
+                        "hosts": {
+                            "description": "The hostnames for the flower Ingress.",
+                            "type": "array",
+                            "default": [],
+                            "items": {
+                                "type": "string"
+                            }
                         },
                         "ingressClassName": {
                             "description": "The Ingress Class for the flower Ingress.",

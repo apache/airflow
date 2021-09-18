@@ -275,7 +275,8 @@ if PACKAGE_NAME == 'apache-airflow':
     ]
     # Replace "|version|" in links
     manual_substitutions_in_generated_html = [
-        "installation.html",
+        "installation/installing-from-pypi.html",
+        "installation/installing-from-sources.html",
     ]
 
 if PACKAGE_NAME == 'docker-stack':

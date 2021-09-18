@@ -50,3 +50,8 @@ macros-ref.rst templates-ref.rst
 concepts.rst concepts/index.rst
 smart-sensor.rst concepts/smart-sensors.rst
 scheduler.rst concepts/scheduler.rst
+
+# Installation
+installation.rst installation/index.rst
+upgrade-check.rst installation/upgrade-check.rst
+upgrading-to-2.rst upgrading-from-1-10/index.rst

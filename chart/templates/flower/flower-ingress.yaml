@@ -43,31 +43,35 @@ spec:
   {{- if .Values.ingress.flower.tls.enabled }}
   tls:
     - hosts:
-        - {{ .Values.ingress.flower.host }}
+{{- if .Values.ingress.flower.tls.enabled }}
+        {{- .Values.ingress.flower.hosts | default (list .Values.ingress.flower.host) | toYaml | nindent 8 }}
+{{- end }}
       secretName: {{ .Values.ingress.flower.tls.secretName }}
   {{- end }}
   rules:
+    {{- range .Values.ingress.flower.hosts | default (list .Values.ingress.flower.host) }}
     - http:
         paths:
           - backend:
               {{- if $apiIsStable }}
               service:
-                name: {{ .Release.Name }}-flower
+                name: {{ $.Release.Name }}-flower
                 port:
                   name: flower-ui
               {{- else }}
-              serviceName: {{ .Release.Name }}-flower
+              serviceName: {{ $.Release.Name }}-flower
               servicePort: flower-ui
               {{- end }}
-            {{- if .Values.ingress.flower.path }}
-            path: {{ .Values.ingress.flower.path }}
+            {{- if $.Values.ingress.flower.path }}
+            path: {{ $.Values.ingress.flower.path }}
             {{- if $apiIsStable }}
-            pathType: {{ .Values.ingress.flower.pathType }}
+            pathType: {{ $.Values.ingress.flower.pathType }}
             {{- end }}
             {{- end }}
-      {{- if .Values.ingress.flower.host }}
-      host: {{ .Values.ingress.flower.host }}
+      {{- if . }}
+      host: {{ . | quote }}
       {{- end }}
+    {{- end }}
   {{- if and .Values.ingress.flower.ingressClassName $apiIsStable }}
   ingressClassName: {{ .Values.ingress.flower.ingressClassName }}
   {{- end }}

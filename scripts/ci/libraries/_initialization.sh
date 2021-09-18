@@ -123,7 +123,7 @@ function initialization::initialize_base_variables() {
     export CURRENT_MYSQL_VERSIONS
 
     # Currently supported versions of MSSQL
-    CURRENT_MSSQL_VERSIONS+=("2017-latest" "2019-latest")
+    CURRENT_MSSQL_VERSIONS+=("2019-latest")
     export CURRENT_MSSQL_VERSIONS
 
     BACKEND=${BACKEND:="sqlite"}
