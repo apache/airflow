@@ -17,16 +17,15 @@
 # under the License.
 
 import datetime
-import math
 import os
 import signal
+import sys
 import urllib
 from tempfile import NamedTemporaryFile
 from typing import List, Optional, Union, cast
 from unittest import mock
 from unittest.mock import call, mock_open, patch
 
-import numpy as np
 import pendulum
 import pytest
 from freezegun import freeze_time
@@ -526,8 +525,11 @@ class TestTaskInstance:
         # third run -- failed
         frozen_time.tick(
             delta=datetime.timedelta(
-                # I think this is the smallest timedelta to create a different datetime
-                microseconds=np.nextafter(0.5, math.inf)
+                # Approximate the smallest timedelta needed to create a different datetime
+                # (In Python>=3.9, math.nextafter can be used for an even better approximation.
+                # np.nextafter was not used to avoid introducing numpy as a required dependency)
+                microseconds=0.5
+                + sys.float_info.epsilon
             )
         )
         run_with_error(ti)
