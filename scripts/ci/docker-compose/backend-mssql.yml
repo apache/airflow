@@ -20,12 +20,14 @@ services:
   airflow:
     environment:
       - BACKEND=mssql
-      - AIRFLOW__CORE__SQL_ALCHEMY_CONN=mssql+pyodbc://sa:Airflow123@mssql:1433/master?driver=ODBC+Driver+17+for+SQL+Server
-      - AIRFLOW__CELERY__RESULT_BACKEND=db+mssql+pyodbc://sa:Airflow123@mssql:1433/master?driver=ODBC+Driver+17+for+SQL+Server
+      - AIRFLOW__CORE__SQL_ALCHEMY_CONN=mssql+pyodbc://sa:Airflow123@mssql:1433/airflow?driver=ODBC+Driver+17+for+SQL+Server
+      - AIRFLOW__CELERY__RESULT_BACKEND=db+mssql+pyodbc://sa:Airflow123@mssql:1433/airflow?driver=ODBC+Driver+17+for+SQL+Server
       - AIRFLOW__CORE__EXECUTOR=LocalExecutor
     depends_on:
       mssql:
         condition: service_healthy
+      mssqlsetup:
+        condition: service_completed_successfully
   mssql:
     image: mcr.microsoft.com/mssql/server:${MSSQL_VERSION}
     environment:
@@ -38,3 +40,14 @@ services:
       timeout: 10s
       retries: 10
     restart: always
+  mssqlsetup:
+    image: mcr.microsoft.com/mssql/server:${MSSQL_VERSION}
+    depends_on:
+      mssql:
+        condition: service_healthy
+    entrypoint:
+      - bash
+      - -c
+      - opt/mssql-tools/bin/sqlcmd -S mssql -U sa -P Airflow123 -i /mssql_create_airflow_db.sql || true
+    volumes:
+      - ./mssql_create_airflow_db.sql:/mssql_create_airflow_db.sql:ro

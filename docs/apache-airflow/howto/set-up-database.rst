@@ -27,13 +27,14 @@ The document below describes the database engine configurations, the necessary c
 Choosing database backend
 -------------------------
 
-If you want to take a real test drive of Airflow, you should consider setting up a database backend to **MySQL** and **PostgresSQL**.
+If you want to take a real test drive of Airflow, you should consider setting up a database backend to **MySQL**, **PostgresSQL** , **MsSQL**.
 By default, Airflow uses **SQLite**, which is intended for development purposes only.
 
 Airflow supports the following database engine versions, so make sure which version you have. Old versions may not support all SQL statements.
 
   * PostgreSQL:  9.6, 10, 11, 12, 13
   * MySQL: 5.7, 8
+  * MsSQL: 2017, 2019
   * SQLite: 3.15.0+
 
 If you plan on running more than one scheduler, you have to meet additional requirements.
@@ -225,6 +226,27 @@ For more information regarding setup of the PostgresSQL connection, see `Postgre
 .. spelling::
 
      hba
+
+Setting up a MsSQL Database
+---------------------------
+
+You need to create a database and a database user that Airflow will use to access this database.
+In the example below, a database ``airflow_db`` and user  with username ``airflow_user`` with password ``airflow_pass`` will be created.
+Note, that in case of MsSQL, Airflow uses ``READ COMMITTED`` transaction isolation and it must have
+``READ_COMMITTED_SNAPSHOT`` feature enabled, otherwise read transactions might generate deadlocks
+(especially in case of backfill). Airflow will refuse to use database that has the feature turned off.
+You can read more about transaction isolation and snapshot features at
+`Transaction isolation level <https://docs.microsoft.com/en-us/sql/t-sql/statements/set-transaction-isolation-level-transact-sql>`_
+
+.. code-block:: sql
+
+   CREATE DATABASE airflow;
+   ALTER DATABASE airflow SET READ_COMMITTED_SNAPSHOT ON;
+   CREATE LOGIN airflow_user WITH PASSWORD='airflow_pass123%';
+   USE airflow;
+   CREATE USER airflow_user FROM LOGIN airflow_user;
+   GRANT ALL PRIVILEGES ON DATABASE airflow TO airflow_user;
+
 
 Other configuration options
 ---------------------------
