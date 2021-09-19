@@ -163,7 +163,12 @@ def execute_interactive(cmd: List[str], **kwargs):
     try:
         # use os.setsid() make it run in a new process group, or bash job control will not be enabled
         with subprocess.Popen(
-            cmd, stdin=secondary_fd, stdout=secondary_fd, stderr=secondary_fd, universal_newlines=True, **kwargs
+            cmd,
+            stdin=secondary_fd,
+            stdout=secondary_fd,
+            stderr=secondary_fd,
+            universal_newlines=True,
+            **kwargs,
         ) as proc:
             while proc.poll() is None:
                 readable_fbs, _, _ = select.select([sys.stdin, primary_fd], [], [])
