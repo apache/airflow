@@ -540,11 +540,11 @@ Setting up Debug
            alt="Adding existing interpreter">
     </div>
 
-- In PyCharm IDE open airflow project, directory ``\files\dags`` of local machine is by default mounted to docker
+- In PyCharm IDE open airflow project, directory ``/files/dags`` of local machine is by default mounted to docker
   machine when breeze airflow is started. So any DAG file present in this directory will be picked automatically by
   scheduler running in docker machine and same can be seen on ``http://127.0.0.1:28080``.
 
-- Copy any example DAG present in the ``\airflow\example_dags`` directory to ``\files\dags\``.
+- Copy any example DAG present in the ``/airflow/example_dags`` directory to ``/files/dags/``.
 
 - Add a ``__main__`` block at the end of your DAG file to make it runnable. It will run a ``back_fill`` job:
 
@@ -644,7 +644,7 @@ All Tests are inside ./tests directory.
 
 
 - Running specific test in container using shell scripts. Testing in container scripts are located in
-  ``.\scripts\in_container`` directory.
+  ``./scripts/in_container`` directory.
 
 .. code-block:: bash
 
@@ -840,7 +840,7 @@ To avoid burden on CI infrastructure and to save time, Pre-commit hooks can be r
 
 
 
-7. Running specific checks in container using shell scripts. Scripts are located in ``.\scripts\in_container``
+7. Running specific checks in container using shell scripts. Scripts are located in ``./scripts/in_container``
    directory.
 
 .. code-block:: bash
@@ -1343,11 +1343,11 @@ Setting up Debug
 
 1. Debugging an example DAG
 
-- In Visual Studio Code open airflow project, directory ``\files\dags`` of local machine is by default mounted to docker
+- In Visual Studio Code open airflow project, directory ``/files/dags`` of local machine is by default mounted to docker
   machine when breeze airflow is started. So any DAG file present in this directory will be picked automatically by
   scheduler running in docker machine and same can be seen on ``http://127.0.0.1:28080``.
 
-- Copy any example DAG present in the ``\airflow\example_dags`` directory to ``\files\dags\``.
+- Copy any example DAG present in the ``/airflow/example_dags`` directory to ``/files/dags/``.
 
 - Add a ``__main__`` block at the end of your DAG file to make it runnable. It will run a ``back_fill`` job:
 
@@ -1455,7 +1455,7 @@ All Tests are inside ./tests directory.
 
 
 - Running specific test in container using shell scripts. Testing in container scripts are located in
-  ``.\scripts\in_container`` directory.
+  ``./scripts/in_container`` directory.
 
 .. code-block:: bash
 
@@ -1651,7 +1651,7 @@ To avoid burden on CI infrastructure and to save time, Pre-commit hooks can be r
 
 
 
-7. Running specific checks in container using shell scripts. Scripts are located in ``.\scripts\in_container``
+7. Running specific checks in container using shell scripts. Scripts are located in ``./scripts/in_container``
    directory.
 
 .. code-block:: bash
