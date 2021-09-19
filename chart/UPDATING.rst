@@ -45,10 +45,10 @@ Airflow Helm Chart 1.2.0 (dev)
 
 The old parameter names will continue to work, however support for them will be removed in a future release so please update your values file.
 
-Default Airflow version is updated to ``2.1.3``
+Default Airflow version is updated to ``2.1.4``
 """""""""""""""""""""""""""""""""""""""""""""""
 
-The default Airflow version that is installed with the Chart is now ``2.1.3``, previously it was ``2.1.2``.
+The default Airflow version that is installed with the Chart is now ``2.1.4``, previously it was ``2.1.2``.
 
 Removed ``ingress.flower.precedingPaths`` and ``ingress.flower.succeedingPaths`` parameters
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
