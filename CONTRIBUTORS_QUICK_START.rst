@@ -555,8 +555,8 @@ Setting up Debug
     ...
 
     if __name__ == '__main__':
-      dag.clear(dag_run_state=State.NONE)
-      dag.run()
+        dag.clear(dag_run_state=State.NONE)
+        dag.run()
 
 - Add ``AIRFLOW__CORE__EXECUTOR=DebugExecutor`` to Environment variable of Run Configuration.
 
@@ -1358,8 +1358,8 @@ Setting up Debug
     ...
 
     if __name__ == '__main__':
-      dag.clear(dag_run_state=State.NONE)
-      dag.run()
+        dag.clear(dag_run_state=State.NONE)
+        dag.run()
 
 - Add ``"AIRFLOW__CORE__EXECUTOR": "DebugExecutor"`` to the ``"env"`` field of Debug configuration.
 
