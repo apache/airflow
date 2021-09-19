@@ -26,7 +26,8 @@ body:
       multiple: false
       options:
         - "2.2.0b1 (beta snapshot)"
-        - "2.1.3 (latest released)"
+        - "2.1.4 (latest released)"
+        - "2.1.3"
         - "2.1.2"
         - "2.1.1"
         - "2.1.0"
