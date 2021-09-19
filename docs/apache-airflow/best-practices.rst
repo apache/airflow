@@ -88,6 +88,8 @@ and the downstream tasks can pull the path from XCom and use it to read the data
 The tasks should also not store any authentication parameters such as passwords or token inside them.
 Where at all possible, use :doc:`Connections </concepts/connections>` to store data securely in Airflow backend and retrieve them using a unique connection id.
 
+.. _best_practices/top_level_code:
+
 Top level Python Code and Dynamic DAGs
 --------------------------------------
 
@@ -241,11 +243,51 @@ each parameter by following the links):
 * :ref:`config:scheduler__parsing_processes`
 * :ref:`config:scheduler__file_parsing_sort_mode`
 
+.. _best_practices/reducing_dag_complexity:
+
+Reducing DAG complexity
+^^^^^^^^^^^^^^^^^^^^^^^
+
+While Airflow is good in handling a lot of DAGs with a lot of task and dependencies between them, when you
+have many complex DAGs, their complexity might impact performance of scheduling. One of the ways to keep
+your Airflow instance performant and well utilized, you should strive to simplify and optimize your DAGs
+whenever possible - you have to remember that DAG parsing process and creation is just executing
+Python code and it's up to you to make it as performant as possible. There are no magic recipes for making
+your DAG "less complex" - since this is a Python code, it's the DAG writer who controls the complexity of
+their code.
+
+There are no "metrics" for DAG complexity, especially, there are no metrics that can tell you
+whether your DAG is "simple enough". However - as with any Python code you can definitely tell that
+your code is "simpler" or "faster" when you optimize it, the same can be said about DAG code. If you
+want to optimize your DAGs there are the following actions you can take:
+
+* Make your DAG load faster. This is a single improvement advice that might be implemented in various ways
+  but this is the one that has biggest impact on scheduler's performance. Whenever you have a chance to make
+  your DAG load faster - go for it, if your goal is to improve performance. See below
+  :ref:`best_practices/dag_loader_test` on how to asses your DAG loading time.
+
+* Make your DAG generate fewer tasks. Every task adds additional processing overhead for scheduling and
+  execution. If you can decrease the number of tasks that your DAG use, this will likely improve overall
+  scheduling and performance (however be aware that Airflow's flexibility comes from splitting the
+  work between multiple independent and sometimes parallel tasks and it makes it easier to reason
+  about the logic of your DAG when it is split to a number independent, standalone tasks. Also Airflow allows
+  to re-run only specific tasks when needed which might improve maintainability of the DAG - so you have to
+  strike the right balance between optimization, readability and maintainability which is best for your team.
+
+* Make smaller number of DAGs per file. While Airflow 2 is optimized for the case of having multiple DAGs
+  in one file, there are some parts of the system that make it sometimes less performant, or introduce more
+  delays than having those DAGs split among many files. Just the fact that one file can only be parsed by one
+  FileProcessor, makes it less scalable for example. If you have many DAGs generated from one file,
+  consider splitting them if you observe processing and scheduling delays.
+
 Testing a DAG
 ^^^^^^^^^^^^^
 
-Airflow users should treat DAGs as production level code, and DAGs should have various associated tests to ensure that they produce expected results.
-You can write a wide variety of tests for a DAG. Let's take a look at some of them.
+Airflow users should treat DAGs as production level code, and DAGs should have various associated tests to
+ensure that they produce expected results. You can write a wide variety of tests for a DAG.
+Let's take a look at some of them.
+
+.. _best_practices/dag_loader_test:
 
 DAG Loader Test
 ---------------
@@ -255,9 +297,34 @@ No additional code needs to be written by the user to run this test.
 
 .. code-block:: bash
 
- python your-dag-file.py
+     python your-dag-file.py
 
-Running the above command without any error ensures your DAG does not contain any uninstalled dependency, syntax errors, etc.
+Running the above command without any error ensures your DAG does not contain any uninstalled dependency,
+syntax errors, etc. Make sure that you load your DAG in an environment that corresponds to your
+scheduler environment - with the same dependencies, environment variables, common code referred from the
+DAG.
+
+This is also a great way to check if your DAG loads faster after an optimization, if you want to attempt
+to optimize DAG loading time. Simply run the DAG and measure the time it takes, but again you have to
+make sure your DAG runs with the same dependencies, environment variables, common code.
+Make sure to run it several time in succession to account for caching effects. Compare the results
+before and after the optimization in order to assess the impact of the optimization.
+
+There are many ways to measure the time of processing, one of them in Linux environment is to
+use built-in ``time`` command
+
+.. code-block:: bash
+
+     time python your-dag-file.py
+
+Result:
+
+.. code-block:: text
+
+     python your-dag-file.py 0.05s user 0.02s system 1% cpu 1.033 total
+
+The important metrics is the "total time" - which tells you how long elapsed time it took
+to process the DAG.
 
 You can look into :ref:`Testing a DAG <testing>` for details on how to test individual operators.
 

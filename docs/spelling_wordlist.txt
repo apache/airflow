@@ -356,7 +356,7 @@ Tez
 Thinknear
 ToC
 Tooltip
-Tuneables
+Tunables
 UA
 Umask
 Un
@@ -1338,6 +1338,7 @@ trino
 trojan
 tsv
 ttl
+tunables
 txt
 tz
 tzinfo
