@@ -15,6 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
+import os
 from unittest import mock
 
 import flask
@@ -128,7 +129,7 @@ def working_dags(tmpdir):
 
     with create_session() as session:
         for dag_id in TEST_FILTER_DAG_IDS:
-            filename = tmpdir / f"{dag_id}.py"
+            filename = os.path.join(tmpdir, f"{dag_id}.py")
             with open(filename, "w") as f:
                 f.writelines(dag_contents_template.format(dag_id))
             _process_file(filename, session)
@@ -138,7 +139,7 @@ def working_dags(tmpdir):
 def broken_dags(tmpdir, working_dags):
     with create_session() as session:
         for dag_id in TEST_FILTER_DAG_IDS:
-            filename = tmpdir / f"{dag_id}.py"
+            filename = os.path.join(tmpdir, f"{dag_id}.py")
             with open(filename, "w") as f:
                 f.writelines('airflow DAG')
             _process_file(filename, session)

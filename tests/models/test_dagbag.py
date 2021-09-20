@@ -419,7 +419,7 @@ class TestDagBag:
             return dag
 
         test_dag = standard_subdag()
-        # sanity check to make sure DAG.subdag is still functioning properly
+        # coherence check to make sure DAG.subdag is still functioning properly
         assert len(test_dag.subdags) == 2
 
         # Perform processing dag
@@ -503,7 +503,7 @@ class TestDagBag:
             return dag
 
         test_dag = nested_subdags()
-        # sanity check to make sure DAG.subdag is still functioning properly
+        # coherence check to make sure DAG.subdag is still functioning properly
         assert len(test_dag.subdags) == 6
 
         # Perform processing dag
@@ -541,7 +541,7 @@ class TestDagBag:
             return dag
 
         test_dag = basic_cycle()
-        # sanity check to make sure DAG.subdag is still functioning properly
+        # coherence check to make sure DAG.subdag is still functioning properly
         assert len(test_dag.subdags) == 0
 
         # Perform processing dag
@@ -628,7 +628,7 @@ class TestDagBag:
             return dag
 
         test_dag = nested_subdag_cycle()
-        # sanity check to make sure DAG.subdag is still functioning properly
+        # coherence check to make sure DAG.subdag is still functioning properly
         assert len(test_dag.subdags) == 6
 
         # Perform processing dag

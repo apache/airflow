@@ -21,7 +21,7 @@ from sqlalchemy import func
 from werkzeug.security import generate_password_hash
 
 from airflow.api_connexion import security
-from airflow.api_connexion.exceptions import AlreadyExists, BadRequest, NotFound
+from airflow.api_connexion.exceptions import AlreadyExists, BadRequest, NotFound, Unknown
 from airflow.api_connexion.parameters import apply_sorting, check_limit, format_parameters
 from airflow.api_connexion.schemas.user_schema import (
     UserCollection,
@@ -76,10 +76,14 @@ def post_user():
         raise BadRequest(detail=str(e.messages))
 
     security_manager = current_app.appbuilder.sm
+    username = data["username"]
+    email = data["email"]
 
-    user = security_manager.find_user(username=data["username"])
-    if user is not None:
-        detail = f"Username `{user.username}` already exists. Use PATCH to update."
+    if security_manager.find_user(username=username):
+        detail = f"Username `{username}` already exists. Use PATCH to update."
+        raise AlreadyExists(detail=detail)
+    if security_manager.find_user(email=email):
+        detail = f"The email `{email}` is already taken."
         raise AlreadyExists(detail=detail)
 
     roles_to_add = []
@@ -101,6 +105,10 @@ def post_user():
         default_role = security_manager.find_role(security_manager.auth_user_registration_role)
 
     user = security_manager.add_user(role=default_role, **data)
+    if not user:
+        detail = f"Failed to add user `{username}`."
+        return Unknown(detail=detail)
+
     if roles_to_add:
         user.roles.extend(roles_to_add)
         security_manager.update_user(user)

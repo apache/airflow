@@ -65,9 +65,9 @@ from airflow.models.base import ID_LEN, Base
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.dagbag import DagBag
 from airflow.models.dagcode import DagCode
-from airflow.models.dagparam import DagParam
 from airflow.models.dagpickle import DagPickle
 from airflow.models.dagrun import DagRun
+from airflow.models.param import DagParam, ParamsDict
 from airflow.models.taskinstance import Context, TaskInstance, TaskInstanceKey, clear_task_instances
 from airflow.security import permissions
 from airflow.stats import Stats
@@ -246,8 +246,10 @@ class DAG(LoggingMixin):
         is only enforced for scheduled DagRuns.
     :type dagrun_timeout: datetime.timedelta
     :param sla_miss_callback: specify a function to call when reporting SLA
-        timeouts.
-    :type sla_miss_callback: types.FunctionType
+        timeouts. See :ref:`sla_miss_callback<concepts:sla_miss_callback>` for
+        more information about the function signature and parameters that are
+        passed to the callback.
+    :type sla_miss_callback: callable
     :param default_view: Specify DAG default view (tree, graph, duration,
                                                    gantt, landing_times), default tree
     :type default_view: str
@@ -331,7 +333,7 @@ class DAG(LoggingMixin):
         max_active_tasks: int = conf.getint('core', 'max_active_tasks_per_dag'),
         max_active_runs: int = conf.getint('core', 'max_active_runs_per_dag'),
         dagrun_timeout: Optional[timedelta] = None,
-        sla_miss_callback: Optional[Callable] = None,
+        sla_miss_callback: Optional[Callable[["DAG", str, str, List[str], List[TaskInstance]], None]] = None,
         default_view: str = conf.get('webserver', 'dag_default_view').lower(),
         orientation: str = conf.get('webserver', 'dag_orientation'),
         catchup: bool = conf.getboolean('scheduler', 'catchup_by_default'),
@@ -356,6 +358,9 @@ class DAG(LoggingMixin):
         if 'params' in self.default_args:
             self.params.update(self.default_args['params'])
             del self.default_args['params']
+
+        # check self.params and convert them into ParamsDict
+        self.params = ParamsDict(self.params)
 
         if full_filepath:
             warnings.warn(
@@ -473,6 +478,7 @@ class DAG(LoggingMixin):
         self.render_template_as_native_obj = render_template_as_native_obj
         self.tags = tags
         self._task_group = TaskGroup.create_root(self)
+        self.validate_schedule_and_params()
 
     def __repr__(self):
         return f"<DAG: {self.dag_id}>"
@@ -2290,6 +2296,11 @@ class DAG(LoggingMixin):
             else:
                 data_interval = self.infer_automated_data_interval(logical_date)
 
+        # create a copy of params before validating
+        copied_params = copy.deepcopy(self.params)
+        copied_params.update(conf or {})
+        copied_params.validate()
+
         run = DagRun(
             dag_id=self.dag_id,
             run_id=run_id,
@@ -2411,12 +2422,12 @@ class DAG(LoggingMixin):
             orm_dag.calculate_dagrun_date_fields(dag, data_interval)
 
             for orm_tag in list(orm_dag.tags):
-                if orm_tag.name not in orm_dag.tags:
+                if orm_tag.name not in set(dag.tags):
                     session.delete(orm_tag)
-                orm_dag.tags.remove(orm_tag)
+                    orm_dag.tags.remove(orm_tag)
             if dag.tags:
                 orm_tag_names = [t.name for t in orm_dag.tags]
-                for dag_tag in list(dag.tags):
+                for dag_tag in set(dag.tags):
                     if dag_tag not in orm_tag_names:
                         dag_tag_orm = DagTag(name=dag_tag, dag_id=dag.dag_id)
                         orm_dag.tags.append(dag_tag_orm)
@@ -2542,6 +2553,7 @@ class DAG(LoggingMixin):
                 'user_defined_filters',
                 'user_defined_macros',
                 'partial',
+                'params',
                 '_pickle_id',
                 '_log',
                 'is_subdag',
@@ -2575,6 +2587,21 @@ class DAG(LoggingMixin):
         rather than merge with, existing info.
         """
         self.edge_info.setdefault(upstream_task_id, {})[downstream_task_id] = info
+
+    def validate_schedule_and_params(self):
+        """
+        Validates & raise exception if there are any Params in the DAG which neither have a default value nor
+        have the null in schema['type'] list, but the DAG have a schedule_interval which is not None.
+        """
+        if not self.timetable.can_run:
+            return
+
+        for k, v in self.params.items():
+            # As type can be an array, we would check if `null` is a allowed type or not
+            if v.default is None and ("type" not in v.schema or "null" not in v.schema["type"]):
+                raise AirflowException(
+                    "DAG Schedule must be None, if there are any required params without default values"
+                )
 
 
 class DagTag(Base):
@@ -2782,7 +2809,6 @@ class DagModel(Base):
     def deactivate_deleted_dags(cls, alive_dag_filelocs: List[str], session=None):
         """
         Set ``is_active=False`` on the DAGs for which the DAG files have been removed.
-        Additionally change ``is_active=False`` to ``True`` if the DAG file exists.
 
         :param alive_dag_filelocs: file paths of alive DAGs
         :param session: ORM Session
@@ -2794,11 +2820,6 @@ class DagModel(Base):
             if dag_model.fileloc is not None:
                 if correct_maybe_zipped(dag_model.fileloc) not in alive_dag_filelocs:
                     dag_model.is_active = False
-                else:
-                    # If is_active is set as False and the DAG File still exists
-                    # Change is_active=True
-                    if not dag_model.is_active:
-                        dag_model.is_active = True
             else:
                 continue
 

@@ -30,6 +30,7 @@ from airflow.compat.asyncio import create_task
 from airflow.configuration import conf
 from airflow.jobs.base_job import BaseJob
 from airflow.models.trigger import Trigger
+from airflow.stats import Stats
 from airflow.triggers.base import BaseTrigger, TriggerEvent
 from airflow.typing_compat import TypedDict
 from airflow.utils.log.logging_mixin import LoggingMixin
@@ -132,6 +133,8 @@ class TriggererJob(BaseJob):
             self.handle_failed_triggers()
             # Handle heartbeat
             self.heartbeat(only_if_necessary=True)
+            # Collect stats
+            self.emit_metrics()
             # Idle sleep
             time.sleep(1)
 
@@ -155,6 +158,8 @@ class TriggererJob(BaseJob):
             trigger_id, event = self.runner.events.popleft()
             # Tell the model to wake up its tasks
             Trigger.submit_event(trigger_id=trigger_id, event=event)
+            # Emit stat event
+            Stats.incr('triggers.succeeded')
 
     def handle_failed_triggers(self):
         """
@@ -165,6 +170,11 @@ class TriggererJob(BaseJob):
             # Tell the model to fail this trigger's deps
             trigger_id = self.runner.failed_triggers.popleft()
             Trigger.submit_failure(trigger_id=trigger_id)
+            # Emit stat event
+            Stats.incr('triggers.failed')
+
+    def emit_metrics(self):
+        Stats.gauge('triggers.running', len(self.runner.triggers))
 
 
 class TriggerDetails(TypedDict):
@@ -331,6 +341,7 @@ class TriggerRunner(threading.Thread, LoggingMixin):
                     "to get more information on overrunning coroutines.",
                     time_elapsed,
                 )
+                Stats.incr('triggers.blocked_main_thread')
 
     # Async trigger logic
 

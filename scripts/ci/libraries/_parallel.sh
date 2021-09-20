@@ -75,9 +75,12 @@ function parallel::monitor_loop() {
         echo
         echo "${COLOR_YELLOW}########## Monitoring progress start: ${progress_report_number}  ##########${COLOR_RESET}"
         echo
-        echo "${COLOR_BLUE}########### STATISTICS #################"
-        docker_engine_resources::print_overall_stats
-        echo "########### STATISTICS #################${COLOR_RESET}"
+        if [[ ${PR_LABELS} == *debug-ci-resources* || ${GITHUB_EVENT_NAME} == "push" ]]; then
+            # Only print stats in `main` or when "debug-ci-resources" label is set on PR.
+            echo "${COLOR_BLUE}########### STATISTICS #################"
+            docker_engine_resources::print_overall_stats
+            echo "########### STATISTICS #################${COLOR_RESET}"
+        fi
         for directory in "${PARALLEL_MONITORED_DIR}"/*/*
         do
             parallel_process=$(basename "${directory}")

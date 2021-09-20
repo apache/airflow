@@ -264,7 +264,7 @@ require Breeze Docker images to be installed locally.
 ------------------------------------ ---------------------------------------------------------------- ------------
 ``update-setup-cfg-file``              Update setup.cfg file with all licenses
 ------------------------------------ ---------------------------------------------------------------- ------------
-``update-extras``                      Updates extras in the documentation
+``update-versions``                    Updates latest versions in the documentation
 ------------------------------------ ---------------------------------------------------------------- ------------
 ``verify-db-migrations-documented``    Verify DB Migrations have been documented
 ------------------------------------ ---------------------------------------------------------------- ------------

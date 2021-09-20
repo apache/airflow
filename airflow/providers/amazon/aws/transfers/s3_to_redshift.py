@@ -125,7 +125,7 @@ class S3ToRedshiftOperator(BaseOperator):
         return f"""
                     COPY {copy_destination} {column_names}
                     FROM 's3://{self.s3_bucket}/{self.s3_key}'
-                    with credentials
+                    credentials
                     '{credentials_block}'
                     {copy_options};
         """
@@ -156,9 +156,16 @@ class S3ToRedshiftOperator(BaseOperator):
 
     def execute(self, context) -> None:
         postgres_hook = PostgresHook(postgres_conn_id=self.redshift_conn_id)
-        s3_hook = S3Hook(aws_conn_id=self.aws_conn_id, verify=self.verify)
-        credentials = s3_hook.get_credentials()
-        credentials_block = build_credentials_block(credentials)
+        conn = S3Hook.get_connection(conn_id=self.aws_conn_id)
+
+        credentials_block = None
+        if conn.extra_dejson.get('role_arn', False):
+            credentials_block = f"aws_iam_role={conn.extra_dejson['role_arn']}"
+        else:
+            s3_hook = S3Hook(aws_conn_id=self.aws_conn_id, verify=self.verify)
+            credentials = s3_hook.get_credentials()
+            credentials_block = build_credentials_block(credentials)
+
         copy_options = '\n\t\t\t'.join(self.copy_options)
         destination = f'{self.schema}.{self.table}'
         copy_destination = f'#{self.table}' if self.method == 'UPSERT' else destination

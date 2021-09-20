@@ -75,6 +75,7 @@ from airflow.exceptions import (
 from airflow.models.base import COLLATION_ARGS, ID_LEN, Base
 from airflow.models.connection import Connection
 from airflow.models.log import Log
+from airflow.models.param import ParamsDict
 from airflow.models.taskfail import TaskFail
 from airflow.models.taskreschedule import TaskReschedule
 from airflow.models.variable import Variable
@@ -1127,6 +1128,7 @@ class TaskInstance(Base, LoggingMixin):
         test_mode: bool = False,
         job_id: Optional[str] = None,
         pool: Optional[str] = None,
+        external_executor_id: Optional[str] = None,
         session=None,
     ) -> bool:
         """
@@ -1152,6 +1154,8 @@ class TaskInstance(Base, LoggingMixin):
         :type job_id: str
         :param pool: specifies the pool to use to run the task instance
         :type pool: str
+        :param external_executor_id: The identifier of the celery executor
+        :type external_executor_id: str
         :param session: SQLAlchemy ORM Session
         :type session: Session
         :return: whether the state was changed to running or not
@@ -1233,6 +1237,7 @@ class TaskInstance(Base, LoggingMixin):
         if not test_mode:
             session.add(Log(State.RUNNING, self))
         self.state = State.RUNNING
+        self.external_executor_id = external_executor_id
         self.end_date = None
         if not test_mode:
             session.merge(self)
@@ -1306,7 +1311,7 @@ class TaskInstance(Base, LoggingMixin):
         Stats.incr(f'ti.start.{task.dag_id}.{task.task_id}')
         try:
             if not mark_success:
-                context = self.get_template_context()
+                context = self.get_template_context(ignore_param_exceptions=False)
                 self._prepare_and_execute_task_with_callbacks(context, task)
             if not test_mode:
                 self.refresh_from_db(lock_for_update=True, session=session)
@@ -1748,7 +1753,7 @@ class TaskInstance(Base, LoggingMixin):
 
         return self.task.retries and self.try_number <= self.max_tries
 
-    def get_template_context(self, session: Session = None) -> Context:
+    def get_template_context(self, session: Session = None, ignore_param_exceptions: bool = True) -> Context:
         """Return TI Context"""
         # Do not use provide_session here -- it expunges everything on exit!
         if not session:
@@ -1759,10 +1764,10 @@ class TaskInstance(Base, LoggingMixin):
 
         integrate_macros_plugins()
 
-        # Ensure that the dag_run is loaded -- otherwise `self.execution_date` may not work
         dag_run = self.get_dagrun(session)
 
-        params = {}  # type: Dict[str, Any]
+        params = ParamsDict(suppress_exception=ignore_param_exceptions)
+
         with contextlib.suppress(AttributeError):
             params.update(dag.params)
         if task.params:
@@ -1772,6 +1777,10 @@ class TaskInstance(Base, LoggingMixin):
 
         interval_start = dag.get_run_data_interval(dag_run).start
         ds = interval_start.strftime('%Y-%m-%d')
+
+        # Now validates Params and convert them into a simple dict
+        task.params = params.validate()
+
         ds_nodash = ds.replace('-', '')
         ts = interval_start.isoformat()
         ts_nodash = interval_start.strftime('%Y%m%dT%H%M%S')
@@ -1806,7 +1815,6 @@ class TaskInstance(Base, LoggingMixin):
             return timezone.coerce_datetime(dagrun.start_date)
 
         # Custom accessors.
-
         class VariableAccessor:
             """
             Wrapper around Variable. This way you can get variables in
@@ -1992,7 +2000,7 @@ class TaskInstance(Base, LoggingMixin):
                 replacement='data_interval_end',
             ),
             'outlets': task.outlets,
-            'params': params,
+            'params': task.params,
             'prev_data_interval_start_success': lazy_object_proxy.Proxy(get_prev_data_interval_start_success),
             'prev_data_interval_end_success': lazy_object_proxy.Proxy(get_prev_data_interval_end_success),
             'prev_ds': deprecated_proxy(get_prev_ds, key="prev_ds"),

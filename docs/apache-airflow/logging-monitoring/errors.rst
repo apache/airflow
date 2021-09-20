@@ -70,3 +70,24 @@ Name                                    Description
 ``completed_tasks[operator]``           Task operator of task that executed before failed task
 ``completed_tasks[duration]``           Duration in seconds of task that executed before failed task
 ======================================= ==============================================================
+
+
+Impact of Sentry on Environment variables passed to Subprocess Hook
+-------------------------------------------------------------------
+
+When Sentry is enabled, by default it changes standard library to pass all environment variables to
+subprocesses opened by Airflow. This changes the default behaviour of
+:class:`airflow.hooks.subprocess.SubprocessHook` - always all environment variables are passed to the
+subprocess executed with specific set of environment variables. In this case not only the specified
+environment variables are passed but also all existing environment variables are passed with
+``SUBPROCESS_`` prefix added. This happens also for all other subprocesses.
+
+This behaviour can be disabled by setting ``default_integrations`` sentry configuration parameter to
+``False`` which disables ``StdlibIntegration``. This however also disables other default integrations
+and you need to enable them manually if you want to get them enabled,
+see `Sentry Default Integrations <https://docs.sentry.io/platforms/python/guides/wsgi/configuration/integrations/default-integrations/>`_
+
+.. code-block:: ini
+
+    [sentry]
+    default_integrations = False

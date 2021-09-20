@@ -34,6 +34,12 @@
             "default": "",
             "x-docsSection": null
         },
+        "kubeVersionOverride": {
+            "description": "Provide a Kubernetes version (used for API Version selection) to override the auto-detected version",
+            "type": "string",
+            "default": "",
+            "x-docsSection": null
+        },
         "uid": {
             "description": "User of airflow user.",
             "type": "integer",
@@ -61,13 +67,13 @@
         "defaultAirflowTag": {
             "description": "Default airflow tag to deploy.",
             "type": "string",
-            "default": "2.1.3",
+            "default": "2.1.4",
             "x-docsSection": "Common"
         },
         "airflowVersion": {
             "description": "Airflow version (Used to make some decisions based on Airflow Version being deployed).",
             "type": "string",
-            "default": "2.1.3",
+            "default": "2.1.4",
             "x-docsSection": "Common"
         },
         "nodeSelector": {
@@ -123,10 +129,28 @@
                         "path": {
                             "description": "The path for the web Ingress.",
                             "type": "string",
-                            "default": ""
+                            "default": "/"
+                        },
+                        "pathType": {
+                            "description": "The pathType for the web Ingress (required for Kubernetes 1.19 and above).",
+                            "type": "string",
+                            "default": "ImplementationSpecific"
                         },
                         "host": {
-                            "description": "The hostname for the web Ingress.",
+                            "description": "The hostname for the web Ingress. (Deprecated - renamed to `ingress.web.hosts`)",
+                            "type": "string",
+                            "default": ""
+                        },
+                        "hosts": {
+                            "description": "The hostnames for the web Ingress.",
+                            "type": "array",
+                            "default": [],
+                            "items": {
+                                "type": "string"
+                            }
+                        },
+                        "ingressClassName": {
+                            "description": "The Ingress Class for the web Ingress.",
                             "type": "string",
                             "default": ""
                         },
@@ -172,10 +196,28 @@
                         "path": {
                             "description": "The path for the flower Ingress.",
                             "type": "string",
-                            "default": ""
+                            "default": "/"
+                        },
+                        "pathType": {
+                            "description": "The pathType for the flower Ingress (required for Kubernetes 1.19 and above).",
+                            "type": "string",
+                            "default": "ImplementationSpecific"
                         },
                         "host": {
-                            "description": "The hostname for the flower Ingress.",
+                            "description": "The hostname for the flower Ingress. (Deprecated - renamed to `ingress.flower.hosts`)",
+                            "type": "string",
+                            "default": ""
+                        },
+                        "hosts": {
+                            "description": "The hostnames for the flower Ingress.",
+                            "type": "array",
+                            "default": [],
+                            "items": {
+                                "type": "string"
+                            }
+                        },
+                        "ingressClassName": {
+                            "description": "The Ingress Class for the flower Ingress.",
                             "type": "string",
                             "default": ""
                         },
@@ -195,16 +237,6 @@
                                     "default": ""
                                 }
                             }
-                        },
-                        "precedingPaths": {
-                            "description": "HTTP paths to add to the flower Ingress before the default path.",
-                            "type": "array",
-                            "default": []
-                        },
-                        "succeedingPaths": {
-                            "description": "HTTP paths to add to the flower Ingress after the default path.",
-                            "type": "array",
-                            "default": []
                         }
                     }
                 }
@@ -311,6 +343,12 @@
                             "default": "IfNotPresent"
                         }
                     }
+                },
+                "useDefaultImageForMigration": {
+                    "description": "To avoid images with user code for running and waiting for DB migrations set this to ``true``. ",
+                    "type": "boolean",
+                    "x-docsSection": "Images",
+                    "default": false
                 },
                 "pod_template": {
                     "description": "Configuration of the pod_template image.",
