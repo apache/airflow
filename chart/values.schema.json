@@ -1712,6 +1712,11 @@
                         }
                     }
                 },
+                "extraContainers": {
+                    "description": "Launch additional containers for the migrate database job pod",
+                    "type": "array",
+                    "default": []
+                },
                 "nodeSelector": {
                     "description": "Select certain nodes for the migrate database job pod.",
                     "type": "object",

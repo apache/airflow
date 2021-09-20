@@ -617,6 +617,8 @@ migrateDatabaseJob:
     # Annotations to add to migrate database job kubernetes service account.
     annotations: {}
 
+  # Launch additional containers into database migration job
+  extraContainers: []
   nodeSelector: {}
   affinity: {}
   tolerations: []
