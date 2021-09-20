@@ -141,7 +141,6 @@ Firehose
 Firestore
 Flink
 FluentD
-FooDecoratedOperator
 Formaturas
 Fundera
 GCS

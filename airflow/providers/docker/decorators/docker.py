@@ -161,8 +161,9 @@ def docker_task(
 # [START decoratormixin]
 class DockerDecoratorMixin:
     """
-    Helper class for inheritance. This class is only used for the __init__.pyi so that IDEs
-    will autocomplete docker decorator functions
+    Helper class for inheritance. This class is only used during type checking or auto-completion
+
+    :meta private:
     """
 
     def docker(
