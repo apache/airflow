@@ -38,7 +38,8 @@ from tests.test_utils.db import clear_db_dags, clear_db_runs
 class TestLogView:
     DAG_ID = "dag_log_reader"
     TASK_ID = "task_log_reader"
-    DUMMY_TASK_ID = "task_log_reader"
+    DUMMY_TASK_ID = "dummy_task_log_reader"
+    EXTERNAL_TASK_MARKER = "external_task_marker_log_reader"
     DEFAULT_DATE = timezone.datetime(2017, 9, 1)
 
     @pytest.fixture(autouse=True)
@@ -88,17 +89,29 @@ class TestLogView:
                 f.flush()
 
     @pytest.fixture(autouse=True)
-    def prepare_db(self, session, create_task_instance):
-        ti = create_task_instance(
+    def prepare_db(self, session, create_task_instance_of_operator):
+        from airflow.operators.bash import BashOperator
+
+        ti = create_task_instance_of_operator(
+            operator_class=BashOperator,
             dag_id=self.DAG_ID,
             task_id=self.TASK_ID,
             start_date=self.DEFAULT_DATE,
             run_type=DagRunType.SCHEDULED,
             execution_date=self.DEFAULT_DATE,
             state=TaskInstanceState.RUNNING,
+            bash_command="echo 'hello'",
         )
         ti.try_number = 3
         self.ti = ti
+        yield
+        clear_db_runs()
+        clear_db_dags()
+
+    @pytest.fixture(scope="function")
+    def dummy_ti(self, session, create_task_instance):
+        clear_db_runs()
+        clear_db_dags()
         dummy_ti = create_task_instance(
             dag_id=self.DAG_ID,
             task_id=self.DUMMY_TASK_ID,
@@ -109,9 +122,17 @@ class TestLogView:
         )
         dummy_ti.operator = 'DummyOperator'
         self.dummy_ti = dummy_ti
+        yield
+        clear_db_runs()
+        clear_db_dags()
+
+    @pytest.fixture(scope="function")
+    def external_task_marker_ti(self, session, create_task_instance):
+        clear_db_runs()
+        clear_db_dags()
         external_task_marker_ti = create_task_instance(
             dag_id=self.DAG_ID,
-            task_id=self.DUMMY_TASK_ID,
+            task_id=self.EXTERNAL_TASK_MARKER,
             start_date=self.DEFAULT_DATE,
             run_type=DagRunType.SCHEDULED,
             execution_date=self.DEFAULT_DATE,
@@ -260,30 +281,30 @@ class TestLogView:
         mock_prop.return_value = True
         assert task_log_reader.supports_external_link
 
-    def test_test_read_log_chunks_dummy_operator(self):
+    def test_test_read_log_chunks_dummy_operator(self, dummy_ti):
         task_log_reader = TaskLogReader()
         logs, metadatas = task_log_reader.read_log_chunks(ti=self.dummy_ti, try_number=1, metadata={})
 
-        assert [('', DUMMY_TASK_LOG_MESSAGE)] == logs[0]
+        assert [('', DUMMY_TASK_LOG_MESSAGE)] == logs
         assert {"end_of_log": True} == metadatas
 
-    def test_read_log_stream_should_read_one_try_dummy_operator(self):
+    def test_read_log_stream_should_read_one_try_dummy_operator(self, dummy_ti):
         task_log_reader = TaskLogReader()
         stream = task_log_reader.read_log_stream(ti=self.dummy_ti, try_number=1, metadata={})
 
         assert [DUMMY_TASK_LOG_MESSAGE] == list(stream)
 
-    def test_test_read_log_chunks_external_task_marker(self):
+    def test_test_read_log_chunks_external_task_marker(self, external_task_marker_ti):
         task_log_reader = TaskLogReader()
         logs, metadatas = task_log_reader.read_log_chunks(
-            ti=self.external_task_marker, try_number=1, metadata={}
+            ti=self.external_task_marker_ti, try_number=1, metadata={}
         )
 
-        assert [('', DUMMY_TASK_LOG_MESSAGE)] == logs[0]
+        assert [('', DUMMY_TASK_LOG_MESSAGE)] == logs
         assert {"end_of_log": True} == metadatas
 
-    def test_read_log_stream_should_read_one_try_external_task_marker(self):
+    def test_read_log_stream_should_read_one_try_external_task_marker(self, external_task_marker_ti):
         task_log_reader = TaskLogReader()
-        stream = task_log_reader.read_log_stream(ti=self.external_task_marker, try_number=1, metadata={})
+        stream = task_log_reader.read_log_stream(ti=self.external_task_marker_ti, try_number=1, metadata={})
 
         assert [DUMMY_TASK_LOG_MESSAGE] == list(stream)

@@ -21,19 +21,19 @@ from typing import Dict, Iterator, List, Optional, Tuple
 from airflow.compat.functools import cached_property
 from airflow.configuration import conf
 from airflow.models import TaskInstance
-from airflow.operators.dummy import DummyOperator
-from airflow.sensors.external_task import ExternalTaskMarker
 from airflow.utils.helpers import render_log_filename
 from airflow.utils.log.logging_mixin import ExternalLoggingMixin
 
 OPERATORS_WITHOUT_LOGS = {
-    DummyOperator.__class__.__name__,
-    ExternalTaskMarker.__class__.__name__,
+    'DummyOperator',
+    'ExternalTaskMarker',
 }
 DUMMY_TASK_LOG_MESSAGE = f"Tasks of types: {OPERATORS_WITHOUT_LOGS} do not have task logs.\n"
 
 
 def has_logs(ti: TaskInstance) -> bool:
+    if hasattr(ti, 'task'):  # task is not set in __init__ so may be unset
+        return not getattr(ti.task, "inherits_from_dummy_operator", False)
     return ti.operator not in OPERATORS_WITHOUT_LOGS
 
 
@@ -67,10 +67,10 @@ class TaskLogReader:
         end.
         """
         if has_logs(ti):
-            return [(('', DUMMY_TASK_LOG_MESSAGE))], {'end_of_log': True}
-        logs, metadatas = self.log_handler.read(ti, try_number, metadata=metadata)
-        metadata = metadatas[0]
-        return logs, metadata
+            logs, metadatas = self.log_handler.read(ti, try_number, metadata=metadata)
+            metadata = metadatas[0]
+            return logs, metadata
+        return [(('', DUMMY_TASK_LOG_MESSAGE))], {'end_of_log': True}
 
     def read_log_stream(self, ti: TaskInstance, try_number: Optional[int], metadata: dict) -> Iterator[str]:
         """
@@ -85,20 +85,21 @@ class TaskLogReader:
         :rtype: Iterator[str]
         """
         if has_logs(ti):
-            yield DUMMY_TASK_LOG_MESSAGE
-        if try_number is None:
-            next_try = ti.next_try_number
-            try_numbers = list(range(1, next_try))
-        else:
-            try_numbers = [try_number]
-        for current_try_number in try_numbers:
-            metadata.pop('end_of_log', None)
-            metadata.pop('max_offset', None)
-            metadata.pop('offset', None)
-            while 'end_of_log' not in metadata or not metadata['end_of_log']:
-                logs, metadata = self.read_log_chunks(ti, current_try_number, metadata)
-                for host, log in logs[0]:
-                    yield "\n".join([host, log]) + "\n"
+            if try_number is None:
+                next_try = ti.next_try_number
+                try_numbers = list(range(1, next_try))
+            else:
+                try_numbers = [try_number]
+            for current_try_number in try_numbers:
+                metadata.pop('end_of_log', None)
+                metadata.pop('max_offset', None)
+                metadata.pop('offset', None)
+                while 'end_of_log' not in metadata or not metadata['end_of_log']:
+                    logs, metadata = self.read_log_chunks(ti, current_try_number, metadata)
+                    for host, log in logs[0]:
+                        yield "\n".join([host, log]) + "\n"
+            return
+        yield DUMMY_TASK_LOG_MESSAGE
 
     @cached_property
     def log_handler(self):

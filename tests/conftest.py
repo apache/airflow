@@ -722,6 +722,8 @@ def create_task_instance_of_operator(dag_maker):
         dag_id,
         execution_date=None,
         session=None,
+        run_type=None,
+        state=None,
         **operator_kwargs,
     ):
         with dag_maker(dag_id=dag_id, session=session):
@@ -730,7 +732,10 @@ def create_task_instance_of_operator(dag_maker):
             dagrun_kwargs = {}
         else:
             dagrun_kwargs = {"execution_date": execution_date}
+        if run_type is not None:
+            dagrun_kwargs["run_type"] = run_type
         (ti,) = dag_maker.create_dagrun(**dagrun_kwargs).task_instances
+        ti.state = state
         return ti
 
     return _create_task_instance
