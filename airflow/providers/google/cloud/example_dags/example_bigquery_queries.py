@@ -158,7 +158,7 @@ for location in [None, LOCATION]:
                     "destinationTable": {
                         'projectId': PROJECT_ID,
                         'datasetId': DATASET_NAME,
-                        'tableId': TABLE_2
+                        'tableId': TABLE_2,
                     },
                 }
             },

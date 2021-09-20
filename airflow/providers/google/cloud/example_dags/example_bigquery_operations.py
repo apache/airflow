@@ -149,7 +149,7 @@ with models.DAG(
                 "sourceFormat": "CSV",
                 "compression": "NONE",
                 "csvOptions": {"skipLeadingRows": 1},
-                "sourceUris": [DATA_SAMPLE_GCS_URL]
+                "sourceUris": [DATA_SAMPLE_GCS_URL],
             },
         },
         bucket=DATA_SAMPLE_GCS_BUCKET_NAME,
