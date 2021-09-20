@@ -311,7 +311,7 @@ class Connection(Base, LoggingMixin):
                 "Could not import %s when discovering %s %s", hook_class_name, hook_name, package_name
             )
             raise
-        return hook_class(**{conn_id_param: self.conn_id}, **hook_params)
+        return hook_class(conn_id_param=self.conn_id, **hook_params)
 
     def __repr__(self):
         return self.conn_id
