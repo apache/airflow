@@ -292,7 +292,7 @@ class Connection(Base, LoggingMixin):
     def get_hook(self, hook_params: Dict = {}):
         """
         Return hook based on conn_type
-        :param hook_params: kwargs dictionary that puts to hook constructor
+        :param hook_params: dictionary of keyword arguments to be passed to the hook constructor
         """
         (
             hook_class_name,
