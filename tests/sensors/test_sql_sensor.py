@@ -253,3 +253,20 @@ class TestSqlSensor(TestHiveEnvironment):
             dag=self.dag,
         )
         op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
+
+    @mock.patch('airflow.sensors.sql.BaseHook')
+    def test_sql_sensor_hook_params(self, mock_hook):
+        op = SqlSensor(
+            task_id='sql_sensor_check',
+            conn_id='postgres_default',
+            sql="SELECT 1",
+            hook_params={
+                'use_legacy_sql': True,
+                'location': 'test_location',
+            },
+        )
+
+        mock_hook.get_connection('google_cloud_default').conn_type = "google_cloud_platform"
+        assert op._get_hook().use_legacy_sql
+        assert op._get_hook().location == 'test_location'
+
