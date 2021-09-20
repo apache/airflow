@@ -521,13 +521,25 @@ class SchedulerJob(BaseJob):
                 )
                 self.log.error(msg, ti, state, ti.state, info)
 
-                request = TaskCallbackRequest(
-                    full_filepath=ti.dag_model.fileloc,
-                    simple_task_instance=SimpleTaskInstance(ti),
-                    msg=msg % (ti, state, ti.state, info),
-                )
+                # Get task from the Serialized DAG
+                try:
+                    dag = self.dagbag.get_dag(ti.dag_id)
+                    from airflow.models.baseoperator import BaseOperator
 
-                self.processor_agent.send_callback_to_execute(request)
+                    task: BaseOperator = dag.get_task(ti.task_id)
+                except Exception as ex:
+                    self.log.exception("Marking task instance %s as failed. Reason: %s", ti, ex)
+                    ti.set_state(state)
+                ti.task = task
+                if task.on_retry_callback or task.on_failure_callback:
+                    request = TaskCallbackRequest(
+                        full_filepath=ti.dag_model.fileloc,
+                        simple_task_instance=SimpleTaskInstance(ti),
+                        msg=msg % (ti, state, ti.state, info),
+                    )
+                    self.processor_agent.send_callback_to_execute(request)
+                else:
+                    ti.handle_failure(error=msg % (ti, state, ti.state, info), session=session)
 
         return len(event_buffer)
 

@@ -1693,6 +1693,7 @@ class TaskInstance(Base, LoggingMixin):
         Stats.incr(f'operator_failures_{task.task_type}', 1, 1)
         Stats.incr('ti_failures')
         if not test_mode:
+            self.dag_run = self.get_dagrun(session=session)
             session.add(Log(State.FAILED, self))
 
             # Log failure duration
