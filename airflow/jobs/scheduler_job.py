@@ -530,6 +530,7 @@ class SchedulerJob(BaseJob):
                 except Exception as ex:
                     self.log.exception("Marking task instance %s as failed. Reason: %s", ti, ex)
                     ti.set_state(state)
+                    continue
                 ti.task = task
                 if task.on_retry_callback or task.on_failure_callback:
                     request = TaskCallbackRequest(
