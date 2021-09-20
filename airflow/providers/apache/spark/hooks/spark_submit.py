@@ -439,7 +439,7 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
 
         # Check spark-submit return code. In Kubernetes mode, also check the value
         # of exit code in the log, as it may differ.
-        if returncode or (self._is_kubernetes and self._spark_exit_code != 0):
+        if returncode or (self._is_kubernetes and self._connection['deploy_mode']!='client' and self._spark_exit_code != 0):
             if self._is_kubernetes:
                 raise AirflowException(
                     "Cannot execute: {}. Error code is: {}. Kubernetes spark exit code is: {}".format(
