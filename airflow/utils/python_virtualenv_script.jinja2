@@ -40,9 +40,11 @@ with open(sys.argv[1], "rb") as file:
 arg_dict = {"args": [], "kwargs": {}}
 {% endif %}
 
+{% if string_args_global | default(true) %}
 # Read string args
 with open(sys.argv[3], "r") as file:
     virtualenv_string_args = list(map(lambda x: x.strip(), list(file)))
+{% endif %}
 
 # Script
 {{ python_callable_source }}

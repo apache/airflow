@@ -31,11 +31,11 @@ from airflow.utils.python_virtualenv import remove_task_decorator, write_python_
 
 
 def _generate_decode_command(env_var, file):
+    # We don't need `f.close()` as the interpreter is about to exit anyway
     return (
-        f'python -c "import os; import base64;'
-        f' x = base64.b64decode(os.environ[\\"{env_var}\\"]);'
-        f' f = open(\\"{file}\\", \\"wb\\"); f.write(x);'
-        f' f.close()"'
+        f'python -c "import base64, os;'
+        rf'x = base64.b64decode(os.environ[\"{env_var}\"]);'
+        rf'f = open(\"{file}\", \"wb\"); f.write(x);"'
     )
 
 
@@ -73,8 +73,6 @@ class _DockerDecoratedOperator(DecoratedOperator, DockerOperator):
         use_dill=False,
         **kwargs,
     ) -> None:
-        self.string_args = [1, 2, 1]
-        self._output_filename = ""
         command = "dummy command"
         self.pickling_library = dill if use_dill else pickle
         super().__init__(
@@ -84,11 +82,11 @@ class _DockerDecoratedOperator(DecoratedOperator, DockerOperator):
     def execute(self, context: Dict):
         with TemporaryDirectory(prefix='venv') as tmp_dir:
             input_filename = os.path.join(tmp_dir, 'script.in')
-            self._output_filename = os.path.join(tmp_dir, 'script.out')
-            string_args_filename = os.path.join(tmp_dir, 'string_args.txt')
             script_filename = os.path.join(tmp_dir, 'script.py')
-            self._write_args(input_filename)
-            self._write_string_args(string_args_filename)
+
+            with open(input_filename, 'wb') as file:
+                if self.op_args or self.op_kwargs:
+                    self.pickling_library.dump({'args': self.op_args, 'kwargs': self.op_kwargs}, file)
             py_source = self._get_python_source()
             write_python_script(
                 jinja_context=dict(
@@ -97,10 +95,14 @@ class _DockerDecoratedOperator(DecoratedOperator, DockerOperator):
                     pickling_library=self.pickling_library.__name__,
                     python_callable=self.python_callable.__name__,
                     python_callable_source=py_source,
+                    string_args_global=False,
                 ),
                 filename=script_filename,
             )
 
+            # Pass the python script to be executed, and the input args, via environment variables. This is
+            # more than slightly hacky, but it means it can work when Airflow itself is in the same Docker
+            # engine where this task is going to run (unlike say trying to mount a file in)
             self.environment["PYTHON_SCRIPT"] = _b64_encode_file(script_filename)
             if self.op_args or self.op_kwargs:
                 self.environment["PYTHON_INPUT"] = _b64_encode_file(input_filename)
@@ -108,22 +110,11 @@ class _DockerDecoratedOperator(DecoratedOperator, DockerOperator):
                 self.environment["PYTHON_INPUT"] = ""
 
             self.command = (
-                f'bash -cx  \'{_generate_decode_command("PYTHON_SCRIPT", "/tmp/script.py")} &&'
-                f'touch /tmp/string_args &&'
-                f'touch /tmp/script.in &&'
+                f"""bash -cx  '{_generate_decode_command("PYTHON_SCRIPT", "/tmp/script.py")} &&"""
                 f'{_generate_decode_command("PYTHON_INPUT", "/tmp/script.in")} &&'
-                f'python /tmp/script.py /tmp/script.in /tmp/script.out /tmp/string_args\''
+                f'python /tmp/script.py /tmp/script.in /tmp/script.out\''
             )
             return super().execute(context)
-
-    def _write_args(self, filename):
-        if self.op_args or self.op_kwargs:
-            with open(filename, 'wb') as file:
-                self.pickling_library.dump({'args': self.op_args, 'kwargs': self.op_kwargs}, file)
-
-    def _write_string_args(self, filename):
-        with open(filename, 'w') as file:
-            file.write('\n'.join(map(str, self.string_args)))
 
     def _get_python_source(self):
         raw_source = inspect.getsource(self.python_callable)
