@@ -294,7 +294,7 @@ class AirflowKubernetesScheduler(LoggingMixin):
         and store relevant info in the current_jobs map so we can track the job's
         status
         """
-        self.log.info('Kubernetes job is %s', str(next_job))
+        self.log.info('Kubernetes job is %s', str(next_job).replace("\n", " "))
         key, command, kube_executor_config, pod_template_file = next_job
         dag_id, task_id, run_id, try_number = key
 
