@@ -32,10 +32,10 @@ By default, Airflow uses **SQLite**, which is intended for development purposes 
 
 Airflow supports the following database engine versions, so make sure which version you have. Old versions may not support all SQL statements.
 
-  * PostgreSQL:  9.6, 10, 11, 12, 13
-  * MySQL: 5.7, 8
-  * MsSQL: 2017, 2019
-  * SQLite: 3.15.0+
+* PostgreSQL:  9.6, 10, 11, 12, 13
+* MySQL: 5.7, 8
+* MsSQL: 2017, 2019
+* SQLite: 3.15.0+
 
 If you plan on running more than one scheduler, you have to meet additional requirements.
 For details, see :ref:`Scheduler HA Database Requirements <scheduler:ha:db_requirements>`.
@@ -246,6 +246,13 @@ You can read more about transaction isolation and snapshot features at
    USE airflow;
    CREATE USER airflow_user FROM LOGIN airflow_user;
    GRANT ALL PRIVILEGES ON DATABASE airflow TO airflow_user;
+
+
+We recommend using the ``mssql+pyodbc`` driver and specifying it in your SqlAlchemy connection string.
+
+.. code-block:: text
+
+    mssql+pyodbc://<user>:<password>@<host>
 
 
 Other configuration options

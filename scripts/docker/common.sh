@@ -18,6 +18,7 @@
 set -euo pipefail
 
 test -v INSTALL_MYSQL_CLIENT
+test -v INSTALL_MSSQL_CLIENT
 test -v AIRFLOW_INSTALL_USER_FLAG
 test -v AIRFLOW_REPO
 test -v AIRFLOW_BRANCH

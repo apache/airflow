@@ -395,6 +395,8 @@ function initialization::initialize_image_build_variables() {
     export AIRFLOW_PRE_CACHED_PIP_PACKAGES="${AIRFLOW_PRE_CACHED_PIP_PACKAGES:="true"}"
     # by default install mysql client
     export INSTALL_MYSQL_CLIENT=${INSTALL_MYSQL_CLIENT:="true"}
+    # by default install mssql client
+    export INSTALL_MSSQL_CLIENT=${INSTALL_MSSQL_CLIENT:="true"}
     # additional tag for the image
     export IMAGE_TAG=${IMAGE_TAG:=""}
 

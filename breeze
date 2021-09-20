@@ -1094,6 +1094,11 @@ function breeze::parse_arguments() {
             echo "Install MySQL client: ${INSTALL_MYSQL_CLIENT}"
             shift
             ;;
+        --disable-mssql-client-installation)
+            export INSTALL_MSSQL_CLIENT="false"
+            echo "Install MsSQL client: ${INSTALL_MSSQL_CLIENT}"
+            shift
+            ;;
         --constraints-location)
             export AIRFLOW_CONSTRAINTS_LOCATION="${2}"
             echo "Constraints location: ${AIRFLOW_CONSTRAINTS_LOCATION}"

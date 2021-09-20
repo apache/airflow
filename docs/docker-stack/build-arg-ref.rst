@@ -124,6 +124,8 @@ for examples of using those arguments.
 |                                          |                                          | The mysql extra is removed from extras   |
 |                                          |                                          | if the client is not installed.          |
 +------------------------------------------+------------------------------------------+------------------------------------------+
+| ``INSTALL_MSSQL_CLIENT``                 | ``true``                                 | Whether MsSQL client should be installed |
++------------------------------------------+------------------------------------------+------------------------------------------+
 
 Installing Airflow using different methods
 ..........................................
