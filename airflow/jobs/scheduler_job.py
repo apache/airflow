@@ -524,9 +524,7 @@ class SchedulerJob(BaseJob):
                 # Get task from the Serialized DAG
                 try:
                     dag = self.dagbag.get_dag(ti.dag_id)
-                    from airflow.models.baseoperator import BaseOperator
-
-                    task: BaseOperator = dag.get_task(ti.task_id)
+                    task = dag.get_task(ti.task_id)
                 except Exception as ex:
                     self.log.exception("Marking task instance %s as failed. Reason: %s", ti, ex)
                     ti.set_state(state)
