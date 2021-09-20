@@ -37,9 +37,9 @@ from tests.test_utils.db import clear_db_dags, clear_db_runs
 
 class TestLogView:
     DAG_ID = "dag_log_reader"
+    DUMMY_DAG_ID = "dag_dummy_log_reader"
+    EXTERNAL_TASK_MARKER_DAG_ID = "dag_external_task_marker_log_reader"
     TASK_ID = "task_log_reader"
-    DUMMY_TASK_ID = "dummy_task_log_reader"
-    EXTERNAL_TASK_MARKER = "external_task_marker_log_reader"
     DEFAULT_DATE = timezone.datetime(2017, 9, 1)
 
     @pytest.fixture(autouse=True)
@@ -81,12 +81,13 @@ class TestLogView:
 
     @pytest.fixture(autouse=True)
     def prepare_log_files(self, log_dir):
-        dir_path = f"{log_dir}/{self.DAG_ID}/{self.TASK_ID}/2017-09-01T00.00.00+00.00/"
-        os.makedirs(dir_path)
-        for try_number in range(1, 4):
-            with open(f"{dir_path}/{try_number}.log", "w+") as f:
-                f.write(f"try_number={try_number}.\n")
-                f.flush()
+        for dag_id in {self.DAG_ID, self.DUMMY_DAG_ID, self.EXTERNAL_TASK_MARKER_DAG_ID}:
+            dir_path = f"{log_dir}/{dag_id}/{self.TASK_ID}/2017-09-01T00.00.00+00.00/"
+            os.makedirs(dir_path)
+            for try_number in range(1, 4):
+                with open(f"{dir_path}/{try_number}.log", "w+") as f:
+                    f.write(f"try_number={try_number}.\n")
+                    f.flush()
 
     @pytest.fixture(autouse=True)
     def prepare_db(self, session, create_task_instance_of_operator):
@@ -110,11 +111,9 @@ class TestLogView:
 
     @pytest.fixture(scope="function")
     def dummy_ti(self, session, create_task_instance):
-        clear_db_runs()
-        clear_db_dags()
         dummy_ti = create_task_instance(
-            dag_id=self.DAG_ID,
-            task_id=self.DUMMY_TASK_ID,
+            dag_id=self.DUMMY_DAG_ID,
+            task_id=self.TASK_ID,
             start_date=self.DEFAULT_DATE,
             run_type=DagRunType.SCHEDULED,
             execution_date=self.DEFAULT_DATE,
@@ -128,11 +127,9 @@ class TestLogView:
 
     @pytest.fixture(scope="function")
     def external_task_marker_ti(self, session, create_task_instance):
-        clear_db_runs()
-        clear_db_dags()
         external_task_marker_ti = create_task_instance(
-            dag_id=self.DAG_ID,
-            task_id=self.EXTERNAL_TASK_MARKER,
+            dag_id=self.EXTERNAL_TASK_MARKER_DAG_ID,
+            task_id=self.TASK_ID,
             start_date=self.DEFAULT_DATE,
             run_type=DagRunType.SCHEDULED,
             execution_date=self.DEFAULT_DATE,
