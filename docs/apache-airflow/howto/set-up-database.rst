@@ -223,6 +223,19 @@ want to set a default schema for your role with a SQL statement similar to ``ALT
 
 For more information regarding setup of the PostgresSQL connection, see `PostgreSQL dialect <https://docs.sqlalchemy.org/en/13/dialects/postgresql.html>`__ in SQLAlchemy documentation.
 
+.. note::
+
+   Airflow is known - especially in high-performance setup - to open many connections to metadata database. This might cause problems for
+   Postgres resource usage, because in Postgres, each connection creates a new process and it makes Postgres resource-hungry when a lot
+   of connections are opened. Therefore we recommend to use `PGBouncer <https://www.pgbouncer.org/>`_ as database proxy for all Postgres
+   production installations. PGBouncer can handle connection pooling from multiple components, but also in case you have remote
+   database with potentially unstable connectivity, it will make your DB connectivity much more resilient to temporary network problems.
+   Example implementation of PGBouncer deployment can be found in the :doc:`helm-chart:index` where you can enable pre-configured
+   PGBouncer instance with flipping a boolean flag. You can take a look at the approach we have taken there and use it as
+   an inspiration, when you prepare your own Deployment, even if you do not use the Official Helm Chart.
+
+   See also :ref:`Helm Chart production guide <production-guide:pgbouncer>`
+
 .. spelling::
 
      hba

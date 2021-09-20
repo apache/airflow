@@ -43,6 +43,8 @@ found on the :doc:`Set up a Database Backend <apache-airflow:howto/set-up-databa
       port: ...
       db: ...
 
+.. _production-guide:pgbouncer:
+
 PgBouncer
 ---------
 
