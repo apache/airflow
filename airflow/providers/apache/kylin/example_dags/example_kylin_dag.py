@@ -43,8 +43,8 @@ def gen_build_time():
 
 
 gen_build_time = gen_build_time()
-gen_build_time_output_date_start = gen_build_time_task['date_start']
-gen_build_time_output_date_end = gen_build_time_task['date_end']
+gen_build_time_output_date_start = gen_build_time['date_start']
+gen_build_time_output_date_end = gen_build_time['date_end']
 
 build_task1 = KylinCubeOperator(
     task_id="kylin_build_1",
