@@ -282,7 +282,7 @@ class TestLogView:
         task_log_reader = TaskLogReader()
         logs, metadatas = task_log_reader.read_log_chunks(ti=self.dummy_ti, try_number=1, metadata={})
 
-        assert [('', DUMMY_TASK_LOG_MESSAGE)] == logs
+        assert [(('', DUMMY_TASK_LOG_MESSAGE),)] == logs[0]
         assert {"end_of_log": True} == metadatas
 
     def test_read_log_stream_should_read_one_try_dummy_operator(self, dummy_ti):

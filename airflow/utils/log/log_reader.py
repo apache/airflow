@@ -16,7 +16,7 @@
 # under the License.
 
 import logging
-from typing import Dict, Iterator, List, Optional, Tuple
+from typing import Dict, Iterator, List, Optional, Tuple, Union
 
 from airflow.compat.functools import cached_property
 from airflow.configuration import conf
@@ -42,7 +42,7 @@ class TaskLogReader:
 
     def read_log_chunks(
         self, ti: TaskInstance, try_number: Optional[int], metadata
-    ) -> Tuple[List[Tuple[Tuple[str, str]]], Dict[str, str]]:
+    ) -> Tuple[List[Tuple[Tuple[str, str]]], Dict[str, Union[str, bool]]]:
         """
         Reads chunks of Task Instance logs.
 
@@ -53,7 +53,7 @@ class TaskLogReader:
         :type try_number: Optional[int]
         :param metadata: A dictionary containing information about how to read the task log
         :type metadata: dict
-        :rtype: Tuple[List[Tuple[Tuple[str, str]]], Dict[str, str]]
+        :rtype: Tuple[List[Tuple[Tuple[str, str]]], Dict[str, Union[str,bool]]
 
         The following is an example of how to use this method to read log:
 
@@ -70,7 +70,7 @@ class TaskLogReader:
             logs, metadatas = self.log_handler.read(ti, try_number, metadata=metadata)
             metadata = metadatas[0]
             return logs, metadata
-        return [(('', DUMMY_TASK_LOG_MESSAGE))], {'end_of_log': True}
+        return ([(('', DUMMY_TASK_LOG_MESSAGE),)]), {'end_of_log': True}
 
     def read_log_stream(self, ti: TaskInstance, try_number: Optional[int], metadata: dict) -> Iterator[str]:
         """
