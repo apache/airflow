@@ -27,7 +27,7 @@ from airflow.providers_manager import ProvidersManager
 class _TaskDecorator(PythonDecoratorMixin, PythonVirtualenvDecoratorMixin):
     def __getattr__(self, name):
         if name.startswith("__"):
-            raise AttributeError(f'{type(self).__name__} has not attriubte {name!r}')
+            raise AttributeError(f'{type(self).__name__} has no attribute {name!r}')
         decorators = ProvidersManager().taskflow_decorators
         if name not in decorators:
             raise AttributeError(f"task decorator {name!r} not found")
