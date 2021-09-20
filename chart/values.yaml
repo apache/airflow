@@ -175,10 +175,10 @@ airflowConfigAnnotations: {}
 airflowLocalSettings: |-
   {{- if semverCompare ">=2.2.0" .Values.airflowVersion }}
   {{- if not (or .Values.webserverSecretKey .Values.webserverSecretKeySecretName) }}
-  from airflow.models.flash_message import FlashMessage
+  from airflow.www.utils import UIAlert
 
-  DASHBOARD_FLASH_MESSAGES = [
-    FlashMessage(
+  DASHBOARD_UIALERTS = [
+    UIAlert(
       'Usage of a dynamic webserver secret key detected. We recommend a static webserver secret key instead.'
       ' See the <a href='
       '"https://airflow.apache.org/docs/helm-chart/stable/production-guide.html#webserver-secret-key">'
