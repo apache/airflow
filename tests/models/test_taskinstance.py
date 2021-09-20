@@ -19,7 +19,6 @@
 import datetime
 import os
 import signal
-import sys
 import urllib
 from tempfile import NamedTemporaryFile
 from typing import List, Optional, Union, cast
@@ -523,15 +522,7 @@ class TestTaskInstance:
         assert ti.state == State.UP_FOR_RETRY
 
         # third run -- failed
-        frozen_time.tick(
-            delta=datetime.timedelta(
-                # Approximate the smallest timedelta needed to create a different datetime
-                # (In Python>=3.9, math.nextafter can be used for an even better approximation.
-                # np.nextafter was not used to avoid introducing numpy as a required dependency)
-                microseconds=0.5
-                + sys.float_info.epsilon
-            )
-        )
+        frozen_time.tick(delta=datetime.datetime.resolution)
         run_with_error(ti)
         assert ti.state == State.FAILED
 
