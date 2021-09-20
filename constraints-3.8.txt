@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2021-09-20T05:57:45Z
+# This constraints file was automatically generated on 2021-09-20T19:19:57Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -235,7 +235,7 @@ gevent==21.8.0
 gitdb==4.0.7
 github3.py==2.0.0
 google-ads==14.0.0
-google-api-core==1.31.2
+google-api-core==1.31.3
 google-api-python-client==1.12.8
 google-auth-httplib2==0.1.0
 google-auth-oauthlib==0.4.6
@@ -386,7 +386,7 @@ prison==0.2.1
 prometheus-client==0.11.0
 prompt-toolkit==3.0.20
 proto-plus==1.18.1
-protobuf==3.18.0
+protobuf==3.17.3
 psutil==5.8.0
 psycopg2-binary==2.9.1
 ptyprocess==0.7.0
@@ -511,7 +511,7 @@ toml==0.10.2
 tomli==1.2.1
 toolz==0.11.1
 tornado==6.1
-tqdm==4.62.2
+tqdm==4.62.3
 traitlets==5.1.0
 trino==0.306.0
 typed-ast==1.4.3
@@ -531,7 +531,7 @@ websocket-client==1.2.1
 wrapt==1.12.1
 xmltodict==0.12.0
 yamllint==1.26.3
-yandexcloud==0.105.0
+yandexcloud==0.106.1
 yarl==1.6.3
 zdesk==2.7.1
 zict==2.0.0
