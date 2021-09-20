@@ -103,15 +103,15 @@ class _DockerDecoratedOperator(DecoratedOperator, DockerOperator):
             # Pass the python script to be executed, and the input args, via environment variables. This is
             # more than slightly hacky, but it means it can work when Airflow itself is in the same Docker
             # engine where this task is going to run (unlike say trying to mount a file in)
-            self.environment["PYTHON_SCRIPT"] = _b64_encode_file(script_filename)
+            self.environment["__PYTHON_SCRIPT"] = _b64_encode_file(script_filename)
             if self.op_args or self.op_kwargs:
-                self.environment["PYTHON_INPUT"] = _b64_encode_file(input_filename)
+                self.environment["__PYTHON_INPUT"] = _b64_encode_file(input_filename)
             else:
-                self.environment["PYTHON_INPUT"] = ""
+                self.environment["__PYTHON_INPUT"] = ""
 
             self.command = (
-                f"""bash -cx  '{_generate_decode_command("PYTHON_SCRIPT", "/tmp/script.py")} &&"""
-                f'{_generate_decode_command("PYTHON_INPUT", "/tmp/script.in")} &&'
+                f"""bash -cx  '{_generate_decode_command("__PYTHON_SCRIPT", "/tmp/script.py")} &&"""
+                f'{_generate_decode_command("__PYTHON_INPUT", "/tmp/script.in")} &&'
                 f'python /tmp/script.py /tmp/script.in /tmp/script.out\''
             )
             return super().execute(context)

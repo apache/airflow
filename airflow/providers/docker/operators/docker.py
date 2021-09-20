@@ -348,7 +348,8 @@ class DockerOperator(BaseOperator):
             file_standin = io.BytesIO(b"".join(archived_result))
             tar = tarfile.open(fileobj=file_standin)
             file = tar.extractfile(stat['name'])
-            return pickle.loads(file.read())
+            lib = getattr(self, 'pickling_library', pickle)
+            return lib.loads(file.read())
 
         try:
             return_value = copy_from_docker(self.container['Id'], self.retrieve_output_path)

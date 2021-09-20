@@ -181,6 +181,8 @@ Below is an example of using the ``@task.docker`` decorator to run a python task
     :start-after: [START transform_docker]
     :end-before: [END transform_docker]
 
+It is worth noting that the python source code (extracted from the decorated function) and any callable args are sent to the container via (encoded and pickled) environment variables so the length of these is not boundless (the exact limit depends on system settings).
+
 If you don't want to run your image on a Docker environment, and instead want to create a separate virtual
 environment on the same machine, you can use the ``@task.virtualenv`` decorator instead. The ``@task.virtualenv``
 decorator will allow you to create a new virtualenv with custom libraries and even a different
