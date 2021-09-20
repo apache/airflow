@@ -183,7 +183,7 @@ alibaba = [
     'oss2>=2.14.0',
 ]
 amazon = [
-    'boto3>=1.15.0,<1.18.0',
+    'boto3>=1.15.0,<1.19.0',
     'watchtower~=1.0.6',
     'jsonpath_ng>=1.5.3',
 ]
