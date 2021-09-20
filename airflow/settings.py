@@ -26,7 +26,6 @@ from typing import Optional
 
 import pendulum
 import sqlalchemy
-from flask import Markup
 from sqlalchemy import create_engine, exc
 from sqlalchemy.engine import Engine
 from sqlalchemy.orm import scoped_session, sessionmaker
