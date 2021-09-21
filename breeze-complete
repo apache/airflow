@@ -88,6 +88,7 @@ build-providers-dependencies
 check-apache-license
 check-builtin-literals
 check-executables-have-shebangs
+check-extras-order
 check-hooks-apply
 check-integrations
 check-merge-conflict

@@ -34,7 +34,7 @@ Those are the most common arguments that you use when you want to build a custom
 +------------------------------------------+------------------------------------------+---------------------------------------------+
 | ``AIRFLOW_VERSION``                      | :subst-code:`|airflow-version|`          | version of Airflow.                         |
 +------------------------------------------+------------------------------------------+---------------------------------------------+
-| ``AIRFLOW_EXTRAS``                       | (see Dockerfile)                         | Default extras with which airflow is        |
+| ``AIRFLOW_EXTRAS``                       | (see below the table)                    | Default extras with which airflow is        |
 |                                          |                                          | installed.                                  |
 +------------------------------------------+------------------------------------------+---------------------------------------------+
 | ``ADDITIONAL_AIRFLOW_EXTRAS``            |                                          | Optional additional extras with which       |
@@ -66,6 +66,37 @@ Those are the most common arguments that you use when you want to build a custom
 |                                          |                                          | :subst-code:`constraints-|airflow-version|`.|
 |                                          |                                          | Auto-detected if empty.                     |
 +------------------------------------------+------------------------------------------+---------------------------------------------+
+
+List of default extras in the production Dockerfile:
+
+.. BEGINNING OF EXTRAS LIST UPDATED BY PRE COMMIT
+* amazon
+* async
+* celery
+* cncf.kubernetes
+* dask
+* docker
+* elasticsearch
+* ftp
+* google
+* google_auth
+* grpc
+* hashicorp
+* http
+* ldap
+* microsoft.azure
+* mysql
+* odbc
+* pandas
+* postgres
+* redis
+* sendgrid
+* sftp
+* slack
+* ssh
+* statsd
+* virtualenv
+.. END OF EXTRAS LIST UPDATED BY PRE COMMIT
 
 Image optimization options
 ..........................
