@@ -17,7 +17,7 @@
  * under the License.
  */
 
-/* global document, window, $, d3, STATE_COLOR, isoDateToTimeEl */
+/* global document, window, $, d3, STATE_COLOR, isoDateToTimeEl, localStorage */
 
 import getMetaValue from './meta_value';
 import tiTooltip from './task_instances';
@@ -37,6 +37,20 @@ const lastDagRunsUrl = getMetaValue('last_dag_runs_url');
 const dagStatsUrl = getMetaValue('dag_stats_url');
 const taskStatsUrl = getMetaValue('task_stats_url');
 
+const FILTER_TAGS = 'filter_tags';
+
+const filterTags = localStorage.getItem(FILTER_TAGS);
+const initialQuery = new URLSearchParams(window.location.search);
+
+// Update the url if there is no tags query but localstorage has tags saved
+if (!initialQuery.has('tags') && filterTags) {
+  const tags = JSON.parse(filterTags);
+  tags.forEach((tag) => {
+    initialQuery.append('tags', tag);
+  });
+  window.location = `${DAGS_INDEX}?${initialQuery.toString()}`;
+}
+
 $('#tags_filter').select2({
   placeholder: 'Filter DAGs by tag',
   allowClear: true,
@@ -47,24 +61,27 @@ $('#tags_filter').on('change', (e) => {
   const query = new URLSearchParams(window.location.search);
   if (e.val.length) {
     if (query.has('tags')) query.delete('tags');
+    const tags = [];
     e.val.forEach((value) => {
       query.append('tags', value);
+      tags.push(value);
     });
+    localStorage.setItem(FILTER_TAGS, JSON.stringify(tags));
   } else {
     query.delete('tags');
-    query.set('reset_tags', 'reset');
+    localStorage.removeItem(FILTER_TAGS);
   }
   if (query.has('page')) query.delete('page');
-  window.location = `${DAGS_INDEX}?${query.toString()}`;
+  window.location = query.toString() ? `${DAGS_INDEX}?${query.toString()}` : DAGS_INDEX;
 });
 
 $('#tags_form').on('reset', (e) => {
   e.preventDefault();
   const query = new URLSearchParams(window.location.search);
   query.delete('tags');
+  localStorage.removeItem(FILTER_TAGS);
   if (query.has('page')) query.delete('page');
-  query.set('reset_tags', 'reset');
-  window.location = `${DAGS_INDEX}?${query.toString()}`;
+  window.location = query.toString() ? `${DAGS_INDEX}?${query.toString()}` : DAGS_INDEX;
 });
 
 $('#dag_query').on('keypress', (e) => {
@@ -316,26 +333,6 @@ function taskStatsHandler(error, json) {
   });
 }
 
-if (encodedDagIds.has('dag_ids')) {
-  // dags on page fetch stats
-  d3.json(blockedUrl)
-    .header('X-CSRFToken', csrfToken)
-    .post(encodedDagIds, blockedHandler);
-  d3.json(lastDagRunsUrl)
-    .header('X-CSRFToken', csrfToken)
-    .post(encodedDagIds, lastDagRunsHandler);
-  d3.json(dagStatsUrl)
-    .header('X-CSRFToken', csrfToken)
-    .post(encodedDagIds, dagStatsHandler);
-  d3.json(taskStatsUrl)
-    .header('X-CSRFToken', csrfToken)
-    .post(encodedDagIds, taskStatsHandler);
-} else {
-  // no dags, hide the loading dots
-  $('.js-loading-task-stats').remove();
-  $('.js-loading-dag-stats').remove();
-}
-
 function showSvgTooltip(text, circ) {
   const tip = $('#svg-tooltip');
   tip.children('.tooltip-inner').text(text);
@@ -362,6 +359,29 @@ $(window).on('load', () => {
   $('body').on('mouseout', '.has-svg-tooltip', () => {
     hideSvgTooltip();
   });
+});
+
+window.addEventListener('DOMContentLoaded', () => {
+  // Wait until DOM is loaded before performing secondary API requests
+  if (encodedDagIds.has('dag_ids')) {
+    // dags on page fetch stats
+    d3.json(blockedUrl)
+      .header('X-CSRFToken', csrfToken)
+      .post(encodedDagIds, blockedHandler);
+    d3.json(lastDagRunsUrl)
+      .header('X-CSRFToken', csrfToken)
+      .post(encodedDagIds, lastDagRunsHandler);
+    d3.json(dagStatsUrl)
+      .header('X-CSRFToken', csrfToken)
+      .post(encodedDagIds, dagStatsHandler);
+    d3.json(taskStatsUrl)
+      .header('X-CSRFToken', csrfToken)
+      .post(encodedDagIds, taskStatsHandler);
+  } else {
+    // no dags, hide the loading dots
+    $('.js-loading-task-stats').remove();
+    $('.js-loading-dag-stats').remove();
+  }
 });
 
 $('.js-next-run-tooltip').each((i, run) => {
