@@ -169,7 +169,8 @@ different processes. In order to fine-tune your scheduler, you need to include a
     * how many DAGs you have in your files
     * how large the DAG files are (remember dag parser needs to read and parse the file every n seconds)
     * how complex they are (i.e. how fast they can be parsed, how many tasks and dependencies they have)
-    * whether parsing your DAG file involves heavy processing at the top level (Hint! It should not. See :ref:`best-practices/top_level_code`)
+    * whether parsing your DAG file involves importing a lot of libraries or heavy processing at the top level
+      (Hint! It should not. See :ref:`best_practices/top_level_code`)
 
 * The scheduler configuration
    * How many schedulers you have
@@ -178,7 +179,6 @@ different processes. In order to fine-tune your scheduler, you need to include a
    * How many task instances scheduler processes in one loop
    * How many new DAG runs should be created/scheduled per loop
    * How often the scheduler should perform cleanup and check for orphaned tasks/adopting them
-   * Whether scheduler uses row-level locking
 
 In order to perform fine-tuning, it's good to understand how Scheduler works under-the-hood.
 You can take a look at the Airflow Summit 2021 talk
@@ -255,14 +255,16 @@ There are several areas of resource usage that you should pay attention to:
 * Airflow might use quite significant amount of memory when you try to get more performance out of it.
   Often more performance is achieved in Airflow by increasing number of processes handling the load,
   and each process requires whole interpreter of Python loaded, a lot of classes imported, temporary
-  in-memory storage. This can lead to memory pressure. You need to observe if your system is using
-  more memory than it has - which results with using swap disk, which dramatically decreases performance.
-  Note that Airflow Scheduler in versions prior to ``2.1.4`` generated a lot of ``Page Cache`` memory
-  used by log files (when the log files were not removed). This was generally harmless, as the memory
-  is just cache and could be reclaimed at any time by the system, however in version ``2.1.4`` and
-  beyond, writing logs will not generate excessive ``Page Cache`` memory. Regardless - make sure when you look
-  at memory usage, pay attention to the kind of memory you are observing. Usually you should look at
-  ``working memory``(names might vary depending on your deployment) rather than ``total memory used``.
+  in-memory storage. A lot of it is optimized by Airflow by using forking and copy-on-write memory used
+  but in case new classes are imported after forking this can lead to extra memory pressure.
+  You need to observe if your system is using more memory than it has - which results with using swap disk,
+  which dramatically decreases performance. Note that Airflow Scheduler in versions prior to ``2.1.4``
+  generated a lot of ``Page Cache`` memory used by log files (when the log files were not removed).
+  This was generally harmless, as the memory is just cache and could be reclaimed at any time by the system,
+  however in version ``2.1.4`` and beyond, writing logs will not generate excessive ``Page Cache`` memory.
+  Regardless - make sure when you look at memory usage, pay attention to the kind of memory you are observing.
+  Usually you should look at ``working memory``(names might vary depending on your deployment) rather
+  than ``total memory used``.
 
 What can you do, to improve Scheduler's performance
 """""""""""""""""""""""""""""""""""""""""""""""""""
@@ -353,16 +355,13 @@ However you can also look at other non-performance-related scheduler configurati
 
 - :ref:`config:scheduler__max_tis_per_query`
   The batch size of queries in the scheduling main loop. If this is too high, SQL query
-  performance may be impacted by one or more of the following:
-
-  - reversion to full table scan - complexity of query predicate
-  - excessive locking
+  performance may be impacted by complexity of query predicate, and/or excessive locking.
 
   Additionally, you may hit the maximum allowable query length for your db.
   Set this to 0 for no limit (not advised).
 
 - :ref:`config:scheduler__min_file_process_interval`
-  Number of seconds after which a DAG file is reparsed. The DAG file is parsed every
+  Number of seconds after which a DAG file is re-parsed. The DAG file is parsed every
   min_file_process_interval number of seconds. Updates to DAGs are reflected after
   this interval. Keeping this number low will increase CPU usage.
 
@@ -371,7 +370,10 @@ However you can also look at other non-performance-related scheduler configurati
   how many processes will run.
 
 - :ref:`config:scheduler__processor_poll_interval`
-  The number of seconds to wait between consecutive DAG file processing.
+  Controls how long the scheduler will sleep between loops, but if there was nothing to do
+  in the loop. i.e. if it scheduled something then it will start the next loop
+  iteration straight away. This parameter is badly named (historical reasons) and it will be
+  renamed in the future with deprecation of the current name.
 
 - :ref:`config:scheduler__schedule_after_task_execution`
   Should the Task supervisor process perform a “mini scheduler” to attempt to schedule more tasks of

@@ -1728,7 +1728,10 @@
       default: "-1"
     - name: processor_poll_interval
       description: |
-        The number of seconds to wait between consecutive DAG file processing
+        Controls how long the scheduler will sleep between loops, but if there was nothing to do
+        in the loop. i.e. if it scheduled something then it will start the next loop
+        iteration straight away. This parameter is badly named (historical reasons) and it will be
+        renamed in the future with deprecation of the current name.
       version_added: 1.10.6
       type: string
       example: ~
@@ -1810,7 +1813,7 @@
       description: |
         This changes the batch size of queries in the scheduling main loop.
         If this is too high, SQL query performance may be impacted by
-        reversion to full table scan, complexity of query predicate, and/or excessive locking.
+        complexity of query predicate, and/or excessive locking.
         Additionally, you may hit the maximum allowable query length for your db.
         Set this to 0 for no limit (not advised)
       version_added: ~
