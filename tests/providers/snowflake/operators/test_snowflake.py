@@ -23,9 +23,11 @@ import pytest
 
 from airflow.models.dag import DAG
 from airflow.providers.snowflake.operators.snowflake import (
+    BranchSnowflakeOperator,
     SnowflakeCheckOperator,
     SnowflakeIntervalCheckOperator,
     SnowflakeOperator,
+    SnowflakeThresholdCheckOperator,
     SnowflakeValueCheckOperator,
 )
 from airflow.utils import timezone
@@ -60,9 +62,35 @@ class TestSnowflakeOperator(unittest.TestCase):
 @pytest.mark.parametrize(
     "operator_class, kwargs",
     [
+        (
+            BranchSnowflakeOperator,
+            dict(sql="SELECT 1", follow_task_ids_if_true="branch_1", follow_task_ids_if_false="branch_2"),
+        )
+    ],
+)
+class TestBranchSnowflakeOperator:
+    @mock.patch("airflow.providers.snowflake.operators.snowflake.get_db_hook")
+    def test_get_db_hook(
+        self,
+        mock_get_db_hook,
+        operator_class,
+        kwargs,
+    ):
+        operator = operator_class(task_id='branch_snowflake', snowflake_conn_id='snowflake_default', **kwargs)
+        operator.get_db_hook()
+        mock_get_db_hook.assert_called_once()
+
+
+@pytest.mark.parametrize(
+    "operator_class, kwargs",
+    [
         (SnowflakeCheckOperator, dict(sql='Select * from test_table')),
         (SnowflakeValueCheckOperator, dict(sql='Select * from test_table', pass_value=95)),
         (SnowflakeIntervalCheckOperator, dict(table='test-table-id', metrics_thresholds={'COUNT(*)': 1.5})),
+        (
+            SnowflakeThresholdCheckOperator,
+            dict(sql='Select * from test_table', min_threshold=0, max_threshold=10),
+        ),
     ],
 )
 class TestSnowflakeCheckOperators:
