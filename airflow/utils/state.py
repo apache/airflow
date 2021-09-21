@@ -121,7 +121,7 @@ class State:
         TaskInstanceState.REMOVED: 'lightgrey',
         TaskInstanceState.SCHEDULED: 'tan',
         TaskInstanceState.SENSING: 'lightseagreen',
-        TaskInstanceState.DEFERRED: 'lightseagreen',
+        TaskInstanceState.DEFERRED: 'blueviolet',
     }
     state_color.update(STATE_COLORS)  # type: ignore
 
