@@ -88,8 +88,10 @@ and the downstream tasks can pull the path from XCom and use it to read the data
 The tasks should also not store any authentication parameters such as passwords or token inside them.
 Where at all possible, use :doc:`Connections </concepts/connections>` to store data securely in Airflow backend and retrieve them using a unique connection id.
 
-Top level Python Code and Dynamic DAGs
---------------------------------------
+.. _best_practices/top_level_code:
+
+Top level Python Code
+---------------------
 
 You should avoid writing the top level code which is not necessary to create Operators
 and build DAG relations between them. This is because of the design decision for the scheduler of Airflow
@@ -103,15 +105,87 @@ in DAGs is correctly reflected in scheduled tasks.
 
 Specifically you should not run any database access, heavy computations and networking operations.
 
-This limitation is especially important in case of dynamic DAG configuration, which can be configured
-essentially in one of those ways:
+One of the important factors impacting DAG loading time, that might be overlooked by Python developers is
+that top-level imports might take surprisingly a lot of time and they can generate a lot of overhead
+and this can be easily avoided by converting them to local imports inside Python callables for example.
+
+Consider the example below - the first DAG will parse significantly slower (in the orders of seconds)
+than equivalent DAG where the ``numpy`` module is imported as local import in the callable.
+
+Bad example:
+
+.. code-block:: python
+
+  from datetime import datetime
+
+  from airflow import DAG
+  from airflow.operators.python import PythonOperator
+
+  import numpy as np  # <-- THIS IS A VERY BAD IDEA! DON'T DO THAT!
+
+  with DAG(
+      dag_id="example_python_operator",
+      schedule_interval=None,
+      start_date=datetime(2021, 1, 1),
+      catchup=False,
+      tags=["example"],
+  ) as dag:
+
+      def print_array():
+          """Print Numpy array."""
+          a = np.arange(15).reshape(3, 5)
+          print(a)
+          return a
+
+      run_this = PythonOperator(
+          task_id="print_the_context",
+          python_callable=print_array,
+      )
+
+Good example:
+
+.. code-block:: python
+
+  from datetime import datetime
+
+  from airflow import DAG
+  from airflow.operators.python import PythonOperator
+
+  with DAG(
+      dag_id="example_python_operator",
+      schedule_interval=None,
+      start_date=datetime(2021, 1, 1),
+      catchup=False,
+      tags=["example"],
+  ) as dag:
+
+      def print_array():
+          """Print Numpy array."""
+          import numpy as np  # <- THIS IS HOW NUMPY SHOULD BE IMPORTED IN THIS CASE
+
+          a = np.arange(15).reshape(3, 5)
+          print(a)
+          return a
+
+      run_this = PythonOperator(
+          task_id="print_the_context",
+          python_callable=print_array,
+      )
+
+
+
+Dynamic DAG Generation
+----------------------
+
+Avoiding excessive processing at the top level code described in the previous chapter is especially important
+in case of dynamic DAG configuration, which can be configured essentially in one of those ways:
 
 * via `environment variables <https://wiki.archlinux.org/title/environment_variables>`_ (not to be mistaken
   with the :doc:`Airflow Variables </concepts/variables>`)
 * via externally provided, generated Python code, containing meta-data in the DAG folder
 * via externally provided, generated configuration meta-data file in the DAG folder
 
-All cases are described in the following chapters.
+All cases are described in the following sections.
 
 Dynamic DAGs with environment variables
 .......................................
@@ -241,11 +315,52 @@ each parameter by following the links):
 * :ref:`config:scheduler__parsing_processes`
 * :ref:`config:scheduler__file_parsing_sort_mode`
 
+.. _best_practices/reducing_dag_complexity:
+
+Reducing DAG complexity
+^^^^^^^^^^^^^^^^^^^^^^^
+
+While Airflow is good in handling a lot of DAGs with a lot of task and dependencies between them, when you
+have many complex DAGs, their complexity might impact performance of scheduling. One of the ways to keep
+your Airflow instance performant and well utilized, you should strive to simplify and optimize your DAGs
+whenever possible - you have to remember that DAG parsing process and creation is just executing
+Python code and it's up to you to make it as performant as possible. There are no magic recipes for making
+your DAG "less complex" - since this is a Python code, it's the DAG writer who controls the complexity of
+their code.
+
+There are no "metrics" for DAG complexity, especially, there are no metrics that can tell you
+whether your DAG is "simple enough". However - as with any Python code you can definitely tell that
+your code is "simpler" or "faster" when you optimize it, the same can be said about DAG code. If you
+want to optimize your DAGs there are the following actions you can take:
+
+* Make your DAG load faster. This is a single improvement advice that might be implemented in various ways
+  but this is the one that has biggest impact on scheduler's performance. Whenever you have a chance to make
+  your DAG load faster - go for it, if your goal is to improve performance. Look at the
+  :ref:`best_practices/top_level_code` to get some tips of how you can do it. Also see at
+  :ref:`best_practices/dag_loader_test` on how to asses your DAG loading time.
+
+* Make your DAG generate simpler structure. Every task dependency adds additional processing overhead for
+  scheduling and execution. The DAG that has simple linear structure ``A -> B -> C`` will experience
+  less delays in task scheduling that DAG that has a deeply nested tree structure with exponentially growing
+  number of depending tasks for example. If you can make your DAGs more linear - where at single point in
+  execution there are as few potential candidates to run among the tasks, this will likely improve overall
+  scheduling performance.
+
+* Make smaller number of DAGs per file. While Airflow 2 is optimized for the case of having multiple DAGs
+  in one file, there are some parts of the system that make it sometimes less performant, or introduce more
+  delays than having those DAGs split among many files. Just the fact that one file can only be parsed by one
+  FileProcessor, makes it less scalable for example. If you have many DAGs generated from one file,
+  consider splitting them if you observe it takes a long time to reflect changes in your DAG files in the
+  UI of Airflow.
+
 Testing a DAG
 ^^^^^^^^^^^^^
 
-Airflow users should treat DAGs as production level code, and DAGs should have various associated tests to ensure that they produce expected results.
-You can write a wide variety of tests for a DAG. Let's take a look at some of them.
+Airflow users should treat DAGs as production level code, and DAGs should have various associated tests to
+ensure that they produce expected results. You can write a wide variety of tests for a DAG.
+Let's take a look at some of them.
+
+.. _best_practices/dag_loader_test:
 
 DAG Loader Test
 ---------------
@@ -255,9 +370,53 @@ No additional code needs to be written by the user to run this test.
 
 .. code-block:: bash
 
- python your-dag-file.py
+     python your-dag-file.py
 
-Running the above command without any error ensures your DAG does not contain any uninstalled dependency, syntax errors, etc.
+Running the above command without any error ensures your DAG does not contain any uninstalled dependency,
+syntax errors, etc. Make sure that you load your DAG in an environment that corresponds to your
+scheduler environment - with the same dependencies, environment variables, common code referred from the
+DAG.
+
+This is also a great way to check if your DAG loads faster after an optimization, if you want to attempt
+to optimize DAG loading time. Simply run the DAG and measure the time it takes, but again you have to
+make sure your DAG runs with the same dependencies, environment variables, common code.
+
+There are many ways to measure the time of processing, one of them in Linux environment is to
+use built-in ``time`` command. Make sure to run it several times in succession to account for
+caching effects. Compare the results before and after the optimization (in the same conditions - using
+the same machine, environment etc.) in order to assess the impact of the optimization.
+
+.. code-block:: bash
+
+     time python airflow/example_dags/example_python_operator.py
+
+Result:
+
+.. code-block:: text
+
+    real    0m0.699s
+    user    0m0.590s
+    sys     0m0.108s
+
+The important metrics is the "real time" - which tells you how long time it took
+to process the DAG. Note that when loading the file this way, you are starting a new interpreter so there is
+an initial loading time that is not present when Airflow parses the DAG. You can assess the
+time of initialization by running:
+
+.. code-block:: bash
+
+     time python -c ''
+
+Result:
+
+.. code-block:: text
+
+    real    0m0.073s
+    user    0m0.037s
+    sys     0m0.039s
+
+In this case the initial interpreter startup time is ~ 0.07s which is about 10% of time needed to parse
+the example_python_operator.py above so the actual parsing time is about ~ 0.62 s for the example DAG.
 
 You can look into :ref:`Testing a DAG <testing>` for details on how to test individual operators.
 

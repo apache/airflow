@@ -347,7 +347,7 @@ Tez
 Thinknear
 ToC
 Tooltip
-Tuneables
+Tunables
 UA
 Umask
 Un
@@ -636,6 +636,7 @@ dimensionX
 dingding
 dir
 dirs
+discoverability
 discoverable
 displayName
 distcp
@@ -1299,6 +1300,7 @@ trino
 trojan
 tsv
 ttl
+tunables
 txt
 tz
 tzinfo
