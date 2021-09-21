@@ -533,17 +533,6 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
         self._get_and_cache_perms()
         return (action_name, resource_name) in self.perms
 
-    def has_all_dags_edit_access(self):
-        """
-        Has all the dag access in any of the 3 cases:
-        1. Role needs to be in (Admin, Viewer, User, Op).
-        2. Has can_read action on dags resource.
-        3. Has can_edit action on dags resource.
-        """
-        return self._has_role(['Admin', 'Op', 'User']) or self._has_perm(
-            permissions.ACTION_CAN_EDIT, permissions.RESOURCE_DAG
-        )
-
     def has_all_dags_access(self):
         """
         Has all the dag access in any of the 3 cases:
