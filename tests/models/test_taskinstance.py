@@ -1696,7 +1696,10 @@ class TestTaskInstance:
         assert ti.try_number == 1
         ti.handle_failure("test queued ti", test_mode=True)
         assert ti.state == State.UP_FOR_RETRY
-        assert ti.try_number == 3
+        # Assert that 'ti._try_number' is bumped from 0 to 1. This is the last/current try
+        assert ti._try_number == 1
+        # Check 'ti.try_number' is bumped to 2. This is try_number for next run
+        assert ti.try_number == 2
 
     def test_does_not_retry_on_airflow_fail_exception(self, dag_maker):
         def fail():

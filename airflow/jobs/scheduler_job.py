@@ -525,8 +525,8 @@ class SchedulerJob(BaseJob):
                 try:
                     dag = self.dagbag.get_dag(ti.dag_id)
                     task = dag.get_task(ti.task_id)
-                except Exception as ex:
-                    self.log.exception("Marking task instance %s as failed. Reason: %s", ti, ex)
+                except Exception:
+                    self.log.exception("Marking task instance %s as %s", ti, state)
                     ti.set_state(state)
                     continue
                 ti.task = task
