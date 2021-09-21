@@ -418,6 +418,8 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
         :type application: str
         :param kwargs: extra arguments to Popen (see subprocess.Popen)
         """
+        deploy_mode_launch = self._connection['deploy_mode'] 
+
         spark_submit_cmd = self._build_spark_submit_command(application)
 
         if self._env:
@@ -439,7 +441,8 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
 
         # Check spark-submit return code. In Kubernetes mode, also check the value
         # of exit code in the log, as it may differ.
-        if returncode or (self._is_kubernetes and self._connection['deploy_mode']!='client' and self._spark_exit_code != 0):
+        if returncode or (self._is_kubernetes and deploy_mode_launch=='cluster' and self._spark_exit_code != 0):
+            self.log.debug(f"detected kubernetes mode: {self._is_kubernetes} and deploy mode: {deploy_mode_launch} and exit code: {self._spark_exit_code}")
             if self._is_kubernetes:
                 raise AirflowException(
                     "Cannot execute: {}. Error code is: {}. Kubernetes spark exit code is: {}".format(
