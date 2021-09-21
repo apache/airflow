@@ -265,7 +265,7 @@ We recommend using the ``mssql+pyodbc`` driver and specifying it in your SqlAlch
 
 .. code-block:: text
 
-    mssql+pyodbc://<user>:<password>@<host>
+    mssql+pyodbc://<user>:<password>@<host>/<db>
 
 
 Other configuration options
