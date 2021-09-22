@@ -2523,7 +2523,7 @@ class Airflow(AirflowBaseView):
         dag_model = DagModel.get_dagmodel(dag_id)
 
         try:
-            dag = current_app.dag_bag.get_dag(dag_id)
+            dag: Optional[DAG] = current_app.dag_bag.get_dag(dag_id)
         except airflow.exceptions.SerializedDagNotFound:
             dag = None
 
