@@ -36,3 +36,5 @@ push_pull_remove_images::wait_for_image "${image_name_with_tag}"
 if [[ ${VERIFY_IMAGE=} != "false" ]]; then
     verify_image::verify_prod_image "${image_name_with_tag}"
 fi
+
+docker_v tag  "${image_name_with_tag}" "${AIRFLOW_PROD_IMAGE}"
