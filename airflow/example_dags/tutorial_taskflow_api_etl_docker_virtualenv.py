@@ -62,7 +62,7 @@ def tutorial_taskflow_api_etl_virtualenv():
     # [END extract_virtualenv]
 
     # [START transform_docker]
-    @task.virtualenv(multiple_outputs=True)
+    @task.docker(image='python:3.9-slim-buster', multiple_outputs=True)
     def transform(order_data_dict: dict):
         """
         #### Transform task

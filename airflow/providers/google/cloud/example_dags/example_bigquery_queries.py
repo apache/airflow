@@ -155,7 +155,11 @@ for location in [None, LOCATION]:
                 "query": {
                     "query": f"SELECT * FROM {DATASET_NAME}.{TABLE_1}",
                     "useLegacySql": False,
-                    "destinationTable": f"{DATASET_NAME}.{TABLE_2}",
+                    "destinationTable": {
+                        'projectId': PROJECT_ID,
+                        'datasetId': DATASET_NAME,
+                        'tableId': TABLE_2,
+                    },
                 }
             },
             location=location,

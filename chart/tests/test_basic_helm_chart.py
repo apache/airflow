@@ -223,6 +223,41 @@ class TestBaseChartTest(unittest.TestCase):
         if kind_k8s_obj_labels_tuples:
             warnings.warn(f"Unchecked objects: {kind_k8s_obj_labels_tuples.keys()}")
 
+    def test_labels_are_valid_on_job_templates(self):
+        """Test labels are correctly applied on all job templates created by this chart"""
+        release_name = "TEST-BASIC"
+        k8s_objects = render_chart(
+            name=release_name,
+            values={
+                "labels": {"label1": "value1", "label2": "value2"},
+                "executor": "CeleryExecutor",
+                "pgbouncer": {"enabled": True},
+                "redis": {"enabled": True},
+                "networkPolicies": {"enabled": True},
+                "cleanup": {"enabled": True},
+                "postgresql": {"enabled": False},  # We won't check the objects created by the postgres chart
+            },
+        )
+        dict_of_labels_in_job_templates = {
+            k8s_object['metadata']['name']: k8s_object['spec']['template']['metadata']['labels']
+            for k8s_object in k8s_objects
+            if k8s_object['kind'] == "Job"
+        }
+
+        kind_names_tuples = [
+            (f"{release_name}-create-user", "create-user-job"),
+            (f"{release_name}-run-airflow-migrations", "run-airflow-migrations"),
+        ]
+        for k8s_object_name, component in kind_names_tuples:
+            expected_labels = {
+                "label1": "value1",
+                "label2": "value2",
+                "tier": "airflow",
+                "release": release_name,
+                "component": component,
+            }
+            assert dict_of_labels_in_job_templates.get(k8s_object_name) == expected_labels
+
     def test_annotations_on_airflow_pods_in_deployment(self):
         """
         Test Annotations are correctly applied on all pods created Scheduler, Webserver & Worker

@@ -607,7 +607,9 @@ where you can build the image using the packages downloaded by passing those bui
 * ``AIRFLOW_PRE_CACHED_PIP_PACKAGES="false"``  - to not pre-cache packages from PyPI when building image
 * ``AIRFLOW_CONSTRAINTS_LOCATION=/docker-context-files/YOUR_CONSTRAINT_FILE.txt`` - to downloaded constraint files
 * (Optional) ``INSTALL_MYSQL_CLIENT="false"`` if you do not want to install ``MySQL``
-  client from the Oracle repositories. In this case also make sure that your
+  client from the Oracle repositories.
+* (Optional) ``INSTALL_MSSQL_CLIENT="false"`` if you do not want to install ``MsSQL``
+  client from the Microsoft repositories.
 
 Note, that the solution we have for installing python packages from local packages, only solves the problem
 of "air-gaped" python installation. The Docker image also downloads ``apt`` dependencies and ``node-modules``.

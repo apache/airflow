@@ -18,7 +18,7 @@
 import json
 import textwrap
 import time
-from typing import Any
+from typing import Any, List, Optional, Union
 from urllib.parse import urlencode
 
 import markdown
@@ -507,3 +507,62 @@ class CustomSQLAInterface(SQLAInterface):
 FieldConverter.conversion_table = (
     ('is_utcdatetime', DateTimeWithTimezoneField, AirflowDateTimePickerWidget),
 ) + FieldConverter.conversion_table
+
+
+class UIAlert:
+    """
+    Helper for alerts messages shown on the UI
+
+    :param message: The message to display, either a string or Markup
+    :type message: Union[str,Markup]
+    :param category: The category of the message, one of "info", "warning", "error", or any custom category.
+        Defaults to "info".
+    :type category: str
+    :param roles: List of roles that should be shown the message. If ``None``, show to all users.
+    :type roles: Optional[List[str]]
+    :param html: Whether the message has safe html markup in it. Defaults to False.
+    :type html: bool
+
+
+    For example, show a message to all users:
+
+    .. code-block:: python
+
+        UIAlert("Welcome to Airflow")
+
+    Or only for users with the User role:
+
+    .. code-block:: python
+
+        UIAlert("Airflow update happening next week", roles=["User"])
+
+    You can also pass html in the message:
+
+    .. code-block:: python
+
+        UIAlert('Visit <a href="https://airflow.apache.org">airflow.apache.org</a>', html=True)
+
+        # or safely escape part of the message
+        # (more details: https://markupsafe.palletsprojects.com/en/2.0.x/formatting/)
+        UIAlert(Markup("Welcome <em>%s</em>") % ("John & Jane Doe",))
+    """
+
+    def __init__(
+        self,
+        message: Union[str, Markup],
+        category: str = "info",
+        roles: Optional[List[str]] = None,
+        html: bool = False,
+    ):
+        self.category = category
+        self.roles = roles
+        self.html = html
+        self.message = Markup(message) if html else message
+
+    def should_show(self, securitymanager) -> bool:
+        """Determine if the user should see the message based on their role membership"""
+        if self.roles:
+            user_roles = {r.name for r in securitymanager.get_user_roles()}
+            if not user_roles.intersection(set(self.roles)):
+                return False
+        return True

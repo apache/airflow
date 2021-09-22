@@ -246,8 +246,10 @@ class DAG(LoggingMixin):
         is only enforced for scheduled DagRuns.
     :type dagrun_timeout: datetime.timedelta
     :param sla_miss_callback: specify a function to call when reporting SLA
-        timeouts.
-    :type sla_miss_callback: types.FunctionType
+        timeouts. See :ref:`sla_miss_callback<concepts:sla_miss_callback>` for
+        more information about the function signature and parameters that are
+        passed to the callback.
+    :type sla_miss_callback: callable
     :param default_view: Specify DAG default view (tree, graph, duration,
                                                    gantt, landing_times), default tree
     :type default_view: str
@@ -331,7 +333,7 @@ class DAG(LoggingMixin):
         max_active_tasks: int = conf.getint('core', 'max_active_tasks_per_dag'),
         max_active_runs: int = conf.getint('core', 'max_active_runs_per_dag'),
         dagrun_timeout: Optional[timedelta] = None,
-        sla_miss_callback: Optional[Callable] = None,
+        sla_miss_callback: Optional[Callable[["DAG", str, str, List[str], List[TaskInstance]], None]] = None,
         default_view: str = conf.get('webserver', 'dag_default_view').lower(),
         orientation: str = conf.get('webserver', 'dag_orientation'),
         catchup: bool = conf.getboolean('scheduler', 'catchup_by_default'),
@@ -2807,7 +2809,6 @@ class DagModel(Base):
     def deactivate_deleted_dags(cls, alive_dag_filelocs: List[str], session=None):
         """
         Set ``is_active=False`` on the DAGs for which the DAG files have been removed.
-        Additionally change ``is_active=False`` to ``True`` if the DAG file exists.
 
         :param alive_dag_filelocs: file paths of alive DAGs
         :param session: ORM Session
@@ -2819,11 +2820,6 @@ class DagModel(Base):
             if dag_model.fileloc is not None:
                 if correct_maybe_zipped(dag_model.fileloc) not in alive_dag_filelocs:
                     dag_model.is_active = False
-                else:
-                    # If is_active is set as False and the DAG File still exists
-                    # Change is_active=True
-                    if not dag_model.is_active:
-                        dag_model.is_active = True
             else:
                 continue
 

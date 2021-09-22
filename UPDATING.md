@@ -27,6 +27,7 @@ assists users migrating to a new version.
 **Table of contents**
 
 - [Main](#main)
+- [Airflow 2.1.4](#airflow-214)
 - [Airflow 2.1.3](#airflow-213)
 - [Airflow 2.1.2](#airflow-212)
 - [Airflow 2.1.1](#airflow-211)
@@ -237,6 +238,10 @@ In Airflow 2.2 we have changed this and now there is a database-level foreign ke
 Before updating to this 2.2 release you will have to manually resolve any inconsistencies (add back DagRun rows, or delete TaskInstances) if you have any "dangling" TaskInstance" rows.
 
 As part of this change the `clean_tis_without_dagrun_interval` config option under `[scheduler]` section has been removed and has no effect.
+
+## Airflow 2.1.4
+
+No breaking changes.
 
 ## Airflow 2.1.3
 

@@ -650,6 +650,7 @@ previously released RC candidates in "${AIRFLOW_SOURCES}/dist":
     (both airflow and latest provider packages).
 
     ```shell script
+    git checkout ${VERSION}
     git push origin ${VERSION}
     ```
 
@@ -728,9 +729,9 @@ Dear Airflow community,
 
 I'm happy to announce that Airflow ${VERSION} was just released.
 
-The released sources and packages can be downloaded via https://airflow.apache.org/installation/installing-from-sources.html
+The released sources and packages can be downloaded via https://airflow.apache.org/docs/apache-airflow/stable/installation/installing-from-sources.html
 
-Other installation methods are described in https://airflow.apache.org/installation/
+Other installation methods are described in https://airflow.apache.org/docs/apache-airflow/stable/installation/
 
 The documentation is available on:
 https://airflow.apache.org/
@@ -738,7 +739,7 @@ https://airflow.apache.org/docs/apache-airflow/${VERSION}/
 
 Find the CHANGELOG here for more details:
 
-https://airflow.apache.org/changelog.html#airflow-1-10-2-2019-01-19
+https://airflow.apache.org/docs/apache-airflow/${VERSION}/changelog.html
 
 Cheers,
 <your name>

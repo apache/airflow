@@ -40,7 +40,7 @@ from airflow.utils.types import DagRunType
 
 @security.requires_access(
     [
-        (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
+        (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_DAG),
         (permissions.ACTION_CAN_DELETE, permissions.RESOURCE_DAG_RUN),
     ]
 )

@@ -1693,6 +1693,9 @@ class TaskInstance(Base, LoggingMixin):
         Stats.incr(f'operator_failures_{task.task_type}', 1, 1)
         Stats.incr('ti_failures')
         if not test_mode:
+            # This is needed as dag_run is lazily loaded. Without it, sqlalchemy errors with
+            # DetachedInstanceError error.
+            self.dag_run = self.get_dagrun(session=session)
             session.add(Log(State.FAILED, self))
 
             # Log failure duration
@@ -1719,6 +1722,9 @@ class TaskInstance(Base, LoggingMixin):
             self.state = State.FAILED
             email_for_state = task.email_on_failure
         else:
+            if self.state == State.QUEUED:
+                # We increase the try_number so as to fail the task if it fails to start after sometime
+                self._try_number += 1
             self.state = State.UP_FOR_RETRY
             email_for_state = task.email_on_retry
 

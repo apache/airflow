@@ -154,6 +154,8 @@ require Breeze Docker images to be installed locally.
 ------------------------------------ ---------------------------------------------------------------- ------------
 ``check-executables-have-shebangs``    Checks that executables have shebang
 ------------------------------------ ---------------------------------------------------------------- ------------
+``check-extras-order``                 Checks that extras in Dockerfile are sorted
+------------------------------------ ---------------------------------------------------------------- ------------
 ``check-hooks-apply``                  Checks which hooks are applicable to the repository
 ------------------------------------ ---------------------------------------------------------------- ------------
 ``check-integrations``                 Checks if integration list is synchronized in code
