@@ -15,7 +15,6 @@
 # specific language governing permissions and limitations
 # under the License.
 ---
-version: "2.2"
 services:
   airflow:
     environment:
@@ -26,7 +25,6 @@ services:
     depends_on:
       mysql:
         condition: service_healthy
-
   mysql:
     image: mysql:${MYSQL_VERSION}
     environment:

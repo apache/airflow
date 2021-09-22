@@ -15,10 +15,10 @@
 # specific language governing permissions and limitations
 # under the License.
 ---
-version: "2.2"
 services:
   airflow:
     image: ${AIRFLOW_CI_IMAGE}
+    pull_policy: never
     environment:
       - USER=root
       - ADDITIONAL_PATH=~/.local/bin
