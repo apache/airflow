@@ -265,7 +265,15 @@ We recommend using the ``mssql+pyodbc`` driver and specifying it in your SqlAlch
 
 .. code-block:: text
 
-    mssql+pyodbc://<user>:<password>@<host>/<db>
+    mssql+pyodbc://<user>:<password>@<host>[:port]/<db>?[driver=<driver>]
+
+
+You do not need to specify the Driver if you have default driver configured in your system. For the
+Official Docker image we have ODBC driver installed, so you need to specify the ODBC driver to use:
+
+.. code-block:: text
+
+    mssql+pyodbc://<user>:<password>@<host>[:port]/<db>[?driver=ODBC+Driver+17+for+SQL+Server]
 
 
 Other configuration options
