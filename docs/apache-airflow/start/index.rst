@@ -25,3 +25,5 @@ This section contains quick start guides to help you get up and running with Apa
 
     local.rst
     docker.rst
+
+Section- Installation Page and Documentation
