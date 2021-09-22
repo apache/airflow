@@ -210,7 +210,8 @@ azure = [
     'azure-mgmt-datafactory>=1.0.0,<2.0',
     'azure-mgmt-datalake-store>=0.5.0',
     'azure-mgmt-resource>=2.2.0',
-    'azure-storage-blob>=12.7.0',
+    # limited due to https://github.com/Azure/azure-sdk-for-python/pull/18801  implementation released in 12.9
+    'azure-storage-blob>=12.7.0,<12.9.0',
     'azure-storage-common>=2.1.0',
     'azure-storage-file>=2.1.0',
 ]
