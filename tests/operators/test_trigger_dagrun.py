@@ -267,7 +267,12 @@ class TestDagRunOperator(TestCase):
         task.run(start_date=execution_date, end_date=execution_date)
 
         with create_session() as session:
-            dagruns = session.query(DagRun).filter(DagRun.dag_id == self.dag.dag_id).all()
+            dagruns = (
+                session.query(DagRun)
+                .filter(DagRun.dag_id == self.dag.dag_id)
+                .order_by(DagRun.execution_date)
+                .all()
+            )
             assert len(dagruns) == 2
             assert dagruns[1].state == State.QUEUED
 
