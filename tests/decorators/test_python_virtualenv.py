@@ -47,12 +47,13 @@ class TestPythonVirtualenvDecorator(TestPythonBase):
     def test_add_dill(self):
         @task.virtualenv(use_dill=True, system_site_packages=False)
         def f():
-            pass
+            import dill  # noqa: F401
+            import lazy_object_proxy  # noqa: F401
 
         with self.dag:
             ret = f()
 
-        assert 'dill' in ret.operator.requirements
+        ret.operator.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
 
     def test_no_requirements(self):
         """Tests that the python callable is invoked on task run."""

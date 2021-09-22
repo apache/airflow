@@ -780,10 +780,10 @@ class TestPythonVirtualenvOperator(unittest.TestCase):
 
     def test_add_dill(self):
         def f():
-            pass
+            import dill  # noqa: F401
+            import lazy_object_proxy  # noqa: F401
 
-        task = self._run_as_operator(f, use_dill=True, system_site_packages=False)
-        assert 'dill' in task.requirements
+        self._run_as_operator(f, use_dill=True, system_site_packages=False)
 
     def test_no_requirements(self):
         """Tests that the python callable is invoked on task run."""
