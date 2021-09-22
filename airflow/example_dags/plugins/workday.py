@@ -59,7 +59,7 @@ class AfterWorkdayTimetable(Timetable):
                 delta = timedelta(days=1)
             else:  # Last run on Friday -- skip to next Monday.
                 delta = timedelta(days=(7 - last_start_weekday))
-            next_start = DateTime.combine((last_start + delta).date(), Time.min)
+            next_start = DateTime.combine((last_start + delta).date(), Time.min).replace(tzinfo=UTC)
         else:  # This is the first ever run on the regular schedule.
             next_start = restriction.earliest
             if next_start is None:  # No start_date. Don't schedule.

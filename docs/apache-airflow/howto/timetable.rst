@@ -62,6 +62,12 @@ schedule should not include the two weekend days. What we want is:
 
 For simplicity, we will only deal with UTC datetimes in this example.
 
+.. note::
+
+    All datetime values returned by a custom timetable **MUST** be "aware", i.e.
+    contains timezone information. Furthermore, they must use ``pendulum``'s
+    datetime and timezone types.
+
 
 Timetable Registration
 ----------------------
