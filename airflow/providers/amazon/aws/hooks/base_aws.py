@@ -27,6 +27,7 @@ This module contains Base AWS Hook.
 import configparser
 import datetime
 import logging
+import warnings
 from functools import wraps
 from typing import Any, Callable, Dict, Optional, Tuple, Union
 
@@ -37,6 +38,7 @@ import requests
 import tenacity
 from botocore.config import Config
 from botocore.credentials import ReadOnlyCredentials
+from slugify import slugify
 
 try:
     from functools import cached_property
@@ -188,11 +190,14 @@ class _SessionFactory(LoggingMixin):
             self.log.info("No credentials retrieved from Connection")
         return aws_access_key_id, aws_secret_access_key
 
+    def _strip_invalid_session_name_characters(self, role_session_name: str) -> str:
+        return slugify(role_session_name, regex_pattern=r'[^\w+=,.@-]+')
+
     def _assume_role(self, sts_client: boto3.client) -> Dict:
         assume_role_kwargs = self.extra_config.get("assume_role_kwargs", {})
         if "external_id" in self.extra_config:  # Backwards compatibility
             assume_role_kwargs["ExternalId"] = self.extra_config.get("external_id")
-        role_session_name = f"Airflow_{self.conn.conn_id}"
+        role_session_name = self._strip_invalid_session_name_characters(f"Airflow_{self.conn.conn_id}")
         self.log.info(
             "Doing sts_client.assume_role to role_arn=%s (role_session_name=%s)",
             self.role_arn,
@@ -429,12 +434,21 @@ class AwsBaseHook(BaseHook):
 
     def get_client_type(
         self,
-        client_type: str,
+        client_type: Optional[str] = None,
         region_name: Optional[str] = None,
         config: Optional[Config] = None,
     ) -> boto3.client:
         """Get the underlying boto3 client using boto3 session"""
         session, endpoint_url = self._get_credentials(region_name)
+
+        if client_type:
+            warnings.warn(
+                "client_type is deprecated. Set client_type from class attribute.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+        else:
+            client_type = self.client_type
 
         # No AWS Operators use the config argument to this method.
         # Keep backward compatibility with other users who might use it
@@ -445,12 +459,21 @@ class AwsBaseHook(BaseHook):
 
     def get_resource_type(
         self,
-        resource_type: str,
+        resource_type: Optional[str] = None,
         region_name: Optional[str] = None,
         config: Optional[Config] = None,
     ) -> boto3.resource:
         """Get the underlying boto3 resource using boto3 session"""
         session, endpoint_url = self._get_credentials(region_name)
+
+        if resource_type:
+            warnings.warn(
+                "resource_type is deprecated. Set resource_type from class attribute.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+        else:
+            resource_type = self.resource_type
 
         # No AWS Operators use the config argument to this method.
         # Keep backward compatibility with other users who might use it

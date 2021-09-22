@@ -48,6 +48,9 @@ spec:
         tier: airflow
         component: run-airflow-migrations
         release: {{ .Release.Name }}
+{{- with .Values.labels }}
+{{ toYaml . | indent 8 }}
+{{- end }}
       {{- if or .Values.airflowPodAnnotations .Values.migrateDatabaseJob.annotations }}
       annotations:
         {{- if .Values.airflowPodAnnotations }}
@@ -74,7 +77,7 @@ spec:
       {{- end }}
       containers:
         - name: run-airflow-migrations
-          image: {{ template "airflow_image" . }}
+          image: {{ template "airflow_image_for_migrations" . }}
           imagePullPolicy: {{ .Values.images.airflow.pullPolicy }}
           # Support running against 1.10.x and 2.x
           {{- if semverCompare ">=2.0.0" .Values.airflowVersion }}

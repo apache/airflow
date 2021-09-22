@@ -17,8 +17,9 @@
 
 import os
 from functools import lru_cache
-from typing import Optional, Set
+from typing import Iterable, Optional, Set
 
+import click
 import jinja2
 from docutils import nodes
 from docutils.nodes import Element
@@ -88,7 +89,7 @@ def _prepare_operators_data(tags: Optional[Set[str]]):
     package_data = load_package_data()
     all_integrations = _prepare_resource_index(package_data, "integrations")
     if tags is None:
-        to_display_integration = all_integrations
+        to_display_integration = all_integrations.values()
     else:
         to_display_integration = [
             integration for integration in all_integrations.values() if tags.intersection(integration["tags"])
@@ -121,7 +122,7 @@ def _prepare_operators_data(tags: Optional[Set[str]]):
     return sorted(results, key=lambda d: d["integration"]["integration-name"].lower())
 
 
-def _render_operator_content(*, tags: Optional[Set[str]], header_separator: str = DEFAULT_HEADER_SEPARATOR):
+def _render_operator_content(*, tags: Optional[Set[str]], header_separator: str):
     tabular_data = _prepare_operators_data(tags)
 
     return _render_template(
@@ -162,12 +163,108 @@ def _prepare_transfer_data(tags: Optional[Set[str]]):
     return to_display_transfers
 
 
-def _render_transfer_content(*, tags: Optional[Set[str]], header_separator: str = DEFAULT_HEADER_SEPARATOR):
+def _render_transfer_content(*, tags: Optional[Set[str]], header_separator: str):
     tabular_data = _prepare_transfer_data(tags)
 
     return _render_template(
         "operators_and_hooks_ref-transfers.rst.jinja2", items=tabular_data, header_separator=header_separator
     )
+
+
+def _prepare_logging_data():
+    package_data = load_package_data()
+    all_logging = {}
+    for provider in package_data:
+        logging_handlers = provider.get("logging")
+        if logging_handlers:
+            package_name = provider['package-name']
+            all_logging[package_name] = {'name': provider['name'], 'handlers': logging_handlers}
+    return all_logging
+
+
+def _render_logging_content(*, header_separator: str):
+    tabular_data = _prepare_logging_data()
+
+    return _render_template("logging.rst.jinja2", items=tabular_data, header_separator=header_separator)
+
+
+def _prepare_auth_backend_data():
+    package_data = load_package_data()
+    all_auth_backends = {}
+    for provider in package_data:
+        auth_backends_list = provider.get("auth-backends")
+        if auth_backends_list:
+            package_name = provider['package-name']
+            all_auth_backends[package_name] = {'name': provider['name'], 'auth_backends': auth_backends_list}
+    return all_auth_backends
+
+
+def _render_auth_backend_content(*, header_separator: str):
+    tabular_data = _prepare_auth_backend_data()
+
+    return _render_template("auth_backend.rst.jinja2", items=tabular_data, header_separator=header_separator)
+
+
+def _prepare_secrets_backend_data():
+    package_data = load_package_data()
+    all_secret_backends = {}
+    for provider in package_data:
+        secret_backends_list = provider.get("secrets-backends")
+        if secret_backends_list:
+            package_name = provider['package-name']
+            all_secret_backends[package_name] = {
+                'name': provider['name'],
+                'secrets_backends': secret_backends_list,
+            }
+    return all_secret_backends
+
+
+def _render_secrets_backend_content(*, header_separator: str):
+    tabular_data = _prepare_secrets_backend_data()
+
+    return _render_template(
+        "secret_backend.rst.jinja2", items=tabular_data, header_separator=header_separator
+    )
+
+
+def _prepare_connections_data():
+    package_data = load_package_data()
+    all_connections = {}
+    for provider in package_data:
+        connections_list = provider.get("connection-types")
+        if connections_list:
+            package_name = provider['package-name']
+            all_connections[package_name] = {
+                'name': provider['name'],
+                'connection_types': connections_list,
+            }
+    return all_connections
+
+
+def _render_connections_content(*, header_separator: str):
+    tabular_data = _prepare_connections_data()
+
+    return _render_template("connections.rst.jinja2", items=tabular_data, header_separator=header_separator)
+
+
+def _prepare_extra_links_data():
+    package_data = load_package_data()
+    all_extra_links = {}
+    for provider in package_data:
+        extra_link_list = provider.get("extra-links")
+        if extra_link_list:
+            package_name = provider['package-name']
+            all_extra_links[package_name] = {
+                'name': provider['name'],
+                'extra_links': extra_link_list,
+            }
+    return all_extra_links
+
+
+def _render_extra_links_content(*, header_separator: str):
+    tabular_data = _prepare_extra_links_data()
+
+    return _render_template("extra_links.rst.jinja2", items=tabular_data, header_separator=header_separator)
 
 
 class BaseJinjaReferenceDirective(Directive):
@@ -222,43 +319,130 @@ class TransfersReferenceDirective(BaseJinjaReferenceDirective):
         )
 
 
+class LoggingDirective(BaseJinjaReferenceDirective):
+    """Generate list of logging handlers"""
+
+    def render_content(self, *, tags: Optional[Set[str]], header_separator: str = DEFAULT_HEADER_SEPARATOR):
+        return _render_logging_content(
+            header_separator=header_separator,
+        )
+
+
+class AuthBackendDirective(BaseJinjaReferenceDirective):
+    """Generate list of auth backend handlers"""
+
+    def render_content(self, *, tags: Optional[Set[str]], header_separator: str = DEFAULT_HEADER_SEPARATOR):
+        return _render_auth_backend_content(
+            header_separator=header_separator,
+        )
+
+
+class SecretsBackendDirective(BaseJinjaReferenceDirective):
+    """Generate list of secret backend handlers"""
+
+    def render_content(self, *, tags: Optional[Set[str]], header_separator: str = DEFAULT_HEADER_SEPARATOR):
+        return _render_secrets_backend_content(
+            header_separator=header_separator,
+        )
+
+
+class ConnectionsDirective(BaseJinjaReferenceDirective):
+    """Generate list of connections"""
+
+    def render_content(self, *, tags: Optional[Set[str]], header_separator: str = DEFAULT_HEADER_SEPARATOR):
+        return _render_connections_content(
+            header_separator=header_separator,
+        )
+
+
+class ExtraLinksDirective(BaseJinjaReferenceDirective):
+    """Generate list of extra links"""
+
+    def render_content(self, *, tags: Optional[Set[str]], header_separator: str = DEFAULT_HEADER_SEPARATOR):
+        return _render_extra_links_content(
+            header_separator=header_separator,
+        )
+
+
 def setup(app):
     """Setup plugin"""
     app.add_directive('operators-hooks-ref', OperatorsHooksReferenceDirective)
     app.add_directive('transfers-ref', TransfersReferenceDirective)
+    app.add_directive('airflow-logging', LoggingDirective)
+    app.add_directive('airflow-auth-backends', AuthBackendDirective)
+    app.add_directive('airflow-secrets-backends', SecretsBackendDirective)
+    app.add_directive('airflow-connections', ConnectionsDirective)
+    app.add_directive('airflow-extra-links', ExtraLinksDirective)
 
     return {'parallel_read_safe': True, 'parallel_write_safe': True}
 
 
+option_tag = click.option(
+    '--tag',
+    multiple=True,
+    help="If passed, displays integrations that have a matching tag",
+)
+
+option_header_separator = click.option(
+    '--header-separator', default=DEFAULT_HEADER_SEPARATOR, show_default=True
+)
+
+
+@click.group(context_settings={'help_option_names': ['-h', '--help'], 'max_content_width': 500})
+def cli():
+    """Render tables with integrations"""
+
+
+@cli.command()
+@option_tag
+@option_header_separator
+def operators_and_hooks(tag: Iterable[str], header_separator: str):
+    """Renders Operators ahd Hooks content"""
+    print(_render_operator_content(tags=set(tag) if tag else None, header_separator=header_separator))
+
+
+@cli.command()
+@option_tag
+@option_header_separator
+def transfers(tag: Iterable[str], header_separator: str):
+    """Renders Transfers content"""
+    print(_render_transfer_content(tags=set(tag) if tag else None, header_separator=header_separator))
+
+
+@cli.command()
+@option_header_separator
+def logging(header_separator: str):
+    """Renders Logger content"""
+    print(_render_logging_content(header_separator=header_separator))
+
+
+@cli.command()
+@option_header_separator
+def auth_backends(header_separator: str):
+    """Renders Logger content"""
+    print(_render_auth_backend_content(header_separator=header_separator))
+
+
+@cli.command()
+@option_header_separator
+def secret_backends(header_separator: str):
+    """Renders Secret Backends content"""
+    print(_render_secrets_backend_content(header_separator=header_separator))
+
+
+@cli.command()
+@option_header_separator
+def connections(header_separator: str):
+    """Renders Connections content"""
+    print(_render_connections_content(header_separator=header_separator))
+
+
+@cli.command()
+@option_header_separator
+def extra_links(header_separator: str):
+    """Renders Extra  links content"""
+    print(_render_extra_links_content(header_separator=header_separator))
+
+
 if __name__ == "__main__":
-    import argparse
-
-    parser = argparse.ArgumentParser(description='Render tables with integrations.')
-    parser.add_argument(
-        '--tag',
-        dest='tags',
-        action="append",
-        help='If passed, displays integrations that have a matching tag.',
-    )
-    parser.add_argument('--header-separator', default=DEFAULT_HEADER_SEPARATOR)
-    subparsers = parser.add_subparsers(help='sub-command help', metavar="COMMAND")
-    subparsers.required = True
-
-    parser_a = subparsers.add_parser(CMD_OPERATORS_AND_HOOKS)
-    parser_a.set_defaults(cmd=CMD_OPERATORS_AND_HOOKS)
-
-    parser_b = subparsers.add_parser(CMD_TRANSFERS)
-    parser_b.set_defaults(cmd=CMD_TRANSFERS)
-
-    args = parser.parse_args()
-
-    if args.cmd == CMD_OPERATORS_AND_HOOKS:
-        content = _render_operator_content(
-            tags=set(args.tags) if args.tags else None, header_separator=args.header_separator
-        )
-    else:
-        content = _render_transfer_content(
-            tags=set(args.tags) if args.tags else None, header_separator=args.header_separator
-        )
-
-    print(content)
+    cli()

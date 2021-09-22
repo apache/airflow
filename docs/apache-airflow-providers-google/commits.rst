@@ -35,6 +35,29 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+5.1.0
+.....
+
+Latest change: 2021-08-30
+
+================================================================================================  ===========  =========================================================================================================================
+Commit                                                                                            Committed    Subject
+================================================================================================  ===========  =========================================================================================================================
+`b5da846dd <https://github.com/apache/airflow/commit/b5da846dd1f27d798dc7dc4f4227de4418919874>`_  2021-08-30   ``Fix missing Data Fusion sensor integration (#17914)``
+`07405e6df <https://github.com/apache/airflow/commit/07405e6df4508fbf3e67d879479e2afd37df8421>`_  2021-08-30   ``[AIRFLOW-9300] Add DatafusionPipelineStateSensor and aync option to the CloudDataFusionStartPipelineOperator (#17787)``
+`42e13e1a5 <https://github.com/apache/airflow/commit/42e13e1a5a4c97a2085ddf96f7d93e7bf71949b8>`_  2021-08-30   ``Remove all deprecation warnings in providers (#17900)``
+`aa5952e58 <https://github.com/apache/airflow/commit/aa5952e58c58cab65f49b9e2db2adf66f17e7599>`_  2021-08-27   ``Gcp ai hyperparameter tuning (#17790)``
+`87769db98 <https://github.com/apache/airflow/commit/87769db98f963338855f59cfc440aacf68e008c9>`_  2021-08-27   ``Allow omission of 'initial_node_count' if 'node_pools' is specified (#17820)``
+`be75dcd39 <https://github.com/apache/airflow/commit/be75dcd39cd10264048c86e74110365bd5daf8b7>`_  2021-08-23   ``Update description about the new ''connection-types'' provider meta-data``
+`d04aa1352 <https://github.com/apache/airflow/commit/d04aa135268b8e0230be3af6598a3b18e8614c3c>`_  2021-08-20   ``[Airflow 13779] use provided parameters in the wait_for_pipeline_state hook (#17137)``
+`76ed2a49c <https://github.com/apache/airflow/commit/76ed2a49c6cd285bf59706cf04f39a7444c382c9>`_  2021-08-19   ``Import Hooks lazily individually in providers manager (#17682)``
+`b68d1935f <https://github.com/apache/airflow/commit/b68d1935f958a480f1e7d8dc1e3415707a14646b>`_  2021-08-19   ``Add error check for config_file parameter in GKEStartPodOperator (#17700)``
+`29aab6434 <https://github.com/apache/airflow/commit/29aab6434ffe0fb8c83b6fd6c9e44310966d496a>`_  2021-08-17   ``Adds secrets backend/logging/auth information to provider yaml (#17625)``
+`b06d52860 <https://github.com/apache/airflow/commit/b06d52860327cc0a52bcfc4f2305344b3f7c2b1d>`_  2021-08-11   ``Don't cache Google Secret Manager client (#17539)``
+`67cbb0f18 <https://github.com/apache/airflow/commit/67cbb0f181f806edb16ca12fb7a2638b5f31eb58>`_  2021-08-02   ``Enable specifying dictionary paths in 'template_fields_renderers' (#17321)``
+`c384f9b0f <https://github.com/apache/airflow/commit/c384f9b0f509bab704a70380465be18754800a52>`_  2021-07-29   ``GCP Secret Manager error handling for missing credentials (#17264)``
+================================================================================================  ===========  =========================================================================================================================
+
 5.0.0
 .....
 
@@ -43,6 +66,7 @@ Latest change: 2021-07-26
 ================================================================================================  ===========  =======================================================================================
 Commit                                                                                            Committed    Subject
 ================================================================================================  ===========  =======================================================================================
+`87f408b1e <https://github.com/apache/airflow/commit/87f408b1e78968580c760acb275ae5bb042161db>`_  2021-07-26   ``Prepares docs for Rc2 release of July providers (#17116)``
 `448e50bd2 <https://github.com/apache/airflow/commit/448e50bd23b4493980a41a5d4241ad3ecef087fb>`_  2021-07-26   ``Updating Google Cloud example DAGs to use XComArgs (#16875)``
 `aaf44ccac <https://github.com/apache/airflow/commit/aaf44ccace2336d00240e7e093094a9b808402d9>`_  2021-07-26   ``Updating miscellaneous Google example DAGs to use XComArgs (#16876)``
 `d01cc945d <https://github.com/apache/airflow/commit/d01cc945ddb03620216159335729a36c1a20f9f2>`_  2021-07-26   ``Fixes several failing tests after broken main (#17222)``
@@ -250,7 +274,7 @@ Latest change: 2020-12-09
 Commit                                                                                            Committed    Subject
 ================================================================================================  ===========  ======================================================================================================================================================================
 `32971a1a2 <https://github.com/apache/airflow/commit/32971a1a2de1db0b4f7442ed26facdf8d3b7a36f>`_  2020-12-09   ``Updates providers versions to 1.0.0 (#12955)``
-`b40dffa08 <https://github.com/apache/airflow/commit/b40dffa08547b610162f8cacfa75847f3c4ca364>`_  2020-12-08   ``Rename remaing modules to match AIP-21 (#12917)``
+`b40dffa08 <https://github.com/apache/airflow/commit/b40dffa08547b610162f8cacfa75847f3c4ca364>`_  2020-12-08   ``Rename remaining modules to match AIP-21 (#12917)``
 `9b39f2478 <https://github.com/apache/airflow/commit/9b39f24780e85f859236672e9060b2fbeee81b36>`_  2020-12-08   ``Add support for dynamic connection form fields per provider (#12558)``
 `1dcd3e13f <https://github.com/apache/airflow/commit/1dcd3e13fd0a078fc9440e91b77f6f87aa60dd3b>`_  2020-12-05   ``Add support for extra links coming from the providers (#12472)``
 `2037303ee <https://github.com/apache/airflow/commit/2037303eef93fd36ab13746b045d1c1fee6aa143>`_  2020-11-29   ``Adds support for Connection/Hook discovery from providers (#12466)``
@@ -365,7 +389,7 @@ Commit                                                                          
 `2f2d8dbfa <https://github.com/apache/airflow/commit/2f2d8dbfafefb4be3dd80f22f31c649c8498f148>`_  2020-08-25   ``Remove all "noinspection" comments native to IntelliJ (#10525)``
 `3734876d9 <https://github.com/apache/airflow/commit/3734876d9898067ee933b84af522d53df6160d7f>`_  2020-08-24   ``Implement impersonation in google operators (#10052)``
 `b0598b535 <https://github.com/apache/airflow/commit/b0598b5351d2d027286e2333231b6c0c0704dba2>`_  2020-08-24   ``Add support for creating multiple replicated clusters in Bigtable hook and operator (#10475)``
-`ee7ca128a <https://github.com/apache/airflow/commit/ee7ca128a17937313566f2badb6cc569c614db94>`_  2020-08-22   ``Fix broken Markdown refernces in Providers README (#10483)``
+`ee7ca128a <https://github.com/apache/airflow/commit/ee7ca128a17937313566f2badb6cc569c614db94>`_  2020-08-22   ``Fix broken Markdown references in Providers README (#10483)``
 `515cc72c9 <https://github.com/apache/airflow/commit/515cc72c995429c8c007f853ade385d79fcbac90>`_  2020-08-22   ``Fix typo in timed_out (#10459)``
 `7c206a82a <https://github.com/apache/airflow/commit/7c206a82a6f074abcc4898a005ecd2c84a920054>`_  2020-08-22   ``Replace assigment with Augmented assignment (#10468)``
 `88c7d2e52 <https://github.com/apache/airflow/commit/88c7d2e526af4994066f65f830e2fa8edcbbce2e>`_  2020-08-21   ``Dataflow operators don't not always create a virtualenv (#10373)``

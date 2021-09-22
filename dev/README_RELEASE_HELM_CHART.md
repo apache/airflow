@@ -569,9 +569,9 @@ Dear Airflow community,
 
 I am pleased to announce that we have released Apache Airflow Helm chart $VERSION 🎉 🎊
 
-The source release, as well as the "binary" Helm Chart release, is available here https://downloads.apache.org/airflow/helm-chart/$VERSION/
+The source release, as well as the "binary" Helm Chart release, are available:
 
-📦   Official Source: https://downloads.apache.org/airflow/helm-chart/$VERSION
+📦   Official Sources: https://airflow.apache.org/helm-chart/installing-helm-chart-from-sources.html
 📦   ArtifactHub: https://artifacthub.io/packages/helm/apache-airflow/airflow
 📚   Docs: https://airflow.apache.org/docs/helm-chart/$VERSION/
 

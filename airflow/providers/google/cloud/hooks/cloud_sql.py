@@ -39,7 +39,6 @@ from urllib.parse import quote_plus
 import httpx
 from googleapiclient.discovery import Resource, build
 from googleapiclient.errors import HttpError
-from sqlalchemy.orm import Session
 
 from airflow.exceptions import AirflowException
 
@@ -51,7 +50,6 @@ from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
 from airflow.providers.mysql.hooks.mysql import MySqlHook
 from airflow.providers.postgres.hooks.postgres import PostgresHook
 from airflow.utils.log.logging_mixin import LoggingMixin
-from airflow.utils.session import provide_session
 
 UNIX_PATH_MAX = 108
 
@@ -87,7 +85,7 @@ class CloudSQLHook(GoogleBaseHook):
     """
 
     conn_name_attr = 'gcp_conn_id'
-    default_conn_name = 'google_cloud_default'
+    default_conn_name = 'google_cloud_sql_default'
     conn_type = 'gcpcloudsql'
     hook_name = 'Google Cloud SQL'
 
@@ -516,10 +514,9 @@ class CloudSqlProxyRunner(LoggingMixin):
         os.chmod(self.sql_proxy_path, 0o744)  # Set executable bit
         self.sql_proxy_was_downloaded = True
 
-    @provide_session
-    def _get_credential_parameters(self, session: Session) -> List[str]:
-        connection = session.query(Connection).filter(Connection.conn_id == self.gcp_conn_id).first()
-        session.expunge_all()
+    def _get_credential_parameters(self) -> List[str]:
+        connection = GoogleBaseHook.get_connection(conn_id=self.gcp_conn_id)
+
         if connection.extra_dejson.get(GCP_CREDENTIALS_KEY_PATH):
             credential_params = ['-credential_file', connection.extra_dejson[GCP_CREDENTIALS_KEY_PATH]]
         elif connection.extra_dejson.get(GCP_CREDENTIALS_KEYFILE_DICT):
@@ -725,7 +722,7 @@ class CloudSQLDatabaseHook(BaseHook):
     """
 
     conn_name_attr = 'gcp_cloudsql_conn_id'
-    default_conn_name = 'google_cloud_sql_default'
+    default_conn_name = 'google_cloud_sqldb_default'
     conn_type = 'gcpcloudsqldb'
     hook_name = 'Google Cloud SQL Database'
 

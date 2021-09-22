@@ -33,9 +33,10 @@ configuring an Airflow environment.
     set-config
     set-up-database
     operator/index
-    customize-state-colors-ui
-    customize-dag-ui-page-instance-name
+    timetable
+    customize-ui
     custom-operator
+    create-custom-decorator
     connection
     variable
     run-behind-proxy

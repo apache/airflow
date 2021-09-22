@@ -27,25 +27,29 @@ from airflow.api_connexion.schemas.task_instance_schema import (
     set_task_instance_state_form,
     task_instance_schema,
 )
-from airflow.models import DAG, SlaMiss, TaskInstance as TI
+from airflow.models import SlaMiss, TaskInstance as TI
 from airflow.operators.dummy import DummyOperator
 from airflow.utils.platform import getuser
-from airflow.utils.session import create_session, provide_session
 from airflow.utils.state import State
 from airflow.utils.timezone import datetime
 
 
-class TestTaskInstanceSchema(unittest.TestCase):
-    def setUp(self):
+class TestTaskInstanceSchema:
+    @pytest.fixture(autouse=True)
+    def set_attrs(self, session, dag_maker):
         self.default_time = datetime(2020, 1, 1)
-        with DAG(dag_id="TEST_DAG_ID"):
+        with dag_maker(dag_id="TEST_DAG_ID", session=session):
             self.task = DummyOperator(task_id="TEST_TASK_ID", start_date=self.default_time)
 
+        self.dr = dag_maker.create_dagrun(execution_date=self.default_time)
+        session.flush()
+
         self.default_ti_init = {
-            "execution_date": self.default_time,
+            "run_id": None,
             "state": State.RUNNING,
         }
         self.default_ti_extras = {
+            "dag_run": self.dr,
             "start_date": self.default_time + dt.timedelta(days=1),
             "end_date": self.default_time + dt.timedelta(days=2),
             "pid": 100,
@@ -54,18 +58,14 @@ class TestTaskInstanceSchema(unittest.TestCase):
             "queue": "default_queue",
         }
 
-    def tearDown(self):
-        with create_session() as session:
-            session.query(TI).delete()
-            session.query(SlaMiss).delete()
+        yield
 
-    @provide_session
+        session.rollback()
+
     def test_task_instance_schema_without_sla(self, session):
         ti = TI(task=self.task, **self.default_ti_init)
         for key, value in self.default_ti_extras.items():
             setattr(ti, key, value)
-        session.add(ti)
-        session.commit()
         serialized_ti = task_instance_schema.dump((ti, None))
         expected_json = {
             "dag_id": "TEST_DAG_ID",
@@ -91,19 +91,17 @@ class TestTaskInstanceSchema(unittest.TestCase):
         }
         assert serialized_ti == expected_json
 
-    @provide_session
     def test_task_instance_schema_with_sla(self, session):
-        ti = TI(task=self.task, **self.default_ti_init)
-        for key, value in self.default_ti_extras.items():
-            setattr(ti, key, value)
         sla_miss = SlaMiss(
             task_id="TEST_TASK_ID",
             dag_id="TEST_DAG_ID",
             execution_date=self.default_time,
         )
-        session.add(ti)
         session.add(sla_miss)
-        session.commit()
+        session.flush()
+        ti = TI(task=self.task, **self.default_ti_init)
+        for key, value in self.default_ti_extras.items():
+            setattr(ti, key, value)
         serialized_ti = task_instance_schema.dump((ti, sla_miss))
         expected_json = {
             "dag_id": "TEST_DAG_ID",
@@ -177,19 +175,17 @@ class TestClearTaskInstanceFormSchema(unittest.TestCase):
             clear_task_instance_form.load(payload)
 
 
-class TestSetTaskInstanceStateFormSchema(unittest.TestCase):
-    def setUp(self) -> None:
-        super().setUp()
-        self.current_input = {
-            "dry_run": True,
-            "task_id": "print_the_context",
-            "execution_date": "2020-01-01T00:00:00+00:00",
-            "include_upstream": True,
-            "include_downstream": True,
-            "include_future": True,
-            "include_past": True,
-            "new_state": "failed",
-        }
+class TestSetTaskInstanceStateFormSchema:
+    current_input = {
+        "dry_run": True,
+        "task_id": "print_the_context",
+        "execution_date": "2020-01-01T00:00:00+00:00",
+        "include_upstream": True,
+        "include_downstream": True,
+        "include_future": True,
+        "include_past": True,
+        "new_state": "failed",
+    }
 
     def test_success(self):
         result = set_task_instance_state_form.load(self.current_input)

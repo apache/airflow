@@ -36,6 +36,7 @@
 {% block head_meta %}
   {{ super() }}
   <meta name="num_runs" content="{{ num_runs }}">
+  <meta name="root" content="{{ root if root else '' }}">
 {% endblock %}
 
 {% block content %}
@@ -106,6 +107,7 @@
   <script src="{{ url_for_asset('d3-tip.js') }}"></script>
   <script src="{{ url_for_asset('tree.js') }}"></script>
   <script>
-    const treeData = {{ data|tojson }}
+    const treeData = {{ data|tojson }};
+    const autoRefreshInterval = {{ auto_refresh_interval }};
   </script>
 {% endblock %}

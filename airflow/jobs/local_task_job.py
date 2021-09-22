@@ -52,6 +52,7 @@ class LocalTaskJob(BaseJob):
         mark_success: bool = False,
         pickle_id: Optional[str] = None,
         pool: Optional[str] = None,
+        external_executor_id: Optional[str] = None,
         *args,
         **kwargs,
     ):
@@ -64,6 +65,7 @@ class LocalTaskJob(BaseJob):
         self.pool = pool
         self.pickle_id = pickle_id
         self.mark_success = mark_success
+        self.external_executor_id = external_executor_id
         self.task_runner = None
 
         # terminating state is used so that a job don't try to
@@ -92,6 +94,7 @@ class LocalTaskJob(BaseJob):
             ignore_ti_state=self.ignore_ti_state,
             job_id=self.id,
             pool=self.pool,
+            external_executor_id=self.external_executor_id,
         ):
             self.log.info("Task is not able to be run")
             return
@@ -192,14 +195,17 @@ class LocalTaskJob(BaseJob):
                 )
                 raise AirflowException("Hostname of job runner does not match")
             current_pid = self.task_runner.process.pid
-
-            same_process = ti.pid == current_pid
+            recorded_pid = ti.pid
+            same_process = recorded_pid == current_pid
 
             if ti.run_as_user or self.task_runner.run_as_user:
-                same_process = psutil.Process(ti.pid).ppid() == current_pid
+                recorded_pid = psutil.Process(ti.pid).ppid()
+                same_process = recorded_pid == current_pid
 
-            if ti.pid is not None and not same_process:
-                self.log.warning("Recorded pid %s does not match " "the current pid %s", ti.pid, current_pid)
+            if recorded_pid is not None and not same_process:
+                self.log.warning(
+                    "Recorded pid %s does not match the current pid %s", recorded_pid, current_pid
+                )
                 raise AirflowException("PID of job runner does not match")
         elif self.task_runner.return_code() is None and hasattr(self.task_runner, 'process'):
             self.log.warning(
@@ -224,7 +230,7 @@ class LocalTaskJob(BaseJob):
             dag_run = with_row_locks(
                 session.query(DagRun).filter_by(
                     dag_id=self.dag_id,
-                    execution_date=self.task_instance.execution_date,
+                    run_id=self.task_instance.run_id,
                 ),
                 session=session,
             ).one()
@@ -237,7 +243,7 @@ class LocalTaskJob(BaseJob):
 
             partial_dag = task.dag.partial_subset(
                 task.downstream_task_ids,
-                include_downstream=False,
+                include_downstream=True,
                 include_upstream=False,
                 include_direct_upstream=True,
             )

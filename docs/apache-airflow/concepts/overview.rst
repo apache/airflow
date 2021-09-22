@@ -60,7 +60,7 @@ Internally, these are all actually subclasses of Airflow's ``BaseOperator``, and
 Control Flow
 ------------
 
-:doc:`dags` are designed to be run many times, and multiple runs of them can happen in parallel. DAGs are parameterized, always including a date they are "running for" (the ``execution_date``), but with other optional parameters as well.
+:doc:`dags` are designed to be run many times, and multiple runs of them can happen in parallel. DAGs are parameterized, always including an interval they are "running for" (the :ref:`data interval <data-interval>`), but with other optional parameters as well.
 
 :doc:`tasks` have dependencies declared on each other. You'll see this in a DAG either using the ``>>`` and ``<<`` operators::
 

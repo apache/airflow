@@ -49,7 +49,7 @@ def init_appbuilder_views(app):
     # Remove the session from scoped_session registry to avoid
     # reusing a session with a disconnected connection
     appbuilder.session.remove()
-    appbuilder.add_view_no_menu(views.DagModelView())
+    appbuilder.add_view_no_menu(views.AutocompleteView())
     appbuilder.add_view_no_menu(views.Airflow())
     appbuilder.add_view(
         views.DagRunModelView,
@@ -77,6 +77,11 @@ def init_appbuilder_views(app):
         category=permissions.RESOURCE_BROWSE_MENU,
     )
     appbuilder.add_view(
+        views.TriggerModelView,
+        permissions.RESOURCE_TRIGGER,
+        category=permissions.RESOURCE_BROWSE_MENU,
+    )
+    appbuilder.add_view(
         views.ConfigurationView,
         permissions.RESOURCE_CONFIG,
         category=permissions.RESOURCE_ADMIN_MENU,
@@ -90,6 +95,9 @@ def init_appbuilder_views(app):
     )
     appbuilder.add_view(
         views.PluginView, permissions.RESOURCE_PLUGIN, category=permissions.RESOURCE_ADMIN_MENU
+    )
+    appbuilder.add_view(
+        views.ProviderView, permissions.RESOURCE_PROVIDER, category=permissions.RESOURCE_ADMIN_MENU
     )
     appbuilder.add_view(
         views.PoolModelView, permissions.RESOURCE_POOL, category=permissions.RESOURCE_ADMIN_MENU
@@ -144,20 +152,23 @@ def init_error_handlers(app: Flask):
     from airflow.www import views
 
     app.register_error_handler(500, views.show_traceback)
-    app.register_error_handler(404, views.circles)
+    app.register_error_handler(404, views.not_found)
 
 
 def set_cors_headers_on_response(response):
     """Add response headers"""
     allow_headers = conf.get('api', 'access_control_allow_headers')
     allow_methods = conf.get('api', 'access_control_allow_methods')
-    allow_origin = conf.get('api', 'access_control_allow_origin')
+    allow_origins = conf.get('api', 'access_control_allow_origins')
     if allow_headers is not None:
         response.headers['Access-Control-Allow-Headers'] = allow_headers
     if allow_methods is not None:
         response.headers['Access-Control-Allow-Methods'] = allow_methods
-    if allow_origin is not None:
-        response.headers['Access-Control-Allow-Origin'] = allow_origin
+    if allow_origins is not None:
+        allowed_origins = allow_origins.split(' ')
+        origin = request.environ.get('HTTP_ORIGIN', allowed_origins[0])
+        if origin in allowed_origins:
+            response.headers['Access-Control-Allow-Origin'] = origin
     return response
 
 
@@ -177,7 +188,7 @@ def init_api_connexion(app: Flask) -> None:
             # here on the application level
             return common_error_handler(ex)
         else:
-            return views.circles(ex)
+            return views.not_found(ex)
 
     spec_dir = path.join(ROOT_APP_DIR, 'api_connexion', 'openapi')
     connexion_app = connexion.App(__name__, specification_dir=spec_dir, skip_error_handlers=True)

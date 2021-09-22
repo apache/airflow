@@ -14,10 +14,11 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+import json
 import os
 import subprocess
 import sys
-from contextlib import ExitStack
+from contextlib import ExitStack, suppress
 from datetime import datetime, timedelta
 
 import freezegun
@@ -25,6 +26,7 @@ import pytest
 
 # We should set these before loading _any_ of the rest of airflow so that the
 # unit test mode config is set as early as possible.
+assert "airflow" not in sys.modules, "No airflow module can be imported before these lines"
 tests_directory = os.path.dirname(os.path.realpath(__file__))
 
 os.environ["AIRFLOW__CORE__DAGS_FOLDER"] = os.path.join(tests_directory, "dags")
@@ -428,49 +430,326 @@ def app():
 
 @pytest.fixture
 def dag_maker(request):
-    from airflow.models import DAG
-    from airflow.utils import timezone
-    from airflow.utils.state import State
+    """
+    The dag_maker helps us to create DAG, DagModel, and SerializedDAG automatically.
 
-    DEFAULT_DATE = timezone.datetime(2016, 1, 1)
+    You have to use the dag_maker as a context manager and it takes
+    the same argument as DAG::
+
+        with dag_maker(dag_id="mydag") as dag:
+            task1 = DummyOperator(task_id='mytask')
+            task2 = DummyOperator(task_id='mytask2')
+
+    If the DagModel you want to use needs different parameters than the one
+    automatically created by the dag_maker, you have to update the DagModel as below::
+
+        dag_maker.dag_model.is_active = False
+        session.merge(dag_maker.dag_model)
+        session.commit()
+
+    For any test you use the dag_maker, make sure to create a DagRun::
+
+        dag_maker.create_dagrun()
+
+    The dag_maker.create_dagrun takes the same arguments as dag.create_dagrun
+
+    If you want to operate on serialized DAGs, then either pass ``serialized=True` to the ``dag_maker()``
+    call, or you can mark your test/class/file with ``@pytest.mark.need_serialized_dag(True)``. In both of
+    these cases the ``dag`` returned by the context manager will be a lazily-evaluated proxy object to the
+    SerializedDAG.
+    """
+    import lazy_object_proxy
+
+    # IMPORTANT: Delay _all_ imports from `airflow.*` to _inside a method_.
+    # This fixture is "called" early on in the pytest collection process, and
+    # if we import airflow.* here the wrong (non-test) config will be loaded
+    # and "baked" in to various constants
+
+    want_serialized = False
+
+    # Allow changing default serialized behaviour with `@pytest.mark.need_serialized_dag` or
+    # `@pytest.mark.need_serialized_dag(False)`
+    serialized_marker = request.node.get_closest_marker("need_serialized_dag")
+    if serialized_marker:
+        (want_serialized,) = serialized_marker.args or (True,)
 
     class DagFactory:
+        def __init__(self):
+            from airflow.models import DagBag
+
+            # Keep all the serialized dags we've created in this test
+            self.dagbag = DagBag(os.devnull, include_examples=False, read_dags_from_db=False)
+
         def __enter__(self):
             self.dag.__enter__()
+            if self.want_serialized:
+                return lazy_object_proxy.Proxy(self._serialized_dag)
             return self.dag
 
+        def _serialized_dag(self):
+            return self.serialized_model.dag
+
+        def get_serialized_data(self):
+            try:
+                data = self.serialized_model.data
+            except AttributeError:
+                raise RuntimeError("DAG serialization not requested")
+            if isinstance(data, str):
+                return json.loads(data)
+            return data
+
         def __exit__(self, type, value, traceback):
+            from airflow.models import DagModel
+            from airflow.models.serialized_dag import SerializedDagModel
+
             dag = self.dag
             dag.__exit__(type, value, traceback)
-            if type is None:
-                dag.clear()
-                self.dag_run = dag.create_dagrun(
-                    run_id=self.kwargs.get("run_id", "test"),
-                    state=self.kwargs.get('state', State.RUNNING),
-                    execution_date=self.kwargs.get('execution_date', self.kwargs['start_date']),
-                    start_date=self.kwargs['start_date'],
-                )
+            if type is not None:
+                return
 
-        def __call__(self, dag_id='test_dag', **kwargs):
-            self.kwargs = kwargs
-            if "start_date" not in kwargs:
-                if hasattr(request.module, 'DEFAULT_DATE'):
-                    kwargs['start_date'] = getattr(request.module, 'DEFAULT_DATE')
+            dag.clear(session=self.session)
+            dag.sync_to_db(self.session)
+            self.dag_model = self.session.query(DagModel).get(dag.dag_id)
+
+            if self.want_serialized:
+                self.serialized_model = SerializedDagModel(dag)
+                self.session.merge(self.serialized_model)
+                serialized_dag = self._serialized_dag()
+                self.dagbag.bag_dag(serialized_dag, root_dag=serialized_dag)
+                self.session.flush()
+            else:
+                self.dagbag.bag_dag(self.dag, self.dag)
+
+        def create_dagrun(self, **kwargs):
+            from airflow.utils import timezone
+            from airflow.utils.state import State
+            from airflow.utils.types import DagRunType
+
+            dag = self.dag
+            kwargs = {
+                "state": State.RUNNING,
+                "start_date": self.start_date,
+                "session": self.session,
+                **kwargs,
+            }
+            # Need to provide run_id if the user does not either provide one
+            # explicitly, or pass run_type for inference in dag.create_dagrun().
+            if "run_id" not in kwargs and "run_type" not in kwargs:
+                kwargs["run_id"] = "test"
+
+            if "run_type" not in kwargs:
+                kwargs["run_type"] = DagRunType.from_run_id(kwargs["run_id"])
+            if "execution_date" not in kwargs:
+                if kwargs["run_type"] == DagRunType.MANUAL:
+                    kwargs["execution_date"] = self.start_date
                 else:
-                    kwargs['start_date'] = DEFAULT_DATE
-            dagrun_fields_not_in_dag = [
-                'state',
-                'execution_date',
-                'run_type',
-                'queued_at',
-                "run_id",
-                "creating_job_id",
-                "external_trigger",
-                "last_scheduling_decision",
-                "dag_hash",
-            ]
-            kwargs = {k: v for k, v in kwargs.items() if k not in dagrun_fields_not_in_dag}
-            self.dag = DAG(dag_id, **kwargs)
+                    kwargs["execution_date"] = dag.next_dagrun_info(None).logical_date
+            if "data_interval" not in kwargs:
+                logical_date = timezone.coerce_datetime(kwargs["execution_date"])
+                if kwargs["run_type"] == DagRunType.MANUAL:
+                    data_interval = dag.timetable.infer_manual_data_interval(run_after=logical_date)
+                else:
+                    data_interval = dag.infer_automated_data_interval(logical_date)
+                kwargs["data_interval"] = data_interval
+
+            self.dag_run = dag.create_dagrun(**kwargs)
+            for ti in self.dag_run.task_instances:
+                ti.refresh_from_task(dag.get_task(ti.task_id))
+            return self.dag_run
+
+        def create_dagrun_after(self, dagrun, **kwargs):
+            next_info = self.dag.next_dagrun_info(self.dag.get_run_data_interval(dagrun))
+            if next_info is None:
+                raise ValueError(f"cannot create run after {dagrun}")
+            return self.create_dagrun(
+                execution_date=next_info.logical_date,
+                data_interval=next_info.data_interval,
+                **kwargs,
+            )
+
+        def __call__(
+            self, dag_id='test_dag', serialized=want_serialized, fileloc=None, session=None, **kwargs
+        ):
+            from airflow import settings
+            from airflow.models import DAG
+            from airflow.utils import timezone
+
+            if session is None:
+                session = settings.Session()
+
+            self.kwargs = kwargs
+            self.session = session
+            self.start_date = self.kwargs.get('start_date', None)
+            default_args = kwargs.get('default_args', None)
+            if default_args and not self.start_date:
+                if 'start_date' in default_args:
+                    self.start_date = default_args.get('start_date')
+            if not self.start_date:
+
+                if hasattr(request.module, 'DEFAULT_DATE'):
+                    self.start_date = getattr(request.module, 'DEFAULT_DATE')
+                else:
+                    DEFAULT_DATE = timezone.datetime(2016, 1, 1)
+                    self.start_date = DEFAULT_DATE
+            self.kwargs['start_date'] = self.start_date
+            self.dag = DAG(dag_id, **self.kwargs)
+            self.dag.fileloc = fileloc or request.module.__file__
+            self.want_serialized = serialized
+
             return self
 
-    return DagFactory()
+        def cleanup(self):
+            from airflow.models import DagModel, DagRun, TaskInstance
+            from airflow.models.serialized_dag import SerializedDagModel
+
+            dag_ids = list(self.dagbag.dag_ids)
+            if not dag_ids:
+                return
+            # To isolate problems here with problems from elsewhere on the session object
+            self.session.flush()
+
+            self.session.query(SerializedDagModel).filter(SerializedDagModel.dag_id.in_(dag_ids)).delete(
+                synchronize_session=False
+            )
+            self.session.query(DagRun).filter(DagRun.dag_id.in_(dag_ids)).delete(synchronize_session=False)
+            self.session.query(TaskInstance).filter(TaskInstance.dag_id.in_(dag_ids)).delete(
+                synchronize_session=False
+            )
+            self.session.query(DagModel).filter(DagModel.dag_id.in_(dag_ids)).delete(
+                synchronize_session=False
+            )
+            self.session.commit()
+
+    factory = DagFactory()
+
+    try:
+        yield factory
+    finally:
+        factory.cleanup()
+        with suppress(AttributeError):
+            del factory.session
+
+
+@pytest.fixture
+def create_dummy_dag(dag_maker):
+    """
+    This fixture creates a `DAG` with a single `DummyOperator` task.
+    DagRun and DagModel is also created.
+
+    Apart from the already existing arguments, any other argument in kwargs
+    is passed to the DAG and not to the DummyOperator task.
+
+    If you have an argument that you want to pass to the DummyOperator that
+    is not here, please use `default_args` so that the DAG will pass it to the
+    Task::
+
+        dag, task = create_dummy_dag(default_args={'start_date':timezone.datetime(2016, 1, 1)})
+
+    You cannot be able to alter the created DagRun or DagModel, use `dag_maker` fixture instead.
+    """
+    from airflow.operators.dummy import DummyOperator
+    from airflow.utils.types import DagRunType
+
+    def create_dag(
+        dag_id='dag',
+        task_id='op1',
+        max_active_tis_per_dag=16,
+        pool='default_pool',
+        executor_config={},
+        trigger_rule='all_done',
+        on_success_callback=None,
+        on_execute_callback=None,
+        on_failure_callback=None,
+        on_retry_callback=None,
+        email=None,
+        with_dagrun_type=DagRunType.SCHEDULED,
+        **kwargs,
+    ):
+        with dag_maker(dag_id, **kwargs) as dag:
+            op = DummyOperator(
+                task_id=task_id,
+                max_active_tis_per_dag=max_active_tis_per_dag,
+                executor_config=executor_config,
+                on_success_callback=on_success_callback,
+                on_execute_callback=on_execute_callback,
+                on_failure_callback=on_failure_callback,
+                on_retry_callback=on_retry_callback,
+                email=email,
+                pool=pool,
+                trigger_rule=trigger_rule,
+            )
+        if with_dagrun_type is not None:
+            dag_maker.create_dagrun(run_type=with_dagrun_type)
+        return dag, op
+
+    return create_dag
+
+
+@pytest.fixture
+def create_task_instance(dag_maker, create_dummy_dag):
+    """
+    Create a TaskInstance, and associated DB rows (DagRun, DagModel, etc)
+
+    Uses ``create_dummy_dag`` to create the dag structure.
+    """
+
+    def maker(execution_date=None, dagrun_state=None, state=None, run_id=None, run_type=None, **kwargs):
+        if execution_date is None:
+            from airflow.utils import timezone
+
+            execution_date = timezone.utcnow()
+        create_dummy_dag(with_dagrun_type=None, **kwargs)
+
+        dagrun_kwargs = {"execution_date": execution_date, "state": dagrun_state}
+        if run_id is not None:
+            dagrun_kwargs["run_id"] = run_id
+        if run_type is not None:
+            dagrun_kwargs["run_type"] = run_type
+        dagrun = dag_maker.create_dagrun(**dagrun_kwargs)
+        (ti,) = dagrun.task_instances
+        ti.state = state
+
+        return ti
+
+    return maker
+
+
+@pytest.fixture()
+def create_task_instance_of_operator(dag_maker):
+    def _create_task_instance(
+        operator_class,
+        *,
+        dag_id,
+        execution_date=None,
+        session=None,
+        **operator_kwargs,
+    ):
+        with dag_maker(dag_id=dag_id, session=session):
+            operator_class(**operator_kwargs)
+        if execution_date is None:
+            dagrun_kwargs = {}
+        else:
+            dagrun_kwargs = {"execution_date": execution_date}
+        (ti,) = dag_maker.create_dagrun(**dagrun_kwargs).task_instances
+        return ti
+
+    return _create_task_instance
+
+
+@pytest.fixture()
+def create_task_of_operator(dag_maker):
+    def _create_task_of_operator(operator_class, *, dag_id, session=None, **operator_kwargs):
+        with dag_maker(dag_id=dag_id, session=session):
+            task = operator_class(**operator_kwargs)
+        return task
+
+    return _create_task_of_operator
+
+
+@pytest.fixture
+def session():
+    from airflow.utils.session import create_session
+
+    with create_session() as session:
+        yield session
+        session.rollback()

@@ -29,11 +29,11 @@ from typing import Any, Dict, Iterable, List, Optional, Sequence, Set, SupportsA
 
 import attr
 from google.api_core.exceptions import Conflict
-from google.cloud.bigquery import TableReference
 
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator, BaseOperatorLink
 from airflow.models.taskinstance import TaskInstance
+from airflow.models.xcom import XCom
 from airflow.operators.sql import SQLCheckOperator, SQLIntervalCheckOperator, SQLValueCheckOperator
 from airflow.providers.google.cloud.hooks.bigquery import BigQueryHook, BigQueryJob
 from airflow.providers.google.cloud.hooks.gcs import GCSHook, _parse_gcs_url
@@ -60,8 +60,12 @@ class BigQueryConsoleLink(BaseOperatorLink):
     name = 'BigQuery Console'
 
     def get_link(self, operator, dttm):
-        ti = TaskInstance(task=operator, execution_date=dttm)
-        job_id = ti.xcom_pull(task_ids=operator.task_id, key='job_id')
+        job_id = XCom.get_one(
+            dag_id=operator.dag.dag_id,
+            task_id=operator.task_id,
+            execution_date=dttm,
+            key='job_id',
+        )
         return BIGQUERY_JOB_DETAILS_LINK_FMT.format(job_id=job_id) if job_id else ''
 
 
@@ -488,6 +492,9 @@ class BigQueryExecuteQueryOperator(BaseOperator):
     """
     Executes BigQuery SQL queries in a specific BigQuery database.
     This operator does not assert idempotency.
+
+    This operator is deprecated.
+    Please use :class:`airflow.providers.google.cloud.operators.bigquery.BigQueryInsertJobOperator`
 
     :param sql: the sql code to be executed (templated)
     :type sql: Can receive a str representing a sql statement,
@@ -1084,14 +1091,14 @@ class BigQueryCreateExternalTableOperator(BaseOperator):
         *,
         bucket: str,
         source_objects: List,
-        destination_project_dataset_table: str,
+        destination_project_dataset_table: str = None,
         table_resource: Optional[Dict[str, Any]] = None,
         schema_fields: Optional[List] = None,
         schema_object: Optional[str] = None,
-        source_format: str = 'CSV',
-        compression: str = 'NONE',
-        skip_leading_rows: int = 0,
-        field_delimiter: str = ',',
+        source_format: Optional[str] = None,
+        compression: Optional[str] = None,
+        skip_leading_rows: Optional[int] = None,
+        field_delimiter: Optional[str] = None,
         max_bad_records: int = 0,
         quote_character: Optional[str] = None,
         allow_quoted_newlines: bool = False,
@@ -1140,6 +1147,14 @@ class BigQueryCreateExternalTableOperator(BaseOperator):
                 DeprecationWarning,
                 stacklevel=2,
             )
+            if not source_format:
+                source_format = 'CSV'
+            if not compression:
+                compression = 'NONE'
+            if not skip_leading_rows:
+                skip_leading_rows = 0
+            if not field_delimiter:
+                field_delimiter = ","
 
         if table_resource and kwargs_passed:
             raise ValueError("You provided both `table_resource` and exclusive keywords arguments.")
@@ -1173,6 +1188,11 @@ class BigQueryCreateExternalTableOperator(BaseOperator):
             location=self.location,
             impersonation_chain=self.impersonation_chain,
         )
+        if self.table_resource:
+            bq_hook.create_empty_table(
+                table_resource=self.table_resource,
+            )
+            return
 
         if not self.schema_fields and self.schema_object and self.source_format != 'DATASTORE_BACKUP':
             gcs_hook = GCSHook(
@@ -1184,36 +1204,24 @@ class BigQueryCreateExternalTableOperator(BaseOperator):
         else:
             schema_fields = self.schema_fields
 
-        if schema_fields and self.table_resource:
-            self.table_resource["externalDataConfiguration"]["schema"] = schema_fields
+        source_uris = [f"gs://{self.bucket}/{source_object}" for source_object in self.source_objects]
 
-        if self.table_resource:
-            tab_ref = TableReference.from_string(self.destination_project_dataset_table)
-            bq_hook.create_empty_table(
-                table_resource=self.table_resource,
-                project_id=tab_ref.project,
-                table_id=tab_ref.table_id,
-                dataset_id=tab_ref.dataset_id,
-            )
-        else:
-            source_uris = [f"gs://{self.bucket}/{source_object}" for source_object in self.source_objects]
-
-            bq_hook.create_external_table(
-                external_project_dataset_table=self.destination_project_dataset_table,
-                schema_fields=schema_fields,
-                source_uris=source_uris,
-                source_format=self.source_format,
-                compression=self.compression,
-                skip_leading_rows=self.skip_leading_rows,
-                field_delimiter=self.field_delimiter,
-                max_bad_records=self.max_bad_records,
-                quote_character=self.quote_character,
-                allow_quoted_newlines=self.allow_quoted_newlines,
-                allow_jagged_rows=self.allow_jagged_rows,
-                src_fmt_configs=self.src_fmt_configs,
-                labels=self.labels,
-                encryption_configuration=self.encryption_configuration,
-            )
+        bq_hook.create_external_table(
+            external_project_dataset_table=self.destination_project_dataset_table,
+            schema_fields=schema_fields,
+            source_uris=source_uris,
+            source_format=self.source_format,
+            compression=self.compression,
+            skip_leading_rows=self.skip_leading_rows,
+            field_delimiter=self.field_delimiter,
+            max_bad_records=self.max_bad_records,
+            quote_character=self.quote_character,
+            allow_quoted_newlines=self.allow_quoted_newlines,
+            allow_jagged_rows=self.allow_jagged_rows,
+            src_fmt_configs=self.src_fmt_configs,
+            labels=self.labels,
+            encryption_configuration=self.encryption_configuration,
+        )
 
 
 class BigQueryDeleteDatasetOperator(BaseOperator):
@@ -1481,7 +1489,6 @@ class BigQueryGetDatasetOperator(BaseOperator):
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         **kwargs,
     ) -> None:
-
         self.dataset_id = dataset_id
         self.project_id = project_id
         self.gcp_conn_id = gcp_conn_id
@@ -1579,9 +1586,8 @@ class BigQueryPatchDatasetOperator(BaseOperator):
     This operator is used to patch dataset for your Project in BigQuery.
     It only replaces fields that are provided in the submitted dataset resource.
 
-    .. seealso::
-        For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:BigQueryPatchDatasetOperator`
+    This operator is deprecated.
+    Please use :class:`airflow.providers.google.cloud.operators.bigquery.BigQueryUpdateTableOperator`
 
     :param dataset_id: The id of dataset. Don't need to provide,
         if datasetId in dataset_reference.
@@ -1631,7 +1637,6 @@ class BigQueryPatchDatasetOperator(BaseOperator):
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         **kwargs,
     ) -> None:
-
         warnings.warn(
             "This operator is deprecated. Please use BigQueryUpdateDatasetOperator.",
             DeprecationWarning,
@@ -2196,7 +2201,7 @@ class BigQueryInsertJobOperator(BaseOperator):
         "impersonation_chain",
     )
     template_ext = (".json",)
-    template_fields_renderers = {"configuration": "json"}
+    template_fields_renderers = {"configuration": "json", "configuration.query.query": "sql"}
     ui_color = BigQueryUIColors.QUERY.value
 
     def __init__(
@@ -2237,16 +2242,13 @@ class BigQueryInsertJobOperator(BaseOperator):
         hook: BigQueryHook,
         job_id: str,
     ) -> BigQueryJob:
-        # Submit a new job
-        job = hook.insert_job(
+        # Submit a new job and wait for it to complete and get the result.
+        return hook.insert_job(
             configuration=self.configuration,
             project_id=self.project_id,
             location=self.location,
             job_id=job_id,
         )
-        # Start the job and wait for it to complete and get the result.
-        job.result()
-        return job
 
     @staticmethod
     def _handle_job_error(job: BigQueryJob) -> None:

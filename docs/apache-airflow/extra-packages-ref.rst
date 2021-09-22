@@ -18,7 +18,7 @@
 Reference for package extras
 ''''''''''''''''''''''''''''
 
-Here's the list of all the :ref:`extra dependencies <installation:airflow_extra_dependencies>`.
+Here's the list of all the extra dependencies of Apache Airflow.
 
 The entries with ``*`` in the ``Preinstalled`` column indicate that those extras (providers) are always
 pre-installed when Airflow is installed.
@@ -61,6 +61,8 @@ python dependencies for the provided package.
 | ldap                | ``pip install 'apache-airflow[ldap]'``              | LDAP authentication for users                                              |
 +---------------------+-----------------------------------------------------+----------------------------------------------------------------------------+
 | leveldb             | ``pip install 'apache-airflow[leveldb]'``           | Required for use leveldb extra in google provider                          |
++---------------------+-----------------------------------------------------+----------------------------------------------------------------------------+
+| pandas              | ``pip install 'apache-airflow[pandas]'``            | Install Pandas library compatible with Airflow                             |
 +---------------------+-----------------------------------------------------+----------------------------------------------------------------------------+
 | password            | ``pip install 'apache-airflow[password]'``          | Password authentication for users                                          |
 +---------------------+-----------------------------------------------------+----------------------------------------------------------------------------+
@@ -149,6 +151,8 @@ Those are extras that add dependencies needed for integration with external serv
 | extra               | install command                                     | enables                                             |
 +=====================+=====================================================+=====================================================+
 | airbyte             | ``pip install 'apache-airflow[airbyte]'``           | Airbyte hooks and operators                         |
++---------------------+-----------------------------------------------------+-----------------------------------------------------+
+| alibaba             | ``pip install 'apache-airflow[alibaba]'``           | Alibaba Cloud                                       |
 +---------------------+-----------------------------------------------------+-----------------------------------------------------+
 | amazon              | ``pip install 'apache-airflow[amazon]'``            | Amazon Web Services                                 |
 +---------------------+-----------------------------------------------------+-----------------------------------------------------+
@@ -274,6 +278,8 @@ Those are extras that provide support for integration with external systems via 
 +---------------------+-----------------------------------------------------+--------------------------------------+--------------+
 | ssh                 | ``pip install 'apache-airflow[ssh]'``               | SSH hooks and operators              |              |
 +---------------------+-----------------------------------------------------+--------------------------------------+--------------+
+| microsoft.psrp      | ``pip install 'apache-airflow[microsoft.psrp]'``    | PSRP hooks and operators             |              |
++---------------------+-----------------------------------------------------+--------------------------------------+--------------+
 | microsoft.winrm     | ``pip install 'apache-airflow[microsoft.winrm]'``   | WinRM hooks and operators            |              |
 +---------------------+-----------------------------------------------------+--------------------------------------+--------------+
 
@@ -295,7 +301,7 @@ Those are extras that install one ore more extras as a bundle.
 +---------------------+-----------------------------------------------------+----------------------------------------------------------------------+
 | devel_all           | ``pip install 'apache-airflow[devel_all]'``         | Everything needed for development (``devel_hadoop`` +  providers)    |
 +---------------------+-----------------------------------------------------+----------------------------------------------------------------------+
-| devel_ci            | ``pip install 'apache-airflow[devel_ci]'``          | All dependencies required for CI build.                              |
+| devel_ci            | ``pip install 'apache-airflow[devel_ci]'``          | All dependencies required for CI tests.                              |
 +---------------------+-----------------------------------------------------+----------------------------------------------------------------------+
 
 Doc extras

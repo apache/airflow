@@ -18,6 +18,7 @@
 import inspect
 import os
 import pickle
+import shutil
 import sys
 import types
 import warnings
@@ -272,7 +273,6 @@ class PythonVirtualenvOperator(PythonOperator):
         'next_ds',
         'next_ds_nodash',
         'outlets',
-        'params',
         'prev_ds',
         'prev_ds_nodash',
         'run_id',
@@ -293,7 +293,7 @@ class PythonVirtualenvOperator(PythonOperator):
         'prev_execution_date_success',
         'prev_start_date_success',
     }
-    AIRFLOW_SERIALIZABLE_CONTEXT_KEYS = {'macros', 'conf', 'dag', 'dag_run', 'task'}
+    AIRFLOW_SERIALIZABLE_CONTEXT_KEYS = {'macros', 'conf', 'dag', 'dag_run', 'task', 'params'}
 
     def __init__(
         self,
@@ -325,6 +325,8 @@ class PythonVirtualenvOperator(PythonOperator):
                 "Passing op_args or op_kwargs is not supported across different Python "
                 "major versions for PythonVirtualenvOperator. Please use string_args."
             )
+        if not shutil.which("virtualenv"):
+            raise AirflowException('PythonVirtualenvOperator requires virtualenv, please install it.')
         super().__init__(
             python_callable=python_callable,
             op_args=op_args,
@@ -338,8 +340,11 @@ class PythonVirtualenvOperator(PythonOperator):
         self.python_version = python_version
         self.use_dill = use_dill
         self.system_site_packages = system_site_packages
-        if not self.system_site_packages and self.use_dill and 'dill' not in self.requirements:
-            self.requirements.append('dill')
+        if not self.system_site_packages:
+            if 'lazy-object-proxy' not in self.requirements:
+                self.requirements.append('lazy-object-proxy')
+            if self.use_dill and 'dill' not in self.requirements:
+                self.requirements.append('dill')
         self.pickling_library = dill if self.use_dill else pickle
 
     def execute(self, context: Dict):

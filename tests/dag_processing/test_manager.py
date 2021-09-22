@@ -27,6 +27,7 @@ import threading
 import unittest
 from datetime import datetime, timedelta
 from tempfile import TemporaryDirectory
+from textwrap import dedent
 from unittest import mock
 from unittest.mock import MagicMock, PropertyMock
 
@@ -43,15 +44,18 @@ from airflow.dag_processing.manager import (
 )
 from airflow.dag_processing.processor import DagFileProcessorProcess
 from airflow.jobs.local_task_job import LocalTaskJob as LJ
-from airflow.models import DagBag, DagModel, TaskInstance as TI
+from airflow.models import DagBag, DagModel, TaskInstance as TI, errors
+from airflow.models.dagcode import DagCode
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.taskinstance import SimpleTaskInstance
 from airflow.utils import timezone
 from airflow.utils.callback_requests import CallbackRequest, TaskCallbackRequest
 from airflow.utils.net import get_hostname
 from airflow.utils.session import create_session
-from airflow.utils.state import State
+from airflow.utils.state import DagRunState, State
+from airflow.utils.types import DagRunType
 from tests.core.test_logging_config import SETTINGS_FILE_VALID, settings_context
+from tests.models import TEST_DAGS_FOLDER
 from tests.test_utils.config import conf_vars
 from tests.test_utils.db import clear_db_dags, clear_db_runs, clear_db_serialized_dags
 
@@ -105,9 +109,16 @@ class FakeDagFileProcessorRunner(DagFileProcessorProcess):
         return self._waitable_handle
 
 
-class TestDagFileProcessorManager(unittest.TestCase):
-    def setUp(self):
+class TestDagFileProcessorManager:
+    def setup_method(self):
         clear_db_runs()
+        clear_db_serialized_dags()
+        clear_db_dags()
+
+    def teardown_class(self):
+        clear_db_runs()
+        clear_db_serialized_dags()
+        clear_db_dags()
 
     def run_processor_manager_one_loop(self, manager, parent_pipe):
         if not manager._async_mode:
@@ -125,6 +136,45 @@ class TestDagFileProcessorManager(unittest.TestCase):
                 elif obj.done:
                     return results
             raise RuntimeError("Shouldn't get here - nothing to read, but manager not finished!")
+
+    @conf_vars({('core', 'load_examples'): 'False'})
+    def test_remove_file_clears_import_error(self, tmpdir):
+        filename_to_parse = tmpdir / 'temp_dag.py'
+
+        # Generate original import error
+        with open(filename_to_parse, 'w') as file_to_parse:
+            file_to_parse.writelines('an invalid airflow DAG')
+
+        child_pipe, parent_pipe = multiprocessing.Pipe()
+
+        async_mode = 'sqlite' not in conf.get('core', 'sql_alchemy_conn')
+        manager = DagFileProcessorManager(
+            dag_directory=tmpdir,
+            max_runs=1,
+            processor_timeout=timedelta.max,
+            signal_conn=child_pipe,
+            dag_ids=[],
+            pickle_dags=False,
+            async_mode=async_mode,
+        )
+
+        with create_session() as session:
+            self.run_processor_manager_one_loop(manager, parent_pipe)
+
+            import_errors = session.query(errors.ImportError).all()
+            assert len(import_errors) == 1
+
+            filename_to_parse.remove()
+
+            # Rerun the scheduler once the dag file has been removed
+            self.run_processor_manager_one_loop(manager, parent_pipe)
+            import_errors = session.query(errors.ImportError).all()
+
+            assert len(import_errors) == 0
+            session.rollback()
+
+        child_pipe.close()
+        parent_pipe.close()
 
     @conf_vars({('core', 'load_examples'): 'False'})
     def test_max_runs_when_no_files(self):
@@ -392,30 +442,37 @@ class TestDagFileProcessorManager(unittest.TestCase):
             dag.sync_to_db()
             task = dag.get_task(task_id='run_this_first')
 
-            ti = TI(task, DEFAULT_DATE, State.RUNNING)
+            dag_run = dag.create_dagrun(
+                state=DagRunState.RUNNING,
+                execution_date=DEFAULT_DATE,
+                run_type=DagRunType.SCHEDULED,
+                session=session,
+            )
+
+            ti = TI(task, run_id=dag_run.run_id, state=State.RUNNING)
             local_job = LJ(ti)
             local_job.state = State.SHUTDOWN
 
             session.add(local_job)
-            session.commit()
+            session.flush()
 
             ti.job_id = local_job.id
             session.add(ti)
-            session.commit()
+            session.flush()
 
             manager._last_zombie_query_time = timezone.utcnow() - timedelta(
                 seconds=manager._zombie_threshold_secs + 1
             )
             manager._find_zombies()
-            requests = manager._callback_to_execute[dag.full_filepath]
+            requests = manager._callback_to_execute[dag.fileloc]
             assert 1 == len(requests)
-            assert requests[0].full_filepath == dag.full_filepath
-            assert requests[0].msg == "Detected as zombie"
+            assert requests[0].full_filepath == dag.fileloc
+            assert requests[0].msg == f"Detected {ti} as zombie"
             assert requests[0].is_failure_callback is True
             assert isinstance(requests[0].simple_task_instance, SimpleTaskInstance)
             assert ti.dag_id == requests[0].simple_task_instance.dag_id
             assert ti.task_id == requests[0].simple_task_instance.task_id
-            assert ti.execution_date == requests[0].simple_task_instance.execution_date
+            assert ti.run_id == requests[0].simple_task_instance.run_id
 
             session.query(TI).delete()
             session.query(LJ).delete()
@@ -435,23 +492,30 @@ class TestDagFileProcessorManager(unittest.TestCase):
                 session.query(LJ).delete()
                 dag = dagbag.get_dag('test_example_bash_operator')
                 dag.sync_to_db()
+
+                dag_run = dag.create_dagrun(
+                    state=DagRunState.RUNNING,
+                    execution_date=DEFAULT_DATE,
+                    run_type=DagRunType.SCHEDULED,
+                    session=session,
+                )
                 task = dag.get_task(task_id='run_this_last')
 
-                ti = TI(task, DEFAULT_DATE, State.RUNNING)
+                ti = TI(task, run_id=dag_run.run_id, state=State.RUNNING)
                 local_job = LJ(ti)
                 local_job.state = State.SHUTDOWN
                 session.add(local_job)
-                session.commit()
+                session.flush()
 
                 # TODO: If there was an actual Relationship between TI and Job
                 # we wouldn't need this extra commit
                 session.add(ti)
                 ti.job_id = local_job.id
-                session.commit()
+                session.flush()
 
                 expected_failure_callback_requests = [
                     TaskCallbackRequest(
-                        full_filepath=dag.full_filepath,
+                        full_filepath=dag.fileloc,
                         simple_task_instance=SimpleTaskInstance(ti),
                         msg="Message",
                     )
@@ -654,6 +718,64 @@ class TestDagFileProcessorManager(unittest.TestCase):
             parent_pipe.close()
             child_pipe.close()
             thread.join(timeout=1.0)
+
+    @conf_vars({('core', 'load_examples'): 'False'})
+    @mock.patch('airflow.dag_processing.manager.Stats.timing')
+    def test_send_file_processing_statsd_timing(self, statsd_timing_mock, tmpdir):
+        filename_to_parse = tmpdir / 'temp_dag.py'
+        dag_code = dedent(
+            """
+        from airflow import DAG
+        dag = DAG(dag_id='temp_dag', schedule_interval='0 0 * * *')
+        """
+        )
+        with open(filename_to_parse, 'w') as file_to_parse:
+            file_to_parse.writelines(dag_code)
+
+        child_pipe, parent_pipe = multiprocessing.Pipe()
+
+        async_mode = 'sqlite' not in conf.get('core', 'sql_alchemy_conn')
+        manager = DagFileProcessorManager(
+            dag_directory=tmpdir,
+            max_runs=1,
+            processor_timeout=timedelta.max,
+            signal_conn=child_pipe,
+            dag_ids=[],
+            pickle_dags=False,
+            async_mode=async_mode,
+        )
+
+        self.run_processor_manager_one_loop(manager, parent_pipe)
+        last_runtime = manager.get_last_runtime(manager.file_paths[0])
+
+        child_pipe.close()
+        parent_pipe.close()
+
+        statsd_timing_mock.assert_called_with('dag_processing.last_duration.temp_dag', last_runtime)
+
+    def test_refresh_dags_dir_doesnt_delete_zipped_dags(self, tmpdir):
+        """Test DagFileProcessorManager._refresh_dag_dir method"""
+        manager = DagFileProcessorManager(
+            dag_directory=TEST_DAG_FOLDER,
+            max_runs=1,
+            processor_timeout=timedelta.max,
+            signal_conn=MagicMock(),
+            dag_ids=[],
+            pickle_dags=False,
+            async_mode=True,
+        )
+        dagbag = DagBag(dag_folder=tmpdir, include_examples=False)
+        zipped_dag_path = os.path.join(TEST_DAGS_FOLDER, "test_zip.zip")
+        dagbag.process_file(zipped_dag_path)
+        dag = dagbag.get_dag("test_zip_dag")
+        dag.sync_to_db()
+        SerializedDagModel.write_dag(dag)
+        manager.last_dag_dir_refresh_time = timezone.utcnow() - timedelta(minutes=10)
+        manager._refresh_dag_dir()
+        # Assert dag not deleted in SDM
+        assert SerializedDagModel.has_dag('test_zip_dag')
+        # assert code not delted
+        assert DagCode.has_dag(dag.fileloc)
 
 
 class TestDagFileProcessorAgent(unittest.TestCase):

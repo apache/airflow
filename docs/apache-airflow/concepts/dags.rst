@@ -15,6 +15,8 @@
     specific language governing permissions and limitations
     under the License.
 
+.. _concepts:dags:
+
 DAGs
 ====
 
@@ -87,7 +89,7 @@ And if you want to chain together dependencies, you can use ``chain``::
     chain(op1, op2, op3, op4)
 
     # You can also do it dynamically
-    chain([DummyOperator(task_id='op' + i) for i in range(1, 6)])
+    chain(*[DummyOperator(task_id='op' + i) for i in range(1, 6)])
 
 Chain can also do *pairwise* dependencies for lists the same size (this is different to the *cross dependencies* done by ``cross_downstream``!)::
 
@@ -148,13 +150,30 @@ The ``schedule_interval`` argument takes any value that is a valid `Crontab <htt
     with DAG("my_daily_dag", schedule_interval="0 * * * *"):
         ...
 
-Every time you run a DAG, you are creating a new instance of that DAG which Airflow calls a :doc:`DAG Run </dag-run>`. DAG Runs can run in parallel for the same DAG, and each has a defined ``execution_date``, which identifies the *logical* date and time it is running for - not the *actual* time when it was started.
+.. tip::
 
-As an example of why this is useful, consider writing a DAG that processes a daily set of experimental data. It's been rewritten, and you want to run it on the previous 3 months of data - no problem, since Airflow can *backfill* the DAG and run copies of it for every day in those previous 3 months, all at once.
+    For more information on ``schedule_interval`` values, see :doc:`DAG Run </dag-run>`.
 
-Those DAG Runs will all have been started on the same actual day, but their ``execution_date`` values will cover those last 3 months, and that's what all the tasks, operators and sensors inside the DAG look at when they run.
+    If ``schedule_interval`` is not enough to express the DAG's schedule, see :doc:`Timetables </howto/timetable>`.
 
-In much the same way a DAG instantiates into a DAG Run every time it's run, Tasks specified inside a DAG also instantiate into :ref:`Task Instances <concepts:task-instances>` along with it.
+Every time you run a DAG, you are creating a new instance of that DAG which
+Airflow calls a :doc:`DAG Run </dag-run>`. DAG Runs can run in parallel for the
+same DAG, and each has a defined data interval, which identifies the period of
+data the tasks should operate on.
+
+As an example of why this is useful, consider writing a DAG that processes a
+daily set of experimental data. It's been rewritten, and you want to run it on
+the previous 3 months of data---no problem, since Airflow can *backfill* the DAG
+and run copies of it for every day in those previous 3 months, all at once.
+
+Those DAG Runs will all have been started on the same actual day, but each DAG
+run will have one data interval covering a single day in that 3 month period,
+and that data interval is all the tasks, operators and sensors inside the DAG
+look at when they run.
+
+In much the same way a DAG instantiates into a DAG Run every time it's run,
+Tasks specified inside a DAG are also instantiated into
+:ref:`Task Instances <concepts:task-instances>` along with it.
 
 
 DAG Assignment
@@ -277,7 +296,7 @@ As with the callable for ``BranchPythonOperator``, this method should return the
             """
             Run an extra branch on the first day of the month
             """
-            if context['execution_date'].day == 1:
+            if context['data_interval_start'].day == 1:
                 return ['daily_task_id', 'monthly_task_id']
             else:
                 return 'daily_task_id'
@@ -317,7 +336,7 @@ Depends On Past
 
 You can also say a task can only run if the *previous* run of the task in the previous DAG Run succeeded. To use this, you just need to set the ``depends_on_past`` argument on your Task to ``True``.
 
-Note that if you are running the DAG at the very start of its life - specifically, that the ``execution_date`` matches the ``start_date`` - then the Task will still run, as there is no previous run to depend on.
+Note that if you are running the DAG at the very start of its life---specifically, its first ever *automated* run---then the Task will still run, as there is no previous run to depend on.
 
 
 .. _concepts:trigger-rules:
@@ -335,7 +354,7 @@ However, this is just the default behaviour, and you can control it using the ``
 * ``one_failed``: At least one upstream task has failed (does not wait for all upstream tasks to be done)
 * ``one_success``: At least one upstream task has succeeded (does not wait for all upstream tasks to be done)
 * ``none_failed``: All upstream tasks have not ``failed`` or ``upstream_failed`` - that is, all upstream tasks have succeeded or been skipped
-* ``none_failed_or_skipped``: All upstream tasks have not ``failed`` or ``upstream_failed``, and at least one upstream task has succeeded.
+* ``none_failed_min_one_success``: All upstream tasks have not ``failed`` or ``upstream_failed``, and at least one upstream task has succeeded.
 * ``none_skipped``: No upstream task is in a ``skipped`` state - that is, all upstream tasks are in a ``success``, ``failed``, or ``upstream_failed`` state
 * ``always``: No dependencies at all, run this task at any time
 
@@ -382,7 +401,7 @@ You can also combine this with the :ref:`concepts:depends-on-past` functionality
 
     .. image:: /img/branch_without_trigger.png
 
-    By setting ``trigger_rule`` to ``none_failed_or_skipped`` in the ``join`` task, we can instead get the intended behaviour:
+    By setting ``trigger_rule`` to ``none_failed_min_one_success`` in the ``join`` task, we can instead get the intended behaviour:
 
     .. image:: /img/branch_with_trigger.png
 
@@ -397,7 +416,7 @@ For example, here is a DAG that uses a ``for`` loop to define some Tasks::
     with DAG("loop_example") as dag:
 
         first = DummyOperator(task_id="first")
-        last = DummyOperator( task_id="last")
+        last = DummyOperator(task_id="last")
 
         options = ["branch_a", "branch_b", "branch_c", "branch_d"]
         for option in options:
@@ -610,7 +629,7 @@ in which one DAG can depend on another:
 - waiting - :class:`~airflow.sensors.external_task_sensor.ExternalTaskSensor`
 
 Additional difficulty is that one DAG could wait for or trigger several runs of the other DAG
-with different execution dates. The **Dag Dependencies** view
+with different data intervals. The **Dag Dependencies** view
 ``Menu -> Browse -> DAG Dependencies`` helps visualize dependencies between DAGs. The dependencies
 are calculated by the scheduler during DAG serialization and the webserver uses them to build
 the dependency graph.

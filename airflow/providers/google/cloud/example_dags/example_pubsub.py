@@ -49,7 +49,7 @@ echo_cmd = """
 
 with models.DAG(
     "example_gcp_pubsub_sensor",
-    schedule_interval=None,  # Override to match your needs
+    schedule_interval='@once',  # Override to match your needs
     start_date=days_ago(1),
 ) as example_sensor_dag:
     # [START howto_operator_gcp_pubsub_create_topic]
@@ -112,7 +112,7 @@ with models.DAG(
 
 with models.DAG(
     "example_gcp_pubsub_operator",
-    schedule_interval=None,  # Override to match your needs
+    schedule_interval='@once',  # Override to match your needs
     start_date=days_ago(1),
 ) as example_operator_dag:
     # [START howto_operator_gcp_pubsub_create_topic]

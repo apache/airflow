@@ -20,9 +20,10 @@
 <!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
 **Table of contents**
 
+- [Selecting what to put into the release](#selecting-what-to-put-into-the-release)
+  - [Selecting what to cherry-pick](#selecting-what-to-cherry-pick)
 - [Prepare the Apache Airflow Package RC](#prepare-the-apache-airflow-package-rc)
   - [Build RC artifacts](#build-rc-artifacts)
-  - [Manually prepare production Docker Image](#manually-prepare-production-docker-image)
   - [[\Optional\] Create new release branch](#%5Coptional%5C-create-new-release-branch)
   - [Prepare PyPI convenience "snapshot" packages](#prepare-pypi-convenience-snapshot-packages)
   - [Prepare production Docker Image](#prepare-production-docker-image)
@@ -38,14 +39,33 @@
   - [Publish release to SVN](#publish-release-to-svn)
   - [Prepare PyPI "release" packages](#prepare-pypi-release-packages)
   - [Update CHANGELOG.md](#update-changelogmd)
-  - [Manually prepare production Docker Image](#manually-prepare-production-docker-image-1)
+  - [Manually prepare production Docker Image](#manually-prepare-production-docker-image)
   - [Publish documentation](#publish-documentation)
   - [Notify developers of release](#notify-developers-of-release)
   - [Update Announcements page](#update-announcements-page)
+  - [Update airflow/config_templates/config.yml file](#update-airflowconfig_templatesconfigyml-file)
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
 
 You can find the prerequisites to release Apache Airflow in [README.md](README.md).
+
+# Selecting what to put into the release
+
+The first step of a release is to work out what is being included. This differs based on whether it is a major/minor or a patch release.
+
+- For a *major* or *minor* release, you want to include everything in `main` at the time of release; you'll turn this into a new release branch as part of the rest of the process.
+
+- For a *patch* release, you will be selecting specific commits to cherry-pick and backport into the existing release branch.
+
+## Selecting what to cherry-pick
+
+For obvious reasons, you can't cherry-pick every change from `main` into the release branch - some are incompatible without a large set of other changes, some are brand-new features, and some just don't need to be in a release.
+
+In general only security fixes, data-loss bugs and regression fixes are essential to bring into a patch release; other bugfixes can be added on a best-effort basis, but if something is going to be very difficult to backport (maybe it has a lot of conflicts, or heavily depends on a new feature or API that's not being backported), it's OK to leave it out of the release at your sole discretion as the release manager - if you do this, update the milestone in the issue to the "next" minor release.
+
+Many issues will be marked with the target release as their Milestone; this is a good shortlist to start with for what to cherry-pick.
+
+When you cherry-pick, pick in chronological order onto the `vX-Y-test` release branch. You'll move them over to be on `vX-Y-stable` once the release is cut.
 
 # Prepare the Apache Airflow Package RC
 
@@ -96,12 +116,22 @@ The Release Candidate artifacts we vote upon should be the exact ones we vote ag
         -o dist/apache-airflow-${VERSION_WITHOUT_RC}-source.tar.gz
     ```
 
-
 - Generate SHA512/ASC (If you have not generated a key yet, generate it by following instructions on http://www.apache.org/dev/openpgp.html#key-gen-generate-key)
 
     ```shell script
     ./breeze prepare-airflow-packages --package-format both
-    ${AIRFLOW_REPO_ROOT}/dev/sign.sh dist/*
+    pushd dist
+    ${AIRFLOW_REPO_ROOT}/dev/sign.sh *
+    popd
+    ```
+
+- If you aren't using Breeze for packaging, build the distribution and wheel files directly
+
+    ```shell script
+    python setup.py compile_assets sdist bdist_wheel
+    pushd dist
+    ${AIRFLOW_REPO_ROOT}/dev/sign.sh *
+    popd
     ```
 
 - Tag & Push the latest constraints files. This pushes constraints with rc suffix (this is expected)!
@@ -128,18 +158,6 @@ The Release Candidate artifacts we vote upon should be the exact ones we vote ag
     svn add *
     svn commit -m "Add artifacts for Airflow ${VERSION}"
     ```
-
-
-## Manually prepare production Docker Image
-
-
-```shell script
-./scripts/ci/tools/prepare_prod_docker_images.sh ${VERSION}
-```
-
-This will wipe Breeze cache and docker-context-files in order to make sure the build is "clean". It
-also performs image verification before pushing the images.
-
 
 ## [\Optional\] Create new release branch
 
@@ -232,13 +250,13 @@ also performs image verification before pushing the images.
 Subject:
 
 ```
-[VOTE] Airflow 2.0.2rc3
+[VOTE] Release Airflow 2.0.2 from 2.0.2rc1
 ```
 
 Body:
 
 ```
-Hey all,
+Hey fellow Airflowers,
 
 I have cut Airflow 2.0.2 RC3. This email is calling a vote on the release,
 which will last for 72 hours. Consider this my (binding) +1.
@@ -246,23 +264,30 @@ which will last for 72 hours. Consider this my (binding) +1.
 Airflow 2.0.2 RC3 is available at:
 https://dist.apache.org/repos/dist/dev/airflow/2.0.2rc3/
 
-*apache-airflow-2.0.2rc3-source.tar.gz* is a source release that comes
-with INSTALL instructions.
-*apache-airflow-2.0.2rc3-bin.tar.gz* is the binary Python "sdist" release.
+*apache-airflow-2.0.2-source.tar.gz* is a source release that comes with INSTALL instructions.
+*apache-airflow-2.0.2.tar.gz* is the binary Python "sdist" release.
+*apache_airflow-2.0.2-py3-none-any.wh*l is the binary Python wheel "binary" release.
 
 Public keys are available at:
 https://dist.apache.org/repos/dist/release/airflow/KEYS
+
+Please vote accordingly:
+
+[ ] +1 approve
+[ ] +0 no opinion
+[ ] -1 disapprove with the reason
 
 Only votes from PMC members are binding, but the release manager should encourage members of the community
 to test the release and vote with "(non-binding)".
 
 The test procedure for PMCs and Contributors who would like to test this RC are described in
-https://github.com/apache/airflow/blob/main/dev/README.md#vote-and-verify-the-apache-airflow-release-candidate
+https://github.com/apache/airflow/blob/main/dev/README_RELEASE_AIRFLOW.md#verify-the-release-candidate-by-pmcs
 
 Please note that the version number excludes the `rcX` string, so it's now
 simply 2.0.2. This will allow us to rename the artifact without modifying
 the artifact checksums when we actually release.
 
+Full Changelog: (https://github.com/apache/airflow/blob/2.0.2rc3/CHANGELOG.txt).
 
 Changes since 2.0.2rc2:
 *Bugs*:
@@ -625,6 +650,7 @@ previously released RC candidates in "${AIRFLOW_SOURCES}/dist":
     (both airflow and latest provider packages).
 
     ```shell script
+    git checkout ${VERSION}
     git push origin ${VERSION}
     ```
 
@@ -703,14 +729,9 @@ Dear Airflow community,
 
 I'm happy to announce that Airflow ${VERSION} was just released.
 
-The source release, as well as the binary "sdist" release, are available
-here:
+The released sources and packages can be downloaded via https://airflow.apache.org/docs/apache-airflow/stable/installation/installing-from-sources.html
 
-https://dist.apache.org/repos/dist/release/airflow/${VERSION}/
-
-We also made this version available on PyPI for convenience (`pip install apache-airflow`):
-
-https://pypi.python.org/pypi/apache-airflow
+Other installation methods are described in https://airflow.apache.org/docs/apache-airflow/stable/installation/
 
 The documentation is available on:
 https://airflow.apache.org/
@@ -718,7 +739,7 @@ https://airflow.apache.org/docs/apache-airflow/${VERSION}/
 
 Find the CHANGELOG here for more details:
 
-https://airflow.apache.org/changelog.html#airflow-1-10-2-2019-01-19
+https://airflow.apache.org/docs/apache-airflow/${VERSION}/changelog.html
 
 Cheers,
 <your name>
@@ -728,3 +749,15 @@ EOF
 ## Update Announcements page
 
 Update "Announcements" page at the [Official Airflow website](https://airflow.apache.org/announcements/)
+
+## Update airflow/config_templates/config.yml file
+
+File `airflow/config_templates/config.yml` contains documentation on all configuration options available in Airflow. The `version_added` fields must be updated when a new Airflow version is released.
+
+- Get a diff between the released versions and the current local file on `main` branch:
+
+    ```shell script
+    ./dev/validate_version_added_fields_in_config.py
+    ```
+
+- Update `airflow/config_templates/config.yml` with the details, and commit it.

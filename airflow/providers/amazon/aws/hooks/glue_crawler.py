@@ -105,7 +105,8 @@ class AwsGlueCrawlerHook(AwsBaseHook):
         """
         crawler_name = crawler_kwargs['Name']
         self.log.info("Creating crawler: %s", crawler_name)
-        return self.glue_client.create_crawler(**crawler_kwargs)['Crawler']['Name']
+        crawler = self.glue_client.create_crawler(**crawler_kwargs)
+        return crawler
 
     def start_crawler(self, crawler_name: str) -> dict:
         """

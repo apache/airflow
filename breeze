@@ -164,6 +164,9 @@ function breeze::setup_default_breeze_constants() {
     # Can be overridden by '--force-build-images' flag.
     export FORCE_BUILD_IMAGES="false"
 
+    # When we push from breeze we always want to push base python images
+    export PUSH_PYTHON_BASE_IMAGE="true"
+
     # Determines whether to reinstall airflow at entering the image.
     export USE_AIRFLOW_VERSION=""
     # if set to true, the ci image will look for wheel packages in dist folder and will install them
@@ -569,8 +572,7 @@ EOF
 #   AIRFLOW_SOURCES
 #   AIRFLOW_CI_IMAGE
 #   AIRFLOW_PROD_IMAGE
-#   AIRFLOW_PROD_IMAGE_KUBERNETES
-#   AIRFLOW_PROD_BASE_TAG
+#   AIRFLOW_IMAGE_KUBERNETES
 #   SQLITE_URL
 #
 # Arguments:
@@ -633,8 +635,7 @@ export MYSQL_VERSION="${MYSQL_VERSION}"
 export AIRFLOW_SOURCES="${AIRFLOW_SOURCES}"
 export AIRFLOW_CI_IMAGE="${AIRFLOW_CI_IMAGE}"
 export AIRFLOW_PROD_IMAGE="${AIRFLOW_PROD_IMAGE}"
-export AIRFLOW_PROD_IMAGE_KUBERNETES="${AIRFLOW_PROD_IMAGE_KUBERNETES}"
-export AIRFLOW_PROD_BASE_TAG="${AIRFLOW_PROD_BASE_TAG}"
+export AIRFLOW_IMAGE_KUBERNETES="${AIRFLOW_IMAGE_KUBERNETES}"
 export SQLITE_URL="${SQLITE_URL}"
 export USE_AIRFLOW_VERSION="${USE_AIRFLOW_VERSION}"
 export USE_PACKAGES_FROM_DIST="${USE_PACKAGES_FROM_DIST}"
@@ -650,7 +651,6 @@ EOF
 #
 # Global constants set:
 #
-#     PYTHON_BASE_IMAGE_VERSION
 #     PYTHON_BASE_IMAGE
 #     AIRFLOW_CI_IMAGE
 #     BUILT_CI_IMAGE_FLAG_FILE
@@ -668,7 +668,7 @@ function breeze::prepare_command_files() {
 
     if [[ ${BACKEND} == "mssql" ]]; then
         local docker_filesystem
-        docker_filesystem=$(stat "-f" "-c" "%T" /var/lib/docker || echo "unknown")
+        docker_filesystem=$(stat "-f" "-c" "%T" /var/lib/docker 2>/dev/null || echo "unknown")
         if [[ ${docker_filesystem} == "tmpfs" ]]; then
             # In case of tmpfs backend for docker, mssql fails because TMPFS does not support
             # O_DIRECT parameter for direct writing to the filesystem
@@ -956,7 +956,6 @@ function breeze::parse_arguments() {
             echo
             export DOCKER_CACHE="disabled"
             # if not set here, docker cached is determined later, depending on type of image to be build
-            readonly DOCKER_CACHE
             export FORCE_BUILD_IMAGES="true"
             shift
             ;;
@@ -972,7 +971,6 @@ function breeze::parse_arguments() {
             echo
             export DOCKER_CACHE="local"
             # if not set here, docker cached is determined later, depending on type of image to be build
-            readonly DOCKER_CACHE
             shift
             ;;
         -U | --build-cache-pulled)
@@ -980,14 +978,12 @@ function breeze::parse_arguments() {
             echo
             export DOCKER_CACHE="pulled"
             # if not set here, docker cached is determined later, depending on type of image to be build
-            readonly DOCKER_CACHE
             shift
             ;;
         -X | --build-cache-disabled)
             echo "Use disabled cache to build images"
             echo
             export DOCKER_CACHE="disabled"
-            readonly DOCKER_CACHE
             # if not set here, docker cached is determined later, depending on type of image to be build
             shift
             ;;
@@ -1098,6 +1094,11 @@ function breeze::parse_arguments() {
             echo "Install MySQL client: ${INSTALL_MYSQL_CLIENT}"
             shift
             ;;
+        --disable-mssql-client-installation)
+            export INSTALL_MSSQL_CLIENT="false"
+            echo "Install MsSQL client: ${INSTALL_MSSQL_CLIENT}"
+            shift
+            ;;
         --constraints-location)
             export AIRFLOW_CONSTRAINTS_LOCATION="${2}"
             echo "Constraints location: ${AIRFLOW_CONSTRAINTS_LOCATION}"
@@ -1148,7 +1149,6 @@ function breeze::parse_arguments() {
             export CHECK_IMAGE_FOR_REBUILD="false"
             export SKIP_BUILDING_PROD_IMAGE="true"
             export SKIP_CHECK_REMOTE_IMAGE="true"
-            export FAIL_ON_GITHUB_DOCKER_PULL_ERROR="true"
             shift 2
             ;;
         --init-script)
@@ -1196,12 +1196,6 @@ function breeze::parse_arguments() {
         --upgrade-to-newer-dependencies)
             export UPGRADE_TO_NEWER_DEPENDENCIES="true"
             echo "Upgrade packages to latest versions."
-            echo
-            shift
-            ;;
-        --continue-on-pip-check-failure)
-            export CONTINUE_ON_PIP_CHECK_FAILURE="true"
-            echo "Skip PIP check failure."
             echo
             shift
             ;;
@@ -1841,7 +1835,7 @@ ${CMDNAME} generate-constraints [FLAGS]
       Generates pinned constraint files with all extras from setup.py. Those files are generated in
       files folder - separate files for different python version. Those constraint files when
       pushed to orphan constraints-main, constraints-2-0 branches are used
-      to generate repeatable CI builds as well as run repeatable production image builds and
+      to generate repeatable CI test runs as well as run repeatable production image builds and
       upgrades when you want to include installing or updating some of the released providers
       released at the time particular airflow version was released. You can use those
       constraints to predictably install released Airflow versions. This is mainly used to test
@@ -2438,9 +2432,6 @@ ${FORMATTED_INSTALLATION_METHOD}
 
 --upgrade-to-newer-dependencies
         Upgrades PIP packages to latest versions available without looking at the constraints.
-
---continue-on-pip-check-failure
-        Continue even if 'pip check' fails.
 
 "
 }
@@ -3564,7 +3555,7 @@ function breeze::run_breeze_command() {
 #######################################################################################################
 #
 # We have different versions of images depending on the python version used. We keep up with the
-# Latest patch-level changes in Python (this is done automatically during CI builds) so we have
+# Latest patch-level changes in Python (this is done automatically during CI test runs) so we have
 # To only take into account MAJOR and MINOR version of python. This variable keeps the major/minor
 # version of python in X.Y format (3.6, 3.7, 3.8, 3.9).
 #
@@ -3592,6 +3583,10 @@ function breeze::determine_python_version_to_use_in_breeze() {
 
 breeze::setup_default_breeze_constants
 
+initialization::create_directories
+
+breeze::read_saved_environment_variables
+
 initialization::initialize_common_environment
 
 initialization::get_environment_for_builds_on_ci
@@ -3611,13 +3606,11 @@ breeze::print_header_line
 
 build_images::forget_last_answer
 
-breeze::read_saved_environment_variables
-
 breeze::check_and_save_all_params
 
 build_images::determine_docker_cache_strategy
 
-build_images::get_docker_image_names
+build_images::get_docker_cache_image_names
 
 initialization::make_constants_read_only
 

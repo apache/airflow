@@ -32,12 +32,12 @@ Prerequisite Tasks
 
 .. include::/operators/_partials/prerequisite_tasks.rst
 
-.. _howto/operator:LocalToAzureDataLakeStorageOperator:
+.. _howto/operator:LocalFilesystemToADLSOperator:
 
-LocalToAzureDataLakeStorageOperator
+LocalFilesystemToADLSOperator
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-:class:`~airflow.providers.microsoft.azure.transfers.local_to_adls.LocalToAzureDataLakeStorageOperator` allows you to
+:class:`~airflow.providers.microsoft.azure.transfers.local_to_adls.LocalFilesystemToADLSOperator` allows you to
 upload data from local filesystem to ADL.
 
 

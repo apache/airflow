@@ -17,7 +17,7 @@
  * under the License.
  */
 
-/* global document, window, $, */
+/* global document, window, $ */
 
 import getMetaValue from './meta_value';
 import { formatDateTime } from './datetime_utils';
@@ -44,6 +44,11 @@ const logsWithMetadataUrl = getMetaValue('logs_with_metadata_url');
 const externalLogUrl = getMetaValue('external_log_url');
 const extraLinksUrl = getMetaValue('extra_links_url');
 const pausedUrl = getMetaValue('paused_url');
+const nextRun = {
+  createAfter: getMetaValue('next_dagrun_create_after'),
+  intervalStart: getMetaValue('next_dagrun_data_interval_start'),
+  intervalEnd: getMetaValue('next_dagrun_data_interval_end'),
+};
 let taskId = '';
 let executionDate = '';
 let subdagId = '';
@@ -85,7 +90,7 @@ function updateModalUrls() {
   }
 
   updateButtonUrl(buttons.ti, {
-    flt1_dag_id_equals: dagId,
+    _flt_3_dag_id: dagId,
     _flt_3_task_id: taskId,
     _oc_TaskInstanceModelView: executionDate,
   });
@@ -178,7 +183,7 @@ export function callModal(t, d, extraLinks, tryNumbers, sd) {
       }&dag_id=${encodeURIComponent(dagId)
       }&execution_date=${encodeURIComponent(executionDate)
       }&link_name=${encodeURIComponent(link)}`;
-      const externalLink = $('<a href="#" class="btn btn-primary disabled" target="_blank"></a>');
+      const externalLink = $('<a href="#" class="btn btn-primary disabled"></a>');
       const linkTooltip = $('<span class="tool-tip" data-toggle="tooltip" style="padding-right: 2px; padding-left: 3px" data-placement="top" '
         + 'title="link not yet available"></span>');
       linkTooltip.append(externalLink);
@@ -190,6 +195,11 @@ export function callModal(t, d, extraLinks, tryNumbers, sd) {
           cache: false,
           success(data) {
             externalLink.attr('href', data.url);
+            // open absolute (external) links in a new tab/window and relative (local) links
+            // directly
+            if (/^(?:[a-z]+:)?\/\//.test(data.url)) {
+              externalLink.attr('target', '_blank');
+            }
             externalLink.removeClass('disabled');
             linkTooltip.tooltip('disable');
           },
@@ -255,11 +265,24 @@ $('#pause_resume').on('change', function onChange() {
   const id = $input.data('dag-id');
   const isPaused = $input.is(':checked');
   const url = `${pausedUrl}?is_paused=${isPaused}&dag_id=${encodeURIComponent(id)}`;
+  // Remove focus on element so the tooltip will go away
+  $input.trigger('blur');
   $input.removeClass('switch-input--error');
   $.post(url).fail(() => {
     setTimeout(() => {
       $input.prop('checked', !isPaused);
       $input.addClass('switch-input--error');
     }, 500);
+  });
+});
+
+$('#next-run').on('mouseover', () => {
+  $('#next-run').attr('data-original-title', () => {
+    let newTitle = '';
+    newTitle += `<strong>Run After:</strong> ${formatDateTime(nextRun.createAfter)}<br><br>`;
+    newTitle += '<strong>Data Interval</strong><br>';
+    newTitle += `Start: ${formatDateTime(nextRun.intervalStart)}<br>`;
+    newTitle += `End: ${formatDateTime(nextRun.intervalEnd)}`;
+    return newTitle;
   });
 });

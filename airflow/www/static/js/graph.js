@@ -20,7 +20,8 @@
  */
 
 /*
-  global d3, document, nodes, taskInstances, tasks, edges, dagreD3, localStorage, $
+  global d3, document, nodes, taskInstances, tasks, edges, dagreD3, localStorage, $,
+  autoRefreshInterval
 */
 
 import getMetaValue from './meta_value';
@@ -66,6 +67,7 @@ const stateFocusMap = {
   up_for_reschedule: false,
   up_for_retry: false,
   queued: false,
+  deferred: false,
   no_status: false,
 };
 const taskTip = d3.tip()
@@ -150,11 +152,13 @@ function draw() {
       // A group node
       if (d3.event.defaultPrevented) return;
       expandGroup(nodeId, node);
+      draw();
+      focusGroup(nodeId);
     } else if (nodeId in tasks) {
       // A task node
       const task = tasks[nodeId];
       let tryNumber;
-      if (nodeId in taskInstances) tryNumber = taskInstances[nodeId].tryNumber;
+      if (nodeId in taskInstances) tryNumber = taskInstances[nodeId].try_number;
       else tryNumber = 0;
 
       if (task.task_type === 'SubDagOperator') callModal(nodeId, executionDate, task.extra_links, tryNumber, true);
@@ -405,7 +409,7 @@ function startOrStopRefresh() {
   if ($('#auto_refresh').is(':checked')) {
     refreshInterval = setInterval(() => {
       handleRefresh();
-    }, 3000); // run refresh every 3 seconds
+    }, autoRefreshInterval * 1000);
   } else {
     clearInterval(refreshInterval);
   }
@@ -461,6 +465,9 @@ function groupTooltip(nodeId, tis) {
 function updateNodesStates(tis) {
   g.nodes().forEach((nodeId) => {
     const { elem } = g.node(nodeId);
+    if (!elem) {
+      return;
+    }
     elem.setAttribute('class', `node enter ${getNodeState(nodeId, tis)}`);
     elem.setAttribute('data-toggle', 'tooltip');
 
@@ -536,7 +543,7 @@ function getNodeState(nodeId, tis) {
   // In this order, if any of these states appeared in childrenStates, return it as
   // the group state.
   const priority = ['failed', 'upstream_failed', 'up_for_retry', 'up_for_reschedule',
-    'queued', 'scheduled', 'sensing', 'running', 'shutdown', 'removed',
+    'queued', 'scheduled', 'sensing', 'running', 'shutdown', 'restarting', 'removed',
     'no_status', 'success', 'skipped'];
 
   return priority.find((state) => childrenStates.has(state)) || 'no_status';
@@ -597,7 +604,7 @@ function focusGroup(nodeId) {
 }
 
 // Expands a group node
-function expandGroup(nodeId, node, focus = true) {
+function expandGroup(nodeId, node) {
   node.children.forEach((val) => {
     // Set children nodes
     g.setNode(val.id, val.value);
@@ -633,12 +640,6 @@ function expandGroup(nodeId, node, focus = true) {
       g.removeEdge(edge.v, edge.w);
     }
   });
-
-  draw();
-
-  if (focus) {
-    focusGroup(nodeId);
-  }
 
   saveExpandedGroup(nodeId);
 }
@@ -686,7 +687,7 @@ function expandSavedGroups(expandedGroups, node) {
 
   node.children.forEach((childNode) => {
     if (expandedGroups.has(childNode.id)) {
-      expandGroup(childNode.id, g.node(childNode.id), false);
+      expandGroup(childNode.id, g.node(childNode.id));
 
       expandSavedGroups(expandedGroups, childNode);
     }
@@ -702,6 +703,9 @@ expandGroup(null, nodes);
 
 // Expand the node that were previously expanded
 expandSavedGroups(expandedGroups, nodes);
+
+// Draw once after all groups have been expanded
+draw();
 
 // Restore focus (if available)
 if (g.hasNode(focusNodeId)) {

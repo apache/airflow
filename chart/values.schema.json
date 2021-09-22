@@ -12,6 +12,7 @@
         "Scheduler",
         "Webserver",
         "Workers",
+        "Triggerer",
         "Flower",
         "Redis",
         "Statsd",
@@ -29,6 +30,12 @@
         },
         "nameOverride": {
             "description": "Override the name of the chart",
+            "type": "string",
+            "default": "",
+            "x-docsSection": null
+        },
+        "kubeVersionOverride": {
+            "description": "Provide a Kubernetes version (used for API Version selection) to override the auto-detected version",
             "type": "string",
             "default": "",
             "x-docsSection": null
@@ -60,13 +67,13 @@
         "defaultAirflowTag": {
             "description": "Default airflow tag to deploy.",
             "type": "string",
-            "default": "2.1.2",
+            "default": "2.1.4",
             "x-docsSection": "Common"
         },
         "airflowVersion": {
             "description": "Airflow version (Used to make some decisions based on Airflow Version being deployed).",
             "type": "string",
-            "default": "2.1.2",
+            "default": "2.1.4",
             "x-docsSection": "Common"
         },
         "nodeSelector": {
@@ -122,10 +129,28 @@
                         "path": {
                             "description": "The path for the web Ingress.",
                             "type": "string",
-                            "default": ""
+                            "default": "/"
+                        },
+                        "pathType": {
+                            "description": "The pathType for the web Ingress (required for Kubernetes 1.19 and above).",
+                            "type": "string",
+                            "default": "ImplementationSpecific"
                         },
                         "host": {
-                            "description": "The hostname for the web Ingress.",
+                            "description": "The hostname for the web Ingress. (Deprecated - renamed to `ingress.web.hosts`)",
+                            "type": "string",
+                            "default": ""
+                        },
+                        "hosts": {
+                            "description": "The hostnames for the web Ingress.",
+                            "type": "array",
+                            "default": [],
+                            "items": {
+                                "type": "string"
+                            }
+                        },
+                        "ingressClassName": {
+                            "description": "The Ingress Class for the web Ingress.",
                             "type": "string",
                             "default": ""
                         },
@@ -171,10 +196,28 @@
                         "path": {
                             "description": "The path for the flower Ingress.",
                             "type": "string",
-                            "default": ""
+                            "default": "/"
+                        },
+                        "pathType": {
+                            "description": "The pathType for the flower Ingress (required for Kubernetes 1.19 and above).",
+                            "type": "string",
+                            "default": "ImplementationSpecific"
                         },
                         "host": {
-                            "description": "The hostname for the flower Ingress.",
+                            "description": "The hostname for the flower Ingress. (Deprecated - renamed to `ingress.flower.hosts`)",
+                            "type": "string",
+                            "default": ""
+                        },
+                        "hosts": {
+                            "description": "The hostnames for the flower Ingress.",
+                            "type": "array",
+                            "default": [],
+                            "items": {
+                                "type": "string"
+                            }
+                        },
+                        "ingressClassName": {
+                            "description": "The Ingress Class for the flower Ingress.",
                             "type": "string",
                             "default": ""
                         },
@@ -194,16 +237,6 @@
                                     "default": ""
                                 }
                             }
-                        },
-                        "precedingPaths": {
-                            "description": "HTTP paths to add to the flower Ingress before the default path.",
-                            "type": "array",
-                            "default": []
-                        },
-                        "succeedingPaths": {
-                            "description": "HTTP paths to add to the flower Ingress after the default path.",
-                            "type": "array",
-                            "default": []
                         }
                     }
                 }
@@ -310,6 +343,12 @@
                             "default": "IfNotPresent"
                         }
                     }
+                },
+                "useDefaultImageForMigration": {
+                    "description": "To avoid images with user code for running and waiting for DB migrations set this to ``true``. ",
+                    "type": "boolean",
+                    "x-docsSection": "Images",
+                    "default": false
                 },
                 "pod_template": {
                     "description": "Configuration of the pod_template image.",
@@ -1046,7 +1085,7 @@
                     "default": true
                 },
                 "extraContainers": {
-                    "description": "Launch additional containers into workers.",
+                    "description": "Launch additional containers into workers. Note, if used with KubernetesExecutor, you are responsible for signaling sidecars to exit when the main container finishes so Airflow can continue the worker shutdown process!",
                     "type": "array",
                     "default": []
                 },
@@ -1130,6 +1169,11 @@
                                 "bash",
                                 "/clean-logs"
                             ]
+                        },
+                        "retentionDays": {
+                            "description": "Number of days to retain the logs when running the Airflow workers log groomer sidecar.",
+                            "type": "integer",
+                            "default": 15
                         },
                         "resources": {
                             "description": "Resources for Airflow workers log groomer sidecar.",
@@ -1374,6 +1418,11 @@
                                 "/clean-logs"
                             ]
                         },
+                        "retentionDays": {
+                            "description": "Number of days to retain the logs when running the Airflow scheduler log groomer sidecar.",
+                            "type": "integer",
+                            "default": 15
+                        },
                         "resources": {
                             "description": "Resources for log groomer sidecar.",
                             "type": "object",
@@ -1392,6 +1441,174 @@
                             ]
                         }
                     }
+                }
+            }
+        },
+        "triggerer": {
+            "description": "Airflow triggerer settings.",
+            "type": "object",
+            "x-docsSection": "Triggerer",
+            "additionalProperties": false,
+            "properties": {
+                "livenessProbe": {
+                    "description": "Liveness probe configuration.",
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                        "initialDelaySeconds": {
+                            "description": "Triggerer Liveness probe initial delay.",
+                            "type": "integer",
+                            "default": 10
+                        },
+                        "timeoutSeconds": {
+                            "description": "Triggerer Liveness probe timeout seconds.",
+                            "type": "integer",
+                            "default": 5
+                        },
+                        "failureThreshold": {
+                            "description": "Triggerer Liveness probe failure threshold.",
+                            "type": "integer",
+                            "default": 10
+                        },
+                        "periodSeconds": {
+                            "description": "Triggerer Liveness probe period seconds.",
+                            "type": "integer",
+                            "default": 30
+                        }
+                    }
+                },
+                "replicas": {
+                    "description": "Number of triggerers to run.",
+                    "type": "integer",
+                    "default": 1
+                },
+                "command": {
+                    "description": "Command to use when running the Airflow triggerer (templated).",
+                    "type": [
+                        "array",
+                        "null"
+                    ],
+                    "items": {
+                        "type": "string"
+                    },
+                    "default": null
+                },
+                "args": {
+                    "description": "Args to use when running the Airflow triggerer (templated).",
+                    "type": [
+                        "array",
+                        "null"
+                    ],
+                    "items": {
+                        "type": "string"
+                    },
+                    "default": [
+                        "bash",
+                        "-c",
+                        "exec airflow triggerer"
+                    ]
+                },
+                "strategy": {
+                    "description": "Specifies the strategy used to replace old Pods by new ones when deployed as a Deployment.",
+                    "type": [
+                        "null",
+                        "object"
+                    ],
+                    "default": {
+                        "rollingUpdate": {
+                            "maxSurge": "100%",
+                            "maxUnavailable": "50%"
+                        }
+                    }
+                },
+                "serviceAccount": {
+                    "description": "Create ServiceAccount.",
+                    "type": "object",
+                    "properties": {
+                        "create": {
+                            "description": "Specifies whether a ServiceAccount should be created.",
+                            "type": "boolean",
+                            "default": true
+                        },
+                        "name": {
+                            "description": "The name of the ServiceAccount to use. If not set and create is true, a name is generated using the release name.",
+                            "type": [
+                                "string",
+                                "null"
+                            ],
+                            "default": null
+                        },
+                        "annotations": {
+                            "description": "Annotations to add to the triggerer Kubernetes ServiceAccount.",
+                            "type": "object",
+                            "default": {}
+                        }
+                    }
+                },
+                "resources": {
+                    "description": "Resources for triggerer pods.",
+                    "type": "object",
+                    "default": {},
+                    "examples": [
+                        {
+                            "limits": {
+                                "cpu": "100m",
+                                "memory": "128Mi"
+                            },
+                            "requests": {
+                                "cpu": "100m",
+                                "memory": "128Mi"
+                            }
+                        }
+                    ]
+                },
+                "safeToEvict": {
+                    "description": "This setting tells Kubernetes that its ok to evict when it wants to scale a node down.",
+                    "type": "boolean",
+                    "default": true
+                },
+                "extraContainers": {
+                    "description": "Launch additional containers into triggerer.",
+                    "type": "array",
+                    "default": []
+                },
+                "extraInitContainers": {
+                    "description": "Add additional init containers into triggerer.",
+                    "type": "array",
+                    "default": []
+                },
+                "extraVolumes": {
+                    "description": "Mount additional volumes into triggerer.",
+                    "type": "array",
+                    "default": []
+                },
+                "extraVolumeMounts": {
+                    "description": "Mount additional volumes into triggerer.",
+                    "type": "array",
+                    "default": []
+                },
+                "nodeSelector": {
+                    "description": "Select certain nodes for triggerer pods.",
+                    "type": "object",
+                    "default": {},
+                    "additionalProperties": {
+                        "type": "string"
+                    }
+                },
+                "affinity": {
+                    "description": "Specify scheduling constraints for triggerer pods.",
+                    "type": "object",
+                    "default": "See values.yaml"
+                },
+                "tolerations": {
+                    "description": "Specify Tolerations for triggerer pods.",
+                    "type": "array",
+                    "default": []
+                },
+                "terminationGracePeriodSeconds": {
+                    "description": "Grace period for tasks to finish after SIGTERM is sent from Kubernetes.",
+                    "type": "integer",
+                    "default": 60
                 }
             }
         },
@@ -1817,6 +2034,14 @@
                                 "null"
                             ],
                             "default": null
+                        },
+                        "loadBalancerSourceRanges": {
+                            "description": "Webserver Service ``loadBalancerSourceRanges``.",
+                            "type": "array",
+                            "default": [],
+                            "examples": [
+                                "10.123.0.0/16"
+                            ]
                         }
                     }
                 },
@@ -1995,6 +2220,14 @@
                                 "null"
                             ],
                             "default": null
+                        },
+                        "loadBalancerSourceRanges": {
+                            "description": "Flower Service ``loadBalancerSourceRanges``.",
+                            "type": "array",
+                            "default": [],
+                            "examples": [
+                                "10.123.0.0/16"
+                            ]
                         }
                     }
                 },
@@ -2667,6 +2900,32 @@
                     "type": "string",
                     "default": "*/15 * * * *"
                 },
+                "command": {
+                    "description": "Command to use when running the cleanup cronjob (templated).",
+                    "type": [
+                        "array",
+                        "null"
+                    ],
+                    "items": {
+                        "type": "string"
+                    },
+                    "default": null
+                },
+                "args": {
+                    "description": "Args to use when running the cleanup cronjob (templated).",
+                    "type": [
+                        "array",
+                        "null"
+                    ],
+                    "items": {
+                        "type": "string"
+                    },
+                    "default": [
+                        "bash",
+                        "-c",
+                        "exec airflow kubernetes cleanup-pods --namespace={{ .Release.Namespace }}"
+                    ]
+                },
                 "nodeSelector": {
                     "description": "Select certain nodes for cleanup pods.",
                     "type": "object",
@@ -2757,7 +3016,7 @@
             "default": false
         },
         "podTemplate": {
-            "description": "The contents of ``pod_template_file.yaml`` used for KubernetesExecutor workers. The default (see ``files/pod-template-file.kubernetes-helm-yaml``) already takes into account normal ``workers`` configuration parameters (e.g. ``workers.resources``), so you normally won't need to override this directly.",
+            "description": "The contents of ``pod_template_file.yaml`` used for KubernetesExecutor workers (templated). The default (see ``files/pod-template-file.kubernetes-helm-yaml``) already takes into account normal ``workers`` configuration parameters (e.g. ``workers.resources``), so you normally won't need to override this directly.",
             "type": [
                 "string",
                 "null"
@@ -2765,7 +3024,7 @@
             "x-docsSection": "Airflow",
             "default": null,
             "examples": [
-                "apiVersion: v1\nkind: Pod\nmetadata:\n  name: dummy-name\n  labels:\n    tier: airflow\n    component: worker\n    release: my-release\nspec:\n  priorityClassName: high-priority\n  containers:\n    - name: base\n    ..."
+                "apiVersion: v1\nkind: Pod\nmetadata:\n  name: dummy-name\n  labels:\n    tier: airflow\n    component: worker\n    release: {{ .Release.Name }}\nspec:\n  priorityClassName: high-priority\n  containers:\n    - name: base\n    ..."
             ]
         },
         "dags": {

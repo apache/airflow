@@ -27,14 +27,15 @@ The document below describes the database engine configurations, the necessary c
 Choosing database backend
 -------------------------
 
-If you want to take a real test drive of Airflow, you should consider setting up a database backend to **MySQL** and **PostgresSQL**.
+If you want to take a real test drive of Airflow, you should consider setting up a database backend to **MySQL**, **PostgresSQL** , **MsSQL**.
 By default, Airflow uses **SQLite**, which is intended for development purposes only.
 
 Airflow supports the following database engine versions, so make sure which version you have. Old versions may not support all SQL statements.
 
-  * PostgreSQL:  9.6, 10, 11, 12, 13
-  * MySQL: 5.7, 8
-  * SQLite: 3.15.0+
+* PostgreSQL:  9.6, 10, 11, 12, 13
+* MySQL: 5.7, 8
+* MsSQL: 2017, 2019
+* SQLite: 3.15.0+
 
 If you plan on running more than one scheduler, you have to meet additional requirements.
 For details, see :ref:`Scheduler HA Database Requirements <scheduler:ha:db_requirements>`.
@@ -154,14 +155,18 @@ In the example below, a database ``airflow_db`` and user  with username ``airflo
 
 .. code-block:: sql
 
-   CREATE DATABASE airflow_db CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+   CREATE DATABASE airflow_db CHARACTER SET utf8 COLLATE utf8mb4_unicode_ci;
    CREATE USER 'airflow_user' IDENTIFIED BY 'airflow_pass';
    GRANT ALL PRIVILEGES ON airflow_db.* TO 'airflow_user';
 
 
 .. note::
 
-   The database must use a UTF-8 character set
+   The database must use a UTF-8 character set. A small caveat that you must be aware of is that utf8 in newer versions of MySQL is really utf8mb4 which
+   causes Airflow indexes to grow too large (see https://github.com/apache/airflow/pull/17603#issuecomment-901121618). Therefore as of Airflow 2.2
+   all MySQL databases have ``sql_engine_collation_for_ids`` set automatically to ``utf8mb3_bin`` (unless you override it). This might
+   lead to a mixture of collation ids for id fields in Airflow Database, but it has no negative consequences since all relevant IDs in Airflow use
+   ASCII characters only.
 
 We rely on more strict ANSI SQL settings for MySQL in order to have sane defaults.
 Make sure to have specified ``explicit_defaults_for_timestamp=1`` option under ``[mysqld]`` section
@@ -183,7 +188,7 @@ without any cert options provided.
 However if you want to use other drivers visit the `MySQL Dialect <https://docs.sqlalchemy.org/en/13/dialects/mysql.html>`__  in SQLAlchemy documentation for more information regarding download
 and setup of the SqlAlchemy connection.
 
-In addition, you also should pay particular attention to MySQL's encoding. Although the ``utf8mb4`` character set is more and more popular for MySQL (actually, ``utf8mb4`` becomes default character set in MySQL8.0), using the ``utf8mb4`` encoding requires additional setting in Airflow 2+ (See more details in `#7570 <https://github.com/apache/airflow/pull/7570>`__.). If you use ``utf8mb4`` as character set, you should also set ``sql_engine_collation_for_ids=utf8mb3_general_ci``.
+In addition, you also should pay particular attention to MySQL's encoding. Although the ``utf8mb4`` character set is more and more popular for MySQL (actually, ``utf8mb4`` becomes default character set in MySQL8.0), using the ``utf8mb4`` encoding requires additional setting in Airflow 2+ (See more details in `#7570 <https://github.com/apache/airflow/pull/7570>`__.). If you use ``utf8mb4`` as character set, you should also set ``sql_engine_collation_for_ids=utf8mb3_bin``.
 
 Setting up a PostgreSQL Database
 --------------------------------
@@ -218,9 +223,50 @@ want to set a default schema for your role with a SQL statement similar to ``ALT
 
 For more information regarding setup of the PostgresSQL connection, see `PostgreSQL dialect <https://docs.sqlalchemy.org/en/13/dialects/postgresql.html>`__ in SQLAlchemy documentation.
 
+.. note::
+
+   Airflow is known - especially in high-performance setup - to open many connections to metadata database. This might cause problems for
+   Postgres resource usage, because in Postgres, each connection creates a new process and it makes Postgres resource-hungry when a lot
+   of connections are opened. Therefore we recommend to use `PGBouncer <https://www.pgbouncer.org/>`_ as database proxy for all Postgres
+   production installations. PGBouncer can handle connection pooling from multiple components, but also in case you have remote
+   database with potentially unstable connectivity, it will make your DB connectivity much more resilient to temporary network problems.
+   Example implementation of PGBouncer deployment can be found in the :doc:`helm-chart:index` where you can enable pre-configured
+   PGBouncer instance with flipping a boolean flag. You can take a look at the approach we have taken there and use it as
+   an inspiration, when you prepare your own Deployment, even if you do not use the Official Helm Chart.
+
+   See also :ref:`Helm Chart production guide <production-guide:pgbouncer>`
+
 .. spelling::
 
      hba
+
+Setting up a MsSQL Database
+---------------------------
+
+You need to create a database and a database user that Airflow will use to access this database.
+In the example below, a database ``airflow_db`` and user  with username ``airflow_user`` with password ``airflow_pass`` will be created.
+Note, that in case of MsSQL, Airflow uses ``READ COMMITTED`` transaction isolation and it must have
+``READ_COMMITTED_SNAPSHOT`` feature enabled, otherwise read transactions might generate deadlocks
+(especially in case of backfill). Airflow will refuse to use database that has the feature turned off.
+You can read more about transaction isolation and snapshot features at
+`Transaction isolation level <https://docs.microsoft.com/en-us/sql/t-sql/statements/set-transaction-isolation-level-transact-sql>`_
+
+.. code-block:: sql
+
+   CREATE DATABASE airflow;
+   ALTER DATABASE airflow SET READ_COMMITTED_SNAPSHOT ON;
+   CREATE LOGIN airflow_user WITH PASSWORD='airflow_pass123%';
+   USE airflow;
+   CREATE USER airflow_user FROM LOGIN airflow_user;
+   GRANT ALL PRIVILEGES ON DATABASE airflow TO airflow_user;
+
+
+We recommend using the ``mssql+pyodbc`` driver and specifying it in your SqlAlchemy connection string.
+
+.. code-block:: text
+
+    mssql+pyodbc://<user>:<password>@<host>/<db>
+
 
 Other configuration options
 ---------------------------

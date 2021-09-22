@@ -28,14 +28,31 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+2.0.2
+.....
+
+Latest change: 2021-08-23
+
+================================================================================================  ===========  ============================================================================
+Commit                                                                                            Committed    Subject
+================================================================================================  ===========  ============================================================================
+`be75dcd39 <https://github.com/apache/airflow/commit/be75dcd39cd10264048c86e74110365bd5daf8b7>`_  2021-08-23   ``Update description about the new ''connection-types'' provider meta-data``
+`73d2b720e <https://github.com/apache/airflow/commit/73d2b720e0c79323a29741882a07eb8962256762>`_  2021-08-21   ``Fix using XCom with ''KubernetesPodOperator'' (#17760)``
+`76ed2a49c <https://github.com/apache/airflow/commit/76ed2a49c6cd285bf59706cf04f39a7444c382c9>`_  2021-08-19   ``Import Hooks lazily individually in providers manager (#17682)``
+`97428efc4 <https://github.com/apache/airflow/commit/97428efc41e5902183827fb9e4e56d067ca771df>`_  2021-08-02   ``Fix messed-up changelog in 3 providers (#17380)``
+`b0b259107 <https://github.com/apache/airflow/commit/b0b25910713dd39e0193bdcd95b2cfd9e3fed5e7>`_  2021-07-27   ``Fix static checks (#17256)``
+`997f7d0be <https://github.com/apache/airflow/commit/997f7d0beb1f0a954ba0127efeb3b250daf8b290>`_  2021-07-27   ``Update spark_kubernetes.py (#17237)``
+================================================================================================  ===========  ============================================================================
+
 2.0.1
 .....
 
-Latest change: 2021-07-21
+Latest change: 2021-07-26
 
 ================================================================================================  ===========  ==========================================================================================
 Commit                                                                                            Committed    Subject
 ================================================================================================  ===========  ==========================================================================================
+`87f408b1e <https://github.com/apache/airflow/commit/87f408b1e78968580c760acb275ae5bb042161db>`_  2021-07-26   ``Prepares docs for Rc2 release of July providers (#17116)``
 `d48b4e0ca <https://github.com/apache/airflow/commit/d48b4e0caf6218558378c7c3349b22adfc5c0785>`_  2021-07-21   ``Simplify 'default_args' in Kubernetes example DAGs (#16870)``
 `3939e8416 <https://github.com/apache/airflow/commit/3939e841616d70ea2d930f55e6a5f73a2a99be07>`_  2021-07-20   ``Enable using custom pod launcher in Kubernetes Pod Operator (#16945)``
 `d02ded65e <https://github.com/apache/airflow/commit/d02ded65eaa7d2281e249b3fa028605d1b4c52fb>`_  2021-07-15   ``Fixed wrongly escaped characters in amazon's changelog (#17020)``
@@ -144,7 +161,7 @@ Latest change: 2020-12-09
 Commit                                                                                            Committed    Subject
 ================================================================================================  ===========  ================================================================================================
 `32971a1a2 <https://github.com/apache/airflow/commit/32971a1a2de1db0b4f7442ed26facdf8d3b7a36f>`_  2020-12-09   ``Updates providers versions to 1.0.0 (#12955)``
-`b40dffa08 <https://github.com/apache/airflow/commit/b40dffa08547b610162f8cacfa75847f3c4ca364>`_  2020-12-08   ``Rename remaing modules to match AIP-21 (#12917)``
+`b40dffa08 <https://github.com/apache/airflow/commit/b40dffa08547b610162f8cacfa75847f3c4ca364>`_  2020-12-08   ``Rename remaining modules to match AIP-21 (#12917)``
 `9b39f2478 <https://github.com/apache/airflow/commit/9b39f24780e85f859236672e9060b2fbeee81b36>`_  2020-12-08   ``Add support for dynamic connection form fields per provider (#12558)``
 `bd90136aa <https://github.com/apache/airflow/commit/bd90136aaf5035e3234fe545b79a3e4aad21efe2>`_  2020-11-30   ``Move operator guides to provider documentation packages (#12681)``
 `2037303ee <https://github.com/apache/airflow/commit/2037303eef93fd36ab13746b045d1c1fee6aa143>`_  2020-11-29   ``Adds support for Connection/Hook discovery from providers (#12466)``

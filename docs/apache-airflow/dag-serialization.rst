@@ -71,15 +71,12 @@ Add the following settings in ``airflow.cfg``:
 .. code-block:: ini
 
     [core]
-    store_dag_code = True
 
     # You can also update the following default configurations based on your needs
     min_serialized_dag_update_interval = 30
     min_serialized_dag_fetch_interval = 10
     max_num_rendered_ti_fields_per_task = 30
 
-*   ``store_dag_code``: This option decides whether to persist DAG files code in DB.
-    If set to True, the Webserver reads file contents from the DB instead of trying to access files in the DAG folder.
 *   ``min_serialized_dag_update_interval``: This flag sets the minimum interval (in seconds) after which
     the serialized DAGs in the DB should be updated. This helps in reducing database write rate.
 *   ``min_serialized_dag_fetch_interval``: This option controls how often the Serialized DAG will be re-fetched

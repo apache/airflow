@@ -28,14 +28,35 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+2.1.0
+.....
+
+Latest change: 2021-09-01
+
+================================================================================================  ===========  ============================================================================
+Commit                                                                                            Committed    Subject
+================================================================================================  ===========  ============================================================================
+`16b47cecf <https://github.com/apache/airflow/commit/16b47cecfb5cf88b0176a59589cbd77e0eaccfd3>`_  2021-09-01   ``Invalidate Vault cached prop when not authenticated (#17387)``
+`a29503e1b <https://github.com/apache/airflow/commit/a29503e1baf7534c85ebf6685ba91003051c1cea>`_  2021-08-31   ``Fix instantiating Vault Secret Backend during configuration (#17935)``
+`0a6858847 <https://github.com/apache/airflow/commit/0a68588479e34cf175d744ea77b283d9d78ea71a>`_  2021-08-30   ``Add August 2021 Provider's documentation (#17890)``
+`be75dcd39 <https://github.com/apache/airflow/commit/be75dcd39cd10264048c86e74110365bd5daf8b7>`_  2021-08-23   ``Update description about the new ''connection-types'' provider meta-data``
+`6301faa38 <https://github.com/apache/airflow/commit/6301faa3888371ef361e704844f36d9bf768f731>`_  2021-08-23   ``Enable Connection creation from Vault parameters (#15013)``
+`76ed2a49c <https://github.com/apache/airflow/commit/76ed2a49c6cd285bf59706cf04f39a7444c382c9>`_  2021-08-19   ``Import Hooks lazily individually in providers manager (#17682)``
+`29aab6434 <https://github.com/apache/airflow/commit/29aab6434ffe0fb8c83b6fd6c9e44310966d496a>`_  2021-08-17   ``Adds secrets backend/logging/auth information to provider yaml (#17625)``
+`87f408b1e <https://github.com/apache/airflow/commit/87f408b1e78968580c760acb275ae5bb042161db>`_  2021-07-26   ``Prepares docs for Rc2 release of July providers (#17116)``
+`b916b7507 <https://github.com/apache/airflow/commit/b916b7507921129dc48d6add1bdc4b923b60c9b9>`_  2021-07-15   ``Prepare documentation for July release of providers. (#17015)``
+`866a601b7 <https://github.com/apache/airflow/commit/866a601b76e219b3c043e1dbbc8fb22300866351>`_  2021-06-28   ``Removes pylint from our toolchain (#16682)``
+================================================================================================  ===========  ============================================================================
+
 2.0.0
 .....
 
-Latest change: 2021-06-16
+Latest change: 2021-06-18
 
 ================================================================================================  ===========  ==================================================================================
 Commit                                                                                            Committed    Subject
 ================================================================================================  ===========  ==================================================================================
+`bbc627a3d <https://github.com/apache/airflow/commit/bbc627a3dab17ba4cf920dd1a26dbed6f5cebfd1>`_  2021-06-18   ``Prepares documentation for rc2 release of Providers (#16501)``
 `cbf8001d7 <https://github.com/apache/airflow/commit/cbf8001d7630530773f623a786f9eb319783b33c>`_  2021-06-16   ``Synchronizes updated changelog after buggfix release (#16464)``
 `1fba5402b <https://github.com/apache/airflow/commit/1fba5402bb14b3ffa6429fdc683121935f88472f>`_  2021-06-15   ``More documentation update for June providers release (#16405)``
 `70cfe0135 <https://github.com/apache/airflow/commit/70cfe0135373d1f0400e7d9b275ebb017429794b>`_  2021-06-12   ``Sanitize end of line character when loading token from a file (vault) (#16407)``
@@ -80,7 +101,7 @@ Latest change: 2020-12-09
 Commit                                                                                            Committed    Subject
 ================================================================================================  ===========  ==================================================================================
 `32971a1a2 <https://github.com/apache/airflow/commit/32971a1a2de1db0b4f7442ed26facdf8d3b7a36f>`_  2020-12-09   ``Updates providers versions to 1.0.0 (#12955)``
-`b40dffa08 <https://github.com/apache/airflow/commit/b40dffa08547b610162f8cacfa75847f3c4ca364>`_  2020-12-08   ``Rename remaing modules to match AIP-21 (#12917)``
+`b40dffa08 <https://github.com/apache/airflow/commit/b40dffa08547b610162f8cacfa75847f3c4ca364>`_  2020-12-08   ``Rename remaining modules to match AIP-21 (#12917)``
 `9b39f2478 <https://github.com/apache/airflow/commit/9b39f24780e85f859236672e9060b2fbeee81b36>`_  2020-12-08   ``Add support for dynamic connection form fields per provider (#12558)``
 `36a9b0f48 <https://github.com/apache/airflow/commit/36a9b0f48baf4a8ef8fc02a450a279948a8c0f02>`_  2020-11-20   ``Fix the default value for VaultBackend's config_path (#12518)``
 `c34ef853c <https://github.com/apache/airflow/commit/c34ef853c890e08f5468183c03dc8f3f3ce84af2>`_  2020-11-20   ``Separate out documentation building per provider  (#12444)``
@@ -106,7 +127,7 @@ Commit                                                                          
 `fdd9b6f65 <https://github.com/apache/airflow/commit/fdd9b6f65b608c516b8a062b058972d9a45ec9e3>`_  2020-08-25   ``Enable Black on Providers Packages (#10543)``
 `3696c34c2 <https://github.com/apache/airflow/commit/3696c34c28c6bc7b442deab999d9ecba24ed0e34>`_  2020-08-24   ``Fix typo in the word "release" (#10528)``
 `2f2d8dbfa <https://github.com/apache/airflow/commit/2f2d8dbfafefb4be3dd80f22f31c649c8498f148>`_  2020-08-25   ``Remove all "noinspection" comments native to IntelliJ (#10525)``
-`ee7ca128a <https://github.com/apache/airflow/commit/ee7ca128a17937313566f2badb6cc569c614db94>`_  2020-08-22   ``Fix broken Markdown refernces in Providers README (#10483)``
+`ee7ca128a <https://github.com/apache/airflow/commit/ee7ca128a17937313566f2badb6cc569c614db94>`_  2020-08-22   ``Fix broken Markdown references in Providers README (#10483)``
 `2f31b3060 <https://github.com/apache/airflow/commit/2f31b3060ed8274d5d1b1db7349ce607640b9199>`_  2020-07-08   ``Get Airflow configs with sensitive data from Secret Backends (#9645)``
 `44d4ae809 <https://github.com/apache/airflow/commit/44d4ae809c1e3784ff95b6a5e95113c3412e56b3>`_  2020-07-06   ``Upgrade to latest pre-commit checks (#9686)``
 `a99aaeb49 <https://github.com/apache/airflow/commit/a99aaeb49672e913d5ff79606237f6f3614fc8f5>`_  2020-07-03   ``Allow setting Hashicorp Vault token from File (#9644)``

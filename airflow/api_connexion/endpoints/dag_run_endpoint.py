@@ -14,6 +14,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from typing import Optional
+
 from flask import current_app, g, request
 from marshmallow import ValidationError
 from sqlalchemy import or_
@@ -27,16 +29,18 @@ from airflow.api_connexion.schemas.dag_run_schema import (
     dagrun_collection_schema,
     dagrun_schema,
     dagruns_batch_form_schema,
+    set_dagrun_state_form_schema,
 )
 from airflow.models import DagModel, DagRun
 from airflow.security import permissions
 from airflow.utils.session import provide_session
+from airflow.utils.state import DagRunState, State
 from airflow.utils.types import DagRunType
 
 
 @security.requires_access(
     [
-        (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
+        (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_DAG),
         (permissions.ACTION_CAN_DELETE, permissions.RESOURCE_DAG_RUN),
     ]
 )
@@ -242,26 +246,62 @@ def post_dag_run(dag_id, session):
     except ValidationError as err:
         raise BadRequest(detail=str(err))
 
+    logical_date = post_body["execution_date"]
+    run_id = post_body["run_id"]
     dagrun_instance = (
         session.query(DagRun)
         .filter(
             DagRun.dag_id == dag_id,
-            or_(DagRun.run_id == post_body["run_id"], DagRun.execution_date == post_body["execution_date"]),
+            or_(DagRun.run_id == run_id, DagRun.execution_date == logical_date),
         )
         .first()
     )
     if not dagrun_instance:
-        dag_run = DagRun(dag_id=dag_id, run_type=DagRunType.MANUAL, **post_body)
-        session.add(dag_run)
-        session.commit()
-        return dagrun_schema.dump(dag_run)
+        try:
+            dag = current_app.dag_bag.get_dag(dag_id)
+            dag_run = dag.create_dagrun(
+                run_type=DagRunType.MANUAL,
+                run_id=run_id,
+                execution_date=logical_date,
+                data_interval=dag.timetable.infer_manual_data_interval(run_after=logical_date),
+                state=State.QUEUED,
+                conf=post_body.get("conf"),
+                external_trigger=True,
+                dag_hash=current_app.dag_bag.dags_hash.get(dag_id),
+            )
+            return dagrun_schema.dump(dag_run)
+        except ValueError as ve:
+            raise BadRequest(detail=str(ve))
 
-    if dagrun_instance.execution_date == post_body["execution_date"]:
+    if dagrun_instance.execution_date == logical_date:
         raise AlreadyExists(
-            detail=f"DAGRun with DAG ID: '{dag_id}' and "
-            f"DAGRun ExecutionDate: '{post_body['execution_date']}' already exists"
+            detail=f"DAGRun with DAG ID: '{dag_id}' and DAGRun logical date: '{logical_date}' already exists"
         )
 
-    raise AlreadyExists(
-        detail=f"DAGRun with DAG ID: '{dag_id}' and DAGRun ID: '{post_body['run_id']}' already exists"
+    raise AlreadyExists(detail=f"DAGRun with DAG ID: '{dag_id}' and DAGRun ID: '{run_id}' already exists")
+
+
+@security.requires_access(
+    [
+        (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
+        (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_DAG_RUN),
+    ]
+)
+@provide_session
+def update_dag_run_state(dag_id: str, dag_run_id: str, session) -> dict:
+    """Set a state of a dag run."""
+    dag_run: Optional[DagRun] = (
+        session.query(DagRun).filter(DagRun.dag_id == dag_id, DagRun.run_id == dag_run_id).one_or_none()
     )
+    if dag_run is None:
+        error_message = f'Dag Run id {dag_run_id} not found in dag {dag_id}'
+        raise NotFound(error_message)
+    try:
+        post_body = set_dagrun_state_form_schema.load(request.json)
+    except ValidationError as err:
+        raise BadRequest(detail=str(err))
+
+    state = post_body['state']
+    dag_run.set_state(state=DagRunState(state))
+    session.merge(dag_run)
+    return dagrun_schema.dump(dag_run)

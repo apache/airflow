@@ -17,6 +17,9 @@
 # under the License.
 """Implements Docker operator"""
 import ast
+import io
+import pickle
+import tarfile
 from tempfile import TemporaryDirectory
 from typing import Dict, Iterable, List, Optional, Union
 
@@ -141,6 +144,12 @@ class DockerOperator(BaseOperator):
     :type privileged: bool
     :param cap_add: Include container capabilities
     :type cap_add: list[str]
+    :param retrieve_output: Should this docker image consistently attempt to pull from and output
+        file before manually shutting down the image. Useful for cases where users want a pickle serialized
+        output that is not posted to logs
+    :type retrieve_output: bool
+    :param retrieve_output_path: path for output file that will be retrieved and passed to xcom
+    :type retrieve_output_path: Optional[str]
     """
 
     template_fields = ('command', 'environment', 'container_name')
@@ -185,9 +194,10 @@ class DockerOperator(BaseOperator):
         privileged: bool = False,
         cap_add: Optional[Iterable[str]] = None,
         extra_hosts: Optional[Dict[str, str]] = None,
+        retrieve_output: bool = False,
+        retrieve_output_path: Optional[str] = None,
         **kwargs,
     ) -> None:
-
         super().__init__(**kwargs)
         self.api_version = api_version
         self.auto_remove = auto_remove
@@ -227,6 +237,8 @@ class DockerOperator(BaseOperator):
 
         self.cli = None
         self.container = None
+        self.retrieve_output = retrieve_output
+        self.retrieve_output_path = retrieve_output_path
 
     def get_hook(self) -> DockerHook:
         """
@@ -298,6 +310,7 @@ class DockerOperator(BaseOperator):
 
             line = ''
             res_lines = []
+            return_value = None
             for line in lines:
                 if hasattr(line, 'decode'):
                     # Note that lines returned can also be byte sequences so we have to handle decode here
@@ -305,16 +318,47 @@ class DockerOperator(BaseOperator):
                 line = line.strip()
                 res_lines.append(line)
                 self.log.info(line)
-
             result = self.cli.wait(self.container['Id'])
             if result['StatusCode'] != 0:
                 res_lines = "\n".join(res_lines)
                 raise AirflowException('docker container failed: ' + repr(result) + f"lines {res_lines}")
-            if self.do_xcom_push:
-                return res_lines if self.xcom_all else line
+            if self.retrieve_output and not return_value:
+                return_value = self._attempt_to_retrieve_result()
+            ret = None
+            if self.retrieve_output:
+                ret = return_value
+            elif self.do_xcom_push:
+                ret = self._get_return_value_from_logs(res_lines, line)
+            return ret
         finally:
             if self.auto_remove:
                 self.cli.remove_container(self.container['Id'])
+
+    def _attempt_to_retrieve_result(self):
+        """
+        Attempts to pull the result of the function from the expected file using docker's
+        get_archive function.
+        If the file is not yet ready, returns None
+        :return:
+        """
+
+        def copy_from_docker(container_id, src):
+            archived_result, stat = self.cli.get_archive(container_id, src)
+            # no need to port to a file since we intend to deserialize
+            file_standin = io.BytesIO(b"".join(archived_result))
+            tar = tarfile.open(fileobj=file_standin)
+            file = tar.extractfile(stat['name'])
+            lib = getattr(self, 'pickling_library', pickle)
+            return lib.loads(file.read())
+
+        try:
+            return_value = copy_from_docker(self.container['Id'], self.retrieve_output_path)
+            return return_value
+        except APIError:
+            return None
+
+    def _get_return_value_from_logs(self, res_lines, line):
+        return res_lines if self.xcom_all else line
 
     def execute(self, context) -> Optional[str]:
         self.cli = self._get_cli()

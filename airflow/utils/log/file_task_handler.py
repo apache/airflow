@@ -26,6 +26,7 @@ from itsdangerous import TimedJSONWebSignatureSerializer
 
 from airflow.configuration import AirflowConfigException, conf
 from airflow.utils.helpers import parse_template_string
+from airflow.utils.log.non_caching_file_handler import NonCachingFileHandler
 
 if TYPE_CHECKING:
     from airflow.models import TaskInstance
@@ -55,7 +56,7 @@ class FileTaskHandler(logging.Handler):
         :param ti: task instance object
         """
         local_loc = self._init_file(ti)
-        self.handler = logging.FileHandler(local_loc, encoding='utf-8')
+        self.handler = NonCachingFileHandler(local_loc, encoding='utf-8')
         if self.formatter:
             self.handler.setFormatter(self.formatter)
         self.handler.setLevel(self.level)
@@ -116,7 +117,7 @@ class FileTaskHandler(logging.Handler):
 
         if os.path.exists(location):
             try:
-                with open(location) as file:
+                with open(location, encoding="utf-8", errors="surrogateescape") as file:
                     log += f"*** Reading local file: {location}\n"
                     log += "".join(file.readlines())
             except Exception as e:
@@ -162,7 +163,7 @@ class FileTaskHandler(logging.Handler):
                 log += f'*** Unable to fetch logs from worker pod {ti.hostname} ***\n{str(f)}\n\n'
         else:
             url = os.path.join("http://{ti.hostname}:{worker_log_server_port}/log", log_relative_path).format(
-                ti=ti, worker_log_server_port=conf.get('celery', 'WORKER_LOG_SERVER_PORT')
+                ti=ti, worker_log_server_port=conf.get('logging', 'WORKER_LOG_SERVER_PORT')
             )
             log += f"*** Log file does not exist: {location}\n"
             log += f"*** Fetching from: {url}\n"
@@ -186,6 +187,16 @@ class FileTaskHandler(logging.Handler):
                 )
                 response.encoding = "utf-8"
 
+                if response.status_code == 403:
+                    log += (
+                        "*** !!!! Please make sure that all your Airflow components (e.g. "
+                        "schedulers, webservers and workers) have"
+                        " the same 'secret_key' configured in 'webserver' section !!!!!\n***"
+                    )
+                    log += (
+                        "*** See more at https://airflow.apache.org/docs/apache-airflow/"
+                        "stable/configurations-ref.html#secret-key\n***"
+                    )
                 # Check if the resource was properly fetched
                 response.raise_for_status()
 

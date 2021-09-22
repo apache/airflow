@@ -54,6 +54,7 @@ ERRORS_ELIGIBLE_TO_REBUILD = [
     'failed to reach any of the inventories with the following issues',
     'undefined label:',
     'unknown document:',
+    'Error loading airflow.providers',
 ]
 
 ON_GITHUB_ACTIONS = os.environ.get('GITHUB_ACTIONS', 'false') == "true"
@@ -94,6 +95,12 @@ def _get_parser():
     parser.formatter_class = argparse.RawTextHelpFormatter
     parser.add_argument(
         '--disable-checks', dest='disable_checks', action='store_true', help='Disables extra checks'
+    )
+    parser.add_argument(
+        '--one-pass-only',
+        dest='one_pass_only',
+        action='store_true',
+        help='Do not attempt multiple builds on error',
     )
     parser.add_argument(
         "--package-filter",
@@ -485,7 +492,63 @@ def main():
     if package_spelling_errors:
         all_spelling_errors.update(package_spelling_errors)
 
-    # Build documentation for some packages again if it can help them.
+    if not args.one_pass_only:
+        # Build documentation for some packages again if it can help them.
+        package_build_errors, package_spelling_errors = retry_building_docs_if_needed(
+            all_build_errors,
+            all_spelling_errors,
+            args,
+            docs_only,
+            for_production,
+            jobs,
+            package_build_errors,
+            package_spelling_errors,
+            spellcheck_only,
+        )
+
+        # And try again in case one change spans across three-level dependencies
+        retry_building_docs_if_needed(
+            all_build_errors,
+            all_spelling_errors,
+            args,
+            docs_only,
+            for_production,
+            jobs,
+            package_build_errors,
+            package_spelling_errors,
+            spellcheck_only,
+        )
+
+    if not disable_checks:
+        general_errors = lint_checks.run_all_check()
+        if general_errors:
+            all_build_errors[None] = general_errors
+
+    dev_index_generator.generate_index(f"{DOCS_DIR}/_build/index.html")
+
+    if not package_filters:
+        _promote_new_flags()
+
+    if os.path.exists(PROVIDER_INIT_FILE):
+        os.remove(PROVIDER_INIT_FILE)
+
+    print_build_errors_and_exit(
+        all_build_errors,
+        all_spelling_errors,
+    )
+
+
+def retry_building_docs_if_needed(
+    all_build_errors,
+    all_spelling_errors,
+    args,
+    docs_only,
+    for_production,
+    jobs,
+    package_build_errors,
+    package_spelling_errors,
+    spellcheck_only,
+):
     to_retry_packages = [
         package_name
         for package_name, errors in package_build_errors.items()
@@ -510,24 +573,8 @@ def main():
             all_build_errors.update(package_build_errors)
         if package_spelling_errors:
             all_spelling_errors.update(package_spelling_errors)
-
-    if not disable_checks:
-        general_errors = lint_checks.run_all_check()
-        if general_errors:
-            all_build_errors[None] = general_errors
-
-    dev_index_generator.generate_index(f"{DOCS_DIR}/_build/index.html")
-
-    if not package_filters:
-        _promote_new_flags()
-
-    if os.path.exists(PROVIDER_INIT_FILE):
-        os.remove(PROVIDER_INIT_FILE)
-
-    print_build_errors_and_exit(
-        all_build_errors,
-        all_spelling_errors,
-    )
+        return package_build_errors, package_spelling_errors
+    return package_build_errors, package_spelling_errors
 
 
 if __name__ == "__main__":

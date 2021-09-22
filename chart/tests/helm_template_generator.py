@@ -15,6 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
+import json
 import subprocess
 import sys
 from functools import lru_cache
@@ -30,26 +31,31 @@ from kubernetes.client.api_client import ApiClient
 
 api_client = ApiClient()
 
-BASE_URL_SPEC = "https://raw.githubusercontent.com/yannh/kubernetes-json-schema/master/v1.15.0"
+BASE_URL_SPEC = "https://raw.githubusercontent.com/yannh/kubernetes-json-schema/master/v"
+DEFAULT_KUBERNETES_VERSION = "1.22.0"
 
 crd_lookup = {
     'keda.sh/v1alpha1::ScaledObject': 'https://raw.githubusercontent.com/kedacore/keda/v2.0.0/config/crd/bases/keda.sh_scaledobjects.yaml',  # noqa: E501
 }
 
 
-def get_schema_k8s(api_version, kind):
+def get_schema_k8s(api_version, kind, kubernetes_version):
     api_version = api_version.lower()
     kind = kind.lower()
 
     if '/' in api_version:
         ext, _, api_version = api_version.partition("/")
         ext = ext.split(".")[0]
-        url = f'{BASE_URL_SPEC}/{kind}-{ext}-{api_version}.json'
+        url = f'{BASE_URL_SPEC}{kubernetes_version}/{kind}-{ext}-{api_version}.json'
     else:
-        url = f'{BASE_URL_SPEC}/{kind}-{api_version}.json'
+        url = f'{BASE_URL_SPEC}{kubernetes_version}/{kind}-{api_version}.json'
     request = requests.get(url)
     request.raise_for_status()
-    schema = request.json()
+    schema = json.loads(
+        request.text.replace(
+            'kubernetesjsonschema.dev', 'raw.githubusercontent.com/yannh/kubernetes-json-schema/master'
+        )
+    )
     return schema
 
 
@@ -64,16 +70,16 @@ def get_schema_crd(api_version, kind):
 
 
 @lru_cache(maxsize=None)
-def create_validator(api_version, kind):
+def create_validator(api_version, kind, kubernetes_version):
     schema = get_schema_crd(api_version, kind)
     if not schema:
-        schema = get_schema_k8s(api_version, kind)
+        schema = get_schema_k8s(api_version, kind, kubernetes_version)
     jsonschema.Draft7Validator.check_schema(schema)
     validator = jsonschema.Draft7Validator(schema)
     return validator
 
 
-def validate_k8s_object(instance):
+def validate_k8s_object(instance, kubernetes_version):
     # Skip PostgresSQL chart
     labels = jmespath.search("metadata.labels", instance)
     if "helm.sh/chart" in labels:
@@ -84,11 +90,17 @@ def validate_k8s_object(instance):
     if chart and 'postgresql' in chart:
         return
 
-    validate = create_validator(instance.get("apiVersion"), instance.get("kind"))
+    validate = create_validator(instance.get("apiVersion"), instance.get("kind"), kubernetes_version)
     validate.validate(instance)
 
 
-def render_chart(name="RELEASE-NAME", values=None, show_only=None, chart_dir=None):
+def render_chart(
+    name="RELEASE-NAME",
+    values=None,
+    show_only=None,
+    chart_dir=None,
+    kubernetes_version=DEFAULT_KUBERNETES_VERSION,
+):
     """
     Function that renders a helm chart into dictionaries. For helm chart testing only
     """
@@ -98,7 +110,16 @@ def render_chart(name="RELEASE-NAME", values=None, show_only=None, chart_dir=Non
         content = yaml.dump(values)
         tmp_file.write(content.encode())
         tmp_file.flush()
-        command = ["helm", "template", name, chart_dir, '--values', tmp_file.name]
+        command = [
+            "helm",
+            "template",
+            name,
+            chart_dir,
+            '--values',
+            tmp_file.name,
+            '--kube-version',
+            kubernetes_version,
+        ]
         if show_only:
             for i in show_only:
                 command.extend(["--show-only", i])
@@ -106,7 +127,7 @@ def render_chart(name="RELEASE-NAME", values=None, show_only=None, chart_dir=Non
         k8s_objects = yaml.full_load_all(templates)
         k8s_objects = [k8s_object for k8s_object in k8s_objects if k8s_object]  # type: ignore
         for k8s_object in k8s_objects:
-            validate_k8s_object(k8s_object)
+            validate_k8s_object(k8s_object, kubernetes_version)
         return k8s_objects
 
 

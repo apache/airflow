@@ -16,10 +16,32 @@
     },
     "hook-class-names": {
       "type": "array",
-      "description": "Hook class names that provide connection types to core",
+      "description": "Hook class names that provide connection types to core (deprecated by connection-types)",
       "items": {
         "type": "string"
+      },
+      "deprecated": {
+        "description": "The hook-class-names property has been deprecated in favour of connection-types which is more performant version allowing to only import individual Hooks rather than all hooks at once",
+        "deprecatedVersion": "2.2.0"
       }
+    },
+    "connection-types": {
+      "type": "array",
+      "description": "Map of connection types mapped to hook class names.",
+      "items": {
+        "type": "object",
+        "properties": {
+          "connection-type": {
+            "description": "Type of connection defined by the provider",
+            "type": "string"
+          },
+          "hook-class-name": {
+            "description": "Hook class name that implements the connection type",
+            "type": "string"
+          }
+        }
+      },
+      "required": ["connection-type", "hook-class-name"]
     },
     "extra-links": {
       "type": "array",
@@ -27,6 +49,39 @@
       "items": {
         "type": "string"
       }
+    },
+    "secrets-backends": {
+      "type": "array",
+      "description": "Secrets Backend class names",
+      "items": {
+        "type": "string"
+      }
+    },
+    "logging": {
+      "type": "array",
+      "description": "Logging Task Handlers class names",
+      "items": {
+          "type": "string"
+      }
+    },
+    "auth-backends": {
+      "type": "array",
+      "description": "API Auth Backend module names",
+      "items": {
+          "type": "string"
+      }
+    },
+    "task-decorators": {
+        "type": "array",
+        "description": "Apply custom decorators to the TaskFlow API. Can be accessed by users via '@task.<name>'",
+        "items": {
+            "name": {
+                "type": "string"
+            },
+            "path": {
+                "type": "string"
+            }
+        }
     }
   },
   "required": [

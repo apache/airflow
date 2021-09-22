@@ -51,3 +51,7 @@ spec:
   {{- if .Values.webserver.service.loadBalancerIP }}
   loadBalancerIP: {{ .Values.webserver.service.loadBalancerIP }}
   {{- end }}
+  {{- if .Values.webserver.service.loadBalancerSourceRanges }}
+  loadBalancerSourceRanges:
+  {{- toYaml .Values.webserver.service.loadBalancerSourceRanges | nindent 4 }}
+  {{- end }}

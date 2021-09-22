@@ -81,14 +81,16 @@ def execute_command(command_to_exec: CommandType) -> None:
     """Executes command."""
     BaseExecutor.validate_command(command_to_exec)
     log.info("Executing command in Celery: %s", command_to_exec)
+    celery_task_id = app.current_task.request.id
+    log.info(f"Celery task ID: {celery_task_id}")
 
     if settings.EXECUTE_TASKS_NEW_PYTHON_INTERPRETER:
-        _execute_in_subprocess(command_to_exec)
+        _execute_in_subprocess(command_to_exec, celery_task_id)
     else:
-        _execute_in_fork(command_to_exec)
+        _execute_in_fork(command_to_exec, celery_task_id)
 
 
-def _execute_in_fork(command_to_exec: CommandType) -> None:
+def _execute_in_fork(command_to_exec: CommandType, celery_task_id: Optional[str] = None) -> None:
     pid = os.fork()
     if pid:
         # In parent, wait for the child
@@ -111,6 +113,8 @@ def _execute_in_fork(command_to_exec: CommandType) -> None:
         # [1:] - remove "airflow" from the start of the command
         args = parser.parse_args(command_to_exec[1:])
         args.shut_down_logging = False
+        if celery_task_id:
+            args.external_executor_id = celery_task_id
 
         setproctitle(f"airflow task supervisor: {command_to_exec}")
 
@@ -125,12 +129,12 @@ def _execute_in_fork(command_to_exec: CommandType) -> None:
         os._exit(ret)
 
 
-def _execute_in_subprocess(command_to_exec: CommandType) -> None:
+def _execute_in_subprocess(command_to_exec: CommandType, celery_task_id: Optional[str] = None) -> None:
     env = os.environ.copy()
+    if celery_task_id:
+        env["external_executor_id"] = celery_task_id
     try:
-
         subprocess.check_output(command_to_exec, stderr=subprocess.STDOUT, close_fds=True, env=env)
-
     except subprocess.CalledProcessError as e:
         log.exception('execute_command encountered a CalledProcessError')
         log.error(e.output)
@@ -183,13 +187,17 @@ def on_celery_import_modules(*args, **kwargs):
     doesn't matter, but for short tasks this starts to be a noticeable impact.
     """
     import jinja2.ext  # noqa: F401
-    import numpy  # noqa: F401
 
     import airflow.jobs.local_task_job
     import airflow.macros
     import airflow.operators.bash
     import airflow.operators.python
     import airflow.operators.subdag  # noqa: F401
+
+    try:
+        import numpy  # noqa: F401
+    except ImportError:
+        pass
 
     try:
         import kubernetes.client  # noqa: F401
@@ -339,8 +347,10 @@ class CeleryExecutor(BaseExecutor):
         """
         now = utcnow()
 
+        sorted_adopted_task_timeouts = sorted(self.adopted_task_timeouts.items(), key=lambda k: k[1])
+
         timedout_keys = []
-        for key, stalled_after in self.adopted_task_timeouts.items():
+        for key, stalled_after in sorted_adopted_task_timeouts:
             if stalled_after > now:
                 # Since items are stored sorted, if we get to a stalled_after
                 # in the future then we can stop

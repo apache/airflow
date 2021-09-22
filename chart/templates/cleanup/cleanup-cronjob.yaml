@@ -22,7 +22,11 @@
 {{- $nodeSelector := or .Values.cleanup.nodeSelector .Values.nodeSelector }}
 {{- $affinity := or .Values.cleanup.affinity .Values.affinity }}
 {{- $tolerations := or .Values.cleanup.tolerations .Values.tolerations }}
+{{- if semverCompare ">= 1.21.x" (include "kubeVersion" .) }}
+apiVersion: batch/v1
+{{- else }}
 apiVersion: batch/v1beta1
+{{- end }}
 kind: CronJob
 metadata:
   name: {{ .Release.Name }}-cleanup
@@ -63,8 +67,12 @@ spec:
             - name: airflow-cleanup-pods
               image: {{ template "airflow_image" . }}
               imagePullPolicy: {{ .Values.images.airflow.pullPolicy }}
-              # Don't use entry point here, we don't need to wait on pg-bouncer etc being available.
-              args: ["kubernetes", "cleanup-pods", "--namespace={{ .Release.Namespace }}"]
+              {{- if .Values.cleanup.command }}
+              command: {{ tpl (toYaml .Values.cleanup.command) . | nindent 16 }}
+              {{- end }}
+              {{- if .Values.cleanup.args }}
+              args: {{ tpl (toYaml .Values.cleanup.args) . | nindent 16 }}
+              {{- end }}
               env:
               {{- include "standard_airflow_environment" . | indent 12 }}
               volumeMounts:

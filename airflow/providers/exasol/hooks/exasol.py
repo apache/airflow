@@ -19,6 +19,7 @@
 from contextlib import closing
 from typing import Any, Dict, List, Optional, Tuple, Union
 
+import pandas as pd
 import pyexasol
 from pyexasol import ExaConnection
 
@@ -63,7 +64,9 @@ class ExasolHook(DbApiHook):
         conn = pyexasol.connect(**conn_args)
         return conn
 
-    def get_pandas_df(self, sql: Union[str, list], parameters: Optional[dict] = None, **kwargs) -> None:
+    def get_pandas_df(
+        self, sql: Union[str, list], parameters: Optional[dict] = None, **kwargs
+    ) -> pd.DataFrame:
         """
         Executes the sql and returns a pandas dataframe
 
@@ -76,7 +79,8 @@ class ExasolHook(DbApiHook):
         :type kwargs: dict
         """
         with closing(self.get_conn()) as conn:
-            conn.export_to_pandas(sql, query_params=parameters, **kwargs)
+            df = conn.export_to_pandas(sql, query_params=parameters, **kwargs)
+            return df
 
     def get_records(
         self, sql: Union[str, list], parameters: Optional[dict] = None

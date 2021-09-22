@@ -18,8 +18,7 @@
 import unittest
 from unittest import mock
 
-from airflow.models import TaskInstance
-from airflow.models.dag import DAG
+from airflow.models import DAG, DagRun, TaskInstance
 from airflow.providers.amazon.aws.transfers.mongo_to_s3 import MongoToS3Operator
 from airflow.utils import timezone
 
@@ -76,7 +75,9 @@ class TestMongoToS3Operator(unittest.TestCase):
         )
 
     def test_render_template(self):
-        ti = TaskInstance(self.mock_operator, DEFAULT_DATE)
+        dag_run = DagRun(dag_id=self.mock_operator.dag_id, execution_date=DEFAULT_DATE, run_id="test")
+        ti = TaskInstance(task=self.mock_operator)
+        ti.dag_run = dag_run
         ti.render_templates()
 
         expected_rendered_template = {'$lt': '2017-01-01T00:00:00+00:00Z'}
@@ -94,7 +95,7 @@ class TestMongoToS3Operator(unittest.TestCase):
         operator.execute(None)
 
         mock_mongo_hook.return_value.find.assert_called_once_with(
-            mongo_collection=MONGO_COLLECTION, query=MONGO_QUERY, mongo_db=None
+            mongo_collection=MONGO_COLLECTION, query=MONGO_QUERY, mongo_db=None, projection=None
         )
 
         op_stringify = self.mock_operator._stringify
@@ -117,7 +118,7 @@ class TestMongoToS3Operator(unittest.TestCase):
         operator.execute(None)
 
         mock_mongo_hook.return_value.find.assert_called_once_with(
-            mongo_collection=MONGO_COLLECTION, query=MONGO_QUERY, mongo_db=None
+            mongo_collection=MONGO_COLLECTION, query=MONGO_QUERY, mongo_db=None, projection=None
         )
 
         op_stringify = self.mock_operator._stringify

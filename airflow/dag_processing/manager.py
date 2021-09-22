@@ -26,6 +26,7 @@ import random
 import signal
 import sys
 import time
+import zipfile
 from collections import defaultdict
 from datetime import datetime, timedelta
 from importlib import import_module
@@ -42,11 +43,10 @@ from airflow.dag_processing.processor import DagFileProcessorProcess
 from airflow.models import DagModel, errors
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.taskinstance import SimpleTaskInstance
-from airflow.settings import STORE_DAG_CODE
 from airflow.stats import Stats
 from airflow.utils import timezone
 from airflow.utils.callback_requests import CallbackRequest, SlaCallbackRequest, TaskCallbackRequest
-from airflow.utils.file import list_py_file_paths
+from airflow.utils.file import list_py_file_paths, might_contain_dag
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.mixins import MultiprocessingStartMethodMixin
 from airflow.utils.net import get_hostname
@@ -443,8 +443,6 @@ class DagFileProcessorManager(LoggingMixin):
         # How many seconds do we wait for tasks to heartbeat before mark them as zombies.
         self._zombie_threshold_secs = conf.getint('scheduler', 'scheduler_zombie_task_threshold')
 
-        # Should store dag file source in a database?
-        self.store_dag_code = STORE_DAG_CODE
         # Map from file path to the processor
         self._processors: Dict[str, DagFileProcessorProcess] = {}
 
@@ -664,13 +662,29 @@ class DagFileProcessorManager(LoggingMixin):
             except Exception:
                 self.log.exception("Error removing old import errors")
 
-            SerializedDagModel.remove_deleted_dags(self._file_paths)
+            # Check if file path is a zipfile and get the full path of the python file.
+            # Without this, SerializedDagModel.remove_deleted_files would delete zipped dags.
+            # Likewise DagCode.remove_deleted_code
+            dag_filelocs = []
+            for fileloc in self._file_paths:
+                if zipfile.is_zipfile(fileloc):
+                    with zipfile.ZipFile(fileloc) as z:
+                        dag_filelocs.extend(
+                            [
+                                os.path.join(fileloc, info.filename)
+                                for info in z.infolist()
+                                if might_contain_dag(info.filename, True, z)
+                            ]
+                        )
+                else:
+                    dag_filelocs.append(fileloc)
+
+            SerializedDagModel.remove_deleted_dags(dag_filelocs)
             DagModel.deactivate_deleted_dags(self._file_paths)
 
-            if self.store_dag_code:
-                from airflow.models.dagcode import DagCode
+            from airflow.models.dagcode import DagCode
 
-                DagCode.remove_deleted_code(self._file_paths)
+            DagCode.remove_deleted_code(dag_filelocs)
 
     def _print_stat(self):
         """Occasionally print out stats about how fast the files are getting processed"""
@@ -728,8 +742,6 @@ class DagFileProcessorManager(LoggingMixin):
             if last_run:
                 seconds_ago = (now - last_run).total_seconds()
                 Stats.gauge(f'dag_processing.last_run.seconds_ago.{file_name}', seconds_ago)
-            if runtime:
-                Stats.timing(f'dag_processing.last_duration.{file_name}', runtime)
 
             rows.append((file_path, processor_pid, runtime, num_dags, num_errors, last_runtime, last_run))
 
@@ -897,6 +909,9 @@ class DagFileProcessorManager(LoggingMixin):
         )
         self._file_stats[processor.file_path] = stat
 
+        file_name = os.path.splitext(os.path.basename(processor.file_path))[0].replace(os.sep, '.')
+        Stats.timing(f'dag_processing.last_duration.{file_name}', stat.last_duration)
+
     def collect_results(self) -> None:
         """Collect the result from any finished DAG processors"""
         ready = multiprocessing.connection.wait(self.waitables.keys() - [self._signal_conn], timeout=0)
@@ -1058,7 +1073,7 @@ class DagFileProcessorManager(LoggingMixin):
                 request = TaskCallbackRequest(
                     full_filepath=file_loc,
                     simple_task_instance=SimpleTaskInstance(ti),
-                    msg="Detected as zombie",
+                    msg=f"Detected {ti} as zombie",
                 )
                 self.log.info("Detected zombie job: %s", request)
                 self._add_callback_to_queue(request)

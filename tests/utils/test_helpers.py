@@ -15,31 +15,35 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
-import unittest
-from datetime import datetime
+import re
 
 import pytest
 
-from airflow.models import TaskInstance
-from airflow.models.dag import DAG
-from airflow.operators.dummy import DummyOperator
-from airflow.utils import helpers
-from airflow.utils.helpers import build_airflow_url_with_query, merge_dicts
+from airflow import AirflowException
+from airflow.utils import helpers, timezone
+from airflow.utils.helpers import build_airflow_url_with_query, merge_dicts, validate_group_key, validate_key
 from tests.test_utils.config import conf_vars
+from tests.test_utils.db import clear_db_dags, clear_db_runs
 
 
-class TestHelpers(unittest.TestCase):
-    def test_render_log_filename(self):
+@pytest.fixture()
+def clear_db():
+    clear_db_runs()
+    clear_db_dags()
+    yield
+    clear_db_runs()
+    clear_db_dags()
+
+
+class TestHelpers:
+    @pytest.mark.usefixtures("clear_db")
+    def test_render_log_filename(self, create_task_instance):
         try_number = 1
         dag_id = 'test_render_log_filename_dag'
         task_id = 'test_render_log_filename_task'
-        execution_date = datetime(2016, 1, 1)
+        execution_date = timezone.datetime(2016, 1, 1)
 
-        dag = DAG(dag_id, start_date=execution_date)
-        task = DummyOperator(task_id=task_id, dag=dag)
-        ti = TaskInstance(task=task, execution_date=execution_date)
-
+        ti = create_task_instance(dag_id=dag_id, task_id=task_id, execution_date=execution_date)
         filename_template = "{{ ti.dag_id }}/{{ ti.task_id }}/{{ ts }}/{{ try_number }}.log"
 
         ts = ti.get_template_context()['ts']
@@ -154,3 +158,75 @@ class TestHelpers(unittest.TestCase):
 
         with cached_app(testing=True).test_request_context():
             assert build_airflow_url_with_query(query) == expected_url
+
+    @pytest.mark.parametrize(
+        "key_id, message, exception",
+        [
+            (3, "The key has to be a string and is <class 'int'>:3", TypeError),
+            (None, "The key has to be a string and is <class 'NoneType'>:None", TypeError),
+            ("simple_key", None, None),
+            ("simple-key", None, None),
+            ("group.simple_key", None, None),
+            ("root.group.simple-key", None, None),
+            (
+                "key with space",
+                "The key (key with space) has to be made of alphanumeric "
+                "characters, dashes, dots and underscores exclusively",
+                AirflowException,
+            ),
+            (
+                "key_with_!",
+                "The key (key_with_!) has to be made of alphanumeric "
+                "characters, dashes, dots and underscores exclusively",
+                AirflowException,
+            ),
+            (' ' * 251, "The key has to be less than 250 characters", AirflowException),
+        ],
+    )
+    def test_validate_key(self, key_id, message, exception):
+        if message:
+            with pytest.raises(exception, match=re.escape(message)):
+                validate_key(key_id)
+        else:
+            validate_key(key_id)
+
+    @pytest.mark.parametrize(
+        "key_id, message, exception",
+        [
+            (3, "The key has to be a string and is <class 'int'>:3", TypeError),
+            (None, "The key has to be a string and is <class 'NoneType'>:None", TypeError),
+            ("simple_key", None, None),
+            ("simple-key", None, None),
+            (
+                "group.simple_key",
+                "The key (group.simple_key) has to be made of alphanumeric "
+                "characters, dashes and underscores exclusively",
+                AirflowException,
+            ),
+            (
+                "root.group-name.simple_key",
+                "The key (root.group-name.simple_key) has to be made of alphanumeric "
+                "characters, dashes and underscores exclusively",
+                AirflowException,
+            ),
+            (
+                "key with space",
+                "The key (key with space) has to be made of alphanumeric "
+                "characters, dashes and underscores exclusively",
+                AirflowException,
+            ),
+            (
+                "key_with_!",
+                "The key (key_with_!) has to be made of alphanumeric "
+                "characters, dashes and underscores exclusively",
+                AirflowException,
+            ),
+            (' ' * 201, "The key has to be less than 200 characters", AirflowException),
+        ],
+    )
+    def test_validate_group_key(self, key_id, message, exception):
+        if message:
+            with pytest.raises(exception, match=re.escape(message)):
+                validate_group_key(key_id)
+        else:
+            validate_group_key(key_id)
