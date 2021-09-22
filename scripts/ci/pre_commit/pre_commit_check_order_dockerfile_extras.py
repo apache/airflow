@@ -67,12 +67,12 @@ def check_dockerfile():
                 is_copying = True
                 for line in content:
                     if line.startswith(START_LINE):
-                        result.append(line)
+                        result.append(f"{line}\n")
                         is_copying = False
                         for extra in extras_list:
                             result.append(f'* {extra}')
                     elif line.startswith(END_LINE):
-                        result.append(line)
+                        result.append(f"\n{line}")
                         is_copying = True
                     elif is_copying:
                         result.append(line)
