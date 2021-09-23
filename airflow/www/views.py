@@ -3351,32 +3351,36 @@ class ConnectionModelView(AirflowModelView):
         ]
     )
 
-    def get_existing_copy_connection(self, conn_id_prefix, session=None):
-        """Function to query the database and retrieve an
-        existing copy of the connection, so that the number
-        can be incremented for the next duplicate connection"""
-        sql_query_string = 'select conn_id from connection where '
-        for i in range(1, 10):
-            sql_query_string += f"conn_id={conn_id_prefix}_copy{i}"
-
-        print(sql_query_string)
-
-        return sql_query_string
-
-
     def action_mulduplicate(self, connections, session=None):
         """Duplicate Multiple connections"""
         for selected_conn in connections:
             new_conn_id = selected_conn.conn_id
             match = re.search(r"_copy(\d+)$", selected_conn.conn_id)
+            # if match:
+            #     conn_id_prefix = selected_conn.conn_id[: match.start()]
+            #     new_conn_id = f"{conn_id_prefix}_copy{int(match.group(1)) + 1}"
+            # else:
+            #     new_conn_id += '_copy1'
+
+            base_conn_id = selected_conn.conn_id
             if match:
-                conn_id_prefix = selected_conn.conn_id[: match.start()]
-                new_conn_id = f"{conn_id_prefix}_copy{int(match.group(1)) + 1}"
-            else:
-                new_conn_id += '_copy1'
+                base_conn_id = base_conn_id.split('_copy')[0]
 
             # Before creating a new connection
             # Query to see if connection exists.
+            sql_query_string = 'select conn_id from connection where '
+            for i in range(1, 11):
+                sql_query_string += f"conn_id='{base_conn_id}_copy{i}'"
+                if i < 10:
+                    sql_query_string += f" or "
+
+            results = session.execute(sql_query_string)
+
+            for result in results:
+                for column, value in result.items():
+                    print(value)
+
+            print(results)
             connection = session.query(Connection).filter(Connection.conn_id == new_conn_id).one_or_none()
             if connection is not None:
                 flash(
