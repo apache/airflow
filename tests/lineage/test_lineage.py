@@ -17,10 +17,13 @@
 # under the License.
 from unittest import mock
 
+import pytest
+
+from airflow.exceptions import AirflowFailException
 from airflow.lineage import AUTO, apply_lineage, get_backend, prepare_lineage
 from airflow.lineage.backend import LineageBackend
 from airflow.lineage.entities import File
-from airflow.models import TaskInstance as TI
+from airflow.models import DagRun, TaskInstance as TI
 from airflow.operators.dummy import DummyOperator
 from airflow.utils import timezone
 from airflow.utils.types import DagRunType
@@ -35,6 +38,10 @@ class CustomLineageBackend(LineageBackend):
 
 
 class TestLineage:
+    @pytest.fixture(scope='function', autouse=True)
+    def clear_backend(self):
+        get_backend.cache_clear()
+
     def test_lineage(self, dag_maker):
         f1s = "/tmp/does_not_exist_1-{}"
         f2s = "/tmp/does_not_exist_2-{}"
@@ -156,3 +163,54 @@ class TestLineage:
         backend = get_backend()
         assert issubclass(backend.__class__, LineageBackend)
         assert isinstance(backend, CustomLineageBackend)
+
+    @mock.patch("airflow.lineage.get_backend")
+    def test_start_lineage(self, mock_get_backend, dag_maker):
+        backend = mock_get_backend()
+
+        with dag_maker(dag_id='test_prepare_lineage', start_date=DEFAULT_DATE) as dag:
+            op1 = DummyOperator(task_id='o1')
+
+        dag.clear()
+        dag_run = dag_maker.create_dagrun(run_type=DagRunType.SCHEDULED)
+
+        # execution_date is set in the context in order to avoid creating task instances
+        ctx1 = {"ti": TI(task=op1, run_id=dag_run.run_id), "execution_date": DEFAULT_DATE}
+
+        op1.pre_execute(ctx1)
+        backend.on_task_instance_start.assert_called_with(
+            operator=op1, inlets=[], outlets=[], context=mock.ANY
+        )
+
+        op1.post_execute(ctx1)
+        backend.send_lineage.assert_called_with(operator=op1, inlets=[], outlets=[], context=mock.ANY)
+
+    @mock.patch("airflow.lineage.get_backend")
+    def test_fail_lineage_gets_send(self, mock_get_backend, dag_maker):
+        backend = mock_get_backend()
+
+        class CrashingOperator(DummyOperator):
+            def execute(self, context):
+                raise AirflowFailException()
+
+        with dag_maker(dag_id='test_prepare_lineage', start_date=DEFAULT_DATE) as dag:
+            op1 = CrashingOperator(task_id='o1')
+
+        dag.clear()
+        dag_run: DagRun = dag_maker.create_dagrun(run_type=DagRunType.SCHEDULED)
+
+        # execution_date is set in the context in order to avoid creating task instances
+        ctx1 = {"ti": TI(task=op1, run_id=dag_run.run_id), "execution_date": DEFAULT_DATE}
+
+        op1.pre_execute(ctx1)
+        backend.on_task_instance_start.assert_called_with(
+            operator=op1, inlets=[], outlets=[], context=mock.ANY
+        )
+        try:
+            ctx1['ti'].run()
+        except AirflowFailException:
+            pass
+
+        backend.on_task_instance_fail.assert_called_with(
+            operator=op1, inlets=[], outlets=[], context=mock.ANY
+        )

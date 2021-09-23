@@ -25,6 +25,7 @@ import attr
 import jinja2
 from cattr import structure, unstructure
 
+from airflow.compat.functools import cache
 from airflow.configuration import conf
 from airflow.lineage.backend import LineageBackend
 from airflow.utils.module_loading import import_string
@@ -47,6 +48,7 @@ class Metadata:
     data: Dict = attr.ib()
 
 
+@cache
 def get_backend() -> Optional[LineageBackend]:
     """Gets the lineage backend if defined in the configs"""
     clazz = conf.getimport("lineage", "backend", fallback=None)
@@ -100,7 +102,6 @@ def apply_lineage(func: T) -> T:
     Saves the lineage to XCom and if configured to do so sends it
     to the backend.
     """
-    _backend = get_backend()
 
     @wraps(func)
     def wrapper(self, context, *args, **kwargs):
@@ -120,8 +121,9 @@ def apply_lineage(func: T) -> T:
                 context, key=PIPELINE_INLETS, value=inlets, execution_date=context['ti'].execution_date
             )
 
-        if _backend:
-            _backend.send_lineage(operator=self, inlets=self.inlets, outlets=self.outlets, context=context)
+        backend = get_backend()
+        if backend:
+            backend.send_lineage(operator=self, inlets=self.inlets, outlets=self.outlets, context=context)
 
         return ret_val
 
@@ -136,7 +138,6 @@ def prepare_lineage(func: T) -> T:
       if A -> B -> C and B does not have outlets but A does, these are provided as inlets.
     * "list of task_ids" -> picks up outlets from the upstream task_ids
     * "list of datasets" -> manually defined list of data
-
     """
 
     @wraps(func)
@@ -188,6 +189,31 @@ def prepare_lineage(func: T) -> T:
         self.outlets = [_render_object(i, context) for i in self.outlets if attr.has(i)]
 
         self.log.debug("inlets: %s, outlets: %s", self.inlets, self.outlets)
+
+        backend = get_backend()
+        if backend:
+            backend.on_task_instance_start(
+                operator=self, inlets=self.inlets, outlets=self.outlets, context=context
+            )
+
         return func(self, context, *args, **kwargs)
+
+    return cast(T, wrapper)
+
+
+def fail_lineage(func: T) -> T:
+    """Notifies the LineageBackend of a run failure."""
+
+    @wraps(func)
+    def wrapper(self, context, *args, **kwargs):
+        self.log.debug("Task failed: called with inlets: %s, outlets: %s", self.inlets, self.outlets)
+
+        ret_val = func(self, context, *args, **kwargs)
+        backend = get_backend()
+        if backend:
+            backend.on_task_instance_fail(
+                operator=self, inlets=self.inlets, outlets=self.outlets, context=context
+            )
+        return ret_val
 
     return cast(T, wrapper)

@@ -25,6 +25,27 @@ if TYPE_CHECKING:
 class LineageBackend:
     """Sends lineage metadata to a backend"""
 
+    def on_task_instance_start(
+        self,
+        operator: 'BaseOperator',
+        inlets: Optional[list] = None,
+        outlets: Optional[list] = None,
+        context: Optional[dict] = None,
+    ):
+        """
+        Notifies lineage backend of an execution start.
+
+        :param operator: the operator executing a transformation on the inlets and outlets
+        :type operator: airflow.models.baseoperator.BaseOperator
+        :param inlets: the inlets to this operator
+        :type inlets: list
+        :param outlets: the outlets from this operator
+        :type outlets: list
+        :param context: the current context of the task instance
+        :type context: dict
+        """
+        pass
+
     def send_lineage(
         self,
         operator: 'BaseOperator',
@@ -45,3 +66,24 @@ class LineageBackend:
         :type context: dict
         """
         raise NotImplementedError()
+
+    def on_task_instance_fail(
+        self,
+        operator: 'BaseOperator',
+        inlets: Optional[list] = None,
+        outlets: Optional[list] = None,
+        context: Optional[dict] = None,
+    ):
+        """
+        Sends lineage metadata to a backend in case of a failed job.
+
+        :param operator: the operator executing a transformation on the inlets and outlets
+        :type operator: airflow.models.baseoperator.BaseOperator
+        :param inlets: the inlets to this operator
+        :type inlets: list
+        :param outlets: the outlets from this operator
+        :type outlets: list
+        :param context: the current context of the task instance
+        :type context: dict
+        """
+        pass

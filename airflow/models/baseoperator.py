@@ -54,7 +54,7 @@ import airflow.templates
 from airflow.compat.functools import cached_property
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException, TaskDeferred
-from airflow.lineage import apply_lineage, prepare_lineage
+from airflow.lineage import apply_lineage, fail_lineage, prepare_lineage
 from airflow.models.base import Operator
 from airflow.models.param import ParamsDict
 from airflow.models.pool import Pool
@@ -1004,6 +1004,11 @@ class BaseOperator(Operator, LoggingMixin, TaskMixin, metaclass=BaseOperatorMeta
         """
         if self._post_execute_hook is not None:
             self._post_execute_hook(context, result)
+
+    @fail_lineage
+    def on_failure(self, context: Any):
+        if self.on_failure_callback is not None:
+            self.on_failure_callback(context)
 
     def on_kill(self) -> None:
         """
