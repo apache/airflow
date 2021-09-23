@@ -28,9 +28,7 @@ class TestRedshiftStatementHookConn(unittest.TestCase):
     def setUp(self):
         super().setUp()
 
-        self.connection = Connection(
-            login='login', password='password', host='host', port=5439, extra=json.dumps({"database": "dev"})
-        )
+        self.connection = Connection(login='login', password='password', host='host', port=5439, schema="dev")
 
         class UnitTestRedshiftStatementHook(RedshiftStatementHook):
             conn_name_attr = "redshift_conn_id"
@@ -40,7 +38,7 @@ class TestRedshiftStatementHookConn(unittest.TestCase):
         self.db_hook.get_connection.return_value = self.connection
 
     def test_get_uri(self):
-        uri_shouldbe = 'redshift://login:password@host:5439/dev'
+        uri_shouldbe = 'redshift+redshift_connector://login:password@host:5439/dev'
         x = self.db_hook.get_uri()
         assert uri_shouldbe == x
 
@@ -58,7 +56,6 @@ class TestRedshiftStatementHookConn(unittest.TestCase):
                 "iam": True,
                 "cluster_identifier": "my-test-cluster",
                 "profile": "default",
-                "database": "different",
             }
         )
         self.db_hook.get_conn()
@@ -69,6 +66,6 @@ class TestRedshiftStatementHookConn(unittest.TestCase):
             port=5439,
             cluster_identifier="my-test-cluster",
             profile="default",
-            database='different',
+            database='dev',
             iam=True,
         )
