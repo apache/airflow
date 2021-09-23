@@ -52,6 +52,8 @@ def test_configuration_expose_config(admin_client):
 
 
 def test_redoc_should_render_template(capture_templates, admin_client):
+    from airflow.utils.docs import get_docs_url
+
     with capture_templates() as templates:
         resp = admin_client.get('redoc')
         check_content_in_response('Redoc', resp)
@@ -61,6 +63,7 @@ def test_redoc_should_render_template(capture_templates, admin_client):
     assert templates[0].local_context == {
         'openapi_spec_url': '/api/v1/openapi.yaml',
         'rest_api_enabled': True,
+        'get_docs_url': get_docs_url,
     }
 
 

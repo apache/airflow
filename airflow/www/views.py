@@ -456,10 +456,15 @@ class AirflowBaseView(BaseView):
 
     route_base = ''
 
-    # Make our macros available to our UI templates too.
     extra_args = {
+        # Make our macros available to our UI templates too.
         'macros': macros,
+        'get_docs_url': get_docs_url,
     }
+
+    if not conf.getboolean('core', 'unit_test_mode'):
+        extra_args['sqlite_warning'] = settings.Session.bind.dialect.name == 'sqlite'
+        extra_args['sequential_executor_warning'] = conf.get('core', 'executor') == 'LocalExecutor'
 
     line_chart_attr = {
         'legend.maxKeyLength': 200,
@@ -541,35 +546,6 @@ class Airflow(AirflowBaseView):
     )
     def index(self):
         """Home view."""
-        unit_test_mode: bool = conf.getboolean('core', 'UNIT_TEST_MODE')
-
-        if not unit_test_mode and "sqlite" in conf.get("core", "sql_alchemy_conn"):
-            db_doc_page = get_docs_url("howto/set-up-database.html")
-            flash(
-                Markup(
-                    "Usage of <b>SQLite</b> detected. It should only be used for dev/testing. "
-                    "Do not use <b>SQLite</b> as metadata DB in production. "
-                    "We recommend using Postgres or MySQL. "
-                    f"<a href='{db_doc_page}'><b>Click here</b></a> for more information."
-                ),
-                category="warning",
-            )
-
-        if not unit_test_mode and conf.get("core", "executor") == "SequentialExecutor":
-            exec_doc_page = get_docs_url("executor/index.html")
-            flash(
-                Markup(
-                    "Usage of <b>SequentialExecutor</b> detected. "
-                    "Do not use <b>SequentialExecutor</b> in production. "
-                    f"<a href='{exec_doc_page}'><b>Click here</b></a> for more information."
-                ),
-                category="warning",
-            )
-
-        for fm in settings.DASHBOARD_UIALERTS:
-            if fm.should_show(current_app.appbuilder.sm):
-                flash(fm.message, fm.category)
-
         hide_paused_dags_by_default = conf.getboolean('webserver', 'hide_paused_dags_by_default')
         default_dag_run = conf.getint('webserver', 'default_dag_run_display_number')
 
@@ -712,9 +688,14 @@ class Airflow(AirflowBaseView):
 
         page_title = conf.get(section="webserver", key="instance_name", fallback="DAGs")
 
+        dashboard_alerts = [
+            fm for fm in settings.DASHBOARD_UIALERTS if fm.should_show(current_app.appbuilder.sm)
+        ]
+
         return self.render_template(
             'airflow/dags.html',
             dags=dags,
+            dashboard_alerts=dashboard_alerts,
             current_page=current_page,
             search_query=arg_search_query if arg_search_query else '',
             page_title=page_title,
