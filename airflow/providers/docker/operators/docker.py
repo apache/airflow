@@ -344,6 +344,9 @@ class DockerOperator(BaseOperator):
 
         def copy_from_docker(container_id, src):
             archived_result, stat = self.cli.get_archive(container_id, src)
+            if stat['size'] == 0:
+                # 0 byte file, it can't be anything else than None
+                return None
             # no need to port to a file since we intend to deserialize
             file_standin = io.BytesIO(b"".join(archived_result))
             tar = tarfile.open(fileobj=file_standin)
