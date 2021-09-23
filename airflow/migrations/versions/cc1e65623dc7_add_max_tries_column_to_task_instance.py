@@ -71,7 +71,6 @@ def upgrade():
         sessionmaker = sa.orm.sessionmaker()
         session = sessionmaker(bind=connection)
         if not bool(session.query(TaskInstance).first()):
-            session.commit()
             return
         dagbag = DagBag(settings.DAGS_FOLDER)
         query = session.query(sa.func.count(TaskInstance.max_tries)).filter(TaskInstance.max_tries == -1)
