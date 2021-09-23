@@ -15,6 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 ---
+version: "3.7"
 services:
   openldap:
     image: ghcr.io/apache/airflow-openldap:2.4.50-2021.07.04
