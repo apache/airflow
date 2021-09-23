@@ -17,7 +17,7 @@
 # under the License.
 """Execute statements against Amazon Redshift, using redshift_connector."""
 
-from typing import Callable, Dict, Optional, Tuple, Union
+from typing import Callable, Dict, Optional, Union
 
 import redshift_connector
 from redshift_connector import Connection as RedshiftConnection
@@ -58,8 +58,8 @@ class RedshiftStatementHook(DbApiHook):
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
 
-    def _get_conn_params(self) -> Tuple[Dict[str, Union[str, int]], Dict]:
-        """Helper method to retrieve connection args and kwargs"""
+    def _get_conn_params(self) -> Dict[str, Union[str, int]]:
+        """Helper method to retrieve connection args"""
         conn = self.get_connection(
             self.redshift_conn_id  # type: ignore[attr-defined]  # pylint: disable=no-member
         )
@@ -69,15 +69,18 @@ class RedshiftStatementHook(DbApiHook):
             "password": conn.password or '',
             "host": conn.host or '',
             "port": conn.port or 5439,
-            "database": conn.extra_dejson.pop('database', ''),
+            "database": conn.schema or '',
         }
 
-        conn_kwargs: Dict = {}
+        return conn_params
 
-        for param, arg in conn.extra_dejson.items():
-            conn_kwargs[param] = arg
+    def _get_conn_kwargs(self) -> Dict:
+        """Helper method to retrieve connection kwargs"""
+        conn = self.get_connection(
+            self.redshift_conn_id  # type: ignore[attr-defined]  # pylint: disable=no-member
+        )
 
-        return conn_params, conn_kwargs
+        return conn.extra_dejson
 
     def get_uri(self) -> str:
         """
@@ -90,7 +93,7 @@ class RedshiftStatementHook(DbApiHook):
         """
         from sqlalchemy.engine.url import URL
 
-        conn_params, _ = self._get_conn_params()
+        conn_params = self._get_conn_params()
         conn_params['username'] = conn_params['user']
         del conn_params['user']
 
@@ -98,7 +101,7 @@ class RedshiftStatementHook(DbApiHook):
 
     def get_sqlalchemy_engine(self, engine_kwargs=None):
         """Overrides DbApiHook get_sqlalchemy_engine to pass redshift_connector specific kwargs"""
-        _, conn_kwargs = self._get_conn_params()
+        conn_kwargs = self._get_conn_kwargs()
         if engine_kwargs is None:
             engine_kwargs = {}
 
@@ -111,7 +114,8 @@ class RedshiftStatementHook(DbApiHook):
 
     def get_conn(self) -> RedshiftConnection:
         """Returns a redshift_connector.Connection object"""
-        conn_params, conn_kwargs = self._get_conn_params()
+        conn_params = self._get_conn_params()
+        conn_kwargs = self._get_conn_kwargs()
         conn_kwargs: Dict = {**conn_params, **conn_kwargs}
         self.log.info(conn_kwargs)
         conn: RedshiftConnection = redshift_connector.connect(**conn_kwargs)
