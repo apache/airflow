@@ -350,7 +350,7 @@ http = [
 http_provider = [
     'apache-airflow-providers-http',
 ]
-influxdb = ['influxdb-client>=1.19.0']
+influxdb = ['pandas>=0.17.1, <2.0', 'influxdb-client>=1.19.0']
 jdbc = [
     'jaydebeapi>=1.1.1',
 ]
