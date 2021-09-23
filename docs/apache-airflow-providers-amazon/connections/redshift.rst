@@ -36,7 +36,7 @@ Configuring the Connection
 --------------------------
 
 
-Login
+User
   Specify the username to use for authentication with Amazon Redshift.
 
 Password
@@ -45,13 +45,15 @@ Password
 Host
   Specify the Amazon Redshift hostname.
 
+Database
+  Specify the Amazon Redshift database name.
+
 Extra
     Specify the extra parameters (as json dictionary) that can be used in
     Amazon Redshift connection. For a complete list of supported parameters
     please see the `documentation <https://github.com/aws/amazon-redshift-python-driver#connection-parameters>`_
     for redshift_connector. The following parameter is required:
 
-    * ``database``: Amazon Redshift database name.
 
 When specifying the connection in environment variable you should specify
 it using URI syntax.
