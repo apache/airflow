@@ -19,20 +19,7 @@ import unittest
 
 from tests.helm_template_generator import render_chart
 
-# Values for each service mapped to the 'example'
-# key annotation
-CUSTOM_ANNOTATION_VALUES = (
-    CUSTOM_SCHEDULER_ANNOTATION,
-    CUSTOM_WEBSERVER_ANNOTATION,
-    CUSTOM_WORKER_ANNOTATION,
-    CUSTOM_CLEANUP_ANNOTATION,
-    CUSTOM_FLOWER_ANNOTATION,
-    CUSTOM_PGBOUNCER_ANNOTATION,
-    CUSTOM_STATSD_ANNOTATION,
-    CUSTOM_CREATE_USER_JOB_ANNOTATION,
-    CUSTOM_MIGRATE_DATABASE_JOB_ANNOTATION,
-    CUSTOM_REDIS_ANNOTATION,
-) = (
+COMPONENTS_SUPPORTING_CUSTOM_SERVICEACCOUNT_ANNOTATIONS = (
     "scheduler",
     "webserver",
     "worker",
@@ -43,6 +30,7 @@ CUSTOM_ANNOTATION_VALUES = (
     "createuser",
     "migratedb",
     "redis",
+    "triggerer",
 )
 
 COMPONENTS_SUPPORTING_CUSTOM_POD_ANNOTATIONS = (
@@ -62,49 +50,49 @@ class AnnotationsTest(unittest.TestCase):
                     "enabled": True,
                     "serviceAccount": {
                         "annotations": {
-                            "example": CUSTOM_CLEANUP_ANNOTATION,
+                            "example": "cleanup",
                         },
                     },
                 },
                 "scheduler": {
                     "serviceAccount": {
                         "annotations": {
-                            "example": CUSTOM_SCHEDULER_ANNOTATION,
+                            "example": "scheduler",
                         },
                     },
                 },
                 "webserver": {
                     "serviceAccount": {
                         "annotations": {
-                            "example": CUSTOM_WEBSERVER_ANNOTATION,
+                            "example": "webserver",
                         },
                     },
                 },
                 "workers": {
                     "serviceAccount": {
                         "annotations": {
-                            "example": CUSTOM_WORKER_ANNOTATION,
+                            "example": "worker",
                         },
                     },
                 },
                 "flower": {
                     "serviceAccount": {
                         "annotations": {
-                            "example": CUSTOM_FLOWER_ANNOTATION,
+                            "example": "flower",
                         },
                     },
                 },
                 "statsd": {
                     "serviceAccount": {
                         "annotations": {
-                            "example": CUSTOM_STATSD_ANNOTATION,
+                            "example": "statsd",
                         },
                     },
                 },
                 "redis": {
                     "serviceAccount": {
                         "annotations": {
-                            "example": CUSTOM_REDIS_ANNOTATION,
+                            "example": "redis",
                         },
                     },
                 },
@@ -112,25 +100,33 @@ class AnnotationsTest(unittest.TestCase):
                     "enabled": True,
                     "serviceAccount": {
                         "annotations": {
-                            "example": CUSTOM_PGBOUNCER_ANNOTATION,
+                            "example": "pgbouncer",
                         },
                     },
                 },
                 "createUserJob": {
                     "serviceAccount": {
                         "annotations": {
-                            "example": CUSTOM_CREATE_USER_JOB_ANNOTATION,
+                            "example": "createuser",
                         },
                     },
                 },
                 "migrateDatabaseJob": {
                     "serviceAccount": {
                         "annotations": {
-                            "example": CUSTOM_MIGRATE_DATABASE_JOB_ANNOTATION,
+                            "example": "migratedb",
                         },
                     },
                 },
                 "executor": "CeleryExecutor",  # create worker deployment
+                "airflowVersion": "2.2.0",  # Needed for triggerer to be enabled.
+                "triggerer": {
+                    "serviceAccount": {
+                        "annotations": {
+                            "example": "triggerer",
+                        },
+                    },
+                },
             },
         )
 
@@ -142,7 +138,7 @@ class AnnotationsTest(unittest.TestCase):
 
         self.assertCountEqual(
             list_of_annotation_values_in_objects,
-            CUSTOM_ANNOTATION_VALUES,
+            COMPONENTS_SUPPORTING_CUSTOM_SERVICEACCOUNT_ANNOTATIONS,
         )
 
     def test_per_component_custom_annotations(self):
