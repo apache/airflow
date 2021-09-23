@@ -45,7 +45,7 @@ following steps:
           "upstream_failed": "orange",
           "skipped": "darkorchid",
           "scheduled": "tan",
-          "deferred": "blueviolet",
+          "deferred": "mediumpurple",
       }
 
 

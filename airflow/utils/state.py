@@ -112,7 +112,7 @@ class State:
         TaskInstanceState.RUNNING: 'lime',
         TaskInstanceState.SUCCESS: 'green',
         TaskInstanceState.SHUTDOWN: 'blue',
-        TaskInstanceState.RESTARTING: 'violet',
+        TaskInstanceState.RESTARTING: 'mediumpurple',
         TaskInstanceState.FAILED: 'red',
         TaskInstanceState.UP_FOR_RETRY: 'gold',
         TaskInstanceState.UP_FOR_RESCHEDULE: 'turquoise',
@@ -120,7 +120,7 @@ class State:
         TaskInstanceState.SKIPPED: 'pink',
         TaskInstanceState.REMOVED: 'lightgrey',
         TaskInstanceState.SCHEDULED: 'tan',
-        TaskInstanceState.DEFERRED: 'blueviolet',
+        TaskInstanceState.DEFERRED: 'mediumpurple',
     }
     state_color[TaskInstanceState.SENSING] = state_color[TaskInstanceState.DEFERRED]
     state_color.update(STATE_COLORS)  # type: ignore
