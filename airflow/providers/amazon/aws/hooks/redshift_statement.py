@@ -117,8 +117,8 @@ class RedshiftStatementHook(DbApiHook):
         conn_params = self._get_conn_params()
         conn_kwargs = self._get_conn_kwargs()
         conn_kwargs: Dict = {**conn_params, **conn_kwargs}
-        self.log.info(conn_kwargs)
         conn: RedshiftConnection = redshift_connector.connect(**conn_kwargs)
+
         return conn
 
     def run(
