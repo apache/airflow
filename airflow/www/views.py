@@ -25,7 +25,7 @@ import re
 import socket
 import sys
 import traceback
-from collections import defaultdict
+from collections import defaultdict, OrderedDict
 from datetime import timedelta
 from json import JSONDecodeError
 from operator import itemgetter
@@ -3356,21 +3356,19 @@ class ConnectionModelView(AirflowModelView):
         for selected_conn in connections:
             new_conn_id = selected_conn.conn_id
             match = re.search(r"_copy(\d+)$", selected_conn.conn_id)
-            # if match:
-            #     conn_id_prefix = selected_conn.conn_id[: match.start()]
-            #     new_conn_id = f"{conn_id_prefix}_copy{int(match.group(1)) + 1}"
-            # else:
-            #     new_conn_id += '_copy1'
 
             base_conn_id = selected_conn.conn_id
             if match:
                 base_conn_id = base_conn_id.split('_copy')[0]
 
+            potential_connection_ids = []
             # Before creating a new connection
             # Query to see if connection exists.
             sql_query_string = 'select conn_id from connection where '
             for i in range(1, 11):
-                sql_query_string += f"conn_id='{base_conn_id}_copy{i}'"
+                connection_id = f'{base_conn_id}_copy{i}'
+                potential_connection_ids.append(connection_id)
+                sql_query_string += f"conn_id='{connection_id}'"
                 if i < 10:
                     sql_query_string += f" or "
 
@@ -3378,16 +3376,18 @@ class ConnectionModelView(AirflowModelView):
 
             for result in results:
                 for column, value in result.items():
-                    print(value)
+                    potential_connection_ids.remove(value)
 
-            print(results)
-            connection = session.query(Connection).filter(Connection.conn_id == new_conn_id).one_or_none()
-            if connection is not None:
-                flash(
-                    f"Connection {new_conn_id} can't be added because it lready exists",
-                    "warning",
-                )
+            if len(potential_connection_ids) == 0:
+                # No connections available
+                    flash(
+                        f"Connection {new_conn_id} can't be added because it already exists, "
+                        f"Please rename the existing connections",
+                        "warning",
+                    )
             else:
+                # Pick the lowest connection id.
+                new_conn_id = potential_connection_ids[0]
 
                 dup_conn = Connection(
                     new_conn_id,
