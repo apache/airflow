@@ -697,7 +697,7 @@ def user_all_dags_edit_tis(acl_app):
         username="user_all_dags_edit_tis",
         role_name="role_all_dags_edit_tis",
         permissions=[
-            (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
+            (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_DAG),
             (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_TASK_INSTANCE),
             (permissions.ACTION_CAN_READ, permissions.RESOURCE_WEBSITE),
         ],

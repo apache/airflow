@@ -23,7 +23,11 @@ from airflow.typing_compat import Protocol
 
 
 class DataInterval(NamedTuple):
-    """A data interval for a DagRun to operate over."""
+    """A data interval for a DagRun to operate over.
+
+    Both ``start`` and ``end`` **MUST** be "aware", i.e. contain timezone
+    information.
+    """
 
     start: DateTime
     end: DateTime
@@ -44,8 +48,10 @@ class TimeRestriction(NamedTuple):
     These values are generally set on the DAG or task's ``start_date``,
     ``end_date``, and ``catchup`` arguments.
 
-    Both ``earliest`` and ``latest`` are inclusive; a DAG run can happen exactly
-    at either point of time.
+    Both ``earliest`` and ``latest``, if not *None*, are inclusive; a DAG run
+    can happen exactly at either point of time. They are guaranteed to be aware
+    (i.e. contain timezone information) for ``TimeRestriction`` instances
+    created by Airflow.
     """
 
     earliest: Optional[DateTime]
@@ -61,7 +67,10 @@ class DagRunInfo(NamedTuple):
     """
 
     run_after: DateTime
-    """The earliest time this DagRun is created and its tasks scheduled."""
+    """The earliest time this DagRun is created and its tasks scheduled.
+
+    This **MUST** be "aware", i.e. contain timezone information.
+    """
 
     data_interval: DataInterval
     """The data interval this DagRun to operate over."""

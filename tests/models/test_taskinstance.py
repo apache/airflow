@@ -1683,6 +1683,24 @@ class TestTaskInstance:
         assert context_arg_3 and "task_instance" in context_arg_3
         mock_on_retry_3.assert_not_called()
 
+    def test_handle_failure_updates_queued_task_try_number(self, dag_maker):
+        session = settings.Session()
+        with dag_maker():
+            task = DummyOperator(task_id="mytask", retries=1)
+        dr = dag_maker.create_dagrun()
+        ti = TI(task=task, run_id=dr.run_id)
+        ti.state = State.QUEUED
+        session.merge(ti)
+        session.commit()
+        assert ti.state == State.QUEUED
+        assert ti.try_number == 1
+        ti.handle_failure("test queued ti", test_mode=True)
+        assert ti.state == State.UP_FOR_RETRY
+        # Assert that 'ti._try_number' is bumped from 0 to 1. This is the last/current try
+        assert ti._try_number == 1
+        # Check 'ti.try_number' is bumped to 2. This is try_number for next run
+        assert ti.try_number == 2
+
     def test_does_not_retry_on_airflow_fail_exception(self, dag_maker):
         def fail():
             raise AirflowFailException("hopeless")

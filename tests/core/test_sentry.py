@@ -29,6 +29,8 @@ from airflow.utils.state import State
 from tests.test_utils.config import conf_vars
 
 EXECUTION_DATE = timezone.utcnow()
+SCHEDULE_INTERVAL = datetime.timedelta(days=1)
+DATA_INTERVAL = (EXECUTION_DATE, EXECUTION_DATE + SCHEDULE_INTERVAL)
 DAG_ID = "test_dag"
 TASK_ID = "test_task"
 OPERATOR = "PythonOperator"
@@ -37,6 +39,8 @@ STATE = State.SUCCESS
 TEST_SCOPE = {
     "dag_id": DAG_ID,
     "task_id": TASK_ID,
+    "data_interval_start": DATA_INTERVAL[0],
+    "data_interval_end": DATA_INTERVAL[1],
     "execution_date": EXECUTION_DATE,
     "operator": OPERATOR,
     "try_number": TRY_NUMBER,
@@ -62,10 +66,10 @@ class TestSentryHook:
     @pytest.fixture
     def task_instance(self, dag_maker):
         # Mock the Dag
-        with dag_maker(DAG_ID):
+        with dag_maker(DAG_ID, schedule_interval=SCHEDULE_INTERVAL):
             task = PythonOperator(task_id=TASK_ID, python_callable=int)
 
-        dr = dag_maker.create_dagrun(execution_date=EXECUTION_DATE)
+        dr = dag_maker.create_dagrun(data_interval=DATA_INTERVAL, execution_date=EXECUTION_DATE)
         ti = dr.task_instances[0]
         ti.state = STATE
         ti.task = task

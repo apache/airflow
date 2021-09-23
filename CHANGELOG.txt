@@ -1,4 +1,4 @@
-Airflow 2.2.0b1, TBD
+Airflow 2.2.0b2, TBD
 -------------------------
 
 New Features
@@ -6,8 +6,14 @@ New Features
 
 - AIP-39: Handle DAG scheduling with timetables (#15397)
 - AIP-39: ``DagRun.data_interval_start|end`` (#16352)
+- Add docs for AIP 39: Timetables (#17552)
 - AIP-40: Add Deferrable "Async" Tasks (#15389)
+- Add a Docker Taskflow decorator (#15330)
 - Add Airflow Standalone command (#15826)
+- Display alert messages on dashboard from local settings (#18284)
+- Show Triggers table in Webserver (#17876)
+- Advanced Params using json-schema (#17100)
+- Add some basic metrics to the Triggerer (#18214)
 - Ability to test connections from UI or API (#15795)
 - Add Next Run to UI (#17732)
 - Allow custom timetable as a DAG argument (#17414)
@@ -37,6 +43,13 @@ New Features
 
 Improvements
 """"""""""""
+- Require can_edit on DAG privileges to modify TaskInstances and DagRuns (#16634)
+- Make Kubernetes job description fit on one log line (#18377)
+- Always draw borders if task instance state is null or undefined (#18033)
+- Inclusive Language (#18349)
+- Improved log handling for zombie tasks (#18277)
+- Adding ``Variable.update`` method and improving detection of variable key collisions (#18159)
+- Add note about params on trigger DAG page (#18166)
 - Change ``TaskInstance`` and ``TaskReschedule`` PK from ``execution_date`` to ``run_id`` (#17719)
 - Adding ``TaskGroup`` support in ``BaseOperator.chain()`` (#17456)
 - Fix deprecation error message rather than silencing it (#18126)
@@ -119,6 +132,33 @@ Improvements
 
 Bug Fixes
 """""""""
+- Properly handle ti state difference between executor and scheduler (#17819)
+- Fix stuck "queued" tasks in KubernetesExecutor (#18152)
+- Don't permanently add zip DAGs to ``sys.path`` (#18384)
+- Fix random deadlocks in MSSQL database (#18362)
+- Deactivating DAGs which have been removed from files (#17121)
+- Dag ``bulk_sync_to_db`` ``dag_tag`` only remove not exists (#8231)
+- Graceful scheduler shutdown on error (#18092)
+- Fix mini scheduler not respecting ``wait_for_downstream`` dep (#18338)
+- Pass exception to ``run_finished_callback`` for Debug Executor (#17983)
+- Make ``XCom.get_one`` return full, not abbreviated values (#18274)
+- Fix web view rendering errors without a DAG run (#18244)
+- Use try/except when closing temporary file in task_runner (#18269)
+- show next run if not none (#18273)
+- Fix dag_run FK check in pre-db upgrade (#18266)
+- Fix DB session handling in ``XCom.set`` (#18240)
+- Sort adopted tasks in ``_check_for_stalled_adopted_tasks`` method (#18208)
+- Fix external_executor_id not being set for manually run jobs (#17207)
+- Fix deleting of zipped Dags in Serialized Dag Table (#18243)
+- Return explicit error on user-add for duplicated email (#18224)
+- Remove loading dots even when last run data is empty (#18230)
+- BugFix: Wipe ``next_kwargs`` and ``next_method`` on task failure (#18210)
+- Add heartbeat to ``TriggererJob`` (#18129)
+- Swap dag import error dropdown icons (#18207)
+- Automatically create section when migrating config (#16814)
+- sets encoding to utf-8 by default while reading task logs (#17965)
+- Set task state to failed when pod is DELETED while running (#18095)
+- Apply parent dag permissions to subdags (#18160)
 - Change id collation for MySQL to case-sensitive (#18072)
 - Logs task launch exception in ``StandardTaskRunner`` (#17967)
 - Require timetable class be registered via plugin (#17989)
@@ -173,6 +213,15 @@ Bug Fixes
 
 Doc only changes
 """"""""""""""""
+- Explain scheduler fine-tuning better (#18356)
+- Added example JSON for airflow pools import (#18376)
+- Add ``sla_miss_callback`` section to the documentation (#18305)
+- Explain sentry default environment variable for subprocess hook (#18346)
+- Refactor installation pages (#18282)
+- Improves installing from sources pages for all components (#18251)
+- Doc: Use ``closer.lua`` script for downloading sources (#18179)
+- Improves quick-start docker-compose warnings and documentation (#18164)
+- Production-level support for MSSQL (#18382)
 - Update non-working example in documentation (#18067)
 - Improve the description of how to handle dynamic task generation (#17963)
 - Remove default_args pattern + added get_current_context() use for Core Airflow example DAGs (#16866)
@@ -230,6 +279,12 @@ Doc only changes
 
 Misc/Internal
 """""""""""""
+- Update ``boto3`` to ``<1.19`` (#18389)
+- Improve coverage for ``airflow.security.kerberos module`` (#18258)
+- Fix kinesis test (#18337)
+- Fix provider test acessing importlib-resources (#18228)
+- Silence warnings in tests from using SubDagOperator (#18275)
+- Fix usage of ``range(len())`` to ``enumerate`` (#18174)
 - Test coverage on the autocomplete view (#15943)
 - Update version added fields in airflow/config_templates/config.yml (#18128)
 - Add "packaging" to core requirements (#18122)

@@ -18,7 +18,9 @@ import inspect
 import logging
 import os
 import shutil
+import sys
 import textwrap
+from copy import deepcopy
 from datetime import datetime, timedelta, timezone
 from tempfile import NamedTemporaryFile, mkdtemp
 from unittest import mock
@@ -191,9 +193,11 @@ class TestDagBag:
         """
         test the loading of a DAG within a zip file that includes dependencies
         """
+        syspath_before = deepcopy(sys.path)
         dagbag = models.DagBag(dag_folder=self.empty_dir, include_examples=False)
         dagbag.process_file(os.path.join(TEST_DAGS_FOLDER, "test_zip.zip"))
         assert dagbag.get_dag("test_zip_dag")
+        assert sys.path == syspath_before  # sys.path doesn't change
 
     def test_process_file_cron_validity_check(self):
         """

@@ -15,4 +15,6 @@
 # specific language governing permissions and limitations
 # under the License.
 ---
-version: "2.2"
+services:
+  sqlite:
+    ports: []
