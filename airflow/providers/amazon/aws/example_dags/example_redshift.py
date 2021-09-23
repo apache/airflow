@@ -27,7 +27,6 @@ from airflow.utils.dates import days_ago
 with DAG(dag_id="example_redshift", start_date=days_ago(1), schedule_interval=None, tags=['example']) as dag:
     # [START howto_operator_s3_to_redshift_create_table]
     setup__task_create_table = RedshiftOperator(
-        redshift_conn_id='redshift_default',
         task_id='setup__create_table',
         sql="""
             CREATE TABLE IF NOT EXISTS fruit (
@@ -40,7 +39,6 @@ with DAG(dag_id="example_redshift", start_date=days_ago(1), schedule_interval=No
     # [END howto_operator_s3_to_redshift_create_table]
     # [START howto_operator_s3_to_redshift_populate_table]
     task_insert_data = RedshiftOperator(
-        redshift_conn_id='redshift_default',
         task_id='task_insert_data',
         sql=[
             "INSERT INTO fruit VALUES ( 1, 'Banana', 'Yellow');",
@@ -53,13 +51,10 @@ with DAG(dag_id="example_redshift", start_date=days_ago(1), schedule_interval=No
     )
     # [END howto_operator_s3_to_redshift_populate_table]
     # [START howto_operator_s3_to_redshift_get_all_rows]
-    task_get_all_table_data = RedshiftOperator(
-        redshift_conn_id='redshift_default', task_id='task_get_all_table_data', sql="SELECT * FROM fruit;"
-    )
+    task_get_all_table_data = RedshiftOperator(task_id='task_get_all_table_data', sql="SELECT * FROM fruit;")
     # [END howto_operator_s3_to_redshift_get_all_rows]
     # [START howto_operator_s3_to_redshift_get_with_filter]
     task_get_with_filter = RedshiftOperator(
-        redshift_conn_id='redshift_default',
         task_id='task_get_with_filter',
         sql="SELECT * FROM fruit WHERE color = '{{ params.color }}';",
         params={'color': 'Red'},
