@@ -178,6 +178,8 @@ class BranchPythonOperator(PythonOperator, SkipMixin):
 
     def execute(self, context: Dict):
         branch = super().execute(context)
+        if branch is None:
+            raise AirflowException("Branch callable must return at least one task_id to follow")
         self.skip_all_except(context['ti'], branch)
         return branch
 
