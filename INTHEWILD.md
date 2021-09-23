@@ -445,6 +445,7 @@ Currently, **officially** using Airflow:
 1. [Xoom](https://www.xoom.com/)
 1. [Yahoo!](https://www.yahoo.com/)
 1. [Yieldr](https://www.yieldr.com/) [[@ggeorgiadis](https://github.com/ggeorgiadis)]
+1. [Zalando](https://tech.zalando.com) [[@zalando](https://github.com/zalando) & [@zalando-incubator](https://github.com/zalando-incubator)]
 1. [Zapier](https://www.zapier.com) [[@drknexus](https://github.com/drknexus) & [@statwonk](https://github.com/statwonk)]
 1. [Zego](https://www.zego.com/) [[@ruimffl](https://github.com/ruimffl), [@james-welly](https://github.com/james-welly), [@ken-payne](https://github.com/ken-payne)]
 1. [Zendesk](https://www.github.com/zendesk)
