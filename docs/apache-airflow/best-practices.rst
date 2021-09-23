@@ -75,7 +75,7 @@ Deleting a task
 ----------------
 
 Be careful when deleting a task from a DAG. You would not be able to see the Task in Graph View, Tree View, etc making
-it difficult to check the logs of that Task from the Webserver. If that is not desired please create a new DAG.
+it difficult to check the logs of that Task from the Webserver. If that is not desired, please create a new DAG.
 
 
 Communication
