@@ -485,6 +485,8 @@ workers:
   #   hostnames:
   #   - "test.hostname.two"
 
+  podAnnotations: {}
+
   logGroomerSidecar:
     # Command to use when running the Airflow worker log groomer sidecar (templated).
     command: ~
@@ -578,6 +580,8 @@ scheduler:
             topologyKey: "kubernetes.io/hostname"
   tolerations: []
 
+  podAnnotations: {}
+
   logGroomerSidecar:
     # Whether to deploy the Airflow scheduler log groomer sidecar.
     enabled: true
@@ -594,6 +598,7 @@ scheduler:
     #  requests:
     #   cpu: 100m
     #   memory: 128Mi
+
 # Airflow create user job settings
 createUserJob:
   # Annotations on the create user job pod
@@ -762,6 +767,8 @@ webserver:
             topologyKey: "kubernetes.io/hostname"
   tolerations: []
 
+  podAnnotations: {}
+
 # Airflow Triggerer Config
 triggerer:
   # Number of airflow triggerers in the deployment
@@ -833,6 +840,8 @@ triggerer:
                 component: triggerer
             topologyKey: "kubernetes.io/hostname"
   tolerations: []
+
+  podAnnotations: {}
 
 # Flower settings
 flower:
@@ -914,6 +923,8 @@ flower:
   nodeSelector: {}
   affinity: {}
   tolerations: []
+
+  podAnnotations: {}
 
 # Statsd settings
 statsd:
