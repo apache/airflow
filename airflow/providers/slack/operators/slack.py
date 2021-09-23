@@ -195,7 +195,7 @@ class SlackAPIFileOperator(SlackAPIOperator):
     :type content: str
     """
 
-    template_fields = ('channel', 'initial_comment', 'filetype', 'content')
+    template_fields = ('channel', 'initial_comment', 'filename', 'filetype', 'content')
     ui_color = '#44BEDF'
 
     def __init__(
