@@ -53,7 +53,6 @@ class RedshiftOperator(BaseOperator):
         super().__init__(**kwargs)
         self.redshift_conn_id = redshift_conn_id
         self.sql = sql
-        self.redshift_conn_id = redshift_conn_id
         self.autocommit = autocommit
         self.parameters = parameters
 
