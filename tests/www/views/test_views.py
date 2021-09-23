@@ -16,12 +16,14 @@
 # specific language governing permissions and limitations
 # under the License.
 import os
+from collections import Callable
 from unittest import mock
 
 import pytest
 
 from airflow.configuration import initialize_config
 from airflow.plugins_manager import AirflowPlugin, EntryPointSource
+from airflow.www import views
 from airflow.www.views import get_key_paths, get_safe_url, get_value_from_path, truncate_task_duration
 from tests.test_utils.config import conf_vars
 from tests.test_utils.mock_plugins import mock_plugin_manager
@@ -300,3 +302,31 @@ def test_generate_key_paths(test_content_dict, expected_paths):
 )
 def test_get_value_from_path(test_content_dict, test_key_path, expected_value):
     assert expected_value == get_value_from_path(test_key_path, test_content_dict)
+
+
+def assert_decorator_used(cls: type, fn_name: str, decorator: Callable):
+    fn = getattr(cls, fn_name)
+    code = decorator(None).__code__
+    while fn is not None:
+        if fn.__code__ is code:
+            return
+        if not hasattr(fn, '__wrapped__'):
+            break
+        fn = getattr(fn, '__wrapped__')
+    assert False, f'{cls.__name__}.{fn_name} was not decorated with @{decorator.__name__}'
+
+
+@pytest.mark.parametrize(
+    "cls",
+    [
+        views.TaskInstanceModelView,
+        views.DagRunModelView,
+    ],
+)
+def test_dag_edit_privileged_requires_view_has_action_decorators(cls: type):
+    action_funcs = {func for func in dir(cls) if callable(getattr(cls, func)) and func.startswith("action_")}
+
+    # We remove action_post as this is a standard SQLAlchemy function no enable other action functions.
+    action_funcs = action_funcs - {"action_post"}
+    for action_function in action_funcs:
+        assert_decorator_used(cls, action_function, views.action_has_dag_edit_access)

@@ -15,7 +15,6 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-import inspect
 import urllib.parse
 from typing import List
 from unittest import mock
@@ -26,7 +25,7 @@ from airflow.models import DagBag, DagRun, Log, TaskInstance
 from airflow.utils import dates, timezone
 from airflow.utils.state import State
 from airflow.utils.types import DagRunType
-from airflow.www import app, views
+from airflow.www import app
 from airflow.www.views import action_has_dag_edit_access
 from tests.test_utils.db import clear_db_runs
 from tests.test_utils.www import check_content_in_response
@@ -205,37 +204,3 @@ def test_action_has_dag_edit_access(create_task_instance, class_type, no_instanc
 def test_action_has_dag_edit_access_exception():
     with pytest.raises(ValueError):
         some_view_action_which_requires_dag_edit_access(None, "some_incorrect_value")
-
-
-def get_methods_with_decorator(cls: type, decorator_name: str):
-    source_lines = inspect.getsourcelines(cls)[0]
-    for i, line in enumerate(source_lines):
-        if line.strip().split('(')[0].strip() != '@' + decorator_name:
-            continue
-        j = 1
-        next_line = source_lines[i + j]
-        while not next_line.strip().startswith("def"):
-            j += 1
-            next_line = source_lines[i + j]
-
-        name = next_line.split('def')[1].split('(')[0].strip()
-        yield name
-
-
-@pytest.mark.parametrize(
-    "cls",
-    [
-        views.TaskInstanceModelView,
-        views.DagRunModelView,
-    ],
-)
-def test_dag_edit_privileged_requires_view_has_action_decorators(cls: type):
-    decorator_name = "action_has_dag_edit_access"
-    action_funcs = {func for func in dir(cls) if callable(getattr(cls, func)) and func.startswith("action_")}
-    action_funcs_with_decorators = set(get_methods_with_decorator(cls, decorator_name))
-
-    # We remove action_post as this is a standard SQLAlchemy function no enable other action functions.
-    action_funcs_missing_decorators = action_funcs - action_funcs_with_decorators - {"action_post"}
-    if len(action_funcs_missing_decorators) > 0:
-        errors = ", ".join(f"{cls.__name__}.{func}()" for func in action_funcs_missing_decorators)
-        raise ValueError(f"The following functions are missing the @{decorator_name} decorator: {errors}.")
