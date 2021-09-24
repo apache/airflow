@@ -24,6 +24,8 @@ from typing import Any, Dict
 import pendulum
 from dateutil import relativedelta
 from sqlalchemy import event, nullsfirst
+from sqlalchemy.dialects.mysql.base import MySQLDialect
+from sqlalchemy.engine.default import DefaultDialect
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm.session import Session
 from sqlalchemy.types import JSON, DateTime, Text, TypeDecorator, TypeEngine, UnicodeText
@@ -177,6 +179,12 @@ class Interval(TypeDecorator):
         return data
 
 
+def _is_dialect_good_for_row_locks(dialect: DefaultDialect) -> bool:
+    supports_for_update_of = dialect.name != "mysql" or dialect.supports_for_update_of
+    mariadb_10_6 = isinstance(dialect, MySQLDialect) and dialect._is_mariadb and dialect.server_version_info >= (10, 6)
+    return supports_for_update_of or mariadb_10_6
+
+
 def skip_locked(session: Session) -> Dict[str, Any]:
     """
     Return kargs for passing to `with_for_update()` suitable for the current DB engine version.
@@ -185,13 +193,13 @@ def skip_locked(session: Session) -> Dict[str, Any]:
     support/recommend running HA scheduler. If a user ignores this and tries anyway everything will still
     work, just slightly slower in some circumstances.
 
-    Specifically don't emit SKIP LOCKED for MySQL < 8, or MariaDB, neither of which support this construct
+    Specifically don't emit SKIP LOCKED for MySQL < 8, or MariaDB < 10.6, neither of which support this construct
 
     See https://jira.mariadb.org/browse/MDEV-13115
     """
     dialect = session.bind.dialect
 
-    if dialect.name != "mysql" or dialect.supports_for_update_of:
+    if _is_dialect_good_for_row_locks(dialect):
         return {'skip_locked': True}
     else:
         return {}
@@ -205,13 +213,13 @@ def nowait(session: Session) -> Dict[str, Any]:
     support/recommend running HA scheduler. If a user ignores this and tries anyway everything will still
     work, just slightly slower in some circumstances.
 
-    Specifically don't emit NOWAIT for MySQL < 8, or MariaDB, neither of which support this construct
+    Specifically don't emit NOWAIT for MySQL < 8, or MariaDB < 10.6, neither of which support this construct
 
     See https://jira.mariadb.org/browse/MDEV-13115
     """
     dialect = session.bind.dialect
 
-    if dialect.name != "mysql" or dialect.supports_for_update_of:
+    if _is_dialect_good_for_row_locks(dialect):
         return {'nowait': True}
     else:
         return {}
@@ -243,8 +251,8 @@ def with_row_locks(query, session: Session, **kwargs):
     """
     dialect = session.bind.dialect
 
-    # Don't use row level locks if the MySQL dialect (Mariadb & MySQL < 8) does not support it.
-    if USE_ROW_LEVEL_LOCKING and (dialect.name != "mysql" or dialect.supports_for_update_of):
+    # Don't use row level locks if the MySQL dialect (Mariadb < 10.6 & MySQL < 8) does not support it.
+    if USE_ROW_LEVEL_LOCKING and _is_dialect_good_for_row_locks(dialect):
         return query.with_for_update(**kwargs)
     else:
         return query
