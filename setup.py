@@ -183,7 +183,7 @@ alibaba = [
     'oss2>=2.14.0',
 ]
 amazon = [
-    'boto3>=1.15.0,<1.18.0',
+    'boto3>=1.15.0,<1.19.0',
     'watchtower~=1.0.6',
     'jsonpath_ng>=1.5.3',
 ]
@@ -210,7 +210,8 @@ azure = [
     'azure-mgmt-datafactory>=1.0.0,<2.0',
     'azure-mgmt-datalake-store>=0.5.0',
     'azure-mgmt-resource>=2.2.0',
-    'azure-storage-blob>=12.7.0',
+    # limited due to https://github.com/Azure/azure-sdk-for-python/pull/18801  implementation released in 12.9
+    'azure-storage-blob>=12.7.0,<12.9.0',
     'azure-storage-common>=2.1.0',
     'azure-storage-file>=2.1.0',
 ]
@@ -296,7 +297,7 @@ google = [
     'google-cloud-build>=3.0.0,<4.0.0',
     'google-cloud-container>=0.1.1,<2.0.0',
     'google-cloud-datacatalog>=3.0.0,<4.0.0',
-    'google-cloud-dataproc>=2.2.0,<3.0.0',
+    'google-cloud-dataproc>=2.2.0,<2.6.0',
     'google-cloud-dlp>=0.11.0,<2.0.0',
     'google-cloud-kms>=2.0.0,<3.0.0',
     'google-cloud-language>=1.1.1,<2.0.0',

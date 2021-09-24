@@ -320,6 +320,7 @@ jobs:
           CURRENT_PYTHON_MAJOR_MINOR_VERSIONS_AS_STRING: >
             ${{needs.build-info.outputs.pythonVersionsListAsString}}
           VERIFY_IMAGE: "true"
+          PR_LABELS: "${{ needs.build-info.outputs.pullRequestLabels }}"
 
   static-checks:
     timeout-minutes: 30
@@ -593,6 +594,8 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
         run: ./scripts/ci/images/ci_prepare_ci_image_on_ci.sh
       - name: "Tests: Helm"
         run: ./scripts/ci/testing/ci_run_airflow_testing.sh
+        env:
+          PR_LABELS: "${{ needs.build-info.outputs.pullRequestLabels }}"
       - name: "Upload airflow logs"
         uses: actions/upload-artifact@v2
         if: failure()
@@ -651,6 +654,8 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
         run: ./scripts/ci/images/ci_prepare_ci_image_on_ci.sh
       - name: "Tests: ${{needs.build-info.outputs.testTypes}}"
         run: ./scripts/ci/testing/ci_run_airflow_testing.sh
+        env:
+          PR_LABELS: "${{ needs.build-info.outputs.pullRequestLabels }}"
       - name: "Upload airflow logs"
         uses: actions/upload-artifact@v2
         if: failure()
@@ -708,6 +713,8 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
         run: ./scripts/ci/images/ci_prepare_ci_image_on_ci.sh
       - name: "Tests: ${{needs.build-info.outputs.testTypes}}"
         run: ./scripts/ci/testing/ci_run_airflow_testing.sh
+        env:
+          PR_LABELS: "${{ needs.build-info.outputs.pullRequestLabels }}"
       - name: "Upload airflow logs"
         uses: actions/upload-artifact@v2
         if: failure()
@@ -764,6 +771,8 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
         run: ./scripts/ci/images/ci_prepare_ci_image_on_ci.sh
       - name: "Tests: ${{needs.build-info.outputs.testTypes}}"
         run: ./scripts/ci/testing/ci_run_airflow_testing.sh
+        env:
+          PR_LABELS: "${{ needs.build-info.outputs.pullRequestLabels }}"
       - name: "Upload airflow logs"
         uses: actions/upload-artifact@v2
         if: failure()
@@ -818,6 +827,8 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
         run: ./scripts/ci/images/ci_prepare_ci_image_on_ci.sh
       - name: "Tests: ${{needs.build-info.outputs.testTypes}}"
         run: ./scripts/ci/testing/ci_run_airflow_testing.sh
+        env:
+          PR_LABELS: "${{ needs.build-info.outputs.pullRequestLabels }}"
       - name: "Upload airflow logs"
         uses: actions/upload-artifact@v2
         if: failure()
@@ -881,6 +892,8 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
         run: ./scripts/ci/images/ci_prepare_ci_image_on_ci.sh
       - name: "Tests: Quarantined"
         run: ./scripts/ci/testing/ci_run_quarantined_tests.sh
+        env:
+          PR_LABELS: "${{ needs.build-info.outputs.pullRequestLabels }}"
       - name: "Upload Quarantine test results"
         uses: actions/upload-artifact@v2
         if: always()
@@ -985,6 +998,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
           CURRENT_PYTHON_MAJOR_MINOR_VERSIONS_AS_STRING: >
             ${{needs.build-info.outputs.pythonVersionsListAsString}}
           VERIFY_IMAGE: "true"
+          PR_LABELS: "${{ needs.build-info.outputs.pullRequestLabels }}"
 
   tests-kubernetes:
     timeout-minutes: 50
@@ -1037,6 +1051,8 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
           restore-keys: "kubernetes-binaries"
       - name: "Kubernetes Tests"
         run: ./scripts/ci/kubernetes/ci_setup_clusters_and_run_kubernetes_tests_in_parallel.sh
+        env:
+          PR_LABELS: "${{ needs.build-info.outputs.pullRequestLabels }}"
       - name: "Upload KinD logs"
         uses: actions/upload-artifact@v2
         if: failure()
@@ -1103,6 +1119,8 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
           restore-keys: "kubernetes-binaries"
       - name: "Kubernetes Helm Chart Executor Upgrade Tests"
         run: ./scripts/ci/kubernetes/ci_upgrade_cluster_with_different_executors_in_parallel.sh
+        env:
+          PR_LABELS: "${{ needs.build-info.outputs.pullRequestLabels }}"
       - name: "Upload KinD logs"
         uses: actions/upload-artifact@v2
         if: failure()
@@ -1155,14 +1173,17 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
         run: ./scripts/ci/constraints/ci_generate_all_constraints.sh
         env:
           GENERATE_CONSTRAINTS_MODE: "pypi-providers"
+          PR_LABELS: "${{ needs.build-info.outputs.pullRequestLabels }}"
       - name: "Generate constraints with source providers"
         run: ./scripts/ci/constraints/ci_generate_all_constraints.sh
         env:
           GENERATE_CONSTRAINTS_MODE: "source-providers"
+          PR_LABELS: "${{ needs.build-info.outputs.pullRequestLabels }}"
       - name: "Generate constraints without providers"
         run: ./scripts/ci/constraints/ci_generate_all_constraints.sh
         env:
           GENERATE_CONSTRAINTS_MODE: "no-providers"
+          PR_LABELS: "${{ needs.build-info.outputs.pullRequestLabels }}"
       - name: "Set constraints branch name"
         id: constraints-branch
         run: ./scripts/ci/constraints/ci_branch_constraints.sh

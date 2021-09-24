@@ -521,14 +521,24 @@ class SchedulerJob(BaseJob):
                 )
                 self.log.error(msg, ti, state, ti.state, info)
 
-                request = TaskCallbackRequest(
-                    full_filepath=ti.dag_model.fileloc,
-                    simple_task_instance=SimpleTaskInstance(ti),
-                    msg=msg % (ti, state, ti.state, info),
-                )
-                self.log.info('Setting task instance %s state to %s as reported by executor', ti, state)
-                ti.set_state(state)
-                self.processor_agent.send_callback_to_execute(request)
+                # Get task from the Serialized DAG
+                try:
+                    dag = self.dagbag.get_dag(ti.dag_id)
+                    task = dag.get_task(ti.task_id)
+                except Exception:
+                    self.log.exception("Marking task instance %s as %s", ti, state)
+                    ti.set_state(state)
+                    continue
+                ti.task = task
+                if task.on_retry_callback or task.on_failure_callback:
+                    request = TaskCallbackRequest(
+                        full_filepath=ti.dag_model.fileloc,
+                        simple_task_instance=SimpleTaskInstance(ti),
+                        msg=msg % (ti, state, ti.state, info),
+                    )
+                    self.processor_agent.send_callback_to_execute(request)
+                else:
+                    ti.handle_failure(error=msg % (ti, state, ti.state, info), session=session)
 
         return len(event_buffer)
 

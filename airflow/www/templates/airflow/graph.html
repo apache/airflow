@@ -92,8 +92,14 @@
         {{ op.task_type }}</span>{% endfor %}
     </div>
     <div>
-      {% for state, state_color in state_color_mapping.items() %}<span class="legend-item legend-item--interactive js-state-legend-item" data-state="{{state}}" style="border-color: {{state_color}};">
-        {{state}}</span>{% endfor %}<span class="legend-item legend-item--interactive legend-item--no-border js-state-legend-item" data-state="no_status" style="border-color:white;">no_status</span>
+      {% for state, state_color in state_color_mapping.items() %}
+        <span class="legend-item legend-item--interactive js-state-legend-item" data-state="{{state}}" style="border-color: {{state_color}};">
+          {{state}}
+        </span>
+      {% endfor %}
+      <span class="legend-item legend-item--interactive legend-item--no-border js-state-legend-item" data-state="no_status" style="border-color:white;">
+        no_status
+      </span>
     </div>
   </div>
   <div id="error" style="display: none; margin-top: 10px;" class="alert alert-danger" role="alert">

@@ -33,6 +33,7 @@
 # limitations under the License.
 """Kerberos security provider"""
 import logging
+import shlex
 import socket
 import subprocess
 import sys
@@ -46,7 +47,7 @@ NEED_KRB181_WORKAROUND = None  # type: Optional[bool]
 log = logging.getLogger(__name__)
 
 
-def renew_from_kt(principal: str, keytab: str, exit_on_fail: bool = True):
+def renew_from_kt(principal: Optional[str], keytab: str, exit_on_fail: bool = True):
     """
     Renew kerberos token from keytab
 
@@ -83,7 +84,7 @@ def renew_from_kt(principal: str, keytab: str, exit_on_fail: bool = True):
         conf.get('kerberos', 'ccache'),  # specify credentials cache
         cmd_principal,
     ]
-    log.info("Re-initialising kerberos from keytab: %s", " ".join(cmdv))
+    log.info("Re-initialising kerberos from keytab: %s", " ".join(shlex.quote(f) for f in cmdv))
 
     with subprocess.Popen(
         cmdv,
@@ -141,17 +142,16 @@ def perform_krb181_workaround(principal: str):
 
     if ret != 0:
         principal = f"{principal or conf.get('kerberos', 'principal')}/{socket.getfqdn()}"
-        princ = principal
-        ccache = conf.get('kerberos', 'principal')
+        ccache = conf.get('kerberos', 'ccache')
         log.error(
             "Couldn't renew kerberos ticket in order to work around Kerberos 1.8.1 issue. Please check that "
             "the ticket for '%s' is still renewable:\n  $ kinit -f -c %s\nIf the 'renew until' date is the "
             "same as the 'valid starting' date, the ticket cannot be renewed. Please check your KDC "
             "configuration, and the ticket renewal policy (maxrenewlife) for the '%s' and `krbtgt' "
             "principals.",
-            princ,
+            principal,
             ccache,
-            princ,
+            principal,
         )
     return ret
 
@@ -169,7 +169,7 @@ def detect_conf_var() -> bool:
         return b'X-CACHECONF:' in file.read()
 
 
-def run(principal: str, keytab: str):
+def run(principal: Optional[str], keytab: str):
     """
     Run the kerbros renewer.
 
@@ -178,7 +178,7 @@ def run(principal: str, keytab: str):
     :return: None
     """
     if not keytab:
-        log.debug("Keytab renewer not starting, no keytab configured")
+        log.warning("Keytab renewer not starting, no keytab configured")
         sys.exit(0)
 
     while True:

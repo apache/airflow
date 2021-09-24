@@ -61,7 +61,7 @@ while IPS='' read -r line; do
     ln -s "${line}" "/files/bin/${BIN_NAME}"
 done < <(find "${INSTALL_DIR}/bin/" -type f)
 
-# Sanity check
+# Coherence check
 if ! command -v java > /dev/null; then
     echo 'Installation failed. The command "java" was not found.'
     exit 1

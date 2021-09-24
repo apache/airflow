@@ -15,9 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-set -euo pipefail
-
-set -x
+set -exuo pipefail
 declare -a packages
 
 MYSQL_VERSION="8.0"
@@ -62,11 +60,6 @@ install_mysql_client() {
     apt-get autoremove -yqq --purge
     apt-get clean && rm -rf /var/lib/apt/lists/*
 }
-
-
-
-# Install MySQL Client during the container build
-set -euo pipefail
 
 # Install MySQL client from Oracle repositories (Debian installs mariadb)
 # But only if it is not disabled

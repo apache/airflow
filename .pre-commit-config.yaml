@@ -323,6 +323,13 @@ repos:
         language: python
         files: ^setup\.py$|^INSTALL$|^CONTRIBUTING\.rst$
         pass_filenames: false
+      - id: check-extras-order
+        name: Check order of extras in Dockerfile
+        entry: ./scripts/ci/pre_commit/pre_commit_check_order_dockerfile_extras.py
+        language: python
+        files: ^Dockerfile$
+        pass_filenames: false
+        additional_dependencies: ['rich']
       - id: update-version
         name: Update version to the latest version in the documentation
         entry: ./scripts/ci/pre_commit/pre_commit_update_versions.py

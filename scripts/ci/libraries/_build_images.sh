@@ -374,7 +374,7 @@ function build_images::get_docker_cache_image_names() {
     export PYTHON_BASE_IMAGE="python:${PYTHON_MAJOR_MINOR_VERSION}-slim-buster"
 
     local image_name
-    image_name="${GITHUB_REGISTRY}/$(build_images::get_github_container_registry_image_prefix)"
+    image_name="ghcr.io/$(build_images::get_github_container_registry_image_prefix)"
 
     # Example:
     #  ghcr.io/apache/airflow/main/python:3.8-slim-buster
@@ -412,36 +412,33 @@ function build_images::get_docker_cache_image_names() {
 }
 
 # If GitHub Registry is used, login to the registry using GITHUB_USERNAME and
-# GITHUB_TOKEN. In case Personal Access token is not set, skip logging in
-# Also enable experimental features of docker (we need `docker manifest` command)
-function build_images::configure_docker_registry() {
-    local token="${GITHUB_TOKEN}"
-    if [[ -z "${token}" ]]; then
-        verbosity::print_info
-        verbosity::print_info "Skip logging in to GitHub Registry. No Token available!"
-        verbosity::print_info
-    elif [[ ${AIRFLOW_LOGIN_TO_GITHUB_REGISTRY=} != "true" ]]; then
-        verbosity::print_info
-        verbosity::print_info "Skip logging in to GitHub Registry. AIRFLOW_LOGIN_TO_GITHUB_REGISTRY != true"
-        verbosity::print_info
-    elif [[ -n "${token}" ]]; then
-        echo "${token}" | docker_v login \
-            --username "${GITHUB_USERNAME:-apache}" \
-            --password-stdin \
-            "${GITHUB_REGISTRY}"
-    else
-        verbosity::print_info "Skip Login to GitHub Registry ${GITHUB_REGISTRY} as token is missing"
-    fi
-    if [[ ${CI} == "true" ]]; then
-        # we only need that on CI in order to run "docker manifest" when we check if remote image exists
-        # See function push_pull_remove_images::check_image_manifest()
-        local new_config
-        new_config=$(jq '.experimental = "enabled"' "${HOME}/.docker/config.json" || true)
-        if [[ ${new_config} != "" ]]; then
-            echo "${new_config}" > "${HOME}/.docker/config.json"
+# GITHUB_TOKEN. We only need to login to docker registry on CI and only when we push
+# images. All other images we pull from docker registry are public and we do not need
+# to login there.
+function build_images::login_to_docker_registry() {
+    if [[ "${CI}" == "true" ]]; then
+        start_end::group_start "Configure Docker Registry"
+        local token="${GITHUB_TOKEN}"
+        if [[ -z "${token}" ]]; then
+            verbosity::print_info
+            verbosity::print_info "Skip logging in to GitHub Registry. No Token available!"
+            verbosity::print_info
+        elif [[ ${AIRFLOW_LOGIN_TO_GITHUB_REGISTRY=} != "true" ]]; then
+            verbosity::print_info
+            verbosity::print_info "Skip logging in to GitHub Registry. AIRFLOW_LOGIN_TO_GITHUB_REGISTRY != true"
+            verbosity::print_info
+        elif [[ -n "${token}" ]]; then
+            # logout from the repository first - so that we do not keep us logged in if the token
+            # already expired (which can happen if we have a long build running)
+            docker_v logout "ghcr.io"
+            # The login might succeed or not - in some cases, when we pull public images in forked
+            # repos it might fail, but the pulls will continue to work
+            echo "${token}" | docker_v login \
+                --username "${GITHUB_USERNAME:-apache}" \
+                --password-stdin \
+                "ghcr.io" || true
         else
-            echo "${COLOR_YELLOW}Could not set experimental flag in ${HOME}/.docker/config.json ${COLOR_RESET}"
-            echo "${COLOR_YELLOW}docker manifest command will likely not work${COLOR_RESET}"
+            verbosity::print_info "Skip Login to GitHub Container Registry as token is missing"
         fi
     fi
 }
@@ -457,7 +454,6 @@ function build_images::prepare_ci_build() {
     export AIRFLOW_EXTRAS="${AIRFLOW_EXTRAS:="${DEFAULT_CI_EXTRAS}"}"
     readonly AIRFLOW_EXTRAS
 
-    build_images::configure_docker_registry
     sanity_checks::go_to_airflow_sources
     permissions::fix_group_permissions
 }
@@ -754,7 +750,6 @@ function build_images::prepare_prod_build() {
     export AIRFLOW_EXTRAS="${AIRFLOW_EXTRAS:="${DEFAULT_PROD_EXTRAS}"}"
     readonly AIRFLOW_EXTRAS
 
-    build_images::configure_docker_registry
     AIRFLOW_BRANCH_FOR_PYPI_PRELOADING="${BRANCH_NAME}"
     sanity_checks::go_to_airflow_sources
 }
@@ -810,6 +805,7 @@ function build_images::build_prod_images() {
         "${EXTRA_DOCKER_PROD_BUILD_FLAGS[@]}" \
         --build-arg PYTHON_BASE_IMAGE="${AIRFLOW_PYTHON_BASE_IMAGE}" \
         --build-arg INSTALL_MYSQL_CLIENT="${INSTALL_MYSQL_CLIENT}" \
+        --build-arg INSTALL_MSSQL_CLIENT="${INSTALL_MSSQL_CLIENT}" \
         --build-arg AIRFLOW_VERSION="${AIRFLOW_VERSION}" \
         --build-arg AIRFLOW_BRANCH="${AIRFLOW_BRANCH_FOR_PYPI_PRELOADING}" \
         --build-arg AIRFLOW_EXTRAS="${AIRFLOW_EXTRAS}" \
@@ -845,6 +841,7 @@ function build_images::build_prod_images() {
         "${EXTRA_DOCKER_PROD_BUILD_FLAGS[@]}" \
         --build-arg PYTHON_BASE_IMAGE="${AIRFLOW_PYTHON_BASE_IMAGE}" \
         --build-arg INSTALL_MYSQL_CLIENT="${INSTALL_MYSQL_CLIENT}" \
+        --build-arg INSTALL_MSSQL_CLIENT="${INSTALL_MSSQL_CLIENT}" \
         --build-arg ADDITIONAL_AIRFLOW_EXTRAS="${ADDITIONAL_AIRFLOW_EXTRAS}" \
         --build-arg ADDITIONAL_PYTHON_DEPS="${ADDITIONAL_PYTHON_DEPS}" \
         --build-arg INSTALL_PROVIDERS_FROM_SOURCES="${INSTALL_PROVIDERS_FROM_SOURCES}" \
@@ -893,42 +890,6 @@ function build_images::tag_image() {
         echo
         docker_v tag "${source_image_name}" "${target_image_name}"
     done
-}
-
-# Waits for image tag to appear in GitHub Registry, pulls it and tags with the target tag
-# Parameters:
-#  $1 - image name to wait for
-#  $2 - fallback image to wait for
-#  $3, $4, ... - target tags to tag the image with
-function build_images::wait_for_image_tag() {
-
-    local image_name="${1}"
-    local image_suffix="${2}"
-    shift 2
-
-    local image_to_wait_for="${image_name}${image_suffix}"
-    start_end::group_start "Wait for image tag ${image_to_wait_for}"
-    while true; do
-        set +e
-        echo "${COLOR_BLUE}Docker pull ${image_to_wait_for} ${COLOR_RESET}" >"${OUTPUT_LOG}"
-        docker_v pull "${image_to_wait_for}" >>"${OUTPUT_LOG}" 2>&1
-        set -e
-        local image_hash
-        echo "${COLOR_BLUE} Docker images -q ${image_to_wait_for}${COLOR_RESET}" >>"${OUTPUT_LOG}"
-        image_hash="$(docker images -q "${image_to_wait_for}" 2>>"${OUTPUT_LOG}" || true)"
-        if [[ -z "${image_hash}" ]]; then
-            echo
-            echo "The image ${image_to_wait_for} is not yet available. No local hash for the image"
-            echo
-            echo "Last log:"
-            cat "${OUTPUT_LOG}" || true
-            echo
-        else
-            build_images::tag_image "${image_to_wait_for}" "${image_name}:latest" "${@}"
-            break
-        fi
-    done
-    start_end::group_end
 }
 
 # We use pulled docker image cache by default for CI images to speed up the builds

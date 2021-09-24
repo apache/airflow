@@ -83,7 +83,7 @@ def _trigger_dag(
         trigger = _dag.create_dagrun(
             run_id=run_id,
             execution_date=execution_date,
-            state=State.RUNNING,
+            state=State.QUEUED,
             conf=run_conf,
             external_trigger=True,
             dag_hash=dag_bag.dags_hash.get(dag_id),

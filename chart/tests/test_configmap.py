@@ -18,6 +18,7 @@
 import unittest
 
 import jmespath
+from parameterized import parameterized
 
 from tests.helm_template_generator import render_chart
 
@@ -46,12 +47,31 @@ class ConfigmapTest(unittest.TestCase):
         assert "value" == annotations.get("key")
         assert "value-two" == annotations.get("key-two")
 
-    def test_no_airflow_local_settings_by_default(self):
+    @parameterized.expand(
+        [
+            ('2.2.0', None, None, True),
+            ('2.2.0', "foo", None, False),
+            ('2.2.0', None, "foo", False),
+            ('2.1.3', None, None, False),
+            ('2.1.3', "foo", None, False),
+        ]
+    )
+    def test_default_airflow_local_settings(self, af_version, secret_key, secret_key_name, expected):
         docs = render_chart(
+            values={
+                "airflowVersion": af_version,
+                "webserverSecretKey": secret_key,
+                "webserverSecretKeySecretName": secret_key_name,
+            },
             show_only=["templates/configmaps/configmap.yaml"],
         )
-
-        assert "airflow_local_settings.py" not in jmespath.search("data", docs[0])
+        if expected:
+            assert (
+                "Usage of a dynamic webserver secret key detected"
+                in jmespath.search('data."airflow_local_settings.py"', docs[0]).strip()
+            )
+        else:
+            assert "" == jmespath.search('data."airflow_local_settings.py"', docs[0]).strip()
 
     def test_airflow_local_settings(self):
         docs = render_chart(

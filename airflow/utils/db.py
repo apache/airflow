@@ -231,7 +231,7 @@ def create_default_connections(session=None):
                                 "InstanceCount": 1
                             },
                             {
-                                "Name": "Slave nodes",
+                                "Name": "Core nodes",
                                 "Market": "ON_DEMAND",
                                 "InstanceRole": "CORE",
                                 "InstanceType": "r3.2xlarge",

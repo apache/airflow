@@ -67,13 +67,13 @@
         "defaultAirflowTag": {
             "description": "Default airflow tag to deploy.",
             "type": "string",
-            "default": "2.1.3",
+            "default": "2.1.4",
             "x-docsSection": "Common"
         },
         "airflowVersion": {
             "description": "Airflow version (Used to make some decisions based on Airflow Version being deployed).",
             "type": "string",
-            "default": "2.1.3",
+            "default": "2.1.4",
             "x-docsSection": "Common"
         },
         "nodeSelector": {
@@ -274,7 +274,7 @@
                 "null"
             ],
             "x-docsSection": "Common",
-            "default": null
+            "default": "See values.yaml"
         },
         "rbac": {
             "description": "Enable RBAC (default on most clusters these days).",
@@ -504,7 +504,7 @@
                         "tag": {
                             "description": "The PgBouncer exporter image tag.",
                             "type": "string",
-                            "default": "airflow-pgbouncer-exporter-2021.04.28-0.5.0"
+                            "default": "airflow-pgbouncer-exporter-2021.09.22-0.12.0"
                         },
                         "pullPolicy": {
                             "description": "The PgBouncer exporter image pull policy.",
@@ -1711,6 +1711,11 @@
                             "default": {}
                         }
                     }
+                },
+                "extraContainers": {
+                    "description": "Launch additional containers for the migrate database job pod",
+                    "type": "array",
+                    "default": []
                 },
                 "nodeSelector": {
                     "description": "Select certain nodes for the migrate database job pod.",
