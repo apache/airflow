@@ -32,6 +32,7 @@ class TestRedshiftStatementHookConn(unittest.TestCase):
 
         class UnitTestRedshiftStatementHook(RedshiftStatementHook):
             conn_name_attr = "redshift_conn_id"
+            conn_type = 'redshift+redshift_connector'
 
         self.db_hook = UnitTestRedshiftStatementHook()
         self.db_hook.get_connection = mock.Mock()

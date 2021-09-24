@@ -43,7 +43,7 @@ class RedshiftStatementHook(DbApiHook):
 
     conn_name_attr = 'redshift_conn_id'
     default_conn_name = 'redshift_default'
-    conn_type = 'redshift'
+    conn_type = 'redshift+redshift_connector'
     hook_name = 'Amazon Redshift'
     supports_autocommit = True
 
@@ -94,10 +94,21 @@ class RedshiftStatementHook(DbApiHook):
         from sqlalchemy.engine.url import URL
 
         conn_params = self._get_conn_params()
-        conn_params['username'] = conn_params['user']
-        del conn_params['user']
 
-        return URL(drivername='redshift+redshift_connector', **conn_params).__to_string__(hide_password=False)
+        conn = self.get_connection(
+            self.redshift_conn_id  # type: ignore[attr-defined]  # pylint: disable=no-member
+        )
+
+        conn_type = RedshiftStatementHook.conn_type if not conn.conn_type else conn.conn_type
+
+        return URL(
+            drivername=conn_type,
+            username=conn_params['user'],
+            password=conn_params['password'],
+            host=conn_params['host'],
+            port=conn_params['port'],
+            database=conn_params['database'],
+        ).__str__()
 
     def get_sqlalchemy_engine(self, engine_kwargs=None):
         """Overrides DbApiHook get_sqlalchemy_engine to pass redshift_connector specific kwargs"""
