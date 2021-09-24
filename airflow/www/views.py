@@ -1522,20 +1522,26 @@ class Airflow(AirflowBaseView):
 
         try:
             from airflow.executors.celery_executor import CeleryExecutor
+            from airflow.executors.celery_kubernetes_executor import CeleryKubernetesExecutor
 
-            valid_celery_config = isinstance(executor, CeleryExecutor)
+            valid_celery_config = isinstance(executor, CeleryExecutor) or isinstance(
+                executor, CeleryKubernetesExecutor
+            )
         except ImportError:
             pass
 
         try:
+            from airflow.executors.celery_kubernetes_executor import CeleryKubernetesExecutor
             from airflow.executors.kubernetes_executor import KubernetesExecutor
 
-            valid_kubernetes_config = isinstance(executor, KubernetesExecutor)
+            valid_kubernetes_config = isinstance(executor, KubernetesExecutor) or isinstance(
+                executor, CeleryKubernetesExecutor
+            )
         except ImportError:
             pass
 
         if not valid_celery_config and not valid_kubernetes_config:
-            flash("Only works with the Celery or Kubernetes executors, sorry", "error")
+            flash("Only works with the Celery, Kubernetes, CeleryKubernetes executors, sorry", "error")
             return redirect(origin)
 
         dag_run = dag.get_dagrun(execution_date=execution_date)
