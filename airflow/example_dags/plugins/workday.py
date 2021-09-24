@@ -54,7 +54,7 @@ class AfterWorkdayTimetable(Timetable):
     ) -> Optional[DagRunInfo]:
         if last_automated_data_interval is not None:  # There was a previous run on the regular schedule.
             last_start = last_automated_data_interval.start
-            last_start_weekday = 7 - last_start.weekday()
+            last_start_weekday = last_start.weekday()
             if 0 <= last_start_weekday < 4:  # Last run on Monday through Thursday -- next is tomorrow.
                 delta = timedelta(days=1)
             else:  # Last run on Friday -- skip to next Monday.

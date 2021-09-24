@@ -109,7 +109,17 @@ function build_images::forget_last_answer() {
 function build_images::confirm_via_terminal() {
     echo >"${DETECTED_TERMINAL}"
     echo >"${DETECTED_TERMINAL}"
-    echo "${COLOR_YELLOW}WARNING:Make sure that you rebased to latest upstream before rebuilding!${COLOR_RESET}" >"${DETECTED_TERMINAL}"
+    set +u
+    if [[ ${#MODIFIED_FILES[@]} != "" ]]; then
+        echo "${COLOR_YELLOW}The CI image for Python ${PYTHON_BASE_IMAGE} image likely needs to be rebuild${COLOR_RESET}" >"${DETECTED_TERMINAL}"
+        echo "${COLOR_YELLOW}The files were modified since last build: ${MODIFIED_FILES[*]}${COLOR_RESET}" >"${DETECTED_TERMINAL}"
+    fi
+    if [[ ${ACTION} == "pull and rebuild" ]]; then
+        echo "${COLOR_YELLOW}This build involves pull and it might take some time and network to pull the base image first!${COLOR_RESET}" >"${DETECTED_TERMINAL}"
+    fi
+    set -u
+    echo >"${DETECTED_TERMINAL}"
+    echo "${COLOR_YELLOW}WARNING!!!!:Make sure that you rebased to latest upstream before rebuilding or the rebuild might take a lot of time!${COLOR_RESET}" >"${DETECTED_TERMINAL}"
     echo >"${DETECTED_TERMINAL}"
     # Make sure to use output of tty rather than stdin/stdout when available - this way confirm
     # will works also in case of pre-commits (git does not pass stdin/stdout to pre-commit hooks)
@@ -158,11 +168,17 @@ function build_images::confirm_image_rebuild() {
             ;;
         esac
     elif [[ -t 0 ]]; then
-        echo
-        echo
-        echo "${COLOR_YELLOW}WARNING:Make sure that you rebased to latest upstream before rebuilding!${COLOR_RESET}"
-        echo
         # Check if this script is run interactively with stdin open and terminal attached
+        echo
+        set +u
+        if [[ ${#MODIFIED_FILES[@]} != "" ]]; then
+            echo "${COLOR_YELLOW}The CI image for Python ${PYTHON_BASE_IMAGE} image likely needs to be rebuild${COLOR_RESET}"
+            echo "${COLOR_YELLOW}The files were modified since last build: ${MODIFIED_FILES[*]}${COLOR_RESET}"
+        fi
+        echo
+        echo "${COLOR_YELLOW}WARNING!!!!:Make sure that you rebased to latest upstream before rebuilding or the rebuild might take a lot of time!${COLOR_RESET}"
+        echo
+        set -u
         "${AIRFLOW_SOURCES}/confirm" "${ACTION} image ${THE_IMAGE_TYPE}-python${PYTHON_MAJOR_MINOR_VERSION}"
         RES=$?
     elif [[ ${DETECTED_TERMINAL:=$(tty)} != "not a tty" ]]; then
@@ -332,8 +348,7 @@ function build_images::compare_local_and_remote_build_cache_hash() {
     local local_hash
     local_hash=$(cat "${local_image_build_cache_file}")
 
-    if [[ ${remote_hash} != "${local_hash}" || -z ${local_hash} ]] \
-        ; then
+    if [[ ${remote_hash} != "${local_hash}" || -z ${local_hash} ]]; then
         echo
         echo
         echo "Your image and the dockerhub have different or missing build cache hashes."
@@ -490,21 +505,7 @@ function build_images::rebuild_ci_image_if_needed() {
     md5sum::check_if_docker_build_is_needed
     build_images::get_local_build_cache_hash
     if [[ ${needs_docker_build} == "true" ]]; then
-        if [[ ${SKIP_CHECK_REMOTE_IMAGE:=} != "true" && ${DOCKER_CACHE} == "pulled" ]]; then
-            # Check if remote image is different enough to force pull
-            # This is an optimisation pull vs. build time. When there
-            # are enough changes (specifically after setup.py changes) it is faster to pull
-            # and build the image rather than just build it
-            echo
-            echo "Checking if the remote image needs to be pulled"
-            echo
-            build_images::get_remote_image_build_cache_hash
-            if [[ ${REMOTE_DOCKER_REGISTRY_UNREACHABLE:=} != "true" && ${LOCAL_MANIFEST_IMAGE_UNAVAILABLE:=} != "true" ]]; then
-                build_images::compare_local_and_remote_build_cache_hash
-            else
-                FORCE_PULL_IMAGES="true"
-            fi
-        fi
+        md5sum::check_if_pull_is_needed
         SKIP_REBUILD="false"
         if [[ ${CI:=} != "true" && "${FORCE_BUILD:=}" != "true" ]]; then
             build_images::confirm_image_rebuild
@@ -531,9 +532,9 @@ function build_images::rebuild_ci_image_if_needed() {
             verbosity::print_info
         fi
     else
-        verbosity::print_info
-        verbosity::print_info "No need to build - none of the important files changed: ${FILES_FOR_REBUILD_CHECK[*]}"
-        verbosity::print_info
+        echo
+        echo "${COLOR_GREEN}No need to rebuild the image: none of the important files changed${COLOR_RESET}"
+        echo
     fi
 }
 
@@ -554,6 +555,7 @@ function build_images::rebuild_ci_image_if_needed_and_confirmed() {
     md5sum::check_if_docker_build_is_needed
 
     if [[ ${needs_docker_build} == "true" ]]; then
+        md5sum::check_if_pull_is_needed
         verbosity::print_info
         verbosity::print_info "Docker image build is needed!"
         verbosity::print_info
@@ -564,19 +566,6 @@ function build_images::rebuild_ci_image_if_needed_and_confirmed() {
     fi
 
     if [[ "${needs_docker_build}" == "true" ]]; then
-        echo
-        echo "Some of your images need to be rebuild because important files (like package list) has changed."
-        echo
-        echo "You have those options:"
-        echo "   * Rebuild the images now by answering 'y' (this might take some time!)"
-        echo "   * Skip rebuilding the images and hope changes are not big (you will be asked again)"
-        echo "   * Quit and manually rebuild the images using one of the following commands"
-        echo "        * ./breeze build-image"
-        echo "        * ./breeze build-image --force-pull-images"
-        echo
-        echo "   The first command works incrementally from your last local build."
-        echo "   The second command you use if you want to completely refresh your images from dockerhub."
-        echo
         SKIP_REBUILD="false"
         build_images::confirm_image_rebuild
 

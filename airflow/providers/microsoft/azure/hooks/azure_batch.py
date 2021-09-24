@@ -33,9 +33,6 @@ class AzureBatchHook(BaseHook):
     """
     Hook for Azure Batch APIs
 
-    Account name and account key should be in login and password parameters.
-    The account url should be in extra parameter as account_url
-
     :param azure_batch_conn_id: :ref:`Azure Batch connection id<howto/connection:azure_batch>`
         of a service principal which will be used to start the container instance.
     :type azure_batch_conn_id: str
@@ -55,7 +52,7 @@ class AzureBatchHook(BaseHook):
 
         return {
             "extra__azure_batch__account_url": StringField(
-                lazy_gettext('Azure Batch Account URl'), widget=BS3TextFieldWidget()
+                lazy_gettext('Batch Account URL'), widget=BS3TextFieldWidget()
             ),
         }
 
@@ -65,13 +62,8 @@ class AzureBatchHook(BaseHook):
         return {
             "hidden_fields": ['schema', 'port', 'host', 'extra'],
             "relabeling": {
-                'login': 'Azure Batch Account Name',
-                'password': 'Azure Batch Key',
-            },
-            "placeholders": {
-                'login': 'batch account',
-                'password': 'key',
-                'extra__azure_batch__account_url': 'account url',
+                'login': 'Batch Account Name',
+                'password': 'Batch Account Access Key',
             },
         }
 
@@ -79,31 +71,24 @@ class AzureBatchHook(BaseHook):
         super().__init__()
         self.conn_id = azure_batch_conn_id
         self.connection = self.get_conn()
-        self.extra = self._connection().extra_dejson
 
     def _connection(self) -> Connection:
-        """Get connected to azure batch service"""
+        """Get connected to Azure Batch service"""
         conn = self.get_connection(self.conn_id)
         return conn
 
     def get_conn(self):
         """
-        Get the batch client connection
+        Get the Batch client connection
 
-        :return: Azure batch client
+        :return: Azure Batch client
         """
         conn = self._connection()
 
-        def _get_required_param(name):
-            """Extract required parameter from extra JSON, raise exception if not found"""
-            value = conn.extra_dejson.get(name)
-            if not value:
-                raise AirflowException(f'Extra connection option is missing required parameter: `{name}`')
-            return value
+        batch_account_url = conn.extra_dejson.get('extra__azure_batch__account_url')
+        if not batch_account_url:
+            raise AirflowException('Batch Account URL parameter is missing.')
 
-        batch_account_url = _get_required_param('account_url') or _get_required_param(
-            'extra__azure_batch__account_url'
-        )
         credentials = batch_auth.SharedKeyCredentials(conn.login, conn.password)
         batch_client = BatchServiceClient(credentials, batch_url=batch_account_url)
         return batch_client

@@ -137,7 +137,7 @@ The Release Candidate artifacts we vote upon should be the exact ones we vote ag
 - Tag & Push the latest constraints files. This pushes constraints with rc suffix (this is expected)!
 
     ```shell script
-    git checkout constraints-${VERSION_CONSTRAINT_BRANCH}
+    git checkout origin/constraints-${VERSION_CONSTRAINT_BRANCH}
     git tag -s "constraints-${VERSION}"
     git push origin "constraints-${VERSION}"
     ```

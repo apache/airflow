@@ -96,10 +96,17 @@ file:
 
 .. code-block:: python
 
+    import datetime
+
     from airflow import DAG
 
 
-    with DAG(timetable=AfterWorkdayTimetable(), tags=["example", "timetable"]) as dag:
+    with DAG(
+        dag_id="example_after_workday_timetable_dag",
+        start_date=datetime.datetime(2021, 3, 10),
+        timetable=AfterWorkdayTimetable(),
+        tags=["example", "timetable"],
+    ) as dag:
         ...
 
 

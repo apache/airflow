@@ -14,30 +14,3 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
----
-version: "3.7"
-services:
-  cassandra:
-    image: cassandra:3.0
-    environment:
-      HEAP_NEWSIZE: 128M
-      MAX_HEAP_SIZE: 256M
-    volumes:
-      - /dev/urandom:/dev/random   # Required to get non-blocking entropy source
-      - cassandra-db-volume:/var/lib/cassandra
-    healthcheck:
-      test: "[ $$(nodetool statusgossip) = running ]"
-      interval: 5s
-      timeout: 30s
-      retries: 50
-    restart: always
-
-  airflow:
-    environment:
-      - INTEGRATION_CASSANDRA=true
-    depends_on:
-      cassandra:
-        condition: service_healthy
-
-volumes:
-  cassandra-db-volume:

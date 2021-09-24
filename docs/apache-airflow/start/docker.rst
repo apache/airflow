@@ -49,8 +49,8 @@ Older versions of ``docker-compose`` do not support all the features required by
 
 .. warning::
     Default amount of memory available for Docker on MacOS is often not enough to get Airflow up and running.
-    If you have not enough memory available it might lead to airflow webserver continuously restarting.
-    You should have at least 4GB memory allocated for the Docker Engine (ideally 8GB). You can check
+    If enough memory is not allocated, it might lead to airflow webserver continuously restarting.
+    You should at least allocate 4GB memory for the Docker Engine (ideally 8GB). You can check
     and change the amount of memory in `Resources <https://docs.docker.com/docker-for-mac/#resources>`_
 
     You can also check if you have enough memory by running this command:
@@ -75,7 +75,7 @@ This file contains several service definitions:
 
 - ``airflow-scheduler`` - The :doc:`scheduler </concepts/scheduler>` monitors all tasks and DAGs, then triggers the
   task instances once their dependencies are complete.
-- ``airflow-webserver`` - The webserver available at ``http://localhost:8080``.
+- ``airflow-webserver`` - The webserver is available at ``http://localhost:8080``.
 - ``airflow-worker`` - The worker that executes the tasks given by the scheduler.
 - ``airflow-init`` - The initialization service.
 - ``flower`` - `The flower app <https://flower.readthedocs.io/en/latest/>`__ for monitoring the environment. It is available at ``http://localhost:5555``.
@@ -91,7 +91,7 @@ Some directories in the container are mounted, which means that their contents a
 - ``./plugins`` - you can put your :doc:`custom plugins </plugins>` here.
 
 This file uses the latest Airflow image (`apache/airflow <https://hub.docker.com/r/apache/airflow>`__).
-If you need install a new Python library or system library, you can :doc:`build your image <docker-stack:index>`.
+If you need to install a new Python library or system library, you can :doc:`build your image <docker-stack:index>`.
 
 Using custom images
 ===================
@@ -244,7 +244,7 @@ Accessing the web interface
 
 Once the cluster has started up, you can log in to the web interface and try to run some tasks.
 
-The webserver available at: ``http://localhost:8080``.
+The webserver is available at: ``http://localhost:8080``.
 The default account has the login ``airflow`` and the password ``airflow``.
 
 Sending requests to the REST API
@@ -254,7 +254,7 @@ Sending requests to the REST API
 https://en.wikipedia.org/wiki/Basic_access_authentication>`_ is currently
 supported for the REST API, which means you can use common tools to send requests to the API.
 
-The webserver available at: ``http://localhost:8080``.
+The webserver is available at: ``http://localhost:8080``.
 The default account has the login ``airflow`` and the password ``airflow``.
 
 Here is a sample ``curl`` command, which sends a request to retrieve a pool list:
@@ -281,7 +281,7 @@ FAQ: Frequently asked questions
 ``ModuleNotFoundError: No module named 'XYZ'``
 ----------------------------------------------
 
-The Docker Compose file uses the latest Airflow image (`apache/airflow <https://hub.docker.com/r/apache/airflow>`__). If you need install a new Python library or system library, you can :doc:`customize and extend it <docker-stack:index>`.
+The Docker Compose file uses the latest Airflow image (`apache/airflow <https://hub.docker.com/r/apache/airflow>`__). If you need to install a new Python library or system library, you can :doc:`customize and extend it <docker-stack:index>`.
 
 What's Next?
 ============
