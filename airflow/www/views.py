@@ -3297,6 +3297,7 @@ def lazy_add_provider_discovered_options_to_connection_form():
         _connection_types = [
             ('fs', 'File (path)'),
             ('mesos_framework-id', 'Mesos Framework ID'),
+            ('email', 'Email'),
         ]
         providers_manager = ProvidersManager()
         for connection_type, provider_info in providers_manager.hooks.items():
