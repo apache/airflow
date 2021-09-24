@@ -604,7 +604,8 @@ class DagFileProcessor(LoggingMixin):
         2. Execute any Callbacks if passed to this method.
         3. Serialize the DAGs and save it to DB (or update existing record in the DB).
         4. Pickle the DAG and save it to the DB (if necessary).
-        5. Record any errors importing the file into ORM
+        5. Mark any DAGs which are no longer present as inactive
+        6. Record any errors importing the file into ORM
 
         :param file_path: the path to the Python file that should be executed
         :type file_path: str
@@ -626,6 +627,8 @@ class DagFileProcessor(LoggingMixin):
             self.log.exception("Failed at reloading the DAG file %s", file_path)
             Stats.incr('dag_file_refresh_error', 1, 1)
             return 0, 0
+
+        self._deactivate_missing_dags(session, dagbag, file_path)
 
         if len(dagbag.dags) > 0:
             self.log.info("DAG(s) %s retrieved from %s", dagbag.dags.keys(), file_path)
@@ -656,3 +659,12 @@ class DagFileProcessor(LoggingMixin):
             self.log.exception("Error logging import errors!")
 
         return len(dagbag.dags), len(dagbag.import_errors)
+
+    def _deactivate_missing_dags(self, session: Session, dagbag: DagBag, file_path: str) -> None:
+        deactivated = (
+            session.query(DagModel)
+            .filter(DagModel.fileloc == file_path, DagModel.is_active, ~DagModel.dag_id.in_(dagbag.dag_ids))
+            .update({DagModel.is_active: False}, synchronize_session="fetch")
+        )
+        if deactivated:
+            self.log.info("Deactivated %i DAGs which are no longer present in %s", deactivated, file_path)

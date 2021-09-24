@@ -160,25 +160,41 @@ the dependencies as shown below.
     :start-after: [START main_flow]
     :end-before: [END main_flow]
 
-Using the TaskFlow API with Virtual Environments
+Using the Taskflow API with Docker or Virtual Environments
 ----------------------------------------------------------
 
-As of Airflow 2.0.3, you will have the ability to use the TaskFlow API with a
-virtual environment. This added functionality will allow a much more
-comprehensive range of use-cases for the TaskFlow API, as you will not be limited to the
+If you have tasks that require complex or conflicting requirements then you will have the ability to use the
+Taskflow API with either a Docker container (since version 2.2.0) or Python virtual environment (since 2.0.2).
+This added functionality will allow a much more
+comprehensive range of use-cases for the Taskflow API, as you will not be limited to the
 packages and system libraries of the Airflow worker.
 
-To run your Airflow task in a virtual environment, switch your ``@task`` decorator to a ``@task.virtualenv``
-decorator. The ``@task.virtualenv`` decorator will allow you to create a new virtualenv with custom libraries
-and even a different python version to run your function.
+To use a docker image with the Taskflow API, change the decorator to ``@task.docker``
+and add any needed arguments to correctly run the task. Please note that the docker
+image must have a working Python installed and take in a bash command as the ``command`` argument.
 
-.. exampleinclude:: /../../airflow/example_dags/tutorial_taskflow_api_etl_virtualenv.py
+Below is an example of using the ``@task.docker`` decorator to run a python task.
+
+.. exampleinclude:: /../../airflow/example_dags/tutorial_taskflow_api_etl_docker_virtualenv.py
+    :language: python
+    :dedent: 4
+    :start-after: [START transform_docker]
+    :end-before: [END transform_docker]
+
+It is worth noting that the python source code (extracted from the decorated function) and any callable args are sent to the container via (encoded and pickled) environment variables so the length of these is not boundless (the exact limit depends on system settings).
+
+If you don't want to run your image on a Docker environment, and instead want to create a separate virtual
+environment on the same machine, you can use the ``@task.virtualenv`` decorator instead. The ``@task.virtualenv``
+decorator will allow you to create a new virtualenv with custom libraries and even a different
+Python version to run your function.
+
+.. exampleinclude:: /../../airflow/example_dags/tutorial_taskflow_api_etl_docker_virtualenv.py
     :language: python
     :dedent: 4
     :start-after: [START extract_virtualenv]
     :end-before: [END extract_virtualenv]
 
-This option should allow for far greater flexibility for users who wish to keep their workflows more simple
+These two options should allow for far greater flexibility for users who wish to keep their workflows more simple
 and pythonic.
 
 Multiple outputs inference
@@ -187,9 +203,9 @@ Tasks can also infer multiple outputs by using dict python typing.
 
 .. code-block:: python
 
-    @task
-    def identity_dict(x: int, y: int) -> Dict[str, int]:
-        return {"x": x, "y": y}
+   @task
+   def identity_dict(x: int, y: int) -> Dict[str, int]:
+       return {"x": x, "y": y}
 
 By using the typing ``Dict`` for the function return type, the ``multiple_outputs`` parameter
 is automatically set to true.

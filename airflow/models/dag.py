@@ -246,8 +246,10 @@ class DAG(LoggingMixin):
         is only enforced for scheduled DagRuns.
     :type dagrun_timeout: datetime.timedelta
     :param sla_miss_callback: specify a function to call when reporting SLA
-        timeouts.
-    :type sla_miss_callback: types.FunctionType
+        timeouts. See :ref:`sla_miss_callback<concepts:sla_miss_callback>` for
+        more information about the function signature and parameters that are
+        passed to the callback.
+    :type sla_miss_callback: callable
     :param default_view: Specify DAG default view (tree, graph, duration,
                                                    gantt, landing_times), default tree
     :type default_view: str
@@ -331,7 +333,7 @@ class DAG(LoggingMixin):
         max_active_tasks: int = conf.getint('core', 'max_active_tasks_per_dag'),
         max_active_runs: int = conf.getint('core', 'max_active_runs_per_dag'),
         dagrun_timeout: Optional[timedelta] = None,
-        sla_miss_callback: Optional[Callable] = None,
+        sla_miss_callback: Optional[Callable[["DAG", str, str, List[str], List[TaskInstance]], None]] = None,
         default_view: str = conf.get('webserver', 'dag_default_view').lower(),
         orientation: str = conf.get('webserver', 'dag_orientation'),
         catchup: bool = conf.getboolean('scheduler', 'catchup_by_default'),
@@ -1178,7 +1180,7 @@ class DAG(LoggingMixin):
         return dagruns
 
     @provide_session
-    def get_latest_execution_date(self, session=None):
+    def get_latest_execution_date(self, session: Session) -> Optional[datetime]:
         """Returns the latest date for which at least one dag run exists"""
         return session.query(func.max(DagRun.execution_date)).filter(DagRun.dag_id == self.dag_id).scalar()
 
@@ -1267,8 +1269,8 @@ class DAG(LoggingMixin):
         ``base_date``, or more if there are manual task runs between the
         requested period, which does not count toward ``num``.
         """
-        min_date = (
-            session.query(DagRun)
+        min_date: Optional[datetime] = (
+            session.query(DagRun.execution_date)
             .filter(
                 DagRun.dag_id == self.dag_id,
                 DagRun.execution_date <= base_date,
@@ -1276,7 +1278,8 @@ class DAG(LoggingMixin):
             )
             .order_by(DagRun.execution_date.desc())
             .offset(num)
-            .first()
+            .limit(1)
+            .scalar()
         )
         if min_date is None:
             min_date = timezone.utc_epoch()
@@ -2420,12 +2423,12 @@ class DAG(LoggingMixin):
             orm_dag.calculate_dagrun_date_fields(dag, data_interval)
 
             for orm_tag in list(orm_dag.tags):
-                if orm_tag.name not in orm_dag.tags:
+                if orm_tag.name not in set(dag.tags):
                     session.delete(orm_tag)
-                orm_dag.tags.remove(orm_tag)
+                    orm_dag.tags.remove(orm_tag)
             if dag.tags:
                 orm_tag_names = [t.name for t in orm_dag.tags]
-                for dag_tag in list(dag.tags):
+                for dag_tag in set(dag.tags):
                     if dag_tag not in orm_tag_names:
                         dag_tag_orm = DagTag(name=dag_tag, dag_id=dag.dag_id)
                         orm_dag.tags.append(dag_tag_orm)
@@ -2807,7 +2810,6 @@ class DagModel(Base):
     def deactivate_deleted_dags(cls, alive_dag_filelocs: List[str], session=None):
         """
         Set ``is_active=False`` on the DAGs for which the DAG files have been removed.
-        Additionally change ``is_active=False`` to ``True`` if the DAG file exists.
 
         :param alive_dag_filelocs: file paths of alive DAGs
         :param session: ORM Session
@@ -2819,11 +2821,6 @@ class DagModel(Base):
             if dag_model.fileloc is not None:
                 if correct_maybe_zipped(dag_model.fileloc) not in alive_dag_filelocs:
                     dag_model.is_active = False
-                else:
-                    # If is_active is set as False and the DAG File still exists
-                    # Change is_active=True
-                    if not dag_model.is_active:
-                        dag_model.is_active = True
             else:
                 continue
 

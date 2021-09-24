@@ -124,7 +124,9 @@ class DagRun(Base, LoggingMixin):
         ),
     )
 
-    task_instances = relationship(TI, back_populates="dag_run")
+    task_instances = relationship(
+        TI, back_populates="dag_run", cascade='save-update, merge, delete, delete-orphan'
+    )
 
     DEFAULT_DAGRUNS_TO_EXAMINE = airflow_conf.getint(
         'scheduler',

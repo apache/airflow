@@ -377,6 +377,9 @@ class DagBag(LoggingMixin):
                         )
                     else:
                         self.import_errors[fileloc] = str(e)
+                finally:
+                    if sys.path[0] == filepath:
+                        del sys.path[0]
         return mods
 
     def _process_modules(self, filepath, mods, file_last_changed_on_disk):

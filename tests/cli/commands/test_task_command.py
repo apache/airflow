@@ -134,6 +134,7 @@ class TestCliTasks(unittest.TestCase):
             ignore_ti_state=False,
             pickle_id=None,
             pool=None,
+            external_executor_id=None,
         )
 
     @mock.patch("airflow.cli.commands.task_command.LocalTaskJob")
@@ -434,6 +435,67 @@ class TestLogsfromTaskRunCommand(unittest.TestCase):
             # Example: [2020-06-24 17:07:00,482] {logging_mixin.py:91} INFO - Log from Print statement
             assert "logging_mixin.py" not in log_line
         return log_line
+
+    @mock.patch("airflow.cli.commands.task_command.LocalTaskJob")
+    def test_external_executor_id_present_for_fork_run_task(self, mock_local_job):
+        naive_date = datetime(2016, 1, 1)
+        dag_id = 'test_run_fork_has_external_executor_id'
+        task0_id = 'test_run_fork_task'
+
+        dag = self.dagbag.get_dag(dag_id)
+        args_list = [
+            'tasks',
+            'run',
+            '--local',
+            dag_id,
+            task0_id,
+            naive_date.isoformat(),
+        ]
+        args = self.parser.parse_args(args_list)
+        args.external_executor_id = "ABCD12345"
+
+        task_command.task_run(args, dag=dag)
+        mock_local_job.assert_called_once_with(
+            task_instance=mock.ANY,
+            mark_success=False,
+            pickle_id=None,
+            ignore_all_deps=False,
+            ignore_depends_on_past=False,
+            ignore_task_deps=False,
+            ignore_ti_state=False,
+            pool=None,
+            external_executor_id="ABCD12345",
+        )
+
+    @mock.patch("airflow.cli.commands.task_command.LocalTaskJob")
+    def test_external_executor_id_present_for_process_run_task(self, mock_local_job):
+        naive_date = datetime(2016, 1, 1)
+        dag_id = 'test_run_process_has_external_executor_id'
+        task0_id = 'test_run_process_task'
+
+        dag = self.dagbag.get_dag(dag_id)
+        args_list = [
+            'tasks',
+            'run',
+            '--local',
+            dag_id,
+            task0_id,
+            naive_date.isoformat(),
+        ]
+        args = self.parser.parse_args(args_list)
+        with mock.patch.dict(os.environ, {"external_executor_id": "12345FEDCBA"}):
+            task_command.task_run(args, dag=dag)
+            mock_local_job.assert_called_once_with(
+                task_instance=mock.ANY,
+                mark_success=False,
+                pickle_id=None,
+                ignore_all_deps=False,
+                ignore_depends_on_past=False,
+                ignore_task_deps=False,
+                ignore_ti_state=False,
+                pool=None,
+                external_executor_id="ABCD12345",
+            )
 
     @unittest.skipIf(not hasattr(os, 'fork'), "Forking not available")
     def test_logging_with_run_task(self):

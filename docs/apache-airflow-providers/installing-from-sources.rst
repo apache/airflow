@@ -16,35 +16,33 @@
     under the License.
 
 
-Installing from Sources
------------------------
+Installing Providers from Sources
+---------------------------------
 
 .. contents:: :local:
 
 
-Installing Airflow from released sources and packages
-'''''''''''''''''''''''''''''''''''''''''''''''''''''
-
-You can also install Airflow using the official sources and packages. Those sources and packages
-released are the "official" sources of installation that you can use if you want to verify the
-origin of the packages and want to verify checksums and signatures of the packages.
-
-The packages are available at the
-`Official Apache Software Foundations Downloads page <https://downloads.apache.org/airflow/>`_
-
-The |version| downloads are available at:
+Released packages
+'''''''''''''''''
 
 .. jinja:: official_download_page
 
-    * `Sdist package <{{ closer_lua_url }}/apache-airflow-{{ airflow_version }}.tar.gz>`_ (`asc <{{ base_url }}/apache-airflow-{{ airflow_version }}.tar.gz.asc>`__, `sha512 <{{ base_url }}/apache-airflow-{{ airflow_version }}.tar.gz.sha512>`__)
-    * `Wheel package <{{ closer_lua_url }}/apache_airflow-{{ airflow_version }}-py3-none-any.whl>`_ (`asc <{{ base_url }}/apache_airflow-{{ airflow_version }}-py3-none-any.whl.asc>`__, `sha512 <{{ base_url }}/apache_airflow-{{ airflow_version }}-py3-none-any.whl.sha512>`__)
-    * `Sources <{{ closer_lua_url }}/apache-airflow-{{ airflow_version }}-source.tar.gz>`_ (`asc <{{ base_url }}/apache_airflow-{{ airflow_version }}-source.tar.gz.asc>`__, `sha512 <{{ base_url }}/apache-airflow-{{ airflow_version }}-source.tar.gz.sha512>`__)
+    .. raw:: html
 
-If you want to install from the source code, you can download from the sources link above, it will contain
-a ``INSTALL`` file containing details on how you can build and install Airflow.
+        <ul style="column-count: 2;">
+        {% for provider in all_providers %}
+            <li><a href="/docs/{{ provider['package-name'] }}/latest/installing-providers-from-sources.html"><code>{{ provider.name }}</code></a></li>
+        {% endfor %}
+         </ul>
 
-Release integrity & Verification of releases
-''''''''''''''''''''''''''''''''''''''''''''
+
+    You can also install ``Apache Airflow Providers`` - as most Python packages - via :doc:`PyPI <installing-from-pypi>`.
+    You can choose different version of Airflow by selecting different version from the drop-down at
+    the top-left of the page.
+
+
+Release integrity
+'''''''''''''''''
 
 `PGP signatures KEYS <https://downloads.apache.org/airflow/KEYS>`_
 
@@ -74,26 +72,26 @@ distribution directory and follow the below guide.
 
 .. code-block:: bash
 
-    gpg --verify apache-airflow-********.asc apache-airflow-*********
+    gpg --verify apache-airflow-providers-********.asc apache-airflow-providers-*********
 
 or
 
 .. code-block:: bash
 
-    pgpv apache-airflow-********.asc
+    pgpv apache-airflow-providers-********.asc
 
 or
 
 .. code-block:: bash
 
-    pgp apache-airflow-********.asc
+    pgp apache-airflow-providers-********.asc
 
 Example:
 
 .. code-block:: console
     :substitutions:
 
-    $ gpg --verify apache-airflow-|version|-source.tar.gz.asc apache-airflow-|version|-source.tar.gz
+    $ gpg --verify apache-airflow-providers-airbyte-1.0.0-source.tar.gz.asc apache-airflow-providers-airbyte-1.0.0-source.tar.gz
       gpg: Signature made Sat 11 Sep 12:49:54 2021 BST
       gpg:                using RSA key CDE15C6E4D3A8EC4ECF4BA4B6674E08AD7DE406F
       gpg:                issuer "kaxilnaik@apache.org"
@@ -112,7 +110,7 @@ For SHA512 sum check, download the relevant ``sha512`` and run the following:
 
 .. code-block:: bash
 
-    shasum -a 512 apache-airflow--********  | diff - apache-airflow--********.sha512
+    shasum -a 512 apache-airflow-providers-********  | diff - apache-airflow-providers-********.sha512
 
 The ``SHASUM`` of the file should match the one provided in ``.sha512`` file.
 
@@ -121,4 +119,4 @@ Example:
 .. code-block:: bash
     :substitutions:
 
-    shasum -a 512 apache-airflow-|version|-source.tar.gz  | diff - apache-airflow-|version|-source.tar.gz.sha512
+    shasum -a 512 apache-airflow-providers-airbyte-1.0.0-source.tar.gz  | diff - apache-airflow-providers-airbyte-1.0.0-source.tar.gz.sha512

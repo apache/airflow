@@ -336,8 +336,8 @@ class TestSecurity(unittest.TestCase):
         with self.app.app_context():
             user = api_connexion_utils.create_user(
                 self.app,
-                username,
-                role_name,
+                username=username,
+                role_name=role_name,
                 permissions=[
                     (role_perm, role_vm),
                 ],
@@ -355,8 +355,8 @@ class TestSecurity(unittest.TestCase):
         with self.app.app_context():
             user = api_connexion_utils.create_user(
                 self.app,
-                "current_user_has_permissions",
-                "current_user_has_permissions",
+                username="current_user_has_permissions",
+                role_name="current_user_has_permissions",
                 permissions=[("can_some_action", "SomeBaseView")],
             )
             role = user.roles[0]
@@ -379,8 +379,8 @@ class TestSecurity(unittest.TestCase):
 
         user = api_connexion_utils.create_user(
             self.app,
-            username,
-            role_name,
+            username=username,
+            role_name=role_name,
             permissions=[
                 (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
                 (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
@@ -407,8 +407,8 @@ class TestSecurity(unittest.TestCase):
 
         user = api_connexion_utils.create_user(
             self.app,
-            username,
-            role_name,
+            username=username,
+            role_name=role_name,
             permissions=[
                 (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_DAG),
             ],
@@ -473,8 +473,8 @@ class TestSecurity(unittest.TestCase):
         with self.app.app_context():
             user = api_connexion_utils.create_user(
                 self.app,
-                username,
-                role_name,
+                username=username,
+                role_name=role_name,
                 permissions=[
                     (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
                     (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
@@ -512,8 +512,8 @@ class TestSecurity(unittest.TestCase):
         with self.app.app_context():
             user = api_connexion_utils.create_user(
                 self.app,
-                username,
-                role_name,
+                username=username,
+                role_name=role_name,
                 permissions=[],
             )
             self.expect_user_is_in_role(user, rolename='team-a')
@@ -540,8 +540,8 @@ class TestSecurity(unittest.TestCase):
         with self.app.app_context():
             user = api_connexion_utils.create_user(
                 self.app,
-                username,
-                role_name,
+                username=username,
+                role_name=role_name,
                 permissions=[],
             )
             self.expect_user_is_in_role(user, rolename='team-a')
@@ -692,8 +692,8 @@ class TestSecurity(unittest.TestCase):
             ]
             user = api_connexion_utils.create_user(
                 self.app,
-                username,
-                role_name,
+                username=username,
+                role_name=role_name,
             )
             self.security_manager.bulk_sync_roles(mock_roles)
             self.security_manager._sync_dag_view_permissions(

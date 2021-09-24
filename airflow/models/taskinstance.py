@@ -1128,6 +1128,7 @@ class TaskInstance(Base, LoggingMixin):
         test_mode: bool = False,
         job_id: Optional[str] = None,
         pool: Optional[str] = None,
+        external_executor_id: Optional[str] = None,
         session=None,
     ) -> bool:
         """
@@ -1153,6 +1154,8 @@ class TaskInstance(Base, LoggingMixin):
         :type job_id: str
         :param pool: specifies the pool to use to run the task instance
         :type pool: str
+        :param external_executor_id: The identifier of the celery executor
+        :type external_executor_id: str
         :param session: SQLAlchemy ORM Session
         :type session: Session
         :return: whether the state was changed to running or not
@@ -1234,6 +1237,7 @@ class TaskInstance(Base, LoggingMixin):
         if not test_mode:
             session.add(Log(State.RUNNING, self))
         self.state = State.RUNNING
+        self.external_executor_id = external_executor_id
         self.end_date = None
         if not test_mode:
             session.merge(self)
@@ -1689,6 +1693,9 @@ class TaskInstance(Base, LoggingMixin):
         Stats.incr(f'operator_failures_{task.task_type}', 1, 1)
         Stats.incr('ti_failures')
         if not test_mode:
+            # This is needed as dag_run is lazily loaded. Without it, sqlalchemy errors with
+            # DetachedInstanceError error.
+            self.dag_run = self.get_dagrun(session=session)
             session.add(Log(State.FAILED, self))
 
             # Log failure duration
@@ -1715,6 +1722,9 @@ class TaskInstance(Base, LoggingMixin):
             self.state = State.FAILED
             email_for_state = task.email_on_failure
         else:
+            if self.state == State.QUEUED:
+                # We increase the try_number so as to fail the task if it fails to start after sometime
+                self._try_number += 1
             self.state = State.UP_FOR_RETRY
             email_for_state = task.email_on_retry
 

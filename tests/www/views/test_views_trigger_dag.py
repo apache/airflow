@@ -201,8 +201,8 @@ def test_viewer_cant_trigger_dag(client_factory):
     Test that the test_viewer user can't trigger DAGs.
     """
     client = client_factory(
-        name="test_viewer_cant_trigger_dag_user",
-        role_name="test_viewer_cant_trigger_dag_user",
+        name="test_user",
+        role_name="test_role",
         permissions=[
             (permissions.ACTION_CAN_READ, permissions.RESOURCE_WEBSITE),
             (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),

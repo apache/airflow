@@ -48,6 +48,8 @@ class PapermillOperator(BaseOperator):
 
     supports_lineage = True
 
+    template_fields = ('input_nb', 'output_nb', 'parameters')
+
     def __init__(
         self,
         *,
@@ -58,8 +60,11 @@ class PapermillOperator(BaseOperator):
     ) -> None:
         super().__init__(**kwargs)
 
+        self.input_nb = input_nb
+        self.output_nb = output_nb
+        self.parameters = parameters
         if input_nb:
-            self.inlets.append(NoteBook(url=input_nb, parameters=parameters))
+            self.inlets.append(NoteBook(url=input_nb, parameters=self.parameters))
         if output_nb:
             self.outlets.append(NoteBook(url=output_nb))
 

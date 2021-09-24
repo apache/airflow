@@ -135,14 +135,14 @@ class ClusterGenerator:
     :type optional_components: list[str]
     :param num_masters: The # of master nodes to spin up
     :type num_masters: int
-    :param master_machine_type: Compute engine machine type to use for the master node
+    :param master_machine_type: Compute engine machine type to use for the primary node
     :type master_machine_type: str
-    :param master_disk_type: Type of the boot disk for the master node
+    :param master_disk_type: Type of the boot disk for the primary node
         (default is ``pd-standard``).
         Valid values: ``pd-ssd`` (Persistent Disk Solid State Drive) or
         ``pd-standard`` (Persistent Disk Hard Disk Drive).
     :type master_disk_type: str
-    :param master_disk_size: Disk size for the master node
+    :param master_disk_size: Disk size for the primary node
     :type master_disk_size: int
     :param worker_machine_type: Compute engine machine type to use for the worker nodes
     :type worker_machine_type: str

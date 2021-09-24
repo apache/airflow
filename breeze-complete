@@ -88,6 +88,7 @@ build-providers-dependencies
 check-apache-license
 check-builtin-literals
 check-executables-have-shebangs
+check-extras-order
 check-hooks-apply
 check-integrations
 check-merge-conflict
@@ -144,6 +145,7 @@ update-breeze-file
 update-extras
 update-local-yml-file
 update-setup-cfg-file
+update-versions
 verify-db-migrations-documented
 version-sync
 www-lint

@@ -114,7 +114,7 @@ class CronDataIntervalTimetable(_DataIntervalTimetable):
     a five/six-segment representation, or one of ``cron_presets``.
 
     The implementation extends on croniter to add timezone awareness. This is
-    because crontier works only with naive timestamps, and cannot consider DST
+    because croniter works only with naive timestamps, and cannot consider DST
     when determining the next/previous time.
 
     Don't pass ``@once`` in here; use ``OnceTimetable`` instead.

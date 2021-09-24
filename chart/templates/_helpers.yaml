@@ -600,3 +600,13 @@ Create the name of the cleanup service account to use
   {{- $_ := set $config "auths" $auth -}}
   {{ $config | toJson | print }}
 {{- end }}
+
+{{/* Allow Kubernetes Version to be overridden. Credit to https://github.com/prometheus-community/helm-charts for Regex. */}}
+{{- define "kubeVersion" -}}
+  {{- $kubeVersion := default .Capabilities.KubeVersion.Version .Values.kubeVersionOverride -}}
+  {{/* Special use case for Amazon EKS, Google GKE */}}
+  {{- if and (regexMatch "\\d+\\.\\d+\\.\\d+-(?:eks|gke).+" $kubeVersion) (not .Values.kubeVersionOverride) -}}
+    {{- $kubeVersion = regexFind "\\d+\\.\\d+\\.\\d+" $kubeVersion -}}
+  {{- end -}}
+  {{- $kubeVersion -}}
+{{- end -}}

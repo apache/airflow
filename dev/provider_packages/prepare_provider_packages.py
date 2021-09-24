@@ -2116,6 +2116,7 @@ KNOWN_DEPRECATED_MESSAGES: Set[Tuple[str, str]] = {
 # ignore those messages when the warnings are generated directly by importlib - which means that
 # we imported it directly during module walk by the importlib library
 KNOWN_DEPRECATED_DIRECT_IMPORTS: Set[str] = {
+    "This module is deprecated. Please use `airflow.providers.microsoft.azure.hooks.data_factory`.",
     "This module is deprecated. Please use `airflow.providers.amazon.aws.hooks.dynamodb`.",
     "This module is deprecated. Please use `airflow.providers.microsoft.azure.transfers.local_to_wasb`.",
     "This module is deprecated. Please use `airflow.providers.tableau.operators.tableau_refresh_workbook`.",
