@@ -22,6 +22,8 @@ from unittest import mock
 from unittest.mock import call
 
 from parameterized import parameterized
+from sqlalchemy.inspection import inspect
+from sqlalchemy.orm.attributes import NO_VALUE
 
 from airflow import models, settings
 from airflow.models import DAG, DagBag, DagModel, TaskInstance as TI, clear_task_instances
@@ -37,6 +39,7 @@ from airflow.utils.state import State
 from airflow.utils.trigger_rule import TriggerRule
 from airflow.utils.types import DagRunType
 from tests.models import DEFAULT_DATE
+from tests.test_utils.asserts import assert_queries_count
 from tests.test_utils.db import clear_db_dags, clear_db_pools, clear_db_runs
 
 
@@ -826,3 +829,21 @@ class TestDagRun(unittest.TestCase):
         ti_failed = dag_run.get_task_instance(dag_task_failed.task_id)
         assert ti_success.state in State.success_states
         assert ti_failed.state in State.failed_states
+
+    def test_get_task_instance_sets_relationship(self):
+        """
+        Test the ``get_task_instance()`` sets the dag_run relationship property on the returned TI.
+        """
+
+        dag = DAG(dag_id='test', start_date=days_ago(1))
+        op = DummyOperator(task_id='dummy', dag=dag)
+
+        dag_run = self.create_dag_run(dag=dag)
+
+        with assert_queries_count(1):
+            ti = dag_run.get_task_instance(op.task_id)
+
+            assert ti.dag_run is dag_run
+            info = inspect(ti)
+            assert info.attrs.dag_run.loaded_value is not NO_VALUE
+            assert ti.execution_date is dag_run.execution_date

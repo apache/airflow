@@ -35,6 +35,7 @@ from sqlalchemy import (
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.declarative import declared_attr
 from sqlalchemy.orm import joinedload, relationship, synonym
+from sqlalchemy.orm.attributes import set_committed_value
 from sqlalchemy.orm.session import Session
 from sqlalchemy.sql import expression
 
@@ -381,11 +382,14 @@ class DagRun(Base, LoggingMixin):
         :param session: Sqlalchemy ORM Session
         :type session: Session
         """
-        return (
+        ti = (
             session.query(TI)
             .filter(TI.dag_id == self.dag_id, TI.run_id == self.run_id, TI.task_id == task_id)
             .one_or_none()
         )
+        if ti:
+            set_committed_value(ti, 'dag_run', self)
+        return ti
 
     def get_dag(self) -> "DAG":
         """
