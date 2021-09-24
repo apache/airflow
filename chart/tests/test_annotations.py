@@ -15,158 +15,260 @@
 # specific language governing permissions and limitations
 # under the License.
 
-import unittest
+import pytest
 
 from tests.helm_template_generator import render_chart
 
-COMPONENTS_SUPPORTING_CUSTOM_SERVICEACCOUNT_ANNOTATIONS = (
-    "scheduler",
-    "webserver",
-    "worker",
-    "cleanup",
-    "flower",
-    "pgbouncer",
-    "statsd",
-    "createuser",
-    "migratedb",
-    "redis",
-    "triggerer",
-)
 
-COMPONENTS_SUPPORTING_CUSTOM_POD_ANNOTATIONS = (
-    "scheduler",
-    "webserver",
-    "worker",
-    "flower",
-    "triggerer",
-)
-
-
-class AnnotationsTest(unittest.TestCase):
-    def test_service_account_annotations(self):
+class TestServiceAccountAnnotations:
+    @pytest.mark.parametrize(
+        "values,show_only,expected_annotations",
+        [
+            (
+                {
+                    "cleanup": {
+                        "enabled": True,
+                        "serviceAccount": {
+                            "annotations": {
+                                "example": "cleanup",
+                            },
+                        },
+                    },
+                },
+                "templates/cleanup/cleanup-serviceaccount.yaml",
+                {
+                    "example": "cleanup",
+                },
+            ),
+            (
+                {
+                    "scheduler": {
+                        "serviceAccount": {
+                            "annotations": {
+                                "example": "scheduler",
+                            },
+                        },
+                    },
+                },
+                "templates/scheduler/scheduler-serviceaccount.yaml",
+                {
+                    "example": "scheduler",
+                },
+            ),
+            (
+                {
+                    "webserver": {
+                        "serviceAccount": {
+                            "annotations": {
+                                "example": "webserver",
+                            },
+                        },
+                    },
+                },
+                "templates/webserver/webserver-serviceaccount.yaml",
+                {
+                    "example": "webserver",
+                },
+            ),
+            (
+                {
+                    "workers": {
+                        "serviceAccount": {
+                            "annotations": {
+                                "example": "worker",
+                            },
+                        },
+                    },
+                },
+                "templates/workers/worker-serviceaccount.yaml",
+                {
+                    "example": "worker",
+                },
+            ),
+            (
+                {
+                    "flower": {
+                        "serviceAccount": {
+                            "annotations": {
+                                "example": "flower",
+                            },
+                        },
+                    },
+                },
+                "templates/flower/flower-serviceaccount.yaml",
+                {
+                    "example": "flower",
+                },
+            ),
+            (
+                {
+                    "statsd": {
+                        "serviceAccount": {
+                            "annotations": {
+                                "example": "statsd",
+                            },
+                        },
+                    },
+                },
+                "templates/statsd/statsd-serviceaccount.yaml",
+                {
+                    "example": "statsd",
+                },
+            ),
+            (
+                {
+                    "redis": {
+                        "serviceAccount": {
+                            "annotations": {
+                                "example": "redis",
+                            },
+                        },
+                    },
+                },
+                "templates/redis/redis-serviceaccount.yaml",
+                {
+                    "example": "redis",
+                },
+            ),
+            (
+                {
+                    "pgbouncer": {
+                        "enabled": True,
+                        "serviceAccount": {
+                            "annotations": {
+                                "example": "pgbouncer",
+                            },
+                        },
+                    },
+                },
+                "templates/pgbouncer/pgbouncer-serviceaccount.yaml",
+                {
+                    "example": "pgbouncer",
+                },
+            ),
+            (
+                {
+                    "createUserJob": {
+                        "serviceAccount": {
+                            "annotations": {
+                                "example": "createuser",
+                            },
+                        },
+                    },
+                },
+                "templates/jobs/create-user-job-serviceaccount.yaml",
+                {
+                    "example": "createuser",
+                },
+            ),
+            (
+                {
+                    "migrateDatabaseJob": {
+                        "serviceAccount": {
+                            "annotations": {
+                                "example": "migratedb",
+                            },
+                        },
+                    },
+                },
+                "templates/jobs/migrate-database-job-serviceaccount.yaml",
+                {
+                    "example": "migratedb",
+                },
+            ),
+            (
+                {
+                    "airflowVersion": "2.2.0",  # Needed for triggerer to be enabled.
+                    "triggerer": {
+                        "serviceAccount": {
+                            "annotations": {
+                                "example": "triggerer",
+                            },
+                        },
+                    },
+                },
+                "templates/triggerer/triggerer-serviceaccount.yaml",
+                {
+                    "example": "triggerer",
+                },
+            ),
+        ],
+    )
+    def test_annotations_are_added(self, values, show_only, expected_annotations):
         k8s_objects = render_chart(
-            values={
-                "cleanup": {
-                    "enabled": True,
-                    "serviceAccount": {
-                        "annotations": {
-                            "example": "cleanup",
-                        },
-                    },
-                },
-                "scheduler": {
-                    "serviceAccount": {
-                        "annotations": {
-                            "example": "scheduler",
-                        },
-                    },
-                },
-                "webserver": {
-                    "serviceAccount": {
-                        "annotations": {
-                            "example": "webserver",
-                        },
-                    },
-                },
-                "workers": {
-                    "serviceAccount": {
-                        "annotations": {
-                            "example": "worker",
-                        },
-                    },
-                },
-                "flower": {
-                    "serviceAccount": {
-                        "annotations": {
-                            "example": "flower",
-                        },
-                    },
-                },
-                "statsd": {
-                    "serviceAccount": {
-                        "annotations": {
-                            "example": "statsd",
-                        },
-                    },
-                },
-                "redis": {
-                    "serviceAccount": {
-                        "annotations": {
-                            "example": "redis",
-                        },
-                    },
-                },
-                "pgbouncer": {
-                    "enabled": True,
-                    "serviceAccount": {
-                        "annotations": {
-                            "example": "pgbouncer",
-                        },
-                    },
-                },
-                "createUserJob": {
-                    "serviceAccount": {
-                        "annotations": {
-                            "example": "createuser",
-                        },
-                    },
-                },
-                "migrateDatabaseJob": {
-                    "serviceAccount": {
-                        "annotations": {
-                            "example": "migratedb",
-                        },
-                    },
-                },
-                "executor": "CeleryExecutor",  # create worker deployment
-                "airflowVersion": "2.2.0",  # Needed for triggerer to be enabled.
-                "triggerer": {
-                    "serviceAccount": {
-                        "annotations": {
-                            "example": "triggerer",
-                        },
-                    },
-                },
-            },
+            values=values,
+            show_only=[show_only],
         )
 
-        list_of_annotation_values_in_objects = [
-            k8s_object['metadata']['annotations']['example']
-            for k8s_object in k8s_objects
-            if k8s_object['kind'] == "ServiceAccount"
-        ]
+        # This test relies on the convention that the helm chart puts a single
+        # ServiceAccount in its own .yaml file, so by specifying `show_only`,
+        # we should only get a single k8s_object here - the target object that
+        # we hope to test on.
+        assert len(k8s_objects) == 1
+        obj = k8s_objects[0]
 
-        self.assertCountEqual(
-            list_of_annotation_values_in_objects,
-            COMPONENTS_SUPPORTING_CUSTOM_SERVICEACCOUNT_ANNOTATIONS,
-        )
+        for k, v in expected_annotations.items():
+            assert k in obj["metadata"]["annotations"]
+            assert v == obj["metadata"]["annotations"][k]
 
-    def test_per_component_custom_annotations(self):
-        release_name = "RELEASE_NAME"
 
-        k8s_objects = render_chart(
-            name=release_name,
-            values={
+@pytest.mark.parametrize(
+    "values,show_only,expected_annotations",
+    [
+        (
+            {
                 "scheduler": {
                     "podAnnotations": {
                         "example": "scheduler",
                     },
                 },
+            },
+            "templates/scheduler/scheduler-deployment.yaml",
+            {
+                "example": "scheduler",
+            },
+        ),
+        (
+            {
                 "webserver": {
                     "podAnnotations": {
                         "example": "webserver",
                     },
                 },
+            },
+            "templates/webserver/webserver-deployment.yaml",
+            {
+                "example": "webserver",
+            },
+        ),
+        (
+            {
                 "workers": {
                     "podAnnotations": {
                         "example": "worker",
                     },
                 },
+            },
+            "templates/workers/worker-deployment.yaml",
+            {
+                "example": "worker",
+            },
+        ),
+        (
+            {
                 "flower": {
                     "podAnnotations": {
                         "example": "flower",
                     },
                 },
+            },
+            "templates/flower/flower-deployment.yaml",
+            {
+                "example": "flower",
+            },
+        ),
+        (
+            {
                 "airflowVersion": "2.2.0",  # Needed for triggerer to be enabled.
                 "triggerer": {
                     "podAnnotations": {
@@ -174,78 +276,48 @@ class AnnotationsTest(unittest.TestCase):
                     },
                 },
             },
-            show_only=[
-                "templates/scheduler/scheduler-deployment.yaml",
-                "templates/workers/worker-deployment.yaml",
-                "templates/webserver/webserver-deployment.yaml",
-                "templates/flower/flower-deployment.yaml",
-                "templates/triggerer/triggerer-deployment.yaml",
-            ],
+            "templates/triggerer/triggerer-deployment.yaml",
+            {
+                "example": "triggerer",
+            },
+        ),
+    ],
+)
+class TestPerComponentPodAnnotations:
+    def test_annotations_are_added(self, values, show_only, expected_annotations):
+        k8s_objects = render_chart(
+            values=values,
+            show_only=[show_only],
         )
 
-        # The test relies on the convention that the Deployment name
-        # is always `{ Release.Name }-<component_name>`.
-        obj_by_component_name = {
-            obj["metadata"]["name"].replace(release_name + "-", ""): obj for obj in k8s_objects
-        }
+        # This test relies on the convention that the helm chart puts a single
+        # Deployment in its own .yaml file, so by specifying `show_only`,
+        # we should only get a single k8s_object here - the target object that
+        # we hope to test on.
+        assert len(k8s_objects) == 1
+        obj = k8s_objects[0]
 
-        self.assertCountEqual(obj_by_component_name, COMPONENTS_SUPPORTING_CUSTOM_POD_ANNOTATIONS)
+        for k, v in expected_annotations.items():
+            assert k in obj["spec"]["template"]["metadata"]["annotations"]
+            assert v == obj["spec"]["template"]["metadata"]["annotations"][k]
 
-        for component_name, obj in obj_by_component_name.items():
-            self.assertIn("example", obj["spec"]["template"]["metadata"]["annotations"])
-            self.assertEqual(component_name, obj["spec"]["template"]["metadata"]["annotations"]["example"])
+    def test_precedence(self, values, show_only, expected_annotations):
+        values_global_annotations = {"airflowPodAnnotations": {k: "GLOBAL" for k in expected_annotations}}
 
-    def test_per_component_custom_annotations_precedence(self):
-        release_name = "RELEASE_NAME"
+        values_merged = {**values, **values_global_annotations}
 
         k8s_objects = render_chart(
-            name=release_name,
-            values={
-                "airflowPodAnnotations": {"example": "GLOBAL"},
-                "scheduler": {
-                    "podAnnotations": {
-                        "example": "scheduler",
-                    },
-                },
-                "webserver": {
-                    "podAnnotations": {
-                        "example": "webserver",
-                    },
-                },
-                "workers": {
-                    "podAnnotations": {
-                        "example": "worker",
-                    },
-                },
-                "flower": {
-                    "podAnnotations": {
-                        "example": "flower",
-                    },
-                },
-                "airflowVersion": "2.2.0",  # Needed for triggerer to be enabled.
-                "triggerer": {
-                    "podAnnotations": {
-                        "example": "triggerer",
-                    },
-                },
-            },
-            show_only=[
-                "templates/scheduler/scheduler-deployment.yaml",
-                "templates/workers/worker-deployment.yaml",
-                "templates/webserver/webserver-deployment.yaml",
-                "templates/flower/flower-deployment.yaml",
-                "templates/triggerer/triggerer-deployment.yaml",
-            ],
+            values=values_merged,
+            show_only=[show_only],
         )
 
-        # The test relies on the convention that the Deployment name
-        # is always `{ Release.Name }-<component_name>`.
-        obj_by_component_name = {
-            obj["metadata"]["name"].replace(release_name + "-", ""): obj for obj in k8s_objects
-        }
+        # This test relies on the convention that the helm chart puts a single
+        # Deployment in its own .yaml file, so by specifying `show_only`,
+        # we should only get a single k8s_object here - the target object that
+        # we hope to test on.
+        assert len(k8s_objects) == 1
+        obj = k8s_objects[0]
 
-        self.assertCountEqual(obj_by_component_name, COMPONENTS_SUPPORTING_CUSTOM_POD_ANNOTATIONS)
-
-        for component_name, obj in obj_by_component_name.items():
-            self.assertIn("example", obj["spec"]["template"]["metadata"]["annotations"])
-            self.assertEqual(component_name, obj["spec"]["template"]["metadata"]["annotations"]["example"])
+        for k, v in expected_annotations.items():
+            assert k in obj["spec"]["template"]["metadata"]["annotations"]
+            assert v == obj["spec"]["template"]["metadata"]["annotations"][k]
