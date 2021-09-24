@@ -404,6 +404,7 @@ acknowledgement
 actionCard
 acyclic
 adhoc
+adls
 airbnb
 airbyte
 airflowignore
