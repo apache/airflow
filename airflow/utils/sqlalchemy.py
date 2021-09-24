@@ -181,7 +181,9 @@ class Interval(TypeDecorator):
 
 def _is_dialect_good_for_row_locks(dialect: DefaultDialect) -> bool:
     supports_for_update_of = dialect.name != "mysql" or dialect.supports_for_update_of
-    mariadb_10_6 = isinstance(dialect, MySQLDialect) and dialect._is_mariadb and dialect.server_version_info >= (10, 6)
+    mariadb_10_6 = (
+        isinstance(dialect, MySQLDialect) and dialect._is_mariadb and dialect.server_version_info >= (10, 6)
+    )
     return supports_for_update_of or mariadb_10_6
 
 
