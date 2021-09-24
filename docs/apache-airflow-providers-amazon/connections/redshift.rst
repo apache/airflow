@@ -52,7 +52,7 @@ Extra
     Specify the extra parameters (as json dictionary) that can be used in
     Amazon Redshift connection. For a complete list of supported parameters
     please see the `documentation <https://github.com/aws/amazon-redshift-python-driver#connection-parameters>`_
-    for redshift_connector. The following parameter is required:
+    for redshift_connector.
 
 
 When specifying the connection in environment variable you should specify
