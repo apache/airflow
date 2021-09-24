@@ -77,7 +77,7 @@ Unfortunately we currently do not support to serialize ``var`` and ``ti`` / ``ta
 with the underlying library. For airflow context variables make sure that you either have access to Airflow through
 setting ``system_site_packages`` to ``True`` or add ``apache-airflow`` to the ``requirements`` argument.
 Otherwise you won't have access to the most context variables of Airflow in ``op_kwargs``.
-If you want the context related to datetime objects like ``execution_date`` you can add ``pendulum`` and
+If you want the context related to datetime objects like ``data_interval_start`` you can add ``pendulum`` and
 ``lazy_object_proxy``.
 
 Templating

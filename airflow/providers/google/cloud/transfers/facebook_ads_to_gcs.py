@@ -18,8 +18,10 @@
 """This module contains Facebook Ad Reporting to GCS operators."""
 import csv
 import tempfile
+import warnings
 from typing import Any, Dict, List, Optional, Sequence, Union
 
+from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.facebook.ads.hooks.ads import FacebookAdsReportingHook
 from airflow.providers.google.cloud.hooks.gcs import GCSHook
@@ -56,9 +58,13 @@ class FacebookAdsReportToGcsOperator(BaseOperator):
     :param fields: List of fields that is obtained from Facebook. Found in AdsInsights.Field class.
         https://developers.facebook.com/docs/marketing-api/insights/parameters/v6.0
     :type fields: List[str]
-    :param params: Parameters that determine the query for Facebook
+    :param params: Parameters that determine the query for Facebook. This keyword is deprecated,
+        please use `parameters` keyword to pass the parameters.
         https://developers.facebook.com/docs/marketing-api/insights/parameters/v6.0
     :type params: Dict[str, Any]
+    :param parameters: Parameters that determine the query for Facebook
+        https://developers.facebook.com/docs/marketing-api/insights/parameters/v6.0
+    :type parameters: Dict[str, Any]
     :param gzip: Option to compress local file or file data for upload
     :type gzip: bool
     :param impersonation_chain: Optional service account to impersonate using short-term
@@ -77,6 +83,7 @@ class FacebookAdsReportToGcsOperator(BaseOperator):
         "bucket_name",
         "object_name",
         "impersonation_chain",
+        "parameters",
     )
 
     def __init__(
@@ -85,7 +92,8 @@ class FacebookAdsReportToGcsOperator(BaseOperator):
         bucket_name: str,
         object_name: str,
         fields: List[str],
-        params: Dict[str, Any],
+        params: Dict[str, Any] = None,
+        parameters: Dict[str, Any] = None,
         gzip: bool = False,
         api_version: str = "v6.0",
         gcp_conn_id: str = "google_cloud_default",
@@ -100,15 +108,26 @@ class FacebookAdsReportToGcsOperator(BaseOperator):
         self.facebook_conn_id = facebook_conn_id
         self.api_version = api_version
         self.fields = fields
-        self.params = params
+        self.parameters = parameters
         self.gzip = gzip
         self.impersonation_chain = impersonation_chain
+
+        if params is None and parameters is None:
+            raise AirflowException("Argument ['parameters'] is required")
+        if params and parameters is None:
+            # TODO: Remove in provider version 6.0
+            warnings.warn(
+                "Please use 'parameters' instead of 'params'",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+            self.parameters = params
 
     def execute(self, context: dict):
         service = FacebookAdsReportingHook(
             facebook_conn_id=self.facebook_conn_id, api_version=self.api_version
         )
-        rows = service.bulk_facebook_report(params=self.params, fields=self.fields)
+        rows = service.bulk_facebook_report(params=self.parameters, fields=self.fields)
 
         converted_rows = [dict(row) for row in rows]
         self.log.info("Facebook Returned %s data points", len(converted_rows))

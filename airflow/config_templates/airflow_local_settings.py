@@ -104,7 +104,7 @@ DEFAULT_LOGGING_CONFIG: Dict[str, Any] = {
             'filters': ['mask_secrets'],
         },
         'flask_appbuilder': {
-            'handler': ['console'],
+            'handlers': ['console'],
             'level': FAB_LOG_LEVEL,
             'propagate': True,
         },
@@ -120,7 +120,7 @@ EXTRA_LOGGER_NAMES: str = conf.get('logging', 'EXTRA_LOGGER_NAMES', fallback=Non
 if EXTRA_LOGGER_NAMES:
     new_loggers = {
         logger_name.strip(): {
-            'handler': ['console'],
+            'handlers': ['console'],
             'level': LOG_LEVEL,
             'propagate': True,
         }

@@ -23,7 +23,7 @@ Templates reference
 Variables, macros and filters can be used in templates (see the :ref:`concepts:jinja-templating` section)
 
 The following come for free out of the box with Airflow.
-Additional custom macros can be added globally through :doc:`plugins`, or at a DAG level through the
+Additional custom macros can be added globally through :doc:`/plugins`, or at a DAG level through the
 ``DAG.user_defined_macros`` argument.
 
 .. _templates:variables:
@@ -36,8 +36,8 @@ in all templates
 ==========================================  ====================================
 Variable                                    Description
 ==========================================  ====================================
-``{{ data_interval_start }}``               Start of the data interval (`pendulum.Pendulum`_ or ``None``).
-``{{ data_interval_end }}``                 End of the data interval (`pendulum.Pendulum`_ or ``None``).
+``{{ data_interval_start }}``               Start of the data interval (`pendulum.Pendulum`_).
+``{{ data_interval_end }}``                 End of the data interval (`pendulum.Pendulum`_).
 ``{{ ds }}``                                Start of the data interval as ``YYYY-MM-DD``.
                                             Same as ``{{ data_interval_start | ds }}``.
 ``{{ ds_nodash }}``                         Start of the data interval as ``YYYYMMDD``.

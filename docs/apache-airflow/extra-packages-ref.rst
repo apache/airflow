@@ -18,7 +18,7 @@
 Reference for package extras
 ''''''''''''''''''''''''''''
 
-Here's the list of all the :ref:`extra dependencies <installation:airflow_extra_dependencies>`.
+Here's the list of all the extra dependencies of Apache Airflow.
 
 The entries with ``*`` in the ``Preinstalled`` column indicate that those extras (providers) are always
 pre-installed when Airflow is installed.

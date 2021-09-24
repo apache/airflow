@@ -34,6 +34,12 @@
             "default": "",
             "x-docsSection": null
         },
+        "kubeVersionOverride": {
+            "description": "Provide a Kubernetes version (used for API Version selection) to override the auto-detected version",
+            "type": "string",
+            "default": "",
+            "x-docsSection": null
+        },
         "uid": {
             "description": "User of airflow user.",
             "type": "integer",
@@ -61,13 +67,13 @@
         "defaultAirflowTag": {
             "description": "Default airflow tag to deploy.",
             "type": "string",
-            "default": "2.1.3",
+            "default": "2.1.4",
             "x-docsSection": "Common"
         },
         "airflowVersion": {
             "description": "Airflow version (Used to make some decisions based on Airflow Version being deployed).",
             "type": "string",
-            "default": "2.1.3",
+            "default": "2.1.4",
             "x-docsSection": "Common"
         },
         "nodeSelector": {
@@ -123,10 +129,28 @@
                         "path": {
                             "description": "The path for the web Ingress.",
                             "type": "string",
-                            "default": ""
+                            "default": "/"
+                        },
+                        "pathType": {
+                            "description": "The pathType for the web Ingress (required for Kubernetes 1.19 and above).",
+                            "type": "string",
+                            "default": "ImplementationSpecific"
                         },
                         "host": {
-                            "description": "The hostname for the web Ingress.",
+                            "description": "The hostname for the web Ingress. (Deprecated - renamed to `ingress.web.hosts`)",
+                            "type": "string",
+                            "default": ""
+                        },
+                        "hosts": {
+                            "description": "The hostnames for the web Ingress.",
+                            "type": "array",
+                            "default": [],
+                            "items": {
+                                "type": "string"
+                            }
+                        },
+                        "ingressClassName": {
+                            "description": "The Ingress Class for the web Ingress.",
                             "type": "string",
                             "default": ""
                         },
@@ -172,10 +196,28 @@
                         "path": {
                             "description": "The path for the flower Ingress.",
                             "type": "string",
-                            "default": ""
+                            "default": "/"
+                        },
+                        "pathType": {
+                            "description": "The pathType for the flower Ingress (required for Kubernetes 1.19 and above).",
+                            "type": "string",
+                            "default": "ImplementationSpecific"
                         },
                         "host": {
-                            "description": "The hostname for the flower Ingress.",
+                            "description": "The hostname for the flower Ingress. (Deprecated - renamed to `ingress.flower.hosts`)",
+                            "type": "string",
+                            "default": ""
+                        },
+                        "hosts": {
+                            "description": "The hostnames for the flower Ingress.",
+                            "type": "array",
+                            "default": [],
+                            "items": {
+                                "type": "string"
+                            }
+                        },
+                        "ingressClassName": {
+                            "description": "The Ingress Class for the flower Ingress.",
                             "type": "string",
                             "default": ""
                         },
@@ -195,16 +237,6 @@
                                     "default": ""
                                 }
                             }
-                        },
-                        "precedingPaths": {
-                            "description": "HTTP paths to add to the flower Ingress before the default path.",
-                            "type": "array",
-                            "default": []
-                        },
-                        "succeedingPaths": {
-                            "description": "HTTP paths to add to the flower Ingress after the default path.",
-                            "type": "array",
-                            "default": []
                         }
                     }
                 }
@@ -242,7 +274,7 @@
                 "null"
             ],
             "x-docsSection": "Common",
-            "default": null
+            "default": "See values.yaml"
         },
         "rbac": {
             "description": "Enable RBAC (default on most clusters these days).",
@@ -311,6 +343,12 @@
                             "default": "IfNotPresent"
                         }
                     }
+                },
+                "useDefaultImageForMigration": {
+                    "description": "To avoid images with user code for running and waiting for DB migrations set this to ``true``. ",
+                    "type": "boolean",
+                    "x-docsSection": "Images",
+                    "default": false
                 },
                 "pod_template": {
                     "description": "Configuration of the pod_template image.",
@@ -466,7 +504,7 @@
                         "tag": {
                             "description": "The PgBouncer exporter image tag.",
                             "type": "string",
-                            "default": "airflow-pgbouncer-exporter-2021.04.28-0.5.0"
+                            "default": "airflow-pgbouncer-exporter-2021.09.22-0.12.0"
                         },
                         "pullPolicy": {
                             "description": "The PgBouncer exporter image pull policy.",
@@ -1132,6 +1170,11 @@
                                 "/clean-logs"
                             ]
                         },
+                        "retentionDays": {
+                            "description": "Number of days to retain the logs when running the Airflow workers log groomer sidecar.",
+                            "type": "integer",
+                            "default": 15
+                        },
                         "resources": {
                             "description": "Resources for Airflow workers log groomer sidecar.",
                             "type": "object",
@@ -1374,6 +1417,11 @@
                                 "bash",
                                 "/clean-logs"
                             ]
+                        },
+                        "retentionDays": {
+                            "description": "Number of days to retain the logs when running the Airflow scheduler log groomer sidecar.",
+                            "type": "integer",
+                            "default": 15
                         },
                         "resources": {
                             "description": "Resources for log groomer sidecar.",
@@ -1663,6 +1711,11 @@
                             "default": {}
                         }
                     }
+                },
+                "extraContainers": {
+                    "description": "Launch additional containers for the migrate database job pod",
+                    "type": "array",
+                    "default": []
                 },
                 "nodeSelector": {
                     "description": "Select certain nodes for the migrate database job pod.",
@@ -2851,6 +2904,32 @@
                     "description": "Cleanup schedule.",
                     "type": "string",
                     "default": "*/15 * * * *"
+                },
+                "command": {
+                    "description": "Command to use when running the cleanup cronjob (templated).",
+                    "type": [
+                        "array",
+                        "null"
+                    ],
+                    "items": {
+                        "type": "string"
+                    },
+                    "default": null
+                },
+                "args": {
+                    "description": "Args to use when running the cleanup cronjob (templated).",
+                    "type": [
+                        "array",
+                        "null"
+                    ],
+                    "items": {
+                        "type": "string"
+                    },
+                    "default": [
+                        "bash",
+                        "-c",
+                        "exec airflow kubernetes cleanup-pods --namespace={{ .Release.Namespace }}"
+                    ]
                 },
                 "nodeSelector": {
                     "description": "Select certain nodes for cleanup pods.",

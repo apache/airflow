@@ -240,10 +240,12 @@ class TestGetUsersPagination(TestUserEndpoint):
 
 EXAMPLE_USER_NAME = "example_user"
 
+EXAMPLE_USER_EMAIL = "example_user@example.com"
 
-def _delete_example_user():
+
+def _delete_user(**filters):
     with create_session() as session:
-        user = session.query(User).filter(User.username == EXAMPLE_USER_NAME).first()
+        user = session.query(User).filter_by(**filters).first()
         if user is None:
             return
         user.roles = []
@@ -252,17 +254,60 @@ def _delete_example_user():
 
 @pytest.fixture()
 def autoclean_username():
-    _delete_example_user()
+    _delete_user(username=EXAMPLE_USER_NAME)
     yield EXAMPLE_USER_NAME
-    _delete_example_user()
+    _delete_user(username=EXAMPLE_USER_NAME)
 
 
 @pytest.fixture()
-def autoclean_user_payload(autoclean_username):
+def autoclean_email():
+    _delete_user(email=EXAMPLE_USER_EMAIL)
+    yield EXAMPLE_USER_EMAIL
+    _delete_user(email=EXAMPLE_USER_EMAIL)
+
+
+@pytest.fixture()
+def user_with_same_username(configured_app, autoclean_username):
+    user = create_user(
+        configured_app,
+        username=autoclean_username,
+        email="another_user@example.com",
+        role_name="TestNoPermissions",
+    )
+    assert user, f"failed to create user '{autoclean_username} <another_user@example.com>'"
+    return user
+
+
+@pytest.fixture()
+def user_with_same_email(configured_app, autoclean_email):
+    user = create_user(
+        configured_app,
+        username="another_user",
+        email=autoclean_email,
+        role_name="TestNoPermissions",
+    )
+    assert user, f"failed to create user 'another_user <{autoclean_email}>'"
+    return user
+
+
+@pytest.fixture()
+def user_different(configured_app):
+    username = "another_user"
+    email = "another_user@example.com"
+
+    _delete_user(username=username, email=email)
+    user = create_user(configured_app, username=username, email=email, role_name="TestNoPermissions")
+    assert user, "failed to create user 'another_user <another_user@example.com>'"
+    yield user
+    _delete_user(username=username, email=email)
+
+
+@pytest.fixture()
+def autoclean_user_payload(autoclean_username, autoclean_email):
     return {
         "username": autoclean_username,
         "password": "resutsop",
-        "email": "test@example.com",
+        "email": autoclean_email,
         "first_name": "Example",
         "last_name": "User",
     }
@@ -304,6 +349,15 @@ class TestPostUser(TestUserEndpoint):
         assert user is not None
         assert {r.name for r in user.roles} == {"User", "Viewer"}
 
+    @pytest.mark.usefixtures("user_different")
+    def test_with_existing_different_user(self, autoclean_user_payload):
+        response = self.client.post(
+            "/api/v1/users",
+            json={"roles": [{"name": "User"}, {"name": "Viewer"}], **autoclean_user_payload},
+            environ_overrides={"REMOTE_USER": "test"},
+        )
+        assert response.status_code == 200, response.json
+
     def test_unauthenticated(self, autoclean_user_payload):
         response = self.client.post(
             "/api/v1/users",
@@ -319,8 +373,22 @@ class TestPostUser(TestUserEndpoint):
         )
         assert response.status_code == 403, response.json
 
-    def test_already_exists(self, autoclean_username, autoclean_user_payload):
-        create_user(self.app, username=autoclean_username, role_name="TestNoPermissions")
+    @pytest.mark.parametrize(
+        "existing_user_fixture_name, error_detail_template",
+        [
+            ("user_with_same_username", "Username `{username}` already exists. Use PATCH to update."),
+            ("user_with_same_email", "The email `{email}` is already taken."),
+        ],
+        ids=["username", "email"],
+    )
+    def test_already_exists(
+        self,
+        request,
+        autoclean_user_payload,
+        existing_user_fixture_name,
+        error_detail_template,
+    ):
+        existing = request.getfixturevalue(existing_user_fixture_name)
 
         response = self.client.post(
             "/api/v1/users",
@@ -328,6 +396,9 @@ class TestPostUser(TestUserEndpoint):
             environ_overrides={"REMOTE_USER": "test"},
         )
         assert response.status_code == 409, response.json
+
+        error_detail = error_detail_template.format(username=existing.username, email=existing.email)
+        assert response.json["detail"] == error_detail
 
     @pytest.mark.parametrize(
         "payload_converter, error_message",

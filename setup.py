@@ -183,7 +183,7 @@ alibaba = [
     'oss2>=2.14.0',
 ]
 amazon = [
-    'boto3>=1.15.0,<1.18.0',
+    'boto3>=1.15.0,<1.19.0',
     'watchtower~=1.0.6',
     'jsonpath_ng>=1.5.3',
 ]
@@ -210,7 +210,8 @@ azure = [
     'azure-mgmt-datafactory>=1.0.0,<2.0',
     'azure-mgmt-datalake-store>=0.5.0',
     'azure-mgmt-resource>=2.2.0',
-    'azure-storage-blob>=12.7.0',
+    # limited due to https://github.com/Azure/azure-sdk-for-python/pull/18801  implementation released in 12.9
+    'azure-storage-blob>=12.7.0,<12.9.0',
     'azure-storage-common>=2.1.0',
     'azure-storage-file>=2.1.0',
 ]
@@ -218,9 +219,8 @@ cassandra = [
     'cassandra-driver>=3.13.0,<4',
 ]
 celery = [
-    'celery~=4.4.2',
-    'flower>=0.7.3, <1.0',
-    'vine~=1.3',  # https://stackoverflow.com/questions/32757259/celery-no-module-named-five
+    'celery~=5.1,>=5.1.2',
+    'flower~=1.0.0',
 ]
 cgroups = [
     'cgroupspy>=0.1.4',
@@ -281,16 +281,23 @@ flask_appbuilder_authlib = [
 google = [
     'PyOpenSSL',
     'google-ads>=12.0.0',
-    'google-api-core>=1.25.1,<2.0.0',
+    # Maintainers, please do not require google-api-core>=2.x.x
+    # Until this issue is closed
+    # https://github.com/googleapis/google-cloud-python/issues/10566
+    'google-api-core>=1.25.1,<3.0.0',
     'google-api-python-client>=1.6.0,<2.0.0',
-    'google-auth>=1.0.0,<2.0.0',
+    # Maintainers, please do not require google-auth>=2.x.x
+    # Until this issue is closed
+    # https://github.com/googleapis/google-cloud-python/issues/10566
+    'google-auth>=1.0.0,<3.0.0',
     'google-auth-httplib2>=0.0.1',
     'google-cloud-automl>=2.1.0,<3.0.0',
     'google-cloud-bigquery-datatransfer>=3.0.0,<4.0.0',
     'google-cloud-bigtable>=1.0.0,<2.0.0',
+    'google-cloud-build>=3.0.0,<4.0.0',
     'google-cloud-container>=0.1.1,<2.0.0',
     'google-cloud-datacatalog>=3.0.0,<4.0.0',
-    'google-cloud-dataproc>=2.2.0,<3.0.0',
+    'google-cloud-dataproc>=2.2.0,<2.6.0',
     'google-cloud-dlp>=0.11.0,<2.0.0',
     'google-cloud-kms>=2.0.0,<3.0.0',
     'google-cloud-language>=1.1.1,<2.0.0',
@@ -320,7 +327,7 @@ google = [
     'pandas-gbq<0.15.0',
 ]
 grpc = [
-    'google-auth>=1.0.0, <2.0.0dev',
+    'google-auth>=1.0.0, <3.0.0',
     'google-auth-httplib2>=0.0.1',
     'grpcio>=1.15.0',
 ]
@@ -418,7 +425,7 @@ qubole = [
     'qds-sdk>=1.10.4',
 ]
 rabbitmq = [
-    'amqp<5.0.0',
+    'amqp',
 ]
 redis = [
     'redis~=3.2',
@@ -501,12 +508,11 @@ devel = [
     'freezegun',
     'github3.py',
     'gitpython',
-    'importlib-resources~=1.4',
     'ipdb',
     'jira',
     'jsondiff',
     'mongomock',
-    'moto~=2.2, >=2.2.1.dev9',
+    'moto~=2.2, >=2.2.7',
     'mypy==0.770',
     'parameterized',
     'paramiko',
@@ -1032,4 +1038,4 @@ def do_setup() -> None:
 
 
 if __name__ == "__main__":
-    do_setup()
+    do_setup()  # comment

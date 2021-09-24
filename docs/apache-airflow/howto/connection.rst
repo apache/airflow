@@ -186,6 +186,12 @@ So if your connection id is ``my_prod_db`` then the variable name should be ``AI
     Connections set using Environment Variables would not appear in the Airflow UI but you will
     be able to use them in your DAG file.
 
+.. warning::
+
+    Connections created this way will not show up in the Airflow UI or using ``airflow connections list``.
+    You can use ``airflow connections get {CONN_ID}`` if you already know the ``CONN_ID``
+
+
 The value of this environment variable must use airflow's URI format for connections.  See the section
 :ref:`Generating a Connection URI <generating_connection_uri>` for more details.
 

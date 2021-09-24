@@ -34,7 +34,7 @@ merges to `main` branch have separate maintenance step that take care about refr
 used to speed up our builds and to speed up rebuilding of [Breeze](../BREEZE.rst) images for development
 purpose. This is all happening automatically, usually:
 
-* The latest [constraints](../COMMITTERS.rst#pinned-constraint-files) are pushed to appropriate branch
+* The latest [constraints](../CONTRIBUTING.rst#pinned-constraint-files) are pushed to appropriate branch
   after all tests succeeded in `main` merge or in `scheduled` build
 
 * The [images](../IMAGES.rst) in `ghcr.io` registry are refreshed after every successful merge to `main`

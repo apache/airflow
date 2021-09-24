@@ -28,8 +28,9 @@ Content
 
     Python API <_api/airflow/providers/cloudant/index>
     PyPI Repository <https://pypi.org/project/apache-airflow-providers-cloudant/>
+    Installing from sources <installing-providers-from-sources>
 
-.. THE REMINDER OF THE FILE IS AUTOMATICALLY GENERATED. IT WILL BE OVERWRITTEN AT RELEASE TIME!
+.. THE REMAINDER OF THE FILE IS AUTOMATICALLY GENERATED. IT WILL BE OVERWRITTEN AT RELEASE TIME!
 
 
 .. toctree::
@@ -45,7 +46,7 @@ Package apache-airflow-providers-cloudant
 `IBM Cloudant <https://www.ibm.com/cloud/cloudant>`__
 
 
-Release: 2.0.0
+Release: 2.0.1
 
 Provider package
 ----------------

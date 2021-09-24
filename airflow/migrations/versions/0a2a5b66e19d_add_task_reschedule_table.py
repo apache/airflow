@@ -26,9 +26,9 @@ import sqlalchemy as sa
 from alembic import op
 from sqlalchemy.dialects import mysql
 
-# revision identifiers, used by Alembic.
 from airflow.models.base import COLLATION_ARGS
 
+# revision identifiers, used by Alembic.
 revision = '0a2a5b66e19d'
 down_revision = '9635ae0956e7'
 branch_labels = None

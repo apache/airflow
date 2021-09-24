@@ -22,7 +22,7 @@ from unittest.mock import ANY, call
 
 from watchtower import CloudWatchLogHandler
 
-from airflow.models import DAG, TaskInstance
+from airflow.models import DAG, DagRun, TaskInstance
 from airflow.operators.dummy import DummyOperator
 from airflow.providers.amazon.aws.hooks.logs import AwsLogsHook
 from airflow.utils.log.cloudwatch_task_handler import CloudwatchTaskHandler
@@ -55,11 +55,13 @@ class TestCloudwatchTaskHandler(unittest.TestCase):
         self.cloudwatch_task_handler.hook
 
         date = datetime(2020, 1, 1)
-        dag_id = 'dag_for_testing_file_task_handler'
-        task_id = 'task_for_testing_file_log_handler'
+        dag_id = 'dag_for_testing_cloudwatch_task_handler'
+        task_id = 'task_for_testing_cloudwatch_log_handler'
         self.dag = DAG(dag_id=dag_id, start_date=date)
         task = DummyOperator(task_id=task_id, dag=self.dag)
-        self.ti = TaskInstance(task=task, execution_date=date)
+        dag_run = DagRun(dag_id=self.dag.dag_id, execution_date=date, run_id="test")
+        self.ti = TaskInstance(task=task)
+        self.ti.dag_run = dag_run
         self.ti.try_number = 1
         self.ti.state = State.RUNNING
 

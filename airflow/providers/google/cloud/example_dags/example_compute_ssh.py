@@ -31,7 +31,7 @@ GCE_INSTANCE = os.environ.get('GCE_INSTANCE', 'target-instance')
 with models.DAG(
     'example_compute_ssh',
     default_args=dict(start_date=dates.days_ago(1)),
-    schedule_interval=None,  # Override to match your needs
+    schedule_interval='@once',  # Override to match your needs
     tags=['example'],
 ) as dag:
     # # [START howto_execute_command_on_remote1]

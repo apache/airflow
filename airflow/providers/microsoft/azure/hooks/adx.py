@@ -32,21 +32,10 @@ class AzureDataExplorerHook(BaseHook):
     """
     Interacts with Azure Data Explorer (Kusto).
 
-    Extra JSON field contains the following parameters:
-
-    .. code-block:: json
-
-        {
-            "tenant": "<Tenant ID>",
-            "auth_method": "<Authentication method>",
-            "certificate": "<Application PEM certificate>",
-            "thumbprint": "<Application certificate thumbprint>"
-        }
-
     **Cluster**:
 
     Azure Data Explorer cluster is specified by a URL, for example: "https://help.kusto.windows.net".
-    The parameter must be provided through `Host` connection detail.
+    The parameter must be provided through the Data Explorer Cluster URL connection detail.
 
     **Tenant ID**:
 
@@ -54,25 +43,20 @@ class AzureDataExplorerHook(BaseHook):
 
     **Authentication methods**:
 
-    Authentication method must be provided through "auth_method" extra parameter.
     Available authentication methods are:
 
-      - AAD_APP: Authentication with AAD application certificate. Extra parameters:
-                  "tenant" is required when using this method. Provide application ID
-                  and application key through username and password parameters.
+      - AAD_APP: Authentication with AAD application certificate. A Tenant ID is required when using this
+        method. Provide application ID and application key through Username and Password parameters.
 
-      - AAD_APP_CERT: Authentication with AAD application certificate. Extra parameters:
-                      "tenant", "certificate" and "thumbprint" are required
-                      when using this method.
+      - AAD_APP_CERT: Authentication with AAD application certificate. Tenant ID, Application PEM Certificate,
+        and Application Certificate Thumbprint are required when using this method.
 
-      - AAD_CREDS: Authentication with AAD username and password. Extra parameters:
-                    "tenant" is required when using this method. Username and password
-                    parameters are used for authentication with AAD.
+      - AAD_CREDS: Authentication with AAD username and password. A Tenant ID is required when using this
+        method. Username and Password parameters are used for authentication with AAD.
 
-      - AAD_DEVICE: Authenticate with AAD device code. Please note that if you choose
-                     this option, you'll need to authenticate for every new instance
-                     that is initialized. It is highly recommended to create one instance
-                     and use it for all queries.
+      - AAD_DEVICE: Authenticate with AAD device code. Please note that if you choose this option, you'll need
+        to authenticate for every new instance that is initialized. It is highly recommended to create one
+        instance and use it for all queries.
 
     :param azure_data_explorer_conn_id: Reference to the
         :ref:`Azure Data Explorer connection<howto/connection:adx>`.
@@ -92,10 +76,10 @@ class AzureDataExplorerHook(BaseHook):
         from wtforms import PasswordField, StringField
 
         return {
-            "extra__azure_data_explorer__auth_method": StringField(
+            "extra__azure_data_explorer__tenant": StringField(
                 lazy_gettext('Tenant ID'), widget=BS3TextFieldWidget()
             ),
-            "extra__azure_data_explorer__tenant": StringField(
+            "extra__azure_data_explorer__auth_method": StringField(
                 lazy_gettext('Authentication Method'), widget=BS3TextFieldWidget()
             ),
             "extra__azure_data_explorer__certificate": PasswordField(
@@ -112,18 +96,17 @@ class AzureDataExplorerHook(BaseHook):
         return {
             "hidden_fields": ['schema', 'port', 'extra'],
             "relabeling": {
-                'login': 'Auth Username',
-                'password': 'Auth Password',
-                'host': 'Data Explorer Cluster Url',
+                'login': 'Username',
+                'password': 'Password',
+                'host': 'Data Explorer Cluster URL',
             },
             "placeholders": {
-                'login': 'varies with authentication method',
-                'password': 'varies with authentication method',
-                'host': 'cluster url',
+                'login': 'Varies with authentication method',
+                'password': 'Varies with authentication method',
                 'extra__azure_data_explorer__auth_method': 'AAD_APP/AAD_APP_CERT/AAD_CREDS/AAD_DEVICE',
-                'extra__azure_data_explorer__tenant': 'used with AAD_APP/AAD_APP_CERT/AAD_CREDS',
-                'extra__azure_data_explorer__certificate': 'used with AAD_APP_CERT',
-                'extra__azure_data_explorer__thumbprint': 'used with AAD_APP_CERT',
+                'extra__azure_data_explorer__tenant': 'Used with AAD_APP/AAD_APP_CERT/AAD_CREDS',
+                'extra__azure_data_explorer__certificate': 'Used with AAD_APP_CERT',
+                'extra__azure_data_explorer__thumbprint': 'Used with AAD_APP_CERT',
             },
         }
 
@@ -140,29 +123,23 @@ class AzureDataExplorerHook(BaseHook):
             raise AirflowException('Host connection option is required')
 
         def get_required_param(name: str) -> str:
-            """Extract required parameter from extra JSON, raise exception if not found"""
+            """Extract required parameter value from connection, raise exception if not found"""
             value = conn.extra_dejson.get(name)
             if not value:
-                raise AirflowException(f'Extra connection option is missing required parameter: `{name}`')
+                raise AirflowException(f'Required connection parameter is missing: `{name}`')
             return value
 
-        auth_method = get_required_param('auth_method') or get_required_param(
-            'extra__azure_data_explorer__auth_method'
-        )
+        auth_method = get_required_param('extra__azure_data_explorer__auth_method')
 
         if auth_method == 'AAD_APP':
-            tenant = get_required_param('tenant') or get_required_param('extra__azure_data_explorer__tenant')
+            tenant = get_required_param('extra__azure_data_explorer__tenant')
             kcsb = KustoConnectionStringBuilder.with_aad_application_key_authentication(
                 cluster, conn.login, conn.password, tenant
             )
         elif auth_method == 'AAD_APP_CERT':
-            certificate = get_required_param('certificate') or get_required_param(
-                'extra__azure_data_explorer__certificate'
-            )
-            thumbprint = get_required_param('thumbprint') or get_required_param(
-                'extra__azure_data_explorer__thumbprint'
-            )
-            tenant = get_required_param('tenant') or get_required_param('extra__azure_data_explorer__tenant')
+            certificate = get_required_param('extra__azure_data_explorer__certificate')
+            thumbprint = get_required_param('extra__azure_data_explorer__thumbprint')
+            tenant = get_required_param('extra__azure_data_explorer__tenant')
             kcsb = KustoConnectionStringBuilder.with_aad_application_certificate_authentication(
                 cluster,
                 conn.login,
@@ -171,7 +148,7 @@ class AzureDataExplorerHook(BaseHook):
                 tenant,
             )
         elif auth_method == 'AAD_CREDS':
-            tenant = get_required_param('tenant') or get_required_param('extra__azure_data_explorer__tenant')
+            tenant = get_required_param('extra__azure_data_explorer__tenant')
             kcsb = KustoConnectionStringBuilder.with_aad_user_password_authentication(
                 cluster, conn.login, conn.password, tenant
             )

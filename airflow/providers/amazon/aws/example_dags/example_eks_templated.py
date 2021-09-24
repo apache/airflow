@@ -85,6 +85,7 @@ with DAG(
 
     start_pod = EKSPodOperator(
         task_id="run_pod",
+        pod_name="start_pod",
         cluster_name="{{ dag_run.conf['cluster_name'] }}",
         image="amazon/aws-cli:latest",
         cmds=["sh", "-c", "ls"],

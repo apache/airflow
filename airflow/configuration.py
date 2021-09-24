@@ -32,7 +32,7 @@ from collections import OrderedDict
 # Ignored Mypy on configparser because it thinks the configparser module has no _UNSET attribute
 from configparser import _UNSET, ConfigParser, NoOptionError, NoSectionError  # type: ignore
 from json.decoder import JSONDecodeError
-from typing import Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional, Union
 
 from airflow.exceptions import AirflowConfigException
 from airflow.secrets import DEFAULT_SECRETS_SEARCH_PATH, BaseSecretsBackend
@@ -81,10 +81,18 @@ def run_command(command):
 
 def _get_config_value_from_secret_backend(config_key):
     """Get Config option values from Secret Backend"""
-    secrets_client = get_custom_secret_backend()
-    if not secrets_client:
-        return None
-    return secrets_client.get_config(config_key)
+    try:
+        secrets_client = get_custom_secret_backend()
+        if not secrets_client:
+            return None
+        return secrets_client.get_config(config_key)
+    except Exception as e:  # pylint: disable=broad-except
+        raise AirflowConfigException(
+            'Cannot retrieve config from alternative secrets backend. '
+            'Make sure it is configured properly and that the Backend '
+            'is accessible.\n'
+            f'{e}'
+        )
 
 
 def _default_config_file_path(file_name: str):
@@ -92,7 +100,7 @@ def _default_config_file_path(file_name: str):
     return os.path.join(templates_dir, file_name)
 
 
-def default_config_yaml() -> List[dict]:
+def default_config_yaml() -> List[Dict[str, Any]]:
     """
     Read Airflow configs from YAML file
 
@@ -163,7 +171,8 @@ class AirflowConfigParser(ConfigParser):
         ('core', 'sensitive_var_conn_names'): ('admin', 'sensitive_variable_fields', '2.1.0'),
         ('core', 'default_pool_task_slot_count'): ('core', 'non_pooled_task_slot_count', '1.10.4'),
         ('core', 'max_active_tasks_per_dag'): ('core', 'dag_concurrency', '2.2.0'),
-        ('logging', 'worker_log_server_port'): ('celery', 'worker_log_server_port', '2.3.0'),
+        ('logging', 'worker_log_server_port'): ('celery', 'worker_log_server_port', '2.2.0'),
+        ('api', 'access_control_allow_origins'): ('api', 'access_control_allow_origin', '2.2.0'),
     }
 
     # A mapping of old default values that we want to change and warn the user
@@ -206,9 +215,9 @@ class AirflowConfigParser(ConfigParser):
         for section, replacement in self.deprecated_values.items():
             for name, info in replacement.items():
                 old, new, version = info
-                current_value = self.get(section, name, fallback=None)
+                current_value = self.get(section, name, fallback="")
                 if self._using_old_value(old, current_value):
-                    new_value = re.sub(old, new, current_value)
+                    new_value = old.sub(new, current_value)
                     self._update_env_var(section=section, name=name, new_value=new_value)
                     self._create_future_warning(
                         name=name,
@@ -276,6 +285,8 @@ class AirflowConfigParser(ConfigParser):
         # would be read and used instead of the value we set
         env_var = self._env_var_name(section, name)
         os.environ.pop(env_var, None)
+        if not self.has_section(section):
+            self.add_section(section)
         self.set(section, name, new_value)
 
     @staticmethod

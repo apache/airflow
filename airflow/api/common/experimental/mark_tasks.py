@@ -21,6 +21,7 @@ import datetime
 from typing import Iterable
 
 from sqlalchemy import or_
+from sqlalchemy.orm import contains_eager
 
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.dagrun import DagRun
@@ -130,7 +131,6 @@ def set_state(
         if sub_dag_run_ids:
             qry_sub_dag = all_subdag_tasks_query(sub_dag_run_ids, session, state, confirmed_dates)
             tis_altered += qry_sub_dag.all()
-
     return tis_altered
 
 
@@ -148,12 +148,14 @@ def get_all_dag_task_query(dag, session, state, task_ids, confirmed_dates):
     """Get all tasks of the main dag that will be affected by a state change"""
     qry_dag = (
         session.query(TaskInstance)
+        .join(TaskInstance.dag_run)
         .filter(
             TaskInstance.dag_id == dag.dag_id,
-            TaskInstance.execution_date.in_(confirmed_dates),
+            DagRun.execution_date.in_(confirmed_dates),
             TaskInstance.task_id.in_(task_ids),
         )
         .filter(or_(TaskInstance.state.is_(None), TaskInstance.state != state))
+        .options(contains_eager(TaskInstance.dag_run))
     )
     return qry_dag
 
@@ -249,13 +251,13 @@ def get_execution_dates(dag, execution_date, future, past):
     else:
         start_date = execution_date
     start_date = execution_date if not past else start_date
-    if dag.schedule_interval == '@once':
-        dates = [start_date]
-    elif not dag.schedule_interval:
-        # If schedule_interval is None, need to look at existing DagRun if the user wants future or
+    if not dag.timetable.can_run:
+        # If the DAG never schedules, need to look at existing DagRun if the user wants future or
         # past runs.
         dag_runs = dag.get_dagruns_between(start_date=start_date, end_date=end_date)
         dates = sorted({d.execution_date for d in dag_runs})
+    elif not dag.timetable.periodic:
+        dates = [start_date]
     else:
         dates = [
             info.logical_date for info in dag.iter_dagrun_infos_between(start_date, end_date, align=False)

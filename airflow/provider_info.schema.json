@@ -70,6 +70,18 @@
       "items": {
           "type": "string"
       }
+    },
+    "task-decorators": {
+        "type": "array",
+        "description": "Apply custom decorators to the TaskFlow API. Can be accessed by users via '@task.<name>'",
+        "items": {
+            "name": {
+                "type": "string"
+            },
+            "path": {
+                "type": "string"
+            }
+        }
     }
   },
   "required": [

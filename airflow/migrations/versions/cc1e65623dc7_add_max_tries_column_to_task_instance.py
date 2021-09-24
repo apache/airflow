@@ -31,10 +31,9 @@ from sqlalchemy.ext.declarative import declarative_base
 
 from airflow import settings
 from airflow.models import DagBag
-
-# revision identifiers, used by Alembic.
 from airflow.models.base import COLLATION_ARGS
 
+# revision identifiers, used by Alembic.
 revision = 'cc1e65623dc7'
 down_revision = '127d2bf2dfa7'
 branch_labels = None
@@ -71,6 +70,8 @@ def upgrade():
         # Get current session
         sessionmaker = sa.orm.sessionmaker()
         session = sessionmaker(bind=connection)
+        if not bool(session.query(TaskInstance).first()):
+            return
         dagbag = DagBag(settings.DAGS_FOLDER)
         query = session.query(sa.func.count(TaskInstance.max_tries)).filter(TaskInstance.max_tries == -1)
         # Separate db query in batch to prevent loading entire table

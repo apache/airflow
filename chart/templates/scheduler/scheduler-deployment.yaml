@@ -106,7 +106,7 @@ spec:
         - name: wait-for-airflow-migrations
           resources:
 {{ toYaml .Values.scheduler.resources | indent 12 }}
-          image: {{ template "airflow_image" . }}
+          image: {{ template "airflow_image_for_migrations" . }}
           imagePullPolicy: {{ .Values.images.airflow.pullPolicy }}
           args:
           {{- include "wait-for-migrations-command" . | indent 10 }}
@@ -210,6 +210,11 @@ spec:
           {{- end }}
           {{- if .Values.scheduler.logGroomerSidecar.args }}
           args: {{ tpl (toYaml .Values.scheduler.logGroomerSidecar.args) . | nindent 12 }}
+          {{- end }}
+          {{ if .Values.scheduler.logGroomerSidecar.retentionDays }}
+          env:
+            - name: AIRFLOW__LOG_RETENTION_DAYS
+              value: "{{ .Values.scheduler.logGroomerSidecar.retentionDays }}"
           {{- end }}
           volumeMounts:
             - name: logs

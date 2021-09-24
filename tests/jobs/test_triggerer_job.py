@@ -22,10 +22,8 @@ import time
 
 import pytest
 
-from airflow import DAG
 from airflow.jobs.triggerer_job import TriggererJob
 from airflow.models import Trigger
-from airflow.models.taskinstance import TaskInstance
 from airflow.operators.dummy import DummyOperator
 from airflow.triggers.base import TriggerEvent
 from airflow.triggers.temporal import TimeDeltaTrigger
@@ -293,7 +291,7 @@ def test_trigger_cleanup(session):
 
 
 @pytest.mark.skipif(sys.version_info.minor <= 6 and sys.version_info.major <= 3, reason="No triggerer on 3.6")
-def test_invalid_trigger(session):
+def test_invalid_trigger(session, dag_maker):
     """
     Checks that the triggerer will correctly fail task instances that depend on
     triggers that can't even be loaded.
@@ -305,22 +303,14 @@ def test_invalid_trigger(session):
     session.commit()
 
     # Create the test DAG and task
-    with DAG(
-        dag_id='test_invalid_trigger',
-        start_date=timezone.datetime(2016, 1, 1),
-        schedule_interval='@once',
-        max_active_runs=1,
-    ):
-        task1 = DummyOperator(task_id='dummy1')
+    with dag_maker(dag_id='test_invalid_trigger', session=session):
+        DummyOperator(task_id='dummy1')
 
+    dr = dag_maker.create_dagrun()
+    task_instance = dr.task_instances[0]
     # Make a task instance based on that and tie it to the trigger
-    task_instance = TaskInstance(
-        task1,
-        execution_date=timezone.datetime(2016, 1, 1),
-        state=TaskInstanceState.DEFERRED,
-    )
+    task_instance.state = TaskInstanceState.DEFERRED
     task_instance.trigger_id = 1
-    session.add(task_instance)
     session.commit()
 
     # Make a TriggererJob and have it retrieve DB tasks

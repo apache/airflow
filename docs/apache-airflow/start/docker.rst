@@ -28,7 +28,7 @@ Production readiness
 .. warning::
     DO NOT expect the Docker Compose below will be enough to run production-ready Docker Compose Airflow installation using it.
     This is truly ``quick-start`` docker-compose for you to get Airflow up and running locally and get your hands dirty with
-    Airflow, but configuring Docker-Compose installation that is ready for production, requires an intrinsic knowledge of
+    Airflow. Configuring a Docker-Compose installation that is ready for production requires an intrinsic knowledge of
     Docker Compose, a lot of customization and possibly even writing the Docker Compose file that will suit your needs
     from the scratch. It's probably OK if you want to run Docker Compose-based deployment, but short of becoming a
     Docker Compose expert, it's highly unlikely you will get robust deployment with it.
@@ -45,12 +45,12 @@ Follow these steps to install the necessary tools.
 1. Install `Docker Community Edition (CE) <https://docs.docker.com/engine/installation/>`__ on your workstation. Depending on the OS, you may need to configure your Docker instance to use 4.00 GB of memory for all containers to run properly. Please refer to the Resources section if using `Docker for Windows <https://docs.docker.com/docker-for-windows/#resources>`__ or `Docker for Mac <https://docs.docker.com/docker-for-mac/#resources>`__ for more information.
 2. Install `Docker Compose <https://docs.docker.com/compose/install/>`__ v1.29.1 and newer on your workstation.
 
-Older versions of ``docker-compose`` do not support all features required by ``docker-compose.yaml`` file, so double check that it meets the minimum version requirements.
+Older versions of ``docker-compose`` do not support all the features required by ``docker-compose.yaml`` file, so double check that your version meets the minimum version requirements.
 
 .. warning::
     Default amount of memory available for Docker on MacOS is often not enough to get Airflow up and running.
-    If you have not enough memory available it might lead to airflow webserver continuously restarting.
-    You should have at least 4GB memory allocated for the Docker Engine (ideally 8GB). You can check
+    If enough memory is not allocated, it might lead to airflow webserver continuously restarting.
+    You should at least allocate 4GB memory for the Docker Engine (ideally 8GB). You can check
     and change the amount of memory in `Resources <https://docs.docker.com/docker-for-mac/#resources>`_
 
     You can also check if you have enough memory by running this command:
@@ -75,7 +75,7 @@ This file contains several service definitions:
 
 - ``airflow-scheduler`` - The :doc:`scheduler </concepts/scheduler>` monitors all tasks and DAGs, then triggers the
   task instances once their dependencies are complete.
-- ``airflow-webserver`` - The webserver available at ``http://localhost:8080``.
+- ``airflow-webserver`` - The webserver is available at ``http://localhost:8080``.
 - ``airflow-worker`` - The worker that executes the tasks given by the scheduler.
 - ``airflow-init`` - The initialization service.
 - ``flower`` - `The flower app <https://flower.readthedocs.io/en/latest/>`__ for monitoring the environment. It is available at ``http://localhost:5555``.
@@ -91,7 +91,7 @@ Some directories in the container are mounted, which means that their contents a
 - ``./plugins`` - you can put your :doc:`custom plugins </plugins>` here.
 
 This file uses the latest Airflow image (`apache/airflow <https://hub.docker.com/r/apache/airflow>`__).
-If you need install a new Python library or system library, you can :doc:`build your image <docker-stack:index>`.
+If you need to install a new Python library or system library, you can :doc:`build your image <docker-stack:index>`.
 
 Using custom images
 ===================
@@ -110,9 +110,15 @@ apt packages and more can be found in :doc:`Building the image <docker-stack:bui
 Initializing Environment
 ========================
 
-Before starting Airflow for the first time, You need to prepare your environment, i.e. create the necessary files, directories and initialize the database.
+Before starting Airflow for the first time, You need to prepare your environment, i.e. create the necessary
+files, directories and initialize the database.
 
-On **Linux**, the mounted volumes in container use the native Linux filesystem user/group permissions, so you have to make sure the container and host computer have matching file permissions.
+Setting the right Airflow user
+------------------------------
+
+On **Linux**, the quick-start needs to know your host user id and needs to have group id set to ``0``.
+Otherwise the files created in ``dags``, ``logs`` and ``plugins`` will be created with ``root`` user.
+You have to make sure to configure them for the docker-compose:
 
 .. code-block:: bash
 
@@ -120,6 +126,18 @@ On **Linux**, the mounted volumes in container use the native Linux filesystem u
     echo -e "AIRFLOW_UID=$(id -u)\nAIRFLOW_GID=0" > .env
 
 See :ref:`Docker Compose environment variables <docker-compose-env-variables>`
+
+For other operating systems, you will get warning that ``AIRFLOW_UID`` is not set, but you can
+ignore it. You can also manually create the ``.env`` file in the same folder your
+``docker-compose.yaml`` is placed with this content to get rid of the warning:
+
+.. code-block:: text
+
+  AIRFLOW_UID=50000
+  AIRFLOW_GID=0
+
+Initialize the database
+-----------------------
 
 On **all operating systems**, you need to run database migrations and create the first user account. To do it, run.
 
@@ -142,7 +160,7 @@ Cleaning-up the environment
 ===========================
 
 The docker-compose we prepare is a "Quick-start" one. It is not intended to be used in production
-and it has a number of caveats - one of them that the best way to recover from any problem is to clean it
+and it has a number of caveats - one of them being that the best way to recover from any problem is to clean it
 up and restart from the scratch.
 
 The best way to do it is to:
@@ -226,7 +244,7 @@ Accessing the web interface
 
 Once the cluster has started up, you can log in to the web interface and try to run some tasks.
 
-The webserver available at: ``http://localhost:8080``.
+The webserver is available at: ``http://localhost:8080``.
 The default account has the login ``airflow`` and the password ``airflow``.
 
 Sending requests to the REST API
@@ -236,7 +254,7 @@ Sending requests to the REST API
 https://en.wikipedia.org/wiki/Basic_access_authentication>`_ is currently
 supported for the REST API, which means you can use common tools to send requests to the API.
 
-The webserver available at: ``http://localhost:8080``.
+The webserver is available at: ``http://localhost:8080``.
 The default account has the login ``airflow`` and the password ``airflow``.
 
 Here is a sample ``curl`` command, which sends a request to retrieve a pool list:
@@ -263,7 +281,7 @@ FAQ: Frequently asked questions
 ``ModuleNotFoundError: No module named 'XYZ'``
 ----------------------------------------------
 
-The Docker Compose file uses the latest Airflow image (`apache/airflow <https://hub.docker.com/r/apache/airflow>`__). If you need install a new Python library or system library, you can :doc:`customize and extend it <docker-stack:index>`.
+The Docker Compose file uses the latest Airflow image (`apache/airflow <https://hub.docker.com/r/apache/airflow>`__). If you need to install a new Python library or system library, you can :doc:`customize and extend it <docker-stack:index>`.
 
 What's Next?
 ============

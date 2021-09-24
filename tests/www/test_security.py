@@ -100,7 +100,15 @@ class TestSecurity(unittest.TestCase):
 
     @classmethod
     def delete_roles(cls):
-        for role_name in ['team-a', 'MyRole1', 'MyRole5', 'Test_Role', 'MyRole3', 'MyRole2']:
+        for role_name in [
+            'team-a',
+            'MyRole1',
+            'MyRole5',
+            'Test_Role',
+            'MyRole3',
+            'MyRole2',
+            'dag_permission_role',
+        ]:
             api_connexion_utils.delete_role(cls.app, role_name)
 
     def expect_user_is_in_role(self, user, rolename):
@@ -123,8 +131,6 @@ class TestSecurity(unittest.TestCase):
             ), f"User should not have '{perm}' on DAG '{dag_id}'"
 
     def _has_dag_perm(self, perm, dag_id, user):
-        # if not user:
-        #     user = self.user
         return self.security_manager.has_access(perm, permissions.resource_name_for_dag(dag_id), user)
 
     def _create_dag(self, dag_id):
@@ -297,6 +303,7 @@ class TestSecurity(unittest.TestCase):
             (permissions.ACTION_CAN_READ, permissions.RESOURCE_MY_PROFILE),
             (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_MY_PROFILE),
             (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_BROWSE_MENU),
+            (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_DAG_DEPENDENCIES),
             (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_DAG_RUN),
             (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_JOB),
             (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_AUDIT_LOG),
@@ -329,8 +336,8 @@ class TestSecurity(unittest.TestCase):
         with self.app.app_context():
             user = api_connexion_utils.create_user(
                 self.app,
-                username,
-                role_name,
+                username=username,
+                role_name=role_name,
                 permissions=[
                     (role_perm, role_vm),
                 ],
@@ -343,6 +350,27 @@ class TestSecurity(unittest.TestCase):
             mock_get_user_roles.return_value = []
             assert len(self.security_manager.get_current_user_permissions()) == 0
 
+    @mock.patch('airflow.www.security.AirflowSecurityManager.get_user_roles')
+    def test_current_user_has_permissions(self, mock_get_user_roles):
+        with self.app.app_context():
+            user = api_connexion_utils.create_user(
+                self.app,
+                username="current_user_has_permissions",
+                role_name="current_user_has_permissions",
+                permissions=[("can_some_action", "SomeBaseView")],
+            )
+            role = user.roles[0]
+            mock_get_user_roles.return_value = [role]
+            assert self.security_manager.current_user_has_permissions()
+
+            # Role, but no permissions
+            role.permissions = []
+            assert not self.security_manager.current_user_has_permissions()
+
+            # No role
+            mock_get_user_roles.return_value = []
+            assert not self.security_manager.current_user_has_permissions()
+
     def test_get_accessible_dag_ids(self):
         role_name = 'MyRole1'
         permission_action = [permissions.ACTION_CAN_READ]
@@ -351,8 +379,8 @@ class TestSecurity(unittest.TestCase):
 
         user = api_connexion_utils.create_user(
             self.app,
-            username,
-            role_name,
+            username=username,
+            role_name=role_name,
             permissions=[
                 (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
                 (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
@@ -379,8 +407,8 @@ class TestSecurity(unittest.TestCase):
 
         user = api_connexion_utils.create_user(
             self.app,
-            username,
-            role_name,
+            username=username,
+            role_name=role_name,
             permissions=[
                 (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_DAG),
             ],
@@ -445,8 +473,8 @@ class TestSecurity(unittest.TestCase):
         with self.app.app_context():
             user = api_connexion_utils.create_user(
                 self.app,
-                username,
-                role_name,
+                username=username,
+                role_name=role_name,
                 permissions=[
                     (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
                     (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
@@ -484,8 +512,8 @@ class TestSecurity(unittest.TestCase):
         with self.app.app_context():
             user = api_connexion_utils.create_user(
                 self.app,
-                username,
-                role_name,
+                username=username,
+                role_name=role_name,
                 permissions=[],
             )
             self.expect_user_is_in_role(user, rolename='team-a')
@@ -512,8 +540,8 @@ class TestSecurity(unittest.TestCase):
         with self.app.app_context():
             user = api_connexion_utils.create_user(
                 self.app,
-                username,
-                role_name,
+                username=username,
+                role_name=role_name,
                 permissions=[],
             )
             self.expect_user_is_in_role(user, rolename='team-a')
@@ -647,3 +675,32 @@ class TestSecurity(unittest.TestCase):
             ),
         ):
             self.security_manager.prefixed_dag_id("hello")
+
+    def test_parent_dag_access_applies_to_subdag(self):
+        username = 'dag_permission_user'
+        role_name = 'dag_permission_role'
+        parent_dag_name = "parent_dag"
+        with self.app.app_context():
+            mock_roles = [
+                {
+                    'role': role_name,
+                    'perms': [
+                        (permissions.ACTION_CAN_READ, f"DAG:{parent_dag_name}"),
+                        (permissions.ACTION_CAN_EDIT, f"DAG:{parent_dag_name}"),
+                    ],
+                }
+            ]
+            user = api_connexion_utils.create_user(
+                self.app,
+                username=username,
+                role_name=role_name,
+            )
+            self.security_manager.bulk_sync_roles(mock_roles)
+            self.security_manager._sync_dag_view_permissions(
+                parent_dag_name, access_control={role_name: READ_WRITE}
+            )
+            self.assert_user_has_dag_perms(perms=READ_WRITE, dag_id=parent_dag_name, user=user)
+            self.assert_user_has_dag_perms(perms=READ_WRITE, dag_id=parent_dag_name + ".subdag", user=user)
+            self.assert_user_has_dag_perms(
+                perms=READ_WRITE, dag_id=parent_dag_name + ".subdag.subsubdag", user=user
+            )
