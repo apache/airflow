@@ -2063,8 +2063,8 @@ class TestRunRawTaskQueriesCount:
         "expected_query_count, mark_success",
         [
             # Expected queries, mark_success
-            (12, False),
-            (5, True),
+            (13, False),
+            (7, True),
         ],
     )
     @provide_session
@@ -2094,7 +2094,7 @@ class TestRunRawTaskQueriesCount:
 
         # an extra query is fired in RenderedTaskInstanceFields.delete_old_records
         # for other DBs
-        expected_query_count_based_on_db = 5
+        expected_query_count_based_on_db = 7
 
         session.flush()
 

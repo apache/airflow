@@ -400,7 +400,7 @@ class TaskInstance(Base, LoggingMixin):
         innerjoin=True,
     )
 
-    dag_run = relationship("DagRun", back_populates="task_instances")
+    dag_run = relationship("DagRun", back_populates="task_instances", lazy='selectin')
 
     execution_date = association_proxy("dag_run", "execution_date")
 
@@ -1693,9 +1693,6 @@ class TaskInstance(Base, LoggingMixin):
         Stats.incr(f'operator_failures_{task.task_type}', 1, 1)
         Stats.incr('ti_failures')
         if not test_mode:
-            # This is needed as dag_run is lazily loaded. Without it, sqlalchemy errors with
-            # DetachedInstanceError error.
-            self.dag_run = self.get_dagrun(session=session)
             session.add(Log(State.FAILED, self))
 
             # Log failure duration
