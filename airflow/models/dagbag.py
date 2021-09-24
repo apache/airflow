@@ -319,7 +319,7 @@ class DagBag(LoggingMixin):
 
         timeout_msg = (
             f"DagBag import timeout for {filepath} after {self.DAGBAG_IMPORT_TIMEOUT}s.\n"
-            "Please take a look at those docs to improve your DAG import time\n"
+            "Please take a look at these docs to improve your DAG import time:\n"
             f"* {get_docs_url('best-practices.html#top-level-python-code')}\n"
             f"* {get_docs_url('best-practices.html#reducing-dag-complexity')}"
         )
