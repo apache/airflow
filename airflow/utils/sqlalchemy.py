@@ -195,7 +195,8 @@ def skip_locked(session: Session) -> Dict[str, Any]:
     support/recommend running HA scheduler. If a user ignores this and tries anyway everything will still
     work, just slightly slower in some circumstances.
 
-    Specifically don't emit SKIP LOCKED for MySQL < 8, or MariaDB < 10.6, neither of which support this construct
+    Specifically don't emit SKIP LOCKED for MySQL < 8, or MariaDB < 10.6, neither of which support this
+    construct
 
     See https://jira.mariadb.org/browse/MDEV-13115
     """
