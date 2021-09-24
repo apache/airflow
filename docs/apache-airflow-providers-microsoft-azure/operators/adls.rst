@@ -29,12 +29,12 @@ Prerequisite Tasks
 
 .. include::/operators/_partials/prerequisite_tasks.rst
 
-.. _howto/operator:AzureDataLakeStorageDeleteOperator:
+.. _howto/operator:ADLSDeleteOperator:
 
-AzureDataLakeStorageDeleteOperator
+ADLSDeleteOperator
 ----------------------------------
 Use the
-:class:`~airflow.providers.microsoft.azure.operators.adls_delete.AzureDataLakeStorageDeleteOperator` to remove
+:class:`~airflow.providers.microsoft.azure.operators.adls_delete.ADLSDeleteOperator` to remove
 file(s) from Azure DataLake Storage
 
 
