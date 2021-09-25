@@ -554,7 +554,7 @@ Setting up Debug
 
     ...
 
-    if __name__ == '__main__':
+    if __name__ == "__main__":
         dag.clear(dag_run_state=State.NONE)
         dag.run()
 
@@ -1357,7 +1357,7 @@ Setting up Debug
 
     ...
 
-    if __name__ == '__main__':
+    if __name__ == "__main__":
         dag.clear(dag_run_state=State.NONE)
         dag.run()
 
@@ -1401,8 +1401,6 @@ Creating a branch
    .. raw:: html
 
       <div align="center" style="padding-bottom:10px">
-        <img src="images/quick_start/creating_branch_1.png"
-             alt="Creating a new branch">
         <img src="images/quick_start/vscode_creating_branch_1.png"
              alt="Creating a new branch">
       </div>
@@ -1412,8 +1410,6 @@ Creating a branch
    .. raw:: html
 
       <div align="center" style="padding-bottom:10px">
-        <img src="images/quick_start/creating_branch_2.png"
-             alt="Giving a name to a branch">
         <img src="images/quick_start/vscode_creating_branch_2.png"
              alt="Giving a name to a branch">
       </div>
