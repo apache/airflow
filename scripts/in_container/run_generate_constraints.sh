@@ -19,12 +19,14 @@
 . "$( dirname "${BASH_SOURCE[0]}" )/_in_container_script_init.sh"
 
 CONSTRAINTS_DIR="/files/constraints-${PYTHON_MAJOR_MINOR_VERSION}"
+readonly CONSTRAINTS_DIR
 
 LATEST_CONSTRAINT_FILE="${CONSTRAINTS_DIR}/original-${AIRFLOW_CONSTRAINTS}-${PYTHON_MAJOR_MINOR_VERSION}.txt"
+readonly LATEST_CONSTRAINT_FILE
 mkdir -pv "${CONSTRAINTS_DIR}"
 
 
-if [[ ${GENERATE_CONSTRAINTS_MODE} == "no-providers" ]]; then
+if [[ "${GENERATE_CONSTRAINTS_MODE}" == "no-providers" ]]; then
     AIRFLOW_CONSTRAINTS="constraints-no-providers"
     NO_PROVIDERS_EXTRAS=$(python -c 'import setup; print(",".join(setup.CORE_EXTRAS_REQUIREMENTS.keys()))')
     CURRENT_CONSTRAINT_FILE="${CONSTRAINTS_DIR}/${AIRFLOW_CONSTRAINTS}-${PYTHON_MAJOR_MINOR_VERSION}.txt"
@@ -47,7 +49,7 @@ if [[ ${GENERATE_CONSTRAINTS_MODE} == "no-providers" ]]; then
 # Airflow in any way.
 #
 EOF
-elif [[ ${GENERATE_CONSTRAINTS_MODE} == "source-providers" ]]; then
+elif [[ "${GENERATE_CONSTRAINTS_MODE}" == "source-providers" ]]; then
     AIRFLOW_CONSTRAINTS="constraints-source-providers"
     CURRENT_CONSTRAINT_FILE="${CONSTRAINTS_DIR}/${AIRFLOW_CONSTRAINTS}-${PYTHON_MAJOR_MINOR_VERSION}.txt"
     echo
@@ -65,7 +67,7 @@ elif [[ ${GENERATE_CONSTRAINTS_MODE} == "source-providers" ]]; then
 # Install with "HEAD" of providers. Those are the only constraints that are used by our CI builds.
 #
 EOF
-elif [[ ${GENERATE_CONSTRAINTS_MODE} == "pypi-providers" ]]; then
+elif [[ "${GENERATE_CONSTRAINTS_MODE}" == "pypi-providers" ]]; then
     AIRFLOW_CONSTRAINTS="constraints"
     CURRENT_CONSTRAINT_FILE="${CONSTRAINTS_DIR}/${AIRFLOW_CONSTRAINTS}-${PYTHON_MAJOR_MINOR_VERSION}.txt"
     echo
