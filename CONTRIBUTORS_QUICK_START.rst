@@ -287,6 +287,15 @@ Setting up Breeze
 
   $ ./breeze --python 3.8 --backend mysql
 
+Note: If you encounter an error like "docker.credentials.errors.InitializationError:
+docker-credential-secretservice not installed or not available in PATH", you may execute following command to fix it.
+
+.. code-block:: bash
+
+  $ sudo apt install golang-docker-credential-helper
+
+Once the package is installed, execute the breeze command again to resume image building.
+
 4. Once the breeze environment is initialized, create airflow tables and users from the breeze CLI. ``airflow db reset``
    is required to execute at least once for Airflow Breeze to get the database/tables created.
 
@@ -1100,6 +1109,15 @@ Setting up Breeze
 .. code-block:: bash
 
   $ ./breeze --python 3.8 --backend mysql
+
+Note: If you encounter an error like "docker.credentials.errors.InitializationError:
+docker-credential-secretservice not installed or not available in PATH", you may execute following command to fix it.
+
+.. code-block:: bash
+
+  $ sudo apt install golang-docker-credential-helper
+
+Once the package is installed, execute the breeze command again to resume image building.
 
 4. Once the breeze environment is initialized, create airflow tables and users from the breeze CLI. ``airflow db reset``
    is required to execute at least once for Airflow Breeze to get the database/tables created.
