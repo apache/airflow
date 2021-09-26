@@ -45,8 +45,6 @@ with models.DAG(
     tags=['example'],
 ) as dag:
 
-    database_name = " "
-
     # [START azure_data_explorer_query_operator_howto_guide_create_table]
     create_purchases_table = AzureDataExplorerQueryOperator(
                             task_id = "create_purchases_table",
