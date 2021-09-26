@@ -90,7 +90,8 @@ with models.DAG(
                             database = DATABASE_NAME,
                             azure_data_explorer_conn_id = KUSTO_CLUSTER_URL
                             )
-    drop_table_kusto = """.drop table Purchases"""
+    # [END azure_data_explorer_query_operator_howto_guide_droptable]
+
 
     create_purchases_table >> ingestinline_purchases_data >> query_purchases_data >> drop_purchases_table
     
