@@ -16,6 +16,7 @@
 # under the License.
 from typing import Optional
 
+import pendulum
 from flask import current_app, g, request
 from marshmallow import ValidationError
 from sqlalchemy import or_
@@ -250,7 +251,7 @@ def post_dag_run(dag_id, session):
     except ValidationError as err:
         raise BadRequest(detail=str(err))
 
-    logical_date = post_body["execution_date"]
+    logical_date = pendulum.instance(post_body["execution_date"])
     run_id = post_body["run_id"]
     dagrun_instance = (
         session.query(DagRun)
