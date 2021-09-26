@@ -592,20 +592,27 @@ function breeze::prepare_command_file() {
     local compose_file="${3}"
     cat <<EOF >"${file}"
 #!/usr/bin/env bash
-docker_compose_version=\$(docker-compose --version)
-if [[ \${docker_compose_version} =~ .*version\ v2.* ]]; then
-  echo
-  echo "${COLOR_RED}Docker Compose Beta version v2 has a bug that prevents breeze from running.${COLOR_RESET}"
-  echo "${COLOR_RED}You have: \${docker_compose_version}.${COLOR_RESET}"
-  echo
-  echo "${COLOR_YELLOW}Please switch to stable version via Docker Desktop -> Experimental or by running:${COLOR_RESET}"
-  echo
-  echo "${COLOR_CYAN}docker-compose disable-v2${COLOR_RESET}"
-  echo
-  echo "${COLOR_YELLOW}Also please upvote https://github.com/docker/compose-cli/issues/1917${COLOR_RESET}"
-  echo
-  echo "${COLOR_RED}Exiting until you disable v2 version.${COLOR_RESET}"
-  exit 1
+docker_compose_version=\$(docker-compose --version || true)
+if [[ \${docker_compose_version} =~ .*([0-9]+)\.([0-9]+)\.([0-9]+).+ ]]; then
+    major=\${BASH_REMATCH[1]}
+    minor=\${BASH_REMATCH[2]}
+    patch=\${BASH_REMATCH[3]}
+    if [[ \${major} == "1" ]]; then
+        if (( minor < 29 )); then
+            echo
+            echo "${COLOR_RED}You have too old version of docker-compose: \${major}.\${minor}.\${patch}! At least 1.29 is needed! Please upgrade!${COLOR_RESET}"
+            echo "${COLOR_RED}See https://docs.docker.com/compose/install/ for instructions. Make sure docker-compose you install is first on the PATH variable of yours.${COLOR_RESET}"
+            echo
+            exit 1
+        fi
+    fi
+    echo
+    echo "${COLOR_GREEN}Good version of docker-compose: \${major}.\${minor}.\${patch}${COLOR_RESET}"
+    echo
+else
+    echo
+    echo "${COLOR_YELLOW}Unknown docker-compose version. At least 1.29 is needed! If Breeze fails - upgrade to latest available docker-compose version${COLOR_RESET}"
+    echo
 fi
 
 if [[ \${VERBOSE} == "true" ]]; then
@@ -3579,7 +3586,6 @@ function breeze::determine_python_version_to_use_in_breeze() {
     PYTHON_MAJOR_MINOR_VERSION="${PYTHON_MAJOR_MINOR_VERSION:=$(parameters::read_from_file PYTHON_MAJOR_MINOR_VERSION)}"
     export PYTHON_MAJOR_MINOR_VERSION
 }
-
 
 breeze::setup_default_breeze_constants
 
