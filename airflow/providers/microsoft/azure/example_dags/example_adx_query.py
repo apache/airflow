@@ -35,7 +35,8 @@ from airflow.utils.dates import days_ago
 #     :ref:`Azure Data Explorer connection<howto/connection:adx>`.
 # :type azure_data_explorer_conn_id: str
 
-
+KUSTO_CLUSTER_URL = os.environ.get("KUSTO_CLUSTER_URL", "demo-cluster")
+DATABASE_NAME = os.environ.get("DATABASE_NAME", "demo-database")
 
 with models.DAG(
     "example_adx_query",
@@ -44,21 +45,54 @@ with models.DAG(
     tags=['example'],
 ) as dag:
 
-    KQL_QUERY = """  """
     database_name = " "
 
     # [START azure_data_explorer_query_operator_howto_guide_create_table]
-
+    create_purchases_table = AzureDataExplorerQueryOperator(
+                            task_id = "create_purchases_table",
+                            query = """.create table Purchases (Item: string, Quantity: long)""",
+                            database = DATABASE_NAME,
+                            azure_data_explorer_conn_id = KUSTO_CLUSTER_URL
+                            )                            
     # [END azure_data_explorer_query_operator_howto_guide_create_table]
+    # [START azure_data_explorer_query_operator_howto_guide_ingestinline]
+    ingestinline_purchases_data = AzureDataExplorerQueryOperator(
+                            task_id = "ingestinline_purchases_data",
+                            query = """.ingest inline into table Purchases <|
+                                Shoes,1000
+                                Wide Shoes,50
+                                "Coats, black",20
+                                "Coats,5
+                                GUMS, 200
+                                JUGS,50
+                                TENNIS SHOES,20
+                                "night gear",5
+                                """,
+                            database = DATABASE_NAME,
+                            azure_data_explorer_conn_id = KUSTO_CLUSTER_URL
+                            ) 
+    # [END azure_data_explorer_query_operator_howto_guide_ingestinline]
+    # [START azure_data_explorer_query_operator_howto_guide_querytable]
+    query_purchases_data = AzureDataExplorerQueryOperator(
+                            task_id = "query_purchases_data",
+                            query = """Purchases \
+                                    | where Quantity > long(100) \
+                                    | project Quantity
+                                """,
+                            database = DATABASE_NAME,
+                            azure_data_explorer_conn_id = KUSTO_CLUSTER_URL
+                            )
+    # [END azure_data_explorer_query_operator_howto_guide_querytable]
+    # [START azure_data_explorer_query_operator_howto_guide_droptable]
+    drop_purchases_table = AzureDataExplorerQueryOperator(
+                            task_id = "drop_purchases_table",
+                            query = """.drop table Purchases""",
+                            database = DATABASE_NAME,
+                            azure_data_explorer_conn_id = KUSTO_CLUSTER_URL
+                            )
+    drop_table_kusto = """.drop table Purchases"""
 
-
-    # [START azure_data_explorer_query_operator_howto_guide_query]
-
-    # [END azure_data_explorer_query_operator_howto_guide_query]
-
-
-
-
+    create_purchases_table >> ingestinline_purchases_data >> query_purchases_data >> drop_purchases_table
     
 
     
