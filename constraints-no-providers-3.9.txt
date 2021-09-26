@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2021-09-26T07:50:52Z
+# This constraints file was automatically generated on 2021-09-26T12:12:15Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install just the 'bare' 'apache-airflow' package build from the HEAD of
 # the branch, without installing any of the providers.
@@ -35,7 +35,7 @@ WTForms==2.3.3
 Werkzeug==1.0.1
 alembic==1.7.3
 amqp==5.0.6
-anyio==3.3.1
+anyio==3.3.2
 apispec==3.3.2
 argcomplete==1.12.3
 attrs==20.3.0

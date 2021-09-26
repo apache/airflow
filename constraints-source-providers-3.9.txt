@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2021-09-26T07:49:00Z
+# This constraints file was automatically generated on 2021-09-26T12:10:25Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package nd all available community provider packages.
@@ -53,7 +53,7 @@ aliyun-python-sdk-kms==2.15.0
 amqp==5.0.6
 analytics-python==1.4.0
 ansiwrap==0.8.4
-anyio==3.3.1
+anyio==3.3.2
 apache-beam==2.32.0
 apispec==3.3.2
 appdirs==1.4.4
