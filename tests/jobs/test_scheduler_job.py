@@ -2693,13 +2693,15 @@ class TestSchedulerJob:
         assert run1.state == State.FAILED
         assert run1_ti.state == State.SKIPPED
 
-        # Run scheduling again to assert run2 has started
-        self.scheduler_job._do_scheduling(session)
+        # Run relevant part of scheduling again to assert run2 has been scheduled
+        self.scheduler_job._start_queued_dagruns(session)
+        session.flush()
         run2 = session.merge(run2)
         session.refresh(run2)
         assert run2.state == State.RUNNING
+        self.scheduler_job._schedule_dag_run(run2, session)
         run2_ti = run2.get_task_instance(task1.task_id, session)
-        assert run2_ti.state == State.QUEUED
+        assert run2_ti.state == State.SCHEDULED
 
     def test_do_schedule_max_active_runs_task_removed(self, session, dag_maker):
         """Test that tasks in removed state don't count as actively running."""
