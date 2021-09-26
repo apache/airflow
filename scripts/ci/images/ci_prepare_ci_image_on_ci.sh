@@ -33,6 +33,7 @@ function build_ci_image_on_ci() {
         md5sum::calculate_md5sum_for_all_files
         local image_name_with_tag="${AIRFLOW_CI_IMAGE}:${GITHUB_REGISTRY_PULL_IMAGE_TAG}"
         push_pull_remove_images::wait_for_image "${image_name_with_tag}"
+        docker_v tag  "${image_name_with_tag}" "${AIRFLOW_CI_IMAGE}"
         md5sum::update_all_md5_with_group
     else
         build_images::rebuild_ci_image_if_needed

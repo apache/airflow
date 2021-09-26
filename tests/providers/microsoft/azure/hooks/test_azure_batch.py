@@ -49,17 +49,7 @@ class TestAzureBatchHook(unittest.TestCase):
             Connection(
                 conn_id=self.test_vm_conn_id,
                 conn_type="azure_batch",
-                extra=json.dumps(
-                    {
-                        "account_name": self.test_account_name,
-                        "account_key": self.test_account_key,
-                        "account_url": self.test_account_url,
-                        "vm_publisher": self.test_vm_publisher,
-                        "vm_offer": self.test_vm_offer,
-                        "vm_sku": self.test_vm_sku,
-                        "node_agent_sku_id": self.test_node_agent_sku,
-                    }
-                ),
+                extra=json.dumps({"extra__azure_batch__account_url": self.test_account_url}),
             )
         )
         # connect with cloud service
@@ -67,16 +57,7 @@ class TestAzureBatchHook(unittest.TestCase):
             Connection(
                 conn_id=self.test_cloud_conn_id,
                 conn_type="azure_batch",
-                extra=json.dumps(
-                    {
-                        "account_name": self.test_account_name,
-                        "account_key": self.test_account_key,
-                        "account_url": self.test_account_url,
-                        "os_family": self.test_cloud_os_family,
-                        "os_version": self.test_cloud_os_version,
-                        "node_agent_sku_id": self.test_node_agent_sku,
-                    }
-                ),
+                extra=json.dumps({"extra__azure_batch__account_url": self.test_account_url}),
             )
         )
 

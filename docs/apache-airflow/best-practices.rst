@@ -74,8 +74,8 @@ result -
 Deleting a task
 ----------------
 
-Never delete a task from a DAG. In case of deletion, the historical information of the task disappears from the Airflow UI.
-It is advised to create a new DAG in case the tasks need to be deleted.
+Be careful when deleting a task from a DAG. You would not be able to see the Task in Graph View, Tree View, etc making
+it difficult to check the logs of that Task from the Webserver. If that is not desired, please create a new DAG.
 
 
 Communication

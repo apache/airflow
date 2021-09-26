@@ -21,6 +21,10 @@ from marshmallow import ValidationError
 from sqlalchemy import or_
 
 from airflow._vendor.connexion import NoContent
+from airflow.api.common.experimental.mark_tasks import (
+    set_dag_run_state_to_failed,
+    set_dag_run_state_to_success,
+)
 from airflow.api_connexion import security
 from airflow.api_connexion.exceptions import AlreadyExists, BadRequest, NotFound
 from airflow.api_connexion.parameters import apply_sorting, check_limit, format_datetime, format_parameters
@@ -34,7 +38,7 @@ from airflow.api_connexion.schemas.dag_run_schema import (
 from airflow.models import DagModel, DagRun
 from airflow.security import permissions
 from airflow.utils.session import provide_session
-from airflow.utils.state import DagRunState, State
+from airflow.utils.state import State
 from airflow.utils.types import DagRunType
 
 
@@ -302,6 +306,10 @@ def update_dag_run_state(dag_id: str, dag_run_id: str, session) -> dict:
         raise BadRequest(detail=str(err))
 
     state = post_body['state']
-    dag_run.set_state(state=DagRunState(state))
-    session.merge(dag_run)
+    dag = current_app.dag_bag.get_dag(dag_id)
+    if state == State.SUCCESS:
+        set_dag_run_state_to_success(dag, dag_run.execution_date, commit=True)
+    else:
+        set_dag_run_state_to_failed(dag, dag_run.execution_date, commit=True)
+    dag_run = session.query(DagRun).get(dag_run.id)
     return dagrun_schema.dump(dag_run)

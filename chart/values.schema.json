@@ -274,7 +274,7 @@
                 "null"
             ],
             "x-docsSection": "Common",
-            "default": null
+            "default": "See values.yaml"
         },
         "rbac": {
             "description": "Enable RBAC (default on most clusters these days).",
@@ -504,7 +504,7 @@
                         "tag": {
                             "description": "The PgBouncer exporter image tag.",
                             "type": "string",
-                            "default": "airflow-pgbouncer-exporter-2021.04.28-0.5.0"
+                            "default": "airflow-pgbouncer-exporter-2021.09.22-0.12.0"
                         },
                         "pullPolicy": {
                             "description": "The PgBouncer exporter image pull policy.",
@@ -1141,6 +1141,11 @@
                         }
                     ]
                 },
+                "podAnnotations": {
+                    "description": "Annotations to add to the worker pods.",
+                    "type": "object",
+                    "default": {}
+                },
                 "logGroomerSidecar": {
                     "description": "Configuration for worker log groomer sidecar",
                     "type": "object",
@@ -1384,6 +1389,11 @@
                     "type": "array",
                     "default": []
                 },
+                "podAnnotations": {
+                    "description": "Annotations to add to the scheduler pods.",
+                    "type": "object",
+                    "default": {}
+                },
                 "logGroomerSidecar": {
                     "description": "Configuration for the schedulers log groomer sidecar.",
                     "type": "object",
@@ -1609,6 +1619,11 @@
                     "description": "Grace period for tasks to finish after SIGTERM is sent from Kubernetes.",
                     "type": "integer",
                     "default": 60
+                },
+                "podAnnotations": {
+                    "description": "Annotations to add to the triggerer pods.",
+                    "type": "object",
+                    "default": {}
                 }
             }
         },
@@ -1711,6 +1726,11 @@
                             "default": {}
                         }
                     }
+                },
+                "extraContainers": {
+                    "description": "Launch additional containers for the migrate database job pod",
+                    "type": "array",
+                    "default": []
                 },
                 "nodeSelector": {
                     "description": "Select certain nodes for the migrate database job pod.",
@@ -2062,6 +2082,11 @@
                     "description": "Specify Tolerations for webserver pods.",
                     "type": "array",
                     "default": []
+                },
+                "podAnnotations": {
+                    "description": "Annotations to add to the webserver pods.",
+                    "type": "object",
+                    "default": {}
                 }
             }
         },
@@ -2282,6 +2307,11 @@
                     "description": "Specify Tolerations for Flower pods.",
                     "type": "array",
                     "default": []
+                },
+                "podAnnotations": {
+                    "description": "Annotations to add to the Flower pods.",
+                    "type": "object",
+                    "default": {}
                 }
             }
         },

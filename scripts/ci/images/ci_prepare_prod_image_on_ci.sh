@@ -34,6 +34,7 @@ function build_prod_images_on_ci() {
     if [[ ${GITHUB_REGISTRY_WAIT_FOR_IMAGE} == "true" ]]; then
         local image_name_with_tag="${AIRFLOW_PROD_IMAGE}:${GITHUB_REGISTRY_PULL_IMAGE_TAG}"
         push_pull_remove_images::wait_for_image "${image_name_with_tag}"
+        docker_v tag  "${image_name_with_tag}" "${AIRFLOW_PROD_IMAGE}"
     else
         build_images::build_prod_images_from_locally_built_airflow_packages
     fi

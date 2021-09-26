@@ -62,6 +62,12 @@ schedule should not include the two weekend days. What we want is:
 
 For simplicity, we will only deal with UTC datetimes in this example.
 
+.. note::
+
+    All datetime values returned by a custom timetable **MUST** be "aware", i.e.
+    contains timezone information. Furthermore, they must use ``pendulum``'s
+    datetime and timezone types.
+
 
 Timetable Registration
 ----------------------
@@ -90,10 +96,17 @@ file:
 
 .. code-block:: python
 
+    import datetime
+
     from airflow import DAG
 
 
-    with DAG(timetable=AfterWorkdayTimetable(), tags=["example", "timetable"]) as dag:
+    with DAG(
+        dag_id="example_after_workday_timetable_dag",
+        start_date=datetime.datetime(2021, 3, 10),
+        timetable=AfterWorkdayTimetable(),
+        tags=["example", "timetable"],
+    ) as dag:
         ...
 
 

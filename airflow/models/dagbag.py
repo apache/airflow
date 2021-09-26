@@ -45,6 +45,7 @@ from airflow.exceptions import (
 from airflow.stats import Stats
 from airflow.utils import timezone
 from airflow.utils.dag_cycle_tester import check_cycle
+from airflow.utils.docs import get_docs_url
 from airflow.utils.file import correct_maybe_zipped, list_py_file_paths, might_contain_dag
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.retries import MAX_DB_RETRIES, run_with_db_retries
@@ -316,7 +317,12 @@ class DagBag(LoggingMixin):
         if mod_name in sys.modules:
             del sys.modules[mod_name]
 
-        timeout_msg = f"DagBag import timeout for {filepath} after {self.DAGBAG_IMPORT_TIMEOUT}s"
+        timeout_msg = (
+            f"DagBag import timeout for {filepath} after {self.DAGBAG_IMPORT_TIMEOUT}s.\n"
+            "Please take a look at these docs to improve your DAG import time:\n"
+            f"* {get_docs_url('best-practices.html#top-level-python-code')}\n"
+            f"* {get_docs_url('best-practices.html#reducing-dag-complexity')}"
+        )
         with timeout(self.DAGBAG_IMPORT_TIMEOUT, error_message=timeout_msg):
             try:
                 loader = importlib.machinery.SourceFileLoader(mod_name, filepath)
