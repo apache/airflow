@@ -232,7 +232,7 @@ class TestDagRunOperator(TestCase):
             execution_date=execution_date,
             wait_for_completion=True,
             poke_interval=10,
-            allowed_states=[State.RUNNING],
+            allowed_states=[State.QUEUED],
             dag=self.dag,
         )
         task.run(start_date=execution_date, end_date=execution_date)
@@ -250,8 +250,41 @@ class TestDagRunOperator(TestCase):
             execution_date=execution_date,
             wait_for_completion=True,
             poke_interval=10,
-            failed_states=[State.RUNNING],
+            failed_states=[State.QUEUED],
             dag=self.dag,
         )
         with pytest.raises(AirflowException):
+            task.run(start_date=execution_date, end_date=execution_date)
+
+    def test_trigger_dagrun_triggering_itself(self):
+        """Test TriggerDagRunOperator that triggers itself"""
+        execution_date = DEFAULT_DATE
+        task = TriggerDagRunOperator(
+            task_id="test_task",
+            trigger_dag_id=self.dag.dag_id,
+            dag=self.dag,
+        )
+        task.run(start_date=execution_date, end_date=execution_date)
+
+        with create_session() as session:
+            dagruns = (
+                session.query(DagRun)
+                .filter(DagRun.dag_id == self.dag.dag_id)
+                .order_by(DagRun.execution_date)
+                .all()
+            )
+            assert len(dagruns) == 2
+            assert dagruns[1].state == State.QUEUED
+
+    def test_trigger_dagrun_triggering_itself_with_execution_date(self):
+        """Test TriggerDagRunOperator that triggers itself with execution date,
+        fails with DagRunAlreadyExists"""
+        execution_date = DEFAULT_DATE
+        task = TriggerDagRunOperator(
+            task_id="test_task",
+            trigger_dag_id=self.dag.dag_id,
+            execution_date=execution_date,
+            dag=self.dag,
+        )
+        with pytest.raises(DagRunAlreadyExists):
             task.run(start_date=execution_date, end_date=execution_date)

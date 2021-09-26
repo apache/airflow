@@ -215,7 +215,16 @@ if PACKAGE_NAME == 'apache-airflow':
         name = os.path.basename(path)
         if os.path.isfile(path) and not path.endswith(_allowed_top_level):
             exclude_patterns.append(f"_api/airflow/{name.rpartition('.')[0]}")
-        browsable_packages = ["operators", "hooks", "sensors", "providers", "executors", "models", "secrets"]
+        browsable_packages = [
+            "hooks",
+            "executors",
+            "models",
+            "operators",
+            "providers",
+            "secrets",
+            "sensors",
+            "timetables",
+        ]
         if os.path.isdir(path) and name not in browsable_packages:
             exclude_patterns.append(f"_api/airflow/{name}")
 else:

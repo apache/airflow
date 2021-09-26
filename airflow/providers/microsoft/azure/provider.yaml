@@ -84,6 +84,7 @@ operators:
     python-modules:
       - airflow.providers.microsoft.azure.operators.adls_list
       - airflow.providers.microsoft.azure.operators.adls_delete
+      - airflow.providers.microsoft.azure.operators.adls
   - integration-name: Microsoft Azure Data Explorer
     python-modules:
       - airflow.providers.microsoft.azure.operators.adx

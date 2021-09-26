@@ -24,6 +24,12 @@ Content
 
 .. toctree::
     :maxdepth: 1
+    :caption: Guides
+
+    How-to Guide <operators/slack_operator_howto_guide>
+
+.. toctree::
+    :maxdepth: 1
     :caption: References
 
     Connection Types <connections/slack>

@@ -547,3 +547,19 @@ HIDE_SENSITIVE_VAR_CONN_FIELDS = conf.getboolean('core', 'hide_sensitive_var_con
 # By default this is off, but is automatically configured on when running task
 # instances
 MASK_SECRETS_IN_LOGS = False
+
+# Display alerts on the dashboard
+# Useful for warning about setup issues or announcing changes to end users
+# List of UIAlerts, which allows for specifiying the message, category, and roles the
+# message should be shown to. For example:
+#   from airflow.www.utils import UIAlert
+#
+#   DASHBOARD_UIALERTS = [
+#       UIAlert("Welcome to Airflow"),  # All users
+#       UIAlert("Airflow update happening next week", roles=["User"]),  # Only users with the User role
+#       # A flash message with html:
+#       UIAlert('Visit <a href="http://airflow.apache.org">airflow.apache.org</a>', html=True),
+#   ]
+#
+# DASHBOARD_UIALERTS: List["UIAlert"]
+DASHBOARD_UIALERTS = []

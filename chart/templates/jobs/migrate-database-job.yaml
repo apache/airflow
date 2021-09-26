@@ -48,6 +48,9 @@ spec:
         tier: airflow
         component: run-airflow-migrations
         release: {{ .Release.Name }}
+{{- with .Values.labels }}
+{{ toYaml . | indent 8 }}
+{{- end }}
       {{- if or .Values.airflowPodAnnotations .Values.migrateDatabaseJob.annotations }}
       annotations:
         {{- if .Values.airflowPodAnnotations }}
@@ -92,6 +95,9 @@ spec:
               mountPath: {{ template "airflow_config_path" . }}
               subPath: airflow.cfg
               readOnly: true
+{{- if .Values.migrateDatabaseJob.extraContainers }}
+{{- toYaml .Values.migrateDatabaseJob.extraContainers | nindent 8 }}
+{{- end }}
       volumes:
         - name: config
           configMap:

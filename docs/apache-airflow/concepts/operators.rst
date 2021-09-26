@@ -66,20 +66,20 @@ Jinja Templating
 ----------------
 Airflow leverages the power of `Jinja Templating <http://jinja.pocoo.org/docs/dev/>`_ and this can be a powerful tool to use in combination with :ref:`macros <templates-ref>`.
 
-For example, say you want to pass the execution date as an environment variable to a Bash script using the ``BashOperator``:
+For example, say you want to pass the start of the data interval as an environment variable to a Bash script using the ``BashOperator``:
 
 .. code-block:: python
 
-  # The execution date as YYYY-MM-DD
+  # The start of the data interval as YYYY-MM-DD
   date = "{{ ds }}"
   t = BashOperator(
       task_id="test_env",
       bash_command="/tmp/test.sh ",
       dag=dag,
-      env={"EXECUTION_DATE": date},
+      env={"DATA_INTERVAL_START": date},
   )
 
-Here, ``{{ ds }}`` is a templated variable, and because the ``env`` parameter of the ``BashOperator`` is templated with Jinja, the execution date will be available as an environment variable named ``EXECUTION_DATE`` in your Bash script.
+Here, ``{{ ds }}`` is a templated variable, and because the ``env`` parameter of the ``BashOperator`` is templated with Jinja, the data interval's start date will be available as an environment variable named ``DATA_INTERVAL_START`` in your Bash script.
 
 You can use Jinja templating with every parameter that is marked as "templated" in the documentation. Template substitution occurs just before the ``pre_execute`` function of your operator is called.
 

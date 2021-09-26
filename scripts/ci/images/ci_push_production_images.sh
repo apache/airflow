@@ -20,4 +20,6 @@
 
 build_images::prepare_prod_build
 
+build_images::login_to_docker_registry
+
 push_pull_remove_images::push_prod_images_to_github

@@ -27,9 +27,10 @@ import sys
 import traceback
 from collections import defaultdict
 from datetime import timedelta
+from functools import wraps
 from json import JSONDecodeError
 from operator import itemgetter
-from typing import Any, Iterable, List, Optional, Tuple
+from typing import Any, Callable, Iterable, List, Optional, Set, Tuple, Union
 from urllib.parse import parse_qsl, unquote, urlencode, urlparse
 
 import lazy_object_proxy
@@ -455,10 +456,15 @@ class AirflowBaseView(BaseView):
 
     route_base = ''
 
-    # Make our macros available to our UI templates too.
     extra_args = {
+        # Make our macros available to our UI templates too.
         'macros': macros,
+        'get_docs_url': get_docs_url,
     }
+
+    if not conf.getboolean('core', 'unit_test_mode'):
+        extra_args['sqlite_warning'] = settings.Session.bind.dialect.name == 'sqlite'
+        extra_args['sequential_executor_warning'] = conf.get('core', 'executor') == 'LocalExecutor'
 
     line_chart_attr = {
         'legend.maxKeyLength': 200,
@@ -540,35 +546,10 @@ class Airflow(AirflowBaseView):
     )
     def index(self):
         """Home view."""
-        unit_test_mode: bool = conf.getboolean('core', 'UNIT_TEST_MODE')
-
-        if not unit_test_mode and "sqlite" in conf.get("core", "sql_alchemy_conn"):
-            db_doc_page = get_docs_url("howto/set-up-database.html")
-            flash(
-                Markup(
-                    "Usage of <b>SQLite</b> detected. It should only be used for dev/testing. "
-                    "Do not use <b>SQLite</b> as metadata DB in production. "
-                    "We recommend using Postgres or MySQL. "
-                    f"<a href='{db_doc_page}'><b>Click here</b></a> for more information."
-                ),
-                category="warning",
-            )
-
-        if not unit_test_mode and conf.get("core", "executor") == "SequentialExecutor":
-            exec_doc_page = get_docs_url("executor/index.html")
-            flash(
-                Markup(
-                    "Usage of <b>SequentialExecutor</b> detected. "
-                    "Do not use <b>SequentialExecutor</b> in production. "
-                    f"<a href='{exec_doc_page}'><b>Click here</b></a> for more information."
-                ),
-                category="warning",
-            )
         hide_paused_dags_by_default = conf.getboolean('webserver', 'hide_paused_dags_by_default')
-
         default_dag_run = conf.getint('webserver', 'default_dag_run_display_number')
-        num_runs = request.args.get('num_runs', default=default_dag_run, type=int)
 
+        num_runs = request.args.get('num_runs', default=default_dag_run, type=int)
         current_page = request.args.get('page', default=0, type=int)
         arg_search_query = request.args.get('search')
         arg_tags_filter = request.args.getlist('tags')
@@ -707,9 +688,14 @@ class Airflow(AirflowBaseView):
 
         page_title = conf.get(section="webserver", key="instance_name", fallback="DAGs")
 
+        dashboard_alerts = [
+            fm for fm in settings.DASHBOARD_UIALERTS if fm.should_show(current_app.appbuilder.sm)
+        ]
+
         return self.render_template(
             'airflow/dags.html',
             dags=dags,
+            dashboard_alerts=dashboard_alerts,
             current_page=current_page,
             search_query=arg_search_query if arg_search_query else '',
             page_title=page_title,
@@ -1511,7 +1497,7 @@ class Airflow(AirflowBaseView):
     @expose('/run', methods=['POST'])
     @auth.has_access(
         [
-            (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
+            (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_DAG),
             (permissions.ACTION_CAN_CREATE, permissions.RESOURCE_TASK_INSTANCE),
         ]
     )
@@ -1789,7 +1775,7 @@ class Airflow(AirflowBaseView):
     @expose('/clear', methods=['POST'])
     @auth.has_access(
         [
-            (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
+            (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_DAG),
             (permissions.ACTION_CAN_DELETE, permissions.RESOURCE_TASK_INSTANCE),
         ]
     )
@@ -1833,7 +1819,7 @@ class Airflow(AirflowBaseView):
     @expose('/dagrun_clear', methods=['POST'])
     @auth.has_access(
         [
-            (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
+            (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_DAG),
             (permissions.ACTION_CAN_DELETE, permissions.RESOURCE_TASK_INSTANCE),
         ]
     )
@@ -1855,7 +1841,7 @@ class Airflow(AirflowBaseView):
     @expose('/blocked', methods=['POST'])
     @auth.has_access(
         [
-            (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
+            (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_DAG),
             (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG_RUN),
         ]
     )
@@ -1962,7 +1948,7 @@ class Airflow(AirflowBaseView):
     @expose('/dagrun_failed', methods=['POST'])
     @auth.has_access(
         [
-            (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
+            (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_DAG),
             (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_DAG_RUN),
         ]
     )
@@ -1978,7 +1964,7 @@ class Airflow(AirflowBaseView):
     @expose('/dagrun_success', methods=['POST'])
     @auth.has_access(
         [
-            (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
+            (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_DAG),
             (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_DAG_RUN),
         ]
     )
@@ -2022,7 +2008,7 @@ class Airflow(AirflowBaseView):
     @expose('/confirm', methods=['GET'])
     @auth.has_access(
         [
-            (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
+            (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_DAG),
             (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_TASK_INSTANCE),
         ]
     )
@@ -2095,7 +2081,7 @@ class Airflow(AirflowBaseView):
     @expose('/failed', methods=['POST'])
     @auth.has_access(
         [
-            (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
+            (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_DAG),
             (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_TASK_INSTANCE),
         ]
     )
@@ -2128,7 +2114,7 @@ class Airflow(AirflowBaseView):
     @expose('/success', methods=['POST'])
     @auth.has_access(
         [
-            (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
+            (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_DAG),
             (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_TASK_INSTANCE),
         ]
     )
@@ -2518,7 +2504,7 @@ class Airflow(AirflowBaseView):
         dag_model = DagModel.get_dagmodel(dag_id)
 
         try:
-            dag = current_app.dag_bag.get_dag(dag_id)
+            dag: Optional[DAG] = current_app.dag_bag.get_dag(dag_id)
         except airflow.exceptions.SerializedDagNotFound:
             dag = None
 
@@ -3136,6 +3122,14 @@ class DagFilter(BaseFilter):
         return query.filter(self.model.dag_id.in_(filter_dag_ids))
 
 
+class DagEditFilter(BaseFilter):
+    """Filter using DagIDs"""
+
+    def apply(self, query, func):  # pylint: disable=redefined-outer-name,unused-argument
+        filter_dag_ids = current_app.appbuilder.sm.get_editable_dag_ids(g.user)
+        return query.filter(self.model.dag_id.in_(filter_dag_ids))
+
+
 class AirflowModelView(ModelView):
     """Airflow Mode View."""
 
@@ -3143,6 +3137,71 @@ class AirflowModelView(ModelView):
     page_size = PAGE_SIZE
 
     CustomSQLAInterface = wwwutils.CustomSQLAInterface
+
+
+class AirflowPrivilegeVerifierModelView(AirflowModelView):
+    """
+    This ModelView prevents ability to pass primary keys of objects relating to DAGs you shouldn't be able to
+    edit. This only holds for the add, update and delete operations.
+    You will still need to use the `action_has_dag_edit_access()` for actions.
+    """
+
+    @staticmethod
+    def validate_dag_edit_access(item: Union[DagRun, TaskInstance]):
+        """Validates whether the user has 'can_edit' access for this specific DAG."""
+        if not current_app.appbuilder.sm.can_edit_dag(item.dag_id):
+            raise AirflowException(f"Access denied for dag_id {item.dag_id}")
+
+    def pre_add(self, item: Union[DagRun, TaskInstance]):
+        self.validate_dag_edit_access(item)
+
+    def pre_update(self, item: Union[DagRun, TaskInstance]):
+        self.validate_dag_edit_access(item)
+
+    def pre_delete(self, item: Union[DagRun, TaskInstance]):
+        self.validate_dag_edit_access(item)
+
+    def post_add_redirect(self):  # Required to prevent redirect loop
+        return redirect(self.get_default_url())
+
+    def post_edit_redirect(self):  # Required to prevent redirect loop
+        return redirect(self.get_default_url())
+
+    def post_delete_redirect(self):  # Required to prevent redirect loop
+        return redirect(self.get_default_url())
+
+
+def action_has_dag_edit_access(action_func: Callable) -> Callable:
+    """Decorator for actions which verifies you have DAG edit access on the given tis/drs."""
+
+    @wraps(action_func)
+    def check_dag_edit_acl_for_actions(
+        self,
+        items: Optional[Union[List[TaskInstance], List[DagRun], TaskInstance, DagRun]],
+        *args,
+        **kwargs,
+    ) -> None:
+        if items is None:
+            dag_ids: Set[str] = set()
+        elif isinstance(items, list):
+            dag_ids = {item.dag_id for item in items if item is not None}
+        elif isinstance(items, TaskInstance) or isinstance(items, DagRun):
+            dag_ids = {items.dag_id}
+        else:
+            raise ValueError(
+                "Was expecting the first argument of the action to be of type "
+                "Optional[Union[List[TaskInstance], List[DagRun], TaskInstance, DagRun]]."
+                f"Was of type: {type(items)}"
+            )
+
+        for dag_id in dag_ids:
+            if not current_app.appbuilder.sm.can_edit_dag(dag_id):
+                flash(f"Access denied for dag_id {dag_id}", "danger")
+                logging.warning("User %s tried to modify %s without having access.", g.user.username, dag_id)
+                return redirect(self.get_default_url())
+        return action_func(self, items, *args, **kwargs)
+
+    return check_dag_edit_acl_for_actions
 
 
 class SlaMissModelView(AirflowModelView):
@@ -3238,6 +3297,7 @@ def lazy_add_provider_discovered_options_to_connection_form():
         _connection_types = [
             ('fs', 'File (path)'),
             ('mesos_framework-id', 'Mesos Framework ID'),
+            ('email', 'Email'),
         ]
         providers_manager = ProvidersManager()
         for connection_type, provider_info in providers_manager.hooks.items():
@@ -3808,7 +3868,7 @@ class JobModelView(AirflowModelView):
     }
 
 
-class DagRunModelView(AirflowModelView):
+class DagRunModelView(AirflowPrivilegeVerifierModelView):
     """View to show records from DagRun table"""
 
     route_base = '/dagrun'
@@ -3857,7 +3917,7 @@ class DagRunModelView(AirflowModelView):
 
     base_order = ('execution_date', 'desc')
 
-    base_filters = [['dag_id', DagFilter, lambda: []]]
+    base_filters = [['dag_id', DagEditFilter, lambda: []]]
 
     edit_form = DagRunEditForm
 
@@ -3872,6 +3932,7 @@ class DagRunModelView(AirflowModelView):
     }
 
     @action('muldelete', "Delete", "Are you sure you want to delete selected records?", single=False)
+    @action_has_dag_edit_access
     @provide_session
     def action_muldelete(self, items, session=None):
         """Multiple delete."""
@@ -3880,6 +3941,7 @@ class DagRunModelView(AirflowModelView):
         return redirect(self.get_redirect())
 
     @action('set_running', "Set state to 'running'", '', single=False)
+    @action_has_dag_edit_access
     @provide_session
     def action_set_running(self, drs, session=None):
         """Set state to running."""
@@ -3902,6 +3964,7 @@ class DagRunModelView(AirflowModelView):
         "All running task instances would also be marked as failed, are you sure?",
         single=False,
     )
+    @action_has_dag_edit_access
     @provide_session
     def action_set_failed(self, drs, session=None):
         """Set state to failed."""
@@ -3928,6 +3991,7 @@ class DagRunModelView(AirflowModelView):
         "All task instances would also be marked as success, are you sure?",
         single=False,
     )
+    @action_has_dag_edit_access
     @provide_session
     def action_set_success(self, drs, session=None):
         """Set state to success."""
@@ -3949,6 +4013,7 @@ class DagRunModelView(AirflowModelView):
         return redirect(self.get_default_url())
 
     @action('clear', "Clear the state", "All task instances would be cleared, are you sure?", single=False)
+    @action_has_dag_edit_access
     @provide_session
     def action_clear(self, drs, session=None):
         """Clears the state."""
@@ -4070,7 +4135,47 @@ class TaskRescheduleModelView(AirflowModelView):
     }
 
 
-class TaskInstanceModelView(AirflowModelView):
+class TriggerModelView(AirflowModelView):
+    """View to show records from Task Reschedule table"""
+
+    route_base = '/triggerview'
+
+    datamodel = AirflowModelView.CustomSQLAInterface(models.Trigger)  # type: ignore
+
+    class_permission_name = permissions.RESOURCE_TRIGGER
+    method_permission_name = {
+        'list': 'read',
+    }
+
+    base_permissions = [
+        permissions.ACTION_CAN_READ,
+        permissions.ACTION_CAN_ACCESS_MENU,
+    ]
+
+    list_columns = [
+        'id',
+        'classpath',
+        'created_date',
+        'triggerer_id',
+    ]
+
+    search_columns = [
+        'id',
+        'classpath',
+        'created_date',
+        'triggerer_id',
+    ]
+
+    # add_exclude_columns = ["kwargs"]
+
+    base_order = ('id', 'created_date')
+
+    formatters_columns = {
+        'created_date': wwwutils.datetime_f('created_date'),
+    }
+
+
+class TaskInstanceModelView(AirflowPrivilegeVerifierModelView):
     """View to show records from TaskInstance table"""
 
     route_base = '/taskinstance'
@@ -4154,7 +4259,7 @@ class TaskInstanceModelView(AirflowModelView):
 
     base_order = ('job_id', 'asc')
 
-    base_filters = [['dag_id', DagFilter, lambda: []]]
+    base_filters = [['dag_id', DagEditFilter, lambda: []]]
 
     def log_url_formatter(self):
         """Formats log URL."""
@@ -4185,7 +4290,6 @@ class TaskInstanceModelView(AirflowModelView):
         'duration': duration_f,
     }
 
-    @provide_session
     @action(
         'clear',
         lazy_gettext('Clear'),
@@ -4195,6 +4299,8 @@ class TaskInstanceModelView(AirflowModelView):
         ),
         single=False,
     )
+    @action_has_dag_edit_access
+    @provide_session
     def action_clear(self, task_instances, session=None):
         """Clears the action."""
         try:
@@ -4227,11 +4333,7 @@ class TaskInstanceModelView(AirflowModelView):
             flash('Failed to set state', 'error')
 
     @action('set_running', "Set state to 'running'", '', single=False)
-    @auth.has_access(
-        [
-            (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_DAG),
-        ]
-    )
+    @action_has_dag_edit_access
     def action_set_running(self, tis):
         """Set state to 'running'"""
         self.set_task_instance_state(tis, State.RUNNING)
@@ -4239,11 +4341,7 @@ class TaskInstanceModelView(AirflowModelView):
         return redirect(self.get_redirect())
 
     @action('set_failed', "Set state to 'failed'", '', single=False)
-    @auth.has_access(
-        [
-            (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_DAG),
-        ]
-    )
+    @action_has_dag_edit_access
     def action_set_failed(self, tis):
         """Set state to 'failed'"""
         self.set_task_instance_state(tis, State.FAILED)
@@ -4251,11 +4349,7 @@ class TaskInstanceModelView(AirflowModelView):
         return redirect(self.get_redirect())
 
     @action('set_success', "Set state to 'success'", '', single=False)
-    @auth.has_access(
-        [
-            (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_DAG),
-        ]
-    )
+    @action_has_dag_edit_access
     def action_set_success(self, tis):
         """Set state to 'success'"""
         self.set_task_instance_state(tis, State.SUCCESS)
@@ -4263,11 +4357,7 @@ class TaskInstanceModelView(AirflowModelView):
         return redirect(self.get_redirect())
 
     @action('set_retry', "Set state to 'up_for_retry'", '', single=False)
-    @auth.has_access(
-        [
-            (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_DAG),
-        ]
-    )
+    @action_has_dag_edit_access
     def action_set_retry(self, tis):
         """Set state to 'up_for_retry'"""
         self.set_task_instance_state(tis, State.UP_FOR_RETRY)

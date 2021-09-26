@@ -19,6 +19,20 @@
 Changelog
 ---------
 
+Main
+....
+
+Changes in operators names and import paths are listed in the following table
+This is a backward compatible change. Deprecated operators will be removed in the next major release.
+
++------------------------------------+--------------------+---------------------------------------------------------+--------------------------------------------------+
+| Deprecated operator name           | New operator name  | Deprecated path                                         | New path                                         |
++------------------------------------+--------------------+---------------------------------------------------------+--------------------------------------------------+
+| AzureDataLakeStorageListOperator   | ADLSListOperator   | airflow.providers.microsoft.azure.operators.adls_list   | airflow.providers.microsoft.azure.operators.adls |
++------------------------------------+--------------------+---------------------------------------------------------+--------------------------------------------------+
+| AzureDataLakeStorageDeleteOperator | ADLSDeleteOperator | airflow.providers.microsoft.azure.operators.adls_delete | airflow.providers.microsoft.azure.operators.adls |
++------------------------------------+--------------------+---------------------------------------------------------+--------------------------------------------------+
+
 3.1.1
 .....
 

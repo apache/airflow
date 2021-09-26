@@ -1180,7 +1180,7 @@ class DAG(LoggingMixin):
         return dagruns
 
     @provide_session
-    def get_latest_execution_date(self, session=None):
+    def get_latest_execution_date(self, session: Session) -> Optional[datetime]:
         """Returns the latest date for which at least one dag run exists"""
         return session.query(func.max(DagRun.execution_date)).filter(DagRun.dag_id == self.dag_id).scalar()
 
@@ -1269,8 +1269,8 @@ class DAG(LoggingMixin):
         ``base_date``, or more if there are manual task runs between the
         requested period, which does not count toward ``num``.
         """
-        min_date = (
-            session.query(DagRun)
+        min_date: Optional[datetime] = (
+            session.query(DagRun.execution_date)
             .filter(
                 DagRun.dag_id == self.dag_id,
                 DagRun.execution_date <= base_date,
@@ -1278,7 +1278,8 @@ class DAG(LoggingMixin):
             )
             .order_by(DagRun.execution_date.desc())
             .offset(num)
-            .first()
+            .limit(1)
+            .scalar()
         )
         if min_date is None:
             min_date = timezone.utc_epoch()

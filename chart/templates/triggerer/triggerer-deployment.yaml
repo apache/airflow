@@ -67,6 +67,9 @@ spec:
         {{- if .Values.airflowPodAnnotations }}
         {{- toYaml .Values.airflowPodAnnotations | nindent 8 }}
         {{- end }}
+        {{- if .Values.triggerer.podAnnotations }}
+        {{- toYaml .Values.triggerer.podAnnotations | nindent 8 }}
+        {{- end }}
     spec:
       nodeSelector:
         {{- toYaml $nodeSelector | nindent 8 }}
