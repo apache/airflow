@@ -110,42 +110,24 @@ function run_airflow_testing_in_docker() {
             backend_docker_compose+=("-f" "${SCRIPTS_CI_DIR}/docker-compose/backend-mssql-docker-volume.yml")
         fi
     fi
-
-    for try_num in {1..5}
-    do
-        echo
-        echo "Starting try number ${try_num}"
-        echo
-        echo
-        echo "Making sure docker-compose is down and remnants removed"
-        echo
-
-        docker-compose --log-level INFO -f "${SCRIPTS_CI_DIR}/docker-compose/base.yml" \
-            --project-name "airflow-${TEST_TYPE}-${BACKEND}" \
-            down --remove-orphans \
-            --volumes --timeout 10
-        docker-compose --log-level INFO \
-          -f "${SCRIPTS_CI_DIR}/docker-compose/base.yml" \
-          "${backend_docker_compose[@]}" \
-          "${INTEGRATIONS[@]}" \
-          "${DOCKER_COMPOSE_LOCAL[@]}" \
-          --project-name "airflow-${TEST_TYPE}-${BACKEND}" \
-             run airflow "${@}"
-        exit_code=$?
-        docker-compose --log-level INFO -f "${SCRIPTS_CI_DIR}/docker-compose/base.yml" \
-            --project-name "airflow-${TEST_TYPE}-${BACKEND}" \
-            down --remove-orphans \
-            --volumes --timeout 10
-        if [[ ${exit_code} == "254" && ${try_num} != "5" ]]; then
-            echo
-            echo "Failed try num ${try_num}. Sleeping 5 seconds for retry"
-            echo
-            sleep 5
-            continue
-        else
-            break
-        fi
-    done
+    echo "Making sure docker-compose is down and remnants removed"
+    echo
+    docker-compose --log-level INFO -f "${SCRIPTS_CI_DIR}/docker-compose/base.yml" \
+        --project-name "airflow-${TEST_TYPE}-${BACKEND}" \
+        down --remove-orphans \
+        --volumes --timeout 10
+    docker-compose --log-level INFO \
+      -f "${SCRIPTS_CI_DIR}/docker-compose/base.yml" \
+      "${backend_docker_compose[@]}" \
+      "${INTEGRATIONS[@]}" \
+      "${DOCKER_COMPOSE_LOCAL[@]}" \
+      --project-name "airflow-${TEST_TYPE}-${BACKEND}" \
+         run airflow "${@}"
+    exit_code=$?
+    docker-compose --log-level INFO -f "${SCRIPTS_CI_DIR}/docker-compose/base.yml" \
+        --project-name "airflow-${TEST_TYPE}-${BACKEND}" \
+        down --remove-orphans \
+        --volumes --timeout 10
     set -u
     set -e
     if [[ ${exit_code} != "0" ]]; then
