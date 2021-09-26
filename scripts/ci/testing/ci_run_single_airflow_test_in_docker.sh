@@ -93,7 +93,7 @@ function run_airflow_testing_in_docker() {
             # so we need to mount an external volume for its db location
             # the external db must allow for parallel testing so TEST_TYPE
             # is added to the volume name
-            export MSSQL_DATA_VOLUME="${HOME}/tmp-mssql-volume-${TEST_TYPE}"
+            export MSSQL_DATA_VOLUME="${HOME}/tmp-mssql-volume-${TEST_TYPE}-${MSSQL_VERSION}"
             mkdir -p "${MSSQL_DATA_VOLUME}"
             # MSSQL 2019 runs with non-root user by default so we have to make the volumes world-writeable
             # This is a bit scary and we could get by making it group-writeable but the group would have
@@ -102,10 +102,10 @@ function run_airflow_testing_in_docker() {
             backend_docker_compose+=("-f" "${SCRIPTS_CI_DIR}/docker-compose/backend-mssql-bind-volume.yml")
 
             # Runner user doesn't have blanket sudo access, but we can run docker as root. Go figure
-            traps::add_trap "docker run -u 0 --rm -v ${MSSQL_DATA_VOLUME}:/mssql alpine sh -c 'rm -rvf -- /mssql/*' || true" EXIT
+            traps::add_trap "docker run -u 0 --rm -v ${MSSQL_DATA_VOLUME}:/mssql alpine sh -c 'rm -rvf -- /mssql/.* /mssql/*' || true" EXIT
 
-            # Clean up at start too, in case a previous runer left it messy
-            docker run --rm -u 0 -v "${MSSQL_DATA_VOLUME}":/mssql alpine sh -c 'rm -rfv -- /mssql/*'  || true
+            # Clean up at start too, in case a previous runner left it messy
+            docker run --rm -u 0 -v "${MSSQL_DATA_VOLUME}":/mssql alpine sh -c 'rm -rfv -- /mssql/.* /mssql/*'  || true
         else
             backend_docker_compose+=("-f" "${SCRIPTS_CI_DIR}/docker-compose/backend-mssql-docker-volume.yml")
         fi
