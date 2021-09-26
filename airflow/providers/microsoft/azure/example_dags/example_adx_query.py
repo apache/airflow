@@ -21,8 +21,6 @@ from airflow import models
 from airflow.providers.microsoft.azure.operators.adx import AzureDataExplorerQueryOperator
 from airflow.utils.dates import days_ago
 
-LOCAL_FILE_PATH = os.environ.get("LOCAL_FILE_PATH", 'localfile.txt') #1
-REMOTE_FILE_PATH = os.environ.get("REMOTE_LOCAL_PATH", 'remote.txt') #2
 
 # Operator for querying Azure Data Explorer (Kusto).
 
@@ -37,6 +35,8 @@ REMOTE_FILE_PATH = os.environ.get("REMOTE_LOCAL_PATH", 'remote.txt') #2
 #     :ref:`Azure Data Explorer connection<howto/connection:adx>`.
 # :type azure_data_explorer_conn_id: str
 
+
+
 with models.DAG(
     "example_adx_query",
     start_date=days_ago(1),
@@ -44,15 +44,21 @@ with models.DAG(
     tags=['example'],
 ) as dag:
 
-    upload_file = LocalToAzureDataLakeStorageOperator(
-        task_id='upload_task',
-        local_path=LOCAL_FILE_PATH,
-        remote_path=REMOTE_FILE_PATH,
-    )
-    # [START howto_operator_adls_delete]
-    remove_file = AzureDataLakeStorageDeleteOperator(
-        task_id="delete_task", path=REMOTE_FILE_PATH, recursive=True
-    )
-    # [END howto_operator_adls_delete]
+    KQL_QUERY = """  """
+    database_name = " "
 
-    upload_file >> remove_file
+    # [START azure_data_explorer_query_operator_howto_guide_create_table]
+
+    # [END azure_data_explorer_query_operator_howto_guide_create_table]
+
+
+    # [START azure_data_explorer_query_operator_howto_guide_query]
+
+    # [END azure_data_explorer_query_operator_howto_guide_query]
+
+
+
+
+    
+
+    
