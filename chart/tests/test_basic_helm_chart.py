@@ -30,6 +30,7 @@ OBJECT_COUNT_IN_BASIC_DEPLOYMENT = 38
 
 class TestBaseChartTest(unittest.TestCase):
     def test_basic_deployments(self):
+        assert 1 == 1
         k8s_objects = render_chart(
             "TEST-BASIC",
             values={
