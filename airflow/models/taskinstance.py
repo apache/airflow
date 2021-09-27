@@ -400,7 +400,7 @@ class TaskInstance(Base, LoggingMixin):
         innerjoin=True,
     )
 
-    dag_run = relationship("DagRun", back_populates="task_instances", lazy='selectin')
+    dag_run = relationship("DagRun", back_populates="task_instances", lazy='joined', innerjoin=True)
 
     execution_date = association_proxy("dag_run", "execution_date")
 
