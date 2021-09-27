@@ -20,7 +20,7 @@ try:
     from functools import cached_property
 except ImportError:
     from cached_property import cached_property
-from typing import Callable, Dict, Optional, Union
+from typing import Dict, Union
 
 import redshift_connector
 from redshift_connector import Connection as RedshiftConnection
@@ -129,29 +129,3 @@ class RedshiftStatementHook(DbApiHook):
         conn: RedshiftConnection = redshift_connector.connect(**conn_kwargs)
 
         return conn
-
-    def run(
-        self,
-        sql: Union[str, list],
-        autocommit: bool = False,
-        parameters: Optional[dict] = None,
-        handler: Optional[Callable] = None,
-    ):
-        """
-        Runs a command or a list of commands. Pass a list of sql
-        statements to the sql parameter to get them to execute
-        sequentially
-
-        :param sql: the sql statement to be executed (str) or a list of
-            sql statements to execute
-        :type sql: str or list
-        :param autocommit: What to set the connection's autocommit setting to
-            before executing the query.
-        :type autocommit: bool
-        :param parameters: The parameters to render the SQL query with.
-        :type parameters: dict or iterable
-        :param handler: The result handler which is called with the result of each statement.
-        :type handler: callable
-        :return: query results if handler was provided.
-        """
-        return super().run(sql, autocommit=False, parameters=parameters, handler=handler)
