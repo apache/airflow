@@ -38,10 +38,7 @@ class TestSCCActivation:
                 "cleanup": {"enabled": True},
                 "flower": {"enabled": True},
                 "airflowVersion": "2.2.0",
-                "rbac": {
-                    "create": rbac_enabled,
-                    "createSCCRoleBinding": scc_enabled
-                }
+                "rbac": {"create": rbac_enabled, "createSCCRoleBinding": scc_enabled},
             },
             show_only=["templates/rbac/security-context-constraint-rolebinding.yaml"],
         )
@@ -75,10 +72,7 @@ class TestSCCActivation:
                 "webserver": {"defaultUser": {"enabled": False}},
                 "cleanup": {"enabled": False},
                 "flower": {"enabled": False},
-                "rbac": {
-                    "create": rbac_enabled,
-                    "createSCCRoleBinding": scc_enabled
-                }
+                "rbac": {"create": rbac_enabled, "createSCCRoleBinding": scc_enabled},
             },
             show_only=["templates/rbac/security-context-constraint-rolebinding.yaml"],
         )
@@ -105,10 +99,7 @@ class TestSCCActivation:
                 "cleanup": {"enabled": False},
                 "flower": {"enabled": False},
                 "statsd": {"enabled": False},
-                "rbac": {
-                    "create": rbac_enabled,
-                    "createSCCRoleBinding": scc_enabled
-                }
+                "rbac": {"create": rbac_enabled, "createSCCRoleBinding": scc_enabled},
             },
             show_only=["templates/rbac/security-context-constraint-rolebinding.yaml"],
         )
