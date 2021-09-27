@@ -101,7 +101,7 @@ class RedshiftStatementHook(DbApiHook):
 
         conn = self.conn
 
-        conn_type = RedshiftStatementHook.conn_type if not conn.conn_type else conn.conn_type
+        conn_type = conn.conn_type or RedshiftStatementHook.conn_type
 
         if 'user' in conn_params:
             conn_params['username'] = conn_params.pop('user')
