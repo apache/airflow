@@ -32,7 +32,6 @@ dag = DAG(
     dag_id='example_sqlite',
     schedule_interval='@daily',
     start_date=days_ago(2),
-    default_args={'sqlite_conn_id': 'sqlite_conn_id'},
     tags=['example'],
 )
 
@@ -42,10 +41,10 @@ dag = DAG(
 create_table_sqlite_task = SqliteOperator(
     task_id='create_table_sqlite',
     sql=r"""
-    CREATE TABLE table_name (
-        column_1 string,
-        column_2 string,
-        column_3 string
+    CREATE TABLE Customers (
+        customer_id INT PRIMARY KEY,
+        first_name TEXT,
+        last_name TEXT
     );
     """,
     dag=dag,
@@ -57,21 +56,19 @@ create_table_sqlite_task = SqliteOperator(
 @dag.task(task_id="insert_sqlite_task")
 def insert_sqlite_hook():
     sqlite_hook = SqliteHook("sqlite_default")
-    sqlite_hook.get_conn()
 
     rows = [('James', '11'), ('James', '22'), ('James', '33')]
     target_fields = ['first_name', 'last_name']
-    sqlite_hook.insert_rows(table='Customer', rows=rows, target_fields=target_fields)
+    sqlite_hook.insert_rows(table='Customers', rows=rows, target_fields=target_fields)
 
 
 @dag.task(task_id="replace_sqlite_task")
 def replace_sqlite_hook():
     sqlite_hook = SqliteHook("sqlite_default")
-    sqlite_hook.get_conn()
 
     rows = [('James', '11'), ('James', '22'), ('James', '33')]
     target_fields = ['first_name', 'last_name']
-    sqlite_hook.insert_rows(table='Customer', rows=rows, target_fields=target_fields, replace=True)
+    sqlite_hook.insert_rows(table='Customers', rows=rows, target_fields=target_fields, replace=True)
 
 
 # [START howto_operator_sqlite_external_file]
@@ -79,7 +76,7 @@ def replace_sqlite_hook():
 # Example of creating a task that calls an sql command from an external file.
 external_create_table_sqlite_task = SqliteOperator(
     task_id='create_table_sqlite_external_file',
-    sql='/scripts/create_table.sql',
+    sql='create_table.sql',
 )
 
 # [END howto_operator_sqlite_external_file]
