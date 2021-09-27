@@ -64,13 +64,18 @@ class RedshiftStatementHook(DbApiHook):
             self.redshift_conn_id  # type: ignore[attr-defined]  # pylint: disable=no-member
         )
 
-        conn_params: Dict[str, Union[str, int]] = {
-            "user": conn.login or '',
-            "password": conn.password or '',
-            "host": conn.host or '',
-            "port": conn.port or 5439,
-            "database": conn.schema or '',
-        }
+        conn_params: Dict[str, Union[str, int]] = {}
+
+        if conn.login:
+            conn_params['user'] = conn.login
+        if conn.password:
+            conn_params['password'] = conn.password
+        if conn.host:
+            conn_params['host'] = conn.host
+        if conn.port:
+            conn_params['port'] = conn.port
+        if conn.schema:
+            conn_params['database'] = conn.schema
 
         return conn_params
 
@@ -101,14 +106,10 @@ class RedshiftStatementHook(DbApiHook):
 
         conn_type = RedshiftStatementHook.conn_type if not conn.conn_type else conn.conn_type
 
-        return URL(
-            drivername=conn_type,
-            username=conn_params['user'],
-            password=conn_params['password'],
-            host=conn_params['host'],
-            port=conn_params['port'],
-            database=conn_params['database'],
-        ).__str__()
+        if 'user' in conn_params:
+            conn_params['username'] = conn_params.pop('user')
+
+        return URL(drivername=conn_type, **conn_params).__str__()
 
     def get_sqlalchemy_engine(self, engine_kwargs=None):
         """Overrides DbApiHook get_sqlalchemy_engine to pass redshift_connector specific kwargs"""
