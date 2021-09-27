@@ -20,7 +20,7 @@ from unittest import TestCase
 import pytest
 from pendulum.parsing import ParserError
 
-from airflow.kubernetes.refresh_config import _parse_timestamp
+from airflow.kubernetes.refresh_config import _get_kube_config_loader_for_yaml_file, _parse_timestamp
 
 
 class TestRefreshKubeConfigLoader(TestCase):
@@ -35,3 +35,16 @@ class TestRefreshKubeConfigLoader(TestCase):
     def test_parse_timestamp_should_throw_exception(self):
         with pytest.raises(ParserError):
             _parse_timestamp("foobar")
+
+    def test_get_kube_config_loader_for_yaml_file(self):
+        refresh_kube_config_loader = _get_kube_config_loader_for_yaml_file('./kube_config')
+
+        assert refresh_kube_config_loader is not None
+
+        assert refresh_kube_config_loader.current_context['name'] == 'federal-context'
+
+        context = refresh_kube_config_loader.current_context['context']
+        assert context is not None
+        assert context['cluster'] == 'horse-cluster'
+        assert context['namespace'] == 'chisel-ns'
+        assert context['user'] == 'green-user'
