@@ -33,6 +33,7 @@ PROJECT_ID = "test_project_id"
 GCP_CONN_ID = "test_conn_id"
 DELEGATE_TO = "test_delegate_to"
 IMPERSONATION_CHAIN = ["ACCOUNT_1", "ACCOUNT_2", "ACCOUNT_3"]
+FAILURE_STATUSES = {"FAILED"}
 
 
 class TestCloudDataFusionPipelineStateSensor(unittest.TestCase):
@@ -40,6 +41,7 @@ class TestCloudDataFusionPipelineStateSensor(unittest.TestCase):
         [
             (PipelineStates.COMPLETED, PipelineStates.COMPLETED, True),
             (PipelineStates.COMPLETED, PipelineStates.RUNNING, False),
+            (PipelineStates.COMPLETED, PipelineStates.FAILED, False),
         ]
     )
     @mock.patch("airflow.providers.google.cloud.sensors.datafusion.DataFusionHook")
@@ -52,6 +54,7 @@ class TestCloudDataFusionPipelineStateSensor(unittest.TestCase):
             pipeline_id=PIPELINE_ID,
             project_id=PROJECT_ID,
             expected_statuses=[expected_status],
+            failure_statuses=FAILURE_STATUSES,
             instance_name=INSTANCE_NAME,
             location=LOCATION,
             gcp_conn_id=GCP_CONN_ID,
