@@ -37,8 +37,8 @@ class FTPToS3Operator(BaseOperator):
         it must end with "/".
     :type s3_key: str
     :param ftp_filenames: Only used if you want to move multiple files. You can pass a list
-        with exact filenames present in the ftp path, or a prefix that all files must meet. It can also
-        be the word 'all' for moving all the files withiin the ftp path.
+        with exact filenames present in the ftp path, or a prefix that all files must meet. It
+        can also be the word 'all' for moving all the files withiin the ftp path.
     :type ftp_filenames: Union(str, list)
     :param s3_filenames: Only used if you want to move multiple files and name them different from
         the originals from the ftp. It can be a list of filenames or file prefix (that will replace
