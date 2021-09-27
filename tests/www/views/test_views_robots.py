@@ -14,8 +14,20 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from tests.test_utils.config import conf_vars
 
 
 def test_robots(viewer_client):
     resp = viewer_client.get('/robots.txt', follow_redirects=True)
     assert resp.data.decode('utf-8') == "User-agent: *\nDisallow: /\n"
+
+
+def test_deployment_warning_config(viewer_client):
+    viewer_client.get('/robots.txt', follow_redirects=True)
+    resp = viewer_client.get('', follow_redirects=True)
+    assert "exposed to public internet" in resp.data.decode('utf-8')
+
+    with conf_vars({('webserver', 'warn_deployment_exposure'): 'False'}):
+        viewer_client.get('/robots.txt', follow_redirects=True)
+        resp = viewer_client.get('/robots.txt', follow_redirects=True)
+        assert "exposed to public internet" not in resp.data.decode('utf-8')

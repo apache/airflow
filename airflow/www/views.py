@@ -3091,6 +3091,14 @@ class Airflow(AirflowBaseView):
         # avoid spaces to reduce payload size
         return htmlsafe_json_dumps(data, separators=(',', ':'))
 
+    def warn_deployment_exposure(self):
+        deployment_warning = "Deployment is exposed to public internet"
+        flash(
+            deployment_warning,
+            "warning",
+        )
+        logging.warning(deployment_warning)
+
     @expose('/robots.txt')
     @action_logging
     def robots(self):
@@ -3099,6 +3107,8 @@ class Airflow(AirflowBaseView):
         of the risk associated with exposing Airflow to the public internet, however it does not
         address the real security risks associated with such a deployment.
         """
+        if conf.getboolean("webserver", "warn_deployment_exposure"):
+            self.warn_deployment_exposure()
         return send_from_directory(current_app.static_folder, 'robots.txt')
 
 
