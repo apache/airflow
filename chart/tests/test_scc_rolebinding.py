@@ -20,6 +20,7 @@ import pytest
 
 from tests.helm_template_generator import render_chart
 
+
 class TestSCCActivation:
     @pytest.mark.parametrize(
         "rbac_enabled,scc_enabled,created",
@@ -90,7 +91,6 @@ class TestSCCActivation:
             (True, True, True),
         ],
     )
-
     def test_create_scc_worker_only(self, rbac_enabled, scc_enabled, created):
         docs = render_chart(
             values={
