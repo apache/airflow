@@ -25,6 +25,10 @@ class RedshiftOperator(BaseOperator):
     """
     Executes SQL Statements against an Amazon Redshift cluster
 
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:RedshiftOperator`
+
     :param sql: the sql code to be executed
     :type sql: Can receive a str representing a sql statement,
         a list of str (sql statements)
