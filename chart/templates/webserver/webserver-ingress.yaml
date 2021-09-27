@@ -39,12 +39,31 @@ metadata:
     {{- toYaml . | nindent 4 }}
   {{- end }}
 spec:
-  {{- if .Values.ingress.web.tls.enabled }}
+  {{- if and .Values.ingress.web.hosts (.Values.ingress.web.hosts | first | kindIs "string" | not) }}
+  {{- $anyTlsHosts := false -}}
+  {{- range .Values.ingress.web.hosts }}
+  {{- if .tls }}
+  {{- if .tls.enabled }}
+  {{- $anyTlsHosts = true -}}
+  {{- end }}
+  {{- end }}
+  {{- end }}
+  {{- if $anyTlsHosts }}
+  tls:
+  {{- range .Values.ingress.web.hosts }}
+  {{- if .tls }}
+  {{- if .tls.enabled }}
+    - hosts:
+        - {{ .name | quote }}
+      secretName: {{ .tls.secretName }}
+  {{- end }}
+  {{- end }}
+  {{- end }}
+  {{- end }}
+  {{- else if .Values.ingress.web.tls.enabled }}
   tls:
     - hosts:
-{{- if .Values.ingress.web.tls.enabled }}
         {{- .Values.ingress.web.hosts | default (list .Values.ingress.web.host) | toYaml | nindent 8 }}
-{{- end }}
       secretName: {{ .Values.ingress.web.tls.secretName }}
   {{- end }}
   rules:
@@ -99,8 +118,12 @@ spec:
               servicePort: {{ .servicePort }}
               {{- end }}
           {{- end }}
-      {{- if . }}
-      host: {{ . | quote }}
+      {{- $hostname := . -}}
+      {{- if . | kindIs "string" | not }}
+      {{- $hostname = .name -}}
+      {{- end }}
+      {{- if $hostname }}
+      host: {{ $hostname | quote }}
       {{- end }}
     {{- end }}
   {{- if and .Values.ingress.web.ingressClassName $apiIsStable }}
