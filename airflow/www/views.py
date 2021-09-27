@@ -95,7 +95,7 @@ from airflow.api.common.experimental.mark_tasks import (
     set_dag_run_state_to_success,
 )
 from airflow.configuration import AIRFLOW_CONFIG, conf
-from airflow.exceptions import AirflowException, SerializedDagNotFound
+from airflow.exceptions import AirflowException
 from airflow.executors.executor_loader import ExecutorLoader
 from airflow.jobs.base_job import BaseJob
 from airflow.jobs.scheduler_job import SchedulerJob
@@ -1871,10 +1871,7 @@ class Airflow(AirflowBaseView):
         payload = []
         for dag_id, active_dag_runs in dags:
             max_active_runs = 0
-            try:
-                dag = current_app.dag_bag.get_dag(dag_id)
-            except SerializedDagNotFound:
-                dag = None
+            dag = current_app.dag_bag.get_dag(dag_id)
             if dag:
                 # TODO: Make max_active_runs a column so we can query for it directly
                 max_active_runs = dag.max_active_runs
@@ -2026,9 +2023,8 @@ class Airflow(AirflowBaseView):
         future = to_boolean(args.get('future'))
         past = to_boolean(args.get('past'))
 
-        try:
-            dag = current_app.dag_bag.get_dag(dag_id)
-        except airflow.exceptions.SerializedDagNotFound:
+        dag = current_app.dag_bag.get_dag(dag_id)
+        if not dag:
             flash(f'DAG {dag_id} not found', "error")
             return redirect(request.referrer or url_for('Airflow.index'))
 
@@ -2503,11 +2499,7 @@ class Airflow(AirflowBaseView):
         dag_id = request.args.get('dag_id')
         dag_model = DagModel.get_dagmodel(dag_id)
 
-        try:
-            dag: Optional[DAG] = current_app.dag_bag.get_dag(dag_id)
-        except airflow.exceptions.SerializedDagNotFound:
-            dag = None
-
+        dag: Optional[DAG] = current_app.dag_bag.get_dag(dag_id)
         if dag is None:
             flash(f'DAG "{dag_id}" seems to be missing.', "error")
             return redirect(url_for('Airflow.index'))
