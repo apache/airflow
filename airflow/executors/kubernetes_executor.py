@@ -193,24 +193,26 @@ class KubernetesJobWatcher(multiprocessing.Process, LoggingMixin):
         event: Any,
     ) -> None:
         """Process status response"""
+        annotations_condensed: str = force_single_line(annotations)
+
         if status == 'Pending':
             if event['type'] == 'DELETED':
-                self.log.info('Event: Failed to start pod_id: %s, annotations: %s', pod_id, annotations)
+                self.log.info('Event: Failed to start pod_id: %s, annotations: %s', pod_id, annotations_condensed)
                 self.watcher_queue.put((pod_id, namespace, State.FAILED, annotations, resource_version))
             else:
-                self.log.info('Event: Pending pod_id: %s, annotations: %s', pod_id, annotations)
+                self.log.info('Event: Pending pod_id: %s, annotations: %s', pod_id, annotations_condensed)
         elif status == 'Failed':
-            self.log.error('Event: Failed pod_id: %s, annotations: %s', pod_id, annotations)
+            self.log.error('Event: Failed pod_id: %s, annotations: %s', pod_id, annotations_condensed)
             self.watcher_queue.put((pod_id, namespace, State.FAILED, annotations, resource_version))
         elif status == 'Succeeded':
-            self.log.info('Event: Succeeded pod_id: %s, annotations: %s', pod_id, annotations)
+            self.log.info('Event: Succeeded pod_id: %s, annotations: %s', pod_id, annotations_condensed)
             self.watcher_queue.put((pod_id, namespace, None, annotations, resource_version))
         elif status == 'Running':
             if event['type'] == 'DELETED':
                 self.log.info(
                     'Event: Pod deleted before it could complete pod_id: %s, annotations: %s',
                     pod_id,
-                    annotations,
+                    annotations_condensed,
                 )
                 self.watcher_queue.put((pod_id, namespace, State.FAILED, annotations, resource_version))
             else:
