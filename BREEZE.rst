@@ -750,6 +750,13 @@ extra ``--`` flag.
 
      ./breeze build-docs -- --spellcheck-only
 
+This process can take some time, so in order to make it shorter you can filter by package, using the flag
+``--package-filter <PACKAGE-NAME>``. The package name has to be one of the providers or ``apache-airflow``. For
+instance, for using it with Amazon, the command would be:
+
+.. code-block:: bash
+
+     ./breeze build-docs -- --package-filter apache-airflow-providers-amazon
 
 Often errors during documentation generation come from the docstrings of auto-api generated classes.
 During the docs building auto-api generated files are stored in the ``docs/_api`` folder. This helps you
