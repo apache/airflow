@@ -85,3 +85,7 @@ def annotations_to_key(annotations: Dict[str, str]) -> Optional[TaskInstanceKey]
         )
 
     return TaskInstanceKey(dag_id, task_id, run_id, try_number)
+
+
+def force_single_line(log_element):
+    return str(log_element).replace("\n", " ")

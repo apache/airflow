@@ -40,7 +40,7 @@ from airflow.executors.base_executor import NOT_STARTED_MESSAGE, BaseExecutor, C
 from airflow.kubernetes import pod_generator
 from airflow.kubernetes.kube_client import get_kube_client
 from airflow.kubernetes.kube_config import KubeConfig
-from airflow.kubernetes.kubernetes_helper_functions import annotations_to_key, create_pod_id
+from airflow.kubernetes.kubernetes_helper_functions import annotations_to_key, create_pod_id, force_single_line
 from airflow.kubernetes.pod_generator import PodGenerator
 from airflow.models.taskinstance import TaskInstance, TaskInstanceKey
 from airflow.settings import pod_mutation_hook
@@ -258,14 +258,17 @@ class AirflowKubernetesScheduler(LoggingMixin):
         sanitized_pod = self.kube_client.api_client.sanitize_for_serialization(pod)
         json_pod = json.dumps(sanitized_pod, indent=2)
 
-        self.log.debug('Pod Creation Request: \n%s', json_pod)
+        self.log.debug('Pod Creation Request: \n%s',
+                       force_single_line(json_pod))
         try:
             resp = self.kube_client.create_namespaced_pod(
                 body=sanitized_pod, namespace=pod.metadata.namespace, **kwargs
             )
             self.log.debug('Pod Creation Response: %s', resp)
         except Exception as e:
-            self.log.exception('Exception when attempting to create Namespaced Pod: %s', json_pod)
+            self.log.exception('Exception when attempting to create Namespaced Pod: %s',
+                               force_single_line(json_pod)
+                               )
             raise e
         return resp
 
@@ -298,7 +301,7 @@ class AirflowKubernetesScheduler(LoggingMixin):
         and store relevant info in the current_jobs map so we can track the job's
         status
         """
-        self.log.info('Kubernetes job is %s', str(next_job).replace("\n", " "))
+        self.log.info('Kubernetes job is %s', force_single_line(next_job))
         key, command, kube_executor_config, pod_template_file = next_job
         dag_id, task_id, run_id, try_number = key
 
@@ -648,10 +651,11 @@ class KubernetesExecutor(BaseExecutor, LoggingMixin):
                 self.log.error(
                     (
                         'Pod "%s" has been pending for longer than %d seconds.'
-                        'It will be deleted and set to failed.'
+                        'It will be deleted and set to failed. Annotations on pod: %s'
                     ),
                     pod.metadata.name,
                     timeout,
+                    force_single_line(pod.metadata.annotations)
                 )
                 self.kube_scheduler.delete_pod(pod.metadata.name, pod.metadata.namespace)
 
