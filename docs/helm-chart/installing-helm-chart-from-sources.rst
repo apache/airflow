@@ -44,7 +44,7 @@ The downloads are available at:
 .. jinja:: official_download_page
 
     * `Sources package <{{ closer_lua_url }}/{{ package_version }}/airflow-chart-{{ package_version }}-source.tar.gz>`__ (`asc <{{ base_url }}/{{ package_version }}/airflow-chart-{{ package_version }}-source.tar.gz.asc>`__, `sha512 <{{ base_url }}/{{ package_version }}/airflow-chart-{{ package_version }}-source.tar.gz.sha512>`__)
-    * `Installable package <{{ closer_lua_url }}/{{ package_version }}/airflow-{{ package_version }}.tgz>`__ (`asc <{{ base_url }}/{{ package_version }}/airflow-{{ package_version }}.tgz.asc>`__, `sha512 <{{ base_url }}/{{ package_version }}/airflow-chart-{{ package_version }}.tgz.sha512>`__)
+    * `Installable package <{{ closer_lua_url }}/{{ package_version }}/airflow-{{ package_version }}.tgz>`__ (`asc <{{ base_url }}/{{ package_version }}/airflow-{{ package_version }}.tgz.asc>`__, `sha512 <{{ base_url }}/{{ package_version }}/airflow-{{ package_version }}.tgz.sha512>`__)
 
 If you want to install from the source code, you can download from the sources link above, it will contain
 a ``INSTALL`` file containing details on how you can build and install the chart.
