@@ -26,7 +26,9 @@ from sentry_sdk import configure_scope
 
 from airflow.operators.python import PythonOperator
 from airflow.utils import timezone
+from airflow.utils.module_loading import import_string
 from airflow.utils.state import State
+
 from tests.test_utils.config import conf_vars
 
 EXECUTION_DATE = timezone.utcnow()
@@ -85,6 +87,11 @@ class TestSentryHook:
         dag_maker.session.rollback()
 
     @pytest.fixture
+    def sentry_sdk(self):
+        with mock.patch('sentry_sdk.init') as sentry_sdk:
+            yield sentry_sdk
+
+    @pytest.fixture
     def sentry(self):
         with conf_vars(
             {
@@ -121,10 +128,11 @@ class TestSentryHook:
             test_crumb = scope._breadcrumbs.pop()
             assert CRUMB == test_crumb
 
-    @mock.patch('sentry_sdk.init')
-    def test_before_send(self, init, sentry):
+    def test_before_send(self, sentry_sdk, sentry):
         """
         Test before send callable gets passed to the sentry SDK.
         """
         assert sentry
-        assert init.call_args.kwargs['before_send'] == before_send
+        called = sentry_sdk.call_args.kwargs['before_send']
+        expected = import_string('tests.core.test_sentry.before_send')
+        assert called == expected
