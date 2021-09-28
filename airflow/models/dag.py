@@ -2068,10 +2068,10 @@ class DAG(LoggingMixin):
         if not dp or dp.pickle != self:
             dp = DagPickle(dag=self)
             session.add(dp)
-            self.last_pickled = timezone.utcnow()
+            dag.last_pickled = timezone.utcnow()
+            dag.pickle_id = dp.id
+            session.merge(dag)
             session.commit()
-            self.pickle_id = dp.id
-
         return dp
 
     def tree_view(self) -> None:
