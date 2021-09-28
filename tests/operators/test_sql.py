@@ -90,6 +90,16 @@ class TestSQLCheckOperatorDbHook:
         with pytest.raises(AirflowException, match=r"The connection type is not supported"):
             self._operator._hook
 
+    def test_sql_operator_hook_params(self, mock_get_conn):
+        mock_get_conn.return_value = Connection(
+            conn_id='google_cloud_default', conn_type='google_cloud_platform'
+        )
+        self._operator.conn_id = "google_cloud_default"
+        self._operator.conn_type = "google_cloud_platform"
+        self._operator.hook_params = {'use_legacy_sql': True, 'location': 'test_location'}
+        assert self._operator._hook.use_legacy_sql
+        assert self._operator._hook.location == 'test_location'
+
 
 class TestCheckOperator(unittest.TestCase):
     def setUp(self):
