@@ -17,7 +17,7 @@
 # under the License.
 """
 This is an example dag for using `RedshiftOperator` to authenticate with Amazon Redshift
-using IAM authentication then executing a simple select statement
+then execute a simple select statement
 """
 # [START redshift_operator_howto_guide]
 from airflow import DAG
