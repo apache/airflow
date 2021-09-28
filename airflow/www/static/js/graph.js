@@ -144,9 +144,7 @@ function draw() {
     } else if (nodeId in taskInstances) {
       // A task node
       const task = tasks[nodeId];
-      let tryNumber;
-      if (nodeId in taskInstances) tryNumber = taskInstances[nodeId].try_number;
-      else tryNumber = 0;
+      const tryNumber = taskInstances[nodeId].try_number || 0;
 
       if (task.task_type === 'SubDagOperator') callModal(nodeId, executionDate, task.extra_links, tryNumber, true);
       else callModal(nodeId, executionDate, task.extra_links, tryNumber, undefined);
