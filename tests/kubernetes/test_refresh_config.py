@@ -16,11 +16,19 @@
 # under the License.
 
 from unittest import TestCase
+from unittest.mock import Mock
 
 import pytest
+from kubernetes.config.exec_provider import ExecProvider
+from kubernetes.config.kube_config import ConfigNode
 from pendulum.parsing import ParserError
 
-from airflow.kubernetes.refresh_config import _get_kube_config_loader_for_yaml_file, _parse_timestamp
+from airflow.kubernetes.refresh_config import (
+    RefreshConfiguration,
+    RefreshKubeConfigLoader,
+    _get_kube_config_loader_for_yaml_file,
+    _parse_timestamp,
+)
 
 
 class TestRefreshKubeConfigLoader(TestCase):
@@ -48,3 +56,51 @@ class TestRefreshKubeConfigLoader(TestCase):
         assert context['cluster'] == 'horse-cluster'
         assert context['namespace'] == 'chisel-ns'
         assert context['user'] == 'green-user'
+
+    def test_get_api_key_with_prefix(self):
+
+        refresh_config = RefreshConfiguration()
+        refresh_config.api_key['key'] = '1234'
+        assert refresh_config is not None
+
+        api_key = refresh_config.get_api_key_with_prefix("key")
+
+        assert api_key == '1234'
+
+    def test_refresh_kube_config_loader(self):
+
+        current_context = _get_kube_config_loader_for_yaml_file('./kube_config').current_context
+
+        config_dict = {}
+        config_dict['current-context'] = 'federal-context'
+        config_dict['contexts'] = []
+        config_dict['contexts'].append(current_context)
+
+        config_dict['clusters'] = []
+
+        cluster_config = {}
+        cluster_config['api-version'] = 'v1'
+        cluster_config['server'] = 'http://cow.org:8080'
+        cluster_config['name'] = 'horse-cluster'
+        cluster_root_config = {}
+        cluster_root_config['cluster'] = cluster_config
+        cluster_root_config['name'] = 'horse-cluster'
+        config_dict['clusters'].append(cluster_root_config)
+
+        refresh_kube_config_loader = RefreshKubeConfigLoader(config_dict=config_dict)
+        refresh_kube_config_loader._user = {}
+        refresh_kube_config_loader._user['exec'] = 'test'
+
+        config_node = ConfigNode('command', 'test')
+        config_node.__dict__['apiVersion'] = '2.0'
+        config_node.__dict__['command'] = 'test'
+
+        ExecProvider.__init__ = Mock()
+        ExecProvider.__init__.return_value = None
+
+        ExecProvider.run = Mock()
+        ExecProvider.run.return_value = {'token': '1234'}
+
+        result = refresh_kube_config_loader._load_from_exec_plugin()
+
+        assert result is not None
