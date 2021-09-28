@@ -141,7 +141,7 @@ function draw() {
       expandGroup(nodeId, node);
       draw();
       focusGroup(nodeId);
-    } else if (nodeId in tasks) {
+    } else if (nodeId in taskInstances) {
       // A task node
       const task = tasks[nodeId];
       let tryNumber;
