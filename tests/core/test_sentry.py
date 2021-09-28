@@ -28,7 +28,6 @@ from airflow.operators.python import PythonOperator
 from airflow.utils import timezone
 from airflow.utils.module_loading import import_string
 from airflow.utils.state import State
-
 from tests.test_utils.config import conf_vars
 
 EXECUTION_DATE = timezone.utcnow()
