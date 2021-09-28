@@ -63,9 +63,7 @@ class RedshiftStatementHook(DbApiHook):
 
     @cached_property
     def conn(self):
-        return self.get_connection(
-            self.redshift_conn_id  # type: ignore[attr-defined]  # pylint: disable=no-member
-        )
+        return self.get_connection(self.redshift_conn_id)  # type: ignore[attr-defined]
 
     def _get_conn_params(self) -> Dict[str, Union[str, int]]:
         """Helper method to retrieve connection args"""
