@@ -1368,6 +1368,41 @@ class TestSchedulerJob:
         session.rollback()
         session.close()
 
+    @pytest.mark.parametrize("state, msg", [[State.SUCCESS, 'success'], [State.FAILED, 'task_failure']])
+    def test_dagrun_callbacks_are_added_when_callbacks_are_defined(self, state, msg, dag_maker):
+        """
+        Test if on_*_callback are defined on DAG, Callbacks ARE registered and sent to DAG Processor
+        """
+        with dag_maker(
+            dag_id='test_dagrun_callbacks_are_added_when_callbacks_are_defined',
+            on_failure_callback=lambda: True,
+            on_success_callback=lambda: True,
+        ):
+            BashOperator(task_id='test_task', bash_command='echo hi')
+
+        self.scheduler_job = SchedulerJob(subdir=os.devnull)
+        self.scheduler_job.processor_agent = mock.Mock()
+        self.scheduler_job.processor_agent.send_callback_to_execute = mock.Mock()
+        self.scheduler_job._send_dag_callbacks_to_processor = mock.Mock()
+
+        session = settings.Session()
+        dr = dag_maker.create_dagrun()
+        ti = dr.get_task_instance('test_task')
+        ti.set_state(state, session)
+
+        with mock.patch.object(settings, "USE_JOB_SCHEDULE", False):
+            self.scheduler_job._do_scheduling(session)
+
+        # Verify Callback is not set (i.e is None) when no callbacks are set on DAG
+        self.scheduler_job._send_dag_callbacks_to_processor.assert_called_once()
+        call_args = self.scheduler_job._send_dag_callbacks_to_processor.call_args[0]
+        assert call_args[0].dag_id == dr.dag_id
+        assert call_args[0].execution_date == dr.execution_date
+        assert call_args[1] is not None
+        assert call_args[1].msg == msg
+        session.rollback()
+        session.close()
+
     def test_do_not_schedule_removed_task(self, dag_maker):
         schedule_interval = datetime.timedelta(days=1)
         with dag_maker(
