@@ -79,7 +79,7 @@ def context_to_airflow_vars(context, in_env_var_format=False):
             mapping_value = AIRFLOW_VAR_NAME_FORMAT_MAPPING[mapping_key][name_format]
             if isinstance(_attr, str):
                 params[mapping_value] = _attr
-            if isinstance(_attr, datetime):
+            elif isinstance(_attr, datetime):
                 params[mapping_value] = _attr.isoformat()
             elif isinstance(_attr, list):
                 # os env variable value needs to be string
