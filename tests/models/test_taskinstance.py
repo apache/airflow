@@ -639,9 +639,7 @@ class TestTaskInstance:
         ti.end_date = pendulum.instance(timezone.utcnow())
 
         date = ti.next_retry_datetime()
-        # between 1 * 2^0.5 and 1 * 2^1 (15 and 30)
-        period = ti.end_date.add(seconds=15) - ti.end_date.add(seconds=1)
-        assert date in period
+        assert date == ti.end_date + datetime.timedelta(seconds=1)
 
     def test_reschedule_handling(self, dag_maker):
         """
