@@ -106,7 +106,7 @@ class RedshiftStatementHook(DbApiHook):
         if 'user' in conn_params:
             conn_params['username'] = conn_params.pop('user')
 
-        return URL(drivername=conn_type, **conn_params).__str__()
+        return str(URL(drivername=conn_type, **conn_params))
 
     def get_sqlalchemy_engine(self, engine_kwargs=None):
         """Overrides DbApiHook get_sqlalchemy_engine to pass redshift_connector specific kwargs"""
