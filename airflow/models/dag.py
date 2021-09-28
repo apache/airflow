@@ -302,7 +302,6 @@ class DAG(LoggingMixin):
         'schedule_interval',
         'fileloc',
         'template_searchpath',
-        'last_loaded',
     }
 
     __serialized_fields: Optional[FrozenSet[str]] = None
@@ -2063,14 +2062,19 @@ class DAG(LoggingMixin):
     def pickle(self, session=None) -> DagPickle:
         dag = session.query(DagModel).filter(DagModel.dag_id == self.dag_id).first()
         dp = None
+
         if dag and dag.pickle_id:
             dp = session.query(DagPickle).filter(DagPickle.id == dag.pickle_id).first()
+
         if not dp or dp.pickle != self:
             dp = DagPickle(dag=self)
             session.add(dp)
+            session.commit()
+
             dag.last_pickled = timezone.utcnow()
             dag.pickle_id = dp.id
             session.merge(dag)
+
             session.commit()
         return dp
 
