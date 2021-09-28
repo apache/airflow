@@ -621,13 +621,14 @@ class TestTaskInstance:
         date = ti.next_retry_datetime()
         assert date == ti.end_date + max_delay
 
-    def test_next_retry_datetime_short_intervals(self, dag_maker):
-        delay = datetime.timedelta(seconds=1)
+    @pytest.mark.parametrize("seconds", [0, 0.5, 1])
+    def test_next_retry_datetime_short_or_zero_intervals(self, dag_maker, seconds):
+        delay = datetime.timedelta(seconds=seconds)
         max_delay = datetime.timedelta(minutes=60)
 
         with dag_maker(dag_id='fail_dag'):
             task = BashOperator(
-                task_id='task_with_exp_backoff_and_short_time_interval',
+                task_id='task_with_exp_backoff_and_short_or_zero_time_interval',
                 bash_command='exit 1',
                 retries=3,
                 retry_delay=delay,
