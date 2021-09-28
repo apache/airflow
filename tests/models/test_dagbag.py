@@ -801,6 +801,31 @@ class TestDagBag:
             _sync_to_db()
             mock_sync_perm_for_dag.assert_called_once_with(dag, session=session)
 
+    def test_sync_to_db_dag_specific_perms_failure(self, caplog):
+        """
+        Test that errors during dagbag.sync_to_db, specifically syncing DAG specific permissions, are logged
+        and added to import_errors every parsing cycle
+        """
+        with create_session() as session, NamedTemporaryFile(
+            dir=self.empty_dir, suffix=".py"
+        ) as f, freeze_time(tz.datetime(2020, 1, 5, 0, 0, 0)) as frozen_time:
+            f.write(b'from airflow import DAG\n')
+            f.write(b'd = DAG(dag_id="access_control_test", access_control={"FakeRole": {"can_read"}})')
+            f.flush()
+
+            for i in [0, 60]:
+                frozen_time.tick(i)
+                dagbag = DagBag(
+                    dag_folder=self.empty_dir,
+                    include_examples=False,
+                )
+                caplog.set_level(logging.ERROR)
+                dagbag.sync_to_db(session=session)
+                assert "FakeRole" in caplog.text
+                assert f.name in dagbag.import_errors
+                err = dagbag.import_errors[f.name]
+                assert "FakeRole" in err
+
     @patch("airflow.www.security.ApplessAirflowSecurityManager")
     def test_sync_perm_for_dag(self, mock_security_manager):
         """
