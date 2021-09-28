@@ -58,9 +58,6 @@ class RedshiftStatementHook(DbApiHook):
             "relabeling": {'login': 'User', 'schema': 'Database'},
         }
 
-    def __init__(self, *args, **kwargs) -> None:
-        super().__init__(*args, **kwargs)
-
     @cached_property
     def conn(self):
         return self.get_connection(self.redshift_conn_id)  # type: ignore[attr-defined]
