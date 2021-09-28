@@ -21,9 +21,9 @@ import logging
 from functools import wraps
 
 from airflow.configuration import conf
+from airflow.utils.module_loading import import_string
 from airflow.utils.session import find_session_idx, provide_session
 from airflow.utils.state import State
-from airflow.utils.module_loading import import_string
 
 log = logging.getLogger(__name__)
 

@@ -86,11 +86,13 @@ class TestSentryHook:
 
     @pytest.fixture
     def sentry(self):
-        with conf_vars({
-            ('sentry', 'sentry_on'): 'True',
-            ('sentry', 'default_integrations'): 'False',
-            ('sentry', 'before_send'): 'tests.core.test_sentry.before_send',
-        }):
+        with conf_vars(
+            {
+                ('sentry', 'sentry_on'): 'True',
+                ('sentry', 'default_integrations'): 'False',
+                ('sentry', 'before_send'): 'tests.core.test_sentry.before_send',
+            },
+        ):
             from airflow import sentry
 
             importlib.reload(sentry)
