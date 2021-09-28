@@ -391,8 +391,7 @@ You can also download any version of Airflow constraints and adapt it with your 
 constraints and manually set your own versions of dependencies in your own constraints and use the version
 of constraints that you manually prepared.
 
-You can read more about constraints in the documentation of the
-`Installation <http://airflow.apache.org/docs/apache-airflow/stable/installation.html#constraints-files>`_
+You can read more about constraints in :doc:`apache-airflow:installation/installing-from-pypi`
 
 Note that if you place ``requirements.txt`` in the ``docker-context-files`` folder, it will be
 used to install all requirements declared there. It is recommended that the file
@@ -608,7 +607,9 @@ where you can build the image using the packages downloaded by passing those bui
 * ``AIRFLOW_PRE_CACHED_PIP_PACKAGES="false"``  - to not pre-cache packages from PyPI when building image
 * ``AIRFLOW_CONSTRAINTS_LOCATION=/docker-context-files/YOUR_CONSTRAINT_FILE.txt`` - to downloaded constraint files
 * (Optional) ``INSTALL_MYSQL_CLIENT="false"`` if you do not want to install ``MySQL``
-  client from the Oracle repositories. In this case also make sure that your
+  client from the Oracle repositories.
+* (Optional) ``INSTALL_MSSQL_CLIENT="false"`` if you do not want to install ``MsSQL``
+  client from the Microsoft repositories.
 
 Note, that the solution we have for installing python packages from local packages, only solves the problem
 of "air-gaped" python installation. The Docker image also downloads ``apt`` dependencies and ``node-modules``.

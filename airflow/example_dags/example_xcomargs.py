@@ -18,12 +18,12 @@
 
 """Example DAG demonstrating the usage of the XComArgs."""
 import logging
+from datetime import datetime
 
 from airflow import DAG
 from airflow.decorators import task
 from airflow.operators.bash import BashOperator
 from airflow.operators.python import PythonOperator, get_current_context
-from airflow.utils.dates import days_ago
 
 log = logging.getLogger(__name__)
 
@@ -42,8 +42,8 @@ def print_value(value):
 
 with DAG(
     dag_id='example_xcom_args',
-    default_args={'owner': 'airflow'},
-    start_date=days_ago(2),
+    start_date=datetime(2021, 1, 1),
+    catchup=False,
     schedule_interval=None,
     tags=['example'],
 ) as dag:
@@ -54,11 +54,10 @@ with DAG(
 
     print_value(task1.output)
 
-
 with DAG(
     "example_xcom_args_with_operators",
-    default_args={'owner': 'airflow'},
-    start_date=days_ago(2),
+    start_date=datetime(2021, 1, 1),
+    catchup=False,
     schedule_interval=None,
     tags=['example'],
 ) as dag2:

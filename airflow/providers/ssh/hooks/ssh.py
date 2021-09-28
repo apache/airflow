@@ -34,6 +34,8 @@ try:
 except ImportError:
     from getpass import getuser
 
+TIMEOUT_DEFAULT = 10
+
 
 class SSHHook(BaseHook):
     """
@@ -56,7 +58,12 @@ class SSHHook(BaseHook):
     :type key_file: str
     :param port: port of remote host to connect (Default is paramiko SSH_PORT)
     :type port: int
-    :param timeout: timeout for the attempt to connect to the remote_host.
+    :param conn_timeout: timeout (in seconds) for the attempt to connect to the remote_host.
+        The default is 10 seconds. If provided, it will replace the `conn_timeout` which was
+        predefined in the connection of `ssh_conn_id`.
+    :type conn_timeout: int
+    :param timeout: (Deprecated). timeout for the attempt to connect to the remote_host.
+        Use conn_timeout instead.
     :type timeout: int
     :param keepalive_interval: send a keepalive packet to remote host every
         keepalive_interval seconds
@@ -101,7 +108,8 @@ class SSHHook(BaseHook):
         password: Optional[str] = None,
         key_file: Optional[str] = None,
         port: Optional[int] = None,
-        timeout: int = 10,
+        timeout: Optional[int] = None,
+        conn_timeout: Optional[int] = None,
         keepalive_interval: int = 30,
     ) -> None:
         super().__init__()
@@ -113,6 +121,7 @@ class SSHHook(BaseHook):
         self.pkey = None
         self.port = port
         self.timeout = timeout
+        self.conn_timeout = conn_timeout
         self.keepalive_interval = keepalive_interval
 
         # Default values, overridable from Connection
@@ -137,6 +146,7 @@ class SSHHook(BaseHook):
                 self.remote_host = conn.host
             if self.port is None:
                 self.port = conn.port
+
             if conn.extra is not None:
                 extra_options = conn.extra_dejson
                 if "key_file" in extra_options and self.key_file is None:
@@ -148,7 +158,17 @@ class SSHHook(BaseHook):
                     self.pkey = self._pkey_from_private_key(private_key, passphrase=private_key_passphrase)
 
                 if "timeout" in extra_options:
-                    self.timeout = int(extra_options["timeout"], 10)
+                    warnings.warn(
+                        'Extra option `timeout` is deprecated.'
+                        'Please use `conn_timeout` instead.'
+                        'The old option `timeout` will be removed in a future version.',
+                        DeprecationWarning,
+                        stacklevel=2,
+                    )
+                    self.timeout = int(extra_options['timeout'])
+
+                if "conn_timeout" in extra_options and self.conn_timeout is None:
+                    self.conn_timeout = int(extra_options['conn_timeout'])
 
                 if "compress" in extra_options and str(extra_options["compress"]).lower() == 'false':
                     self.compress = False
@@ -184,6 +204,18 @@ class SSHHook(BaseHook):
                     decoded_host_key = decodebytes(host_key.encode('utf-8'))
                     self.host_key = key_constructor(data=decoded_host_key)
                     self.no_host_key_check = False
+
+        if self.timeout:
+            warnings.warn(
+                'Parameter `timeout` is deprecated.'
+                'Please use `conn_timeout` instead.'
+                'The old option `timeout` will be removed in a future version.',
+                DeprecationWarning,
+                stacklevel=1,
+            )
+
+        if self.conn_timeout is None:
+            self.conn_timeout = self.timeout if self.timeout else TIMEOUT_DEFAULT
 
         if self.pkey and self.key_file:
             raise AirflowException(
@@ -253,7 +285,7 @@ class SSHHook(BaseHook):
         connect_kwargs = dict(
             hostname=self.remote_host,
             username=self.username,
-            timeout=self.timeout,
+            timeout=self.conn_timeout,
             compress=self.compress,
             port=self.port,
             sock=self.host_proxy,

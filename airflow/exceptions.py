@@ -20,8 +20,10 @@
 #       to be marked in an ERROR state
 """Exceptions used by Airflow"""
 import datetime
+import warnings
 from typing import Any, Dict, List, NamedTuple, Optional
 
+from airflow.api_connexion.exceptions import NotFound as ApiConnextionNotFound
 from airflow.utils.code_utils import prepare_code_snippet
 from airflow.utils.platform import is_tty
 
@@ -41,7 +43,7 @@ class AirflowBadRequest(AirflowException):
     status_code = 400
 
 
-class AirflowNotFoundException(AirflowException):
+class AirflowNotFoundException(AirflowException, ApiConnextionNotFound):
     """Raise when the requested object/resource is not available in the system"""
 
     status_code = 404
@@ -138,6 +140,10 @@ class DagRunAlreadyExists(AirflowBadRequest):
 
 class DagFileExists(AirflowBadRequest):
     """Raise when a DAG ID is still in DagBag i.e., DAG file is in DAG folder"""
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        warnings.warn("DagFileExists is deprecated and will be removed.", DeprecationWarning, stacklevel=2)
 
 
 class DuplicateTaskIdFound(AirflowException):

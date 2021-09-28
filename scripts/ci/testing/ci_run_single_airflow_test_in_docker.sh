@@ -85,7 +85,7 @@ function run_airflow_testing_in_docker() {
     local backend_docker_compose=("-f" "${SCRIPTS_CI_DIR}/docker-compose/backend-${BACKEND}.yml")
     if [[ ${BACKEND} == "mssql" ]]; then
         local docker_filesystem
-        docker_filesystem=$(stat "-f" "-c" "%T" /var/lib/docker || echo "unknown")
+        docker_filesystem=$(stat "-f" "-c" "%T" /var/lib/docker 2>/dev/null || echo "unknown")
         if [[ ${docker_filesystem} == "tmpfs" ]]; then
             # In case of tmpfs backend for docker, mssql fails because TMPFS does not support
             # O_DIRECT parameter for direct writing to the filesystem
@@ -93,7 +93,7 @@ function run_airflow_testing_in_docker() {
             # so we need to mount an external volume for its db location
             # the external db must allow for parallel testing so TEST_TYPE
             # is added to the volume name
-            export MSSQL_DATA_VOLUME="${HOME}/tmp-mssql-volume-${TEST_TYPE}"
+            export MSSQL_DATA_VOLUME="${HOME}/tmp-mssql-volume-${TEST_TYPE}-${MSSQL_VERSION}"
             mkdir -p "${MSSQL_DATA_VOLUME}"
             # MSSQL 2019 runs with non-root user by default so we have to make the volumes world-writeable
             # This is a bit scary and we could get by making it group-writeable but the group would have
@@ -102,50 +102,32 @@ function run_airflow_testing_in_docker() {
             backend_docker_compose+=("-f" "${SCRIPTS_CI_DIR}/docker-compose/backend-mssql-bind-volume.yml")
 
             # Runner user doesn't have blanket sudo access, but we can run docker as root. Go figure
-            traps::add_trap "docker run -u 0 --rm -v ${MSSQL_DATA_VOLUME}:/mssql alpine sh -c 'rm -rvf -- /mssql/*' || true" EXIT
+            traps::add_trap "docker run -u 0 --rm -v ${MSSQL_DATA_VOLUME}:/mssql alpine sh -c 'rm -rvf -- /mssql/.* /mssql/*' || true" EXIT
 
-            # Clean up at start too, in case a previous runer left it messy
-            docker run --rm -u 0 -v "${MSSQL_DATA_VOLUME}":/mssql alpine sh -c 'rm -rfv -- /mssql/*'  || true
+            # Clean up at start too, in case a previous runner left it messy
+            docker run --rm -u 0 -v "${MSSQL_DATA_VOLUME}":/mssql alpine sh -c 'rm -rfv -- /mssql/.* /mssql/*'  || true
         else
             backend_docker_compose+=("-f" "${SCRIPTS_CI_DIR}/docker-compose/backend-mssql-docker-volume.yml")
         fi
     fi
-
-    for try_num in {1..5}
-    do
-        echo
-        echo "Starting try number ${try_num}"
-        echo
-        echo
-        echo "Making sure docker-compose is down and remnants removed"
-        echo
-
-        docker-compose --log-level INFO -f "${SCRIPTS_CI_DIR}/docker-compose/base.yml" \
-            --project-name "airflow-${TEST_TYPE}-${BACKEND}" \
-            down --remove-orphans \
-            --volumes --timeout 10
-        docker-compose --log-level INFO \
-          -f "${SCRIPTS_CI_DIR}/docker-compose/base.yml" \
-          "${backend_docker_compose[@]}" \
-          "${INTEGRATIONS[@]}" \
-          "${DOCKER_COMPOSE_LOCAL[@]}" \
-          --project-name "airflow-${TEST_TYPE}-${BACKEND}" \
-             run airflow "${@}"
-        exit_code=$?
-        docker-compose --log-level INFO -f "${SCRIPTS_CI_DIR}/docker-compose/base.yml" \
-            --project-name "airflow-${TEST_TYPE}-${BACKEND}" \
-            down --remove-orphans \
-            --volumes --timeout 10
-        if [[ ${exit_code} == "254" && ${try_num} != "5" ]]; then
-            echo
-            echo "Failed try num ${try_num}. Sleeping 5 seconds for retry"
-            echo
-            sleep 5
-            continue
-        else
-            break
-        fi
-    done
+    echo "Making sure docker-compose is down and remnants removed"
+    echo
+    docker-compose --log-level INFO -f "${SCRIPTS_CI_DIR}/docker-compose/base.yml" \
+        --project-name "airflow-${TEST_TYPE}-${BACKEND}" \
+        down --remove-orphans \
+        --volumes --timeout 10
+    docker-compose --log-level INFO \
+      -f "${SCRIPTS_CI_DIR}/docker-compose/base.yml" \
+      "${backend_docker_compose[@]}" \
+      "${INTEGRATIONS[@]}" \
+      "${DOCKER_COMPOSE_LOCAL[@]}" \
+      --project-name "airflow-${TEST_TYPE}-${BACKEND}" \
+         run airflow "${@}"
+    exit_code=$?
+    docker-compose --log-level INFO -f "${SCRIPTS_CI_DIR}/docker-compose/base.yml" \
+        --project-name "airflow-${TEST_TYPE}-${BACKEND}" \
+        down --remove-orphans \
+        --volumes --timeout 10
     set -u
     set -e
     if [[ ${exit_code} != "0" ]]; then
@@ -169,6 +151,29 @@ function run_airflow_testing_in_docker() {
         echo "${COLOR_BLUE}Then you can run failed tests with:${COLOR_RESET}"
         echo "${COLOR_YELLOW}pytest [TEST_NAME]${COLOR_RESET}"
         echo "${COLOR_BLUE}***********************************************************************************************${COLOR_RESET}"
+
+
+        if [[ ${UPGRADE_TO_NEWER_DEPENDENCIES} != "false" ]]; then
+            local constraints_url="https://raw.githubusercontent.com/apache/airflow/${DEFAULT_CONSTRAINTS_BRANCH}/constraints-source-providers-${PYTHON_MAJOR_MINOR_VERSION}.txt"
+            echo "${COLOR_BLUE}***********************************************************************************************${COLOR_RESET}"
+            echo "${COLOR_BLUE}*${COLOR_RESET}"
+            echo "${COLOR_BLUE}* In case you see unrelated test failures, it can be due to newer dependencies released.${COLOR_RESET}"
+            echo "${COLOR_BLUE}* This is either because it is 'main' branch or because this PR modifies dependencies (setup.* files).${COLOR_RESET}"
+            echo "${COLOR_BLUE}* Therefore 'eager-upgrade' is used to build the image, This means that this build can have newer dependencies than the 'tested' set of constraints,${COLOR_RESET}"
+            echo "${COLOR_BLUE}*${COLOR_RESET}"
+            echo "${COLOR_BLUE}* The tested constraints for that build are available at: ${constraints_url} ${COLOR_RESET}"
+            echo "${COLOR_BLUE}*${COLOR_RESET}"
+            echo "${COLOR_BLUE}* Please double check if the same failure is in other tests and in 'main' branch and check if the dependency differences causes the problem.${COLOR_RESET}"
+            echo "${COLOR_BLUE}* In case you identify the dependency, either fix the root cause or limit the dependency if it is too difficult to fix.${COLOR_RESET}"
+            echo "${COLOR_BLUE}*${COLOR_RESET}"
+            echo "${COLOR_BLUE}* The diff between fixed constraints and those used in this build is below.${COLOR_RESET}"
+            echo "${COLOR_BLUE}*${COLOR_RESET}"
+            echo "${COLOR_BLUE}***********************************************************************************************${COLOR_RESET}"
+            echo
+            curl "${constraints_url}" | grep -ve "^#" | diff --color=always - <( docker run --entrypoint /bin/bash "${AIRFLOW_CI_IMAGE}"  -c 'pip freeze' \
+                | sort | grep -v "apache_airflow" | grep -v "@" | grep -v "/opt/airflow" | grep -ve "^#")
+            echo
+        fi
     fi
 
     echo ${exit_code} > "${PARALLEL_JOB_STATUS}"
@@ -176,11 +181,9 @@ function run_airflow_testing_in_docker() {
     if [[ ${exit_code} == 0 ]]; then
         echo
         echo "${COLOR_GREEN}Test type: ${TEST_TYPE} succeeded.${COLOR_RESET}"
-        echo
     else
         echo
         echo "${COLOR_RED}Test type: ${TEST_TYPE} failed.${COLOR_RESET}"
-        echo
     fi
     return "${exit_code}"
 }

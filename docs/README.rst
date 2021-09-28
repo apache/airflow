@@ -122,7 +122,7 @@ Role ``:class:`` works well with references between packages. If you want to use
 
 .. code-block:: rst
 
-    :doc:`apache-airflow:installation`
+    :doc:`apache-airflow:installation/index`
     :ref:`apache-airflow-providers-google:write-logs-stackdriver`
 
 If you still feel confused then you can view more possible roles for our documentation:

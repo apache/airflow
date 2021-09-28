@@ -139,6 +139,8 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
     ADMIN_PERMISSIONS = [
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK_RESCHEDULE),
         (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_TASK_RESCHEDULE),
+        (permissions.ACTION_CAN_READ, permissions.RESOURCE_TRIGGER),
+        (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_TRIGGER),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_PASSWORD),
         (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_PASSWORD),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_ROLE),
@@ -424,7 +426,9 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
         """Determines whether a user has DAG read access."""
         if not user:
             user = g.user
-        dag_resource_name = permissions.resource_name_for_dag(dag_id)
+        # To account for SubDags
+        root_dag_id = dag_id.split(".")[0]
+        dag_resource_name = permissions.resource_name_for_dag(root_dag_id)
         return self._has_access(
             user, permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG
         ) or self._has_access(user, permissions.ACTION_CAN_READ, dag_resource_name)
@@ -433,7 +437,9 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
         """Determines whether a user has DAG edit access."""
         if not user:
             user = g.user
-        dag_resource_name = permissions.resource_name_for_dag(dag_id)
+        # To account for SubDags
+        root_dag_id = dag_id.split(".")[0]
+        dag_resource_name = permissions.resource_name_for_dag(root_dag_id)
 
         return self._has_access(
             user, permissions.ACTION_CAN_EDIT, permissions.RESOURCE_DAG
@@ -485,7 +491,6 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
 
         has_access = self._has_access(user, action_name, resource_name)
         # FAB built-in view access method. Won't work for AllDag access.
-
         if self.is_dag_resource(resource_name):
             if action_name == permissions.ACTION_CAN_READ:
                 has_access |= self.can_read_dag(resource_name, user)

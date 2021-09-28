@@ -151,7 +151,8 @@ class KubernetesJobWatcher(multiprocessing.Process, LoggingMixin):
             task_instance_related_annotations = {
                 'dag_id': annotations['dag_id'],
                 'task_id': annotations['task_id'],
-                'execution_date': annotations['execution_date'],
+                'execution_date': annotations.get('execution_date'),
+                'run_id': annotations.get('run_id'),
                 'try_number': annotations['try_number'],
             }
 
@@ -205,7 +206,11 @@ class KubernetesJobWatcher(multiprocessing.Process, LoggingMixin):
             self.log.info('Event: %s Succeeded', pod_id)
             self.watcher_queue.put((pod_id, namespace, None, annotations, resource_version))
         elif status == 'Running':
-            self.log.info('Event: %s is Running', pod_id)
+            if event['type'] == 'DELETED':
+                self.log.info('Event: Pod %s deleted before it could complete', pod_id)
+                self.watcher_queue.put((pod_id, namespace, State.FAILED, annotations, resource_version))
+            else:
+                self.log.info('Event: %s is Running', pod_id)
         else:
             self.log.warning(
                 'Event: Invalid state: %s on pod: %s in namespace %s with annotations: %s with '
@@ -289,9 +294,9 @@ class AirflowKubernetesScheduler(LoggingMixin):
         and store relevant info in the current_jobs map so we can track the job's
         status
         """
-        self.log.info('Kubernetes job is %s', str(next_job))
+        self.log.info('Kubernetes job is %s', str(next_job).replace("\n", " "))
         key, command, kube_executor_config, pod_template_file = next_job
-        dag_id, task_id, execution_date, try_number = key
+        dag_id, task_id, run_id, try_number = key
 
         if command[0:3] != ["airflow", "tasks", "run"]:
             raise ValueError('The command must start with ["airflow", "tasks", "run"].')
@@ -311,7 +316,8 @@ class AirflowKubernetesScheduler(LoggingMixin):
             task_id=task_id,
             kube_image=self.kube_config.kube_image,
             try_number=try_number,
-            date=execution_date,
+            date=None,
+            run_id=run_id,
             args=command,
             pod_override_object=kube_executor_config,
             base_worker_pod=base_worker_pod,
@@ -425,55 +431,70 @@ class KubernetesExecutor(BaseExecutor, LoggingMixin):
         self.kube_client: Optional[client.CoreV1Api] = None
         self.scheduler_job_id: Optional[str] = None
         self.event_scheduler: Optional[EventScheduler] = None
+        self.last_handled: Dict[TaskInstanceKey, int] = {}
         super().__init__(parallelism=self.kube_config.parallelism)
 
     @provide_session
     def clear_not_launched_queued_tasks(self, session=None) -> None:
         """
-        If the airflow scheduler restarts with pending "Queued" tasks, the tasks may or
-        may not
-        have been launched. Thus on starting up the scheduler let's check every
-        "Queued" task to
-        see if it has been launched (ie: if there is a corresponding pod on kubernetes)
+        Tasks can end up in a "Queued" state through either the executor being
+        abruptly shut down (leaving a non-empty task_queue on this executor)
+        or when a rescheduled/deferred operator comes back up for execution
+        (with the same try_number) before the pod of its previous incarnation
+        has been fully removed (we think).
 
-        If it has been launched then do nothing, otherwise reset the state to "None" so
-        the task
-        will be rescheduled
-
-        This will not be necessary in a future version of airflow in which there is
-        proper support
-        for State.LAUNCHED
+        This method checks each of those tasks to see if the corresponding pod
+        is around, and if not, and there's no matching entry in our own
+        task_queue, marks it for re-execution.
         """
         self.log.debug("Clearing tasks that have not been launched")
         if not self.kube_client:
             raise AirflowException(NOT_STARTED_MESSAGE)
         queued_tasks = session.query(TaskInstance).filter(TaskInstance.state == State.QUEUED).all()
-        self.log.info('When executor started up, found %s queued task instances', len(queued_tasks))
+        self.log.info('Found %s queued task instances', len(queued_tasks))
+
+        # Go through the "last seen" dictionary and clean out old entries
+        allowed_age = self.kube_config.worker_pods_queued_check_interval * 3
+        for key, timestamp in list(self.last_handled.items()):
+            if time.time() - timestamp > allowed_age:
+                del self.last_handled[key]
 
         for task in queued_tasks:
 
             self.log.debug("Checking task %s", task)
-            dict_string = "dag_id={},task_id={},execution_date={},airflow-worker={}".format(
+
+            # Check to see if we've handled it ourselves recently
+            if task.key in self.last_handled:
+                continue
+
+            # Build the pod selector
+            dict_string = "dag_id={},task_id={},airflow-worker={}".format(
                 pod_generator.make_safe_label_value(task.dag_id),
                 pod_generator.make_safe_label_value(task.task_id),
-                pod_generator.datetime_to_label_safe_datestring(task.execution_date),
                 pod_generator.make_safe_label_value(str(self.scheduler_job_id)),
             )
-
             kwargs = dict(label_selector=dict_string)
             if self.kube_config.kube_client_request_args:
-                for key, value in self.kube_config.kube_client_request_args.items():
-                    kwargs[key] = value
+                kwargs.update(**self.kube_config.kube_client_request_args)
+
+            # Try run_id first
+            kwargs['label_selector'] += ',run_id=' + pod_generator.make_safe_label_value(task.run_id)
             pod_list = self.kube_client.list_namespaced_pod(self.kube_config.kube_namespace, **kwargs)
-            if not pod_list.items:
-                self.log.info(
-                    'TaskInstance: %s found in queued state but was not launched, rescheduling', task
-                )
-                session.query(TaskInstance).filter(
-                    TaskInstance.dag_id == task.dag_id,
-                    TaskInstance.task_id == task.task_id,
-                    TaskInstance.execution_date == task.execution_date,
-                ).update({TaskInstance.state: State.NONE})
+            if pod_list.items:
+                continue
+            # Fallback to old style of using execution_date
+            kwargs['label_selector'] = dict_string + ',exectuion_date={}'.format(
+                pod_generator.datetime_to_label_safe_datestring(task.execution_date)
+            )
+            pod_list = self.kube_client.list_namespaced_pod(self.kube_config.kube_namespace, **kwargs)
+            if pod_list.items:
+                continue
+            self.log.info('TaskInstance: %s found in queued state but was not launched, rescheduling', task)
+            session.query(TaskInstance).filter(
+                TaskInstance.dag_id == task.dag_id,
+                TaskInstance.task_id == task.task_id,
+                TaskInstance.run_id == task.run_id,
+            ).update({TaskInstance.state: State.SCHEDULED})
 
     def start(self) -> None:
         """Starts the executor"""
@@ -491,6 +512,12 @@ class KubernetesExecutor(BaseExecutor, LoggingMixin):
             self.kube_config.worker_pods_pending_timeout_check_interval,
             self._check_worker_pods_pending_timeout,
         )
+        self.event_scheduler.call_regular_interval(
+            self.kube_config.worker_pods_queued_check_interval,
+            self.clear_not_launched_queued_tasks,
+        )
+        # We also call this at startup as that's the most likely time to see
+        # stuck queued tasks
         self.clear_not_launched_queued_tasks()
 
     def execute_async(
@@ -517,6 +544,9 @@ class KubernetesExecutor(BaseExecutor, LoggingMixin):
             raise AirflowException(NOT_STARTED_MESSAGE)
         self.event_buffer[key] = (State.QUEUED, self.scheduler_job_id)
         self.task_queue.put((key, command, kube_executor_config, pod_template_file))
+        # We keep a temporary local record that we've handled this so we don't
+        # try and remove it from the QUEUED state while we process it
+        self.last_handled[key] = time.time()
 
     def sync(self) -> None:
         """Synchronize task state."""

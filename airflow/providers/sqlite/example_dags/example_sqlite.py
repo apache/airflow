@@ -24,7 +24,6 @@ The second task is similar but instead calls the SQL command from an external fi
 """
 
 from airflow import DAG
-from airflow.operators.python import PythonOperator
 from airflow.providers.sqlite.hooks.sqlite import SqliteHook
 from airflow.providers.sqlite.operators.sqlite import SqliteOperator
 from airflow.utils.dates import days_ago
@@ -41,12 +40,11 @@ dag = DAG(
 # Example of creating a task that calls a common CREATE TABLE sql command.
 create_table_sqlite_task = SqliteOperator(
     task_id='create_table_sqlite',
-    sqlite_conn_id='sqlite_conn_id',
     sql=r"""
-    CREATE TABLE table_name (
-        column_1 string,
-        column_2 string,
-        column_3 string
+    CREATE TABLE Customers (
+        customer_id INT PRIMARY KEY,
+        first_name TEXT,
+        last_name TEXT
     );
     """,
     dag=dag,
@@ -55,37 +53,32 @@ create_table_sqlite_task = SqliteOperator(
 # [END howto_operator_sqlite]
 
 
+@dag.task(task_id="insert_sqlite_task")
 def insert_sqlite_hook():
     sqlite_hook = SqliteHook("sqlite_default")
-    sqlite_hook.get_conn()
 
     rows = [('James', '11'), ('James', '22'), ('James', '33')]
     target_fields = ['first_name', 'last_name']
-    sqlite_hook.insert_rows(table='Customer', rows=rows, target_fields=target_fields)
+    sqlite_hook.insert_rows(table='Customers', rows=rows, target_fields=target_fields)
 
 
+@dag.task(task_id="replace_sqlite_task")
 def replace_sqlite_hook():
     sqlite_hook = SqliteHook("sqlite_default")
-    sqlite_hook.get_conn()
 
     rows = [('James', '11'), ('James', '22'), ('James', '33')]
     target_fields = ['first_name', 'last_name']
-    sqlite_hook.insert_rows(table='Customer', rows=rows, target_fields=target_fields, replace=True)
+    sqlite_hook.insert_rows(table='Customers', rows=rows, target_fields=target_fields, replace=True)
 
-
-insert_sqlite_task = PythonOperator(task_id="insert_sqlite_task", python_callable=insert_sqlite_hook)
-replace_sqlite_task = PythonOperator(task_id="replace_sqlite_task", python_callable=replace_sqlite_hook)
 
 # [START howto_operator_sqlite_external_file]
 
 # Example of creating a task that calls an sql command from an external file.
 external_create_table_sqlite_task = SqliteOperator(
     task_id='create_table_sqlite_external_file',
-    sqlite_conn_id='sqlite_conn_id',
-    sql='/scripts/create_table.sql',
-    dag=dag,
+    sql='create_table.sql',
 )
 
 # [END howto_operator_sqlite_external_file]
 
-create_table_sqlite_task >> external_create_table_sqlite_task >> insert_sqlite_task >> replace_sqlite_task
+create_table_sqlite_task >> external_create_table_sqlite_task >> insert_sqlite_hook() >> replace_sqlite_hook()

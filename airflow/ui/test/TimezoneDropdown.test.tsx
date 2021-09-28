@@ -21,39 +21,34 @@ import React from 'react';
 import '@testing-library/jest-dom';
 import { render, fireEvent } from '@testing-library/react';
 
-import dayjs from 'dayjs';
-import timezone from 'dayjs/plugin/timezone';
-import utc from 'dayjs/plugin/utc';
-
 import TimezoneDropdown from 'components/AppContainer/TimezoneDropdown';
-import DateProvider, { HOURS_24 } from 'providers/DateProvider';
+import DateProvider from 'providers/DateProvider';
 import { ChakraWrapper } from './utils';
-
-dayjs.extend(utc);
-dayjs.extend(timezone);
 
 describe('test timezone dropdown', () => {
   test('Can search for a new timezone and the date changes', () => {
-    const { getByText } = render(
+    const { getByText, queryByText } = render(
       <DateProvider>
         <TimezoneDropdown />
       </DateProvider>,
       { wrapper: ChakraWrapper },
     );
 
-    const initialTime = dayjs().tz('UTC').format(HOURS_24);
+    const initialTime = '+00:00';
 
-    expect(getByText(initialTime)).toBeInTheDocument();
-    const button = getByText(initialTime);
+    expect(getByText(initialTime, { exact: false })).toBeInTheDocument();
+    const button = getByText(initialTime, { exact: false });
     fireEvent.click(button);
     const focusedElement = document.activeElement;
     if (focusedElement) {
       fireEvent.change(focusedElement, { target: { value: 'Anch' } });
     }
-    const option = getByText('-08:00 America/Anchorage');
+    const optionText = '-08:00 America/Anchorage';
+    const option = getByText(optionText);
     expect(option).toBeInTheDocument();
     fireEvent.click(option);
 
-    expect(getByText(dayjs().tz('America/Anchorage').format(HOURS_24))).toBeInTheDocument();
+    expect(queryByText(optionText)).toBeNull();
+    expect(getByText('-08:00', { exact: false })).toBeInTheDocument();
   });
 });

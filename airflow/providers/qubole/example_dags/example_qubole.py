@@ -21,23 +21,15 @@ import random
 import textwrap
 
 from airflow import DAG
+from airflow.decorators import task
 from airflow.operators.dummy import DummyOperator
-from airflow.operators.python import BranchPythonOperator, PythonOperator
+from airflow.operators.python import BranchPythonOperator
 from airflow.providers.qubole.operators.qubole import QuboleOperator
 from airflow.providers.qubole.sensors.qubole import QuboleFileSensor, QubolePartitionSensor
 from airflow.utils.dates import days_ago
 
-default_args = {
-    'owner': 'airflow',
-    'depends_on_past': False,
-    'email': ['airflow@example.com'],
-    'email_on_failure': False,
-    'email_on_retry': False,
-}
-
 with DAG(
     dag_id='example_qubole_operator',
-    default_args=default_args,
     schedule_interval=None,
     start_date=days_ago(2),
     tags=['example'],
@@ -55,12 +47,17 @@ with DAG(
         """
     )
 
-    def compare_result_fn(ti):
+    @task(trigger_rule='all_done')
+    def compare_result(hive_show_table, hive_s3_location, ti=None):
         """
         Compares the results of two QuboleOperator tasks.
 
-        :param kwargs: The context of the executed task.
-        :type kwargs: dict
+        :param hive_show_table: The "hive_show_table" task.
+        :type hive_show_table: QuboleOperator
+        :param hive_s3_location: The "hive_s3_location" task.
+        :type hive_s3_location: QuboleOperator
+        :param ti: The TaskInstance object.
+        :type ti: airflow.models.TaskInstance
         :return: True if the files are the same, False otherwise.
         :rtype: bool
         """
@@ -93,20 +90,13 @@ with DAG(
         tags=['tag1', 'tag2'],
         # If the script at s3 location has any qubole specific macros to be replaced
         # macros='[{"date": "{{ ds }}"}, {"name" : "abc"}]',
-        trigger_rule="all_done",
     )
-
-    compare_result = PythonOperator(
-        task_id='compare_result', python_callable=compare_result_fn, trigger_rule="all_done"
-    )
-
-    compare_result << [hive_show_table, hive_s3_location]
 
     options = ['hadoop_jar_cmd', 'presto_cmd', 'db_query', 'spark_cmd']
 
     branching = BranchPythonOperator(task_id='branching', python_callable=lambda: random.choice(options))
 
-    branching << compare_result
+    [hive_show_table, hive_s3_location] >> compare_result(hive_s3_location, hive_show_table) >> branching
 
     join = DummyOperator(task_id='join', trigger_rule='one_success')
 
@@ -131,11 +121,9 @@ with DAG(
         command_type="pigcmd",
         script_location="s3://public-qubole/qbol-library/scripts/script1-hadoop-s3-small.pig",
         parameters="key1=value1 key2=value2",
-        trigger_rule="all_done",
     )
 
-    pig_cmd << hadoop_jar_cmd << branching
-    pig_cmd >> join
+    branching >> hadoop_jar_cmd >> pig_cmd >> join
 
     presto_cmd = QuboleOperator(task_id='presto_cmd', command_type='prestocmd', query='show tables')
 
@@ -144,11 +132,9 @@ with DAG(
         command_type="shellcmd",
         script_location="s3://public-qubole/qbol-library/scripts/shellx.sh",
         parameters="param1 param2",
-        trigger_rule="all_done",
     )
 
-    shell_cmd << presto_cmd << branching
-    shell_cmd >> join
+    branching >> presto_cmd >> shell_cmd >> join
 
     db_query = QuboleOperator(
         task_id='db_query', command_type='dbtapquerycmd', query='show tables', db_tap_id=2064
@@ -162,11 +148,9 @@ with DAG(
         db_table='exported_airline_origin_destination',
         partition_spec='dt=20110104-02',
         dbtap_id=2064,
-        trigger_rule="all_done",
     )
 
-    db_export << db_query << branching
-    db_export >> join
+    branching >> db_query >> db_export >> join
 
     db_import = QuboleOperator(
         task_id='db_import',
@@ -177,7 +161,6 @@ with DAG(
         where_clause='id < 10',
         parallelism=2,
         dbtap_id=2064,
-        trigger_rule="all_done",
     )
 
     prog = '''
@@ -213,12 +196,10 @@ with DAG(
         tags='airflow_example_run',
     )
 
-    spark_cmd << db_import << branching
-    spark_cmd >> join
+    branching >> db_import >> spark_cmd >> join
 
 with DAG(
     dag_id='example_qubole_sensor',
-    default_args=default_args,
     schedule_interval=None,
     start_date=days_ago(2),
     doc_md=__doc__,

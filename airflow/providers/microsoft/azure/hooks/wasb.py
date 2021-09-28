@@ -172,7 +172,7 @@ class WasbHook(BaseHook):
         :param blob_name: The name of the blob. This needs not be existing
         :type blob_name: str
         """
-        container_client = self.create_container(container_name)
+        container_client = self._get_container_client(container_name)
         return container_client.get_blob_client(blob_name)
 
     def check_for_blob(self, container_name: str, blob_name: str, **kwargs) -> bool:
@@ -326,7 +326,8 @@ class WasbHook(BaseHook):
             but should be supplied for optimal performance.
         :type length: int
         """
-        blob_client = self._get_blob_client(container_name, blob_name)
+        container_client = self.create_container(container_name)
+        blob_client = container_client.get_blob_client(blob_name)
         return blob_client.upload_blob(data, blob_type, length=length, **kwargs)
 
     def download(

@@ -17,11 +17,13 @@
 # under the License.
 import logging
 import re
+import sys
 import unittest
-from unittest.mock import patch
+from unittest.mock import call, patch
 
 import pytest
 
+import airflow
 from airflow.providers_manager import ProviderInfo, ProvidersManager
 
 
@@ -31,17 +33,19 @@ class TestProviderManager(unittest.TestCase):
         self._caplog = caplog
 
     def test_providers_are_loaded(self):
-        provider_manager = ProvidersManager()
-        provider_list = list(provider_manager.providers.keys())
-        # No need to sort the list - it should be sorted alphabetically !
-        for provider in provider_list:
-            package_name = provider_manager.providers[provider][1]['package-name']
-            version = provider_manager.providers[provider][0]
-            assert re.search(r'[0-9]*\.[0-9]*\.[0-9]*.*', version)
-            assert package_name == provider
-        # just a sanity check - no exact number as otherwise we would have to update
-        # several tests if we add new connections/provider which is not ideal
-        assert len(provider_list) > 65
+        with self._caplog.at_level(logging.WARNING):
+            provider_manager = ProvidersManager()
+            provider_list = list(provider_manager.providers.keys())
+            # No need to sort the list - it should be sorted alphabetically !
+            for provider in provider_list:
+                package_name = provider_manager.providers[provider][1]['package-name']
+                version = provider_manager.providers[provider][0]
+                assert re.search(r'[0-9]*\.[0-9]*\.[0-9]*.*', version)
+                assert package_name == provider
+            # just a coherence check - no exact number as otherwise we would have to update
+            # several tests if we add new connections/provider which is not ideal
+            assert len(provider_list) > 65
+            assert [] == self._caplog.records
 
     def test_hooks_deprecation_warnings_generated(self):
         with pytest.warns(expected_warning=DeprecationWarning, match='hook-class-names') as warning_records:
@@ -114,6 +118,12 @@ class TestProviderManager(unittest.TestCase):
 
     @patch('airflow.providers_manager.importlib.import_module')
     def test_hooks(self, mock_import_module):
+        # importlib-resources>=5.2 relies on importing the containing module to
+        # read its content. The provider manager needs to read the validation
+        # schema 'provider_info.schema.json'. Not sure why this needs to be
+        # called twice. Also see comment on the assert at the end of the function.
+        mock_import_module.side_effect = [airflow, airflow]
+
         with pytest.warns(expected_warning=None) as warning_records:
             with self._caplog.at_level(logging.WARNING):
                 provider_manager = ProvidersManager()
@@ -121,7 +131,16 @@ class TestProviderManager(unittest.TestCase):
                 assert len(connections_list) > 60
         assert [] == [w.message for w in warning_records.list if "hook-class-names" in str(w.message)]
         assert len(self._caplog.records) == 0
-        mock_import_module.assert_not_called()
+
+        # The stdlib importlib.resources implementation in 3.7 through 3.9 does
+        # not rely on importlib.import_module, so the function should not be
+        # called. The implementation for 3.10+ and the backport to 3.6 uses it
+        # to import the top-level 'airflow' for 'provider_info.schema.json'.
+        # Also see comment on mocking at the beginning of the function.
+        if (3, 7) <= sys.version_info < (3, 10):
+            assert mock_import_module.mock_calls == []
+        else:
+            assert mock_import_module.mock_calls == [call("airflow"), call("airflow")]
 
     def test_hook_values(self):
         with pytest.warns(expected_warning=None) as warning_records:
