@@ -23,6 +23,7 @@ from functools import wraps
 from airflow.configuration import conf
 from airflow.utils.session import find_session_idx, provide_session
 from airflow.utils.state import State
+from airflow.utils.module_loading import import_string
 
 log = logging.getLogger(__name__)
 
@@ -72,7 +73,6 @@ if conf.getboolean("sentry", 'sentry_on', fallback=False):
                 "in_app_exclude",
                 "ignore_errors",
                 "before_breadcrumb",
-                "before_send",
                 "transport",
             )
         )
@@ -109,6 +109,9 @@ if conf.getboolean("sentry", 'sentry_on', fallback=False):
                         "There are unsupported options in [sentry] section: %s",
                         ", ".join(unsupported_options),
                     )
+
+                if sentry_config_opts.get('before_send'):
+                    sentry_config_opts['before_send'] = import_string(sentry_config_opts['before_send'])
 
             if dsn:
                 sentry_sdk.init(dsn=dsn, integrations=integrations, **sentry_config_opts)
