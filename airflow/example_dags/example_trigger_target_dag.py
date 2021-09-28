@@ -28,7 +28,7 @@ from airflow.decorators import task
 from airflow.operators.bash import BashOperator
 
 
-@task
+@task(task_id="run_this")
 def run_this_func(dag_run=None):
     """
     Print the payload "message" passed to the DagRun conf attribute.
