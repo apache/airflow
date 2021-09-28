@@ -54,8 +54,6 @@ def get_dag_details(dag_id):
     dag: DAG = current_app.dag_bag.get_dag(dag_id)
     if not dag:
         raise NotFound("DAG not found", detail=f"The DAG with dag_id: {dag_id} was not found")
-    if dag is None:
-        raise NotFound("DAG not found", detail=f"The DAG with dag_id: {dag_id} was not found")
     return dag_detail_schema.dump(dag)
 
 
