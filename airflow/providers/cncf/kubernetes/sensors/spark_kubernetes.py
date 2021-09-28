@@ -60,6 +60,7 @@ class SparkKubernetesSensor(BaseSensorOperator):
         kubernetes_conn_id: str = "kubernetes_default",
         api_group: str = 'sparkoperator.k8s.io',
         api_version: str = 'v1beta2',
+        driver_container: str = 'spark-kubernetes-driver',
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -70,6 +71,7 @@ class SparkKubernetesSensor(BaseSensorOperator):
         self.hook = KubernetesHook(conn_id=self.kubernetes_conn_id)
         self.api_group = api_group
         self.api_version = api_version
+        self.driver_container = driver_container
 
     def _log_driver(self, application_state: str, response: dict) -> None:
         if not self.attach_log:
@@ -85,7 +87,7 @@ class SparkKubernetesSensor(BaseSensorOperator):
         log_method = self.log.error if application_state in self.FAILURE_STATES else self.log.info
         try:
             log = ""
-            for line in self.hook.get_pod_logs(driver_pod_name, namespace=namespace):
+            for line in self.hook.get_pod_logs(driver_pod_name, namespace=namespace, container=self.driver_container):
                 log += line.decode()
             log_method(log)
         except client.rest.ApiException as e:
