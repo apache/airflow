@@ -60,7 +60,9 @@ with DAG(
     # [END howto_operator_python_kwargs]
 
     # [START howto_operator_python_venv]
-    @task.virtualenv(requirements=["colorama==0.4.0"], system_site_packages=False)
+    @task.virtualenv(
+        task_id="virtualenv_python", requirements=["colorama==0.4.0"], system_site_packages=False
+    )
     def callable_virtualenv():
         """
         Example function that will be performed in a virtual environment.
