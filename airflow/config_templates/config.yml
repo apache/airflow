@@ -1435,7 +1435,7 @@
       default: ""
     - name: before_send
       description: Dotted path to a before_send function that the sentry SDK should be configured to use.
-      version_added: 2.1.4
+      version_added: 2.2
       type: string
       example: ~
       default: ~
