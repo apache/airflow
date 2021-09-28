@@ -70,9 +70,9 @@ class CloudDataFusionPipelineStateSensor(BaseSensorOperator):
         pipeline_name: str,
         pipeline_id: str,
         expected_statuses: Set[str],
-        failure_statuses: Set[str],
         instance_name: str,
         location: str,
+        failure_statuses: Set[str] = None,
         project_id: Optional[str] = None,
         namespace: str = "default",
         gcp_conn_id: str = 'google_cloud_default',
@@ -123,7 +123,7 @@ class CloudDataFusionPipelineStateSensor(BaseSensorOperator):
         except AirflowException:
             pass  # Because the pipeline may not be visible in system yet
 
-        if pipeline_status in self.failure_statuses:
+        if self.failure_statuses and pipeline_status in self.failure_statuses:
             raise AirflowException(
                 f"Pipeline with id '{self.pipeline_id}' state is: {pipeline_status}. "
                 f"Terminating sensor..."
