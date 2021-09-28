@@ -73,16 +73,17 @@ def context_to_airflow_vars(context, in_env_var_format=False):
         (dag_run, 'run_id', 'AIRFLOW_CONTEXT_DAG_RUN_ID'),
     ]
 
-    for subject, attr, mapping in ops:
+    for subject, attr, mapping_key in ops:
         _attr = getattr(subject, attr, None)
         if subject and _attr:
+            mapping_value = AIRFLOW_VAR_NAME_FORMAT_MAPPING[mapping_key][name_format]
             if isinstance(_attr, str):
-                params[AIRFLOW_VAR_NAME_FORMAT_MAPPING[mapping][name_format]] = _attr
+                params[mapping_value] = _attr
             if isinstance(_attr, datetime):
-                params[AIRFLOW_VAR_NAME_FORMAT_MAPPING[mapping][name_format]] = _attr.isoformat()
+                params[mapping_value] = _attr.isoformat()
             elif isinstance(_attr, list):
                 # os env variable value needs to be string
-                params[AIRFLOW_VAR_NAME_FORMAT_MAPPING[mapping][name_format]] = ','.join(_attr)
+                params[mapping_value] = ','.join(_attr)
 
     return params
 
