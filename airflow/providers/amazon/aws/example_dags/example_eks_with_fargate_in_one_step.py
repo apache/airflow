@@ -21,7 +21,6 @@ from airflow.providers.amazon.aws.hooks.eks import ClusterStates, FargateProfile
 from airflow.providers.amazon.aws.operators.eks import (
     EKSCreateClusterOperator,
     EKSDeleteClusterOperator,
-    EKSDeleteFargateProfileOperator,
     EKSPodOperator,
 )
 from airflow.providers.amazon.aws.sensors.eks import EKSClusterStateSensor, EKSFargateProfileStateSensor
@@ -40,7 +39,7 @@ VPC_CONFIG = {
 
 
 with DAG(
-    dag_id='to-publish-fargate-all-in-one',
+    dag_id='example-create-cluster-and-fargate-all-in-one',
     schedule_interval=None,
     start_date=days_ago(2),
     max_active_runs=1,
@@ -80,20 +79,11 @@ with DAG(
         is_delete_operator_pod=True,
     )
 
-    delete_fargate_profile = EKSDeleteFargateProfileOperator(
-        task_id='delete_eks_fargate_profile',
-        cluster_name=CLUSTER_NAME,
-        fargate_profile_name=FARGATE_PROFILE_NAME,
+    # An Amazon EKS cluster can not be deleted with attached resources such as nodegroups or Fargate profiles.
+    # Setting the `force` to `True` will delete any attached resources before deleting the cluster.
+    delete_all = EKSDeleteClusterOperator(
+        task_id='delete_fargate_profile_and_cluster', cluster_name=CLUSTER_NAME, force_delete_compute=True
     )
-
-    await_delete_fargate_profile = EKSFargateProfileStateSensor(
-        task_id='wait_for_delete_fargate_profile',
-        cluster_name=CLUSTER_NAME,
-        fargate_profile_name=FARGATE_PROFILE_NAME,
-        target_state=FargateProfileStates.NONEXISTENT,
-    )
-
-    delete_cluster = EKSDeleteClusterOperator(task_id='delete_eks_cluster', cluster_name=CLUSTER_NAME)
 
     await_delete_cluster = EKSClusterStateSensor(
         task_id='wait_for_delete_cluster',
@@ -105,8 +95,6 @@ with DAG(
         create_cluster_and_fargate_profile
         >> await_create_fargate_profile
         >> start_pod
-        >> delete_fargate_profile
-        >> await_delete_fargate_profile
-        >> delete_cluster
+        >> delete_all
         >> await_delete_cluster
     )

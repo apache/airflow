@@ -80,7 +80,7 @@ with DAG(
     )
 
     # [START howto_operator_eks_force_delete_cluster]
-    # An Amazon EKS cluster can not be deleted with attached resources.
+    # An Amazon EKS cluster can not be deleted with attached resources such as nodegroups or Fargate profiles.
     # Setting the `force` to `True` will delete any attached resources before deleting the cluster.
     delete_all = EKSDeleteClusterOperator(
         task_id='delete_nodegroup_and_cluster', cluster_name=CLUSTER_NAME, force_delete_compute=True

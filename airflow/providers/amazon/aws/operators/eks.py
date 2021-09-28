@@ -23,7 +23,7 @@ from typing import Dict, Iterable, List, Optional
 
 from airflow import AirflowException
 from airflow.models import BaseOperator
-from airflow.providers.amazon.aws.hooks.eks import ClusterStates, EKSHook
+from airflow.providers.amazon.aws.hooks.eks import ClusterStates, EKSHook, FargateProfileStates
 from airflow.providers.cncf.kubernetes.operators.kubernetes_pod import KubernetesPodOperator
 
 CHECK_INTERVAL_SECONDS = 15
@@ -387,36 +387,76 @@ class EKSDeleteClusterOperator(BaseOperator):
         )
 
         if self.force_delete_compute:
-            nodegroups = eks_hook.list_nodegroups(clusterName=self.cluster_name)
-            nodegroup_count = len(nodegroups)
-            if nodegroup_count:
-                self.log.info(
-                    "A cluster can not be deleted with attached nodegroups.  Deleting %d nodegroups.",
-                    nodegroup_count,
-                )
-                for group in nodegroups:
-                    eks_hook.delete_nodegroup(clusterName=self.cluster_name, nodegroupName=group)
+            self.delete_any_nodegroups(eks_hook)
+            self.delete_any_fargate_profiles(eks_hook)
 
-                # Scaling up the timeout based on the number of nodegroups that are being processed.
-                additional_seconds = 5 * 60
-                countdown = TIMEOUT_SECONDS + (nodegroup_count * additional_seconds)
-                while eks_hook.list_nodegroups(clusterName=self.cluster_name):
+        eks_hook.delete_cluster(name=self.cluster_name)
+
+    def delete_any_nodegroups(self, eks_hook) -> None:
+        nodegroups = eks_hook.list_nodegroups(clusterName=self.cluster_name)
+        nodegroup_count = len(nodegroups)
+        if nodegroup_count:
+            self.log.info(
+                "A cluster can not be deleted with attached nodegroups.  Deleting %d nodegroups.",
+                nodegroup_count,
+            )
+            for group in nodegroups:
+                eks_hook.delete_nodegroup(clusterName=self.cluster_name, nodegroupName=group)
+
+            # Scaling up the timeout based on the number of nodegroups that are being processed.
+            additional_seconds = 5 * 60
+            countdown = TIMEOUT_SECONDS + (nodegroup_count * additional_seconds)
+            while eks_hook.list_nodegroups(clusterName=self.cluster_name):
+                if countdown >= CHECK_INTERVAL_SECONDS:
+                    countdown -= CHECK_INTERVAL_SECONDS
+                    sleep(CHECK_INTERVAL_SECONDS)
+                    self.log.info(
+                        "Waiting for the remaining %s nodegroups to delete.  "
+                        "Checking again in %d seconds.",
+                        nodegroup_count,
+                        CHECK_INTERVAL_SECONDS,
+                    )
+                else:
+                    raise RuntimeError(
+                        "Nodegroups are still active after the allocated time limit.  Aborting."
+                    )
+        self.log.info("No nodegroups remain, deleting cluster.")
+
+    def delete_any_fargate_profiles(self, eks_hook) -> None:
+        fargate_profiles = eks_hook.list_fargate_profiles(clusterName=self.cluster_name)
+        fargate_profile_count = len(fargate_profiles)
+        if fargate_profile_count:
+            self.log.info(
+                "A cluster can not be deleted with attached AWS Fargate profiles.  Deleting %d profiles.",
+                fargate_profile_count,
+            )
+            for profile in fargate_profiles:
+                # The API will return a (cluster) ResourceInUseException if you try
+                # to delete Fargate profiles in parallel the way we can with nodegroups,
+                # so each must be deleted sequentially
+                eks_hook.delete_fargate_profile(clusterName=self.cluster_name, fargateProfileName=profile)
+
+                countdown = TIMEOUT_SECONDS
+                while (
+                    eks_hook.get_fargate_profile_state(
+                        clusterName=self.cluster_name, fargateProfileName=profile
+                    )
+                    != FargateProfileStates.NONEXISTENT
+                ):
                     if countdown >= CHECK_INTERVAL_SECONDS:
                         countdown -= CHECK_INTERVAL_SECONDS
                         sleep(CHECK_INTERVAL_SECONDS)
                         self.log.info(
-                            "Waiting for the remaining %s nodegroups to delete.  "
+                            "Waiting for the AWS Fargate profile %s to delete.  "
                             "Checking again in %d seconds.",
-                            nodegroup_count,
+                            profile,
                             CHECK_INTERVAL_SECONDS,
                         )
                     else:
                         raise RuntimeError(
-                            "Nodegroups are still inactive after the allocated time limit.  Aborting."
+                            "AWS Fargate profiles are still active after the allocated time limit.  Aborting."
                         )
-            self.log.info("No nodegroups remain, deleting cluster.")
-
-        eks_hook.delete_cluster(name=self.cluster_name)
+        self.log.info("No AWS Fargate profiles remain, deleting cluster.")
 
 
 class EKSDeleteNodegroupOperator(BaseOperator):

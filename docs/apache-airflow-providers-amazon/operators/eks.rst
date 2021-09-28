@@ -64,8 +64,9 @@ To delete an existing Amazon EKS Cluster you can use
     :start-after: [START howto_operator_eks_delete_cluster]
     :end-before: [END howto_operator_eks_delete_cluster]
 
-Note: If the cluster has any attached resources, such as a nodegroup, the cluster can not be deleted.
-Using the ``force`` parameter will attempt to delete any attached resources first.
+Note: If the cluster has any attached resources, such as an Amazon EKS Nodegroup or AWS
+  Fargate profile, the cluster can not be deleted.  Using the ``force`` parameter will
+  attempt to delete any attached resources first.
 
 .. exampleinclude:: /../../airflow/providers/amazon/aws/example_dags/example_eks_with_nodegroup_in_one_step.py
     :language: python
