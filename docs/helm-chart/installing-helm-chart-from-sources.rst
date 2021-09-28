@@ -80,19 +80,19 @@ distribution directory and follow the below guide.
 
 .. code-block:: bash
 
-    gpg --verify airflow-chart-********.asc airflow-chart-*********
+    gpg --verify airflow-********.asc airflow-*********
 
 or
 
 .. code-block:: bash
 
-    pgpv airflow-chart-********.asc
+    pgpv airflow-********.asc
 
 or
 
 .. code-block:: bash
 
-    pgp airflow-chart-********.asc
+    pgp airflow-********.asc
 
 Example:
 
@@ -101,7 +101,7 @@ Example:
     .. code-block:: console
         :substitutions:
 
-        $ gpg --verify airflow-chart-{{ package_version }}.tar.gz.asc airflow-chart-{{ package_version }}.tar.gz
+        $ gpg --verify airflow-{{ package_version }}.tgz.asc airflow-{{ package_version }}.tgz
           gpg: Signature made Sat 11 Sep 12:49:54 2021 BST
           gpg:                using RSA key CDE15C6E4D3A8EC4ECF4BA4B6674E08AD7DE406F
           gpg:                issuer "kaxilnaik@apache.org"
@@ -120,7 +120,7 @@ Example:
 
     .. code-block:: bash
 
-        shasum -a 512 airflow-chart-********  | diff - airflow-chart-********.sha512
+        shasum -a 512 airflow-********  | diff - airflow-********.sha512
 
     The ``SHASUM`` of the file should match the one provided in ``.sha512`` file.
 
@@ -129,4 +129,4 @@ Example:
     .. code-block:: bash
         :substitutions:
 
-        shasum -a 512 airflow-chart-{{ package_version }}.tar.gz  | diff - airflow-chart-{{ package_version }}.tar.gz.sha512
+        shasum -a 512 airflow-{{ package_version }}.tgz  | diff - airflow-{{ package_version }}.tgz.sha512
