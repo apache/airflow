@@ -28,7 +28,7 @@ from airflow.operators.bash import BashOperator
 
 
 @task(task_id="run_this")
-def my_py_command(params, test_mode=None):
+def my_py_command(params, test_mode=None, task=None):
     """
     Print out the "foo" param passed in via
     `airflow tasks test example_passing_params_via_test_command run_this <date>
@@ -38,7 +38,7 @@ def my_py_command(params, test_mode=None):
         print(
             " 'foo' was passed in via test={} command : kwargs[params][foo] \
                = {}".format(
-                test_mode, params["foo"]
+                test_mode, task.params["foo"]
             )
         )
     # Print out the value of "miff", passed in below via the Python Operator
