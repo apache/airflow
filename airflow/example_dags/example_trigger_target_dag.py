@@ -24,11 +24,12 @@ Example usage of the TriggerDagRunOperator. This example holds 2 DAGs:
 from datetime import datetime
 
 from airflow import DAG
+from airflow.decorators import task
 from airflow.operators.bash import BashOperator
-from airflow.operators.python import PythonOperator
 
 
-def run_this_func(dag_run):
+@task
+def run_this_func(dag_run=None):
     """
     Print the payload "message" passed to the DagRun conf attribute.
 
@@ -45,7 +46,7 @@ with DAG(
     schedule_interval=None,
     tags=['example'],
 ) as dag:
-    run_this = PythonOperator(task_id="run_this", python_callable=run_this_func)
+    run_this = run_this_func()
 
     bash_task = BashOperator(
         task_id="bash_task",

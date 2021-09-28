@@ -23,21 +23,20 @@ from datetime import datetime
 from airflow import DAG
 from airflow.decorators import task
 from airflow.operators.bash import BashOperator
-from airflow.operators.python import PythonOperator, get_current_context
 
 log = logging.getLogger(__name__)
 
 
+@task
 def generate_value():
     """Dummy function"""
     return "Bring me a shrubbery!"
 
 
-@task()
-def print_value(value):
+@task
+def print_value(value, ts=None):
     """Dummy function"""
-    ctx = get_current_context()
-    log.info("The knights of Ni say: %s (at %s)", value, ctx['ts'])
+    log.info("The knights of Ni say: %s (at %s)", value, ts)
 
 
 with DAG(
@@ -47,12 +46,7 @@ with DAG(
     schedule_interval=None,
     tags=['example'],
 ) as dag:
-    task1 = PythonOperator(
-        task_id='generate_value',
-        python_callable=generate_value,
-    )
-
-    print_value(task1.output)
+    print_value(generate_value())
 
 with DAG(
     "example_xcom_args_with_operators",

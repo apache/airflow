@@ -26,7 +26,7 @@ from airflow.operators.email import EmailOperator
 
 
 class GetRequestOperator(BaseOperator):
-    """Custom operator to sand GET request to provided url"""
+    """Custom operator to send GET request to provided url"""
 
     def __init__(self, *, url: str, **kwargs):
         super().__init__(**kwargs)
@@ -62,5 +62,5 @@ def example_dag_decorator(email: str = 'example@example.com'):
     )
 
 
-dag = example_dag_decorator()
+dag = example_dag_decorator(email="example@email.com")
 # [END dag_decorator_usage]
