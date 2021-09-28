@@ -470,7 +470,8 @@ function updateNodesStates(tis) {
     if (!elem) {
       return;
     }
-    elem.setAttribute('class', `node enter ${getNodeState(nodeId, tis)}`);
+    const classes = `node enter ${getNodeState(nodeId, tis)}`;
+    elem.setAttribute('class', classes);
     elem.setAttribute('data-toggle', 'tooltip');
 
     const taskId = nodeId;
@@ -483,6 +484,7 @@ function updateNodesStates(tis) {
         tt = groupTooltip(node, tis);
       } else if (taskId in tasks) {
         tt = taskNoInstanceTooltip(taskId, tasks[taskId]);
+        elem.setAttribute('class', `${classes} not-allowed`);
       }
       if (tt) taskTip.show(tt, evt.target); // taskTip is defined in graph.html
     };
