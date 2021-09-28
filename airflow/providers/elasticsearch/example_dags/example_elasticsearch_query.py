@@ -18,10 +18,11 @@
 from datetime import datetime, timedelta
 
 from airflow import DAG
-from airflow.operators.python import PythonOperator
+from airflow.decorators import task
 from airflow.providers.elasticsearch.hooks.elasticsearch import ElasticsearchHook
 
 
+@task(task_id='es_print_tables')
 def show_tables():
     """
     show_tables queries elasticsearch to list available tables
@@ -36,24 +37,14 @@ def show_tables():
     return True
 
 
-# Default settings applied to all tasks
-default_args = {
-    'owner': 'airflow',
-    'depends_on_past': False,
-    'email_on_failure': False,
-    'email_on_retry': False,
-    'retries': 1,
-    'retry_delay': timedelta(minutes=5),
-}
-
 # Using a DAG context manager, you don't have to specify the dag property of each task
 with DAG(
     'elasticsearch_dag',
     start_date=datetime(2021, 8, 30),
     max_active_runs=1,
     schedule_interval=timedelta(days=1),
-    default_args=default_args,
+    default_args={'retries': 1},  # Default setting applied to all tasks
     catchup=False,
 ) as dag:
 
-    es_tables = PythonOperator(task_id='es_print_tables', python_callable=show_tables)
+    show_tables()
