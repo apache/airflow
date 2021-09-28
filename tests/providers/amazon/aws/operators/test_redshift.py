@@ -18,40 +18,27 @@
 
 import unittest
 from unittest import mock
+from unittest.mock import MagicMock
 
-from airflow.models.dag import DAG
+from parameterized import parameterized
+
 from airflow.providers.amazon.aws.operators.redshift import RedshiftOperator
-from airflow.utils import timezone
-
-DEFAULT_DATE = timezone.datetime(2015, 1, 1)
-DEFAULT_DATE_ISO = DEFAULT_DATE.isoformat()
-DEFAULT_DATE_DS = DEFAULT_DATE_ISO[:10]
-TEST_DAG_ID = 'unit_test_dag'
 
 
 class TestRedshiftOperator(unittest.TestCase):
-    def setUp(self):
-        super().setUp()
-        args = {'owner': 'airflow', 'start_date': DEFAULT_DATE}
-        dag = DAG(TEST_DAG_ID, default_args=args)
-        self.dag = dag
-
+    @parameterized.expand([(True, ('a', 'b')), (False, ('c', 'd'))])
     @mock.patch("airflow.providers.amazon.aws.operators.redshift.RedshiftOperator.get_hook")
-    def test_redshift_operator(self, mock_get_hook):
-        sql = """
-        CREATE TABLE IF NOT EXISTS test_airflow (
-            dummy VARCHAR(50)
-        );
-        """
-        operator = RedshiftOperator(task_id='redshift_operator', sql=sql, dag=self.dag)
-        operator.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
-
-    @mock.patch("airflow.providers.amazon.aws.operators.redshift.RedshiftOperator.get_hook")
-    def test_redshift_operator_test_multi(self, mock_get_hook):
-        sql = [
-            "CREATE TABLE IF NOT EXISTS test_airflow (dummy VARCHAR(50))",
-            "TRUNCATE TABLE test_airflow",
-            "INSERT INTO test_airflow VALUES ('X')",
-        ]
-        operator = RedshiftOperator(task_id='redshift_operator_test_multi', sql=sql, dag=self.dag)
-        operator.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
+    def test_redshift_operator(self, test_autocommit, test_parameters, mock_get_hook):
+        hook = MagicMock()
+        mock_run = hook.run
+        mock_get_hook.return_value = hook
+        sql = MagicMock()
+        operator = RedshiftOperator(
+            task_id='test', sql=sql, autocommit=test_autocommit, parameters=test_parameters
+        )
+        operator.execute(None)
+        mock_run.assert_called_once_with(
+            sql,
+            autocommit=test_autocommit,
+            parameters=test_parameters,
+        )
