@@ -230,3 +230,8 @@ def build_airflow_url_with_query(query: Dict[str, Any]) -> str:
     view = conf.get('webserver', 'dag_default_view').lower()
     url = url_for(f"Airflow.{view}")
     return f"{url}?{parse.urlencode(query)}"
+
+
+def normalize_directory_path(source_object: Optional[str]) -> Optional[str]:
+    """Makes sure dir path ends with a slash"""
+    return source_object + "/" if source_object and not source_object.endswith("/") else source_object
