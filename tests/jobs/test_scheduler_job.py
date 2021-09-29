@@ -169,6 +169,7 @@ class TestSchedulerJob:
         self.scheduler_job.heartrate = 0
         self.scheduler_job.run()
 
+    @pytest.mark.quarantined
     @pytest.mark.skipif(
         conf.get('core', 'sql_alchemy_conn').lower().startswith("mssql"),
         reason="MSSQL does not like os._exit()",
