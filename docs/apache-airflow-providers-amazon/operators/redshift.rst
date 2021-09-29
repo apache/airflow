@@ -15,9 +15,9 @@
     specific language governing permissions and limitations
     under the License.
 
-.. _howto/operator:RedshiftSqlOperator:
+.. _howto/operator:RedshiftSQLOperator:
 
-RedshiftSqlOperator
+RedshiftSQLOperator
 ===================
 
 .. contents::
@@ -27,11 +27,11 @@ RedshiftSqlOperator
 Overview
 --------
 
-Use the :class:`RedshiftSqlOperator <airflow.providers.amazon.aws.operators.redshift>` to execute
+Use the :class:`RedshiftSQLOperator <airflow.providers.amazon.aws.operators.redshift>` to execute
 statements against an Amazon Redshift cluster.
 
-:class:`RedshiftSqlOperator <airflow.providers.amazon.aws.operators.redshift.RedshiftSqlOperator>` works together with
-:class:`RedshiftSqlHook <airflow.providers.amazon.aws.hooks.redshift.RedshiftSqlHook>` to establish
+:class:`RedshiftSQLOperator <airflow.providers.amazon.aws.operators.redshift.RedshiftSQLOperator>` works together with
+:class:`RedshiftSQLHook <airflow.providers.amazon.aws.hooks.redshift.RedshiftSQLHook>` to establish
 connections with Amazon Redshift.
 
 
@@ -41,7 +41,7 @@ example_redshift.py
 Purpose
 """""""
 
-This is a basic example dag for using :class:`RedshiftSqlOperator <airflow.providers.amazon.aws.operators.redshift>`
+This is a basic example dag for using :class:`RedshiftSQLOperator <airflow.providers.amazon.aws.operators.redshift>`
 to execute statements against an Amazon Redshift cluster.
 
 Create a table
@@ -74,10 +74,10 @@ Retrieving all records from the "fruit" table.
     :start-after: [START howto_operator_redshift_get_all_rows]
     :end-before: [END howto_operator_redshift_get_all_rows]
 
-Passing Parameters into RedshiftSqlOperator
+Passing Parameters into RedshiftSQLOperator
 """""""""""""""""""""""""""""""""""""""""""
 
-RedshiftSqlOperator supports the ``parameters`` attribute which allows us to dynamically pass
+RedshiftSQLOperator supports the ``parameters`` attribute which allows us to dynamically pass
 parameters into SQL statements.
 
 .. exampleinclude:: /../../airflow/providers/amazon/aws/example_dags/example_redshift.py
@@ -85,8 +85,8 @@ parameters into SQL statements.
     :start-after: [START howto_operator_redshift_get_with_filter]
     :end-before: [END howto_operator_redshift_get_with_filter]
 
-The complete Redshift Operator DAG
-----------------------------------
+The complete RedshiftSQLOperator DAG
+------------------------------------
 
 All together, here is our DAG:
 
