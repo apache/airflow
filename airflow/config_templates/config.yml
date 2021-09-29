@@ -1258,7 +1258,7 @@
       version_added: ~
       type: string
       example: "21600"
-      default: ~
+      default: "21600"
 - name: dask
   description: |
     This section only applies if you are using the DaskExecutor in
