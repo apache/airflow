@@ -377,7 +377,7 @@ class EKSHook(AwsBaseHook):
         :type fargateProfileName: str
 
         :return: Returns the current status of a given AWS Fargate profile.
-        :rtype:AWS FargateProfileStates
+        :rtype: AWS FargateProfileStates
         """
         eks_client = self.conn
 

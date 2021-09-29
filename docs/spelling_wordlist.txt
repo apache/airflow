@@ -130,6 +130,7 @@ EnvVar
 ExaConnection
 Exasol
 Failover
+Fargate
 Fernet
 FileSensor
 Filebeat
@@ -730,6 +731,7 @@ faas
 facebook
 failover
 faq
+fargate
 fbee
 fc
 feedCard

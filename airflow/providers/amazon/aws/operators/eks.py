@@ -49,11 +49,15 @@ class EKSCreateClusterOperator(BaseOperator):
     Creates an Amazon EKS Cluster control plane.
 
     Optionally, can also create the supporting compute architecture:
+
      - If argument 'compute' is provided with a value of 'nodegroup', will also
-    attempt to create an Amazon EKS Managed Nodegroup for the cluster.
-    See EKSCreateNodegroupOperator documentation for requirements.
+         attempt to create an Amazon EKS Managed Nodegroup for the cluster.
+         See EKSCreateNodegroupOperator documentation for requirements.
+
     -  If argument 'compute' is provided with a value of 'fargate', will also attempt to create an AWS
-    Fargate profile for the cluster.  See EKSCreateFargateProfileOperator documentation for requirements.
+         Fargate profile for the cluster.
+         See EKSCreateFargateProfileOperator documentation for requirements.
+
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -62,12 +66,12 @@ class EKSCreateClusterOperator(BaseOperator):
     :param cluster_name: The unique name to give to your Amazon EKS Cluster. (templated)
     :type cluster_name: str
     :param cluster_role_arn: The Amazon Resource Name (ARN) of the IAM role that provides permissions for the
-       Kubernetes control plane to make calls to AWS API operations on your behalf. (templated)
+         Kubernetes control plane to make calls to AWS API operations on your behalf. (templated)
     :type cluster_role_arn: str
     :param resources_vpc_config: The VPC configuration used by the cluster control plane. (templated)
     :type resources_vpc_config: Dict
     :param compute: The type of compute architecture to generate along with the cluster. (templated)
-        Defaults to 'nodegroup' to generate an EKS Managed Nodegroup.
+         Defaults to 'nodegroup' to generate an EKS Managed Nodegroup.
     :type compute: str
     :param aws_conn_id: The Airflow connection used for AWS credentials. (templated)
          If this is None or empty then the default boto3 behaviour is used. If
@@ -76,21 +80,23 @@ class EKSCreateClusterOperator(BaseOperator):
          maintained on each worker node).
     :type aws_conn_id: str
     :param region: Which AWS region the connection should use. (templated)
-        If this is None or empty then the default boto3 behaviour is used.
+         If this is None or empty then the default boto3 behaviour is used.
     :type region: str
 
     If compute is assigned the value of 'nodegroup', the following are required:
+
     :param nodegroup_name: The unique name to give your Amazon EKS managed node group. (templated)
     :type nodegroup_name: str
-    :param nodegroup_role_arn: The Amazon Resource Name (ARN) of the IAM role to associate
-         with the Amazon EKS managed node group. (templated)
+    :param nodegroup_role_arn: The Amazon Resource Name (ARN) of the IAM role to associate with the
+         Amazon EKS managed node group. (templated)
     :type nodegroup_role_arn: str
 
     If compute is assigned the value of 'fargate', the following are required:
+
     :param fargate_profile_name: The unique name to give your AWS Fargate profile. (templated)
     :type fargate_profile_name: str
     :param fargate_pod_execution_role_arn: The Amazon Resource Name (ARN) of the pod execution role to
-            use for pods that match the selectors in the AWS Fargate profile. (templated)
+         use for pods that match the selectors in the AWS Fargate profile. (templated)
     :type podExecutionRoleArn: str
     :param selectors: The selectors to match for pods to use this AWS Fargate profile. (templated)
     :type selectors: List
@@ -220,10 +226,10 @@ class EKSCreateNodegroupOperator(BaseOperator):
     :param nodegroup_name: The unique name to give your managed nodegroup. (templated)
     :type nodegroup_name: str
     :param nodegroup_subnets:
-        The subnets to use for the Auto Scaling group that is created for the managed nodegroup. (templated)
+         The subnets to use for the Auto Scaling group that is created for the managed nodegroup. (templated)
     :type nodegroup_subnets: List[str]
     :param nodegroup_role_arn:
-        The Amazon Resource Name (ARN) of the IAM role to associate with the managed nodegroup. (templated)
+         The Amazon Resource Name (ARN) of the IAM role to associate with the managed nodegroup. (templated)
     :type nodegroup_role_arn: str
     :param aws_conn_id: The Airflow connection used for AWS credentials. (templated)
          If this is None or empty then the default boto3 behaviour is used. If
@@ -288,9 +294,8 @@ class EKSCreateFargateProfileOperator(BaseOperator):
 
     :param cluster_name: The name of the Amazon EKS cluster to apply the AWS Fargate profile to. (templated)
     :type cluster_name: str
-    :param pod_execution_role_arn:
-        The Amazon Resource Name (ARN) of the pod execution role to use for pods that match
-        the selectors in the AWS Fargate profile. (templated)
+    :param pod_execution_role_arn: The Amazon Resource Name (ARN) of the pod execution role to
+         use for pods that match the selectors in the AWS Fargate profile. (templated)
     :type pod_execution_role_arn: str
     :param selectors: The selectors to match for pods to use this AWS Fargate profile. (templated)
     :type selectors: List
@@ -598,7 +603,7 @@ class EKSPodOperator(KubernetesPodOperator):
     :param cluster_name: The name of the Amazon EKS Cluster to execute the task on. (templated)
     :type cluster_name: str
     :param cluster_role_arn: The Amazon Resource Name (ARN) of the IAM role that provides permissions
-       for the Kubernetes control plane to make calls to AWS API operations on your behalf. (templated)
+         for the Kubernetes control plane to make calls to AWS API operations on your behalf. (templated)
     :type cluster_role_arn: str
     :param in_cluster: If True, look for config inside the cluster; if False look for a local file path.
     :type in_cluster: bool
@@ -609,7 +614,7 @@ class EKSPodOperator(KubernetesPodOperator):
     :param aws_profile: The named profile containing the credentials for the AWS CLI tool to use.
     :param aws_profile: str
     :param region: Which AWS region the connection should use. (templated)
-        If this is None or empty then the default boto3 behaviour is used.
+         If this is None or empty then the default boto3 behaviour is used.
     :type region: str
     :param aws_conn_id: The Airflow connection used for AWS credentials. (templated)
          If this is None or empty then the default boto3 behaviour is used. If
