@@ -27,7 +27,6 @@ from airflow.providers.asana.operators.asana_tasks import (
     AsanaFindTaskOperator,
     AsanaUpdateTaskOperator,
 )
-from airflow.utils.dates import days_ago
 
 ASANA_TASK_TO_UPDATE = os.environ.get("ASANA_TASK_TO_UPDATE")
 ASANA_TASK_TO_DELETE = os.environ.get("ASANA_TASK_TO_DELETE")
@@ -41,8 +40,10 @@ CONN_ID = os.environ.get("ASANA_CONNECTION_ID")
 
 with DAG(
     "example_asana",
-    start_date=days_ago(1),
+    start_date=datetime(2021, 1, 1),
+    default_args={"conn_id": CONN_ID},
     tags=["example"],
+    catchup=False,
 ) as dag:
     # [START run_asana_create_task_operator]
     # Create a task. `task_parameters` is used to specify attributes the new task should have.
@@ -52,7 +53,6 @@ with DAG(
     create = AsanaCreateTaskOperator(
         task_id="run_asana_create_task",
         task_parameters={"notes": "Some notes about the task."},
-        conn_id=CONN_ID,
         name="New Task Name",
     )
     # [END run_asana_create_task_operator]
@@ -67,7 +67,6 @@ with DAG(
     find = AsanaFindTaskOperator(
         task_id="run_asana_find_task",
         search_parameters={"project": ASANA_PROJECT_ID_OVERRIDE, "modified_since": one_week_ago},
-        conn_id=CONN_ID,
     )
     # [END run_asana_find_task_operator]
 
@@ -78,7 +77,6 @@ with DAG(
         task_id="run_asana_update_task",
         asana_task_gid=ASANA_TASK_TO_UPDATE,
         task_parameters={"notes": "This task was updated!", "completed": True},
-        conn_id=CONN_ID,
     )
     # [END run_asana_update_task_operator]
 
@@ -86,7 +84,6 @@ with DAG(
     # Delete a task. This task will complete successfully even if `asana_task_gid` does not exist.
     delete = AsanaDeleteTaskOperator(
         task_id="run_asana_delete_task",
-        conn_id=CONN_ID,
         asana_task_gid=ASANA_TASK_TO_DELETE,
     )
     # [END run_asana_delete_task_operator]

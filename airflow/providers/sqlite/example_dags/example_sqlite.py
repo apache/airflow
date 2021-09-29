@@ -23,16 +23,18 @@ which when triggered, is performed on the connected sqlite database.
 The second task is similar but instead calls the SQL command from an external file.
 """
 
+from datetime import datetime
+
 from airflow import DAG
 from airflow.providers.sqlite.hooks.sqlite import SqliteHook
 from airflow.providers.sqlite.operators.sqlite import SqliteOperator
-from airflow.utils.dates import days_ago
 
 dag = DAG(
     dag_id='example_sqlite',
     schedule_interval='@daily',
-    start_date=days_ago(2),
+    start_date=datetime(2021, 1, 1),
     tags=['example'],
+    catchup=False,
 )
 
 # [START howto_operator_sqlite]
@@ -55,7 +57,7 @@ create_table_sqlite_task = SqliteOperator(
 
 @dag.task(task_id="insert_sqlite_task")
 def insert_sqlite_hook():
-    sqlite_hook = SqliteHook("sqlite_default")
+    sqlite_hook = SqliteHook()
 
     rows = [('James', '11'), ('James', '22'), ('James', '33')]
     target_fields = ['first_name', 'last_name']
@@ -64,7 +66,7 @@ def insert_sqlite_hook():
 
 @dag.task(task_id="replace_sqlite_task")
 def replace_sqlite_hook():
-    sqlite_hook = SqliteHook("sqlite_default")
+    sqlite_hook = SqliteHook()
 
     rows = [('James', '11'), ('James', '22'), ('James', '33')]
     target_fields = ['first_name', 'last_name']
