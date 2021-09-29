@@ -113,14 +113,14 @@ class EKSHook(AwsBaseHook):
             name=name, roleArn=roleArn, resourcesVpcConfig=resourcesVpcConfig, **kwargs
         )
 
-        self.log.info("Created cluster with the name %s.", response.get('cluster').get('name'))
+        self.log.info("Created Amazon EKS cluster with the name %s.", response.get('cluster').get('name'))
         return response
 
     def create_nodegroup(
         self, clusterName: str, nodegroupName: str, subnets: List[str], nodeRole: str, **kwargs
     ) -> Dict:
         """
-        Creates an Amazon EKS Managed Nodegroup for an Amazon EKS Cluster.
+        Creates an Amazon EKS managed node group for an Amazon EKS Cluster.
 
         :param clusterName: The name of the Amazon EKS cluster to create the EKS Managed Nodegroup in.
         :type clusterName: str
@@ -153,7 +153,7 @@ class EKSHook(AwsBaseHook):
         )
 
         self.log.info(
-            "Created a managed nodegroup named %s in cluster %s",
+            "Created an Amazon EKS managed node group named %s in Amazon EKS cluster %s",
             response.get('nodegroup').get('nodegroupName'),
             response.get('nodegroup').get('clusterName'),
         )
@@ -189,7 +189,7 @@ class EKSHook(AwsBaseHook):
         )
 
         self.log.info(
-            "Created Fargate profile with the name %s for cluster %s.",
+            "Created AWS Fargate profile with the name %s for Amazon EKS cluster %s.",
             response.get('fargateProfile').get('fargateProfileName'),
             response.get('fargateProfile').get('clusterName'),
         )
@@ -209,12 +209,12 @@ class EKSHook(AwsBaseHook):
 
         response = eks_client.delete_cluster(name=name)
 
-        self.log.info("Deleted cluster with the name %s.", response.get('cluster').get('name'))
+        self.log.info("Deleted Amazon EKS cluster with the name %s.", response.get('cluster').get('name'))
         return response
 
     def delete_nodegroup(self, clusterName: str, nodegroupName: str) -> Dict:
         """
-        Deletes an Amazon EKS Nodegroup from a specified cluster.
+        Deletes an Amazon EKS managed node group from a specified cluster.
 
         :param clusterName: The name of the Amazon EKS Cluster that is associated with your nodegroup.
         :type clusterName: str
@@ -229,7 +229,7 @@ class EKSHook(AwsBaseHook):
         response = eks_client.delete_nodegroup(clusterName=clusterName, nodegroupName=nodegroupName)
 
         self.log.info(
-            "Deleted nodegroup named %s from cluster %s.",
+            "Deleted Amazon EKS managed node group named %s from Amazon EKS cluster %s.",
             response.get('nodegroup').get('nodegroupName'),
             response.get('nodegroup').get('clusterName'),
         )
@@ -254,7 +254,7 @@ class EKSHook(AwsBaseHook):
         )
 
         self.log.info(
-            "Deleted Fargate profile with the name %s from cluster %s.",
+            "Deleted AWS Fargate profile with the name %s from Amazon EKS cluster %s.",
             response.get('fargateProfile').get('fargateProfileName'),
             response.get('fargateProfile').get('clusterName'),
         )
@@ -276,15 +276,17 @@ class EKSHook(AwsBaseHook):
 
         response = eks_client.describe_cluster(name=name)
 
-        self.log.info("Retrieved details for cluster named %s.", response.get('cluster').get('name'))
+        self.log.info(
+            "Retrieved details for Amazon EKS cluster named %s.", response.get('cluster').get('name')
+        )
         if verbose:
             cluster_data = response.get('cluster')
-            self.log.info("Cluster Details: %s", json.dumps(cluster_data, cls=AirflowJsonEncoder))
+            self.log.info("Amazon EKS cluster details: %s", json.dumps(cluster_data, cls=AirflowJsonEncoder))
         return response
 
     def describe_nodegroup(self, clusterName: str, nodegroupName: str, verbose: bool = False) -> Dict:
         """
-        Returns descriptive information about an Amazon EKS Nodegroup.
+        Returns descriptive information about an Amazon EKS managed node group.
 
         :param clusterName: The name of the Amazon EKS Cluster associated with the nodegroup.
         :type clusterName: str
@@ -301,13 +303,16 @@ class EKSHook(AwsBaseHook):
         response = eks_client.describe_nodegroup(clusterName=clusterName, nodegroupName=nodegroupName)
 
         self.log.info(
-            "Retrieved details for nodegroup named %s in cluster %s.",
+            "Retrieved details for Amazon EKS managed node group named %s in Amazon EKS cluster %s.",
             response.get('nodegroup').get('nodegroupName'),
             response.get('nodegroup').get('clusterName'),
         )
         if verbose:
             nodegroup_data = response.get('nodegroup')
-            self.log.info("Nodegroup Details: %s", json.dumps(nodegroup_data, cls=AirflowJsonEncoder))
+            self.log.info(
+                "Amazon EKS managed node group details: %s",
+                json.dumps(nodegroup_data, cls=AirflowJsonEncoder),
+            )
         return response
 
     def describe_fargate_profile(
@@ -333,14 +338,14 @@ class EKSHook(AwsBaseHook):
         )
 
         self.log.info(
-            "Retrieved details for Fargate profile named %s in cluster %s.",
+            "Retrieved details for AWS Fargate profile named %s in Amazon EKS cluster %s.",
             response.get('fargateProfile').get('fargateProfileName'),
             response.get('fargateProfile').get('clusterName'),
         )
         if verbose:
             fargate_profile_data = response.get('fargateProfile')
             self.log.info(
-                "Fargate profile Details: %s", json.dumps(fargate_profile_data, cls=AirflowJsonEncoder)
+                "AWS Fargate profile details: %s", json.dumps(fargate_profile_data, cls=AirflowJsonEncoder)
             )
         return response
 
@@ -390,7 +395,7 @@ class EKSHook(AwsBaseHook):
 
     def get_nodegroup_state(self, clusterName: str, nodegroupName: str) -> NodegroupStates:
         """
-        Returns the current status of a given Amazon EKS Nodegroup.
+        Returns the current status of a given Amazon EKS managed node group.
 
         :param clusterName: The name of the Amazon EKS Cluster associated with the nodegroup.
         :type clusterName: str
@@ -436,7 +441,7 @@ class EKSHook(AwsBaseHook):
         verbose: bool = False,
     ) -> List:
         """
-        Lists all Amazon EKS Nodegroups associated with the specified cluster.
+        Lists all Amazon EKS managed node groups associated with the specified cluster.
 
         :param clusterName: The name of the Amazon EKS Cluster containing nodegroups to list.
         :type clusterName: str

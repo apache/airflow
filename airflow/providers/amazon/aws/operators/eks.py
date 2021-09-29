@@ -35,6 +35,14 @@ DEFAULT_NAMESPACE_NAME = 'default'
 DEFAULT_NODEGROUP_NAME_SUFFIX = '-nodegroup'
 DEFAULT_POD_NAME = 'pod'
 
+ABORT_MSG = "{compute} are still active after the allocated time limit.  Aborting."
+CAN_NOT_DELETE_MSG = "A cluster can not be deleted with attached {compute}.  Deleting {count} {compute}."
+MISSING_ARN_MSG = "Creating an {compute} requires {requirement} to be passed in."
+SUCCESS_MSG = "No {compute} remain, deleting cluster."
+
+NODEGROUP_FULL_NAME = 'Amazon EKS managed node groups'
+FARGATE_FULL_NAME = 'AWS Fargate profiles'
+
 
 class EKSCreateClusterOperator(BaseOperator):
     """
@@ -72,10 +80,10 @@ class EKSCreateClusterOperator(BaseOperator):
     :type region: str
 
     If compute is assigned the value of 'nodegroup', the following are required:
-    :param nodegroup_name: The unique name to give your EKS Managed Nodegroup. (templated)
+    :param nodegroup_name: The unique name to give your Amazon EKS managed node group. (templated)
     :type nodegroup_name: str
     :param nodegroup_role_arn: The Amazon Resource Name (ARN) of the IAM role to associate
-         with the EKS Managed Nodegroup. (templated)
+         with the Amazon EKS managed node group. (templated)
     :type nodegroup_role_arn: str
 
     If compute is assigned the value of 'fargate', the following are required:
@@ -118,13 +126,22 @@ class EKSCreateClusterOperator(BaseOperator):
         region: Optional[str] = None,
         **kwargs,
     ) -> None:
+        if compute:
+            try:
+                if (compute == 'nodegroup') and not nodegroup_role_arn:
+                    raise ValueError(
+                        MISSING_ARN_MSG.format(compute=NODEGROUP_FULL_NAME, requirement='nodegroup_role_arn')
+                    )
+                if (compute == 'fargate') and not fargate_pod_execution_role_arn:
+                    raise ValueError(
+                        MISSING_ARN_MSG.format(
+                            compute=FARGATE_FULL_NAME, requirement='fargate_pod_execution_role_arn'
+                        )
+                    )
+            except KeyError:
+                raise ValueError("Provided compute type is not supported.")
+
         self.compute = compute
-        if (self.compute == 'nodegroup') and not nodegroup_role_arn:
-            raise ValueError("Creating an EKS Managed Nodegroup requires nodegroup_role_arn to be passed in.")
-        if (self.compute == 'fargate') and not fargate_pod_execution_role_arn:
-            raise ValueError(
-                "Creating an AWS Fargate profile requires fargate_pod_execution_role_arn to be passed in."
-            )
         self.cluster_name = cluster_name
         self.cluster_role_arn = cluster_role_arn
         self.resources_vpc_config = resources_vpc_config
@@ -192,7 +209,7 @@ class EKSCreateClusterOperator(BaseOperator):
 
 class EKSCreateNodegroupOperator(BaseOperator):
     """
-    Creates am Amazon EKS Managed Nodegroup for an existing Amazon EKS Cluster.
+    Creates an Amazon EKS managed node group for an existing Amazon EKS Cluster.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -242,7 +259,7 @@ class EKSCreateNodegroupOperator(BaseOperator):
         self.cluster_name = cluster_name
         self.nodegroup_subnets = nodegroup_subnets
         self.nodegroup_role_arn = nodegroup_role_arn
-        self.nodegroup_name = nodegroup_name or cluster_name + datetime.now().strftime("%Y%m%d_%H%M%S")
+        self.nodegroup_name = nodegroup_name or f'{cluster_name}{datetime.now().strftime("%Y%m%d_%H%M%S")}'
         self.aws_conn_id = aws_conn_id
         self.region = region
         super().__init__(**kwargs)
@@ -313,8 +330,8 @@ class EKSCreateFargateProfileOperator(BaseOperator):
         self.cluster_name = cluster_name
         self.pod_execution_role_arn = pod_execution_role_arn
         self.selectors = selectors
-        self.fargate_profile_name = fargate_profile_name or cluster_name + datetime.now().strftime(
-            "%Y%m%d_%H%M%S"
+        self.fargate_profile_name = (
+            fargate_profile_name or f'{cluster_name}{datetime.now().strftime("%Y%m%d_%H%M%S")}'
         )
         self.aws_conn_id = aws_conn_id
         self.region = region
@@ -393,13 +410,16 @@ class EKSDeleteClusterOperator(BaseOperator):
         eks_hook.delete_cluster(name=self.cluster_name)
 
     def delete_any_nodegroups(self, eks_hook) -> None:
+        """
+        Deletes all Amazon EKS managed node groups for a provided Amazon EKS Cluster.
+
+        Amazon EKS managed node groups can be deleted in parallel, so we can send all
+        of the delete commands in bulk and move on once the count of nodegroups is zero.
+        """
         nodegroups = eks_hook.list_nodegroups(clusterName=self.cluster_name)
         nodegroup_count = len(nodegroups)
         if nodegroup_count:
-            self.log.info(
-                "A cluster can not be deleted with attached nodegroups.  Deleting %d nodegroups.",
-                nodegroup_count,
-            )
+            self.log.info(CAN_NOT_DELETE_MSG.format(compute=NODEGROUP_FULL_NAME, count=nodegroup_count))
             for group in nodegroups:
                 eks_hook.delete_nodegroup(clusterName=self.cluster_name, nodegroupName=group)
 
@@ -417,19 +437,20 @@ class EKSDeleteClusterOperator(BaseOperator):
                         CHECK_INTERVAL_SECONDS,
                     )
                 else:
-                    raise RuntimeError(
-                        "Nodegroups are still active after the allocated time limit.  Aborting."
-                    )
-        self.log.info("No nodegroups remain, deleting cluster.")
+                    raise RuntimeError(ABORT_MSG.format(compute=NODEGROUP_FULL_NAME))
+        self.log.info(SUCCESS_MSG.format(compute=NODEGROUP_FULL_NAME))
 
     def delete_any_fargate_profiles(self, eks_hook) -> None:
+        """
+        Deletes all EKS Fargate profiles for a provided Amazon EKS Cluster.
+
+        EKS Fargate profiles must be deleted one at a time, so we must wait
+        for one to be deleted before sending the next delete command.
+        """
         fargate_profiles = eks_hook.list_fargate_profiles(clusterName=self.cluster_name)
         fargate_profile_count = len(fargate_profiles)
         if fargate_profile_count:
-            self.log.info(
-                "A cluster can not be deleted with attached AWS Fargate profiles.  Deleting %d profiles.",
-                fargate_profile_count,
-            )
+            self.log.info(CAN_NOT_DELETE_MSG.format(compute=FARGATE_FULL_NAME, count=fargate_profile_count))
             for profile in fargate_profiles:
                 # The API will return a (cluster) ResourceInUseException if you try
                 # to delete Fargate profiles in parallel the way we can with nodegroups,
@@ -453,15 +474,13 @@ class EKSDeleteClusterOperator(BaseOperator):
                             CHECK_INTERVAL_SECONDS,
                         )
                     else:
-                        raise RuntimeError(
-                            "AWS Fargate profiles are still active after the allocated time limit.  Aborting."
-                        )
-        self.log.info("No AWS Fargate profiles remain, deleting cluster.")
+                        raise RuntimeError(ABORT_MSG.format(compute=FARGATE_FULL_NAME))
+        self.log.info(SUCCESS_MSG.format(compute=FARGATE_FULL_NAME))
 
 
 class EKSDeleteNodegroupOperator(BaseOperator):
     """
-    Deletes an Amazon EKS Nodegroup from an Amazon EKS Cluster.
+    Deletes an Amazon EKS managed node group from an Amazon EKS Cluster.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
