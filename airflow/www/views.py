@@ -3926,6 +3926,7 @@ class DagRunModelView(AirflowPrivilegeVerifierModelView):
         'state': wwwutils.state_f,
         'start_date': wwwutils.datetime_f('start_date'),
         'end_date': wwwutils.datetime_f('end_date'),
+        'queued_at': wwwutils.datetime_f('queued_at'),
         'dag_id': wwwutils.dag_link,
         'run_id': wwwutils.dag_run_link,
         'conf': wwwutils.json_f('conf'),
