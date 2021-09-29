@@ -53,7 +53,8 @@ details the steps for releasing Helm Chart.
 
 ## Build Changelog
 
-Before creating the RC, you need to build and commit the changelog for the release. For example, to list the commits:
+Before creating the RC, you need to build and commit the changelog for the release. For example, to list the
+commits between the last release, `1.1.0`, and `main`:
 
 ```shell
 git log --oneline helm-chart/1.1.0..main --pretty='format:- %s' -- chart/ docs/helm-chart/
