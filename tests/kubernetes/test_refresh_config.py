@@ -15,11 +15,9 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from unittest import TestCase
-from unittest.mock import Mock
+from unittest import TestCase, mock
 
 import pytest
-from kubernetes.config.exec_provider import ExecProvider
 from kubernetes.config.kube_config import ConfigNode
 from pendulum.parsing import ParserError
 
@@ -67,8 +65,9 @@ class TestRefreshKubeConfigLoader(TestCase):
 
         assert api_key == '1234'
 
-    def test_refresh_kube_config_loader(self):
-
+    @mock.patch('kubernetes.config.exec_provider.ExecProvider.__init__')
+    @mock.patch('kubernetes.config.exec_provider.ExecProvider.run')
+    def test_refresh_kube_config_loader(self, exec_provider_run, exec_provider_init):
         current_context = _get_kube_config_loader_for_yaml_file('./kube_config').current_context
 
         config_dict = {}
@@ -89,18 +88,13 @@ class TestRefreshKubeConfigLoader(TestCase):
 
         refresh_kube_config_loader = RefreshKubeConfigLoader(config_dict=config_dict)
         refresh_kube_config_loader._user = {}
-        refresh_kube_config_loader._user['exec'] = 'test'
 
         config_node = ConfigNode('command', 'test')
         config_node.__dict__['apiVersion'] = '2.0'
         config_node.__dict__['command'] = 'test'
 
-        ExecProvider.__init__ = Mock()
-        ExecProvider.__init__.return_value = None
-
-        ExecProvider.run = Mock()
-        ExecProvider.run.return_value = {'token': '1234'}
-
+        exec_provider_init.return_value = None
+        refresh_kube_config_loader._user['exec'] = config_node
+        exec_provider_run.return_value = {'token': '1234'}
         result = refresh_kube_config_loader._load_from_exec_plugin()
-
         assert result is not None
