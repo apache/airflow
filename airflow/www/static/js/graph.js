@@ -467,29 +467,28 @@ function groupTooltip(node, tis) {
 function updateNodesStates(tis) {
   g.nodes().forEach((nodeId) => {
     const { elem } = g.node(nodeId);
-    if (!elem) {
-      return;
-    }
-    const classes = `node enter ${getNodeState(nodeId, tis)}`;
-    elem.setAttribute('class', classes);
-    elem.setAttribute('data-toggle', 'tooltip');
+    if (elem) {
+      const classes = `node enter ${getNodeState(nodeId, tis)}`;
+      elem.setAttribute('class', classes);
+      elem.setAttribute('data-toggle', 'tooltip');
 
-    const taskId = nodeId;
-    const node = g.node(nodeId);
-    elem.onmouseover = (evt) => {
-      let tt;
-      if (taskId in tis) {
-        tt = tiTooltip(tis[taskId]);
-      } else if (node.children) {
-        tt = groupTooltip(node, tis);
-      } else if (taskId in tasks) {
-        tt = taskNoInstanceTooltip(taskId, tasks[taskId]);
-        elem.setAttribute('class', `${classes} not-allowed`);
-      }
-      if (tt) taskTip.show(tt, evt.target); // taskTip is defined in graph.html
-    };
-    elem.onmouseout = taskTip.hide;
-    elem.onclick = taskTip.hide;
+      const taskId = nodeId;
+      const node = g.node(nodeId);
+      elem.onmouseover = (evt) => {
+        let tt;
+        if (taskId in tis) {
+          tt = tiTooltip(tis[taskId]);
+        } else if (node.children) {
+          tt = groupTooltip(node, tis);
+        } else if (taskId in tasks) {
+          tt = taskNoInstanceTooltip(taskId, tasks[taskId]);
+          elem.setAttribute('class', `${classes} not-allowed`);
+        }
+        if (tt) taskTip.show(tt, evt.target); // taskTip is defined in graph.html
+      };
+      elem.onmouseout = taskTip.hide;
+      elem.onclick = taskTip.hide;
+    }
   });
 }
 
