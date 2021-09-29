@@ -162,7 +162,7 @@ def test_set_dag_runs_action(
         follow_redirects=True,
     )
     check_content_in_response(expected_message, resp)
-    assert [ti.state for ti in session.query(TaskInstance).all()] == expected_ti_states
+    assert {ti.state for ti in session.query(TaskInstance).all()} == set(expected_ti_states)
 
 
 @pytest.mark.parametrize(
