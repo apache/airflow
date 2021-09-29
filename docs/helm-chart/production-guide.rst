@@ -95,7 +95,7 @@ Alternatively, create a kubernetes Secret and use ``webserverSecretKeySecretName
 
 .. code-block:: yaml
 
-    webserverSecretKey: my-webserver-secret
+    webserverSecretKeySecretName: my-webserver-secret
     # where the random key is under `webserver-secret-key` in the k8s Secret
 
 Extending and customizing Airflow Image
