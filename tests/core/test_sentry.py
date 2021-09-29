@@ -132,6 +132,6 @@ class TestSentryHook:
         Test before send callable gets passed to the sentry SDK.
         """
         assert sentry
-        called = sentry_sdk.call_args.kwargs['before_send']
+        called = sentry_sdk.call_args[1]['before_send']
         expected = import_string('tests.core.test_sentry.before_send')
         assert called == expected
