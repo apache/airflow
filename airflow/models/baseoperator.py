@@ -502,7 +502,7 @@ class BaseOperator(Operator, LoggingMixin, TaskMixin, metaclass=BaseOperatorMeta
         pool: Optional[str] = None,
         pool_slots: int = 1,
         sla: Optional[timedelta] = None,
-        execution_timeout: Optional[timedelta] = None,
+        execution_timeout: Optional[timedelta] = conf.gettimedelta('core', 'default_ execution_timeout', fallback=None),    
         on_execute_callback: Optional[TaskStateChangeCallback] = None,
         on_failure_callback: Optional[TaskStateChangeCallback] = None,
         on_success_callback: Optional[TaskStateChangeCallback] = None,
