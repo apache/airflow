@@ -19,6 +19,7 @@ from tempfile import NamedTemporaryFile
 from unittest import mock
 
 import pytest
+from jinja2.nativetypes import NativeEnvironment
 from kubernetes.client import ApiClient, models as k8s
 
 from airflow.exceptions import AirflowException
@@ -747,3 +748,61 @@ class TestKubernetesPodOperator(unittest.TestCase):
             k.execute(context=context)
         mock_patch_already_checked.assert_called_once()
         mock_delete_pod.assert_not_called()
+
+
+@pytest.mark.parametrize(
+    "test_input, expected",
+    [
+        ("{{ {'best_tool': 'airflow'} }}", [k8s.V1EnvVar(name="best_tool", value="airflow")]),
+        ({'best_tool': 'airflow'}, [k8s.V1EnvVar(name="best_tool", value="airflow")]),
+        (
+            [k8s.V1EnvVar(name="best_tool", value="airflow")],
+            [k8s.V1EnvVar(name="best_tool", value="airflow")],
+        ),
+        (
+            "{{ {'ETL': 'completed', 'tool_used': 'airflow'} }}",
+            [
+                k8s.V1EnvVar(name="ETL", value="completed"),
+                k8s.V1EnvVar(name="tool_used", value="airflow"),
+            ],
+        ),
+        (
+            {'ETL': 'completed', 'tool_used': 'airflow'},
+            [
+                k8s.V1EnvVar(name="ETL", value="completed"),
+                k8s.V1EnvVar(name="tool_used", value="airflow"),
+            ],
+        ),
+        (
+            [
+                k8s.V1EnvVar(name="ETL", value="completed"),
+                k8s.V1EnvVar(name="tool_used", value="airflow"),
+            ],
+            [
+                k8s.V1EnvVar(name="ETL", value="completed"),
+                k8s.V1EnvVar(name="tool_used", value="airflow"),
+            ],
+        ),
+    ],
+)
+def test__build_env_vars(test_input, expected):
+    k = KubernetesPodOperator(
+        namespace='default',
+        image="ubuntu:16.04",
+        cmds=["bash", "-cx"],
+        arguments=["echo 10"],
+        labels={"foo": "bar"},
+        name="test",
+        task_id="task",
+        in_cluster=False,
+        do_xcom_push=False,
+        env_vars=test_input,
+    )
+    jinja_env_options = {
+        'extensions': ["jinja2.ext.do"],
+        'cache_size': 0,
+    }
+    env = NativeEnvironment(**jinja_env_options)
+    k.render_template_fields(context={"env_vars": test_input}, jinja_env=env)
+    k._build_env_vars()
+    assert k.env_vars == expected

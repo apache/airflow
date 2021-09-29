@@ -231,15 +231,13 @@ class KubernetesPodOperator(BaseOperator):
         self.arguments = arguments or []
         self.labels = labels or {}
         self.startup_timeout_seconds = startup_timeout_seconds
-        self.env_vars = convert_env_vars(env_vars) if env_vars else []
-        if pod_runtime_info_envs:
-            self.env_vars.extend([convert_pod_runtime_info_env(p) for p in pod_runtime_info_envs])
         self.env_from = env_from or []
         if configmaps:
             self.env_from.extend([convert_configmap(c) for c in configmaps])
         self.ports = [convert_port(p) for p in ports] if ports else []
         self.volume_mounts = [convert_volume_mount(v) for v in volume_mounts] if volume_mounts else []
         self.volumes = [convert_volume(volume) for volume in volumes] if volumes else []
+        self.env_vars = env_vars
         self.secrets = secrets or []
         self.in_cluster = in_cluster
         self.cluster_context = cluster_context
@@ -275,6 +273,7 @@ class KubernetesPodOperator(BaseOperator):
         self.priority_class_name = priority_class_name
         self.pod_template_file = pod_template_file
         self.name = self._set_name(name)
+        self.pod_runtime_info_envs = pod_runtime_info_envs
         self.termination_grace_period = termination_grace_period
         self.client: CoreV1Api = None
         self.pod: k8s.V1Pod = None
@@ -325,6 +324,16 @@ class KubernetesPodOperator(BaseOperator):
     def create_pod_launcher(self) -> Type[pod_launcher.PodLauncher]:
         return pod_launcher.PodLauncher(kube_client=self.client, extract_xcom=self.do_xcom_push)
 
+    def _build_env_vars(self):
+        """
+        Convert env vars into expected object (should happen after templating) and add the
+        pod_runtime_info_envs to the env also.
+
+        """
+        self.env_vars = convert_env_vars(self.env_vars) if self.env_vars else []
+        if self.pod_runtime_info_envs:
+            self.env_vars.extend([convert_pod_runtime_info_env(p) for p in self.pod_runtime_info_envs])
+
     def execute(self, context) -> Optional[str]:
         try:
             if self.in_cluster is not None:
@@ -339,7 +348,7 @@ class KubernetesPodOperator(BaseOperator):
                 )
 
             self.client = client
-
+            self._build_env_vars()
             self.pod = self.create_pod_request_obj()
             self.namespace = self.pod.metadata.namespace
 
