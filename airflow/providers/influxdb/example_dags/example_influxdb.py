@@ -15,15 +15,17 @@
 # specific language governing permissions and limitations
 # under the License.
 
+from datetime import datetime
+
+from airflow.decorators import task
 from airflow.models.dag import DAG
-from airflow.operators.python import PythonOperator
 from airflow.providers.influxdb.hooks.influxdb import InfluxDBHook
-from airflow.utils.dates import days_ago
 
 
+@task(task_id="influxdb_task")
 def test_influxdb_hook():
     bucket_name = 'test-influx'
-    influxdb_hook = InfluxDBHook("influxdb_default")
+    influxdb_hook = InfluxDBHook()
     client = influxdb_hook.get_conn()
     print(client)
     print(f"Organization name {influxdb_hook.org_name}")
@@ -48,10 +50,8 @@ def test_influxdb_hook():
 with DAG(
     dag_id='influxdb_example_dag',
     schedule_interval=None,
-    start_date=days_ago(2),
+    start_date=datetime(2021, 1, 1),
     max_active_runs=1,
     tags=['example'],
 ) as dag:
-    influxdb_task = PythonOperator(task_id="influxdb_task", python_callable=test_influxdb_hook)
-
-    influxdb_task
+    test_influxdb_hook()
