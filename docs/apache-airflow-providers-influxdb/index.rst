@@ -59,3 +59,45 @@ Content
     :caption: Commits
 
     Detailed list of commits <commits>
+
+.. THE REMAINDER OF THE FILE IS AUTOMATICALLY GENERATED. IT WILL BE OVERWRITTEN AT RELEASE TIME!
+
+
+.. toctree::
+    :maxdepth: 1
+    :caption: Commits
+
+    Detailed list of commits <commits>
+
+
+Package apache-airflow-providers-influxdb
+------------------------------------------------------
+
+`InfluxDB <https://www.influxdata.com/>`__
+
+
+Release: 1.0.0
+
+Provider package
+----------------
+
+This is a provider package for ``influxdb`` provider. All classes for this provider package
+are in ``airflow.providers.influxdb`` python package.
+
+Installation
+------------
+
+You can install this package on top of an existing airflow 2.1+ installation via
+``pip install apache-airflow-providers-influxdb``
+
+PIP requirements
+----------------
+
+===================  ==================
+PIP package          Version required
+===================  ==================
+``influxdb-client``  ``>=1.19.0``
+``pandas``           ``>=0.17.1, <2.0``
+===================  ==================
+
+.. include:: ../../airflow/providers/influxdb/CHANGELOG.rst

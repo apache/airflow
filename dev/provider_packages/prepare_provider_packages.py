@@ -785,7 +785,7 @@ def get_change_from_line(line: str, version: str):
         date=split_line[2],
         version=version,
         message=message,
-        message_without_backticks=message.replace("`", "'"),
+        message_without_backticks=message.replace("`", "'").replace("&39;", "'"),
         pr=pr,
     )
 
@@ -2205,7 +2205,7 @@ class ClassifiedChanges(NamedTuple):
 
 def get_changes_classified(changes: List[Change]) -> ClassifiedChanges:
     """
-    Pre-classifies changes based on commit messsage, it's wildly guessing now,
+    Pre-classifies changes based on commit message, it's wildly guessing now,
     but if we switch to semantic commits, it could be automated. This list is supposed to be manually
     reviewed and re-classified by release manager anyway.
 
