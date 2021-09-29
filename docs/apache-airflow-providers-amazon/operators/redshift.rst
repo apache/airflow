@@ -15,10 +15,10 @@
     specific language governing permissions and limitations
     under the License.
 
-.. _howto/operator:RedshiftOperator:
+.. _howto/operator:RedshiftSqlOperator:
 
-RedshiftOperator
-================
+RedshiftSqlOperator
+===================
 
 .. contents::
   :depth: 1
@@ -27,11 +27,11 @@ RedshiftOperator
 Overview
 --------
 
-Use the :class:`RedshiftOperator <airflow.providers.amazon.aws.operators.redshift>` to execute
+Use the :class:`RedshiftSqlOperator <airflow.providers.amazon.aws.operators.redshift>` to execute
 statements against an Amazon Redshift cluster.
 
-:class:`RedshiftOperator <airflow.providers.amazon.aws.operators.redshift.RedshiftOperator>` works together with
-:class:`RedshiftOperator <airflow.providers.amazon.aws.hooks.redshift_statement.RedshiftStatementHook>` to establish
+:class:`RedshiftSqlOperator <airflow.providers.amazon.aws.operators.redshift.RedshiftSqlOperator>` works together with
+:class:`RedshiftSqlHook <airflow.providers.amazon.aws.hooks.redshift.RedshiftSqlHook>` to establish
 connections with Amazon Redshift.
 
 
@@ -41,7 +41,7 @@ example_redshift.py
 Purpose
 """""""
 
-This is a basic example dag for using :class:`RedshiftOperator <airflow.providers.amazon.aws.operators.redshift>`
+This is a basic example dag for using :class:`RedshiftSqlOperator <airflow.providers.amazon.aws.operators.redshift>`
 to execute statements against an Amazon Redshift cluster.
 
 Create a table
@@ -51,8 +51,8 @@ In the following code we are creating a table called "fruit".
 
 .. exampleinclude:: /../../airflow/providers/amazon/aws/example_dags/example_redshift.py
     :language: python
-    :start-after: [START howto_operator_s3_to_redshift_create_table]
-    :end-before: [END howto_operator_s3_to_redshift_create_table]
+    :start-after: [START howto_operator_redshift_create_table]
+    :end-before: [END howto_operator_redshift_create_table]
 
 Insert data into a table
 """"""""""""""""""""""""
@@ -61,8 +61,8 @@ In the following code we insert a few sample rows into the "fruit" table.
 
 .. exampleinclude:: /../../airflow/providers/amazon/aws/example_dags/example_redshift.py
     :language: python
-    :start-after: [START howto_operator_s3_to_redshift_populate_table]
-    :end-before: [END howto_operator_s3_to_redshift_populate_table]
+    :start-after: [START howto_operator_redshift_populate_table]
+    :end-before: [END howto_operator_redshift_populate_table]
 
 Fetching records from a table
 """""""""""""""""""""""""""""
@@ -71,19 +71,19 @@ Retrieving all records from the "fruit" table.
 
 .. exampleinclude:: /../../airflow/providers/amazon/aws/example_dags/example_redshift.py
     :language: python
-    :start-after: [START howto_operator_s3_to_redshift_get_all_rows]
-    :end-before: [END howto_operator_s3_to_redshift_get_all_rows]
+    :start-after: [START howto_operator_redshift_get_all_rows]
+    :end-before: [END howto_operator_redshift_get_all_rows]
 
-Passing Parameters into RedshiftOperator
-""""""""""""""""""""""""""""""""""""""""
+Passing Parameters into RedshiftSqlOperator
+"""""""""""""""""""""""""""""""""""""""""""
 
-RedshiftOperator supports the ``parameters`` attribute which allows us to dynamically pass
+RedshiftSqlOperator supports the ``parameters`` attribute which allows us to dynamically pass
 parameters into SQL statements.
 
 .. exampleinclude:: /../../airflow/providers/amazon/aws/example_dags/example_redshift.py
     :language: python
-    :start-after: [START howto_operator_s3_to_redshift_get_with_filter]
-    :end-before: [END howto_operator_s3_to_redshift_get_with_filter]
+    :start-after: [START howto_operator_redshift_get_with_filter]
+    :end-before: [END howto_operator_redshift_get_with_filter]
 
 The complete Redshift Operator DAG
 ----------------------------------

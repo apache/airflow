@@ -18,16 +18,16 @@
 from typing import Any, Optional
 
 from airflow.models import BaseOperator
-from airflow.providers.amazon.aws.hooks.redshift_statement import RedshiftStatementHook
+from airflow.providers.amazon.aws.hooks.redshift import RedshiftSQLHook
 
 
-class RedshiftOperator(BaseOperator):
+class RedshiftSQLOperator(BaseOperator):
     """
     Executes SQL Statements against an Amazon Redshift cluster
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:RedshiftOperator`
+        :ref:`howto/operator:RedshiftSQLOperator`
 
     :param sql: the sql code to be executed
     :type sql: Can receive a str representing a sql statement,
@@ -60,11 +60,11 @@ class RedshiftOperator(BaseOperator):
         self.autocommit = autocommit
         self.parameters = parameters
 
-    def get_hook(self) -> RedshiftStatementHook:
-        """Create and return RedshiftStatementHook.
-        :return RedshiftStatementHook: A RedshiftStatementHook instance.
+    def get_hook(self) -> RedshiftSQLHook:
+        """Create and return RedshiftSQLHook.
+        :return RedshiftSQLHook: A RedshiftSQLHook instance.
         """
-        return RedshiftStatementHook(redshift_conn_id=self.redshift_conn_id)
+        return RedshiftSQLHook(redshift_conn_id=self.redshift_conn_id)
 
     def execute(self, context: dict) -> None:
         """Execute a statement against Amazon Redshift"""

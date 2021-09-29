@@ -22,18 +22,18 @@ from unittest.mock import MagicMock
 
 from parameterized import parameterized
 
-from airflow.providers.amazon.aws.operators.redshift import RedshiftOperator
+from airflow.providers.amazon.aws.operators.redshift import RedshiftSQLOperator
 
 
-class TestRedshiftOperator(unittest.TestCase):
+class TestRedshiftSQLOperator(unittest.TestCase):
     @parameterized.expand([(True, ('a', 'b')), (False, ('c', 'd'))])
-    @mock.patch("airflow.providers.amazon.aws.operators.redshift.RedshiftOperator.get_hook")
+    @mock.patch("airflow.providers.amazon.aws.operators.redshift.RedshiftSQLOperator.get_hook")
     def test_redshift_operator(self, test_autocommit, test_parameters, mock_get_hook):
         hook = MagicMock()
         mock_run = hook.run
         mock_get_hook.return_value = hook
         sql = MagicMock()
-        operator = RedshiftOperator(
+        operator = RedshiftSQLOperator(
             task_id='test', sql=sql, autocommit=test_autocommit, parameters=test_parameters
         )
         operator.execute(None)

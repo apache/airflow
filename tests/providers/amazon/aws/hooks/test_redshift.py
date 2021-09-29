@@ -17,12 +17,15 @@
 # under the License.
 #
 
+import json
 import unittest
+from unittest import mock
 
 import boto3
 
+from airflow.models import Connection
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
-from airflow.providers.amazon.aws.hooks.redshift import RedshiftHook
+from airflow.providers.amazon.aws.hooks.redshift import RedshiftHook, RedshiftSQLHook
 
 try:
     from moto import mock_redshift
@@ -103,3 +106,51 @@ class TestRedshiftHook(unittest.TestCase):
         hook = RedshiftHook(aws_conn_id='aws_default')
         status = hook.cluster_status('test_cluster')
         assert status == 'available'
+
+
+class TestRedshiftSQLHookConn(unittest.TestCase):
+    def setUp(self):
+        super().setUp()
+
+        self.connection = Connection(login='login', password='password', host='host', port=5439, schema="dev")
+
+        class UnitTestRedshiftSQLHook(RedshiftSQLHook):
+            conn_name_attr = "redshift_conn_id"
+            conn_type = 'redshift+redshift_connector'
+
+        self.db_hook = UnitTestRedshiftSQLHook()
+        self.db_hook.get_connection = mock.Mock()
+        self.db_hook.get_connection.return_value = self.connection
+
+    def test_get_uri(self):
+        expected = 'redshift+redshift_connector://login:password@host:5439/dev'
+        x = self.db_hook.get_uri()
+        assert x == expected
+
+    @mock.patch('airflow.providers.amazon.aws.hooks.redshift.redshift_connector.connect')
+    def test_get_conn(self, mock_connect):
+        self.db_hook.get_conn()
+        mock_connect.assert_called_once_with(
+            user='login', password='password', host='host', port=5439, database='dev'
+        )
+
+    @mock.patch('airflow.providers.amazon.aws.hooks.redshift.redshift_connector.connect')
+    def test_get_conn_extra(self, mock_connect):
+        self.connection.extra = json.dumps(
+            {
+                "iam": True,
+                "cluster_identifier": "my-test-cluster",
+                "profile": "default",
+            }
+        )
+        self.db_hook.get_conn()
+        mock_connect.assert_called_once_with(
+            user='login',
+            password='password',
+            host='host',
+            port=5439,
+            cluster_identifier="my-test-cluster",
+            profile="default",
+            database='dev',
+            iam=True,
+        )

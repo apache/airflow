@@ -361,7 +361,6 @@ hooks:
   - integration-name: Amazon Redshift
     python-modules:
       - airflow.providers.amazon.aws.hooks.redshift
-      - airflow.providers.amazon.aws.hooks.redshift_statement
   - integration-name: Amazon Simple Storage Service (S3)
     python-modules:
       - airflow.providers.amazon.aws.hooks.s3
@@ -448,7 +447,7 @@ hook-class-names:  # deprecated - to be removed after providers add dependency o
   - airflow.providers.amazon.aws.hooks.s3.S3Hook
   - airflow.providers.amazon.aws.hooks.base_aws.AwsBaseHook
   - airflow.providers.amazon.aws.hooks.emr.EmrHook
-  - airflow.providers.amazon.aws.hooks.redshift_statement.RedshiftStatementHook
+  - airflow.providers.amazon.aws.hooks.redshift.RedshiftSQLHook
 
 connection-types:
   - hook-class-name: airflow.providers.amazon.aws.hooks.s3.S3Hook
@@ -457,7 +456,7 @@ connection-types:
     connection-type: aws
   - hook-class-name: airflow.providers.amazon.aws.hooks.emr.EmrHook
     connection-type: emr
-  - hook-class-name: airflow.providers.amazon.aws.hooks.redshift_statement.RedshiftStatementHook
+  - hook-class-name: airflow.providers.amazon.aws.hooks.redshift.RedshiftSQLHook
     connection-type: redshift+redshift_connector
 
 secrets-backends:
