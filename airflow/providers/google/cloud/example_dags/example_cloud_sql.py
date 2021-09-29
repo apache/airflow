@@ -28,7 +28,6 @@ https://airflow.apache.org/concepts.html#variables
 """
 
 import os
-import random
 from urllib.parse import urlsplit
 
 from airflow import models
@@ -49,8 +48,8 @@ from airflow.providers.google.cloud.operators.gcs import (
 from airflow.utils.dates import days_ago
 
 GCP_PROJECT_ID = os.environ.get('GCP_PROJECT_ID', 'example-project')
-INSTANCE_NAME = os.environ.get('GCSQL_MYSQL_INSTANCE_NAME', 'test-mysql') + str(random.getrandbits(16))
-INSTANCE_NAME2 = os.environ.get('GCSQL_MYSQL_INSTANCE_NAME2', 'test-mysql2') + str(random.getrandbits(16))
+INSTANCE_NAME = os.environ.get('GCSQL_MYSQL_INSTANCE_NAME', 'test-mysql')
+INSTANCE_NAME2 = os.environ.get('GCSQL_MYSQL_INSTANCE_NAME2', 'test-mysql2')
 DB_NAME = os.environ.get('GCSQL_MYSQL_DATABASE_NAME', 'testdb')
 
 EXPORT_URI = os.environ.get('GCSQL_MYSQL_EXPORT_URI', 'gs://INVALID BUCKET NAME/fileName')
