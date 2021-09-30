@@ -195,7 +195,7 @@ class AirflowConfigParser(ConfigParser):
     }
 
     _available_logging_levels = ['CRITICAL', 'FATAL', 'ERROR', 'WARN', 'WARNING', 'INFO', 'DEBUG']
-    enums = {
+    enums_options = {
         ("core", "default_task_weight_rule"): WeightRule.all_weight_rules(),
         ('core', 'mp_start_method'): multiprocessing.get_all_start_methods(),
         ("scheduler", "file_parsing_sort_mode"): {"modified_time", "random_seeded_by_host", "alphabetical"},
@@ -243,7 +243,7 @@ class AirflowConfigParser(ConfigParser):
 
     def _validate_enums(self):
         """Validate that enum type config has an accepted value"""
-        for (section_key, option_key), enum_options in self.enums.items():
+        for (section_key, option_key), enum_options in self.enums_options.items():
             if self.has_option(section_key, option_key):
                 value = self.get(section_key, option_key)
                 if value not in enum_options:
