@@ -704,8 +704,8 @@ notacommand = OK
             test_conf.validate()
         exception = str(ctx.value)
         message = (
-            "[core] default_task_weight_rule` should not be 'sidestream'. Possible values: "
-            "upstream, downstream, absolute"
+            "`[core] default_task_weight_rule` should not be 'sidestream'. Possible values: "
+            "absolute, downstream, upstream."
         )
         assert message == exception
 
@@ -716,7 +716,7 @@ notacommand = OK
             test_conf.validate()
         exception = str(ctx.value)
         message = (
-            "[logging] logging_level` should not be 'XXX'. Possible values: "
+            "`[logging] logging_level` should not be 'XXX'. Possible values: "
             "CRITICAL, FATAL, ERROR, WARN, WARNING, INFO, DEBUG."
         )
         assert message == exception

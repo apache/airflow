@@ -196,9 +196,9 @@ class AirflowConfigParser(ConfigParser):
 
     _available_logging_levels = ['CRITICAL', 'FATAL', 'ERROR', 'WARN', 'WARNING', 'INFO', 'DEBUG']
     enums_options = {
-        ("core", "default_task_weight_rule"): WeightRule.all_weight_rules(),
+        ("core", "default_task_weight_rule"): sorted(WeightRule.all_weight_rules()),
         ('core', 'mp_start_method'): multiprocessing.get_all_start_methods(),
-        ("scheduler", "file_parsing_sort_mode"): {"modified_time", "random_seeded_by_host", "alphabetical"},
+        ("scheduler", "file_parsing_sort_mode"): ["modified_time", "random_seeded_by_host", "alphabetical"],
         ("logging", "logging_level"): _available_logging_levels,
         ("logging", "fab_logging_level"): _available_logging_levels,
     }
@@ -249,7 +249,7 @@ class AirflowConfigParser(ConfigParser):
                 if value not in enum_options:
                     raise AirflowConfigException(
                         f"`[{section_key}] {option_key}` should not be "
-                        + f"'{value}'. Possible values: {', '.join(enum_options)}."
+                        + f"{value!r}. Possible values: {', '.join(enum_options)}."
                     )
 
     def _validate_config_dependencies(self):
