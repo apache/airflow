@@ -174,12 +174,20 @@ def users_import(args):
         print("Updated the following users:\n\t{}".format("\n\t".join(users_updated)))
 
 
-def _import_users(users_list):
+def _import_users(users_list_):
     appbuilder = cached_app().appbuilder
     users_created = []
     users_updated = []
 
-    for user in users_list:
+    for user in users_list_:
+        required_fields = ['username', 'firstname', 'lastname', 'email', 'roles']
+        for field in required_fields:
+            if field not in user:
+                raise SystemExit(f"Error: '{field}' is a required field, but was not specified")
+
+        if isinstance(user['roles'], list) and not user['roles']:
+            raise SystemExit('Error: User "{}" must have at lest one role'.format(user['username']))
+
         roles = []
         for rolename in user['roles']:
             role = appbuilder.sm.find_role(rolename)
