@@ -904,7 +904,7 @@ class SchedulerJob(BaseJob):
                 # always happening immediately after the data interval.
                 expected_start_date = dag.get_run_data_interval(dag_run).end
                 schedule_delay = dag_run.start_date - expected_start_date
-                Stats.timing(f'dagrun.schedule_delay.{dag.dag_id}', schedule_delay)
+                Stats.timing(f'dagrun.schedule_delay.{dag.dag_id}', schedule_delay.total_seconds())
 
         for dag_run in dag_runs:
 
