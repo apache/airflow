@@ -114,11 +114,7 @@ class TestRedshiftSQLHookConn(unittest.TestCase):
 
         self.connection = Connection(login='login', password='password', host='host', port=5439, schema="dev")
 
-        class UnitTestRedshiftSQLHook(RedshiftSQLHook):
-            conn_name_attr = "redshift_conn_id"
-            conn_type = 'redshift+redshift_connector'
-
-        self.db_hook = UnitTestRedshiftSQLHook()
+        self.db_hook = RedshiftSQLHook()
         self.db_hook.get_connection = mock.Mock()
         self.db_hook.get_connection.return_value = self.connection
 
