@@ -254,6 +254,8 @@ class WebserverDeploymentTest(unittest.TestCase):
         assert {
             "name": "config",
             "mountPath": "/opt/airflow/airflow.cfg",
+            "readOnly": True,
+            "subPath": "airflow.cfg",
         } in jmespath.search("spec.template.spec.containers[0].volumeMounts", docs[0])
 
         # pod_template_file config
@@ -261,6 +263,8 @@ class WebserverDeploymentTest(unittest.TestCase):
             {
                 "name": "config",
                 "mountPath": "/opt/airflow/pod_template_file.yaml",
+                "readOnly": True,
+                "subPath": "pod_template_file.yaml",
             }
             in jmespath.search("spec.template.spec.containers[0].volumeMounts", docs[0])
         )
