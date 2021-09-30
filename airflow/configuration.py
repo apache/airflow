@@ -194,7 +194,7 @@ class AirflowConfigParser(ConfigParser):
         },
     }
 
-    enums = {"default_task_weight_rule": WeightRule}
+    enums = {("core", "default_task_weight_rule"): WeightRule}
 
     # This method transforms option names on every read, get, or set operation.
     # This changes from the default behaviour of ConfigParser from lowercasing
@@ -236,11 +236,13 @@ class AirflowConfigParser(ConfigParser):
 
     def _validate_enums(self):
         """Validate that enum type config has an accepted value"""
-        for setting, enum_class in self.enums.items():
-            if self.has_option('core', setting):
-                value = self.get("core", setting)
+        for (section, setting), enum_class in self.enums.items():
+            if self.has_option(section, setting):
+                value = self.get(section, setting)
                 if not enum_class.is_valid(value):
-                    raise AirflowConfigException(f"{value} is not an accepted config for {setting}")
+                    raise AirflowConfigException(
+                        f"{value} is not an accepted config for [{section}] {setting}"
+                    )
 
     def _validate_config_dependencies(self):
         """

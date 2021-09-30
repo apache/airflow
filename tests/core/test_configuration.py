@@ -703,5 +703,5 @@ notacommand = OK
         with pytest.raises(AirflowConfigException) as ctx:
             test_conf.validate()
         exception = str(ctx.value)
-        message = "sidestream is not an accepted config for default_task_weight_rule"
+        message = "sidestream is not an accepted config for [core] default_task_weight_rule"
         assert message == exception
