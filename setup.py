@@ -627,7 +627,7 @@ INSTALL_REQUIREMENTS = [
     'markdown>=2.5.2, <3.0',
     'marshmallow-sqlalchemy>=0.16.1, <0.24.0;python_version>="3.6"',
     'packaging',
-    'pandas>=1.0.0, <2.0',
+    'pandas>=0.22.0, <2.0',
     'pendulum==1.4.4',
     'pep562~=1.0;python_version<"3.7"',
     'psutil>=4.2.0, <6.0.0',
