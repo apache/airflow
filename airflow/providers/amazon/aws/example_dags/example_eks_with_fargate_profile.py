@@ -14,7 +14,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
+from datetime import datetime
 from os import environ
 
 from airflow.models.dag import DAG
@@ -27,7 +27,6 @@ from airflow.providers.amazon.aws.operators.eks import (
     EKSPodOperator,
 )
 from airflow.providers.amazon.aws.sensors.eks import EKSClusterStateSensor, EKSFargateProfileStateSensor
-from airflow.utils.dates import days_ago
 
 CLUSTER_NAME = 'fargate-demo'
 FARGATE_PROFILE_NAME = f'{CLUSTER_NAME}-profile'
@@ -41,11 +40,15 @@ VPC_CONFIG = {
     'endpointPrivateAccess': False,
 }
 
+default_args = {
+    'cluster_name': CLUSTER_NAME,
+}
 
 with DAG(
     dag_id='example_eks_with_fargate_profile_dag',
+    default_args=default_args,
     schedule_interval=None,
-    start_date=days_ago(2),
+    start_date=datetime(2021, 1, 1),
     max_active_runs=1,
     tags=['example'],
 ) as dag:
@@ -53,7 +56,6 @@ with DAG(
     # Create an Amazon EKS Cluster control plane without attaching a compute service.
     create_cluster = EKSCreateClusterOperator(
         task_id='create_eks_cluster',
-        cluster_name=CLUSTER_NAME,
         cluster_role_arn=ROLE_ARN,
         resources_vpc_config=VPC_CONFIG,
         compute=None,
@@ -61,14 +63,12 @@ with DAG(
 
     await_create_cluster = EKSClusterStateSensor(
         task_id='wait_for_create_cluster',
-        cluster_name=CLUSTER_NAME,
         target_state=ClusterStates.ACTIVE,
     )
 
     # [START howto_operator_eks_create_fargate_profile]
     create_fargate_profile = EKSCreateFargateProfileOperator(
         task_id='create_eks_fargate_profile',
-        cluster_name=CLUSTER_NAME,
         pod_execution_role_arn=ROLE_ARN,
         fargate_profile_name=FARGATE_PROFILE_NAME,
         selectors=SELECTORS,
@@ -77,14 +77,12 @@ with DAG(
 
     await_create_fargate_profile = EKSFargateProfileStateSensor(
         task_id='wait_for_create_fargate_profile',
-        cluster_name=CLUSTER_NAME,
         fargate_profile_name=FARGATE_PROFILE_NAME,
         target_state=FargateProfileStates.ACTIVE,
     )
 
     start_pod = EKSPodOperator(
         task_id="run_pod",
-        cluster_name=CLUSTER_NAME,
         image="amazon/aws-cli:latest",
         cmds=["sh", "-c", "echo Test Airflow; date"],
         labels={"demo": "hello_world"},
@@ -96,23 +94,20 @@ with DAG(
     # [START howto_operator_eks_delete_fargate_profile]
     delete_fargate_profile = EKSDeleteFargateProfileOperator(
         task_id='delete_eks_fargate_profile',
-        cluster_name=CLUSTER_NAME,
         fargate_profile_name=FARGATE_PROFILE_NAME,
     )
     # [END howto_operator_eks_delete_fargate_profile]
 
     await_delete_fargate_profile = EKSFargateProfileStateSensor(
         task_id='wait_for_delete_fargate_profile',
-        cluster_name=CLUSTER_NAME,
         fargate_profile_name=FARGATE_PROFILE_NAME,
         target_state=FargateProfileStates.NONEXISTENT,
     )
 
-    delete_cluster = EKSDeleteClusterOperator(task_id='delete_eks_cluster', cluster_name=CLUSTER_NAME)
+    delete_cluster = EKSDeleteClusterOperator(task_id='delete_eks_cluster')
 
     await_delete_cluster = EKSClusterStateSensor(
         task_id='wait_for_delete_cluster',
-        cluster_name=CLUSTER_NAME,
         target_state=ClusterStates.NONEXISTENT,
     )
 

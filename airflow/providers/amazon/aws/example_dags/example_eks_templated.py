@@ -14,6 +14,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from datetime import datetime
 
 from airflow.models.dag import DAG
 from airflow.providers.amazon.aws.hooks.eks import ClusterStates, NodegroupStates
@@ -25,7 +26,6 @@ from airflow.providers.amazon.aws.operators.eks import (
     EKSPodOperator,
 )
 from airflow.providers.amazon.aws.sensors.eks import EKSClusterStateSensor, EKSNodegroupStateSensor
-from airflow.utils.dates import days_ago
 
 # Example Jinja Template format, substitute your values:
 """
@@ -46,7 +46,7 @@ from airflow.utils.dates import days_ago
 with DAG(
     dag_id='to-publish-manuals-templated',
     schedule_interval=None,
-    start_date=days_ago(2),
+    start_date=datetime(2021, 1, 1),
     max_active_runs=1,
     tags=['example', 'templated'],
     # render_template_as_native_obj=True is what converts the Jinja to Python objects, instead of a string.
