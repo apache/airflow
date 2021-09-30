@@ -162,7 +162,7 @@ class RenderedTaskInstanceFields(Base):
                 tuple_(cls.dag_id, cls.task_id, cls.execution_date).notin_(subq1),
             ).delete(synchronize_session=False)
         elif session.bind.dialect.name in ["mysql"]:
-            cls.remove_old_rendered_ti_fields_mysql(dag_id, session, task_id, tis_to_keep_query)
+            cls._remove_old_rendered_ti_fields_mysql(dag_id, session, task_id, tis_to_keep_query)
         else:
             # Fetch Top X records given dag_id & task_id ordered by Execution Date
             tis_to_keep = tis_to_keep_query.all()
@@ -182,7 +182,7 @@ class RenderedTaskInstanceFields(Base):
 
     @classmethod
     @retry_db_transaction
-    def remove_old_rendered_ti_fields_mysql(cls, dag_id, session, task_id, tis_to_keep_query):
+    def _remove_old_rendered_ti_fields_mysql(cls, dag_id, session, task_id, tis_to_keep_query):
         # Fetch Top X records given dag_id & task_id ordered by Execution Date
         subq1 = tis_to_keep_query.subquery('subq1')
         # Second Subquery
@@ -196,3 +196,4 @@ class RenderedTaskInstanceFields(Base):
             cls.task_id == task_id,
             tuple_(cls.dag_id, cls.task_id, cls.execution_date).notin_(subq2),
         ).delete(synchronize_session=False)
+        session.flush()
