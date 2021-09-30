@@ -110,6 +110,14 @@ class ResultModel(Base):
             results = results.filter(cls.bolt_number == bolt_number)
         return results
 
+    @classmethod
+    def filter_valid_fields(cls, data):
+        result_data = {}
+        for key, value in data.items():
+            if hasattr(cls, key):
+                result_data[key] = value
+        return result_data
+
 
 # Defining the plugin class
 class ResultModelPlugin(AirflowPlugin):

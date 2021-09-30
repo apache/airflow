@@ -11,6 +11,7 @@ from plugins.models.result import ResultModel
 from airflow.utils.db import provide_session
 from psycopg2 import errors
 from sqlalchemy.exc import IntegrityError
+
 RUNTIME_ENV = os.environ.get('RUNTIME_ENV', 'dev')
 
 _logger = generate_logger(__name__)
@@ -30,7 +31,7 @@ class ClsResultStorage(ClsEntity):
     def _write(self, data: Optional[Dict]):
         try:
             with create_session() as session:
-                result = ResultModel(**data)
+                result = ResultModel(**ResultModel.filter_valid_fields(data))
                 session.add(result)
         except IntegrityError as e:
             assert isinstance(e.orig, errors.UniqueViolation)  # proves the original exception
@@ -44,7 +45,7 @@ class ClsResultStorage(ClsEntity):
             with create_session() as session:
                 session.query(ResultModel) \
                     .filter(ResultModel.entity_id == self.entity_id) \
-                    .update(data)
+                    .update(ResultModel.filter_valid_fields(data))
         except Exception as e:
             _logger.error("Error: {}".format(e))
             raise e
