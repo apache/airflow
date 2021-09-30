@@ -28,7 +28,7 @@ from airflow.utils.session import create_session
 from airflow.utils.state import State
 from airflow.utils.types import DagRunType
 from airflow.www.views import FILTER_STATUS_COOKIE
-from tests.test_utils.api_connexion_utils import create_user
+from tests.test_utils.api_connexion_utils import create_user_scope
 from tests.test_utils.db import clear_db_runs
 from tests.test_utils.www import check_content_in_response, check_content_not_in_response, client_with_login
 
@@ -186,7 +186,7 @@ def all_dag_user_client(acl_app):
 
 @pytest.fixture(scope="module")
 def user_edit_one_dag(acl_app):
-    return create_user(
+    yield from create_user_scope(
         acl_app,
         username="user_edit_one_dag",
         role_name="role_edit_one_dag",
@@ -219,7 +219,7 @@ def test_role_permission_associate(acl_app):
 
 @pytest.fixture(scope="module")
 def user_all_dags(acl_app):
-    return create_user(
+    yield from create_user_scope(
         acl_app,
         username="user_all_dags",
         role_name="role_all_dags",
@@ -310,7 +310,7 @@ def test_dag_autocomplete_status(client_all_dags, status, expected, unexpected):
 
 @pytest.fixture(scope="module")
 def user_all_dags_dagruns(acl_app):
-    return create_user(
+    yield from create_user_scope(
         acl_app,
         username="user_all_dags_dagruns",
         role_name="role_all_dags_dagruns",
@@ -350,7 +350,7 @@ def test_dag_stats_success_for_all_dag_user(client_all_dags_dagruns):
 
 @pytest.fixture(scope="module")
 def user_all_dags_dagruns_tis(acl_app):
-    return create_user(
+    yield from create_user_scope(
         acl_app,
         username="user_all_dags_dagruns_tis",
         role_name="role_all_dags_dagruns_tis",
@@ -410,7 +410,7 @@ def test_task_stats_success(
 
 @pytest.fixture(scope="module")
 def user_all_dags_codes(acl_app):
-    return create_user(
+    yield from create_user_scope(
         acl_app,
         username="user_all_dags_codes",
         role_name="role_all_dags_codes",
@@ -478,7 +478,7 @@ def test_dag_details_success_for_all_dag_user(client_all_dags_dagruns, dag_id):
 
 @pytest.fixture(scope="module")
 def user_all_dags_tis(acl_app):
-    return create_user(
+    yield from create_user_scope(
         acl_app,
         username="user_all_dags_tis",
         role_name="role_all_dags_tis",
@@ -501,7 +501,7 @@ def client_all_dags_tis(acl_app, user_all_dags_tis):
 
 @pytest.fixture(scope="module")
 def user_all_dags_tis_xcom(acl_app):
-    return create_user(
+    yield from create_user_scope(
         acl_app,
         username="user_all_dags_tis_xcom",
         role_name="role_all_dags_tis_xcom",
@@ -525,7 +525,7 @@ def client_all_dags_tis_xcom(acl_app, user_all_dags_tis_xcom):
 
 @pytest.fixture(scope="module")
 def user_dags_tis_logs(acl_app):
-    return create_user(
+    yield from create_user_scope(
         acl_app,
         username="user_dags_tis_logs",
         role_name="role_dags_tis_logs",
@@ -692,7 +692,7 @@ def test_blocked_success_when_selecting_dags(
 
 @pytest.fixture(scope="module")
 def user_all_dags_edit_tis(acl_app):
-    return create_user(
+    yield from create_user_scope(
         acl_app,
         username="user_all_dags_edit_tis",
         role_name="role_all_dags_edit_tis",
@@ -734,7 +734,7 @@ def test_paused_post_success(dag_test_client):
 
 @pytest.fixture(scope="module")
 def user_only_dags_tis(acl_app):
-    return create_user(
+    yield from create_user_scope(
         acl_app,
         username="user_only_dags_tis",
         role_name="role_only_dags_tis",
@@ -796,13 +796,12 @@ def test_get_logs_with_metadata_failure(dag_faker_client):
 
 @pytest.fixture(scope="module")
 def user_no_roles(acl_app):
-    user = create_user(
+    yield from create_user_scope(
         acl_app,
         username="no_roles_user",
         role_name="no_roles_user_role",
+        no_roles=True
     )
-    user.roles = []
-    return user
 
 
 @pytest.fixture()
@@ -816,7 +815,7 @@ def client_no_roles(acl_app, user_no_roles):
 
 @pytest.fixture(scope="module")
 def user_no_permissions(acl_app):
-    return create_user(
+    yield from create_user_scope(
         acl_app,
         username="no_permissions_user",
         role_name="no_permissions_role",
