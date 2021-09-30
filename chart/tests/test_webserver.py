@@ -258,11 +258,11 @@ class WebserverDeploymentTest(unittest.TestCase):
 
         # pod_template_file config
         assert pod_template_file_expected == (
-                {
-                    "name": "config",
-                    "mountPath": "/opt/airflow/pod_template_file.yaml",
-                }
-                in jmespath.search("spec.template.spec.containers[0].volumeMounts", docs[0])
+            {
+                "name": "config",
+                "mountPath": "/opt/airflow/pod_template_file.yaml",
+            }
+            in jmespath.search("spec.template.spec.containers[0].volumeMounts", docs[0])
         )
 
     def test_webserver_resources_are_configurable(self):
