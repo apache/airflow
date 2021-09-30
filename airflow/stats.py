@@ -335,6 +335,8 @@ class SafeDogStatsdLogger:
         """Stats timing"""
         if self.allow_list_validator.test(stat):
             tags = tags or []
+            if not isinstance(dt, float):
+                raise ValueError("dt must be of float type")
             return self.dogstatsd.timing(metric=stat, value=dt, tags=tags)
         return None
 
