@@ -28,13 +28,12 @@
 """
 This is an example dag for managing twitter data.
 """
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 
 from airflow import DAG
 from airflow.decorators import task
 from airflow.operators.bash import BashOperator
 from airflow.providers.apache.hive.operators.hive import HiveOperator
-from airflow.utils.dates import days_ago
 
 
 @task
@@ -77,8 +76,9 @@ with DAG(
         'retries': 1,
     },
     schedule_interval="@daily",
-    start_date=days_ago(5),
+    start_date=datetime(2021, 1, 1),
     tags=['example'],
+    catchup=False,
 ) as dag:
     fetch_tweets = fetch_tweets()
     clean_tweets = clean_tweets()

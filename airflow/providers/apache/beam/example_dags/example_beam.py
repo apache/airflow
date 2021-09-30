@@ -20,6 +20,7 @@
 Example Airflow DAG for Apache Beam operators
 """
 import os
+from datetime import datetime
 from urllib.parse import urlparse
 
 from airflow import models
@@ -31,7 +32,7 @@ from airflow.providers.google.cloud.hooks.dataflow import DataflowJobStatus
 from airflow.providers.google.cloud.operators.dataflow import DataflowConfiguration
 from airflow.providers.google.cloud.sensors.dataflow import DataflowJobStatusSensor
 from airflow.providers.google.cloud.transfers.gcs_to_local import GCSToLocalFilesystemOperator
-from airflow.utils.dates import days_ago
+from airflow.utils.trigger_rule import TriggerRule
 
 GCP_PROJECT_ID = os.environ.get('GCP_PROJECT_ID', 'example-project')
 GCS_INPUT = os.environ.get('APACHE_BEAM_PYTHON', 'gs://INVALID BUCKET NAME/shakespeare/kinglear.txt')
@@ -72,19 +73,13 @@ GCS_JAR_FLINK_RUNNER_PARTS = urlparse(GCS_JAR_FLINK_RUNNER)
 GCS_JAR_FLINK_RUNNER_BUCKET_NAME = GCS_JAR_FLINK_RUNNER_PARTS.netloc
 GCS_JAR_FLINK_RUNNER_OBJECT_NAME = GCS_JAR_FLINK_RUNNER_PARTS.path[1:]
 
-
-default_args = {
-    'default_pipeline_options': {
-        'output': '/tmp/example_beam',
-    },
-    "trigger_rule": "all_done",
-}
+START_DATE = datetime(2021, 1, 1)
 
 
 with models.DAG(
     "example_beam_native_java_direct_runner",
     schedule_interval=None,  # Override to match your needs
-    start_date=days_ago(1),
+    start_date=START_DATE,
     tags=['example'],
 ) as dag_native_java_direct_runner:
 
@@ -112,7 +107,7 @@ with models.DAG(
 with models.DAG(
     "example_beam_native_java_dataflow_runner",
     schedule_interval=None,  # Override to match your needs
-    start_date=days_ago(1),
+    start_date=START_DATE,
     tags=['example'],
 ) as dag_native_java_dataflow_runner:
     # [START howto_operator_start_java_dataflow_runner_pipeline]
@@ -142,7 +137,7 @@ with models.DAG(
 with models.DAG(
     "example_beam_native_java_spark_runner",
     schedule_interval=None,  # Override to match your needs
-    start_date=days_ago(1),
+    start_date=START_DATE,
     tags=['example'],
 ) as dag_native_java_spark_runner:
 
@@ -169,7 +164,7 @@ with models.DAG(
 with models.DAG(
     "example_beam_native_java_flink_runner",
     schedule_interval=None,  # Override to match your needs
-    start_date=days_ago(1),
+    start_date=START_DATE,
     tags=['example'],
 ) as dag_native_java_flink_runner:
 
@@ -196,9 +191,15 @@ with models.DAG(
 
 with models.DAG(
     "example_beam_native_python",
-    default_args=default_args,
-    start_date=days_ago(1),
+    start_date=START_DATE,
     schedule_interval=None,  # Override to match your needs
+    default_args={
+        'default_pipeline_options': {'output': '/tmp/example_beam'},
+        'trigger_rule': TriggerRule.ALL_DONE,
+        'py_requirements': ['apache-beam[gcp]==2.26.0'],
+        'py_interpreter': 'python3',
+        'py_system_site_packages': False,
+    },
     tags=['example'],
 ) as dag_native_python:
 
@@ -207,7 +208,6 @@ with models.DAG(
         task_id="start_python_pipeline_local_direct_runner",
         py_file='apache_beam.examples.wordcount',
         py_options=['-m'],
-        py_requirements=['apache-beam[gcp]==2.26.0'],
         py_interpreter='python3',
         py_system_site_packages=False,
     )
@@ -219,9 +219,6 @@ with models.DAG(
         py_file=GCS_PYTHON,
         py_options=[],
         pipeline_options={"output": GCS_OUTPUT},
-        py_requirements=['apache-beam[gcp]==2.26.0'],
-        py_interpreter='python3',
-        py_system_site_packages=False,
     )
     # [END howto_operator_start_python_direct_runner_pipeline_gcs_file]
 
@@ -236,9 +233,6 @@ with models.DAG(
             'output': GCS_OUTPUT,
         },
         py_options=[],
-        py_requirements=['apache-beam[gcp]==2.26.0'],
-        py_interpreter='python3',
-        py_system_site_packages=False,
         dataflow_config=DataflowConfiguration(
             job_name='{{task.task_id}}', project_id=GCP_PROJECT_ID, location="us-central1"
         ),
@@ -250,9 +244,6 @@ with models.DAG(
         py_file='apache_beam.examples.wordcount',
         runner="SparkRunner",
         py_options=['-m'],
-        py_requirements=['apache-beam[gcp]==2.26.0'],
-        py_interpreter='python3',
-        py_system_site_packages=False,
     )
 
     start_python_pipeline_local_flink_runner = BeamRunPythonPipelineOperator(
@@ -263,9 +254,6 @@ with models.DAG(
         pipeline_options={
             'output': '/tmp/start_python_pipeline_local_flink_runner',
         },
-        py_requirements=['apache-beam[gcp]==2.26.0'],
-        py_interpreter='python3',
-        py_system_site_packages=False,
     )
 
     (
@@ -280,8 +268,11 @@ with models.DAG(
 
 with models.DAG(
     "example_beam_native_python_dataflow_async",
-    default_args=default_args,
-    start_date=days_ago(1),
+    default_args={
+        'default_pipeline_options': {'output': '/tmp/example_beam'},
+        'trigger_rule': TriggerRule.ALL_DONE,
+    },
+    start_date=START_DATE,
     schedule_interval=None,  # Override to match your needs
     tags=['example'],
 ) as dag_native_python_dataflow_async:
