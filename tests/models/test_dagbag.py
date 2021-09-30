@@ -721,6 +721,7 @@ class TestDagBag:
 
             caplog.set_level(logging.ERROR)
             dagbag.sync_to_db(session=session)
+            assert "Failed to write serialized DAG 'test_example_bash_operator'" in caplog.text
             assert "SerializationError" in caplog.text
 
             assert path in dagbag.import_errors
@@ -821,6 +822,7 @@ class TestDagBag:
                 )
                 caplog.set_level(logging.ERROR)
                 dagbag.sync_to_db(session=session)
+                assert "Failed to sync DAG permissions for 'access_control_test'" in caplog.text
                 assert "FakeRole" in caplog.text
                 assert f.name in dagbag.import_errors
                 err = dagbag.import_errors[f.name]

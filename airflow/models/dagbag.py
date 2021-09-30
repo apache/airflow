@@ -584,8 +584,6 @@ class DagBag(LoggingMixin):
 
             We can't place them directly in import_errors, as this may be retried, and work the next time
             """
-            if dag.is_subdag:
-                return []
             try:
                 # We can't use bulk_write_to_db as we want to capture each error individually
                 dag_was_updated = SerializedDagModel.write_dag(
@@ -593,13 +591,23 @@ class DagBag(LoggingMixin):
                     min_update_interval=settings.MIN_SERIALIZED_DAG_UPDATE_INTERVAL,
                     session=session,
                 )
-                if dag_was_updated:
-                    self._sync_perm_for_dag(dag, session=session)
-                return []
+                return dag_was_updated, []
             except OperationalError:
                 raise
             except Exception:
                 self.log.exception("Failed to write serialized DAG '%s' in: %s", dag.dag_id, dag.fileloc)
+                return False, [
+                    (dag.fileloc, traceback.format_exc(limit=-self.dagbag_import_error_traceback_depth))
+                ]
+
+        def _sync_dag_permissions_capturing_errors(dag, session):
+            try:
+                self._sync_perm_for_dag(dag, session=session)
+                return []
+            except OperationalError:
+                raise
+            except Exception:
+                self.log.exception("Failed to sync DAG permissions for '%s' in: %s", dag.dag_id, dag.fileloc)
                 # Update the dag_hash to force resync as something (likely _sync_perm_for_dag) failed
                 session.flush()
                 session.query(SerializedDagModel).filter(SerializedDagModel.dag_id == dag.dag_id).update(
@@ -620,9 +628,14 @@ class DagBag(LoggingMixin):
                 )
                 self.log.debug("Calling the DAG.bulk_sync_to_db method")
                 try:
-                    # Write Serialized DAGs to DB, capturing errors
+                    # Write Serialized DAGs to DB and sync DAG perms, capturing errors
                     for dag in self.dags.values():
-                        serialize_errors.extend(_serialize_dag_capturing_errors(dag, session))
+                        if dag.is_subdag:
+                            continue
+                        dag_was_updated, import_errors = _serialize_dag_capturing_errors(dag, session)
+                        serialize_errors.extend(import_errors)
+                        if dag_was_updated:
+                            serialize_errors.extend(_sync_dag_permissions_capturing_errors(dag, session))
 
                     DAG.bulk_write_to_db(self.dags.values(), session=session)
                 except OperationalError:
