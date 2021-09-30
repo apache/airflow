@@ -52,13 +52,13 @@ with DAG(dag_id="example_redshift", start_date=days_ago(1), schedule_interval=No
     # [END howto_operator_redshift_populate_table]
     # [START howto_operator_redshift_get_all_rows]
     task_get_all_table_data = RedshiftSQLOperator(
-        task_id='task_get_all_table_data', sql="SELECT * FROM fruit;"
+        task_id='task_get_all_table_data', sql="CREATE TABLE more_fruit AS SELECT * FROM fruit;"
     )
     # [END howto_operator_redshift_get_all_rows]
     # [START howto_operator_redshift_get_with_filter]
     task_get_with_filter = RedshiftSQLOperator(
         task_id='task_get_with_filter',
-        sql="SELECT * FROM fruit WHERE color = '{{ params.color }}';",
+        sql="CREATE TABLE filtered_fruit AS SELECT * FROM fruit WHERE color = '{{ params.color }}';",
         params={'color': 'Red'},
     )
     # [END howto_operator_redshift_get_with_filter]

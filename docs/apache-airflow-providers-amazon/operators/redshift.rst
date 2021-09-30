@@ -67,7 +67,7 @@ In the following code we insert a few sample rows into the "fruit" table.
 Fetching records from a table
 """""""""""""""""""""""""""""
 
-Retrieving all records from the "fruit" table.
+Creating a new table, "more_fruit" from the "fruit" table.
 
 .. exampleinclude:: /../../airflow/providers/amazon/aws/example_dags/example_redshift.py
     :language: python
