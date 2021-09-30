@@ -5,9 +5,10 @@ New Features
 """"""""""""
 
 - AIP-39: Add (customizable) Timetable class to Airflow for richer scheduling behaviour (#15397, #16030,
-  #16352, #17030, #17122, #17414, #17552, #17755, #17989, #18084, #18088, #18244, #18266)
+  #16352, #17030, #17122, #17414, #17552, #17755, #17989, #18084, #18088, #18244, #18266, #18420, #18434,
+  #18421, #18475, #18499, #18573)
 - AIP-40: Add Deferrable "Async" Tasks (#15389, #17564, #17565, #17601, #17745, #17747, #17748, #17875,
-  #17876, #18129, #18210, #18214)
+  #17876, #18129, #18210, #18214, #18552)
 - Add a Docker Taskflow decorator (#15330)
 - Add Airflow Standalone command (#15826)
 - Display alert messages on dashboard from local settings (#18284)
@@ -38,6 +39,7 @@ New Features
 
 Improvements
 """"""""""""
+- Avoid importing DAGs during clean DB installation (#18450)
 - Require can_edit on DAG privileges to modify TaskInstances and DagRuns (#16634)
 - Make Kubernetes job description fit on one log line (#18377)
 - Always draw borders if task instance state is null or undefined (#18033)
@@ -119,6 +121,15 @@ Improvements
 
 Bug Fixes
 """""""""
+- Fix `retry_exponential_backoff` divide by zero error when retry delay is zero (#17003)
+- Improve how UI handles datetimes (#18611)
+- Bugfix: dag_bag.get_dag should return None, not raise exception (#18554)
+- Only show the task modal if it is a valid instance (#18570)
+- Fix accessing rendered ``{{ task.x }}`` attributes from within templates (#18516)
+- Add missing email type of connection (#18502)
+- Don't use flash for "same-page" UI messages. (#18462)
+- Fix task group tooltip (#18406)
+- Properly fix dagrun update state endpoint (#18370)
 - Properly handle ti state difference between executor and scheduler (#17819)
 - Fix stuck "queued" tasks in KubernetesExecutor (#18152)
 - Don't permanently add zip DAGs to ``sys.path`` (#18384)
@@ -191,6 +202,8 @@ Bug Fixes
 
 Doc only changes
 """"""""""""""""
+- Improve error message for BranchPythonOperator when no task_id to follow (#18471)
+- Improve guidance to users telling them what to do on import timeout (#18478)
 - Explain scheduler fine-tuning better (#18356)
 - Added example JSON for airflow pools import (#18376)
 - Add ``sla_miss_callback`` section to the documentation (#18305)
@@ -255,6 +268,8 @@ Doc only changes
 
 Misc/Internal
 """""""""""""
+- Move FABs base Security Manager into Airflow. (#16647)
+- Remove unnecessary css state colors (#18461)
 - Update ``boto3`` to ``<1.19`` (#18389)
 - Improve coverage for ``airflow.security.kerberos module`` (#18258)
 - Fix kinesis test (#18337)
