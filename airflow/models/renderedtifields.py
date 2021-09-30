@@ -180,8 +180,8 @@ class RenderedTaskInstanceFields(Base):
 
             session.query(cls).filter(and_(*filter_tis)).delete(synchronize_session=False)
 
-    @retry_db_transaction
     @classmethod
+    @retry_db_transaction
     def remove_old_rendered_ti_fields_mysql(cls, dag_id, session, task_id, tis_to_keep_query):
         # Fetch Top X records given dag_id & task_id ordered by Execution Date
         subq1 = tis_to_keep_query.subquery('subq1')
