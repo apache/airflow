@@ -37,4 +37,4 @@ with DAG(
     table_sensor = CassandraTableSensor(task_id="cassandra_table_sensor")
 
     record_sensor = CassandraRecordSensor(task_id="cassandra_record_sensor", keys={"p1": "v1", "p2": "v2"})
-    # [END howto_operator_cassandra_sensors]
+# [END howto_operator_cassandra_sensors]

@@ -52,7 +52,6 @@ Example use of these sensors
 
 .. exampleinclude:: /../../airflow/providers/apache/cassandra/example_dags/example_cassandra_dag.py
     :language: python
-    :dedent: 4
     :start-after: [START howto_operator_cassandra_sensors]
     :end-before: [END howto_operator_cassandra_sensors]
 
