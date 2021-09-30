@@ -1,7 +1,7 @@
 version: '2.1'
 services:
     webserver:
-        image: docker.pkg.github.com/masami10/airflow/airflow:1.10.10
+        image: ghcr.io/masami10/airflow/airflow:1.10.10
         restart: always
 #        depends_on:
 #            - postgres
@@ -39,7 +39,7 @@ services:
             retries: 3
 
     flower:
-        image: docker.pkg.github.com/masami10/airflow/airflow:1.10.10
+        image: ghcr.io/masami10/airflow/airflow:1.10.10
         restart: always
 #        depends_on:
 #            - redis
@@ -57,7 +57,7 @@ services:
         command: flower
 
     scheduler:
-        image: docker.pkg.github.com/masami10/airflow/airflow:1.10.10
+        image: ghcr.io/masami10/airflow/airflow:1.10.10
         restart: always
         depends_on:
             - webserver
@@ -87,7 +87,7 @@ services:
         command: scheduler
 
     worker:
-        image: docker.pkg.github.com/masami10/airflow/airflow:1.10.10
+        image: ghcr.io/masami10/airflow/airflow:1.10.10
         restart: always
         depends_on:
             - scheduler
