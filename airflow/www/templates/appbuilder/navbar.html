@@ -21,6 +21,14 @@
 {% set languages = appbuilder.languages %}
 
 <div class="navbar navbar-fixed-top" role="navigation" style="background-color: {{ navbar_color }};">
+  {% if enable_environment_banner %}
+  <div style="background-color: #008000;">
+    <div class="text-right">
+      <p class="mr1" style="color: #fff; padding-right: 1em">
+         Apache Airflow {% if airflow_version %}v{{ airflow_version }}{% else %} N/A{% endif %} ( {{environment_type}} )</p>
+    </div>
+  </div>
+  {% endif %}
   <div class="container">
     <div class="navbar-header">
       <button type="button" class="navbar-toggle" data-toggle="collapse" data-target=".navbar-collapse">

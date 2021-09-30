@@ -67,6 +67,8 @@ def init_jinja_globals(app):
             'git_version': git_version,
             'k8s_or_k8scelery_executor': IS_K8S_OR_K8SCELERY_EXECUTOR,
             'rest_api_enabled': conf.get('api', 'auth_backend') != 'airflow.api.auth.backend.deny_all',
+            'environment_type': conf.get('webserver', 'environment_type'),
+            'enable_environment_banner': conf.getboolean('webserver', 'enable_environment_banner'),
         }
 
         if 'analytics_tool' in conf.getsection('webserver'):

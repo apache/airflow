@@ -1177,6 +1177,20 @@
       type: string
       example: ~
       default: "#fff"
+    - name: enable_environment_banner
+      description: |
+        Enable banner indicating environment type of the instance
+      version_added: ~
+      type: boolean
+      example: ~
+      default: "False"
+    - name: environment_type
+      description: |
+        Environment type of this Airflow instance. One of PROD, STAGING, TEST.
+      version_added: ~
+      type: string
+      example: ~
+      default: "STAGING"
     - name: default_dag_run_display_number
       description: |
         Default dagrun to show in UI

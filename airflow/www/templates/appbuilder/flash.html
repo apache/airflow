@@ -21,14 +21,13 @@
   Adapted from: https://github.com/dpgaspar/Flask-AppBuilder/blob/master/flask_appbuilder/templates/appbuilder/flash.html
 -#}
 <link rel="stylesheet" type="text/css" href="{{ url_for_asset('flash.css') }}">
-
+<div style="padding-top: 40px">
 {#
   Split messages into two arrays: one for regular alerts, another for DAG import errors
 #}
 {% with messages = get_flashed_messages(with_categories=true) %}
   {% set dag_import_errors = [] %}
   {% set regular_alerts = [] %}
-
   {% if messages %}
     {% for category, m in messages %}
       {% if category == 'dag_import_error' %}
@@ -64,6 +63,7 @@
     </div>
   {% endif %}
 {% endwith %}
+</div>
 
 {% block tail %}
   <script>
