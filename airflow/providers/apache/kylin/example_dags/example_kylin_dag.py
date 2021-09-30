@@ -29,7 +29,7 @@ dag = DAG(
     dag_id='example_kylin_operator',
     schedule_interval=None,
     start_date=datetime(2021, 1, 1),
-    default_args={'kylin_conn_id': 'kylin_default', 'project': 'learn_kylin', 'cube': 'kylin_sales_cube'},
+    default_args={'project': 'learn_kylin', 'cube': 'kylin_sales_cube'},
     tags=['example'],
 )
 
