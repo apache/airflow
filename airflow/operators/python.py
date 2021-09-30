@@ -254,6 +254,8 @@ class PythonVirtualenvOperator(PythonOperator):
     :param python_version: The Python version to run the virtualenv with. Note that
         both 2 and 2.7 are acceptable forms.
     :type python_version: Optional[Union[str, int, float]]
+    :param python_bin: The Python virtual machine path.
+    :type python_version: Optional[str]
     :param use_dill: Whether to use dill to serialize
         the args and result (pickle is default). This allow more complex types
         but requires you to include dill in your requirements.
@@ -314,6 +316,7 @@ class PythonVirtualenvOperator(PythonOperator):
         python_callable: Callable,
         requirements: Optional[Iterable[str]] = None,
         python_version: Optional[Union[str, int, float]] = None,
+        python_bin: Optional[str] = None,
         use_dill: bool = False,
         system_site_packages: bool = True,
         op_args: Optional[List] = None,
@@ -323,6 +326,11 @@ class PythonVirtualenvOperator(PythonOperator):
         templates_exts: Optional[List[str]] = None,
         **kwargs,
     ):
+        if python_version and python_bin:
+            raise ValueError('Only one of `python_version` or `python_bin` may be provided to PythonVirtualenvOperator; not both.')
+            if python_bin:
+                self.python_bin = python_bin
+                
         if (
             not isinstance(python_callable, types.FunctionType)
             or isinstance(python_callable, types.LambdaType)
@@ -374,12 +382,13 @@ class PythonVirtualenvOperator(PythonOperator):
             string_args_filename = os.path.join(tmp_dir, 'string_args.txt')
             script_filename = os.path.join(tmp_dir, 'script.py')
 
-            prepare_virtualenv(
-                venv_directory=tmp_dir,
-                python_bin=f'python{self.python_version}' if self.python_version else None,
-                system_site_packages=self.system_site_packages,
-                requirements=self.requirements,
-            )
+            if self.python_bin:
+                prepare_virtualenv(
+                    venv_directory=tmp_dir,
+                    python_bin=f'python{self.python_version}' if self.python_version else None,
+                    system_site_packages=self.system_site_packages,
+                    requirements=self.requirements,
+                )
 
             self._write_args(input_filename)
             self._write_string_args(string_args_filename)
@@ -397,7 +406,7 @@ class PythonVirtualenvOperator(PythonOperator):
 
             execute_in_subprocess(
                 cmd=[
-                    f'{tmp_dir}/bin/python',
+                    f'{tmp_dir}/bin/python' if not self.python_bin else self.python_bin,
                     script_filename,
                     input_filename,
                     output_filename,
