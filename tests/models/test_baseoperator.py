@@ -30,6 +30,7 @@ from airflow.models.baseoperator import BaseOperator, BaseOperatorMeta, chain, c
 from airflow.utils.edgemodifier import Label
 from airflow.utils.task_group import TaskGroup
 from airflow.utils.trigger_rule import TriggerRule
+from airflow.utils.weight_rule import WeightRule
 from tests.models import DEFAULT_DATE
 from tests.test_utils.mock_operators import DeprecatedOperator, MockNamedTuple, MockOperator
 
@@ -564,6 +565,14 @@ class TestBaseOperator:
             op1 = BaseOperator(task_id="op1", trigger_rule=rule)
 
             assert op1.trigger_rule == TriggerRule.ALWAYS
+
+    def test_weight_rule_default(self):
+        op = BaseOperator(task_id="test_task")
+        assert WeightRule.DOWNSTREAM == op.weight_rule
+
+    def test_weight_rule_override(self):
+        op = BaseOperator(task_id="test_task", weight_rule="upstream")
+        assert WeightRule.UPSTREAM == op.weight_rule
 
 
 def test_init_subclass_args():
