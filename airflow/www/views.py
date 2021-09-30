@@ -464,7 +464,7 @@ class AirflowBaseView(BaseView):
 
     if not conf.getboolean('core', 'unit_test_mode'):
         extra_args['sqlite_warning'] = settings.Session.bind.dialect.name == 'sqlite'
-        extra_args['sequential_executor_warning'] = conf.get('core', 'executor') == 'LocalExecutor'
+        extra_args['sequential_executor_warning'] = conf.get('core', 'executor') == 'SequentialExecutor'
 
     line_chart_attr = {
         'legend.maxKeyLength': 200,
