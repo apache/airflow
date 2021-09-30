@@ -18,8 +18,25 @@
 import logging
 import os
 
+from airflow.utils.log.logging_mixin import AirflowStreamHandler
 
-class NonCachingFileHandler(logging.FileHandler):
+
+class AirflowFileHandler(logging.FileHandler, AirflowStreamHandler):
+    """If ``logging.single_line_logs`` is set to True, emits log lines as single line."""
+
+    def emit(self, record):
+        """
+        Emit a record.
+
+        If the stream was not opened because 'delay' was specified in the
+        constructor, open it before calling the superclass's emit.
+        """
+        if self.stream is None:
+            self.stream = self._open()
+        AirflowStreamHandler.emit(self, record)
+
+
+class NonCachingFileHandler(AirflowFileHandler):
     """
     This is an extension of the python FileHandler that advises the Kernel to not cache the file
     in PageCache when it is written. While there is nothing wrong with such cache (it will be cleaned

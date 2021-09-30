@@ -135,7 +135,30 @@ class StreamLogWriter:
         return False
 
 
-class RedirectStdHandler(StreamHandler):
+class AirflowStreamHandler(StreamHandler):
+    """If ``logging.single_line_logs`` is set to True, emits log lines as single line."""
+
+    def emit(self, record):
+        """Emit a record as single line in case ``logging.single_line_logs`` configuration is True."""
+        from airflow.configuration import conf
+
+        if not conf.getboolean("logging", "single_line_logs", fallback=True):
+            return super().emit(record)
+        try:
+            msg = self.format(record)
+            # make sure the message does not contain CR/LF (i.e. it fits into one line)
+            msg = msg.replace("\n", "\\n").replace("\r", "\\r")
+            stream = self.stream
+            # issue 35046: merged two stream.writes into one.
+            stream.write(msg + self.terminator)
+            self.flush()
+        except RecursionError:  # See issue 36272
+            raise
+        except Exception:
+            self.handleError(record)
+
+
+class RedirectStdHandler(AirflowStreamHandler):
     """
     This class is like a StreamHandler using sys.stderr/stdout, but always uses
     whatever sys.stderr/stderr is currently set to rather than the value of
