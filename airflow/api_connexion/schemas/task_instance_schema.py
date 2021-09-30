@@ -129,12 +129,21 @@ class SetTaskInstanceStateFormSchema(Schema):
 
     dry_run = fields.Boolean(dump_default=True)
     task_id = fields.Str(required=True)
-    execution_date = fields.DateTime(required=True, validate=validate_istimezone)
+    execution_date = fields.DateTime(validate=validate_istimezone)
+    dag_run_id = fields.Str()
     include_upstream = fields.Boolean(required=True)
     include_downstream = fields.Boolean(required=True)
     include_future = fields.Boolean(required=True)
     include_past = fields.Boolean(required=True)
     new_state = TaskInstanceStateField(required=True, validate=validate.OneOf([State.SUCCESS, State.FAILED]))
+
+    @validates_schema
+    def validate_form(self, data, **kwargs):
+        """Validates set task instance state form"""
+        if data.get("execution_date") and data.get('dag_run_id'):
+            raise ValidationError("You cannot provide both the dag_run_id and the execution_date")
+        if not data.get("execution_date") and not data.get('dag_run_id'):
+            raise ValidationError("You must provide either the dag_run_id or the execution_date")
 
 
 class TaskInstanceReferenceSchema(Schema):

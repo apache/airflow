@@ -301,7 +301,7 @@
           <form method="GET" data-action="{{ url_for('Airflow.confirm') }}">
             <input type="hidden" name="dag_id" value="{{ dag.dag_id }}">
             <input type="hidden" name="task_id">
-            <input type="hidden" name="execution_date">
+            <input type="hidden" name="dag_run_id">
             <input type="hidden" name="origin" value="{{ request.base_url }}">
             <input type="hidden" name="state" value="failed">
             <div class="row">
@@ -334,7 +334,7 @@
           <form method="GET" data-action="{{ url_for('Airflow.confirm') }}">
             <input type="hidden" name="dag_id" value="{{ dag.dag_id }}">
             <input type="hidden" name="task_id">
-            <input type="hidden" name="execution_date">
+            <input type="hidden" name="dag_run_id">
             <input type="hidden" name="origin" value="{{ request.base_url }}">
             <input type="hidden" name="state" value="success">
             <div class="row">
@@ -388,7 +388,7 @@
               <form method="POST">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <input type="hidden" name="dag_id" value="{{ dag.dag_id }}">
-                <input type="hidden" name="execution_date">
+                <input type="hidden" name="dag_run_id">
                 <input type="hidden" name="origin" value="{{ request.base_url }}">
                 <button type="button" id="btn_dagrun_clear" class="btn btn-primary" data-action="{{ url_for('Airflow.dagrun_clear') }}">
                   Clear

@@ -80,7 +80,7 @@ from airflow.utils import timezone
 from airflow.utils.dag_cycle_tester import check_cycle
 from airflow.utils.dates import cron_presets, date_range as utils_date_range
 from airflow.utils.file import correct_maybe_zipped
-from airflow.utils.helpers import validate_key
+from airflow.utils.helpers import exactly_one, validate_key
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.sqlalchemy import Interval, UtcDateTime, skip_locked, with_row_locks
@@ -1191,7 +1191,7 @@ class DAG(LoggingMixin):
     @provide_session
     def get_dagrun(
         self,
-        execution_date: Optional[str] = None,
+        execution_date: Optional[datetime] = None,
         run_id: Optional[str] = None,
         session: Session = NEW_SESSION,
     ):
@@ -1633,8 +1633,10 @@ class DAG(LoggingMixin):
     @provide_session
     def set_task_instance_state(
         self,
+        *,
         task_id: str,
-        execution_date: datetime,
+        execution_date: Optional[datetime] = None,
+        dag_run_id: Optional[str] = None,
         state: TaskInstanceState,
         upstream: bool = False,
         downstream: bool = False,
@@ -1649,8 +1651,10 @@ class DAG(LoggingMixin):
 
         :param task_id: Task ID of the TaskInstance
         :type task_id: str
-        :param execution_date: execution_date of the TaskInstance
-        :type execution_date: datetime
+        :param execution_date: Execution date of the TaskInstance
+        :type execution_date: Optional[datetime.datetime]
+        :param dag_run_id: The run_id of the TaskInstance
+        :type dag_run_id: Optional[str]
         :param state: State to set the TaskInstance to
         :type state: TaskInstanceState
         :param upstream: Include all upstream tasks of the given task_id
@@ -1664,14 +1668,24 @@ class DAG(LoggingMixin):
         :param past: Include all past TaskInstances of the given task_id
         :type past: bool
         """
-        from airflow.api.common.experimental.mark_tasks import set_state
+        from airflow.api.common.mark_tasks import set_state
+
+        if not exactly_one(execution_date, dag_run_id):
+            raise ValueError("Exactly one of execution_date or dag_run_id must be provided")
+        input_execution_date = execution_date
+        if dag_run_id:
+            dag_run = (
+                session.query(DagRun).filter(DagRun.run_id == dag_run_id, DagRun.dag_id == self.dag_id).one()
+            )  # Raises an error if not found
+            resolve_execution_date = dag_run.execution_date
 
         task = self.get_task(task_id)
         task.dag = self
 
         altered = set_state(
             tasks=[task],
-            execution_date=execution_date,
+            execution_date=input_execution_date,
+            dag_run_id=dag_run_id,
             upstream=upstream,
             downstream=downstream,
             future=future,
@@ -1693,8 +1707,8 @@ class DAG(LoggingMixin):
             include_upstream=False,
         )
 
-        end_date = execution_date if not future else None
-        start_date = execution_date if not past else None
+        end_date = input_execution_date or resolve_execution_date if not future else None
+        start_date = input_execution_date or resolve_execution_date if not past else None
 
         subdag.clear(
             start_date=start_date,

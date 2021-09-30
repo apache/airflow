@@ -16,14 +16,13 @@
 # specific language governing permissions and limitations
 # under the License.
 
-import unittest
 from datetime import timedelta
 
 import pytest
 from sqlalchemy.orm import eagerload
 
 from airflow import models
-from airflow.api.common.experimental.mark_tasks import (
+from airflow.api.common.mark_tasks import (
     _create_dagruns,
     set_dag_run_state_to_failed,
     set_dag_run_state_to_running,
@@ -136,9 +135,10 @@ class TestMarkTasks:
         # set one task to success but do not commit
         snapshot = TestMarkTasks.snapshot_state(self.dag1, self.execution_dates)
         task = self.dag1.get_task("runme_1")
+        dr = DagRun.find(dag_id=self.dag1.dag_id, execution_date=self.execution_dates[0])[0]
         altered = set_state(
             tasks=[task],
-            execution_date=self.execution_dates[0],
+            dag_run_id=dr.run_id,
             upstream=False,
             downstream=False,
             future=False,
@@ -152,7 +152,7 @@ class TestMarkTasks:
         # set one and only one task to success
         altered = set_state(
             tasks=[task],
-            execution_date=self.execution_dates[0],
+            dag_run_id=dr.run_id,
             upstream=False,
             downstream=False,
             future=False,
@@ -166,7 +166,7 @@ class TestMarkTasks:
         # set no tasks
         altered = set_state(
             tasks=[task],
-            execution_date=self.execution_dates[0],
+            dag_run_id=dr.run_id,
             upstream=False,
             downstream=False,
             future=False,
@@ -180,7 +180,7 @@ class TestMarkTasks:
         # set task to other than success
         altered = set_state(
             tasks=[task],
-            execution_date=self.execution_dates[0],
+            dag_run_id=dr.run_id,
             upstream=False,
             downstream=False,
             future=False,
@@ -196,7 +196,7 @@ class TestMarkTasks:
         task = self.dag1.get_task("runme_0")
         altered = set_state(
             tasks=[task],
-            execution_date=self.execution_dates[0],
+            dag_run_id=dr.run_id,
             upstream=False,
             downstream=False,
             future=False,
@@ -210,9 +210,10 @@ class TestMarkTasks:
         # set one task as FAILED. dag3 has schedule_interval None
         snapshot = TestMarkTasks.snapshot_state(self.dag3, self.dag3_execution_dates)
         task = self.dag3.get_task("run_this")
+        dr = DagRun.find(dag_id=self.dag3.dag_id, execution_date=self.dag3_execution_dates[1])[0]
         altered = set_state(
             tasks=[task],
-            execution_date=self.dag3_execution_dates[1],
+            dag_run_id=dr.run_id,
             upstream=False,
             downstream=False,
             future=False,
@@ -235,10 +236,11 @@ class TestMarkTasks:
         relatives = task.get_flat_relatives(upstream=False)
         task_ids = [t.task_id for t in relatives]
         task_ids.append(task.task_id)
+        dr = DagRun.find(dag_id=self.dag1.dag_id, execution_date=self.execution_dates[0])[0]
 
         altered = set_state(
             tasks=[task],
-            execution_date=self.execution_dates[0],
+            dag_run_id=dr.run_id,
             upstream=False,
             downstream=True,
             future=False,
@@ -253,13 +255,14 @@ class TestMarkTasks:
         # test upstream
         snapshot = TestMarkTasks.snapshot_state(self.dag1, self.execution_dates)
         task = self.dag1.get_task("run_after_loop")
+        dr = DagRun.find(dag_id=self.dag1.dag_id, execution_date=self.execution_dates[0])[0]
         relatives = task.get_flat_relatives(upstream=True)
         task_ids = [t.task_id for t in relatives]
         task_ids.append(task.task_id)
 
         altered = set_state(
             tasks=[task],
-            execution_date=self.execution_dates[0],
+            dag_run_id=dr.run_id,
             upstream=True,
             downstream=False,
             future=False,
@@ -274,9 +277,10 @@ class TestMarkTasks:
         # set one task to success towards end of scheduled dag runs
         snapshot = TestMarkTasks.snapshot_state(self.dag1, self.execution_dates)
         task = self.dag1.get_task("runme_1")
+        dr = DagRun.find(dag_id=self.dag1.dag_id, execution_date=self.execution_dates[0])[0]
         altered = set_state(
             tasks=[task],
-            execution_date=self.execution_dates[0],
+            dag_run_id=dr.run_id,
             upstream=False,
             downstream=False,
             future=True,
@@ -289,9 +293,10 @@ class TestMarkTasks:
 
         snapshot = TestMarkTasks.snapshot_state(self.dag3, self.dag3_execution_dates)
         task = self.dag3.get_task("run_this")
+        dr = DagRun.find(dag_id=self.dag3.dag_id, execution_date=self.dag3_execution_dates[1])[0]
         altered = set_state(
             tasks=[task],
-            execution_date=self.dag3_execution_dates[1],
+            dag_run_id=dr.run_id,
             upstream=False,
             downstream=False,
             future=True,
@@ -307,9 +312,10 @@ class TestMarkTasks:
         # set one task to success towards end of scheduled dag runs
         snapshot = TestMarkTasks.snapshot_state(self.dag1, self.execution_dates)
         task = self.dag1.get_task("runme_1")
+        dr = DagRun.find(dag_id=self.dag1.dag_id, execution_date=self.execution_dates[1])[0]
         altered = set_state(
             tasks=[task],
-            execution_date=self.execution_dates[1],
+            dag_run_id=dr.run_id,
             upstream=False,
             downstream=False,
             future=False,
@@ -322,9 +328,10 @@ class TestMarkTasks:
 
         snapshot = TestMarkTasks.snapshot_state(self.dag3, self.dag3_execution_dates)
         task = self.dag3.get_task("run_this")
+        dr = DagRun.find(dag_id=self.dag3.dag_id, execution_date=self.dag3_execution_dates[1])[0]
         altered = set_state(
             tasks=[task],
-            execution_date=self.dag3_execution_dates[1],
+            dag_run_id=dr.run_id,
             upstream=False,
             downstream=False,
             future=False,
@@ -340,9 +347,10 @@ class TestMarkTasks:
         # set multiple tasks to success
         snapshot = TestMarkTasks.snapshot_state(self.dag1, self.execution_dates)
         tasks = [self.dag1.get_task("runme_1"), self.dag1.get_task("runme_2")]
+        dr = DagRun.find(dag_id=self.dag1.dag_id, execution_date=self.execution_dates[0])[0]
         altered = set_state(
             tasks=tasks,
-            execution_date=self.execution_dates[0],
+            dag_run_id=dr.run_id,
             upstream=False,
             downstream=False,
             future=False,
@@ -365,10 +373,11 @@ class TestMarkTasks:
         relatives = task.get_flat_relatives(upstream=False)
         task_ids = [t.task_id for t in relatives]
         task_ids.append(task.task_id)
+        dr = DagRun.find(dag_id=self.dag2.dag_id, execution_date=self.execution_dates[0])[0]
 
         altered = set_state(
             tasks=[task],
-            execution_date=self.execution_dates[0],
+            dag_run_id=dr.run_id,
             upstream=False,
             downstream=True,
             future=False,
@@ -384,7 +393,7 @@ class TestMarkTasks:
         self.verify_state(self.dag2, task_ids, [self.execution_dates[0]], State.SUCCESS, [])
 
 
-class TestMarkDAGRun(unittest.TestCase):
+class TestMarkDAGRun:
     INITIAL_TASK_STATES = {
         'runme_0': State.SUCCESS,
         'runme_1': State.SKIPPED,
@@ -395,7 +404,7 @@ class TestMarkDAGRun(unittest.TestCase):
     }
 
     @classmethod
-    def setUpClass(cls):
+    def setup_class(cls):
         dagbag = models.DagBag(include_examples=True, read_dags_from_db=False)
         cls.dag1 = dagbag.dags['miscellaneous_test_dag']
         cls.dag1.sync_to_db()
@@ -403,7 +412,10 @@ class TestMarkDAGRun(unittest.TestCase):
         cls.dag2.sync_to_db()
         cls.execution_dates = [days_ago(2), days_ago(1), days_ago(0)]
 
-    def setUp(self):
+    def setup_method(self):
+        clear_db_runs()
+
+    def teardown_method(self) -> None:
         clear_db_runs()
 
     def _get_num_tasks_with_starting_state(self, state: State, inclusion: bool):
@@ -469,7 +481,7 @@ class TestMarkDAGRun(unittest.TestCase):
         middle_time = timezone.utcnow()
         self._set_default_task_instance_states(dr)
 
-        altered = set_dag_run_state_to_success(dag=self.dag1, execution_date=date, commit=True)
+        altered = set_dag_run_state_to_success(dag=self.dag1, run_id=dr.run_id, commit=True)
 
         # All except the SUCCESS task should be altered.
         expected = self._get_num_tasks_with_starting_state(State.SUCCESS, inclusion=False)
@@ -484,7 +496,7 @@ class TestMarkDAGRun(unittest.TestCase):
         middle_time = timezone.utcnow()
         self._set_default_task_instance_states(dr)
 
-        altered = set_dag_run_state_to_failed(dag=self.dag1, execution_date=date, commit=True)
+        altered = set_dag_run_state_to_failed(dag=self.dag1, run_id=dr.run_id, commit=True)
         # Only running task should be altered.
         expected = self._get_num_tasks_with_starting_state(State.RUNNING, inclusion=True)
         assert len(altered) == expected
@@ -498,7 +510,7 @@ class TestMarkDAGRun(unittest.TestCase):
         middle_time = timezone.utcnow()
         self._set_default_task_instance_states(dr)
 
-        altered = set_dag_run_state_to_running(dag=self.dag1, execution_date=date, commit=True)
+        altered = set_dag_run_state_to_running(dag=self.dag1, run_id=dr.run_id, commit=True)
 
         # None of the tasks should be altered, only the dag itself
         assert len(altered) == 0
@@ -512,7 +524,7 @@ class TestMarkDAGRun(unittest.TestCase):
         middle_time = timezone.utcnow()
         self._set_default_task_instance_states(dr)
 
-        altered = set_dag_run_state_to_success(dag=self.dag1, execution_date=date, commit=True)
+        altered = set_dag_run_state_to_success(dag=self.dag1, run_id=dr.run_id, commit=True)
 
         # All except the SUCCESS task should be altered.
         expected = self._get_num_tasks_with_starting_state(State.SUCCESS, inclusion=False)
@@ -527,7 +539,7 @@ class TestMarkDAGRun(unittest.TestCase):
         middle_time = timezone.utcnow()
         self._set_default_task_instance_states(dr)
 
-        altered = set_dag_run_state_to_failed(dag=self.dag1, execution_date=date, commit=True)
+        altered = set_dag_run_state_to_failed(dag=self.dag1, run_id=dr.run_id, commit=True)
         # Only running task should be altered.
         expected = self._get_num_tasks_with_starting_state(State.RUNNING, inclusion=True)
         assert len(altered) == expected
@@ -541,7 +553,7 @@ class TestMarkDAGRun(unittest.TestCase):
         middle_time = timezone.utcnow()
         self._set_default_task_instance_states(dr)
 
-        altered = set_dag_run_state_to_running(dag=self.dag1, execution_date=date, commit=True)
+        altered = set_dag_run_state_to_running(dag=self.dag1, run_id=dr.run_id, commit=True)
 
         # None of the tasks should be altered, but only the dag object should be changed
         assert len(altered) == 0
@@ -555,7 +567,7 @@ class TestMarkDAGRun(unittest.TestCase):
         middle_time = timezone.utcnow()
         self._set_default_task_instance_states(dr)
 
-        altered = set_dag_run_state_to_success(dag=self.dag1, execution_date=date, commit=True)
+        altered = set_dag_run_state_to_success(dag=self.dag1, run_id=dr.run_id, commit=True)
 
         # All except the SUCCESS task should be altered.
         expected = self._get_num_tasks_with_starting_state(State.SUCCESS, inclusion=False)
@@ -570,7 +582,7 @@ class TestMarkDAGRun(unittest.TestCase):
         middle_time = timezone.utcnow()
         self._set_default_task_instance_states(dr)
 
-        altered = set_dag_run_state_to_failed(dag=self.dag1, execution_date=date, commit=True)
+        altered = set_dag_run_state_to_failed(dag=self.dag1, run_id=dr.run_id, commit=True)
 
         # Only running task should be altered.
         expected = self._get_num_tasks_with_starting_state(State.RUNNING, inclusion=True)
@@ -585,7 +597,7 @@ class TestMarkDAGRun(unittest.TestCase):
         middle_time = timezone.utcnow()
         self._set_default_task_instance_states(dr)
 
-        altered = set_dag_run_state_to_running(dag=self.dag1, execution_date=date, commit=True)
+        altered = set_dag_run_state_to_running(dag=self.dag1, run_id=dr.run_id, commit=True)
 
         # None of the tasks should be altered, since we've only altered the DAG itself
         assert len(altered) == 0
@@ -598,14 +610,14 @@ class TestMarkDAGRun(unittest.TestCase):
         dr = self._create_test_dag_run(State.RUNNING, date)
         self._set_default_task_instance_states(dr)
 
-        will_be_altered = set_dag_run_state_to_running(dag=self.dag1, execution_date=date, commit=False)
+        will_be_altered = set_dag_run_state_to_running(dag=self.dag1, run_id=dr.run_id, commit=False)
 
         # None of the tasks will be altered.
         assert len(will_be_altered) == 0
         self._verify_dag_run_state(self.dag1, date, State.RUNNING)
         self._verify_task_instance_states_remain_default(dr)
 
-        will_be_altered = set_dag_run_state_to_failed(dag=self.dag1, execution_date=date, commit=False)
+        will_be_altered = set_dag_run_state_to_failed(dag=self.dag1, run_id=dr.run_id, commit=False)
 
         # Only the running task should be altered.
         expected = self._get_num_tasks_with_starting_state(State.RUNNING, inclusion=True)
@@ -613,7 +625,7 @@ class TestMarkDAGRun(unittest.TestCase):
         self._verify_dag_run_state(self.dag1, date, State.RUNNING)
         self._verify_task_instance_states_remain_default(dr)
 
-        will_be_altered = set_dag_run_state_to_success(dag=self.dag1, execution_date=date, commit=False)
+        will_be_altered = set_dag_run_state_to_success(dag=self.dag1, run_id=dr.run_id, commit=False)
 
         # All except the SUCCESS task should be altered.
         expected = self._get_num_tasks_with_starting_state(State.SUCCESS, inclusion=False)
@@ -629,7 +641,7 @@ class TestMarkDAGRun(unittest.TestCase):
             execution_date=self.execution_dates[0],
             session=session,
         )
-        self.dag2.create_dagrun(
+        dr2 = self.dag2.create_dagrun(
             run_type=DagRunType.MANUAL,
             state=State.FAILED,
             execution_date=self.execution_dates[1],
@@ -642,9 +654,7 @@ class TestMarkDAGRun(unittest.TestCase):
             session=session,
         )
 
-        altered = set_dag_run_state_to_success(
-            dag=self.dag2, execution_date=self.execution_dates[1], commit=True
-        )
+        altered = set_dag_run_state_to_success(dag=self.dag2, run_id=dr2.run_id, commit=True)
 
         # Recursively count number of tasks in the dag
         def count_dag_tasks(dag):
@@ -671,25 +681,22 @@ class TestMarkDAGRun(unittest.TestCase):
         altered = set_dag_run_state_to_running(dag=None, execution_date=self.execution_dates[0])
         assert len(altered) == 0
 
-        # Invalid execution date
-        altered = set_dag_run_state_to_success(dag=self.dag1, execution_date=None)
+        # No dag_run_id
+        altered = set_dag_run_state_to_success(dag=self.dag1, run_id=None)
         assert len(altered) == 0
-        altered = set_dag_run_state_to_failed(dag=self.dag1, execution_date=None)
+        altered = set_dag_run_state_to_failed(dag=self.dag1, run_id=None)
         assert len(altered) == 0
-        altered = set_dag_run_state_to_running(dag=self.dag1, execution_date=None)
+        altered = set_dag_run_state_to_running(dag=self.dag1, run_id=None)
         assert len(altered) == 0
 
-        # This will throw ValueError since dag.latest_execution_date
+        # This will throw ValueError since dag.last_dagrun is None
         # need to be 0 does not exist.
         with pytest.raises(ValueError):
-            set_dag_run_state_to_success(
-                dag=self.dag2, execution_date=timezone.make_naive(self.execution_dates[0])
-            )
-        # altered = set_dag_run_state_to_success(self.dag1, self.execution_dates[0])
+            set_dag_run_state_to_success(dag=self.dag2, run_id='dag_run_id_that_does_not_exist')
         # DagRun does not exist
-        # This will throw ValueError since dag.latest_execution_date does not exist
+        # This will throw ValueError since dag.last_dagrun does not exist
         with pytest.raises(ValueError):
-            set_dag_run_state_to_success(dag=self.dag2, execution_date=self.execution_dates[0])
+            set_dag_run_state_to_success(dag=self.dag2, run_id='dag_run_id_that_does_not_exist')
 
     def test_set_dag_run_state_to_failed_no_running_tasks(self):
         """
@@ -700,7 +707,7 @@ class TestMarkDAGRun(unittest.TestCase):
         for task in self.dag1.tasks:
             dr.get_task_instance(task.task_id).set_state(State.SUCCESS)
 
-        set_dag_run_state_to_failed(dag=self.dag1, execution_date=date)
+        set_dag_run_state_to_failed(dag=self.dag1, run_id=dr.run_id)
 
     def tearDown(self):
         self.dag1.clear()

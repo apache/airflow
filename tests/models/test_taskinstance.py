@@ -49,7 +49,7 @@ from airflow.models import (
     Variable,
     XCom,
 )
-from airflow.models.taskinstance import load_error_file, set_error_file
+from airflow.models.taskinstance import TaskInstance, load_error_file, set_error_file
 from airflow.operators.bash import BashOperator
 from airflow.operators.dummy import DummyOperator
 from airflow.operators.python import PythonOperator
@@ -141,6 +141,11 @@ class TestTaskInstance:
         with NamedTemporaryFile() as error_fd:
             set_error_file(error_fd.name, error=error_message)
             assert load_error_file(error_fd) == error_message
+
+    def test_find_task_instances(self, create_task_instance, dag_maker, create_dummy_dag, session):
+        RUN_ID = 'test_run'
+        ti = create_task_instance(run_id=RUN_ID, state=State.RUNNING)
+        assert TaskInstance.find(dag_id=ti.dag_id, task_id=ti.task_id, run_id=RUN_ID, session=session) == ti
 
     def test_set_task_dates(self, dag_maker):
         """

@@ -534,7 +534,7 @@ def dag_maker(request):
 
             if "run_type" not in kwargs:
                 kwargs["run_type"] = DagRunType.from_run_id(kwargs["run_id"])
-            if "execution_date" not in kwargs:
+            if kwargs.get("execution_date") is None:
                 if kwargs["run_type"] == DagRunType.MANUAL:
                     kwargs["execution_date"] = self.start_date
                 else:
