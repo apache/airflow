@@ -194,7 +194,14 @@ class AirflowConfigParser(ConfigParser):
         },
     }
 
-    enums = {("core", "default_task_weight_rule"): WeightRule}
+    _available_logging_levels = ['CRITICAL', 'FATAL', 'ERROR', 'WARN', 'WARNING', 'INFO', 'DEBUG']
+    enums = {
+        ("core", "default_task_weight_rule"): WeightRule.all_weight_rules(),
+        ('core', 'mp_start_method'): multiprocessing.get_all_start_methods(),
+        ("scheduler", "file_parsing_sort_mode"): {"modified_time", "random_seeded_by_host", "alphabetical"},
+        ("logging", "logging_level"): _available_logging_levels,
+        ("logging", "fab_logging_level"): _available_logging_levels,
+    }
 
     # This method transforms option names on every read, get, or set operation.
     # This changes from the default behaviour of ConfigParser from lowercasing
@@ -236,12 +243,13 @@ class AirflowConfigParser(ConfigParser):
 
     def _validate_enums(self):
         """Validate that enum type config has an accepted value"""
-        for (section, setting), enum_class in self.enums.items():
-            if self.has_option(section, setting):
-                value = self.get(section, setting)
-                if not enum_class.is_valid(value):
+        for (section_key, option_key), enum_options in self.enums.items():
+            if self.has_option(section_key, option_key):
+                value = self.get(section_key, option_key)
+                if value not in enum_options:
                     raise AirflowConfigException(
-                        f"{value} is not an accepted config for [{section}] {setting}"
+                        f"`[{section_key}] {option_key}` should not be "
+                        + f"'{value}'. Possible values: {', '.join(enum_options)}."
                     )
 
     def _validate_config_dependencies(self):
@@ -268,28 +276,6 @@ class AirflowConfigParser(ConfigParser):
                 raise AirflowConfigException(
                     f"error: sqlite C library version too old (< {min_sqlite_version}). "
                     f"See {get_docs_url('howto/set-up-database.html#setting-up-a-sqlite-database')}"
-                )
-
-        if self.has_option('core', 'mp_start_method'):
-            mp_start_method = self.get('core', 'mp_start_method')
-            start_method_options = multiprocessing.get_all_start_methods()
-
-            if mp_start_method not in start_method_options:
-                raise AirflowConfigException(
-                    "mp_start_method should not be "
-                    + mp_start_method
-                    + ". Possible values are "
-                    + ", ".join(start_method_options)
-                )
-
-        if self.has_option("scheduler", "file_parsing_sort_mode"):
-            list_mode = self.get("scheduler", "file_parsing_sort_mode")
-            file_parser_modes = {"modified_time", "random_seeded_by_host", "alphabetical"}
-
-            if list_mode not in file_parser_modes:
-                raise AirflowConfigException(
-                    "`[scheduler] file_parsing_sort_mode` should not be "
-                    + f"{list_mode}. Possible values are {', '.join(file_parser_modes)}."
                 )
 
     def _using_old_value(self, old, current_value):
