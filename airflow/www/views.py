@@ -1623,6 +1623,10 @@ class Airflow(AirflowBaseView):
         request_execution_date = request.values.get('execution_date', default=timezone.utcnow().isoformat())
         is_dag_run_conf_overrides_params = conf.getboolean('core', 'dag_run_conf_overrides_params')
         dag = current_app.dag_bag.get_dag(dag_id)
+        dag_orm = session.query(models.DagModel).filter(models.DagModel.dag_id == dag_id).first()
+        if not dag_orm:
+            flash(f"Cannot find dag {dag_id}")
+            return redirect(origin)
 
         if request.method == 'GET':
             # Populate conf textarea with conf requests parameter, or dag.params
@@ -1649,11 +1653,6 @@ class Airflow(AirflowBaseView):
                 form=form,
                 is_dag_run_conf_overrides_params=is_dag_run_conf_overrides_params,
             )
-
-        dag_orm = session.query(models.DagModel).filter(models.DagModel.dag_id == dag_id).first()
-        if not dag_orm:
-            flash(f"Cannot find dag {dag_id}")
-            return redirect(origin)
 
         try:
             execution_date = timezone.parse(request_execution_date)
