@@ -20,6 +20,7 @@ from flask import current_app, request
 from marshmallow import ValidationError
 from sqlalchemy import and_, func
 from sqlalchemy.orm import eagerload
+from sqlalchemy.orm.exc import NoResultFound
 
 from airflow.api_connexion import security
 from airflow.api_connexion.exceptions import BadRequest, NotFound
@@ -286,9 +287,15 @@ def post_set_task_instances_state(dag_id, session):
         error_message = f"Task ID {task_id} not found"
         raise NotFound(error_message)
 
+    execution_date = data['execution_date']
+    try:
+        session.query(TI).filter_by(execution_date=execution_date, task_id=task_id, dag_id=dag_id).one()
+    except NoResultFound:
+        raise NotFound(f"Task instance not found for task {task_id} on execution_date {execution_date}")
+
     tis = dag.set_task_instance_state(
         task_id=task_id,
-        execution_date=data["execution_date"],
+        execution_date=execution_date,
         state=data["new_state"],
         upstream=data["include_upstream"],
         downstream=data["include_downstream"],

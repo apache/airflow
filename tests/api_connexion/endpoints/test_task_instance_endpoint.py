@@ -1129,6 +1129,30 @@ class TestPostSetTaskInstanceState(TestTaskInstanceEndpoint):
         )
         assert response.status_code == 404
 
+    @mock.patch('airflow.models.dag.DAG.set_task_instance_state')
+    def test_should_raise_not_found_if_execution_date_is_wrong(self, mock_set_task_instance_state, session):
+        self.create_task_instances(session)
+        date = DEFAULT_DATETIME_1 + dt.timedelta(days=1)
+        response = self.client.post(
+            "/api/v1/dags/example_python_operator/updateTaskInstancesState",
+            environ_overrides={'REMOTE_USER': "test"},
+            json={
+                "dry_run": True,
+                "task_id": "print_the_context",
+                "execution_date": date,
+                "include_upstream": True,
+                "include_downstream": True,
+                "include_future": True,
+                "include_past": True,
+                "new_state": "failed",
+            },
+        )
+        assert response.status_code == 404
+        assert response.json['title'] == (
+            f"Task instance not found for task print_the_context on execution_date {date}"
+        )
+        assert mock_set_task_instance_state.call_count == 0
+
     def test_should_raise_404_not_found_task(self):
         response = self.client.post(
             "/api/v1/dags/example_python_operator/updateTaskInstancesState",
