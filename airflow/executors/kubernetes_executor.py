@@ -483,7 +483,7 @@ class KubernetesExecutor(BaseExecutor, LoggingMixin):
             if pod_list.items:
                 continue
             # Fallback to old style of using execution_date
-            kwargs['label_selector'] = dict_string + ',exectuion_date={}'.format(
+            kwargs['label_selector'] = dict_string + ',execution_date={}'.format(
                 pod_generator.datetime_to_label_safe_datestring(task.execution_date)
             )
             pod_list = self.kube_client.list_namespaced_pod(self.kube_config.kube_namespace, **kwargs)

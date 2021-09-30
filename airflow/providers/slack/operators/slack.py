@@ -161,20 +161,19 @@ class SlackAPIFileOperator(SlackAPIOperator):
     .. code-block:: python
 
         # Send file with filename and filetype
-        with open("test.txt", "rb") as file:
-            slack = SlackAPIFileOperator(
-                task_id="slack_file_upload",
-                dag=dag,
-                slack_conn_id="slack",
-                channel="#general",
-                initial_comment="Hello World!",
-                file="/files/dags/test.txt",
-                filetype="txt",
-            )
+        slack_operator_file = SlackAPIFileOperator(
+            task_id="slack_file_upload_1",
+            dag=dag,
+            slack_conn_id="slack",
+            channel="#general",
+            initial_comment="Hello World!",
+            filename="/files/dags/test.txt",
+            filetype="txt",
+        )
 
         # Send file content
-        slack = SlackAPIFileOperator(
-            task_id="slack_file_upload",
+        slack_operator_file_content = SlackAPIFileOperator(
+            task_id="slack_file_upload_2",
             dag=dag,
             slack_conn_id="slack",
             channel="#general",

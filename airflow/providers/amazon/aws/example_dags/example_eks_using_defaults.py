@@ -26,9 +26,8 @@ from airflow.providers.amazon.aws.operators.eks import (
 from airflow.providers.amazon.aws.sensors.eks import EKSClusterStateSensor, EKSNodegroupStateSensor
 from airflow.utils.dates import days_ago
 
-CLUSTER_NAME = 'eks-demo'
-NODEGROUP_SUFFIX = '-nodegroup'
-NODEGROUP_NAME = CLUSTER_NAME + NODEGROUP_SUFFIX
+CLUSTER_NAME = environ.get('EKS_CLUSTER_NAME', 'eks-demo')
+NODEGROUP_NAME = f'{CLUSTER_NAME}-nodegroup'
 ROLE_ARN = environ.get('EKS_DEMO_ROLE_ARN', 'arn:aws:iam::123456789012:role/role_name')
 SUBNETS = environ.get('EKS_DEMO_SUBNETS', 'subnet-12345ab subnet-67890cd').split(' ')
 VPC_CONFIG = {
@@ -74,7 +73,7 @@ with DAG(
         pod_name="run_pod",
         cluster_name=CLUSTER_NAME,
         image="amazon/aws-cli:latest",
-        cmds=["sh", "-c", "ls"],
+        cmds=["sh", "-c", "echo Test Airflow; date"],
         labels={"demo": "hello_world"},
         get_logs=True,
         # Delete the pod when it reaches its final state, or the execution is interrupted.

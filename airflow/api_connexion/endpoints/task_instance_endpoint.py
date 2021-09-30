@@ -34,7 +34,6 @@ from airflow.api_connexion.schemas.task_instance_schema import (
     task_instance_reference_collection_schema,
     task_instance_schema,
 )
-from airflow.exceptions import SerializedDagNotFound
 from airflow.models import SlaMiss
 from airflow.models.dagrun import DagRun as DR
 from airflow.models.taskinstance import TaskInstance as TI, clear_task_instances
@@ -276,12 +275,8 @@ def post_set_task_instances_state(dag_id, session):
         raise BadRequest(detail=str(err.messages))
 
     error_message = f"Dag ID {dag_id} not found"
-    try:
-        dag = current_app.dag_bag.get_dag(dag_id)
-        if not dag:
-            raise NotFound(error_message)
-    except SerializedDagNotFound:
-        # If DAG is not found in serialized_dag table
+    dag = current_app.dag_bag.get_dag(dag_id)
+    if not dag:
         raise NotFound(error_message)
 
     task_id = data['task_id']

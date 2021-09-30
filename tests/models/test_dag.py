@@ -31,6 +31,7 @@ from typing import Optional
 from unittest import mock
 from unittest.mock import patch
 
+import jinja2
 import pendulum
 import pytest
 from dateutil.relativedelta import relativedelta
@@ -506,15 +507,34 @@ class TestDag(unittest.TestCase):
         )
         session.close()
 
-    def test_user_defined_filters(self):
+    def test_user_defined_filters_macros(self):
         def jinja_udf(name):
             return f'Hello {name}'
 
-        dag = models.DAG('test-dag', start_date=DEFAULT_DATE, user_defined_filters={"hello": jinja_udf})
+        dag = models.DAG(
+            'test-dag',
+            start_date=DEFAULT_DATE,
+            user_defined_filters={"hello": jinja_udf},
+            user_defined_macros={"foo": "bar"},
+        )
         jinja_env = dag.get_template_env()
 
         assert 'hello' in jinja_env.filters
         assert jinja_env.filters['hello'] == jinja_udf
+        assert jinja_env.globals['foo'] == 'bar'
+
+    def test_set_jinja_env_additional_option(self):
+        dag = DAG("test-dag", jinja_environment_kwargs={'keep_trailing_newline': True, 'cache_size': 50})
+        jinja_env = dag.get_template_env()
+        assert jinja_env.keep_trailing_newline is True
+        assert jinja_env.cache.capacity == 50
+
+        assert jinja_env.undefined is jinja2.StrictUndefined
+
+    def test_template_undefined(self):
+        dag = DAG("test-dag", template_undefined=jinja2.Undefined)
+        jinja_env = dag.get_template_env()
+        assert jinja_env.undefined is jinja2.Undefined
 
     def test_resolve_template_files_value(self):
 

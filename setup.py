@@ -350,6 +350,7 @@ http = [
 http_provider = [
     'apache-airflow-providers-http',
 ]
+influxdb = ['pandas>=0.17.1, <2.0', 'influxdb-client>=1.19.0']
 jdbc = [
     'jaydebeapi>=1.1.1',
 ]
@@ -575,6 +576,7 @@ PROVIDERS_REQUIREMENTS: Dict[str, List[str]] = {
     'hashicorp': hashicorp,
     'http': http,
     'imap': [],
+    'influxdb': influxdb,
     'jdbc': jdbc,
     'jenkins': jenkins,
     'jira': jira,
@@ -747,6 +749,7 @@ ALL_DB_PROVIDERS = [
     'apache.pinot',
     'cloudant',
     'exasol',
+    'influxdb',
     'microsoft.mssql',
     'mongo',
     'mysql',

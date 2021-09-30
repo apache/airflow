@@ -285,6 +285,11 @@
                     "description": "Specifies whether RBAC resources should be created.",
                     "type": "boolean",
                     "default": true
+                },
+                "createSCCRoleBinding": {
+                    "description": "Specifies whether SCC RoleBinding resource should be created (refer to :doc:`Production Guide <production-guide>`).",
+                    "type": "boolean",
+                    "default": false
                 }
             }
         },
@@ -1141,6 +1146,11 @@
                         }
                     ]
                 },
+                "podAnnotations": {
+                    "description": "Annotations to add to the worker pods.",
+                    "type": "object",
+                    "default": {}
+                },
                 "logGroomerSidecar": {
                     "description": "Configuration for worker log groomer sidecar",
                     "type": "object",
@@ -1384,6 +1394,11 @@
                     "type": "array",
                     "default": []
                 },
+                "podAnnotations": {
+                    "description": "Annotations to add to the scheduler pods.",
+                    "type": "object",
+                    "default": {}
+                },
                 "logGroomerSidecar": {
                     "description": "Configuration for the schedulers log groomer sidecar.",
                     "type": "object",
@@ -1609,6 +1624,11 @@
                     "description": "Grace period for tasks to finish after SIGTERM is sent from Kubernetes.",
                     "type": "integer",
                     "default": 60
+                },
+                "podAnnotations": {
+                    "description": "Annotations to add to the triggerer pods.",
+                    "type": "object",
+                    "default": {}
                 }
             }
         },
@@ -2067,6 +2087,11 @@
                     "description": "Specify Tolerations for webserver pods.",
                     "type": "array",
                     "default": []
+                },
+                "podAnnotations": {
+                    "description": "Annotations to add to the webserver pods.",
+                    "type": "object",
+                    "default": {}
                 }
             }
         },
@@ -2287,6 +2312,11 @@
                     "description": "Specify Tolerations for Flower pods.",
                     "type": "array",
                     "default": []
+                },
+                "podAnnotations": {
+                    "description": "Annotations to add to the Flower pods.",
+                    "type": "object",
+                    "default": {}
                 }
             }
         },

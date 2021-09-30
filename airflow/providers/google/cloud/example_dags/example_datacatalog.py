@@ -19,6 +19,8 @@
 """
 Example Airflow DAG that interacts with Google Data Catalog service
 """
+import os
+
 from google.cloud.datacatalog_v1beta1 import FieldType, TagField, TagTemplateField
 
 from airflow import models
@@ -49,7 +51,8 @@ from airflow.providers.google.cloud.operators.datacatalog import (
 )
 from airflow.utils.dates import days_ago
 
-PROJECT_ID = "polidea-airflow"
+PROJECT_ID = os.getenv("GCP_PROJECT_ID")
+BUCKET_ID = os.getenv("GCP_TEST_DATA_BUCKET", "INVALID BUCKET NAME")
 LOCATION = "us-central1"
 ENTRY_GROUP_ID = "important_data_jan_2019"
 ENTRY_ID = "python_files"
@@ -92,7 +95,7 @@ with models.DAG("example_gcp_datacatalog", schedule_interval='@once', start_date
         entry={
             "display_name": "Wizard",
             "type_": "FILESET",
-            "gcs_fileset_spec": {"file_patterns": ["gs://INVALID BUCKET NAME/**"]},
+            "gcs_fileset_spec": {"file_patterns": [f"gs://{BUCKET_ID}/**"]},
         },
     )
     # [END howto_operator_gcp_datacatalog_create_entry_gcs]

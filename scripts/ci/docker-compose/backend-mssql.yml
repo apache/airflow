@@ -39,6 +39,7 @@ services:
       interval: 10s
       timeout: 10s
       retries: 10
+      start_period: 2m
     restart: always
   mssqlsetup:
     image: mcr.microsoft.com/mssql/server:${MSSQL_VERSION}

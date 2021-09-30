@@ -97,7 +97,6 @@ class AzureDataExplorerHook(BaseHook):
             "hidden_fields": ['schema', 'port', 'extra'],
             "relabeling": {
                 'login': 'Username',
-                'password': 'Password',
                 'host': 'Data Explorer Cluster URL',
             },
             "placeholders": {

@@ -34,6 +34,8 @@ additional-dependencies:
 integrations:
   - integration-name: Slack
     external-doc-url: https://slack.com/
+    how-to-guide:
+      - /docs/apache-airflow-providers-slack/operators/slack_operator_howto_guide.rst
     logo: /integration-logos/slack/Slack.png
     tags: [service]
 

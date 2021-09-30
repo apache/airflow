@@ -19,6 +19,7 @@
 
 {% extends base_template %}
 {% from 'appbuilder/loading_dots.html' import loading_dots %}
+{% from 'airflow/_messages.html' import message %}
 
 {% block page_title %}
   {% if search_query %}"{{ search_query }}" - {% endif %}DAGs - {{ appbuilder.app_name }}
@@ -44,6 +45,26 @@
   {{ super() }}
   <link rel="stylesheet" type="text/css" href="{{ url_for_asset('switch.css') }}">
   <link rel="stylesheet" type="text/css" href="{{ url_for_asset('dags.css') }}">
+{% endblock %}
+
+{% block messages %}
+  {% for m in dashboard_alerts %}
+    {{ message(m.message, m.category) }}
+  {% endfor %}
+  {{ super() }}
+  {% if sqlite_warning | default(true) %}
+    {% call message(category='warning', dismissable=false)  %}
+      Do not use <b>SQLite</b> as metadata DB in production &#8211; it should only be used for dev/testing
+      We recommend using Postgres or MySQL.
+      <a href={{ get_docs_url("howto/set-up-database.html") }}><b>Click here</b></a> for more information.
+    {% endcall %}
+  {% endif %}
+  {% if sequential_executor_warning | default(false) %}
+    {% call message(category='warning', dismissable=false)  %}
+      Do not use <b>SequentialExecutor</b> in production.
+      <a href={{ get_docs_url("executor/index.html") }}><b>Click here</b></a> for more information.
+    {% endcall %}
+  {% endif %}
 {% endblock %}
 
 {% block content %}

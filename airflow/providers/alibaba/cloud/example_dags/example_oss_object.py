@@ -15,6 +15,8 @@
 # specific language governing permissions and limitations
 # under the License.
 
+from datetime import datetime
+
 from airflow.models.dag import DAG
 from airflow.providers.alibaba.cloud.operators.oss import (
     OSSDeleteBatchObjectOperator,
@@ -22,47 +24,36 @@ from airflow.providers.alibaba.cloud.operators.oss import (
     OSSDownloadObjectOperator,
     OSSUploadObjectOperator,
 )
-from airflow.utils.dates import days_ago
 
 with DAG(
     dag_id='oss_object_dag',
-    start_date=days_ago(2),
+    start_date=datetime(2021, 1, 1),
+    default_args={'region': 'your region', 'bucket_name': 'your bucket'},
     max_active_runs=1,
     tags=['example'],
+    catchup=False,
 ) as dag:
 
     create_object = OSSUploadObjectOperator(
         file='your local file',
         key='your oss key',
-        oss_conn_id='oss_default',
-        region='your region',
         task_id='task1',
-        bucket_name='your bucket',
     )
 
     download_object = OSSDownloadObjectOperator(
         file='your local file',
         key='your oss key',
-        oss_conn_id='oss_default',
-        region='your region',
         task_id='task2',
-        bucket_name='your bucket',
     )
 
     delete_object = OSSDeleteObjectOperator(
         key='your oss key',
-        oss_conn_id='oss_default',
-        region='your region',
         task_id='task3',
-        bucket_name='your bucket',
     )
 
     delete_batch_object = OSSDeleteBatchObjectOperator(
         keys=['obj1', 'obj2', 'obj3'],
-        oss_conn_id='oss_default',
-        region='your region',
         task_id='task4',
-        bucket_name='your bucket',
     )
 
     create_object >> download_object >> delete_object >> delete_batch_object

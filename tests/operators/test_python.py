@@ -510,6 +510,24 @@ class TestBranchOperator(unittest.TestCase):
             else:
                 raise ValueError(f'Invalid task id {ti.task_id} found!')
 
+    def test_raise_exception_on_no_task_id_return(self):
+        branch_op = BranchPythonOperator(task_id='make_choice', dag=self.dag, python_callable=lambda: None)
+        self.dag.clear()
+        with pytest.raises(AirflowException) as ctx:
+            branch_op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
+        assert 'Branch callable must return either a task ID or a list of IDs' == str(ctx.value)
+
+    def test_raise_exception_on_invalid_task_id(self):
+        branch_op = BranchPythonOperator(
+            task_id='make_choice', dag=self.dag, python_callable=lambda: 'some_task_id'
+        )
+        self.dag.clear()
+        with pytest.raises(AirflowException) as ctx:
+            branch_op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
+        assert """Branch callable must valid task_ids. Invalid tasks found: {'some_task_id'}""" == str(
+            ctx.value
+        )
+
 
 class TestShortCircuitOperator(unittest.TestCase):
     @classmethod

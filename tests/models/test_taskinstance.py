@@ -2063,7 +2063,7 @@ class TestRunRawTaskQueriesCount:
         "expected_query_count, mark_success",
         [
             # Expected queries, mark_success
-            (12, False),
+            (10, False),
             (5, True),
         ],
     )

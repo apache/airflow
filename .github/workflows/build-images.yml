@@ -61,7 +61,6 @@ jobs:
     runs-on: ${{ github.repository == 'apache/airflow' && 'self-hosted' || 'ubuntu-20.04' }}
     env:
       targetBranch: ${{ github.event.pull_request.base.ref }}
-      pullRequestLabels: "${{ toJSON(github.event.pull_request.labels.*.name) }}"
     outputs:
       runsOn: ${{ github.repository == 'apache/airflow' && '["self-hosted"]' || '["ubuntu-20.04"]' }}
       pythonVersions: "${{ steps.selective-checks.python-versions }}"
@@ -86,6 +85,24 @@ jobs:
           echo "TARGET_COMMIT_SHA=$TARGET_COMMIT_SHA" >> $GITHUB_ENV
           echo "::set-output name=targetCommitSha::${TARGET_COMMIT_SHA}"
         if: github.event_name == 'pull_request_target'
+      # The labels in the event aren't updated when re-triggering the job, So lets hit the API to get
+      # up-to-date values
+      - name: Get latest PR labels
+        id: get-latest-pr-labels
+        run: |
+          echo -n "::set-output name=pullRequestLabels::"
+          gh api graphql --paginate -F node_id=${{github.event.pull_request.node_id}} -f query='
+            query($node_id: ID!, $endCursor: String) {
+              node(id:$node_id) {
+                ... on PullRequest {
+                  labels(first: 100, after: $endCursor) {
+                    nodes { name }
+                    pageInfo { hasNextPage endCursor }
+                  }
+                }
+              }
+            }' --jq '.data.node.labels.nodes[]' | jq --slurp -c '[.[].name]'
+        if: github.event_name == 'pull_request_target'
       # Retrieve it to be able to determine which files has changed in the incoming commit of the PR
       # we checkout the target commit and it's parent to be able to compare them
       - uses: actions/checkout@v2
@@ -102,11 +119,12 @@ jobs:
         run: printenv
         env:
           dynamicOutputs: ${{ toJSON(steps.dynamic-outputs.outputs) }}
+          PR_LABELS: ${{ steps.get-latest-pr-labels.outputs.pullRequestLabels }}
           GITHUB_CONTEXT: ${{ toJson(github) }}
       - name: Selective checks
         id: selective-checks
         env:
-          PR_LABELS: ${{ env.pullRequestLabels }}
+          PR_LABELS: ${{ steps.get-latest-pr-labels.outputs.pullRequestLabels }}
         run: |
           if [[ ${GITHUB_EVENT_NAME} == "pull_request_target" ]]; then
             # Run selective checks

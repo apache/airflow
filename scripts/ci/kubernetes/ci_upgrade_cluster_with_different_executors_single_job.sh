@@ -51,6 +51,13 @@ echo "PYTHON_MAJOR_MINOR_VERSION: ${PYTHON_MAJOR_MINOR_VERSION}"
 echo "EXECUTOR:                   ${EXECUTOR}"
 echo
 
+# For parallel tests - each helm test should have a different cache to avoid tests verriding each-other's cache
+HELM_CACHE_HOME=$(mktemp -d)
+export HELM_CACHE_HOME
+
+# shellcheck disable=SC2154
+trap 'rc=$?; rm -rf "${HELM_CACHE_HOME}" || true; exit "${rc}"' EXIT HUP INT TERM
+
 # shellcheck source=scripts/ci/libraries/_script_init.sh
 . "$( dirname "${BASH_SOURCE[0]}" )/../libraries/_script_init.sh"
 

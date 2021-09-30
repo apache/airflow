@@ -127,4 +127,4 @@ Reference
 For further information, look at:
 
 * `Kubernetes Documentation <https://kubernetes.io/docs/home/>`__
-* `Pull and Image from a Private Registry <https://kubernetes.io/docs/tasks/configure-pod-container/pull-image-private-registry/>`__
+* `Pull an Image from a Private Registry <https://kubernetes.io/docs/tasks/configure-pod-container/pull-image-private-registry/>`__

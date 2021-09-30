@@ -1419,7 +1419,7 @@
     additional configuration options based on the Python platform. See:
     https://docs.sentry.io/error-reporting/configuration/?platform=python.
     Unsupported options: ``integrations``, ``in_app_include``, ``in_app_exclude``,
-    ``ignore_errors``, ``before_breadcrumb``, ``before_send``, ``transport``.
+    ``ignore_errors``, ``before_breadcrumb``, ``transport``.
   options:
     - name: sentry_on
       description: Enable error reporting to Sentry
@@ -1433,6 +1433,12 @@
       type: string
       example: ~
       default: ""
+    - name: before_send
+      description: Dotted path to a before_send function that the sentry SDK should be configured to use.
+      version_added: 2.2.0
+      type: string
+      example: ~
+      default: ~
 - name: celery_kubernetes_executor
   description: |
     This section only applies if you are using the ``CeleryKubernetesExecutor`` in

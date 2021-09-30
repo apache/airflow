@@ -18,6 +18,7 @@
 #
 
 import datetime
+import logging
 import os
 import shutil
 from datetime import timedelta
@@ -33,6 +34,7 @@ from sqlalchemy import func
 import airflow.example_dags
 import airflow.smart_sensor_dags
 from airflow import settings
+from airflow.configuration import conf
 from airflow.dag_processing.manager import DagFileProcessorAgent
 from airflow.exceptions import AirflowException
 from airflow.executors.base_executor import BaseExecutor
@@ -75,6 +77,8 @@ ELASTIC_DAG_FILE = os.path.join(PERF_DAGS_FOLDER, "elastic_dag.py")
 TEST_DAG_FOLDER = os.environ['AIRFLOW__CORE__DAGS_FOLDER']
 DEFAULT_DATE = timezone.datetime(2016, 1, 1)
 TRY_NUMBER = 1
+
+log = logging.getLogger(__name__)
 
 
 @pytest.fixture(scope="class")
@@ -165,19 +169,38 @@ class TestSchedulerJob:
         self.scheduler_job.heartrate = 0
         self.scheduler_job.run()
 
+    @pytest.mark.skipif(
+        conf.get('core', 'sql_alchemy_conn').lower().startswith("mssql"),
+        reason="MSSQL does not like os._exit()",
+    )
+    @pytest.mark.skipif(not hasattr(os, 'fork'), reason="Forking not available")
     def test_no_orphan_process_will_be_left(self):
         empty_dir = mkdtemp()
         current_process = psutil.Process()
-        old_children = current_process.children(recursive=True)
-        self.scheduler_job = SchedulerJob(
-            subdir=empty_dir, num_runs=1, executor=MockExecutor(do_update=False)
-        )
-        self.scheduler_job.run()
-        shutil.rmtree(empty_dir)
+        pid = os.fork()
+        # Running the test in a fork to avoid side effects from other tests - those side-effects migh
+        # Cause some processes to be running as children
+        if pid == 0:
+            old_children = current_process.children(recursive=True)
+            self.scheduler_job = SchedulerJob(
+                subdir=empty_dir, num_runs=1, executor=MockExecutor(do_update=False)
+            )
+            self.scheduler_job.run()
+            shutil.rmtree(empty_dir)
 
-        # Remove potential noise created by previous tests.
-        current_children = set(current_process.children(recursive=True)) - set(old_children)
-        assert not current_children
+            # Remove potential noise created by previous tests.
+            current_children = set(current_process.children(recursive=True)) - set(old_children)
+            if current_children:
+                log.error(f"Current children: {current_children}")
+                # Exit immediately from the fork without cleanup (avoid Pytest atexit)
+                os._exit(1)
+            # Exit immediately from the fork without cleanup (avoid Pytest atexit)
+            os._exit(0)
+        else:
+            pid, ret_val = os.wait()
+            assert (
+                not ret_val
+            ), "The return value entered from process was non-zero. See error log above for details."
 
     @mock.patch('airflow.jobs.scheduler_job.TaskCallbackRequest')
     @mock.patch('airflow.jobs.scheduler_job.Stats.incr')
@@ -1342,6 +1365,41 @@ class TestSchedulerJob:
         assert call_args[0].execution_date == dr.execution_date
         assert call_args[1] is None
 
+        session.rollback()
+        session.close()
+
+    @pytest.mark.parametrize("state, msg", [[State.SUCCESS, 'success'], [State.FAILED, 'task_failure']])
+    def test_dagrun_callbacks_are_added_when_callbacks_are_defined(self, state, msg, dag_maker):
+        """
+        Test if on_*_callback are defined on DAG, Callbacks ARE registered and sent to DAG Processor
+        """
+        with dag_maker(
+            dag_id='test_dagrun_callbacks_are_added_when_callbacks_are_defined',
+            on_failure_callback=lambda: True,
+            on_success_callback=lambda: True,
+        ):
+            BashOperator(task_id='test_task', bash_command='echo hi')
+
+        self.scheduler_job = SchedulerJob(subdir=os.devnull)
+        self.scheduler_job.processor_agent = mock.Mock()
+        self.scheduler_job.processor_agent.send_callback_to_execute = mock.Mock()
+        self.scheduler_job._send_dag_callbacks_to_processor = mock.Mock()
+
+        session = settings.Session()
+        dr = dag_maker.create_dagrun()
+        ti = dr.get_task_instance('test_task')
+        ti.set_state(state, session)
+
+        with mock.patch.object(settings, "USE_JOB_SCHEDULE", False):
+            self.scheduler_job._do_scheduling(session)
+
+        # Verify Callback is not set (i.e is None) when no callbacks are set on DAG
+        self.scheduler_job._send_dag_callbacks_to_processor.assert_called_once()
+        call_args = self.scheduler_job._send_dag_callbacks_to_processor.call_args[0]
+        assert call_args[0].dag_id == dr.dag_id
+        assert call_args[0].execution_date == dr.execution_date
+        assert call_args[1] is not None
+        assert call_args[1].msg == msg
         session.rollback()
         session.close()
 

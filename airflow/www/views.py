@@ -95,7 +95,7 @@ from airflow.api.common.experimental.mark_tasks import (
     set_dag_run_state_to_success,
 )
 from airflow.configuration import AIRFLOW_CONFIG, conf
-from airflow.exceptions import AirflowException, SerializedDagNotFound
+from airflow.exceptions import AirflowException
 from airflow.executors.executor_loader import ExecutorLoader
 from airflow.jobs.base_job import BaseJob
 from airflow.jobs.scheduler_job import SchedulerJob
@@ -456,10 +456,15 @@ class AirflowBaseView(BaseView):
 
     route_base = ''
 
-    # Make our macros available to our UI templates too.
     extra_args = {
+        # Make our macros available to our UI templates too.
         'macros': macros,
+        'get_docs_url': get_docs_url,
     }
+
+    if not conf.getboolean('core', 'unit_test_mode'):
+        extra_args['sqlite_warning'] = settings.Session.bind.dialect.name == 'sqlite'
+        extra_args['sequential_executor_warning'] = conf.get('core', 'executor') == 'LocalExecutor'
 
     line_chart_attr = {
         'legend.maxKeyLength': 200,
@@ -541,35 +546,6 @@ class Airflow(AirflowBaseView):
     )
     def index(self):
         """Home view."""
-        unit_test_mode: bool = conf.getboolean('core', 'UNIT_TEST_MODE')
-
-        if not unit_test_mode and "sqlite" in conf.get("core", "sql_alchemy_conn"):
-            db_doc_page = get_docs_url("howto/set-up-database.html")
-            flash(
-                Markup(
-                    "Usage of <b>SQLite</b> detected. It should only be used for dev/testing. "
-                    "Do not use <b>SQLite</b> as metadata DB in production. "
-                    "We recommend using Postgres or MySQL. "
-                    f"<a href='{db_doc_page}'><b>Click here</b></a> for more information."
-                ),
-                category="warning",
-            )
-
-        if not unit_test_mode and conf.get("core", "executor") == "SequentialExecutor":
-            exec_doc_page = get_docs_url("executor/index.html")
-            flash(
-                Markup(
-                    "Usage of <b>SequentialExecutor</b> detected. "
-                    "Do not use <b>SequentialExecutor</b> in production. "
-                    f"<a href='{exec_doc_page}'><b>Click here</b></a> for more information."
-                ),
-                category="warning",
-            )
-
-        for fm in settings.DASHBOARD_UIALERTS:
-            if fm.should_show(current_app.appbuilder.sm):
-                flash(fm.message, fm.category)
-
         hide_paused_dags_by_default = conf.getboolean('webserver', 'hide_paused_dags_by_default')
         default_dag_run = conf.getint('webserver', 'default_dag_run_display_number')
 
@@ -712,9 +688,14 @@ class Airflow(AirflowBaseView):
 
         page_title = conf.get(section="webserver", key="instance_name", fallback="DAGs")
 
+        dashboard_alerts = [
+            fm for fm in settings.DASHBOARD_UIALERTS if fm.should_show(current_app.appbuilder.sm)
+        ]
+
         return self.render_template(
             'airflow/dags.html',
             dags=dags,
+            dashboard_alerts=dashboard_alerts,
             current_page=current_page,
             search_query=arg_search_query if arg_search_query else '',
             page_title=page_title,
@@ -1890,10 +1871,7 @@ class Airflow(AirflowBaseView):
         payload = []
         for dag_id, active_dag_runs in dags:
             max_active_runs = 0
-            try:
-                dag = current_app.dag_bag.get_dag(dag_id)
-            except SerializedDagNotFound:
-                dag = None
+            dag = current_app.dag_bag.get_dag(dag_id)
             if dag:
                 # TODO: Make max_active_runs a column so we can query for it directly
                 max_active_runs = dag.max_active_runs
@@ -2045,9 +2023,8 @@ class Airflow(AirflowBaseView):
         future = to_boolean(args.get('future'))
         past = to_boolean(args.get('past'))
 
-        try:
-            dag = current_app.dag_bag.get_dag(dag_id)
-        except airflow.exceptions.SerializedDagNotFound:
+        dag = current_app.dag_bag.get_dag(dag_id)
+        if not dag:
             flash(f'DAG {dag_id} not found', "error")
             return redirect(request.referrer or url_for('Airflow.index'))
 
@@ -2522,11 +2499,7 @@ class Airflow(AirflowBaseView):
         dag_id = request.args.get('dag_id')
         dag_model = DagModel.get_dagmodel(dag_id)
 
-        try:
-            dag: Optional[DAG] = current_app.dag_bag.get_dag(dag_id)
-        except airflow.exceptions.SerializedDagNotFound:
-            dag = None
-
+        dag: Optional[DAG] = current_app.dag_bag.get_dag(dag_id)
         if dag is None:
             flash(f'DAG "{dag_id}" seems to be missing.', "error")
             return redirect(url_for('Airflow.index'))
@@ -3316,6 +3289,7 @@ def lazy_add_provider_discovered_options_to_connection_form():
         _connection_types = [
             ('fs', 'File (path)'),
             ('mesos_framework-id', 'Mesos Framework ID'),
+            ('email', 'Email'),
         ]
         providers_manager = ProvidersManager()
         for connection_type, provider_info in providers_manager.hooks.items():
@@ -3940,6 +3914,7 @@ class DagRunModelView(AirflowPrivilegeVerifierModelView):
         'state': wwwutils.state_f,
         'start_date': wwwutils.datetime_f('start_date'),
         'end_date': wwwutils.datetime_f('end_date'),
+        'queued_at': wwwutils.datetime_f('queued_at'),
         'dag_id': wwwutils.dag_link,
         'run_id': wwwutils.dag_run_link,
         'conf': wwwutils.json_f('conf'),

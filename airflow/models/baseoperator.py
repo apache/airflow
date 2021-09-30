@@ -397,6 +397,9 @@ class BaseOperator(Operator, LoggingMixin, TaskMixin, metaclass=BaseOperatorMeta
     :param do_xcom_push: if True, an XCom is pushed containing the Operator's
         result
     :type do_xcom_push: bool
+    :param task_group: The TaskGroup to which the task should belong. This is typically provided when not
+        using a TaskGroup as a context manager.
+    :type task_group: airflow.utils.task_group.TaskGroup
     :param doc: Add documentation or notes to your Task objects that is visible in
         Task Instance details View in the Webserver
     :type doc: str

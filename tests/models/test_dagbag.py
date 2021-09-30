@@ -91,6 +91,15 @@ class TestDagBag:
         non_existing_dag_id = "non_existing_dag_id"
         assert dagbag.get_dag(non_existing_dag_id) is None
 
+    def test_serialized_dag_not_existing_doesnt_raise(self):
+        """
+        test that retrieving a non existing dag id returns None without crashing
+        """
+        dagbag = models.DagBag(dag_folder=self.empty_dir, include_examples=False, read_dags_from_db=True)
+
+        non_existing_dag_id = "non_existing_dag_id"
+        assert dagbag.get_dag(non_existing_dag_id) is None
+
     def test_dont_load_example(self):
         """
         test that the example are not loaded

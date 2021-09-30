@@ -661,6 +661,7 @@ def check_conn_id_duplicates(session=None) -> Iterable[str]:
         dups = session.query(Connection.conn_id).group_by(Connection.conn_id).having(func.count() > 1).all()
     except (exc.OperationalError, exc.ProgrammingError):
         # fallback if tables hasn't been created yet
+        session.rollback()
         pass
     if dups:
         yield (
@@ -680,9 +681,10 @@ def check_conn_type_null(session=None) -> Iterable[str]:
     """
     n_nulls = []
     try:
-        n_nulls = session.query(Connection).filter(Connection.conn_type.is_(None)).all()
+        n_nulls = session.query(Connection.conn_id).filter(Connection.conn_type.is_(None)).all()
     except (exc.OperationalError, exc.ProgrammingError, exc.InternalError):
         # fallback if tables hasn't been created yet
+        session.rollback()
         pass
 
     if n_nulls:
