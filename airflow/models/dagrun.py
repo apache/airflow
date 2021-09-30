@@ -657,8 +657,8 @@ class DagRun(Base, LoggingMixin):
                 # a field on DagRun for this instead of relying on the run
                 # always happening immediately after the data interval.
                 data_interval_end = dag.get_run_data_interval(self).end
-                true_delay = first_start_date - data_interval_end
-                if true_delay.total_seconds() > 0:
+                true_delay = (first_start_date - data_interval_end).total_seconds()
+                if true_delay > 0:
                     Stats.timing(f'dagrun.{dag.dag_id}.first_task_scheduling_delay', true_delay)
         except Exception as e:
             self.log.warning(f'Failed to record first_task_scheduling_delay metric:\n{e}')
@@ -673,7 +673,7 @@ class DagRun(Base, LoggingMixin):
             self.log.warning('Failed to record duration of %s: end_date is not set.', self)
             return
 
-        duration = self.end_date - self.start_date
+        duration = (self.end_date - self.start_date).total_seconds()
         if self.state == State.SUCCESS:
             Stats.timing(f'dagrun.duration.success.{self.dag_id}', duration)
         elif self.state == State.FAILED:
