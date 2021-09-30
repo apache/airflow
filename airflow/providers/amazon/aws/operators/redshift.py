@@ -15,7 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from typing import Any, Optional
+from typing import List, Optional, Union
 
 from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.redshift import RedshiftSQLHook
@@ -48,7 +48,7 @@ class RedshiftSQLOperator(BaseOperator):
     def __init__(
         self,
         *,
-        sql: Any,
+        sql: Union[str, List[str]],
         redshift_conn_id: str = 'redshift_default',
         parameters: Optional[dict] = None,
         autocommit: bool = True,
