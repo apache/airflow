@@ -15,7 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Interact with AWS Redshift, using the boto3 or redshift_connector library."""
+"""Interact with AWS Redshift clusters."""
 
 from typing import Dict, List, Optional, Union
 
