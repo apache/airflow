@@ -41,4 +41,4 @@ class TestS3ListOperator(unittest.TestCase):
         mock_hook.return_value.list_prefixes.assert_called_once_with(
             bucket_name=BUCKET, prefix=PREFIX, delimiter=DELIMITER
         )
-        assert sorted(subfolders) == sorted(MOCK_SUBFOLDERS)
+        assert subfolders == MOCK_SUBFOLDERS
