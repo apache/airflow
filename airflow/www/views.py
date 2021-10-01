@@ -3870,7 +3870,7 @@ class DagRunModelView(AirflowPrivilegeVerifierModelView):
     class_permission_name = permissions.RESOURCE_DAG_RUN
     method_permission_name = {
         'list': 'read',
-        'action_clear': 'delete',
+        'action_clear': 'edit',
         'action_muldelete': 'delete',
         'action_set_running': 'edit',
         'action_set_failed': 'edit',
@@ -4179,6 +4179,7 @@ class TaskInstanceModelView(AirflowPrivilegeVerifierModelView):
     method_permission_name = {
         'list': 'read',
         'action_clear': 'edit',
+        'action_muldelete': 'delete',
         'action_set_running': 'edit',
         'action_set_failed': 'edit',
         'action_set_success': 'edit',
@@ -4310,6 +4311,13 @@ class TaskInstanceModelView(AirflowPrivilegeVerifierModelView):
             flash(f"{len(task_instances)} task instances have been cleared")
         except Exception as e:
             flash(f'Failed to clear task instances: "{e}"', 'error')
+        self.update_redirect()
+        return redirect(self.get_redirect())
+
+    @action('muldelete', 'Delete', "Are you sure you want to delete selected records?", single=False)
+    @action_has_dag_edit_access
+    def action_muldelete(self, items):
+        self.datamodel.delete_all(items)
         self.update_redirect()
         return redirect(self.get_redirect())
 

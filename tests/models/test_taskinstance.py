@@ -621,13 +621,14 @@ class TestTaskInstance:
         date = ti.next_retry_datetime()
         assert date == ti.end_date + max_delay
 
-    def test_next_retry_datetime_short_intervals(self, dag_maker):
-        delay = datetime.timedelta(seconds=1)
+    @pytest.mark.parametrize("seconds", [0, 0.5, 1])
+    def test_next_retry_datetime_short_or_zero_intervals(self, dag_maker, seconds):
+        delay = datetime.timedelta(seconds=seconds)
         max_delay = datetime.timedelta(minutes=60)
 
         with dag_maker(dag_id='fail_dag'):
             task = BashOperator(
-                task_id='task_with_exp_backoff_and_short_time_interval',
+                task_id='task_with_exp_backoff_and_short_or_zero_time_interval',
                 bash_command='exit 1',
                 retries=3,
                 retry_delay=delay,
@@ -639,9 +640,7 @@ class TestTaskInstance:
         ti.end_date = pendulum.instance(timezone.utcnow())
 
         date = ti.next_retry_datetime()
-        # between 1 * 2^0.5 and 1 * 2^1 (15 and 30)
-        period = ti.end_date.add(seconds=15) - ti.end_date.add(seconds=1)
-        assert date in period
+        assert date == ti.end_date + datetime.timedelta(seconds=1)
 
     def test_reschedule_handling(self, dag_maker):
         """

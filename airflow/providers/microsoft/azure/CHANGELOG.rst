@@ -19,6 +19,29 @@
 Changelog
 ---------
 
+3.2.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Rename AzureDataLakeStorage to ADLS (#18493)``
+* ``Creating ADF pipeline run operator, sensor + ADF custom conn fields (#17885)``
+* ``Rename LocalToAzureDataLakeStorageOperator to LocalFilesystemToADLSOperator (#18168)``
+* ``Rename FileToWasbOperator to LocalFilesystemToWasbOperator (#18109)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fixed wasb hook attempting to create container when getting a blob client (#18287)``
+* ``Removing redundant relabeling of password conn field (#18386)``
+* ``Proper handling of Account URL custom conn field in AzureBatchHook (#18456)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Updating miscellaneous provider DAGs to use TaskFlow API where applicable (#18278)``
+   * ``Initial commit (#18203)``
+
 Main
 ....
 

@@ -696,3 +696,12 @@ notacommand = OK
 
     def test_confirm_unittest_mod(self):
         assert conf.get('core', 'unit_test_mode')
+
+    def test_enum_default_task_weight_rule_from_conf(self):
+        test_conf = AirflowConfigParser(default_config='')
+        test_conf.read_dict({'core': {'default_task_weight_rule': 'sidestream'}})
+        with pytest.raises(AirflowConfigException) as ctx:
+            test_conf.validate()
+        exception = str(ctx.value)
+        message = "sidestream is not an accepted config for [core] default_task_weight_rule"
+        assert message == exception

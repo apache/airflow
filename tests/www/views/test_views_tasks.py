@@ -25,7 +25,7 @@ import pytest
 
 from airflow import settings
 from airflow.executors.celery_executor import CeleryExecutor
-from airflow.models import DagBag, DagModel, TaskInstance
+from airflow.models import DagBag, DagModel, TaskInstance, TaskReschedule
 from airflow.models.dagcode import DagCode
 from airflow.security import permissions
 from airflow.ti_deps.dependencies_states import QUEUEABLE_STATES, RUNNABLE_STATES
@@ -754,3 +754,60 @@ def test_set_task_instance_action_permission_denied(session, client_ti_without_d
         follow_redirects=True,
     )
     check_content_in_response(expected_message, resp)
+
+
+@pytest.mark.parametrize(
+    "task_search_tuples",
+    [
+        [("example_xcom", "bash_push"), ("example_bash_operator", "run_this_last")],
+        [("example_subdag_operator", "some-other-task")],
+    ],
+    ids=['multiple_tasks', 'one_task'],
+)
+def test_action_muldelete_task_instance(session, admin_client, task_search_tuples):
+    # get task instances to delete
+    tasks_to_delete = []
+    for task_search_tuple in task_search_tuples:
+        dag_id, task_id = task_search_tuple
+        tasks_to_delete.append(
+            session.query(TaskInstance)
+            .filter(TaskInstance.task_id == task_id, TaskInstance.dag_id == dag_id)
+            .one()
+        )
+
+    # add task reschedules for those tasks to make sure that the delete cascades to the required tables
+    trs = [
+        TaskReschedule(
+            task=task,
+            run_id=task.run_id,
+            try_number=1,
+            start_date=timezone.datetime(2021, 1, 1),
+            end_date=timezone.datetime(2021, 1, 2),
+            reschedule_date=timezone.datetime(2021, 1, 3),
+        )
+        for task in tasks_to_delete
+    ]
+    session.bulk_save_objects(trs)
+    session.flush()
+
+    # run the function to test
+    resp = admin_client.post(
+        "/taskinstance/action_post",
+        data={
+            "action": "muldelete",
+            "rowid": [_get_appbuilder_pk_string(TaskInstanceModelView, task) for task in tasks_to_delete],
+        },
+        follow_redirects=True,
+    )
+
+    # assert expected behavior for that function and its response
+    assert resp.status_code == 200
+    for task_search_tuple in task_search_tuples:
+        dag_id, task_id = task_search_tuple
+        assert (
+            session.query(TaskInstance)
+            .filter(TaskInstance.task_id == task_id, TaskInstance.dag_id == dag_id)
+            .count()
+            == 0
+        )
+    assert session.query(TaskReschedule).count() == 0

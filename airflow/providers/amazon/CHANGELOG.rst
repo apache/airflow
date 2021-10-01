@@ -19,6 +19,36 @@
 Changelog
 ---------
 
+2.3.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add IAM Role Credentials to S3ToRedshiftTransfer and RedshiftToS3Transfer (#18156)``
+* ``Adding missing 'replace' param in docstring (#18241)``
+* ``Added upsert method on S3ToRedshift operator (#18027)``
+* ``Add Spark to the EMR cluster for the job flow examples (#17563)``
+* ``Update s3_list.py (#18561)``
+* ``ECSOperator realtime logging (#17626)``
+* ``Deprecate default pod name in EKSPodOperator (#18036)``
+* ``Aws secrets manager backend (#17448)``
+* ``sftp_to_s3 stream file option (#17609)``
+* ``AwsBaseHook make client_type resource_type optional params for get_client_type, get_resource_type (#17987)``
+* ``Delete unnecessary parameters in EKSPodOperator (#17960)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``ECSOperator returns last logs when ECS task fails (#17209)``
+* ``Refresh credentials for long-running pods on EKS (#17951)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Simplify s3 unify_bucket_name_and_key (#17325)``
+   * ``Updating miscellaneous provider DAGs to use TaskFlow API where applicable (#18278)``
+   * ``Inclusive Language (#18349)``
+
 2.2.0
 .....
 

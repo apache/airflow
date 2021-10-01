@@ -183,6 +183,17 @@ Below is an example of using the ``@task.docker`` decorator to run a python task
 
 It is worth noting that the python source code (extracted from the decorated function) and any callable args are sent to the container via (encoded and pickled) environment variables so the length of these is not boundless (the exact limit depends on system settings).
 
+.. note:: Using ``@task.docker`` decorator in one of the earlier Airflow versions
+
+    Since ``@task.docker`` decorator is available in the docker provider, you might be tempted to use it in
+    Airflow version before 2.2, but this is not going to work. You will get this error if you try:
+
+    .. code-block:: text
+
+        AttributeError: '_TaskDecorator' object has no attribute 'docker'
+
+    You should upgrade to Airflow 2.2 or above in order to use it.
+
 If you don't want to run your image on a Docker environment, and instead want to create a separate virtual
 environment on the same machine, you can use the ``@task.virtualenv`` decorator instead. The ``@task.virtualenv``
 decorator will allow you to create a new virtualenv with custom libraries and even a different

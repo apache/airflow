@@ -478,7 +478,7 @@ This method is usually used for development purpose. But in case you have your o
 it to your forked version of source code without having to release it to PyPI. It is enough to have
 a branch or tag in your repository and use the tag or branch in the URL that you point the installation to.
 
-In case of GitHyb builds you need to pass the constraints reference manually in case you want to use
+In case of GitHub builds you need to pass the constraints reference manually in case you want to use
 specific constraints, otherwise the default ``constraints-main`` is used.
 
 The following example builds the production image in version ``3.7`` with default extras from the latest main version and

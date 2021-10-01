@@ -38,6 +38,7 @@ from airflow.exceptions import AirflowConfigException
 from airflow.secrets import DEFAULT_SECRETS_SEARCH_PATH, BaseSecretsBackend
 from airflow.utils import yaml
 from airflow.utils.module_loading import import_string
+from airflow.utils.weight_rule import WeightRule
 
 log = logging.getLogger(__name__)
 
@@ -193,6 +194,8 @@ class AirflowConfigParser(ConfigParser):
         },
     }
 
+    enums = {("core", "default_task_weight_rule"): WeightRule}
+
     # This method transforms option names on every read, get, or set operation.
     # This changes from the default behaviour of ConfigParser from lowercasing
     # to instead be case-preserving
@@ -212,6 +215,8 @@ class AirflowConfigParser(ConfigParser):
 
         self._validate_config_dependencies()
 
+        self._validate_enums()
+
         for section, replacement in self.deprecated_values.items():
             for name, info in replacement.items():
                 old, new, version = info
@@ -228,6 +233,16 @@ class AirflowConfigParser(ConfigParser):
                     )
 
         self.is_validated = True
+
+    def _validate_enums(self):
+        """Validate that enum type config has an accepted value"""
+        for (section, setting), enum_class in self.enums.items():
+            if self.has_option(section, setting):
+                value = self.get(section, setting)
+                if not enum_class.is_valid(value):
+                    raise AirflowConfigException(
+                        f"{value} is not an accepted config for [{section}] {setting}"
+                    )
 
     def _validate_config_dependencies(self):
         """

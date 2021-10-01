@@ -354,6 +354,13 @@
       type: string
       example: ~
       default: "0"
+    - name: default_task_weight_rule
+      description: |
+        The weighting method used for the effective total priority weight of the task
+      version_added: 2.2.0
+      type: string
+      example: ~
+      default: "downstream"
     - name: min_serialized_dag_update_interval
       description: |
         Updating serialized DAG can not be faster than a minimum interval to reduce database write rate.
