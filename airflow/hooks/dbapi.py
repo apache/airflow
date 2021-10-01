@@ -148,7 +148,7 @@ class DbApiHook(BaseHook):
         :type parameters: dict or iterable
         """
         with closing(self.get_conn()) as conn, closing(conn.cursor()) as cur:
-            cur.execute(sql, parameters or ())
+            self._run_command(sql, parameters)
             return cur.fetchall()
 
     def get_first(self, sql, parameters=None):
@@ -162,7 +162,7 @@ class DbApiHook(BaseHook):
         :type parameters: dict or iterable
         """
         with closing(self.get_conn()) as conn, closing(conn.cursor()) as cur:
-            cur.execute(sql, parameters or ())
+            self._run_command(sql, parameters)
             return cur.fetchone()
 
     def run(self, sql, autocommit=False, parameters=None, handler=None):
@@ -215,7 +215,10 @@ class DbApiHook(BaseHook):
     def _run_command(self, cur, sql_statement, parameters):
         """Runs a statement using an already open cursor."""
         self.log.info("Running statement: %s, parameters: %s", sql_statement, parameters)
-        cur.execute(sql_statement, parameters or ())
+        if parameters:
+            cur.execute(sql_statement, parameters)
+        else:
+            cur.execute(sql_statement)
 
         # According to PEP 249, this is -1 when query result is not applicable.
         if cur.rowcount >= 0:
