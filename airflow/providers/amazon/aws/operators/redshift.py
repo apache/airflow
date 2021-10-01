@@ -49,7 +49,7 @@ class RedshiftSQLOperator(BaseOperator):
         self,
         *,
         sql: Union[str, List[str]],
-        redshift_conn_id: str = RedshiftSQLHook.default_conn_name,
+        redshift_conn_id: str = 'redshift_default',
         parameters: Optional[dict] = None,
         autocommit: bool = True,
         **kwargs,
