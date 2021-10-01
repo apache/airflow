@@ -19,11 +19,6 @@
 Azure DataLake Storage Operators
 =================================
 
-.. contents::
-  :depth: 1
-  :local:
-
-
 Prerequisite Tasks
 ^^^^^^^^^^^^^^^^^^
 

@@ -20,9 +20,6 @@
 Scheduler
 ==========
 
-.. contents:: :local:
-
-
 The Airflow scheduler monitors all tasks and DAGs, then triggers the
 task instances once their dependencies are complete. Behind the scenes,
 the scheduler spins up a subprocess, which monitors and stays in sync with all

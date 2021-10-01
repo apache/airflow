@@ -22,10 +22,6 @@ Apache Cassandra Operators
 
 `Apache Cassandra <https://cassandra.apache.org/>`__ is an open source distributed NoSQL database that can be used when you need scalability and high availability without compromising performance. It offers linear scalability and fault-tolerance on commodity hardware or cloud infrastructure which makes it the perfect platform for mission-critical data. It supports multi-datacenter replication with lower latencies.
 
-.. contents::
-  :depth: 1
-  :local:
-
 Prerequisite
 ------------
 
