@@ -19,7 +19,6 @@
 import datetime
 import os
 import signal
-import time
 import urllib
 from tempfile import NamedTemporaryFile
 from typing import List, Optional, Union, cast
@@ -489,7 +488,8 @@ class TestTaskInstance:
         assert ti.next_kwargs is None
         assert ti.state == State.UP_FOR_RETRY
 
-    def test_retry_delay(self, dag_maker):
+    @freeze_time('2021-09-19 04:56:35', as_kwarg='frozen_time')
+    def test_retry_delay(self, dag_maker, frozen_time=None):
         """
         Test that retry delays are respected
         """
@@ -517,11 +517,12 @@ class TestTaskInstance:
         assert ti.try_number == 2
 
         # second run -- still up for retry because retry_delay hasn't expired
+        frozen_time.tick(delta=datetime.timedelta(seconds=3))
         run_with_error(ti)
         assert ti.state == State.UP_FOR_RETRY
 
         # third run -- failed
-        time.sleep(3)
+        frozen_time.tick(delta=datetime.datetime.resolution)
         run_with_error(ti)
         assert ti.state == State.FAILED
 
