@@ -19,10 +19,6 @@
 Apache Druid Operators
 ======================
 
-.. contents::
-  :depth: 1
-  :local:
-
 Prerequisite
 ------------
 

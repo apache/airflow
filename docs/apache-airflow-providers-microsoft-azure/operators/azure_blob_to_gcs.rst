@@ -43,10 +43,6 @@ Set values for these fields:
   Password: KEY1
   Extra: {"sas_token": "TOKEN"}
 
-.. contents::
-  :depth: 1
-  :local:
-
 .. _howto/operator:AzureBlobStorageToGCSOperator:
 
 Transfer Data from Blob Storage to Google Cloud Storage

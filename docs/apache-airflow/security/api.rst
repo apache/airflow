@@ -18,10 +18,6 @@
 API
 ===
 
-.. contents::
-  :depth: 1
-  :local:
-
 API Authentication
 ------------------
 
