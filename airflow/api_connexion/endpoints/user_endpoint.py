@@ -21,7 +21,7 @@ from sqlalchemy import func
 from werkzeug.security import generate_password_hash
 
 from airflow.api_connexion import security
-from airflow.api_connexion.exceptions import AlreadyExists, BadRequest, NotFound, Unknown
+from airflow.api_connexion.exceptions import AlreadyExists, BadRequest, NotFound, PermissionDenied, Unknown
 from airflow.api_connexion.parameters import apply_sorting, check_limit, format_parameters
 from airflow.api_connexion.schemas.user_schema import (
     UserCollection,
@@ -70,6 +70,13 @@ def get_users(limit, order_by='id', offset=None):
 @security.requires_access([(permissions.ACTION_CAN_CREATE, permissions.RESOURCE_USER)])
 def post_user():
     """Create a new user"""
+    import flask
+
+    from airflow.www.fab_security.manager import AUTH_DB
+
+    if flask.current_app.appbuilder.sm.auth_type != AUTH_DB:
+        raise PermissionDenied(detail='Configured user backend does not allow creating users')
+
     try:
         data = user_schema.load(request.json)
     except ValidationError as e:
