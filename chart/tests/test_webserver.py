@@ -262,7 +262,7 @@ class WebserverDeploymentTest(unittest.TestCase):
         assert pod_template_file_expected == (
             {
                 "name": "config",
-                "mountPath": "/opt/airflow/pod_template_file.yaml",
+                "mountPath": "/opt/airflow/pod_templates/pod_template_file.yaml",
                 "readOnly": True,
                 "subPath": "pod_template_file.yaml",
             }
