@@ -16,7 +16,6 @@
 # under the License.
 import logging
 import os
-import shutil
 import tempfile
 from unittest import mock
 
