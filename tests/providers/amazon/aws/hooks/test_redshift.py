@@ -150,3 +150,10 @@ class TestRedshiftSQLHookConn(unittest.TestCase):
             database='dev',
             iam=True,
         )
+
+    def test_get_conn_missing_schema_raises_exception(self):
+        with mock.patch(
+            'airflow.providers.amazon.aws.hooks.redshift.RedshiftSQLHook.conn', Connection(login='login')
+        ):
+            with self.assertRaises(ValueError):
+                self.db_hook._get_conn_params()

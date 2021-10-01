@@ -138,7 +138,7 @@ class RedshiftSQLHook(DbApiHook):
     Execute statements against Amazon Redshift, using redshift_connector
 
     This hook requires the redshift_conn_id connection. This connection must
-    be initialized with the host, port, login, password. Additional connection
+    be initialized with the schema. Additional connection
     options can be passed to extra as a JSON string.
 
     :param redshift_conn_id: reference to
@@ -173,6 +173,11 @@ class RedshiftSQLHook(DbApiHook):
 
         conn_params: Dict[str, Union[str, int]] = {}
 
+        if conn.schema:
+            conn_params['database'] = conn.schema
+        else:
+            raise ValueError('Please provide a schema')
+
         if conn.login:
             conn_params['user'] = conn.login
         if conn.password:
@@ -181,8 +186,6 @@ class RedshiftSQLHook(DbApiHook):
             conn_params['host'] = conn.host
         if conn.port:
             conn_params['port'] = conn.port
-        if conn.schema:
-            conn_params['database'] = conn.schema
 
         return conn_params
 
