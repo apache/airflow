@@ -19,14 +19,10 @@
 
 from typing import Dict, List, Optional, Union
 
-try:
-    from functools import cached_property
-except ImportError:
-    from cached_property import cached_property
-
 import redshift_connector
 from redshift_connector import Connection as RedshiftConnection
 
+from airflow.compat.functools import cached_property
 from airflow.hooks.dbapi import DbApiHook
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 
