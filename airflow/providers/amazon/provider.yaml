@@ -443,6 +443,9 @@ hook-class-names:  # deprecated - to be removed after providers add dependency o
   - airflow.providers.amazon.aws.hooks.base_aws.AwsBaseHook
   - airflow.providers.amazon.aws.hooks.emr.EmrHook
 
+extra-links:
+  - airflow.providers.amazon.aws.operators.emr_create_job_flow.EmrClusterLink
+
 connection-types:
   - hook-class-name: airflow.providers.amazon.aws.hooks.s3.S3Hook
     connection-type: s3
