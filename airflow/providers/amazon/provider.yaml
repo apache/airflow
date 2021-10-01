@@ -457,7 +457,7 @@ connection-types:
   - hook-class-name: airflow.providers.amazon.aws.hooks.emr.EmrHook
     connection-type: emr
   - hook-class-name: airflow.providers.amazon.aws.hooks.redshift.RedshiftSQLHook
-    connection-type: redshift+redshift_connector
+    connection-type: redshift
 
 secrets-backends:
   - airflow.providers.amazon.aws.secrets.secrets_manager.SecretsManagerBackend

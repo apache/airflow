@@ -21,6 +21,8 @@ from typing import Dict, List, Optional, Union
 
 import redshift_connector
 from redshift_connector import Connection as RedshiftConnection
+from sqlalchemy import create_engine
+from sqlalchemy.engine.url import URL
 
 from airflow.compat.functools import cached_property
 from airflow.hooks.dbapi import DbApiHook
@@ -151,7 +153,7 @@ class RedshiftSQLHook(DbApiHook):
 
     conn_name_attr = 'redshift_conn_id'
     default_conn_name = 'redshift_default'
-    conn_type = 'redshift+redshift_connector'
+    conn_type = 'redshift'
     hook_name = 'Amazon Redshift'
     supports_autocommit = True
 
@@ -189,27 +191,14 @@ class RedshiftSQLHook(DbApiHook):
 
         return conn_params
 
-    def get_uri(self) -> str:
-        """
-        Override DbApiHook get_uri method for get_sqlalchemy_engine()
-
-        .. note::
-            Value passed to connection extra parameter will be excluded
-            from returned uri but passed to get_sqlalchemy_engine()
-            by default
-        """
-        from sqlalchemy.engine.url import URL
-
+    def _get_sqlalchemy_uri(self) -> str:
+        """Helper method which builds a partial sqlalchemy connection URI"""
         conn_params = self._get_conn_params()
-
-        conn = self.conn
-
-        conn_type = conn.conn_type or RedshiftSQLHook.conn_type
 
         if 'user' in conn_params:
             conn_params['username'] = conn_params.pop('user')
 
-        return str(URL(drivername=conn_type, **conn_params))
+        return str(URL(drivername='redshift+redshift_connector', **conn_params))
 
     def get_sqlalchemy_engine(self, engine_kwargs=None):
         """Overrides DbApiHook get_sqlalchemy_engine to pass redshift_connector specific kwargs"""
@@ -222,7 +211,7 @@ class RedshiftSQLHook(DbApiHook):
         else:
             engine_kwargs["connect_args"] = conn_kwargs
 
-        return super().get_sqlalchemy_engine(engine_kwargs=engine_kwargs)
+        return create_engine(self._get_sqlalchemy_uri(), **engine_kwargs)
 
     def get_conn(self) -> RedshiftConnection:
         """Returns a redshift_connector.Connection object"""

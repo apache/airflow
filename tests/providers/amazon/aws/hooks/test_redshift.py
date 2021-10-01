@@ -112,14 +112,16 @@ class TestRedshiftSQLHookConn(unittest.TestCase):
     def setUp(self):
         super().setUp()
 
-        self.connection = Connection(login='login', password='password', host='host', port=5439, schema="dev")
+        self.connection = Connection(
+            conn_type='redshift', login='login', password='password', host='host', port=5439, schema="dev"
+        )
 
         self.db_hook = RedshiftSQLHook()
         self.db_hook.get_connection = mock.Mock()
         self.db_hook.get_connection.return_value = self.connection
 
     def test_get_uri(self):
-        expected = 'redshift+redshift_connector://login:password@host:5439/dev'
+        expected = 'redshift://login:password@host:5439/dev'
         x = self.db_hook.get_uri()
         assert x == expected
 
