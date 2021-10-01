@@ -65,4 +65,4 @@ Examples
 
 .. code-block:: bash
 
-  AIRFLOW_CONN_REDSHIFT_DEFAULT=redshift+redshift_connector://awsuser:password@redshift-cluster-1.testing.us-west-1.redshift.amazonaws.com:5439/?database=dev&ssl=False
+  AIRFLOW_CONN_REDSHIFT_DEFAULT=redshift+redshift_connector://awsuser:password@redshift-cluster-1.123456789.us-west-1.redshift.amazonaws.com:5439/?database=dev&ssl=True
