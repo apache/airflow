@@ -87,7 +87,7 @@ class TestSecurity(unittest.TestCase):
         cls.appbuilder = cls.app.appbuilder
         cls.app.config['WTF_CSRF_ENABLED'] = False
         cls.security_manager = cls.appbuilder.sm
-        cls.delete_roles()
+        cls.delete_test_roles()
 
     def setUp(self):
         clear_db_runs()
@@ -99,7 +99,25 @@ class TestSecurity(unittest.TestCase):
         log.debug("Complete setup!")
 
     @classmethod
-    def delete_roles(cls):
+    def tearDownClass(cls):
+        cls.delete_test_roles()
+        cls.delete_test_users()
+
+    @classmethod
+    def delete_test_users(cls):
+        method_users = [attr[5:] for attr in cls.__dict__ if attr[:4] == 'test']
+        adhoc_users = [
+            'ElUser',
+            'Monsieur User',
+            'dag_access_user',
+            'LaUser',
+            'dag_permission_user'
+        ]
+        for user_name in method_users + adhoc_users:
+            api_connexion_utils.delete_user(cls.app, user_name)
+
+    @classmethod
+    def delete_test_roles(cls):
         for role_name in [
             'team-a',
             'MyRole1',
@@ -107,6 +125,7 @@ class TestSecurity(unittest.TestCase):
             'Test_Role',
             'MyRole3',
             'MyRole2',
+            'MyRole7',
             'dag_permission_role',
         ]:
             api_connexion_utils.delete_role(cls.app, role_name)
