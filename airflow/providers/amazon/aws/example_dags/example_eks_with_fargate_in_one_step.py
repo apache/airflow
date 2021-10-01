@@ -37,13 +37,10 @@ VPC_CONFIG = {
     'endpointPrivateAccess': False,
 }
 
-default_args = {
-    'cluster_name': CLUSTER_NAME,
-}
 
 with DAG(
     dag_id='example-create-cluster-and-fargate-all-in-one',
-    default_args=default_args,
+    default_args={'cluster_name': CLUSTER_NAME},
     schedule_interval=None,
     start_date=datetime(2021, 1, 1),
     max_active_runs=1,
