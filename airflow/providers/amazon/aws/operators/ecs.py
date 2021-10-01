@@ -17,10 +17,14 @@
 # under the License.
 import re
 import sys
+import time
 from collections import deque
-from datetime import datetime
+from datetime import datetime, timedelta
+from logging import Logger
+from threading import Event, Thread
 from typing import Dict, Generator, Optional
 
+from botocore.exceptions import ClientError
 from botocore.waiter import Waiter
 
 from airflow.exceptions import AirflowException
@@ -80,6 +84,73 @@ class ECSProtocol(Protocol):
         ...
 
 
+class ECSTaskLogFetcher(Thread):
+    """
+    Fetches Cloudwatch log events with specific interval as a thread
+    and sends the log events to the info channel of the provided logger.
+    """
+
+    def __init__(
+        self,
+        *,
+        aws_conn_id: Optional[str] = 'aws_default',
+        region_name: Optional[str] = None,
+        log_group: str,
+        log_stream_name: str,
+        fetch_interval: timedelta,
+        logger: Logger,
+    ):
+        super().__init__()
+        self._event = Event()
+
+        self.fetch_interval = fetch_interval
+
+        self.logger = logger
+        self.log_group = log_group
+        self.log_stream_name = log_stream_name
+
+        self.hook = AwsLogsHook(aws_conn_id=aws_conn_id, region_name=region_name)
+
+    def run(self) -> None:
+        logs_to_skip = 0
+        while not self.is_stopped():
+            log_events = self._get_log_events(logs_to_skip)
+            for log_event in log_events:
+                self.logger.info(self._event_to_str(log_event))
+                logs_to_skip += 1
+            time.sleep(self.fetch_interval.total_seconds())
+
+    def _get_log_events(self, skip: int = 0) -> Generator:
+        try:
+            yield from self.hook.get_log_events(self.log_group, self.log_stream_name, skip=skip)
+        except ClientError as error:
+            if error.response['Error']['Code'] != 'ResourceNotFoundException':
+                self.logger.warning('Error on retrieving Cloudwatch log events', error)
+
+            yield from ()
+
+    def _event_to_str(self, event: dict) -> str:
+        event_dt = datetime.utcfromtimestamp(event['timestamp'] / 1000.0)
+        formatted_event_dt = event_dt.strftime('%Y-%m-%d %H:%M:%S,%f')[:-3]
+        message = event['message']
+        return f'[{formatted_event_dt}] {message}'
+
+    def get_last_log_messages(self, number_messages) -> list:
+        return [log['message'] for log in deque(self._get_log_events(), maxlen=number_messages)]
+
+    def get_last_log_message(self) -> Optional[str]:
+        try:
+            return self.get_last_log_messages(1)[0]
+        except IndexError:
+            return None
+
+    def is_stopped(self) -> bool:
+        return self._event.is_set()
+
+    def stop(self):
+        self._event.set()
+
+
 class ECSOperator(BaseOperator):
     """
     Execute a task on AWS ECS (Elastic Container Service)
@@ -136,13 +207,21 @@ class ECSOperator(BaseOperator):
         Only required if you want logs to be shown in the Airflow UI after your job has
         finished.
     :type awslogs_stream_prefix: str
+    :param awslogs_fetch_interval: the interval that the ECS task log fetcher should wait
+        in between each Cloudwatch logs fetches.
+    :type awslogs_fetch_interval: timedelta
+    :param quota_retry: Config if and how to retry the launch of a new ECS task, to handle
+        transient errors.
+    :type quota_retry: dict
     :param reattach: If set to True, will check if the task previously launched by the task_instance
         is already running. If so, the operator will attach to it instead of starting a new task.
         This is to avoid relaunching a new task when the connection drops between Airflow and ECS while
         the task is running (when the Airflow worker is restarted for example).
     :type reattach: bool
-    :param quota_retry: Config if and how to retry _start_task() for transient errors.
-    :type quota_retry: dict
+    :param number_logs_exception: Number of lines from the last Cloudwatch logs to return in the
+        AirflowException if an ECS task is stopped (to receive Airflow alerts with the logs of what
+        failed in the code running in ECS).
+    :type number_logs_exception: int
     """
 
     ui_color = '#f0ede4'
@@ -175,9 +254,11 @@ class ECSOperator(BaseOperator):
         awslogs_group: Optional[str] = None,
         awslogs_region: Optional[str] = None,
         awslogs_stream_prefix: Optional[str] = None,
+        awslogs_fetch_interval: timedelta = timedelta(seconds=30),
         propagate_tags: Optional[str] = None,
         quota_retry: Optional[dict] = None,
         reattach: bool = False,
+        number_logs_exception: int = 10,
         **kwargs,
     ):
         super().__init__(**kwargs)
@@ -199,8 +280,10 @@ class ECSOperator(BaseOperator):
         self.awslogs_group = awslogs_group
         self.awslogs_stream_prefix = awslogs_stream_prefix
         self.awslogs_region = awslogs_region
+        self.awslogs_fetch_interval = awslogs_fetch_interval
         self.propagate_tags = propagate_tags
         self.reattach = reattach
+        self.number_logs_exception = number_logs_exception
 
         if self.awslogs_region is None:
             self.awslogs_region = region_name
@@ -209,6 +292,7 @@ class ECSOperator(BaseOperator):
         self.client: Optional[ECSProtocol] = None
         self.arn: Optional[str] = None
         self.retry_args = quota_retry
+        self.task_log_fetcher: Optional[ECSTaskLogFetcher] = None
 
     @provide_session
     def execute(self, context, session=None):
@@ -225,7 +309,19 @@ class ECSOperator(BaseOperator):
         if not self.arn:
             self._start_task(context)
 
-        self._wait_for_task_ended()
+        if self._aws_logs_enabled():
+            self.log.info('Starting ECS Task Log Fetcher')
+            self.task_log_fetcher = self._get_task_log_fetcher()
+            self.task_log_fetcher.start()
+
+            try:
+                self._wait_for_task_ended()
+            finally:
+                self.task_log_fetcher.stop()
+
+            self.task_log_fetcher.join()
+        else:
+            self._wait_for_task_ended()
 
         self._check_success_task()
 
@@ -236,8 +332,8 @@ class ECSOperator(BaseOperator):
             # as we can't reattach it anymore
             self._xcom_del(session, self.REATTACH_XCOM_TASK_ID_TEMPLATE.format(task_id=self.task_id))
 
-        if self.do_xcom_push:
-            return self._last_log_message()
+        if self.do_xcom_push and self.task_log_fetcher:
+            return self.task_log_fetcher.get_last_log_message()
 
         return None
 
@@ -279,8 +375,8 @@ class ECSOperator(BaseOperator):
         self.log.info('ECS Task started: %s', response)
 
         self.arn = response['tasks'][0]['taskArn']
-        ecs_task_id = self.arn.split("/")[-1]
-        self.log.info(f"ECS task ID is: {ecs_task_id}")
+        self.ecs_task_id = self.arn.split("/")[-1]
+        self.log.info(f"ECS task ID is: {self.ecs_task_id}")
 
         if self.reattach:
             # Save the task ARN in XCom to be able to reattach it if needed
@@ -331,22 +427,20 @@ class ECSOperator(BaseOperator):
 
         return
 
-    def _cloudwatch_log_events(self) -> Generator:
-        if self._aws_logs_enabled():
-            task_id = self.arn.split("/")[-1]
-            stream_name = f"{self.awslogs_stream_prefix}/{task_id}"
-            yield from self.get_logs_hook().get_log_events(self.awslogs_group, stream_name)
-        else:
-            yield from ()
-
     def _aws_logs_enabled(self):
         return self.awslogs_group and self.awslogs_stream_prefix
 
-    def _last_log_message(self):
-        try:
-            return deque(self._cloudwatch_log_events(), maxlen=1).pop()["message"]
-        except IndexError:
-            return None
+    def _get_task_log_fetcher(self) -> ECSTaskLogFetcher:
+        log_stream_name = f"{self.awslogs_stream_prefix}/{self.ecs_task_id}"
+
+        return ECSTaskLogFetcher(
+            aws_conn_id=self.aws_conn_id,
+            region_name=self.awslogs_region,
+            log_group=self.awslogs_group,
+            log_stream_name=log_stream_name,
+            fetch_interval=self.awslogs_fetch_interval,
+            logger=self.log,
+        )
 
     def _check_success_task(self) -> None:
         if not self.client or not self.arn:
@@ -354,11 +448,6 @@ class ECSOperator(BaseOperator):
 
         response = self.client.describe_tasks(cluster=self.cluster, tasks=[self.arn])
         self.log.info('ECS Task stopped, check status: %s', response)
-
-        # Get logs from CloudWatch if the awslogs log driver was used
-        for event in self._cloudwatch_log_events():
-            event_dt = datetime.fromtimestamp(event['timestamp'] / 1000.0)
-            self.log.info("[%s] %s", event_dt.isoformat(), event['message'])
 
         if len(response.get('failures', [])) > 0:
             raise AirflowException(response)
@@ -377,7 +466,13 @@ class ECSOperator(BaseOperator):
             containers = task['containers']
             for container in containers:
                 if container.get('lastStatus') == 'STOPPED' and container['exitCode'] != 0:
-                    raise AirflowException(f'This task is not in success state {task}')
+                    last_logs = "\n".join(
+                        self.task_log_fetcher.get_last_log_messages(self.number_logs_exception)
+                    )
+                    raise AirflowException(
+                        f"This task is not in success state - last {self.number_logs_exception} "
+                        f"logs from Cloudwatch:\n{last_logs}"
+                    )
                 elif container.get('lastStatus') == 'PENDING':
                     raise AirflowException(f'This task is still pending {task}')
                 elif 'error' in container.get('reason', '').lower():
@@ -395,13 +490,12 @@ class ECSOperator(BaseOperator):
         self.hook = AwsBaseHook(aws_conn_id=self.aws_conn_id, client_type='ecs', region_name=self.region_name)
         return self.hook
 
-    def get_logs_hook(self) -> AwsLogsHook:
-        """Create and return an AwsLogsHook."""
-        return AwsLogsHook(aws_conn_id=self.aws_conn_id, region_name=self.awslogs_region)
-
     def on_kill(self) -> None:
         if not self.client or not self.arn:
             return
+
+        if self.task_log_fetcher:
+            self.task_log_fetcher.stop()
 
         response = self.client.stop_task(
             cluster=self.cluster, task=self.arn, reason='Task killed by the user'

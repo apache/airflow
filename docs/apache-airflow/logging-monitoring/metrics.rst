@@ -110,6 +110,10 @@ Name                                        Description
 ``task_restored_to_dag.<dagid>``            Number of tasks restored for a given dag (i.e. task instance which was
                                             previously in REMOVED state in the DB is added to DAG file)
 ``task_instance_created-<operator_name>``   Number of tasks instances created for a given Operator
+``triggers.blocked_main_thread``            Number of triggers that blocked the main thread (likely due to not being
+                                            fully asynchronous)
+``triggers.failed``                         Number of triggers that errored before they could fire an event
+``triggers.succeeded``                      Number of triggers that have fired at least one event
 =========================================== ================================================================
 
 Gauges
@@ -140,6 +144,7 @@ Name                                                Description
 ``smart_sensor_operator.poked_exception``           Number of exceptions in the previous smart sensor poking loop
 ``smart_sensor_operator.exception_failures``        Number of failures caused by exception in the previous smart sensor poking loop
 ``smart_sensor_operator.infra_failures``            Number of infrastructure failures in the previous smart sensor poking loop
+``triggers.running``                                Number of triggers currently running (per triggerer)
 =================================================== ========================================================================
 
 Timers

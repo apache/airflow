@@ -27,6 +27,7 @@ assists users migrating to a new version.
 **Table of contents**
 
 - [Main](#main)
+- [Airflow 2.1.4](#airflow-214)
 - [Airflow 2.1.3](#airflow-213)
 - [Airflow 2.1.2](#airflow-212)
 - [Airflow 2.1.1](#airflow-211)
@@ -237,6 +238,10 @@ In Airflow 2.2 we have changed this and now there is a database-level foreign ke
 Before updating to this 2.2 release you will have to manually resolve any inconsistencies (add back DagRun rows, or delete TaskInstances) if you have any "dangling" TaskInstance" rows.
 
 As part of this change the `clean_tis_without_dagrun_interval` config option under `[scheduler]` section has been removed and has no effect.
+
+## Airflow 2.1.4
+
+No breaking changes.
 
 ## Airflow 2.1.3
 
@@ -1776,6 +1781,16 @@ changed.
 previous one was (project_id, dataset_id, ...) (breaking change)
 - `get_tabledata` returns list of rows instead of API response in dict format. This method is deprecated in
  favor of `list_rows`. (breaking change)
+
+#### `airflow.providers.google.cloud.hooks.cloud_build.CloudBuildHook`
+
+#### `airflow.providers.google.cloud.operators.cloud_build.CloudBuildCreateBuildOperator`
+
+The `api_version` has been removed and will not be used since we migrate `CloudBuildHook` from using
+ Discovery API to native google-cloud-build python library.
+
+The `body` parameter in `CloudBuildCreateBuildOperator` has been deprecated.
+ Instead, you should pass body using the `build` parameter.
 
 #### `airflow.providers.google.cloud.hooks.dataflow.DataflowHook.start_python_dataflow`
 

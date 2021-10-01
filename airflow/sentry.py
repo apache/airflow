@@ -59,7 +59,10 @@ if conf.getboolean("sentry", 'sentry_on', fallback=False):
     class ConfiguredSentry(DummySentry):
         """Configure Sentry SDK."""
 
-        SCOPE_TAGS = frozenset(("task_id", "dag_id", "execution_date", "operator", "try_number"))
+        SCOPE_DAG_RUN_TAGS = frozenset(("data_interval_end", "data_interval_start", "execution_date"))
+        SCOPE_TASK_TAGS = frozenset(("operator",))
+        SCOPE_TASK_INSTANCE_TAGS = frozenset(("task_id", "dag_id", "try_number"))
+        SCOPE_TAGS = SCOPE_DAG_RUN_TAGS | SCOPE_TASK_TAGS | SCOPE_TASK_INSTANCE_TAGS
         SCOPE_CRUMBS = frozenset(("task_id", "state", "operator", "duration"))
 
         UNSUPPORTED_SENTRY_OPTIONS = frozenset(
@@ -69,7 +72,6 @@ if conf.getboolean("sentry", 'sentry_on', fallback=False):
                 "in_app_exclude",
                 "ignore_errors",
                 "before_breadcrumb",
-                "before_send",
                 "transport",
             )
         )
@@ -107,6 +109,8 @@ if conf.getboolean("sentry", 'sentry_on', fallback=False):
                         ", ".join(unsupported_options),
                     )
 
+                sentry_config_opts['before_send'] = conf.getimport('sentry', 'before_send')
+
             if dsn:
                 sentry_sdk.init(dsn=dsn, integrations=integrations, **sentry_config_opts)
             else:
@@ -116,14 +120,17 @@ if conf.getboolean("sentry", 'sentry_on', fallback=False):
 
         def add_tagging(self, task_instance):
             """Function to add tagging for a task_instance."""
+            dag_run = task_instance.dag_run
             task = task_instance.task
 
             with sentry_sdk.configure_scope() as scope:
-                for tag_name in self.SCOPE_TAGS:
+                for tag_name in self.SCOPE_TASK_INSTANCE_TAGS:
                     attribute = getattr(task_instance, tag_name)
-                    if tag_name == "operator":
-                        attribute = task.__class__.__name__
                     scope.set_tag(tag_name, attribute)
+                for tag_name in self.SCOPE_DAG_RUN_TAGS:
+                    attribute = getattr(dag_run, tag_name)
+                    scope.set_tag(tag_name, attribute)
+                scope.set_tag("operator", task.__class__.__name__)
 
         @provide_session
         def add_breadcrumbs(self, task_instance, session=None):
@@ -144,11 +151,14 @@ if conf.getboolean("sentry", 'sentry_on', fallback=False):
                 sentry_sdk.add_breadcrumb(category="completed_tasks", data=data, level="info")
 
         def enrich_errors(self, func):
-            """Wrap TaskInstance._run_raw_task to support task specific tags and breadcrumbs."""
+            """
+            Wrap TaskInstance._run_raw_task and LocalTaskJob._run_mini_scheduler_on_child_tasks
+             to support task specific tags and breadcrumbs.
+            """
             session_args_idx = find_session_idx(func)
 
             @wraps(func)
-            def wrapper(task_instance, *args, **kwargs):
+            def wrapper(_self, *args, **kwargs):
                 # Wrapping the _run_raw_task function with push_scope to contain
                 # tags and breadcrumbs to a specific Task Instance
 
@@ -159,8 +169,14 @@ if conf.getboolean("sentry", 'sentry_on', fallback=False):
 
                 with sentry_sdk.push_scope():
                     try:
-                        return func(task_instance, *args, **kwargs)
+                        return func(_self, *args, **kwargs)
                     except Exception as e:
+                        # Is a LocalTaskJob get the task instance
+                        if hasattr(_self, 'task_instance'):
+                            task_instance = _self.task_instance
+                        else:
+                            task_instance = _self
+
                         self.add_tagging(task_instance)
                         self.add_breadcrumbs(task_instance, session=session)
                         sentry_sdk.capture_exception(e)

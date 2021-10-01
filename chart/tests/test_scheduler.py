@@ -96,9 +96,9 @@ class SchedulerTest(unittest.TestCase):
             show_only=["templates/scheduler/scheduler-deployment.yaml"],
         )
 
-        assert "test-volume" == jmespath.search("spec.template.spec.volumes[1].name", docs[0])
-        assert "test-volume" == jmespath.search(
-            "spec.template.spec.containers[0].volumeMounts[3].name", docs[0]
+        assert "test-volume" in jmespath.search("spec.template.spec.volumes[*].name", docs[0])
+        assert "test-volume" in jmespath.search(
+            "spec.template.spec.containers[0].volumeMounts[*].name", docs[0]
         )
 
     def test_should_create_valid_affinity_tolerations_and_node_selector(self):
@@ -197,9 +197,7 @@ class SchedulerTest(unittest.TestCase):
             show_only=["templates/scheduler/scheduler-deployment.yaml"],
         )
 
-        assert {"name": "logs", **expected_volume} == jmespath.search(
-            "spec.template.spec.volumes[1]", docs[0]
-        )
+        assert {"name": "logs", **expected_volume} in jmespath.search("spec.template.spec.volumes", docs[0])
 
     def test_scheduler_resources_are_configurable(self):
         docs = render_chart(
@@ -237,8 +235,10 @@ class SchedulerTest(unittest.TestCase):
         )
         assert jmespath.search("spec.template.spec.containers[0].resources", docs[0]) == {}
 
-    def test_no_airflow_local_settings_by_default(self):
-        docs = render_chart(show_only=["templates/scheduler/scheduler-deployment.yaml"])
+    def test_no_airflow_local_settings(self):
+        docs = render_chart(
+            values={"airflowLocalSettings": None}, show_only=["templates/scheduler/scheduler-deployment.yaml"]
+        )
         volume_mounts = jmespath.search("spec.template.spec.containers[0].volumeMounts", docs[0])
         assert "airflow_local_settings.py" not in str(volume_mounts)
 

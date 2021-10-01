@@ -22,6 +22,7 @@ description: |
     `Slack <https://slack.com/>`__
 
 versions:
+  - 4.1.0
   - 4.0.1
   - 4.0.0
   - 3.0.0
@@ -34,6 +35,8 @@ additional-dependencies:
 integrations:
   - integration-name: Slack
     external-doc-url: https://slack.com/
+    how-to-guide:
+      - /docs/apache-airflow-providers-slack/operators/slack_operator_howto_guide.rst
     logo: /integration-logos/slack/Slack.png
     tags: [service]
 

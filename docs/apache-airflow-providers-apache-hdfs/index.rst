@@ -35,6 +35,7 @@ Content
 
     Python API <_api/airflow/providers/apache/hdfs/index>
     PyPI Repository <https://pypi.org/project/apache-airflow-providers-apache-hdfs/>
+    Installing from sources <installing-providers-from-sources>
 
 .. THE REMAINDER OF THE FILE IS AUTOMATICALLY GENERATED. IT WILL BE OVERWRITTEN AT RELEASE TIME!
 
@@ -53,7 +54,7 @@ Package apache-airflow-providers-apache-hdfs
 and `WebHDFS <https://hadoop.apache.org/docs/current/hadoop-project-dist/hadoop-hdfs/WebHDFS.html>`__.
 
 
-Release: 2.1.0
+Release: 2.1.1
 
 Provider package
 ----------------

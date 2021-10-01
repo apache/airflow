@@ -167,7 +167,7 @@ class TestKylinCubeOperator(unittest.TestCase):
             },
         )
         ti = TaskInstance(operator, run_id="kylin_test")
-        ti.dag_run = DagRun(run_id="kylin_test", execution_date=DEFAULT_DATE)
+        ti.dag_run = DagRun(dag_id=self.dag.dag_id, run_id="kylin_test", execution_date=DEFAULT_DATE)
         ti.render_templates()
         assert 'learn_kylin' == getattr(operator, 'project')
         assert 'kylin_sales_cube' == getattr(operator, 'cube')

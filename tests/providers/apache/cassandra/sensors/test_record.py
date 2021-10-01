@@ -73,3 +73,13 @@ class TestCassandraRecordSensor(unittest.TestCase):
 
         mock_hook.return_value.record_exists.assert_called_once_with(TEST_CASSANDRA_TABLE, TEST_CASSANDRA_KEY)
         mock_hook.assert_called_once_with(TEST_CASSANDRA_CONN_ID)
+
+    @patch("airflow.providers.apache.cassandra.sensors.record.CassandraHook")
+    def test_init_with_default_conn(self, mock_hook):
+        sensor = CassandraRecordSensor(
+            task_id='test_task',
+            table=TEST_CASSANDRA_TABLE,
+            keys=TEST_CASSANDRA_KEY,
+        )
+
+        assert sensor.cassandra_conn_id == TEST_CASSANDRA_CONN_ID

@@ -75,6 +75,7 @@ from airflow.exceptions import (
 from airflow.models.base import COLLATION_ARGS, ID_LEN, Base
 from airflow.models.connection import Connection
 from airflow.models.log import Log
+from airflow.models.param import ParamsDict
 from airflow.models.taskfail import TaskFail
 from airflow.models.taskreschedule import TaskReschedule
 from airflow.models.variable import Variable
@@ -84,6 +85,7 @@ from airflow.sentry import Sentry
 from airflow.stats import Stats
 from airflow.ti_deps.dep_context import DepContext
 from airflow.ti_deps.dependencies_deps import REQUEUEABLE_DEPS, RUNNING_DEPS
+from airflow.timetables.base import DataInterval
 from airflow.typing_compat import Literal
 from airflow.utils import timezone
 from airflow.utils.email import send_email
@@ -398,7 +400,7 @@ class TaskInstance(Base, LoggingMixin):
         innerjoin=True,
     )
 
-    dag_run = relationship("DagRun", back_populates="task_instances")
+    dag_run = relationship("DagRun", back_populates="task_instances", lazy='joined', innerjoin=True)
 
     execution_date = association_proxy("dag_run", "execution_date")
 
@@ -1064,6 +1066,14 @@ class TaskInstance(Base, LoggingMixin):
             # we must round up prior to converting to an int, otherwise a divide by zero error
             # will occur in the modded_hash calculation.
             min_backoff = int(math.ceil(delay.total_seconds() * (2 ** (self.try_number - 2))))
+
+            # In the case when delay.total_seconds() is 0, min_backoff will not be rounded up to 1.
+            # To address this, we impose a lower bound of 1 on min_backoff. This effectively makes
+            # the ceiling function unnecessary, but the ceiling function was retained to avoid
+            # introducing a breaking change.
+            if min_backoff < 1:
+                min_backoff = 1
+
             # deterministic per task instance
             ti_hash = int(
                 hashlib.sha1(
@@ -1126,6 +1136,7 @@ class TaskInstance(Base, LoggingMixin):
         test_mode: bool = False,
         job_id: Optional[str] = None,
         pool: Optional[str] = None,
+        external_executor_id: Optional[str] = None,
         session=None,
     ) -> bool:
         """
@@ -1151,6 +1162,8 @@ class TaskInstance(Base, LoggingMixin):
         :type job_id: str
         :param pool: specifies the pool to use to run the task instance
         :type pool: str
+        :param external_executor_id: The identifier of the celery executor
+        :type external_executor_id: str
         :param session: SQLAlchemy ORM Session
         :type session: Session
         :return: whether the state was changed to running or not
@@ -1232,6 +1245,7 @@ class TaskInstance(Base, LoggingMixin):
         if not test_mode:
             session.add(Log(State.RUNNING, self))
         self.state = State.RUNNING
+        self.external_executor_id = external_executor_id
         self.end_date = None
         if not test_mode:
             session.merge(self)
@@ -1291,9 +1305,8 @@ class TaskInstance(Base, LoggingMixin):
         :param session: SQLAlchemy ORM Session
         :type session: Session
         """
-        task = self.task
         self.test_mode = test_mode
-        self.refresh_from_task(task, pool_override=pool)
+        self.refresh_from_task(self.task, pool_override=pool)
         self.refresh_from_db(session=session)
         self.job_id = job_id
         self.hostname = get_hostname()
@@ -1302,11 +1315,12 @@ class TaskInstance(Base, LoggingMixin):
             session.merge(self)
             session.commit()
         actual_start_date = timezone.utcnow()
-        Stats.incr(f'ti.start.{task.dag_id}.{task.task_id}')
+        Stats.incr(f'ti.start.{self.task.dag_id}.{self.task.task_id}')
         try:
             if not mark_success:
-                context = self.get_template_context()
-                self._prepare_and_execute_task_with_callbacks(context, task)
+                self.task = self.task.prepare_for_execution()
+                context = self.get_template_context(ignore_param_exceptions=False)
+                self._execute_task_with_callbacks(context)
             if not test_mode:
                 self.refresh_from_db(lock_for_update=True, session=session)
             self.state = State.SUCCESS
@@ -1361,7 +1375,7 @@ class TaskInstance(Base, LoggingMixin):
             session.commit()
             raise
         finally:
-            Stats.incr(f'ti.finish.{task.dag_id}.{task.task_id}.{self.state}')
+            Stats.incr(f'ti.finish.{self.task.dag_id}.{self.task.task_id}.{self.state}')
 
         # Recording SKIPPED or SUCCESS
         self.end_date = timezone.utcnow()
@@ -1373,23 +1387,20 @@ class TaskInstance(Base, LoggingMixin):
 
             session.commit()
 
-    def _prepare_and_execute_task_with_callbacks(self, context, task):
+    def _execute_task_with_callbacks(self, context):
         """Prepare Task for Execution"""
         from airflow.models.renderedtifields import RenderedTaskInstanceFields
 
-        task_copy = task.prepare_for_execution()
-        self.task = task_copy
-
         def signal_handler(signum, frame):
             self.log.error("Received SIGTERM. Terminating subprocesses.")
-            task_copy.on_kill()
+            self.task.on_kill()
             raise AirflowException("Task received SIGTERM signal")
 
         signal.signal(signal.SIGTERM, signal_handler)
 
         # Don't clear Xcom until the task is certain to execute
         self.clear_xcom_data()
-        with Stats.timer(f'dag.{task_copy.dag_id}.{task_copy.task_id}.duration'):
+        with Stats.timer(f'dag.{self.task.dag_id}.{self.task.task_id}.duration'):
 
             self.render_templates(context=context)
             RenderedTaskInstanceFields.write(RenderedTaskInstanceFields(ti=self, render_templates=False))
@@ -1405,16 +1416,16 @@ class TaskInstance(Base, LoggingMixin):
             os.environ.update(airflow_context_vars)
 
             # Run pre_execute callback
-            task_copy.pre_execute(context=context)
+            self.task.pre_execute(context=context)
 
             # Run on_execute callback
-            self._run_execute_callback(context, task)
+            self._run_execute_callback(context, self.task)
 
-            if task_copy.is_smart_sensor_compatible():
+            if self.task.is_smart_sensor_compatible():
                 # Try to register it in the smart sensor service.
                 registered = False
                 try:
-                    registered = task_copy.register_in_sensor_service(self, context)
+                    registered = self.task.register_in_sensor_service(self, context)
                 except Exception:
                     self.log.warning(
                         "Failed to register in sensor service."
@@ -1428,10 +1439,10 @@ class TaskInstance(Base, LoggingMixin):
 
             # Execute the task
             with set_current_context(context):
-                result = self._execute_task(context, task_copy)
+                result = self._execute_task(context, self.task)
 
             # Run post_execute callback
-            task_copy.post_execute(context=context, result=result)
+            self.task.post_execute(context=context, result=result)
 
         Stats.incr(f'operator_successes_{self.task.task_type}', 1, 1)
         Stats.incr('ti_successes')
@@ -1692,6 +1703,11 @@ class TaskInstance(Base, LoggingMixin):
             # Log failure duration
             session.add(TaskFail(task, self.execution_date, self.start_date, self.end_date))
 
+        # Ensure we unset next_method and next_kwargs to ensure that any
+        # retries don't re-use them.
+        self.next_method = None
+        self.next_kwargs = None
+
         # Set state correctly and figure out how to log it and decide whether
         # to email
 
@@ -1708,6 +1724,9 @@ class TaskInstance(Base, LoggingMixin):
             self.state = State.FAILED
             email_for_state = task.email_on_failure
         else:
+            if self.state == State.QUEUED:
+                # We increase the try_number so as to fail the task if it fails to start after sometime
+                self._try_number += 1
             self.state = State.UP_FOR_RETRY
             email_for_state = task.email_on_retry
 
@@ -1742,51 +1761,60 @@ class TaskInstance(Base, LoggingMixin):
 
         return self.task.retries and self.try_number <= self.max_tries
 
-    def get_template_context(self, session: Session = None) -> Context:
+    def get_template_context(self, session: Session = None, ignore_param_exceptions: bool = True) -> Context:
         """Return TI Context"""
         # Do not use provide_session here -- it expunges everything on exit!
         if not session:
             session = settings.Session()
         task = self.task
+        dag: DAG = task.dag
         from airflow import macros
 
         integrate_macros_plugins()
 
-        # Ensure that the dag_run is loaded -- otherwise `self.execution_date` may not work
         dag_run = self.get_dagrun(session)
 
-        params = {}  # type: Dict[str, Any]
+        params = ParamsDict(suppress_exception=ignore_param_exceptions)
+
         with contextlib.suppress(AttributeError):
-            params.update(task.dag.params)
+            params.update(dag.params)
         if task.params:
             params.update(task.params)
         if conf.getboolean('core', 'dag_run_conf_overrides_params'):
             self.overwrite_params_with_dag_run_conf(params=params, dag_run=dag_run)
 
-        # DagRuns scheduled prior to Airflow 2.2 and by tests don't always have
-        # a data interval, and we default to execution_date for compatibility.
-        compat_interval_start = timezone.coerce_datetime(dag_run.data_interval_start or self.execution_date)
-        ds = compat_interval_start.strftime('%Y-%m-%d')
+        interval_start = dag.get_run_data_interval(dag_run).start
+        ds = interval_start.strftime('%Y-%m-%d')
+
+        # Now validates Params and convert them into a simple dict
+        task.params = params.validate()
+
         ds_nodash = ds.replace('-', '')
-        ts = compat_interval_start.isoformat()
-        ts_nodash = compat_interval_start.strftime('%Y%m%dT%H%M%S')
+        ts = interval_start.isoformat()
+        ts_nodash = interval_start.strftime('%Y%m%dT%H%M%S')
         ts_nodash_with_tz = ts.replace('-', '').replace(':', '')
 
         @cache  # Prevent multiple database access.
         def _get_previous_dagrun_success() -> Optional["DagRun"]:
             return self.get_previous_dagrun(state=State.SUCCESS, session=session)
 
-        def get_prev_data_interval_start_success() -> Optional[pendulum.DateTime]:
+        def _get_previous_dagrun_data_interval_success() -> Optional["DataInterval"]:
             dagrun = _get_previous_dagrun_success()
             if dagrun is None:
                 return None
-            return timezone.coerce_datetime(dagrun.data_interval_start)
+            return dag.get_run_data_interval(dagrun)
+
+        def get_prev_data_interval_start_success() -> Optional[pendulum.DateTime]:
+            data_interval = _get_previous_dagrun_data_interval_success()
+            if data_interval is None:
+                return None
+            return data_interval.start
 
         def get_prev_data_interval_end_success() -> Optional[pendulum.DateTime]:
-            dagrun = _get_previous_dagrun_success()
-            if dagrun is None:
+            data_interval = _get_previous_dagrun_data_interval_success()
+            if data_interval is None:
                 return None
-            return timezone.coerce_datetime(dagrun.data_interval_end)
+            return data_interval.end
 
         def get_prev_start_date_success() -> Optional[pendulum.DateTime]:
             dagrun = _get_previous_dagrun_success()
@@ -1795,7 +1823,6 @@ class TaskInstance(Base, LoggingMixin):
             return timezone.coerce_datetime(dagrun.start_date)
 
         # Custom accessors.
-
         class VariableAccessor:
             """
             Wrapper around Variable. This way you can get variables in
@@ -1912,9 +1939,11 @@ class TaskInstance(Base, LoggingMixin):
             # to execution date for consistency with how execution_date is set
             # for manually triggered tasks, i.e. triggered_date == execution_date.
             if dag_run.external_trigger:
-                next_execution_date = self.execution_date
+                next_execution_date = dag_run.execution_date
             else:
-                next_execution_date = task.dag.following_schedule(self.execution_date)
+                with warnings.catch_warnings():
+                    warnings.simplefilter("ignore", DeprecationWarning)
+                    next_execution_date = dag.following_schedule(self.execution_date)
             if next_execution_date is None:
                 return None
             return timezone.coerce_datetime(next_execution_date)
@@ -1937,7 +1966,7 @@ class TaskInstance(Base, LoggingMixin):
                 return timezone.coerce_datetime(self.execution_date)
             with warnings.catch_warnings():
                 warnings.simplefilter("ignore", DeprecationWarning)
-                return task.dag.previous_schedule(self.execution_date)
+                return dag.previous_schedule(self.execution_date)
 
         @cache
         def get_prev_ds() -> Optional[str]:
@@ -1954,7 +1983,7 @@ class TaskInstance(Base, LoggingMixin):
 
         return {
             'conf': conf,
-            'dag': task.dag,
+            'dag': dag,
             'dag_run': dag_run,
             'data_interval_end': timezone.coerce_datetime(dag_run.data_interval_end),
             'data_interval_start': timezone.coerce_datetime(dag_run.data_interval_start),
@@ -1979,7 +2008,7 @@ class TaskInstance(Base, LoggingMixin):
                 replacement='data_interval_end',
             ),
             'outlets': task.outlets,
-            'params': params,
+            'params': task.params,
             'prev_data_interval_start_success': lazy_object_proxy.Proxy(get_prev_data_interval_start_success),
             'prev_data_interval_end_success': lazy_object_proxy.Proxy(get_prev_data_interval_end_success),
             'prev_ds': deprecated_proxy(get_prev_ds, key="prev_ds"),

@@ -18,7 +18,7 @@
 Reference for package extras
 ''''''''''''''''''''''''''''
 
-Here's the list of all the :ref:`extra dependencies <installation:airflow_extra_dependencies>`.
+Here's the list of all the extra dependencies of Apache Airflow.
 
 The entries with ``*`` in the ``Preinstalled`` column indicate that those extras (providers) are always
 pre-installed when Airflow is installed.
@@ -221,6 +221,8 @@ Those are extras that add dependencies needed for integration with other softwar
 | elasticsearch       | ``pip install 'apache-airflow[elasticsearch]'``     | Elasticsearch hooks and Log Handler       |
 +---------------------+-----------------------------------------------------+-------------------------------------------+
 | exasol              | ``pip install 'apache-airflow[exasol]'``            | Exasol hooks and operators                |
++---------------------+-----------------------------------------------------+-------------------------------------------+
+| influxdb            | ``pip install 'apache-airflow[influxdb]'``          | Influxdb operators and hook               |
 +---------------------+-----------------------------------------------------+-------------------------------------------+
 | jenkins             | ``pip install 'apache-airflow[jenkins]'``           | Jenkins hooks and operators               |
 +---------------------+-----------------------------------------------------+-------------------------------------------+

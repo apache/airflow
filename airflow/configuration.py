@@ -38,6 +38,7 @@ from airflow.exceptions import AirflowConfigException
 from airflow.secrets import DEFAULT_SECRETS_SEARCH_PATH, BaseSecretsBackend
 from airflow.utils import yaml
 from airflow.utils.module_loading import import_string
+from airflow.utils.weight_rule import WeightRule
 
 log = logging.getLogger(__name__)
 
@@ -171,7 +172,7 @@ class AirflowConfigParser(ConfigParser):
         ('core', 'sensitive_var_conn_names'): ('admin', 'sensitive_variable_fields', '2.1.0'),
         ('core', 'default_pool_task_slot_count'): ('core', 'non_pooled_task_slot_count', '1.10.4'),
         ('core', 'max_active_tasks_per_dag'): ('core', 'dag_concurrency', '2.2.0'),
-        ('logging', 'worker_log_server_port'): ('celery', 'worker_log_server_port', '2.3.0'),
+        ('logging', 'worker_log_server_port'): ('celery', 'worker_log_server_port', '2.2.0'),
         ('api', 'access_control_allow_origins'): ('api', 'access_control_allow_origin', '2.2.0'),
     }
 
@@ -193,6 +194,8 @@ class AirflowConfigParser(ConfigParser):
         },
     }
 
+    enums = {("core", "default_task_weight_rule"): WeightRule}
+
     # This method transforms option names on every read, get, or set operation.
     # This changes from the default behaviour of ConfigParser from lowercasing
     # to instead be case-preserving
@@ -212,12 +215,14 @@ class AirflowConfigParser(ConfigParser):
 
         self._validate_config_dependencies()
 
+        self._validate_enums()
+
         for section, replacement in self.deprecated_values.items():
             for name, info in replacement.items():
                 old, new, version = info
-                current_value = self.get(section, name, fallback=None)
+                current_value = self.get(section, name, fallback="")
                 if self._using_old_value(old, current_value):
-                    new_value = re.sub(old, new, current_value)
+                    new_value = old.sub(new, current_value)
                     self._update_env_var(section=section, name=name, new_value=new_value)
                     self._create_future_warning(
                         name=name,
@@ -228,6 +233,16 @@ class AirflowConfigParser(ConfigParser):
                     )
 
         self.is_validated = True
+
+    def _validate_enums(self):
+        """Validate that enum type config has an accepted value"""
+        for (section, setting), enum_class in self.enums.items():
+            if self.has_option(section, setting):
+                value = self.get(section, setting)
+                if not enum_class.is_valid(value):
+                    raise AirflowConfigException(
+                        f"{value} is not an accepted config for [{section}] {setting}"
+                    )
 
     def _validate_config_dependencies(self):
         """
@@ -285,6 +300,8 @@ class AirflowConfigParser(ConfigParser):
         # would be read and used instead of the value we set
         env_var = self._env_var_name(section, name)
         os.environ.pop(env_var, None)
+        if not self.has_section(section):
+            self.add_section(section)
         self.set(section, name, new_value)
 
     @staticmethod

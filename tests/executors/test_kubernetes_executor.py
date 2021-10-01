@@ -608,7 +608,7 @@ class TestKubernetesExecutor(unittest.TestCase):
             executor = KubernetesExecutor()
             executor.job_id = "123"
             executor.start()
-            assert 1 == len(executor.event_scheduler.queue)
+            assert 2 == len(executor.event_scheduler.queue)
             executor._check_worker_pods_pending_timeout()
 
         mock_kube_client.list_namespaced_pod.assert_called_once_with(
@@ -737,6 +737,13 @@ class TestKubernetesJobWatcher(unittest.TestCase):
 
         self._run()
         self.assert_watcher_queue_called_once_with_state(None)
+
+    def test_process_status_running_deleted(self):
+        self.pod.status.phase = "Running"
+        self.events.append({"type": 'DELETED', "object": self.pod})
+
+        self._run()
+        self.assert_watcher_queue_called_once_with_state(State.FAILED)
 
     def test_process_status_running(self):
         self.pod.status.phase = "Running"

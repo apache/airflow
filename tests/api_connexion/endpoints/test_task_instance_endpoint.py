@@ -28,7 +28,7 @@ from airflow.utils.session import provide_session
 from airflow.utils.state import State
 from airflow.utils.timezone import datetime
 from airflow.utils.types import DagRunType
-from tests.test_utils.api_connexion_utils import assert_401, create_user, delete_user
+from tests.test_utils.api_connexion_utils import assert_401, create_user, delete_roles, delete_user
 from tests.test_utils.db import clear_db_runs, clear_db_sla_miss
 
 DEFAULT_DATETIME_1 = datetime(2020, 1, 1)
@@ -45,9 +45,32 @@ def configured_app(minimal_app_for_api):
         role_name="Test",
         permissions=[
             (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
+            (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_DAG),
             (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG_RUN),
             (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK_INSTANCE),
             (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_TASK_INSTANCE),
+        ],
+    )
+    create_user(
+        app,  # type: ignore
+        username="test_dag_read_only",
+        role_name="TestDagReadOnly",
+        permissions=[
+            (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
+            (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG_RUN),
+            (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK_INSTANCE),
+            (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_TASK_INSTANCE),
+        ],
+    )
+    create_user(
+        app,  # type: ignore
+        username="test_task_read_only",
+        role_name="TestTaskReadOnly",
+        permissions=[
+            (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
+            (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_DAG),
+            (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG_RUN),
+            (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK_INSTANCE),
         ],
     )
     create_user(app, username="test_no_permissions", role_name="TestNoPermissions")  # type: ignore
@@ -55,6 +78,10 @@ def configured_app(minimal_app_for_api):
     yield app
 
     delete_user(app, username="test")  # type: ignore
+    delete_user(app, username="test_dag_read_only")  # type: ignore
+    delete_user(app, username="test_task_read_only")  # type: ignore
+    delete_user(app, username="test_no_permissions")  # type: ignore
+    delete_roles(app)
 
 
 class TestTaskInstanceEndpoint:
@@ -133,7 +160,9 @@ class TestTaskInstanceEndpoint:
 
 
 class TestGetTaskInstance(TestTaskInstanceEndpoint):
-    def test_should_respond_200(self, session):
+    @parameterized.expand(["test", "test_dag_read_only", "test_task_read_only"])
+    @provide_session
+    def test_should_respond_200(self, username, session):
         self.create_task_instances(session)
         # Update ti and set operator to None to
         # test that operator field is nullable.
@@ -144,7 +173,7 @@ class TestGetTaskInstance(TestTaskInstanceEndpoint):
         session.commit()
         response = self.client.get(
             "/api/v1/dags/example_python_operator/dagRuns/TEST_DAG_RUN_ID/taskInstances/print_the_context",
-            environ_overrides={"REMOTE_USER": "test"},
+            environ_overrides={"REMOTE_USER": username},
         )
         assert response.status_code == 200
         assert response.json == {
@@ -451,6 +480,7 @@ class TestGetTaskInstancesBatch(TestTaskInstanceEndpoint):
                 True,
                 {"queue": ["test_queue_1", "test_queue_2"]},
                 2,
+                "test",
             ),
             (
                 "test pool filter",
@@ -462,6 +492,7 @@ class TestGetTaskInstancesBatch(TestTaskInstanceEndpoint):
                 True,
                 {"pool": ["test_pool_1", "test_pool_2"]},
                 2,
+                "test_dag_read_only",
             ),
             (
                 "test state filter",
@@ -473,6 +504,7 @@ class TestGetTaskInstancesBatch(TestTaskInstanceEndpoint):
                 False,
                 {"state": ["running", "queued"]},
                 2,
+                "test_task_read_only",
             ),
             (
                 "test duration filter",
@@ -484,6 +516,7 @@ class TestGetTaskInstancesBatch(TestTaskInstanceEndpoint):
                 True,
                 {"duration_gte": 100, "duration_lte": 200},
                 3,
+                "test",
             ),
             (
                 "test end date filter",
@@ -498,6 +531,7 @@ class TestGetTaskInstancesBatch(TestTaskInstanceEndpoint):
                     "end_date_lte": DEFAULT_DATETIME_STR_2,
                 },
                 2,
+                "test_task_read_only",
             ),
             (
                 "test start date filter",
@@ -512,6 +546,7 @@ class TestGetTaskInstancesBatch(TestTaskInstanceEndpoint):
                     "start_date_lte": DEFAULT_DATETIME_STR_2,
                 },
                 2,
+                "test_dag_read_only",
             ),
             (
                 "with execution date filter",
@@ -529,11 +564,14 @@ class TestGetTaskInstancesBatch(TestTaskInstanceEndpoint):
                     "execution_date_lte": (DEFAULT_DATETIME_1 + dt.timedelta(days=2)),
                 },
                 3,
+                "test",
             ),
         ]
     )
     @provide_session
-    def test_should_respond_200(self, _, task_instances, update_extras, payload, expected_ti_count, session):
+    def test_should_respond_200(
+        self, _, task_instances, update_extras, payload, expected_ti_count, username, session
+    ):
         self.create_task_instances(
             session,
             update_extras=update_extras,
@@ -541,7 +579,7 @@ class TestGetTaskInstancesBatch(TestTaskInstanceEndpoint):
         )
         response = self.client.post(
             "/api/v1/dags/~/dagRuns/~/taskInstances/list",
-            environ_overrides={"REMOTE_USER": "test"},
+            environ_overrides={"REMOTE_USER": username},
             json=payload,
         )
         assert response.status_code == 200, response.json
@@ -943,10 +981,11 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
         )
         assert_401(response)
 
-    def test_should_raise_403_forbidden(self):
+    @parameterized.expand(["test_no_permissions", "test_dag_read_only", "test_task_read_only"])
+    def test_should_raise_403_forbidden(self, username: str):
         response = self.client.post(
             "/api/v1/dags/example_python_operator/clearTaskInstances",
-            environ_overrides={'REMOTE_USER': "test_no_permissions"},
+            environ_overrides={'REMOTE_USER': username},
             json={
                 "dry_run": False,
                 "reset_dag_runs": True,
@@ -1055,10 +1094,11 @@ class TestPostSetTaskInstanceState(TestTaskInstanceEndpoint):
         )
         assert_401(response)
 
-    def test_should_raise_403_forbidden(self):
+    @parameterized.expand(["test_no_permissions", "test_dag_read_only", "test_task_read_only"])
+    def test_should_raise_403_forbidden(self, username):
         response = self.client.post(
             "/api/v1/dags/example_python_operator/updateTaskInstancesState",
-            environ_overrides={'REMOTE_USER': "test_no_permissions"},
+            environ_overrides={'REMOTE_USER': username},
             json={
                 "dry_run": True,
                 "task_id": "print_the_context",

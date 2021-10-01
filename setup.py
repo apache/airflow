@@ -183,7 +183,7 @@ alibaba = [
     'oss2>=2.14.0',
 ]
 amazon = [
-    'boto3>=1.15.0,<1.18.0',
+    'boto3>=1.15.0,<1.19.0',
     'watchtower~=1.0.6',
     'jsonpath_ng>=1.5.3',
 ]
@@ -192,12 +192,6 @@ apache_beam = [
 ]
 asana = ['asana>=0.10']
 async_packages = [
-    # DNS Python 2.0.0 and above breaks building documentation on Sphinx. When dnspython 2.0.0 is installed
-    # building documentation fails with trying to import google packages with
-    # TypeError("unsupported operand type(s) for +: 'SSL_VERIFY_PEER' and
-    # 'SSL_VERIFY_FAIL_IF_NO_PEER_CERT'")
-    # The issue is opened for it https://github.com/rthalley/dnspython/issues/681
-    'dnspython<2.0.0',
     'eventlet>= 0.9.7',
     'gevent>=0.13',
     'greenlet>=0.4.9',
@@ -216,7 +210,8 @@ azure = [
     'azure-mgmt-datafactory>=1.0.0,<2.0',
     'azure-mgmt-datalake-store>=0.5.0',
     'azure-mgmt-resource>=2.2.0',
-    'azure-storage-blob>=12.7.0',
+    # limited due to https://github.com/Azure/azure-sdk-for-python/pull/18801  implementation released in 12.9
+    'azure-storage-blob>=12.7.0,<12.9.0',
     'azure-storage-common>=2.1.0',
     'azure-storage-file>=2.1.0',
 ]
@@ -299,9 +294,10 @@ google = [
     'google-cloud-automl>=2.1.0,<3.0.0',
     'google-cloud-bigquery-datatransfer>=3.0.0,<4.0.0',
     'google-cloud-bigtable>=1.0.0,<2.0.0',
+    'google-cloud-build>=3.0.0,<4.0.0',
     'google-cloud-container>=0.1.1,<2.0.0',
     'google-cloud-datacatalog>=3.0.0,<4.0.0',
-    'google-cloud-dataproc>=2.2.0,<3.0.0',
+    'google-cloud-dataproc>=2.2.0,<2.6.0',
     'google-cloud-dlp>=0.11.0,<2.0.0',
     'google-cloud-kms>=2.0.0,<3.0.0',
     'google-cloud-language>=1.1.1,<2.0.0',
@@ -354,6 +350,7 @@ http = [
 http_provider = [
     'apache-airflow-providers-http',
 ]
+influxdb = ['pandas>=0.17.1, <2.0', 'influxdb-client>=1.19.0']
 jdbc = [
     'jaydebeapi>=1.1.1',
 ]
@@ -512,12 +509,11 @@ devel = [
     'freezegun',
     'github3.py',
     'gitpython',
-    'importlib-resources~=1.4',
     'ipdb',
     'jira',
     'jsondiff',
     'mongomock',
-    'moto~=2.2, >=2.2.1.dev9',
+    'moto~=2.2, >=2.2.7',
     'mypy==0.770',
     'parameterized',
     'paramiko',
@@ -580,6 +576,7 @@ PROVIDERS_REQUIREMENTS: Dict[str, List[str]] = {
     'hashicorp': hashicorp,
     'http': http,
     'imap': [],
+    'influxdb': influxdb,
     'jdbc': jdbc,
     'jenkins': jenkins,
     'jira': jira,
@@ -752,6 +749,7 @@ ALL_DB_PROVIDERS = [
     'apache.pinot',
     'cloudant',
     'exasol',
+    'influxdb',
     'microsoft.mssql',
     'mongo',
     'mysql',
@@ -1043,4 +1041,4 @@ def do_setup() -> None:
 
 
 if __name__ == "__main__":
-    do_setup()
+    do_setup()  # comment

@@ -43,7 +43,7 @@ class TestElasticsearchTaskHandler:
     TASK_ID = 'task_for_testing_es_log_handler'
     EXECUTION_DATE = datetime(2016, 1, 1)
     LOG_ID = f'{DAG_ID}-{TASK_ID}-2016-01-01T00:00:00+00:00-1'
-    JSON_LOG_ID = f'{DAG_ID}-{TASK_ID}-{ElasticsearchTaskHandler._clean_execution_date(EXECUTION_DATE)}-1'
+    JSON_LOG_ID = f'{DAG_ID}-{TASK_ID}-{ElasticsearchTaskHandler._clean_date(EXECUTION_DATE)}-1'
 
     @pytest.fixture()
     def ti(self, create_task_instance):
@@ -406,8 +406,8 @@ class TestElasticsearchTaskHandler:
         self.es_task_handler.json_format = True
         assert self.JSON_LOG_ID == self.es_task_handler._render_log_id(ti, 1)
 
-    def test_clean_execution_date(self):
-        clean_execution_date = self.es_task_handler._clean_execution_date(datetime(2016, 7, 8, 9, 10, 11, 12))
+    def test_clean_date(self):
+        clean_execution_date = self.es_task_handler._clean_date(datetime(2016, 7, 8, 9, 10, 11, 12))
         assert '2016_07_08T09_10_11_000012' == clean_execution_date
 
     @pytest.mark.parametrize(

@@ -183,4 +183,9 @@ class BaseTaskRunner(LoggingMixin):
                 subprocess.call(['sudo', 'rm', self._cfg_path], close_fds=True)
             else:
                 os.remove(self._cfg_path)
-        self._error_file.close()
+        try:
+            self._error_file.close()
+        except FileNotFoundError:
+            # The subprocess has deleted this file before we do
+            # so we ignore
+            pass

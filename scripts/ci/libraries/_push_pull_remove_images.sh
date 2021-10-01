@@ -62,7 +62,7 @@ function push_pull_remove_images::pull_image_if_not_present_or_forced() {
         echo
         echo "Pulling the image ${image_to_pull}"
         echo
-        docker_v pull "${image_to_pull}"
+        docker pull "${image_to_pull}"
     fi
 }
 
@@ -262,32 +262,34 @@ function push_pull_remove_images::push_prod_images_to_github () {
     fi
 }
 
-# waits for an image to be available in GitHub Container Registry. Should be run with `set +e`
-function push_pull_remove_images::check_image_manifest() {
-    local image_to_wait_for="${1}"
-    echo "GitHub Container Registry: checking for ${image_to_wait_for} via docker manifest inspect!"
-    docker_v manifest inspect "${image_to_wait_for}"
-    local res=$?
-    if [[ ${res} == "0" ]]; then
-        echo  "Image: ${image_to_wait_for} found in Container Registry: ${COLOR_GREEN}OK.${COLOR_RESET}"
-        return 0
-    else
-        echo "${COLOR_YELLOW}Still waiting. Not found!${COLOR_RESET}"
-        return 1
-    fi
-}
 
 # waits for an image to be available in the GitHub registry
 function push_pull_remove_images::wait_for_image() {
+    # Maximum number of tries 100 = we try for max. 100 minutes.
+    local MAX_TRIES=100
     set +e
     echo " Waiting for github registry image: $1"
+    local count=0
     while true
     do
-        if push_pull_remove_images::check_image_manifest "$1"; then
-            export IMAGE_AVAILABLE="$1"
+        if push_pull_remove_images::pull_image_if_not_present_or_forced "$1"; then
             break
         fi
-        sleep 30
+        if [[ ${count} == "${MAX_TRIES}" ]]; then
+            echo "${COLOR_RED}Giving up after ${MAX_TRIES}!${COLOR_RESET}"
+            echo "If there were delays with building the image, maintainers could potentially restart the build when the images are ready!"
+            echo "Or you can run 'git commit --amend' and then push the PR again with 'git push --force-with-lease' to re-trigger the build."
+            return 1
+        fi
+        echo "${COLOR_YELLOW}Failed to pull the image for ${count} time. Sleeping!${COLOR_RESET}"
+        sleep 60
+        count=$((count + 1))
     done
     set -e
+}
+
+function push_pull_remove_images::pull_image() {
+    start_end::group_start  "Pulling image: $1"
+    push_pull_remove_images::pull_image_if_not_present_or_forced "$1"
+    start_end::group_end
 }

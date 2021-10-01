@@ -90,7 +90,7 @@ class SubDagOperator(BaseSensorOperator):
         warnings.warn(
             """This class is deprecated. Please use `airflow.utils.task_group.TaskGroup`.""",
             DeprecationWarning,
-            stacklevel=2,
+            stacklevel=4,
         )
 
     def _validate_dag(self, kwargs):

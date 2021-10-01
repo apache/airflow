@@ -175,6 +175,7 @@ HttpRequest
 IdP
 ImageAnnotatorClient
 Imap
+Influxdb
 InsecureClient
 InspectContentResponse
 InspectTemplate
@@ -228,6 +229,7 @@ Memorystore
 Mesos
 MessageAttributes
 Metastore
+Midnights
 Mixin
 Mongo
 Moto
@@ -259,6 +261,7 @@ PTarget
 Pagerduty
 Papermill
 Parallelize
+Parameterized
 Parameterizing
 Paramiko
 Params
@@ -356,7 +359,7 @@ Tez
 Thinknear
 ToC
 Tooltip
-Tuneables
+Tunables
 UA
 Umask
 Un
@@ -402,6 +405,7 @@ acknowledgement
 actionCard
 acyclic
 adhoc
+adls
 airbnb
 airbyte
 airflowignore
@@ -578,6 +582,7 @@ createDisposition
 creationTimestamp
 credssp
 cron
+croniter
 cronjob
 crontab
 crypto
@@ -705,6 +710,7 @@ envvar
 eol
 eols
 errno
+errored
 eslint
 etl
 europe
@@ -715,7 +721,7 @@ evo
 exasol
 execvp
 exitcode
-explict
+explicit
 exportingmultiple
 extensibility
 externalbrowser
@@ -839,6 +845,7 @@ impyla
 incompliancies
 inexhaustive
 infile
+influxdb
 infoType
 infoTypes
 ini
@@ -952,6 +959,7 @@ mget
 microservice
 microsoft
 middleware
+midnights
 milton
 minicluster
 minikube
@@ -1043,6 +1051,7 @@ parameterizing
 paramiko
 params
 passwd
+pathType
 pem
 performant
 personalizations
@@ -1336,6 +1345,7 @@ trino
 trojan
 tsv
 ttl
+tunables
 txt
 tz
 tzinfo

@@ -29,14 +29,26 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+2.1.1
+.....
+
+Latest change: 2021-09-18
+
+================================================================================================  ===========  ====================================================================
+Commit                                                                                            Committed    Subject
+================================================================================================  ===========  ====================================================================
+`2b62a75a3 <https://github.com/apache/airflow/commit/2b62a75a34d44ac7d9ed83c02421ff4867875577>`_  2021-09-18   ``fix get_connections deprecation warning in webhdfs hook (#18331)``
+================================================================================================  ===========  ====================================================================
+
 2.1.0
 .....
 
-Latest change: 2021-08-23
+Latest change: 2021-08-30
 
 ================================================================================================  ===========  ============================================================================
 Commit                                                                                            Committed    Subject
 ================================================================================================  ===========  ============================================================================
+`0a6858847 <https://github.com/apache/airflow/commit/0a68588479e34cf175d744ea77b283d9d78ea71a>`_  2021-08-30   ``Add August 2021 Provider's documentation (#17890)``
 `be75dcd39 <https://github.com/apache/airflow/commit/be75dcd39cd10264048c86e74110365bd5daf8b7>`_  2021-08-23   ``Update description about the new ''connection-types'' provider meta-data``
 `76ed2a49c <https://github.com/apache/airflow/commit/76ed2a49c6cd285bf59706cf04f39a7444c382c9>`_  2021-08-19   ``Import Hooks lazily individually in providers manager (#17682)``
 `0016007b8 <https://github.com/apache/airflow/commit/0016007b86c6dd4a6c6900fa71137ed065acfe88>`_  2021-08-18   ``hdfs provider: allow SSL webhdfs connections (#17637)``

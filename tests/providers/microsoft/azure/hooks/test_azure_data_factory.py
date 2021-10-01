@@ -17,15 +17,17 @@
 
 
 import json
-from unittest.mock import MagicMock, Mock
+from unittest.mock import MagicMock, Mock, patch
 
 import pytest
 from pytest import fixture
 
 from airflow.exceptions import AirflowException
 from airflow.models.connection import Connection
-from airflow.providers.microsoft.azure.hooks.azure_data_factory import (
+from airflow.providers.microsoft.azure.hooks.data_factory import (
     AzureDataFactoryHook,
+    AzureDataFactoryPipelineRunException,
+    AzureDataFactoryPipelineRunStatus,
     provide_targeted_factory,
 )
 from airflow.utils import db
@@ -49,10 +51,10 @@ def setup_module():
         password="clientSecret",
         extra=json.dumps(
             {
-                "tenantId": "tenantId",
-                "subscriptionId": "subscriptionId",
-                "resourceGroup": DEFAULT_RESOURCE_GROUP,
-                "factory": DEFAULT_FACTORY,
+                "extra__azure_data_factory__tenantId": "tenantId",
+                "extra__azure_data_factory__subscriptionId": "subscriptionId",
+                "extra__azure_data_factory__resource_group_name": DEFAULT_RESOURCE_GROUP,
+                "extra__azure_data_factory__factory_name": DEFAULT_FACTORY,
             }
         ),
     )
@@ -62,7 +64,7 @@ def setup_module():
 
 @fixture
 def hook():
-    client = AzureDataFactoryHook(conn_id="azure_data_factory_test")
+    client = AzureDataFactoryHook(azure_data_factory_conn_id="azure_data_factory_test")
     client._conn = MagicMock(
         spec=[
             "factories",
@@ -100,8 +102,14 @@ def test_provide_targeted_factory():
     conn.extra_dejson = {}
     assert provide_targeted_factory(echo)(hook, RESOURCE_GROUP, FACTORY) == (RESOURCE_GROUP, FACTORY)
 
-    conn.extra_dejson = {"resourceGroup": DEFAULT_RESOURCE_GROUP, "factory": DEFAULT_FACTORY}
+    conn.extra_dejson = {
+        "extra__azure_data_factory__resource_group_name": DEFAULT_RESOURCE_GROUP,
+        "extra__azure_data_factory__factory_name": DEFAULT_FACTORY,
+    }
     assert provide_targeted_factory(echo)(hook) == (DEFAULT_RESOURCE_GROUP, DEFAULT_FACTORY)
+    assert provide_targeted_factory(echo)(hook, RESOURCE_GROUP, None) == (RESOURCE_GROUP, DEFAULT_FACTORY)
+    assert provide_targeted_factory(echo)(hook, None, FACTORY) == (DEFAULT_RESOURCE_GROUP, FACTORY)
+    assert provide_targeted_factory(echo)(hook, None, None) == (DEFAULT_RESOURCE_GROUP, DEFAULT_FACTORY)
 
     with pytest.raises(AirflowException):
         conn.extra_dejson = {}
@@ -334,6 +342,42 @@ def test_get_pipeline_run(hook: AzureDataFactoryHook, user_args, sdk_args):
     hook.get_pipeline_run(*user_args)
 
     hook._conn.pipeline_runs.get.assert_called_with(*sdk_args)
+
+
+_wait_for_pipeline_run_status_test_args = [
+    (AzureDataFactoryPipelineRunStatus.SUCCEEDED, AzureDataFactoryPipelineRunStatus.SUCCEEDED, True),
+    (AzureDataFactoryPipelineRunStatus.FAILED, AzureDataFactoryPipelineRunStatus.SUCCEEDED, False),
+    (AzureDataFactoryPipelineRunStatus.CANCELLED, AzureDataFactoryPipelineRunStatus.SUCCEEDED, False),
+    (AzureDataFactoryPipelineRunStatus.IN_PROGRESS, AzureDataFactoryPipelineRunStatus.SUCCEEDED, "timeout"),
+    (AzureDataFactoryPipelineRunStatus.QUEUED, AzureDataFactoryPipelineRunStatus.SUCCEEDED, "timeout"),
+    (AzureDataFactoryPipelineRunStatus.CANCELING, AzureDataFactoryPipelineRunStatus.SUCCEEDED, "timeout"),
+    (AzureDataFactoryPipelineRunStatus.SUCCEEDED, AzureDataFactoryPipelineRunStatus.TERMINAL_STATUSES, True),
+    (AzureDataFactoryPipelineRunStatus.FAILED, AzureDataFactoryPipelineRunStatus.TERMINAL_STATUSES, True),
+    (AzureDataFactoryPipelineRunStatus.CANCELLED, AzureDataFactoryPipelineRunStatus.TERMINAL_STATUSES, True),
+]
+
+
+@pytest.mark.parametrize(
+    argnames=("pipeline_run_status", "expected_status", "expected_output"),
+    argvalues=_wait_for_pipeline_run_status_test_args,
+    ids=[
+        f"run_status_{argval[0]}_expected_{argval[1]}"
+        if isinstance(argval[1], str)
+        else f"run_status_{argval[0]}_expected_AnyTerminalStatus"
+        for argval in _wait_for_pipeline_run_status_test_args
+    ],
+)
+def test_wait_for_pipeline_run_status(hook, pipeline_run_status, expected_status, expected_output):
+    config = {"run_id": ID, "timeout": 3, "check_interval": 1, "expected_statuses": expected_status}
+
+    with patch.object(AzureDataFactoryHook, "get_pipeline_run") as mock_pipeline_run:
+        mock_pipeline_run.return_value.status = pipeline_run_status
+
+        if expected_output != "timeout":
+            assert hook.wait_for_pipeline_run_status(**config) == expected_output
+        else:
+            with pytest.raises(AzureDataFactoryPipelineRunException):
+                hook.wait_for_pipeline_run_status(**config)
 
 
 @parametrize(

@@ -29,7 +29,10 @@ from tests.test_utils.config import conf_vars
 
 TEST_DAG_ID = 'unit_tests_ssh_test_op'
 TEST_CONN_ID = "conn_id_for_testing"
-TIMEOUT = 5
+DEFAULT_TIMEOUT = 10
+CONN_TIMEOUT = 5
+CMD_TIMEOUT = 7
+TIMEOUT = 12
 DEFAULT_DATE = datetime(2017, 1, 1)
 COMMAND = "echo -n airflow"
 COMMAND_WITH_SUDO = "sudo " + COMMAND
@@ -43,13 +46,29 @@ class TestSSHOperator:
         hook.no_host_key_check = True
         self.hook = hook
 
-    def test_hook_created_correctly(self):
+    def test_hook_created_correctly_with_timeout(self):
         timeout = 20
         ssh_id = "ssh_default"
         with DAG('unit_tests_ssh_test_op_arg_checking', default_args={'start_date': DEFAULT_DATE}):
             task = SSHOperator(task_id="test", command=COMMAND, timeout=timeout, ssh_conn_id="ssh_default")
         task.execute(None)
-        assert timeout == task.ssh_hook.timeout
+        assert timeout == task.ssh_hook.conn_timeout
+        assert ssh_id == task.ssh_hook.ssh_conn_id
+
+    def test_hook_created_correctly(self):
+        conn_timeout = 20
+        cmd_timeout = 45
+        ssh_id = 'ssh_default'
+        with DAG('unit_tests_ssh_test_op_arg_checking', default_args={'start_date': DEFAULT_DATE}):
+            task = SSHOperator(
+                task_id="test",
+                command=COMMAND,
+                conn_timeout=conn_timeout,
+                cmd_timeout=cmd_timeout,
+                ssh_conn_id="ssh_default",
+            )
+        task.execute(None)
+        assert conn_timeout == task.ssh_hook.conn_timeout
         assert ssh_id == task.ssh_hook.ssh_conn_id
 
     @conf_vars({('core', 'enable_xcom_pickling'): 'False'})
@@ -174,7 +193,8 @@ class TestSSHOperator:
             task_id="test",
             ssh_hook=self.hook,
             command=command,
-            timeout=TIMEOUT,
+            conn_timeout=TIMEOUT,
+            cmd_timeout=TIMEOUT,
             get_pty=get_pty_in,
             dag=dag,
         )
