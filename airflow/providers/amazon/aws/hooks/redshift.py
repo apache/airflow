@@ -191,8 +191,8 @@ class RedshiftSQLHook(DbApiHook):
 
         return conn_params
 
-    def _get_sqlalchemy_uri(self) -> str:
-        """Helper method which builds a partial sqlalchemy connection URI"""
+    def get_uri(self) -> str:
+        """Overrides DbApiHook get_uri to use redshift_connector sqlalchemy dialect as drivername"""
         conn_params = self._get_conn_params()
 
         if 'user' in conn_params:
@@ -211,7 +211,7 @@ class RedshiftSQLHook(DbApiHook):
         else:
             engine_kwargs["connect_args"] = conn_kwargs
 
-        return create_engine(self._get_sqlalchemy_uri(), **engine_kwargs)
+        return create_engine(self.get_uri(), **engine_kwargs)
 
     def get_conn(self) -> RedshiftConnection:
         """Returns a redshift_connector.Connection object"""
