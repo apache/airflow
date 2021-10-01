@@ -147,13 +147,9 @@ class DbApiHook(BaseHook):
         :param parameters: The parameters to render the SQL query with.
         :type parameters: dict or iterable
         """
-        with closing(self.get_conn()) as conn:
-            with closing(conn.cursor()) as cur:
-                if parameters is not None:
-                    cur.execute(sql, parameters)
-                else:
-                    cur.execute(sql)
-                return cur.fetchall()
+        with closing(self.get_conn()) as conn, closing(conn.cursor()) as cur:
+            cur.execute(sql, parameters or ())
+            return cur.fetchall()
 
     def get_first(self, sql, parameters=None):
         """
@@ -165,13 +161,9 @@ class DbApiHook(BaseHook):
         :param parameters: The parameters to render the SQL query with.
         :type parameters: dict or iterable
         """
-        with closing(self.get_conn()) as conn:
-            with closing(conn.cursor()) as cur:
-                if parameters is not None:
-                    cur.execute(sql, parameters)
-                else:
-                    cur.execute(sql)
-                return cur.fetchone()
+        with closing(self.get_conn()) as conn, closing(conn.cursor()) as cur:
+            cur.execute(sql, parameters or ())
+            return cur.fetchone()
 
     def run(self, sql, autocommit=False, parameters=None, handler=None):
         """
@@ -223,10 +215,7 @@ class DbApiHook(BaseHook):
     def _run_command(self, cur, sql_statement, parameters):
         """Runs a statement using an already open cursor."""
         self.log.info("Running statement: %s, parameters: %s", sql_statement, parameters)
-        if parameters:
-            cur.execute(sql_statement, parameters)
-        else:
-            cur.execute(sql_statement)
+        cur.execute(sql_statement, parameters or ())
 
         # According to PEP 249, this is -1 when query result is not applicable.
         if cur.rowcount >= 0:
@@ -377,12 +366,9 @@ class DbApiHook(BaseHook):
         """Tests the connection by executing a select 1 query"""
         status, message = False, ''
         try:
-            with closing(self.get_conn()) as conn:
-                with closing(conn.cursor()) as cur:
-                    cur.execute("select 1")
-                    if cur.fetchone():
-                        status = True
-                        message = 'Connection successfully tested'
+            if self.get_first("select 1"):
+                status = True
+                message = 'Connection successfully tested'
         except Exception as e:
             status = False
             message = str(e)
