@@ -148,7 +148,7 @@ class DbApiHook(BaseHook):
         :type parameters: dict or iterable
         """
         with closing(self.get_conn()) as conn, closing(conn.cursor()) as cur:
-            self._run_command(sql, parameters)
+            self._run_command(cur, sql, parameters)
             return cur.fetchall()
 
     def get_first(self, sql, parameters=None):
@@ -162,7 +162,7 @@ class DbApiHook(BaseHook):
         :type parameters: dict or iterable
         """
         with closing(self.get_conn()) as conn, closing(conn.cursor()) as cur:
-            self._run_command(sql, parameters)
+            self._run_command(cur, sql, parameters)
             return cur.fetchone()
 
     def run(self, sql, autocommit=False, parameters=None, handler=None):
