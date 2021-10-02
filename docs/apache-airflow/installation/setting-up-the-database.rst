@@ -28,5 +28,5 @@ Similarly, upgrading Airflow usually requires an extra step of upgrading the dat
 with ``airflow db upgrade`` CLI command. You should make sure that Airflow components are
 not running while the upgrade is being executed.
 
-In some deployments, such as :doc:`helm-chart:index`, both initializing and running the database migration
+In some deployments, such as :doc:`helm-chart:index.rst`, both initializing and running the database migration
 is executed automatically when Airflow is upgraded.
