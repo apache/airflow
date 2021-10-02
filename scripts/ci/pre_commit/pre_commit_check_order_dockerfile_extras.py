@@ -19,8 +19,11 @@
 """
 Test for an order of dependencies in setup.py
 """
+import builtins
+import difflib
 import os
 import sys
+import textwrap
 from typing import List
 
 from rich import print
@@ -35,22 +38,29 @@ START_LINE = ".. BEGINNING OF EXTRAS LIST UPDATED BY PRE COMMIT"
 END_LINE = ".. END OF EXTRAS LIST UPDATED BY PRE COMMIT"
 
 
+class ConsoleDiff(difflib.Differ):
+    def _dump(self, tag, x, lo, hi):
+        """Generate comparison results for a same-tagged range."""
+        for i in range(lo, hi):
+            if tag == "+":
+                yield f'[green]{tag} {x[i]}[/]'
+            elif tag == "-":
+                yield f'[red]{tag} {x[i]}[/]'
+            else:
+                yield f'{tag} {x[i]}'
+
+
 def _check_list_sorted(the_list: List[str], message: str) -> bool:
-    print(the_list)
     sorted_list = sorted(the_list)
     if the_list == sorted_list:
         print(f"{message} is [green]ok[/]")
+        print(the_list)
         print()
         return True
-    i = 0
-    while sorted_list[i] == the_list[i]:
-        i += 1
     print(f"{message} [red]NOK[/]")
+    print(textwrap.indent("\n".join(ConsoleDiff().compare(the_list, sorted_list)), " " * 4))
     print()
-    errors.append(
-        f"ERROR in {message}. First wrongly sorted element {repr(the_list[i])}. Should "
-        f"be {repr(sorted_list[i])}"
-    )
+    errors.append(f"ERROR in {message}. The elements are not sorted.")
     return False
 
 
