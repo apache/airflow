@@ -25,7 +25,7 @@ import re
 import socket
 import sys
 import traceback
-from collections import defaultdict, OrderedDict
+from collections import defaultdict
 from datetime import timedelta
 from functools import wraps
 from json import JSONDecodeError
@@ -3297,6 +3297,7 @@ def lazy_add_provider_discovered_options_to_connection_form():
         _connection_types = [
             ('fs', 'File (path)'),
             ('mesos_framework-id', 'Mesos Framework ID'),
+            ('email', 'Email'),
         ]
         providers_manager = ProvidersManager()
         for connection_type, provider_info in providers_manager.hooks.items():
@@ -3410,7 +3411,7 @@ class ConnectionModelView(AirflowModelView):
         ]
     )
 
-    def action_mulduplicate(self, connections, session=None):
+def action_mulduplicate(self, connections, session=None):
         """Duplicate Multiple connections"""
         for selected_conn in connections:
             new_conn_id = selected_conn.conn_id
@@ -3420,33 +3421,33 @@ class ConnectionModelView(AirflowModelView):
             if match:
                 base_conn_id = base_conn_id.split('_copy')[0]
 
-            potential_connection_ids = []
-            # Before creating a new connection
-            # Query to see if connection exists.
-            sql_query_string = 'select conn_id from connection where '
-            for i in range(1, 11):
-                connection_id = f'{base_conn_id}_copy{i}'
-                potential_connection_ids.append(connection_id)
-                sql_query_string += f"conn_id='{connection_id}'"
-                if i < 10:
-                    sql_query_string += f" or "
+            potential_connection_ids = [f"{base_conn_id}_copy{i}" for i in range(1, 11)]
 
-            results = session.execute(sql_query_string)
+            query = (
+                session.query(Connection.conn_id)
+                    .filter(Connection.conn_id.in_(potential_connection_ids)
+                            ))
 
-            for result in results:
-                for column, value in result.items():
-                    potential_connection_ids.remove(value)
+            found_conn_id_set = {conn_id for conn_id, in query}
+            logging.warning(f"CONNECTIONS: {found_conn_id_set}")
 
-            if len(potential_connection_ids) == 0:
-                # No connections available
-                    flash(
-                        f"Connection {new_conn_id} can't be added because it already exists, "
-                        f"Please rename the existing connections",
-                        "warning",
-                    )
+            possible_conn_ids =[]
+            for connection_id in potential_connection_ids:
+                if connection_id not in found_conn_id_set:
+                    possible_conn_ids.append(connection_id)
+
+            logging.warning(f"POSSIBLE CONNECTION IDS {possible_conn_ids}")
+            possible_conn_id_iter = iter(possible_conn_ids)
+            try:
+                new_conn_id = next(possible_conn_id_iter)
+                logging.warning(f"NEW CONNECTION ID {new_conn_id}")
+            except StopIteration:
+                flash(
+                    f"Connection {new_conn_id} can't be added because it already exists, "
+                    f"Please rename the existing connections",
+                    "warning",
+                )
             else:
-                # Pick the lowest connection id.
-                new_conn_id = potential_connection_ids[0]
 
                 dup_conn = Connection(
                     new_conn_id,
@@ -3466,7 +3467,8 @@ class ConnectionModelView(AirflowModelView):
                     flash(f"Connection {new_conn_id} added successfully.", "success")
                 except IntegrityError:
                     flash(
-                        f"Connection {new_conn_id} can't be added. Integrity error, probably unique constraint.",
+                        f"Connection {new_conn_id} can't be added. Integrity error, "
+                        f"probably unique constraint.",
                         "warning",
                     )
                     session.rollback()
