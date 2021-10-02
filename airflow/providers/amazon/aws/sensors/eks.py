@@ -15,9 +15,10 @@
 # specific language governing permissions and limitations
 # under the License.
 #
-"""Tracking the state of EKS Clusters and Nodegroups."""
+"""Tracking the state of Amazon EKS Clusters, Amazon EKS managed node groups, and AWS Fargate profiles."""
 from typing import Optional
 
+from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.eks import (
     ClusterStates,
     EKSHook,
@@ -28,10 +29,31 @@ from airflow.sensors.base import BaseSensorOperator
 
 DEFAULT_CONN_ID = "aws_default"
 
+CLUSTER_TERMINAL_STATES = frozenset({ClusterStates.ACTIVE, ClusterStates.FAILED, ClusterStates.NONEXISTENT})
+FARGATE_TERMINAL_STATES = frozenset(
+    {
+        FargateProfileStates.ACTIVE,
+        FargateProfileStates.CREATE_FAILED,
+        FargateProfileStates.DELETE_FAILED,
+        FargateProfileStates.NONEXISTENT,
+    }
+)
+NODEGROUP_TERMINAL_STATES = frozenset(
+    {
+        NodegroupStates.ACTIVE,
+        NodegroupStates.CREATE_FAILED,
+        NodegroupStates.DELETE_FAILED,
+        NodegroupStates.NONEXISTENT,
+    }
+)
+UNEXPECTED_TERMINAL_STATE_MSG = (
+    "Terminal state reached. Current state: {current_state}, Expected state: {target_state}"
+)
+
 
 class EKSClusterStateSensor(BaseSensorOperator):
     """
-    Check the state of an Amazon EKS Cluster until the state of the Cluster equals the target state.
+    Check the state of an Amazon EKS Cluster until it reaches the target state or another terminal state.
 
     :param cluster_name: The name of the Cluster to watch. (templated)
     :type cluster_name: str
@@ -79,12 +101,19 @@ class EKSClusterStateSensor(BaseSensorOperator):
 
         cluster_state = eks_hook.get_cluster_state(clusterName=self.cluster_name)
         self.log.info("Cluster state: %s", cluster_state)
+        if cluster_state in (CLUSTER_TERMINAL_STATES - {self.target_state}):
+            # If we reach a terminal state which is not the target state:
+            raise AirflowException(
+                UNEXPECTED_TERMINAL_STATE_MSG.format(
+                    current_state=cluster_state, target_state=self.target_state
+                )
+            )
         return cluster_state == self.target_state
 
 
 class EKSFargateProfileStateSensor(BaseSensorOperator):
     """
-    Check the state of an AWS Fargate profile until the state of the profile equals the target state.
+    Check the state of an AWS Fargate profile until it reaches the target state or another terminal state.
 
     :param cluster_name: The name of the Cluster which the AWS Fargate profile is attached to. (templated)
     :type cluster_name: str
@@ -138,12 +167,19 @@ class EKSFargateProfileStateSensor(BaseSensorOperator):
             clusterName=self.cluster_name, fargateProfileName=self.fargate_profile_name
         )
         self.log.info("Fargate profile state: %s", fargate_profile_state)
+        if fargate_profile_state in (FARGATE_TERMINAL_STATES - {self.target_state}):
+            # If we reach a terminal state which is not the target state:
+            raise AirflowException(
+                UNEXPECTED_TERMINAL_STATE_MSG.format(
+                    current_state=fargate_profile_state, target_state=self.target_state
+                )
+            )
         return fargate_profile_state == self.target_state
 
 
 class EKSNodegroupStateSensor(BaseSensorOperator):
     """
-    Check the state of an Amazon EKS Nodegroup until the state of the Nodegroup equals the target state.
+    Check the state of an EKS managed node group until it reaches the target state or another terminal state.
 
     :param cluster_name: The name of the Cluster which the Nodegroup is attached to. (templated)
     :type cluster_name: str
@@ -197,4 +233,11 @@ class EKSNodegroupStateSensor(BaseSensorOperator):
             clusterName=self.cluster_name, nodegroupName=self.nodegroup_name
         )
         self.log.info("Nodegroup state: %s", nodegroup_state)
+        if nodegroup_state in (NODEGROUP_TERMINAL_STATES - {self.target_state}):
+            # If we reach a terminal state which is not the target state:
+            raise AirflowException(
+                UNEXPECTED_TERMINAL_STATE_MSG.format(
+                    current_state=nodegroup_state, target_state=self.target_state
+                )
+            )
         return nodegroup_state == self.target_state
