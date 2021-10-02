@@ -19,7 +19,6 @@
 """
 Test for an order of dependencies in setup.py
 """
-import builtins
 import difflib
 import os
 import sys
