@@ -67,6 +67,7 @@ def _check_list_sorted(the_list: List[str], message: str) -> bool:
 def check_dockerfile():
     with open(os.path.join(SOURCE_DIR_PATH, "Dockerfile")) as dockerfile:
         file_contents = dockerfile.read()
+    extras_list = None
     for line in file_contents.splitlines():
         if line.startswith("ARG AIRFLOW_EXTRAS="):
             extras_list = line.split("=")[1].replace('"', '').split(",")
@@ -90,7 +91,8 @@ def check_dockerfile():
                     build_args_file.write("\n".join(result))
                     build_args_file.write("\n")
                 return
-    errors.append("Something is wrong. Dockerfile does not contain AIRFLOW_EXTRAS")
+    if not extras_list:
+        errors.append("Something is wrong. Dockerfile does not contain AIRFLOW_EXTRAS")
 
 
 if __name__ == '__main__':
