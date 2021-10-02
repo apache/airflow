@@ -77,10 +77,10 @@ def _trigger_dag(
     if conf:
         run_conf = conf if isinstance(conf, dict) else json.loads(conf)
 
-    triggers = []
-    dags_to_trigger = [dag] + dag.subdags
-    for _dag in dags_to_trigger:
-        trigger = _dag.create_dagrun(
+    dag_runs = []
+    dags_to_run = [dag] + dag.subdags
+    for _dag in dags_to_run:
+        dag_run = _dag.create_dagrun(
             run_id=run_id,
             execution_date=execution_date,
             state=State.QUEUED,
@@ -88,9 +88,9 @@ def _trigger_dag(
             external_trigger=True,
             dag_hash=dag_bag.dags_hash.get(dag_id),
         )
+        dag_runs.append(dag_run)
 
-        triggers.append(trigger)
-    return triggers
+    return dag_runs
 
 
 def trigger_dag(
