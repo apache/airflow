@@ -27,7 +27,7 @@ import uuid
 from typing import Any, Dict, Optional
 
 from azure.cosmos.cosmos_client import CosmosClient
-from azure.cosmos.exceptions import CosmosHttpResponseError
+from azure.cosmos.errors import HTTPFailure
 
 from airflow.exceptions import AirflowBadRequest
 from airflow.hooks.base import BaseHook
@@ -307,7 +307,7 @@ class AzureCosmosDBHook(BaseHook):
                     document_id,
                 )
             )
-        except CosmosHttpResponseError:
+        except HTTPFailure:
             return None
 
     def get_documents(
@@ -334,7 +334,7 @@ class AzureCosmosDBHook(BaseHook):
             )
 
             return list(result_iterable)
-        except CosmosHttpResponseError:
+        except HTTPFailure:
             return None
 
 

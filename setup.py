@@ -201,7 +201,7 @@ atlas = [
 ]
 azure = [
     'azure-batch>=8.0.0',
-    'azure-cosmos>=4.0.0,<5',
+    'azure-cosmos>=3.0.1,<4',
     'azure-datalake-store>=0.0.45',
     'azure-identity>=1.3.1',
     'azure-keyvault>=4.1.0',
