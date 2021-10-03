@@ -3296,7 +3296,7 @@ def lazy_add_provider_discovered_options_to_connection_form():
         """Returns connection types available."""
         _connection_types = [
             ('fs', 'File (path)'),
-            ('mesos_framework-id', 'Mesos Framework ID')
+            ('mesos_framework-id', 'Mesos Framework ID'),
         ]
         providers_manager = ProvidersManager()
         for connection_type, provider_info in providers_manager.hooks.items():
