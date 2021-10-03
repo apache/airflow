@@ -3409,7 +3409,6 @@ class ConnectionModelView(AirflowModelView):
             (permissions.ACTION_CAN_READ, permissions.RESOURCE_CONNECTION),
         ]
     )
-
     def action_mulduplicate(self, connections, session=None):
         """Duplicate Multiple connections"""
         for selected_conn in connections:
