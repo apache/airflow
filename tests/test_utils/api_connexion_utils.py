@@ -14,25 +14,26 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from contextlib import contextmanager
+
 from airflow.api_connexion.exceptions import EXCEPTIONS_LINK_MAP
 from airflow.www.security import EXISTING_ROLES
 
 
+@contextmanager
 def create_user_scope(app, **kwargs):
     """
     Helper function designed to be used with pytest fixture mainly.
     It will create a user and provide it for the fixture via YIELD (generator)
     then will tidy up once test is complete
     """
-    # Set Up
     test_user = create_user(app, **kwargs)
     if kwargs.get('no_roles', None):
         test_user.roles = []
-
-    yield test_user
-
-    # Clean Up
-    delete_user(app, kwargs.get('username'))
+    try:
+        yield test_user
+    finally:
+        delete_user(app, kwargs.get('username'))
 
 
 def create_user(app, **kwargs):
