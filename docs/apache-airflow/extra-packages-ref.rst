@@ -297,7 +297,7 @@ Those are extras that install one ore more extras as a bundle.
 +---------------------+-----------------------------------------------------+----------------------------------------------------------------------+
 | all_dbs             | ``pip install 'apache-airflow[all_dbs]'``           | All databases integrations                                           |
 +---------------------+-----------------------------------------------------+----------------------------------------------------------------------+
-| devel               | ``pip install 'apache-airflow[devel]'``             | Minimum dev tools requirements (without providers)                   |
+| devel               | ``pip install 'apache-airflow[devel]'``             | Minimum dev tools requirements (without providers, pandas, etc.)     |
 +---------------------+-----------------------------------------------------+----------------------------------------------------------------------+
 | devel_hadoop        | ``pip install 'apache-airflow[devel_hadoop]'``      | Same as ``devel`` + dependencies for developing the Hadoop stack     |
 +---------------------+-----------------------------------------------------+----------------------------------------------------------------------+
