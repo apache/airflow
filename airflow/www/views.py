@@ -3296,8 +3296,7 @@ def lazy_add_provider_discovered_options_to_connection_form():
         """Returns connection types available."""
         _connection_types = [
             ('fs', 'File (path)'),
-            ('mesos_framework-id', 'Mesos Framework ID'),
-            ('email', 'Email'),
+            ('mesos_framework-id', 'Mesos Framework ID')
         ]
         providers_manager = ProvidersManager()
         for connection_type, provider_info in providers_manager.hooks.items():
@@ -3411,7 +3410,7 @@ class ConnectionModelView(AirflowModelView):
         ]
     )
 
-def action_mulduplicate(self, connections, session=None):
+    def action_mulduplicate(self, connections, session=None):
         """Duplicate Multiple connections"""
         for selected_conn in connections:
             new_conn_id = selected_conn.conn_id
