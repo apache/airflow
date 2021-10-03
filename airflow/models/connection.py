@@ -396,3 +396,15 @@ class Connection(Base, LoggingMixin):
                 )
 
         raise AirflowNotFoundException(f"The conn_id `{conn_id}` isn't defined")
+
+    def __eq__(self, other: 'Connection'):
+        return (
+            self.conn_id == other.conn_id
+            and self.conn_type == other.conn_type
+            and self.login == other.login
+            and self.password == other.password
+            and self.host == other.host
+            and self.port == other.port
+            and self.schema == other.schema
+            and self.extra == other.extra
+        )

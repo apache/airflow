@@ -14,12 +14,13 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
+import json
 from unittest import TestCase, mock
 
 from moto import mock_ssm
 
 from airflow.configuration import initialize_secrets_backends
+from airflow.models import Connection
 from airflow.providers.amazon.aws.secrets.systems_manager import SystemsManagerParameterStoreBackend
 from tests.test_utils.config import conf_vars
 
@@ -48,6 +49,28 @@ class TestSsmSecrets(TestCase):
 
         returned_uri = ssm_backend.get_conn_uri(conn_id="test_postgres")
         assert 'postgresql://airflow:airflow@host:5432/airflow' == returned_uri
+
+    @mock_ssm
+    def test_get_conn_kwargs(self):
+        conn_kwargs = {
+            "conn_type": "postgresql",
+            "login": "airflow",
+            "password": "airflow",
+            "host": "host",
+            "port": 5432,
+            "schema": "airflow",
+        }
+        param = {
+            'Name': '/airflow/connections/test_postgres',
+            'Type': 'String',
+            'Value': json.dumps(conn_kwargs),
+        }
+
+        ssm_backend = SystemsManagerParameterStoreBackend(connection_as_kwargs=True)
+        ssm_backend.client.put_parameter(**param)
+
+        c = ssm_backend.get_connection(conn_id="test_postgres")
+        assert c == Connection(conn_id="test_postgres", **conn_kwargs)
 
     @mock_ssm
     def test_get_conn_uri_non_existent_key(self):

@@ -16,15 +16,13 @@
 # specific language governing permissions and limitations
 # under the License.
 """Objects relating to sourcing connections from AWS SSM Parameter Store"""
+import json
 from typing import Optional
 
 import boto3
 
-try:
-    from functools import cached_property
-except ImportError:
-    from cached_property import cached_property
-
+from airflow.compat.functools import cached_property
+from airflow.models import Connection
 from airflow.secrets import BaseSecretsBackend
 from airflow.utils.log.logging_mixin import LoggingMixin
 
@@ -65,9 +63,11 @@ class SystemsManagerParameterStoreBackend(BaseSecretsBackend, LoggingMixin):
         variables_prefix: str = '/airflow/variables',
         config_prefix: str = '/airflow/config',
         profile_name: Optional[str] = None,
+        connection_as_kwargs=False,
         **kwargs,
     ):
         super().__init__()
+        self.connection_as_kwargs = connection_as_kwargs
         if connections_prefix is not None:
             self.connections_prefix = connections_prefix.rstrip("/")
         else:
@@ -100,6 +100,37 @@ class SystemsManagerParameterStoreBackend(BaseSecretsBackend, LoggingMixin):
             return None
 
         return self._get_secret(self.connections_prefix, conn_id)
+
+    def get_conn_kwargs(self, conn_id: str) -> Optional[str]:
+        if self.connections_prefix is None:
+            return None
+
+        val = self._get_secret(path_prefix=self.connections_prefix, secret_id=conn_id)
+        if val:
+            kwargs = json.loads(val)
+            extra = kwargs.pop('extra', None)
+            if extra:
+                kwargs['extra'] = extra if isinstance(extra, str) else json.dumps(extra)
+            return kwargs
+
+    def get_connection(self, conn_id: str) -> Optional['Connection']:
+        """
+        Return connection object with a given ``conn_id``.
+
+        :param conn_id: connection id
+        :type conn_id: str
+        """
+        from airflow.models.connection import Connection
+
+        if self.connection_as_kwargs:
+            kwargs = self.get_conn_kwargs(conn_id=conn_id)
+        else:
+            conn_uri = self.get_conn_uri(conn_id=conn_id)
+            kwargs = dict(uri=conn_uri)
+        if not kwargs:
+            return None
+        else:
+            return Connection(conn_id=conn_id, **kwargs)
 
     def get_variable(self, key: str) -> Optional[str]:
         """
