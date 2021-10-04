@@ -1311,7 +1311,7 @@ class BaseSecurityManager:
                 db_role_ids.append(role.id)
 
         # If it's not a builtin role check against database store roles
-        return self.exist_permission_on_roles(view_name, permission_name, db_role_ids)
+        return self.permission_exists_in_one_or_more_roles(view_name, permission_name, db_role_ids)
 
     def get_user_roles(self, user) -> List[object]:
         """Get current user roles, if user is not authenticated returns the public role"""
@@ -1700,7 +1700,7 @@ class BaseSecurityManager:
     def find_roles_permission_view_menus(self, permission_name: str, role_ids: List[int]):
         raise NotImplementedError
 
-    def exist_permission_on_roles(self, view_name: str, permission_name: str, role_ids: List[int]) -> bool:
+    def permission_exists_in_one_or_more_roles(self, resource_name: str, action_name: str, role_ids: List[int]) -> bool:
         """Finds and returns permission views for a group of roles"""
         raise NotImplementedError
 

@@ -579,11 +579,11 @@ class TestSecurity(unittest.TestCase):
         assert len(roles_to_check) >= 5
         for role in roles_to_check:
             if role.name in ["Admin", "Op"]:
-                assert self.security_manager.exist_permission_on_roles(
+                assert self.security_manager.permission_exists_in_one_or_more_roles(
                     permissions.RESOURCE_CONFIG, permissions.ACTION_CAN_READ, [role.id]
                 )
             else:
-                assert not self.security_manager.exist_permission_on_roles(
+                assert not self.security_manager.permission_exists_in_one_or_more_roles(
                     permissions.RESOURCE_CONFIG, permissions.ACTION_CAN_READ, [role.id]
                 ), (
                     f"{role.name} should not have {permissions.ACTION_CAN_READ} "
