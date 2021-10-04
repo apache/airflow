@@ -1427,7 +1427,7 @@ class BaseSecurityManager:
                     # del permission from all roles
                     for role in roles:
                         self.del_permission_role(role, perm)
-                    self.del_permission_view_menu(perm_view.permission.name, view_menu)
+                    self.delete_permission(perm_view.permission.name, view_menu)
                 elif (
                     self.auth_role_admin not in self.builtin_roles and perm_view not in role_admin.permissions
                 ):
@@ -1471,7 +1471,7 @@ class BaseSecurityManager:
                 for permission in permissions:
                     for role in roles:
                         self.del_permission_role(role, permission)
-                    self.del_permission_view_menu(permission.permission.name, viewmenu.name)
+                    self.delete_permission(permission.permission.name, viewmenu.name)
                 self.del_view_menu(viewmenu.name)
         self.security_converge(baseviews, menus)
 
@@ -1614,7 +1614,7 @@ class BaseSecurityManager:
                 if (pvm.view_menu.name, pvm.permission.name) in state_transitions["del_role_pvm"]:
                     self.del_permission_role(role, pvm)
         for pvm in state_transitions["del_role_pvm"]:
-            self.del_permission_view_menu(pvm[1], pvm[0], cascade=False)
+            self.delete_permission(pvm[1], pvm[0], cascade=False)
         for view_name in state_transitions["del_views"]:
             self.del_view_menu(view_name)
         for permission_name in state_transitions["del_perms"]:
@@ -1804,7 +1804,18 @@ class BaseSecurityManager:
         """
         raise NotImplementedError
 
-    def del_permission_view_menu(self, permission_name, view_menu_name, cascade=True):
+    def delete_permission(self, action_name: str, resource_name: str) -> None:
+        """
+        Deletes the permission linking an action->resource pair. Doesn't delete the
+        underlying action or resource.
+
+        :param action_name: Name of existing action
+        :type action_name: str
+        :param resource_name: Name of existing resource
+        :type resource_name: str
+        :return: None
+        :rtype: None
+        """
         raise NotImplementedError
 
     def exist_permission_on_views(self, lst, item):
