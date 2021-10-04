@@ -402,7 +402,13 @@ class SecurityManager(BaseSecurityManager):
         """
         return self.get_session.query(self.viewmenu_model).filter_by(name=name).one_or_none()
 
-    def get_all_view_menu(self):
+    def get_all_resources(self) -> List[ViewMenu]:
+        """
+        Gets all existing resource records.
+
+        :return: List of all resources
+        :rtype: List[ViewMenu]
+        """
         return self.get_session.query(self.viewmenu_model).all()
 
     def create_resource(self, name) -> ViewMenu:
