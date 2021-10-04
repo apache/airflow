@@ -38,7 +38,7 @@ Set values for these fields:
 
 .. code-block::
 
-  Conn Id: wasb_default
+  Connection Id: wasb_default
   Login: Storage Account Name
   Password: KEY1
   Extra: {"sas_token": "TOKEN"}
