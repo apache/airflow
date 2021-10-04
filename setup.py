@@ -280,7 +280,10 @@ flask_appbuilder_authlib = [
 ]
 google = [
     'PyOpenSSL',
-    'google-ads>=12.0.0',
+    # The Google Ads 14.0.1 breaks PIP and eager upgrade as it requires
+    # google-api-core>=2.0.0 which cannot be used yet (see below comment)
+    # and https://github.com/apache/airflow/issues/18705#issuecomment-933746150
+    'google-ads>=12.0.0,<14.0.1',
     # Maintainers, please do not require google-api-core>=2.x.x
     # Until this issue is closed
     # https://github.com/googleapis/google-cloud-python/issues/10566
