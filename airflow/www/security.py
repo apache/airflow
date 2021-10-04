@@ -533,19 +533,6 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
 
         self.get_session.commit()
 
-    def add_permission_to_role(self, role: Role, permission: PermissionView) -> None:
-        """
-        Add an existing permission pair to a role.
-
-        :param role: The role about to get a new permission.
-        :type role: Role
-        :param permission: The permission pair to add to a role.
-        :type permission: PermissionView
-        :return: None
-        :rtype: None
-        """
-        self.add_permission_role(role, permission)
-
     def remove_permission_from_role(self, role: Role, permission: PermissionView) -> None:
         """
         Remove a permission pair from a role.

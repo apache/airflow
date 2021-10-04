@@ -60,6 +60,7 @@ from flask_appbuilder.security.views import (
     RegisterUserModelView,
     ResetMyPasswordView,
     ResetPasswordView,
+    Role,
     RoleModelView,
     UserDBModelView,
     UserInfoEditView,
@@ -1406,7 +1407,7 @@ class BaseSecurityManager:
                 pv = self.create_permission(permission, view_menu)
                 if self.auth_role_admin not in self.builtin_roles:
                     role_admin = self.find_role(self.auth_role_admin)
-                    self.add_permission_role(role_admin, pv)
+                    self.add_permission_to_role(role_admin, pv)
         else:
             # Permissions on this view exist but....
             role_admin = self.find_role(self.auth_role_admin)
@@ -1415,7 +1416,7 @@ class BaseSecurityManager:
                 if not self.exist_permission_on_views(perm_views, permission):
                     pv = self.create_permission(permission, view_menu)
                     if self.auth_role_admin not in self.builtin_roles:
-                        self.add_permission_role(role_admin, pv)
+                        self.add_permission_to_role(role_admin, pv)
             for perm_view in perm_views:
                 if perm_view.permission is None:
                     # Skip this perm_view, it has a null permission
@@ -1432,7 +1433,7 @@ class BaseSecurityManager:
                     self.auth_role_admin not in self.builtin_roles and perm_view not in role_admin.permissions
                 ):
                     # Role Admin must have all permissions
-                    self.add_permission_role(role_admin, perm_view)
+                    self.add_permission_to_role(role_admin, perm_view)
 
     def add_permissions_menu(self, view_menu_name):
         """
@@ -1447,7 +1448,7 @@ class BaseSecurityManager:
             pv = self.create_permission("menu_access", view_menu_name)
         if self.auth_role_admin not in self.builtin_roles:
             role_admin = self.find_role(self.auth_role_admin)
-            self.add_permission_role(role_admin, pv)
+            self.add_permission_to_role(role_admin, pv)
 
     def security_cleanup(self, baseviews, menus):
         """
@@ -1610,7 +1611,7 @@ class BaseSecurityManager:
                     continue
                 for new_pvm_state in new_pvm_states:
                     new_pvm = self.create_permission(new_pvm_state[1], new_pvm_state[0])
-                    self.add_permission_role(role, new_pvm)
+                    self.add_permission_to_role(role, new_pvm)
                 if (pvm.view_menu.name, pvm.permission.name) in state_transitions["del_role_pvm"]:
                     self.del_permission_role(role, pvm)
         for pvm in state_transitions["del_role_pvm"]:
@@ -1826,14 +1827,16 @@ class BaseSecurityManager:
     def exist_permission_on_view(self, lst, permission, view_menu):
         raise NotImplementedError
 
-    def add_permission_role(self, role, perm_view):
+    def add_permission_to_role(self, role: Role, permission: PermissionView) -> None:
         """
-        Add permission-ViewMenu object to Role
+        Add an existing permission pair to a role.
 
-        :param role:
-            The role object
-        :param perm_view:
-            The PermissionViewMenu object
+        :param role: The role about to get a new permission.
+        :type role: Role
+        :param permission: The permission pair to add to a role.
+        :type permission: PermissionView
+        :return: None
+        :rtype: None
         """
         raise NotImplementedError
 
