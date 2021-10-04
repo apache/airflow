@@ -1440,7 +1440,7 @@ class BaseSecurityManager:
             The menu name
         """
         self.create_resource(view_menu_name)
-        pv = self.find_permission_view_menu("menu_access", view_menu_name)
+        pv = self.get_permission("menu_access", view_menu_name)
         if not pv:
             pv = self.create_permission("menu_access", view_menu_name)
         if self.auth_role_admin not in self.builtin_roles:
@@ -1749,8 +1749,17 @@ class BaseSecurityManager:
     ----------------------
     """
 
-    def find_permission_view_menu(self, permission_name, view_menu_name):
-        """Finds and returns a PermissionView by names"""
+    def get_permission(self, action_name: str, resource_name: str) -> PermissionView:
+        """
+        Gets a permission made with the given action->resource pair, if the permission already exists.
+
+        :param action_name: Name of action
+        :type action_name: str
+        :param resource_name: Name of resource
+        :type resource_name: str
+        :return: The existing permission
+        :rtype: PermissionView
+        """
         raise NotImplementedError
 
     def find_permissions_view_menu(self, view_menu):
