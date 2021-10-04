@@ -1718,8 +1718,13 @@ class BaseSecurityManager:
     ----------------------
     """
 
-    def find_view_menu(self, name):
-        """Finds and returns a ViewMenu by name"""
+    def get_resource(self, name: str):
+        """
+        Returns a resource record by name, if it exists.
+
+        :param name: Name of resource
+        :type name: str
+        """
         raise NotImplementedError
 
     def get_all_view_menu(self):

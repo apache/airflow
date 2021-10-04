@@ -391,8 +391,15 @@ class SecurityManager(BaseSecurityManager):
             self.get_session.rollback()
             return False
 
-    def find_view_menu(self, name):
-        """Finds and returns a ViewMenu by name"""
+    def get_resource(self, name: str) -> ViewMenu:
+        """
+        Returns a resource record by name, if it exists.
+
+        :param name: Name of resource
+        :type name: str
+        :return: Resource record
+        :rtype: ViewMenu
+        """
         return self.get_session.query(self.viewmenu_model).filter_by(name=name).one_or_none()
 
     def get_all_view_menu(self):
@@ -407,7 +414,7 @@ class SecurityManager(BaseSecurityManager):
         :return: The FAB resource created.
         :rtype: ViewMenu
         """
-        view_menu = self.find_view_menu(name)
+        view_menu = self.get_resource(name)
         if view_menu is None:
             try:
                 view_menu = self.viewmenu_model()
@@ -427,7 +434,7 @@ class SecurityManager(BaseSecurityManager):
         :param name:
             name of the ViewMenu
         """
-        view_menu = self.find_view_menu(name)
+        view_menu = self.get_resource(name)
         if not view_menu:
             log.warning(c.LOGMSG_WAR_SEC_DEL_VIEWMENU.format(name))
             return False
@@ -466,7 +473,7 @@ class SecurityManager(BaseSecurityManager):
         :rtype: PermissionView
         """
         permission = self.find_permission(action_name)
-        view_menu = self.find_view_menu(resource_name)
+        view_menu = self.get_resource(resource_name)
         if permission and view_menu:
             return (
                 self.get_session.query(self.permissionview_model)
