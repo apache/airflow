@@ -289,13 +289,13 @@ class SecurityManager(BaseSecurityManager):
         """
         return self.get_session.query(self.permission_model).filter_by(name=name).one_or_none()
 
-    def exist_permission_on_roles(self, view_name: str, permission_name: str, role_ids: List[int]) -> bool:
+    def permission_exists_in_one_or_more_roles(self, resource_name: str, action_name: str, role_ids: List[int]) -> bool:
         """
             Method to efficiently check if a certain permission exists
             on a list of role id's. This is used by `has_access`
 
-        :param view_name: The view's name to check if exists on one of the roles
-        :param permission_name: The permission name to check if exists
+        :param resource_name: The view's name to check if exists on one of the roles
+        :param action_name: The permission name to check if exists
         :param role_ids: a list of Role ids
         :return: Boolean
         """
@@ -309,8 +309,8 @@ class SecurityManager(BaseSecurityManager):
             .join(self.permission_model)
             .join(self.viewmenu_model)
             .filter(
-                self.viewmenu_model.name == view_name,
-                self.permission_model.name == permission_name,
+                self.viewmenu_model.name == resource_name,
+                self.permission_model.name == action_name,
                 self.role_model.id.in_(role_ids),
             )
             .exists()
