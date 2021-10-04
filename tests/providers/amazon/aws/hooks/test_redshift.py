@@ -22,6 +22,7 @@ import unittest
 from unittest import mock
 
 import boto3
+from parameterized import parameterized
 
 from airflow.models import Connection
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
@@ -153,9 +154,20 @@ class TestRedshiftSQLHookConn(unittest.TestCase):
             iam=True,
         )
 
-    def test_get_conn_missing_schema_raises_exception(self):
+    @parameterized.expand(
+        [
+            ({}, {}, {}),
+            ({"login": "test"}, {}, {"user": "test"}),
+            ({}, {"user": "test"}, {"user": "test"}),
+            ({"login": "original"}, {"user": "overridden"}, {"user": "overridden"}),
+            ({"login": "test1"}, {"password": "test2"}, {"user": "test1", "password": "test2"}),
+        ],
+    )
+    @mock.patch('airflow.providers.amazon.aws.hooks.redshift.redshift_connector.connect')
+    def test_get_conn_overrides_correctly(self, test_args, test_kwargs, expected_call_args, mock_connect):
         with mock.patch(
-            'airflow.providers.amazon.aws.hooks.redshift.RedshiftSQLHook.conn', Connection(login='login')
+            'airflow.providers.amazon.aws.hooks.redshift.RedshiftSQLHook.conn',
+            Connection(conn_type='redshift', extra=test_kwargs, **test_args),
         ):
-            with self.assertRaises(ValueError):
-                self.db_hook._get_conn_params()
+            self.db_hook.get_conn()
+            mock_connect.assert_called_once_with(**expected_call_args)

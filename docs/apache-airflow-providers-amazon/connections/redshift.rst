@@ -63,6 +63,20 @@ Note that all components of the URI should be URL-encoded.
 Examples
 --------
 
+Database Authentication
+
 .. code-block:: bash
 
   AIRFLOW_CONN_REDSHIFT_DEFAULT=redshift://awsuser:password@redshift-cluster-1.123456789.us-west-1.redshift.amazonaws.com:5439/?database=dev&ssl=True
+
+IAM Authentication using AWS Profile
+
+.. code-block:: bash
+
+  AIRFLOW_CONN_REDSHIFT_DEFAULT=redshift://:@:/?database=dev&iam=True&db_user=awsuser&cluster_identifier=redshift-cluster-1&profile=default
+
+Authentication using Okta Identity Provider
+
+.. code-block:: bash
+
+  AIRFLOW_CONN_REDSHIFT_DEFAULT=redshift://dev@domain.org:myOktaPassword@:/?database=dev&iam=True&cluster_identifier=redshift-cluster-1&credentials_provider=OktaCredentialsProvider&idp_host=my_idp_host&app_id=myAppId&app_name=myAppName

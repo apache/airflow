@@ -139,9 +139,7 @@ class RedshiftSQLHook(DbApiHook):
     """
     Execute statements against Amazon Redshift, using redshift_connector
 
-    This hook requires the redshift_conn_id connection. This connection must
-    be initialized with the schema. Additional connection
-    options can be passed to extra as a JSON string.
+    This hook requires the redshift_conn_id connection.
 
     :param redshift_conn_id: reference to
         :ref:`Amazon Redshift connection id<howto/connection:redshift>`
@@ -175,11 +173,6 @@ class RedshiftSQLHook(DbApiHook):
 
         conn_params: Dict[str, Union[str, int]] = {}
 
-        if conn.schema:
-            conn_params['database'] = conn.schema
-        else:
-            raise ValueError('Please provide a schema')
-
         if conn.login:
             conn_params['user'] = conn.login
         if conn.password:
@@ -188,11 +181,13 @@ class RedshiftSQLHook(DbApiHook):
             conn_params['host'] = conn.host
         if conn.port:
             conn_params['port'] = conn.port
+        if conn.schema:
+            conn_params['database'] = conn.schema
 
         return conn_params
 
     def get_uri(self) -> str:
-        """Overrides DbApiHook get_uri to use redshift_connector sqlalchemy dialect as drivername"""
+        """Overrides DbApiHook get_uri to use redshift_connector sqlalchemy dialect as driver name"""
         conn_params = self._get_conn_params()
 
         if 'user' in conn_params:
