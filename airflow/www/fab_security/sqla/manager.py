@@ -530,32 +530,41 @@ class SecurityManager(BaseSecurityManager):
             log.error(c.LOGMSG_ERR_SEC_ADD_PERMVIEW.format(str(e)))
             self.get_session.rollback()
 
-    def del_permission_view_menu(self, permission_name, view_menu_name, cascade=True):
-        if not (permission_name and view_menu_name):
+    def delete_permission(self, action_name: str, resource_name: str) -> None:
+        """
+        Deletes the permission linking an action->resource pair. Doesn't delete the
+        underlying action or resource.
+
+        :param action_name: Name of existing action
+        :type action_name: str
+        :param resource_name: Name of existing resource
+        :type resource_name: str
+        :return: None
+        :rtype: None
+        """
+        if not (action_name and resource_name):
             return
-        pv = self.get_permission(permission_name, view_menu_name)
+        pv = self.get_permission(action_name, resource_name)
         if not pv:
             return
         roles_pvs = (
             self.get_session.query(self.role_model).filter(self.role_model.permissions.contains(pv)).first()
         )
         if roles_pvs:
-            log.warning(c.LOGMSG_WAR_SEC_DEL_PERMVIEW.format(view_menu_name, permission_name, roles_pvs))
+            log.warning(c.LOGMSG_WAR_SEC_DEL_PERMVIEW.format(resource_name, action_name, roles_pvs))
             return
         try:
             # delete permission on view
             self.get_session.delete(pv)
             self.get_session.commit()
             # if no more permission on permission view, delete permission
-            if not cascade:
-                return
             if (
                 not self.get_session.query(self.permissionview_model)
                 .filter_by(permission=pv.permission)
                 .all()
             ):
                 self.del_permission(pv.permission.name)
-            log.info(c.LOGMSG_INF_SEC_DEL_PERMVIEW.format(permission_name, view_menu_name))
+            log.info(c.LOGMSG_INF_SEC_DEL_PERMVIEW.format(action_name, resource_name))
         except Exception as e:
             log.error(c.LOGMSG_ERR_SEC_DEL_PERMVIEW.format(str(e)))
             self.get_session.rollback()

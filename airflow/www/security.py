@@ -239,20 +239,6 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
             permission = self.create_permission(action_name, resource_name)
             self.add_permission_to_role(role, permission)
 
-    def delete_permission(self, action_name: str, resource_name: str) -> None:
-        """
-        Deletes the permission linking an action->resource pair. Doesn't delete the
-        underlying action or resource.
-
-        :param action_name: Name of existing action
-        :type action_name: str
-        :param resource_name: Name of existing resource
-        :type resource_name: str
-        :return: None
-        :rtype: None
-        """
-        self.del_permission_view_menu(action_name, resource_name)
-
     def delete_role(self, role_name):
         """
         Delete the given Role
