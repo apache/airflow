@@ -96,10 +96,9 @@ class BaseJob(Base, LoggingMixin):
     def __init__(self, executor=None, heartrate=None, *args, **kwargs):
         self.hostname = get_hostname()
         if executor:
+            # Executor here is used for test suites. So they can inject it for testing
             self.executor = executor
-            self.executor_class = executor.__class__.__name__
-        else:
-            self.executor_class = conf.get('core', 'EXECUTOR')
+        self.executor_class = self.executor.__class__.__name__
         self.start_date = timezone.utcnow()
         self.latest_heartbeat = timezone.utcnow()
         if heartrate is not None:
