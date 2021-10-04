@@ -3224,7 +3224,7 @@ Please read through the new scheduler options, defaults have changed since 1.7.1
 
 #### child_process_log_directory
 
-In order to increase the robustness of the scheduler, DAGS are now processed in their own process. Therefore each
+In order to increase the robustness of the scheduler, DAGs are now processed in their own process. Therefore each
 DAG has its own log file for the scheduler. These log files are placed in `child_process_log_directory` which defaults to
 `<AIRFLOW_HOME>/scheduler/latest`. You will need to make sure these log files are removed.
 

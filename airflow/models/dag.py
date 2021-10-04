@@ -290,7 +290,7 @@ class DAG(LoggingMixin):
         to render templates as native Python types. If False, a Jinja
         ``Environment`` is used to render templates as string values.
     :type render_template_as_native_obj: bool
-    :param tags: List of tags to help filtering DAGS in the UI.
+    :param tags: List of tags to help filtering DAGs in the UI.
     :type tags: List[str]
     """
 
