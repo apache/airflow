@@ -197,7 +197,7 @@ class TestSecurity(unittest.TestCase):
         role = self.security_manager.find_role(role_name)
 
         perm = self.security_manager.get_permission(permissions.ACTION_CAN_EDIT, permissions.RESOURCE_ROLE)
-        self.security_manager.add_permission_role(role, perm)
+        self.security_manager.add_permission_to_role(role, perm)
         role_perms_len = len(role.permissions)
 
         self.security_manager.bulk_sync_roles(mock_roles)

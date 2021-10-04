@@ -583,26 +583,28 @@ class SecurityManager(BaseSecurityManager):
                 return True
         return False
 
-    def add_permission_role(self, role, perm_view):
+    def add_permission_to_role(self, role: Role, permission: PermissionView) -> None:
         """
-        Add permission-ViewMenu object to Role
+        Add an existing permission pair to a role.
 
-        :param role:
-            The role object
-        :param perm_view:
-            The PermissionViewMenu object
+        :param role: The role about to get a new permission.
+        :type role: Role
+        :param permission: The permission pair to add to a role.
+        :type permission: PermissionView
+        :return: None
+        :rtype: None
         """
-        if perm_view and perm_view not in role.permissions:
+        if permission and permission not in role.permissions:
             try:
-                role.permissions.append(perm_view)
+                role.permissions.append(permission)
                 self.get_session.merge(role)
                 self.get_session.commit()
-                log.info(c.LOGMSG_INF_SEC_ADD_PERMROLE.format(str(perm_view), role.name))
+                log.info(c.LOGMSG_INF_SEC_ADD_PERMROLE.format(str(permission), role.name))
             except Exception as e:
                 log.error(c.LOGMSG_ERR_SEC_ADD_PERMROLE.format(str(e)))
                 self.get_session.rollback()
 
-    def del_permission_role(self, role, perm_view):
+    def del_permission_role(self, role, permission):
         """
         Remove permission-ViewMenu object to Role
 
