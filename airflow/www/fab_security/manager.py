@@ -1427,7 +1427,7 @@ class BaseSecurityManager:
                     perm = self.get_action(perm_view.permission.name)
                     # del permission from all roles
                     for role in roles:
-                        self.del_permission_role(role, perm)
+                        self.remove_permission_from_role(role, perm)
                     self.delete_permission(perm_view.permission.name, view_menu)
                 elif (
                     self.auth_role_admin not in self.builtin_roles and perm_view not in role_admin.permissions
@@ -1471,7 +1471,7 @@ class BaseSecurityManager:
                 permissions = self.get_resource_permissions(viewmenu)
                 for permission in permissions:
                     for role in roles:
-                        self.del_permission_role(role, permission)
+                        self.remove_permission_from_role(role, permission)
                     self.delete_permission(permission.permission.name, viewmenu.name)
                 self.delete_resource(viewmenu.name)
         self.security_converge(baseviews, menus)
@@ -1613,7 +1613,7 @@ class BaseSecurityManager:
                     new_pvm = self.create_permission(new_pvm_state[1], new_pvm_state[0])
                     self.add_permission_to_role(role, new_pvm)
                 if (pvm.view_menu.name, pvm.permission.name) in state_transitions["del_role_pvm"]:
-                    self.del_permission_role(role, pvm)
+                    self.remove_permission_from_role(role, pvm)
         for pvm in state_transitions["del_role_pvm"]:
             self.delete_permission(pvm[1], pvm[0], cascade=False)
         for view_name in state_transitions["del_views"]:
@@ -1842,14 +1842,14 @@ class BaseSecurityManager:
         """
         raise NotImplementedError
 
-    def del_permission_role(self, role, perm_view):
+    def remove_permission_from_role(self, role: Role, permission: PermissionView) -> None:
         """
-        Remove permission-ViewMenu object to Role
+        Remove a permission pair from a role.
 
-        :param role:
-            The role object
-        :param perm_view:
-            The PermissionViewMenu object
+        :param role: User role containing permissions.
+        :type role: Role
+        :param permission: Object representing resource-> action pair
+        :type permission: PermissionView
         """
         raise NotImplementedError
 

@@ -533,17 +533,6 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
 
         self.get_session.commit()
 
-    def remove_permission_from_role(self, role: Role, permission: PermissionView) -> None:
-        """
-        Remove a permission pair from a role.
-
-        :param role: User role containing permissions.
-        :type role: Role
-        :param permission: Object representing resource-> action pair
-        :type permission: PermissionView
-        """
-        self.del_permission_role(role, permission)
-
     def get_all_permissions(self) -> Set[Tuple[str, str]]:
         """Returns all permissions as a set of tuples with the action and resource names"""
         return set(
