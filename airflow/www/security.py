@@ -557,17 +557,6 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
         """
         self.del_permission_role(role, permission)
 
-    def delete_action(self, name: str) -> bool:
-        """
-        Deletes a permission action.
-
-        :param name: Name of action to delete (e.g. can_read).
-        :type name: str
-        :return: Whether or not delete was successful.
-        :rtype: bool
-        """
-        return self.del_permission(name)
-
     def get_all_permissions(self) -> Set[Tuple[str, str]]:
         """Returns all permissions as a set of tuples with the action and resource names"""
         return set(

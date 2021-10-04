@@ -1618,7 +1618,7 @@ class BaseSecurityManager:
         for view_name in state_transitions["del_views"]:
             self.delete_resource(view_name)
         for permission_name in state_transitions["del_perms"]:
-            self.del_permission(permission_name)
+            self.delete_action(permission_name)
         return state_transitions
 
     def find_register_user(self, registration_hash):
@@ -1712,12 +1712,14 @@ class BaseSecurityManager:
         """
         raise NotImplementedError
 
-    def del_permission(self, name):
+    def delete_action(self, name: str) -> bool:
         """
-        Deletes a permission from the backend, model permission
+        Deletes a permission action.
 
-        :param name:
-            name of the permission: 'can_add','can_edit' etc...
+        :param name: Name of action to delete (e.g. can_read).
+        :type name: str
+        :return: Whether or not delete was successful.
+        :rtype: bool
         """
         raise NotImplementedError
 

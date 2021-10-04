@@ -370,12 +370,14 @@ class SecurityManager(BaseSecurityManager):
                 self.get_session.rollback()
         return perm
 
-    def del_permission(self, name: str) -> bool:
+    def delete_action(self, name: str) -> bool:
         """
-        Deletes a permission from the backend, model permission
+        Deletes a permission action.
 
-        :param name:
-            name of the permission: 'can_add','can_edit' etc...
+        :param name: Name of action to delete (e.g. can_read).
+        :type name: str
+        :return: Whether or not delete was successful.
+        :rtype: bool
         """
         perm = self.get_action(name)
         if not perm:
@@ -563,7 +565,7 @@ class SecurityManager(BaseSecurityManager):
                 .filter_by(permission=pv.permission)
                 .all()
             ):
-                self.del_permission(pv.permission.name)
+                self.delete_action(pv.permission.name)
             log.info(c.LOGMSG_INF_SEC_DEL_PERMVIEW.format(action_name, resource_name))
         except Exception as e:
             log.error(c.LOGMSG_ERR_SEC_DEL_PERMVIEW.format(str(e)))
