@@ -398,12 +398,14 @@ class SecurityManager(BaseSecurityManager):
     def get_all_view_menu(self):
         return self.get_session.query(self.viewmenu_model).all()
 
-    def add_view_menu(self, name):
+    def create_resource(self, name) -> ViewMenu:
         """
-        Adds a view or menu to the backend, model view_menu
+        Create a resource with the given name.
 
-        :param name:
-            name of the view menu to add
+        :param name: The name of the resource to create created.
+        :type name: str
+        :return: The FAB resource created.
+        :rtype: ViewMenu
         """
         view_menu = self.find_view_menu(name)
         if view_menu is None:
@@ -486,7 +488,7 @@ class SecurityManager(BaseSecurityManager):
         pv = self.find_permission_view_menu(permission_name, view_menu_name)
         if pv:
             return pv
-        vm = self.add_view_menu(view_menu_name)
+        vm = self.create_resource(view_menu_name)
         perm = self.add_permission(permission_name)
         pv = self.permissionview_model()
         pv.view_menu_id, pv.permission_id = vm.id, perm.id

@@ -1394,7 +1394,7 @@ class BaseSecurityManager:
         :param view_menu:
             name of the view or menu to add
         """
-        view_menu_db = self.add_view_menu(view_menu)
+        view_menu_db = self.create_resource(view_menu)
         perm_views = self.find_permissions_view_menu(view_menu_db)
 
         if not perm_views:
@@ -1438,7 +1438,7 @@ class BaseSecurityManager:
         :param view_menu_name:
             The menu name
         """
-        self.add_view_menu(view_menu_name)
+        self.create_resource(view_menu_name)
         pv = self.find_permission_view_menu("menu_access", view_menu_name)
         if not pv:
             pv = self.add_permission_view_menu("menu_access", view_menu_name)
@@ -1724,11 +1724,12 @@ class BaseSecurityManager:
     def get_all_view_menu(self):
         raise NotImplementedError
 
-    def add_view_menu(self, name):
+    def create_resource(self, name):
         """
-        Adds a view or menu to the backend, model view_menu
-        :param name:
-            name of the view menu to add
+        Create a resource with the given name.
+
+        :param name: The name of the resource to create created.
+        :type name: str
         """
         raise NotImplementedError
 
