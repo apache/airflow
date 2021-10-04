@@ -61,13 +61,14 @@ class BaseTaskRunner(LoggingMixin):
         # Add sudo commands to change user if we need to. Needed to handle SubDagOperator
         # case using a SequentialExecutor.
         self.log.debug("Planning to run as the %s user", self.run_as_user)
-        if self.run_as_user and (self.run_as_user != getuser()):
-            # We want to include any environment variables now, as we won't
-            # want to have to specify them in the sudo call - they would show
-            # up in `ps` that way! And run commands now, as the other user
-            # might not be able to run the cmds to get credentials
-            cfg_path = tmp_configuration_copy(chmod=0o600)
 
+        # We want to include any environment variables now, as we won't
+        # want to have to specify them in the sudo call - they would show
+        # up in `ps` that way! And run commands now, as the other user
+        # might not be able to run the cmds to get credentials
+        cfg_path = tmp_configuration_copy(chmod=0o600)
+
+        if self.run_as_user and (self.run_as_user != getuser()):
             # Give ownership of file to user; only they can read and write
             subprocess.call(['sudo', 'chown', self.run_as_user, cfg_path], close_fds=True)
 
@@ -77,13 +78,6 @@ class BaseTaskRunner(LoggingMixin):
 
             if pythonpath_value:
                 popen_prepend.append(f'{PYTHONPATH_VAR}={pythonpath_value}')
-
-        else:
-            # Always provide a copy of the configuration file settings. Since
-            # we are running as the same user, and can pass through environment
-            # variables then we don't need to include those in the config copy
-            # - the runner can read/execute those values as it needs
-            cfg_path = tmp_configuration_copy(chmod=0o600)
 
         self._error_file = NamedTemporaryFile(delete=True)
         if self.run_as_user:
