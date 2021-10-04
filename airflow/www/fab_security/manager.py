@@ -54,6 +54,7 @@ from flask_appbuilder.security.views import (
     AuthOIDView,
     AuthRemoteUserView,
     PermissionModelView,
+    Permission,
     PermissionView,
     PermissionViewModelView,
     RegisterUserModelView,
@@ -1422,7 +1423,7 @@ class BaseSecurityManager:
                 if perm_view.permission.name not in base_permissions:
                     # perm to delete
                     roles = self.get_all_roles()
-                    perm = self.find_permission(perm_view.permission.name)
+                    perm = self.get_action(perm_view.permission.name)
                     # del permission from all roles
                     for role in roles:
                         self.del_permission_role(role, perm)
@@ -1684,8 +1685,15 @@ class BaseSecurityManager:
         """Returns all permissions from public role"""
         raise NotImplementedError
 
-    def find_permission(self, name):
-        """Finds and returns a Permission by name"""
+    def get_action(self, name: str) -> Permission:
+        """
+        Gets an existing action record.
+
+        :param name: name
+        :type name: str
+        :return: Action record, if it exists
+        :rtype: Permission
+        """
         raise NotImplementedError
 
     def find_roles_permission_view_menus(self, permission_name: str, role_ids: List[int]):
