@@ -440,7 +440,7 @@ class SecurityManager(BaseSecurityManager):
                 self.get_session.rollback()
         return view_menu
 
-    def del_view_menu(self, name: str) -> bool:
+    def delete_resource(self, name: str) -> bool:
         """
         Deletes a ViewMenu from the backend
 

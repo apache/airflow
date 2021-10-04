@@ -1472,7 +1472,7 @@ class BaseSecurityManager:
                     for role in roles:
                         self.del_permission_role(role, permission)
                     self.delete_permission(permission.permission.name, viewmenu.name)
-                self.del_view_menu(viewmenu.name)
+                self.delete_resource(viewmenu.name)
         self.security_converge(baseviews, menus)
 
     @staticmethod
@@ -1616,7 +1616,7 @@ class BaseSecurityManager:
         for pvm in state_transitions["del_role_pvm"]:
             self.delete_permission(pvm[1], pvm[0], cascade=False)
         for view_name in state_transitions["del_views"]:
-            self.del_view_menu(view_name)
+            self.delete_resource(view_name)
         for permission_name in state_transitions["del_perms"]:
             self.del_permission(permission_name)
         return state_transitions
@@ -1754,7 +1754,7 @@ class BaseSecurityManager:
         """
         raise NotImplementedError
 
-    def del_view_menu(self, name):
+    def delete_resource(self, name):
         """
         Deletes a ViewMenu from the backend
 
