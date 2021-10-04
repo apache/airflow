@@ -20,6 +20,7 @@
 /* global document, window, $, */
 import { escapeHtml } from './main';
 import getMetaValue from './meta_value';
+import { formatDateTime } from './datetime_utils';
 
 const executionDate = getMetaValue('execution_date');
 const dagId = getMetaValue('dag_id');
@@ -116,7 +117,7 @@ function autoTailingLog(tryNumber, metadata = null, autoTailing = false) {
         const escapedMessage = escapeHtml(item[1]);
         const linkifiedMessage = escapedMessage
           .replace(urlRegex, (url) => `<a href="${url}" target="_blank">${url}</a>`)
-          .replaceAll(dateRegex, (date) => `<time datetime="${date}+00:00">${date}+00:00</time>`);
+          .replaceAll(dateRegex, (date) => `<time datetime="${date}+00:00">${formatDateTime(`${date}+00:00`)}</time>`);
         logBlock.innerHTML += `${linkifiedMessage}\n`;
       });
 
