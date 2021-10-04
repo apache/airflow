@@ -130,7 +130,7 @@ class TriggerDagRunOperator(BaseOperator):
                 dag_id=self.trigger_dag_id,
                 run_id=run_id,
                 conf=self.conf,
-                execution_date=self.execution_date,
+                execution_date=execution_date,
                 replace_microseconds=False,
             )
 
