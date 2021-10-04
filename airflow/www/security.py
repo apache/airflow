@@ -22,6 +22,7 @@ from typing import Dict, List, Optional, Sequence, Set, Tuple
 
 from flask import current_app, g
 from flask_appbuilder.security.sqla import models as sqla_models
+from flask_appbuilder.security.sqla.manager import SecurityManager
 from flask_appbuilder.security.sqla.models import Permission, PermissionView, Role, User, ViewMenu
 from sqlalchemy import or_
 from sqlalchemy.orm import joinedload
@@ -31,7 +32,6 @@ from airflow.models import DagBag, DagModel
 from airflow.security import permissions
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.session import provide_session
-from airflow.www.fab_security.sqla.manager import SecurityManager
 from airflow.www.utils import CustomSQLAInterface
 from airflow.www.views import (
     CustomPermissionModelView,
@@ -846,17 +846,6 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
             for action_name in action_names:
                 dag_perm = _get_or_create_dag_permission(action_name)
                 self.add_permission_to_role(role, dag_perm)
-
-    def create_resource(self, name: str) -> ViewMenu:
-        """
-        Create a resource with the given name.
-
-        :param name: The name of the resource to create created.
-        :type name: str
-        :return: The FAB resource created.
-        :rtype: ViewMenu
-        """
-        return self.add_view_menu(name)
 
     def create_perm_vm_for_all_dag(self):
         """Create perm-vm if not exist and insert into FAB security model for all-dags."""
