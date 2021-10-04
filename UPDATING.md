@@ -239,6 +239,10 @@ Before updating to this 2.2 release you will have to manually resolve any incons
 
 As part of this change the `clean_tis_without_dagrun_interval` config option under `[scheduler]` section has been removed and has no effect.
 
+### DaskExecutor - Dask Worker Resources and queues
+
+If dask workers are not started with complementary resources to match the specified queues, it will now result in an `AirflowException`, whereas before it would have just ignored the `queue` argument.
+
 ## Airflow 2.1.4
 
 No breaking changes.
