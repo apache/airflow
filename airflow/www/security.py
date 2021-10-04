@@ -681,17 +681,6 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
         if access_control:
             self._sync_dag_view_permissions(dag_resource_name, access_control)
 
-    def get_resource_permissions(self, resource: ViewMenu) -> PermissionView:
-        """
-        Retrieve permission pairs associated with a specific resource object.
-
-        :param resource: Object representing a single resource.
-        :type resource: ViewMenu
-        :return: Permission objects representing resource->action pair
-        :rtype: PermissionView
-        """
-        return self.find_permissions_view_menu(resource)
-
     def _sync_dag_view_permissions(self, dag_id, access_control):
         """
         Set the access policy on the given DAG's ViewModel.

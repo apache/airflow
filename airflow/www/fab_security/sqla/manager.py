@@ -496,14 +496,16 @@ class SecurityManager(BaseSecurityManager):
                 .one_or_none()
             )
 
-    def find_permissions_view_menu(self, view_menu):
+    def get_resource_permissions(self, resource: ViewMenu) -> PermissionView:
         """
-        Finds all permissions from ViewMenu, returns list of PermissionView
+        Retrieve permission pairs associated with a specific resource object.
 
-        :param view_menu: ViewMenu object
-        :return: list of PermissionView objects
+        :param resource: Object representing a single resource.
+        :type resource: ViewMenu
+        :return: Permission objects representing resource->action pair
+        :rtype: PermissionView
         """
-        return self.get_session.query(self.permissionview_model).filter_by(view_menu_id=view_menu.id).all()
+        return self.get_session.query(self.permissionview_model).filter_by(view_menu_id=resource.id).all()
 
     def create_permission(self, permission_name, view_menu_name):
         """

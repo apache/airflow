@@ -1399,7 +1399,7 @@ class BaseSecurityManager:
             name of the view or menu to add
         """
         view_menu_db = self.create_resource(view_menu)
-        perm_views = self.find_permissions_view_menu(view_menu_db)
+        perm_views = self.get_resource_permissions(view_menu_db)
 
         if not perm_views:
             # No permissions yet on this view
@@ -1468,7 +1468,7 @@ class BaseSecurityManager:
             if menus.find(viewmenu.name):
                 found = True
             if not found:
-                permissions = self.find_permissions_view_menu(viewmenu)
+                permissions = self.get_resource_permissions(viewmenu)
                 for permission in permissions:
                     for role in roles:
                         self.del_permission_role(role, permission)
@@ -1785,12 +1785,14 @@ class BaseSecurityManager:
         """
         raise NotImplementedError
 
-    def find_permissions_view_menu(self, view_menu):
+    def get_resource_permissions(self, resource: ViewMenu) -> PermissionView:
         """
-        Finds all permissions from ViewMenu, returns list of PermissionView
+        Retrieve permission pairs associated with a specific resource object.
 
-        :param view_menu: ViewMenu object
-        :return: list of PermissionView objects
+        :param resource: Object representing a single resource.
+        :type resource: ViewMenu
+        :return: Permission objects representing resource->action pair
+        :rtype: PermissionView
         """
         raise NotImplementedError
 
