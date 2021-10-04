@@ -1739,13 +1739,12 @@
       type: string
       example: ~
       default: "-1"
-    - name: processor_poll_interval
+    - name: scheduler_idle_sleep_time
       description: |
         Controls how long the scheduler will sleep between loops, but if there was nothing to do
         in the loop. i.e. if it scheduled something then it will start the next loop
-        iteration straight away. This parameter is badly named (historical reasons) and it will be
-        renamed in the future with deprecation of the current name.
-      version_added: 1.10.6
+        iteration straight away.
+      version_added: 2.2.0
       type: string
       example: ~
       default: "1"

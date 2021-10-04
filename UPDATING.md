@@ -177,6 +177,27 @@ with DAG(dag_id="task_concurrency_example"):
     BashOperator(task_id="t1", max_active_tis_per_dag=2, bash_command="echo Hi")
 ```
 
+### `processor_poll_interval` config have been renamed to `scheduler_idle_sleep_time`
+
+`[scheduler] processor_poll_interval` setting in `airflow.cfg` has been renamed to `[scheduler] scheduler_idle_sleep_time`
+for better understanding.
+
+It controls the 'time to sleep' at the end of the Scheduler loop if nothing was scheduled inside `SchedulerJob`.
+
+**Before**:
+
+```ini
+[scheduler]
+processor_poll_interval = 16
+```
+
+**Now**:
+
+```ini
+[scheduler]
+scheduler_idle_sleep_time = 16
+```
+
 ### Marking success/failed automatically clears failed downstream tasks
 
 When marking a task success/failed in Graph View, its downstream tasks that are in failed/upstream_failed state are automatically cleared.

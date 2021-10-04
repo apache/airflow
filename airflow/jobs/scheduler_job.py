@@ -24,6 +24,7 @@ import os
 import signal
 import sys
 import time
+import warnings
 from collections import defaultdict
 from datetime import timedelta
 from typing import Collection, DefaultDict, Dict, List, Optional, Tuple
@@ -86,9 +87,9 @@ class SchedulerJob(BaseJob):
     :param num_times_parse_dags: The number of times to try to parse each DAG file.
         -1 for unlimited times.
     :type num_times_parse_dags: int
-    :param processor_poll_interval: The number of seconds to wait between
+    :param scheduler_idle_sleep_time: The number of seconds to wait between
         polls of running processors
-    :type processor_poll_interval: int
+    :type scheduler_idle_sleep_time: int
     :param do_pickle: once a DAG object is obtained by executing the Python
         file, whether to serialize the DAG object to the DB
     :type do_pickle: bool
@@ -104,9 +105,10 @@ class SchedulerJob(BaseJob):
         subdir: str = settings.DAGS_FOLDER,
         num_runs: int = conf.getint('scheduler', 'num_runs'),
         num_times_parse_dags: int = -1,
-        processor_poll_interval: float = conf.getfloat('scheduler', 'processor_poll_interval'),
+        scheduler_idle_sleep_time: float = conf.getfloat('scheduler', 'scheduler_idle_sleep_time'),
         do_pickle: bool = False,
         log: logging.Logger = None,
+        processor_poll_interval: Optional[float] = None,
         *args,
         **kwargs,
     ):
@@ -117,7 +119,16 @@ class SchedulerJob(BaseJob):
         # number of times. This is only to support testing, and isn't something a user is likely to want to
         # configure -- they'll want num_runs
         self.num_times_parse_dags = num_times_parse_dags
-        self._processor_poll_interval = processor_poll_interval
+        if processor_poll_interval and not scheduler_idle_sleep_time:
+            # TODO: Remove in Airflow 3.0
+            warnings.warn(
+                "The 'processor_poll_interval' parameter is deprecated. "
+                "Please use 'scheduler_idle_sleep_time'.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+            scheduler_idle_sleep_time = processor_poll_interval
+        self._scheduler_idle_sleep_time = scheduler_idle_sleep_time
 
         self.do_pickle = do_pickle
         super().__init__(*args, **kwargs)
@@ -676,7 +687,7 @@ class SchedulerJob(BaseJob):
                 # If the scheduler is doing things, don't sleep. This means when there is work to do, the
                 # scheduler will run "as quick as possible", but when it's stopped, it can sleep, dropping CPU
                 # usage when "idle"
-                time.sleep(min(self._processor_poll_interval, next_event))
+                time.sleep(min(self._scheduler_idle_sleep_time, next_event))
 
             if loop_count >= self.num_runs > 0:
                 self.log.info(
