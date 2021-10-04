@@ -474,7 +474,7 @@ class SecurityManager(BaseSecurityManager):
         """
         return self.get_session.query(self.permissionview_model).filter_by(view_menu_id=view_menu.id).all()
 
-    def add_permission_view_menu(self, permission_name, view_menu_name):
+    def create_permission(self, permission_name, view_menu_name):
         """
         Adds a permission on a view or menu to the backend
 
