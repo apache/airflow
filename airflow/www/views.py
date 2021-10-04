@@ -3421,24 +3421,18 @@ class ConnectionModelView(AirflowModelView):
 
             potential_connection_ids = [f"{base_conn_id}_copy{i}" for i in range(1, 11)]
 
-            query = (
-                session.query(Connection.conn_id)
-                    .filter(Connection.conn_id.in_(potential_connection_ids)
-                            ))
+            query = session.query(Connection.conn_id).filter(Connection.conn_id.in_(potential_connection_ids))
 
             found_conn_id_set = {conn_id for conn_id, in query}
-            logging.warning(f"CONNECTIONS: {found_conn_id_set}")
 
-            possible_conn_ids =[]
+            possible_conn_ids = []
             for connection_id in potential_connection_ids:
                 if connection_id not in found_conn_id_set:
                     possible_conn_ids.append(connection_id)
 
-            logging.warning(f"POSSIBLE CONNECTION IDS {possible_conn_ids}")
             possible_conn_id_iter = iter(possible_conn_ids)
             try:
                 new_conn_id = next(possible_conn_id_iter)
-                logging.warning(f"NEW CONNECTION ID {new_conn_id}")
             except StopIteration:
                 flash(
                     f"Connection {new_conn_id} can't be added because it already exists, "
