@@ -606,21 +606,21 @@ class SecurityManager(BaseSecurityManager):
                 log.error(c.LOGMSG_ERR_SEC_ADD_PERMROLE.format(str(e)))
                 self.get_session.rollback()
 
-    def del_permission_role(self, role, permission):
+    def remove_permission_from_role(self, role: Role, permission: PermissionView) -> None:
         """
-        Remove permission-ViewMenu object to Role
+        Remove a permission pair from a role.
 
-        :param role:
-            The role object
-        :param perm_view:
-            The PermissionViewMenu object
+        :param role: User role containing permissions.
+        :type role: Role
+        :param permission: Object representing resource-> action pair
+        :type permission: PermissionView
         """
-        if perm_view in role.permissions:
+        if permission in role.permissions:
             try:
-                role.permissions.remove(perm_view)
+                role.permissions.remove(permission)
                 self.get_session.merge(role)
                 self.get_session.commit()
-                log.info(c.LOGMSG_INF_SEC_DEL_PERMROLE.format(str(perm_view), role.name))
+                log.info(c.LOGMSG_INF_SEC_DEL_PERMROLE.format(str(permission), role.name))
             except Exception as e:
                 log.error(c.LOGMSG_ERR_SEC_DEL_PERMROLE.format(str(e)))
                 self.get_session.rollback()
