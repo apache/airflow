@@ -278,8 +278,15 @@ class SecurityManager(BaseSecurityManager):
             return role.permissions
         return []
 
-    def find_permission(self, name):
-        """Finds and returns a Permission by name"""
+    def get_action(self, name: str) -> Permission:
+        """
+        Gets an existing action record.
+
+        :param name: name
+        :type name: str
+        :return: Action record, if it exists
+        :rtype: Permission
+        """
         return self.get_session.query(self.permission_model).filter_by(name=name).one_or_none()
 
     def exist_permission_on_roles(self, view_name: str, permission_name: str, role_ids: List[int]) -> bool:
@@ -350,7 +357,7 @@ class SecurityManager(BaseSecurityManager):
         :param name:
             name of the permission: 'can_add','can_edit' etc...
         """
-        perm = self.find_permission(name)
+        perm = self.get_action(name)
         if perm is None:
             try:
                 perm = self.permission_model()
@@ -370,7 +377,7 @@ class SecurityManager(BaseSecurityManager):
         :param name:
             name of the permission: 'can_add','can_edit' etc...
         """
-        perm = self.find_permission(name)
+        perm = self.get_action(name)
         if not perm:
             log.warning(c.LOGMSG_WAR_SEC_DEL_PERMISSION.format(name))
             return False
@@ -478,7 +485,7 @@ class SecurityManager(BaseSecurityManager):
         :return: The existing permission
         :rtype: PermissionView
         """
-        permission = self.find_permission(action_name)
+        permission = self.get_action(action_name)
         view_menu = self.get_resource(resource_name)
         if permission and view_menu:
             return (
