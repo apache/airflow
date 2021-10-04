@@ -271,9 +271,10 @@ def clear_task_instances(
         )
         for dr in drs:
             dr.state = dag_run_state
-            dr.start_date = None
+            dr.start_date = timezone.utcnow()
             if dag_run_state == State.QUEUED:
                 dr.last_scheduling_decision = None
+                dr.start_date = None
 
 
 class TaskInstanceKey(NamedTuple):

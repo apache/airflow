@@ -887,6 +887,23 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
         assert response.status_code == 200
         assert len(response.json["task_instances"]) == expected_ti
 
+    @mock.patch("airflow.api_connexion.endpoints.task_instance_endpoint.clear_task_instances")
+    def test_clear_taskinstance_is_called_with_queued_dr_state(self, mock_clearti, session):
+        """Test that if reset_dag_runs is True, then clear_task_instances is called with State.QUEUED"""
+        self.create_task_instances(session)
+        dag_id = "example_python_operator"
+        payload = {"include_subdags": True, "reset_dag_runs": True, "dry_run": False}
+        self.app.dag_bag.sync_to_db()
+        response = self.client.post(
+            f"/api/v1/dags/{dag_id}/clearTaskInstances",
+            environ_overrides={"REMOTE_USER": "test"},
+            json=payload,
+        )
+        assert response.status_code == 200
+        mock_clearti.assert_called_once_with(
+            [], session, dag=self.app.dag_bag.get_dag(dag_id), dag_run_state=State.QUEUED
+        )
+
     def test_should_respond_200_with_reset_dag_run(self, session):
         dag_id = "example_python_operator"
         payload = {
