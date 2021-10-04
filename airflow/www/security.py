@@ -270,19 +270,6 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
         """
         return self.find_permission(name)
 
-    def get_permission(self, action_name: str, resource_name: str) -> PermissionView:
-        """
-        Gets a permission made with the given action->resource pair, if the permission already exists.
-
-        :param action_name: Name of action
-        :type action_name: str
-        :param resource_name: Name of resource
-        :type resource_name: str
-        :return: The existing permission
-        :rtype: PermissionView
-        """
-        return self.find_permission_view_menu(action_name, resource_name)
-
     def delete_permission(self, action_name: str, resource_name: str) -> None:
         """
         Deletes the permission linking an action->resource pair. Doesn't delete the

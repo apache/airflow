@@ -454,10 +454,19 @@ class SecurityManager(BaseSecurityManager):
     ----------------------
     """
 
-    def find_permission_view_menu(self, permission_name, view_menu_name):
-        """Finds and returns a PermissionView by names"""
-        permission = self.find_permission(permission_name)
-        view_menu = self.find_view_menu(view_menu_name)
+    def get_permission(self, action_name: str, resource_name: str) -> PermissionView:
+        """
+        Gets a permission made with the given action->resource pair, if the permission already exists.
+
+        :param action_name: Name of action
+        :type action_name: str
+        :param resource_name: Name of resource
+        :type resource_name: str
+        :return: The existing permission
+        :rtype: PermissionView
+        """
+        permission = self.find_permission(action_name)
+        view_menu = self.find_view_menu(resource_name)
         if permission and view_menu:
             return (
                 self.get_session.query(self.permissionview_model)
@@ -485,7 +494,7 @@ class SecurityManager(BaseSecurityManager):
         """
         if not (permission_name and view_menu_name):
             return None
-        pv = self.find_permission_view_menu(permission_name, view_menu_name)
+        pv = self.get_permission(permission_name, view_menu_name)
         if pv:
             return pv
         vm = self.create_resource(view_menu_name)
@@ -504,7 +513,7 @@ class SecurityManager(BaseSecurityManager):
     def del_permission_view_menu(self, permission_name, view_menu_name, cascade=True):
         if not (permission_name and view_menu_name):
             return
-        pv = self.find_permission_view_menu(permission_name, view_menu_name)
+        pv = self.get_permission(permission_name, view_menu_name)
         if not pv:
             return
         roles_pvs = (
