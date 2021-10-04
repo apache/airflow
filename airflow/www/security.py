@@ -239,15 +239,6 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
             permission = self.create_permission(action_name, resource_name)
             self.add_permission_to_role(role, permission)
 
-    def get_all_resources(self) -> List[ViewMenu]:
-        """
-        Gets all existing resource records.
-
-        :return: List of all resources
-        :rtype: List[ViewMenu]
-        """
-        return self.get_all_view_menu()
-
     def get_action(self, name: str) -> Permission:
         """
         Gets an existing action record.

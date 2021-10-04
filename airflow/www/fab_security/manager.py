@@ -68,6 +68,7 @@ from flask_appbuilder.security.views import (
     UserRemoteUserModelView,
     UserStatsChartView,
     ViewMenuModelView,
+    ViewMenu,
 )
 from flask_babel import lazy_gettext as _
 from flask_jwt_extended import JWTManager, current_user as current_user_jwt
@@ -1454,7 +1455,7 @@ class BaseSecurityManager:
         :param baseviews: A list of BaseViews class
         :param menus: Menu class
         """
-        viewsmenus = self.get_all_view_menu()
+        viewsmenus = self.get_all_resources()
         roles = self.get_all_roles()
         for viewmenu in viewsmenus:
             found = False
@@ -1727,7 +1728,13 @@ class BaseSecurityManager:
         """
         raise NotImplementedError
 
-    def get_all_view_menu(self):
+    def get_all_resources(self) -> List[ViewMenu]:
+        """
+        Gets all existing resource records.
+
+        :return: List of all resources
+        :rtype: List[ViewMenu]
+        """
         raise NotImplementedError
 
     def create_resource(self, name):
