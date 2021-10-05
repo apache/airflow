@@ -397,7 +397,9 @@ class Connection(Base, LoggingMixin):
 
         raise AirflowNotFoundException(f"The conn_id `{conn_id}` isn't defined")
 
-    def __eq__(self, other: 'Connection'):
+    def __eq__(self, other):
+        if not isinstance(other, Connection):
+            return NotImplemented
         return (
             self.conn_id == other.conn_id
             and self.conn_type == other.conn_type

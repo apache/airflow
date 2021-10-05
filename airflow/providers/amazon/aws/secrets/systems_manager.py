@@ -21,7 +21,11 @@ from typing import Optional
 
 import boto3
 
-from airflow.compat.functools import cached_property
+try:
+    from functools import cached_property
+except ImportError:
+    from cached_property import cached_property
+
 from airflow.models import Connection
 from airflow.secrets import BaseSecretsBackend
 from airflow.utils.log.logging_mixin import LoggingMixin
