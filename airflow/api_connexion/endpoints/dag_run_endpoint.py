@@ -280,7 +280,10 @@ def post_dag_run(dag_id, session):
 
     if dagrun_instance.execution_date == logical_date:
         raise AlreadyExists(
-            detail=f"DAGRun with DAG ID: '{dag_id}' and DAGRun logical date: '{logical_date}' already exists"
+            detail=(
+                f"DAGRun with DAG ID: '{dag_id}' and "
+                f"DAGRun logical date: '{logical_date.isoformat(sep=' ')}' already exists"
+            ),
         )
 
     raise AlreadyExists(detail=f"DAGRun with DAG ID: '{dag_id}' and DAGRun ID: '{run_id}' already exists")
