@@ -320,7 +320,7 @@ class SecurityManager(BaseSecurityManager):
             return self.appbuilder.get_session.query(literal(True)).filter(q).scalar()
         return self.appbuilder.get_session.query(q).scalar()
 
-    def find_roles_permission_view_menus(self, permission_name: str, role_ids: List[int]):
+    def filter_roles_by_perm_with_action(self, action_name: str, role_ids: List[int]):
         """Find roles with permission"""
         return (
             self.appbuilder.get_session.query(self.permissionview_model)
@@ -332,7 +332,7 @@ class SecurityManager(BaseSecurityManager):
             .join(self.permission_model)
             .join(self.viewmenu_model)
             .filter(
-                self.permission_model.name == permission_name,
+                self.permission_model.name == action_name,
                 self.role_model.id.in_(role_ids),
             )
         ).all()

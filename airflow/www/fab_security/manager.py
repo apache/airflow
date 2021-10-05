@@ -1351,7 +1351,7 @@ class BaseSecurityManager:
             # include public role
             roles = [self.get_public_role()]
         else:
-            roles = user.roles
+            roles = user.rolesxsd
         # First check against builtin (statically configured) roles
         # because no database query is needed
         result = set()
@@ -1364,7 +1364,7 @@ class BaseSecurityManager:
                 db_role_ids.append(role.id)
         # Then check against database-stored roles
         pvms_names = [
-            pvm.view_menu.name for pvm in self.find_roles_permission_view_menus(permission_name, db_role_ids)
+            pvm.view_menu.name for pvm in self.filter_roles_by_perm_with_action(permission_name, db_role_ids)
         ]
         result.update(pvms_names)
         return result
@@ -1697,7 +1697,7 @@ class BaseSecurityManager:
         """
         raise NotImplementedError
 
-    def find_roles_permission_view_menus(self, permission_name: str, role_ids: List[int]):
+    def filter_roles_by_perm_with_action(self, permission_name: str, role_ids: List[int]):
         raise NotImplementedError
 
     def permission_exists_in_one_or_more_roles(self, resource_name: str, action_name: str, role_ids: List[int]) -> bool:
