@@ -579,12 +579,6 @@ class SecurityManager(BaseSecurityManager):
                 return True
         return False
 
-    def exist_permission_on_view(self, lst, permission, view_menu):
-        for i in lst:
-            if i.permission.name == permission and i.view_menu.name == view_menu:
-                return True
-        return False
-
     def add_permission_to_role(self, role: Role, permission: PermissionView) -> None:
         """
         Add an existing permission pair to a role.

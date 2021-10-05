@@ -1826,9 +1826,6 @@ class BaseSecurityManager:
     def exist_permission_on_views(self, lst, item):
         raise NotImplementedError
 
-    def exist_permission_on_view(self, lst, permission, view_menu):
-        raise NotImplementedError
-
     def add_permission_to_role(self, role: Role, permission: PermissionView) -> None:
         """
         Add an existing permission pair to a role.
