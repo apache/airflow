@@ -241,7 +241,8 @@ ARG INSTALL_FROM_PYPI="true"
 # * certifi<2021.0.0 required to keep snowflake happy
 # * pyjwt<2.0.0: flask-jwt-extended requires it
 # * dill<0.3.3 required by apache-beam
-ARG EAGER_UPGRADE_ADDITIONAL_REQUIREMENTS="pyjwt<2.0.0 dill<0.3.3 certifi<2021.0.0"
+# * google-ads<14.0.1 required to prevent updating google-python-api>=2.0.0
+ARG EAGER_UPGRADE_ADDITIONAL_REQUIREMENTS="pyjwt<2.0.0 dill<0.3.3 certifi<2021.0.0 google-ads<14.0.1"
 
 ENV ADDITIONAL_PYTHON_DEPS=${ADDITIONAL_PYTHON_DEPS} \
     INSTALL_FROM_DOCKER_CONTEXT_FILES=${INSTALL_FROM_DOCKER_CONTEXT_FILES} \
