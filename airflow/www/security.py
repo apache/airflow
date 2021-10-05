@@ -31,8 +31,8 @@ from airflow.models import DagBag, DagModel
 from airflow.security import permissions
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.session import provide_session
-from airflow.www.utils import CustomSQLAInterface
 from airflow.www.fab_security.sqla.manager import SecurityManager
+from airflow.www.utils import CustomSQLAInterface
 from airflow.www.views import (
     CustomPermissionModelView,
     CustomPermissionViewModelView,
