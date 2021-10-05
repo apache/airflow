@@ -62,21 +62,75 @@ Note that all components of the URI should be URL-encoded.
 
 Examples
 --------
-
 Database Authentication
 
-.. code-block:: bash
+.. code-block:: pycon
 
-  AIRFLOW_CONN_REDSHIFT_DEFAULT=redshift://awsuser:password@redshift-cluster-1.123456789.us-west-1.redshift.amazonaws.com:5439/?database=dev&ssl=True
+  >>> from airflow.models.connection import Connection
+  >>> import json
+
+  >>> c = Connection(
+  ...     conn_type="redshift",
+  ...     extra=json.dumps(
+  ...         {
+  ...             "user": "awsuser",
+  ...             "password": "password",
+  ...             "host": "redshift-cluster-1.123456789.us-west-1.redshift.amazonaws.com",
+  ...             "port": 5439,
+  ...             "database": "dev",
+  ...             "ssl": True,
+  ...             "sslmode": "verify-full",
+  ...         }
+  ...     ),
+  ... )
+  >>> print(c.get_uri())
+  redshift://?__extra__=%7B%22user%22%3A+%22awsuser%22%2C+%22password%22%3A+%22password%22%2C+%22host%22%3A+%22redshift-cluster-1.123456789.us-west-1.redshift.amazonaws.com%22%2C+%22port%22%3A+5439%2C+%22database%22%3A+%22dev%22%2C+%22ssl%22%3A+true%2C+%22sslmode%22%3A+%22verify-full%22%7D
+
 
 IAM Authentication using AWS Profile
 
-.. code-block:: bash
+.. code-block:: pycon
 
-  AIRFLOW_CONN_REDSHIFT_DEFAULT=redshift://:@:/?database=dev&iam=True&db_user=awsuser&cluster_identifier=redshift-cluster-1&profile=default
+  >>> from airflow.models.connection import Connection
+  >>> import json
+
+  >>> c = Connection(
+  ...     conn_type="redshift",
+  ...     extra=json.dumps(
+  ...         {
+  ...             "iam": True,
+  ...             "db_user": "awsuser",
+  ...             "database": "dev",
+  ...             "cluster_identifier": "redshift-cluster-1",
+  ...             "profile": "default",
+  ...         }
+  ...     ),
+  ... )
+  >>> print(c.get_uri())
+  redshift://?__extra__=%7B%22iam%22%3A+true%2C+%22db_user%22%3A+%22awsuser%22%2C+%22database%22%3A+%22dev%22%2C+%22cluster_identifier%22%3A+%22redshift-cluster-1%22%2C+%22profile%22%3A+%22default%22%7D
 
 Authentication using Okta Identity Provider
 
-.. code-block:: bash
+.. code-block:: pycon
 
-  AIRFLOW_CONN_REDSHIFT_DEFAULT=redshift://dev@domain.org:myOktaPassword@:/?database=dev&iam=True&cluster_identifier=redshift-cluster-1&credentials_provider=OktaCredentialsProvider&idp_host=my_idp_host&app_id=myAppId&app_name=myAppName
+  >>> from airflow.models.connection import Connection
+  >>> import json
+
+  >>> c = Connection(
+  ...     conn_type="redshift",
+  ...     extra=json.dumps(
+  ...         {
+  ...             "iam": True,
+  ...             "user": "developer@domain.org",
+  ...             "password": "myOktaPassword",
+  ...             "database": "dev",
+  ...             "cluster_identifier": "redshift-cluster-1",
+  ...             "credentials_provider": "OktaCredentialsProvider",
+  ...             "idp_host": "my_idp_host",
+  ...             "app_id": "myAppId",
+  ...             "app_name": "myAppName",
+  ...         }
+  ...     ),
+  ... )
+  >>> print(c.get_uri())
+  redshift://?__extra__=%7B%22iam%22%3A+true%2C+%22user%22%3A+%22developer%40domain.org%22%2C+%22password%22%3A+%22myOktaPassword%22%2C+%22database%22%3A+%22dev%22%2C+%22cluster_identifier%22%3A+%22redshift-cluster-1%22%2C+%22credentials_provider%22%3A+%22OktaCredentialsProvider%22%2C+%22idp_host%22%3A+%22my_idp_host%22%2C+%22app_id%22%3A+%22myAppId%22%2C+%22app_name%22%3A+%22myAppName%22%7D
