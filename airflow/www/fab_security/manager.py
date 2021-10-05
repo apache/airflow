@@ -1384,23 +1384,23 @@ class BaseSecurityManager:
         else:
             return self._get_user_permission_view_menus(None, "menu_access", view_menus_name=menu_names)
 
-    def add_permissions_view(self, base_permissions, view_menu):
+    def add_permissions_view(self, base_permissions, resource_name):
         """
         Adds a permission on a view menu to the backend
 
         :param base_permissions:
             list of permissions from view (all exposed methods):
              'can_add','can_edit' etc...
-        :param view_menu:
-            name of the view or menu to add
+        :param resource_name:
+            name of the resource to add
         """
-        resource = self.create_resource(view_menu)
+        resource = self.create_resource(resource_name)
         perms = self.get_resource_permissions(resource)
 
         if not perms:
             # No permissions yet on this view
             for permission in base_permissions:
-                pv = self.create_permission(permission, view_menu)
+                pv = self.create_permission(permission, resource_name)
                 if self.auth_role_admin not in self.builtin_roles:
                     role_admin = self.find_role(self.auth_role_admin)
                     self.add_permission_to_role(role_admin, pv)
@@ -1410,7 +1410,7 @@ class BaseSecurityManager:
             for permission in base_permissions:
                 # Check if base view permissions exist
                 if not self.exist_permission_on_views(perms, permission):
-                    pv = self.create_permission(permission, view_menu)
+                    pv = self.create_permission(permission, resource_name)
                     if self.auth_role_admin not in self.builtin_roles:
                         self.add_permission_to_role(role_admin, pv)
             for perm_view in perms:
@@ -1424,7 +1424,7 @@ class BaseSecurityManager:
                     # del permission from all roles
                     for role in roles:
                         self.remove_permission_from_role(role, perm)
-                    self.delete_permission(perm_view.permission.name, view_menu)
+                    self.delete_permission(perm_view.permission.name, resource_name)
                 elif (
                     self.auth_role_admin not in self.builtin_roles and perm_view not in role_admin.permissions
                 ):
