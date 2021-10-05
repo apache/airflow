@@ -1425,9 +1425,7 @@ class BaseSecurityManager:
                         # This is a bug in FAB. It has been reported.
                         self.remove_permission_from_role(role, action)
                     self.delete_permission(perm.permission.name, resource_name)
-                elif (
-                    self.auth_role_admin not in self.builtin_roles and perm not in admin_role.permissions
-                ):
+                elif self.auth_role_admin not in self.builtin_roles and perm not in admin_role.permissions:
                     # Role Admin must have all permissions
                     self.add_permission_to_role(admin_role, perm)
 
@@ -1696,7 +1694,9 @@ class BaseSecurityManager:
     def filter_roles_by_perm_with_action(self, permission_name: str, role_ids: List[int]):
         raise NotImplementedError
 
-    def permission_exists_in_one_or_more_roles(self, resource_name: str, action_name: str, role_ids: List[int]) -> bool:
+    def permission_exists_in_one_or_more_roles(
+        self, resource_name: str, action_name: str, role_ids: List[int]
+    ) -> bool:
         """Finds and returns permission views for a group of roles"""
         raise NotImplementedError
 
