@@ -424,7 +424,7 @@ sphinxcontrib-spelling==7.2.1
 spython==0.1.16
 sqlalchemy-drill==1.1.1
 sqlparse==0.4.2
-sshtunnel==0.1.5
+sshtunnel==0.4.0
 starkbank-ecdsa==1.1.1
 statsd==3.3.0
 swagger-ui-bundle==0.0.9
