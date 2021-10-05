@@ -60,6 +60,10 @@ class MySQLToS3Operator(BaseOperator):
     :type index: str
     :param header: whether to include header or not into the S3 file
     :type header: bool
+    :param file_format: the destination file format, only csv and parquet are supported.
+    :type file_format: str
+    :param pd_parquet_kwargs: arguments to include in pd.to_parquet
+    :type pd_parquet_kwargs: dict
     """
 
     template_fields = (
@@ -82,6 +86,8 @@ class MySQLToS3Operator(BaseOperator):
         pd_csv_kwargs: Optional[dict] = None,
         index: bool = False,
         header: bool = False,
+        file_format: str = 'csv',
+        pd_parquet_kwargs: Optional[dict] = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -91,6 +97,7 @@ class MySQLToS3Operator(BaseOperator):
         self.mysql_conn_id = mysql_conn_id
         self.aws_conn_id = aws_conn_id
         self.verify = verify
+        self.file_format = file_format
 
         self.pd_csv_kwargs = pd_csv_kwargs or {}
         if "path_or_buf" in self.pd_csv_kwargs:
@@ -98,7 +105,12 @@ class MySQLToS3Operator(BaseOperator):
         if "index" not in self.pd_csv_kwargs:
             self.pd_csv_kwargs["index"] = index
         if "header" not in self.pd_csv_kwargs:
-            self.pd_csv_kwargs["header"] = header
+            self.pd_csv_kwargs["header"] = header        
+        if file_format not in ["csv", "parquet"]:
+            raise AirflowException(
+                f"Only csv and parquet formats are supported for destination file format, but {file_format} is provided"
+            )
+        self.pd_parquet_kwargs = pd_parquet_kwargs or {}             
 
     def _fix_int_dtypes(self, df: pd.DataFrame) -> None:
         """Mutate DataFrame to set dtypes for int columns containing NaN values."""
@@ -118,9 +130,14 @@ class MySQLToS3Operator(BaseOperator):
         self.log.info("Data from MySQL obtained")
 
         self._fix_int_dtypes(data_df)
-        with NamedTemporaryFile(mode='r+', suffix='.csv') as tmp_csv:
-            data_df.to_csv(tmp_csv.name, **self.pd_csv_kwargs)
-            s3_conn.load_file(filename=tmp_csv.name, key=self.s3_key, bucket_name=self.s3_bucket)
+        if self.file_format = "csv":
+            with NamedTemporaryFile(mode='r+', suffix='.csv') as tmp_csv:
+                data_df.to_csv(tmp_csv.name, **self.pd_csv_kwargs)
+                s3_conn.load_file(filename=tmp_csv.name, key=self.s3_key, bucket_name=self.s3_bucket)
+        else:
+             with NamedTemporaryFile(mode='r+', suffix='.parquet') as tmp_parquet:
+                data_df.to_parquet(tmp_parquet.name, **self.pd_parquet_kwargs)
+                s3_conn.load_file(filename=tmp_parquet.name, key=self.s3_key, bucket_name=self.s3_bucket)           
 
         if s3_conn.check_for_key(self.s3_key, bucket_name=self.s3_bucket):
             file_location = os.path.join(self.s3_bucket, self.s3_key)
