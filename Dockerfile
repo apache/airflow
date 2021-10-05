@@ -40,7 +40,6 @@ ARG ADDITIONAL_PYTHON_DEPS=""
 
 ARG AIRFLOW_HOME=/opt/airflow
 ARG AIRFLOW_UID="50000"
-ARG AIRFLOW_GID="50000"
 
 ARG PYTHON_BASE_IMAGE="python:3.6-slim-buster"
 
@@ -314,15 +313,13 @@ FROM ${PYTHON_BASE_IMAGE} as main
 SHELL ["/bin/bash", "-o", "pipefail", "-e", "-u", "-x", "-c"]
 
 ARG AIRFLOW_UID
-ARG AIRFLOW_GID
 
 LABEL org.apache.airflow.distro="debian" \
   org.apache.airflow.distro.version="buster" \
   org.apache.airflow.module="airflow" \
   org.apache.airflow.component="airflow" \
   org.apache.airflow.image="airflow" \
-  org.apache.airflow.uid="${AIRFLOW_UID}" \
-  org.apache.airflow.gid="${AIRFLOW_GID}"
+  org.apache.airflow.uid="${AIRFLOW_UID}"
 
 ARG PYTHON_BASE_IMAGE
 ARG AIRFLOW_PIP_VERSION
@@ -398,7 +395,7 @@ ENV RUNTIME_APT_DEPS=${RUNTIME_APT_DEPS} \
     ADDITIONAL_RUNTIME_APT_COMMAND=${ADDITIONAL_RUNTIME_APT_COMMAND} \
     INSTALL_MYSQL_CLIENT=${INSTALL_MYSQL_CLIENT} \
     INSTALL_MSSQL_CLIENT=${INSTALL_MSSQL_CLIENT} \
-    AIRFLOW_UID=${AIRFLOW_UID} AIRFLOW_GID=${AIRFLOW_GID} \
+    AIRFLOW_UID=${AIRFLOW_UID} \
     AIRFLOW__CORE__LOAD_EXAMPLES="false" \
     AIRFLOW_USER_HOME_DIR=${AIRFLOW_USER_HOME_DIR} \
     AIRFLOW_HOME=${AIRFLOW_HOME} \
@@ -434,10 +431,7 @@ RUN chmod a+x /scripts/docker/install_mysql.sh && \
     /scripts/docker/install_mysql.sh prod && \
     chmod a+x /scripts/docker/install_mssql.sh && \
     /scripts/docker/install_mssql.sh && \
-    addgroup --gid "${AIRFLOW_GID}" "airflow" && \
-    adduser --quiet "airflow" --uid "${AIRFLOW_UID}" \
-        --gid "${AIRFLOW_GID}" \
-        --home "${AIRFLOW_USER_HOME_DIR}" && \
+    adduser --quiet "airflow" --uid "${AIRFLOW_UID}" --gid "0" --home "${AIRFLOW_USER_HOME_DIR}" && \
 # Make Airflow files belong to the root group and are accessible. This is to accommodate the guidelines from
 # OpenShift https://docs.openshift.com/enterprise/3.0/creating_images/guidelines.html
     mkdir -pv "${AIRFLOW_HOME}"; \
@@ -462,7 +456,7 @@ WORKDIR ${AIRFLOW_HOME}
 
 EXPOSE 8080
 
-RUN usermod -g 0 airflow -G ${AIRFLOW_GID}
+RUN usermod -g 0 airflow -G 0
 
 USER ${AIRFLOW_UID}
 
@@ -473,7 +467,6 @@ LABEL org.apache.airflow.distro="debian" \
   org.apache.airflow.image="airflow" \
   org.apache.airflow.version="${AIRFLOW_VERSION}" \
   org.apache.airflow.uid="${AIRFLOW_UID}" \
-  org.apache.airflow.gid="${AIRFLOW_GID}" \
   org.apache.airflow.main-image.build-id="${BUILD_ID}" \
   org.apache.airflow.main-image.commit-sha="${COMMIT_SHA}" \
   org.opencontainers.image.source="${AIRFLOW_IMAGE_REPOSITORY}" \

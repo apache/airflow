@@ -49,11 +49,11 @@ those formats (See `Docker Run reference <https://docs.docker.com/engine/referen
 
 In case of Docker Compose environment it can be changed via ``user:`` entry in the ``docker-compose.yaml``.
 See `Docker compose reference <https://docs.docker.com/compose/compose-file/compose-file-v3/#domainname-hostname-ipc-mac_address-privileged-read_only-shm_size-stdin_open-tty-user-working_dir>`_
-for details. In our Quickstart Guide using Docker-Compose, the UID and GID can be passed via
-``AIRFLOW_UID`` and ``AIRFLOW_GID`` variables as described in
+for details. In our Quickstart Guide using Docker-Compose, the UID can be passed via the
+``AIRFLOW_UID`` variable as described in
 :ref:`Initializing docker compose environment <initializing_docker_compose_environment>`.
 
-In case ``GID`` is set to ``0``, the user can be any UID, but in case UID is different than the default
+The user can be any UID. In case UID is different than the default
 ``airflow`` (UID=50000), the user will be automatically created when entering the container.
 
 In order to accommodate a number of external libraries and projects, Airflow will automatically create
