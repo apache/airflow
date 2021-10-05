@@ -119,7 +119,7 @@ class SchedulerJob(BaseJob):
         # number of times. This is only to support testing, and isn't something a user is likely to want to
         # configure -- they'll want num_runs
         self.num_times_parse_dags = num_times_parse_dags
-        if processor_poll_interval and not scheduler_idle_sleep_time:
+        if processor_poll_interval:
             # TODO: Remove in Airflow 3.0
             warnings.warn(
                 "The 'processor_poll_interval' parameter is deprecated. "
