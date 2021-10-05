@@ -31,7 +31,7 @@ class RedshiftSQLOperator(BaseOperator):
 
     :param sql: the sql code to be executed
     :type sql: Can receive a str representing a sql statement,
-        a list of str (sql statements)
+        or an iterable of str (sql statements)
     :param redshift_conn_id: reference to
         :ref:`Amazon Redshift connection id<howto/connection:redshift>`
     :type redshift_conn_id: str
