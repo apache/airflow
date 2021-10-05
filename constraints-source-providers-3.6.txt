@@ -72,7 +72,7 @@ aws-xray-sdk==2.8.0
 azure-batch==11.0.0
 azure-common==1.1.27
 azure-core==1.18.0
-azure-cosmos==3.2.0
+azure-cosmos==4.2.0
 azure-datalake-store==0.0.52
 azure-identity==1.6.1
 azure-keyvault-certificates==4.3.0
