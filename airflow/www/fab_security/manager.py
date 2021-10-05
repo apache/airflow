@@ -1398,36 +1398,38 @@ class BaseSecurityManager:
         if not perms:
             # No permissions yet on this view
             for action_name in base_action_names:
-                perm = self.create_permission(action_name, resource_name)
+                action = self.create_permission(action_name, resource_name)
                 if self.auth_role_admin not in self.builtin_roles:
-                    role_admin = self.find_role(self.auth_role_admin)
-                    self.add_permission_to_role(role_admin, perm)
+                    admin_role = self.find_role(self.auth_role_admin)
+                    self.add_permission_to_role(admin_role, action)
         else:
             # Permissions on this view exist but....
-            role_admin = self.find_role(self.auth_role_admin)
+            admin_role = self.find_role(self.auth_role_admin)
             for action_name in base_action_names:
                 # Check if base view permissions exist
                 if not self.perms_include_action(perms, action_name):
-                    perm = self.create_permission(action_name, resource_name)
+                    action = self.create_permission(action_name, resource_name)
                     if self.auth_role_admin not in self.builtin_roles:
-                        self.add_permission_to_role(role_admin, perm)
-            for perm_view in perms:
-                if perm_view.permission is None:
+                        self.add_permission_to_role(admin_role, action)
+            for perm in perms:
+                if perm.permission is None:
                     # Skip this perm_view, it has a null permission
                     continue
-                if perm_view.permission.name not in base_action_names:
+                if perm.permission.name not in base_action_names:
                     # perm to delete
                     roles = self.get_all_roles()
-                    perm = self.get_action(perm_view.permission.name)
+                    action = self.get_action(perm.permission.name)
                     # del permission from all roles
                     for role in roles:
-                        self.remove_permission_from_role(role, perm)
-                    self.delete_permission(perm_view.permission.name, resource_name)
+                        # TODO: An action can't be removed from a role.
+                        # This is a bug in FAB. It has been reported.
+                        self.remove_permission_from_role(role, action)
+                    self.delete_permission(perm.permission.name, resource_name)
                 elif (
-                    self.auth_role_admin not in self.builtin_roles and perm_view not in role_admin.permissions
+                    self.auth_role_admin not in self.builtin_roles and perm not in admin_role.permissions
                 ):
                     # Role Admin must have all permissions
-                    self.add_permission_to_role(role_admin, perm_view)
+                    self.add_permission_to_role(admin_role, perm)
 
     def add_permissions_menu(self, resource_name):
         """
@@ -1437,12 +1439,12 @@ class BaseSecurityManager:
             The resource name
         """
         self.create_resource(resource_name)
-        pv = self.get_permission("menu_access", resource_name)
-        if not pv:
-            pv = self.create_permission("menu_access", resource_name)
+        perm = self.get_permission("menu_access", resource_name)
+        if not perm:
+            perm = self.create_permission("menu_access", resource_name)
         if self.auth_role_admin not in self.builtin_roles:
             role_admin = self.find_role(self.auth_role_admin)
-            self.add_permission_to_role(role_admin, pv)
+            self.add_permission_to_role(role_admin, perm)
 
     def security_cleanup(self, baseviews, menus):
         """
@@ -1451,23 +1453,23 @@ class BaseSecurityManager:
         :param baseviews: A list of BaseViews class
         :param menus: Menu class
         """
-        viewsmenus = self.get_all_resources()
+        resources = self.get_all_resources()
         roles = self.get_all_roles()
-        for viewmenu in viewsmenus:
+        for resource in resources:
             found = False
             for baseview in baseviews:
-                if viewmenu.name == baseview.class_permission_name:
+                if resource.name == baseview.class_permission_name:
                     found = True
                     break
-            if menus.find(viewmenu.name):
+            if menus.find(resource.name):
                 found = True
             if not found:
-                permissions = self.get_resource_permissions(viewmenu)
+                permissions = self.get_resource_permissions(resource)
                 for permission in permissions:
                     for role in roles:
                         self.remove_permission_from_role(role, permission)
-                    self.delete_permission(permission.permission.name, viewmenu.name)
-                self.delete_resource(viewmenu.name)
+                    self.delete_permission(permission.permission.name, resource.name)
+                self.delete_resource(resource.name)
         self.security_converge(baseviews, menus)
 
     @staticmethod
@@ -1490,19 +1492,19 @@ class BaseSecurityManager:
     @staticmethod
     def _add_state_transition(
         state_transition: Dict,
-        old_view_name: str,
-        old_perm_name: str,
-        view_name: str,
-        perm_name: str,
+        old_resource_name: str,
+        old_action_name: str,
+        resource_name: str,
+        action_name: str,
     ) -> None:
-        old_pvm = state_transition["add"].get((old_view_name, old_perm_name))
-        if old_pvm:
-            state_transition["add"][(old_view_name, old_perm_name)].add((view_name, perm_name))
+        old_perm = state_transition["add"].get((old_resource_name, old_action_name))
+        if old_perm:
+            state_transition["add"][(old_resource_name, old_action_name)].add((resource_name, action_name))
         else:
-            state_transition["add"][(old_view_name, old_perm_name)] = {(view_name, perm_name)}
-        state_transition["del_role_pvm"].add((old_view_name, old_perm_name))
-        state_transition["del_views"].add(old_view_name)
-        state_transition["del_perms"].add(old_perm_name)
+            state_transition["add"][(old_resource_name, old_action_name)] = {(resource_name, action_name)}
+        state_transition["del_role_pvm"].add((old_resource_name, old_action_name))
+        state_transition["del_views"].add(old_resource_name)
+        state_transition["del_perms"].add(old_action_name)
 
     @staticmethod
     def _update_del_transitions(state_transitions: Dict, baseviews: List) -> None:
@@ -1612,8 +1614,8 @@ class BaseSecurityManager:
             self.delete_permission(perm[1], perm[0], cascade=False)
         for resource_name in state_transitions["del_views"]:
             self.delete_resource(resource_name)
-        for permission_name in state_transitions["del_perms"]:
-            self.delete_action(permission_name)
+        for action_name in state_transitions["del_perms"]:
+            self.delete_action(action_name)
         return state_transitions
 
     def find_register_user(self, registration_hash):
