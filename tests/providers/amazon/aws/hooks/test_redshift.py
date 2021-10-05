@@ -164,10 +164,10 @@ class TestRedshiftSQLHookConn(unittest.TestCase):
         ],
     )
     @mock.patch('airflow.providers.amazon.aws.hooks.redshift.redshift_connector.connect')
-    def test_get_conn_overrides_correctly(self, test_args, test_kwargs, expected_call_args, mock_connect):
+    def test_get_conn_overrides_correctly(self, conn_params, conn_extra, expected_call_args, mock_connect):
         with mock.patch(
             'airflow.providers.amazon.aws.hooks.redshift.RedshiftSQLHook.conn',
-            Connection(conn_type='redshift', extra=test_kwargs, **test_args),
+            Connection(conn_type='redshift', extra=conn_extra, **conn_params),
         ):
             self.db_hook.get_conn()
             mock_connect.assert_called_once_with(**expected_call_args)
