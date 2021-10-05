@@ -337,7 +337,7 @@ class SecurityManager(BaseSecurityManager):
             )
         ).all()
 
-    def get_db_role_permissions(self, role_id: int) -> List[PermissionView]:
+    def get_role_permissions_from_db(self, role_id: int) -> List[PermissionView]:
         """Get all DB permissions from a role (one single query)"""
         return (
             self.appbuilder.get_session.query(PermissionView)

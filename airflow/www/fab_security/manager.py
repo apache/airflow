@@ -1326,7 +1326,7 @@ class BaseSecurityManager:
             for permission in self.builtin_roles[role.name]:
                 result.add((permission[1], permission[0]))
         else:
-            for permission in self.get_db_role_permissions(role.id):
+            for permission in self.get_role_permissions_from_db(role.id):
                 result.add((permission.permission.name, permission.view_menu.name))
         return result
 
@@ -1646,7 +1646,7 @@ class BaseSecurityManager:
         """Generic function that returns all existing users"""
         raise NotImplementedError
 
-    def get_db_role_permissions(self, role_id: int) -> List[object]:
+    def get_role_permissions_from_db(self, role_id: int) -> List[object]:
         """Get all DB permissions from a role id"""
         raise NotImplementedError
 
