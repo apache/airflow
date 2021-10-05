@@ -54,13 +54,10 @@ from flask_appbuilder.security.views import (
     AuthOIDView,
     AuthRemoteUserView,
     PermissionModelView,
-    Permission,
-    PermissionView,
     PermissionViewModelView,
     RegisterUserModelView,
     ResetMyPasswordView,
     ResetPasswordView,
-    Role,
     RoleModelView,
     UserDBModelView,
     UserInfoEditView,
@@ -70,7 +67,6 @@ from flask_appbuilder.security.views import (
     UserRemoteUserModelView,
     UserStatsChartView,
     ViewMenuModelView,
-    ViewMenu,
 )
 from flask_babel import lazy_gettext as _
 from flask_jwt_extended import JWTManager, current_user as current_user_jwt
@@ -1686,7 +1682,7 @@ class BaseSecurityManager:
         """Returns all permissions from public role"""
         raise NotImplementedError
 
-    def get_action(self, name: str) -> Permission:
+    def get_action(self, name: str):
         """
         Gets an existing action record.
 
@@ -1739,7 +1735,7 @@ class BaseSecurityManager:
         """
         raise NotImplementedError
 
-    def get_all_resources(self) -> List[ViewMenu]:
+    def get_all_resources(self):
         """
         Gets all existing resource records.
 
@@ -1772,7 +1768,7 @@ class BaseSecurityManager:
     ----------------------
     """
 
-    def get_permission(self, action_name: str, resource_name: str) -> PermissionView:
+    def get_permission(self, action_name: str, resource_name: str):
         """
         Gets a permission made with the given action->resource pair, if the permission already exists.
 
@@ -1785,7 +1781,7 @@ class BaseSecurityManager:
         """
         raise NotImplementedError
 
-    def get_resource_permissions(self, resource: ViewMenu) -> PermissionView:
+    def get_resource_permissions(self, resource):
         """
         Retrieve permission pairs associated with a specific resource object.
 
@@ -1796,7 +1792,7 @@ class BaseSecurityManager:
         """
         raise NotImplementedError
 
-    def create_permission(self, action_name: str, resource_name: str) -> PermissionView:
+    def create_permission(self, action_name: str, resource_name: str):
         """
         Creates a permission linking an action and resource.
 
@@ -1826,12 +1822,12 @@ class BaseSecurityManager:
     def exist_permission_on_views(self, lst, item):
         raise NotImplementedError
 
-    def add_permission_to_role(self, role: Role, permission: PermissionView) -> None:
+    def add_permission_to_role(self, role, permission) -> None:
         """
         Add an existing permission pair to a role.
 
         :param role: The role about to get a new permission.
-        :type role: Role
+        :type role
         :param permission: The permission pair to add to a role.
         :type permission: PermissionView
         :return: None
@@ -1839,12 +1835,12 @@ class BaseSecurityManager:
         """
         raise NotImplementedError
 
-    def remove_permission_from_role(self, role: Role, permission: PermissionView) -> None:
+    def remove_permission_from_role(self, role, permission) -> None:
         """
         Remove a permission pair from a role.
 
         :param role: User role containing permissions.
-        :type role: Role
+        :type role
         :param permission: Object representing resource-> action pair
         :type permission: PermissionView
         """

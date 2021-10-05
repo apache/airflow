@@ -22,7 +22,6 @@ from typing import Dict, List, Optional, Sequence, Set, Tuple
 
 from flask import current_app, g
 from flask_appbuilder.security.sqla import models as sqla_models
-from flask_appbuilder.security.sqla.manager import SecurityManager
 from flask_appbuilder.security.sqla.models import Permission, PermissionView, Role, User, ViewMenu
 from sqlalchemy import or_
 from sqlalchemy.orm import joinedload
@@ -33,6 +32,7 @@ from airflow.security import permissions
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.session import provide_session
 from airflow.www.utils import CustomSQLAInterface
+from airflow.www.fab_security.sqla.manager import SecurityManager
 from airflow.www.views import (
     CustomPermissionModelView,
     CustomPermissionViewModelView,
