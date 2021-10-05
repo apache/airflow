@@ -21,10 +21,10 @@ import json
 import time
 from typing import Dict, List, Optional, Union
 
-from airflow.api.common.experimental.trigger_dag import trigger_dag
 from airflow.exceptions import AirflowException, DagNotFound, DagRunAlreadyExists
 from airflow.models import BaseOperator, BaseOperatorLink, DagBag, DagModel, DagRun
 from airflow.models.xcom import XCom
+from airflow.operations.trigger_dag import trigger_dag
 from airflow.utils import timezone
 from airflow.utils.helpers import build_airflow_url_with_query
 from airflow.utils.state import State

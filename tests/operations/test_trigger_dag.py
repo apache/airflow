@@ -22,9 +22,9 @@ from unittest import mock
 import pytest
 from parameterized import parameterized
 
-from airflow.api.common.experimental.trigger_dag import _trigger_dag
 from airflow.exceptions import AirflowException
 from airflow.models import DAG, DagRun
+from airflow.operations.trigger_dag import _trigger_dag
 from airflow.utils import timezone
 from tests.test_utils import db
 
@@ -42,7 +42,7 @@ class TestTriggerDag(unittest.TestCase):
         with pytest.raises(AirflowException):
             _trigger_dag('dag_not_found', dag_bag_mock)
 
-    @mock.patch('airflow.api.common.experimental.trigger_dag.DagRun', spec=DagRun)
+    @mock.patch('airflow.operations.trigger_dag.DagRun', spec=DagRun)
     @mock.patch('airflow.models.DagBag')
     def test_trigger_dag_dag_run_exist(self, dag_bag_mock, dag_run_mock):
         dag_id = "dag_run_exist"
@@ -54,7 +54,7 @@ class TestTriggerDag(unittest.TestCase):
             _trigger_dag(dag_id, dag_bag_mock)
 
     @mock.patch('airflow.models.DAG')
-    @mock.patch('airflow.api.common.experimental.trigger_dag.DagRun', spec=DagRun)
+    @mock.patch('airflow.operations.trigger_dag.DagRun', spec=DagRun)
     @mock.patch('airflow.models.DagBag')
     def test_trigger_dag_include_subdags(self, dag_bag_mock, dag_run_mock, dag_mock):
         dag_id = "trigger_dag"
@@ -70,7 +70,7 @@ class TestTriggerDag(unittest.TestCase):
         assert 3 == len(triggers)
 
     @mock.patch('airflow.models.DAG')
-    @mock.patch('airflow.api.common.experimental.trigger_dag.DagRun', spec=DagRun)
+    @mock.patch('airflow.operations.trigger_dag.DagRun', spec=DagRun)
     @mock.patch('airflow.models.DagBag')
     def test_trigger_dag_include_nested_subdags(self, dag_bag_mock, dag_run_mock, dag_mock):
         dag_id = "trigger_dag"
