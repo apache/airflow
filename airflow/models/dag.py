@@ -713,10 +713,19 @@ class DAG(LoggingMixin):
             restriction = self._time_restriction
         else:
             restriction = TimeRestriction(earliest=None, latest=None, catchup=True)
-        return self.timetable.next_dagrun_info(
-            last_automated_data_interval=data_interval,
-            restriction=restriction,
-        )
+        try:
+            info = self.timetable.next_dagrun_info(
+                last_automated_data_interval=data_interval,
+                restriction=restriction,
+            )
+        except Exception:
+            self.log.exception(
+                "Failed to fetch run info after data interval %s for DAG %r",
+                data_interval,
+                self.dag_id,
+            )
+            info = None
+        return info
 
     def next_dagrun_after_date(self, date_last_automated_dagrun: Optional[pendulum.DateTime]):
         warnings.warn(
@@ -790,7 +799,19 @@ class DAG(LoggingMixin):
         if self.is_subdag:
             align = False
 
-        info = self.timetable.next_dagrun_info(last_automated_data_interval=None, restriction=restriction)
+        try:
+            info = self.timetable.next_dagrun_info(
+                last_automated_data_interval=None,
+                restriction=restriction,
+            )
+        except Exception:
+            self.log.exception(
+                "Failed to fetch run info after data interval %s for DAG %r",
+                None,
+                self.dag_id,
+            )
+            info = None
+
         if info is None:
             # No runs to be scheduled between the user-supplied timeframe. But
             # if align=False, "invent" a data interval for the timeframe itself.
@@ -806,10 +827,18 @@ class DAG(LoggingMixin):
         # Generate naturally according to schedule.
         while info is not None:
             yield info
-            info = self.timetable.next_dagrun_info(
-                last_automated_data_interval=info.data_interval,
-                restriction=restriction,
-            )
+            try:
+                info = self.timetable.next_dagrun_info(
+                    last_automated_data_interval=info.data_interval,
+                    restriction=restriction,
+                )
+            except Exception:
+                self.log.exception(
+                    "Failed to fetch run info after data interval %s for DAG %r",
+                    info.data_interval,
+                    self.dag_id,
+                )
+                break
 
     def get_run_dates(self, start_date, end_date=None):
         """
