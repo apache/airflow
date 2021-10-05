@@ -28,7 +28,7 @@ Released packages
 
         <ul style="column-count: 2;">
         {% for provider in all_providers %}
-            <li><a href="/docs/{{ provider['package-name'] }}/latest/installing-providers-from-sources.html"><code>{{ provider.name }}</code></a></li>
+            <li><a href="/docs/{{ provider['package-name'] }}/stable/installing-providers-from-sources.html"><code>{{ provider.name }}</code></a></li>
         {% endfor %}
          </ul>
 
