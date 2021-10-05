@@ -1398,10 +1398,10 @@ class BaseSecurityManager:
         :param view_menu:
             name of the view or menu to add
         """
-        view_menu_db = self.create_resource(view_menu)
-        perm_views = self.get_resource_permissions(view_menu_db)
+        resource = self.create_resource(view_menu)
+        perms = self.get_resource_permissions(resource)
 
-        if not perm_views:
+        if not perms:
             # No permissions yet on this view
             for permission in base_permissions:
                 pv = self.create_permission(permission, view_menu)
@@ -1413,11 +1413,11 @@ class BaseSecurityManager:
             role_admin = self.find_role(self.auth_role_admin)
             for permission in base_permissions:
                 # Check if base view permissions exist
-                if not self.exist_permission_on_views(perm_views, permission):
+                if not self.exist_permission_on_views(perms, permission):
                     pv = self.create_permission(permission, view_menu)
                     if self.auth_role_admin not in self.builtin_roles:
                         self.add_permission_to_role(role_admin, pv)
-            for perm_view in perm_views:
+            for perm_view in perms:
                 if perm_view.permission is None:
                     # Skip this perm_view, it has a null permission
                     continue
