@@ -1704,7 +1704,7 @@ class BaseSecurityManager:
         """Finds and returns permission views for a group of roles"""
         raise NotImplementedError
 
-    def add_permission(self, name):
+    def create_action(self, name):
         """
         Adds a permission to the backend, model permission
 

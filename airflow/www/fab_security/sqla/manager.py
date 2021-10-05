@@ -350,7 +350,7 @@ class SecurityManager(BaseSecurityManager):
             .all()
         )
 
-    def add_permission(self, name):
+    def create_action(self, name):
         """
         Adds a permission to the backend, model permission
 
@@ -522,7 +522,7 @@ class SecurityManager(BaseSecurityManager):
         if pv:
             return pv
         vm = self.create_resource(view_menu_name)
-        perm = self.add_permission(permission_name)
+        perm = self.create_action(permission_name)
         pv = self.permissionview_model()
         pv.view_menu_id, pv.permission_id = vm.id, perm.id
         try:
