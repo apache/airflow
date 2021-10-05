@@ -35,6 +35,9 @@ versions:
 additional-dependencies:
   - apache-airflow>=2.1.0
 
+additional-extras:
+  postgres: apache-airflow-providers-postgres>=2.3.0
+
 integrations:
   - integration-name: Amazon Athena
     external-doc-url: https://aws.amazon.com/athena/
