@@ -144,14 +144,6 @@ class ECSTaskLogFetcher(Thread):
         except IndexError:
             return None
 
-    def is_log_stream_created(self) -> bool:
-        response = self.hook.get_conn().describe_log_streams(
-            logGroupName=self.log_group,
-            logStreamNamePrefix=self.log_stream_name,
-        )
-        log_stream_names = [log_stream['logStreamName'] for log_stream in response['logStreams']]
-        return self.log_stream_name in log_stream_names
-
     def is_stopped(self) -> bool:
         return self._event.is_set()
 
@@ -460,12 +452,11 @@ class ECSOperator(BaseOperator):
         if len(response.get('failures', [])) > 0:
             raise AirflowException(response)
 
-        if self.task_log_fetcher and not self.task_log_fetcher.is_log_stream_created():
-            raise AirflowException(
-                'Cloudwatch log stream for the task is not found. The task probably failed to start.'
-            )
-
         for task in response['tasks']:
+
+            if task.get('stopCode', '') == 'TaskFailedToStart':
+                raise AirflowException(f"The task failed to start due to: {task.get('stoppedReason', '')}")
+
             # This is a `stoppedReason` that indicates a task has not
             # successfully finished, but there is no other indication of failure
             # in the response.

@@ -246,26 +246,25 @@ class TestECSOperator(unittest.TestCase):
         client_mock.get_waiter.return_value.wait.assert_called_once_with(cluster='c', tasks=['arn'])
         assert sys.maxsize == client_mock.get_waiter.return_value.config.max_attempts
 
-    def test_check_success_tasks_no_cloudwatch_log_stream(self):
+    def test_check_success_tasks_raises_failed_to_start(self):
         client_mock = mock.Mock()
-        self.ecs.client = client_mock
         self.ecs.arn = 'arn'
+        self.ecs.client = client_mock
 
         client_mock.describe_tasks.return_value = {
-            'tasks': [{'containers': [{'name': 'container-name', 'lastStatus': 'STOPPED', 'exitCode': 0}]}]
+            'tasks': [
+                {
+                    'stopCode': 'TaskFailedToStart',
+                    'stoppedReason': 'Task failed to start',
+                    'containers': [{'name': 'foo', 'lastStatus': 'STOPPED'}],
+                }
+            ]
         }
-
-        task_log_fetcher = mock.Mock()
-        self.ecs.task_log_fetcher = task_log_fetcher
-
-        task_log_fetcher.is_log_stream_created.return_value = False
 
         with pytest.raises(Exception) as ctx:
             self.ecs._check_success_task()
 
-        assert str(ctx.value) == (
-            "Cloudwatch log stream for the task is not found. The task probably failed to start."
-        )
+        assert str(ctx.value) == "The task failed to start due to: Task failed to start"
         client_mock.describe_tasks.assert_called_once_with(cluster='c', tasks=['arn'])
 
     def test_check_success_tasks_raises_cloudwatch_logs(self):
@@ -655,41 +654,3 @@ class TestECSTaskLogFetcher(unittest.TestCase):
     )
     def test_get_last_log_messages_with_no_log_events(self, mock_log_events):
         assert self.log_fetcher.get_last_log_messages(2) == []
-
-    def test_is_log_stream_created_true(self):
-        hook_mock = mock.Mock()
-        connection_mock = mock.Mock()
-        hook_mock.get_conn.return_value = connection_mock
-        connection_mock.describe_log_streams.return_value = {
-            'logStreams': [
-                {'logStreamName': 'test_log_stream_name'},
-            ]
-        }
-
-        self.log_fetcher.hook = hook_mock
-
-        assert self.log_fetcher.is_log_stream_created()
-        hook_mock.get_conn.assert_called_once()
-        connection_mock.describe_log_streams.assert_called_once_with(
-            logGroupName='test_log_group',
-            logStreamNamePrefix='test_log_stream_name'
-        )
-
-    def test_is_log_stream_created_false(self):
-        hook_mock = mock.Mock()
-        connection_mock = mock.Mock()
-        hook_mock.get_conn.return_value = connection_mock
-        connection_mock.describe_log_streams.return_value = {
-            'logStreams': [
-                {'logStreamName': 'test_log_stream_name_2'},
-            ]
-        }
-
-        self.log_fetcher.hook = hook_mock
-
-        assert not self.log_fetcher.is_log_stream_created()
-        hook_mock.get_conn.assert_called_once()
-        connection_mock.describe_log_streams.assert_called_once_with(
-            logGroupName='test_log_group',
-            logStreamNamePrefix='test_log_stream_name'
-        )
