@@ -289,7 +289,9 @@ class SecurityManager(BaseSecurityManager):
         """
         return self.get_session.query(self.permission_model).filter_by(name=name).one_or_none()
 
-    def permission_exists_in_one_or_more_roles(self, resource_name: str, action_name: str, role_ids: List[int]) -> bool:
+    def permission_exists_in_one_or_more_roles(
+        self, resource_name: str, action_name: str, role_ids: List[int]
+    ) -> bool:
         """
             Method to efficiently check if a certain permission exists
             on a list of role id's. This is used by `has_access`
