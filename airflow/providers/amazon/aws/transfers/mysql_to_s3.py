@@ -135,7 +135,7 @@ class MySQLToS3Operator(BaseOperator):
                 data_df.to_csv(tmp_csv.name, **self.pd_csv_kwargs)
                 s3_conn.load_file(filename=tmp_csv.name, key=self.s3_key, bucket_name=self.s3_bucket)
         else:
-             with NamedTemporaryFile(mode='r+', suffix='.parquet') as tmp_parquet:
+             with NamedTemporaryFile(mode='rb+', suffix='.parquet') as tmp_parquet:
                 data_df.to_parquet(tmp_parquet.name, **self.pd_parquet_kwargs)
                 s3_conn.load_file(filename=tmp_parquet.name, key=self.s3_key, bucket_name=self.s3_bucket)           
 
