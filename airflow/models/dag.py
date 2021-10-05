@@ -2184,6 +2184,7 @@ class DAG(LoggingMixin):
         conf=None,
         rerun_failed_tasks=False,
         run_backwards=False,
+        run_at_least_once=False,
     ):
         """
         Runs the DAG.
@@ -2218,7 +2219,9 @@ class DAG(LoggingMixin):
         :type: bool
         :param run_backwards:
         :type: bool
-
+        :param run_at_least_once: If true, always run the DAG at least once even
+            if no logical run exists within the time range.
+        :type: bool
         """
         from airflow.jobs.backfill_job import BackfillJob
 
@@ -2245,6 +2248,7 @@ class DAG(LoggingMixin):
             conf=conf,
             rerun_failed_tasks=rerun_failed_tasks,
             run_backwards=run_backwards,
+            run_at_least_once=run_at_least_once,
         )
         job.run()
 
