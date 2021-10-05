@@ -108,7 +108,7 @@ class MySQLToS3Operator(BaseOperator):
             self.pd_csv_kwargs["header"] = header        
         if file_format not in ["csv", "parquet"]:
             raise AirflowException(
-                f"Only csv and parquet formats are supported for destination file format, but {file_format} is provided"
+                f"Only csv and parquet formats are supported for the destination file format, but {file_format} is provided"
             )
         self.pd_parquet_kwargs = pd_parquet_kwargs or {}             
 
