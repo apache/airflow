@@ -144,6 +144,14 @@ class ECSTaskLogFetcher(Thread):
         except IndexError:
             return None
 
+    def is_log_stream_created(self) -> bool:
+        response = self.hook.get_conn().describe_log_streams(
+            logGroupName=self.log_group,
+            logStreamNamePrefix=self.log_stream_name,
+        )
+        log_stream_names = [log_stream['logStreamName'] for log_stream in response['logStreams']]
+        return self.log_stream_name in log_stream_names
+
     def is_stopped(self) -> bool:
         return self._event.is_set()
 
@@ -452,6 +460,11 @@ class ECSOperator(BaseOperator):
         if len(response.get('failures', [])) > 0:
             raise AirflowException(response)
 
+        if self.task_log_fetcher and not self.task_log_fetcher.is_log_stream_created():
+            raise AirflowException(
+                'Cloudwatch log stream for the task is not found. The task probably failed to start.'
+            )
+
         for task in response['tasks']:
             # This is a `stoppedReason` that indicates a task has not
             # successfully finished, but there is no other indication of failure
@@ -466,13 +479,16 @@ class ECSOperator(BaseOperator):
             containers = task['containers']
             for container in containers:
                 if container.get('lastStatus') == 'STOPPED' and container['exitCode'] != 0:
-                    last_logs = "\n".join(
-                        self.task_log_fetcher.get_last_log_messages(self.number_logs_exception)
-                    )
-                    raise AirflowException(
-                        f"This task is not in success state - last {self.number_logs_exception} "
-                        f"logs from Cloudwatch:\n{last_logs}"
-                    )
+                    if self.task_log_fetcher:
+                        last_logs = "\n".join(
+                            self.task_log_fetcher.get_last_log_messages(self.number_logs_exception)
+                        )
+                        raise AirflowException(
+                            f"This task is not in success state - last {self.number_logs_exception} "
+                            f"logs from Cloudwatch:\n{last_logs}"
+                        )
+                    else:
+                        raise AirflowException(f'This task is not in success state {task}')
                 elif container.get('lastStatus') == 'PENDING':
                     raise AirflowException(f'This task is still pending {task}')
                 elif 'error' in container.get('reason', '').lower():
