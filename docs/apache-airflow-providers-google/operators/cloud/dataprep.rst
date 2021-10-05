@@ -42,10 +42,6 @@ Set values for these fields:
   Extra: {"extra__dataprep__token": "TOKEN",
           "extra__dataprep__base_url": "https://api.clouddataprep.com"}
 
-.. contents::
-  :depth: 1
-  :local:
-
 Prerequisite Tasks
 ^^^^^^^^^^^^^^^^^^
 

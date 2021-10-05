@@ -46,7 +46,7 @@ from airflow.providers.google.cloud.operators.cloud_sql import CloudSQLExecuteQu
 from airflow.utils.dates import days_ago
 
 GCP_PROJECT_ID = os.environ.get('GCP_PROJECT_ID', 'example-project')
-GCP_REGION = os.environ.get('GCP_REGION', 'europe-west-1b')
+GCP_REGION = os.environ.get('GCP_REGION', 'europe-west1')
 
 GCSQL_POSTGRES_INSTANCE_NAME_QUERY = os.environ.get('GCSQL_POSTGRES_INSTANCE_NAME_QUERY', 'testpostgres')
 GCSQL_POSTGRES_DATABASE_NAME = os.environ.get('GCSQL_POSTGRES_DATABASE_NAME', 'postgresdb')

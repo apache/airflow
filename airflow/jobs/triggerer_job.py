@@ -268,6 +268,7 @@ class TriggerRunner(threading.Thread, LoggingMixin):
                 }
             else:
                 self.log.warning("Trigger %s had insertion attempted twice", trigger_id)
+            await asyncio.sleep(0)
 
     async def delete_triggers(self):
         """
@@ -279,6 +280,7 @@ class TriggerRunner(threading.Thread, LoggingMixin):
             if trigger_id in self.triggers:
                 # We only delete if it did not exit already
                 self.triggers[trigger_id]["task"].cancel()
+            await asyncio.sleep(0)
 
     async def cleanup_finished_triggers(self):
         """
@@ -315,6 +317,7 @@ class TriggerRunner(threading.Thread, LoggingMixin):
                     )
                     self.failed_triggers.append(trigger_id)
                 del self.triggers[trigger_id]
+            await asyncio.sleep(0)
 
     async def block_watchdog(self):
         """

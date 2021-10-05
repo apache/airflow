@@ -26,15 +26,10 @@ and management of containerized applications.
 
 Airflow provides operators to create and interact with the EKS clusters and compute infrastructure.
 
-.. contents::
-  :depth: 1
-  :local:
-
 Prerequisite Tasks
 ^^^^^^^^^^^^^^^^^^
 
 .. include::/operators/_partials/prerequisite_tasks.rst
-
 
 Manage Amazon EKS Clusters
 ^^^^^^^^^^^^^^^^^^^^^^^^^^

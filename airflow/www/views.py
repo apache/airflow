@@ -95,7 +95,7 @@ from airflow.api.common.experimental.mark_tasks import (
     set_dag_run_state_to_success,
 )
 from airflow.configuration import AIRFLOW_CONFIG, conf
-from airflow.exceptions import AirflowException, SerializedDagNotFound
+from airflow.exceptions import AirflowException
 from airflow.executors.executor_loader import ExecutorLoader
 from airflow.jobs.base_job import BaseJob
 from airflow.jobs.scheduler_job import SchedulerJob
@@ -464,7 +464,7 @@ class AirflowBaseView(BaseView):
 
     if not conf.getboolean('core', 'unit_test_mode'):
         extra_args['sqlite_warning'] = settings.Session.bind.dialect.name == 'sqlite'
-        extra_args['sequential_executor_warning'] = conf.get('core', 'executor') == 'LocalExecutor'
+        extra_args['sequential_executor_warning'] = conf.get('core', 'executor') == 'SequentialExecutor'
 
     line_chart_attr = {
         'legend.maxKeyLength': 200,
@@ -1623,6 +1623,10 @@ class Airflow(AirflowBaseView):
         request_execution_date = request.values.get('execution_date', default=timezone.utcnow().isoformat())
         is_dag_run_conf_overrides_params = conf.getboolean('core', 'dag_run_conf_overrides_params')
         dag = current_app.dag_bag.get_dag(dag_id)
+        dag_orm = session.query(models.DagModel).filter(models.DagModel.dag_id == dag_id).first()
+        if not dag_orm:
+            flash(f"Cannot find dag {dag_id}")
+            return redirect(origin)
 
         if request.method == 'GET':
             # Populate conf textarea with conf requests parameter, or dag.params
@@ -1649,11 +1653,6 @@ class Airflow(AirflowBaseView):
                 form=form,
                 is_dag_run_conf_overrides_params=is_dag_run_conf_overrides_params,
             )
-
-        dag_orm = session.query(models.DagModel).filter(models.DagModel.dag_id == dag_id).first()
-        if not dag_orm:
-            flash(f"Cannot find dag {dag_id}")
-            return redirect(origin)
 
         try:
             execution_date = timezone.parse(request_execution_date)
@@ -1871,10 +1870,7 @@ class Airflow(AirflowBaseView):
         payload = []
         for dag_id, active_dag_runs in dags:
             max_active_runs = 0
-            try:
-                dag = current_app.dag_bag.get_dag(dag_id)
-            except SerializedDagNotFound:
-                dag = None
+            dag = current_app.dag_bag.get_dag(dag_id)
             if dag:
                 # TODO: Make max_active_runs a column so we can query for it directly
                 max_active_runs = dag.max_active_runs
@@ -2026,9 +2022,8 @@ class Airflow(AirflowBaseView):
         future = to_boolean(args.get('future'))
         past = to_boolean(args.get('past'))
 
-        try:
-            dag = current_app.dag_bag.get_dag(dag_id)
-        except airflow.exceptions.SerializedDagNotFound:
+        dag = current_app.dag_bag.get_dag(dag_id)
+        if not dag:
             flash(f'DAG {dag_id} not found', "error")
             return redirect(request.referrer or url_for('Airflow.index'))
 
@@ -2503,11 +2498,7 @@ class Airflow(AirflowBaseView):
         dag_id = request.args.get('dag_id')
         dag_model = DagModel.get_dagmodel(dag_id)
 
-        try:
-            dag: Optional[DAG] = current_app.dag_bag.get_dag(dag_id)
-        except airflow.exceptions.SerializedDagNotFound:
-            dag = None
-
+        dag: Optional[DAG] = current_app.dag_bag.get_dag(dag_id)
         if dag is None:
             flash(f'DAG "{dag_id}" seems to be missing.', "error")
             return redirect(url_for('Airflow.index'))
@@ -3878,7 +3869,7 @@ class DagRunModelView(AirflowPrivilegeVerifierModelView):
     class_permission_name = permissions.RESOURCE_DAG_RUN
     method_permission_name = {
         'list': 'read',
-        'action_clear': 'delete',
+        'action_clear': 'edit',
         'action_muldelete': 'delete',
         'action_set_running': 'edit',
         'action_set_failed': 'edit',
@@ -3926,6 +3917,7 @@ class DagRunModelView(AirflowPrivilegeVerifierModelView):
         'state': wwwutils.state_f,
         'start_date': wwwutils.datetime_f('start_date'),
         'end_date': wwwutils.datetime_f('end_date'),
+        'queued_at': wwwutils.datetime_f('queued_at'),
         'dag_id': wwwutils.dag_link,
         'run_id': wwwutils.dag_run_link,
         'conf': wwwutils.json_f('conf'),
@@ -4186,6 +4178,7 @@ class TaskInstanceModelView(AirflowPrivilegeVerifierModelView):
     method_permission_name = {
         'list': 'read',
         'action_clear': 'edit',
+        'action_muldelete': 'delete',
         'action_set_running': 'edit',
         'action_set_failed': 'edit',
         'action_set_success': 'edit',
@@ -4317,6 +4310,13 @@ class TaskInstanceModelView(AirflowPrivilegeVerifierModelView):
             flash(f"{len(task_instances)} task instances have been cleared")
         except Exception as e:
             flash(f'Failed to clear task instances: "{e}"', 'error')
+        self.update_redirect()
+        return redirect(self.get_redirect())
+
+    @action('muldelete', 'Delete', "Are you sure you want to delete selected records?", single=False)
+    @action_has_dag_edit_access
+    def action_muldelete(self, items):
+        self.datamodel.delete_all(items)
         self.update_redirect()
         return redirect(self.get_redirect())
 

@@ -462,7 +462,7 @@ class BackfillJob(BaseJob):
                 # in case max concurrency has been reached at task runtime
                 elif ti.state == State.NONE:
                     self.log.warning(
-                        "FIXME: task instance {} state was set to None " "externally. This should not happen"
+                        "FIXME: Task instance %s state was set to None externally. This should not happen", ti
                     )
                     ti.set_state(State.SCHEDULED, session=session)
                 if self.rerun_failed_tasks:
@@ -502,9 +502,7 @@ class BackfillJob(BaseJob):
                     dep_context=backfill_context, session=session, verbose=self.verbose
                 ):
                     if executor.has_task(ti):
-                        self.log.debug(
-                            "Task Instance %s already in executor " "waiting for queue to clear", ti
-                        )
+                        self.log.debug("Task Instance %s already in executor waiting for queue to clear", ti)
                     else:
                         self.log.debug('Sending %s to executor', ti)
                         # Skip scheduled state, we are executing immediately
@@ -544,7 +542,7 @@ class BackfillJob(BaseJob):
 
                 # special case
                 if ti.state == State.UP_FOR_RETRY:
-                    self.log.debug("Task instance %s retry period not " "expired yet", ti)
+                    self.log.debug("Task instance %s retry period not expired yet", ti)
                     if key in ti_status.running:
                         ti_status.running.pop(key)
                     ti_status.to_run[key] = ti
@@ -552,7 +550,7 @@ class BackfillJob(BaseJob):
 
                 # special case
                 if ti.state == State.UP_FOR_RESCHEDULE:
-                    self.log.debug("Task instance %s reschedule period not " "expired yet", ti)
+                    self.log.debug("Task instance %s reschedule period not expired yet", ti)
                     if key in ti_status.running:
                         ti_status.running.pop(key)
                     ti_status.to_run[key] = ti

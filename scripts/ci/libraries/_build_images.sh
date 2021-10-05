@@ -282,7 +282,7 @@ function build_images::get_local_build_cache_hash() {
         return
 
     fi
-    docker_v create --name "local-airflow-ci-container" "${AIRFLOW_CI_IMAGE}" 2>/dev/null
+    docker_v create --name "local-airflow-ci-container" "${AIRFLOW_CI_IMAGE}" 2>/dev/null >/dev/null
     docker_v cp "local-airflow-ci-container:/build-cache-hash" \
         "${local_image_build_cache_file}" 2>/dev/null ||
         touch "${local_image_build_cache_file}"

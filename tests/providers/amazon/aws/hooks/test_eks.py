@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 #
+import sys
 from copy import deepcopy
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple, Type
@@ -714,18 +715,52 @@ class TestEKSHooks:
 
 
 class TestEKSHook:
-    @mock.patch('airflow.providers.amazon.aws.hooks.eks.EKSHook._fetch_sts_token')
     @mock.patch('airflow.providers.amazon.aws.hooks.base_aws.AwsBaseHook.conn')
-    def test_generate_config_file(self, mock_conn, mock_fetch_sts_token):
-        mock_fetch_sts_token.return_value = 'STS-token'
+    @pytest.mark.parametrize(
+        "aws_conn_id, region_name, expected_args",
+        [
+            [
+                'test-id',
+                'test-region',
+                [
+                    '-m',
+                    'airflow.providers.amazon.aws.utils.eks_get_token',
+                    '--region-name',
+                    'test-region',
+                    '--aws-conn-id',
+                    'test-id',
+                    '--cluster-name',
+                    'test-cluster',
+                ],
+            ],
+            [
+                None,
+                'test-region',
+                [
+                    '-m',
+                    'airflow.providers.amazon.aws.utils.eks_get_token',
+                    '--region-name',
+                    'test-region',
+                    '--cluster-name',
+                    'test-cluster',
+                ],
+            ],
+            [
+                None,
+                None,
+                ['-m', 'airflow.providers.amazon.aws.utils.eks_get_token', '--cluster-name', 'test-cluster'],
+            ],
+        ],
+    )
+    def test_generate_config_file(self, mock_conn, aws_conn_id, region_name, expected_args):
         mock_conn.describe_cluster.return_value = {
             'cluster': {'certificateAuthority': {'data': 'test-cert'}, 'endpoint': 'test-endpoint'}
         }
-        hook = EKSHook()
+        hook = EKSHook(aws_conn_id=aws_conn_id, region_name=region_name)
         with hook.generate_config_file(
             eks_cluster_name='test-cluster', pod_namespace='k8s-namespace'
         ) as config_file:
-            config = yaml.load(Path(config_file).read_text())
+            config = yaml.safe_load(Path(config_file).read_text())
             assert config == {
                 'apiVersion': 'v1',
                 'kind': 'Config',
@@ -743,8 +778,51 @@ class TestEKSHook:
                 ],
                 'current-context': 'aws',
                 'preferences': {},
-                'users': [{'name': 'aws', 'user': {'token': 'STS-token'}}],
+                'users': [
+                    {
+                        'name': 'aws',
+                        'user': {
+                            'exec': {
+                                'apiVersion': 'client.authentication.k8s.io/v1alpha1',
+                                'args': expected_args,
+                                'command': sys.executable,
+                                'env': [{'name': 'AIRFLOW__LOGGING__LOGGING_LEVEL', 'value': 'fatal'}],
+                                'interactiveMode': 'Never',
+                            }
+                        },
+                    }
+                ],
             }
+
+    @mock.patch('airflow.providers.amazon.aws.hooks.eks.RequestSigner')
+    @mock.patch('airflow.providers.amazon.aws.hooks.base_aws.AwsBaseHook.conn')
+    @mock.patch('airflow.providers.amazon.aws.hooks.base_aws.AwsBaseHook.get_session')
+    def test_fetch_access_token_for_cluster(self, mock_get_session, mock_conn, mock_signer):
+        mock_signer.return_value.generate_presigned_url.return_value = 'http://example.com'
+        mock_get_session.return_value.region_name = 'us-east-1'
+        hook = EKSHook()
+        token = hook.fetch_access_token_for_cluster(eks_cluster_name='test-cluster')
+        mock_signer.assert_called_once_with(
+            service_id=mock_conn.meta.service_model.service_id,
+            region_name='us-east-1',
+            signing_name='sts',
+            signature_version='v4',
+            credentials=mock_get_session.return_value.get_credentials.return_value,
+            event_emitter=mock_get_session.return_value.events,
+        )
+        mock_signer.return_value.generate_presigned_url.assert_called_once_with(
+            request_dict={
+                'method': 'GET',
+                'url': 'https://sts.us-east-1.amazonaws.com/?Action=GetCallerIdentity&Version=2011-06-15',
+                'body': {},
+                'headers': {'x-k8s-aws-id': 'test-cluster'},
+                'context': {},
+            },
+            region_name='us-east-1',
+            expires_in=60,
+            operation_name='',
+        )
+        assert token == 'k8s-aws-v1.aHR0cDovL2V4YW1wbGUuY29t'
 
 
 # Helper methods for repeated assert combinations.

@@ -29,7 +29,7 @@ from airflow.api_connexion.schemas.dag_schema import (
     dag_schema,
     dags_collection_schema,
 )
-from airflow.exceptions import AirflowException, DagNotFound, SerializedDagNotFound
+from airflow.exceptions import AirflowException, DagNotFound
 from airflow.models.dag import DagModel, DagTag
 from airflow.security import permissions
 from airflow.settings import Session
@@ -51,11 +51,8 @@ def get_dag(dag_id, session):
 @security.requires_access([(permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG)])
 def get_dag_details(dag_id):
     """Get details of DAG."""
-    try:
-        dag: DAG = current_app.dag_bag.get_dag(dag_id)
-    except SerializedDagNotFound:
-        raise NotFound("DAG not found", detail=f"The DAG with dag_id: {dag_id} was not found")
-    if dag is None:
+    dag: DAG = current_app.dag_bag.get_dag(dag_id)
+    if not dag:
         raise NotFound("DAG not found", detail=f"The DAG with dag_id: {dag_id} was not found")
     return dag_detail_schema.dump(dag)
 

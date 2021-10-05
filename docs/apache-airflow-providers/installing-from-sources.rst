@@ -19,9 +19,6 @@
 Installing Providers from Sources
 ---------------------------------
 
-.. contents:: :local:
-
-
 Released packages
 '''''''''''''''''
 

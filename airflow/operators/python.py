@@ -189,7 +189,7 @@ class BranchPythonOperator(PythonOperator, SkipMixin):
         invalid_task_ids = branches - valid_task_ids
         if invalid_task_ids:
             raise AirflowException(
-                f"Branch callable must valid task_ids. Invalid tasks found: {invalid_task_ids}"
+                f"Branch callable must return valid task_ids. Invalid tasks found: {invalid_task_ids}"
             )
         self.skip_all_except(context['ti'], branch)
         return branch

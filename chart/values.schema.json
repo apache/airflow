@@ -285,6 +285,11 @@
                     "description": "Specifies whether RBAC resources should be created.",
                     "type": "boolean",
                     "default": true
+                },
+                "createSCCRoleBinding": {
+                    "description": "Specifies whether SCC RoleBinding resource should be created (refer to :doc:`Production Guide <production-guide>`).",
+                    "type": "boolean",
+                    "default": false
                 }
             }
         },

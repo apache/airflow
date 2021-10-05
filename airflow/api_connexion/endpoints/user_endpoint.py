@@ -99,19 +99,14 @@ def post_user():
         detail = f"Unknown roles: {', '.join(repr(n) for n in missing_role_names)}"
         raise BadRequest(detail=detail)
 
-    if roles_to_add:
-        default_role = roles_to_add.pop()
-    else:  # No roles provided, use the F.A.B's default registered user role.
-        default_role = security_manager.find_role(security_manager.auth_user_registration_role)
+    if not roles_to_add:  # No roles provided, use the F.A.B's default registered user role.
+        roles_to_add.append(security_manager.find_role(security_manager.auth_user_registration_role))
 
-    user = security_manager.add_user(role=default_role, **data)
+    user = security_manager.add_user(role=roles_to_add, **data)
     if not user:
         detail = f"Failed to add user `{username}`."
         return Unknown(detail=detail)
 
-    if roles_to_add:
-        user.roles.extend(roles_to_add)
-        security_manager.update_user(user)
     return user_schema.dump(user)
 
 

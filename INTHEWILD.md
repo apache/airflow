@@ -77,6 +77,7 @@ Currently, **officially** using Airflow:
 1. [Bentego](https://bentego.com/)
 1. [Betterment](https://www.betterment.com/) [[@betterment](https://github.com/Betterment)]
 1. [Bexs Bank](https://www.bexs.com.br/en) [[@felipefb](https://github.com/felipefb) & [@ilarsen](https://github.com/ishvann)]
+1. [Bidnamic](https://www.bidnamic.com/) [[@robinedwards](https://github.com/robinedwards) & [@leonsmith](https://github.com/leonsmith) & [@sanjayhallan](https://github.com/sanjayhallan)]
 1. [BigQuant](https://bigquant.com/) [[@bigquant](https://github.com/bigquant)]
 1. [Birdz by Veolia](https://www.birdz.com/en/) [[@benjamingrenier](https://github.com/benjamingrenier)]
 1. [BlaBlaCar](https://www.blablacar.com) [[@puckel](https://github.com/puckel) & [@wmorin](https://github.com/wmorin)]
@@ -269,6 +270,7 @@ Currently, **officially** using Airflow:
 1. [Lumos Labs](https://www.lumosity.com/) [[@rfroetscher](https://github.com/rfroetscher/) & [@zzztimbo](https://github.com/zzztimbo/)]
 1. [Lyft](https://www.lyft.com/) [[@feng-tao](https://github.com/feng-tao), [@milton0825](https://github.com/milton0825), [@astahlman](https://github.com/astahlman), [@youngyjd](https://github.com/youngyjd), [@ArgentFalcon](https://github.com/ArgentFalcon)]
 1. [M4U](https://www.m4u.com.br/) [[@msantino](https://github.com/msantino)]
+1. [Macquarie Group](https://www.macquarie.com) [[@PApostol](https://github.com/PApostol)]
 1. [Madrone](http://madroneco.com/) [[@mbreining](https://github.com/mbreining) & [@scotthb](https://github.com/scotthb)]
 1. [Markovian](https://markovian.com/) [[@al-xv](https://github.com/al-xv), [@skogsbaeck](https://github.com/skogsbaeck), [@waltherg](https://github.com/waltherg)]
 1. [Match.com](https://www.match.com/) [[@match-gabeflores](https://github.com/match-gabeflores)]
@@ -428,6 +430,8 @@ Currently, **officially** using Airflow:
 1. [Vidio](https://www.vidio.com/)
 1. [Vidora](https://www.vidora.com/)
 1. [Ville de Montréal](http://ville.montreal.qc.ca/) [[@VilledeMontreal](https://github.com/VilledeMontreal/)]
+1. [Viscovery](https://www.viscovery.com) [[@Jasonnor](https://github.com/Jasonnor), [@goan15910](https://github.com/goan15910), [@elic](https://github.com/elic), [@kertansul](https://github.com/kertansul)]
+1. [VLMedia](https://www.vlmedia.com.tr) [[@iercan](https://github.com/iercan)]
 1. [Vnomics](https://github.com/vnomics) [[@lpalum](https://github.com/lpalum)]
 1. [Vodafone](https://www.vodafone.com) [[@nijanthanvijayakumar](https://github.com/nijanthanvijayakumar)]
 1. [Walmart Labs](https://www.walmartlabs.com) [[@bharathpalaksha](https://github.com/bharathpalaksha), [@vipul007ravi](https://github.com/vipul007ravi), [@pateash](https://github.com/pateash)]

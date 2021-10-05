@@ -161,7 +161,7 @@ and official constraint files- same that are used for installing Airflow from Py
 
 * Users who are familiar with Containers and Docker stack and understand how to build their own container images.
 * Users who understand how to install providers and dependencies from PyPI with constraints if they want to extend or customize the image.
-* Users who now how to create deployments using Docker by linking together multiple docker containers and maintaining such deployments.
+* Users who know how to create deployments using Docker by linking together multiple docker containers and maintaining such deployments.
 
 **What are you expected to handle**
 

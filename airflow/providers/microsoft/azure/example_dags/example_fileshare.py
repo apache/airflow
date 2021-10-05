@@ -15,8 +15,8 @@
 # specific language governing permissions and limitations
 # under the License.
 
+from airflow.decorators import task
 from airflow.models import DAG
-from airflow.operators.python import PythonOperator
 from airflow.providers.microsoft.azure.hooks.azure_fileshare import AzureFileShareHook
 from airflow.utils.dates import days_ago
 
@@ -24,6 +24,7 @@ NAME = 'myfileshare'
 DIRECTORY = "mydirectory"
 
 
+@task
 def create_fileshare():
     """Create a fileshare with directory"""
     hook = AzureFileShareHook()
@@ -34,6 +35,7 @@ def create_fileshare():
         raise Exception
 
 
+@task
 def delete_fileshare():
     """Delete a fileshare"""
     hook = AzureFileShareHook()
@@ -41,7 +43,4 @@ def delete_fileshare():
 
 
 with DAG("example_fileshare", schedule_interval="@once", start_date=days_ago(2)) as dag:
-    create = PythonOperator(task_id="create-share", python_callable=create_fileshare)
-    delete = PythonOperator(task_id="delete-share", python_callable=delete_fileshare)
-
-    create >> delete
+    create_fileshare() >> delete_fileshare()
