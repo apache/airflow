@@ -60,6 +60,10 @@ class FTPHook(BaseHook):
         if self.conn is None:
             params = self.get_connection(self.ftp_conn_id)
             pasv = params.extra_dejson.get("passive", True)
+            
+            if params.port:
+                ftplib.FTP.port = params.port
+                
             self.conn = ftplib.FTP(params.host, params.login, params.password)
             self.conn.set_pasv(pasv)
 
