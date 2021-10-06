@@ -823,6 +823,7 @@ class CloudDataFusionStartPipelineOperator(BaseOperator):
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
         self.asynchronous = asynchronous
+        self.pipeline_timeout = pipeline_timeout
 
         if success_states:
             self.success_states = success_states
