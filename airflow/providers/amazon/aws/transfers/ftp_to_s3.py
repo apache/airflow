@@ -94,7 +94,8 @@ class FTPToS3Operator(BaseOperator):
         self.encrypt = encrypt
         self.gzip = gzip
         self.acl_policy = acl_policy
-
+        self.s3_hook = None
+        self.ftp_hook = None
 
     def __upload_to_s3_from_ftp(self, remote_filename, s3_file_key):
         with NamedTemporaryFile() as local_tmp_file:
@@ -102,7 +103,7 @@ class FTPToS3Operator(BaseOperator):
                 remote_full_path=remote_filename, local_full_path_or_buffer=local_tmp_file.name
             )
 
-            s3.load_file(
+            self.s3_hook.load_file(
                 filename=local_tmp_file.name,
                 key=s3_file_key,
                 bucket_name=self.s3_bucket,
@@ -115,7 +116,7 @@ class FTPToS3Operator(BaseOperator):
 
     def execute(self, context):
         self.ftp_hook = FTPHook(ftp_conn_id=self.ftp_conn_id)
-        s3 = S3Hook(self.aws_conn_id)
+        self.s3_hook = S3Hook(self.aws_conn_id)
 
         if self.ftp_filenames:
             if isinstance(self.ftp_filenames, str):
