@@ -90,10 +90,10 @@ class SecretsManagerBackend(BaseSecretsBackend, LoggingMixin):
     :param sep: separator used to concatenate secret_prefix and secret_id. Default: "/"
     :type sep: str
     :param full_url_mode: if True, the secrets must be stored as one conn URI in just one field per secret.
-        If False (set it as the string "False" in backend_kwargs), you can store the secret using different
+        If False (set it as the string false in backend_kwargs), you can store the secret using different
         fields (password, user...).
     :type full_url_mode: bool
-    :param extra_conn_words: for using just when you set full_url_mode as "False" and store
+    :param extra_conn_words: for using just when you set full_url_mode as false and store
         the secrets in different fields of secrets manager. You can add more words for each connection
         part beyond the default ones. The extra words to be searched should be passed as a dict of lists,
         each list corresponding to a connection part. The optional keys of the dict must be: user,
@@ -127,12 +127,7 @@ class SecretsManagerBackend(BaseSecretsBackend, LoggingMixin):
             self.config_prefix = config_prefix
         self.profile_name = profile_name
         self.sep = sep
-        if isinstance(full_url_mode, str):
-            self.full_url_mode = ast.literal_eval(
-                full_url_mode
-            )  # if you pass a boolean in conf, it takes the default value, so you must pass a string
-        else:
-            self.full_url_mode = full_url_mode
+        self.full_url_mode = full_url_mode
         self.extra_conn_words = extra_conn_words if extra_conn_words else {}
         self.kwargs = kwargs
 
