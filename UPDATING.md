@@ -177,6 +177,27 @@ with DAG(dag_id="task_concurrency_example"):
     BashOperator(task_id="t1", max_active_tis_per_dag=2, bash_command="echo Hi")
 ```
 
+### `processor_poll_interval` config have been renamed to `scheduler_idle_sleep_time`
+
+`[scheduler] processor_poll_interval` setting in `airflow.cfg` has been renamed to `[scheduler] scheduler_idle_sleep_time`
+for better understanding.
+
+It controls the 'time to sleep' at the end of the Scheduler loop if nothing was scheduled inside `SchedulerJob`.
+
+**Before**:
+
+```ini
+[scheduler]
+processor_poll_interval = 16
+```
+
+**Now**:
+
+```ini
+[scheduler]
+scheduler_idle_sleep_time = 16
+```
+
 ### Marking success/failed automatically clears failed downstream tasks
 
 When marking a task success/failed in Graph View, its downstream tasks that are in failed/upstream_failed state are automatically cleared.
@@ -238,6 +259,10 @@ In Airflow 2.2 we have changed this and now there is a database-level foreign ke
 Before updating to this 2.2 release you will have to manually resolve any inconsistencies (add back DagRun rows, or delete TaskInstances) if you have any "dangling" TaskInstance" rows.
 
 As part of this change the `clean_tis_without_dagrun_interval` config option under `[scheduler]` section has been removed and has no effect.
+
+### DaskExecutor - Dask Worker Resources and queues
+
+If dask workers are not started with complementary resources to match the specified queues, it will now result in an `AirflowException`, whereas before it would have just ignored the `queue` argument.
 
 ## Airflow 2.1.4
 
@@ -3224,7 +3249,7 @@ Please read through the new scheduler options, defaults have changed since 1.7.1
 
 #### child_process_log_directory
 
-In order to increase the robustness of the scheduler, DAGS are now processed in their own process. Therefore each
+In order to increase the robustness of the scheduler, DAGs are now processed in their own process. Therefore each
 DAG has its own log file for the scheduler. These log files are placed in `child_process_log_directory` which defaults to
 `<AIRFLOW_HOME>/scheduler/latest`. You will need to make sure these log files are removed.
 

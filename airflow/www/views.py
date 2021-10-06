@@ -3297,12 +3297,12 @@ def lazy_add_provider_discovered_options_to_connection_form():
         return _connection_types
 
     ConnectionForm.conn_type = SelectField(
-        lazy_gettext('Conn Type'),
+        lazy_gettext('Connection Type'),
         choices=sorted(_get_connection_types(), key=itemgetter(1)),
         widget=Select2Widget(),
         validators=[InputRequired()],
         description="""
-            Conn Type missing?
+            Connection Type missing?
             Make sure you've installed the corresponding Airflow Provider Package.
         """,
     )

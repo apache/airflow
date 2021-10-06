@@ -16,30 +16,24 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from typing import Set
+"""
+Example DAG demonstrating ``TimeDeltaSensorAsync``, a drop in replacement for ``TimeDeltaSensor`` that
+defers and doesn't occupy a worker slot while it waits
+"""
 
+from datetime import datetime, timedelta
 
-class WeightRule:
-    """Weight rules."""
+from airflow import DAG
+from airflow.operators.dummy import DummyOperator
+from airflow.sensors.time_delta import TimeDeltaSensorAsync
 
-    DOWNSTREAM = 'downstream'
-    UPSTREAM = 'upstream'
-    ABSOLUTE = 'absolute'
-
-    _ALL_WEIGHT_RULES: Set[str] = set()
-
-    @classmethod
-    def is_valid(cls, weight_rule):
-        """Check if weight rule is valid."""
-        return weight_rule in cls.all_weight_rules()
-
-    @classmethod
-    def all_weight_rules(cls) -> Set[str]:
-        """Returns all weight rules"""
-        if not cls._ALL_WEIGHT_RULES:
-            cls._ALL_WEIGHT_RULES = {
-                getattr(cls, attr)
-                for attr in dir(cls)
-                if not attr.startswith("_") and not callable(getattr(cls, attr))
-            }
-        return cls._ALL_WEIGHT_RULES
+with DAG(
+    dag_id="example_time_delta_sensor_async",
+    schedule_interval=None,
+    start_date=datetime(2021, 1, 1),
+    catchup=False,
+    tags=["example"],
+) as dag:
+    wait = TimeDeltaSensorAsync(task_id="wait", delta=timedelta(seconds=10))
+    finish = DummyOperator(task_id="finish")
+    wait >> finish

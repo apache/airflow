@@ -19,7 +19,7 @@ from typing import Any, List, Optional, Tuple
 from flask import current_app, request
 from marshmallow import ValidationError
 from sqlalchemy import and_, func
-from sqlalchemy.orm import eagerload
+from sqlalchemy.orm.exc import NoResultFound
 
 from airflow.api_connexion import security
 from airflow.api_connexion.exceptions import BadRequest, NotFound
@@ -56,7 +56,6 @@ def get_task_instance(dag_id: str, dag_run_id: str, task_id: str, session=None):
         session.query(TI)
         .filter(TI.dag_id == dag_id, DR.run_id == dag_run_id, TI.task_id == task_id)
         .join(TI.dag_run)
-        .options(eagerload(TI.dag_run))
         .outerjoin(
             SlaMiss,
             and_(
@@ -126,7 +125,7 @@ def get_task_instances(
     session=None,
 ):
     """Get list of task instances."""
-    base_query = session.query(TI).join(TI.dag_run).options(eagerload(TI.dag_run))
+    base_query = session.query(TI).join(TI.dag_run)
 
     if dag_id != "~":
         base_query = base_query.filter(TI.dag_id == dag_id)
@@ -181,7 +180,7 @@ def get_task_instances_batch(session=None):
         data = task_instance_batch_form.load(body)
     except ValidationError as err:
         raise BadRequest(detail=str(err.messages))
-    base_query = session.query(TI).join(TI.dag_run).options(eagerload(TI.dag_run))
+    base_query = session.query(TI).join(TI.dag_run)
 
     base_query = _apply_array_filter(base_query, key=TI.dag_id, values=data["dag_ids"])
     base_query = _apply_range_filter(
@@ -250,9 +249,9 @@ def post_clear_task_instances(dag_id: str, session=None):
     task_instances = dag.clear(dry_run=True, dag_bag=current_app.dag_bag, **data)
     if not dry_run:
         clear_task_instances(
-            task_instances.all(), session, dag=dag, dag_run_state=State.RUNNING if reset_dag_runs else False
+            task_instances.all(), session, dag=dag, dag_run_state=State.QUEUED if reset_dag_runs else False
         )
-    task_instances = task_instances.join(TI.dag_run).options(eagerload(TI.dag_run))
+
     return task_instance_reference_collection_schema.dump(
         TaskInstanceReferenceCollection(task_instances=task_instances.all())
     )
@@ -286,9 +285,15 @@ def post_set_task_instances_state(dag_id, session):
         error_message = f"Task ID {task_id} not found"
         raise NotFound(error_message)
 
+    execution_date = data['execution_date']
+    try:
+        session.query(TI).filter_by(execution_date=execution_date, task_id=task_id, dag_id=dag_id).one()
+    except NoResultFound:
+        raise NotFound(f"Task instance not found for task {task_id} on execution_date {execution_date}")
+
     tis = dag.set_task_instance_state(
         task_id=task_id,
-        execution_date=data["execution_date"],
+        execution_date=execution_date,
         state=data["new_state"],
         upstream=data["include_upstream"],
         downstream=data["include_downstream"],

@@ -37,6 +37,12 @@ Features
 * ``AwsBaseHook make client_type resource_type optional params for get_client_type, get_resource_type (#17987)``
 * ``Delete unnecessary parameters in EKSPodOperator (#17960)``
 
+The Redshift operators require at least ``2.3.0`` version of the Postgres Provider. This is
+reflected in the ``[postgres]`` extra, but extras do not guarantee that the right version of
+dependencies is installed (depending on the installation method). In case you have problems with
+running Redshift operators, upgrade ``apache-airflow-providers-postgres`` provider to at least
+version 2.3.0.
+
 Bug Fixes
 ~~~~~~~~~
 

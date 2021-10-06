@@ -317,7 +317,7 @@ class TestSSHHook(unittest.TestCase):
                 ssh_proxy=None,
                 local_bind_address=('localhost',),
                 remote_bind_address=('localhost', 1234),
-                host_pkey_directories=[],
+                host_pkey_directories=None,
                 logger=hook.log,
             )
 
@@ -351,7 +351,7 @@ class TestSSHHook(unittest.TestCase):
                 ssh_proxy=None,
                 local_bind_address=('localhost',),
                 remote_bind_address=('localhost', 1234),
-                host_pkey_directories=[],
+                host_pkey_directories=None,
                 logger=hook.log,
             )
 
@@ -374,7 +374,7 @@ class TestSSHHook(unittest.TestCase):
                 ssh_proxy=None,
                 local_bind_address=('localhost',),
                 remote_bind_address=('localhost', 1234),
-                host_pkey_directories=[],
+                host_pkey_directories=None,
                 logger=hook.log,
             )
 
@@ -397,7 +397,7 @@ class TestSSHHook(unittest.TestCase):
                 ssh_proxy=None,
                 local_bind_address=('localhost',),
                 remote_bind_address=('localhost', 1234),
-                host_pkey_directories=[],
+                host_pkey_directories=None,
                 logger=hook.log,
             )
 
@@ -430,7 +430,9 @@ class TestSSHHook(unittest.TestCase):
             args=["python", "-c", HELLO_SERVER_CMD],
             stdout=subprocess.PIPE,
         )
-        with subprocess.Popen(**subprocess_kwargs) as server_handle, hook.create_tunnel(2135, 2134):
+        with subprocess.Popen(**subprocess_kwargs) as server_handle, hook.get_tunnel(
+            local_port=2135, remote_port=2134
+        ):
             server_output = server_handle.stdout.read(5)
             assert b"ready" == server_output
             socket = socket.socket()

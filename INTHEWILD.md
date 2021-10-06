@@ -430,6 +430,7 @@ Currently, **officially** using Airflow:
 1. [Vidio](https://www.vidio.com/)
 1. [Vidora](https://www.vidora.com/)
 1. [Ville de Montréal](http://ville.montreal.qc.ca/) [[@VilledeMontreal](https://github.com/VilledeMontreal/)]
+1. [Viscovery](https://www.viscovery.com) [[@Jasonnor](https://github.com/Jasonnor), [@goan15910](https://github.com/goan15910), [@elic](https://github.com/elic), [@kertansul](https://github.com/kertansul)]
 1. [VLMedia](https://www.vlmedia.com.tr) [[@iercan](https://github.com/iercan)]
 1. [Vnomics](https://github.com/vnomics) [[@lpalum](https://github.com/lpalum)]
 1. [Vodafone](https://www.vodafone.com) [[@nijanthanvijayakumar](https://github.com/nijanthanvijayakumar)]

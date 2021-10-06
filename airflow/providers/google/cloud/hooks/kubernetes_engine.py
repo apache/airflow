@@ -77,7 +77,7 @@ class GKEHook(GoogleBaseHook):
     # TODO: remove one day
     def get_client(self) -> container_v1.ClusterManagerClient:
         warnings.warn(
-            "The get_client method has been deprecated. " "You should use the get_conn method.",
+            "The get_client method has been deprecated. You should use the get_conn method.",
             DeprecationWarning,
         )
         return self.get_conn()

@@ -45,7 +45,7 @@ class TestCloudNaturalLanguageHook(unittest.TestCase):
         new_callable=mock.PropertyMock,
     )
     @mock.patch(
-        "airflow.providers.google.cloud.hooks.natural_language.CloudNaturalLanguageHook." "_get_credentials"
+        "airflow.providers.google.cloud.hooks.natural_language.CloudNaturalLanguageHook._get_credentials"
     )
     @mock.patch("airflow.providers.google.cloud.hooks.natural_language.LanguageServiceClient")
     def test_language_service_client_creation(self, mock_client, mock_get_creds, mock_client_info):

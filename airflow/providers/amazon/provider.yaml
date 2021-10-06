@@ -35,6 +35,9 @@ versions:
 additional-dependencies:
   - apache-airflow>=2.1.0
 
+additional-extras:
+  postgres: apache-airflow-providers-postgres>=2.3.0
+
 integrations:
   - integration-name: Amazon Athena
     external-doc-url: https://aws.amazon.com/athena/
@@ -214,6 +217,7 @@ operators:
       - airflow.providers.amazon.aws.operators.s3_delete_objects
       - airflow.providers.amazon.aws.operators.s3_file_transform
       - airflow.providers.amazon.aws.operators.s3_list
+      - airflow.providers.amazon.aws.operators.s3_list_prefixes
   - integration-name: Amazon SageMaker
     python-modules:
       - airflow.providers.amazon.aws.operators.sagemaker_base

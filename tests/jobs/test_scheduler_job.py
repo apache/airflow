@@ -1420,7 +1420,7 @@ class TestSchedulerJob:
     ):
 
         """
-        Helper for testing DagRun states with simple two-task DAGS.
+        Helper for testing DagRun states with simple two-task DAGs.
         This is hackish: a dag run is created but its tasks are
         run by a backfill.
         """
@@ -1596,7 +1596,7 @@ class TestSchedulerJob:
 
     def test_scheduler_start_date(self):
         """
-        Test that the scheduler respects start_dates, even when DAGS have run
+        Test that the scheduler respects start_dates, even when DAGs have run
         """
         with create_session() as session:
             dag_id = 'test_start_date_scheduling'

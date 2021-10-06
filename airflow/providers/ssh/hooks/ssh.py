@@ -361,7 +361,7 @@ class SSHHook(BaseHook):
             )
         else:
             tunnel_kwargs.update(
-                host_pkey_directories=[],
+                host_pkey_directories=None,
             )
 
         client = SSHTunnelForwarder(self.remote_host, **tunnel_kwargs)

@@ -453,7 +453,7 @@ class S3Hook(AwsBaseHook):
         :return: the key object from the bucket or None if none has been found.
         :rtype: boto3.s3.Object
         """
-        prefix = re.split(r'[*]', wildcard_key, 1)[0]
+        prefix = re.split(r'[\[\*\?]', wildcard_key, 1)[0]
         key_list = self.list_keys(bucket_name, prefix=prefix, delimiter=delimiter)
         key_matches = [k for k in key_list if fnmatch.fnmatch(k, wildcard_key)]
         if key_matches:

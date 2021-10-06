@@ -182,7 +182,7 @@ class CloudDataTransferServiceHook(GoogleBaseHook):
                 if transfer_job.get(STATUS) == GcpTransferJobsStatus.DELETED:
                     body[JOB_NAME] = gen_job_name(job_name)
                     self.log.info(
-                        "Job `%s` has been soft deleted. Creating job with " "new name `%s`",
+                        "Job `%s` has been soft deleted. Creating job with new name `%s`",
                         job_name,
                         {body[JOB_NAME]},
                     )

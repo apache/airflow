@@ -62,7 +62,7 @@ def _get_parser():
     available_packages_list = " * " + "\n * ".join(get_available_packages())
     parser = argparse.ArgumentParser(
         description='Copies the built documentation to airflow-site repository.',
-        epilog=f"List of supported documentation packages:\n{available_packages_list}" "",
+        epilog=f"List of supported documentation packages:\n{available_packages_list}",
     )
     parser.formatter_class = argparse.RawTextHelpFormatter
     parser.add_argument(

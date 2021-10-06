@@ -56,7 +56,6 @@ Auth backends
 
 The providers can add custom authentication backends, that allow you to configure the way how your
 web server authenticates your users, integrating it with public or private authentication services.
-behaviour for the connections defined by the provider.
 
 You can see all the authentication backends available via community-managed providers in
 :doc:`/core-extensions/auth-backends`
@@ -67,7 +66,7 @@ Custom connections
 The providers can add custom connection types, extending connection form and handling custom form field
 behaviour for the connections defined by the provider.
 
-You can see all task loggers available via community-managed providers in
+You can see all custom connections available via community-managed providers in
 :doc:`/core-extensions/connections`.
 
 Extra links
@@ -98,7 +97,7 @@ Secret backends
 Airflow has the capability of reading connections, variables and configuration from Secret Backends rather
 than from its own Database.
 
-You can see all task loggers available via community-managed providers in
+You can see all secret backends available via community-managed providers in
 :doc:`/core-extensions/secrets-backends`.
 
 
