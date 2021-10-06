@@ -887,6 +887,23 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
         assert response.status_code == 200
         assert len(response.json["task_instances"]) == expected_ti
 
+    @mock.patch("airflow.api_connexion.endpoints.task_instance_endpoint.clear_task_instances")
+    def test_clear_taskinstance_is_called_with_queued_dr_state(self, mock_clearti, session):
+        """Test that if reset_dag_runs is True, then clear_task_instances is called with State.QUEUED"""
+        self.create_task_instances(session)
+        dag_id = "example_python_operator"
+        payload = {"include_subdags": True, "reset_dag_runs": True, "dry_run": False}
+        self.app.dag_bag.sync_to_db()
+        response = self.client.post(
+            f"/api/v1/dags/{dag_id}/clearTaskInstances",
+            environ_overrides={"REMOTE_USER": "test"},
+            json=payload,
+        )
+        assert response.status_code == 200
+        mock_clearti.assert_called_once_with(
+            [], session, dag=self.app.dag_bag.get_dag(dag_id), dag_run_state=State.QUEUED
+        )
+
     def test_should_respond_200_with_reset_dag_run(self, session):
         dag_id = "example_python_operator"
         payload = {
@@ -1128,6 +1145,30 @@ class TestPostSetTaskInstanceState(TestTaskInstanceEndpoint):
             },
         )
         assert response.status_code == 404
+
+    @mock.patch('airflow.models.dag.DAG.set_task_instance_state')
+    def test_should_raise_not_found_if_execution_date_is_wrong(self, mock_set_task_instance_state, session):
+        self.create_task_instances(session)
+        date = DEFAULT_DATETIME_1 + dt.timedelta(days=1)
+        response = self.client.post(
+            "/api/v1/dags/example_python_operator/updateTaskInstancesState",
+            environ_overrides={'REMOTE_USER': "test"},
+            json={
+                "dry_run": True,
+                "task_id": "print_the_context",
+                "execution_date": date,
+                "include_upstream": True,
+                "include_downstream": True,
+                "include_future": True,
+                "include_past": True,
+                "new_state": "failed",
+            },
+        )
+        assert response.status_code == 404
+        assert response.json['title'] == (
+            f"Task instance not found for task print_the_context on execution_date {date}"
+        )
+        assert mock_set_task_instance_state.call_count == 0
 
     def test_should_raise_404_not_found_task(self):
         response = self.client.post(

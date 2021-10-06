@@ -201,7 +201,7 @@ atlas = [
 ]
 azure = [
     'azure-batch>=8.0.0',
-    'azure-cosmos>=3.0.1,<4',
+    'azure-cosmos>=4.0.0,<5',
     'azure-datalake-store>=0.0.45',
     'azure-identity>=1.3.1',
     'azure-keyvault>=4.1.0',
@@ -465,7 +465,7 @@ spark = [
 ssh = [
     'paramiko>=2.6.0',
     'pysftp>=0.2.9',
-    'sshtunnel>=0.1.4,<0.2',
+    'sshtunnel>=0.3.2,<0.5',
 ]
 statsd = [
     'statsd>=3.3.0, <4.0',

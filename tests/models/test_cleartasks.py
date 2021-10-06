@@ -131,7 +131,7 @@ class TestClearTasks:
         session.refresh(dr)
 
         assert dr.state == state
-        assert dr.start_date is None
+        assert dr.start_date is None if state == State.QUEUED else dr.start_date
         assert dr.last_scheduling_decision == last_scheduling
 
     def test_clear_task_instances_without_task(self, dag_maker):

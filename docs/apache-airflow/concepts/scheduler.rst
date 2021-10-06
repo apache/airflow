@@ -366,7 +366,7 @@ However you can also look at other non-performance-related scheduler configurati
   The scheduler can run multiple processes in parallel to parse DAG files. This defines
   how many processes will run.
 
-- :ref:`config:scheduler__processor_poll_interval`
+- :ref:`config:scheduler__scheduler_idle_sleep_time`
   Controls how long the scheduler will sleep between loops, but if there was nothing to do
   in the loop. i.e. if it scheduled something then it will start the next loop
   iteration straight away. This parameter is badly named (historical reasons) and it will be

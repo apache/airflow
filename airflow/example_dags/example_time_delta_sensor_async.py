@@ -15,37 +15,25 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-#
 
-from airflow.hooks.base import BaseHook
+"""
+Example DAG demonstrating ``TimeDeltaSensorAsync``, a drop in replacement for ``TimeDeltaSensor`` that
+defers and doesn't occupy a worker slot while it waits
+"""
 
+from datetime import datetime, timedelta
 
-class FSHook(BaseHook):
-    """
-    Allows for interaction with an file server.
+from airflow import DAG
+from airflow.operators.dummy import DummyOperator
+from airflow.sensors.time_delta import TimeDeltaSensorAsync
 
-    Connection should have a name and a path specified under extra:
-
-    example:
-    Connection Id: fs_test
-    Connection Type: File (path)
-    Host, Schema, Login, Password, Port: empty
-    Extra: {"path": "/tmp"}
-    """
-
-    def __init__(self, conn_id='fs_default'):
-        super().__init__()
-        conn = self.get_connection(conn_id)
-        self.basepath = conn.extra_dejson.get('path', '')
-        self.conn = conn
-
-    def get_conn(self):
-        pass
-
-    def get_path(self) -> str:
-        """
-        Get the path to the filesystem location.
-
-        :return: the path.
-        """
-        return self.basepath
+with DAG(
+    dag_id="example_time_delta_sensor_async",
+    schedule_interval=None,
+    start_date=datetime(2021, 1, 1),
+    catchup=False,
+    tags=["example"],
+) as dag:
+    wait = TimeDeltaSensorAsync(task_id="wait", delta=timedelta(seconds=10))
+    finish = DummyOperator(task_id="finish")
+    wait >> finish
