@@ -4597,6 +4597,7 @@ class MultiResourceUserMixin:
     }
 
     method_permission_name = {
+        'add': 'create',
         'userinfo': 'read',
         'download': 'read',
         'show': 'read',
@@ -4607,6 +4608,7 @@ class MultiResourceUserMixin:
     }
 
     base_permissions = [
+        permissions.ACTION_CAN_CREATE,
         permissions.ACTION_CAN_READ,
         permissions.ACTION_CAN_EDIT,
         permissions.ACTION_CAN_DELETE,
