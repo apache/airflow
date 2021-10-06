@@ -673,7 +673,7 @@ class DagRun(Base, LoggingMixin):
             self.log.warning('Failed to record duration of %s: end_date is not set.', self)
             return
 
-        duration = (self.end_date - self.start_date).total_seconds()
+        duration = self.end_date - self.start_date
         if self.state == State.SUCCESS:
             Stats.timing(f'dagrun.duration.success.{self.dag_id}', duration)
         elif self.state == State.FAILED:
