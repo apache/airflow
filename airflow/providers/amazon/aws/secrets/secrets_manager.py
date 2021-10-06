@@ -90,8 +90,8 @@ class SecretsManagerBackend(BaseSecretsBackend, LoggingMixin):
     :param sep: separator used to concatenate secret_prefix and secret_id. Default: "/"
     :type sep: str
     :param full_url_mode: if True, the secrets must be stored as one conn URI in just one field per secret.
-        Otherwise, you can store the secret using different fields (password, user...). For using it
-        as False, set as str "False" in backend_kwargs.
+        If False (set it as the string "False" in backend_kwargs), you can store the secret using different
+        fields (password, user...).
     :type full_url_mode: bool
     :param extra_conn_words: for using just when you set full_url_mode as "False" and store
         the secrets in different fields of secrets manager. You can add more words for each connection
