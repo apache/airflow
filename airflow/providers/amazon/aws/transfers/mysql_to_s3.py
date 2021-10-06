@@ -18,6 +18,7 @@
 
 import os
 import warnings
+from collections import namedtuple
 from enum import Enum
 from tempfile import NamedTemporaryFile
 from typing import Literal, Optional, Union
@@ -34,6 +35,14 @@ FILE_FORMAT = Enum(
     "FILE_FORMAT",
     "CSV, PARQUET",
 )
+
+
+FileOptions = namedtuple('FileOptions', ['mode', 'suffix'])
+
+FILE_OPTIONS_MAP = {
+    FILE_FORMAT.CSV: FileOptions('r+', '.csv'),
+    FILE_FORMAT.PARQUET: FileOptions('rb+', '.parquet')
+}
 
 class MySQLToS3Operator(BaseOperator):
     """
@@ -153,14 +162,10 @@ class MySQLToS3Operator(BaseOperator):
         self.log.info("Data from MySQL obtained")
 
         self._fix_int_dtypes(data_df)
-        if self.file_format == FILE_FORMAT.CSV:
-            with NamedTemporaryFile(mode='r+', suffix='.csv') as tmp_csv:
-                data_df.to_csv(tmp_csv.name, **self.pd_kwargs)
-                s3_conn.load_file(filename=tmp_csv.name, key=self.s3_key, bucket_name=self.s3_bucket)
-        else:
-            with NamedTemporaryFile(mode='rb+', suffix='.parquet') as tmp_parquet:
-                data_df.to_parquet(tmp_parquet.name, **self.pd_kwargs)
-                s3_conn.load_file(filename=tmp_parquet.name, key=self.s3_key, bucket_name=self.s3_bucket)
+        file_options = FILE_OPTIONS_MAP[self.file_format]
+        with NamedTemporaryFile(mode=file_options.mode, suffix=file_options.suffix) as tmp_file:
+            data_df.to_csv(tmp_file.name, **self.pd_kwargs)
+            s3_conn.load_file(filename=tmp_file.name, key=self.s3_key, bucket_name=self.s3_bucket)
 
         if s3_conn.check_for_key(self.s3_key, bucket_name=self.s3_bucket):
             file_location = os.path.join(self.s3_bucket, self.s3_key)
