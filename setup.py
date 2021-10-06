@@ -476,7 +476,7 @@ tableau = [
 telegram = [
     'python-telegram-bot~=13.0',
 ]
-trino = ['trino']
+trino = ['trino>=0.301.0']
 vertica = [
     'vertica-python>=0.5.1',
 ]
