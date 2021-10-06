@@ -36,8 +36,8 @@ in all templates
 ==========================================  ====================================
 Variable                                    Description
 ==========================================  ====================================
-``{{ data_interval_start }}``               Start of the data interval (`pendulum.Pendulum`_).
-``{{ data_interval_end }}``                 End of the data interval (`pendulum.Pendulum`_).
+``{{ data_interval_start }}``               Start of the data interval (`pendulum.DateTime`_).
+``{{ data_interval_end }}``                 End of the data interval (`pendulum.DateTime`_).
 ``{{ ds }}``                                Start of the data interval as ``YYYY-MM-DD``.
                                             Same as ``{{ data_interval_start | ds }}``.
 ``{{ ds_nodash }}``                         Start of the data interval as ``YYYYMMDD``.
@@ -49,11 +49,11 @@ Variable                                    Description
 ``{{ ts_nodash }}``                         Same as ``{{ data_interval_start | ts_nodash }}``.
                                             Example: ``20180101T000000``.
 ``{{ prev_data_interval_start_success }}``  Start of the data interval from prior successful DAG run
-                                            (`pendulum.Pendulum`_ or ``None``).
+                                            (`pendulum.DateTime`_ or ``None``).
 ``{{ prev_data_interval_end_success }}``    End of the data interval from prior successful DAG run
-                                            (`pendulum.Pendulum`_ or ``None``).
+                                            (`pendulum.DateTime`_ or ``None``).
 ``{{ prev_start_date_success }}``           Start date from prior successful dag run (if available)
-                                            (`pendulum.Pendulum`_ or ``None``).
+                                            (`pendulum.DateTime`_ or ``None``).
 ``{{ dag }}``                               The DAG object.
 ``{{ task }}``                              The Task object.
 ``{{ macros }}``                            A reference to the macros package, described below.
@@ -85,13 +85,13 @@ existing code to use other variables instead.
 Deprecated Variable                     Description
 =====================================   ====================================
 ``{{ execution_date }}``                the execution date (logical date), same as ``logical_date``
-``{{ next_execution_date }}``           the next execution date (if available) (`pendulum.Pendulum`_)
+``{{ next_execution_date }}``           the next execution date (if available) (`pendulum.DateTime`_)
                                         if ``{{ execution_date }}`` is ``2018-01-01 00:00:00`` and
                                         ``schedule_interval`` is ``@weekly``, ``{{ next_execution_date }}``
                                         will be ``2018-01-08 00:00:00``
 ``{{ next_ds }}``                       the next execution date as ``YYYY-MM-DD`` if exists, else ``None``
 ``{{ next_ds_nodash }}``                the next execution date as ``YYYYMMDD`` if exists, else ``None``
-``{{ prev_execution_date }}``           the previous execution date (if available) (`pendulum.Pendulum`_)
+``{{ prev_execution_date }}``           the previous execution date (if available) (`pendulum.DateTime`_)
                                         if ``{{ execution_date }}`` is ``2018-01-08 00:00:00`` and
                                         ``schedule_interval`` is ``@weekly``, ``{{ prev_execution_date }}``
                                         will be ``2018-01-01 00:00:00``
@@ -175,4 +175,4 @@ Some airflow specific macros are also defined:
 .. automodule:: airflow.macros.hive
     :members:
 
-.. _pendulum.Pendulum: https://pendulum.eustace.io/docs/2.x/#introduction
+.. _pendulum.DateTime: https://pendulum.eustace.io/docs/#introduction
