@@ -74,22 +74,26 @@ class SecretsManagerBackend(BaseSecretsBackend, LoggingMixin):
     However, these lists can be extended using the configuration parameter ``extra_conn_words``.
 
     :param connections_prefix: Specifies the prefix of the secret to read to get Connections.
-        If set to None (null), requests for connections will not be sent to AWS Secrets Manager
+        If set to None (null value in the configuration), requests for connections will not be
+        sent to AWS Secrets Manager. If you don't want a connections_prefix, set it as an empty string
     :type connections_prefix: str
     :param variables_prefix: Specifies the prefix of the secret to read to get Variables.
-        If set to None (null), requests for variables will not be sent to AWS Secrets Manager
+        If set to None (null value in the configuration), requests for variables will not be sent to
+        AWS Secrets Manager. If you don't want a variables_prefix, set it as an empty string
     :type variables_prefix: str
     :param config_prefix: Specifies the prefix of the secret to read to get Configurations.
-        If set to None (null), requests for configurations will not be sent to AWS Secrets Manager
+        If set to None (null value in the configuration), requests for configurations will not be sent to
+         AWS Secrets Manager. If you don't want a config_prefix, set it as an empty string
     :type config_prefix: str
     :param profile_name: The name of a profile to use. If not given, then the default profile is used.
     :type profile_name: str
     :param sep: separator used to concatenate secret_prefix and secret_id. Default: "/"
     :type sep: str
     :param full_url_mode: if True, the secrets must be stored as one conn URI in just one field per secret.
-        Otherwise, you can store the secret using different fields (password, user...)
+        Otherwise, you can store the secret using different fields (password, user...). For using it
+        as False, set as str "False" in backend_kwargs.
     :type full_url_mode: bool
-    :param extra_conn_words: for using just when you set full_url_mode as False and store
+    :param extra_conn_words: for using just when you set full_url_mode as "False" and store
         the secrets in different fields of secrets manager. You can add more words for each connection
         part beyond the default ones. The extra words to be searched should be passed as a dict of lists,
         each list corresponding to a connection part. The optional keys of the dict must be: user,
@@ -109,21 +113,26 @@ class SecretsManagerBackend(BaseSecretsBackend, LoggingMixin):
         **kwargs,
     ):
         super().__init__()
-        if connections_prefix is not None:
+        if connections_prefix:
             self.connections_prefix = connections_prefix.rstrip(sep)
         else:
             self.connections_prefix = connections_prefix
-        if variables_prefix is not None:
+        if variables_prefix:
             self.variables_prefix = variables_prefix.rstrip(sep)
         else:
             self.variables_prefix = variables_prefix
-        if config_prefix is not None:
+        if config_prefix:
             self.config_prefix = config_prefix.rstrip(sep)
         else:
             self.config_prefix = config_prefix
         self.profile_name = profile_name
         self.sep = sep
-        self.full_url_mode = full_url_mode
+        if isinstance(full_url_mode, str):
+            self.full_url_mode = ast.literal_eval(
+                full_url_mode
+            )  # if you pass a boolean in conf, it takes the default value, so you must pass a string
+        else:
+            self.full_url_mode = full_url_mode
         self.extra_conn_words = extra_conn_words if extra_conn_words else {}
         self.kwargs = kwargs
 
@@ -134,12 +143,17 @@ class SecretsManagerBackend(BaseSecretsBackend, LoggingMixin):
 
         return session.client(service_name="secretsmanager", **self.kwargs)
 
-    def _format_uri_with_extra(self, secret, conn_string):
+    @staticmethod
+    def _format_uri_with_extra(secret, conn_string):
         try:
             extra_dict = secret['extra']
         except KeyError:
             return conn_string
-        conn_string = f"{conn_string}?{urlencode(extra_dict)}"
+
+        extra = ast.literal_eval(
+            extra_dict
+        )  # json.loads doesn't work because you can have unquoted booleans values
+        conn_string = f"{conn_string}?{urlencode(extra)}"
 
         return conn_string
 
@@ -176,10 +190,10 @@ class SecretsManagerBackend(BaseSecretsBackend, LoggingMixin):
         :param conn_id: connection id
         :type conn_id: str
         """
-        if self.full_url_mode:
-            if self.connections_prefix is None:
-                return None
+        if self.connections_prefix is None:
+            return None
 
+        if self.full_url_mode:
             return self._get_secret(self.connections_prefix, conn_id)
         else:
             try:
@@ -225,7 +239,10 @@ class SecretsManagerBackend(BaseSecretsBackend, LoggingMixin):
         :param secret_id: Secret Key
         :type secret_id: str
         """
-        secrets_path = self.build_path(path_prefix, secret_id, self.sep)
+        if path_prefix:
+            secrets_path = self.build_path(path_prefix, secret_id, self.sep)
+        else:
+            secrets_path = secret_id
 
         try:
             response = self.client.get_secret_value(

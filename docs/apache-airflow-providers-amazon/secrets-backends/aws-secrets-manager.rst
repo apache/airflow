@@ -27,7 +27,7 @@ Here is a sample configuration:
 
     [secrets]
     backend = airflow.providers.amazon.aws.secrets.secrets_manager.SecretsManagerBackend
-    backend_kwargs = {"connections_prefix": "airflow/connections", "variables_prefix": "airflow/variables", "profile_name": "default", "full_url_mode": False}
+    backend_kwargs = {"connections_prefix": "airflow/connections", "variables_prefix": "airflow/variables", "profile_name": "default", "full_url_mode": "False"}
 
 To authenticate you can either supply a profile name to reference aws profile, e.g. defined in ``~/.aws/config`` or set
 environment variables like ``AWS_ACCESS_KEY_ID``, ``AWS_SECRET_ACCESS_KEY``.
@@ -36,7 +36,7 @@ environment variables like ``AWS_ACCESS_KEY_ID``, ``AWS_SECRET_ACCESS_KEY``.
 Storing and Retrieving Connections
 """"""""""""""""""""""""""""""""""
 You can store the different values for a secret in two forms: storing the conn URI in one field (default mode) or using different
-fields in Amazon Secrets Manager (setting ``full_url_mode`` as False in the backend config), as follow:
+fields in Amazon Secrets Manager (setting ``full_url_mode`` as "False" in the backend config), as follow:
 .. image:: img/aws-secrets-manager.png
 
 By default you must use some of the following words for each kind of field:
@@ -78,6 +78,7 @@ Verify that you can get the secret:
         "CreatedDate": "2020-04-08T02:10:35.132000+01:00"
     }
 
+If you don't want to use any ``connections_prefix`` for retrieving connections, set it as an empty string ``""`` in the configuration.
 
 Storing and Retrieving Variables
 """"""""""""""""""""""""""""""""
