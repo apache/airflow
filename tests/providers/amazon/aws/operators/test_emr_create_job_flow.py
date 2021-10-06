@@ -170,10 +170,7 @@ class TestEmrCreateJobFlowOperator(unittest.TestCase):
 @pytest.mark.need_serialized_dag
 def test_operator_extra_links(dag_maker, create_task_instance_of_operator):
     ti = create_task_instance_of_operator(
-        EmrCreateJobFlowOperator,
-        dag_id=TEST_DAG_ID,
-        execution_date=DEFAULT_DATE,
-        task_id=TASK_ID
+        EmrCreateJobFlowOperator, dag_id=TEST_DAG_ID, execution_date=DEFAULT_DATE, task_id=TASK_ID
     )
 
     serialized_dag = dag_maker.get_serialized_data()
@@ -188,17 +185,21 @@ def test_operator_extra_links(dag_maker, create_task_instance_of_operator):
         deserialized_task.operator_extra_links[0], EmrClusterLink
     ), "Operator link type should be preserved during deserialization"
 
-    assert ti.task.get_extra_links(DEFAULT_DATE, EmrClusterLink.name) == "", \
-        "Operator link should only be added if job id is available in XCom"
+    assert (
+        ti.task.get_extra_links(DEFAULT_DATE, EmrClusterLink.name) == ""
+    ), "Operator link should only be added if job id is available in XCom"
 
-    assert deserialized_task.get_extra_links(DEFAULT_DATE, EmrClusterLink.name) == "", \
-        "Operator link should be empty for deserialized task with no XCom push"
+    assert (
+        deserialized_task.get_extra_links(DEFAULT_DATE, EmrClusterLink.name) == ""
+    ), "Operator link should be empty for deserialized task with no XCom push"
 
     ti.xcom_push(key=XCOM_RETURN_KEY, value='j-SomeClusterId')
 
     expected = "https://console.aws.amazon.com/elasticmapreduce/home#cluster-details:j-SomeClusterId"
-    assert deserialized_task.get_extra_links(DEFAULT_DATE, EmrClusterLink.name) == expected, \
-        "Operator link should be preserved in deserialized tasks after execution"
+    assert (
+        deserialized_task.get_extra_links(DEFAULT_DATE, EmrClusterLink.name) == expected
+    ), "Operator link should be preserved in deserialized tasks after execution"
 
-    assert ti.task.get_extra_links(DEFAULT_DATE, EmrClusterLink.name) == expected, \
-        "Operator link should be preserved after execution"
+    assert (
+        ti.task.get_extra_links(DEFAULT_DATE, EmrClusterLink.name) == expected
+    ), "Operator link should be preserved after execution"
