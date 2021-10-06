@@ -124,7 +124,7 @@ class MySQLToS3Operator(BaseOperator):
         else:
             if pd_csv_kwargs is not None:
                 raise AirflowException(
-                    f"The destination file format is parquet so arguments for pd.to_csv shouldn't be set."
+                    f"The destination file format is parquet so pd_csv_kwargs shouldn't be set."
                 )
 
     @staticmethod
