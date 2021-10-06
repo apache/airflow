@@ -17,7 +17,7 @@
 # under the License.
 """Objects relating to sourcing connections from AWS SSM Parameter Store"""
 import json
-from typing import Optional
+from typing import TYPE_CHECKING, Optional
 
 import boto3
 
@@ -26,9 +26,11 @@ try:
 except ImportError:
     from cached_property import cached_property
 
-from airflow.models import Connection
 from airflow.secrets import BaseSecretsBackend
 from airflow.utils.log.logging_mixin import LoggingMixin
+
+if TYPE_CHECKING:
+    from airflow.models.connection import Connection
 
 
 class SystemsManagerParameterStoreBackend(BaseSecretsBackend, LoggingMixin):
