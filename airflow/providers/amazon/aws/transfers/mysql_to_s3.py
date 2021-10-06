@@ -36,7 +36,6 @@ FILE_FORMAT = Enum(
     "CSV, PARQUET",
 )
 
-
 FileOptions = namedtuple('FileOptions', ['mode', 'suffix'])
 
 FILE_OPTIONS_MAP = {
