@@ -476,6 +476,8 @@ def dag_maker(request):
     from airflow.utils.log.logging_mixin import LoggingMixin
 
     class DagFactory(LoggingMixin):
+        _own_session = False
+
         def __init__(self):
             from airflow.models import DagBag
 
@@ -577,6 +579,7 @@ def dag_maker(request):
             from airflow.utils import timezone
 
             if session is None:
+                self._own_session = True
                 session = settings.Session()
 
             self.kwargs = kwargs
@@ -629,6 +632,8 @@ def dag_maker(request):
                         synchronize_session=False
                     )
                     self.session.commit()
+                    if self._own_session:
+                        self.session.expunge_all()
 
     factory = DagFactory()
 
