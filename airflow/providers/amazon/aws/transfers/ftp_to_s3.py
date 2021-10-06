@@ -125,7 +125,7 @@ class FTPToS3Operator(BaseOperator):
                     path=self.ftp_path,
                 )
 
-                if self.ftp_filenames == 'all':
+                if self.ftp_filenames == '*':
                     files = list_dir
                 else:
                     files = list(filter(lambda file: self.ftp_filenames in file, list_dir))
