@@ -165,6 +165,7 @@ class TestSchedulerJob:
         self.scheduler_job.heartrate = 0
         self.scheduler_job.run()
 
+    @pytest.mark.quarantined
     def test_no_orphan_process_will_be_left(self):
         empty_dir = mkdtemp()
         current_process = psutil.Process()
