@@ -68,7 +68,7 @@ class BaseTaskRunner(LoggingMixin):
         # might not be able to run the cmds to get credentials
         cfg_path = tmp_configuration_copy(chmod=0o600)
 
-        if self.run_as_user and (self.run_as_user != getuser()):
+        if self.run_as_user and self.run_as_user != getuser():
             # Give ownership of file to user; only they can read and write
             subprocess.call(['sudo', 'chown', self.run_as_user, cfg_path], close_fds=True)
 
