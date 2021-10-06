@@ -38,7 +38,7 @@ class FTPToS3Operator(BaseOperator):
     :type s3_key: str
     :param ftp_filenames: Only used if you want to move multiple files. You can pass a list
         with exact filenames present in the ftp path, or a prefix that all files must meet. It
-        can also be the word 'all' for moving all the files within the ftp path.
+        can also be the string '*' for moving all the files within the ftp path.
     :type ftp_filenames: Union(str, list)
     :param s3_filenames: Only used if you want to move multiple files and name them different from
         the originals from the ftp. It can be a list of filenames or file prefix (that will replace
@@ -95,11 +95,8 @@ class FTPToS3Operator(BaseOperator):
         self.gzip = gzip
         self.acl_policy = acl_policy
 
-        self.ftp_hook = FTPHook(ftp_conn_id=self.ftp_conn_id)
 
     def __upload_to_s3_from_ftp(self, remote_filename, s3_file_key):
-        s3 = S3Hook(self.aws_conn_id)
-
         with NamedTemporaryFile() as local_tmp_file:
             self.ftp_hook.retrieve_file(
                 remote_full_path=remote_filename, local_full_path_or_buffer=local_tmp_file.name
@@ -117,6 +114,9 @@ class FTPToS3Operator(BaseOperator):
             self.log.info(f'File upload to {s3_file_key}')
 
     def execute(self, context):
+        self.ftp_hook = FTPHook(ftp_conn_id=self.ftp_conn_id)
+        s3 = S3Hook(self.aws_conn_id)
+
         if self.ftp_filenames:
             if isinstance(self.ftp_filenames, str):
                 self.log.info(f'Getting files in {self.ftp_path}')
