@@ -42,6 +42,8 @@ integrations:
   - integration-name: Amazon Athena
     external-doc-url: https://aws.amazon.com/athena/
     logo: /integration-logos/aws/Amazon-Athena_light-bg@4x.png
+    how-to-guide:
+      - /docs/apache-airflow-providers-amazon/operators/athena.rst
     tags: [aws]
   - integration-name: Amazon CloudFormation
     external-doc-url: https://aws.amazon.com/cloudformation/
