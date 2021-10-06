@@ -98,8 +98,14 @@ def tutorial_taskflow_api_etl_docker_virtualenv():
     # [END main_flow]
 
 
-# [START dag_invocation]
-tutorial_etl_dag = tutorial_taskflow_api_etl_docker_virtualenv()
-# [END dag_invocation]
+# The try/except here is because Airflow versions less than 2.2.0 doesn't support
+# @task.docker decorator and we use this dag in CI test. Thus, in order not to
+# break the CI test, we added this try/except here.
+try:
+    # [START dag_invocation]
+    tutorial_etl_dag = tutorial_taskflow_api_etl_docker_virtualenv()
+    # [END dag_invocation]
+except AttributeError:
+    pass
 
 # [END tutorial]
