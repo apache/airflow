@@ -15,18 +15,21 @@
 # specific language governing permissions and limitations
 # under the License.
 
+from datetime import datetime, timedelta
+
 from airflow import DAG
-from airflow.operators.python import PythonOperator
+from airflow.decorators import task
 from airflow.providers.amazon.aws.hooks.sqs import SQSHook
 from airflow.providers.amazon.aws.operators.sqs import SQSPublishOperator
 from airflow.providers.amazon.aws.sensors.sqs import SQSSensor
-from airflow.utils.dates import days_ago
 
 QUEUE_NAME = 'Airflow-Example-Queue'
 AWS_CONN_ID = 'aws_default'
 
 
-def create_queue_fn(**kwargs):
+@task(task_id="create_queue")
+def create_queue_fn():
+    """This is a python callback that creates an SQS queue"""
     hook = SQSHook(aws_conn_id=AWS_CONN_ID)
     result = hook.create_queue(
         queue_name=QUEUE_NAME,
@@ -34,26 +37,29 @@ def create_queue_fn(**kwargs):
     return result['QueueUrl']
 
 
+@task(task_id="delete_queue")
 def delete_queue_fn(queue_url):
+    """This is a python callback that deletes an SQS queue"""
     hook = SQSHook(aws_conn_id=AWS_CONN_ID)
     hook.get_conn().delete_queue(QueueUrl=queue_url)
 
 
 with DAG(
-    "example_sqs",
+    dag_id='example_sqs',
     schedule_interval=None,
-    start_date=days_ago(1),  # Override to match your needs
+    start_date=datetime(2021, 1, 1),
+    dagrun_timeout=timedelta(minutes=60),
+    tags=['example'],
+    catchup=False,
 ) as dag:
     # [START howto_sqs_operator_and_sensor]
-    create_queue = PythonOperator(
-        task_id='create_queue',
-        python_callable=create_queue_fn,
-        provide_context=True,
-    )
+
+    # Using a task-decorated function to create an SQS queue
+    create_queue = create_queue_fn()
 
     publish_to_queue = SQSPublishOperator(
         task_id='publish_to_queue',
-        sqs_queue="{{ task_instance.xcom_pull('create_queue', key='return_value') }}",
+        sqs_queue=create_queue,
         message_content="{{ task_instance }}-{{ execution_date }}",
         message_attributes=None,
         delay_seconds=0,
@@ -62,7 +68,7 @@ with DAG(
 
     read_from_queue = SQSSensor(
         task_id='read_from_queue',
-        sqs_queue="{{ task_instance.xcom_pull('create_queue', key='return_value') }}",
+        sqs_queue=create_queue,
         max_messages=5,
         wait_time_seconds=1,
         visibility_timeout=None,
@@ -72,12 +78,8 @@ with DAG(
         aws_conn_id=AWS_CONN_ID,
     )
 
-    delete_queue = PythonOperator(
-        task_id='delete_queue',
-        python_callable=delete_queue_fn,
-        provide_context=True,
-        op_kwargs={'queue_url': "{{ task_instance.xcom_pull('create_queue', key='return_value') }}"},
-    )
+    # Using a task-decorated function to delete the SQS queue we created earlier
+    delete_queue = delete_queue_fn(create_queue)
 
     create_queue >> publish_to_queue >> read_from_queue >> delete_queue
     # [END howto_sqs_operator_and_sensor]
