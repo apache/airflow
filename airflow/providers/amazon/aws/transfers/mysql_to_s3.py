@@ -66,7 +66,7 @@ class MySQLToS3Operator(BaseOperator):
     :type index: str
     :param header: whether to include header or not into the S3 file
     :type header: bool
-    :param file_format: the destination file format, only csv and parquet are supported.
+    :param file_format: the destination file format, only string 'csv' or 'parquet' is accepted.
     :type file_format: str
     :param pd_kwargs: arguments to include in pd.to_parquet or pd.to_csv. This is preferred than pd_csv_kwargs.
     :type pd_kwargs: dict
