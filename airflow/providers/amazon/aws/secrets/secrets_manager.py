@@ -146,7 +146,7 @@ class SecretsManagerBackend(BaseSecretsBackend, LoggingMixin):
             return conn_string
 
         extra = ast.literal_eval(
-            extra_dict
+            extra_dict  # this is needed because extra_dict is a string and we need a dict
         )  # json.loads doesn't work because you can have unquoted booleans values
         conn_string = f"{conn_string}?{urlencode(extra)}"
 
