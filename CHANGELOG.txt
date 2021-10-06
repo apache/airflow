@@ -6,7 +6,7 @@ New Features
 
 - AIP-39: Add (customizable) Timetable class to Airflow for richer scheduling behaviour (#15397, #16030,
   #16352, #17030, #17122, #17414, #17552, #17755, #17989, #18084, #18088, #18244, #18266, #18420, #18434,
-  #18421, #18475, #18499, #18573, #18522, #18729)
+  #18421, #18475, #18499, #18573, #18522, #18729, #18706)
 - AIP-40: Add Deferrable "Async" Tasks (#15389, #17564, #17565, #17601, #17745, #17747, #17748, #17875,
   #17876, #18129, #18210, #18214, #18552, #18728)
 - Add a Docker Taskflow decorator (#15330)
@@ -41,7 +41,6 @@ New Features
 Improvements
 """"""""""""
 - Small improvements for Airflow UI (#18715)
-- Remove eagerloading when querying for TI (#18706)
 - Rename ``processor_poll_interval`` to ``scheduler_idle_sleep_time`` (#18704)
 - Check the allowed values for the logging level (#18651)
 - Fix error on triggering a dag that doesn't exist using ``dagrun_conf`` (#18655)
