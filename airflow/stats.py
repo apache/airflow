@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
+import datetime
 import logging
 import socket
 import string
@@ -335,8 +336,8 @@ class SafeDogStatsdLogger:
         """Stats timing"""
         if self.allow_list_validator.test(stat):
             tags = tags or []
-            if not isinstance(dt, float):
-                raise ValueError("dt must be of float type")
+            if isinstance(dt, datetime.timedelta):
+                dt = dt.total_seconds()
             return self.dogstatsd.timing(metric=stat, value=dt, tags=tags)
         return None
 
