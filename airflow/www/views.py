@@ -1553,7 +1553,6 @@ class Airflow(AirflowBaseView):
             valid_kubernetes_config = isinstance(executor, KubernetesExecutor)
         except ImportError:
             pass
-        
         try:
             from airflow.executors.celery_kubernetes_executor import CeleryKubernetesExecutor
 
