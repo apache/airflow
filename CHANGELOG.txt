@@ -120,7 +120,7 @@ Improvements
 - Always return a response in TI's ``action_clear`` view (#15980)
 - Add cli command to delete user by email (#15873)
 - Use resource and action names for FAB permissions (#16410)
-- Rename DAG concurrency (``[core] dag_concurrency``) settings for easier understanding (#16267)
+- Rename DAG concurrency (``[core] dag_concurrency``) settings for easier understanding (#16267, #18730)
 - Calendar UI improvements (#16226)
 - Refactor: ``SKIPPED`` should not be logged again as ``SUCCESS`` (#14822)
 - Remove  version limits for dnspython (#18046, #18162)
@@ -128,7 +128,6 @@ Improvements
 Bug Fixes
 """""""""
 - Make REST API patch user endpoint work the same way as the UI (#18757)
-- Don't ignore legacy ``concurrency`` dag parameter (#18730)
 - Properly set ``start_date`` for cleared tasks (#18708)
 - Ensure task_instance exists before running update on its state(REST API) (#18642)
 - Make ``AirflowDateTimePickerWidget`` a required field (#18602)
