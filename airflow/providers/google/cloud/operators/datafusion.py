@@ -826,10 +826,8 @@ class CloudDataFusionStartPipelineOperator(BaseOperator):
 
         if success_states:
             self.success_states = success_states
-            self.pipeline_timeout = pipeline_timeout
         else:
             self.success_states = SUCCESS_STATES + [PipelineStates.RUNNING]
-            self.pipeline_timeout = 5 * 60
 
     def execute(self, context: dict) -> str:
         hook = DataFusionHook(
