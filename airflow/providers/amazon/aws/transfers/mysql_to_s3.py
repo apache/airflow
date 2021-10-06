@@ -19,7 +19,7 @@
 import os
 from enum import Enum
 from tempfile import NamedTemporaryFile
-from typing import Optional, Union
+from typing import Literal, Optional, Union
 
 import numpy as np
 import pandas as pd
@@ -96,7 +96,7 @@ class MySQLToS3Operator(BaseOperator):
         pd_csv_kwargs: Optional[dict] = None,
         index: bool = False,
         header: bool = False,
-        file_format: str = 'csv',
+        file_format: Literal['csv', 'parquet'] = 'csv',
         pd_kwargs: Optional[dict] = None,
         **kwargs,
     ) -> None:
@@ -110,13 +110,9 @@ class MySQLToS3Operator(BaseOperator):
 
         if file_format == "csv":
             self.file_format = FILE_FORMAT.CSV
-        elif file_format == "parquet":
-            self.file_format = FILE_FORMAT.PARQUET
         else:
-            raise AirflowException(
-                f"Only csv and parquet formats are supported for the destination file format, "
-                f"but {file_format} is provided"
-            )
+            self.file_format = FILE_FORMAT.PARQUET
+
         self.pd_kwargs = pd_kwargs or pd_csv_kwargs or {}
         if self.file_format == FILE_FORMAT.CSV:
             if "path_or_buf" in self.pd_kwargs:
