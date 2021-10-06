@@ -83,7 +83,7 @@ class SecretsManagerBackend(BaseSecretsBackend, LoggingMixin):
     :type variables_prefix: str
     :param config_prefix: Specifies the prefix of the secret to read to get Configurations.
         If set to None (null value in the configuration), requests for configurations will not be sent to
-         AWS Secrets Manager. If you don't want a config_prefix, set it as an empty string
+        AWS Secrets Manager. If you don't want a config_prefix, set it as an empty string
     :type config_prefix: str
     :param profile_name: The name of a profile to use. If not given, then the default profile is used.
     :type profile_name: str
