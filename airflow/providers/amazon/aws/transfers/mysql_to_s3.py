@@ -17,6 +17,7 @@
 # under the License.
 
 import os
+import warnings
 from enum import Enum
 from tempfile import NamedTemporaryFile
 from typing import Literal, Optional, Union
@@ -59,8 +60,7 @@ class MySQLToS3Operator(BaseOperator):
                 You can specify this argument if you want to use a different
                 CA cert bundle than the one used by botocore.
     :type verify: bool or str
-    :param pd_csv_kwargs: deprecated. Use pd_kwargs instead.
-        Arguments to include in pd.to_csv (header, index, columns...)
+    :param pd_csv_kwargs: arguments to include in pd.to_csv (header, index, columns...)
     :type pd_csv_kwargs: dict
     :param index: whether to have the index or not in the dataframe
     :type index: str
@@ -113,6 +113,13 @@ class MySQLToS3Operator(BaseOperator):
         else:
             self.file_format = FILE_FORMAT.PARQUET
 
+        if pd_csv_kwargs:
+            warnings.warn(
+                "pd_csv_kwargs is deprecated. Please use pd_kwargs.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+
         self.pd_kwargs = pd_kwargs or pd_csv_kwargs or {}
         if self.file_format == FILE_FORMAT.CSV:
             if "path_or_buf" in self.pd_kwargs:
@@ -123,8 +130,8 @@ class MySQLToS3Operator(BaseOperator):
                 self.pd_kwargs["header"] = header
         else:
             if pd_csv_kwargs is not None:
-                raise AirflowException(
-                    f"The destination file format is parquet so pd_csv_kwargs shouldn't be set."
+                raise TypeError(
+                    f"pd_csv_kwargs may not be specified when file_format='parquet'"
                 )
 
     @staticmethod
