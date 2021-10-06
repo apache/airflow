@@ -44,6 +44,7 @@ FILE_OPTIONS_MAP = {
     FILE_FORMAT.PARQUET: FileOptions('rb+', '.parquet')
 }
 
+
 class MySQLToS3Operator(BaseOperator):
     """
     Saves data from an specific MySQL query into a file in S3.
