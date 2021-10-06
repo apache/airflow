@@ -51,13 +51,13 @@ class BaseSQLOperator(BaseOperator):
         *,
         conn_id: Optional[str] = None,
         database: Optional[str] = None,
-        hook_params: Dict = {},
+        hook_params: Optional[Dict] = None,
         **kwargs,
     ):
         super().__init__(**kwargs)
         self.conn_id = conn_id
         self.database = database
-        self.hook_params = hook_params
+        self.hook_params = {} if hook_params is None else hook_params
 
     @cached_property
     def _hook(self):
