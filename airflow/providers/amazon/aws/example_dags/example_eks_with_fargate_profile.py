@@ -80,6 +80,7 @@ with DAG(
 
     start_pod = EKSPodOperator(
         task_id="run_pod",
+        pod_name="run_pod",
         image="amazon/aws-cli:latest",
         cmds=["sh", "-c", "echo Test Airflow; date"],
         labels={"demo": "hello_world"},
