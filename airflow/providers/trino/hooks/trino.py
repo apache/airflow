@@ -18,10 +18,10 @@
 import os
 from typing import Any, Iterable, Optional
 
-import trino
 from trino.exceptions import DatabaseError
 from trino.transaction import IsolationLevel
 
+import trino
 from airflow import AirflowException
 from airflow.configuration import conf
 from airflow.hooks.dbapi import DbApiHook
@@ -81,7 +81,6 @@ class TrinoHook(DbApiHook):
                 delegate=_boolify(extra.get('kerberos__delegate', False)),
                 ca_bundle=extra.get('kerberos__ca_bundle'),
             )
-
         trino_conn = trino.dbapi.connect(
             host=db.host,
             port=db.port,
@@ -92,12 +91,8 @@ class TrinoHook(DbApiHook):
             schema=db.schema,
             auth=auth,
             isolation_level=self.get_isolation_level(),  # type: ignore[func-returns-value]
+            verify=_boolify(extra.get('verify', True))
         )
-        if extra.get('verify') is not None:
-            # Unfortunately verify parameter is available via public API.
-            # The PR is merged in the trino library, but has not been released.
-            # See: https://github.com/trinodb/trino-python-client/pull/31
-            trino_conn._http_session.verify = _boolify(extra['verify'])
 
         return trino_conn
 
