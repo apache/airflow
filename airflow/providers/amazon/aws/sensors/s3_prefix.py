@@ -23,7 +23,7 @@ from airflow.sensors.base import BaseSensorOperator
 
 class S3PrefixSensor(BaseSensorOperator):
     """
-    Waits for a prefix to exist. A prefix is the first part of a key,
+    Waits for a prefix or all prefixes to exist. A prefix is the first part of a key,
     thus enabling checking of constructs similar to glob ``airfl*`` or
     SQL LIKE ``'airfl%'``. There is the possibility to precise a delimiter to
     indicate the hierarchy or keys, meaning that the match will stop at that
