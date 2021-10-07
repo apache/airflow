@@ -24,7 +24,7 @@ try:
     from functools import cached_property
 except ImportError:
     from cached_property import cached_property
-from google.api_core.exceptions import NotFound, PermissionDenied, InvalidArgument
+from google.api_core.exceptions import InvalidArgument, NotFound, PermissionDenied
 from google.api_core.gapic_v1.client_info import ClientInfo
 from google.cloud.secretmanager_v1 import SecretManagerServiceClient
 
@@ -99,7 +99,9 @@ class _SecretManagerClient(LoggingMixin):
         except InvalidArgument:
             self.log.error(
                 """Google Cloud API Call Error (InvalidArgument): Invalid secret ID %s.
-                Only allow secret ID with English letters (A-Z), numbers (0-9), dashes (-), and underscores (_) """,
+                Only ASCII alphabets (a-Z), numbers (0-9), dashes (-), and underscores (_)
+                are allowed in the secret ID.
+                """,
                 secret_id,
             )
             return None
