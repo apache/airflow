@@ -83,8 +83,12 @@ Docker Compose
 
 - **Version**: Install the latest stable Docker Compose and add it to the PATH.
   See `Docker Compose Installation Guide <https://docs.docker.com/compose/install/>`_ for details.
+  `Compose v2 <https://docs.docker.com/compose/cli-command/>`_ is not yet supported due
+  `to <https://github.com/docker/compose-switch/issues/12>`_
+  `existing <https://github.com/apache/airflow/pull/18725>`_
+  `issues <https://github.com/docker/compose/issues/8742>`_.
 
-- **Permissions**: Configure permission to run the ``docker-compose`` command or for the ``compose`` plugin.
+- **Permissions**: Configure permission to run the ``docker-compose`` command.
 
 Docker in WSL 2
 ---------------
@@ -379,7 +383,7 @@ Managing CI environment:
     * Run test specified with ``breeze tests`` command
     * Generate constraints with ``breeze generate-constraints``
     * Execute arbitrary command in the test environment with ``breeze shell`` command
-    * Execute arbitrary docker compose command with ``breeze docker-compose`` command
+    * Execute arbitrary docker-compose command with ``breeze docker-compose`` command
     * Push docker images with ``breeze push-image`` command (require committers rights to push images)
 
 You can optionally reset the Airflow metadata database if specified as extra ``--db-reset`` flag and for CI image
@@ -402,7 +406,7 @@ Managing Prod environment (with ``--production-image`` flag):
     * Stop running interactive environment with ``breeze stop`` command
     * Restart running interactive environment with ``breeze restart`` command
     * Execute arbitrary command in the test environment with ``breeze shell`` command
-    * Execute arbitrary docker compose command with ``breeze docker-compose`` command
+    * Execute arbitrary docker-compose command with ``breeze docker-compose`` command
     * Push docker images with ``breeze push-image`` command (require committers rights to push images)
 
 You can optionally reset database if specified as extra ``--db-reset`` flag. You can also
@@ -509,7 +513,7 @@ Launching Breeze integrations
 -----------------------------
 
 When Breeze starts, it can start additional integrations. Those are additional docker containers
-that are started in the same docker compose command. Those are required by some of the tests
+that are started in the same docker-compose command. Those are required by some of the tests
 as described in `<TESTING.rst#airflow-integration-tests>`_.
 
 By default Breeze starts only airflow container without any integration enabled. If you selected
@@ -949,16 +953,12 @@ Running "Docker Compose" commands
 ---------------------------------
 
 To run Docker Compose commands (such as ``help``, ``pull``, etc), use the
-``docker compose`` command. To add extra arguments, specify them
+``docker-compose`` command. To add extra arguments, specify them
 after ``--`` as extra arguments.
 
 .. code-block:: bash
 
      ./breeze docker-compose pull -- --ignore-pull-failures
-
-Internally, breeze supports the [v1 compose binary](https://docs.docker.com/compose/install/) (``docker-compose``)
-and the [v2 compose plugin](https://docs.docker.com/compose/cli-command/#compose-v2-and-the-new-docker-compose-command)
-(``docker compose``)
 
 Restarting Breeze environment
 -----------------------------
@@ -1153,14 +1153,14 @@ This is the current syntax for  `./breeze <./breeze>`_:
     prepare-airflow-packages                 Prepares airflow packages
     setup-autocomplete                       Sets up autocomplete for breeze
     start-airflow                            Starts Scheduler and Webserver and enters the shell
-    stop                                     Stops the docker compose environment
-    restart                                  Stops the docker compose environment including DB cleanup
+    stop                                     Stops the docker-compose environment
+    restart                                  Stops the docker-compose environment including DB cleanup
     toggle-suppress-cheatsheet               Toggles on/off cheatsheet
     toggle-suppress-asciiart                 Toggles on/off asciiart
 
   Commands with arguments:
 
-    docker-compose                     <ARG>      Executes specified docker compose command
+    docker-compose                     <ARG>      Executes specified docker-compose command
     kind-cluster                       <ARG>      Manages KinD cluster on the host
     prepare-provider-documentation     <ARG>      Prepares provider packages documentation
     prepare-provider-packages          <ARG>      Prepares provider packages
@@ -1190,7 +1190,7 @@ This is the current syntax for  `./breeze <./breeze>`_:
         Enters interactive shell where you can run all tests, start Airflow webserver, scheduler,
         workers, interact with the database, run DAGs etc. It is the default command if no command
         is selected. The shell is executed in the container and in case integrations are chosen,
-        the integrations will be started as separated docker containers - under the docker compose
+        the integrations will be started as separated docker containers - under the docker-compose
         supervision. Local sources are by default mounted to within the container so you can edit
         them locally and run tests immediately in the container. Several folders ('files', 'dist')
         are also mounted so that you can exchange files between the host and container.
@@ -1809,16 +1809,11 @@ This is the current syntax for  `./breeze <./breeze>`_:
 
   breeze docker-compose [FLAGS] COMMAND [-- <EXTRA_ARGS>]
 
-        Run docker compose command instead of entering the environment. Use 'help' as command
+        Run docker-compose command instead of entering the environment. Use 'help' as command
         to see available commands. The <EXTRA_ARGS> passed after -- are treated
-        as additional options passed to docker compose. For example
+        as additional options passed to docker-compose. For example
 
         'breeze docker-compose pull -- --ignore-pull-failures'
-
-        Internally, breeze supports the [v1 compose binary](https://docs.docker.com/compose/install/)
-        (``docker-compose``) and the
-        [v2 compose plugin](https://docs.docker.com/compose/cli-command/#compose-v2-and-the-new-docker-compose-command)
-        (``docker compose``)
 
   Flags:
 

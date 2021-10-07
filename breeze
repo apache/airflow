@@ -592,8 +592,7 @@ function breeze::prepare_command_file() {
     local compose_file="${3}"
     cat <<EOF >"${file}"
 #!/usr/bin/env bash
-dc_cmd=\$(which docker-compose 2>/dev/null || echo "docker compose")
-docker_compose_version=\$((docker-compose --version || docker compose version || true) 2>/dev/null)
+docker_compose_version=\$(docker-compose --version || true)
 if [[ \${docker_compose_version} =~ .*([0-9]+)\.([0-9]+)\.([0-9]+).* ]]; then
     major=\${BASH_REMATCH[1]}
     minor=\${BASH_REMATCH[2]}
@@ -601,18 +600,18 @@ if [[ \${docker_compose_version} =~ .*([0-9]+)\.([0-9]+)\.([0-9]+).* ]]; then
     if [[ \${major} == "1" ]]; then
         if (( minor < 29 )); then
             echo
-            echo "${COLOR_RED}You have too old version of \${dc_cmd}: \${major}.\${minor}.\${patch}! At least 1.29 is needed! Please upgrade!${COLOR_RESET}"
-            echo "${COLOR_RED}See https://docs.docker.com/compose/install/ for instructions. Make sure \${dc_cmd} you install is first on the PATH variable of yours.${COLOR_RESET}"
+            echo "${COLOR_RED}You have too old version of docker-compose: \${major}.\${minor}.\${patch}! At least 1.29 is needed! Please upgrade!${COLOR_RESET}"
+            echo "${COLOR_RED}See https://docs.docker.com/compose/install/ for instructions. Make sure docker-compose you install is first on the PATH variable of yours.${COLOR_RESET}"
             echo
             exit 1
         fi
     fi
     echo
-    echo "${COLOR_GREEN}Good version of \${dc_cmd}: \${major}.\${minor}.\${patch}${COLOR_RESET}"
+    echo "${COLOR_GREEN}Good version of docker-compose: \${major}.\${minor}.\${patch}${COLOR_RESET}"
     echo
 else
     echo
-    echo "${COLOR_YELLOW}Unknown \${dc_cmd} version. At least 1.29 is needed! If Breeze fails - upgrade to latest available \${dc_cmd} version${COLOR_RESET}"
+    echo "${COLOR_YELLOW}Unknown docker-compose version. At least 1.29 is needed! If Breeze fails - upgrade to latest available docker-compose version${COLOR_RESET}"
     echo
 fi
 
@@ -648,9 +647,7 @@ export SQLITE_URL="${SQLITE_URL}"
 export USE_AIRFLOW_VERSION="${USE_AIRFLOW_VERSION}"
 export USE_PACKAGES_FROM_DIST="${USE_PACKAGES_FROM_DIST}"
 export EXECUTOR="${EXECUTOR}"
-echo ">> Executing \$dc_cmd ${command}"
-\$(echo "\$dc_cmd ${command}")
-
+docker-compose ${command}
 EOF
     chmod u+x "${file}"
 }
