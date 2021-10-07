@@ -539,6 +539,7 @@ devel_only = [
     'qds-sdk>=1.9.6',
     'pytest-httpx',
     'requests_mock',
+    'semver',
     'wheel',
     'yamllint',
 ]
