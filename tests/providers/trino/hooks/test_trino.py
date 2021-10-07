@@ -140,6 +140,18 @@ class TestTrinoHookConn(unittest.TestCase):
             )
 
             conn = TrinoHook().get_conn()
+            mock_connect.assert_called_once_with(
+                catalog='hive',
+                host='host',
+                port=None,
+                http_scheme='http',
+                schema='hive',
+                source='airflow',
+                user='login',
+                auth=None,
+                isolation_level=0,
+                verify=expected_verify,
+            )
             assert mock_connect.return_value == conn
 
 
