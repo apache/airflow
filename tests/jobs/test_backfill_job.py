@@ -1298,6 +1298,9 @@ class TestBackfillJob:
         ti_status.to_run.clear()
 
         # test for reschedule
+        # For rescheduled state, tests that reduced_key is not
+        # used by upping try_number.
+        ti._try_number = 2
         ti.set_state(State.UP_FOR_RESCHEDULE, session)
         ti_status.running[ti.key] = ti
         job._update_counters(ti_status=ti_status)
@@ -1311,6 +1314,11 @@ class TestBackfillJob:
 
         # test for none
         ti.set_state(State.NONE, session)
+        # this brings us to try_number==1
+        # so that the reduced_key access will work fine
+        ti.try_number = 0
+        session.merge(ti)
+        session.commit()
         ti_status.running[ti.key] = ti
         job._update_counters(ti_status=ti_status)
         assert len(ti_status.running) == 0
