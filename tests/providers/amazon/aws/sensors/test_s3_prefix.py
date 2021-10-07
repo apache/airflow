@@ -16,26 +16,24 @@
 # specific language governing permissions and limitations
 # under the License.
 
-import unittest
 from unittest import mock
 from unittest.mock import call
 
 from airflow.providers.amazon.aws.sensors.s3_prefix import S3PrefixSensor
 
 
-class TestS3PrefixSensor(unittest.TestCase):
-    @mock.patch('airflow.providers.amazon.aws.sensors.s3_prefix.S3Hook')
-    def test_poke(self, mock_hook):
-        op = S3PrefixSensor(task_id='s3_prefix', bucket_name='bucket', prefix='prefix')
+@mock.patch('airflow.providers.amazon.aws.sensors.s3_prefix.S3Hook')
+def test_poke(mock_hook):
+    op = S3PrefixSensor(task_id='s3_prefix', bucket_name='bucket', prefix='prefix')
 
-        mock_hook.return_value.check_for_prefix.return_value = False
-        assert not op.poke({})
-        mock_hook.return_value.check_for_prefix.assert_called_once_with(
-            prefix='prefix', delimiter='/', bucket_name='bucket'
-        )
+    mock_hook.return_value.check_for_prefix.return_value = False
+    assert not op.poke({})
+    mock_hook.return_value.check_for_prefix.assert_called_once_with(
+        prefix='prefix', delimiter='/', bucket_name='bucket'
+    )
 
-        mock_hook.return_value.check_for_prefix.return_value = True
-        assert op.poke({})
+    mock_hook.return_value.check_for_prefix.return_value = True
+    assert op.poke({})
 
 
 @mock.patch('airflow.providers.amazon.aws.sensors.s3_prefix.S3Hook')
