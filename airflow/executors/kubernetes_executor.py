@@ -419,8 +419,10 @@ def get_base_pod_from_template(pod_template_file: Optional[str], kube_config: An
         return PodGenerator.deserialize_model_file(kube_config.pod_template_file)
 
 
-class KubernetesExecutor(BaseExecutor, LoggingMixin):
+class KubernetesExecutor(BaseExecutor):
     """Executor for Kubernetes"""
+
+    supports_ad_hoc_ti_run: bool = True
 
     def __init__(self):
         self.kube_config = KubeConfig()
