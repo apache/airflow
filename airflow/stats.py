@@ -23,7 +23,7 @@ import string
 import textwrap
 import time
 from functools import wraps
-from typing import TYPE_CHECKING, Callable, Optional, TypeVar, cast
+from typing import TYPE_CHECKING, Callable, List, Optional, TypeVar, cast
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowConfigException, InvalidStatsNameException
@@ -332,7 +332,7 @@ class SafeDogStatsdLogger:
         return None
 
     @validate_stat
-    def timing(self, stat, dt, tags=None):
+    def timing(self, stat: str, dt: Union[float, datetime.timedelta], tags: Optional[List[str]] = None):
         """Stats timing"""
         if self.allow_list_validator.test(stat):
             tags = tags or []
