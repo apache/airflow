@@ -2506,10 +2506,12 @@ class TestSchedulerJob:
         # Test that custom_task has >= 1 Operator Links (after de-serialization)
         assert custom_task.operator_extra_links
 
+        session = settings.Session()
         self.scheduler_job = SchedulerJob(executor=self.null_exec)
         self.scheduler_job.processor_agent = mock.MagicMock()
-        self.scheduler_job._run_scheduler_loop()
 
+        self.scheduler_job._start_queued_dagruns(session)
+        session.flush()
         # Get serialized dag
         s_dag_2 = self.scheduler_job.dagbag.get_dag(dag.dag_id)
         custom_task = s_dag_2.task_dict['custom_task']
