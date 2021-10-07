@@ -15,7 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from typing import Optional, Sequence, Union
+from typing import Any, Dict, Optional, Sequence, Union
 
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 from airflow.sensors.base import BaseSensorOperator
@@ -73,7 +73,7 @@ class S3PrefixSensor(BaseSensorOperator):
         self.verify = verify
         self.hook: Optional[S3Hook] = None
 
-    def poke(self, context):
+    def poke(self, context: Dict[str, Any]):
         self.log.info('Poking for prefix : %s in bucket s3://%s', self.prefix, self.bucket_name)
         return all(self._check_for_prefix(prefix) for prefix in self.prefix)
 
