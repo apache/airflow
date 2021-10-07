@@ -21,36 +21,36 @@ from airflow.www.security import EXISTING_ROLES
 
 
 @contextmanager
-def create_user_scope(app, **kwargs) -> None:
+def create_user_scope(app, username, **kwargs):
     """
     Helper function designed to be used with pytest fixture mainly.
     It will create a user and provide it for the fixture via YIELD (generator)
     then will tidy up once test is complete
     """
-    test_user = create_user(app, **kwargs)
-    if kwargs.get('no_roles', None):
+    test_user = create_user(app, username, **kwargs)
+    if 'role_name' not in kwargs:
         test_user.roles = []
     try:
         yield test_user
     finally:
-        delete_user(app, kwargs.get('username'))
+        delete_user(app, username)
 
 
-def create_user(app, **kwargs):
+def create_user(app, username, role_name=None, email=None, permissions=None):
     appbuilder = app.appbuilder
-    username = kwargs.get('username')
-    role_name = kwargs.get('role_name')
 
     # Removes user and role so each test has isolated test data.
     delete_user(app, username)
-    delete_role(app, role_name)
-    role = create_role(app, role_name, kwargs.get('permissions'))
+    role = None
+    if role_name:
+        delete_role(app, role_name)
+        role = create_role(app, role_name, permissions)
 
     return appbuilder.sm.add_user(
         username=username,
         first_name=username,
         last_name=username,
-        email=kwargs.get('email', f"{username}@example.org"),
+        email=email or f"{username}@example.org",
         role=role,
         password=username,
     )
