@@ -18,6 +18,7 @@
 """Objects relating to sourcing secrets from AWS Secrets Manager"""
 
 import ast
+import json
 from typing import Optional
 from urllib.parse import urlencode
 
@@ -71,7 +72,9 @@ class SecretsManagerBackend(BaseSecretsBackend, LoggingMixin):
             "conn_type": ["conn_type", "conn_id", "connection_type", "engine"],
         }
 
-    However, these lists can be extended using the configuration parameter ``extra_conn_words``.
+    However, these lists can be extended using the configuration parameter ``extra_conn_words``. Also,
+    you can have a field named extra for extra parameters for the conn. Please note that this extra field
+    must be a valid JSON.
 
     :param connections_prefix: Specifies the prefix of the secret to read to get Connections.
         If set to None (null value in the configuration), requests for connections will not be
@@ -145,9 +148,7 @@ class SecretsManagerBackend(BaseSecretsBackend, LoggingMixin):
         except KeyError:
             return conn_string
 
-        extra = ast.literal_eval(
-            extra_dict  # this is needed because extra_dict is a string and we need a dict
-        )  # json.loads doesn't work because you can have unquoted booleans values
+        extra = json.loads(extra_dict)  # this is needed because extra_dict is a string and we need a dict
         conn_string = f"{conn_string}?{urlencode(extra)}"
 
         return conn_string

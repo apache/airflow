@@ -48,7 +48,8 @@ By default you must use some of the following words for each kind of field:
 * Port: port
 * You should also specify the type of connection, which can be done naming the key as conn_type, conn_id,
   connection_type or engine. Valid values for this field are postgres, mysql, snowflake, google_cloud, mongo...
-* For the extra value of the connections, you have to type a dictionary.
+* For the extra value of the connections, a field called extra must exists. Please note this extra field
+  should be a valid JSON.
 
 However, more words can be added to the list using the parameter ``extra_conn_words`` in the configuration. This
 parameter has to be a dict of lists with the following optional keys: user, password, host, schema, conn_type
