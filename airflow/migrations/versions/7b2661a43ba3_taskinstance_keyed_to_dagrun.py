@@ -103,7 +103,7 @@ def upgrade():
     dialect_name = conn.dialect.name
     dt_type = _mssql_datetime() if dialect_name == "mssql" else sa.TIMESTAMP(timezone=True)
 
-    run_id_col_type = sa.String(length=ID_LEN, **COLLATION_ARGS)
+    string_id_col_type = sa.String(length=ID_LEN, **COLLATION_ARGS)
 
     if dialect_name == 'sqlite':
         naming_convention = {
@@ -115,8 +115,8 @@ def upgrade():
             pass
     elif dialect_name == 'mysql':
         with op.batch_alter_table('dag_run') as batch_op:
-            batch_op.alter_column('dag_id', existing_type=sa.String(length=ID_LEN), type_=run_id_col_type)
-            batch_op.alter_column('run_id', existing_type=sa.String(length=ID_LEN), type_=run_id_col_type)
+            batch_op.alter_column('dag_id', existing_type=sa.String(length=ID_LEN), type_=string_id_col_type)
+            batch_op.alter_column('run_id', existing_type=sa.String(length=ID_LEN), type_=string_id_col_type)
             batch_op.drop_constraint('dag_id', 'unique')
             batch_op.drop_constraint('dag_id_2', 'unique')
             batch_op.create_unique_constraint(
@@ -139,8 +139,8 @@ def upgrade():
         batch_op.alter_column('run_id', existing_type=sa.VARCHAR(length=250), nullable=False)
 
     # First create column nullable
-    op.add_column('task_instance', sa.Column('run_id', type_=run_id_col_type, nullable=True))
-    op.add_column('task_reschedule', sa.Column('run_id', type_=run_id_col_type, nullable=True))
+    op.add_column('task_instance', sa.Column('run_id', type_=string_id_col_type, nullable=True))
+    op.add_column('task_reschedule', sa.Column('run_id', type_=string_id_col_type, nullable=True))
 
     # Then update the new column by selecting the right value from DagRun
     update_query = _multi_table_update(dialect_name, task_instance, task_instance.c.run_id)
@@ -154,7 +154,9 @@ def upgrade():
     op.execute(update_query)
 
     with op.batch_alter_table('task_reschedule', schema=None) as batch_op:
-        batch_op.alter_column('run_id', existing_type=run_id_col_type, existing_nullable=True, nullable=False)
+        batch_op.alter_column(
+            'run_id', existing_type=string_id_col_type, existing_nullable=True, nullable=False
+        )
 
         batch_op.drop_constraint('task_reschedule_dag_task_date_fkey', 'foreignkey')
         if dialect_name == "mysql":
@@ -164,7 +166,14 @@ def upgrade():
 
     with op.batch_alter_table('task_instance', schema=None) as batch_op:
         # Then make it non-nullable
-        batch_op.alter_column('run_id', existing_type=run_id_col_type, existing_nullable=True, nullable=False)
+        batch_op.alter_column(
+            'run_id', existing_type=string_id_col_type, existing_nullable=True, nullable=False
+        )
+
+        batch_op.alter_column(
+            'dag_id', existing_type=string_id_col_type, existing_nullable=True, nullable=False
+        )
+        batch_op.alter_column('execution_date', existing_type=dt_type, existing_nullable=True, nullable=False)
 
         # TODO: Is this right for non-postgres?
         if dialect_name == 'mssql':
@@ -220,6 +229,7 @@ def downgrade():
     """Unapply TaskInstance keyed to DagRun"""
     dialect_name = op.get_bind().dialect.name
     dt_type = _mssql_datetime() if dialect_name == "mssql" else sa.TIMESTAMP(timezone=True)
+    string_id_col_type = sa.String(length=ID_LEN, **COLLATION_ARGS)
 
     op.add_column('task_instance', sa.Column('execution_date', dt_type, nullable=True))
     op.add_column('task_reschedule', sa.Column('execution_date', dt_type, nullable=True))
@@ -240,6 +250,9 @@ def downgrade():
 
     with op.batch_alter_table('task_instance', schema=None) as batch_op:
         batch_op.alter_column('execution_date', existing_type=dt_type, existing_nullable=True, nullable=False)
+        batch_op.alter_column(
+            'dag_id', existing_type=string_id_col_type, existing_nullable=True, nullable=True
+        )
 
         batch_op.drop_constraint('task_instance_pkey', type_='primary')
         batch_op.create_primary_key('task_instance_pkey', ['dag_id', 'task_id', 'execution_date'])
