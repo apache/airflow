@@ -101,6 +101,7 @@ def upgrade():
     """Apply TaskInstance keyed to DagRun"""
     conn = op.get_bind()
     dialect_name = conn.dialect.name
+    dt_type = _mssql_datetime() if dialect_name == "mssql" else sa.TIMESTAMP(timezone=True)
 
     run_id_col_type = sa.String(length=ID_LEN, **COLLATION_ARGS)
 
@@ -130,6 +131,12 @@ def upgrade():
                 'dag_run_dag_id_execution_date_key', ['dag_id', 'execution_date']
             )
             batch_op.create_unique_constraint('dag_run_dag_id_run_id_key', ['dag_id', 'run_id'])
+
+    # Make sure DagRun id columns are non-nullable
+    with op.batch_alter_table('dag_run', schema=None) as batch_op:
+        batch_op.alter_column('dag_id', existing_type=sa.VARCHAR(length=250), nullable=False)
+        batch_op.alter_column('execution_date', existing_type=dt_type, nullable=False)
+        batch_op.alter_column('run_id', existing_type=sa.VARCHAR(length=250), nullable=False)
 
     # First create column nullable
     op.add_column('task_instance', sa.Column('run_id', type_=run_id_col_type, nullable=True))
@@ -212,14 +219,10 @@ def upgrade():
 def downgrade():
     """Unapply TaskInstance keyed to DagRun"""
     dialect_name = op.get_bind().dialect.name
+    dt_type = _mssql_datetime() if dialect_name == "mssql" else sa.TIMESTAMP(timezone=True)
 
-    if dialect_name == "mssql":
-        col_type = _mssql_datetime()
-    else:
-        col_type = sa.TIMESTAMP(timezone=True)
-
-    op.add_column('task_instance', sa.Column('execution_date', col_type, nullable=True))
-    op.add_column('task_reschedule', sa.Column('execution_date', col_type, nullable=True))
+    op.add_column('task_instance', sa.Column('execution_date', dt_type, nullable=True))
+    op.add_column('task_reschedule', sa.Column('execution_date', dt_type, nullable=True))
 
     update_query = _multi_table_update(dialect_name, task_instance, task_instance.c.execution_date)
     op.execute(update_query)
@@ -228,9 +231,7 @@ def downgrade():
     op.execute(update_query)
 
     with op.batch_alter_table('task_reschedule', schema=None) as batch_op:
-        batch_op.alter_column(
-            'execution_date', existing_type=col_type, existing_nullable=True, nullable=False
-        )
+        batch_op.alter_column('execution_date', existing_type=dt_type, existing_nullable=True, nullable=False)
 
         # Can't drop PK index while there is a FK referencing it
         batch_op.drop_constraint('task_reschedule_ti_fkey')
@@ -238,9 +239,7 @@ def downgrade():
         batch_op.drop_index('idx_task_reschedule_dag_task_run')
 
     with op.batch_alter_table('task_instance', schema=None) as batch_op:
-        batch_op.alter_column(
-            'execution_date', existing_type=col_type, existing_nullable=True, nullable=False
-        )
+        batch_op.alter_column('execution_date', existing_type=dt_type, existing_nullable=True, nullable=False)
 
         batch_op.drop_constraint('task_instance_pkey', type_='primary')
         batch_op.create_primary_key('task_instance_pkey', ['dag_id', 'task_id', 'execution_date'])
@@ -268,6 +267,11 @@ def downgrade():
             ['dag_id', 'task_id', 'execution_date'],
             ondelete='CASCADE',
         )
+
+    with op.batch_alter_table('dag_run', schema=None) as batch_op:
+        batch_op.alter_column('run_id', existing_type=sa.VARCHAR(length=250), nullable=True)
+        batch_op.alter_column('execution_date', existing_type=dt_type, nullable=True)
+        batch_op.alter_column('dag_id', existing_type=sa.VARCHAR(length=250), nullable=True)
 
 
 def _multi_table_update(dialect_name, target, column):
