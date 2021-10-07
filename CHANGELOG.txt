@@ -6,10 +6,10 @@ New Features
 
 - AIP-39: Add (customizable) Timetable class to Airflow for richer scheduling behaviour (#15397, #16030,
   #16352, #17030, #17122, #17414, #17552, #17755, #17989, #18084, #18088, #18244, #18266, #18420, #18434,
-  #18421, #18475, #18499, #18573, #18522, #18729, #18706)
+  #18421, #18475, #18499, #18573, #18522, #18729, #18706, #18742, #18786)
 - AIP-40: Add Deferrable "Async" Tasks (#15389, #17564, #17565, #17601, #17745, #17747, #17748, #17875,
-  #17876, #18129, #18210, #18214, #18552, #18728)
-- Add a Docker Taskflow decorator (#15330)
+  #17876, #18129, #18210, #18214, #18552, #18728, #18414)
+- Add a Docker Taskflow decorator (#15330, #18739)
 - Add Airflow Standalone command (#15826)
 - Display alert messages on dashboard from local settings (#18284)
 - Advanced Params using json-schema (#17100)
@@ -40,7 +40,7 @@ New Features
 
 Improvements
 """"""""""""
-- Small improvements for Airflow UI (#18715)
+- Small improvements for Airflow UI (#18715, #18795)
 - Rename ``processor_poll_interval`` to ``scheduler_idle_sleep_time`` (#18704)
 - Check the allowed values for the logging level (#18651)
 - Fix error on triggering a dag that doesn't exist using ``dagrun_conf`` (#18655)
@@ -124,6 +124,7 @@ Improvements
 - Calendar UI improvements (#16226)
 - Refactor: ``SKIPPED`` should not be logged again as ``SUCCESS`` (#14822)
 - Remove  version limits for dnspython (#18046, #18162)
+- Accept custom run ID in TriggerDagRunOperator (#18788)
 
 Bug Fixes
 """""""""
@@ -210,6 +211,8 @@ Bug Fixes
 - Correctly set ``dag.fileloc`` when using the ``@dag`` decorator (#16384)
 - Fix TI success/failure links (#16233)
 - Correctly implement autocomplete early return in ``airflow/www/views.py`` (#15940)
+- Backport fix to allow pickling of Loggers to Python 3.6 (#18798)
+- Fix bug that Backfill job fail to run when there are tasks run into ``reschedule`` state (#17305)
 
 Doc only changes
 """"""""""""""""
@@ -325,6 +328,8 @@ Misc/Internal
 - Update permission migrations to use new naming scheme (#16400)
 - Use resource and action names for FAB (#16380)
 - Swap out calls to ``find_permission_view_menu`` for ``get_permission`` wrapper (#16377)
+- Fix deprecated default for ``fab_logging_level`` to ``WARNING`` (#18783)
+- Allow running tasks from UI when using ``CeleryKubernetesExecutor`` (#18441)
 
 Airflow 2.1.4, 2021-09-18
 -------------------------
