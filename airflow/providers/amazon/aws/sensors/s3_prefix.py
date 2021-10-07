@@ -69,7 +69,6 @@ class S3PrefixSensor(BaseSensorOperator):
         self.bucket_name = bucket_name
         self.prefix = [prefix] if isinstance(prefix, str) else prefix
         self.delimiter = delimiter
-        self.full_url = "s3://" + bucket_name + '/' + prefix
         self.aws_conn_id = aws_conn_id
         self.verify = verify
         self.hook: Optional[S3Hook] = None
