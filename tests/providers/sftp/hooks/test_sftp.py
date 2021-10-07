@@ -228,6 +228,22 @@ class TestSFTPHook(unittest.TestCase):
         hook = SFTPHook()
         assert hook.host_key is not None
 
+    @mock.patch('airflow.providers.sftp.hooks.sftp.SFTPHook.get_connection')
+    def test_key_content_as_str(self, get_connection):
+        file_obj = StringIO()
+        TEST_PKEY.write_private_key(file_obj)
+        file_obj.seek(0)
+        key_content_str = file_obj.read()
+
+        connection = Connection(
+            login='login',
+            host='host',
+            extra=json.dumps({"private_key": key_content_str}),
+        )
+        get_connection.return_value = connection
+        hook = SFTPHook()
+        assert hook.pkey == TEST_PKEY
+
     @parameterized.expand(
         [
             (os.path.join(TMP_PATH, TMP_DIR_FOR_TESTS), True),
