@@ -95,6 +95,7 @@ The Release Candidate artifacts we vote upon should be the exact ones we vote ag
 - Replace the version in `README.md` and verify that installation instructions work fine.
 - Add a commit that updates `CHANGELOG.md` to add changes from previous version if it has not already added.
 For now this is done manually, example run  `git log --oneline v2-2-test..HEAD --pretty='format:- %s'` and categorize them.
+- Add section for the release in `UPDATING.md`. If no new entries exist, put "No breaking changes" (e.g. `2.1.4`).
 - Commit the version change.
 
 - Tag your release
