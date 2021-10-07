@@ -21,8 +21,9 @@ Timetables
 
 A DAG's scheduling strategy is determined by its internal "timetable". This
 timetable can be created by specifying the DAG's ``schedule_interval`` argument,
-as described in :doc:`DAG Run </dag-run>`. The timetable also dictates the data
-interval and the logical time of each run created for the DAG.
+as described in :doc:`DAG Run </dag-run>`, or by passing a ``timetable`` argument 
+directly. The timetable also dictates the data interval and the logical time of each
+run created for the DAG.
 
 Cron expressions and timedeltas are still supported (using
 ``CronDataIntervalTimetable`` and ``DeltaDataIntervalTimetable`` under the hood
