@@ -639,6 +639,13 @@ createUserJob:
     # Annotations to add to create user kubernetes service account.
     annotations: {}
 
+  # Launch additional containers into user creation job
+  extraContainers: []
+
+  # Mount additional volumes into user creation job
+  extraVolumes: []
+  extraVolumeMounts: []
+
   nodeSelector: {}
   affinity: {}
   tolerations: []
@@ -682,6 +689,11 @@ migrateDatabaseJob:
 
   # Launch additional containers into database migration job
   extraContainers: []
+
+  # Mount additional volumes into database migration job
+  extraVolumes: []
+  extraVolumeMounts: []
+
   nodeSelector: {}
   affinity: {}
   tolerations: []

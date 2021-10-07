@@ -1913,6 +1913,30 @@
                         }
                     }
                 },
+                "extraContainers": {
+                    "description": "Launch additional containers for the create user job pod",
+                    "type": "array",
+                    "default": [],
+                    "items": {
+                        "$ref": "https://raw.githubusercontent.com/yannh/kubernetes-json-schema/master/v1.22.0-standalone-strict/container-v1.json"
+                    }
+                },
+                "extraVolumes": {
+                    "description": "Mount additional volumes into create user job",
+                    "type": "array",
+                    "default": [],
+                    "items": {
+                        "$ref": "https://raw.githubusercontent.com/yannh/kubernetes-json-schema/master/v1.22.0-standalone-strict/volume-v1.json"
+                    }
+                },
+                "extraVolumeMounts": {
+                    "description": "Mount additional volumes into create user job",
+                    "type": "array",
+                    "default": [],
+                    "items": {
+                        "$ref": "https://raw.githubusercontent.com/yannh/kubernetes-json-schema/master/v1.22.0-standalone-strict/volumemount-v1.json"
+                    }
+                },
                 "nodeSelector": {
                     "description": "Select certain nodes for the create user job pod.",
                     "type": "object",
@@ -2034,6 +2058,22 @@
                     "default": [],
                     "items": {
                         "$ref": "https://raw.githubusercontent.com/yannh/kubernetes-json-schema/master/v1.22.0-standalone-strict/container-v1.json"
+                    }
+                },
+                "extraVolumes": {
+                    "description": "Mount additional volumes into migrate database job",
+                    "type": "array",
+                    "default": [],
+                    "items": {
+                        "$ref": "https://raw.githubusercontent.com/yannh/kubernetes-json-schema/master/v1.22.0-standalone-strict/volume-v1.json"
+                    }
+                },
+                "extraVolumeMounts": {
+                    "description": "Mount additional volumes into migrate database job",
+                    "type": "array",
+                    "default": [],
+                    "items": {
+                        "$ref": "https://raw.githubusercontent.com/yannh/kubernetes-json-schema/master/v1.22.0-standalone-strict/volumemount-v1.json"
                     }
                 },
                 "nodeSelector": {
