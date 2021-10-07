@@ -286,10 +286,7 @@ class Connection(Base, LoggingMixin):
             self._extra = fernet.rotate(self._extra.encode('utf-8')).decode()
 
     def get_hook(self, **kwargs):
-        """
-        Return hook based on conn_type
-        :param hook_params: dictionary of keyword arguments to be passed to the hook constructor
-        """
+        """Return hook based on conn_type"""
         (
             hook_class_name,
             conn_id_param,
