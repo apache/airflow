@@ -72,7 +72,7 @@ Extra (optional)
     * ``host_key``: The base64 encoded ssh-rsa public key of the host, as you would find in the known_hosts file.
       Specifying this, along with no_host_key_check=False allows you to only make the connection if the public key of
       the endpoint matches this value.
-    * ``private_key`` Specify the path to private key file(str) or paramiko.AgentKey
+    * ``private_key`` Specify the content of the private key, the path to the private key file(str) or paramiko.AgentKey
 
 Example “extras” field:
 
