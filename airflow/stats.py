@@ -66,7 +66,7 @@ class StatsLogger(Protocol):
         """Gauge stat"""
 
     @classmethod
-    def timing(cls, stat: str, dt) -> None:
+    def timing(cls, stat: str, dt: Union[float, datetime.timedelta]) -> None:
         """Stats timing"""
 
     @classmethod
