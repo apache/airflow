@@ -18,10 +18,10 @@
 import os
 from typing import Any, Iterable, Optional
 
+import trino
 from trino.exceptions import DatabaseError
 from trino.transaction import IsolationLevel
 
-import trino
 from airflow import AirflowException
 from airflow.configuration import conf
 from airflow.hooks.dbapi import DbApiHook
@@ -85,13 +85,13 @@ class TrinoHook(DbApiHook):
             host=db.host,
             port=db.port,
             user=db.login,
-            source=db.extra_dejson.get('source', 'airflow'),
-            http_scheme=db.extra_dejson.get('protocol', 'http'),
-            catalog=db.extra_dejson.get('catalog', 'hive'),
+            source=extra.get('source', 'airflow'),
+            http_scheme=extra.get('protocol', 'http'),
+            catalog=extra.get('catalog', 'hive'),
             schema=db.schema,
             auth=auth,
             isolation_level=self.get_isolation_level(),  # type: ignore[func-returns-value]
-            verify=_boolify(extra.get('verify', True))
+            verify=_boolify(extra.get('verify', True)),
         )
 
         return trino_conn

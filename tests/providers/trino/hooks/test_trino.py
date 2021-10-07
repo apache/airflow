@@ -51,7 +51,7 @@ class TestTrinoHookConn(unittest.TestCase):
             user='login',
             isolation_level=0,
             auth=mock_basic_auth.return_value,
-            verify=True
+            verify=True,
         )
         mock_basic_auth.assert_called_once_with('login', 'password')
         assert mock_connect.return_value == conn
@@ -90,7 +90,7 @@ class TestTrinoHookConn(unittest.TestCase):
                     'kerberos__principal': 'TEST_PRINCIPAL',
                     'kerberos__delegate': 'TEST_DELEGATE',
                     'kerberos__ca_bundle': 'TEST_CA_BUNDLE',
-                    'verify': 'true'
+                    'verify': 'true',
                 }
             ),
         )
@@ -106,7 +106,7 @@ class TestTrinoHookConn(unittest.TestCase):
             user='login',
             isolation_level=0,
             auth=mock_auth.return_value,
-            verify=True
+            verify=True,
         )
         mock_auth.assert_called_once_with(
             ca_bundle='TEST_CA_BUNDLE',
