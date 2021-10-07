@@ -41,10 +41,17 @@ branch_labels = None
 depends_on = None
 
 
-def _mssql_datetime():
-    from sqlalchemy.dialects import mssql
+def _datetime_type(dialect_name):
+    if dialect_name == "mssql":
+        from sqlalchemy.dialects import mssql
 
-    return mssql.DATETIME2(precision=6)
+        return mssql.DATETIME2(precision=6)
+    elif dialect_name == "mysql":
+        from sqlalchemy.dialects import mysql
+
+        return mysql.DATETIME(fsp=6)
+
+    return sa.TIMESTAMP(timezone=True)
 
 
 # Just Enough Table to run the conditions for update.
@@ -101,7 +108,7 @@ def upgrade():
     """Apply TaskInstance keyed to DagRun"""
     conn = op.get_bind()
     dialect_name = conn.dialect.name
-    dt_type = _mssql_datetime() if dialect_name == "mssql" else sa.TIMESTAMP(timezone=True)
+    dt_type = _datetime_type(dialect_name)
 
     string_id_col_type = sa.String(length=ID_LEN, **COLLATION_ARGS)
 
@@ -261,7 +268,7 @@ def upgrade():
 def downgrade():
     """Unapply TaskInstance keyed to DagRun"""
     dialect_name = op.get_bind().dialect.name
-    dt_type = _mssql_datetime() if dialect_name == "mssql" else sa.TIMESTAMP(timezone=True)
+    dt_type = _datetime_type(dialect_name)
     string_id_col_type = sa.String(length=ID_LEN, **COLLATION_ARGS)
 
     op.add_column('task_instance', sa.Column('execution_date', dt_type, nullable=True))
