@@ -1302,6 +1302,7 @@ class TestBackfillJob:
         # used by upping try_number.
         ti._try_number = 2
         ti.set_state(State.UP_FOR_RESCHEDULE, session)
+        assert ti.try_number == 3  # see ti.try_number property in taskinstance module
         ti_status.running[ti.key] = ti
         job._update_counters(ti_status=ti_status)
         assert len(ti_status.running) == 0
@@ -1314,9 +1315,10 @@ class TestBackfillJob:
 
         # test for none
         ti.set_state(State.NONE, session)
-        # this brings us to try_number==1
+        # Setting ti._try_number = 0 brings us to ti.try_number==1
         # so that the reduced_key access will work fine
-        ti.try_number = 0
+        ti._try_number = 0
+        assert ti.try_number == 1  # see ti.try_number property in taskinstance module
         session.merge(ti)
         session.commit()
         ti_status.running[ti.key] = ti
