@@ -802,7 +802,7 @@ class CloudDataFusionStartPipelineOperator(BaseOperator):
         runtime_args: Optional[Dict[str, Any]] = None,
         success_states: Optional[List[str]] = None,
         namespace: str = "default",
-        pipeline_timeout: int = 10 * 60,
+        pipeline_timeout: int = 5 * 60,
         project_id: Optional[str] = None,
         api_version: str = "v1beta1",
         gcp_conn_id: str = "google_cloud_default",
