@@ -128,6 +128,12 @@ class MySQLToS3Operator(BaseOperator):
                 DeprecationWarning,
                 stacklevel=2,
             )
+        if index or header:
+            warnings.warn(
+                "index and header are deprecated. Please pass them via pd_kwargs.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
 
         self.pd_kwargs = pd_kwargs or pd_csv_kwargs or {}
         if self.file_format == FILE_FORMAT.CSV:
