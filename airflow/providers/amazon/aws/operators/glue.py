@@ -146,7 +146,5 @@ class AwsGlueJobOperator(BaseOperator):
                 glue_job_run['JobRunId'],
             )
         else:
-            self.log.info(
-                "AWS Glue Job: %s. Run Id: %s", self.job_name, glue_job_run['JobRunId']
-            )
+            self.log.info("AWS Glue Job: %s. Run Id: %s", self.job_name, glue_job_run['JobRunId'])
         return glue_job_run['JobRunId']
