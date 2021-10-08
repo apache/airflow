@@ -122,7 +122,8 @@ Gauges
 =================================================== ========================================================================
 Name                                                Description
 =================================================== ========================================================================
-``dagbag_size``                                     DAG bag size
+``dagbag_size``                                     Number of DAGs found when the scheduler ran a scan based on it's
+                                                    configuration
 ``dag_processing.import_errors``                    Number of errors from trying to parse DAG files
 ``dag_processing.total_parse_time``                 Seconds taken to scan and import all DAG files once
 ``dag_processing.last_run.seconds_ago.<dag_file>``  Seconds since ``<dag_file>`` was last processed
