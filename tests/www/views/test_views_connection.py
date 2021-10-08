@@ -180,10 +180,7 @@ def test_duplicate_connection_error(admin_client):
     data = {"action": "mulduplicate", "rowid": [conn1.id]}
     resp = admin_client.post('/connection/action_post', data=data, follow_redirects=True)
 
-    expected_result = set()
-
-    for i in range(1, 11):
-        expected_result.add(f'test_duplicate_postgres_connection_copy{i}')
+    expected_result = {f'test_duplicate_postgres_connection_copy{i}' for i in range(1, 11)}
 
     assert resp.status_code == 200
     response = {conn[0] for conn in session.query(Connection.conn_id).all()}
