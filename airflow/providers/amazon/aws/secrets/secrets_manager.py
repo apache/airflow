@@ -18,6 +18,7 @@
 """Objects relating to sourcing secrets from AWS Secrets Manager"""
 
 import ast
+import json
 from typing import Optional
 from urllib.parse import urlencode
 
@@ -71,25 +72,31 @@ class SecretsManagerBackend(BaseSecretsBackend, LoggingMixin):
             "conn_type": ["conn_type", "conn_id", "connection_type", "engine"],
         }
 
-    However, these lists can be extended using the configuration parameter ``extra_conn_words``.
+    However, these lists can be extended using the configuration parameter ``extra_conn_words``. Also,
+    you can have a field named extra for extra parameters for the conn. Please note that this extra field
+    must be a valid JSON.
 
     :param connections_prefix: Specifies the prefix of the secret to read to get Connections.
-        If set to None (null), requests for connections will not be sent to AWS Secrets Manager
+        If set to None (null value in the configuration), requests for connections will not be
+        sent to AWS Secrets Manager. If you don't want a connections_prefix, set it as an empty string
     :type connections_prefix: str
     :param variables_prefix: Specifies the prefix of the secret to read to get Variables.
-        If set to None (null), requests for variables will not be sent to AWS Secrets Manager
+        If set to None (null value in the configuration), requests for variables will not be sent to
+        AWS Secrets Manager. If you don't want a variables_prefix, set it as an empty string
     :type variables_prefix: str
     :param config_prefix: Specifies the prefix of the secret to read to get Configurations.
-        If set to None (null), requests for configurations will not be sent to AWS Secrets Manager
+        If set to None (null value in the configuration), requests for configurations will not be sent to
+        AWS Secrets Manager. If you don't want a config_prefix, set it as an empty string
     :type config_prefix: str
     :param profile_name: The name of a profile to use. If not given, then the default profile is used.
     :type profile_name: str
     :param sep: separator used to concatenate secret_prefix and secret_id. Default: "/"
     :type sep: str
     :param full_url_mode: if True, the secrets must be stored as one conn URI in just one field per secret.
-        Otherwise, you can store the secret using different fields (password, user...)
+        If False (set it as false in backend_kwargs), you can store the secret using different
+        fields (password, user...).
     :type full_url_mode: bool
-    :param extra_conn_words: for using just when you set full_url_mode as False and store
+    :param extra_conn_words: for using just when you set full_url_mode as false and store
         the secrets in different fields of secrets manager. You can add more words for each connection
         part beyond the default ones. The extra words to be searched should be passed as a dict of lists,
         each list corresponding to a connection part. The optional keys of the dict must be: user,
@@ -109,15 +116,15 @@ class SecretsManagerBackend(BaseSecretsBackend, LoggingMixin):
         **kwargs,
     ):
         super().__init__()
-        if connections_prefix is not None:
+        if connections_prefix:
             self.connections_prefix = connections_prefix.rstrip(sep)
         else:
             self.connections_prefix = connections_prefix
-        if variables_prefix is not None:
+        if variables_prefix:
             self.variables_prefix = variables_prefix.rstrip(sep)
         else:
             self.variables_prefix = variables_prefix
-        if config_prefix is not None:
+        if config_prefix:
             self.config_prefix = config_prefix.rstrip(sep)
         else:
             self.config_prefix = config_prefix
@@ -134,12 +141,15 @@ class SecretsManagerBackend(BaseSecretsBackend, LoggingMixin):
 
         return session.client(service_name="secretsmanager", **self.kwargs)
 
-    def _format_uri_with_extra(self, secret, conn_string):
+    @staticmethod
+    def _format_uri_with_extra(secret, conn_string):
         try:
             extra_dict = secret['extra']
         except KeyError:
             return conn_string
-        conn_string = f"{conn_string}?{urlencode(extra_dict)}"
+
+        extra = json.loads(extra_dict)  # this is needed because extra_dict is a string and we need a dict
+        conn_string = f"{conn_string}?{urlencode(extra)}"
 
         return conn_string
 
@@ -176,10 +186,10 @@ class SecretsManagerBackend(BaseSecretsBackend, LoggingMixin):
         :param conn_id: connection id
         :type conn_id: str
         """
-        if self.full_url_mode:
-            if self.connections_prefix is None:
-                return None
+        if self.connections_prefix is None:
+            return None
 
+        if self.full_url_mode:
             return self._get_secret(self.connections_prefix, conn_id)
         else:
             try:
@@ -225,7 +235,10 @@ class SecretsManagerBackend(BaseSecretsBackend, LoggingMixin):
         :param secret_id: Secret Key
         :type secret_id: str
         """
-        secrets_path = self.build_path(path_prefix, secret_id, self.sep)
+        if path_prefix:
+            secrets_path = self.build_path(path_prefix, secret_id, self.sep)
+        else:
+            secrets_path = secret_id
 
         try:
             response = self.client.get_secret_value(

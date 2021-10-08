@@ -497,7 +497,7 @@ zendesk = [
 ]
 # End dependencies group
 
-devel = [
+devel_only = [
     'aws_xray_sdk',
     'beautifulsoup4~=4.7.1',
     'black',
@@ -541,8 +541,8 @@ devel = [
     'yamllint',
 ]
 
-devel_minreq = cgroups + devel + doc + kubernetes + mysql + pandas + password
-devel_hadoop = devel_minreq + hdfs + hive + kerberos + presto + webhdfs
+devel = cgroups + devel_only + doc + kubernetes + mysql + pandas + password
+devel_hadoop = devel + hdfs + hive + kerberos + presto + webhdfs
 
 # Dict of all providers which are part of the Apache Airflow repository together with their requirements
 PROVIDERS_REQUIREMENTS: Dict[str, List[str]] = {
@@ -778,7 +778,7 @@ EXTRAS_REQUIREMENTS["all_dbs"] = all_dbs + pandas
 
 # This can be simplified to devel_hadoop + _all_requirements due to inclusions
 # but we keep it for explicit sake. We are de-duplicating it anyway.
-devel_all = list(set(_all_requirements + doc + devel_minreq + devel_hadoop))
+devel_all = list(set(_all_requirements + doc + devel + devel_hadoop))
 
 # Those are packages excluded for "all" dependencies
 PACKAGES_EXCLUDED_FOR_ALL = []
@@ -812,8 +812,8 @@ devel_ci = devel_all
 # Those are extras that we have to add for development purposes
 # They can be use to install some predefined set of dependencies.
 EXTRAS_REQUIREMENTS["doc"] = doc
-EXTRAS_REQUIREMENTS["devel"] = devel_minreq  # devel_minreq already includes doc
-EXTRAS_REQUIREMENTS["devel_hadoop"] = devel_hadoop  # devel_hadoop already includes devel_minreq
+EXTRAS_REQUIREMENTS["devel"] = devel  # devel already includes doc
+EXTRAS_REQUIREMENTS["devel_hadoop"] = devel_hadoop  # devel_hadoop already includes devel
 EXTRAS_REQUIREMENTS["devel_all"] = devel_all
 EXTRAS_REQUIREMENTS["devel_ci"] = devel_ci
 
