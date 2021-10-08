@@ -51,7 +51,7 @@ class PagerdutyHook(BaseHook):
     def get_ui_field_behaviour() -> Dict:
         """Returns custom field behaviour"""
         return {
-            "hidden_fields": ['port', 'login', 'extra', 'schema'],
+            "hidden_fields": ['port', 'login', 'schema', 'host'],
             "relabeling": {
                 'password': 'Pagerduty API token',
             },
@@ -66,7 +66,7 @@ class PagerdutyHook(BaseHook):
             conn = self.get_connection(pagerduty_conn_id)
             self.token = conn.get_password()
 
-            routing_key = conn.extra_dejson.get("extra__pagerduty__routing_key")
+            routing_key = conn.extra_dejson.get("routing_key")
             if routing_key:
                 self.routing_key = routing_key
 
