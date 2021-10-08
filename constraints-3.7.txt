@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2021-10-08T10:30:52Z
+# This constraints file was automatically generated on 2021-10-08T16:08:37Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -404,8 +404,8 @@ pyasn1==0.4.8
 pycodestyle==2.7.0
 pycountry==20.7.3
 pycparser==2.20
-pycryptodome==3.10.4
-pycryptodomex==3.10.4
+pycryptodome==3.11.0
+pycryptodomex==3.11.0
 pydata-google-auth==1.2.0
 pydot==1.4.2
 pydruid==0.6.2
@@ -499,7 +499,7 @@ spython==0.1.17
 sqlalchemy-drill==1.1.1
 sqlparse==0.4.2
 sshtunnel==0.1.5
-starkbank-ecdsa==1.1.1
+starkbank-ecdsa==2.0.0
 statsd==3.3.0
 swagger-ui-bundle==0.0.9
 tableauserverclient==0.16.0
