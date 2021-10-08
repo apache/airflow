@@ -171,7 +171,9 @@ class SalesforceHook(BaseHook):
         query_params = query_params or {}
         query_results = conn.query_all(query, include_deleted=include_deleted, **query_params)
 
-        self.log.info("Received results: Total size: {totalSize}; Done: {done}".format(query_results))
+        self.log.info(
+            "Received results: Total size: %s; Done: %s", query_results['totalSize'], query_results['done']
+        )
 
         return query_results
 
