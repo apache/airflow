@@ -28,8 +28,7 @@ def create_user_scope(app, username, **kwargs):
     then will tidy up once test is complete
     """
     test_user = create_user(app, username, **kwargs)
-    if 'role_name' not in kwargs:
-        test_user.roles = []
+
     try:
         yield test_user
     finally:
