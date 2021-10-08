@@ -218,7 +218,7 @@ Doc only changes
 """"""""""""""""
 - Update ``dagbag_size`` documentation (#18824)
 - Update documentation about bundle extras (#18828)
-- Fix wrong Postgres search_path set up instructions (#17600)
+- Fix wrong Postgres ``search_path`` set up instructions (#17600)
 - Remove ``AIRFLOW_GID`` from Docker images (#18747)
 - Improve error message for BranchPythonOperator when no task_id to follow (#18471)
 - Improve guidance to users telling them what to do on import timeout (#18478)
