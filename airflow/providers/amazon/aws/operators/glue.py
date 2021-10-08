@@ -54,6 +54,8 @@ class AwsGlueJobOperator(BaseOperator):
     :type create_job_kwargs: Optional[dict]
     :param run_job_kwargs: Extra arguments for Glue Job Run
     :type run_job_kwargs: Optional[dict]
+    :param wait_for_completion: Whether or not wait for job run completion. (default: True)
+    :type wait_for_completion: bool
     """
 
     template_fields = ('script_args',)
@@ -80,6 +82,7 @@ class AwsGlueJobOperator(BaseOperator):
         iam_role_name: Optional[str] = None,
         create_job_kwargs: Optional[dict] = None,
         run_job_kwargs: Optional[dict] = None,
+        wait_for_completion: bool = True,
         **kwargs,
     ):
         super().__init__(**kwargs)
@@ -98,6 +101,7 @@ class AwsGlueJobOperator(BaseOperator):
         self.s3_artifacts_prefix = 'artifacts/glue-scripts/'
         self.create_job_kwargs = create_job_kwargs
         self.run_job_kwargs = run_job_kwargs or {}
+        self.wait_for_completion = wait_for_completion
 
     def execute(self, context):
         """
@@ -127,13 +131,20 @@ class AwsGlueJobOperator(BaseOperator):
             iam_role_name=self.iam_role_name,
             create_job_kwargs=self.create_job_kwargs,
         )
-        self.log.info("Initializing AWS Glue Job: %s", self.job_name)
-        glue_job_run = glue_job.initialize_job(self.script_args, self.run_job_kwargs)
-        glue_job_run = glue_job.job_completion(self.job_name, glue_job_run['JobRunId'])
         self.log.info(
-            "AWS Glue Job: %s status: %s. Run Id: %s",
+            "Initializing AWS Glue Job: %s. Wait for completion: %s",
             self.job_name,
-            glue_job_run['JobRunState'],
-            glue_job_run['JobRunId'],
+            self.wait_for_completion,
         )
+        glue_job_run = glue_job.initialize_job(self.script_args, self.run_job_kwargs)
+        if self.wait_for_completion:
+            glue_job_run = glue_job.job_completion(self.job_name, glue_job_run['JobRunId'])
+            self.log.info(
+                "AWS Glue Job: %s status: %s. Run Id: %s",
+                self.job_name,
+                glue_job_run['JobRunState'],
+                glue_job_run['JobRunId'],
+            )
+        else:
+            self.log.info("AWS Glue Job: %s. Run Id: %s", self.job_name, glue_job_run['JobRunId'])
         return glue_job_run['JobRunId']

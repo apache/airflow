@@ -233,6 +233,8 @@ class BackfillJob(BaseJob):
             # special case: if the task needs to be rescheduled put it back
             elif ti.state == State.UP_FOR_RESCHEDULE:
                 self.log.warning("Task instance %s is up for reschedule", ti)
+                # During handling of reschedule state in ti._handle_reschedule, try number is reduced
+                # by one, so we should not use reduced_key to avoid key error
                 ti_status.running.pop(ti.key)
                 ti_status.to_run[ti.key] = ti
             # special case: The state of the task can be set to NONE by the task itself

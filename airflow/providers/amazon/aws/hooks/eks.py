@@ -51,6 +51,17 @@ class ClusterStates(Enum):
     NONEXISTENT = "NONEXISTENT"
 
 
+class FargateProfileStates(Enum):
+    """Contains the possible State values of an AWS Fargate profile."""
+
+    CREATING = "CREATING"
+    ACTIVE = "ACTIVE"
+    DELETING = "DELETING"
+    CREATE_FAILED = "CREATE_FAILED"
+    DELETE_FAILED = "DELETE_FAILED"
+    NONEXISTENT = "NONEXISTENT"
+
+
 class NodegroupStates(Enum):
     """Contains the possible State values of an EKS Managed Nodegroup."""
 
@@ -102,16 +113,16 @@ class EKSHook(AwsBaseHook):
             name=name, roleArn=roleArn, resourcesVpcConfig=resourcesVpcConfig, **kwargs
         )
 
-        self.log.info("Created cluster with the name %s.", response.get('cluster').get('name'))
+        self.log.info("Created Amazon EKS cluster with the name %s.", response.get('cluster').get('name'))
         return response
 
     def create_nodegroup(
         self, clusterName: str, nodegroupName: str, subnets: List[str], nodeRole: str, **kwargs
     ) -> Dict:
         """
-        Creates an Amazon EKS Managed Nodegroup for an EKS Cluster.
+        Creates an Amazon EKS managed node group for an Amazon EKS Cluster.
 
-        :param clusterName: The name of the cluster to create the EKS Managed Nodegroup in.
+        :param clusterName: The name of the Amazon EKS cluster to create the EKS Managed Nodegroup in.
         :type clusterName: str
         :param nodegroupName: The unique name to give your managed nodegroup.
         :type nodegroupName: str
@@ -142,9 +153,45 @@ class EKSHook(AwsBaseHook):
         )
 
         self.log.info(
-            "Created a managed nodegroup named %s in cluster %s",
+            "Created an Amazon EKS managed node group named %s in Amazon EKS cluster %s",
             response.get('nodegroup').get('nodegroupName'),
             response.get('nodegroup').get('clusterName'),
+        )
+        return response
+
+    def create_fargate_profile(
+        self, clusterName: str, fargateProfileName: str, podExecutionRoleArn: str, selectors: List, **kwargs
+    ) -> Dict:
+        """
+        Creates an AWS Fargate profile for an Amazon EKS cluster.
+
+        :param clusterName: The name of the Amazon EKS cluster to apply the Fargate profile to.
+        :type clusterName: str
+        :param fargateProfileName: The name of the Fargate profile.
+        :type fargateProfileName: str
+        :param podExecutionRoleArn: The Amazon Resource Name (ARN) of the pod execution role to
+            use for pods that match the selectors in the Fargate profile.
+        :type podExecutionRoleArn: str
+        :param selectors: The selectors to match for pods to use this Fargate profile.
+        :type selectors: List
+
+        :return: Returns descriptive information about the created Fargate profile.
+        :rtype: Dict
+        """
+        eks_client = self.conn
+
+        response = eks_client.create_fargate_profile(
+            clusterName=clusterName,
+            fargateProfileName=fargateProfileName,
+            podExecutionRoleArn=podExecutionRoleArn,
+            selectors=selectors,
+            **kwargs,
+        )
+
+        self.log.info(
+            "Created AWS Fargate profile with the name %s for Amazon EKS cluster %s.",
+            response.get('fargateProfile').get('fargateProfileName'),
+            response.get('fargateProfile').get('clusterName'),
         )
         return response
 
@@ -162,12 +209,12 @@ class EKSHook(AwsBaseHook):
 
         response = eks_client.delete_cluster(name=name)
 
-        self.log.info("Deleted cluster with the name %s.", response.get('cluster').get('name'))
+        self.log.info("Deleted Amazon EKS cluster with the name %s.", response.get('cluster').get('name'))
         return response
 
     def delete_nodegroup(self, clusterName: str, nodegroupName: str) -> Dict:
         """
-        Deletes an Amazon EKS Nodegroup from a specified cluster.
+        Deletes an Amazon EKS managed node group from a specified cluster.
 
         :param clusterName: The name of the Amazon EKS Cluster that is associated with your nodegroup.
         :type clusterName: str
@@ -182,9 +229,34 @@ class EKSHook(AwsBaseHook):
         response = eks_client.delete_nodegroup(clusterName=clusterName, nodegroupName=nodegroupName)
 
         self.log.info(
-            "Deleted nodegroup named %s from cluster %s.",
+            "Deleted Amazon EKS managed node group named %s from Amazon EKS cluster %s.",
             response.get('nodegroup').get('nodegroupName'),
             response.get('nodegroup').get('clusterName'),
+        )
+        return response
+
+    def delete_fargate_profile(self, clusterName: str, fargateProfileName: str) -> Dict:
+        """
+        Deletes an AWS Fargate profile from a specified Amazon EKS cluster.
+
+        :param clusterName: The name of the Amazon EKS cluster associated with the Fargate profile to delete.
+        :type clusterName: str
+        :param fargateProfileName: The name of the Fargate profile to delete.
+        :type fargateProfileName: str
+
+        :return: Returns descriptive information about the deleted Fargate profile.
+        :rtype: Dict
+        """
+        eks_client = self.conn
+
+        response = eks_client.delete_fargate_profile(
+            clusterName=clusterName, fargateProfileName=fargateProfileName
+        )
+
+        self.log.info(
+            "Deleted AWS Fargate profile with the name %s from Amazon EKS cluster %s.",
+            response.get('fargateProfile').get('fargateProfileName'),
+            response.get('fargateProfile').get('clusterName'),
         )
         return response
 
@@ -204,15 +276,17 @@ class EKSHook(AwsBaseHook):
 
         response = eks_client.describe_cluster(name=name)
 
-        self.log.info("Retrieved details for cluster named %s.", response.get('cluster').get('name'))
+        self.log.info(
+            "Retrieved details for Amazon EKS cluster named %s.", response.get('cluster').get('name')
+        )
         if verbose:
             cluster_data = response.get('cluster')
-            self.log.info("Cluster Details: %s", json.dumps(cluster_data, cls=AirflowJsonEncoder))
+            self.log.info("Amazon EKS cluster details: %s", json.dumps(cluster_data, cls=AirflowJsonEncoder))
         return response
 
     def describe_nodegroup(self, clusterName: str, nodegroupName: str, verbose: bool = False) -> Dict:
         """
-        Returns descriptive information about an Amazon EKS Nodegroup.
+        Returns descriptive information about an Amazon EKS managed node group.
 
         :param clusterName: The name of the Amazon EKS Cluster associated with the nodegroup.
         :type clusterName: str
@@ -229,13 +303,50 @@ class EKSHook(AwsBaseHook):
         response = eks_client.describe_nodegroup(clusterName=clusterName, nodegroupName=nodegroupName)
 
         self.log.info(
-            "Retrieved details for nodegroup named %s in cluster %s.",
+            "Retrieved details for Amazon EKS managed node group named %s in Amazon EKS cluster %s.",
             response.get('nodegroup').get('nodegroupName'),
             response.get('nodegroup').get('clusterName'),
         )
         if verbose:
             nodegroup_data = response.get('nodegroup')
-            self.log.info("Nodegroup Details: %s", json.dumps(nodegroup_data, cls=AirflowJsonEncoder))
+            self.log.info(
+                "Amazon EKS managed node group details: %s",
+                json.dumps(nodegroup_data, cls=AirflowJsonEncoder),
+            )
+        return response
+
+    def describe_fargate_profile(
+        self, clusterName: str, fargateProfileName: str, verbose: bool = False
+    ) -> Dict:
+        """
+        Returns descriptive information about an AWS Fargate profile.
+
+        :param clusterName: The name of the Amazon EKS Cluster associated with the Fargate profile.
+        :type clusterName: str
+        :param fargateProfileName: The name of the Fargate profile to describe.
+        :type fargateProfileName: str
+        :param verbose: Provides additional logging if set to True.  Defaults to False.
+        :type verbose: bool
+
+        :return: Returns descriptive information about an AWS Fargate profile.
+        :rtype: Dict
+        """
+        eks_client = self.conn
+
+        response = eks_client.describe_fargate_profile(
+            clusterName=clusterName, fargateProfileName=fargateProfileName
+        )
+
+        self.log.info(
+            "Retrieved details for AWS Fargate profile named %s in Amazon EKS cluster %s.",
+            response.get('fargateProfile').get('fargateProfileName'),
+            response.get('fargateProfile').get('clusterName'),
+        )
+        if verbose:
+            fargate_profile_data = response.get('fargateProfile')
+            self.log.info(
+                "AWS Fargate profile details: %s", json.dumps(fargate_profile_data, cls=AirflowJsonEncoder)
+            )
         return response
 
     def get_cluster_state(self, clusterName: str) -> ClusterStates:
@@ -256,9 +367,35 @@ class EKSHook(AwsBaseHook):
             if ex.response.get("Error").get("Code") == "ResourceNotFoundException":
                 return ClusterStates.NONEXISTENT
 
+    def get_fargate_profile_state(self, clusterName: str, fargateProfileName: str) -> FargateProfileStates:
+        """
+        Returns the current status of a given AWS Fargate profile.
+
+        :param clusterName: The name of the Amazon EKS Cluster associated with the Fargate profile.
+        :type clusterName: str
+        :param fargateProfileName: The name of the Fargate profile to check.
+        :type fargateProfileName: str
+
+        :return: Returns the current status of a given AWS Fargate profile.
+        :rtype: AWS FargateProfileStates
+        """
+        eks_client = self.conn
+
+        try:
+            return FargateProfileStates(
+                eks_client.describe_fargate_profile(
+                    clusterName=clusterName, fargateProfileName=fargateProfileName
+                )
+                .get('fargateProfile')
+                .get('status')
+            )
+        except ClientError as ex:
+            if ex.response.get("Error").get("Code") == "ResourceNotFoundException":
+                return FargateProfileStates.NONEXISTENT
+
     def get_nodegroup_state(self, clusterName: str, nodegroupName: str) -> NodegroupStates:
         """
-        Returns the current status of a given Amazon EKS Nodegroup.
+        Returns the current status of a given Amazon EKS managed node group.
 
         :param clusterName: The name of the Amazon EKS Cluster associated with the nodegroup.
         :type clusterName: str
@@ -294,9 +431,9 @@ class EKSHook(AwsBaseHook):
         :rtype: List
         """
         eks_client = self.conn
-        api_call = partial(eks_client.list_clusters)
+        list_cluster_call = partial(eks_client.list_clusters)
 
-        return self._list_all(api_call=api_call, response_key="clusters", verbose=verbose)
+        return self._list_all(api_call=list_cluster_call, response_key="clusters", verbose=verbose)
 
     def list_nodegroups(
         self,
@@ -304,7 +441,7 @@ class EKSHook(AwsBaseHook):
         verbose: bool = False,
     ) -> List:
         """
-        Lists all Amazon EKS Nodegroups associated with the specified cluster.
+        Lists all Amazon EKS managed node groups associated with the specified cluster.
 
         :param clusterName: The name of the Amazon EKS Cluster containing nodegroups to list.
         :type clusterName: str
@@ -315,9 +452,32 @@ class EKSHook(AwsBaseHook):
         :rtype: List
         """
         eks_client = self.conn
-        api_call = partial(eks_client.list_nodegroups, clusterName=clusterName)
+        list_nodegroups_call = partial(eks_client.list_nodegroups, clusterName=clusterName)
 
-        return self._list_all(api_call=api_call, response_key="nodegroups", verbose=verbose)
+        return self._list_all(api_call=list_nodegroups_call, response_key="nodegroups", verbose=verbose)
+
+    def list_fargate_profiles(
+        self,
+        clusterName: str,
+        verbose: bool = False,
+    ) -> List:
+        """
+        Lists all AWS Fargate profiles associated with the specified cluster.
+
+        :param clusterName: The name of the Amazon EKS Cluster containing Fargate profiles to list.
+        :type clusterName: str
+        :param verbose: Provides additional logging if set to True.  Defaults to False.
+        :type verbose: bool
+
+        :return: A list of Fargate profile names within a given cluster.
+        :rtype: List
+        """
+        eks_client = self.conn
+        list_fargate_profiles_call = partial(eks_client.list_fargate_profiles, clusterName=clusterName)
+
+        return self._list_all(
+            api_call=list_fargate_profiles_call, response_key="fargateProfileNames", verbose=verbose
+        )
 
     def _list_all(self, api_call: Callable, response_key: str, verbose: bool) -> List:
         """

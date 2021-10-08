@@ -60,3 +60,27 @@ class TestAwsGlueJobOperator(unittest.TestCase):
         glue.execute(None)
         mock_initialize_job.assert_called_once_with({}, {})
         assert glue.job_name == 'my_test_job'
+
+    @mock.patch.object(AwsGlueJobHook, 'job_completion')
+    @mock.patch.object(AwsGlueJobHook, 'initialize_job')
+    @mock.patch.object(AwsGlueJobHook, "get_conn")
+    @mock.patch.object(S3Hook, "load_file")
+    def test_execute_without_waiting_for_completion(
+        self, mock_load_file, mock_get_conn, mock_initialize_job, mock_job_completion
+    ):
+        glue = AwsGlueJobOperator(
+            task_id='test_glue_operator',
+            job_name='my_test_job',
+            script_location='s3://glue-examples/glue-scripts/sample_aws_glue_job.py',
+            aws_conn_id='aws_default',
+            region_name='us-west-2',
+            s3_bucket='some_bucket',
+            iam_role_name='my_test_role',
+            wait_for_completion=False,
+        )
+        mock_initialize_job.return_value = {'JobRunState': 'RUNNING', 'JobRunId': '11111'}
+        job_run_id = glue.execute(None)
+        mock_initialize_job.assert_called_once_with({}, {})
+        mock_job_completion.assert_not_called()
+        assert glue.job_name == 'my_test_job'
+        assert job_run_id == '11111'

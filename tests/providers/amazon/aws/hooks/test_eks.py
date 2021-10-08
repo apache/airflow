@@ -41,6 +41,11 @@ from moto.eks.models import (
     CLUSTER_IN_USE_MSG,
     CLUSTER_NOT_FOUND_MSG,
     CLUSTER_NOT_READY_MSG,
+    FARGATE_PROFILE_EXISTS_MSG,
+    FARGATE_PROFILE_NEEDS_SELECTOR_MSG,
+    FARGATE_PROFILE_NOT_FOUND_MSG,
+    FARGATE_PROFILE_SELECTOR_NEEDS_NAMESPACE,
+    FARGATE_PROFILE_TOO_MANY_LABELS,
     LAUNCH_TEMPLATE_WITH_DISK_SIZE_MSG,
     LAUNCH_TEMPLATE_WITH_REMOTE_ACCESS_MSG,
     NODEGROUP_EXISTS_MSG,
@@ -51,20 +56,26 @@ from airflow.providers.amazon.aws.hooks.eks import EKSHook
 
 from ..utils.eks_test_constants import (
     DEFAULT_CONN_ID,
+    DEFAULT_NAMESPACE,
     DISK_SIZE,
     FROZEN_TIME,
     INSTANCE_TYPES,
     LAUNCH_TEMPLATE,
+    MAX_FARGATE_LABELS,
     NON_EXISTING_CLUSTER_NAME,
+    NON_EXISTING_FARGATE_PROFILE_NAME,
     NON_EXISTING_NODEGROUP_NAME,
     PACKAGE_NOT_PRESENT_MSG,
     PARTITION,
+    POD_EXECUTION_ROLE_ARN,
     REGION,
     REMOTE_ACCESS,
     BatchCountSize,
     ClusterAttributes,
     ClusterInputs,
     ErrorAttributes,
+    FargateProfileAttributes,
+    FargateProfileInputs,
     NodegroupAttributes,
     NodegroupInputs,
     PossibleTestResults,
@@ -74,6 +85,8 @@ from ..utils.eks_test_constants import (
 from ..utils.eks_test_utils import (
     attributes_to_test,
     generate_clusters,
+    generate_dict,
+    generate_fargate_profiles,
     generate_nodegroups,
     iso_date,
     region_matches_partition,
@@ -93,7 +106,7 @@ def cluster_builder():
         """A Factory class for building the Cluster objects."""
 
         def __init__(self, count: int, minimal: bool) -> None:
-            # Generate 'count' number of random Cluster objects.
+            # Generate 'count' number of Cluster objects.
             self.cluster_names: List[str] = generate_clusters(
                 eks_hook=eks_hook, num_clusters=count, minimal=minimal
             )
@@ -126,18 +139,65 @@ def cluster_builder():
 
 
 @pytest.fixture(scope="function")
+def fargate_profile_builder(cluster_builder):
+    """A fixture to generate a batch of EKS Fargate profiles on the mocked backend for testing."""
+
+    class FargateProfileTestDataFactory:
+        """A Factory class for building the Fargate profile objects."""
+
+        def __init__(self, count: int, minimal: bool) -> None:
+            self.cluster_name = cluster.existing_cluster_name
+
+            # Generate 'count' number of FargateProfile objects.
+            self.fargate_profile_names = generate_fargate_profiles(
+                eks_hook=eks_hook,
+                cluster_name=self.cluster_name,
+                num_profiles=count,
+                minimal=minimal,
+            )
+
+            # Get the name of the first generated profile.
+            self.existing_fargate_profile_name: str = self.fargate_profile_names[0]
+            self.nonexistent_fargate_profile_name: str = NON_EXISTING_FARGATE_PROFILE_NAME
+            self.nonexistent_cluster_name: str = NON_EXISTING_CLUSTER_NAME
+
+            # Collect the output of describe_fargate_profiles() for the first profile.
+            self.fargate_describe_output: Dict = eks_hook.describe_fargate_profile(
+                clusterName=self.cluster_name, fargateProfileName=self.existing_fargate_profile_name
+            )[ResponseAttributes.FARGATE_PROFILE]
+
+            # Generate a list of the Fargate Profile attributes to be tested when validating results.
+            self.attributes_to_test: List[Tuple] = attributes_to_test(
+                inputs=FargateProfileInputs,
+                cluster_name=self.cluster_name,
+                fargate_profile_name=self.existing_fargate_profile_name,
+            )
+
+    def _execute(
+        count: Optional[int] = 1, minimal: Optional[bool] = True
+    ) -> Tuple[EKSHook, FargateProfileTestDataFactory]:
+        return eks_hook, FargateProfileTestDataFactory(count=count, minimal=minimal)
+
+    eks_hook, cluster = cluster_builder()
+    return _execute
+
+
+@pytest.fixture(scope="function")
 def nodegroup_builder(cluster_builder):
-    """A fixture to generate a batch of EKSManaged Nodegroups on the mocked backend for testing."""
+    """A fixture to generate a batch of EKS Managed Nodegroups on the mocked backend for testing."""
 
     class NodegroupTestDataFactory:
-        """A Factory class for building the Cluster objects."""
+        """A Factory class for building the Nodegroup objects."""
 
         def __init__(self, count: int, minimal: bool) -> None:
             self.cluster_name: str = cluster.existing_cluster_name
 
-            # Generate 'count' number of random Nodegroup objects.
+            # Generate 'count' number of Nodegroup objects.
             self.nodegroup_names: List[str] = generate_nodegroups(
-                eks_hook=eks_hook, cluster_name=self.cluster_name, num_nodegroups=count, minimal=minimal
+                eks_hook=eks_hook,
+                cluster_name=self.cluster_name,
+                num_nodegroups=count,
+                minimal=minimal,
             )
 
             # Get the name of the first generated Nodegroup.
@@ -712,6 +772,399 @@ class TestEKSHooks:
                     expected_msg=expected_message,
                     raised_exception=raised_exception,
                 )
+
+    def test_list_fargate_profiles_returns_empty_by_default(self, cluster_builder) -> None:
+        eks_hook, generated_test_data = cluster_builder()
+
+        result: List = eks_hook.list_fargate_profiles(clusterName=generated_test_data.existing_cluster_name)
+
+        assert isinstance(result, list)
+        assert len(result) == 0
+
+    def test_list_fargate_profiles_returns_sorted_profile_names(
+        self, fargate_profile_builder, initial_batch_size: int = BatchCountSize.SMALL
+    ) -> None:
+        eks_hook, generated_test_data = fargate_profile_builder(count=initial_batch_size)
+        expected_result: List = sorted(generated_test_data.fargate_profile_names)
+
+        result: List = eks_hook.list_fargate_profiles(clusterName=generated_test_data.cluster_name)
+
+        assert_result_matches_expected_list(result, expected_result, initial_batch_size)
+
+    def test_list_fargate_profiles_returns_all_results(
+        self, fargate_profile_builder, initial_batch_size: int = BatchCountSize.LARGE
+    ) -> None:
+        eks_hook, generated_test_data = fargate_profile_builder(count=initial_batch_size)
+        expected_result: List = sorted(generated_test_data.fargate_profile_names)
+
+        result: List = eks_hook.list_fargate_profiles(clusterName=generated_test_data.cluster_name)
+
+        assert_result_matches_expected_list(result, expected_result)
+
+    @mock_eks
+    def test_create_fargate_profile_throws_exception_when_cluster_not_found(self) -> None:
+        eks_hook: EKSHook = EKSHook(aws_conn_id=DEFAULT_CONN_ID, region_name=REGION)
+        non_existent_cluster_name: str = NON_EXISTING_CLUSTER_NAME
+        non_existent_fargate_profile_name: str = NON_EXISTING_FARGATE_PROFILE_NAME
+        expected_exception: Type[AWSError] = ResourceNotFoundException
+        expected_msg: str = CLUSTER_NOT_FOUND_MSG.format(clusterName=non_existent_cluster_name)
+
+        with pytest.raises(ClientError) as raised_exception:
+            eks_hook.create_fargate_profile(
+                clusterName=non_existent_cluster_name,
+                fargateProfileName=non_existent_fargate_profile_name,
+                **dict(FargateProfileInputs.REQUIRED),
+            )
+
+        assert_client_error_exception_thrown(
+            expected_exception=expected_exception,
+            expected_msg=expected_msg,
+            raised_exception=raised_exception,
+        )
+
+    def test_create_fargate_profile_throws_exception_when_fargate_profile_already_exists(
+        self, fargate_profile_builder, initial_batch_size: int = BatchCountSize.SMALL
+    ) -> None:
+        eks_hook, generated_test_data = fargate_profile_builder(count=initial_batch_size)
+        expected_exception: Type[AWSError] = ResourceInUseException
+        expected_msg: str = FARGATE_PROFILE_EXISTS_MSG
+
+        with pytest.raises(ClientError) as raised_exception:
+            eks_hook.create_fargate_profile(
+                clusterName=generated_test_data.cluster_name,
+                fargateProfileName=generated_test_data.existing_fargate_profile_name,
+                **dict(FargateProfileInputs.REQUIRED),
+            )
+
+        assert_client_error_exception_thrown(
+            expected_exception=expected_exception,
+            expected_msg=expected_msg,
+            raised_exception=raised_exception,
+        )
+        # Verify no new Fargate profile was created.
+        fargate_profile_count_after_test: int = len(
+            eks_hook.list_fargate_profiles(clusterName=generated_test_data.cluster_name)
+        )
+        assert fargate_profile_count_after_test == initial_batch_size
+
+    def test_create_fargate_profile_throws_exception_when_cluster_not_active(
+        self, fargate_profile_builder, initial_batch_size: int = BatchCountSize.SMALL
+    ) -> None:
+        eks_hook, generated_test_data = fargate_profile_builder(count=initial_batch_size)
+        non_existent_fargate_profile_name: str = NON_EXISTING_FARGATE_PROFILE_NAME
+        expected_exception: Type[AWSError] = InvalidRequestException
+        expected_msg: str = CLUSTER_NOT_READY_MSG.format(
+            clusterName=generated_test_data.cluster_name,
+        )
+
+        with mock.patch("moto.eks.models.Cluster.isActive", return_value=False):
+            with pytest.raises(ClientError) as raised_exception:
+                eks_hook.create_fargate_profile(
+                    clusterName=generated_test_data.cluster_name,
+                    fargateProfileName=non_existent_fargate_profile_name,
+                    **dict(FargateProfileInputs.REQUIRED),
+                )
+
+        assert_client_error_exception_thrown(
+            expected_exception=expected_exception,
+            expected_msg=expected_msg,
+            raised_exception=raised_exception,
+        )
+        # Verify no new Fargate profile was created.
+        fargate_profile_count_after_test: int = len(
+            eks_hook.list_fargate_profiles(clusterName=generated_test_data.cluster_name)
+        )
+        assert fargate_profile_count_after_test == initial_batch_size
+
+    def test_create_fargate_profile_generates_valid_profile_arn(self, fargate_profile_builder) -> None:
+        _, generated_test_data = fargate_profile_builder()
+        expected_arn_values: List = [
+            PARTITION,
+            REGION,
+            ACCOUNT_ID,
+            generated_test_data.cluster_name,
+            generated_test_data.fargate_profile_names,
+            None,
+        ]
+
+        assert_all_arn_values_are_valid(
+            expected_arn_values=expected_arn_values,
+            pattern=RegExTemplates.FARGATE_PROFILE_ARN,
+            arn_under_test=generated_test_data.fargate_describe_output[FargateProfileAttributes.ARN],
+        )
+
+    @freeze_time(FROZEN_TIME)
+    def test_create_fargate_profile_generates_valid_created_timestamp(self, fargate_profile_builder) -> None:
+        _, generated_test_data = fargate_profile_builder()
+
+        result_time: str = generated_test_data.fargate_describe_output[FargateProfileAttributes.CREATED_AT]
+
+        assert iso_date(result_time) == FROZEN_TIME
+
+    def test_create_fargate_profile_saves_provided_parameters(self, fargate_profile_builder) -> None:
+        _, generated_test_data = fargate_profile_builder(minimal=False)
+
+        for key, expected_value in generated_test_data.attributes_to_test:
+            assert generated_test_data.fargate_describe_output[key] == expected_value
+
+    def test_describe_fargate_profile_throws_exception_when_cluster_not_found(
+        self, fargate_profile_builder
+    ) -> None:
+        eks_hook, generated_test_data = fargate_profile_builder()
+        expected_exception: Type[AWSError] = ResourceNotFoundException
+        expected_msg: str = CLUSTER_NOT_FOUND_MSG.format(
+            clusterName=generated_test_data.nonexistent_cluster_name,
+        )
+
+        with pytest.raises(ClientError) as raised_exception:
+            eks_hook.describe_fargate_profile(
+                clusterName=generated_test_data.nonexistent_cluster_name,
+                fargateProfileName=generated_test_data.existing_fargate_profile_name,
+            )
+
+        assert_client_error_exception_thrown(
+            expected_exception=expected_exception,
+            expected_msg=expected_msg,
+            raised_exception=raised_exception,
+        )
+
+    def test_describe_fargate_profile_throws_exception_when_profile_not_found(
+        self, fargate_profile_builder
+    ) -> None:
+        client, generated_test_data = fargate_profile_builder()
+        expected_exception: Type[AWSError] = ResourceNotFoundException
+        expected_msg: str = FARGATE_PROFILE_NOT_FOUND_MSG.format(
+            fargateProfileName=generated_test_data.nonexistent_fargate_profile_name,
+        )
+
+        with pytest.raises(ClientError) as raised_exception:
+            client.describe_fargate_profile(
+                clusterName=generated_test_data.cluster_name,
+                fargateProfileName=generated_test_data.nonexistent_fargate_profile_name,
+            )
+
+        assert_client_error_exception_thrown(
+            expected_exception=expected_exception,
+            expected_msg=expected_msg,
+            raised_exception=raised_exception,
+        )
+
+    def test_delete_fargate_profile_removes_deleted_fargate_profile(
+        self, fargate_profile_builder, initial_batch_size: int = BatchCountSize.SMALL
+    ) -> None:
+        eks_hook, generated_test_data = fargate_profile_builder(initial_batch_size)
+
+        eks_hook.delete_fargate_profile(
+            clusterName=generated_test_data.cluster_name,
+            fargateProfileName=generated_test_data.existing_fargate_profile_name,
+        )
+        result_fargate_profile_list: List = eks_hook.list_fargate_profiles(
+            clusterName=generated_test_data.cluster_name
+        )
+
+        assert len(result_fargate_profile_list) == (initial_batch_size - 1)
+        assert generated_test_data.existing_fargate_profile_name not in result_fargate_profile_list
+
+    def test_delete_fargate_profile_returns_deleted_fargate_profile(
+        self, fargate_profile_builder, initial_batch_size: int = BatchCountSize.SMALL
+    ) -> None:
+        eks_hook, generated_test_data = fargate_profile_builder(count=initial_batch_size, minimal=False)
+
+        result: Dict = eks_hook.delete_fargate_profile(
+            clusterName=generated_test_data.cluster_name,
+            fargateProfileName=generated_test_data.existing_fargate_profile_name,
+        )[ResponseAttributes.FARGATE_PROFILE]
+
+        for key, expected_value in generated_test_data.attributes_to_test:
+            assert result[key] == expected_value
+
+    def test_delete_fargate_profile_throws_exception_when_cluster_not_found(
+        self, fargate_profile_builder
+    ) -> None:
+        eks_hook, generated_test_data = fargate_profile_builder()
+        expected_exception: Type[AWSError] = ResourceNotFoundException
+        expected_msg: str = CLUSTER_NOT_FOUND_MSG.format(
+            clusterName=generated_test_data.nonexistent_cluster_name,
+        )
+
+        with pytest.raises(ClientError) as raised_exception:
+            eks_hook.delete_fargate_profile(
+                clusterName=generated_test_data.nonexistent_cluster_name,
+                fargateProfileName=generated_test_data.existing_fargate_profile_name,
+            )
+
+        assert_client_error_exception_thrown(
+            expected_exception=expected_exception,
+            expected_msg=expected_msg,
+            raised_exception=raised_exception,
+        )
+
+    def test_delete_fargate_profile_throws_exception_when_fargate_profile_not_found(
+        self, fargate_profile_builder, initial_batch_size: int = BatchCountSize.SMALL
+    ) -> None:
+        eks_hook, generated_test_data = fargate_profile_builder(count=initial_batch_size)
+        expected_exception: Type[AWSError] = ResourceNotFoundException
+        expected_msg: str = FARGATE_PROFILE_NOT_FOUND_MSG.format(
+            fargateProfileName=generated_test_data.nonexistent_fargate_profile_name,
+        )
+
+        with pytest.raises(ClientError) as raised_exception:
+            eks_hook.delete_fargate_profile(
+                clusterName=generated_test_data.cluster_name,
+                fargateProfileName=generated_test_data.nonexistent_fargate_profile_name,
+            )
+
+        assert_client_error_exception_thrown(
+            expected_exception=expected_exception,
+            expected_msg=expected_msg,
+            raised_exception=raised_exception,
+        )
+        # Verify no new Fargate profile was created.
+        fargate_profile_count_after_test: int = len(
+            eks_hook.list_fargate_profiles(clusterName=generated_test_data.cluster_name)
+        )
+        assert fargate_profile_count_after_test == initial_batch_size
+
+    # The following Selector test cases have all been verified against the AWS API using cURL.
+    selector_formatting_test_cases = [
+        # Format is ([Selector(s), expected_message, expected_result])
+        # Happy Paths
+        # Selector with a Namespace and no Labels
+        (
+            [{FargateProfileAttributes.NAMESPACE: DEFAULT_NAMESPACE}],
+            None,
+            PossibleTestResults.SUCCESS,
+        ),
+        # Selector with a Namespace and an empty collection of Labels
+        (
+            [
+                {
+                    FargateProfileAttributes.NAMESPACE: DEFAULT_NAMESPACE,
+                    FargateProfileAttributes.LABELS: generate_dict("label", 0),
+                }
+            ],
+            None,
+            PossibleTestResults.SUCCESS,
+        ),
+        # Selector with a Namespace and one valid Label
+        (
+            [
+                {
+                    FargateProfileAttributes.NAMESPACE: DEFAULT_NAMESPACE,
+                    FargateProfileAttributes.LABELS: generate_dict("label", 1),
+                }
+            ],
+            None,
+            PossibleTestResults.SUCCESS,
+        ),
+        # Selector with a Namespace and the maximum number of Labels
+        (
+            [
+                {
+                    FargateProfileAttributes.NAMESPACE: DEFAULT_NAMESPACE,
+                    FargateProfileAttributes.LABELS: generate_dict("label", MAX_FARGATE_LABELS),
+                }
+            ],
+            None,
+            PossibleTestResults.SUCCESS,
+        ),
+        # Two valid Selectors
+        (
+            [
+                {FargateProfileAttributes.NAMESPACE: DEFAULT_NAMESPACE},
+                {FargateProfileAttributes.NAMESPACE: f'{DEFAULT_NAMESPACE}_2'},
+            ],
+            None,
+            PossibleTestResults.SUCCESS,
+        ),
+        # Unhappy Cases
+        # No Selectors provided
+        ([], FARGATE_PROFILE_NEEDS_SELECTOR_MSG, PossibleTestResults.FAILURE),
+        # Empty Selector / Selector without a Namespace or Labels
+        ([{}], FARGATE_PROFILE_SELECTOR_NEEDS_NAMESPACE, PossibleTestResults.FAILURE),
+        # Selector with labels but no Namespace
+        (
+            [{FargateProfileAttributes.LABELS: generate_dict("label", 1)}],
+            FARGATE_PROFILE_SELECTOR_NEEDS_NAMESPACE,
+            PossibleTestResults.FAILURE,
+        ),
+        # Selector with Namespace but too many Labels
+        (
+            [
+                {
+                    FargateProfileAttributes.NAMESPACE: DEFAULT_NAMESPACE,
+                    FargateProfileAttributes.LABELS: generate_dict("label", MAX_FARGATE_LABELS + 1),
+                }
+            ],
+            FARGATE_PROFILE_TOO_MANY_LABELS,
+            PossibleTestResults.FAILURE,
+        ),
+        # Valid Selector followed by Empty Selector
+        (
+            [{FargateProfileAttributes.NAMESPACE: DEFAULT_NAMESPACE}, {}],
+            FARGATE_PROFILE_SELECTOR_NEEDS_NAMESPACE,
+            PossibleTestResults.FAILURE,
+        ),
+        # Empty Selector followed by Valid Selector
+        (
+            [{}, {FargateProfileAttributes.NAMESPACE: DEFAULT_NAMESPACE}],
+            FARGATE_PROFILE_SELECTOR_NEEDS_NAMESPACE,
+            PossibleTestResults.FAILURE,
+        ),
+        # Empty Selector followed by Empty Selector
+        ([{}, {}], FARGATE_PROFILE_SELECTOR_NEEDS_NAMESPACE, PossibleTestResults.FAILURE),
+        # Valid Selector followed by Selector with Namespace but too many Labels
+        (
+            [
+                {FargateProfileAttributes.NAMESPACE: DEFAULT_NAMESPACE},
+                {
+                    FargateProfileAttributes.NAMESPACE: DEFAULT_NAMESPACE,
+                    FargateProfileAttributes.LABELS: generate_dict("label", MAX_FARGATE_LABELS + 1),
+                },
+            ],
+            FARGATE_PROFILE_TOO_MANY_LABELS,
+            PossibleTestResults.FAILURE,
+        ),
+    ]
+
+    @pytest.mark.parametrize(
+        "selectors, expected_message, expected_result",
+        selector_formatting_test_cases,
+    )
+    @mock_eks
+    def test_create_fargate_selectors(self, cluster_builder, selectors, expected_message, expected_result):
+        client, generated_test_data = cluster_builder()
+        cluster_name: str = generated_test_data.existing_cluster_name
+        fargate_profile_name: str = NON_EXISTING_FARGATE_PROFILE_NAME
+        expected_exception: Type[AWSError] = InvalidParameterException
+
+        test_inputs = dict(
+            deepcopy(
+                # Required Constants
+                [POD_EXECUTION_ROLE_ARN]
+                # Required Variables
+                + [
+                    (ClusterAttributes.CLUSTER_NAME, cluster_name),
+                    (FargateProfileAttributes.FARGATE_PROFILE_NAME, fargate_profile_name),
+                ]
+                # Test Case Values
+                + [(FargateProfileAttributes.SELECTORS, selectors)]
+            )
+        )
+
+        if expected_result == PossibleTestResults.SUCCESS:
+            result: List = client.create_fargate_profile(**test_inputs)[ResponseAttributes.FARGATE_PROFILE]
+            for key, expected_value in test_inputs.items():
+                assert result[key] == expected_value
+        else:
+            with pytest.raises(ClientError) as raised_exception:
+                client.create_fargate_profile(**test_inputs)
+
+            assert_client_error_exception_thrown(
+                expected_exception=expected_exception,
+                expected_msg=expected_message,
+                raised_exception=raised_exception,
+            )
 
 
 class TestEKSHook:
