@@ -22,6 +22,8 @@
 import datetime
 
 from flask import g
+from flask_appbuilder._compat import as_unicode
+from flask_appbuilder.models.sqla import Model
 from sqlalchemy import (
     Boolean,
     Column,
@@ -35,9 +37,6 @@ from sqlalchemy import (
 )
 from sqlalchemy.ext.declarative import declared_attr
 from sqlalchemy.orm import backref, relationship
-
-from flask_appbuilder.models.sqla import Model
-from flask_appbuilder._compat import as_unicode
 
 _dont_audit = False
 
@@ -81,9 +80,7 @@ class Role(Model):
 
     id = Column(Integer, Sequence("ab_role_id_seq"), primary_key=True)
     name = Column(String(64), unique=True, nullable=False)
-    permissions = relationship(
-        "PermissionView", secondary=assoc_permissionview_role, backref="role"
-    )
+    permissions = relationship("PermissionView", secondary=assoc_permissionview_role, backref="role")
 
     def __repr__(self):
         return self.name
@@ -130,15 +127,11 @@ class User(Model):
 
     @declared_attr
     def created_by_fk(self):
-        return Column(
-            Integer, ForeignKey("ab_user.id"), default=self.get_user_id, nullable=True
-        )
+        return Column(Integer, ForeignKey("ab_user.id"), default=self.get_user_id, nullable=True)
 
     @declared_attr
     def changed_by_fk(self):
-        return Column(
-            Integer, ForeignKey("ab_user.id"), default=self.get_user_id, nullable=True
-        )
+        return Column(Integer, ForeignKey("ab_user.id"), default=self.get_user_id, nullable=True)
 
     created_by = relationship(
         "User",
@@ -178,7 +171,7 @@ class User(Model):
         return as_unicode(self.id)
 
     def get_full_name(self):
-        return u"{0} {1}".format(self.first_name, self.last_name)
+        return f"{self.first_name} {self.last_name}"
 
     def __repr__(self):
         return self.get_full_name()
