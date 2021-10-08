@@ -41,6 +41,7 @@ integrations:
 operators:
   - integration-name: Salesforce
     python-modules:
+      - airflow.providers.salesforce.operators.salesforce_apex_rest
       - airflow.providers.salesforce.operators.tableau_refresh_workbook
 
 sensors:

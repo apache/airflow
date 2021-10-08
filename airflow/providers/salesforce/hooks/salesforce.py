@@ -171,9 +171,7 @@ class SalesforceHook(BaseHook):
         query_params = query_params or {}
         query_results = conn.query_all(query, include_deleted=include_deleted, **query_params)
 
-        self.log.info(
-            "Received results: Total size: %s; Done: %s", query_results['totalSize'], query_results['done']
-        )
+        self.log.info("Received results: Total size: {totalSize}; Done: {done}".format(query_results))
 
         return query_results
 
@@ -201,8 +199,6 @@ class SalesforceHook(BaseHook):
         :return: the names of the fields.
         :rtype: list(str)
         """
-        self.get_conn()
-
         obj_description = self.describe_object(obj)
 
         return [field['name'] for field in obj_description['fields']]
