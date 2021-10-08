@@ -36,7 +36,7 @@ integrations:
   - integration-name: Salesforce
     external-doc-url: https://www.salesforce.com/
     how-to-guide:
-      - /docs/apache-airflow-providers-salesforce/operators/index.rst
+      - /docs/apache-airflow-providers-salesforce/operators/salesforce_apex_rest.rst
     logo: /integration-logos/salesforce/Salesforce.png
     tags: [service]
 
