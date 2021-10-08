@@ -806,9 +806,7 @@ def test_get_logs_with_metadata_failure(dag_faker_client):
 
 @pytest.fixture(scope="module")
 def user_no_roles(acl_app):
-    with create_user_scope(acl_app,
-                           username="no_roles_user",
-                           role_name="no_roles_user_role") as user:
+    with create_user_scope(acl_app, username="no_roles_user", role_name="no_roles_user_role") as user:
         user.roles = []
         yield user
 
