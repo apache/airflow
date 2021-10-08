@@ -1,4 +1,4 @@
-Airflow 2.2.0b2, TBD
+Airflow 2.2.0, 2021-10-11
 -------------------------
 
 New Features
@@ -6,7 +6,7 @@ New Features
 
 - AIP-39: Add (customizable) Timetable class to Airflow for richer scheduling behaviour (#15397, #16030,
   #16352, #17030, #17122, #17414, #17552, #17755, #17989, #18084, #18088, #18244, #18266, #18420, #18434,
-  #18421, #18475, #18499, #18573, #18522, #18729, #18706, #18742, #18786)
+  #18421, #18475, #18499, #18573, #18522, #18729, #18706, #18742, #18786, #18804)
 - AIP-40: Add Deferrable "Async" Tasks (#15389, #17564, #17565, #17601, #17745, #17747, #17748, #17875,
   #17876, #18129, #18210, #18214, #18552, #18728, #18414)
 - Add a Docker Taskflow decorator (#15330, #18739)
@@ -212,10 +212,13 @@ Bug Fixes
 - Fix TI success/failure links (#16233)
 - Correctly implement autocomplete early return in ``airflow/www/views.py`` (#15940)
 - Backport fix to allow pickling of Loggers to Python 3.6 (#18798)
-- Fix bug that Backfill job fail to run when there are tasks run into ``reschedule`` state (#17305)
+- Fix bug that Backfill job fail to run when there are tasks run into ``reschedule`` state (#17305, #18806)
 
 Doc only changes
 """"""""""""""""
+- Update ``dagbag_size`` documentation (#18824)
+- Update documentation about bundle extras (#18828)
+- Fix wrong Postgres ``search_path`` set up instructions (#17600)
 - Remove ``AIRFLOW_GID`` from Docker images (#18747)
 - Improve error message for BranchPythonOperator when no task_id to follow (#18471)
 - Improve guidance to users telling them what to do on import timeout (#18478)
