@@ -105,6 +105,8 @@ integrations:
   - integration-name: Amazon Redshift
     external-doc-url: https://aws.amazon.com/redshift/
     logo: /integration-logos/aws/Amazon-Redshift_light-bg@4x.png
+    how-to-guide:
+      - /docs/apache-airflow-providers-amazon/operators/redshift.rst
     tags: [aws]
   - integration-name: Amazon SageMaker
     external-doc-url: https://aws.amazon.com/sagemaker/
@@ -242,6 +244,9 @@ operators:
     python-modules:
       - airflow.providers.amazon.aws.operators.step_function_get_execution_output
       - airflow.providers.amazon.aws.operators.step_function_start_execution
+  - integration-name: Amazon Redshift
+    python-modules:
+      - airflow.providers.amazon.aws.operators.redshift
 
 sensors:
   - integration-name: Amazon Athena
@@ -442,6 +447,7 @@ hook-class-names:  # deprecated - to be removed after providers add dependency o
   - airflow.providers.amazon.aws.hooks.s3.S3Hook
   - airflow.providers.amazon.aws.hooks.base_aws.AwsBaseHook
   - airflow.providers.amazon.aws.hooks.emr.EmrHook
+  - airflow.providers.amazon.aws.hooks.redshift.RedshiftSQLHook
 
 extra-links:
   - airflow.providers.amazon.aws.operators.emr_create_job_flow.EmrClusterLink
@@ -453,6 +459,8 @@ connection-types:
     connection-type: aws
   - hook-class-name: airflow.providers.amazon.aws.hooks.emr.EmrHook
     connection-type: emr
+  - hook-class-name: airflow.providers.amazon.aws.hooks.redshift.RedshiftSQLHook
+    connection-type: redshift
 
 secrets-backends:
   - airflow.providers.amazon.aws.secrets.secrets_manager.SecretsManagerBackend
