@@ -3430,7 +3430,11 @@ class ConnectionModelView(AirflowModelView):
                 if connection_id not in found_conn_id_set:
                     possible_conn_ids.append(connection_id)
 
-            possible_conn_id_iter = iter(possible_conn_ids)
+            possible_conn_id_iter = (
+                connection_id
+                for connection_id in potential_connection_ids
+                if connection_id not in found_conn_id_set
+            )
             try:
                 new_conn_id = next(possible_conn_id_iter)
             except StopIteration:

@@ -175,7 +175,6 @@ def test_duplicate_connection_error(admin_client):
     with create_session() as session:
         session.query(Connection).delete()
         session.add_all(connections)
-        session.commit()
 
     data = {"action": "mulduplicate", "rowid": [conn1.id]}
     resp = admin_client.post('/connection/action_post', data=data, follow_redirects=True)
