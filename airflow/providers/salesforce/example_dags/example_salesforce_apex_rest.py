@@ -14,6 +14,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from datetime import datetime
 
 from airflow import DAG
 from airflow.providers.salesforce.operators.salesforce_apex_rest import SalesforceApexRestOperator
@@ -21,6 +22,7 @@ from airflow.providers.salesforce.operators.salesforce_apex_rest import Salesfor
 with DAG(
     dag_id="salesforce_apex_rest_operator_dag",
     schedule_interval=None,
+    start_date=datetime(2021, 1, 1),
     catchup=False,
 ) as dag:
 
