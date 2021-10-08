@@ -125,8 +125,9 @@ def patch_role(role_name, update_mask=None):
         ]
         _check_action_and_resource(security_manager, perms)
         security_manager.bulk_sync_roles([{"role": role_name, "perms": perms}])
-    if "name" in data:
-        security_manager.update_role(role_id=role.id, name=data["name"])
+    new_name = data.get("name")
+    if new_name is not None and new_name != role.name:
+        security_manager.update_role(role_id=role.id, name=new_name)
     return role_schema.dump(role)
 
 
