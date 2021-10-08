@@ -36,7 +36,7 @@ class PagerdutyHook(BaseHook):
     https://support.pagerduty.com/docs/generating-api-keys#generating-a-personal-rest-api-key
 
     In order to send events (with the Pagerduty Events API), you will also need to specify the
-    routing_key in the ``extra`` field
+    routing_key (or Integration key) in the ``extra`` field
 
     :param token: PagerDuty API token
     :param pagerduty_conn_id: connection that has PagerDuty API token in the password field
@@ -176,7 +176,7 @@ class PagerdutyEventsHook(BaseHook):
     This class can be used to interact with the Pagerduty Events API.
 
     It takes both an Events API token and a PagerDuty connection with the Events API token
-     (i.e. Integration key) as the password. If both supplied, the token will be used.
+     (i.e. Integration key) as the password/Pagerduty API token. If both supplied, the token will be used.
 
     :param integration_key: PagerDuty Events API token
     :param pagerduty_conn_id: connection that has PagerDuty integration key in the Pagerduty API token field
