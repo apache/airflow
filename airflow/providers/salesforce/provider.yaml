@@ -35,6 +35,8 @@ additional-dependencies:
 integrations:
   - integration-name: Salesforce
     external-doc-url: https://www.salesforce.com/
+    how-to-guide:
+      - /docs/apache-airflow-providers-salesforce/operators/index.rst
     logo: /integration-logos/salesforce/Salesforce.png
     tags: [service]
 

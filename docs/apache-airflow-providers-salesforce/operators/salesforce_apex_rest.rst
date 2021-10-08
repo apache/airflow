@@ -34,5 +34,5 @@ the body content encoded with ``json.dumps``
     :start-after: [START howto_salesforce_apex_rest_operator]
     :end-before: [END howto_salesforce_apex_rest_operator]
 
-You can read more about Apex on the 
+You can read more about Apex on the
 `Force.com Apex Code Developer's Guide <https://developer.salesforce.com/docs/atlas.en-us.apexcode.meta/apexcode/apex_dev_guide.htm>`__.
