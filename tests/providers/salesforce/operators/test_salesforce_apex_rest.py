@@ -26,8 +26,8 @@ class TestSalesforceApexRestOperator(unittest.TestCase):
     Test class for SalesforceApexRestOperator
     """
 
-    @patch('airflow.providers.salesforce.operators.salesforce_apex_rest.SalesforceHook')
-    def test_execute_salesforce_apex_rest(self, mock_hook):
+    @patch('airflow.providers.salesforce.operators.salesforce_apex_rest.SalesforceHook.get_conn')
+    def test_execute_salesforce_apex_rest(self, mock_get_conn):
         """
         Test execute apex rest
         """
@@ -36,9 +36,7 @@ class TestSalesforceApexRestOperator(unittest.TestCase):
         method = 'POST'
         payload = {"activity": [{"user": "12345", "action": "update page", "time": "2014-04-21T13:00:15Z"}]}
 
-        mock_conn = Mock()
-        mock_conn.apexecute = Mock(return_value={})
-        mock_hook.get_conn = Mock(return_value=mock_conn)
+        mock_get_conn.return_value.apexecute = Mock()
 
         operator = SalesforceApexRestOperator(
             task_id='task', endpoint=endpoint, method=method, payload=payload
@@ -46,6 +44,6 @@ class TestSalesforceApexRestOperator(unittest.TestCase):
 
         operator.execute(context={})
 
-        mock_conn.apexecute.wait_for_state.assert_called_once_with(
+        mock_get_conn.return_value.apexecute.assert_called_once_with(
             action=endpoint, method=method, data=payload
         )
