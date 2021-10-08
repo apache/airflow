@@ -58,5 +58,5 @@ class TestAwsGlueJobOperator(unittest.TestCase):
         mock_initialize_job.return_value = {'JobRunState': 'RUNNING', 'JobRunId': '11111'}
         mock_get_job_state.return_value = 'SUCCEEDED'
         glue.execute(None)
-        mock_initialize_job.assert_called_once_with({})
+        mock_initialize_job.assert_called_once_with({}, {})
         assert glue.job_name == 'my_test_job'

@@ -47,11 +47,14 @@ class TriggerDagRunOperator(BaseOperator):
     """
     Triggers a DAG run for a specified ``dag_id``
 
-    :param trigger_dag_id: the dag_id to trigger (templated)
+    :param trigger_dag_id: The dag_id to trigger (templated).
     :type trigger_dag_id: str
-    :param conf: Configuration for the DAG run
+    :param trigger_run_id: The run ID to use for the triggered DAG run (templated).
+        If not provided, a run ID will be automatically generated.
+    :type trigger_run_id: str
+    :param conf: Configuration for the DAG run.
     :type conf: dict
-    :param execution_date: Execution date for the dag (templated)
+    :param execution_date: Execution date for the dag (templated).
     :type execution_date: str or datetime.datetime
     :param reset_dag_run: Whether or not clear existing dag run if already exists.
         This is useful when backfill or rerun an existing dag run.
@@ -63,13 +66,13 @@ class TriggerDagRunOperator(BaseOperator):
     :param poke_interval: Poke interval to check dag run status when wait_for_completion=True.
         (default: 60)
     :type poke_interval: int
-    :param allowed_states: list of allowed states, default is ``['success']``
+    :param allowed_states: List of allowed states, default is ``['success']``.
     :type allowed_states: list
-    :param failed_states: list of failed or dis-allowed states, default is ``None``
+    :param failed_states: List of failed or dis-allowed states, default is ``None``.
     :type failed_states: list
     """
 
-    template_fields = ("trigger_dag_id", "execution_date", "conf")
+    template_fields = ("trigger_dag_id", "trigger_run_id", "execution_date", "conf")
     template_fields_renderers = {"conf": "py"}
     ui_color = "#ffefeb"
 
@@ -82,6 +85,7 @@ class TriggerDagRunOperator(BaseOperator):
         self,
         *,
         trigger_dag_id: str,
+        trigger_run_id: Optional[str] = None,
         conf: Optional[Dict] = None,
         execution_date: Optional[Union[str, datetime.datetime]] = None,
         reset_dag_run: bool = False,
@@ -93,6 +97,7 @@ class TriggerDagRunOperator(BaseOperator):
     ) -> None:
         super().__init__(**kwargs)
         self.trigger_dag_id = trigger_dag_id
+        self.trigger_run_id = trigger_run_id
         self.conf = conf
         self.reset_dag_run = reset_dag_run
         self.wait_for_completion = wait_for_completion
@@ -122,10 +127,12 @@ class TriggerDagRunOperator(BaseOperator):
         else:
             execution_date = timezone.utcnow()
 
-        run_id = DagRun.generate_run_id(DagRunType.MANUAL, execution_date)
+        if self.trigger_run_id:
+            run_id = self.trigger_run_id
+        else:
+            run_id = DagRun.generate_run_id(DagRunType.MANUAL, execution_date)
+
         try:
-            # Ignore MyPy type for self.execution_date
-            # because it doesn't pick up the timezone.parse() for strings
             dag_run = trigger_dag(
                 dag_id=self.trigger_dag_id,
                 run_id=run_id,
@@ -133,7 +140,6 @@ class TriggerDagRunOperator(BaseOperator):
                 execution_date=self.execution_date,
                 replace_microseconds=False,
             )
-
         except DagRunAlreadyExists as e:
             if self.reset_dag_run:
                 self.log.info("Clearing %s on %s", self.trigger_dag_id, self.execution_date)
@@ -145,11 +151,8 @@ class TriggerDagRunOperator(BaseOperator):
                     raise DagNotFound(f"Dag id {self.trigger_dag_id} not found in DagModel")
 
                 dag_bag = DagBag(dag_folder=dag_model.fileloc, read_dags_from_db=True)
-
                 dag = dag_bag.get_dag(self.trigger_dag_id)
-
                 dag.clear(start_date=self.execution_date, end_date=self.execution_date)
-
                 dag_run = DagRun.find(dag_id=dag.dag_id, run_id=run_id)[0]
             else:
                 raise e

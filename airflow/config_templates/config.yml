@@ -527,7 +527,7 @@
       version_added: 2.0.0
       type: string
       example: ~
-      default: "WARN"
+      default: "WARNING"
     - name: logging_config_class
       description: |
         Logging class

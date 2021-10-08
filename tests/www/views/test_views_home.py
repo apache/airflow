@@ -51,10 +51,10 @@ def test_home(capture_templates, admin_client):
         check_content_in_response('DAGs', resp)
         val_state_color_mapping = (
             'const STATE_COLOR = {'
-            '"deferred": "lightseagreen", "failed": "red", '
+            '"deferred": "mediumpurple", "failed": "red", '
             '"null": "lightblue", "queued": "gray", '
             '"removed": "lightgrey", "restarting": "violet", "running": "lime", '
-            '"scheduled": "tan", "sensing": "lightseagreen", '
+            '"scheduled": "tan", "sensing": "mediumpurple", '
             '"shutdown": "blue", "skipped": "pink", '
             '"success": "green", "up_for_reschedule": "turquoise", '
             '"up_for_retry": "gold", "upstream_failed": "orange"};'

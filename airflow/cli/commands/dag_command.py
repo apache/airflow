@@ -408,7 +408,15 @@ def dag_test(args, session=None):
     dag = get_dag(subdir=args.subdir, dag_id=args.dag_id)
     dag.clear(start_date=args.execution_date, end_date=args.execution_date, dag_run_state=State.NONE)
     try:
-        dag.run(executor=DebugExecutor(), start_date=args.execution_date, end_date=args.execution_date)
+        dag.run(
+            executor=DebugExecutor(),
+            start_date=args.execution_date,
+            end_date=args.execution_date,
+            # Always run the DAG at least once even if no logical runs are
+            # available. This does not make a lot of sense, but Airflow has
+            # been doing this prior to 2.2 so we keep compatibility.
+            run_at_least_once=True,
+        )
     except BackfillUnfinished as e:
         print(str(e))
 

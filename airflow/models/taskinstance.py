@@ -324,9 +324,9 @@ class TaskInstance(Base, LoggingMixin):
 
     __tablename__ = "task_instance"
 
-    task_id = Column(String(ID_LEN, **COLLATION_ARGS), primary_key=True)
-    dag_id = Column(String(ID_LEN, **COLLATION_ARGS), primary_key=True)
-    run_id = Column(String(ID_LEN, **COLLATION_ARGS), primary_key=True)
+    task_id = Column(String(ID_LEN, **COLLATION_ARGS), primary_key=True, nullable=False)
+    dag_id = Column(String(ID_LEN, **COLLATION_ARGS), primary_key=True, nullable=False)
+    run_id = Column(String(ID_LEN, **COLLATION_ARGS), primary_key=True, nullable=False)
     start_date = Column(UtcDateTime)
     end_date = Column(UtcDateTime)
     duration = Column(Float)

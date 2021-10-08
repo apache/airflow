@@ -52,6 +52,8 @@ class AwsGlueJobOperator(BaseOperator):
     :type iam_role_name: Optional[str]
     :param create_job_kwargs: Extra arguments for Glue Job Creation
     :type create_job_kwargs: Optional[dict]
+    :param run_job_kwargs: Extra arguments for Glue Job Run
+    :type run_job_kwargs: Optional[dict]
     """
 
     template_fields = ('script_args',)
@@ -77,6 +79,7 @@ class AwsGlueJobOperator(BaseOperator):
         s3_bucket: Optional[str] = None,
         iam_role_name: Optional[str] = None,
         create_job_kwargs: Optional[dict] = None,
+        run_job_kwargs: Optional[dict] = None,
         **kwargs,
     ):
         super().__init__(**kwargs)
@@ -94,6 +97,7 @@ class AwsGlueJobOperator(BaseOperator):
         self.s3_protocol = "s3://"
         self.s3_artifacts_prefix = 'artifacts/glue-scripts/'
         self.create_job_kwargs = create_job_kwargs
+        self.run_job_kwargs = run_job_kwargs or {}
 
     def execute(self, context):
         """
@@ -124,7 +128,7 @@ class AwsGlueJobOperator(BaseOperator):
             create_job_kwargs=self.create_job_kwargs,
         )
         self.log.info("Initializing AWS Glue Job: %s", self.job_name)
-        glue_job_run = glue_job.initialize_job(self.script_args)
+        glue_job_run = glue_job.initialize_job(self.script_args, self.run_job_kwargs)
         glue_job_run = glue_job.job_completion(self.job_name, glue_job_run['JobRunId'])
         self.log.info(
             "AWS Glue Job: %s status: %s. Run Id: %s",
