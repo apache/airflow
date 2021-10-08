@@ -2694,6 +2694,7 @@ components:
         name:
           type: string
           description: The name of the role
+          minLength: 1
         actions:
           type: array
           items:

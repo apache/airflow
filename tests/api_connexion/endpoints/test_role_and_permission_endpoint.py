@@ -21,6 +21,7 @@ from parameterized import parameterized
 
 from airflow.api_connexion.exceptions import EXCEPTIONS_LINK_MAP
 from airflow.security import permissions
+from airflow.utils.session import create_session
 from airflow.www.security import EXISTING_ROLES
 from tests.test_utils.api_connexion_utils import (
     assert_401,
@@ -354,6 +355,11 @@ class TestPatchRole(TestRoleEndpoint):
         assert response.status_code == 200
         assert response.json['name'] == expected_name
         assert response.json["actions"] == expected_actions
+
+        with create_session() as session:
+            role_names = {name for name, in session.query(Role.name)}
+        assert expected_name in role_names
+        assert "mytestrole" not in role_names
 
     @parameterized.expand(
         [
