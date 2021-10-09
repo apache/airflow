@@ -2694,7 +2694,7 @@ class TestSchedulerJob:
         session.refresh(run1)
         assert run1.state == State.FAILED
         assert run1_ti.state == State.SKIPPED
-
+        session.flush()
         # Run relevant part of scheduling again to assert run2 has been scheduled
         self.scheduler_job._start_queued_dagruns(session)
         session.flush()
