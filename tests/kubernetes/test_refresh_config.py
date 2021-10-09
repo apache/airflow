@@ -65,8 +65,8 @@ class TestRefreshKubeConfigLoader(TestCase):
 
         assert api_key == '1234'
 
-    @mock.patch('kubernetes.config.exec_provider.ExecProvider.__init__')
-    @mock.patch('kubernetes.config.exec_provider.ExecProvider.run')
+    @mock.patch('kubernetes.config.exec_provider.ExecProvider.__init__', return_value=None)
+    @mock.patch('kubernetes.config.exec_provider.ExecProvider.run', return_value={'token': '1234'})
     def test_refresh_kube_config_loader(self, exec_provider_run, exec_provider_init):
         current_context = _get_kube_config_loader_for_yaml_file('./kube_config').current_context
 
@@ -93,8 +93,7 @@ class TestRefreshKubeConfigLoader(TestCase):
         config_node.__dict__['apiVersion'] = '2.0'
         config_node.__dict__['command'] = 'test'
 
-        exec_provider_init.return_value = None
         refresh_kube_config_loader._user['exec'] = config_node
-        exec_provider_run.return_value = {'token': '1234'}
+
         result = refresh_kube_config_loader._load_from_exec_plugin()
         assert result is not None
