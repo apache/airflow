@@ -179,14 +179,6 @@ class TestHttpSensor:
                 mock.call("This endpoint doesn't exist"),
                 mock.call('HTTP error: %s', 'Not Found'),
                 mock.call("This endpoint doesn't exist"),
-                mock.call('HTTP error: %s', 'Not Found'),
-                mock.call("This endpoint doesn't exist"),
-                mock.call('HTTP error: %s', 'Not Found'),
-                mock.call("This endpoint doesn't exist"),
-                mock.call('HTTP error: %s', 'Not Found'),
-                mock.call("This endpoint doesn't exist"),
-                mock.call('HTTP error: %s', 'Not Found'),
-                mock.call("This endpoint doesn't exist"),
             ]
             mock_errors.assert_has_calls(calls)
 
