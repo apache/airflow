@@ -1416,8 +1416,7 @@ class BaseOperator(Operator, LoggingMixin, TaskMixin, metaclass=BaseOperatorMeta
         for task in task_list:
             if not isinstance(task, BaseOperator):
                 raise AirflowException(
-                    "Relationships can only be set between "
-                    "Operators; received {}".format(task.__class__.__name__)
+                    f"Relationships can only be set between Operators; received {task.__class__.__name__}"
                 )
 
         # relationships can only be set if the tasks share a single DAG. Tasks
@@ -1779,11 +1778,7 @@ def chain(*tasks: Union[Chainable, Sequence[Chainable]]) -> None:
             down_task.set_upstream(up_task)
             continue
         if not isinstance(up_task, Sequence) or not isinstance(down_task, Sequence):
-            raise TypeError(
-                'Chain not supported between instances of {up_type} and {down_type}'.format(
-                    up_type=type(up_task), down_type=type(down_task)
-                )
-            )
+            raise TypeError(f'Chain not supported between instances of {type(up_task)} and {type(down_task)}')
         up_task_list = up_task
         down_task_list = down_task
         if len(up_task_list) != len(down_task_list):

@@ -847,9 +847,7 @@ class TestBackfillJob:
         assert ti.state == State.SUCCESS
 
         # raises backwards
-        expected_msg = 'You cannot backfill backwards because one or more tasks depend_on_past: {}'.format(
-            'test_dop_task'
-        )
+        expected_msg = 'You cannot backfill backwards because one or more tasks depend_on_past: test_dop_task'
         with pytest.raises(AirflowException, match=expected_msg):
             executor = MockExecutor()
             job = BackfillJob(dag=dag, executor=executor, run_backwards=True, **kwargs)

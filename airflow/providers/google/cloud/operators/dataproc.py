@@ -293,9 +293,7 @@ class ClusterGenerator:
 
     def _build_gce_cluster_config(self, cluster_data):
         if self.zone:
-            zone_uri = 'https://www.googleapis.com/compute/v1/projects/{}/zones/{}'.format(
-                self.project_id, self.zone
-            )
+            zone_uri = f'https://www.googleapis.com/compute/v1/projects/{self.project_id}/zones/{self.zone}'
             cluster_data['gce_cluster_config']['zone_uri'] = zone_uri
 
         if self.metadata:

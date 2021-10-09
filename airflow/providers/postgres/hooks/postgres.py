@@ -269,8 +269,5 @@ class PostgresHook(DbApiHook):
             replace_target = [
                 "{0} = excluded.{0}".format(col) for col in target_fields if col not in replace_index_set
             ]
-            sql += " ON CONFLICT ({}) DO UPDATE SET {}".format(
-                ", ".join(replace_index),
-                ", ".join(replace_target),
-            )
+            sql += f" ON CONFLICT ({', '.join(replace_index)}) DO UPDATE SET {', '.join(replace_target)}"
         return sql

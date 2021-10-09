@@ -107,8 +107,7 @@ class HiveCliHook(BaseHook):
             mapred_queue_priority = mapred_queue_priority.upper()
             if mapred_queue_priority not in HIVE_QUEUE_PRIORITIES:
                 raise AirflowException(
-                    "Invalid Mapred Queue Priority.  Valid values are: "
-                    "{}".format(', '.join(HIVE_QUEUE_PRIORITIES))
+                    f"Invalid Mapred Queue Priority.  Valid values are: {', '.join(HIVE_QUEUE_PRIORITIES)}"
                 )
 
         self.mapred_queue = mapred_queue or conf.get('hive', 'default_hive_mapred_queue')

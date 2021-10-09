@@ -874,10 +874,7 @@ class CloudSQLDatabaseHook(BaseHook):
                 format_string = proxy_uris['tcp']
             else:
                 format_string = proxy_uris['socket']
-                socket_path = "{sql_proxy_socket_path}/{instance_socket_name}".format(
-                    sql_proxy_socket_path=self.sql_proxy_unique_path,
-                    instance_socket_name=self._get_instance_socket_name(),
-                )
+                socket_path = f"{self.sql_proxy_unique_path}/{self._get_instance_socket_name()}"
         else:
             public_uris = database_uris['public']  # type: Dict[str, str]
             if self.use_ssl:

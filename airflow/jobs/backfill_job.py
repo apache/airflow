@@ -579,8 +579,7 @@ class BackfillJob(BaseJob):
                         open_slots = pool.open_slots(session=session)
                         if open_slots <= 0:
                             raise NoAvailablePoolSlot(
-                                "Not scheduling since there are "
-                                "{} open slots in pool {}".format(open_slots, task.pool)
+                                f"Not scheduling since there are {open_slots} open slots in pool {task.pool}"
                             )
 
                         num_running_task_instances_in_dag = DAG.get_num_task_instances(

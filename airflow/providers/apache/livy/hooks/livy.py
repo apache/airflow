@@ -236,9 +236,7 @@ class LivyHook(HttpHook, LoggingMixin):
         except requests.exceptions.HTTPError as err:
             self.log.warning("Got status code %d for session %d", err.response.status_code, session_id)
             raise AirflowException(
-                "Could not kill the batch with session id: {}. Message: {}".format(
-                    session_id, err.response.text
-                )
+                f"Could not kill the batch with session id: {session_id}. Message: {err.response.text}"
             )
 
         return response.json()

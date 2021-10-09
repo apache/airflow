@@ -443,9 +443,7 @@ class BigtableCreateTableOperator(BaseOperator, BigtableValidationMixin):
         instance = hook.get_instance(project_id=self.project_id, instance_id=self.instance_id)
         if not instance:
             raise AirflowException(
-                "Dependency: instance '{}' does not exist in project '{}'.".format(
-                    self.instance_id, self.project_id
-                )
+                f"Dependency: instance '{self.instance_id}' does not exist in project '{self.project_id}'."
             )
         try:
             hook.create_table(
@@ -621,9 +619,7 @@ class BigtableUpdateClusterOperator(BaseOperator, BigtableValidationMixin):
             hook.update_cluster(instance=instance, cluster_id=self.cluster_id, nodes=self.nodes)
         except google.api_core.exceptions.NotFound:
             raise AirflowException(
-                "Dependency: cluster '{}' does not exist for instance '{}'.".format(
-                    self.cluster_id, self.instance_id
-                )
+                f"Dependency: cluster '{self.cluster_id}' does not exist for instance '{self.instance_id}'."
             )
         except google.api_core.exceptions.GoogleAPICallError as e:
             self.log.error('An error occurred. Exiting.')

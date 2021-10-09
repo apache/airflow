@@ -1078,9 +1078,7 @@ class TaskInstance(Base, LoggingMixin):
             # deterministic per task instance
             ti_hash = int(
                 hashlib.sha1(
-                    "{}#{}#{}#{}".format(
-                        self.dag_id, self.task_id, self.execution_date, self.try_number
-                    ).encode('utf-8')
+                    f"{self.dag_id}#{self.task_id}#{self.execution_date}#{self.try_number}".encode()
                 ).hexdigest(),
                 16,
             )

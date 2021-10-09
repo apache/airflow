@@ -1002,8 +1002,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         project_id = project_id or self.project_id
         if not dataset_id or not isinstance(dataset_id, str):
             raise ValueError(
-                "dataset_id argument must be provided and has "
-                "a type 'str'. You provided: {}".format(dataset_id)
+                f"dataset_id argument must be provided and has a type 'str'. You provided: {dataset_id}"
             )
 
         service = self.get_service()
@@ -2964,10 +2963,7 @@ def _split_tablename(
             return f"Format exception for {var_name}: "
 
     if table_input.count('.') + table_input.count(':') > 3:
-        raise Exception(
-            '{var}Use either : or . to specify project '
-            'got {input}'.format(var=var_print(var_name), input=table_input)
-        )
+        raise Exception(f'{var_print(var_name)}Use either : or . to specify project got {table_input}')
     cmpt = table_input.rsplit(':', 1)
     project_id = None
     rest = table_input
@@ -2980,8 +2976,7 @@ def _split_tablename(
             rest = cmpt[1]
     else:
         raise Exception(
-            '{var}Expect format of (<project:)<dataset>.<table>, '
-            'got {input}'.format(var=var_print(var_name), input=table_input)
+            f'{var_print(var_name)}Expect format of (<project:)<dataset>.<table>, got {table_input}'
         )
 
     cmpt = rest.split('.')
@@ -2997,8 +2992,7 @@ def _split_tablename(
         table_id = cmpt[1]
     else:
         raise Exception(
-            '{var}Expect format of (<project.|<project:)<dataset>.<table>, '
-            'got {input}'.format(var=var_print(var_name), input=table_input)
+            f'{var_print(var_name)}Expect format of (<project.|<project:)<dataset>.<table>, got {table_input}'
         )
 
     if project_id is None:

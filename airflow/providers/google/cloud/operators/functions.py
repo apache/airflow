@@ -304,7 +304,7 @@ class ZipPathPreprocessor:
         :rtype: bool
         """
         if self.upload_function is None:
-            raise AirflowException('validate() method has to be invoked before ' 'should_upload_function')
+            raise AirflowException('validate() method has to be invoked before should_upload_function')
         return self.upload_function
 
     def preprocess_body(self) -> None:

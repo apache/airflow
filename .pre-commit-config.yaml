@@ -258,6 +258,9 @@ repos:
         exclude: |
           (?x)
           ^airflow/_vendor/
+        args:
+         - --line-length
+         - '110'
   - repo: https://github.com/codespell-project/codespell
     rev: v2.1.0
     hooks:
