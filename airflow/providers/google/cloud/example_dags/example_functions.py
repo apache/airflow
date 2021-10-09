@@ -60,8 +60,7 @@ GCF_SOURCE_ARCHIVE_URL = os.environ.get('GCF_SOURCE_ARCHIVE_URL', '')
 GCF_SOURCE_UPLOAD_URL = os.environ.get('GCF_SOURCE_UPLOAD_URL', '')
 GCF_SOURCE_REPOSITORY = os.environ.get(
     'GCF_SOURCE_REPOSITORY',
-    'https://source.developers.google.com/'
-    'projects/{}/repos/hello-world/moveable-aliases/master'.format(GCP_PROJECT_ID),
+    f'https://source.developers.google.com/projects/{GCP_PROJECT_ID}/repos/hello-world/moveable-aliases/master',
 )
 GCF_ZIP_PATH = os.environ.get('GCF_ZIP_PATH', '')
 GCF_ENTRYPOINT = os.environ.get('GCF_ENTRYPOINT', 'helloWorld')

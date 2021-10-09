@@ -396,11 +396,9 @@ class GCSUploadSessionCompleteSensor(BaseSensorOperator):
                 return False
 
             raise AirflowException(
+                f"""
+                Illegal behavior: objects were deleted in {os.path.join(self.bucket, self.prefix)} between pokes.
                 """
-                Illegal behavior: objects were deleted in {} between pokes.
-                """.format(
-                    os.path.join(self.bucket, self.prefix)
-                )
             )
 
         if self.last_activity_time:

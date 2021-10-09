@@ -61,9 +61,7 @@ BATCH_ANNOTATE_IMAGE_REQUEST = [
         'features': [{'type': enums.Feature.Type.LOGO_DETECTION}],
     },
 ]
-REFERENCE_IMAGE_NAME_TEST = "projects/{}/locations/{}/products/{}/referenceImages/{}".format(
-    PROJECT_ID_TEST, LOC_ID_TEST, PRODUCTSET_ID_TEST, REFERENCE_IMAGE_ID_TEST
-)
+REFERENCE_IMAGE_NAME_TEST = f"projects/{PROJECT_ID_TEST}/locations/{LOC_ID_TEST}/products/{PRODUCTSET_ID_TEST}/referenceImages/{REFERENCE_IMAGE_ID_TEST}"
 REFERENCE_IMAGE_TEST = ReferenceImage(name=REFERENCE_IMAGE_GEN_ID_TEST)
 REFERENCE_IMAGE_WITHOUT_ID_NAME = ReferenceImage()
 DETECT_TEST_IMAGE = {"source": {"image_uri": "https://foo.com/image.jpg"}}

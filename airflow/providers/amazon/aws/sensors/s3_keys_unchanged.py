@@ -143,8 +143,7 @@ class S3KeysUnchangedSensor(BaseSensorOperator):
                 return False
 
             raise AirflowException(
-                "Illegal behavior: objects were deleted in %s between pokes."
-                % os.path.join(self.bucket_name, self.prefix)
+                f"Illegal behavior: objects were deleted in {os.path.join(self.bucket_name, self.prefix)} between pokes."
             )
 
         if self.last_activity_time:

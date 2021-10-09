@@ -35,12 +35,7 @@ def my_py_command(params, test_mode=None, task=None):
     -t '{"foo":"bar"}'`
     """
     if test_mode:
-        print(
-            " 'foo' was passed in via test={} command : kwargs[params][foo] \
-               = {}".format(
-                test_mode, task.params["foo"]
-            )
-        )
+        print(f" 'foo' was passed in via test={test_mode} command : kwargs[params][foo] = {task.params['foo']}")
     # Print out the value of "miff", passed in below via the Python Operator
     print(f" 'miff' was passed in via task params = {params['miff']}")
     return 1

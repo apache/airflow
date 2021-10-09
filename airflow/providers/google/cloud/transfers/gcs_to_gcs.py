@@ -237,11 +237,7 @@ class GCSToGCSOperator(BaseOperator):
             impersonation_chain=self.impersonation_chain,
         )
         if self.source_objects and self.source_object:
-            error_msg = (
-                "You can either set source_object parameter or source_objects "
-                "parameter but not both. Found source_object={} and"
-                " source_objects={}".format(self.source_object, self.source_objects)
-            )
+            error_msg = f"You can either set source_object parameter or source_objects parameter but not both. Found source_object={self.source_object} and source_objects={self.source_objects}"
             raise AirflowException(error_msg)
 
         if not self.source_object and not self.source_objects:
@@ -342,7 +338,7 @@ class GCSToGCSOperator(BaseOperator):
         if total_wildcards > 1:
             error_msg = (
                 "Only one wildcard '*' is allowed in source_object parameter. "
-                "Found {} in {}.".format(total_wildcards, prefix)
+                f"Found {total_wildcards} in {prefix}."
             )
 
             raise AirflowException(error_msg)

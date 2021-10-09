@@ -260,7 +260,7 @@ repos:
           ^airflow/_vendor/
         args:
          - --line-length
-         - '110'
+         - '99999'
   - repo: https://github.com/codespell-project/codespell
     rev: v2.1.0
     hooks:

@@ -533,14 +533,10 @@ class BaseOperator(Operator, LoggingMixin, TaskMixin, metaclass=BaseOperatorMeta
         if kwargs:
             if not conf.getboolean('operators', 'ALLOW_ILLEGAL_ARGUMENTS'):
                 raise AirflowException(
-                    "Invalid arguments were passed to {c} (task_id: {t}). Invalid "
-                    "arguments were:\n**kwargs: {k}".format(c=self.__class__.__name__, k=kwargs, t=task_id),
+                    f"Invalid arguments were passed to {self.__class__.__name__} (task_id: {task_id}). Invalid arguments were:\n**kwargs: {kwargs}",
                 )
             warnings.warn(
-                'Invalid arguments were passed to {c} (task_id: {t}). '
-                'Support for passing such arguments will be dropped in '
-                'future. Invalid arguments were:'
-                '\n**kwargs: {k}'.format(c=self.__class__.__name__, k=kwargs, t=task_id),
+                f'Invalid arguments were passed to {self.__class__.__name__} (task_id: {task_id}). Support for passing such arguments will be dropped in future. Invalid arguments were:\n**kwargs: {kwargs}',
                 category=PendingDeprecationWarning,
                 stacklevel=3,
             )
@@ -585,13 +581,8 @@ class BaseOperator(Operator, LoggingMixin, TaskMixin, metaclass=BaseOperatorMeta
 
         if not TriggerRule.is_valid(trigger_rule):
             raise AirflowException(
-                "The trigger_rule must be one of {all_triggers},"
-                "'{d}.{t}'; received '{tr}'.".format(
-                    all_triggers=TriggerRule.all_triggers(),
-                    d=dag.dag_id if dag else "",
-                    t=task_id,
-                    tr=trigger_rule,
-                )
+                f"The trigger_rule must be one of {TriggerRule.all_triggers()},"
+                f"'{dag.dag_id if dag else ''}.{task_id}'; received '{trigger_rule}'."
             )
 
         self.trigger_rule = trigger_rule
@@ -646,13 +637,7 @@ class BaseOperator(Operator, LoggingMixin, TaskMixin, metaclass=BaseOperatorMeta
         self.priority_weight = priority_weight
         if not WeightRule.is_valid(weight_rule):
             raise AirflowException(
-                "The weight_rule must be one of {all_weight_rules},"
-                "'{d}.{t}'; received '{tr}'.".format(
-                    all_weight_rules=WeightRule.all_weight_rules,
-                    d=dag.dag_id if dag else "",
-                    t=task_id,
-                    tr=weight_rule,
-                )
+                f"The weight_rule must be one of {WeightRule.all_weight_rules},'{dag.dag_id if dag else ''}.{task_id}'; received '{weight_rule}'."
             )
         self.weight_rule = weight_rule
         self.resources: Optional[Resources] = Resources(**resources) if resources else None
@@ -1433,9 +1418,8 @@ class BaseOperator(Operator, LoggingMixin, TaskMixin, metaclass=BaseOperatorMeta
             dag = dags.popitem()[1]
         else:
             raise AirflowException(
-                "Tried to create relationships between tasks that don't have "
-                "DAGs yet. Set the DAG for at least one "
-                "task and try again: {}".format([self] + task_list)
+                f"Tried to create relationships between tasks that don't have DAGs yet. "
+                f"Set the DAG for at least one task and try again: {[self] + task_list}"
             )
 
         if dag and not self.has_dag():

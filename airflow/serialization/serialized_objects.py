@@ -739,9 +739,7 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
                 op_link_arguments = {}
             serialize_operator_extra_links.append(
                 {
-                    "{}.{}".format(
-                        operator_extra_link.__class__.__module__, operator_extra_link.__class__.__name__
-                    ): op_link_arguments
+                    f"{operator_extra_link.__class__.__module__}.{operator_extra_link.__class__.__name__}": op_link_arguments
                 }
             )
 

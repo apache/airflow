@@ -132,9 +132,7 @@ class TestElasticsearchTaskHandler:
         assert timezone.parse(metadatas[0]['last_log_timestamp']) > ts
 
     def test_read_with_match_phrase_query(self, ti):
-        similar_log_id = '{task_id}-{dag_id}-2016-01-01T00:00:00+00:00-1'.format(
-            dag_id=TestElasticsearchTaskHandler.DAG_ID, task_id=TestElasticsearchTaskHandler.TASK_ID
-        )
+        similar_log_id = f'{TestElasticsearchTaskHandler.TASK_ID}-{TestElasticsearchTaskHandler.DAG_ID}-2016-01-01T00:00:00+00:00-1'
         another_test_message = 'another message'
 
         another_body = {'message': another_test_message, 'log_id': similar_log_id, 'offset': 1}

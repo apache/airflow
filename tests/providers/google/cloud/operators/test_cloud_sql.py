@@ -738,19 +738,7 @@ class TestCloudSqlQueryValidation(unittest.TestCase):
         message,
         get_connection,
     ):
-        uri = (
-            "gcpcloudsql://user:password@127.0.0.1:3200/testdb?"
-            "database_type={database_type}&"
-            "project_id={project_id}&location={location}&instance={instance_name}&"
-            "use_proxy={use_proxy}&use_ssl={use_ssl}".format(
-                database_type=database_type,
-                project_id=project_id,
-                location=location,
-                instance_name=instance_name,
-                use_proxy=use_proxy,
-                use_ssl=use_ssl,
-            )
-        )
+        uri = f"gcpcloudsql://user:password@127.0.0.1:3200/testdb?database_type={database_type}&project_id={project_id}&location={location}&instance={instance_name}&use_proxy={use_proxy}&use_ssl={use_ssl}"
         self._setup_connections(get_connection, uri)
         with pytest.raises(AirflowException) as ctx:
             op = CloudSQLExecuteQueryOperator(sql=sql, task_id='task_id')

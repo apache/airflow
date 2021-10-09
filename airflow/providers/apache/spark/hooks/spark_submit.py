@@ -438,9 +438,8 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
         if returncode or (self._is_kubernetes and self._spark_exit_code != 0):
             if self._is_kubernetes:
                 raise AirflowException(
-                    "Cannot execute: {}. Error code is: {}. Kubernetes spark exit code is: {}".format(
-                        self._mask_cmd(spark_submit_cmd), returncode, self._spark_exit_code
-                    )
+                    f"Cannot execute: {self._mask_cmd(spark_submit_cmd)}. Error code is: {returncode}. "
+                    f"Kubernetes spark exit code is: {self._spark_exit_code}"
                 )
             else:
                 raise AirflowException(
@@ -595,9 +594,8 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
                     missed_job_status_reports += 1
                 else:
                     raise AirflowException(
-                        "Failed to poll for the driver status {} times: returncode = {}".format(
-                            max_missed_job_status_reports, returncode
-                        )
+                        f"Failed to poll for the driver status {max_missed_job_status_reports} times: "
+                        f"returncode = {returncode}"
                     )
 
     def _build_spark_driver_kill_command(self) -> List[str]:

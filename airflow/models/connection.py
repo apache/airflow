@@ -230,10 +230,8 @@ class Connection(Base, LoggingMixin):
             fernet = get_fernet()
             if not fernet.is_encrypted:
                 raise AirflowException(
-                    "Can't decrypt encrypted password for login={}, \
-                    FERNET_KEY configuration is missing".format(
-                        self.login
-                    )
+                    f"Can't decrypt encrypted password for login={self.login}  "
+                    f"FERNET_KEY configuration is missing"
                 )
             return fernet.decrypt(bytes(self._password, 'utf-8')).decode()
         else:
@@ -257,10 +255,8 @@ class Connection(Base, LoggingMixin):
             fernet = get_fernet()
             if not fernet.is_encrypted:
                 raise AirflowException(
-                    "Can't decrypt `extra` params for login={},\
-                    FERNET_KEY configuration is missing".format(
-                        self.login
-                    )
+                    f"Can't decrypt `extra` params for login={self.login}, "
+                    f"FERNET_KEY configuration is missing"
                 )
             return fernet.decrypt(bytes(self._extra, 'utf-8')).decode()
         else:
@@ -324,14 +320,10 @@ class Connection(Base, LoggingMixin):
             DeprecationWarning,
             stacklevel=2,
         )
-        return "id: {}. Host: {}, Port: {}, Schema: {}, Login: {}, Password: {}, extra: {}".format(
-            self.conn_id,
-            self.host,
-            self.port,
-            self.schema,
-            self.login,
-            "XXXXXXXX" if self.password else None,
-            "XXXXXXXX" if self.extra_dejson else None,
+        return (
+            f"id: {self.conn_id}. Host: {self.host}, Port: {self.port}, Schema: {self.schema}, "
+            f"Login: {self.login}, Password: {'XXXXXXXX' if self.password else None}, "
+            f"extra: {'XXXXXXXX' if self.extra_dejson else None}"
         )
 
     def debug_info(self):
@@ -345,14 +337,10 @@ class Connection(Base, LoggingMixin):
             DeprecationWarning,
             stacklevel=2,
         )
-        return "id: {}. Host: {}, Port: {}, Schema: {}, Login: {}, Password: {}, extra: {}".format(
-            self.conn_id,
-            self.host,
-            self.port,
-            self.schema,
-            self.login,
-            "XXXXXXXX" if self.password else None,
-            self.extra_dejson,
+        return (
+            f"id: {self.conn_id}. Host: {self.host}, Port: {self.port}, Schema: {self.schema}, "
+            f"Login: {self.login}, Password: {'XXXXXXXX' if self.password else None}, "
+            f"extra: {self.extra_dejson}"
         )
 
     def test_connection(self):

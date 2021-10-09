@@ -128,10 +128,7 @@ class GCSToGoogleDriveOperator(BaseOperator):
         if WILDCARD in self.source_object:
             total_wildcards = self.source_object.count(WILDCARD)
             if total_wildcards > 1:
-                error_msg = (
-                    "Only one wildcard '*' is allowed in source_object parameter. "
-                    "Found {} in {}.".format(total_wildcards, self.source_object)
-                )
+                error_msg = f"Only one wildcard '*' is allowed in source_object parameter. Found {total_wildcards} in {self.source_object}."
 
                 raise AirflowException(error_msg)
 
