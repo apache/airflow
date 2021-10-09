@@ -23,7 +23,7 @@ import string
 import textwrap
 import time
 from functools import wraps
-from typing import TYPE_CHECKING, Callable, List, Optional, TypeVar, cast
+from typing import TYPE_CHECKING, Callable, List, Optional, TypeVar, Union, cast
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowConfigException, InvalidStatsNameException
