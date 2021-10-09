@@ -23,6 +23,12 @@ Callbacks
 A valuable component of logging and monitoring is the use of task callbacks to act upon changes in state of a given task, or across all tasks in a given DAG.
 For example, you may wish to alert when certain tasks have failed, or have the last task in your DAG invoke a callback when it succeeds.
 
+.. note::
+
+    Callback functions are only invoked when the task state changes due to execution by a worker.
+    As such, task changes set by the command line interface (:doc:`CLI <../usage-cli>`) or user interface (:doc:`UI <../ui>`) do not
+    execute callback functions.
+
 Callback Types
 --------------
 
