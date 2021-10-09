@@ -783,7 +783,7 @@ class CloudSQLDeleteInstanceDatabaseOperator(CloudSQLBaseOperator):
         )
         if not self._check_if_db_exists(self.database, hook):
             print(
-                f"Cloud SQL instance with ID {self.instance:r} does not contain database {self.database:r}. "
+                f"Cloud SQL instance with ID {self.instance!r} does not contain database {self.database!r}. "
                 f"Aborting database delete."
             )
             return True
