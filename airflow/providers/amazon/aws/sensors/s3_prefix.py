@@ -15,7 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from typing import Any, Dict, Optional, Sequence, Union
+from typing import Any, Dict, List, Optional, Union
 
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 from airflow.sensors.base import BaseSensorOperator
@@ -33,7 +33,7 @@ class S3PrefixSensor(BaseSensorOperator):
     :param bucket_name: Name of the S3 bucket
     :type bucket_name: str
     :param prefix: The prefix being waited on. Relative path from bucket root level.
-    :type prefix: str or list
+    :type prefix: str or list of str
     :param delimiter: The delimiter intended to show hierarchy.
         Defaults to '/'.
     :type delimiter: str
@@ -58,7 +58,7 @@ class S3PrefixSensor(BaseSensorOperator):
         self,
         *,
         bucket_name: str,
-        prefix: Union[str, Sequence[str]],
+        prefix: Union[str, List[str]],
         delimiter: str = '/',
         aws_conn_id: str = 'aws_default',
         verify: Optional[Union[str, bool]] = None,
