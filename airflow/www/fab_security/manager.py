@@ -872,7 +872,8 @@ class BaseSecurityManager:
         # only continue if 0 or 1 results were returned
         if len(search_result) > 1:
             log.error(
-                f"LDAP search for '{filter_str}' in scope '{self.auth_ldap_search!a}' returned multiple results"
+                f"LDAP search for '{filter_str}' in scope "
+                f"'{self.auth_ldap_search!a}' returned multiple results"
             )
             return None, None
 

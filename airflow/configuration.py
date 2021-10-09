@@ -294,7 +294,9 @@ class AirflowConfigParser(ConfigParser):
     @staticmethod
     def _create_future_warning(name, section, current_value, new_value, version):
         warnings.warn(
-            f'The {name} setting in [{section}] has the old default value of {current_value!r}. This value has been changed to {new_value!r} in the running config, but please update your config before Apache Airflow {version}.',
+            f'The {name!r} setting in [{section!r}] has the old default value of {current_value!r}. '
+            f'This value has been changed to {new_value!r} in the running config, but '
+            f'please update your config before Apache Airflow {version}.',
             FutureWarning,
         )
 

@@ -286,13 +286,15 @@ class ZipPathPreprocessor:
                 self.upload_function = True
             else:
                 raise AirflowException(
-                    f"Only one of '{GCF_SOURCE_UPLOAD_URL}' in body or '{GCF_ZIP_PATH}' argument allowed. Found both."
+                    f"Only one of '{GCF_SOURCE_UPLOAD_URL}' in body or '{GCF_ZIP_PATH}' argument allowed. "
+                    f"Found both."
                 )
 
     def _verify_archive_url_and_zip_path(self) -> None:
         if GCF_SOURCE_ARCHIVE_URL in self.body and self.zip_path:
             raise AirflowException(
-                f"Only one of '{GCF_SOURCE_ARCHIVE_URL}' in body or '{GCF_ZIP_PATH}' argument allowed. Found both."
+                f"Only one of '{GCF_SOURCE_ARCHIVE_URL}' in body or '{GCF_ZIP_PATH}' argument allowed. "
+                f"Found both."
             )
 
     def should_upload_function(self) -> bool:

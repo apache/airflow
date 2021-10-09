@@ -259,6 +259,9 @@ repos:
           (?x)
           ^airflow/_vendor/
         args:
+         # If the flymt detects too long text it ignores it. So we set a very large limit to make it easy
+         # to splitt the text by hand. Too long lines are detected by flake8 (below),
+         # so the user is informed to take action.
          - --line-length
          - '99999'
   - repo: https://github.com/codespell-project/codespell

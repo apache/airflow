@@ -104,7 +104,8 @@ class SFTPOperator(BaseOperator):
         self.create_intermediate_dirs = create_intermediate_dirs
         if not (self.operation.lower() == SFTPOperation.GET or self.operation.lower() == SFTPOperation.PUT):
             raise TypeError(
-                f"unsupported operation value {self.operation}, expected {SFTPOperation.GET} or {SFTPOperation.PUT}"
+                f"Unsupported operation value {self.operation}, "
+                f"expected {SFTPOperation.GET} or {SFTPOperation.PUT}."
             )
 
     def execute(self, context: Any) -> str:
