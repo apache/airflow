@@ -30,7 +30,7 @@ BAD_LOCAL_PATH = 'test/**'
 REMOTE_PATH = 'TEST-DIR'
 
 
-class TestAzureDataLakeStorageUploadOperator(unittest.TestCase):
+class TestADLSUploadOperator(unittest.TestCase):
     @mock.patch('airflow.providers.microsoft.azure.transfers.local_to_adls.AzureDataLakeHook')
     def test_execute_success(self, mock_hook):
         operator = LocalFilesystemToADLSOperator(

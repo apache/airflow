@@ -357,7 +357,22 @@ ARG_EXEC_DATE = Arg(("-e", "--exec-date"), help="The execution date of the DAG",
 ARG_POOL_NAME = Arg(("pool",), metavar='NAME', help="Pool name")
 ARG_POOL_SLOTS = Arg(("slots",), type=int, help="Pool slots")
 ARG_POOL_DESCRIPTION = Arg(("description",), help="Pool description")
-ARG_POOL_IMPORT = Arg(("file",), metavar="FILEPATH", help="Import pools from JSON file")
+ARG_POOL_IMPORT = Arg(
+    ("file",),
+    metavar="FILEPATH",
+    help="Import pools from JSON file. Example format::\n"
+    + textwrap.indent(
+        textwrap.dedent(
+            '''
+            {
+                "pool_1": {"slots": 5, "description": ""},
+                "pool_2": {"slots": 10, "description": "test"}
+            }'''
+        ),
+        " " * 4,
+    ),
+)
+
 ARG_POOL_EXPORT = Arg(("file",), metavar="FILEPATH", help="Export all pools to JSON file")
 
 # variables

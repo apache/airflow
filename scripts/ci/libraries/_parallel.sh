@@ -75,9 +75,12 @@ function parallel::monitor_loop() {
         echo
         echo "${COLOR_YELLOW}########## Monitoring progress start: ${progress_report_number}  ##########${COLOR_RESET}"
         echo
-        echo "${COLOR_BLUE}########### STATISTICS #################"
-        docker_engine_resources::print_overall_stats
-        echo "########### STATISTICS #################${COLOR_RESET}"
+        if [[ ${PR_LABELS} == *debug-ci-resources* || ${GITHUB_EVENT_NAME} == "push" ]]; then
+            # Only print stats in `main` or when "debug-ci-resources" label is set on PR.
+            echo "${COLOR_BLUE}########### STATISTICS #################"
+            docker_engine_resources::print_overall_stats
+            echo "########### STATISTICS #################${COLOR_RESET}"
+        fi
         for directory in "${PARALLEL_MONITORED_DIR}"/*/*
         do
             parallel_process=$(basename "${directory}")
@@ -170,7 +173,7 @@ function parallel::print_job_summary_and_return_status_code() {
         if [[ -s "${status_file}"  ]]; then
             status=$(cat "${status_file}")
         else
-            echo "${COLOR_RED}Missing ${status_file}  file"
+            echo "${COLOR_RED}Missing ${status_file} file"
             status="1"
         fi
         if [[ ${status} == "0" ]]; then

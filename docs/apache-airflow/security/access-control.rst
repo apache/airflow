@@ -22,10 +22,6 @@ Access Control of Airflow Webserver UI is handled by Flask AppBuilder (FAB).
 Please read its related `security document <http://flask-appbuilder.readthedocs.io/en/latest/security.html>`_
 regarding its security model.
 
-.. contents::
-  :depth: 1
-  :local:
-
 .. spelling::
     clearTaskInstances
     dagRuns
@@ -238,4 +234,5 @@ List Jobs                              Jobs.can_read                            
 List SLA Misses                        SLA Misses.can_read                                                     Viewer
 List Plugins                           Plugins.can_read                                                        Viewer
 List Task Reschedules                  Task Reschedules.can_read                                               Admin
+List Triggers                          Triggers.can_read                                                       Admin
 ====================================== ======================================================================= ============

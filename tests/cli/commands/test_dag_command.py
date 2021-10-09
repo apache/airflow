@@ -513,6 +513,7 @@ class TestCliDags(unittest.TestCase):
                     executor=mock_executor.return_value,
                     start_date=cli_args.execution_date,
                     end_date=cli_args.execution_date,
+                    run_at_least_once=True,
                 ),
             ]
         )
@@ -543,6 +544,7 @@ class TestCliDags(unittest.TestCase):
                     executor=mock_executor.return_value,
                     start_date=cli_args.execution_date,
                     end_date=cli_args.execution_date,
+                    run_at_least_once=True,
                 ),
             ]
         )

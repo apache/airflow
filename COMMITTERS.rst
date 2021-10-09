@@ -158,7 +158,7 @@ can become the Mentor and guide the proposed candidates on how they can become a
 
     If the committee does not have enough information, requires more time, or requires more evidence of
     candidate's eligibility, a mentor, who is not the proposer, is selected to help mentor the candidate
-    The mentor should try to remain impartial -- his/her goal is to provide the missing evidence and to
+    The mentor should try to remain impartial -- their goal is to provide the missing evidence and to
     try to coach/mentor the candidate to success.
 
     In order to re-raise a candidate vote, both Proposer and Mentor must be in favor. Again,

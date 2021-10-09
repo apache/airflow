@@ -599,7 +599,7 @@ def dag_maker(request):
             return self
 
         def cleanup(self):
-            from airflow.models import DagModel, DagRun, TaskInstance
+            from airflow.models import DagModel, DagRun, TaskInstance, XCom
             from airflow.models.serialized_dag import SerializedDagModel
 
             dag_ids = list(self.dagbag.dag_ids)
@@ -615,6 +615,7 @@ def dag_maker(request):
             self.session.query(TaskInstance).filter(TaskInstance.dag_id.in_(dag_ids)).delete(
                 synchronize_session=False
             )
+            self.session.query(XCom).filter(XCom.dag_id.in_(dag_ids)).delete(synchronize_session=False)
             self.session.query(DagModel).filter(DagModel.dag_id.in_(dag_ids)).delete(
                 synchronize_session=False
             )

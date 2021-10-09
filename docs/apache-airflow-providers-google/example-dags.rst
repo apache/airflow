@@ -15,7 +15,7 @@
     specific language governing permissions and limitations
     under the License.
 
-Example DAGS
+Example DAGs
 ============
 
 You can learn how to use Google integrations by analyzing the source code of the example DAGs:

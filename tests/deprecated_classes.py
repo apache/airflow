@@ -1024,7 +1024,7 @@ OPERATORS = [
         'airflow.operators.pig_operator.PigOperator',
     ),
     (
-        'airflow.providers.microsoft.azure.operators.adls_list.AzureDataLakeStorageListOperator',
+        'airflow.providers.microsoft.azure.operators.adls.ADLSListOperator',
         'airflow.contrib.operators.adls_list_operator.AzureDataLakeStorageListOperator',
     ),
     (

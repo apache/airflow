@@ -15,10 +15,11 @@
 # specific language governing permissions and limitations
 # under the License.
 ---
-version: "2.2"
+version: "3.7"
 services:
   airflow:
     image: ${AIRFLOW_CI_IMAGE}
+    pull_policy: never
     environment:
       - USER=root
       - ADDITIONAL_PATH=~/.local/bin
@@ -26,7 +27,7 @@ services:
       - KUBECONFIG=/files/.kube/config
       - HOST_HOME=${HOME}
     env_file:
-      - _docker.env
+      - _docker_compose.env
     volumes:
       # Pass docker to inside of the container so that Kind and Moto tests can use it.
       - /var/run/docker.sock:/var/run/docker.sock

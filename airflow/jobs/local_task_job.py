@@ -189,7 +189,7 @@ class LocalTaskJob(BaseJob):
             same_hostname = fqdn == ti.hostname
             if not same_hostname:
                 self.log.warning(
-                    "The recorded hostname %s " "does not match this instance's hostname " "%s",
+                    "The recorded hostname %s does not match this instance's hostname %s",
                     ti.hostname,
                     fqdn,
                 )
@@ -209,7 +209,7 @@ class LocalTaskJob(BaseJob):
                 raise AirflowException("PID of job runner does not match")
         elif self.task_runner.return_code() is None and hasattr(self.task_runner, 'process'):
             self.log.warning(
-                "State of this instance has been externally set to %s. " "Terminating instance.", ti.state
+                "State of this instance has been externally set to %s. Terminating instance.", ti.state
             )
             self.task_runner.terminate()
             if ti.state == State.SUCCESS:
@@ -226,18 +226,6 @@ class LocalTaskJob(BaseJob):
     @Sentry.enrich_errors
     def _run_mini_scheduler_on_child_tasks(self, session=None) -> None:
         try:
-
-            if (
-                self.task_instance.task.wait_for_downstream
-                and self.task_instance.get_previous_ti()
-                and not self.task_instance.are_dependents_done()
-            ):
-                self.log.info(
-                    "No downstream tasks scheduled because task instance "
-                    "dependents have not completed yet and wait_for_downstream is true"
-                )
-                return
-
             # Re-select the row with a lock
             dag_run = with_row_locks(
                 session.query(DagRun).filter_by(
@@ -255,7 +243,7 @@ class LocalTaskJob(BaseJob):
 
             partial_dag = task.dag.partial_subset(
                 task.downstream_task_ids,
-                include_downstream=False,
+                include_downstream=True,
                 include_upstream=False,
                 include_direct_upstream=True,
             )

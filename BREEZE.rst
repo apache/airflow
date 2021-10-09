@@ -750,6 +750,13 @@ extra ``--`` flag.
 
      ./breeze build-docs -- --spellcheck-only
 
+This process can take some time, so in order to make it shorter you can filter by package, using the flag
+``--package-filter <PACKAGE-NAME>``. The package name has to be one of the providers or ``apache-airflow``. For
+instance, for using it with Amazon, the command would be:
+
+.. code-block:: bash
+
+     ./breeze build-docs -- --package-filter apache-airflow-providers-amazon
 
 Often errors during documentation generation come from the docstrings of auto-api generated classes.
 During the docs building auto-api generated files are stored in the ``docs/_api`` folder. This helps you
@@ -1314,8 +1321,8 @@ This is the current syntax for  `./breeze <./breeze>`_:
                  devel_ci
 
           Production image:
-                 async,amazon,celery,cncf.kubernetes,docker,dask,elasticsearch,ftp,grpc,hashicorp,
-                 http,ldap,google,google_auth,microsoft.azure,mysql,pandas,postgres,redis,sendgrid,
+                 amazon,async,celery,cncf.kubernetes,dask,docker,elasticsearch,ftp,google,google_auth,
+                 grpc,hashicorp,http,ldap,microsoft.azure,mysql,odbc,pandas,postgres,redis,sendgrid,
                  sftp,slack,ssh,statsd,virtualenv
 
   --image-tag TAG
@@ -1913,8 +1920,8 @@ This is the current syntax for  `./breeze <./breeze>`_:
                  devel_ci
 
           Production image:
-                 async,amazon,celery,cncf.kubernetes,docker,dask,elasticsearch,ftp,grpc,hashicorp,
-                 http,ldap,google,google_auth,microsoft.azure,mysql,pandas,postgres,redis,sendgrid,
+                 amazon,async,celery,cncf.kubernetes,dask,docker,elasticsearch,ftp,google,google_auth,
+                 grpc,hashicorp,http,ldap,microsoft.azure,mysql,odbc,pandas,postgres,redis,sendgrid,
                  sftp,slack,ssh,statsd,virtualenv
 
   --image-tag TAG
@@ -2175,18 +2182,19 @@ This is the current syntax for  `./breeze <./breeze>`_:
                  all airflow-config-yaml airflow-providers-available airflow-provider-yaml-files-ok
                  base-operator bats-tests bats-in-container-tests black blacken-docs boring-cyborg
                  build build-providers-dependencies check-apache-license check-builtin-literals
-                 check-executables-have-shebangs check-hooks-apply check-integrations
-                 check-merge-conflict check-xml daysago-import-check debug-statements
-                 detect-private-key doctoc dont-use-safe-filter end-of-file-fixer fix-encoding-pragma
-                 flake8 flynt forbid-tabs helm-lint identity incorrect-use-of-LoggingMixin
-                 insert-license isort json-schema language-matters lint-dockerfile lint-openapi
-                 markdownlint mermaid mixed-line-ending mypy mypy-helm no-providers-in-core-examples
-                 no-relative-imports pre-commit-descriptions pre-commit-hook-names pretty-format-json
-                 provide-create-sessions providers-changelogs providers-init-file
-                 providers-subpackages-init-file provider-yamls pydevd pydocstyle python-no-log-warn
-                 pyupgrade restrict-start_date rst-backticks setup-order setup-extra-packages
-                 shellcheck sort-in-the-wild sort-spelling-wordlist stylelint trailing-whitespace
-                 ui-lint update-breeze-file update-extras update-local-yml-file update-setup-cfg-file
+                 check-executables-have-shebangs check-extras-order check-hooks-apply
+                 check-integrations check-merge-conflict check-xml daysago-import-check
+                 debug-statements detect-private-key doctoc dont-use-safe-filter end-of-file-fixer
+                 fix-encoding-pragma flake8 flynt forbid-tabs helm-lint identity
+                 incorrect-use-of-LoggingMixin insert-license isort json-schema language-matters
+                 lint-dockerfile lint-openapi markdownlint mermaid mixed-line-ending mypy mypy-helm
+                 no-providers-in-core-examples no-relative-imports pre-commit-descriptions
+                 pre-commit-hook-names pretty-format-json provide-create-sessions
+                 providers-changelogs providers-init-file providers-subpackages-init-file
+                 provider-yamls pydevd pydocstyle python-no-log-warn pyupgrade restrict-start_date
+                 rst-backticks setup-order setup-extra-packages shellcheck sort-in-the-wild
+                 sort-spelling-wordlist stylelint trailing-whitespace ui-lint update-breeze-file
+                 update-extras update-local-yml-file update-setup-cfg-file update-versions
                  verify-db-migrations-documented version-sync www-lint yamllint yesqa
 
         You can pass extra arguments including options to the pre-commit framework as
@@ -2231,7 +2239,8 @@ This is the current syntax for  `./breeze <./breeze>`_:
   --test-type TEST_TYPE
           Type of the test to run. One of:
 
-                 All,Core,Providers,API,CLI,Integration,Other,WWW,Postgres,MySQL,Helm,Quarantined
+                 All,Always,Core,Providers,API,CLI,Integration,Other,WWW,Postgres,MySQL,Helm,
+                 Quarantined
 
           Default: All
 
@@ -2500,8 +2509,8 @@ This is the current syntax for  `./breeze <./breeze>`_:
                  devel_ci
 
           Production image:
-                 async,amazon,celery,cncf.kubernetes,docker,dask,elasticsearch,ftp,grpc,hashicorp,
-                 http,ldap,google,google_auth,microsoft.azure,mysql,pandas,postgres,redis,sendgrid,
+                 amazon,async,celery,cncf.kubernetes,dask,docker,elasticsearch,ftp,google,google_auth,
+                 grpc,hashicorp,http,ldap,microsoft.azure,mysql,odbc,pandas,postgres,redis,sendgrid,
                  sftp,slack,ssh,statsd,virtualenv
 
   --image-tag TAG
@@ -2633,7 +2642,8 @@ This is the current syntax for  `./breeze <./breeze>`_:
   --test-type TEST_TYPE
           Type of the test to run. One of:
 
-                 All,Core,Providers,API,CLI,Integration,Other,WWW,Postgres,MySQL,Helm,Quarantined
+                 All,Always,Core,Providers,API,CLI,Integration,Other,WWW,Postgres,MySQL,Helm,
+                 Quarantined
 
           Default: All
 

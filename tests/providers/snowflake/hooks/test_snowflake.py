@@ -86,7 +86,8 @@ class TestSnowflakeHook(unittest.TestCase):
 
     def test_get_uri(self):
         uri_shouldbe = (
-            'snowflake://user:pw@airflow/db/public?warehouse=af_wh&role=af_role&authenticator=snowflake'
+            'snowflake://user:pw@airflow.af_region/db/public?'
+            'warehouse=af_wh&role=af_role&authenticator=snowflake'
         )
         assert uri_shouldbe == self.db_hook.get_uri()
 
@@ -243,7 +244,8 @@ class TestSnowflakeHookExtra(unittest.TestCase):
 
     def test_get_uri_extra(self):
         uri_shouldbe = (
-            'snowflake://user:pw@airflow/db/public?warehouse=af_wh&role=af_role&authenticator=snowflake'
+            'snowflake://user:pw@airflow.af_region/db/public?'
+            'warehouse=af_wh&role=af_role&authenticator=snowflake'
         )
         assert uri_shouldbe == self.db_hook_extra.get_uri()
 

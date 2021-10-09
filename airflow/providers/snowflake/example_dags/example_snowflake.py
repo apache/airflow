@@ -18,11 +18,12 @@
 """
 Example use of Snowflake related operators.
 """
+from datetime import datetime
+
 from airflow import DAG
 from airflow.providers.snowflake.operators.snowflake import SnowflakeOperator
 from airflow.providers.snowflake.transfers.s3_to_snowflake import S3ToSnowflakeOperator
 from airflow.providers.snowflake.transfers.snowflake_to_slack import SnowflakeToSlackOperator
-from airflow.utils.dates import days_ago
 
 SNOWFLAKE_CONN_ID = 'my_snowflake_conn'
 SLACK_CONN_ID = 'my_slack_conn'
@@ -50,8 +51,10 @@ SNOWFLAKE_SLACK_MESSAGE = (
 
 dag = DAG(
     'example_snowflake',
-    start_date=days_ago(2),
+    start_date=datetime(2021, 1, 1),
+    default_args={'snowflake_conn_id': SNOWFLAKE_CONN_ID},
     tags=['example'],
+    catchup=False,
 )
 
 # [START howto_operator_snowflake]
@@ -59,7 +62,6 @@ dag = DAG(
 snowflake_op_sql_str = SnowflakeOperator(
     task_id='snowflake_op_sql_str',
     dag=dag,
-    snowflake_conn_id=SNOWFLAKE_CONN_ID,
     sql=CREATE_TABLE_SQL_STRING,
     warehouse=SNOWFLAKE_WAREHOUSE,
     database=SNOWFLAKE_DATABASE,
@@ -70,7 +72,6 @@ snowflake_op_sql_str = SnowflakeOperator(
 snowflake_op_with_params = SnowflakeOperator(
     task_id='snowflake_op_with_params',
     dag=dag,
-    snowflake_conn_id=SNOWFLAKE_CONN_ID,
     sql=SQL_INSERT_STATEMENT,
     parameters={"id": 56},
     warehouse=SNOWFLAKE_WAREHOUSE,
@@ -79,21 +80,17 @@ snowflake_op_with_params = SnowflakeOperator(
     role=SNOWFLAKE_ROLE,
 )
 
-snowflake_op_sql_list = SnowflakeOperator(
-    task_id='snowflake_op_sql_list', dag=dag, snowflake_conn_id=SNOWFLAKE_CONN_ID, sql=SQL_LIST
-)
+snowflake_op_sql_list = SnowflakeOperator(task_id='snowflake_op_sql_list', dag=dag, sql=SQL_LIST)
 
 snowflake_op_sql_multiple_stmts = SnowflakeOperator(
     task_id='snowflake_op_sql_multiple_stmts',
     dag=dag,
-    snowflake_conn_id=SNOWFLAKE_CONN_ID,
     sql=SQL_MULTIPLE_STMTS,
 )
 
 snowflake_op_template_file = SnowflakeOperator(
     task_id='snowflake_op_template_file',
     dag=dag,
-    snowflake_conn_id=SNOWFLAKE_CONN_ID,
     sql='/path/to/sql/<filename>.sql',
 )
 
@@ -103,7 +100,6 @@ snowflake_op_template_file = SnowflakeOperator(
 
 copy_into_table = S3ToSnowflakeOperator(
     task_id='copy_into_table',
-    snowflake_conn_id=SNOWFLAKE_CONN_ID,
     s3_keys=[S3_FILE_PATH],
     table=SNOWFLAKE_SAMPLE_TABLE,
     schema=SNOWFLAKE_SCHEMA,
@@ -120,7 +116,6 @@ slack_report = SnowflakeToSlackOperator(
     task_id="slack_report",
     sql=SNOWFLAKE_SLACK_SQL,
     slack_message=SNOWFLAKE_SLACK_MESSAGE,
-    snowflake_conn_id=SNOWFLAKE_CONN_ID,
     slack_conn_id=SLACK_CONN_ID,
     dag=dag,
 )

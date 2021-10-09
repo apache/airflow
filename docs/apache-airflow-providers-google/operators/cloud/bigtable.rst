@@ -20,15 +20,10 @@
 Google Cloud Bigtable Operators
 ===============================
 
-.. contents::
-  :depth: 1
-  :local:
-
 Prerequisite Tasks
 ------------------
 
 .. include::/operators/_partials/prerequisite_tasks.rst
-
 
 .. _howto/operator:BigtableCreateInstanceOperator:
 

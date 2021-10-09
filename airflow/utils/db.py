@@ -231,7 +231,7 @@ def create_default_connections(session=None):
                                 "InstanceCount": 1
                             },
                             {
-                                "Name": "Slave nodes",
+                                "Name": "Core nodes",
                                 "Market": "ON_DEMAND",
                                 "InstanceRole": "CORE",
                                 "InstanceType": "r3.2xlarge",
@@ -661,6 +661,7 @@ def check_conn_id_duplicates(session=None) -> Iterable[str]:
         dups = session.query(Connection.conn_id).group_by(Connection.conn_id).having(func.count() > 1).all()
     except (exc.OperationalError, exc.ProgrammingError):
         # fallback if tables hasn't been created yet
+        session.rollback()
         pass
     if dups:
         yield (
@@ -680,9 +681,10 @@ def check_conn_type_null(session=None) -> Iterable[str]:
     """
     n_nulls = []
     try:
-        n_nulls = session.query(Connection).filter(Connection.conn_type.is_(None)).all()
+        n_nulls = session.query(Connection.conn_id).filter(Connection.conn_type.is_(None)).all()
     except (exc.OperationalError, exc.ProgrammingError, exc.InternalError):
         # fallback if tables hasn't been created yet
+        session.rollback()
         pass
 
     if n_nulls:
@@ -693,6 +695,37 @@ def check_conn_type_null(session=None) -> Iterable[str]:
             'in the conn_type column.\n'
             f'Null conn_type conn_id: {list(n_nulls)}'
         )
+
+
+def check_run_id_null(session) -> Iterable[str]:
+    import sqlalchemy.schema
+
+    metadata = sqlalchemy.schema.MetaData(session.bind)
+    try:
+        metadata.reflect(only=["dag_run"])
+    except exc.InvalidRequestError:
+        # Table doesn't exist -- empty db
+        return
+
+    dag_run = metadata.tables["dag_run"]
+
+    for colname in ('run_id', 'dag_id', 'execution_date'):
+
+        col = dag_run.columns.get(colname)
+        if col is None:
+            continue
+
+        if not col.nullable:
+            continue
+
+        num = session.query(dag_run).filter(col.is_(None)).count()
+        if num > 0:
+            yield (
+                f'The {dag_run.name} table has {num} row{"s" if num != 1 else ""} with a NULL value in '
+                f'{col.name!r}. You must manually correct this problem (possibly by deleting the problem '
+                'rows).'
+            )
+    session.rollback()
 
 
 def check_task_tables_without_matching_dagruns(session) -> Iterable[str]:
@@ -760,6 +793,7 @@ def _check_migration_errors(session=None) -> Iterable[str]:
     for check_fn in (
         check_conn_id_duplicates,
         check_conn_type_null,
+        check_run_id_null,
         check_task_tables_without_matching_dagruns,
     ):
         yield from check_fn(session)

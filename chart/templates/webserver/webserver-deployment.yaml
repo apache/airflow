@@ -81,6 +81,9 @@ spec:
         {{- if .Values.airflowPodAnnotations }}
         {{- toYaml .Values.airflowPodAnnotations | nindent 8 }}
         {{- end }}
+        {{- if .Values.webserver.podAnnotations }}
+        {{- toYaml .Values.webserver.podAnnotations | nindent 8 }}
+        {{- end }}
     spec:
       serviceAccountName: {{ include "webserver.serviceAccountName" . }}
       nodeSelector:

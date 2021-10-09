@@ -478,7 +478,7 @@ This method is usually used for development purpose. But in case you have your o
 it to your forked version of source code without having to release it to PyPI. It is enough to have
 a branch or tag in your repository and use the tag or branch in the URL that you point the installation to.
 
-In case of GitHyb builds you need to pass the constraints reference manually in case you want to use
+In case of GitHub builds you need to pass the constraints reference manually in case you want to use
 specific constraints, otherwise the default ``constraints-main`` is used.
 
 The following example builds the production image in version ``3.7`` with default extras from the latest main version and
@@ -607,7 +607,9 @@ where you can build the image using the packages downloaded by passing those bui
 * ``AIRFLOW_PRE_CACHED_PIP_PACKAGES="false"``  - to not pre-cache packages from PyPI when building image
 * ``AIRFLOW_CONSTRAINTS_LOCATION=/docker-context-files/YOUR_CONSTRAINT_FILE.txt`` - to downloaded constraint files
 * (Optional) ``INSTALL_MYSQL_CLIENT="false"`` if you do not want to install ``MySQL``
-  client from the Oracle repositories. In this case also make sure that your
+  client from the Oracle repositories.
+* (Optional) ``INSTALL_MSSQL_CLIENT="false"`` if you do not want to install ``MsSQL``
+  client from the Microsoft repositories.
 
 Note, that the solution we have for installing python packages from local packages, only solves the problem
 of "air-gaped" python installation. The Docker image also downloads ``apt`` dependencies and ``node-modules``.

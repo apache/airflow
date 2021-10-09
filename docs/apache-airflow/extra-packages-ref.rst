@@ -222,6 +222,8 @@ Those are extras that add dependencies needed for integration with other softwar
 +---------------------+-----------------------------------------------------+-------------------------------------------+
 | exasol              | ``pip install 'apache-airflow[exasol]'``            | Exasol hooks and operators                |
 +---------------------+-----------------------------------------------------+-------------------------------------------+
+| influxdb            | ``pip install 'apache-airflow[influxdb]'``          | Influxdb operators and hook               |
++---------------------+-----------------------------------------------------+-------------------------------------------+
 | jenkins             | ``pip install 'apache-airflow[jenkins]'``           | Jenkins hooks and operators               |
 +---------------------+-----------------------------------------------------+-------------------------------------------+
 | mongo               | ``pip install 'apache-airflow[mongo]'``             | Mongo hooks and operators                 |
@@ -288,21 +290,21 @@ Bundle extras
 
 Those are extras that install one ore more extras as a bundle.
 
-+---------------------+-----------------------------------------------------+----------------------------------------------------------------------+
-| extra               | install command                                     | enables                                                              |
-+=====================+=====================================================+======================================================================+
-| all                 | ``pip install 'apache-airflow[all]'``               | All Airflow user facing features (no devel and doc requirements)     |
-+---------------------+-----------------------------------------------------+----------------------------------------------------------------------+
-| all_dbs             | ``pip install 'apache-airflow[all_dbs]'``           | All databases integrations                                           |
-+---------------------+-----------------------------------------------------+----------------------------------------------------------------------+
-| devel               | ``pip install 'apache-airflow[devel]'``             | Minimum dev tools requirements (without providers)                   |
-+---------------------+-----------------------------------------------------+----------------------------------------------------------------------+
-| devel_hadoop        | ``pip install 'apache-airflow[devel_hadoop]'``      | Same as ``devel`` + dependencies for developing the Hadoop stack     |
-+---------------------+-----------------------------------------------------+----------------------------------------------------------------------+
-| devel_all           | ``pip install 'apache-airflow[devel_all]'``         | Everything needed for development (``devel_hadoop`` +  providers)    |
-+---------------------+-----------------------------------------------------+----------------------------------------------------------------------+
-| devel_ci            | ``pip install 'apache-airflow[devel_ci]'``          | All dependencies required for CI tests.                              |
-+---------------------+-----------------------------------------------------+----------------------------------------------------------------------+
++---------------------+-----------------------------------------------------+------------------------------------------------------------------------+
+| extra               | install command                                     | enables                                                                |
++=====================+=====================================================+========================================================================+
+| all                 | ``pip install 'apache-airflow[all]'``               | All Airflow user facing features (no devel and doc requirements)       |
++---------------------+-----------------------------------------------------+------------------------------------------------------------------------+
+| all_dbs             | ``pip install 'apache-airflow[all_dbs]'``           | All database integrations                                              |
++---------------------+-----------------------------------------------------+------------------------------------------------------------------------+
+| devel               | ``pip install 'apache-airflow[devel]'``             | Minimum development dependencies (without Hadoop, Kerberos, providers) |
++---------------------+-----------------------------------------------------+------------------------------------------------------------------------+
+| devel_hadoop        | ``pip install 'apache-airflow[devel_hadoop]'``      | Adds Hadoop stack libraries to ``devel`` dependencies                  |
++---------------------+-----------------------------------------------------+------------------------------------------------------------------------+
+| devel_all           | ``pip install 'apache-airflow[devel_all]'``         | Everything needed for development including Hadoop and providers       |
++---------------------+-----------------------------------------------------+------------------------------------------------------------------------+
+| devel_ci            | ``pip install 'apache-airflow[devel_ci]'``          | All dependencies required for CI tests (same as ``devel_all``)         |
++---------------------+-----------------------------------------------------+------------------------------------------------------------------------+
 
 Doc extras
 ----------

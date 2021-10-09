@@ -25,6 +25,7 @@ import warnings
 from typing import Optional
 
 import pendulum
+import sqlalchemy
 from sqlalchemy import create_engine, exc
 from sqlalchemy.engine import Engine
 from sqlalchemy.orm import scoped_session, sessionmaker
@@ -92,7 +93,7 @@ STATE_COLORS = {
     "upstream_failed": "orange",
     "skipped": "pink",
     "scheduled": "tan",
-    "deferred": "lightseagreen",
+    "deferred": "mediumpurple",
 }
 
 
@@ -234,6 +235,27 @@ def configure_orm(disable_connection_pool=False):
             expire_on_commit=False,
         )
     )
+    if engine.dialect.name == 'mssql':
+        session = Session()
+        try:
+            result = session.execute(
+                sqlalchemy.text(
+                    'SELECT is_read_committed_snapshot_on FROM sys.databases WHERE name=:database_name'
+                ),
+                params={"database_name": engine.url.database},
+            )
+            data = result.fetchone()[0]
+            if data != 1:
+                log.critical("MSSQL database MUST have READ_COMMITTED_SNAPSHOT enabled.")
+                log.critical(f"The database {engine.url.database} has it disabled.")
+                log.critical("This will cause random deadlocks, Refusing to start.")
+                log.critical(
+                    "See https://airflow.apache.org/docs/apache-airflow/stable/howto/"
+                    "set-up-database.html#setting-up-a-mssql-database"
+                )
+                raise Exception("MSSQL database MUST have READ_COMMITTED_SNAPSHOT enabled.")
+        finally:
+            session.close()
 
 
 def prepare_engine_args(disable_connection_pool=False):
@@ -292,7 +314,13 @@ def prepare_engine_args(disable_connection_pool=False):
     # 'READ COMMITTED' is the default value for PostgreSQL.
     # More information here:
     # https://dev.mysql.com/doc/refman/8.0/en/innodb-transaction-isolation-levels.html"
-    if SQL_ALCHEMY_CONN.startswith('mysql'):
+
+    # Similarly MSSQL default isolation level should be set to READ COMMITTED.
+    # We also make sure that READ_COMMITTED_SNAPSHOT option is on, in order to avoid deadlocks when
+    # Select queries are running. This is by default enforced during init/upgrade. More information:
+    # https://docs.microsoft.com/en-us/sql/t-sql/statements/set-transaction-isolation-level-transact-sql
+
+    if SQL_ALCHEMY_CONN.startswith(('mysql', 'mssql')):
         engine_args['isolation_level'] = 'READ COMMITTED'
 
     return engine_args
@@ -519,3 +547,19 @@ HIDE_SENSITIVE_VAR_CONN_FIELDS = conf.getboolean('core', 'hide_sensitive_var_con
 # By default this is off, but is automatically configured on when running task
 # instances
 MASK_SECRETS_IN_LOGS = False
+
+# Display alerts on the dashboard
+# Useful for warning about setup issues or announcing changes to end users
+# List of UIAlerts, which allows for specifiying the message, category, and roles the
+# message should be shown to. For example:
+#   from airflow.www.utils import UIAlert
+#
+#   DASHBOARD_UIALERTS = [
+#       UIAlert("Welcome to Airflow"),  # All users
+#       UIAlert("Airflow update happening next week", roles=["User"]),  # Only users with the User role
+#       # A flash message with html:
+#       UIAlert('Visit <a href="http://airflow.apache.org">airflow.apache.org</a>', html=True),
+#   ]
+#
+# DASHBOARD_UIALERTS: List["UIAlert"]
+DASHBOARD_UIALERTS = []
