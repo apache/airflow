@@ -32,6 +32,10 @@ class AWSAthenaOperator(BaseOperator):
     """
     An operator that submits a presto query to athena.
 
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:AWSAthenaOperator`
+
     :param query: Presto to be run on athena. (templated)
     :type query: str
     :param database: Database to select. (templated)

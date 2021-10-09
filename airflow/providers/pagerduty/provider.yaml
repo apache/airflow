@@ -36,6 +36,9 @@ integrations:
     logo: /integration-logos/pagerduty/PagerDuty.png
     tags: [service]
 
+connection-types:
+  - hook-class-name: airflow.providers.pagerduty.hooks.pagerduty.PagerdutyHook
+    connection-type: pagerduty
 
 hooks:
   - integration-name: Pagerduty

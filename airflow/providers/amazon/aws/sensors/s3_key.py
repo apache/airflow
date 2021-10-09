@@ -176,7 +176,7 @@ class S3KeySizeSensor(S3KeySensor):
             'MaxItems': None,
         }
         if self.wildcard_match:
-            prefix = re.split(r'[*]', self.bucket_key, 1)[0]
+            prefix = re.split(r'[\[\*\?]', self.bucket_key, 1)[0]
 
         paginator = s3_hook.get_conn().get_paginator('list_objects_v2')
         response = paginator.paginate(

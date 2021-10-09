@@ -78,7 +78,7 @@ git push
 # Manually refreshing the images
 
 The images can be rebuilt and refreshed after the constraints are pushed. Refreshing image for particular
-python version is a simple as running the [refresh_images.sh](refresh_images.sh) script with pyhon version
+python version is a simple as running the [refresh_images.sh](refresh_images.sh) script with python version
 as parameter:
 
 ```bash

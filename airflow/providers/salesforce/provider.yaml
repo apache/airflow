@@ -35,12 +35,15 @@ additional-dependencies:
 integrations:
   - integration-name: Salesforce
     external-doc-url: https://www.salesforce.com/
+    how-to-guide:
+      - /docs/apache-airflow-providers-salesforce/operators/salesforce_apex_rest.rst
     logo: /integration-logos/salesforce/Salesforce.png
     tags: [service]
 
 operators:
   - integration-name: Salesforce
     python-modules:
+      - airflow.providers.salesforce.operators.salesforce_apex_rest
       - airflow.providers.salesforce.operators.tableau_refresh_workbook
 
 sensors:

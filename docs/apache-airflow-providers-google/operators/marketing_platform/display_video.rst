@@ -20,10 +20,6 @@ Google Display & Video 360 Operators
 `Google Display & Video 360 <https://marketingplatform.google.com/about/display-video-360/>`__ has the end-to-end
 campaign management features you need.
 
-.. contents::
-  :depth: 1
-  :local:
-
 Prerequisite Tasks
 ^^^^^^^^^^^^^^^^^^
 

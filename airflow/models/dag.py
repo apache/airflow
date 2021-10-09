@@ -290,7 +290,7 @@ class DAG(LoggingMixin):
         to render templates as native Python types. If False, a Jinja
         ``Environment`` is used to render templates as string values.
     :type render_template_as_native_obj: bool
-    :param tags: List of tags to help filtering DAGS in the UI.
+    :param tags: List of tags to help filtering DAGs in the UI.
     :type tags: List[str]
     """
 
@@ -372,7 +372,7 @@ class DAG(LoggingMixin):
         validate_key(dag_id)
 
         self._dag_id = dag_id
-        if concurrency and not max_active_tasks:
+        if concurrency:
             # TODO: Remove in Airflow 3.0
             warnings.warn(
                 "The 'concurrency' parameter is deprecated. Please use 'max_active_tasks'.",
@@ -713,10 +713,19 @@ class DAG(LoggingMixin):
             restriction = self._time_restriction
         else:
             restriction = TimeRestriction(earliest=None, latest=None, catchup=True)
-        return self.timetable.next_dagrun_info(
-            last_automated_data_interval=data_interval,
-            restriction=restriction,
-        )
+        try:
+            info = self.timetable.next_dagrun_info(
+                last_automated_data_interval=data_interval,
+                restriction=restriction,
+            )
+        except Exception:
+            self.log.exception(
+                "Failed to fetch run info after data interval %s for DAG %r",
+                data_interval,
+                self.dag_id,
+            )
+            info = None
+        return info
 
     def next_dagrun_after_date(self, date_last_automated_dagrun: Optional[pendulum.DateTime]):
         warnings.warn(
@@ -790,7 +799,19 @@ class DAG(LoggingMixin):
         if self.is_subdag:
             align = False
 
-        info = self.timetable.next_dagrun_info(last_automated_data_interval=None, restriction=restriction)
+        try:
+            info = self.timetable.next_dagrun_info(
+                last_automated_data_interval=None,
+                restriction=restriction,
+            )
+        except Exception:
+            self.log.exception(
+                "Failed to fetch run info after data interval %s for DAG %r",
+                None,
+                self.dag_id,
+            )
+            info = None
+
         if info is None:
             # No runs to be scheduled between the user-supplied timeframe. But
             # if align=False, "invent" a data interval for the timeframe itself.
@@ -806,10 +827,18 @@ class DAG(LoggingMixin):
         # Generate naturally according to schedule.
         while info is not None:
             yield info
-            info = self.timetable.next_dagrun_info(
-                last_automated_data_interval=info.data_interval,
-                restriction=restriction,
-            )
+            try:
+                info = self.timetable.next_dagrun_info(
+                    last_automated_data_interval=info.data_interval,
+                    restriction=restriction,
+                )
+            except Exception:
+                self.log.exception(
+                    "Failed to fetch run info after data interval %s for DAG %r",
+                    info.data_interval,
+                    self.dag_id,
+                )
+                break
 
     def get_run_dates(self, start_date, end_date=None):
         """
@@ -1180,7 +1209,7 @@ class DAG(LoggingMixin):
         return dagruns
 
     @provide_session
-    def get_latest_execution_date(self, session=None):
+    def get_latest_execution_date(self, session: Session) -> Optional[datetime]:
         """Returns the latest date for which at least one dag run exists"""
         return session.query(func.max(DagRun.execution_date)).filter(DagRun.dag_id == self.dag_id).scalar()
 
@@ -1269,8 +1298,8 @@ class DAG(LoggingMixin):
         ``base_date``, or more if there are manual task runs between the
         requested period, which does not count toward ``num``.
         """
-        min_date = (
-            session.query(DagRun)
+        min_date: Optional[datetime] = (
+            session.query(DagRun.execution_date)
             .filter(
                 DagRun.dag_id == self.dag_id,
                 DagRun.execution_date <= base_date,
@@ -1278,7 +1307,8 @@ class DAG(LoggingMixin):
             )
             .order_by(DagRun.execution_date.desc())
             .offset(num)
-            .first()
+            .limit(1)
+            .scalar()
         )
         if min_date is None:
             min_date = timezone.utc_epoch()
@@ -2154,6 +2184,7 @@ class DAG(LoggingMixin):
         conf=None,
         rerun_failed_tasks=False,
         run_backwards=False,
+        run_at_least_once=False,
     ):
         """
         Runs the DAG.
@@ -2188,7 +2219,9 @@ class DAG(LoggingMixin):
         :type: bool
         :param run_backwards:
         :type: bool
-
+        :param run_at_least_once: If true, always run the DAG at least once even
+            if no logical run exists within the time range.
+        :type: bool
         """
         from airflow.jobs.backfill_job import BackfillJob
 
@@ -2215,6 +2248,7 @@ class DAG(LoggingMixin):
             conf=conf,
             rerun_failed_tasks=rerun_failed_tasks,
             run_backwards=run_backwards,
+            run_at_least_once=run_at_least_once,
         )
         job.run()
 

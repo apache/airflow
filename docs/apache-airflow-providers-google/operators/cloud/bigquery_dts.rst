@@ -25,16 +25,10 @@ BigQuery Data Transfer Service initially supports Google application sources lik
 Campaign Manager, Google Ad Manager and YouTube. Through BigQuery Data Transfer Service, users also
 gain access to data connectors that allow you to easily transfer data from Teradata and Amazon S3 to BigQuery.
 
-
-.. contents::
-  :depth: 1
-  :local:
-
 Prerequisite Tasks
 ^^^^^^^^^^^^^^^^^^
 
 .. include::/operators/_partials/prerequisite_tasks.rst
-
 
 .. _howto/operator:BigQueryDTSDocuments:
 

@@ -61,7 +61,7 @@ Package apache-airflow-providers-microsoft-azure
 `Microsoft Azure <https://azure.microsoft.com/>`__
 
 
-Release: 3.1.1
+Release: 3.2.0
 
 Provider package
 ----------------
@@ -78,9 +78,9 @@ You can install this package on top of an existing airflow 2.1+ installation via
 PIP requirements
 ----------------
 
-================================  ==================
+================================  ====================
 PIP package                       Version required
-================================  ==================
+================================  ====================
 ``apache-airflow``                ``>=2.1.0``
 ``azure-batch``                   ``>=8.0.0``
 ``azure-cosmos``                  ``>=3.0.1,<4``
@@ -92,10 +92,10 @@ PIP package                       Version required
 ``azure-mgmt-datafactory``        ``>=1.0.0,<2.0``
 ``azure-mgmt-datalake-store``     ``>=0.5.0``
 ``azure-mgmt-resource``           ``>=2.2.0``
-``azure-storage-blob``            ``>=12.7.0``
+``azure-storage-blob``            ``>=12.7.0,<12.9.0``
 ``azure-storage-common``          ``>=2.1.0``
 ``azure-storage-file``            ``>=2.1.0``
-================================  ==================
+================================  ====================
 
 Cross provider package dependencies
 -----------------------------------
@@ -123,7 +123,7 @@ Downloading official packages
 You can download officially released packages and verify their checksums and signatures from the
 `Official Apache Download site <https://downloads.apache.org/airflow/providers/>`_
 
-* `The apache-airflow-providers-microsoft-azure 3.1.1 sdist package <https://downloads.apache.org/airflow/providers/apache-airflow-providers-microsoft-azure-3.1.1.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache-airflow-providers-microsoft-azure-3.1.1.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache-airflow-providers-microsoft-azure-3.1.1.tar.gz.sha512>`__)
-* `The apache-airflow-providers-microsoft-azure 3.1.1 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_microsoft_azure-3.1.1-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_microsoft_azure-3.1.1-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_microsoft_azure-3.1.1-py3-none-any.whl.sha512>`__)
+* `The apache-airflow-providers-microsoft-azure 3.2.0 sdist package <https://downloads.apache.org/airflow/providers/apache-airflow-providers-microsoft-azure-3.2.0.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache-airflow-providers-microsoft-azure-3.2.0.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache-airflow-providers-microsoft-azure-3.2.0.tar.gz.sha512>`__)
+* `The apache-airflow-providers-microsoft-azure 3.2.0 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_microsoft_azure-3.2.0-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_microsoft_azure-3.2.0-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_microsoft_azure-3.2.0-py3-none-any.whl.sha512>`__)
 
 .. include:: ../../airflow/providers/microsoft/azure/CHANGELOG.rst

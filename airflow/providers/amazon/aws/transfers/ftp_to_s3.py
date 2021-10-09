@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 from tempfile import NamedTemporaryFile
+from typing import List, Optional, Union
 
 from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
@@ -24,20 +25,30 @@ from airflow.providers.ftp.hooks.ftp import FTPHook
 
 class FTPToS3Operator(BaseOperator):
     """
-    This operator enables the transferring of files from FTP server to S3.
+    This operator enables the transfer of files from a FTP server to S3. It can be used to
+    transfer one or multiple files.
 
-    :param s3_bucket: The targeted s3 bucket in which upload the file to
-    :type s3_bucket: str
-    :param s3_key: The targeted s3 key. This is the specified file path for
-        uploading the file to S3.
-    :type s3_key: str
-    :param ftp_path: The ftp remote path, including the file.
+    :param ftp_path: The ftp remote path. For one file it is mandatory to include the file as well.
+        For multiple files, it is the route where the files will be found.
     :type ftp_path: str
+    :param s3_bucket: The targeted s3 bucket in which to upload the file(s).
+    :type s3_bucket: str
+    :param s3_key: The targeted s3 key. For one file it must include the file path. For several,
+        it must end with "/".
+    :type s3_key: str
+    :param ftp_filenames: Only used if you want to move multiple files. You can pass a list
+        with exact filenames present in the ftp path, or a prefix that all files must meet. It
+        can also be the string '*' for moving all the files within the ftp path.
+    :type ftp_filenames: Union(str, list)
+    :param s3_filenames: Only used if you want to move multiple files and name them different from
+        the originals from the ftp. It can be a list of filenames or file prefix (that will replace
+        the ftp prefix).
+    :type s3_filenames: Union(str, list)
     :param ftp_conn_id: The ftp connection id. The name or identifier for
         establishing a connection to the FTP server.
     :type ftp_conn_id: str
     :param aws_conn_id: The s3 connection id. The name or identifier for
-        establishing a connection to S3
+        establishing a connection to S3.
     :type aws_conn_id: str
     :param replace: A flag to decide whether or not to overwrite the key
         if it already exists. If replace is False and the key exists, an
@@ -53,52 +64,90 @@ class FTPToS3Operator(BaseOperator):
     :type acl_policy: str
     """
 
-    template_fields = (
-        's3_bucket',
-        's3_key',
-        'ftp_path',
-    )
+    template_fields = ('ftp_path', 's3_bucket', 's3_key', 'ftp_filenames', 's3_filenames')
 
     def __init__(
         self,
-        s3_bucket,
-        s3_key,
-        ftp_path,
-        ftp_conn_id='ftp_default',
-        aws_conn_id='aws_default',
-        replace=False,
-        encrypt=False,
-        gzip=False,
-        acl_policy=None,
-        *args,
+        *,
+        ftp_path: str,
+        s3_bucket: str,
+        s3_key: str,
+        ftp_filenames: Optional[Union[str, List[str]]] = None,
+        s3_filenames: Optional[Union[str, List[str]]] = None,
+        ftp_conn_id: str = 'ftp_default',
+        aws_conn_id: str = 'aws_default',
+        replace: bool = False,
+        encrypt: bool = False,
+        gzip: bool = False,
+        acl_policy: str = None,
         **kwargs,
     ):
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
+        self.ftp_path = ftp_path
         self.s3_bucket = s3_bucket
         self.s3_key = s3_key
-        self.ftp_path = ftp_path
+        self.ftp_filenames = ftp_filenames
+        self.s3_filenames = s3_filenames
         self.aws_conn_id = aws_conn_id
         self.ftp_conn_id = ftp_conn_id
         self.replace = replace
         self.encrypt = encrypt
         self.gzip = gzip
         self.acl_policy = acl_policy
+        self.s3_hook = None
+        self.ftp_hook = None
 
-    def execute(self, context):
-        s3_hook = S3Hook(self.aws_conn_id)
-        ftp_hook = FTPHook(ftp_conn_id=self.ftp_conn_id)
-
+    def __upload_to_s3_from_ftp(self, remote_filename, s3_file_key):
         with NamedTemporaryFile() as local_tmp_file:
-            ftp_hook.retrieve_file(
-                remote_full_path=self.ftp_path, local_full_path_or_buffer=local_tmp_file.name
+            self.ftp_hook.retrieve_file(
+                remote_full_path=remote_filename, local_full_path_or_buffer=local_tmp_file.name
             )
 
-            s3_hook.load_file(
+            self.s3_hook.load_file(
                 filename=local_tmp_file.name,
-                key=self.s3_key,
+                key=s3_file_key,
                 bucket_name=self.s3_bucket,
                 replace=self.replace,
                 encrypt=self.encrypt,
                 gzip=self.gzip,
                 acl_policy=self.acl_policy,
             )
+            self.log.info(f'File upload to {s3_file_key}')
+
+    def execute(self, context):
+        self.ftp_hook = FTPHook(ftp_conn_id=self.ftp_conn_id)
+        self.s3_hook = S3Hook(self.aws_conn_id)
+
+        if self.ftp_filenames:
+            if isinstance(self.ftp_filenames, str):
+                self.log.info(f'Getting files in {self.ftp_path}')
+
+                list_dir = self.ftp_hook.list_directory(
+                    path=self.ftp_path,
+                )
+
+                if self.ftp_filenames == '*':
+                    files = list_dir
+                else:
+                    files = list(filter(lambda file: self.ftp_filenames in file, list_dir))
+
+                for file in files:
+                    self.log.info(f'Moving file {file}')
+
+                    if self.s3_filenames:
+                        filename = file.replace(self.ftp_filenames, self.s3_filenames)
+                    else:
+                        filename = file
+
+                    s3_file_key = f'{self.s3_key}{filename}'
+                    self.__upload_to_s3_from_ftp(file, s3_file_key)
+
+            else:
+                if self.s3_filenames:
+                    for ftp_file, s3_file in zip(self.ftp_filenames, self.s3_filenames):
+                        self.__upload_to_s3_from_ftp(self.ftp_path + ftp_file, self.s3_key + s3_file)
+                else:
+                    for ftp_file in self.ftp_filenames:
+                        self.__upload_to_s3_from_ftp(self.ftp_path + ftp_file, self.s3_key + ftp_file)
+        else:
+            self.__upload_to_s3_from_ftp(self.ftp_path, self.s3_key)

@@ -32,10 +32,10 @@ By default, Airflow uses **SQLite**, which is intended for development purposes 
 
 Airflow supports the following database engine versions, so make sure which version you have. Old versions may not support all SQL statements.
 
-  * PostgreSQL:  9.6, 10, 11, 12, 13
-  * MySQL: 5.7, 8
-  * MsSQL: 2017, 2019
-  * SQLite: 3.15.0+
+* PostgreSQL:  9.6, 10, 11, 12, 13
+* MySQL: 5.7, 8
+* MsSQL: 2017, 2019
+* SQLite: 3.15.0+
 
 If you plan on running more than one scheduler, you have to meet additional requirements.
 For details, see :ref:`Scheduler HA Database Requirements <scheduler:ha:db_requirements>`.
@@ -218,10 +218,32 @@ We recommend using the ``psycopg2`` driver and specifying it in your SqlAlchemy 
 
    postgresql+psycopg2://<user>:<password>@<host>/<db>
 
-Also note that since SqlAlchemy does not expose a way to target a specific schema in the database URI, you may
-want to set a default schema for your role with a SQL statement similar to ``ALTER ROLE username SET search_path = airflow, foobar;``
+Also note that since SqlAlchemy does not expose a way to target a specific schema in the database URI, you need to ensure schema ``public`` is in your Postgres user's search_path.
+
+If you created a new Postgres account for Airflow:
+
+* The default search_path for new Postgres user is: ``"$user", public``, no change is needed.
+
+If you use a current Postgres user with custom search_path, search_path can be changed by the command:
+
+.. code-block:: sql
+
+   ALTER USER airflow_user SET search_path = public;
 
 For more information regarding setup of the PostgresSQL connection, see `PostgreSQL dialect <https://docs.sqlalchemy.org/en/13/dialects/postgresql.html>`__ in SQLAlchemy documentation.
+
+.. note::
+
+   Airflow is known - especially in high-performance setup - to open many connections to metadata database. This might cause problems for
+   Postgres resource usage, because in Postgres, each connection creates a new process and it makes Postgres resource-hungry when a lot
+   of connections are opened. Therefore we recommend to use `PGBouncer <https://www.pgbouncer.org/>`_ as database proxy for all Postgres
+   production installations. PGBouncer can handle connection pooling from multiple components, but also in case you have remote
+   database with potentially unstable connectivity, it will make your DB connectivity much more resilient to temporary network problems.
+   Example implementation of PGBouncer deployment can be found in the :doc:`helm-chart:index` where you can enable pre-configured
+   PGBouncer instance with flipping a boolean flag. You can take a look at the approach we have taken there and use it as
+   an inspiration, when you prepare your own Deployment, even if you do not use the Official Helm Chart.
+
+   See also :ref:`Helm Chart production guide <production-guide:pgbouncer>`
 
 .. spelling::
 
@@ -246,6 +268,21 @@ You can read more about transaction isolation and snapshot features at
    USE airflow;
    CREATE USER airflow_user FROM LOGIN airflow_user;
    GRANT ALL PRIVILEGES ON DATABASE airflow TO airflow_user;
+
+
+We recommend using the ``mssql+pyodbc`` driver and specifying it in your SqlAlchemy connection string.
+
+.. code-block:: text
+
+    mssql+pyodbc://<user>:<password>@<host>[:port]/<db>?[driver=<driver>]
+
+
+You do not need to specify the Driver if you have default driver configured in your system. For the
+Official Docker image we have ODBC driver installed, so you need to specify the ODBC driver to use:
+
+.. code-block:: text
+
+    mssql+pyodbc://<user>:<password>@<host>[:port]/<db>[?driver=ODBC+Driver+17+for+SQL+Server]
 
 
 Other configuration options

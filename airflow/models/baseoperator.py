@@ -308,7 +308,7 @@ class BaseOperator(Operator, LoggingMixin, TaskMixin, metaclass=BaseOperatorMeta
         you know exactly what priority weight each task should have.
         Additionally, when set to ``absolute``, there is bonus effect of
         significantly speeding up the task creation process as for very large
-        DAGS. Options can be set as string or using the constants defined in
+        DAGs. Options can be set as string or using the constants defined in
         the static class ``airflow.utils.WeightRule``
     :type weight_rule: str
     :param queue: which queue to target when running this job. Not
@@ -397,6 +397,9 @@ class BaseOperator(Operator, LoggingMixin, TaskMixin, metaclass=BaseOperatorMeta
     :param do_xcom_push: if True, an XCom is pushed containing the Operator's
         result
     :type do_xcom_push: bool
+    :param task_group: The TaskGroup to which the task should belong. This is typically provided when not
+        using a TaskGroup as a context manager.
+    :type task_group: airflow.utils.task_group.TaskGroup
     :param doc: Add documentation or notes to your Task objects that is visible in
         Task Instance details View in the Webserver
     :type doc: str
@@ -494,7 +497,7 @@ class BaseOperator(Operator, LoggingMixin, TaskMixin, metaclass=BaseOperatorMeta
         params: Optional[Dict] = None,
         default_args: Optional[Dict] = None,
         priority_weight: int = 1,
-        weight_rule: str = WeightRule.DOWNSTREAM,
+        weight_rule: str = conf.get('core', 'default_task_weight_rule', fallback=WeightRule.DOWNSTREAM),
         queue: str = conf.get('operators', 'default_queue'),
         pool: Optional[str] = None,
         pool_slots: int = 1,

@@ -26,10 +26,6 @@ in the cloud, and use models to make predictions for new data. AI Platform is a 
 of tools for training, evaluating, and tuning machine learning models. AI Platform can also
 be used to deploy a trained model, make predictions, and manage various model versions.
 
-.. contents::
-  :depth: 1
-  :local:
-
 Prerequisite tasks
 ^^^^^^^^^^^^^^^^^^
 

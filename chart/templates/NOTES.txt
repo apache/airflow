@@ -129,3 +129,17 @@ DEPRECATION WARNING:
     Please change your values as support for the old name will be dropped in a future release.
 
 {{- end }}
+
+{{- if not (or .Values.webserverSecretKey .Values.webserverSecretKeySecretName) }}
+
+###########################################################
+#  WARNING: You should set a static webserver secret key  #
+###########################################################
+
+You are using a dynamically generated webserver secret key, which can lead to
+unnecessary restarts of your Airflow components.
+
+Information on how to set a static webserver secret key can be found here:
+https://airflow.apache.org/docs/helm-chart/stable/production-guide.html#webserver-secret-key
+
+{{- end }}

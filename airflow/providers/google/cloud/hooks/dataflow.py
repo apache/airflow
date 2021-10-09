@@ -623,6 +623,7 @@ class DataflowHook(GoogleBaseHook):
         project_id: str,
         append_job_name: bool = True,
         on_new_job_id_callback: Optional[Callable[[str], None]] = None,
+        on_new_job_callback: Optional[Callable[[dict], None]] = None,
         location: str = DEFAULT_DATAFLOW_LOCATION,
         environment: Optional[dict] = None,
     ) -> dict:
@@ -648,8 +649,10 @@ class DataflowHook(GoogleBaseHook):
             If set to None or missing, the default project_id from the Google Cloud connection is used.
         :param append_job_name: True if unique suffix has to be appended to job name.
         :type append_job_name: bool
-        :param on_new_job_id_callback: Callback called when the job ID is known.
+        :param on_new_job_id_callback: (Deprecated) Callback called when the Job is known.
         :type on_new_job_id_callback: callable
+        :param on_new_job_callback: Callback called when the Job is known.
+        :type on_new_job_callback: callable
         :param location: Job location.
         :type location: str
         :type environment: Optional, Map of job runtime environment options.
@@ -713,15 +716,24 @@ class DataflowHook(GoogleBaseHook):
         )
         response = request.execute(num_retries=self.num_retries)
 
-        job_id = response["job"]["id"]
+        job = response["job"]
+
         if on_new_job_id_callback:
-            on_new_job_id_callback(job_id)
+            warnings.warn(
+                "on_new_job_id_callback is Deprecated. Please start using on_new_job_callback",
+                DeprecationWarning,
+                stacklevel=3,
+            )
+            on_new_job_id_callback(job.get("id"))
+
+        if on_new_job_callback:
+            on_new_job_callback(job)
 
         jobs_controller = _DataflowJobsController(
             dataflow=self.get_conn(),
             project_number=project_id,
             name=name,
-            job_id=job_id,
+            job_id=job["id"],
             location=location,
             poll_sleep=self.poll_sleep,
             num_retries=self.num_retries,
@@ -739,6 +751,7 @@ class DataflowHook(GoogleBaseHook):
         location: str,
         project_id: str,
         on_new_job_id_callback: Optional[Callable[[str], None]] = None,
+        on_new_job_callback: Optional[Callable[[dict], None]] = None,
     ):
         """
         Starts flex templates with the Dataflow  pipeline.
@@ -750,7 +763,8 @@ class DataflowHook(GoogleBaseHook):
         :param project_id: The ID of the GCP project that owns the job.
             If set to ``None`` or missing, the default project_id from the GCP connection is used.
         :type project_id: Optional[str]
-        :param on_new_job_id_callback: A callback that is called when a Job ID is detected.
+        :param on_new_job_id_callback: (Deprecated) A callback that is called when a Job ID is detected.
+        :param on_new_job_callback: A callback that is called when a Job is detected.
         :return: the Job
         """
         service = self.get_conn()
@@ -761,15 +775,23 @@ class DataflowHook(GoogleBaseHook):
             .launch(projectId=project_id, body=body, location=location)
         )
         response = request.execute(num_retries=self.num_retries)
-        job_id = response["job"]["id"]
+        job = response["job"]
 
         if on_new_job_id_callback:
-            on_new_job_id_callback(job_id)
+            warnings.warn(
+                "on_new_job_id_callback is Deprecated. Please start using on_new_job_callback",
+                DeprecationWarning,
+                stacklevel=3,
+            )
+            on_new_job_id_callback(job.get("id"))
+
+        if on_new_job_callback:
+            on_new_job_callback(job)
 
         jobs_controller = _DataflowJobsController(
             dataflow=self.get_conn(),
             project_number=project_id,
-            job_id=job_id,
+            job_id=job.get("id"),
             location=location,
             poll_sleep=self.poll_sleep,
             num_retries=self.num_retries,
@@ -973,6 +995,7 @@ class DataflowHook(GoogleBaseHook):
         project_id: str,
         location: str = DEFAULT_DATAFLOW_LOCATION,
         on_new_job_id_callback: Optional[Callable[[str], None]] = None,
+        on_new_job_callback: Optional[Callable[[dict], None]] = None,
     ):
         """
         Starts Dataflow SQL query.
@@ -991,8 +1014,10 @@ class DataflowHook(GoogleBaseHook):
         :param project_id: The ID of the GCP project that owns the job.
             If set to ``None`` or missing, the default project_id from the GCP connection is used.
         :type project_id: Optional[str]
-        :param on_new_job_id_callback: Callback called when the job ID is known.
+        :param on_new_job_id_callback: (Deprecated) Callback called when the job ID is known.
         :type on_new_job_id_callback: callable
+        :param on_new_job_callback: Callback called when the job is known.
+        :type on_new_job_callback: callable
         :return: the new job object
         """
         cmd = [
@@ -1018,8 +1043,6 @@ class DataflowHook(GoogleBaseHook):
         job_id = proc.stdout.decode().strip()
 
         self.log.info("Created job ID: %s", job_id)
-        if on_new_job_id_callback:
-            on_new_job_id_callback(job_id)
 
         jobs_controller = _DataflowJobsController(
             dataflow=self.get_conn(),
@@ -1031,8 +1054,20 @@ class DataflowHook(GoogleBaseHook):
             drain_pipeline=self.drain_pipeline,
             wait_until_finished=self.wait_until_finished,
         )
-        jobs_controller.wait_for_done()
+        job = jobs_controller.get_jobs(refresh=True)[0]
 
+        if on_new_job_id_callback:
+            warnings.warn(
+                "on_new_job_id_callback is Deprecated. Please start using on_new_job_callback",
+                DeprecationWarning,
+                stacklevel=3,
+            )
+            on_new_job_id_callback(job.get("id"))
+
+        if on_new_job_callback:
+            on_new_job_callback(job)
+
+        jobs_controller.wait_for_done()
         return jobs_controller.get_jobs(refresh=True)[0]
 
     @GoogleBaseHook.fallback_to_default_project_id

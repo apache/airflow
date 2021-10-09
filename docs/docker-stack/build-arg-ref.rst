@@ -34,7 +34,7 @@ Those are the most common arguments that you use when you want to build a custom
 +------------------------------------------+------------------------------------------+---------------------------------------------+
 | ``AIRFLOW_VERSION``                      | :subst-code:`|airflow-version|`          | version of Airflow.                         |
 +------------------------------------------+------------------------------------------+---------------------------------------------+
-| ``AIRFLOW_EXTRAS``                       | (see Dockerfile)                         | Default extras with which airflow is        |
+| ``AIRFLOW_EXTRAS``                       | (see below the table)                    | Default extras with which airflow is        |
 |                                          |                                          | installed.                                  |
 +------------------------------------------+------------------------------------------+---------------------------------------------+
 | ``ADDITIONAL_AIRFLOW_EXTRAS``            |                                          | Optional additional extras with which       |
@@ -51,11 +51,6 @@ Those are the most common arguments that you use when you want to build a custom
 +------------------------------------------+------------------------------------------+---------------------------------------------+
 | ``AIRFLOW_UID``                          | ``50000``                                | Airflow user UID.                           |
 +------------------------------------------+------------------------------------------+---------------------------------------------+
-| ``AIRFLOW_GID``                          | ``50000``                                | Airflow group GID. Note that writable       |
-|                                          |                                          | files/dirs, created on behalf of airflow    |
-|                                          |                                          | user are set to the ``root`` group (0)      |
-|                                          |                                          | to allow arbitrary UID to run the image.    |
-+------------------------------------------+------------------------------------------+---------------------------------------------+
 | ``AIRFLOW_CONSTRAINTS_REFERENCE``        |                                          | Reference (branch or tag) from GitHub       |
 |                                          |                                          | where constraints file is taken from        |
 |                                          |                                          | It can be ``constraints-main`` or           |
@@ -66,6 +61,44 @@ Those are the most common arguments that you use when you want to build a custom
 |                                          |                                          | :subst-code:`constraints-|airflow-version|`.|
 |                                          |                                          | Auto-detected if empty.                     |
 +------------------------------------------+------------------------------------------+---------------------------------------------+
+
+.. note::
+
+    Before Airflow 2.2, the image also had ``AIRFLOW_GID`` parameter, but it did not provide any additional
+    functionality - only added confusion - so it has been removed.
+
+List of default extras in the production Dockerfile:
+
+.. BEGINNING OF EXTRAS LIST UPDATED BY PRE COMMIT
+
+* amazon
+* async
+* celery
+* cncf.kubernetes
+* dask
+* docker
+* elasticsearch
+* ftp
+* google
+* google_auth
+* grpc
+* hashicorp
+* http
+* ldap
+* microsoft.azure
+* mysql
+* odbc
+* pandas
+* postgres
+* redis
+* sendgrid
+* sftp
+* slack
+* ssh
+* statsd
+* virtualenv
+
+.. END OF EXTRAS LIST UPDATED BY PRE COMMIT
 
 Image optimization options
 ..........................
@@ -123,6 +156,8 @@ for examples of using those arguments.
 | ``INSTALL_MYSQL_CLIENT``                 | ``true``                                 | Whether MySQL client should be installed |
 |                                          |                                          | The mysql extra is removed from extras   |
 |                                          |                                          | if the client is not installed.          |
++------------------------------------------+------------------------------------------+------------------------------------------+
+| ``INSTALL_MSSQL_CLIENT``                 | ``true``                                 | Whether MsSQL client should be installed |
 +------------------------------------------+------------------------------------------+------------------------------------------+
 
 Installing Airflow using different methods

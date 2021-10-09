@@ -25,10 +25,6 @@ Functions and Cloud Run, and calls to external APIs to create flexible serverles
 For more information about the service visit
 `Workflows production documentation <Product documentation <https://cloud.google.com/workflows/docs/overview>`__.
 
-.. contents::
-  :depth: 1
-  :local:
-
 Prerequisite Tasks
 ------------------
 

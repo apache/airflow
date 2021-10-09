@@ -38,7 +38,7 @@ directory.
 .. note::
     For more information on setting the configuration, see :doc:`/howto/set-config`
 
-The following convention is followed while naming logs: ``{dag_id}/{task_id}/{execution_date}/{try_number}.log``
+The following convention is followed while naming logs: ``{dag_id}/{task_id}/{logical_date}/{try_number}.log``
 
 In addition, users can supply a remote location to store current logs and backups.
 
@@ -63,7 +63,7 @@ the example below.
     Executor: [SequentialExecutor]
     Task Logging Handlers: [StackdriverTaskHandler]
     SQL Alchemy Conn: [sqlite://///root/airflow/airflow.db]
-    DAGS Folder: [/root/airflow/dags]
+    DAGs Folder: [/root/airflow/dags]
     Plugins Folder: [/root/airflow/plugins]
     Base Log Folder: [/root/airflow/logs]
 

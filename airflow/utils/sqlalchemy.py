@@ -96,7 +96,7 @@ class ExtendedJSON(TypeDecorator):
     serialization provided by airflow.serialization.
     """
 
-    impl = TypeEngine
+    impl = Text
 
     def db_supports_json(self):
         """Checks if the database supports JSON (i.e. is NOT MSSQL)"""

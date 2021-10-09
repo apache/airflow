@@ -131,7 +131,6 @@ def set_state(
         if sub_dag_run_ids:
             qry_sub_dag = all_subdag_tasks_query(sub_dag_run_ids, session, state, confirmed_dates)
             tis_altered += qry_sub_dag.all()
-
     return tis_altered
 
 

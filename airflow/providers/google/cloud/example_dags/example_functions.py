@@ -67,7 +67,7 @@ GCF_SOURCE_REPOSITORY = os.environ.get(
 )
 GCF_ZIP_PATH = os.environ.get('GCF_ZIP_PATH', '')
 GCF_ENTRYPOINT = os.environ.get('GCF_ENTRYPOINT', 'helloWorld')
-GCF_RUNTIME = 'nodejs6'
+GCF_RUNTIME = 'nodejs14'
 GCP_VALIDATE_BODY = os.environ.get('GCP_VALIDATE_BODY', "True") == "True"
 
 # [START howto_operator_gcf_deploy_body]

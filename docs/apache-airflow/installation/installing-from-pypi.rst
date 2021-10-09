@@ -18,9 +18,6 @@
 Installation from PyPI
 ----------------------
 
-.. contents:: :local:
-
-
 This page describes installations using the ``apache-airflow`` package `published in
 PyPI <https://pypi.org/project/apache-airflow/>`__.
 

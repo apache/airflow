@@ -73,10 +73,16 @@
       </span>{% endfor %}
     </div>
     <div>
-      {% for state, state_color in state_color_mapping.items() %}<span class="legend-item legend-item--no-border">
-        <span class="legend-item__swatch legend-item__swatch--no-border" style="background: {{ state_color }};"></span>
-        {{state}}</span>{% endfor %}<span class="legend-item legend-item--no-border">
-        <span class="legend-item__swatch"></span>no_status</span>
+      {% for state, state_color in state_color_mapping.items() %}
+        <span class="legend-item legend-item--no-border">
+          <span class="legend-item__swatch legend-item__swatch--no-border" style="background: {{ state_color }};"></span>
+          {{state}}
+        </span>
+      {% endfor %}
+      <span class="legend-item legend-item--no-border">
+        <span class="legend-item__swatch"></span>
+        no_status
+      </span>
     </div>
   </div>
   <hr>

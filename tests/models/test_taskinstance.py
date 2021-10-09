@@ -19,7 +19,6 @@
 import datetime
 import os
 import signal
-import time
 import urllib
 from tempfile import NamedTemporaryFile
 from typing import List, Optional, Union, cast
@@ -489,7 +488,8 @@ class TestTaskInstance:
         assert ti.next_kwargs is None
         assert ti.state == State.UP_FOR_RETRY
 
-    def test_retry_delay(self, dag_maker):
+    @freeze_time('2021-09-19 04:56:35', as_kwarg='frozen_time')
+    def test_retry_delay(self, dag_maker, frozen_time=None):
         """
         Test that retry delays are respected
         """
@@ -517,11 +517,12 @@ class TestTaskInstance:
         assert ti.try_number == 2
 
         # second run -- still up for retry because retry_delay hasn't expired
+        frozen_time.tick(delta=datetime.timedelta(seconds=3))
         run_with_error(ti)
         assert ti.state == State.UP_FOR_RETRY
 
         # third run -- failed
-        time.sleep(3)
+        frozen_time.tick(delta=datetime.datetime.resolution)
         run_with_error(ti)
         assert ti.state == State.FAILED
 
@@ -621,13 +622,14 @@ class TestTaskInstance:
         date = ti.next_retry_datetime()
         assert date == ti.end_date + max_delay
 
-    def test_next_retry_datetime_short_intervals(self, dag_maker):
-        delay = datetime.timedelta(seconds=1)
+    @pytest.mark.parametrize("seconds", [0, 0.5, 1])
+    def test_next_retry_datetime_short_or_zero_intervals(self, dag_maker, seconds):
+        delay = datetime.timedelta(seconds=seconds)
         max_delay = datetime.timedelta(minutes=60)
 
         with dag_maker(dag_id='fail_dag'):
             task = BashOperator(
-                task_id='task_with_exp_backoff_and_short_time_interval',
+                task_id='task_with_exp_backoff_and_short_or_zero_time_interval',
                 bash_command='exit 1',
                 retries=3,
                 retry_delay=delay,
@@ -639,9 +641,7 @@ class TestTaskInstance:
         ti.end_date = pendulum.instance(timezone.utcnow())
 
         date = ti.next_retry_datetime()
-        # between 1 * 2^0.5 and 1 * 2^1 (15 and 30)
-        period = ti.end_date.add(seconds=15) - ti.end_date.add(seconds=1)
-        assert date in period
+        assert date == ti.end_date + datetime.timedelta(seconds=1)
 
     def test_reschedule_handling(self, dag_maker):
         """
@@ -1683,6 +1683,24 @@ class TestTaskInstance:
         assert context_arg_3 and "task_instance" in context_arg_3
         mock_on_retry_3.assert_not_called()
 
+    def test_handle_failure_updates_queued_task_try_number(self, dag_maker):
+        session = settings.Session()
+        with dag_maker():
+            task = DummyOperator(task_id="mytask", retries=1)
+        dr = dag_maker.create_dagrun()
+        ti = TI(task=task, run_id=dr.run_id)
+        ti.state = State.QUEUED
+        session.merge(ti)
+        session.commit()
+        assert ti.state == State.QUEUED
+        assert ti.try_number == 1
+        ti.handle_failure("test queued ti", test_mode=True)
+        assert ti.state == State.UP_FOR_RETRY
+        # Assert that 'ti._try_number' is bumped from 0 to 1. This is the last/current try
+        assert ti._try_number == 1
+        # Check 'ti.try_number' is bumped to 2. This is try_number for next run
+        assert ti.try_number == 2
+
     def test_does_not_retry_on_airflow_fail_exception(self, dag_maker):
         def fail():
             raise AirflowFailException("hopeless")
@@ -2045,7 +2063,7 @@ class TestRunRawTaskQueriesCount:
         "expected_query_count, mark_success",
         [
             # Expected queries, mark_success
-            (12, False),
+            (10, False),
             (5, True),
         ],
     )

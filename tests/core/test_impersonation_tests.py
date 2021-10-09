@@ -120,7 +120,7 @@ class TestImpersonation(unittest.TestCase):
             dag_folder=TEST_DAG_FOLDER,
             include_examples=False,
         )
-        logger.info('Loaded DAGS:')
+        logger.info('Loaded DAGs:')
         logger.info(cls.dagbag.dagbag_report())
 
     def setUp(self):
@@ -187,7 +187,7 @@ class TestImpersonationWithCustomPythonPath(unittest.TestCase):
             dag_folder=TEST_DAG_CORRUPTED_FOLDER,
             include_examples=False,
         )
-        logger.info('Loaded DAGS:')
+        logger.info('Loaded DAGs:')
         logger.info(self.dagbag.dagbag_report())
 
         create_user()

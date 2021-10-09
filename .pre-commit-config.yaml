@@ -154,7 +154,7 @@ repos:
           - "--maxlevel"
           - "2"
   - repo: https://github.com/psf/black
-    rev: 21.8b0
+    rev: 21.9b0
     hooks:
       - id: black
         args: [--config=./pyproject.toml]
@@ -164,7 +164,7 @@ repos:
     hooks:
       - id: blacken-docs
         alias: black
-        additional_dependencies: [black==21.8b0]
+        additional_dependencies: [black==21.9b0]
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v4.0.1
     hooks:
@@ -196,7 +196,7 @@ repos:
         files: ^chart/values\.schema\.json$|^chart/values_schema\.schema\.json$
         pass_filenames: true
   - repo: https://github.com/asottile/pyupgrade
-    rev: v2.25.1
+    rev: v2.29.0
     hooks:
       - id: pyupgrade
         args: ["--py36-plus"]
@@ -323,6 +323,13 @@ repos:
         language: python
         files: ^setup\.py$|^INSTALL$|^CONTRIBUTING\.rst$
         pass_filenames: false
+      - id: check-extras-order
+        name: Check order of extras in Dockerfile
+        entry: ./scripts/ci/pre_commit/pre_commit_check_order_dockerfile_extras.py
+        language: python
+        files: ^Dockerfile$
+        pass_filenames: false
+        additional_dependencies: ['rich']
       - id: update-version
         name: Update version to the latest version in the documentation
         entry: ./scripts/ci/pre_commit/pre_commit_update_versions.py
@@ -365,6 +372,7 @@ repos:
         pass_filenames: true
         exclude: >
           (?x)
+          ^airflow/www/fab_security/manager\.py$|
           ^airflow/providers/apache/cassandra/hooks/cassandra\.py$|
           ^airflow/providers/apache/hive/operators/hive_stats\.py$|
           ^airflow/providers/apache/hive/.*PROVIDER_CHANGES_*|

@@ -18,7 +18,6 @@
 from flask import Response, current_app, request
 from itsdangerous.exc import BadSignature
 from itsdangerous.url_safe import URLSafeSerializer
-from sqlalchemy.orm import eagerload
 
 from airflow.api_connexion import security
 from airflow.api_connexion.exceptions import BadRequest, NotFound
@@ -65,7 +64,6 @@ def get_log(session, dag_id, dag_run_id, task_id, task_try_number, full_content=
         session.query(TaskInstance)
         .filter(TaskInstance.task_id == task_id, TaskInstance.run_id == dag_run_id)
         .join(TaskInstance.dag_run)
-        .options(eagerload(TaskInstance.dag_run))
         .one_or_none()
     )
     if ti is None:

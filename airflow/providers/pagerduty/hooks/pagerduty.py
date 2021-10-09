@@ -34,6 +34,11 @@ class PagerdutyHook(BaseHook):
     :param pagerduty_conn_id: connection that has PagerDuty API token in the password field
     """
 
+    conn_name_attr = "pagerduty_conn_id"
+    default_conn_name = "pagerduty_default"
+    conn_type = "pagerduty"
+    hook_name = "Pagerduty"
+
     def __init__(self, token: Optional[str] = None, pagerduty_conn_id: Optional[str] = None) -> None:
         super().__init__()
         self.routing_key = None

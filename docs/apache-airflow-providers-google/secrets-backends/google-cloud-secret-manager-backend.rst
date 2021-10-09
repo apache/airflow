@@ -160,8 +160,8 @@ You can use the ``airflow connections get`` command to check if the connection i
 
     $ airflow connections get first-connection
     Id: null
-    Conn Id: first-connection
-    Conn Type: mysql
+    Connection Id: first-connection
+    Connection Type: mysql
     Host: example.org
     Schema: ''
     Login: null

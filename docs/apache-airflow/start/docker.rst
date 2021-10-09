@@ -49,8 +49,8 @@ Older versions of ``docker-compose`` do not support all the features required by
 
 .. warning::
     Default amount of memory available for Docker on MacOS is often not enough to get Airflow up and running.
-    If you have not enough memory available it might lead to airflow webserver continuously restarting.
-    You should have at least 4GB memory allocated for the Docker Engine (ideally 8GB). You can check
+    If enough memory is not allocated, it might lead to airflow webserver continuously restarting.
+    You should at least allocate 4GB memory for the Docker Engine (ideally 8GB). You can check
     and change the amount of memory in `Resources <https://docs.docker.com/docker-for-mac/#resources>`_
 
     You can also check if you have enough memory by running this command:
@@ -75,7 +75,7 @@ This file contains several service definitions:
 
 - ``airflow-scheduler`` - The :doc:`scheduler </concepts/scheduler>` monitors all tasks and DAGs, then triggers the
   task instances once their dependencies are complete.
-- ``airflow-webserver`` - The webserver available at ``http://localhost:8080``.
+- ``airflow-webserver`` - The webserver is available at ``http://localhost:8080``.
 - ``airflow-worker`` - The worker that executes the tasks given by the scheduler.
 - ``airflow-init`` - The initialization service.
 - ``flower`` - `The flower app <https://flower.readthedocs.io/en/latest/>`__ for monitoring the environment. It is available at ``http://localhost:5555``.
@@ -91,7 +91,7 @@ Some directories in the container are mounted, which means that their contents a
 - ``./plugins`` - you can put your :doc:`custom plugins </plugins>` here.
 
 This file uses the latest Airflow image (`apache/airflow <https://hub.docker.com/r/apache/airflow>`__).
-If you need install a new Python library or system library, you can :doc:`build your image <docker-stack:index>`.
+If you need to install a new Python library or system library, you can :doc:`build your image <docker-stack:index>`.
 
 Using custom images
 ===================
@@ -123,7 +123,7 @@ You have to make sure to configure them for the docker-compose:
 .. code-block:: bash
 
     mkdir -p ./dags ./logs ./plugins
-    echo -e "AIRFLOW_UID=$(id -u)\nAIRFLOW_GID=0" > .env
+    echo -e "AIRFLOW_UID=$(id -u)" > .env
 
 See :ref:`Docker Compose environment variables <docker-compose-env-variables>`
 
@@ -134,7 +134,6 @@ ignore it. You can also manually create the ``.env`` file in the same folder you
 .. code-block:: text
 
   AIRFLOW_UID=50000
-  AIRFLOW_GID=0
 
 Initialize the database
 -----------------------
@@ -244,7 +243,7 @@ Accessing the web interface
 
 Once the cluster has started up, you can log in to the web interface and try to run some tasks.
 
-The webserver available at: ``http://localhost:8080``.
+The webserver is available at: ``http://localhost:8080``.
 The default account has the login ``airflow`` and the password ``airflow``.
 
 Sending requests to the REST API
@@ -254,7 +253,7 @@ Sending requests to the REST API
 https://en.wikipedia.org/wiki/Basic_access_authentication>`_ is currently
 supported for the REST API, which means you can use common tools to send requests to the API.
 
-The webserver available at: ``http://localhost:8080``.
+The webserver is available at: ``http://localhost:8080``.
 The default account has the login ``airflow`` and the password ``airflow``.
 
 Here is a sample ``curl`` command, which sends a request to retrieve a pool list:
@@ -281,7 +280,7 @@ FAQ: Frequently asked questions
 ``ModuleNotFoundError: No module named 'XYZ'``
 ----------------------------------------------
 
-The Docker Compose file uses the latest Airflow image (`apache/airflow <https://hub.docker.com/r/apache/airflow>`__). If you need install a new Python library or system library, you can :doc:`customize and extend it <docker-stack:index>`.
+The Docker Compose file uses the latest Airflow image (`apache/airflow <https://hub.docker.com/r/apache/airflow>`__). If you need to install a new Python library or system library, you can :doc:`customize and extend it <docker-stack:index>`.
 
 What's Next?
 ============
@@ -294,7 +293,7 @@ Environment variables supported by Docker Compose
 =================================================
 
 Do not confuse the variable names here with the build arguments set when image is built. The
-``AIRFLOW_UID`` and ``AIRFLOW_GID`` build args default to ``50000`` when the image is built, so they are
+``AIRFLOW_UID`` build arg defaults to ``50000`` when the image is built, so it is
 "baked" into the image. On the other hand, the environment variables below can be set when the container
 is running, using - for example - result of ``id -u`` command, which allows to use the dynamic host
 runtime user id which is unknown at the time of building the image.
@@ -307,10 +306,8 @@ runtime user id which is unknown at the time of building the image.
 | ``AIRFLOW_UID``                | UID of the user to run Airflow containers as.       | ``50000``                |
 |                                | Override if you want to use use non-default Airflow |                          |
 |                                | UID (for example when you map folders from host,    |                          |
-|                                | it should be set to result of ``id -u`` call. If    |                          |
-|                                | you change it from default 50000, you must set      |                          |
-|                                | ``AIRFLOW_GID`` to ``0``. When it is changed,       |                          |
-|                                | a 2nd user with the UID specified is dynamically    |                          |
+|                                | it should be set to result of ``id -u`` call.       |                          |
+|                                | When it is changed, a user with the UID is          |                          |
 |                                | created with ``default`` name inside the container  |                          |
 |                                | and home of the use is set to ``/airflow/home/``    |                          |
 |                                | in order to share Python libraries installed there. |                          |
@@ -318,11 +315,12 @@ runtime user id which is unknown at the time of building the image.
 |                                | compatibility. See more in the                      |                          |
 |                                | :ref:`Arbitrary Docker User <arbitrary-docker-user>`|                          |
 +--------------------------------+-----------------------------------------------------+--------------------------+
-| ``AIRFLOW_GID``                | Group ID in Airflow containers. It overrides the    | ``50000``                |
-|                                | GID of the user. It is ``50000`` by default but if  |                          |
-|                                | you want to use different UID than default it must  |                          |
-|                                | be set to ``0``.                                    |                          |
-+--------------------------------+-----------------------------------------------------+--------------------------+
+
+.. note::
+
+    Before Airflow 2.2, the Docker Compose also had ``AIRFLOW_GID`` parameter, but it did not provide any additional
+    functionality - only added confusion - so it has been removed.
+
 
 Those additional variables are useful in case you are trying out/testing Airflow installation via docker compose.
 They are not intended to be used in production, but they make the environment faster to bootstrap for first time

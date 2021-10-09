@@ -176,7 +176,7 @@ class TestCliUsers:
                     'users',
                     'delete',
                     '--username',
-                    'test',
+                    'test_user_name99',
                     '--email',
                     'jdoe2@example.com',
                 ],
@@ -187,9 +187,9 @@ class TestCliUsers:
                     'users',
                     'delete',
                     '--username',
-                    'test',
+                    'test_user_name99',
                 ],
-                'User "test" does not exist',
+                'User "test_user_name99" does not exist',
             ),
             (
                 [
