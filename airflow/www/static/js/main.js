@@ -20,6 +20,7 @@
 
 import {
   dateTimeAttrFormat,
+  defaultFormat,
   formatTimezone,
   isoDateToTimeEl,
   setDisplayedTimezone,
@@ -38,7 +39,7 @@ function displayTime() {
   const now = moment();
   $('#clock')
     .attr('datetime', now.format(dateTimeAttrFormat))
-    .html(`${now.format('HH:mm')} <strong>${formatTimezone(now)}</strong>`);
+    .html(`${now.format(defaultFormat)} <strong>${formatTimezone(now)}</strong>`);
 }
 
 function changDisplayedTimezone(tz) {
