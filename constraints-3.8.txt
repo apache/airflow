@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2021-10-08T16:08:34Z
+# This constraints file was automatically generated on 2021-10-09T09:50:33Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -325,6 +325,7 @@ ldap3==2.9.1
 libcst==0.3.21
 locket==0.2.1
 lockfile==0.12.2
+lxml==4.6.3
 marshmallow-enum==1.5.1
 marshmallow-oneofschema==3.0.1
 marshmallow-sqlalchemy==0.23.1
@@ -446,7 +447,8 @@ pywinrm==0.4.2
 pyzmq==22.3.0
 qds-sdk==1.16.1
 redis==3.5.3
-regex==2021.9.30
+redshift-connector==2.0.888
+regex==2021.10.8
 requests-kerberos==0.12.0
 requests-mock==1.9.3
 requests-ntlm==1.1.0
@@ -459,6 +461,7 @@ rich==10.12.0
 rsa==4.7.2
 s3transfer==0.4.2
 sasl==0.3.1
+scramp==1.4.1
 scrapbook==0.5.0
 semver==2.13.0
 sendgrid==6.8.2
@@ -496,6 +499,7 @@ sphinxcontrib-serializinghtml==1.1.5
 sphinxcontrib-spelling==7.2.1
 spython==0.1.17
 sqlalchemy-drill==1.1.1
+sqlalchemy-redshift==0.8.6
 sqlparse==0.4.2
 sshtunnel==0.1.5
 starkbank-ecdsa==2.0.0
