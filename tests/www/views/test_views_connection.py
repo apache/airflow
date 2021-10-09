@@ -172,7 +172,7 @@ def test_duplicate_connection_error(admin_client):
         session.query(Connection).delete()
         session.add_all(connections)
 
-    data = {"action": "mulduplicate", "rowid": [conn1.id]}
+    data = {"action": "mulduplicate", "rowid": [connections[0].id]}
     resp = admin_client.post('/connection/action_post', data=data, follow_redirects=True)
 
     expected_result = {f'test_duplicate_postgres_connection_copy{i}' for i in range(1, 11)}

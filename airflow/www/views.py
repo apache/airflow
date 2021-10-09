@@ -3425,11 +3425,6 @@ class ConnectionModelView(AirflowModelView):
 
             found_conn_id_set = {conn_id for conn_id, in query}
 
-            possible_conn_ids = []
-            for connection_id in potential_connection_ids:
-                if connection_id not in found_conn_id_set:
-                    possible_conn_ids.append(connection_id)
-
             possible_conn_id_iter = (
                 connection_id
                 for connection_id in potential_connection_ids
