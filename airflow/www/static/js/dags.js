@@ -151,6 +151,7 @@ function blockedHandler(error, json) {
 }
 
 function lastDagRunsHandler(error, json) {
+  $('.js-loading-last-run').remove();
   Object.keys(json).forEach((safeDagId) => {
     const dagId = json[safeDagId].dag_id;
     const executionDate = json[safeDagId].execution_date;
@@ -165,9 +166,6 @@ function lastDagRunsHandler(error, json) {
     g.selectAll('span')
       .style('display', null)
       .attr('data-lastrun', JSON.stringify(json[safeDagId]));
-
-    g.selectAll('.js-loading-last-run').remove();
-    $('.js-loading-last-run').remove();
   });
 }
 
@@ -235,7 +233,7 @@ function drawDagStatsForDag(dagId, states) {
     .attr('fill', '#51504f')
     .attr('text-anchor', 'middle')
     .attr('vertical-align', 'middle')
-    .attr('font-size', 8)
+    .attr('font-size', 9)
     .attr('y', 3)
     .style('pointer-events', 'none')
     .text((d) => (d.count > 0 ? d.count : ''));
@@ -305,7 +303,7 @@ function drawTaskStatsForDag(dagId, states) {
     .attr('fill', '#51504f')
     .attr('text-anchor', 'middle')
     .attr('vertical-align', 'middle')
-    .attr('font-size', 8)
+    .attr('font-size', 9)
     .attr('y', 3)
     .style('pointer-events', 'none')
     .text((d) => (d.count > 0 ? d.count : ''));

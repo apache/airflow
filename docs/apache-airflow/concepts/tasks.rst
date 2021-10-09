@@ -59,7 +59,7 @@ Task Instances
 
 Much in the same way that a DAG is instantiated into a :ref:`DAG Run <concepts:dag-run>` each time it runs, the tasks under a DAG are instantiated into *Task Instances*.
 
-An instance of a Task is a specific run of that task for a given DAG (and thus for a given ``execution_date``). They are also the representation of a Task that has *state*, representing what stage of the lifecycle it is in.
+An instance of a Task is a specific run of that task for a given DAG (and thus for a given data interval). They are also the representation of a Task that has *state*, representing what stage of the lifecycle it is in.
 
 .. _concepts:task-states:
 
@@ -97,9 +97,9 @@ Firstly, it can have *upstream* and *downstream* tasks::
 
     task1 >> task2 >> task3
 
-When a DAG runs, it will create instances for each of these tasks that are upstream/downstream of each other, but which all have the same ``execution_date``.
+When a DAG runs, it will create instances for each of these tasks that are upstream/downstream of each other, but which all have the same data interval.
 
-There may also be instances of the *same task*, but for different values of ``execution_date`` - from other runs of the same DAG. We call these *previous* and *next* - it is a different relationship to *upstream* and *downstream*!
+There may also be instances of the *same task*, but for different data intervals - from other runs of the same DAG. We call these *previous* and *next* - it is a different relationship to *upstream* and *downstream*!
 
 .. note::
 
@@ -157,12 +157,58 @@ An SLA, or a Service Level Agreement, is an expectation for the maximum time a T
 
 Tasks over their SLA are not cancelled, though - they are allowed to run to completion. If you want to cancel a task after a certain runtime is reached, you want :ref:`concepts:timeouts` instead.
 
-To set an SLA for a task, pass a ``datetime.timedelta`` object to the Task/Operator's ``sla`` parameter. You can also supply an ``sla_miss_callback`` that will be called when the SLA is missed if you want to run your own logic.
+To set an SLA for a task, pass a ``datetime.timedelta`` object to the Task/Operator's ``sla`` parameter.  You can also supply an ``sla_miss_callback`` that will be called when the SLA is missed if you want to run your own logic.
 
 If you want to disable SLA checking entirely, you can set ``check_slas = False`` in Airflow's ``[core]`` configuration.
 
 To read more about configuring the emails, see :doc:`/howto/email-config`.
 
+.. _concepts:sla_miss_callback:
+
+sla_miss_callback
+~~~~~~~~~~~~~~~~~
+
+You can also supply an ``sla_miss_callback`` that will be called when the SLA is missed if you want to run your own logic.
+The function signature of an ``sla_miss_callback`` requires 5 parameters.
+
+#. ``dag``
+
+    * Parent :ref:`DAG <concepts:dags>` Object for the :doc:`DAGRun </dag-run>` in which tasks missed their
+      :ref:`SLA <concepts:slas>`.
+
+#. ``task_list``
+
+    * String list (new-line separated, \\n) of all tasks that missed their :ref:`SLA <concepts:slas>`
+      since the last time that the ``sla_miss_callback`` ran.
+
+#. ``blocking_task_list``
+
+    * Any task in the :doc:`DAGRun(s)</dag-run>` (with the same ``execution_date`` as a task that missed
+      :ref:`SLA <concepts:slas>`) that is not in a **SUCCESS** state at the time that the ``sla_miss_callback``
+      runs. i.e. 'running', 'failed'.  These tasks are described as tasks that are blocking itself or another
+      task from completing before its SLA window is complete.
+
+#. ``slas``
+
+    * List of :py:mod:`SlaMiss<airflow.models.slamiss>` objects associated with the tasks in the
+      ``task_list`` parameter.
+
+#. ``blocking_tis``
+
+    * List of the :ref:`TaskInstance <concepts:task-instances>` objects that are associated with the tasks
+      in the ``blocking_task_list`` parameter.
+
+Examples of ``sla_miss_callback`` function signature:
+
+.. code-block:: python
+
+    def my_sla_miss_callback(dag, task_list, blocking_task_list, slas, blocking_tis):
+        ...
+
+.. code-block:: python
+
+    def my_sla_miss_callback(*args):
+        ...
 
 Special Exceptions
 ------------------

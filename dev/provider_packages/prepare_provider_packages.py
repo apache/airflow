@@ -785,7 +785,7 @@ def get_change_from_line(line: str, version: str):
         date=split_line[2],
         version=version,
         message=message,
-        message_without_backticks=message.replace("`", "'"),
+        message_without_backticks=message.replace("`", "'").replace("&39;", "'"),
         pr=pr,
     )
 
@@ -2116,6 +2116,7 @@ KNOWN_DEPRECATED_MESSAGES: Set[Tuple[str, str]] = {
 # ignore those messages when the warnings are generated directly by importlib - which means that
 # we imported it directly during module walk by the importlib library
 KNOWN_DEPRECATED_DIRECT_IMPORTS: Set[str] = {
+    "This module is deprecated. Please use `airflow.providers.microsoft.azure.hooks.data_factory`.",
     "This module is deprecated. Please use `airflow.providers.amazon.aws.hooks.dynamodb`.",
     "This module is deprecated. Please use `airflow.providers.microsoft.azure.transfers.local_to_wasb`.",
     "This module is deprecated. Please use `airflow.providers.tableau.operators.tableau_refresh_workbook`.",
@@ -2204,7 +2205,7 @@ class ClassifiedChanges(NamedTuple):
 
 def get_changes_classified(changes: List[Change]) -> ClassifiedChanges:
     """
-    Pre-classifies changes based on commit messsage, it's wildly guessing now,
+    Pre-classifies changes based on commit message, it's wildly guessing now,
     but if we switch to semantic commits, it could be automated. This list is supposed to be manually
     reviewed and re-classified by release manager anyway.
 

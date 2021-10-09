@@ -1,3 +1,50 @@
+Airflow Helm Chart 1.2.0, 2021-09-28
+------------------------------------
+
+New Features
+""""""""""""
+- Add Triggerer to Helm Chart (#17743)
+- Chart: warn when webserver secret key isn't set (#18306)
+- add ``extraContainers`` for ``migrateDatabaseJob`` (#18379)
+- Labels on job templates (#18403)
+- Chart: Allow running and waiting for DB Migrations using default image (#18218)
+- Chart: Make cleanup cronjob cmd/args configuable (#17970)
+- Chart: configurable number of retention days for log groomers (#17764)
+- Chart: Add ``loadBalancerSourceRanges`` in webserver and flower services (#17666)
+- Chart: Support ``extraContainers`` in k8s workers (#17562)
+
+
+Improvements
+""""""""""""
+- Switch to latest version of PGBouncer-Exporter (#18429)
+- Chart: Ability to access http k8s via multiple hostnames (#18257)
+- Chart: Use stable API versions where available (#17211)
+- Chart: Allow ``podTemplate`` to be templated (#17560)
+
+Bug Fixes
+"""""""""
+- Chart: Fix applying ``labels`` on Triggerer (#18299)
+- Fixes warm shutdown for celery worker. (#18068)
+- Chart: Fix minor Triggerer issues (#18105)
+- Chart: fix webserver secret key update (#18079)
+- Chart: fix running with ``uid`` ``0`` (#17688)
+- Chart: use serviceaccount template for log reader rolebinding (#17645)
+- Chart: Fix elasticsearch-secret template port default function (#17428)
+- KEDA task count query should ignore k8s queue (#17433)
+
+Doc only changes
+""""""""""""""""
+- Chart Doc: Delete extra space in adding connections doc (#18424)
+- Improves installing from sources pages for all components (#18251)
+- Chart docs: Format ``loadBalancerSourceRanges`` using code-block (#17763)
+- Doc: Fix a broken link in an ssh-related warning message (#17294)
+- Chart: Add instructions to Update Helm Repo before upgrade (#17282)
+- Chart docs: better note for logs existing pvc permissions (#17177)
+
+Misc
+""""
+- Chart: Update the default Airflow version to ``2.1.4`` (#18354)
+
 Airflow Helm Chart 1.1.0, 2021-07-26
 ------------------------------------
 

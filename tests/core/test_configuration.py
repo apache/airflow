@@ -696,3 +696,27 @@ notacommand = OK
 
     def test_confirm_unittest_mod(self):
         assert conf.get('core', 'unit_test_mode')
+
+    def test_enum_default_task_weight_rule_from_conf(self):
+        test_conf = AirflowConfigParser(default_config='')
+        test_conf.read_dict({'core': {'default_task_weight_rule': 'sidestream'}})
+        with pytest.raises(AirflowConfigException) as ctx:
+            test_conf.validate()
+        exception = str(ctx.value)
+        message = (
+            "`[core] default_task_weight_rule` should not be 'sidestream'. Possible values: "
+            "absolute, downstream, upstream."
+        )
+        assert message == exception
+
+    def test_enum_logging_levels(self):
+        test_conf = AirflowConfigParser(default_config='')
+        test_conf.read_dict({'logging': {'logging_level': 'XXX'}})
+        with pytest.raises(AirflowConfigException) as ctx:
+            test_conf.validate()
+        exception = str(ctx.value)
+        message = (
+            "`[logging] logging_level` should not be 'XXX'. Possible values: "
+            "CRITICAL, FATAL, ERROR, WARN, WARNING, INFO, DEBUG."
+        )
+        assert message == exception

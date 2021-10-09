@@ -32,6 +32,7 @@ Helm Chart for Apache Airflow
     manage-logs
     keda
     using-additional-containers
+    Installing from sources<installing-helm-chart-from-sources>
 
 .. toctree::
     :hidden:

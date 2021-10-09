@@ -81,6 +81,9 @@ spec:
         {{- if .Values.airflowPodAnnotations }}
         {{- toYaml .Values.airflowPodAnnotations | nindent 8 }}
         {{- end }}
+        {{- if .Values.webserver.podAnnotations }}
+        {{- toYaml .Values.webserver.podAnnotations | nindent 8 }}
+        {{- end }}
     spec:
       serviceAccountName: {{ include "webserver.serviceAccountName" . }}
       nodeSelector:
@@ -101,7 +104,7 @@ spec:
         - name: wait-for-airflow-migrations
           resources:
 {{ toYaml .Values.webserver.resources | indent 12 }}
-          image: {{ template "airflow_image" . }}
+          image: {{ template "airflow_image_for_migrations" . }}
           imagePullPolicy: {{ .Values.images.airflow.pullPolicy }}
           args:
           {{- include "wait-for-migrations-command" . | indent 10 }}

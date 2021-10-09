@@ -19,6 +19,23 @@
 Changelog
 ---------
 
+2.3.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Added upsert method on S3ToRedshift operator (#18027)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix example dag of PostgresOperator (#18236)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Static start_date and default arg cleanup for misc. provider example DAGs (#18597)``
+
 2.2.0
 .....
 

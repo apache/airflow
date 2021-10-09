@@ -114,6 +114,7 @@ class TestDagRun(unittest.TestCase):
         dag_id1 = "test_dagrun_find_externally_triggered"
         dag_run = models.DagRun(
             dag_id=dag_id1,
+            run_id=dag_id1,
             run_type=DagRunType.MANUAL,
             execution_date=now,
             start_date=now,
@@ -125,6 +126,7 @@ class TestDagRun(unittest.TestCase):
         dag_id2 = "test_dagrun_find_not_externally_triggered"
         dag_run = models.DagRun(
             dag_id=dag_id2,
+            run_id=dag_id2,
             run_type=DagRunType.MANUAL,
             execution_date=now,
             start_date=now,
@@ -532,6 +534,7 @@ class TestDagRun(unittest.TestCase):
         # don't want
         dag_run = models.DagRun(
             dag_id=dag.dag_id,
+            run_id="test_get_task_instance_on_empty_dagrun",
             run_type=DagRunType.MANUAL,
             execution_date=now,
             start_date=now,
@@ -737,7 +740,7 @@ class TestDagRun(unittest.TestCase):
     def test_no_scheduling_delay_for_nonscheduled_runs(self, stats_mock):
         """
         Tests that dag scheduling delay stat is not called if the dagrun is not a scheduled run.
-        This case is manual run. Simple test for sanity check.
+        This case is manual run. Simple test for coherence check.
         """
         dag = DAG(dag_id='test_dagrun_stats', start_date=days_ago(1))
         dag_task = DummyOperator(task_id='dummy', dag=dag)

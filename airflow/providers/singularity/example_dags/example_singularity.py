@@ -16,32 +16,31 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from datetime import timedelta
+from datetime import datetime, timedelta
 
 from airflow import DAG
 from airflow.operators.bash import BashOperator
 from airflow.providers.singularity.operators.singularity import SingularityOperator
-from airflow.utils.dates import days_ago
 
 with DAG(
     'singularity_sample',
-    default_args={
-        'retries': 1,
-        'retry_delay': timedelta(minutes=5),
-    },
+    default_args={'retries': 1},
     schedule_interval=timedelta(minutes=10),
-    start_date=days_ago(0),
+    start_date=datetime(2021, 1, 1),
+    catchup=False,
 ) as dag:
 
-    t1 = BashOperator(task_id='print_date', bash_command='date', dag=dag)
+    t1 = BashOperator(task_id='print_date', bash_command='date')
 
-    t2 = BashOperator(task_id='sleep', bash_command='sleep 5', retries=3, dag=dag)
+    t2 = BashOperator(task_id='sleep', bash_command='sleep 5', retries=3)
 
     t3 = SingularityOperator(
-        command='/bin/sleep 30', image='docker://busybox:1.30.1', task_id='singularity_op_tester', dag=dag
+        command='/bin/sleep 30',
+        image='docker://busybox:1.30.1',
+        task_id='singularity_op_tester',
     )
 
-    t4 = BashOperator(task_id='print_hello', bash_command='echo "hello world!!!"', dag=dag)
+    t4 = BashOperator(task_id='print_hello', bash_command='echo "hello world!!!"')
 
     t1 >> [t2, t3]
     t3 >> t4

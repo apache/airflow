@@ -176,7 +176,9 @@ class TaskInstanceEditForm(DynamicForm):
 class ConnectionForm(DynamicForm):
     """Form for editing and adding Connection"""
 
-    conn_id = StringField(lazy_gettext('Conn Id'), validators=[InputRequired()], widget=BS3TextFieldWidget())
+    conn_id = StringField(
+        lazy_gettext('Connection Id'), validators=[InputRequired()], widget=BS3TextFieldWidget()
+    )
     description = StringField(lazy_gettext('Description'), widget=BS3TextAreaFieldWidget())
     host = StringField(lazy_gettext('Host'), widget=BS3TextFieldWidget())
     schema = StringField(lazy_gettext('Schema'), widget=BS3TextFieldWidget())

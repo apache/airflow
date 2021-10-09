@@ -15,36 +15,41 @@
     specific language governing permissions and limitations
     under the License.
 
-Installing Provider from Sources
---------------------------------
+Installing from sources
+-----------------------
 
-.. contents:: :local:
+Released packages
+'''''''''''''''''
+
+.. jinja:: official_download_page
+
+    This page describes downloading and verifying ``{{ package_name}}`` provider version
+    ``{{ package_version }}`` using officially released packages.
+    You can also install the provider package - as most Python packages - via
+    `PyPI <https://pypi.org/project/{{ package_name }}/{{ package_version }}>`__ .
+    You can choose different version of the provider by selecting different version from the drop-down at
+    the top-left of the page.
 
 
-Installing Provider from released sources and packages
-''''''''''''''''''''''''''''''''''''''''''''''''''''''
-
-You can also install the provider using the official sources and packages. Those sources and packages
-released are the "official" sources of installation that you can use if you want to verify the
-origin of the packages and want to verify checksums and signatures of the packages.
-
-The packages are available at the
-`Official Apache Software Foundations Downloads page <https://downloads.apache.org/airflow/providers>`_
+The ``sdist`` and ``whl`` packages released are the "official" sources of installation that you can use if
+you want to verify the origin of the packages and want to verify checksums and signatures of the packages.
+The packages are available via the
+`Official Apache Software Foundations Mirrors <http://ws.apache.org/mirrors.cgi>`__
 
 The downloads are available at:
 
 .. jinja:: official_download_page
 
     * `Sdist package <{{ closer_lua_url }}/{{ package_name }}-{{ package_version }}.tar.gz>`__ (`asc <{{ base_url }}/{{ package_name }}-{{ package_version }}.tar.gz.asc>`__, `sha512 <{{ base_url }}/{{ package_name }}-{{ package_version }}.tar.gz.sha512>`__) - those are also official sources for the package
-    * `Wheel package <{{ closer_lua_url }}/{{ package_name_underscores }}-{{ package_version }}-py3-none-any.whl>`__ (`asc <{{ base_url }}/{{ package_name_underscores }}-{{ package_version }}-py3-none-any.whl.asc>`__, `sha512 <{{ base_url }}/{{ package_name_underscores }}-{{ package_version }}-py3-none-any.whl.sha512>`__)
+    * `Whl package <{{ closer_lua_url }}/{{ package_name_underscores }}-{{ package_version }}-py3-none-any.whl>`__ (`asc <{{ base_url }}/{{ package_name_underscores }}-{{ package_version }}-py3-none-any.whl.asc>`__, `sha512 <{{ base_url }}/{{ package_name_underscores }}-{{ package_version }}-py3-none-any.whl.sha512>`__)
 
 If you want to install from the source code, you can download from the sources link above, it will contain
 a ``INSTALL`` file containing details on how you can build and install the provider.
 
-Release integrity & Verification of releases
-''''''''''''''''''''''''''''''''''''''''''''
+Release integrity
+'''''''''''''''''
 
-`PGP signatures KEYS <https://downloads.apache.org/airflow/KEYS>`_
+`PGP signatures KEYS <https://downloads.apache.org/airflow/KEYS>`__
 
 It is essential that you verify the integrity of the downloaded files using the PGP or SHA signatures.
 The PGP signatures can be verified using GPG or PGP. Please download the KEYS as well as the asc
@@ -122,3 +127,31 @@ Example:
         :substitutions:
 
         shasum -a 512 {{ package_name }}-{{ package_version }}.tar.gz  | diff - {{ package_name }}-{{ package_version }}.tar.gz.sha512
+
+
+Verifying PyPI releases
+'''''''''''''''''''''''
+
+You can verify the Provider ``.whl`` packages from PyPI by locally downloading the package and signature
+and SHA sum files with the script below:
+
+.. jinja:: official_download_page
+
+    .. code-block:: bash
+
+        #!/bin/bash
+        PACKAGE_VERSION={{ package_version }}
+        PACKAGE_NAME={{ package_name }}
+        provider_download_dir=$(mktemp -d)
+        pip download --no-deps "${PACKAGE_NAME}==${PACKAGE_VERSION}" --dest "${provider_download_dir}"
+        curl "{{ base_url }}/{{ package_name_underscores }}-{{ package_version }}-py3-none-any.whl.asc" \
+            -L -o "${provider_download_dir}/{{ package_name_underscores }}-{{ package_version }}-py3-none-any.whl.asc"
+        curl "{{ base_url }}/{{ package_name_underscores }}-{{ package_version }}-py3-none-any.whl.sha512" \
+            -L -o "${provider_download_dir}/{{ package_name_underscores }}-{{ package_version }}-py3-none-any.whl.sha512"
+        echo
+        echo "Please verify files downloaded to ${provider_download_dir}"
+        ls -la "${provider_download_dir}"
+        echo
+
+Once you verify the files following the instructions from previous chapter you can remove the temporary
+folder created.

@@ -26,9 +26,11 @@ ROOT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), os.pardir, os
 
 def check_dir_init_file(provider_files: List[str]) -> None:
     missing_init_dirs = []
-    for dags_file in provider_files:
-        if os.path.isdir(dags_file) and not os.path.exists(os.path.join(dags_file, "__init__.py")):
-            missing_init_dirs.append(dags_file)
+    for path in provider_files:
+        if path.endswith("/__pycache__"):
+            continue
+        if os.path.isdir(path) and not os.path.exists(os.path.join(path, "__init__.py")):
+            missing_init_dirs.append(path)
 
     if missing_init_dirs:
         with open(os.path.join(ROOT_DIR, "license-templates/LICENSE.txt")) as license:

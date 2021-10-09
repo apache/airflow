@@ -165,6 +165,7 @@ class TestSchedulerJob:
         self.scheduler_job.heartrate = 0
         self.scheduler_job.run()
 
+    @pytest.mark.quarantined
     def test_no_orphan_process_will_be_left(self):
         empty_dir = mkdtemp()
         current_process = psutil.Process()
@@ -185,6 +186,7 @@ class TestSchedulerJob:
         dag_id = "test_process_executor_events"
         task_id_1 = 'dummy_task'
 
+        session = settings.Session()
         with dag_maker(dag_id=dag_id, fileloc='/test_path1/'):
             task1 = DummyOperator(task_id=task_id_1)
         ti1 = dag_maker.create_dagrun().get_task_instance(task1.task_id)
@@ -196,7 +198,112 @@ class TestSchedulerJob:
         mock_task_callback.return_value = task_callback
         self.scheduler_job = SchedulerJob(executor=executor)
         self.scheduler_job.processor_agent = mock.MagicMock()
+        ti1.state = State.QUEUED
+        session.merge(ti1)
+        session.commit()
 
+        executor.event_buffer[ti1.key] = State.FAILED, None
+
+        self.scheduler_job._process_executor_events(session=session)
+        ti1.refresh_from_db(session=session)
+        assert ti1.state == State.FAILED
+        self.scheduler_job.processor_agent.send_callback_to_execute.assert_not_called()
+        self.scheduler_job.processor_agent.reset_mock()
+
+        # ti in success state
+        ti1.state = State.SUCCESS
+        session.merge(ti1)
+        session.commit()
+        executor.event_buffer[ti1.key] = State.SUCCESS, None
+
+        self.scheduler_job._process_executor_events(session=session)
+        ti1.refresh_from_db(session=session)
+        assert ti1.state == State.SUCCESS
+        self.scheduler_job.processor_agent.send_callback_to_execute.assert_not_called()
+        mock_stats_incr.assert_has_calls(
+            [
+                mock.call('scheduler.tasks.killed_externally'),
+                mock.call('operator_failures_DummyOperator', 1, 1),
+                mock.call('ti_failures'),
+            ],
+            any_order=True,
+        )
+
+    @mock.patch('airflow.jobs.scheduler_job.TaskCallbackRequest')
+    @mock.patch('airflow.jobs.scheduler_job.Stats.incr')
+    def test_process_executor_events_with_no_callback(self, mock_stats_incr, mock_task_callback, dag_maker):
+        dag_id = "test_process_executor_events_with_no_callback"
+        task_id_1 = 'dummy_task'
+
+        mock_stats_incr.reset_mock()
+        executor = MockExecutor(do_update=False)
+        task_callback = mock.MagicMock()
+        mock_task_callback.return_value = task_callback
+        self.scheduler_job = SchedulerJob(executor=executor)
+        self.scheduler_job.processor_agent = mock.MagicMock()
+
+        session = settings.Session()
+        with dag_maker(dag_id=dag_id, fileloc='/test_path1/'):
+            task1 = DummyOperator(task_id=task_id_1, retries=1)
+        ti1 = dag_maker.create_dagrun(
+            run_id='dr2', execution_date=DEFAULT_DATE + timedelta(hours=1)
+        ).get_task_instance(task1.task_id)
+
+        mock_stats_incr.reset_mock()
+
+        executor = MockExecutor(do_update=False)
+        task_callback = mock.MagicMock()
+        mock_task_callback.return_value = task_callback
+        self.scheduler_job = SchedulerJob(executor=executor)
+        self.scheduler_job.processor_agent = mock.MagicMock()
+        ti1.state = State.QUEUED
+        session.merge(ti1)
+        session.commit()
+
+        executor.event_buffer[ti1.key] = State.FAILED, None
+
+        self.scheduler_job._process_executor_events(session=session)
+        ti1.refresh_from_db(session=session)
+        assert ti1.state == State.UP_FOR_RETRY
+        self.scheduler_job.processor_agent.send_callback_to_execute.assert_not_called()
+        self.scheduler_job.processor_agent.reset_mock()
+
+        # ti in success state
+        ti1.state = State.SUCCESS
+        session.merge(ti1)
+        session.commit()
+        executor.event_buffer[ti1.key] = State.SUCCESS, None
+
+        self.scheduler_job._process_executor_events(session=session)
+        ti1.refresh_from_db(session=session)
+        assert ti1.state == State.SUCCESS
+        self.scheduler_job.processor_agent.send_callback_to_execute.assert_not_called()
+        mock_stats_incr.assert_has_calls(
+            [
+                mock.call('scheduler.tasks.killed_externally'),
+                mock.call('operator_failures_DummyOperator', 1, 1),
+                mock.call('ti_failures'),
+            ],
+            any_order=True,
+        )
+
+    @mock.patch('airflow.jobs.scheduler_job.TaskCallbackRequest')
+    @mock.patch('airflow.jobs.scheduler_job.Stats.incr')
+    def test_process_executor_events_with_callback(self, mock_stats_incr, mock_task_callback, dag_maker):
+        dag_id = "test_process_executor_events_with_callback"
+        task_id_1 = 'dummy_task'
+
+        with dag_maker(dag_id=dag_id, fileloc='/test_path1/') as dag:
+            task1 = DummyOperator(task_id=task_id_1, on_failure_callback=lambda x: print("hi"))
+        ti1 = dag_maker.create_dagrun().get_task_instance(task1.task_id)
+
+        mock_stats_incr.reset_mock()
+
+        executor = MockExecutor(do_update=False)
+        task_callback = mock.MagicMock()
+        mock_task_callback.return_value = task_callback
+        self.scheduler_job = SchedulerJob(executor=executor)
+        self.scheduler_job.processor_agent = mock.MagicMock()
         session = settings.Session()
 
         ti1.state = State.QUEUED
@@ -207,55 +314,50 @@ class TestSchedulerJob:
 
         self.scheduler_job._process_executor_events(session=session)
         ti1.refresh_from_db()
-        assert ti1.state == State.FAILED
+        # The state will remain in queued here and
+        # will be set to failed in dag parsing process
+        assert ti1.state == State.QUEUED
         mock_task_callback.assert_called_once_with(
-            full_filepath='/test_path1/',
+            full_filepath=dag.fileloc,
             simple_task_instance=mock.ANY,
             msg='Executor reports task instance '
-            '<TaskInstance: test_process_executor_events.dummy_task test [queued]> '
+            '<TaskInstance: test_process_executor_events_with_callback.dummy_task test [queued]> '
             'finished (failed) although the task says its queued. (Info: None) '
             'Was the task killed externally?',
         )
         self.scheduler_job.processor_agent.send_callback_to_execute.assert_called_once_with(task_callback)
         self.scheduler_job.processor_agent.reset_mock()
-
-        # ti in success state
-        ti1.state = State.SUCCESS
-        session.merge(ti1)
-        session.commit()
-        executor.event_buffer[ti1.key] = State.SUCCESS, None
-
-        self.scheduler_job._process_executor_events(session=session)
-        ti1.refresh_from_db()
-        assert ti1.state == State.SUCCESS
-        self.scheduler_job.processor_agent.send_callback_to_execute.assert_not_called()
         mock_stats_incr.assert_called_once_with('scheduler.tasks.killed_externally')
 
-    def test_process_executor_events_uses_inmemory_try_number(self, dag_maker):
-        dag_id = "dag_id"
-        task_id = "task_id"
-        try_number = 42
+    @mock.patch('airflow.jobs.scheduler_job.TaskCallbackRequest')
+    @mock.patch('airflow.jobs.scheduler_job.Stats.incr')
+    def test_process_executor_event_missing_dag(self, mock_stats_incr, mock_task_callback, dag_maker, caplog):
+        dag_id = "test_process_executor_events_with_callback"
+        task_id_1 = 'dummy_task'
 
-        with dag_maker(dag_id=dag_id):
-            DummyOperator(task_id=task_id)
+        with dag_maker(dag_id=dag_id, fileloc='/test_path1/'):
+            task1 = DummyOperator(task_id=task_id_1, on_failure_callback=lambda x: print("hi"))
+        ti1 = dag_maker.create_dagrun().get_task_instance(task1.task_id)
 
-        dr = dag_maker.create_dagrun()
+        mock_stats_incr.reset_mock()
 
-        executor = MagicMock()
+        executor = MockExecutor(do_update=False)
+        task_callback = mock.MagicMock()
+        mock_task_callback.return_value = task_callback
         self.scheduler_job = SchedulerJob(executor=executor)
-        self.scheduler_job.processor_agent = MagicMock()
-        event_buffer = {TaskInstanceKey(dag_id, task_id, dr.run_id, try_number): (State.SUCCESS, None)}
-        executor.get_event_buffer.return_value = event_buffer
+        self.scheduler_job.dagbag = mock.MagicMock()
+        self.scheduler_job.dagbag.get_dag.side_effect = Exception('failed')
+        self.scheduler_job.processor_agent = mock.MagicMock()
+        session = settings.Session()
 
-        with create_session() as session:
-            ti = dr.task_instances[0]
-            ti.state = State.SUCCESS
-            session.merge(ti)
+        ti1.state = State.QUEUED
+        session.merge(ti1)
+        session.commit()
 
-        self.scheduler_job._process_executor_events()
-        # Assert that the even_buffer is empty so the task was popped using right
-        # task instance key
-        assert event_buffer == {}
+        executor.event_buffer[ti1.key] = State.FAILED, None
+        self.scheduler_job._process_executor_events(session=session)
+        ti1.refresh_from_db()
+        assert ti1.state == State.FAILED
 
     def test_execute_task_instances_is_paused_wont_execute(self, session, dag_maker):
         dag_id = 'SchedulerJobTest.test_execute_task_instances_is_paused_wont_execute'
@@ -1244,6 +1346,41 @@ class TestSchedulerJob:
         session.rollback()
         session.close()
 
+    @pytest.mark.parametrize("state, msg", [[State.SUCCESS, 'success'], [State.FAILED, 'task_failure']])
+    def test_dagrun_callbacks_are_added_when_callbacks_are_defined(self, state, msg, dag_maker):
+        """
+        Test if on_*_callback are defined on DAG, Callbacks ARE registered and sent to DAG Processor
+        """
+        with dag_maker(
+            dag_id='test_dagrun_callbacks_are_added_when_callbacks_are_defined',
+            on_failure_callback=lambda: True,
+            on_success_callback=lambda: True,
+        ):
+            BashOperator(task_id='test_task', bash_command='echo hi')
+
+        self.scheduler_job = SchedulerJob(subdir=os.devnull)
+        self.scheduler_job.processor_agent = mock.Mock()
+        self.scheduler_job.processor_agent.send_callback_to_execute = mock.Mock()
+        self.scheduler_job._send_dag_callbacks_to_processor = mock.Mock()
+
+        session = settings.Session()
+        dr = dag_maker.create_dagrun()
+        ti = dr.get_task_instance('test_task')
+        ti.set_state(state, session)
+
+        with mock.patch.object(settings, "USE_JOB_SCHEDULE", False):
+            self.scheduler_job._do_scheduling(session)
+
+        # Verify Callback is not set (i.e is None) when no callbacks are set on DAG
+        self.scheduler_job._send_dag_callbacks_to_processor.assert_called_once()
+        call_args = self.scheduler_job._send_dag_callbacks_to_processor.call_args[0]
+        assert call_args[0].dag_id == dr.dag_id
+        assert call_args[0].execution_date == dr.execution_date
+        assert call_args[1] is not None
+        assert call_args[1].msg == msg
+        session.rollback()
+        session.close()
+
     def test_do_not_schedule_removed_task(self, dag_maker):
         schedule_interval = datetime.timedelta(days=1)
         with dag_maker(
@@ -1284,7 +1421,7 @@ class TestSchedulerJob:
     ):
 
         """
-        Helper for testing DagRun states with simple two-task DAGS.
+        Helper for testing DagRun states with simple two-task DAGs.
         This is hackish: a dag run is created but its tasks are
         run by a backfill.
         """
@@ -1460,7 +1597,7 @@ class TestSchedulerJob:
 
     def test_scheduler_start_date(self):
         """
-        Test that the scheduler respects start_dates, even when DAGS have run
+        Test that the scheduler respects start_dates, even when DAGs have run
         """
         with create_session() as session:
             dag_id = 'test_start_date_scheduling'
@@ -2369,10 +2506,12 @@ class TestSchedulerJob:
         # Test that custom_task has >= 1 Operator Links (after de-serialization)
         assert custom_task.operator_extra_links
 
+        session = settings.Session()
         self.scheduler_job = SchedulerJob(executor=self.null_exec)
         self.scheduler_job.processor_agent = mock.MagicMock()
-        self.scheduler_job._run_scheduler_loop()
 
+        self.scheduler_job._start_queued_dagruns(session)
+        session.flush()
         # Get serialized dag
         s_dag_2 = self.scheduler_job.dagbag.get_dag(dag.dag_id)
         custom_task = s_dag_2.task_dict['custom_task']
@@ -2556,13 +2695,15 @@ class TestSchedulerJob:
         assert run1.state == State.FAILED
         assert run1_ti.state == State.SKIPPED
 
-        # Run scheduling again to assert run2 has started
-        self.scheduler_job._do_scheduling(session)
+        # Run relevant part of scheduling again to assert run2 has been scheduled
+        self.scheduler_job._start_queued_dagruns(session)
+        session.flush()
         run2 = session.merge(run2)
         session.refresh(run2)
         assert run2.state == State.RUNNING
+        self.scheduler_job._schedule_dag_run(run2, session)
         run2_ti = run2.get_task_instance(task1.task_id, session)
-        assert run2_ti.state == State.QUEUED
+        assert run2_ti.state == State.SCHEDULED
 
     def test_do_schedule_max_active_runs_task_removed(self, session, dag_maker):
         """Test that tasks in removed state don't count as actively running."""

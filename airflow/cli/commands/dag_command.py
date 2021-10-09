@@ -108,21 +108,25 @@ def dag_backfill(args, dag=None):
                 dag_run_state=State.NONE,
             )
 
-        dag.run(
-            start_date=args.start_date,
-            end_date=args.end_date,
-            mark_success=args.mark_success,
-            local=args.local,
-            donot_pickle=(args.donot_pickle or conf.getboolean('core', 'donot_pickle')),
-            ignore_first_depends_on_past=args.ignore_first_depends_on_past,
-            ignore_task_deps=args.ignore_dependencies,
-            pool=args.pool,
-            delay_on_limit_secs=args.delay_on_limit,
-            verbose=args.verbose,
-            conf=run_conf,
-            rerun_failed_tasks=args.rerun_failed_tasks,
-            run_backwards=args.run_backwards,
-        )
+        try:
+            dag.run(
+                start_date=args.start_date,
+                end_date=args.end_date,
+                mark_success=args.mark_success,
+                local=args.local,
+                donot_pickle=(args.donot_pickle or conf.getboolean('core', 'donot_pickle')),
+                ignore_first_depends_on_past=args.ignore_first_depends_on_past,
+                ignore_task_deps=args.ignore_dependencies,
+                pool=args.pool,
+                delay_on_limit_secs=args.delay_on_limit,
+                verbose=args.verbose,
+                conf=run_conf,
+                rerun_failed_tasks=args.rerun_failed_tasks,
+                run_backwards=args.run_backwards,
+            )
+        except ValueError as vr:
+            print(str(vr))
+            sys.exit(1)
 
 
 @cli_utils.action_logging
@@ -404,7 +408,15 @@ def dag_test(args, session=None):
     dag = get_dag(subdir=args.subdir, dag_id=args.dag_id)
     dag.clear(start_date=args.execution_date, end_date=args.execution_date, dag_run_state=State.NONE)
     try:
-        dag.run(executor=DebugExecutor(), start_date=args.execution_date, end_date=args.execution_date)
+        dag.run(
+            executor=DebugExecutor(),
+            start_date=args.execution_date,
+            end_date=args.execution_date,
+            # Always run the DAG at least once even if no logical runs are
+            # available. This does not make a lot of sense, but Airflow has
+            # been doing this prior to 2.2 so we keep compatibility.
+            run_at_least_once=True,
+        )
     except BackfillUnfinished as e:
         print(str(e))
 

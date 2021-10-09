@@ -19,8 +19,6 @@
 Community Providers
 ===================
 
-.. contents:: :local:
-
 How-to creating a new community provider
 ----------------------------------------
 

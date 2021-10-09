@@ -331,7 +331,7 @@ class SpannerHook(GoogleBaseHook):
         except AlreadyExists as e:
             if e.code == 409 and operation_id in e.message:
                 self.log.info(
-                    "Replayed update_ddl message - the operation id %s " "was already done before.",
+                    "Replayed update_ddl message - the operation id %s was already done before.",
                     operation_id,
                 )
                 return
