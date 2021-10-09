@@ -77,6 +77,7 @@ function run_all_test_types_in_parallel() {
     echo
 
     local run_integration_tests_separately="false"
+    local run_providers_tests_separately="false"
     # shellcheck disable=SC2153
     local test_types_to_run=${TEST_TYPES}
 
@@ -92,14 +93,28 @@ function run_all_test_types_in_parallel() {
             echo ""
             echo "${COLOR_YELLOW}Integration tests will be run separately at the end after cleaning up docker${COLOR_RESET}"
             echo ""
-            # Remove Integration from list of tests to run in parallel
-            test_types_to_run="${test_types_to_run//Integration/}"
-            run_integration_tests_separately="true"
             if [[ ${BACKEND} == "mssql" ]]; then
-              # Skip running "Integration" tests for low memory condition for mssql
-              run_integration_tests_separately="false"
+                # Skip running "Integration" and "Providers" tests for low memory condition for mssql
+                # Both might lead to memory issues even in run on their own. We have no need to
+                # Test those specifically for MSSQL (and they will be tested in `main` as there
+                # We have no memory limits
+                test_types_to_run="${test_types_to_run//Integration/}"
+                run_integration_tests_separately="false"
+                test_types_to_run="${test_types_to_run//Providers/}"
+                run_providers_tests_separately="false"
+            elif [[ ${BACKEND} == "mysql" ]]; then
+                # Separate "Integration" and "Providers" tests for low memory condition for mysql
+                # To not run them in parallel with other tests as this often leads to memory issue
+                # (Error 137 or 143).
+                test_types_to_run="${test_types_to_run//Integration/}"
+                run_integration_tests_separately="true"
+                test_types_to_run="${test_types_to_run//Providers/}"
+                run_providers_tests_separately="true"
             else
-              run_integration_tests_separately="true"
+                # Remove Integration from list of tests to run in parallel
+                # and run them separately for all other backends
+                test_types_to_run="${test_types_to_run//Integration/}"
+                run_integration_tests_separately="true"
             fi
         fi
     fi
@@ -109,6 +124,11 @@ function run_all_test_types_in_parallel() {
     parallel::initialize_monitoring
 
     run_test_types_in_parallel "${@}"
+    if [[ ${run_providers_tests_separately} == "true" ]]; then
+        parallel::cleanup_runner
+        test_types_to_run="Providers"
+        run_test_types_in_parallel "${@}"
+    fi
     if [[ ${run_integration_tests_separately} == "true" ]]; then
         parallel::cleanup_runner
         test_types_to_run="Integration"
