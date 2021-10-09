@@ -390,7 +390,8 @@ class AwsBatchClientHook(AwsBaseHook):
             retries += 1
             if retries >= self.status_retries:
                 raise AirflowException(
-                    f"AWS Batch job ({job_id}) description error: exceeded status_retries ({self.status_retries})"
+                    f"AWS Batch job ({job_id}) description error: exceeded status_retries "
+                    f"({self.status_retries})"
                 )
 
             pause = self.exponential_delay(retries)

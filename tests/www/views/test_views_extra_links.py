@@ -131,7 +131,8 @@ def reset_task_instances():
 
 def test_extra_links_works(dag, task_1, viewer_client):
     response = viewer_client.get(
-        f"{ENDPOINT}?dag_id={dag.dag_id}&task_id={task_1.task_id}&execution_date={DEFAULT_DATE}&link_name=foo-bar",
+        f"{ENDPOINT}?dag_id={dag.dag_id}&task_id={task_1.task_id}"
+        f"&execution_date={DEFAULT_DATE}&link_name=foo-bar",
         follow_redirects=True,
     )
 
@@ -144,7 +145,8 @@ def test_extra_links_works(dag, task_1, viewer_client):
 
 def test_global_extra_links_works(dag, task_1, viewer_client):
     response = viewer_client.get(
-        f"{ENDPOINT}?dag_id={dag.dag_id}&task_id={task_1.task_id}&execution_date={DEFAULT_DATE}&link_name=github",
+        f"{ENDPOINT}?dag_id={dag.dag_id}&task_id={task_1.task_id}"
+        f"&execution_date={DEFAULT_DATE}&link_name=github",
         follow_redirects=True,
     )
 
@@ -182,7 +184,8 @@ def test_extra_link_in_gantt_view(dag, create_dag_run, viewer_client):
 
 def test_operator_extra_link_override_global_extra_link(dag, task_1, viewer_client):
     response = viewer_client.get(
-        f"{ENDPOINT}?dag_id={dag.dag_id}&task_id={task_1.task_id}&execution_date={DEFAULT_DATE}&link_name=airflow",
+        f"{ENDPOINT}?dag_id={dag.dag_id}&task_id={task_1.task_id}"
+        f"&execution_date={DEFAULT_DATE}&link_name=airflow",
         follow_redirects=True,
     )
 
@@ -195,7 +198,8 @@ def test_operator_extra_link_override_global_extra_link(dag, task_1, viewer_clie
 
 def test_extra_links_error_raised(dag, task_1, viewer_client):
     response = viewer_client.get(
-        f"{ENDPOINT}?dag_id={dag.dag_id}&task_id={task_1.task_id}&execution_date={DEFAULT_DATE}&link_name=raise_error",
+        f"{ENDPOINT}?dag_id={dag.dag_id}&task_id={task_1.task_id}"
+        f"&execution_date={DEFAULT_DATE}&link_name=raise_error",
         follow_redirects=True,
     )
 
@@ -208,7 +212,8 @@ def test_extra_links_error_raised(dag, task_1, viewer_client):
 
 def test_extra_links_no_response(dag, task_1, viewer_client):
     response = viewer_client.get(
-        f"{ENDPOINT}?dag_id={dag.dag_id}&task_id={task_1.task_id}&execution_date={DEFAULT_DATE}&link_name=no_response",
+        f"{ENDPOINT}?dag_id={dag.dag_id}&task_id={task_1.task_id}"
+        f"&execution_date={DEFAULT_DATE}&link_name=no_response",
         follow_redirects=True,
     )
 
@@ -228,7 +233,8 @@ def test_operator_extra_link_override_plugin(dag, task_2, viewer_client):
     AirflowLink2 returns 'https://airflow.apache.org/1.10.5/' link
     """
     response = viewer_client.get(
-        f"{ENDPOINT}?dag_id={dag.dag_id}&task_id={task_2.task_id}&execution_date={DEFAULT_DATE}&link_name=airflow",
+        f"{ENDPOINT}?dag_id={dag.dag_id}&task_id={task_2.task_id}"
+        f"&execution_date={DEFAULT_DATE}&link_name=airflow",
         follow_redirects=True,
     )
 
@@ -249,7 +255,8 @@ def test_operator_extra_link_multiple_operators(dag, task_2, task_3, viewer_clie
     GoogleLink returns 'https://www.google.com'
     """
     response = viewer_client.get(
-        f"{ENDPOINT}?dag_id={dag.dag_id}&task_id={task_2.task_id}&execution_date={DEFAULT_DATE}&link_name=airflow",
+        f"{ENDPOINT}?dag_id={dag.dag_id}&task_id={task_2.task_id}"
+        f"&execution_date={DEFAULT_DATE}&link_name=airflow",
         follow_redirects=True,
     )
 
@@ -260,7 +267,8 @@ def test_operator_extra_link_multiple_operators(dag, task_2, task_3, viewer_clie
     assert json.loads(response_str) == {'url': 'https://airflow.apache.org/1.10.5/', 'error': None}
 
     response = viewer_client.get(
-        f"{ENDPOINT}?dag_id={dag.dag_id}&task_id={task_3.task_id}&execution_date={DEFAULT_DATE}&link_name=airflow",
+        f"{ENDPOINT}?dag_id={dag.dag_id}&task_id={task_3.task_id}"
+        f"&execution_date={DEFAULT_DATE}&link_name=airflow",
         follow_redirects=True,
     )
 
@@ -272,7 +280,8 @@ def test_operator_extra_link_multiple_operators(dag, task_2, task_3, viewer_clie
 
     # Also check that the other Operator Link defined for this operator exists
     response = viewer_client.get(
-        f"{ENDPOINT}?dag_id={dag.dag_id}&task_id={task_3.task_id}&execution_date={DEFAULT_DATE}&link_name=google",
+        f"{ENDPOINT}?dag_id={dag.dag_id}&task_id={task_3.task_id}"
+        f"&execution_date={DEFAULT_DATE}&link_name=google",
         follow_redirects=True,
     )
 

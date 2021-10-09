@@ -191,7 +191,8 @@ class SparkSqlHook(BaseHook):
 
         if returncode:
             raise AirflowException(
-                f"Cannot execute '{self._sql}' on {self._master} (additional parameters: '{cmd}'). Process exit code: {returncode}."
+                f"Cannot execute '{self._sql}' on {self._master} (additional parameters: '{cmd}'). "
+                f"Process exit code: {returncode}."
             )
 
     def kill(self) -> None:

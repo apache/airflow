@@ -385,7 +385,8 @@ class GcpBodyFieldValidator(LoggingMixin):
             if not children_validation_specs:
                 raise GcpValidationSpecificationException(
                     f"The union field '{full_field_path}' has no nested fields defined in "
-                    f"specification '{validation_spec}'. Unions should have at least one nested field defined."
+                    f"specification '{validation_spec}'. "
+                    "Unions should have at least one nested field defined."
                 )
             self._validate_union(children_validation_specs, full_field_path, dictionary_to_validate)
         elif field_type == 'list':

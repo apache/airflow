@@ -92,13 +92,16 @@ def validate_logging_config(logging_config):
         # Check for pre 1.10 setting that might be in deployed airflow.cfg files
         if task_log_reader == "file.task" and _get_handler("task"):
             warnings.warn(
-                f"task_log_reader setting in [logging] has a deprecated value of {task_log_reader!r}, but no handler with this name was found. Please update your config to use task. Running config has been adjusted to match",
+                f"task_log_reader setting in [logging] has a deprecated value of {task_log_reader!r}, "
+                "but no handler with this name was found. Please update your config to use task. "
+                "Running config has been adjusted to match",
                 DeprecationWarning,
             )
             conf.set('logging', 'task_log_reader', 'task')
         else:
             raise AirflowConfigException(
-                f"Configured task_log_reader {task_log_reader!r} was not a handler of the 'airflow.task' logger."
+                f"Configured task_log_reader {task_log_reader!r} was not a handler of "
+                f"the 'airflow.task' logger."
             )
 
 

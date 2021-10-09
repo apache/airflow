@@ -1199,7 +1199,10 @@ class Airflow(AirflowBaseView):
         try:
             execution_date = timezone.parse(execution_date)
         except ValueError:
-            error_message = f'Given execution date, {execution_date}, could not be identified as a date. Example date format: 2015-11-16T14:34:15+00:00'
+            error_message = (
+                f'Given execution date, {execution_date}, could not be identified as a date. '
+                'Example date format: 2015-11-16T14:34:15+00:00'
+            )
             response = jsonify({'error': error_message})
             response.status_code = 400
 

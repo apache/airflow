@@ -214,7 +214,10 @@ class TestGetExtraLinks:
             operators = [BigQueryExecuteQueryOperator]
 
             def get_link(self, operator, dttm):
-                return f"https://s3.amazonaws.com/airflow-logs/{operator.dag_id}/{operator.task_id}/{quote_plus(dttm.isoformat())}"
+                return (
+                    f"https://s3.amazonaws.com/airflow-logs/{operator.dag_id}/"
+                    f"{operator.task_id}/{quote_plus(dttm.isoformat())}"
+                )
 
         class AirflowTestPlugin(AirflowPlugin):
             name = "test_plugin"

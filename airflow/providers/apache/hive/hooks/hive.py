@@ -107,7 +107,7 @@ class HiveCliHook(BaseHook):
             mapred_queue_priority = mapred_queue_priority.upper()
             if mapred_queue_priority not in HIVE_QUEUE_PRIORITIES:
                 raise AirflowException(
-                    f"Invalid Mapred Queue Priority.  Valid values are: {', '.join(HIVE_QUEUE_PRIORITIES)}"
+                    f"Invalid Mapred Queue Priority. Valid values are: {', '.join(HIVE_QUEUE_PRIORITIES)}"
                 )
 
         self.mapred_queue = mapred_queue or conf.get('hive', 'default_hive_mapred_queue')
@@ -696,7 +696,8 @@ class HiveMetastoreHook(BaseHook):
             is_subset = set(filter_map.keys()).issubset(set(part_specs[0].keys()))
         if filter_map and not is_subset:
             raise AirflowException(
-                f"Keys in provided filter_map {', '.join(filter_map.keys())} are not subset of part_spec keys: {', '.join(part_specs[0].keys())}"
+                f"Keys in provided filter_map {', '.join(filter_map.keys())} "
+                f"are not subset of part_spec keys: {', '.join(part_specs[0].keys())}"
             )
 
         candidates = [

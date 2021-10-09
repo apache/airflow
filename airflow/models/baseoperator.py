@@ -533,10 +533,13 @@ class BaseOperator(Operator, LoggingMixin, TaskMixin, metaclass=BaseOperatorMeta
         if kwargs:
             if not conf.getboolean('operators', 'ALLOW_ILLEGAL_ARGUMENTS'):
                 raise AirflowException(
-                    f"Invalid arguments were passed to {self.__class__.__name__} (task_id: {task_id}). Invalid arguments were:\n**kwargs: {kwargs}",
+                    f"Invalid arguments were passed to {self.__class__.__name__} (task_id: {task_id}). "
+                    f"Invalid arguments were:\n**kwargs: {kwargs}",
                 )
             warnings.warn(
-                f'Invalid arguments were passed to {self.__class__.__name__} (task_id: {task_id}). Support for passing such arguments will be dropped in future. Invalid arguments were:\n**kwargs: {kwargs}',
+                f'Invalid arguments were passed to {self.__class__.__name__} (task_id: {task_id}). '
+                'Support for passing such arguments will be dropped in future. '
+                f'Invalid arguments were:\n**kwargs: {kwargs}',
                 category=PendingDeprecationWarning,
                 stacklevel=3,
             )
@@ -637,7 +640,9 @@ class BaseOperator(Operator, LoggingMixin, TaskMixin, metaclass=BaseOperatorMeta
         self.priority_weight = priority_weight
         if not WeightRule.is_valid(weight_rule):
             raise AirflowException(
-                f"The weight_rule must be one of {WeightRule.all_weight_rules},'{dag.dag_id if dag else ''}.{task_id}'; received '{weight_rule}'."
+                f"The weight_rule must be one of "
+                f"{WeightRule.all_weight_rules},'{dag.dag_id if dag else ''}.{task_id}'; "
+                f"received '{weight_rule}'."
             )
         self.weight_rule = weight_rule
         self.resources: Optional[Resources] = Resources(**resources) if resources else None

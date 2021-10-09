@@ -896,7 +896,8 @@ class DataflowHook(GoogleBaseHook):
 
         if not re.match(r"^[a-z]([-a-z0-9]*[a-z0-9])?$", base_job_name):
             raise ValueError(
-                f"Invalid job_name ({base_job_name}); the name must consist ofonly the characters [-a-z0-9], starting with a letter and ending with a letter or number "
+                f"Invalid job_name ({base_job_name}); the name must consist ofonly the characters "
+                f"[-a-z0-9], starting with a letter and ending with a letter or number "
             )
 
         if append_job_name:

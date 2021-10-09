@@ -140,7 +140,9 @@ class SystemTest(TestCase, LoggingMixin):
         dag = dag_bag.get_dag(dag_id)
         if dag is None:
             raise AirflowException(
-                f"The Dag {dag_id} could not be found. It's either an import problem,wrong dag_id or DAG is not in provided dag_folder.The content of the {dag_folder} folder is {os.listdir(dag_folder)}"
+                f"The Dag {dag_id} could not be found. It's either an import problem, wrong dag_id or DAG is "
+                "not in provided dag_folder.The content of "
+                f"the {dag_folder} folder is {os.listdir(dag_folder)}"
             )
 
         self.log.info("Attempting to run DAG: %s", dag_id)

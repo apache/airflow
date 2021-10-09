@@ -1801,7 +1801,8 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         ]
         if source_format not in allowed_formats:
             raise ValueError(
-                f"{source_format} is not a valid source format. Please use one of the following types: {allowed_formats}"
+                f"{source_format} is not a valid source format. "
+                f"Please use one of the following types: {allowed_formats}."
             )
 
         # bigquery also allows you to define how you want a table's schema to change
@@ -1811,7 +1812,8 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         allowed_schema_update_options = ['ALLOW_FIELD_ADDITION', "ALLOW_FIELD_RELAXATION"]
         if not set(allowed_schema_update_options).issuperset(set(schema_update_options)):
             raise ValueError(
-                f"{schema_update_options} contains invalid schema update options.Please only use one or more of the following options: {allowed_schema_update_options}"
+                f"{schema_update_options} contains invalid schema update options. "
+                f"Please only use one or more of the following options: {allowed_schema_update_options}"
             )
 
         destination_project, destination_dataset, destination_table = _split_tablename(
@@ -2223,7 +2225,8 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
 
         if not set(allowed_schema_update_options).issuperset(set(schema_update_options)):
             raise ValueError(
-                f"{schema_update_options} contains invalid schema update options. Please only use one or more of the following options: {allowed_schema_update_options}"
+                f"{schema_update_options} contains invalid schema update options."
+                f" Please only use one or more of the following options: {allowed_schema_update_options}"
             )
 
         if schema_update_options:

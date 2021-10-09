@@ -171,7 +171,10 @@ class TestCloudwatchTaskHandler(unittest.TestCase):
         )
 
         msg_template = '*** Reading remote log from Cloudwatch log_group: {} log_stream: {}.\n{}\n'
-        error_msg = f'Could not read remote logs from log_group: {self.remote_log_group} log_stream: {self.remote_log_stream}.'
+        error_msg = (
+            'Could not read remote logs from log_group: '
+            f'{self.remote_log_group} log_stream: {self.remote_log_stream}.'
+        )
         assert self.cloudwatch_task_handler.read(self.ti) == (
             [[('', msg_template.format(self.remote_log_group, self.remote_log_stream, error_msg))]],
             [{'end_of_log': True}],
@@ -190,7 +193,10 @@ class TestCloudwatchTaskHandler(unittest.TestCase):
         )
 
         msg_template = '*** Reading remote log from Cloudwatch log_group: {} log_stream: {}.\n{}\n'
-        error_msg = f'Could not read remote logs from log_group: {self.remote_log_group} log_stream: {self.remote_log_stream}.'
+        error_msg = (
+            f'Could not read remote logs from log_group: '
+            f'{self.remote_log_group} log_stream: {self.remote_log_stream}.'
+        )
         assert self.cloudwatch_task_handler.read(self.ti) == (
             [[('', msg_template.format(self.remote_log_group, self.remote_log_stream, error_msg))]],
             [{'end_of_log': True}],

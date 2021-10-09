@@ -183,7 +183,8 @@ class GCSHook(GoogleBaseHook):
         if source_bucket == destination_bucket and source_object == destination_object:
 
             raise ValueError(
-                f'Either source/destination bucket or source/destination object must be different, not both the same: bucket={source_bucket}, object={source_object}'
+                f'Either source/destination bucket or source/destination object must be different, '
+                f'not both the same: bucket={source_bucket}, object={source_object}'
             )
         if not source_bucket or not source_object:
             raise ValueError('source_bucket and source_object cannot be empty.')
@@ -231,7 +232,8 @@ class GCSHook(GoogleBaseHook):
         destination_object = destination_object or source_object
         if source_bucket == destination_bucket and source_object == destination_object:
             raise ValueError(
-                f'Either source/destination bucket or source/destination object must be different, not both the same: bucket={source_bucket}, object={source_object}'
+                f'Either source/destination bucket or source/destination object must be different, '
+                f'not both the same: bucket={source_bucket}, object={source_object}'
             )
         if not source_bucket or not source_object:
             raise ValueError('source_bucket and source_object cannot be empty.')

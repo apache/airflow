@@ -390,7 +390,10 @@ class ClusterGenerator:
 
         elif self.custom_image:
             project_id = self.custom_image_project_id or self.project_id
-            custom_image_url = f'https://www.googleapis.com/compute/beta/projects/{project_id}/global/images/{self.custom_image}'
+            custom_image_url = (
+                f'https://www.googleapis.com/compute/beta/projects/{project_id}'
+                f'/global/images/{self.custom_image}'
+            )
             cluster_data['master_config']['image_uri'] = custom_image_url
             if not self.single_node:
                 cluster_data['worker_config']['image_uri'] = custom_image_url
@@ -545,7 +548,10 @@ class DataprocCreateClusterOperator(BaseOperator):
         # TODO: remove one day
         if cluster_config is None:
             warnings.warn(
-                f"Passing cluster parameters by keywords to `{type(self).__name__}` will be deprecated. Please provide cluster_config object using `cluster_config` parameter. You can use `airflow.dataproc.ClusterGenerator.generate_cluster` method to obtain cluster object.",
+                f"Passing cluster parameters by keywords to `{type(self).__name__}` will be deprecated. "
+                "Please provide cluster_config object using `cluster_config` parameter. "
+                "You can use `airflow.dataproc.ClusterGenerator.generate_cluster` "
+                "method to obtain cluster object.",
                 DeprecationWarning,
                 stacklevel=1,
             )
@@ -765,7 +771,8 @@ class DataprocScaleClusterOperator(BaseOperator):
 
         # TODO: Remove one day
         warnings.warn(
-            f"The `{type(self).__name__}` operator is deprecated, please use `DataprocUpdateClusterOperator` instead.",
+            f"The `{type(self).__name__}` operator is deprecated, "
+            "please use `DataprocUpdateClusterOperator` instead.",
             DeprecationWarning,
             stacklevel=1,
         )

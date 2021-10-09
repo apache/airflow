@@ -250,7 +250,9 @@ def skip_if_not_marked_with_integration(selected_integrations, item):
         if integration_name in selected_integrations or "all" in selected_integrations:
             return
     pytest.skip(
-        f"The test is skipped because it does not have the right integration marker. Only tests marked with pytest.mark.integration(INTEGRATION) are run with INTEGRATION being one of {selected_integrations}. {item}"
+        f"The test is skipped because it does not have the right integration marker. "
+        f"Only tests marked with pytest.mark.integration(INTEGRATION) are run with INTEGRATION "
+        f"being one of {selected_integrations}. {item}"
     )
 
 
@@ -260,7 +262,8 @@ def skip_if_not_marked_with_backend(selected_backend, item):
         if selected_backend in backend_names:
             return
     pytest.skip(
-        f"The test is skipped because it does not have the right backend marker Only tests marked with pytest.mark.backend('{selected_backend}') are run: {item}"
+        f"The test is skipped because it does not have the right backend marker "
+        f"Only tests marked with pytest.mark.backend('{selected_backend}') are run: {item}"
     )
 
 
@@ -270,28 +273,33 @@ def skip_if_not_marked_with_system(selected_systems, item):
         if systems_name in selected_systems or "all" in selected_systems:
             return
     pytest.skip(
-        f"The test is skipped because it does not have the right system marker. Only tests marked with pytest.mark.system(SYSTEM) are run with SYSTEM being one of {selected_systems}. {item}"
+        f"The test is skipped because it does not have the right system marker. "
+        f"Only tests marked with pytest.mark.system(SYSTEM) are run with SYSTEM "
+        f"being one of {selected_systems}. {item}"
     )
 
 
 def skip_system_test(item):
     for marker in item.iter_markers(name="system"):
         pytest.skip(
-            f"The test is skipped because it has system marker. System tests are only run when --system flag with the right system ({marker.args[0]}) is passed to pytest. {item}"
+            f"The test is skipped because it has system marker. System tests are only run when "
+            f"--system flag with the right system ({marker.args[0]}) is passed to pytest. {item}"
         )
 
 
 def skip_long_running_test(item):
     for _ in item.iter_markers(name="long_running"):
         pytest.skip(
-            f"The test is skipped because it has long_running marker. And --include-long-running flag is not passed to pytest. {item}"
+            f"The test is skipped because it has long_running marker. "
+            f"And --include-long-running flag is not passed to pytest. {item}"
         )
 
 
 def skip_quarantined_test(item):
     for _ in item.iter_markers(name="quarantined"):
         pytest.skip(
-            f"The test is skipped because it has quarantined marker. And --include-quarantined flag is passed to pytest. {item}"
+            f"The test is skipped because it has quarantined marker. "
+            f"And --include-quarantined flag is passed to pytest. {item}"
         )
 
 
@@ -319,7 +327,9 @@ def skip_if_wrong_backend(marker, item):
     environment_variable_value = os.environ.get(environment_variable_name)
     if not environment_variable_value or environment_variable_value not in valid_backend_names:
         pytest.skip(
-            f"The test requires one of {valid_backend_names} backend started and {environment_variable_name} environment variable to be set to 'true' (it is '{environment_variable_value}'). It can be set by specifying backend at breeze startup: {item}"
+            f"The test requires one of {valid_backend_names} backend started and "
+            f"{environment_variable_name} environment variable to be set to 'true' (it is "
+            f"'{environment_variable_value}'). It can be set by specifying backend at breeze startup: {item}"
         )
 
 

@@ -505,7 +505,8 @@ class CloudSqlProxyRunner(LoggingMixin):
             file.write(response.content)
         if response.status_code != 200:
             raise AirflowException(
-                f"The cloud-sql-proxy could not be downloaded. Status code = {response.status_code}. Reason = {response.reason}"
+                "The cloud-sql-proxy could not be downloaded. "
+                f"Status code = {response.status_code}. Reason = {response.reason}"
             )
 
         self.log.info("Moving sql_proxy binary from %s to %s", proxy_path_tmp, self.sql_proxy_path)
@@ -787,7 +788,8 @@ class CloudSQLDatabaseHook(BaseHook):
             raise AirflowException("The required extra 'instance' is empty or None")
         if self.database_type not in CLOUD_SQL_VALID_DATABASE_TYPES:
             raise AirflowException(
-                f"Invalid database type '{self.database_type}'. Must be one of {CLOUD_SQL_VALID_DATABASE_TYPES}"
+                f"Invalid database type '{self.database_type}'. "
+                f"Must be one of {CLOUD_SQL_VALID_DATABASE_TYPES}"
             )
         if self.use_proxy and self.use_ssl:
             raise AirflowException(
@@ -824,7 +826,9 @@ class CloudSQLDatabaseHook(BaseHook):
             if len(expected_path) > UNIX_PATH_MAX:
                 self.log.info("Too long (%s) path: %s", len(expected_path), expected_path)
                 raise AirflowException(
-                    f"The UNIX socket path length cannot exceed {UNIX_PATH_MAX} characters on Linux system. Either use shorter instance/database name or switch to TCP connection. The socket path for Cloud SQL proxy is now:{expected_path}"
+                    f"The UNIX socket path length cannot exceed {UNIX_PATH_MAX} characters on Linux system. "
+                    "Either use shorter instance/database name or switch to TCP connection. "
+                    f"The socket path for Cloud SQL proxy is now:{expected_path}"
                 )
 
     @staticmethod

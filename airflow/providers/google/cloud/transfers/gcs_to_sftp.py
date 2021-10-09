@@ -149,7 +149,8 @@ class GCSToSFTPOperator(BaseOperator):
             total_wildcards = self.source_object.count(WILDCARD)
             if total_wildcards > 1:
                 raise AirflowException(
-                    f"Only one wildcard '*' is allowed in source_object parameter. Found {total_wildcards} in {self.source_object}."
+                    "Only one wildcard '*' is allowed in source_object parameter. "
+                    f"Found {total_wildcards} in {self.source_object}."
                 )
 
             prefix, delimiter = self.source_object.split(WILDCARD, 1)
