@@ -59,7 +59,8 @@
   ],
   "microsoft.azure": [
     "google",
-    "oracle"
+    "oracle",
+    "sftp"
   ],
   "mysql": [
     "amazon",
