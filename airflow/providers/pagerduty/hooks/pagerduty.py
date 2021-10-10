@@ -154,7 +154,7 @@ class PagerdutyHook(BaseHook):
             stacklevel=2,
         )
 
-        routing_key = self.routing_key or routing_key
+        routing_key = routing_key or self.routing_key
 
         return PagerdutyEventsHook(integration_key=routing_key).create_event(
             summary=summary,

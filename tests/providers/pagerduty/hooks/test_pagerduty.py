@@ -31,7 +31,10 @@ DEFAULT_CONN_ID = "pagerduty_default"
 def connections(request, session=None):
     connections = [
         Connection(
-            conn_id=DEFAULT_CONN_ID, conn_type="http", password="token", extra='{"routing_key": "route"}'
+            conn_id=DEFAULT_CONN_ID,
+            conn_type="http",
+            password="token",
+            extra='{"routing_key": "integration_key"}',
         ),
         Connection(conn_id="pagerduty_no_extra", conn_type="http", password="pagerduty_token_without_extra"),
         Connection(conn_id="pagerduty_events_connection", conn_type="http", password="events_token"),
@@ -52,6 +55,7 @@ class TestPagerdutyHook:
     def test_get_token_from_password(self, connections):
         hook = PagerdutyHook(pagerduty_conn_id=DEFAULT_CONN_ID)
         assert hook.token == "token", "token initialised."
+        assert hook.routing_key == "integration_key"
 
     def test_without_routing_key_extra(self):
         hook = PagerdutyHook(pagerduty_conn_id="pagerduty_no_extra")
@@ -83,12 +87,11 @@ class TestPagerdutyHook:
         events_hook_init.return_value = None
         hook = PagerdutyHook(pagerduty_conn_id=DEFAULT_CONN_ID)
         hook.create_event(
-            routing_key="different_key",
             summary="test",
             source="airflow_test",
             severity="error",
         )
-        events_hook_init.assert_called_with(integration_key="different_key")
+        events_hook_init.assert_called_with(integration_key="integration_key")
         events_hook_create_event.assert_called_with(
             summary="test",
             source="airflow_test",
@@ -102,6 +105,19 @@ class TestPagerdutyHook:
             images=None,
             links=None,
         )
+
+    @mock.patch.object(PagerdutyEventsHook, "create_event", mock.MagicMock(return_value=None))
+    @mock.patch.object(PagerdutyEventsHook, "__init__")
+    def test_create_event_override(self, events_hook_init):
+        events_hook_init.return_value = None
+        hook = PagerdutyHook(pagerduty_conn_id=DEFAULT_CONN_ID)
+        hook.create_event(
+            routing_key="different_key",
+            summary="test",
+            source="airflow_test",
+            severity="error",
+        )
+        events_hook_init.assert_called_with(integration_key="different_key")
 
 
 class TestPagerdutyEventsHook:
