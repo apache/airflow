@@ -170,7 +170,7 @@ function run_airflow_testing_in_docker() {
             echo "${COLOR_BLUE}*${COLOR_RESET}"
             echo "${COLOR_BLUE}***********************************************************************************************${COLOR_RESET}"
             echo
-            curl "${constraints_url}" | grep -ve "^#" | diff --color=always - <( docker run --entrypoint /bin/bash "${AIRFLOW_CI_IMAGE}"  -c 'pip freeze' \
+            curl "${constraints_url}" | grep -ve "^#" | diff --color=always - <( docker run --entrypoint /bin/bash "${AIRFLOW_CI_IMAGE_WITH_TAG}"  -c 'pip freeze' \
                 | sort | grep -v "apache_airflow" | grep -v "@" | grep -v "/opt/airflow" | grep -ve "^#")
             echo
         fi
