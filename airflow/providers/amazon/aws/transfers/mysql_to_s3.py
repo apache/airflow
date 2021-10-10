@@ -40,7 +40,7 @@ FileOptions = namedtuple('FileOptions', ['mode', 'suffix'])
 
 FILE_OPTIONS_MAP = {
     FILE_FORMAT.CSV: FileOptions('r+', '.csv'),
-    FILE_FORMAT.PARQUET: FileOptions('rb+', '.parquet')
+    FILE_FORMAT.PARQUET: FileOptions('rb+', '.parquet'),
 }
 
 
@@ -145,9 +145,7 @@ class MySQLToS3Operator(BaseOperator):
                 self.pd_kwargs["header"] = header
         else:
             if pd_csv_kwargs is not None:
-                raise TypeError(
-                    f"pd_csv_kwargs may not be specified when file_format='parquet'"
-                )
+                raise TypeError(f"pd_csv_kwargs may not be specified when file_format='parquet'")
 
     @staticmethod
     def _fix_int_dtypes(df: pd.DataFrame) -> None:
