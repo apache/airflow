@@ -461,3 +461,6 @@ Currently, **officially** using Airflow:
 1. [Zerodha](https://zerodha.com/) [[@johnnybravo-xyz](https://github.com/johnnybravo-xyz)]
 1. [Zymergen](https://www.zymergen.com/)
 1. [Zynga](https://www.zynga.com)
+1. [Bwtech](https://www.bwtech.com/) [[@wolvery](https://github.com/wolvery)
+1. [Inter Platform Inc.](https://www.bancointer.com.br/) [[@wolvery](https://github.com/wolvery)
+
