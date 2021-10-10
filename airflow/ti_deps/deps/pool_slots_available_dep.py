@@ -55,7 +55,7 @@ class PoolSlotsAvailableDep(BaseTIDep):
         else:
             # Controlled by UNIQUE key in slot_pool table,
             # only one result can be returned.
-            open_slots = pools[0].open_slots()
+            open_slots = pools[0].open_slots(session=session)
 
         if ti.state in EXECUTION_STATES:
             open_slots += ti.pool_slots
