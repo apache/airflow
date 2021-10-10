@@ -3413,34 +3413,55 @@ class ConnectionModelView(AirflowModelView):
         for selected_conn in connections:
             new_conn_id = selected_conn.conn_id
             match = re.search(r"_copy(\d+)$", selected_conn.conn_id)
+
+            base_conn_id = selected_conn.conn_id
             if match:
-                conn_id_prefix = selected_conn.conn_id[: match.start()]
-                new_conn_id = f"{conn_id_prefix}_copy{int(match.group(1)) + 1}"
-            else:
-                new_conn_id += '_copy1'
+                base_conn_id = base_conn_id.split('_copy')[0]
 
-            dup_conn = Connection(
-                new_conn_id,
-                selected_conn.conn_type,
-                selected_conn.description,
-                selected_conn.host,
-                selected_conn.login,
-                selected_conn.password,
-                selected_conn.schema,
-                selected_conn.port,
-                selected_conn.extra,
+            potential_connection_ids = [f"{base_conn_id}_copy{i}" for i in range(1, 11)]
+
+            query = session.query(Connection.conn_id).filter(Connection.conn_id.in_(potential_connection_ids))
+
+            found_conn_id_set = {conn_id for conn_id, in query}
+
+            possible_conn_id_iter = (
+                connection_id
+                for connection_id in potential_connection_ids
+                if connection_id not in found_conn_id_set
             )
-
             try:
-                session.add(dup_conn)
-                session.commit()
-                flash(f"Connection {new_conn_id} added successfully.", "success")
-            except IntegrityError:
+                new_conn_id = next(possible_conn_id_iter)
+            except StopIteration:
                 flash(
-                    f"Connection {new_conn_id} can't be added. Integrity error, probably unique constraint.",
+                    f"Connection {new_conn_id} can't be added because it already exists, "
+                    f"Please rename the existing connections",
                     "warning",
                 )
-                session.rollback()
+            else:
+
+                dup_conn = Connection(
+                    new_conn_id,
+                    selected_conn.conn_type,
+                    selected_conn.description,
+                    selected_conn.host,
+                    selected_conn.login,
+                    selected_conn.password,
+                    selected_conn.schema,
+                    selected_conn.port,
+                    selected_conn.extra,
+                )
+
+                try:
+                    session.add(dup_conn)
+                    session.commit()
+                    flash(f"Connection {new_conn_id} added successfully.", "success")
+                except IntegrityError:
+                    flash(
+                        f"Connection {new_conn_id} can't be added. Integrity error, "
+                        f"probably unique constraint.",
+                        "warning",
+                    )
+                    session.rollback()
 
         self.update_redirect()
         return redirect(self.get_redirect())

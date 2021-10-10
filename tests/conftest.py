@@ -473,7 +473,9 @@ def dag_maker(request):
     if serialized_marker:
         (want_serialized,) = serialized_marker.args or (True,)
 
-    class DagFactory:
+    from airflow.utils.log.logging_mixin import LoggingMixin
+
+    class DagFactory(LoggingMixin):
         def __init__(self):
             from airflow.models import DagBag
 
@@ -601,25 +603,32 @@ def dag_maker(request):
         def cleanup(self):
             from airflow.models import DagModel, DagRun, TaskInstance, XCom
             from airflow.models.serialized_dag import SerializedDagModel
+            from airflow.utils.retries import run_with_db_retries
 
-            dag_ids = list(self.dagbag.dag_ids)
-            if not dag_ids:
-                return
-            # To isolate problems here with problems from elsewhere on the session object
-            self.session.flush()
+            for attempt in run_with_db_retries(logger=self.log):
+                with attempt:
+                    dag_ids = list(self.dagbag.dag_ids)
+                    if not dag_ids:
+                        return
+                    # To isolate problems here with problems from elsewhere on the session object
+                    self.session.flush()
 
-            self.session.query(SerializedDagModel).filter(SerializedDagModel.dag_id.in_(dag_ids)).delete(
-                synchronize_session=False
-            )
-            self.session.query(DagRun).filter(DagRun.dag_id.in_(dag_ids)).delete(synchronize_session=False)
-            self.session.query(TaskInstance).filter(TaskInstance.dag_id.in_(dag_ids)).delete(
-                synchronize_session=False
-            )
-            self.session.query(XCom).filter(XCom.dag_id.in_(dag_ids)).delete(synchronize_session=False)
-            self.session.query(DagModel).filter(DagModel.dag_id.in_(dag_ids)).delete(
-                synchronize_session=False
-            )
-            self.session.commit()
+                    self.session.query(SerializedDagModel).filter(
+                        SerializedDagModel.dag_id.in_(dag_ids)
+                    ).delete(synchronize_session=False)
+                    self.session.query(DagRun).filter(DagRun.dag_id.in_(dag_ids)).delete(
+                        synchronize_session=False
+                    )
+                    self.session.query(TaskInstance).filter(TaskInstance.dag_id.in_(dag_ids)).delete(
+                        synchronize_session=False
+                    )
+                    self.session.query(XCom).filter(XCom.dag_id.in_(dag_ids)).delete(
+                        synchronize_session=False
+                    )
+                    self.session.query(DagModel).filter(DagModel.dag_id.in_(dag_ids)).delete(
+                        synchronize_session=False
+                    )
+                    self.session.commit()
 
     factory = DagFactory()
 

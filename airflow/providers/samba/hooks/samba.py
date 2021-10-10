@@ -80,7 +80,7 @@ class SambaHook(BaseHook):
         self._connection_cache.clear()
 
     def _join_path(self, path):
-        return f"//{posixpath.join(self._host, self._share, path)}"
+        return f"//{posixpath.join(self._host, self._share, path.lstrip('/'))}"
 
     @wraps(smbclient.link)
     def link(self, src, dst, follow_symlinks=True):

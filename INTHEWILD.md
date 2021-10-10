@@ -316,6 +316,7 @@ Currently, **officially** using Airflow:
 1. [Pandora Media](https://www.pandora.com/) [[@Acehaidrey](https://github.com/Acehaidrey) & [@wolfier](https://github.com/wolfier)]
 1. [Paradigma Digital](https://www.paradigmadigital.com/) [[@paradigmadigital](https://github.com/paradigmadigital)]
 1. [Paraná Banco](https://paranabanco.com.br/) [[@lopesdiego12](https://github.com/lopesdiego12/)]
+1. [Parimatch Tech](https://parimatch.tech/) [[@KulykDmytro](https://github.com/KulykDmytro), [@Tonkonozhenko](https://github.com/Tonkonozhenko)]
 1. [Pathstream](https://pathstream.com) [[@pJackDanger](https://github.com/JackDanger)]
 1. [PayFit](https://payfit.com) [[@pcorbel](https://github.com/pcorbel)]
 1. [PAYMILL](https://www.paymill.com/) [[@paymill](https://github.com/paymill) & [@matthiashuschle](https://github.com/matthiashuschle)]

@@ -898,3 +898,36 @@ function initialization::ga_env() {
         echo "${1}=${2}" >>"${GITHUB_ENV}"
     fi
 }
+
+function initialization::ver() {
+  # convert SemVer number to comparable string (strips pre-release version)
+  # shellcheck disable=SC2086,SC2183
+  printf "%04d%04d%04d%.0s" ${1//[.-]/ }
+}
+
+function initialization::check_docker_version() {
+    local docker_version
+    # In GitHub Code QL, the version of docker has +azure suffix which we should remove
+    docker_version=$(docker version --format '{{.Client.Version}}' | sed 's/\+.*$//' || true)
+    if [ "${docker_version}" == "" ]; then
+        echo
+        echo "${COLOR_YELLOW}Your version of docker is unknown. If the scripts faill, please make sure to install docker at least: ${min_docker_version} version.${COLOR_RESET}"
+        echo
+        return
+    fi
+    local comparable_docker_version
+    comparable_docker_version=$(initialization::ver "${docker_version}")
+    local min_docker_version="20.10.0"
+    local min_comparable_docker_version
+    min_comparable_docker_version=$(initialization::ver "${min_docker_version}")
+    if (( comparable_docker_version < min_comparable_docker_version )); then
+        echo
+        echo "${COLOR_RED}Your version of docker is too old: ${docker_version}. Please upgrade to at least ${min_docker_version}.${COLOR_RESET}"
+        echo
+        exit 1
+    else
+        if [[ ${PRINT_INFO_FROM_SCRIPTS} != "false" ]]; then
+            echo "${COLOR_GREEN}Good version of docker ${docker_version}.${COLOR_RESET}"
+        fi
+    fi
+}
