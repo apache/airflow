@@ -69,7 +69,6 @@ class SFTPToWasbOperator(BaseOperator):
 
     template_fields = ("sftp_source_path", "container_name", "blob_prefix")
 
-    @apply_defaults
     def __init__(
         self,
         *,
