@@ -18,7 +18,7 @@
 """This module contains Facebook Ads Reporting hooks"""
 import time
 from enum import Enum
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
 try:
     from functools import cached_property
@@ -66,7 +66,7 @@ class FacebookAdsReportingHook(BaseHook):
     def __init__(
         self,
         facebook_conn_id: str = default_conn_name,
-        api_version: str = "v12.0",
+        api_version: Optional[str] = None,
     ) -> None:
         super().__init__()
         self.facebook_conn_id = facebook_conn_id
