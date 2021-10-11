@@ -396,6 +396,16 @@ EOF
     echo
     echo "Please exit and re-enter your shell or run:"
     echo
+    if [[ "${OSTYPE}" == "darwin"* ]]; then
+        if grep "${breeze_comment}" "${HOME}/.zshrc" >/dev/null 2>&1; then
+            echo "    source ~/.zshrc"
+            echo
+            echo "    source ~/.bash_completion.d/breeze-complete"
+            echo
+            exec zsh
+            exit 0
+        fi
+    fi
     echo "    source ~/.bash_completion.d/breeze-complete"
     echo
     exit 0
