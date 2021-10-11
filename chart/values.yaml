@@ -40,10 +40,10 @@ airflowHome: /opt/airflow
 defaultAirflowRepository: apache/airflow
 
 # Default airflow tag to deploy
-defaultAirflowTag: "2.1.4"
+defaultAirflowTag: "2.2.0"
 
 # Airflow version (Used to make some decisions based on Airflow Version being deployed)
-airflowVersion: "2.1.4"
+airflowVersion: "2.2.0"
 
 # Images
 images:
@@ -1315,7 +1315,7 @@ dags:
     # git@github.com:apache/airflow.git
     # https example: https://github.com/apache/airflow.git
     repo: https://github.com/apache/airflow.git
-    branch: v2-1-stable
+    branch: v2-2-stable
     rev: HEAD
     depth: 1
     # the number of consecutive failures allowed before aborting

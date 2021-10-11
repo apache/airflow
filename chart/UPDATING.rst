@@ -35,8 +35,16 @@ assists users migrating to a new version.
 
 Run ``helm repo update`` before upgrading the chart to the latest version.
 
-Airflow Helm Chart 1.2.0 (dev)
+Airflow Helm Chart 1.3.0 (dev)
 ------------------------------
+
+Default Airflow version is updated to ``2.2.0``
+"""""""""""""""""""""""""""""""""""""""""""""""
+
+The default Airflow version that is installed with the Chart is now ``2.2.0``, previously it was ``2.1.4``.
+
+Airflow Helm Chart 1.2.0
+------------------------
 
 ``ingress.web.host`` and ``ingress.flower.host`` parameters have been renamed and data type changed
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""

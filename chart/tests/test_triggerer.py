@@ -42,7 +42,6 @@ class TriggererTest(unittest.TestCase):
     def test_should_add_extra_containers(self):
         docs = render_chart(
             values={
-                "airflowVersion": "2.2.0",
                 "triggerer": {
                     "extraContainers": [
                         {"name": "test-container", "image": "test-registry/test-repo:test-tag"}
@@ -60,7 +59,6 @@ class TriggererTest(unittest.TestCase):
     def test_should_add_extra_init_containers(self):
         docs = render_chart(
             values={
-                "airflowVersion": "2.2.0",
                 "triggerer": {
                     "extraInitContainers": [
                         {"name": "test-init-container", "image": "test-registry/test-repo:test-tag"}
@@ -78,7 +76,6 @@ class TriggererTest(unittest.TestCase):
     def test_should_add_extra_volume_and_extra_volume_mount(self):
         docs = render_chart(
             values={
-                "airflowVersion": "2.2.0",
                 "triggerer": {
                     "extraVolumes": [{"name": "test-volume", "emptyDir": {}}],
                     "extraVolumeMounts": [{"name": "test-volume", "mountPath": "/opt/test"}],
@@ -95,7 +92,6 @@ class TriggererTest(unittest.TestCase):
     def test_should_create_valid_affinity_tolerations_and_node_selector(self):
         docs = render_chart(
             values={
-                "airflowVersion": "2.2.0",
                 "triggerer": {
                     "affinity": {
                         "nodeAffinity": {
@@ -150,7 +146,6 @@ class TriggererTest(unittest.TestCase):
     def test_livenessprobe_values_are_configurable(self):
         docs = render_chart(
             values={
-                "airflowVersion": "2.2.0",
                 "triggerer": {
                     "livenessProbe": {
                         "initialDelaySeconds": 111,
@@ -186,7 +181,7 @@ class TriggererTest(unittest.TestCase):
     )
     def test_logs_persistence_changes_volume(self, log_persistence_values, expected_volume):
         docs = render_chart(
-            values={"airflowVersion": "2.2.0", "logs": {"persistence": log_persistence_values}},
+            values={"logs": {"persistence": log_persistence_values}},
             show_only=["templates/triggerer/triggerer-deployment.yaml"],
         )
 
@@ -197,7 +192,6 @@ class TriggererTest(unittest.TestCase):
     def test_resources_are_configurable(self):
         docs = render_chart(
             values={
-                "airflowVersion": "2.2.0",
                 "triggerer": {
                     "resources": {
                         "limits": {"cpu": "200m", 'memory': "128Mi"},
@@ -227,9 +221,6 @@ class TriggererTest(unittest.TestCase):
 
     def test_resources_are_not_added_by_default(self):
         docs = render_chart(
-            values={
-                "airflowVersion": "2.2.0",
-            },
             show_only=["templates/triggerer/triggerer-deployment.yaml"],
         )
         assert jmespath.search("spec.template.spec.containers[0].resources", docs[0]) == {}
@@ -247,7 +238,6 @@ class TriggererTest(unittest.TestCase):
         """strategy should be used when we aren't using both LocalExecutor and workers.persistence"""
         docs = render_chart(
             values={
-                "airflowVersion": "2.2.0",
                 "triggerer": {"strategy": strategy},
             },
             show_only=["templates/triggerer/triggerer-deployment.yaml"],
@@ -257,9 +247,6 @@ class TriggererTest(unittest.TestCase):
 
     def test_default_command_and_args(self):
         docs = render_chart(
-            values={
-                "airflowVersion": "2.2.0",
-            },
             show_only=["templates/triggerer/triggerer-deployment.yaml"],
         )
 
@@ -278,7 +265,7 @@ class TriggererTest(unittest.TestCase):
     )
     def test_command_and_args_overrides(self, command, args):
         docs = render_chart(
-            values={"airflowVersion": "2.2.0", "triggerer": {"command": command, "args": args}},
+            values={"triggerer": {"command": command, "args": args}},
             show_only=["templates/triggerer/triggerer-deployment.yaml"],
         )
 
@@ -288,7 +275,6 @@ class TriggererTest(unittest.TestCase):
     def test_command_and_args_overrides_are_templated(self):
         docs = render_chart(
             values={
-                "airflowVersion": "2.2.0",
                 "triggerer": {"command": ["{{ .Release.Name }}"], "args": ["{{ .Release.Service }}"]},
             },
             show_only=["templates/triggerer/triggerer-deployment.yaml"],
@@ -299,7 +285,7 @@ class TriggererTest(unittest.TestCase):
 
     def test_dags_gitsync_sidecar_and_init_container(self):
         docs = render_chart(
-            values={"dags": {"gitSync": {"enabled": True}}, "airflowVersion": "2.2.0"},
+            values={"dags": {"gitSync": {"enabled": True}}},
             show_only=["templates/triggerer/triggerer-deployment.yaml"],
         )
 
@@ -310,10 +296,7 @@ class TriggererTest(unittest.TestCase):
 
     def test_dags_gitsync_with_persistence_no_sidecar_or_init_container(self):
         docs = render_chart(
-            values={
-                "dags": {"gitSync": {"enabled": True}, "persistence": {"enabled": True}},
-                "airflowVersion": "2.2.0",
-            },
+            values={"dags": {"gitSync": {"enabled": True}, "persistence": {"enabled": True}}},
             show_only=["templates/triggerer/triggerer-deployment.yaml"],
         )
 
