@@ -17,7 +17,6 @@
 """Run ephemeral Docker Swarm services"""
 from typing import List, Optional, Union
 
-import requests
 from docker import types
 
 from airflow.exceptions import AirflowException

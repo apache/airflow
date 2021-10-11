@@ -20,7 +20,6 @@ import unittest
 from unittest import mock
 
 import pytest
-import requests
 from docker import APIClient, types
 from parameterized import parameterized
 
