@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2021-10-08T10:31:06Z
+# This constraints file was automatically generated on 2021-10-11T16:58:48Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package nd all available community provider packages.
@@ -8,7 +8,7 @@
 # They represent "latest" and greatest set of constraints that HEAD of the "apache-airflow" package should
 # Install with "HEAD" of providers. Those are the only constraints that are used by our CI builds.
 #
-# Editable install with no version control (apache-airflow==2.2.0.dev0)
+# Editable install with no version control (apache-airflow==2.2.0)
 APScheduler==3.6.3
 Authlib==0.15.4
 Babel==2.9.1
@@ -54,7 +54,7 @@ aliyun-python-sdk-kms==2.15.0
 amqp==5.0.6
 analytics-python==1.4.0
 ansiwrap==0.8.4
-anyio==3.3.2
+anyio==3.3.3
 apache-beam==2.33.0
 apispec==3.3.2
 appdirs==1.4.4
@@ -98,9 +98,9 @@ beautifulsoup4==4.7.1
 billiard==3.6.4.0
 black==21.9b0
 blinker==1.4
-boto3==1.18.57
+boto3==1.18.58
 boto==2.49.0
-botocore==1.21.57
+botocore==1.21.58
 bowler==0.9.0
 cachetools==4.2.2
 cassandra-driver==3.25.0
@@ -152,7 +152,7 @@ fastavro==1.4.5
 filelock==3.3.0
 fissix==21.6.6
 flake8-colors==0.1.9
-flake8==3.9.2
+flake8==4.0.1
 flaky==3.7.0
 flower==1.0.0
 freezegun==1.1.0
@@ -261,7 +261,7 @@ mongomock==3.23.0
 monotonic==1.6
 more-itertools==8.10.0
 moreorless==0.4.0
-moto==2.2.8
+moto==2.2.9
 msal-extensions==0.3.0
 msal==1.15.0
 msgpack==1.0.2
@@ -293,7 +293,7 @@ pandas-gbq==0.14.1
 pandas==1.3.3
 papermill==2.3.3
 parameterized==0.8.1
-paramiko==2.7.2
+paramiko==2.8.0
 parso==0.8.2
 partd==1.2.0
 pathspec==0.9.0
@@ -326,17 +326,17 @@ pyOpenSSL==20.0.1
 pyarrow==4.0.1
 pyasn1-modules==0.2.8
 pyasn1==0.4.8
-pycodestyle==2.7.0
+pycodestyle==2.8.0
 pycountry==20.7.3
 pycparser==2.20
-pycryptodome==3.10.4
-pycryptodomex==3.10.4
+pycryptodome==3.11.0
+pycryptodomex==3.11.0
 pydata-google-auth==1.2.0
 pydot==1.4.2
 pydruid==0.6.2
 pyenchant==3.2.2
 pyexasol==0.21.1
-pyflakes==2.3.1
+pyflakes==2.4.0
 pykerberos==1.2.1
 pymongo==3.12.0
 pymssql==2.2.2
@@ -372,7 +372,7 @@ pywinrm==0.4.2
 pyzmq==22.3.0
 qds-sdk==1.16.1
 redis==3.5.3
-regex==2021.9.30
+regex==2021.10.8
 requests-kerberos==0.12.0
 requests-mock==1.9.3
 requests-ntlm==1.1.0
@@ -422,7 +422,7 @@ spython==0.1.17
 sqlalchemy-drill==1.1.1
 sqlparse==0.4.2
 sshtunnel==0.4.0
-starkbank-ecdsa==1.1.1
+starkbank-ecdsa==2.0.0
 statsd==3.3.0
 swagger-ui-bundle==0.0.9
 tableauserverclient==0.16.0

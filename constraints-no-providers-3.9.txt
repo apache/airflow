@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2021-10-08T10:33:11Z
+# This constraints file was automatically generated on 2021-10-11T17:00:52Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install just the 'bare' 'apache-airflow' package build from the HEAD of
 # the branch, without installing any of the providers.
@@ -7,7 +7,7 @@
 # Those constraints represent the "newest" dependencies airflow could use, if providers did not limit
 # Airflow in any way.
 #
-# Editable install with no version control (apache-airflow==2.2.0.dev0)
+# Editable install with no version control (apache-airflow==2.2.0)
 Authlib==0.15.4
 Babel==2.9.1
 Flask-AppBuilder==3.3.3
@@ -35,7 +35,7 @@ WTForms==2.3.3
 Werkzeug==1.0.1
 alembic==1.7.4
 amqp==5.0.6
-anyio==3.3.2
+anyio==3.3.3
 apispec==3.3.2
 argcomplete==1.12.3
 attrs==20.3.0
