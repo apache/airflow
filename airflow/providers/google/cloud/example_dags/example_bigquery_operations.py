@@ -151,7 +151,7 @@ with models.DAG(
                 "csvOptions": {"skipLeadingRows": 1},
                 "sourceUris": [DATA_SAMPLE_GCS_URL],
             },
-        }
+        },
     )
     # [END howto_operator_bigquery_create_external_table]
 
