@@ -409,6 +409,48 @@ method of the Python operator.
 Current context is accessible only during the task execution. The context is not accessible during
 ``pre_execute`` or ``post_execute``. Calling this method outside execution context will raise an error.
 
+Accessing context variables in decorated tasks
+----------------------------------------------
+
+When running your callable, Airflow will pass a set of keyword arguments that can be used in your
+function. This set of kwargs correspond exactly to what you can use in your jinja templates.
+For this to work, you need to define ``**kwargs`` in your function header, or you can add directly the
+keyword arguments you would like to get - for example with the below code your callable will get
+the values of ``ti`` and ``next_ds`` context variables.
+
+With explicit arguments:
+
+.. code-block:: python
+
+   @task
+   def my_python_callable(ti, next_ds):
+       pass
+
+With kwargs:
+
+.. code-block:: python
+
+   @task
+   def my_python_callable(**kwargs):
+       ti = kwargs["ti"]
+       next_ds = kwargs["next_ds"]
+
+Also sometimes you might want to access the context somewhere deep the stack - and you do not want to pass
+the context variables from the task callable. You can do it via ``get_current_context``
+method of the Python operator.
+
+.. code-block:: python
+
+    from airflow.operators.python import get_current_context
+
+
+    def some_function_in_your_library():
+        context = get_current_context()
+        ti = context["ti"]
+
+Current context is accessible only during the task execution. The context is not accessible during
+``pre_execute`` or ``post_execute``. Calling this method outside execution context will raise an error.
+
 
 What's Next?
 ------------
