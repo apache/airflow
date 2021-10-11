@@ -159,7 +159,7 @@ def assert_user_does_not_have_dag_perms(has_dag_perm):
     return _assert_user_does_not_have_dag_perms
 
 
-def test_init_role_baseview(app_builder, security_manager):
+def test_init_role_baseview(app, app_builder, security_manager):
     role_name = 'MyRole7'
     role_perms = [('can_some_other_action', 'AnotherBaseView')]
     with pytest.warns(
@@ -168,15 +168,13 @@ def test_init_role_baseview(app_builder, security_manager):
     ):
         security_manager.init_role(role_name, role_perms)
 
-    role = app_builder.sm.find_role(role_name)
+    role = security_manager.find_role(role_name)
     assert role is not None
-    print(role_perms)
-    print(role.permissions)
     assert len(role_perms) == len(role.permissions)
     delete_role(app, role_name)
 
 
-def test_bulk_sync_roles_baseview(app_builder, security_manager):
+def test_bulk_sync_roles_baseview(app, app_builder, security_manager):
     role_name = 'MyRole3'
     role_perms = [('can_some_action', 'SomeBaseView')]
     security_manager.bulk_sync_roles([{'role': role_name, 'perms': role_perms}])
@@ -188,7 +186,7 @@ def test_bulk_sync_roles_baseview(app_builder, security_manager):
     delete_role(app, role_name)
 
 
-def test_bulk_sync_roles_modelview(app_builder, security_manager):
+def test_bulk_sync_roles_modelview(app, app_builder, security_manager):
     role_name = 'MyRole2'
     role_perms = [
         ('can_list', 'SomeModelView'),
