@@ -311,6 +311,19 @@ function initialization::initialize_force_variables() {
 
     # Can be set to true to skip if the image is newer in registry
     export SKIP_CHECK_REMOTE_IMAGE=${SKIP_CHECK_REMOTE_IMAGE:="false"}
+
+    # integrations are disabled by default
+    export ENABLED_INTEGRATIONS=${ENABLED_INTEGRATIONS:=""}
+
+    # systems are disabled by default
+    export ENABLED_SYSTEMS=${ENABLED_SYSTEMS:=""}
+
+    # no issue id by default (quarantined builds only)
+    export ISSUE_ID=${ISSUE_ID:=""}
+
+    # no NUM_RUNS by default (quarantined builds only)
+    export NUM_RUNS=${NUM_RUNS:=""}
+
 }
 
 # Determine information about the host
@@ -576,10 +589,24 @@ function initialization::initialize_test_variables() {
     # In case we want to force certain test type to run, this variable should be set to this type
     # Otherwise TEST_TYPEs to run will be derived from TEST_TYPES space-separated string
     export FORCE_TEST_TYPE=${FORCE_TEST_TYPE:=""}
+
+    # Do not run tests by default
+    export RUN_TESTS=${RUN_TESTS:="false"}
+
+    # Do not run integration tests by default
+    export RUN_INTEGRATION_TESTS=${RUN_INTEGRATION_TESTS:="false"}
+
+    # Do not run system tests by default
+    export RUN_SYSTEM_TESTS=${RUN_SYSTEM_TESTS:="false"}
+
 }
 
 function initialization::initialize_package_variables() {
+    # default package format
     export PACKAGE_FORMAT=${PACKAGE_FORMAT:="wheel"}
+    # default version suffixes
+    export VERSION_SUFFIX_FOR_PYPI=${VERSION_SUFFIX_FOR_PYPI:=""}
+    export VERSION_SUFFIX_FOR_SVN=${VERSION_SUFFIX_FOR_SVN:=""}
 }
 
 
