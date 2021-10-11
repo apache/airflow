@@ -6,7 +6,7 @@ from plugins.utils.load_data_from_csv import load_data_from_csv
 from airflow.configuration import conf
 from plugins.factory_code.factory_code import get_factory_code
 import json
-
+from sqlalchemy import or_
 log = LoggingMixin().log
 
 
@@ -153,24 +153,29 @@ def create_default_connection(session=None):
             conn_id='qcos_report', conn_type='http',
             host='172.17.0.1', port=8686
         ), session)
+    # 当三种服务都不存在时才会创建
+    if not session.query(Connection).filter(or_(
+        Connection.conn_id == 'cas_analysis',
+        Connection.conn_id == 'cas_training',
+        Connection.conn_id == 'cas_server'
+    )).first():
+        db.merge_conn(
+            Connection(
+                conn_id='cas_analysis', conn_type='http',
+                host='127.0.0.1', port=9095
+            ), session)
 
-    db.merge_conn(
-        Connection(
-            conn_id='cas_analysis', conn_type='http',
-            host='127.0.0.1', port=9095
-        ), session)
+        db.merge_conn(
+            Connection(
+                conn_id='cas_training', conn_type='http',
+                host='127.0.0.1', port=9095
+            ), session)
 
-    db.merge_conn(
-        Connection(
-            conn_id='cas_training', conn_type='http',
-            host='127.0.0.1', port=9095
-        ), session)
-
-    db.merge_conn(
-        Connection(
-            conn_id='cas_server', conn_type='http',
-            host='127.0.0.1', port=9095
-        ), session)
+        db.merge_conn(
+            Connection(
+                conn_id='cas_server', conn_type='http',
+                host='127.0.0.1', port=9095
+            ), session)
 
 
 # Defining the plugin class
