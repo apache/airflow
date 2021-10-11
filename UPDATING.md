@@ -27,6 +27,7 @@ assists users migrating to a new version.
 **Table of contents**
 
 - [Main](#main)
+- [Airflow 2.2.0](#airflow-220)
 - [Airflow 2.1.4](#airflow-214)
 - [Airflow 2.1.3](#airflow-213)
 - [Airflow 2.1.2](#airflow-212)
@@ -75,6 +76,8 @@ More tips can be found in the guide:
 https://developers.google.com/style/inclusive-documentation
 
 -->
+
+## Airflow 2.2.0
 
 ### `worker_log_server_port` configuration has been moved to the ``logging`` section.
 
