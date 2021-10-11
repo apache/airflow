@@ -553,7 +553,7 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
         perms = sesh.query(sqla_models.PermissionView).filter(
             or_(
                 sqla_models.PermissionView.permission == None,  # noqa
-                sqla_models.PermissionView.view_menu == None,
+                sqla_models.PermissionView.view_menu == None,  # flake8: noqa
             )
         )
         # Since FAB doesn't define ON DELETE CASCADE on these tables, we need
