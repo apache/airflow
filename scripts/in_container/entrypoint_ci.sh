@@ -52,7 +52,7 @@ else
     export RUN_AIRFLOW_1_10="false"
 fi
 
-if [[  ${USE_AIRFLOW_VERSION} == "" ]]; then
+if [[ ${USE_AIRFLOW_VERSION} == "" ]]; then
     export PYTHONPATH=${AIRFLOW_SOURCES}
     echo
     echo "Using already installed airflow version"
