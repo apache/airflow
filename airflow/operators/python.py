@@ -85,6 +85,28 @@ class PythonOperator(BaseOperator):
         For more information on how to use this operator, take a look at the guide:
         :ref:`howto/operator:PythonOperator`
 
+    When running your callable, Airflow will pass a set of keyword arguments that can be used in your
+    function. This set of kwargs correspond exactly to what you can use in your jinja templates.
+    For this to work, you need to define ``**kwargs`` in your function header, or you can add directly the
+    keyword arguments you would like to get - for example with the below code your callable will get
+    the values of ``ti`` and ``next_ds`` context variables.
+
+    With explicit arguments:
+
+    .. code-block:: python
+
+       def my_python_callable(ti, next_ds):
+           pass
+
+    With kwargs:
+
+    .. code-block:: python
+
+       def my_python_callable(**kwargs):
+           ti = kwargs["ti"]
+           next_ds = kwargs["next_ds"]
+
+
     :param python_callable: A reference to an object that is callable
     :type python_callable: python callable
     :param op_kwargs: a dictionary of keyword arguments that will get unpacked
