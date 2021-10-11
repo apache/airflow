@@ -30,7 +30,6 @@ from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.microsoft.azure.hooks.wasb import WasbHook
 from airflow.providers.sftp.hooks.sftp import SFTPHook
-from airflow.utils.decorators import apply_defaults
 
 WILDCARD = "*"
 SftpFile = namedtuple('SftpFile', 'sftp_file_path, blob_name')
