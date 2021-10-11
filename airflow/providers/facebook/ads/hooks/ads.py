@@ -53,7 +53,7 @@ class FacebookAdsReportingHook(BaseHook):
 
     :param facebook_conn_id: Airflow Facebook Ads connection ID
     :type facebook_conn_id: str
-    :param api_version: The version of Facebook API. Default to v6.0
+    :param api_version: The version of Facebook API. Default to v12.0
     :type api_version: str
 
     """
@@ -66,7 +66,7 @@ class FacebookAdsReportingHook(BaseHook):
     def __init__(
         self,
         facebook_conn_id: str = default_conn_name,
-        api_version: str = "v6.0",
+        api_version: str = "v12.0",
     ) -> None:
         super().__init__()
         self.facebook_conn_id = facebook_conn_id
