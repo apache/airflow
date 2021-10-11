@@ -20,39 +20,32 @@ from unittest import mock
 import pytest
 
 from airflow.models import Connection
-from airflow.providers.pagerduty.hooks.pagerduty import PagerdutyEventsHook, PagerdutyHook
-from airflow.utils.session import provide_session
+from airflow.providers.pagerduty.hooks.pagerduty import PagerdutyHook
+from airflow.providers.pagerduty.hooks.pagerduty_events import PagerdutyEventsHook
+from airflow.utils import db
 
 DEFAULT_CONN_ID = "pagerduty_default"
 
 
 @pytest.fixture(scope="class")
-@provide_session
-def connections(request, session=None):
-    connections = [
+def pagerduty_connections():
+    db.merge_conn(
         Connection(
             conn_id=DEFAULT_CONN_ID,
-            conn_type="http",
+            conn_type="pagerduty",
             password="token",
             extra='{"routing_key": "integration_key"}',
+        )
+    )
+    db.merge_conn(
+        Connection(
+            conn_id="pagerduty_no_extra", conn_type="pagerduty", password="pagerduty_token_without_extra"
         ),
-        Connection(conn_id="pagerduty_no_extra", conn_type="http", password="pagerduty_token_without_extra"),
-        Connection(conn_id="pagerduty_events_connection", conn_type="http", password="events_token"),
-    ]
-    for c in connections:
-        session.add(c)
-    session.commit()
-
-    def cleanup():
-        for c in connections:
-            session.delete(c)
-        session.commit()
-
-    request.addfinalizer(cleanup)
+    )
 
 
 class TestPagerdutyHook:
-    def test_get_token_from_password(self, connections):
+    def test_get_token_from_password(self, pagerduty_connections):
         hook = PagerdutyHook(pagerduty_conn_id=DEFAULT_CONN_ID)
         assert hook.token == "token", "token initialised."
         assert hook.routing_key == "integration_key"
@@ -118,28 +111,3 @@ class TestPagerdutyHook:
             severity="error",
         )
         events_hook_init.assert_called_with(integration_key="different_key")
-
-
-class TestPagerdutyEventsHook:
-    def test_get_integration_key_from_password(self, connections):
-        hook = PagerdutyEventsHook(pagerduty_conn_id="pagerduty_events_connection")
-        assert hook.integration_key == "events_token", "token initialised."
-
-    def test_token_parameter_override(self):
-        hook = PagerdutyEventsHook(integration_key="override_key", pagerduty_conn_id=DEFAULT_CONN_ID)
-        assert hook.integration_key == "override_key", "token initialised."
-
-    def test_create_event(self, requests_mock):
-        hook = PagerdutyEventsHook(pagerduty_conn_id="pagerduty_events_connection")
-        mock_response_body = {
-            "status": "success",
-            "message": "Event processed",
-            "dedup_key": "samplekeyhere",
-        }
-        requests_mock.post("https://events.pagerduty.com/v2/enqueue", json=mock_response_body)
-        resp = hook.create_event(
-            summary="test",
-            source="airflow_test",
-            severity="error",
-        )
-        assert resp == mock_response_body
