@@ -250,6 +250,7 @@ repos:
         exclude: |
           (?x)
           ^airflow/_vendor/
+        additional_dependencies: ['flake8>=4.0.1']
   - repo: https://github.com/ikamensh/flynt
     rev: '0.69'
     hooks:
