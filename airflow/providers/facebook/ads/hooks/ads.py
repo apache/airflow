@@ -53,8 +53,9 @@ class FacebookAdsReportingHook(BaseHook):
 
     :param facebook_conn_id: Airflow Facebook Ads connection ID
     :type facebook_conn_id: str
-    :param api_version: The version of Facebook API. Default to v12.0
-    :type api_version: str
+    :param api_version: The version of Facebook API. Default to None. If it is None,
+        it will use the Facebook business SDK default version.
+    :type api_version: Optional[str]
 
     """
 
