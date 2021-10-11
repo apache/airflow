@@ -131,7 +131,6 @@ def dag_backfill(args, dag=None):
             sys.exit(1)
 
 
-
 @cli_utils.action_logging
 def dag_trigger(args):
     """Creates a dag run for the specified dag"""
