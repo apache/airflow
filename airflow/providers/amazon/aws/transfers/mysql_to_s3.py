@@ -145,7 +145,7 @@ class MySQLToS3Operator(BaseOperator):
                 self.pd_kwargs["header"] = header
         else:
             if pd_csv_kwargs is not None:
-                raise TypeError(f"pd_csv_kwargs may not be specified when file_format='parquet'")
+                raise TypeError("pd_csv_kwargs may not be specified when file_format='parquet'")
 
     @staticmethod
     def _fix_int_dtypes(df: pd.DataFrame) -> None:
