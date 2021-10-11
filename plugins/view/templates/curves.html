@@ -267,7 +267,7 @@
         return;
       }
       const entityIdsStrList = selectedEIds.join(',');
-      const entityIdsStr = entityIdsStrList.replaceAll('/', '@');
+      const entityIdsStr = entityIdsStrList.replace(/\//g, '@');
       const downloadUrls = '/curves/download/' + entityIdsStr;
       return downloadURI(downloadUrls);
 
@@ -363,7 +363,7 @@
             alert('结果参数缺失，无法定位到曲线');
             return;
           }
-          entity_id = entity_id.replaceAll('/', '@');
+          entity_id = entity_id.replace(/\//g, '@');
           const url = "{{ url_for('CurveView.view_curve_page', entity_id='ENTITY_ID') }}"
                   .replace('ENTITY_ID', entity_id)
           window.open(url);

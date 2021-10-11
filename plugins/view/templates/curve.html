@@ -290,7 +290,7 @@
 
     function submitDoubleCheck(finalState, finalErrorTags) {
       const errorTagsArr = (finalErrorTags || []).map(t => JSON.parse(t));
-      const entity_id = '{{ result.entity_id }}'.replaceAll('/', '@')
+      const entity_id = '{{ result.entity_id }}'.replace(/\//g, '@')
       $.ajax({
         type: 'POST',
         url: "{{ url_for('DoubleConfirmView.double_confirm_task',entity_id='ENTITY_ID' ) }}".replace('ENTITY_ID', entity_id),
