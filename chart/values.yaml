@@ -40,7 +40,7 @@ airflowHome: /opt/airflow
 defaultAirflowRepository: apache/airflow
 
 # Default airflow tag to deploy
-defaultAirflowTag: "2.2.0"
+defaultAirflowTag: "2.2.0-python3.7"
 
 # Airflow version (Used to make some decisions based on Airflow Version being deployed)
 airflowVersion: "2.2.0"
@@ -772,6 +772,7 @@ webserver:
 
 # Airflow Triggerer Config
 triggerer:
+  enabled: true
   # Number of airflow triggerers in the deployment
   replicas: 1
 

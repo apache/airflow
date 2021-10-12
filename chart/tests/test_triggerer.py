@@ -39,6 +39,18 @@ class TriggererTest(unittest.TestCase):
 
         assert num_docs == len(docs)
 
+    def test_can_be_disabled(self):
+        """
+        Triggerer should be able to be disabled if the users desires
+        (e.g. Python 3.6 or doesn't want to use async tasks)
+        """
+        docs = render_chart(
+            values={"triggerer": {"enabled": False}},
+            show_only=["templates/triggerer/triggerer-deployment.yaml"],
+        )
+
+        assert 0 == len(docs)
+
     def test_should_add_extra_containers(self):
         docs = render_chart(
             values={

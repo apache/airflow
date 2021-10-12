@@ -67,7 +67,7 @@
         "defaultAirflowTag": {
             "description": "Default airflow tag to deploy.",
             "type": "string",
-            "default": "2.2.0",
+            "default": "2.2.0-python3.7",
             "x-docsSection": "Common"
         },
         "airflowVersion": {
@@ -1465,6 +1465,11 @@
             "x-docsSection": "Triggerer",
             "additionalProperties": false,
             "properties": {
+                "enabled": {
+                    "description": "Enable triggerer (requires Python 3.7+).",
+                    "type": "boolean",
+                    "default": true
+                },
                 "livenessProbe": {
                     "description": "Liveness probe configuration.",
                     "type": "object",
