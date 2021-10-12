@@ -580,6 +580,33 @@ class TestGetDags(TestDagEndpoint):
 
         assert expected_dag_ids == dag_ids
 
+    @parameterized.expand(
+        [
+            ("api/v1/dags?dag_id_pattern=DAG_1", {'TEST_DAG_1', 'SAMPLE_DAG_1'}),
+            ("api/v1/dags?dag_id_pattern=SAMPLE_DAG", {'SAMPLE_DAG_1', 'SAMPLE_DAG_2'}),
+            (
+                "api/v1/dags?dag_id_pattern=_DAG_",
+                {"TEST_DAG_1", "TEST_DAG_2", 'SAMPLE_DAG_1', 'SAMPLE_DAG_2'},
+            ),
+        ]
+    )
+    def test_filter_dags_by_dag_id_works(self, url, expected_dag_ids):
+        # test filter by tags
+        dag1 = DAG(dag_id="TEST_DAG_1")
+        dag2 = DAG(dag_id="TEST_DAG_2")
+        dag3 = DAG(dag_id="SAMPLE_DAG_1")
+        dag4 = DAG(dag_id="SAMPLE_DAG_2")
+        dag1.sync_to_db()
+        dag2.sync_to_db()
+        dag3.sync_to_db()
+        dag4.sync_to_db()
+
+        response = self.client.get(url, environ_overrides={'REMOTE_USER': "test"})
+        assert response.status_code == 200
+        dag_ids = {dag["dag_id"] for dag in response.json["dags"]}
+
+        assert expected_dag_ids == dag_ids
+
     def test_should_respond_200_with_granular_dag_access(self):
         self._create_dag_models(3)
         response = self.client.get(
