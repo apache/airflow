@@ -594,10 +594,10 @@ function initialization::initialize_test_variables() {
     export RUN_TESTS=${RUN_TESTS:="false"}
 
     # Do not run integration tests by default
-    export RUN_INTEGRATION_TESTS=${RUN_INTEGRATION_TESTS:="false"}
+    export LIST_OF_INTEGRATION_TESTS_TO_RUN=${LIST_OF_INTEGRATION_TESTS_TO_RUN:=""}
 
-    # Do not run system tests by default
-    export RUN_SYSTEM_TESTS=${RUN_SYSTEM_TESTS:="false"}
+    # Do not run system tests by default (they can be enabled by setting the RUN_SYSTEM_TESTS variable to "true")
+    export RUN_SYSTEM_TESTS=${RUN_SYSTEM_TESTS:=""}
 
 }
 

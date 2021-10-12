@@ -326,9 +326,9 @@ fi
 readonly SELECTED_TESTS CLI_TESTS API_TESTS PROVIDERS_TESTS CORE_TESTS WWW_TESTS \
     ALL_TESTS ALL_PRESELECTED_TESTS
 
-if [[ -n ${RUN_INTEGRATION_TESTS=} ]]; then
+if [[ -n ${LIST_OF_INTEGRATION_TESTS_TO_RUN=} ]]; then
     # Integration tests
-    for INT in ${RUN_INTEGRATION_TESTS}
+    for INT in ${LIST_OF_INTEGRATION_TESTS_TO_RUN}
     do
         EXTRA_PYTEST_ARGS+=("--integration" "${INT}")
     done

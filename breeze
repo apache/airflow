@@ -647,9 +647,6 @@ export ENABLED_SYSTEMS="${ENABLED_SYSTEMS}"
 export GITHUB_ACTIONS="${GITHUB_ACTIONS}"
 export ISSUE_ID="${ISSUE_ID}"
 export NUM_RUNS="${NUM_RUNS}"
-export RUN_TESTS="${RUN_TESTS}"
-export RUN_INTEGRATION_TESTS="${RUN_INTEGRATION_TESTS}"
-export RUN_SYSTEM_TESTS="${RUN_SYSTEM_TESTS}"
 export VERSION_SUFFIX_FOR_SVN="${VERSION_SUFFIX_FOR_SVN}"
 export VERSION_SUFFIX_FOR_PYPI="${VERSION_SUFFIX_FOR_PYPI}"
 docker-compose ${command}
@@ -3480,6 +3477,8 @@ function breeze::run_breeze_command() {
         docker_engine_resources::check_all_resources
         export RUN_TESTS="true"
         readonly RUN_TESTS
+        export ENABLED_INTEGRATIONS="${INTEGRATIONS[*]}"
+        export LIST_OF_INTEGRATION_TESTS_TO_RUN="${INTEGRATIONS[*]}"
         ${run_command} "${BUILD_CACHE_DIR}/${DOCKER_COMPOSE_RUN_SCRIPT_FOR_CI}" run --service-ports --rm airflow "$@"
         ;;
     run_docker_compose)
