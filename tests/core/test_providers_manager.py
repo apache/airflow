@@ -164,7 +164,7 @@ class TestProviderManager(unittest.TestCase):
     def test_extra_links(self):
         provider_manager = ProvidersManager()
         extra_link_class_names = list(provider_manager.extra_links_class_names)
-        assert len(extra_link_class_names) > 5
+        assert len(extra_link_class_names) > 6
 
     def test_logging(self):
         provider_manager = ProvidersManager()

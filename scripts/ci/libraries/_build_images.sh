@@ -62,10 +62,14 @@ function build_images::add_build_args_for_remote_install() {
         AIRFLOW_BRANCH_FOR_PYPI_PRELOADING="v2-0-test"
     elif [[ ${AIRFLOW_VERSION} == 'v2-1-test' ]]; then
         AIRFLOW_BRANCH_FOR_PYPI_PRELOADING="v2-1-test"
+    elif [[ ${AIRFLOW_VERSION} == 'v2-2-test' ]]; then
+        AIRFLOW_BRANCH_FOR_PYPI_PRELOADING="v2-2-test"
     elif [[ ${AIRFLOW_VERSION} =~ v?2\.0* ]]; then
         AIRFLOW_BRANCH_FOR_PYPI_PRELOADING="v2-0-stable"
     elif [[ ${AIRFLOW_VERSION} =~ v?2\.1* ]]; then
         AIRFLOW_BRANCH_FOR_PYPI_PRELOADING="v2-1-stable"
+    elif [[ ${AIRFLOW_VERSION} =~ v?2\.2* ]]; then
+        AIRFLOW_BRANCH_FOR_PYPI_PRELOADING="v2-2-stable"
     else
         AIRFLOW_BRANCH_FOR_PYPI_PRELOADING=${DEFAULT_BRANCH}
     fi
@@ -282,7 +286,7 @@ function build_images::get_local_build_cache_hash() {
         return
 
     fi
-    docker_v create --name "local-airflow-ci-container" "${AIRFLOW_CI_IMAGE}" 2>/dev/null
+    docker_v create --name "local-airflow-ci-container" "${AIRFLOW_CI_IMAGE}" 2>/dev/null >/dev/null
     docker_v cp "local-airflow-ci-container:/build-cache-hash" \
         "${local_image_build_cache_file}" 2>/dev/null ||
         touch "${local_image_build_cache_file}"

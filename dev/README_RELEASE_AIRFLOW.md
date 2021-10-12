@@ -38,7 +38,6 @@
   - [Summarize the voting for the Apache Airflow release](#summarize-the-voting-for-the-apache-airflow-release)
   - [Publish release to SVN](#publish-release-to-svn)
   - [Prepare PyPI "release" packages](#prepare-pypi-release-packages)
-  - [Update CHANGELOG.md](#update-changelogmd)
   - [Manually prepare production Docker Image](#manually-prepare-production-docker-image)
   - [Publish documentation](#publish-documentation)
   - [Notify developers of release](#notify-developers-of-release)
@@ -93,6 +92,10 @@ The Release Candidate artifacts we vote upon should be the exact ones we vote ag
     ```
 
 - Set your version to 2.0.N in `setup.py` (without the RC tag)
+- Replace the version in `README.md` and verify that installation instructions work fine.
+- Add a commit that updates `CHANGELOG.md` to add changes from previous version if it has not already added.
+For now this is done manually, example run  `git log --oneline v2-2-test..HEAD --pretty='format:- %s'` and categorize them.
+- Add section for the release in `UPDATING.md`. If no new entries exist, put "No breaking changes" (e.g. `2.1.4`).
 - Commit the version change.
 
 - Tag your release
@@ -624,16 +627,6 @@ previously released RC candidates in "${AIRFLOW_SOURCES}/dist":
     ```
 
 - Again, confirm that the package is available here: https://pypi.python.org/pypi/apache-airflow
-
-## Update CHANGELOG.md
-
-- Get a diff between the last version and the current version:
-
-    ```shell script
-    git log 1.8.0..1.9.0 --pretty=oneline
-    ```
-
-- Update CHANGELOG.md with the details, and commit it.
 
 - Re-Tag & Push the constraints files with the final release version.
 

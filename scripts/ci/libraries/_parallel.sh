@@ -173,7 +173,7 @@ function parallel::print_job_summary_and_return_status_code() {
         if [[ -s "${status_file}"  ]]; then
             status=$(cat "${status_file}")
         else
-            echo "${COLOR_RED}Missing ${status_file}  file"
+            echo "${COLOR_RED}Missing ${status_file} file"
             status="1"
         fi
         if [[ ${status} == "0" ]]; then

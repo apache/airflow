@@ -28,6 +28,46 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+2.3.0
+.....
+
+Latest change: 2021-10-08
+
+================================================================================================  ===========  =========================================================================================================================
+Commit                                                                                            Committed    Subject
+================================================================================================  ===========  =========================================================================================================================
+`ea8f47890 <https://github.com/apache/airflow/commit/ea8f47890908e3a132273ec96f753ea6af66f837>`_  2021-10-08   ``Add AWS Fargate profile support (#18645)``
+`9344c3452 <https://github.com/apache/airflow/commit/9344c345220fc9c3355596f96132051c96b03ac6>`_  2021-10-08   ``Enable AWS Secrets Manager backend to retrieve conns using different fields (#18764)``
+`1a35644b5 <https://github.com/apache/airflow/commit/1a35644b5dbf2520b95f3d2320902f6e46407b9a>`_  2021-10-08   ``Add emr cluster link (#18691)``
+`e0af0b976 <https://github.com/apache/airflow/commit/e0af0b976c0cc43d2b1aa204d047fe755e4c5be7>`_  2021-10-08   ``AwsGlueJobOperator: add wait_for_completion to Glue job run (#18814)``
+`8e56ed234 <https://github.com/apache/airflow/commit/8e56ed234bf48775d553744c792fadc3ad63fbf7>`_  2021-10-07   ``Enable FTPToS3Operator to transfer several files (#17937)``
+`28284a37b <https://github.com/apache/airflow/commit/28284a37b3fc7a4581c552f4f3a8d72fa8b0a21d>`_  2021-10-07   ``Amazon Athena Example (#18785)``
+`38c6cf9c2 <https://github.com/apache/airflow/commit/38c6cf9c27e7f2bbcc9f39f56c8e3d1405b78087>`_  2021-10-07   ``AwsGlueJobOperator: add run_job_kwargs to Glue job run (#16796)``
+`72e49ad3a <https://github.com/apache/airflow/commit/72e49ad3a3402b506e878ade74dba588c1fc7f71>`_  2021-10-06   ``Amazon SQS Example (#18760)``
+`767a4f520 <https://github.com/apache/airflow/commit/767a4f5207f8fc6c3d8072fa780d84460d41fc7a>`_  2021-10-05   ``ECSOperator: airflow exception on edge case when cloudwatch log stream is not found (#18733)``
+`760bf6e51 <https://github.com/apache/airflow/commit/760bf6e51c5b61412243028d4f10cdb14830878a>`_  2021-10-06   ``Adds an s3 list prefixes operator (#17145)``
+`12763f125 <https://github.com/apache/airflow/commit/12763f125ab90a1f9e769f1e51dc34cd0dd6d51a>`_  2021-10-05   ``Add additional dependency for postgres extra for amazon provider (#18737)``
+`86bf2a29b <https://github.com/apache/airflow/commit/86bf2a29ba784b25c335408eb4647ad2eb48b525>`_  2021-10-04   ``Simplify strings previously split across lines (#18679)``
+`12133861e <https://github.com/apache/airflow/commit/12133861ecefd28f1d569cf2d190c2f26f6fd2fb>`_  2021-10-01   ``Support all Unix wildcards in S3KeySensor (#18211)``
+`840ea3efb <https://github.com/apache/airflow/commit/840ea3efb9533837e9f36b75fa527a0fbafeb23a>`_  2021-09-30   ``Update documentation for September providers release (#18613)``
+`8a1437e55 <https://github.com/apache/airflow/commit/8a1437e55ed50bcb9301c55c1217e9e66532f6ed>`_  2021-09-29   ``Refresh credentials for long-running pods on EKS (#17951)``
+`2fbd23878 <https://github.com/apache/airflow/commit/2fbd23878f185372c3e46221c3c95918d6cbcffa>`_  2021-09-28   ``Update s3_list.py (#18561)``
+`a458fcc57 <https://github.com/apache/airflow/commit/a458fcc573845ff65244a2dafd204ed70129f3e8>`_  2021-09-27   ``Updating miscellaneous provider DAGs to use TaskFlow API where applicable (#18278)``
+`e25eea052 <https://github.com/apache/airflow/commit/e25eea052fd54c94b490a377de05c6bae4c24dbb>`_  2021-09-19   ``Inclusive Language (#18349)``
+`4cd190c9b <https://github.com/apache/airflow/commit/4cd190c9bcbe4229de3c8527d0e3480dea3be42f>`_  2021-09-18   ``ECSOperator realtime logging (#17626)``
+`27088c453 <https://github.com/apache/airflow/commit/27088c4533199a19e6f810abc4e565bc8e107cf0>`_  2021-09-18   ``Add IAM Role Credentials to S3ToRedshiftTransfer and RedshiftToS3Transfer (#18156)``
+`2d4f3cb64 <https://github.com/apache/airflow/commit/2d4f3cb644200190619e76d3e2a140f340d908b9>`_  2021-09-15   ``Adding missing 'replace' param in docstring (#18241)``
+`81ebd78db <https://github.com/apache/airflow/commit/81ebd78db48a4876377dc20d361a7938be11373a>`_  2021-09-12   ``Added upsert method on S3ToRedshift operator (#18027)``
+`02397761a <https://github.com/apache/airflow/commit/02397761af7ed77b0e7c4f4d8de34d8a861c5b40>`_  2021-09-12   ``Deprecate default pod name in EKSPodOperator (#18036)``
+`e6cb2f7be <https://github.com/apache/airflow/commit/e6cb2f7beb4c6ea4ad4a965f9c0f2b8f6978129c>`_  2021-09-10   ``ECSOperator returns last logs when ECS task fails (#17209)``
+`b8795501e <https://github.com/apache/airflow/commit/b8795501ea6db64d83528bdd6b517779cfc9deec>`_  2021-09-10   ``Aws secrets manager backend (#17448)``
+`6e101317a <https://github.com/apache/airflow/commit/6e101317a22bb58a9edf512bbda662c862e53c78>`_  2021-09-10   ``Simplify s3 ''unify_bucket_name_and_key'' (#17325)``
+`3fe948a86 <https://github.com/apache/airflow/commit/3fe948a860a6eed2ee51a6f1be658a3ba260683f>`_  2021-09-08   ``sftp_to_s3 stream file option (#17609)``
+`867e9305f <https://github.com/apache/airflow/commit/867e9305f08bf9580f25430d8b6e84071c59f9e6>`_  2021-09-03   ``AwsBaseHook make 'client_type' & 'resource_type' optional params for 'get_client_type' & 'get_resource_type' (#17987)``
+`bcd81f23a <https://github.com/apache/airflow/commit/bcd81f23af13cde8231df205127e08048b67820c>`_  2021-09-03   ``Add Spark to the EMR cluster for the job flow examples (#17563)``
+`7c4d3173f <https://github.com/apache/airflow/commit/7c4d3173f2c73ceeadb7155cf367983a90c6dca8>`_  2021-09-02   ``Delete unnecessary parameters in EKSPodOperator (#17960)``
+================================================================================================  ===========  =========================================================================================================================
+
 2.2.0
 .....
 
@@ -36,6 +76,7 @@ Latest change: 2021-08-30
 ================================================================================================  ===========  =========================================================================================
 Commit                                                                                            Committed    Subject
 ================================================================================================  ===========  =========================================================================================
+`0a6858847 <https://github.com/apache/airflow/commit/0a68588479e34cf175d744ea77b283d9d78ea71a>`_  2021-08-30   ``Add August 2021 Provider's documentation (#17890)``
 `653c13ec0 <https://github.com/apache/airflow/commit/653c13ec0cf4729f991adf8c7b37b3a272caac56>`_  2021-08-30   ``Fix broken XCOM in EKSPodOperator (#17918)``
 `42e13e1a5 <https://github.com/apache/airflow/commit/42e13e1a5a4c97a2085ddf96f7d93e7bf71949b8>`_  2021-08-30   ``Remove all deprecation warnings in providers (#17900)``
 `890bd4310 <https://github.com/apache/airflow/commit/890bd4310e12a0a4fadfaec1f9b36d2aaae6119e>`_  2021-08-28   ``Add an Amazon EMR on EKS provider package (#16766)``
@@ -227,7 +268,7 @@ Commit                                                                          
 ================================================================================================  ===========  ======================================================================================================================================================================
 `32971a1a2 <https://github.com/apache/airflow/commit/32971a1a2de1db0b4f7442ed26facdf8d3b7a36f>`_  2020-12-09   ``Updates providers versions to 1.0.0 (#12955)``
 `d5589673a <https://github.com/apache/airflow/commit/d5589673a95aaced0b851ea0a4061a010a924a82>`_  2020-12-08   ``Move dummy_operator.py to dummy.py (#11178) (#11293)``
-`b40dffa08 <https://github.com/apache/airflow/commit/b40dffa08547b610162f8cacfa75847f3c4ca364>`_  2020-12-08   ``Rename remaining modules to match AIP-21 (#12917)``
+`b40dffa08 <https://github.com/apache/airflow/commit/b40dffa08547b610162f8cacfa75847f3c4ca364>`_  2020-12-08   ``Rename remaing modules to match AIP-21 (#12917)``
 `9b39f2478 <https://github.com/apache/airflow/commit/9b39f24780e85f859236672e9060b2fbeee81b36>`_  2020-12-08   ``Add support for dynamic connection form fields per provider (#12558)``
 `bd90136aa <https://github.com/apache/airflow/commit/bd90136aaf5035e3234fe545b79a3e4aad21efe2>`_  2020-11-30   ``Move operator guides to provider documentation packages (#12681)``
 `02d94349b <https://github.com/apache/airflow/commit/02d94349be3d201ce9d37d7358573c937fd010df>`_  2020-11-29   ``Don't use time.time() or timezone.utcnow() for duration calculations (#12353)``
@@ -300,7 +341,7 @@ Commit                                                                          
 `fdd9b6f65 <https://github.com/apache/airflow/commit/fdd9b6f65b608c516b8a062b058972d9a45ec9e3>`_  2020-08-25   ``Enable Black on Providers Packages (#10543)``
 `3696c34c2 <https://github.com/apache/airflow/commit/3696c34c28c6bc7b442deab999d9ecba24ed0e34>`_  2020-08-24   ``Fix typo in the word "release" (#10528)``
 `3734876d9 <https://github.com/apache/airflow/commit/3734876d9898067ee933b84af522d53df6160d7f>`_  2020-08-24   ``Implement impersonation in google operators (#10052)``
-`ee7ca128a <https://github.com/apache/airflow/commit/ee7ca128a17937313566f2badb6cc569c614db94>`_  2020-08-22   ``Fix broken Markdown references in Providers README (#10483)``
+`ee7ca128a <https://github.com/apache/airflow/commit/ee7ca128a17937313566f2badb6cc569c614db94>`_  2020-08-22   ``Fix broken Markdown refernces in Providers README (#10483)``
 `c6358045f <https://github.com/apache/airflow/commit/c6358045f9d61af63c96833cb6682d6f382a6408>`_  2020-08-22   ``Fixes S3ToRedshift COPY query (#10436)``
 `7c206a82a <https://github.com/apache/airflow/commit/7c206a82a6f074abcc4898a005ecd2c84a920054>`_  2020-08-22   ``Replace assigment with Augmented assignment (#10468)``
 `27d08b76a <https://github.com/apache/airflow/commit/27d08b76a2d171d716a1599157a8a60a121dbec6>`_  2020-08-21   ``Amazon SES Hook (#10391)``

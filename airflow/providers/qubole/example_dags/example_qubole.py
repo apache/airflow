@@ -19,6 +19,7 @@
 import filecmp
 import random
 import textwrap
+from datetime import datetime
 
 from airflow import DAG
 from airflow.decorators import task
@@ -26,12 +27,14 @@ from airflow.operators.dummy import DummyOperator
 from airflow.operators.python import BranchPythonOperator
 from airflow.providers.qubole.operators.qubole import QuboleOperator
 from airflow.providers.qubole.sensors.qubole import QuboleFileSensor, QubolePartitionSensor
-from airflow.utils.dates import days_ago
+from airflow.utils.trigger_rule import TriggerRule
+
+START_DATE = datetime(2021, 1, 1)
 
 with DAG(
     dag_id='example_qubole_operator',
     schedule_interval=None,
-    start_date=days_ago(2),
+    start_date=START_DATE,
     tags=['example'],
 ) as dag:
     dag.doc_md = textwrap.dedent(
@@ -47,7 +50,7 @@ with DAG(
         """
     )
 
-    @task(trigger_rule='all_done')
+    @task(trigger_rule=TriggerRule.ALL_DONE)
     def compare_result(hive_show_table, hive_s3_location, ti=None):
         """
         Compares the results of two QuboleOperator tasks.
@@ -75,8 +78,6 @@ with DAG(
         # them into corresponding airflow task logs
         tags='airflow_example_run',
         # To attach tags to qubole command, auto attach 3 tags - dag_id, task_id, run_id
-        qubole_conn_id='qubole_default',
-        # Connection id to submit commands inside QDS, if not set "qubole_default" is used
         params={
             'cluster_label': 'default',
         },
@@ -98,7 +99,7 @@ with DAG(
 
     [hive_show_table, hive_s3_location] >> compare_result(hive_s3_location, hive_show_table) >> branching
 
-    join = DummyOperator(task_id='join', trigger_rule='one_success')
+    join = DummyOperator(task_id='join', trigger_rule=TriggerRule.ONE_SUCCESS)
 
     hadoop_jar_cmd = QuboleOperator(
         task_id='hadoop_jar_cmd',
@@ -201,8 +202,7 @@ with DAG(
 with DAG(
     dag_id='example_qubole_sensor',
     schedule_interval=None,
-    start_date=days_ago(2),
-    doc_md=__doc__,
+    start_date=START_DATE,
     tags=['example'],
 ) as dag2:
     dag2.doc_md = textwrap.dedent(
@@ -220,7 +220,6 @@ with DAG(
 
     check_s3_file = QuboleFileSensor(
         task_id='check_s3_file',
-        qubole_conn_id='qubole_default',
         poke_interval=60,
         timeout=600,
         data={

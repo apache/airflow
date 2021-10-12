@@ -18,12 +18,12 @@
 """Default configuration for the Airflow webserver"""
 import os
 
-from flask_appbuilder.security.manager import AUTH_DB
+from airflow.www.fab_security.manager import AUTH_DB
 
-# from flask_appbuilder.security.manager import AUTH_LDAP
-# from flask_appbuilder.security.manager import AUTH_OAUTH
-# from flask_appbuilder.security.manager import AUTH_OID
-# from flask_appbuilder.security.manager import AUTH_REMOTE_USER
+# from airflow.www.fab_security.manager import AUTH_LDAP
+# from airflow.www.fab_security.manager import AUTH_OAUTH
+# from airflow.www.fab_security.manager import AUTH_OID
+# from airflow.www.fab_security.manager import AUTH_REMOTE_USER
 
 
 basedir = os.path.abspath(os.path.dirname(__file__))

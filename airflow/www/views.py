@@ -95,7 +95,7 @@ from airflow.api.common.experimental.mark_tasks import (
     set_dag_run_state_to_success,
 )
 from airflow.configuration import AIRFLOW_CONFIG, conf
-from airflow.exceptions import AirflowException, SerializedDagNotFound
+from airflow.exceptions import AirflowException
 from airflow.executors.executor_loader import ExecutorLoader
 from airflow.jobs.base_job import BaseJob
 from airflow.jobs.scheduler_job import SchedulerJob
@@ -464,7 +464,7 @@ class AirflowBaseView(BaseView):
 
     if not conf.getboolean('core', 'unit_test_mode'):
         extra_args['sqlite_warning'] = settings.Session.bind.dialect.name == 'sqlite'
-        extra_args['sequential_executor_warning'] = conf.get('core', 'executor') == 'LocalExecutor'
+        extra_args['sequential_executor_warning'] = conf.get('core', 'executor') == 'SequentialExecutor'
 
     line_chart_attr = {
         'legend.maxKeyLength': 200,
@@ -1519,6 +1519,7 @@ class Airflow(AirflowBaseView):
         executor = ExecutorLoader.get_default_executor()
         valid_celery_config = False
         valid_kubernetes_config = False
+        valid_celery_kubernetes_config = False
 
         try:
             from airflow.executors.celery_executor import CeleryExecutor
@@ -1533,9 +1534,15 @@ class Airflow(AirflowBaseView):
             valid_kubernetes_config = isinstance(executor, KubernetesExecutor)
         except ImportError:
             pass
+        try:
+            from airflow.executors.celery_kubernetes_executor import CeleryKubernetesExecutor
 
-        if not valid_celery_config and not valid_kubernetes_config:
-            flash("Only works with the Celery or Kubernetes executors, sorry", "error")
+            valid_celery_kubernetes_config = isinstance(executor, CeleryKubernetesExecutor)
+        except ImportError:
+            pass
+
+        if not valid_celery_config and not valid_kubernetes_config and not valid_celery_kubernetes_config:
+            flash("Only works with the Celery, CeleryKubernetes or Kubernetes executors, sorry", "error")
             return redirect(origin)
 
         dag_run = dag.get_dagrun(execution_date=execution_date)
@@ -1623,6 +1630,10 @@ class Airflow(AirflowBaseView):
         request_execution_date = request.values.get('execution_date', default=timezone.utcnow().isoformat())
         is_dag_run_conf_overrides_params = conf.getboolean('core', 'dag_run_conf_overrides_params')
         dag = current_app.dag_bag.get_dag(dag_id)
+        dag_orm = session.query(models.DagModel).filter(models.DagModel.dag_id == dag_id).first()
+        if not dag_orm:
+            flash(f"Cannot find dag {dag_id}")
+            return redirect(origin)
 
         if request.method == 'GET':
             # Populate conf textarea with conf requests parameter, or dag.params
@@ -1649,11 +1660,6 @@ class Airflow(AirflowBaseView):
                 form=form,
                 is_dag_run_conf_overrides_params=is_dag_run_conf_overrides_params,
             )
-
-        dag_orm = session.query(models.DagModel).filter(models.DagModel.dag_id == dag_id).first()
-        if not dag_orm:
-            flash(f"Cannot find dag {dag_id}")
-            return redirect(origin)
 
         try:
             execution_date = timezone.parse(request_execution_date)
@@ -1871,10 +1877,7 @@ class Airflow(AirflowBaseView):
         payload = []
         for dag_id, active_dag_runs in dags:
             max_active_runs = 0
-            try:
-                dag = current_app.dag_bag.get_dag(dag_id)
-            except SerializedDagNotFound:
-                dag = None
+            dag = current_app.dag_bag.get_dag(dag_id)
             if dag:
                 # TODO: Make max_active_runs a column so we can query for it directly
                 max_active_runs = dag.max_active_runs
@@ -2026,9 +2029,8 @@ class Airflow(AirflowBaseView):
         future = to_boolean(args.get('future'))
         past = to_boolean(args.get('past'))
 
-        try:
-            dag = current_app.dag_bag.get_dag(dag_id)
-        except airflow.exceptions.SerializedDagNotFound:
+        dag = current_app.dag_bag.get_dag(dag_id)
+        if not dag:
             flash(f'DAG {dag_id} not found', "error")
             return redirect(request.referrer or url_for('Airflow.index'))
 
@@ -2503,11 +2505,7 @@ class Airflow(AirflowBaseView):
         dag_id = request.args.get('dag_id')
         dag_model = DagModel.get_dagmodel(dag_id)
 
-        try:
-            dag: Optional[DAG] = current_app.dag_bag.get_dag(dag_id)
-        except airflow.exceptions.SerializedDagNotFound:
-            dag = None
-
+        dag: Optional[DAG] = current_app.dag_bag.get_dag(dag_id)
         if dag is None:
             flash(f'DAG "{dag_id}" seems to be missing.', "error")
             return redirect(url_for('Airflow.index'))
@@ -3306,12 +3304,12 @@ def lazy_add_provider_discovered_options_to_connection_form():
         return _connection_types
 
     ConnectionForm.conn_type = SelectField(
-        lazy_gettext('Conn Type'),
+        lazy_gettext('Connection Type'),
         choices=sorted(_get_connection_types(), key=itemgetter(1)),
         widget=Select2Widget(),
         validators=[InputRequired()],
         description="""
-            Conn Type missing?
+            Connection Type missing?
             Make sure you've installed the corresponding Airflow Provider Package.
         """,
     )
@@ -3415,34 +3413,55 @@ class ConnectionModelView(AirflowModelView):
         for selected_conn in connections:
             new_conn_id = selected_conn.conn_id
             match = re.search(r"_copy(\d+)$", selected_conn.conn_id)
+
+            base_conn_id = selected_conn.conn_id
             if match:
-                conn_id_prefix = selected_conn.conn_id[: match.start()]
-                new_conn_id = f"{conn_id_prefix}_copy{int(match.group(1)) + 1}"
-            else:
-                new_conn_id += '_copy1'
+                base_conn_id = base_conn_id.split('_copy')[0]
 
-            dup_conn = Connection(
-                new_conn_id,
-                selected_conn.conn_type,
-                selected_conn.description,
-                selected_conn.host,
-                selected_conn.login,
-                selected_conn.password,
-                selected_conn.schema,
-                selected_conn.port,
-                selected_conn.extra,
+            potential_connection_ids = [f"{base_conn_id}_copy{i}" for i in range(1, 11)]
+
+            query = session.query(Connection.conn_id).filter(Connection.conn_id.in_(potential_connection_ids))
+
+            found_conn_id_set = {conn_id for conn_id, in query}
+
+            possible_conn_id_iter = (
+                connection_id
+                for connection_id in potential_connection_ids
+                if connection_id not in found_conn_id_set
             )
-
             try:
-                session.add(dup_conn)
-                session.commit()
-                flash(f"Connection {new_conn_id} added successfully.", "success")
-            except IntegrityError:
+                new_conn_id = next(possible_conn_id_iter)
+            except StopIteration:
                 flash(
-                    f"Connection {new_conn_id} can't be added. Integrity error, probably unique constraint.",
+                    f"Connection {new_conn_id} can't be added because it already exists, "
+                    f"Please rename the existing connections",
                     "warning",
                 )
-                session.rollback()
+            else:
+
+                dup_conn = Connection(
+                    new_conn_id,
+                    selected_conn.conn_type,
+                    selected_conn.description,
+                    selected_conn.host,
+                    selected_conn.login,
+                    selected_conn.password,
+                    selected_conn.schema,
+                    selected_conn.port,
+                    selected_conn.extra,
+                )
+
+                try:
+                    session.add(dup_conn)
+                    session.commit()
+                    flash(f"Connection {new_conn_id} added successfully.", "success")
+                except IntegrityError:
+                    flash(
+                        f"Connection {new_conn_id} can't be added. Integrity error, "
+                        f"probably unique constraint.",
+                        "warning",
+                    )
+                    session.rollback()
 
         self.update_redirect()
         return redirect(self.get_redirect())
@@ -3878,7 +3897,7 @@ class DagRunModelView(AirflowPrivilegeVerifierModelView):
     class_permission_name = permissions.RESOURCE_DAG_RUN
     method_permission_name = {
         'list': 'read',
-        'action_clear': 'delete',
+        'action_clear': 'edit',
         'action_muldelete': 'delete',
         'action_set_running': 'edit',
         'action_set_failed': 'edit',
@@ -3926,6 +3945,7 @@ class DagRunModelView(AirflowPrivilegeVerifierModelView):
         'state': wwwutils.state_f,
         'start_date': wwwutils.datetime_f('start_date'),
         'end_date': wwwutils.datetime_f('end_date'),
+        'queued_at': wwwutils.datetime_f('queued_at'),
         'dag_id': wwwutils.dag_link,
         'run_id': wwwutils.dag_run_link,
         'conf': wwwutils.json_f('conf'),
@@ -4186,6 +4206,7 @@ class TaskInstanceModelView(AirflowPrivilegeVerifierModelView):
     method_permission_name = {
         'list': 'read',
         'action_clear': 'edit',
+        'action_muldelete': 'delete',
         'action_set_running': 'edit',
         'action_set_failed': 'edit',
         'action_set_success': 'edit',
@@ -4317,6 +4338,13 @@ class TaskInstanceModelView(AirflowPrivilegeVerifierModelView):
             flash(f"{len(task_instances)} task instances have been cleared")
         except Exception as e:
             flash(f'Failed to clear task instances: "{e}"', 'error')
+        self.update_redirect()
+        return redirect(self.get_redirect())
+
+    @action('muldelete', 'Delete', "Are you sure you want to delete selected records?", single=False)
+    @action_has_dag_edit_access
+    def action_muldelete(self, items):
+        self.datamodel.delete_all(items)
         self.update_redirect()
         return redirect(self.get_redirect())
 

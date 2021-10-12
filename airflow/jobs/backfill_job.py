@@ -22,7 +22,6 @@ from collections import OrderedDict
 from typing import Optional, Set
 
 import pendulum
-from sqlalchemy.orm import eagerload
 from sqlalchemy.orm.session import Session, make_transient
 from tabulate import tabulate
 
@@ -138,6 +137,7 @@ class BackfillJob(BaseJob):
         rerun_failed_tasks=False,
         rerun_succeeded_tasks=False,
         run_backwards=False,
+        run_at_least_once=False,
         *args,
         **kwargs,
     ):
@@ -171,6 +171,9 @@ class BackfillJob(BaseJob):
         :type rerun_succeeded_tasks: bool
         :param run_backwards: Whether to process the dates from most to least recent
         :type run_backwards bool
+        :param run_at_least_once: If true, always run the DAG at least once even
+            if no logical run exists within the time range.
+        :type: bool
         :param args:
         :param kwargs:
         """
@@ -189,6 +192,7 @@ class BackfillJob(BaseJob):
         self.rerun_failed_tasks = rerun_failed_tasks
         self.rerun_succeeded_tasks = rerun_succeeded_tasks
         self.run_backwards = run_backwards
+        self.run_at_least_once = run_at_least_once
         super().__init__(*args, **kwargs)
 
     @provide_session
@@ -234,7 +238,9 @@ class BackfillJob(BaseJob):
             # special case: if the task needs to be rescheduled put it back
             elif ti.state == State.UP_FOR_RESCHEDULE:
                 self.log.warning("Task instance %s is up for reschedule", ti)
-                ti_status.running.pop(reduced_key)
+                # During handling of reschedule state in ti._handle_reschedule, try number is reduced
+                # by one, so we should not use reduced_key to avoid key error
+                ti_status.running.pop(ti.key)
                 ti_status.to_run[ti.key] = ti
             # special case: The state of the task can be set to NONE by the task itself
             # when it reaches concurrency limits. It could also happen when the state
@@ -467,7 +473,7 @@ class BackfillJob(BaseJob):
                 # in case max concurrency has been reached at task runtime
                 elif ti.state == State.NONE:
                     self.log.warning(
-                        "FIXME: task instance {} state was set to None " "externally. This should not happen"
+                        "FIXME: Task instance %s state was set to None externally. This should not happen", ti
                     )
                     ti.set_state(State.SCHEDULED, session=session)
                 if self.rerun_failed_tasks:
@@ -514,9 +520,7 @@ class BackfillJob(BaseJob):
                     dep_context=backfill_context, session=session, verbose=self.verbose
                 ):
                     if executor.has_task(ti):
-                        self.log.debug(
-                            "Task Instance %s already in executor " "waiting for queue to clear", ti
-                        )
+                        self.log.debug("Task Instance %s already in executor waiting for queue to clear", ti)
                     else:
                         self.log.debug('Sending %s to executor', ti)
                         # Skip scheduled state, we are executing immediately
@@ -556,7 +560,7 @@ class BackfillJob(BaseJob):
 
                 # special case
                 if ti.state == State.UP_FOR_RETRY:
-                    self.log.debug("Task instance %s retry period not " "expired yet", ti)
+                    self.log.debug("Task instance %s retry period not expired yet", ti)
                     if key in ti_status.running:
                         ti_status.running.pop(key)
                     ti_status.to_run[key] = ti
@@ -564,7 +568,7 @@ class BackfillJob(BaseJob):
 
                 # special case
                 if ti.state == State.UP_FOR_RESCHEDULE:
-                    self.log.debug("Task instance %s reschedule period not " "expired yet", ti)
+                    self.log.debug("Task instance %s reschedule period not expired yet", ti)
                     if key in ti_status.running:
                         ti_status.running.pop(key)
                     ti_status.to_run[key] = ti
@@ -792,10 +796,11 @@ class BackfillJob(BaseJob):
                 )
             dagrun_infos = dagrun_infos[::-1]
 
-        dagrun_info_count = len(dagrun_infos)
-        if dagrun_info_count == 0:
-            self.log.info("No run dates were found for the given dates and dag interval.")
-            return
+        if not dagrun_infos:
+            if not self.run_at_least_once:
+                self.log.info("No run dates were found for the given dates and dag interval.")
+                return
+            dagrun_infos = [DagRunInfo.interval(dagrun_start_date, dagrun_end_date)]
 
         # picklin'
         pickle_id = None
@@ -814,7 +819,7 @@ class BackfillJob(BaseJob):
         executor.job_id = "backfill"
         executor.start()
 
-        ti_status.total_runs = dagrun_info_count  # total dag runs in backfill
+        ti_status.total_runs = len(dagrun_infos)  # total dag runs in backfill
 
         try:
             remaining_dates = ti_status.total_runs
@@ -881,7 +886,6 @@ class BackfillJob(BaseJob):
             resettable_tis = (
                 session.query(TaskInstance)
                 .join(TaskInstance.dag_run)
-                .options(eagerload(TaskInstance.dag_run))
                 .filter(
                     DagRun.state == State.RUNNING,
                     DagRun.run_type != DagRunType.BACKFILL_JOB,

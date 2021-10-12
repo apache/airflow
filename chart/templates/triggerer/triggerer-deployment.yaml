@@ -100,6 +100,9 @@ spec:
           env:
           {{- include "custom_airflow_environment" . | nindent 10 }}
           {{- include "standard_airflow_environment" . | nindent 10 }}
+        {{- if and (.Values.dags.gitSync.enabled) (not .Values.dags.persistence.enabled) }}
+        {{- include "git_sync_container" (dict "Values" .Values "is_init" "true") | nindent 8 }}
+        {{- end }}
         {{- if .Values.triggerer.extraInitContainers }}
         {{- toYaml .Values.triggerer.extraInitContainers | nindent 8 }}
         {{- end }}
@@ -130,6 +133,9 @@ spec:
               mountPath: {{ template "airflow_local_setting_path" . }}
               subPath: airflow_local_settings.py
               readOnly: true
+            {{- end }}
+            {{- if or .Values.dags.persistence.enabled .Values.dags.gitSync.enabled }}
+            {{- include "airflow_dags_mount" . | nindent 12 }}
             {{- end }}
           envFrom:
           {{- include "custom_airflow_environment_from" . | default "\n  []" | nindent 10 }}
@@ -162,6 +168,9 @@ spec:
                         TriggererJob.latest_heartbeat.desc()).limit(1).first()
 
                 sys.exit(0 if job.is_alive() else 1)
+        {{- if and (.Values.dags.gitSync.enabled) (not .Values.dags.persistence.enabled) }}
+        {{- include "git_sync_container" . | indent 8 }}
+        {{- end }}
         {{- if .Values.triggerer.extraContainers }}
         {{- toYaml .Values.triggerer.extraContainers | nindent 8 }}
         {{- end }}
@@ -169,6 +178,17 @@ spec:
         - name: config
           configMap:
             name: {{ template "airflow_config" . }}
+        {{- if .Values.dags.persistence.enabled }}
+        - name: dags
+          persistentVolumeClaim:
+            claimName: {{ template "airflow_dags_volume_claim" . }}
+        {{- else if .Values.dags.gitSync.enabled }}
+        - name: dags
+          emptyDir: {}
+        {{- end }}
+        {{- if and .Values.dags.gitSync.enabled .Values.dags.gitSync.sshKeySecret }}
+        {{- include "git_sync_ssh_key_volume" . | indent 8 }}
+        {{- end }}
         {{- if .Values.triggerer.extraVolumes }}
         {{- toYaml .Values.triggerer.extraVolumes | nindent 8 }}
         {{- end }}

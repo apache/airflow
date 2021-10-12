@@ -72,7 +72,6 @@ if conf.getboolean("sentry", 'sentry_on', fallback=False):
                 "in_app_exclude",
                 "ignore_errors",
                 "before_breadcrumb",
-                "before_send",
                 "transport",
             )
         )
@@ -109,6 +108,8 @@ if conf.getboolean("sentry", 'sentry_on', fallback=False):
                         "There are unsupported options in [sentry] section: %s",
                         ", ".join(unsupported_options),
                     )
+
+                sentry_config_opts['before_send'] = conf.getimport('sentry', 'before_send')
 
             if dsn:
                 sentry_sdk.init(dsn=dsn, integrations=integrations, **sentry_config_opts)

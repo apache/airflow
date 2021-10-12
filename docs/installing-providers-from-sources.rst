@@ -18,9 +18,6 @@
 Installing from sources
 -----------------------
 
-.. contents:: :local:
-
-
 Released packages
 '''''''''''''''''
 

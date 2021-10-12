@@ -314,7 +314,7 @@ In case you see long delays between updating it and the time it is ready to be t
 at the following configuration parameters and fine tune them according your needs (see details of
 each parameter by following the links):
 
-* :ref:`config:scheduler__processor_poll_interval`
+* :ref:`config:scheduler__scheduler_idle_sleep_time`
 * :ref:`config:scheduler__min_file_process_interval`
 * :ref:`config:scheduler__dag_dir_list_interval`
 * :ref:`config:scheduler__parsing_processes`

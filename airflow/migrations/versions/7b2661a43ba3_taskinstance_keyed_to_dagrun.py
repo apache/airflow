@@ -41,10 +41,17 @@ branch_labels = None
 depends_on = None
 
 
-def _mssql_datetime():
-    from sqlalchemy.dialects import mssql
+def _datetime_type(dialect_name):
+    if dialect_name == "mssql":
+        from sqlalchemy.dialects import mssql
 
-    return mssql.DATETIME2(precision=6)
+        return mssql.DATETIME2(precision=6)
+    elif dialect_name == "mysql":
+        from sqlalchemy.dialects import mysql
+
+        return mysql.DATETIME(fsp=6)
+
+    return sa.TIMESTAMP(timezone=True)
 
 
 # Just Enough Table to run the conditions for update.
@@ -101,21 +108,30 @@ def upgrade():
     """Apply TaskInstance keyed to DagRun"""
     conn = op.get_bind()
     dialect_name = conn.dialect.name
+    dt_type = _datetime_type(dialect_name)
 
-    run_id_col_type = sa.String(length=ID_LEN, **COLLATION_ARGS)
+    string_id_col_type = sa.String(length=ID_LEN, **COLLATION_ARGS)
 
     if dialect_name == 'sqlite':
         naming_convention = {
             "uq": "%(table_name)s_%(column_0_N_name)s_key",
         }
-        with op.batch_alter_table('dag_run', naming_convention=naming_convention, recreate="always"):
-            # The naming_convention force the previously un-named UNIQUE constraints to have the right name --
-            # but we still need to enter the context manager to trigger it
-            pass
+        # The naming_convention force the previously un-named UNIQUE constraints to have the right name
+        with op.batch_alter_table(
+            'dag_run', naming_convention=naming_convention, recreate="always"
+        ) as batch_op:
+            batch_op.alter_column('dag_id', existing_type=string_id_col_type, nullable=False)
+            batch_op.alter_column('run_id', existing_type=string_id_col_type, nullable=False)
+            batch_op.alter_column('execution_date', existing_type=dt_type, nullable=False)
     elif dialect_name == 'mysql':
         with op.batch_alter_table('dag_run') as batch_op:
-            batch_op.alter_column('dag_id', existing_type=sa.String(length=ID_LEN), type_=run_id_col_type)
-            batch_op.alter_column('run_id', existing_type=sa.String(length=ID_LEN), type_=run_id_col_type)
+            batch_op.alter_column(
+                'dag_id', existing_type=sa.String(length=ID_LEN), type_=string_id_col_type, nullable=False
+            )
+            batch_op.alter_column(
+                'run_id', existing_type=sa.String(length=ID_LEN), type_=string_id_col_type, nullable=False
+            )
+            batch_op.alter_column('execution_date', existing_type=dt_type, nullable=False)
             batch_op.drop_constraint('dag_id', 'unique')
             batch_op.drop_constraint('dag_id_2', 'unique')
             batch_op.create_unique_constraint(
@@ -124,16 +140,47 @@ def upgrade():
             batch_op.create_unique_constraint('dag_run_dag_id_run_id_key', ['dag_id', 'run_id'])
     elif dialect_name == 'mssql':
 
-        # _Somehow_ mssql was missing these constraints entirely!
         with op.batch_alter_table('dag_run') as batch_op:
+            batch_op.drop_index('idx_not_null_dag_id_execution_date')
+            batch_op.drop_index('idx_not_null_dag_id_run_id')
+
+            batch_op.drop_index('dag_id_state')
+            batch_op.drop_index('idx_dag_run_dag_id')
+            batch_op.drop_index('idx_dag_run_running_dags')
+            batch_op.drop_index('idx_dag_run_queued_dags')
+
+            batch_op.alter_column('dag_id', existing_type=string_id_col_type, nullable=False)
+            batch_op.alter_column('execution_date', existing_type=dt_type, nullable=False)
+            batch_op.alter_column('run_id', existing_type=string_id_col_type, nullable=False)
+
+            # _Somehow_ mssql was missing these constraints entirely
             batch_op.create_unique_constraint(
                 'dag_run_dag_id_execution_date_key', ['dag_id', 'execution_date']
             )
             batch_op.create_unique_constraint('dag_run_dag_id_run_id_key', ['dag_id', 'run_id'])
 
+            batch_op.create_index('dag_id_state', ['dag_id', 'state'], unique=False)
+            batch_op.create_index('idx_dag_run_dag_id', ['dag_id'])
+            batch_op.create_index(
+                'idx_dag_run_running_dags',
+                ["state", "dag_id"],
+                mssql_where=sa.text("state='running'"),
+            )
+            batch_op.create_index(
+                'idx_dag_run_queued_dags',
+                ["state", "dag_id"],
+                mssql_where=sa.text("state='queued'"),
+            )
+    else:
+        # Make sure DagRun id columns are non-nullable
+        with op.batch_alter_table('dag_run', schema=None) as batch_op:
+            batch_op.alter_column('dag_id', existing_type=string_id_col_type, nullable=False)
+            batch_op.alter_column('execution_date', existing_type=dt_type, nullable=False)
+            batch_op.alter_column('run_id', existing_type=string_id_col_type, nullable=False)
+
     # First create column nullable
-    op.add_column('task_instance', sa.Column('run_id', type_=run_id_col_type, nullable=True))
-    op.add_column('task_reschedule', sa.Column('run_id', type_=run_id_col_type, nullable=True))
+    op.add_column('task_instance', sa.Column('run_id', type_=string_id_col_type, nullable=True))
+    op.add_column('task_reschedule', sa.Column('run_id', type_=string_id_col_type, nullable=True))
 
     # Then update the new column by selecting the right value from DagRun
     update_query = _multi_table_update(dialect_name, task_instance, task_instance.c.run_id)
@@ -147,7 +194,9 @@ def upgrade():
     op.execute(update_query)
 
     with op.batch_alter_table('task_reschedule', schema=None) as batch_op:
-        batch_op.alter_column('run_id', existing_type=run_id_col_type, existing_nullable=True, nullable=False)
+        batch_op.alter_column(
+            'run_id', existing_type=string_id_col_type, existing_nullable=True, nullable=False
+        )
 
         batch_op.drop_constraint('task_reschedule_dag_task_date_fkey', 'foreignkey')
         if dialect_name == "mysql":
@@ -157,7 +206,14 @@ def upgrade():
 
     with op.batch_alter_table('task_instance', schema=None) as batch_op:
         # Then make it non-nullable
-        batch_op.alter_column('run_id', existing_type=run_id_col_type, existing_nullable=True, nullable=False)
+        batch_op.alter_column(
+            'run_id', existing_type=string_id_col_type, existing_nullable=True, nullable=False
+        )
+
+        batch_op.alter_column(
+            'dag_id', existing_type=string_id_col_type, existing_nullable=True, nullable=False
+        )
+        batch_op.alter_column('execution_date', existing_type=dt_type, existing_nullable=True, nullable=False)
 
         # TODO: Is this right for non-postgres?
         if dialect_name == 'mssql':
@@ -212,14 +268,11 @@ def upgrade():
 def downgrade():
     """Unapply TaskInstance keyed to DagRun"""
     dialect_name = op.get_bind().dialect.name
+    dt_type = _datetime_type(dialect_name)
+    string_id_col_type = sa.String(length=ID_LEN, **COLLATION_ARGS)
 
-    if dialect_name == "mssql":
-        col_type = _mssql_datetime()
-    else:
-        col_type = sa.TIMESTAMP(timezone=True)
-
-    op.add_column('task_instance', sa.Column('execution_date', col_type, nullable=True))
-    op.add_column('task_reschedule', sa.Column('execution_date', col_type, nullable=True))
+    op.add_column('task_instance', sa.Column('execution_date', dt_type, nullable=True))
+    op.add_column('task_reschedule', sa.Column('execution_date', dt_type, nullable=True))
 
     update_query = _multi_table_update(dialect_name, task_instance, task_instance.c.execution_date)
     op.execute(update_query)
@@ -228,9 +281,7 @@ def downgrade():
     op.execute(update_query)
 
     with op.batch_alter_table('task_reschedule', schema=None) as batch_op:
-        batch_op.alter_column(
-            'execution_date', existing_type=col_type, existing_nullable=True, nullable=False
-        )
+        batch_op.alter_column('execution_date', existing_type=dt_type, existing_nullable=True, nullable=False)
 
         # Can't drop PK index while there is a FK referencing it
         batch_op.drop_constraint('task_reschedule_ti_fkey')
@@ -238,8 +289,9 @@ def downgrade():
         batch_op.drop_index('idx_task_reschedule_dag_task_run')
 
     with op.batch_alter_table('task_instance', schema=None) as batch_op:
+        batch_op.alter_column('execution_date', existing_type=dt_type, existing_nullable=True, nullable=False)
         batch_op.alter_column(
-            'execution_date', existing_type=col_type, existing_nullable=True, nullable=False
+            'dag_id', existing_type=string_id_col_type, existing_nullable=True, nullable=True
         )
 
         batch_op.drop_constraint('task_instance_pkey', type_='primary')
@@ -268,6 +320,49 @@ def downgrade():
             ['dag_id', 'task_id', 'execution_date'],
             ondelete='CASCADE',
         )
+
+    if dialect_name == "mssql":
+
+        with op.batch_alter_table('dag_run', schema=None) as batch_op:
+            batch_op.drop_constraint('dag_run_dag_id_execution_date_key', 'unique')
+            batch_op.drop_constraint('dag_run_dag_id_run_id_key', 'unique')
+            batch_op.drop_index('dag_id_state')
+            batch_op.drop_index('idx_dag_run_running_dags')
+            batch_op.drop_index('idx_dag_run_queued_dags')
+
+            batch_op.alter_column('dag_id', existing_type=string_id_col_type, nullable=True)
+            batch_op.alter_column('execution_date', existing_type=dt_type, nullable=True)
+            batch_op.alter_column('run_id', existing_type=string_id_col_type, nullable=True)
+
+            batch_op.create_index('dag_id_state', ['dag_id', 'state'], unique=False)
+            batch_op.create_index('idx_dag_run_dag_id', ['dag_id'])
+            batch_op.create_index(
+                'idx_dag_run_running_dags',
+                ["state", "dag_id"],
+                mssql_where=sa.text("state='running'"),
+            )
+            batch_op.create_index(
+                'idx_dag_run_queued_dags',
+                ["state", "dag_id"],
+                mssql_where=sa.text("state='queued'"),
+            )
+        op.execute(
+            """CREATE UNIQUE NONCLUSTERED INDEX idx_not_null_dag_id_execution_date
+                    ON dag_run(dag_id,execution_date)
+                    WHERE dag_id IS NOT NULL and execution_date is not null"""
+        )
+        op.execute(
+            """CREATE UNIQUE NONCLUSTERED INDEX idx_not_null_dag_id_run_id
+                     ON dag_run(dag_id,run_id)
+                     WHERE dag_id IS NOT NULL and run_id is not null"""
+        )
+    else:
+        with op.batch_alter_table('dag_run', schema=None) as batch_op:
+            batch_op.drop_index('dag_id_state', table_name='dag_run')
+            batch_op.alter_column('run_id', existing_type=sa.VARCHAR(length=250), nullable=True)
+            batch_op.alter_column('execution_date', existing_type=dt_type, nullable=True)
+            batch_op.alter_column('dag_id', existing_type=sa.VARCHAR(length=250), nullable=True)
+            batch_op.create_index('dag_id_state', 'dag_run', ['dag_id', 'state'], unique=False)
 
 
 def _multi_table_update(dialect_name, target, column):

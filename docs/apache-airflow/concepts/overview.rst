@@ -46,7 +46,7 @@ Airflow itself is agnostic to what you're running - it will happily orchestrate 
 Workloads
 ---------
 
-A DAG runs though a series of :doc:`tasks`, and there are three common types of task you will see:
+A DAG runs through a series of :doc:`tasks`, and there are three common types of task you will see:
 
 * :doc:`operators`, predefined tasks that you can string together quickly to build most parts of your DAGs.
 

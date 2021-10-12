@@ -24,8 +24,6 @@ Upgrading from 1.10 to 2
 
     upgrade-check
 
-.. contents:: :local:
-
 Apache Airflow 2 is a major release and the purpose of this document is to assist
 users to migrate from Airflow 1.10.x to Airflow 2
 

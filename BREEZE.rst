@@ -1275,7 +1275,7 @@ This is the current syntax for  `./breeze <./breeze>`_:
 
   -t, --install-airflow-reference INSTALL_AIRFLOW_REFERENCE
           Installs Airflow directly from reference in GitHub when building PROD image.
-          This can be a GitHub branch like main or v2-1-test, or a tag like 2.1.0a1.
+          This can be a GitHub branch like main or v2-2-test, or a tag like 2.2.0rc1.
 
   --installation-method INSTALLATION_METHOD
           Method of installing Airflow in PROD image - either from the sources ('.')
@@ -2440,7 +2440,7 @@ This is the current syntax for  `./breeze <./breeze>`_:
 
   -t, --install-airflow-reference INSTALL_AIRFLOW_REFERENCE
           Installs Airflow directly from reference in GitHub when building PROD image.
-          This can be a GitHub branch like main or v2-1-test, or a tag like 2.1.0a1.
+          This can be a GitHub branch like main or v2-2-test, or a tag like 2.2.0rc1.
 
   --installation-method INSTALLATION_METHOD
           Method of installing Airflow in PROD image - either from the sources ('.')

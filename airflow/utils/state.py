@@ -120,9 +120,9 @@ class State:
         TaskInstanceState.SKIPPED: 'pink',
         TaskInstanceState.REMOVED: 'lightgrey',
         TaskInstanceState.SCHEDULED: 'tan',
-        TaskInstanceState.SENSING: 'lightseagreen',
-        TaskInstanceState.DEFERRED: 'lightseagreen',
+        TaskInstanceState.DEFERRED: 'mediumpurple',
     }
+    state_color[TaskInstanceState.SENSING] = state_color[TaskInstanceState.DEFERRED]
     state_color.update(STATE_COLORS)  # type: ignore
 
     @classmethod

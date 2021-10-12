@@ -154,7 +154,7 @@ repos:
           - "--maxlevel"
           - "2"
   - repo: https://github.com/psf/black
-    rev: 21.8b0
+    rev: 21.9b0
     hooks:
       - id: black
         args: [--config=./pyproject.toml]
@@ -164,7 +164,7 @@ repos:
     hooks:
       - id: blacken-docs
         alias: black
-        additional_dependencies: [black==21.8b0]
+        additional_dependencies: [black==21.9b0]
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v4.0.1
     hooks:
@@ -196,7 +196,7 @@ repos:
         files: ^chart/values\.schema\.json$|^chart/values_schema\.schema\.json$
         pass_filenames: true
   - repo: https://github.com/asottile/pyupgrade
-    rev: v2.25.1
+    rev: v2.29.0
     hooks:
       - id: pyupgrade
         args: ["--py36-plus"]
@@ -250,6 +250,7 @@ repos:
         exclude: |
           (?x)
           ^airflow/_vendor/
+        additional_dependencies: ['flake8>=4.0.1']
   - repo: https://github.com/ikamensh/flynt
     rev: '0.69'
     hooks:
@@ -372,6 +373,7 @@ repos:
         pass_filenames: true
         exclude: >
           (?x)
+          ^airflow/www/fab_security/manager\.py$|
           ^airflow/providers/apache/cassandra/hooks/cassandra\.py$|
           ^airflow/providers/apache/hive/operators/hive_stats\.py$|
           ^airflow/providers/apache/hive/.*PROVIDER_CHANGES_*|

@@ -218,8 +218,17 @@ We recommend using the ``psycopg2`` driver and specifying it in your SqlAlchemy 
 
    postgresql+psycopg2://<user>:<password>@<host>/<db>
 
-Also note that since SqlAlchemy does not expose a way to target a specific schema in the database URI, you may
-want to set a default schema for your role with a SQL statement similar to ``ALTER ROLE username SET search_path = airflow, foobar;``
+Also note that since SqlAlchemy does not expose a way to target a specific schema in the database URI, you need to ensure schema ``public`` is in your Postgres user's search_path.
+
+If you created a new Postgres account for Airflow:
+
+* The default search_path for new Postgres user is: ``"$user", public``, no change is needed.
+
+If you use a current Postgres user with custom search_path, search_path can be changed by the command:
+
+.. code-block:: sql
+
+   ALTER USER airflow_user SET search_path = public;
 
 For more information regarding setup of the PostgresSQL connection, see `PostgreSQL dialect <https://docs.sqlalchemy.org/en/13/dialects/postgresql.html>`__ in SQLAlchemy documentation.
 

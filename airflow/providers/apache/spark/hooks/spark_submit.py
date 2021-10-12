@@ -386,8 +386,7 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
                 pass
             else:
                 raise AirflowException(
-                    "Invalid status: attempted to poll driver "
-                    + "status but no driver id is known. Giving up."
+                    "Invalid status: attempted to poll driver status but no driver id is known. Giving up."
                 )
 
         else:
@@ -402,8 +401,7 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
                 connection_cmd += ["--status", self._driver_id]
             else:
                 raise AirflowException(
-                    "Invalid status: attempted to poll driver "
-                    + "status but no driver id is known. Giving up."
+                    "Invalid status: attempted to poll driver status but no driver id is known. Giving up."
                 )
 
         self.log.debug("Poll driver status cmd: %s", connection_cmd)
@@ -459,7 +457,7 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
         if self._should_track_driver_status:
             if self._driver_id is None:
                 raise AirflowException(
-                    "No driver id is known: something went wrong when executing " + "the spark submit command"
+                    "No driver id is known: something went wrong when executing the spark submit command"
                 )
 
             # We start with the SUBMITTED status as initial status

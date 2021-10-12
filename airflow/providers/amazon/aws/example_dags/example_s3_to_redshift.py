@@ -25,8 +25,8 @@ from airflow import DAG
 from airflow.decorators import task
 from airflow.models.baseoperator import chain
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
+from airflow.providers.amazon.aws.operators.redshift import RedshiftSQLOperator
 from airflow.providers.amazon.aws.transfers.s3_to_redshift import S3ToRedshiftOperator
-from airflow.providers.postgres.operators.postgres import PostgresOperator
 from airflow.utils.dates import days_ago
 
 # [START howto_operator_s3_to_redshift_env_variables]
@@ -54,9 +54,8 @@ with DAG(
 ) as dag:
     add_sample_data_to_s3 = add_sample_data_to_s3()
 
-    setup__task_create_table = PostgresOperator(
+    setup__task_create_table = RedshiftSQLOperator(
         sql=f'CREATE TABLE IF NOT EXISTS {REDSHIFT_TABLE}(Id int, Name varchar)',
-        postgres_conn_id='redshift_default',
         task_id='setup__create_table',
     )
     # [START howto_operator_s3_to_redshift_task_1]
@@ -69,9 +68,8 @@ with DAG(
         task_id='transfer_s3_to_redshift',
     )
     # [END howto_operator_s3_to_redshift_task_1]
-    teardown__task_drop_table = PostgresOperator(
+    teardown__task_drop_table = RedshiftSQLOperator(
         sql=f'DROP TABLE IF EXISTS {REDSHIFT_TABLE}',
-        postgres_conn_id='redshift_default',
         task_id='teardown__drop_table',
     )
 

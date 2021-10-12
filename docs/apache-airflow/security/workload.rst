@@ -20,10 +20,6 @@ Workload
 
 This topic describes how to configure Airflow to secure your workload.
 
-.. contents::
-  :depth: 1
-  :local:
-
 Impersonation
 -------------
 
