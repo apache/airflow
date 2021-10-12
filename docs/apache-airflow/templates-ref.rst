@@ -130,7 +130,7 @@ Just like with ``var`` it's possible to fetch a connection by string  (e.g. ``{{
 Filters
 -------
 
-Airflow defines the some Jinja filters that can be used to format values.
+Airflow defines some Jinja filters that can be used to format values.
 
 For example, using ``{{ execution_date | ds }}`` will output the execution_date in the ``YYYY-MM-DD`` format.
 
