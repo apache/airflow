@@ -613,7 +613,7 @@
       description: |
         A comma\-separated list of third-party logger names that will be configured to print messages to
         consoles\.
-      version_added: 2.2.0
+      version_added: 2.0.0
       type: string
       example: "connexion,sqlalchemy"
       default: ""
