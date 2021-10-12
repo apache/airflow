@@ -73,6 +73,12 @@ class DefaultHelpParser(argparse.ArgumentParser):
                     "To do it, run: pip install 'apache-airflow[cncf.kubernetes]'"
                 )
                 raise ArgumentError(action, message)
+        if action.dest == 'subcommand' and value == 'triggerer':
+            try:
+                from asyncio import create_task  # noqa: F401
+            except ImportError:
+                # create_task is not present in Python 3.6. Once Airflow is at 3.7+, we can remove this check.
+                raise ArgumentError(action, 'triggerer subcommand only works with Python 3.7+')
 
         if action.choices is not None and value not in action.choices:
             check_legacy_command(action, value)
