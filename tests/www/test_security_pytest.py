@@ -123,7 +123,7 @@ def create_dag(session, security_manager):
 
 @pytest.fixture(scope="module")
 def expect_user_is_in_role(security_manager):
-    def _expect_user_is_in_role(user, role_name):
+    def check(user, role_name):
         security_manager.bulk_sync_roles([{'role': role_name, 'perms': []}])
         role = security_manager.find_role(role_name)
         if not role:
@@ -131,7 +131,7 @@ def expect_user_is_in_role(security_manager):
             role = security_manager.find_role(role_name)
         user.roles = [role]
         security_manager.update_user(user)
-    return _expect_user_is_in_role
+    return check
 
 
 @pytest.fixture(scope="module")
@@ -151,7 +151,7 @@ def assert_user_has_dag_perms(has_dag_perm):
 
 @pytest.fixture(scope="module")
 def assert_user_does_not_have_dag_perms(has_dag_perm):
-    def _assert_user_does_not_have_dag_perms(self, dag_id, perms, user=None):
+    def _assert_user_does_not_have_dag_perms(dag_id, perms, user=None):
         for perm in perms:
             assert not has_dag_perm(
                 perm, dag_id, user
@@ -159,7 +159,7 @@ def assert_user_does_not_have_dag_perms(has_dag_perm):
     return _assert_user_does_not_have_dag_perms
 
 
-def test_init_role_baseview(app, app_builder, security_manager):
+def test_init_role_baseview(app, security_manager):
     role_name = 'MyRole7'
     role_perms = [('can_some_other_action', 'AnotherBaseView')]
     with pytest.warns(
@@ -174,19 +174,19 @@ def test_init_role_baseview(app, app_builder, security_manager):
     delete_role(app, role_name)
 
 
-def test_bulk_sync_roles_baseview(app, app_builder, security_manager):
+def test_bulk_sync_roles_baseview(app, security_manager):
     role_name = 'MyRole3'
     role_perms = [('can_some_action', 'SomeBaseView')]
     security_manager.bulk_sync_roles([{'role': role_name, 'perms': role_perms}])
 
-    role = app_builder.sm.find_role(role_name)
+    role = security_manager.find_role(role_name)
     assert role is not None
     assert len(role_perms) == len(role.permissions)
 
     delete_role(app, role_name)
 
 
-def test_bulk_sync_roles_modelview(app, app_builder, security_manager):
+def test_bulk_sync_roles_modelview(app, security_manager):
     role_name = 'MyRole2'
     role_perms = [
         ('can_list', 'SomeModelView'),
@@ -198,7 +198,7 @@ def test_bulk_sync_roles_modelview(app, app_builder, security_manager):
     mock_roles = [{'role': role_name, 'perms': role_perms}]
     security_manager.bulk_sync_roles(mock_roles)
 
-    role = app_builder.sm.find_role(role_name)
+    role = security_manager.find_role(role_name)
     assert role is not None
     assert len(role_perms) == len(role.permissions)
 
@@ -209,7 +209,7 @@ def test_bulk_sync_roles_modelview(app, app_builder, security_manager):
     delete_role(app, role_name)
 
 
-def test_update_and_verify_permission_role(app, app_builder, security_manager):
+def test_update_and_verify_permission_role(app, security_manager):
     role_name = 'Test_Role'
     role_perms = []
     mock_roles = [{'role': role_name, 'perms': role_perms}]
@@ -229,17 +229,17 @@ def test_update_and_verify_permission_role(app, app_builder, security_manager):
     delete_role(app, role_name)
 
 
-def test_verify_public_role_has_no_permissions(app_builder):
-    public = app_builder.sm.find_role("Public")
+def test_verify_public_role_has_no_permissions(security_manager):
+    public = security_manager.find_role("Public")
     assert public.permissions == []
 
 
-def test_verify_default_anon_user_has_no_accessible_dag_ids(app, security_manager):
+def test_verify_default_anon_user_has_no_accessible_dag_ids(app, security_manager, create_dag):
     with app.app_context():
         user = mock.MagicMock()
         user.is_anonymous = True
         app.config['AUTH_ROLE_PUBLIC'] = 'Public'
-        assert app.appbuilder.sm.get_user_roles(user) == [app.appbuilder.sm.get_public_role()]
+        assert security_manager.get_user_roles(user) == [security_manager.get_public_role()]
 
         create_dag("test_dag_id")
         security_manager.sync_roles()
@@ -247,30 +247,30 @@ def test_verify_default_anon_user_has_no_accessible_dag_ids(app, security_manage
         assert security_manager.get_accessible_dag_ids(user) == set()
 
 
-def test_verify_default_anon_user_has_no_access_to_specific_dag(app, has_dag_perm):
+def test_verify_default_anon_user_has_no_access_to_specific_dag(app, security_manager, has_dag_perm, create_dag):
     with app.app_context():
         user = mock.MagicMock()
         user.is_anonymous = True
         app.config['AUTH_ROLE_PUBLIC'] = 'Public'
-        assert app.appbuilder.sm.get_user_roles(user) == [app.appbuilder.sm.get_public_role()]
+        assert security_manager.get_user_roles(user) == [security_manager.get_public_role()]
 
         dag_id = "test_dag_id"
         create_dag(dag_id)
-        app.appbuilder.sm.sync_roles()
+        security_manager.sync_roles()
 
-        assert app.appbuilder.sm.can_read_dag(dag_id, user) is False
-        assert app.appbuilder.sm.can_edit_dag(dag_id, user) is False
+        assert security_manager.can_read_dag(dag_id, user) is False
+        assert security_manager.can_edit_dag(dag_id, user) is False
         assert has_dag_perm(permissions.ACTION_CAN_READ, dag_id, user) is False
         assert has_dag_perm(permissions.ACTION_CAN_EDIT, dag_id, user) is False
 
 
-def test_verify_anon_user_with_admin_role_has_all_dag_access(app, security_manager):
+def test_verify_anon_user_with_admin_role_has_all_dag_access(app, security_manager, create_dag):
     with app.app_context():
         app.config['AUTH_ROLE_PUBLIC'] = 'Admin'
         user = mock.MagicMock()
         user.is_anonymous = True
 
-        assert app.appbuilder.sm.get_user_roles(user) == [app.appbuilder.sm.get_public_role()]
+        assert security_manager.get_user_roles(user) == [security_manager.get_public_role()]
 
         test_dag_ids = ["test_dag_id_1", "test_dag_id_2", "test_dag_id_3"]
         for dag_id in test_dag_ids:
@@ -280,15 +280,15 @@ def test_verify_anon_user_with_admin_role_has_all_dag_access(app, security_manag
         assert security_manager.get_accessible_dag_ids(user) == set(test_dag_ids)
 
 
-def test_verify_anon_user_with_admin_role_has_access_to_each_dag(app, security_manager, has_dag_perm):
+def test_verify_anon_user_with_admin_role_has_access_to_each_dag(app, security_manager, has_dag_perm, create_dag):
     with app.app_context():
         user = mock.MagicMock()
         user.is_anonymous = True
         app.config['AUTH_ROLE_PUBLIC'] = 'Admin'
 
         # Call `.get_user_roles` bc `user` is a mock and the `user.roles` prop needs to be set.
-        user.roles = app.appbuilder.sm.get_user_roles(user)
-        assert user.roles == [app.appbuilder.sm.get_public_role()]
+        user.roles = security_manager.get_user_roles(user)
+        assert user.roles == [security_manager.get_public_role()]
 
         test_dag_ids = ["test_dag_id_1", "test_dag_id_2", "test_dag_id_3"]
 
@@ -297,8 +297,8 @@ def test_verify_anon_user_with_admin_role_has_access_to_each_dag(app, security_m
         security_manager.sync_roles()
 
         for dag_id in test_dag_ids:
-            assert app.appbuilder.sm.can_read_dag(dag_id, user) is True
-            assert app.appbuilder.sm.can_edit_dag(dag_id, user) is True
+            assert security_manager.can_read_dag(dag_id, user) is True
+            assert security_manager.can_edit_dag(dag_id, user) is True
             assert has_dag_perm(permissions.ACTION_CAN_READ, dag_id, user) is True
             assert has_dag_perm(permissions.ACTION_CAN_EDIT, dag_id, user) is True
 
@@ -402,7 +402,7 @@ def test_current_user_has_permissions(app, security_manager, monkeypatch):
         assert not security_manager.current_user_has_permissions()
 
 
-def test_get_accessible_dag_ids(app, security_manager):
+def test_get_accessible_dag_ids(app, security_manager, session):
     role_name = 'MyRole1'
     permission_action = [permissions.ACTION_CAN_READ]
     dag_id = 'dag_id'
@@ -429,7 +429,7 @@ def test_get_accessible_dag_ids(app, security_manager):
     assert security_manager.get_accessible_dag_ids(user) == {'dag_id'}
 
 
-def test_dont_get_inaccessible_dag_ids_for_dag_resource_permission(app, security_manager):
+def test_dont_get_inaccessible_dag_ids_for_dag_resource_permission(app, security_manager, session):
     # In this test case,
     # get_readable_dag_ids() don't return DAGs to which the user has CAN_EDIT permission
     username = "Monsieur User"
@@ -450,7 +450,7 @@ def test_dont_get_inaccessible_dag_ids_for_dag_resource_permission(app, security
     session.add(dag_model)
     session.commit()
 
-    self.security_manager.sync_perm_for_dag(  # type: ignore
+    security_manager.sync_perm_for_dag(  # type: ignore
         dag_id, access_control={role_name: permission_action}
     )
 
@@ -525,7 +525,7 @@ def test_all_dag_access_doesnt_give_non_dag_access(app, security_manager):
         )
 
 
-def test_access_control_with_invalid_permission(app, security_manager):
+def test_access_control_with_invalid_permission(app, security_manager, expect_user_is_in_role):
     invalid_permissions = [
         'can_varimport',  # a real permission, but not a member of DAG_ACTIONS
         'can_eat_pudding',  # clearly not a real permission
@@ -537,7 +537,7 @@ def test_access_control_with_invalid_permission(app, security_manager):
         role_name='team-a',
     )
     for permission in invalid_permissions:
-        expect_user_is_in_role(user, rolename='team-a')
+        expect_user_is_in_role(user, role_name='team-a')
         with pytest.raises(AirflowException) as ctx:
             security_manager._sync_dag_view_permissions(
                 'access_control_test', access_control={'team-a': {permission}}
@@ -545,7 +545,8 @@ def test_access_control_with_invalid_permission(app, security_manager):
         assert "invalid permissions" in str(ctx.value)
 
 
-def test_access_control_is_set_on_init(app, security_manager):
+def test_access_control_is_set_on_init(app, security_manager, expect_user_is_in_role,
+                                       assert_user_has_dag_perms, assert_user_does_not_have_dag_perms):
     username = 'access_control_is_set_on_init'
     role_name = 'team-a'
     with app.app_context():
@@ -555,7 +556,7 @@ def test_access_control_is_set_on_init(app, security_manager):
             role_name=role_name,
             permissions=[],
         )
-        expect_user_is_in_role(user, rolename='team-a')
+        expect_user_is_in_role(user, role_name='team-a')
         security_manager._sync_dag_view_permissions(
             'access_control_test',
             access_control={'team-a': [permissions.ACTION_CAN_EDIT, permissions.ACTION_CAN_READ]},
@@ -566,7 +567,7 @@ def test_access_control_is_set_on_init(app, security_manager):
             user=user,
         )
 
-        expect_user_is_in_role(user, rolename='NOT-team-a')
+        expect_user_is_in_role.check(user, role_name='NOT-team-a')
         assert_user_does_not_have_dag_perms(
             perms=[permissions.ACTION_CAN_EDIT, permissions.ACTION_CAN_READ],
             dag_id='access_control_test',
@@ -585,7 +586,7 @@ def test_access_control_stale_perms_are_revoked(app, security_manager, expect_us
             role_name=role_name,
             permissions=[],
         )
-        expect_user_is_in_role(user, rolename='team-a')
+        expect_user_is_in_role(user, role_name='team-a')
         security_manager._sync_dag_view_permissions(
             'access_control_test', access_control={'team-a': READ_WRITE}
         )
@@ -602,7 +603,7 @@ def test_access_control_stale_perms_are_revoked(app, security_manager, expect_us
         )
 
 
-def test_no_additional_dag_permission_views_created(security_manager):
+def test_no_additional_dag_permission_views_created(db, security_manager):
     ab_perm_view_role = sqla_models.assoc_permissionview_role
 
     security_manager.sync_roles()
