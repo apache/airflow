@@ -133,9 +133,7 @@ class PodLauncher(LoggingMixin):
                 if delta.total_seconds() >= startup_timeout:
                     msg = (
                         f"Pod took longer than {startup_timeout} seconds to start. "
-                        "Increasing 'startup_timeout' might resolve this error, but "
-                        "check the pod events in kubernetes for structural errors "
-                        "which might prevent the pod from ever starting."
+                        "Check the pod events in kubernetes to determine why."
                     )
                     raise AirflowException(msg)
                 time.sleep(1)

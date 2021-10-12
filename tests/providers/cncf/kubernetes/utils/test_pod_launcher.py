@@ -270,7 +270,7 @@ class TestPodLauncher(unittest.TestCase):
         pod_response.status.start_time = None
         mock_run_pod_async.return_value = pod_response
         mock_pod_not_started.return_value = True
-        expected_msg = "check the pod events in kubernetes for structural errors"
+        expected_msg = "Check the pod events in kubernetes"
         with pytest.raises(AirflowException, match=expected_msg):
             self.pod_launcher.start_pod(
                 pod=mock.sentinel,
