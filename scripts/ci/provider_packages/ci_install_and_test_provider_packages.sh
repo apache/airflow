@@ -38,7 +38,7 @@ function run_test_package_import_all_classes() {
         -v "${AIRFLOW_SOURCES}/empty:/opt/airflow/airflow:cached" \
         -v "${AIRFLOW_SOURCES}/scripts/in_container:/opt/airflow/scripts/in_container:cached" \
         -v "${AIRFLOW_SOURCES}/dev/import_all_classes.py:/opt/airflow/dev/import_all_classes.py:cached" \
-        "${AIRFLOW_CI_IMAGE_WITH_TAG}" \
+        "${AIRFLOW_CI_IMAGE}" \
         "--" "/opt/airflow/scripts/in_container/run_install_and_test_provider_packages.sh"
 }
 

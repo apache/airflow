@@ -502,7 +502,7 @@ EOF
                                Use CI image.
 
                                Branch name:            ${BRANCH_NAME}
-                               Docker image:           ${AIRFLOW_CI_IMAGE_WITH_TAG}
+                               Docker image:           ${AIRFLOW_CI_IMAGE}
                                Airflow source version: ${AIRFLOW_VERSION}
 EOF
         fi
@@ -635,7 +635,6 @@ export MSSQL_HOST_PORT="${MSSQL_HOST_PORT}"
 export MSSQL_VERSION="${MSSQL_VERSION}"
 export AIRFLOW_SOURCES="${AIRFLOW_SOURCES}"
 export AIRFLOW_CI_IMAGE="${AIRFLOW_CI_IMAGE}"
-export AIRFLOW_CI_IMAGE_WITH_TAG="${AIRFLOW_CI_IMAGE_WITH_TAG}"
 export AIRFLOW_PROD_IMAGE="${AIRFLOW_PROD_IMAGE}"
 export AIRFLOW_IMAGE_KUBERNETES="${AIRFLOW_IMAGE_KUBERNETES}"
 export SQLITE_URL="${SQLITE_URL}"

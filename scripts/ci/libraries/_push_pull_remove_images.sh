@@ -108,15 +108,26 @@ function push_pull_remove_images::pull_base_python_image() {
         echo -n "Docker pull base python image. Upgrade to newer deps: ${UPGRADE_TO_NEWER_DEPENDENCIES}
 " > "${DETECTED_TERMINAL}"
     fi
-    set +e
-    push_pull_remove_images::pull_image_if_not_present_or_forced "${AIRFLOW_PYTHON_BASE_IMAGE}"
-    local res="$?"
-    set -e
-    if [[ ${CHECK_IF_BASE_PYTHON_IMAGE_UPDATED} == "true" || ${res} != "0" ]] ; then
-        # Rebuild the base python image using DockerHub - either when we explicitly want it
-        # or when there is no image available yet in ghcr.io (usually when you build it for the
-        # first time in your repository
-        push_pull_remove_images::check_and_rebuild_python_base_image_if_needed
+    if [[ ${GITHUB_REGISTRY_PULL_IMAGE_TAG} != "latest" ]]; then
+        push_pull_remove_images::pull_image_if_not_present_or_forced \
+            "${AIRFLOW_PYTHON_BASE_IMAGE}${GITHUB_REGISTRY_PULL_IMAGE_TAG}"
+        if [[ ${CHECK_IF_BASE_PYTHON_IMAGE_UPDATED} == "true" ]] ; then
+            echo
+            echo  "${COLOR_RED}ERROR: You cannot check for base python image if you pull specific tag: ${GITHUB_REGISTRY_PULL_IMAGE_TAG}.${COLOR_RESET}"
+            echo
+            return 1
+        fi
+    else
+        set +e
+        push_pull_remove_images::pull_image_if_not_present_or_forced "${AIRFLOW_PYTHON_BASE_IMAGE}"
+        local res="$?"
+        set -e
+        if [[ ${CHECK_IF_BASE_PYTHON_IMAGE_UPDATED} == "true" || ${res} != "0" ]] ; then
+            # Rebuild the base python image using DockerHub - either when we explicitly want it
+            # or when there is no image available yet in ghcr.io (usually when you build it for the
+            # first time in your repository
+            push_pull_remove_images::check_and_rebuild_python_base_image_if_needed
+        fi
     fi
 }
 
@@ -133,7 +144,8 @@ function push_pull_remove_images::pull_ci_images_if_needed() {
     fi
     if [[ "${DOCKER_CACHE}" == "pulled" ]]; then
         set +e
-        push_pull_remove_images::pull_image_if_not_present_or_forced "${AIRFLOW_CI_IMAGE_WITH_TAG}"
+        push_pull_remove_images::pull_image_if_not_present_or_forced \
+            "${AIRFLOW_CI_IMAGE}:${GITHUB_REGISTRY_PULL_IMAGE_TAG}"
         local res="$?"
         set -e
         if [[ ${res} != "0" ]]; then
@@ -219,8 +231,9 @@ function push_pull_remove_images::push_ci_images_to_github() {
     if [[ "${PUSH_PYTHON_BASE_IMAGE=}" != "false" ]]; then
         push_pull_remove_images::push_python_image_to_github
     fi
-    docker_v tag "${AIRFLOW_CI_IMAGE}" "${AIRFLOW_CI_IMAGE_WITH_TAG}"
-    push_pull_remove_images::push_image_with_retries "${AIRFLOW_CI_IMAGE_WITH_TAG}"
+    local airflow_ci_tagged_image="${AIRFLOW_CI_IMAGE}:${GITHUB_REGISTRY_PUSH_IMAGE_TAG}"
+    docker_v tag "${AIRFLOW_CI_IMAGE}" "${airflow_ci_tagged_image}"
+    push_pull_remove_images::push_image_with_retries "${airflow_ci_tagged_image}"
     # Also push ci manifest image if GITHUB_REGISTRY_PUSH_IMAGE_TAG is "latest"
     if [[ ${GITHUB_REGISTRY_PUSH_IMAGE_TAG} == "latest" ]]; then
         local airflow_ci_manifest_tagged_image="${AIRFLOW_CI_REMOTE_MANIFEST_IMAGE}:latest"

@@ -29,7 +29,7 @@ function run_mypy() {
     docker_v run "${EXTRA_DOCKER_FLAGS[@]}" \
         --entrypoint "/usr/local/bin/dumb-init"  \
         "-v" "${AIRFLOW_SOURCES}/.mypy_cache:/opt/airflow/.mypy_cache" \
-        "${AIRFLOW_CI_IMAGE_WITH_TAG}" \
+        "${AIRFLOW_CI_IMAGE}" \
         "--" "/opt/airflow/scripts/in_container/run_mypy.sh" "${files[@]}"
 }
 

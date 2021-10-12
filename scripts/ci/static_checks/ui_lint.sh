@@ -27,5 +27,5 @@ build_images::rebuild_ci_image_if_needed
 
 docker run "${EXTRA_DOCKER_FLAGS[@]}" \
     --entrypoint "/bin/bash"  \
-    "${AIRFLOW_CI_IMAGE_WITH_TAG}" \
+    "${AIRFLOW_CI_IMAGE}" \
     -c 'cd airflow/ui && yarn --frozen-lockfile --non-interactive && yarn run lint "${@}"' "${@#airflow/ui/}"
