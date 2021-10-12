@@ -51,10 +51,10 @@ function prepare_tests() {
 
     if [[ ${TEST_TYPE:=} == "Integration" ]]; then
         export ENABLED_INTEGRATIONS="${AVAILABLE_INTEGRATIONS}"
-        export RUN_INTEGRATION_TESTS="${AVAILABLE_INTEGRATIONS}"
+        export LIST_OF_INTEGRATION_TESTS_TO_RUN="${AVAILABLE_INTEGRATIONS}"
     else
         export ENABLED_INTEGRATIONS=""
-        export RUN_INTEGRATION_TESTS=""
+        export LIST_OF_INTEGRATION_TESTS_TO_RUN=""
     fi
 
     for _INT in ${ENABLED_INTEGRATIONS}
