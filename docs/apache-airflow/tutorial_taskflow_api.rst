@@ -416,14 +416,16 @@ When running your callable, Airflow will pass a set of keyword arguments that ca
 function. This set of kwargs correspond exactly to what you can use in your jinja templates.
 For this to work, you need to define ``**kwargs`` in your function header, or you can add directly the
 keyword arguments you would like to get - for example with the below code your callable will get
-the values of ``ti`` and ``next_ds`` context variables.
+the values of ``ti`` and ``next_ds`` context variables. Note that when explicit keyword arguments are used,
+they must be made optional in the function header to avoid ``TypeError`` exceptions during DAG parsing as
+these values are not available until task execution.
 
 With explicit arguments:
 
 .. code-block:: python
 
    @task
-   def my_python_callable(ti, next_ds):
+   def my_python_callable(ti=None, next_ds=None):
        pass
 
 With kwargs:
