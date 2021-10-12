@@ -140,10 +140,12 @@ using ``pendulum``.
     op = DummyOperator(task_id="dummy", dag=dag)
     print(dag.timezone)  # <Timezone [Europe/Amsterdam]>
 
-Please note that while it is possible to set a ``start_date`` and ``end_date`` for Tasks always the DAG timezone
-or global timezone (in that order) will be used to calculate the next execution date. Upon first encounter
-the start date or end date will be converted to UTC using the timezone associated with start_date or end_date,
-then for calculations this timezone information will be disregarded.
+Please note that while it is possible to set a ``start_date`` and ``end_date``
+for Tasks, the DAG timezone or global timezone (in that order) will always be
+used to calculate data intervals. Upon first encounter, the start date or end
+date will be converted to UTC using the timezone associated with ``start_date``
+or ``end_date``, then for calculations this timezone information will be
+disregarded.
 
 Templates
 '''''''''
@@ -156,7 +158,7 @@ It is left up to the DAG to handle this.
     import pendulum
 
     local_tz = pendulum.timezone("Europe/Amsterdam")
-    local_tz.convert(execution_date)
+    local_tz.convert(logical_date)
 
 Cron schedules
 ''''''''''''''
@@ -172,6 +174,6 @@ Time deltas
 Time zone aware DAGs that use ``timedelta`` or ``relativedelta`` schedules
 respect daylight savings time for the start date but do not adjust for
 daylight savings time when scheduling subsequent runs. For example, a
-DAG with a start date of ``pendulum.create(2020, 1, 1, tz="US/Eastern")``
+DAG with a start date of ``pendulum.datetime(2020, 1, 1, tz="US/Eastern")``
 and a schedule interval of ``timedelta(days=1)`` will run daily at 05:00
 UTC regardless of daylight savings time.

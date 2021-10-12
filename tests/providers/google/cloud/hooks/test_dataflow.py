@@ -1016,19 +1016,21 @@ class TestDataflowTemplateHook(unittest.TestCase):
     @mock.patch(DATAFLOW_STRING.format('_DataflowJobsController'))
     @mock.patch(DATAFLOW_STRING.format('DataflowHook.get_conn'))
     def test_start_flex_template(self, mock_conn, mock_controller):
+        expected_job = {"id": TEST_JOB_ID}
+
         mock_locations = mock_conn.return_value.projects.return_value.locations
         launch_method = mock_locations.return_value.flexTemplates.return_value.launch
-        launch_method.return_value.execute.return_value = {"job": {"id": TEST_JOB_ID}}
+        launch_method.return_value.execute.return_value = {"job": expected_job}
         mock_controller.return_value.get_jobs.return_value = [{"id": TEST_JOB_ID}]
 
-        on_new_job_id_callback = mock.MagicMock()
+        on_new_job_callback = mock.MagicMock()
         result = self.dataflow_hook.start_flex_template(
             body={"launchParameter": TEST_FLEX_PARAMETERS},
             location=TEST_LOCATION,
             project_id=TEST_PROJECT_ID,
-            on_new_job_id_callback=on_new_job_id_callback,
+            on_new_job_callback=on_new_job_callback,
         )
-        on_new_job_id_callback.assert_called_once_with(TEST_JOB_ID)
+        on_new_job_callback.assert_called_once_with(expected_job)
         launch_method.assert_called_once_with(
             projectId='test-project-id',
             body={'launchParameter': TEST_FLEX_PARAMETERS},
@@ -1080,14 +1082,15 @@ class TestDataflowTemplateHook(unittest.TestCase):
         mock_run.return_value = mock.MagicMock(
             stdout=f"{TEST_JOB_ID}\n".encode(), stderr=f"{TEST_JOB_ID}\n".encode(), returncode=0
         )
-        on_new_job_id_callback = mock.MagicMock()
+        on_new_job_callback = mock.MagicMock()
+
         result = self.dataflow_hook.start_sql_job(
             job_name=TEST_SQL_JOB_NAME,
             query=TEST_SQL_QUERY,
             options=TEST_SQL_OPTIONS,
             location=TEST_LOCATION,
             project_id=TEST_PROJECT,
-            on_new_job_id_callback=on_new_job_id_callback,
+            on_new_job_callback=on_new_job_callback,
         )
         mock_run.assert_called_once_with(
             [
@@ -1135,7 +1138,7 @@ class TestDataflowTemplateHook(unittest.TestCase):
                 options=TEST_SQL_OPTIONS,
                 location=TEST_LOCATION,
                 project_id=TEST_PROJECT,
-                on_new_job_id_callback=mock.MagicMock(),
+                on_new_job_callback=mock.MagicMock(),
             )
 
 

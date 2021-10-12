@@ -130,7 +130,7 @@ function discover_all_extra_links() {
 
     local actual_number_of_extra_links
     actual_number_of_extra_links=$(airflow providers links --output table | grep -c ^airflow.providers | xargs)
-    if (( actual_number_of_extra_links < 6 )); then
+    if (( actual_number_of_extra_links < 7 )); then
         echo
         echo  "${COLOR_RED}ERROR: Number of links registered is wrong: ${actual_number_of_extra_links}  ${COLOR_RESET}"
         echo

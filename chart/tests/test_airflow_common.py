@@ -74,16 +74,20 @@ class TestAirflowCommon:
         release_name = "TEST-BASIC"
         k8s_objects = render_chart(
             name=release_name,
-            values={"airflowPodAnnotations": {"test-annotation/safe-to-evict": "true"}},
+            values={
+                "airflowVersion": "2.2.0",  # Needed for triggerer to be enabled.
+                "airflowPodAnnotations": {"test-annotation/safe-to-evict": "true"},
+            },
             show_only=[
                 "templates/scheduler/scheduler-deployment.yaml",
                 "templates/workers/worker-deployment.yaml",
                 "templates/webserver/webserver-deployment.yaml",
                 "templates/flower/flower-deployment.yaml",
+                "templates/triggerer/triggerer-deployment.yaml",
             ],
         )
 
-        assert 4 == len(k8s_objects)
+        assert 5 == len(k8s_objects)
 
         for k8s_object in k8s_objects:
             annotations = k8s_object["spec"]["template"]["metadata"]["annotations"]

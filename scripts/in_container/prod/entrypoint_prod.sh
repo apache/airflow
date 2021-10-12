@@ -99,6 +99,8 @@ function wait_for_connection {
             detected_port=5432
         elif [[ ${BACKEND} == "mysql"* ]]; then
             detected_port=3306
+        elif [[ ${BACKEND} == "mssql"* ]]; then
+            detected_port=1433
         elif [[ ${BACKEND} == "redis"* ]]; then
             detected_port=6379
         elif [[ ${BACKEND} == "amqp"* ]]; then
@@ -139,7 +141,7 @@ function create_www_user() {
     airflow users create \
        --username "${_AIRFLOW_WWW_USER_USERNAME="admin"}" \
        --firstname "${_AIRFLOW_WWW_USER_FIRSTNAME="Airflow"}" \
-       --lastname "${_AIRFLOW_WWW_USER_LASTNME="Admin"}" \
+       --lastname "${_AIRFLOW_WWW_USER_LASTNAME="Admin"}" \
        --email "${_AIRFLOW_WWW_USER_EMAIL="airflowadmin@example.com"}" \
        --role "${_AIRFLOW_WWW_USER_ROLE="Admin"}" \
        --password "${local_password}" || true

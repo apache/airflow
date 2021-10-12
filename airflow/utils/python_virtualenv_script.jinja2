@@ -15,24 +15,23 @@
  KIND, either express or implied.  See the License for the
  specific language governing permissions and limitations
  under the License.
-#}
+-#}
 
 import {{ pickling_library }}
 import sys
 
-# Check whether Airflow is available in the environment.
-# If it is, we'll want to ensure that we integrate any macros that are being provided
-# by plugins prior to unpickling the task context.
-if sys.version_info.major >= 3 and sys.version_info.minor >= 6:
+{# Check whether Airflow is available in the environment.
+ # If it is, we'll want to ensure that we integrate any macros that are being provided
+ # by plugins prior to unpickling the task context. #}
+if sys.version_info >= (3,6):
     try:
         from airflow.plugins_manager import integrate_macros_plugins
         integrate_macros_plugins()
     except ImportError:
-        # Airflow is not available in this environment, therefore we won't
-        # be able to integrate any plugin macros.
+        {# Airflow is not available in this environment, therefore we won't
+         # be able to integrate any plugin macros. #}
         pass
 
-# Read args
 {% if op_args or op_kwargs %}
 with open(sys.argv[1], "rb") as file:
     arg_dict = {{ pickling_library }}.load(file)
@@ -40,9 +39,11 @@ with open(sys.argv[1], "rb") as file:
 arg_dict = {"args": [], "kwargs": {}}
 {% endif %}
 
+{% if string_args_global | default(true) -%}
 # Read string args
 with open(sys.argv[3], "r") as file:
     virtualenv_string_args = list(map(lambda x: x.strip(), list(file)))
+{% endif %}
 
 # Script
 {{ python_callable_source }}

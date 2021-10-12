@@ -21,10 +21,6 @@
 AWS DataSync Operator
 =====================
 
-.. contents::
-  :depth: 1
-  :local:
-
 Overview
 --------
 

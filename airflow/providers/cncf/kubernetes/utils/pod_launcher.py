@@ -92,7 +92,9 @@ class PodLauncher(LoggingMixin):
             )
             self.log.debug('Pod Creation Response: %s', resp)
         except Exception as e:
-            self.log.exception('Exception when attempting to create Namespaced Pod: %s', json_pod)
+            self.log.exception(
+                'Exception when attempting to create Namespaced Pod: %s', str(json_pod).replace("\n", " ")
+            )
             raise e
         return resp
 
@@ -118,7 +120,8 @@ class PodLauncher(LoggingMixin):
         Launches the pod synchronously and waits for completion.
 
         :param pod:
-        :param startup_timeout: Timeout (in seconds) for startup of the pod (if pod is pending for too long, fails task)
+        :param startup_timeout: Timeout (in seconds) for startup of the pod
+            (if pod is pending for too long, fails task)
         :return:
         """
         resp = self.run_pod_async(pod)
@@ -130,8 +133,9 @@ class PodLauncher(LoggingMixin):
                 if delta.total_seconds() >= startup_timeout:
                     msg = (
                         f"Pod took longer than {startup_timeout} seconds to start. "
-                        "Increasing 'startup_timeout' might resolve this error, but check the pod events in kubernetes "
-                        "for structural errors like a missing imagePullSecret."
+                        "Increasing 'startup_timeout' might resolve this error, but "
+                        "check the pod events in kubernetes for structural errors "
+                        "which might prevent the pod from ever starting."
                     )
                     raise AirflowException(msg)
                 time.sleep(1)

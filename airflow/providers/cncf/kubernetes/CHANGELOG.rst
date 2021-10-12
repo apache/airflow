@@ -19,6 +19,22 @@
 Changelog
 ---------
 
+2.0.3
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix KubernetesPodOperator reattach when not deleting pods (#18070)``
+* ``Make Kubernetes job description fit on one log line (#18377)``
+* ``Do not fail KubernetesPodOperator tasks if log reading fails (#17649)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Add August 2021 Provider's documentation (#17890)``
+   * ``Static start_date and default arg cleanup for misc. provider example DAGs (#18597)``
+   * ``Remove all deprecation warnings in providers (#17900)``
+
 2.0.2
 .....
 

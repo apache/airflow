@@ -215,9 +215,9 @@ EXTRA_PYTEST_ARGS=(
     # timeouts in seconds for individual tests
     "--timeouts-order"
     "moi"
-    "--setup-timeout=20"
+    "--setup-timeout=60"
     "--execution-timeout=60"
-    "--teardown-timeout=20"
+    "--teardown-timeout=60"
     # Only display summary for non-expected case
     # f - failed
     # E - error

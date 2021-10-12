@@ -55,10 +55,10 @@ Follow the guidelines when writing unit tests:
 **NOTE:** We plan to convert all unit tests to standard "asserts" semi-automatically, but this will be done later
 in Airflow 2.0 development phase. That will include setUp/tearDown/context managers and decorators.
 
-Running Unit Tests from IDE
----------------------------
+Running Unit Tests from PyCharm IDE
+-----------------------------------
 
-To run unit tests from the IDE, create the `local virtualenv <LOCAL_VIRTUALENV.rst>`_,
+To run unit tests from the PyCharm IDE, create the `local virtualenv <LOCAL_VIRTUALENV.rst>`_,
 select it as the default project's environment, then configure your test runner:
 
 .. image:: images/configure_test_runner.png
@@ -75,6 +75,38 @@ and run unit tests as follows:
 (with no Breeze installed) if they do not have dependencies such as
 Postgres/MySQL/Hadoop/etc.
 
+Running Unit Tests from Visual Studio Code
+------------------------------------------
+
+To run unit tests from the Visual Studio Code:
+
+1. Using the ``Exteinsions`` view install Python extension, reload if required
+
+.. image:: images/vscode_install_python_extension.png
+    :align: center
+    :alt: Installing Python extension
+
+2. Using the ``Testing`` view click on ``Configure Python Tests`` and select ``pytest`` framework
+
+.. image:: images/vscode_configure_python_tests.png
+    :align: center
+    :alt: Configuring Python tests
+
+.. image:: images/vscode_select_pytest_framework.png
+    :align: center
+    :alt: Selecting pytest framework
+
+3. Open ``/.vscode/settings.json`` and add ``"python.testing.pytestArgs": ["tests"]`` to enable tests discovery
+
+.. image:: images/vscode_add_pytest_settings.png
+    :align: center
+    :alt: Enabling tests discovery
+
+4. Now you are able to run and debug tests from both the ``Testing`` view and test files
+
+.. image:: images/vscode_run_tests.png
+    :align: center
+    :alt: Running tests
 
 Running Unit Tests
 --------------------------------

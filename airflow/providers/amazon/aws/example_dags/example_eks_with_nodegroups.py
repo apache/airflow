@@ -14,7 +14,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
+from datetime import datetime
 from os import environ
 
 from airflow.models.dag import DAG
@@ -27,7 +27,6 @@ from airflow.providers.amazon.aws.operators.eks import (
     EKSPodOperator,
 )
 from airflow.providers.amazon.aws.sensors.eks import EKSClusterStateSensor, EKSNodegroupStateSensor
-from airflow.utils.dates import days_ago
 
 CLUSTER_NAME = 'eks-demo'
 NODEGROUP_SUFFIX = '-nodegroup'
@@ -43,8 +42,9 @@ VPC_CONFIG = {
 
 with DAG(
     dag_id='example_eks_with_nodegroups_dag',
+    default_args={'cluster_name': CLUSTER_NAME},
     schedule_interval=None,
-    start_date=days_ago(2),
+    start_date=datetime(2021, 1, 1),
     max_active_runs=1,
     tags=['example'],
 ) as dag:
@@ -53,7 +53,6 @@ with DAG(
     # Create an Amazon EKS Cluster control plane without attaching a compute service.
     create_cluster = EKSCreateClusterOperator(
         task_id='create_eks_cluster',
-        cluster_name=CLUSTER_NAME,
         cluster_role_arn=ROLE_ARN,
         resources_vpc_config=VPC_CONFIG,
         compute=None,
@@ -62,14 +61,12 @@ with DAG(
 
     await_create_cluster = EKSClusterStateSensor(
         task_id='wait_for_create_cluster',
-        cluster_name=CLUSTER_NAME,
         target_state=ClusterStates.ACTIVE,
     )
 
     # [START howto_operator_eks_create_nodegroup]
     create_nodegroup = EKSCreateNodegroupOperator(
         task_id='create_eks_nodegroup',
-        cluster_name=CLUSTER_NAME,
         nodegroup_name=NODEGROUP_NAME,
         nodegroup_subnets=SUBNETS,
         nodegroup_role_arn=ROLE_ARN,
@@ -78,7 +75,6 @@ with DAG(
 
     await_create_nodegroup = EKSNodegroupStateSensor(
         task_id='wait_for_create_nodegroup',
-        cluster_name=CLUSTER_NAME,
         nodegroup_name=NODEGROUP_NAME,
         target_state=NodegroupStates.ACTIVE,
     )
@@ -87,7 +83,6 @@ with DAG(
     start_pod = EKSPodOperator(
         task_id="run_pod",
         pod_name="run_pod",
-        cluster_name=CLUSTER_NAME,
         image="amazon/aws-cli:latest",
         cmds=["sh", "-c", "ls"],
         labels={"demo": "hello_world"},
@@ -99,24 +94,22 @@ with DAG(
 
     # [START howto_operator_eks_delete_nodegroup]
     delete_nodegroup = EKSDeleteNodegroupOperator(
-        task_id='delete_eks_nodegroup', cluster_name=CLUSTER_NAME, nodegroup_name=NODEGROUP_NAME
+        task_id='delete_eks_nodegroup', nodegroup_name=NODEGROUP_NAME
     )
     # [END howto_operator_eks_delete_nodegroup]
 
     await_delete_nodegroup = EKSNodegroupStateSensor(
         task_id='wait_for_delete_nodegroup',
-        cluster_name=CLUSTER_NAME,
         nodegroup_name=NODEGROUP_NAME,
         target_state=NodegroupStates.NONEXISTENT,
     )
 
     # [START howto_operator_eks_delete_cluster]
-    delete_cluster = EKSDeleteClusterOperator(task_id='delete_eks_cluster', cluster_name=CLUSTER_NAME)
+    delete_cluster = EKSDeleteClusterOperator(task_id='delete_eks_cluster')
     # [END howto_operator_eks_delete_cluster]
 
     await_delete_cluster = EKSClusterStateSensor(
         task_id='wait_for_delete_cluster',
-        cluster_name=CLUSTER_NAME,
         target_state=ClusterStates.NONEXISTENT,
     )
 

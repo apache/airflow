@@ -33,7 +33,6 @@ with DAG(
     # [START postgres_operator_howto_guide_create_pet_table]
     create_pet_table = PostgresOperator(
         task_id="create_pet_table",
-        postgres_conn_id="postgres_default",
         sql="""
             CREATE TABLE IF NOT EXISTS pet (
             pet_id SERIAL PRIMARY KEY,
@@ -47,7 +46,6 @@ with DAG(
     # [START postgres_operator_howto_guide_populate_pet_table]
     populate_pet_table = PostgresOperator(
         task_id="populate_pet_table",
-        postgres_conn_id="postgres_default",
         sql="""
             INSERT INTO pet (name, pet_type, birth_date, OWNER)
             VALUES ( 'Max', 'Dog', '2018-07-05', 'Jane');
@@ -61,14 +59,11 @@ with DAG(
     )
     # [END postgres_operator_howto_guide_populate_pet_table]
     # [START postgres_operator_howto_guide_get_all_pets]
-    get_all_pets = PostgresOperator(
-        task_id="get_all_pets", postgres_conn_id="postgres_default", sql="SELECT * FROM pet;"
-    )
+    get_all_pets = PostgresOperator(task_id="get_all_pets", sql="SELECT * FROM pet;")
     # [END postgres_operator_howto_guide_get_all_pets]
     # [START postgres_operator_howto_guide_get_birth_date]
     get_birth_date = PostgresOperator(
         task_id="get_birth_date",
-        postgres_conn_id="postgres_default",
         sql="""
             SELECT * FROM pet
             WHERE birth_date

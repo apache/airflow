@@ -41,9 +41,9 @@ Extra (optional)
     Specify the extra parameters (as json dictionary) that can be used in spark connection. The following parameters out of the standard python parameters are supported:
 
     * ``queue`` - The name of the YARN queue to which the application is submitted.
-    * ``deploy_mode`` - Whether to deploy your driver on the worker nodes (cluster) or locally as an external client (client).
-    * ``spark_home`` - If passed then build the ``spark-binary`` executable path using it (``spark-home``/bin/``spark-binary``); otherwise assume that ``spark-binary`` is present in the PATH of the executing user.
-    * ``spark_binary`` - The command to use for Spark submit. Some distros may use ``spark2-submit``. Default ``spark-submit``.
+    * ``deploy-mode`` - Whether to deploy your driver on the worker nodes (cluster) or locally as an external client (client).
+    * ``spark-home`` - If passed then build the ``spark-binary`` executable path using it (``spark-home``/bin/``spark-binary``); otherwise assume that ``spark-binary`` is present in the PATH of the executing user.
+    * ``spark-binary`` - The command to use for Spark submit. Some distros may use ``spark2-submit``. Default ``spark-submit``.
     * ``namespace`` - Kubernetes namespace (``spark.kubernetes.namespace``) to divide cluster resources between multiple users (via resource quota).
 
 When specifying the connection in environment variable you should specify

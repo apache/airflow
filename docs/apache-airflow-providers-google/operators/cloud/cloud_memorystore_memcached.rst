@@ -25,10 +25,6 @@ Memcached service for Google Cloud. Applications running on Google Cloud can ach
 leveraging the highly scalable, available, secure Memcached service without the burden of managing complex
 Memcached deployments.
 
-.. contents::
-  :depth: 1
-  :local:
-
 Prerequisite Tasks
 ^^^^^^^^^^^^^^^^^^
 

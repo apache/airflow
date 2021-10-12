@@ -1765,15 +1765,19 @@ components:
         first_name:
           type: string
           description: The user firstname
+          minLength: 1
         last_name:
           type: string
           description: The user lastname
+          minLength: 1
         username:
           type: string
           description: The username
+          minLength: 1
         email:
           type: string
           description: The user's email
+          minLength: 1
         active:
           type: boolean
           description: Whether the user is active

@@ -246,6 +246,27 @@ class TestECSOperator(unittest.TestCase):
         client_mock.get_waiter.return_value.wait.assert_called_once_with(cluster='c', tasks=['arn'])
         assert sys.maxsize == client_mock.get_waiter.return_value.config.max_attempts
 
+    def test_check_success_tasks_raises_failed_to_start(self):
+        client_mock = mock.Mock()
+        self.ecs.arn = 'arn'
+        self.ecs.client = client_mock
+
+        client_mock.describe_tasks.return_value = {
+            'tasks': [
+                {
+                    'stopCode': 'TaskFailedToStart',
+                    'stoppedReason': 'Task failed to start',
+                    'containers': [{'name': 'foo', 'lastStatus': 'STOPPED'}],
+                }
+            ]
+        }
+
+        with pytest.raises(Exception) as ctx:
+            self.ecs._check_success_task()
+
+        assert str(ctx.value) == "The task failed to start due to: Task failed to start"
+        client_mock.describe_tasks.assert_called_once_with(cluster='c', tasks=['arn'])
+
     def test_check_success_tasks_raises_cloudwatch_logs(self):
         client_mock = mock.Mock()
         self.ecs.arn = 'arn'
@@ -286,6 +307,24 @@ class TestECSOperator(unittest.TestCase):
             self.ecs._check_success_task()
 
         assert str(ctx.value) == "This task is not in success state - last 10 logs from Cloudwatch:\n"
+        client_mock.describe_tasks.assert_called_once_with(cluster='c', tasks=['arn'])
+
+    def test_check_success_tasks_raises_logs_disabled(self):
+        client_mock = mock.Mock()
+        self.ecs.arn = 'arn'
+        self.ecs.client = client_mock
+
+        client_mock.describe_tasks.return_value = {
+            'tasks': [{'containers': [{'name': 'foo', 'lastStatus': 'STOPPED', 'exitCode': 1}]}]
+        }
+
+        with pytest.raises(Exception) as ctx:
+            self.ecs._check_success_task()
+
+        assert "This task is not in success state " in str(ctx.value)
+        assert "'name': 'foo'" in str(ctx.value)
+        assert "'lastStatus': 'STOPPED'" in str(ctx.value)
+        assert "'exitCode': 1" in str(ctx.value)
         client_mock.describe_tasks.assert_called_once_with(cluster='c', tasks=['arn'])
 
     def test_check_success_tasks_raises_pending(self):

@@ -573,6 +573,8 @@ def run_tasks(dag_bag, execution_date=DEFAULT_DATE, session=None):
             ti.refresh_from_task(dag.get_task(ti.task_id))
             tis[ti.task_id] = ti
             ti.run(session=session)
+            session.flush()
+            session.merge(ti)
             assert_ti_state_equal(ti, State.SUCCESS)
 
     return tis

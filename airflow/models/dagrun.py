@@ -78,13 +78,13 @@ class DagRun(Base, LoggingMixin):
     __NO_VALUE = object()
 
     id = Column(Integer, primary_key=True)
-    dag_id = Column(String(ID_LEN, **COLLATION_ARGS))
+    dag_id = Column(String(ID_LEN, **COLLATION_ARGS), nullable=False)
     queued_at = Column(UtcDateTime)
-    execution_date = Column(UtcDateTime, default=timezone.utcnow)
+    execution_date = Column(UtcDateTime, default=timezone.utcnow, nullable=False)
     start_date = Column(UtcDateTime)
     end_date = Column(UtcDateTime)
     _state = Column('state', String(50), default=State.QUEUED)
-    run_id = Column(String(ID_LEN, **COLLATION_ARGS))
+    run_id = Column(String(ID_LEN, **COLLATION_ARGS), nullable=False)
     creating_job_id = Column(Integer)
     external_trigger = Column(Boolean, default=True)
     run_type = Column(String(50), nullable=False)
@@ -124,7 +124,9 @@ class DagRun(Base, LoggingMixin):
         ),
     )
 
-    task_instances = relationship(TI, back_populates="dag_run")
+    task_instances = relationship(
+        TI, back_populates="dag_run", cascade='save-update, merge, delete, delete-orphan'
+    )
 
     DEFAULT_DAGRUNS_TO_EXAMINE = airflow_conf.getint(
         'scheduler',

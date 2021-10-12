@@ -59,7 +59,7 @@ Task Instances
 
 Much in the same way that a DAG is instantiated into a :ref:`DAG Run <concepts:dag-run>` each time it runs, the tasks under a DAG are instantiated into *Task Instances*.
 
-An instance of a Task is a specific run of that task for a given DAG (and thus for a given ``execution_date``). They are also the representation of a Task that has *state*, representing what stage of the lifecycle it is in.
+An instance of a Task is a specific run of that task for a given DAG (and thus for a given data interval). They are also the representation of a Task that has *state*, representing what stage of the lifecycle it is in.
 
 .. _concepts:task-states:
 
@@ -97,9 +97,9 @@ Firstly, it can have *upstream* and *downstream* tasks::
 
     task1 >> task2 >> task3
 
-When a DAG runs, it will create instances for each of these tasks that are upstream/downstream of each other, but which all have the same ``execution_date``.
+When a DAG runs, it will create instances for each of these tasks that are upstream/downstream of each other, but which all have the same data interval.
 
-There may also be instances of the *same task*, but for different values of ``execution_date`` - from other runs of the same DAG. We call these *previous* and *next* - it is a different relationship to *upstream* and *downstream*!
+There may also be instances of the *same task*, but for different data intervals - from other runs of the same DAG. We call these *previous* and *next* - it is a different relationship to *upstream* and *downstream*!
 
 .. note::
 

@@ -189,7 +189,7 @@ class LocalTaskJob(BaseJob):
             same_hostname = fqdn == ti.hostname
             if not same_hostname:
                 self.log.warning(
-                    "The recorded hostname %s " "does not match this instance's hostname " "%s",
+                    "The recorded hostname %s does not match this instance's hostname %s",
                     ti.hostname,
                     fqdn,
                 )
@@ -209,7 +209,7 @@ class LocalTaskJob(BaseJob):
                 raise AirflowException("PID of job runner does not match")
         elif self.task_runner.return_code() is None and hasattr(self.task_runner, 'process'):
             self.log.warning(
-                "State of this instance has been externally set to %s. " "Terminating instance.", ti.state
+                "State of this instance has been externally set to %s. Terminating instance.", ti.state
             )
             self.task_runner.terminate()
             if ti.state == State.SUCCESS:

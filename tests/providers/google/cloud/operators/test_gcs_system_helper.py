@@ -52,9 +52,12 @@ with open(source, "r") as src, open(destination, "w+") as dest:
 
     @staticmethod
     def remove_test_files():
-        os.remove(PATH_TO_UPLOAD_FILE)
-        os.remove(PATH_TO_SAVED_FILE)
-        os.remove(PATH_TO_TRANSFORM_SCRIPT)
+        if os.path.exists(PATH_TO_UPLOAD_FILE):
+            os.remove(PATH_TO_UPLOAD_FILE)
+        if os.path.exists(PATH_TO_SAVED_FILE):
+            os.remove(PATH_TO_SAVED_FILE)
+        if os.path.exists(PATH_TO_TRANSFORM_SCRIPT):
+            os.remove(PATH_TO_TRANSFORM_SCRIPT)
 
     def remove_bucket(self):
         self.execute_cmd(["gsutil", "rm", "-r", f"gs://{BUCKET_1}"])

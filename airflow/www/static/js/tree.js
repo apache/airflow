@@ -96,19 +96,21 @@ document.addEventListener('DOMContentLoaded', () => {
 
       // check that the dataInstance and the row are valid
       if (dataInstance && dataInstance.execution_date) {
-        if (row && row.length) {
-          const taskInstance = {
-            state: row[0],
-            try_number: row[1],
-            start_ts: row[2],
-            duration: row[3],
-          };
-          node.instances[j] = taskInstance;
+        const taskInstance = {
+          task_id: node.name,
+          operator: node.operator,
+          execution_date: dataInstance.execution_date,
+          external_trigger: dataInstance.external_trigger,
+        };
+        node.instances[j] = taskInstance;
 
-          taskInstance.task_id = node.name;
-          taskInstance.operator = node.operator;
-          taskInstance.execution_date = dataInstance.execution_date;
-          taskInstance.external_trigger = dataInstance.external_trigger;
+        if (row && row.length) {
+          [
+            taskInstance.state,
+            taskInstance.try_number,
+            taskInstance.start_ts,
+            taskInstance.duration,
+          ] = row;
 
           // compute start_date and end_date if applicable
           if (taskInstance.start_ts !== null) {
@@ -119,11 +121,6 @@ document.addEventListener('DOMContentLoaded', () => {
               taskInstance.end_date = toDateString(taskInstance.start_ts + taskInstance.duration);
             }
           }
-        } else {
-          node.instances[j] = {
-            task_id: node.name,
-            execution_date: dataInstance.execution_date,
-          };
         }
       }
     }
@@ -332,7 +329,15 @@ document.addEventListener('DOMContentLoaded', () => {
       .attr('ry', (d) => (isDagRun(d) ? '5' : '1'))
       .style('shape-rendering', (d) => (isDagRun(d) ? 'auto' : 'crispEdges'))
       .style('stroke-width', (d) => (isDagRun(d) ? '2' : '1'))
-      .style('stroke-opacity', (d) => (d.external_trigger ? '0' : '1'))
+      .style('stroke-opacity', (d) => {
+        if (!d.external_trigger) {
+          return 1;
+        }
+        if (!d.state) {
+          return 0.5;
+        }
+        return 0;
+      })
       .on('mouseover', function (d) {
         // Calculate duration if it doesn't exist
         const tt = tiTooltip({
@@ -343,7 +348,7 @@ document.addEventListener('DOMContentLoaded', () => {
         taskTip.direction('n');
         taskTip.show(tt, this);
         d3.select(this).transition().duration(duration)
-          .style('stroke-width', 3);
+          .style('stroke-width', (dd) => (dd.external_trigger ? '1' : '3'));
       })
       .on('mouseout', function (d) {
         taskTip.hide(d);

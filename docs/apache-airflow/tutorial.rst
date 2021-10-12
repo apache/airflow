@@ -288,11 +288,17 @@ Let's run a few commands to validate this script further.
 
 Testing
 '''''''
-Let's test by running the actual task instances for a specific date. The
-date specified in this context is called ``execution_date``. This is the
-*logical* date, which simulates the scheduler running your task or dag at
-a specific date and time, even though it *physically* will run now (
-or as soon as its dependencies are met).
+Let's test by running the actual task instances for a specific date. The date
+specified in this context is called the *logical date* (also called *execution
+date* for historical reasons), which simulates the scheduler running your task
+or DAG for a specific date and time, even though it *physically* will run now
+(or as soon as its dependencies are met).
+
+We said the scheduler runs your task *for* a specific date and time, not *at*.
+This is because each run of a DAG conceptually represents not a specific date
+and time, but an interval between two times, called a
+:ref:`data interval <data-interval>`. A DAG run's logical date is the start of
+its data interval.
 
 .. code-block:: bash
 
@@ -320,10 +326,11 @@ their log to stdout (on screen), does not bother with dependencies, and
 does not communicate state (running, success, failed, ...) to the database.
 It simply allows testing a single task instance.
 
-The same applies to ``airflow dags test [dag_id] [execution_date]``, but on a DAG level. It performs a single
-DAG run of the given DAG id. While it does take task dependencies into account, no state is registered in the
-database. It is convenient for locally testing a full run of your DAG, given that e.g. if one of your tasks
-expects data at some location, it is available.
+The same applies to ``airflow dags test [dag_id] [logical_date]``, but on a DAG
+level. It performs a single DAG run of the given DAG id. While it does take task
+dependencies into account, no state is registered in the database. It is
+convenient for locally testing a full run of your DAG, given that e.g. if one of
+your tasks expects data at some location, it is available.
 
 Backfill
 ''''''''
@@ -335,9 +342,9 @@ are interested in tracking the progress visually as your backfill progresses.
 
 Note that if you use ``depends_on_past=True``, individual task instances
 will depend on the success of their previous task instance (that is, previous
-according to ``execution_date``). Task instances with ``execution_date==start_date``
-will disregard this dependency because there would be no
-past task instances created for them.
+according to the logical date). Task instances with their logical dates equal to
+``start_date`` will disregard this dependency because there would be no past
+task instances created for them.
 
 You may also want to consider ``wait_for_downstream=True`` when using ``depends_on_past=True``.
 While ``depends_on_past=True`` causes a task instance to depend on the success

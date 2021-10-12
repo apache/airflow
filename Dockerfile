@@ -34,13 +34,12 @@
 #                        much smaller.
 #
 ARG AIRFLOW_VERSION="2.2.0.dev0"
-ARG AIRFLOW_EXTRAS="async,amazon,celery,cncf.kubernetes,docker,dask,elasticsearch,ftp,grpc,hashicorp,http,ldap,google,google_auth,microsoft.azure,mysql,pandas,postgres,redis,sendgrid,sftp,slack,ssh,statsd,virtualenv"
+ARG AIRFLOW_EXTRAS="amazon,async,celery,cncf.kubernetes,dask,docker,elasticsearch,ftp,google,google_auth,grpc,hashicorp,http,ldap,microsoft.azure,mysql,odbc,pandas,postgres,redis,sendgrid,sftp,slack,ssh,statsd,virtualenv"
 ARG ADDITIONAL_AIRFLOW_EXTRAS=""
 ARG ADDITIONAL_PYTHON_DEPS=""
 
 ARG AIRFLOW_HOME=/opt/airflow
 ARG AIRFLOW_UID="50000"
-ARG AIRFLOW_GID="50000"
 
 ARG PYTHON_BASE_IMAGE="python:3.6-slim-buster"
 
@@ -134,6 +133,7 @@ RUN mkdir -pv /usr/share/man/man1 \
     && rm -rf /var/lib/apt/lists/*
 
 ARG INSTALL_MYSQL_CLIENT="true"
+ARG INSTALL_MSSQL_CLIENT="true"
 ARG AIRFLOW_REPO=apache/airflow
 ARG AIRFLOW_BRANCH=main
 ARG AIRFLOW_EXTRAS
@@ -174,6 +174,7 @@ ARG AIRFLOW_SOURCES_FROM="empty"
 ARG AIRFLOW_SOURCES_TO="/empty"
 
 ENV INSTALL_MYSQL_CLIENT=${INSTALL_MYSQL_CLIENT} \
+    INSTALL_MSSQL_CLIENT=${INSTALL_MSSQL_CLIENT} \
     AIRFLOW_REPO=${AIRFLOW_REPO} \
     AIRFLOW_BRANCH=${AIRFLOW_BRANCH} \
     AIRFLOW_EXTRAS=${AIRFLOW_EXTRAS}${ADDITIONAL_AIRFLOW_EXTRAS:+,}${ADDITIONAL_AIRFLOW_EXTRAS} \
@@ -192,7 +193,9 @@ ENV INSTALL_MYSQL_CLIENT=${INSTALL_MYSQL_CLIENT} \
     UPGRADE_TO_NEWER_DEPENDENCIES=${UPGRADE_TO_NEWER_DEPENDENCIES}
 
 COPY scripts/docker/*.sh /scripts/docker/
-RUN bash ./scripts/docker/install_mysql.sh dev
+RUN bash ./scripts/docker/install_mysql.sh dev \
+    && bash ./scripts/docker/install_mssql.sh
+ENV PATH=${PATH}:/opt/mssql-tools/bin
 
 COPY docker-context-files /docker-context-files
 
@@ -237,7 +240,8 @@ ARG INSTALL_FROM_PYPI="true"
 # * certifi<2021.0.0 required to keep snowflake happy
 # * pyjwt<2.0.0: flask-jwt-extended requires it
 # * dill<0.3.3 required by apache-beam
-ARG EAGER_UPGRADE_ADDITIONAL_REQUIREMENTS="pyjwt<2.0.0 dill<0.3.3 certifi<2021.0.0"
+# * google-ads<14.0.1 required to prevent updating google-python-api>=2.0.0
+ARG EAGER_UPGRADE_ADDITIONAL_REQUIREMENTS="pyjwt<2.0.0 dill<0.3.3 certifi<2021.0.0 google-ads<14.0.1"
 
 ENV ADDITIONAL_PYTHON_DEPS=${ADDITIONAL_PYTHON_DEPS} \
     INSTALL_FROM_DOCKER_CONTEXT_FILES=${INSTALL_FROM_DOCKER_CONTEXT_FILES} \
@@ -309,15 +313,13 @@ FROM ${PYTHON_BASE_IMAGE} as main
 SHELL ["/bin/bash", "-o", "pipefail", "-e", "-u", "-x", "-c"]
 
 ARG AIRFLOW_UID
-ARG AIRFLOW_GID
 
 LABEL org.apache.airflow.distro="debian" \
   org.apache.airflow.distro.version="buster" \
   org.apache.airflow.module="airflow" \
   org.apache.airflow.component="airflow" \
   org.apache.airflow.image="airflow" \
-  org.apache.airflow.uid="${AIRFLOW_UID}" \
-  org.apache.airflow.gid="${AIRFLOW_GID}"
+  org.apache.airflow.uid="${AIRFLOW_UID}"
 
 ARG PYTHON_BASE_IMAGE
 ARG AIRFLOW_PIP_VERSION
@@ -374,6 +376,7 @@ ARG RUNTIME_APT_COMMAND="echo"
 ARG ADDITIONAL_RUNTIME_APT_COMMAND=""
 ARG ADDITIONAL_RUNTIME_APT_ENV=""
 ARG INSTALL_MYSQL_CLIENT="true"
+ARG INSTALL_MSSQL_CLIENT="true"
 ARG AIRFLOW_USER_HOME_DIR=/home/airflow
 ARG AIRFLOW_HOME
 # Having the variable in final image allows to disable providers manager warnings when
@@ -391,7 +394,8 @@ ENV RUNTIME_APT_DEPS=${RUNTIME_APT_DEPS} \
     RUNTIME_APT_COMMAND=${RUNTIME_APT_COMMAND} \
     ADDITIONAL_RUNTIME_APT_COMMAND=${ADDITIONAL_RUNTIME_APT_COMMAND} \
     INSTALL_MYSQL_CLIENT=${INSTALL_MYSQL_CLIENT} \
-    AIRFLOW_UID=${AIRFLOW_UID} AIRFLOW_GID=${AIRFLOW_GID} \
+    INSTALL_MSSQL_CLIENT=${INSTALL_MSSQL_CLIENT} \
+    AIRFLOW_UID=${AIRFLOW_UID} \
     AIRFLOW__CORE__LOAD_EXAMPLES="false" \
     AIRFLOW_USER_HOME_DIR=${AIRFLOW_USER_HOME_DIR} \
     AIRFLOW_HOME=${AIRFLOW_HOME} \
@@ -418,16 +422,16 @@ RUN mkdir -pv /usr/share/man/man1 \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
-# Only copy install_mysql and install_pip_version.sh. We do not need any other scripts in the final image.
-COPY scripts/docker/install_mysql.sh scripts/docker/install_pip_version.sh /scripts/docker/
+# Only copy install_m(y/s)sql and install_pip_version.sh. We do not need any other scripts in the final image.
+COPY scripts/docker/install_mysql.sh /scripts/docker/install_mssql.sh scripts/docker/install_pip_version.sh \
+   /scripts/docker/
 
 # fix permission issue in Azure DevOps when running the scripts
 RUN chmod a+x /scripts/docker/install_mysql.sh && \
     /scripts/docker/install_mysql.sh prod && \
-    addgroup --gid "${AIRFLOW_GID}" "airflow" && \
-    adduser --quiet "airflow" --uid "${AIRFLOW_UID}" \
-        --gid "${AIRFLOW_GID}" \
-        --home "${AIRFLOW_USER_HOME_DIR}" && \
+    chmod a+x /scripts/docker/install_mssql.sh && \
+    /scripts/docker/install_mssql.sh && \
+    adduser --quiet "airflow" --uid "${AIRFLOW_UID}" --gid "0" --home "${AIRFLOW_USER_HOME_DIR}" && \
 # Make Airflow files belong to the root group and are accessible. This is to accommodate the guidelines from
 # OpenShift https://docs.openshift.com/enterprise/3.0/creating_images/guidelines.html
     mkdir -pv "${AIRFLOW_HOME}"; \
@@ -452,7 +456,7 @@ WORKDIR ${AIRFLOW_HOME}
 
 EXPOSE 8080
 
-RUN usermod -g 0 airflow -G ${AIRFLOW_GID}
+RUN usermod -g 0 airflow -G 0
 
 USER ${AIRFLOW_UID}
 
@@ -463,7 +467,6 @@ LABEL org.apache.airflow.distro="debian" \
   org.apache.airflow.image="airflow" \
   org.apache.airflow.version="${AIRFLOW_VERSION}" \
   org.apache.airflow.uid="${AIRFLOW_UID}" \
-  org.apache.airflow.gid="${AIRFLOW_GID}" \
   org.apache.airflow.main-image.build-id="${BUILD_ID}" \
   org.apache.airflow.main-image.commit-sha="${COMMIT_SHA}" \
   org.opencontainers.image.source="${AIRFLOW_IMAGE_REPOSITORY}" \

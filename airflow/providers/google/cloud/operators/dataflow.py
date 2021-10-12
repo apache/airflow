@@ -657,7 +657,7 @@ class DataflowTemplatedJobStartOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.delegate_to = delegate_to
         self.poll_sleep = poll_sleep
-        self.job_id = None
+        self.job = None
         self.hook: Optional[DataflowHook] = None
         self.impersonation_chain = impersonation_chain
         self.environment = environment
@@ -674,8 +674,8 @@ class DataflowTemplatedJobStartOperator(BaseOperator):
             wait_until_finished=self.wait_until_finished,
         )
 
-        def set_current_job_id(job_id):
-            self.job_id = job_id
+        def set_current_job(current_job):
+            self.job = current_job
 
         options = self.dataflow_default_options
         options.update(self.options)
@@ -684,7 +684,7 @@ class DataflowTemplatedJobStartOperator(BaseOperator):
             variables=options,
             parameters=self.parameters,
             dataflow_template=self.template,
-            on_new_job_id_callback=set_current_job_id,
+            on_new_job_callback=set_current_job,
             project_id=self.project_id,
             location=self.location,
             environment=self.environment,
@@ -694,8 +694,12 @@ class DataflowTemplatedJobStartOperator(BaseOperator):
 
     def on_kill(self) -> None:
         self.log.info("On kill.")
-        if self.job_id:
-            self.hook.cancel_job(job_id=self.job_id, project_id=self.project_id)
+        if self.job:
+            self.hook.cancel_job(
+                job_id=self.job.get("id"),
+                project_id=self.job.get("projectId"),
+                location=self.job.get("location"),
+            )
 
 
 class DataflowStartFlexTemplateOperator(BaseOperator):
@@ -787,7 +791,7 @@ class DataflowStartFlexTemplateOperator(BaseOperator):
         self.drain_pipeline = drain_pipeline
         self.cancel_timeout = cancel_timeout
         self.wait_until_finished = wait_until_finished
-        self.job_id = None
+        self.job = None
         self.hook: Optional[DataflowHook] = None
 
     def execute(self, context):
@@ -799,22 +803,26 @@ class DataflowStartFlexTemplateOperator(BaseOperator):
             wait_until_finished=self.wait_until_finished,
         )
 
-        def set_current_job_id(job_id):
-            self.job_id = job_id
+        def set_current_job(current_job):
+            self.job = current_job
 
         job = self.hook.start_flex_template(
             body=self.body,
             location=self.location,
             project_id=self.project_id,
-            on_new_job_id_callback=set_current_job_id,
+            on_new_job_callback=set_current_job,
         )
 
         return job
 
     def on_kill(self) -> None:
         self.log.info("On kill.")
-        if self.job_id:
-            self.hook.cancel_job(job_id=self.job_id, project_id=self.project_id)
+        if self.job:
+            self.hook.cancel_job(
+                job_id=self.job.get("id"),
+                project_id=self.job.get("projectId"),
+                location=self.job.get("location"),
+            )
 
 
 class DataflowStartSqlJobOperator(BaseOperator):
@@ -890,7 +898,7 @@ class DataflowStartSqlJobOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.delegate_to = delegate_to
         self.drain_pipeline = drain_pipeline
-        self.job_id = None
+        self.job = None
         self.hook: Optional[DataflowHook] = None
 
     def execute(self, context):
@@ -900,8 +908,8 @@ class DataflowStartSqlJobOperator(BaseOperator):
             drain_pipeline=self.drain_pipeline,
         )
 
-        def set_current_job_id(job_id):
-            self.job_id = job_id
+        def set_current_job(current_job):
+            self.job = current_job
 
         job = self.hook.start_sql_job(
             job_name=self.job_name,
@@ -909,15 +917,19 @@ class DataflowStartSqlJobOperator(BaseOperator):
             options=self.options,
             location=self.location,
             project_id=self.project_id,
-            on_new_job_id_callback=set_current_job_id,
+            on_new_job_callback=set_current_job,
         )
 
         return job
 
     def on_kill(self) -> None:
         self.log.info("On kill.")
-        if self.job_id:
-            self.hook.cancel_job(job_id=self.job_id, project_id=self.project_id)
+        if self.job:
+            self.hook.cancel_job(
+                job_id=self.job.get("id"),
+                project_id=self.job.get("projectId"),
+                location=self.job.get("location"),
+            )
 
 
 class DataflowCreatePythonJobOperator(BaseOperator):

@@ -130,6 +130,7 @@ EnvVar
 ExaConnection
 Exasol
 Failover
+Fargate
 Fernet
 FileSensor
 Filebeat
@@ -175,6 +176,7 @@ HttpRequest
 IdP
 ImageAnnotatorClient
 Imap
+Influxdb
 InsecureClient
 InspectContentResponse
 InspectTemplate
@@ -228,6 +230,7 @@ Memorystore
 Mesos
 MessageAttributes
 Metastore
+Midnights
 Mixin
 Mongo
 Moto
@@ -259,6 +262,7 @@ PTarget
 Pagerduty
 Papermill
 Parallelize
+Parameterized
 Parameterizing
 Paramiko
 Params
@@ -356,7 +360,7 @@ Tez
 Thinknear
 ToC
 Tooltip
-Tuneables
+Tunables
 UA
 Umask
 Un
@@ -402,6 +406,7 @@ acknowledgement
 actionCard
 acyclic
 adhoc
+adls
 airbnb
 airbyte
 airflowignore
@@ -578,6 +583,7 @@ createDisposition
 creationTimestamp
 credssp
 cron
+croniter
 cronjob
 crontab
 crypto
@@ -725,6 +731,7 @@ faas
 facebook
 failover
 faq
+fargate
 fbee
 fc
 feedCard
@@ -840,6 +847,7 @@ impyla
 incompliancies
 inexhaustive
 infile
+influxdb
 infoType
 infoTypes
 ini
@@ -953,6 +961,7 @@ mget
 microservice
 microsoft
 middleware
+midnights
 milton
 minicluster
 minikube
@@ -1317,6 +1326,7 @@ texttospeech
 tez
 theService
 timedelta
+timedeltas
 timeframe
 timezones
 tis
@@ -1338,6 +1348,7 @@ trino
 trojan
 tsv
 ttl
+tunables
 txt
 tz
 tzinfo

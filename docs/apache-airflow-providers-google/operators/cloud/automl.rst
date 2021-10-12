@@ -24,19 +24,12 @@ of machine learning. You can use AutoML to build on Google's machine learning ca
 to create your own custom machine learning models that are tailored to your business needs,
 and then integrate those models into your applications and web sites.
 
-.. contents::
-  :depth: 1
-  :local:
-
 Prerequisite Tasks
 ^^^^^^^^^^^^^^^^^^
 
 .. include::/operators/_partials/prerequisite_tasks.rst
 
-
 .. _howto/operator:CloudAutoMLDocuments:
-
-
 .. _howto/operator:AutoMLCreateDatasetOperator:
 .. _howto/operator:AutoMLImportDataOperator:
 .. _howto/operator:AutoMLTablesUpdateDatasetOperator:
