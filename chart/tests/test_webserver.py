@@ -225,11 +225,11 @@ class WebserverDeploymentTest(unittest.TestCase):
             assert {
                 "name": "logs",
                 "persistentVolumeClaim": {"claimName": expected_claim_name},
-            } == jmespath.search("spec.template.spec.volumes[1]", docs[0])
+            } in jmespath.search("spec.template.spec.volumes", docs[0])
             assert {
                 "name": "logs",
                 "mountPath": "/opt/airflow/logs",
-            } == jmespath.search("spec.template.spec.containers[0].volumeMounts[1]", docs[0])
+            } in jmespath.search("spec.template.spec.containers[0].volumeMounts", docs[0])
         else:
             assert "logs" not in [v["name"] for v in jmespath.search("spec.template.spec.volumes", docs[0])]
             assert "logs" not in [

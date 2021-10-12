@@ -160,7 +160,7 @@ class SerializedDagModel(Base):
             log.debug("Deserializing DAG: %s", row.dag_id)
             dag = row.dag
 
-            # Sanity check.
+            # Coherence check
             if dag.dag_id == row.dag_id:
                 dags[row.dag_id] = dag
             else:

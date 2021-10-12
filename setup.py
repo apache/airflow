@@ -293,6 +293,7 @@ google = [
     'google-cloud-automl>=2.1.0,<3.0.0',
     'google-cloud-bigquery-datatransfer>=3.0.0,<4.0.0',
     'google-cloud-bigtable>=1.0.0,<2.0.0',
+    'google-cloud-build>=3.0.0,<4.0.0',
     'google-cloud-container>=0.1.1,<2.0.0',
     'google-cloud-datacatalog>=3.0.0,<4.0.0',
     'google-cloud-dataproc>=2.2.0,<3.0.0',
@@ -506,12 +507,11 @@ devel = [
     'freezegun',
     'github3.py',
     'gitpython',
-    'importlib-resources~=1.4',
     'ipdb',
     'jira',
     'jsondiff',
     'mongomock',
-    'moto~=2.2, >=2.2.1.dev9',
+    'moto~=2.2, >=2.2.7',
     'mypy==0.770',
     'parameterized',
     'paramiko',
@@ -1037,4 +1037,4 @@ def do_setup() -> None:
 
 
 if __name__ == "__main__":
-    do_setup()
+    do_setup()  # comment

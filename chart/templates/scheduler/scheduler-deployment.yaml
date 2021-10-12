@@ -106,7 +106,7 @@ spec:
         - name: wait-for-airflow-migrations
           resources:
 {{ toYaml .Values.scheduler.resources | indent 12 }}
-          image: {{ template "airflow_image" . }}
+          image: {{ template "airflow_image_for_migrations" . }}
           imagePullPolicy: {{ .Values.images.airflow.pullPolicy }}
           args:
           {{- include "wait-for-migrations-command" . | indent 10 }}

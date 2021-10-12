@@ -15,6 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
+import os
 from unittest import mock
 
 import flask
@@ -128,7 +129,7 @@ def working_dags(tmpdir):
 
     with create_session() as session:
         for dag_id in TEST_FILTER_DAG_IDS:
-            filename = tmpdir / f"{dag_id}.py"
+            filename = os.path.join(tmpdir, f"{dag_id}.py")
             with open(filename, "w") as f:
                 f.writelines(dag_contents_template.format(dag_id))
             _process_file(filename, session)
@@ -138,7 +139,7 @@ def working_dags(tmpdir):
 def broken_dags(tmpdir, working_dags):
     with create_session() as session:
         for dag_id in TEST_FILTER_DAG_IDS:
-            filename = tmpdir / f"{dag_id}.py"
+            filename = os.path.join(tmpdir, f"{dag_id}.py")
             with open(filename, "w") as f:
                 f.writelines('airflow DAG')
             _process_file(filename, session)
@@ -152,9 +153,10 @@ def test_home_importerrors(broken_dags, user_client):
         check_content_in_response(f"/{dag_id}.py", resp)
 
 
-def test_home_importerrors_filtered_singledag_user(broken_dags, client_single_dag):
+@pytest.mark.parametrize('page', ['home', 'home?status=active', 'home?status=paused', 'home?status=all'])
+def test_home_importerrors_filtered_singledag_user(broken_dags, client_single_dag, page):
     # Users that can only see certain DAGs get a filtered list of import errors
-    resp = client_single_dag.get('home', follow_redirects=True)
+    resp = client_single_dag.get(page, follow_redirects=True)
     check_content_in_response("Import Errors", resp)
     # They can see the first DAGs import error
     check_content_in_response(f"/{TEST_FILTER_DAG_IDS[0]}.py", resp)
@@ -178,3 +180,9 @@ def test_home_dag_list_filtered_singledag_user(working_dags, client_single_dag):
     # But not the rest
     for dag_id in TEST_FILTER_DAG_IDS[1:]:
         check_content_not_in_response(f"dag_id={dag_id}", resp)
+
+
+def test_home_robots_header_in_response(user_client):
+    # Responses should include X-Robots-Tag header
+    resp = user_client.get('home', follow_redirects=True)
+    assert resp.headers['X-Robots-Tag'] == 'noindex, nofollow'

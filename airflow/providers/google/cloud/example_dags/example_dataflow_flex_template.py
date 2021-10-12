@@ -46,7 +46,7 @@ BQ_FLEX_TEMPLATE_LOCATION = os.environ.get('GCP_DATAFLOW_BQ_FLEX_TEMPLATE_LOCATI
 with models.DAG(
     dag_id="example_gcp_dataflow_flex_template_java",
     start_date=days_ago(1),
-    schedule_interval=None,  # Override to match your needs
+    schedule_interval='@once',  # Override to match your needs
 ) as dag_flex_template:
     # [START howto_operator_start_template_job]
     start_flex_template = DataflowStartFlexTemplateOperator(

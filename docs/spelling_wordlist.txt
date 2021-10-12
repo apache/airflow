@@ -342,6 +342,7 @@ TCP
 TLS
 TTY
 TZ
+TaskFlow
 TaskGroup
 TaskGroups
 TaskInstance
@@ -704,6 +705,7 @@ envvar
 eol
 eols
 errno
+errored
 eslint
 etl
 europe
@@ -714,7 +716,7 @@ evo
 exasol
 execvp
 exitcode
-explict
+explicit
 exportingmultiple
 extensibility
 externalbrowser
@@ -746,6 +748,8 @@ fn
 fo
 followsa
 formatter
+forwardability
+forwardable
 fot
 fqdn
 frontend
@@ -1040,6 +1044,7 @@ parameterizing
 paramiko
 params
 passwd
+pathType
 pem
 performant
 personalizations

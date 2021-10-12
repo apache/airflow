@@ -117,7 +117,7 @@ class DatabricksHook(BaseHook):
     ) -> None:
         super().__init__()
         self.databricks_conn_id = databricks_conn_id
-        self.databricks_conn = self.get_connection(databricks_conn_id)
+        self.databricks_conn = None
         self.timeout_seconds = timeout_seconds
         if retry_limit < 1:
             raise ValueError('Retry limit must be greater than equal to 1')
@@ -165,6 +165,8 @@ class DatabricksHook(BaseHook):
         :rtype: dict
         """
         method, endpoint = endpoint_info
+
+        self.databricks_conn = self.get_connection(self.databricks_conn_id)
 
         if 'token' in self.databricks_conn.extra_dejson:
             self.log.info('Using token auth. ')

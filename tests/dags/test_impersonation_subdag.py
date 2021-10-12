@@ -15,7 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
+import warnings
 from datetime import datetime
 
 from airflow.models import DAG
@@ -43,6 +43,7 @@ PythonOperator(python_callable=print_today, task_id='exec_python_fn', dag=subdag
 BashOperator(task_id='exec_bash_operator', bash_command='echo "Running within SubDag"', dag=subdag)
 
 
-subdag_operator = SubDagOperator(
-    task_id='test_subdag_operation', subdag=subdag, mode='reschedule', poke_interval=1, dag=dag
-)
+with warnings.catch_warnings(record=True):
+    subdag_operator = SubDagOperator(
+        task_id='test_subdag_operation', subdag=subdag, mode='reschedule', poke_interval=1, dag=dag
+    )

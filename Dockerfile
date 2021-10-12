@@ -339,6 +339,9 @@ RUN apt-get update \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
+# As of August 2021, Debian buster-slim does not include Python2 by default and we need it
+# as we still support running Python2 via PythonVirtualenvOperator
+# TODO: Remove python2 when we stop supporting it
 ARG RUNTIME_APT_DEPS="\
        apt-transport-https \
        apt-utils \
@@ -360,6 +363,7 @@ ARG RUNTIME_APT_DEPS="\
        netcat \
        openssh-client \
        postgresql-client \
+       python2 \
        rsync \
        sasl2-bin \
        sqlite3 \
@@ -475,6 +479,10 @@ LABEL org.apache.airflow.distro="debian" \
   org.opencontainers.image.title="Production Airflow Image" \
   org.opencontainers.image.description="Reference, production-ready Apache Airflow image"
 
+
+# See https://airflow.apache.org/docs/docker-stack/entrypoint.html#signal-propagation
+# to learn more about the way how signals are handled by the image
+ENV DUMB_INIT_SETSID="1"
 
 ENTRYPOINT ["/usr/bin/dumb-init", "--", "/entrypoint"]
 CMD []

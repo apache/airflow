@@ -25,6 +25,7 @@ import warnings
 from typing import Optional
 
 import pendulum
+import sqlalchemy
 from sqlalchemy import create_engine, exc
 from sqlalchemy.engine import Engine
 from sqlalchemy.orm import scoped_session, sessionmaker
@@ -234,6 +235,27 @@ def configure_orm(disable_connection_pool=False):
             expire_on_commit=False,
         )
     )
+    if engine.dialect.name == 'mssql':
+        session = Session()
+        try:
+            result = session.execute(
+                sqlalchemy.text(
+                    'SELECT is_read_committed_snapshot_on FROM sys.databases WHERE name=:database_name'
+                ),
+                params={"database_name": engine.url.database},
+            )
+            data = result.fetchone()[0]
+            if data != 1:
+                log.critical("MSSQL database MUST have READ_COMMITTED_SNAPSHOT enabled.")
+                log.critical(f"The database {engine.url.database} has it disabled.")
+                log.critical("This will cause random deadlocks, Refusing to start.")
+                log.critical(
+                    "See https://airflow.apache.org/docs/apache-airflow/stable/howto/"
+                    "set-up-database.html#setting-up-a-mssql-database"
+                )
+                raise Exception("MSSQL database MUST have READ_COMMITTED_SNAPSHOT enabled.")
+        finally:
+            session.close()
 
 
 def prepare_engine_args(disable_connection_pool=False):
@@ -292,7 +314,13 @@ def prepare_engine_args(disable_connection_pool=False):
     # 'READ COMMITTED' is the default value for PostgreSQL.
     # More information here:
     # https://dev.mysql.com/doc/refman/8.0/en/innodb-transaction-isolation-levels.html"
-    if SQL_ALCHEMY_CONN.startswith('mysql'):
+
+    # Similarly MSSQL default isolation level should be set to READ COMMITTED.
+    # We also make sure that READ_COMMITTED_SNAPSHOT option is on, in order to avoid deadlocks when
+    # Select queries are running. This is by default enforced during init/upgrade. More information:
+    # https://docs.microsoft.com/en-us/sql/t-sql/statements/set-transaction-isolation-level-transact-sql
+
+    if SQL_ALCHEMY_CONN.startswith(('mysql', 'mssql')):
         engine_args['isolation_level'] = 'READ COMMITTED'
 
     return engine_args

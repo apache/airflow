@@ -34,6 +34,7 @@ from typing import TYPE_CHECKING, Callable, Optional, TypeVar, cast
 from airflow import settings
 from airflow.exceptions import AirflowException
 from airflow.utils import cli_action_loggers
+from airflow.utils.log.non_caching_file_handler import NonCachingFileHandler
 from airflow.utils.platform import getuser, is_terminal_support_colors
 from airflow.utils.session import provide_session
 
@@ -244,7 +245,7 @@ def setup_locations(process, pid=None, stdout=None, stderr=None, log=None):
 def setup_logging(filename):
     """Creates log file handler for daemon process"""
     root = logging.getLogger()
-    handler = logging.FileHandler(filename)
+    handler = NonCachingFileHandler(filename)
     formatter = logging.Formatter(settings.SIMPLE_LOG_FORMAT)
     handler.setFormatter(formatter)
     root.addHandler(handler)

@@ -36,6 +36,12 @@ class CustomSerializationTimetable(Timetable):
     def deserialize(cls, data):
         return cls(data["value"])
 
+    def __eq__(self, other) -> bool:
+        """Only for testing purposes."""
+        if not isinstance(other, CustomSerializationTimetable):
+            return False
+        return self.value == other.value
+
     def serialize(self):
         return {"value": self.value}
 

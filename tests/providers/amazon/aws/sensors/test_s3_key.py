@@ -24,8 +24,7 @@ import pytest
 from parameterized import parameterized
 
 from airflow.exceptions import AirflowException
-from airflow.models import TaskInstance
-from airflow.models.dag import DAG
+from airflow.models import DAG, DagRun, TaskInstance
 from airflow.models.variable import Variable
 from airflow.providers.amazon.aws.sensors.s3_key import S3KeySensor, S3KeySizeSensor
 
@@ -90,7 +89,9 @@ class TestS3KeySensor(unittest.TestCase):
             dag=dag,
         )
 
-        ti = TaskInstance(task=op, execution_date=execution_date)
+        dag_run = DagRun(dag_id=dag.dag_id, execution_date=execution_date, run_id="test")
+        ti = TaskInstance(task=op)
+        ti.dag_run = dag_run
         context = ti.get_template_context()
         ti.render_templates(context)
 

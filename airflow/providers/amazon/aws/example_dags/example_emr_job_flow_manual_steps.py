@@ -44,10 +44,11 @@ SPARK_STEPS = [
 JOB_FLOW_OVERRIDES = {
     'Name': 'PiCalc',
     'ReleaseLabel': 'emr-5.29.0',
+    'Applications': [{'Name': 'Spark'}],
     'Instances': {
         'InstanceGroups': [
             {
-                'Name': 'Master node',
+                'Name': 'Primary node',
                 'Market': 'SPOT',
                 'InstanceRole': 'MASTER',
                 'InstanceType': 'm1.medium',

@@ -48,6 +48,7 @@ import attr
 import jinja2
 from dateutil.relativedelta import relativedelta
 from sqlalchemy.orm import Session
+from sqlalchemy.orm.exc import NoResultFound
 
 import airflow.templates
 from airflow.compat.functools import cached_property
@@ -55,6 +56,7 @@ from airflow.configuration import conf
 from airflow.exceptions import AirflowException, TaskDeferred
 from airflow.lineage import apply_lineage, prepare_lineage
 from airflow.models.base import Operator
+from airflow.models.param import ParamsDict
 from airflow.models.pool import Pool
 from airflow.models.taskinstance import Context, TaskInstance, clear_task_instances
 from airflow.models.taskmixin import TaskMixin
@@ -147,7 +149,7 @@ class BaseOperatorMeta(abc.ABCMeta):
             dag = kwargs.get('dag') or DagContext.get_current_dag()
             if dag:
                 dag_args = copy.copy(dag.default_args) or {}
-                dag_params = copy.copy(dag.params) or {}
+                dag_params = copy.deepcopy(dag.params) or {}
                 task_group = TaskGroupContext.get_current_task_group(dag)
                 if task_group:
                     dag_args.update(task_group.default_args)
@@ -352,10 +354,14 @@ class BaseOperator(Operator, LoggingMixin, TaskMixin, metaclass=BaseOperatorMeta
     :param pre_execute: a function to be called immediately before task
         execution, receiving a context dictionary; raising an exception will
         prevent the task from being executed.
+
+        |experimental|
     :type pre_execute: TaskPreExecuteHook
     :param post_execute: a function to be called immediately after task
         execution, receiving a context dictionary and task result; raising an
         exception will prevent the task from succeeding.
+
+        |experimental|
     :type post_execute: TaskPostExecuteHook
     :param trigger_rule: defines the rule by which dependencies are applied
         for the task to get triggered. Options are:
@@ -628,7 +634,7 @@ class BaseOperator(Operator, LoggingMixin, TaskMixin, metaclass=BaseOperatorMeta
                 self.log.debug("max_retry_delay isn't a timedelta object, assuming secs")
                 self.max_retry_delay = timedelta(seconds=max_retry_delay)
 
-        self.params = params or {}  # Available in templates!
+        self.params = ParamsDict(params)
         if priority_weight is not None and not isinstance(priority_weight, int):
             raise AirflowException(
                 f"`priority_weight` for task '{self.task_id}' only accepts integers, "
@@ -1087,7 +1093,7 @@ class BaseOperator(Operator, LoggingMixin, TaskMixin, metaclass=BaseOperatorMeta
             jinja_env = self.get_template_env()
 
         # Imported here to avoid circular dependency
-        from airflow.models.dagparam import DagParam
+        from airflow.models.param import DagParam
         from airflow.models.xcom_arg import XComArg
 
         if isinstance(content, str):
@@ -1167,12 +1173,10 @@ class BaseOperator(Operator, LoggingMixin, TaskMixin, metaclass=BaseOperatorMeta
                         self.log.exception(e)
                 elif isinstance(content, list):
                     env = self.dag.get_template_env()
-                    for i in range(len(content)):
-                        if isinstance(content[i], str) and any(
-                            content[i].endswith(ext) for ext in self.template_ext
-                        ):
+                    for i, item in enumerate(content):
+                        if isinstance(item, str) and any(item.endswith(ext) for ext in self.template_ext):
                             try:
-                                content[i] = env.loader.get_source(env, content[i])[0]
+                                content[i] = env.loader.get_source(env, item)[0]
                             except Exception as e:
                                 self.log.exception(e)
         self.prepare_template()
@@ -1284,6 +1288,7 @@ class BaseOperator(Operator, LoggingMixin, TaskMixin, metaclass=BaseOperatorMeta
         dag: DAG = self._dag
         return list(map(lambda task_id: dag.task_dict[task_id], self.get_flat_relative_ids(upstream)))
 
+    @provide_session
     def run(
         self,
         start_date: Optional[datetime] = None,
@@ -1291,17 +1296,48 @@ class BaseOperator(Operator, LoggingMixin, TaskMixin, metaclass=BaseOperatorMeta
         ignore_first_depends_on_past: bool = True,
         ignore_ti_state: bool = False,
         mark_success: bool = False,
+        test_mode: bool = False,
+        session: Session = None,
     ) -> None:
         """Run a set of task instances for a date range."""
+        from airflow.models import DagRun
+        from airflow.utils.types import DagRunType
+
         start_date = start_date or self.start_date
         end_date = end_date or self.end_date or timezone.utcnow()
 
         for info in self.dag.iter_dagrun_infos_between(start_date, end_date, align=False):
             ignore_depends_on_past = info.logical_date == start_date and ignore_first_depends_on_past
-            TaskInstance(self, info.logical_date).run(
+            try:
+                dag_run = (
+                    session.query(DagRun)
+                    .filter(
+                        DagRun.dag_id == self.dag_id,
+                        DagRun.execution_date == info.logical_date,
+                    )
+                    .one()
+                )
+                ti = TaskInstance(self, run_id=dag_run.run_id)
+            except NoResultFound:
+                # This is _mostly_ only used in tests
+                dr = DagRun(
+                    dag_id=self.dag_id,
+                    run_id=DagRun.generate_run_id(DagRunType.MANUAL, info.logical_date),
+                    run_type=DagRunType.MANUAL,
+                    execution_date=info.logical_date,
+                    data_interval=info.data_interval,
+                )
+                ti = TaskInstance(self, run_id=None)
+                ti.dag_run = dr
+                session.add(dr)
+                session.flush()
+
+            ti.run(
                 mark_success=mark_success,
                 ignore_depends_on_past=ignore_depends_on_past,
                 ignore_ti_state=ignore_ti_state,
+                test_mode=test_mode,
+                session=session,
             )
 
     def dry_run(self) -> None:
@@ -1572,8 +1608,10 @@ class BaseOperator(Operator, LoggingMixin, TaskMixin, metaclass=BaseOperatorMeta
                     'subdag',
                     'ui_color',
                     'ui_fgcolor',
+                    'template_ext',
                     'template_fields',
                     'template_fields_renderers',
+                    'params',
                 }
             )
             DagContext.pop_context_managed_dag()
@@ -1610,16 +1648,16 @@ class BaseOperator(Operator, LoggingMixin, TaskMixin, metaclass=BaseOperatorMeta
         raise TaskDeferred(trigger=trigger, method_name=method_name, kwargs=kwargs, timeout=timeout)
 
 
-Chainable = Union[BaseOperator, "XComArg", EdgeModifier]
+Chainable = Union[BaseOperator, "XComArg", EdgeModifier, "TaskGroup"]
 
 
 def chain(*tasks: Union[Chainable, Sequence[Chainable]]) -> None:
     r"""
     Given a number of tasks, builds a dependency chain.
 
-    This function accepts values of BaseOperator (aka tasks), EdgeModifiers (aka Labels), XComArg, or lists
-    containing any mix of these types (or a mix in the same list). If you want to chain between two lists
-    you must ensure they have the same length.
+    This function accepts values of BaseOperator (aka tasks), EdgeModifiers (aka Labels), XComArg, TaskGroups,
+    or lists containing any mix of these types (or a mix in the same list). If you want to chain between two
+    lists you must ensure they have the same length.
 
     Using classic operators/sensors:
 
@@ -1669,12 +1707,22 @@ def chain(*tasks: Union[Chainable, Sequence[Chainable]]) -> None:
         x4.set_downstream(x6)
         x5.set_downstream(x6)
 
-
-    It is also possible to mix between classic operator/sensor, EdgeModifiers, and XComArg tasks:
+    Using TaskGroups:
 
     .. code-block:: python
 
-        chain(t1, [Label("branch one"), Label("branch two")], [x1(), x2()], t2, x3())
+        chain(t1, task_group1, task_group2, t2)
+
+        t1.set_downstream(task_group1)
+        task_group1.set_downstream(task_group2)
+        task_group2.set_downstream(t2)
+
+
+    It is also possible to mix between classic operator/sensor, EdgeModifiers, XComArg, and TaskGroups:
+
+    .. code-block:: python
+
+        chain(t1, [Label("branch one"), Label("branch two")], [x1(), x2()], task_group1, t2())
 
     is equivalent to::
 
@@ -1693,9 +1741,9 @@ def chain(*tasks: Union[Chainable, Sequence[Chainable]]) -> None:
         label1.set_downstream(x1)
         t2.set_downstream(label2)
         label2.set_downstream(x2)
-        x1.set_downstream(t2)
-        x2.set_downstream(t2)
-        t2.set_downstream(x3)
+        x1.set_downstream(task_group1)
+        x2.set_downstream(task_group1)
+        task_group1.set_downstream(x3)
 
         # or
 
@@ -1704,24 +1752,27 @@ def chain(*tasks: Union[Chainable, Sequence[Chainable]]) -> None:
         x3 = x3()
         t1.set_downstream(x1, edge_modifier=Label("branch one"))
         t1.set_downstream(x2, edge_modifier=Label("branch two"))
-        x1.set_downstream(t2)
-        x2.set_downstream(t2)
-        t2.set_downstream(x3)
+        x1.set_downstream(task_group1)
+        x2.set_downstream(task_group1)
+        task_group1.set_downstream(x3)
 
 
-    :param tasks: Individual and/or list of tasks, EdgeModifiers, or XComArgs to set dependencies
+    :param tasks: Individual and/or list of tasks, EdgeModifiers, XComArgs, or TaskGroups to set dependencies
     :type tasks: List[airflow.models.BaseOperator], airflow.models.BaseOperator,
-        List[airflow.utils.EdgeModifier], airflow.utils.EdgeModifier, List[airflow.models.XComArg],
-        or XComArg
+        List[airflow.utils.EdgeModifier], airflow.utils.EdgeModifier, List[airflow.models.XComArg], XComArg,
+        List[airflow.utils.TaskGroup], or airflow.utils.TaskGroup
     """
     from airflow.models.xcom_arg import XComArg
+    from airflow.utils.task_group import TaskGroup
+
+    chainable_types = (BaseOperator, XComArg, EdgeModifier, TaskGroup)
 
     for index, up_task in enumerate(tasks[:-1]):
         down_task = tasks[index + 1]
-        if isinstance(up_task, (BaseOperator, XComArg, EdgeModifier)):
+        if isinstance(up_task, chainable_types):
             up_task.set_downstream(down_task)
             continue
-        if isinstance(down_task, (BaseOperator, XComArg, EdgeModifier)):
+        if isinstance(down_task, chainable_types):
             down_task.set_upstream(up_task)
             continue
         if not isinstance(up_task, Sequence) or not isinstance(down_task, Sequence):

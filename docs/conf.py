@@ -75,6 +75,12 @@ elif PACKAGE_NAME.startswith('apache-airflow-providers-'):
         raise Exception(f"Could not find provider.yaml file for package: {PACKAGE_NAME}")
     PACKAGE_DIR = CURRENT_PROVIDER['package-dir']
     PACKAGE_VERSION = CURRENT_PROVIDER['versions'][0]
+elif PACKAGE_NAME == 'apache-airflow-providers':
+    from provider_yaml_utils import load_package_data
+
+    PACKAGE_DIR = os.path.join(ROOT_DIR, 'airflow', 'providers')
+    PACKAGE_VERSION = 'devel'
+    ALL_PROVIDER_YAMLS = load_package_data()
 elif PACKAGE_NAME == 'helm-chart':
     PACKAGE_DIR = os.path.join(ROOT_DIR, 'chart')
     CHART_YAML_FILE = os.path.join(PACKAGE_DIR, 'Chart.yaml')
@@ -112,6 +118,7 @@ release = PACKAGE_VERSION
 rst_epilog = f"""
 .. |version| replace:: {version}
 .. |airflow-version| replace:: {airflow.__version__}
+.. |experimental| replace:: This is an :ref:`experimental feature <experimental>`.
 """
 
 # -- General configuration -----------------------------------------------------
@@ -154,6 +161,7 @@ if PACKAGE_NAME == 'apache-airflow':
 if PACKAGE_NAME == "apache-airflow-providers":
     extensions.extend(
         [
+            'sphinxcontrib.jinja',
             'operators_and_hooks_ref',
             'providers_packages_ref',
         ]
@@ -175,6 +183,11 @@ if PACKAGE_NAME == 'apache-airflow':
         'README.rst',
     ]
 elif PACKAGE_NAME.startswith('apache-airflow-providers-'):
+    extensions.extend(
+        [
+            'sphinxcontrib.jinja',
+        ]
+    )
     exclude_patterns = ['operators/_partials']
 else:
     exclude_patterns = []
@@ -262,7 +275,8 @@ if PACKAGE_NAME == 'apache-airflow':
     ]
     # Replace "|version|" in links
     manual_substitutions_in_generated_html = [
-        "installation.html",
+        "installation/installing-from-pypi.html",
+        "installation/installing-from-sources.html",
     ]
 
 if PACKAGE_NAME == 'docker-stack':
@@ -357,6 +371,12 @@ if PACKAGE_NAME == 'apache-airflow':
             for key in keys_to_format:
                 if option[key] and "{{" in option[key]:
                     option[key] = option[key].replace("{{", "{").replace("}}", "}")
+    # Sort options, config and deprecated options for JINJA variables to display
+    for config in configs:
+        config["options"] = sorted(config["options"], key=lambda o: o["name"])
+    configs = sorted(configs, key=lambda l: l["name"])
+    for section in deprecated_options:
+        deprecated_options[section] = {k: v for k, v in sorted(deprecated_options[section].items())}
 
     jinja_contexts = {
         'config_ctx': {"configs": configs, "deprecated_options": deprecated_options},
@@ -366,6 +386,11 @@ if PACKAGE_NAME == 'apache-airflow':
             else (
                 'http://apache-airflow-docs.s3-website.eu-central-1.amazonaws.com/docs/apache-airflow/latest/'
             )
+        },
+        'official_download_page': {
+            'base_url': f'https://downloads.apache.org/airflow/{PACKAGE_VERSION}',
+            'closer_lua_url': f'https://www.apache.org/dyn/closer.lua/airflow/{PACKAGE_VERSION}',
+            'airflow_version': PACKAGE_VERSION,
         },
     }
 elif PACKAGE_NAME.startswith('apache-airflow-providers-'):
@@ -380,9 +405,22 @@ elif PACKAGE_NAME.startswith('apache-airflow-providers-'):
             return yaml.load(f, SafeLoader)
 
     config = _load_config()
-    if config:
-        jinja_contexts = {'config_ctx': {"configs": config}}
-        extensions.append('sphinxcontrib.jinja')
+    jinja_contexts = {
+        'config_ctx': {"configs": config},
+        'official_download_page': {
+            'base_url': 'https://downloads.apache.org/airflow/providers',
+            'closer_lua_url': 'https://www.apache.org/dyn/closer.lua/airflow/providers',
+            'package_name': PACKAGE_NAME,
+            'package_name_underscores': PACKAGE_NAME.replace('-', '_'),
+            'package_version': PACKAGE_VERSION,
+        },
+    }
+elif PACKAGE_NAME == 'apache-airflow-providers':
+    jinja_contexts = {
+        'official_download_page': {
+            'all_providers': ALL_PROVIDER_YAMLS,
+        },
+    }
 elif PACKAGE_NAME == 'helm-chart':
 
     def _str_representer(dumper, data):
@@ -462,7 +500,15 @@ elif PACKAGE_NAME == 'helm-chart':
     if sections:
         raise ValueError(f"Found section(s) which were not in `section_order`: {list(sections.keys())}")
 
-    jinja_contexts = {"params_ctx": {"sections": ordered_sections}}
+    jinja_contexts = {
+        "params_ctx": {"sections": ordered_sections},
+        'official_download_page': {
+            'base_url': 'https://downloads.apache.org/airflow/helm-chart',
+            'closer_lua_url': 'https://www.apache.org/dyn/closer.lua/airflow/helm-chart',
+            'package_name': PACKAGE_NAME,
+            'package_version': PACKAGE_VERSION,
+        },
+    }
 
 
 # -- Options for sphinx.ext.autodoc --------------------------------------------

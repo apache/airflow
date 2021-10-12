@@ -40,7 +40,7 @@ def upload_file():
 
 with models.DAG(
     'example_s3_to_gcs',
-    schedule_interval=None,
+    schedule_interval='@once',
     start_date=days_ago(2),
     tags=['example'],
 ) as dag:

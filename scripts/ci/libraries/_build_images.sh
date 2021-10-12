@@ -432,9 +432,18 @@ function build_images::configure_docker_registry() {
     else
         verbosity::print_info "Skip Login to GitHub Registry ${GITHUB_REGISTRY} as token is missing"
     fi
-    local new_config
-    new_config=$(jq '.experimental = "enabled"' "${HOME}/.docker/config.json")
-    echo "${new_config}" > "${HOME}/.docker/config.json"
+    if [[ ${CI} == "true" ]]; then
+        # we only need that on CI in order to run "docker manifest" when we check if remote image exists
+        # See function push_pull_remove_images::check_image_manifest()
+        local new_config
+        new_config=$(jq '.experimental = "enabled"' "${HOME}/.docker/config.json" || true)
+        if [[ ${new_config} != "" ]]; then
+            echo "${new_config}" > "${HOME}/.docker/config.json"
+        else
+            echo "${COLOR_YELLOW}Could not set experimental flag in ${HOME}/.docker/config.json ${COLOR_RESET}"
+            echo "${COLOR_YELLOW}docker manifest command will likely not work${COLOR_RESET}"
+        fi
+    fi
 }
 
 
@@ -713,9 +722,9 @@ function build_images::prepare_prod_build() {
     elif [[ -n "${INSTALL_AIRFLOW_VERSION=}" ]]; then
         # When --install-airflow-version is used then the image is build using released PIP package
         # For PROD image only numeric versions are allowed and RC candidates
-        if [[ ! ${INSTALL_AIRFLOW_VERSION} =~ ^[0-9\.]+(rc[0-9]+)?$ ]]; then
+        if [[ ! ${INSTALL_AIRFLOW_VERSION} =~ ^[0-9\.]+((a|b|rc|alpha|beta|pre)[0-9]+)?$ ]]; then
             echo
-            echo  "${COLOR_RED}ERROR: Bad value for install-airflow-version: '${INSTALL_AIRFLOW_VERSION}'. Only numerical versions allowed for PROD image here'!${COLOR_RESET}"
+            echo  "${COLOR_RED}ERROR: Bad value for install-airflow-version: '${INSTALL_AIRFLOW_VERSION}'. Only numerical versions allowed for PROD image here !${COLOR_RESET}"
             echo
             exit 1
         fi
