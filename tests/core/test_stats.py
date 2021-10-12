@@ -187,8 +187,8 @@ class TestDogStats(unittest.TestCase):
     def test_timing_timedelta(self):
         import datetime
 
-        self.dogstatsd.timing("dummy_timer", datetime.timedelta(123))
-        self.dogstatsd_client.timing.assert_called_once_with(metric='dummy_timer', value=123, tags=[])
+        self.dogstatsd.timing("dummy_timer", datetime.timedelta(seconds=123))
+        self.dogstatsd_client.timing.assert_called_once_with(metric='dummy_timer', value=123.0, tags=[])
 
     def test_gauge(self):
         self.dogstatsd.gauge("dummy", 123)
