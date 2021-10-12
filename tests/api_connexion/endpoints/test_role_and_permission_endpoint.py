@@ -21,7 +21,6 @@ from parameterized import parameterized
 
 from airflow.api_connexion.exceptions import EXCEPTIONS_LINK_MAP
 from airflow.security import permissions
-from airflow.utils.session import create_session
 from airflow.www.security import EXISTING_ROLES
 from tests.test_utils.api_connexion_utils import (
     assert_401,
@@ -356,10 +355,26 @@ class TestPatchRole(TestRoleEndpoint):
         assert response.json['name'] == expected_name
         assert response.json["actions"] == expected_actions
 
-        with create_session() as session:
-            role_names = {name for name, in session.query(Role.name)}
-        assert expected_name in role_names
-        assert "mytestrole" not in role_names
+    def test_patch_should_update_correct_roles_permissions(self):
+        create_role(self.app, "role_to_change")
+        create_role(self.app, "already_exists")
+
+        response = self.client.patch(
+            "/api/v1/roles/role_to_change",
+            json={
+                "name": "already_exists",
+                "actions": [{"action": {"name": "can_delete"}, "resource": {"name": "XComs"}}],
+            },
+            environ_overrides={"REMOTE_USER": "test"},
+        )
+        assert response.status_code == 200
+
+        updated_permissions = self.app.appbuilder.sm.find_role("role_to_change").permissions
+        assert len(updated_permissions) == 1
+        assert updated_permissions[0].view_menu.name == "XComs"
+        assert updated_permissions[0].permission.name == "can_delete"
+
+        assert len(self.app.appbuilder.sm.find_role("already_exists").permissions) == 0
 
     @parameterized.expand(
         [
