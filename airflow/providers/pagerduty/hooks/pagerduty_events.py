@@ -148,9 +148,8 @@ class PagerdutyEventsHook(BaseHook):
             data["dedup_key"] = dedup_key
         elif action != 'trigger':
             raise ValueError(
-                "The dedup_key property is required for event_action=%s events, and it must \
-                be a string."
-                % action
+                f"The dedup_key property is required for event_action={action} events, "
+                f"and it must be a string."
             )
         if images is not None:
             data["images"] = images
