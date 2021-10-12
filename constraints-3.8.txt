@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2021-10-11T02:21:31Z
+# This constraints file was automatically generated on 2021-10-12T00:02:17Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -8,7 +8,7 @@
 # We also use those constraints after "apache-airflow" is released and the constraints are tagged with
 # "constraints-X.Y.Z" tag to build the production image for that version.
 #
-# Editable install with no version control (apache-airflow==2.2.0.dev0)
+# Editable install with no version control (apache-airflow==2.3.0.dev0)
 APScheduler==3.6.3
 Authlib==0.15.4
 Babel==2.9.1
@@ -58,7 +58,7 @@ ansiwrap==0.8.4
 anyio==3.3.3
 apache-airflow-providers-airbyte==2.1.1
 apache-airflow-providers-alibaba==1.0.0
-apache-airflow-providers-amazon==2.2.0
+apache-airflow-providers-amazon==2.3.0
 apache-airflow-providers-apache-beam==3.0.1
 apache-airflow-providers-apache-cassandra==2.1.0
 apache-airflow-providers-apache-drill==1.0.1
@@ -171,9 +171,9 @@ beautifulsoup4==4.7.1
 billiard==3.6.4.0
 black==21.9b0
 blinker==1.4
-boto3==1.17.112
+boto3==1.18.59
 boto==2.49.0
-botocore==1.20.112
+botocore==1.21.59
 bowler==0.9.0
 cachetools==4.2.2
 cassandra-driver==3.25.0
@@ -184,7 +184,7 @@ cffi==1.14.6
 cfgv==3.3.1
 cgroupspy==0.2.1
 chardet==4.0.0
-charset-normalizer==2.0.6
+charset-normalizer==2.0.7
 click-didyoumean==0.3.0
 click-plugins==1.1.1
 click-repl==0.2.0
@@ -195,7 +195,7 @@ cloudpickle==1.4.1
 colorama==0.4.4
 colorlog==4.8.0
 commonmark==0.9.1
-coverage==6.0.1
+coverage==6.0.2
 crcmod==1.7
 croniter==1.0.15
 cryptography==3.4.8
@@ -225,7 +225,7 @@ fastavro==1.4.5
 filelock==3.3.0
 fissix==21.6.6
 flake8-colors==0.1.9
-flake8==3.9.2
+flake8==4.0.1
 flaky==3.7.0
 flower==1.0.0
 freezegun==1.1.0
@@ -244,7 +244,7 @@ google-auth-oauthlib==0.4.6
 google-auth==1.35.0
 google-cloud-appengine-logging==0.1.5
 google-cloud-audit-log==0.1.1
-google-cloud-automl==2.4.2
+google-cloud-automl==2.5.0
 google-cloud-bigquery-datatransfer==3.3.4
 google-cloud-bigquery-storage==2.9.1
 google-cloud-bigquery==2.28.1
@@ -336,7 +336,7 @@ mongomock==3.23.0
 monotonic==1.6
 more-itertools==8.10.0
 moreorless==0.4.0
-moto==2.2.8
+moto==2.2.9
 msal-extensions==0.3.0
 msal==1.15.0
 msgpack==1.0.2
@@ -401,7 +401,7 @@ pyOpenSSL==20.0.1
 pyarrow==4.0.1
 pyasn1-modules==0.2.8
 pyasn1==0.4.8
-pycodestyle==2.7.0
+pycodestyle==2.8.0
 pycountry==20.7.3
 pycparser==2.20
 pycryptodome==3.11.0
@@ -411,7 +411,7 @@ pydot==1.4.2
 pydruid==0.6.2
 pyenchant==3.2.2
 pyexasol==0.21.1
-pyflakes==2.3.1
+pyflakes==2.4.0
 pykerberos==1.2.1
 pymongo==3.12.0
 pymssql==2.2.2
@@ -459,7 +459,7 @@ responses==0.14.0
 rfc3986==1.5.0
 rich==10.12.0
 rsa==4.7.2
-s3transfer==0.4.2
+s3transfer==0.5.0
 sasl==0.3.1
 scramp==1.4.1
 scrapbook==0.5.0
