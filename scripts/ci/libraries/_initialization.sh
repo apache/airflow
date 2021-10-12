@@ -929,7 +929,7 @@ function initialization::ga_env() {
 function initialization::ver() {
   # convert SemVer number to comparable string (strips pre-release version)
   # shellcheck disable=SC2086,SC2183
-  printf "%04d%04d%04d%.0s" ${1//[.-]/ }
+  printf "%03d%03d%03d%.0s" ${1//[.-]/}
 }
 
 function initialization::check_docker_version() {
@@ -947,7 +947,8 @@ function initialization::check_docker_version() {
     local min_docker_version="20.10.0"
     local min_comparable_docker_version
     min_comparable_docker_version=$(initialization::ver "${min_docker_version}")
-    if (( comparable_docker_version < min_comparable_docker_version )); then
+    # The #0 Strips leading zeros
+    if [[ ${comparable_docker_version#0} -lt ${min_comparable_docker_version#0} ]]; then
         echo
         echo "${COLOR_RED}Your version of docker is too old: ${docker_version}. Please upgrade to at least ${min_docker_version}.${COLOR_RESET}"
         echo
