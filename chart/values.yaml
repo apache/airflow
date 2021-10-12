@@ -969,6 +969,10 @@ statsd:
 pgbouncer:
   # Enable PgBouncer
   enabled: false
+  # Command to use for PgBouncer(templated).
+  command: ["pgbouncer", "-u", "nobody", "/etc/pgbouncer/pgbouncer.ini"]
+  # Args to use for PgBouncer(templated).
+  args: ~
 
   # Create ServiceAccount
   serviceAccount:

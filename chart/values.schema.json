@@ -2431,6 +2431,33 @@
                     "x-docsSection": "Common",
                     "default": false
                 },
+                "command": {
+                    "description": "Command to use for PgBouncer (templated).",
+                    "type": [
+                        "array",
+                        "null"
+                    ],
+                    "items": {
+                        "type": "string"
+                    },
+                    "default": [
+                        "pgbouncer",
+                        "-u",
+                        "nobody",
+                        "/etc/pgbouncer/pgbouncer.ini"
+                    ]
+                },
+                "args": {
+                    "description": "Args to use for PgBouncer (templated).",
+                    "type": [
+                        "array",
+                        "null"
+                    ],
+                    "items": {
+                        "type": "string"
+                    },
+                    "default": null
+                },
                 "extraNetworkPolicies": {
                     "description": "Additional NetworkPolicies as needed.",
                     "type": "array",
