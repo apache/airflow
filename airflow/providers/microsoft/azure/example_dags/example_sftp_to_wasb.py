@@ -16,14 +16,15 @@
 # specific language governing permissions and limitations
 # under the License.
 import os
+from datetime import datetime
 
 from airflow import DAG
+from airflow.decorators import task
 from airflow.operators.python import PythonOperator
 from airflow.providers.microsoft.azure.operators.wasb_delete_blob import WasbDeleteBlobOperator
 from airflow.providers.microsoft.azure.transfers.sftp_to_wasb import SFTPToWasbOperator
 from airflow.providers.sftp.hooks.sftp import SFTPHook
 from airflow.providers.sftp.operators.sftp import SFTPOperator
-from airflow.utils.dates import days_ago
 
 AZURE_CONTAINER_NAME = os.environ.get("AZURE_CONTAINER_NAME", "airflow")
 BLOB_PREFIX = os.environ.get("AZURE_BLOB_PREFIX", "airflow")
@@ -34,20 +35,19 @@ FILE_COMPLETE_PATH = os.path.join(LOCAL_FILE_PATH, SAMPLE_FILENAME)
 SFTP_FILE_COMPLETE_PATH = os.path.join(SFTP_SRC_PATH, SAMPLE_FILENAME)
 
 
+@task
 def delete_sftp_file():
     """Delete a file at SFTP SERVER"""
-    SFTPHook(ssh_conn_id="sftp_default").delete_file(SFTP_FILE_COMPLETE_PATH)
+    SFTPHook().delete_file(SFTP_FILE_COMPLETE_PATH)
 
 
 with DAG(
     "example_sftp_to_wasb",
     schedule_interval=None,
-    start_date=days_ago(1),  # Override to match your needs
+    start_date=datetime(2021, 1, 1),  # Override to match your needs
 ) as dag:
-
     transfer_files_to_sftp_step = SFTPOperator(
         task_id="transfer_files_from_local_to_sftp",
-        ssh_conn_id="sftp_default",
         local_filepath=FILE_COMPLETE_PATH,
         remote_filepath=SFTP_FILE_COMPLETE_PATH,
     )
@@ -56,10 +56,8 @@ with DAG(
     transfer_files_to_azure = SFTPToWasbOperator(
         task_id="transfer_files_from_sftp_to_wasb",
         # SFTP args
-        sftp_conn_id="sftp_default",
         sftp_source_path=SFTP_SRC_PATH,
         # AZURE args
-        wasb_conn_id="wasb_default",
         container_name=AZURE_CONTAINER_NAME,
         blob_prefix=BLOB_PREFIX,
     )
@@ -67,11 +65,8 @@ with DAG(
 
     delete_blob_file_step = WasbDeleteBlobOperator(
         task_id="delete_blob_files",
-        wasb_conn_id="wasb_default",
         container_name=AZURE_CONTAINER_NAME,
         blob_name=BLOB_PREFIX + SAMPLE_FILENAME,
     )
 
-    delete_sftp_step = PythonOperator(task_id="delete_sftp_file", python_callable=delete_sftp_file)
-
-    transfer_files_to_sftp_step >> transfer_files_to_azure >> delete_blob_file_step >> delete_sftp_step
+    transfer_files_to_sftp_step >> transfer_files_to_azure >> delete_blob_file_step >> delete_sftp_file
