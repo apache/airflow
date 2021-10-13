@@ -87,7 +87,7 @@ class TestDeleteConnection(TestConnectionEndpoint):
         )
         assert response.status_code == 404
         assert response.json == {
-            'detail': "The Connection with connection_id: `test-connection` was not found",
+            'detail': "Connection with connection_id 'test-connection' does not exist",
             'status': 404,
             'title': 'Connection not found',
             'type': EXCEPTIONS_LINK_MAP[404],
@@ -142,7 +142,7 @@ class TestGetConnection(TestConnectionEndpoint):
         )
         assert response.status_code == 404
         assert {
-            'detail': "The Connection with connection_id: `invalid-connection` was not found",
+            'detail': "Connection with connection_id 'invalid-connection' does not exist",
             'status': 404,
             'title': 'Connection not found',
             'type': EXCEPTIONS_LINK_MAP[404],
@@ -301,10 +301,7 @@ class TestGetConnectionsPagination(TestConnectionEndpoint):
             "/api/v1/connections?order_by=invalid", environ_overrides={'REMOTE_USER': "test"}
         )
         assert response.status_code == 400
-        assert (
-            response.json['detail'] == "Ordering with 'invalid' is disallowed or"
-            " the attribute does not exist on the model"
-        )
+        assert response.json['detail'] == "Ordering with 'invalid' on Connection is not allowed"
 
     def test_limit_of_zero_should_return_default(self, session):
         connection_models = self._create_connections(200)
@@ -390,7 +387,7 @@ class TestPatchConnection(TestConnectionEndpoint):
                     "port": 80,
                 },
                 'update_mask=ports, login',  # posts is unknown
-                "'ports' is unknown or cannot be updated.",
+                "Mask field not specified in payload: ports",
             ),
             (
                 {
@@ -401,18 +398,18 @@ class TestPatchConnection(TestConnectionEndpoint):
                     "port": 80,
                 },
                 'update_mask=port, login, conn_id',  # conn_id is unknown
-                "'conn_id' is unknown or cannot be updated.",
+                "Mask field not specified in payload: conn_id",
             ),
             (
                 {
-                    "connection_id": 'test-connection-id',
+                    "connection_id": 'test-connection',  # trying to change connection_id
                     "conn_type": 'test_type_2',
                     "extra": "{'key': 'var'}",
                     'login': "login",
                     "port": 80,
                 },
                 'update_mask=port, login, connection_id',  # connection_id cannot be updated
-                "'connection_id' is unknown or cannot be updated.",
+                "Cannot update protected Connection field: 'connection_id'",
             ),
             (
                 {
@@ -421,7 +418,7 @@ class TestPatchConnection(TestConnectionEndpoint):
                     "login": "login",
                 },
                 '',  # not necessary
-                "The connection_id cannot be updated.",
+                "Cannot update protected Connection field: 'connection_id'",
             ),
         ]
     )
@@ -483,7 +480,7 @@ class TestPatchConnection(TestConnectionEndpoint):
         )
         assert response.status_code == 404
         assert {
-            'detail': "The Connection with connection_id: `test-connection-id` was not found",
+            'detail': "Connection with connection_id 'test-connection-id' does not exist",
             'status': 404,
             'title': 'Connection not found',
             'type': EXCEPTIONS_LINK_MAP[404],
@@ -538,7 +535,7 @@ class TestPostConnection(TestConnectionEndpoint):
         )
         assert response.status_code == 409
         assert response.json == {
-            'detail': 'Connection already exist. ID: test-connection-id',
+            'detail': "Connection already exists: connection_id 'test-connection-id'",
             'status': 409,
             'title': 'Conflict',
             'type': EXCEPTIONS_LINK_MAP[409],
