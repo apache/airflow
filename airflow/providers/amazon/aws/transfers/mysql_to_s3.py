@@ -21,7 +21,8 @@ import warnings
 from collections import namedtuple
 from enum import Enum
 from tempfile import NamedTemporaryFile
-from typing import Literal, Optional, Union
+from typing import Optional, Union
+from typing_extensions import Literal
 
 import numpy as np
 import pandas as pd
