@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2021-10-13T12:32:59Z
+# This constraints file was automatically generated on 2021-10-13T18:34:03Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -182,7 +182,7 @@ cassandra-driver==3.25.0
 cattrs==1.0.0
 celery==5.1.2
 certifi==2020.12.5
-cffi==1.14.6
+cffi==1.15.0
 cfgv==3.3.1
 cgroupspy==0.2.1
 chardet==4.0.0
@@ -253,7 +253,7 @@ google-cloud-bigquery-datatransfer==3.4.0
 google-cloud-bigquery-storage==2.9.1
 google-cloud-bigquery==2.28.1
 google-cloud-bigtable==1.7.0
-google-cloud-build==3.6.0
+google-cloud-build==3.7.0
 google-cloud-container==1.0.1
 google-cloud-core==1.7.2
 google-cloud-datacatalog==3.4.3
