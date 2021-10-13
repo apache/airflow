@@ -87,7 +87,7 @@ class CassandraToGCSOperator(BaseOperator):
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
     :type impersonation_chain: Union[str, Sequence[str]]
-    :param query_timeout: (Optional) The floating-point timeout used to execute the Cassandra query.
+    :param query_timeout: (Optional) The amount of time, in seconds, used to execute the Cassandra query.
         If not set, the timeout value will be set in Session.execute() by Cassandra driver.
         If set to None, there is no timeout.
     :type query_timeout: float | None
