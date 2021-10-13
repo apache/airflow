@@ -19,7 +19,7 @@ import json
 import math
 import time
 from datetime import datetime as dt
-from typing import Iterable, List, Optional, Tuple, Union
+from typing import Iterable, Optional, Tuple, Union
 
 import pendulum
 import tenacity
