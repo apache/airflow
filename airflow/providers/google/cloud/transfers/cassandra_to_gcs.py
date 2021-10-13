@@ -117,7 +117,7 @@ class CassandraToGCSOperator(BaseOperator):
         google_cloud_storage_conn_id: Optional[str] = None,
         delegate_to: Optional[str] = None,
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
-        query_timeout: Optional[Union[float, NotSetType]] = NOT_SET,
+        query_timeout: Union[float, None, NotSetType] = NOT_SET,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
