@@ -2689,7 +2689,10 @@ class TestSchedulerJob:
         self.scheduler_job.executor = MockExecutor()
         self.scheduler_job.processor_agent = mock.MagicMock(spec=DagFileProcessorAgent)
 
-        self.scheduler_job._do_scheduling(session)
+        my_dag = session.query(DagModel).get(dag.dag_id)
+        self.scheduler_job._create_dag_runs([my_dag], session)
+        # Run relevant part of scheduling again to assert run2 has been scheduled
+        self.scheduler_job._schedule_dag_run(run1, session)
         run1 = session.merge(run1)
         session.refresh(run1)
         assert run1.state == State.FAILED
