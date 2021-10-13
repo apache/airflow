@@ -45,7 +45,7 @@ class BashOperator(BaseOperator):
         behavior. (templated)
     :type env: dict
     :param append_env: If False(default) uses the environment variables passed in env params
-        and doesnot inherit the current process environemnt. If True, inherits the environment varibles
+        and does not inherit the current process environment. If True, inherits the environment variables
         from current passes and then environment variable passed by the user will either update the existing
         inherited environment variables or the new variables gets appended to it
     :type append_env: bool
