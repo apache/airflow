@@ -15,6 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
+import os
 from unittest import TestCase, mock
 
 import pytest
@@ -30,6 +31,12 @@ from airflow.kubernetes.refresh_config import (
 
 
 class TestRefreshKubeConfigLoader(TestCase):
+    ROOT_PROJECT_DIR = os.path.abspath(
+        os.path.join(os.path.dirname(os.path.realpath(__file__)), os.pardir, os.pardir)
+    )
+
+    KUBE_CONFIG_PATH = os.path.join(ROOT_PROJECT_DIR, "tests", "kubernetes", "kube_config")
+
     def test_parse_timestamp_should_convert_z_timezone_to_unix_timestamp(self):
         ts = _parse_timestamp("2020-01-13T13:42:20Z")
         assert 1578922940 == ts
@@ -43,7 +50,7 @@ class TestRefreshKubeConfigLoader(TestCase):
             _parse_timestamp("foobar")
 
     def test_get_kube_config_loader_for_yaml_file(self):
-        refresh_kube_config_loader = _get_kube_config_loader_for_yaml_file('./kube_config')
+        refresh_kube_config_loader = _get_kube_config_loader_for_yaml_file(self.KUBE_CONFIG_PATH)
 
         assert refresh_kube_config_loader is not None
 
@@ -68,7 +75,7 @@ class TestRefreshKubeConfigLoader(TestCase):
     @mock.patch('kubernetes.config.exec_provider.ExecProvider.__init__', return_value=None)
     @mock.patch('kubernetes.config.exec_provider.ExecProvider.run', return_value={'token': '1234'})
     def test_refresh_kube_config_loader(self, exec_provider_run, exec_provider_init):
-        current_context = _get_kube_config_loader_for_yaml_file('./kube_config').current_context
+        current_context = _get_kube_config_loader_for_yaml_file(self.KUBE_CONFIG_PATH).current_context
 
         config_dict = {}
         config_dict['current-context'] = 'federal-context'
