@@ -656,10 +656,19 @@ class TestLocalTaskJob:
         self, conf, dependencies, init_state, first_run_state, second_run_state, error_message, dag_maker
     ):
 
+        # There is an occasional (VERY RARE) case where this test failed when lambda was without delay
+        # This problem resulted with psutil.wait() behaviour which returns None in case the process
+        # that we wait for already exited. Psutil does not have any more information about the process
+        # Nor cannot get the return code so it returns None which results in
+        # `State of this instance has been externally set to success. Terminating instance.` from heartbeat
+        # this breaks the flow of processing for that test. That's why we added small timeout to decrease
+        # the likelihood of the race condition.
+        def python_callable():
+            time.sleep(0.01)
+            return True
+
         with conf_vars(conf):
             session = settings.Session()
-
-            python_callable = lambda: True
             with dag_maker('test_dagrun_fast_follow') as dag:
                 task_a = PythonOperator(task_id='A', python_callable=python_callable)
                 task_b = PythonOperator(task_id='B', python_callable=python_callable)
