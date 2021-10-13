@@ -22,10 +22,10 @@ from collections import namedtuple
 from enum import Enum
 from tempfile import NamedTemporaryFile
 from typing import Optional, Union
-from typing_extensions import Literal
 
 import numpy as np
 import pandas as pd
+from typing_extensions import Literal
 
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
