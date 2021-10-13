@@ -367,7 +367,7 @@ For instance the following snippet will now throw errors:
 
     execution_date.format('YYYY-MM-DD HH:mm:ss', formatter='alternative')
 
-as the `formatter` option is not supported in Pendulum 2.x and `alternative` is used by default.
+as the ``formatter`` option is not supported in Pendulum 2.x and ``alternative`` is used by default.
 
 For more information, visit https://pendulum.eustace.io/blog/pendulum-2.0.0-is-out.html
 
