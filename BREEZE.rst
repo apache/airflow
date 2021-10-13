@@ -750,6 +750,13 @@ extra ``--`` flag.
 
      ./breeze build-docs -- --spellcheck-only
 
+This process can take some time, so in order to make it shorter you can filter by package, using the flag
+``--package-filter <PACKAGE-NAME>``. The package name has to be one of the providers or ``apache-airflow``. For
+instance, for using it with Amazon, the command would be:
+
+.. code-block:: bash
+
+     ./breeze build-docs -- --package-filter apache-airflow-providers-amazon
 
 Often errors during documentation generation come from the docstrings of auto-api generated classes.
 During the docs building auto-api generated files are stored in the ``docs/_api`` folder. This helps you
@@ -1259,7 +1266,7 @@ This is the current syntax for  `./breeze <./breeze>`_:
 
           One of:
 
-                 3.6 3.7 3.8 3.9
+                 3.7 3.8 3.9 3.6
 
   -a, --install-airflow-version INSTALL_AIRFLOW_VERSION
           Uses different version of Airflow when building PROD image.
@@ -1268,7 +1275,7 @@ This is the current syntax for  `./breeze <./breeze>`_:
 
   -t, --install-airflow-reference INSTALL_AIRFLOW_REFERENCE
           Installs Airflow directly from reference in GitHub when building PROD image.
-          This can be a GitHub branch like main or v2-1-test, or a tag like 2.1.0a1.
+          This can be a GitHub branch like main or v2-2-test, or a tag like 2.2.0rc1.
 
   --installation-method INSTALLATION_METHOD
           Method of installing Airflow in PROD image - either from the sources ('.')
@@ -1458,7 +1465,7 @@ This is the current syntax for  `./breeze <./breeze>`_:
 
           One of:
 
-                 3.6 3.7 3.8 3.9
+                 3.7 3.8 3.9 3.6
 
   -I, --production-image
           Use production image for entering the environment and builds (not for tests).
@@ -1525,7 +1532,7 @@ This is the current syntax for  `./breeze <./breeze>`_:
 
           One of:
 
-                 3.6 3.7 3.8 3.9
+                 3.7 3.8 3.9 3.6
 
   -v, --verbose
           Show verbose information about executed docker, kind, kubectl, helm commands. Useful for
@@ -1616,7 +1623,7 @@ This is the current syntax for  `./breeze <./breeze>`_:
 
           One of:
 
-                 3.6 3.7 3.8 3.9
+                 3.7 3.8 3.9 3.6
 
 
   ####################################################################################################
@@ -1811,7 +1818,7 @@ This is the current syntax for  `./breeze <./breeze>`_:
 
           One of:
 
-                 3.6 3.7 3.8 3.9
+                 3.7 3.8 3.9 3.6
 
   -b, --backend BACKEND
           Backend to use for tests - it determines which database is used.
@@ -1880,7 +1887,7 @@ This is the current syntax for  `./breeze <./breeze>`_:
 
           One of:
 
-                 3.6 3.7 3.8 3.9
+                 3.7 3.8 3.9 3.6
 
   -F, --force-build-images
           Forces building of the local docker images. The images are rebuilt
@@ -2284,7 +2291,7 @@ This is the current syntax for  `./breeze <./breeze>`_:
 
           One of:
 
-                 3.6 3.7 3.8 3.9
+                 3.7 3.8 3.9 3.6
 
   ****************************************************************************************************
    Choose backend to run for Airflow
@@ -2433,7 +2440,7 @@ This is the current syntax for  `./breeze <./breeze>`_:
 
   -t, --install-airflow-reference INSTALL_AIRFLOW_REFERENCE
           Installs Airflow directly from reference in GitHub when building PROD image.
-          This can be a GitHub branch like main or v2-1-test, or a tag like 2.1.0a1.
+          This can be a GitHub branch like main or v2-2-test, or a tag like 2.2.0rc1.
 
   --installation-method INSTALLATION_METHOD
           Method of installing Airflow in PROD image - either from the sources ('.')

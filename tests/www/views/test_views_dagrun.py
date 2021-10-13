@@ -127,22 +127,22 @@ def test_delete_dagrun_permission_denied(session, client_dr_without_dag_edit, ru
     [
         (
             "clear",
-            [None, None],
+            {None},
             "1 dag runs and 2 task instances were cleared",
         ),
         (
             "set_success",
-            ["success", "success"],
+            {"success"},
             "1 dag runs and 1 task instances were set to success",
         ),
         (
             "set_failed",
-            ["success", "failed"],  # The success ti is not set to failed.
+            {"success", "failed"},  # The success ti is not set to failed.
             "1 dag runs and 0 task instances were set to failed",
         ),
         (
             "set_running",
-            ["success", "failed"],  # Unchanged.
+            {"success", "failed"},  # Unchanged.
             "1 dag runs were set to running",
         ),
     ],
@@ -162,7 +162,7 @@ def test_set_dag_runs_action(
         follow_redirects=True,
     )
     check_content_in_response(expected_message, resp)
-    assert [ti.state for ti in session.query(TaskInstance).all()] == expected_ti_states
+    assert {ti.state for ti in session.query(TaskInstance).all()} == expected_ti_states
 
 
 @pytest.mark.parametrize(

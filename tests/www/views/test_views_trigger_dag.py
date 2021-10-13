@@ -25,6 +25,7 @@ from airflow.security import permissions
 from airflow.utils import timezone
 from airflow.utils.session import create_session
 from airflow.utils.types import DagRunType
+from tests.test_utils.api_connexion_utils import create_test_client
 from tests.test_utils.www import check_content_in_response
 
 
@@ -196,21 +197,21 @@ def test_trigger_endpoint_uses_existing_dagbag(admin_client):
     check_content_in_response('example_bash_operator', resp)
 
 
-def test_viewer_cant_trigger_dag(client_factory):
+def test_viewer_cant_trigger_dag(app):
     """
     Test that the test_viewer user can't trigger DAGs.
     """
-    client = client_factory(
-        name="test_user",
+    with create_test_client(
+        app,
+        user_name="test_user",
         role_name="test_role",
         permissions=[
             (permissions.ACTION_CAN_READ, permissions.RESOURCE_WEBSITE),
             (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
             (permissions.ACTION_CAN_CREATE, permissions.RESOURCE_DAG_RUN),
         ],
-    )
-
-    url = 'trigger?dag_id=example_bash_operator'
-    resp = client.get(url, follow_redirects=True)
-    response_data = resp.data.decode()
-    assert "Access is Denied" in response_data
+    ) as client:
+        url = 'trigger?dag_id=example_bash_operator'
+        resp = client.get(url, follow_redirects=True)
+        response_data = resp.data.decode()
+        assert "Access is Denied" in response_data

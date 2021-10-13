@@ -27,6 +27,7 @@ Content
     :caption: Guides
 
     Connection types <connections/salesforce>
+    Operators <operators/index>
 
 .. toctree::
     :maxdepth: 1

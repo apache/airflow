@@ -95,8 +95,14 @@ Alternatively, create a kubernetes Secret and use ``webserverSecretKeySecretName
 
 .. code-block:: yaml
 
-    webserverSecretKey: my-webserver-secret
+    webserverSecretKeySecretName: my-webserver-secret
     # where the random key is under `webserver-secret-key` in the k8s Secret
+
+Example to create a kubernetes Secret from ``kubectl``:
+
+.. code-block:: bash
+
+    kubectl create secret generic my-webserver-secret --from-literal="webserver-secret-key=$(python3 -c 'import secrets; print(secrets.token_hex(16))')"
 
 Extending and customizing Airflow Image
 ---------------------------------------
@@ -231,3 +237,24 @@ By default, the chart will deploy Redis. However, you can use any supported Cele
 
 For more information about setting up a Celery broker, refer to the
 exhaustive `Celery documentation on the topic <http://docs.celeryproject.org/en/latest/getting-started/>`_.
+
+Security Context Constraints
+-----------------------------
+
+A ``Security Context Constraint`` (SCC) is a OpenShift construct that works as a RBAC rule however it targets Pods instead of users.
+When defining a SCC, one can control actions and resources a POD can perform or access during startup and runtime.
+
+The SCCs are split into different levels or categories with the ``restricted`` SCC being the default one assigned to Pods.
+When deploying Airflow to OpenShift, one can leverage the SCCs and allow the Pods to start containers utilizing the ``anyuid`` SCC.
+
+In order to enable the usage of SCCs, one must set the parameter :ref:`rbac.createSCCRoleBinding <parameters:Kubernetes>` to ``true`` as shown below:
+
+.. code-block:: yaml
+
+  rbac:
+    create: true
+    createSCCRoleBinding: true
+
+In this chart, SCCs are bound to the Pods via RoleBindings meaning that the option ``rbac.create`` must also be set to ``true`` in order to fully enable the SCC usage.
+
+For more information about SCCs and what can be achieved with this construct, please refer to `Managing security context constraints <https://docs.openshift.com/container-platform/latest/authentication/managing-security-context-constraints.html#scc-prioritization_configuring-internal-oauth/>`_.

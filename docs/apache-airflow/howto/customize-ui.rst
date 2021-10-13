@@ -45,7 +45,7 @@ following steps:
           "upstream_failed": "orange",
           "skipped": "darkorchid",
           "scheduled": "tan",
-          "deferred": "lightseagreen",
+          "deferred": "mediumpurple",
       }
 
 
@@ -88,7 +88,7 @@ Note: the custom title will be applied to both the page header and the page titl
 
 To make this change, simply:
 
-1.  Add the configuration option of ``instance_name`` under ``webserver`` inside ``airflow.cfg``:
+1.  Add the configuration option of ``instance_name`` under the ``[webserver]`` section inside ``airflow.cfg``:
 
 .. code-block::
 

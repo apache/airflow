@@ -147,7 +147,7 @@ rm -rf ${AIRFLOW_REPO_ROOT}/dist/*
 ./breeze prepare-provider-packages --package-format both
 ```
 
-if you ony build few packages, run:
+if you only build few packages, run:
 
 ```shell script
 ./breeze prepare-provider-packages --package-format both PACKAGE PACKAGE ....
@@ -299,7 +299,7 @@ cd "${AIRFLOW_REPO_ROOT}"
 ```
 
 
-If you have providers as list of provider ids becuse you just released them you can build them with
+If you have providers as list of provider ids because you just released them, you can build them with
 
 ```shell script
 ./dev/provider_packages/build_provider_documentation.sh amazon apache.beam google ....

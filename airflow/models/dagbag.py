@@ -40,7 +40,6 @@ from airflow.exceptions import (
     AirflowDagCycleException,
     AirflowDagDuplicatedIdException,
     AirflowTimetableInvalid,
-    SerializedDagNotFound,
 )
 from airflow.stats import Stats
 from airflow.utils import timezone
@@ -256,7 +255,7 @@ class DagBag(LoggingMixin):
 
         row = SerializedDagModel.get(dag_id, session)
         if not row:
-            raise SerializedDagNotFound(f"DAG '{dag_id}' not found in serialized_dag table")
+            return None
 
         row.load_op_links = self.load_op_links
         dag = row.dag

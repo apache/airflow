@@ -24,6 +24,7 @@
 import getMetaValue from './meta_value';
 
 const restApiEnabled = getMetaValue('rest_api_enabled') === 'True';
+const connectionTestUrl = getMetaValue('test_url');
 
 function decode(str) {
   return new DOMParser().parseFromString(str, 'text/html').documentElement.textContent;
@@ -206,7 +207,7 @@ $(document).ready(() => {
   $('#test-connection').on('click', (e) => {
     e.preventDefault();
     $.ajax({
-      url: '/api/v1/connections/test',
+      url: connectionTestUrl,
       type: 'post',
       contentType: 'application/json',
       dataType: 'json',

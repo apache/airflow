@@ -22,11 +22,6 @@ The `Azure Data Lake <https://azure.microsoft.com/en-us/solutions/data-lake/>`__
 any size, shape, and speed.
 This page shows how to upload data from local filesystem to ADL.
 
-.. contents::
-  :depth: 1
-  :local:
-
-
 Prerequisite Tasks
 ^^^^^^^^^^^^^^^^^^
 

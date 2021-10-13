@@ -24,19 +24,19 @@ import os
 import signal
 import sys
 import time
+import warnings
 from collections import defaultdict
 from datetime import timedelta
 from typing import Collection, DefaultDict, Dict, List, Optional, Tuple
 
 from sqlalchemy import and_, func, not_, or_, tuple_
 from sqlalchemy.exc import OperationalError
-from sqlalchemy.orm import eagerload, load_only, selectinload
+from sqlalchemy.orm import load_only, selectinload
 from sqlalchemy.orm.session import Session, make_transient
 
 from airflow import models, settings
 from airflow.configuration import conf
 from airflow.dag_processing.manager import DagFileProcessorAgent
-from airflow.exceptions import SerializedDagNotFound
 from airflow.executors.executor_loader import UNPICKLEABLE_EXECUTORS
 from airflow.jobs.base_job import BaseJob
 from airflow.models import DAG
@@ -87,9 +87,9 @@ class SchedulerJob(BaseJob):
     :param num_times_parse_dags: The number of times to try to parse each DAG file.
         -1 for unlimited times.
     :type num_times_parse_dags: int
-    :param processor_poll_interval: The number of seconds to wait between
+    :param scheduler_idle_sleep_time: The number of seconds to wait between
         polls of running processors
-    :type processor_poll_interval: int
+    :type scheduler_idle_sleep_time: int
     :param do_pickle: once a DAG object is obtained by executing the Python
         file, whether to serialize the DAG object to the DB
     :type do_pickle: bool
@@ -105,9 +105,10 @@ class SchedulerJob(BaseJob):
         subdir: str = settings.DAGS_FOLDER,
         num_runs: int = conf.getint('scheduler', 'num_runs'),
         num_times_parse_dags: int = -1,
-        processor_poll_interval: float = conf.getfloat('scheduler', 'processor_poll_interval'),
+        scheduler_idle_sleep_time: float = conf.getfloat('scheduler', 'scheduler_idle_sleep_time'),
         do_pickle: bool = False,
         log: logging.Logger = None,
+        processor_poll_interval: Optional[float] = None,
         *args,
         **kwargs,
     ):
@@ -118,7 +119,16 @@ class SchedulerJob(BaseJob):
         # number of times. This is only to support testing, and isn't something a user is likely to want to
         # configure -- they'll want num_runs
         self.num_times_parse_dags = num_times_parse_dags
-        self._processor_poll_interval = processor_poll_interval
+        if processor_poll_interval:
+            # TODO: Remove in Airflow 3.0
+            warnings.warn(
+                "The 'processor_poll_interval' parameter is deprecated. "
+                "Please use 'scheduler_idle_sleep_time'.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+            scheduler_idle_sleep_time = processor_poll_interval
+        self._scheduler_idle_sleep_time = scheduler_idle_sleep_time
 
         self.do_pickle = do_pickle
         super().__init__(*args, **kwargs)
@@ -247,7 +257,6 @@ class SchedulerJob(BaseJob):
         query = (
             session.query(TI)
             .join(TI.dag_run)
-            .options(eagerload(TI.dag_run))
             .filter(DR.run_type != DagRunType.BACKFILL_JOB, DR.state != DagRunState.QUEUED)
             .join(TI.dag_model)
             .filter(not_(DM.is_paused))
@@ -677,7 +686,7 @@ class SchedulerJob(BaseJob):
                 # If the scheduler is doing things, don't sleep. This means when there is work to do, the
                 # scheduler will run "as quick as possible", but when it's stopped, it can sleep, dropping CPU
                 # usage when "idle"
-                time.sleep(min(self._processor_poll_interval, next_event))
+                time.sleep(min(self._scheduler_idle_sleep_time, next_event))
 
             if loop_count >= self.num_runs > 0:
                 self.log.info(
@@ -739,18 +748,8 @@ class SchedulerJob(BaseJob):
 
             callback_tuples = []
             for dag_run in dag_runs:
-                # Use try_except to not stop the Scheduler when a Serialized DAG is not found
-                # This takes care of Dynamic DAGs especially
-                # SerializedDagNotFound should not happen here in the same loop because the DagRun would
-                # not be created in self._create_dag_runs if Serialized DAG does not exist
-                # But this would take care of the scenario when the Scheduler is restarted after DagRun is
-                # created and the DAG is deleted / renamed
-                try:
-                    callback_to_run = self._schedule_dag_run(dag_run, session)
-                    callback_tuples.append((dag_run, callback_to_run))
-                except SerializedDagNotFound:
-                    self.log.exception("DAG '%s' not found in serialized_dag table", dag_run.dag_id)
-                    continue
+                callback_to_run = self._schedule_dag_run(dag_run, session)
+                callback_tuples.append((dag_run, callback_to_run))
 
             guard.commit()
 
@@ -853,10 +852,9 @@ class SchedulerJob(BaseJob):
             if total_queued >= max_queued_dagruns:
                 continue
 
-            try:
-                dag = self.dagbag.get_dag(dag_model.dag_id, session=session)
-            except SerializedDagNotFound:
-                self.log.exception("DAG '%s' not found in serialized_dag table", dag_model.dag_id)
+            dag = self.dagbag.get_dag(dag_model.dag_id, session=session)
+            if not dag:
+                self.log.error("DAG '%s' not found in serialized_dag table", dag_model.dag_id)
                 continue
             dag_hash = self.dagbag.dags_hash.get(dag.dag_id)
 
@@ -920,10 +918,9 @@ class SchedulerJob(BaseJob):
 
         for dag_run in dag_runs:
 
-            try:
-                dag = dag_run.dag = self.dagbag.get_dag(dag_run.dag_id, session=session)
-            except SerializedDagNotFound:
-                self.log.exception("DAG '%s' not found in serialized_dag table", dag_run.dag_id)
+            dag = dag_run.dag = self.dagbag.get_dag(dag_run.dag_id, session=session)
+            if not dag:
+                self.log.error("DAG '%s' not found in serialized_dag table", dag_run.dag_id)
                 continue
             active_runs = active_runs_of_dags[dag_run.dag_id]
 

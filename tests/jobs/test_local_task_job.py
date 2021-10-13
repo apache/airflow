@@ -350,6 +350,7 @@ class TestLocalTaskJob:
 
         session.close()
 
+    @pytest.mark.quarantined
     @patch.object(StandardTaskRunner, 'return_code')
     def test_localtaskjob_maintain_heart_rate(self, mock_return_code, caplog, create_dummy_dag):
 
@@ -878,5 +879,5 @@ def test_number_of_queries_single_loop(mock_get_task_runner, return_codes, dag_m
     ti.refresh_from_task(task)
 
     job = LocalTaskJob(task_instance=ti, executor=MockExecutor())
-    with assert_queries_count(25):
+    with assert_queries_count(20):
         job.run()

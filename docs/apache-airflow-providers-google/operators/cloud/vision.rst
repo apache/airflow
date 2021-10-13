@@ -20,10 +20,6 @@
 Google Cloud Vision Operators
 =============================
 
-.. contents::
-  :depth: 1
-  :local:
-
 Prerequisite Tasks
 ------------------
 

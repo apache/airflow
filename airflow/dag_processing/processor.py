@@ -28,7 +28,6 @@ from typing import Iterator, List, Optional, Set, Tuple
 
 from setproctitle import setproctitle
 from sqlalchemy import func, or_
-from sqlalchemy.orm import eagerload
 from sqlalchemy.orm.session import Session
 
 from airflow import models, settings
@@ -393,7 +392,6 @@ class DagFileProcessor(LoggingMixin):
 
         max_tis: Iterator[TI] = (
             session.query(TI)
-            .options(eagerload(TI.dag_run))
             .join(TI.dag_run)
             .filter(
                 TI.dag_id == dag.dag_id,

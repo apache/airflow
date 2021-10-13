@@ -35,8 +35,18 @@ assists users migrating to a new version.
 
 Run ``helm repo update`` before upgrading the chart to the latest version.
 
-Airflow Helm Chart 1.2.0 (dev)
+Airflow Helm Chart 1.3.0 (dev)
 ------------------------------
+
+Default Airflow image is updated to ``2.2.0-python3.7``
+"""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+The default Airflow image that is used with the Chart is now ``2.2.0-python3.7``, previously it was ``2.1.4`` (which is Python ``3.6``).
+
+The triggerer component requires Python ``3.7``. If you require Python ``3.6`` and Airflow ``2.2.0``, use a ``3.6`` based image and set ``triggerer.enabled=False`` in your values.
+
+Airflow Helm Chart 1.2.0
+------------------------
 
 ``ingress.web.host`` and ``ingress.flower.host`` parameters have been renamed and data type changed
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""

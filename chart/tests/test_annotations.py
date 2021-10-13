@@ -178,7 +178,6 @@ class TestServiceAccountAnnotations:
             ),
             (
                 {
-                    "airflowVersion": "2.2.0",  # Needed for triggerer to be enabled.
                     "triggerer": {
                         "serviceAccount": {
                             "annotations": {
@@ -269,7 +268,6 @@ class TestServiceAccountAnnotations:
         ),
         (
             {
-                "airflowVersion": "2.2.0",  # Needed for triggerer to be enabled.
                 "triggerer": {
                     "podAnnotations": {
                         "example": "triggerer",

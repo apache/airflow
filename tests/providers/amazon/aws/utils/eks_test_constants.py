@@ -25,15 +25,18 @@ from enum import Enum
 from typing import Dict, List, Pattern, Tuple
 
 DEFAULT_CONN_ID: str = "aws_default"
+DEFAULT_NAMESPACE: str = "default_namespace"
 FROZEN_TIME: str = "2013-11-27T01:42:00Z"
+# Fargate docs say there is a limit of five labels per Selector.
+MAX_FARGATE_LABELS: int = 5
 PACKAGE_NOT_PRESENT_MSG: str = "mock_eks package not present"
 PARTITION: str = "aws"
 NON_EXISTING_CLUSTER_NAME: str = "non_existing_cluster"
+NON_EXISTING_FARGATE_PROFILE_NAME: str = "non_existing_fargate_profile"
 NON_EXISTING_NODEGROUP_NAME: str = "non_existing_nodegroup"
 REGION: str = "us-east-1"
 SUBNET_IDS: List[str] = ["subnet-12345ab", "subnet-67890cd"]
 TASK_ID: str = "test-eks-operator"
-
 
 AMI_TYPE: Tuple[str, str] = ("amiType", "AL2_x86_64")
 CLIENT_REQUEST_TOKEN: Tuple[str, str] = ("clientRequestToken", "test_request_token")
@@ -51,6 +54,7 @@ LABELS: Tuple[str, Dict] = ("labels", {"purpose": "example"})
 LAUNCH_TEMPLATE: Tuple[str, Dict] = ("launchTemplate", {"name": "myTemplate", "version": "2", "id": "123456"})
 LOGGING: Tuple[str, Dict] = ("logging", {"clusterLogging": [{"types": ["api"], "enabled": True}]})
 NODEROLE_ARN: Tuple[str, str] = ("nodeRole", "arn:aws:iam::123456789012:role/role_name")
+POD_EXECUTION_ROLE_ARN: Tuple[str, str] = ("podExecutionRoleArn", "arn:aws:iam::123456789012:role/role_name")
 REMOTE_ACCESS: Tuple[str, Dict] = ("remoteAccess", {"ec2SshKey": "eksKeypair"})
 RESOURCES_VPC_CONFIG: Tuple[str, Dict] = (
     "resourcesVpcConfig",
@@ -62,6 +66,7 @@ RESOURCES_VPC_CONFIG: Tuple[str, Dict] = (
 )
 ROLE_ARN: Tuple[str, str] = ("roleArn", "arn:aws:iam::123456789012:role/role_name")
 SCALING_CONFIG: Tuple[str, Dict] = ("scalingConfig", {"minSize": 2, "maxSize": 3, "desiredSize": 2})
+SELECTORS: Tuple[str, List] = ("selectors", [{"namespace": "profile-namespace"}])
 STATUS: Tuple[str, str] = ("status", "ACTIVE")
 SUBNETS: Tuple[str, List] = ("subnets", SUBNET_IDS)
 TAGS: Tuple[str, Dict] = ("tags", {"hello": "world"})
@@ -73,6 +78,8 @@ class ResponseAttributes:
 
     CLUSTER: slice = "cluster"
     CLUSTERS: slice = "clusters"
+    FARGATE_PROFILE_NAMES: slice = "fargateProfileNames"
+    FARGATE_PROFILE: slice = "fargateProfile"
     NEXT_TOKEN: slice = "nextToken"
     NODEGROUP: slice = "nodegroup"
     NODEGROUPS: slice = "nodegroups"
@@ -98,6 +105,11 @@ class ClusterInputs:
         TAGS,
         VERSION,
     ]
+
+
+class FargateProfileInputs:
+    REQUIRED: List[Tuple] = [POD_EXECUTION_ROLE_ARN, SELECTORS]
+    OPTIONAL: List[Tuple] = [SUBNETS, TAGS]
 
 
 class NodegroupInputs:
@@ -135,6 +147,15 @@ class ClusterAttributes:
     OIDC: slice = "oidc"
 
 
+class FargateProfileAttributes:
+    ARN: slice = "fargateProfileArn"
+    CREATED_AT: slice = "createdAt"
+    FARGATE_PROFILE_NAME: slice = "fargateProfileName"
+    LABELS: slice = "labels"
+    NAMESPACE: slice = "namespace"
+    SELECTORS: slice = "selectors"
+
+
 class NodegroupAttributes:
     """Key names for the dictionaries representing EKS Managed Nodegroups."""
 
@@ -165,6 +186,9 @@ class PageCount:
     LARGE: int = 10
 
 
+FARGATE_PROFILE_UUID_PATTERN: str = (
+    "(?P<fargate_uuid>[-0-9a-z]{8}-[-0-9a-z]{4}-[-0-9a-z]{4}-[-0-9a-z]{4}-[-0-9a-z]{12})"
+)
 NODEGROUP_UUID_PATTERN: str = (
     "(?P<nodegroup_uuid>[-0-9a-z]{8}-[-0-9a-z]{4}-[-0-9a-z]{4}-[-0-9a-z]{4}-[-0-9a-z]{12})"
 )
@@ -181,6 +205,17 @@ class RegExTemplates:
         + "(?P<account_id>[0-9]{12}):"
         + "cluster/"
         + "(?P<cluster_name>.+)"
+    )
+    FARGATE_PROFILE_ARN: Pattern = re.compile(
+        "arn:"
+        + "(?P<partition>.+):"
+        + "eks:"
+        + "(?P<region>[-0-9a-zA-Z]+):"
+        + "(?P<account_id>[0-9]{12}):"
+        + "fargateprofile/"
+        + "(?P<cluster_name>.+)/"
+        + "(?P<fargate_name>.+)/"
+        + FARGATE_PROFILE_UUID_PATTERN
     )
     NODEGROUP_ARN: Pattern = re.compile(
         "arn:"

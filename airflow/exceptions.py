@@ -150,10 +150,6 @@ class DuplicateTaskIdFound(AirflowException):
     """Raise when a Task with duplicate task_id is defined in the same DAG"""
 
 
-class SerializedDagNotFound(DagNotFound):
-    """Raise when DAG is not found in the serialized_dags table in DB"""
-
-
 class SerializationError(AirflowException):
     """A problem occurred when trying to serialize a DAG"""
 

@@ -233,7 +233,7 @@ function drawDagStatsForDag(dagId, states) {
     .attr('fill', '#51504f')
     .attr('text-anchor', 'middle')
     .attr('vertical-align', 'middle')
-    .attr('font-size', 8)
+    .attr('font-size', 9)
     .attr('y', 3)
     .style('pointer-events', 'none')
     .text((d) => (d.count > 0 ? d.count : ''));
@@ -303,7 +303,7 @@ function drawTaskStatsForDag(dagId, states) {
     .attr('fill', '#51504f')
     .attr('text-anchor', 'middle')
     .attr('vertical-align', 'middle')
-    .attr('font-size', 8)
+    .attr('font-size', 9)
     .attr('y', 3)
     .style('pointer-events', 'none')
     .text((d) => (d.count > 0 ? d.count : ''));

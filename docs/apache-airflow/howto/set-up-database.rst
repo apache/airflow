@@ -218,8 +218,17 @@ We recommend using the ``psycopg2`` driver and specifying it in your SqlAlchemy 
 
    postgresql+psycopg2://<user>:<password>@<host>/<db>
 
-Also note that since SqlAlchemy does not expose a way to target a specific schema in the database URI, you may
-want to set a default schema for your role with a SQL statement similar to ``ALTER ROLE username SET search_path = airflow, foobar;``
+Also note that since SqlAlchemy does not expose a way to target a specific schema in the database URI, you need to ensure schema ``public`` is in your Postgres user's search_path.
+
+If you created a new Postgres account for Airflow:
+
+* The default search_path for new Postgres user is: ``"$user", public``, no change is needed.
+
+If you use a current Postgres user with custom search_path, search_path can be changed by the command:
+
+.. code-block:: sql
+
+   ALTER USER airflow_user SET search_path = public;
 
 For more information regarding setup of the PostgresSQL connection, see `PostgreSQL dialect <https://docs.sqlalchemy.org/en/13/dialects/postgresql.html>`__ in SQLAlchemy documentation.
 
@@ -236,9 +245,34 @@ For more information regarding setup of the PostgresSQL connection, see `Postgre
 
    See also :ref:`Helm Chart production guide <production-guide:pgbouncer>`
 
+
+.. note::
+
+   For managed Postgres such as Redshift, Azure Postgresql, CloudSQL, Amazon RDS, you should use
+   ``keepalives_idle`` in the connection parameters and set it to less than the idle time because those
+   services will close idle connections after some time of inactivity (typically 300 seconds),
+   which results with error ``The error: psycopg2.operationalerror: SSL SYSCALL error: EOF detected``.
+   The ``keepalive`` settings can be changed via ``sql_alchemy_connect_args`` configuration parameter
+   :doc:`../configurations-ref` in ``[core]`` section. You can configure the args for example in your
+   local_settings.py and the ``sql_alchemy_connect_args`` should be a full import path to the dictionary
+   that stores the configuration parameters. You can read about
+   `Postgres Keepalives <https://www.postgresql.org/docs/current/libpq-connect.html>`_.
+   An example setup for ``keepalives`` that has been observe to fix the problem might be:
+
+   .. code-block:: python
+
+      keepalive_kwargs = {
+          "keepalives": 1,
+          "keepalives_idle": 30,
+          "keepalives_interval": 5,
+          "keepalives_count": 5,
+      }
+
+
 .. spelling::
 
      hba
+
 
 Setting up a MsSQL Database
 ---------------------------
