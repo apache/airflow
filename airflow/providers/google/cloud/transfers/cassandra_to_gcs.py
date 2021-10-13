@@ -90,7 +90,7 @@ class CassandraToGCSOperator(BaseOperator):
     :param query_timeout: (Optional) The floating-point timeout used to execute the Cassandra query.
         If not set, the timeout value will be set in Session.execute() by Cassandra driver.
         If set to None, there is no timeout.
-    :type query_timeout: Union[float, NotSetType]
+    :type query_timeout: float | None
     """
 
     template_fields = (
