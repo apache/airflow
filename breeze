@@ -149,7 +149,7 @@ function breeze::setup_default_breeze_constants() {
     AIRFLOW_SOURCES_TO=${AIRFLOW_SOURCES_TO:="/opt/airflow"}
     export AIRFLOW_SOURCES_TO
 
-    # Unlike in CI scripts, in breeze by default production image ist installed from sources
+    # Unlike in CI scripts, in breeze by default production image is installed from sources
     export AIRFLOW_INSTALLATION_METHOD="."
 
     # If it set is set to specified version, then the source version of Airflow

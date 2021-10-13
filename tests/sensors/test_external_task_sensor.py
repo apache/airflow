@@ -750,7 +750,7 @@ def dag_bag_cyclic():
                 )
                 task_a >> task_b
 
-        # Create the last dag wich loops back
+        # Create the last dag which loops back
         with DAG(f"dag_{depth}", start_date=DEFAULT_DATE, schedule_interval=None) as dag:
             dags.append(dag)
             task_a = ExternalTaskSensor(

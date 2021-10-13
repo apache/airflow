@@ -550,7 +550,7 @@ MASK_SECRETS_IN_LOGS = False
 
 # Display alerts on the dashboard
 # Useful for warning about setup issues or announcing changes to end users
-# List of UIAlerts, which allows for specifiying the message, category, and roles the
+# List of UIAlerts, which allows for specifying the message, category, and roles the
 # message should be shown to. For example:
 #   from airflow.www.utils import UIAlert
 #

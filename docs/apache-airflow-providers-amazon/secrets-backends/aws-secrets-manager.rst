@@ -104,7 +104,7 @@ For example, if you want to set parameter ``connections_prefix`` to ``"airflow/c
     backend = airflow.providers.amazon.aws.secrets.secrets_manager.SecretsManagerBackend
     backend_kwargs = {"connections_prefix": "airflow/connections", "variables_prefix": null, "profile_name": "default"}
 
-Example of storing Google Secrets in AWS Secrets Manger
+Example of storing Google Secrets in AWS Secrets Manager
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""
 For connecting to a google cloud conn, all the fields must be in the extra field, and their names follow the pattern
 ``extra_google_cloud_platform__value``. For example:

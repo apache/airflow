@@ -741,7 +741,7 @@ def check_task_tables_without_matching_dagruns(session) -> Iterable[str]:
         try:
             metadata.reflect(only=[model.__tablename__])
         except exc.InvalidRequestError:
-            # Table doesn't exist, but try the other ones incase the user is upgrading from an _old_ DB
+            # Table doesn't exist, but try the other ones in case the user is upgrading from an _old_ DB
             # version
             pass
 

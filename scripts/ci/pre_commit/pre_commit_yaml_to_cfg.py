@@ -17,7 +17,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """
-Module to covert Airflow configs in config.yml to default_airflow.cfg file
+Module to convert Airflow configs in config.yml to default_airflow.cfg file
 """
 
 import os

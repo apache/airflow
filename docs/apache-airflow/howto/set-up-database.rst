@@ -27,7 +27,7 @@ The document below describes the database engine configurations, the necessary c
 Choosing database backend
 -------------------------
 
-If you want to take a real test drive of Airflow, you should consider setting up a database backend to **MySQL**, **PostgresSQL** , **MsSQL**.
+If you want to take a real test drive of Airflow, you should consider setting up a database backend to **MySQL**, **PostgreSQL** , **MsSQL**.
 By default, Airflow uses **SQLite**, which is intended for development purposes only.
 
 Airflow supports the following database engine versions, so make sure which version you have. Old versions may not support all SQL statements.
@@ -230,7 +230,7 @@ If you use a current Postgres user with custom search_path, search_path can be c
 
    ALTER USER airflow_user SET search_path = public;
 
-For more information regarding setup of the PostgresSQL connection, see `PostgreSQL dialect <https://docs.sqlalchemy.org/en/13/dialects/postgresql.html>`__ in SQLAlchemy documentation.
+For more information regarding setup of the PostgreSQL connection, see `PostgreSQL dialect <https://docs.sqlalchemy.org/en/13/dialects/postgresql.html>`__ in SQLAlchemy documentation.
 
 .. note::
 

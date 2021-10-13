@@ -774,7 +774,7 @@ class TestDagFileProcessorManager:
         manager._refresh_dag_dir()
         # Assert dag not deleted in SDM
         assert SerializedDagModel.has_dag('test_zip_dag')
-        # assert code not delted
+        # assert code not deleted
         assert DagCode.has_dag(dag.fileloc)
 
 
