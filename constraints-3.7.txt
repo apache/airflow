@@ -295,7 +295,7 @@ identify==2.3.0
 idna==3.2
 ijson==3.1.4
 imagesize==1.2.0
-importlib-metadata==4.8.1
+importlib-metadata==4.2.0
 importlib-resources==5.2.2
 inflection==0.5.1
 influxdb-client==1.21.0
