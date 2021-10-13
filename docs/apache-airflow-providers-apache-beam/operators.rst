@@ -76,6 +76,7 @@ Python Pipelines with DataflowRunner
     :start-after: [START howto_operator_start_python_dataflow_runner_pipeline_async_gcs_file]
     :end-before: [END howto_operator_start_python_dataflow_runner_pipeline_async_gcs_file]
 
+
 .. _howto/operator:BeamRunJavaPipelineOperator:
 
 Run Java Pipelines in Apache Beam
@@ -84,7 +85,7 @@ Run Java Pipelines in Apache Beam
 For Java pipeline the ``jar`` argument must be specified for
 :class:`~airflow.providers.apache.beam.operators.beam.BeamRunJavaPipelineOperator`
 as it contains the pipeline to be executed by Apache Beam. The JAR can be available on GCS that Airflow
-has the ability to download or available on the local filesystem (provide the absolute path to it).
+has the ability to download or available on  the local filesystem (provide the absolute path to it).
 
 Java Pipelines with DirectRunner
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
