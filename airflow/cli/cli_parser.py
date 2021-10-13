@@ -26,7 +26,7 @@ from argparse import Action, ArgumentError, RawTextHelpFormatter
 from functools import lru_cache
 from typing import Callable, Dict, Iterable, List, NamedTuple, Optional, Union
 
-from airflow import settings
+from airflow import PY37, settings
 from airflow.cli.commands.legacy_commands import check_legacy_command
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
@@ -74,10 +74,7 @@ class DefaultHelpParser(argparse.ArgumentParser):
                 )
                 raise ArgumentError(action, message)
         if action.dest == 'subcommand' and value == 'triggerer':
-            try:
-                from asyncio import create_task  # noqa: F401
-            except ImportError:
-                # create_task is not present in Python 3.6. Once Airflow is at 3.7+, we can remove this check.
+            if not PY37:
                 raise ArgumentError(action, 'triggerer subcommand only works with Python 3.7+')
 
         if action.choices is not None and value not in action.choices:
