@@ -26,7 +26,7 @@ from airflow.operators.email import EmailOperator
 
 
 class GetRequestOperator(BaseOperator):
-    """Custom operator to sand GET request to provided url"""
+    """Custom operator to send GET request to provided url"""
 
     def __init__(self, *, url: str, **kwargs):
         super().__init__(**kwargs)

@@ -25,6 +25,7 @@ from airflow import DAG
 from airflow.operators.dummy import DummyOperator
 from airflow.operators.python import BranchPythonOperator
 from airflow.utils.edgemodifier import Label
+from airflow.utils.trigger_rule import TriggerRule
 
 with DAG(
     dag_id='example_branch_operator',
@@ -47,7 +48,7 @@ with DAG(
 
     join = DummyOperator(
         task_id='join',
-        trigger_rule='none_failed_min_one_success',
+        trigger_rule=TriggerRule.NONE_FAILED_MIN_ONE_SUCCESS,
     )
 
     for option in options:
