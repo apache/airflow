@@ -1702,7 +1702,7 @@ class TaskInstance(Base, LoggingMixin):
             session.add(Log(State.FAILED, self))
 
             # Log failure duration
-            dag_run = self.get_dagrun()  # self.dag_run not populated by refresh_from_db
+            dag_run = self.get_dagrun(session=session)  # self.dag_run not populated by refresh_from_db
             session.add(TaskFail(task, dag_run.execution_date, self.start_date, self.end_date))
 
         # Ensure we unset next_method and next_kwargs to ensure that any
