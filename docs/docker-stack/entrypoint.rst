@@ -229,7 +229,7 @@ idea from security point of view - as both image and parameters to run the image
 to anyone who has access to logs of your Kubernetes or image registry.
 
 Also be aware that code executed before Airflow's entrypoint should not create any files or
-directories inside the image and not everything might work the same way as after it is executed.
+directories inside the container and everything might not work the same way when it is executed.
 Before Airflow entrypoint is executed, the following functionalities are not available:
 
 * umask is not set properly to allow ``group`` write access
