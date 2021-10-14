@@ -233,7 +233,7 @@ directories inside the container and everything might not work the same way when
 Before Airflow entrypoint is executed, the following functionalities are not available:
 
 * umask is not set properly to allow ``group`` write access
-* user is not yet created in /etc/passwd in case arbitrary user is used to run the image
+* user is not yet created in ``/etc/passwd`` if an arbitrary user is used to run the image
 * the database and brokers might not be available yet
 
 Adding custom image behaviour
