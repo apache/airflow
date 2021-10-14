@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2021-10-14T08:50:54Z
+# This constraints file was automatically generated on 2021-10-14T12:41:49Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package nd all available community provider packages.
@@ -13,8 +13,8 @@ APScheduler==3.6.3
 Authlib==0.15.4
 Babel==2.9.1
 Deprecated==1.2.13
-Flask-AppBuilder==3.3.3
-Flask-Babel==1.0.0
+Flask-AppBuilder==3.3.4
+Flask-Babel==2.0.0
 Flask-Bcrypt==0.7.1
 Flask-Caching==1.10.1
 Flask-JWT-Extended==3.25.1
@@ -262,7 +262,7 @@ lockfile==0.12.2
 lxml==4.6.3
 marshmallow-enum==1.5.1
 marshmallow-oneofschema==3.0.1
-marshmallow-sqlalchemy==0.23.1
+marshmallow-sqlalchemy==0.26.1
 marshmallow==3.13.0
 mccabe==0.6.1
 mongomock==3.23.0
