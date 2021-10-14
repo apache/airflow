@@ -193,10 +193,6 @@ class EC2Hook(AwsBaseHook):
         """
         instance_state = self.get_instance_state(instance_id=instance_id)
 
-        self.log.info(
-            "instance state: %s. Same as target: %s", instance_state, instance_state == target_state
-        )
-
         while instance_state != target_state:
             time.sleep(check_interval)
             instance_state = self.get_instance_state(instance_id=instance_id)
