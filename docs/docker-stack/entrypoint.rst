@@ -240,8 +240,8 @@ Adding custom image behaviour
 -----------------------------
 
 The Airflow image executes a lot of steps in the entrypoint, and sets the right environment, but
-you might want to run additional code after the entrypoint creating the user, set the umask, setting the
-variables and checking that database is runnint.
+you might want to run additional code after the entrypoint creates the user, sets the umask, sets
+variables and checks that database is running.
 
 Rather than running regular commands - ``scheduler``, ``webserver`` you can run *custom* script that
 you can embed into the image. You can even execute the usual components of airflow -
