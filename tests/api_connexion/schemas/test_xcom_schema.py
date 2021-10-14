@@ -14,9 +14,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+import datetime
 import unittest
-
-from sqlalchemy import or_
+import uuid
 
 from airflow.api_connexion.schemas.xcom_schema import (
     XComCollection,
@@ -29,169 +29,168 @@ from airflow.utils.dates import parse_execution_date
 from airflow.utils.session import create_session, provide_session
 
 
+class MockXcomCollectionItem:
+    DEFAULT_TIME = '2005-04-02T21:00:00+00:00'
+    DEFAULT_TIME_PARSED = parse_execution_date(DEFAULT_TIME)
+
+    def __init__(self):
+        self.key: str = f'test_key_{self.example_ref}'
+        self.timestamp: datetime.datetime = self.DEFAULT_TIME_PARSED
+        self.execution_date: datetime.datetime = self.DEFAULT_TIME_PARSED
+        self.task_id = f'test_task_id_{self.example_ref}'
+        self.dag_id = f'test_dag_{self.example_ref}'
+
+    @property
+    def example_ref(self):
+        return uuid.uuid4()
+
+    @property
+    def as_xcom(self):
+        return XCom(
+            key=self.key,
+            timestamp=self.timestamp,
+            execution_date=self.execution_date,
+            task_id=self.task_id,
+            dag_id=self.dag_id,
+        )
+
+    @property
+    def deserialized_xcom(self):
+        return {
+            'key': self.key,
+            'timestamp': self.DEFAULT_TIME,
+            'execution_date': self.DEFAULT_TIME,
+            'task_id': self.task_id,
+            'dag_id': self.dag_id,
+        }
+
+    @property
+    def from_dump_xcom(self):
+        return {
+            'key': self.key,
+            'timestamp': self.DEFAULT_TIME_PARSED,
+            'execution_date': self.DEFAULT_TIME_PARSED,
+            'task_id': self.task_id,
+            'dag_id': self.dag_id,
+        }
+
+
+class MockXcomSchema(MockXcomCollectionItem):
+    def __init__(self):
+        super().__init__()
+        self.value = f'test_binary_{self.example_ref}'
+
+    @property
+    def as_xcom(self):
+        return XCom(
+            key=self.key,
+            timestamp=self.timestamp,
+            execution_date=self.execution_date,
+            task_id=self.task_id,
+            dag_id=self.dag_id,
+            value=self.value.encode('ascii')
+        )
+
+    @property
+    def deserialized_xcom(self):
+        return {
+            'key': self.key,
+            'timestamp': self.DEFAULT_TIME,
+            'execution_date': self.DEFAULT_TIME,
+            'task_id': self.task_id,
+            'dag_id': self.dag_id,
+            'value': self.value
+        }
+
+    @property
+    def from_dump_xcom(self):
+        return {
+            'key': self.key,
+            'timestamp': self.DEFAULT_TIME_PARSED,
+            'execution_date': self.DEFAULT_TIME_PARSED,
+            'task_id': self.task_id,
+            'dag_id': self.dag_id,
+            'value': self.value
+        }
+
+
 class TestXComSchemaBase(unittest.TestCase):
     def setUp(self):
+        self.clear_db()
+
+    def tearDown(self) -> None:
+        self.clear_db()
+
+    @staticmethod
+    def clear_db():
         """
         Clear Hanging XComs pre test
         """
         with create_session() as session:
             session.query(XCom).delete()
 
-    def tearDown(self) -> None:
-        """
-        Clear Hanging XComs post test
-        """
-        with create_session() as session:
-            session.query(XCom).delete()
-
 
 class TestXComCollectionItemSchema(TestXComSchemaBase):
-    def setUp(self) -> None:
+    def setUp(self):
         super().setUp()
-        self.default_time = '2005-04-02T21:00:00+00:00'
-        self.default_time_parsed = parse_execution_date(self.default_time)
+        self.fake_xcom = MockXcomCollectionItem()
+        self.xcom_model = self.fake_xcom.as_xcom
 
     @provide_session
     def test_serialize(self, session):
-        xcom_model = XCom(
-            key='test_key',
-            timestamp=self.default_time_parsed,
-            execution_date=self.default_time_parsed,
-            task_id='test_task_id',
-            dag_id='test_dag',
-        )
-        session.add(xcom_model)
+        session.add(self.xcom_model)
         session.commit()
-        xcom_model = session.query(XCom).first()
-        deserialized_xcom = xcom_collection_item_schema.dump(xcom_model)
-        assert deserialized_xcom == {
-            'key': 'test_key',
-            'timestamp': self.default_time,
-            'execution_date': self.default_time,
-            'task_id': 'test_task_id',
-            'dag_id': 'test_dag',
-        }
+        query_results = session.query(XCom).first()
+        actual = xcom_collection_item_schema.dump(query_results)
+        expected = self.fake_xcom.deserialized_xcom
+        assert actual == expected
 
     def test_deserialize(self):
-        xcom_dump = {
-            'key': 'test_key',
-            'timestamp': self.default_time,
-            'execution_date': self.default_time,
-            'task_id': 'test_task_id',
-            'dag_id': 'test_dag',
-        }
-        result = xcom_collection_item_schema.load(xcom_dump)
-        assert result == {
-            'key': 'test_key',
-            'timestamp': self.default_time_parsed,
-            'execution_date': self.default_time_parsed,
-            'task_id': 'test_task_id',
-            'dag_id': 'test_dag',
-        }
+        xcom_dump = self.fake_xcom.deserialized_xcom
+        actual = xcom_collection_item_schema.load(xcom_dump)
+        expected = self.fake_xcom.from_dump_xcom
+        assert actual == expected
 
 
 class TestXComCollectionSchema(TestXComSchemaBase):
-    def setUp(self) -> None:
-        super().setUp()
-        self.default_time_1 = '2005-04-02T21:00:00+00:00'
-        self.default_time_2 = '2005-04-02T21:01:00+00:00'
-        self.time_1 = parse_execution_date(self.default_time_1)
-        self.time_2 = parse_execution_date(self.default_time_2)
-
     @provide_session
     def test_serialize(self, session):
-        xcom_model_1 = XCom(
-            key='test_key_1',
-            timestamp=self.time_1,
-            execution_date=self.time_1,
-            task_id='test_task_id_1',
-            dag_id='test_dag_1',
-        )
-        xcom_model_2 = XCom(
-            key='test_key_2',
-            timestamp=self.time_2,
-            execution_date=self.time_2,
-            task_id='test_task_id_2',
-            dag_id='test_dag_2',
-        )
-        xcom_models = [xcom_model_1, xcom_model_2]
+        xcoms = [MockXcomCollectionItem() for _ in range(2)]
+        xcom_models = [xcom.as_xcom for xcom in xcoms]
         session.add_all(xcom_models)
         session.commit()
-        xcom_models_query = session.query(XCom).filter(
-            or_(XCom.execution_date == self.time_1, XCom.execution_date == self.time_2)
-        )
-        xcom_models_queried = xcom_models_query.all()
-        deserialized_xcoms = xcom_collection_schema.dump(
+        xcom_models_queried = session.query(XCom).all()
+        actual = xcom_collection_schema.dump(
             XComCollection(
                 xcom_entries=xcom_models_queried,
-                total_entries=xcom_models_query.count(),
+                total_entries=session.query(XCom).count(),
             )
         )
-        assert deserialized_xcoms == {
-            'xcom_entries': [
-                {
-                    'key': 'test_key_1',
-                    'timestamp': self.default_time_1,
-                    'execution_date': self.default_time_1,
-                    'task_id': 'test_task_id_1',
-                    'dag_id': 'test_dag_1',
-                },
-                {
-                    'key': 'test_key_2',
-                    'timestamp': self.default_time_2,
-                    'execution_date': self.default_time_2,
-                    'task_id': 'test_task_id_2',
-                    'dag_id': 'test_dag_2',
-                },
-            ],
-            'total_entries': len(xcom_models),
+        expected = {
+            'xcom_entries': [xcom.deserialized_xcom for xcom in xcoms],
+            'total_entries': len(xcoms),
         }
+        assert actual == expected
 
 
 class TestXComSchema(TestXComSchemaBase):
     def setUp(self) -> None:
         super().setUp()
-        self.default_time = '2005-04-02T21:00:00+00:00'
-        self.default_time_parsed = parse_execution_date(self.default_time)
 
     @provide_session
     def test_serialize(self, session):
-        xcom_model = XCom(
-            key='test_key',
-            timestamp=self.default_time_parsed,
-            execution_date=self.default_time_parsed,
-            task_id='test_task_id',
-            dag_id='test_dag',
-            value=b'test_binary',
-        )
+        fake_xcom = MockXcomSchema()
+        xcom_model = fake_xcom.as_xcom
         session.add(xcom_model)
         session.commit()
-        xcom_model = session.query(XCom).first()
-        deserialized_xcom = xcom_schema.dump(xcom_model)
-        assert deserialized_xcom == {
-            'key': 'test_key',
-            'timestamp': self.default_time,
-            'execution_date': self.default_time,
-            'task_id': 'test_task_id',
-            'dag_id': 'test_dag',
-            'value': 'test_binary',
-        }
+        query_result = session.query(XCom).first()
+        actual = xcom_schema.dump(query_result)
+        expected = fake_xcom.deserialized_xcom
+        assert actual == expected
 
     def test_deserialize(self):
-        xcom_dump = {
-            'key': 'test_key',
-            'timestamp': self.default_time,
-            'execution_date': self.default_time,
-            'task_id': 'test_task_id',
-            'dag_id': 'test_dag',
-            'value': b'test_binary',
-        }
-        result = xcom_schema.load(xcom_dump)
-        assert result == {
-            'key': 'test_key',
-            'timestamp': self.default_time_parsed,
-            'execution_date': self.default_time_parsed,
-            'task_id': 'test_task_id',
-            'dag_id': 'test_dag',
-            'value': 'test_binary',
-        }
+        fake_xcom = MockXcomSchema()
+        xcom_dump = fake_xcom.deserialized_xcom
+        actual = xcom_schema.load(xcom_dump)
+        expected = fake_xcom.from_dump_xcom
+        assert actual == expected
