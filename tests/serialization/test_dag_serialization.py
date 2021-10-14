@@ -23,7 +23,7 @@ import importlib
 import importlib.util
 import multiprocessing
 import os
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta
 from glob import glob
 from unittest import mock
 
@@ -35,13 +35,16 @@ from kubernetes.client import models as k8s
 from airflow.exceptions import SerializationError
 from airflow.hooks.base import BaseHook
 from airflow.kubernetes.pod_generator import PodGenerator
-from airflow.models import DAG, Connection, DagBag, TaskInstance
+from airflow.models import DAG, Connection, DagBag
 from airflow.models.baseoperator import BaseOperator, BaseOperatorLink
+from airflow.models.param import Param, ParamsDict
+from airflow.models.xcom import XCom
 from airflow.operators.bash import BashOperator
 from airflow.security import permissions
 from airflow.serialization.json_schema import load_dag_schema_dict
 from airflow.serialization.serialized_objects import SerializedBaseOperator, SerializedDAG
 from airflow.timetables.simple import NullTimetable, OnceTimetable
+from airflow.utils import timezone
 from tests.test_utils.mock_operators import CustomOperator, CustomOpLink, GoogleLink
 from tests.test_utils.timetables import CustomSerializationTimetable, cron_timetable, delta_timetable
 
@@ -152,6 +155,7 @@ serialized_simple_dag_ground_truth = {
         },
         "edge_info": {},
         "dag_dependencies": [],
+        "params": {},
     },
 }
 
@@ -445,6 +449,7 @@ class TestStringifiedDAGs:
             # Need to check fields in it, to exclude functions.
             'default_args',
             "_task_group",
+            'params',
         }
         for field in fields_to_check:
             assert getattr(serialized_dag, field) == getattr(
@@ -493,6 +498,7 @@ class TestStringifiedDAGs:
             'on_retry_callback',
             # Checked separately
             'resources',
+            'params',
         }
 
         assert serialized_task.task_type == task.task_type
@@ -512,6 +518,10 @@ class TestStringifiedDAGs:
             assert task.resources is None or task.resources == []
         else:
             assert serialized_task.resources == task.resources
+
+        # Ugly hack as some operators override params var in their init
+        if isinstance(task.params, ParamsDict):
+            assert serialized_task.params.dump() == task.params.dump()
 
         # Check that for Deserialised task, task.subdag is None for all other Operators
         # except for the SubDagOperator where task.subdag is an instance of DAG object
@@ -724,15 +734,38 @@ class TestStringifiedDAGs:
         BaseOperator(task_id='simple_task', dag=dag, start_date=datetime(2019, 8, 1))
 
         serialized_dag = SerializedDAG.to_dict(dag)
-        if val:
-            assert "params" in serialized_dag["dag"]
-        else:
-            assert "params" not in serialized_dag["dag"]
+        assert "params" in serialized_dag["dag"]
 
         deserialized_dag = SerializedDAG.from_dict(serialized_dag)
         deserialized_simple_task = deserialized_dag.task_dict["simple_task"]
-        assert expected_val == deserialized_dag.params
-        assert expected_val == deserialized_simple_task.params
+        assert expected_val == deserialized_dag.params.dump()
+        assert expected_val == deserialized_simple_task.params.dump()
+
+    def test_invalid_params(self):
+        """
+        Test to make sure that only native Param objects are being passed as dag or task params
+        """
+
+        class S3Param(Param):
+            def __init__(self, path: str):
+                schema = {"type": "string", "pattern": r"s3:\/\/(.+?)\/(.+)"}
+                super().__init__(default=path, schema=schema)
+
+        dag = DAG(dag_id='simple_dag', params={'path': S3Param('s3://my_bucket/my_path')})
+
+        with pytest.raises(SerializationError):
+            SerializedDAG.to_dict(dag)
+
+        dag = DAG(dag_id='simple_dag')
+        BaseOperator(
+            task_id='simple_task',
+            dag=dag,
+            start_date=datetime(2019, 8, 1),
+            params={'path': S3Param('s3://my_bucket/my_path')},
+        )
+
+        with pytest.raises(SerializationError):
+            SerializedDAG.to_dict(dag)
 
     @pytest.mark.parametrize(
         "val, expected_val",
@@ -756,7 +789,7 @@ class TestStringifiedDAGs:
 
         deserialized_dag = SerializedDAG.from_dict(serialized_dag)
         deserialized_simple_task = deserialized_dag.task_dict["simple_task"]
-        assert expected_val == deserialized_simple_task.params
+        assert expected_val == deserialized_simple_task.params.dump()
 
     def test_extra_serialized_field_and_operator_links(self):
         """
@@ -770,7 +803,7 @@ class TestStringifiedDAGs:
         the Operator in ``BaseOperator.operator_extra_links``, it has the correct
         extra link.
         """
-        test_date = datetime(2019, 8, 1)
+        test_date = timezone.DateTime(2019, 8, 1, tzinfo=timezone.utc)
         dag = DAG(dag_id='simple_dag', start_date=test_date)
         CustomOperator(task_id='simple_task', dag=dag, bash_command="true")
 
@@ -792,8 +825,13 @@ class TestStringifiedDAGs:
         # Test all the extra_links are set
         assert set(simple_task.extra_links) == {'Google Custom', 'airflow', 'github', 'google'}
 
-        ti = TaskInstance(task=simple_task, execution_date=test_date)
-        ti.xcom_push('search_query', "dummy_value_1")
+        XCom.set(
+            key='search_query',
+            value="dummy_value_1",
+            task_id=simple_task.task_id,
+            dag_id=simple_task.dag_id,
+            execution_date=test_date,
+        )
 
         # Test Deserialized inbuilt link
         custom_inbuilt_link = simple_task.get_extra_links(test_date, CustomOpLink.name)
@@ -850,7 +888,7 @@ class TestStringifiedDAGs:
         the Operator in ``BaseOperator.operator_extra_links``, it has the correct
         extra link.
         """
-        test_date = datetime(2019, 8, 1)
+        test_date = timezone.DateTime(2019, 8, 1, tzinfo=timezone.utc)
         dag = DAG(dag_id='simple_dag', start_date=test_date)
         CustomOperator(task_id='simple_task', dag=dag, bash_command=["echo", "true"])
 
@@ -879,8 +917,13 @@ class TestStringifiedDAGs:
             'google',
         }
 
-        ti = TaskInstance(task=simple_task, execution_date=test_date)
-        ti.xcom_push('search_query', ["dummy_value_1", "dummy_value_2"])
+        XCom.set(
+            key='search_query',
+            value=["dummy_value_1", "dummy_value_2"],
+            task_id=simple_task.task_id,
+            dag_id=simple_task.dag_id,
+            execution_date=test_date,
+        )
 
         # Test Deserialized inbuilt link #1
         custom_inbuilt_link = simple_task.get_extra_links(test_date, "BigQuery Console #1")
@@ -989,6 +1032,7 @@ class TestStringifiedDAGs:
             "has_on_success_callback",
             "has_on_failure_callback",
             "dag_dependencies",
+            "params",
         }
 
         keys_for_backwards_compat: set = {

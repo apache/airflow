@@ -63,7 +63,7 @@ def validate_group_key(k: str, max_length: int = 200):
         raise AirflowException(f"The key has to be less than {max_length} characters")
     if not GROUP_KEY_REGEX.match(k):
         raise AirflowException(
-            f"The key ({k}) has to be made of alphanumeric characters, dashes " "and underscores exclusively"
+            f"The key ({k}) has to be made of alphanumeric characters, dashes and underscores exclusively"
         )
 
 

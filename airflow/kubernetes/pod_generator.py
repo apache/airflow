@@ -332,12 +332,13 @@ class PodGenerator:
         pod_id: str,
         try_number: int,
         kube_image: str,
-        date: datetime.datetime,
+        date: Optional[datetime.datetime],
         args: List[str],
         pod_override_object: Optional[k8s.V1Pod],
         base_worker_pod: k8s.V1Pod,
         namespace: str,
         scheduler_job_id: int,
+        run_id: Optional[str] = None,
     ) -> k8s.V1Pod:
         """
         Construct a pod by gathering and consolidating the configuration from 3 places:
@@ -352,25 +353,32 @@ class PodGenerator:
         except Exception:
             image = kube_image
 
+        annotations = {
+            'dag_id': dag_id,
+            'task_id': task_id,
+            'try_number': str(try_number),
+        }
+        labels = {
+            'airflow-worker': make_safe_label_value(str(scheduler_job_id)),
+            'dag_id': make_safe_label_value(dag_id),
+            'task_id': make_safe_label_value(task_id),
+            'try_number': str(try_number),
+            'airflow_version': airflow_version.replace('+', '-'),
+            'kubernetes_executor': 'True',
+        }
+        if date:
+            annotations['execution_date'] = date.isoformat()
+            labels['execution_date'] = datetime_to_label_safe_datestring(date)
+        if run_id:
+            annotations['run_id'] = run_id
+            labels['run_id'] = make_safe_label_value(run_id)
+
         dynamic_pod = k8s.V1Pod(
             metadata=k8s.V1ObjectMeta(
                 namespace=namespace,
-                annotations={
-                    'dag_id': dag_id,
-                    'task_id': task_id,
-                    'execution_date': date.isoformat(),
-                    'try_number': str(try_number),
-                },
+                annotations=annotations,
                 name=PodGenerator.make_unique_pod_id(pod_id),
-                labels={
-                    'airflow-worker': make_safe_label_value(str(scheduler_job_id)),
-                    'dag_id': make_safe_label_value(dag_id),
-                    'task_id': make_safe_label_value(task_id),
-                    'execution_date': datetime_to_label_safe_datestring(date),
-                    'try_number': str(try_number),
-                    'airflow_version': airflow_version.replace('+', '-'),
-                    'kubernetes_executor': 'True',
-                },
+                labels=labels,
             ),
             spec=k8s.V1PodSpec(
                 containers=[

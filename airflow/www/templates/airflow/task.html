@@ -43,19 +43,23 @@
       <h5>Attribute: {{ attr }}</h5>
       {{ value }}
     {% endfor %}
-    <h5>Task Instance Attributes</h5>
-    <table class="table table-striped table-bordered">
-      <tr>
-        <th>Attribute</th>
-        <th>Value</th>
-      </tr>
-      {% for attr, value in ti_attrs %}
+    {% if ti_attrs is none %}
+      <h5>No Task Instance Available</h5>
+    {% else %}
+      <h5>Task Instance Attributes</h5>
+      <table class="table table-striped table-bordered">
         <tr>
-          <td>{{ attr }}</td>
-          <td class="code js-ti-attr">{{ value }}</td>
+          <th>Attribute</th>
+          <th>Value</th>
         </tr>
-      {% endfor %}
-    </table>
+        {% for attr, value in ti_attrs %}
+          <tr>
+            <td>{{ attr }}</td>
+            <td class="code js-ti-attr">{{ value }}</td>
+          </tr>
+        {% endfor %}
+      </table>
+    {% endif %}
     <h5>Task Attributes</h5>
     <table class="table table-striped table-bordered">
       <tr>

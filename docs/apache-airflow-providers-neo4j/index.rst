@@ -46,6 +46,7 @@ Content
     :caption: Resources
 
     PyPI Repository <https://pypi.org/project/apache-airflow-providers-neo4j/>
+    Installing from sources <installing-providers-from-sources>
 
 .. THE REMAINDER OF THE FILE IS AUTOMATICALLY GENERATED. IT WILL BE OVERWRITTEN AT RELEASE TIME!
 
@@ -63,7 +64,7 @@ Package apache-airflow-providers-neo4j
 `Neo4j <https://neo4j.com/>`__
 
 
-Release: 2.0.1
+Release: 2.0.2
 
 Provider package
 ----------------

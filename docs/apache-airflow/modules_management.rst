@@ -115,7 +115,7 @@ In the case above, there are the ways you could import the python files:
    from my_company.common_package.subpackge.subpackaged_util_module import AnotherClass
    from my_company.my_custom_dags.base_dag import BaseDag
 
-You can see the ``.ariflowignore`` file at the root of your folder. This is a file that you can put in your
+You can see the ``.airflowignore`` file at the root of your folder. This is a file that you can put in your
 ``dags`` folder to tell Airflow which files from the folder should be ignored when the Airflow
 scheduler looks for DAGs. It should contain regular expressions for the paths that should be ignored. You
 do not need to have that file in any other folder in ``PYTHONPATH`` (and also you can only keep

@@ -22,10 +22,6 @@ Access Control of Airflow Webserver UI is handled by Flask AppBuilder (FAB).
 Please read its related `security document <http://flask-appbuilder.readthedocs.io/en/latest/security.html>`_
 regarding its security model.
 
-.. contents::
-  :depth: 1
-  :local:
-
 .. spelling::
     clearTaskInstances
     dagRuns
@@ -148,15 +144,15 @@ Endpoint                                                                        
 /dags                                                                              GET    DAGs.can_read                                                     Viewer
 /dags/{dag_id}                                                                     GET    DAGs.can_read                                                     Viewer
 /dags/{dag_id}                                                                     PATCH  DAGs.can_edit                                                     User
-/dags/{dag_id}/clearTaskInstances                                                  POST   DAGs.can_read, DAG Runs.can_read, Task Instances.can_edit         User
+/dags/{dag_id}/clearTaskInstances                                                  POST   DAGs.can_edit, DAG Runs.can_read, Task Instances.can_edit         User
 /dags/{dag_id}/details                                                             GET    DAGs.can_read                                                     Viewer
 /dags/{dag_id}/tasks                                                               GET    DAGs.can_read, Task Instances.can_read                            Viewer
 /dags/{dag_id}/tasks/{task_id}                                                     GET    DAGs.can_read, Task Instances.can_read                            Viewer
 /dags/{dag_id}/dagRuns                                                             GET    DAGs.can_read, DAG Runs.can_read                                  Viewer
 /dags/{dag_id}/dagRuns                                                             POST   DAGs.can_edit, DAG Runs.can_create                                User
-/dags/{dag_id}/dagRuns/{dag_run_id}                                                DELETE DAGs.can_read, DAG Runs.can_delete                                User
+/dags/{dag_id}/dagRuns/{dag_run_id}                                                DELETE DAGs.can_edit, DAG Runs.can_delete                                User
 /dags/{dag_id}/dagRuns/{dag_run_id}                                                GET    DAGs.can_read, DAG Runs.can_read                                  Viewer
-/dags/~/dagRuns/list                                                               POST   DAGs.can_read, DAG Runs.can_read                                  Viewer
+/dags/~/dagRuns/list                                                               POST   DAGs.can_edit, DAG Runs.can_read                                  User
 /eventLogs                                                                         GET    Audit Logs.can_read                                               Viewer
 /eventLogs/{event_log_id}                                                          GET    Audit Logs.can_read                                               Viewer
 /importErrors                                                                      GET    ImportError.can_read                                              Viewer
@@ -173,7 +169,7 @@ Endpoint                                                                        
 /dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}                        GET    DAGs.can_read, DAG Runs.can_read, Task Instances.can_read         Viewer
 /dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/links                  GET    DAGs.can_read, DAG Runs.can_read, Task Instances.can_read         Viewer
 /dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/logs/{task_try_number} GET    DAGs.can_read, DAG Runs.can_read, Task Instances.can_read         Viewer
-/dags/~/dagRuns/~/taskInstances/list                                               POST   DAGs.can_read, DAG Runs.can_read, Task Instances.can_read         Viewer
+/dags/~/dagRuns/~/taskInstances/list                                               POST   DAGs.can_edit, DAG Runs.can_read, Task Instances.can_read         User
 /variables                                                                         GET    Variables.can_read                                                Op
 /variables                                                                         POST   Variables.can_create                                              Op
 /variables/{variable_key}                                                          DELETE Variables.can_delete                                              Op
@@ -194,27 +190,27 @@ Website Permissions
 Action                                 Permissions                                                             Minimum Role
 ====================================== ======================================================================= ============
 Access homepage                        Website.can_read                                                        Viewer
-Get DAG stats                          Dags.can_read, DAG Runs.can_read                                        Viewer
-Get Task stats                         Dags.can_read, DAG Runs.can_read, Task Instances.can_read               Viewer
-Get last DAG runs                      Dags.can_read, DAG Runs.can_read                                        Viewer
-Get DAG code                           Dags.can_read, DAG Code.can_read                                        Viewer
-Get DAG details                        Dags.can_read, DAG Runs.can_read                                        Viewer
+Get DAG stats                          DAGs.can_read, DAG Runs.can_read                                        Viewer
+Get Task stats                         DAGs.can_read, DAG Runs.can_read, Task Instances.can_read               Viewer
+Get last DAG runs                      DAGs.can_read, DAG Runs.can_read                                        Viewer
+Get DAG code                           DAGs.can_read, DAG Code.can_read                                        Viewer
+Get DAG details                        DAGs.can_read, DAG Runs.can_read                                        Viewer
 Get rendered DAG                       DAGs.can_read, Task Instances.can_read                                  Viewer
 Get Logs with metadata                 DAGs.can_read, Task Instances.can_read, Task Logs.can_read              Viewer
 Get Log                                DAGs.can_read, Task Instances.can_read, Task Logs.can_read              Viewer
 Redirect to external Log               DAGs.can_read, Task Instances.can_read, Task Logs.can_read              Viewer
 Get Task                               DAGs.can_read, Task Instances.can_read                                  Viewer
 Get XCom                               DAGs.can_read, Task Instances.can_read, XComs.can_read                  Viewer
-Triggers Task Instance                 DAGs.can_read, Task Instances.can_create                                User
+Triggers Task Instance                 DAGs.can_edit, Task Instances.can_create                                User
 Delete DAG                             DAGs.can_delete                                                         User
-Trigger DAG run                        Dags.can_edit, DAG Runs.can_create                                      User
-Clear DAG                              DAGs.can_read, Task Instances.can_delete                                User
-Clear DAG Run                          DAGs.can_read, Task Instances.can_delete                                User
-Mark DAG as blocked                    Dags.can_read, DAG Runs.can_read                                        User
-Mark DAG Run as failed                 Dags.can_read, DAG Runs.can_edit                                        User
-Mark DAG Run as success                Dags.can_read, DAG Runs.can_edit                                        User
-Mark Task as failed                    DAGs.can_read, Task Instances.can_edit                                  User
-Mark Task as success                   DAGs.can_read, Task Instances.can_edit                                  User
+Trigger DAG run                        DAGs.can_edit, DAG Runs.can_create                                      User
+Clear DAG                              DAGs.can_edit, Task Instances.can_delete                                User
+Clear DAG Run                          DAGs.can_edit, Task Instances.can_delete                                User
+Mark DAG as blocked                    DAGS.can_edit, DAG Runs.can_read                                        User
+Mark DAG Run as failed                 DAGS.can_edit, DAG Runs.can_edit                                        User
+Mark DAG Run as success                DAGS.can_edit, DAG Runs.can_edit                                        User
+Mark Task as failed                    DAGs.can_edit, Task Instances.can_edit                                  User
+Mark Task as success                   DAGs.can_edit, Task Instances.can_edit                                  User
 Get DAG as tree                        DAGs.can_read, Task Instances.can_read,                                 Viewer
                                        Task Logs.can_read
 Get DAG as graph                       DAGs.can_read, Task Instances.can_read,                                 Viewer
@@ -238,4 +234,5 @@ List Jobs                              Jobs.can_read                            
 List SLA Misses                        SLA Misses.can_read                                                     Viewer
 List Plugins                           Plugins.can_read                                                        Viewer
 List Task Reschedules                  Task Reschedules.can_read                                               Admin
+List Triggers                          Triggers.can_read                                                       Admin
 ====================================== ======================================================================= ============

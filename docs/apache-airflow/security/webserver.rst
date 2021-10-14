@@ -20,10 +20,6 @@ Webserver
 
 This topic describes how to configure Airflow to secure your webserver.
 
-.. contents::
-  :depth: 1
-  :local:
-
 Rendering Airflow UI in a Web Frame from another site
 ------------------------------------------------------
 

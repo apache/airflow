@@ -28,10 +28,6 @@ on Google Cloud or elsewhere on the Internet.
 Publisher applications can send messages to a topic and other applications can subscribe to that topic to receive the messages.
 By decoupling senders and receivers Google Cloud PubSub allows developers to communicate between independently written applications.
 
-.. contents::
-  :depth: 1
-  :local:
-
 Prerequisite Tasks
 ^^^^^^^^^^^^^^^^^^
 

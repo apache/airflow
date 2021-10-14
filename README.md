@@ -82,7 +82,7 @@ Airflow is not a streaming solution, but it is often used to process real-time d
 
 Apache Airflow is tested with:
 
-|                      | Main version (dev)        | Stable version (2.1.3)   |
+|                      | Main version (dev)        | Stable version (2.2.0)   |
 | -------------------- | ------------------------- | ------------------------ |
 | Python               | 3.6, 3.7, 3.8, 3.9        | 3.6, 3.7, 3.8, 3.9       |
 | Kubernetes           | 1.18, 1.19, 1.20          | 1.18, 1.19, 1.20         |
@@ -142,15 +142,15 @@ them to the appropriate format and workflow that your tool requires.
 
 
 ```bash
-pip install 'apache-airflow==2.1.3' \
- --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-2.1.3/constraints-3.7.txt"
+pip install 'apache-airflow==2.2.0' \
+ --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-2.2.0/constraints-3.7.txt"
 ```
 
 2. Installing with extras (i.e., postgres, google)
 
 ```bash
-pip install 'apache-airflow[postgres,google]==2.1.3' \
- --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-2.1.3/constraints-3.7.txt"
+pip install 'apache-airflow[postgres,google]==2.2.0' \
+ --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-2.2.0/constraints-3.7.txt"
 ```
 
 For information on installing provider packages, check
@@ -252,7 +252,7 @@ Apache Airflow version life cycle:
 
 | Version | Current Patch/Minor | State     | First Release | Limited Support | EOL/Terminated |
 |---------|---------------------|-----------|---------------|-----------------|----------------|
-| 2       | 2.1.3               | Supported | Dec 17, 2020  | Dec 31, 2021    | TBD            |
+| 2       | 2.2.0               | Supported | Dec 17, 2020  | TBD             | TBD            |
 | 1.10    | 1.10.15             | EOL       | Aug 27, 2018  | Dec 17, 2020    | June 17, 2021  |
 | 1.9     | 1.9.0               | EOL       | Jan 03, 2018  | Aug 27, 2018    | Aug 27, 2018   |
 | 1.8     | 1.8.2               | EOL       | Mar 19, 2017  | Jan 03, 2018    | Jan 03, 2018   |
@@ -276,11 +276,11 @@ They are based on the official release schedule of Python and Kubernetes, nicely
    For example, for Python 3.6 it means that we drop support in main right after 23.12.2021, and the first
    MAJOR or MINOR version of Airflow released after will not have it.
 
-2. The "oldest" supported version of Python/Kubernetes is the default one. "Default" is only meaningful
-   in terms of "smoke tests" in CI PRs, which are run using this default version and the default reference
-   image available. Currently `apache/airflow:latest` and `apache/airflow:2.1.3` images
-   are both Python 3.6 images. However, the first MINOR/MAJOR release of Airflow release after 23.12.2021 will
-   become Python 3.7 images.
+2. The "oldest" supported version of Python/Kubernetes is the default one until we decide to switch to
+   later version. "Default" is only meaningful in terms of "smoke tests" in CI PRs, which are run using this
+   default version and the default reference image available. Currently `apache/airflow:latest`
+   and `apache/airflow:2.2.0` images are Python 3.7 images as we are preparing for 23.12.2021 when will
+   Python 3.6 reaches end of life.
 
 3. We support a new version of Python/Kubernetes in main after they are officially released, as soon as we
    make them work in our CI pipeline (which might not be immediate due to dependencies catching up with

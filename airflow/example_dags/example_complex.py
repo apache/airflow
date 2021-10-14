@@ -19,20 +19,19 @@
 """
 Example Airflow DAG that shows the complex DAG structure.
 """
+from datetime import datetime
 
 from airflow import models
 from airflow.models.baseoperator import chain
 from airflow.operators.bash import BashOperator
-from airflow.operators.python import PythonOperator
-from airflow.utils.dates import days_ago
 
 with models.DAG(
     dag_id="example_complex",
     schedule_interval=None,
-    start_date=days_ago(1),
+    start_date=datetime(2021, 1, 1),
+    catchup=False,
     tags=['example', 'example2', 'example3'],
 ) as dag:
-
     # Create
     create_entry_group = BashOperator(task_id="create_entry_group", bash_command="echo create_entry_group")
 
@@ -131,7 +130,7 @@ with models.DAG(
     )
 
     # Search
-    search_catalog = PythonOperator(task_id="search_catalog", python_callable=lambda: print("search_catalog"))
+    search_catalog = BashOperator(task_id="search_catalog", bash_command="echo search_catalog")
 
     search_catalog_result = BashOperator(
         task_id="search_catalog_result", bash_command="echo search_catalog_result"

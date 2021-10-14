@@ -147,7 +147,7 @@ rm -rf ${AIRFLOW_REPO_ROOT}/dist/*
 ./breeze prepare-provider-packages --package-format both
 ```
 
-if you ony build few packages, run:
+if you only build few packages, run:
 
 ```shell script
 ./breeze prepare-provider-packages --package-format both PACKAGE PACKAGE ....
@@ -299,7 +299,7 @@ cd "${AIRFLOW_REPO_ROOT}"
 ```
 
 
-If you have providers as list of provider ids becuse you just released them you can build them with
+If you have providers as list of provider ids because you just released them, you can build them with
 
 ```shell script
 ./dev/provider_packages/build_provider_documentation.sh amazon apache.beam google ....
@@ -805,15 +805,11 @@ I'm happy to announce that new versions of Airflow Providers packages were just 
 
 The source release, as well as the binary releases, are available here:
 
-https://dist.apache.org/repos/dist/release/airflow/providers/
+https://airflow.apache.org/docs/apache-airflow-providers/installing-from-sources
 
-We also made those versions available on PyPi for convenience ('pip install apache-airflow-providers-*'):
+You can install the providers via PyPI  https://airflow.apache.org/apache-airflow-providers/installing-from-pypi
 
-https://pypi.org/search/?q=apache-airflow-providers
-
-The documentation is available at https://airflow.apache.org/docs/ and linked from the PyPI packages:
-
-<PASTE TWINE UPLOAD LINKS HERE. SORT THEM BEFORE!>
+The documentation is available at https://airflow.apache.org/docs/ and linked from the PyPI packages.
 
 Cheers,
 <your name>

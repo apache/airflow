@@ -294,15 +294,15 @@ class PodTemplateFileTest(unittest.TestCase):
         )
 
         assert re.search("Pod", docs[0]["kind"])
-        assert {'configMap': {'name': 'RELEASE-NAME-airflow-config'}, 'name': 'config'} == jmespath.search(
-            "spec.volumes[1]", docs[0]
+        assert {'configMap': {'name': 'RELEASE-NAME-airflow-config'}, 'name': 'config'} in jmespath.search(
+            "spec.volumes", docs[0]
         )
         assert {
             'name': 'config',
             'mountPath': '/opt/airflow/airflow.cfg',
             'subPath': 'airflow.cfg',
             'readOnly': True,
-        } == jmespath.search("spec.containers[0].volumeMounts[1]", docs[0])
+        } in jmespath.search("spec.containers[0].volumeMounts", docs[0])
 
     def test_should_create_valid_affinity_and_node_selector(self):
         docs = render_chart(
@@ -368,12 +368,12 @@ class PodTemplateFileTest(unittest.TestCase):
             chart_dir=self.temp_chart_dir,
         )
 
-        assert "test-volume" == jmespath.search(
-            "spec.volumes[2].name",
+        assert "test-volume" in jmespath.search(
+            "spec.volumes[*].name",
             docs[0],
         )
-        assert "test-volume" == jmespath.search(
-            "spec.containers[0].volumeMounts[2].name",
+        assert "test-volume" in jmespath.search(
+            "spec.containers[0].volumeMounts[*].name",
             docs[0],
         )
 
@@ -393,8 +393,12 @@ class PodTemplateFileTest(unittest.TestCase):
 
         assert {"name": "FOO", "value": "bar"} in jmespath.search("spec.initContainers[0].env", docs[0])
 
-    def test_no_airflow_local_settings_by_default(self):
-        docs = render_chart(show_only=["templates/pod-template-file.yaml"], chart_dir=self.temp_chart_dir)
+    def test_no_airflow_local_settings(self):
+        docs = render_chart(
+            values={"airflowLocalSettings": None},
+            show_only=["templates/pod-template-file.yaml"],
+            chart_dir=self.temp_chart_dir,
+        )
         volume_mounts = jmespath.search("spec.containers[0].volumeMounts", docs[0])
         assert "airflow_local_settings.py" not in str(volume_mounts)
 

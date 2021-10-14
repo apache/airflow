@@ -77,9 +77,8 @@ unit of work and continuity.
     project
     license
     start/index
-    installation
-    upgrading-to-2
-    upgrade-check
+    installation/index
+    upgrading-from-1-10/index
     tutorial
     tutorial_taskflow_api
     howto/index

@@ -27,6 +27,7 @@ Content
     :caption: Guides
 
     Connection types <connections/salesforce>
+    Operators <operators/index>
 
 .. toctree::
     :maxdepth: 1
@@ -40,6 +41,7 @@ Content
 
     Example DAGs <https://github.com/apache/airflow/tree/main/airflow/providers/salesforce/example_dags>
     PyPI Repository <https://pypi.org/project/apache-airflow-providers-salesforce/>
+    Installing from sources <installing-providers-from-sources>
 
 .. THE REMAINDER OF THE FILE IS AUTOMATICALLY GENERATED. IT WILL BE OVERWRITTEN AT RELEASE TIME!
 

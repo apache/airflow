@@ -26,7 +26,7 @@ from argparse import Action, ArgumentError, RawTextHelpFormatter
 from functools import lru_cache
 from typing import Callable, Dict, Iterable, List, NamedTuple, Optional, Union
 
-from airflow import settings
+from airflow import PY37, settings
 from airflow.cli.commands.legacy_commands import check_legacy_command
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
@@ -73,6 +73,9 @@ class DefaultHelpParser(argparse.ArgumentParser):
                     "To do it, run: pip install 'apache-airflow[cncf.kubernetes]'"
                 )
                 raise ArgumentError(action, message)
+        if action.dest == 'subcommand' and value == 'triggerer':
+            if not PY37:
+                raise ArgumentError(action, 'triggerer subcommand only works with Python 3.7+')
 
         if action.choices is not None and value not in action.choices:
             check_legacy_command(action, value)
@@ -357,7 +360,22 @@ ARG_EXEC_DATE = Arg(("-e", "--exec-date"), help="The execution date of the DAG",
 ARG_POOL_NAME = Arg(("pool",), metavar='NAME', help="Pool name")
 ARG_POOL_SLOTS = Arg(("slots",), type=int, help="Pool slots")
 ARG_POOL_DESCRIPTION = Arg(("description",), help="Pool description")
-ARG_POOL_IMPORT = Arg(("file",), metavar="FILEPATH", help="Import pools from JSON file")
+ARG_POOL_IMPORT = Arg(
+    ("file",),
+    metavar="FILEPATH",
+    help="Import pools from JSON file. Example format::\n"
+    + textwrap.indent(
+        textwrap.dedent(
+            '''
+            {
+                "pool_1": {"slots": 5, "description": ""},
+                "pool_2": {"slots": 10, "description": "test"}
+            }'''
+        ),
+        " " * 4,
+    ),
+)
+
 ARG_POOL_EXPORT = Arg(("file",), metavar="FILEPATH", help="Export all pools to JSON file")
 
 # variables

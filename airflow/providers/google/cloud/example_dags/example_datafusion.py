@@ -39,21 +39,26 @@ from airflow.utils import dates
 from airflow.utils.state import State
 
 # [START howto_data_fusion_env_variables]
+SERVICE_ACCOUNT = os.environ.get("GCP_DATAFUSION_SERVICE_ACCOUNT")
 LOCATION = "europe-north1"
 INSTANCE_NAME = "airflow-test-instance"
-INSTANCE = {"type": "BASIC", "displayName": INSTANCE_NAME}
+INSTANCE = {
+    "type": "BASIC",
+    "displayName": INSTANCE_NAME,
+    "dataprocServiceAccount": SERVICE_ACCOUNT,
+}
 
 BUCKET_1 = os.environ.get("GCP_DATAFUSION_BUCKET_1", "test-datafusion-bucket-1")
 BUCKET_2 = os.environ.get("GCP_DATAFUSION_BUCKET_2", "test-datafusion-bucket-2")
 
-BUCKET_1_URI = f"gs//{BUCKET_1}"
-BUCKET_2_URI = f"gs//{BUCKET_2}"
+BUCKET_1_URI = f"gs://{BUCKET_1}"
+BUCKET_2_URI = f"gs://{BUCKET_2}"
 
 PIPELINE_NAME = os.environ.get("GCP_DATAFUSION_PIPELINE_NAME", "airflow_test")
 PIPELINE = {
     "name": "test-pipe",
     "description": "Data Pipeline Application",
-    "artifact": {"name": "cdap-data-pipeline", "version": "6.1.2", "scope": "SYSTEM"},
+    "artifact": {"name": "cdap-data-pipeline", "version": "6.4.1", "scope": "SYSTEM"},
     "config": {
         "resources": {"memoryMB": 2048, "virtualCores": 1},
         "driverResources": {"memoryMB": 2048, "virtualCores": 1},
@@ -72,7 +77,7 @@ PIPELINE = {
                     "label": "GCS",
                     "artifact": {
                         "name": "google-cloud",
-                        "version": "0.14.2",
+                        "version": "0.17.3",
                         "scope": "SYSTEM",
                     },
                     "properties": {
@@ -105,7 +110,7 @@ PIPELINE = {
                     "label": "GCS2",
                     "artifact": {
                         "name": "google-cloud",
-                        "version": "0.14.2",
+                        "version": "0.17.3",
                         "scope": "SYSTEM",
                     },
                     "properties": {
@@ -176,7 +181,7 @@ with models.DAG(
         location=LOCATION,
         instance_name=INSTANCE_NAME,
         instance=INSTANCE,
-        update_mask="instance.displayName",
+        update_mask="",
         task_id="update_instance",
     )
     # [END howto_cloud_data_fusion_update_instance_operator]
@@ -223,6 +228,7 @@ with models.DAG(
         pipeline_name=PIPELINE_NAME,
         pipeline_id=start_pipeline_async.output,
         expected_statuses=["COMPLETED"],
+        failure_statuses=["FAILED"],
         instance_name=INSTANCE_NAME,
         location=LOCATION,
     )

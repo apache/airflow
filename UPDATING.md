@@ -27,6 +27,8 @@ assists users migrating to a new version.
 **Table of contents**
 
 - [Main](#main)
+- [Airflow 2.2.0](#airflow-220)
+- [Airflow 2.1.4](#airflow-214)
 - [Airflow 2.1.3](#airflow-213)
 - [Airflow 2.1.2](#airflow-212)
 - [Airflow 2.1.1](#airflow-211)
@@ -74,6 +76,8 @@ More tips can be found in the guide:
 https://developers.google.com/style/inclusive-documentation
 
 -->
+
+## Airflow 2.2.0
 
 ### `worker_log_server_port` configuration has been moved to the ``logging`` section.
 
@@ -176,6 +180,27 @@ with DAG(dag_id="task_concurrency_example"):
     BashOperator(task_id="t1", max_active_tis_per_dag=2, bash_command="echo Hi")
 ```
 
+### `processor_poll_interval` config have been renamed to `scheduler_idle_sleep_time`
+
+`[scheduler] processor_poll_interval` setting in `airflow.cfg` has been renamed to `[scheduler] scheduler_idle_sleep_time`
+for better understanding.
+
+It controls the 'time to sleep' at the end of the Scheduler loop if nothing was scheduled inside `SchedulerJob`.
+
+**Before**:
+
+```ini
+[scheduler]
+processor_poll_interval = 16
+```
+
+**Now**:
+
+```ini
+[scheduler]
+scheduler_idle_sleep_time = 16
+```
+
 ### Marking success/failed automatically clears failed downstream tasks
 
 When marking a task success/failed in Graph View, its downstream tasks that are in failed/upstream_failed state are automatically cleared.
@@ -227,6 +252,24 @@ Previously this was controlled by `non_pooled_task_slot_count` in `[core]` secti
 Now that the DAG parser syncs DAG permissions there is no longer a need for manually refreshing DAGs. As such, the buttons to refresh a DAG have been removed from the UI.
 
 In addition, the `/refresh` and `/refresh_all` webserver endpoints have also been removed.
+
+### TaskInstances now *require* a DagRun
+
+Under normal operation every TaskInstance row in the database would have DagRun row too, but it was possible to manually delete the DagRun and Airflow would still schedule the TaskInstances.
+
+In Airflow 2.2 we have changed this and now there is a database-level foreign key constraint ensuring that every TaskInstance has a DagRun row.
+
+Before updating to this 2.2 release you will have to manually resolve any inconsistencies (add back DagRun rows, or delete TaskInstances) if you have any "dangling" TaskInstance" rows.
+
+As part of this change the `clean_tis_without_dagrun_interval` config option under `[scheduler]` section has been removed and has no effect.
+
+### DaskExecutor - Dask Worker Resources and queues
+
+If dask workers are not started with complementary resources to match the specified queues, it will now result in an `AirflowException`, whereas before it would have just ignored the `queue` argument.
+
+## Airflow 2.1.4
+
+No breaking changes.
 
 ## Airflow 2.1.3
 
@@ -1767,6 +1810,16 @@ previous one was (project_id, dataset_id, ...) (breaking change)
 - `get_tabledata` returns list of rows instead of API response in dict format. This method is deprecated in
  favor of `list_rows`. (breaking change)
 
+#### `airflow.providers.google.cloud.hooks.cloud_build.CloudBuildHook`
+
+#### `airflow.providers.google.cloud.operators.cloud_build.CloudBuildCreateBuildOperator`
+
+The `api_version` has been removed and will not be used since we migrate `CloudBuildHook` from using
+ Discovery API to native google-cloud-build python library.
+
+The `body` parameter in `CloudBuildCreateBuildOperator` has been deprecated.
+ Instead, you should pass body using the `build` parameter.
+
 #### `airflow.providers.google.cloud.hooks.dataflow.DataflowHook.start_python_dataflow`
 
 #### `airflow.providers.google.cloud.hooks.dataflow.DataflowHook.start_python_dataflow`
@@ -3199,7 +3252,7 @@ Please read through the new scheduler options, defaults have changed since 1.7.1
 
 #### child_process_log_directory
 
-In order to increase the robustness of the scheduler, DAGS are now processed in their own process. Therefore each
+In order to increase the robustness of the scheduler, DAGs are now processed in their own process. Therefore each
 DAG has its own log file for the scheduler. These log files are placed in `child_process_log_directory` which defaults to
 `<AIRFLOW_HOME>/scheduler/latest`. You will need to make sure these log files are removed.
 

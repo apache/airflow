@@ -17,6 +17,8 @@
 # under the License.
 """TaskReschedule tracks rescheduled task instances."""
 from sqlalchemy import Column, ForeignKeyConstraint, Index, Integer, String, asc, desc
+from sqlalchemy.ext.associationproxy import association_proxy
+from sqlalchemy.orm import relationship
 
 from airflow.models.base import COLLATION_ARGS, ID_LEN, Base
 from airflow.utils.session import provide_session
@@ -31,7 +33,7 @@ class TaskReschedule(Base):
     id = Column(Integer, primary_key=True)
     task_id = Column(String(ID_LEN, **COLLATION_ARGS), nullable=False)
     dag_id = Column(String(ID_LEN, **COLLATION_ARGS), nullable=False)
-    execution_date = Column(UtcDateTime, nullable=False)
+    run_id = Column(String(ID_LEN, **COLLATION_ARGS), nullable=False)
     try_number = Column(Integer, nullable=False)
     start_date = Column(UtcDateTime, nullable=False)
     end_date = Column(UtcDateTime, nullable=False)
@@ -39,19 +41,27 @@ class TaskReschedule(Base):
     reschedule_date = Column(UtcDateTime, nullable=False)
 
     __table_args__ = (
-        Index('idx_task_reschedule_dag_task_date', dag_id, task_id, execution_date, unique=False),
+        Index('idx_task_reschedule_dag_task_run', dag_id, task_id, run_id, unique=False),
         ForeignKeyConstraint(
-            [task_id, dag_id, execution_date],
-            ['task_instance.task_id', 'task_instance.dag_id', 'task_instance.execution_date'],
-            name='task_reschedule_dag_task_date_fkey',
+            [dag_id, task_id, run_id],
+            ['task_instance.dag_id', 'task_instance.task_id', 'task_instance.run_id'],
+            name='task_reschedule_ti_fkey',
+            ondelete='CASCADE',
+        ),
+        ForeignKeyConstraint(
+            [dag_id, run_id],
+            ['dag_run.dag_id', 'dag_run.run_id'],
+            name='task_reschedule_dr_fkey',
             ondelete='CASCADE',
         ),
     )
+    dag_run = relationship("DagRun")
+    execution_date = association_proxy("dag_run", "execution_date")
 
-    def __init__(self, task, execution_date, try_number, start_date, end_date, reschedule_date):
+    def __init__(self, task, run_id, try_number, start_date, end_date, reschedule_date):
         self.dag_id = task.dag_id
         self.task_id = task.task_id
-        self.execution_date = execution_date
+        self.run_id = run_id
         self.try_number = try_number
         self.start_date = start_date
         self.end_date = end_date
@@ -81,7 +91,7 @@ class TaskReschedule(Base):
         qry = session.query(TR).filter(
             TR.dag_id == task_instance.dag_id,
             TR.task_id == task_instance.task_id,
-            TR.execution_date == task_instance.execution_date,
+            TR.run_id == task_instance.run_id,
             TR.try_number == try_number,
         )
         if descending:

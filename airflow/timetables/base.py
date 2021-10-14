@@ -24,7 +24,11 @@ from airflow.typing_compat import Protocol
 
 
 class DataInterval(NamedTuple):
-    """A data interval for a DagRun to operate over."""
+    """A data interval for a DagRun to operate over.
+
+    Both ``start`` and ``end`` **MUST** be "aware", i.e. contain timezone
+    information.
+    """
 
     start: DateTime
     end: DateTime
@@ -45,8 +49,10 @@ class TimeRestriction(NamedTuple):
     These values are generally set on the DAG or task's ``start_date``,
     ``end_date``, and ``catchup`` arguments.
 
-    Both ``earliest`` and ``latest`` are inclusive; a DAG run can happen exactly
-    at either point of time.
+    Both ``earliest`` and ``latest``, if not *None*, are inclusive; a DAG run
+    can happen exactly at either point of time. They are guaranteed to be aware
+    (i.e. contain timezone information) for ``TimeRestriction`` instances
+    created by Airflow.
     """
 
     earliest: Optional[DateTime]
@@ -62,7 +68,10 @@ class DagRunInfo(NamedTuple):
     """
 
     run_after: DateTime
-    """The earliest time this DagRun is created and its tasks scheduled."""
+    """The earliest time this DagRun is created and its tasks scheduled.
+
+    This **MUST** be "aware", i.e. contain timezone information.
+    """
 
     data_interval: DataInterval
     """The data interval this DagRun to operate over."""
@@ -158,7 +167,7 @@ class Timetable(Protocol):
         """
         return type(self).__name__
 
-    def infer_data_interval(self, *, run_after: DateTime) -> DataInterval:
+    def infer_manual_data_interval(self, *, run_after: DateTime) -> DataInterval:
         """When a DAG run is manually triggered, infer a data interval for it.
 
         This is used for e.g. manually-triggered runs, where ``run_after`` would
@@ -170,14 +179,14 @@ class Timetable(Protocol):
     def next_dagrun_info(
         self,
         *,
-        last_automated_dagrun: Optional[DateTime],
+        last_automated_data_interval: Optional[DataInterval],
         restriction: TimeRestriction,
     ) -> Optional[DagRunInfo]:
         """Provide information to schedule the next DagRun.
 
         The default implementation raises ``NotImplementedError``.
 
-        :param last_automated_dagrun: The ``execution_date`` of the associated
+        :param last_automated_data_interval: The data interval of the associated
             DAG's last scheduled or backfilled run (manual runs not considered).
         :param restriction: Restriction to apply when scheduling the DAG run.
             See documentation of :class:`TimeRestriction` for details.

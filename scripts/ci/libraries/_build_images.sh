@@ -62,10 +62,14 @@ function build_images::add_build_args_for_remote_install() {
         AIRFLOW_BRANCH_FOR_PYPI_PRELOADING="v2-0-test"
     elif [[ ${AIRFLOW_VERSION} == 'v2-1-test' ]]; then
         AIRFLOW_BRANCH_FOR_PYPI_PRELOADING="v2-1-test"
+    elif [[ ${AIRFLOW_VERSION} == 'v2-2-test' ]]; then
+        AIRFLOW_BRANCH_FOR_PYPI_PRELOADING="v2-2-test"
     elif [[ ${AIRFLOW_VERSION} =~ v?2\.0* ]]; then
         AIRFLOW_BRANCH_FOR_PYPI_PRELOADING="v2-0-stable"
     elif [[ ${AIRFLOW_VERSION} =~ v?2\.1* ]]; then
         AIRFLOW_BRANCH_FOR_PYPI_PRELOADING="v2-1-stable"
+    elif [[ ${AIRFLOW_VERSION} =~ v?2\.2* ]]; then
+        AIRFLOW_BRANCH_FOR_PYPI_PRELOADING="v2-2-stable"
     else
         AIRFLOW_BRANCH_FOR_PYPI_PRELOADING=${DEFAULT_BRANCH}
     fi
@@ -109,7 +113,17 @@ function build_images::forget_last_answer() {
 function build_images::confirm_via_terminal() {
     echo >"${DETECTED_TERMINAL}"
     echo >"${DETECTED_TERMINAL}"
-    echo "${COLOR_YELLOW}WARNING:Make sure that you rebased to latest upstream before rebuilding!${COLOR_RESET}" >"${DETECTED_TERMINAL}"
+    set +u
+    if [[ ${#MODIFIED_FILES[@]} != "" ]]; then
+        echo "${COLOR_YELLOW}The CI image for Python ${PYTHON_BASE_IMAGE} image likely needs to be rebuild${COLOR_RESET}" >"${DETECTED_TERMINAL}"
+        echo "${COLOR_YELLOW}The files were modified since last build: ${MODIFIED_FILES[*]}${COLOR_RESET}" >"${DETECTED_TERMINAL}"
+    fi
+    if [[ ${ACTION} == "pull and rebuild" ]]; then
+        echo "${COLOR_YELLOW}This build involves pull and it might take some time and network to pull the base image first!${COLOR_RESET}" >"${DETECTED_TERMINAL}"
+    fi
+    set -u
+    echo >"${DETECTED_TERMINAL}"
+    echo "${COLOR_YELLOW}WARNING!!!!:Make sure that you rebased to latest upstream before rebuilding or the rebuild might take a lot of time!${COLOR_RESET}" >"${DETECTED_TERMINAL}"
     echo >"${DETECTED_TERMINAL}"
     # Make sure to use output of tty rather than stdin/stdout when available - this way confirm
     # will works also in case of pre-commits (git does not pass stdin/stdout to pre-commit hooks)
@@ -158,11 +172,17 @@ function build_images::confirm_image_rebuild() {
             ;;
         esac
     elif [[ -t 0 ]]; then
-        echo
-        echo
-        echo "${COLOR_YELLOW}WARNING:Make sure that you rebased to latest upstream before rebuilding!${COLOR_RESET}"
-        echo
         # Check if this script is run interactively with stdin open and terminal attached
+        echo
+        set +u
+        if [[ ${#MODIFIED_FILES[@]} != "" ]]; then
+            echo "${COLOR_YELLOW}The CI image for Python ${PYTHON_BASE_IMAGE} image likely needs to be rebuild${COLOR_RESET}"
+            echo "${COLOR_YELLOW}The files were modified since last build: ${MODIFIED_FILES[*]}${COLOR_RESET}"
+        fi
+        echo
+        echo "${COLOR_YELLOW}WARNING!!!!:Make sure that you rebased to latest upstream before rebuilding or the rebuild might take a lot of time!${COLOR_RESET}"
+        echo
+        set -u
         "${AIRFLOW_SOURCES}/confirm" "${ACTION} image ${THE_IMAGE_TYPE}-python${PYTHON_MAJOR_MINOR_VERSION}"
         RES=$?
     elif [[ ${DETECTED_TERMINAL:=$(tty)} != "not a tty" ]]; then
@@ -266,7 +286,7 @@ function build_images::get_local_build_cache_hash() {
         return
 
     fi
-    docker_v create --name "local-airflow-ci-container" "${AIRFLOW_CI_IMAGE}" 2>/dev/null
+    docker_v create --name "local-airflow-ci-container" "${AIRFLOW_CI_IMAGE}" 2>/dev/null >/dev/null
     docker_v cp "local-airflow-ci-container:/build-cache-hash" \
         "${local_image_build_cache_file}" 2>/dev/null ||
         touch "${local_image_build_cache_file}"
@@ -332,8 +352,7 @@ function build_images::compare_local_and_remote_build_cache_hash() {
     local local_hash
     local_hash=$(cat "${local_image_build_cache_file}")
 
-    if [[ ${remote_hash} != "${local_hash}" || -z ${local_hash} ]] \
-        ; then
+    if [[ ${remote_hash} != "${local_hash}" || -z ${local_hash} ]]; then
         echo
         echo
         echo "Your image and the dockerhub have different or missing build cache hashes."
@@ -374,7 +393,7 @@ function build_images::get_docker_cache_image_names() {
     export PYTHON_BASE_IMAGE="python:${PYTHON_MAJOR_MINOR_VERSION}-slim-buster"
 
     local image_name
-    image_name="${GITHUB_REGISTRY}/$(build_images::get_github_container_registry_image_prefix)"
+    image_name="ghcr.io/$(build_images::get_github_container_registry_image_prefix)"
 
     # Example:
     #  ghcr.io/apache/airflow/main/python:3.8-slim-buster
@@ -412,29 +431,35 @@ function build_images::get_docker_cache_image_names() {
 }
 
 # If GitHub Registry is used, login to the registry using GITHUB_USERNAME and
-# GITHUB_TOKEN. In case Personal Access token is not set, skip logging in
-# Also enable experimental features of docker (we need `docker manifest` command)
-function build_images::configure_docker_registry() {
-    local token="${GITHUB_TOKEN}"
-    if [[ -z "${token}" ]]; then
-        verbosity::print_info
-        verbosity::print_info "Skip logging in to GitHub Registry. No Token available!"
-        verbosity::print_info
-    elif [[ ${AIRFLOW_LOGIN_TO_GITHUB_REGISTRY=} != "true" ]]; then
-        verbosity::print_info
-        verbosity::print_info "Skip logging in to GitHub Registry. AIRFLOW_LOGIN_TO_GITHUB_REGISTRY != true"
-        verbosity::print_info
-    elif [[ -n "${token}" ]]; then
-        echo "${token}" | docker_v login \
-            --username "${GITHUB_USERNAME:-apache}" \
-            --password-stdin \
-            "${GITHUB_REGISTRY}"
-    else
-        verbosity::print_info "Skip Login to GitHub Registry ${GITHUB_REGISTRY} as token is missing"
+# GITHUB_TOKEN. We only need to login to docker registry on CI and only when we push
+# images. All other images we pull from docker registry are public and we do not need
+# to login there.
+function build_images::login_to_docker_registry() {
+    if [[ "${CI}" == "true" ]]; then
+        start_end::group_start "Configure Docker Registry"
+        local token="${GITHUB_TOKEN}"
+        if [[ -z "${token}" ]]; then
+            verbosity::print_info
+            verbosity::print_info "Skip logging in to GitHub Registry. No Token available!"
+            verbosity::print_info
+        elif [[ ${AIRFLOW_LOGIN_TO_GITHUB_REGISTRY=} != "true" ]]; then
+            verbosity::print_info
+            verbosity::print_info "Skip logging in to GitHub Registry. AIRFLOW_LOGIN_TO_GITHUB_REGISTRY != true"
+            verbosity::print_info
+        elif [[ -n "${token}" ]]; then
+            # logout from the repository first - so that we do not keep us logged in if the token
+            # already expired (which can happen if we have a long build running)
+            docker_v logout "ghcr.io"
+            # The login might succeed or not - in some cases, when we pull public images in forked
+            # repos it might fail, but the pulls will continue to work
+            echo "${token}" | docker_v login \
+                --username "${GITHUB_USERNAME:-apache}" \
+                --password-stdin \
+                "ghcr.io" || true
+        else
+            verbosity::print_info "Skip Login to GitHub Container Registry as token is missing"
+        fi
     fi
-    local new_config
-    new_config=$(jq '.experimental = "enabled"' "${HOME}/.docker/config.json")
-    echo "${new_config}" > "${HOME}/.docker/config.json"
 }
 
 
@@ -448,7 +473,6 @@ function build_images::prepare_ci_build() {
     export AIRFLOW_EXTRAS="${AIRFLOW_EXTRAS:="${DEFAULT_CI_EXTRAS}"}"
     readonly AIRFLOW_EXTRAS
 
-    build_images::configure_docker_registry
     sanity_checks::go_to_airflow_sources
     permissions::fix_group_permissions
 }
@@ -485,21 +509,7 @@ function build_images::rebuild_ci_image_if_needed() {
     md5sum::check_if_docker_build_is_needed
     build_images::get_local_build_cache_hash
     if [[ ${needs_docker_build} == "true" ]]; then
-        if [[ ${SKIP_CHECK_REMOTE_IMAGE:=} != "true" && ${DOCKER_CACHE} == "pulled" ]]; then
-            # Check if remote image is different enough to force pull
-            # This is an optimisation pull vs. build time. When there
-            # are enough changes (specifically after setup.py changes) it is faster to pull
-            # and build the image rather than just build it
-            echo
-            echo "Checking if the remote image needs to be pulled"
-            echo
-            build_images::get_remote_image_build_cache_hash
-            if [[ ${REMOTE_DOCKER_REGISTRY_UNREACHABLE:=} != "true" && ${LOCAL_MANIFEST_IMAGE_UNAVAILABLE:=} != "true" ]]; then
-                build_images::compare_local_and_remote_build_cache_hash
-            else
-                FORCE_PULL_IMAGES="true"
-            fi
-        fi
+        md5sum::check_if_pull_is_needed
         SKIP_REBUILD="false"
         if [[ ${CI:=} != "true" && "${FORCE_BUILD:=}" != "true" ]]; then
             build_images::confirm_image_rebuild
@@ -526,9 +536,9 @@ function build_images::rebuild_ci_image_if_needed() {
             verbosity::print_info
         fi
     else
-        verbosity::print_info
-        verbosity::print_info "No need to build - none of the important files changed: ${FILES_FOR_REBUILD_CHECK[*]}"
-        verbosity::print_info
+        echo
+        echo "${COLOR_GREEN}No need to rebuild the image: none of the important files changed${COLOR_RESET}"
+        echo
     fi
 }
 
@@ -549,6 +559,7 @@ function build_images::rebuild_ci_image_if_needed_and_confirmed() {
     md5sum::check_if_docker_build_is_needed
 
     if [[ ${needs_docker_build} == "true" ]]; then
+        md5sum::check_if_pull_is_needed
         verbosity::print_info
         verbosity::print_info "Docker image build is needed!"
         verbosity::print_info
@@ -559,19 +570,6 @@ function build_images::rebuild_ci_image_if_needed_and_confirmed() {
     fi
 
     if [[ "${needs_docker_build}" == "true" ]]; then
-        echo
-        echo "Some of your images need to be rebuild because important files (like package list) has changed."
-        echo
-        echo "You have those options:"
-        echo "   * Rebuild the images now by answering 'y' (this might take some time!)"
-        echo "   * Skip rebuilding the images and hope changes are not big (you will be asked again)"
-        echo "   * Quit and manually rebuild the images using one of the following commands"
-        echo "        * ./breeze build-image"
-        echo "        * ./breeze build-image --force-pull-images"
-        echo
-        echo "   The first command works incrementally from your last local build."
-        echo "   The second command you use if you want to completely refresh your images from dockerhub."
-        echo
         SKIP_REBUILD="false"
         build_images::confirm_image_rebuild
 
@@ -713,9 +711,9 @@ function build_images::prepare_prod_build() {
     elif [[ -n "${INSTALL_AIRFLOW_VERSION=}" ]]; then
         # When --install-airflow-version is used then the image is build using released PIP package
         # For PROD image only numeric versions are allowed and RC candidates
-        if [[ ! ${INSTALL_AIRFLOW_VERSION} =~ ^[0-9\.]+(rc[0-9]+)?$ ]]; then
+        if [[ ! ${INSTALL_AIRFLOW_VERSION} =~ ^[0-9\.]+((a|b|rc|alpha|beta|pre)[0-9]+)?$ ]]; then
             echo
-            echo  "${COLOR_RED}ERROR: Bad value for install-airflow-version: '${INSTALL_AIRFLOW_VERSION}'. Only numerical versions allowed for PROD image here'!${COLOR_RESET}"
+            echo  "${COLOR_RED}ERROR: Bad value for install-airflow-version: '${INSTALL_AIRFLOW_VERSION}'. Only numerical versions allowed for PROD image here !${COLOR_RESET}"
             echo
             exit 1
         fi
@@ -745,7 +743,6 @@ function build_images::prepare_prod_build() {
     export AIRFLOW_EXTRAS="${AIRFLOW_EXTRAS:="${DEFAULT_PROD_EXTRAS}"}"
     readonly AIRFLOW_EXTRAS
 
-    build_images::configure_docker_registry
     AIRFLOW_BRANCH_FOR_PYPI_PRELOADING="${BRANCH_NAME}"
     sanity_checks::go_to_airflow_sources
 }
@@ -801,6 +798,7 @@ function build_images::build_prod_images() {
         "${EXTRA_DOCKER_PROD_BUILD_FLAGS[@]}" \
         --build-arg PYTHON_BASE_IMAGE="${AIRFLOW_PYTHON_BASE_IMAGE}" \
         --build-arg INSTALL_MYSQL_CLIENT="${INSTALL_MYSQL_CLIENT}" \
+        --build-arg INSTALL_MSSQL_CLIENT="${INSTALL_MSSQL_CLIENT}" \
         --build-arg AIRFLOW_VERSION="${AIRFLOW_VERSION}" \
         --build-arg AIRFLOW_BRANCH="${AIRFLOW_BRANCH_FOR_PYPI_PRELOADING}" \
         --build-arg AIRFLOW_EXTRAS="${AIRFLOW_EXTRAS}" \
@@ -836,6 +834,7 @@ function build_images::build_prod_images() {
         "${EXTRA_DOCKER_PROD_BUILD_FLAGS[@]}" \
         --build-arg PYTHON_BASE_IMAGE="${AIRFLOW_PYTHON_BASE_IMAGE}" \
         --build-arg INSTALL_MYSQL_CLIENT="${INSTALL_MYSQL_CLIENT}" \
+        --build-arg INSTALL_MSSQL_CLIENT="${INSTALL_MSSQL_CLIENT}" \
         --build-arg ADDITIONAL_AIRFLOW_EXTRAS="${ADDITIONAL_AIRFLOW_EXTRAS}" \
         --build-arg ADDITIONAL_PYTHON_DEPS="${ADDITIONAL_PYTHON_DEPS}" \
         --build-arg INSTALL_PROVIDERS_FROM_SOURCES="${INSTALL_PROVIDERS_FROM_SOURCES}" \
@@ -884,42 +883,6 @@ function build_images::tag_image() {
         echo
         docker_v tag "${source_image_name}" "${target_image_name}"
     done
-}
-
-# Waits for image tag to appear in GitHub Registry, pulls it and tags with the target tag
-# Parameters:
-#  $1 - image name to wait for
-#  $2 - fallback image to wait for
-#  $3, $4, ... - target tags to tag the image with
-function build_images::wait_for_image_tag() {
-
-    local image_name="${1}"
-    local image_suffix="${2}"
-    shift 2
-
-    local image_to_wait_for="${image_name}${image_suffix}"
-    start_end::group_start "Wait for image tag ${image_to_wait_for}"
-    while true; do
-        set +e
-        echo "${COLOR_BLUE}Docker pull ${image_to_wait_for} ${COLOR_RESET}" >"${OUTPUT_LOG}"
-        docker_v pull "${image_to_wait_for}" >>"${OUTPUT_LOG}" 2>&1
-        set -e
-        local image_hash
-        echo "${COLOR_BLUE} Docker images -q ${image_to_wait_for}${COLOR_RESET}" >>"${OUTPUT_LOG}"
-        image_hash="$(docker images -q "${image_to_wait_for}" 2>>"${OUTPUT_LOG}" || true)"
-        if [[ -z "${image_hash}" ]]; then
-            echo
-            echo "The image ${image_to_wait_for} is not yet available. No local hash for the image"
-            echo
-            echo "Last log:"
-            cat "${OUTPUT_LOG}" || true
-            echo
-        else
-            build_images::tag_image "${image_to_wait_for}" "${image_name}:latest" "${@}"
-            break
-        fi
-    done
-    start_end::group_end
 }
 
 # We use pulled docker image cache by default for CI images to speed up the builds

@@ -216,13 +216,8 @@ def _import_users(users_list):
                 first_name=user['firstname'],
                 last_name=user['lastname'],
                 email=user['email'],
-                role=roles[0],  # add_user() requires exactly 1 role
+                role=roles,
             )
-
-            if len(roles) > 1:
-                new_user = appbuilder.sm.find_user(email=user['email'])
-                new_user.roles = roles
-                appbuilder.sm.update_user(new_user)
 
             users_created.append(user['email'])
 

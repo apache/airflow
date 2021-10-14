@@ -24,8 +24,7 @@ import pytest
 from parameterized import parameterized
 
 from airflow.exceptions import AirflowException
-from airflow.models import TaskInstance
-from airflow.models.dag import DAG
+from airflow.models import DAG, DagRun, TaskInstance
 from airflow.models.variable import Variable
 from airflow.providers.amazon.aws.sensors.s3_key import S3KeySensor, S3KeySizeSensor
 
@@ -90,7 +89,9 @@ class TestS3KeySensor(unittest.TestCase):
             dag=dag,
         )
 
-        ti = TaskInstance(task=op, execution_date=execution_date)
+        dag_run = DagRun(dag_id=dag.dag_id, execution_date=execution_date, run_id="test")
+        ti = TaskInstance(task=op)
+        ti.dag_run = dag_run
         context = ti.get_template_context()
         ti.render_templates(context)
 
@@ -164,3 +165,13 @@ class TestS3KeySizeSensor(unittest.TestCase):
         mock_paginator.paginate.return_value = [paginate_return_value]
         assert op.poke(None) is poke_return_value
         mock_check_for_key.assert_called_once_with(op.bucket_key, op.bucket_name)
+
+    @mock.patch('airflow.providers.amazon.aws.sensors.s3_key.S3KeySizeSensor.get_files', return_value=[])
+    @mock.patch('airflow.providers.amazon.aws.sensors.s3_key.S3Hook')
+    def test_poke_wildcard(self, mock_hook, mock_get_files):
+        op = S3KeySizeSensor(task_id='s3_key_sensor', bucket_key='s3://test_bucket/file', wildcard_match=True)
+
+        mock_check_for_wildcard_key = mock_hook.return_value.check_for_wildcard_key
+        mock_check_for_wildcard_key.return_value = False
+        assert not op.poke(None)
+        mock_check_for_wildcard_key.assert_called_once_with(op.bucket_key, op.bucket_name)

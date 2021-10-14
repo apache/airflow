@@ -15,36 +15,34 @@
 # specific language governing permissions and limitations
 # under the License.
 
+from datetime import datetime
+
 from airflow.models.dag import DAG
 from airflow.providers.slack.operators.slack import SlackAPIFileOperator
-from airflow.utils.dates import days_ago
 
 with DAG(
     dag_id='slack_example_dag',
     schedule_interval=None,
-    start_date=days_ago(2),
+    start_date=datetime(2021, 1, 1),
+    default_args={'slack_conn_id': 'slack', 'channel': '#general', 'initial_comment': 'Hello World!'},
     max_active_runs=1,
     tags=['example'],
 ) as dag:
+    # [START slack_operator_howto_guide_send_file]
     # Send file with filename and filetype
     slack_operator_file = SlackAPIFileOperator(
         task_id="slack_file_upload_1",
-        dag=dag,
-        slack_conn_id="slack",
-        channel="#general",
-        initial_comment="Hello World!",
         filename="/files/dags/test.txt",
         filetype="txt",
     )
+    # [END slack_operator_howto_guide_send_file]
 
+    # [START slack_operator_howto_guide_send_file_content]
     # Send file content
     slack_operator_file_content = SlackAPIFileOperator(
         task_id="slack_file_upload_2",
-        dag=dag,
-        slack_conn_id="slack",
-        channel="#general",
-        initial_comment="Hello World!",
         content="file content in txt",
     )
+    # [END slack_operator_howto_guide_send_file_content]
 
     slack_operator_file >> slack_operator_file_content

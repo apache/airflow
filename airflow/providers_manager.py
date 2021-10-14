@@ -17,6 +17,7 @@
 # under the License.
 """Manages all providers."""
 import fnmatch
+import functools
 import importlib
 import json
 import logging
@@ -30,7 +31,6 @@ from typing import Any, Callable, Dict, List, MutableMapping, NamedTuple, Option
 
 import jsonschema
 from packaging import version as packaging_version
-from wtforms import BooleanField, Field, IntegerField, PasswordField, StringField
 
 from airflow.utils import yaml
 from airflow.utils.entry_points import entry_points_with_dist
@@ -42,8 +42,6 @@ try:
 except ImportError:
     # Try back-ported to PY<37 `importlib_resources`.
     import importlib_resources
-
-ALLOWED_FIELD_CLASSES = [IntegerField, PasswordField, StringField, BooleanField]
 
 log = logging.getLogger(__name__)
 
@@ -65,7 +63,10 @@ class LazyDictWithCache(MutableMapping):
     at first use - and returns and caches the result.
     """
 
+    __slots__ = ['_resolved', '_raw_dict']
+
     def __init__(self, *args, **kw):
+        self._resolved = set()
         self._raw_dict = dict(*args, **kw)
 
     def __setitem__(self, key, value):
@@ -73,21 +74,30 @@ class LazyDictWithCache(MutableMapping):
 
     def __getitem__(self, key):
         value = self._raw_dict.__getitem__(key)
-        if callable(value):
-            # exchange callable with result of calling it
-            value = value(key)
+        if key not in self._resolved and callable(value):
+            # exchange callable with result of calling it -- but only once! allow resolver to return a
+            # callable itself
+            value = value()
+            self._resolved.add(key)
             if value:
                 self._raw_dict.__setitem__(key, value)
         return value
 
     def __delitem__(self, key):
         self._raw_dict.__delitem__(key)
+        try:
+            self._resolved.remove(key)
+        except KeyError:
+            pass
 
     def __iter__(self):
         return iter(self._raw_dict)
 
     def __len__(self):
         return len(self._raw_dict)
+
+    def __contains__(self, key):
+        return key in self._raw_dict
 
 
 def _create_provider_info_schema_validator():
@@ -108,9 +118,23 @@ def _create_customized_form_field_behaviours_schema_validator():
     return validator
 
 
+def _check_builtin_provider_prefix(provider_package: str, class_name: str) -> bool:
+    if provider_package.startswith("apache-airflow"):
+        provider_path = provider_package[len("apache-") :].replace("-", ".")
+        if not class_name.startswith(provider_path):
+            log.warning(
+                "Coherence check failed when importing '%s' from '%s' package. It should start with '%s'",
+                class_name,
+                provider_package,
+                provider_path,
+            )
+            return False
+    return True
+
+
 def _sanity_check(provider_package: str, class_name: str) -> bool:
     """
-    Performs sanity check on provider classes.
+    Performs coherence check on provider classes.
     For apache-airflow providers - it checks if it starts with appropriate package. For all providers
     it tries to import the provider - checking that there are no exceptions during importing.
     It logs appropriate warning in case it detects any problems.
@@ -120,16 +144,8 @@ def _sanity_check(provider_package: str, class_name: str) -> bool:
 
     :return True if the class is OK, False otherwise.
     """
-    if provider_package.startswith("apache-airflow"):
-        provider_path = provider_package[len("apache-") :].replace("-", ".")
-        if not class_name.startswith(provider_path):
-            log.warning(
-                "Sanity check failed when importing '%s' from '%s' package. It should start with '%s'",
-                class_name,
-                provider_package,
-                provider_path,
-            )
-            return False
+    if not _check_builtin_provider_prefix(provider_package, class_name):
+        return False
     try:
         import_string(class_name)
     except Exception as e:
@@ -172,7 +188,7 @@ class ConnectionFormWidgetInfo(NamedTuple):
 
     hook_class_name: str
     package_name: str
-    field: Field
+    field: Any
 
 
 T = TypeVar("T", bound=Callable)
@@ -230,6 +246,10 @@ class ProvidersManager(LoggingMixin):
         self._initialized_cache: Dict[str, bool] = {}
         # Keeps dict of providers keyed by module name
         self._provider_dict: Dict[str, ProviderInfo] = {}
+        # Keeps dict of hooks keyed by connection type
+        self._hooks_dict: Dict[str, HookInfo] = {}
+
+        self._taskflow_decorators: Dict[str, Callable] = LazyDictWithCache()
         # keeps mapping between connection_types and hook class, package they come from
         self._hook_provider_dict: Dict[str, HookClassProvider] = {}
         # Keeps dict of hooks keyed by connection type. They are lazy evaluated at access time
@@ -276,6 +296,12 @@ class ProvidersManager(LoggingMixin):
         self.initialize_providers_list()
         self._discover_hooks()
         self._hook_provider_dict = OrderedDict(sorted(self._hook_provider_dict.items()))
+
+    @provider_info_cache("taskflow_decorators")
+    def initialize_providers_taskflow_decorator(self):
+        """Lazy initialization of providers hooks."""
+        self.initialize_providers_list()
+        self._discover_taskflow_decorators()
 
     @provider_info_cache("extra_links")
     def initialize_providers_extra_links(self):
@@ -426,7 +452,9 @@ class ProvidersManager(LoggingMixin):
                         hook_class_name=hook_class_name, package_name=package_name
                     )
                     # Defer importing hook to access time by setting import hook method as dict value
-                    self._hooks_lazy_dict[connection_type] = self._import_hook
+                    self._hooks_lazy_dict[connection_type] = functools.partial(
+                        self._import_hook, connection_type
+                    )
             provider_uses_connection_types = True
         return provider_uses_connection_types
 
@@ -526,6 +554,34 @@ class ProvidersManager(LoggingMixin):
         self._connection_form_widgets = OrderedDict(sorted(self._connection_form_widgets.items()))
         self._field_behaviours = OrderedDict(sorted(self._field_behaviours.items()))
 
+    def _discover_taskflow_decorators(self) -> None:
+        for name, info in self._provider_dict.items():
+            for taskflow_decorator in info.provider_info.get("task-decorators", []):
+                self._add_taskflow_decorator(
+                    taskflow_decorator["name"], taskflow_decorator["class-name"], name
+                )
+
+    def _add_taskflow_decorator(self, name, decorator_class_name: str, provider_package: str) -> None:
+        if not _check_builtin_provider_prefix(provider_package, decorator_class_name):
+            return
+
+        if name in self._taskflow_decorators:
+            try:
+                existing = self._taskflow_decorators[name]
+                other_name = f'{existing.__module__}.{existing.__name}'
+            except Exception:
+                # If problem importing, then get the value from the functools.partial
+                other_name = self._taskflow_decorators._raw_dict[name].args[0]
+
+            log.warning(
+                "The taskflow decorator '%s' has been already registered (by %s).",
+                name,
+                other_name,
+            )
+            return
+
+        self._taskflow_decorators[name] = functools.partial(import_string, decorator_class_name)
+
     @staticmethod
     def _get_attr(obj: Any, attr_name: str):
         """Retrieves attributes of an object, or warns if not found"""
@@ -548,6 +604,8 @@ class ProvidersManager(LoggingMixin):
         :param package_name: provider package - only needed in case connection_type is missing
         : return
         """
+        from wtforms import BooleanField, IntegerField, PasswordField, StringField
+
         if connection_type is None and hook_class_name is None:
             raise ValueError("Either connection_type or hook_class_name must be set")
         if connection_type and hook_class_name:
@@ -564,6 +622,7 @@ class ProvidersManager(LoggingMixin):
                 raise ValueError(
                     f"Provider package name is not set when hook_class_name ({hook_class_name}) " f"is used"
                 )
+        allowed_field_classes = [IntegerField, PasswordField, StringField, BooleanField]
         if not _sanity_check(package_name, hook_class_name):
             return None
         try:
@@ -576,13 +635,13 @@ class ProvidersManager(LoggingMixin):
                 widgets = hook_class.get_connection_form_widgets()
                 if widgets:
                     for widget in widgets.values():
-                        if widget.field_class not in ALLOWED_FIELD_CLASSES:
+                        if widget.field_class not in allowed_field_classes:
                             log.warning(
                                 "The hook_class '%s' uses field of unsupported class '%s'. "
                                 "Only '%s' field classes are supported",
                                 hook_class_name,
                                 widget.field_class,
-                                ALLOWED_FIELD_CLASSES,
+                                allowed_field_classes,
                             )
                             return None
                     self._add_widgets(package_name, hook_class, widgets)
@@ -642,7 +701,7 @@ class ProvidersManager(LoggingMixin):
             connection_type=connection_type,
         )
 
-    def _add_widgets(self, package_name: str, hook_class: type, widgets: Dict[str, Field]):
+    def _add_widgets(self, package_name: str, hook_class: type, widgets: Dict[str, Any]):
         for field_name, field in widgets.items():
             if not field_name.startswith("extra__"):
                 log.warning(
@@ -732,6 +791,11 @@ class ProvidersManager(LoggingMixin):
         self.initialize_providers_hooks()
         # When we return hooks here it will only be used to retrieve hook information
         return self._hooks_lazy_dict  # type: ignore
+
+    @property
+    def taskflow_decorators(self) -> Dict[str, Callable]:
+        self.initialize_providers_taskflow_decorator()
+        return self._taskflow_decorators
 
     @property
     def extra_links_class_names(self) -> List[str]:

@@ -41,6 +41,7 @@ Content
 
     Example DAGs <https://github.com/apache/airflow/tree/main/airflow/providers/databricks/example_dags>
     PyPI Repository <https://pypi.org/project/apache-airflow-providers-databricks/>
+    Installing from sources <installing-providers-from-sources>
 
 .. THE REMAINDER OF THE FILE IS AUTOMATICALLY GENERATED. IT WILL BE OVERWRITTEN AT RELEASE TIME!
 
@@ -58,7 +59,7 @@ Package apache-airflow-providers-databricks
 `Databricks <https://databricks.com/>`__
 
 
-Release: 2.0.1
+Release: 2.0.2
 
 Provider package
 ----------------

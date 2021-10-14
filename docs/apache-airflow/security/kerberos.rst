@@ -22,10 +22,6 @@ Airflow has initial support for Kerberos. This means that Airflow can renew kerb
 tickets for itself and store it in the ticket cache. The hooks and dags can make use of ticket
 to authenticate against kerberized services.
 
-.. contents::
-  :depth: 1
-  :local:
-
 Limitations
 '''''''''''
 

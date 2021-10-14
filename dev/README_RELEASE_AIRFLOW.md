@@ -38,11 +38,11 @@
   - [Summarize the voting for the Apache Airflow release](#summarize-the-voting-for-the-apache-airflow-release)
   - [Publish release to SVN](#publish-release-to-svn)
   - [Prepare PyPI "release" packages](#prepare-pypi-release-packages)
-  - [Update CHANGELOG.md](#update-changelogmd)
   - [Manually prepare production Docker Image](#manually-prepare-production-docker-image)
   - [Publish documentation](#publish-documentation)
   - [Notify developers of release](#notify-developers-of-release)
   - [Update Announcements page](#update-announcements-page)
+  - [Update airflow/config_templates/config.yml file](#update-airflowconfig_templatesconfigyml-file)
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
 
@@ -92,6 +92,10 @@ The Release Candidate artifacts we vote upon should be the exact ones we vote ag
     ```
 
 - Set your version to 2.0.N in `setup.py` (without the RC tag)
+- Replace the version in `README.md` and verify that installation instructions work fine.
+- Add a commit that updates `CHANGELOG.md` to add changes from previous version if it has not already added.
+For now this is done manually, example run  `git log --oneline v2-2-test..HEAD --pretty='format:- %s'` and categorize them.
+- Add section for the release in `UPDATING.md`. If no new entries exist, put "No breaking changes" (e.g. `2.1.4`).
 - Commit the version change.
 
 - Tag your release
@@ -136,7 +140,7 @@ The Release Candidate artifacts we vote upon should be the exact ones we vote ag
 - Tag & Push the latest constraints files. This pushes constraints with rc suffix (this is expected)!
 
     ```shell script
-    git checkout constraints-${VERSION_CONSTRAINT_BRANCH}
+    git checkout origin/constraints-${VERSION_CONSTRAINT_BRANCH}
     git tag -s "constraints-${VERSION}"
     git push origin "constraints-${VERSION}"
     ```
@@ -249,13 +253,13 @@ also performs image verification before pushing the images.
 Subject:
 
 ```
-[VOTE] Airflow 2.0.2rc3
+[VOTE] Release Airflow 2.0.2 from 2.0.2rc1
 ```
 
 Body:
 
 ```
-Hey all,
+Hey fellow Airflowers,
 
 I have cut Airflow 2.0.2 RC3. This email is calling a vote on the release,
 which will last for 72 hours. Consider this my (binding) +1.
@@ -263,23 +267,30 @@ which will last for 72 hours. Consider this my (binding) +1.
 Airflow 2.0.2 RC3 is available at:
 https://dist.apache.org/repos/dist/dev/airflow/2.0.2rc3/
 
-*apache-airflow-2.0.2rc3-source.tar.gz* is a source release that comes
-with INSTALL instructions.
-*apache-airflow-2.0.2rc3-bin.tar.gz* is the binary Python "sdist" release.
+*apache-airflow-2.0.2-source.tar.gz* is a source release that comes with INSTALL instructions.
+*apache-airflow-2.0.2.tar.gz* is the binary Python "sdist" release.
+*apache_airflow-2.0.2-py3-none-any.wh*l is the binary Python wheel "binary" release.
 
 Public keys are available at:
 https://dist.apache.org/repos/dist/release/airflow/KEYS
+
+Please vote accordingly:
+
+[ ] +1 approve
+[ ] +0 no opinion
+[ ] -1 disapprove with the reason
 
 Only votes from PMC members are binding, but the release manager should encourage members of the community
 to test the release and vote with "(non-binding)".
 
 The test procedure for PMCs and Contributors who would like to test this RC are described in
-https://github.com/apache/airflow/blob/main/dev/README.md#vote-and-verify-the-apache-airflow-release-candidate
+https://github.com/apache/airflow/blob/main/dev/README_RELEASE_AIRFLOW.md#verify-the-release-candidate-by-pmcs
 
 Please note that the version number excludes the `rcX` string, so it's now
 simply 2.0.2. This will allow us to rename the artifact without modifying
 the artifact checksums when we actually release.
 
+Full Changelog: (https://github.com/apache/airflow/blob/2.0.2rc3/CHANGELOG.txt).
 
 Changes since 2.0.2rc2:
 *Bugs*:
@@ -617,16 +628,6 @@ previously released RC candidates in "${AIRFLOW_SOURCES}/dist":
 
 - Again, confirm that the package is available here: https://pypi.python.org/pypi/apache-airflow
 
-## Update CHANGELOG.md
-
-- Get a diff between the last version and the current version:
-
-    ```shell script
-    git log 1.8.0..1.9.0 --pretty=oneline
-    ```
-
-- Update CHANGELOG.md with the details, and commit it.
-
 - Re-Tag & Push the constraints files with the final release version.
 
     ```shell script
@@ -642,6 +643,7 @@ previously released RC candidates in "${AIRFLOW_SOURCES}/dist":
     (both airflow and latest provider packages).
 
     ```shell script
+    git checkout ${VERSION}
     git push origin ${VERSION}
     ```
 
@@ -720,14 +722,9 @@ Dear Airflow community,
 
 I'm happy to announce that Airflow ${VERSION} was just released.
 
-The source release, as well as the binary "sdist" release, are available
-here:
+The released sources and packages can be downloaded via https://airflow.apache.org/docs/apache-airflow/stable/installation/installing-from-sources.html
 
-https://dist.apache.org/repos/dist/release/airflow/${VERSION}/
-
-We also made this version available on PyPI for convenience (`pip install apache-airflow`):
-
-https://pypi.python.org/pypi/apache-airflow
+Other installation methods are described in https://airflow.apache.org/docs/apache-airflow/stable/installation/
 
 The documentation is available on:
 https://airflow.apache.org/
@@ -735,7 +732,7 @@ https://airflow.apache.org/docs/apache-airflow/${VERSION}/
 
 Find the CHANGELOG here for more details:
 
-https://airflow.apache.org/changelog.html#airflow-1-10-2-2019-01-19
+https://airflow.apache.org/docs/apache-airflow/${VERSION}/changelog.html
 
 Cheers,
 <your name>
@@ -745,3 +742,15 @@ EOF
 ## Update Announcements page
 
 Update "Announcements" page at the [Official Airflow website](https://airflow.apache.org/announcements/)
+
+## Update airflow/config_templates/config.yml file
+
+File `airflow/config_templates/config.yml` contains documentation on all configuration options available in Airflow. The `version_added` fields must be updated when a new Airflow version is released.
+
+- Get a diff between the released versions and the current local file on `main` branch:
+
+    ```shell script
+    ./dev/validate_version_added_fields_in_config.py
+    ```
+
+- Update `airflow/config_templates/config.yml` with the details, and commit it.

@@ -414,8 +414,8 @@ class TestAirflowTaskDecorator(TestPythonBase):
         assert ret.operator.owner == 'airflow'
 
         @task_decorator
-        def test_apply_default_raise(unknow):
-            return unknow
+        def test_apply_default_raise(unknown):
+            return unknown
 
         with pytest.raises(TypeError):
             with self.dag:

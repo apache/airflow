@@ -407,6 +407,7 @@ paths:
         - $ref: '#/components/parameters/PageLimit'
         - $ref: '#/components/parameters/PageOffset'
         - $ref: '#/components/parameters/OrderBy'
+        - $ref: '#/components/parameters/FilterTags'
         - name: only_active
           in: query
           schema:
@@ -701,7 +702,7 @@ paths:
       description: Modify a DAG run
       x-openapi-router-controller: airflow.api_connexion.endpoints.dag_run_endpoint
       operationId: update_dag_run_state
-      tags: [ UpdateDagRunState ]
+      tags: [DAGRun]
       requestBody:
         required: true
         content:
@@ -1681,6 +1682,8 @@ paths:
           $ref: '#/components/responses/Unauthenticated'
         '403':
           $ref: '#/components/responses/PermissionDenied'
+        '409':
+          $ref: '#/components/responses/AlreadyExists'
 
   /users/{username}:
     parameters:
@@ -1762,15 +1765,19 @@ components:
         first_name:
           type: string
           description: The user firstname
+          minLength: 1
         last_name:
           type: string
           description: The user lastname
+          minLength: 1
         username:
           type: string
           description: The username
+          minLength: 1
         email:
           type: string
           description: The user's email
+          minLength: 1
         active:
           type: boolean
           description: Whether the user is active
@@ -2687,6 +2694,7 @@ components:
         name:
           type: string
           description: The name of the role
+          minLength: 1
         actions:
           type: array
           items:
@@ -3497,6 +3505,16 @@ components:
           type: string
       description:
         The value can be repeated to retrieve multiple matching values (OR condition).
+
+    FilterTags:
+      in: query
+      name: tags
+      schema:
+        type: array
+        items:
+          type: string
+      description:
+        List of tags to filter results
 
     OrderBy:
       in: query

@@ -21,10 +21,6 @@
 Google API To S3 Transfer
 =========================
 
-.. contents::
-  :depth: 1
-  :local:
-
 Overview
 --------
 

@@ -18,6 +18,7 @@
 import json
 import textwrap
 import time
+from typing import Any, List, Optional, Union
 from urllib.parse import urlencode
 
 import markdown
@@ -29,6 +30,7 @@ from flask_appbuilder.models.sqla import filters as fab_sqlafilters
 from flask_appbuilder.models.sqla.interface import SQLAInterface
 from pygments import highlight, lexers
 from pygments.formatters import HtmlFormatter
+from sqlalchemy.ext.associationproxy import AssociationProxy
 
 from airflow.models import errors
 from airflow.utils import timezone
@@ -225,7 +227,7 @@ def task_instance_link(attr):
     """Generates a URL to the Graph view for a TaskInstance."""
     dag_id = attr.get('dag_id')
     task_id = attr.get('task_id')
-    execution_date = attr.get('execution_date')
+    execution_date = attr.get('dag_run.execution_date') or attr.get('execution_date') or timezone.utcnow()
     url = url_for('Airflow.task', dag_id=dag_id, task_id=task_id, execution_date=execution_date.isoformat())
     url_root = url_for(
         'Airflow.graph', dag_id=dag_id, root=task_id, execution_date=execution_date.isoformat()
@@ -311,7 +313,7 @@ def dag_run_link(attr):
     """Generates a URL to the Graph view for a DagRun."""
     dag_id = attr.get('dag_id')
     run_id = attr.get('run_id')
-    execution_date = attr.get('execution_date')
+    execution_date = attr.get('dag_run.exectuion_date') or attr.get('execution_date')
     url = url_for('Airflow.graph', dag_id=dag_id, run_id=run_id, execution_date=execution_date)
     return Markup('<a href="{url}">{run_id}</a>').format(url=url, run_id=run_id)
 
@@ -456,6 +458,13 @@ class CustomSQLAInterface(SQLAInterface):
                 self.list_columns = {k.lstrip('_'): v for k, v in self.list_columns.items()}
 
         clean_column_names()
+        # Support for AssociationProxy in search and list columns
+        for desc in self.obj.__mapper__.all_orm_descriptors:
+            if not isinstance(desc, AssociationProxy):
+                continue
+            proxy_instance = getattr(self.obj, desc.value_attr)
+            self.list_columns[desc.value_attr] = proxy_instance.remote_attr.prop.columns[0]
+            self.list_properties[desc.value_attr] = proxy_instance.remote_attr.prop
 
     def is_utcdatetime(self, col_name):
         """Check if the datetime is a UTC one."""
@@ -483,6 +492,12 @@ class CustomSQLAInterface(SQLAInterface):
             )
         return False
 
+    def get_col_default(self, col_name: str) -> Any:
+        if col_name not in self.list_columns:
+            # Handle AssociationProxy etc, or anything that isn't a "real" column
+            return None
+        return super().get_col_default(col_name)
+
     filter_converter_class = AirflowFilterConverter
 
 
@@ -492,3 +507,62 @@ class CustomSQLAInterface(SQLAInterface):
 FieldConverter.conversion_table = (
     ('is_utcdatetime', DateTimeWithTimezoneField, AirflowDateTimePickerWidget),
 ) + FieldConverter.conversion_table
+
+
+class UIAlert:
+    """
+    Helper for alerts messages shown on the UI
+
+    :param message: The message to display, either a string or Markup
+    :type message: Union[str,Markup]
+    :param category: The category of the message, one of "info", "warning", "error", or any custom category.
+        Defaults to "info".
+    :type category: str
+    :param roles: List of roles that should be shown the message. If ``None``, show to all users.
+    :type roles: Optional[List[str]]
+    :param html: Whether the message has safe html markup in it. Defaults to False.
+    :type html: bool
+
+
+    For example, show a message to all users:
+
+    .. code-block:: python
+
+        UIAlert("Welcome to Airflow")
+
+    Or only for users with the User role:
+
+    .. code-block:: python
+
+        UIAlert("Airflow update happening next week", roles=["User"])
+
+    You can also pass html in the message:
+
+    .. code-block:: python
+
+        UIAlert('Visit <a href="https://airflow.apache.org">airflow.apache.org</a>', html=True)
+
+        # or safely escape part of the message
+        # (more details: https://markupsafe.palletsprojects.com/en/2.0.x/formatting/)
+        UIAlert(Markup("Welcome <em>%s</em>") % ("John & Jane Doe",))
+    """
+
+    def __init__(
+        self,
+        message: Union[str, Markup],
+        category: str = "info",
+        roles: Optional[List[str]] = None,
+        html: bool = False,
+    ):
+        self.category = category
+        self.roles = roles
+        self.html = html
+        self.message = Markup(message) if html else message
+
+    def should_show(self, securitymanager) -> bool:
+        """Determine if the user should see the message based on their role membership"""
+        if self.roles:
+            user_roles = {r.name for r in securitymanager.get_user_roles()}
+            if not user_roles.intersection(set(self.roles)):
+                return False
+        return True

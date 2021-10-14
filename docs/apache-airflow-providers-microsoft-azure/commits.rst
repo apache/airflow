@@ -28,14 +28,34 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+3.2.0
+.....
+
+Latest change: 2021-09-27
+
+================================================================================================  ===========  ========================================================================================
+Commit                                                                                            Committed    Subject
+================================================================================================  ===========  ========================================================================================
+`a458fcc57 <https://github.com/apache/airflow/commit/a458fcc573845ff65244a2dafd204ed70129f3e8>`_  2021-09-27   ``Updating miscellaneous provider DAGs to use TaskFlow API where applicable (#18278)``
+`46484466c <https://github.com/apache/airflow/commit/46484466c43bd0a9c8b25f11f24d3d36a0b2d956>`_  2021-09-25   ``Removing redundant relabeling of password conn field (#18386)``
+`97d689231 <https://github.com/apache/airflow/commit/97d6892318ce2866f09f2c21247ed3b1b9975695>`_  2021-09-25   ``Rename AzureDataLakeStorage to ADLS (#18493)``
+`1d2924c94 <https://github.com/apache/airflow/commit/1d2924c94e38ade7cd21af429c9f451c14eba183>`_  2021-09-24   ``Proper handling of Account URL custom conn field in AzureBatchHook (#18456)``
+`11e34535e <https://github.com/apache/airflow/commit/11e34535e8cda2f22b26eb3f951a952e3acfe333>`_  2021-09-19   ``Creating ADF pipeline run operator, sensor + ADF custom conn fields (#17885)``
+`410e6d796 <https://github.com/apache/airflow/commit/410e6d7967c6db0a968f26eb903d072e356f1348>`_  2021-09-18   ``Initial commit (#18203)``
+`2dac083ae <https://github.com/apache/airflow/commit/2dac083ae241b96241deda20db7725e2fcf3a93e>`_  2021-09-16   ``Fixed wasb hook attempting to create container when getting a blob client (#18287)``
+`d119ae8f3 <https://github.com/apache/airflow/commit/d119ae8f3fec587f12ee90f4a698186ebe54458e>`_  2021-09-12   ``Rename LocalToAzureDataLakeStorageOperator to LocalFilesystemToADLSOperator (#18168)``
+`28de326d6 <https://github.com/apache/airflow/commit/28de326d6192bcb4871d5c2ea85857b022aaabd5>`_  2021-09-09   ``Rename FileToWasbOperator to LocalFilesystemToWasbOperator (#18109)``
+================================================================================================  ===========  ========================================================================================
+
 3.1.1
 .....
 
-Latest change: 2021-08-23
+Latest change: 2021-08-30
 
 ================================================================================================  ===========  ============================================================================
 Commit                                                                                            Committed    Subject
 ================================================================================================  ===========  ============================================================================
+`0a6858847 <https://github.com/apache/airflow/commit/0a68588479e34cf175d744ea77b283d9d78ea71a>`_  2021-08-30   ``Add August 2021 Provider's documentation (#17890)``
 `be75dcd39 <https://github.com/apache/airflow/commit/be75dcd39cd10264048c86e74110365bd5daf8b7>`_  2021-08-23   ``Update description about the new ''connection-types'' provider meta-data``
 `76ed2a49c <https://github.com/apache/airflow/commit/76ed2a49c6cd285bf59706cf04f39a7444c382c9>`_  2021-08-19   ``Import Hooks lazily individually in providers manager (#17682)``
 `29aab6434 <https://github.com/apache/airflow/commit/29aab6434ffe0fb8c83b6fd6c9e44310966d496a>`_  2021-08-17   ``Adds secrets backend/logging/auth information to provider yaml (#17625)``

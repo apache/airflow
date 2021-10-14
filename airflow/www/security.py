@@ -22,7 +22,6 @@ from typing import Dict, List, Optional, Sequence, Set, Tuple
 
 from flask import current_app, g
 from flask_appbuilder.security.sqla import models as sqla_models
-from flask_appbuilder.security.sqla.manager import SecurityManager
 from flask_appbuilder.security.sqla.models import Permission, PermissionView, Role, User, ViewMenu
 from sqlalchemy import or_
 from sqlalchemy.orm import joinedload
@@ -32,6 +31,7 @@ from airflow.models import DagBag, DagModel
 from airflow.security import permissions
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.session import provide_session
+from airflow.www.fab_security.sqla.manager import SecurityManager
 from airflow.www.utils import CustomSQLAInterface
 from airflow.www.views import (
     CustomPermissionModelView,
@@ -139,6 +139,8 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
     ADMIN_PERMISSIONS = [
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK_RESCHEDULE),
         (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_TASK_RESCHEDULE),
+        (permissions.ACTION_CAN_READ, permissions.RESOURCE_TRIGGER),
+        (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_TRIGGER),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_PASSWORD),
         (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_PASSWORD),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_ROLE),
@@ -424,7 +426,9 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
         """Determines whether a user has DAG read access."""
         if not user:
             user = g.user
-        dag_resource_name = permissions.resource_name_for_dag(dag_id)
+        # To account for SubDags
+        root_dag_id = dag_id.split(".")[0]
+        dag_resource_name = permissions.resource_name_for_dag(root_dag_id)
         return self._has_access(
             user, permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG
         ) or self._has_access(user, permissions.ACTION_CAN_READ, dag_resource_name)
@@ -433,7 +437,9 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
         """Determines whether a user has DAG edit access."""
         if not user:
             user = g.user
-        dag_resource_name = permissions.resource_name_for_dag(dag_id)
+        # To account for SubDags
+        root_dag_id = dag_id.split(".")[0]
+        dag_resource_name = permissions.resource_name_for_dag(root_dag_id)
 
         return self._has_access(
             user, permissions.ACTION_CAN_EDIT, permissions.RESOURCE_DAG
@@ -485,7 +491,6 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
 
         has_access = self._has_access(user, action_name, resource_name)
         # FAB built-in view access method. Won't work for AllDag access.
-
         if self.is_dag_resource(resource_name):
             if action_name == permissions.ACTION_CAN_READ:
                 has_access |= self.can_read_dag(resource_name, user)
@@ -548,7 +553,7 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
         perms = sesh.query(sqla_models.PermissionView).filter(
             or_(
                 sqla_models.PermissionView.permission == None,  # noqa
-                sqla_models.PermissionView.view_menu == None,
+                sqla_models.PermissionView.view_menu == None,  # noqa
             )
         )
         # Since FAB doesn't define ON DELETE CASCADE on these tables, we need

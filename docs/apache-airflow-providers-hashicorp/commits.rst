@@ -28,14 +28,26 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+2.1.1
+.....
+
+Latest change: 2021-09-10
+
+================================================================================================  ===========  ==============================================================
+Commit                                                                                            Committed    Subject
+================================================================================================  ===========  ==============================================================
+`476ae0eb5 <https://github.com/apache/airflow/commit/476ae0eb588a5bfbc3d415a34cf4f0262f53888e>`_  2021-09-10   ``Fixing Vault AppRole authentication with CONN_URI (#18064)``
+================================================================================================  ===========  ==============================================================
+
 2.1.0
 .....
 
-Latest change: 2021-09-01
+Latest change: 2021-09-03
 
 ================================================================================================  ===========  ============================================================================
 Commit                                                                                            Committed    Subject
 ================================================================================================  ===========  ============================================================================
+`fd5d65751 <https://github.com/apache/airflow/commit/fd5d65751ca026d2b5f0ec1e4d9ce1b1e09e5b22>`_  2021-09-03   ``Update release notes for 3 extra providers released (#18018)``
 `16b47cecf <https://github.com/apache/airflow/commit/16b47cecfb5cf88b0176a59589cbd77e0eaccfd3>`_  2021-09-01   ``Invalidate Vault cached prop when not authenticated (#17387)``
 `a29503e1b <https://github.com/apache/airflow/commit/a29503e1baf7534c85ebf6685ba91003051c1cea>`_  2021-08-31   ``Fix instantiating Vault Secret Backend during configuration (#17935)``
 `0a6858847 <https://github.com/apache/airflow/commit/0a68588479e34cf175d744ea77b283d9d78ea71a>`_  2021-08-30   ``Add August 2021 Provider's documentation (#17890)``

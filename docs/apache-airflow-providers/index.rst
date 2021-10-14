@@ -56,7 +56,6 @@ Auth backends
 
 The providers can add custom authentication backends, that allow you to configure the way how your
 web server authenticates your users, integrating it with public or private authentication services.
-behaviour for the connections defined by the provider.
 
 You can see all the authentication backends available via community-managed providers in
 :doc:`/core-extensions/auth-backends`
@@ -67,7 +66,7 @@ Custom connections
 The providers can add custom connection types, extending connection form and handling custom form field
 behaviour for the connections defined by the provider.
 
-You can see all task loggers available via community-managed providers in
+You can see all custom connections available via community-managed providers in
 :doc:`/core-extensions/connections`.
 
 Extra links
@@ -98,7 +97,7 @@ Secret backends
 Airflow has the capability of reading connections, variables and configuration from Secret Backends rather
 than from its own Database.
 
-You can see all task loggers available via community-managed providers in
+You can see all secret backends available via community-managed providers in
 :doc:`/core-extensions/secrets-backends`.
 
 
@@ -143,7 +142,7 @@ package.
 
 Each community provider has corresponding extra which can be used when installing airflow to install the
 provider together with ``Apache Airflow`` - for example you can install airflow with those extras:
-``apache-airflow[google,amazon]`` (with correct constraints -see :doc:`apache-airflow:installation`) and you
+``apache-airflow[google,amazon]`` (with correct constraints -see :doc:`apache-airflow:installation/index`) and you
 will install the appropriate versions of the ``apache-airflow-providers-amazon`` and
 ``apache-airflow-providers-google`` packages together with ``Apache Airflow``.
 
@@ -407,10 +406,9 @@ provider package will keep its own dependencies, and while we expect those provi
 backwards-compatible, particular versions of particular providers might introduce dependencies on
 specific Airflow versions.
 
-Contents
---------
 
 .. toctree::
+    :hidden:
     :maxdepth: 2
 
     Providers <self>
@@ -418,3 +416,5 @@ Contents
     Operators and hooks <operators-and-hooks-ref/index>
     Core Extensions <core-extensions/index>
     Update community providers <howto/create-update-providers>
+    Installing from sources <installing-from-sources>
+    Installing from PyPI <installing-from-pypi>

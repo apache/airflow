@@ -19,6 +19,24 @@
 Changelog
 ---------
 
+2.1.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add support for templated fields in PapermillOperator (#18357)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix usage of range(len() to enumerate (#18174)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Static start_date and default arg cleanup for misc. provider example DAGs (#18597)``
+   * ``Updating miscellaneous provider DAGs to use TaskFlow API where applicable (#18278)``
+
 2.0.1
 .....
 

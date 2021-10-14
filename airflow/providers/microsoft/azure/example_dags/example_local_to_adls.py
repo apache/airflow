@@ -18,8 +18,8 @@
 import os
 
 from airflow import models
-from airflow.providers.microsoft.azure.operators.adls_delete import AzureDataLakeStorageDeleteOperator
-from airflow.providers.microsoft.azure.transfers.local_to_adls import LocalToAzureDataLakeStorageOperator
+from airflow.providers.microsoft.azure.operators.adls import ADLSDeleteOperator
+from airflow.providers.microsoft.azure.transfers.local_to_adls import LocalFilesystemToADLSOperator
 from airflow.utils.dates import days_ago
 
 LOCAL_FILE_PATH = os.environ.get("LOCAL_FILE_PATH", 'localfile.txt')
@@ -32,15 +32,13 @@ with models.DAG(
     tags=['example'],
 ) as dag:
     # [START howto_operator_local_to_adls]
-    upload_file = LocalToAzureDataLakeStorageOperator(
+    upload_file = LocalFilesystemToADLSOperator(
         task_id='upload_task',
         local_path=LOCAL_FILE_PATH,
         remote_path=REMOTE_FILE_PATH,
     )
     # [END howto_operator_local_to_adls]
 
-    delete_file = AzureDataLakeStorageDeleteOperator(
-        task_id="remove_task", path=REMOTE_FILE_PATH, recursive=True
-    )
+    delete_file = ADLSDeleteOperator(task_id="remove_task", path=REMOTE_FILE_PATH, recursive=True)
 
     upload_file >> delete_file

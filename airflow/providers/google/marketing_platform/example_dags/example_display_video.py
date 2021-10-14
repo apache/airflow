@@ -71,7 +71,7 @@ REPORT = {
     "schedule": {"frequency": "ONE_TIME"},
 }
 
-PARAMS = {"dataRange": "LAST_14_DAYS", "timezoneCode": "America/New_York"}
+PARAMETERS = {"dataRange": "LAST_14_DAYS", "timezoneCode": "America/New_York"}
 
 CREATE_SDF_DOWNLOAD_TASK_BODY_REQUEST: Dict = {
     "version": SDF_VERSION,
@@ -94,7 +94,7 @@ with models.DAG(
 
     # [START howto_google_display_video_runquery_report_operator]
     run_report = GoogleDisplayVideo360RunReportOperator(
-        report_id=report_id, params=PARAMS, task_id="run_report"
+        report_id=report_id, parameters=PARAMETERS, task_id="run_report"
     )
     # [END howto_google_display_video_runquery_report_operator]
 

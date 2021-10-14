@@ -20,7 +20,8 @@
  */
 
 /*
-  global d3, document, nodes, taskInstances, tasks, edges, dagreD3, localStorage, $
+  global d3, document, nodes, taskInstances, tasks, edges, dagreD3, localStorage, $,
+  autoRefreshInterval, moment, convertSecsToHumanReadable
 */
 
 import getMetaValue from './meta_value';
@@ -34,19 +35,6 @@ const executionDate = getMetaValue('execution_date');
 const arrange = getMetaValue('arrange');
 const taskInstancesUrl = getMetaValue('task_instances_url');
 
-// Build a map mapping node id to tooltip for all the TaskGroups.
-function getTaskGroupTips(node) {
-  const tips = new Map();
-  if (node.children) {
-    tips.set(node.id, node.tooltip);
-    node.children.forEach((child) => {
-      Object.entries(getTaskGroupTips(child)).forEach(([key, value]) => tips.set(key, value));
-    });
-  }
-  return tips;
-}
-
-const taskGroupTips = getTaskGroupTips(nodes);
 // This maps the actual taskId to the current graph node id that contains the task
 // (because tasks may be grouped into a group node)
 const mapTaskToNode = new Map();
@@ -153,17 +141,13 @@ function draw() {
       expandGroup(nodeId, node);
       draw();
       focusGroup(nodeId);
-    } else if (nodeId in tasks) {
+    } else if (nodeId in taskInstances) {
       // A task node
       const task = tasks[nodeId];
-      let tryNumber;
-      if (nodeId in taskInstances) tryNumber = taskInstances[nodeId].try_number;
-      else tryNumber = 0;
+      const tryNumber = taskInstances[nodeId].try_number || 0;
 
       if (task.task_type === 'SubDagOperator') callModal(nodeId, executionDate, task.extra_links, tryNumber, true);
       else callModal(nodeId, executionDate, task.extra_links, tryNumber, undefined);
-    } else {
-      // join node between TaskGroup. Ignore.
     }
   });
 
@@ -408,7 +392,7 @@ function startOrStopRefresh() {
   if ($('#auto_refresh').is(':checked')) {
     refreshInterval = setInterval(() => {
       handleRefresh();
-    }, 3000); // run refresh every 3 seconds
+    }, autoRefreshInterval * 1000);
   } else {
     clearInterval(refreshInterval);
   }
@@ -434,26 +418,45 @@ function initRefresh() {
 }
 
 // Generate tooltip for a group node
-function groupTooltip(nodeId, tis) {
-  const numMap = new Map([['success', 0],
+function groupTooltip(node, tis) {
+  const numMap = new Map([
+    ['success', 0],
     ['failed', 0],
     ['upstream_failed', 0],
     ['up_for_retry', 0],
+    ['up_for_reschedule', 0],
     ['running', 0],
-    ['no_status', 0]]);
+    ['deferred', 0],
+    ['queued', 0],
+    ['scheduled', 0],
+    ['skipped', 0],
+    ['no_status', 0],
+  ]);
 
-  getChildrenIds(g.node(nodeId)).forEach((child) => {
+  let minStart;
+  let maxEnd;
+
+  getChildrenIds(node).forEach((child) => {
     if (child in tis) {
       const ti = tis[child];
+      if (!minStart || moment(ti.start_date).isBefore(minStart)) {
+        minStart = moment(ti.start_date);
+      }
+      if (!maxEnd || moment(ti.end_date).isAfter(maxEnd)) {
+        maxEnd = moment(ti.end_date);
+      }
       const stateKey = ti.state == null ? 'no_status' : ti.state;
       if (numMap.has(stateKey)) numMap.set(stateKey, numMap.get(stateKey) + 1);
     }
   });
 
-  const tip = taskGroupTips.get(nodeId);
-  let tt = `${escapeHtml(tip)}<br><br>`;
-  Object.entries(numMap).forEach(([key, val]) => {
-    tt += `<strong>${escapeHtml(key)}:</strong> ${val} <br>`;
+  const groupDuration = convertSecsToHumanReadable(moment(maxEnd).diff(minStart, 'second'));
+
+  let tt = `<strong>Duration:</strong> ${groupDuration} <br><br>`;
+  numMap.forEach((key, val) => {
+    if (key > 0) {
+      tt += `<strong>${escapeHtml(val)}:</strong> ${key} <br>`;
+    }
   });
 
   return tt;
@@ -464,27 +467,28 @@ function groupTooltip(nodeId, tis) {
 function updateNodesStates(tis) {
   g.nodes().forEach((nodeId) => {
     const { elem } = g.node(nodeId);
-    if (!elem) {
-      return;
-    }
-    elem.setAttribute('class', `node enter ${getNodeState(nodeId, tis)}`);
-    elem.setAttribute('data-toggle', 'tooltip');
+    if (elem) {
+      const classes = `node enter ${getNodeState(nodeId, tis)}`;
+      elem.setAttribute('class', classes);
+      elem.setAttribute('data-toggle', 'tooltip');
 
-    const taskId = nodeId;
-    elem.onmouseover = (evt) => {
-      if (taskId in tis) {
-        const tt = tiTooltip(tis[taskId]);
-        taskTip.show(tt, evt.target); // taskTip is defined in graph.html
-      } else if (taskGroupTips.has(taskId)) {
-        const tt = groupTooltip(taskId, tis);
-        taskTip.show(tt, evt.target);
-      } else if (taskId in tasks) {
-        const tt = taskNoInstanceTooltip(taskId, tasks[taskId]);
-        taskTip.show(tt, evt.target);
-      }
-    };
-    elem.onmouseout = taskTip.hide;
-    elem.onclick = taskTip.hide;
+      const taskId = nodeId;
+      const node = g.node(nodeId);
+      elem.onmouseover = (evt) => {
+        let tt;
+        if (taskId in tis) {
+          tt = tiTooltip(tis[taskId]);
+        } else if (node.children) {
+          tt = groupTooltip(node, tis);
+        } else if (taskId in tasks) {
+          tt = taskNoInstanceTooltip(taskId, tasks[taskId]);
+          elem.setAttribute('class', `${classes} not-allowed`);
+        }
+        if (tt) taskTip.show(tt, evt.target); // taskTip is defined in graph.html
+      };
+      elem.onmouseout = taskTip.hide;
+      elem.onclick = taskTip.hide;
+    }
   });
 }
 
