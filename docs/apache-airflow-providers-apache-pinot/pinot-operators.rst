@@ -23,7 +23,6 @@ Guide for Apache Pinot Operators
 distributed data store written in Java. Pinot is designed to execute OLAP queries
 with low latency. It is suited in contexts where fast analytics, such as aggregations,
 are needed on immutable data, possibly, with real-time data ingestion.
-
 .. _howto/operator:PinotCoreOperators.html:
 
 
@@ -42,20 +41,20 @@ The `TransformOperator` is the constructor for the class.
 
 @Override
 public void init(@Nonnull List<TransformFunction> arguments, @Nonnull Map<String, DataSource> dataSourceMap) {
- // Check that there are more than 1 arguments
- if (arguments.size() < 2) {
-  throw new IllegalArgumentException("At least 2 arguments are required for ADD transform function");
- }
- for (TransformFunction argument : arguments) {
-  if (argument instanceof LiteralTransformFunction) {
-   _literalSum += Double.parseDouble(((LiteralTransformFunction) argument).getLiteral());
-  } else {
-   if (!argument.getResultMetadata().isSingleValue()) {
-    throw new IllegalArgumentException("All the arguments of ADD transform function must be single-valued");
-   }
-   _transformFunctions.add(argument);
-  }
- }
+// Check that there are more than 1 arguments
+if (arguments.size() < 2) {
+throw new IllegalArgumentException("At least 2 arguments are required for ADD transform function");
+}
+for (TransformFunction argument : arguments) {
+if (argument instanceof LiteralTransformFunction) {
+_literalSum += Double.parseDouble(((LiteralTransformFunction) argument).getLiteral());
+} else {
+if (!argument.getResultMetadata().isSingleValue()) {
+throw new IllegalArgumentException("All the arguments of ADD transform function must be single-valued");
+}
+_transformFunctions.add(argument);
+}
+}
 }
 
 
@@ -66,7 +65,7 @@ Using the DocIdSetOperator
 
 @Override
 public DocIdSetOperator run() {
- return new DocIdSetOperator(_filterPlanNode.run(), _maxDocPerCall);
+return new DocIdSetOperator(_filterPlanNode.run(), _maxDocPerCall);
 }
 
 Using the NextBlockOperator
@@ -76,12 +75,12 @@ Using the NextBlockOperator
    
 @Override
 protected TransformBlock getNextBlock() {
- ProjectionBlock projectionBlock = _projectionOperator.nextBlock();
- if (projectionBlock == null) {
-  return null;
- } else {
-  return new TransformBlock(projectionBlock, _transformFunctionMap);
- }
+ProjectionBlock projectionBlock = _projectionOperator.nextBlock();
+if (projectionBlock == null) {
+return null;
+} else {
+return new TransformBlock(projectionBlock, _transformFunctionMap);
+}
 }
 
 
@@ -92,7 +91,7 @@ Using the ProjectionOperator
 
 @Override
 public ProjectionOperator run() {
- return new ``ProjectionOperator``(_dataSourceMap, _starTreeDocIdSetPlanNode.run());
+return new ProjectionOperator(_dataSourceMap, _starTreeDocIdSetPlanNode.run());
 }
 
 
@@ -101,24 +100,24 @@ Using the TransformFunctionFactory Operator
 ``https://www.tabnine.com/code/java/classes/org.apache.pinot.core.operator.transform.function.TransformFunctionFactory``
 `TransformFunctionFactory.get()`
 
-/**
+
  * Constructor for the class
  *
  * @param projectionOperator Projection operator
- * @param expressions Set of expressions to evaluate
- */
+ * @param expressions Set of expressions to evaluate 
+
 public TransformOperator(@Nonnull ProjectionOperator projectionOperator,
   @Nonnull Set<TransformExpressionTree> expressions) {
- _projectionOperator = projectionOperator;
+projectionOperator = projectionOperator;
  _dataSourceMap = projectionOperator.getDataSourceMap();
  for (TransformExpressionTree expression : expressions) {
-  TransformFunction transformFunction = TransformFunctionFactory.get(expression, _dataSourceMap);
+TransformFunction transformFunction = TransformFunctionFactory.get(expression, _dataSourceMap);
   _transformFunctionMap.put(expression, transformFunction);
- }
+
 }
 
 Using the getNumeEntriesScannedInFilter Operator
-===========================================
+================================================
 
 ``https://www.tabnine.com/code/java/methods/org.apache.pinot.core.operator.ExecutionStatistics/getNumEntriesScannedInFilter``
 
@@ -127,14 +126,14 @@ Using the getNumeEntriesScannedInFilter Operator
 public static void testInnerSegmentExecutionStatistics(ExecutionStatistics executionStatistics,
 long expectedNumDocsScanned, long expectedNumEntriesScannedInFilter, long expectedNumEntriesScannedPostFilter,
 long expectedNumTotalRawDocs) {
- Assert.assertEquals(executionStatistics.getNumDocsScanned(), expectedNumDocsScanned);
- Assert.assertEquals(executionStatistics.getNumEntriesScannedInFilter(), expectedNumEntriesScannedInFilter);
- Assert.assertEquals(executionStatistics.getNumEntriesScannedPostFilter(), expectedNumEntriesScannedPostFilter);
- Assert.assertEquals(executionStatistics.getNumTotalRawDocs(), expectedNumTotalRawDocs);
+Assert.assertEquals(executionStatistics.getNumDocsScanned(), expectedNumDocsScanned);
+Assert.assertEquals(executionStatistics.getNumEntriesScannedInFilter(), expectedNumEntriesScannedInFilter);
+Assert.assertEquals(executionStatistics.getNumEntriesScannedPostFilter(), expectedNumEntriesScannedPostFilter);
+Assert.assertEquals(executionStatistics.getNumTotalRawDocs(), expectedNumTotalRawDocs);
 }
 
 
 For further information look at: 
 * `https://www.tabnine.com/code/query/%22org.apache.pinot.core.operator%22`
-* 
+  
 
