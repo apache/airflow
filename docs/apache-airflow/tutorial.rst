@@ -489,7 +489,7 @@ Lets look at our DAG:
           cur = conn.cursor()
           with open("/usr/local/airflow/dags/files/employees.csv", "r") as file:
               cur.copy_from(
-                  f,
+                  file,
                   "Employees_temp",
                   columns=[
                       "Serial Number",
