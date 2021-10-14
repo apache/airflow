@@ -210,7 +210,7 @@ propagation (See the next chapter).
     COPY my_entrypoint.sh /
     ENTRYPOINT ["/usr/bin/dumb-init", "--", "/my_entrypoint.sh"]
 
-Your entrypoint might for example modify or add variables on the flight. For example the below
+Your entrypoint might for example modify or add variables on the fly. For example the below
 entrypoint sets max count of DB checks from the first parameter passed as parameter of the image
 execution (A bit useless example but should give the reader an example of how you could use it).
 
