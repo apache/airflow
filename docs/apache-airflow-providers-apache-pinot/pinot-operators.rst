@@ -46,7 +46,7 @@ public void init(@Nonnull List<TransformFunction> arguments, @Nonnull Map<String
  if (arguments.size() < 2) {
   throw new IllegalArgumentException("At least 2 arguments are required for ADD transform function");
  }
- for (``TransformFunction`` argument : arguments) {
+ for (TransformFunction argument : arguments) {
   if (argument instanceof LiteralTransformFunction) {
    _literalSum += Double.parseDouble(((LiteralTransformFunction) argument).getLiteral());
   } else {
@@ -65,8 +65,8 @@ Using the DocIdSetOperator
 `DocIdSetPlanNode.run()`
 
 @Override
-public ``DocIdSetOperator`` run() {
- return new ``DocIdSetOperator``(_filterPlanNode.run(), _maxDocPerCall);
+public DocIdSetOperator run() {
+ return new DocIdSetOperator(_filterPlanNode.run(), _maxDocPerCall);
 }
 
 Using the NextBlockOperator
@@ -75,7 +75,7 @@ Using the NextBlockOperator
    `.getNextBlock()method`
    
 @Override
-protected TransformBlock ``getNextBlock``() {
+protected TransformBlock getNextBlock() {
  ProjectionBlock projectionBlock = _projectionOperator.nextBlock();
  if (projectionBlock == null) {
   return null;
@@ -88,7 +88,7 @@ protected TransformBlock ``getNextBlock``() {
 Using the ProjectionOperator
 ============================
 ``https://www.tabnine.com/code/java/classes/org.apache.pinot.core.operator.ProjectionOperator``
-   `StarTreeProjectionPlanNode.run()`
+`StarTreeProjectionPlanNode.run()`
 
 @Override
 public ProjectionOperator run() {
@@ -98,8 +98,8 @@ public ProjectionOperator run() {
 
 Using the TransformFunctionFactory Operator
 ===========================================
-   ``https://www.tabnine.com/code/java/classes/org.apache.pinot.core.operator.transform.function.TransformFunctionFactory``
-   `TransformFunctionFactory.get()`
+``https://www.tabnine.com/code/java/classes/org.apache.pinot.core.operator.transform.function.TransformFunctionFactory``
+`TransformFunctionFactory.get()`
 
 /**
  * Constructor for the class
@@ -120,16 +120,16 @@ public TransformOperator(@Nonnull ProjectionOperator projectionOperator,
 Using the getNumeEntriesScannedInFilter Operator
 ===========================================
 
-   ``https://www.tabnine.com/code/java/methods/org.apache.pinot.core.operator.ExecutionStatistics/getNumEntriesScannedInFilter``
+``https://www.tabnine.com/code/java/methods/org.apache.pinot.core.operator.ExecutionStatistics/getNumEntriesScannedInFilter``
 
-   `QueriesTestUtils.testInnerSegmentExecutionStatistics(...)`
+`QueriesTestUtils.testInnerSegmentExecutionStatistics(...)`
 
 public static void testInnerSegmentExecutionStatistics(ExecutionStatistics executionStatistics,
-  long expectedNumDocsScanned, long expectedNumEntriesScannedInFilter, long expectedNumEntriesScannedPostFilter,
-  long expectedNumTotalRawDocs) {
+long expectedNumDocsScanned, long expectedNumEntriesScannedInFilter, long expectedNumEntriesScannedPostFilter,
+long expectedNumTotalRawDocs) {
  Assert.assertEquals(executionStatistics.getNumDocsScanned(), expectedNumDocsScanned);
- Assert.assertEquals(executionStatistics.``getNumEntriesScannedInFilter()``, expectedNumEntriesScannedInFilter);
- Assert.assertEquals(executionStatistics.``getNumEntriesScannedPostFilter()``, expectedNumEntriesScannedPostFilter);
+ Assert.assertEquals(executionStatistics.getNumEntriesScannedInFilter(), expectedNumEntriesScannedInFilter);
+ Assert.assertEquals(executionStatistics.getNumEntriesScannedPostFilter(), expectedNumEntriesScannedPostFilter);
  Assert.assertEquals(executionStatistics.getNumTotalRawDocs(), expectedNumTotalRawDocs);
 }
 
