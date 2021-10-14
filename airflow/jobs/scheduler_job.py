@@ -27,7 +27,7 @@ import time
 import warnings
 from collections import defaultdict
 from datetime import timedelta
-from typing import Collection, DefaultDict, Dict, List, Optional, Tuple
+from typing import Collection, DefaultDict, Dict, Iterator, List, Optional, Tuple
 
 from sqlalchemy import and_, func, not_, or_, tuple_
 from sqlalchemy.exc import OperationalError
@@ -511,7 +511,7 @@ class SchedulerJob(BaseJob):
         # Check state of finished tasks
         filter_for_tis = TI.filter_for_tis(tis_with_right_state)
         query = session.query(TI).filter(filter_for_tis).options(selectinload('dag_model'))
-        # row lock this entire set of tasks to make sure the scheduler doesn't fail when we have
+        # row lock this entire set of taskinstances to make sure the scheduler doesn't fail when we have
         # multi-schedulers
         tis: Iterator[TI] = with_row_locks(
             query,
