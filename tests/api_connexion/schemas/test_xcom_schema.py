@@ -34,15 +34,12 @@ class MockXcomCollectionItem:
     DEFAULT_TIME_PARSED = parse_execution_date(DEFAULT_TIME)
 
     def __init__(self):
+        self.example_ref = uuid.uuid4()
         self.key: str = f'test_key_{self.example_ref}'
         self.timestamp: datetime.datetime = self.DEFAULT_TIME_PARSED
         self.execution_date: datetime.datetime = self.DEFAULT_TIME_PARSED
         self.task_id = f'test_task_id_{self.example_ref}'
         self.dag_id = f'test_dag_{self.example_ref}'
-
-    @property
-    def example_ref(self):
-        return uuid.uuid4()
 
     @property
     def as_xcom(self):
