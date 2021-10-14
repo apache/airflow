@@ -125,7 +125,6 @@ Improvements
 - Refactor: ``SKIPPED`` should not be logged again as ``SUCCESS`` (#14822)
 - Remove  version limits for dnspython (#18046, #18162)
 - Accept custom run ID in TriggerDagRunOperator (#18788)
-- Align the default version with Facebook business SDK (#18883)
 
 Bug Fixes
 """""""""
