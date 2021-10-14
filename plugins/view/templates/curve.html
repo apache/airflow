@@ -382,7 +382,7 @@
         },
         execution_date: {
           label: "{{ '时间' if result.device_type == 'servo_press' else '拧紧时间'}}",
-          value: new Date('{{result.execution_date}}').toLocaleString()
+          value: new Date('{{result.update_time}}').toLocaleString()
         },
         controller_name: {label: '控制器', value: '{{controller.controller_name}}'},
         tool_sn: {label: '工具序列号', value: '{{result.tool_sn}}'},

@@ -43,7 +43,7 @@
                     <input id="{{ result.entity_id }}" class="action_check m-2" name="rowid"
                            value="{{ result.entity_id }}"
                            data-carCode="{{ result.car_code }}"
-                           data-date="{{ result.execution_date }}"
+                           data-date="{{ result.update_time }}"
                            data-measureresult="{{ result.measure_result }}"
                            type="checkbox">
                     <a type="button" class="btn btn-sm btn-default"
@@ -59,7 +59,7 @@
                       {{ result.entity_id }}
                     </h4>
                     <p class="list-group-item-text ml-4">
-                      <span>{{ _('Execution Date') }}：</span>{{ result.execution_date }}</p>
+                      <span>{{ _('Execution Date') }}：</span>{{ result.update_time }}</p>
                     <p class="list-group-item-text ml-4"><span>{{ _('Car Code') }}：</span>{{ result.car_code }}</p>
                     <p class="list-group-item-text ml-4 "><span>{{ _('Measure Result') }}：</span>
                       <a
