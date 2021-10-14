@@ -114,8 +114,8 @@ Docker in WSL 2
     it is therefore recommended to do development on the Linux filesystem.
     E.g. Run ``cd ~`` and create a development folder in your Linux distro home
     and git pull the Airflow repo there.
-    
-- **WSL 2 Docker mount errors** :
+
+- **WSL 2 Docker mount errors**:
     Another reason to use Linux filesystem, is that sometimes - depending on the length of
     your path, you might get strange errors when you try start ``Breeze``, such us
     ``caused: mount through procfd: not a directory: unknown:``. Therefore checking out
@@ -131,7 +131,7 @@ Docker in WSL 2
       * If no longer using WSL you can shut it down on the Windows Host
         with the following command: ``wsl --shutdown``
 
-- **Developing in WSL 2** :
+- **Developing in WSL 2**:
     You can use all the standard Linux command line utilities to develop on WSL 2.
     Further VS Code supports developing in Windows but remotely executing in WSL.
     If VS Code is installed on the Windows host system then in the WSL Linux Distro
