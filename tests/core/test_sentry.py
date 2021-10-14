@@ -111,9 +111,7 @@ class TestSentryHook:
         """
         Minimum sentry config
         """
-        with conf_vars({
-            ('sentry', 'sentry_on'): 'True',
-        }):
+        with conf_vars({('sentry', 'sentry_on'): 'True'}):
             from airflow import sentry
 
             importlib.reload(sentry)
