@@ -975,7 +975,11 @@ class DagFileProcessorManager(LoggingMixin):
         for file_path in self._file_paths:
 
             if is_mtime_mode:
-                files_with_mtime[file_path] = os.path.getmtime(file_path)
+                try:
+                    files_with_mtime[file_path] = os.path.getmtime(file_path)
+                except FileNotFoundError:
+                    self.log.warning("Skipping processing of missing file: %s", file_path)
+                    continue
                 file_modified_time = timezone.make_aware(datetime.fromtimestamp(files_with_mtime[file_path]))
             else:
                 file_paths.append(file_path)

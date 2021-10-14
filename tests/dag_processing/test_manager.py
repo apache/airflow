@@ -372,6 +372,34 @@ class TestDagFileProcessorManager:
     @mock.patch("airflow.utils.file.find_path_from_directory", return_value=True)
     @mock.patch("airflow.utils.file.os.path.isfile", return_value=True)
     @mock.patch("airflow.utils.file.os.path.getmtime")
+    def test_file_paths_in_queue_excludes_missing_file(
+        self, mock_getmtime, mock_isfile, mock_find_path, mock_might_contain_dag, mock_zipfile
+    ):
+        """Check that a file is not enqueued for processing if it has been deleted"""
+        dag_files = ["file_3.py", "file_2.py", "file_4.py"]
+        mock_getmtime.side_effect = [1.0, 2.0, FileNotFoundError()]
+        mock_find_path.return_value = dag_files
+
+        manager = DagFileProcessorManager(
+            dag_directory='directory',
+            max_runs=1,
+            processor_timeout=timedelta.max,
+            signal_conn=MagicMock(),
+            dag_ids=[],
+            pickle_dags=False,
+            async_mode=True,
+        )
+
+        manager.set_file_paths(dag_files)
+        manager.prepare_file_path_queue()
+        assert manager._file_path_queue == ['file_2.py', 'file_3.py']
+
+    @conf_vars({("scheduler", "file_parsing_sort_mode"): "modified_time"})
+    @mock.patch("zipfile.is_zipfile", return_value=True)
+    @mock.patch("airflow.utils.file.might_contain_dag", return_value=True)
+    @mock.patch("airflow.utils.file.find_path_from_directory", return_value=True)
+    @mock.patch("airflow.utils.file.os.path.isfile", return_value=True)
+    @mock.patch("airflow.utils.file.os.path.getmtime")
     def test_recently_modified_file_is_parsed_with_mtime_mode(
         self, mock_getmtime, mock_isfile, mock_find_path, mock_might_contain_dag, mock_zipfile
     ):
