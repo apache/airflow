@@ -114,6 +114,12 @@ Docker in WSL 2
     it is therefore recommended to do development on the Linux filesystem.
     E.g. Run ``cd ~`` and create a development folder in your Linux distro home
     and git pull the Airflow repo there.
+    
+- **WSL 2 Docker mount errors** :
+    Another reason to use Linux filesystem, is that sometimes - depending on the length of
+    your path, you might get strange errors when you try start ``Breeze``, such us
+    ``caused: mount through procfd: not a directory: unknown:``. Therefore checking out
+    Airflow in Windows-mounted Filesystem is strongly discouraged.
 
 - **WSL 2 Memory Usage** :
     WSL 2 can consume a lot of memory under the process name "Vmmem". To reclaim the memory after
