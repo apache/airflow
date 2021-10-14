@@ -221,7 +221,7 @@ execution (A bit useless example but should give the reader an example of how yo
     shift
     exec /entrypoint "${@}"
 
-Make sure, Airflow's entrypoint is run as ``exec /entrypoint "${@}"`` as the last command in your
+Make sure Airflow's entrypoint is run with ``exec /entrypoint "${@}"`` as the last command in your
 custom entrypoint. This way signals will be properly propagated and arguments will be passed
 to the entrypoint as usual (you can use ``shift`` as above if you need to pass some extra
 arguments. Note that passing secret values this way or storing secrets inside the image is a bad
