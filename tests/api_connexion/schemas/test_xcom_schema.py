@@ -88,7 +88,7 @@ class MockXcomSchema(MockXcomCollectionItem):
             execution_date=self.execution_date,
             task_id=self.task_id,
             dag_id=self.dag_id,
-            value=self.value.encode('ascii')
+            value=self.value.encode('ascii'),
         )
 
     @property
@@ -99,7 +99,7 @@ class MockXcomSchema(MockXcomCollectionItem):
             'execution_date': self.DEFAULT_TIME,
             'task_id': self.task_id,
             'dag_id': self.dag_id,
-            'value': self.value
+            'value': self.value,
         }
 
     @property
@@ -110,7 +110,7 @@ class MockXcomSchema(MockXcomCollectionItem):
             'execution_date': self.DEFAULT_TIME_PARSED,
             'task_id': self.task_id,
             'dag_id': self.dag_id,
-            'value': self.value
+            'value': self.value,
         }
 
 
