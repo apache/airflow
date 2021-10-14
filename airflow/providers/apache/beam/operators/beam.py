@@ -237,22 +237,34 @@ class BeamRunPythonPipelineOperator(BaseOperator, BeamDataflowMixin):
                 tmp_gcs_file = exit_stack.enter_context(gcs_hook.provide_file(object_url=self.py_file))
                 self.py_file = tmp_gcs_file.name
 
-            self.beam_hook.start_python_pipeline(
-                variables=formatted_pipeline_options,
-                py_file=self.py_file,
-                py_options=self.py_options,
-                py_interpreter=self.py_interpreter,
-                py_requirements=self.py_requirements,
-                py_system_site_packages=self.py_system_site_packages,
-                process_line_callback=process_line_callback,
-            )
-
             if is_dataflow:
+                with self.dataflow_hook.provide_authorized_gcloud():
+                    self.beam_hook.start_python_pipeline(
+                        variables=formatted_pipeline_options,
+                        py_file=self.py_file,
+                        py_options=self.py_options,
+                        py_interpreter=self.py_interpreter,
+                        py_requirements=self.py_requirements,
+                        py_system_site_packages=self.py_system_site_packages,
+                        process_line_callback=process_line_callback,
+                    )
+
                 self.dataflow_hook.wait_for_done(
                     job_name=dataflow_job_name,
                     location=self.dataflow_config.location,
                     job_id=self.dataflow_job_id,
                     multiple_jobs=False,
+                )
+
+            else:
+                self.beam_hook.start_python_pipeline(
+                    variables=formatted_pipeline_options,
+                    py_file=self.py_file,
+                    py_options=self.py_options,
+                    py_interpreter=self.py_interpreter,
+                    py_requirements=self.py_requirements,
+                    py_system_site_packages=self.py_system_site_packages,
+                    process_line_callback=process_line_callback,
                 )
 
         return {"dataflow_job_id": self.dataflow_job_id}
@@ -418,12 +430,13 @@ class BeamRunJavaPipelineOperator(BaseOperator, BeamDataflowMixin):
                         )
                 if not is_running:
                     pipeline_options["jobName"] = dataflow_job_name
-                    self.beam_hook.start_java_pipeline(
-                        variables=pipeline_options,
-                        jar=self.jar,
-                        job_class=self.job_class,
-                        process_line_callback=process_line_callback,
-                    )
+                    with self.dataflow_hook.provide_authorized_gcloud():
+                        self.beam_hook.start_java_pipeline(
+                            variables=pipeline_options,
+                            jar=self.jar,
+                            job_class=self.job_class,
+                            process_line_callback=process_line_callback,
+                        )
                     self.dataflow_hook.wait_for_done(
                         job_name=dataflow_job_name,
                         location=self.dataflow_config.location,
