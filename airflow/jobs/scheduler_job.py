@@ -510,7 +510,15 @@ class SchedulerJob(BaseJob):
 
         # Check state of finished tasks
         filter_for_tis = TI.filter_for_tis(tis_with_right_state)
-        tis: List[TI] = session.query(TI).filter(filter_for_tis).options(selectinload('dag_model')).all()
+        query = session.query(TI).filter(filter_for_tis).options(selectinload('dag_model'))
+        # row lock this entire set of tasks to make sure the scheduler doesn't fail when we have
+        # multi-schedulers
+        tis: List[TI] = with_row_locks(
+            query,
+            of=TI,
+            session=session,
+            **skip_locked(session=session),
+        ).all()
         for ti in tis:
             try_number = ti_primary_key_to_try_number_map[ti.key.primary]
             buffer_key = ti.key.with_try_number(try_number)
