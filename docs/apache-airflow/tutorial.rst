@@ -419,13 +419,15 @@ Let's break this down into 2 steps: get data & merge data:
       with open(data_path, "w") as file:
           for row in response.text.split("\n"):
               if row:
-                  file.write(row+'\n')
+                  file.write(row + "\n")
 
       postgres_hook = PostgresHook(postgres_conn_id="LOCAL")
       conn = postgres_hook.get_conn()
       cur = conn.cursor()
       with open(data_path, "r") as file:
-          cur.copy_expert("COPY \"Employees_temp\" FROM stdin WITH CSV HEADER DELIMITER AS ','", file)
+          cur.copy_expert(
+              "COPY \"Employees_temp\" FROM stdin WITH CSV HEADER DELIMITER AS ','", file
+          )
       conn.commit()
 
 Here we are passing a ``GET`` request to get the data from the URL and save it in ``employees.csv`` file on our Airflow instance and we are dumping the file into a temporary table before merging the data to the final employees table
@@ -465,6 +467,7 @@ Lets look at our DAG:
   from datetime import datetime, timedelta
   import requests
 
+
   @dag(
       schedule_interval="0 0 * * *",
       start_date=datetime.today() - timedelta(days=2),
@@ -481,14 +484,18 @@ Lets look at our DAG:
           response = requests.request("GET", url)
 
           with open(data_path, "w") as file:
-              for row in response.text.split("\n") if row:
-                  file.write(row+'\n')
+              for row in response.text.split("\n"):
+                  if row:
+                      file.write(row + "\n")
 
           postgres_hook = PostgresHook(postgres_conn_id="LOCAL")
           conn = postgres_hook.get_conn()
           cur = conn.cursor()
           with open(data_path, "r") as file:
-              cur.copy_expert("COPY \"Employees_temp\" FROM stdin WITH CSV HEADER DELIMITER AS ','", file)
+              cur.copy_expert(
+                  "COPY \"Employees_temp\" FROM stdin WITH CSV HEADER DELIMITER AS ','",
+                  file,
+              )
           conn.commit()
 
       @task
@@ -518,7 +525,7 @@ Lets look at our DAG:
   dag = Etl()
 
 This dag runs daily at 00:00.
-Add this python file to airflow/dags folder (e.g. `dags/etl.py`) and go back to the main folder and run
+Add this python file to airflow/dags folder (e.g. ``dags/etl.py``) and go back to the main folder and run
 
 .. code-block:: bash
 
