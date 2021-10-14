@@ -105,8 +105,8 @@ class DockerSwarmOperator(DockerOperator):
     :type mode: docker.types.ServiceMode
     :param networks: List of network names or IDs or NetworkAttachmentConfig to attach the service to.
     :type networks: List[Union[str, NetworkAttachmentConfig]]
-    :param placement: Placement instructions for the scheduler. If a list is passed instead, it is assumed to be a
-        list of constraints as part of a Placement object.
+    :param placement: Placement instructions for the scheduler. If a list is passed instead,
+        it is assumed to be a list of constraints as part of a Placement object.
     :type placement: Union[types.Placement, List[types.Placement]]
     """
 
