@@ -48,7 +48,7 @@ function run_test_types_in_parallel() {
         # Each test job will get SIGTERM followed by SIGTERM 200ms later and SIGKILL 200ms later after 45 mins
         # shellcheck disable=SC2086
         parallel --ungroup --bg --semaphore --semaphorename "${SEMAPHORE_NAME}" \
-            --jobs "${MAX_PARALLEL_TEST_JOBS}" --timeout 45m \
+            --jobs "${MAX_PARALLEL_TEST_JOBS}" --timeout 2700 \
             "$( dirname "${BASH_SOURCE[0]}" )/ci_run_single_airflow_test_in_docker.sh" "${@}" >"${JOB_LOG}" 2>&1
     done
     parallel --semaphore --semaphorename "${SEMAPHORE_NAME}" --wait
