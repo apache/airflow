@@ -563,3 +563,6 @@ MASK_SECRETS_IN_LOGS = False
 #
 # DASHBOARD_UIALERTS: List["UIAlert"]
 DASHBOARD_UIALERTS = []
+
+# Prefix used to identify tables holding data moved during migration.
+AIRFLOW_MOVED_TABLE_PREFIX = "_airflow_moved"

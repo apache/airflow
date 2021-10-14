@@ -51,6 +51,14 @@
   {% for m in dashboard_alerts %}
     {{ message(m.message, m.category) }}
   {% endfor %}
+  {% for original_table_name, moved_table_name in migration_moved_data_alerts %}
+    {% call message(category='error', dismissable=false) %}
+      Airflow found incompatible data in the <code>{{ original_table_name }}</code> table in the
+      metadatabase, and has moved them to <code>{{ moved_table_name }}</code> during the database migration
+      to upgrade. Please inspect the moved data to decide whether you need to keep them, and manually drop
+      the <code>{{ moved_table_name }}</code> table to dismiss this warning.
+    {% endcall %}
+  {% endfor %}
   {{ super() }}
   {% if sqlite_warning | default(true) %}
     {% call message(category='warning', dismissable=false)  %}
