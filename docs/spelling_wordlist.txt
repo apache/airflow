@@ -1030,7 +1030,6 @@ ok
 okta
 onboarded
 onkill
-ons
 openfaas
 oper
 opsgenie

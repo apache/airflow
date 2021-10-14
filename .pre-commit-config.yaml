@@ -266,7 +266,7 @@ repos:
         entry: codespell
         language: python
         types: [text]
-        exclude: ^airflow/_vendor/|^CHANGELOG.txt
+        exclude: ^airflow/_vendor/|^CHANGELOG.txt|^airflow/www/static/css/material-icons.css
         args:
           - --ignore-words=docs/spelling_wordlist.txt
           - --skip=docs/*/commits.rst,airflow/providers/*/*.rst,*.lock,INTHEWILD.md,*.min.js
