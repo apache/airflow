@@ -36,6 +36,7 @@ const csrfToken = getMetaValue('csrf_token');
 const lastDagRunsUrl = getMetaValue('last_dag_runs_url');
 const dagStatsUrl = getMetaValue('dag_stats_url');
 const taskStatsUrl = getMetaValue('task_stats_url');
+const treeUrl = getMetaValue('tree_url');
 
 $('#tags_filter').select2({
   placeholder: 'Filter DAGs by tag',
@@ -118,11 +119,11 @@ $('.typeahead').typeahead({
   },
   autoSelect: false,
   afterSelect(value) {
-    const searchQuery = value.trim();
-    if (searchQuery) {
+    const dagId = value.trim();
+    if (dagId) {
       const query = new URLSearchParams(window.location.search);
-      query.set('search', searchQuery);
-      window.location = `${DAGS_INDEX}?${query}`;
+      query.set('dag_id', dagId);
+      window.location = `${treeUrl}?${query}`;
     }
   },
 });
