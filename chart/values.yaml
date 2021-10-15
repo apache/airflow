@@ -505,13 +505,13 @@ workers:
 
 # Airflow scheduler settings
 scheduler:
-  # If the scheduler stops heartbeating for 5 minutes (10*30s) kill the
+  # If the scheduler stops heartbeating for 5 minutes (5*60s) kill the
   # scheduler and let Kubernetes restart it
   livenessProbe:
     initialDelaySeconds: 10
-    timeoutSeconds: 5
-    failureThreshold: 10
-    periodSeconds: 30
+    timeoutSeconds: 10
+    failureThreshold: 5
+    periodSeconds: 60
   # Airflow 2.0 allows users to run multiple schedulers,
   # However this feature is only recommended for MySQL 8+ and Postgres
   replicas: 1
@@ -787,13 +787,13 @@ triggerer:
       maxSurge: "100%"
       maxUnavailable: "50%"
 
-  # If the triggerer stops heartbeating for 5 minutes (10*30s) kill the
+  # If the triggerer stops heartbeating for 5 minutes (5*60s) kill the
   # triggerer and let Kubernetes restart it
   livenessProbe:
     initialDelaySeconds: 10
-    timeoutSeconds: 5
-    failureThreshold: 10
-    periodSeconds: 30
+    timeoutSeconds: 10
+    failureThreshold: 5
+    periodSeconds: 60
 
   # Create ServiceAccount
   serviceAccount:

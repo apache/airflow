@@ -272,7 +272,7 @@ Doc only changes
 - Docs: Fix url for ``Elasticsearch`` (#16275)
 - Small improvements for README.md files (#16244)
 - Fix docs for ``dag_concurrency`` (#16177)
-- Check syntatic correctness for code-snippets (#16005)
+- Check syntactic correctness for code-snippets (#16005)
 - Improvements for Docker Image docs (#14843)
 - Add proper link for wheel packages in docs. (#15999)
 - Add Docs for ``default_pool`` slots (#15997)
@@ -295,7 +295,7 @@ Misc/Internal
 - Update ``boto3`` to ``<1.19`` (#18389)
 - Improve coverage for ``airflow.security.kerberos module`` (#18258)
 - Fix kinesis test (#18337)
-- Fix provider test acessing importlib-resources (#18228)
+- Fix provider test accessing importlib-resources (#18228)
 - Silence warnings in tests from using SubDagOperator (#18275)
 - Fix usage of ``range(len())`` to ``enumerate`` (#18174)
 - Test coverage on the autocomplete view (#15943)
@@ -2175,7 +2175,7 @@ Bug fixes
 - [AIRFLOW-4763] Allow list in DockerOperator.command (#5408)
 - [AIRFLOW-5260] Allow empty uri arguments in connection strings (#5855)
 - [AIRFLOW-5257] Fix ElasticSearch log handler errors when attempting to close logs (#5863)
-- [AIRFLOW-1772] Google Updated Sensor doesnt work with CRON expressions (#5730)
+- [AIRFLOW-1772] Google Updated Sensor doesn't work with CRON expressions (#5730)
 - [AIRFLOW-5085] When you run kubernetes git-sync test from TAG, it fails (#5699)
 - [AIRFLOW-5258] ElasticSearch log handler, has 2 times of hours (%H and %I) in _clean_execution_dat (#5864)
 - [AIRFLOW-5348] Escape Label in deprecated chart view when set via JS (#5952)
@@ -3263,7 +3263,7 @@ Bug fixes
 - [AIRFLOW-3072] Only admin can view logs in RBAC UI
 - [AIRFLOW-3079] Improve initdb to support MSSQL Server
 - [AIRFLOW-3089] Google auth doesn't work under http
-- [AIRFLOW-3099] Errors raised when some blocs are missing in airflow.cfg
+- [AIRFLOW-3099] Errors raised when some blocks are missing in airflow.cfg
 - [AIRFLOW-3109] Default user permission should contain 'can_clear'
 - [AIRFLOW-3111] Confusing comments and instructions for log templates in UPDATING.md and default_airflow.cfg
 - [AIRFLOW-3124] Broken webserver debug mode (RBAC)
