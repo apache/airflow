@@ -27,7 +27,7 @@ from contextlib import redirect_stdout
 from datetime import timedelta
 from pathlib import Path
 from tempfile import NamedTemporaryFile
-from typing import Optional
+from typing import List, Optional
 from unittest import mock
 from unittest.mock import patch
 
@@ -51,7 +51,7 @@ from airflow.operators.bash import BashOperator
 from airflow.operators.dummy import DummyOperator
 from airflow.operators.subdag import SubDagOperator
 from airflow.security import permissions
-from airflow.timetables.base import DagRunInfo
+from airflow.timetables.base import DagRunInfo, DataInterval, Timetable
 from airflow.timetables.simple import NullTimetable, OnceTimetable
 from airflow.utils import timezone
 from airflow.utils.file import list_py_file_paths
@@ -1675,6 +1675,40 @@ class TestDag(unittest.TestCase):
         next_info = dag.next_dagrun_info(next_info.data_interval)
         assert next_info and next_info.logical_date == timezone.datetime(2020, 5, 4)
 
+    def test_next_dagrun_info_timetable_exception(self):
+        """Test the DAG does not crash the scheduler if the timetable raises an exception."""
+
+        class FailingTimetable(Timetable):
+            def next_dagrun_info(self, last_automated_data_interval, restriction):
+                raise RuntimeError("this fails")
+
+        dag = DAG(
+            "test_next_dagrun_info_timetable_exception",
+            start_date=timezone.datetime(2020, 5, 1),
+            timetable=FailingTimetable(),
+            catchup=True,
+        )
+
+        def _check_logs(records: List[logging.LogRecord], data_interval: DataInterval) -> None:
+            assert len(records) == 1
+            record = records[0]
+            assert record.exc_info is not None, "Should contain exception"
+            assert record.getMessage() == (
+                f"Failed to fetch run info after data interval {data_interval} "
+                f"for DAG 'test_next_dagrun_info_timetable_exception'"
+            )
+
+        with self.assertLogs(dag.log, level=logging.ERROR) as ctx:
+            next_info = dag.next_dagrun_info(None)
+        assert next_info is None, "failed next_dagrun_info should return None"
+        _check_logs(ctx.records, data_interval=None)
+
+        data_interval = DataInterval(timezone.datetime(2020, 5, 1), timezone.datetime(2020, 5, 2))
+        with self.assertLogs(dag.log, level=logging.ERROR) as ctx:
+            next_info = dag.next_dagrun_info(data_interval)
+        assert next_info is None, "failed next_dagrun_info should return None"
+        _check_logs(ctx.records, data_interval)
+
     def test_next_dagrun_after_auto_align(self):
         """
         Test if the schedule_interval will be auto aligned with the start_date
@@ -2147,3 +2181,36 @@ def test_iter_dagrun_infos_between(start_date, expected_infos):
         align=True,
     )
     assert expected_infos == list(iterator)
+
+
+def test_iter_dagrun_infos_between_error(caplog):
+    start = pendulum.instance(DEFAULT_DATE - datetime.timedelta(hours=1))
+    end = pendulum.instance(DEFAULT_DATE)
+
+    class FailingAfterOneTimetable(Timetable):
+        def next_dagrun_info(self, last_automated_data_interval, restriction):
+            if last_automated_data_interval is None:
+                return DagRunInfo.interval(start, end)
+            raise RuntimeError("this fails")
+
+    dag = DAG(
+        dag_id='test_iter_dagrun_infos_between_error',
+        start_date=DEFAULT_DATE,
+        timetable=FailingAfterOneTimetable(),
+    )
+
+    iterator = dag.iter_dagrun_infos_between(earliest=start, latest=end, align=True)
+    with caplog.at_level(logging.ERROR):
+        infos = list(iterator)
+
+    # The second timetable.next_dagrun_info() call raises an exception, so only the first result is returned.
+    assert infos == [DagRunInfo.interval(start, end)]
+
+    assert caplog.record_tuples == [
+        (
+            "airflow.models.dag.DAG",
+            logging.ERROR,
+            f"Failed to fetch run info after data interval {DataInterval(start, end)} for DAG {dag.dag_id!r}",
+        ),
+    ]
+    assert caplog.records[0].exc_info is not None, "should contain exception context"

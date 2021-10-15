@@ -95,7 +95,11 @@ class AwsGlueJobHook(AwsBaseHook):
             self.log.error("Failed to create aws glue job, error: %s", general_error)
             raise
 
-    def initialize_job(self, script_arguments: Optional[dict] = None) -> Dict[str, str]:
+    def initialize_job(
+        self,
+        script_arguments: Optional[dict] = None,
+        run_kwargs: Optional[dict] = None,
+    ) -> Dict[str, str]:
         """
         Initializes connection with AWS Glue
         to run job
@@ -103,10 +107,11 @@ class AwsGlueJobHook(AwsBaseHook):
         """
         glue_client = self.get_conn()
         script_arguments = script_arguments or {}
+        run_kwargs = run_kwargs or {}
 
         try:
             job_name = self.get_or_create_glue_job()
-            job_run = glue_client.start_job_run(JobName=job_name, Arguments=script_arguments)
+            job_run = glue_client.start_job_run(JobName=job_name, Arguments=script_arguments, **run_kwargs)
             return job_run
         except Exception as general_error:
             self.log.error("Failed to run aws glue job, error: %s", general_error)

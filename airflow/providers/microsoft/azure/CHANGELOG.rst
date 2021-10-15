@@ -36,11 +36,11 @@ Bug Fixes
 * ``Fixed wasb hook attempting to create container when getting a blob client (#18287)``
 * ``Removing redundant relabeling of password conn field (#18386)``
 * ``Proper handling of Account URL custom conn field in AzureBatchHook (#18456)``
+* ``Proper handling of custom conn field values in the AzureDataExplorerHook (#18203)``
 
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):
    * ``Updating miscellaneous provider DAGs to use TaskFlow API where applicable (#18278)``
-   * ``Initial commit (#18203)``
 
 Main
 ....

@@ -1,4 +1,4 @@
-Airflow 2.2.0b2, TBD
+Airflow 2.2.0, 2021-10-11
 -------------------------
 
 New Features
@@ -6,15 +6,16 @@ New Features
 
 - AIP-39: Add (customizable) Timetable class to Airflow for richer scheduling behaviour (#15397, #16030,
   #16352, #17030, #17122, #17414, #17552, #17755, #17989, #18084, #18088, #18244, #18266, #18420, #18434,
-  #18421, #18475, #18499, #18573)
+  #18421, #18475, #18499, #18573, #18522, #18729, #18706, #18742, #18786, #18804)
 - AIP-40: Add Deferrable "Async" Tasks (#15389, #17564, #17565, #17601, #17745, #17747, #17748, #17875,
-  #17876, #18129, #18210, #18214, #18552)
-- Add a Docker Taskflow decorator (#15330)
+  #17876, #18129, #18210, #18214, #18552, #18728, #18414)
+- Add a Docker Taskflow decorator (#15330, #18739)
 - Add Airflow Standalone command (#15826)
 - Display alert messages on dashboard from local settings (#18284)
 - Advanced Params using json-schema (#17100)
-- Ability to test connections from UI or API (#15795)
+- Ability to test connections from UI or API (#15795, #18750)
 - Add Next Run to UI (#17732)
+- Add default weight rule configuration option (#18627)
 - Add a calendar field to choose the execution date of the DAG when triggering it (#16141)
 - Allow setting specific ``cwd`` for BashOperator (#17751)
 - Show import errors in DAG views (#17818)
@@ -34,11 +35,16 @@ New Features
 - Implement API endpoint for DAG deletion (#17980)
 - Add DAG run endpoint for marking a dagrun success or failed(#17839)
 - Add support for ``kinit`` options ``[-f|-F]`` and ``[-a|-A]`` (#17816)
-- Queue support for ``DaskExecutor`` using Dask Worker Resources (#16829)
+- Queue support for ``DaskExecutor`` using Dask Worker Resources (#16829, #18720)
 - Make auto refresh interval configurable (#18107)
 
 Improvements
 """"""""""""
+- Small improvements for Airflow UI (#18715, #18795)
+- Rename ``processor_poll_interval`` to ``scheduler_idle_sleep_time`` (#18704)
+- Check the allowed values for the logging level (#18651)
+- Fix error on triggering a dag that doesn't exist using ``dagrun_conf`` (#18655)
+- Add muldelete action to ``TaskInstanceModelView`` (#18438)
 - Avoid importing DAGs during clean DB installation (#18450)
 - Require can_edit on DAG privileges to modify TaskInstances and DagRuns (#16634)
 - Make Kubernetes job description fit on one log line (#18377)
@@ -114,15 +120,21 @@ Improvements
 - Always return a response in TI's ``action_clear`` view (#15980)
 - Add cli command to delete user by email (#15873)
 - Use resource and action names for FAB permissions (#16410)
-- Rename DAG concurrency (``[core] dag_concurrency``) settings for easier understanding (#16267)
+- Rename DAG concurrency (``[core] dag_concurrency``) settings for easier understanding (#16267, #18730)
 - Calendar UI improvements (#16226)
 - Refactor: ``SKIPPED`` should not be logged again as ``SUCCESS`` (#14822)
 - Remove  version limits for dnspython (#18046, #18162)
+- Accept custom run ID in TriggerDagRunOperator (#18788)
 
 Bug Fixes
 """""""""
+- Make REST API patch user endpoint work the same way as the UI (#18757)
+- Properly set ``start_date`` for cleared tasks (#18708)
+- Ensure task_instance exists before running update on its state(REST API) (#18642)
+- Make ``AirflowDateTimePickerWidget`` a required field (#18602)
+- Retry deadlocked transactions on deleting old rendered task fields (#18616)
 - Fix `retry_exponential_backoff` divide by zero error when retry delay is zero (#17003)
-- Improve how UI handles datetimes (#18611)
+- Improve how UI handles datetimes (#18611, #18700)
 - Bugfix: dag_bag.get_dag should return None, not raise exception (#18554)
 - Only show the task modal if it is a valid instance (#18570)
 - Fix accessing rendered ``{{ task.x }}`` attributes from within templates (#18516)
@@ -199,9 +211,15 @@ Bug Fixes
 - Correctly set ``dag.fileloc`` when using the ``@dag`` decorator (#16384)
 - Fix TI success/failure links (#16233)
 - Correctly implement autocomplete early return in ``airflow/www/views.py`` (#15940)
+- Backport fix to allow pickling of Loggers to Python 3.6 (#18798)
+- Fix bug that Backfill job fail to run when there are tasks run into ``reschedule`` state (#17305, #18806)
 
 Doc only changes
 """"""""""""""""
+- Update ``dagbag_size`` documentation (#18824)
+- Update documentation about bundle extras (#18828)
+- Fix wrong Postgres ``search_path`` set up instructions (#17600)
+- Remove ``AIRFLOW_GID`` from Docker images (#18747)
 - Improve error message for BranchPythonOperator when no task_id to follow (#18471)
 - Improve guidance to users telling them what to do on import timeout (#18478)
 - Explain scheduler fine-tuning better (#18356)
@@ -268,6 +286,10 @@ Doc only changes
 
 Misc/Internal
 """""""""""""
+- Renaming variables to be consistent with code logic (#18685)
+- Simplify strings previously split across lines (#18679)
+- fix exception string of ``BranchPythonOperator`` (#18623)
+- Add multiple roles when creating users (#18617)
 - Move FABs base Security Manager into Airflow. (#16647)
 - Remove unnecessary css state colors (#18461)
 - Update ``boto3`` to ``<1.19`` (#18389)
@@ -309,6 +331,8 @@ Misc/Internal
 - Update permission migrations to use new naming scheme (#16400)
 - Use resource and action names for FAB (#16380)
 - Swap out calls to ``find_permission_view_menu`` for ``get_permission`` wrapper (#16377)
+- Fix deprecated default for ``fab_logging_level`` to ``WARNING`` (#18783)
+- Allow running tasks from UI when using ``CeleryKubernetesExecutor`` (#18441)
 
 Airflow 2.1.4, 2021-09-18
 -------------------------

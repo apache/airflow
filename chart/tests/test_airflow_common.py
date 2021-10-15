@@ -75,7 +75,6 @@ class TestAirflowCommon:
         k8s_objects = render_chart(
             name=release_name,
             values={
-                "airflowVersion": "2.2.0",  # Needed for triggerer to be enabled.
                 "airflowPodAnnotations": {"test-annotation/safe-to-evict": "true"},
             },
             show_only=[

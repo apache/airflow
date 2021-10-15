@@ -271,9 +271,10 @@ def clear_task_instances(
         )
         for dr in drs:
             dr.state = dag_run_state
-            dr.start_date = None
+            dr.start_date = timezone.utcnow()
             if dag_run_state == State.QUEUED:
                 dr.last_scheduling_decision = None
+                dr.start_date = None
 
 
 class TaskInstanceKey(NamedTuple):
@@ -323,9 +324,9 @@ class TaskInstance(Base, LoggingMixin):
 
     __tablename__ = "task_instance"
 
-    task_id = Column(String(ID_LEN, **COLLATION_ARGS), primary_key=True)
-    dag_id = Column(String(ID_LEN, **COLLATION_ARGS), primary_key=True)
-    run_id = Column(String(ID_LEN, **COLLATION_ARGS), primary_key=True)
+    task_id = Column(String(ID_LEN, **COLLATION_ARGS), primary_key=True, nullable=False)
+    dag_id = Column(String(ID_LEN, **COLLATION_ARGS), primary_key=True, nullable=False)
+    run_id = Column(String(ID_LEN, **COLLATION_ARGS), primary_key=True, nullable=False)
     start_date = Column(UtcDateTime)
     end_date = Column(UtcDateTime)
     duration = Column(Float)
@@ -1701,7 +1702,8 @@ class TaskInstance(Base, LoggingMixin):
             session.add(Log(State.FAILED, self))
 
             # Log failure duration
-            session.add(TaskFail(task, self.execution_date, self.start_date, self.end_date))
+            dag_run = self.get_dagrun(session=session)  # self.dag_run not populated by refresh_from_db
+            session.add(TaskFail(task, dag_run.execution_date, self.start_date, self.end_date))
 
         # Ensure we unset next_method and next_kwargs to ensure that any
         # retries don't re-use them.

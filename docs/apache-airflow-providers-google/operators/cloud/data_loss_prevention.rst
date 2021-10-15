@@ -20,10 +20,6 @@ Google Cloud Data Loss Prevention Operator
 `Google Cloud DLP <https://cloud.google.com/dlp>`__, provides tools to classify, mask, tokenize, and transform sensitive
 elements to help you better manage the data that you collect, store, or use for business or analytics.
 
-.. contents::
-  :depth: 1
-  :local:
-
 Prerequisite Tasks
 ^^^^^^^^^^^^^^^^^^
 

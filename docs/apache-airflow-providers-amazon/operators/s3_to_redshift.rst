@@ -21,10 +21,6 @@
 S3 To Redshift Transfer Operator
 ================================
 
-.. contents::
-  :depth: 1
-  :local:
-
 Overview
 --------
 

@@ -1422,7 +1422,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
             # Turn schema_field_updates into a dict keyed on field names
             schema_fields_updates = {field["name"]: field for field in deepcopy(schema_fields_updates)}
 
-            # Create a new dict for storing the new schema, initated based on the current_schema
+            # Create a new dict for storing the new schema, initiated based on the current_schema
             # as of Python 3.6, dicts retain order.
             new_schema = {field["name"]: field for field in deepcopy(current_schema)}
 

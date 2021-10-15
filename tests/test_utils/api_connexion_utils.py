@@ -14,26 +14,54 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from contextlib import contextmanager
+
 from airflow.api_connexion.exceptions import EXCEPTIONS_LINK_MAP
 from airflow.www.security import EXISTING_ROLES
 
 
-def create_user(app, *, username, role_name, email=None, permissions=None):
+@contextmanager
+def create_test_client(app, user_name, role_name, permissions):
+    """
+    Helper function to create a client with a temporary user which will be deleted once done
+    """
+    client = app.test_client()
+    with create_user_scope(app, username=user_name, role_name=role_name, permissions=permissions) as _:
+        resp = client.post("/login/", data={"username": user_name, "password": user_name})
+        assert resp.status_code == 302
+        yield client
+
+
+@contextmanager
+def create_user_scope(app, username, **kwargs):
+    """
+    Helper function designed to be used with pytest fixture mainly.
+    It will create a user and provide it for the fixture via YIELD (generator)
+    then will tidy up once test is complete
+    """
+    test_user = create_user(app, username, **kwargs)
+
+    try:
+        yield test_user
+    finally:
+        delete_user(app, username)
+
+
+def create_user(app, username, role_name=None, email=None, permissions=None):
     appbuilder = app.appbuilder
 
     # Removes user and role so each test has isolated test data.
     delete_user(app, username)
-    delete_role(app, role_name)
-    role = create_role(app, role_name, permissions)
-
-    if email is None:
-        email = f"{username}@example.org"
+    role = None
+    if role_name:
+        delete_role(app, role_name)
+        role = create_role(app, role_name, permissions)
 
     return appbuilder.sm.add_user(
         username=username,
         first_name=username,
         last_name=username,
-        email=email,
+        email=email or f"{username}@example.org",
         role=role,
         password=username,
     )

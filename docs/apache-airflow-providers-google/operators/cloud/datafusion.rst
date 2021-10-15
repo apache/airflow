@@ -26,10 +26,6 @@ and a broad open source library of preconfigured connectors and transformations,
 Data Fusion shifts an organization’s focus away from code and integration to insights
 and action.
 
-.. contents::
-  :depth: 1
-  :local:
-
 Prerequisite Tasks
 ^^^^^^^^^^^^^^^^^^
 

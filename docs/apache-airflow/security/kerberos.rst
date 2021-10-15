@@ -22,10 +22,6 @@ Airflow has initial support for Kerberos. This means that Airflow can renew kerb
 tickets for itself and store it in the ticket cache. The hooks and dags can make use of ticket
 to authenticate against kerberized services.
 
-.. contents::
-  :depth: 1
-  :local:
-
 Limitations
 '''''''''''
 
@@ -82,7 +78,7 @@ If you need more granular options for your kerberos ticket the following options
     forwardable = True
 
     # Allow to include or remove local IP from kerberos token.
-    # This is particulary useful if you use Airflow inside a VM NATted behind host system IP.
+    # This is particularly useful if you use Airflow inside a VM NATted behind host system IP.
     include_ip = True
 
 Keep in mind that Kerberos ticket are generated via ``kinit`` and will your use your local ``krb5.conf`` by default.

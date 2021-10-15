@@ -443,7 +443,7 @@ Using Breeze
 
 .. code-block:: bash
 
-  root@f3619b74c59a:/opt/airflow# stop_airflow.sh
+  root@f3619b74c59a:/opt/airflow# stop_airflow
   root@f3619b74c59a:/opt/airflow# exit
   $ breeze stop
 
@@ -1267,7 +1267,7 @@ Using Breeze
 
 .. code-block:: bash
 
-  root@f3619b74c59a:/opt/airflow# stop_airflow.sh
+  root@f3619b74c59a:/opt/airflow# stop_airflow
   root@f3619b74c59a:/opt/airflow# exit
   $ breeze stop
 

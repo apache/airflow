@@ -544,16 +544,15 @@ class HiveMetastoreHook(BaseHook):
         return hmsclient.HMSClient(iprot=protocol)
 
     def _find_valid_server(self) -> Any:
-        conns = self.get_connections(self.conn_id)
-        for conn in conns:
-            host_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            self.log.info("Trying to connect to %s:%s", conn.host, conn.port)
-            if host_socket.connect_ex((conn.host, conn.port)) == 0:
-                self.log.info("Connected to %s:%s", conn.host, conn.port)
-                host_socket.close()
-                return conn
-            else:
-                self.log.error("Could not connect to %s:%s", conn.host, conn.port)
+        conn = self.get_connection(self.conn_id)
+        host_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.log.info("Trying to connect to %s:%s", conn.host, conn.port)
+        if host_socket.connect_ex((conn.host, conn.port)) == 0:
+            self.log.info("Connected to %s:%s", conn.host, conn.port)
+            host_socket.close()
+            return conn
+        else:
+            self.log.error("Could not connect to %s:%s", conn.host, conn.port)
         return None
 
     def get_conn(self) -> Any:

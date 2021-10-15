@@ -67,10 +67,10 @@ def dag_backfill(args, dag=None):
     if args.ignore_first_depends_on_past is False:
         args.ignore_first_depends_on_past = True
 
-    dag = dag or get_dag(args.subdir, args.dag_id)
-
     if not args.start_date and not args.end_date:
         raise AirflowException("Provide a start_date and/or end_date")
+
+    dag = dag or get_dag(args.subdir, args.dag_id)
 
     # If only one date is passed, using same as start and end
     args.end_date = args.end_date or args.start_date
@@ -408,7 +408,15 @@ def dag_test(args, session=None):
     dag = get_dag(subdir=args.subdir, dag_id=args.dag_id)
     dag.clear(start_date=args.execution_date, end_date=args.execution_date, dag_run_state=State.NONE)
     try:
-        dag.run(executor=DebugExecutor(), start_date=args.execution_date, end_date=args.execution_date)
+        dag.run(
+            executor=DebugExecutor(),
+            start_date=args.execution_date,
+            end_date=args.execution_date,
+            # Always run the DAG at least once even if no logical runs are
+            # available. This does not make a lot of sense, but Airflow has
+            # been doing this prior to 2.2 so we keep compatibility.
+            run_at_least_once=True,
+        )
     except BackfillUnfinished as e:
         print(str(e))
 

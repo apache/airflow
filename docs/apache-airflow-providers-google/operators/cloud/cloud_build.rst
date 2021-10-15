@@ -25,11 +25,6 @@ infrastructure. Cloud Build can import source code from Google Cloud Storage,
 Cloud Source Repositories, execute a build to your specifications, and produce
 artifacts such as Docker containers or Java archives.
 
-.. contents::
-  :depth: 1
-  :local:
-
-
 Prerequisite Tasks
 ^^^^^^^^^^^^^^^^^^
 

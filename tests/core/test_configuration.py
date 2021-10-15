@@ -703,5 +703,20 @@ notacommand = OK
         with pytest.raises(AirflowConfigException) as ctx:
             test_conf.validate()
         exception = str(ctx.value)
-        message = "sidestream is not an accepted config for [core] default_task_weight_rule"
+        message = (
+            "`[core] default_task_weight_rule` should not be 'sidestream'. Possible values: "
+            "absolute, downstream, upstream."
+        )
+        assert message == exception
+
+    def test_enum_logging_levels(self):
+        test_conf = AirflowConfigParser(default_config='')
+        test_conf.read_dict({'logging': {'logging_level': 'XXX'}})
+        with pytest.raises(AirflowConfigException) as ctx:
+            test_conf.validate()
+        exception = str(ctx.value)
+        message = (
+            "`[logging] logging_level` should not be 'XXX'. Possible values: "
+            "CRITICAL, FATAL, ERROR, WARN, WARNING, INFO, DEBUG."
+        )
         assert message == exception

@@ -19,11 +19,13 @@ import json
 import math
 import time
 from datetime import datetime as dt
-from typing import Optional, Tuple, Union
+from typing import Iterable, Optional, Tuple, Union
 
 import pendulum
 import tenacity
 from kubernetes import client, watch
+from kubernetes.client.models.v1_event import V1Event
+from kubernetes.client.models.v1_event_list import V1EventList
 from kubernetes.client.models.v1_pod import V1Pod
 from kubernetes.client.rest import ApiException
 from kubernetes.stream import stream as kubernetes_stream
@@ -39,7 +41,7 @@ from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.state import State
 
 
-def should_retry_start_pod(exception: Exception):
+def should_retry_start_pod(exception: Exception) -> bool:
     """Check if an Exception indicates a transient error and warrants retrying"""
     if isinstance(exception, ApiException):
         return exception.status == 409
@@ -78,7 +80,7 @@ class PodLauncher(LoggingMixin):
         self._watch = watch.Watch()
         self.extract_xcom = extract_xcom
 
-    def run_pod_async(self, pod: V1Pod, **kwargs):
+    def run_pod_async(self, pod: V1Pod, **kwargs) -> V1Pod:
         """Runs POD asynchronously"""
         pod_mutation_hook(pod)
 
@@ -98,7 +100,7 @@ class PodLauncher(LoggingMixin):
             raise e
         return resp
 
-    def delete_pod(self, pod: V1Pod):
+    def delete_pod(self, pod: V1Pod) -> None:
         """Deletes POD"""
         try:
             self._client.delete_namespaced_pod(
@@ -115,12 +117,13 @@ class PodLauncher(LoggingMixin):
         reraise=True,
         retry=tenacity.retry_if_exception(should_retry_start_pod),
     )
-    def start_pod(self, pod: V1Pod, startup_timeout: int = 120):
+    def start_pod(self, pod: V1Pod, startup_timeout: int = 120) -> None:
         """
         Launches the pod synchronously and waits for completion.
 
         :param pod:
-        :param startup_timeout: Timeout for startup of the pod (if pod is pending for too long, fails task)
+        :param startup_timeout: Timeout (in seconds) for startup of the pod
+            (if pod is pending for too long, fails task)
         :return:
         """
         resp = self.run_pod_async(pod)
@@ -130,7 +133,11 @@ class PodLauncher(LoggingMixin):
                 self.log.warning("Pod not yet started: %s", pod.metadata.name)
                 delta = dt.now() - curr_time
                 if delta.total_seconds() >= startup_timeout:
-                    raise AirflowException("Pod took too long to start")
+                    msg = (
+                        f"Pod took longer than {startup_timeout} seconds to start. "
+                        "Check the pod events in kubernetes to determine why."
+                    )
+                    raise AirflowException(msg)
                 time.sleep(1)
 
     def monitor_pod(self, pod: V1Pod, get_logs: bool) -> Tuple[State, V1Pod, Optional[str]]:
@@ -205,22 +212,22 @@ class PodLauncher(LoggingMixin):
             return None, line
         return last_log_time, message
 
-    def _task_status(self, event):
+    def _task_status(self, event: V1Event) -> str:
         self.log.info('Event: %s had an event of type %s', event.metadata.name, event.status.phase)
         status = self.process_status(event.metadata.name, event.status.phase)
         return status
 
-    def pod_not_started(self, pod: V1Pod):
+    def pod_not_started(self, pod: V1Pod) -> bool:
         """Tests if pod has not started"""
         state = self._task_status(self.read_pod(pod))
         return state == State.QUEUED
 
-    def pod_is_running(self, pod: V1Pod):
+    def pod_is_running(self, pod: V1Pod) -> bool:
         """Tests if pod is running"""
         state = self._task_status(self.read_pod(pod))
         return state not in (State.SUCCESS, State.FAILED)
 
-    def base_container_is_running(self, pod: V1Pod):
+    def base_container_is_running(self, pod: V1Pod) -> bool:
         """Tests if base container is running"""
         event = self.read_pod(pod)
         status = next(iter(filter(lambda s: s.name == 'base', event.status.container_statuses)), None)
@@ -235,7 +242,7 @@ class PodLauncher(LoggingMixin):
         tail_lines: Optional[int] = None,
         timestamps: bool = False,
         since_seconds: Optional[int] = None,
-    ):
+    ) -> Iterable[str]:
         """Reads log from the POD"""
         additional_kwargs = {}
         if since_seconds:
@@ -256,11 +263,11 @@ class PodLauncher(LoggingMixin):
             )
         except BaseHTTPError:
             self.log.exception('There was an error reading the kubernetes API.')
-            # Reraise to be catched by self.monitor_pod.
+            # Reraise to be caught by self.monitor_pod.
             raise
 
     @tenacity.retry(stop=tenacity.stop_after_attempt(3), wait=tenacity.wait_exponential(), reraise=True)
-    def read_pod_events(self, pod):
+    def read_pod_events(self, pod: V1Pod) -> V1EventList:
         """Reads events from the POD"""
         try:
             return self._client.list_namespaced_event(
@@ -270,14 +277,14 @@ class PodLauncher(LoggingMixin):
             raise AirflowException(f'There was an error reading the kubernetes API: {e}')
 
     @tenacity.retry(stop=tenacity.stop_after_attempt(3), wait=tenacity.wait_exponential(), reraise=True)
-    def read_pod(self, pod: V1Pod):
+    def read_pod(self, pod: V1Pod) -> V1Pod:
         """Read POD information"""
         try:
             return self._client.read_namespaced_pod(pod.metadata.name, pod.metadata.namespace)
         except BaseHTTPError as e:
             raise AirflowException(f'There was an error reading the kubernetes API: {e}')
 
-    def _extract_xcom(self, pod: V1Pod):
+    def _extract_xcom(self, pod: V1Pod) -> str:
         resp = kubernetes_stream(
             self._client.connect_get_namespaced_pod_exec,
             pod.metadata.name,
@@ -299,7 +306,7 @@ class PodLauncher(LoggingMixin):
             raise AirflowException(f'Failed to extract xcom from pod: {pod.metadata.name}')
         return result
 
-    def _exec_pod_command(self, resp, command):
+    def _exec_pod_command(self, resp, command: str) -> None:
         if resp.is_open():
             self.log.info('Running command... %s\n', command)
             resp.write_stdin(command + '\n')
@@ -312,7 +319,7 @@ class PodLauncher(LoggingMixin):
                     break
         return None
 
-    def process_status(self, job_id, status):
+    def process_status(self, job_id: str, status: str) -> str:
         """Process status information for the JOB"""
         status = status.lower()
         if status == PodStatus.PENDING:

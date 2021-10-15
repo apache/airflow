@@ -119,14 +119,15 @@ def patch_role(role_name, update_mask=None):
             else:
                 raise BadRequest(detail=f"'{field}' in update_mask is unknown")
         data = data_
-    perms = data.get("permissions", [])
-    if perms:
+    if "permissions" in data:
         perms = [
-            (item['permission']['name'], item['view_menu']['name']) for item in data['permissions'] if item
+            (item["permission"]["name"], item["view_menu"]["name"]) for item in data["permissions"] if item
         ]
         _check_action_and_resource(security_manager, perms)
-    security_manager.update_role(role_id=role.id, name=data['name'])
-    security_manager.init_role(role_name=data['name'], perms=perms or role.permissions)
+        security_manager.bulk_sync_roles([{"role": role_name, "perms": perms}])
+    new_name = data.get("name")
+    if new_name is not None and new_name != role.name:
+        security_manager.update_role(role_id=role.id, name=new_name)
     return role_schema.dump(role)
 
 

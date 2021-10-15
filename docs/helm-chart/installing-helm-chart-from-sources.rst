@@ -18,9 +18,6 @@
 Installing Helm Chart from sources
 ----------------------------------
 
-.. contents:: :local:
-
-
 Released packages
 '''''''''''''''''
 

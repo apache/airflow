@@ -41,7 +41,7 @@ PY39 = sys.version_info >= (3, 9)
 
 logger = logging.getLogger(__name__)
 
-version = '2.2.0.dev0'
+version = '2.3.0.dev0'
 
 my_dir = dirname(__file__)
 
@@ -186,6 +186,8 @@ amazon = [
     'boto3>=1.15.0,<1.19.0',
     'watchtower~=1.0.6',
     'jsonpath_ng>=1.5.3',
+    'redshift_connector~=2.0.888',
+    'sqlalchemy_redshift~=0.8.6',
 ]
 apache_beam = [
     'apache-beam>=2.20.0',
@@ -201,7 +203,7 @@ atlas = [
 ]
 azure = [
     'azure-batch>=8.0.0',
-    'azure-cosmos>=3.0.1,<4',
+    'azure-cosmos>=4.0.0,<5',
     'azure-datalake-store>=0.0.45',
     'azure-identity>=1.3.1',
     'azure-keyvault>=4.1.0',
@@ -258,7 +260,7 @@ doc = [
     'sphinxcontrib-spelling==7.2.1',
 ]
 docker = [
-    'docker',
+    'docker>=5.0.3',
 ]
 drill = ['sqlalchemy-drill>=1.1.0', 'sqlparse>=0.4.1']
 druid = [
@@ -280,7 +282,10 @@ flask_appbuilder_authlib = [
 ]
 google = [
     'PyOpenSSL',
-    'google-ads>=12.0.0',
+    # The Google Ads 14.0.1 breaks PIP and eager upgrade as it requires
+    # google-api-core>=2.0.0 which cannot be used yet (see below comment)
+    # and https://github.com/apache/airflow/issues/18705#issuecomment-933746150
+    'google-ads>=12.0.0,<14.0.1',
     # Maintainers, please do not require google-api-core>=2.x.x
     # Until this issue is closed
     # https://github.com/googleapis/google-cloud-python/issues/10566
@@ -462,7 +467,7 @@ spark = [
 ssh = [
     'paramiko>=2.6.0',
     'pysftp>=0.2.9',
-    'sshtunnel>=0.1.4,<0.2',
+    'sshtunnel>=0.3.2,<0.5',
 ]
 statsd = [
     'statsd>=3.3.0, <4.0',
@@ -473,7 +478,7 @@ tableau = [
 telegram = [
     'python-telegram-bot~=13.0',
 ]
-trino = ['trino']
+trino = ['trino>=0.301.0']
 vertica = [
     'vertica-python>=0.5.1',
 ]
@@ -494,7 +499,7 @@ zendesk = [
 ]
 # End dependencies group
 
-devel = [
+devel_only = [
     'aws_xray_sdk',
     'beautifulsoup4~=4.7.1',
     'black',
@@ -534,12 +539,13 @@ devel = [
     'qds-sdk>=1.9.6',
     'pytest-httpx',
     'requests_mock',
+    'semver',
     'wheel',
     'yamllint',
 ]
 
-devel_minreq = cgroups + devel + doc + kubernetes + mysql + pandas + password
-devel_hadoop = devel_minreq + hdfs + hive + kerberos + presto + webhdfs
+devel = cgroups + devel_only + doc + kubernetes + mysql + pandas + password
+devel_hadoop = devel + hdfs + hive + kerberos + presto + webhdfs
 
 # Dict of all providers which are part of the Apache Airflow repository together with their requirements
 PROVIDERS_REQUIREMENTS: Dict[str, List[str]] = {
@@ -775,7 +781,7 @@ EXTRAS_REQUIREMENTS["all_dbs"] = all_dbs + pandas
 
 # This can be simplified to devel_hadoop + _all_requirements due to inclusions
 # but we keep it for explicit sake. We are de-duplicating it anyway.
-devel_all = list(set(_all_requirements + doc + devel_minreq + devel_hadoop))
+devel_all = list(set(_all_requirements + doc + devel + devel_hadoop))
 
 # Those are packages excluded for "all" dependencies
 PACKAGES_EXCLUDED_FOR_ALL = []
@@ -809,8 +815,8 @@ devel_ci = devel_all
 # Those are extras that we have to add for development purposes
 # They can be use to install some predefined set of dependencies.
 EXTRAS_REQUIREMENTS["doc"] = doc
-EXTRAS_REQUIREMENTS["devel"] = devel_minreq  # devel_minreq already includes doc
-EXTRAS_REQUIREMENTS["devel_hadoop"] = devel_hadoop  # devel_hadoop already includes devel_minreq
+EXTRAS_REQUIREMENTS["devel"] = devel  # devel already includes doc
+EXTRAS_REQUIREMENTS["devel_hadoop"] = devel_hadoop  # devel_hadoop already includes devel
 EXTRAS_REQUIREMENTS["devel_all"] = devel_all
 EXTRAS_REQUIREMENTS["devel_ci"] = devel_ci
 

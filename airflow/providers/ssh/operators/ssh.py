@@ -19,7 +19,9 @@
 import warnings
 from base64 import b64encode
 from select import select
-from typing import Optional, Union
+from typing import Optional, Tuple, Union
+
+from paramiko.client import SSHClient
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
@@ -107,103 +109,115 @@ class SSHOperator(BaseOperator):
                 stacklevel=1,
             )
 
-    def execute(self, context) -> Union[bytes, str, bool]:
+    def get_hook(self) -> SSHHook:
+        if self.ssh_conn_id:
+            if self.ssh_hook and isinstance(self.ssh_hook, SSHHook):
+                self.log.info("ssh_conn_id is ignored when ssh_hook is provided.")
+            else:
+                self.log.info("ssh_hook is not provided or invalid. Trying ssh_conn_id to create SSHHook.")
+                self.ssh_hook = SSHHook(ssh_conn_id=self.ssh_conn_id, conn_timeout=self.conn_timeout)
+
+        if not self.ssh_hook:
+            raise AirflowException("Cannot operate without ssh_hook or ssh_conn_id.")
+
+        if self.remote_host is not None:
+            self.log.info(
+                "remote_host is provided explicitly. "
+                "It will replace the remote_host which was defined "
+                "in ssh_hook or predefined in connection of ssh_conn_id."
+            )
+            self.ssh_hook.remote_host = self.remote_host
+
+        return self.ssh_hook
+
+    def get_ssh_client(self) -> SSHClient:
+        # Remember to use context manager or call .close() on this when done
+        self.log.info('Creating ssh_client')
+        return self.get_hook().get_conn()
+
+    def exec_ssh_client_command(self, ssh_client: SSHClient, command: str) -> Tuple[int, bytes, bytes]:
+        self.log.info("Running command: %s", command)
+
+        # set timeout taken as params
+        stdin, stdout, stderr = ssh_client.exec_command(
+            command=command,
+            get_pty=self.get_pty,
+            timeout=self.timeout,
+            environment=self.environment,
+        )
+        # get channels
+        channel = stdout.channel
+
+        # closing stdin
+        stdin.close()
+        channel.shutdown_write()
+
+        agg_stdout = b''
+        agg_stderr = b''
+
+        # capture any initial output in case channel is closed already
+        stdout_buffer_length = len(stdout.channel.in_buffer)
+
+        if stdout_buffer_length > 0:
+            agg_stdout += stdout.channel.recv(stdout_buffer_length)
+
+        # read from both stdout and stderr
+        while not channel.closed or channel.recv_ready() or channel.recv_stderr_ready():
+            readq, _, _ = select([channel], [], [], self.cmd_timeout)
+            for recv in readq:
+                if recv.recv_ready():
+                    line = stdout.channel.recv(len(recv.in_buffer))
+                    agg_stdout += line
+                    self.log.info(line.decode('utf-8', 'replace').strip('\n'))
+                if recv.recv_stderr_ready():
+                    line = stderr.channel.recv_stderr(len(recv.in_stderr_buffer))
+                    agg_stderr += line
+                    self.log.warning(line.decode('utf-8', 'replace').strip('\n'))
+            if (
+                stdout.channel.exit_status_ready()
+                and not stderr.channel.recv_stderr_ready()
+                and not stdout.channel.recv_ready()
+            ):
+                stdout.channel.shutdown_read()
+                try:
+                    stdout.channel.close()
+                except Exception:
+                    # there is a race that when shutdown_read has been called and when
+                    # you try to close the connection, the socket is already closed
+                    # We should ignore such errors (but we should log them with warning)
+                    self.log.warning("Ignoring exception on close", exc_info=True)
+                break
+
+        stdout.close()
+        stderr.close()
+
+        exit_status = stdout.channel.recv_exit_status()
+
+        return exit_status, agg_stdout, agg_stderr
+
+    def raise_for_status(self, exit_status: int, stderr: bytes) -> None:
+        if exit_status != 0:
+            error_msg = stderr.decode('utf-8')
+            raise AirflowException(f"error running cmd: {self.command}, error: {error_msg}")
+
+    def run_ssh_client_command(self, ssh_client: SSHClient, command: str) -> bytes:
+        exit_status, agg_stdout, agg_stderr = self.exec_ssh_client_command(ssh_client, command)
+        self.raise_for_status(exit_status, agg_stderr)
+        return agg_stdout
+
+    def execute(self, context=None) -> Union[bytes, str]:
+        result = None
+        if self.command is None:
+            raise AirflowException("SSH operator error: SSH command not specified. Aborting.")
         try:
-            if self.ssh_conn_id:
-                if self.ssh_hook and isinstance(self.ssh_hook, SSHHook):
-                    self.log.info("ssh_conn_id is ignored when ssh_hook is provided.")
-                else:
-                    self.log.info(
-                        "ssh_hook is not provided or invalid. Trying ssh_conn_id to create SSHHook."
-                    )
-                    self.ssh_hook = SSHHook(ssh_conn_id=self.ssh_conn_id, conn_timeout=self.conn_timeout)
-
-            if not self.ssh_hook:
-                raise AirflowException("Cannot operate without ssh_hook or ssh_conn_id.")
-
-            if self.remote_host is not None:
-                self.log.info(
-                    "remote_host is provided explicitly. "
-                    "It will replace the remote_host which was defined "
-                    "in ssh_hook or predefined in connection of ssh_conn_id."
-                )
-                self.ssh_hook.remote_host = self.remote_host
-
-            if not self.command:
-                raise AirflowException("SSH command not specified. Aborting.")
-
-            with self.ssh_hook.get_conn() as ssh_client:
-                self.log.info("Running command: %s", self.command)
-
-                # set timeout taken as params
-                stdin, stdout, stderr = ssh_client.exec_command(
-                    command=self.command,
-                    get_pty=self.get_pty,
-                    timeout=self.cmd_timeout,
-                    environment=self.environment,
-                )
-                # get channels
-                channel = stdout.channel
-
-                # closing stdin
-                stdin.close()
-                channel.shutdown_write()
-
-                agg_stdout = b''
-                agg_stderr = b''
-
-                # capture any initial output in case channel is closed already
-                stdout_buffer_length = len(stdout.channel.in_buffer)
-
-                if stdout_buffer_length > 0:
-                    agg_stdout += stdout.channel.recv(stdout_buffer_length)
-
-                # read from both stdout and stderr
-                while not channel.closed or channel.recv_ready() or channel.recv_stderr_ready():
-                    readq, _, _ = select([channel], [], [], self.cmd_timeout)
-                    for recv in readq:
-                        if recv.recv_ready():
-                            line = stdout.channel.recv(len(recv.in_buffer))
-                            agg_stdout += line
-                            self.log.info(line.decode('utf-8', 'replace').strip('\n'))
-                        if recv.recv_stderr_ready():
-                            line = stderr.channel.recv_stderr(len(recv.in_stderr_buffer))
-                            agg_stderr += line
-                            self.log.warning(line.decode('utf-8', 'replace').strip('\n'))
-                    if (
-                        stdout.channel.exit_status_ready()
-                        and not stderr.channel.recv_stderr_ready()
-                        and not stdout.channel.recv_ready()
-                    ):
-                        stdout.channel.shutdown_read()
-                        try:
-                            stdout.channel.close()
-                        except Exception:
-                            # there is a race that when shutdown_read has been called and when
-                            # you try to close the connection, the socket is already closed
-                            # We should ignore such errors (but we should log them with warning)
-                            self.log.warning("Ignoring exception on close", exc_info=True)
-                        break
-
-                stdout.close()
-                stderr.close()
-
-                exit_status = stdout.channel.recv_exit_status()
-                if exit_status == 0:
-                    enable_pickling = conf.getboolean('core', 'enable_xcom_pickling')
-                    if enable_pickling:
-                        return agg_stdout
-                    else:
-                        return b64encode(agg_stdout).decode('utf-8')
-
-                else:
-                    error_msg = agg_stderr.decode('utf-8')
-                    raise AirflowException(f"error running cmd: {self.command}, error: {error_msg}")
-
+            with self.get_ssh_client() as ssh_client:
+                result = self.run_ssh_client_command(ssh_client, self.command)
         except Exception as e:
             raise AirflowException(f"SSH operator error: {str(e)}")
-
-        return True
+        enable_pickling = conf.getboolean('core', 'enable_xcom_pickling')
+        if not enable_pickling:
+            result = b64encode(result).decode('utf-8')
+        return result
 
     def tunnel(self) -> None:
         """Get ssh tunnel"""

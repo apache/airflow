@@ -21,10 +21,6 @@ Azure Data Factory Operators
 Azure Data Factory is Azure's cloud ETL service for scale-out serverless data integration and data transformation.
 It offers a code-free UI for intuitive authoring and single-pane-of-glass monitoring and management.
 
-.. contents::
-  :depth: 1
-  :local:
-
 .. _howto/operator:AzureDataFactoryRunPipelineOperator:
 
 AzureDataFactoryRunPipelineOperator

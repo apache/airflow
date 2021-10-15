@@ -165,6 +165,7 @@ class TestSchedulerJob:
         self.scheduler_job.heartrate = 0
         self.scheduler_job.run()
 
+    @pytest.mark.quarantined
     def test_no_orphan_process_will_be_left(self):
         empty_dir = mkdtemp()
         current_process = psutil.Process()
@@ -1420,7 +1421,7 @@ class TestSchedulerJob:
     ):
 
         """
-        Helper for testing DagRun states with simple two-task DAGS.
+        Helper for testing DagRun states with simple two-task DAGs.
         This is hackish: a dag run is created but its tasks are
         run by a backfill.
         """
@@ -1596,7 +1597,7 @@ class TestSchedulerJob:
 
     def test_scheduler_start_date(self):
         """
-        Test that the scheduler respects start_dates, even when DAGS have run
+        Test that the scheduler respects start_dates, even when DAGs have run
         """
         with create_session() as session:
             dag_id = 'test_start_date_scheduling'
@@ -2505,10 +2506,12 @@ class TestSchedulerJob:
         # Test that custom_task has >= 1 Operator Links (after de-serialization)
         assert custom_task.operator_extra_links
 
+        session = settings.Session()
         self.scheduler_job = SchedulerJob(executor=self.null_exec)
         self.scheduler_job.processor_agent = mock.MagicMock()
-        self.scheduler_job._run_scheduler_loop()
 
+        self.scheduler_job._start_queued_dagruns(session)
+        session.flush()
         # Get serialized dag
         s_dag_2 = self.scheduler_job.dagbag.get_dag(dag.dag_id)
         custom_task = s_dag_2.task_dict['custom_task']
@@ -2686,19 +2689,24 @@ class TestSchedulerJob:
         self.scheduler_job.executor = MockExecutor()
         self.scheduler_job.processor_agent = mock.MagicMock(spec=DagFileProcessorAgent)
 
-        self.scheduler_job._do_scheduling(session)
+        my_dag = session.query(DagModel).get(dag.dag_id)
+        self.scheduler_job._create_dag_runs([my_dag], session)
+        # Run relevant part of scheduling again to assert run2 has been scheduled
+        self.scheduler_job._schedule_dag_run(run1, session)
         run1 = session.merge(run1)
         session.refresh(run1)
         assert run1.state == State.FAILED
         assert run1_ti.state == State.SKIPPED
-
-        # Run scheduling again to assert run2 has started
-        self.scheduler_job._do_scheduling(session)
+        session.flush()
+        # Run relevant part of scheduling again to assert run2 has been scheduled
+        self.scheduler_job._start_queued_dagruns(session)
+        session.flush()
         run2 = session.merge(run2)
         session.refresh(run2)
         assert run2.state == State.RUNNING
+        self.scheduler_job._schedule_dag_run(run2, session)
         run2_ti = run2.get_task_instance(task1.task_id, session)
-        assert run2_ti.state == State.QUEUED
+        assert run2_ti.state == State.SCHEDULED
 
     def test_do_schedule_max_active_runs_task_removed(self, session, dag_maker):
         """Test that tasks in removed state don't count as actively running."""

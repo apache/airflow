@@ -82,7 +82,7 @@ from pendulum.datetime import DateTime
 from pendulum.parsing.exceptions import ParserError
 from pygments import highlight, lexers
 from pygments.formatters import HtmlFormatter
-from sqlalchemy import Date, and_, desc, func, union_all
+from sqlalchemy import Date, and_, desc, func, inspect, union_all
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import joinedload
 from wtforms import SelectField, validators
@@ -692,10 +692,21 @@ class Airflow(AirflowBaseView):
             fm for fm in settings.DASHBOARD_UIALERTS if fm.should_show(current_app.appbuilder.sm)
         ]
 
+        def _iter_parsed_moved_data_table_names():
+            for table_name in inspect(session.get_bind()).get_table_names():
+                segments = table_name.split("__", 2)
+                if len(segments) < 3:
+                    continue
+                if segments[0] != settings.AIRFLOW_MOVED_TABLE_PREFIX:
+                    continue
+                # Second segment is a version marker that we don't need to show.
+                yield segments[2], table_name
+
         return self.render_template(
             'airflow/dags.html',
             dags=dags,
             dashboard_alerts=dashboard_alerts,
+            migration_moved_data_alerts=sorted(set(_iter_parsed_moved_data_table_names())),
             current_page=current_page,
             search_query=arg_search_query if arg_search_query else '',
             page_title=page_title,
@@ -1519,6 +1530,7 @@ class Airflow(AirflowBaseView):
         executor = ExecutorLoader.get_default_executor()
         valid_celery_config = False
         valid_kubernetes_config = False
+        valid_celery_kubernetes_config = False
 
         try:
             from airflow.executors.celery_executor import CeleryExecutor
@@ -1533,9 +1545,15 @@ class Airflow(AirflowBaseView):
             valid_kubernetes_config = isinstance(executor, KubernetesExecutor)
         except ImportError:
             pass
+        try:
+            from airflow.executors.celery_kubernetes_executor import CeleryKubernetesExecutor
 
-        if not valid_celery_config and not valid_kubernetes_config:
-            flash("Only works with the Celery or Kubernetes executors, sorry", "error")
+            valid_celery_kubernetes_config = isinstance(executor, CeleryKubernetesExecutor)
+        except ImportError:
+            pass
+
+        if not valid_celery_config and not valid_kubernetes_config and not valid_celery_kubernetes_config:
+            flash("Only works with the Celery, CeleryKubernetes or Kubernetes executors, sorry", "error")
             return redirect(origin)
 
         dag_run = dag.get_dagrun(execution_date=execution_date)
@@ -1623,6 +1641,10 @@ class Airflow(AirflowBaseView):
         request_execution_date = request.values.get('execution_date', default=timezone.utcnow().isoformat())
         is_dag_run_conf_overrides_params = conf.getboolean('core', 'dag_run_conf_overrides_params')
         dag = current_app.dag_bag.get_dag(dag_id)
+        dag_orm = session.query(models.DagModel).filter(models.DagModel.dag_id == dag_id).first()
+        if not dag_orm:
+            flash(f"Cannot find dag {dag_id}")
+            return redirect(origin)
 
         if request.method == 'GET':
             # Populate conf textarea with conf requests parameter, or dag.params
@@ -1649,11 +1671,6 @@ class Airflow(AirflowBaseView):
                 form=form,
                 is_dag_run_conf_overrides_params=is_dag_run_conf_overrides_params,
             )
-
-        dag_orm = session.query(models.DagModel).filter(models.DagModel.dag_id == dag_id).first()
-        if not dag_orm:
-            flash(f"Cannot find dag {dag_id}")
-            return redirect(origin)
 
         try:
             execution_date = timezone.parse(request_execution_date)
@@ -3298,12 +3315,12 @@ def lazy_add_provider_discovered_options_to_connection_form():
         return _connection_types
 
     ConnectionForm.conn_type = SelectField(
-        lazy_gettext('Conn Type'),
+        lazy_gettext('Connection Type'),
         choices=sorted(_get_connection_types(), key=itemgetter(1)),
         widget=Select2Widget(),
         validators=[InputRequired()],
         description="""
-            Conn Type missing?
+            Connection Type missing?
             Make sure you've installed the corresponding Airflow Provider Package.
         """,
     )
@@ -3407,34 +3424,55 @@ class ConnectionModelView(AirflowModelView):
         for selected_conn in connections:
             new_conn_id = selected_conn.conn_id
             match = re.search(r"_copy(\d+)$", selected_conn.conn_id)
+
+            base_conn_id = selected_conn.conn_id
             if match:
-                conn_id_prefix = selected_conn.conn_id[: match.start()]
-                new_conn_id = f"{conn_id_prefix}_copy{int(match.group(1)) + 1}"
-            else:
-                new_conn_id += '_copy1'
+                base_conn_id = base_conn_id.split('_copy')[0]
 
-            dup_conn = Connection(
-                new_conn_id,
-                selected_conn.conn_type,
-                selected_conn.description,
-                selected_conn.host,
-                selected_conn.login,
-                selected_conn.password,
-                selected_conn.schema,
-                selected_conn.port,
-                selected_conn.extra,
+            potential_connection_ids = [f"{base_conn_id}_copy{i}" for i in range(1, 11)]
+
+            query = session.query(Connection.conn_id).filter(Connection.conn_id.in_(potential_connection_ids))
+
+            found_conn_id_set = {conn_id for conn_id, in query}
+
+            possible_conn_id_iter = (
+                connection_id
+                for connection_id in potential_connection_ids
+                if connection_id not in found_conn_id_set
             )
-
             try:
-                session.add(dup_conn)
-                session.commit()
-                flash(f"Connection {new_conn_id} added successfully.", "success")
-            except IntegrityError:
+                new_conn_id = next(possible_conn_id_iter)
+            except StopIteration:
                 flash(
-                    f"Connection {new_conn_id} can't be added. Integrity error, probably unique constraint.",
+                    f"Connection {new_conn_id} can't be added because it already exists, "
+                    f"Please rename the existing connections",
                     "warning",
                 )
-                session.rollback()
+            else:
+
+                dup_conn = Connection(
+                    new_conn_id,
+                    selected_conn.conn_type,
+                    selected_conn.description,
+                    selected_conn.host,
+                    selected_conn.login,
+                    selected_conn.password,
+                    selected_conn.schema,
+                    selected_conn.port,
+                    selected_conn.extra,
+                )
+
+                try:
+                    session.add(dup_conn)
+                    session.commit()
+                    flash(f"Connection {new_conn_id} added successfully.", "success")
+                except IntegrityError:
+                    flash(
+                        f"Connection {new_conn_id} can't be added. Integrity error, "
+                        f"probably unique constraint.",
+                        "warning",
+                    )
+                    session.rollback()
 
         self.update_redirect()
         return redirect(self.get_redirect())

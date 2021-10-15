@@ -22,11 +22,6 @@ Google Campaign Manager operators allow you to insert, run, get or delete
 reports. For more information about the Campaign Manager API check
 `official documentation <https://developers.google.com/doubleclick-advertisers/v3.3/reports>`__.
 
-
-.. contents::
-  :depth: 1
-  :local:
-
 Prerequisite Tasks
 ^^^^^^^^^^^^^^^^^^
 

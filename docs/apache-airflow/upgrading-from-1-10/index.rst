@@ -24,8 +24,6 @@ Upgrading from 1.10 to 2
 
     upgrade-check
 
-.. contents:: :local:
-
 Apache Airflow 2 is a major release and the purpose of this document is to assist
 users to migrate from Airflow 1.10.x to Airflow 2
 
@@ -357,6 +355,21 @@ Old Keys                 New keys
 
 For more information, visit https://flask-appbuilder.readthedocs.io/en/latest/security.html#authentication-oauth
 
+**Breaking Change in Pendulum Support**
+
+Airflow has upgraded from Pendulum 1.x to Pendulum 2.x.
+This comes with a few breaking changes as certain methods and their definitions in Pendulum 2.x
+have changed or have been removed.
+
+For instance the following snippet will now throw errors:
+
+.. code-block:: python
+
+    execution_date.format("YYYY-MM-DD HH:mm:ss", formatter="alternative")
+
+as the ``formatter`` option is not supported in Pendulum 2.x and ``alternative`` is used by default.
+
+For more information, visit https://pendulum.eustace.io/blog/pendulum-2.0.0-is-out.html
 
 Step 6: Upgrade Configuration settings
 '''''''''''''''''''''''''''''''''''''''''''
