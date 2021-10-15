@@ -91,8 +91,8 @@
       <a class="label label-default" href="{{ url_for('DagRunModelView.list') }}?_flt_3_dag_id={{ dag.dag_id }}">
         Schedule: {{ dag.schedule_interval }}
       </a>
-      {% if dag.timetable.interval_description is not none %}
-      <span id="schedule-description-{{ dag.safe_dag_id }}" class="material-icons text-muted js-tooltip" aria-hidden="true" data-original-title="Runs: {{ dag.timetable.interval_description|string }}">info</span>
+      {% if dag_model is defined and dag_model.timetable_description is not none %}
+      <span id="schedule-description-{{ dag_model.safe_dag_id }}" class="material-icons text-muted js-tooltip" aria-hidden="true" data-original-title="Schedule: {{ dag_model.timetable_description|string }}">info</span>
       {% endif %}
       {% if dag_model is defined and dag_model.next_dagrun is defined %}
         <p class="label label-default js-tooltip" style="margin-left: 5px" id="next-run" data-html="true" data-placement="bottom">

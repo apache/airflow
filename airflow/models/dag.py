@@ -2447,6 +2447,7 @@ class DAG(LoggingMixin):
             orm_dag.max_active_tasks = dag.max_active_tasks
             orm_dag.max_active_runs = dag.max_active_runs
             orm_dag.has_task_concurrency_limits = any(t.max_active_tis_per_dag is not None for t in dag.tasks)
+            orm_dag.timetable_description = dag.timetable.description
 
             run: Optional[DagRun] = most_recent_runs.get(dag.dag_id)
             if run is None:
@@ -2708,6 +2709,7 @@ class DagModel(Base):
     # Earliest time at which this ``next_dagrun`` can be created.
     next_dagrun_create_after = Column(UtcDateTime)
 
+    timetable_description = Column(String, nullable=True)
     __table_args__ = (
         Index('idx_root_dag_id', root_dag_id, unique=False),
         Index('idx_next_dagrun_create_after', next_dagrun_create_after, unique=False),
@@ -2739,10 +2741,6 @@ class DagModel(Base):
 
     def __repr__(self):
         return f"<DAG: {self.dag_id}>"
-
-    @cached_property
-    def timetable(self) -> Timetable:
-        return create_timetable(self.schedule_interval, self.timezone)
 
     @property
     def next_dagrun_data_interval(self) -> Optional[DataInterval]:

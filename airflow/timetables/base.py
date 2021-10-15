@@ -104,14 +104,11 @@ class DagRunInfo(NamedTuple):
 class Timetable(Protocol):
     """Protocol that all Timetable classes are expected to implement."""
 
-    @cached_property
-    def interval_description(self) -> Optional[str]:
-        """Override to describe the interval.
-
-        For cron ``'30 21 * * 5'``, description could be like ``'At 09:30 PM, only on Friday'``.
-        This is used in the web UI.
-        """
-        return None
+    description: Optional[str] = None
+    """Describes the timetable interval,
+    eg. for  CronDataIntervalTimetable ``'30 21 * * 5'``, description could be like ``'At 21:30, only on Friday'``.
+    This is used in the web UI.
+    """
 
     periodic: bool = True
     """Whether this timetable runs periodically.

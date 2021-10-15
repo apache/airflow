@@ -126,6 +126,13 @@ class CronDataIntervalTimetable(_DataIntervalTimetable):
         self._expression = cron_presets.get(cron, cron)
         self._timezone = timezone
 
+        descriptor = ExpressionDescriptor(expression=self._expression,casing_type=CasingTypeEnum.Sentence,use_24hour_time_format=True)
+        try:
+            interval_description = descriptor.get_description()
+        except (FormatException, MissingFieldException):
+            interval_description = None
+        self.description = interval_description
+
     @classmethod
     def deserialize(cls, data: Dict[str, Any]) -> "Timetable":
         from airflow.serialization.serialized_objects import decode_timezone
@@ -223,19 +230,6 @@ class CronDataIntervalTimetable(_DataIntervalTimetable):
         end = self._get_prev(self._align(run_after))
         return DataInterval(start=self._get_prev(end), end=end)
 
-    @cached_property
-    def interval_description(self) -> Optional[str]:
-        """Returns chron description for a schedule interval"""
-        descriptor = ExpressionDescriptor(
-            expression=self._expression,
-            casing_type=CasingTypeEnum.Sentence,
-            use_24hour_time_format=True,
-        )
-        try:
-            schedule_interval_description = descriptor.get_description()
-        except (FormatException, MissingFieldException):
-            schedule_interval_description = None
-        return schedule_interval_description
 
 
 class DeltaDataIntervalTimetable(_DataIntervalTimetable):
