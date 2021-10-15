@@ -183,20 +183,6 @@ class JenkinsJobTriggerOperator(BaseOperator):
         return JenkinsHook(self.jenkins_connection_id)
 
     def execute(self, context: Mapping[Any, Any]) -> Optional[str]:
-        if not self.jenkins_connection_id:
-            self.log.error(
-                'Please specify the jenkins connection id to use.'
-                'You must create a Jenkins connection before'
-                ' being able to use this operator'
-            )
-            raise AirflowException(
-                'The jenkins_connection_id parameter is missing, impossible to trigger the job'
-            )
-
-        if not self.job_name:
-            self.log.error("Please specify the job name to use in the job_name parameter")
-            raise AirflowException('The job_name parameter is missing,impossible to trigger the job')
-
         self.log.info(
             'Triggering the job %s on the jenkins : %s with the parameters : %s',
             self.job_name,
