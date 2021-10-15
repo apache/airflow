@@ -85,6 +85,7 @@ from pygments.formatters import HtmlFormatter
 from sqlalchemy import Date, and_, desc, func, inspect, union_all
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import joinedload
+from sqlalchemy.sql.schema import MetaData
 from wtforms import SelectField, validators
 from wtforms.validators import InputRequired
 
@@ -112,6 +113,7 @@ from airflow.ti_deps.dep_context import DepContext
 from airflow.ti_deps.dependencies_deps import RUNNING_DEPS, SCHEDULER_QUEUED_DEPS
 from airflow.utils import json as utils_json, timezone, yaml
 from airflow.utils.dates import infer_time_unit, scale_time_units
+from airflow.utils.db import format_airflow_moved_table_name
 from airflow.utils.docs import get_doc_url_for_provider, get_docs_url
 from airflow.utils.helpers import alchemy_to_dict
 from airflow.utils.log import secrets_masker
@@ -693,6 +695,8 @@ class Airflow(AirflowBaseView):
         ]
 
         def _iter_parsed_moved_data_table_names():
+            if (permissions.ACTION_CAN_DELETE, permissions.RESOURCE_MOVED_DATA) not in user_permissions:
+                return
             for table_name in inspect(session.get_bind()).get_table_names():
                 segments = table_name.split("__", 2)
                 if len(segments) < 3:
@@ -3044,6 +3048,25 @@ class Airflow(AirflowBaseView):
         address the real security risks associated with such a deployment.
         """
         return send_from_directory(current_app.static_folder, 'robots.txt')
+
+    @expose('/delete_moved_data_table', methods=['POST'])
+    @auth.has_access([(permissions.ACTION_CAN_DELETE, permissions.RESOURCE_MOVED_DATA)])
+    @provide_session
+    def drop_moved_data_table(self, session: settings.SASession):
+        engine = session.bind
+        metadata = MetaData(engine)
+        moved_table_names = (
+            format_airflow_moved_table_name(original_table_name)
+            for original_table_name in request.form.getlist("original_table_name")
+        )
+        metadata.drop_all(engine, [metadata.tables[table_name] for table_name in moved_table_names])
+        if len(moved_table_names) == 1:
+            noun = "table"
+        else:
+            noun = "tables"
+        table_name_display = ", ".join(repr(table_name) for table_name in moved_table_names)
+        flash(f"Successfully dropped {noun}: {sorted(table_name_display)}", category="info")
+        return redirect(url_for("Airflow.index"))
 
 
 class ConfigurationView(AirflowBaseView):

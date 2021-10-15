@@ -145,6 +145,7 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
         (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_PASSWORD),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_ROLE),
         (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_ROLE),
+        (permissions.ACTION_CAN_DELETE, permissions.RESOURCE_MOVED_TABLE),
     ]
 
     # global resource for dag-level access

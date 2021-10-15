@@ -56,7 +56,7 @@ from airflow.utils.session import create_global_lock, create_session, provide_se
 log = logging.getLogger(__name__)
 
 
-def _format_airflow_moved_table_name(source_table, version):
+def format_airflow_moved_table_name(source_table, version):
     return "__".join([settings.AIRFLOW_MOVED_TABLE_PREFIX, version.replace(".", "_"), source_table])
 
 
@@ -735,7 +735,7 @@ def check_run_id_null(session) -> Iterable[str]:
     )
     invalid_dagrun_count = session.query(dagrun_table.c.id).filter(invalid_dagrun_filter).count()
     if invalid_dagrun_count > 0:
-        dagrun_dangling_table_name = _format_airflow_moved_table_name(dagrun_table.name, "2.2")
+        dagrun_dangling_table_name = format_airflow_moved_table_name(dagrun_table.name, "2.2")
         if dagrun_dangling_table_name in inspect(session.get_bind()).get_table_names():
             yield _format_dangling_error(
                 source_table=dagrun_table.name,
@@ -810,7 +810,7 @@ def check_task_tables_without_matching_dagruns(session) -> Iterable[str]:
         if invalid_row_count <= 0:
             continue
 
-        dangling_table_name = _format_airflow_moved_table_name(source_table.name, "2.2")
+        dangling_table_name = format_airflow_moved_table_name(source_table.name, "2.2")
         if dangling_table_name in existing_table_names:
             yield _format_dangling_error(
                 source_table=source_table.name,

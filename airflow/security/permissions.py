@@ -32,6 +32,7 @@ RESOURCE_DAG_CODE = "DAG Code"
 RESOURCE_DAG_RUN = "DAG Runs"
 RESOURCE_IMPORT_ERROR = "ImportError"
 RESOURCE_JOB = "Jobs"
+RESOURCE_MOVED_DATA = "Moved Data"  # Data moved during db upgrade.
 RESOURCE_MY_PASSWORD = "My Password"
 RESOURCE_MY_PROFILE = "My Profile"
 RESOURCE_PASSWORD = "Passwords"
