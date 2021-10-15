@@ -15,7 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from typing import List, Optional, Union, Dict, Any
+from typing import Any, Dict, List, Optional, Union
 
 from airflow.models import BaseOperator
 from airflow.utils.email import send_email
@@ -90,5 +90,5 @@ class EmailOperator(BaseOperator):
             mime_subtype=self.mime_subtype,
             mime_charset=self.mime_charset,
             conn_id=self.conn_id,
-            custom_headers=self.custom_headers
+            custom_headers=self.custom_headers,
         )

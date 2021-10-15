@@ -99,7 +99,7 @@ class TestEmail(unittest.TestCase):
             mime_charset='utf-8',
             mime_subtype='mixed',
             conn_id='smtp_default',
-            custom_headers=None
+            custom_headers=None,
         )
         assert not mock_send_email.called
 
@@ -161,8 +161,13 @@ class TestEmailSmtp(unittest.TestCase):
             attachment.write(b'attachment')
             attachment.seek(0)
             utils.email.send_email_smtp(
-                'to', 'subject', 'content', files=[attachment.name], cc='cc', bcc='bcc',
-                custom_headers={'Reply-To': 'reply_to@example.com'}
+                'to',
+                'subject',
+                'content',
+                files=[attachment.name],
+                cc='cc',
+                bcc='bcc',
+                custom_headers={'Reply-To': 'reply_to@example.com'},
             )
             assert mock_send_mime.called
             _, call_args = mock_send_mime.call_args

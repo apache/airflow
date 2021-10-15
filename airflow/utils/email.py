@@ -100,7 +100,7 @@ def send_email_smtp(
         bcc=bcc,
         mime_subtype=mime_subtype,
         mime_charset=mime_charset,
-        custom_headers=custom_headers
+        custom_headers=custom_headers,
     )
 
     send_mime_email(e_from=smtp_mail_from, e_to=recipients, mime_msg=msg, conn_id=conn_id, dryrun=dryrun)
