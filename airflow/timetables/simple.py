@@ -55,7 +55,7 @@ class NullTimetable(_TrivialTimetable):
     """
 
     def __init__(self) -> None:
-        self.description = "Never"
+        self.description = "Never, external triggers only"
 
     @property
     def summary(self) -> str:
