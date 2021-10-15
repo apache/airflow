@@ -81,12 +81,20 @@ jobs:
           docker tag ghcr.io/masami10/airflow/airflow:latest ghcr.io/masami10/airflow/airflow:$(cat $GITHUB_WORKSPACE/AIRFLOW_RELEASE_VERSION)
           docker push ghcr.io/masami10/airflow/airflow:$(cat $GITHUB_WORKSPACE/AIRFLOW_RELEASE_VERSION)
           docker push ghcr.io/masami10/airflow/airflow:latest
-
+      - name: Check If Product Tag
+        id: check-tag
+        run: |
+          if [[ ${{ github.event.ref }} =~ ^refs/tags/vc[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+              echo ::set-output name=match::true
+          fi
+      - name: push to cluster
+        if: steps.check-tag.outputs.match == 'true'
+        run: |
           echo ${{ secrets.TENCENT_PASS }} | docker login -u ${{ secrets.TENCENT_USER }} ccr.ccs.tencentyun.com --password-stdin
           docker tag ghcr.io/masami10/airflow/airflow:${GITHUB_REF##*/} ccr.ccs.tencentyun.com/dev-tke/airflow:${GITHUB_REF##*/}
           docker push ccr.ccs.tencentyun.com/dev-tke/airflow:${GITHUB_REF##*/}
-
       - name: deploy to cluster
+        if: steps.check-tag.outputs.match == 'true'
         run: |
           curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
           chmod +x kubectl && mkdir -p ~/.kube
