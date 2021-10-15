@@ -62,12 +62,6 @@ class ResponseFilter:
         self.data = data
 
     def filter(self, object_filter: Optional[dict] = None) -> list:
-        """
-        object_filter = {
-            'key': 'Sample',
-            'LastModified__gt': datetime.now()
-        }
-        """
         # if object_filter is None return all the Keys.
         if object_filter is None:
             result = []
@@ -82,21 +76,6 @@ class ResponseFilter:
         operation = namedtuple("Q", "op key value")
 
         def parse_filter(item) -> operation:
-            """
-            The item is expected to be a tuple with exactly two elements
-            >>> parse_filter(('LastModified__gt', datetime.strptime('2018-11-25T09:55:48+0000','%Y-%m-%dT%H:%M:%S%z')))
-            Q(op=<built-in function gt>, key='LastModified__gt', value=datetime.strptime('2018-11-25T09:55:48+0000','%Y-%m-%dT%H:%M:%S%z'))
-            >>> parse_filter(('Key', 'Sample'))
-            Q(op=<built-in function eq>, key='Key', value='Sample')
-            >>> parse_filter(('LastModified__bad', 'red'))
-            Traceback (most recent call last):
-             ...
-            AssertionError: 'bad' operation is not allowed
-            >>> parse_filter(('Name', 'red'))
-            Traceback (most recent call last):
-             ...
-            AssertionError: Key Name not found
-            """
             key, *op = item[0].split("__")
             # no value after __ means exact value query, e.g. key='Sample'
             op = "".join(op).strip() or "eq"
@@ -364,7 +343,7 @@ class S3Hook(AwsBaseHook):
         :param start_after_key: returns keys after this specified key in the bucket.
         :type start_after_key: str
         :param object_filter: returns keys based on object filter dict
-        :type object_filter: dict, for example: object_filter = {"LastModified__lt": datetime.now(),}
+        :type object_filter: dict
         :return: a list of matched keys
         :rtype: list
         """
