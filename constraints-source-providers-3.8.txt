@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2021-10-15T01:32:33Z
+# This constraints file was automatically generated on 2021-10-15T03:52:39Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package nd all available community provider packages.
@@ -74,7 +74,7 @@ azure-common==1.1.27
 azure-core==1.19.0
 azure-cosmos==4.2.0
 azure-datalake-store==0.0.52
-azure-identity==1.6.1
+azure-identity==1.7.0
 azure-keyvault-certificates==4.3.0
 azure-keyvault-keys==4.4.0
 azure-keyvault-secrets==4.3.0
@@ -100,9 +100,9 @@ beautifulsoup4==4.7.1
 billiard==3.6.4.0
 black==21.9b0
 blinker==1.4
-boto3==1.18.61
+boto3==1.18.62
 boto==2.49.0
-botocore==1.21.61
+botocore==1.21.62
 bowler==0.9.0
 cachetools==4.2.2
 cassandra-driver==3.25.0
