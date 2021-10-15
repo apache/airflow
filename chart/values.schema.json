@@ -1225,17 +1225,17 @@
                         "timeoutSeconds": {
                             "description": "Scheduler Liveness probe timeout seconds.",
                             "type": "integer",
-                            "default": 5
+                            "default": 10
                         },
                         "failureThreshold": {
                             "description": "Scheduler Liveness probe failure threshold.",
                             "type": "integer",
-                            "default": 10
+                            "default": 5
                         },
                         "periodSeconds": {
                             "description": "Scheduler Liveness probe period seconds.",
                             "type": "integer",
-                            "default": 30
+                            "default": 60
                         }
                     }
                 },
@@ -1483,17 +1483,17 @@
                         "timeoutSeconds": {
                             "description": "Triggerer Liveness probe timeout seconds.",
                             "type": "integer",
-                            "default": 5
+                            "default": 10
                         },
                         "failureThreshold": {
                             "description": "Triggerer Liveness probe failure threshold.",
                             "type": "integer",
-                            "default": 10
+                            "default": 5
                         },
                         "periodSeconds": {
                             "description": "Triggerer Liveness probe period seconds.",
                             "type": "integer",
-                            "default": 30
+                            "default": 60
                         }
                     }
                 },
