@@ -6,7 +6,7 @@ from .apis import AbstractAPI  # NOQA
 from .apps import AbstractApp  # NOQA
 from .decorators.produces import NoContent  # NOQA
 from .exceptions import ProblemException  # NOQA
-# add operation for backwards compatability
+# add operation for backwards compatibility
 from .operations import compat
 from .problem import problem  # NOQA
 from .resolver import Resolution, Resolver, RestyResolver  # NOQA

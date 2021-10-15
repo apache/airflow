@@ -275,7 +275,7 @@ function build_images::get_local_build_cache_hash() {
     local_image_build_cache_file="${AIRFLOW_SOURCES}/manifests/local-build-cache-hash-${PYTHON_MAJOR_MINOR_VERSION}"
     # Remove the container just in case
     docker_v rm --force "local-airflow-ci-container" 2>/dev/null >/dev/null
-    if ! docker_v inspect "${AIRFLOW_CI_IMAGE}" 2>/dev/null >/dev/null; then
+    if ! docker_v inspect "${AIRFLOW_CI_IMAGE_WITH_TAG}" 2>/dev/null >/dev/null; then
         verbosity::print_info
         verbosity::print_info "Local airflow CI image not available"
         verbosity::print_info
@@ -286,7 +286,7 @@ function build_images::get_local_build_cache_hash() {
         return
 
     fi
-    docker_v create --name "local-airflow-ci-container" "${AIRFLOW_CI_IMAGE}" 2>/dev/null >/dev/null
+    docker_v create --name "local-airflow-ci-container" "${AIRFLOW_CI_IMAGE_WITH_TAG}" 2>/dev/null >/dev/null
     docker_v cp "local-airflow-ci-container:/build-cache-hash" \
         "${local_image_build_cache_file}" 2>/dev/null ||
         touch "${local_image_build_cache_file}"
@@ -404,6 +404,11 @@ function build_images::get_docker_cache_image_names() {
     export AIRFLOW_CI_IMAGE="${image_name}/${BRANCH_NAME}/ci/python${PYTHON_MAJOR_MINOR_VERSION}"
 
     # Example:
+    #  ghcr.io/apache/airflow/main/ci/python3.8:latest
+    #  ghcr.io/apache/airflow/main/ci/python3.8:<COMMIT_SHA>
+    export AIRFLOW_CI_IMAGE_WITH_TAG="${image_name}/${BRANCH_NAME}/ci/python${PYTHON_MAJOR_MINOR_VERSION}:${GITHUB_REGISTRY_PULL_IMAGE_TAG}"
+
+    # Example:
     #  local-airflow-ci-manifest/main/python3.8
     export AIRFLOW_CI_LOCAL_MANIFEST_IMAGE="local-airflow-ci-manifest/${BRANCH_NAME}/python${PYTHON_MAJOR_MINOR_VERSION}"
 
@@ -459,6 +464,7 @@ function build_images::login_to_docker_registry() {
         else
             verbosity::print_info "Skip Login to GitHub Container Registry as token is missing"
         fi
+        start_end::group_end
     fi
 }
 

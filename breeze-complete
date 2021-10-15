@@ -102,6 +102,7 @@ end-of-file-fixer
 fix-encoding-pragma
 flake8
 flynt
+codespell
 forbid-tabs
 helm-lint
 identity

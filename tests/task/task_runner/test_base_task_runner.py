@@ -37,7 +37,7 @@ def test_config_copy_mode(tmp_configuration_copy, chown, subprocess_call, dag_ma
     ti = dr.task_instances[0]
     job = LocalTaskJob(ti)
     runner = BaseTaskRunner(job)
-    # So we don't try to delete it -- cos the file wont exist
+    # So we don't try to delete it -- cos the file won't exist
     del runner._cfg_path
 
     includes = bool(impersonation)

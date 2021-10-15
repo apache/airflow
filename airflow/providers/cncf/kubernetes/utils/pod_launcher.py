@@ -263,7 +263,7 @@ class PodLauncher(LoggingMixin):
             )
         except BaseHTTPError:
             self.log.exception('There was an error reading the kubernetes API.')
-            # Reraise to be catched by self.monitor_pod.
+            # Reraise to be caught by self.monitor_pod.
             raise
 
     @tenacity.retry(stop=tenacity.stop_after_attempt(3), wait=tenacity.wait_exponential(), reraise=True)

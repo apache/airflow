@@ -1916,7 +1916,7 @@ class TestTaskInstance:
             rtif_get_k8s_pod_yaml.assert_called_once_with(ti, session=session)
             render_k8s_pod_yaml.assert_not_called()
 
-            # Now test that when we _dont_ find it in the DB, it calles render_k8s_pod_yaml
+            # Now test that when we _dont_ find it in the DB, it calls render_k8s_pod_yaml
             rtif_get_k8s_pod_yaml.return_value = None
             render_k8s_pod_yaml.return_value = fake_spec
 

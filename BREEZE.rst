@@ -115,6 +115,12 @@ Docker in WSL 2
     E.g. Run ``cd ~`` and create a development folder in your Linux distro home
     and git pull the Airflow repo there.
 
+- **WSL 2 Docker mount errors**:
+    Another reason to use Linux filesystem, is that sometimes - depending on the length of
+    your path, you might get strange errors when you try start ``Breeze``, such us
+    ``caused: mount through procfd: not a directory: unknown:``. Therefore checking out
+    Airflow in Windows-mounted Filesystem is strongly discouraged.
+
 - **WSL 2 Memory Usage** :
     WSL 2 can consume a lot of memory under the process name "Vmmem". To reclaim the memory after
     development you can:
@@ -125,7 +131,7 @@ Docker in WSL 2
       * If no longer using WSL you can shut it down on the Windows Host
         with the following command: ``wsl --shutdown``
 
-- **Developing in WSL 2** :
+- **Developing in WSL 2**:
     You can use all the standard Linux command line utilities to develop on WSL 2.
     Further VS Code supports developing in Windows but remotely executing in WSL.
     If VS Code is installed on the Windows host system then in the WSL Linux Distro
@@ -2185,7 +2191,7 @@ This is the current syntax for  `./breeze <./breeze>`_:
                  check-executables-have-shebangs check-extras-order check-hooks-apply
                  check-integrations check-merge-conflict check-xml daysago-import-check
                  debug-statements detect-private-key doctoc dont-use-safe-filter end-of-file-fixer
-                 fix-encoding-pragma flake8 flynt forbid-tabs helm-lint identity
+                 fix-encoding-pragma flake8 flynt codespell forbid-tabs helm-lint identity
                  incorrect-use-of-LoggingMixin insert-license isort json-schema language-matters
                  lint-dockerfile lint-openapi markdownlint mermaid mixed-line-ending mypy mypy-helm
                  no-providers-in-core-examples no-relative-imports pre-commit-descriptions

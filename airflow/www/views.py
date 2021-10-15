@@ -82,7 +82,7 @@ from pendulum.datetime import DateTime
 from pendulum.parsing.exceptions import ParserError
 from pygments import highlight, lexers
 from pygments.formatters import HtmlFormatter
-from sqlalchemy import Date, and_, desc, func, union_all
+from sqlalchemy import Date, and_, desc, func, inspect, union_all
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import joinedload
 from wtforms import SelectField, validators
@@ -692,10 +692,21 @@ class Airflow(AirflowBaseView):
             fm for fm in settings.DASHBOARD_UIALERTS if fm.should_show(current_app.appbuilder.sm)
         ]
 
+        def _iter_parsed_moved_data_table_names():
+            for table_name in inspect(session.get_bind()).get_table_names():
+                segments = table_name.split("__", 2)
+                if len(segments) < 3:
+                    continue
+                if segments[0] != settings.AIRFLOW_MOVED_TABLE_PREFIX:
+                    continue
+                # Second segment is a version marker that we don't need to show.
+                yield segments[2], table_name
+
         return self.render_template(
             'airflow/dags.html',
             dags=dags,
             dashboard_alerts=dashboard_alerts,
+            migration_moved_data_alerts=sorted(set(_iter_parsed_moved_data_table_names())),
             current_page=current_page,
             search_query=arg_search_query if arg_search_query else '',
             page_title=page_title,

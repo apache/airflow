@@ -938,7 +938,7 @@ function initialization::check_docker_version() {
     docker_version=$(docker version --format '{{.Client.Version}}' | sed 's/\+.*$//' || true)
     if [ "${docker_version}" == "" ]; then
         echo
-        echo "${COLOR_YELLOW}Your version of docker is unknown. If the scripts faill, please make sure to install docker at least: ${min_docker_version} version.${COLOR_RESET}"
+        echo "${COLOR_YELLOW}Your version of docker is unknown. If the scripts fail, please make sure to install docker at least: ${min_docker_version} version.${COLOR_RESET}"
         echo
         return
     fi

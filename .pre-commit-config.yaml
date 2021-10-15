@@ -258,6 +258,18 @@ repos:
         exclude: |
           (?x)
           ^airflow/_vendor/
+  - repo: https://github.com/codespell-project/codespell
+    rev: v2.1.0
+    hooks:
+      - id: codespell
+        name: Run codespell to check for common misspellings in files
+        entry: codespell
+        language: python
+        types: [text]
+        exclude: ^airflow/_vendor/|^CHANGELOG.txt|^airflow/www/static/css/material-icons.css
+        args:
+          - --ignore-words=docs/spelling_wordlist.txt
+          - --skip=docs/*/commits.rst,airflow/providers/*/*.rst,*.lock,INTHEWILD.md,*.min.js,docs/apache-airflow/pipeline_example.csv
   - repo: local
     hooks:
       - id: lint-openapi
