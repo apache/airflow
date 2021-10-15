@@ -26,7 +26,10 @@ from google.cloud import storage
 
 from airflow import version
 from airflow.providers.google.cloud.utils.credentials_provider import get_credentials_and_project_id
-from airflow.utils.log.remote_file_task_handler import RemoteFileTaskHandler
+try:
+    from airflow.utils.log.remote_file_task_handler import RemoteFileTaskHandler
+except ImportError:
+    from airflow.providers.google.cloud.log.remote_file_task_handler import RemoteFileTaskHandler
 
 _DEFAULT_SCOPESS = frozenset(
     [

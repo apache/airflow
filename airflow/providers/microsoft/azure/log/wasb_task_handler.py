@@ -24,7 +24,10 @@ except ImportError:
     from cached_property import cached_property
 
 from airflow.configuration import conf
-from airflow.utils.log.remote_file_task_handler import RemoteFileTaskHandler
+try:
+    from airflow.utils.log.remote_file_task_handler import RemoteFileTaskHandler
+except ImportError:
+    from airflow.providers.microsoft.azure.log.remote_file_task_handler import RemoteFileTaskHandler
 
 
 class WasbTaskHandler(RemoteFileTaskHandler):
