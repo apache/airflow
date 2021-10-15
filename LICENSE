@@ -239,6 +239,11 @@ The text of each license is also included at licenses/LICENSE-[project].txt.
     (MIT License) MomentJS v2.24.0 (http://momentjs.com/)
     (MIT License) moment-strftime v0.5.0 (https://github.com/benjaminoakes/moment-strftime)
     (MIT License) eonasdan-bootstrap-datetimepicker v4.17.49 (https://github.com/eonasdan/bootstrap-datetimepicker/)
+    (MIT License) react v17.0.2 (https://github.com/facebook/react)
+    (MIT License) chakra-ui v1.6.6 (https://github.com/chakra-ui/chakra-ui/)
+    (MIT License) emotion v11.4.0 (https://github.com/emotion-js/emotion)
+    (MIT License) camelcase-keys v7.0.0 (https://github.com/sindresorhus/camelcase-keys)
+    (MIT License) framer-motion v4.0.0 (https://github.com/framer/motion)
 
 ========================================================================
 BSD 3-Clause licenses
