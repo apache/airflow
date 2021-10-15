@@ -80,7 +80,7 @@ class TestDockerSwarmOperator(unittest.TestCase):
             restart_policy=mock_obj,
             resources=mock_obj,
             networks=["dummy_network"],
-            placement=types.Placement(constraints=["node.labels.region==east"])
+            placement=types.Placement(constraints=["node.labels.region==east"]),
         )
         types_mock.ContainerSpec.assert_called_once_with(
             image='ubuntu:latest',
