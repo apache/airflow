@@ -27,7 +27,6 @@ Create Date: 2021-10-15 13:33:04.754052
 import sqlalchemy as sa
 from alembic import op
 
-
 # revision identifiers, used by Alembic.
 revision = '786e3737b18f'
 down_revision = '7b2661a43ba3'
@@ -41,9 +40,7 @@ def upgrade():
         batch_op.add_column(sa.Column('timetable_description', sa.String(length=1000), nullable=True))
 
 
-
 def downgrade():
     """Unapply Added timetable description column"""
     with op.batch_alter_table('dag', schema=None) as batch_op:
         batch_op.drop_column('timetable_description')
-

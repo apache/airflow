@@ -24,14 +24,13 @@ from dateutil.relativedelta import relativedelta
 from pendulum import DateTime
 from pendulum.tz.timezone import Timezone
 
+from airflow.compat.functools import cached_property
 from airflow.exceptions import AirflowTimetableInvalid
-from airflow.timetables.base import DataInterval
+from airflow.timetables.base import DagRunInfo, DataInterval, TimeRestriction, Timetable
 from airflow.utils.dates import cron_presets
 from airflow.utils.timezone import convert_to_utc, make_aware, make_naive
 
 Delta = Union[datetime.timedelta, relativedelta]
-from airflow.compat.functools import cached_property
-from airflow.timetables.base import DagRunInfo, TimeRestriction, Timetable
 
 
 class _DataIntervalTimetable(Timetable):
@@ -126,7 +125,9 @@ class CronDataIntervalTimetable(_DataIntervalTimetable):
         self._expression = cron_presets.get(cron, cron)
         self._timezone = timezone
 
-        descriptor = ExpressionDescriptor(expression=self._expression,casing_type=CasingTypeEnum.Sentence,use_24hour_time_format=True)
+        descriptor = ExpressionDescriptor(
+            expression=self._expression, casing_type=CasingTypeEnum.Sentence, use_24hour_time_format=True
+        )
         try:
             interval_description = descriptor.get_description()
         except (FormatException, MissingFieldException):
@@ -229,7 +230,6 @@ class CronDataIntervalTimetable(_DataIntervalTimetable):
         # run at 1am 25th is between 0am 24th and 0am 25th.
         end = self._get_prev(self._align(run_after))
         return DataInterval(start=self._get_prev(end), end=end)
-
 
 
 class DeltaDataIntervalTimetable(_DataIntervalTimetable):

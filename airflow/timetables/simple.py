@@ -75,6 +75,7 @@ class OnceTimetable(_TrivialTimetable):
 
     This corresponds to ``schedule_interval="@once"``.
     """
+
     def __init__(self) -> None:
         self.description = "Once, as soon as possible"
 

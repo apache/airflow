@@ -18,6 +18,7 @@
 from typing import Any, Dict, NamedTuple, Optional
 
 from pendulum import DateTime
+
 from airflow.typing_compat import Protocol
 
 
@@ -104,8 +105,8 @@ class Timetable(Protocol):
 
     description: Optional[str] = None
     """Describes the timetable interval,
-    eg. for  CronDataIntervalTimetable ``'30 21 * * 5'``, description could be like ``'At 21:30, only on Friday'``.
-    This is used in the web UI.
+    eg. for  CronDataIntervalTimetable ``'30 21 * * 5'``,
+    description could be like ``'At 21:30, only on Friday'``, This is used in the webserver UI.
     """
 
     periodic: bool = True
