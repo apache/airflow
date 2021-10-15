@@ -44,6 +44,7 @@ def send_email(
     mime_subtype: str = 'mixed',
     mime_charset: str = 'utf-8',
     conn_id: Optional[str] = None,
+    custom_headers: Optional[Dict[str, Any]] = None,
     **kwargs,
 ):
     """Send email using backend specified in EMAIL_BACKEND."""
@@ -63,6 +64,7 @@ def send_email(
         mime_subtype=mime_subtype,
         mime_charset=mime_charset,
         conn_id=backend_conn_id,
+        custom_headers=custom_headers,
         **kwargs,
     )
 
@@ -78,6 +80,7 @@ def send_email_smtp(
     mime_subtype: str = 'mixed',
     mime_charset: str = 'utf-8',
     conn_id: str = "smtp_default",
+    custom_headers: Optional[Dict[str, Any]] = None,
     **kwargs,
 ):
     """
@@ -97,6 +100,7 @@ def send_email_smtp(
         bcc=bcc,
         mime_subtype=mime_subtype,
         mime_charset=mime_charset,
+        custom_headers=custom_headers
     )
 
     send_mime_email(e_from=smtp_mail_from, e_to=recipients, mime_msg=msg, conn_id=conn_id, dryrun=dryrun)
