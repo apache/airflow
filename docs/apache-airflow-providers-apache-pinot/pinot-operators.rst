@@ -15,125 +15,63 @@
     specific language governing permissions and limitations
     under the License.
 
-Guide for Apache Pinot Operators
-=================================
- 
+``airflow.providers.apache.pinot.hooks.pinot``
+==============================================
 
-`Apache Pinot <https://pinot.apache.org/>`__ is a column-oriented, open-source,
-distributed data store written in Java. Pinot is designed to execute OLAP queries
-with low latency. It is suited in contexts where fast analytics, such as aggregations,
-are needed on immutable data, possibly, with real-time data ingestion.
-.. _howto/operator:PinotCoreOperators.html:
+Content
+-------
 
-
-Transform Operator
+Apache Pinot Hooks
 ==================
-The transform operator modifies your input records, or transfers them unchanged, 
-guided by the logic of the transformation expression you supply.
+ 
+`Apache Pinot <https://pinot.apache.org/>`__ is a column-oriented, open-source,distributed data store written in Java. Pinot is designed to execute OLAP querieswith low latency. It is suited in contexts where fast analytics, such as aggregations,are needed on immutable data, possibly, with real-time data ingestion.
 
-Using the transform operator
-============================
-``https://www.tabnine.com/code/java/packages/org.apache.pinot.core.operator.transform``
+Prerequisite
+------------
 
-The `TransformOperator` is the constructor for the class.
+To use Pinot hooks, you must configure :doc:`Pinot Connection <connections/pinot>`.
 
-`AdditionTransformFunction.init(...)`
+.. _howto/operator:PinotHooks:
 
-@Override
-public void init(@Nonnull List<TransformFunction> arguments, @Nonnull Map<String, DataSource> dataSourceMap) {
-// Check that there are more than 1 arguments
-if (arguments.size() < 2) {
-throw new IllegalArgumentException("At least 2 arguments are required for ADD transform function");
-}
-for (TransformFunction argument : arguments) {
-if (argument instanceof LiteralTransformFunction) {
-_literalSum += Double.parseDouble(((LiteralTransformFunction) argument).getLiteral());
-} else {
-if (!argument.getResultMetadata().isSingleValue()) {
-throw new IllegalArgumentException("All the arguments of ADD transform function must be single-valued");
-}
-_transformFunctions.add(argument);
-}
-}
-}
+PinotAdminHook
+--------------
 
+This hook is a wrapper around the pinot-admin.sh script. For now, only small subset of its subcommands are implemented, which are required to ingest offline data into Apache Pinot (i.e., AddSchema, AddTable, CreateSegment, and UploadSegment). Their command options are based on Pinot v0.1.0.
 
-Using the DocIdSetOperator
-============================
-``https://www.tabnine.com/code/java/methods/org.apache.pinot.core.operator.DocIdSetOperator/%3Cinit%3E``
-`DocIdSetPlanNode.run()`
+Parameters
+----------
 
-@Override
-public DocIdSetOperator run() {
-return new DocIdSetOperator(_filterPlanNode.run(), _maxDocPerCall);
-}
+For parameter definition, take a look at :class:`~airflow.providers.apache.pinot.hooks.pinot.PinotAdminHook`
 
-Using the NextBlockOperator
-============================
-``https://www.tabnine.com/code/java/methods/org.apache.pinot.core.operator.ProjectionOperator/nextBlock``
-   `.getNextBlock()method`
-   
-@Override
-protected TransformBlock getNextBlock() {
-ProjectionBlock projectionBlock = _projectionOperator.nextBlock();
-if (projectionBlock == null) {
-return null;
-} else {
-return new TransformBlock(projectionBlock, _transformFunctionMap);
-}
-}
+.. exampleinclude:: /../../airflow/providers/apache/pinot/example_dags/example_pinot_dag.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_pinot_admin_hook]
+    :end-before: [END howto_operator_pinot_admin_hook]
 
+Reference
+^^^^^^^^^
+For more information,please see the documentation at `Apache Pinot improvements for PinotAdminHook<https://github.com/apache/incubator-pinot/pull/4110>`
 
-Using the ProjectionOperator
-============================
-``https://www.tabnine.com/code/java/classes/org.apache.pinot.core.operator.ProjectionOperator``
-`StarTreeProjectionPlanNode.run()`
+PinotDbApiHook
+--------------
 
-@Override
-public ProjectionOperator run() {
-return new ProjectionOperator(_dataSourceMap, _starTreeDocIdSetPlanNode.run());
-}
+This hook uses standard-SQL endpoint since PQL endpoint is soon to be deprecated. 
 
+Parameters
+----------
 
-Using the TransformFunctionFactory Operator
-===========================================
-``https://www.tabnine.com/code/java/classes/org.apache.pinot.core.operator.transform.function.TransformFunctionFactory``
-`TransformFunctionFactory.get()`
+For parameter definition, take a look at :class:`~classairflow.providers.apache.pinot.hooks.pinot.PinotDbApiHook`
 
+.. exampleinclude:: /../../airflow/providers/apache/pinot/example_dags/example_pinot_dag.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_pinot_dbapi_example]
+    :end-before: [END howto_operator_pinot_dbapi_example]
 
- * Constructor for the class
- *
- * @param projectionOperator Projection operator
- * @param expressions Set of expressions to evaluate 
+Reference
+^^^^^^^^^
 
-public TransformOperator(@Nonnull ProjectionOperator projectionOperator,
-  @Nonnull Set<TransformExpressionTree> expressions) {
-projectionOperator = projectionOperator;
- _dataSourceMap = projectionOperator.getDataSourceMap();
- for (TransformExpressionTree expression : expressions) {
-TransformFunction transformFunction = TransformFunctionFactory.get(expression, _dataSourceMap);
-  _transformFunctionMap.put(expression, transformFunction);
+For more information, please see the documentation at `Pinot documentation on querrying data <https://docs.pinot.apache.org/users/api/querying-pinot-using-standard-sql>`
 
-}
-
-Using the getNumeEntriesScannedInFilter Operator
-================================================
-
-``https://www.tabnine.com/code/java/methods/org.apache.pinot.core.operator.ExecutionStatistics/getNumEntriesScannedInFilter``
-
-`QueriesTestUtils.testInnerSegmentExecutionStatistics(...)`
-
-public static void testInnerSegmentExecutionStatistics(ExecutionStatistics executionStatistics,
-long expectedNumDocsScanned, long expectedNumEntriesScannedInFilter, long expectedNumEntriesScannedPostFilter,
-long expectedNumTotalRawDocs) {
-Assert.assertEquals(executionStatistics.getNumDocsScanned(), expectedNumDocsScanned);
-Assert.assertEquals(executionStatistics.getNumEntriesScannedInFilter(), expectedNumEntriesScannedInFilter);
-Assert.assertEquals(executionStatistics.getNumEntriesScannedPostFilter(), expectedNumEntriesScannedPostFilter);
-Assert.assertEquals(executionStatistics.getNumTotalRawDocs(), expectedNumTotalRawDocs);
-}
-
-
-For further information look at: 
-* `https://www.tabnine.com/code/query/%22org.apache.pinot.core.operator%22`
-  
 
