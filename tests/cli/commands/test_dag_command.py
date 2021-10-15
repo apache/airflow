@@ -158,6 +158,16 @@ class TestCliDags(unittest.TestCase):
         )
         mock_run.reset_mock()
 
+    @mock.patch("airflow.cli.commands.dag_command.get_dag")
+    def test_backfill_fails_without_loading_dags(self, mock_get_dag):
+
+        cli_args = self.parser.parse_args(['dags', 'backfill', 'example_bash_operator'])
+
+        with pytest.raises(AirflowException):
+            dag_command.dag_backfill(cli_args)
+
+        mock_get_dag.assert_not_called()
+
     def test_show_dag_print(self):
         with contextlib.redirect_stdout(io.StringIO()) as temp_stdout:
             dag_command.dag_show(self.parser.parse_args(['dags', 'show', 'example_bash_operator']))
