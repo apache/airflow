@@ -185,7 +185,7 @@ Adding DAG and Tasks documentation
 We can add documentation for DAG or each single task. DAG documentation only supports
 markdown so far, while task documentation supports plain text, markdown, reStructuredText,
 json, and yaml. The DAG documentation can be written as a doc string at the beginning 
-of the DAG file (recommended), or anywhere else in the file. Below you can find some examples 
+of the DAG file (recommended), or anywhere else in the file. Below you can find some examples
 on how to implement task and DAG docs, as well as screenshots:
 
 .. exampleinclude:: /../../airflow/example_dags/tutorial.py
