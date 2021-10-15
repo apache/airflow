@@ -18,8 +18,6 @@
 from typing import Any, Dict, NamedTuple, Optional
 
 from pendulum import DateTime
-
-from airflow.compat.functools import cached_property
 from airflow.typing_compat import Protocol
 
 
