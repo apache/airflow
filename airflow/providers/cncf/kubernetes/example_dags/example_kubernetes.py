@@ -57,7 +57,7 @@ init_environments = [k8s.V1EnvVar(name='key1', value='value1'), k8s.V1EnvVar(nam
 init_container = k8s.V1Container(
     name="init-container",
     image="ubuntu:16.04",
-    env=init_environments,
+    env_vars=init_environments,
     volume_mounts=init_container_volume_mounts,
     command=["bash", "-cx"],
     args=["echo 10"],
