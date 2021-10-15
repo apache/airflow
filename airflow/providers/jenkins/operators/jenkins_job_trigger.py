@@ -130,11 +130,6 @@ class JenkinsJobTriggerOperator(BaseOperator):
         :return: Dict containing the response body (key body)
             and the headers coming along (headers)
         """
-        # Since params can be either JSON string, dictionary, or list,
-        # check type and pass to build_job_url
-        if params and isinstance(params, str):
-            params = ast.literal_eval(params)
-
         request = Request(method='POST', url=jenkins_server.build_job_url(self.job_name, params, None))
         return jenkins_request_with_headers(jenkins_server, request)
 
