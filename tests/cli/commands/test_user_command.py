@@ -407,29 +407,37 @@ class TestCliUsers:
     @pytest.mark.parametrize(
         "user, message",
         [
-            [{
-                "username": "imported_user1",
-                "lastname": "doe1",
-                "firstname": "jon",
-                "email": TEST_USER1_EMAIL,
-                "roles": "This is not a list",
-            },
-                'Error: Incorrect list of roles specified for user "imported_user1"'],
-            [{
-                "username": "imported_user2",
-                "lastname": "doe2",
-                "firstname": "jon",
-                "email": TEST_USER2_EMAIL,
-                "roles": [],
-            }, 'Error: User "imported_user2" must have at lest one role'],
-            [{
-                "username": "imported_user3",
-                "lastname": "doe3",
-                "firstname": "jon",
-                "email": TEST_USER2_EMAIL,
-            }, 'Error: "roles" is a required field, but was not specified'],
+            [
+                {
+                    "username": "imported_user1",
+                    "lastname": "doe1",
+                    "firstname": "john",
+                    "email": TEST_USER1_EMAIL,
+                    "roles": "This is not a list",
+                },
+                'Error: Incorrect list of roles specified for user "imported_user1"',
+            ],
+            [
+                {
+                    "username": "imported_user2",
+                    "lastname": "doe2",
+                    "firstname": "jon",
+                    "email": TEST_USER2_EMAIL,
+                    "roles": [],
+                },
+                'Error: User "imported_user2" must have at lest one role',
+            ],
+            [
+                {
+                    "username": "imported_user3",
+                    "lastname": "doe3",
+                    "firstname": "jon",
+                    "email": TEST_USER2_EMAIL,
+                },
+                'Error: "roles" is a required field, but was not specified',
+            ],
         ],
-        ids=["Incorrect roles argument", "Empty roles", "Roles is missing"]
+        ids=["Incorrect roles argument", "Empty roles", "Roles is missing"],
     )
     def test_cli_import_users_exceptions(self, user, message):
         with pytest.raises(SystemExit, match=message):

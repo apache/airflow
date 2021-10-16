@@ -1,4 +1,4 @@
-    # Licensed to the Apache Software Foundation (ASF) under one
+# Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
 # regarding copyright ownership.  The ASF licenses this file
@@ -187,10 +187,10 @@ def _import_users(users_list_: List[Dict[str, Any]]):
                 raise SystemExit(f'Error: "{field}" is a required field, but was not specified')
 
         if not isinstance(user['roles'], list):
-            raise SystemExit('Error: Incorrect list of roles specified for user "{}"'.format(user['username']))
+            raise SystemExit(f"Error: Incorrect list of roles specified for user \"{user['username']}\"")
 
         if not user['roles']:
-            raise SystemExit('Error: User "{}" must have at lest one role'.format(user['username']))
+            raise SystemExit(f"Error: User \"{user['username']}\" must have at lest one role")
 
         roles = []
         for rolename in user['roles']:
