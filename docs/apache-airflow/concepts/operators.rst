@@ -16,7 +16,7 @@
     under the License.
 
 Operators
-==========
+=========
 
 An Operator is conceptually a template for a predefined :doc:`Task <tasks>`, that you can just define declaratively inside your DAG::
 
