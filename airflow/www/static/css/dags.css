@@ -29,12 +29,19 @@
 }
 
 .dags-table-body {
-  margin: 0 1px;
   overflow-x: auto;
 
   /* This allows small dropdowns to overlap the table element */
   padding-bottom: 55px;
-  margin-bottom: -55px;
+  margin: 0 15px -55px;
+}
+
+.home-row {
+  margin: 5px;
+}
+
+.home-row .col-sm-6{
+  bottom: 10px;
 }
 
 .dags-table-more {
