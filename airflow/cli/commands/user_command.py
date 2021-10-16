@@ -1,4 +1,4 @@
-# Licensed to the Apache Software Foundation (ASF) under one
+    # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
 # regarding copyright ownership.  The ASF licenses this file
@@ -22,6 +22,7 @@ import os
 import random
 import re
 import string
+from typing import Any, Dict, List
 
 from airflow.cli.simple_table import AirflowConsole
 from airflow.utils import cli as cli_utils
@@ -174,7 +175,7 @@ def users_import(args):
         print("Updated the following users:\n\t{}".format("\n\t".join(users_updated)))
 
 
-def _import_users(users_list_):
+def _import_users(users_list_: List[Dict[str, Any]]):
     appbuilder = cached_app().appbuilder
     users_created = []
     users_updated = []
@@ -183,9 +184,12 @@ def _import_users(users_list_):
         required_fields = ['username', 'firstname', 'lastname', 'email', 'roles']
         for field in required_fields:
             if field not in user:
-                raise SystemExit(f"Error: '{field}' is a required field, but was not specified")
+                raise SystemExit(f'Error: "{field}" is a required field, but was not specified')
 
-        if isinstance(user['roles'], list) and not user['roles']:
+        if not isinstance(user['roles'], list):
+            raise SystemExit('Error: Incorrect list of roles specified for user "{}"'.format(user['username']))
+
+        if not user['roles']:
             raise SystemExit('Error: User "{}" must have at lest one role'.format(user['username']))
 
         roles = []
@@ -196,11 +200,6 @@ def _import_users(users_list_):
                 raise SystemExit(f'Error: "{rolename}" is not a valid role. Valid roles are: {valid_roles}')
 
             roles.append(role)
-
-        required_fields = ['username', 'firstname', 'lastname', 'email', 'roles']
-        for field in required_fields:
-            if not user.get(field):
-                raise SystemExit(f"Error: '{field}' is a required field, but was not specified")
 
         existing_user = appbuilder.sm.find_user(email=user['email'])
         if existing_user:

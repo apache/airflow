@@ -110,6 +110,11 @@ def delete_user(app, username):
             break
 
 
+def delete_users(app):
+    for user in app.appbuilder.sm.get_all_users():
+        delete_user(app, user.username)
+
+
 def assert_401(response):
     assert response.status_code == 401, f"Current code: {response.status_code}"
     assert response.json == {
