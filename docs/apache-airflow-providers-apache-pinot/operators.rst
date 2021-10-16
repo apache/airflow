@@ -55,7 +55,7 @@ For more information,please see the documentation at `Apache Pinot improvements 
 PinotDbApiHook
 --------------
 
-This hook uses standard-SQL endpoint since PQL endpoint is soon to be deprecated. 
+This hook uses standard-SQL endpoint. PQL endpoint is removed in updated versions of pinotdb library. For more information see `library documentation  <https://docs.pinot.apache.org/users/clients/python>`
 
 Parameters
 ----------
