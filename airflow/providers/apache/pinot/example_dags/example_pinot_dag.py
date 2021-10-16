@@ -34,11 +34,11 @@ with DAG(
         task_id="run_example_pinot_script",
         pinot="ls /;",
         pinot_options="-x local",
-        dag=dag,
+   
 )
     # [END howto_operator_pinot_admin_hook]
 
-    # [START howto_operator_pinot_dbapi_hook]
+    # [START howto_operator_pinot_dbapi_example]
     
     run_this = PinotDbApiHook(
         task_id="run_example_pinot_script",
@@ -46,4 +46,4 @@ with DAG(
         pinot_options="-x local",
         dag=dag,
     ) 
-     # [END howto_operator_pinot_dbapi_hook]
+     # [END howto_operator_pinot_dbapi_example]

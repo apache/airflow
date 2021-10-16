@@ -29,7 +29,7 @@ Apache Pinot Hooks
 Prerequisite
 ------------
 
-To use Pinot hooks, you must configure :doc:`Pinot Connection <connections/pinot>`.
+.. To use Pinot hooks, you must configure :doc:`Pinot Connection <connections/pinot>`.
 
 .. _howto/operator:PinotHooks:
 
@@ -45,7 +45,6 @@ For parameter definition, take a look at :class:`~airflow.providers.apache.pinot
 
 .. exampleinclude:: /../../airflow/providers/apache/pinot/example_dags/example_pinot_dag.py
     :language: python
-    :dedent: 4
     :start-after: [START howto_operator_pinot_admin_hook]
     :end-before: [END howto_operator_pinot_admin_hook]
 
@@ -65,7 +64,6 @@ For parameter definition, take a look at :class:`~classairflow.providers.apache.
 
 .. exampleinclude:: /../../airflow/providers/apache/pinot/example_dags/example_pinot_dag.py
     :language: python
-    :dedent: 4
     :start-after: [START howto_operator_pinot_dbapi_example]
     :end-before: [END howto_operator_pinot_dbapi_example]
 
