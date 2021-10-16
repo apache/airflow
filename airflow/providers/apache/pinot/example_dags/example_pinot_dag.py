@@ -18,8 +18,7 @@
 """Example DAG demonstrating the usage of the PinotAdminHook and PinotDbApiHook."""
 
 from airflow import DAG
-from airflow.providers.apache.pinot.hooks.pinot import PinotAdminHook
-from airflow.providers.apache.pinot.hooks.pinot import PinotDbApiHook
+from airflow.providers.apache.pinot.hooks.pinot import PinotAdminHook, PinotDbApiHook
 from airflow.utils.dates import days_ago
 
 with DAG(
