@@ -104,6 +104,11 @@ class TestCloudwatchTaskHandler(unittest.TestCase):
         self.cloudwatch_task_handler.set_context(self.ti)
         assert isinstance(self.cloudwatch_task_handler.handler, CloudWatchLogHandler)
 
+    def test_create_log_stream(self):
+        handler = self.cloudwatch_task_handler
+        handler.set_context(self.ti)
+        assert handler.handler.create_log_stream is True
+
     def test_write(self):
         handler = self.cloudwatch_task_handler
         handler.set_context(self.ti)

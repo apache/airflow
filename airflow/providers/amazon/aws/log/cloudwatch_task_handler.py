@@ -43,9 +43,20 @@ class CloudwatchTaskHandler(FileTaskHandler, LoggingMixin):
     :type log_group_arn: str
     :param filename_template: template for file name (local storage) or log stream name (remote)
     :type filename_template: str
+    :param create_log_group: whether to create Cloudwatch log group
+    :type create_log_group: bool
+    :param create_log_stream: whether to create Cloudwatch log stream
+    :type create_log_stream: bool
     """
 
-    def __init__(self, base_log_folder: str, log_group_arn: str, filename_template: str):
+    def __init__(
+        self,
+        base_log_folder: str,
+        log_group_arn: str,
+        filename_template: str,
+        create_log_group: bool = True,
+        create_log_stream: bool = True,
+    ):
         super().__init__(base_log_folder, filename_template)
         split_arn = log_group_arn.split(':')
 
@@ -53,6 +64,8 @@ class CloudwatchTaskHandler(FileTaskHandler, LoggingMixin):
         self.log_group = split_arn[6]
         self.region_name = split_arn[3]
         self.closed = False
+        self.create_log_group = create_log_group
+        self.create_log_stream = create_log_stream
 
     @cached_property
     def hook(self):
@@ -82,6 +95,8 @@ class CloudwatchTaskHandler(FileTaskHandler, LoggingMixin):
             log_group=self.log_group,
             stream_name=self._render_filename(ti, ti.try_number),
             boto3_session=self.hook.get_session(self.region_name),
+            create_log_group=self.create_log_group,
+            create_log_stream=self.create_log_stream,
         )
 
     def close(self):
