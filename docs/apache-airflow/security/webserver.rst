@@ -234,6 +234,8 @@ webserver_config.py itself if you wish.
                 f"User info from Github: {user_data}\n" f"Team info from Github: {teams}"
             )
             return {"username": "github_" + user_data.get("login"), "role_keys": roles}
+            
+    SECURITY_MANAGER_CLASS = GithubTeamAuthorizer
 
 
 SSL
