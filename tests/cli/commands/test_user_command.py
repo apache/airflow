@@ -28,6 +28,7 @@ from tests.test_utils.api_connexion_utils import delete_users
 
 TEST_USER1_EMAIL = 'test-user1@example.com'
 TEST_USER2_EMAIL = 'test-user2@example.com'
+TEST_USER3_EMAIL = 'test-user3@example.com'
 
 
 def _does_user_belong_to_role(appbuilder, email, rolename):
@@ -432,7 +433,7 @@ class TestCliUsers:
                     "username": "imported_user3",
                     "lastname": "doe3",
                     "firstname": "jon",
-                    "email": TEST_USER2_EMAIL,
+                    "email": TEST_USER3_EMAIL,
                 },
                 'Error: "roles" is a required field, but was not specified',
             ],
