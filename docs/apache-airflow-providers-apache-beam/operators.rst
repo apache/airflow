@@ -76,7 +76,6 @@ Python Pipelines with DataflowRunner
     :start-after: [START howto_operator_start_python_dataflow_runner_pipeline_async_gcs_file]
     :end-before: [END howto_operator_start_python_dataflow_runner_pipeline_async_gcs_file]
 
-
 .. _howto/operator:BeamRunJavaPipelineOperator:
 
 Run Java Pipelines in Apache Beam
