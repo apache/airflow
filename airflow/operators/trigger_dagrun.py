@@ -153,7 +153,7 @@ class TriggerDagRunOperator(BaseOperator):
                 dag_bag = DagBag(dag_folder=dag_model.fileloc, read_dags_from_db=True)
                 dag = dag_bag.get_dag(self.trigger_dag_id)
                 dag.clear(start_date=self.execution_date, end_date=self.execution_date)
-                dag_run = DagRun.find(dag_id=dag.dag_id, execution_date=execution_date)[0]
+                dag_run = DagRun.find(dag_id=dag.dag_id, execution_date=self.execution_date)[0]
             else:
                 raise e
 
