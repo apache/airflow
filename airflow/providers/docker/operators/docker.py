@@ -304,21 +304,24 @@ class DockerOperator(BaseOperator):
             working_dir=self.working_dir,
             tty=self.tty,
         )
-        lines = self.cli.attach(container=self.container['Id'], stdout=True, stderr=True, stream=True)
+        logstream = self.cli.attach(container=self.container['Id'], stdout=True, stderr=True, stream=True)
         try:
             self.cli.start(self.container['Id'])
 
-            line = ''
+            log_chunk = ''
             res_lines = []
             return_value = None
-            for line in lines:
-                if hasattr(line, 'decode'):
-                    # Note that lines returned can also be byte sequences so we have to handle decode here
-                    line = line.decode('utf-8')
-                line = line.strip()
-                res_lines.append(line)
-                self.log.info(line)
+            for log_chunk in logstream:
+                if hasattr(log_chunk, 'decode'):
+                    # Note that log_chunk returned can also be byte sequences so we have to handle decode here
+                    log_chunk = log_chunk.decode('utf-8')
+                log_chunk = log_chunk.strip()
+                res_lines.append(log_chunk)
+                self.log.info(log_chunk)
             result = self.cli.wait(self.container['Id'])
+            # after container has exited, grab the entire log ignoring the chunked log stream that was used with attach
+            # self.cli.logs uses docker's /containers/{id}/logs, while self.cli.attach uses /containers/{id}/attach
+            lines = self.cli.logs(container=self.container['Id'], stdout=True, stderr=True, stream=True)
             if result['StatusCode'] != 0:
                 res_lines = "\n".join(res_lines)
                 raise AirflowException('docker container failed: ' + repr(result) + f"lines {res_lines}")
@@ -328,7 +331,7 @@ class DockerOperator(BaseOperator):
             if self.retrieve_output:
                 ret = return_value
             elif self.do_xcom_push:
-                ret = self._get_return_value_from_logs(res_lines, line)
+                ret = self._get_return_value_from_logs(lines, lines[-1])
             return ret
         finally:
             if self.auto_remove:
