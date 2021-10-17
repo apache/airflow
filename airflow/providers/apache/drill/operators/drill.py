@@ -62,4 +62,12 @@ class DrillOperator(BaseOperator):
     def execute(self, context):
         self.log.info('Executing: %s on %s', self.sql, self.drill_conn_id)
         self.hook = DrillHook(drill_conn_id=self.drill_conn_id)
-        self.hook.run(self.sql, parameters=self.parameters)
+        try:
+            getattr(self.hook, "_split_sql_statements")
+            self.hook.run(self.sql, parameters=self.parameters)
+        except AttributeError:
+            import sqlparse
+
+            sql = sqlparse.split(sqlparse.format(self.sql, strip_comments=True))
+            no_term_sql = [s[:-1] for s in sql if s[-1] == ';']
+            self.hook.run(no_term_sql, parameters=self.parameters)
