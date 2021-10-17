@@ -71,7 +71,9 @@ def _trigger_dag(
     dag_run = DagRun.find(dag_id=dag_id, execution_date=execution_date)
 
     if dag_run:
-        raise DagRunAlreadyExists(f"A Dag Run already exists for dag id {dag_id} at {execution_date} with run id {run_id}")
+        raise DagRunAlreadyExists(
+            f"A Dag Run already exists for dag id {dag_id} at {execution_date} with run id {run_id}"
+        )
 
     run_conf = None
     if conf:
