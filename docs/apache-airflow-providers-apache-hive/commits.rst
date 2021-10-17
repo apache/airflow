@@ -167,7 +167,7 @@ Commit                                                                          
 `3696c34c2 <https://github.com/apache/airflow/commit/3696c34c28c6bc7b442deab999d9ecba24ed0e34>`_  2020-08-24   ``Fix typo in the word "release" (#10528)``
 `ee7ca128a <https://github.com/apache/airflow/commit/ee7ca128a17937313566f2badb6cc569c614db94>`_  2020-08-22   ``Fix broken Markdown references in Providers README (#10483)``
 `27339a5a0 <https://github.com/apache/airflow/commit/27339a5a0f9e382dbc7d32a128f0831a48ef9a12>`_  2020-08-22   ``Remove mentions of Airflow Gitter (#10460)``
-`7c206a82a <https://github.com/apache/airflow/commit/7c206a82a6f074abcc4898a005ecd2c84a920054>`_  2020-08-22   ``Replace assigment with Augmented assignment (#10468)``
+`7c206a82a <https://github.com/apache/airflow/commit/7c206a82a6f074abcc4898a005ecd2c84a920054>`_  2020-08-22   ``Replace assignment with Augmented assignment (#10468)``
 `8f8db8959 <https://github.com/apache/airflow/commit/8f8db8959e526be54d700845d36ee9f315bae2ea>`_  2020-08-12   ``DbApiHook: Support kwargs in get_pandas_df (#9730)``
 `b43f90abf <https://github.com/apache/airflow/commit/b43f90abf4c7219d5d59cccb0514256bd3f2fdc7>`_  2020-08-09   ``Fix various typos in the repo (#10263)``
 `3b3287d7a <https://github.com/apache/airflow/commit/3b3287d7acc76430f12b758d52cec61c7f74e726>`_  2020-08-05   ``Enforce keyword only arguments on apache operators (#10170)``
@@ -185,7 +185,7 @@ Commit                                                                          
 `c78e2a5fe <https://github.com/apache/airflow/commit/c78e2a5feae15e84b05430cfc5935f0e289fb6b4>`_  2020-06-16   ``Make hive macros py3 compatible (#8598)``
 `6350fd6eb <https://github.com/apache/airflow/commit/6350fd6ebb9958982cb3fa1d466168fc31708035>`_  2020-06-08   ``Don't use the term "whitelist" - language matters (#9174)``
 `10796cb7c <https://github.com/apache/airflow/commit/10796cb7ce52c8ac2f68024e531fdda779547bdf>`_  2020-06-03   ``Remove Hive/Hadoop/Java dependency from unit tests (#9029)``
-`0b0e4f7a4 <https://github.com/apache/airflow/commit/0b0e4f7a4cceff3efe15161fb40b984782760a34>`_  2020-05-26   ``Preparing for RC3 relase of backports (#9026)``
+`0b0e4f7a4 <https://github.com/apache/airflow/commit/0b0e4f7a4cceff3efe15161fb40b984782760a34>`_  2020-05-26   ``Preparing for RC3 release of backports (#9026)``
 `00642a46d <https://github.com/apache/airflow/commit/00642a46d019870c4decb3d0e47c01d6a25cb88c>`_  2020-05-26   ``Fixed name of 20 remaining wrongly named operators. (#8994)``
 `cdb3f2545 <https://github.com/apache/airflow/commit/cdb3f25456e49d0199cd7ccd680626dac01c9be6>`_  2020-05-26   ``All classes in backport providers are now importable in Airflow 1.10 (#8991)``
 `375d1ca22 <https://github.com/apache/airflow/commit/375d1ca229464617780623c61c6e8a1bf570c87f>`_  2020-05-19   ``Release candidate 2 for backport packages 2020.05.20 (#8898)``
