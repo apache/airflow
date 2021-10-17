@@ -460,9 +460,9 @@ class PodGenerator:
 
         safe_uuid = uuid.uuid4().hex  # safe uuid will always be less than 63 chars
         # Strip trailing '-' and '.' as they can't be followed by '.'
-        trimmed_pod_id = pod_id[:MAX_LABEL_LEN].rstrip('-.')
+        trimmed_pod_id = pod_id[:MAX_LABEL_LEN-len(safe_uuid)].rstrip('-.')
 
-        safe_pod_id = f"{trimmed_pod_id}.{safe_uuid}"
+        safe_pod_id = f"{trimmed_pod_id}-{safe_uuid}"
         return safe_pod_id
 
 
