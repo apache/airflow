@@ -476,10 +476,11 @@ Lets look at our DAG:
 
 .. code-block:: python
 
+  from datetime import datetime, timedelta
+
+  import requests
   from airflow.decorators import dag, task
   from airflow.hooks.postgres_hook import PostgresHook
-  from datetime import datetime, timedelta
-  import requests
 
 
   @dag(
