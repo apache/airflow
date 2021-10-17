@@ -415,11 +415,9 @@ Let's break this down into 2 steps: get data & merge data:
 
 .. code-block:: python
 
-  from airflow.decorators import dag, task
-  from airflow.hooks.postgres import PostgresHook
-  from datetime import datetime, timedelta
   import requests
-
+  from airflow.decorators import task
+  from airflow.hooks.postgres_hook import PostgresHook
 
   @task
   def get_data():
@@ -446,6 +444,9 @@ Let's break this down into 2 steps: get data & merge data:
 Here we are passing a ``GET`` request to get the data from the URL and save it in ``employees.csv`` file on our Airflow instance and we are dumping the file into a temporary table before merging the data to the final employees table.
 
 .. code-block:: python
+
+  from airflow.decorators import task
+  from airflow.hooks.postgres_hook import PostgresHook
 
   @task
   def merge_data():
