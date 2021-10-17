@@ -788,6 +788,22 @@ class Airflow(AirflowBaseView):
                 # Second segment is a version marker that we don't need to show.
                 yield segments[2], table_name
 
+        warn_deployment_query = session.query(Log).filter(Log.event == "robots").count()
+        if (
+            permissions.ACTION_CAN_ACCESS_MENU,
+            permissions.RESOURCE_ADMIN_MENU,
+        ) in user_permissions and warn_deployment_query > 0:
+            flash(
+                Markup(
+                    'Recent requests have been made to /robots.txt. '
+                    'This indicates that this deployment may be accessible to the public internet. '
+                    'This warning can be disabled by setting webserver.warn_deployment_exposure=False in '
+                    'airflow.cfg. Read more about web deployment security <a href='
+                    '"https://airflow.apache.org/docs/apache-airflow/stable/security/webserver.html">here</a>'
+                ),
+                "warning",
+            )
+
         return self.render_template(
             'airflow/dags.html',
             dags=dags,
@@ -3091,14 +3107,6 @@ class Airflow(AirflowBaseView):
         # avoid spaces to reduce payload size
         return htmlsafe_json_dumps(data, separators=(',', ':'))
 
-    def warn_deployment_exposure(self):
-        deployment_warning = "Deployment is exposed to public internet"
-        flash(
-            deployment_warning,
-            "warning",
-        )
-        logging.warning(deployment_warning)
-
     @expose('/robots.txt')
     @action_logging
     def robots(self):
@@ -3107,8 +3115,6 @@ class Airflow(AirflowBaseView):
         of the risk associated with exposing Airflow to the public internet, however it does not
         address the real security risks associated with such a deployment.
         """
-        if conf.getboolean("webserver", "warn_deployment_exposure"):
-            self.warn_deployment_exposure()
         return send_from_directory(current_app.static_folder, 'robots.txt')
 
 

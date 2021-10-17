@@ -22,12 +22,13 @@ def test_robots(viewer_client):
     assert resp.data.decode('utf-8') == "User-agent: *\nDisallow: /\n"
 
 
-def test_deployment_warning_config(viewer_client):
-    viewer_client.get('/robots.txt', follow_redirects=True)
-    resp = viewer_client.get('', follow_redirects=True)
-    assert "exposed to public internet" in resp.data.decode('utf-8')
+def test_deployment_warning_config(admin_client):
+    warn_text = "webserver.warn_deployment_exposure"
+    admin_client.get('/robots.txt', follow_redirects=True)
+    resp = admin_client.get('', follow_redirects=True)
+    assert warn_text in resp.data.decode('utf-8')
 
     with conf_vars({('webserver', 'warn_deployment_exposure'): 'False'}):
-        viewer_client.get('/robots.txt', follow_redirects=True)
-        resp = viewer_client.get('/robots.txt', follow_redirects=True)
-        assert "exposed to public internet" not in resp.data.decode('utf-8')
+        admin_client.get('/robots.txt', follow_redirects=True)
+        resp = admin_client.get('/robots.txt', follow_redirects=True)
+        assert warn_text not in resp.data.decode('utf-8')
