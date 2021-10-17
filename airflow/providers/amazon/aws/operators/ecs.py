@@ -120,9 +120,10 @@ class ECSTaskLogFetcher(Thread):
                 logs_to_skip += 1
             time.sleep(self.fetch_interval.total_seconds())
 
-    def _get_log_events(self, skip: int = 0) -> Generator:
+    def _get_log_events(self, start_from_head=True, skip: int = 0) -> Generator:
         try:
-            yield from self.hook.get_log_events(self.log_group, self.log_stream_name, skip=skip)
+            yield from self.hook.get_log_events(self.log_group, self.log_stream_name, start_from_head=start_from_head,
+                                                skip=skip)
         except ClientError as error:
             if error.response['Error']['Code'] != 'ResourceNotFoundException':
                 self.logger.warning('Error on retrieving Cloudwatch log events', error)
@@ -140,9 +141,12 @@ class ECSTaskLogFetcher(Thread):
 
     def get_last_log_message(self) -> Optional[str]:
         try:
-            return self.get_last_log_messages(1)[0]
+            return next(self._get_log_events(start_from_head=False))['message']
         except IndexError:
             return None
+
+    def get_all_log_messages(self) -> Optional[list]:
+        return [log['message'] for log in deque(self._get_log_events())]
 
     def is_stopped(self) -> bool:
         return self._event.is_set()
@@ -255,6 +259,7 @@ class ECSOperator(BaseOperator):
         awslogs_region: Optional[str] = None,
         awslogs_stream_prefix: Optional[str] = None,
         awslogs_fetch_interval: timedelta = timedelta(seconds=30),
+        xcom_all: Optional[bool] = False,
         propagate_tags: Optional[str] = None,
         quota_retry: Optional[dict] = None,
         reattach: bool = False,
@@ -281,6 +286,7 @@ class ECSOperator(BaseOperator):
         self.awslogs_stream_prefix = awslogs_stream_prefix
         self.awslogs_region = awslogs_region
         self.awslogs_fetch_interval = awslogs_fetch_interval
+        self.xcom_all = xcom_all
         self.propagate_tags = propagate_tags
         self.reattach = reattach
         self.number_logs_exception = number_logs_exception
@@ -333,7 +339,8 @@ class ECSOperator(BaseOperator):
             self._xcom_del(session, self.REATTACH_XCOM_TASK_ID_TEMPLATE.format(task_id=self.task_id))
 
         if self.do_xcom_push and self.task_log_fetcher:
-            return self.task_log_fetcher.get_last_log_message()
+            return self.task_log_fetcher.get_last_log_message() if not self.xcom_all \
+                else self.task_log_fetcher.get_all_log_messages()
 
         return None
 
