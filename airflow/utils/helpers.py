@@ -24,15 +24,17 @@ from itertools import filterfalse, tee
 from typing import TYPE_CHECKING, Any, Callable, Dict, Generator, Iterable, List, Optional, Tuple, TypeVar
 from urllib import parse
 
+import pendulum
 from flask import url_for
 from jinja2 import Template
 
 from airflow.configuration import conf
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, AirflowSkipException
 from airflow.utils.module_loading import import_string
 
 if TYPE_CHECKING:
     from airflow.models import TaskInstance
+    from airflow.models.baseoperator import BaseOperator
 
 KEY_REGEX = re.compile(r'^[\w.-]+$')
 GROUP_KEY_REGEX = re.compile(r'^[\w-]+$')
@@ -230,3 +232,26 @@ def build_airflow_url_with_query(query: Dict[str, Any]) -> str:
     view = conf.get('webserver', 'dag_default_view').lower()
     url = url_for(f"Airflow.{view}")
     return f"{url}?{parse.urlencode(query)}"
+
+
+def skip_if_not_latest(task: BaseOperator, context: dict):
+    if not context:  # assume run interactively
+        return
+    dag_run = context.get('dag_run')
+    if dag_run and dag_run.external_trigger:
+        task.log.info("Externally triggered DAG_Run: allowing execution to proceed.")
+        return
+
+    dag = context['dag']
+    now = pendulum.now('UTC')
+    left_window = dag.following_schedule(context['execution_date'])
+    right_window = dag.following_schedule(left_window)
+    task.log.info(
+        f"Checking latest only:\n"
+        f"\tleft_window: {left_window}\n"
+        f"\tright_window: {right_window}\n"
+        f"\tnow: {now}\n",
+    )
+
+    if not left_window < now <= right_window:
+        raise AirflowSkipException('Not latest execution; skipping...')
