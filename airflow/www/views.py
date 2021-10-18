@@ -2273,7 +2273,7 @@ class Airflow(AirflowBaseView):
         encoded_runs = [wwwutils.encode_dag_run(dr) for dr in dag_runs]
         dag_run_dates = {dr.execution_date: alchemy_to_dict(dr) for dr in dag_runs}
 
-        max_date = max(dag_run_dates.keys(), default=None)
+        max_date = max(dag_run_dates, default=None)
 
         form = DateTimeWithNumRunsForm(
             data={
