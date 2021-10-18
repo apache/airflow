@@ -854,8 +854,8 @@ class CloudDataTransferServiceS3ToGCSOperator(BaseOperator):
         super().__init__(**kwargs)
         self.s3_bucket = s3_bucket
         self.gcs_bucket = gcs_bucket
-        self.s3_path = normalize_directory_path(s3_path)
-        self.gcs_path = normalize_directory_path(gcs_path)
+        self.s3_path = s3_path
+        self.gcs_path = gcs_path
         self.project_id = project_id
         self.aws_conn_id = aws_conn_id
         self.gcp_conn_id = gcp_conn_id
@@ -896,8 +896,8 @@ class CloudDataTransferServiceS3ToGCSOperator(BaseOperator):
             DESCRIPTION: self.description,
             STATUS: GcpTransferJobsStatus.ENABLED,
             TRANSFER_SPEC: {
-                AWS_S3_DATA_SOURCE: {BUCKET_NAME: self.s3_bucket, PATH: self.s3_path},
-                GCS_DATA_SINK: {BUCKET_NAME: self.gcs_bucket, PATH: self.gcs_path},
+                AWS_S3_DATA_SOURCE: {BUCKET_NAME: self.s3_bucket, PATH: normalize_directory_path(self.s3_path)},
+                GCS_DATA_SINK: {BUCKET_NAME: self.gcs_bucket, PATH: normalize_directory_path(self.gcs_path)},
             },
         }
 
@@ -1033,8 +1033,8 @@ class CloudDataTransferServiceGCSToGCSOperator(BaseOperator):
         super().__init__(**kwargs)
         self.source_bucket = source_bucket
         self.destination_bucket = destination_bucket
-        self.source_path = normalize_directory_path(source_path)
-        self.destination_path = normalize_directory_path(destination_path)
+        self.source_path = source_path
+        self.destination_path = destination_path
         self.project_id = project_id
         self.gcp_conn_id = gcp_conn_id
         self.delegate_to = delegate_to
@@ -1075,8 +1075,9 @@ class CloudDataTransferServiceGCSToGCSOperator(BaseOperator):
             DESCRIPTION: self.description,
             STATUS: GcpTransferJobsStatus.ENABLED,
             TRANSFER_SPEC: {
-                GCS_DATA_SOURCE: {BUCKET_NAME: self.source_bucket, PATH: self.source_path},
-                GCS_DATA_SINK: {BUCKET_NAME: self.destination_bucket, PATH: self.destination_path},
+                GCS_DATA_SOURCE: {BUCKET_NAME: self.source_bucket, PATH: normalize_directory_path(self.source_path)},
+                GCS_DATA_SINK: {BUCKET_NAME: self.destination_bucket,
+                                PATH: normalize_directory_path(self.destination_path)},
             },
         }
 
