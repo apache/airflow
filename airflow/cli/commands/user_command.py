@@ -175,12 +175,12 @@ def users_import(args):
         print("Updated the following users:\n\t{}".format("\n\t".join(users_updated)))
 
 
-def _import_users(users_list_: List[Dict[str, Any]]):
+def _import_users(users_list: List[Dict[str, Any]]):
     appbuilder = cached_app().appbuilder
     users_created = []
     users_updated = []
 
-    for user in users_list_:
+    for user in users_list:
         required_fields = ['username', 'firstname', 'lastname', 'email', 'roles']
         for field in required_fields:
             if field not in user:
