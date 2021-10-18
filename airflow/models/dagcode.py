@@ -96,7 +96,7 @@ class DagCode(Base):
             for fileloc in conflicting_filelocs:
                 message += (
                     "Filename '{}' causes a hash collision in the "
-                    + "database with '{}'. Please rename the file."
+                    "database with '{}'. Please rename the file."
                 ).format(hashes_to_filelocs[DagCode.dag_fileloc_hash(fileloc)], fileloc)
             raise AirflowException(message)
 

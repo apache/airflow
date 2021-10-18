@@ -716,8 +716,8 @@ class S3Hook(AwsBaseHook):
             if parsed_url.scheme != '' or parsed_url.netloc != '':
                 raise AirflowException(
                     'If dest_bucket_name is provided, '
-                    + 'dest_bucket_key should be relative path '
-                    + 'from root level, rather than a full s3:// url'
+                    'dest_bucket_key should be relative path '
+                    'from root level, rather than a full s3:// url'
                 )
 
         if source_bucket_name is None:
@@ -727,8 +727,8 @@ class S3Hook(AwsBaseHook):
             if parsed_url.scheme != '' or parsed_url.netloc != '':
                 raise AirflowException(
                     'If source_bucket_name is provided, '
-                    + 'source_bucket_key should be relative path '
-                    + 'from root level, rather than a full s3:// url'
+                    'source_bucket_key should be relative path '
+                    'from root level, rather than a full s3:// url'
                 )
 
         copy_source = {'Bucket': source_bucket_name, 'Key': source_bucket_key, 'VersionId': source_version_id}

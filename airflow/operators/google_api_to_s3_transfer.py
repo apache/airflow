@@ -43,7 +43,7 @@ class GoogleApiToS3Transfer(GoogleApiToS3Operator):
             """This class is deprecated.
             Please use
             `airflow.providers.amazon.aws.transfers."""
-            + "google_api_to_s3_transfer.GoogleApiToS3Operator`.",
+            "google_api_to_s3_transfer.GoogleApiToS3Operator`.",
             DeprecationWarning,
             stacklevel=3,
         )
