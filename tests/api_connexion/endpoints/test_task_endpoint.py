@@ -100,7 +100,7 @@ class TestGetTask(TestTaskEndpoint):
             'params': {
                 'foo': {
                     '__class': 'airflow.models.param.Param',
-                    'default': 'bar',
+                    'value': 'bar',
                     'description': None,
                     'schema': {},
                 }
@@ -150,7 +150,7 @@ class TestGetTask(TestTaskEndpoint):
             'params': {
                 'foo': {
                     '__class': 'airflow.models.param.Param',
-                    'default': 'bar',
+                    'value': 'bar',
                     'description': None,
                     'schema': {},
                 }
@@ -215,7 +215,7 @@ class TestGetTasks(TestTaskEndpoint):
                     'params': {
                         'foo': {
                             '__class': 'airflow.models.param.Param',
-                            'default': 'bar',
+                            'value': 'bar',
                             'description': None,
                             'schema': {},
                         }
