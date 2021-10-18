@@ -198,35 +198,38 @@ class RegExTemplates:
     """The compiled RegEx patterns used in testing."""
 
     CLUSTER_ARN: Pattern = re.compile(
-        "arn:"
-        + "(?P<partition>.+):"
-        + "eks:"
-        + "(?P<region>[-0-9a-zA-Z]+):"
-        + "(?P<account_id>[0-9]{12}):"
-        + "cluster/"
-        + "(?P<cluster_name>.+)"
+        r"""arn:
+        (?P<partition>.+):
+        eks:
+        (?P<region>[-0-9a-zA-Z]+):
+        (?P<account_id>[0-9]{12}):
+        cluster/
+        (?P<cluster_name>.+)""",
+        re.VERBOSE
     )
     FARGATE_PROFILE_ARN: Pattern = re.compile(
-        "arn:"
-        + "(?P<partition>.+):"
-        + "eks:"
-        + "(?P<region>[-0-9a-zA-Z]+):"
-        + "(?P<account_id>[0-9]{12}):"
-        + "fargateprofile/"
-        + "(?P<cluster_name>.+)/"
-        + "(?P<fargate_name>.+)/"
-        + FARGATE_PROFILE_UUID_PATTERN
+        r"""arn:
+        (?P<partition>.+):
+        eks:
+        (?P<region>[-0-9a-zA-Z]+):
+        (?P<account_id>[0-9]{12}):
+        fargateprofile/
+        (?P<cluster_name>.+)/
+        (?P<fargate_name>.+)/"""
+        + FARGATE_PROFILE_UUID_PATTERN,
+        re.VERBOSE
     )
     NODEGROUP_ARN: Pattern = re.compile(
-        "arn:"
-        + "(?P<partition>.+):"
-        + "eks:"
-        + "(?P<region>[-0-9a-zA-Z]+):"
-        + "(?P<account_id>[0-9]{12}):"
-        + "nodegroup/"
-        + "(?P<cluster_name>.+)/"
-        + "(?P<nodegroup_name>.+)/"
-        + NODEGROUP_UUID_PATTERN
+        r"""arn:
+        (?P<partition>.+):
+        eks:
+        (?P<region>[-0-9a-zA-Z]+):
+        (?P<account_id>[0-9]{12}):
+        nodegroup/
+        (?P<cluster_name>.+)/
+        (?P<nodegroup_name>.+)/"""
+        + NODEGROUP_UUID_PATTERN,
+        re.VERBOSE
     )
     NODEGROUP_ASG_NAME_PATTERN: Pattern = re.compile(f"eks-{NODEGROUP_UUID_PATTERN}")
     NODEGROUP_SECURITY_GROUP_NAME_PATTERN: Pattern = re.compile("sg-([-0-9a-z]{17})")
