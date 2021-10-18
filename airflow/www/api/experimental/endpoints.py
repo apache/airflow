@@ -104,8 +104,8 @@ def trigger_dag(dag_id):
             execution_date = timezone.parse(execution_date)
         except ValueError:
             error_message = (
-                'Given execution date, {}, could not be identified '
-                'as a date. Example date format: 2015-11-16T14:34:15+00:00'.format(execution_date)
+                f'Given execution date, {execution_date}, could not be identified as a date. '
+                f'Example date format: 2015-11-16T14:34:15+00:00'
             )
             log.error(error_message)
             response = jsonify({'error': error_message})
@@ -254,8 +254,8 @@ def task_instance_info(dag_id, execution_date, task_id):
         execution_date = timezone.parse(execution_date)
     except ValueError:
         error_message = (
-            'Given execution date, {}, could not be identified '
-            'as a date. Example date format: 2015-11-16T14:34:15+00:00'.format(execution_date)
+            f'Given execution date, {execution_date}, could not be identified as a date. '
+            f'Example date format: 2015-11-16T14:34:15+00:00'
         )
         log.error(error_message)
         response = jsonify({'error': error_message})
@@ -290,8 +290,8 @@ def dag_run_status(dag_id, execution_date):
         execution_date = timezone.parse(execution_date)
     except ValueError:
         error_message = (
-            'Given execution date, {}, could not be identified '
-            'as a date. Example date format: 2015-11-16T14:34:15+00:00'.format(execution_date)
+            f'Given execution date, {execution_date}, could not be identified as a date. '
+            f'Example date format: 2015-11-16T14:34:15+00:00'
         )
         log.error(error_message)
         response = jsonify({'error': error_message})
@@ -403,8 +403,8 @@ def get_lineage(dag_id: str, execution_date: str):
         execution_dt = timezone.parse(execution_date)
     except ValueError:
         error_message = (
-            'Given execution date, {}, could not be identified '
-            'as a date. Example date format: 2015-11-16T14:34:15+00:00'.format(execution_date)
+            f'Given execution date, {execution_date}, could not be identified as a date. '
+            f'Example date format: 2015-11-16T14:34:15+00:00'
         )
         log.error(error_message)
         response = jsonify({'error': error_message})

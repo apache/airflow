@@ -408,8 +408,8 @@ class ComputeEngineCopyInstanceTemplateOperator(ComputeEngineBaseOperator):
         self._field_validator = None  # Optional[GcpBodyFieldValidator]
         if 'name' not in self.body_patch:
             raise AirflowException(
-                "The body '{}' should contain at least "
-                "name for the new operator in the 'name' field".format(body_patch)
+                f"The body '{body_patch}' should contain at least name for the new operator "
+                f"in the 'name' field"
             )
         if validate_body:
             self._field_validator = GcpBodyFieldValidator(

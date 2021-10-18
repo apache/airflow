@@ -53,7 +53,8 @@ class FacebookAdsReportToGcsOperator(BaseOperator):
     :type gcp_conn_id: str
     :param facebook_conn_id: Airflow Facebook Ads connection ID
     :type facebook_conn_id: str
-    :param api_version: The version of Facebook API. Default to v6.0
+    :param api_version: The version of Facebook API. Default to None. If it is None,
+        it will use the Facebook business SDK default version.
     :type api_version: str
     :param fields: List of fields that is obtained from Facebook. Found in AdsInsights.Field class.
         https://developers.facebook.com/docs/marketing-api/insights/parameters/v6.0
@@ -95,7 +96,7 @@ class FacebookAdsReportToGcsOperator(BaseOperator):
         params: Dict[str, Any] = None,
         parameters: Dict[str, Any] = None,
         gzip: bool = False,
-        api_version: str = "v6.0",
+        api_version: Optional[str] = None,
         gcp_conn_id: str = "google_cloud_default",
         facebook_conn_id: str = "facebook_default",
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,

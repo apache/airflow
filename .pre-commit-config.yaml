@@ -258,6 +258,24 @@ repos:
         exclude: |
           (?x)
           ^airflow/_vendor/
+        args:
+         # If flynt detects too long text it ignores it. So we set a very large limit to make it easy
+         # to split the text by hand. Too long lines are detected by flake8 (below),
+         # so the user is informed to take action.
+         - --line-length
+         - '99999'
+  - repo: https://github.com/codespell-project/codespell
+    rev: v2.1.0
+    hooks:
+      - id: codespell
+        name: Run codespell to check for common misspellings in files
+        entry: codespell
+        language: python
+        types: [text]
+        exclude: ^airflow/_vendor/|^CHANGELOG.txt|^airflow/www/static/css/material-icons.css
+        args:
+          - --ignore-words=docs/spelling_wordlist.txt
+          - --skip=docs/*/commits.rst,airflow/providers/*/*.rst,*.lock,INTHEWILD.md,*.min.js,docs/apache-airflow/pipeline_example.csv
   - repo: local
     hooks:
       - id: lint-openapi

@@ -36,18 +36,24 @@ class RunnableExecDateDep(BaseTIDep):
         logical_date = ti.get_dagrun(session).execution_date
         if logical_date > cur_date and not ti.task.dag.allow_future_exec_dates:
             yield self._failing_status(
-                reason="Execution date {} is in the future (the current "
-                "date is {}).".format(logical_date.isoformat(), cur_date.isoformat())
+                reason=(
+                    f"Execution date {logical_date.isoformat()} is in the future "
+                    f"(the current date is {cur_date.isoformat()})."
+                )
             )
 
         if ti.task.end_date and logical_date > ti.task.end_date:
             yield self._failing_status(
-                reason="The execution date is {} but this is after the task's end date "
-                "{}.".format(logical_date.isoformat(), ti.task.end_date.isoformat())
+                reason=(
+                    f"The execution date is {logical_date.isoformat()} but this is "
+                    f"after the task's end date {ti.task.end_date.isoformat()}."
+                )
             )
 
         if ti.task.dag and ti.task.dag.end_date and logical_date > ti.task.dag.end_date:
             yield self._failing_status(
-                reason="The execution date is {} but this is after the task's DAG's "
-                "end date {}.".format(logical_date.isoformat(), ti.task.dag.end_date.isoformat())
+                reason=(
+                    f"The execution date is {logical_date.isoformat()} but this is after "
+                    f"the task's DAG's end date {ti.task.dag.end_date.isoformat()}."
+                )
             )

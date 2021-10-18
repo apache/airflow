@@ -1078,9 +1078,7 @@ class TaskInstance(Base, LoggingMixin):
             # deterministic per task instance
             ti_hash = int(
                 hashlib.sha1(
-                    "{}#{}#{}#{}".format(
-                        self.dag_id, self.task_id, self.execution_date, self.try_number
-                    ).encode('utf-8')
+                    f"{self.dag_id}#{self.task_id}#{self.execution_date}#{self.try_number}".encode()
                 ).hexdigest(),
                 16,
             )
@@ -1702,7 +1700,8 @@ class TaskInstance(Base, LoggingMixin):
             session.add(Log(State.FAILED, self))
 
             # Log failure duration
-            session.add(TaskFail(task, self.execution_date, self.start_date, self.end_date))
+            dag_run = self.get_dagrun(session=session)  # self.dag_run not populated by refresh_from_db
+            session.add(TaskFail(task, dag_run.execution_date, self.start_date, self.end_date))
 
         # Ensure we unset next_method and next_kwargs to ensure that any
         # retries don't re-use them.
@@ -2224,8 +2223,8 @@ class TaskInstance(Base, LoggingMixin):
         self_execution_date = self.get_dagrun(session).execution_date
         if execution_date and execution_date < self_execution_date:
             raise ValueError(
-                'execution_date can not be in the past (current '
-                'execution_date is {}; received {})'.format(self_execution_date, execution_date)
+                f'execution_date can not be in the past (current execution_date is '
+                f'{self_execution_date}; received {execution_date})'
             )
 
         XCom.set(

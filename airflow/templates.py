@@ -32,7 +32,7 @@ class SandboxedEnvironment(jinja2.sandbox.SandboxedEnvironment):
         Allow access to ``_`` prefix vars (but not ``__``).
 
         Unlike the stock SandboxedEnvironment, we allow access to "private" attributes (ones starting with
-        ``_``) whilst still blocking internal or truely private attributes (``__`` prefixed ones).
+        ``_``) whilst still blocking internal or truly private attributes (``__`` prefixed ones).
         """
         return not jinja2.sandbox.is_internal_attribute(obj, attr)
 

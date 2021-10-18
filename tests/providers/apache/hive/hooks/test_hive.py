@@ -255,9 +255,7 @@ class TestHiveCliHook(unittest.TestCase):
             "STORED AS textfile\n;".format(table=table, fields=fields)
         )
 
-        load_data = "LOAD DATA LOCAL INPATH '{filepath}' OVERWRITE INTO TABLE {table} ;\n".format(
-            filepath=filepath, table=table
-        )
+        load_data = f"LOAD DATA LOCAL INPATH '{filepath}' OVERWRITE INTO TABLE {table} ;\n"
         calls = [mock.call(create_table), mock.call(load_data)]
         mock_run_cli.assert_has_calls(calls, any_order=True)
 

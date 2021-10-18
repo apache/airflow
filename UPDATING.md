@@ -283,7 +283,7 @@ No breaking changes.
 
 ### `activate_dag_runs` argument of the function `clear_task_instances` is replaced with `dag_run_state`
 
-To achieve the previous default behaviour of `clear_task_instances` with `activate_dag_runs=True`, no change is needed. To achieve the previous behaviour of `activate_dag_runs=False`, pass `dag_run_state=False` instead. (The previous paramater is still accepted, but is deprecated)
+To achieve the previous default behaviour of `clear_task_instances` with `activate_dag_runs=True`, no change is needed. To achieve the previous behaviour of `activate_dag_runs=False`, pass `dag_run_state=False` instead. (The previous parameter is still accepted, but is deprecated)
 
 ### `dag.set_dag_runs_state` is deprecated
 

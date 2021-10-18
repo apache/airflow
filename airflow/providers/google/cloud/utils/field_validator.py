@@ -216,27 +216,25 @@ class GcpBodyFieldValidator(LoggingMixin):
             )
         if regexp and field_type:
             raise GcpValidationSpecificationException(
-                "The validation specification entry '{}' has both type and regexp. "
-                "The regexp is only allowed without type (i.e. assume type is 'str' "
-                "that can be validated with regexp)".format(full_field_path)
+                f"The validation specification entry '{full_field_path}' has both type and regexp. "
+                "The regexp is only allowed without type (i.e. assume type is 'str' that can be "
+                "validated with regexp)"
             )
         if allow_empty is not None and field_type:
             raise GcpValidationSpecificationException(
-                "The validation specification entry '{}' has both type and allow_empty. "
-                "The allow_empty is only allowed without type (i.e. assume type is 'str' "
-                "that can be validated with allow_empty)".format(full_field_path)
+                f"The validation specification entry '{full_field_path}' has both type and allow_empty. "
+                "The allow_empty is only allowed without type (i.e. assume type is 'str' that can "
+                "be validated with allow_empty)"
             )
         if children_validation_specs and field_type not in COMPOSITE_FIELD_TYPES:
             raise GcpValidationSpecificationException(
-                "Nested fields are specified in field '{}' of type '{}'. "
-                "Nested fields are only allowed for fields of those types: ('{}').".format(
-                    full_field_path, field_type, COMPOSITE_FIELD_TYPES
-                )
+                f"Nested fields are specified in field '{full_field_path}' of type '{field_type}'. "
+                f"Nested fields are only allowed for fields of those types: ('{COMPOSITE_FIELD_TYPES}')."
             )
         if custom_validation and field_type:
             raise GcpValidationSpecificationException(
-                "The validation specification field '{}' has both type and "
-                "custom_validation. Custom validation is only allowed without type.".format(full_field_path)
+                f"The validation specification field '{full_field_path}' has both type and "
+                f"custom_validation. Custom validation is only allowed without type."
             )
 
     @staticmethod
@@ -244,8 +242,8 @@ class GcpBodyFieldValidator(LoggingMixin):
         if not re.match(regexp, value):
             # Note matching of only the beginning as we assume the regexps all-or-nothing
             raise GcpFieldValidationException(
-                "The body field '{}' of value '{}' does not match the field "
-                "specification regexp: '{}'.".format(full_field_path, value, regexp)
+                f"The body field '{full_field_path}' of value '{value}' does not match the field "
+                f"specification regexp: '{regexp}'."
             )
 
     @staticmethod
@@ -291,10 +289,8 @@ class GcpBodyFieldValidator(LoggingMixin):
             field_name = child_validation_spec['name']
             if new_field_found and field_found:
                 raise GcpFieldValidationException(
-                    "The mutually exclusive fields '{}' and '{}' belonging to the "
-                    "union '{}' are both present. Please remove one".format(
-                        field_name, found_field_name, full_field_path
-                    )
+                    f"The mutually exclusive fields '{field_name}' and '{found_field_name}' belonging to "
+                    f"the union '{full_field_path}' are both present. Please remove one"
                 )
             if new_field_found:
                 field_found = True
@@ -372,8 +368,8 @@ class GcpBodyFieldValidator(LoggingMixin):
         elif field_type == 'dict':
             if not isinstance(value, dict):
                 raise GcpFieldValidationException(
-                    "The field '{}' should be of dictionary type according to the "
-                    "specification '{}' but it is '{}'".format(full_field_path, validation_spec, value)
+                    f"The field '{full_field_path}' should be of dictionary type according to "
+                    f"the specification '{validation_spec}' but it is '{value}'"
                 )
             if children_validation_specs is None:
                 self.log.debug(
@@ -388,25 +384,24 @@ class GcpBodyFieldValidator(LoggingMixin):
         elif field_type == 'union':
             if not children_validation_specs:
                 raise GcpValidationSpecificationException(
-                    "The union field '{}' has no nested fields "
-                    "defined in specification '{}'. Unions should have at least one "
-                    "nested field defined.".format(full_field_path, validation_spec)
+                    f"The union field '{full_field_path}' has no nested fields defined in "
+                    f"specification '{validation_spec}'. "
+                    "Unions should have at least one nested field defined."
                 )
             self._validate_union(children_validation_specs, full_field_path, dictionary_to_validate)
         elif field_type == 'list':
             if not isinstance(value, list):
                 raise GcpFieldValidationException(
-                    "The field '{}' should be of list type according to the "
-                    "specification '{}' but it is '{}'".format(full_field_path, validation_spec, value)
+                    f"The field '{full_field_path}' should be of list type according to "
+                    f"the specification '{validation_spec}' but it is '{value}'"
                 )
         elif custom_validation:
             try:
                 custom_validation(value)
             except Exception as e:
                 raise GcpFieldValidationException(
-                    "Error while validating custom field '{}' specified by '{}': '{}'".format(
-                        full_field_path, validation_spec, e
-                    )
+                    f"Error while validating custom field '{full_field_path}' "
+                    f"specified by '{validation_spec}': '{e}'"
                 )
         elif field_type is None:
             self.log.debug(
@@ -416,8 +411,8 @@ class GcpBodyFieldValidator(LoggingMixin):
             )
         else:
             raise GcpValidationSpecificationException(
-                "The field '{}' is of type '{}' in specification '{}'."
-                "This type is unknown to validation!".format(full_field_path, field_type, validation_spec)
+                f"The field '{full_field_path}' is of type '{field_type}' in "
+                f"specification '{validation_spec}'.This type is unknown to validation!"
             )
         return True
 

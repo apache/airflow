@@ -172,7 +172,7 @@ class TestBigQueryHookMethods(_BigQueryBaseTestClass):
         with pytest.raises(
             Exception,
             match=(
-                r"\['THIS IS NOT VALID'\] contains invalid schema update options."
+                r"\['THIS IS NOT VALID'\] contains invalid schema update options. "
                 r"Please only use one or more of the following options: "
                 r"\['ALLOW_FIELD_ADDITION', 'ALLOW_FIELD_RELAXATION'\]"
             ),

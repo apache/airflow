@@ -400,7 +400,7 @@ function startOrStopRefresh() {
 
 $('#auto_refresh').change(() => {
   if ($('#auto_refresh').is(':checked')) {
-    // Run an initial refesh before starting interval if manually turned on
+    // Run an initial refresh before starting interval if manually turned on
     handleRefresh();
     localStorage.removeItem('disableAutoRefresh');
   } else {

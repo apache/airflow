@@ -498,8 +498,8 @@ class _DataflowJobsController(LoggingMixin):
                 )
             batch.execute()
             if self._cancel_timeout and isinstance(self._cancel_timeout, int):
-                timeout_error_message = "Canceling jobs failed due to timeout ({}s): {}".format(
-                    self._cancel_timeout, ", ".join(job_ids)
+                timeout_error_message = (
+                    f"Canceling jobs failed due to timeout ({self._cancel_timeout}s): {', '.join(job_ids)}"
                 )
                 with timeout(seconds=self._cancel_timeout, error_message=timeout_error_message):
                     self._wait_for_states({DataflowJobStatus.JOB_STATE_CANCELLED})
@@ -896,9 +896,8 @@ class DataflowHook(GoogleBaseHook):
 
         if not re.match(r"^[a-z]([-a-z0-9]*[a-z0-9])?$", base_job_name):
             raise ValueError(
-                "Invalid job_name ({}); the name must consist of"
-                "only the characters [-a-z0-9], starting with a "
-                "letter and ending with a letter or number ".format(base_job_name)
+                f"Invalid job_name ({base_job_name}); the name must consist ofonly the characters "
+                f"[-a-z0-9], starting with a letter and ending with a letter or number "
             )
 
         if append_job_name:

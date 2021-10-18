@@ -44,8 +44,8 @@ class Resource:
     def __init__(self, name, units_str, qty):
         if qty < 0:
             raise AirflowException(
-                'Received resource quantity {} for resource {} but resource quantity '
-                'must be non-negative.'.format(qty, name)
+                f'Received resource quantity {qty} for resource {name}, '
+                f'but resource quantity must be non-negative.'
             )
 
         self._name = name

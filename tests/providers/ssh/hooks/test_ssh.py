@@ -691,7 +691,7 @@ class TestSSHHook(unittest.TestCase):
     def test_openssh_private_key(self):
         # Paramiko behaves differently with OpenSSH generated keys to paramiko
         # generated keys, so we need a test one.
-        # This has been gernerated specifically to put here, it is not otherwise in use
+        # This has been generated specifically to put here, it is not otherwise in use
         TEST_OPENSSH_PRIVATE_KEY = "-----BEGIN OPENSSH " + textwrap.dedent(
             """\
         PRIVATE KEY-----

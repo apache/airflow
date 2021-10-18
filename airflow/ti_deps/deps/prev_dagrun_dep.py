@@ -74,14 +74,17 @@ class PrevDagrunDep(BaseTIDep):
 
         if previous_ti.state not in {State.SKIPPED, State.SUCCESS}:
             yield self._failing_status(
-                reason="depends_on_past is true for this task, but the previous task "
-                "instance {} is in the state '{}' which is not a successful "
-                "state.".format(previous_ti, previous_ti.state)
+                reason=(
+                    f"depends_on_past is true for this task, but the previous task instance {previous_ti} "
+                    f"is in the state '{previous_ti.state}' which is not a successful state."
+                )
             )
 
         previous_ti.task = ti.task
         if ti.task.wait_for_downstream and not previous_ti.are_dependents_done(session=session):
             yield self._failing_status(
-                reason="The tasks downstream of the previous task instance {} haven't "
-                "completed (and wait_for_downstream is True).".format(previous_ti)
+                reason=(
+                    f"The tasks downstream of the previous task instance {previous_ti} haven't completed "
+                    f"(and wait_for_downstream is True)."
+                )
             )

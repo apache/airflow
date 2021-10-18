@@ -17,16 +17,32 @@
 # under the License.
 
 import os
+import warnings
+from collections import namedtuple
+from enum import Enum
 from tempfile import NamedTemporaryFile
 from typing import Optional, Union
 
 import numpy as np
 import pandas as pd
+from typing_extensions import Literal
 
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 from airflow.providers.mysql.hooks.mysql import MySqlHook
+
+FILE_FORMAT = Enum(
+    "FILE_FORMAT",
+    "CSV, PARQUET",
+)
+
+FileOptions = namedtuple('FileOptions', ['mode', 'suffix'])
+
+FILE_OPTIONS_MAP = {
+    FILE_FORMAT.CSV: FileOptions('r+', '.csv'),
+    FILE_FORMAT.PARQUET: FileOptions('rb+', '.parquet'),
+}
 
 
 class MySQLToS3Operator(BaseOperator):
@@ -60,6 +76,11 @@ class MySQLToS3Operator(BaseOperator):
     :type index: str
     :param header: whether to include header or not into the S3 file
     :type header: bool
+    :param file_format: the destination file format, only string 'csv' or 'parquet' is accepted.
+    :type file_format: str
+    :param pd_kwargs: arguments to include in ``DataFrame.to_parquet()`` or
+        ``DataFrame.to_csv()``. This is preferred than ``pd_csv_kwargs``.
+    :type pd_kwargs: dict
     """
 
     template_fields = (
@@ -68,7 +89,11 @@ class MySQLToS3Operator(BaseOperator):
         'query',
     )
     template_ext = ('.sql',)
-    template_fields_renderers = {"query": "sql", "pd_csv_kwargs": "json"}
+    template_fields_renderers = {
+        "query": "sql",
+        "pd_csv_kwargs": "json",
+        "pd_kwargs": "json",
+    }
 
     def __init__(
         self,
@@ -82,6 +107,8 @@ class MySQLToS3Operator(BaseOperator):
         pd_csv_kwargs: Optional[dict] = None,
         index: bool = False,
         header: bool = False,
+        file_format: Literal['csv', 'parquet'] = 'csv',
+        pd_kwargs: Optional[dict] = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -92,15 +119,38 @@ class MySQLToS3Operator(BaseOperator):
         self.aws_conn_id = aws_conn_id
         self.verify = verify
 
-        self.pd_csv_kwargs = pd_csv_kwargs or {}
-        if "path_or_buf" in self.pd_csv_kwargs:
-            raise AirflowException('The argument path_or_buf is not allowed, please remove it')
-        if "index" not in self.pd_csv_kwargs:
-            self.pd_csv_kwargs["index"] = index
-        if "header" not in self.pd_csv_kwargs:
-            self.pd_csv_kwargs["header"] = header
+        if file_format == "csv":
+            self.file_format = FILE_FORMAT.CSV
+        else:
+            self.file_format = FILE_FORMAT.PARQUET
 
-    def _fix_int_dtypes(self, df: pd.DataFrame) -> None:
+        if pd_csv_kwargs:
+            warnings.warn(
+                "pd_csv_kwargs is deprecated. Please use pd_kwargs.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+        if index or header:
+            warnings.warn(
+                "index and header are deprecated. Please pass them via pd_kwargs.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+
+        self.pd_kwargs = pd_kwargs or pd_csv_kwargs or {}
+        if self.file_format == FILE_FORMAT.CSV:
+            if "path_or_buf" in self.pd_kwargs:
+                raise AirflowException('The argument path_or_buf is not allowed, please remove it')
+            if "index" not in self.pd_kwargs:
+                self.pd_kwargs["index"] = index
+            if "header" not in self.pd_kwargs:
+                self.pd_kwargs["header"] = header
+        else:
+            if pd_csv_kwargs is not None:
+                raise TypeError("pd_csv_kwargs may not be specified when file_format='parquet'")
+
+    @staticmethod
+    def _fix_int_dtypes(df: pd.DataFrame) -> None:
         """Mutate DataFrame to set dtypes for int columns containing NaN values."""
         for col in df:
             if "float" in df[col].dtype.name and df[col].hasnans:
@@ -118,9 +168,10 @@ class MySQLToS3Operator(BaseOperator):
         self.log.info("Data from MySQL obtained")
 
         self._fix_int_dtypes(data_df)
-        with NamedTemporaryFile(mode='r+', suffix='.csv') as tmp_csv:
-            data_df.to_csv(tmp_csv.name, **self.pd_csv_kwargs)
-            s3_conn.load_file(filename=tmp_csv.name, key=self.s3_key, bucket_name=self.s3_bucket)
+        file_options = FILE_OPTIONS_MAP[self.file_format]
+        with NamedTemporaryFile(mode=file_options.mode, suffix=file_options.suffix) as tmp_file:
+            data_df.to_csv(tmp_file.name, **self.pd_kwargs)
+            s3_conn.load_file(filename=tmp_file.name, key=self.s3_key, bucket_name=self.s3_bucket)
 
         if s3_conn.check_for_key(self.s3_key, bucket_name=self.s3_bucket):
             file_location = os.path.join(self.s3_bucket, self.s3_key)

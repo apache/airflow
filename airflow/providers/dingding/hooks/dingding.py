@@ -115,8 +115,7 @@ class DingdingHook(HttpHook):
         support_type = ['text', 'link', 'markdown', 'actionCard', 'feedCard']
         if self.message_type not in support_type:
             raise ValueError(
-                'DingdingWebhookHook only support {} '
-                'so far, but receive {}'.format(support_type, self.message_type)
+                f'DingdingWebhookHook only support {support_type} so far, but receive {self.message_type}'
             )
 
         data = self._build_message()
