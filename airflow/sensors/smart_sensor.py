@@ -125,7 +125,7 @@ class SensorWork:
         log_id = "-".join(
             [si.dag_id, si.task_id, si.execution_date.strftime("%Y_%m_%dT%H_%M_%S_%f"), str(si.try_number)]
         )
-        logger = logging.getLogger('airflow.task' + '.' + log_id)
+        logger = logging.getLogger(f'airflow.task.{log_id}')
 
         if len(logger.handlers) == 0:
             handler = self.create_new_task_handler()

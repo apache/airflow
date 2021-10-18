@@ -228,7 +228,7 @@ class RegExTemplates:
         + "(?P<nodegroup_name>.+)/"
         + NODEGROUP_UUID_PATTERN
     )
-    NODEGROUP_ASG_NAME_PATTERN: Pattern = re.compile("eks-" + NODEGROUP_UUID_PATTERN)
+    NODEGROUP_ASG_NAME_PATTERN: Pattern = re.compile(f"eks-{NODEGROUP_UUID_PATTERN}")
     NODEGROUP_SECURITY_GROUP_NAME_PATTERN: Pattern = re.compile("sg-([-0-9a-z]{17})")
 
 
