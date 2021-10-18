@@ -216,7 +216,7 @@ class DatabricksHook(BaseHook):
 
             if attempt_num == self.retry_limit:
                 raise AirflowException(
-                    ('API requests to Databricks failed {} times. ' + 'Giving up.').format(self.retry_limit)
+                    ('API requests to Databricks failed {} times. Giving up.').format(self.retry_limit)
                 )
 
             attempt_num += 1
