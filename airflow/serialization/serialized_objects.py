@@ -737,13 +737,11 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
             op_link_arguments = cattr.unstructure(operator_extra_link)
             if not isinstance(op_link_arguments, dict):
                 op_link_arguments = {}
-            serialize_operator_extra_links.append(
-                {
-                    "{}.{}".format(
-                        operator_extra_link.__class__.__module__, operator_extra_link.__class__.__name__
-                    ): op_link_arguments
-                }
+
+            module_path = (
+                f"{operator_extra_link.__class__.__module__}.{operator_extra_link.__class__.__name__}"
             )
+            serialize_operator_extra_links.append({module_path: op_link_arguments})
 
         return serialize_operator_extra_links
 

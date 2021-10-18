@@ -842,9 +842,7 @@ class BaseSecurityManager:
 
         # build the filter string for the LDAP search
         if self.auth_ldap_search_filter:
-            filter_str = "(&{}({}={}))".format(
-                self.auth_ldap_search_filter, self.auth_ldap_uid_field, username
-            )
+            filter_str = f"(&{self.auth_ldap_search_filter}({self.auth_ldap_uid_field}={username}))"
         else:
             filter_str = f"({self.auth_ldap_uid_field}={username})"
 
@@ -859,8 +857,7 @@ class BaseSecurityManager:
 
         # perform the LDAP search
         log.debug(
-            "LDAP search for '%s' with fields %s in scope '%s'"
-            % (filter_str, request_fields, self.auth_ldap_search)
+            f"LDAP search for '{filter_str}' with fields {request_fields} in scope '{self.auth_ldap_search}'"
         )
         raw_search_result = con.search_s(
             self.auth_ldap_search, ldap.SCOPE_SUBTREE, filter_str, request_fields
@@ -875,8 +872,8 @@ class BaseSecurityManager:
         # only continue if 0 or 1 results were returned
         if len(search_result) > 1:
             log.error(
-                "LDAP search for '%s' in scope '%a' returned multiple results"
-                % (filter_str, self.auth_ldap_search)
+                f"LDAP search for '{filter_str}' in scope "
+                f"'{self.auth_ldap_search!a}' returned multiple results"
             )
             return None, None
 

@@ -98,9 +98,8 @@ class TestKerberos(unittest.TestCase):
 
             with self.assertLogs(kerberos.log) as log:
                 assert (
-                    'kinit: krb5_init_creds_set_keytab: Failed to find '
-                    'airflow@LUPUS.GRIDDYNAMICS.NET in keytab FILE:{} '
-                    '(unknown enctype)'.format(self.args.keytab) in log.output
+                    f'kinit: krb5_init_creds_set_keytab: Failed to find airflow@LUPUS.GRIDDYNAMICS.NET in '
+                    f'keytab FILE:{self.args.keytab} (unknown enctype)' in log.output
                 )
 
             assert ctx.value.code == 1

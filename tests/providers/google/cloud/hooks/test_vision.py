@@ -40,14 +40,10 @@ LOC_ID_TEST = 'loc-id'
 LOC_ID_TEST_2 = 'loc-id-2'
 PRODUCTSET_ID_TEST = 'ps-id'
 PRODUCTSET_ID_TEST_2 = 'ps-id-2'
-PRODUCTSET_NAME_TEST = 'projects/{}/locations/{}/productSets/{}'.format(
-    PROJECT_ID_TEST, LOC_ID_TEST, PRODUCTSET_ID_TEST
-)
+PRODUCTSET_NAME_TEST = f'projects/{PROJECT_ID_TEST}/locations/{LOC_ID_TEST}/productSets/{PRODUCTSET_ID_TEST}'
 PRODUCT_ID_TEST = 'p-id'
 PRODUCT_ID_TEST_2 = 'p-id-2'
-PRODUCT_NAME_TEST = "projects/{}/locations/{}/products/{}".format(
-    PROJECT_ID_TEST, LOC_ID_TEST, PRODUCT_ID_TEST
-)
+PRODUCT_NAME_TEST = f"projects/{PROJECT_ID_TEST}/locations/{LOC_ID_TEST}/products/{PRODUCT_ID_TEST}"
 PRODUCT_NAME = f"projects/{PROJECT_ID_TEST}/locations/{LOC_ID_TEST}/products/{PRODUCT_ID_TEST}"
 REFERENCE_IMAGE_ID_TEST = 'ri-id'
 REFERENCE_IMAGE_GEN_ID_TEST = 'ri-id'
@@ -65,8 +61,9 @@ BATCH_ANNOTATE_IMAGE_REQUEST = [
         'features': [{'type': enums.Feature.Type.LOGO_DETECTION}],
     },
 ]
-REFERENCE_IMAGE_NAME_TEST = "projects/{}/locations/{}/products/{}/referenceImages/{}".format(
-    PROJECT_ID_TEST, LOC_ID_TEST, PRODUCTSET_ID_TEST, REFERENCE_IMAGE_ID_TEST
+REFERENCE_IMAGE_NAME_TEST = (
+    f"projects/{PROJECT_ID_TEST}/locations/{LOC_ID_TEST}/products/"
+    f"{PRODUCTSET_ID_TEST}/referenceImages/{REFERENCE_IMAGE_ID_TEST}"
 )
 REFERENCE_IMAGE_TEST = ReferenceImage(name=REFERENCE_IMAGE_GEN_ID_TEST)
 REFERENCE_IMAGE_WITHOUT_ID_NAME = ReferenceImage()

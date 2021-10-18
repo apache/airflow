@@ -1200,8 +1200,8 @@ class Airflow(AirflowBaseView):
             execution_date = timezone.parse(execution_date)
         except ValueError:
             error_message = (
-                'Given execution date, {}, could not be identified '
-                'as a date. Example date format: 2015-11-16T14:34:15+00:00'.format(execution_date)
+                f'Given execution date, {execution_date}, could not be identified as a date. '
+                'Example date format: 2015-11-16T14:34:15+00:00'
             )
             response = jsonify({'error': error_message})
             response.status_code = 400
@@ -1571,8 +1571,7 @@ class Airflow(AirflowBaseView):
         if failed_deps:
             failed_deps_str = ", ".join(f"{dep.dep_name}: {dep.reason}" for dep in failed_deps)
             flash(
-                "Could not queue task instance for execution, dependencies not met: "
-                "{}".format(failed_deps_str),
+                f"Could not queue task instance for execution, dependencies not met: {failed_deps_str}",
                 "error",
             )
             return redirect(origin)
@@ -4008,10 +4007,7 @@ class DagRunModelView(AirflowPrivilegeVerifierModelView):
                     current_app.dag_bag.get_dag(dr.dag_id), dr.execution_date, commit=True, session=session
                 )
             altered_ti_count = len(altered_tis)
-            flash(
-                "{count} dag runs and {altered_ti_count} task instances "
-                "were set to failed".format(count=count, altered_ti_count=altered_ti_count)
-            )
+            flash(f"{count} dag runs and {altered_ti_count} task instances were set to failed")
         except Exception:
             flash('Failed to set state', 'error')
         return redirect(self.get_default_url())
@@ -4035,10 +4031,7 @@ class DagRunModelView(AirflowPrivilegeVerifierModelView):
                     current_app.dag_bag.get_dag(dr.dag_id), dr.execution_date, commit=True, session=session
                 )
             altered_ti_count = len(altered_tis)
-            flash(
-                "{count} dag runs and {altered_ti_count} task instances "
-                "were set to success".format(count=count, altered_ti_count=altered_ti_count)
-            )
+            flash(f"{count} dag runs and {altered_ti_count} task instances were set to success")
         except Exception:
             flash('Failed to set state', 'error')
         return redirect(self.get_default_url())

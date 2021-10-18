@@ -241,13 +241,14 @@ def task_run(args, dag=None):
         unsupported_options = [o for o in RAW_TASK_UNSUPPORTED_OPTION if getattr(args, o)]
 
         if unsupported_options:
+            unsupported_raw_task_flags = ', '.join(f'--{o}' for o in RAW_TASK_UNSUPPORTED_OPTION)
+            unsupported_flags = ', '.join(f'--{o}' for o in unsupported_options)
             raise AirflowException(
-                "Option --raw does not work with some of the other options on this command. You "
-                "can't use --raw option and the following options: {}. You provided the option {}. "
-                "Delete it to execute the command".format(
-                    ", ".join(f"--{o}" for o in RAW_TASK_UNSUPPORTED_OPTION),
-                    ", ".join(f"--{o}" for o in unsupported_options),
-                )
+                "Option --raw does not work with some of the other options on this command. "
+                "You can't use --raw option and the following options: "
+                f"{unsupported_raw_task_flags}. "
+                f"You provided the option {unsupported_flags}. "
+                "Delete it to execute the command."
             )
     if dag and args.pickle:
         raise AirflowException("You cannot use the --pickle option when using DAG.cli() method.")

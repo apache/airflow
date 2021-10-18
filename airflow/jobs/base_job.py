@@ -105,7 +105,7 @@ class BaseJob(Base, LoggingMixin):
         if heartrate is not None:
             self.heartrate = heartrate
         self.unixname = getuser()
-        self.max_tis_per_query = conf.getint('scheduler', 'max_tis_per_query')
+        self.max_tis_per_query: int = conf.getint('scheduler', 'max_tis_per_query')
         super().__init__(*args, **kwargs)
 
     @cached_property

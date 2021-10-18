@@ -199,9 +199,8 @@ def _import_users(users_list):
             print(f"Found existing user with email '{user['email']}'")
             if existing_user.username != user['username']:
                 raise SystemExit(
-                    "Error: Changing the username is not allowed - "
-                    "please delete and recreate the user with "
-                    "email '{}'".format(user['email'])
+                    f"Error: Changing the username is not allowed - please delete and recreate the user with"
+                    f" email {user['email']!r}"
                 )
 
             existing_user.roles = roles

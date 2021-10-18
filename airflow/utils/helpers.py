@@ -50,8 +50,8 @@ def validate_key(k: str, max_length: int = 250):
         raise AirflowException(f"The key has to be less than {max_length} characters")
     if not KEY_REGEX.match(k):
         raise AirflowException(
-            "The key ({k}) has to be made of alphanumeric characters, dashes, "
-            "dots and underscores exclusively".format(k=k)
+            f"The key ({k}) has to be made of alphanumeric characters, dashes, "
+            f"dots and underscores exclusively"
         )
 
 
@@ -63,7 +63,7 @@ def validate_group_key(k: str, max_length: int = 200):
         raise AirflowException(f"The key has to be less than {max_length} characters")
     if not GROUP_KEY_REGEX.match(k):
         raise AirflowException(
-            f"The key ({k}) has to be made of alphanumeric characters, dashes and underscores exclusively"
+            f"The key ({k!r}) has to be made of alphanumeric characters, dashes and underscores exclusively"
         )
 
 
