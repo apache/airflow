@@ -302,3 +302,15 @@ class SnowflakeHook(DbApiHook):
                 conn.commit()
 
         return execution_info
+
+    def test_connection(self):
+        """Tests the Snowflake connection by running a sample query"""
+        try:
+            execution_info = self.run(sql="select 1")
+
+            if len(execution_info) > 0:
+                return True, 'Connection successfully tested'
+            else:
+                return False, 'No results retrieved from the sample query'
+        except Exception as e:
+            return False, str(e)
