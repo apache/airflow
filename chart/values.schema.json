@@ -862,6 +862,14 @@
                     "type": "string",
                     "default": "/etc/krb5.conf"
                 },
+                "keytabBase64Content": {
+                    "description": "Kerberos keytab base64 encoded content.",
+                    "type": [
+                        "string",
+                        "null"
+                    ],
+                    "default": null
+                },
                 "keytabPath": {
                     "description": "Path to mount the keytab for refreshing credentials in the kerberos sidecar.",
                     "type": "string",
