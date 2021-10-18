@@ -120,7 +120,7 @@ class ECSTaskLogFetcher(Thread):
                 logs_to_skip += 1
             time.sleep(self.fetch_interval.total_seconds())
 
-    def _get_log_events(self, start_from_head=True, skip: int = 0) -> Generator:
+    def _get_log_events(self, skip: int = 0, *, start_from_head: bool = True) -> Generator:
         try:
             yield from self.hook.get_log_events(self.log_group, self.log_stream_name, start_from_head=start_from_head,
                                                 skip=skip)
