@@ -219,20 +219,21 @@ def get_date_time_num_runs_dag_runs_form_data(www_request, session, dag):
     }
 
 
-def task_group_to_tree(task_group, dag, dag_runs, tis):
+def task_group_to_tree(task_item_or_group, dag, dag_runs, tis):
     """
     Create a nested dict representation of this TaskGroup and its children used to construct
     the Graph.
     """
-    if isinstance(task_group, BaseOperator):
+    if isinstance(task_item_or_group, BaseOperator):
         return {
-            'id': task_group.task_id,
-            'instances': [wwwutils.encode_ti(ti) for ti in tis if ti.task_id == task_group.task_id],
-            'label': task_group.label,
-            'extra_links': task_group.extra_links,
+            'id': task_item_or_group.task_id,
+            'instances': [wwwutils.encode_ti(ti) for ti in tis if ti.task_id == task_item_or_group.task_id],
+            'label': task_item_or_group.label,
+            'extra_links': task_item_or_group.extra_links,
         }
 
     # Task Group
+    task_group = task_item_or_group
 
     children = [task_group_to_tree(child, dag, dag_runs, tis) for child in task_group.children.values()]
 
