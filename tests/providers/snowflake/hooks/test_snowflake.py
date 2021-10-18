@@ -187,12 +187,12 @@ class TestSnowflakeHook(unittest.TestCase):
         assert status is True
         assert msg == 'Connection successfully tested'
 
-    @mock.patch('airflow.providers.snowflake.hooks.snowflake.SnowflakeHook.run')
+    @mock.patch('airflow.providers.snowflake.hooks.snowflake.SnowflakeHook.run',
+                side_effect=Exception('Connection Errors'))
     def test_connection_failure(self, mock_run):
-        mock_run.return_value = []
         status, msg = self.db_hook.test_connection()
         assert status is False
-        assert msg == 'No results retrieved from the sample query'
+        assert msg == 'Connection Errors'
 
 
 """
