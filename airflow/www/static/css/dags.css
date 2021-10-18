@@ -30,7 +30,7 @@
 
 .dags-table-body {
   margin: 0 1px;
-  overflow-x: auto;
+  padding-bottom: 2px;
 }
 
 .no-padding {
