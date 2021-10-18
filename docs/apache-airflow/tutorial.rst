@@ -377,6 +377,24 @@ We need to have docker and postgres installed.
 We will be using this `docker file <https://airflow.apache.org/docs/apache-airflow/stable/start/docker.html#docker-compose-yaml>`_
 Follow the instructions properly to set up Airflow.
 
+.. note::
+    Airflow manages databases using `connections <https://airflow.apache.org/docs/apache-airflow/stable/howto/connection.html>`.
+    When running the code below, you will need to either configure a relevant postgres connection named ``postgres_docker`` or configure one
+    as appropriate for your system and update the code below to reference the appropriate Connection id.
+
+    If using the aforementioned `docker setup <https://airflow.apache.org/docs/apache-airflow/stable/start/docker.html#docker-compose-yaml>`
+    note that none of the out-of-the-box connections are quite right; you will likely (either via the webserver UI or command line)
+    want to add a docker-appropriate postgres connection (the following creates one that matches postgres as
+    configured in ``docker-compose.yml``)
+
+    .. code-block:: bash
+        airflow connections add 'postgres_docker' \
+            --conn-type 'postgres' \
+            --conn-login 'airflow' \
+            --conn-password 'airflow' \
+            --conn-host 'postgres' \
+            --conn-schema 'airflow'
+
 Create a Employee table in postgres using this
 
 .. code-block:: sql
@@ -410,23 +428,25 @@ Let's break this down into 2 steps: get data & merge data:
 
   @task
   def get_data():
+      # NOTE: configure this as appropriate for your airflow environment
       data_path = "/usr/local/airflow/dags/files/employees.csv"
 
       url = "https://raw.githubusercontent.com/apache/airflow/main/docs/apache-airflow/pipeline_example.csv"
 
-      response = requests.request("GET", url)
+      with requests.get(url, stream=True) as req:
+          req.raise_for_status()
+          with open("/opt/airflow/dags/files/employees.csv", "wb") as file:
+              for chunk in req.iter_content(chunk_size=1024):
+                  if chunk:
+                      file.write(chunk)
 
-      with open(data_path, "w") as file:
-          for row in response.text.split("\n"):
-              if row:
-                  file.write(row + "\n")
-
-      postgres_hook = PostgresHook(postgres_conn_id="LOCAL")
+      postgres_hook = PostgresHook(postgres_conn_id=conn_id)
       conn = postgres_hook.get_conn()
       cur = conn.cursor()
       with open(data_path, "r") as file:
           cur.copy_expert(
-              "COPY \"Employees_temp\" FROM stdin WITH CSV HEADER DELIMITER AS ','", file
+              "COPY \"Employees_temp\" FROM stdin WITH CSV HEADER DELIMITER AS ','",
+              file,
           )
       conn.commit()
 
@@ -446,13 +466,14 @@ Here we are passing a ``GET`` request to get the data from the URL and save it i
           from "Employees_temp";
       """
       try:
-          postgres_hook = PostgresHook(postgres_conn_id="LOCAL")
+          postgres_hook = PostgresHook(postgres_conn_id=conn_id)
           conn = postgres_hook.get_conn()
           cur = conn.cursor()
           cur.execute(query)
           conn.commit()
           return 0
       except Exception as e:
+          logging.error(f"Failed to merge data: {e}")
           return 1
 
 Here we are first looking for duplicate values and removing them before we insert new values in our final table
@@ -465,6 +486,7 @@ Lets look at our DAG:
   from airflow.decorators import dag, task
   from airflow.hooks.postgres_hook import PostgresHook
   from datetime import datetime, timedelta
+  import logging
   import requests
 
 
@@ -474,6 +496,10 @@ Lets look at our DAG:
       dagrun_timeout=timedelta(minutes=60),
   )
   def Etl():
+      # Modify this to match an appropriately configured postgres Connection name in your environment
+      conn_id = "postgres_docker"
+      logger = logging.getLogger(__name__)
+
       @task
       def get_data():
           # NOTE: configure this as appropriate for your airflow environment
@@ -481,14 +507,14 @@ Lets look at our DAG:
 
           url = "https://raw.githubusercontent.com/apache/airflow/main/docs/apache-airflow/pipeline_example.csv"
 
-          response = requests.request("GET", url)
+          with requests.get(url, stream=True) as req:
+              req.raise_for_status()
+              with open("/opt/airflow/dags/files/employees.csv", "wb") as file:
+                  for chunk in req.iter_content(chunk_size=1024):
+                      if chunk:
+                          file.write(chunk)
 
-          with open(data_path, "w") as file:
-              for row in response.text.split("\n"):
-                  if row:
-                      file.write(row + "\n")
-
-          postgres_hook = PostgresHook(postgres_conn_id="LOCAL")
+          postgres_hook = PostgresHook(postgres_conn_id=conn_id)
           conn = postgres_hook.get_conn()
           cur = conn.cursor()
           with open(data_path, "r") as file:
@@ -510,13 +536,14 @@ Lets look at our DAG:
                   from "Employees_temp";
                   """
           try:
-              postgres_hook = PostgresHook(postgres_conn_id="LOCAL")
+              postgres_hook = PostgresHook(postgres_conn_id=conn_id)
               conn = postgres_hook.get_conn()
               cur = conn.cursor()
               cur.execute(query)
               conn.commit()
               return 0
           except Exception as e:
+              logging.error(f"Failed to merge data", exc_info=e)
               return 1
 
       get_data() >> merge_data()
