@@ -19,16 +19,17 @@
 import os
 import signal
 from threading import Timer
-from typing import ContextManager, Optional, Type
-
+from airflow.utils.platform import IS_WINDOWS
 from airflow.exceptions import AirflowTaskTimeout
 from airflow.utils.log.logging_mixin import LoggingMixin
-from airflow.utils.platform import IS_WINDOWS
+from typing import ContextManager, Optional, Type
+
 
 _timeout = ContextManager[None]
 
 
 class _timeout_windows(_timeout, LoggingMixin):
+
     def __init__(self, seconds=1, error_message='Timeout'):
         super().__init__()
         self._timer: Optional[Timer] = None

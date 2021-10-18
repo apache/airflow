@@ -25,7 +25,6 @@ import shlex
 import signal
 import subprocess
 import sys
-
 from airflow.utils.platform import IS_WINDOWS
 
 if not IS_WINDOWS:

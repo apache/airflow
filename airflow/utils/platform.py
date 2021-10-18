@@ -22,6 +22,8 @@ import os
 import pkgutil
 import platform
 import sys
+import platform
+IS_WINDOWS = platform.system() == 'Windows'
 
 IS_WINDOWS = platform.system() == 'Windows'
 

@@ -19,6 +19,7 @@
 import json
 import os
 from tempfile import mkstemp
+from airflow.utils.platform import IS_WINDOWS
 
 from airflow.configuration import conf
 from airflow.utils.platform import IS_WINDOWS
