@@ -24,7 +24,7 @@ Content
 Apache Pinot Hooks
 ==================
 
-`Apache Pinot <https://pinot.apache.org/>`__ is a column-oriented, open-source,distributed data store written in Java. Pinot is designed to execute OLAP querieswith low latency. It is suited in contexts where fast analytics, such as aggregations,are needed on immutable data, possibly, with real-time data ingestion.
+`Apache Pinot <https://pinot.apache.org/>`__ is a column-oriented, open-source, distributed data store written in Java. Pinot is designed to execute OLAP queries with low latency. It is suited in contexts where fast analytics, such as aggregations are needed on immutable data, possibly, with real-time data ingestion.
 
 Prerequisite
 ------------
