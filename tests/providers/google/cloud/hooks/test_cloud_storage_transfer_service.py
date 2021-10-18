@@ -500,9 +500,7 @@ class TestGCPTransferServiceHookWithPassedProjectId(unittest.TestCase):
 
         with pytest.raises(
             AirflowException,
-            match="An unexpected operation status was encountered. Expected: {}".format(
-                ", ".join(expected_statuses)
-            ),
+            match=f"An unexpected operation status was encountered. Expected: {', '.join(expected_statuses)}",
         ):
             CloudDataTransferServiceHook.operations_contain_expected_statuses(
                 operations, GcpTransferOperationStatus.IN_PROGRESS

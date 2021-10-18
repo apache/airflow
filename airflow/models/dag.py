@@ -1519,11 +1519,9 @@ class DAG(LoggingMixin):
                 if recursion_depth + 1 > max_recursion_depth:
                     # Prevent cycles or accidents.
                     raise AirflowException(
-                        "Maximum recursion depth {} reached for {} {}. "
-                        "Attempted to clear too many tasks "
-                        "or there may be a cyclic dependency.".format(
-                            max_recursion_depth, ExternalTaskMarker.__name__, ti.task_id
-                        )
+                        f"Maximum recursion depth {max_recursion_depth} reached for "
+                        f"{ExternalTaskMarker.__name__} {ti.task_id}. "
+                        f"Attempted to clear too many tasks or there may be a cyclic dependency."
                     )
                 ti.render_templates()
                 external_tis = (

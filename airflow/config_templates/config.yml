@@ -1967,14 +1967,14 @@
     - name: forwardable
       description: |
         Allow to disable ticket forwardability.
-      version_added: ~
+      version_added: 2.2.0
       type: boolean
       example: ~
       default: "True"
     - name: include_ip
       description: |
         Allow to remove source IP from token, useful when using token behind NATted Docker host.
-      version_added: ~
+      version_added: 2.2.0
       type: boolean
       example: ~
       default: "True"

@@ -18,6 +18,9 @@
 import unittest
 from unittest import mock
 
+import pytest
+
+from airflow import PY37
 from airflow.cli import cli_parser
 from airflow.cli.commands import triggerer_command
 
@@ -31,6 +34,7 @@ class TestTriggererCommand(unittest.TestCase):
     def setUpClass(cls):
         cls.parser = cli_parser.get_parser()
 
+    @pytest.mark.skipif(not PY37, reason="triggerer subcommand only works with Python 3.7+")
     @mock.patch("airflow.cli.commands.triggerer_command.TriggererJob")
     def test_capacity_argument(
         self,

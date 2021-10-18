@@ -476,10 +476,8 @@ class CloudDataTransferServiceHook(GoogleBaseHook):
         body[target_key] = body.get(target_key, self.project_id)
         if not body.get(target_key):
             raise AirflowException(
-                "The project id must be passed either as `{}` key in `{}` parameter or as project_id "
-                "extra in Google Cloud connection definition. Both are not set!".format(
-                    target_key, param_name
-                )
+                f"The project id must be passed either as `{target_key}` key in `{param_name}` "
+                f"parameter or as project_id extra in Google Cloud connection definition. Both are not set!"
             )
         return body
 

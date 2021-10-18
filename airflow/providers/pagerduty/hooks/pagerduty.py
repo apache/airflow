@@ -16,19 +16,28 @@
 # specific language governing permissions and limitations
 # under the License.
 """Hook for sending or receiving data from PagerDuty as well as creating PagerDuty incidents."""
+import warnings
 from typing import Any, Dict, List, Optional
 
 import pdpyras
 
 from airflow.exceptions import AirflowException
 from airflow.hooks.base import BaseHook
+from airflow.providers.pagerduty.hooks.pagerduty_events import PagerdutyEventsHook
 
 
 class PagerdutyHook(BaseHook):
     """
-    Takes both PagerDuty API token directly and connection that has PagerDuty API token.
+    The PagerdutyHook can be used to interact with both the PagerDuty API and the PagerDuty Events API.
 
+    Takes both PagerDuty API token directly and connection that has PagerDuty API token.
     If both supplied, PagerDuty API token will be used.
+    In these cases, the PagerDuty API token refers to an account token:
+    https://support.pagerduty.com/docs/generating-api-keys#generating-a-general-access-rest-api-key
+    https://support.pagerduty.com/docs/generating-api-keys#generating-a-personal-rest-api-key
+
+    In order to send events (with the Pagerduty Events API), you will also need to specify the
+    routing_key (or Integration key) in the ``extra`` field
 
     :param token: PagerDuty API token
     :param pagerduty_conn_id: connection that has PagerDuty API token in the password field
@@ -38,6 +47,16 @@ class PagerdutyHook(BaseHook):
     default_conn_name = "pagerduty_default"
     conn_type = "pagerduty"
     hook_name = "Pagerduty"
+
+    @staticmethod
+    def get_ui_field_behaviour() -> Dict:
+        """Returns custom field behaviour"""
+        return {
+            "hidden_fields": ['port', 'login', 'schema', 'host'],
+            "relabeling": {
+                'password': 'Pagerduty API token',
+            },
+        }
 
     def __init__(self, token: Optional[str] = None, pagerduty_conn_id: Optional[str] = None) -> None:
         super().__init__()
@@ -75,8 +94,8 @@ class PagerdutyHook(BaseHook):
         self,
         summary: str,
         severity: str,
-        source: str = 'airflow',
-        action: str = 'trigger',
+        source: str = "airflow",
+        action: str = "trigger",
         routing_key: Optional[str] = None,
         dedup_key: Optional[str] = None,
         custom_details: Optional[Any] = None,
@@ -129,45 +148,25 @@ class PagerdutyHook(BaseHook):
         :return: PagerDuty Events API v2 response.
         :rtype: dict
         """
-        if routing_key is None:
-            routing_key = self.routing_key
-        if routing_key is None:
-            raise AirflowException('No routing/integration key specified.')
-        payload = {
-            "summary": summary,
-            "severity": severity,
-            "source": source,
-        }
-        if custom_details is not None:
-            payload["custom_details"] = custom_details
-        if component:
-            payload["component"] = component
-        if group:
-            payload["group"] = group
-        if class_type:
-            payload["class"] = class_type
+        warnings.warn(
+            "This method will be deprecated. Please use the "
+            "`airflow.providers.pagerduty.hooks.PagerdutyEventsHook` to interact with the Events API",
+            DeprecationWarning,
+            stacklevel=2,
+        )
 
-        actions = ('trigger', 'acknowledge', 'resolve')
-        if action not in actions:
-            raise ValueError(f"Event action must be one of: {', '.join(actions)}")
-        data = {
-            "event_action": action,
-            "payload": payload,
-        }
-        if dedup_key:
-            data["dedup_key"] = dedup_key
-        elif action != 'trigger':
-            raise ValueError(
-                "The dedup_key property is required for event_action=%s events, and it must \
-                be a string."
-                % action
-            )
-        if images is not None:
-            data["images"] = images
-        if links is not None:
-            data["links"] = links
+        routing_key = routing_key or self.routing_key
 
-        session = pdpyras.EventsAPISession(routing_key)
-        resp = session.post('/v2/enqueue', json=data)
-        resp.raise_for_status()
-        return resp.json()
+        return PagerdutyEventsHook(integration_key=routing_key).create_event(
+            summary=summary,
+            severity=severity,
+            source=source,
+            action=action,
+            dedup_key=dedup_key,
+            custom_details=custom_details,
+            group=group,
+            component=component,
+            class_type=class_type,
+            images=images,
+            links=links,
+        )

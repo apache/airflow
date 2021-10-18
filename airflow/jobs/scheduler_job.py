@@ -27,7 +27,7 @@ import time
 import warnings
 from collections import defaultdict
 from datetime import timedelta
-from typing import Collection, DefaultDict, Dict, List, Optional, Tuple
+from typing import Collection, DefaultDict, Dict, Iterator, List, Optional, Tuple
 
 from sqlalchemy import and_, func, not_, or_, tuple_
 from sqlalchemy.exc import OperationalError
@@ -141,7 +141,6 @@ class SchedulerJob(BaseJob):
         self.using_sqlite = sql_conn.startswith('sqlite')
         self.using_mysql = sql_conn.startswith('mysql')
 
-        self.max_tis_per_query: int = conf.getint('scheduler', 'max_tis_per_query')
         self.processor_agent: Optional[DagFileProcessorAgent] = None
 
         self.dagbag = DagBag(dag_folder=self.subdir, read_dags_from_db=True, load_op_links=False)
@@ -510,7 +509,15 @@ class SchedulerJob(BaseJob):
 
         # Check state of finished tasks
         filter_for_tis = TI.filter_for_tis(tis_with_right_state)
-        tis: List[TI] = session.query(TI).filter(filter_for_tis).options(selectinload('dag_model')).all()
+        query = session.query(TI).filter(filter_for_tis).options(selectinload('dag_model'))
+        # row lock this entire set of taskinstances to make sure the scheduler doesn't fail when we have
+        # multi-schedulers
+        tis: Iterator[TI] = with_row_locks(
+            query,
+            of=TI,
+            session=session,
+            **skip_locked(session=session),
+        )
         for ti in tis:
             try_number = ti_primary_key_to_try_number_map[ti.key.primary]
             buffer_key = ti.key.with_try_number(try_number)

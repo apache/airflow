@@ -97,6 +97,7 @@ Currently, **officially** using Airflow:
 1. [BounceX](http://www.bouncex.com) [[@JoshFerge](https://github.com/JoshFerge), [@hudsonrio](https://github.com/hudsonrio), [@ronniekritou](https://github.com/ronniekritou)]
 1. [Braintree](https://www.braintreepayments.com) [[@coopergillan](https://github.com/coopergillan), [@curiousjazz77](https://github.com/curiousjazz77), [@raymondberg](https://github.com/raymondberg)]
 1. [Branch](https://branch.io) [[@sdebarshi](https://github.com/sdebarshi), [@dmitrig01](https://github.com/dmitrig01)]
+1. [Bwtech](https://www.bwtech.com/) [[@wolvery](https://github.com/wolvery)
 1. [C2FO](https://www.c2fo.com/)
 1. [Caesars Entertainment](https://www.caesars.com)
 1. [California Data Collaborative](https://github.com/California-Data-Collaborative) powered by [ARGO Labs](http://www.argolabs.org)
@@ -120,7 +121,7 @@ Currently, **officially** using Airflow:
 1. [Cleartax](https://cleartax.in/) [[@anks](https://github.com/anks) & [@codebuff](https://github.com/codebuff)]
 1. [Clicksign](https://clicksign.com/) [[@mbbernstein](https://github.com/mbbernstein) & [@jorgeac12](https://github.com/jorgeac12) & [@franklin390](https://github.com/franklin390)]
 1. [Cloudera](https://www.cloudera.com/) [[@phraniiac](https://github.com/phraniiac) & [@VivekPemawat](https://github.com/VivekPemawat)]
-1. [Clover Health](https://www.cloverhealth.com) [[@gwax](https://github.com/gwax) & [@vansivallab](https://github.com/vansivallab)]
+1. [Clover Health](https://www.cloverhealth.com) [[@ryansiu1995](https://github.com/ryansiu1995)]
 1. [Colgate-Palmolive](https://www.colgatepalmolive.com/) [[@fhoda](https://github.com/fhoda)]
 1. [Collectivehealth Inc.](https://www.collectivehealth.com) [[@retornam](https://github.com/retornam)]
 1. [Compass](https://www.compass.com) [[@wdhorton](https://github.com/wdhorton)]
@@ -233,6 +234,7 @@ Currently, **officially** using Airflow:
 1. [ING](http://www.ing.com/)
 1. [Instacart 🥕](http://www.instacart.com/) [[@arp1t](https://github.com/arp1t) & [@code-sauce](https://github.com/code-sauce) & [@jasonlew](https://github.com/jasonlew) & [@j4p3](https://github.com/j4p3) & [@lubert](https://github.com/lubert) & [@mmontagna](https://github.com/mmontagna) & [@RyanAD](https://github.com/RyanAD) &[@zzadeh](https://github.com/zzadeh)]
 1. [Intellischool 🎓](https://intellischool.co/) [[@intelliscl](https://github.com/intelliscl) & [@dave-philp](https://github.com/dave-philp)]
+1. [Inter Platform Inc.](https://www.bancointer.com.br/) [[@wolvery](https://github.com/wolvery)
 1. [Intercom](http://www.intercom.com/) [[@fox](https://github.com/fox) & [@paulvic](https://github.com/paulvic)]
 1. [Interia](http://www.interia.pl)
 1. [Investorise](https://investorise.com/) [[@svenvarkel](https://github.com/svenvarkel)]
@@ -316,6 +318,7 @@ Currently, **officially** using Airflow:
 1. [Pandora Media](https://www.pandora.com/) [[@Acehaidrey](https://github.com/Acehaidrey) & [@wolfier](https://github.com/wolfier)]
 1. [Paradigma Digital](https://www.paradigmadigital.com/) [[@paradigmadigital](https://github.com/paradigmadigital)]
 1. [Paraná Banco](https://paranabanco.com.br/) [[@lopesdiego12](https://github.com/lopesdiego12/)]
+1. [Parimatch Tech](https://parimatch.tech/) [[@KulykDmytro](https://github.com/KulykDmytro), [@Tonkonozhenko](https://github.com/Tonkonozhenko)]
 1. [Pathstream](https://pathstream.com) [[@pJackDanger](https://github.com/JackDanger)]
 1. [PayFit](https://payfit.com) [[@pcorbel](https://github.com/pcorbel)]
 1. [PAYMILL](https://www.paymill.com/) [[@paymill](https://github.com/paymill) & [@matthiashuschle](https://github.com/matthiashuschle)]

@@ -27,6 +27,7 @@ assists users migrating to a new version.
 **Table of contents**
 
 - [Main](#main)
+- [Airflow 2.2.0](#airflow-220)
 - [Airflow 2.1.4](#airflow-214)
 - [Airflow 2.1.3](#airflow-213)
 - [Airflow 2.1.2](#airflow-212)
@@ -75,6 +76,8 @@ More tips can be found in the guide:
 https://developers.google.com/style/inclusive-documentation
 
 -->
+
+## Airflow 2.2.0
 
 ### `worker_log_server_port` configuration has been moved to the ``logging`` section.
 
@@ -280,7 +283,7 @@ No breaking changes.
 
 ### `activate_dag_runs` argument of the function `clear_task_instances` is replaced with `dag_run_state`
 
-To achieve the previous default behaviour of `clear_task_instances` with `activate_dag_runs=True`, no change is needed. To achieve the previous behaviour of `activate_dag_runs=False`, pass `dag_run_state=False` instead. (The previous paramater is still accepted, but is deprecated)
+To achieve the previous default behaviour of `clear_task_instances` with `activate_dag_runs=True`, no change is needed. To achieve the previous behaviour of `activate_dag_runs=False`, pass `dag_run_state=False` instead. (The previous parameter is still accepted, but is deprecated)
 
 ### `dag.set_dag_runs_state` is deprecated
 

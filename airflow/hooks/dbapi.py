@@ -377,12 +377,9 @@ class DbApiHook(BaseHook):
         """Tests the connection by executing a select 1 query"""
         status, message = False, ''
         try:
-            with closing(self.get_conn()) as conn:
-                with closing(conn.cursor()) as cur:
-                    cur.execute("select 1")
-                    if cur.fetchone():
-                        status = True
-                        message = 'Connection successfully tested'
+            if self.get_first("select 1"):
+                status = True
+                message = 'Connection successfully tested'
         except Exception as e:
             status = False
             message = str(e)

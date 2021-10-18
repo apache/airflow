@@ -28,6 +28,12 @@ import yaml
 
 ROOT_DIR = Path(__file__).resolve().parent / ".."
 
+KNOWN_FALSE_DETECTIONS = {
+    # This option has been added in v2.0.0, but we had mistake in config.yml file until v2.2.0.
+    # https://github.com/apache/airflow/pull/17808
+    ('logging', 'extra_logger_names', '2.2.0')
+}
+
 
 def fetch_pypi_versions() -> List[str]:
     r = requests.get('https://pypi.org/pypi/apache-airflow/json')
@@ -104,6 +110,8 @@ local_options_with_version_added: Set[Tuple[str, str, str]] = {
     if version_added
 }
 diff_options: Set[Tuple[str, str, str]] = computed_options - local_options_with_version_added
+
+diff_options -= KNOWN_FALSE_DETECTIONS
 
 if diff_options:
     pprint(diff_options)

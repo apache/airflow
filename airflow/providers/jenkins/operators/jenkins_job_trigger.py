@@ -220,9 +220,8 @@ class JenkinsJobTriggerOperator(BaseOperator):
                     # Check if job ended with not allowed state.
                     if build_info['result'] not in self.allowed_jenkins_states:
                         raise AirflowException(
-                            'Jenkins job failed, final state : %s.'
-                            'Find more information on job url : %s'
-                            % (build_info['result'], build_info['url'])
+                            f"Jenkins job failed, final state : {build_info['result']}. "
+                            f"Find more information on job url : {build_info['url']}"
                         )
                 else:
                     self.log.info('Waiting for job to complete : %s , build %s', self.job_name, build_number)

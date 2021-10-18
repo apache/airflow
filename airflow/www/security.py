@@ -553,7 +553,7 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
         perms = sesh.query(sqla_models.PermissionView).filter(
             or_(
                 sqla_models.PermissionView.permission == None,  # noqa
-                sqla_models.PermissionView.view_menu == None,
+                sqla_models.PermissionView.view_menu == None,  # noqa
             )
         )
         # Since FAB doesn't define ON DELETE CASCADE on these tables, we need
@@ -830,17 +830,17 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
             role = self.find_role(rolename)
             if not role:
                 raise AirflowException(
-                    "The access_control mapping for DAG '{}' includes a role "
-                    "named '{}', but that role does not exist".format(dag_id, rolename)
+                    f"The access_control mapping for DAG '{dag_id}' includes a role named "
+                    f"'{rolename}', but that role does not exist"
                 )
 
             action_names = set(action_names)
             invalid_action_names = action_names - self.DAG_ACTIONS
             if invalid_action_names:
                 raise AirflowException(
-                    "The access_control map for DAG '{}' includes the following "
-                    "invalid permissions: {}; The set of valid permissions "
-                    "is: {}".format(dag_resource_name, invalid_action_names, self.DAG_ACTIONS)
+                    f"The access_control map for DAG '{dag_resource_name}' includes "
+                    f"the following invalid permissions: {invalid_action_names}; "
+                    f"The set of valid permissions is: {self.DAG_ACTIONS}"
                 )
 
             for action_name in action_names:

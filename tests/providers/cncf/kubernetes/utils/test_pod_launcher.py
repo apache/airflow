@@ -262,3 +262,17 @@ class TestPodLauncher(unittest.TestCase):
             self.pod_launcher.start_pod(mock.sentinel)
 
         assert mock_run_pod_async.call_count == 3
+
+    @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_launcher.PodLauncher.pod_not_started")
+    @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_launcher.PodLauncher.run_pod_async")
+    def test_start_pod_raises_informative_error_on_timeout(self, mock_run_pod_async, mock_pod_not_started):
+        pod_response = mock.MagicMock()
+        pod_response.status.start_time = None
+        mock_run_pod_async.return_value = pod_response
+        mock_pod_not_started.return_value = True
+        expected_msg = "Check the pod events in kubernetes"
+        with pytest.raises(AirflowException, match=expected_msg):
+            self.pod_launcher.start_pod(
+                pod=mock.sentinel,
+                startup_timeout=0,
+            )

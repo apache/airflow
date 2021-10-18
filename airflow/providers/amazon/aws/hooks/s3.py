@@ -560,9 +560,8 @@ class S3Hook(AwsBaseHook):
         available_compressions = ['gzip']
         if compression is not None and compression not in available_compressions:
             raise NotImplementedError(
-                "Received {} compression type. String "
-                "can currently be compressed in {} "
-                "only.".format(compression, available_compressions)
+                f"Received {compression} compression type. "
+                f"String can currently be compressed in {available_compressions} only."
             )
         if compression == 'gzip':
             bytes_data = gz.compress(bytes_data)

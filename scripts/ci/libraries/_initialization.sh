@@ -111,7 +111,7 @@ function initialization::initialize_base_variables() {
     export ALL_PYTHON_MAJOR_MINOR_VERSIONS
 
     # Currently supported major/minor versions of python
-    CURRENT_PYTHON_MAJOR_MINOR_VERSIONS+=("3.6" "3.7" "3.8" "3.9")
+    CURRENT_PYTHON_MAJOR_MINOR_VERSIONS+=("3.7" "3.8" "3.9" "3.6")
     export CURRENT_PYTHON_MAJOR_MINOR_VERSIONS
 
     # Currently supported versions of Postgres
@@ -311,6 +311,19 @@ function initialization::initialize_force_variables() {
 
     # Can be set to true to skip if the image is newer in registry
     export SKIP_CHECK_REMOTE_IMAGE=${SKIP_CHECK_REMOTE_IMAGE:="false"}
+
+    # integrations are disabled by default
+    export ENABLED_INTEGRATIONS=${ENABLED_INTEGRATIONS:=""}
+
+    # systems are disabled by default
+    export ENABLED_SYSTEMS=${ENABLED_SYSTEMS:=""}
+
+    # no issue id by default (quarantined builds only)
+    export ISSUE_ID=${ISSUE_ID:=""}
+
+    # no NUM_RUNS by default (quarantined builds only)
+    export NUM_RUNS=${NUM_RUNS:=""}
+
 }
 
 # Determine information about the host
@@ -576,10 +589,24 @@ function initialization::initialize_test_variables() {
     # In case we want to force certain test type to run, this variable should be set to this type
     # Otherwise TEST_TYPEs to run will be derived from TEST_TYPES space-separated string
     export FORCE_TEST_TYPE=${FORCE_TEST_TYPE:=""}
+
+    # Do not run tests by default
+    export RUN_TESTS=${RUN_TESTS:="false"}
+
+    # Do not run integration tests by default
+    export LIST_OF_INTEGRATION_TESTS_TO_RUN=${LIST_OF_INTEGRATION_TESTS_TO_RUN:=""}
+
+    # Do not run system tests by default (they can be enabled by setting the RUN_SYSTEM_TESTS variable to "true")
+    export RUN_SYSTEM_TESTS=${RUN_SYSTEM_TESTS:=""}
+
 }
 
 function initialization::initialize_package_variables() {
+    # default package format
     export PACKAGE_FORMAT=${PACKAGE_FORMAT:="wheel"}
+    # default version suffixes
+    export VERSION_SUFFIX_FOR_PYPI=${VERSION_SUFFIX_FOR_PYPI:=""}
+    export VERSION_SUFFIX_FOR_SVN=${VERSION_SUFFIX_FOR_SVN:=""}
 }
 
 
@@ -896,5 +923,39 @@ function initialization::ga_output() {
 function initialization::ga_env() {
     if [[ -n "${GITHUB_ENV=}" ]]; then
         echo "${1}=${2}" >>"${GITHUB_ENV}"
+    fi
+}
+
+function initialization::ver() {
+  # convert SemVer number to comparable string (strips pre-release version)
+  # shellcheck disable=SC2086,SC2183
+  printf "%03d%03d%03d%.0s" ${1//[.-]/}
+}
+
+function initialization::check_docker_version() {
+    local docker_version
+    # In GitHub Code QL, the version of docker has +azure suffix which we should remove
+    docker_version=$(docker version --format '{{.Client.Version}}' | sed 's/\+.*$//' || true)
+    if [ "${docker_version}" == "" ]; then
+        echo
+        echo "${COLOR_YELLOW}Your version of docker is unknown. If the scripts fail, please make sure to install docker at least: ${min_docker_version} version.${COLOR_RESET}"
+        echo
+        return
+    fi
+    local comparable_docker_version
+    comparable_docker_version=$(initialization::ver "${docker_version}")
+    local min_docker_version="20.10.0"
+    local min_comparable_docker_version
+    min_comparable_docker_version=$(initialization::ver "${min_docker_version}")
+    # The #0 Strips leading zeros
+    if [[ ${comparable_docker_version#0} -lt ${min_comparable_docker_version#0} ]]; then
+        echo
+        echo "${COLOR_RED}Your version of docker is too old: ${docker_version}. Please upgrade to at least ${min_docker_version}.${COLOR_RESET}"
+        echo
+        exit 1
+    else
+        if [[ ${PRINT_INFO_FROM_SCRIPTS} != "false" ]]; then
+            echo "${COLOR_GREEN}Good version of docker ${docker_version}.${COLOR_RESET}"
+        fi
     fi
 }

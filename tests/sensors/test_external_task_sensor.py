@@ -569,7 +569,12 @@ def run_tasks(dag_bag, execution_date=DEFAULT_DATE, session=None):
             run_type=DagRunType.MANUAL,
             session=session,
         )
-        for ti in dagrun.task_instances:
+        # we use sorting by task_id here because for the test DAG structure of ours
+        # this is equivalent to topological sort. It would not work in general case
+        # but it works for our case because we specifically constructed test DAGS
+        # in the way that those two sort methods are equivalent
+        tasks = sorted((ti for ti in dagrun.task_instances), key=lambda ti: ti.task_id)
+        for ti in tasks:
             ti.refresh_from_task(dag.get_task(ti.task_id))
             tis[ti.task_id] = ti
             ti.run(session=session)
@@ -745,7 +750,7 @@ def dag_bag_cyclic():
                 )
                 task_a >> task_b
 
-        # Create the last dag wich loops back
+        # Create the last dag which loops back
         with DAG(f"dag_{depth}", start_date=DEFAULT_DATE, schedule_interval=None) as dag:
             dags.append(dag)
             task_a = ExternalTaskSensor(

@@ -38,7 +38,6 @@ class TestSCCActivation:
                 "webserver": {"defaultUser": {"enabled": True}},
                 "cleanup": {"enabled": True},
                 "flower": {"enabled": True},
-                "airflowVersion": "2.2.0",
                 "rbac": {"create": rbac_enabled, "createSCCRoleBinding": scc_enabled},
             },
             show_only=["templates/rbac/security-context-constraint-rolebinding.yaml"],
@@ -113,4 +112,5 @@ class TestSCCActivation:
             assert "RELEASE-NAME-airflow-webserver" == jmespath.search("subjects[0].name", docs[0])
             assert "RELEASE-NAME-airflow-worker" == jmespath.search("subjects[1].name", docs[0])
             assert "RELEASE-NAME-airflow-scheduler" == jmespath.search("subjects[2].name", docs[0])
-            assert "RELEASE-NAME-airflow-migrate-database-job" == jmespath.search("subjects[3].name", docs[0])
+            assert "RELEASE-NAME-airflow-triggerer" == jmespath.search("subjects[3].name", docs[0])
+            assert "RELEASE-NAME-airflow-migrate-database-job" == jmespath.search("subjects[4].name", docs[0])

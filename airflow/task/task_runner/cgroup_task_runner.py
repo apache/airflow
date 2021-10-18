@@ -133,9 +133,7 @@ class CgroupTaskRunner(BaseTaskRunner):
             return
 
         # Create a unique cgroup name
-        cgroup_name = "airflow/{}/{}".format(
-            datetime.datetime.utcnow().strftime("%Y-%m-%d"), str(uuid.uuid4())
-        )
+        cgroup_name = f"airflow/{datetime.datetime.utcnow().strftime('%Y-%m-%d')}/{str(uuid.uuid4())}"
 
         self.mem_cgroup_name = f"memory/{cgroup_name}"
         self.cpu_cgroup_name = f"cpu/{cgroup_name}"

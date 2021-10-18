@@ -107,8 +107,7 @@ class HiveCliHook(BaseHook):
             mapred_queue_priority = mapred_queue_priority.upper()
             if mapred_queue_priority not in HIVE_QUEUE_PRIORITIES:
                 raise AirflowException(
-                    "Invalid Mapred Queue Priority.  Valid values are: "
-                    "{}".format(', '.join(HIVE_QUEUE_PRIORITIES))
+                    f"Invalid Mapred Queue Priority. Valid values are: {', '.join(HIVE_QUEUE_PRIORITIES)}"
                 )
 
         self.mapred_queue = mapred_queue or conf.get('hive', 'default_hive_mapred_queue')
@@ -544,16 +543,15 @@ class HiveMetastoreHook(BaseHook):
         return hmsclient.HMSClient(iprot=protocol)
 
     def _find_valid_server(self) -> Any:
-        conns = self.get_connections(self.conn_id)
-        for conn in conns:
-            host_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            self.log.info("Trying to connect to %s:%s", conn.host, conn.port)
-            if host_socket.connect_ex((conn.host, conn.port)) == 0:
-                self.log.info("Connected to %s:%s", conn.host, conn.port)
-                host_socket.close()
-                return conn
-            else:
-                self.log.error("Could not connect to %s:%s", conn.host, conn.port)
+        conn = self.get_connection(self.conn_id)
+        host_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.log.info("Trying to connect to %s:%s", conn.host, conn.port)
+        if host_socket.connect_ex((conn.host, conn.port)) == 0:
+            self.log.info("Connected to %s:%s", conn.host, conn.port)
+            host_socket.close()
+            return conn
+        else:
+            self.log.error("Could not connect to %s:%s", conn.host, conn.port)
         return None
 
     def get_conn(self) -> Any:
@@ -698,10 +696,8 @@ class HiveMetastoreHook(BaseHook):
             is_subset = set(filter_map.keys()).issubset(set(part_specs[0].keys()))
         if filter_map and not is_subset:
             raise AirflowException(
-                "Keys in provided filter_map {} "
-                "are not subset of part_spec keys: {}".format(
-                    ', '.join(filter_map.keys()), ', '.join(part_specs[0].keys())
-                )
+                f"Keys in provided filter_map {', '.join(filter_map.keys())} "
+                f"are not subset of part_spec keys: {', '.join(part_specs[0].keys())}"
             )
 
         candidates = [
@@ -913,11 +909,9 @@ class HiveServer2Hook(DbApiHook):
                 ):
                     description = cur.description
                     if previous_description and previous_description != description:
-                        message = '''The statements are producing different descriptions:
-                                     Current: {}
-                                     Previous: {}'''.format(
-                            repr(description), repr(previous_description)
-                        )
+                        message = f'''The statements are producing different descriptions:
+                                     Current: {repr(description)}
+                                     Previous: {repr(previous_description)}'''
                         raise ValueError(message)
                     elif not previous_description:
                         previous_description = description

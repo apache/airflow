@@ -179,10 +179,9 @@ class AWSDataSyncOperator(BaseOperator):
             valid = True
         if not valid:
             raise AirflowException(
-                "Either specify task_arn or both source_location_uri and destination_location_uri. "
-                "task_arn={} source_location_uri={} destination_location_uri={}".format(
-                    task_arn, source_location_uri, destination_location_uri
-                )
+                f"Either specify task_arn or both source_location_uri and destination_location_uri. "
+                f"task_arn={task_arn!r}, source_location_uri={source_location_uri!r}, "
+                f"destination_location_uri={destination_location_uri!r}"
             )
 
         # Others

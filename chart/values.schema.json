@@ -67,13 +67,13 @@
         "defaultAirflowTag": {
             "description": "Default airflow tag to deploy.",
             "type": "string",
-            "default": "2.1.4",
+            "default": "2.2.0-python3.7",
             "x-docsSection": "Common"
         },
         "airflowVersion": {
             "description": "Airflow version (Used to make some decisions based on Airflow Version being deployed).",
             "type": "string",
-            "default": "2.1.4",
+            "default": "2.2.0",
             "x-docsSection": "Common"
         },
         "nodeSelector": {
@@ -1225,17 +1225,17 @@
                         "timeoutSeconds": {
                             "description": "Scheduler Liveness probe timeout seconds.",
                             "type": "integer",
-                            "default": 5
+                            "default": 10
                         },
                         "failureThreshold": {
                             "description": "Scheduler Liveness probe failure threshold.",
                             "type": "integer",
-                            "default": 10
+                            "default": 5
                         },
                         "periodSeconds": {
                             "description": "Scheduler Liveness probe period seconds.",
                             "type": "integer",
-                            "default": 30
+                            "default": 60
                         }
                     }
                 },
@@ -1465,6 +1465,11 @@
             "x-docsSection": "Triggerer",
             "additionalProperties": false,
             "properties": {
+                "enabled": {
+                    "description": "Enable triggerer (requires Python 3.7+).",
+                    "type": "boolean",
+                    "default": true
+                },
                 "livenessProbe": {
                     "description": "Liveness probe configuration.",
                     "type": "object",
@@ -1478,17 +1483,17 @@
                         "timeoutSeconds": {
                             "description": "Triggerer Liveness probe timeout seconds.",
                             "type": "integer",
-                            "default": 5
+                            "default": 10
                         },
                         "failureThreshold": {
                             "description": "Triggerer Liveness probe failure threshold.",
                             "type": "integer",
-                            "default": 10
+                            "default": 5
                         },
                         "periodSeconds": {
                             "description": "Triggerer Liveness probe period seconds.",
                             "type": "integer",
-                            "default": 30
+                            "default": 60
                         }
                     }
                 },
@@ -2431,6 +2436,33 @@
                     "x-docsSection": "Common",
                     "default": false
                 },
+                "command": {
+                    "description": "Command to use for PgBouncer (templated).",
+                    "type": [
+                        "array",
+                        "null"
+                    ],
+                    "items": {
+                        "type": "string"
+                    },
+                    "default": [
+                        "pgbouncer",
+                        "-u",
+                        "nobody",
+                        "/etc/pgbouncer/pgbouncer.ini"
+                    ]
+                },
+                "args": {
+                    "description": "Args to use for PgBouncer (templated).",
+                    "type": [
+                        "array",
+                        "null"
+                    ],
+                    "items": {
+                        "type": "string"
+                    },
+                    "default": null
+                },
                 "extraNetworkPolicies": {
                     "description": "Additional NetworkPolicies as needed.",
                     "type": "array",
@@ -3129,7 +3161,7 @@
                         "branch": {
                             "description": "Git branch",
                             "type": "string",
-                            "default": "v2-1-stable"
+                            "default": "v2-2-stable"
                         },
                         "rev": {
                             "description": "Git revision.",

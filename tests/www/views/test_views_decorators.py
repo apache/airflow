@@ -111,8 +111,9 @@ def _check_last_log(session, dag_id, event, execution_date):
 
 
 def test_action_logging_get(session, admin_client):
-    url = 'graph?dag_id=example_bash_operator&execution_date={}'.format(
-        urllib.parse.quote_plus(str(EXAMPLE_DAG_DEFAULT_DATE))
+    url = (
+        f'graph?dag_id=example_bash_operator&'
+        f'execution_date={urllib.parse.quote_plus(str(EXAMPLE_DAG_DEFAULT_DATE))}'
     )
     resp = admin_client.get(url, follow_redirects=True)
     check_content_in_response('runme_1', resp)

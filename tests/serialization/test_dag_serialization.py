@@ -1432,6 +1432,24 @@ class TestStringifiedDAGs:
             serialized_obj = serialized_obj["__var"]
         assert serialized_obj == expected_output
 
+    def test_params_upgrade(self):
+        serialized = {
+            "__version": 1,
+            "dag": {
+                "_dag_id": "simple_dag",
+                "fileloc": __file__,
+                "tasks": [],
+                "timezone": "UTC",
+                "params": {"none": None, "str": "str", "dict": {"a": "b"}},
+            },
+        }
+        SerializedDAG.validate_schema(serialized)
+        dag = SerializedDAG.from_dict(serialized)
+
+        assert dag.params["none"] is None
+        assert isinstance(dict.__getitem__(dag.params, "none"), Param)
+        assert dag.params["str"] == "str"
+
 
 def test_kubernetes_optional():
     """Serialisation / deserialisation continues to work without kubernetes installed"""
