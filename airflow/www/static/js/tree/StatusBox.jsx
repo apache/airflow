@@ -39,8 +39,8 @@ const StatusBox = ({
 
   return (
     <Flex
-      px={1}
-      height="17px"
+      py="2px"
+      px="3px"
       justifyContent="center"
       alignItems="center"
       onClick={onClick}
@@ -52,15 +52,16 @@ const StatusBox = ({
         portalProps={{ containerRef }}
         hasArrow
         placement="top"
-        openDelay={10}
+        openDelay={100}
       >
         <Box
-          width="10px"
-          height="10px"
+          width="12px"
+          height="12px"
           backgroundColor={stateColors[instance.state] || 'white'}
           borderRadius={2}
           borderWidth={instance.state ? 0 : 1}
           cursor={!group.children && 'pointer'}
+          mt="1px"
         />
       </Tooltip>
     </Flex>

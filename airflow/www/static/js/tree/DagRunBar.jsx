@@ -39,8 +39,8 @@ const DagRunBar = ({
     <Flex
       height="100px"
       alignItems="flex-end"
-      pb={1}
-      px={1}
+      pb="2px"
+      px="3px"
       zIndex={1}
       onClick={() => {
         callModalDag({ execution_date: run.executionDate, dagId: run.dagId });
@@ -51,16 +51,16 @@ const DagRunBar = ({
         hasArrow
         portalProps={{ containerRef }}
         placement="top"
-        openDelay={10}
+        openDelay={100}
       >
         <Flex
-          width="10px"
+          width="12px"
           height={`${(run.duration / max) * 100}px`}
-          minHeight="10px"
+          minHeight="12px"
           backgroundColor={stateColors[run.state]}
           borderRadius={2}
           cursor="pointer"
-          pb="1px"
+          pb="2px"
           direction="column"
           justifyContent="flex-end"
           alignItems="center"
@@ -71,7 +71,7 @@ const DagRunBar = ({
       </Tooltip>
     </Flex>
     {index < totalRuns - 4 && index % 10 === 0 && (
-    <VStack position="absolute" top="0" left="-23px" spacing={0}>
+    <VStack position="absolute" top="0" left="-21px" spacing={0}>
       <Text fontSize={10} color="gray.400" whiteSpace="nowrap" transform="rotate(-30deg) translateX(32px)" mt="-23px !important">
         {moment.utc(run.executionDate).format('MMM DD, HH:mm')}
       </Text>

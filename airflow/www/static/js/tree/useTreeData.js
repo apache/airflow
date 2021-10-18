@@ -36,7 +36,7 @@ const areActiveRuns = (runs) => runs.filter((run) => ['queued', 'running', 'sche
 
 const useTreeData = () => {
   const [data, setData] = useState(camelcaseKeys(JSON.parse(treeData), { deep: true }));
-  const defaultIsOpen = isPaused !== 'True' && (JSON.parse(localStorage.getItem('disableAutoRefresh')) || areActiveRuns(data.dagRuns));
+  const defaultIsOpen = isPaused !== 'True' && !JSON.parse(localStorage.getItem('disableAutoRefresh')) && areActiveRuns(data.dagRuns);
   const { isOpen, onToggle } = useDisclosure({ defaultIsOpen });
 
   const handleRefresh = useCallback(async () => {

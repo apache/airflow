@@ -43,7 +43,7 @@ import { getDuration, formatDuration } from './utils';
 const dagId = getMetaValue('dag_id');
 
 const DurationTick = ({ children, ...rest }) => (
-  <Text fontSize={10} color="gray.400" position="absolute" left="calc(100% + 5px)" whiteSpace="nowrap" {...rest}>
+  <Text fontSize={10} color="gray.400" position="absolute" left="calc(100% + 6px)" whiteSpace="nowrap" {...rest}>
     {children}
   </Text>
 );
@@ -85,6 +85,8 @@ const Tree = () => {
 
     const { isOpen, onToggle } = useDisclosure({ defaultIsOpen: isGroupId, onClose, onOpen });
     const [isHover, setHover] = useState(false);
+    // Show only the immediate task id
+    const taskName = group.id.replace(`${prevGroup}.`, '');
 
     return (
       <Box backgroundColor={`rgba(203, 213, 224, ${0.25 * level})`}>
@@ -92,32 +94,51 @@ const Tree = () => {
           justifyContent="space-between"
           alignItems="center"
           width="100%"
-          borderBottomWidth={2}
-          borderBottomColor={level ? 'white' : 'gray.200'}
-          backgroundColor={isHover && 'rgba(113, 128, 150, 0.2)'}
+          py="1px"
+          borderBottomWidth={1}
+          borderBottomColor={level > 1 ? 'white' : 'gray.200'}
+          backgroundColor={isHover && 'rgba(113, 128, 150, 0.1)'}
           onMouseEnter={() => setHover(true)}
           onMouseLeave={() => setHover(false)}
         >
           <Flex
             as={isGroup ? 'button' : 'div'}
             onClick={() => isGroup && onToggle()}
-            color={(level > 3 || (isHover && level > 1)) && 'white'}
-            minWidth="200px"
+            color={(level > 4 || (isHover && level > 3)) && 'white'}
+            minWidth="250px"
+            maxWidth="250px"
+            aria-label={taskName}
+            title={taskName}
           >
-            <Text display="inline" fontSize={12} ml={`${level * 10 + 10}px`} maxWidth="500px">{group.id.replace(`${prevGroup}.`, '')}</Text>
+            <Text
+              display="inline"
+              fontSize={12}
+              ml={`${level * 10 + 10}px`}
+              isTruncated
+            >
+              {taskName}
+            </Text>
             {isGroup && (
-              isOpen ? <FiChevronDown value={{ style: { height: '17px' } }} /> : <FiChevronUp value={{ style: { height: '17px' } }} />
+              isOpen ? <FiChevronDown /> : <FiChevronUp />
             )}
           </Flex>
           <Flex justifyContent="flex-end" overflowX="scroll" overflowY="visible">
-            {group.instances.map((instance) => (
-              <StatusBox
-                key={`${instance.runId}-${instance.taskId}`}
-                instance={instance}
-                containerRef={containerRef}
-                group={group}
-              />
-            ))}
+            {runs.reverse().map((run) => {
+              // Check if an instance exists for the run, or return an empty box
+              const instance = group.instances.find((gi) => gi.runId === run.runId);
+              return (
+                instance
+                  ? (
+                    <StatusBox
+                      key={`${instance.runId}-${instance.taskId}`}
+                      instance={instance}
+                      containerRef={containerRef}
+                      group={group}
+                    />
+                  )
+                  : <Box width="18px" key={`${run.runId}-${group.id}`} />
+              );
+            })}
           </Flex>
         </Flex>
         <Collapse in={isOpen} animateOpacity>
@@ -137,30 +158,27 @@ const Tree = () => {
         <Switch id="auto-refresh" onChange={onToggleRefresh} isChecked={refreshOn} size="lg" />
       </FormControl>
       <Box py={10} position="relative" mr={50} pl={10} borderRightWidth={1}>
-        <Text transform="rotate(-90deg)" position="absolute" left="-20px" top="45px">Dag Runs</Text>
+        <Text transform="rotate(-90deg)" position="absolute" left="-6px" top="30px">Runs</Text>
         <Text transform="rotate(-90deg)" position="absolute" left="-6px" top="135px">Tasks</Text>
         {!!runs.length && (
         <>
           <DurationTick top={-1}>Duration</DurationTick>
           <DurationTick top={6}>
-            -
-            {' '}
             {formatDuration(max)}
           </DurationTick>
-          <Box position="absolute" top="22px" borderBottomWidth={1} zIndex={0} opacity={0.7} width="calc(100% - 25px)" />
+          <Box position="absolute" top="22px" borderBottomWidth={1} zIndex={0} opacity={0.7} width="calc(100% - 20px)" />
           <DurationTick top={65}>
-            -
-            {' '}
             {formatDuration(max / 2)}
           </DurationTick>
-          <Box position="absolute" top="72px" borderBottomWidth={1} zIndex={0} opacity={0.7} width="calc(100% - 25px)" />
-          <DurationTick top={116}>
-            - 00:00:00
+          <Box position="absolute" top="72px" borderBottomWidth={1} zIndex={0} opacity={0.7} width="calc(100% - 20px)" />
+          <DurationTick top={118}>
+            00:00:00
           </DurationTick>
+          <Box position="absolute" top="125px" right="-5px" borderBottomWidth={1} zIndex={0} opacity={0.7} width="5px" />
         </>
         )}
-        <Flex justifyContent="space-between" borderBottomWidth={2} minHeight="100px">
-          <Box minWidth="200px" />
+        <Flex justifyContent="space-between" borderBottomWidth={4} minHeight="100px">
+          <Box minWidth="250px" />
           <Flex justifyContent="flex-end" overflowX="scroll" pt="100px" mt="-100px">
             {runs.reverse().map((run, i) => (
               <DagRunBar
