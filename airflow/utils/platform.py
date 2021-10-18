@@ -21,6 +21,8 @@ import logging
 import os
 import pkgutil
 import sys
+import platform
+IS_WINDOWS = platform.system() == 'Windows'
 
 log = logging.getLogger(__name__)
 
