@@ -1,3 +1,4 @@
+#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -14,37 +15,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+"""
+This module is deprecated.
+Please use :mod:`kubernetes.client.models` for V1ResourceRequirements and Port.
+"""
 
----
-package-name: apache-airflow-providers-apache-pinot
-name: Apache Pinot
-description: |
-    `Apache Pinot <https://pinot.apache.org/>`__
 
-versions:
-  - 2.0.1
-  - 2.0.0
-  - 1.0.1
-  - 1.0.0
-
-additional-dependencies:
-  - apache-airflow>=2.1.0
-
-integrations:
-  - integration-name: Apache Pinot
-    external-doc-url: https://pinot.apache.org/
-    logo: /integration-logos/apache/pinot.png
-    tags: [apache]
-
-hooks:
-  - integration-name: Apache Pinot
-    python-modules:
-      - airflow.providers.apache.pinot.hooks.pinot
-
-hook-class-names:
-  - airflow.providers.apache.pinot.hooks.pinot.PinotAdminHook
-  - airflow.providers.apache.pinot.hooks.pinot.PinotDbApiHook
-
-connection-types:
-  - hook-class-name: airflow.providers.apache.pinot.hooks.pinot.PinotHook
-    connection-type: pinot
+from airflow.kubernetes.pod_launcher_deprecated import PodLauncher, PodStatus

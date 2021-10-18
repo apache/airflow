@@ -96,9 +96,9 @@ class FlaskApp(AbstractApp):
             self.app.run(self.host, port=self.port, debug=self.debug, **options)
         elif self.server == 'tornado':
             try:
-                import tornado.wsgi
                 import tornado.httpserver
                 import tornado.ioloop
+                import tornado.wsgi
             except ImportError:
                 raise Exception('tornado library not installed')
             wsgi_container = tornado.wsgi.WSGIContainer(self.app)

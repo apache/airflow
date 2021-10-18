@@ -24,7 +24,11 @@ Content
 Apache Pinot Hooks
 ==================
 
+<<<<<<< HEAD
 `Apache Pinot <https://pinot.apache.org/>`__ is a column-oriented, open-source, distributed data store written in Java. Pinot is designed to execute OLAP queries with low latency. It is suited in contexts where fast analytics, such as aggregations are needed on immutable data, possibly, with real-time data ingestion.
+=======
+`Apache Pinot <https://pinot.apache.org/>`__ is a column-oriented, open-source, distributed data store written in Java. Pinot is designed to execute OLAP queries with low latency. It is suited in contexts where fast analytics, such as aggregations, are needed on immutable data, possibly, with real-time data ingestion.
+>>>>>>> 3a834b045 (new apache updates)
 
 Prerequisite
 ------------
@@ -51,7 +55,7 @@ For parameter definition, take a look at :class:`~airflow.providers.apache.pinot
 Reference
 ^^^^^^^^^
 
-For more information, please see the documentation at `Apache Pinot improvements for PinotAdminHook<https://pinot.apache.org/>`
+For more information, please see the documentation at ``Apache Pinot improvements for PinotAdminHook<https://pinot.apache.org/>``
 
 PinotDbApiHook
 --------------
@@ -71,4 +75,4 @@ For parameter definition, take a look at :class:`~classairflow.providers.apache.
 Reference
 ^^^^^^^^^
 
-For more information, please see the documentation at `Pinot documentation on querrying data <https://docs.pinot.apache.org/users/api/querying-pinot-using-standard-sql>`
+For more information, please see the documentation at ``Pinot documentation on querrying data <https://docs.pinot.apache.org/users/api/querying-pinot-using-standard-sql>``

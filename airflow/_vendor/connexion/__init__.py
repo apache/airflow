@@ -6,6 +6,7 @@ from .apis import AbstractAPI  # NOQA
 from .apps import AbstractApp  # NOQA
 from .decorators.produces import NoContent  # NOQA
 from .exceptions import ProblemException  # NOQA
+
 # add operation for backwards compatability
 from .operations import compat
 from .problem import problem  # NOQA
@@ -25,9 +26,10 @@ def not_installed_error(exc):  # pragma: no cover
 
 
 try:
+    from flask import request  # NOQA
+
     from .apis.flask_api import FlaskApi, context  # NOQA
     from .apps.flask_app import FlaskApp
-    from flask import request  # NOQA
 except ImportError as e:  # pragma: no cover
     _flask_not_installed_error = not_installed_error(e)
     FlaskApi = _flask_not_installed_error

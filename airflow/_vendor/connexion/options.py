@@ -3,8 +3,7 @@ import pathlib
 from typing import Optional  # NOQA
 
 try:
-    from swagger_ui_bundle import (swagger_ui_2_path,
-                                   swagger_ui_3_path)
+    from swagger_ui_bundle import swagger_ui_2_path, swagger_ui_3_path
 except ImportError:
     swagger_ui_2_path = swagger_ui_3_path = None
 

@@ -3,8 +3,9 @@ import sys
 from os import path
 
 import click
-import airflow._vendor.connexion as connexion
 from clickclick import AliasedGroup, fatal_error
+
+import airflow._vendor.connexion as connexion
 from airflow._vendor.connexion.mock import MockResolver
 
 logger = logging.getLogger('connexion.cli')

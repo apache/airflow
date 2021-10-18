@@ -1,4 +1,5 @@
 import warnings
+
 from jsonschema.exceptions import ValidationError
 from werkzeug.exceptions import Forbidden, Unauthorized
 

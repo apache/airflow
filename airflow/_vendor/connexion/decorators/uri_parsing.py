@@ -1,11 +1,11 @@
 # Decorators to split query and path parameters
 import abc
 import functools
+import json
 import logging
 import re
-import json
-from .. import utils
 
+from .. import utils
 from .decorator import BaseDecorator
 
 logger = logging.getLogger('connexion.decorators.uri_parsing')

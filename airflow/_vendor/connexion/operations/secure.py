@@ -2,12 +2,21 @@ import functools
 import logging
 
 from ..decorators.decorator import RequestResponseDecorator
-from ..decorators.security import (get_apikeyinfo_func, get_basicinfo_func,
-                                   get_bearerinfo_func,
-                                   get_scope_validate_func, get_tokeninfo_func,
-                                   security_deny, security_passthrough,
-                                   verify_apikey, verify_basic, verify_bearer,
-                                   verify_none, verify_oauth, verify_security)
+from ..decorators.security import (
+    get_apikeyinfo_func,
+    get_basicinfo_func,
+    get_bearerinfo_func,
+    get_scope_validate_func,
+    get_tokeninfo_func,
+    security_deny,
+    security_passthrough,
+    verify_apikey,
+    verify_basic,
+    verify_bearer,
+    verify_none,
+    verify_oauth,
+    verify_security,
+)
 
 logger = logging.getLogger("connexion.operations.secure")
 

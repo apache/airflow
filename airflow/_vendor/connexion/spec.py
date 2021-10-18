@@ -1,11 +1,11 @@
 import abc
 import copy
 import pathlib
+from urllib.parse import urlsplit
 
 import jinja2
 import yaml
 from openapi_spec_validator.exceptions import OpenAPIValidationError
-from urllib.parse import urlsplit
 
 from .exceptions import InvalidSpecification
 from .json_schema import resolve_refs

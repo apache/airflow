@@ -1,16 +1,16 @@
 # Authentication and authorization related decorators
 import base64
 import functools
+import http.cookies
 import logging
 import os
 import textwrap
 
 import httpx
-from airflow._vendor.connexion.utils import get_function_from_name
-import http.cookies
 
-from ..exceptions import (ConnexionException, OAuthProblem,
-                          OAuthResponseProblem, OAuthScopeProblem)
+from airflow._vendor.connexion.utils import get_function_from_name
+
+from ..exceptions import ConnexionException, OAuthProblem, OAuthResponseProblem, OAuthScopeProblem
 
 logger = logging.getLogger('connexion.api.security')
 # use connection pool for OAuth tokeninfo

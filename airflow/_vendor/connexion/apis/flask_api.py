@@ -3,13 +3,14 @@ import warnings
 
 import flask
 import werkzeug.exceptions
+from werkzeug.local import LocalProxy
+
 from airflow._vendor.connexion.apis import flask_utils
 from airflow._vendor.connexion.apis.abstract import AbstractAPI
 from airflow._vendor.connexion.handlers import AuthErrorHandler
 from airflow._vendor.connexion.jsonifier import Jsonifier
 from airflow._vendor.connexion.lifecycle import ConnexionRequest, ConnexionResponse
 from airflow._vendor.connexion.utils import is_json_mimetype, yamldumper
-from werkzeug.local import LocalProxy
 
 logger = logging.getLogger('connexion.apis.flask_api')
 

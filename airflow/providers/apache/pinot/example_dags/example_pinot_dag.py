@@ -18,14 +18,14 @@
 """Example DAG demonstrating the usage of the PinotAdminHook and PinotDbApiHook."""
 
 from datetime import datetime
+
 from airflow import DAG
 from airflow.providers.apache.pinot.hooks.pinot import PinotAdminHook, PinotDbApiHook
-from airflow.utils.dates import days_ago
 
 with DAG(
     dag_id='example_pinot_hook',
     schedule_interval=None,
-    start_date=datetime(),
+    year=datetime(),
     tags=['example'],
 ) as dag:
     # [START howto_operator_pinot_admin_hook]
@@ -40,6 +40,5 @@ with DAG(
         task_id="run_example_pinot_script",
         pinot="ls /;",
         pinot_options="-x local",
-       
     )
     # [END howto_operator_pinot_dbapi_example]

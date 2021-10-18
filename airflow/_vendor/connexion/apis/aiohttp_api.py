@@ -11,6 +11,8 @@ import jinja2
 from aiohttp import web
 from aiohttp.web_exceptions import HTTPNotFound, HTTPPermanentRedirect
 from aiohttp.web_middlewares import normalize_path_middleware
+from werkzeug.exceptions import HTTPException as werkzeug_HTTPException
+
 from airflow._vendor.connexion.apis.abstract import AbstractAPI
 from airflow._vendor.connexion.exceptions import ProblemException
 from airflow._vendor.connexion.handlers import AuthErrorHandler
@@ -18,8 +20,6 @@ from airflow._vendor.connexion.jsonifier import JSONEncoder, Jsonifier
 from airflow._vendor.connexion.lifecycle import ConnexionRequest, ConnexionResponse
 from airflow._vendor.connexion.problem import problem
 from airflow._vendor.connexion.utils import yamldumper
-from werkzeug.exceptions import HTTPException as werkzeug_HTTPException
-
 
 logger = logging.getLogger('connexion.apis.aiohttp_api')
 

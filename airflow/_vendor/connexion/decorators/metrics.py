@@ -3,7 +3,9 @@ import os
 import time
 
 from werkzeug.exceptions import HTTPException
+
 from airflow._vendor.connexion.exceptions import ProblemException
+
 try:
     import uwsgi_metrics
     HAS_UWSGI_METRICS = True  # pragma: no cover
