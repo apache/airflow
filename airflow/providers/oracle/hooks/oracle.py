@@ -77,6 +77,7 @@ class OracleHook(DbApiHook):
         conn_config = {'user': conn.login, 'password': conn.password}
         sid = conn.extra_dejson.get('sid')
         mod = conn.extra_dejson.get('module')
+        schema = conn.schema
 
         service_name = conn.extra_dejson.get('service_name')
         port = conn.port if conn.port else 1521
@@ -90,8 +91,8 @@ class OracleHook(DbApiHook):
                 dsn = conn.host
                 if conn.port is not None:
                     dsn += ":" + str(conn.port)
-                if service_name or conn.schema:
-                    dsn += "/" + (service_name or conn.schema)
+                if service_name:
+                    dsn += "/" + service_name
             conn_config['dsn'] = dsn
 
         if 'encoding' in conn.extra_dejson:
@@ -135,6 +136,12 @@ class OracleHook(DbApiHook):
         conn = cx_Oracle.connect(**conn_config)
         if mod is not None:
             conn.module = mod
+
+        # if Connection.schema is defined, set schema after connecting successfully
+        # cannot be part of conn_config
+        # https://cx-oracle.readthedocs.io/en/latest/api_manual/connection.html?highlight=schema#Connection.current_schema
+        if schema is not None:
+            conn.current_schema = schema
 
         return conn
 

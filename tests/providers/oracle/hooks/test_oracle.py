@@ -54,7 +54,7 @@ class TestOracleHookConn(unittest.TestCase):
         assert args == ()
         assert kwargs['user'] == 'login'
         assert kwargs['password'] == 'password'
-        assert kwargs['dsn'] == 'host:1521/schema'
+        assert kwargs['dsn'] == 'host:1521'
 
     @mock.patch('airflow.providers.oracle.hooks.oracle.cx_Oracle.connect')
     def test_get_conn_host_alternative_port(self, mock_connect):
@@ -65,7 +65,7 @@ class TestOracleHookConn(unittest.TestCase):
         assert args == ()
         assert kwargs['user'] == 'login'
         assert kwargs['password'] == 'password'
-        assert kwargs['dsn'] == 'host:1522/schema'
+        assert kwargs['dsn'] == 'host:1522'
 
     @mock.patch('airflow.providers.oracle.hooks.oracle.cx_Oracle.connect')
     def test_get_conn_sid(self, mock_connect):
@@ -175,6 +175,10 @@ class TestOracleHookConn(unittest.TestCase):
             args, kwargs = mock_connect.call_args
             assert args == ()
             assert kwargs['purity'] == purity.get(pur)
+
+    @mock.patch('airflow.providers.oracle.hooks.oracle.cx_Oracle.connect')
+    def test_set_current_schema(self, mock_connect):
+        assert self.db_hook.get_conn().current_schema == self.connection.schema
 
 
 @unittest.skipIf(cx_Oracle is None, 'cx_Oracle package not present')
