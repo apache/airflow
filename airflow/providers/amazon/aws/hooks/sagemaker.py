@@ -951,3 +951,10 @@ class SageMakerHook(AwsBaseHook):  # pylint: disable=too-many-public-methods
                 return results
             else:
                 next_token = response["NextToken"]
+
+    def find_processing_job_by_name(self, processing_job_name: str) -> bool:
+        try:
+            res = self.get_conn().describe_processing_job(ProcessingJobName=processing_job_name)
+            return True
+        except ClientError as e:
+            return False
