@@ -276,8 +276,8 @@ def task_group_to_dict(task_group):
             'rx': 5,
             'ry': 5,
             'clusterLabelPos': 'top',
+            'tooltip': task_group.tooltip,
         },
-        'tooltip': task_group.tooltip,
         'children': children,
     }
 
