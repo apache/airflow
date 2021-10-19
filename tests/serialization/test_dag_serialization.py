@@ -1450,6 +1450,23 @@ class TestStringifiedDAGs:
         assert isinstance(dict.__getitem__(dag.params, "none"), Param)
         assert dag.params["str"] == "str"
 
+    def test_params_serialize_default(self):
+        serialized = {
+            "__version": 1,
+            "dag": {
+                "_dag_id": "simple_dag",
+                "fileloc": __file__,
+                "tasks": [],
+                "timezone": "UTC",
+                "params": {"str": {"__class": "airflow.models.param.Param", "default": "str"}},
+            },
+        }
+        SerializedDAG.validate_schema(serialized)
+        dag = SerializedDAG.from_dict(serialized)
+
+        assert isinstance(dict.__getitem__(dag.params, "str"), Param)
+        assert dag.params["str"] == "str"
+
 
 def test_kubernetes_optional():
     """Serialisation / deserialisation continues to work without kubernetes installed"""

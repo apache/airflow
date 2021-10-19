@@ -240,7 +240,7 @@ class TestGetDagDetails(TestDagEndpoint):
             "params": {
                 "foo": {
                     '__class': 'airflow.models.param.Param',
-                    'default': 1,
+                    'value': 1,
                     'description': None,
                     'schema': {},
                 }
@@ -353,7 +353,7 @@ class TestGetDagDetails(TestDagEndpoint):
             "params": {
                 "foo": {
                     '__class': 'airflow.models.param.Param',
-                    'default': 1,
+                    'value': 1,
                     'description': None,
                     'schema': {},
                 }
@@ -400,7 +400,7 @@ class TestGetDagDetails(TestDagEndpoint):
             "params": {
                 "foo": {
                     '__class': 'airflow.models.param.Param',
-                    'default': 1,
+                    'value': 1,
                     'description': None,
                     'schema': {},
                 }

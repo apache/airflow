@@ -24,6 +24,16 @@ from jsonschema.exceptions import ValidationError
 from airflow.exceptions import AirflowException
 
 
+class NoValueSentinel:
+    """Sentinel class used to distinguish between None and no passed value"""
+
+    def __str__(self):
+        return "NoValueSentinel"
+
+    def __repr__(self):
+        return "NoValueSentinel"
+
+
 class Param:
     """
     Class to hold the default value of a Param and rule set to do the validations. Without the rule set
@@ -38,22 +48,25 @@ class Param:
     :type schema: dict
     """
 
-    def __init__(self, default: Any = None, description: str = None, **kwargs):
-        self.default = default
+    __NO_VALUE_SENTINEL = NoValueSentinel()
+
+    def __init__(self, default: Any = __NO_VALUE_SENTINEL, description: str = None, **kwargs):
+        self.value = default
         self.description = description
         self.schema = kwargs.pop('schema') if 'schema' in kwargs else kwargs
 
-        # If default is not None, then validate it once, may raise ValueError
-        if default:
+        # If we have a value, validate it once. May raise ValueError.
+        if self.has_value:
             try:
-                jsonschema.validate(self.default, self.schema, format_checker=FormatChecker())
+                jsonschema.validate(self.value, self.schema, format_checker=FormatChecker())
             except ValidationError as err:
                 raise ValueError(err)
 
-    def resolve(self, value: Optional[Any] = None, suppress_exception: bool = False) -> Any:
+    def resolve(self, value: Optional[Any] = __NO_VALUE_SENTINEL, suppress_exception: bool = False) -> Any:
         """
         Runs the validations and returns the Param's final value.
-        May raise ValueError on failed validations.
+        May raise ValueError on failed validations, or TypeError
+        if no value is passed and no value already exists.
 
         :param value: The value to be updated for the Param
         :type value: Optional[Any]
@@ -61,14 +74,18 @@ class Param:
             If true and validations fails, the return value would be None.
         :type suppress_exception: bool
         """
+        final_val = value if value != self.__NO_VALUE_SENTINEL else self.value
+        if isinstance(final_val, NoValueSentinel):
+            if suppress_exception:
+                return None
+            raise TypeError("No value passed and Param has no default value")
         try:
-            final_val = value or self.default
             jsonschema.validate(final_val, self.schema, format_checker=FormatChecker())
-            self.default = final_val
         except ValidationError as err:
             if suppress_exception:
                 return None
             raise ValueError(err) from None
+        self.value = final_val
         return final_val
 
     def dump(self) -> dict:
@@ -76,6 +93,10 @@ class Param:
         out_dict = {'__class': f'{self.__module__}.{self.__class__.__name__}'}
         out_dict.update(self.__dict__)
         return out_dict
+
+    @property
+    def has_value(self) -> bool:
+        return not isinstance(self.value, NoValueSentinel)
 
 
 class ParamsDict(dict):

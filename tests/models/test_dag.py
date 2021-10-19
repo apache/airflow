@@ -1799,13 +1799,29 @@ class TestDag(unittest.TestCase):
 
     def test_validate_params_on_trigger_dag(self):
         dag = models.DAG('dummy-dag', schedule_interval=None, params={'param1': Param(type="string")})
-
-        with pytest.raises(ValueError, match="Invalid input for param param1: None is not of type 'string'"):
+        with pytest.raises(TypeError, match="No value passed and Param has no default value"):
             dag.create_dagrun(
                 run_id="test_dagrun_missing_param",
                 state=State.RUNNING,
                 execution_date=TEST_DATE,
             )
+
+        dag = models.DAG('dummy-dag', schedule_interval=None, params={'param1': Param(type="string")})
+        with pytest.raises(ValueError, match="Invalid input for param param1: None is not of type 'string'"):
+            dag.create_dagrun(
+                run_id="test_dagrun_missing_param",
+                state=State.RUNNING,
+                execution_date=TEST_DATE,
+                conf={"param1": None},
+            )
+
+        dag = models.DAG('dummy-dag', schedule_interval=None, params={'param1': Param(type="string")})
+        dag.create_dagrun(
+            run_id="test_dagrun_missing_param",
+            state=State.RUNNING,
+            execution_date=TEST_DATE,
+            conf={"param1": "hello"},
+        )
 
 
 class TestDagModel:
