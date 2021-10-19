@@ -16,15 +16,27 @@
 # under the License.
 import time
 import warnings
-from distutils.util import strtobool
 from enum import Enum
-from typing import Any, Optional
+from typing import Any, Optional, Union
 
 from tableauserverclient import Pager, PersonalAccessTokenAuth, Server, TableauAuth
 from tableauserverclient.server import Auth
 
 from airflow.exceptions import AirflowException
 from airflow.hooks.base import BaseHook
+
+
+def parse_boolean(val: str) -> Union[str, bool]:
+    """Try to parse a string into boolean.
+
+    The string is returned as-is if it does not look like a boolean value.
+    """
+    val = val.lower()
+    if val in ('y', 'yes', 't', 'true', 'on', '1'):
+        return True
+    if val in ('n', 'no', 'f', 'false', 'off', '0'):
+        return False
+    return val
 
 
 class TableauJobFailedException(AirflowException):
@@ -71,12 +83,9 @@ class TableauHook(BaseHook):
         self.conn = self.get_connection(self.tableau_conn_id)
         self.site_id = site_id or self.conn.extra_dejson.get('site_id', '')
         self.server = Server(self.conn.host)
-        verify = self.conn.extra_dejson.get('verify', True)
+        verify: Any = self.conn.extra_dejson.get('verify', True)
         if isinstance(verify, str):
-            try:
-                verify = bool(strtobool(verify))
-            except ValueError:
-                pass
+            verify = parse_boolean(verify)
         self.server.add_http_options(
             options_dict={'verify': verify, 'cert': self.conn.extra_dejson.get('cert', None)}
         )

@@ -24,11 +24,13 @@ packages found in that directory.
 """
 import argparse
 import glob
+import operator
 import os
 import subprocess
 from collections import defaultdict
-from distutils.version import LooseVersion
 from typing import Dict, List, NamedTuple
+
+from packaging.version import Version
 
 
 class VersionedFile(NamedTuple):
@@ -36,7 +38,7 @@ class VersionedFile(NamedTuple):
     version: str
     suffix: str
     type: str
-    comparable_version: LooseVersion
+    comparable_version: Version
 
 
 def split_version_and_suffix(file_name: str, suffix: str) -> VersionedFile:
@@ -47,7 +49,7 @@ def split_version_and_suffix(file_name: str, suffix: str) -> VersionedFile:
         version=version,
         suffix=suffix,
         type=no_version_file + "-" + suffix,
-        comparable_version=LooseVersion(version),
+        comparable_version=Version(version),
     )
 
 
@@ -60,7 +62,7 @@ def process_all_files(directory: str, suffix: str, execute: bool):
         package_types_dicts[versioned_file.type].append(versioned_file)
 
     for package_types in package_types_dicts.values():
-        package_types.sort(key=lambda x: x.comparable_version)
+        package_types.sort(key=operator.attrgetter("comparable_version"))
 
     for package_types in package_types_dicts.values():
         if len(package_types) == 1:
