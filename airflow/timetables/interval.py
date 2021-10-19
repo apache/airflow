@@ -129,6 +129,10 @@ class CronDataIntervalTimetable(_DataIntervalTimetable):
             expression=self._expression, casing_type=CasingTypeEnum.Sentence, use_24hour_time_format=True
         )
         try:
+            # checking for more than 5 parameters in Cron and avoiding evaluation for now,
+            # as Croniter has inconsistent evaluation with other libraries
+            if self._expression.count(" ") > 4:
+                raise FormatException()
             interval_description = descriptor.get_description()
         except (FormatException, MissingFieldException):
             interval_description = None
