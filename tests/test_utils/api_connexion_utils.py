@@ -44,6 +44,7 @@ def create_user_scope(app, username, **kwargs):
     try:
         yield test_user
     finally:
+        delete_user_roles(app, username)
         delete_user(app, username)
 
 
@@ -80,15 +81,30 @@ def create_role(app, name, permissions=None):
     return role
 
 
+def set_user_single_role(app, username, role_name):
+    sm = app.appbuilder.sm
+    role = create_role(app, role_name)
+    user = app.appbuilder.sm.find_user(username)
+    if role not in user.roles:
+        user.roles = [role]
+        sm.update_user(user)
+
+
 def delete_role(app, name):
-    if app.appbuilder.sm.find_role(name):
-        app.appbuilder.sm.delete_role(name)
+    if name not in EXISTING_ROLES:
+        if app.appbuilder.sm.find_role(name):
+            app.appbuilder.sm.delete_role(name)
 
 
 def delete_roles(app):
     for role in app.appbuilder.sm.get_all_roles():
-        if role.name not in EXISTING_ROLES:
-            app.appbuilder.sm.delete_role(role.name)
+        delete_role(app, role.name)
+
+
+def delete_user_roles(app, username):
+    user = app.appbuilder.sm.find_user(username)
+    for role in user.roles:
+        delete_role(app, role.name)
 
 
 def delete_user(app, username):

@@ -67,23 +67,41 @@ def app(examples_dag_bag):
 
     security_manager = app.appbuilder.sm
 
-    test_users = [('test_admin', 'Admin'), ('test_user', 'User'), ('test_viewer', 'Viewer')]
+    test_users = [
+        {
+            'username': 'test_admin',
+            'first_name': 'test_admin_first_name',
+            'last_name': 'test_admin_last_name',
+            'email': 'test_admin@fab.org',
+            'role': security_manager.find_role('Admin'),
+            'password': 'test_admin_password',
+        },
+        {
+            'username': 'test_user',
+            'first_name': 'test_user_first_name',
+            'last_name': 'test_user_last_name',
+            'email': 'test_user@fab.org',
+            'role': security_manager.find_role('User'),
+            'password': 'test_user_password',
+        },
+        {
+            'username': 'test_viewer',
+            'first_name': 'test_viewer_first_name',
+            'last_name': 'test_viewer_last_name',
+            'email': 'test_viewer@fab.org',
+            'role': security_manager.find_role('Viewer'),
+            'password': 'test_viewer_password',
+        },
+    ]
 
-    for user_name, role in test_users:
-        if not security_manager.find_user(username=user_name):
-            security_manager.add_user(
-                username=user_name,
-                first_name=user_name,
-                last_name=user_name,
-                email=f'{user_name}@fab.org',
-                role=security_manager.find_role(role),
-                password=user_name,
-            )
+    for user_dict in test_users:
+        if not security_manager.find_user(username=user_dict['username']):
+            security_manager.add_user(**user_dict)
 
     yield app
 
-    for user, _ in test_users:
-        delete_user(app, user)
+    for user_dict in test_users:
+        delete_user(app, user_dict['username'])
 
 
 @pytest.fixture()
