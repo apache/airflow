@@ -65,7 +65,7 @@ class Param:
     def resolve(self, value: Optional[Any] = __NO_VALUE_SENTINEL, suppress_exception: bool = False) -> Any:
         """
         Runs the validations and returns the Param's final value.
-        May raise ValueError on failed validations, or AirflowException
+        May raise ValueError on failed validations, or TypeError
         if no value is passed and no value already exists.
 
         :param value: The value to be updated for the Param
@@ -78,7 +78,7 @@ class Param:
         if isinstance(final_val, NoValueSentinel):
             if suppress_exception:
                 return None
-            raise AirflowException("No value passed and Param has no default value")
+            raise TypeError("No value passed and Param has no default value")
         try:
             jsonschema.validate(final_val, self.schema, format_checker=FormatChecker())
         except ValidationError as err:

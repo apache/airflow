@@ -20,7 +20,6 @@ import unittest
 import pytest
 
 from airflow.decorators import task
-from airflow.exceptions import AirflowException
 from airflow.models.param import Param, ParamsDict
 from airflow.utils import timezone
 from airflow.utils.types import DagRunType
@@ -37,7 +36,7 @@ class TestParam(unittest.TestCase):
 
     def test_null_param(self):
         p = Param()
-        with pytest.raises(AirflowException, match='No value passed and Param has no default value'):
+        with pytest.raises(TypeError, match='No value passed and Param has no default value'):
             p.resolve()
         assert p.resolve(None) is None
 
@@ -65,7 +64,7 @@ class TestParam(unittest.TestCase):
         p = Param(type='string')
         with pytest.raises(ValueError):
             p.resolve(None)
-        with pytest.raises(AirflowException, match='No value passed and Param has no default value'):
+        with pytest.raises(TypeError, match='No value passed and Param has no default value'):
             p.resolve()
 
     def test_int_param(self):

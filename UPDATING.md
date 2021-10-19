@@ -85,10 +85,10 @@ https://developers.google.com/style/inclusive-documentation
 Param(None, type=["null", "string"])
 ```
 
-Now if you resolve a ``Param`` without a default and don't pass a value, you will get an ``AirflowException``. For Example:
+Now if you resolve a ``Param`` without a default and don't pass a value, you will get an ``TypeError``. For Example:
 
 ```python
-Param().resolve()  # raises AirflowException
+Param().resolve()  # raises TypeError
 ```
 
 ## Airflow 2.2.0
