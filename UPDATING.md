@@ -77,6 +77,20 @@ https://developers.google.com/style/inclusive-documentation
 
 -->
 
+### ``Param``'s default value for ``default`` removed
+
+``Param``, introduced in Airflow 2.2.0, accidentally set the default value to ``None``. This default has been removed. If you want ``None`` as your default, explicitly set it as such. For example:
+
+```python
+Param(None, type=["null", "string"])
+```
+
+Now if you resolve a ``Param`` without a default and don't pass a value, you will get an ``TypeError``. For Example:
+
+```python
+Param().resolve()  # raises TypeError
+```
+
 ## Airflow 2.2.0
 
 ### `worker_log_server_port` configuration has been moved to the ``logging`` section.

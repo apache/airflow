@@ -38,8 +38,8 @@ EXPECTED_JSON = {
         'rx': 5,
         'ry': 5,
         'clusterLabelPos': 'top',
+        'tooltip': '',
     },
-    'tooltip': '',
     'children': [
         {
             'id': 'group234',
@@ -50,8 +50,8 @@ EXPECTED_JSON = {
                 'rx': 5,
                 'ry': 5,
                 'clusterLabelPos': 'top',
+                'tooltip': '',
             },
-            'tooltip': '',
             'children': [
                 {
                     'id': 'group234.group34',
@@ -62,8 +62,8 @@ EXPECTED_JSON = {
                         'rx': 5,
                         'ry': 5,
                         'clusterLabelPos': 'top',
+                        'tooltip': '',
                     },
-                    'tooltip': '',
                     'children': [
                         {
                             'id': 'group234.group34.task3',
