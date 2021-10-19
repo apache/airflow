@@ -896,8 +896,14 @@ class CloudDataTransferServiceS3ToGCSOperator(BaseOperator):
             DESCRIPTION: self.description,
             STATUS: GcpTransferJobsStatus.ENABLED,
             TRANSFER_SPEC: {
-                AWS_S3_DATA_SOURCE: {BUCKET_NAME: self.s3_bucket, PATH: normalize_directory_path(self.s3_path)},
-                GCS_DATA_SINK: {BUCKET_NAME: self.gcs_bucket, PATH: normalize_directory_path(self.gcs_path)},
+                AWS_S3_DATA_SOURCE: {
+                    BUCKET_NAME: self.s3_bucket,
+                    PATH: normalize_directory_path(self.s3_path),
+                },
+                GCS_DATA_SINK: {
+                    BUCKET_NAME: self.gcs_bucket,
+                    PATH: normalize_directory_path(self.gcs_path),
+                },
             },
         }
 
@@ -1075,9 +1081,14 @@ class CloudDataTransferServiceGCSToGCSOperator(BaseOperator):
             DESCRIPTION: self.description,
             STATUS: GcpTransferJobsStatus.ENABLED,
             TRANSFER_SPEC: {
-                GCS_DATA_SOURCE: {BUCKET_NAME: self.source_bucket, PATH: normalize_directory_path(self.source_path)},
-                GCS_DATA_SINK: {BUCKET_NAME: self.destination_bucket,
-                                PATH: normalize_directory_path(self.destination_path)},
+                GCS_DATA_SOURCE: {
+                    BUCKET_NAME: self.source_bucket,
+                    PATH: normalize_directory_path(self.source_path),
+                },
+                GCS_DATA_SINK: {
+                    BUCKET_NAME: self.destination_bucket,
+                    PATH: normalize_directory_path(self.destination_path),
+                },
             },
         }
 
