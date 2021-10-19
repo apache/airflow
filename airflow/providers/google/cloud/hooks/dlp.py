@@ -276,9 +276,8 @@ class CloudDLPHook(GoogleBaseHook):
                 time.sleep(time_to_sleep_in_seconds)
             else:
                 raise AirflowException(
-                    "Stopped polling DLP job state. DLP job {} state: {}.".format(
-                        job.name, DlpJob.JobState.Name(job.state)
-                    )
+                    "Stopped polling DLP job state. "
+                    f"DLP job {job.name} state: {DlpJob.JobState.Name(job.state)}."
                 )
         return job
 

@@ -1002,8 +1002,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         project_id = project_id or self.project_id
         if not dataset_id or not isinstance(dataset_id, str):
             raise ValueError(
-                "dataset_id argument must be provided and has "
-                "a type 'str'. You provided: {}".format(dataset_id)
+                f"dataset_id argument must be provided and has a type 'str'. You provided: {dataset_id}"
             )
 
         service = self.get_service()
@@ -1802,8 +1801,8 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         ]
         if source_format not in allowed_formats:
             raise ValueError(
-                "{} is not a valid source format. "
-                "Please use one of the following types: {}".format(source_format, allowed_formats)
+                f"{source_format} is not a valid source format. "
+                f"Please use one of the following types: {allowed_formats}."
             )
 
         # bigquery also allows you to define how you want a table's schema to change
@@ -1813,10 +1812,8 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         allowed_schema_update_options = ['ALLOW_FIELD_ADDITION', "ALLOW_FIELD_RELAXATION"]
         if not set(allowed_schema_update_options).issuperset(set(schema_update_options)):
             raise ValueError(
-                "{} contains invalid schema update options."
-                "Please only use one or more of the following options: {}".format(
-                    schema_update_options, allowed_schema_update_options
-                )
+                f"{schema_update_options} contains invalid schema update options. "
+                f"Please only use one or more of the following options: {allowed_schema_update_options}"
             )
 
         destination_project, destination_dataset, destination_table = _split_tablename(
@@ -2228,9 +2225,8 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
 
         if not set(allowed_schema_update_options).issuperset(set(schema_update_options)):
             raise ValueError(
-                "{} contains invalid schema update options. "
-                "Please only use one or more of the following "
-                "options: {}".format(schema_update_options, allowed_schema_update_options)
+                f"{schema_update_options} contains invalid schema update options."
+                f" Please only use one or more of the following options: {allowed_schema_update_options}"
             )
 
         if schema_update_options:
@@ -2964,10 +2960,7 @@ def _split_tablename(
             return f"Format exception for {var_name}: "
 
     if table_input.count('.') + table_input.count(':') > 3:
-        raise Exception(
-            '{var}Use either : or . to specify project '
-            'got {input}'.format(var=var_print(var_name), input=table_input)
-        )
+        raise Exception(f'{var_print(var_name)}Use either : or . to specify project got {table_input}')
     cmpt = table_input.rsplit(':', 1)
     project_id = None
     rest = table_input
@@ -2980,8 +2973,7 @@ def _split_tablename(
             rest = cmpt[1]
     else:
         raise Exception(
-            '{var}Expect format of (<project:)<dataset>.<table>, '
-            'got {input}'.format(var=var_print(var_name), input=table_input)
+            f'{var_print(var_name)}Expect format of (<project:)<dataset>.<table>, got {table_input}'
         )
 
     cmpt = rest.split('.')
@@ -2997,8 +2989,7 @@ def _split_tablename(
         table_id = cmpt[1]
     else:
         raise Exception(
-            '{var}Expect format of (<project.|<project:)<dataset>.<table>, '
-            'got {input}'.format(var=var_print(var_name), input=table_input)
+            f'{var_print(var_name)}Expect format of (<project.|<project:)<dataset>.<table>, got {table_input}'
         )
 
     if project_id is None:

@@ -18,6 +18,7 @@
 """This module contains Google Cloud Storage sensors."""
 
 import os
+import textwrap
 import warnings
 from datetime import datetime
 from typing import Callable, List, Optional, Sequence, Set, Union
@@ -385,22 +386,21 @@ class GCSUploadSessionCompleteSensor(BaseSensorOperator):
                 self.previous_objects = current_objects
                 self.last_activity_time = get_time()
                 self.log.warning(
-                    """
+                    textwrap.dedent(
+                        """\
                     Objects were deleted during the last
                     poke interval. Updating the file counter and
                     resetting last_activity_time.
-                    %s
-                    """,
+                    %s\
+                    """
+                    ),
                     self.previous_objects - current_objects,
                 )
                 return False
 
             raise AirflowException(
-                """
-                Illegal behavior: objects were deleted in {} between pokes.
-                """.format(
-                    os.path.join(self.bucket, self.prefix)
-                )
+                "Illegal behavior: objects were deleted in "
+                f"{os.path.join(self.bucket, self.prefix)} between pokes."
             )
 
         if self.last_activity_time:
@@ -415,10 +415,13 @@ class GCSUploadSessionCompleteSensor(BaseSensorOperator):
 
             if current_num_objects >= self.min_objects:
                 self.log.info(
-                    """SUCCESS:
-                    Sensor found %s objects at %s.
-                    Waited at least %s seconds, with no new objects dropped.
-                    """,
+                    textwrap.dedent(
+                        """\
+                        SUCCESS:
+                        Sensor found %s objects at %s.
+                        Waited at least %s seconds, with no new objects dropped.
+                        """
+                    ),
                     current_num_objects,
                     path,
                     self.inactivity_period,

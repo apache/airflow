@@ -132,8 +132,6 @@ class TestPythonSensor(TestPythonBase):
             Call(
                 an_int=4,
                 a_date=date(2019, 1, 1),
-                a_templated_string="dag {} ran on {}.".format(
-                    self.dag.dag_id, DEFAULT_DATE.date().isoformat()
-                ),
+                a_templated_string=f"dag {self.dag.dag_id} ran on {DEFAULT_DATE.date().isoformat()}.",
             ),
         )

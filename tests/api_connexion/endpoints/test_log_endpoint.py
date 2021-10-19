@@ -121,8 +121,8 @@ class TestGetLog:
             headers={'Accept': 'application/json'},
             environ_overrides={'REMOTE_USER': "test"},
         )
-        expected_filename = "{}/{}/{}/{}/1.log".format(
-            self.log_dir, self.DAG_ID, self.TASK_ID, self.default_time.replace(":", ".")
+        expected_filename = (
+            f"{self.log_dir}/{self.DAG_ID}/{self.TASK_ID}/{self.default_time.replace(':', '.')}/1.log"
         )
         assert (
             response.json['content']
@@ -143,8 +143,8 @@ class TestGetLog:
             headers={'Accept': 'text/plain'},
             environ_overrides={'REMOTE_USER': "test"},
         )
-        expected_filename = "{}/{}/{}/{}/1.log".format(
-            self.log_dir, self.DAG_ID, self.TASK_ID, self.default_time.replace(':', '.')
+        expected_filename = (
+            f"{self.log_dir}/{self.DAG_ID}/{self.TASK_ID}/{self.default_time.replace(':', '.')}/1.log"
         )
         assert 200 == response.status_code
         assert (
@@ -169,8 +169,8 @@ class TestGetLog:
             headers={'Accept': 'text/plain'},
             environ_overrides={'REMOTE_USER': "test"},
         )
-        expected_filename = "{}/{}/{}/{}/1.log".format(
-            self.log_dir, self.DAG_ID, self.TASK_ID, self.default_time.replace(':', '.')
+        expected_filename = (
+            f"{self.log_dir}/{self.DAG_ID}/{self.TASK_ID}/{self.default_time.replace(':', '.')}/1.log"
         )
         assert 200 == response.status_code
         assert (

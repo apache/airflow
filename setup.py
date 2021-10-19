@@ -176,6 +176,8 @@ def write_version(filename: str = os.path.join(*[my_dir, "airflow", "git_version
         file.write(text)
 
 
+pandas_requirement = 'pandas>=0.17.1, <2.0'
+
 # 'Start dependencies group' and 'Start dependencies group' are mark for ./scripts/ci/check_order_setup.py
 # If you change this mark you should also change ./scripts/ci/check_order_setup.py
 # Start dependencies group
@@ -188,6 +190,7 @@ amazon = [
     'jsonpath_ng>=1.5.3',
     'redshift_connector~=2.0.888',
     'sqlalchemy_redshift~=0.8.6',
+    pandas_requirement,
 ]
 apache_beam = [
     'apache-beam>=2.20.0',
@@ -271,9 +274,7 @@ elasticsearch = [
     'elasticsearch-dbapi',
     'elasticsearch-dsl>=5.0.0',
 ]
-exasol = [
-    'pyexasol>=0.5.1,<1.0.0',
-]
+exasol = ['pyexasol>=0.5.1,<1.0.0', pandas_requirement]
 facebook = [
     'facebook-business>=6.0.2',
 ]
@@ -330,6 +331,7 @@ google = [
     # pandas-gbq 0.15.0 release broke google provider's bigquery import
     # _check_google_client_version (airflow/providers/google/cloud/hooks/bigquery.py:49)
     'pandas-gbq<0.15.0',
+    pandas_requirement,
 ]
 grpc = [
     'google-auth>=1.0.0, <3.0.0',
@@ -346,6 +348,7 @@ hive = [
     'hmsclient>=0.1.0',
     'pyhive[hive]>=0.6.0;python_version<"3.9"',
     'thrift>=0.9.2',
+    pandas_requirement,
 ]
 http = [
     # The 2.26.0 release of requests got rid of the chardet LGPL mandatory dependency, allowing us to
@@ -355,7 +358,10 @@ http = [
 http_provider = [
     'apache-airflow-providers-http',
 ]
-influxdb = ['pandas>=0.17.1, <2.0', 'influxdb-client>=1.19.0']
+influxdb = [
+    'influxdb-client>=1.19.0',
+    pandas_requirement,
+]
 jdbc = [
     'jaydebeapi>=1.1.1',
 ]
@@ -402,7 +408,7 @@ pagerduty = [
     'pdpyras>=4.1.2,<5',
 ]
 pandas = [
-    'pandas>=0.17.1, <2.0',
+    pandas_requirement,
 ]
 papermill = [
     'papermill[all]>=1.2.1',
@@ -423,7 +429,10 @@ plexus = [
 postgres = [
     'psycopg2-binary>=2.7.4',
 ]
-presto = ['presto-python-client>=0.7.0,<0.8']
+presto = [
+    'presto-python-client>=0.7.0,<0.8',
+    pandas_requirement,
+]
 psrp = [
     'pypsrp~=0.5',
 ]
@@ -436,10 +445,7 @@ rabbitmq = [
 redis = [
     'redis~=3.2',
 ]
-salesforce = [
-    'simple-salesforce>=1.0.0',
-    'tableauserverclient',
-]
+salesforce = ['simple-salesforce>=1.0.0', 'tableauserverclient', pandas_requirement]
 samba = [
     'smbprotocol>=1.5.0',
 ]
@@ -478,7 +484,10 @@ tableau = [
 telegram = [
     'python-telegram-bot~=13.0',
 ]
-trino = ['trino>=0.301.0']
+trino = [
+    'trino>=0.301.0',
+    pandas_requirement,
+]
 vertica = [
     'vertica-python>=0.5.1',
 ]

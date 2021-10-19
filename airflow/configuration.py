@@ -294,12 +294,9 @@ class AirflowConfigParser(ConfigParser):
     @staticmethod
     def _create_future_warning(name, section, current_value, new_value, version):
         warnings.warn(
-            'The {name} setting in [{section}] has the old default value '
-            'of {current_value!r}. This value has been changed to {new_value!r} in the '
-            'running config, but please update your config before Apache '
-            'Airflow {version}.'.format(
-                name=name, section=section, current_value=current_value, new_value=new_value, version=version
-            ),
+            f'The {name!r} setting in [{section}] has the old default value of {current_value!r}. '
+            f'This value has been changed to {new_value!r} in the running config, but '
+            f'please update your config before Apache Airflow {version}.',
             FutureWarning,
         )
 
@@ -724,24 +721,15 @@ class AirflowConfigParser(ConfigParser):
     def _warn_deprecate(section, key, deprecated_section, deprecated_name):
         if section == deprecated_section:
             warnings.warn(
-                'The {old} option in [{section}] has been renamed to {new} - the old '
-                'setting has been used, but please update your config.'.format(
-                    old=deprecated_name,
-                    new=key,
-                    section=section,
-                ),
+                f'The {deprecated_name} option in [{section}] has been renamed to {key} - '
+                f'the old setting has been used, but please update your config.',
                 DeprecationWarning,
                 stacklevel=3,
             )
         else:
             warnings.warn(
-                'The {old_key} option in [{old_section}] has been moved to the {new_key} option in '
-                '[{new_section}] - the old setting has been used, but please update your config.'.format(
-                    old_section=deprecated_section,
-                    old_key=deprecated_name,
-                    new_key=key,
-                    new_section=section,
-                ),
+                f'The {deprecated_name} option in [{deprecated_section}] has been moved to the {key} option '
+                f'in [{section}] - the old setting has been used, but please update your config.',
                 DeprecationWarning,
                 stacklevel=3,
             )
