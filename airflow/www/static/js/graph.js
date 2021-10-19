@@ -451,8 +451,12 @@ function groupTooltip(node, tis) {
   });
 
   const groupDuration = convertSecsToHumanReadable(moment(maxEnd).diff(minStart, 'second'));
+  const tooltipText = node.tooltip ? `<p>${node.tooltip}</p>` : '';
 
-  let tt = `<strong>Duration:</strong> ${groupDuration} <br><br>`;
+  let tt = `
+    ${tooltipText}
+    <strong>Duration:</strong> ${groupDuration} <br><br>
+  `;
   numMap.forEach((key, val) => {
     if (key > 0) {
       tt += `<strong>${escapeHtml(val)}:</strong> ${key} <br>`;
