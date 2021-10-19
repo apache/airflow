@@ -20,7 +20,7 @@ from functools import wraps
 from typing import Any, Callable, Dict, Optional, Set, Union
 
 from azure.core.polling import LROPoller
-from azure.identity import ClientSecretCredential
+from azure.identity import ClientSecretCredential, DefaultAzureCredential
 from azure.mgmt.datafactory import DataFactoryManagementClient
 from azure.mgmt.datafactory.models import (
     CreateRunResponse,
@@ -144,10 +144,14 @@ class AzureDataFactoryHook(BaseHook):
         tenant = conn.extra_dejson.get('extra__azure_data_factory__tenantId')
         subscription_id = conn.extra_dejson.get('extra__azure_data_factory__subscriptionId')
 
-        self._conn = DataFactoryManagementClient(
-            credential=ClientSecretCredential(
+        credential = DefaultAzureCredential()
+        if conn.login is not None and conn.password is not None:
+            credential = ClientSecretCredential(
                 client_id=conn.login, client_secret=conn.password, tenant_id=tenant
-            ),
+            )
+        
+        self._conn = DataFactoryManagementClient(
+            credential=credential,
             subscription_id=subscription_id,
         )
 
