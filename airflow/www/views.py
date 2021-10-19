@@ -294,6 +294,7 @@ def task_group_to_tree(task_item_or_group, dag, dag_runs, tis):
         'id': task_group.group_id,
         'label': task_group.label,
         'children': children,
+        'tooltip': task_group.tooltip,
         'instances': group_summaries,
     }
 

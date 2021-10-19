@@ -32,7 +32,6 @@ const InstanceTooltip = ({
   },
 }) => {
   const isGroup = !!group.children;
-
   const groupSummary = [];
 
   if (isGroup) {
@@ -74,6 +73,12 @@ const InstanceTooltip = ({
 
   return (
     <Box fontSize={12}>
+      {group.tooltip && (
+        <>
+          <br />
+          <Text>{group.tooltip}</Text>
+        </>
+      )}
       <br />
       <Text>
         <Text as="strong">Status:</Text>
