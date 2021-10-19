@@ -374,26 +374,29 @@ Lets look at another example; we need to get some data from a file which is host
 Initial setup
 ''''''''''''''''''''
 We need to have docker and postgres installed.
-We will be using this `docker file <https://airflow.apache.org/docs/apache-airflow/stable/start/docker.html#docker-compose-yaml>`_
+We will be using this :doc:`docker file <start/docker>`
 Follow the instructions properly to set up Airflow.
 
 .. note::
-    Airflow manages databases using `connections <https://airflow.apache.org/docs/apache-airflow/stable/howto/connection.html>`.
+
+    Airflow manages databases using :doc:`connections <howto/connection>`.
     When running the code below, you will need to either configure a relevant postgres connection named ``postgres_docker`` or configure one
     as appropriate for your system and update the code below to reference the appropriate Connection id.
 
-    If using the aforementioned `docker setup <https://airflow.apache.org/docs/apache-airflow/stable/start/docker.html#docker-compose-yaml>`
+    If using the aforementioned :doc:`docker setup <start/docker>`
     note that none of the out-of-the-box connections are quite right; you will likely (either via the webserver UI or command line)
     want to add a docker-appropriate postgres connection (the following creates one that matches postgres as
-    configured in ``docker-compose.yml``)
+    configured in ``docker-compose.yml``):
 
-    .. code-block:: bash
-        airflow connections add 'postgres_docker' \
-            --conn-type 'postgres' \
-            --conn-login 'airflow' \
-            --conn-password 'airflow' \
-            --conn-host 'postgres' \
-            --conn-schema 'airflow'
+.. code-block:: bash
+
+    airflow connections add 'postgres_docker' \
+        --conn-type 'postgres' \
+        --conn-login 'airflow' \
+        --conn-password 'airflow' \
+        --conn-host 'postgres' \
+        --conn-schema 'airflow'
+
 
 Create a Employee table in postgres using this
 
