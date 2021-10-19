@@ -205,7 +205,7 @@ class RegExTemplates:
         (?P<account_id>[0-9]{12}):
         cluster/
         (?P<cluster_name>.+)""",
-        re.VERBOSE
+        re.VERBOSE,
     )
     FARGATE_PROFILE_ARN: Pattern = re.compile(
         r"""arn:
@@ -217,7 +217,7 @@ class RegExTemplates:
         (?P<cluster_name>.+)/
         (?P<fargate_name>.+)/"""
         + FARGATE_PROFILE_UUID_PATTERN,
-        re.VERBOSE
+        re.VERBOSE,
     )
     NODEGROUP_ARN: Pattern = re.compile(
         r"""arn:
@@ -229,7 +229,7 @@ class RegExTemplates:
         (?P<cluster_name>.+)/
         (?P<nodegroup_name>.+)/"""
         + NODEGROUP_UUID_PATTERN,
-        re.VERBOSE
+        re.VERBOSE,
     )
     NODEGROUP_ASG_NAME_PATTERN: Pattern = re.compile(f"eks-{NODEGROUP_UUID_PATTERN}")
     NODEGROUP_SECURITY_GROUP_NAME_PATTERN: Pattern = re.compile("sg-([-0-9a-z]{17})")

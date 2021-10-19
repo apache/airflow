@@ -710,8 +710,7 @@ class TestSparkSubmitHook(unittest.TestCase):
         log_lines = [
             'Submitting a request for the status of submission '
             'driver-20171128111415-0001 in spark://spark-standalone-master:6066',
-            '17/11/28 11:15:37 INFO RestSubmissionClient: Server responded with '
-            'SubmissionStatusResponse:',
+            '17/11/28 11:15:37 INFO RestSubmissionClient: Server responded with SubmissionStatusResponse:',
             '{',
             '"action" : "SubmissionStatusResponse",',
             '"driverState" : "RUNNING",',
