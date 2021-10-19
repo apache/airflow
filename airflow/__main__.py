@@ -19,7 +19,6 @@
 # under the License.
 
 """Main executable module"""
-import logging
 import os
 import warnings
 
@@ -29,8 +28,6 @@ from airflow import PY310
 from airflow.cli import cli_parser
 from airflow.configuration import conf
 from airflow.utils.docs import get_docs_url
-
-log = logging.getLogger(__file__)
 
 
 def main():
