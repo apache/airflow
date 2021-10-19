@@ -1307,7 +1307,7 @@ class TestDag(unittest.TestCase):
             ("5 0 * 8 *", cron_timetable("5 0 * 8 *"), "At 00:05, only in August"),
             ("@once", OnceTimetable(), "Once, as soon as possible"),
             (datetime.timedelta(days=1), delta_timetable(datetime.timedelta(days=1)), None),
-            ("30 21 * * 5 1", cron_timetable("30 21 * * 5 1"), None)
+            ("30 21 * * 5 1", cron_timetable("30 21 * * 5 1"), None),
         ]
     )
     def test_timetable_and_description_from_schedule_interval(
@@ -1334,7 +1334,7 @@ class TestDag(unittest.TestCase):
             (cron_timetable("5 0 * 8 *"), "At 00:05, only in August"),
             (OnceTimetable(), "Once, as soon as possible"),
             (delta_timetable(datetime.timedelta(days=1)), None),
-            (cron_timetable("30 21 * * 5 1"), None)
+            (cron_timetable("30 21 * * 5 1"), None),
         ]
     )
     def test_description_from_timetable(self, timetable, expected_description):
