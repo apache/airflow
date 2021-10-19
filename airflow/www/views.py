@@ -3231,6 +3231,11 @@ class SlaMissModelView(AirflowModelView):
     ]
 
     list_columns = ['dag_id', 'task_id', 'execution_date', 'email_sent', 'timestamp']
+
+    label_columns = {
+        'execution_date': 'Logical Date',
+    }
+
     add_columns = ['dag_id', 'task_id', 'execution_date', 'email_sent', 'timestamp']
     edit_columns = ['dag_id', 'task_id', 'execution_date', 'email_sent', 'timestamp']
     search_columns = ['dag_id', 'task_id', 'email_sent', 'timestamp', 'execution_date']
@@ -3266,6 +3271,10 @@ class XComModelView(AirflowModelView):
         permissions.ACTION_CAN_DELETE,
         permissions.ACTION_CAN_ACCESS_MENU,
     ]
+
+    label_columns = {
+        'execution_date': 'Logical Date',
+    }
 
     search_columns = ['key', 'value', 'timestamp', 'execution_date', 'task_id', 'dag_id']
     list_columns = ['key', 'value', 'timestamp', 'execution_date', 'task_id', 'dag_id']
@@ -3943,6 +3952,9 @@ class DagRunModelView(AirflowPrivilegeVerifierModelView):
         'end_date',
         'external_trigger',
     ]
+    label_columns = {
+        'execution_date': 'Logical Date',
+    }
     edit_columns = ['state', 'dag_id', 'execution_date', 'start_date', 'end_date', 'run_id', 'conf']
 
     base_order = ('execution_date', 'desc')
@@ -4087,6 +4099,10 @@ class LogModelView(AirflowModelView):
     list_columns = ['id', 'dttm', 'dag_id', 'task_id', 'event', 'execution_date', 'owner', 'extra']
     search_columns = ['dag_id', 'task_id', 'event', 'execution_date', 'owner', 'extra']
 
+    label_columns = {
+        'execution_date': 'Logical Date',
+    }
+
     base_order = ('dttm', 'desc')
 
     base_filters = [['dag_id', DagFilter, lambda: []]]
@@ -4130,7 +4146,7 @@ class TaskRescheduleModelView(AirflowModelView):
     ]
 
     label_columns = {
-        'dag_run.execution_date': 'Execution Date',
+        'dag_run.execution_date': 'Logical Date',
     }
 
     search_columns = [
@@ -4261,7 +4277,7 @@ class TaskInstanceModelView(AirflowPrivilegeVerifierModelView):
     ]
 
     label_columns = {
-        'dag_run.execution_date': 'Execution Date',
+        'dag_run.execution_date': 'Logical Date',
     }
 
     search_columns = [
