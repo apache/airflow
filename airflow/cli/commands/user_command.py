@@ -24,10 +24,24 @@ import re
 import string
 from typing import Any, Dict, List
 
+from marshmallow import Schema, fields, validate
+from marshmallow.exceptions import ValidationError
+
 from airflow.cli.simple_table import AirflowConsole
 from airflow.utils import cli as cli_utils
 from airflow.utils.cli import suppress_logs_and_warning
 from airflow.www.app import cached_app
+
+
+class UserSchema(Schema):
+    """user collection item schema"""
+
+    id = fields.Int()
+    firstname = fields.Str(required=True)
+    lastname = fields.Str(required=True)
+    username = fields.Str(required=True)
+    email = fields.Email(required=True)
+    roles = fields.List(fields.Str, required=True, validate=validate.Length(min=1))
 
 
 @suppress_logs_and_warning
@@ -181,16 +195,12 @@ def _import_users(users_list: List[Dict[str, Any]]):
     users_updated = []
 
     for user in users_list:
-        required_fields = ['username', 'firstname', 'lastname', 'email', 'roles']
-        for field in required_fields:
-            if field not in user:
-                raise SystemExit(f'Error: "{field}" is a required field, but was not specified')
 
-        if not isinstance(user['roles'], list):
-            raise SystemExit(f"Error: Incorrect list of roles specified for user \"{user['username']}\"")
-
-        if not user['roles']:
-            raise SystemExit(f"Error: User \"{user['username']}\" must have at lest one role")
+        try:
+            # Validate structure
+            UserSchema().load(user)
+        except ValidationError as e:
+            raise SystemExit(f"Error: Can't load user \"{user}\". \nDetails:{e}")
 
         roles = []
         for rolename in user['roles']:

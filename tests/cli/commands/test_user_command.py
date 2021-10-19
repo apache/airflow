@@ -18,6 +18,7 @@
 import io
 import json
 import os
+import re
 import tempfile
 from contextlib import redirect_stdout
 
@@ -416,7 +417,9 @@ class TestCliUsers:
                     "email": TEST_USER1_EMAIL,
                     "roles": "This is not a list",
                 },
-                'Error: Incorrect list of roles specified for user "imported_user1"',
+                "Error: Can't load user \"{'username': 'imported_user1', 'lastname': 'doe1',"
+                " 'firstname': 'john', 'email': 'test-user1@example.com', 'roles': 'This is not a list'}\". "
+                "\nDetails:{'roles': ['Not a valid list.']}",
             ],
             [
                 {
@@ -426,7 +429,9 @@ class TestCliUsers:
                     "email": TEST_USER2_EMAIL,
                     "roles": [],
                 },
-                'Error: User "imported_user2" must have at lest one role',
+                "Error: Can't load user \"{'username': 'imported_user2', 'lastname': 'doe2', "
+                "'firstname': 'jon', 'email': 'test-user2@example.com', 'roles': []}\". \nDetails:{'roles': "
+                "['Shorter than minimum length 1.']}",
             ],
             [
                 {
@@ -435,11 +440,13 @@ class TestCliUsers:
                     "firstname": "jon",
                     "email": TEST_USER3_EMAIL,
                 },
-                'Error: "roles" is a required field, but was not specified',
+                "Error: Can't load user \"{'username': 'imported_user3', 'lastname': 'doe3', "
+                "'firstname': 'jon', 'email': 'test-user3@example.com'}\". \nDetails:{'roles': "
+                "['Missing data for required field.']}",
             ],
         ],
         ids=["Incorrect roles argument", "Empty roles", "Roles is missing"],
     )
     def test_cli_import_users_exceptions(self, user, message):
-        with pytest.raises(SystemExit, match=message):
+        with pytest.raises(SystemExit, match=re.escape(message)):
             self._import_users_from_file([user])
