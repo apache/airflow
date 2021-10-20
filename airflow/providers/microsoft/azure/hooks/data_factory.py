@@ -149,7 +149,6 @@ class AzureDataFactoryHook(BaseHook):
             credential = ClientSecretCredential(
                 client_id=conn.login, client_secret=conn.password, tenant_id=tenant
             )
-        
         self._conn = DataFactoryManagementClient(
             credential=credential,
             subscription_id=subscription_id,
