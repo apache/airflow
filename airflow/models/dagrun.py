@@ -17,7 +17,7 @@
 # under the License.
 import warnings
 from datetime import datetime
-from typing import TYPE_CHECKING, Any, Iterable, List, NamedTuple, Optional, Tuple, Union
+from typing import TYPE_CHECKING, Any, Dict, Iterable, List, NamedTuple, Optional, Tuple, Union
 
 from sqlalchemy import (
     Boolean,
@@ -206,6 +206,22 @@ class DagRun(Base, LoggingMixin):
         dr = session.query(DagRun).filter(DagRun.dag_id == self.dag_id, DagRun.run_id == self.run_id).one()
         self.id = dr.id
         self.state = dr.state
+
+    @classmethod
+    @provide_session
+    def active_runs_of_dags(cls, dag_ids=None, only_running=False, session=None) -> Dict[str, int]:
+        """Get the number of active dag runs for each dag."""
+        query = session.query(cls.dag_id, func.count('*'))
+        if dag_ids is not None:
+            # 'set' called to avoid duplicate dag_ids, but converted back to 'list'
+            # because SQLAlchemy doesn't accept a set here.
+            query = query.filter(cls.dag_id.in_(list(set(dag_ids))))
+        if only_running:
+            query = query.filter(cls.state == State.RUNNING)
+        else:
+            query = query.filter(cls.state.in_([State.RUNNING, State.QUEUED]))
+        query = query.group_by(cls.dag_id)
+        return {dag_id: count for dag_id, count in query.all()}
 
     @classmethod
     def next_dagruns_to_examine(
