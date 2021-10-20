@@ -71,7 +71,7 @@ class TestDockerSwarmOperator(unittest.TestCase):
             secrets=[types.SecretReference(secret_id="dummy_secret_id", secret_name="dummy_secret_name")],
             mode=types.ServiceMode(mode="replicated", replicas=3),
             networks=["dummy_network"],
-            placement=types.Placement(constraints=["node.labels.region==east"])
+            placement=types.Placement(constraints=["node.labels.region==east"]),
         )
         operator.execute(None)
 
