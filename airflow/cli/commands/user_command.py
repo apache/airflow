@@ -200,8 +200,8 @@ def _import_users(users_list: List[Dict[str, Any]]):
         msg = []
         for row_num, failure in e.messages.items():
             msg.append(f'[Item {row_num}]')
-            for key in failure:
-                msg.append(f'\t{key}: {failure[key]}')
+            for key, value in failure.items():
+                msg.append(f'\t{key}: {value}')
         raise SystemExit("Error: Input file didn't pass validation. See below:\n{}".format('\n'.join(msg)))
 
     for user in users_list:
