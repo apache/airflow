@@ -7,7 +7,7 @@ systems/prerequisites are known to work:
 
 Linux (Debian Buster and Linux Mint Tricia):
 
-sudo apt install openssl \
+sudo apt install build-essential python3-dev libsqlite3-dev openssl \
                  sqlite default-libmysqlclient-dev libmysqld-dev postgresql
 
 MacOS (Mojave/Catalina):

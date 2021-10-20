@@ -273,7 +273,7 @@ function breeze::initialize_virtualenv() {
                 echo "  export LDFLAGS=\"-L/usr/local/opt/openssl/lib\""
                 echo "  export CPPFLAGS=\"-I/usr/local/opt/openssl/include\""
             else
-                echo "  sudo apt install openssl \\"
+                echo "  sudo apt install build-essential python3-dev libsqlite3-dev openssl \\"
                 echo "              sqlite default-libmysqlclient-dev libmysqld-dev postgresql"
             fi
             echo
