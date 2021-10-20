@@ -268,7 +268,7 @@
       }
       const entityIdsStrList = selectedEIds.join(',');
       const entityIdsStr = entityIdsStrList.replace(/\//g, '@');
-      const downloadUrls = '/curves/download/' + entityIdsStr;
+      const downloadUrls = '{{url_for('CurvesView.download',entity_ids='ENTITY_IDS')}}'.replace('ENTITY_IDS', entityIdsStr);
       return downloadURI(downloadUrls);
 
     }
