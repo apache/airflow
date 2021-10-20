@@ -415,6 +415,12 @@ paths:
             default: true
           required: false
           description: Only return active DAGs.
+        - name: dag_id_pattern
+          in: query
+          schema:
+            type: string
+          required: false
+          description: If set, only return DAGs with dag_ids matching this pattern.
       responses:
         '200':
           description: Success.
