@@ -297,6 +297,35 @@ class TestDagFileProcessor:
         )
         mock_stats_incr.assert_called_once_with('sla_email_notification_failure')
 
+    @mock.patch('airflow.dag_processing.processor.Stats.incr')
+    def test_dag_file_processor_sla_miss_stats_logging(self, mock_stats_incr, create_dummy_dag):
+        """Test that SLA misses are logged with the Stats framework"""
+        test_start_date = days_ago(2, hour=0, minute=0)
+
+        with create_session() as session:
+            dag, task = create_dummy_dag(
+                dag_id='test_sla_miss_stats',
+                task_id='dummy',
+                schedule_interval="0 0 * * *",
+                catchup=True,
+                session=session,
+                default_args={
+                    'start_date': test_start_date,
+                    'sla': datetime.timedelta(hours=1),
+                },
+            )
+            dagrun = dag.get_dagrun(execution_date=test_start_date, session=session)
+            ti = dagrun.get_task_instance(task_id='dummy', session=session)
+            ti.set_state(State.SUCCESS, session=session)
+            session.flush()
+
+            mock_log = mock.MagicMock()
+            dag_file_processor = DagFileProcessor(dag_ids=[], log=mock_log)
+
+            mock_stats_incr.reset_mock()
+            dag_file_processor.manage_slas(dag=dag, session=session)
+            mock_stats_incr.assert_called_once_with('ti.sla_miss.test_sla_miss_stats.dummy')
+
     def test_dag_file_processor_sla_miss_deleted_task(self, create_dummy_dag):
         """
         Test that the dag file processor will not crash when trying to send
