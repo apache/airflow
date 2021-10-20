@@ -32,7 +32,7 @@ There are multiple ways to connect to Azure Data Factory using Airflow.
 1. Use `token credentials
    <https://docs.microsoft.com/en-us/azure/developer/python/azure-sdk-authenticate?tabs=cmd#authenticate-with-token-credentials>`_
    i.e. add specific credentials (client_id, secret, tenant) and subscription id to the Airflow connection.
-1. Fallback on `DefaultAzureCredential
+2. Fallback on `DefaultAzureCredential
    <https://docs.microsoft.com/en-us/python/api/overview/azure/identity-readme?view=azure-python#defaultazurecredential>`_.
    This includes a mechanism to try different options to authenticate: Managed System Identity, environment variables, authentication through Azure CLI...
 
