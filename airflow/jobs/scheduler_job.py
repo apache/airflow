@@ -431,6 +431,9 @@ class SchedulerJob(BaseJob):
         """
         # actually enqueue them
         for ti in task_instances:
+            if ti.dag_run.state in State.finished:
+                ti.set_state(State.NONE)
+                continue
             command = ti.command_as_list(
                 local=True,
                 pickle_id=ti.dag_model.pickle_id,
