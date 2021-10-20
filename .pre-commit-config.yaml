@@ -258,6 +258,12 @@ repos:
         exclude: |
           (?x)
           ^airflow/_vendor/
+        args:
+         # If flynt detects too long text it ignores it. So we set a very large limit to make it easy
+         # to split the text by hand. Too long lines are detected by flake8 (below),
+         # so the user is informed to take action.
+         - --line-length
+         - '99999'
   - repo: https://github.com/codespell-project/codespell
     rev: v2.1.0
     hooks:

@@ -369,24 +369,14 @@ def webserver(args):
 
         print(
             textwrap.dedent(
-                '''\
+                f'''\
                 Running the Gunicorn Server with:
-                Workers: {num_workers} {workerclass}
-                Host: {hostname}:{port}
+                Workers: {num_workers} {args.workerclass}
+                Host: {args.hostname}:{args.port}
                 Timeout: {worker_timeout}
                 Logfiles: {access_logfile} {error_logfile}
                 Access Logformat: {access_logformat}
-                =================================================================\
-            '''.format(
-                    num_workers=num_workers,
-                    workerclass=args.workerclass,
-                    hostname=args.hostname,
-                    port=args.port,
-                    worker_timeout=worker_timeout,
-                    access_logfile=access_logfile,
-                    error_logfile=error_logfile,
-                    access_logformat=access_logformat,
-                )
+                ================================================================='''
             )
         )
 

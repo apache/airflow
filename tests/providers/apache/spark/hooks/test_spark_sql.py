@@ -206,8 +206,7 @@ class TestSparkSqlHook(unittest.TestCase):
             hook.run_query(params)
 
         # Then
-        assert str(
-            ctx.value
-        ) == "Cannot execute '{}' on {} (additional parameters: '{}'). Process exit code: {}.".format(
-            sql, master, params, status
+        assert str(ctx.value) == (
+            f"Cannot execute '{sql}' on {master} (additional parameters: '{params}'). "
+            f"Process exit code: {status}."
         )

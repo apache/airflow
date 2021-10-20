@@ -1519,11 +1519,9 @@ class DAG(LoggingMixin):
                 if recursion_depth + 1 > max_recursion_depth:
                     # Prevent cycles or accidents.
                     raise AirflowException(
-                        "Maximum recursion depth {} reached for {} {}. "
-                        "Attempted to clear too many tasks "
-                        "or there may be a cyclic dependency.".format(
-                            max_recursion_depth, ExternalTaskMarker.__name__, ti.task_id
-                        )
+                        f"Maximum recursion depth {max_recursion_depth} reached for "
+                        f"{ExternalTaskMarker.__name__} {ti.task_id}. "
+                        f"Attempted to clear too many tasks or there may be a cyclic dependency."
                     )
                 ti.render_templates()
                 external_tis = (
@@ -2631,8 +2629,8 @@ class DAG(LoggingMixin):
             return
 
         for k, v in self.params.items():
-            # As type can be an array, we would check if `null` is a allowed type or not
-            if v.default is None and ("type" not in v.schema or "null" not in v.schema["type"]):
+            # As type can be an array, we would check if `null` is an allowed type or not
+            if not v.has_value and ("type" not in v.schema or "null" not in v.schema["type"]):
                 raise AirflowException(
                     "DAG Schedule must be None, if there are any required params without default values"
                 )

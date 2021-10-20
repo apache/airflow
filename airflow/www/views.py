@@ -276,8 +276,8 @@ def task_group_to_dict(task_group):
             'rx': 5,
             'ry': 5,
             'clusterLabelPos': 'top',
+            'tooltip': task_group.tooltip,
         },
-        'tooltip': task_group.tooltip,
         'children': children,
     }
 
@@ -1200,8 +1200,8 @@ class Airflow(AirflowBaseView):
             execution_date = timezone.parse(execution_date)
         except ValueError:
             error_message = (
-                'Given execution date, {}, could not be identified '
-                'as a date. Example date format: 2015-11-16T14:34:15+00:00'.format(execution_date)
+                f'Given execution date, {execution_date}, could not be identified as a date. '
+                'Example date format: 2015-11-16T14:34:15+00:00'
             )
             response = jsonify({'error': error_message})
             response.status_code = 400
@@ -1571,8 +1571,7 @@ class Airflow(AirflowBaseView):
         if failed_deps:
             failed_deps_str = ", ".join(f"{dep.dep_name}: {dep.reason}" for dep in failed_deps)
             flash(
-                "Could not queue task instance for execution, dependencies not met: "
-                "{}".format(failed_deps_str),
+                f"Could not queue task instance for execution, dependencies not met: {failed_deps_str}",
                 "error",
             )
             return redirect(origin)
@@ -3231,6 +3230,11 @@ class SlaMissModelView(AirflowModelView):
     ]
 
     list_columns = ['dag_id', 'task_id', 'execution_date', 'email_sent', 'timestamp']
+
+    label_columns = {
+        'execution_date': 'Logical Date',
+    }
+
     add_columns = ['dag_id', 'task_id', 'execution_date', 'email_sent', 'timestamp']
     edit_columns = ['dag_id', 'task_id', 'execution_date', 'email_sent', 'timestamp']
     search_columns = ['dag_id', 'task_id', 'email_sent', 'timestamp', 'execution_date']
@@ -3266,6 +3270,10 @@ class XComModelView(AirflowModelView):
         permissions.ACTION_CAN_DELETE,
         permissions.ACTION_CAN_ACCESS_MENU,
     ]
+
+    label_columns = {
+        'execution_date': 'Logical Date',
+    }
 
     search_columns = ['key', 'value', 'timestamp', 'execution_date', 'task_id', 'dag_id']
     list_columns = ['key', 'value', 'timestamp', 'execution_date', 'task_id', 'dag_id']
@@ -3943,6 +3951,9 @@ class DagRunModelView(AirflowPrivilegeVerifierModelView):
         'end_date',
         'external_trigger',
     ]
+    label_columns = {
+        'execution_date': 'Logical Date',
+    }
     edit_columns = ['state', 'dag_id', 'execution_date', 'start_date', 'end_date', 'run_id', 'conf']
 
     base_order = ('execution_date', 'desc')
@@ -4008,10 +4019,7 @@ class DagRunModelView(AirflowPrivilegeVerifierModelView):
                     current_app.dag_bag.get_dag(dr.dag_id), dr.execution_date, commit=True, session=session
                 )
             altered_ti_count = len(altered_tis)
-            flash(
-                "{count} dag runs and {altered_ti_count} task instances "
-                "were set to failed".format(count=count, altered_ti_count=altered_ti_count)
-            )
+            flash(f"{count} dag runs and {altered_ti_count} task instances were set to failed")
         except Exception:
             flash('Failed to set state', 'error')
         return redirect(self.get_default_url())
@@ -4035,10 +4043,7 @@ class DagRunModelView(AirflowPrivilegeVerifierModelView):
                     current_app.dag_bag.get_dag(dr.dag_id), dr.execution_date, commit=True, session=session
                 )
             altered_ti_count = len(altered_tis)
-            flash(
-                "{count} dag runs and {altered_ti_count} task instances "
-                "were set to success".format(count=count, altered_ti_count=altered_ti_count)
-            )
+            flash(f"{count} dag runs and {altered_ti_count} task instances were set to success")
         except Exception:
             flash('Failed to set state', 'error')
         return redirect(self.get_default_url())
@@ -4087,6 +4092,10 @@ class LogModelView(AirflowModelView):
     list_columns = ['id', 'dttm', 'dag_id', 'task_id', 'event', 'execution_date', 'owner', 'extra']
     search_columns = ['dag_id', 'task_id', 'event', 'execution_date', 'owner', 'extra']
 
+    label_columns = {
+        'execution_date': 'Logical Date',
+    }
+
     base_order = ('dttm', 'desc')
 
     base_filters = [['dag_id', DagFilter, lambda: []]]
@@ -4130,7 +4139,7 @@ class TaskRescheduleModelView(AirflowModelView):
     ]
 
     label_columns = {
-        'dag_run.execution_date': 'Execution Date',
+        'dag_run.execution_date': 'Logical Date',
     }
 
     search_columns = [
@@ -4261,7 +4270,7 @@ class TaskInstanceModelView(AirflowPrivilegeVerifierModelView):
     ]
 
     label_columns = {
-        'dag_run.execution_date': 'Execution Date',
+        'dag_run.execution_date': 'Logical Date',
     }
 
     search_columns = [

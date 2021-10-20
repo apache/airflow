@@ -37,8 +37,8 @@ class QuboleSensor(BaseSensorOperator):
 
         if 'poke_interval' in kwargs and kwargs['poke_interval'] < 5:
             raise AirflowException(
-                "Sorry, poke_interval can't be less than 5 sec for "
-                "task '{}' in dag '{}'.".format(kwargs['task_id'], kwargs['dag'].dag_id)
+                f"Sorry, poke_interval can't be less than 5 sec for task '{kwargs['task_id']}' "
+                f"in dag '{kwargs['dag'].dag_id}'."
             )
 
         super().__init__(**kwargs)

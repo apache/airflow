@@ -533,14 +533,13 @@ class BaseOperator(Operator, LoggingMixin, TaskMixin, metaclass=BaseOperatorMeta
         if kwargs:
             if not conf.getboolean('operators', 'ALLOW_ILLEGAL_ARGUMENTS'):
                 raise AirflowException(
-                    "Invalid arguments were passed to {c} (task_id: {t}). Invalid "
-                    "arguments were:\n**kwargs: {k}".format(c=self.__class__.__name__, k=kwargs, t=task_id),
+                    f"Invalid arguments were passed to {self.__class__.__name__} (task_id: {task_id}). "
+                    f"Invalid arguments were:\n**kwargs: {kwargs}",
                 )
             warnings.warn(
-                'Invalid arguments were passed to {c} (task_id: {t}). '
-                'Support for passing such arguments will be dropped in '
-                'future. Invalid arguments were:'
-                '\n**kwargs: {k}'.format(c=self.__class__.__name__, k=kwargs, t=task_id),
+                f'Invalid arguments were passed to {self.__class__.__name__} (task_id: {task_id}). '
+                'Support for passing such arguments will be dropped in future. '
+                f'Invalid arguments were:\n**kwargs: {kwargs}',
                 category=PendingDeprecationWarning,
                 stacklevel=3,
             )
@@ -585,13 +584,8 @@ class BaseOperator(Operator, LoggingMixin, TaskMixin, metaclass=BaseOperatorMeta
 
         if not TriggerRule.is_valid(trigger_rule):
             raise AirflowException(
-                "The trigger_rule must be one of {all_triggers},"
-                "'{d}.{t}'; received '{tr}'.".format(
-                    all_triggers=TriggerRule.all_triggers(),
-                    d=dag.dag_id if dag else "",
-                    t=task_id,
-                    tr=trigger_rule,
-                )
+                f"The trigger_rule must be one of {TriggerRule.all_triggers()},"
+                f"'{dag.dag_id if dag else ''}.{task_id}'; received '{trigger_rule}'."
             )
 
         self.trigger_rule = trigger_rule
@@ -646,13 +640,9 @@ class BaseOperator(Operator, LoggingMixin, TaskMixin, metaclass=BaseOperatorMeta
         self.priority_weight = priority_weight
         if not WeightRule.is_valid(weight_rule):
             raise AirflowException(
-                "The weight_rule must be one of {all_weight_rules},"
-                "'{d}.{t}'; received '{tr}'.".format(
-                    all_weight_rules=WeightRule.all_weight_rules,
-                    d=dag.dag_id if dag else "",
-                    t=task_id,
-                    tr=weight_rule,
-                )
+                f"The weight_rule must be one of "
+                f"{WeightRule.all_weight_rules},'{dag.dag_id if dag else ''}.{task_id}'; "
+                f"received '{weight_rule}'."
             )
         self.weight_rule = weight_rule
         self.resources: Optional[Resources] = Resources(**resources) if resources else None
@@ -1416,8 +1406,7 @@ class BaseOperator(Operator, LoggingMixin, TaskMixin, metaclass=BaseOperatorMeta
         for task in task_list:
             if not isinstance(task, BaseOperator):
                 raise AirflowException(
-                    "Relationships can only be set between "
-                    "Operators; received {}".format(task.__class__.__name__)
+                    f"Relationships can only be set between Operators; received {task.__class__.__name__}"
                 )
 
         # relationships can only be set if the tasks share a single DAG. Tasks
@@ -1434,9 +1423,8 @@ class BaseOperator(Operator, LoggingMixin, TaskMixin, metaclass=BaseOperatorMeta
             dag = dags.popitem()[1]
         else:
             raise AirflowException(
-                "Tried to create relationships between tasks that don't have "
-                "DAGs yet. Set the DAG for at least one "
-                "task and try again: {}".format([self] + task_list)
+                f"Tried to create relationships between tasks that don't have DAGs yet. "
+                f"Set the DAG for at least one task and try again: {[self] + task_list}"
             )
 
         if dag and not self.has_dag():
@@ -1779,11 +1767,7 @@ def chain(*tasks: Union[Chainable, Sequence[Chainable]]) -> None:
             down_task.set_upstream(up_task)
             continue
         if not isinstance(up_task, Sequence) or not isinstance(down_task, Sequence):
-            raise TypeError(
-                'Chain not supported between instances of {up_type} and {down_type}'.format(
-                    up_type=type(up_task), down_type=type(down_task)
-                )
-            )
+            raise TypeError(f'Chain not supported between instances of {type(up_task)} and {type(down_task)}')
         up_task_list = up_task
         down_task_list = down_task
         if len(up_task_list) != len(down_task_list):

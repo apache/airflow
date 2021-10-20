@@ -416,7 +416,9 @@ class BaseSerialization:
         for k, v in params.items():
             # TODO: As of now, we would allow serialization of params which are of type Param only
             if f'{v.__module__}.{v.__class__.__name__}' == 'airflow.models.param.Param':
-                serialized_params[k] = v.dump()
+                kwargs = v.dump()
+                kwargs['default'] = kwargs.pop('value')
+                serialized_params[k] = kwargs
             else:
                 raise ValueError('Params to a DAG or a Task can be only of type airflow.models.param.Param')
         return serialized_params
@@ -543,7 +545,7 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
                     serialize_op[template_field] = serialize_template_field(value)
 
         if op.params:
-            serialize_op['params'] = cls._serialize_operator_params(op.params)
+            serialize_op['params'] = cls._serialize_params_dict(op.params)
 
         return serialize_op
 
@@ -737,27 +739,13 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
             op_link_arguments = cattr.unstructure(operator_extra_link)
             if not isinstance(op_link_arguments, dict):
                 op_link_arguments = {}
-            serialize_operator_extra_links.append(
-                {
-                    "{}.{}".format(
-                        operator_extra_link.__class__.__module__, operator_extra_link.__class__.__name__
-                    ): op_link_arguments
-                }
+
+            module_path = (
+                f"{operator_extra_link.__class__.__module__}.{operator_extra_link.__class__.__name__}"
             )
+            serialize_operator_extra_links.append({module_path: op_link_arguments})
 
         return serialize_operator_extra_links
-
-    @classmethod
-    def _serialize_operator_params(cls, op_params: ParamsDict):
-        """Serialize Params dict of a operator"""
-        serialized_params = {}
-        for k, v in op_params.items():
-            # TODO: As of now, we would allow serialization of params which are of type Param only
-            if f'{v.__module__}.{v.__class__.__name__}' == 'airflow.models.param.Param':
-                serialized_params[k] = v.dump()
-            else:
-                raise ValueError('Params to a Task can be only of type airflow.models.param.Param')
-        return serialized_params
 
 
 class SerializedDAG(DAG, BaseSerialization):

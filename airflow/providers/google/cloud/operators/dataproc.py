@@ -293,9 +293,7 @@ class ClusterGenerator:
 
     def _build_gce_cluster_config(self, cluster_data):
         if self.zone:
-            zone_uri = 'https://www.googleapis.com/compute/v1/projects/{}/zones/{}'.format(
-                self.project_id, self.zone
-            )
+            zone_uri = f'https://www.googleapis.com/compute/v1/projects/{self.project_id}/zones/{self.zone}'
             cluster_data['gce_cluster_config']['zone_uri'] = zone_uri
 
         if self.metadata:
@@ -393,8 +391,8 @@ class ClusterGenerator:
         elif self.custom_image:
             project_id = self.custom_image_project_id or self.project_id
             custom_image_url = (
-                'https://www.googleapis.com/compute/beta/projects/'
-                '{}/global/images/{}'.format(project_id, self.custom_image)
+                f'https://www.googleapis.com/compute/beta/projects/{project_id}'
+                f'/global/images/{self.custom_image}'
             )
             cluster_data['master_config']['image_uri'] = custom_image_url
             if not self.single_node:
@@ -550,10 +548,10 @@ class DataprocCreateClusterOperator(BaseOperator):
         # TODO: remove one day
         if cluster_config is None:
             warnings.warn(
-                "Passing cluster parameters by keywords to `{}` "
-                "will be deprecated. Please provide cluster_config object using `cluster_config` parameter. "
-                "You can use `airflow.dataproc.ClusterGenerator.generate_cluster` method to "
-                "obtain cluster object.".format(type(self).__name__),
+                f"Passing cluster parameters by keywords to `{type(self).__name__}` will be deprecated. "
+                "Please provide cluster_config object using `cluster_config` parameter. "
+                "You can use `airflow.dataproc.ClusterGenerator.generate_cluster` "
+                "method to obtain cluster object.",
                 DeprecationWarning,
                 stacklevel=1,
             )
@@ -773,9 +771,8 @@ class DataprocScaleClusterOperator(BaseOperator):
 
         # TODO: Remove one day
         warnings.warn(
-            "The `{cls}` operator is deprecated, please use `DataprocUpdateClusterOperator` instead.".format(
-                cls=type(self).__name__
-            ),
+            f"The `{type(self).__name__}` operator is deprecated, "
+            "please use `DataprocUpdateClusterOperator` instead.",
             DeprecationWarning,
             stacklevel=1,
         )

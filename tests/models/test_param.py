@@ -31,15 +31,25 @@ class TestParam(unittest.TestCase):
         p = Param('test')
         assert p.resolve() == 'test'
 
-        p.default = 10
+        p.value = 10
         assert p.resolve() == 10
 
     def test_null_param(self):
         p = Param()
+        with pytest.raises(TypeError, match='No value passed and Param has no default value'):
+            p.resolve()
+        assert p.resolve(None) is None
+
+        p = Param(None)
         assert p.resolve() is None
+        assert p.resolve(None) is None
 
         p = Param(type="null")
+        p = Param(None, type='null')
         assert p.resolve() is None
+        assert p.resolve(None) is None
+        with pytest.raises(ValueError):
+            p.resolve('test')
 
     def test_string_param(self):
         p = Param('test', type='string')
@@ -51,8 +61,10 @@ class TestParam(unittest.TestCase):
         p = Param('10.0.0.0', type='string', format='ipv4')
         assert p.resolve() == '10.0.0.0'
 
+        p = Param(type='string')
         with pytest.raises(ValueError):
-            p = Param(type='string')
+            p.resolve(None)
+        with pytest.raises(TypeError, match='No value passed and Param has no default value'):
             p.resolve()
 
     def test_int_param(self):
@@ -96,7 +108,7 @@ class TestParam(unittest.TestCase):
         p = Param('abc', type='string', minLength=2, maxLength=4)
         assert p.resolve() == 'abc'
 
-        p.default = 'long_string'
+        p.value = 'long_string'
         assert p.resolve(suppress_exception=True) is None
 
     def test_explicit_schema(self):
@@ -114,6 +126,19 @@ class TestParam(unittest.TestCase):
 
         with pytest.raises(ValueError):
             p = S3Param("file://not_valid/s3_path")
+
+    def test_value_saved(self):
+        p = Param("hello", type="string")
+        assert p.resolve("world") == "world"
+        assert p.resolve() == "world"
+
+    def test_dump(self):
+        p = Param('hello', description='world', type='string', minLength=2)
+        dump = p.dump()
+        assert dump['__class'] == 'airflow.models.param.Param'
+        assert dump['value'] == 'hello'
+        assert dump['description'] == 'world'
+        assert dump['schema'] == {'type': 'string', 'minLength': 2}
 
 
 class TestParamsDict(unittest.TestCase):

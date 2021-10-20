@@ -126,8 +126,8 @@ def _write_option(configfile, idx, option):
     if option["default"] is not None:
         if not isinstance(option["default"], str):
             raise Exception(
-                "Key \"default\" in element with name=\"{}\" has an invalid type. "
-                "Current type: {}".format(option["name"], type(option["default"]))
+                f"Key \"default\" in element with name=\"{option['name']}\" has an invalid type. "
+                f"Current type: {type(option['default'])}"
             )
         # Remove trailing whitespace on empty string
         if option["default"]:
