@@ -1361,9 +1361,12 @@ class TaskInstance(Base, LoggingMixin):
             session.commit()
             raise
         except AirflowException as e:
+            if not test_mode:
+                self.refresh_from_db(lock_for_update=True, session=session)
             # for case when task is marked as success/failed externally
-            # current behavior doesn't hit the success callback
-            if self.state in {State.SUCCESS, State.FAILED}:
+            # or dagrun timed out and task is marked as skipped
+            # current behavior doesn't hit the callbacks
+            if self.state in State.finished:
                 return
             else:
                 self.handle_failure(e, test_mode, error_file=error_file, session=session)
