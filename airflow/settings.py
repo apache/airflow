@@ -344,24 +344,24 @@ def configure_adapters():
     """Register Adapters and DB Converters"""
     from pendulum import DateTime as Pendulum
 
-    try:
+    if SQL_ALCHEMY_CONN.startswith('sqlite'):
         from sqlite3 import register_adapter
 
         register_adapter(Pendulum, lambda val: val.isoformat(' '))
-    except ImportError:
-        pass
-    try:
-        import MySQLdb.converters
 
-        MySQLdb.converters.conversions[Pendulum] = MySQLdb.converters.DateTime2literal
-    except ImportError:
-        pass
-    try:
-        import pymysql.converters
+    if SQL_ALCHEMY_CONN.startswith('mysql'):
+        try:
+            import MySQLdb.converters
 
-        pymysql.converters.conversions[Pendulum] = pymysql.converters.escape_datetime
-    except ImportError:
-        pass
+            MySQLdb.converters.conversions[Pendulum] = MySQLdb.converters.DateTime2literal
+        except ImportError:
+            pass
+        try:
+            import pymysql.converters
+
+            pymysql.converters.conversions[Pendulum] = pymysql.converters.escape_datetime
+        except ImportError:
+            pass
 
 
 def validate_session():
