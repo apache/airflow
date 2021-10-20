@@ -90,6 +90,7 @@ Now if you resolve a ``Param`` without a default and don't pass a value, you wil
 ```python
 Param().resolve()  # raises TypeError
 ```
+
 ### `max_queued_runs_per_dag` configuration has been removed
 
 The `max_queued_runs_per_dag` configuration option in `[core]` section has been removed. Previously, this controlled the number of queued dagrun
