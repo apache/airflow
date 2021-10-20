@@ -418,7 +418,8 @@ class TestCliUsers:
                     "roles": "This is not a list",
                 },
                 "Error: Input file didn't pass validation. See below:\n"
-                "{0: {'roles': ['Not a valid list.']}}",
+                "[Item 0]\n"
+                "\troles: ['Not a valid list.']",
             ],
             [
                 {
@@ -429,7 +430,8 @@ class TestCliUsers:
                     "roles": [],
                 },
                 "Error: Input file didn't pass validation. See below:\n"
-                "{0: {'roles': ['Shorter than minimum length 1.']}}",
+                "[Item 0]\n"
+                "\troles: ['Shorter than minimum length 1.']",
             ],
             [
                 {
@@ -437,14 +439,21 @@ class TestCliUsers:
                     "lastname": "doe3",
                     "firstname": "jon",
                     "email": TEST_USER3_EMAIL,
+                    "roles": ["Test"],
                 },
                 "Error: Input file didn't pass validation. See below:\n"
-                "{0: {'username': ['Missing data for required field.'], "
-                "'roles': ['Missing data for required field.'], "
-                "'username1': ['Unknown field.']}}",
+                "[Item 0]\n"
+                "\tusername: ['Missing data for required field.']\n"
+                "\tusername1: ['Unknown field.']",
+            ],
+            [
+                "Wrong input",
+                "Error: Input file didn't pass validation. See below:\n"
+                "[Item 0]\n"
+                "\t_schema: ['Invalid input type.']",
             ],
         ],
-        ids=["Incorrect roles argument", "Empty roles", "Roles is missing"],
+        ids=["Incorrect roles", "Empty roles", "Required field is missing", "Wrong input"],
     )
     def test_cli_import_users_exceptions(self, user, message):
         with pytest.raises(SystemExit, match=re.escape(message)):

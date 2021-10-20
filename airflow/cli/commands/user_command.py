@@ -197,7 +197,13 @@ def _import_users(users_list: List[Dict[str, Any]]):
     try:
         UserSchema(many=True).load(users_list)
     except ValidationError as e:
-        raise SystemExit(f"Error: Input file didn't pass validation. See below:\n{e}")
+        msg = []
+        failures = e.messages
+        for row_num in failures:
+            msg.append(f'[Item {row_num}]')
+            for key in failures[row_num]:
+                msg.append(f'\t{key}: {failures[row_num][key]}')
+        raise SystemExit("Error: Input file didn't pass validation. See below:\n{}".format('\n'.join(msg)))
 
     for user in users_list:
 
