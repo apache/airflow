@@ -19,7 +19,7 @@
 
 /* global localStorage */
 
-import React, { useRef, useState } from 'react';
+import React, { useRef } from 'react';
 import {
   Flex,
   Box,
@@ -84,7 +84,6 @@ const Tree = () => {
     };
 
     const { isOpen, onToggle } = useDisclosure({ defaultIsOpen: isGroupId, onClose, onOpen });
-    const [isHover, setHover] = useState(false);
     // Show only the immediate task id
     const taskName = group.id.replace(`${prevGroup}.`, '');
 
@@ -97,14 +96,16 @@ const Tree = () => {
           py="1px"
           borderBottomWidth={1}
           borderBottomColor={level > 1 ? 'white' : 'gray.200'}
-          backgroundColor={isHover && 'rgba(113, 128, 150, 0.1)'}
-          onMouseEnter={() => setHover(true)}
-          onMouseLeave={() => setHover(false)}
+          role="group"
+          _hover={{ backgroundColor: 'rgba(113, 128, 150, 0.1)' }}
         >
           <Flex
             as={isGroup ? 'button' : 'div'}
             onClick={() => isGroup && onToggle()}
-            color={(level > 4 || (isHover && level > 3)) && 'white'}
+            color={level > 4 && 'white'}
+            _groupHover={level > 3 && {
+              color: 'white',
+            }}
             minWidth="250px"
             maxWidth="250px"
             aria-label={taskName}

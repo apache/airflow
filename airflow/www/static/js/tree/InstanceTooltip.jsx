@@ -72,14 +72,10 @@ const InstanceTooltip = ({
   const taskIdTitle = isGroup ? 'Task Group Id: ' : 'Task Id: ';
 
   return (
-    <Box fontSize={12}>
+    <Box fontSize={12} py={4}>
       {group.tooltip && (
-        <>
-          <br />
-          <Text>{group.tooltip}</Text>
-        </>
+        <Text>{group.tooltip}</Text>
       )}
-      <br />
       <Text>
         <Text as="strong">Status:</Text>
         {' '}
@@ -142,7 +138,6 @@ const InstanceTooltip = ({
         {' '}
         {endDate && formatDateTime(endDate)}
       </Text>
-      <br />
     </Box>
   );
 };
