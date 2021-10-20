@@ -1363,7 +1363,6 @@ class TestSchedulerJob:
         self.scheduler_job._send_dag_callbacks_to_processor.assert_called_once()
         call_args = self.scheduler_job._send_dag_callbacks_to_processor.call_args[0]
         assert call_args[0].dag_id == dr.dag_id
-        assert call_args[0].execution_date == dr.execution_date
         assert call_args[1] is None
 
         session.rollback()
@@ -1394,11 +1393,10 @@ class TestSchedulerJob:
         with mock.patch.object(settings, "USE_JOB_SCHEDULE", False):
             self.scheduler_job._do_scheduling(session)
 
-        # Verify Callback is not set (i.e is None) when no callbacks are set on DAG
+        # Verify Callback is set (i.e is None) when no callbacks are set on DAG
         self.scheduler_job._send_dag_callbacks_to_processor.assert_called_once()
         call_args = self.scheduler_job._send_dag_callbacks_to_processor.call_args[0]
         assert call_args[0].dag_id == dr.dag_id
-        assert call_args[0].execution_date == dr.execution_date
         assert call_args[1] is not None
         assert call_args[1].msg == msg
         session.rollback()
