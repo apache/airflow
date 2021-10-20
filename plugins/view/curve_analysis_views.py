@@ -1,6 +1,5 @@
 # -*- coding: utf-8 -*-
 
-from plugins.view.tightening_controller_views import TighteningControllerView
 from plugins.common import PAGE_SIZE, AirflowModelView
 from airflow.www.widgets import AirflowModelListWidget
 from flask_babel import lazy_gettext, gettext
@@ -9,6 +8,7 @@ from flask_appbuilder.models.sqla.filters import BaseFilter
 
 from airflow.plugins_manager import AirflowPlugin
 from airflow.security import permissions
+from plugins.view.tightening_controller_views import TighteningControllerView, TighteningControllerListWidget
 
 
 class CurveAnalysisListWidget(AirflowModelListWidget):
@@ -30,6 +30,7 @@ class BoltNoNotNullFilter(BaseFilter):
 
 class CurveAnalysisControllerView(AirflowModelView):
     route_base = '/curves_analysis_controller'
+    list_widget = TighteningControllerListWidget
     from plugins.models.tightening_controller import TighteningController
     datamodel = AirflowModelView.CustomSQLAInterface(TighteningController)
     list_title = lazy_gettext("Analysis Via Controller")
@@ -39,6 +40,7 @@ class CurveAnalysisControllerView(AirflowModelView):
         'list': 'read',
         'show': 'read'
     }
+    list_columns = ['controller_name', 'device_type']
 
     base_permissions = [
         permissions.ACTION_CAN_READ,
