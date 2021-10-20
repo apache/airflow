@@ -28,7 +28,7 @@ from google.auth.environment_vars import CLOUD_SDK_CONFIG_DIR, CREDENTIALS
 from airflow.providers.google.cloud.utils.credentials_provider import provide_gcp_conn_and_credentials
 from tests.providers.google.cloud.utils.gcp_authenticator import GCP_GCS_KEY, GCP_SECRET_MANAGER_KEY
 from tests.test_utils import AIRFLOW_MAIN_FOLDER
-from tests.test_utils.logging_command_executor import CMDExecutor
+from tests.test_utils.logging_command_executor import CommandExecutor
 from tests.test_utils.system_tests_class import SystemTest
 
 CLOUD_DAG_FOLDER = os.path.join(
@@ -97,7 +97,7 @@ def provide_gcp_context(
     ), tempfile.TemporaryDirectory() as gcloud_config_tmp, mock.patch.dict(
         'os.environ', {CLOUD_SDK_CONFIG_DIR: gcloud_config_tmp}
     ):
-        executor = CMDExecutor()
+        executor = CommandExecutor()
 
         if key_file_path:
             executor.execute_cmd(
@@ -125,7 +125,7 @@ def provide_gcs_bucket(bucket_name: str):
 class GoogleSystemTest(SystemTest):
     @staticmethod
     def execute_cmd(*args, **kwargs):
-        executor = CMDExecutor()
+        executor = CommandExecutor()
         return executor.execute_cmd(*args, **kwargs)
 
     @staticmethod

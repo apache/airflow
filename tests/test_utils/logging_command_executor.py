@@ -19,8 +19,12 @@ import os
 import shlex
 import subprocess
 
-from airflow.exceptions import AirflowException, CMDExecutionError
+from airflow.exceptions import AirflowException
 from airflow.utils.log.logging_mixin import LoggingMixin
+
+
+class CommandExecutionError(Exception):
+    """Raise in case of error during command execution"""
 
 
 class LoggingCommandExecutor(LoggingMixin):
@@ -62,8 +66,14 @@ class LoggingCommandExecutor(LoggingMixin):
             return output
 
 
-class CMDExecutor(LoggingCommandExecutor):
-    """Use this class if you need to raise the exception in case of error during cmd execution"""
+class CommandExecutor(LoggingCommandExecutor):
+    """
+    Due to 'LoggingCommandExecutor' class just returns the status code of command execution
+    ('execute_cmd' method) and continues to perform code with possible errors, separate
+    inherited 'CommandExecutor' class was created to use it if you need to break code performing
+    and immediately raise an exception in case of error during command execution,
+    so re-written 'execute_cmd' method will raise 'CommandExecutionError' exception.
+    """
 
     def execute_cmd(self, cmd, silent=False, cwd=None, env=None):
         if silent:
@@ -83,7 +93,7 @@ class CMDExecutor(LoggingCommandExecutor):
                 output, err = process.communicate()
                 retcode = process.poll()
                 if retcode:
-                    raise CMDExecutionError(
+                    raise CommandExecutionError(
                         f"Error when executing '{' '.join(cmd)}' with stdout: {output}, stderr: {err}"
                     )
                 self.log.info("Stdout: %s", output)
