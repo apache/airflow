@@ -79,7 +79,7 @@
   <h2>{{ page_title }}</h2>
   <div id="main_content">
     <div class="row dags-table-header">
-      <div class="col-md-4 no-padding">
+      <div class="col-md-4 no-x-padding">
         <div class="form-group btn-group">
           <a href="{{ url_for('Airflow.index', status='all', search=request.args.get('search', None), tags=request.args.getlist('tags', None)) }}" class="btn {{'btn-primary' if status_filter == 'all' else 'btn-default'}}" title="Show active and paused DAGs">All <span class="badge">{{ "{:,}".format(status_count_all) }}</span></a>
           <a href="{{ url_for('Airflow.index', status='active', search=request.args.get('search', None), tags=request.args.getlist('tags', None)) }}" class="btn {{'btn-primary' if status_filter == 'active' else 'btn-default'}}" title="Show only active DAGs">Active <span class="badge">{{ "{:,}".format(status_count_active) }}</span></a>
@@ -100,7 +100,7 @@
           </div>
         </form>
       </div>
-      <div class="col-sm-6 col-md-3 col-md-offset-2 no-padding">
+      <div class="col-sm-6 col-md-3 col-md-offset-2 no-x-padding">
         <form id="search_form">
           <div class="form-group search-input" style="width: 100%;">
             <label for="dag_query" class="sr-only">Search DAGs</label>
