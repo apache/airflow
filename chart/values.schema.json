@@ -1737,6 +1737,23 @@
                         }
                     }
                 },
+                "resources": {
+                    "description": "Resources for the migrate database job pod",
+                    "type": "object",
+                    "default": {},
+                    "examples": [
+                        {
+                            "limits": {
+                                "cpu": "100m",
+                                "memory": "128Mi"
+                            },
+                            "requests": {
+                                "cpu": "100m",
+                                "memory": "128Mi"
+                            }
+                        }
+                    ]
+                },
                 "extraContainers": {
                     "description": "Launch additional containers for the migrate database job pod",
                     "type": "array",

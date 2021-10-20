@@ -95,6 +95,8 @@ spec:
               mountPath: {{ template "airflow_config_path" . }}
               subPath: airflow.cfg
               readOnly: true
+          resources:
+{{ toYaml .Values.migrateDatabaseJob.resources | indent 12 }}
 {{- if .Values.migrateDatabaseJob.extraContainers }}
 {{- toYaml .Values.migrateDatabaseJob.extraContainers | nindent 8 }}
 {{- end }}
