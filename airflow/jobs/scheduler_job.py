@@ -905,9 +905,7 @@ class SchedulerJob(BaseJob):
 
         active_runs_of_dags = defaultdict(
             int,
-            DagRun.active_runs_of_dags(
-                (dr.dag_id for dr in dag_runs), only_running=True, session=session
-            ),
+            DagRun.active_runs_of_dags((dr.dag_id for dr in dag_runs), only_running=True, session=session),
         )
 
         def _update_state(dag: DAG, dag_run: DagRun):
