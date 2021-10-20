@@ -503,7 +503,7 @@ class TestPodGenerator:
             base_worker_pod=worker_config,
         )
 
-        assert result.metadata.name == 'a' * 63 + '.' + self.static_uuid.hex
+        assert result.metadata.name == 'a' * 63 + '-' + self.static_uuid.hex
         for _, v in result.metadata.labels.items():
             assert len(v) <= 63
 
@@ -664,13 +664,14 @@ class TestPodGenerator:
     def test_pod_name_confirm_to_max_length(self, _, pod_id):
         name = PodGenerator.make_unique_pod_id(pod_id)
         assert len(name) <= 253
-        parts = name.split(".")
+        parts = name.split("-")
         if len(pod_id) <= 63:
             assert len(parts[0]) == len(pod_id)
         else:
             assert len(parts[0]) <= 63
         assert len(parts[1]) <= 63
 
+    @mock.patch(uuid.uuid4)
     @parameterized.expand(
         (
             ("pod-name-with-hyphen-", "pod-name-with-hyphen"),
@@ -690,7 +691,7 @@ class TestPodGenerator:
             len(name) <= 253 and all(ch.lower() == ch for ch in name) and re.match(regex, name)
         ), "pod_id is invalid - fails allowed regex check"
 
-        assert name.rsplit(".")[0] == expected_starts_with
+        assert name.rsplit("-")[0] == expected_starts_with
 
     def test_deserialize_model_string(self):
         fixture = """

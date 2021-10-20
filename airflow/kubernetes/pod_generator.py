@@ -462,10 +462,10 @@ class PodGenerator:
 
         # Get prefix length after subtracting the uuid length. Clean up . and - from
         # end of podID because they can't be followed by '.'
-        label_prefix_length = MAX_LABEL_LEN - len(safe_uuid)
+        label_prefix_length = MAX_LABEL_LEN - len(safe_uuid) - 1 # -1 for seperator
         trimmed_pod_id = pod_id[:label_prefix_length].rstrip('-.')
 
-        # previously used a '.' as the seperator, but this could create errors in some situations
+        # previously used a '.' as the separator, but this could create errors in some situations
         safe_pod_id = f"{trimmed_pod_id}-{safe_uuid}"
         return safe_pod_id
 
