@@ -270,7 +270,7 @@ class DagRun(Base, LoggingMixin):
     def find(
         dag_id: Optional[Union[str, List[str]]] = None,
         run_id: Optional[str] = None,
-        execution_date: Optional[datetime] = None,
+        execution_date: Optional[Union[datetime, List[datetime]]] = None,
         state: Optional[DagRunState] = None,
         external_trigger: Optional[bool] = None,
         no_backfills: bool = False,
@@ -333,6 +333,37 @@ class DagRun(Base, LoggingMixin):
             qry = qry.filter(DR.run_type != DagRunType.BACKFILL_JOB)
 
         return qry.order_by(DR.execution_date).all()
+
+    @staticmethod
+    @provide_session
+    def find_duplicate(
+        dag_id: str,
+        run_id: str,
+        execution_date: datetime,
+        session: Session = None,
+    ) -> List["DagRun"]:
+        """
+        Returns a dag run if there is an existing run for a dag at a specific run_id and execution_date.
+
+        :param dag_id: the dag_id to find duplicates for
+        :type dag_id: str
+        :param run_id: defines the run id for this dag run
+        :type run_id: str
+        :param execution_date: the execution date
+        :type execution_date: datetime.datetime
+        :param session: database session
+        :type session: sqlalchemy.orm.session.Session
+        """
+        DR = DagRun
+
+        qry = session.query(DR)
+
+        qry = qry.filter(
+            DR.dag_id == dag_id,
+            or_(DR.run_id == run_id, DR.execution_date == execution_date)
+        )
+
+        return qry.first()
 
     @staticmethod
     def generate_run_id(run_type: DagRunType, execution_date: datetime) -> str:
