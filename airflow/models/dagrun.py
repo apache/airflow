@@ -528,13 +528,12 @@ class DagRun(Base, LoggingMixin):
 
         if (self.get_state() == State.FAILED or self.get_state() == State.SUCCESS):
             msg = ("DagRun Finished: dag_id=%s, execution_date=%s, run_id=%s, "
-                   "run_start_time=%f, run_end_time=%f, "
+                   "run_start_date=%s, run_end_date=%s, "
                    "state=%s, external_trigger=%s, run_type=%s, "
                    "data_interval_start=%s, data_interval_end=%s, dag_hash=%s"
             )
             self.log.info(msg, self.dag_id, self.execution_date, self.run_id,
-                          self.start_date.timestamp() if self.start_date is not None else 0,
-                          self.end_date.timestamp() if self.end_date is not None else 0,
+                          self.start_date, self.end_date,
                           self.get_state(), self.external_trigger, self.run_type,
                           self.data_interval_start, self.data_interval_end, self.dag_hash)
 
