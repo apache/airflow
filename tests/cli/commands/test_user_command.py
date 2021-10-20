@@ -417,9 +417,8 @@ class TestCliUsers:
                     "email": TEST_USER1_EMAIL,
                     "roles": "This is not a list",
                 },
-                "Error: Can't load user \"{'username': 'imported_user1', 'lastname': 'doe1',"
-                " 'firstname': 'john', 'email': 'test-user1@example.com', 'roles': 'This is not a list'}\". "
-                "\nDetails:{'roles': ['Not a valid list.']}",
+                "Error: Input file didn't pass validation. See below:\n"
+                "{0: {'roles': ['Not a valid list.']}}",
             ],
             [
                 {
@@ -429,20 +428,20 @@ class TestCliUsers:
                     "email": TEST_USER2_EMAIL,
                     "roles": [],
                 },
-                "Error: Can't load user \"{'username': 'imported_user2', 'lastname': 'doe2', "
-                "'firstname': 'jon', 'email': 'test-user2@example.com', 'roles': []}\". \nDetails:{'roles': "
-                "['Shorter than minimum length 1.']}",
+                "Error: Input file didn't pass validation. See below:\n"
+                "{0: {'roles': ['Shorter than minimum length 1.']}}",
             ],
             [
                 {
-                    "username": "imported_user3",
+                    "username1": "imported_user3",
                     "lastname": "doe3",
                     "firstname": "jon",
                     "email": TEST_USER3_EMAIL,
                 },
-                "Error: Can't load user \"{'username': 'imported_user3', 'lastname': 'doe3', "
-                "'firstname': 'jon', 'email': 'test-user3@example.com'}\". \nDetails:{'roles': "
-                "['Missing data for required field.']}",
+                "Error: Input file didn't pass validation. See below:\n"
+                "{0: {'username': ['Missing data for required field.'], "
+                "'roles': ['Missing data for required field.'], "
+                "'username1': ['Unknown field.']}}",
             ],
         ],
         ids=["Incorrect roles argument", "Empty roles", "Roles is missing"],

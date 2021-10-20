@@ -194,13 +194,12 @@ def _import_users(users_list: List[Dict[str, Any]]):
     users_created = []
     users_updated = []
 
-    for user in users_list:
+    try:
+        UserSchema(many=True).load(users_list)
+    except ValidationError as e:
+        raise SystemExit(f"Error: Input file didn't pass validation. See below:\n{e}")
 
-        try:
-            # Validate structure
-            UserSchema().load(user)
-        except ValidationError as e:
-            raise SystemExit(f"Error: Can't load user \"{user}\". \nDetails:{e}")
+    for user in users_list:
 
         roles = []
         for rolename in user['roles']:
