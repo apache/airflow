@@ -341,7 +341,7 @@ class DagRun(Base, LoggingMixin):
         run_id: str,
         execution_date: datetime,
         session: Session = None,
-    ) -> List["DagRun"]:
+    ) -> Optional['DagRun']:
         """
         Returns a dag run if there is an existing run for a dag at a specific run_id and execution_date.
 
@@ -358,10 +358,7 @@ class DagRun(Base, LoggingMixin):
 
         qry = session.query(DR)
 
-        qry = qry.filter(
-            DR.dag_id == dag_id,
-            or_(DR.run_id == run_id, DR.execution_date == execution_date)
-        )
+        qry = qry.filter(DR.dag_id == dag_id, or_(DR.run_id == run_id, DR.execution_date == execution_date))
 
         return qry.first()
 
