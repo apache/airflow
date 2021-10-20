@@ -82,12 +82,11 @@ def create_role(app, name, permissions=None):
 
 
 def set_user_single_role(app, username, role_name):
-    sm = app.appbuilder.sm
     role = create_role(app, role_name)
     user = app.appbuilder.sm.find_user(username)
     if role not in user.roles:
         user.roles = [role]
-        sm.update_user(user)
+        app.appbuilder.sm.update_user(user)
 
 
 def delete_role(app, name):
