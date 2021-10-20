@@ -1366,7 +1366,7 @@ class TaskInstance(Base, LoggingMixin):
             # for case when task is marked as success/failed externally
             # or dagrun timed out and task is marked as skipped
             # current behavior doesn't hit the callbacks
-            if self.state in {State.SUCCESS, State.FAILED, State.SKIPPED}:
+            if self.state in State.finished:
                 return
             else:
                 self.handle_failure(e, test_mode, error_file=error_file, session=session)
