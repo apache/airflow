@@ -874,6 +874,29 @@ class TestSchedulerJob:
         assert mock_queue_command.called
         session.rollback()
 
+    @pytest.mark.parametrize("state", [State.FAILED, State.SUCCESS])
+    def test_enqueue_task_instances_sets_ti_state_to_None_if_dagrun_in_finish_state(self, state, dag_maker):
+        """This tests that task instances whose dagrun is in finished state are not queued"""
+        dag_id = 'SchedulerJobTest.test_enqueue_task_instances_with_queued_state'
+        task_id_1 = 'dummy'
+        session = settings.Session()
+        with dag_maker(dag_id=dag_id, start_date=DEFAULT_DATE, session=session):
+            task1 = DummyOperator(task_id=task_id_1)
+
+        self.scheduler_job = SchedulerJob(subdir=os.devnull)
+
+        dr1 = dag_maker.create_dagrun(state=state)
+        ti = dr1.get_task_instance(task1.task_id, session)
+        ti.state = State.SCHEDULED
+        session.merge(ti)
+        session.commit()
+
+        with patch.object(BaseExecutor, 'queue_command') as mock_queue_command:
+            self.scheduler_job._enqueue_task_instances_with_queued_state([ti])
+        ti.refresh_from_db()
+        assert ti.state == State.NONE
+        mock_queue_command.assert_not_called()
+
     def test_critical_section_execute_task_instances(self, dag_maker):
         dag_id = 'SchedulerJobTest.test_execute_task_instances'
         task_id_1 = 'dummy_task'

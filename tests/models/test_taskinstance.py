@@ -439,7 +439,6 @@ class TestTaskInstance:
         """
 
         def task_function(ti):
-            # pylint: disable=unused-argument
             os.kill(ti.pid, signal.SIGTERM)
 
         with dag_maker('test_mark_failure_2'):
@@ -457,6 +456,30 @@ class TestTaskInstance:
             ti.run()
         ti.refresh_from_db()
         assert ti.state == State.UP_FOR_RETRY
+
+    @pytest.mark.parametrize("state", [State.SUCCESS, State.FAILED, State.SKIPPED])
+    def test_task_sigterm_doesnt_change_state_of_finished_tasks(self, state, dag_maker):
+        session = settings.Session()
+
+        def task_function(ti):
+            ti.state = state
+            session.merge(ti)
+            session.commit()
+            raise AirflowException()
+
+        with dag_maker('test_mark_failure_2'):
+            task = PythonOperator(
+                task_id='test_on_failure',
+                python_callable=task_function,
+            )
+
+        dr = dag_maker.create_dagrun()
+        ti = dr.task_instances[0]
+        ti.task = task
+
+        ti.run()
+        ti.refresh_from_db()
+        ti.state == state
 
     def test_task_retry_wipes_next_fields(self, session, dag_maker):
         """
