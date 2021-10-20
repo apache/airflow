@@ -532,14 +532,30 @@ class SchedulerJob(BaseJob):
                 self.log.info("Setting external_id for %s to %s", ti, info)
                 continue
 
-            msg = ("TaskInstance Finished: dag_id=%s, task_id=%s, run_id=%s, "
-                   "run_start_date=%s, run_end_date=%s, "
-                   "run_duration=%f, state=%s, executor_state=%s, try_number=%d, max_tries=%d, job_id=%d, "
-                   "pool=%s, queue=%s, priority_weight=%d, operator=%s"
+            msg = (
+                "TaskInstance Finished: dag_id=%s, task_id=%s, run_id=%s, "
+                "run_start_date=%s, run_end_date=%s, "
+                "run_duration=%f, state=%s, executor_state=%s, try_number=%d, max_tries=%d, job_id=%d, "
+                "pool=%s, queue=%s, priority_weight=%d, operator=%s"
             )
-            self.log.info(msg, ti.dag_id, ti.task_id, ti.run_id, ti.start_date, ti.end_date,
-                          ti.duration, ti.state, state, try_number, ti.max_tries, ti.job_id,
-                          ti.pool, ti.queue, ti.priority_weight, ti.operator)
+            self.log.info(
+                msg,
+                ti.dag_id,
+                ti.task_id,
+                ti.run_id,
+                ti.start_date,
+                ti.end_date,
+                ti.duration,
+                ti.state,
+                state,
+                try_number,
+                ti.max_tries,
+                ti.job_id,
+                ti.pool,
+                ti.queue,
+                ti.priority_weight,
+                ti.operator,
+            )
 
             if ti.try_number == buffer_key.try_number and ti.state == State.QUEUED:
                 Stats.incr('scheduler.tasks.killed_externally')
