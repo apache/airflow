@@ -147,10 +147,10 @@ Pyenv and setting up virtual-env
 
 3. Configure your shell's environment for Pyenv as suggested in Pyenv `README <https://github.com/pyenv/pyenv/blob/master/README.md>`_
 
-4. If you are in macOS Big Sur 11.4, pyenv may face issues. It can be fixed by adding the below command to ~/.zshrc 
+4. If you are in macOS Big Sur 11.4, pyenv may face issues. It can be fixed by adding the below command to ~/.zshrc
 
 .. code-block:: bash
-  
+
   eval "$(pyenv init --path)"
   eval "$(pyenv init -)"
 
