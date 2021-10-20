@@ -27,7 +27,7 @@ from collections import defaultdict
 from datetime import datetime, timedelta
 from functools import partial
 from tempfile import NamedTemporaryFile
-from typing import IO, TYPE_CHECKING, Any, Dict, Iterable, List, NamedTuple, Optional, Tuple, Union
+from typing import IO, TYPE_CHECKING, Any, Callable, Dict, Iterable, List, NamedTuple, Optional, Tuple, Union
 from urllib.parse import quote
 
 import dill
@@ -1786,16 +1786,15 @@ class TaskInstance(Base, LoggingMixin):
         if conf.getboolean('core', 'dag_run_conf_overrides_params'):
             self.overwrite_params_with_dag_run_conf(params=params, dag_run=dag_run)
 
-        interval_start = dag.get_run_data_interval(dag_run).start
-        ds = interval_start.strftime('%Y-%m-%d')
+        logical_date = timezone.coerce_datetime(self.execution_date)
+        ds = logical_date.strftime('%Y-%m-%d')
+        ds_nodash = ds.replace('-', '')
+        ts = logical_date.isoformat()
+        ts_nodash = logical_date.strftime('%Y%m%dT%H%M%S')
+        ts_nodash_with_tz = ts.replace('-', '').replace(':', '')
 
         # Now validates Params and convert them into a simple dict
         task.params = params.validate()
-
-        ds_nodash = ds.replace('-', '')
-        ts = interval_start.isoformat()
-        ts_nodash = interval_start.strftime('%Y%m%dT%H%M%S')
-        ts_nodash_with_tz = ts.replace('-', '').replace(':', '')
 
         @cache  # Prevent multiple database access.
         def _get_previous_dagrun_success() -> Optional["DagRun"]:
@@ -1908,14 +1907,23 @@ class TaskInstance(Base, LoggingMixin):
 
         # Create lazy proxies for deprecated stuff.
 
-        def deprecated_proxy(func, *, key, replacement=None) -> lazy_object_proxy.Proxy:
+        def deprecated_proxy(
+            func: Callable[[], Any],
+            *,
+            key: str,
+            replacements: Optional[List[str]] = None,
+        ) -> lazy_object_proxy.Proxy:
             def deprecated_func():
                 message = (
                     f"Accessing {key!r} from the template is deprecated and "
                     f"will be removed in a future version."
                 )
-                if replacement:
-                    message += f" Please use {replacement!r} instead."
+                if replacements:
+                    display_except_last = ", ".join(repr(r) for r in replacements[:-1])
+                    if display_except_last:
+                        message += f" Please use {display_except_last} or {replacements[-1]!r} instead."
+                    else:
+                        message += f" Please use {replacements[-1]!r} instead."
                 warnings.warn(message, DeprecationWarning)
                 return func()
 
@@ -1993,22 +2001,23 @@ class TaskInstance(Base, LoggingMixin):
             'ds': ds,
             'ds_nodash': ds_nodash,
             'execution_date': deprecated_proxy(
-                lambda: timezone.coerce_datetime(self.execution_date),
+                lambda: logical_date,
                 key='execution_date',
-                replacement='data_interval_start',
+                replacements=['logical_date', 'data_interval_start'],
             ),
             'inlets': task.inlets,
+            'logical_date': logical_date,
             'macros': macros,
-            'next_ds': deprecated_proxy(get_next_ds, key="next_ds", replacement="data_interval_end | ds"),
+            'next_ds': deprecated_proxy(get_next_ds, key="next_ds", replacements=["data_interval_end | ds"]),
             'next_ds_nodash': deprecated_proxy(
                 get_next_ds_nodash,
                 key="next_ds_nodash",
-                replacement="data_interval_end | ds_nodash",
+                replacements=["data_interval_end | ds_nodash"],
             ),
             'next_execution_date': deprecated_proxy(
                 get_next_execution_date,
                 key='next_execution_date',
-                replacement='data_interval_end',
+                replacements=['data_interval_end'],
             ),
             'outlets': task.outlets,
             'params': task.params,
@@ -2020,7 +2029,7 @@ class TaskInstance(Base, LoggingMixin):
             'prev_execution_date_success': deprecated_proxy(
                 lambda: self.get_previous_execution_date(state=State.SUCCESS, session=session),
                 key='prev_execution_date_success',
-                replacement='prev_data_interval_start_success',
+                replacements=['prev_data_interval_start_success'],
             ),
             'prev_start_date_success': lazy_object_proxy.Proxy(get_prev_start_date_success),
             'run_id': self.run_id,
