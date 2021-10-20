@@ -765,7 +765,12 @@ class SchedulerJob(BaseJob):
 
             # Send the callbacks after we commit to ensure the context is up to date when it gets run
             for dag_run, callback_to_run in callback_tuples:
-                self._send_dag_callbacks_to_processor(dag_run, callback_to_run)
+                dag = self.dagbag.get_dag(dag_run.dag_id, session=session)
+                if not dag:
+                    self.log.error("DAG '%s' not found in serialized_dag table", dag_run.dag_id)
+                    continue
+
+                self._send_dag_callbacks_to_processor(dag, callback_to_run)
 
             # Without this, the session has an invalid view of the DB
             session.expunge_all()
@@ -989,7 +994,7 @@ class SchedulerJob(BaseJob):
             )
 
             # Send SLA & DAG Success/Failure Callbacks to be executed
-            self._send_dag_callbacks_to_processor(dag_run, callback_to_execute)
+            self._send_dag_callbacks_to_processor(dag, callback_to_execute)
 
             return 0
 
@@ -1025,13 +1030,10 @@ class SchedulerJob(BaseJob):
         # Verify integrity also takes care of session.flush
         dag_run.verify_integrity(session=session)
 
-    def _send_dag_callbacks_to_processor(
-        self, dag_run: DagRun, callback: Optional[DagCallbackRequest] = None
-    ):
+    def _send_dag_callbacks_to_processor(self, dag: DAG, callback: Optional[DagCallbackRequest] = None):
         if not self.processor_agent:
             raise ValueError("Processor agent is not started.")
 
-        dag = dag_run.get_dag()
         self._send_sla_callbacks_to_processor(dag)
         if callback:
             self.processor_agent.send_callback_to_execute(callback)
