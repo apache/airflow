@@ -137,7 +137,8 @@ def training_server_update_templates():
 def doLoadCurveTmplsTask(**kwargs):
     _logger.debug('kwargs: {0}'.format(kwargs))
     template_names = kwargs.get('template_names', None)
-    remove_outdated_templates()
+    # 考虑到多个airflow公用一个redis的情况，不删除多余的模板
+    # remove_outdated_templates()
     _logger.debug("Loading Curve Templates to Redis...")
     doLoadTmpls2Redis(template_names)
     _logger.debug("Load Curve Templates to Redis Success!")
