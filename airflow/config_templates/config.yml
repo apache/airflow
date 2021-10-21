@@ -2246,6 +2246,16 @@
       type: integer
       example: ~
       default: "100"
+- name: sensors
+  description: ~
+  options:
+    - name: default_timeout
+      description: |
+        Sensor default timeout, 7 days by default (7 * 24 * 60 * 60).
+      version_added: 2.2.1
+      type: float
+      example: ~
+      default: "604800"
 - name: smart_sensor
   description: ~
   options:

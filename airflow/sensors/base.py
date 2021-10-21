@@ -97,7 +97,7 @@ class BaseSensorOperator(BaseOperator, SkipMixin):
         self,
         *,
         poke_interval: float = 60,
-        timeout: float = 60 * 60 * 24 * 7,
+        timeout: float = conf.getfloat('sensors', 'default_timeout'),
         soft_fail: bool = False,
         mode: str = 'poke',
         exponential_backoff: bool = False,
