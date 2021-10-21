@@ -535,7 +535,7 @@ class SchedulerJob(BaseJob):
             msg = (
                 "TaskInstance Finished: dag_id=%s, task_id=%s, run_id=%s, "
                 "run_start_date=%s, run_end_date=%s, "
-                "run_duration=%f, state=%s, executor_state=%s, try_number=%d, max_tries=%d, job_id=%d, "
+                "run_duration=%s, state=%s, executor_state=%s, try_number=%s, max_tries=%s, job_id=%s, "
                 "pool=%s, queue=%s, priority_weight=%d, operator=%s"
             )
             self.log.info(
