@@ -545,7 +545,7 @@ class DagRun(Base, LoggingMixin):
         if self._state == State.FAILED or self._state == State.SUCCESS:
             msg = (
                 "DagRun Finished: dag_id=%s, execution_date=%s, run_id=%s, "
-                "run_start_date=%s, run_end_date=%s, run_duration=%s"
+                "run_start_date=%s, run_end_date=%s, run_duration=%s, "
                 "state=%s, external_trigger=%s, run_type=%s, "
                 "data_interval_start=%s, data_interval_end=%s, dag_hash=%s"
             )
