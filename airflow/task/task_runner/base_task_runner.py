@@ -19,7 +19,9 @@
 import os
 import subprocess
 import threading
+
 from airflow.utils.platform import IS_WINDOWS
+
 if not IS_WINDOWS:
     from pwd import getpwnam
 
@@ -151,7 +153,7 @@ class BaseTaskRunner(LoggingMixin):
                 stderr=subprocess.STDOUT,
                 universal_newlines=True,
                 close_fds=True,
-                env=os.environ.copy()
+                env=os.environ.copy(),
             )
         else:
             proc = subprocess.Popen(
