@@ -741,7 +741,7 @@ The released sources and packages can be downloaded via https://airflow.apache.o
 Other installation methods are described in https://airflow.apache.org/docs/apache-airflow/stable/installation/
 
 We also made this version available on PyPI for convenience:
-`pip install apache-airflow`
+\`pip install apache-airflow\`
 https://pypi.org/project/apache-airflow/${VERSION}/
 
 The documentation is available on:
