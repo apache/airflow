@@ -35,8 +35,10 @@ RESOURCE_JOB = "Jobs"
 RESOURCE_MY_PASSWORD = "My Password"
 RESOURCE_MY_PROFILE = "My Profile"
 RESOURCE_PASSWORD = "Passwords"
-RESOURCE_PERMISSION = "Permissions"
-RESOURCE_PERMISSION_VIEW = "Permission Views"  # Refers to a Perm <-> View mapping, not an MVC View.
+RESOURCE_PERMISSION = "Permissions"  # TODO: Convert to Actions
+RESOURCE_PERMISSION_VIEW = (
+    "Permission Views"  # Refers to a Perm <-> View mapping, not an MVC View.   # TODO: Convert to Perms
+)
 RESOURCE_POOL = "Pools"
 RESOURCE_PLUGIN = "Plugins"
 RESOURCE_PROVIDER = "Providers"
@@ -49,7 +51,7 @@ RESOURCE_TRIGGER = "Triggers"
 RESOURCE_USER = "Users"
 RESOURCE_USER_STATS_CHART = "User Stats Chart"
 RESOURCE_VARIABLE = "Variables"
-RESOURCE_VIEW_MENU = "View Menus"
+RESOURCE_VIEW_MENU = "View Menus"  # TODO: Convert to Resources
 RESOURCE_WEBSITE = "Website"
 RESOURCE_XCOM = "XComs"
 

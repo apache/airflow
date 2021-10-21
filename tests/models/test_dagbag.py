@@ -823,11 +823,11 @@ class TestDagBag:
                 mock_sync_perm_for_dag.reset_mock()
                 dagbag._sync_perm_for_dag(dag, session=session)
 
-            # permviews dont exist
+            # perms dont exist
             _sync_perms()
             mock_sync_perm_for_dag.assert_called_once_with("test_example_bash_operator", None)
 
-            # permviews now exist
+            # perms now exist
             _sync_perms()
             mock_sync_perm_for_dag.assert_not_called()
 

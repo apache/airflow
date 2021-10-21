@@ -41,7 +41,9 @@ from sqlalchemy.orm import backref, relationship
 _dont_audit = False
 
 
-class Permission(Model):
+class Action(Model):
+    """Represents permission actions such as `can_read`."""
+
     __tablename__ = "ab_permission"
     id = Column(Integer, Sequence("ab_permission_id_seq"), primary_key=True)
     name = Column(String(100), unique=True, nullable=False)
@@ -50,7 +52,9 @@ class Permission(Model):
         return self.name
 
 
-class ViewMenu(Model):
+class Resource(Model):
+    """Represents permission object such as `User` or `Dag`."""
+
     __tablename__ = "ab_view_menu"
     id = Column(Integer, Sequence("ab_view_menu_id_seq"), primary_key=True)
     name = Column(String(250), unique=True, nullable=False)
@@ -65,7 +69,7 @@ class ViewMenu(Model):
         return self.name
 
 
-assoc_permissionview_role = Table(
+assoc_permission_role = Table(
     "ab_permission_view_role",
     Model.metadata,
     Column("id", Integer, Sequence("ab_permission_view_role_id_seq"), primary_key=True),
@@ -76,27 +80,31 @@ assoc_permissionview_role = Table(
 
 
 class Role(Model):
+    """Represents a user role to which permissions can be assigned."""
+
     __tablename__ = "ab_role"
 
     id = Column(Integer, Sequence("ab_role_id_seq"), primary_key=True)
     name = Column(String(64), unique=True, nullable=False)
-    permissions = relationship("PermissionView", secondary=assoc_permissionview_role, backref="role")
+    permissions = relationship("Permission", secondary=assoc_permission_role, backref="role")
 
     def __repr__(self):
         return self.name
 
 
-class PermissionView(Model):
+class Permission(Model):
+    """Permission pair comprised of an Action + Resource combo."""
+
     __tablename__ = "ab_permission_view"
     __table_args__ = (UniqueConstraint("permission_id", "view_menu_id"),)
     id = Column(Integer, Sequence("ab_permission_view_id_seq"), primary_key=True)
-    permission_id = Column(Integer, ForeignKey("ab_permission.id"))
-    permission = relationship("Permission")
-    view_menu_id = Column(Integer, ForeignKey("ab_view_menu.id"))
-    view_menu = relationship("ViewMenu")
+    action_id = Column("permission_id", Integer, ForeignKey("ab_permission.id"))
+    action = relationship("Action")
+    resource_id = Column("view_menu_id", Integer, ForeignKey("ab_view_menu.id"))
+    resource = relationship("Resource")
 
     def __repr__(self):
-        return str(self.permission).replace("_", " ") + " on " + str(self.view_menu)
+        return str(self.action).replace("_", " ") + " on " + str(self.resource)
 
 
 assoc_user_role = Table(
@@ -110,6 +118,8 @@ assoc_user_role = Table(
 
 
 class User(Model):
+    """Represents an Airflow user which has roles assigned to it."""
+
     __tablename__ = "ab_user"
     id = Column(Integer, Sequence("ab_user_id_seq"), primary_key=True)
     first_name = Column(String(64), nullable=False)
@@ -178,6 +188,8 @@ class User(Model):
 
 
 class RegisterUser(Model):
+    """Represents a user registration."""
+
     __tablename__ = "ab_register_user"
     id = Column(Integer, Sequence("ab_register_user_id_seq"), primary_key=True)
     first_name = Column(String(64), nullable=False)
