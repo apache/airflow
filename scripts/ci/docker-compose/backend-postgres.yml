@@ -20,7 +20,7 @@ services:
   airflow:
     environment:
       - BACKEND=postgres
-      - AIRFLOW__CORE__SQL_ALCHEMY_CONN=postgresql+psycopg2://postgres:airflow@postgres/airflow
+      - AIRFLOW__CORE__SQL_ALCHEMY_CONN=postgresql+psycopg2://postgres:Airflow123@postgres/airflow
       - AIRFLOW__CELERY__RESULT_BACKEND=db+postgresql://postgres:airflow@postgres/airflow
       - AIRFLOW__CORE__EXECUTOR=LocalExecutor
     depends_on:
@@ -31,7 +31,7 @@ services:
     image: postgres:${POSTGRES_VERSION}
     environment:
       - POSTGRES_USER=postgres
-      - POSTGRES_PASSWORD=airflow
+      - POSTGRES_PASSWORD=Airflow123
       - POSTGRES_DB=airflow
     volumes:
       - /dev/urandom:/dev/random   # Required to get non-blocking entropy source
