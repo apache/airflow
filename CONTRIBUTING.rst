@@ -208,7 +208,7 @@ You can configure the Docker-based Breeze development environment as follows:
 1. Install the latest versions of the `Docker Community Edition <https://github.com/apache/airflow/blob/main/BREEZE.rst#docker-community-edition>`_
 and `Docker Compose <https://github.com/apache/airflow/blob/main/BREEZE.rst#docker-compose>`_ and add them to the PATH.
 
-2. Install jq on your machine. The exact command depends on the operating system (or Linux distribution) you use. `More information <https://stedolan.github.io/jq/download/>`_
+2. Install `jq <https://stedolan.github.io/jq/download/>`_ on your machine. The exact command depends on the operating system (or Linux distribution) you use.
 For example, on Ubuntu:
 
 .. code-block:: bash
