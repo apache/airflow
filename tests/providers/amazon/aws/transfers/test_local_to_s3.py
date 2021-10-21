@@ -61,16 +61,17 @@ class TestFileToS3Operator(unittest.TestCase):
         assert operator.encrypt == self._config['encrypt']
         assert operator.gzip == self._config['gzip']
 
-    def test_init_exception(self):
+    def test_execute_exception(self):
+        operator = LocalFilesystemToS3Operator(
+            task_id='file_to_s3_operatro_exception',
+            dag=self.dag,
+            filename=self.testfile1,
+            dest_key=f's3://dummy/{self.dest_key}',
+            dest_bucket=self.dest_bucket,
+            **self._config,
+        )
         with self.assertRaises(TypeError):
-            LocalFilesystemToS3Operator(
-                task_id='file_to_s3_operatro_exception',
-                dag=self.dag,
-                filename=self.testfile1,
-                dest_key=f's3://dummy/{self.dest_key}',
-                dest_bucket=self.dest_bucket,
-                **self._config,
-            )
+            operator.execute(None)
 
     @mock_s3
     def test_execute(self):
