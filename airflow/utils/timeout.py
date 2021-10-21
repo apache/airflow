@@ -19,6 +19,7 @@
 import os
 import signal
 from threading import Timer
+<<<<<<< HEAD
 from typing import ContextManager, Optional, Type
 
 from airflow.exceptions import AirflowTaskTimeout
@@ -46,6 +47,36 @@ class _timeout_windows(_timeout, LoggingMixin):
         self._timer = Timer(self.seconds, self.handle_timeout)
         self._timer.start()
 
+=======
+from airflow.utils.platform import IS_WINDOWS
+from airflow.exceptions import AirflowTaskTimeout
+from airflow.utils.log.logging_mixin import LoggingMixin
+from typing import ContextManager, Optional, Type
+
+
+_timeout = ContextManager[None]
+
+
+class _timeout_windows(_timeout, LoggingMixin):
+
+    def __init__(self, seconds=1, error_message='Timeout'):
+        super().__init__()
+        self._timer: Optional[Timer] = None
+        self.seconds = seconds
+        self.error_message = error_message + ', PID: ' + str(os.getpid())
+
+    def handle_timeout(self, *args):  # pylint: disable=unused-argument
+        """Logs information and raises AirflowTaskTimeout."""
+        self.log.error("Process timed out, PID: %s", str(os.getpid()))
+        raise AirflowTaskTimeout(self.error_message)
+
+    def __enter__(self):
+        if self._timer:
+            self._timer.cancel()
+        self._timer = Timer(self.seconds, self.handle_timeout)
+        self._timer.start()
+
+>>>>>>> 7ae0ac90fe0841294506e8e0deff769f8a81f3e0
     def __exit__(self, type_, value, traceback):
         if self._timer:
             self._timer.cancel()

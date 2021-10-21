@@ -153,7 +153,11 @@ class BaseTaskRunner(LoggingMixin):
                 stderr=subprocess.STDOUT,
                 universal_newlines=True,
                 close_fds=True,
+<<<<<<< HEAD
                 env=os.environ.copy(),
+=======
+                env=os.environ.copy()
+>>>>>>> 7ae0ac90fe0841294506e8e0deff769f8a81f3e0
             )
         else:
             proc = subprocess.Popen(
