@@ -221,7 +221,7 @@ You can configure the Docker-based Breeze development environment as follows:
 
    brew install jq
 
-3. Enter Breeze, in airflow folder run:
+3. Enter Breeze, and run the following in the Airflow source code directory:
 
 .. code-block:: bash
 
