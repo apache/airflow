@@ -23,7 +23,6 @@ import subprocess
 import sys
 import unittest
 from copy import deepcopy
-from distutils import log
 from os.path import dirname, relpath
 from textwrap import wrap
 from typing import Dict, List
@@ -31,6 +30,10 @@ from typing import Dict, List
 from setuptools import Command, Distribution, find_namespace_packages, setup
 from setuptools.command.develop import develop as develop_orig
 from setuptools.command.install import install as install_orig
+
+# Setuptools patches this import to point to a vendored copy instead of the
+# stdlib, which is deprecated in Python 3.10 and will be removed in 3.12.
+from distutils import log  # isort: skip
 
 # Controls whether providers are installed from packages or directly from sources
 # It is turned on by default in case of development environments such as Breeze
