@@ -415,6 +415,12 @@ paths:
             default: true
           required: false
           description: Only return active DAGs.
+        - name: dag_id_pattern
+          in: query
+          schema:
+            type: string
+          required: false
+          description: If set, only return DAGs with dag_ids matching this pattern.
       responses:
         '200':
           description: Success.
@@ -2291,6 +2297,12 @@ components:
           type: string
         dag_id:
           type: string
+        dag_run_id:
+          type: string
+          description: |
+            The DagRun ID for this task instance
+
+            *New in version 2.2.1*
         execution_date:
           type: string
           format: datetime

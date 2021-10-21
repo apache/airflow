@@ -15,10 +15,11 @@
 # specific language governing permissions and limitations
 # under the License.
 
+from datetime import datetime
+
 from airflow.decorators import task
 from airflow.models import DAG
 from airflow.providers.microsoft.azure.hooks.azure_fileshare import AzureFileShareHook
-from airflow.utils.dates import days_ago
 
 NAME = 'myfileshare'
 DIRECTORY = "mydirectory"
@@ -42,5 +43,5 @@ def delete_fileshare():
     hook.delete_share(NAME)
 
 
-with DAG("example_fileshare", schedule_interval="@once", start_date=days_ago(2)) as dag:
+with DAG("example_fileshare", schedule_interval="@once", start_date=datetime(2021, 1, 1)) as dag:
     create_fileshare() >> delete_fileshare()
