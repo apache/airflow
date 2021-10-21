@@ -276,9 +276,10 @@ class TestHiveStatsCollectionOperator(TestHiveEnvironment):
 
         sql = f"""
             DELETE FROM hive_stats
-            WHERE table_name='{hive_stats_collection_operator.table}'
-              AND partition_repr='{mock_json_dumps.return_value}'
-              AND dttm='{hive_stats_collection_operator.dttm}';
+            WHERE
+                table_name='{hive_stats_collection_operator.table}' AND
+                partition_repr='{mock_json_dumps.return_value}' AND
+                dttm='{hive_stats_collection_operator.dttm}';
             """
         mock_mysql_hook.return_value.run.assert_called_once_with(sql)
 
