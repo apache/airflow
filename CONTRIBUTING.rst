@@ -221,7 +221,7 @@ or on macOS with `Homebrew <https://formulae.brew.sh/formula/jq>`_
 
   brew install jq
 
-3. Enter Breeze, in airflow folder run:
+3. Enter Breeze, and run the following in the Airflow source code directory:
 
 .. code-block:: bash
 
