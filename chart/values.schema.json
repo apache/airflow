@@ -597,8 +597,8 @@
             "x-docsSection": "Airflow",
             "default": null,
             "examples": [
-                "- secretRef:\n  name: '{{ .Release.Name }}-airflow-connections'",
-                "- configMapRef:\n  name: '{{ .Release.Name }}-airflow-variables'"
+                "- secretRef:\n    name: '{{ .Release.Name }}-airflow-connections'",
+                "- configMapRef:\n    name: '{{ .Release.Name }}-airflow-variables'"
             ]
         },
         "extraSecrets": {
