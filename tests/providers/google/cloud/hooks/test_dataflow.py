@@ -1699,16 +1699,15 @@ class TestDataflowJob(unittest.TestCase):
 
     def test_fetch_all_jobs_when_no_jobs_returned(self):
         # fmt: off
-        mock_list = (
+        (
             self.mock_dataflow
-                .projects.return_value
-                .locations.return_value
-                .jobs.return_value
-                .list
-        )
-
+            .projects.return_value
+            .locations.return_value
+            .jobs.return_value
+            .list.return_value
+            .execute.return_value
+        ) = {}
         # fmt: on
-        mock_list.return_value.execute.return_value = {}
 
         jobs_controller = _DataflowJobsController(
             dataflow=self.mock_dataflow,

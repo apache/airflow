@@ -359,8 +359,6 @@ class _DataflowJobsController(LoggingMixin):
         all_jobs: List[dict] = []
         while request is not None:
             response = request.execute(num_retries=self._num_retries)
-            if response is None:
-                break
             jobs = response.get("jobs")
             if jobs is None:
                 break
