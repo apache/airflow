@@ -27,14 +27,21 @@ The Google Cloud connection type enables the Google Cloud Integrations.
 Authenticating to Google Cloud
 ------------------------------
 
-There are three ways to connect to Google Cloud using Airflow.
+There are four ways to connect to Google Cloud using Airflow.
 
 1. Use `Application Default Credentials
    <https://google-auth.readthedocs.io/en/latest/reference/google.auth.html#google.auth.default>`_,
 2. Use a `service account
    <https://cloud.google.com/docs/authentication/#service_accounts>`_ key
    file (JSON format) on disk - ``Keyfile Path``.
-3. Use a service account key file (JSON format) from connection configuration - ``Keyfile JSON``.
+3. Use a `service account
+   <https://cloud.google.com/docs/authentication/#service_accounts>`_ key
+   file (JSON format) from connection configuration - ``Keyfile JSON``.
+4. Use a `service account
+   <https://cloud.google.com/docs/authentication/#service_accounts>`_ key
+   from Secret Manager - ``Keyfile secret name``. For this `Application Default Credentials
+   <https://google-auth.readthedocs.io/en/latest/reference/google.auth.html#google.auth.default>`_ (ADC)
+   need to have permission to access payloads of secrets.
 
 Only one authorization method can be used at a time. If you need to manage multiple keys then you should
 configure multiple connections.
@@ -89,6 +96,12 @@ Keyfile JSON
 
     Not required if using application default credentials.
 
+Secret name which holds Keyfile JSON
+    Name of the secret in Secret Manager which contains a `service account
+    <https://cloud.google.com/docs/authentication/#service_accounts>`_ key.
+
+    Not required if using application default credentials.
+
 Scopes (comma separated)
     A list of comma-separated `Google Cloud scopes
     <https://developers.google.com/identity/protocols/googlescopes>`_ to
@@ -112,6 +125,7 @@ Number of Retries
         * ``extra__google_cloud_platform__project`` - Project Id
         * ``extra__google_cloud_platform__key_path`` - Keyfile Path
         * ``extra__google_cloud_platform__keyfile_dict`` - Keyfile JSON
+        * ``extra__google_cloud_platform__key_secret_name`` - Secret name which holds Keyfile JSON
         * ``extra__google_cloud_platform__scope`` - Scopes
         * ``extra__google_cloud_platform__num_retries`` - Number of Retries
 
