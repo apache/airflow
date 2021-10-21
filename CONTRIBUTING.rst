@@ -227,8 +227,8 @@ or on macOS with `Homebrew <https://formulae.brew.sh/formula/jq>`_
 
   ./breeze
 
-   Breeze starts with downloading the Airflow CI image from
-   the Docker Hub and installing all required dependencies.
+  Breeze starts with downloading the Airflow CI image from
+  the Docker Hub and installing all required dependencies.
 
 4. Enter the Docker environment and mount your local sources
    to make them immediately visible in the environment.
