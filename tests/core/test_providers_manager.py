@@ -118,10 +118,9 @@ class TestProviderManager(unittest.TestCase):
 
     @patch('airflow.providers_manager.importlib.import_module')
     def test_hooks(self, mock_import_module):
-        # importlib-resources>=5.2 relies on importing the containing module to
-        # read its content. The provider manager needs to read the validation
-        # schema 'provider_info.schema.json'. Not sure why this needs to be
-        # called twice. Also see comment on the assert at the end of the function.
+        # importlib.resources relies on importing the containing module to read
+        # its content. The provider manager needs to read two validation schemas
+        # 'provider_info.schema.json' and 'customized_form_field_behaviours.schema.json'.
         mock_import_module.side_effect = [airflow, airflow]
 
         with pytest.warns(expected_warning=None) as warning_records:
@@ -132,12 +131,12 @@ class TestProviderManager(unittest.TestCase):
         assert [] == [w.message for w in warning_records.list if "hook-class-names" in str(w.message)]
         assert len(self._caplog.records) == 0
 
-        # The stdlib importlib.resources implementation in 3.7 through 3.9 does
-        # not rely on importlib.import_module, so the function should not be
-        # called. The implementation for 3.10+ and the backport to 3.6 uses it
-        # to import the top-level 'airflow' for 'provider_info.schema.json'.
-        # Also see comment on mocking at the beginning of the function.
-        if (3, 7) <= sys.version_info < (3, 10):
+        # The stdlib importlib.resources implementation in 3.9 does not rely on
+        # importlib.import_module, so the function should not be called. The
+        # implementation for 3.10+ and the backport we use for up to 3.8 uses it
+        # to import the top-level 'airflow' for the two schema files. Also see
+        # comment on mocking at the beginning of the function.
+        if sys.version_info[:2] == (3, 9):
             assert mock_import_module.mock_calls == []
         else:
             assert mock_import_module.mock_calls == [call("airflow"), call("airflow")]
