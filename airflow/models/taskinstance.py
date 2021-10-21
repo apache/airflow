@@ -1267,8 +1267,8 @@ class TaskInstance(Base, LoggingMixin):
     def _log_state(self, lead_msg: str = ''):
         self.log.info(
             '%sMarking task as %s.'
-            + ' dag_id=%s, task_id=%s,'
-            + ' execution_date=%s, start_date=%s, end_date=%s',
+            ' dag_id=%s, task_id=%s,'
+            ' execution_date=%s, start_date=%s, end_date=%s',
             lead_msg,
             self.state.upper(),
             self.dag_id,

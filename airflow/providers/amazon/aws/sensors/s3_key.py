@@ -89,8 +89,8 @@ class S3KeySensor(BaseSensorOperator):
             if parsed_url.scheme != '' or parsed_url.netloc != '':
                 raise AirflowException(
                     'If bucket_name is provided, bucket_key'
-                    + ' should be relative path from root'
-                    + ' level, rather than a full s3:// url'
+                    ' should be relative path from root'
+                    ' level, rather than a full s3:// url'
                 )
 
         self.log.info('Poking for key : s3://%s/%s', self.bucket_name, self.bucket_key)
