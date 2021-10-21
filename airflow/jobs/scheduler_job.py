@@ -39,7 +39,7 @@ from airflow.configuration import conf
 from airflow.dag_processing.manager import DagFileProcessorAgent
 from airflow.executors.executor_loader import UNPICKLEABLE_EXECUTORS
 from airflow.jobs.base_job import BaseJob
-from airflow.models import DAG
+from airflow.models import DAG, TaskReschedule
 from airflow.models.dag import DagModel
 from airflow.models.dagbag import DagBag
 from airflow.models.dagrun import DagRun
@@ -557,7 +557,9 @@ class SchedulerJob(BaseJob):
                 ti.operator,
             )
 
-            if ti.try_number == buffer_key.try_number and ti.state == State.QUEUED:
+            if ti.try_number == buffer_key.try_number and (
+                ti.state == State.QUEUED and not TaskReschedule.find_for_task_instance(ti, session=session)
+            ):
                 Stats.incr('scheduler.tasks.killed_externally')
                 msg = (
                     "Executor reports task instance %s finished (%s) although the "
