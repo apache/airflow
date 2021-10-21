@@ -121,8 +121,8 @@ class KubernetesPodOperator(BaseOperator):
     :param config_file: The path to the Kubernetes config file. (templated)
         If not specified, default value is ``~/.kube/config``
     :type config_file: str
-    :param node_selectors: A dict containing a group of scheduling rules.
-    :type node_selectors: dict
+    :param node_selector: A dict containing a group of scheduling rules.
+    :type node_selector: dict
     :param image_pull_secrets: Any image pull secrets to be given to the pod.
         If more than one secret is required, provide a
         comma separated list: secret_a,secret_b

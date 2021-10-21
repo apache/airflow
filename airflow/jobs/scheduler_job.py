@@ -790,7 +790,12 @@ class SchedulerJob(BaseJob):
 
             # Send the callbacks after we commit to ensure the context is up to date when it gets run
             for dag_run, callback_to_run in callback_tuples:
-                self._send_dag_callbacks_to_processor(dag_run, callback_to_run)
+                dag = self.dagbag.get_dag(dag_run.dag_id, session=session)
+                if not dag:
+                    self.log.error("DAG '%s' not found in serialized_dag table", dag_run.dag_id)
+                    continue
+
+                self._send_dag_callbacks_to_processor(dag, callback_to_run)
 
             # Without this, the session has an invalid view of the DB
             session.expunge_all()
@@ -867,30 +872,19 @@ class SchedulerJob(BaseJob):
         existing_dagruns = (
             session.query(DagRun.dag_id, DagRun.execution_date).filter(existing_dagruns_filter).all()
         )
-        max_queued_dagruns = conf.getint('core', 'max_queued_runs_per_dag')
 
-        queued_runs_of_dags = defaultdict(
+        active_runs_of_dags = defaultdict(
             int,
-            session.query(DagRun.dag_id, func.count('*'))
-            .filter(  # We use `list` here because SQLA doesn't accept a set
-                # We use set to avoid duplicate dag_ids
-                DagRun.dag_id.in_(list({dm.dag_id for dm in dag_models})),
-                DagRun.state == State.QUEUED,
-            )
-            .group_by(DagRun.dag_id)
-            .all(),
+            DagRun.active_runs_of_dags(dag_ids=(dm.dag_id for dm in dag_models), session=session),
         )
 
         for dag_model in dag_models:
-            # Lets quickly check if we have exceeded the number of queued dagruns per dags
-            total_queued = queued_runs_of_dags[dag_model.dag_id]
-            if total_queued >= max_queued_dagruns:
-                continue
 
             dag = self.dagbag.get_dag(dag_model.dag_id, session=session)
             if not dag:
                 self.log.error("DAG '%s' not found in serialized_dag table", dag_model.dag_id)
                 continue
+
             dag_hash = self.dagbag.dags_hash.get(dag.dag_id)
 
             data_interval = dag.get_next_data_interval(dag_model)
@@ -913,11 +907,27 @@ class SchedulerJob(BaseJob):
                     dag_hash=dag_hash,
                     creating_job_id=self.id,
                 )
-                queued_runs_of_dags[dag_model.dag_id] += 1
-            dag_model.calculate_dagrun_date_fields(dag, data_interval)
-
+                active_runs_of_dags[dag.dag_id] += 1
+            self._update_dag_next_dagruns(dag, dag_model, active_runs_of_dags[dag.dag_id])
         # TODO[HA]: Should we do a session.flush() so we don't have to keep lots of state/object in
         # memory for larger dags? or expunge_all()
+
+    def _update_dag_next_dagruns(self, dag, dag_model: DagModel, total_active_runs) -> None:
+        """
+        Update the next_dagrun, next_dagrun_data_interval_start/end
+        and next_dagrun_create_after for this dag.
+        """
+        if total_active_runs >= dag_model.max_active_runs:
+            self.log.info(
+                "DAG %s is at (or above) max_active_runs (%d of %d), not creating any more runs",
+                dag_model.dag_id,
+                total_active_runs,
+                dag_model.max_active_runs,
+            )
+            dag_model.next_dagrun_create_after = None
+        else:
+            data_interval = dag.get_next_data_interval(dag_model)
+            dag_model.calculate_dagrun_date_fields(dag, data_interval)
 
     def _start_queued_dagruns(
         self,
@@ -927,15 +937,8 @@ class SchedulerJob(BaseJob):
         dag_runs = self._get_next_dagruns_to_examine(State.QUEUED, session)
 
         active_runs_of_dags = defaultdict(
-            lambda: 0,
-            session.query(DagRun.dag_id, func.count('*'))
-            .filter(  # We use `list` here because SQLA doesn't accept a set
-                # We use set to avoid duplicate dag_ids
-                DagRun.dag_id.in_(list({dr.dag_id for dr in dag_runs})),
-                DagRun.state == State.RUNNING,
-            )
-            .group_by(DagRun.dag_id)
-            .all(),
+            int,
+            DagRun.active_runs_of_dags((dr.dag_id for dr in dag_runs), only_running=True, session=session),
         )
 
         def _update_state(dag: DAG, dag_run: DagRun):
@@ -986,6 +989,7 @@ class SchedulerJob(BaseJob):
         if not dag:
             self.log.error("Couldn't find dag %s in DagBag/DB!", dag_run.dag_id)
             return 0
+        dag_model = DM.get_dagmodel(dag.dag_id, session)
 
         if (
             dag_run.start_date
@@ -1004,6 +1008,9 @@ class SchedulerJob(BaseJob):
                 session.merge(task_instance)
             session.flush()
             self.log.info("Run %s of %s has timed-out", dag_run.run_id, dag_run.dag_id)
+            active_runs = dag.get_num_active_runs(only_running=False, session=session)
+            # Work out if we should allow creating a new DagRun now?
+            self._update_dag_next_dagruns(dag, dag_model, active_runs)
 
             callback_to_execute = DagCallbackRequest(
                 full_filepath=dag.fileloc,
@@ -1014,7 +1021,7 @@ class SchedulerJob(BaseJob):
             )
 
             # Send SLA & DAG Success/Failure Callbacks to be executed
-            self._send_dag_callbacks_to_processor(dag_run, callback_to_execute)
+            self._send_dag_callbacks_to_processor(dag, callback_to_execute)
 
             return 0
 
@@ -1025,6 +1032,10 @@ class SchedulerJob(BaseJob):
         self._verify_integrity_if_dag_changed(dag_run=dag_run, session=session)
         # TODO[HA]: Rename update_state -> schedule_dag_run, ?? something else?
         schedulable_tis, callback_to_run = dag_run.update_state(session=session, execute_callbacks=False)
+        if dag_run.state in State.finished:
+            active_runs = dag.get_num_active_runs(only_running=False, session=session)
+            # Work out if we should allow creating a new DagRun now?
+            self._update_dag_next_dagruns(dag, dag_model, active_runs)
 
         # This will do one query per dag run. We "could" build up a complex
         # query to update all the TIs across all the execution dates and dag
@@ -1050,13 +1061,10 @@ class SchedulerJob(BaseJob):
         # Verify integrity also takes care of session.flush
         dag_run.verify_integrity(session=session)
 
-    def _send_dag_callbacks_to_processor(
-        self, dag_run: DagRun, callback: Optional[DagCallbackRequest] = None
-    ):
+    def _send_dag_callbacks_to_processor(self, dag: DAG, callback: Optional[DagCallbackRequest] = None):
         if not self.processor_agent:
             raise ValueError("Processor agent is not started.")
 
-        dag = dag_run.get_dag()
         self._send_sla_callbacks_to_processor(dag)
         if callback:
             self.processor_agent.send_callback_to_execute(callback)

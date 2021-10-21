@@ -25,7 +25,7 @@ from typing import Any, Dict, Iterable, List, Optional, Sequence, Tuple, Union
 
 from google.api_core.exceptions import ServerError
 from google.api_core.retry import Retry
-from google.cloud.dataproc_v1beta2 import (
+from google.cloud.dataproc_v1 import (
     Cluster,
     ClusterControllerClient,
     Job,

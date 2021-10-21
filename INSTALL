@@ -7,8 +7,8 @@ systems/prerequisites are known to work:
 
 Linux (Debian Buster and Linux Mint Tricia):
 
-sudo apt install build-essentials python3.6-dev python3.7-dev python-dev openssl \
-                 sqlite sqlite-dev default-libmysqlclient-dev libmysqld-dev postgresq
+sudo apt install build-essential python3-dev libsqlite3-dev openssl \
+                 sqlite default-libmysqlclient-dev libmysqlclient-dev postgresql
 
 MacOS (Mojave/Catalina):
 

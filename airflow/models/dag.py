@@ -1138,7 +1138,7 @@ class DAG(LoggingMixin):
         return active_dates
 
     @provide_session
-    def get_num_active_runs(self, external_trigger=None, session=None):
+    def get_num_active_runs(self, external_trigger=None, only_running=True, session=None):
         """
         Returns the number of active "running" dag runs
 
@@ -1148,11 +1148,11 @@ class DAG(LoggingMixin):
         :return: number greater than 0 for active dag runs
         """
         # .count() is inefficient
-        query = (
-            session.query(func.count())
-            .filter(DagRun.dag_id == self.dag_id)
-            .filter(DagRun.state == State.RUNNING)
-        )
+        query = session.query(func.count()).filter(DagRun.dag_id == self.dag_id)
+        if only_running:
+            query = query.filter(DagRun.state == State.RUNNING)
+        else:
+            query = query.filter(DagRun.state.in_({State.RUNNING, State.QUEUED}))
 
         if external_trigger is not None:
             query = query.filter(
@@ -2423,6 +2423,10 @@ class DAG(LoggingMixin):
         )
         most_recent_runs = {run.dag_id: run for run in most_recent_runs_iter}
 
+        # Get number of active dagruns for all dags we are processing as a single query.
+
+        num_active_runs = DagRun.active_runs_of_dags(dag_ids=existing_dag_ids, session=session)
+
         filelocs = []
 
         for orm_dag in sorted(orm_dags, key=lambda d: d.dag_id):
@@ -2451,7 +2455,10 @@ class DAG(LoggingMixin):
                 data_interval = None
             else:
                 data_interval = dag.get_run_data_interval(run)
-            orm_dag.calculate_dagrun_date_fields(dag, data_interval)
+            if num_active_runs.get(dag.dag_id, 0) >= orm_dag.max_active_runs:
+                orm_dag.next_dagrun_create_after = None
+            else:
+                orm_dag.calculate_dagrun_date_fields(dag, data_interval)
 
             for orm_tag in list(orm_dag.tags):
                 if orm_tag.name not in set(dag.tags):

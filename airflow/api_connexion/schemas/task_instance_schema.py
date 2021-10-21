@@ -19,6 +19,7 @@ from typing import List, NamedTuple, Optional, Tuple
 
 from marshmallow import Schema, ValidationError, fields, validate, validates_schema
 from marshmallow.utils import get_value
+from marshmallow_sqlalchemy import SQLAlchemySchema, auto_field
 
 from airflow.api_connexion.parameters import validate_istimezone
 from airflow.api_connexion.schemas.enum_schemas import TaskInstanceStateField
@@ -27,28 +28,34 @@ from airflow.models import SlaMiss, TaskInstance
 from airflow.utils.state import State
 
 
-class TaskInstanceSchema(Schema):
+class TaskInstanceSchema(SQLAlchemySchema):
     """Task instance schema"""
 
-    task_id = fields.Str()
-    dag_id = fields.Str()
-    execution_date = fields.DateTime(validate=validate_istimezone)
-    start_date = fields.DateTime(validate=validate_istimezone)
-    end_date = fields.DateTime(validate=validate_istimezone)
-    duration = fields.Float()
-    state = TaskInstanceStateField()
-    _try_number = fields.Int(data_key="try_number")
-    max_tries = fields.Int()
-    hostname = fields.Str()
-    unixname = fields.Str()
-    pool = fields.Str()
-    pool_slots = fields.Int()
-    queue = fields.Str()
-    priority_weight = fields.Int()
-    operator = fields.Str()
-    queued_dttm = fields.DateTime(data_key="queued_when")
-    pid = fields.Int()
-    executor_config = fields.Str()
+    class Meta:
+        """Meta"""
+
+        model = TaskInstance
+
+    task_id = auto_field()
+    dag_id = auto_field()
+    run_id = auto_field(data_key="dag_run_id")
+    execution_date = auto_field()
+    start_date = auto_field()
+    end_date = auto_field()
+    duration = auto_field()
+    state = auto_field()
+    _try_number = auto_field(data_key="try_number")
+    max_tries = auto_field()
+    hostname = auto_field()
+    unixname = auto_field()
+    pool = auto_field()
+    pool_slots = auto_field()
+    queue = auto_field()
+    priority_weight = auto_field()
+    operator = auto_field()
+    queued_dttm = auto_field(data_key="queued_when")
+    pid = auto_field()
+    executor_config = auto_field()
     sla_miss = fields.Nested(SlaMissSchema, dump_default=None)
 
     def get_attribute(self, obj, attr, default):

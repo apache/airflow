@@ -37,20 +37,12 @@ from airflow.utils.entry_points import entry_points_with_dist
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.module_loading import import_string
 
-try:
-    import importlib.resources as importlib_resources
-except ImportError:
-    # Try back-ported to PY<37 `importlib_resources`.
-    import importlib_resources
-
 log = logging.getLogger(__name__)
 
 if sys.version_info >= (3, 9):
-    from functools import cache
+    from importlib.resources import files as resource_files
 else:
-    from functools import lru_cache
-
-    cache = lru_cache(maxsize=None)
+    from importlib_resources import files as resource_files
 
 MIN_PROVIDER_VERSIONS = {
     "apache-airflow-providers-celery": "2.1.0",
@@ -102,7 +94,8 @@ class LazyDictWithCache(MutableMapping):
 
 def _create_provider_info_schema_validator():
     """Creates JSON schema validator from the provider_info.schema.json"""
-    schema = json.loads(importlib_resources.read_text('airflow', 'provider_info.schema.json'))
+    with resource_files("airflow").joinpath("provider_info.schema.json").open("rb") as f:
+        schema = json.load(f)
     cls = jsonschema.validators.validator_for(schema)
     validator = cls(schema)
     return validator
@@ -110,9 +103,8 @@ def _create_provider_info_schema_validator():
 
 def _create_customized_form_field_behaviours_schema_validator():
     """Creates JSON schema validator from the customized_form_field_behaviours.schema.json"""
-    schema = json.loads(
-        importlib_resources.read_text('airflow', 'customized_form_field_behaviours.schema.json')
-    )
+    with resource_files("airflow").joinpath("customized_form_field_behaviours.schema.json").open("rb") as f:
+        schema = json.load(f)
     cls = jsonschema.validators.validator_for(schema)
     validator = cls(schema)
     return validator

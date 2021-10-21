@@ -16,11 +16,11 @@
 # under the License.
 
 import os
+from datetime import datetime
 
 from airflow import models
 from airflow.providers.microsoft.azure.operators.adls import ADLSDeleteOperator
 from airflow.providers.microsoft.azure.transfers.local_to_adls import LocalFilesystemToADLSOperator
-from airflow.utils.dates import days_ago
 
 LOCAL_FILE_PATH = os.environ.get("LOCAL_FILE_PATH", 'localfile.txt')
 REMOTE_FILE_PATH = os.environ.get("REMOTE_LOCAL_PATH", 'remote.txt')
@@ -28,7 +28,7 @@ REMOTE_FILE_PATH = os.environ.get("REMOTE_LOCAL_PATH", 'remote.txt')
 
 with models.DAG(
     "example_adls_delete",
-    start_date=days_ago(1),
+    start_date=datetime(2021, 1, 1),
     schedule_interval=None,
     tags=['example'],
 ) as dag:
