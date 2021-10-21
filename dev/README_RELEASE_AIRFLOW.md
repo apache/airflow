@@ -42,6 +42,8 @@
   - [Publish documentation](#publish-documentation)
   - [Notify developers of release](#notify-developers-of-release)
   - [Update Announcements page](#update-announcements-page)
+  - [Update the bug issue template](#update-the-bug-issue-template)
+  - [Update default Airflow version in the helm chart](#update-default-airflow-version-in-the-helm-chart)
   - [Update airflow/config_templates/config.yml file](#update-airflowconfig_templatesconfigyml-file)
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
@@ -171,7 +173,7 @@ branches: `vX-Y-test` and `vX-Y-stable` (for example with `2.1.0rc1` release you
 
    ```shell script
    # First clone the repo
-   BRANCH_PREFIX=v2-1
+   export BRANCH_PREFIX=v2-1
    git branch ${BRANCH_PREFIX}-test
    git branch ${BRANCH_PREFIX}-stable
    git push origin ${BRANCH_PREFIX}-test ${BRANCH_PREFIX}-stable
@@ -252,24 +254,32 @@ also performs image verification before pushing the images.
 
 Subject:
 
-```
-[VOTE] Release Airflow 2.0.2 from 2.0.2rc1
+```shell script
+cat <<EOF
+[VOTE] Release Airflow ${VERSION_WITHOUT_RC} from ${VERSION}
+EOF
 ```
 
 Body:
 
-```
+```shell script
+cat <<EOF
 Hey fellow Airflowers,
 
-I have cut Airflow 2.0.2 RC3. This email is calling a vote on the release,
-which will last for 72 hours. Consider this my (binding) +1.
+I have cut Airflow ${VERSION}. This email is calling a vote on the release,
+which will last for 72 hours, from Friday, October 8, 2021 at 4:00 pm UTC
+until Monday, October 11, 2021 at 4:00 pm UTC, or until 3 binding +1 votes have been received.
 
-Airflow 2.0.2 RC3 is available at:
-https://dist.apache.org/repos/dist/dev/airflow/2.0.2rc3/
+https://www.timeanddate.com/worldclock/fixedtime.html?msg=8&iso=20211011T1600&p1=1440
 
-*apache-airflow-2.0.2-source.tar.gz* is a source release that comes with INSTALL instructions.
-*apache-airflow-2.0.2.tar.gz* is the binary Python "sdist" release.
-*apache_airflow-2.0.2-py3-none-any.wh*l is the binary Python wheel "binary" release.
+Consider this my (binding) +1.
+
+Airflow ${VERSION} is available at:
+https://dist.apache.org/repos/dist/dev/airflow/$VERSION/
+
+*apache-airflow-${VERSION_WITHOUT_RC}-source.tar.gz* is a source release that comes with INSTALL instructions.
+*apache-airflow-${VERSION_WITHOUT_RC}.tar.gz* is the binary Python "sdist" release.
+*apache_airflow-${VERSION_WITHOUT_RC}-py3-none-any.whl* is the binary Python wheel "binary" release.
 
 Public keys are available at:
 https://dist.apache.org/repos/dist/release/airflow/KEYS
@@ -280,19 +290,19 @@ Please vote accordingly:
 [ ] +0 no opinion
 [ ] -1 disapprove with the reason
 
-Only votes from PMC members are binding, but the release manager should encourage members of the community
-to test the release and vote with "(non-binding)".
+Only votes from PMC members are binding, but all members of the community
+are encouraged to test the release and vote with "(non-binding)".
 
 The test procedure for PMCs and Contributors who would like to test this RC are described in
 https://github.com/apache/airflow/blob/main/dev/README_RELEASE_AIRFLOW.md#verify-the-release-candidate-by-pmcs
 
-Please note that the version number excludes the `rcX` string, so it's now
-simply 2.0.2. This will allow us to rename the artifact without modifying
+Please note that the version number excludes the \`rcX\` string, so it's now
+simply ${VERSION_WITHOUT_RC}. This will allow us to rename the artifact without modifying
 the artifact checksums when we actually release.
 
-Full Changelog: (https://github.com/apache/airflow/blob/2.0.2rc3/CHANGELOG.txt).
+Full Changelog: https://github.com/apache/airflow/blob/${VERSION}/CHANGELOG.txt
 
-Changes since 2.0.2rc2:
+Changes since ${VERSION}:
 *Bugs*:
 [AIRFLOW-3732] Fix issue when trying to edit connection in RBAC UI
 [AIRFLOW-2866] Fix missing CSRF token head when using RBAC UI (#3804)
@@ -318,6 +328,7 @@ Changes since 2.0.2rc2:
 
 Cheers,
 <your name>
+EOF
 ```
 
 
@@ -515,7 +526,7 @@ Once the vote has been passed, you will need to send a result vote to dev@airflo
 Subject:
 
 ```
-[RESULT][VOTE] Airflow 2.0.2rc3
+[RESULT][VOTE] Release Airflow 2.0.2 from 2.0.2rc3
 ```
 
 Message:
@@ -572,12 +583,12 @@ export AIRFLOW_DEV_SVN=$(pwd)
 # svn checkout https://dist.apache.org/repos/dist/release/airflow airflow-release
 cd <YOUR_AIFLOW_RELEASE_SVN>
 svn update
+export AIRFLOW_RELEASE_SVN=$(pwd)
 
 export RC=2.0.2rc5
 export VERSION=${RC/rc?/}
 
 # Create new folder for the release
-cd airflow-release
 svn mkdir "${VERSION}"
 cd "${VERSION}"
 
@@ -607,7 +618,7 @@ previously released RC candidates in "${AIRFLOW_SOURCES}/dist":
 - Verify the artifacts that would be uploaded:
 
     ```shell script
-    cd "${AIRFLOW_SOURCES}"
+    cd "${AIRFLOW_RELEASE_SVN}/${VERSION}"
     twine check dist/*
     ```
 
@@ -672,6 +683,7 @@ Documentation for providers can be found in the ``/docs/apache-airflow`` directo
     ```shell script
     git clone https://github.com/apache/airflow-site.git airflow-site
     cd airflow-site
+    git checkout -b ${VERSION}-docs
     export AIRFLOW_SITE_DIRECTORY="$(pwd)"
     ```
 
@@ -688,13 +700,15 @@ Documentation for providers can be found in the ``/docs/apache-airflow`` directo
     ./docs/start_doc_server.sh
     ```
 
-- Copy the documentation to the ``airflow-site`` repository, create commit and push changes.
+- Copy the documentation to the ``airflow-site`` repository, create commit, push changes and open a PR.
 
     ```shell script
     ./docs/publish_docs.py --package-filter apache-airflow --package-filter docker-stack
     cd "${AIRFLOW_SITE_DIRECTORY}"
+    git add .
     git commit -m "Add documentation for Apache Airflow ${VERSION}"
     git push
+    # and finally open a PR
     ```
 
 ## Notify developers of release
@@ -722,13 +736,19 @@ The released sources and packages can be downloaded via https://airflow.apache.o
 
 Other installation methods are described in https://airflow.apache.org/docs/apache-airflow/stable/installation/
 
+We also made this version available on PyPI for convenience:
+\`pip install apache-airflow\`
+https://pypi.org/project/apache-airflow/${VERSION}/
+
 The documentation is available on:
 https://airflow.apache.org/
 https://airflow.apache.org/docs/apache-airflow/${VERSION}/
 
 Find the CHANGELOG here for more details:
-
 https://airflow.apache.org/docs/apache-airflow/${VERSION}/changelog.html
+
+Container images are published at:
+https://hub.docker.com/r/apache/airflow/tags/?page=1&name=${VERSION}
 
 Cheers,
 <your name>
@@ -738,6 +758,16 @@ EOF
 ## Update Announcements page
 
 Update "Announcements" page at the [Official Airflow website](https://airflow.apache.org/announcements/)
+
+## Update the bug issue template
+
+Make sure the version you just released is listed in the bug issue template in `.github/ISSUE_TEMPLATE/airflow_bug_report.yml`.
+
+## Update default Airflow version in the helm chart
+
+Update the values of `airflowVersion`, `defaultAirflowTag` and `appVersion` in the helm chart so the next helm chart release
+will use the latest released version. You'll need to update `chart/values.yaml`, `chart/values.schema.json` and
+`chart/Chart.yaml`.
 
 ## Update airflow/config_templates/config.yml file
 
