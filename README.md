@@ -98,6 +98,8 @@ MariaDB is not tested/recommended.
 **Note**: SQLite is used in Airflow tests. Do not use it in production. We recommend
 using the latest stable version of SQLite for local development.
 
+**Note**: Python v3.10 is not supported yet. For details, see [#19059](https://github.com/apache/airflow/issues/19059).
+
 ## Getting started
 
 Visit the official Airflow website documentation (latest **stable** release) for help with
