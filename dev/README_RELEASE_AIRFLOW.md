@@ -742,7 +742,7 @@ Other installation methods are described in https://airflow.apache.org/docs/apac
 
 We also made this version available on PyPI for convenience:
 `pip install apache-airflow`
-https://pypi.python.org/pypi/apache-airflow
+https://pypi.org/project/apache-airflow/${VERSION}/
 
 The documentation is available on:
 https://airflow.apache.org/
