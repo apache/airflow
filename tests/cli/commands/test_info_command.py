@@ -52,7 +52,7 @@ class TestPiiAnonymizer(unittest.TestCase):
     @parameterized.expand(
         [
             (
-                "postgresql+psycopg2://postgres:airflow@postgres/airflow",
+                "postgresql+psycopg2://postgres:Airflow123@postgres/airflow",
                 "postgresql+psycopg2://p...s:PASSWORD@postgres/airflow",
             ),
             (
@@ -96,7 +96,7 @@ class TestAirflowInfo:
             ("core", "dags_folder"): "TEST_DAGS_FOLDER",
             ("core", "plugins_folder"): "TEST_PLUGINS_FOLDER",
             ("logging", "base_log_folder"): "TEST_LOG_FOLDER",
-            ('core', 'sql_alchemy_conn'): 'postgresql+psycopg2://postgres:airflow@postgres/airflow',
+            ('core', 'sql_alchemy_conn'): 'postgresql+psycopg2://postgres:Airflow123@postgres/airflow',
             ('logging', 'remote_logging'): 'True',
             ('logging', 'remote_base_log_folder'): 's3://logs-name',
         }
@@ -144,7 +144,7 @@ class TestAirflowInfo:
 
     @conf_vars(
         {
-            ('core', 'sql_alchemy_conn'): 'postgresql+psycopg2://postgres:airflow@postgres/airflow',
+            ('core', 'sql_alchemy_conn'): 'postgresql+psycopg2://postgres:Airflow123@postgres/airflow',
         }
     )
     def test_show_info(self):
@@ -153,11 +153,11 @@ class TestAirflowInfo:
 
         output = stdout.getvalue()
         assert airflow_version in output
-        assert "postgresql+psycopg2://postgres:airflow@postgres/airflow" in output
+        assert "postgresql+psycopg2://postgres:Airflow123@postgres/airflow" in output
 
     @conf_vars(
         {
-            ('core', 'sql_alchemy_conn'): 'postgresql+psycopg2://postgres:airflow@postgres/airflow',
+            ('core', 'sql_alchemy_conn'): 'postgresql+psycopg2://postgres:Airflow123@postgres/airflow',
         }
     )
     def test_show_info_anonymize(self):
@@ -177,7 +177,7 @@ def setup_parser():
 class TestInfoCommandMockHttpx:
     @conf_vars(
         {
-            ('core', 'sql_alchemy_conn'): 'postgresql+psycopg2://postgres:airflow@postgres/airflow',
+            ('core', 'sql_alchemy_conn'): 'postgresql+psycopg2://postgres:Airflow123@postgres/airflow',
         }
     )
     def test_show_info_anonymize_fileio(self, httpx_mock, setup_parser):

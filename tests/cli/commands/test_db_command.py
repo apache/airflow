@@ -92,7 +92,7 @@ class TestCliDb(unittest.TestCase):
     @mock.patch("airflow.cli.commands.db_command.execute_interactive")
     @mock.patch(
         "airflow.cli.commands.db_command.settings.engine.url",
-        make_url("postgresql+psycopg2://postgres:airflow@postgres:5432/airflow"),
+        make_url("postgresql+psycopg2://postgres:Airflow123@postgres:5432/airflow"),
     )
     def test_cli_shell_postgres(self, mock_execute_interactive):
         db_command.shell(self.parser.parse_args(['db', 'shell']))
@@ -111,7 +111,7 @@ class TestCliDb(unittest.TestCase):
     @mock.patch("airflow.cli.commands.db_command.execute_interactive")
     @mock.patch(
         "airflow.cli.commands.db_command.settings.engine.url",
-        make_url("postgresql+psycopg2://postgres:airflow@postgres/airflow"),
+        make_url("postgresql+psycopg2://postgres:Airflow123@postgres/airflow"),
     )
     def test_cli_shell_postgres_without_port(self, mock_execute_interactive):
         db_command.shell(self.parser.parse_args(['db', 'shell']))

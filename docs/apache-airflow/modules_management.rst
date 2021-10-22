@@ -249,7 +249,7 @@ Below is the sample output of the ``airflow info`` command:
     Config info
     executor             | LocalExecutor
     task_logging_handler | airflow.utils.log.file_task_handler.FileTaskHandler
-    sql_alchemy_conn     | postgresql+psycopg2://postgres:airflow@postgres/airflow
+    sql_alchemy_conn     | postgresql+psycopg2://postgres:Airflow123@postgres/airflow
     dags_folder          | /files/dags
     plugins_folder       | /root/airflow/plugins
     base_log_folder      | /root/airflow/logs
