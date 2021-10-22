@@ -43,16 +43,21 @@ echo "--- Patching generated code..."
 
 # Post-processing of the generated Python wrapper.
 
+INPLACE_ARG="-i"
+if [[ "$OSTYPE" == "darwin"* ]]; then
+    INPLACE_ARG="-i ''"
+fi
+
 touch "${OUTPUT_DIR}/__init__.py"
-find "${OUTPUT_DIR}/test" -type f -name \*.py -exec sed -i '' -e 's/client/airflow_client.client/g' {} +
-find "${OUTPUT_DIR}" -type f -a -name \*.md -exec sed -i '' -e 's/# client/# Apache Airflow Python Client/g' {} +
-find "${OUTPUT_DIR}" -type f -a -name \*.md -exec sed -i '' -e 's/import client/import airflow_client.client/g' {} +
-find "${OUTPUT_DIR}" -type f -a -name \*.md -exec sed -i '' -e 's/from client/from airflow_client.client/g' {} +
-find "${OUTPUT_DIR}" -type f -a -name \*.md -exec sed -i '' -e 's/getattr(client\.models/getattr(airflow_client.client.models/g' {} +
+find "${OUTPUT_DIR}/test" -type f -name \*.py -exec sed $INPLACE_ARG -e 's/client/airflow_client.client/g' {} +
+find "${OUTPUT_DIR}" -type f -a -name \*.md -exec sed $INPLACE_ARG -e 's/# client/# Apache Airflow Python Client/g' {} +
+find "${OUTPUT_DIR}" -type f -a -name \*.md -exec sed $INPLACE_ARG -e 's/import client/import airflow_client.client/g' {} +
+find "${OUTPUT_DIR}" -type f -a -name \*.md -exec sed $INPLACE_ARG -e 's/from client/from airflow_client.client/g' {} +
+find "${OUTPUT_DIR}" -type f -a -name \*.md -exec sed $INPLACE_ARG -e 's/getattr(client\.models/getattr(airflow_client.client.models/g' {} +
 
 # fix imports
-find "${OUTPUT_DIR}/client/" -type f -name \*.py -exec sed -i '' -e 's/import client\./import airflow_client.client./g' {} +
-find "${OUTPUT_DIR}/client/" -type f -name \*.py -exec sed -i '' -e 's/from client/from airflow_client.client/g' {} +
-find "${OUTPUT_DIR}/client/" -type f -name \*.py -exec sed -i '' -e 's/getattr(client\.models/getattr(airflow_client.client.models/g' {} +
+find "${OUTPUT_DIR}/client/" -type f -name \*.py -exec sed $INPLACE_ARG -e 's/import client\./import airflow_client.client./g' {} +
+find "${OUTPUT_DIR}/client/" -type f -name \*.py -exec sed $INPLACE_ARG -e 's/from client/from airflow_client.client/g' {} +
+find "${OUTPUT_DIR}/client/" -type f -name \*.py -exec sed $INPLACE_ARG -e 's/getattr(client\.models/getattr(airflow_client.client.models/g' {} +
 
 run_pre_commit
