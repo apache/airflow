@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-"""Increase length of FAB ab_view_menu.name column
+"""Increase length of FAB ab_resource.name column
 
 Revision ID: 03afc6b6f902
 Revises: 92c57b58940d
@@ -38,30 +38,30 @@ depends_on = None
 
 
 def upgrade():
-    """Apply Increase length of FAB ab_view_menu.name column"""
+    """Apply Increase length of FAB ab_resource.name column"""
     conn = op.get_bind()
     inspector = Inspector.from_engine(conn)
     tables = inspector.get_table_names()
 
-    if "ab_view_menu" in tables:
+    if "ab_resource" in tables:
         if conn.dialect.name == "sqlite":
             op.execute("PRAGMA foreign_keys=off")
             op.execute(
                 """
-            CREATE TABLE IF NOT EXISTS ab_view_menu_dg_tmp
+            CREATE TABLE IF NOT EXISTS ab_resource_dg_tmp
             (
                 id INTEGER NOT NULL PRIMARY KEY,
                 name VARCHAR(250) NOT NULL UNIQUE
             );
             """
             )
-            op.execute("INSERT INTO ab_view_menu_dg_tmp(id, name) select id, name from ab_view_menu;")
-            op.execute("DROP TABLE ab_view_menu")
-            op.execute("ALTER TABLE ab_view_menu_dg_tmp rename to ab_view_menu;")
+            op.execute("INSERT INTO ab_resource_dg_tmp(id, name) select id, name from ab_resource;")
+            op.execute("DROP TABLE ab_resource")
+            op.execute("ALTER TABLE ab_resource_dg_tmp rename to ab_resource;")
             op.execute("PRAGMA foreign_keys=on")
         else:
             op.alter_column(
-                table_name='ab_view_menu',
+                table_name='ab_resource',
                 column_name='name',
                 type_=StringID(length=250),
                 nullable=False,
@@ -69,27 +69,27 @@ def upgrade():
 
 
 def downgrade():
-    """Unapply Increase length of FAB ab_view_menu.name column"""
+    """Unapply Increase length of FAB ab_resource.name column"""
     conn = op.get_bind()
     inspector = Inspector.from_engine(conn)
     tables = inspector.get_table_names()
-    if "ab_view_menu" in tables:
+    if "ab_resource" in tables:
         if conn.dialect.name == "sqlite":
             op.execute("PRAGMA foreign_keys=off")
             op.execute(
                 """
-                CREATE TABLE IF NOT EXISTS ab_view_menu_dg_tmp
+                CREATE TABLE IF NOT EXISTS ab_resource_dg_tmp
                 (
                     id INTEGER NOT NULL PRIMARY KEY,
                     name VARCHAR(100) NOT NULL UNIQUE
                 );
                 """
             )
-            op.execute("INSERT INTO ab_view_menu_dg_tmp(id, name) select id, name from ab_view_menu;")
-            op.execute("DROP TABLE ab_view_menu")
-            op.execute("ALTER TABLE ab_view_menu_dg_tmp rename to ab_view_menu;")
+            op.execute("INSERT INTO ab_resource_dg_tmp(id, name) select id, name from ab_resource;")
+            op.execute("DROP TABLE ab_resource")
+            op.execute("ALTER TABLE ab_resource_dg_tmp rename to ab_resource;")
             op.execute("PRAGMA foreign_keys=on")
         else:
             op.alter_column(
-                table_name='ab_view_menu', column_name='name', type_=sa.String(length=100), nullable=False
+                table_name='ab_resource', column_name='name', type_=sa.String(length=100), nullable=False
             )
