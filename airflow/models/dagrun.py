@@ -559,6 +559,7 @@ class DagRun(Base, LoggingMixin):
                 (self.end_date - self.start_date).total_seconds()
                 if self.start_date and self.end_date
                 else None,
+                self._state,
                 self.external_trigger,
                 self.run_type,
                 self.data_interval_start,
