@@ -89,7 +89,7 @@ class TestSecretsManagerBackend(TestCase):
         secrets_manager_backend.client.put_secret_value(**param)
 
         returned_uri = secrets_manager_backend.get_conn_uri(conn_id="test_postgres")
-        assert 'postgresql://irflow:airflow@host:5432/airflow' == returned_uri
+        assert 'postgresql://airflow:Airflow123@host:5432/airflow' == returned_uri
 
     @mock_secretsmanager
     def test_format_uri_with_extra(self):
