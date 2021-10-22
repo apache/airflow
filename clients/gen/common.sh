@@ -71,6 +71,7 @@ function run_pre_commit {
 
     # prepend license headers
     pre-commit run --all-files || true
+    echo "Output above might state Failed: 'Some sources were modified by the hook' - This is expected as the hook is used to add the licences."
 }
 
 function gen_client {

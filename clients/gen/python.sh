@@ -1,4 +1,5 @@
 #!/bin/bash
+set -ueo pipefail
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -61,3 +62,4 @@ find "${OUTPUT_DIR}/client/" -type f -name \*.py -exec sed "${INPLACE_ARG[@]}" -
 find "${OUTPUT_DIR}/client/" -type f -name \*.py -exec sed "${INPLACE_ARG[@]}" -e 's/getattr(client\.models/getattr(airflow_client.client.models/g' {} +
 
 run_pre_commit
+echo "Generation successful"
