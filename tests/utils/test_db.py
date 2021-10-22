@@ -58,7 +58,7 @@ class TestDb(unittest.TestCase):
             lambda t: (t[0] == 'remove_table' and t[1].name == 'ab_permission_view_role'),
             lambda t: (t[0] == 'remove_table' and t[1].name == 'ab_user_role'),
             lambda t: (t[0] == 'remove_table' and t[1].name == 'ab_user'),
-            lambda t: (t[0] == 'remove_table' and t[1].name == 'ab_view_menu'),
+            lambda t: (t[0] == 'remove_table' and t[1].name == 'ab_resource'),
             # Ignore all the fab indices
             lambda t: (t[0] == 'remove_index' and t[1].name == 'permission_id'),
             lambda t: (t[0] == 'remove_index' and t[1].name == 'name'),

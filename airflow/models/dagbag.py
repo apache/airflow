@@ -51,6 +51,7 @@ from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.retries import MAX_DB_RETRIES, run_with_db_retries
 from airflow.utils.session import provide_session
 from airflow.utils.timeout import timeout
+from airflow.www.fab_security.sqla.models import Resource
 
 if TYPE_CHECKING:
     import pathlib
