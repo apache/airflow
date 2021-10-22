@@ -19,9 +19,9 @@
 import json
 import os
 from tempfile import mkstemp
-from airflow.utils.platform import IS_WINDOWS
 
 from airflow.configuration import conf
+from airflow.utils.platform import IS_WINDOWS
 
 
 def tmp_configuration_copy(chmod=0o600, include_env=True, include_cmds=True):
