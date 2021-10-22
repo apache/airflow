@@ -97,9 +97,11 @@ def template_upgrade_handler(ch, method: pika.spec.Basic.Deliver, properties: pi
         CurveTemplateModel.set(key=key, value=template, serialize_json=True)  # 此业务场景下 params不会变化故覆盖现有的variable
 
     except KeyError as e:
+        _logger.info(f"收到不存在的模板{template_name}，不进行任何操作")
+        return
         # 没有这个key 重新创建这个key
-        key = "{}@@{}".format(template_name, str(uuid.uuid4()))
-        CurveTemplateModel.set(key=key, value=template, serialize_json=True)
+        # key = "{}@@{}".format(template_name, str(uuid.uuid4()))
+        # CurveTemplateModel.set(key=key, value=template, serialize_json=True)
     except Exception as e:
         _logger.error("template_upgrade_handler error: {}".format(repr(e)))
     try:
