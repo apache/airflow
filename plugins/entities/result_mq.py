@@ -41,9 +41,12 @@ class ClsResultMQ(ClsEntity):
             "host": mq.host,
             "port": mq.port,
             "username": mq.login,
-            "password": mq.get_password(),
-            "vhost": mq.get_extra().get('vhost', '/')
+            "password": mq.get_password()
         }
+        try:
+            data.update(mq.extra_dejson)
+        except Exception as e:
+            _logger.error(e)
         return data
 
     def is_config_changed(self, **kwargs):
