@@ -34,6 +34,7 @@ class TestCassandraToGCS(unittest.TestCase):
         schema = "schema.json"
         filename = "data.json"
         gzip = True
+        query_timeout = 20
         mock_tempfile.return_value.name = TMP_FILE_NAME
 
         operator = CassandraToGCSOperator(
@@ -43,6 +44,7 @@ class TestCassandraToGCS(unittest.TestCase):
             filename=filename,
             schema_filename=schema,
             gzip=gzip,
+            query_timeout=query_timeout,
         )
         operator.execute(None)
         mock_hook.return_value.get_conn.assert_called_once_with()
