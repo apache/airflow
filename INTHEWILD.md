@@ -382,6 +382,7 @@ Currently, **officially** using Airflow:
 1. [Spotahome](https://www.spotahome.com/) [[@spotahome](https://github.com/spotahome)]
 1. [SpotHero](https://github.com/spothero) [[@benjigoldberg](https://github.com/benjigoldberg)]
 1. [Spotify](https://github.com/spotify) [[@znichols](https://github.com/znichols)]
+1. [Sprylab](https://www.sprylab.com) [[@MeTaNoV](https://github.com/MeTaNoV)]
 1. [Square](https://squareup.com/)
 1. [Stackspace](https://beta.stackspace.io/)
 1. [StoneCo](https://www.stone.co) [[@lgwacker](https://github.com/lgwacker)]
