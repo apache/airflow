@@ -200,6 +200,8 @@ class LocalTaskJob(BaseJob):
 
             if ti.run_as_user or self.task_runner.run_as_user:
                 recorded_pid = psutil.Process(ti.pid).ppid()
+                if recorded_pid == 0:
+                    recorded_pid = ti.pid
                 same_process = recorded_pid == current_pid
 
             if recorded_pid is not None and not same_process:

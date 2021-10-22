@@ -44,7 +44,11 @@ class StandardTaskRunner(BaseTaskRunner):
 
     def _start_by_exec(self):
         subprocess = self.run_command()
-        return psutil.Process(subprocess.pid)
+        if self.run_as_user:
+            ppid = psutil.Process(subprocess.pid).ppid()
+            return psutil.Process(ppid if ppid != 0 else subprocess.pid)
+        else:
+            return psutil.Process(subprocess.pid)
 
     def _start_by_fork(self):
         pid = os.fork()
