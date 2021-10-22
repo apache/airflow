@@ -816,7 +816,7 @@ class BaseOperator(Operator, LoggingMixin, TaskMixin, metaclass=BaseOperatorMeta
             raise AirflowException(f'Operator {self} has not been assigned to a DAG yet')
 
     @dag.setter
-    def dag(self, dag: 'DAG'):
+    def dag(self, dag: Optional['DAG']):
         """
         Operators can be assigned to one DAG, one time. Repeat assignments to
         that same DAG are ok.
