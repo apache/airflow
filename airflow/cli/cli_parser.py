@@ -725,7 +725,7 @@ ARG_NAMESPACE = Arg(
 # jobs check
 ARG_JOB_TYPE_FILTER = Arg(
     ('--job-type',),
-    choices=('BackfillJob', 'LocalTaskJob', 'SchedulerJob'),
+    choices=('BackfillJob', 'LocalTaskJob', 'SchedulerJob', 'TriggererJob'),
     action='store',
     help='The type of job(s) that will be checked.',
 )
