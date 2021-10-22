@@ -214,7 +214,8 @@ def upgrade():
         batch_op.drop_index('ti_pool')
         batch_op.drop_index('ti_state')
         batch_op.drop_index('ti_state_lkp')
-        batch_op.drop_index('ti_trigger_id')
+        if dialect_name != 'mysql':
+            batch_op.drop_index('ti_trigger_id')
 
     update_query = _multi_table_update(dialect_name, task_instance, task_instance.c.run_id)
     op.execute(update_query)
@@ -246,7 +247,8 @@ def upgrade():
         batch_op.create_index('ti_pool', ['pool', 'state', 'priority_weight'])
         batch_op.create_index('ti_state', ['state'])
         batch_op.create_index('ti_state_lkp', ['dag_id', 'task_id', 'run_id', 'state'])
-        batch_op.create_index('ti_trigger_id', ['trigger_id'])
+        if dialect_name != 'mysql':
+            batch_op.create_index('ti_trigger_id', ['trigger_id'])
 
     with op.batch_alter_table('task_reschedule', schema=None) as batch_op:
         batch_op.drop_column('execution_date')
