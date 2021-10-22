@@ -81,9 +81,15 @@ class _DataIntervalTimetable(Timetable):
                 return None
             start = self._align(earliest)
         else:
-            # There's a previous run. Create a data interval starting from when
-            # the end of the previous interval.
-            start = last_automated_data_interval.end
+            # There's a previous run.
+            if earliest is not None:
+                # Catchup is False or DAG has new start date in the future.
+                # Make sure we get the latest start date
+                start = max(last_automated_data_interval.end, earliest)
+            else:
+                # Create a data interval starting from when the end of the previous interval.
+                start = last_automated_data_interval.end
+
         if restriction.latest is not None and start > restriction.latest:
             return None
         end = self._get_next(start)
