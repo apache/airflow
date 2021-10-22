@@ -440,28 +440,29 @@ Currently, **officially** using Airflow:
 1. [Vnomics](https://github.com/vnomics) [[@lpalum](https://github.com/lpalum)]
 1. [Vodafone](https://www.vodafone.com) [[@nijanthanvijayakumar](https://github.com/nijanthanvijayakumar)]
 1. [Walmart Labs](https://www.walmartlabs.com) [[@bharathpalaksha](https://github.com/bharathpalaksha), [@vipul007ravi](https://github.com/vipul007ravi), [@pateash](https://github.com/pateash)]
-1. [Waze](https://www.waze.com) [[@waze](https://github.com/wazeHQ)]
-1. [WePay](http://www.wepay.com) [[@criccomini](https://github.com/criccomini) & [@mtagle](https://github.com/mtagle)]
-1. [WeTransfer](https://github.com/WeTransfer) [[@coredipper](https://github.com/coredipper) & [@higee](https://github.com/higee) & [@azclub](https://github.com/azclub)]
-1. [Whistle Labs](http://www.whistle.com) [[@ananya77041](https://github.com/ananya77041)]
-1. [Wildlifestudios](https://wildlifestudios.com/)
-1. [WiseBanyan](https://wisebanyan.com/)
-1. [Wise](https://wise.com) [[@koszti](https://github.com/koszti)]
-1. [Wisr](https://wisr.com.au/) [[@fsodano](https://github.com/fsodano) & [@vincyf1](https://github.com/vincyf1)]
-1. [WixAnswers](https://www.wixanswers.com/) [[@eladkal](https://github.com/eladkal)]
-1. [Wix](https://www.wix.com/) [[@eladkal](https://github.com/eladkal)]
-1. [Wooga](https://www.wooga.com/)
-1. [WorldRemit](https://www.worldremit.com/) [[@boittega](https://github.com/boittega)]
-1. [Wrike](https://www.wrike.com) [[@eliseealex](https://github.com/eliseealex) & [teoretic6](https://github.com/Teoretic6)]
-1. [Xero](https://www.xero.com/) [[@yan9yu](https://github.com/yan9yu) & [adamantnz](https://github.com/adamantnz/)]
-1. [Xoom](https://www.xoom.com/)
-1. [Yahoo!](https://www.yahoo.com/)
-1. [Yieldr](https://www.yieldr.com/) [[@ggeorgiadis](https://github.com/ggeorgiadis)]
-1. [Zalando](https://tech.zalando.com) [[@zalando](https://github.com/zalando) & [@zalando-incubator](https://github.com/zalando-incubator)]
-1. [Zapier](https://www.zapier.com) [[@drknexus](https://github.com/drknexus) & [@statwonk](https://github.com/statwonk)]
-1. [Zego](https://www.zego.com/) [[@ruimffl](https://github.com/ruimffl), [@james-welly](https://github.com/james-welly), [@ken-payne](https://github.com/ken-payne)]
-1. [Zendesk](https://www.github.com/zendesk)
-1. [Zenly](https://zen.ly) [[@cerisier](https://github.com/cerisier) & [@jbdalido](https://github.com/jbdalido)]
-1. [Zerodha](https://zerodha.com/) [[@johnnybravo-xyz](https://github.com/johnnybravo-xyz)]
-1. [Zymergen](https://www.zymergen.com/)
-1. [Zynga](https://www.zynga.com)
+2. [Wayfair](https://www.wayfair.com) [[@wayfair](https://github.com/wayfair)]
+3. [Waze](https://www.waze.com) [[@waze](https://github.com/wazeHQ)]
+4. [WePay](http://www.wepay.com) [[@criccomini](https://github.com/criccomini) & [@mtagle](https://github.com/mtagle)]
+5. [WeTransfer](https://github.com/WeTransfer) [[@coredipper](https://github.com/coredipper) & [@higee](https://github.com/higee) & [@azclub](https://github.com/azclub)]
+6. [Whistle Labs](http://www.whistle.com) [[@ananya77041](https://github.com/ananya77041)]
+7. [Wildlifestudios](https://wildlifestudios.com/)
+8. [WiseBanyan](https://wisebanyan.com/)
+9. [Wise](https://wise.com) [[@koszti](https://github.com/koszti)]
+10. [Wisr](https://wisr.com.au/) [[@fsodano](https://github.com/fsodano) & [@vincyf1](https://github.com/vincyf1)]
+11. [WixAnswers](https://www.wixanswers.com/) [[@eladkal](https://github.com/eladkal)]
+12. [Wix](https://www.wix.com/) [[@eladkal](https://github.com/eladkal)]
+13. [Wooga](https://www.wooga.com/)
+14. [WorldRemit](https://www.worldremit.com/) [[@boittega](https://github.com/boittega)]
+15. [Wrike](https://www.wrike.com) [[@eliseealex](https://github.com/eliseealex) & [teoretic6](https://github.com/Teoretic6)]
+16. [Xero](https://www.xero.com/) [[@yan9yu](https://github.com/yan9yu) & [adamantnz](https://github.com/adamantnz/)]
+17. [Xoom](https://www.xoom.com/)
+18. [Yahoo!](https://www.yahoo.com/)
+19. [Yieldr](https://www.yieldr.com/) [[@ggeorgiadis](https://github.com/ggeorgiadis)]
+20. [Zalando](https://tech.zalando.com) [[@zalando](https://github.com/zalando) & [@zalando-incubator](https://github.com/zalando-incubator)]
+21. [Zapier](https://www.zapier.com) [[@drknexus](https://github.com/drknexus) & [@statwonk](https://github.com/statwonk)]
+22. [Zego](https://www.zego.com/) [[@ruimffl](https://github.com/ruimffl), [@james-welly](https://github.com/james-welly), [@ken-payne](https://github.com/ken-payne)]
+23. [Zendesk](https://www.github.com/zendesk)
+24. [Zenly](https://zen.ly) [[@cerisier](https://github.com/cerisier) & [@jbdalido](https://github.com/jbdalido)]
+25. [Zerodha](https://zerodha.com/) [[@johnnybravo-xyz](https://github.com/johnnybravo-xyz)]
+26. [Zymergen](https://www.zymergen.com/)
+27. [Zynga](https://www.zynga.com)
