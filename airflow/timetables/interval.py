@@ -74,22 +74,22 @@ class _DataIntervalTimetable(Timetable):
         earliest = restriction.earliest
         if not restriction.catchup:
             earliest = self._skip_to_latest(earliest)
+        elif earliest is not None:
+            earliest = self._align(earliest)
         if last_automated_data_interval is None:
             # First run; schedule the run at the first available time matching
             # the schedule, and retrospectively create a data interval for it.
             if earliest is None:
                 return None
-            start = self._align(earliest)
-        else:
-            # There's a previous run.
+            start = earliest
+        else:  # There's a previous run.
             if earliest is not None:
                 # Catchup is False or DAG has new start date in the future.
-                # Make sure we get the latest start date
+                # Make sure we get the later one.
                 start = max(last_automated_data_interval.end, earliest)
             else:
-                # Create a data interval starting from when the end of the previous interval.
+                # Data interval starts from the end of the previous interval.
                 start = last_automated_data_interval.end
-
         if restriction.latest is not None and start > restriction.latest:
             return None
         end = self._get_next(start)
@@ -189,8 +189,8 @@ class CronDataIntervalTimetable(_DataIntervalTimetable):
     def _align(self, current: DateTime) -> DateTime:
         """Get the next scheduled time.
 
-        This is ``current + interval``, unless ``current`` is first interval,
-        then ``current`` is returned.
+        This is ``current + interval``, unless ``current`` falls right on the
+        interval boundary, when ``current`` is returned.
         """
         next_time = self._get_next(current)
         if self._get_prev(next_time) != current:
@@ -205,14 +205,14 @@ class CronDataIntervalTimetable(_DataIntervalTimetable):
 
         This is slightly different from the delta version at terminal values.
         If the next schedule should start *right now*, we want the data interval
-        that start right now now, not the one that ends now.
+        that start now, not the one that ends now.
         """
         current_time = DateTime.utcnow()
-        next_start = self._get_next(current_time)
         last_start = self._get_prev(current_time)
-        if next_start == current_time:
+        next_start = self._get_next(last_start)
+        if next_start == current_time:  # Current time is on interval boundary.
             new_start = last_start
-        elif next_start > current_time:
+        elif next_start > current_time:  # Current time is between boundaries.
             new_start = self._get_prev(last_start)
         else:
             raise AssertionError("next schedule shouldn't be earlier")
