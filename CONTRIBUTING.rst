@@ -198,37 +198,37 @@ Step 2: Configure Your Environment
 ----------------------------------
 
 You can use either a local virtual env or a Docker-based env. The differences
-between the two are explained `here <https://github.com/apache/airflow/blob/main/CONTRIBUTING.rst#development-environments>`_.
+between the two are explained here_. .._https://github.com/apache/airflow/blob/main/CONTRIBUTING.rst#development-environments
 
 The local env's instructions can be found in full in the  `LOCAL_VIRTUALENV.rst <https://github.com/apache/airflow/blob/main/LOCAL_VIRTUALENV.rst>`_ file.
 The Docker env is here to maintain a consistent and common development environment so that you can replicate CI failures locally and work on solving them locally rather by pushing to CI.
 
 You can configure the Docker-based Breeze development environment as follows:
 
-1. Install the latest versions of the `Docker Community Edition <https://github.com/apache/airflow/blob/main/BREEZE.rst#docker-community-edition>`_
-and `Docker Compose <https://github.com/apache/airflow/blob/main/BREEZE.rst#docker-compose>`_ and add them to the PATH.
+1. Install the latest versions of the `Docker Community Edition`_ .. _Docker Community Edition: https://github.com/apache/airflow/blob/main/BREEZE.rst#docker-community-edition_
+   and `Docker Compose`_. ..Docker Compose: https://github.com/apache/airflow/blob/main/BREEZE.rst#docker-compose and add them to the PATH.
 
 2. Install `jq <https://stedolan.github.io/jq/download/>`_ on your machine. The exact command depends on the operating system (or Linux distribution) you use.
-For example, on Ubuntu:
+   For example, on Ubuntu:
 
 .. code-block:: bash
 
-  sudo apt install jq
+   sudo apt install jq
 
-or on macOS with `Homebrew <https://formulae.brew.sh/formula/jq>`_
+   or on macOS with `Homebrew <https://formulae.brew.sh/formula/jq>`_
 
 .. code-block:: bash
 
-  brew install jq
+   brew install jq
 
 3. Enter Breeze, in airflow folder run:
 
 .. code-block:: bash
 
-  ./breeze
+   ./breeze
 
-Breeze starts with downloading the Airflow CI image from
-the Docker Hub and installing all required dependencies.
+  Breeze starts with downloading the Airflow CI image from
+  the Docker Hub and installing all required dependencies.
 
 4. Enter the Docker environment and mount your local sources
    to make them immediately visible in the environment.
