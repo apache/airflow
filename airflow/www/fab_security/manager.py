@@ -1345,7 +1345,7 @@ class BaseSecurityManager:
             # include public role
             roles = [self.get_public_role()]
         else:
-            roles = user.rolesxsd
+            roles = user.roles
         # First check against builtin (statically configured) roles
         # because no database query is needed
         result = set()
