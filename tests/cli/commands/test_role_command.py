@@ -89,7 +89,7 @@ class TestCliRoles:
         roles_list = ['FakeTeamA', 'FakeTeamB']
         with open(fn, 'w') as outfile:
             json.dump(roles_list, outfile)
-        role_command.roles_import(self.parser.parse_args(['roles', 'import', fn]))
+        role_command.roles_import(self.parser.parse_args(['roles', 'import', str(fn)]))
         assert self.appbuilder.sm.find_role('FakeTeamA') is not None
         assert self.appbuilder.sm.find_role('FakeTeamB') is not None
 
@@ -102,7 +102,7 @@ class TestCliRoles:
         assert self.appbuilder.sm.find_role('FakeTeamA') is not None
         assert self.appbuilder.sm.find_role('FakeTeamB') is not None
 
-        role_command.roles_export(self.parser.parse_args(['roles', 'export', fn]))
+        role_command.roles_export(self.parser.parse_args(['roles', 'export', str(fn)]))
         with open(fn) as outfile:
             roles_exported = json.load(outfile)
         assert 'FakeTeamA' in roles_exported
