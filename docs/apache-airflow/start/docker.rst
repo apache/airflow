@@ -338,7 +338,7 @@ users with the most common customizations.
 |                                  | want to start a container with embedded development |                          |
 |                                  | database.                                           |                          |
 +----------------------------------+-----------------------------------------------------+--------------------------+
-| ``_AIRFLOW_WWW_USER_PASSWORD``   | Password for the administrator UI account.          | airflow                  |
+| ``_AIRFLOW_WWW_USER_PASSWORD``   | Password for the administrator UI account.          | Airflow123               |
 |                                  | Only used when ``_AIRFLOW_WWW_USER_USERNAME`` set.  |                          |
 +----------------------------------+-----------------------------------------------------+--------------------------+
 | ``_PIP_ADDITIONAL_REQUIREMENTS`` | If not empty, airflow containers will attempt to    |                          |
