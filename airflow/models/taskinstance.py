@@ -1776,6 +1776,7 @@ class TaskInstance(Base, LoggingMixin):
         integrate_macros_plugins()
 
         dag_run = self.get_dagrun(session)
+        data_interval = dag.get_run_data_interval(dag_run)
 
         params = ParamsDict(suppress_exception=ignore_param_exceptions)
 
@@ -1996,8 +1997,8 @@ class TaskInstance(Base, LoggingMixin):
             'conf': conf,
             'dag': dag,
             'dag_run': dag_run,
-            'data_interval_end': timezone.coerce_datetime(dag_run.data_interval_end),
-            'data_interval_start': timezone.coerce_datetime(dag_run.data_interval_start),
+            'data_interval_end': timezone.coerce_datetime(data_interval.end),
+            'data_interval_start': timezone.coerce_datetime(data_interval.start),
             'ds': ds,
             'ds_nodash': ds_nodash,
             'execution_date': deprecated_proxy(
