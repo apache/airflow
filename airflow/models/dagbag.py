@@ -50,6 +50,7 @@ from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.retries import MAX_DB_RETRIES, run_with_db_retries
 from airflow.utils.session import provide_session
 from airflow.utils.timeout import timeout
+from airflow.www.fab_security.sqla.models import Resource
 
 if TYPE_CHECKING:
     import pathlib
@@ -630,25 +631,24 @@ class DagBag(LoggingMixin):
     @provide_session
     def _sync_perm_for_dag(self, dag, session: Optional[Session] = None):
         """Sync DAG specific permissions, if necessary"""
-        from flask_appbuilder.security.sqla import models as sqla_models
-
         from airflow.security.permissions import DAG_ACTIONS, resource_name_for_dag
+        from airflow.www.fab_security.sqla.models import Action, Permission
 
-        def needs_perm_views(dag_id: str) -> bool:
+        def needs_perms(dag_id: str) -> bool:
             dag_resource_name = resource_name_for_dag(dag_id)
             for permission_name in DAG_ACTIONS:
                 if not (
-                    session.query(sqla_models.PermissionView)
-                    .join(sqla_models.Permission)
-                    .join(sqla_models.ViewMenu)
-                    .filter(sqla_models.Permission.name == permission_name)
-                    .filter(sqla_models.ViewMenu.name == dag_resource_name)
+                    session.query(Permission)
+                    .join(Action)
+                    .join(Resource)
+                    .filter(Action.name == permission_name)
+                    .filter(Resource.name == dag_resource_name)
                     .one_or_none()
                 ):
                     return True
             return False
 
-        if dag.access_control or needs_perm_views(dag.dag_id):
+        if dag.access_control or needs_perms(dag.dag_id):
             self.log.debug("Syncing DAG permissions: %s to the DB", dag.dag_id)
             from airflow.www.security import ApplessAirflowSecurityManager
 

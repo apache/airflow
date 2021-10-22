@@ -16,11 +16,11 @@
 # under the License.
 
 import pytest
-from flask_appbuilder.security.sqla.models import Role
 from parameterized import parameterized
 
 from airflow.api_connexion.exceptions import EXCEPTIONS_LINK_MAP
 from airflow.security import permissions
+from airflow.www.fab_security.sqla.models import Role
 from airflow.www.security import EXISTING_ROLES
 from tests.test_utils.api_connexion_utils import (
     assert_401,
@@ -371,8 +371,8 @@ class TestPatchRole(TestRoleEndpoint):
 
         updated_permissions = self.app.appbuilder.sm.find_role("role_to_change").permissions
         assert len(updated_permissions) == 1
-        assert updated_permissions[0].view_menu.name == "XComs"
-        assert updated_permissions[0].permission.name == "can_delete"
+        assert updated_permissions[0].resource.name == "XComs"
+        assert updated_permissions[0].action.name == "can_delete"
 
         assert len(self.app.appbuilder.sm.find_role("already_exists").permissions) == 0
 
@@ -439,12 +439,12 @@ class TestPatchRole(TestRoleEndpoint):
                     "name": "testme",
                     "actions": [
                         {
-                            "view_menu": {"name": "Connections"},  # Using view_menu instead of resource
+                            "resource": {"name": "Connections"},  # Using resource instead of resource
                             "action": {"name": "can_create"},
                         }
                     ],
                 },
-                "{'actions': {0: {'view_menu': ['Unknown field.']}}}",
+                "{'actions': {0: {'resource': ['Unknown field.']}}}",
             ),
             (
                 {
