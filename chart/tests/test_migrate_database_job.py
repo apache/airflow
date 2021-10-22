@@ -146,14 +146,12 @@ class TestMigrateDatabaseJob:
         )
 
         assert {
-            "resources": {
-                "requests": {
-                    "cpu": "1000mi",
-                    "memory": "512Mi",
-                },
-                "limits": {
-                    "cpu": "1000mi",
-                    "memory": "512Mi",
-                },
+            "requests": {
+                "cpu": "1000mi",
+                "memory": "512Mi",
             },
-        } == jmespath.search("spec.template.spec.containers[-1]", docs[0])
+            "limits": {
+                "cpu": "1000mi",
+                "memory": "512Mi",
+            },
+        } == jmespath.search("spec.template.spec.containers[0].resources", docs[0])
