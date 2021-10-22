@@ -115,9 +115,6 @@ class SFTPHook(SSHHook):
                 if 'ciphers' in extra_options:
                     self.ciphers = extra_options['ciphers']
 
-                if 'private_key' in extra_options:
-                    self.key_file = extra_options.get('private_key')
-
     @tenacity.retry(
         stop=tenacity.stop_after_delay(10),
         wait=tenacity.wait_exponential(multiplier=1, max=10),
@@ -146,7 +143,9 @@ class SFTPHook(SSHHook):
             }
             if self.password and self.password.strip():
                 conn_params['password'] = self.password
-            if self.key_file:
+            if self.pkey:
+                conn_params['private_key'] = self.pkey
+            elif self.key_file:
                 conn_params['private_key'] = self.key_file
             if self.private_key_pass:
                 conn_params['private_key_pass'] = self.private_key_pass
