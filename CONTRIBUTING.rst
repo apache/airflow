@@ -198,17 +198,17 @@ Step 2: Configure Your Environment
 ----------------------------------
 
 You can use either a local virtual env or a Docker-based env. The differences
-between the two are explained `_here <https://github.com/apache/airflow/blob/main/CONTRIBUTING.rst#development-environments>`_.
+between the two are explained `here <https://github.com/apache/airflow/blob/main/CONTRIBUTING.rst#development-environments>`_.
 
-The local env's instructions can be found in full in the  _`LOCAL_VIRTUALENV.rst_ <https://github.com/apache/airflow/blob/main/LOCAL_VIRTUALENV.rst`_ file.
+The local env's instructions can be found in full in the  _LOCAL_VIRTUALENV.rst: https://github.com/apache/airflow/blob/main/LOCAL_VIRTUALENV.rst file.
 The Docker env is here to maintain a consistent and common development environment so that you can replicate CI failures locally and work on solving them locally rather by pushing to CI.
 
 You can configure the Docker-based Breeze development environment as follows:
 
-1. Install the latest versions of the `Docker Community Edition`_ .. _Docker Community Edition: https://github.com/apache/airflow/blob/main/BREEZE.rst#docker-community-edition
-   and `Docker Compose`_ .. _Docker Compose: https://github.com/apache/airflow/blob/main/BREEZE.rst#docker-compose and add them to the PATH.
+1. Install the latest versions of the _Docker Community Edition: https://github.com/apache/airflow/blob/main/BREEZE.rst#docker-community-edition
+   and _Docker Compose: https://github.com/apache/airflow/blob/main/BREEZE.rst#docker-compose and add them to the PATH.
 
-2. Install jq_ .. _jq: https://stedolan.github.io/jq/download/ on your machine. The exact command depends on the operating system (or Linux distribution) you use.
+2. Install _jq: https://stedolan.github.io/jq/download/ on your machine. The exact command depends on the operating system (or Linux distribution) you use.
    For example, on Ubuntu:
 
 .. code-block:: bash
