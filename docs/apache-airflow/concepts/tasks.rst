@@ -163,6 +163,10 @@ If you want to disable SLA checking entirely, you can set ``check_slas = False``
 
 To read more about configuring the emails, see :doc:`/howto/email-config`.
 
+.. note::
+
+    Only scheduled tasks, in a DAG with a valid ``schedule_interval``, will be checked against SLA.  For more information on ``schedule_interval`` values, see :doc:`DAG Run </dag-run>`.
+
 .. _concepts:sla_miss_callback:
 
 sla_miss_callback
