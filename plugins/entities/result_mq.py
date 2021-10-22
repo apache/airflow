@@ -41,7 +41,8 @@ class ClsResultMQ(ClsEntity):
             "host": mq.host,
             "port": mq.port,
             "username": mq.login,
-            "password": mq.get_password()
+            "password": mq.get_password(),
+            "vhost": mq.get_extra().get('vhost', '/')
         }
         return data
 
