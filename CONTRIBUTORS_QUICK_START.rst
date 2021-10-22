@@ -360,7 +360,7 @@ Using Breeze
    Here are links to those services that you can use on host:
      * Webserver: http://127.0.0.1:28080
      * Flower:    http://127.0.0.1:25555
-     * Postgres:  jdbc:postgresql://127.0.0.1:25433/airflow?user=postgres&password=airflow
+     * Postgres:  jdbc:postgresql://127.0.0.1:25433/airflow?user=postgres&password=Airflow123
      * Mysql:     jdbc:mysql://127.0.0.1:23306/airflow?user=root
      * Redis:     redis://127.0.0.1:26379/0
 
@@ -1184,7 +1184,7 @@ Using Breeze
    Here are links to those services that you can use on host:
      * Webserver: http://127.0.0.1:28080
      * Flower:    http://127.0.0.1:25555
-     * Postgres:  jdbc:postgresql://127.0.0.1:25433/airflow?user=postgres&password=airflow
+     * Postgres:  jdbc:postgresql://127.0.0.1:25433/airflow?user=postgres&password=Airflow123
      * Mysql:     jdbc:mysql://127.0.0.1:23306/airflow?user=root
      * Redis:     redis://127.0.0.1:26379/0
 

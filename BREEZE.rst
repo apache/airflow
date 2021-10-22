@@ -1049,7 +1049,7 @@ You can connect to these ports/databases using:
 
 * Webserver: ``http://127.0.0.1:28080``
 * Flower: ``http://127.0.0.1:25555``
-* Postgres: ``jdbc:postgresql://127.0.0.1:25433/airflow?user=postgres&password=airflow``
+* Postgres: ``jdbc:postgresql://127.0.0.1:25433/airflow?user=postgres&password=Airflow123``
 * Mysql: ``jdbc:mysql://127.0.0.1:23306/airflow?user=root``
 * Redis: ``redis://127.0.0.1:26379/0```
 

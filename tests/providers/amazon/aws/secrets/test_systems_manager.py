@@ -40,14 +40,14 @@ class TestSsmSecrets(TestCase):
         param = {
             'Name': '/airflow/connections/test_postgres',
             'Type': 'String',
-            'Value': 'postgresql://airflow:airflow@host:5432/airflow',
+            'Value': 'postgresql://airflow:Airflow123@host:5432/airflow',
         }
 
         ssm_backend = SystemsManagerParameterStoreBackend()
         ssm_backend.client.put_parameter(**param)
 
         returned_uri = ssm_backend.get_conn_uri(conn_id="test_postgres")
-        assert 'postgresql://airflow:airflow@host:5432/airflow' == returned_uri
+        assert 'postgresql://airflow:Airflow123@host:5432/airflow' == returned_uri
 
     @mock_ssm
     def test_get_conn_uri_non_existent_key(self):
@@ -59,7 +59,7 @@ class TestSsmSecrets(TestCase):
         param = {
             'Name': '/airflow/connections/test_postgres',
             'Type': 'String',
-            'Value': 'postgresql://airflow:airflow@host:5432/airflow',
+            'Value': 'postgresql://airflow:Airflow123@host:5432/airflow',
         }
 
         ssm_backend = SystemsManagerParameterStoreBackend()

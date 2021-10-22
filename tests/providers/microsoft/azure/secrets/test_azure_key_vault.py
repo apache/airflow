@@ -40,7 +40,7 @@ class TestAzureKeyVaultBackend(TestCase):
         mock_secret_client.return_value = mock_sec_client
 
         mock_sec_client.get_secret.return_value = mock.Mock(
-            value='postgresql://airflow:airflow@host:5432/airflow'
+            value='postgresql://airflow:Airflow123@host:5432/airflow'
         )
 
         backend = AzureKeyVaultBackend(vault_url="https://example-akv-resource-name.vault.azure.net/")
@@ -48,7 +48,7 @@ class TestAzureKeyVaultBackend(TestCase):
         mock_secret_client.assert_called_once_with(
             credential=mock_cred, vault_url='https://example-akv-resource-name.vault.azure.net/'
         )
-        assert returned_uri == 'postgresql://airflow:airflow@host:5432/airflow'
+        assert returned_uri == 'postgresql://airflow:Airflow123@host:5432/airflow'
 
     @mock.patch('airflow.providers.microsoft.azure.secrets.azure_key_vault.AzureKeyVaultBackend.client')
     def test_get_conn_uri_non_existent_key(self, mock_client):

@@ -89,7 +89,7 @@ class TestConnectionsFromSecrets(unittest.TestCase):
     @mock.patch.dict(
         'os.environ',
         {
-            'AIRFLOW_CONN_TEST_MYSQL': 'mysql://airflow:airflow@host:5432/airflow',
+            'AIRFLOW_CONN_TEST_MYSQL': 'mysql://airflow:Airflow123@host:5432/airflow',
         },
     )
     @mock.patch(
@@ -108,7 +108,7 @@ class TestConnectionsFromSecrets(unittest.TestCase):
         # Assert that SystemsManagerParameterStoreBackend.get_conn_uri was called
         mock_get_uri.assert_called_once_with(conn_id='test_mysql')
 
-        assert 'mysql://airflow:airflow@host:5432/airflow' == conn.get_uri()
+        assert 'mysql://airflow:Airflow123@host:5432/airflow' == conn.get_uri()
 
 
 class TestVariableFromSecrets(unittest.TestCase):

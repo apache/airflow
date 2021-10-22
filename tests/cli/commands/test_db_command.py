@@ -103,7 +103,7 @@ class TestCliDb(unittest.TestCase):
         assert {
             'PGDATABASE': 'airflow',
             'PGHOST': 'postgres',
-            'PGPASSWORD': 'airflow',
+            'PGPASSWORD': 'Airflow123',
             'PGPORT': '5432',
             'PGUSER': 'postgres',
         } == postgres_env
@@ -122,14 +122,14 @@ class TestCliDb(unittest.TestCase):
         assert {
             'PGDATABASE': 'airflow',
             'PGHOST': 'postgres',
-            'PGPASSWORD': 'airflow',
+            'PGPASSWORD': 'Airflow123',
             'PGPORT': '5432',
             'PGUSER': 'postgres',
         } == postgres_env
 
     @mock.patch(
         "airflow.cli.commands.db_command.settings.engine.url",
-        make_url("invalid+psycopg2://postgres:airflow@postgres/airflow"),
+        make_url("invalid+psycopg2://postgres:Airflow123@postgres/airflow"),
     )
     def test_cli_shell_invalid(self):
         with pytest.raises(AirflowException, match=r"Unknown driver: invalid\+psycopg2"):

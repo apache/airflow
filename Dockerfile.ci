@@ -106,7 +106,7 @@ COPY scripts/docker/*.sh /scripts/docker/
 RUN bash /scripts/docker/install_mysql.sh dev \
     && bash /scripts/docker/install_mssql.sh \
     && adduser airflow \
-    && echo "airflow:airflow" | chpasswd \
+    && echo "airflow:Airflow123" | chpasswd \
     && echo "airflow ALL=(ALL) NOPASSWD: ALL" > /etc/sudoers.d/airflow \
     && chmod 0440 /etc/sudoers.d/airflow
 

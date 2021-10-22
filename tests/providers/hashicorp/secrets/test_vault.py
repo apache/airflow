@@ -34,7 +34,7 @@ class TestVaultSecrets(TestCase):
             'renewable': False,
             'lease_duration': 0,
             'data': {
-                'data': {'conn_uri': 'postgresql://airflow:airflow@host:5432/airflow'},
+                'data': {'conn_uri': 'postgresql://airflow:Airflow123@host:5432/airflow'},
                 'metadata': {
                     'created_time': '2020-03-16T21:01:43.331126Z',
                     'deletion_time': '',
@@ -57,7 +57,7 @@ class TestVaultSecrets(TestCase):
 
         test_client = VaultBackend(**kwargs)
         returned_uri = test_client.get_conn_uri(conn_id="test_postgres")
-        assert 'postgresql://airflow:airflow@host:5432/airflow' == returned_uri
+        assert 'postgresql://airflow:Airflow123@host:5432/airflow' == returned_uri
 
     @mock.patch("airflow.providers.hashicorp._internal_client.vault_client.hvac")
     def test_get_connection(self, mock_hvac):
@@ -100,7 +100,7 @@ class TestVaultSecrets(TestCase):
 
         test_client = VaultBackend(**kwargs)
         connection = test_client.get_connection(conn_id="test_postgres")
-        assert 'postgresql://airflow:airflow@host:5432/airflow?foo=bar&baz=taz' == connection.get_uri()
+        assert 'postgresql://airflow:Airflow123@host:5432/airflow?foo=bar&baz=taz' == connection.get_uri()
 
     @mock.patch("airflow.providers.hashicorp._internal_client.vault_client.hvac")
     def test_get_conn_uri_engine_version_1(self, mock_hvac):
@@ -111,7 +111,7 @@ class TestVaultSecrets(TestCase):
             'lease_id': '',
             'renewable': False,
             'lease_duration': 2764800,
-            'data': {'conn_uri': 'postgresql://airflow:airflow@host:5432/airflow'},
+            'data': {'conn_uri': 'postgresql://airflow:Airflow123@host:5432/airflow'},
             'wrap_info': None,
             'warnings': None,
             'auth': None,
@@ -131,7 +131,7 @@ class TestVaultSecrets(TestCase):
         mock_client.secrets.kv.v1.read_secret.assert_called_once_with(
             mount_point='airflow', path='connections/test_postgres'
         )
-        assert 'postgresql://airflow:airflow@host:5432/airflow' == returned_uri
+        assert 'postgresql://airflow:Airflow123@host:5432/airflow' == returned_uri
 
     @mock.patch("airflow.providers.hashicorp._internal_client.vault_client.hvac")
     def test_get_conn_uri_engine_version_1_custom_auth_mount_point(self, mock_hvac):
@@ -142,7 +142,7 @@ class TestVaultSecrets(TestCase):
             'lease_id': '',
             'renewable': False,
             'lease_duration': 2764800,
-            'data': {'conn_uri': 'postgresql://airflow:airflow@host:5432/airflow'},
+            'data': {'conn_uri': 'postgresql://airflow:Airflow123@host:5432/airflow'},
             'wrap_info': None,
             'warnings': None,
             'auth': None,
@@ -164,12 +164,12 @@ class TestVaultSecrets(TestCase):
         mock_client.secrets.kv.v1.read_secret.assert_called_once_with(
             mount_point='airflow', path='connections/test_postgres'
         )
-        assert 'postgresql://airflow:airflow@host:5432/airflow' == returned_uri
+        assert 'postgresql://airflow:Airflow123@host:5432/airflow' == returned_uri
 
     @mock.patch.dict(
         'os.environ',
         {
-            'AIRFLOW_CONN_TEST_MYSQL': 'mysql://airflow:airflow@host:5432/airflow',
+            'AIRFLOW_CONN_TEST_MYSQL': 'mysql://airflow:Airflow123@host:5432/airflow',
         },
     )
     @mock.patch("airflow.providers.hashicorp._internal_client.vault_client.hvac")

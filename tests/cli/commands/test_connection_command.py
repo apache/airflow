@@ -481,7 +481,7 @@ class TestCliExportConnections(unittest.TestCase):
         mock_file_open.return_value.write.assert_called_once_with(expected_connections)
 
 
-TEST_URL = "postgresql://airflow:airflow@host:5432/airflow"
+TEST_URL = "postgresql://airflow:Airflow123@host:5432/airflow"
 
 
 class TestCliAddConnections(unittest.TestCase):
@@ -504,7 +504,7 @@ class TestCliAddConnections(unittest.TestCase):
                     f"--conn-uri={TEST_URL}",
                     "--conn-description=new0 description",
                 ],
-                "Successfully added `conn_id`=new0 : postgresql://airflow:airflow@host:5432/airflow",
+                "Successfully added `conn_id`=new0 : postgresql://airflow:Airflow123@host:5432/airflow",
                 {
                     "conn_type": "postgres",
                     "description": "new0 description",
@@ -524,7 +524,7 @@ class TestCliAddConnections(unittest.TestCase):
                     f"--conn-uri={TEST_URL}",
                     "--conn-description=new1 description",
                 ],
-                "Successfully added `conn_id`=new1 : postgresql://airflow:airflow@host:5432/airflow",
+                "Successfully added `conn_id`=new1 : postgresql://airflow:Airflow123@host:5432/airflow",
                 {
                     "conn_type": "postgres",
                     "description": "new1 description",
@@ -545,7 +545,7 @@ class TestCliAddConnections(unittest.TestCase):
                     "--conn-extra",
                     "{'extra': 'yes'}",
                 ],
-                "Successfully added `conn_id`=new2 : postgresql://airflow:airflow@host:5432/airflow",
+                "Successfully added `conn_id`=new2 : postgresql://airflow:Airflow123@host:5432/airflow",
                 {
                     "conn_type": "postgres",
                     "description": None,
@@ -568,7 +568,7 @@ class TestCliAddConnections(unittest.TestCase):
                     "--conn-description",
                     "new3 description",
                 ],
-                "Successfully added `conn_id`=new3 : postgresql://airflow:airflow@host:5432/airflow",
+                "Successfully added `conn_id`=new3 : postgresql://airflow:Airflow123@host:5432/airflow",
                 {
                     "conn_type": "postgres",
                     "description": "new3 description",
@@ -587,7 +587,7 @@ class TestCliAddConnections(unittest.TestCase):
                     "new4",
                     "--conn-type=hive_metastore",
                     "--conn-login=airflow",
-                    "--conn-password=airflow",
+                    "--conn-password=Airflow123",
                     "--conn-host=host",
                     "--conn-port=9083",
                     "--conn-schema=airflow",

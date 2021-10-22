@@ -35,11 +35,11 @@ CONNECTIONS_PREFIX = "test-connections"
 VARIABLES_PREFIX = "test-variables"
 SEP = '-'
 CONN_ID = 'test-postgres'
-CONN_URI = 'postgresql://airflow:airflow@host:5432/airflow'
+CONN_URI = 'postgresql://airflow:Airflow123@host:5432/airflow'
 VAR_KEY = 'hello'
 VAR_VALUE = 'world'
 CONFIG_KEY = 'sql_alchemy_conn'
-CONFIG_VALUE = 'postgresql://airflow:airflow@host:5432/airflow'
+CONFIG_VALUE = 'postgresql://airflow:Airflow123@host:5432/airflow'
 
 MODULE_NAME = "airflow.providers.google.cloud.secrets.secret_manager"
 CLIENT_MODULE_NAME = "airflow.providers.google.cloud._internal_client.secret_manager_client"
