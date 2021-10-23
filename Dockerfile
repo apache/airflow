@@ -21,13 +21,12 @@
 #
 # airflow-build-image  - there all airflow dependencies can be installed (and
 #                        built - for those dependencies that require
-#                        build essentials). Airflow is installed there with
-#                        --user switch so that all the dependencies are
-#                        installed to ${HOME}/.local
+#                        build essentials). Python dependencies are installed
+#                        into a virtual environment at ${HOME}/.venv
 #
 # main                 - this is the actual production image that is much
 #                        smaller because it does not contain all the build
-#                        essentials. Instead the ${HOME}/.local folder
+#                        essentials. Instead the ${HOME}/.venv folder
 #                        is copied from the build-image - this way we have
 #                        only result of installation and we do not need
 #                        all the build essentials. This makes the image
@@ -43,7 +42,7 @@ ARG AIRFLOW_UID="50000"
 
 ARG PYTHON_BASE_IMAGE="python:3.6-slim-buster"
 
-ARG AIRFLOW_PIP_VERSION=21.2.4
+ARG AIRFLOW_PIP_VERSION=21.3.1
 ARG AIRFLOW_IMAGE_REPOSITORY="https://github.com/apache/airflow"
 
 # By default PIP has progress bar but you can disable it.
@@ -174,25 +173,12 @@ ARG AIRFLOW_SOURCES_FROM="empty"
 ARG AIRFLOW_SOURCES_TO="/empty"
 
 ENV INSTALL_MYSQL_CLIENT=${INSTALL_MYSQL_CLIENT} \
-    INSTALL_MSSQL_CLIENT=${INSTALL_MSSQL_CLIENT} \
-    AIRFLOW_REPO=${AIRFLOW_REPO} \
-    AIRFLOW_BRANCH=${AIRFLOW_BRANCH} \
-    AIRFLOW_EXTRAS=${AIRFLOW_EXTRAS}${ADDITIONAL_AIRFLOW_EXTRAS:+,}${ADDITIONAL_AIRFLOW_EXTRAS} \
-    CONSTRAINTS_GITHUB_REPOSITORY=${CONSTRAINTS_GITHUB_REPOSITORY} \
-    AIRFLOW_CONSTRAINTS=${AIRFLOW_CONSTRAINTS} \
-    AIRFLOW_CONSTRAINTS_REFERENCE=${AIRFLOW_CONSTRAINTS_REFERENCE} \
-    AIRFLOW_CONSTRAINTS_LOCATION=${AIRFLOW_CONSTRAINTS_LOCATION} \
-    DEFAULT_CONSTRAINTS_BRANCH=${DEFAULT_CONSTRAINTS_BRANCH} \
-    PATH=${PATH}:/root/.local/bin \
-    AIRFLOW_PIP_VERSION=${AIRFLOW_PIP_VERSION} \
-    PIP_PROGRESS_BAR=${PIP_PROGRESS_BAR} \
-    # Install Airflow with "--user" flag, so that we can copy the whole .local folder to the final image
-    # from the build image and always in non-editable mode
-    AIRFLOW_INSTALL_USER_FLAG="--user" \
-    AIRFLOW_INSTALL_EDITABLE_FLAG="" \
-    UPGRADE_TO_NEWER_DEPENDENCIES=${UPGRADE_TO_NEWER_DEPENDENCIES}
+    INSTALL_MSSQL_CLIENT=${INSTALL_MSSQL_CLIENT}
 
-COPY scripts/docker/*.sh /scripts/docker/
+# Only copy mysql/mssql installation scripts for now - so that changing the other
+# scripts which are needed much later will not invalidate the docker layer here
+COPY scripts/docker/install_mysql.sh scripts/docker/install_mssql.sh /scripts/docker/
+
 RUN bash ./scripts/docker/install_mysql.sh dev \
     && bash ./scripts/docker/install_mssql.sh
 ENV PATH=${PATH}:/opt/mssql-tools/bin
@@ -203,13 +189,34 @@ RUN if [[ -f /docker-context-files/.pypirc ]]; then \
         cp /docker-context-files/.pypirc /root/.pypirc; \
     fi
 
-ENV AIRFLOW_PRE_CACHED_PIP_PACKAGES=${AIRFLOW_PRE_CACHED_PIP_PACKAGES} \
+ENV PATH=/.venv/bin:${PATH} \
+    PIP_PROGRESS_BAR=${PIP_PROGRESS_BAR} \
+    AIRFLOW_PIP_VERSION=${AIRFLOW_PIP_VERSION} \
+    AIRFLOW_PRE_CACHED_PIP_PACKAGES=${AIRFLOW_PRE_CACHED_PIP_PACKAGES} \
     INSTALL_PROVIDERS_FROM_SOURCES=${INSTALL_PROVIDERS_FROM_SOURCES} \
     AIRFLOW_VERSION=${AIRFLOW_VERSION} \
     AIRFLOW_INSTALLATION_METHOD=${AIRFLOW_INSTALLATION_METHOD} \
     AIRFLOW_VERSION_SPECIFICATION=${AIRFLOW_VERSION_SPECIFICATION} \
     AIRFLOW_SOURCES_FROM=${AIRFLOW_SOURCES_FROM} \
-    AIRFLOW_SOURCES_TO=${AIRFLOW_SOURCES_TO}
+    AIRFLOW_SOURCES_TO=${AIRFLOW_SOURCES_TO} \
+    AIRFLOW_CONSTRAINTS=${AIRFLOW_CONSTRAINTS} \
+    AIRFLOW_CONSTRAINTS_REFERENCE=${AIRFLOW_CONSTRAINTS_REFERENCE} \
+    AIRFLOW_CONSTRAINTS_LOCATION=${AIRFLOW_CONSTRAINTS_LOCATION} \
+    DEFAULT_CONSTRAINTS_BRANCH=${DEFAULT_CONSTRAINTS_BRANCH} \
+    # Install Airflow in a virtual environment, so that we can copy the whole
+    # .venv folder to the final image
+    # from the build image and always in non-editable mode
+    AIRFLOW_INSTALL_EDITABLE_FLAG="" \
+    AIRFLOW_REPO=${AIRFLOW_REPO} \
+    AIRFLOW_BRANCH=${AIRFLOW_BRANCH} \
+    AIRFLOW_EXTRAS=${AIRFLOW_EXTRAS}${ADDITIONAL_AIRFLOW_EXTRAS:+,}${ADDITIONAL_AIRFLOW_EXTRAS} \
+    CONSTRAINTS_GITHUB_REPOSITORY=${CONSTRAINTS_GITHUB_REPOSITORY} \
+    UPGRADE_TO_NEWER_DEPENDENCIES=${UPGRADE_TO_NEWER_DEPENDENCIES}
+
+
+# Copy all scripts required for installation - changing any of those should lead to
+# rebuilding from here
+COPY scripts/docker/*.sh /scripts/docker/
 
 # In case of Production build image segment we want to pre-install main version of airflow
 # dependencies from GitHub so that we do not have to always reinstall it from the scratch.
@@ -218,7 +225,8 @@ ENV AIRFLOW_PRE_CACHED_PIP_PACKAGES=${AIRFLOW_PRE_CACHED_PIP_PACKAGES} \
 # the cache is only used when "upgrade to newer dependencies" is not set to automatically
 # account for removed dependencies (we do not install them in the first place)
 # Upgrade to specific PIP version
-RUN bash /scripts/docker/install_pip_version.sh; \
+RUN bash /scripts/docker/create_venv.sh; \
+    bash /scripts/docker/install_pip_version.sh; \
     if [[ ${AIRFLOW_PRE_CACHED_PIP_PACKAGES} == "true" && \
           ${UPGRADE_TO_NEWER_DEPENDENCIES} == "false" ]]; then \
         bash /scripts/docker/install_airflow_dependencies_from_branch_tip.sh; \
@@ -264,19 +272,21 @@ RUN if [[ ${AIRFLOW_INSTALLATION_METHOD} == "." ]]; then \
     if [[ -n "${ADDITIONAL_PYTHON_DEPS}" ]]; then \
         bash /scripts/docker/install_additional_dependencies.sh; \
     fi; \
-    find /root/.local/ -name '*.pyc' -print0 | xargs -0 rm -r || true ; \
-    find /root/.local/ -type d -name '__pycache__' -print0 | xargs -0 rm -r || true ; \
-    # make sure that all directories and files in .local are also group accessible
-    find /root/.local -executable -print0 | xargs --null chmod g+x; \
-    find /root/.local -print0 | xargs --null chmod g+rw
+    find /.venv/ -name '*.pyc' -print0 | xargs -0 rm -r || true ; \
+    find /.venv/ -type d -name '__pycache__' -print0 | xargs -0 rm -r || true ; \
+    # make sure that all directories and files in .venv are also group accessible
+    find /.venv -executable -print0 | xargs --null chmod g+x; \
+    find /.venv -print0 | xargs --null chmod g+rw
 
 # In case there is a requirements.txt file in "docker-context-files" it will be installed
 # during the build additionally to whatever has been installed so far. It is recommended that
 # the requirements.txt contains only dependencies with == version specification
 RUN if [[ -f /docker-context-files/requirements.txt ]]; then \
-        pip install --no-cache-dir --user -r /docker-context-files/requirements.txt; \
+        pip install --no-cache-dir -r /docker-context-files/requirements.txt; \
     fi
 
+# Those should be set and used as late as possible as any change in commit/build otherwise invalidates the
+# layers right after
 ARG BUILD_ID
 ARG COMMIT_SHA
 ARG AIRFLOW_IMAGE_REPOSITORY
@@ -382,12 +392,8 @@ ARG AIRFLOW_HOME
 # Having the variable in final image allows to disable providers manager warnings when
 # production image is prepared from sources rather than from package
 ARG AIRFLOW_INSTALLATION_METHOD="apache-airflow"
-ARG BUILD_ID
-ARG COMMIT_SHA
 ARG AIRFLOW_IMAGE_REPOSITORY
 ARG AIRFLOW_IMAGE_DATE_CREATED
-# By default PIP will install everything in ~/.local
-ARG PIP_USER="true"
 
 ENV RUNTIME_APT_DEPS=${RUNTIME_APT_DEPS} \
     ADDITIONAL_RUNTIME_APT_DEPS=${ADDITIONAL_RUNTIME_APT_DEPS} \
@@ -399,12 +405,9 @@ ENV RUNTIME_APT_DEPS=${RUNTIME_APT_DEPS} \
     AIRFLOW__CORE__LOAD_EXAMPLES="false" \
     AIRFLOW_USER_HOME_DIR=${AIRFLOW_USER_HOME_DIR} \
     AIRFLOW_HOME=${AIRFLOW_HOME} \
-    PATH="${AIRFLOW_USER_HOME_DIR}/.local/bin:${PATH}" \
+    PATH="/.venv/bin:${PATH}" \
     GUNICORN_CMD_ARGS="--worker-tmp-dir /dev/shm" \
-    AIRFLOW_INSTALLATION_METHOD=${AIRFLOW_INSTALLATION_METHOD} \
-    BUILD_ID=${BUILD_ID} \
-    COMMIT_SHA=${COMMIT_SHA} \
-    PIP_USER=${PIP_USER}
+    AIRFLOW_INSTALLATION_METHOD=${AIRFLOW_INSTALLATION_METHOD}
 
 # Note missing man directories on debian-buster
 # https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=863199
@@ -422,9 +425,8 @@ RUN mkdir -pv /usr/share/man/man1 \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
-# Only copy install_m(y/s)sql and install_pip_version.sh. We do not need any other scripts in the final image.
-COPY scripts/docker/install_mysql.sh /scripts/docker/install_mssql.sh scripts/docker/install_pip_version.sh \
-   /scripts/docker/
+# Only copy install_m(y/s)sql. We do not need any other scripts in the final image.
+COPY scripts/docker/install_mysql.sh /scripts/docker/install_mssql.sh /scripts/docker/
 
 # fix permission issue in Azure DevOps when running the scripts
 RUN chmod a+x /scripts/docker/install_mysql.sh && \
@@ -441,24 +443,53 @@ RUN chmod a+x /scripts/docker/install_mysql.sh && \
     find "${AIRFLOW_HOME}" -executable -print0 | xargs --null chmod g+x && \
         find "${AIRFLOW_HOME}" -print0 | xargs --null chmod g+rw
 
-COPY --chown=airflow:root --from=airflow-build-image /root/.local "${AIRFLOW_USER_HOME_DIR}/.local"
+COPY --chown=airflow:root --from=airflow-build-image /.venv /.venv
 COPY --chown=airflow:root scripts/in_container/prod/entrypoint_prod.sh /entrypoint
 COPY --chown=airflow:root scripts/in_container/prod/clean-logs.sh /clean-logs
 
 # Make /etc/passwd root-group-writeable so that user can be dynamically added by OpenShift
 # See https://github.com/apache/airflow/issues/9248
+# Set default groups for airflow and root user
 
 RUN chmod a+x /entrypoint /clean-logs && \
-    chmod g=u /etc/passwd && \
-    bash /scripts/docker/install_pip_version.sh
+    chmod g=u /etc/passwd  && \
+    usermod -g 0 airflow -G 0
+
+# make sure that the venv is activated for all users
+# including plain sudo, sudo with --interactive flag
+RUN sed --in-place=.bak "s/secure_path=\"/secure_path=\"\/.venv\/bin:/" /etc/sudoers
+
+# See https://airflow.apache.org/docs/docker-stack/entrypoint.html#signal-propagation
+# to learn more about the way how signals are handled by the image
+# Also emulate what virtualenv does (PYTHONHOME is not set in the image so no need to unset it)
+ENV DUMB_INIT_SETSID="1" \
+    VIRTUAL_ENV="/.venv" \
+    PATH="/.venv/bin:${PATH}" \
+    PS1="(airflow)"
+
+# This one is to workaround https://github.com/apache/airflow/issues/17546
+# issue with /usr/lib/x86_64-linux-gnu/libstdc++.so.6: cannot allocate memory in static TLS block
+# We do not yet a more "correct" solution to the problem but in order to avoid raising new issues
+# by users of the prod image, we implement the workaround now.
+# The side effect of this is slightly (in the range of 100s of milliseconds) slower load for any
+# binary started and a little memory used for Heap allocated by initialization of libstdc++
+# This overhead is not happening for binaries that already link dynamically libstdc++
+ENV LD_PRELOAD="/usr/lib/x86_64-linux-gnu/libstdc++.so.6"
 
 WORKDIR ${AIRFLOW_HOME}
 
 EXPOSE 8080
 
-RUN usermod -g 0 airflow -G 0
-
 USER ${AIRFLOW_UID}
+
+# Those should be set and used as late as possible as any change in commit/build otherwise invalidates the
+# layers right after
+ARG BUILD_ID
+ARG COMMIT_SHA
+ARG AIRFLOW_IMAGE_REPOSITORY
+ARG AIRFLOW_IMAGE_DATE_CREATED
+
+ENV BUILD_ID=${BUILD_ID} COMMIT_SHA=${COMMIT_SHA}
 
 LABEL org.apache.airflow.distro="debian" \
   org.apache.airflow.distro.version="buster" \
@@ -481,20 +512,6 @@ LABEL org.apache.airflow.distro="debian" \
   org.opencontainers.image.ref.name="airflow" \
   org.opencontainers.image.title="Production Airflow Image" \
   org.opencontainers.image.description="Reference, production-ready Apache Airflow image"
-
-
-# See https://airflow.apache.org/docs/docker-stack/entrypoint.html#signal-propagation
-# to learn more about the way how signals are handled by the image
-ENV DUMB_INIT_SETSID="1"
-
-# This one is to workaround https://github.com/apache/airflow/issues/17546
-# issue with /usr/lib/x86_64-linux-gnu/libstdc++.so.6: cannot allocate memory in static TLS block
-# We do not yet a more "correct" solution to the problem but in order to avoid raising new issues
-# by users of the prod image, we implement the workaround now.
-# The side effect of this is slightly (in the range of 100s of milliseconds) slower load for any
-# binary started and a little memory used for Heap allocated by initialization of libstdc++
-# This overhead is not happening for binaries that already link dynamically libstdc++
-ENV LD_PRELOAD="/usr/lib/x86_64-linux-gnu/libstdc++.so.6"
 
 ENTRYPOINT ["/usr/bin/dumb-init", "--", "/entrypoint"]
 CMD []

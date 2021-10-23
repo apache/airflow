@@ -615,7 +615,7 @@ additional tools. Below is an example Dockerfile, which installs providers for G
 ```dockerfile
 FROM apache/airflow:2.0.0
 
-RUN pip install --upgrade --user apache-airflow-providers-google==2.0.0.rc1
+RUN pip install  --user apache-airflow-providers-google==2.0.0.rc1
 
 USER ${AIRFLOW_UID}
 ```

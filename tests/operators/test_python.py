@@ -708,6 +708,10 @@ virtualenv_string_args: List[str] = []
 
 
 class TestPythonVirtualenvOperator(unittest.TestCase):
+    @pytest.fixture(autouse=True)
+    def inject_fixtures(self, caplog):
+        self._caplog = caplog
+
     def setUp(self):
         super().setUp()
         self.dag = DAG(
@@ -730,7 +734,6 @@ class TestPythonVirtualenvOperator(unittest.TestCase):
             session.query(TI).delete()
 
     def _run_as_operator(self, fn, python_version=sys.version_info[0], **kwargs):
-
         task = PythonVirtualenvOperator(
             python_callable=fn, python_version=python_version, task_id='task', dag=self.dag, **kwargs
         )
@@ -936,7 +939,60 @@ class TestPythonVirtualenvOperator(unittest.TestCase):
         ):
             pass
 
-        self._run_as_operator(f, use_dill=True, system_site_packages=True, requirements=None)
+        self._run_as_operator(
+            f, use_dill=True, system_site_packages=True, requirements=None, python_version=None
+        )
+
+    @pytest.mark.skipif(
+        sys.prefix == sys.base_prefix, reason="Should only be run if airflow installed in venv"
+    )
+    def test_clone_virtualenv_disabled(self):
+        def f(
+            **kwargs,
+        ):
+            pass
+
+        with pytest.raises(Exception, match="returned non-zero exit status"):
+            self._run_as_operator(
+                f,
+                use_dill=True,
+                system_site_packages=True,
+                clone_airflow_virtualenv=False,
+                python_version=None,
+            )
+        assert "No module named 'dill'" in self._caplog.text
+
+    @pytest.mark.skipif(
+        sys.prefix == sys.base_prefix, reason="Should only be run if airflow installed in venv"
+    )
+    def test_clone_virtualenv_enabled_with_python(self):
+        def f(
+            **kwargs,
+        ):
+            pass
+
+        with pytest.raises(Exception, match="returned non-zero exit status"):
+            self._run_as_operator(
+                f,
+                use_dill=True,
+                system_site_packages=True,
+                clone_airflow_virtualenv=True,
+                python_version=sys.version_info[0],
+            )
+        assert "No module named 'dill'" in self._caplog.text
+
+    # This tests might take longer than default 60 seconds as it is serializing a lot of
+    # context using dill (which is slow apparently).
+    @pytest.mark.execution_timeout(120)
+    def test_clone_virtualenv_enabled(self):
+        def f(
+            **kwargs,
+        ):
+            pass
+
+        self._run_as_operator(
+            f, use_dill=True, system_site_packages=True, clone_airflow_virtualenv=True, python_version=None
+        )
 
     def test_pendulum_context(self):
         def f(

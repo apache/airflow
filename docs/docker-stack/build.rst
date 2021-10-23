@@ -203,14 +203,22 @@ You should be aware, about a few things:
   `best practices of Dockerfiles <https://docs.docker.com/develop/develop-images/dockerfile_best-practices/>`_
   to make sure your image is lean and small.
 
-* The PyPI dependencies in Apache Airflow are installed in the user library, of the "airflow" user, so
-  PIP packages are installed to ``~/.local`` folder as if the ``--user`` flag was specified when running PIP.
-  Note also that using ``--no-cache-dir`` is a good idea that can help to make your image smaller.
+* Using ``--no-cache-dir`` is a good idea that can help to make your image smaller.
+
+* The PyPI dependencies in Apache Airflow are installed in the ``/.venv`` folder. This is virtualenv where
+  airflow and all dependent packages are installed, following latest ``pip`` recommendations and upcoming
+  :pep:`668`. The ``PATH`` inside the image is set to point first
+  to the ``bin`` folder of the virtualenv, to make sure that this virtualenv is used, also safe PATH for sudo
+  is set to include that folder. The virtualenv is also activated at the entry of interactive session by
+  ``.bashrc`` files placed in ``HOME`` directory of both ``airflow`` user and ``root`` user. Note that all
+  the arbitrary users created dynamically to follow OpenShift rules are sharing the ``airflow`` user
+  ``HOME`` folder, so ``.bashrc`` file is the same for those users as well.
 
 .. note::
-  Only as of ``2.0.1`` image the ``--user`` flag is turned on by default by setting ``PIP_USER`` environment
+  As of the ``2.0.1`` image the ``--user`` flag was turned on by default by setting ``PIP_USER`` environment
   variable to ``true``. This can be disabled by un-setting the variable or by setting it to ``false``. In the
-  2.0.0 image you had to add the ``--user`` flag as ``pip install --user`` command.
+  2.0.0 image you had to add the ``--user`` flag as ``pip install --user`` command. This flag and environment
+  variables however were removed in ``2.2`` in favor of virtualenv in ``/.venv`` folder.
 
 * If your apt, or PyPI dependencies require some of the ``build-essential`` or other packages that need
   to compile your python dependencies, then your best choice is to follow the "Customize the image" route,

@@ -30,11 +30,12 @@
 . "$( dirname "${BASH_SOURCE[0]}" )/common.sh"
 
 function install_pip_version() {
-    pip install --no-cache-dir --upgrade "pip==${AIRFLOW_PIP_VERSION}" && mkdir -p /root/.local/bin
+    pip install --no-cache-dir --upgrade "pip==${AIRFLOW_PIP_VERSION}"
 }
 
 common::get_airflow_version_specification
 common::override_pip_version_if_needed
 common::get_constraints_location
+common::show_pip_version_and_location
 
 install_pip_version
