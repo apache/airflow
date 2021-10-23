@@ -13,9 +13,6 @@ sudo apt install build-essential python3-dev libsqlite3-dev openssl \
 On Ubuntu 20.04 you may get an error of mariadb_config not found 
 and mysql_config not found.
 
-Install mariadb
-sudo apt-get install libmariadb-dev libmariadbclient-dev
-
 Install MariaDB development headers:
 sudo apt-get install libmariadb-dev libmariadbclient-dev
 
