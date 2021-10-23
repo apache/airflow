@@ -147,7 +147,7 @@ Pyenv and setting up virtual-env
 
 3. Add the lines suggested at the end of installation  to ~/.bashrc
 
-4. If you are in macOS Big Surdy 11.4, pyenv may face issues. It can be fixed by adding the below command to ~/.zshrc
+4. If you are in macOS Big Sur 11.4, pyenv may face issues. It can be fixed by adding the below command to ~/.zshrc
 
 .. code-block:: bash
 
