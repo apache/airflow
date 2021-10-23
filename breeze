@@ -230,6 +230,7 @@ function breeze::setup_default_breeze_constants() {
 #    PYTHON_MAJOR_MINOR_VERSION
 #    AIRFLOW_HOME_DIR
 #    AIRFLOW_SOURCES
+#    VIRTUALENV_EXTRAS
 #    DEFAULT_CONSTRAINTS_BRANCH
 #    OSTYPE
 #
@@ -252,13 +253,15 @@ function breeze::initialize_virtualenv() {
         echo
         echo "Initializing the virtualenv: $(command -v python)!"
         echo
+        echo "Extras to be installed: ${VIRTUALENV_EXTRAS}"
+        echo
         echo "This will wipe out ${AIRFLOW_HOME_DIR} and reset all the databases!"
         echo
         "${AIRFLOW_SOURCES}/confirm" "Proceeding with the initialization"
         echo
         pushd "${AIRFLOW_SOURCES}" >/dev/null 2>&1 || exit 1
         set +e
-        pip install -e ".[devel]" \
+        pip install -e ".[${VIRTUALENV_EXTRAS}]" \
             --constraint "https://raw.githubusercontent.com/${CONSTRAINTS_GITHUB_REPOSITORY}/${DEFAULT_CONSTRAINTS_BRANCH}/constraints-source-providers-${PYTHON_MAJOR_MINOR_VERSION}.txt"
         res=$?
         set -e
