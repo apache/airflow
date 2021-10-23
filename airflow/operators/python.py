@@ -295,6 +295,15 @@ class PythonVirtualenvOperator(PythonOperator):
         system_site_packages in your virtualenv.
         See virtualenv documentation for more information.
     :type system_site_packages: bool
+    :param clone_airflow_virtualenv: If airflow is installed via virtualenv
+        It will clone airflow's virtualenv when preparing the new one. By default
+        virtualenv does not copy packages installed in virtualenv, but in some cases
+        you might need to "initialize" the virtualenv with airflow and other packages
+        installed with airflow - for example when you want to use dill or when
+        you want to use airflow or custom macros in your callable. This only works when
+        no python version is specified (i.e. when the same python version is used for
+        virtualenv as used in Airflow. In case a Python version is specified, you have to
+        make sure that necessary packages are installed via requirements.
     :param op_args: A list of positional arguments to pass to python_callable.
     :type op_args: list
     :param op_kwargs: A dict of keyword arguments to pass to python_callable.
@@ -355,6 +364,7 @@ class PythonVirtualenvOperator(PythonOperator):
         python_version: Optional[Union[str, int, float]] = None,
         use_dill: bool = False,
         system_site_packages: bool = True,
+        clone_airflow_virtualenv: bool = True,
         op_args: Optional[List] = None,
         op_kwargs: Optional[Dict] = None,
         string_args: Optional[Iterable[str]] = None,
@@ -397,6 +407,8 @@ class PythonVirtualenvOperator(PythonOperator):
                 self.requirements.append('lazy-object-proxy')
             if self.use_dill and 'dill' not in self.requirements:
                 self.requirements.append('dill')
+        # Only allows to use clone_virtualenv_packages if no python version is specified
+        self.clone_virtualenv_packages = clone_airflow_virtualenv if not python_version else False
         self.pickling_library = dill if self.use_dill else pickle
 
     def execute(self, context: Dict):
@@ -418,6 +430,7 @@ class PythonVirtualenvOperator(PythonOperator):
                 python_bin=f'python{self.python_version}' if self.python_version else None,
                 system_site_packages=self.system_site_packages,
                 requirements=self.requirements,
+                clone_virtualenv_packages=self.clone_virtualenv_packages,
             )
 
             self._write_args(input_filename)

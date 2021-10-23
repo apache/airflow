@@ -164,14 +164,8 @@ function create_system_user_if_missing() {
     fi
 }
 
-function set_pythonpath_for_root_user() {
-    # Airflow is installed as a local user application which means that if the container is running as root
-    # the application is not available. because Python then only load system-wide applications.
-    # Now also adds applications installed as local user "airflow".
+function warn_root_user() {
     if [[ $UID == "0" ]]; then
-        local python_major_minor
-        python_major_minor="$(python --version | cut -d " " -f 2 | cut -d "." -f 1-2)"
-        export PYTHONPATH="${AIRFLOW_USER_HOME_DIR}/.local/lib/python${python_major_minor}/site-packages:${PYTHONPATH:-}"
         >&2 echo "The container is run as root user. For security, consider using a regular user account."
     fi
 }
@@ -243,12 +237,6 @@ function check_uid_gid() {
     fi
 }
 
-# In Airflow image we are setting PIP_USER variable to true, in order to install all the packages
-# by default with the ``--user`` flag. However this is a problem if a virtualenv is created later
-# which happens in PythonVirtualenvOperator. We are unsetting this variable here, so that it is
-# not set when PIP is run by Airflow later on
-unset PIP_USER
-
 check_uid_gid
 
 # Set umask to 0002 to make all the directories created by the current user group-writeable
@@ -264,8 +252,9 @@ CONNECTION_CHECK_SLEEP_TIME=${CONNECTION_CHECK_SLEEP_TIME:=3}
 readonly CONNECTION_CHECK_SLEEP_TIME
 
 create_system_user_if_missing
-set_pythonpath_for_root_user
-if [[ "${CONNECTION_CHECK_MAX_COUNT}" -gt "0" ]]; then
+warn_root_user
+if [[ "${CONNECTION_CHECK_MAX_COUNT}" -gt "0" && ${AIRFLOW_COMMAND} != "" \
+    && ${AIRFLOW_COMMAND} != "python" && ${AIRFLOW_COMMAND} != "bash" ]]; then
     wait_for_airflow_db
 fi
 
@@ -290,7 +279,7 @@ if [[ -n "${_PIP_ADDITIONAL_REQUIREMENTS=}" ]] ; then
     >&2 echo "         the container starts, so it is onlny useful for testing and trying out"
     >&2 echo "         of adding dependencies."
     >&2 echo
-    pip install --no-cache-dir --user ${_PIP_ADDITIONAL_REQUIREMENTS}
+    pip install --no-cache-dir ${_PIP_ADDITIONAL_REQUIREMENTS}
 fi
 
 

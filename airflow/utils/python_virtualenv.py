@@ -18,6 +18,7 @@
 #
 """Utilities for creating a virtual environment"""
 import os
+import shutil
 import sys
 from collections import deque
 from typing import List, Optional
@@ -27,13 +28,22 @@ import jinja2
 from airflow.utils.process_utils import execute_in_subprocess
 
 
-def _generate_virtualenv_cmd(tmp_dir: str, python_bin: str, system_site_packages: bool) -> List[str]:
-    cmd = [sys.executable, '-m', 'virtualenv', tmp_dir]
-    if system_site_packages:
-        cmd.append('--system-site-packages')
-    if python_bin is not None:
-        cmd.append(f'--python={python_bin}')
-    return cmd
+def _generate_virtualenv_cmd(
+    tmp_dir: str, python_bin: str, system_site_packages: bool, clone_virtualenv_packages: bool
+) -> List[str]:
+    if clone_virtualenv_packages and sys.prefix != sys.base_prefix and not python_bin:
+        # Create virtualenv using virtualenv-clone command if we are in virtualenv and
+        # clone_virtualenv_packages is set and we are using same version of python
+        # as our virtualenv
+        cmd = ['virtualenv-clone', f'{sys.prefix}', tmp_dir]
+        return cmd
+    else:
+        cmd = [sys.executable, '-m', 'virtualenv', tmp_dir]
+        if system_site_packages:
+            cmd.append('--system-site-packages')
+        if python_bin is not None:
+            cmd.append(f'--python={python_bin}')
+        return cmd
 
 
 def _generate_pip_install_cmd(tmp_dir: str, requirements: List[str]) -> Optional[List[str]]:
@@ -75,7 +85,11 @@ def remove_task_decorator(python_source: str, task_decorator_name: str) -> str:
 
 
 def prepare_virtualenv(
-    venv_directory: str, python_bin: str, system_site_packages: bool, requirements: List[str]
+    venv_directory: str,
+    python_bin: str,
+    system_site_packages: bool,
+    requirements: List[str],
+    clone_virtualenv_packages: bool = False,
 ) -> str:
     """
     Creates a virtual environment and installs the additional python packages
@@ -89,10 +103,17 @@ def prepare_virtualenv(
     :type system_site_packages: bool
     :param requirements: List of additional python packages
     :type requirements: List[str]
+    :param clone_virtualenv_packages: whether to clone aurflow virtualenv package if airflow is run
+         in virtualenv - default is False
+    :type clone_virtualenv_packages: bool
     :return: Path to a binary file with Python in a virtual environment.
     :rtype: str
     """
-    virtualenv_cmd = _generate_virtualenv_cmd(venv_directory, python_bin, system_site_packages)
+    virtualenv_cmd = _generate_virtualenv_cmd(
+        venv_directory, python_bin, system_site_packages, clone_virtualenv_packages
+    )
+    # Virtualenv-clone requires the directory to be non-existing
+    shutil.rmtree(path=venv_directory, ignore_errors=True)
     execute_in_subprocess(virtualenv_cmd)
     pip_cmd = _generate_pip_install_cmd(venv_directory, requirements)
     if pip_cmd:
