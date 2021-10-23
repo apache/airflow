@@ -489,10 +489,7 @@ class TestTaskInstance:
         """
 
         with dag_maker("test_deferred_method_clear"):
-            task = BashOperator(
-                task_id="test_deferred_method_clear_task",
-                bash_command=""
-            )
+            task = BashOperator(task_id="test_deferred_method_clear_task", bash_command="")
 
         dr = dag_maker.create_dagrun()
         ti = dr.task_instances[0]
@@ -516,10 +513,7 @@ class TestTaskInstance:
         """
 
         with dag_maker("test_deferred_method_clear"):
-            task = BashOperator(
-                task_id="test_deferred_method_clear_task",
-                bash_command="exit 1"
-            )
+            task = BashOperator(task_id="test_deferred_method_clear_task", bash_command="exit 1")
 
         dr = dag_maker.create_dagrun()
         ti = dr.task_instances[0]
@@ -572,6 +566,7 @@ class TestTaskInstance:
         Test that ensures that tasks wipe their next_method and next_kwargs
         when they go into a state of SKIPPED.
         """
+
         def skip():
             raise AirflowSkipException
 
@@ -601,6 +596,7 @@ class TestTaskInstance:
         Test that ensures that tasks wipe their next_method and next_kwargs
         when they go into a state of SKIPPED.
         """
+
         def reschedule():
             reschedule_date = timezone.utcnow()
             raise AirflowRescheduleException(reschedule_date)
