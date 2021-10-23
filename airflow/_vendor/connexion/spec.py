@@ -166,7 +166,7 @@ class Swagger2Specification(Specification):
     @classmethod
     def _set_defaults(cls, spec):
         spec.setdefault('produces', [])
-        spec.setdefault('consumes', ['application/json'])  # type: List[str]
+        spec.setdefault('consumes', ['application/json'])
         spec.setdefault('definitions', {})
         spec.setdefault('parameters', {})
         spec.setdefault('responses', {})
