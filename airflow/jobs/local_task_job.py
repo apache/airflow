@@ -213,7 +213,6 @@ class LocalTaskJob(BaseJob):
             self.log.warning(
                 "State of this instance has been externally set to %s. Terminating instance.", ti.state
             )
-            self.task_runner.terminate()
             if ti.state == State.SUCCESS:
                 error = None
             else:
@@ -223,6 +222,7 @@ class LocalTaskJob(BaseJob):
                 error = self.task_runner.deserialize_run_error() or "task marked as failed externally"
             ti._run_finished_callback(error=error)
             self.terminating = True
+            self.task_runner.terminate()
 
     @provide_session
     @Sentry.enrich_errors
