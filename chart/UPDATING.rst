@@ -45,6 +45,11 @@ The default Airflow image that is used with the Chart is now ``2.2.0-python3.7``
 
 The triggerer component requires Python ``3.7``. If you require Python ``3.6`` and Airflow ``2.2.0``, use a ``3.6`` based image and set ``triggerer.enabled=False`` in your values.
 
+Resources made configurable for ``airflow-run-airflow-migrations`` job
+""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+Now it's possible to set resources requests and limits for migration job through ``migrateDatabaseJob.resources`` value.
+
 Airflow Helm Chart 1.2.0
 ------------------------
 
