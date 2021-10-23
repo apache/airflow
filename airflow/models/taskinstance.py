@@ -1376,6 +1376,7 @@ class TaskInstance(Base, LoggingMixin):
             # current behavior doesn't hit the callbacks
             if self.state in State.finished:
                 self.clear_next_method_args()
+                session.merge(self)
                 session.commit()
                 return
             else:
