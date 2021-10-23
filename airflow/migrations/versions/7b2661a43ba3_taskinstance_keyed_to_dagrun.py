@@ -267,20 +267,20 @@ def upgrade():
     else:
         update_query = _multi_table_update(dialect_name, task_instance, task_instance.c.run_id)
         op.execute(update_query)
-        op.drop_column('task_instance', 'execution_date')
 
     with op.batch_alter_table('task_instance', schema=None) as batch_op:
+        if dialect_name != 'postgresql':
+            batch_op.drop_column('execution_date')
+
         # Then make it non-nullable
         batch_op.alter_column(
             'run_id', existing_type=string_id_col_type, existing_nullable=True, nullable=False
         )
-
         batch_op.alter_column(
             'dag_id', existing_type=string_id_col_type, existing_nullable=True, nullable=False
         )
 
         batch_op.create_primary_key('task_instance_pkey', ['dag_id', 'task_id', 'run_id'])
-
         batch_op.create_foreign_key(
             'task_instance_dag_run_fkey',
             'dag_run',
