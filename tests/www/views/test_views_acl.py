@@ -96,42 +96,42 @@ def acl_app(app):
     edit_perm_on_dag = security_manager.get_permission(
         permissions.ACTION_CAN_EDIT, 'DAG:example_bash_operator'
     )
-    security_manager.add_permission_role(dag_tester_role, edit_perm_on_dag)
+    security_manager.add_permission_to_role(dag_tester_role, edit_perm_on_dag)
     read_perm_on_dag = security_manager.get_permission(
         permissions.ACTION_CAN_READ, 'DAG:example_bash_operator'
     )
-    security_manager.add_permission_role(dag_tester_role, read_perm_on_dag)
-    security_manager.add_permission_role(dag_tester_role, website_permission)
+    security_manager.add_permission_to_role(dag_tester_role, read_perm_on_dag)
+    security_manager.add_permission_to_role(dag_tester_role, website_permission)
 
     all_dag_role = security_manager.find_role('all_dag_role')
     edit_perm_on_all_dag = security_manager.get_permission(
         permissions.ACTION_CAN_EDIT, permissions.RESOURCE_DAG
     )
-    security_manager.add_permission_role(all_dag_role, edit_perm_on_all_dag)
+    security_manager.add_permission_to_role(all_dag_role, edit_perm_on_all_dag)
     read_perm_on_all_dag = security_manager.get_permission(
         permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG
     )
-    security_manager.add_permission_role(all_dag_role, read_perm_on_all_dag)
+    security_manager.add_permission_to_role(all_dag_role, read_perm_on_all_dag)
     read_perm_on_task_instance = security_manager.get_permission(
         permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK_INSTANCE
     )
-    security_manager.add_permission_role(all_dag_role, read_perm_on_task_instance)
-    security_manager.add_permission_role(all_dag_role, website_permission)
+    security_manager.add_permission_to_role(all_dag_role, read_perm_on_task_instance)
+    security_manager.add_permission_to_role(all_dag_role, website_permission)
 
     role_user = security_manager.find_role('User')
-    security_manager.add_permission_role(role_user, read_perm_on_all_dag)
-    security_manager.add_permission_role(role_user, edit_perm_on_all_dag)
-    security_manager.add_permission_role(role_user, website_permission)
+    security_manager.add_permission_to_role(role_user, read_perm_on_all_dag)
+    security_manager.add_permission_to_role(role_user, edit_perm_on_all_dag)
+    security_manager.add_permission_to_role(role_user, website_permission)
 
     read_only_perm_on_dag = security_manager.get_permission(
         permissions.ACTION_CAN_READ, 'DAG:example_bash_operator'
     )
     dag_read_only_role = security_manager.find_role('dag_acl_read_only')
-    security_manager.add_permission_role(dag_read_only_role, read_only_perm_on_dag)
-    security_manager.add_permission_role(dag_read_only_role, website_permission)
+    security_manager.add_permission_to_role(dag_read_only_role, read_only_perm_on_dag)
+    security_manager.add_permission_to_role(dag_read_only_role, website_permission)
 
     dag_acl_faker_role = security_manager.find_role('dag_acl_faker')
-    security_manager.add_permission_role(dag_acl_faker_role, website_permission)
+    security_manager.add_permission_to_role(dag_acl_faker_role, website_permission)
 
     yield app
 
@@ -200,8 +200,8 @@ def user_edit_one_dag(acl_app):
 
 @pytest.mark.usefixtures("user_edit_one_dag")
 def test_permission_exist(acl_app):
-    perms_views = acl_app.appbuilder.sm.find_permissions_view_menu(
-        acl_app.appbuilder.sm.find_view_menu('DAG:example_bash_operator'),
+    perms_views = acl_app.appbuilder.sm.get_resource_permissions(
+        acl_app.appbuilder.sm.get_resource('DAG:example_bash_operator'),
     )
     assert len(perms_views) == 2
 
