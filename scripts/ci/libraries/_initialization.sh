@@ -564,6 +564,11 @@ function initialization::initialize_kubernetes_variables() {
     readonly API_SERVER_PORT
 }
 
+function initialization::initialize_virtualenv_variables() {
+    # The extras to install when initializing a virtual env with breeze
+    export VIRTUALENV_EXTRAS=${VIRTUALENV_EXTRAS:="devel"}
+}
+
 function initialization::initialize_git_variables() {
     # SHA of the commit for the current sources
     COMMIT_SHA="$(git rev-parse HEAD 2>/dev/null || echo "Unknown")"
@@ -638,6 +643,7 @@ function initialization::initialize_common_environment() {
     initialization::initialize_image_build_variables
     initialization::initialize_provider_package_building
     initialization::initialize_kubernetes_variables
+    initialization::initialize_virtualenv_variables
     initialization::initialize_git_variables
     initialization::initialize_github_variables
     initialization::initialize_test_variables
