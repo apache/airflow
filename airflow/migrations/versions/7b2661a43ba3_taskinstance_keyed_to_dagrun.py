@@ -200,23 +200,6 @@ def upgrade():
 
     # Then update the new column by selecting the right value from DagRun
     # But first we will drop and recreate indexes to make it faster
-    with op.batch_alter_table('task_instance') as batch_op:
-        # TODO: Is this right for non-postgres?
-        if dialect_name == 'mssql':
-            constraints = get_table_constraints(conn, "task_instance")
-            pk, _ = constraints['PRIMARY KEY'].popitem()
-            batch_op.drop_constraint(pk, type_='primary')
-        elif dialect_name not in ('sqlite'):
-            batch_op.drop_constraint('task_instance_pkey', type_='primary')
-        batch_op.drop_index('ti_dag_date')
-        batch_op.drop_index('ti_dag_state')
-        batch_op.drop_index('ti_job_id')
-        batch_op.drop_index('ti_pool')
-        batch_op.drop_index('ti_state')
-        batch_op.drop_index('ti_state_lkp')
-        batch_op.drop_constraint('task_instance_trigger_id_fkey', type_='foreignkey')
-        batch_op.drop_index('ti_trigger_id')
-
     if dialect_name == 'postgresql':
         # Recreate task_instance, without execution_date and with dagrun.run_id
         op.execute(
@@ -270,6 +253,15 @@ def upgrade():
 
     with op.batch_alter_table('task_instance', schema=None) as batch_op:
         if dialect_name != 'postgresql':
+            # TODO: Is this right for non-postgres?
+            if dialect_name == 'mssql':
+                constraints = get_table_constraints(conn, "task_instance")
+                pk, _ = constraints['PRIMARY KEY'].popitem()
+                batch_op.drop_constraint(pk, type_='primary')
+            elif dialect_name not in ('sqlite'):
+                batch_op.drop_constraint('task_instance_pkey', type_='primary')
+            batch_op.drop_index('ti_dag_date')
+            batch_op.drop_index('ti_state_lkp')
             batch_op.drop_column('execution_date')
 
         # Then make it non-nullable
@@ -290,15 +282,16 @@ def upgrade():
         )
 
         batch_op.create_index('ti_dag_run', ['dag_id', 'run_id'])
-        batch_op.create_index('ti_dag_state', ['dag_id', 'state'])
-        batch_op.create_index('ti_job_id', ['job_id'])
-        batch_op.create_index('ti_pool', ['pool', 'state', 'priority_weight'])
-        batch_op.create_index('ti_state', ['state'])
         batch_op.create_index('ti_state_lkp', ['dag_id', 'task_id', 'run_id', 'state'])
-        batch_op.create_foreign_key(
-            'task_instance_trigger_id_fkey', 'trigger', ['trigger_id'], ['id'], ondelete="CASCADE"
-        )
-        batch_op.create_index('ti_trigger_id', ['trigger_id'])
+        if dialect_name == 'postgresql':
+            batch_op.create_index('ti_dag_state', ['dag_id', 'state'])
+            batch_op.create_index('ti_job_id', ['job_id'])
+            batch_op.create_index('ti_pool', ['pool', 'state', 'priority_weight'])
+            batch_op.create_index('ti_state', ['state'])
+            batch_op.create_foreign_key(
+                'task_instance_trigger_id_fkey', 'trigger', ['trigger_id'], ['id'], ondelete="CASCADE"
+            )
+            batch_op.create_index('ti_trigger_id', ['trigger_id'])
 
     with op.batch_alter_table('task_reschedule', schema=None) as batch_op:
         batch_op.drop_column('execution_date')
