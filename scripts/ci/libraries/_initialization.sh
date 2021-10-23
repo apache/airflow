@@ -935,7 +935,7 @@ function initialization::ga_env() {
 function initialization::ver() {
   # convert SemVer number to comparable string (strips pre-release version)
   # shellcheck disable=SC2086,SC2183
-  printf "%03d%03d%03d%.0s" ${1//[.-]/}
+  printf "%03d%03d%03d%.0s" ${1//[.-]/ }
 }
 
 function initialization::check_docker_version() {
