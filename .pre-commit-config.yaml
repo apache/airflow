@@ -269,7 +269,9 @@ repos:
     hooks:
       - id: codespell
         name: Run codespell to check for common misspellings in files
-        entry: codespell
+        entry: bash -c 'echo "If you think that this failure is an error, consider adding the word(s)
+          to the codespell dictionary at docs/spelling_wordlist.txt.
+          The word(s) should be in small letters." && exec codespell "$@"' --
         language: python
         types: [text]
         exclude: ^airflow/_vendor/|^CHANGELOG.txt|^airflow/www/static/css/material-icons.css
