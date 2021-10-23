@@ -16,6 +16,9 @@ and mysql_config not found.
 Install mariadb
 sudo apt-get install libmariadb-dev libmariadbclient-dev
 
+Install MariaDB development headers:
+sudo apt-get install libmariadb-dev libmariadbclient-dev
+
 MacOS (Mojave/Catalina):
 
 brew install sqlite mysql postgresql
