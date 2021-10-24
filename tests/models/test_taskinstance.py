@@ -33,6 +33,7 @@ from airflow import models, settings
 from airflow.exceptions import (
     AirflowException,
     AirflowFailException,
+    AirflowRescheduleException,
     AirflowSensorTimeout,
     AirflowSkipException,
 )
@@ -481,18 +482,51 @@ class TestTaskInstance:
         ti.refresh_from_db()
         ti.state == state
 
-    def test_task_retry_wipes_next_fields(self, session, dag_maker):
+    @pytest.mark.parametrize(
+        "state",
+        [State.FAILED, State.SKIPPED, State.SUCCESS, State.UP_FOR_RESCHEDULE, State.UP_FOR_RETRY],
+    )
+    def test_task_wipes_next_fields(self, session, state, dag_maker):
         """
         Test that ensures that tasks wipe their next_method and next_kwargs
-        fields when they are queued for retry after a failure.
+        when they go into a state of FAILED, SKIPPED, SUCCESS, UP_FOR_RESCHEDULE, or UP_FOR_RETRY.
         """
 
-        with dag_maker('test_mark_failure_2'):
-            task = BashOperator(
-                task_id='test_retry_handling_op',
-                bash_command='exit 1',
-                retries=1,
-                retry_delay=datetime.timedelta(seconds=2),
+        def failure():
+            raise AirflowException
+
+        def skip():
+            raise AirflowSkipException
+
+        def success():
+            return None
+
+        def reschedule():
+            reschedule_date = timezone.utcnow()
+            raise AirflowRescheduleException(reschedule_date)
+
+        _retries = 0
+        _retry_delay = datetime.timedelta(seconds=0)
+
+        if state == State.FAILED:
+            _python_callable = failure
+        elif state == State.SKIPPED:
+            _python_callable = skip
+        elif state == State.SUCCESS:
+            _python_callable = success
+        elif state == State.UP_FOR_RESCHEDULE:
+            _python_callable = reschedule
+        elif state in [State.FAILED, State.UP_FOR_RETRY]:
+            _python_callable = failure
+            _retries = 1
+            _retry_delay = datetime.timedelta(seconds=2)
+
+        with dag_maker("test_deferred_method_clear"):
+            task = PythonOperator(
+                task_id="test_deferred_method_clear_task",
+                python_callable=_python_callable,
+                retries=_retries,
+                retry_delay=_retry_delay,
             )
 
         dr = dag_maker.create_dagrun()
@@ -503,13 +537,16 @@ class TestTaskInstance:
         session.commit()
 
         ti.task = task
-        with pytest.raises(AirflowException):
+        if state in [State.FAILED, State.UP_FOR_RETRY]:
+            with pytest.raises(AirflowException):
+                ti.run()
+        elif state in [State.SKIPPED, State.SUCCESS, State.UP_FOR_RESCHEDULE]:
             ti.run()
         ti.refresh_from_db()
 
         assert ti.next_method is None
         assert ti.next_kwargs is None
-        assert ti.state == State.UP_FOR_RETRY
+        assert ti.state == state
 
     @freeze_time('2021-09-19 04:56:35', as_kwarg='frozen_time')
     def test_retry_delay(self, dag_maker, frozen_time=None):
