@@ -1396,7 +1396,7 @@ ROLES_COMMANDS = (
     ),
     ActionCommand(
         name='import',
-        help='Import roles from JSON file to db',
+        help='Import roles (without permissions) from JSON file to db',
         func=lazy_load_command('airflow.cli.commands.role_command.roles_import'),
         args=(ARG_ROLE_IMPORT, ARG_VERBOSE),
     ),
