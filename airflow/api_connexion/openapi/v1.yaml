@@ -2297,6 +2297,12 @@ components:
           type: string
         dag_id:
           type: string
+        dag_run_id:
+          type: string
+          description: |
+            The DagRun ID for this task instance
+
+            *New in version 2.2.1*
         execution_date:
           type: string
           format: datetime

@@ -327,6 +327,7 @@ Currently, **officially** using Airflow:
 1. [Pecan](https://www.pecan.ai) [[@ohadmata](https://github.com/ohadmata)]
 1. [Pernod-Ricard](https://www.pernod-ricard.com/) [[@romain-nio](https://github.com/romain-nio)]
 1. [PEXA](https://www.pexa.com.au/) [[@andriyfedorov](https://github.com/andriyfedorov)]
+1. [Pinterest](https://www.pinterest.com/) [[@Acehaidrey](https://github.com/Acehaidrey), [@Arshrestha](https://github.com/arshrestha), [@Dinghang](https://github.com/Dinghang), [@Euccas](https://github.com/euccas), [@Yulei-li](https://github.com/yulei-li)]
 1. [Plaid](https://www.plaid.com/) [[@plaid](https://github.com/plaid), [@AustinBGibbons](https://github.com/AustinBGibbons) & [@jeeyoungk](https://github.com/jeeyoungk)]
 1. [Playbuzz](https://www.playbuzz.com/) [[@clintonboys](https://github.com/clintonboys) & [@dbn](https://github.com/dbn)]
 1. [Playsimple Games](https://playsimple.in/) [[@joshi95](https://github.com/joshi95)]
@@ -355,6 +356,7 @@ Currently, **officially** using Airflow:
 1. [Raízen](https://www.raizen.com.br/) [[@rudlac](https://github.com/rudlac) & [@guifneves](https://github.com/guifneves)]
 1. [REA Group](https://www.rea-group.com/)
 1. [Reddit](https://www.reddit.com/) [[@reddit](https://github.com/reddit/)]
+1. [Retailink](https://retailink.fr/) [[@Harisonm](https://github.com/Harisonm)]
 1. [Reverb](https://reverb.com)[[@reverbdotcom](https://github.com/reverbdotcom)]
 1. [Revolut](https://www.revolut.com/) [[@sztanko](https://github.com/sztanko) & [@nautilus28](https://github.com/nautilus28)]
 1. [Robinhood](https://robinhood.com) [[@vineet-rh](https://github.com/vineet-rh)]
@@ -380,6 +382,7 @@ Currently, **officially** using Airflow:
 1. [Spotahome](https://www.spotahome.com/) [[@spotahome](https://github.com/spotahome)]
 1. [SpotHero](https://github.com/spothero) [[@benjigoldberg](https://github.com/benjigoldberg)]
 1. [Spotify](https://github.com/spotify) [[@znichols](https://github.com/znichols)]
+1. [Sprylab](https://www.sprylab.com) [[@MeTaNoV](https://github.com/MeTaNoV)]
 1. [Square](https://squareup.com/)
 1. [Stackspace](https://beta.stackspace.io/)
 1. [StoneCo](https://www.stone.co) [[@lgwacker](https://github.com/lgwacker)]
@@ -439,6 +442,7 @@ Currently, **officially** using Airflow:
 1. [Vnomics](https://github.com/vnomics) [[@lpalum](https://github.com/lpalum)]
 1. [Vodafone](https://www.vodafone.com) [[@nijanthanvijayakumar](https://github.com/nijanthanvijayakumar)]
 1. [Walmart Labs](https://www.walmartlabs.com) [[@bharathpalaksha](https://github.com/bharathpalaksha), [@vipul007ravi](https://github.com/vipul007ravi), [@pateash](https://github.com/pateash)]
+1. [Wayfair](https://www.wayfair.com) [[@wayfair](https://github.com/wayfair)]
 1. [Waze](https://www.waze.com) [[@waze](https://github.com/wazeHQ)]
 1. [WePay](http://www.wepay.com) [[@criccomini](https://github.com/criccomini) & [@mtagle](https://github.com/mtagle)]
 1. [WeTransfer](https://github.com/WeTransfer) [[@coredipper](https://github.com/coredipper) & [@higee](https://github.com/higee) & [@azclub](https://github.com/azclub)]

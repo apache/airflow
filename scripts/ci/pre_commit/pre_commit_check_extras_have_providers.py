@@ -71,7 +71,7 @@ def check_all_providers_are_listed_in_setup_py() -> None:
         if provider_name not in ALL_PROVIDERS:
             errors.append(
                 f"The provider {provider_name} is missing in setup.py "
-                + "[bold]PROVIDERS_REQUIREMENTS[/]: [red]NOK[/]"
+                "[bold]PROVIDERS_REQUIREMENTS[/]: [red]NOK[/]"
             )
 
 

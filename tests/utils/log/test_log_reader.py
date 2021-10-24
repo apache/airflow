@@ -16,16 +16,21 @@
 # under the License.
 
 import copy
+import datetime
 import logging
 import os
 import sys
 import tempfile
 from unittest import mock
 
+import pendulum
 import pytest
 
 from airflow import settings
 from airflow.config_templates.airflow_local_settings import DEFAULT_LOGGING_CONFIG
+from airflow.models import DagRun
+from airflow.operators.python import PythonOperator
+from airflow.timetables.base import DataInterval
 from airflow.utils import timezone
 from airflow.utils.log.log_reader import TaskLogReader
 from airflow.utils.log.logging_mixin import ExternalLoggingMixin
@@ -87,7 +92,7 @@ class TestLogView:
                 f.flush()
 
     @pytest.fixture(autouse=True)
-    def prepare_db(self, session, create_task_instance):
+    def prepare_db(self, create_task_instance):
         ti = create_task_instance(
             dag_id=self.DAG_ID,
             task_id=self.TASK_ID,
@@ -238,3 +243,50 @@ class TestLogView:
 
         mock_prop.return_value = True
         assert task_log_reader.supports_external_link
+
+    def test_task_log_filename_unique(self, dag_maker):
+        """Ensure the default log_filename_template produces a unique filename.
+
+        See discussion in apache/airflow#19058 [1]_ for how uniqueness may
+        change in a future Airflow release. For now, the logical date is used
+        to distinguish DAG runs. This test should be modified when the logical
+        date is no longer used to ensure uniqueness.
+
+        [1]: https://github.com/apache/airflow/issues/19058
+        """
+        dag_id = "test_task_log_filename_ts_corresponds_to_logical_date"
+        task_id = "echo_run_type"
+
+        def echo_run_type(dag_run: DagRun, **kwargs):
+            print(dag_run.run_type)
+
+        with dag_maker(dag_id, start_date=self.DEFAULT_DATE, schedule_interval="@daily") as dag:
+            PythonOperator(task_id=task_id, python_callable=echo_run_type)
+
+        start = pendulum.datetime(2021, 1, 1)
+        end = start + datetime.timedelta(days=1)
+        trigger_time = end + datetime.timedelta(hours=4, minutes=29)  # Arbitrary.
+
+        # Create two DAG runs that have the same data interval, but not the same
+        # execution date, to check if they correctly use different log files.
+        scheduled_dagrun: DagRun = dag_maker.create_dagrun(
+            run_type=DagRunType.SCHEDULED,
+            execution_date=start,
+            data_interval=DataInterval(start, end),
+        )
+        manual_dagrun: DagRun = dag_maker.create_dagrun(
+            run_type=DagRunType.MANUAL,
+            execution_date=trigger_time,
+            data_interval=DataInterval(start, end),
+        )
+
+        scheduled_ti = scheduled_dagrun.get_task_instance(task_id)
+        manual_ti = manual_dagrun.get_task_instance(task_id)
+        assert scheduled_ti is not None
+        assert manual_ti is not None
+
+        scheduled_ti.refresh_from_task(dag.get_task(task_id))
+        manual_ti.refresh_from_task(dag.get_task(task_id))
+
+        reader = TaskLogReader()
+        assert reader.render_log_filename(scheduled_ti, 1) != reader.render_log_filename(manual_ti, 1)

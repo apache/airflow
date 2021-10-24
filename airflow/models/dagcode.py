@@ -94,10 +94,11 @@ class DagCode(Base):
             hashes_to_filelocs = {DagCode.dag_fileloc_hash(fileloc): fileloc for fileloc in filelocs}
             message = ""
             for fileloc in conflicting_filelocs:
+                filename = hashes_to_filelocs[DagCode.dag_fileloc_hash(fileloc)]
                 message += (
-                    "Filename '{}' causes a hash collision in the "
-                    + "database with '{}'. Please rename the file."
-                ).format(hashes_to_filelocs[DagCode.dag_fileloc_hash(fileloc)], fileloc)
+                    f"Filename '{filename}' causes a hash collision in the "
+                    f"database with '{fileloc}'. Please rename the file."
+                )
             raise AirflowException(message)
 
         existing_filelocs = {dag_code.fileloc for dag_code in existing_orm_dag_codes}

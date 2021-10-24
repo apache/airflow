@@ -32,7 +32,7 @@ from collections import OrderedDict
 # Ignored Mypy on configparser because it thinks the configparser module has no _UNSET attribute
 from configparser import _UNSET, ConfigParser, NoOptionError, NoSectionError  # type: ignore
 from json.decoder import JSONDecodeError
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional, Tuple, Union
 
 from airflow.exceptions import AirflowConfigException
 from airflow.secrets import DEFAULT_SECRETS_SEARCH_PATH, BaseSecretsBackend
@@ -46,6 +46,15 @@ log = logging.getLogger(__name__)
 if not sys.warnoptions:
     warnings.filterwarnings(action='default', category=DeprecationWarning, module='airflow')
     warnings.filterwarnings(action='default', category=PendingDeprecationWarning, module='airflow')
+
+_SQLITE3_VERSION_PATTERN = re.compile(r"(?P<version>^\d+(?:\.\d+)*)\D?.*$")
+
+
+def _parse_sqlite_version(s: str) -> Tuple[int, ...]:
+    match = _SQLITE3_VERSION_PATTERN.match(s)
+    if match is None:
+        return ()
+    return tuple(int(p) for p in match.group("version").split("."))
 
 
 def expand_env_var(env_var):
@@ -267,15 +276,15 @@ class AirflowConfigParser(ConfigParser):
             raise AirflowConfigException(f"error: cannot use sqlite with the {self.get('core', 'executor')}")
         if is_sqlite:
             import sqlite3
-            from distutils.version import StrictVersion
 
             from airflow.utils.docs import get_docs_url
 
             # Some of the features in storing rendered fields require sqlite version >= 3.15.0
-            min_sqlite_version = '3.15.0'
-            if StrictVersion(sqlite3.sqlite_version) < StrictVersion(min_sqlite_version):
+            min_sqlite_version = (3, 15, 0)
+            if _parse_sqlite_version(sqlite3.sqlite_version) < min_sqlite_version:
+                min_sqlite_version_str = ".".join(str(s) for s in min_sqlite_version)
                 raise AirflowConfigException(
-                    f"error: sqlite C library version too old (< {min_sqlite_version}). "
+                    f"error: sqlite C library version too old (< {min_sqlite_version_str}). "
                     f"See {get_docs_url('howto/set-up-database.html#setting-up-a-sqlite-database')}"
                 )
 
