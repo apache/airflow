@@ -334,16 +334,19 @@ class DagRun(Base, LoggingMixin):
 
         return qry.order_by(DR.execution_date).all()
 
-    @staticmethod
+    @classmethod
     @provide_session
     def find_duplicate(
+        cls,
         dag_id: str,
         run_id: str,
         execution_date: datetime,
         session: Session = None,
     ) -> Optional['DagRun']:
         """
-        Returns a dag run if there is an existing run for a dag at a specific run_id and execution_date.
+        Return an existing run for the DAG with a specific run_id or execution_date.
+
+        *None* is returned if no such DAG run is found.
 
         :param dag_id: the dag_id to find duplicates for
         :type dag_id: str
@@ -354,13 +357,15 @@ class DagRun(Base, LoggingMixin):
         :param session: database session
         :type session: sqlalchemy.orm.session.Session
         """
-        DR = DagRun
 
-        qry = session.query(DR)
-
-        qry = qry.filter(DR.dag_id == dag_id, or_(DR.run_id == run_id, DR.execution_date == execution_date))
-
-        return qry.first()
+        return (
+            session.query(cls)
+            .filter(
+                cls.dag_id == dag_id,
+                or_(cls.run_id == run_id, cls.execution_date == execution_date),
+            )
+            .one_or_none()
+        )
 
     @staticmethod
     def generate_run_id(run_type: DagRunType, execution_date: datetime) -> str:
