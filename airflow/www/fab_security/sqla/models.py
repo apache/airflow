@@ -20,8 +20,10 @@
 # Copyright 2013, Daniel Vaz Gaspar
 
 import datetime
+import logging
 
-from flask import g
+from flask import current_app, g
+from flask_appbuilder import const as c
 from flask_appbuilder._compat import as_unicode
 from flask_appbuilder.models.sqla import Model
 from sqlalchemy import (
@@ -37,8 +39,17 @@ from sqlalchemy import (
 )
 from sqlalchemy.ext.declarative import declared_attr
 from sqlalchemy.orm import backref, relationship
+from sqlalchemy.sql.functions import current_time
+
+from airflow.utils.session import provide_session
 
 _dont_audit = False
+
+log = logging.getLogger(__name__)
+
+
+def get_session():
+    return current_app.appbuilder.get_session
 
 
 class Action(Model):
@@ -50,6 +61,60 @@ class Action(Model):
 
     def __repr__(self):
         return self.name
+
+    @classmethod
+    def get(cls, name: str, session=None):
+        """
+        Gets an existing action record.
+
+        :param name: name
+        :type name: str
+        :return: Action record, if it exists
+        :rtype: Action
+        """
+        session = session or get_session()
+        return session.query(cls).filter_by(name=name).one_or_none()
+
+    @classmethod
+    def create(cls, name: str, session=None):
+        """
+        Adds an action to the backend, model action
+
+        :param name:
+            name of the action: 'can_add','can_edit' etc...
+        """
+        session = session or get_session()
+        action = cls.get(name, session)
+        if action is None:
+            try:
+                action = Action(name=name)
+                session.add(action)
+                session.commit()
+                return action
+            except Exception as e:
+                log.error(c.LOGMSG_ERR_SEC_ADD_PERMISSION.format(str(e)))
+                session.rollback()
+        return action
+
+    @classmethod
+    def delete(cls, name: str, session=None):
+        session = session or get_session()
+        action = Action.get(name, session)
+        if not action:
+            log.warning(c.LOGMSG_WAR_SEC_DEL_PERMISSION.format(name))
+            return False
+        try:
+            perms = session.query(Permission).filter(Permission.action == action).all()
+            if perms:
+                log.warning(c.LOGMSG_WAR_SEC_DEL_PERM_PVM.format(action, perms))
+                return False
+            session.delete(action)
+            session.commit()
+            return True
+        except Exception as e:
+            log.error(c.LOGMSG_ERR_SEC_DEL_PERMISSION.format(str(e)))
+            session.rollback()
+            return False
 
 
 class Resource(Model):
@@ -67,6 +132,57 @@ class Resource(Model):
 
     def __repr__(self):
         return self.name
+
+    @classmethod
+    def get(cls, name, session=None):
+        session = session or get_session()
+        return session.query(Resource).filter_by(name=name).one_or_none()
+
+    @classmethod
+    def get_all(cls, session=None):
+        """
+        Gets all existing resource records.
+
+        :return: List of all resources
+        :rtype: List[Resource]
+        """
+        session = session or get_session()
+        return session.query(Resource).all()
+
+    @classmethod
+    def create(cls, name, session=None):
+        session = session or get_session()
+        resource = cls.get(name, session)
+        if resource is None:
+            try:
+                resource = Resource(name=name)
+                session.add(resource)
+                session.commit()
+                return resource
+            except Exception as e:
+                log.error(c.LOGMSG_ERR_SEC_ADD_VIEWMENU.format(str(e)))
+                session.rollback()
+        return resource
+
+    @classmethod
+    def delete(cls, name, session=None):
+        session = session or get_session()
+        resource = cls.get(name, session)
+        if not resource:
+            log.warning(c.LOGMSG_WAR_SEC_DEL_VIEWMENU.format(name))
+            return False
+        try:
+            perms = session.query(Permission).filter(Permission.resource == resource).all()
+            if perms:
+                log.warning(c.LOGMSG_WAR_SEC_DEL_VIEWMENU_PVM.format(resource, perms))
+                return False
+            session.delete(resource)
+            session.commit()
+            return True
+        except Exception as e:
+            log.error(c.LOGMSG_ERR_SEC_DEL_PERMISSION.format(str(e)))
+            session.rollback()
+            return False
 
 
 assoc_permission_role = Table(

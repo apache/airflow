@@ -552,8 +552,8 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
             for action_name, resource_name, viewmodel in (
                 self.get_session.query(self.permission_model)
                 .join(self.action_model)
-                .join(self.resource_model)
-                .filter(~self.resource_model.name.like(f"{permissions.RESOURCE_DAG_PREFIX}%"))
+                .join(Resource)
+                .filter(~Resource.name.like(f"{permissions.RESOURCE_DAG_PREFIX}%"))
                 .with_entities(self.action_model.name, self.resource_model.name, self.permission_model)
                 .all()
             )

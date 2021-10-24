@@ -287,7 +287,7 @@ class SecurityManager(BaseSecurityManager):
         :return: Action record, if it exists
         :rtype: Action
         """
-        return self.get_session.query(self.action_model).filter_by(name=name).one_or_none()
+        return Action.get(name, self.get_session)
 
     def permission_exists_in_one_or_more_roles(
         self, resource_name: str, action_name: str, role_ids: List[int]
@@ -359,18 +359,7 @@ class SecurityManager(BaseSecurityManager):
         :param name:
             name of the action: 'can_add','can_edit' etc...
         """
-        action = self.get_action(name)
-        if action is None:
-            try:
-                action = self.action_model()
-                action.name = name
-                self.get_session.add(action)
-                self.get_session.commit()
-                return action
-            except Exception as e:
-                log.error(c.LOGMSG_ERR_SEC_ADD_PERMISSION.format(str(e)))
-                self.get_session.rollback()
-        return action
+        return Action.create(name, self.get_session)
 
     def delete_action(self, name: str) -> bool:
         """
@@ -381,26 +370,7 @@ class SecurityManager(BaseSecurityManager):
         :return: Whether or not delete was successful.
         :rtype: bool
         """
-        action = self.get_action(name)
-        if not action:
-            log.warning(c.LOGMSG_WAR_SEC_DEL_PERMISSION.format(name))
-            return False
-        try:
-            perms = (
-                self.get_session.query(self.permission_model)
-                .filter(self.permission_model.action == action)
-                .all()
-            )
-            if perms:
-                log.warning(c.LOGMSG_WAR_SEC_DEL_PERM_PVM.format(action, perms))
-                return False
-            self.get_session.delete(action)
-            self.get_session.commit()
-            return True
-        except Exception as e:
-            log.error(c.LOGMSG_ERR_SEC_DEL_PERMISSION.format(str(e)))
-            self.get_session.rollback()
-            return False
+        return Action.delete(name, self.get_session)
 
     def get_resource(self, name: str) -> Resource:
         """
@@ -411,7 +381,7 @@ class SecurityManager(BaseSecurityManager):
         :return: Resource record
         :rtype: Resource
         """
-        return self.get_session.query(self.resource_model).filter_by(name=name).one_or_none()
+        return Resource.get(name, self.get_session)
 
     def get_all_resources(self) -> List[Resource]:
         """
@@ -420,7 +390,7 @@ class SecurityManager(BaseSecurityManager):
         :return: List of all resources
         :rtype: List[Resource]
         """
-        return self.get_session.query(self.resource_model).all()
+        return Resource.get_all(self.get_session)
 
     def create_resource(self, name) -> Resource:
         """
@@ -431,18 +401,7 @@ class SecurityManager(BaseSecurityManager):
         :return: The FAB resource created.
         :rtype: Resource
         """
-        resource = self.get_resource(name)
-        if resource is None:
-            try:
-                resource = self.resource_model()
-                resource.name = name
-                self.get_session.add(resource)
-                self.get_session.commit()
-                return resource
-            except Exception as e:
-                log.error(c.LOGMSG_ERR_SEC_ADD_VIEWMENU.format(str(e)))
-                self.get_session.rollback()
-        return resource
+        return Resource.create(name, self.get_session)
 
     def delete_resource(self, name: str) -> bool:
         """
@@ -451,26 +410,7 @@ class SecurityManager(BaseSecurityManager):
         :param name:
             name of the resource
         """
-        resource = self.get_resource(name)
-        if not resource:
-            log.warning(c.LOGMSG_WAR_SEC_DEL_VIEWMENU.format(name))
-            return False
-        try:
-            perms = (
-                self.get_session.query(self.permission_model)
-                .filter(self.permission_model.resource == resource)
-                .all()
-            )
-            if perms:
-                log.warning(c.LOGMSG_WAR_SEC_DEL_VIEWMENU_PVM.format(resource, perms))
-                return False
-            self.get_session.delete(resource)
-            self.get_session.commit()
-            return True
-        except Exception as e:
-            log.error(c.LOGMSG_ERR_SEC_DEL_PERMISSION.format(str(e)))
-            self.get_session.rollback()
-            return False
+        return Resource.delete(name, self.get_session)
 
     """
     ----------------------
