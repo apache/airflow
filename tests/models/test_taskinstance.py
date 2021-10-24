@@ -499,7 +499,7 @@ class TestTaskInstance:
                 raise AirflowSkipException
             if state == State.UP_FOR_RESCHEDULE:
                 raise AirflowRescheduleException(timezone.utcnow())
-            return None  # SUCCESS
+            return None  # State.SUCCESS
 
         _retries = 0
         if state == State.UP_FOR_RETRY:
