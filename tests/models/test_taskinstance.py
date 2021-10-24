@@ -497,16 +497,37 @@ class TestTaskInstance:
         Test that ensures that tasks wipe their next_method and next_kwargs for the configured states.
         """
 
+<<<<<<< HEAD
         def _raise_af_exception(exception_type):
             if exception_type:
                 raise exception_type
+=======
+        def run(state):
+            if state in [State.FAILED, State.UP_FOR_RETRY]:
+                raise AirflowException
+            if state == State.SKIPPED:
+                raise AirflowSkipException
+            if state == State.UP_FOR_RESCHEDULE:
+                raise AirflowRescheduleException(timezone.utcnow())
+            return None  # SUCCESS
+
+        _retries = 0
+        if state == State.UP_FOR_RETRY:
+            _retries = 1
+>>>>>>> 473345a70 (Refactored tests. Ensured State.FAILED considered in one case.)
 
         with dag_maker("test_deferred_method_clear"):
             task = PythonOperator(
                 task_id="test_deferred_method_clear_task",
+<<<<<<< HEAD
                 python_callable=_raise_af_exception,
                 op_args=[exception_type],
                 retries=retries,
+=======
+                python_callable=run,
+                op_args=[state],
+                retries=_retries,
+>>>>>>> 473345a70 (Refactored tests. Ensured State.FAILED considered in one case.)
                 retry_delay=datetime.timedelta(seconds=2),
             )
 
