@@ -1390,7 +1390,7 @@ ROLES_COMMANDS = (
     ),
     ActionCommand(
         name='export',
-        help='Export roles from db to JSON file',
+        help='Export roles (without permissions) from db to JSON file',
         func=lazy_load_command('airflow.cli.commands.role_command.roles_export'),
         args=(ARG_ROLE_EXPORT, ARG_ROLE_EXPORT_FMT, ARG_VERBOSE),
     ),
