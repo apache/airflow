@@ -492,41 +492,26 @@ class TestTaskInstance:
         when they go into a state of FAILED, SKIPPED, SUCCESS, UP_FOR_RESCHEDULE, or UP_FOR_RETRY.
         """
 
-        def failure():
-            raise AirflowException
-
-        def skip():
-            raise AirflowSkipException
-
-        def success():
-            return None
-
-        def reschedule():
-            reschedule_date = timezone.utcnow()
-            raise AirflowRescheduleException(reschedule_date)
+        def run(state):
+            if state in [State.FAILED, State.UP_FOR_RETRY]:
+                raise AirflowException
+            if state == State.SKIPPED:
+                raise AirflowSkipException
+            if state == State.UP_FOR_RESCHEDULE:
+                raise AirflowRescheduleException(timezone.utcnow())
+            return None  # SUCCESS
 
         _retries = 0
-        _retry_delay = datetime.timedelta(seconds=0)
-
-        if state == State.FAILED:
-            _python_callable = failure
-        elif state == State.SKIPPED:
-            _python_callable = skip
-        elif state == State.SUCCESS:
-            _python_callable = success
-        elif state == State.UP_FOR_RESCHEDULE:
-            _python_callable = reschedule
-        elif state in [State.FAILED, State.UP_FOR_RETRY]:
-            _python_callable = failure
+        if state == State.UP_FOR_RETRY:
             _retries = 1
-            _retry_delay = datetime.timedelta(seconds=2)
 
         with dag_maker("test_deferred_method_clear"):
             task = PythonOperator(
                 task_id="test_deferred_method_clear_task",
-                python_callable=_python_callable,
+                python_callable=run,
+                op_args=[state],
                 retries=_retries,
-                retry_delay=_retry_delay,
+                retry_delay=datetime.timedelta(seconds=2),
             )
 
         dr = dag_maker.create_dagrun()
@@ -540,7 +525,7 @@ class TestTaskInstance:
         if state in [State.FAILED, State.UP_FOR_RETRY]:
             with pytest.raises(AirflowException):
                 ti.run()
-        elif state in [State.SKIPPED, State.SUCCESS, State.UP_FOR_RESCHEDULE]:
+        else:
             ti.run()
         ti.refresh_from_db()
 
