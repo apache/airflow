@@ -53,7 +53,7 @@ class TestClearTasks:
             state=State.RUNNING,
             run_type=DagRunType.SCHEDULED,
         )
-        ti0, ti1 = dr.task_instances
+        ti0, ti1 = sorted(dr.task_instances, key=lambda ti: ti.task_id)
         ti0.refresh_from_task(task0)
         ti1.refresh_from_task(task1)
 
@@ -117,7 +117,7 @@ class TestClearTasks:
             state=State.RUNNING,
             run_type=DagRunType.SCHEDULED,
         )
-        ti0, ti1 = dr.task_instances
+        ti0, ti1 = sorted(dr.task_instances, key=lambda ti: ti.task_id)
         dr.last_scheduling_decision = DEFAULT_DATE
         ti0.state = TaskInstanceState.SUCCESS
         ti1.state = TaskInstanceState.SUCCESS
@@ -148,7 +148,7 @@ class TestClearTasks:
             run_type=DagRunType.SCHEDULED,
         )
 
-        ti0, ti1 = dr.task_instances
+        ti0, ti1 = sorted(dr.task_instances, key=lambda ti: ti.task_id)
         ti0.refresh_from_task(task0)
         ti1.refresh_from_task(task1)
 
@@ -187,7 +187,7 @@ class TestClearTasks:
             run_type=DagRunType.SCHEDULED,
         )
 
-        ti0, ti1 = dr.task_instances
+        ti0, ti1 = sorted(dr.task_instances, key=lambda ti: ti.task_id)
         ti0.refresh_from_task(task0)
         ti1.refresh_from_task(task1)
 
@@ -223,7 +223,7 @@ class TestClearTasks:
             run_type=DagRunType.SCHEDULED,
         )
 
-        ti0, ti1 = dr.task_instances
+        ti0, ti1 = sorted(dr.task_instances, key=lambda ti: ti.task_id)
         ti0.refresh_from_task(task0)
         ti1.refresh_from_task(task1)
         ti0.run()
@@ -263,7 +263,7 @@ class TestClearTasks:
         )
         session = dag_maker.session
 
-        ti0, ti1 = dr.task_instances
+        ti0, ti1 = sorted(dr.task_instances, key=lambda ti: ti.task_id)
         ti0.refresh_from_task(task0)
         ti1.refresh_from_task(task1)
 
@@ -380,8 +380,8 @@ class TestClearTasks:
             start_date=DEFAULT_DATE,
             end_date=DEFAULT_DATE + datetime.timedelta(days=10),
         ):
-            op1 = DummyOperator(task_id='bash_op')
-            op2 = DummyOperator(task_id='dummy_op', retries=1)
+            op1 = DummyOperator(task_id='test1')
+            op2 = DummyOperator(task_id='test2', retries=1)
             op1 >> op2
 
         dr = dag_maker.create_dagrun(
@@ -389,7 +389,7 @@ class TestClearTasks:
             run_type=DagRunType.SCHEDULED,
         )
 
-        ti1, ti2 = dr.task_instances
+        ti1, ti2 = sorted(dr.task_instances, key=lambda ti: ti.task_id)
         ti1.task = op1
         ti2.task = op2
 
