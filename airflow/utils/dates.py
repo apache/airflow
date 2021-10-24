@@ -261,6 +261,6 @@ def days_ago(n, hour=0, minute=0, second=0, microsecond=0):
     return today - timedelta(days=n)
 
 
-def parse_execution_date(execution_date_str):
+def parse_execution_date(execution_date_str) -> datetime:
     """Parse execution date string to datetime object."""
     return timezone.parse(execution_date_str)

@@ -14,9 +14,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-import datetime
 import unittest
 import uuid
+from abc import abstractmethod
 
 from airflow.api_connexion.schemas.xcom_schema import (
     XComCollection,
@@ -29,18 +29,35 @@ from airflow.utils.dates import parse_execution_date
 from airflow.utils.session import create_session, provide_session
 
 
-class MockXcomCollectionItem:
+class AbstractXComMock:
     DEFAULT_TIME = '2005-04-02T21:00:00+00:00'
     DEFAULT_TIME_PARSED = parse_execution_date(DEFAULT_TIME)
 
     def __init__(self):
         self.example_ref = uuid.uuid4()
-        self.key: str = f'test_key_{self.example_ref}'
-        self.timestamp: datetime.datetime = self.DEFAULT_TIME_PARSED
-        self.execution_date: datetime.datetime = self.DEFAULT_TIME_PARSED
+        self.key = f'test_key_{self.example_ref}'
+        self.timestamp = self.DEFAULT_TIME_PARSED
+        self.execution_date = self.DEFAULT_TIME_PARSED
         self.task_id = f'test_task_id_{self.example_ref}'
         self.dag_id = f'test_dag_{self.example_ref}'
 
+    @property
+    @abstractmethod
+    def as_xcom(self):
+        pass
+
+    @property
+    @abstractmethod
+    def deserialized_xcom(self):
+        pass
+
+    @property
+    @abstractmethod
+    def from_dump_xcom(self):
+        pass
+
+
+class MockXcomCollectionItem(AbstractXComMock):
     @property
     def as_xcom(self):
         return XCom(
@@ -72,7 +89,7 @@ class MockXcomCollectionItem:
         }
 
 
-class MockXcomSchema(MockXcomCollectionItem):
+class MockXcomSchema(AbstractXComMock):
     def __init__(self):
         super().__init__()
         self.value = f'test_binary_{self.example_ref}'
@@ -121,7 +138,7 @@ class TestXComSchemaBase(unittest.TestCase):
     @staticmethod
     def clear_db():
         """
-        Clear Hanging XComs pre test
+        Clear Hanging XComs
         """
         with create_session() as session:
             session.query(XCom).delete()
