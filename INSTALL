@@ -9,6 +9,12 @@ Linux (Debian Buster and Linux Mint Tricia):
 
 sudo apt install build-essential python3-dev libsqlite3-dev openssl \
                  sqlite default-libmysqlclient-dev libmysqlclient-dev postgresql
+            
+On Ubuntu 20.04 you may get an error of mariadb_config not found 
+and mysql_config not found.
+
+Install MariaDB development headers:
+sudo apt-get install libmariadb-dev libmariadbclient-dev
 
 MacOS (Mojave/Catalina):
 
