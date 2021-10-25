@@ -304,9 +304,9 @@ class SnowflakeHook(DbApiHook):
         return execution_info
 
     def test_connection(self):
-        """Tests the Snowflake connection by running a sample query"""
+        """Test the Snowflake connection by running a simple query."""
         try:
             self.run(sql="select 1")
-            return True, 'Connection successfully tested'
         except Exception as e:
             return False, str(e)
+        return True, "Connection successfully tested"
