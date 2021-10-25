@@ -1278,6 +1278,14 @@ class TaskInstance(Base, LoggingMixin):
             self._date_or_empty('end_date'),
         )
 
+    # Ensure we unset next_method and next_kwargs to ensure that any
+    # retries don't re-use them.
+    def clear_next_method_args(self):
+        self.log.debug("Clearing next_method and next_kwargs.")
+
+        self.next_method = None
+        self.next_kwargs = None
+
     @provide_session
     @Sentry.enrich_errors
     def _run_raw_task(
@@ -1367,6 +1375,9 @@ class TaskInstance(Base, LoggingMixin):
             # or dagrun timed out and task is marked as skipped
             # current behavior doesn't hit the callbacks
             if self.state in State.finished:
+                self.clear_next_method_args()
+                session.merge(self)
+                session.commit()
                 return
             else:
                 self.handle_failure(e, test_mode, error_file=error_file, session=session)
@@ -1380,6 +1391,7 @@ class TaskInstance(Base, LoggingMixin):
             Stats.incr(f'ti.finish.{self.task.dag_id}.{self.task.task_id}.{self.state}')
 
         # Recording SKIPPED or SUCCESS
+        self.clear_next_method_args()
         self.end_date = timezone.utcnow()
         self._log_state()
         self.set_duration()
@@ -1665,6 +1677,8 @@ class TaskInstance(Base, LoggingMixin):
         # to same log file.
         self._try_number -= 1
 
+        self.clear_next_method_args()
+
         session.merge(self)
         session.commit()
         self.log.info('Rescheduling task, marking task as UP_FOR_RESCHEDULE')
@@ -1706,10 +1720,7 @@ class TaskInstance(Base, LoggingMixin):
             dag_run = self.get_dagrun(session=session)  # self.dag_run not populated by refresh_from_db
             session.add(TaskFail(task, dag_run.execution_date, self.start_date, self.end_date))
 
-        # Ensure we unset next_method and next_kwargs to ensure that any
-        # retries don't re-use them.
-        self.next_method = None
-        self.next_kwargs = None
+        self.clear_next_method_args()
 
         # Set state correctly and figure out how to log it and decide whether
         # to email
