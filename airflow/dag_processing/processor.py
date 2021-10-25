@@ -419,6 +419,8 @@ class DagFileProcessor(LoggingMixin):
             else:
                 while next_info.logical_date < ts:
                     next_info = dag.next_dagrun_info(next_info.data_interval, restricted=False)
+                    if next_info is None:
+                        break
                     if next_info.logical_date + task.sla < ts:
                         sla_miss = SlaMiss(
                             task_id=ti.task_id,
