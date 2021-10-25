@@ -439,12 +439,12 @@ class TestPatchRole(TestRoleEndpoint):
                     "name": "testme",
                     "actions": [
                         {
-                            "resource": {"name": "Connections"},  # Using resource instead of resource
+                            "view_menu": {"name": "Connections"},  # Using view_menu instead of resource
                             "action": {"name": "can_create"},
                         }
                     ],
                 },
-                "{'actions': {0: {'resource': ['Unknown field.']}}}",
+                "{'actions': {0: {'view_menu': ['Unknown field.']}}}",
             ),
             (
                 {
