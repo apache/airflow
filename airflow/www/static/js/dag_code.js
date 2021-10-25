@@ -17,13 +17,10 @@
  * under the License.
  */
 
-/* global $ */
+/* global window, $ */
 
-import getMetaValue from './meta_value';
-
-const isWrapped = getMetaValue('wrapped');
-
-// pygments generates the HTML so set wrap toggle via js
-if (isWrapped) {
+function toggleWrap() {
   $('.code pre').toggleClass('wrap');
 }
+
+window.toggleWrap = toggleWrap;
