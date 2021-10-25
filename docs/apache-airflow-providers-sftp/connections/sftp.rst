@@ -78,7 +78,7 @@ Example “extras” field:
 .. code-block:: bash
 
     {
-       "private_key": "path/to/private_key",
+       "key_file": "path/to/private_key",
        "no_host_key_check": "false",
        "allow_host_key_change": "false",
        "host_key": "AAAHD...YDWwq=="
@@ -89,11 +89,11 @@ it using URI syntax.
 
 Note that all components of the URI should be URL-encoded.
 
-Example connection string with ``private_key``:
+Example connection string with ``key_file``  (path to key file provided in connection):
 
 .. code-block:: bash
 
-   export AIRFLOW_CONN_SFTP_DEFAULT='sftp://user:pass@localhost:22?private_key=64bit-encoded-private-key'
+   export AIRFLOW_CONN_SFTP_DEFAULT='sftp://user:pass@localhost:22?key_file=%2Fhome%2Fairflow%2F.ssh%2Fid_rsa'
 
 Example connection string with ``host_key``:
 
