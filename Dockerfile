@@ -159,13 +159,21 @@ ARG INSTALL_PROVIDERS_FROM_SOURCES="false"
 # But it also can be `.` from local installation or GitHub URL pointing to specific branch or tag
 # Of Airflow. Note That for local source installation you need to have local sources of
 # Airflow checked out together with the Dockerfile and AIRFLOW_SOURCES_FROM and AIRFLOW_SOURCES_TO
-# set to "." and "/opt/airflow" respectively.
+# set to "." and "/opt/airflow" respectively. Similarly AIRFLOW_SOURCES_WWW_FROM/TO are set to right source
+# and destination
 ARG AIRFLOW_INSTALLATION_METHOD="apache-airflow"
 # By default latest released version of airflow is installed (when empty) but this value can be overridden
 # and we can install version according to specification (For example ==2.0.2 or <3.0.0).
 ARG AIRFLOW_VERSION_SPECIFICATION=""
 # By default we do not upgrade to latest dependencies
 ARG UPGRADE_TO_NEWER_DEPENDENCIES="false"
+# By default we install latest airflow from PyPI so we do not need to copy sources of Airflow
+# www to compile the assets but in case of breeze/CI builds we use latest sources and we override those
+# those SOURCES_FROM/TO with "airflow/www" and "/opt/airflow/airflow/www" respectively.
+# This is to rebuild the assets only when any of the www sources change
+ARG AIRFLOW_SOURCES_WWW_FROM="empty"
+ARG AIRFLOW_SOURCES_WWW_TO="/empty"
+
 # By default we install latest airflow from PyPI so we do not need to copy sources of Airflow
 # but in case of breeze/CI builds we use latest sources and we override those
 # those SOURCES_FROM/TO with "." and "/opt/airflow" respectively
@@ -216,7 +224,9 @@ ENV PATH=/.venv/bin:${PATH} \
 
 # Copy all scripts required for installation - changing any of those should lead to
 # rebuilding from here
-COPY scripts/docker/*.sh /scripts/docker/
+COPY scripts/docker/common.sh scripts/docker/create_venv.sh \
+    scripts/docker/install_pip_version.sh /scripts/docker/install_airflow_dependencies_from_branch_tip.sh \
+    /scripts/docker/
 
 # In case of Production build image segment we want to pre-install main version of airflow
 # dependencies from GitHub so that we do not have to always reinstall it from the scratch.
@@ -232,7 +242,25 @@ RUN bash /scripts/docker/create_venv.sh; \
         bash /scripts/docker/install_airflow_dependencies_from_branch_tip.sh; \
     fi
 
+COPY scripts/docker/compile_www_assets.sh /scripts/docker/
+
+COPY ${AIRFLOW_SOURCES_WWW_FROM} ${AIRFLOW_SOURCES_WWW_TO}
+
+# hadolint ignore=SC2086, SC2010
+RUN if [[ ${AIRFLOW_INSTALLATION_METHOD} == "." ]]; then \
+        # only compile assets if the prod image is build from sources
+        # otherwise they are already compiled-in
+        bash /scripts/docker/compile_www_assets.sh; \
+        # Copy generated dist folder (otherwise it will be overridden by the COPY step below)
+        mv -f /opt/airflow/airflow/www/static/dist /tmp/dist; \
+    fi;
+
 COPY ${AIRFLOW_SOURCES_FROM} ${AIRFLOW_SOURCES_TO}
+
+# Copy back the generated dist folder
+RUN if [[ ${AIRFLOW_INSTALLATION_METHOD} == "." ]]; then \
+        mv -f /tmp/dist /opt/airflow/airflow/www/static/dist; \
+    fi;
 
 # Add extra python dependencies
 ARG ADDITIONAL_PYTHON_DEPS=""
@@ -258,13 +286,12 @@ ENV ADDITIONAL_PYTHON_DEPS=${ADDITIONAL_PYTHON_DEPS} \
 
 WORKDIR /opt/airflow
 
+COPY scripts/docker/install_from_docker_context_files.sh scripts/docker/install_airflow.sh \
+     scripts/docker/install_additional_dependencies.sh \
+    /scripts/docker/
+
 # hadolint ignore=SC2086, SC2010
-RUN if [[ ${AIRFLOW_INSTALLATION_METHOD} == "." ]]; then \
-        # only compile assets if the prod image is build from sources
-        # otherwise they are already compiled-in
-        bash /scripts/docker/compile_www_assets.sh; \
-    fi; \
-    if [[ ${INSTALL_FROM_DOCKER_CONTEXT_FILES} == "true" ]]; then \
+RUN if [[ ${INSTALL_FROM_DOCKER_CONTEXT_FILES} == "true" ]]; then \
         bash /scripts/docker/install_from_docker_context_files.sh; \
     elif [[ ${INSTALL_FROM_PYPI} == "true" ]]; then \
         bash /scripts/docker/install_airflow.sh; \

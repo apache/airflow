@@ -198,6 +198,16 @@ You can see some examples of those in:
 |                                          |                                          | "/opt/airflow" when you install Airflow  |
 |                                          |                                          | from local sources.                      |
 +------------------------------------------+------------------------------------------+------------------------------------------+
+| ``AIRFLOW_SOURCES_WWW_FROM``             | ``empty``                                | Sources of Airflow WWW files used for    |
+|                                          |                                          | asset compilation. Set it to             |
+|                                          |                                          | "./airflow/www" when                     |
+|                                          |                                          | you install Airflow from local sources   |
++------------------------------------------+------------------------------------------+------------------------------------------+
+| ``AIRFLOW_SOURCES_WWW_TO``               | ``/empty``                               | Target for Airflow files used for        |
+|                                          |                                          | asset compilation. Set it to             |
+|                                          |                                          | "/opt/airflow/airflow/www" when          |
+|                                          |                                          | you install Airflow from local sources.  |
++------------------------------------------+------------------------------------------+------------------------------------------+
 | ``AIRFLOW_VERSION_SPECIFICATION``        |                                          | Optional - might be used for using limit |
 |                                          |                                          | for Airflow version installation - for   |
 |                                          |                                          | example ``<2.0.2`` for automated builds. |
