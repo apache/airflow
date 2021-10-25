@@ -51,7 +51,6 @@ TEST_HOST_KEY = generate_host_key(pkey=TEST_PKEY)
 TEST_KEY_FILE = "~/.ssh/id_rsa"
 
 
-
 class TestSFTPHook(unittest.TestCase):
     @provide_session
     def update_connection(self, login, session=None):
@@ -240,9 +239,11 @@ class TestSFTPHook(unittest.TestCase):
         connection = Connection(
             login='login',
             host='host',
-            extra=json.dumps({
-                "private_key": key_content_str,
-            }),
+            extra=json.dumps(
+                {
+                    "private_key": key_content_str,
+                }
+            ),
         )
         get_connection.return_value = connection
         hook = SFTPHook()
@@ -254,9 +255,11 @@ class TestSFTPHook(unittest.TestCase):
         connection = Connection(
             login='login',
             host='host',
-            extra=json.dumps({
-                "key_file": TEST_KEY_FILE,
-            }),
+            extra=json.dumps(
+                {
+                    "key_file": TEST_KEY_FILE,
+                }
+            ),
         )
         get_connection.return_value = connection
         hook = SFTPHook()
