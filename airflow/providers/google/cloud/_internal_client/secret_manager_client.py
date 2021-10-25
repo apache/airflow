@@ -24,7 +24,7 @@ try:
     from functools import cached_property
 except ImportError:
     from cached_property import cached_property
-from google.api_core.exceptions import NotFound, PermissionDenied
+from google.api_core.exceptions import InvalidArgument, NotFound, PermissionDenied
 from google.api_core.gapic_v1.client_info import ClientInfo
 from google.cloud.secretmanager_v1 import SecretManagerServiceClient
 
@@ -93,6 +93,15 @@ class _SecretManagerClient(LoggingMixin):
             self.log.error(
                 """Google Cloud API Call Error (PermissionDenied): No access for Secret ID %s.
                 Did you add 'secretmanager.versions.access' permission?""",
+                secret_id,
+            )
+            return None
+        except InvalidArgument:
+            self.log.error(
+                """Google Cloud API Call Error (InvalidArgument): Invalid secret ID %s.
+                Only ASCII alphabets (a-Z), numbers (0-9), dashes (-), and underscores (_)
+                are allowed in the secret ID.
+                """,
                 secret_id,
             )
             return None

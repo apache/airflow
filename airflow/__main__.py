@@ -19,13 +19,15 @@
 # under the License.
 
 """Main executable module"""
-
 import os
+import warnings
 
 import argcomplete
 
+from airflow import PY310
 from airflow.cli import cli_parser
 from airflow.configuration import conf
+from airflow.utils.docs import get_docs_url
 
 
 def main():
@@ -33,6 +35,12 @@ def main():
     if conf.get("core", "security") == 'kerberos':
         os.environ['KRB5CCNAME'] = conf.get('kerberos', 'ccache')
         os.environ['KRB5_KTNAME'] = conf.get('kerberos', 'keytab')
+    if PY310:
+        docs_url = get_docs_url('installation/prerequisites.html')
+        warnings.warn(
+            "Python v3.10 is not official supported on this version of Airflow. Please be careful. "
+            f"For details, see: {docs_url}"
+        )
 
     parser = cli_parser.get_parser()
     argcomplete.autocomplete(parser)

@@ -119,7 +119,7 @@ class YandexCloudBaseHook(BaseHook):
         if not (service_account_json or oauth_token or service_account_json_path):
             raise AirflowException(
                 'No credentials are found in connection. Specify either service account '
-                + 'authentication JSON or user OAuth token in Yandex.Cloud connection'
+                'authentication JSON or user OAuth token in Yandex.Cloud connection'
             )
         if service_account_json_path:
             with open(service_account_json_path) as infile:

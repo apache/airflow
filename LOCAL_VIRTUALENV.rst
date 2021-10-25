@@ -65,7 +65,7 @@ Extra Packages
 
    Only ``pip`` installation is currently officially supported.
 
-   While they are some successes with using other tools like `poetry <https://python-poetry.org/>`_ or
+   While there are some successes with using other tools like `poetry <https://python-poetry.org/>`_ or
    `pip-tools <https://pypi.org/project/pip-tools/>`_, they do not share the same workflow as
    ``pip`` - especially when it comes to constraint vs. requirements management.
    Installing via ``Poetry`` or ``pip-tools`` is not currently supported.
@@ -146,13 +146,12 @@ To create and initialize the local virtualenv:
 
 In case you have problems with installing airflow because of some requirements are not installable, you can
 try to install it with the set of working constraints (note that there are different constraint files
-for different python versions:
+for different python versions). For development on current main source:
 
    .. code-block:: bash
 
     pip install -e ".[devel,<OTHER EXTRAS>]" \
-        --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-main/constraints-3.6.txt"
-
+        --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-main/constraints-source-providers-3.6.txt"
 
 This will install Airflow in 'editable' mode - where sources of Airflow are taken directly from the source
 code rather than moved to the installation directory. During the installation airflow will install - but then
@@ -164,7 +163,7 @@ You can also install Airflow in non-editable mode:
    .. code-block:: bash
 
     pip install ".[devel,<OTHER EXTRAS>]" \
-        --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-main/constraints-3.6.txt"
+        --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-main/constraints-source-providers-3.6.txt"
 
 This will copy the sources to directory where usually python packages are installed. You can see the list
 of directories via ``python -m site`` command. In this case the providers are installed from PyPI, not from
@@ -173,7 +172,7 @@ sources, unless you set ``INSTALL_PROVIDERS_FROM_SOURCES`` environment variable 
    .. code-block:: bash
 
     INSTALL_PROVIDERS_FROM_SOURCES="true" pip install ".[devel,<OTHER EXTRAS>]" \
-        --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-main/constraints-3.6.txt"
+        --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-main/constraints-source-providers-3.6.txt"
 
 
 Note: when you first initialize database (the next step), you may encounter some problems.
@@ -203,6 +202,13 @@ Activate your virtualenv, e.g. by using ``workon``, and once you are in it, run:
 
 .. code-block:: bash
 
+  ./breeze initialize-local-virtualenv
+
+By default Breeze installs the ``devel`` extra only. You can optionally control which extras are installed by exporting ``VIRTUALENV_EXTRAS`` before calling Breeze:
+
+.. code-block:: bash
+
+  export VIRTUALENV_EXTRAS="devel,google,postgres"
   ./breeze initialize-local-virtualenv
 
 5. (optionally) run yarn build if you plan to run the webserver

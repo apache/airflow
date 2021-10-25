@@ -88,6 +88,7 @@ class TestTaskInstanceSchema:
             "task_id": "TEST_TASK_ID",
             "try_number": 0,
             "unixname": getuser(),
+            "dag_run_id": None,
         }
         assert serialized_ti == expected_json
 
@@ -132,6 +133,7 @@ class TestTaskInstanceSchema:
             "task_id": "TEST_TASK_ID",
             "try_number": 0,
             "unixname": getuser(),
+            "dag_run_id": None,
         }
         assert serialized_ti == expected_json
 
