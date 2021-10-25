@@ -62,9 +62,8 @@ def _trigger_dag(
         min_dag_start_date = dag.default_args["start_date"]
         if min_dag_start_date and execution_date < min_dag_start_date:
             raise ValueError(
-                "The execution_date [{}] should be >= start_date [{}] from DAG's default_args".format(
-                    execution_date.isoformat(), min_dag_start_date.isoformat()
-                )
+                f"The execution_date [{execution_date.isoformat()}] should be >= start_date "
+                f"[{min_dag_start_date.isoformat()}] from DAG's default_args"
             )
 
     run_id = run_id or DagRun.generate_run_id(DagRunType.MANUAL, execution_date)

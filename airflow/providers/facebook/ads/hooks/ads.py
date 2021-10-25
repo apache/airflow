@@ -18,7 +18,7 @@
 """This module contains Facebook Ads Reporting hooks"""
 import time
 from enum import Enum
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
 try:
     from functools import cached_property
@@ -53,8 +53,9 @@ class FacebookAdsReportingHook(BaseHook):
 
     :param facebook_conn_id: Airflow Facebook Ads connection ID
     :type facebook_conn_id: str
-    :param api_version: The version of Facebook API. Default to v6.0
-    :type api_version: str
+    :param api_version: The version of Facebook API. Default to None. If it is None,
+        it will use the Facebook business SDK default version.
+    :type api_version: Optional[str]
 
     """
 
@@ -66,7 +67,7 @@ class FacebookAdsReportingHook(BaseHook):
     def __init__(
         self,
         facebook_conn_id: str = default_conn_name,
-        api_version: str = "v6.0",
+        api_version: Optional[str] = None,
     ) -> None:
         super().__init__()
         self.facebook_conn_id = facebook_conn_id

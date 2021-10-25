@@ -19,39 +19,12 @@
 Customizing DAG Scheduling with Timetables
 ==========================================
 
-A DAG's scheduling strategy is determined by its internal "timetable". This
-timetable can be created by specifying the DAG's ``schedule_interval`` argument,
-as described in :doc:`DAG Run </dag-run>`. The timetable also dictates the data
-interval and the logical time of each run created for the DAG.
-
-However, there are situations when a cron expression or simple ``timedelta``
-periods cannot properly express the schedule. Some of the examples are:
-
-* Data intervals with "holes" between. (Instead of continuous, as both the cron
-  expression and ``timedelta`` schedules represent.)
-* Run tasks at different times each day. For example, an astronomer may find it
-  useful to run a task at dawn to process data collected from the previous
-  night-time period.
-* Schedules not following the Gregorian calendar. For example, create a run for
-  each month in the `Traditional Chinese Calendar`_. This is conceptually
-  similar to the sunset case above, but for a different time scale.
-* Rolling windows, or overlapping data intervals. For example, one may want to
-  have a run each day, but make each run cover the period of the previous seven
-  days. It is possible to "hack" this with a cron expression, but a custom data
-  interval would be a more natural representation.
-
-.. _`Traditional Chinese Calendar`: https://en.wikipedia.org/wiki/Chinese_calendar
-
-
 For our example, let's say a company wants to run a job after each weekday to
 process data collected during the work day. The first intuitive answer to this
 would be ``schedule_interval="0 0 * * 1-5"`` (midnight on Monday to Friday), but
 this means data collected on Friday will *not* be processed right after Friday
 ends, but on the next Monday, and that run's interval would be from midnight
-Friday to midnight *Monday*.
-
-This is, therefore, an example in the "holes" category above; the intended
-schedule should not include the two weekend days. What we want is:
+Friday to midnight *Monday*. What we want is:
 
 * Schedule a run for each Monday, Tuesday, Wednesday, Thursday, and Friday. The
   run's data interval would cover from midnight of each day, to midnight of the
@@ -99,6 +72,7 @@ file:
     import datetime
 
     from airflow import DAG
+    from airflow.example_dags.plugins.workday import AfterWorkdayTimetable
 
 
     with DAG(
@@ -277,7 +251,7 @@ serialized DAG is accessed by the scheduler to reconstruct the timetable.
 
 
 Timetable Display in UI
-=======================
+-----------------------
 
 By default, a custom timetable is displayed by their class name in the UI (e.g.
 the *Schedule* column in the "DAGs" table. It is possible to customize this

@@ -182,11 +182,11 @@ in templates, make sure to read through the :ref:`templates-ref`.
 
 Adding DAG and Tasks documentation
 ----------------------------------
-We can add documentation for DAG or each single task. DAG documentation only support
-markdown so far and task documentation support plain text, markdown, reStructuredText,
-json, yaml. The DAG documentation can be written as a doc string at the beginning of the DAG file (recommended)
-or anywhere in the file. Below you can find some examples on how to implement task and DAG docs,
-as well as screenshots:
+We can add documentation for DAG or each single task. DAG documentation only supports
+markdown so far, while task documentation supports plain text, markdown, reStructuredText,
+json, and yaml. The DAG documentation can be written as a doc string at the beginning
+of the DAG file (recommended), or anywhere else in the file. Below you can find some examples
+on how to implement task and DAG docs, as well as screenshots:
 
 .. exampleinclude:: /../../airflow/example_dags/tutorial.py
     :language: python
@@ -395,7 +395,7 @@ Create a Employee table in postgres using this
   create table "Employees_temp"
   (
       "Serial Number" numeric not null
-   constraint employees_pk
+   constraint employees_temp_pk
               primary key,
       "Company Name" text,
       "Employee Markme" text,
@@ -410,29 +410,23 @@ Let's break this down into 2 steps: get data & merge data:
 
   @task
   def get_data():
+      data_path = "/usr/local/airflow/dags/files/employees.csv"
+
       url = "https://raw.githubusercontent.com/apache/airflow/main/docs/apache-airflow/pipeline_example.csv"
 
       response = requests.request("GET", url)
 
-      with open("/usr/local/airflow/dags/files/employees.csv", "w") as file:
+      with open(data_path, "w") as file:
           for row in response.text.split("\n"):
-              file.write(row)
+              if row:
+                  file.write(row + "\n")
 
       postgres_hook = PostgresHook(postgres_conn_id="LOCAL")
       conn = postgres_hook.get_conn()
       cur = conn.cursor()
-      with open("/usr/local/airflow/dags/files/employees.csv", "r") as file:
-          cur.copy_from(
-              f,
-              "Employees_temp",
-              columns=[
-                  "Serial Number",
-                  "Company Name",
-                  "Employee Markme",
-                  "Description",
-                  "Leave",
-              ],
-              sep=",",
+      with open(data_path, "r") as file:
+          cur.copy_expert(
+              "COPY \"Employees_temp\" FROM stdin WITH CSV HEADER DELIMITER AS ','", file
           )
       conn.commit()
 
@@ -468,6 +462,12 @@ Lets look at our DAG:
 
 .. code-block:: python
 
+  from airflow.decorators import dag, task
+  from airflow.hooks.postgres_hook import PostgresHook
+  from datetime import datetime, timedelta
+  import requests
+
+
   @dag(
       schedule_interval="0 0 * * *",
       start_date=datetime.today() - timedelta(days=2),
@@ -476,29 +476,25 @@ Lets look at our DAG:
   def Etl():
       @task
       def get_data():
+          # NOTE: configure this as appropriate for your airflow environment
+          data_path = "/usr/local/airflow/dags/files/employees.csv"
+
           url = "https://raw.githubusercontent.com/apache/airflow/main/docs/apache-airflow/pipeline_example.csv"
 
           response = requests.request("GET", url)
 
-          with open("/usr/local/airflow/dags/files/employees.csv", "w") as file:
+          with open(data_path, "w") as file:
               for row in response.text.split("\n"):
-                  file.write(row)
+                  if row:
+                      file.write(row + "\n")
 
           postgres_hook = PostgresHook(postgres_conn_id="LOCAL")
           conn = postgres_hook.get_conn()
           cur = conn.cursor()
-          with open("/usr/local/airflow/dags/files/employees.csv", "r") as file:
-              cur.copy_from(
-                  f,
-                  "Employees_temp",
-                  columns=[
-                      "Serial Number",
-                      "Company Name",
-                      "Employee Markme",
-                      "Description",
-                      "Leave",
-                  ],
-                  sep=",",
+          with open(data_path, "r") as file:
+              cur.copy_expert(
+                  "COPY \"Employees_temp\" FROM stdin WITH CSV HEADER DELIMITER AS ','",
+                  file,
               )
           conn.commit()
 
@@ -529,7 +525,7 @@ Lets look at our DAG:
   dag = Etl()
 
 This dag runs daily at 00:00.
-Add this python file to airflow/dags folder and go back to the main folder and run
+Add this python file to airflow/dags folder (e.g. ``dags/etl.py``) and go back to the main folder and run
 
 .. code-block:: bash
 

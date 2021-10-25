@@ -14,6 +14,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from datetime import datetime
 from os import environ
 
 from airflow.models.dag import DAG
@@ -24,7 +25,6 @@ from airflow.providers.amazon.aws.operators.eks import (
     EKSPodOperator,
 )
 from airflow.providers.amazon.aws.sensors.eks import EKSClusterStateSensor, EKSNodegroupStateSensor
-from airflow.utils.dates import days_ago
 
 CLUSTER_NAME = environ.get('EKS_CLUSTER_NAME', 'eks-demo')
 NODEGROUP_NAME = f'{CLUSTER_NAME}-nodegroup'
@@ -39,8 +39,9 @@ VPC_CONFIG = {
 
 with DAG(
     dag_id='example_eks_using_defaults_dag',
+    default_args={'cluster_name': CLUSTER_NAME},
     schedule_interval=None,
-    start_date=days_ago(2),
+    start_date=datetime(2021, 1, 1),
     max_active_runs=1,
     tags=['example'],
 ) as dag:
@@ -49,7 +50,6 @@ with DAG(
     # Create an Amazon EKS cluster control plane and an EKS nodegroup compute platform in one step.
     create_cluster_and_nodegroup = EKSCreateClusterOperator(
         task_id='create_eks_cluster_and_nodegroup',
-        cluster_name=CLUSTER_NAME,
         nodegroup_name=NODEGROUP_NAME,
         cluster_role_arn=ROLE_ARN,
         nodegroup_role_arn=ROLE_ARN,
@@ -63,7 +63,6 @@ with DAG(
 
     await_create_nodegroup = EKSNodegroupStateSensor(
         task_id='wait_for_create_nodegroup',
-        cluster_name=CLUSTER_NAME,
         nodegroup_name=NODEGROUP_NAME,
         target_state=NodegroupStates.ACTIVE,
     )
@@ -71,7 +70,6 @@ with DAG(
     start_pod = EKSPodOperator(
         task_id="run_pod",
         pod_name="run_pod",
-        cluster_name=CLUSTER_NAME,
         image="amazon/aws-cli:latest",
         cmds=["sh", "-c", "echo Test Airflow; date"],
         labels={"demo": "hello_world"},
@@ -81,16 +79,13 @@ with DAG(
     )
 
     # [START howto_operator_eks_force_delete_cluster]
-    # An Amazon EKS cluster can not be deleted with attached resources.
+    # An Amazon EKS cluster can not be deleted with attached resources such as nodegroups or Fargate profiles.
     # Setting the `force` to `True` will delete any attached resources before deleting the cluster.
-    delete_all = EKSDeleteClusterOperator(
-        task_id='delete_nodegroup_and_cluster', cluster_name=CLUSTER_NAME, force_delete_compute=True
-    )
+    delete_all = EKSDeleteClusterOperator(task_id='delete_nodegroup_and_cluster', force_delete_compute=True)
     # [END howto_operator_eks_force_delete_cluster]
 
     await_delete_cluster = EKSClusterStateSensor(
         task_id='wait_for_delete_cluster',
-        cluster_name=CLUSTER_NAME,
         target_state=ClusterStates.NONEXISTENT,
     )
 

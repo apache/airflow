@@ -114,6 +114,7 @@ class TestDagRun(unittest.TestCase):
         dag_id1 = "test_dagrun_find_externally_triggered"
         dag_run = models.DagRun(
             dag_id=dag_id1,
+            run_id=dag_id1,
             run_type=DagRunType.MANUAL,
             execution_date=now,
             start_date=now,
@@ -125,6 +126,7 @@ class TestDagRun(unittest.TestCase):
         dag_id2 = "test_dagrun_find_not_externally_triggered"
         dag_run = models.DagRun(
             dag_id=dag_id2,
+            run_id=dag_id2,
             run_type=DagRunType.MANUAL,
             execution_date=now,
             start_date=now,
@@ -532,6 +534,7 @@ class TestDagRun(unittest.TestCase):
         # don't want
         dag_run = models.DagRun(
             dag_id=dag.dag_id,
+            run_id="test_get_task_instance_on_empty_dagrun",
             run_type=DagRunType.MANUAL,
             execution_date=now,
             start_date=now,

@@ -93,7 +93,7 @@ class TestSecretsManagerBackend(TestCase):
 
     @mock_secretsmanager
     def test_format_uri_with_extra(self):
-        secret = {'extra': {'key1': 'value1', 'key2': 'value2'}}
+        secret = {'extra': '{"key1": "value1", "key2": "value2"}'}
         conn_string = 'CS'
         secrets_manager_backend = SecretsManagerBackend()
 

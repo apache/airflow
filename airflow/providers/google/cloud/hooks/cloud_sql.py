@@ -505,8 +505,8 @@ class CloudSqlProxyRunner(LoggingMixin):
             file.write(response.content)
         if response.status_code != 200:
             raise AirflowException(
-                "The cloud-sql-proxy could not be downloaded. Status code = {}. "
-                "Reason = {}".format(response.status_code, response.reason)
+                "The cloud-sql-proxy could not be downloaded. "
+                f"Status code = {response.status_code}. Reason = {response.reason}"
             )
 
         self.log.info("Moving sql_proxy binary from %s to %s", proxy_path_tmp, self.sql_proxy_path)
@@ -788,9 +788,8 @@ class CloudSQLDatabaseHook(BaseHook):
             raise AirflowException("The required extra 'instance' is empty or None")
         if self.database_type not in CLOUD_SQL_VALID_DATABASE_TYPES:
             raise AirflowException(
-                "Invalid database type '{}'. Must be one of {}".format(
-                    self.database_type, CLOUD_SQL_VALID_DATABASE_TYPES
-                )
+                f"Invalid database type '{self.database_type}'. "
+                f"Must be one of {CLOUD_SQL_VALID_DATABASE_TYPES}"
             )
         if self.use_proxy and self.use_ssl:
             raise AirflowException(
@@ -821,17 +820,15 @@ class CloudSQLDatabaseHook(BaseHook):
                 suffix = "/.s.PGSQL.5432"
             else:
                 suffix = ""
-            expected_path = "{}/{}:{}:{}{}".format(
-                self._generate_unique_path(), self.project_id, self.instance, self.database, suffix
+            expected_path = (
+                f"{self._generate_unique_path()}/{self.project_id}:{self.instance}:{self.database}{suffix}"
             )
             if len(expected_path) > UNIX_PATH_MAX:
                 self.log.info("Too long (%s) path: %s", len(expected_path), expected_path)
                 raise AirflowException(
-                    "The UNIX socket path length cannot exceed {} characters "
-                    "on Linux system. Either use shorter instance/database "
-                    "name or switch to TCP connection. "
-                    "The socket path for Cloud SQL proxy is now:"
-                    "{}".format(UNIX_PATH_MAX, expected_path)
+                    f"The UNIX socket path length cannot exceed {UNIX_PATH_MAX} characters on Linux system. "
+                    "Either use shorter instance/database name or switch to TCP connection. "
+                    f"The socket path for Cloud SQL proxy is now:{expected_path}"
                 )
 
     @staticmethod
@@ -874,10 +871,7 @@ class CloudSQLDatabaseHook(BaseHook):
                 format_string = proxy_uris['tcp']
             else:
                 format_string = proxy_uris['socket']
-                socket_path = "{sql_proxy_socket_path}/{instance_socket_name}".format(
-                    sql_proxy_socket_path=self.sql_proxy_unique_path,
-                    instance_socket_name=self._get_instance_socket_name(),
-                )
+                socket_path = f"{self.sql_proxy_unique_path}/{self._get_instance_socket_name()}"
         else:
             public_uris = database_uris['public']  # type: Dict[str, str]
             if self.use_ssl:

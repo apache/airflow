@@ -201,9 +201,7 @@ class TestPubSubHook(unittest.TestCase):
             subscription=TEST_SUBSCRIPTION,
             subscription_project_id='a-different-project',
         )
-        expected_subscription = 'projects/{}/subscriptions/{}'.format(
-            'a-different-project', TEST_SUBSCRIPTION
-        )
+        expected_subscription = f'projects/a-different-project/subscriptions/{TEST_SUBSCRIPTION}'
         create_method.assert_called_once_with(
             request=dict(
                 name=expected_subscription,

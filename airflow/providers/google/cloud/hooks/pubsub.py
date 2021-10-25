@@ -610,9 +610,7 @@ class PubSubHook(GoogleBaseHook):
             )
         except (HttpError, GoogleAPICallError) as e:
             raise PubSubException(
-                'Error acknowledging {} messages pulled from subscription {}'.format(
-                    len(ack_ids), subscription_path
-                ),
+                f'Error acknowledging {len(ack_ids)} messages pulled from subscription {subscription_path}',
                 e,
             )
 

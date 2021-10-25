@@ -44,13 +44,14 @@ class BigQueryToMsSqlOperator(BaseOperator):
 
        transfer_data = BigQueryToMsSqlOperator(
             task_id='task_id',
-            dataset_table='origin_bq_table',
+            source_project_dataset_table='my-project.mydataset.mytable',
             mssql_table='dest_table_name',
             replace=True,
         )
 
-    :param dataset_table: A dotted ``<dataset>.<table>``: the big query table of origin
-    :type dataset_table: str
+    :param source_project_dataset_table: A dotted ``<project>.<dataset>.<table>``:
+        the big query table of origin
+    :type source_project_dataset_table: str
     :param selected_fields: List of fields to return (comma-separated). If
         unspecified, all fields are returned.
     :type selected_fields: str
@@ -81,12 +82,7 @@ class BigQueryToMsSqlOperator(BaseOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = (
-        'dataset_id',
-        'table_id',
-        'mssql_table',
-        'impersonation_chain',
-    )
+    template_fields = ('source_project_dataset_table', 'mssql_table', 'impersonation_chain')
 
     def __init__(
         self,

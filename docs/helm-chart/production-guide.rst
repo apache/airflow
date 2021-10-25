@@ -24,7 +24,7 @@ Database
 --------
 
 You will want to use an external database instead of the one deployed with the chart by default.
-Both **PostgresSQL** and **MySQL** are supported. Supported versions can be
+Both **PostgreSQL** and **MySQL** are supported. Supported versions can be
 found on the :doc:`Set up a Database Backend <apache-airflow:howto/set-up-database>` page.
 
 .. code-block:: yaml
@@ -48,7 +48,7 @@ found on the :doc:`Set up a Database Backend <apache-airflow:howto/set-up-databa
 PgBouncer
 ---------
 
-If you are using PostgresSQL as your database, you will likely want to enable `PgBouncer <https://www.pgbouncer.org/>`_ as well.
+If you are using PostgreSQL as your database, you will likely want to enable `PgBouncer <https://www.pgbouncer.org/>`_ as well.
 Airflow can open a lot of database connections due to its distributed nature and using a connection pooler can significantly
 reduce the number of open connections on the database.
 

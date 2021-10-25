@@ -70,6 +70,21 @@ class TestSecretManagerClient(TestCase):
 
     @mock.patch(INTERNAL_CLIENT_MODULE + ".SecretManagerServiceClient")
     @mock.patch(INTERNAL_CLIENT_MODULE + ".ClientInfo")
+    def test_get_invalid_id(self, mock_client_info, mock_secrets_client):
+        mock_client = mock.MagicMock()
+        mock_client_info.return_value = mock.MagicMock()
+        mock_secrets_client.return_value = mock_client
+        mock_client.secret_version_path.return_value = "full-path"
+        # The requested secret id is using invalid character
+        mock_client.access_secret_version.side_effect = PermissionDenied('test-msg')
+        secrets_client = _SecretManagerClient(credentials="credentials")
+        secret = secrets_client.get_secret(secret_id="not.allow", project_id="project_id")
+        mock_client.secret_version_path.assert_called_once_with("project_id", 'not.allow', 'latest')
+        assert secret is None
+        mock_client.access_secret_version.assert_called_once_with('full-path')
+
+    @mock.patch(INTERNAL_CLIENT_MODULE + ".SecretManagerServiceClient")
+    @mock.patch(INTERNAL_CLIENT_MODULE + ".ClientInfo")
     def test_get_existing_key(self, mock_client_info, mock_secrets_client):
         mock_client = mock.MagicMock()
         mock_client_info.return_value = mock.MagicMock()

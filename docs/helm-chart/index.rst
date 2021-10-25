@@ -67,7 +67,7 @@ Features
 * Supported Airflow version: ``1.10+``, ``2.0+``
 * Supported database backend: ``PostgresSQL``, ``MySQL``
 * Autoscaling for ``CeleryExecutor`` provided by KEDA
-* PostgresSQL and PgBouncer with a battle-tested configuration
+* PostgreSQL and PgBouncer with a battle-tested configuration
 * Monitoring:
 
    * StatsD/Prometheus metrics for Airflow

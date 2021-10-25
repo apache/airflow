@@ -17,22 +17,31 @@
 
 """This module contains Amazon EKS operators."""
 import warnings
-from datetime import datetime
 from time import sleep
 from typing import Dict, Iterable, List, Optional
 
 from airflow import AirflowException
 from airflow.models import BaseOperator
-from airflow.providers.amazon.aws.hooks.eks import ClusterStates, EKSHook
+from airflow.providers.amazon.aws.hooks.eks import ClusterStates, EKSHook, FargateProfileStates
 from airflow.providers.cncf.kubernetes.operators.kubernetes_pod import KubernetesPodOperator
 
 CHECK_INTERVAL_SECONDS = 15
 TIMEOUT_SECONDS = 25 * 60
 DEFAULT_COMPUTE_TYPE = 'nodegroup'
-DEFAULT_CONN_ID = "aws_default"
+DEFAULT_CONN_ID = 'aws_default'
+DEFAULT_FARGATE_PROFILE_NAME = 'profile'
 DEFAULT_NAMESPACE_NAME = 'default'
-DEFAULT_NODEGROUP_NAME_SUFFIX = '-nodegroup'
+DEFAULT_NODEGROUP_NAME = 'nodegroup'
 DEFAULT_POD_NAME = 'pod'
+
+ABORT_MSG = "{compute} are still active after the allocated time limit.  Aborting."
+CAN_NOT_DELETE_MSG = "A cluster can not be deleted with attached {compute}.  Deleting {count} {compute}."
+MISSING_ARN_MSG = "Creating an {compute} requires {requirement} to be passed in."
+SUCCESS_MSG = "No {compute} remain, deleting cluster."
+
+SUPPORTED_COMPUTE_VALUES = frozenset({'nodegroup', 'fargate'})
+NODEGROUP_FULL_NAME = 'Amazon EKS managed node groups'
+FARGATE_FULL_NAME = 'AWS Fargate profiles'
 
 
 class EKSCreateClusterOperator(BaseOperator):
@@ -40,8 +49,17 @@ class EKSCreateClusterOperator(BaseOperator):
     Creates an Amazon EKS Cluster control plane.
 
     Optionally, can also create the supporting compute architecture:
-    If argument 'compute' is provided with a value of 'nodegroup', will also attempt to create an Amazon
-    EKS Managed Nodegroup for the cluster.  See EKSCreateNodegroupOperator documentation for requirements.
+
+     - If argument 'compute' is provided with a value of 'nodegroup', will also
+         attempt to create an Amazon EKS Managed Nodegroup for the cluster.
+         See :class:`~airflow.providers.amazon.aws.operators.EKSCreateNodegroupOperator`
+         documentation for requirements.
+
+    -  If argument 'compute' is provided with a value of 'fargate', will also attempt to create an AWS
+         Fargate profile for the cluster.
+         See :class:`~airflow.providers.amazon.aws.operators.EKSCreateFargateProfileOperator`
+         documentation for requirements.
+
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -50,12 +68,12 @@ class EKSCreateClusterOperator(BaseOperator):
     :param cluster_name: The unique name to give to your Amazon EKS Cluster. (templated)
     :type cluster_name: str
     :param cluster_role_arn: The Amazon Resource Name (ARN) of the IAM role that provides permissions for the
-       Kubernetes control plane to make calls to AWS API operations on your behalf. (templated)
+         Kubernetes control plane to make calls to AWS API operations on your behalf. (templated)
     :type cluster_role_arn: str
     :param resources_vpc_config: The VPC configuration used by the cluster control plane. (templated)
     :type resources_vpc_config: Dict
     :param compute: The type of compute architecture to generate along with the cluster. (templated)
-        Defaults to 'nodegroup' to generate an EKS Managed Nodegroup.
+         Defaults to 'nodegroup' to generate an EKS Managed Nodegroup.
     :type compute: str
     :param aws_conn_id: The Airflow connection used for AWS credentials. (templated)
          If this is None or empty then the default boto3 behaviour is used. If
@@ -64,16 +82,26 @@ class EKSCreateClusterOperator(BaseOperator):
          maintained on each worker node).
     :type aws_conn_id: str
     :param region: Which AWS region the connection should use. (templated)
-        If this is None or empty then the default boto3 behaviour is used.
+         If this is None or empty then the default boto3 behaviour is used.
     :type region: str
 
-    If compute is assigned the value of ``nodegroup``, the following are required:
+    If compute is assigned the value of 'nodegroup', the following are required:
 
-    :param nodegroup_name: The unique name to give your EKS Managed Nodegroup. (templated)
+    :param nodegroup_name: The unique name to give your Amazon EKS managed node group. (templated)
     :type nodegroup_name: str
-    :param nodegroup_role_arn: The Amazon Resource Name (ARN) of the IAM role to associate
-         with the EKS Managed Nodegroup. (templated)
+    :param nodegroup_role_arn: The Amazon Resource Name (ARN) of the IAM role to associate with the
+         Amazon EKS managed node group. (templated)
     :type nodegroup_role_arn: str
+
+    If compute is assigned the value of 'fargate', the following are required:
+
+    :param fargate_profile_name: The unique name to give your AWS Fargate profile. (templated)
+    :type fargate_profile_name: str
+    :param fargate_pod_execution_role_arn: The Amazon Resource Name (ARN) of the pod execution role to
+         use for pods that match the selectors in the AWS Fargate profile. (templated)
+    :type podExecutionRoleArn: str
+    :param selectors: The selectors to match for pods to use this AWS Fargate profile. (templated)
+    :type selectors: List
 
     """
 
@@ -81,9 +109,12 @@ class EKSCreateClusterOperator(BaseOperator):
         "cluster_name",
         "cluster_role_arn",
         "resources_vpc_config",
+        "compute",
         "nodegroup_name",
         "nodegroup_role_arn",
-        "compute",
+        "fargate_profile_name",
+        "fargate_pod_execution_role_arn",
+        "fargate_selectors",
         "aws_conn_id",
         "region",
     )
@@ -93,21 +124,39 @@ class EKSCreateClusterOperator(BaseOperator):
         cluster_name: str,
         cluster_role_arn: str,
         resources_vpc_config: Dict,
-        nodegroup_name: Optional[str] = None,
-        nodegroup_role_arn: Optional[str] = None,
         compute: Optional[str] = DEFAULT_COMPUTE_TYPE,
+        nodegroup_name: Optional[str] = DEFAULT_NODEGROUP_NAME,
+        nodegroup_role_arn: Optional[str] = None,
+        fargate_profile_name: Optional[str] = DEFAULT_FARGATE_PROFILE_NAME,
+        fargate_pod_execution_role_arn: Optional[str] = None,
+        fargate_selectors: Optional[List] = None,
         aws_conn_id: str = DEFAULT_CONN_ID,
         region: Optional[str] = None,
         **kwargs,
     ) -> None:
+        if compute:
+            if compute not in SUPPORTED_COMPUTE_VALUES:
+                raise ValueError("Provided compute type is not supported.")
+            elif (compute == 'nodegroup') and not nodegroup_role_arn:
+                raise ValueError(
+                    MISSING_ARN_MSG.format(compute=NODEGROUP_FULL_NAME, requirement='nodegroup_role_arn')
+                )
+            elif (compute == 'fargate') and not fargate_pod_execution_role_arn:
+                raise ValueError(
+                    MISSING_ARN_MSG.format(
+                        compute=FARGATE_FULL_NAME, requirement='fargate_pod_execution_role_arn'
+                    )
+                )
+
         self.compute = compute
-        if (self.compute == 'nodegroup') and not nodegroup_role_arn:
-            raise ValueError("Creating an EKS Managed Nodegroup requires nodegroup_role_arn to be passed in.")
         self.cluster_name = cluster_name
         self.cluster_role_arn = cluster_role_arn
         self.resources_vpc_config = resources_vpc_config
-        self.nodegroup_name = nodegroup_name or self.cluster_name + DEFAULT_NODEGROUP_NAME_SUFFIX
+        self.nodegroup_name = nodegroup_name
         self.nodegroup_role_arn = nodegroup_role_arn
+        self.fargate_profile_name = fargate_profile_name
+        self.fargate_pod_execution_role_arn = fargate_pod_execution_role_arn
+        self.fargate_selectors = fargate_selectors or [{"namespace": DEFAULT_NAMESPACE_NAME}]
         self.aws_conn_id = aws_conn_id
         self.region = region
         super().__init__(**kwargs)
@@ -154,11 +203,18 @@ class EKSCreateClusterOperator(BaseOperator):
                 subnets=self.resources_vpc_config.get('subnetIds'),
                 nodeRole=self.nodegroup_role_arn,
             )
+        elif self.compute == 'fargate':
+            eks_hook.create_fargate_profile(
+                clusterName=self.cluster_name,
+                fargateProfileName=self.fargate_profile_name,
+                podExecutionRoleArn=self.fargate_pod_execution_role_arn,
+                selectors=self.fargate_selectors,
+            )
 
 
 class EKSCreateNodegroupOperator(BaseOperator):
     """
-    Creates am Amazon EKS Managed Nodegroup for an existing Amazon EKS Cluster.
+    Creates an Amazon EKS managed node group for an existing Amazon EKS Cluster.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -169,10 +225,10 @@ class EKSCreateNodegroupOperator(BaseOperator):
     :param nodegroup_name: The unique name to give your managed nodegroup. (templated)
     :type nodegroup_name: str
     :param nodegroup_subnets:
-        The subnets to use for the Auto Scaling group that is created for the managed nodegroup. (templated)
+         The subnets to use for the Auto Scaling group that is created for the managed nodegroup. (templated)
     :type nodegroup_subnets: List[str]
     :param nodegroup_role_arn:
-        The Amazon Resource Name (ARN) of the IAM role to associate with the managed nodegroup. (templated)
+         The Amazon Resource Name (ARN) of the IAM role to associate with the managed nodegroup. (templated)
     :type nodegroup_role_arn: str
     :param aws_conn_id: The Airflow connection used for AWS credentials. (templated)
          If this is None or empty then the default boto3 behaviour is used. If
@@ -200,7 +256,7 @@ class EKSCreateNodegroupOperator(BaseOperator):
         cluster_name: str,
         nodegroup_subnets: List[str],
         nodegroup_role_arn: str,
-        nodegroup_name: Optional[str] = None,
+        nodegroup_name: Optional[str] = DEFAULT_NODEGROUP_NAME,
         aws_conn_id: str = DEFAULT_CONN_ID,
         region: Optional[str] = None,
         **kwargs,
@@ -208,7 +264,7 @@ class EKSCreateNodegroupOperator(BaseOperator):
         self.cluster_name = cluster_name
         self.nodegroup_subnets = nodegroup_subnets
         self.nodegroup_role_arn = nodegroup_role_arn
-        self.nodegroup_name = nodegroup_name or cluster_name + datetime.now().strftime("%Y%m%d_%H%M%S")
+        self.nodegroup_name = nodegroup_name
         self.aws_conn_id = aws_conn_id
         self.region = region
         super().__init__(**kwargs)
@@ -224,6 +280,76 @@ class EKSCreateNodegroupOperator(BaseOperator):
             nodegroupName=self.nodegroup_name,
             subnets=self.nodegroup_subnets,
             nodeRole=self.nodegroup_role_arn,
+        )
+
+
+class EKSCreateFargateProfileOperator(BaseOperator):
+    """
+    Creates an AWS Fargate profile for an Amazon EKS cluster.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:EKSCreateFargateProfileOperator`
+
+    :param cluster_name: The name of the Amazon EKS cluster to apply the AWS Fargate profile to. (templated)
+    :type cluster_name: str
+    :param pod_execution_role_arn: The Amazon Resource Name (ARN) of the pod execution role to
+         use for pods that match the selectors in the AWS Fargate profile. (templated)
+    :type pod_execution_role_arn: str
+    :param selectors: The selectors to match for pods to use this AWS Fargate profile. (templated)
+    :type selectors: List
+    :param fargate_profile_name: The unique name to give your AWS Fargate profile. (templated)
+    :type fargate_profile_name: str
+
+    :param aws_conn_id: The Airflow connection used for AWS credentials. (templated)
+         If this is None or empty then the default boto3 behaviour is used. If
+         running Airflow in a distributed manner and aws_conn_id is None or
+         empty, then the default boto3 configuration would be used (and must be
+         maintained on each worker node).
+    :type aws_conn_id: str
+    :param region: Which AWS region the connection should use. (templated)
+        If this is None or empty then the default boto3 behaviour is used.
+    :type region: str
+    """
+
+    template_fields: Iterable[str] = (
+        "cluster_name",
+        "pod_execution_role_arn",
+        "selectors",
+        "fargate_profile_name",
+        "aws_conn_id",
+        "region",
+    )
+
+    def __init__(
+        self,
+        cluster_name: str,
+        pod_execution_role_arn: str,
+        selectors: List,
+        fargate_profile_name: Optional[str] = DEFAULT_FARGATE_PROFILE_NAME,
+        aws_conn_id: str = DEFAULT_CONN_ID,
+        region: Optional[str] = None,
+        **kwargs,
+    ) -> None:
+        self.cluster_name = cluster_name
+        self.pod_execution_role_arn = pod_execution_role_arn
+        self.selectors = selectors
+        self.fargate_profile_name = fargate_profile_name
+        self.aws_conn_id = aws_conn_id
+        self.region = region
+        super().__init__(**kwargs)
+
+    def execute(self, context):
+        eks_hook = EKSHook(
+            aws_conn_id=self.aws_conn_id,
+            region_name=self.region,
+        )
+
+        eks_hook.create_fargate_profile(
+            clusterName=self.cluster_name,
+            fargateProfileName=self.fargate_profile_name,
+            podExecutionRoleArn=self.pod_execution_role_arn,
+            selectors=self.selectors,
         )
 
 
@@ -280,41 +406,81 @@ class EKSDeleteClusterOperator(BaseOperator):
         )
 
         if self.force_delete_compute:
-            nodegroups = eks_hook.list_nodegroups(clusterName=self.cluster_name)
-            nodegroup_count = len(nodegroups)
-            if nodegroup_count:
-                self.log.info(
-                    "A cluster can not be deleted with attached nodegroups.  Deleting %d nodegroups.",
-                    nodegroup_count,
-                )
-                for group in nodegroups:
-                    eks_hook.delete_nodegroup(clusterName=self.cluster_name, nodegroupName=group)
+            self.delete_any_nodegroups(eks_hook)
+            self.delete_any_fargate_profiles(eks_hook)
 
-                # Scaling up the timeout based on the number of nodegroups that are being processed.
-                additional_seconds = 5 * 60
-                countdown = TIMEOUT_SECONDS + (nodegroup_count * additional_seconds)
-                while eks_hook.list_nodegroups(clusterName=self.cluster_name):
+        eks_hook.delete_cluster(name=self.cluster_name)
+
+    def delete_any_nodegroups(self, eks_hook) -> None:
+        """
+        Deletes all Amazon EKS managed node groups for a provided Amazon EKS Cluster.
+
+        Amazon EKS managed node groups can be deleted in parallel, so we can send all
+        of the delete commands in bulk and move on once the count of nodegroups is zero.
+        """
+        nodegroups = eks_hook.list_nodegroups(clusterName=self.cluster_name)
+        if nodegroups:
+            self.log.info(CAN_NOT_DELETE_MSG.format(compute=NODEGROUP_FULL_NAME, count=len(nodegroups)))
+            for group in nodegroups:
+                eks_hook.delete_nodegroup(clusterName=self.cluster_name, nodegroupName=group)
+
+            # Scaling up the timeout based on the number of nodegroups that are being processed.
+            additional_seconds = 5 * 60
+            countdown = TIMEOUT_SECONDS + (len(nodegroups) * additional_seconds)
+            while eks_hook.list_nodegroups(clusterName=self.cluster_name):
+                if countdown >= CHECK_INTERVAL_SECONDS:
+                    countdown -= CHECK_INTERVAL_SECONDS
+                    sleep(CHECK_INTERVAL_SECONDS)
+                    self.log.info(
+                        "Waiting for the remaining %s nodegroups to delete.  "
+                        "Checking again in %d seconds.",
+                        len(nodegroups),
+                        CHECK_INTERVAL_SECONDS,
+                    )
+                else:
+                    raise RuntimeError(ABORT_MSG.format(compute=NODEGROUP_FULL_NAME))
+        self.log.info(SUCCESS_MSG.format(compute=NODEGROUP_FULL_NAME))
+
+    def delete_any_fargate_profiles(self, eks_hook) -> None:
+        """
+        Deletes all EKS Fargate profiles for a provided Amazon EKS Cluster.
+
+        EKS Fargate profiles must be deleted one at a time, so we must wait
+        for one to be deleted before sending the next delete command.
+        """
+        fargate_profiles = eks_hook.list_fargate_profiles(clusterName=self.cluster_name)
+        if fargate_profiles:
+            self.log.info(CAN_NOT_DELETE_MSG.format(compute=FARGATE_FULL_NAME, count=len(fargate_profiles)))
+            for profile in fargate_profiles:
+                # The API will return a (cluster) ResourceInUseException if you try
+                # to delete Fargate profiles in parallel the way we can with nodegroups,
+                # so each must be deleted sequentially
+                eks_hook.delete_fargate_profile(clusterName=self.cluster_name, fargateProfileName=profile)
+
+                countdown = TIMEOUT_SECONDS
+                while (
+                    eks_hook.get_fargate_profile_state(
+                        clusterName=self.cluster_name, fargateProfileName=profile
+                    )
+                    != FargateProfileStates.NONEXISTENT
+                ):
                     if countdown >= CHECK_INTERVAL_SECONDS:
                         countdown -= CHECK_INTERVAL_SECONDS
                         sleep(CHECK_INTERVAL_SECONDS)
                         self.log.info(
-                            "Waiting for the remaining %s nodegroups to delete.  "
+                            "Waiting for the AWS Fargate profile %s to delete.  "
                             "Checking again in %d seconds.",
-                            nodegroup_count,
+                            profile,
                             CHECK_INTERVAL_SECONDS,
                         )
                     else:
-                        raise RuntimeError(
-                            "Nodegroups are still inactive after the allocated time limit.  Aborting."
-                        )
-            self.log.info("No nodegroups remain, deleting cluster.")
-
-        eks_hook.delete_cluster(name=self.cluster_name)
+                        raise RuntimeError(ABORT_MSG.format(compute=FARGATE_FULL_NAME))
+        self.log.info(SUCCESS_MSG.format(compute=FARGATE_FULL_NAME))
 
 
 class EKSDeleteNodegroupOperator(BaseOperator):
     """
-    Deletes an Amazon EKS Nodegroup from an Amazon EKS Cluster.
+    Deletes an Amazon EKS managed node group from an Amazon EKS Cluster.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -366,6 +532,61 @@ class EKSDeleteNodegroupOperator(BaseOperator):
         eks_hook.delete_nodegroup(clusterName=self.cluster_name, nodegroupName=self.nodegroup_name)
 
 
+class EKSDeleteFargateProfileOperator(BaseOperator):
+    """
+    Deletes an AWS Fargate profile from an Amazon EKS Cluster.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:EKSDeleteFargateProfileOperator`
+
+    :param cluster_name: The name of the Amazon EKS cluster associated with your Fargate profile. (templated)
+    :type cluster_name: str
+    :param fargate_profile_name: The name of the AWS Fargate profile to delete. (templated)
+    :type fargate_profile_name: str
+    :param aws_conn_id: The Airflow connection used for AWS credentials. (templated)
+         If this is None or empty then the default boto3 behaviour is used.  If
+         running Airflow in a distributed manner and aws_conn_id is None or
+         empty, then the default boto3 configuration would be used (and must be
+         maintained on each worker node).
+    :type aws_conn_id: str
+    :param region: Which AWS region the connection should use. (templated)
+        If this is None or empty then the default boto3 behaviour is used.
+    :type region: str
+    """
+
+    template_fields: Iterable[str] = (
+        "cluster_name",
+        "fargate_profile_name",
+        "aws_conn_id",
+        "region",
+    )
+
+    def __init__(
+        self,
+        cluster_name: str,
+        fargate_profile_name: str,
+        aws_conn_id: str = DEFAULT_CONN_ID,
+        region: Optional[str] = None,
+        **kwargs,
+    ) -> None:
+        super().__init__(**kwargs)
+        self.cluster_name = cluster_name
+        self.fargate_profile_name = fargate_profile_name
+        self.aws_conn_id = aws_conn_id
+        self.region = region
+
+    def execute(self, context):
+        eks_hook = EKSHook(
+            aws_conn_id=self.aws_conn_id,
+            region_name=self.region,
+        )
+
+        eks_hook.delete_fargate_profile(
+            clusterName=self.cluster_name, fargateProfileName=self.fargate_profile_name
+        )
+
+
 class EKSPodOperator(KubernetesPodOperator):
     """
     Executes a task in a Kubernetes pod on the specified Amazon EKS Cluster.
@@ -377,7 +598,7 @@ class EKSPodOperator(KubernetesPodOperator):
     :param cluster_name: The name of the Amazon EKS Cluster to execute the task on. (templated)
     :type cluster_name: str
     :param cluster_role_arn: The Amazon Resource Name (ARN) of the IAM role that provides permissions
-       for the Kubernetes control plane to make calls to AWS API operations on your behalf. (templated)
+         for the Kubernetes control plane to make calls to AWS API operations on your behalf. (templated)
     :type cluster_role_arn: str
     :param in_cluster: If True, look for config inside the cluster; if False look for a local file path.
     :type in_cluster: bool
@@ -388,7 +609,7 @@ class EKSPodOperator(KubernetesPodOperator):
     :param aws_profile: The named profile containing the credentials for the AWS CLI tool to use.
     :param aws_profile: str
     :param region: Which AWS region the connection should use. (templated)
-        If this is None or empty then the default boto3 behaviour is used.
+         If this is None or empty then the default boto3 behaviour is used.
     :type region: str
     :param aws_conn_id: The Airflow connection used for AWS credentials. (templated)
          If this is None or empty then the default boto3 behaviour is used. If

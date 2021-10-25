@@ -75,9 +75,7 @@ class GCPCloudBuildTestHelper(LoggingCommandExecutor):
             self.execute_cmd(["git", "add", "quickstart.sh"], cwd=tmp_dir)
             self.execute_cmd(["git", "add", "Dockerfile"], cwd=tmp_dir)
             self.execute_cmd(["git", "commit", "-m", "Initial commit"], cwd=tmp_dir)
-            repo_url = "https://source.developers.google.com/p/{}/r/{}".format(
-                GCP_PROJECT_ID, GCP_REPOSITORY_NAME
-            )
+            repo_url = f"https://source.developers.google.com/p/{GCP_PROJECT_ID}/r/{GCP_REPOSITORY_NAME}"
             self.execute_cmd(["git", "remote", "add", "origin", repo_url], cwd=tmp_dir)
             self.execute_cmd(["git", "push", "--force", "origin", "master"], cwd=tmp_dir)
 

@@ -132,7 +132,7 @@ if you specify extra arguments. For example:
 
 .. code-block:: bash
 
-  docker run -it apache/airflow:2.2.0.dev0-python3.6 bash -c "ls -la"
+  docker run -it apache/airflow:2.3.0.dev0-python3.6 bash -c "ls -la"
   total 16
   drwxr-xr-x 4 airflow root 4096 Jun  5 18:12 .
   drwxr-xr-x 1 root    root 4096 Jun  5 18:12 ..
@@ -144,7 +144,7 @@ you pass extra parameters. For example:
 
 .. code-block:: bash
 
-  > docker run -it apache/airflow:2.2.0.dev0-python3.6 python -c "print('test')"
+  > docker run -it apache/airflow:2.3.0.dev0-python3.6 python -c "print('test')"
   test
 
 If first argument equals to "airflow" - the rest of the arguments is treated as an airflow command
@@ -152,13 +152,13 @@ to execute. Example:
 
 .. code-block:: bash
 
-   docker run -it apache/airflow:2.2.0.dev0-python3.6 airflow webserver
+   docker run -it apache/airflow:2.3.0.dev0-python3.6 airflow webserver
 
 If there are any other arguments - they are simply passed to the "airflow" command
 
 .. code-block:: bash
 
-  > docker run -it apache/airflow:2.2.0.dev0-python3.6 help
+  > docker run -it apache/airflow:2.3.0.dev0-python3.6 help
     usage: airflow [-h] GROUP_OR_COMMAND ...
 
     positional arguments:
@@ -193,6 +193,72 @@ If there are any other arguments - they are simply passed to the "airflow" comma
 
     optional arguments:
       -h, --help         show this help message and exit
+
+Execute custom code before the Airflow entrypoint
+-------------------------------------------------
+
+If you want to execute some custom code before Airflow's entrypoint you can by using
+a custom script and calling Airflow's entrypoint as the
+last ``exec`` instruction in your custom one. However you have to remember to use ``dumb-init`` in the same
+way as it is used with Airflow's entrypoint, otherwise you might have problems with proper signal
+propagation (See the next chapter).
+
+
+.. code-block:: Dockerfile
+
+    FROM airflow::2.3.0.dev0
+    COPY my_entrypoint.sh /
+    ENTRYPOINT ["/usr/bin/dumb-init", "--", "/my_entrypoint.sh"]
+
+Your entrypoint might for example modify or add variables on the fly. For example the below
+entrypoint sets max count of DB checks from the first parameter passed as parameter of the image
+execution (A bit useless example but should give the reader an example of how you could use it).
+
+.. code-block:: bash
+
+    #!/bin/bash
+    export CONNECTION_CHECK_MAX_COUNT=${1}
+    shift
+    exec /entrypoint "${@}"
+
+Make sure Airflow's entrypoint is run with ``exec /entrypoint "${@}"`` as the last command in your
+custom entrypoint. This way signals will be properly propagated and arguments will be passed
+to the entrypoint as usual (you can use ``shift`` as above if you need to pass some extra
+arguments. Note that passing secret values this way or storing secrets inside the image is a bad
+idea from security point of view - as both image and parameters to run the image with are accessible
+to anyone who has access to logs of your Kubernetes or image registry.
+
+Also be aware that code executed before Airflow's entrypoint should not create any files or
+directories inside the container and everything might not work the same way when it is executed.
+Before Airflow entrypoint is executed, the following functionalities are not available:
+
+* umask is not set properly to allow ``group`` write access
+* user is not yet created in ``/etc/passwd`` if an arbitrary user is used to run the image
+* the database and brokers might not be available yet
+
+Adding custom image behaviour
+-----------------------------
+
+The Airflow image executes a lot of steps in the entrypoint, and sets the right environment, but
+you might want to run additional code after the entrypoint creates the user, sets the umask, sets
+variables and checks that database is running.
+
+Rather than running regular commands - ``scheduler``, ``webserver`` you can run *custom* script that
+you can embed into the image. You can even execute the usual components of airflow -
+``scheduler``, ``webserver`` in your custom script when you finish your custom setup.
+Similarly to custom entrypoint, it can be added to the image by extending it.
+
+.. code-block:: Dockerfile
+
+    FROM airflow::2.3.0.dev0
+    COPY my_after_entrypoint_script.sh /
+
+
+And then you can run this script by running the command:
+
+.. code-block:: bash
+
+  docker run -it apache/airflow:2.3.0.dev0-python3.6 bash -c "/my_after_entrypoint_script.sh"
 
 
 Signal propagation
@@ -297,7 +363,7 @@ database and creating an ``admin/admin`` Admin user with the following command:
     --env "_AIRFLOW_DB_UPGRADE=true" \
     --env "_AIRFLOW_WWW_USER_CREATE=true" \
     --env "_AIRFLOW_WWW_USER_PASSWORD=admin" \
-      apache/airflow:2.2.0.dev0-python3.8 webserver
+      apache/airflow:2.3.0.dev0-python3.8 webserver
 
 
 .. code-block:: bash
@@ -306,7 +372,7 @@ database and creating an ``admin/admin`` Admin user with the following command:
     --env "_AIRFLOW_DB_UPGRADE=true" \
     --env "_AIRFLOW_WWW_USER_CREATE=true" \
     --env "_AIRFLOW_WWW_USER_PASSWORD_CMD=echo admin" \
-      apache/airflow:2.2.0.dev0-python3.8 webserver
+      apache/airflow:2.3.0.dev0-python3.8 webserver
 
 The commands above perform initialization of the SQLite database, create admin user with admin password
 and Admin role. They also forward local port ``8080`` to the webserver port and finally start the webserver.
@@ -346,6 +412,6 @@ Example:
     --env "_AIRFLOW_DB_UPGRADE=true" \
     --env "_AIRFLOW_WWW_USER_CREATE=true" \
     --env "_AIRFLOW_WWW_USER_PASSWORD_CMD=echo admin" \
-      apache/airflow:2.2.0.dev0-python3.8 webserver
+      apache/airflow:2.3.0.dev0-python3.8 webserver
 
 This method is only available starting from Docker image of Airflow 2.1.1 and above.

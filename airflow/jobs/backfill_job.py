@@ -136,6 +136,7 @@ class BackfillJob(BaseJob):
         conf=None,
         rerun_failed_tasks=False,
         run_backwards=False,
+        run_at_least_once=False,
         *args,
         **kwargs,
     ):
@@ -166,6 +167,9 @@ class BackfillJob(BaseJob):
         :type rerun_failed_tasks: bool
         :param run_backwards: Whether to process the dates from most to least recent
         :type run_backwards bool
+        :param run_at_least_once: If true, always run the DAG at least once even
+            if no logical run exists within the time range.
+        :type: bool
         :param args:
         :param kwargs:
         """
@@ -183,6 +187,7 @@ class BackfillJob(BaseJob):
         self.conf = conf
         self.rerun_failed_tasks = rerun_failed_tasks
         self.run_backwards = run_backwards
+        self.run_at_least_once = run_at_least_once
         super().__init__(*args, **kwargs)
 
     @provide_session
@@ -228,7 +233,9 @@ class BackfillJob(BaseJob):
             # special case: if the task needs to be rescheduled put it back
             elif ti.state == State.UP_FOR_RESCHEDULE:
                 self.log.warning("Task instance %s is up for reschedule", ti)
-                ti_status.running.pop(reduced_key)
+                # During handling of reschedule state in ti._handle_reschedule, try number is reduced
+                # by one, so we should not use reduced_key to avoid key error
+                ti_status.running.pop(ti.key)
                 ti_status.to_run[ti.key] = ti
             # special case: The state of the task can be set to NONE by the task itself
             # when it reaches concurrency limits. It could also happen when the state
@@ -275,9 +282,8 @@ class BackfillJob(BaseJob):
 
             if state in (State.FAILED, State.SUCCESS) and ti.state in self.STATES_COUNT_AS_RUNNING:
                 msg = (
-                    "Executor reports task instance {} finished ({}) "
-                    "although the task says its {}. Was the task "
-                    "killed externally? Info: {}".format(ti, state, ti.state, info)
+                    f"Executor reports task instance {ti} finished ({state}) although the task says its "
+                    f"{ti.state}. Was the task killed externally? Info: {info}"
                 )
                 self.log.error(msg)
                 ti.handle_failure_with_callback(error=msg)
@@ -572,8 +578,7 @@ class BackfillJob(BaseJob):
                         open_slots = pool.open_slots(session=session)
                         if open_slots <= 0:
                             raise NoAvailablePoolSlot(
-                                "Not scheduling since there are "
-                                "{} open slots in pool {}".format(open_slots, task.pool)
+                                f"Not scheduling since there are {open_slots} open slots in pool {task.pool}"
                             )
 
                         num_running_task_instances_in_dag = DAG.get_num_task_instances(
@@ -771,16 +776,16 @@ class BackfillJob(BaseJob):
             tasks_that_depend_on_past = [t.task_id for t in self.dag.task_dict.values() if t.depends_on_past]
             if tasks_that_depend_on_past:
                 raise AirflowException(
-                    'You cannot backfill backwards because one or more tasks depend_on_past: {}'.format(
-                        ",".join(tasks_that_depend_on_past)
-                    )
+                    f'You cannot backfill backwards because one or more '
+                    f'tasks depend_on_past: {",".join(tasks_that_depend_on_past)}'
                 )
             dagrun_infos = dagrun_infos[::-1]
 
-        dagrun_info_count = len(dagrun_infos)
-        if dagrun_info_count == 0:
-            self.log.info("No run dates were found for the given dates and dag interval.")
-            return
+        if not dagrun_infos:
+            if not self.run_at_least_once:
+                self.log.info("No run dates were found for the given dates and dag interval.")
+                return
+            dagrun_infos = [DagRunInfo.interval(dagrun_start_date, dagrun_end_date)]
 
         # picklin'
         pickle_id = None
@@ -799,7 +804,7 @@ class BackfillJob(BaseJob):
         executor.job_id = "backfill"
         executor.start()
 
-        ti_status.total_runs = dagrun_info_count  # total dag runs in backfill
+        ti_status.total_runs = len(dagrun_infos)  # total dag runs in backfill
 
         try:
             remaining_dates = ti_status.total_runs

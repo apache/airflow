@@ -25,7 +25,7 @@ Content
     :maxdepth: 1
     :caption: Guides
 
-    Connection types <connections/aws>
+    Connection types <connections/index>
     Operators <operators/index>
     Secrets backends <secrets-backends/index>
     Logging for Tasks <logging/index>

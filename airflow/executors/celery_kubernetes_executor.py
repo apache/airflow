@@ -36,7 +36,7 @@ class CeleryKubernetesExecutor(LoggingMixin):
 
     KUBERNETES_QUEUE = conf.get('celery_kubernetes_executor', 'kubernetes_queue')
 
-    def __init__(self, celery_executor, kubernetes_executor):
+    def __init__(self, celery_executor: CeleryExecutor, kubernetes_executor: KubernetesExecutor):
         super().__init__()
         self._job_id: Optional[str] = None
         self.celery_executor = celery_executor
@@ -56,7 +56,7 @@ class CeleryKubernetesExecutor(LoggingMixin):
         return self.celery_executor.running.union(self.kubernetes_executor.running)
 
     @property
-    def job_id(self):
+    def job_id(self) -> Optional[str]:
         """
         This is a class attribute in BaseExecutor but since this is not really an executor, but a wrapper
         of executors we implement as property so we can have custom setter.
@@ -64,7 +64,7 @@ class CeleryKubernetesExecutor(LoggingMixin):
         return self._job_id
 
     @job_id.setter
-    def job_id(self, value):
+    def job_id(self, value: Optional[str]) -> None:
         """job_id is manipulated by SchedulerJob.  We must propagate the job_id to wrapped executors."""
         self._job_id = value
         self.kubernetes_executor.job_id = value
@@ -76,7 +76,7 @@ class CeleryKubernetesExecutor(LoggingMixin):
         self.kubernetes_executor.start()
 
     @property
-    def slots_available(self):
+    def slots_available(self) -> int:
         """Number of new tasks this executor instance can accept"""
         return self.celery_executor.slots_available
 
@@ -86,7 +86,7 @@ class CeleryKubernetesExecutor(LoggingMixin):
         command: CommandType,
         priority: int = 1,
         queue: Optional[str] = None,
-    ):
+    ) -> None:
         """Queues command via celery or kubernetes executor"""
         executor = self._router(task_instance)
         self.log.debug("Using executor: %s for %s", executor.__class__.__name__, task_instance.key)
@@ -137,11 +137,13 @@ class CeleryKubernetesExecutor(LoggingMixin):
         self.celery_executor.heartbeat()
         self.kubernetes_executor.heartbeat()
 
-    def get_event_buffer(self, dag_ids=None) -> Dict[TaskInstanceKey, EventBufferValueType]:
+    def get_event_buffer(
+        self, dag_ids: Optional[List[str]] = None
+    ) -> Dict[TaskInstanceKey, EventBufferValueType]:
         """
         Returns and flush the event buffer from celery and kubernetes executor
 
-        :param dag_ids: to dag_ids to return events for, if None returns all
+        :param dag_ids: dag_ids to return events for, if None returns all
         :return: a dict of events
         """
         cleared_events_from_celery = self.celery_executor.get_event_buffer(dag_ids)
@@ -193,7 +195,7 @@ class CeleryKubernetesExecutor(LoggingMixin):
             return self.kubernetes_executor
         return self.celery_executor
 
-    def debug_dump(self):
+    def debug_dump(self) -> None:
         """Called in response to SIGUSR2 by the scheduler"""
         self.log.info("Dumping CeleryExecutor state")
         self.celery_executor.debug_dump()

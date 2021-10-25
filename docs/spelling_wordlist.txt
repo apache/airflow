@@ -130,6 +130,7 @@ EnvVar
 ExaConnection
 Exasol
 Failover
+Fargate
 Fernet
 FileSensor
 Filebeat
@@ -399,6 +400,7 @@ Zsh
 Zymergen
 abc
 accessor
+aci
 ack
 ackIds
 acknowledgement
@@ -406,6 +408,7 @@ actionCard
 acyclic
 adhoc
 adls
+afterall
 airbnb
 airbyte
 airflowignore
@@ -526,6 +529,7 @@ changelog
 charset
 checklicence
 checksums
+childs
 chmod
 chown
 ci
@@ -569,6 +573,7 @@ configs
 conftest
 conn
 connectTimeoutMS
+connexion
 containerConfiguration
 contentUrl
 contextmgr
@@ -730,6 +735,7 @@ faas
 facebook
 failover
 faq
+fargate
 fbee
 fc
 feedCard
@@ -871,6 +877,7 @@ ish
 isn
 iterable
 iteratively
+iterm
 itertools
 izip
 javascript
@@ -1107,6 +1114,7 @@ psrp
 psycopg
 pty
 pubsub
+pullrequest
 py
 pyMongo
 pyarrow
@@ -1212,6 +1220,7 @@ sharded
 shellcheck
 shellcmd
 shm
+sie
 sigv
 skipable
 sku
@@ -1324,6 +1333,7 @@ texttospeech
 tez
 theService
 timedelta
+timedeltas
 timeframe
 timezones
 tis

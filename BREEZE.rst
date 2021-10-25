@@ -115,6 +115,12 @@ Docker in WSL 2
     E.g. Run ``cd ~`` and create a development folder in your Linux distro home
     and git pull the Airflow repo there.
 
+- **WSL 2 Docker mount errors**:
+    Another reason to use Linux filesystem, is that sometimes - depending on the length of
+    your path, you might get strange errors when you try start ``Breeze``, such us
+    ``caused: mount through procfd: not a directory: unknown:``. Therefore checking out
+    Airflow in Windows-mounted Filesystem is strongly discouraged.
+
 - **WSL 2 Memory Usage** :
     WSL 2 can consume a lot of memory under the process name "Vmmem". To reclaim the memory after
     development you can:
@@ -125,7 +131,7 @@ Docker in WSL 2
       * If no longer using WSL you can shut it down on the Windows Host
         with the following command: ``wsl --shutdown``
 
-- **Developing in WSL 2** :
+- **Developing in WSL 2**:
     You can use all the standard Linux command line utilities to develop on WSL 2.
     Further VS Code supports developing in Windows but remotely executing in WSL.
     If VS Code is installed on the Windows host system then in the WSL Linux Distro
@@ -1266,7 +1272,7 @@ This is the current syntax for  `./breeze <./breeze>`_:
 
           One of:
 
-                 3.6 3.7 3.8 3.9
+                 3.7 3.8 3.9 3.6
 
   -a, --install-airflow-version INSTALL_AIRFLOW_VERSION
           Uses different version of Airflow when building PROD image.
@@ -1275,7 +1281,7 @@ This is the current syntax for  `./breeze <./breeze>`_:
 
   -t, --install-airflow-reference INSTALL_AIRFLOW_REFERENCE
           Installs Airflow directly from reference in GitHub when building PROD image.
-          This can be a GitHub branch like main or v2-1-test, or a tag like 2.1.0a1.
+          This can be a GitHub branch like main or v2-2-test, or a tag like 2.2.0rc1.
 
   --installation-method INSTALLATION_METHOD
           Method of installing Airflow in PROD image - either from the sources ('.')
@@ -1465,7 +1471,7 @@ This is the current syntax for  `./breeze <./breeze>`_:
 
           One of:
 
-                 3.6 3.7 3.8 3.9
+                 3.7 3.8 3.9 3.6
 
   -I, --production-image
           Use production image for entering the environment and builds (not for tests).
@@ -1532,7 +1538,7 @@ This is the current syntax for  `./breeze <./breeze>`_:
 
           One of:
 
-                 3.6 3.7 3.8 3.9
+                 3.7 3.8 3.9 3.6
 
   -v, --verbose
           Show verbose information about executed docker, kind, kubectl, helm commands. Useful for
@@ -1623,7 +1629,7 @@ This is the current syntax for  `./breeze <./breeze>`_:
 
           One of:
 
-                 3.6 3.7 3.8 3.9
+                 3.7 3.8 3.9 3.6
 
 
   ####################################################################################################
@@ -1818,7 +1824,7 @@ This is the current syntax for  `./breeze <./breeze>`_:
 
           One of:
 
-                 3.6 3.7 3.8 3.9
+                 3.7 3.8 3.9 3.6
 
   -b, --backend BACKEND
           Backend to use for tests - it determines which database is used.
@@ -1887,7 +1893,7 @@ This is the current syntax for  `./breeze <./breeze>`_:
 
           One of:
 
-                 3.6 3.7 3.8 3.9
+                 3.7 3.8 3.9 3.6
 
   -F, --force-build-images
           Forces building of the local docker images. The images are rebuilt
@@ -2185,7 +2191,7 @@ This is the current syntax for  `./breeze <./breeze>`_:
                  check-executables-have-shebangs check-extras-order check-hooks-apply
                  check-integrations check-merge-conflict check-xml daysago-import-check
                  debug-statements detect-private-key doctoc dont-use-safe-filter end-of-file-fixer
-                 fix-encoding-pragma flake8 flynt forbid-tabs helm-lint identity
+                 fix-encoding-pragma flake8 flynt codespell forbid-tabs helm-lint identity
                  incorrect-use-of-LoggingMixin insert-license isort json-schema language-matters
                  lint-dockerfile lint-openapi markdownlint mermaid mixed-line-ending mypy mypy-helm
                  no-providers-in-core-examples no-relative-imports pre-commit-descriptions
@@ -2291,7 +2297,7 @@ This is the current syntax for  `./breeze <./breeze>`_:
 
           One of:
 
-                 3.6 3.7 3.8 3.9
+                 3.7 3.8 3.9 3.6
 
   ****************************************************************************************************
    Choose backend to run for Airflow
@@ -2440,7 +2446,7 @@ This is the current syntax for  `./breeze <./breeze>`_:
 
   -t, --install-airflow-reference INSTALL_AIRFLOW_REFERENCE
           Installs Airflow directly from reference in GitHub when building PROD image.
-          This can be a GitHub branch like main or v2-1-test, or a tag like 2.1.0a1.
+          This can be a GitHub branch like main or v2-2-test, or a tag like 2.2.0rc1.
 
   --installation-method INSTALLATION_METHOD
           Method of installing Airflow in PROD image - either from the sources ('.')

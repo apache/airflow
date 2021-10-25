@@ -23,13 +23,13 @@ function run_in_container_bats_tests() {
         docker_v run "${EXTRA_DOCKER_FLAGS[@]}" \
         --entrypoint "/opt/bats/bin/bats"  \
         "-v" "$(pwd):/airflow" \
-        "${AIRFLOW_CI_IMAGE}" \
+        "${AIRFLOW_CI_IMAGE_WITH_TAG}" \
         --tap  "tests/bats/in_container/"
     else
         docker_v run "${EXTRA_DOCKER_FLAGS[@]}" \
         --entrypoint "/opt/bats/bin/bats"  \
         "-v" "$(pwd):/airflow" \
-        "${AIRFLOW_CI_IMAGE}" \
+        "${AIRFLOW_CI_IMAGE_WITH_TAG}" \
         --tap "${@}"
     fi
 }

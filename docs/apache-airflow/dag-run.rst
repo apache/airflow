@@ -83,7 +83,7 @@ scheduled one interval after ``start_date``.
 .. tip::
 
     If ``schedule_interval`` is not enough to express your DAG's schedule,
-    logical date, or data interval, see :doc:`/howto/timetable`.
+    logical date, or data interval, see :doc:`/concepts/timetable`.
 
 Re-run DAG
 ''''''''''

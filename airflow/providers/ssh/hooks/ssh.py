@@ -261,13 +261,13 @@ class SSHHook(BaseHook):
 
         if not self.allow_host_key_change:
             self.log.warning(
-                'Remote Identification Change is not verified. '
-                'This wont protect against Man-In-The-Middle attacks'
+                "Remote Identification Change is not verified. "
+                "This won't protect against Man-In-The-Middle attacks"
             )
             client.load_system_host_keys()
 
         if self.no_host_key_check:
-            self.log.warning('No Host Key Verification. This wont protect against Man-In-The-Middle attacks')
+            self.log.warning("No Host Key Verification. This won't protect against Man-In-The-Middle attacks")
             # Default is RejectPolicy
             client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
         else:
@@ -400,7 +400,7 @@ class SSHHook(BaseHook):
         for pkey_class in self._pkey_loaders:
             try:
                 key = pkey_class.from_private_key(StringIO(private_key), password=passphrase)
-                # Test it acutally works. If Paramiko loads an openssh generated key, sometimes it will
+                # Test it actually works. If Paramiko loads an openssh generated key, sometimes it will
                 # happily load it as the wrong type, only to fail when actually used.
                 key.sign_ssh_data(b'')
                 return key

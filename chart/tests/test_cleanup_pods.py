@@ -142,7 +142,7 @@ class CleanupPodsTest(unittest.TestCase):
         )
         assert args == jmespath.search("spec.jobTemplate.spec.template.spec.containers[0].args", docs[0])
 
-    def test_log_groomer_command_and_args_overrides_are_templated(self):
+    def test_command_and_args_overrides_are_templated(self):
         docs = render_chart(
             values={
                 "cleanup": {

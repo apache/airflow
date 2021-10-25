@@ -143,9 +143,7 @@ class FileTaskHandler(logging.Handler):
                         if len(matches[0]) > len(ti.hostname):
                             ti.hostname = matches[0]
 
-                log += '*** Trying to get logs (last 100 lines) from worker pod {} ***\n\n'.format(
-                    ti.hostname
-                )
+                log += f'*** Trying to get logs (last 100 lines) from worker pod {ti.hostname} ***\n\n'
 
                 res = kube_client.read_namespaced_pod_log(
                     name=ti.hostname,

@@ -38,7 +38,6 @@ class TestBaseChartTest(unittest.TestCase):
                 },
                 'labels': {"TEST-LABEL": "TEST-VALUE"},
                 "fullnameOverride": "TEST-BASIC",
-                "airflowVersion": "2.2.0",
             },
         )
         list_of_kind_names_tuples = {
@@ -101,10 +100,7 @@ class TestBaseChartTest(unittest.TestCase):
     def test_basic_deployment_without_default_users(self):
         k8s_objects = render_chart(
             "TEST-BASIC",
-            values={
-                "webserver": {"defaultUser": {'enabled': False}},
-                "airflowVersion": "2.2.0",
-            },
+            values={"webserver": {"defaultUser": {'enabled': False}}},
         )
         list_of_kind_names_tuples = [
             (k8s_object['kind'], k8s_object['metadata']['name']) for k8s_object in k8s_objects

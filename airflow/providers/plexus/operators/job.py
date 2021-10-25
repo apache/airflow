@@ -87,8 +87,8 @@ class PlexusJobOperator(BaseOperator):
                 get_job = requests.get(jid_endpoint, headers=headers, timeout=5)
                 if not get_job.ok:
                     raise AirflowException(
-                        "Could not retrieve job status. Status Code: [{}]. "
-                        "Reason: {} - {}".format(get_job.status_code, get_job.reason, get_job.text)
+                        "Could not retrieve job status. "
+                        f"Status Code: [{get_job.status_code}]. Reason: {get_job.reason} - {get_job.text}"
                     )
                 new_state = get_job.json()["last_state"]
                 if new_state in ("Cancelled", "Failed"):
@@ -98,8 +98,8 @@ class PlexusJobOperator(BaseOperator):
                 state = new_state
         else:
             raise AirflowException(
-                "Could not start job. Status Code: [{}]. "
-                "Reason: {} - {}".format(create_job.status_code, create_job.reason, create_job.text)
+                "Could not start job. "
+                f"Status Code: [{create_job.status_code}]. Reason: {create_job.reason} - {create_job.text}"
             )
 
     def _api_lookup(self, param: str, hook):

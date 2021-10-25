@@ -17,6 +17,7 @@
 # under the License.
 #
 import io
+import json
 from contextlib import redirect_stdout
 
 import pytest
@@ -81,3 +82,28 @@ class TestCliRoles:
 
     def test_cli_list_roles_with_args(self):
         role_command.roles_list(self.parser.parse_args(['roles', 'list', '--output', 'yaml']))
+
+    def test_cli_import_roles(self, tmp_path):
+        fn = tmp_path / 'import_roles.json'
+        fn.touch()
+        roles_list = ['FakeTeamA', 'FakeTeamB']
+        with open(fn, 'w') as outfile:
+            json.dump(roles_list, outfile)
+        role_command.roles_import(self.parser.parse_args(['roles', 'import', str(fn)]))
+        assert self.appbuilder.sm.find_role('FakeTeamA') is not None
+        assert self.appbuilder.sm.find_role('FakeTeamB') is not None
+
+    def test_cli_export_roles(self, tmp_path):
+        fn = tmp_path / 'export_roles.json'
+        fn.touch()
+        args = self.parser.parse_args(['roles', 'create', 'FakeTeamA', 'FakeTeamB'])
+        role_command.roles_create(args)
+
+        assert self.appbuilder.sm.find_role('FakeTeamA') is not None
+        assert self.appbuilder.sm.find_role('FakeTeamB') is not None
+
+        role_command.roles_export(self.parser.parse_args(['roles', 'export', str(fn)]))
+        with open(fn) as outfile:
+            roles_exported = json.load(outfile)
+        assert 'FakeTeamA' in roles_exported
+        assert 'FakeTeamB' in roles_exported

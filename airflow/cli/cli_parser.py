@@ -26,7 +26,7 @@ from argparse import Action, ArgumentError, RawTextHelpFormatter
 from functools import lru_cache
 from typing import Callable, Dict, Iterable, List, NamedTuple, Optional, Union
 
-from airflow import settings
+from airflow import PY37, settings
 from airflow.cli.commands.legacy_commands import check_legacy_command
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
@@ -73,6 +73,9 @@ class DefaultHelpParser(argparse.ArgumentParser):
                     "To do it, run: pip install 'apache-airflow[cncf.kubernetes]'"
                 )
                 raise ArgumentError(action, message)
+        if action.dest == 'subcommand' and value == 'triggerer':
+            if not PY37:
+                raise ArgumentError(action, 'triggerer subcommand only works with Python 3.7+')
 
         if action.choices is not None and value not in action.choices:
             check_legacy_command(action, value)
@@ -691,6 +694,13 @@ ARG_SKIP_SERVE_LOGS = Arg(
     help="Don't start the serve logs process along with the workers",
     action="store_true",
 )
+ARG_ROLE_IMPORT = Arg(("file",), help="Import roles from JSON file", nargs=None)
+ARG_ROLE_EXPORT = Arg(("file",), help="Export all roles to JSON file", nargs=None)
+ARG_ROLE_EXPORT_FMT = Arg(
+    ('-p', '--pretty'),
+    help='Format output JSON file by sorting role names and indenting by 4 spaces',
+    action='store_true',
+)
 
 # info
 ARG_ANONYMIZE = Arg(
@@ -722,7 +732,7 @@ ARG_NAMESPACE = Arg(
 # jobs check
 ARG_JOB_TYPE_FILTER = Arg(
     ('--job-type',),
-    choices=('BackfillJob', 'LocalTaskJob', 'SchedulerJob'),
+    choices=('BackfillJob', 'LocalTaskJob', 'SchedulerJob', 'TriggererJob'),
     action='store',
     help='The type of job(s) that will be checked.',
 )
@@ -1377,6 +1387,18 @@ ROLES_COMMANDS = (
         help='Create role',
         func=lazy_load_command('airflow.cli.commands.role_command.roles_create'),
         args=(ARG_ROLES, ARG_VERBOSE),
+    ),
+    ActionCommand(
+        name='export',
+        help='Export roles (without permissions) from db to JSON file',
+        func=lazy_load_command('airflow.cli.commands.role_command.roles_export'),
+        args=(ARG_ROLE_EXPORT, ARG_ROLE_EXPORT_FMT, ARG_VERBOSE),
+    ),
+    ActionCommand(
+        name='import',
+        help='Import roles (without permissions) from JSON file to db',
+        func=lazy_load_command('airflow.cli.commands.role_command.roles_import'),
+        args=(ARG_ROLE_IMPORT, ARG_VERBOSE),
     ),
 )
 

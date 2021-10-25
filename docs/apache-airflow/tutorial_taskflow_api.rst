@@ -175,7 +175,7 @@ image must have a working Python installed and take in a bash command as the ``c
 
 Below is an example of using the ``@task.docker`` decorator to run a python task.
 
-.. exampleinclude:: /../../airflow/example_dags/tutorial_taskflow_api_etl_docker_virtualenv.py
+.. exampleinclude:: /../../airflow/providers/docker/example_dags/tutorial_taskflow_api_etl_docker_virtualenv.py
     :language: python
     :dedent: 4
     :start-after: [START transform_docker]
@@ -199,7 +199,7 @@ environment on the same machine, you can use the ``@task.virtualenv`` decorator 
 decorator will allow you to create a new virtualenv with custom libraries and even a different
 Python version to run your function.
 
-.. exampleinclude:: /../../airflow/example_dags/tutorial_taskflow_api_etl_docker_virtualenv.py
+.. exampleinclude:: /../../airflow/providers/docker/example_dags/tutorial_taskflow_api_etl_docker_virtualenv.py
     :language: python
     :dedent: 4
     :start-after: [START extract_virtualenv]
@@ -285,6 +285,50 @@ Building this dependency is shown in the code below:
 In the above code block, a :class:`~airflow.providers.http.operators.http.SimpleHttpOperator` result
 was captured via :doc:`XCOMs </concepts/xcoms>`. This XCOM result, which is the task output, was then passed
 to a TaskFlow decorated task which parses the response as JSON - and the rest continues as expected.
+
+Accessing context variables in decorated tasks
+----------------------------------------------
+
+When running your callable, Airflow will pass a set of keyword arguments that can be used in your
+function. This set of kwargs correspond exactly to what you can use in your jinja templates.
+For this to work, you need to define ``**kwargs`` in your function header, or you can add directly the
+keyword arguments you would like to get - for example with the below code your callable will get
+the values of ``ti`` and ``next_ds`` context variables. Note that when explicit keyword arguments are used,
+they must be made optional in the function header to avoid ``TypeError`` exceptions during DAG parsing as
+these values are not available until task execution.
+
+With explicit arguments:
+
+.. code-block:: python
+
+   @task
+   def my_python_callable(ti=None, next_ds=None):
+       pass
+
+With kwargs:
+
+.. code-block:: python
+
+   @task
+   def my_python_callable(**kwargs):
+       ti = kwargs["ti"]
+       next_ds = kwargs["next_ds"]
+
+Also sometimes you might want to access the context somewhere deep the stack - and you do not want to pass
+the context variables from the task callable. You can do it via ``get_current_context``
+method of the Python operator.
+
+.. code-block:: python
+
+    from airflow.operators.python import get_current_context
+
+
+    def some_function_in_your_library():
+        context = get_current_context()
+        ti = context["ti"]
+
+Current context is accessible only during the task execution. The context is not accessible during
+``pre_execute`` or ``post_execute``. Calling this method outside execution context will raise an error.
 
 
 What's Next?

@@ -195,14 +195,6 @@
       type: string
       example: ~
       default: "16"
-    - name: max_queued_runs_per_dag
-      description: |
-        The maximum number of queued dagruns for a single DAG. The scheduler will not create more DAG runs
-        if it reaches the limit. This is not configurable at the DAG level.
-      version_added: 2.1.4
-      type: string
-      example: ~
-      default: "16"
     - name: load_examples
       description: |
         Whether to load the DAG examples that ship with Airflow. It's good to
@@ -527,7 +519,7 @@
       version_added: 2.0.0
       type: string
       example: ~
-      default: "WARN"
+      default: "WARNING"
     - name: logging_config_class
       description: |
         Logging class
@@ -1967,14 +1959,14 @@
     - name: forwardable
       description: |
         Allow to disable ticket forwardability.
-      version_added: ~
+      version_added: 2.2.0
       type: boolean
       example: ~
       default: "True"
     - name: include_ip
       description: |
         Allow to remove source IP from token, useful when using token behind NATted Docker host.
-      version_added: ~
+      version_added: 2.2.0
       type: boolean
       example: ~
       default: "True"
@@ -2254,6 +2246,16 @@
       type: integer
       example: ~
       default: "100"
+- name: sensors
+  description: ~
+  options:
+    - name: default_timeout
+      description: |
+        Sensor default timeout, 7 days by default (7 * 24 * 60 * 60).
+      version_added: 2.2.1
+      type: float
+      example: ~
+      default: "604800"
 - name: smart_sensor
   description: ~
   options:

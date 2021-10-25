@@ -16,11 +16,34 @@
 # specific language governing permissions and limitations
 # under the License.
 import ast
+from datetime import datetime
 from typing import Any, Dict, Optional, Union
 
 from airflow.exceptions import AirflowException
-from airflow.models import BaseOperator
+from airflow.models import BaseOperator, BaseOperatorLink, TaskInstance
 from airflow.providers.amazon.aws.hooks.emr import EmrHook
+
+
+class EmrClusterLink(BaseOperatorLink):
+    """Operator link for EmrCreateJobFlowOperator. It allows users to access the EMR Cluster"""
+
+    name = 'EMR Cluster'
+
+    def get_link(self, operator: BaseOperator, dttm: datetime) -> str:
+        """
+        Get link to EMR cluster.
+
+        :param operator: operator
+        :param dttm: datetime
+        :return: url link
+        """
+        ti = TaskInstance(task=operator, execution_date=dttm)
+        flow_id = ti.xcom_pull(task_ids=operator.task_id)
+        return (
+            f'https://console.aws.amazon.com/elasticmapreduce/home#cluster-details:{flow_id}'
+            if flow_id
+            else ''
+        )
 
 
 class EmrCreateJobFlowOperator(BaseOperator):
@@ -44,6 +67,7 @@ class EmrCreateJobFlowOperator(BaseOperator):
     template_ext = ('.json',)
     template_fields_renderers = {"job_flow_overrides": "json"}
     ui_color = '#f9c915'
+    operator_extra_links = (EmrClusterLink(),)
 
     def __init__(
         self,

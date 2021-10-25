@@ -250,9 +250,9 @@ def skip_if_not_marked_with_integration(selected_integrations, item):
         if integration_name in selected_integrations or "all" in selected_integrations:
             return
     pytest.skip(
-        "The test is skipped because it does not have the right integration marker. "
-        "Only tests marked with pytest.mark.integration(INTEGRATION) are run with INTEGRATION"
-        " being one of {integration}. {item}".format(integration=selected_integrations, item=item)
+        f"The test is skipped because it does not have the right integration marker. "
+        f"Only tests marked with pytest.mark.integration(INTEGRATION) are run with INTEGRATION "
+        f"being one of {selected_integrations}. {item}"
     )
 
 
@@ -262,9 +262,8 @@ def skip_if_not_marked_with_backend(selected_backend, item):
         if selected_backend in backend_names:
             return
     pytest.skip(
-        "The test is skipped because it does not have the right backend marker "
-        "Only tests marked with pytest.mark.backend('{backend}') are run"
-        ": {item}".format(backend=selected_backend, item=item)
+        f"The test is skipped because it does not have the right backend marker "
+        f"Only tests marked with pytest.mark.backend('{selected_backend}') are run: {item}"
     )
 
 
@@ -274,36 +273,33 @@ def skip_if_not_marked_with_system(selected_systems, item):
         if systems_name in selected_systems or "all" in selected_systems:
             return
     pytest.skip(
-        "The test is skipped because it does not have the right system marker. "
-        "Only tests marked with pytest.mark.system(SYSTEM) are run with SYSTEM"
-        " being one of {systems}. {item}".format(systems=selected_systems, item=item)
+        f"The test is skipped because it does not have the right system marker. "
+        f"Only tests marked with pytest.mark.system(SYSTEM) are run with SYSTEM "
+        f"being one of {selected_systems}. {item}"
     )
 
 
 def skip_system_test(item):
     for marker in item.iter_markers(name="system"):
         pytest.skip(
-            "The test is skipped because it has system marker. "
-            "System tests are only run when --system flag "
-            "with the right system ({system}) is passed to pytest. {item}".format(
-                system=marker.args[0], item=item
-            )
+            f"The test is skipped because it has system marker. System tests are only run when "
+            f"--system flag with the right system ({marker.args[0]}) is passed to pytest. {item}"
         )
 
 
 def skip_long_running_test(item):
     for _ in item.iter_markers(name="long_running"):
         pytest.skip(
-            "The test is skipped because it has long_running marker. "
-            "And --include-long-running flag is not passed to pytest. {item}".format(item=item)
+            f"The test is skipped because it has long_running marker. "
+            f"And --include-long-running flag is not passed to pytest. {item}"
         )
 
 
 def skip_quarantined_test(item):
     for _ in item.iter_markers(name="quarantined"):
         pytest.skip(
-            "The test is skipped because it has quarantined marker. "
-            "And --include-quarantined flag is passed to pytest. {item}".format(item=item)
+            f"The test is skipped because it has quarantined marker. "
+            f"And --include-quarantined flag is passed to pytest. {item}"
         )
 
 
@@ -331,15 +327,9 @@ def skip_if_wrong_backend(marker, item):
     environment_variable_value = os.environ.get(environment_variable_name)
     if not environment_variable_value or environment_variable_value not in valid_backend_names:
         pytest.skip(
-            "The test requires one of {valid_backend_names} backend started and "
-            "{name} environment variable to be set to 'true' (it is '{value}')."
-            " It can be set by specifying backend at breeze startup"
-            ": {item}".format(
-                name=environment_variable_name,
-                value=environment_variable_value,
-                valid_backend_names=valid_backend_names,
-                item=item,
-            )
+            f"The test requires one of {valid_backend_names} backend started and "
+            f"{environment_variable_name} environment variable to be set to 'true' (it is "
+            f"'{environment_variable_value}'). It can be set by specifying backend at breeze startup: {item}"
         )
 
 
@@ -473,7 +463,11 @@ def dag_maker(request):
     if serialized_marker:
         (want_serialized,) = serialized_marker.args or (True,)
 
-    class DagFactory:
+    from airflow.utils.log.logging_mixin import LoggingMixin
+
+    class DagFactory(LoggingMixin):
+        _own_session = False
+
         def __init__(self):
             from airflow.models import DagBag
 
@@ -575,6 +569,7 @@ def dag_maker(request):
             from airflow.utils import timezone
 
             if session is None:
+                self._own_session = True
                 session = settings.Session()
 
             self.kwargs = kwargs
@@ -601,25 +596,34 @@ def dag_maker(request):
         def cleanup(self):
             from airflow.models import DagModel, DagRun, TaskInstance, XCom
             from airflow.models.serialized_dag import SerializedDagModel
+            from airflow.utils.retries import run_with_db_retries
 
-            dag_ids = list(self.dagbag.dag_ids)
-            if not dag_ids:
-                return
-            # To isolate problems here with problems from elsewhere on the session object
-            self.session.flush()
+            for attempt in run_with_db_retries(logger=self.log):
+                with attempt:
+                    dag_ids = list(self.dagbag.dag_ids)
+                    if not dag_ids:
+                        return
+                    # To isolate problems here with problems from elsewhere on the session object
+                    self.session.flush()
 
-            self.session.query(SerializedDagModel).filter(SerializedDagModel.dag_id.in_(dag_ids)).delete(
-                synchronize_session=False
-            )
-            self.session.query(DagRun).filter(DagRun.dag_id.in_(dag_ids)).delete(synchronize_session=False)
-            self.session.query(TaskInstance).filter(TaskInstance.dag_id.in_(dag_ids)).delete(
-                synchronize_session=False
-            )
-            self.session.query(XCom).filter(XCom.dag_id.in_(dag_ids)).delete(synchronize_session=False)
-            self.session.query(DagModel).filter(DagModel.dag_id.in_(dag_ids)).delete(
-                synchronize_session=False
-            )
-            self.session.commit()
+                    self.session.query(SerializedDagModel).filter(
+                        SerializedDagModel.dag_id.in_(dag_ids)
+                    ).delete(synchronize_session=False)
+                    self.session.query(DagRun).filter(DagRun.dag_id.in_(dag_ids)).delete(
+                        synchronize_session=False
+                    )
+                    self.session.query(TaskInstance).filter(TaskInstance.dag_id.in_(dag_ids)).delete(
+                        synchronize_session=False
+                    )
+                    self.session.query(XCom).filter(XCom.dag_id.in_(dag_ids)).delete(
+                        synchronize_session=False
+                    )
+                    self.session.query(DagModel).filter(DagModel.dag_id.in_(dag_ids)).delete(
+                        synchronize_session=False
+                    )
+                    self.session.commit()
+                    if self._own_session:
+                        self.session.expunge_all()
 
     factory = DagFactory()
 

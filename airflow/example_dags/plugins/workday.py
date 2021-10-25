@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-"""Plugin to demostrate timetable registration and accomdate example DAGs."""
+"""Plugin to demonstrate timetable registration and accommodate example DAGs."""
 
 # [START howto_timetable]
 from datetime import timedelta

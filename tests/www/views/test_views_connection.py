@@ -148,3 +148,35 @@ def test_duplicate_connection(admin_client):
     response = {conn[0] for conn in session.query(Connection.conn_id).all()}
     assert resp.status_code == 200
     assert expected_result == response
+
+
+def test_duplicate_connection_error(admin_client):
+    """Test Duplicate multiple connection with suffix
+    when there are already 10 copies, no new copy
+    should be created"""
+
+    connection_ids = [f'test_duplicate_postgres_connection_copy{i}' for i in range(1, 11)]
+    connections = [
+        Connection(
+            conn_id=connection_id,
+            conn_type='FTP',
+            description='Postgres',
+            host='localhost',
+            schema='airflow',
+            port=3306,
+        )
+        for connection_id in connection_ids
+    ]
+
+    with create_session() as session:
+        session.query(Connection).delete()
+        session.add_all(connections)
+
+    data = {"action": "mulduplicate", "rowid": [connections[0].id]}
+    resp = admin_client.post('/connection/action_post', data=data, follow_redirects=True)
+
+    expected_result = {f'test_duplicate_postgres_connection_copy{i}' for i in range(1, 11)}
+
+    assert resp.status_code == 200
+    response = {conn[0] for conn in session.query(Connection.conn_id).all()}
+    assert expected_result == response

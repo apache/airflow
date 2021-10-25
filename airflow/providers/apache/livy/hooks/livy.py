@@ -154,9 +154,8 @@ class LivyHook(HttpHook, LoggingMixin):
             response.raise_for_status()
         except requests.exceptions.HTTPError as err:
             raise AirflowException(
-                "Could not submit batch. Status code: {}. Message: '{}'".format(
-                    err.response.status_code, err.response.text
-                )
+                "Could not submit batch. "
+                f"Status code: {err.response.status_code}. Message: '{err.response.text}'"
             )
 
         batch_id = self._parse_post_response(response.json())
@@ -236,9 +235,7 @@ class LivyHook(HttpHook, LoggingMixin):
         except requests.exceptions.HTTPError as err:
             self.log.warning("Got status code %d for session %d", err.response.status_code, session_id)
             raise AirflowException(
-                "Could not kill the batch with session id: {}. Message: {}".format(
-                    session_id, err.response.text
-                )
+                f"Could not kill the batch with session id: {session_id}. Message: {err.response.text}"
             )
 
         return response.json()
@@ -264,9 +261,8 @@ class LivyHook(HttpHook, LoggingMixin):
         except requests.exceptions.HTTPError as err:
             self.log.warning("Got status code %d for session %d", err.response.status_code, session_id)
             raise AirflowException(
-                "Could not fetch the logs for batch with session id: {}. Message: {}".format(
-                    session_id, err.response.text
-                )
+                f"Could not fetch the logs for batch with session id: {session_id}. "
+                f"Message: {err.response.text}"
             )
         return response.json()
 

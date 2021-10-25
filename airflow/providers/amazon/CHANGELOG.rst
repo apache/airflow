@@ -22,6 +22,13 @@ Changelog
 2.3.0
 .....
 
+The Redshift operators in this version require at least ``2.3.0`` version of the Postgres Provider. This is
+reflected in the ``[postgres]`` extra, but extras do not guarantee that the right version of
+dependencies is installed (depending on the installation method). In case you have problems with
+running Redshift operators, upgrade ``apache-airflow-providers-postgres`` provider to at least
+version 2.3.0.
+
+
 Features
 ~~~~~~~~
 
@@ -36,24 +43,32 @@ Features
 * ``sftp_to_s3 stream file option (#17609)``
 * ``AwsBaseHook make client_type resource_type optional params for get_client_type, get_resource_type (#17987)``
 * ``Delete unnecessary parameters in EKSPodOperator (#17960)``
-
-The Redshift operators require at least ``2.3.0`` version of the Postgres Provider. This is
-reflected in the ``[postgres]`` extra, but extras do not guarantee that the right version of
-dependencies is installed (depending on the installation method). In case you have problems with
-running Redshift operators, upgrade ``apache-airflow-providers-postgres`` provider to at least
-version 2.3.0.
+* ``Enable AWS Secrets Manager backend to retrieve conns using different fields (#18764)``
+* ``Add emr cluster link (#18691)``
+* ``AwsGlueJobOperator: add wait_for_completion to Glue job run (#18814)``
+* ``Enable FTPToS3Operator to transfer several files (#17937)``
+* ``Amazon Athena Example (#18785)``
+* ``AwsGlueJobOperator: add run_job_kwargs to Glue job run (#16796)``
+* ``Amazon SQS Example (#18760)``
+* ``Adds an s3 list prefixes operator (#17145)``
+* ``Add additional dependency for postgres extra for amazon provider (#18737)``
+* ``Support all Unix wildcards in S3KeySensor (#18211)``
+* ``Add AWS Fargate profile support (#18645)``
 
 Bug Fixes
 ~~~~~~~~~
 
 * ``ECSOperator returns last logs when ECS task fails (#17209)``
 * ``Refresh credentials for long-running pods on EKS (#17951)``
+* ``ECSOperator: airflow exception on edge case when cloudwatch log stream is not found (#18733)``
 
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):
    * ``Simplify s3 unify_bucket_name_and_key (#17325)``
    * ``Updating miscellaneous provider DAGs to use TaskFlow API where applicable (#18278)``
    * ``Inclusive Language (#18349)``
+   * ``Simplify strings previously split across lines (#18679)``
+   * ``Update documentation for September providers release (#18613)``
 
 2.2.0
 .....

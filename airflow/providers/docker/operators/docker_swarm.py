@@ -17,7 +17,6 @@
 """Run ephemeral Docker Swarm services"""
 from typing import List, Optional, Union
 
-import requests
 from docker import types
 
 from airflow.exceptions import AirflowException
@@ -204,12 +203,6 @@ class DockerSwarmOperator(DockerOperator):
         while True:
             try:
                 log = next(logs)
-            # TODO: Remove this clause once https://github.com/docker/docker-py/issues/931 is fixed
-            except requests.exceptions.ConnectionError:
-                # If the service log stream stopped sending messages, check if it the service has
-                # terminated.
-                if self._has_service_terminated():
-                    break
             except StopIteration:
                 # If the service log stream terminated, stop fetching logs further.
                 break

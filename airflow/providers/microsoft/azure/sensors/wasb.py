@@ -57,7 +57,7 @@ class WasbBlobSensor(BaseSensorOperator):
         self.check_options = check_options
 
     def poke(self, context: dict):
-        self.log.info('Poking for blob: %s\nin wasb://%s', self.blob_name, self.container_name)
+        self.log.info('Poking for blob: %s\n in wasb://%s', self.blob_name, self.container_name)
         hook = WasbHook(wasb_conn_id=self.wasb_conn_id)
         return hook.check_for_blob(self.container_name, self.blob_name, **self.check_options)
 

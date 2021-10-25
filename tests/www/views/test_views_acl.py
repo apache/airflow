@@ -28,7 +28,7 @@ from airflow.utils.session import create_session
 from airflow.utils.state import State
 from airflow.utils.types import DagRunType
 from airflow.www.views import FILTER_STATUS_COOKIE
-from tests.test_utils.api_connexion_utils import create_user
+from tests.test_utils.api_connexion_utils import create_user_scope
 from tests.test_utils.db import clear_db_runs
 from tests.test_utils.www import check_content_in_response, check_content_not_in_response, client_with_login
 
@@ -96,42 +96,42 @@ def acl_app(app):
     edit_perm_on_dag = security_manager.get_permission(
         permissions.ACTION_CAN_EDIT, 'DAG:example_bash_operator'
     )
-    security_manager.add_permission_role(dag_tester_role, edit_perm_on_dag)
+    security_manager.add_permission_to_role(dag_tester_role, edit_perm_on_dag)
     read_perm_on_dag = security_manager.get_permission(
         permissions.ACTION_CAN_READ, 'DAG:example_bash_operator'
     )
-    security_manager.add_permission_role(dag_tester_role, read_perm_on_dag)
-    security_manager.add_permission_role(dag_tester_role, website_permission)
+    security_manager.add_permission_to_role(dag_tester_role, read_perm_on_dag)
+    security_manager.add_permission_to_role(dag_tester_role, website_permission)
 
     all_dag_role = security_manager.find_role('all_dag_role')
     edit_perm_on_all_dag = security_manager.get_permission(
         permissions.ACTION_CAN_EDIT, permissions.RESOURCE_DAG
     )
-    security_manager.add_permission_role(all_dag_role, edit_perm_on_all_dag)
+    security_manager.add_permission_to_role(all_dag_role, edit_perm_on_all_dag)
     read_perm_on_all_dag = security_manager.get_permission(
         permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG
     )
-    security_manager.add_permission_role(all_dag_role, read_perm_on_all_dag)
+    security_manager.add_permission_to_role(all_dag_role, read_perm_on_all_dag)
     read_perm_on_task_instance = security_manager.get_permission(
         permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK_INSTANCE
     )
-    security_manager.add_permission_role(all_dag_role, read_perm_on_task_instance)
-    security_manager.add_permission_role(all_dag_role, website_permission)
+    security_manager.add_permission_to_role(all_dag_role, read_perm_on_task_instance)
+    security_manager.add_permission_to_role(all_dag_role, website_permission)
 
     role_user = security_manager.find_role('User')
-    security_manager.add_permission_role(role_user, read_perm_on_all_dag)
-    security_manager.add_permission_role(role_user, edit_perm_on_all_dag)
-    security_manager.add_permission_role(role_user, website_permission)
+    security_manager.add_permission_to_role(role_user, read_perm_on_all_dag)
+    security_manager.add_permission_to_role(role_user, edit_perm_on_all_dag)
+    security_manager.add_permission_to_role(role_user, website_permission)
 
     read_only_perm_on_dag = security_manager.get_permission(
         permissions.ACTION_CAN_READ, 'DAG:example_bash_operator'
     )
     dag_read_only_role = security_manager.find_role('dag_acl_read_only')
-    security_manager.add_permission_role(dag_read_only_role, read_only_perm_on_dag)
-    security_manager.add_permission_role(dag_read_only_role, website_permission)
+    security_manager.add_permission_to_role(dag_read_only_role, read_only_perm_on_dag)
+    security_manager.add_permission_to_role(dag_read_only_role, website_permission)
 
     dag_acl_faker_role = security_manager.find_role('dag_acl_faker')
-    security_manager.add_permission_role(dag_acl_faker_role, website_permission)
+    security_manager.add_permission_to_role(dag_acl_faker_role, website_permission)
 
     yield app
 
@@ -186,7 +186,7 @@ def all_dag_user_client(acl_app):
 
 @pytest.fixture(scope="module")
 def user_edit_one_dag(acl_app):
-    return create_user(
+    with create_user_scope(
         acl_app,
         username="user_edit_one_dag",
         role_name="role_edit_one_dag",
@@ -194,13 +194,14 @@ def user_edit_one_dag(acl_app):
             (permissions.ACTION_CAN_READ, 'DAG:example_bash_operator'),
             (permissions.ACTION_CAN_EDIT, 'DAG:example_bash_operator'),
         ],
-    )
+    ) as user:
+        yield user
 
 
 @pytest.mark.usefixtures("user_edit_one_dag")
 def test_permission_exist(acl_app):
-    perms_views = acl_app.appbuilder.sm.find_permissions_view_menu(
-        acl_app.appbuilder.sm.find_view_menu('DAG:example_bash_operator'),
+    perms_views = acl_app.appbuilder.sm.get_resource_permissions(
+        acl_app.appbuilder.sm.get_resource('DAG:example_bash_operator'),
     )
     assert len(perms_views) == 2
 
@@ -219,7 +220,7 @@ def test_role_permission_associate(acl_app):
 
 @pytest.fixture(scope="module")
 def user_all_dags(acl_app):
-    return create_user(
+    with create_user_scope(
         acl_app,
         username="user_all_dags",
         role_name="role_all_dags",
@@ -227,7 +228,8 @@ def user_all_dags(acl_app):
             (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
             (permissions.ACTION_CAN_READ, permissions.RESOURCE_WEBSITE),
         ],
-    )
+    ) as user:
+        yield user
 
 
 @pytest.fixture()
@@ -310,7 +312,7 @@ def test_dag_autocomplete_status(client_all_dags, status, expected, unexpected):
 
 @pytest.fixture(scope="module")
 def user_all_dags_dagruns(acl_app):
-    return create_user(
+    with create_user_scope(
         acl_app,
         username="user_all_dags_dagruns",
         role_name="role_all_dags_dagruns",
@@ -319,7 +321,8 @@ def user_all_dags_dagruns(acl_app):
             (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG_RUN),
             (permissions.ACTION_CAN_READ, permissions.RESOURCE_WEBSITE),
         ],
-    )
+    ) as user:
+        yield user
 
 
 @pytest.fixture()
@@ -350,7 +353,7 @@ def test_dag_stats_success_for_all_dag_user(client_all_dags_dagruns):
 
 @pytest.fixture(scope="module")
 def user_all_dags_dagruns_tis(acl_app):
-    return create_user(
+    with create_user_scope(
         acl_app,
         username="user_all_dags_dagruns_tis",
         role_name="role_all_dags_dagruns_tis",
@@ -360,7 +363,8 @@ def user_all_dags_dagruns_tis(acl_app):
             (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK_INSTANCE),
             (permissions.ACTION_CAN_READ, permissions.RESOURCE_WEBSITE),
         ],
-    )
+    ) as user:
+        yield user
 
 
 @pytest.fixture()
@@ -410,7 +414,7 @@ def test_task_stats_success(
 
 @pytest.fixture(scope="module")
 def user_all_dags_codes(acl_app):
-    return create_user(
+    with create_user_scope(
         acl_app,
         username="user_all_dags_codes",
         role_name="role_all_dags_codes",
@@ -419,7 +423,8 @@ def user_all_dags_codes(acl_app):
             (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG_CODE),
             (permissions.ACTION_CAN_READ, permissions.RESOURCE_WEBSITE),
         ],
-    )
+    ) as user:
+        yield user
 
 
 @pytest.fixture()
@@ -478,7 +483,7 @@ def test_dag_details_success_for_all_dag_user(client_all_dags_dagruns, dag_id):
 
 @pytest.fixture(scope="module")
 def user_all_dags_tis(acl_app):
-    return create_user(
+    with create_user_scope(
         acl_app,
         username="user_all_dags_tis",
         role_name="role_all_dags_tis",
@@ -487,7 +492,8 @@ def user_all_dags_tis(acl_app):
             (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK_INSTANCE),
             (permissions.ACTION_CAN_READ, permissions.RESOURCE_WEBSITE),
         ],
-    )
+    ) as user:
+        yield user
 
 
 @pytest.fixture()
@@ -501,7 +507,7 @@ def client_all_dags_tis(acl_app, user_all_dags_tis):
 
 @pytest.fixture(scope="module")
 def user_all_dags_tis_xcom(acl_app):
-    return create_user(
+    with create_user_scope(
         acl_app,
         username="user_all_dags_tis_xcom",
         role_name="role_all_dags_tis_xcom",
@@ -511,7 +517,8 @@ def user_all_dags_tis_xcom(acl_app):
             (permissions.ACTION_CAN_READ, permissions.RESOURCE_XCOM),
             (permissions.ACTION_CAN_READ, permissions.RESOURCE_WEBSITE),
         ],
-    )
+    ) as user:
+        yield user
 
 
 @pytest.fixture()
@@ -525,7 +532,7 @@ def client_all_dags_tis_xcom(acl_app, user_all_dags_tis_xcom):
 
 @pytest.fixture(scope="module")
 def user_dags_tis_logs(acl_app):
-    return create_user(
+    with create_user_scope(
         acl_app,
         username="user_dags_tis_logs",
         role_name="role_dags_tis_logs",
@@ -535,7 +542,8 @@ def user_dags_tis_logs(acl_app):
             (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK_LOG),
             (permissions.ACTION_CAN_READ, permissions.RESOURCE_WEBSITE),
         ],
-    )
+    ) as user:
+        yield user
 
 
 @pytest.fixture()
@@ -692,7 +700,7 @@ def test_blocked_success_when_selecting_dags(
 
 @pytest.fixture(scope="module")
 def user_all_dags_edit_tis(acl_app):
-    return create_user(
+    with create_user_scope(
         acl_app,
         username="user_all_dags_edit_tis",
         role_name="role_all_dags_edit_tis",
@@ -701,7 +709,8 @@ def user_all_dags_edit_tis(acl_app):
             (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_TASK_INSTANCE),
             (permissions.ACTION_CAN_READ, permissions.RESOURCE_WEBSITE),
         ],
-    )
+    ) as user:
+        yield user
 
 
 @pytest.fixture()
@@ -734,7 +743,7 @@ def test_paused_post_success(dag_test_client):
 
 @pytest.fixture(scope="module")
 def user_only_dags_tis(acl_app):
-    return create_user(
+    with create_user_scope(
         acl_app,
         username="user_only_dags_tis",
         role_name="role_only_dags_tis",
@@ -742,7 +751,8 @@ def user_only_dags_tis(acl_app):
             (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
             (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK_INSTANCE),
         ],
-    )
+    ) as user:
+        yield user
 
 
 @pytest.fixture()
@@ -796,13 +806,9 @@ def test_get_logs_with_metadata_failure(dag_faker_client):
 
 @pytest.fixture(scope="module")
 def user_no_roles(acl_app):
-    user = create_user(
-        acl_app,
-        username="no_roles_user",
-        role_name="no_roles_user_role",
-    )
-    user.roles = []
-    return user
+    with create_user_scope(acl_app, username="no_roles_user", role_name="no_roles_user_role") as user:
+        user.roles = []
+        yield user
 
 
 @pytest.fixture()
@@ -816,11 +822,12 @@ def client_no_roles(acl_app, user_no_roles):
 
 @pytest.fixture(scope="module")
 def user_no_permissions(acl_app):
-    return create_user(
+    with create_user_scope(
         acl_app,
         username="no_permissions_user",
         role_name="no_permissions_role",
-    )
+    ) as user:
+        yield user
 
 
 @pytest.fixture()

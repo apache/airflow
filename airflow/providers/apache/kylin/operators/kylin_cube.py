@@ -151,9 +151,7 @@ class KylinCubeOperator(BaseOperator):
         _support_invoke_command = kylinpy.CubeSource.support_invoke_command
         if self.command.lower() not in _support_invoke_command:
             raise AirflowException(
-                'Kylin:Command {} can not match kylin command list {}'.format(
-                    self.command, _support_invoke_command
-                )
+                f'Kylin:Command {self.command} can not match kylin command list {_support_invoke_command}'
             )
 
         kylinpy_params = {

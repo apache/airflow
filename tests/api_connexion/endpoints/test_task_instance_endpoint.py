@@ -197,6 +197,7 @@ class TestGetTaskInstance(TestTaskInstanceEndpoint):
             "task_id": "print_the_context",
             "try_number": 0,
             "unixname": getuser(),
+            "dag_run_id": "TEST_DAG_RUN_ID",
         }
 
     def test_should_respond_200_with_task_state_in_removed(self, session):
@@ -214,7 +215,7 @@ class TestGetTaskInstance(TestTaskInstanceEndpoint):
             "executor_config": "{}",
             "hostname": "",
             "max_tries": 0,
-            "operator": "PythonOperator",
+            "operator": "_PythonDecoratedOperator",
             "pid": 100,
             "pool": "default_pool",
             "pool_slots": 1,
@@ -227,6 +228,7 @@ class TestGetTaskInstance(TestTaskInstanceEndpoint):
             "task_id": "print_the_context",
             "try_number": 0,
             "unixname": getuser(),
+            "dag_run_id": "TEST_DAG_RUN_ID",
         }
 
     def test_should_respond_200_task_instance_with_sla(self, session):
@@ -254,7 +256,7 @@ class TestGetTaskInstance(TestTaskInstanceEndpoint):
             "executor_config": "{}",
             "hostname": "",
             "max_tries": 0,
-            "operator": "PythonOperator",
+            "operator": "_PythonDecoratedOperator",
             "pid": 100,
             "pool": "default_pool",
             "pool_slots": 1,
@@ -275,6 +277,7 @@ class TestGetTaskInstance(TestTaskInstanceEndpoint):
             "task_id": "print_the_context",
             "try_number": 0,
             "unixname": getuser(),
+            "dag_run_id": "TEST_DAG_RUN_ID",
         }
 
     def test_should_raises_401_unauthenticated(self):

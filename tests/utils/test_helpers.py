@@ -199,25 +199,25 @@ class TestHelpers:
             ("simple-key", None, None),
             (
                 "group.simple_key",
-                "The key (group.simple_key) has to be made of alphanumeric "
+                "The key ('group.simple_key') has to be made of alphanumeric "
                 "characters, dashes and underscores exclusively",
                 AirflowException,
             ),
             (
                 "root.group-name.simple_key",
-                "The key (root.group-name.simple_key) has to be made of alphanumeric "
+                "The key ('root.group-name.simple_key') has to be made of alphanumeric "
                 "characters, dashes and underscores exclusively",
                 AirflowException,
             ),
             (
                 "key with space",
-                "The key (key with space) has to be made of alphanumeric "
+                "The key ('key with space') has to be made of alphanumeric "
                 "characters, dashes and underscores exclusively",
                 AirflowException,
             ),
             (
                 "key_with_!",
-                "The key (key_with_!) has to be made of alphanumeric "
+                "The key ('key_with_!') has to be made of alphanumeric "
                 "characters, dashes and underscores exclusively",
                 AirflowException,
             ),
