@@ -416,7 +416,7 @@ Let's break this down into 2 steps: get data & merge data:
 .. code-block:: python
 
   from airflow.decorators import dag, task
-  from airflow.hooks.postgres_hook import PostgresHook
+  from airflow.hooks.postgres import PostgresHook
   from datetime import datetime, timedelta
   import requests
 
@@ -438,7 +438,8 @@ Let's break this down into 2 steps: get data & merge data:
       cur = conn.cursor()
       with open(data_path, "r") as file:
           cur.copy_expert(
-              "COPY \"Employees_temp\" FROM STDIN WITH CSV HEADER DELIMITER AS ',' QUOTE '\"'", file
+              "COPY \"Employees_temp\" FROM STDIN WITH CSV HEADER DELIMITER AS ',' QUOTE '\"'",
+              file
           )
       conn.commit()
 
@@ -449,7 +450,7 @@ Here we are passing a ``GET`` request to get the data from the URL and save it i
   @task
   def merge_data():
       query = """
-          DELETE FROM "Employees" e 
+          DELETE FROM "Employees" e
           USING "Employees_temp" et
           WHERE e."Serial Number" = et."Serial Number";
 
@@ -503,7 +504,7 @@ Lets look at our DAG:
           cur = conn.cursor()
           with open(data_path, "r") as file:
               cur.copy_expert(
-                  "COPY \"Employees_temp\" FROM stdin WITH CSV HEADER DELIMITER AS ',' QUOTE '\"'",
+                  "COPY \"Employees_temp\" FROM STDIN WITH CSV HEADER DELIMITER AS ',' QUOTE '\"'",
                   file,
               )
           conn.commit()
@@ -511,7 +512,7 @@ Lets look at our DAG:
       @task
       def merge_data():
           query = """
-                  DELETE FROM "Employees" e 
+                  DELETE FROM "Employees" e
                   USING "Employees_temp" et
                   WHERE e."Serial Number" = et."Serial Number";
 
