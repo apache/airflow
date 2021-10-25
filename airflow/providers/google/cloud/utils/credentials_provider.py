@@ -33,8 +33,7 @@ from google.auth import impersonated_credentials
 from google.auth.environment_vars import CREDENTIALS, LEGACY_PROJECT, PROJECT
 
 from airflow.exceptions import AirflowException
-from airflow.providers.google.cloud._internal_client.secret_manager_client import \
-    _SecretManagerClient
+from airflow.providers.google.cloud._internal_client.secret_manager_client import _SecretManagerClient
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.process_utils import patch_environ
 
@@ -214,7 +213,8 @@ class _CredentialProvider(LoggingMixin):
         super().__init__()
         key_options = [key_path, key_secret_name, keyfile_dict]
         if len([x for x in key_options if x]) > 1:
-            raise AirflowException(f"The `keyfile_dict`, `key_path`, and `key_secret_name` fields"
+            raise AirflowException(
+                "The `keyfile_dict`, `key_path`, and `key_secret_name` fields"
                 "are all mutually exclusive. Please provide only one value."
             )
         self.key_path = key_path

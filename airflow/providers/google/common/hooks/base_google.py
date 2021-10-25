@@ -183,8 +183,7 @@ class GoogleBaseHook(BaseHook):
                 lazy_gettext('Scopes (comma separated)'), widget=BS3TextFieldWidget()
             ),
             "extra__google_cloud_platform__key_secret_name": StringField(
-                lazy_gettext('Keyfile Secret Name (in GCP Secret Manager)'),
-                widget=BS3TextFieldWidget()
+                lazy_gettext('Keyfile Secret Name (in GCP Secret Manager)'), widget=BS3TextFieldWidget()
             ),
             "extra__google_cloud_platform__num_retries": IntegerField(
                 lazy_gettext('Number of Retries'),

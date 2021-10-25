@@ -268,10 +268,11 @@ class TestGetGcpCredentialsAndProjectId(unittest.TestCase):
             'connection using JSON Dict'
         ] == cm.output
 
+    @mock.patch("google.auth.default", return_value=("CREDENTIALS", "PROJECT_ID"))
     @mock.patch('google.oauth2.service_account.Credentials.from_service_account_info')
     @mock.patch("airflow.providers.google.cloud.utils.credentials_provider._SecretManagerClient")
     def test_get_credentials_and_project_id_with_key_secret_name(
-        self, mock_secret_manager_client, mock_from_service_account_info
+        self, mock_secret_manager_client, mock_from_service_account_info, mock_default
     ):
         mock_secret_manager_client.return_value.is_valid_secret_name.return_value = True
         mock_secret_manager_client.return_value.get_secret.return_value = (
@@ -291,9 +292,10 @@ class TestGetGcpCredentialsAndProjectId(unittest.TestCase):
             scopes=ANY,
         )
 
+    @mock.patch("google.auth.default", return_value=("CREDENTIALS", "PROJECT_ID"))
     @mock.patch("airflow.providers.google.cloud.utils.credentials_provider._SecretManagerClient")
     def test_get_credentials_and_project_id_with_key_secret_name_when_key_is_invalid(
-        self, mock_secret_manager_client
+        self, mock_secret_manager_client, mock_default
     ):
         mock_secret_manager_client.return_value.is_valid_secret_name.return_value = True
         mock_secret_manager_client.return_value.get_secret.return_value = ""
@@ -309,7 +311,9 @@ class TestGetGcpCredentialsAndProjectId(unittest.TestCase):
     ):
         with pytest.raises(
             AirflowException,
-            match=re.escape('The `keyfile_dict` and `key_path` fields are mutually exclusive.'),
+            match=re.escape(
+                'The `keyfile_dict`, `key_path`, and `key_secret_name` fieldsare all mutually exclusive.'
+            ),
         ):
             get_credentials_and_project_id(key_path='KEY.json', keyfile_dict={'private_key': 'PRIVATE_KEY'})
 
