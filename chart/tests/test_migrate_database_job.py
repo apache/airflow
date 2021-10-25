@@ -125,3 +125,33 @@ class TestMigrateDatabaseJob:
             "name": "test-container",
             "image": "test-registry/test-repo:test-tag",
         } == jmespath.search("spec.template.spec.containers[-1]", docs[0])
+
+    def test_set_resources(self):
+        docs = render_chart(
+            values={
+                "migrateDatabaseJob": {
+                    "resources": {
+                        "requests": {
+                            "cpu": "1000mi",
+                            "memory": "512Mi",
+                        },
+                        "limits": {
+                            "cpu": "1000mi",
+                            "memory": "512Mi",
+                        },
+                    },
+                },
+            },
+            show_only=["templates/jobs/migrate-database-job.yaml"],
+        )
+
+        assert {
+            "requests": {
+                "cpu": "1000mi",
+                "memory": "512Mi",
+            },
+            "limits": {
+                "cpu": "1000mi",
+                "memory": "512Mi",
+            },
+        } == jmespath.search("spec.template.spec.containers[0].resources", docs[0])

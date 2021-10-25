@@ -640,6 +640,14 @@ migrateDatabaseJob:
     # Annotations to add to migrate database job kubernetes service account.
     annotations: {}
 
+  resources: {}
+  #  limits:
+  #   cpu: 100m
+  #   memory: 128Mi
+  #  requests:
+  #   cpu: 100m
+  #   memory: 128Mi
+
   # Launch additional containers into database migration job
   extraContainers: []
   nodeSelector: {}

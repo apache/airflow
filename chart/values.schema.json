@@ -597,8 +597,8 @@
             "x-docsSection": "Airflow",
             "default": null,
             "examples": [
-                "- secretRef:\n  name: '{{ .Release.Name }}-airflow-connections'",
-                "- configMapRef:\n  name: '{{ .Release.Name }}-airflow-variables'"
+                "- secretRef:\n    name: '{{ .Release.Name }}-airflow-connections'",
+                "- configMapRef:\n    name: '{{ .Release.Name }}-airflow-variables'"
             ]
         },
         "extraSecrets": {
@@ -1736,6 +1736,24 @@
                             "default": {}
                         }
                     }
+                },
+                "resources": {
+                    "description": "Resources for the migrate database job pod",
+                    "type": "object",
+                    "$ref": "https://raw.githubusercontent.com/yannh/kubernetes-json-schema/master/v1.22.0/_definitions.json#/definitions/io.k8s.api.core.v1.ResourceRequirements",
+                    "default": {},
+                    "examples": [
+                        {
+                            "limits": {
+                                "cpu": "100m",
+                                "memory": "128Mi"
+                            },
+                            "requests": {
+                                "cpu": "100m",
+                                "memory": "128Mi"
+                            }
+                        }
+                    ]
                 },
                 "extraContainers": {
                     "description": "Launch additional containers for the migrate database job pod",

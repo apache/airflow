@@ -75,7 +75,7 @@ t_move = DockerOperator(
         "/bin/bash",
         "-c",
         "/bin/sleep 30; "
-        "/bin/mv {{ params.source_location }}/" + f"{t_view.output}" + " {{ params.target_location }};"
+        "/bin/mv {{ params.source_location }}/" + str(t_view.output) + " {{ params.target_location }};"
         "/bin/echo '{{ params.target_location }}/" + f"{t_view.output}';",
     ],
     task_id="move_data",
