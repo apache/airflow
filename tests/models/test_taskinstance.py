@@ -525,7 +525,7 @@ class TestTaskInstance:
         session.commit()
 
         ti.task = task
-        if func.__name__ == "_failure":
+        if func is type(self)._failure:
             with pytest.raises(AirflowException):
                 ti.run()
         else:
