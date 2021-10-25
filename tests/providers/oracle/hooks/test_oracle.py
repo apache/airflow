@@ -54,7 +54,7 @@ class TestOracleHookConn(unittest.TestCase):
         assert args == ()
         assert kwargs['user'] == 'login'
         assert kwargs['password'] == 'password'
-        assert kwargs['dsn'] == 'host:1521'
+        assert kwargs['dsn'] == 'host:1521/schema'
 
     @mock.patch('airflow.providers.oracle.hooks.oracle.cx_Oracle.connect')
     def test_get_conn_host_alternative_port(self, mock_connect):
@@ -65,7 +65,7 @@ class TestOracleHookConn(unittest.TestCase):
         assert args == ()
         assert kwargs['user'] == 'login'
         assert kwargs['password'] == 'password'
-        assert kwargs['dsn'] == 'host:1522'
+        assert kwargs['dsn'] == 'host:1522/schema'
 
     @mock.patch('airflow.providers.oracle.hooks.oracle.cx_Oracle.connect')
     def test_get_conn_sid(self, mock_connect):

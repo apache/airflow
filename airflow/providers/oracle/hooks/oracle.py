@@ -93,6 +93,17 @@ class OracleHook(DbApiHook):
                     dsn += ":" + str(conn.port)
                 if service_name:
                     dsn += "/" + service_name
+                elif conn.schema:
+                    self.log.warning(
+                        """You are using the parameter conn.schema to pass the Service Name
+                        of your Oracle Database. In this version of the Hook, conn.schema
+                        is additionally used to set the 'current_schema' attribute of the
+                        Oracle DB Session.
+                        Please use the correct parameter conn.extra.service_name instead to
+                        prevent future issues.
+                        More Info: https://github.com/apache/airflow/pull/19084"""
+                    )
+                    dsn += "/" + conn.schema
             conn_config['dsn'] = dsn
 
         if 'encoding' in conn.extra_dejson:
