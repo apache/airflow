@@ -30,6 +30,7 @@ class TestCassandraToGCS(unittest.TestCase):
     @mock.patch("airflow.providers.google.cloud.transfers.cassandra_to_gcs.GCSHook.upload")
     @mock.patch("airflow.providers.google.cloud.transfers.cassandra_to_gcs.CassandraHook")
     def test_execute(self, mock_hook, mock_upload, mock_tempfile):
+        cql = "select * from keyspace1.table1"
         test_bucket = "test-bucket"
         schema = "schema.json"
         filename = "data.json"
@@ -39,7 +40,7 @@ class TestCassandraToGCS(unittest.TestCase):
 
         operator = CassandraToGCSOperator(
             task_id="test-cas-to-gcs",
-            cql="select * from keyspace1.table1",
+            cql=cql,
             bucket=test_bucket,
             filename=filename,
             schema_filename=schema,
@@ -48,6 +49,10 @@ class TestCassandraToGCS(unittest.TestCase):
         )
         operator.execute(None)
         mock_hook.return_value.get_conn.assert_called_once_with()
+        mock_hook.return_value.get_conn.return_value.execute.assert_called_once_with(
+            query=cql,
+            timeout=query_timeout
+        )
 
         call_schema = call(
             bucket_name=test_bucket,
