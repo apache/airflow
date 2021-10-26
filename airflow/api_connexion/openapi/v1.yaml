@@ -1843,7 +1843,7 @@ components:
           description: |
             The user firstname
 
-            *'minLength' added in version 2.2.0*
+            *Changes in version 2.2.0*: A minimum character length requirement(`minLength`) has been added.
           minLength: 1
         last_name:
           type: string
