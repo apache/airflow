@@ -439,7 +439,7 @@ Let's break this down into 2 steps: get data & merge data:
       with open(data_path, "r") as file:
           cur.copy_expert(
               "COPY \"Employees_temp\" FROM STDIN WITH CSV HEADER DELIMITER AS ',' QUOTE '\"'",
-              file
+              file,
           )
       conn.commit()
 
