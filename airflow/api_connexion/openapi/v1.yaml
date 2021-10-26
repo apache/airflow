@@ -373,7 +373,9 @@ paths:
     post:
       summary: Test a connection
       description: |
-        **New in version 2.2.0**
+        Test a connection
+
+        *New in version 2.2.0*
       x-openapi-router-controller: airflow.api_connexion.endpoints.connection_endpoint
       operationId: test_connection
       tags: [Connection]
@@ -419,7 +421,7 @@ paths:
           description: |
             Only return active DAGs.
 
-            **New in version 2.1.1**
+            *New in version 2.1.1*
         - name: dag_id_pattern
           in: query
           schema:
@@ -428,7 +430,7 @@ paths:
           description: |
             If set, only return DAGs with dag_ids matching this pattern.
 
-            **New in version 2.3.0**
+            *New in version 2.3.0*
       responses:
         '200':
           description: Success.
@@ -500,7 +502,7 @@ paths:
         Logs are not deleted. This action cannot be undone.
 
 
-        **New in version 2.2.0**
+        *New in version 2.2.0*
       x-openapi-router-controller: airflow.api_connexion.endpoints.dag_endpoint
       operationId: delete_dag
       tags: [DAG]
@@ -719,7 +721,7 @@ paths:
       description: |
         Modify a DAG run
 
-        **New in version 2.2.0**
+        *New in version 2.2.0*
       x-openapi-router-controller: airflow.api_connexion.endpoints.dag_run_endpoint
       operationId: update_dag_run_state
       tags: [DAGRun]
@@ -961,6 +963,8 @@ paths:
     get:
       summary: List providers
       description: |
+        Get a list of providers.
+
         *New in version 2.1.0*
       x-openapi-router-controller: airflow.api_connexion.endpoints.provider_endpoint
       operationId: get_providers
@@ -1502,6 +1506,8 @@ paths:
     get:
       summary: Get a list of loaded plugins
       description: |
+        Get all loaded plugins
+
         *New in version 2.1.0*
       x-openapi-router-controller: airflow.api_connexion.endpoints.plugin_endpoint
       operationId: get_plugins
@@ -1527,6 +1533,8 @@ paths:
     get:
       summary: List roles
       description: |
+        Get roles
+
         *New in version 2.1.0*
       x-openapi-router-controller: airflow.api_connexion.endpoints.role_and_permission_endpoint
       operationId: get_roles
@@ -1550,6 +1558,8 @@ paths:
     post:
       summary: Create a role
       description: |
+        Create a new role
+
         *New in version 2.1.0*
       x-openapi-router-controller: airflow.api_connexion.endpoints.role_and_permission_endpoint
       operationId: post_role
@@ -1581,6 +1591,8 @@ paths:
     get:
       summary: Get a role
       description: |
+        Get role
+
         *New in version 2.1.0*
       x-openapi-router-controller: airflow.api_connexion.endpoints.role_and_permission_endpoint
       operationId: get_role
@@ -1602,6 +1614,8 @@ paths:
     patch:
       summary: Update a role
       description: |
+        Update a role
+
         *New in version 2.1.0*
       x-openapi-router-controller: airflow.api_connexion.endpoints.role_and_permission_endpoint
       operationId: patch_role
@@ -1634,6 +1648,8 @@ paths:
     delete:
       summary: Delete a role
       description: |
+        Delete a role
+
         *New in version 2.1.0*
       x-openapi-router-controller: airflow.api_connexion.endpoints.role_and_permission_endpoint
       operationId: delete_role
@@ -1654,6 +1670,8 @@ paths:
     get:
       summary: List permissions
       description: |
+        Get permissions
+
         *New in version 2.1.0*
       x-openapi-router-controller: airflow.api_connexion.endpoints.role_and_permission_endpoint
       operationId: get_permissions
@@ -1677,7 +1695,9 @@ paths:
     get:
       summary: List users
       description: |
-        **New in version 2.1.0**
+        Get users
+
+        *New in version 2.1.0*
       x-openapi-router-controller: airflow.api_connexion.endpoints.user_endpoint
       operationId: get_users
       tags: [User]
@@ -1700,7 +1720,9 @@ paths:
     post:
       summary: Create a user
       description: |
-        **New in version 2.2.0**
+        Create a new user with unique username and email.
+
+        *New in version 2.2.0*
       x-openapi-router-controller: airflow.api_connexion.endpoints.user_endpoint
       operationId: post_user
       tags: [User]
@@ -1732,7 +1754,9 @@ paths:
     get:
       summary: Get a user
       description: |
-        **New in version 2.1.0**
+        Get a user with a specific username
+
+        *New in version 2.1.0*
       x-openapi-router-controller: airflow.api_connexion.endpoints.user_endpoint
       operationId: get_user
       tags: [User]
@@ -1753,8 +1777,9 @@ paths:
     patch:
       summary: Update a user
       description: |
+        Update fields for a user
 
-        **New in version 2.2.0**
+        *New in version 2.2.0*
       x-openapi-router-controller: airflow.api_connexion.endpoints.user_endpoint
       operationId: patch_user
       tags: [User]
@@ -1785,8 +1810,9 @@ paths:
     delete:
       summary: Delete a user
       description: |
+        Delete a user with a specific username
 
-        **New in version 2.2.0**
+        *New in version 2.2.0*
       x-openapi-router-controller: airflow.api_connexion.endpoints.user_endpoint
       operationId: delete_user
       tags: [User]
@@ -1810,7 +1836,7 @@ components:
       description: |
         A user object
 
-        **New in version 2.1.0**
+        *New in version 2.1.0*
       type: object
       properties:
         first_name:
@@ -1818,28 +1844,28 @@ components:
           description: |
             The user firstname
 
-            `minLength` **added in version 2.2.0**
+            `minLength` *added in version 2.2.0*
           minLength: 1
         last_name:
           type: string
           description: |
             The user lastname
 
-            `minLength` **added in version 2.2.0**
+            `minLength` *added in version 2.2.0*
           minLength: 1
         username:
           type: string
           description: |
             The username
 
-            `minLength` **added in version 2.2.0**
+            `minLength` *added in version 2.2.0*
           minLength: 1
         email:
           type: string
           description: |
             The user's email
 
-            `minLength` **added in version 2.2.0**
+            `minLength` *added in version 2.2.0*
           minLength: 1
         active:
           type: boolean
@@ -1867,7 +1893,7 @@ components:
           description: |
             User roles
 
-            `readOnly` **removed in 2.2.0**
+            `readOnly` *removed in 2.2.0*
           items:
             type: object
             properties:
@@ -1891,7 +1917,7 @@ components:
       description: |
         A user object with sensitive data
 
-        **New in version 2.1.0**
+        *New in version 2.1.0*
       allOf:
         - $ref: '#/components/schemas/UserCollectionItem'
         - type: object
@@ -1905,7 +1931,7 @@ components:
       description: |
         Collection of users.
 
-        **New in version 2.1.0**
+        *New in version 2.1.0*
       allOf:
         - type: object
           properties:
@@ -1978,7 +2004,7 @@ components:
       description: |
         Connection test results.
 
-        **New in version 2.2.0**
+        *New in version 2.2.0*
       type: object
       properties:
         status:
@@ -2009,9 +2035,9 @@ components:
           description: |
             Whether the DAG is currently seen by the scheduler(s).
 
-            **New in version 2.1.1**
+            *New in version 2.1.1*
 
-            `readOnly` **added in 2.2.0**
+            `readOnly` *added in 2.2.0*
           nullable: true
           readOnly: true
           type: boolean
@@ -2056,7 +2082,7 @@ components:
       description: |
         Collection of DAGs.
 
-        **Changed in version 2.1.0**
+        *Changed in version 2.1.0*
       type: object
       allOf:
         - type: object
@@ -2099,7 +2125,7 @@ components:
 
             This together with DAG_ID are a unique key.
 
-            **New in version 2.2.0**
+            *New in version 2.2.0*
           format: date-time
         execution_date:
           type: string
@@ -2109,7 +2135,7 @@ components:
             If both this field and logical_date are provided but with different values, the request
             will fail with an BAD_REQUEST error.
 
-            **Changed in version 2.2.0**
+            *Changed in version 2.2.0*
           format: date-time
           deprecated: true
         start_date:
@@ -2146,7 +2172,9 @@ components:
     UpdateDagRunState:
       type: object
       description: |
-        **New in version 2.2.0**
+        Modify the state of a DAG run.
+
+        *New in version 2.2.0*
       properties:
         state:
           description: The state to set this DagRun
@@ -2160,7 +2188,7 @@ components:
       description: |
         Collection of DAG runs.
 
-        **Changed in version 2.1.0**
+        *Changed in version 2.1.0*
       allOf:
         - type: object
           properties:
@@ -2220,7 +2248,7 @@ components:
       description: |
         Collection of event logs.
 
-        **Changed in version 2.1.0**
+        *Changed in version 2.1.0*
       allOf:
         - type: object
           properties:
@@ -2256,7 +2284,7 @@ components:
       description: |
         Collection of import errors.
 
-        **Changed in version 2.1.0**
+        *Changed in version 2.1.0*
       allOf:
         - type: object
           properties:
@@ -2329,7 +2357,7 @@ components:
       description: |
         Collection of pools.
 
-        **Changed in version 2.1.0**
+        *Changed in version 2.1.0*
       allOf:
         - type: object
           properties:
@@ -2344,7 +2372,7 @@ components:
       description: |
         The provider
 
-        **New in version 2.1.0**
+        *New in version 2.1.0*
       type: object
       properties:
         package_name:
@@ -2359,7 +2387,9 @@ components:
 
     ProviderCollection:
       description: |
-        **New in version 2.1.0**
+        Collection of providers.
+
+        *New in version 2.1.0*
       type: object
       properties:
         providers:
@@ -2460,7 +2490,7 @@ components:
       description: |
         Collection of task instances.
 
-        **Changed in version 2.1.0**
+        *Changed in version 2.1.0*
       allOf:
         - type: object
           properties:
@@ -2515,7 +2545,7 @@ components:
       description: |
         Collection of variables.
 
-        **Changed in version 2.1.0**
+        *Changed in version 2.1.0*
       allOf:
         - type: object
           properties:
@@ -2560,7 +2590,7 @@ components:
       description: |
         Collection of XCom entries.
 
-        **Changed in version 2.1.0**
+        *Changed in version 2.1.0*
       allOf:
         - type: object
           properties:
@@ -2626,7 +2656,9 @@ components:
               type: object
               readOnly: true
               description: |
-                New in version 2.0.1
+                Params
+
+                *New in version 2.0.1*
 
     ExtraLink:
       type: object
@@ -2747,7 +2779,7 @@ components:
       description: |
         Plugin Item
 
-        **New in version 2.1.0**
+        *New in version 2.1.0*
       properties:
         number:
           type: string
@@ -2813,7 +2845,7 @@ components:
       description: |
         Plugin Collection
 
-        **New in version 2.1.0**
+        *New in version 2.1.0*
       allOf:
         - type: object
           properties:
@@ -2827,7 +2859,7 @@ components:
       description: |
         Role item
 
-        **New in version 2.1.0**
+        *New in version 2.1.0*
       type: object
       properties:
         name:
@@ -2835,7 +2867,7 @@ components:
           description: |
             The name of the role
 
-            `minLength` **added in version 2.3.0**
+            `minLength` *added in version 2.3.0*
           minLength: 1
         actions:
           type: array
@@ -2846,7 +2878,7 @@ components:
       description: |
         Role Collections
 
-        **New in version 2.1.0**
+        *New in version 2.1.0*
       type: object
       allOf:
         - type: object
@@ -2861,7 +2893,7 @@ components:
       description: |
         Action Item
 
-        **New in version 2.1.0**
+        *New in version 2.1.0*
       type: object
       properties:
         name:
@@ -2873,7 +2905,7 @@ components:
       description: |
         Action Collection
 
-        **New in version 2.1.0**
+        *New in version 2.1.0*
       type: object
       allOf:
         - type: object
@@ -2888,7 +2920,7 @@ components:
       description: |
         A `resource` on which permissions are granted.
 
-        **New in version 2.1.0**
+        *New in version 2.1.0*
       type: object
       properties:
         name:
@@ -2900,7 +2932,7 @@ components:
       description: |
         The Action-Resource item
 
-        **New in version 2.1.0**
+        *New in version 2.1.0*
       type: object
       properties:
         action:
@@ -3361,11 +3393,11 @@ components:
       description: |
         Task state.
 
-        `removed` **added in version 2.0.2**
+        `removed` *added in version 2.0.2*
 
-        `deferred` **added in version 2.2.0**
+        `deferred` *added in version 2.2.0*
 
-        `sensing` **added in version 2.2.0**
+        `sensing` *added in version 2.2.0*
       type: string
       enum:
         - success
@@ -3398,7 +3430,7 @@ components:
       description: |
         Trigger rule.
 
-        `none_failed_min_one_success` **added in version 2.2.0**
+        `none_failed_min_one_success` *added in version 2.2.0*
       type: string
       enum:
         - all_success
@@ -3694,7 +3726,7 @@ components:
       description: |
           List of tags to filter results
 
-          **New in version 2.2.0**
+          *New in version 2.2.0*
 
     OrderBy:
       in: query
@@ -3706,7 +3738,7 @@ components:
         The name of the field to order the results by.
         Prefix a field name with `-` to reverse the sort order.
 
-        **New in version 2.1.0**
+        *New in version 2.1.0*
 
     # Other parameters
 
