@@ -962,4 +962,4 @@ class SageMakerHook(AwsBaseHook):
         except ClientError as e:
             if e.response['Error']['Code'] == 'ValidationException':
                 return False
-            raise e
+            raise
