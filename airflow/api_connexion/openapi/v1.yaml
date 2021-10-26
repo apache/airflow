@@ -1843,28 +1843,28 @@ components:
           description: |
             The user firstname
 
-            *Changes in version 2.2.0*: A minimum character length requirement(`minLength`) has been added.
+            *Changed in version 2.2.0*&#58; A minimum character length requirement('minLength') has been added.
           minLength: 1
         last_name:
           type: string
           description: |
             The user lastname
 
-            *Changes in version 2.2.0*: A minimum character length requirement(`minLength`) has been added.
+            *Changed in version 2.2.0*&#58; A minimum character length requirement('minLength') has been added.
           minLength: 1
         username:
           type: string
           description: |
             The username
 
-            *Changes in version 2.2.0*: A minimum character length requirement(`minLength`) has been added.
+            *Changed in version 2.2.0*&#58; A minimum character length requirement('minLength') has been added.
           minLength: 1
         email:
           type: string
           description: |
             The user's email
 
-            *Changes in version 2.2.0*: A minimum character length requirement(`minLength`) has been added.
+            *Changed in version 2.2.0*&#58; A minimum character length requirement('minLength') has been added.
           minLength: 1
         active:
           type: boolean
@@ -1892,7 +1892,7 @@ components:
           description: |
             User roles
 
-            *Changes in version 2.2.0*:  Field is read-only.
+            *Changed in version 2.2.0*&#58; Field is no longer read-only.
           items:
             type: object
             properties:
@@ -1973,7 +1973,10 @@ components:
 
     ConnectionCollection:
       type: object
-      description: Collection of connections.
+      description: |
+        Collection of connections.
+
+        *Changed in version 2.1.0*&#58; 'total_entries' field was added.
       allOf:
         - type: object
           properties:
@@ -2036,7 +2039,7 @@ components:
 
             *New in version 2.1.1*
 
-            *Changes in version 2.2.0*:  Field is read-only.
+            *Changed in version 2.2.0&#58; Field is read-only.*
           nullable: true
           readOnly: true
           type: boolean
@@ -2081,7 +2084,7 @@ components:
       description: |
         Collection of DAGs.
 
-        *Changed in version 2.1.0*
+        *Changed in version 2.1.0*&#58; 'total_entries' field was added.
       type: object
       allOf:
         - type: object
@@ -2134,7 +2137,9 @@ components:
             If both this field and logical_date are provided but with different values, the request
             will fail with an BAD_REQUEST error.
 
-            *Changed in version 2.2.0*
+            *Changed in version 2.2.0*&#58; Field becomes nullable
+
+            *Deprecated since version 2.2.0*&#58; Use 'logical_date' instead
           format: date-time
           deprecated: true
         start_date:
@@ -2143,7 +2148,7 @@ components:
           description: |
             The start time. The time when DAG run was actually created.
 
-            *'nullable' added in version 2.1.3*
+            *Changed in version 2.1.3*&#58; Field becomes nullable
           readOnly: true
           nullable: true
         end_date:
@@ -2187,7 +2192,7 @@ components:
       description: |
         Collection of DAG runs.
 
-        *Changed in version 2.1.0*
+        *Changed in version 2.1.0*&#58; 'total_entries' field was added.
       allOf:
         - type: object
           properties:
@@ -2247,7 +2252,7 @@ components:
       description: |
         Collection of event logs.
 
-        *Changed in version 2.1.0*
+        *Changed in version 2.1.0*&#58; 'total_entries' field was added.
       allOf:
         - type: object
           properties:
@@ -2283,7 +2288,7 @@ components:
       description: |
         Collection of import errors.
 
-        *Changed in version 2.1.0*
+        *Changed in version 2.1.0*&#58; 'total_entries' field was added.
       allOf:
         - type: object
           properties:
@@ -2356,7 +2361,7 @@ components:
       description: |
         Collection of pools.
 
-        *Changed in version 2.1.0*
+        *Changed in version 2.1.0*&#58; 'total_entries' field was added.
       allOf:
         - type: object
           properties:
@@ -2471,7 +2476,7 @@ components:
           type: string
           nullable: true
           description: |
-            *'nullable' added in version 2.1.1*
+            *Changed in version 2.1.1*&#58; Field becomes nullable
         queued_when:
           type: string
           nullable: true
@@ -2489,7 +2494,7 @@ components:
       description: |
         Collection of task instances.
 
-        *Changed in version 2.1.0*
+        *Changed in version 2.1.0*&#58; 'total_entries' field was added.
       allOf:
         - type: object
           properties:
@@ -2544,7 +2549,7 @@ components:
       description: |
         Collection of variables.
 
-        *Changed in version 2.1.0*
+        *Changed in version 2.1.0*&#58; 'total_entries' field was added.
       allOf:
         - type: object
           properties:
@@ -2589,7 +2594,7 @@ components:
       description: |
         Collection of XCom entries.
 
-        *Changed in version 2.1.0*
+        *Changed in version 2.1.0*&#58; 'total_entries' field was added.
       allOf:
         - type: object
           properties:
@@ -2640,7 +2645,7 @@ components:
               readOnly: true
               nullable: true
               description: |
-                *'nullable' added in version 2.0.1*
+                *Changed in version 2.0.1*&#58; Field becomes nullable.
             dag_run_timeout:
               nullable: true
               $ref: '#/components/schemas/TimeDelta'
@@ -2866,7 +2871,7 @@ components:
           description: |
             The name of the role
 
-            *'minLength' added in version 2.3.0*
+            *Changed in version 2.3.0&#58; A minimum character length requirement('minLength') has been added.
           minLength: 1
         actions:
           type: array
@@ -3392,11 +3397,11 @@ components:
       description: |
         Task state.
 
-        *'removed' added in version 2.0.2*
+        *Changed in version 2.0.2&#58;'removed' added to Enum
 
-        *'deferred' added in version 2.2.0*
+        *Changed in version 2.2.0&#58;'deferred' added to Enum
 
-        *'sensing' added in version 2.2.0*
+        *Changed in version 2.2.0&#58;'sensing' added to Enum
       type: string
       enum:
         - success
@@ -3417,7 +3422,7 @@ components:
       description: |
         DAG State.
 
-        *'queued' added in version 2.1.3*
+        *Changed in version 2.1.3&#58;'queued' added to Enum
       type: string
       enum:
         - queued
@@ -3429,7 +3434,7 @@ components:
       description: |
         Trigger rule.
 
-        *'none_failed_min_one_success' added in version 2.2.0*
+        *Changed in version 2.2.0*&#58; 'none_failed_min_one_success' added to Enum
       type: string
       enum:
         - all_success
