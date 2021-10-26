@@ -54,7 +54,7 @@ from airflow.providers.google.cloud.hooks.cloud_storage_transfer_service import 
     CloudDataTransferServiceHook,
     GcpTransferJobsStatus,
 )
-from airflow.utils.helpers import normalize_directory_path
+from airflow.providers.google.cloud.utils.helpers import normalize_directory_path
 
 
 class TransferJobPreprocessor:

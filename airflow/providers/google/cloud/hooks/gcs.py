@@ -37,9 +37,9 @@ from google.cloud import storage
 from google.cloud.exceptions import GoogleCloudError
 
 from airflow.exceptions import AirflowException
+from airflow.providers.google.cloud.utils.helpers import normalize_directory_path
 from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
 from airflow.utils import timezone
-from airflow.utils.helpers import normalize_directory_path
 from airflow.version import version
 
 RT = TypeVar('RT')

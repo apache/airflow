@@ -21,13 +21,7 @@ import pytest
 
 from airflow import AirflowException
 from airflow.utils import helpers, timezone
-from airflow.utils.helpers import (
-    build_airflow_url_with_query,
-    merge_dicts,
-    normalize_directory_path,
-    validate_group_key,
-    validate_key,
-)
+from airflow.utils.helpers import build_airflow_url_with_query, merge_dicts, validate_group_key, validate_key
 from tests.test_utils.config import conf_vars
 from tests.test_utils.db import clear_db_dags, clear_db_runs
 
@@ -236,8 +230,3 @@ class TestHelpers:
                 validate_group_key(key_id)
         else:
             validate_group_key(key_id)
-
-    def test_normalize_directory_path(self):
-        assert normalize_directory_path("dir_path") == "dir_path/"
-        assert normalize_directory_path("dir_path/") == "dir_path/"
-        assert normalize_directory_path(None) is None
