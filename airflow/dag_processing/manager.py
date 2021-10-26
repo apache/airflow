@@ -1076,7 +1076,7 @@ class DagFileProcessorManager(LoggingMixin):
             for ti, file_loc in zombies:
                 request = TaskCallbackRequest(
                     full_filepath=file_loc,
-                    simple_task_instance=SimpleTaskInstance(ti),
+                    simple_task_instance=SimpleTaskInstance.create(ti),
                     msg=f"Detected {ti} as zombie",
                 )
                 self.log.info("Detected zombie job: %s", request)

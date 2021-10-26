@@ -582,7 +582,7 @@ class SchedulerJob(BaseJob):
                 if task.on_retry_callback or task.on_failure_callback:
                     request = TaskCallbackRequest(
                         full_filepath=ti.dag_model.fileloc,
-                        simple_task_instance=SimpleTaskInstance(ti),
+                        simple_task_instance=SimpleTaskInstance.create(ti),
                         msg=msg % (ti, state, ti.state, info),
                     )
                     self.processor_agent.send_callback_to_execute(request)

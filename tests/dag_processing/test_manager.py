@@ -544,7 +544,7 @@ class TestDagFileProcessorManager:
                 expected_failure_callback_requests = [
                     TaskCallbackRequest(
                         full_filepath=dag.fileloc,
-                        simple_task_instance=SimpleTaskInstance(ti),
+                        simple_task_instance=SimpleTaskInstance.create(ti),
                         msg="Message",
                     )
                 ]

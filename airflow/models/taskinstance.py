@@ -705,6 +705,32 @@ class TaskInstance(Base, LoggingMixin):
         session.merge(self)
         session.commit()
 
+    def refresh_from_instance(self, source: Union["SimpleTaskInstance", "TaskInstance"]) -> None:
+        self.start_date = source.start_date
+        self.end_date = source.end_date
+        self.duration = source.duration
+        self.state = source.state
+        # Get the raw value of try_number column, don't read through the
+        # accessor here otherwise it will be incremented by one already.
+        self.try_number = source._try_number
+        self.max_tries = source.max_tries
+        self.hostname = source.hostname
+        self.unixname = source.unixname
+        self.job_id = source.job_id
+        self.pool = source.pool
+        self.pool_slots = source.pool_slots or 1
+        self.queue = source.queue
+        self.priority_weight = source.priority_weight
+        self.operator = source.operator
+        self.queued_dttm = source.queued_dttm
+        self.queued_by_job_id = source.queued_by_job_id
+        self.pid = source.pid
+        self.executor_config = source.executor_config
+        self.external_executor_id = source.external_executor_id
+        self.trigger_id = source.trigger_id
+        self.next_method = source.next_method
+        self.next_kwargs = source.next_kwargs
+
     @provide_session
     def refresh_from_db(self, session=None, lock_for_update=False) -> None:
         """
@@ -730,31 +756,7 @@ class TaskInstance(Base, LoggingMixin):
         else:
             ti = qry.first()
         if ti:
-            # Fields ordered per model definition
-            self.start_date = ti.start_date
-            self.end_date = ti.end_date
-            self.duration = ti.duration
-            self.state = ti.state
-            # Get the raw value of try_number column, don't read through the
-            # accessor here otherwise it will be incremented by one already.
-            self.try_number = ti._try_number
-            self.max_tries = ti.max_tries
-            self.hostname = ti.hostname
-            self.unixname = ti.unixname
-            self.job_id = ti.job_id
-            self.pool = ti.pool
-            self.pool_slots = ti.pool_slots or 1
-            self.queue = ti.queue
-            self.priority_weight = ti.priority_weight
-            self.operator = ti.operator
-            self.queued_dttm = ti.queued_dttm
-            self.queued_by_job_id = ti.queued_by_job_id
-            self.pid = ti.pid
-            self.executor_config = ti.executor_config
-            self.external_executor_id = ti.external_executor_id
-            self.trigger_id = ti.trigger_id
-            self.next_method = ti.next_method
-            self.next_kwargs = ti.next_kwargs
+            self.refresh_from_instance(ti)
         else:
             self.state = None
 
@@ -2399,79 +2401,82 @@ class TaskInstance(Base, LoggingMixin):
 TaskInstanceStateType = Tuple[TaskInstanceKey, str]
 
 
-class SimpleTaskInstance:
+class SimpleTaskInstance(NamedTuple):
+    """Simplified Task Instance.
+
+    Used to send data between processes via Queues to improve performance by
+    not reading TaskInstance repeatedly from the database. This class should
+    have *all database column fields* on TaskInstance, and nothing more.
     """
-    Simplified Task Instance.
 
-    Used to send data between processes via Queues.
-    """
+    dag_id: str
+    task_id: str
+    run_id: str
+    start_date: Optional[datetime]
+    end_date: Optional[datetime]
+    duration: Optional[float]
+    state: Optional[str]
+    private__try_number: int  # Maps to `_try_number`.
+    max_tries: int
+    hostname: str
+    unixname: str
+    job_id: Optional[int]
+    pool: str
+    pool_slots: int
+    queue: str
+    priority_weight: Optional[int]
+    operator: str
+    queued_dttm: Optional[datetime]
+    queued_by_job_id: Optional[int]
+    pid: Optional[int]
+    executor_config: Any
+    external_executor_id: Optional[str]
+    trigger_id: Optional[int]
+    next_method: Optional[str]
+    next_kwargs: Optional[Dict[str, Any]]
 
-    def __init__(self, ti: TaskInstance):
-        self._dag_id: str = ti.dag_id
-        self._task_id: str = ti.task_id
-        self._run_id: datetime = ti.run_id
-        self._start_date: datetime = ti.start_date
-        self._end_date: datetime = ti.end_date
-        self._try_number: int = ti.try_number
-        self._state: str = ti.state
-        self._executor_config: Any = ti.executor_config
-        self._run_as_user: Optional[str] = None
-        if hasattr(ti, 'run_as_user'):
-            self._run_as_user = ti.run_as_user
-        self._pool: str = ti.pool
-        self._priority_weight: Optional[int] = None
-        if hasattr(ti, 'priority_weight'):
-            self._priority_weight = ti.priority_weight
-        self._queue: str = ti.queue
-        self._key = ti.key
-
-    @property
-    def dag_id(self) -> str:
-        return self._dag_id
-
-    @property
-    def task_id(self) -> str:
-        return self._task_id
-
-    @property
-    def run_id(self) -> str:
-        return self._run_id
-
-    @property
-    def start_date(self) -> datetime:
-        return self._start_date
-
-    @property
-    def end_date(self) -> datetime:
-        return self._end_date
-
-    @property
-    def try_number(self) -> int:
-        return self._try_number
-
-    @property
-    def state(self) -> str:
-        return self._state
-
-    @property
-    def pool(self) -> str:
-        return self._pool
-
-    @property
-    def priority_weight(self) -> Optional[int]:
-        return self._priority_weight
-
-    @property
-    def queue(self) -> str:
-        return self._queue
+    @classmethod
+    def create(cls, ti: TaskInstance) -> "SimpleTaskInstance":
+        return cls(
+            dag_id=ti.dag_id,
+            task_id=ti.task_id,
+            run_id=ti.run_id,
+            start_date=ti.start_date,
+            end_date=ti.end_date,
+            duration=ti.duration,
+            state=ti.state,
+            private__try_number=ti._try_number,
+            max_tries=ti.max_tries,
+            hostname=ti.hostname,
+            unixname=ti.unixname,
+            job_id=ti.job_id,
+            pool=ti.pool,
+            pool_slots=ti.pool_slots,
+            queue=ti.queue,
+            priority_weight=ti.priority_weight,
+            operator=ti.operator,
+            queued_dttm=ti.queued_dttm,
+            queued_by_job_id=ti.queued_by_job_id,
+            pid=ti.pid,
+            executor_config=ti.executor_config,
+            external_executor_id=ti.external_executor_id,
+            trigger_id=ti.trigger_id,
+            next_method=ti.next_method,
+            next_kwargs=ti.next_kwargs,
+        )
 
     @property
     def key(self) -> TaskInstanceKey:
-        return self._key
+        return TaskInstanceKey(self.dag_id, self.task_id, self.run_id, self.private__try_number)
 
     @property
-    def executor_config(self):
-        return self._executor_config
+    def _try_number(self) -> int:
+        """For interface compatibility with TaskInstance.
+
+        This extra layer is needed because user-declared attributes in NameTuple
+        cannot start with an underscore.
+        """
+        return self.private__try_number
 
 
 STATICA_HACK = True
