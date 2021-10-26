@@ -443,7 +443,7 @@ Please modify the message above accordingly to clearly exclude those packages.
 The files should be present in
 [Airflow dist](https://dist.apache.org/repos/dist/dev/airflow/providers/)
 
-The following files should be present (9 files):
+The following files should be present (6 files):
 
 * .tar.gz + .asc + .sha512 (one set of files per provider)
 * -py3-none-any.whl + .asc + .sha512 (one set of files per provider)
