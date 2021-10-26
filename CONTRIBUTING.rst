@@ -198,9 +198,7 @@ Step 2: Configure Your Environment
 ----------------------------------
 
 You can use either a local virtual env or a Docker-based env. The differences
-between the two are explained `here`_. 
-
-.. _here: https://github.com/apache/airflow/blob/main/CONTRIBUTING.rst#development-environments/
+between the two are explained `here <https://github.com/apache/airflow/blob/main/CONTRIBUTING.rst#development-environments/>`__
 
 
 The local env's instructions can be found in full in the  `LOCAL_VIRTUALENV.rst`_ file.
@@ -216,7 +214,9 @@ You can configure the Docker-based Breeze development environment as follows:
 
 .. _Docker Compose: https://github.com/apache/airflow/blob/main/BREEZE.rst#docker-compose 
 
-2. Install `jq` on your machine. The exact command depends on the operating system (or Linux distribution) you use.
+2. Install `jq`_ on your machine. The exact command depends on the operating system (or Linux distribution) you use.
+
+.. _jq: https://stedolan.github.io/jq
 
    For example, on Ubuntu:
 
