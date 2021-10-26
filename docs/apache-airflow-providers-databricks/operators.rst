@@ -16,26 +16,25 @@
     under the License.
 
 
+Databricks Operators
+====================
 
 .. _howto/operator:DatabricksSubmitRunOperator:
 
 DatabricksSubmitRunOperator
-===========================
+^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Use the :class:`~airflow.providers.databricks.operators.DatabricksSubmitRunOperator` to submit
-an existing Spark job run to Databricks api/2.0/jobs/runs/submit <https://docs.databricks.com/api/latest/jobs.html#runs-submit> API endpoint.
-
-
-Using the Operator
-^^^^^^^^^^^^^^^^^^
+Use the :class:`~airflow.providers.databricks.operators.databricks.DatabricksSubmitRunOperator` to submit
+an existing Spark job run to Databricks `runs/submit <https://docs.databricks.com/dev-tools/api/2.0/jobs.html#runs-submit>`__ endpoint.
 
 There are two ways to instantiate this operator. In the first way, you can take the JSON payload that you typically use
-to call the ``api/2.0/jobs/runs/submit`` endpoint and pass it directly to our ``DatabricksSubmitRunOperator`` through the ``json`` parameter.
+to call the `runs/submit <https://docs.databricks.com/dev-tools/api/2.0/jobs.html#runs-submit>`__ endpoint and pass it directly
+to the :class:`~airflow.providers.databricks.operators.databricks.DatabricksSubmitRunOperator` through the ``json`` parameter.
 
-Another way to accomplish the same thing is to use the named parameters of the ``DatabricksSubmitRunOperator`` directly. Note that there is exactly
-one named parameter for each top level parameter in the ``runs/submit`` endpoint.
+Another way to accomplish the same thing is to use the named parameters of the :class:`~airflow.providers.databricks.operators.databricks.DatabricksSubmitRunOperator`
+directly. Note that there is exactly one named parameter for each top level parameter in the `runs/submit <https://docs.databricks.com/dev-tools/api/2.0/jobs.html#runs-submit>`__ endpoint.
 
-.. list-table:: Databricks Airflow Connection Metadata
+.. list-table::  DatabricksSubmitRunOperator named parameters
    :widths: 25 25
    :header-rows: 1
 
@@ -49,6 +48,8 @@ one named parameter for each top level parameter in the ``runs/submit`` endpoint
      - python file path and parameters to run the python file with
    * - spark_submit_task: dict
      - parameters needed to run a spark-submit command
+   * - pipeline_task: dict
+     - pipeline_id (full name of the Delta Live Tables pipeline) to run the pipeline
    * - new_cluster: dict
      - specs for a new cluster on which this task will be run
    * - existing_cluster_id: string
@@ -70,16 +71,68 @@ one named parameter for each top level parameter in the ``runs/submit`` endpoint
    * - do_xcom_push: boolean
      - whether we should push run_id and run_page_url to xcom
 
-An example usage of the DatabricksSubmitRunOperator is as follows:
+Example Usage
+"""""""""""""
 
-.. exampleinclude:: /../../airflow/providers/databricks/example_dags/example_databricks.py
+An example usage of the :class:`~airflow.providers.databricks.operators.databricks.DatabricksSubmitRunOperator` is as follows:
+
+.. exampleinclude:: /../../airflow/providers/databricks/example_dags/example_submit_run.py
     :language: python
     :start-after: [START howto_operator_databricks_json]
     :end-before: [END howto_operator_databricks_json]
 
-You can also use named parameters to initialize the operator and run the job.
+You can also use named parameters to initialize the :class:`~airflow.providers.databricks.operators.databricks.DatabricksSubmitRunOperator` and run the job.
 
-.. exampleinclude:: /../../airflow/providers/databricks/example_dags/example_databricks.py
+.. exampleinclude:: /../../airflow/providers/databricks/example_dags/example_submit_run.py
+    :language: python
+    :start-after: [START howto_operator_databricks_named]
+    :end-before: [END howto_operator_databricks_named]
+
+.. _howto/operator:DatabricksRunNowOperator:
+
+DatabricksRunNowOperator
+^^^^^^^^^^^^^^^^^^^^^^^^
+
+Use the :class:`~airflow.providers.databricks.operators.databricks.DatabricksRunNowOperator` to submit
+an existing Spark job run to Databricks `jobs/run-now <https://docs.databricks.com/dev-tools/api/2.0/jobs.html#run-now>`__  endpoint.
+
+There are two ways to instantiate this operator. In the first way, you can take the JSON payload that you typically use
+to call the `jobs/run-now <https://docs.databricks.com/dev-tools/api/2.0/jobs.html#run-now>`__ endpoint and pass it directly
+to the :class:`~airflow.providers.databricks.operators.databricks.DatabricksRunNowOperator` through the ``json`` parameter.
+
+Another way to accomplish the same thing is to use the named parameters of the :class:`~airflow.providers.databricks.operators.databricks.DatabricksRunNowOperator`
+directly. Note that there is exactly one named parameter for each top level parameter in the `jobs/run-now <https://docs.databricks.com/dev-tools/api/2.0/jobs.html#run-now>`__ endpoint.
+
+.. list-table:: DatabricksRunNowOperator named parameters
+   :widths: 25 25
+   :header-rows: 1
+
+   * - Parameter
+     - Input
+   * - job_id: str
+     - the job_id of the existing Databricks job
+   * - jar_params: list[str]
+     - additional list of parameters for jobs with JAR tasks
+   * - notebook_params: dict
+     - a dict from keys to values for jobs with notebook task
+   * - python_params: list[str]
+     - additional list of parameters for jobs with python tasks
+   * - spark_submit_params: list[str]
+     - a list of parameters for jobs with spark submit task
+
+Example Usage
+"""""""""""""
+
+An example usage of the :class:`~airflow.providers.databricks.operators.databricks.DatabricksRunNowOperator` is as follows:
+
+.. exampleinclude:: /../../airflow/providers/databricks/example_dags/example_run_now.py
+    :language: python
+    :start-after: [START howto_operator_databricks_json]
+    :end-before: [END howto_operator_databricks_json]
+
+You can also use named parameters to initialize the :class:`~airflow.providers.databricks.operators.databricks.DatabricksRunNowOperator` and run the job.
+
+.. exampleinclude:: /../../airflow/providers/databricks/example_dags/example_run_now.py
     :language: python
     :start-after: [START howto_operator_databricks_named]
     :end-before: [END howto_operator_databricks_named]

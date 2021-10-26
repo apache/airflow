@@ -17,6 +17,9 @@
 # under the License.
 """
 This is an example DAG which uses the DatabricksSubmitRunOperator.
+
+Submit a one-time runs without having to create a Databricks job first.
+
 In this example, we create two tasks which execute sequentially.
 The first task is to run a notebook at the workspace path "/test"
 and the second task is to run a JAR uploaded to DBFS. Both,
@@ -28,7 +31,7 @@ successfully.
 
 The definition of a successful run is if the run has a result_state of "SUCCESS".
 For more information about the state of a run refer to
-https://docs.databricks.com/api/latest/jobs.html#runstate
+https://docs.databricks.com/dev-tools/api/2.0/jobs.html#jobsrunstate
 """
 
 from datetime import datetime
@@ -37,7 +40,7 @@ from airflow import DAG
 from airflow.providers.databricks.operators.databricks import DatabricksSubmitRunOperator
 
 with DAG(
-    dag_id='example_databricks_operator',
+    dag_id='example_databricks_submit_run_operator',
     schedule_interval='@daily',
     start_date=datetime(2021, 1, 1),
     tags=['example'],
@@ -50,13 +53,13 @@ with DAG(
         'num_workers': 8,
     }
 
+    # [START howto_operator_databricks_json]
     notebook_task_params = {
         'new_cluster': new_cluster,
         'notebook_task': {
             'notebook_path': '/Users/airflow@example.com/PrepareData',
         },
     }
-    # [START howto_operator_databricks_json]
     # Example of using the JSON parameter to initialize the operator.
     notebook_task = DatabricksSubmitRunOperator(task_id='notebook_task', json=notebook_task_params)
     # [END howto_operator_databricks_json]

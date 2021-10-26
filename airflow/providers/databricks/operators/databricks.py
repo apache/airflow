@@ -96,8 +96,12 @@ class DatabricksSubmitRunOperator(BaseOperator):
     """
     Submits a Spark job run to Databricks using the
     `api/2.0/jobs/runs/submit
-    <https://docs.databricks.com/api/latest/jobs.html#runs-submit>`_
+    <https://docs.databricks.com/dev-tools/api/2.0/jobs.html#runs-submit>`_
     API endpoint.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:DatabricksSubmitRunOperator`
 
     There are two ways to instantiate this operator.
 
@@ -143,6 +147,7 @@ class DatabricksSubmitRunOperator(BaseOperator):
         - ``notebook_task``
         - ``spark_python_task``
         - ``spark_submit_task``
+        - ``pipeline_task``
         - ``new_cluster``
         - ``existing_cluster_id``
         - ``libraries``
@@ -162,47 +167,62 @@ class DatabricksSubmitRunOperator(BaseOperator):
 
         .. seealso::
             For more information about templating see :ref:`concepts:jinja-templating`.
-            https://docs.databricks.com/api/latest/jobs.html#runs-submit
+            https://docs.databricks.com/dev-tools/api/2.0/jobs.html#runs-submit
+
     :type json: dict
     :param spark_jar_task: The main class and parameters for the JAR task. Note that
         the actual JAR is specified in the ``libraries``.
         *EITHER* ``spark_jar_task`` *OR* ``notebook_task`` *OR* ``spark_python_task``
-        *OR* ``spark_submit_task`` should be specified.
+        *OR* ``spark_submit_task`` *OR* ``pipeline_task`` should be specified.
         This field will be templated.
 
         .. seealso::
-            https://docs.databricks.com/api/latest/jobs.html#jobssparkjartask
+            https://docs.databricks.com/dev-tools/api/2.0/jobs.html#jobssparkjartask
+
     :type spark_jar_task: dict
     :param notebook_task: The notebook path and parameters for the notebook task.
         *EITHER* ``spark_jar_task`` *OR* ``notebook_task`` *OR* ``spark_python_task``
-        *OR* ``spark_submit_task`` should be specified.
+        *OR* ``spark_submit_task`` *OR* ``pipeline_task`` should be specified.
         This field will be templated.
 
         .. seealso::
-            https://docs.databricks.com/api/latest/jobs.html#jobsnotebooktask
+            https://docs.databricks.com/dev-tools/api/2.0/jobs.html#jobsnotebooktask
+
     :type notebook_task: dict
     :param spark_python_task: The python file path and parameters to run the python file with.
         *EITHER* ``spark_jar_task`` *OR* ``notebook_task`` *OR* ``spark_python_task``
-        *OR* ``spark_submit_task`` should be specified.
+        *OR* ``spark_submit_task`` *OR* ``pipeline_task`` should be specified.
         This field will be templated.
 
         .. seealso::
-            https://docs.databricks.com/api/latest/jobs.html#jobssparkpythontask
+            https://docs.databricks.com/dev-tools/api/2.0/jobs.html#jobssparkpythontask
+
     :type spark_python_task: dict
     :param spark_submit_task: Parameters needed to run a spark-submit command.
         *EITHER* ``spark_jar_task`` *OR* ``notebook_task`` *OR* ``spark_python_task``
-        *OR* ``spark_submit_task`` should be specified.
+        *OR* ``spark_submit_task`` *OR* ``pipeline_task`` should be specified.
         This field will be templated.
 
         .. seealso::
-            https://docs.databricks.com/api/latest/jobs.html#jobssparksubmittask
+            https://docs.databricks.com/dev-tools/api/2.0/jobs.html#jobssparksubmittask
+
     :type spark_submit_task: dict
+    :param pipeline_task: Pipeline_id (full name of the Delta Live Tables pipeline) of the pipeline to run.
+        *EITHER* ``spark_jar_task`` *OR* ``notebook_task`` *OR* ``spark_python_task``
+        *OR* ``spark_submit_task`` *OR* ``pipeline_task`` should be specified.
+        This field will be templated.
+
+        .. seealso::
+            https://docs.databricks.com/dev-tools/api/2.0/jobs.html#jobspipelinetask
+
+    :type pipeline_task: dict
     :param new_cluster: Specs for a new cluster on which this task will be run.
         *EITHER* ``new_cluster`` *OR* ``existing_cluster_id`` should be specified.
         This field will be templated.
 
         .. seealso::
-            https://docs.databricks.com/api/latest/jobs.html#jobsclusterspecnewcluster
+            https://docs.databricks.com/dev-tools/api/2.0/jobs.html#jobsclusterspecnewcluster
+
     :type new_cluster: dict
     :param existing_cluster_id: ID for existing cluster on which to run this task.
         *EITHER* ``new_cluster`` *OR* ``existing_cluster_id`` should be specified.
@@ -213,6 +233,7 @@ class DatabricksSubmitRunOperator(BaseOperator):
 
         .. seealso::
             https://docs.databricks.com/api/latest/libraries.html#managedlibrarieslibrary
+
     :type libraries: list of dicts
     :param run_name: The run name used for this task.
         By default this will be set to the Airflow ``task_id``. This ``task_id`` is a
@@ -255,6 +276,7 @@ class DatabricksSubmitRunOperator(BaseOperator):
         notebook_task: Optional[Dict[str, str]] = None,
         spark_python_task: Optional[Dict[str, Union[str, List[str]]]] = None,
         spark_submit_task: Optional[Dict[str, List[str]]] = None,
+        pipeline_task: Optional[Dict[str, str]] = None,
         new_cluster: Optional[Dict[str, object]] = None,
         existing_cluster_id: Optional[str] = None,
         libraries: Optional[List[Dict[str, str]]] = None,
@@ -282,6 +304,8 @@ class DatabricksSubmitRunOperator(BaseOperator):
             self.json['spark_python_task'] = spark_python_task
         if spark_submit_task is not None:
             self.json['spark_submit_task'] = spark_submit_task
+        if pipeline_task is not None:
+            self.json['pipeline_task'] = pipeline_task
         if new_cluster is not None:
             self.json['new_cluster'] = new_cluster
         if existing_cluster_id is not None:
@@ -322,8 +346,12 @@ class DatabricksRunNowOperator(BaseOperator):
     """
     Runs an existing Spark job run to Databricks using the
     `api/2.0/jobs/run-now
-    <https://docs.databricks.com/api/latest/jobs.html#run-now>`_
+    <https://docs.databricks.com/dev-tools/api/2.0/jobs.html#run-now>`_
     API endpoint.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:DatabricksRunNowOperator`
 
     There are two ways to instantiate this operator.
 
@@ -372,6 +400,7 @@ class DatabricksRunNowOperator(BaseOperator):
     Currently the named parameters that ``DatabricksRunNowOperator`` supports are
         - ``job_id``
         - ``json``
+        - ``jar_params``
         - ``notebook_params``
         - ``python_params``
         - ``spark_submit_params``
@@ -381,7 +410,8 @@ class DatabricksRunNowOperator(BaseOperator):
         This field will be templated.
 
         .. seealso::
-            https://docs.databricks.com/api/latest/jobs.html#run-now
+            https://docs.databricks.com/dev-tools/api/2.0/jobs.html#run-now
+
     :type job_id: str
     :param json: A JSON object containing API parameters which will be passed
         directly to the ``api/2.0/jobs/run-now`` endpoint. The other named parameters
@@ -392,8 +422,22 @@ class DatabricksRunNowOperator(BaseOperator):
 
         .. seealso::
             For more information about templating see :ref:`concepts:jinja-templating`.
-            https://docs.databricks.com/api/latest/jobs.html#run-now
+            https://docs.databricks.com/dev-tools/api/2.0/jobs.html#run-now
+
     :type json: dict
+    :param jar_params: A list of parameters for jobs with JAR tasks,
+        e.g. "jar_params": ["john doe", "35"].
+        The parameters will be used to invoke the main function of the main class specified
+        in the Spark JAR task. If not specified upon run-now, it will default to an empty
+        list. jar_params cannot be specified in conjunction with notebook_params.
+        The JSON representation of this field (i.e. {"jar_params":["john doe","35"]})
+        cannot exceed 10,000 bytes.
+        This field will be templated.
+
+        .. seealso::
+            https://docs.databricks.com/dev-tools/api/2.0/jobs.html#runparameters
+
+    :type jar_params: list[str]
     :param notebook_params: A dict from keys to values for jobs with notebook task,
         e.g. "notebook_params": {"name": "john doe", "age":  "35"}.
         The map is passed to the notebook and will be accessible through the
@@ -407,6 +451,7 @@ class DatabricksRunNowOperator(BaseOperator):
 
         .. seealso::
             https://docs.databricks.com/user-guide/notebooks/widgets.html
+
     :type notebook_params: dict
     :param python_params: A list of parameters for jobs with python tasks,
         e.g. "python_params": ["john doe", "35"].
@@ -418,7 +463,8 @@ class DatabricksRunNowOperator(BaseOperator):
         This field will be templated.
 
         .. seealso::
-            https://docs.databricks.com/api/latest/jobs.html#run-now
+            https://docs.databricks.com/dev-tools/api/2.0/jobs.html#runparameters
+
     :type python_params: list[str]
     :param spark_submit_params: A list of parameters for jobs with spark submit task,
         e.g. "spark_submit_params": ["--class", "org.apache.spark.examples.SparkPi"].
@@ -429,7 +475,8 @@ class DatabricksRunNowOperator(BaseOperator):
         This field will be templated.
 
         .. seealso::
-            https://docs.databricks.com/api/latest/jobs.html#run-now
+            https://docs.databricks.com/dev-tools/api/2.0/jobs.html#runparameters
+
     :type spark_submit_params: list[str]
     :param timeout_seconds: The timeout for this run. By default a value of 0 is used
         which means to have no timeout.
@@ -461,6 +508,7 @@ class DatabricksRunNowOperator(BaseOperator):
         *,
         job_id: Optional[str] = None,
         json: Optional[Any] = None,
+        jar_params: Optional[List[str]] = None,
         notebook_params: Optional[Dict[str, str]] = None,
         python_params: Optional[List[str]] = None,
         spark_submit_params: Optional[List[str]] = None,
@@ -481,6 +529,8 @@ class DatabricksRunNowOperator(BaseOperator):
 
         if job_id is not None:
             self.json['job_id'] = job_id
+        if jar_params is not None:
+            self.json['jar_params'] = jar_params
         if notebook_params is not None:
             self.json['notebook_params'] = notebook_params
         if python_params is not None:
