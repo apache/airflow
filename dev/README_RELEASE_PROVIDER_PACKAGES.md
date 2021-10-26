@@ -445,9 +445,9 @@ The files should be present in
 
 The following files should be present (9 files):
 
-* -source.tar.gz + .asc + .sha512 (one set of files)
-* -bin-tar.gz + .asc + .sha512 (one set of files per provider)
-* -.whl + .asc + .sha512 (one set of files per provider)
+* -source.tar.gz + .asc + .sha512  (one set of files)
+* .tar.gz + .asc + .sha512 (one set of files per provider)
+* -py3-none-any.whl + .asc + .sha512 (one set of files per provider)
 
 As a PMC you should be able to clone the SVN repository:
 
