@@ -23,10 +23,9 @@ import unittest
 from unittest import mock
 
 import pytest
-from parameterized import parameterized
-
 from azure.identity import ManagedIdentityCredential
 from azure.storage.blob import BlobServiceClient
+from parameterized import parameterized
 
 from airflow.exceptions import AirflowException
 from airflow.models import Connection
