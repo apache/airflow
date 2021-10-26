@@ -168,8 +168,6 @@ class CleanupPodsTest(unittest.TestCase):
             show_only=["templates/cleanup/cleanup-cronjob.yaml"],
         )
 
-        print(docs[0])
-
         assert {
             "tier": "airflow",
             "component": "airflow-cleanup-pods",
