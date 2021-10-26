@@ -120,7 +120,7 @@ official Apache releases must not include the rcN suffix.
 - Rename the sdist
 
     ```shell script
-    mv dist/apache-airflow-upgrade-check-${VERSION%rc?}.tar.gz apache-airflow-upgrade-check-${VERSION}-bin.tar.gz
+    mv dist/apache-airflow-upgrade-check-${VERSION%rc?}.tar.gz apache-airflow-upgrade-check-${VERSION}.tar.gz
     mv dist/apache_airflow_upgrade_check-${VERSION%rc?}-py2.py3-none-any.whl apache_airflow_upgrade_check-${VERSION}-py2.py3-none-any.whl
     ```
 
@@ -129,7 +129,7 @@ official Apache releases must not include the rcN suffix.
 
     ```shell script
     ${AIRFLOW_REPO_ROOT}/dev/sign.sh apache-airflow-upgrade-check-${VERSION}-source.tar.gz
-    ${AIRFLOW_REPO_ROOT}/dev/sign.sh apache-airflow-upgrade-check-${VERSION}-bin.tar.gz
+    ${AIRFLOW_REPO_ROOT}/dev/sign.sh apache-airflow-upgrade-check-${VERSION}.tar.gz
     ${AIRFLOW_REPO_ROOT}/dev/sign.sh apache_airflow_upgrade_check-${VERSION}-py2.py3-none-any.whl
     ```
 
@@ -228,7 +228,7 @@ The files can be downloaded from https://dist.apache.org/repos/dist/dev/airflow/
 - apache-airflow-upgrade-check-1.3.0rc1-source.tar.gz is a source
 release containing the files that made up the binary and wheel
 releases.
-- apache-airflow-upgrade-check-1.3.0rc1-bin.tar.gz is the binary
+- apache-airflow-upgrade-check-1.3.0rc1.tar.gz is the binary
 Python "sdist" release.
 - apache_airflow_upgrade_check-1.3.0rc1-py2.py3-none-any.whl is the
 binary Python pre-compiled wheel file.
@@ -305,7 +305,7 @@ This can be done with the Apache RAT tool.
 
 * Download the latest jar from https://creadur.apache.org/rat/download_rat.cgi (unpack the binary,
   the jar is inside)
-* Unpack the binary (`-bin.tar.gz`) to a folder
+* Unpack the binary (`.tar.gz`) to a folder
 * Enter the folder and run the check (point to the place where you extracted the .jar)
 
 ```shell script
@@ -360,8 +360,8 @@ warning. By importing the server in the previous step and importing it via ID fr
 this is a valid Key already.
 
 ```
-Checking apache-airflow-upgrade-check-1.3.0rc1-bin.tar.gz.asc
-gpg: assuming signed data in 'apache-airflow-upgrade-check-1.3.0rc1-bin.tar.gz'
+Checking apache-airflow-upgrade-check-1.3.0rc1.tar.gz.asc
+gpg: assuming signed data in 'apache-airflow-upgrade-check-1.3.0rc1.tar.gz'
 gpg: Signature made Tue  9 Mar 23:22:24 2021 GMT
 gpg:                using RSA key CDE15C6E4D3A8EC4ECF4BA4B6674E08AD7DE406F
 gpg: Good signature from "Kaxil Naik <kaxilnaik@apache.org>" [ultimate]
@@ -400,7 +400,7 @@ done
 You should get output similar to:
 
 ```
-Checking apache-airflow-upgrade-check-1.3.0rc1-bin.tar.gz.sha512
+Checking apache-airflow-upgrade-check-1.3.0rc1.tar.gz.sha512
 Checking apache_airflow_upgrade_check-1.3.0rc1-py2.py3-none-any.whl.sha512
 Checking apache-airflow-upgrade-check-1.3.0rc1-source.tar.gz.sha512
 ```
