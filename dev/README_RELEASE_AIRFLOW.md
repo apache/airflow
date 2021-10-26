@@ -354,9 +354,9 @@ The files should be present in the sub-folder of
 
 The following files should be present (9 files):
 
-* -bin-tar.gz + .asc + .sha512
 * -source.tar.gz + .asc + .sha512
-* -.whl + .asc + .sha512
+* .tar.gz + .asc + .sha512
+* -py3-none-any.whl + .asc + .sha512
 
 As a PMC you should be able to clone the SVN repository:
 
@@ -438,8 +438,8 @@ warning. By importing the server in the previous step and importing it via ID fr
 this is a valid Key already.
 
 ```
-Checking apache-airflow-2.0.2rc4-bin.tar.gz.asc
-gpg: assuming signed data in 'apache-airflow-2.0.2rc4-bin.tar.gz'
+Checking apache-airflow-2.0.2rc4.tar.gz.asc
+gpg: assuming signed data in 'apache-airflow-2.0.2rc4.tar.gz'
 gpg: Signature made sob, 22 sie 2020, 20:28:28 CEST
 gpg:                using RSA key 12717556040EEF2EEAF1B9C275FCCD0A25FA0E4B
 gpg: Good signature from "Kaxil Naik <kaxilnaik@gmail.com>" [unknown]
@@ -478,7 +478,7 @@ done
 You should get output similar to:
 
 ```
-Checking apache-airflow-2.0.2rc4-bin.tar.gz.sha512
+Checking apache-airflow-2.0.2rc4.tar.gz.sha512
 Checking apache_airflow-2.0.2rc4-py2.py3-none-any.whl.sha512
 Checking apache-airflow-2.0.2rc4-source.tar.gz.sha512
 ```
