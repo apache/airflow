@@ -49,7 +49,9 @@ class TestCassandraToGCS(unittest.TestCase):
         )
         operator.execute(None)
         mock_hook.return_value.get_conn.assert_called_once_with()
-        mock_hook.return_value.get_conn.return_value.execute.assert_called_once_with(cql, timeout=query_timeout)
+        mock_hook.return_value.get_conn.return_value.execute.assert_called_once_with(
+            cql, timeout=query_timeout
+        )
 
         call_schema = call(
             bucket_name=test_bucket,
