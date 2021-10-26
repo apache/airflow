@@ -422,13 +422,17 @@ class SchedulerJob(BaseJob):
         return executable_tis
 
     @provide_session
-    def _enqueue_task_instances_with_queued_state(self, task_instances: List[TI], session=None) -> None:
+    def _enqueue_task_instances_with_queued_state(
+        self, task_instances: List[TI], session: Session = None
+    ) -> None:
         """
         Takes task_instances, which should have been set to queued, and enqueues them
         with the executor.
 
         :param task_instances: TaskInstances to enqueue
         :type task_instances: list[TaskInstance]
+        :param session: The session object
+        :type session: Session
         """
         # actually enqueue them
         for ti in task_instances:
