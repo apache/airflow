@@ -373,7 +373,7 @@ paths:
     post:
       summary: Test a connection
       description: |
-        Test a connection
+        Test a connection.
 
         *New in version 2.2.0*
       x-openapi-router-controller: airflow.api_connexion.endpoints.connection_endpoint
@@ -718,7 +718,7 @@ paths:
     patch:
       summary: Modify a DAG run
       description: |
-        Modify a DAG run
+        Modify a DAG run.
 
         *New in version 2.2.0*
       x-openapi-router-controller: airflow.api_connexion.endpoints.dag_run_endpoint
@@ -1505,7 +1505,7 @@ paths:
     get:
       summary: Get a list of loaded plugins
       description: |
-        Get all loaded plugins
+        Get a list of loaded plugins.
 
         *New in version 2.1.0*
       x-openapi-router-controller: airflow.api_connexion.endpoints.plugin_endpoint
@@ -1532,7 +1532,7 @@ paths:
     get:
       summary: List roles
       description: |
-        Get roles
+        Get a list of roles.
 
         *New in version 2.1.0*
       x-openapi-router-controller: airflow.api_connexion.endpoints.role_and_permission_endpoint
@@ -1557,7 +1557,7 @@ paths:
     post:
       summary: Create a role
       description: |
-        Create a new role
+        Create a new role.
 
         *New in version 2.1.0*
       x-openapi-router-controller: airflow.api_connexion.endpoints.role_and_permission_endpoint
@@ -1590,7 +1590,7 @@ paths:
     get:
       summary: Get a role
       description: |
-        Get role
+        Get a role.
 
         *New in version 2.1.0*
       x-openapi-router-controller: airflow.api_connexion.endpoints.role_and_permission_endpoint
@@ -1613,7 +1613,7 @@ paths:
     patch:
       summary: Update a role
       description: |
-        Update a role
+        Update a role.
 
         *New in version 2.1.0*
       x-openapi-router-controller: airflow.api_connexion.endpoints.role_and_permission_endpoint
@@ -1647,7 +1647,7 @@ paths:
     delete:
       summary: Delete a role
       description: |
-        Delete a role
+        Delete a role.
 
         *New in version 2.1.0*
       x-openapi-router-controller: airflow.api_connexion.endpoints.role_and_permission_endpoint
@@ -1669,7 +1669,7 @@ paths:
     get:
       summary: List permissions
       description: |
-        Get permissions
+        Get a list of permissions.
 
         *New in version 2.1.0*
       x-openapi-router-controller: airflow.api_connexion.endpoints.role_and_permission_endpoint
@@ -1694,7 +1694,7 @@ paths:
     get:
       summary: List users
       description: |
-        Get users
+        Get a list of users.
 
         *New in version 2.1.0*
       x-openapi-router-controller: airflow.api_connexion.endpoints.user_endpoint
@@ -1753,7 +1753,7 @@ paths:
     get:
       summary: Get a user
       description: |
-        Get a user with a specific username
+        Get a user with a specific username.
 
         *New in version 2.1.0*
       x-openapi-router-controller: airflow.api_connexion.endpoints.user_endpoint
@@ -1776,7 +1776,7 @@ paths:
     patch:
       summary: Update a user
       description: |
-        Update fields for a user
+        Update fields for a user.
 
         *New in version 2.2.0*
       x-openapi-router-controller: airflow.api_connexion.endpoints.user_endpoint
@@ -1809,7 +1809,7 @@ paths:
     delete:
       summary: Delete a user
       description: |
-        Delete a user with a specific username
+        Delete a user with a specific username.
 
         *New in version 2.2.0*
       x-openapi-router-controller: airflow.api_connexion.endpoints.user_endpoint
@@ -1833,7 +1833,7 @@ components:
     # Database entities
     UserCollectionItem:
       description: |
-        A user object
+        A user object.
 
         *New in version 2.1.0*
       type: object
@@ -1841,30 +1841,30 @@ components:
         first_name:
           type: string
           description: |
-            The user firstname
+            The user's first name.
 
-            *Changed in version 2.2.0*&#58; A minimum character length requirement('minLength') has been added.
+            *Changed in version 2.2.0*&#58; A minimum character length requirement ('minLength') is added.
           minLength: 1
         last_name:
           type: string
           description: |
-            The user lastname
+            The user's last name.
 
-            *Changed in version 2.2.0*&#58; A minimum character length requirement('minLength') has been added.
+            *Changed in version 2.2.0*&#58; A minimum character length requirement ('minLength') is added.
           minLength: 1
         username:
           type: string
           description: |
-            The username
+            The username.
 
-            *Changed in version 2.2.0*&#58; A minimum character length requirement('minLength') has been added.
+            *Changed in version 2.2.0*&#58; A minimum character length requirement ('minLength') is added.
           minLength: 1
         email:
           type: string
           description: |
-            The user's email
+            The user's email.
 
-            *Changed in version 2.2.0*&#58; A minimum character length requirement('minLength') has been added.
+            *Changed in version 2.2.0*&#58; A minimum character length requirement ('minLength') is added.
           minLength: 1
         active:
           type: boolean
@@ -1890,7 +1890,7 @@ components:
         roles:
           type: array
           description: |
-            User roles
+            User roles.
 
             *Changed in version 2.2.0*&#58; Field is no longer read-only.
           items:
@@ -1914,7 +1914,7 @@ components:
     User:
       type: object
       description: |
-        A user object with sensitive data
+        A user object with sensitive data.
 
         *New in version 2.1.0*
       allOf:
@@ -1976,7 +1976,7 @@ components:
       description: |
         Collection of connections.
 
-        *Changed in version 2.1.0*&#58; 'total_entries' field was added.
+        *Changed in version 2.1.0*&#58; 'total_entries' field is added.
       allOf:
         - type: object
           properties:
@@ -2039,7 +2039,7 @@ components:
 
             *New in version 2.1.1*
 
-            *Changed in version 2.2.0&#58; Field is read-only.*
+            *Changed in version 2.2.0*&#58; Field is read-only.
           nullable: true
           readOnly: true
           type: boolean
@@ -2084,7 +2084,7 @@ components:
       description: |
         Collection of DAGs.
 
-        *Changed in version 2.1.0*&#58; 'total_entries' field was added.
+        *Changed in version 2.1.0*&#58; 'total_entries' field is added.
       type: object
       allOf:
         - type: object
@@ -2137,9 +2137,9 @@ components:
             If both this field and logical_date are provided but with different values, the request
             will fail with an BAD_REQUEST error.
 
-            *Changed in version 2.2.0*&#58; Field becomes nullable
+            *Changed in version 2.2.0*&#58; Field becomes nullable.
 
-            *Deprecated since version 2.2.0*&#58; Use 'logical_date' instead
+            *Deprecated since version 2.2.0*&#58; Use 'logical_date' instead.
           format: date-time
           deprecated: true
         start_date:
@@ -2148,7 +2148,7 @@ components:
           description: |
             The start time. The time when DAG run was actually created.
 
-            *Changed in version 2.1.3*&#58; Field becomes nullable
+            *Changed in version 2.1.3*&#58; Field becomes nullable.
           readOnly: true
           nullable: true
         end_date:
@@ -2192,7 +2192,7 @@ components:
       description: |
         Collection of DAG runs.
 
-        *Changed in version 2.1.0*&#58; 'total_entries' field was added.
+        *Changed in version 2.1.0*&#58; 'total_entries' field is added.
       allOf:
         - type: object
           properties:
@@ -2252,7 +2252,7 @@ components:
       description: |
         Collection of event logs.
 
-        *Changed in version 2.1.0*&#58; 'total_entries' field was added.
+        *Changed in version 2.1.0*&#58; 'total_entries' field is added.
       allOf:
         - type: object
           properties:
@@ -2288,7 +2288,7 @@ components:
       description: |
         Collection of import errors.
 
-        *Changed in version 2.1.0*&#58; 'total_entries' field was added.
+        *Changed in version 2.1.0*&#58; 'total_entries' field is added.
       allOf:
         - type: object
           properties:
@@ -2361,7 +2361,7 @@ components:
       description: |
         Collection of pools.
 
-        *Changed in version 2.1.0*&#58; 'total_entries' field was added.
+        *Changed in version 2.1.0*&#58; 'total_entries' field is added.
       allOf:
         - type: object
           properties:
@@ -2476,7 +2476,7 @@ components:
           type: string
           nullable: true
           description: |
-            *Changed in version 2.1.1*&#58; Field becomes nullable
+            *Changed in version 2.1.1*&#58; Field becomes nullable.
         queued_when:
           type: string
           nullable: true
@@ -2494,7 +2494,7 @@ components:
       description: |
         Collection of task instances.
 
-        *Changed in version 2.1.0*&#58; 'total_entries' field was added.
+        *Changed in version 2.1.0*&#58; 'total_entries' field is added.
       allOf:
         - type: object
           properties:
@@ -2549,7 +2549,7 @@ components:
       description: |
         Collection of variables.
 
-        *Changed in version 2.1.0*&#58; 'total_entries' field was added.
+        *Changed in version 2.1.0*&#58; 'total_entries' field is added.
       allOf:
         - type: object
           properties:
@@ -2594,7 +2594,7 @@ components:
       description: |
         Collection of XCom entries.
 
-        *Changed in version 2.1.0*&#58; 'total_entries' field was added.
+        *Changed in version 2.1.0*&#58; 'total_entries' field is added.
       allOf:
         - type: object
           properties:
@@ -2645,6 +2645,8 @@ components:
               readOnly: true
               nullable: true
               description: |
+                The DAG's start date.
+
                 *Changed in version 2.0.1*&#58; Field becomes nullable.
             dag_run_timeout:
               nullable: true
@@ -2660,7 +2662,7 @@ components:
               type: object
               readOnly: true
               description: |
-                Params
+                User-specified DAG params.
 
                 *New in version 2.0.1*
 
@@ -2781,7 +2783,7 @@ components:
     PluginCollectionItem:
       type: object
       description: |
-        Plugin Item
+        A plugin Item.
 
         *New in version 2.1.0*
       properties:
@@ -2847,7 +2849,7 @@ components:
     PluginCollection:
       type: object
       description: |
-        Plugin Collection
+        A collection of plugin.
 
         *New in version 2.1.0*
       allOf:
@@ -2861,7 +2863,7 @@ components:
 
     Role:
       description: |
-        Role item
+        a role item.
 
         *New in version 2.1.0*
       type: object
@@ -2871,7 +2873,7 @@ components:
           description: |
             The name of the role
 
-            *Changed in version 2.3.0&#58; A minimum character length requirement('minLength') has been added.
+            *Changed in version 2.3.0*&#58; A minimum character length requirement ('minLength') is added.
           minLength: 1
         actions:
           type: array
@@ -2880,7 +2882,7 @@ components:
 
     RoleCollection:
       description: |
-        Role Collections
+        A collection of roles.
 
         *New in version 2.1.0*
       type: object
@@ -2895,7 +2897,7 @@ components:
 
     Action:
       description: |
-        Action Item
+        An action Item.
 
         *New in version 2.1.0*
       type: object
@@ -2907,7 +2909,7 @@ components:
 
     ActionCollection:
       description: |
-        Action Collection
+        A collection of actions.
 
         *New in version 2.1.0*
       type: object
@@ -2922,7 +2924,7 @@ components:
 
     Resource:
       description: |
-        A `resource` on which permissions are granted.
+        A resource on which permissions are granted.
 
         *New in version 2.1.0*
       type: object
@@ -2934,7 +2936,7 @@ components:
 
     ActionResource:
       description: |
-        The Action-Resource item
+        The Action-Resource item.
 
         *New in version 2.1.0*
       type: object
@@ -3397,11 +3399,9 @@ components:
       description: |
         Task state.
 
-        *Changed in version 2.0.2&#58;'removed' added to Enum
+        *Changed in version 2.0.2*&#58; 'removed' is added as a possible value.
 
-        *Changed in version 2.2.0&#58;'deferred' added to Enum
-
-        *Changed in version 2.2.0&#58;'sensing' added to Enum
+        *Changed in version 2.2.0*&#58; 'deferred' and 'sensing' is added as a possible value.
       type: string
       enum:
         - success
@@ -3422,7 +3422,7 @@ components:
       description: |
         DAG State.
 
-        *Changed in version 2.1.3&#58;'queued' added to Enum
+        *Changed in version 2.1.3*&#58; 'queued' is added as a possible value.
       type: string
       enum:
         - queued
@@ -3434,7 +3434,7 @@ components:
       description: |
         Trigger rule.
 
-        *Changed in version 2.2.0*&#58; 'none_failed_min_one_success' added to Enum
+        *Changed in version 2.2.0*&#58; 'none_failed_min_one_success' is added as a possible value.
       type: string
       enum:
         - all_success
@@ -3492,7 +3492,7 @@ components:
         type: string
       required: true
       description: |
-        The username of the user
+        The username of the user.
 
         *New in version 2.1.0*
     RoleName:
@@ -3728,7 +3728,7 @@ components:
         items:
           type: string
       description: |
-          List of tags to filter results
+          List of tags to filter results.
 
           *New in version 2.2.0*
 
