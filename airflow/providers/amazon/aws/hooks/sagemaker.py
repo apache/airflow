@@ -957,7 +957,7 @@ class SageMakerHook(AwsBaseHook):
 
     def find_processing_job_by_name(self, processing_job_name: str) -> bool:
         try:
-            res = self.get_conn().describe_processing_job(ProcessingJobName=processing_job_name)
+            self.get_conn().describe_processing_job(ProcessingJobName=processing_job_name)
             return True
         except ClientError as e:
             if e.response['Error']['Code'] == 'ValidationException':
