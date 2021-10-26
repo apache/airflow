@@ -42,6 +42,11 @@ Compatibility note: The models in this file are duplicated from Flask AppBuilder
 """
 
 
+"""
+Compatibility note: The models in this file are duplicated from Flask AppBuilder.
+"""
+
+
 class Action(Model):
     """Represents permission actions such as `can_read`."""
 
