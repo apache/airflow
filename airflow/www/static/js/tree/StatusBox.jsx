@@ -38,33 +38,33 @@ const StatusBox = ({
   const onClick = () => executionDate && callModal(taskId, executionDate, extraLinks, tryNumber, operator === 'SubDagOperator' || undefined);
 
   return (
-    <Flex
-      py="2px"
-      px="3px"
-      justifyContent="center"
-      alignItems="center"
-      onClick={onClick}
-      {...rest}
+    <Tooltip
+      label={<InstanceTooltip instance={instance} group={group} />}
+      fontSize="md"
+      portalProps={{ containerRef }}
+      hasArrow
+      placement="top"
+      openDelay={100}
     >
-      <Tooltip
-        label={<InstanceTooltip instance={instance} group={group} />}
-        fontSize="md"
-        portalProps={{ containerRef }}
-        hasArrow
-        placement="top"
-        openDelay={100}
+      <Flex
+        p="1px"
+        my="1px"
+        mx="2px"
+        justifyContent="center"
+        alignItems="center"
+        onClick={onClick}
+        cursor={!group.children && 'pointer'}
+        {...rest}
       >
         <Box
-          width="12px"
-          height="12px"
+          width="10px"
+          height="10px"
           backgroundColor={stateColors[instance.state] || 'white'}
           borderRadius={2}
           borderWidth={instance.state ? 0 : 1}
-          cursor={!group.children && 'pointer'}
-          mt="1px"
         />
-      </Tooltip>
-    </Flex>
+      </Flex>
+    </Tooltip>
   );
 };
 

@@ -34,20 +34,38 @@ const isPaused = getMetaValue('is_paused');
 
 const areActiveRuns = (runs) => runs.filter((run) => ['queued', 'running', 'scheduled'].includes(run.state)).length > 0;
 
+const formatData = (data) => {
+  let formattedData = data;
+  // Convert to json if needed
+  if (typeof data === 'string') formattedData = JSON.parse(data);
+  // change from pacal to camelcase
+  formattedData = camelcaseKeys(formattedData, { deep: true });
+  // make sure dagRuns are sorted by date
+  formattedData.dagRuns = formattedData.dagRuns
+    .sort((a, b) => new Date(a.executionDate) - new Date(b.executionDate));
+  return formattedData;
+};
+
 const useTreeData = () => {
-  const [data, setData] = useState(camelcaseKeys(JSON.parse(treeData), { deep: true }));
+  const [data, setData] = useState(formatData(treeData));
   const defaultIsOpen = isPaused !== 'True' && !JSON.parse(localStorage.getItem('disableAutoRefresh')) && areActiveRuns(data.dagRuns);
   const { isOpen, onToggle } = useDisclosure({ defaultIsOpen });
 
   const handleRefresh = useCallback(async () => {
-    const resp = await fetch(`${treeDataUrl}?dag_id=${dagId}&num_runs=${numRuns}&root=${urlRoot}`);
-    let newData = await resp.json();
-    newData = camelcaseKeys(newData, { deep: true });
-    if (JSON.stringify(newData) !== JSON.stringify(data)) {
-      setData(newData);
+    try {
+      const resp = await fetch(`${treeDataUrl}?dag_id=${dagId}&num_runs=${numRuns}&root=${urlRoot}`);
+      let newData = await resp.json();
+      if (newData) {
+        newData = formatData(newData);
+        if (JSON.stringify(newData) !== JSON.stringify(data)) {
+          setData(newData);
+        }
+        // turn off auto refresh if there are no active runs
+        if (!areActiveRuns(newData.dagRuns)) onToggle();
+      }
+    } catch (e) {
+      console.error(e);
     }
-    // turn off auto refresh if there are no active runs
-    if (!areActiveRuns(newData.dagRuns)) onToggle();
   }, [data, onToggle]);
 
   const onToggleRefresh = () => {

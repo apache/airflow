@@ -29,8 +29,8 @@ import {
 } from '@chakra-ui/react';
 import { MdPlayArrow } from 'react-icons/md';
 
-import DagRunTooltip from './DagRunTooltip';
-import { callModalDag } from '../dag';
+import DagRunTooltip from './Tooltip';
+import { callModalDag } from '../../dag';
 
 const DagRunBar = ({
   run, max, index, totalRuns, containerRef,
@@ -39,9 +39,9 @@ const DagRunBar = ({
     <Flex
       height="100px"
       alignItems="flex-end"
+      justifyContent="center"
       pb="2px"
       px="3px"
-      zIndex={1}
       onClick={() => {
         callModalDag({ execution_date: run.executionDate, dagId: run.dagId });
       }}
@@ -54,7 +54,7 @@ const DagRunBar = ({
         openDelay={100}
       >
         <Flex
-          width="12px"
+          width="10px"
           height={`${(run.duration / max) * 100}px`}
           minHeight="12px"
           backgroundColor={stateColors[run.state]}
@@ -64,15 +64,16 @@ const DagRunBar = ({
           direction="column"
           justifyContent="flex-end"
           alignItems="center"
-          zIndex={2}
+          px="1px"
+          zIndex={1}
         >
           {run.runType === 'manual' && <MdPlayArrow size="8px" color="white" />}
         </Flex>
       </Tooltip>
     </Flex>
-    {index < totalRuns - 4 && index % 10 === 0 && (
-    <VStack position="absolute" top="0" left="-21px" spacing={0}>
-      <Text fontSize={10} color="gray.400" whiteSpace="nowrap" transform="rotate(-30deg) translateX(32px)" mt="-23px !important">
+    {index < totalRuns - 3 && index % 10 === 0 && (
+    <VStack position="absolute" top="0" left="-22px" spacing={0}>
+      <Text fontSize={10} color="gray.400" whiteSpace="nowrap" transform="rotate(-30deg) translateX(28px)" mt="-23px !important">
         {moment.utc(run.executionDate).format('MMM DD, HH:mm')}
       </Text>
       <Box borderLeftWidth={1} zIndex={0} opacity={0.7} height="100px" />
