@@ -216,7 +216,7 @@ You can configure the Docker-based Breeze development environment as follows:
 
 2. Install `jq`_ on your machine. The exact command depends on the operating system (or Linux distribution) you use.
 
-.. _jq: https://stedolan.github.io/jq
+.. _jq: https://stedolan.github.io/jq/
 
    For example, on Ubuntu:
 
