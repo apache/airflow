@@ -1697,6 +1697,27 @@ class TestDataflowJob(unittest.TestCase):
         )
         assert result == ["response_1"]
 
+    def test_fetch_all_jobs_when_no_jobs_returned(self):
+        # fmt: off
+        (
+            self.mock_dataflow
+            .projects.return_value
+            .locations.return_value
+            .jobs.return_value
+            .list.return_value
+            .execute.return_value
+        ) = {}
+        # fmt: on
+
+        jobs_controller = _DataflowJobsController(
+            dataflow=self.mock_dataflow,
+            project_number=TEST_PROJECT,
+            location=TEST_LOCATION,
+            job_id=TEST_JOB_ID,
+        )
+        result = jobs_controller._fetch_all_jobs()
+        assert result == []
+
     @mock.patch(DATAFLOW_STRING.format('_DataflowJobsController._fetch_list_job_messages_responses'))
     def test_fetch_job_messages_by_id(self, mock_fetch_responses):
         mock_fetch_responses.return_value = iter(
