@@ -21,6 +21,11 @@
 
 {% block page_title %}{{ dag.dag_id }} - Code - {{ appbuilder.app_name }}{% endblock %}
 
+{% block head_meta %}
+  {{ super() }}
+  <meta name="wrapped" content="{{ wrapped }}">
+{% endblock %}
+
 {% block content %}
   {{ super() }}
   <div class="code-wrap">
