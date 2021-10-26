@@ -497,10 +497,9 @@ paths:
 
     delete:
       summary: Delete a DAG
-      description: >
+      description: |
         Deletes all metadata related to the DAG, including finished DAG Runs and Tasks.
         Logs are not deleted. This action cannot be undone.
-
 
         *New in version 2.2.0*
       x-openapi-router-controller: airflow.api_connexion.endpoints.dag_endpoint
@@ -1844,28 +1843,28 @@ components:
           description: |
             The user firstname
 
-            `minLength` *added in version 2.2.0*
+            *'minLength' added in version 2.2.0*
           minLength: 1
         last_name:
           type: string
           description: |
             The user lastname
 
-            `minLength` *added in version 2.2.0*
+            *'minLength' added in version 2.2.0*
           minLength: 1
         username:
           type: string
           description: |
             The username
 
-            `minLength` *added in version 2.2.0*
+            *'minLength' added in version 2.2.0*
           minLength: 1
         email:
           type: string
           description: |
             The user's email
 
-            `minLength` *added in version 2.2.0*
+            *'minLength' added in version 2.2.0*
           minLength: 1
         active:
           type: boolean
@@ -1893,7 +1892,7 @@ components:
           description: |
             User roles
 
-            `readOnly` *removed in 2.2.0*
+            *'readOnly' removed in 2.2.0*
           items:
             type: object
             properties:
@@ -2037,7 +2036,7 @@ components:
 
             *New in version 2.1.1*
 
-            `readOnly` *added in 2.2.0*
+            *'readOnly' added in 2.2.0*
           nullable: true
           readOnly: true
           type: boolean
@@ -2144,7 +2143,7 @@ components:
           description: |
             The start time. The time when DAG run was actually created.
 
-            `nullable` *added in version 2.1.3*
+            *'nullable' added in version 2.1.3*
           readOnly: true
           nullable: true
         end_date:
@@ -2472,7 +2471,7 @@ components:
           type: string
           nullable: true
           description: |
-            `nullable` *added in version 2.1.1*
+            *'nullable' added in version 2.1.1*
         queued_when:
           type: string
           nullable: true
@@ -2641,7 +2640,7 @@ components:
               readOnly: true
               nullable: true
               description: |
-                `nullable` *added in version 2.0.1*
+                *'nullable' added in version 2.0.1*
             dag_run_timeout:
               nullable: true
               $ref: '#/components/schemas/TimeDelta'
@@ -2867,7 +2866,7 @@ components:
           description: |
             The name of the role
 
-            `minLength` *added in version 2.3.0*
+            *'minLength' added in version 2.3.0*
           minLength: 1
         actions:
           type: array
@@ -3393,11 +3392,11 @@ components:
       description: |
         Task state.
 
-        `removed` *added in version 2.0.2*
+        *'removed' added in version 2.0.2*
 
-        `deferred` *added in version 2.2.0*
+        *'deferred' added in version 2.2.0*
 
-        `sensing` *added in version 2.2.0*
+        *'sensing' added in version 2.2.0*
       type: string
       enum:
         - success
@@ -3418,7 +3417,7 @@ components:
       description: |
         DAG State.
 
-        `queued` *added in version 2.1.3*
+        *'queued' added in version 2.1.3*
       type: string
       enum:
         - queued
@@ -3430,7 +3429,7 @@ components:
       description: |
         Trigger rule.
 
-        `none_failed_min_one_success` *added in version 2.2.0*
+        *'none_failed_min_one_success' added in version 2.2.0*
       type: string
       enum:
         - all_success
