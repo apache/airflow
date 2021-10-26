@@ -43,7 +43,7 @@ def configured_app(minimal_app_for_api):
             (permissions.ACTION_CAN_READ, permissions.RESOURCE_ROLE),
             (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_ROLE),
             (permissions.ACTION_CAN_DELETE, permissions.RESOURCE_ROLE),
-            (permissions.ACTION_CAN_READ, permissions.RESOURCE_PERMISSION),
+            (permissions.ACTION_CAN_READ, permissions.RESOURCE_ACTION),
         ],
     )
     create_user(app, username="test_no_permissions", role_name="TestNoPermissions")  # type: ignore

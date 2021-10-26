@@ -73,7 +73,7 @@ def get_roles(limit, order_by='name', offset=None):
     return role_collection_schema.dump(RoleCollection(roles=roles, total_entries=total_entries))
 
 
-@security.requires_access([(permissions.ACTION_CAN_READ, permissions.RESOURCE_PERMISSION)])
+@security.requires_access([(permissions.ACTION_CAN_READ, permissions.RESOURCE_ACTION)])
 @format_parameters({'limit': check_limit})
 def get_permissions(limit=None, offset=None):
     """Get permissions"""

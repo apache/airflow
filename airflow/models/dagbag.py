@@ -50,7 +50,7 @@ from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.retries import MAX_DB_RETRIES, run_with_db_retries
 from airflow.utils.session import provide_session
 from airflow.utils.timeout import timeout
-from airflow.www.fab_security.sqla.models import Resource
+from airflow.www.fab_security.sqla.models import Action, Permission, Resource
 
 if TYPE_CHECKING:
     import pathlib
@@ -632,7 +632,6 @@ class DagBag(LoggingMixin):
     def _sync_perm_for_dag(self, dag, session: Optional[Session] = None):
         """Sync DAG specific permissions, if necessary"""
         from airflow.security.permissions import DAG_ACTIONS, resource_name_for_dag
-        from airflow.www.fab_security.sqla.models import Action, Permission
 
         def needs_perms(dag_id: str) -> bool:
             dag_resource_name = resource_name_for_dag(dag_id)

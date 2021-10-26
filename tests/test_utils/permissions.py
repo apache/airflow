@@ -23,14 +23,16 @@ from airflow.www.fab_security.sqla.models import Permission, Resource, assoc_per
 
 def delete_dag_specific_permissions():
     with create_session() as session:
-        dag_vms = session.query(Resource).filter(Resource.name.like(f"{RESOURCE_DAG_PREFIX}%")).all()
-        vm_ids = [d.id for d in dag_vms]
+        dag_resources = session.query(Resource).filter(Resource.name.like(f"{RESOURCE_DAG_PREFIX}%")).all()
+        dag_resource_ids = [d.id for d in dag_resources]
 
-        dag_pvms = session.query(Permission).filter(Permission.resource_id.in_(vm_ids)).all()
-        pvm_ids = [d.id for d in dag_pvms]
+        dag_permissions = session.query(Permission).filter(Permission.resource_id.in_(dag_resource_ids)).all()
+        dag_permission_ids = [d.id for d in dag_permissions]
 
         session.query(assoc_permission_role).filter(
-            assoc_permission_role.c.permission_view_id.in_(pvm_ids)
+            assoc_permission_role.c.permission_view_id.in_(dag_permission_ids)
         ).delete(synchronize_session=False)
-        session.query(Permission).filter(Permission.resource_id.in_(vm_ids)).delete(synchronize_session=False)
-        session.query(Resource).filter(Resource.id.in_(vm_ids)).delete(synchronize_session=False)
+        session.query(Permission).filter(Permission.resource_id.in_(dag_resource_ids)).delete(
+            synchronize_session=False
+        )
+        session.query(Resource).filter(Resource.id.in_(dag_resource_ids)).delete(synchronize_session=False)
