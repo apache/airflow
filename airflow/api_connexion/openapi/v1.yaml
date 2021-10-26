@@ -1850,14 +1850,14 @@ components:
           description: |
             The user lastname
 
-            *'minLength' added in version 2.2.0*
+            *Changes in version 2.2.0*: A minimum character length requirement(`minLength`) has been added.
           minLength: 1
         username:
           type: string
           description: |
             The username
 
-            *'minLength' added in version 2.2.0*
+            *Changes in version 2.2.0*: A minimum character length requirement(`minLength`) has been added.
           minLength: 1
         email:
           type: string
@@ -1892,7 +1892,7 @@ components:
           description: |
             User roles
 
-            *'readOnly' removed in 2.2.0*
+            *Changes in version 2.2.0*:  Field is read-only.
           items:
             type: object
             properties:
@@ -2036,7 +2036,7 @@ components:
 
             *New in version 2.1.1*
 
-            *'readOnly' added in 2.2.0*
+            *Changes in version 2.2.0*:  Field is read-only.
           nullable: true
           readOnly: true
           type: boolean
