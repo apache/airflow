@@ -320,6 +320,7 @@ The reverse can also be done: passing the output of a TaskFlow function as an in
 
         return result["QueueUrl"]
 
+
     sqs_queue = create_queue()
 
     publish_to_queue = SQSPublishOperator(
