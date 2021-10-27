@@ -19,19 +19,16 @@
 from unittest import TestCase, mock
 
 from airflow.providers.amazon.aws.utils.emailer import send_email
-from tests.test_utils.config import conf_vars
 
 
 class TestSendEmailSes(TestCase):
     def setUp(self):
         pass
 
-    @conf_vars({('email', 'email_from_email'): 'from@test.com', ('email', 'email_from_name'): 'From Test'})
     @mock.patch("airflow.providers.amazon.aws.utils.emailer.SESHook")
     def test_send_ses_email(self, mock_hook):
         send_email(
-            from_email="from@test.com",
-            from_name="From Test",
+            from_email="From Test <from@test.com>",
             to="to@test.com",
             subject="subject",
             html_content="content",
