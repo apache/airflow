@@ -136,8 +136,8 @@ Pyenv and setting up virtual-env
       libreadline-dev libsqlite3-dev wget curl llvm libncurses5-dev libncursesw5-dev \
       xz-utils tk-dev libffi-dev liblzma-dev python-openssl git
 
-  $ sudo apt install build-essentials python3.6-dev python3.7-dev python3.8-dev python3.9-dev python-dev openssl \
-       sqlite sqlite-dev default-libmysqlclient-dev libmysqld-dev postgresql
+  $ sudo apt install openssl \
+       sqlite default-libmysqlclient-dev libmysqlclient-dev postgresql
 
 2. Install pyenv
 
@@ -145,23 +145,16 @@ Pyenv and setting up virtual-env
 
   $ curl https://pyenv.run | bash
 
-3. Add the lines suggested at the end of installation  to ~/.bashrc
+3. Configure your shell's environment for Pyenv as suggested in Pyenv `README <https://github.com/pyenv/pyenv/blob/master/README.md>`_
 
-4. If you are in macOS Big Sur 11.4, pyenv may face issues. It can be fixed by adding the below command to ~/.zshrc
-
-.. code-block:: bash
-
-  eval "$(pyenv init --path)"
-  eval "$(pyenv init -)"
-
-5. Restart your shell so the path changes take effect and verifying installation
+4. Restart your shell so the path changes take effect and verifying installation
 
 .. code-block:: bash
 
   $ exec $SHELL
   $ pyenv --version
 
-6. Checking available version, installing required Python version to pyenv and verifying it
+5. Checking available version, installing required Python version to pyenv and verifying it
 
 .. code-block:: bash
 
@@ -169,14 +162,14 @@ Pyenv and setting up virtual-env
   $ pyenv install 3.8.5
   $ pyenv versions
 
-7. Creating new virtual environment named ``airflow-env`` for installed version python. In next chapter virtual
+6. Creating new virtual environment named ``airflow-env`` for installed version python. In next chapter virtual
    environment ``airflow-env`` will be used for installing airflow.
 
 .. code-block:: bash
 
   $ pyenv virtualenv 3.8.5 airflow-env
 
-8. Entering virtual environment ``airflow-env``
+7. Entering virtual environment ``airflow-env``
 
 .. code-block:: bash
 

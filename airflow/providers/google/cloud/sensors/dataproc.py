@@ -20,7 +20,7 @@
 import warnings
 from typing import Optional
 
-from google.cloud.dataproc_v1beta2.types import JobStatus
+from google.cloud.dataproc_v1.types import JobStatus
 
 from airflow.exceptions import AirflowException
 from airflow.providers.google.cloud.hooks.dataproc import DataprocHook
