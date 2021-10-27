@@ -44,7 +44,7 @@ CLUSTER = {
 }
 BATCH = {"batch": "test-batch"}
 BATCH_ID = "batch-id"
-BATCH_NAME = "batch-name"
+BATCH_NAME = "projects/{}/regions/{}/batches/{}"
 PARENT = "projects/{}/regions/{}"
 
 BASE_STRING = "airflow.providers.google.common.hooks.base_google.{}"
@@ -676,7 +676,7 @@ class TestDataprocHook(unittest.TestCase):
                 batch_id=BATCH_ID,
                 request_id=None,
             ),
-            metadata=None,
+            metadata="",
             retry=None,
             timeout=None,
         )
@@ -684,12 +684,14 @@ class TestDataprocHook(unittest.TestCase):
     @mock.patch(DATAPROC_STRING.format("DataprocHook.get_batch_client"))
     def test_delete_batch(self, mock_client):
         self.hook.delete_batch(
-            name=BATCH_NAME,
+            batch_id=BATCH_ID,
+            region=GCP_LOCATION,
+            project_id=GCP_PROJECT,
         )
-        mock_client.assert_called_once_with()
+        mock_client.assert_called_once_with(GCP_LOCATION)
         mock_client.return_value.delete_batch.assert_called_once_with(
             request=dict(
-                name=BATCH_NAME,
+                name=BATCH_NAME.format(GCP_PROJECT, GCP_LOCATION, BATCH_ID),
             ),
             metadata=None,
             retry=None,
@@ -699,12 +701,14 @@ class TestDataprocHook(unittest.TestCase):
     @mock.patch(DATAPROC_STRING.format("DataprocHook.get_batch_client"))
     def test_get_batch(self, mock_client):
         self.hook.get_batch(
-            name=BATCH_NAME,
+            batch_id=BATCH_ID,
+            region=GCP_LOCATION,
+            project_id=GCP_PROJECT,
         )
-        mock_client.assert_called_once_with()
+        mock_client.assert_called_once_with(GCP_LOCATION)
         mock_client.return_value.get_batch.assert_called_once_with(
             request=dict(
-                name=BATCH_NAME,
+                name=BATCH_NAME.format(GCP_PROJECT, GCP_LOCATION, BATCH_ID),
             ),
             metadata=None,
             retry=None,

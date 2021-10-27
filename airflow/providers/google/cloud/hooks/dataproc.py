@@ -24,7 +24,8 @@ import warnings
 from typing import Any, Dict, Iterable, List, Optional, Sequence, Tuple, Union
 
 from google.api_core.exceptions import ServerError
-from google.api_core.retry import Retry
+from google.api_core.operation import Operation
+from google.api_core.retry import exponential_sleep_generator, Retry
 from google.cloud.dataproc_v1 import (
     Batch,
     BatchControllerClient,
@@ -288,6 +289,23 @@ class DataprocHook(GoogleBaseHook):
         return BatchControllerClient(
             credentials=self._get_credentials(), client_info=self.client_info, client_options=client_options
         )
+
+    def wait_for_operation(
+        self,
+        operation: Operation,
+    ):
+        """Waits for long-running operation to complete."""
+
+        for time_to_wait in exponential_sleep_generator(initial=10, maximum=120):
+            time.sleep(time_to_wait)
+            if operation.done():
+                break
+
+        error = operation.exception()
+        if error:
+            raise AirflowException(error)
+
+        return operation.result()
 
     @GoogleBaseHook.fallback_to_default_project_id
     def create_cluster(
@@ -1063,7 +1081,7 @@ class DataprocHook(GoogleBaseHook):
         request_id: Optional[str] = None,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
-        metadata: Optional[Sequence[Tuple[str, str]]] = None,
+        metadata: Optional[Sequence[Tuple[str, str]]] = "",
     ):
         """
         Creates a batch workload.
@@ -1108,9 +1126,12 @@ class DataprocHook(GoogleBaseHook):
         )
         return result
 
+    @GoogleBaseHook.fallback_to_default_project_id
     def delete_batch(
         self,
-        name: str,
+        batch_id: str,
+        region: str,
+        project_id: str,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
         metadata: Optional[Sequence[Tuple[str, str]]] = None,
@@ -1118,8 +1139,14 @@ class DataprocHook(GoogleBaseHook):
         """
         Deletes the batch workload resource.
 
-        :param name: Required. The name of the batch resource to delete.
-        :type name: str
+        :param batch_id: Required. The ID to use for the batch, which will become the final component
+            of the batch's resource name.
+            This value must be 4-63 characters. Valid characters are /[a-z][0-9]-/.
+        :type batch_id: str
+        :param project_id: Required. The ID of the Google Cloud project that the cluster belongs to.
+        :type project_id: str
+        :param region: Required. The Cloud Dataproc region in which to handle the request.
+        :type region: str
         :param retry: A retry object used to retry requests. If ``None`` is specified, requests will not be
             retried.
         :type retry: google.api_core.retry.Retry
@@ -1130,7 +1157,8 @@ class DataprocHook(GoogleBaseHook):
         :type metadata: Sequence[Tuple[str, str]]
         """
 
-        client = self.get_batch_client()
+        client = self.get_batch_client(region)
+        name = f"projects/{project_id}/regions/{region}/batches/{batch_id}"
 
         result = client.delete_batch(
             request={
@@ -1142,9 +1170,12 @@ class DataprocHook(GoogleBaseHook):
         )
         return result
 
+    @GoogleBaseHook.fallback_to_default_project_id
     def get_batch(
         self,
-        name: str,
+        batch_id: str,
+        region: str,
+        project_id: str,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
         metadata: Optional[Sequence[Tuple[str, str]]] = None,
@@ -1152,8 +1183,14 @@ class DataprocHook(GoogleBaseHook):
         """
         Gets the batch workload resource representation.
 
-        :param name: Required. The name of the batch to retrieve.
-        :type name: str
+        :param batch_id: Required. The ID to use for the batch, which will become the final component
+            of the batch's resource name.
+            This value must be 4-63 characters. Valid characters are /[a-z][0-9]-/.
+        :type batch_id: str
+        :param project_id: Required. The ID of the Google Cloud project that the cluster belongs to.
+        :type project_id: str
+        :param region: Required. The Cloud Dataproc region in which to handle the request.
+        :type region: str
         :param retry: A retry object used to retry requests. If ``None`` is specified, requests will not be
             retried.
         :type retry: google.api_core.retry.Retry
@@ -1164,7 +1201,8 @@ class DataprocHook(GoogleBaseHook):
         :type metadata: Sequence[Tuple[str, str]]
         """
 
-        client = self.get_batch_client()
+        client = self.get_batch_client(region)
+        name = f"projects/{project_id}/regions/{region}/batches/{batch_id}"
 
         result = client.get_batch(
             request={
