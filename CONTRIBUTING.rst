@@ -201,16 +201,18 @@ You can use either a local virtual env or a Docker-based env. The differences
 between the two are explained `here <https://github.com/apache/airflow/blob/main/CONTRIBUTING.rst#development-environments/>`__.
 
 
-The local env's instructions can be found in full in the  `LOCAL_VIRTUALENV.rst`_ file.
+The local env's instructions can be found in full in the `LOCAL_VIRTUALENV.rst`_ file.
 
-.. _LOCAL_VIRTUALENV.rst: https://github.com/apache/airflow/blob/main/LOCAL_VIRTUALENV.rst 
+.. _LOCAL_VIRTUALENV.rst:
+https://github.com/apache/airflow/blob/main/LOCAL_VIRTUALENV.rst 
 The Docker env is here to maintain a consistent and common development environment so that you can replicate CI failures locally and work on solving them locally rather by pushing to CI.
 
 You can configure the Docker-based Breeze development environment as follows:
 
 1. Install the latest versions of the `Docker Community Edition`_ and `Docker Compose`_ and add them to the PATH.
 
-.. _Docker Community Edition: https://github.com/apache/airflow/blob/main/BREEZE.rst#docker-community-edition
+.. _Docker Community Edition:
+https://github.com/apache/airflow/blob/main/BREEZE.rst#docker-community-edition
 
 .. _Docker Compose: https://github.com/apache/airflow/blob/main/BREEZE.rst#docker-compose 
 
