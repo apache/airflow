@@ -421,18 +421,23 @@ class SchedulerJob(BaseJob):
             make_transient(ti)
         return executable_tis
 
-    def _enqueue_task_instances_with_queued_state(self, task_instances: List[TI]) -> None:
+    @provide_session
+    def _enqueue_task_instances_with_queued_state(
+        self, task_instances: List[TI], session: Session = None
+    ) -> None:
         """
         Takes task_instances, which should have been set to queued, and enqueues them
         with the executor.
 
         :param task_instances: TaskInstances to enqueue
         :type task_instances: list[TaskInstance]
+        :param session: The session object
+        :type session: Session
         """
         # actually enqueue them
         for ti in task_instances:
             if ti.dag_run.state in State.finished:
-                ti.set_state(State.NONE)
+                ti.set_state(State.NONE, session=session)
                 continue
             command = ti.command_as_list(
                 local=True,
@@ -476,7 +481,7 @@ class SchedulerJob(BaseJob):
             max_tis = min(self.max_tis_per_query, self.executor.slots_available)
         queued_tis = self._executable_task_instances_to_queued(max_tis, session=session)
 
-        self._enqueue_task_instances_with_queued_state(queued_tis)
+        self._enqueue_task_instances_with_queued_state(queued_tis, session=session)
         return len(queued_tis)
 
     @provide_session

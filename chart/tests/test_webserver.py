@@ -236,6 +236,39 @@ class WebserverDeploymentTest(unittest.TestCase):
                 v["name"] for v in jmespath.search("spec.template.spec.containers[0].volumeMounts", docs[0])
             ]
 
+    @parameterized.expand(
+        [
+            ("1.10.10", False),
+            ("1.10.12", True),
+            ("2.1.0", True),
+        ]
+    )
+    def test_config_volumes_and_mounts(self, af_version, pod_template_file_expected):
+        # setup
+        docs = render_chart(
+            values={"airflowVersion": af_version},
+            show_only=["templates/webserver/webserver-deployment.yaml"],
+        )
+
+        # default config
+        assert {
+            "name": "config",
+            "mountPath": "/opt/airflow/airflow.cfg",
+            "readOnly": True,
+            "subPath": "airflow.cfg",
+        } in jmespath.search("spec.template.spec.containers[0].volumeMounts", docs[0])
+
+        # pod_template_file config
+        assert pod_template_file_expected == (
+            {
+                "name": "config",
+                "mountPath": "/opt/airflow/pod_templates/pod_template_file.yaml",
+                "readOnly": True,
+                "subPath": "pod_template_file.yaml",
+            }
+            in jmespath.search("spec.template.spec.containers[0].volumeMounts", docs[0])
+        )
+
     def test_webserver_resources_are_configurable(self):
         docs = render_chart(
             values={

@@ -48,6 +48,13 @@ spec:
       backoffLimit: 1
       template:
         metadata:
+          labels:
+            tier: airflow
+            component: airflow-cleanup-pods
+            release: {{ .Release.Name }}
+{{- with .Values.labels }}
+{{ toYaml . | indent 12 }}
+{{- end }}
           annotations:
             sidecar.istio.io/inject: "false"
         spec:

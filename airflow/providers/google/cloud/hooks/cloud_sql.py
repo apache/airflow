@@ -33,6 +33,7 @@ import time
 import uuid
 from pathlib import Path
 from subprocess import PIPE, Popen
+from tempfile import gettempdir
 from typing import Any, Dict, List, Optional, Sequence, Union
 from urllib.parse import quote_plus
 
@@ -838,12 +839,12 @@ class CloudSQLDatabaseHook(BaseHook):
         can be close to 60 characters and there is a limitation in
         length of socket path to around 100 characters in total.
         We append project/location/instance to it later and postgres
-        appends its own prefix, so we chose a shorter "/tmp/[8 random characters]"
+        appends its own prefix, so we chose a shorter "${tempdir()}[8 random characters]"
         """
         random.seed()
         while True:
-            candidate = "/tmp/" + ''.join(
-                random.choice(string.ascii_lowercase + string.digits) for _ in range(8)
+            candidate = os.path.join(
+                gettempdir(), ''.join(random.choice(string.ascii_lowercase + string.digits) for _ in range(8))
             )
             if not os.path.exists(candidate):
                 return candidate
