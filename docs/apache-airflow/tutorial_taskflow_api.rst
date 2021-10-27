@@ -314,7 +314,7 @@ The reverse can also be done: passing the output of a TaskFlow function as an in
 
     @task
     def create_queue():
-    """This is a Python function that creates an SQS queue"""
+        """This is a Python function that creates an SQS queue"""
         hook = SQSHook()
         result = hook.create_queue(queue_name="sample-queue")
 
