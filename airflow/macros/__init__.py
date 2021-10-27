@@ -39,7 +39,7 @@ def ds_add(ds, days):
     >>> ds_add('2015-01-06', -5)
     '2015-01-01'
     """
-    ds = datetime.strptime(ds, '%Y-%m-%d')
+    ds = datetime.strptime(str(ds), '%Y-%m-%d')
     if days:
         ds = ds + timedelta(days)
     return ds.isoformat()[:10]
@@ -62,7 +62,7 @@ def ds_format(ds, input_format, output_format):
     >>> ds_format('1/5/2015', "%m/%d/%Y",  "%Y-%m-%d")
     '2015-01-05'
     """
-    return datetime.strptime(ds, input_format).strftime(output_format)
+    return datetime.strptime(str(ds), input_format).strftime(output_format)
 
 
 def datetime_diff_for_humans(dt, since=None):
