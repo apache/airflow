@@ -1305,6 +1305,37 @@ def check_bad_references(session: Session) -> Iterable[str]:
         session.commit()
 
 
+def rename_dangling_tables(session) -> Iterable[str]:
+    """
+    Rename tables holding dangling rows to their final names
+
+    Orphaned rows were moved into holding tables in 2.2.0-2+,
+    but OSS 2.2.1+ expects these in differently named tables.
+    We will rename the tables (if we can).
+    """
+    tables_to_rename = {
+        "_airflow_22_dag_run_dangling": "_airflow_moved__2_2__dag_run",
+        "_airflow_22_task_instance_dangling": "_airflow_moved__2_2__task_instance",
+        "_airflow_22_task_reschedule_dangling": "_airflow_moved__2_2__task_reschedule",
+    }
+
+    existing_table_names = set(inspect(session.get_bind()).get_table_names())
+
+    for old_table, new_table in tables_to_rename.items():
+        if old_table not in existing_table_names:
+            continue
+
+        if new_table in existing_table_names:
+            yield (
+                f"We could not rename table {old_table} to {new_table} because"
+                f"{new_table} table already exists in your database. Please either "
+                f"drop one or both of the tables."
+            )
+            continue  # Check the others as well
+
+        session.execute(text(f"ALTER TABLE {old_table} RENAME TO {new_table};"))
+
+
 @provide_session
 def _check_migration_errors(session: Session = NEW_SESSION) -> Iterable[str]:
     """
@@ -1317,6 +1348,7 @@ def _check_migration_errors(session: Session = NEW_SESSION) -> Iterable[str]:
         check_conn_type_null,
         check_run_id_null,
         check_bad_references,
+        rename_dangling_tables,
     )
     for check_fn in check_functions:
         log.debug("running check function %s", check_fn.__name__)

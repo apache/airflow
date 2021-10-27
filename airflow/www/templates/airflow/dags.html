@@ -82,8 +82,8 @@
   {% endfor %}
   {% if migration_moved_data_alerts %}
     {% call show_message(category='warning', dismissible=false) %}
-      While upgrading the metadatabase, Airflow had to move some bad data in order to apply new constraints.
-      The moved data can be found in the following tables:<br>
+      <p>While upgrading the metadatabase, Airflow had to move some bad data in order to apply new constraints.
+      The moved data can be found in the following tables:</p>
         <table>
           <tr>
             <th style="padding-right:10px">Source table</th>
@@ -96,9 +96,13 @@
             </tr>
           {% endfor %}
         </table>
-      Please inspect the moved data to decide whether you need to keep them, and manually drop
-      the moved tables to dismiss this warning. Read more about it
+        <p>Please file a support request on <a href="https://support.astronomer.io/hc/en-us">
+          Astronomer's Support Portal</a> so we can assist with resolving this issue.</p>
+
       in <a href={{ get_docs_url("installation/upgrading.html") }}><b>Upgrading</b></a>.
+      to upgrade.</p>
+      <p>Please file a support request on <a href="https://support.astronomer.io/hc/en-us">
+      Astronomer's Support Portal</a> so we can assist with resolving this issue.</p>
     {% endcall %}
   {% endif %}
   {{ super() }}
