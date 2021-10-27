@@ -32,7 +32,7 @@ You can also configure a fernet key using environment variables. This will overw
 
     .. code-block:: bash
 
-      # Note the double underscores
+      # Note the double underscores between the first three words but single underscore between FERNET and KEY
       export AIRFLOW__CORE__FERNET_KEY=your_fernet_key
 
 Generating Fernet key
@@ -59,5 +59,5 @@ the new key to the ``fernet_key`` setting, run
 ``fernet_key``:
 
 #. Set ``fernet_key`` to ``new_fernet_key,old_fernet_key``
-#. Run ``airflow rotate-fernet-key`` to re-encrypt existing credentials with the new fernet key
+#. Run ``airflow rotate_fernet_key`` to re-encrypt existing credentials with the new fernet key
 #. Set ``fernet_key`` to ``new_fernet_key``
