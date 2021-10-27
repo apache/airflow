@@ -31,7 +31,6 @@ from airflow.exceptions import AirflowException
 # settings.py and cli.py. Please see AIRFLOW-1455.
 LOG_LEVEL: str = conf.get('logging', 'LOGGING_LEVEL').upper()
 
-
 # Flask appbuilder's info level log is very verbose,
 # so it's set to 'WARN' by default.
 FAB_LOG_LEVEL: str = conf.get('logging', 'FAB_LOGGING_LEVEL').upper()
@@ -194,6 +193,8 @@ if REMOTE_LOGGING:
 
         DEFAULT_LOGGING_CONFIG['handlers'].update(S3_REMOTE_HANDLERS)
     elif REMOTE_BASE_LOG_FOLDER.startswith('cloudwatch://'):
+        create_log_group = conf.get('logging', 'CREATE_CLOUDWATCH_LOG_GROUP', fallback=True)
+        create_log_stream = conf.get('logging', 'CREATE_CLOUDWATCH_LOG_STREAM', fallback=True)
         CLOUDWATCH_REMOTE_HANDLERS: Dict[str, Dict[str, str]] = {
             'task': {
                 'class': 'airflow.providers.amazon.aws.log.cloudwatch_task_handler.CloudwatchTaskHandler',
@@ -201,6 +202,8 @@ if REMOTE_LOGGING:
                 'base_log_folder': str(os.path.expanduser(BASE_LOG_FOLDER)),
                 'log_group_arn': urlparse(REMOTE_BASE_LOG_FOLDER).netloc,
                 'filename_template': FILENAME_TEMPLATE,
+                'create_log_group': create_log_group,
+                'create_log_stream': create_log_stream,
             },
         }
 
