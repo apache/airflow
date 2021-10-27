@@ -46,6 +46,7 @@ from typing import (
 
 import attr
 import jinja2
+import text_unidecode
 from dateutil.relativedelta import relativedelta
 from sqlalchemy.orm import Session
 from sqlalchemy.orm.exc import NoResultFound
@@ -69,7 +70,7 @@ from airflow.ti_deps.deps.trigger_rule_dep import TriggerRuleDep
 from airflow.triggers.base import BaseTrigger
 from airflow.utils import timezone
 from airflow.utils.edgemodifier import EdgeModifier
-from airflow.utils.helpers import validate_key
+from airflow.utils.helpers import is_ascii, replace_invalid_ascii_char, validate_key
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.operator_resources import Resources
 from airflow.utils.session import provide_session
@@ -543,7 +544,14 @@ class BaseOperator(Operator, LoggingMixin, TaskMixin, metaclass=BaseOperatorMeta
                 category=PendingDeprecationWarning,
                 stacklevel=3,
             )
+
+        if not is_ascii(task_id):
+            # # using text_unidecode to make non-ascii characters ascii equivalent
+            unicoded_string = text_unidecode.unidecode(task_id).replace(" ", "-")
+            task_id = replace_invalid_ascii_char(unicoded_string)
+
         validate_key(task_id)
+
         self.task_id = task_id
         self.label = task_id
         task_group = task_group or TaskGroupContext.get_current_task_group(dag)

@@ -230,3 +230,25 @@ def build_airflow_url_with_query(query: Dict[str, Any]) -> str:
     view = conf.get('webserver', 'dag_default_view').lower()
     url = url_for(f"Airflow.{view}")
     return f"{url}?{parse.urlencode(query)}"
+
+
+def is_ascii(s):
+    """Check if a string is ascii"""
+    return all(ord(c) < 128 for c in s)
+
+
+def replace_invalid_ascii_char(value, delimiter="."):
+    """
+    Substitute unacceptable characters for acceptable equivalent
+        Args:
+
+        value: str
+        delimiter: str e.g ('.', '-')
+    """
+    str = value
+
+    for char in str:
+        if not KEY_REGEX.match(char):
+            str = str.replace(char, delimiter)
+
+    return str
