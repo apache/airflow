@@ -98,8 +98,8 @@ class SageMakerProcessingOperator(SageMakerBaseOperator):
 
         if self.hook.find_processing_job_by_name(processing_job_name):
             raise AirflowException(
-                    f"A SageMaker processing job with name {processing_job_name} already exists."
-                )
+                f"A SageMaker processing job with name {processing_job_name} already exists."
+            )
 
         self.log.info("Creating SageMaker processing job %s.", self.config["ProcessingJobName"])
         response = self.hook.create_processing_job(

@@ -143,7 +143,7 @@ class TestSageMakerProcessingOperator(unittest.TestCase):
             sagemaker.execute(None)
 
     @mock.patch.object(SageMakerHook, "get_conn")
-    @mock.patch.object(SageMakerHook, "list_processing_jobs", return_value=[{"ProcessingJobName": job_name}])
+    @mock.patch.object(SageMakerHook, "find_processing_job_by_name", return_value=True)
     @mock.patch.object(
         SageMakerHook, "create_processing_job", return_value={"ResponseMetadata": {"HTTPStatusCode": 200}}
     )
@@ -167,7 +167,7 @@ class TestSageMakerProcessingOperator(unittest.TestCase):
         )
 
     @mock.patch.object(SageMakerHook, "get_conn")
-    @mock.patch.object(SageMakerHook, "list_processing_jobs", return_value=[{"ProcessingJobName": job_name}])
+    @mock.patch.object(SageMakerHook, "find_processing_job_by_name", return_value=True)
     @mock.patch.object(
         SageMakerHook, "create_processing_job", return_value={"ResponseMetadata": {"HTTPStatusCode": 200}}
     )
