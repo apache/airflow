@@ -193,8 +193,8 @@ if REMOTE_LOGGING:
 
         DEFAULT_LOGGING_CONFIG['handlers'].update(S3_REMOTE_HANDLERS)
     elif REMOTE_BASE_LOG_FOLDER.startswith('cloudwatch://'):
-        create_log_group = conf.get('logging', 'CREATE_CLOUDWATCH_LOG_GROUP', fallback=True)
-        create_log_stream = conf.get('logging', 'CREATE_CLOUDWATCH_LOG_STREAM', fallback=True)
+        create_log_group = conf.getboolean('logging', 'CREATE_CLOUDWATCH_LOG_GROUP', fallback=True)
+        create_log_stream = conf.getboolean('logging', 'CREATE_CLOUDWATCH_LOG_STREAM', fallback=True)
         CLOUDWATCH_REMOTE_HANDLERS: Dict[str, Dict[str, str]] = {
             'task': {
                 'class': 'airflow.providers.amazon.aws.log.cloudwatch_task_handler.CloudwatchTaskHandler',
