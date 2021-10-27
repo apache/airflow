@@ -28,7 +28,7 @@ function toggleWrap() {
 const isWrapped = getMetaValue('wrapped');
 
 // pygments generates the HTML so set wrap toggle via js
-if (isWrapped) {
+if (isWrapped === 'True') {
   toggleWrap();
 }
 
