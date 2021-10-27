@@ -672,7 +672,6 @@ class TestPodGenerator:
             assert len(parts[0]) <= 63
         assert len(parts[1]) <= 63
 
-    @mock.patch(uuid.uuid4)
     @parameterized.expand(
         (
             ("pod-name-with-hyphen-", "pod-name-with-hyphen"),
