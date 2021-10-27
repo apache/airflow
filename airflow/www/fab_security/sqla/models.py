@@ -22,7 +22,6 @@
 import datetime
 
 from flask import g
-from flask_appbuilder._compat import as_unicode
 from flask_appbuilder.models.sqla import Model
 from sqlalchemy import (
     Boolean,
@@ -37,9 +36,6 @@ from sqlalchemy import (
 )
 from sqlalchemy.ext.declarative import declared_attr
 from sqlalchemy.orm import backref, relationship
-
-_dont_audit = False
-
 
 """
 Compatibility note: The models in this file are duplicated from Flask AppBuilder.
@@ -183,7 +179,7 @@ class User(Model):
         return False
 
     def get_id(self):
-        return as_unicode(self.id)
+        return self.id
 
     def get_full_name(self):
         return f"{self.first_name} {self.last_name}"
