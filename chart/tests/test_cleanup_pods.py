@@ -174,3 +174,28 @@ class CleanupPodsTest(unittest.TestCase):
             "release": "RELEASE-NAME",
             "project": "airflow",
         } == jmespath.search("spec.jobTemplate.spec.template.metadata.labels", docs[0])
+
+    def test_cleanup_resources_are_configurable(self):
+        resources = {
+            "requests": {
+                "cpu": "128m",
+                "memory": "256Mi",
+            },
+            "limits": {
+                "cpu": "256m",
+                "memory": "512Mi",
+            },
+        }
+        docs = render_chart(
+            values={
+                "cleanup": {
+                    "enabled": True,
+                    "resources": resources,
+                },
+            },
+            show_only=["templates/cleanup/cleanup-cronjob.yaml"],
+        )
+
+        assert resources == jmespath.search(
+            "spec.jobTemplate.spec.template.spec.containers[0].resources", docs[0]
+        )
