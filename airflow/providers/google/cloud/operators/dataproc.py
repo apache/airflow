@@ -2400,8 +2400,8 @@ class DataprocListBatchesOperator(BaseOperator):
     :type project_id: str
     :param region: Required. The Cloud Dataproc region in which to handle the request.
     :type region: str
-    :param page_size: Optional. The maximum number of batches to return in each response. The service may return
-        fewer than this value. The default page size is 20; the maximum page size is 1000.
+    :param page_size: Optional. The maximum number of batches to return in each response. The service may
+        return fewer than this value. The default page size is 20; the maximum page size is 1000.
     :type page_size: int
     :param page_token: Optional. A page token received from a previous ``ListBatches`` call.
         Provide this token to retrieve the subsequent page.

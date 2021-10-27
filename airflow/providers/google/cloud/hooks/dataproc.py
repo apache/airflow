@@ -25,7 +25,7 @@ from typing import Any, Dict, Iterable, List, Optional, Sequence, Tuple, Union
 
 from google.api_core.exceptions import ServerError
 from google.api_core.operation import Operation
-from google.api_core.retry import Retry, exponential_sleep_generator
+from google.api_core.retry import Retry
 from google.cloud.dataproc_v1 import (
     Batch,
     BatchControllerClient,
@@ -290,22 +290,13 @@ class DataprocHook(GoogleBaseHook):
             credentials=self._get_credentials(), client_info=self.client_info, client_options=client_options
         )
 
-    def wait_for_operation(
-        self,
-        operation: Operation,
-    ):
-        """Waits for long-running operation to complete."""
-
-        for time_to_wait in exponential_sleep_generator(initial=10, maximum=120):
-            time.sleep(time_to_wait)
-            if operation.done():
-                break
-
-        error = operation.exception()
-        if error:
+    def wait_for_operation(self, timeout: float, operation: Operation):
+        """Waits for long-lasting operation to complete."""
+        try:
+            return operation.result(timeout=timeout)
+        except Exception:
+            error = operation.exception(timeout=timeout)
             raise AirflowException(error)
-
-        return operation.result()
 
     @GoogleBaseHook.fallback_to_default_project_id
     def create_cluster(
@@ -1109,7 +1100,6 @@ class DataprocHook(GoogleBaseHook):
         :param metadata: Additional metadata that is provided to the method.
         :type metadata: Sequence[Tuple[str, str]]
         """
-
         client = self.get_batch_client(region)
         parent = f'projects/{project_id}/regions/{region}'
 
@@ -1156,7 +1146,6 @@ class DataprocHook(GoogleBaseHook):
         :param metadata: Additional metadata that is provided to the method.
         :type metadata: Sequence[Tuple[str, str]]
         """
-
         client = self.get_batch_client(region)
         name = f"projects/{project_id}/regions/{region}/batches/{batch_id}"
 
@@ -1200,7 +1189,6 @@ class DataprocHook(GoogleBaseHook):
         :param metadata: Additional metadata that is provided to the method.
         :type metadata: Sequence[Tuple[str, str]]
         """
-
         client = self.get_batch_client(region)
         name = f"projects/{project_id}/regions/{region}/batches/{batch_id}"
 
@@ -1232,8 +1220,8 @@ class DataprocHook(GoogleBaseHook):
         :type project_id: str
         :param region: Required. The Cloud Dataproc region in which to handle the request.
         :type region: str
-        :param page_size: Optional. The maximum number of batches to return in each response. The service may return
-            fewer than this value. The default page size is 20; the maximum page size is 1000.
+        :param page_size: Optional. The maximum number of batches to return in each response. The service may
+            return fewer than this value. The default page size is 20; the maximum page size is 1000.
         :type page_size: int
         :param page_token: Optional. A page token received from a previous ``ListBatches`` call.
             Provide this token to retrieve the subsequent page.
@@ -1247,7 +1235,6 @@ class DataprocHook(GoogleBaseHook):
         :param metadata: Additional metadata that is provided to the method.
         :type metadata: Sequence[Tuple[str, str]]
         """
-
         client = self.get_batch_client(region)
         parent = f'projects/{project_id}/regions/{region}'
 
