@@ -53,11 +53,14 @@
   {% endfor %}
   {% for original_table_name, moved_table_name in migration_moved_data_alerts %}
     {% call show_message(category='error', dismissible=false) %}
-      Airflow found incompatible data in the <code>{{ original_table_name }}</code> table in the
+      <p>Airflow found incompatible data in the <code>{{ original_table_name }}</code> table in the
       metadatabase, and has moved them to <code>{{ moved_table_name }}</code> during the database migration
       to upgrade. Please inspect the moved data to decide whether you need to keep them, and manually drop
       the <code>{{ moved_table_name }}</code> table to dismiss this warning. Read more about it
       in <a href={{ get_docs_url("installation/upgrading.html") }}><b>Upgrading</b></a>.
+      to upgrade.</p>
+      <p>Please file a support request on <a href="https://support.astronomer.io/hc/en-us">
+      Astronomer's Support Portal</a> so we can assist with resolving this issue.</p>
     {% endcall %}
   {% endfor %}
   {{ super() }}
