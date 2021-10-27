@@ -153,7 +153,7 @@ def check_upgrade_check(files: List[str], version: str):
 
 
 def warn_of_missing_files(files):
-    print(f"[red]Check failed. Here are the files we expected but did not find:[/red]\n")
+    print("[red]Check failed. Here are the files we expected but did not find:[/red]\n")
 
     for file in files:
         print(f"    - [red]{file}[/red]")
