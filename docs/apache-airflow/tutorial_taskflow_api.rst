@@ -224,11 +224,11 @@ is automatically set to true.
 Note, If you manually set the ``multiple_outputs`` parameter the inference is disabled and
 the parameter value is used.
 
-Adding dependencies to decorated tasks from traditional tasks
--------------------------------------------------------------
-The above tutorial shows how to create dependencies between TaskFlow functions. However, it is
-quite possible while writing a DAG to have some traditional tasks (such as :class:`~airflow.operators.bash.BashOperator` or :class:`~airflow.sensors.filesystem.FileSensor`)
-which need to be run first before a TaskFlow function is run.
+Adding dependencies between decorated and traditional tasks
+-----------------------------------------------------------
+The above tutorial shows how to create dependencies between TaskFlow functions. However, dependencies can also
+be set between traditional tasks (such as :class:`~airflow.operators.bash.BashOperator`
+or :class:`~airflow.sensors.filesystem.FileSensor`) and TaskFlow functions.
 
 Building this dependency is shown in the code below:
 
@@ -258,11 +258,15 @@ that this is a Sensor task which waits for the file.
 Finally, a dependency between this Sensor task and the TaskFlow function is specified.
 
 
-Consuming XComs from traditional tasks as inputs
-------------------------------------------------
-You may find it necessary to consume an XCom from traditional task, either pushed within the task's execution
+Consuming XComs between decorated and traditional tasks
+-------------------------------------------------------
+As noted above, the TaskFlow API allows XComs to be consumed or passed between tasks in a manner that is
+abstracted away from the DAG author. This section dives further into detailed examples of how this is
+possible not only between TaskFlow functions but between both TaskFlow functions *and* traditional tasks.
+
+You may find it necessary to consume an XCom from traditional tasks, either pushed within the task's execution
 or via its return value, as an input into downstream tasks. You can access the pushed XCom (also known as an
-``XComArg``) by simply utilizing the ``.output`` property exposed for all operators.
+``XComArg``) by utilizing the ``.output`` property exposed for all operators.
 
 By default, using the ``.output`` property to retrieve an XCom result is the equivalent of:
 
@@ -285,7 +289,7 @@ To retrieve an XCom result for a key other than ``return_value``, you can use:
 
 In the code example below, a :class:`~airflow.providers.http.operators.http.SimpleHttpOperator` result
 is captured via :doc:`XComs </concepts/xcoms>`. This XCom result, which is the task output, is then passed
-to a TaskFlow function to parse the response as JSON.
+to a TaskFlow function which parses the response as JSON.
 
 .. code-block:: python
 
@@ -304,7 +308,33 @@ to a TaskFlow function to parse the response as JSON.
 
     parsed_results = parsed_results(api_results=get_api_results_task.output)
 
-Not only can you use traditional operator outputs as inputs for TaskFlow functions, but also as inputs to
+The reverse can also be done: passing the output of a TaskFlow function as an input to a traditional task.
+
+.. code-block:: python
+
+    @task
+    def create_queue():
+    """This is a Python function that creates an SQS queue"""
+        hook = SQSHook()
+        result = hook.create_queue(queue_name="sample-queue")
+
+        return result["QueueUrl"]
+
+    sqs_queue = create_queue()
+
+    publish_to_queue = SQSPublishOperator(
+        task_id="publish_to_queue",
+        sqs_queue=sqs_queue,
+        message_content="{{ task_instance }}-{{ execution_date }}",
+        message_attributes=None,
+        delay_seconds=0,
+    )
+
+Take note in the code example above, the output from the ``create_queue`` TaskFlow function, the URL of a
+newly-created Amazon SQS Queue, is then passed to a :class:`~airflow.providers.amazon.aws.operators.sqs.SQSPublishOperator`
+task as the ``sqs_queue`` arg.
+
+Finally, not only can you use traditional operator outputs as inputs for TaskFlow functions, but also as inputs to
 other traditional operators. In the example below, the output from the :class:`~airflow.providers.amazon.aws.transfers.salesforce_to_s3.SalesforceToS3Operator`
 task (which is an S3 URI for a destination file location) is used an input for the :class:`~airflow.providers.amazon.aws.operators.s3_copy_object.S3CopyObjectOperator`
 task to copy the same file to a date-partitioned storage location in S3 for long-term storage in a data lake.
