@@ -733,6 +733,7 @@ class TestDataprocHook(unittest.TestCase):
             timeout=None,
         )
 
+
 class TestDataProcJobBuilder(unittest.TestCase):
     def setUp(self) -> None:
         self.job_type = "test"

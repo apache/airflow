@@ -29,12 +29,16 @@ from airflow.models import DAG, DagBag
 from airflow.providers.google.cloud.operators.dataproc import (
     ClusterGenerator,
     DataprocClusterLink,
+    DataprocCreateBatchOperator,
     DataprocCreateClusterOperator,
     DataprocCreateWorkflowTemplateOperator,
+    DataprocDeleteBatchOperator,
     DataprocDeleteClusterOperator,
+    DataprocGetBatchOperator,
     DataprocInstantiateInlineWorkflowTemplateOperator,
     DataprocInstantiateWorkflowTemplateOperator,
     DataprocJobLink,
+    DataprocListBatchesOperator,
     DataprocScaleClusterOperator,
     DataprocSubmitHadoopJobOperator,
     DataprocSubmitHiveJobOperator,
@@ -44,10 +48,6 @@ from airflow.providers.google.cloud.operators.dataproc import (
     DataprocSubmitSparkJobOperator,
     DataprocSubmitSparkSqlJobOperator,
     DataprocUpdateClusterOperator,
-    DataprocCreateBatchOperator,
-    DataprocDeleteBatchOperator,
-    DataprocGetBatchOperator,
-    DataprocListBatchesOperator,
 )
 from airflow.serialization.serialized_objects import SerializedDAG
 from airflow.utils.timezone import datetime
@@ -210,6 +210,7 @@ BATCH = {
         "main_class": "org.apache.spark.examples.SparkPi",
     },
 }
+
 
 def assert_warning(msg: str, warnings):
     assert any(msg in str(w) for w in warnings)

@@ -31,7 +31,7 @@ from typing import Dict, List, Optional, Sequence, Set, Tuple, Union
 from google.api_core import operation  # type: ignore
 from google.api_core.exceptions import AlreadyExists, NotFound
 from google.api_core.retry import Retry, exponential_sleep_generator
-from google.cloud.dataproc_v1 import Cluster, Batch
+from google.cloud.dataproc_v1 import Batch, Cluster
 from google.protobuf.duration_pb2 import Duration
 from google.protobuf.field_mask_pb2 import FieldMask
 

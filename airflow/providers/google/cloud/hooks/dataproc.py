@@ -25,7 +25,7 @@ from typing import Any, Dict, Iterable, List, Optional, Sequence, Tuple, Union
 
 from google.api_core.exceptions import ServerError
 from google.api_core.operation import Operation
-from google.api_core.retry import exponential_sleep_generator, Retry
+from google.api_core.retry import Retry, exponential_sleep_generator
 from google.cloud.dataproc_v1 import (
     Batch,
     BatchControllerClient,

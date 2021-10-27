@@ -26,16 +26,16 @@ from datetime import datetime
 from airflow import models
 from airflow.providers.google.cloud.operators.dataproc import (
     ClusterGenerator,
+    DataprocCreateBatchOperator,
     DataprocCreateClusterOperator,
     DataprocCreateWorkflowTemplateOperator,
+    DataprocDeleteBatchOperator,
     DataprocDeleteClusterOperator,
+    DataprocGetBatchOperator,
     DataprocInstantiateWorkflowTemplateOperator,
+    DataprocListBatchesOperator,
     DataprocSubmitJobOperator,
     DataprocUpdateClusterOperator,
-    DataprocCreateBatchOperator,
-    DataprocGetBatchOperator,
-    DataprocDeleteBatchOperator,
-    DataprocListBatchesOperator
 )
 from airflow.providers.google.cloud.sensors.dataproc import DataprocJobSensor
 
@@ -298,7 +298,7 @@ with models.DAG(
     "example_gcp_batch_dataproc",
     schedule_interval='@once',
     start_date=days_ago(1),
-    ) as dag_batch:
+) as dag_batch:
     # [START how_to_cloud_dataproc_create_batch_operator]
     create_batch = DataprocCreateBatchOperator(
         task_id="create_batch",
@@ -311,10 +311,7 @@ with models.DAG(
 
     # [START how_to_cloud_dataproc_get_batch_operator]
     get_batch = DataprocGetBatchOperator(
-        task_id="get_batch",
-        project_id=PROJECT_ID,
-        region=REGION,
-        batch_id=BATCH_ID
+        task_id="get_batch", project_id=PROJECT_ID, region=REGION, batch_id=BATCH_ID
     )
     # [END how_to_cloud_dataproc_get_batch_operator]
 
@@ -328,10 +325,7 @@ with models.DAG(
 
     # [START how_to_cloud_dataproc_delete_batch_operator]
     delete_batch = DataprocDeleteBatchOperator(
-        task_id="delete_batch",
-        project_id=PROJECT_ID,
-        region=REGION,
-        batch_id=BATCH_ID
+        task_id="delete_batch", project_id=PROJECT_ID, region=REGION, batch_id=BATCH_ID
     )
     # [END how_to_cloud_dataproc_delete_batch_operator]
 
