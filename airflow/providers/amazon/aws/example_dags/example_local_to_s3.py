@@ -37,6 +37,4 @@ with models.DAG(
         dest_key=S3_KEY,
         dest_bucket=S3_BUCKET,
     )
-
-    create_local_to_s3_job
     # [END howto_local_transfer_data_to_s3]
