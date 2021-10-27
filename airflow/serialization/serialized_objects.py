@@ -923,7 +923,7 @@ class SerializedTaskGroup(TaskGroup, BaseSerialization):
     """A JSON serializable representation of TaskGroup."""
 
     @classmethod
-    def serialize_task_group(cls, task_group: TaskGroup) -> Optional[Union[Dict[str, Any]]]:
+    def serialize_task_group(cls, task_group: TaskGroup) -> Optional[Dict[str, Any]]:
         """Serializes TaskGroup into a JSON object."""
         if not task_group:
             return None
