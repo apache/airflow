@@ -422,11 +422,11 @@ class TestSecurity(unittest.TestCase):
 
         assert self.security_manager.get_readable_dag_ids(user) == set()
 
-    @mock.patch('airflow.www.security.AirflowSecurityManager._has_view_access')
-    def test_has_access(self, mock_has_view_access):
+    @mock.patch('airflow.www.security.AirflowSecurityManager._has_resource_access')
+    def test_has_access(self, mock_has_resource_access):
         user = mock.MagicMock()
         user.is_anonymous = False
-        mock_has_view_access.return_value = True
+        mock_has_resource_access.return_value = True
         assert self.security_manager.has_access('perm', 'view', user)
 
     def test_sync_perm_for_dag_creates_permissions_on_resources(self):

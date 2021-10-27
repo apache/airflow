@@ -511,7 +511,7 @@ class SecurityManager(BaseSecurityManager):
 
     def create_permission(self, action_name, resource_name):
         """
-        Adds a permission on a view or menu to the backend
+        Adds a permission on a resource to the backend
 
         :param action_name:
             name of the action to add: 'can_add','can_edit' etc...
@@ -560,7 +560,7 @@ class SecurityManager(BaseSecurityManager):
             log.warning(c.LOGMSG_WAR_SEC_DEL_PERMVIEW.format(resource_name, action_name, roles))
             return
         try:
-            # delete permission on view
+            # delete permission on resource
             self.get_session.delete(perm)
             self.get_session.commit()
             # if no more permission on permission view, delete permission

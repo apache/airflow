@@ -1282,30 +1282,28 @@ class BaseSecurityManager:
                     return True
         return False
 
-    def _has_access_builtin_roles(self, role, permission_name: str, view_name: str) -> bool:
+    def _has_access_builtin_roles(self, role, action_name: str, resource_name: str) -> bool:
         """Checks permission on builtin role"""
-        builtin_pvms = self.builtin_roles.get(role.name, [])
-        for pvm in builtin_pvms:
-            _view_name = pvm[0]
-            _permission_name = pvm[1]
-            if re.match(_view_name, view_name) and re.match(_permission_name, permission_name):
+        perms = self.builtin_roles.get(role.name, [])
+        for (_resource_name, _action_name) in perms:
+            if re.match(_resource_name, resource_name) and re.match(_action_name, action_name):
                 return True
         return False
 
-    def _has_view_access(self, user: object, permission_name: str, view_name: str) -> bool:
+    def _has_resource_access(self, user: object, action_name: str, resource_name: str) -> bool:
         roles = user.roles
         db_role_ids = []
         # First check against builtin (statically configured) roles
         # because no database query is needed
         for role in roles:
             if role.name in self.builtin_roles:
-                if self._has_access_builtin_roles(role, permission_name, view_name):
+                if self._has_access_builtin_roles(role, action_name, resource_name):
                     return True
             else:
                 db_role_ids.append(role.id)
 
         # If it's not a builtin role check against database store roles
-        return self.permission_exists_in_one_or_more_roles(view_name, permission_name, db_role_ids)
+        return self.permission_exists_in_one_or_more_roles(resource_name, action_name, db_role_ids)
 
     def get_user_roles(self, user) -> List[object]:
         """Get current user roles, if user is not authenticated returns the public role"""
@@ -1336,7 +1334,7 @@ class BaseSecurityManager:
         self, user: object, action_name: str, resource_names: List[str]
     ) -> Set[str]:
         """
-        Return a set of view menu names with a certain permission name
+        Return a set of resource names with a certain action name
         that a user has access to. Mainly used to fetch all menu permissions
         on a single db call, will also check public permissions and builtin roles
         """
@@ -1357,20 +1355,20 @@ class BaseSecurityManager:
             else:
                 db_role_ids.append(role.id)
         # Then check against database-stored roles
-        pvms_names = [
-            pvm.resource.name for pvm in self.filter_roles_by_perm_with_action(action_name, db_role_ids)
+        role_resource_names = [
+            perm.resource.name for perm in self.filter_roles_by_perm_with_action(action_name, db_role_ids)
         ]
-        result.update(pvms_names)
+        result.update(role_resource_names)
         return result
 
-    def has_access(self, permission_name, view_name):
-        """Check if current user or public has access to view or menu"""
+    def has_access(self, action_name, resource_name):
+        """Check if current user or public has access to resource."""
         if current_user.is_authenticated:
-            return self._has_view_access(g.user, permission_name, view_name)
+            return self._has_resource_access(g.user, action_name, resource_name)
         elif current_user_jwt:
-            return self._has_view_access(current_user_jwt, permission_name, view_name)
+            return self._has_resource_access(current_user_jwt, action_name, resource_name)
         else:
-            return self.is_item_public(permission_name, view_name)
+            return self.is_item_public(action_name, resource_name)
 
     def get_user_menu_access(self, menu_names: List[str] = None) -> Set[str]:
         if current_user.is_authenticated:
@@ -1382,9 +1380,9 @@ class BaseSecurityManager:
         else:
             return self._get_user_permission_resources(None, "menu_access", resource_names=menu_names)
 
-    def add_permissions_view(self, base_action_names, resource_name):
+    def add_permissions_view(self, base_action_names, resource_name):  # Keep name for compatibility with FAB.
         """
-        Adds a permission on a view menu to the backend
+        Adds an action on a resource to the backend
 
         :param base_permissions:
             list of permissions from view (all exposed methods):
@@ -1431,7 +1429,7 @@ class BaseSecurityManager:
 
     def add_permissions_menu(self, resource_name):
         """
-        Adds menu_access to menu on permission_resource
+        Adds menu_access to resource on permission_resource
 
         :param resource_name:
             The resource name

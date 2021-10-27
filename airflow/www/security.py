@@ -389,13 +389,13 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
             return True
         return resource_name.startswith(permissions.RESOURCE_DAG_PREFIX)
 
-    def _has_view_access(self, user, action, resource) -> bool:
+    def _has_resource_access(self, user, action, resource) -> bool:
         """
         Overriding the method to ensure that it always returns a bool
-        _has_view_access can return NoneType which gives us
+        _has_resource_access can return NoneType which gives us
         issues later on, this fixes that.
         """
-        return bool(super()._has_view_access(user, action, resource))
+        return bool(super()._has_resource_access(user, action, resource))
 
     def has_access(self, action_name, resource_name, user=None) -> bool:
         """
@@ -440,7 +440,7 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
         :return: a bool whether user could perform certain action on the resource.
         :rtype bool
         """
-        return bool(self._has_view_access(user, action_name, resource_name))
+        return bool(self._has_resource_access(user, action_name, resource_name))
 
     def _get_and_cache_perms(self):
         """Cache permissions"""
