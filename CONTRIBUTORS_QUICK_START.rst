@@ -154,9 +154,9 @@ Pyenv and setting up virtual-env
   $ exec $SHELL
   $ pyenv --version
 
-On Ubuntu 20.04 you may get an error of ``pyenv not found``
+On Ubuntu 20.04 you may get an error of ``pyenv not found`` after execute ``exec $SHELL``.
 You can find the solution according to your specific shell in the following link `Configure your shell's environment for Pyenv
-<https://github.com/pyenv/pyenv/blob/master/README.md#basic-github-checkout>`_
+<https://github.com/pyenv/pyenv/blob/master/README.md#basic-github-checkout>`_.
 
 
 5. Checking available version, installing required Python version to pyenv and verifying it
