@@ -25,6 +25,7 @@ from unittest import mock
 import pytest
 from azure.identity import ManagedIdentityCredential
 from azure.storage.blob import BlobServiceClient
+from parameterized import parameterized
 
 from airflow.exceptions import AirflowException
 from airflow.models import Connection
@@ -47,6 +48,9 @@ class TestWasbHook(unittest.TestCase):
         self.shared_key_conn_id = 'azure_shared_key_test'
         self.ad_conn_id = 'azure_AD_test'
         self.sas_conn_id = 'sas_token_id'
+        self.extra__wasb__sas_conn_id = 'extra__sas_token_id'
+        self.http_sas_conn_id = 'http_sas_token_id'
+        self.extra__wasb__http_sas_conn_id = 'extra__http_sas_token_id'
         self.public_read_conn_id = 'pub_read_id'
         self.managed_identity_conn_id = 'managed_identity'
 
@@ -95,6 +99,27 @@ class TestWasbHook(unittest.TestCase):
                 extra=json.dumps({'sas_token': 'token'}),
             )
         )
+        db.merge_conn(
+            Connection(
+                conn_id=self.extra__wasb__sas_conn_id,
+                conn_type=self.connection_type,
+                extra=json.dumps({'extra__wasb__sas_token': 'token'}),
+            )
+        )
+        db.merge_conn(
+            Connection(
+                conn_id=self.http_sas_conn_id,
+                conn_type=self.connection_type,
+                extra=json.dumps({'sas_token': 'https://login.blob.core.windows.net/token'}),
+            )
+        )
+        db.merge_conn(
+            Connection(
+                conn_id=self.extra__wasb__http_sas_conn_id,
+                conn_type=self.connection_type,
+                extra=json.dumps({'extra__wasb__sas_token': 'https://login.blob.core.windows.net/token'}),
+            )
+        )
 
     def test_key(self):
         hook = WasbHook(wasb_conn_id='wasb_test_key')
@@ -119,9 +144,22 @@ class TestWasbHook(unittest.TestCase):
         self.assertIsInstance(hook.get_conn(), BlobServiceClient)
         self.assertIsInstance(hook.get_conn().credential, ManagedIdentityCredential)
 
-    def test_sas_token_connection(self):
-        hook = WasbHook(wasb_conn_id=self.sas_conn_id)
-        assert isinstance(hook.get_conn(), BlobServiceClient)
+    @parameterized.expand(
+        [
+            ('sas_conn_id', 'sas_token'),
+            ('extra__wasb__sas_conn_id', 'extra__wasb__sas_token'),
+            ('http_sas_conn_id', 'sas_token'),
+            ('extra__wasb__http_sas_conn_id', 'extra__wasb__sas_token'),
+        ],
+    )
+    def test_sas_token_connection(self, conn_id_str, extra_key):
+        conn_id = self.__getattribute__(conn_id_str)
+        hook = WasbHook(wasb_conn_id=conn_id)
+        conn = hook.get_conn()
+        hook_conn = hook.get_connection(hook.conn_id)
+        sas_token = hook_conn.extra_dejson[extra_key]
+        assert isinstance(conn, BlobServiceClient)
+        assert conn.url.endswith(sas_token + '/')
 
     @mock.patch("airflow.providers.microsoft.azure.hooks.wasb.BlobServiceClient")
     def test_check_for_blob(self, mock_service):

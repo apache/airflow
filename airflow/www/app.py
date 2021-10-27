@@ -18,6 +18,7 @@
 #
 import warnings
 from datetime import timedelta
+from tempfile import gettempdir
 from typing import Optional
 
 from flask import Flask
@@ -113,7 +114,7 @@ def create_app(config=None, testing=False):
 
     init_robots(flask_app)
 
-    Cache(app=flask_app, config={'CACHE_TYPE': 'filesystem', 'CACHE_DIR': '/tmp'})
+    Cache(app=flask_app, config={'CACHE_TYPE': 'filesystem', 'CACHE_DIR': gettempdir()})
 
     init_flash_views(flask_app)
 
