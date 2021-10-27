@@ -220,7 +220,7 @@ https://github.com/apache/airflow/blob/main/BREEZE.rst#docker-community-edition
 
 .. _jq: https://stedolan.github.io/jq/
 
-   For example, on Ubuntu:
+For example, on Ubuntu:
 
 .. code-block:: bash
 
