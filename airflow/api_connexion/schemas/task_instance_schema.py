@@ -40,7 +40,7 @@ class TaskInstanceSchema(SQLAlchemySchema):
     task_id = auto_field()
     dag_id = auto_field()
     run_id = auto_field(data_key="dag_run_id")
-    # execution_date = auto_field()
+    execution_date = auto_field()
     start_date = auto_field()
     end_date = auto_field()
     duration = auto_field()
