@@ -786,33 +786,33 @@ class SerializedDAG(DAG, BaseSerialization):
     def serialize_dag(cls, dag: DAG) -> dict:
         """Serializes a DAG into a JSON object."""
         try:
-            serialize_dag = cls.serialize_to_json(dag, cls._decorated_fields)
+            serialized_dag = cls.serialize_to_json(dag, cls._decorated_fields)
 
             # If schedule_interval is backed by timetable, serialize only
             # timetable; vice versa for a timetable backed by schedule_interval.
             if dag.timetable.summary == dag.schedule_interval:
-                del serialize_dag["schedule_interval"]
+                del serialized_dag["schedule_interval"]
             else:
-                del serialize_dag["timetable"]
+                del serialized_dag["timetable"]
 
-            serialize_dag["tasks"] = [cls._serialize(task) for _, task in dag.task_dict.items()]
-            serialize_dag["dag_dependencies"] = [
+            serialized_dag["tasks"] = [cls._serialize(task) for _, task in dag.task_dict.items()]
+            serialized_dag["dag_dependencies"] = [
                 vars(t)
                 for t in (SerializedBaseOperator.detect_dependencies(task) for task in dag.task_dict.values())
                 if t is not None
             ]
-            serialize_dag['_task_group'] = SerializedTaskGroup.serialize_task_group(dag.task_group)
+            serialized_dag['_task_group'] = SerializedTaskGroup.serialize_task_group(dag.task_group)
 
             # Edge info in the JSON exactly matches our internal structure
-            serialize_dag["edge_info"] = dag.edge_info
-            serialize_dag["params"] = cls._serialize_params_dict(dag.params)
+            serialized_dag["edge_info"] = dag.edge_info
+            serialized_dag["params"] = cls._serialize_params_dict(dag.params)
 
             # has_on_*_callback are only stored if the value is True, as the default is False
             if dag.has_on_success_callback:
-                serialize_dag['has_on_success_callback'] = True
+                serialized_dag['has_on_success_callback'] = True
             if dag.has_on_failure_callback:
-                serialize_dag['has_on_failure_callback'] = True
-            return serialize_dag
+                serialized_dag['has_on_failure_callback'] = True
+            return serialized_dag
         except SerializationError:
             raise
         except Exception as e:
