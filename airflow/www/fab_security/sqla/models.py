@@ -80,11 +80,6 @@ def get_sequence_or_identity(sequence_name: str) -> Union[Sequence, 'Identity']:
     return Sequence(sequence_name)
 
 
-"""
-Compatibility note: The models in this file are duplicated from Flask AppBuilder.
-"""
-
-
 class Action(Model):
     """Represents permission actions such as `can_read`."""
 
