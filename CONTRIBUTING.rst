@@ -204,7 +204,7 @@ between the two are explained `here <https://github.com/apache/airflow/blob/main
 The local env's instructions can be found in full in the `LOCAL_VIRTUALENV.rst`_ file.
 
 .. _LOCAL_VIRTUALENV.rst:
-https://github.com/apache/airflow/blob/main/LOCAL_VIRTUALENV.rst 
+https://github.com/apache/airflow/blob/main/LOCAL_VIRTUALENV.rst
 The Docker env is here to maintain a consistent and common development environment so that you can replicate CI failures locally and work on solving them locally rather by pushing to CI.
 
 You can configure the Docker-based Breeze development environment as follows:
@@ -214,7 +214,7 @@ You can configure the Docker-based Breeze development environment as follows:
 .. _Docker Community Edition:
 https://github.com/apache/airflow/blob/main/BREEZE.rst#docker-community-edition
 
-.. _Docker Compose: https://github.com/apache/airflow/blob/main/BREEZE.rst#docker-compose 
+.. _Docker Compose: https://github.com/apache/airflow/blob/main/BREEZE.rst#docker-compose
 
 2. Install `jq`_ on your machine. The exact command depends on the operating system (or Linux distribution) you use.
 
