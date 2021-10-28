@@ -956,7 +956,7 @@ class SageMakerHook(AwsBaseHook):
                 next_token = response["NextToken"]
 
     def find_processing_job_by_name(self, processing_job_name: str) -> bool:
-        "Query processing job by name"
+        """Query processing job by name"""
         try:
             self.get_conn().describe_processing_job(ProcessingJobName=processing_job_name)
             return True
