@@ -31,6 +31,7 @@ from airflow.models import DagModel
 from airflow.models.dag import DAG
 from airflow.security import permissions
 from airflow.www import app as application
+from airflow.www.fab_security.manager import AnonymousUser
 from airflow.www.fab_security.sqla.models import assoc_permission_role
 from airflow.www.utils import CustomSQLAInterface
 from tests.test_utils import api_connexion_utils
@@ -118,6 +119,7 @@ class TestSecurity(unittest.TestCase):
             self.security_manager.add_role(rolename)
             role = self.security_manager.find_role(rolename)
         user.roles = [role]
+        # TODO: Find a better place to update the user permissions automatically.
         self.security_manager.update_user(user)
 
     def assert_user_has_dag_perms(self, perms, dag_id, user=None):
@@ -213,8 +215,7 @@ class TestSecurity(unittest.TestCase):
 
     def test_verify_default_anon_user_has_no_accessible_dag_ids(self):
         with self.app.app_context():
-            user = mock.MagicMock()
-            user.is_anonymous = True
+            user = AnonymousUser()
             self.app.config['AUTH_ROLE_PUBLIC'] = 'Public'
             assert self.app.appbuilder.sm.get_user_roles(user) == [self.app.appbuilder.sm.get_public_role()]
 
@@ -225,8 +226,7 @@ class TestSecurity(unittest.TestCase):
 
     def test_verify_default_anon_user_has_no_access_to_specific_dag(self):
         with self.app.app_context():
-            user = mock.MagicMock()
-            user.is_anonymous = True
+            user = AnonymousUser()
             self.app.config['AUTH_ROLE_PUBLIC'] = 'Public'
             assert self.app.appbuilder.sm.get_user_roles(user) == [self.app.appbuilder.sm.get_public_role()]
 
@@ -242,8 +242,7 @@ class TestSecurity(unittest.TestCase):
     def test_verify_anon_user_with_admin_role_has_all_dag_access(self):
         with self.app.app_context():
             self.app.config['AUTH_ROLE_PUBLIC'] = 'Admin'
-            user = mock.MagicMock()
-            user.is_anonymous = True
+            user = AnonymousUser()
 
             assert self.app.appbuilder.sm.get_user_roles(user) == [self.app.appbuilder.sm.get_public_role()]
 
@@ -256,8 +255,7 @@ class TestSecurity(unittest.TestCase):
 
     def test_verify_anon_user_with_admin_role_has_access_to_each_dag(self):
         with self.app.app_context():
-            user = mock.MagicMock()
-            user.is_anonymous = True
+            user = AnonymousUser()
             self.app.config['AUTH_ROLE_PUBLIC'] = 'Admin'
 
             # Call `.get_user_roles` bc `user` is a mock and the `user.roles` prop needs to be set.
@@ -316,8 +314,7 @@ class TestSecurity(unittest.TestCase):
         self.app.config['AUTH_ROLE_PUBLIC'] = 'Viewer'
 
         with self.app.app_context():
-            user = mock.MagicMock()
-            user.is_anonymous = True
+            user = AnonymousUser()
 
             perms_views = set()
             for role in self.security_manager.get_user_roles(user):
@@ -419,15 +416,8 @@ class TestSecurity(unittest.TestCase):
         self.security_manager.sync_perm_for_dag(  # type: ignore
             dag_id, access_control={role_name: permission_action}
         )
-
-        assert self.security_manager.get_readable_dag_ids(user) == set()
-
-    @mock.patch('airflow.www.security.AirflowSecurityManager._has_resource_access')
-    def test_has_access(self, mock_has_resource_access):
-        user = mock.MagicMock()
-        user.is_anonymous = False
-        mock_has_resource_access.return_value = True
-        assert self.security_manager.has_access('perm', 'view', user)
+        readable_dag_ids = {dag.dag_id for dag in self.security_manager.get_readable_dags(user)}
+        assert readable_dag_ids == set()
 
     def test_sync_perm_for_dag_creates_permissions_on_resources(self):
         test_dag_id = 'TEST_DAG'
@@ -442,17 +432,17 @@ class TestSecurity(unittest.TestCase):
             is not None
         )
 
-    @mock.patch('airflow.www.security.AirflowSecurityManager._has_perm')
+    @mock.patch('airflow.www.security.AirflowSecurityManager.has_access')
     @mock.patch('airflow.www.security.AirflowSecurityManager._has_role')
-    def test_has_all_dag_access(self, mock_has_role, mock_has_perm):
+    def test_has_all_dag_access(self, mock_has_role, mock_has_access):
         mock_has_role.return_value = True
         assert self.security_manager.has_all_dags_access()
 
         mock_has_role.return_value = False
-        mock_has_perm.return_value = False
+        mock_has_access.return_value = False
         assert not self.security_manager.has_all_dags_access()
 
-        mock_has_perm.return_value = True
+        mock_has_access.return_value = True
         assert self.security_manager.has_all_dags_access()
 
     def test_access_control_with_non_existent_role(self):
@@ -551,6 +541,7 @@ class TestSecurity(unittest.TestCase):
             self.security_manager._sync_dag_view_permissions(
                 'access_control_test', access_control={'team-a': READ_ONLY}
             )
+            # TODO: Don't manually set permissions
             self.assert_user_has_dag_perms(
                 perms=[permissions.ACTION_CAN_READ], dag_id='access_control_test', user=user
             )
