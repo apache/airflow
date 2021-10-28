@@ -185,6 +185,7 @@ class User(Model):
     roles = relationship("Role", secondary=assoc_user_role, backref="user", lazy="joined")
     created_on = Column(DateTime, default=datetime.datetime.now, nullable=True)
     changed_on = Column(DateTime, default=datetime.datetime.now, nullable=True)
+    _perms = set()
 
     @declared_attr
     def created_by_fk(self):

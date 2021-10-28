@@ -22,7 +22,7 @@ from typing import Dict, Optional, Sequence, Set, Tuple
 
 from flask import g
 from sqlalchemy import or_
-from sqlalchemy.orm import joinedload
+from sqlalchemy.orm import contains_eager, joinedload
 
 from airflow.exceptions import AirflowException
 from airflow.models import DagBag, DagModel
@@ -352,6 +352,8 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
         :return: Whether user could perform certain action on the resource.
         :rtype bool
         """
+        # if not self.perms:
+        #     self.perms = self.get_current_user_permissions()
         if not user:
             user = g.user
         if (action_name, resource_name) in user.perms:
@@ -636,6 +638,7 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
             for action_name in self.DAG_ACTIONS:
                 self._merge_perm(action_name, resource_name)
 
+    # TODO: Dafuq happening here?
     def check_authorization(
         self, perms: Optional[Sequence[Tuple[str, str]]] = None, dag_id: Optional[str] = None
     ) -> bool:
