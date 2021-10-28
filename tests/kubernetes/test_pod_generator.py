@@ -109,7 +109,7 @@ class TestPodGenerator:
             kind="Pod",
             metadata=k8s.V1ObjectMeta(
                 namespace="default",
-                name='myapp-pod.' + self.static_uuid.hex,
+                name='myapp-pod-' + self.static_uuid.hex,
                 labels={'app': 'myapp'},
             ),
             spec=k8s.V1PodSpec(
@@ -433,7 +433,7 @@ class TestPodGenerator:
         expected.metadata.labels = self.labels
         expected.metadata.labels['app'] = 'myapp'
         expected.metadata.annotations = self.annotations
-        expected.metadata.name = 'pod_id.' + self.static_uuid.hex
+        expected.metadata.name = 'pod_id-' + self.static_uuid.hex
         expected.metadata.namespace = 'test_namespace'
         expected.spec.containers[0].args = ['command']
         expected.spec.containers[0].image = expected_image
@@ -475,7 +475,7 @@ class TestPodGenerator:
         worker_config.metadata.annotations = self.annotations
         worker_config.metadata.labels = self.labels
         worker_config.metadata.labels['app'] = 'myapp'
-        worker_config.metadata.name = 'pod_id.' + self.static_uuid.hex
+        worker_config.metadata.name = 'pod_id-' + self.static_uuid.hex
         worker_config.metadata.namespace = 'namespace'
         worker_config.spec.containers[0].env.append(
             k8s.V1EnvVar(name="AIRFLOW_IS_K8S_EXECUTOR_POD", value='True')
@@ -502,8 +502,9 @@ class TestPodGenerator:
             pod_override_object=None,
             base_worker_pod=worker_config,
         )
+        len_uuid = len(self.static_uuid.hex)
 
-        assert result.metadata.name == 'a' * 63 + '-' + self.static_uuid.hex
+        assert result.metadata.name == 'a' * (63 - len_uuid) + '-' + self.static_uuid.hex
         for _, v in result.metadata.labels.items():
             assert len(v) <= 63
 
