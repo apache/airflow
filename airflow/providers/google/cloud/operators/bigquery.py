@@ -1089,8 +1089,8 @@ class BigQueryCreateExternalTableOperator(BaseOperator):
     def __init__(
         self,
         *,
-        bucket: str,
-        source_objects: List,
+        bucket: Optional[str] = None,
+        source_objects: Optional[List] = None,
         destination_project_dataset_table: str = None,
         table_resource: Optional[Dict[str, Any]] = None,
         schema_fields: Optional[List] = None,
@@ -1142,11 +1142,14 @@ class BigQueryCreateExternalTableOperator(BaseOperator):
         if not table_resource:
             warnings.warn(
                 "Passing table parameters via keywords arguments will be deprecated. "
-                "Please use provide table definition using `table_resource` parameter."
-                "You can still use external `schema_object`. ",
+                "Please use provide table definition using `table_resource` parameter.",
                 DeprecationWarning,
                 stacklevel=2,
             )
+            if not bucket:
+                raise ValueError("`bucket` is required when not using `table_resource`.")
+            if not source_objects:
+                raise ValueError("`source_objects` is required when not using `table_resource`.")
             if not source_format:
                 source_format = 'CSV'
             if not compression:
