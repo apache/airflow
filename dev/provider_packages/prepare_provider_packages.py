@@ -2075,6 +2075,11 @@ KNOWN_DEPRECATED_MESSAGES: Set[Tuple[str, str]] = {
         " Python 3.3, and in 3.10 it will stop working",
         "apache_beam",
     ),
+    (  # Same as above but on 3.8. Notice the different version and the missing space before 'and'.
+        "Using or importing the ABCs from 'collections' instead of from 'collections.abc' is deprecated since"
+        " Python 3.3,and in 3.9 it will stop working",
+        "apache_beam",
+    ),
     (
         "Using or importing the ABCs from 'collections' instead of from 'collections.abc' is deprecated since"
         " Python 3.3, and in 3.10 it will stop working",
