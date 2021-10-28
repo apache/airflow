@@ -459,6 +459,7 @@ label[for="timezone-other"],
   z-index: 0;
 }
 
-.tooltip.in {
+.tooltip.in,
+.tooltip.d3-tip {
   z-index: 1070;
 }
