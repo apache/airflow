@@ -198,15 +198,15 @@ class DAG(LoggingMixin):
     :type schedule_interval: datetime.timedelta or
         dateutil.relativedelta.relativedelta or str that acts as a cron
         expression
+    :param timetable: Specify which timetable to use (in which case schedule_interval
+        must not be set). See :doc:`/howto/timetable` for more information
+    :type timetable: airflow.timetables.base.Timetable
     :param start_date: The timestamp from which the scheduler will
         attempt to backfill
     :type start_date: datetime.datetime
     :param end_date: A date beyond which your DAG won't run, leave to None
         for open ended scheduling
     :type end_date: datetime.datetime
-    :param timetable: Specify which timetable implementation to use. See
-        :doc:`/howto/timetable` for more information.
-    :type timetable: airflow.timetables.base.Timetable
     :param template_searchpath: This list of folders (non relative)
         defines where jinja will look for your templates. Order matters.
         Note that jinja/airflow includes the path of your DAG file by
