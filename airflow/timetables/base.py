@@ -16,7 +16,8 @@
 # under the License.
 
 from __future__ import annotations
-from typing import Any, Dict, NamedTuple, Optional
+
+from typing import Any, NamedTuple
 
 from pendulum import DateTime
 
@@ -34,7 +35,7 @@ class DataInterval(NamedTuple):
     end: DateTime
 
     @classmethod
-    def exact(cls, at: DateTime) -> "DagRunInfo":
+    def exact(cls, at: DateTime) -> DagRunInfo:
         """Represent an "interval" containing only an exact time."""
         return cls(start=at, end=at)
 
@@ -55,8 +56,8 @@ class TimeRestriction(NamedTuple):
     created by Airflow.
     """
 
-    earliest: Optional[DateTime]
-    latest: Optional[DateTime]
+    earliest: DateTime | None
+    latest: DateTime | None
     catchup: bool
 
 
@@ -77,12 +78,12 @@ class DagRunInfo(NamedTuple):
     """The data interval this DagRun to operate over."""
 
     @classmethod
-    def exact(cls, at: DateTime) -> "DagRunInfo":
+    def exact(cls, at: DateTime) -> DagRunInfo:
         """Represent a run on an exact time."""
         return cls(run_after=at, data_interval=DataInterval.exact(at))
 
     @classmethod
-    def interval(cls, start: DateTime, end: DateTime) -> "DagRunInfo":
+    def interval(cls, start: DateTime, end: DateTime) -> DagRunInfo:
         """Represent a run on a continuous schedule.
 
         In such a schedule, each data interval starts right after the previous
@@ -119,7 +120,7 @@ class Timetable(Protocol):
     """
 
     @classmethod
-    def deserialize(cls, data: Dict[str, Any]) -> Timetable:
+    def deserialize(cls, data: dict[str, Any]) -> Timetable:
         """Deserialize a timetable from data.
 
         This is called when a serialized DAG is deserialized. ``data`` will be
@@ -128,7 +129,7 @@ class Timetable(Protocol):
         """
         return cls()
 
-    def serialize(self) -> Dict[str, Any]:
+    def serialize(self) -> dict[str, Any]:
         """Serialize the timetable for JSON encoding.
 
         This is called during DAG serialization to store timetable information
@@ -170,9 +171,9 @@ class Timetable(Protocol):
     def next_dagrun_info(
         self,
         *,
-        last_automated_data_interval: Optional[DataInterval],
+        last_automated_data_interval: DataInterval | None,
         restriction: TimeRestriction,
-    ) -> Optional[DagRunInfo]:
+    ) -> DagRunInfo | None:
         """Provide information to schedule the next DagRun.
 
         The default implementation raises ``NotImplementedError``.
