@@ -516,7 +516,7 @@ Once you have the keys, the signatures can be verified by running this:
 ```shell script
 for i in *.asc
 do
-   echo "Checking $i\n"; gpg --verify $i
+   echo -e "Checking $i\n"; gpg --verify $i
 done
 ```
 
