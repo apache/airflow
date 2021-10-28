@@ -125,12 +125,14 @@ def get_templates_from_variables(template_names=None) -> Dict:
 
 
 def training_server_update_templates():
-    cas_analysis = CasHook(role='analysis')
-    cas_training = CasHook(role='training')
-    cas_all = CasHook(role='all')
+    roles = ['all', 'analysis', 'training']
     loop = asyncio.get_event_loop()
-    for cas in filter(lambda x: x.connection is not None, [cas_analysis, cas_training, cas_all]):
-        loop.run_until_complete(cas.training_server_update_templates())
+    for role in roles:
+        try:
+            cas = CasHook(role=role)
+            loop.run_until_complete(cas.training_server_update_templates())
+        except Exception as e:
+            _logger.warning(e)
     loop.close()
 
 
