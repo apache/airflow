@@ -37,12 +37,7 @@ class CasHook(BaseHook):
                 port='' if self.connection.port is None else ':{}'.format(self.connection.port)
             )
         else:
-            if role == 'analysis':
-                self.uri = CAS_ANALYSIS_BASE_URL
-            elif role == 'training':
-                self.uri = CAS_TRAINING_BASE_URL
-            else:
-                self.uri = CAS_ANALYSIS_BASE_URL
+            raise Exception(f'没有配置cas连接{conn_id}')
 
     @property
     def trigger_analyze_endpoint(self):
