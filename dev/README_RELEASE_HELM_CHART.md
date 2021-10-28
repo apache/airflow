@@ -339,7 +339,7 @@ where `.rat-excludes` is the file in the root of Chart source code.
 
 ## Signature check
 
-Make sure you have the key of person signed imported in your GPG. You can find the valid keys in
+Make sure you have imported into your GPG the PGP key of the person signing the release. You can find the valid keys in
 [KEYS](https://dist.apache.org/repos/dist/release/airflow/KEYS).
 
 You can import the whole KEYS file:
