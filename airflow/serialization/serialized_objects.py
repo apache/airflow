@@ -410,14 +410,15 @@ class BaseSerialization:
     @classmethod
     def _serialize_param(cls, param: Param):
         param_dict = param.dump()
-        param_dict['default'] = cls._serialize(param_dict.pop('value'))
-        return param_dict
+        param_class_name = param_dict.pop(Param.CLASS_IDENTIFIER)
+        param_kwargs = dict(default=param_dict.pop('value'), **param_dict)
+        return {Param.CLASS_IDENTIFIER: param_class_name, **cls._serialize(param_kwargs)}
 
     @classmethod
     def _deserialize_param(cls, param_dict: Dict):
-        param_class = import_string(param_dict['__class'])
-        param_dict['default'] = cls._deserialize(param_dict['default'])
-        return param_class(**param_dict)
+        param_class = import_string(param_dict.pop(Param.CLASS_IDENTIFIER))
+        param_kwargs = cls._deserialize(param_dict)
+        return param_class(**param_kwargs)
 
     @classmethod
     def _serialize_params_dict(cls, params: ParamsDict):
