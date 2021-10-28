@@ -21,6 +21,7 @@
 import copy
 import importlib
 import importlib.util
+import json
 import multiprocessing
 import os
 from datetime import datetime, timedelta
@@ -724,6 +725,7 @@ class TestStringifiedDAGs:
         [
             (None, {}),
             ({"param_1": "value_1"}, {"param_1": "value_1"}),
+            ({"param_1": {1, 2, 3}}, {"param_1": {1, 2, 3}}),
         ],
     )
     def test_dag_params_roundtrip(self, val, expected_val):
@@ -734,6 +736,10 @@ class TestStringifiedDAGs:
         BaseOperator(task_id='simple_task', dag=dag, start_date=datetime(2019, 8, 1))
 
         serialized_dag = SerializedDAG.to_dict(dag)
+
+        # serialized dag dict must be json serializable
+        json.dumps(serialized_dag)
+
         assert "params" in serialized_dag["dag"]
 
         deserialized_dag = SerializedDAG.from_dict(serialized_dag)
