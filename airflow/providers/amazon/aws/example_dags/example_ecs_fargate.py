@@ -33,6 +33,7 @@ dag = DAG(
     default_view="graph",
     schedule_interval=None,
     start_date=datetime.datetime(2020, 1, 1),
+    catchup=False,
     tags=["example"],
 )
 # generate dag documentation

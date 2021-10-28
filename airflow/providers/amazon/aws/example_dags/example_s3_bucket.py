@@ -43,6 +43,7 @@ with DAG(
     dag_id='s3_bucket_dag',
     schedule_interval=None,
     start_date=datetime(2021, 1, 1),
+    catchup=False,
     default_args={"bucket_name": BUCKET_NAME},
     max_active_runs=1,
     tags=['example'],

@@ -50,7 +50,11 @@ def remove_sample_data_from_s3():
 
 
 with DAG(
-    dag_id="example_s3_to_redshift", start_date=datetime(2021, 1, 1), schedule_interval=None, tags=['example']
+    dag_id="example_s3_to_redshift",
+    start_date=datetime(2021, 1, 1),
+    schedule_interval=None,
+    catchup=False,
+    tags=['example'],
 ) as dag:
     add_sample_data_to_s3 = add_sample_data_to_s3()
 

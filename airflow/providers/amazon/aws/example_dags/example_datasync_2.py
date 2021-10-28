@@ -73,6 +73,7 @@ with models.DAG(
     "example_datasync_2",
     schedule_interval=None,  # Override to match your needs
     start_date=datetime(2021, 1, 1),
+    catchup=False,
     tags=['example'],
 ) as dag:
 

@@ -60,6 +60,7 @@ with DAG(
     dagrun_timeout=timedelta(hours=2),
     start_date=datetime(2021, 1, 1),
     schedule_interval="@once",
+    catchup=False,
     tags=["emr_containers", "example"],
 ) as dag:
 

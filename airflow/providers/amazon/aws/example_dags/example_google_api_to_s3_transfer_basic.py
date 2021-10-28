@@ -37,6 +37,7 @@ with DAG(
     dag_id="example_google_api_to_s3_transfer_basic",
     schedule_interval=None,
     start_date=datetime(2021, 1, 1),
+    catchup=False,
     tags=['example'],
 ) as dag:
     # [START howto_operator_google_api_to_s3_transfer_basic_task_1]

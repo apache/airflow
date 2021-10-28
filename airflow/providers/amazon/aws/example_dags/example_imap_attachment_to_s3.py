@@ -37,6 +37,7 @@ with DAG(
     dag_id="example_imap_attachment_to_s3",
     start_date=datetime(2021, 1, 1),
     schedule_interval=None,
+    catchup=False,
     tags=['example'],
 ) as dag:
     # [START howto_operator_imap_attachment_to_s3_task_1]

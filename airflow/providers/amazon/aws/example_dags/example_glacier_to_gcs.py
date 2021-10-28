@@ -30,6 +30,7 @@ with models.DAG(
     "example_glacier_to_gcs",
     schedule_interval=None,
     start_date=datetime(2021, 1, 1),  # Override to match your needs
+    catchup=False,
 ) as dag:
     # [START howto_glacier_create_job_operator]
     create_glacier_job = GlacierCreateJobOperator(task_id="create_glacier_job", vault_name=VAULT_NAME)

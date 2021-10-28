@@ -29,6 +29,7 @@ with models.DAG(
     "example_s3_to_sftp",
     schedule_interval=None,
     start_date=datetime(2021, 1, 1),  # Override to match your needs
+    catchup=False,
 ) as dag:
 
     # [START howto_s3_transfer_data_to_sftp]
