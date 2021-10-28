@@ -64,12 +64,6 @@ class TestSendEmailSendGrid(unittest.TestCase):
             'name': 'Foo Bar',
             'email': 'foo@foo.bar',
         }
-        # sender from conf
-        self.expected_mail_data_conf_sender = copy.deepcopy(self.expected_mail_data)
-        self.expected_mail_data_conf_sender['from'] = {
-            'name': 'Foo Conf',
-            'email': 'foo@conf.com',
-        }
 
     # Test the right email is constructed.
     @mock.patch.dict('os.environ', SENDGRID_MAIL_FROM='foo@bar.com')
