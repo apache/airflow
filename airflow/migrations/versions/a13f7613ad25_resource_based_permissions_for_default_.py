@@ -147,7 +147,9 @@ def remap_permissions():
         for new_action_name, new_resource_name in new:
             new_permission = appbuilder.sm.create_permission(new_action_name, new_resource_name)
             for role in appbuilder.sm.get_all_roles():
-                if appbuilder.sm.exist_permission_on_roles(old_resource_name, old_action_name, [role.id]):
+                if appbuilder.sm.permission_exists_in_one_or_more_roles(
+                    old_resource_name, old_action_name, [role.id]
+                ):
                     appbuilder.sm.add_permission_to_role(role, new_permission)
                     appbuilder.sm.remove_permission_from_role(role, old_permission)
         appbuilder.sm.delete_permission(old_action_name, old_resource_name)

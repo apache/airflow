@@ -1238,7 +1238,7 @@ def validate_provider_info_with_runtime_schema(provider_info: Dict[str, Any]) ->
         console.print("[red]Provider info not validated against runtime schema[/]")
         raise Exception(
             "Error when validating schema. The schema must be compatible with "
-            + "airflow/provider_info.schema.json.",
+            "airflow/provider_info.schema.json.",
             ex,
         )
 

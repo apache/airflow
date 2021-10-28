@@ -80,7 +80,7 @@ Running Unit Tests from Visual Studio Code
 
 To run unit tests from the Visual Studio Code:
 
-1. Using the ``Exteinsions`` view install Python extension, reload if required
+1. Using the ``Extensions`` view install Python extension, reload if required
 
 .. image:: images/vscode_install_python_extension.png
     :align: center

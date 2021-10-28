@@ -36,7 +36,7 @@ from airflow import version
 
 __version__ = version.version
 
-__all__ = ['__version__', 'login', 'DAG', 'PY36', 'PY37', 'PY38', 'PY39']
+__all__ = ['__version__', 'login', 'DAG', 'PY36', 'PY37', 'PY38', 'PY39', 'PY310']
 
 # Make `airflow` an namespace package, supporting installing
 # airflow.providers.* in different locations (i.e. one in site, and one in user
@@ -51,6 +51,7 @@ PY36 = sys.version_info >= (3, 6)
 PY37 = sys.version_info >= (3, 7)
 PY38 = sys.version_info >= (3, 8)
 PY39 = sys.version_info >= (3, 9)
+PY310 = sys.version_info >= (3, 10)
 
 
 def __getattr__(name):

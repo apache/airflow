@@ -19,4 +19,5 @@
 import airflow.jobs.backfill_job
 import airflow.jobs.base_job
 import airflow.jobs.local_task_job
-import airflow.jobs.scheduler_job  # noqa
+import airflow.jobs.scheduler_job
+import airflow.jobs.triggerer_job  # noqa

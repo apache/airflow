@@ -30,7 +30,7 @@ from typing import Dict, List, Optional, Sequence, Set, Tuple, Union
 
 from google.api_core.exceptions import AlreadyExists, NotFound
 from google.api_core.retry import Retry, exponential_sleep_generator
-from google.cloud.dataproc_v1beta2 import Cluster
+from google.cloud.dataproc_v1 import Cluster
 from google.protobuf.duration_pb2 import Duration
 from google.protobuf.field_mask_pb2 import FieldMask
 
@@ -1906,7 +1906,7 @@ class DataprocSubmitJobOperator(BaseOperator):
     :type location: str
     :param job: Required. The job resource.
         If a dict is provided, it must be of the same form as the protobuf message
-        :class:`~google.cloud.dataproc_v1beta2.types.Job`
+        :class:`~google.cloud.dataproc_v1.types.Job`
     :type job: Dict
     :param request_id: Optional. A unique id used to identify the request. If the server receives two
         ``SubmitJobRequest`` requests with the same id, then the second request will be ignored and the first
@@ -2047,8 +2047,8 @@ class DataprocUpdateClusterOperator(BaseOperator):
     :param cluster: Required. The changes to the cluster.
 
         If a dict is provided, it must be of the same form as the protobuf message
-        :class:`~google.cloud.dataproc_v1beta2.types.Cluster`
-    :type cluster: Union[Dict, google.cloud.dataproc_v1beta2.types.Cluster]
+        :class:`~google.cloud.dataproc_v1.types.Cluster`
+    :type cluster: Union[Dict, google.cloud.dataproc_v1.types.Cluster]
     :param update_mask: Required. Specifies the path, relative to ``Cluster``, of the field to update. For
         example, to change the number of workers in a cluster to 5, the ``update_mask`` parameter would be
         specified as ``config.worker_config.num_instances``, and the ``PATCH`` request body would specify the
