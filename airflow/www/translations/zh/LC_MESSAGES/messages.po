@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PROJECT VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2021-08-19 16:37+0800\n"
+"POT-Creation-Date: 2021-10-28 15:43+0800\n"
 "PO-Revision-Date: 2020-03-23 18:12+0800\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language: zh\n"
@@ -17,6 +17,181 @@ msgstr ""
 "Content-Type: text/plain; charset=utf-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "Generated-By: Babel 2.9.1\n"
+
+#: airflow/providers/asana/hooks/asana.py:55
+msgid "Workspace"
+msgstr ""
+
+#: airflow/providers/asana/hooks/asana.py:56
+msgid "Project"
+msgstr ""
+
+#: airflow/providers/cncf/kubernetes/hooks/kubernetes.py:78
+#, fuzzy
+msgid "In cluster configuration"
+msgstr "配置"
+
+#: airflow/providers/cncf/kubernetes/hooks/kubernetes.py:80
+msgid "Kube config path"
+msgstr ""
+
+#: airflow/providers/cncf/kubernetes/hooks/kubernetes.py:83
+msgid "Kube config (JSON format)"
+msgstr ""
+
+#: airflow/providers/cncf/kubernetes/hooks/kubernetes.py:86
+msgid "Namespace"
+msgstr ""
+
+#: airflow/providers/google/common/hooks/base_google.py:174
+msgid "Project Id"
+msgstr "项目Id"
+
+#: airflow/providers/google/common/hooks/base_google.py:177
+msgid "Keyfile Path"
+msgstr ""
+
+#: airflow/providers/google/common/hooks/base_google.py:180
+msgid "Keyfile JSON"
+msgstr ""
+
+#: airflow/providers/google/common/hooks/base_google.py:183
+#: airflow/providers/grpc/hooks/grpc.py:70
+msgid "Scopes (comma separated)"
+msgstr ""
+
+#: airflow/providers/google/common/hooks/base_google.py:186
+msgid "Number of Retries"
+msgstr "重试次数"
+
+#: airflow/providers/grpc/hooks/grpc.py:64
+msgid "Grpc Auth Type"
+msgstr "Grpc授权类型"
+
+#: airflow/providers/grpc/hooks/grpc.py:67
+msgid "Credential Keyfile Path"
+msgstr ""
+
+#: airflow/providers/jdbc/hooks/jdbc.py:50
+msgid "Driver Path"
+msgstr "驱动路径"
+
+#: airflow/providers/jdbc/hooks/jdbc.py:52
+msgid "Driver Class"
+msgstr "驱动类"
+
+#: airflow/providers/microsoft/azure/hooks/adx.py:96
+msgid "Tenant ID"
+msgstr ""
+
+#: airflow/providers/microsoft/azure/hooks/adx.py:99
+msgid "Authentication Method"
+msgstr ""
+
+#: airflow/providers/microsoft/azure/hooks/adx.py:102
+msgid "Application PEM Certificate"
+msgstr ""
+
+#: airflow/providers/microsoft/azure/hooks/adx.py:105
+msgid "Application Certificate Thumbprint"
+msgstr ""
+
+#: airflow/providers/microsoft/azure/hooks/azure_batch.py:58
+msgid "Azure Batch Account URl"
+msgstr ""
+
+#: airflow/providers/microsoft/azure/hooks/azure_container_volume.py:53
+#: airflow/providers/microsoft/azure/hooks/wasb.py:69
+msgid "Blob Storage Connection String (optional)"
+msgstr ""
+
+#: airflow/providers/microsoft/azure/hooks/azure_cosmos.py:63
+msgid "Cosmos Database Name (optional)"
+msgstr ""
+
+#: airflow/providers/microsoft/azure/hooks/azure_cosmos.py:66
+msgid "Cosmos Collection Name (optional)"
+msgstr ""
+
+#: airflow/providers/microsoft/azure/hooks/azure_data_factory.py:95
+#: airflow/providers/microsoft/azure/hooks/azure_data_lake.py:61
+#: airflow/providers/microsoft/azure/hooks/base_azure.py:53
+msgid "Azure Tenant ID"
+msgstr ""
+
+#: airflow/providers/microsoft/azure/hooks/azure_data_factory.py:98
+#: airflow/providers/microsoft/azure/hooks/base_azure.py:56
+msgid "Azure Subscription ID"
+msgstr ""
+
+#: airflow/providers/microsoft/azure/hooks/azure_data_lake.py:64
+msgid "Azure DataLake Store Name"
+msgstr ""
+
+#: airflow/providers/microsoft/azure/hooks/azure_fileshare.py:56
+#: airflow/providers/microsoft/azure/hooks/wasb.py:78
+msgid "SAS Token (optional)"
+msgstr ""
+
+#: airflow/providers/microsoft/azure/hooks/azure_fileshare.py:59
+msgid "Connection String (optional)"
+msgstr ""
+
+#: airflow/providers/microsoft/azure/hooks/azure_fileshare.py:62
+msgid "Account URL or token (optional)"
+msgstr ""
+
+#: airflow/providers/microsoft/azure/hooks/wasb.py:72
+msgid "Blob Storage Shared Access Key (optional)"
+msgstr ""
+
+#: airflow/providers/microsoft/azure/hooks/wasb.py:75
+msgid "Tenant Id (Active Directory Auth)"
+msgstr ""
+
+#: airflow/providers/snowflake/hooks/snowflake.py:87
+msgid "Account"
+msgstr ""
+
+#: airflow/providers/snowflake/hooks/snowflake.py:89
+msgid "Warehouse"
+msgstr ""
+
+#: airflow/providers/snowflake/hooks/snowflake.py:91
+msgid "Database"
+msgstr ""
+
+#: airflow/providers/snowflake/hooks/snowflake.py:92
+msgid "Region"
+msgstr ""
+
+#: airflow/providers/snowflake/hooks/snowflake.py:94
+msgid "AWS Access Key"
+msgstr ""
+
+#: airflow/providers/snowflake/hooks/snowflake.py:97
+msgid "AWS Secret Key"
+msgstr ""
+
+#: airflow/providers/yandex/hooks/yandex.py:50
+msgid "Service account auth JSON"
+msgstr ""
+
+#: airflow/providers/yandex/hooks/yandex.py:57
+msgid "Service account auth JSON file path"
+msgstr ""
+
+#: airflow/providers/yandex/hooks/yandex.py:64
+msgid "OAuth Token"
+msgstr ""
+
+#: airflow/providers/yandex/hooks/yandex.py:70
+msgid "Default folder ID"
+msgstr ""
+
+#: airflow/providers/yandex/hooks/yandex.py:76
+msgid "Public SSH key"
+msgstr ""
 
 #: airflow/security/permissions.py:20
 msgid "Admin"
@@ -28,7 +203,7 @@ msgstr ""
 
 #: airflow/security/permissions.py:22
 msgid "Audit Logs"
-msgstr ""
+msgstr "事件日志"
 
 #: airflow/security/permissions.py:23
 msgid "Browse"
@@ -49,11 +224,11 @@ msgstr "用户名"
 
 #: airflow/security/permissions.py:27
 msgid "Docs"
-msgstr ""
+msgstr "文档"
 
 #: airflow/security/permissions.py:28
 msgid "Documentation"
-msgstr ""
+msgstr "文档"
 
 #: airflow/security/permissions.py:29
 msgid "Configurations"
@@ -65,7 +240,7 @@ msgstr "连接"
 
 #: airflow/security/permissions.py:31
 msgid "DAG Dependencies"
-msgstr ""
+msgstr "DAG依赖"
 
 #: airflow/security/permissions.py:32
 #, fuzzy
@@ -114,7 +289,7 @@ msgstr "池"
 
 #: airflow/security/permissions.py:42
 msgid "Plugins"
-msgstr ""
+msgstr "插件"
 
 #: airflow/security/permissions.py:43
 msgid "Providers"
@@ -127,7 +302,7 @@ msgstr "档案"
 
 #: airflow/security/permissions.py:45
 msgid "SLA Misses"
-msgstr "服务水平未达成"
+msgstr "服务可用性异常"
 
 #: airflow/security/permissions.py:46
 msgid "Task Instances"
@@ -135,15 +310,15 @@ msgstr "任务实例"
 
 #: airflow/security/permissions.py:47
 msgid "Task Logs"
-msgstr ""
+msgstr "任务日志"
 
 #: airflow/security/permissions.py:48
 msgid "Task Reschedules"
-msgstr ""
+msgstr "任务重排"
 
 #: airflow/security/permissions.py:49
 msgid "Users"
-msgstr ""
+msgstr "用户"
 
 #: airflow/security/permissions.py:50
 msgid "User Stats Chart"
@@ -190,18 +365,20 @@ msgid "Equipments"
 msgstr "设备"
 
 #: airflow/security/permissions.py:63
+#: plugins/view/tightening_controller_views.py:64
+#: plugins/view/tightening_controller_views.py:95
 msgid "Device Type"
 msgstr "设备类型"
 
-#: airflow/security/permissions.py:64
+#: airflow/security/permissions.py:64 plugins/view/curve_analysis_views.py:71
 msgid "Analysis Via Track No"
 msgstr "根据车号分析"
 
-#: airflow/security/permissions.py:65
+#: airflow/security/permissions.py:65 plugins/view/curve_analysis_views.py:36
 msgid "Analysis Via Controller"
 msgstr "根据控制器分析"
 
-#: airflow/security/permissions.py:66
+#: airflow/security/permissions.py:66 plugins/view/curve_analysis_views.py:89
 msgid "Analysis Via Bolt No"
 msgstr "根据螺栓分析"
 
@@ -216,6 +393,91 @@ msgstr "分析"
 #: airflow/www/forms.py:88
 msgid "Not a valid datetime value"
 msgstr "不是有效的日期时间值"
+
+#: airflow/www/forms.py:136 airflow/www/forms.py:171 airflow/www/forms.py:188
+msgid "Dag Id"
+msgstr ""
+
+#: airflow/www/forms.py:137 airflow/www/forms.py:172 airflow/www/forms.py:192
+msgid "Start Date"
+msgstr "开始日期"
+
+#: airflow/www/forms.py:138 airflow/www/forms.py:173 airflow/www/forms.py:193
+msgid "End Date"
+msgstr "结束日期"
+
+#: airflow/www/forms.py:139 airflow/www/forms.py:174
+msgid "Run Id"
+msgstr "运行Id"
+
+#: airflow/www/forms.py:141 airflow/www/forms.py:195
+msgid "State"
+msgstr "状态"
+
+#: airflow/www/forms.py:151 airflow/www/forms.py:176 airflow/www/forms.py:206
+#: plugins/view/curves_view.py:45 plugins/view/templates/curves.html:62
+msgid "Execution Date"
+msgstr "执行时间"
+
+#: airflow/www/forms.py:155
+msgid "External Trigger"
+msgstr "外部触发"
+
+#: airflow/www/forms.py:157 airflow/www/forms.py:181
+msgid "Conf"
+msgstr "配置"
+
+#: airflow/www/forms.py:190
+msgid "Task Id"
+msgstr "任务Id"
+
+#: airflow/www/forms.py:215
+msgid "Conn Id"
+msgstr "连接Id"
+
+#: airflow/www/forms.py:216
+msgid "Description"
+msgstr ""
+
+#: airflow/www/forms.py:217
+msgid "Host"
+msgstr "主机"
+
+#: airflow/www/forms.py:218
+msgid "Schema"
+msgstr ""
+
+#: airflow/www/forms.py:219
+#, fuzzy
+msgid "Login"
+msgstr "用户名"
+
+#: airflow/www/forms.py:220
+#, fuzzy
+msgid "Password"
+msgstr "密码"
+
+#: airflow/www/forms.py:221
+msgid "Port"
+msgstr "端口"
+
+#: airflow/www/forms.py:222
+msgid "Extra"
+msgstr "其他"
+
+#: airflow/www/views.py:2996
+msgid "Conn Type"
+msgstr "连接类型"
+
+#: airflow/www/views.py:3784
+msgid "Clear"
+msgstr "清除"
+
+#: airflow/www/views.py:3785
+msgid ""
+"Are you sure you want to clear the state of the selected task instance(s)"
+" and set their dagruns to the running state?"
+msgstr ""
 
 #: airflow/www/templates/appbuilder/navbar_right.html:79
 msgid "Your Profile"
@@ -233,6 +495,15 @@ msgstr "登录"
 msgid "View Source"
 msgstr "查看源代码"
 
+#: plugins/view/curve_analysis_views.py:78 plugins/view/curves_view.py:45
+#: plugins/view/result_view.py:31 plugins/view/templates/curves.html:63
+msgid "Car Code"
+msgstr "车辆代码"
+
+#: plugins/view/curve_analysis_views.py:96 plugins/view/result_view.py:32
+msgid "Bolt Number"
+msgstr "螺栓编号"
+
 #: plugins/view/curve_template_view.py:105
 msgid "Key"
 msgstr "键"
@@ -245,6 +516,80 @@ msgstr "值"
 msgid "Active"
 msgstr "启用"
 
+#: plugins/view/curves_view.py:44 plugins/view/templates/curves.html:77
+msgid "Error Tags"
+msgstr "错误标签"
+
+#: plugins/view/curves_view.py:46 plugins/view/result_view.py:33
+#: plugins/view/templates/curves.html:64
+msgid "Measure Result"
+msgstr "测量结果"
+
+#: plugins/view/curves_view.py:46 plugins/view/result_view.py:34
+#: plugins/view/templates/curves.html:69
+msgid "Result"
+msgstr "分析结果"
+
+#: plugins/view/curves_view.py:47 plugins/view/result_view.py:35
+#: plugins/view/templates/curves.html:73
+msgid "Final State"
+msgstr "最终结果"
+
+#: plugins/view/error_tag_views.py:37 plugins/view/error_tag_views.py:58
+msgid "Value"
+msgstr "值"
+
+#: plugins/view/error_tag_views.py:40 plugins/view/error_tag_views.py:58
+msgid "Label"
+msgstr "标签"
+
+#: plugins/view/result_view.py:29
+msgid "Entity Id"
+msgstr "曲线编号"
+
+#: plugins/view/result_view.py:30
+msgid "Update Time"
+msgstr "拧紧时间"
+
+#: plugins/view/result_view.py:76
+#, fuzzy
+msgid "Task Instance Rework"
+msgstr "任务实例"
+
+#: plugins/view/result_view.py:77
+#, fuzzy
+msgid "Task Instance Normal"
+msgstr "任务实例"
+
+#: plugins/view/tightening_controller_views.py:48
+#, fuzzy
+msgid "Equipment Name"
+msgstr "设备名称"
+
+#: plugins/view/tightening_controller_views.py:51
+#: plugins/view/tightening_controller_views.py:91
+msgid "Line Code"
+msgstr "工段编号"
+
+#: plugins/view/tightening_controller_views.py:54
+#: plugins/view/tightening_controller_views.py:92
+msgid "Line Name"
+msgstr "工段名称"
+
+#: plugins/view/tightening_controller_views.py:57
+#: plugins/view/tightening_controller_views.py:93
+msgid "Work Center Code"
+msgstr "工作中心编号"
+
+#: plugins/view/tightening_controller_views.py:60
+#: plugins/view/tightening_controller_views.py:94
+msgid "Work Center Name"
+msgstr "工作中心名称"
+
+#: plugins/view/tightening_controller_views.py:90
+msgid "Controller Name"
+msgstr "控制器名称"
+
 #: plugins/view/templates/curves.html:19
 msgid "Search"
 msgstr "搜索"
@@ -252,284 +597,4 @@ msgstr "搜索"
 #: plugins/view/templates/curves.html:35
 msgid "curve"
 msgstr "曲线"
-
-#: plugins/view/templates/curves.html:62
-msgid "Execution Date"
-msgstr "执行时间"
-
-#: plugins/view/templates/curves.html:63
-msgid "Car Code"
-msgstr "车辆代码"
-
-#: plugins/view/templates/curves.html:64
-msgid "Measure Result"
-msgstr "测量结果"
-
-#: plugins/view/templates/curves.html:69
-msgid "Result"
-msgstr "分析结果"
-
-#: plugins/view/templates/curves.html:73
-msgid "Final State"
-msgstr "最终结果"
-
-#: plugins/view/templates/curves.html:77
-msgid "Error Tags"
-msgstr "错误标签"
-
-#~ msgid "Bolt Number"
-#~ msgstr "螺栓编号"
-
-#~ msgid "Tightening Controller"
-#~ msgstr "拧紧控制器"
-
-#~ msgid "Invalid field name '%s'."
-#~ msgstr ""
-
-#~ msgid "Field must be greater than or equal to %(other_label)s."
-#~ msgstr ""
-
-#~ msgid "Clear"
-#~ msgstr "清除"
-
-#~ msgid ""
-#~ "Are you sure you want to clear "
-#~ "the state of the selected task "
-#~ "instance(s) and set their dagruns to "
-#~ "the running state?"
-#~ msgstr ""
-
-#~ msgid "Delete"
-#~ msgstr "删除"
-
-#~ msgid "Logs"
-#~ msgstr "日志"
-
-#~ msgid "About"
-#~ msgstr "关于"
-
-#~ msgid "Value"
-#~ msgstr "值"
-
-#~ msgid "Is Curve Template"
-#~ msgstr "曲线模板"
-
-#~ msgid "Dag Id"
-#~ msgstr "DAG"
-
-#~ msgid "Start Date"
-#~ msgstr "开始日期"
-
-#~ msgid "End Date"
-#~ msgstr "结束日期"
-
-#~ msgid "Run Id"
-#~ msgstr "运行Id"
-
-#~ msgid "State"
-#~ msgstr "状态"
-
-#~ msgid "External Trigger"
-#~ msgstr "外部触发"
-
-#~ msgid "Conf"
-#~ msgstr "配置"
-
-#~ msgid "Conn Id"
-#~ msgstr "连接Id"
-
-#~ msgid "Conn Type"
-#~ msgstr "连接类型"
-
-#~ msgid "Host"
-#~ msgstr "主机"
-
-#~ msgid "Schema"
-#~ msgstr "提要"
-
-#~ msgid "Port"
-#~ msgstr "端口"
-
-#~ msgid "Extra"
-#~ msgstr "其他"
-
-#~ msgid "Driver Path"
-#~ msgstr "驱动路径"
-
-#~ msgid "Driver Class"
-#~ msgstr "驱动类"
-
-#~ msgid "Project Id"
-#~ msgstr "项目Id"
-
-#~ msgid "Keyfile Path"
-#~ msgstr ""
-
-#~ msgid "Keyfile JSON"
-#~ msgstr ""
-
-#~ msgid "Scopes (comma separated)"
-#~ msgstr ""
-
-#~ msgid "Number of Retries"
-#~ msgstr "重试次数"
-
-#~ msgid "Grpc Auth Type"
-#~ msgstr "Grpc授权类型"
-
-#~ msgid "Credential Keyfile Path"
-#~ msgstr ""
-
-#~ msgid "Label"
-#~ msgstr "标签"
-
-#~ msgid "Equipment Name"
-#~ msgstr "设备名称"
-
-#~ msgid "Line Code"
-#~ msgstr "工段编号"
-
-#~ msgid "Line Name"
-#~ msgstr "工段名称"
-
-#~ msgid "Work Center Code"
-#~ msgstr "工作中心编号"
-
-#~ msgid "Work Center Name"
-#~ msgstr "工作中心名称"
-
-#~ msgid "Task Id"
-#~ msgstr "任务Id"
-
-#~ msgid "Email Sent"
-#~ msgstr "邮件发送"
-
-#~ msgid "Timestamp"
-#~ msgstr "时间戳"
-
-#~ msgid "DAG Id"
-#~ msgstr "DAG"
-
-#~ msgid "Is Encrypted"
-#~ msgstr "加密"
-
-#~ msgid "Is Extra Encrypted"
-#~ msgstr "额外加密"
-
-#~ msgid "Controller Name"
-#~ msgstr "控制器名称"
-
-#~ msgid "Pool"
-#~ msgstr "池"
-
-#~ msgid "Slots"
-#~ msgstr "插槽"
-
-#~ msgid "Used Slots"
-#~ msgstr "已用插槽"
-
-#~ msgid "Queued Slots"
-#~ msgstr "已排队插槽"
-
-#~ msgid "Id"
-#~ msgstr ""
-
-#~ msgid "Job Type"
-#~ msgstr "工作类型"
-
-#~ msgid "Latest Heartbeat"
-#~ msgstr "最近心跳"
-
-#~ msgid "Executor Class"
-#~ msgstr "执行器"
-
-#~ msgid "Hostname"
-#~ msgstr "主机名称"
-
-#~ msgid "Unixname"
-#~ msgstr "Unix名称"
-
-#~ msgid "Dttm"
-#~ msgstr ""
-
-#~ msgid "Event"
-#~ msgstr "事件"
-
-#~ msgid "Owner"
-#~ msgstr "所有者"
-
-#~ msgid "Entity Id"
-#~ msgstr "实体编号"
-
-#~ msgid "Task Instance Type"
-#~ msgstr "类型"
-
-#~ msgid "Duration"
-#~ msgstr "耗时"
-
-#~ msgid "Job Id"
-#~ msgstr "工作Id"
-
-#~ msgid "Priority Weight"
-#~ msgstr "优先权重"
-
-#~ msgid "Try Number"
-#~ msgstr "尝试次数"
-
-#~ msgid "Log Url"
-#~ msgstr "日志URL"
-
-#~ msgid "Task Instance Rework"
-#~ msgstr "返工"
-
-#~ msgid "Task Instance Normal"
-#~ msgstr "正常"
-
-#~ msgid "Is Paused"
-#~ msgstr "已暂停"
-
-#~ msgid "Last Scheduler Run"
-#~ msgstr "最后一次执行"
-
-#~ msgid "Last Expired"
-#~ msgstr "最后一次失败"
-
-#~ msgid "Scheduler Lock"
-#~ msgstr "调度器锁"
-
-#~ msgid "Fileloc"
-#~ msgstr "文件位置"
-
-#~ msgid "Owners"
-#~ msgstr "所有者"
-
-#~ msgid "Filter tags"
-#~ msgstr "过滤标签"
-
-#~ msgid "Reset"
-#~ msgstr "清除过滤"
-
-#~ msgid "Search:"
-#~ msgstr "搜索："
-
-#~ msgid "Schedule"
-#~ msgstr "时间表"
-
-#~ msgid "Recent Tasks"
-#~ msgstr "最近任务"
-
-#~ msgid "Last Run"
-#~ msgstr "最后运行"
-
-#~ msgid "Links"
-#~ msgstr "链接"
-
-#~ msgid "Hide Paused DAGs"
-#~ msgstr "隐藏暂停的DAG"
-
-#~ msgid "Show Paused DAGs"
-#~ msgstr "显示暂停的DAG"
-
-#~ msgid "Logout"
-#~ msgstr "登出"
 

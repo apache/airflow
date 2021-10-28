@@ -19,14 +19,20 @@ class ResultModelView(AirflowModelView):
 
     page_size = PAGE_SIZE
 
-    list_columns = ['entity_id', 'update_time', 'car_code', 'type', 'bolt_number', 'measure_result', 'result',
+    list_columns = ['entity_id', 'update_time', 'car_code', 'bolt_number', 'measure_result', 'result',
                     'final_state']
 
-    search_columns = ['entity_id', 'update_time', 'car_code', 'type', 'bolt_number', 'measure_result', 'result',
+    search_columns = ['entity_id', 'update_time', 'car_code', 'bolt_number', 'measure_result', 'result',
                       'final_state']
 
     label_columns = {
         'entity_id': lazy_gettext('Entity Id'),
+        'update_time': lazy_gettext('Update Time'),
+        'car_code': lazy_gettext('Car Code'),
+        'bolt_number': lazy_gettext('Bolt Number'),
+        'measure_result': lazy_gettext('Measure Result'),
+        'result': lazy_gettext('Result'),
+        'final_state': lazy_gettext('Final State'),
     }
 
     base_order = ('update_time', 'desc')

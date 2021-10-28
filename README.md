@@ -92,11 +92,11 @@ Use Airflow to author workflows as directed acyclic graphs (DAGs) of tasks. The 
 * 在HTML文件中使用`_()`翻译文本
 
 
-在`airflow/airflow`目录下：
-* 首次创建翻译时运行`flask fab babel-extract --target ./www_rbac/translations`
-* 运行`pybabel update -i ./babel/messages.pot -d ./www_rbac/translations  -l zh`
-* 在`./www_rbac/translations`目录下的po文件中添加中文翻译
-* 运行`flask fab babel-compile --target ./www_rbac/translations`应用翻译
+在项目根目录下：
+* 首次创建翻译时运行`flask fab babel-extract`
+* 运行`pybabel update -i ./babel/messages.pot -d ./airflow/www/translations  -l zh`
+* 在`./airflow/www/translations`目录下的po文件中添加中文翻译
+* 运行`flask fab babel-compile --target ./airflow/www/translations`应用翻译
 
 ## 打包airflow
 
