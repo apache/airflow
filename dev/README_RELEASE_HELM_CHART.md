@@ -371,7 +371,7 @@ Once you have the keys, the signatures can be verified by running this:
 ```shell
 for i in *.asc
 do
-   echo "Checking $i"; gpg --verify $i
+   echo "Checking $i\n"; gpg --verify $i
 done
 ```
 
@@ -393,6 +393,7 @@ gpg:                 aka "Kaxil Naik <kaxilnaik@gmail.com>" [unknown]
 gpg: WARNING: The key's User ID is not certified with a trusted signature!
 gpg:          There is no indication that the signature belongs to the owner.
 Primary key fingerprint: CDE1 5C6E 4D3A 8EC4 ECF4  BA4B 6674 E08A D7DE 406F
+
 Checking airflow-chart-1.0.0-source.tar.gz.asc
 gpg: assuming signed data in 'airflow-chart-1.0.0-source.tar.gz'
 gpg: Signature made Sun 16 May 02:24:09 2021 BST
