@@ -26,7 +26,7 @@ import logging
 import re
 from typing import Any, Dict, List, Optional, Set, Tuple, Type
 
-from flask import g, session, url_for
+from flask import current_app, g, session, url_for
 from flask_appbuilder import AppBuilder
 from flask_appbuilder.const import (
     AUTH_DB,
@@ -67,7 +67,7 @@ from flask_appbuilder.security.views import (
 )
 from flask_babel import lazy_gettext as _
 from flask_jwt_extended import JWTManager, current_user as current_user_jwt
-from flask_login import LoginManager, current_user
+from flask_login import AnonymousUserMixin, LoginManager, current_user
 from werkzeug.security import check_password_hash, generate_password_hash
 
 from airflow.www.fab_security.sqla.models import Action, Permission, RegisterUser, Resource, Role, User
@@ -84,6 +84,26 @@ def _oauth_tokengetter(token=None):
     token = session.get("oauth")
     log.debug(f"Token Get: {token}")
     return token
+
+
+class AnonymousUser(AnonymousUserMixin):
+    _roles = set()
+    _perms = set()
+
+    @property
+    def roles(self):
+        if not self._roles:
+            public_role = current_app.appbuilder.get_app.config["AUTH_ROLE_PUBLIC"]
+            self._roles = {current_app.appbuilder.sm.find_role(public_role)} if public_role else set()
+        return self._roles
+
+    @property
+    def perms(self):
+        if not self._perms:
+            self._perms = set()
+            for role in self.roles:
+                self._perms.update({(perm.action.name, perm.resource.name) for perm in role.permissions})
+        return self._perms
 
 
 class BaseSecurityManager:
@@ -252,6 +272,7 @@ class BaseSecurityManager:
         :param app: Flask app
         """
         lm = LoginManager(app)
+        lm.anonymous_user = AnonymousUser
         lm.login_view = "login"
         lm.user_loader(self.load_user)
         return lm
@@ -1265,23 +1286,7 @@ class BaseSecurityManager:
         else:
             return None
 
-    def is_item_public(self, action_name, resource_name):
-        """
-        Check if view has public permissions
-
-        :param action_name:
-            the action: can_show, can_edit...
-        :param resource_name:
-            the name of the resource
-        """
-        perms = self.get_public_permissions()
-        if perms:
-            for perm in perms:
-                if (resource_name == perm.resource.name) and (action_name == perm.action.name):
-                    return True
-        return False
-
-    def _has_access_builtin_roles(self, role, action_name: str, resource_name: str) -> bool:
+    def _has_access_builtin_roles(self, role, permission_name: str, view_name: str) -> bool:
         """Checks permission on builtin role"""
         perms = self.builtin_roles.get(role.name, [])
         for (_resource_name, _action_name) in perms:
@@ -1309,25 +1314,6 @@ class BaseSecurityManager:
         if not user.is_authenticated:
             return [self.get_public_role()]
         return user.roles
-
-    def get_role_permissions(self, role) -> Set[Tuple[str, str]]:
-        """Get all permissions for a certain role"""
-        result = set()
-        if role.name in self.builtin_roles:
-            for permission in self.builtin_roles[role.name]:
-                result.add((permission[1], permission[0]))
-        else:
-            for permission in self.get_role_permissions_from_db(role.id):
-                result.add((permission.action.name, permission.resource.name))
-        return result
-
-    def get_user_permissions(self, user) -> Set[Tuple[str, str]]:
-        """Get all permissions from the current user"""
-        roles = self.get_user_roles(user)
-        result = set()
-        for role in roles:
-            result.update(self.get_role_permissions(role))
-        return result
 
     def _get_user_permission_resources(
         self, user: Optional[User], action_name: str, resource_names: List[str]
@@ -1360,16 +1346,7 @@ class BaseSecurityManager:
         result.update(role_resource_names)
         return result
 
-    def has_access(self, action_name, resource_name):
-        """Check if current user or public has access to resource."""
-        if current_user.is_authenticated:
-            return self._has_resource_access(g.user, action_name, resource_name)
-        elif current_user_jwt:
-            return self._has_resource_access(current_user_jwt, action_name, resource_name)
-        else:
-            return self.is_item_public(action_name, resource_name)
-
-    def get_user_menu_access(self, menu_names: List[str]) -> Set[str]:
+    def get_user_menu_access(self, menu_names: List[str] = None) -> Set[str]:
         if current_user.is_authenticated:
             return self._get_user_permission_resources(g.user, "menu_access", resource_names=menu_names)
         elif current_user_jwt:
@@ -1523,10 +1500,6 @@ class BaseSecurityManager:
         raise NotImplementedError
 
     def get_public_role(self):
-        """Returns all permissions from public role"""
-        raise NotImplementedError
-
-    def get_public_permissions(self):
         """Returns all permissions from public role"""
         raise NotImplementedError
 
