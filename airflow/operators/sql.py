@@ -84,7 +84,7 @@ class BaseSQLOperator(BaseOperator):
         :return: the database hook object.
         :rtype: DbApiHook
         """
-        return self._hook()
+        return self._hook
 
 
 class SQLCheckOperator(BaseSQLOperator):
