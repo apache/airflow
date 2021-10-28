@@ -204,6 +204,9 @@ class DAG(LoggingMixin):
     :param end_date: A date beyond which your DAG won't run, leave to None
         for open ended scheduling
     :type end_date: datetime.datetime
+    :param timetable: Specify which timetable implementation to use. See
+        :doc:`/howto/timetable` for more information.
+    :type timetable: airflow.timetables.base.Timetable
     :param template_searchpath: This list of folders (non relative)
         defines where jinja will look for your templates. Order matters.
         Note that jinja/airflow includes the path of your DAG file by
