@@ -22,7 +22,6 @@ from airflow.providers.amazon.aws.utils.emailer import send_email
 
 
 class TestSendEmailSes(TestCase):
-
     @mock.patch("airflow.providers.amazon.aws.utils.emailer.SESHook")
     def test_send_ses_email(self, mock_hook):
         send_email(
