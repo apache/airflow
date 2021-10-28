@@ -15,6 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
+from __future__ import annotations
 from typing import Any, Dict, NamedTuple, Optional
 
 from pendulum import DateTime
@@ -118,7 +119,7 @@ class Timetable(Protocol):
     """
 
     @classmethod
-    def deserialize(cls, data: Dict[str, Any]) -> "Timetable":
+    def deserialize(cls, data: Dict[str, Any]) -> Timetable:
         """Deserialize a timetable from data.
 
         This is called when a serialized DAG is deserialized. ``data`` will be
