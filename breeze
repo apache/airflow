@@ -286,6 +286,12 @@ function breeze::initialize_virtualenv() {
         echo
         echo "Wiping and recreating ${AIRFLOW_HOME_DIR}"
         echo
+        if [[ "${AIRFLOW_SOURCES}" == "${AIRFLOW_HOME_DIR}" ]]; then
+            echo "AIRFLOW_HOME and Source code for Apache Airflow resides in the same path ${AIRFLOW_HOME_DIR}"
+            echo "When running this command it will delete all the files in the path ${AIRFLOW_HOME_DIR} to clear dynamic files like config/logs/db"
+            echo "Move your source code for Apache Airflow to different folder to avoid deletion"
+            exit 1
+        fi
         rm -rvf "${AIRFLOW_HOME_DIR}"
         mkdir -p "${AIRFLOW_HOME_DIR}"
         echo

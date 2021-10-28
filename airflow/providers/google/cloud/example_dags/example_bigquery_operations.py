@@ -152,8 +152,6 @@ with models.DAG(
                 "sourceUris": [DATA_SAMPLE_GCS_URL],
             },
         },
-        bucket=DATA_SAMPLE_GCS_BUCKET_NAME,
-        source_objects=[DATA_SAMPLE_GCS_OBJECT_NAME],
     )
     # [END howto_operator_bigquery_create_external_table]
 

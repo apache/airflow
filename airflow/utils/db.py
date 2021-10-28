@@ -18,6 +18,7 @@
 import logging
 import os
 import time
+from tempfile import gettempdir
 from typing import Iterable
 
 from sqlalchemy import Table, exc, func, inspect, or_, text
@@ -508,7 +509,7 @@ def create_default_connections(session=None):
         Connection(
             conn_id="sqlite_default",
             conn_type="sqlite",
-            host="/tmp/sqlite_default.db",
+            host=os.path.join(gettempdir(), "sqlite_default.db"),
         ),
         session,
     )

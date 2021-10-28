@@ -145,7 +145,7 @@ Pyenv and setting up virtual-env
 
   $ curl https://pyenv.run | bash
 
-3. Add the lines suggested at the end of installation  to ~/.bashrc
+3. Configure your shell's environment for Pyenv as suggested in Pyenv `README <https://github.com/pyenv/pyenv/blob/master/README.md>`_
 
 4. Restart your shell so the path changes take effect and verifying installation
 
