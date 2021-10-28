@@ -1293,6 +1293,7 @@ sudo
 sudoers
 summarization
 superclass
+sur
 svg
 swp
 symlink
