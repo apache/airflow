@@ -172,6 +172,7 @@ class User(Model):
     roles = relationship("Role", secondary=assoc_user_role, backref="user")
     created_on = Column(DateTime, default=datetime.datetime.now, nullable=True)
     changed_on = Column(DateTime, default=datetime.datetime.now, nullable=True)
+    _perms = set()
 
     @declared_attr
     def created_by_fk(self):
@@ -214,6 +215,14 @@ class User(Model):
     @property
     def is_anonymous(self):
         return False
+
+    @property
+    def perms(self):
+        if not self._perms:
+            self._perms = set()
+            for role in self.roles:
+                self._perms.update({(perm.action.name, perm.resource.name) for perm in role.permissions})
+        return self._perms
 
     def get_id(self):
         return self.id

@@ -53,7 +53,7 @@ def get_xcom_entries(
     query = session.query(XCom)
     if dag_id == '~':
         appbuilder = current_app.appbuilder
-        readable_dag_ids = appbuilder.sm.get_readable_dag_ids(g.user)
+        readable_dag_ids = {dag.dag_id for dag in appbuilder.sm.get_readable_dags(g.user)}
         query = query.filter(XCom.dag_id.in_(readable_dag_ids))
         query = query.join(DR, and_(XCom.dag_id == DR.dag_id, XCom.execution_date == DR.execution_date))
     else:
