@@ -31,7 +31,7 @@ three separate tasks for Extract, Transform, and Load.
 Example "TaskFlow API" ETL Pipeline
 -----------------------------------
 
-Here is very simple ETL pipeline using the TaskFlow API paradigm. A more detailed
+Here is a very simple ETL pipeline using the TaskFlow API paradigm. A more detailed
 explanation is given below.
 
 .. exampleinclude:: /../../airflow/example_dags/tutorial_taskflow_api_etl.py
