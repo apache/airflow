@@ -417,7 +417,7 @@ Let's break this down into 2 steps: get data & merge data:
 
   import requests
   from airflow.decorators import task
-  from airflow.hooks.postgres_hook import PostgresHook
+  from airflow.hooks.postgres import PostgresHook
 
 
   @task
@@ -447,7 +447,7 @@ Here we are passing a ``GET`` request to get the data from the URL and save it i
 .. code-block:: python
 
   from airflow.decorators import task
-  from airflow.hooks.postgres_hook import PostgresHook
+  from airflow.hooks.postgres import PostgresHook
 
 
   @task
@@ -482,7 +482,7 @@ Lets look at our DAG:
 
   import requests
   from airflow.decorators import dag, task
-  from airflow.hooks.postgres_hook import PostgresHook
+  from airflow.hooks.postgres import PostgresHook
 
 
   @dag(
