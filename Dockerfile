@@ -134,6 +134,7 @@ RUN mkdir -pv /usr/share/man/man1 \
 
 ARG INSTALL_MYSQL_CLIENT="true"
 ARG INSTALL_MSSQL_CLIENT="true"
+ARG INSTALL_MARIADB_CLIENT="false"
 ARG AIRFLOW_REPO=apache/airflow
 ARG AIRFLOW_BRANCH=main
 ARG AIRFLOW_EXTRAS
@@ -175,6 +176,7 @@ ARG AIRFLOW_SOURCES_TO="/empty"
 
 ENV INSTALL_MYSQL_CLIENT=${INSTALL_MYSQL_CLIENT} \
     INSTALL_MSSQL_CLIENT=${INSTALL_MSSQL_CLIENT} \
+    INSTALL_MARIADB_CLIENT=${INSTALL_MARIADB_CLIENT} \
     AIRFLOW_REPO=${AIRFLOW_REPO} \
     AIRFLOW_BRANCH=${AIRFLOW_BRANCH} \
     AIRFLOW_EXTRAS=${AIRFLOW_EXTRAS}${ADDITIONAL_AIRFLOW_EXTRAS:+,}${ADDITIONAL_AIRFLOW_EXTRAS} \
@@ -194,7 +196,8 @@ ENV INSTALL_MYSQL_CLIENT=${INSTALL_MYSQL_CLIENT} \
 
 COPY scripts/docker/*.sh /scripts/docker/
 RUN bash ./scripts/docker/install_mysql.sh dev \
-    && bash ./scripts/docker/install_mssql.sh
+    && bash ./scripts/docker/install_mssql.sh \
+    && bash ./scripts/docker/install_mariadb.sh
 ENV PATH=${PATH}:/opt/mssql-tools/bin
 
 COPY docker-context-files /docker-context-files
@@ -377,6 +380,7 @@ ARG ADDITIONAL_RUNTIME_APT_COMMAND=""
 ARG ADDITIONAL_RUNTIME_APT_ENV=""
 ARG INSTALL_MYSQL_CLIENT="true"
 ARG INSTALL_MSSQL_CLIENT="true"
+ARG INSTALL_MARIADB_CLIENT="false"
 ARG AIRFLOW_USER_HOME_DIR=/home/airflow
 ARG AIRFLOW_HOME
 # Having the variable in final image allows to disable providers manager warnings when
@@ -395,6 +399,7 @@ ENV RUNTIME_APT_DEPS=${RUNTIME_APT_DEPS} \
     ADDITIONAL_RUNTIME_APT_COMMAND=${ADDITIONAL_RUNTIME_APT_COMMAND} \
     INSTALL_MYSQL_CLIENT=${INSTALL_MYSQL_CLIENT} \
     INSTALL_MSSQL_CLIENT=${INSTALL_MSSQL_CLIENT} \
+    INSTALL_MARIADB_CLIENT=${INSTALL_MARIADB_CLIENT} \
     AIRFLOW_UID=${AIRFLOW_UID} \
     AIRFLOW__CORE__LOAD_EXAMPLES="false" \
     AIRFLOW_USER_HOME_DIR=${AIRFLOW_USER_HOME_DIR} \
@@ -423,12 +428,17 @@ RUN mkdir -pv /usr/share/man/man1 \
     && rm -rf /var/lib/apt/lists/*
 
 # Only copy install_m(y/s)sql and install_pip_version.sh. We do not need any other scripts in the final image.
-COPY scripts/docker/install_mysql.sh /scripts/docker/install_mssql.sh scripts/docker/install_pip_version.sh \
+COPY /scripts/docker/install_mysql.sh \
+   /scripts/docker/install_mssql.sh \
+   /scripts/docker/install_mariadb.sh \
+   /scripts/docker/install_pip_version.sh \
    /scripts/docker/
 
 # fix permission issue in Azure DevOps when running the scripts
 RUN chmod a+x /scripts/docker/install_mysql.sh && \
     /scripts/docker/install_mysql.sh prod && \
+    chmod a+x /scripts/docker/install_mariadb.sh && \
+    /scripts/docker/install_mariadb.sh && \
     chmod a+x /scripts/docker/install_mssql.sh && \
     /scripts/docker/install_mssql.sh && \
     adduser --quiet "airflow" --uid "${AIRFLOW_UID}" --gid "0" --home "${AIRFLOW_USER_HOME_DIR}" && \
