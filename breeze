@@ -2306,8 +2306,8 @@ ${FORMATTED_POSTGRES_VERSIONS}
 
 ${FORMATTED_MYSQL_VERSIONS}
 
---mysql-version MYSQL_VERSION
-        MySql version used. One of:
+--mariadb-version MARIADB_VERSION
+        MariaDB version used. One of:
 
 ${FORMATTED_MARIADB_VERSIONS}
 

@@ -124,7 +124,6 @@ function output_all_basic_variables() {
     initialization::ga_output default-mariadb-version "${MARIADB_VERSION}"
 
 
-
     initialization::ga_output kind-versions \
         "$(initialization::parameters_to_json "${CURRENT_KIND_VERSIONS[@]}")"
     initialization::ga_output default-kind-version "${KIND_VERSION}"

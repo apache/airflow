@@ -741,9 +741,9 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
   tests-mariadb:
     timeout-minutes: 130
     name: >
-      MariaDB${{matrix.mariadb-version}}, Py${{matrix.python-version}}: ${{needs.build-info.outputs.testTypes}}
+      Maria${{matrix.mariadb-version}}, Py${{matrix.python-version}}: ${{needs.build-info.outputs.testTypes}}
     runs-on: ${{ fromJson(needs.build-info.outputs.runsOn) }}
-    needs: [ build-info, ci-images ]
+    needs: [build-info, ci-images]
     strategy:
       matrix:
         python-version: ${{ fromJson(needs.build-info.outputs.pythonVersions) }}

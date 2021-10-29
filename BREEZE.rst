@@ -1830,7 +1830,7 @@ This is the current syntax for  `./breeze <./breeze>`_:
           Backend to use for tests - it determines which database is used.
           One of:
 
-                 sqlite mysql postgres mssql
+                 sqlite mysql mariadb postgres mssql
 
           Default: sqlite
 
@@ -1843,6 +1843,11 @@ This is the current syntax for  `./breeze <./breeze>`_:
           MySql version used. One of:
 
                  5.7 8
+
+  --mariadb-version MARIADB_VERSION
+          MariaDB version used. One of:
+
+                 10.6.4
 
   --mssql-version MSSQL_VERSION
           MSSql version used. One of:
@@ -2306,7 +2311,7 @@ This is the current syntax for  `./breeze <./breeze>`_:
           Backend to use for tests - it determines which database is used.
           One of:
 
-                 sqlite mysql postgres mssql
+                 sqlite mysql mariadb postgres mssql
 
           Default: sqlite
 
@@ -2319,6 +2324,11 @@ This is the current syntax for  `./breeze <./breeze>`_:
           MySql version used. One of:
 
                  5.7 8
+
+  --mariadb-version MARIADB_VERSION
+          MariaDB version used. One of:
+
+                 10.6.4
 
   --mssql-version MSSQL_VERSION
           MSSql version used. One of:

@@ -124,7 +124,7 @@ function initialization::initialize_base_variables() {
     export CURRENT_MYSQL_VERSIONS
 
     # Currently supported versions of MariaDB
-    CURRENT_MARIADB_VERSIONS+=("10.6.4", )
+    CURRENT_MARIADB_VERSIONS+=("10.6.4")
     export CURRENT_MARIADB_VERSIONS
 
 
