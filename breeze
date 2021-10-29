@@ -431,6 +431,7 @@ EOF
 #    BACKEND
 #    POSTGRES_VERSION
 #    MYSQL_VERSION
+#    MARIADB_VERSION
 #    SUPPRESS_CHEATSHEET_FILE
 #    SUPPRESS_ASCIIART_FILE
 #    PRODUCTION_IMAGE
@@ -451,6 +452,8 @@ function breeze::print_badge() {
         backend_version="${POSTGRES_VERSION}"
     elif [[ ${BACKEND} == "mysql" ]]; then
         backend_version="${MYSQL_VERSION}"
+    elif [[ ${BACKEND} == "mariadb" ]]; then
+        backend_version="${MARIADB_VERSION}"
     fi
     if [[ ! -f "${SUPPRESS_ASCIIART_FILE}" && ${command_to_run} == "enter_breeze" ]]; then
         cat <<EOF
@@ -640,6 +643,8 @@ export POSTGRES_HOST_PORT="${POSTGRES_HOST_PORT}"
 export POSTGRES_VERSION="${POSTGRES_VERSION}"
 export MYSQL_HOST_PORT="${MYSQL_HOST_PORT}"
 export MYSQL_VERSION="${MYSQL_VERSION}"
+export MARIADB_VERSION="${MARIADB_VERSION}"
+export MARIADB_HOST_PORT="${MARIADB_HOST_PORT}"
 export MSSQL_HOST_PORT="${MSSQL_HOST_PORT}"
 export MSSQL_VERSION="${MSSQL_VERSION}"
 export AIRFLOW_SOURCES="${AIRFLOW_SOURCES}"
@@ -880,6 +885,12 @@ function breeze::parse_arguments() {
         --mysql-version)
             export MYSQL_VERSION="${2}"
             echo "MySQL version: ${MYSQL_VERSION}"
+            echo
+            shift 2
+            ;;
+        --mariadb-version)
+            export MARIADB_VERSION="${2}"
+            echo "MariaDB version: ${MARIADB_VERSION}"
             echo
             shift 2
             ;;
@@ -1600,6 +1611,10 @@ function breeze::prepare_formatted_versions() {
         tr '\n' ' ' | fold -w "${indented_screen_width}" -s | sed "s/^/${list_prefix}/")
     readonly FORMATTED_MYSQL_VERSIONS
 
+    FORMATTED_MARIADB_VERSIONS=$(echo "${_breeze_allowed_mariadb_versions=""}" |
+        tr '\n' ' ' | fold -w "${indented_screen_width}" -s | sed "s/^/${list_prefix}/")
+    readonly FORMATTED_MARIADB_VERSIONS
+
     FORMATTED_MSSQL_VERSIONS=$(echo "${_breeze_allowed_mssql_versions=""}" |
         tr '\n' ' ' | fold -w "${indented_screen_width}" -s | sed "s/^/${list_prefix}/")
     readonly FORMATTED_MSSQL_VERSIONS
@@ -2261,6 +2276,7 @@ ${FORMATTED_PYTHON_MAJOR_MINOR_VERSIONS}
 #       FORMATTED_BACKENDS
 #       FORMATTED_POSTGRES_VERSIONS
 #       FORMATTED_MYSQL_VERSIONS
+#       FORMATTED_MARIADB_VERSIONS
 #
 # Outputs:
 #    Flag information.
@@ -2285,11 +2301,15 @@ ${FORMATTED_POSTGRES_VERSIONS}
 
 ${FORMATTED_MYSQL_VERSIONS}
 
+--mysql-version MYSQL_VERSION
+        MySql version used. One of:
+
+${FORMATTED_MARIADB_VERSIONS}
+
 --mssql-version MSSQL_VERSION
         MSSql version used. One of:
 
 ${FORMATTED_MSSQL_VERSIONS}
-
 "
 }
 
@@ -3030,6 +3050,7 @@ function breeze::print_star_line() {
 #   EXECUTOR
 #   POSTGRES_VERSION
 #   MYSQL_VERSION
+#   MARIADB_VERSION
 #
 #######################################################################################################
 
@@ -3058,6 +3079,9 @@ function breeze::read_saved_environment_variables() {
     MYSQL_VERSION="${MYSQL_VERSION:=$(parameters::read_from_file MYSQL_VERSION)}"
     MYSQL_VERSION=${MYSQL_VERSION:=${_breeze_default_mysql_version}}
 
+    MARIADB_VERSION="${MARIADB_VERSION:=$(parameters::read_from_file MARIADB_VERSION)}"
+    MARIADB_VERSION=${MARIADB_VERSION:=${_breeze_default_mariadb_version}}
+
     MSSQL_VERSION="${MSSQL_VERSION:=$(parameters::read_from_file MSSQL_VERSION)}"
     MSSQL_VERSION=${MSSQL_VERSION:=${_breeze_default_mssql_version}}
 }
@@ -3082,6 +3106,7 @@ function breeze::read_saved_environment_variables() {
 #     EXECUTOR
 #     POSTGRES_VERSION
 #     MYSQL_VERSION
+#     MARIADB_VERSION
 #     MSSQL_VERSION
 #
 # Updated Global constants:
@@ -3118,6 +3143,7 @@ function breeze::check_and_save_all_params() {
     parameters::check_and_save_allowed_param "EXECUTOR" "Executors" "--executor"
     parameters::check_and_save_allowed_param "POSTGRES_VERSION" "Postgres version" "--postgres-version"
     parameters::check_and_save_allowed_param "MYSQL_VERSION" "Mysql version" "--mysql-version"
+    parameters::check_and_save_allowed_param "MYSQL_VERSION" "MariaDB version" "--mariadb-version"
     parameters::check_and_save_allowed_param "MSSQL_VERSION" "MSSql version" "--mssql-version"
 
     parameters::check_allowed_param TEST_TYPE "Type of tests" "--test-type"
