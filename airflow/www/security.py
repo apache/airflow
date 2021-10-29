@@ -352,8 +352,6 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
         :return: Whether user could perform certain action on the resource.
         :rtype bool
         """
-        # if not self.perms:
-        #     self.perms = self.get_current_user_permissions()
         if not user:
             user = g.user
         if (action_name, resource_name) in user.perms:

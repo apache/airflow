@@ -46,7 +46,7 @@ from airflow.utils.types import DagRunType
     [
         (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_DAG),
         (permissions.ACTION_CAN_DELETE, permissions.RESOURCE_DAG_RUN),
-    ],
+    ]
 )
 @provide_session
 def delete_dag_run(*, dag_id: str, dag_run_id: str, session: Session = NEW_SESSION) -> APIResponse:
