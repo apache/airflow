@@ -775,14 +775,14 @@ class TestStringifiedDAGs:
             Param('my value', description='hello', schema={'type': 'string'}),
             Param('my value', description='hello'),
             Param(None, description=None),
-        ]
+        ],
     )
     def test_full_param_roundtrip(self, param):
         """
         Test to make sure that only native Param objects are being passed as dag or task params
         """
 
-        dag = DAG(dag_id='simple_dag', params={'my_param':param})
+        dag = DAG(dag_id='simple_dag', params={'my_param': param})
         serialized_json = SerializedDAG.to_json(dag)
         serialized = json.loads(serialized_json)
         SerializedDAG.validate_schema(serialized)
@@ -1095,56 +1095,56 @@ class TestStringifiedDAGs:
         base_operator = BaseOperator(task_id="10")
         fields = base_operator.__dict__
         assert {
-                   '_BaseOperator__instantiated': True,
-                   '_dag': None,
-                   '_downstream_task_ids': set(),
-                   '_inlets': [],
-                   '_log': base_operator.log,
-                   '_outlets': [],
-                   '_upstream_task_ids': set(),
-                   '_pre_execute_hook': None,
-                   '_post_execute_hook': None,
-                   'depends_on_past': False,
-                   'do_xcom_push': True,
-                   'doc': None,
-                   'doc_json': None,
-                   'doc_md': None,
-                   'doc_rst': None,
-                   'doc_yaml': None,
-                   'email': None,
-                   'email_on_failure': True,
-                   'email_on_retry': True,
-                   'end_date': None,
-                   'execution_timeout': None,
-                   'executor_config': {},
-                   'inlets': [],
-                   'label': '10',
-                   'max_active_tis_per_dag': None,
-                   'max_retry_delay': None,
-                   'on_execute_callback': None,
-                   'on_failure_callback': None,
-                   'on_retry_callback': None,
-                   'on_success_callback': None,
-                   'outlets': [],
-                   'owner': 'airflow',
-                   'params': {},
-                   'pool': 'default_pool',
-                   'pool_slots': 1,
-                   'priority_weight': 1,
-                   'queue': 'default',
-                   'resources': None,
-                   'retries': 0,
-                   'retry_delay': timedelta(0, 300),
-                   'retry_exponential_backoff': False,
-                   'run_as_user': None,
-                   'sla': None,
-                   'start_date': None,
-                   'subdag': None,
-                   'task_id': '10',
-                   'trigger_rule': 'all_success',
-                   'wait_for_downstream': False,
-                   'weight_rule': 'downstream',
-               } == fields, """
+            '_BaseOperator__instantiated': True,
+            '_dag': None,
+            '_downstream_task_ids': set(),
+            '_inlets': [],
+            '_log': base_operator.log,
+            '_outlets': [],
+            '_upstream_task_ids': set(),
+            '_pre_execute_hook': None,
+            '_post_execute_hook': None,
+            'depends_on_past': False,
+            'do_xcom_push': True,
+            'doc': None,
+            'doc_json': None,
+            'doc_md': None,
+            'doc_rst': None,
+            'doc_yaml': None,
+            'email': None,
+            'email_on_failure': True,
+            'email_on_retry': True,
+            'end_date': None,
+            'execution_timeout': None,
+            'executor_config': {},
+            'inlets': [],
+            'label': '10',
+            'max_active_tis_per_dag': None,
+            'max_retry_delay': None,
+            'on_execute_callback': None,
+            'on_failure_callback': None,
+            'on_retry_callback': None,
+            'on_success_callback': None,
+            'outlets': [],
+            'owner': 'airflow',
+            'params': {},
+            'pool': 'default_pool',
+            'pool_slots': 1,
+            'priority_weight': 1,
+            'queue': 'default',
+            'resources': None,
+            'retries': 0,
+            'retry_delay': timedelta(0, 300),
+            'retry_exponential_backoff': False,
+            'run_as_user': None,
+            'sla': None,
+            'start_date': None,
+            'subdag': None,
+            'task_id': '10',
+            'trigger_rule': 'all_success',
+            'wait_for_downstream': False,
+            'weight_rule': 'downstream',
+        } == fields, """
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
      ACTION NEEDED! PLEASE READ THIS CAREFULLY AND CORRECT TESTS CAREFULLY
@@ -1500,9 +1500,6 @@ class TestStringifiedDAGs:
         assert dag.params["str"] == "str"
 
     def test_params_serialize_default(self):
-        """In 2.0.0, param ``default`` was assumed to be json-serializable objects and were not run though
-        the standard serializer function.  In 2.2.2 we serialize param ``default``.  We keep this
-        test only to ensure that params stored in 2.2.0 can still be parsed correctly."""
         serialized = {
             "__version": 1,
             "dag": {
@@ -1510,9 +1507,14 @@ class TestStringifiedDAGs:
                 "fileloc": '/path/to/file.py',
                 "tasks": [],
                 "timezone": "UTC",
-                "params": {"my_param": {"default": "a string value", "description": "hello",
-                                        "schema": {"__var": {"type": "string"}, "__type": "dict"},
-                                        "__class": "airflow.models.param.Param"}},
+                "params": {
+                    "my_param": {
+                        "default": "a string value",
+                        "description": "hello",
+                        "schema": {"__var": {"type": "string"}, "__type": "dict"},
+                        "__class": "airflow.models.param.Param",
+                    }
+                },
             },
         }
         SerializedDAG.validate_schema(serialized)

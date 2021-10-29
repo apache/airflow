@@ -135,6 +135,23 @@
       "type": "array",
       "additionalProperties": { "$ref": "#/definitions/operator" }
     },
+    "params": {
+      "type": "array",
+      "additionalProperties": { "$ref": "#/definitions/param" }
+    },
+    "param": {
+      "$comment": "A param for a dag / operator",
+      "type": "object",
+      "required": [
+        "__class",
+        "default"
+          ],
+          "properties": {
+        "__class": { "type": "string" },
+        "default": { "$ref": "#/definitions/dict" },
+        "description": { "type": "string" },
+        "schema": { "$ref": "#/definitions/dict" }
+          }},
     "operator": {
       "$comment": "A task/operator in a DAG",
       "type": "object",
@@ -166,7 +183,7 @@
         "retry_delay": { "$ref": "#/definitions/timedelta" },
         "retry_exponential_backoff": { "type": "boolean" },
         "max_retry_delay": { "$ref": "#/definitions/timedelta" },
-        "params": { "$ref": "#/definitions/dict" },
+        "params": { "$ref": "#/definitions/params" },
         "priority_weight": { "type": "number" },
         "weight_rule": { "type": "string" },
         "executor_config": { "$ref": "#/definitions/dict" },
