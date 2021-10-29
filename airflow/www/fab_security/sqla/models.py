@@ -34,10 +34,13 @@ from sqlalchemy import (
     String,
     Table,
     UniqueConstraint,
+    select,
 )
 from sqlalchemy.ext.declarative import declared_attr
-from sqlalchemy.orm import backref, relationship
+from sqlalchemy.orm import backref, object_session, relationship
 from sqlalchemy.orm.relationships import foreign
+
+from airflow.utils.session import create_session
 
 """
 Compatibility note: The models in this file are duplicated from Flask AppBuilder.
@@ -185,7 +188,6 @@ class User(Model):
     roles = relationship("Role", secondary=assoc_user_role, backref="user", lazy="joined")
     created_on = Column(DateTime, default=datetime.datetime.now, nullable=True)
     changed_on = Column(DateTime, default=datetime.datetime.now, nullable=True)
-    _perms = set()
 
     @declared_attr
     def created_by_fk(self):
