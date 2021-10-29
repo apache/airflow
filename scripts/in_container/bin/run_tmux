@@ -57,9 +57,11 @@ if [[ -z "${USE_AIRFLOW_VERSION=}" ]]; then
     tmux send-keys 'cd /opt/airflow/airflow/www/; yarn install --frozen-lockfile; yarn dev' C-m
 fi
 
-tmux select-pane -t 0
-tmux split-window -h
-tmux send-keys 'airflow triggerer' C-m
+if python -c 'import sys; sys.exit(sys.version_info < (3, 7))'; then
+    tmux select-pane -t 0
+    tmux split-window -h
+    tmux send-keys 'airflow triggerer' C-m
+fi
 
 # Attach Session, on the Main window
 tmux select-pane -t 0
