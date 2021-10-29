@@ -99,8 +99,22 @@ class TestEmail(unittest.TestCase):
             mime_charset='utf-8',
             mime_subtype='mixed',
             conn_id='smtp_default',
+            from_email=None,
         )
         assert not mock_send_email.called
+
+    @mock.patch('airflow.utils.email.send_email_smtp')
+    @conf_vars(
+        {
+            ('email', 'email_backend'): 'tests.utils.test_email.send_email_test',
+            ('email', 'from_email'): 'from@test.com',
+        }
+    )
+    def test_custom_backend_sender(self, mock_send_email_smtp):
+        utils.email.send_email('to', 'subject', 'content')
+        _, call_kwargs = send_email_test.call_args
+        assert call_kwargs['from_email'] == 'from@test.com'
+        assert not mock_send_email_smtp.called
 
     def test_build_mime_message(self):
         mail_from = 'from@example.com'

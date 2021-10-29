@@ -71,6 +71,7 @@ class TestDockerSwarmOperator(unittest.TestCase):
             secrets=[types.SecretReference(secret_id="dummy_secret_id", secret_name="dummy_secret_name")],
             mode=types.ServiceMode(mode="replicated", replicas=3),
             networks=["dummy_network"],
+            placement=types.Placement(constraints=["node.labels.region==east"]),
         )
         operator.execute(None)
 
@@ -79,6 +80,7 @@ class TestDockerSwarmOperator(unittest.TestCase):
             restart_policy=mock_obj,
             resources=mock_obj,
             networks=["dummy_network"],
+            placement=types.Placement(constraints=["node.labels.region==east"]),
         )
         types_mock.ContainerSpec.assert_called_once_with(
             image='ubuntu:latest',

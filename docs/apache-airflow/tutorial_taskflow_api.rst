@@ -55,7 +55,7 @@ We are creating a DAG which is the collection of our tasks with dependencies bet
 the tasks. This is a very simple definition, since we just want the DAG to be run
 when we set this up with Airflow, without any retries or complex scheduling.
 In this example, please notice that we are creating this DAG using the ``@dag`` decorator
-as shown below, with the python function name acting as the DAG identifier.
+as shown below, with the Python function name acting as the DAG identifier.
 
 .. exampleinclude:: /../../airflow/example_dags/tutorial_taskflow_api_etl.py
     :language: python
@@ -94,7 +94,7 @@ the Transform task for summarization, and then invoked the Load task with the su
 The dependencies between the tasks and the passing of data between these tasks which could be
 running on different workers on different nodes on the network is all handled by Airflow.
 
-Now to actually enable this to be run as a DAG, we invoke the python function
+Now to actually enable this to be run as a DAG, we invoke the Python function
 ``tutorial_taskflow_api_etl`` set up using the ``@dag`` decorator earlier, as shown below.
 
 .. exampleinclude:: /../../airflow/example_dags/tutorial_taskflow_api_etl.py
@@ -125,9 +125,9 @@ in the middle of the data pipeline. In Airflow 1.x, this task is defined as show
     :start-after: [START transform_function]
     :end-before: [END transform_function]
 
-As we see here, the data being processed in the Transform function is passed to it using Xcom
+As we see here, the data being processed in the Transform function is passed to it using XCom
 variables. In turn, the summarized data from the Transform function is also placed
-into another Xcom variable which will then be used by the Load task.
+into another XCom variable which will then be used by the Load task.
 
 Contrasting that with TaskFlow API in Airflow 2.0 as shown below.
 
@@ -137,8 +137,8 @@ Contrasting that with TaskFlow API in Airflow 2.0 as shown below.
     :start-after: [START transform]
     :end-before: [END transform]
 
-All of the Xcom usage for data passing between these tasks is abstracted away from the DAG author
-in Airflow 2.0. However, Xcom variables are used behind the scenes and can be viewed using
+All of the XCom usage for data passing between these tasks is abstracted away from the DAG author
+in Airflow 2.0. However, XCom variables are used behind the scenes and can be viewed using
 the Airflow UI as necessary for debugging or DAG monitoring.
 
 Similarly, task dependencies are automatically generated within TaskFlows based on the
@@ -160,20 +160,20 @@ the dependencies as shown below.
     :start-after: [START main_flow]
     :end-before: [END main_flow]
 
-Using the Taskflow API with Docker or Virtual Environments
+Using the TaskFlow API with Docker or Virtual Environments
 ----------------------------------------------------------
 
 If you have tasks that require complex or conflicting requirements then you will have the ability to use the
-Taskflow API with either a Docker container (since version 2.2.0) or Python virtual environment (since 2.0.2).
+TaskFlow API with either a Docker container (since version 2.2.0) or Python virtual environment (since 2.0.2).
 This added functionality will allow a much more
-comprehensive range of use-cases for the Taskflow API, as you will not be limited to the
+comprehensive range of use-cases for the TaskFlow API, as you will not be limited to the
 packages and system libraries of the Airflow worker.
 
-To use a docker image with the Taskflow API, change the decorator to ``@task.docker``
+To use a docker image with the TaskFlow API, change the decorator to ``@task.docker``
 and add any needed arguments to correctly run the task. Please note that the docker
 image must have a working Python installed and take in a bash command as the ``command`` argument.
 
-Below is an example of using the ``@task.docker`` decorator to run a python task.
+Below is an example of using the ``@task.docker`` decorator to run a Python task.
 
 .. exampleinclude:: /../../airflow/providers/docker/example_dags/tutorial_taskflow_api_etl_docker_virtualenv.py
     :language: python
@@ -181,7 +181,7 @@ Below is an example of using the ``@task.docker`` decorator to run a python task
     :start-after: [START transform_docker]
     :end-before: [END transform_docker]
 
-It is worth noting that the python source code (extracted from the decorated function) and any callable args are sent to the container via (encoded and pickled) environment variables so the length of these is not boundless (the exact limit depends on system settings).
+It is worth noting that the Python source code (extracted from the decorated function) and any callable args are sent to the container via (encoded and pickled) environment variables so the length of these is not boundless (the exact limit depends on system settings).
 
 .. note:: Using ``@task.docker`` decorator in one of the earlier Airflow versions
 
@@ -206,11 +206,11 @@ Python version to run your function.
     :end-before: [END extract_virtualenv]
 
 These two options should allow for far greater flexibility for users who wish to keep their workflows more simple
-and pythonic.
+and Pythonic.
 
 Multiple outputs inference
 --------------------------
-Tasks can also infer multiple outputs by using dict python typing.
+Tasks can also infer multiple outputs by using dict Python typing.
 
 .. code-block:: python
 
@@ -224,11 +224,11 @@ is automatically set to true.
 Note, If you manually set the ``multiple_outputs`` parameter the inference is disabled and
 the parameter value is used.
 
-Adding dependencies to decorated tasks from regular tasks
----------------------------------------------------------
-The above tutorial shows how to create dependencies between python-based tasks. However, it is
-quite possible while writing a DAG to have some pre-existing tasks such as :class:`~airflow.operators.bash.BashOperator` or :class:`~airflow.sensors.filesystem.FileSensor`
-based tasks which need to be run first before a python-based task is run.
+Adding dependencies between decorated and traditional tasks
+-----------------------------------------------------------
+The above tutorial shows how to create dependencies between TaskFlow functions. However, dependencies can also
+be set between traditional tasks (such as :class:`~airflow.operators.bash.BashOperator`
+or :class:`~airflow.sensors.filesystem.FileSensor`) and TaskFlow functions.
 
 Building this dependency is shown in the code below:
 
@@ -251,18 +251,45 @@ Building this dependency is shown in the code below:
     file_task >> order_data
 
 
-In the above code block, a new python-based task is defined as ``extract_from_file`` which
+In the above code block, a new TaskFlow function is defined as ``extract_from_file`` which
 reads the data from a known file location.
 In the main DAG, a new ``FileSensor`` task is defined to check for this file. Please note
 that this is a Sensor task which waits for the file.
-Finally, a dependency between this Sensor task and the python-based task is specified.
+Finally, a dependency between this Sensor task and the TaskFlow function is specified.
 
 
-Consuming XCOMs with decorated tasks from regular tasks
----------------------------------------------------------
-You may additionally find it necessary to consume an XCOM from a pre-existing task as an input into python-based tasks.
+Consuming XComs between decorated and traditional tasks
+-------------------------------------------------------
+As noted above, the TaskFlow API allows XComs to be consumed or passed between tasks in a manner that is
+abstracted away from the DAG author. This section dives further into detailed examples of how this is
+possible not only between TaskFlow functions but between both TaskFlow functions *and* traditional tasks.
 
-Building this dependency is shown in the code below:
+You may find it necessary to consume an XCom from traditional tasks, either pushed within the task's execution
+or via its return value, as an input into downstream tasks. You can access the pushed XCom (also known as an
+``XComArg``) by utilizing the ``.output`` property exposed for all operators.
+
+By default, using the ``.output`` property to retrieve an XCom result is the equivalent of:
+
+.. code-block:: python
+
+    task_instance.xcom_pull(task_ids="my_task_id", key="return_value")
+
+To retrieve an XCom result for a key other than ``return_value``, you can use:
+
+.. code-block:: python
+
+    my_op = MyOperator(...)
+    my_op_output = my_op.output["some_other_xcom_key"]
+    # OR
+    my_op_output = my_op.output.get("some_other_xcom_key")
+
+.. note::
+    Using the ``.output`` property as an input to another task is supported only for operator parameters
+    listed as a ``template_field``.
+
+In the code example below, a :class:`~airflow.providers.http.operators.http.SimpleHttpOperator` result
+is captured via :doc:`XComs </concepts/xcoms>`. This XCom result, which is the task output, is then passed
+to a TaskFlow function which parses the response as JSON.
 
 .. code-block:: python
 
@@ -279,18 +306,70 @@ Building this dependency is shown in the code below:
         return json.loads(api_results)
 
 
-    parsed_results = parsed_results(get_api_results_task.output)
+    parsed_results = parsed_results(api_results=get_api_results_task.output)
+
+The reverse can also be done: passing the output of a TaskFlow function as an input to a traditional task.
+
+.. code-block:: python
+
+    @task
+    def create_queue():
+        """This is a Python function that creates an SQS queue"""
+        hook = SQSHook()
+        result = hook.create_queue(queue_name="sample-queue")
+
+        return result["QueueUrl"]
 
 
-In the above code block, a :class:`~airflow.providers.http.operators.http.SimpleHttpOperator` result
-was captured via :doc:`XCOMs </concepts/xcoms>`. This XCOM result, which is the task output, was then passed
-to a TaskFlow decorated task which parses the response as JSON - and the rest continues as expected.
+    sqs_queue = create_queue()
+
+    publish_to_queue = SQSPublishOperator(
+        task_id="publish_to_queue",
+        sqs_queue=sqs_queue,
+        message_content="{{ task_instance }}-{{ execution_date }}",
+        message_attributes=None,
+        delay_seconds=0,
+    )
+
+Take note in the code example above, the output from the ``create_queue`` TaskFlow function, the URL of a
+newly-created Amazon SQS Queue, is then passed to a :class:`~airflow.providers.amazon.aws.operators.sqs.SQSPublishOperator`
+task as the ``sqs_queue`` arg.
+
+Finally, not only can you use traditional operator outputs as inputs for TaskFlow functions, but also as inputs to
+other traditional operators. In the example below, the output from the :class:`~airflow.providers.amazon.aws.transfers.salesforce_to_s3.SalesforceToS3Operator`
+task (which is an S3 URI for a destination file location) is used an input for the :class:`~airflow.providers.amazon.aws.operators.s3_copy_object.S3CopyObjectOperator`
+task to copy the same file to a date-partitioned storage location in S3 for long-term storage in a data lake.
+
+.. code-block:: python
+
+    BASE_PATH = "salesforce/customers"
+    FILE_NAME = "customer_daily_extract_{{ ds_nodash }}.csv"
+
+
+    upload_salesforce_data_to_s3_landing = SalesforceToS3Operator(
+        task_id="upload_salesforce_data_to_s3",
+        salesforce_query="SELECT Id, Name, Company, Phone, Email, LastModifiedDate, IsActive FROM Customers",
+        s3_bucket_name="landing-bucket",
+        s3_key=f"{BASE_PATH}/{FILE_NAME}",
+        salesforce_conn_id="salesforce",
+        aws_conn_id="s3",
+        replace=True,
+    )
+
+
+    store_to_s3_data_lake = S3CopyObjectOperator(
+        task_id="store_to_s3_data_lake",
+        aws_conn_id="s3",
+        source_bucket_key=upload_salesforce_data_to_s3_landing.output,
+        dest_bucket_name="data_lake",
+        dest_bucket_key=f"""{BASE_PATH}/{"{{ execution_date.strftime('%Y/%m/%d') }}"}/{FILE_NAME}""",
+    )
 
 Accessing context variables in decorated tasks
 ----------------------------------------------
 
 When running your callable, Airflow will pass a set of keyword arguments that can be used in your
-function. This set of kwargs correspond exactly to what you can use in your jinja templates.
+function. This set of kwargs correspond exactly to what you can use in your Jinja templates.
 For this to work, you need to define ``**kwargs`` in your function header, or you can add directly the
 keyword arguments you would like to get - for example with the below code your callable will get
 the values of ``ti`` and ``next_ds`` context variables. Note that when explicit keyword arguments are used,
