@@ -20,6 +20,7 @@ Example Airflow DAG that show how to use various Dataproc
 operators to manage a cluster and submit jobs.
 """
 
+import datetime
 import os
 from datetime import datetime
 
@@ -297,7 +298,8 @@ with models.DAG(
 with models.DAG(
     "example_gcp_batch_dataproc",
     schedule_interval='@once',
-    start_date=days_ago(1),
+    start_date=datetime.datetime(2021, 1, 1),
+    catchup=False,
 ) as dag_batch:
     # [START how_to_cloud_dataproc_create_batch_operator]
     create_batch = DataprocCreateBatchOperator(

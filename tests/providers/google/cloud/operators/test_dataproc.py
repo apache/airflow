@@ -1675,8 +1675,9 @@ class TestDataprocCreateWorkflowTemplateOperator:
 
 
 class TestDataprocCreateBatchOperator:
+    @mock.patch(DATAPROC_PATH.format("Batch.to_dict"))
     @mock.patch(DATAPROC_PATH.format("DataprocHook"))
-    def test_execute(self, mock_hook):
+    def test_execute(self, mock_hook, to_dict_mock):
         op = DataprocCreateBatchOperator(
             task_id=TASK_ID,
             gcp_conn_id=GCP_CONN_ID,
