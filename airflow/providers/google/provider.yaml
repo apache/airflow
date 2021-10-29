@@ -29,6 +29,7 @@ description: |
       - `Google Workspace <https://workspace.google.pl/>`__ (formerly Google Suite)
 
 versions:
+  - 6.1.0
   - 6.0.0
   - 5.1.0
   - 5.0.0
