@@ -694,6 +694,13 @@ ARG_SKIP_SERVE_LOGS = Arg(
     help="Don't start the serve logs process along with the workers",
     action="store_true",
 )
+ARG_ROLE_IMPORT = Arg(("file",), help="Import roles from JSON file", nargs=None)
+ARG_ROLE_EXPORT = Arg(("file",), help="Export all roles to JSON file", nargs=None)
+ARG_ROLE_EXPORT_FMT = Arg(
+    ('-p', '--pretty'),
+    help='Format output JSON file by sorting role names and indenting by 4 spaces',
+    action='store_true',
+)
 
 # info
 ARG_ANONYMIZE = Arg(
@@ -1380,6 +1387,18 @@ ROLES_COMMANDS = (
         help='Create role',
         func=lazy_load_command('airflow.cli.commands.role_command.roles_create'),
         args=(ARG_ROLES, ARG_VERBOSE),
+    ),
+    ActionCommand(
+        name='export',
+        help='Export roles (without permissions) from db to JSON file',
+        func=lazy_load_command('airflow.cli.commands.role_command.roles_export'),
+        args=(ARG_ROLE_EXPORT, ARG_ROLE_EXPORT_FMT, ARG_VERBOSE),
+    ),
+    ActionCommand(
+        name='import',
+        help='Import roles (without permissions) from JSON file to db',
+        func=lazy_load_command('airflow.cli.commands.role_command.roles_import'),
+        args=(ARG_ROLE_IMPORT, ARG_VERBOSE),
     ),
 )
 

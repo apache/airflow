@@ -26,7 +26,7 @@ from airflow.models import Connection
 
 # Please keep these variables in alphabetical order.
 from tests.test_utils import AIRFLOW_MAIN_FOLDER
-from tests.test_utils.logging_command_executor import LoggingCommandExecutor
+from tests.test_utils.logging_command_executor import CommandExecutor
 
 GCP_AI_KEY = 'gcp_ai.json'
 GCP_AUTOML_KEY = 'gcp_automl.json'
@@ -65,7 +65,7 @@ SCOPE_EXTRA = 'extra__google_cloud_platform__scope'
 PROJECT_EXTRA = 'extra__google_cloud_platform__project'
 
 
-class GcpAuthenticator(LoggingCommandExecutor):
+class GcpAuthenticator(CommandExecutor):
     """
     Initialises the authenticator.
 

@@ -198,50 +198,65 @@ Step 2: Configure Your Environment
 ----------------------------------
 
 You can use either a local virtual env or a Docker-based env. The differences
-between the two are explained `here <https://github.com/apache/airflow/blob/main/CONTRIBUTING.rst#development-environments>`_.
+between the two are explained `here <https://github.com/apache/airflow/blob/main/CONTRIBUTING.rst#development-environments/>`__.
 
-The local env's instructions can be found in full in the  `LOCAL_VIRTUALENV.rst <https://github.com/apache/airflow/blob/main/LOCAL_VIRTUALENV.rst>`_ file.
+
+The local env's instructions can be found in full in the `LOCAL_VIRTUALENV.rst`_ file.
+
+.. _LOCAL_VIRTUALENV.rst:
+https://github.com/apache/airflow/blob/main/LOCAL_VIRTUALENV.rst
 The Docker env is here to maintain a consistent and common development environment so that you can replicate CI failures locally and work on solving them locally rather by pushing to CI.
 
 You can configure the Docker-based Breeze development environment as follows:
 
-1. Install the latest versions of the Docker Community Edition
-   and Docker Compose and add them to the PATH.
+1. Install the latest versions of the `Docker Community Edition`_ and `Docker Compose`_ and add them to the PATH.
 
-2. Install jq on your machine. The exact command depends on the operating system (or Linux distribution) you use.
+.. _Docker Community Edition:
+https://github.com/apache/airflow/blob/main/BREEZE.rst#docker-community-edition
+
+.. _Docker Compose: https://github.com/apache/airflow/blob/main/BREEZE.rst#docker-compose
+
+2. Install `jq`_ on your machine. The exact command depends on the operating system (or Linux distribution) you use.
+
+.. _jq: https://stedolan.github.io/jq/
+
 For example, on Ubuntu:
 
 .. code-block:: bash
 
-  sudo apt install jq
+   sudo apt install jq
 
 or on macOS with `Homebrew <https://formulae.brew.sh/formula/jq>`_
 
 .. code-block:: bash
 
-  brew install jq
+   brew install jq
 
-3. Enter Breeze: ``./breeze``
+3. Enter Breeze, and run the following in the Airflow source code directory:
 
-   Breeze starts with downloading the Airflow CI image from
-   the Docker Hub and installing all required dependencies.
+.. code-block:: bash
 
-4. Enter the Docker environment and mount your local sources
-   to make them immediately visible in the environment.
+   ./breeze
 
-5. Create a local virtualenv, for example:
+Breeze starts with downloading the Airflow CI image from
+the Docker Hub and installing all required dependencies.
+
+This will enter the Docker Docker environment and mount your local sources
+to make them immediately visible in the environment.
+
+4. Create a local virtualenv, for example:
 
 .. code-block:: bash
 
    mkvirtualenv myenv --python=python3.6
 
-6. Initialize the created environment:
+5. Initialize the created environment:
 
 .. code-block:: bash
 
    ./breeze initialize-local-virtualenv --python 3.6
 
-7. Open your IDE (for example, PyCharm) and select the virtualenv you created
+6. Open your IDE (for example, PyCharm) and select the virtualenv you created
    as the project's default virtualenv in your IDE.
 
 Step 3: Connect with People

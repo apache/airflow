@@ -15,8 +15,8 @@
     specific language governing permissions and limitations
     under the License.
 
-``apache-airflow-providers-hdfs``
-=================================
+``apache-airflow-providers-apache-hdfs``
+========================================
 
 
 Content

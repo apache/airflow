@@ -98,6 +98,8 @@ the scheduler can create in a dag. Now, the maximum number is controlled interna
 
 ## Airflow 2.2.0
 
+Note: Upgrading the database to `2.2.0` or later can take some time to complete, particularly if you have a large `task_instance` table.
+
 ### `worker_log_server_port` configuration has been moved to the ``logging`` section.
 
 The `worker_log_server_port` configuration option has been moved from `[celery]` section to `[logging]` section to allow for re-use between different executors.
