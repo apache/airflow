@@ -27,9 +27,9 @@ workflow. Airflow is essentially a graph (Directed Acyclic Graph) made up of tas
 A task defined or implemented by a operator is a unit of work in your data pipeline.
 
 The purpose of Postgres Operator is to define tasks involving interactions with the PostgreSQL database.
- In ``Airflow-2.0``, the ``PostgresOperator`` class resides at ``airflow.providers.postgres.operator.postgres``.
+ In ``Airflow-2.0``, the ``PostgresOperator`` class resides at ``airflow.providers.postgres.operators.postgres``.
 
-Under the hood, the :class:`~airflow.providers.postgres.operator.postgres.PostgresOperator` delegates its heavy lifting to the :class:`~airflow.providers.postgres.hooks.postgres.PostgresHook`.
+Under the hood, the :class:`~airflow.providers.postgres.operators.postgres.PostgresOperator` delegates its heavy lifting to the :class:`~airflow.providers.postgres.hooks.postgres.PostgresHook`.
 
 Common Database Operations with PostgresOperator
 ------------------------------------------------

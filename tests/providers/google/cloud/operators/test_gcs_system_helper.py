@@ -25,10 +25,10 @@ from airflow.providers.google.cloud.example_dags.example_gcs import (
     PATH_TO_TRANSFORM_SCRIPT,
     PATH_TO_UPLOAD_FILE,
 )
-from tests.test_utils.logging_command_executor import LoggingCommandExecutor
+from tests.test_utils.logging_command_executor import CommandExecutor
 
 
-class GcsSystemTestHelper(LoggingCommandExecutor):
+class GcsSystemTestHelper(CommandExecutor):
     @staticmethod
     def create_test_file():
         # Create test file for upload

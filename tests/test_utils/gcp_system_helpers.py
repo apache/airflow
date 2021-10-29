@@ -28,7 +28,7 @@ from google.auth.environment_vars import CLOUD_SDK_CONFIG_DIR, CREDENTIALS
 from airflow.providers.google.cloud.utils.credentials_provider import provide_gcp_conn_and_credentials
 from tests.providers.google.cloud.utils.gcp_authenticator import GCP_GCS_KEY, GCP_SECRET_MANAGER_KEY
 from tests.test_utils import AIRFLOW_MAIN_FOLDER
-from tests.test_utils.logging_command_executor import get_executor
+from tests.test_utils.logging_command_executor import CommandExecutor
 from tests.test_utils.system_tests_class import SystemTest
 
 CLOUD_DAG_FOLDER = os.path.join(
@@ -97,7 +97,7 @@ def provide_gcp_context(
     ), tempfile.TemporaryDirectory() as gcloud_config_tmp, mock.patch.dict(
         'os.environ', {CLOUD_SDK_CONFIG_DIR: gcloud_config_tmp}
     ):
-        executor = get_executor()
+        executor = CommandExecutor()
 
         if key_file_path:
             executor.execute_cmd(
@@ -124,6 +124,11 @@ def provide_gcs_bucket(bucket_name: str):
 @pytest.mark.system("google")
 class GoogleSystemTest(SystemTest):
     @staticmethod
+    def execute_cmd(*args, **kwargs):
+        executor = CommandExecutor()
+        return executor.execute_cmd(*args, **kwargs)
+
+    @staticmethod
     def _project_id():
         return os.environ.get("GCP_PROJECT_ID")
 
@@ -139,10 +144,9 @@ class GoogleSystemTest(SystemTest):
         Executes command with context created by provide_gcp_context and activated
         service key.
         """
-        executor = get_executor()
         current_project_id = project_id or cls._project_id()
         with provide_gcp_context(key, project_id=current_project_id, scopes=scopes):
-            executor.execute_cmd(cmd=cmd, silent=silent)
+            cls.execute_cmd(cmd=cmd, silent=silent)
 
     @classmethod
     def create_gcs_bucket(cls, name: str, location: Optional[str] = None) -> None:

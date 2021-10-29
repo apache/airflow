@@ -181,6 +181,10 @@ class DagRun(Base, LoggingMixin):
             external_trigger=self.external_trigger,
         )
 
+    @property
+    def logical_date(self) -> datetime:
+        return self.execution_date
+
     def get_state(self):
         return self._state
 

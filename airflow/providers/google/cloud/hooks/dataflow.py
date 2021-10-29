@@ -356,10 +356,13 @@ class _DataflowJobsController(LoggingMixin):
             .jobs()
             .list(projectId=self._project_number, location=self._job_location)
         )
-        jobs: List[dict] = []
+        all_jobs: List[dict] = []
         while request is not None:
             response = request.execute(num_retries=self._num_retries)
-            jobs.extend(response["jobs"])
+            jobs = response.get("jobs")
+            if jobs is None:
+                break
+            all_jobs.extend(jobs)
 
             request = (
                 self._dataflow.projects()
@@ -367,7 +370,7 @@ class _DataflowJobsController(LoggingMixin):
                 .jobs()
                 .list_next(previous_request=request, previous_response=response)
             )
-        return jobs
+        return all_jobs
 
     def _fetch_jobs_by_prefix_name(self, prefix_name: str) -> List[dict]:
         jobs = self._fetch_all_jobs()
@@ -896,7 +899,7 @@ class DataflowHook(GoogleBaseHook):
 
         if not re.match(r"^[a-z]([-a-z0-9]*[a-z0-9])?$", base_job_name):
             raise ValueError(
-                f"Invalid job_name ({base_job_name}); the name must consist ofonly the characters "
+                f"Invalid job_name ({base_job_name}); the name must consist of only the characters "
                 f"[-a-z0-9], starting with a letter and ending with a letter or number "
             )
 
