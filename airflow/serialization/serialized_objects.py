@@ -55,7 +55,6 @@ try:
 except ImportError:
     HAS_KUBERNETES = False
 
-
 if TYPE_CHECKING:
     from airflow.ti_deps.deps.base_ti_dep import BaseTIDep
 
@@ -409,19 +408,30 @@ class BaseSerialization:
 
     @classmethod
     def _serialize_param(cls, param: Param):
-        param_dict = param.dump()
-        param_class_name = param_dict.pop(Param.CLASS_IDENTIFIER)
-        param_kwargs = dict(default=param_dict.pop('value'), **param_dict)
-        return {Param.CLASS_IDENTIFIER: param_class_name, **cls._serialize(param_kwargs)}
+        return dict(
+            __class=f"{param.__module__}.{param.__class__.__name__}",
+            default=cls._serialize(param.value),
+            description=cls._serialize(param.description),
+            schema=cls._serialize(param.schema),
+        )
 
     @classmethod
     def _deserialize_param(cls, param_dict: Dict):
-        param_class = import_string(param_dict.pop(Param.CLASS_IDENTIFIER))
-        try:
-            param_kwargs = cls._deserialize(param_dict)
-        except KeyError:
-            param_kwargs = param_dict
-        return param_class(**param_kwargs)
+        class_name = param_dict['__class']
+        class_ = import_string(class_name)  # type: Type[Param]
+        attrs = ('default', 'description', 'schema')
+        kwargs = {}
+        for attr in attrs:
+            if attr not in param_dict:
+                continue
+            val = param_dict[attr]
+            is_serialized = isinstance(val, dict) and '__type' in val
+            if is_serialized:
+                deserialized_val = cls._deserialize(param_dict[attr])
+                kwargs[attr] = deserialized_val
+            else:
+                kwargs[attr] = val
+        return class_(**kwargs)
 
     @classmethod
     def _serialize_params_dict(cls, params: ParamsDict):
@@ -437,13 +447,13 @@ class BaseSerialization:
 
     @classmethod
     def _deserialize_params_dict(cls, encoded_params: Dict) -> ParamsDict:
-        """Deserialize a DAGs Params dict"""
+        """Deserialize a DAG's Params dict"""
         op_params = {}
         for k, v in encoded_params.items():
             if isinstance(v, dict) and "__class" in v:
                 op_params[k] = cls._deserialize_param(v)
             else:
-                # Old style params, upgrade it
+                # Old style params, convert it
                 op_params[k] = Param(v)
 
         return ParamsDict(op_params)
