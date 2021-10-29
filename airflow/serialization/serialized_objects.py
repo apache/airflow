@@ -417,6 +417,11 @@ class BaseSerialization:
 
     @classmethod
     def _deserialize_param(cls, param_dict: Dict):
+        """
+        In 2.2.0, Param attrs were assumed to be json-serializable and were not run through
+        this class's ``_serialize`` method.  So before running through ``_deserialize``,
+        we first verify that it's necessary to do.
+        """
         class_name = param_dict['__class']
         class_ = import_string(class_name)  # type: Type[Param]
         attrs = ('default', 'description', 'schema')
