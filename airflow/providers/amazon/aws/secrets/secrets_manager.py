@@ -253,3 +253,16 @@ class SecretsManagerBackend(BaseSecretsBackend, LoggingMixin):
                 secret_id,
             )
             return None
+        except self.client.exceptions.AccessDeniedException as e:
+            self.log.debug(
+                "An error occurred (AccessDeniedException) when calling the "
+                "get_secret_value operation: %s",
+                str(e),
+            )
+            return None
+        except Exception as e:
+            self.log.debug(
+                "An unknown exception occurred when calling the get_secret_value operation: %s",
+                str(e),
+            )
+            return None
