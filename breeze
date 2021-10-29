@@ -1130,8 +1130,8 @@ function breeze::parse_arguments() {
             shift
             ;;
         --enable-mariadb-client-installation)
-            export INSTALL_MARIA_CLIENT="true"
-            echo "Install MariaDB client: ${INSTALL_MSSQL_CLIENT}"
+            export INSTALL_MARIADB_CLIENT="true"
+            echo "Install MariaDB client: ${INSTALL_MARIADB_CLIENT}"
             shift
             ;;
         --constraints-location)

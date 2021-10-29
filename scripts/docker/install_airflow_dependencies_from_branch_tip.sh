@@ -24,7 +24,7 @@
 # the dependencies first from main (and uninstall airflow right after) so that we can start installing
 # deps from those pre-installed dependencies. It saves few minutes of build time when setup.py changes.
 #
-# If INSTALL_MYSQL_CLIENT is set to false, mysql extra is removed
+# If INSTALL_MYSQL_CLIENT and INSTALL_MARIADB_CLIENT is set to false, mysql extra is removed
 #
 # shellcheck source=scripts/docker/common.sh
 . "$( dirname "${BASH_SOURCE[0]}" )/common.sh"
@@ -34,7 +34,7 @@ function install_airflow_dependencies_from_branch_tip() {
     echo
     echo "Installing airflow from ${AIRFLOW_BRANCH}. It is used to cache dependencies"
     echo
-    if [[ ${INSTALL_MYSQL_CLIENT} != "true" ]]; then
+    if [[ ${INSTALL_MYSQL_CLIENT} == "false" ]] && [[ ${INSTALL_MARIADB_CLIENT} == "false" ]]; then
        AIRFLOW_EXTRAS=${AIRFLOW_EXTRAS/mysql,}
     fi
     # Install latest set of dependencies using constraints. In case constraints were upgraded and there
