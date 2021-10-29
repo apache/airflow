@@ -32,7 +32,6 @@ from flask_appbuilder.base import dynamic_class_import
 from flask_appbuilder.const import (
     LOGMSG_ERR_FAB_ADD_PERMISSION_MENU,
     LOGMSG_ERR_FAB_ADD_PERMISSION_VIEW,
-    LOGMSG_ERR_FAB_ADDON_IMPORT,
     LOGMSG_ERR_FAB_ADDON_PROCESS,
     LOGMSG_INF_FAB_ADD_VIEW,
     LOGMSG_INF_FAB_ADDON_ADDED,
