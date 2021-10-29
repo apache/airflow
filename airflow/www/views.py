@@ -714,8 +714,7 @@ class Airflow(AirflowBaseView):
                 .limit(dags_per_page)
                 .all()
             )
-
-            user_permissions = current_app.appbuilder.sm.get_current_user_permissions()
+            user_permissions = g.user.perms
             all_dags_editable = (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_DAG) in user_permissions
             can_create_dag_run = (
                 permissions.ACTION_CAN_CREATE,

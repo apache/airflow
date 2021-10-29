@@ -259,14 +259,6 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
             user = g.user
         return user.roles
 
-    def get_current_user_permissions(self):
-        """Returns permissions for logged in user as a set of tuples with the action and resource name"""
-        perms = set()
-        for role in self.get_user_roles():
-            perms.update({(perm.action.name, perm.resource.name) for perm in role.permissions})
-        return perms
-
-    # TODO: Dafuq?
     def current_user_has_permissions(self) -> bool:
         for role in self.get_user_roles():
             if role.permissions:
@@ -331,35 +323,13 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
 
     def can_read_dag(self, dag_id, user=None) -> bool:
         """Determines whether a user has DAG read access."""
-        return self.has_access(permissions.ACTION_CAN_READ, dag_id, user=user)
-
-    def _can_read_dag(self, dag_id, user=None) -> bool:
-        """Determines whether a user has DAG read access."""
-        if not user:
-            user = g.user
-        # To account for SubDags
-        root_dag_id = dag_id.split(".")[0]
-        dag_resource_name = permissions.resource_name_for_dag(root_dag_id)
-        return (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG) in user.perms or (
-            permissions.ACTION_CAN_READ,
-            dag_resource_name,
-        ) in user.perms
+        dag_resource_name = permissions.resource_name_for_dag(dag_id)
+        return self.has_access(permissions.ACTION_CAN_READ, dag_resource_name, user=user)
 
     def can_edit_dag(self, dag_id, user=None) -> bool:
         """Determines whether a user has DAG edit access."""
-        return self.has_access(permissions.ACTION_CAN_EDIT, dag_id, user=user)
-
-    def _can_edit_dag(self, dag_id, user=None) -> bool:
-        """Determines whether a user has DAG edit access."""
-        if not user:
-            user = g.user
-        # To account for SubDags
-        root_dag_id = dag_id.split(".")[0]
-        dag_resource_name = permissions.resource_name_for_dag(root_dag_id)
-        return (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_DAG) in user.perms or (
-            permissions.ACTION_CAN_EDIT,
-            dag_resource_name,
-        ) in user.perms
+        dag_resource_name = permissions.resource_name_for_dag(dag_id)
+        return self.has_access(permissions.ACTION_CAN_EDIT, dag_resource_name, user=user)
 
     def prefixed_dag_id(self, dag_id):
         """Returns the permission name for a DAG id."""
@@ -388,20 +358,15 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
         :return: Whether user could perform certain action on the resource.
         :rtype bool
         """
-        # if not self.perms:
-        #     self.perms = self.get_current_user_permissions()
         if not user:
             user = g.user
-        breakpoint()
         if (action_name, resource_name) in user.perms:
             return True
 
-        # FAB built-in view access method. Won't work for AllDag access.
         if self.is_dag_resource(resource_name):
-            if action_name == permissions.ACTION_CAN_READ:
-                return self._can_read_dag(resource_name, user)
-            elif action_name == permissions.ACTION_CAN_EDIT:
-                return self._can_edit_dag(resource_name, user)
+            if (action_name, permissions.RESOURCE_DAG) in user.perms:
+                return True
+            return (action_name, resource_name) in user.perms
 
         return False
 
