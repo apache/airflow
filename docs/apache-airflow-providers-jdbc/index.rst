@@ -41,6 +41,7 @@ Content
 
     Example DAGs <https://github.com/apache/airflow/tree/main/airflow/providers/jdbc/example_dags>
     PyPI Repository <https://pypi.org/project/apache-airflow-providers-jdbc/>
+    Installing from sources <installing-providers-from-sources>
 
 .. THE REMAINDER OF THE FILE IS AUTOMATICALLY GENERATED. IT WILL BE OVERWRITTEN AT RELEASE TIME!
 

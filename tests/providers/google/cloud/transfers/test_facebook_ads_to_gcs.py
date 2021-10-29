@@ -23,7 +23,6 @@ GCS_OBJ_PATH = "Temp/this_is_my_report_json.json"
 GCS_CONN_ID = "google_cloud_default"
 IMPERSONATION_CHAIN = ["ACCOUNT_1", "ACCOUNT_2", "ACCOUNT_3"]
 FACEBOOK_ADS_CONN_ID = "facebook_default"
-API_VERSION = "v6.0"
 FIELDS = [
     "campaign_name",
     "campaign_id",
@@ -31,7 +30,7 @@ FIELDS = [
     "clicks",
     "impressions",
 ]
-PARAMS = {"level": "ad", "date_preset": "yesterday"}
+PARAMETERS = {"level": "ad", "date_preset": "yesterday"}
 FACEBOOK_RETURN_VALUE = [
     {
         "campaign_name": "abcd",
@@ -51,15 +50,17 @@ class TestFacebookAdsReportToGcsOperator:
         op = FacebookAdsReportToGcsOperator(
             facebook_conn_id=FACEBOOK_ADS_CONN_ID,
             fields=FIELDS,
-            params=PARAMS,
+            parameters=PARAMETERS,
             object_name=GCS_OBJ_PATH,
             bucket_name=GCS_BUCKET,
             task_id="run_operator",
             impersonation_chain=IMPERSONATION_CHAIN,
         )
         op.execute({})
-        mock_ads_hook.assert_called_once_with(facebook_conn_id=FACEBOOK_ADS_CONN_ID, api_version=API_VERSION)
-        mock_ads_hook.return_value.bulk_facebook_report.assert_called_once_with(params=PARAMS, fields=FIELDS)
+        mock_ads_hook.assert_called_once_with(facebook_conn_id=FACEBOOK_ADS_CONN_ID, api_version=None)
+        mock_ads_hook.return_value.bulk_facebook_report.assert_called_once_with(
+            params=PARAMETERS, fields=FIELDS
+        )
         mock_gcs_hook.assert_called_once_with(
             gcp_conn_id=GCS_CONN_ID,
             impersonation_chain=IMPERSONATION_CHAIN,

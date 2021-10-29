@@ -147,7 +147,7 @@ rm -rf ${AIRFLOW_REPO_ROOT}/dist/*
 ./breeze prepare-provider-packages --package-format both
 ```
 
-if you ony build few packages, run:
+if you only build few packages, run:
 
 ```shell script
 ./breeze prepare-provider-packages --package-format both PACKAGE PACKAGE ....
@@ -212,7 +212,7 @@ rm -rf ${AIRFLOW_REPO_ROOT}/dist/*
 ./breeze prepare-provider-packages --version-suffix-for-pypi rc1 --package-format both
 ```
 
-if you ony build few packages, run:
+if you only build few packages, run:
 
 ```shell script
 ./breeze prepare-provider-packages --version-suffix-for-pypi rc1 --package-format both \
@@ -299,7 +299,7 @@ cd "${AIRFLOW_REPO_ROOT}"
 ```
 
 
-If you have providers as list of provider ids becuse you just released them you can build them with
+If you have providers as list of provider ids because you just released them, you can build them with
 
 ```shell script
 ./dev/provider_packages/build_provider_documentation.sh amazon apache.beam google ....
@@ -385,7 +385,7 @@ Consider this my (binding) +1.
 Airflow Providers are available at:
 https://dist.apache.org/repos/dist/dev/airflow/providers/
 
-*apache-airflow-providers-<PROVIDER>-*-bin.tar.gz* are the binary
+*apache-airflow-providers-<PROVIDER>-*.tar.gz* are the binary
  Python "sdist" release - they are also official "sources" for the provider packages.
 
 *apache_airflow_providers_<PROVIDER>-*.whl are the binary
@@ -443,11 +443,10 @@ Please modify the message above accordingly to clearly exclude those packages.
 The files should be present in
 [Airflow dist](https://dist.apache.org/repos/dist/dev/airflow/providers/)
 
-The following files should be present (9 files):
+The following files should be present (6 files):
 
-* -source.tar.gz + .asc + .sha512 (one set of files)
-* -bin-tar.gz + .asc + .sha512 (one set of files per provider)
-* -.whl + .asc + .sha512 (one set of files per provider)
+* .tar.gz + .asc + .sha512 (one set of files per provider)
+* -py3-none-any.whl + .asc + .sha512 (one set of files per provider)
 
 As a PMC you should be able to clone the SVN repository:
 
@@ -529,8 +528,8 @@ warning. By importing the server in the previous step and importing it via ID fr
 this is a valid Key already.
 
 ```
-Checking apache-airflow-2.0.2rc4-bin.tar.gz.asc
-gpg: assuming signed data in 'apache-airflow-2.0.2rc4-bin.tar.gz'
+Checking apache-airflow-2.0.2rc4.tar.gz.asc
+gpg: assuming signed data in 'apache-airflow-2.0.2rc4.tar.gz'
 gpg: Signature made sob, 22 sie 2020, 20:28:28 CEST
 gpg:                using RSA key 12717556040EEF2EEAF1B9C275FCCD0A25FA0E4B
 gpg: Good signature from "Kaxil Naik <kaxilnaik@gmail.com>" [unknown]
@@ -569,7 +568,7 @@ done
 You should get output similar to:
 
 ```
-Checking apache-airflow-providers-google-1.0.0rc1-bin.tar.gz.sha512
+Checking apache-airflow-providers-google-1.0.0rc1.tar.gz.sha512
 Checking apache_airflow-providers-google-1.0.0rc1-py3-none-any.whl.sha512
 ```
 
@@ -805,15 +804,11 @@ I'm happy to announce that new versions of Airflow Providers packages were just 
 
 The source release, as well as the binary releases, are available here:
 
-https://dist.apache.org/repos/dist/release/airflow/providers/
+https://airflow.apache.org/docs/apache-airflow-providers/installing-from-sources
 
-We also made those versions available on PyPi for convenience ('pip install apache-airflow-providers-*'):
+You can install the providers via PyPI  https://airflow.apache.org/apache-airflow-providers/installing-from-pypi
 
-https://pypi.org/search/?q=apache-airflow-providers
-
-The documentation is available at https://airflow.apache.org/docs/ and linked from the PyPI packages:
-
-<PASTE TWINE UPLOAD LINKS HERE. SORT THEM BEFORE!>
+The documentation is available at https://airflow.apache.org/docs/ and linked from the PyPI packages.
 
 Cheers,
 <your name>

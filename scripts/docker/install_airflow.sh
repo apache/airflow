@@ -30,7 +30,7 @@
 . "$( dirname "${BASH_SOURCE[0]}" )/common.sh"
 
 function install_airflow() {
-    # Sanity check for editable installation mode.
+    # Coherence check for editable installation mode.
     if [[ ${AIRFLOW_INSTALLATION_METHOD} != "." && \
           ${AIRFLOW_INSTALL_EDITABLE_FLAG} == "--editable" ]]; then
         echo

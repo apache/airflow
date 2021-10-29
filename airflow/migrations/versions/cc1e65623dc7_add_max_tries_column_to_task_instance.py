@@ -70,6 +70,8 @@ def upgrade():
         # Get current session
         sessionmaker = sa.orm.sessionmaker()
         session = sessionmaker(bind=connection)
+        if not bool(session.query(TaskInstance).first()):
+            return
         dagbag = DagBag(settings.DAGS_FOLDER)
         query = session.query(sa.func.count(TaskInstance.max_tries)).filter(TaskInstance.max_tries == -1)
         # Separate db query in batch to prevent loading entire table

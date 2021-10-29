@@ -18,7 +18,7 @@
 import os
 
 from airflow import models
-from airflow.operators.python import PythonOperator
+from airflow.decorators import task
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 from airflow.providers.amazon.aws.operators.s3_bucket import S3CreateBucketOperator, S3DeleteBucketOperator
 from airflow.providers.google.cloud.operators.gcs import GCSCreateBucketOperator, GCSDeleteBucketOperator
@@ -32,6 +32,7 @@ UPLOAD_FILE = '/tmp/example-file.txt'
 PREFIX = 'TESTS'
 
 
+@task(task_id='upload_file_to_s3')
 def upload_file():
     """A callable to upload file to AWS bucket"""
     s3_hook = S3Hook()
@@ -47,8 +48,6 @@ with models.DAG(
     create_s3_bucket = S3CreateBucketOperator(
         task_id="create_s3_bucket", bucket_name=S3BUCKET_NAME, region_name='us-east-1'
     )
-
-    upload_to_s3 = PythonOperator(task_id='upload_file_to_s3', python_callable=upload_file)
 
     create_gcs_bucket = GCSCreateBucketOperator(
         task_id="create_bucket",
@@ -69,7 +68,7 @@ with models.DAG(
 
     (
         create_s3_bucket
-        >> upload_to_s3
+        >> upload_file()
         >> create_gcs_bucket
         >> transfer_to_gcs
         >> delete_s3_bucket

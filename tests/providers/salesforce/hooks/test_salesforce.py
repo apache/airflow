@@ -289,17 +289,15 @@ class TestSalesforceHook(unittest.TestCase):
         mock_salesforce.return_value.__getattr__(obj).describe.assert_called_once_with()
         assert obj_description == mock_salesforce.return_value.__getattr__(obj).describe.return_value
 
-    @patch("airflow.providers.salesforce.hooks.salesforce.SalesforceHook.get_conn")
     @patch(
         "airflow.providers.salesforce.hooks.salesforce.SalesforceHook.describe_object",
         return_value={"fields": [{"name": "field_1"}, {"name": "field_2"}]},
     )
-    def test_get_available_fields(self, mock_describe_object, mock_get_conn):
+    def test_get_available_fields(self, mock_describe_object):
         obj = "obj_name"
 
         available_fields = self.salesforce_hook.get_available_fields(obj)
 
-        mock_get_conn.assert_called_once_with()
         mock_describe_object.assert_called_once_with(obj)
         assert available_fields == ["field_1", "field_2"]
 

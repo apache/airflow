@@ -40,6 +40,7 @@ class TestTaskSchema:
             "execution_timeout": None,
             "extra_links": [],
             "owner": "airflow",
+            "params": {},
             "pool": "default_pool",
             "pool_slots": 1.0,
             "priority_weight": 1.0,
@@ -61,7 +62,7 @@ class TestTaskSchema:
 
 class TestTaskCollectionSchema:
     def test_serialize(self):
-        tasks = [DummyOperator(task_id="task_id1")]
+        tasks = [DummyOperator(task_id="task_id1", params={'foo': 'bar'})]
         collection = TaskCollection(tasks, 1)
         result = task_collection_schema.dump(collection)
         expected = {
@@ -77,6 +78,14 @@ class TestTaskCollectionSchema:
                     "execution_timeout": None,
                     "extra_links": [],
                     "owner": "airflow",
+                    'params': {
+                        'foo': {
+                            '__class': 'airflow.models.param.Param',
+                            'value': 'bar',
+                            'description': None,
+                            'schema': {},
+                        }
+                    },
                     "pool": "default_pool",
                     "pool_slots": 1.0,
                     "priority_weight": 1.0,

@@ -20,7 +20,11 @@
 #################################
 {{- if and .Values.pgbouncer.enabled .Values.pgbouncer.podDisruptionBudget.enabled }}
 kind: PodDisruptionBudget
+{{- if semverCompare ">= 1.21.x" (include "kubeVersion" .) }}
+apiVersion: policy/v1
+{{- else }}
 apiVersion: policy/v1beta1
+{{- end }}
 metadata:
   name: {{ .Release.Name }}-pgbouncer-pdb
   labels:

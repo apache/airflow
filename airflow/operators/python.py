@@ -85,6 +85,28 @@ class PythonOperator(BaseOperator):
         For more information on how to use this operator, take a look at the guide:
         :ref:`howto/operator:PythonOperator`
 
+    When running your callable, Airflow will pass a set of keyword arguments that can be used in your
+    function. This set of kwargs correspond exactly to what you can use in your jinja templates.
+    For this to work, you need to define ``**kwargs`` in your function header, or you can add directly the
+    keyword arguments you would like to get - for example with the below code your callable will get
+    the values of ``ti`` and ``next_ds`` context variables.
+
+    With explicit arguments:
+
+    .. code-block:: python
+
+       def my_python_callable(ti, next_ds):
+           pass
+
+    With kwargs:
+
+    .. code-block:: python
+
+       def my_python_callable(**kwargs):
+           ti = kwargs["ti"]
+           next_ds = kwargs["next_ds"]
+
+
     :param python_callable: A reference to an object that is callable
     :type python_callable: python callable
     :param op_kwargs: a dictionary of keyword arguments that will get unpacked
@@ -178,6 +200,19 @@ class BranchPythonOperator(PythonOperator, SkipMixin):
 
     def execute(self, context: Dict):
         branch = super().execute(context)
+        # TODO: The logic should be moved to SkipMixin to be available to all branch operators.
+        if isinstance(branch, str):
+            branches = {branch}
+        elif isinstance(branch, list):
+            branches = set(branch)
+        else:
+            raise AirflowException("Branch callable must return either a task ID or a list of IDs")
+        valid_task_ids = set(context["dag"].task_ids)
+        invalid_task_ids = branches - valid_task_ids
+        if invalid_task_ids:
+            raise AirflowException(
+                f"Branch callable must return valid task_ids. Invalid tasks found: {invalid_task_ids}"
+            )
         self.skip_all_except(context['ti'], branch)
         return branch
 
@@ -273,7 +308,6 @@ class PythonVirtualenvOperator(PythonOperator):
         'next_ds',
         'next_ds_nodash',
         'outlets',
-        'params',
         'prev_ds',
         'prev_ds_nodash',
         'run_id',
@@ -294,7 +328,7 @@ class PythonVirtualenvOperator(PythonOperator):
         'prev_execution_date_success',
         'prev_start_date_success',
     }
-    AIRFLOW_SERIALIZABLE_CONTEXT_KEYS = {'macros', 'conf', 'dag', 'dag_run', 'task'}
+    AIRFLOW_SERIALIZABLE_CONTEXT_KEYS = {'macros', 'conf', 'dag', 'dag_run', 'task', 'params'}
 
     def __init__(
         self,

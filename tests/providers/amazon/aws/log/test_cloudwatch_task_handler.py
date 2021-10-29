@@ -65,9 +65,9 @@ class TestCloudwatchTaskHandler(unittest.TestCase):
         self.ti.try_number = 1
         self.ti.state = State.RUNNING
 
-        self.remote_log_stream = '{}/{}/{}/{}.log'.format(
-            dag_id, task_id, date.isoformat(), self.ti.try_number
-        ).replace(':', '_')
+        self.remote_log_stream = f'{dag_id}/{task_id}/{date.isoformat()}/{self.ti.try_number}.log'.replace(
+            ':', '_'
+        )
 
         moto.core.moto_api_backend.reset()
         self.conn = boto3.client('logs', region_name=self.region_name)
@@ -171,8 +171,9 @@ class TestCloudwatchTaskHandler(unittest.TestCase):
         )
 
         msg_template = '*** Reading remote log from Cloudwatch log_group: {} log_stream: {}.\n{}\n'
-        error_msg = 'Could not read remote logs from log_group: {} log_stream: {}.'.format(
-            self.remote_log_group, self.remote_log_stream
+        error_msg = (
+            'Could not read remote logs from log_group: '
+            f'{self.remote_log_group} log_stream: {self.remote_log_stream}.'
         )
         assert self.cloudwatch_task_handler.read(self.ti) == (
             [[('', msg_template.format(self.remote_log_group, self.remote_log_stream, error_msg))]],
@@ -192,8 +193,9 @@ class TestCloudwatchTaskHandler(unittest.TestCase):
         )
 
         msg_template = '*** Reading remote log from Cloudwatch log_group: {} log_stream: {}.\n{}\n'
-        error_msg = 'Could not read remote logs from log_group: {} log_stream: {}.'.format(
-            self.remote_log_group, self.remote_log_stream
+        error_msg = (
+            f'Could not read remote logs from log_group: '
+            f'{self.remote_log_group} log_stream: {self.remote_log_stream}.'
         )
         assert self.cloudwatch_task_handler.read(self.ti) == (
             [[('', msg_template.format(self.remote_log_group, self.remote_log_stream, error_msg))]],

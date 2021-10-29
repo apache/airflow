@@ -291,7 +291,7 @@ class CloudMemorystoreHook(GoogleBaseHook):
         metadata: Optional[Sequence[Tuple[str, str]]] = None,
     ):
         """
-        Initiates a failover of the master node to current replica node for a specific STANDARD tier Cloud
+        Initiates a failover of the primary node to current replica node for a specific STANDARD tier Cloud
         Memorystore for Redis instance.
 
         :param location: The location of the Cloud Memorystore instance (for example europe-west1)

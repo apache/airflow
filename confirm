@@ -35,7 +35,7 @@ else
     read -t 4 -r RESPONSE
 fi
 
-case "${RESPONSE}" in
+case "${RESPONSE="N"}" in
     [yY][eE][sS]|[yY])
         echo "The answer is 'yes'. ${1}. This can take some time!"
         exit 0

@@ -58,8 +58,8 @@ def setup_event_handlers(engine):
         if connection_record.info['pid'] != pid:
             connection_record.connection = connection_proxy.connection = None
             raise exc.DisconnectionError(
-                "Connection record belongs to pid {}, "
-                "attempting to check out in pid {}".format(connection_record.info['pid'], pid)
+                f"Connection record belongs to pid {connection_record.info['pid']}, "
+                f"attempting to check out in pid {pid}"
             )
 
     if conf.getboolean('debug', 'sqlalchemy_stats', fallback=False):

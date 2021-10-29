@@ -34,6 +34,7 @@ from typing import TYPE_CHECKING, Callable, Optional, TypeVar, cast
 from airflow import settings
 from airflow.exceptions import AirflowException
 from airflow.utils import cli_action_loggers
+from airflow.utils.log.non_caching_file_handler import NonCachingFileHandler
 from airflow.utils.platform import getuser, is_terminal_support_colors
 from airflow.utils.session import provide_session
 
@@ -176,8 +177,7 @@ def get_dag_by_file_location(dag_id: str):
     dag_model = DagModel.get_current(dag_id)
     if dag_model is None:
         raise AirflowException(
-            'dag_id could not be found: {}. Either the dag did not exist or it failed to '
-            'parse.'.format(dag_id)
+            f'dag_id could not be found: {dag_id}. Either the dag did not exist or it failed to parse.'
         )
     dagbag = DagBag(dag_folder=dag_model.fileloc)
     return dagbag.dags[dag_id]
@@ -190,8 +190,7 @@ def get_dag(subdir: Optional[str], dag_id: str) -> "DAG":
     dagbag = DagBag(process_subdir(subdir))
     if dag_id not in dagbag.dags:
         raise AirflowException(
-            'dag_id could not be found: {}. Either the dag did not exist or it failed to '
-            'parse.'.format(dag_id)
+            f'dag_id could not be found: {dag_id}. Either the dag did not exist or it failed to parse.'
         )
     return dagbag.dags[dag_id]
 
@@ -206,8 +205,8 @@ def get_dags(subdir: Optional[str], dag_id: str, use_regex: bool = False):
     matched_dags = [dag for dag in dagbag.dags.values() if re.search(dag_id, dag.dag_id)]
     if not matched_dags:
         raise AirflowException(
-            'dag_id could not be found with regex: {}. Either the dag did not exist '
-            'or it failed to parse.'.format(dag_id)
+            f'dag_id could not be found with regex: {dag_id}. Either the dag did not exist or '
+            f'it failed to parse.'
         )
     return matched_dags
 
@@ -244,7 +243,7 @@ def setup_locations(process, pid=None, stdout=None, stderr=None, log=None):
 def setup_logging(filename):
     """Creates log file handler for daemon process"""
     root = logging.getLogger()
-    handler = logging.FileHandler(filename)
+    handler = NonCachingFileHandler(filename)
     formatter = logging.Formatter(settings.SIMPLE_LOG_FORMAT)
     handler.setFormatter(formatter)
     root.addHandler(handler)

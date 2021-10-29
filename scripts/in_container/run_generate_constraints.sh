@@ -21,14 +21,13 @@
 CONSTRAINTS_DIR="/files/constraints-${PYTHON_MAJOR_MINOR_VERSION}"
 
 LATEST_CONSTRAINT_FILE="${CONSTRAINTS_DIR}/original-${AIRFLOW_CONSTRAINTS}-${PYTHON_MAJOR_MINOR_VERSION}.txt"
-CURRENT_CONSTRAINT_FILE="${CONSTRAINTS_DIR}/${AIRFLOW_CONSTRAINTS}-${PYTHON_MAJOR_MINOR_VERSION}.txt"
-
 mkdir -pv "${CONSTRAINTS_DIR}"
 
 
 if [[ ${GENERATE_CONSTRAINTS_MODE} == "no-providers" ]]; then
     AIRFLOW_CONSTRAINTS="constraints-no-providers"
     NO_PROVIDERS_EXTRAS=$(python -c 'import setup; print(",".join(setup.CORE_EXTRAS_REQUIREMENTS.keys()))')
+    CURRENT_CONSTRAINT_FILE="${CONSTRAINTS_DIR}/${AIRFLOW_CONSTRAINTS}-${PYTHON_MAJOR_MINOR_VERSION}.txt"
     echo
     echo "UnInstall All PIP packages."
     echo
@@ -50,6 +49,7 @@ if [[ ${GENERATE_CONSTRAINTS_MODE} == "no-providers" ]]; then
 EOF
 elif [[ ${GENERATE_CONSTRAINTS_MODE} == "source-providers" ]]; then
     AIRFLOW_CONSTRAINTS="constraints-source-providers"
+    CURRENT_CONSTRAINT_FILE="${CONSTRAINTS_DIR}/${AIRFLOW_CONSTRAINTS}-${PYTHON_MAJOR_MINOR_VERSION}.txt"
     echo
     echo "Providers are already installed from sources."
     echo
@@ -67,11 +67,11 @@ elif [[ ${GENERATE_CONSTRAINTS_MODE} == "source-providers" ]]; then
 EOF
 elif [[ ${GENERATE_CONSTRAINTS_MODE} == "pypi-providers" ]]; then
     AIRFLOW_CONSTRAINTS="constraints"
+    CURRENT_CONSTRAINT_FILE="${CONSTRAINTS_DIR}/${AIRFLOW_CONSTRAINTS}-${PYTHON_MAJOR_MINOR_VERSION}.txt"
     echo
     echo "Install all providers from PyPI so that they are included in the constraints."
     echo
     install_all_providers_from_pypi_with_eager_upgrade
-else
     cat <<EOF >"${CURRENT_CONSTRAINT_FILE}"
 #
 # This constraints file was automatically generated on $(date -u +'%Y-%m-%dT%H:%M:%SZ')
@@ -84,6 +84,7 @@ else
 # "constraints-X.Y.Z" tag to build the production image for that version.
 #
 EOF
+else
     echo
     echo "${COLOR_RED}Error! GENERATE_CONSTRAINTS_MODE has wrong value: '${GENERATE_CONSTRAINTS_MODE}' ${COLOR_RESET}"
     echo

@@ -223,6 +223,7 @@ def filename_rendering_ti(session, create_task_instance):
     return create_task_instance(
         dag_id='dag_for_testing_filename_rendering',
         task_id='task_for_testing_filename_rendering',
+        run_type=DagRunType.SCHEDULED,
         execution_date=DEFAULT_DATE,
         session=session,
     )
@@ -231,8 +232,8 @@ def filename_rendering_ti(session, create_task_instance):
 class TestFilenameRendering:
     def test_python_formatting(self, filename_rendering_ti):
         expected_filename = (
-            'dag_for_testing_filename_rendering/task_for_testing_filename_rendering/%s/42.log'
-            % DEFAULT_DATE.isoformat()
+            f'dag_for_testing_filename_rendering/task_for_testing_filename_rendering/'
+            f'{DEFAULT_DATE.isoformat()}/42.log'
         )
 
         fth = FileTaskHandler('', '{dag_id}/{task_id}/{execution_date}/{try_number}.log')
@@ -241,8 +242,8 @@ class TestFilenameRendering:
 
     def test_jinja_rendering(self, filename_rendering_ti):
         expected_filename = (
-            'dag_for_testing_filename_rendering/task_for_testing_filename_rendering/%s/42.log'
-            % DEFAULT_DATE.isoformat()
+            f'dag_for_testing_filename_rendering/task_for_testing_filename_rendering/'
+            f'{DEFAULT_DATE.isoformat()}/42.log'
         )
 
         fth = FileTaskHandler('', '{{ ti.dag_id }}/{{ ti.task_id }}/{{ ts }}/{{ try_number }}.log')

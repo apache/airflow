@@ -131,7 +131,7 @@ with models.DAG(
 
     # [START how_to_query_def]
     QUERY = {
-        "partitionId": {"projectId": GCP_PROJECT_ID, "namespaceId": ""},
+        "partitionId": {"projectId": GCP_PROJECT_ID, "namespaceId": "query"},
         "readOptions": {"transaction": begin_transaction_query.output},
         "query": {},
     }

@@ -19,6 +19,17 @@
 Changelog
 ---------
 
+2.1.1
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``fix get_connections deprecation warning in webhdfs hook (#18331)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 2.1.0
 .....
 

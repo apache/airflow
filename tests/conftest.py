@@ -250,9 +250,9 @@ def skip_if_not_marked_with_integration(selected_integrations, item):
         if integration_name in selected_integrations or "all" in selected_integrations:
             return
     pytest.skip(
-        "The test is skipped because it does not have the right integration marker. "
-        "Only tests marked with pytest.mark.integration(INTEGRATION) are run with INTEGRATION"
-        " being one of {integration}. {item}".format(integration=selected_integrations, item=item)
+        f"The test is skipped because it does not have the right integration marker. "
+        f"Only tests marked with pytest.mark.integration(INTEGRATION) are run with INTEGRATION "
+        f"being one of {selected_integrations}. {item}"
     )
 
 
@@ -262,9 +262,8 @@ def skip_if_not_marked_with_backend(selected_backend, item):
         if selected_backend in backend_names:
             return
     pytest.skip(
-        "The test is skipped because it does not have the right backend marker "
-        "Only tests marked with pytest.mark.backend('{backend}') are run"
-        ": {item}".format(backend=selected_backend, item=item)
+        f"The test is skipped because it does not have the right backend marker "
+        f"Only tests marked with pytest.mark.backend('{selected_backend}') are run: {item}"
     )
 
 
@@ -274,36 +273,33 @@ def skip_if_not_marked_with_system(selected_systems, item):
         if systems_name in selected_systems or "all" in selected_systems:
             return
     pytest.skip(
-        "The test is skipped because it does not have the right system marker. "
-        "Only tests marked with pytest.mark.system(SYSTEM) are run with SYSTEM"
-        " being one of {systems}. {item}".format(systems=selected_systems, item=item)
+        f"The test is skipped because it does not have the right system marker. "
+        f"Only tests marked with pytest.mark.system(SYSTEM) are run with SYSTEM "
+        f"being one of {selected_systems}. {item}"
     )
 
 
 def skip_system_test(item):
     for marker in item.iter_markers(name="system"):
         pytest.skip(
-            "The test is skipped because it has system marker. "
-            "System tests are only run when --system flag "
-            "with the right system ({system}) is passed to pytest. {item}".format(
-                system=marker.args[0], item=item
-            )
+            f"The test is skipped because it has system marker. System tests are only run when "
+            f"--system flag with the right system ({marker.args[0]}) is passed to pytest. {item}"
         )
 
 
 def skip_long_running_test(item):
     for _ in item.iter_markers(name="long_running"):
         pytest.skip(
-            "The test is skipped because it has long_running marker. "
-            "And --include-long-running flag is not passed to pytest. {item}".format(item=item)
+            f"The test is skipped because it has long_running marker. "
+            f"And --include-long-running flag is not passed to pytest. {item}"
         )
 
 
 def skip_quarantined_test(item):
     for _ in item.iter_markers(name="quarantined"):
         pytest.skip(
-            "The test is skipped because it has quarantined marker. "
-            "And --include-quarantined flag is passed to pytest. {item}".format(item=item)
+            f"The test is skipped because it has quarantined marker. "
+            f"And --include-quarantined flag is passed to pytest. {item}"
         )
 
 
@@ -331,15 +327,9 @@ def skip_if_wrong_backend(marker, item):
     environment_variable_value = os.environ.get(environment_variable_name)
     if not environment_variable_value or environment_variable_value not in valid_backend_names:
         pytest.skip(
-            "The test requires one of {valid_backend_names} backend started and "
-            "{name} environment variable to be set to 'true' (it is '{value}')."
-            " It can be set by specifying backend at breeze startup"
-            ": {item}".format(
-                name=environment_variable_name,
-                value=environment_variable_value,
-                valid_backend_names=valid_backend_names,
-                item=item,
-            )
+            f"The test requires one of {valid_backend_names} backend started and "
+            f"{environment_variable_name} environment variable to be set to 'true' (it is "
+            f"'{environment_variable_value}'). It can be set by specifying backend at breeze startup: {item}"
         )
 
 
@@ -473,7 +463,11 @@ def dag_maker(request):
     if serialized_marker:
         (want_serialized,) = serialized_marker.args or (True,)
 
-    class DagFactory:
+    from airflow.utils.log.logging_mixin import LoggingMixin
+
+    class DagFactory(LoggingMixin):
+        _own_session = False
+
         def __init__(self):
             from airflow.models import DagBag
 
@@ -521,13 +515,13 @@ def dag_maker(request):
                 self.dagbag.bag_dag(self.dag, self.dag)
 
         def create_dagrun(self, **kwargs):
-            from airflow.timetables.base import DataInterval
+            from airflow.utils import timezone
             from airflow.utils.state import State
+            from airflow.utils.types import DagRunType
 
             dag = self.dag
             kwargs = {
                 "state": State.RUNNING,
-                "execution_date": self.start_date,
                 "start_date": self.start_date,
                 "session": self.session,
                 **kwargs,
@@ -536,14 +530,36 @@ def dag_maker(request):
             # explicitly, or pass run_type for inference in dag.create_dagrun().
             if "run_id" not in kwargs and "run_type" not in kwargs:
                 kwargs["run_id"] = "test"
-            # Fill data_interval is not provided.
-            if not kwargs.get("data_interval"):
-                kwargs["data_interval"] = DataInterval.exact(kwargs["execution_date"])
+
+            if "run_type" not in kwargs:
+                kwargs["run_type"] = DagRunType.from_run_id(kwargs["run_id"])
+            if "execution_date" not in kwargs:
+                if kwargs["run_type"] == DagRunType.MANUAL:
+                    kwargs["execution_date"] = self.start_date
+                else:
+                    kwargs["execution_date"] = dag.next_dagrun_info(None).logical_date
+            if "data_interval" not in kwargs:
+                logical_date = timezone.coerce_datetime(kwargs["execution_date"])
+                if kwargs["run_type"] == DagRunType.MANUAL:
+                    data_interval = dag.timetable.infer_manual_data_interval(run_after=logical_date)
+                else:
+                    data_interval = dag.infer_automated_data_interval(logical_date)
+                kwargs["data_interval"] = data_interval
 
             self.dag_run = dag.create_dagrun(**kwargs)
             for ti in self.dag_run.task_instances:
                 ti.refresh_from_task(dag.get_task(ti.task_id))
             return self.dag_run
+
+        def create_dagrun_after(self, dagrun, **kwargs):
+            next_info = self.dag.next_dagrun_info(self.dag.get_run_data_interval(dagrun))
+            if next_info is None:
+                raise ValueError(f"cannot create run after {dagrun}")
+            return self.create_dagrun(
+                execution_date=next_info.logical_date,
+                data_interval=next_info.data_interval,
+                **kwargs,
+            )
 
         def __call__(
             self, dag_id='test_dag', serialized=want_serialized, fileloc=None, session=None, **kwargs
@@ -553,6 +569,7 @@ def dag_maker(request):
             from airflow.utils import timezone
 
             if session is None:
+                self._own_session = True
                 session = settings.Session()
 
             self.kwargs = kwargs
@@ -577,26 +594,36 @@ def dag_maker(request):
             return self
 
         def cleanup(self):
-            from airflow.models import DagModel, DagRun, TaskInstance
+            from airflow.models import DagModel, DagRun, TaskInstance, XCom
             from airflow.models.serialized_dag import SerializedDagModel
+            from airflow.utils.retries import run_with_db_retries
 
-            dag_ids = list(self.dagbag.dag_ids)
-            if not dag_ids:
-                return
-            # To isolate problems here with problems from elsewhere on the session object
-            self.session.flush()
+            for attempt in run_with_db_retries(logger=self.log):
+                with attempt:
+                    dag_ids = list(self.dagbag.dag_ids)
+                    if not dag_ids:
+                        return
+                    # To isolate problems here with problems from elsewhere on the session object
+                    self.session.flush()
 
-            self.session.query(SerializedDagModel).filter(SerializedDagModel.dag_id.in_(dag_ids)).delete(
-                synchronize_session=False
-            )
-            self.session.query(DagRun).filter(DagRun.dag_id.in_(dag_ids)).delete(synchronize_session=False)
-            self.session.query(TaskInstance).filter(TaskInstance.dag_id.in_(dag_ids)).delete(
-                synchronize_session=False
-            )
-            self.session.query(DagModel).filter(DagModel.dag_id.in_(dag_ids)).delete(
-                synchronize_session=False
-            )
-            self.session.commit()
+                    self.session.query(SerializedDagModel).filter(
+                        SerializedDagModel.dag_id.in_(dag_ids)
+                    ).delete(synchronize_session=False)
+                    self.session.query(DagRun).filter(DagRun.dag_id.in_(dag_ids)).delete(
+                        synchronize_session=False
+                    )
+                    self.session.query(TaskInstance).filter(TaskInstance.dag_id.in_(dag_ids)).delete(
+                        synchronize_session=False
+                    )
+                    self.session.query(XCom).filter(XCom.dag_id.in_(dag_ids)).delete(
+                        synchronize_session=False
+                    )
+                    self.session.query(DagModel).filter(DagModel.dag_id.in_(dag_ids)).delete(
+                        synchronize_session=False
+                    )
+                    self.session.commit()
+                    if self._own_session:
+                        self.session.expunge_all()
 
     factory = DagFactory()
 
@@ -640,7 +667,7 @@ def create_dummy_dag(dag_maker):
         on_failure_callback=None,
         on_retry_callback=None,
         email=None,
-        with_dagrun=True,
+        with_dagrun_type=DagRunType.SCHEDULED,
         **kwargs,
     ):
         with dag_maker(dag_id, **kwargs) as dag:
@@ -656,8 +683,8 @@ def create_dummy_dag(dag_maker):
                 pool=pool,
                 trigger_rule=trigger_rule,
             )
-        if with_dagrun:
-            dag_maker.create_dagrun(run_type=DagRunType.SCHEDULED)
+        if with_dagrun_type is not None:
+            dag_maker.create_dagrun(run_type=with_dagrun_type)
         return dag, op
 
     return create_dag
@@ -671,15 +698,20 @@ def create_task_instance(dag_maker, create_dummy_dag):
     Uses ``create_dummy_dag`` to create the dag structure.
     """
 
-    def maker(execution_date=None, dagrun_state=None, state=None, run_id='test', **kwargs):
+    def maker(execution_date=None, dagrun_state=None, state=None, run_id=None, run_type=None, **kwargs):
         if execution_date is None:
             from airflow.utils import timezone
 
             execution_date = timezone.utcnow()
-        create_dummy_dag(with_dagrun=False, **kwargs)
+        create_dummy_dag(with_dagrun_type=None, **kwargs)
 
-        dr = dag_maker.create_dagrun(execution_date=execution_date, state=dagrun_state, run_id=run_id)
-        ti = dr.task_instances[0]
+        dagrun_kwargs = {"execution_date": execution_date, "state": dagrun_state}
+        if run_id is not None:
+            dagrun_kwargs["run_id"] = run_id
+        if run_type is not None:
+            dagrun_kwargs["run_type"] = run_type
+        dagrun = dag_maker.create_dagrun(**dagrun_kwargs)
+        (ti,) = dagrun.task_instances
         ti.state = state
 
         return ti
@@ -699,7 +731,11 @@ def create_task_instance_of_operator(dag_maker):
     ):
         with dag_maker(dag_id=dag_id, session=session):
             operator_class(**operator_kwargs)
-        (ti,) = dag_maker.create_dagrun(execution_date=execution_date).task_instances
+        if execution_date is None:
+            dagrun_kwargs = {}
+        else:
+            dagrun_kwargs = {"execution_date": execution_date}
+        (ti,) = dag_maker.create_dagrun(**dagrun_kwargs).task_instances
         return ti
 
     return _create_task_instance

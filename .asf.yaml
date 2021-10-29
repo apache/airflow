@@ -24,6 +24,7 @@ github:
     - airflow
     - apache
     - apache-airflow
+    - hacktoberfest
     - python
     - scheduler
     - workflow
@@ -53,9 +54,11 @@ github:
     v2-1-stable:
       required_pull_request_reviews:
         required_approving_review_count: 1
+    v2-2-stable:
+      required_pull_request_reviews:
+        required_approving_review_count: 1
 
   collaborators:
-    - bbovenzi
     - auvipy
     - paolaperaza
     - petedejoy

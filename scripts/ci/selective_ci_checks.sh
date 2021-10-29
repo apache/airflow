@@ -428,6 +428,9 @@ function check_if_docs_should_be_generated() {
         "^airflow/.*\.py$"
         "^CHANGELOG\.txt"
         "^airflow/config_templates/config\.yml"
+        "^chart/UPDATING\.rst"
+        "^chart/CHANGELOG\.txt"
+        "^chart/values\.schema\.json"
     )
     show_changed_files
 

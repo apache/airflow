@@ -19,6 +19,18 @@
 Changelog
 ---------
 
+2.2.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add Snowflake operators based on SQL Checks  (#17741)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Static start_date and default arg cleanup for misc. provider example DAGs (#18597)``
+
 2.1.1
 .....
 

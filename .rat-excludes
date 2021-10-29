@@ -104,3 +104,12 @@ _vendor
 
 # generated provider_packages
 provider_packages
+
+# Chart ignored files
+chart/.gitignore
+chart/values.schema.json
+chart/Chart.lock
+chart/values_schema.schema.json
+
+# A simplistic Robots.txt
+airflow/www/static/robots.txt

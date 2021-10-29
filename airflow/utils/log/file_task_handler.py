@@ -26,6 +26,7 @@ from itsdangerous import TimedJSONWebSignatureSerializer
 
 from airflow.configuration import AirflowConfigException, conf
 from airflow.utils.helpers import parse_template_string
+from airflow.utils.log.non_caching_file_handler import NonCachingFileHandler
 
 if TYPE_CHECKING:
     from airflow.models import TaskInstance
@@ -55,7 +56,7 @@ class FileTaskHandler(logging.Handler):
         :param ti: task instance object
         """
         local_loc = self._init_file(ti)
-        self.handler = logging.FileHandler(local_loc, encoding='utf-8')
+        self.handler = NonCachingFileHandler(local_loc, encoding='utf-8')
         if self.formatter:
             self.handler.setFormatter(self.formatter)
         self.handler.setLevel(self.level)
@@ -116,7 +117,7 @@ class FileTaskHandler(logging.Handler):
 
         if os.path.exists(location):
             try:
-                with open(location) as file:
+                with open(location, encoding="utf-8", errors="surrogateescape") as file:
                     log += f"*** Reading local file: {location}\n"
                     log += "".join(file.readlines())
             except Exception as e:
@@ -142,9 +143,7 @@ class FileTaskHandler(logging.Handler):
                         if len(matches[0]) > len(ti.hostname):
                             ti.hostname = matches[0]
 
-                log += '*** Trying to get logs (last 100 lines) from worker pod {} ***\n\n'.format(
-                    ti.hostname
-                )
+                log += f'*** Trying to get logs (last 100 lines) from worker pod {ti.hostname} ***\n\n'
 
                 res = kube_client.read_namespaced_pod_log(
                     name=ti.hostname,

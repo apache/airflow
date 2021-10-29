@@ -36,24 +36,23 @@ in all templates
 ==========================================  ====================================
 Variable                                    Description
 ==========================================  ====================================
-``{{ data_interval_start }}``               Start of the data interval (`pendulum.Pendulum`_ or ``None``).
-``{{ data_interval_end }}``                 End of the data interval (`pendulum.Pendulum`_ or ``None``).
-``{{ ds }}``                                Start of the data interval as ``YYYY-MM-DD``.
-                                            Same as ``{{ data_interval_start | ds }}``.
-``{{ ds_nodash }}``                         Start of the data interval as ``YYYYMMDD``.
-                                            Same as ``{{ data_interval_start | ds_nodash }}``.
-``{{ ts }}``                                Same as ``{{ data_interval_start | ts }}``.
+``{{ data_interval_start }}``               Start of the data interval (`pendulum.DateTime`_).
+``{{ data_interval_end }}``                 End of the data interval (`pendulum.DateTime`_).
+``{{ ds }}``                                The DAG run's logical date as ``YYYY-MM-DD``.
+                                            Same as ``{{ dag_run.logical_date | ds }}``.
+``{{ ds_nodash }}``                         Same as ``{{ dag_run.logical_date | ds_nodash }}``.
+``{{ ts }}``                                Same as ``{{ dag_run.logical_date | ts }}``.
                                             Example: ``2018-01-01T00:00:00+00:00``.
-``{{ ts_nodash_with_tz }}``                 Same as ``{{ data_interval_start | ts_nodash_with_tz }}``.
+``{{ ts_nodash_with_tz }}``                 Same as ``{{ dag_run.logical_date | ts_nodash_with_tz }}``.
                                             Example: ``20180101T000000+0000``.
-``{{ ts_nodash }}``                         Same as ``{{ data_interval_start | ts_nodash }}``.
+``{{ ts_nodash }}``                         Same as ``{{ dag_run.logical_date | ts_nodash }}``.
                                             Example: ``20180101T000000``.
 ``{{ prev_data_interval_start_success }}``  Start of the data interval from prior successful DAG run
-                                            (`pendulum.Pendulum`_ or ``None``).
+                                            (`pendulum.DateTime`_ or ``None``).
 ``{{ prev_data_interval_end_success }}``    End of the data interval from prior successful DAG run
-                                            (`pendulum.Pendulum`_ or ``None``).
+                                            (`pendulum.DateTime`_ or ``None``).
 ``{{ prev_start_date_success }}``           Start date from prior successful dag run (if available)
-                                            (`pendulum.Pendulum`_ or ``None``).
+                                            (`pendulum.DateTime`_ or ``None``).
 ``{{ dag }}``                               The DAG object.
 ``{{ task }}``                              The Task object.
 ``{{ macros }}``                            A reference to the macros package, described below.
@@ -78,20 +77,25 @@ Variable                                    Description
                                             subcommand.
 ==========================================  ====================================
 
+.. note::
+
+    The DAG run's logical date, and values derived from it, such as ``ds`` and
+    ``ts``, **should not** be considered unique in a DAG. Use ``run_id`` instead.
+
 The following variables are deprecated. They are kept for backward compatibility, but you should convert
 existing code to use other variables instead.
 
 =====================================   ====================================
 Deprecated Variable                     Description
 =====================================   ====================================
-``{{ execution_date }}``                the execution date (logical date), same as ``logical_date``
-``{{ next_execution_date }}``           the next execution date (if available) (`pendulum.Pendulum`_)
+``{{ execution_date }}``                the execution date (logical date), same as ``dag_run.logical_date``
+``{{ next_execution_date }}``           the next execution date (if available) (`pendulum.DateTime`_)
                                         if ``{{ execution_date }}`` is ``2018-01-01 00:00:00`` and
                                         ``schedule_interval`` is ``@weekly``, ``{{ next_execution_date }}``
                                         will be ``2018-01-08 00:00:00``
 ``{{ next_ds }}``                       the next execution date as ``YYYY-MM-DD`` if exists, else ``None``
 ``{{ next_ds_nodash }}``                the next execution date as ``YYYYMMDD`` if exists, else ``None``
-``{{ prev_execution_date }}``           the previous execution date (if available) (`pendulum.Pendulum`_)
+``{{ prev_execution_date }}``           the previous execution date (if available) (`pendulum.DateTime`_)
                                         if ``{{ execution_date }}`` is ``2018-01-08 00:00:00`` and
                                         ``schedule_interval`` is ``@weekly``, ``{{ prev_execution_date }}``
                                         will be ``2018-01-01 00:00:00``
@@ -130,7 +134,7 @@ Just like with ``var`` it's possible to fetch a connection by string  (e.g. ``{{
 Filters
 -------
 
-Airflow defines the some Jinja filters that can be used to format values.
+Airflow defines some Jinja filters that can be used to format values.
 
 For example, using ``{{ execution_date | ds }}`` will output the execution_date in the ``YYYY-MM-DD`` format.
 
@@ -175,4 +179,4 @@ Some airflow specific macros are also defined:
 .. automodule:: airflow.macros.hive
     :members:
 
-.. _pendulum.Pendulum: https://pendulum.eustace.io/docs/2.x/#introduction
+.. _pendulum.DateTime: https://pendulum.eustace.io/docs/#introduction

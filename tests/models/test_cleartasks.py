@@ -53,7 +53,7 @@ class TestClearTasks:
             state=State.RUNNING,
             run_type=DagRunType.SCHEDULED,
         )
-        ti0, ti1 = dr.task_instances
+        ti0, ti1 = sorted(dr.task_instances, key=lambda ti: ti.task_id)
         ti0.refresh_from_task(task0)
         ti1.refresh_from_task(task1)
 
@@ -61,7 +61,11 @@ class TestClearTasks:
         ti1.run()
 
         with create_session() as session:
-            qry = session.query(TI).filter(TI.dag_id == dag.dag_id).all()
+            # we use order_by(task_id) here because for the test DAG structure of ours
+            # this is equivalent to topological sort. It would not work in general case
+            # but it works for our case because we specifically constructed test DAGS
+            # in the way that those two sort methods are equivalent
+            qry = session.query(TI).filter(TI.dag_id == dag.dag_id).order_by(TI.task_id).all()
             clear_task_instances(qry, session, dag=dag)
 
         ti0.refresh_from_db()
@@ -90,7 +94,11 @@ class TestClearTasks:
             session.add(ti0)
             session.commit()
 
-            qry = session.query(TI).filter(TI.dag_id == dag.dag_id).all()
+            # we use order_by(task_id) here because for the test DAG structure of ours
+            # this is equivalent to topological sort. It would not work in general case
+            # but it works for our case because we specifically constructed test DAGS
+            # in the way that those two sort methods are equivalent
+            qry = session.query(TI).filter(TI.dag_id == dag.dag_id).order_by(TI.task_id).all()
             clear_task_instances(qry, session, dag=dag)
 
             ti0.refresh_from_db()
@@ -117,21 +125,25 @@ class TestClearTasks:
             state=State.RUNNING,
             run_type=DagRunType.SCHEDULED,
         )
-        ti0, ti1 = dr.task_instances
+        ti0, ti1 = sorted(dr.task_instances, key=lambda ti: ti.task_id)
         dr.last_scheduling_decision = DEFAULT_DATE
         ti0.state = TaskInstanceState.SUCCESS
         ti1.state = TaskInstanceState.SUCCESS
         session = dag_maker.session
         session.flush()
 
-        qry = session.query(TI).filter(TI.dag_id == dag.dag_id).all()
+        # we use order_by(task_id) here because for the test DAG structure of ours
+        # this is equivalent to topological sort. It would not work in general case
+        # but it works for our case because we specifically constructed test DAGS
+        # in the way that those two sort methods are equivalent
+        qry = session.query(TI).filter(TI.dag_id == dag.dag_id).order_by(TI.task_id).all()
         clear_task_instances(qry, session, dag_run_state=state, dag=dag)
         session.flush()
 
         session.refresh(dr)
 
         assert dr.state == state
-        assert dr.start_date is None
+        assert dr.start_date is None if state == State.QUEUED else dr.start_date
         assert dr.last_scheduling_decision == last_scheduling
 
     def test_clear_task_instances_without_task(self, dag_maker):
@@ -148,7 +160,7 @@ class TestClearTasks:
             run_type=DagRunType.SCHEDULED,
         )
 
-        ti0, ti1 = dr.task_instances
+        ti0, ti1 = sorted(dr.task_instances, key=lambda ti: ti.task_id)
         ti0.refresh_from_task(task0)
         ti1.refresh_from_task(task1)
 
@@ -161,7 +173,11 @@ class TestClearTasks:
         assert not dag.has_task(task1.task_id)
 
         with create_session() as session:
-            qry = session.query(TI).filter(TI.dag_id == dag.dag_id).all()
+            # we use order_by(task_id) here because for the test DAG structure of ours
+            # this is equivalent to topological sort. It would not work in general case
+            # but it works for our case because we specifically constructed test DAGS
+            # in the way that those two sort methods are equivalent
+            qry = session.query(TI).filter(TI.dag_id == dag.dag_id).order_by(TI.task_id).all()
             clear_task_instances(qry, session)
 
         # When dag is None, max_tries will be maximum of original max_tries or try_number.
@@ -187,7 +203,7 @@ class TestClearTasks:
             run_type=DagRunType.SCHEDULED,
         )
 
-        ti0, ti1 = dr.task_instances
+        ti0, ti1 = sorted(dr.task_instances, key=lambda ti: ti.task_id)
         ti0.refresh_from_task(task0)
         ti1.refresh_from_task(task1)
 
@@ -195,7 +211,11 @@ class TestClearTasks:
         ti1.run()
 
         with create_session() as session:
-            qry = session.query(TI).filter(TI.dag_id == dag.dag_id).all()
+            # we use order_by(task_id) here because for the test DAG structure of ours
+            # this is equivalent to topological sort. It would not work in general case
+            # but it works for our case because we specifically constructed test DAGS
+            # in the way that those two sort methods are equivalent
+            qry = session.query(TI).filter(TI.dag_id == dag.dag_id).order_by(TI.task_id).all()
             clear_task_instances(qry, session)
 
         # When dag is None, max_tries will be maximum of original max_tries or try_number.
@@ -223,7 +243,7 @@ class TestClearTasks:
             run_type=DagRunType.SCHEDULED,
         )
 
-        ti0, ti1 = dr.task_instances
+        ti0, ti1 = sorted(dr.task_instances, key=lambda ti: ti.task_id)
         ti0.refresh_from_task(task0)
         ti1.refresh_from_task(task1)
         ti0.run()
@@ -245,7 +265,16 @@ class TestClearTasks:
 
             assert count_task_reschedule(ti0.task_id) == 1
             assert count_task_reschedule(ti1.task_id) == 1
-            qry = session.query(TI).filter(TI.dag_id == dag.dag_id, TI.task_id == ti0.task_id).all()
+            # we use order_by(task_id) here because for the test DAG structure of ours
+            # this is equivalent to topological sort. It would not work in general case
+            # but it works for our case because we specifically constructed test DAGS
+            # in the way that those two sort methods are equivalent
+            qry = (
+                session.query(TI)
+                .filter(TI.dag_id == dag.dag_id, TI.task_id == ti0.task_id)
+                .order_by(TI.task_id)
+                .all()
+            )
             clear_task_instances(qry, session, dag=dag)
             assert count_task_reschedule(ti0.task_id) == 0
             assert count_task_reschedule(ti1.task_id) == 1
@@ -263,7 +292,7 @@ class TestClearTasks:
         )
         session = dag_maker.session
 
-        ti0, ti1 = dr.task_instances
+        ti0, ti1 = sorted(dr.task_instances, key=lambda ti: ti.task_id)
         ti0.refresh_from_task(task0)
         ti1.refresh_from_task(task1)
 
@@ -380,8 +409,8 @@ class TestClearTasks:
             start_date=DEFAULT_DATE,
             end_date=DEFAULT_DATE + datetime.timedelta(days=10),
         ):
-            op1 = DummyOperator(task_id='bash_op')
-            op2 = DummyOperator(task_id='dummy_op', retries=1)
+            op1 = DummyOperator(task_id='test1')
+            op2 = DummyOperator(task_id='test2', retries=1)
             op1 >> op2
 
         dr = dag_maker.create_dagrun(
@@ -389,7 +418,7 @@ class TestClearTasks:
             run_type=DagRunType.SCHEDULED,
         )
 
-        ti1, ti2 = dr.task_instances
+        ti1, ti2 = sorted(dr.task_instances, key=lambda ti: ti.task_id)
         ti1.task = op1
         ti2.task = op2
 

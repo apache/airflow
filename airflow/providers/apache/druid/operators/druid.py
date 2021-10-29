@@ -31,6 +31,8 @@ class DruidOperator(BaseOperator):
     :param druid_ingest_conn_id: The connection id of the Druid overlord which
         accepts index jobs
     :type druid_ingest_conn_id: str
+    :param max_ingestion_time: The maximum ingestion time before assuming the job failed
+    :type max_ingestion_time: int
     """
 
     template_fields = ('json_index_file',)

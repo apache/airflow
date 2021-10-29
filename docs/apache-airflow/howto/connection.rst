@@ -41,10 +41,10 @@ to create a new connection.
 
 .. image:: ../img/connection_create.png
 
-1. Fill in the ``Conn Id`` field with the desired connection ID. It is
+1. Fill in the ``Connection Id`` field with the desired connection ID. It is
    recommended that you use lower-case characters and separate words with
    underscores.
-2. Choose the connection type with the ``Conn Type`` field.
+2. Choose the connection type with the ``Connection Type`` field.
 3. Fill in the remaining fields. See
    :ref:`manage-connections-connection-types` for a description of the fields
    belonging to the different connection types.
@@ -269,8 +269,8 @@ Additionally, if you have created a connection, you can use ``airflow connection
 
     $ airflow connections get sqlite_default
     Id: 40
-    Conn Id: sqlite_default
-    Conn Type: sqlite
+    Connection Id: sqlite_default
+    Connection Type: sqlite
     Host: /tmp/sqlite_default.db
     Schema: null
     Login: null

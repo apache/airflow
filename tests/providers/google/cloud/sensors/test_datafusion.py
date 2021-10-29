@@ -19,8 +19,10 @@
 import unittest
 from unittest import mock
 
+import pytest
 from parameterized.parameterized import parameterized
 
+from airflow import AirflowException
 from airflow.providers.google.cloud.hooks.datafusion import PipelineStates
 from airflow.providers.google.cloud.sensors.datafusion import CloudDataFusionPipelineStateSensor
 
@@ -33,6 +35,7 @@ PROJECT_ID = "test_project_id"
 GCP_CONN_ID = "test_conn_id"
 DELEGATE_TO = "test_delegate_to"
 IMPERSONATION_CHAIN = ["ACCOUNT_1", "ACCOUNT_2", "ACCOUNT_3"]
+FAILURE_STATUSES = {"FAILED"}
 
 
 class TestCloudDataFusionPipelineStateSensor(unittest.TestCase):
@@ -51,7 +54,7 @@ class TestCloudDataFusionPipelineStateSensor(unittest.TestCase):
             pipeline_name=PIPELINE_NAME,
             pipeline_id=PIPELINE_ID,
             project_id=PROJECT_ID,
-            expected_statuses=[expected_status],
+            expected_statuses={expected_status},
             instance_name=INSTANCE_NAME,
             location=LOCATION,
             gcp_conn_id=GCP_CONN_ID,
@@ -73,3 +76,28 @@ class TestCloudDataFusionPipelineStateSensor(unittest.TestCase):
         mock_hook.return_value.get_instance.assert_called_once_with(
             instance_name=INSTANCE_NAME, location=LOCATION, project_id=PROJECT_ID
         )
+
+    @mock.patch("airflow.providers.google.cloud.sensors.datafusion.DataFusionHook")
+    def test_assertion(self, mock_hook):
+        mock_hook.return_value.get_instance.return_value = {"apiEndpoint": INSTANCE_URL}
+
+        task = CloudDataFusionPipelineStateSensor(
+            task_id="test_task_id",
+            pipeline_name=PIPELINE_NAME,
+            pipeline_id=PIPELINE_ID,
+            project_id=PROJECT_ID,
+            expected_statuses={PipelineStates.COMPLETED},
+            failure_statuses=FAILURE_STATUSES,
+            instance_name=INSTANCE_NAME,
+            location=LOCATION,
+            gcp_conn_id=GCP_CONN_ID,
+            delegate_to=DELEGATE_TO,
+            impersonation_chain=IMPERSONATION_CHAIN,
+        )
+
+        with pytest.raises(
+            AirflowException,
+            match=f"Pipeline with id '{PIPELINE_ID}' state is: FAILED. Terminating sensor...",
+        ):
+            mock_hook.return_value.get_pipeline_workflow.return_value = {"status": 'FAILED'}
+            task.poke(mock.MagicMock())

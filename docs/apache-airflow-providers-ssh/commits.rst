@@ -28,14 +28,26 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+2.2.0
+.....
+
+Latest change: 2021-09-10
+
+================================================================================================  ===========  ======================================================================================================================
+Commit                                                                                            Committed    Subject
+================================================================================================  ===========  ======================================================================================================================
+`68d99bc55 <https://github.com/apache/airflow/commit/68d99bc5582b52106f876ccc22cc1e115a42b252>`_  2021-09-10   ``[Airflow 16364] Add conn_timeout and cmd_timeout params to SSHOperator; add conn_timeout param to SSHHook (#17236)``
+================================================================================================  ===========  ======================================================================================================================
+
 2.1.1
 .....
 
-Latest change: 2021-08-23
+Latest change: 2021-08-30
 
 ================================================================================================  ===========  ============================================================================
 Commit                                                                                            Committed    Subject
 ================================================================================================  ===========  ============================================================================
+`0a6858847 <https://github.com/apache/airflow/commit/0a68588479e34cf175d744ea77b283d9d78ea71a>`_  2021-08-30   ``Add August 2021 Provider's documentation (#17890)``
 `be75dcd39 <https://github.com/apache/airflow/commit/be75dcd39cd10264048c86e74110365bd5daf8b7>`_  2021-08-23   ``Update description about the new ''connection-types'' provider meta-data``
 `76ed2a49c <https://github.com/apache/airflow/commit/76ed2a49c6cd285bf59706cf04f39a7444c382c9>`_  2021-08-19   ``Import Hooks lazily individually in providers manager (#17682)``
 `f42478009 <https://github.com/apache/airflow/commit/f42478009a9524fdc3d44eabb305f2e4930c166e>`_  2021-08-10   ``Ignores exception raised during closing SSH connection (#17528)``

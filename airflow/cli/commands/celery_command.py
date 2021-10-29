@@ -88,6 +88,15 @@ def _serve_logs(skip_serve_logs: bool = False) -> Optional[Process]:
     return None
 
 
+def _run_worker(options, skip_serve_logs):
+    sub_proc = _serve_logs(skip_serve_logs)
+    try:
+        celery_app.worker_main(options)
+    finally:
+        if sub_proc:
+            sub_proc.terminate()
+
+
 @cli_utils.action_logging
 def worker(args):
     """Starts Airflow Celery worker"""
@@ -173,15 +182,10 @@ def worker(args):
                 stderr=stderr_handle,
             )
             with ctx:
-                sub_proc = _serve_logs(skip_serve_logs)
-                celery_app.worker_main(options)
+                _run_worker(options=options, skip_serve_logs=skip_serve_logs)
     else:
         # Run Celery worker in the same process
-        sub_proc = _serve_logs(skip_serve_logs)
-        celery_app.worker_main(options)
-
-    if sub_proc:
-        sub_proc.terminate()
+        _run_worker(options=options, skip_serve_logs=skip_serve_logs)
 
 
 @cli_utils.action_logging

@@ -108,14 +108,14 @@ def dags(log_app, create_dummy_dag, session):
         dag_id=DAG_ID,
         task_id=TASK_ID,
         start_date=DEFAULT_DATE,
-        with_dagrun=False,
+        with_dagrun_type=None,
         session=session,
     )
     dag_removed, _ = create_dummy_dag(
         dag_id=DAG_ID_REMOVED,
         task_id=TASK_ID,
         start_date=DEFAULT_DATE,
-        with_dagrun=False,
+        with_dagrun_type=None,
         session=session,
     )
 

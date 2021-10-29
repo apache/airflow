@@ -51,7 +51,7 @@ FIELDS = [
     AdsInsights.Field.clicks,
     AdsInsights.Field.impressions,
 ]
-PARAMS = {'level': 'ad', 'date_preset': 'yesterday'}
+PARAMETERS = {'level': 'ad', 'date_preset': 'yesterday'}
 # [END howto_FB_ADS_variables]
 
 with models.DAG(
@@ -90,7 +90,7 @@ with models.DAG(
         start_date=days_ago(2),
         owner='airflow',
         bucket_name=GCS_BUCKET,
-        params=PARAMS,
+        parameters=PARAMETERS,
         fields=FIELDS,
         gcp_conn_id=GCS_CONN_ID,
         object_name=GCS_OBJ_PATH,

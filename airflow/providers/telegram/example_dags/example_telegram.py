@@ -19,15 +19,12 @@
 Example use of Telegram operator.
 """
 
+from datetime import datetime
+
 from airflow import DAG
 from airflow.providers.telegram.operators.telegram import TelegramOperator
-from airflow.utils.dates import days_ago
 
-dag = DAG(
-    'example_telegram',
-    start_date=days_ago(2),
-    tags=['example'],
-)
+dag = DAG('example_telegram', start_date=datetime(2021, 1, 1), tags=['example'])
 
 # [START howto_operator_telegram]
 

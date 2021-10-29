@@ -21,10 +21,6 @@
 ECS Operator
 ============
 
-.. contents::
-  :depth: 1
-  :local:
-
 Prerequisite Tasks
 ------------------
 

@@ -25,7 +25,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const value = attr.innerHTML;
     if (value.length === 32 && moment(value, 'YYYY-MM-DD').isValid()) {
       // 32 is the length of our timestamps
-      attr.className = 'js-format-date';
+      attr.innerHTML = `<time datetime="${value}">${value}</time>`;
     } else if (value.includes('http')) {
       // very basic url detection
       attr.innerHTML = `<a href=${value}>${value}</a>`;

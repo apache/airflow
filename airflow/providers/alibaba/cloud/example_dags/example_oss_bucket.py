@@ -14,26 +14,24 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from datetime import datetime
 
 from airflow.models.dag import DAG
 from airflow.providers.alibaba.cloud.operators.oss import OSSCreateBucketOperator, OSSDeleteBucketOperator
-from airflow.utils.dates import days_ago
 
+# [START howto_operator_oss_bucket]
 with DAG(
     dag_id='oss_bucket_dag',
-    start_date=days_ago(2),
+    start_date=datetime(2021, 1, 1),
+    default_args={'region': 'your region', 'bucket_name': 'your bucket'},
     max_active_runs=1,
     tags=['example'],
+    catchup=False,
 ) as dag:
 
-    # [START howto_operator_oss_bucket]
-    create_bucket = OSSCreateBucketOperator(
-        oss_conn_id='oss_default', region='your region', task_id='task1', bucket_name='your bucket'
-    )
+    create_bucket = OSSCreateBucketOperator(task_id='task1')
 
-    delete_bucket = OSSDeleteBucketOperator(
-        oss_conn_id='oss_default', region='your region', task_id='task2', bucket_name='your bucket'
-    )
-    # [END howto_operator_oss_bucket]
+    delete_bucket = OSSDeleteBucketOperator(task_id='task2')
 
     create_bucket >> delete_bucket
+# [END howto_operator_oss_bucket]

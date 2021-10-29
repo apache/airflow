@@ -134,6 +134,7 @@ class TestCliTasks(unittest.TestCase):
             ignore_ti_state=False,
             pickle_id=None,
             pool=None,
+            external_executor_id=None,
         )
 
     @mock.patch("airflow.cli.commands.task_command.LocalTaskJob")
@@ -378,6 +379,7 @@ class TestLogsfromTaskRunCommand(unittest.TestCase):
     def setUp(self) -> None:
         self.dag_id = "test_logging_dag"
         self.task_id = "test_task"
+        self.run_id = "test_run"
         self.dag_path = os.path.join(ROOT_FOLDER, "dags", "test_logging_in_dag.py")
         reset(self.dag_id)
         self.execution_date = timezone.make_aware(datetime(2017, 1, 1))
@@ -387,6 +389,14 @@ class TestLogsfromTaskRunCommand(unittest.TestCase):
         self.log_filename = f"{self.dag_id}/{self.task_id}/{self.execution_date_str}/1.log"
         self.ti_log_file_path = os.path.join(self.log_dir, self.log_filename)
         self.parser = cli_parser.get_parser()
+
+        DagBag().get_dag(self.dag_id).create_dagrun(
+            run_id=self.run_id,
+            execution_date=self.execution_date,
+            start_date=timezone.utcnow(),
+            state=State.RUNNING,
+            run_type=DagRunType.MANUAL,
+        )
 
         root = self.root_logger = logging.getLogger()
         self.root_handlers = root.handlers.copy()
@@ -425,6 +435,67 @@ class TestLogsfromTaskRunCommand(unittest.TestCase):
             # Example: [2020-06-24 17:07:00,482] {logging_mixin.py:91} INFO - Log from Print statement
             assert "logging_mixin.py" not in log_line
         return log_line
+
+    @mock.patch("airflow.cli.commands.task_command.LocalTaskJob")
+    def test_external_executor_id_present_for_fork_run_task(self, mock_local_job):
+        naive_date = datetime(2016, 1, 1)
+        dag_id = 'test_run_fork_has_external_executor_id'
+        task0_id = 'test_run_fork_task'
+
+        dag = self.dagbag.get_dag(dag_id)
+        args_list = [
+            'tasks',
+            'run',
+            '--local',
+            dag_id,
+            task0_id,
+            naive_date.isoformat(),
+        ]
+        args = self.parser.parse_args(args_list)
+        args.external_executor_id = "ABCD12345"
+
+        task_command.task_run(args, dag=dag)
+        mock_local_job.assert_called_once_with(
+            task_instance=mock.ANY,
+            mark_success=False,
+            pickle_id=None,
+            ignore_all_deps=False,
+            ignore_depends_on_past=False,
+            ignore_task_deps=False,
+            ignore_ti_state=False,
+            pool=None,
+            external_executor_id="ABCD12345",
+        )
+
+    @mock.patch("airflow.cli.commands.task_command.LocalTaskJob")
+    def test_external_executor_id_present_for_process_run_task(self, mock_local_job):
+        naive_date = datetime(2016, 1, 1)
+        dag_id = 'test_run_process_has_external_executor_id'
+        task0_id = 'test_run_process_task'
+
+        dag = self.dagbag.get_dag(dag_id)
+        args_list = [
+            'tasks',
+            'run',
+            '--local',
+            dag_id,
+            task0_id,
+            naive_date.isoformat(),
+        ]
+        args = self.parser.parse_args(args_list)
+        with mock.patch.dict(os.environ, {"external_executor_id": "12345FEDCBA"}):
+            task_command.task_run(args, dag=dag)
+            mock_local_job.assert_called_once_with(
+                task_instance=mock.ANY,
+                mark_success=False,
+                pickle_id=None,
+                ignore_all_deps=False,
+                ignore_depends_on_past=False,
+                ignore_task_deps=False,
+                ignore_ti_state=False,
+                pool=None,
+                external_executor_id="ABCD12345",
+            )
 
     @unittest.skipIf(not hasattr(os, 'fork'), "Forking not available")
     def test_logging_with_run_task(self):
@@ -491,20 +562,9 @@ class TestLogsfromTaskRunCommand(unittest.TestCase):
         with mock.patch.object(task_command, "_run_task_by_selected_method"):
             with conf_vars({('core', 'dags_folder'): self.dag_path}):
                 # increment the try_number of the task to be run
-                dag = DagBag().get_dag(self.dag_id)
-                task = dag.get_task(self.task_id)
                 with create_session() as session:
-                    dag.create_dagrun(
-                        execution_date=self.execution_date,
-                        start_date=timezone.utcnow(),
-                        state=State.RUNNING,
-                        run_type=DagRunType.MANUAL,
-                        session=session,
-                    )
-                    ti = TaskInstance(task, self.execution_date)
-                    ti.refresh_from_db(session=session, lock_for_update=True)
-                    ti.try_number = 1  # not running, so starts at 0
-                    session.merge(ti)
+                    ti = session.query(TaskInstance).filter_by(run_id=self.run_id)
+                    ti.try_number = 1
 
                 log_file_path = os.path.join(os.path.dirname(self.ti_log_file_path), "2.log")
 

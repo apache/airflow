@@ -22,6 +22,7 @@ description: |
     `Docker <https://docs.docker.com/install/>`__
 
 versions:
+  - 2.2.0
   - 2.1.1
   - 2.1.0
   - 2.0.0
@@ -63,3 +64,7 @@ hook-class-names:  # deprecated - to be removed after providers add dependency o
 connection-types:
   - hook-class-name: airflow.providers.docker.hooks.docker.DockerHook
     connection-type: docker
+
+task-decorators:
+  - class-name: airflow.providers.docker.decorators.docker.docker_task
+    name: docker

@@ -18,11 +18,10 @@
 #
 
 import warnings
-from typing import Dict, List, Optional, Sequence, Set, Tuple
+from typing import Dict, Optional, Sequence, Set, Tuple
 
 from flask import current_app, g
 from flask_appbuilder.security.sqla import models as sqla_models
-from flask_appbuilder.security.sqla.manager import SecurityManager
 from flask_appbuilder.security.sqla.models import Permission, PermissionView, Role, User, ViewMenu
 from sqlalchemy import or_
 from sqlalchemy.orm import joinedload
@@ -32,6 +31,7 @@ from airflow.models import DagBag, DagModel
 from airflow.security import permissions
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.session import provide_session
+from airflow.www.fab_security.sqla.manager import SecurityManager
 from airflow.www.utils import CustomSQLAInterface
 from airflow.www.views import (
     CustomPermissionModelView,
@@ -139,6 +139,8 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
     ADMIN_PERMISSIONS = [
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK_RESCHEDULE),
         (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_TASK_RESCHEDULE),
+        (permissions.ACTION_CAN_READ, permissions.RESOURCE_TRIGGER),
+        (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_TRIGGER),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_PASSWORD),
         (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_PASSWORD),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_ROLE),
@@ -236,77 +238,6 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
         for action_name, resource_name in perms:
             permission = self.create_permission(action_name, resource_name)
             self.add_permission_to_role(role, permission)
-
-    def get_resource(self, name: str) -> ViewMenu:
-        """
-        Returns a resource record by name, if it exists.
-
-        :param name: Name of resource
-        :type name: str
-        :return: Resource record
-        :rtype: ViewMenu
-        """
-        return self.find_view_menu(name)
-
-    def get_all_resources(self) -> List[ViewMenu]:
-        """
-        Gets all existing resource records.
-
-        :return: List of all resources
-        :rtype: List[ViewMenu]
-        """
-        return self.get_all_view_menu()
-
-    def get_action(self, name: str) -> Permission:
-        """
-        Gets an existing action record.
-
-        :param name: name
-        :type name: str
-        :return: Action record, if it exists
-        :rtype: Permission
-        """
-        return self.find_permission(name)
-
-    def get_permission(self, action_name: str, resource_name: str) -> PermissionView:
-        """
-        Gets a permission made with the given action->resource pair, if the permission already exists.
-
-        :param action_name: Name of action
-        :type action_name: str
-        :param resource_name: Name of resource
-        :type resource_name: str
-        :return: The existing permission
-        :rtype: PermissionView
-        """
-        return self.find_permission_view_menu(action_name, resource_name)
-
-    def create_permission(self, action_name: str, resource_name: str) -> PermissionView:
-        """
-        Creates a permission linking an action and resource.
-
-        :param action_name: Name of existing action
-        :type action_name: str
-        :param resource_name: Name of existing resource
-        :type resource_name: str
-        :return: Resource created
-        :rtype: PermissionView
-        """
-        return self.add_permission_view_menu(action_name, resource_name)
-
-    def delete_permission(self, action_name: str, resource_name: str) -> None:
-        """
-        Deletes the permission linking an action->resource pair. Doesn't delete the
-        underlying action or resource.
-
-        :param action_name: Name of existing action
-        :type action_name: str
-        :param resource_name: Name of existing resource
-        :type resource_name: str
-        :return: None
-        :rtype: None
-        """
-        self.del_permission_view_menu(action_name, resource_name)
 
     def delete_role(self, role_name):
         """
@@ -424,7 +355,9 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
         """Determines whether a user has DAG read access."""
         if not user:
             user = g.user
-        dag_resource_name = permissions.resource_name_for_dag(dag_id)
+        # To account for SubDags
+        root_dag_id = dag_id.split(".")[0]
+        dag_resource_name = permissions.resource_name_for_dag(root_dag_id)
         return self._has_access(
             user, permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG
         ) or self._has_access(user, permissions.ACTION_CAN_READ, dag_resource_name)
@@ -433,7 +366,9 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
         """Determines whether a user has DAG edit access."""
         if not user:
             user = g.user
-        dag_resource_name = permissions.resource_name_for_dag(dag_id)
+        # To account for SubDags
+        root_dag_id = dag_id.split(".")[0]
+        dag_resource_name = permissions.resource_name_for_dag(root_dag_id)
 
         return self._has_access(
             user, permissions.ACTION_CAN_EDIT, permissions.RESOURCE_DAG
@@ -485,7 +420,6 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
 
         has_access = self._has_access(user, action_name, resource_name)
         # FAB built-in view access method. Won't work for AllDag access.
-
         if self.is_dag_resource(resource_name):
             if action_name == permissions.ACTION_CAN_READ:
                 has_access |= self.can_read_dag(resource_name, user)
@@ -548,7 +482,7 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
         perms = sesh.query(sqla_models.PermissionView).filter(
             or_(
                 sqla_models.PermissionView.permission == None,  # noqa
-                sqla_models.PermissionView.view_menu == None,
+                sqla_models.PermissionView.view_menu == None,  # noqa
             )
         )
         # Since FAB doesn't define ON DELETE CASCADE on these tables, we need
@@ -598,41 +532,6 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
             self.add_permission_to_role(role, website_permission)
 
         self.get_session.commit()
-
-    def add_permission_to_role(self, role: Role, permission: PermissionView) -> None:
-        """
-        Add an existing permission pair to a role.
-
-        :param role: The role about to get a new permission.
-        :type role: Role
-        :param permission: The permission pair to add to a role.
-        :type permission: PermissionView
-        :return: None
-        :rtype: None
-        """
-        self.add_permission_role(role, permission)
-
-    def remove_permission_from_role(self, role: Role, permission: PermissionView) -> None:
-        """
-        Remove a permission pair from a role.
-
-        :param role: User role containing permissions.
-        :type role: Role
-        :param permission: Object representing resource-> action pair
-        :type permission: PermissionView
-        """
-        self.del_permission_role(role, permission)
-
-    def delete_action(self, name: str) -> bool:
-        """
-        Deletes a permission action.
-
-        :param name: Name of action to delete (e.g. can_read).
-        :type name: str
-        :return: Whether or not delete was successful.
-        :rtype: bool
-        """
-        return self.del_permission(name)
 
     def get_all_permissions(self) -> Set[Tuple[str, str]]:
         """Returns all permissions as a set of tuples with the action and resource names"""
@@ -771,17 +670,6 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
         if access_control:
             self._sync_dag_view_permissions(dag_resource_name, access_control)
 
-    def get_resource_permissions(self, resource: ViewMenu) -> PermissionView:
-        """
-        Retrieve permission pairs associated with a specific resource object.
-
-        :param resource: Object representing a single resource.
-        :type resource: ViewMenu
-        :return: Permission objects representing resource->action pair
-        :rtype: PermissionView
-        """
-        return self.find_permissions_view_menu(resource)
-
     def _sync_dag_view_permissions(self, dag_id, access_control):
         """
         Set the access policy on the given DAG's ViewModel.
@@ -825,33 +713,22 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
             role = self.find_role(rolename)
             if not role:
                 raise AirflowException(
-                    "The access_control mapping for DAG '{}' includes a role "
-                    "named '{}', but that role does not exist".format(dag_id, rolename)
+                    f"The access_control mapping for DAG '{dag_id}' includes a role named "
+                    f"'{rolename}', but that role does not exist"
                 )
 
             action_names = set(action_names)
             invalid_action_names = action_names - self.DAG_ACTIONS
             if invalid_action_names:
                 raise AirflowException(
-                    "The access_control map for DAG '{}' includes the following "
-                    "invalid permissions: {}; The set of valid permissions "
-                    "is: {}".format(dag_resource_name, invalid_action_names, self.DAG_ACTIONS)
+                    f"The access_control map for DAG '{dag_resource_name}' includes "
+                    f"the following invalid permissions: {invalid_action_names}; "
+                    f"The set of valid permissions is: {self.DAG_ACTIONS}"
                 )
 
             for action_name in action_names:
                 dag_perm = _get_or_create_dag_permission(action_name)
                 self.add_permission_to_role(role, dag_perm)
-
-    def create_resource(self, name: str) -> ViewMenu:
-        """
-        Create a resource with the given name.
-
-        :param name: The name of the resource to create created.
-        :type name: str
-        :return: The FAB resource created.
-        :rtype: ViewMenu
-        """
-        return self.add_view_menu(name)
 
     def create_perm_vm_for_all_dag(self):
         """Create perm-vm if not exist and insert into FAB security model for all-dags."""

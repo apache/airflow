@@ -90,7 +90,7 @@ class SubDagOperator(BaseSensorOperator):
         warnings.warn(
             """This class is deprecated. Please use `airflow.utils.task_group.TaskGroup`.""",
             DeprecationWarning,
-            stacklevel=2,
+            stacklevel=4,
         )
 
     def _validate_dag(self, kwargs):
@@ -101,10 +101,8 @@ class SubDagOperator(BaseSensorOperator):
 
         if dag.dag_id + '.' + kwargs['task_id'] != self.subdag.dag_id:
             raise AirflowException(
-                "The subdag's dag_id should have the form '{{parent_dag_id}}.{{this_task_id}}'. "
-                "Expected '{d}.{t}'; received '{rcvd}'.".format(
-                    d=dag.dag_id, t=kwargs['task_id'], rcvd=self.subdag.dag_id
-                )
+                f"The subdag's dag_id should have the form '{{parent_dag_id}}.{{this_task_id}}'. "
+                f"Expected '{dag.dag_id}.{kwargs['task_id']}'; received '{self.subdag.dag_id}'."
             )
 
     def _validate_pool(self, session):

@@ -124,8 +124,8 @@ class TestExasolHook(unittest.TestCase):
         sql = ['SQL1', 'SQL2']
         self.db_hook.run(sql, autocommit=True)
         self.conn.set_autocommit.assert_called_once_with(True)
-        for i in range(len(self.conn.execute.call_args_list)):
-            args, kwargs = self.conn.execute.call_args_list[i]
+        for i, item in enumerate(self.conn.execute.call_args_list):
+            args, kwargs = item
             assert len(args) == 2
             assert args[0] == sql[i]
             assert kwargs == {}

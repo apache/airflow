@@ -15,26 +15,18 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from datetime import timedelta
+from datetime import datetime, timedelta
 
 from airflow import DAG
 from airflow.operators.bash import BashOperator
 from airflow.providers.docker.operators.docker import DockerOperator
-from airflow.utils.dates import days_ago
 
 dag = DAG(
     'docker_sample',
-    default_args={
-        'owner': 'airflow',
-        'depends_on_past': False,
-        'email': ['airflow@example.com'],
-        'email_on_failure': False,
-        'email_on_retry': False,
-        'retries': 1,
-        'retry_delay': timedelta(minutes=5),
-    },
+    default_args={'retries': 1},
     schedule_interval=timedelta(minutes=10),
-    start_date=days_ago(2),
+    start_date=datetime(2021, 1, 1),
+    catchup=False,
 )
 
 t1 = BashOperator(task_id='print_date', bash_command='date', dag=dag)

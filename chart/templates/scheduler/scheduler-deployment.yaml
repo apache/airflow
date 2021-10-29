@@ -85,6 +85,9 @@ spec:
         {{- if .Values.airflowPodAnnotations }}
         {{- toYaml .Values.airflowPodAnnotations | nindent 8 }}
         {{- end }}
+        {{- if .Values.scheduler.podAnnotations }}
+        {{- toYaml .Values.scheduler.podAnnotations | nindent 8 }}
+        {{- end }}
     spec:
       nodeSelector:
 {{ toYaml $nodeSelector | indent 8 }}
@@ -106,7 +109,7 @@ spec:
         - name: wait-for-airflow-migrations
           resources:
 {{ toYaml .Values.scheduler.resources | indent 12 }}
-          image: {{ template "airflow_image" . }}
+          image: {{ template "airflow_image_for_migrations" . }}
           imagePullPolicy: {{ .Values.images.airflow.pullPolicy }}
           args:
           {{- include "wait-for-migrations-command" . | indent 10 }}

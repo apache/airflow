@@ -14,7 +14,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
+import warnings
 from typing import Any, Dict, Optional
 
 from airflow.exceptions import AirflowException
@@ -22,13 +22,13 @@ from airflow.models import BaseOperator
 from airflow.providers.microsoft.azure.hooks.azure_data_lake import AzureDataLakeHook
 
 
-class LocalToAzureDataLakeStorageOperator(BaseOperator):
+class LocalFilesystemToADLSOperator(BaseOperator):
     """
     Upload file(s) to Azure Data Lake
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:LocalToAzureDataLakeStorageOperator`
+        :ref:`howto/operator:LocalFilesystemToADLSOperator`
 
     :param local_path: local path. Can be single file, directory (in which case,
             upload recursively) or glob pattern. Recursive glob patterns using `**`
@@ -100,3 +100,20 @@ class LocalToAzureDataLakeStorageOperator(BaseOperator):
             blocksize=self.blocksize,
             **self.extra_upload_options,
         )
+
+
+class LocalToAzureDataLakeStorageOperator(LocalFilesystemToADLSOperator):
+    """
+    This class is deprecated.
+    Please use `airflow.providers.microsoft.azure.transfers.local_to_adls.LocalFilesystemToADLSOperator`.
+    """
+
+    def __init__(self, *args, **kwargs):
+        warnings.warn(
+            """This class is deprecated.
+            Please use
+            `airflow.providers.microsoft.azure.transfers.local_to_adls.LocalFilesystemToADLSOperator`.""",
+            DeprecationWarning,
+            stacklevel=3,
+        )
+        super().__init__(*args, **kwargs)

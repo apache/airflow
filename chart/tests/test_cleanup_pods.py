@@ -48,6 +48,13 @@ class CleanupPodsTest(unittest.TestCase):
             "readOnly": True,
         } in jmespath.search("spec.jobTemplate.spec.template.spec.containers[0].volumeMounts", docs[0])
 
+    def test_should_pass_validation_with_v1beta1_api(self):
+        render_chart(
+            values={"cleanup": {"enabled": True}},
+            show_only=["templates/cleanup/cleanup-cronjob.yaml"],
+            kubernetes_version='1.16.0',
+        )  # checks that no validation exception is raised
+
     def test_should_change_image_when_set_airflow_image(self):
         docs = render_chart(
             values={
@@ -135,7 +142,7 @@ class CleanupPodsTest(unittest.TestCase):
         )
         assert args == jmespath.search("spec.jobTemplate.spec.template.spec.containers[0].args", docs[0])
 
-    def test_log_groomer_command_and_args_overrides_are_templated(self):
+    def test_command_and_args_overrides_are_templated(self):
         docs = render_chart(
             values={
                 "cleanup": {
@@ -151,3 +158,19 @@ class CleanupPodsTest(unittest.TestCase):
             "spec.jobTemplate.spec.template.spec.containers[0].command", docs[0]
         )
         assert ["Helm"] == jmespath.search("spec.jobTemplate.spec.template.spec.containers[0].args", docs[0])
+
+    def test_should_set_labels_to_jobs_from_cronjob(self):
+        docs = render_chart(
+            values={
+                "cleanup": {"enabled": True},
+                "labels": {"project": "airflow"},
+            },
+            show_only=["templates/cleanup/cleanup-cronjob.yaml"],
+        )
+
+        assert {
+            "tier": "airflow",
+            "component": "airflow-cleanup-pods",
+            "release": "RELEASE-NAME",
+            "project": "airflow",
+        } == jmespath.search("spec.jobTemplate.spec.template.metadata.labels", docs[0])

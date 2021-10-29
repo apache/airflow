@@ -22,7 +22,7 @@ import logging
 import os
 import textwrap
 from contextlib import contextmanager, redirect_stderr, redirect_stdout, suppress
-from typing import List
+from typing import List, Optional
 
 from pendulum.parsing.exceptions import ParserError
 from sqlalchemy.orm.exc import NoResultFound
@@ -157,6 +157,7 @@ def _run_task_by_local_task_job(args, ti):
         ignore_task_deps=args.ignore_dependencies,
         ignore_ti_state=args.force,
         pool=args.pool,
+        external_executor_id=_extract_external_executor_id(args),
     )
     try:
         run_job.run()
@@ -182,6 +183,12 @@ def _run_raw_task(args, ti: TaskInstance) -> None:
         pool=args.pool,
         error_file=args.error_file,
     )
+
+
+def _extract_external_executor_id(args) -> Optional[str]:
+    if hasattr(args, "external_executor_id"):
+        return getattr(args, "external_executor_id")
+    return os.environ.get("external_executor_id", None)
 
 
 @contextmanager
@@ -234,13 +241,14 @@ def task_run(args, dag=None):
         unsupported_options = [o for o in RAW_TASK_UNSUPPORTED_OPTION if getattr(args, o)]
 
         if unsupported_options:
+            unsupported_raw_task_flags = ', '.join(f'--{o}' for o in RAW_TASK_UNSUPPORTED_OPTION)
+            unsupported_flags = ', '.join(f'--{o}' for o in unsupported_options)
             raise AirflowException(
-                "Option --raw does not work with some of the other options on this command. You "
-                "can't use --raw option and the following options: {}. You provided the option {}. "
-                "Delete it to execute the command".format(
-                    ", ".join(f"--{o}" for o in RAW_TASK_UNSUPPORTED_OPTION),
-                    ", ".join(f"--{o}" for o in unsupported_options),
-                )
+                "Option --raw does not work with some of the other options on this command. "
+                "You can't use --raw option and the following options: "
+                f"{unsupported_raw_task_flags}. "
+                f"You provided the option {unsupported_flags}. "
+                "Delete it to execute the command."
             )
     if dag and args.pickle:
         raise AirflowException("You cannot use the --pickle option when using DAG.cli() method.")
@@ -437,6 +445,10 @@ def task_test(args, dag=None):
     if args.task_params:
         passed_in_params = json.loads(args.task_params)
         task.params.update(passed_in_params)
+
+    if task.params:
+        task.params.validate()
+
     ti = _get_ti(task, args.execution_date_or_run_id, create_if_necssary=True)
 
     try:

@@ -17,6 +17,7 @@
 # under the License.
 """Manages all providers."""
 import fnmatch
+import functools
 import importlib
 import json
 import logging
@@ -36,20 +37,12 @@ from airflow.utils.entry_points import entry_points_with_dist
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.module_loading import import_string
 
-try:
-    import importlib.resources as importlib_resources
-except ImportError:
-    # Try back-ported to PY<37 `importlib_resources`.
-    import importlib_resources
-
 log = logging.getLogger(__name__)
 
 if sys.version_info >= (3, 9):
-    from functools import cache
+    from importlib.resources import files as resource_files
 else:
-    from functools import lru_cache
-
-    cache = lru_cache(maxsize=None)
+    from importlib_resources import files as resource_files
 
 MIN_PROVIDER_VERSIONS = {
     "apache-airflow-providers-celery": "2.1.0",
@@ -62,7 +55,10 @@ class LazyDictWithCache(MutableMapping):
     at first use - and returns and caches the result.
     """
 
+    __slots__ = ['_resolved', '_raw_dict']
+
     def __init__(self, *args, **kw):
+        self._resolved = set()
         self._raw_dict = dict(*args, **kw)
 
     def __setitem__(self, key, value):
@@ -70,15 +66,21 @@ class LazyDictWithCache(MutableMapping):
 
     def __getitem__(self, key):
         value = self._raw_dict.__getitem__(key)
-        if callable(value):
-            # exchange callable with result of calling it
-            value = value(key)
+        if key not in self._resolved and callable(value):
+            # exchange callable with result of calling it -- but only once! allow resolver to return a
+            # callable itself
+            value = value()
+            self._resolved.add(key)
             if value:
                 self._raw_dict.__setitem__(key, value)
         return value
 
     def __delitem__(self, key):
         self._raw_dict.__delitem__(key)
+        try:
+            self._resolved.remove(key)
+        except KeyError:
+            pass
 
     def __iter__(self):
         return iter(self._raw_dict)
@@ -86,10 +88,14 @@ class LazyDictWithCache(MutableMapping):
     def __len__(self):
         return len(self._raw_dict)
 
+    def __contains__(self, key):
+        return key in self._raw_dict
+
 
 def _create_provider_info_schema_validator():
     """Creates JSON schema validator from the provider_info.schema.json"""
-    schema = json.loads(importlib_resources.read_text('airflow', 'provider_info.schema.json'))
+    with resource_files("airflow").joinpath("provider_info.schema.json").open("rb") as f:
+        schema = json.load(f)
     cls = jsonschema.validators.validator_for(schema)
     validator = cls(schema)
     return validator
@@ -97,17 +103,30 @@ def _create_provider_info_schema_validator():
 
 def _create_customized_form_field_behaviours_schema_validator():
     """Creates JSON schema validator from the customized_form_field_behaviours.schema.json"""
-    schema = json.loads(
-        importlib_resources.read_text('airflow', 'customized_form_field_behaviours.schema.json')
-    )
+    with resource_files("airflow").joinpath("customized_form_field_behaviours.schema.json").open("rb") as f:
+        schema = json.load(f)
     cls = jsonschema.validators.validator_for(schema)
     validator = cls(schema)
     return validator
 
 
+def _check_builtin_provider_prefix(provider_package: str, class_name: str) -> bool:
+    if provider_package.startswith("apache-airflow"):
+        provider_path = provider_package[len("apache-") :].replace("-", ".")
+        if not class_name.startswith(provider_path):
+            log.warning(
+                "Coherence check failed when importing '%s' from '%s' package. It should start with '%s'",
+                class_name,
+                provider_package,
+                provider_path,
+            )
+            return False
+    return True
+
+
 def _sanity_check(provider_package: str, class_name: str) -> bool:
     """
-    Performs sanity check on provider classes.
+    Performs coherence check on provider classes.
     For apache-airflow providers - it checks if it starts with appropriate package. For all providers
     it tries to import the provider - checking that there are no exceptions during importing.
     It logs appropriate warning in case it detects any problems.
@@ -117,16 +136,8 @@ def _sanity_check(provider_package: str, class_name: str) -> bool:
 
     :return True if the class is OK, False otherwise.
     """
-    if provider_package.startswith("apache-airflow"):
-        provider_path = provider_package[len("apache-") :].replace("-", ".")
-        if not class_name.startswith(provider_path):
-            log.warning(
-                "Sanity check failed when importing '%s' from '%s' package. It should start with '%s'",
-                class_name,
-                provider_package,
-                provider_path,
-            )
-            return False
+    if not _check_builtin_provider_prefix(provider_package, class_name):
+        return False
     try:
         import_string(class_name)
     except Exception as e:
@@ -227,6 +238,10 @@ class ProvidersManager(LoggingMixin):
         self._initialized_cache: Dict[str, bool] = {}
         # Keeps dict of providers keyed by module name
         self._provider_dict: Dict[str, ProviderInfo] = {}
+        # Keeps dict of hooks keyed by connection type
+        self._hooks_dict: Dict[str, HookInfo] = {}
+
+        self._taskflow_decorators: Dict[str, Callable] = LazyDictWithCache()
         # keeps mapping between connection_types and hook class, package they come from
         self._hook_provider_dict: Dict[str, HookClassProvider] = {}
         # Keeps dict of hooks keyed by connection type. They are lazy evaluated at access time
@@ -273,6 +288,12 @@ class ProvidersManager(LoggingMixin):
         self.initialize_providers_list()
         self._discover_hooks()
         self._hook_provider_dict = OrderedDict(sorted(self._hook_provider_dict.items()))
+
+    @provider_info_cache("taskflow_decorators")
+    def initialize_providers_taskflow_decorator(self):
+        """Lazy initialization of providers hooks."""
+        self.initialize_providers_list()
+        self._discover_taskflow_decorators()
 
     @provider_info_cache("extra_links")
     def initialize_providers_extra_links(self):
@@ -423,7 +444,9 @@ class ProvidersManager(LoggingMixin):
                         hook_class_name=hook_class_name, package_name=package_name
                     )
                     # Defer importing hook to access time by setting import hook method as dict value
-                    self._hooks_lazy_dict[connection_type] = self._import_hook
+                    self._hooks_lazy_dict[connection_type] = functools.partial(
+                        self._import_hook, connection_type
+                    )
             provider_uses_connection_types = True
         return provider_uses_connection_types
 
@@ -522,6 +545,34 @@ class ProvidersManager(LoggingMixin):
         _ = list(self._hooks_lazy_dict.values())
         self._connection_form_widgets = OrderedDict(sorted(self._connection_form_widgets.items()))
         self._field_behaviours = OrderedDict(sorted(self._field_behaviours.items()))
+
+    def _discover_taskflow_decorators(self) -> None:
+        for name, info in self._provider_dict.items():
+            for taskflow_decorator in info.provider_info.get("task-decorators", []):
+                self._add_taskflow_decorator(
+                    taskflow_decorator["name"], taskflow_decorator["class-name"], name
+                )
+
+    def _add_taskflow_decorator(self, name, decorator_class_name: str, provider_package: str) -> None:
+        if not _check_builtin_provider_prefix(provider_package, decorator_class_name):
+            return
+
+        if name in self._taskflow_decorators:
+            try:
+                existing = self._taskflow_decorators[name]
+                other_name = f'{existing.__module__}.{existing.__name}'
+            except Exception:
+                # If problem importing, then get the value from the functools.partial
+                other_name = self._taskflow_decorators._raw_dict[name].args[0]
+
+            log.warning(
+                "The taskflow decorator '%s' has been already registered (by %s).",
+                name,
+                other_name,
+            )
+            return
+
+        self._taskflow_decorators[name] = functools.partial(import_string, decorator_class_name)
 
     @staticmethod
     def _get_attr(obj: Any, attr_name: str):
@@ -732,6 +783,11 @@ class ProvidersManager(LoggingMixin):
         self.initialize_providers_hooks()
         # When we return hooks here it will only be used to retrieve hook information
         return self._hooks_lazy_dict  # type: ignore
+
+    @property
+    def taskflow_decorators(self) -> Dict[str, Callable]:
+        self.initialize_providers_taskflow_decorator()
+        return self._taskflow_decorators
 
     @property
     def extra_links_class_names(self) -> List[str]:

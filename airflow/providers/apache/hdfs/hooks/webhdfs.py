@@ -70,26 +70,23 @@ class WebHDFSHook(BaseHook):
         return connection
 
     def _find_valid_server(self) -> Any:
-        connections = self.get_connections(self.webhdfs_conn_id)
-        for connection in connections:
-            host_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            self.log.info("Trying to connect to %s:%s", connection.host, connection.port)
-            try:
-                conn_check = host_socket.connect_ex((connection.host, connection.port))
-                if conn_check == 0:
-                    self.log.info('Trying namenode %s', connection.host)
-                    client = self._get_client(connection)
-                    client.status('/')
-                    self.log.info('Using namenode %s for hook', connection.host)
-                    host_socket.close()
-                    return client
-                else:
-                    self.log.error("Could not connect to %s:%s", connection.host, connection.port)
+        connection = self.get_connection(self.webhdfs_conn_id)
+        host_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.log.info("Trying to connect to %s:%s", connection.host, connection.port)
+        try:
+            conn_check = host_socket.connect_ex((connection.host, connection.port))
+            if conn_check == 0:
+                self.log.info('Trying namenode %s', connection.host)
+                client = self._get_client(connection)
+                client.status('/')
+                self.log.info('Using namenode %s for hook', connection.host)
                 host_socket.close()
-            except HdfsError as hdfs_error:
-                self.log.error(
-                    'Read operation on namenode %s failed with error: %s', connection.host, hdfs_error
-                )
+                return client
+            else:
+                self.log.error("Could not connect to %s:%s", connection.host, connection.port)
+            host_socket.close()
+        except HdfsError as hdfs_error:
+            self.log.error('Read operation on namenode %s failed with error: %s', connection.host, hdfs_error)
         return None
 
     def _get_client(self, connection: Connection) -> Any:

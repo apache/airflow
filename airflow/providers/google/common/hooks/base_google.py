@@ -493,9 +493,6 @@ class GoogleBaseHook(BaseHook):
             gcloud_config_tmp = exit_stack.enter_context(tempfile.TemporaryDirectory())
             exit_stack.enter_context(patch_environ({CLOUD_SDK_CONFIG_DIR: gcloud_config_tmp}))
 
-            if project_id:
-                # Don't display stdout/stderr for security reason
-                check_output(["gcloud", "config", "set", "core/project", project_id])
             if CREDENTIALS in os.environ:
                 # This solves most cases when we are logged in using the service key in Airflow.
                 # Don't display stdout/stderr for security reason
@@ -507,6 +504,9 @@ class GoogleBaseHook(BaseHook):
                         f"--key-file={os.environ[CREDENTIALS]}",
                     ]
                 )
+            if project_id:
+                # Don't display stdout/stderr for security reason
+                check_output(["gcloud", "config", "set", "core/project", project_id])
             elif os.path.exists(credentials_path):
                 # If we are logged in by `gcloud auth application-default` then we need to log in manually.
                 # This will make the `gcloud auth application-default` and `gcloud auth` credentials equals.

@@ -23,11 +23,6 @@ The `Google Cloud Life Sciences <https://cloud.google.com/life-sciences/>`__ is 
 series of compute engine containers on the Google Cloud. It is used to process, analyze and annotate genomics
 and biomedical data at scale.
 
-.. contents::
-  :depth: 1
-  :local:
-
-
 Prerequisite Tasks
 ^^^^^^^^^^^^^^^^^^
 

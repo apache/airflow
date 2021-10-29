@@ -49,7 +49,7 @@ def init_appbuilder_views(app):
     # Remove the session from scoped_session registry to avoid
     # reusing a session with a disconnected connection
     appbuilder.session.remove()
-    appbuilder.add_view_no_menu(views.DagModelView())
+    appbuilder.add_view_no_menu(views.AutocompleteView())
     appbuilder.add_view_no_menu(views.Airflow())
     appbuilder.add_view(
         views.DagRunModelView,
@@ -74,6 +74,11 @@ def init_appbuilder_views(app):
     appbuilder.add_view(
         views.TaskRescheduleModelView,
         permissions.RESOURCE_TASK_RESCHEDULE,
+        category=permissions.RESOURCE_BROWSE_MENU,
+    )
+    appbuilder.add_view(
+        views.TriggerModelView,
+        permissions.RESOURCE_TRIGGER,
         category=permissions.RESOURCE_BROWSE_MENU,
     )
     appbuilder.add_view(

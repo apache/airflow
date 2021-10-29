@@ -18,7 +18,7 @@ from unittest import mock
 
 
 def client_with_login(app, **kwargs):
-    patch_path = "flask_appbuilder.security.manager.check_password_hash"
+    patch_path = "airflow.www.fab_security.manager.check_password_hash"
     with mock.patch(patch_path) as check_password_hash:
         check_password_hash.return_value = True
         client = app.test_client()

@@ -7,8 +7,14 @@ systems/prerequisites are known to work:
 
 Linux (Debian Buster and Linux Mint Tricia):
 
-sudo apt install build-essentials python3.6-dev python3.7-dev python-dev openssl \
-                 sqlite sqlite-dev default-libmysqlclient-dev libmysqld-dev postgresq
+sudo apt install build-essential python3-dev libsqlite3-dev openssl \
+                 sqlite default-libmysqlclient-dev libmysqlclient-dev postgresql
+
+On Ubuntu 20.04 you may get an error of mariadb_config not found
+and mysql_config not found.
+
+Install MariaDB development headers:
+sudo apt-get install libmariadb-dev libmariadbclient-dev
 
 MacOS (Mojave/Catalina):
 
@@ -95,7 +101,7 @@ apache.spark, apache.sqoop, apache.webhdfs, asana, async, atlas, aws, azure, cas
 cgroups, cloudant, cncf.kubernetes, crypto, dask, databricks, datadog, deprecated_api, devel,
 devel_all, devel_ci, devel_hadoop, dingding, discord, doc, docker, druid, elasticsearch, exasol,
 facebook, ftp, gcp, gcp_api, github_enterprise, google, google_auth, grpc, hashicorp, hdfs, hive,
-http, imap, jdbc, jenkins, jira, kerberos, kubernetes, ldap, leveldb, microsoft.azure,
+http, imap, influxdb, jdbc, jenkins, jira, kerberos, kubernetes, ldap, leveldb, microsoft.azure,
 microsoft.mssql, microsoft.psrp, microsoft.winrm, mongo, mssql, mysql, neo4j, odbc, openfaas,
 opsgenie, oracle, pagerduty, pandas, papermill, password, pinot, plexus, postgres, presto, qds,
 qubole, rabbitmq, redis, s3, salesforce, samba, segment, sendgrid, sentry, sftp, singularity, slack,

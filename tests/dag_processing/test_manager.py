@@ -45,6 +45,7 @@ from airflow.dag_processing.manager import (
 from airflow.dag_processing.processor import DagFileProcessorProcess
 from airflow.jobs.local_task_job import LocalTaskJob as LJ
 from airflow.models import DagBag, DagModel, TaskInstance as TI, errors
+from airflow.models.dagcode import DagCode
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.taskinstance import SimpleTaskInstance
 from airflow.utils import timezone
@@ -54,6 +55,7 @@ from airflow.utils.session import create_session
 from airflow.utils.state import DagRunState, State
 from airflow.utils.types import DagRunType
 from tests.core.test_logging_config import SETTINGS_FILE_VALID, settings_context
+from tests.models import TEST_DAGS_FOLDER
 from tests.test_utils.config import conf_vars
 from tests.test_utils.db import clear_db_dags, clear_db_runs, clear_db_serialized_dags
 
@@ -110,9 +112,13 @@ class FakeDagFileProcessorRunner(DagFileProcessorProcess):
 class TestDagFileProcessorManager:
     def setup_method(self):
         clear_db_runs()
+        clear_db_serialized_dags()
+        clear_db_dags()
 
     def teardown_class(self):
         clear_db_runs()
+        clear_db_serialized_dags()
+        clear_db_dags()
 
     def run_processor_manager_one_loop(self, manager, parent_pipe):
         if not manager._async_mode:
@@ -366,6 +372,34 @@ class TestDagFileProcessorManager:
     @mock.patch("airflow.utils.file.find_path_from_directory", return_value=True)
     @mock.patch("airflow.utils.file.os.path.isfile", return_value=True)
     @mock.patch("airflow.utils.file.os.path.getmtime")
+    def test_file_paths_in_queue_excludes_missing_file(
+        self, mock_getmtime, mock_isfile, mock_find_path, mock_might_contain_dag, mock_zipfile
+    ):
+        """Check that a file is not enqueued for processing if it has been deleted"""
+        dag_files = ["file_3.py", "file_2.py", "file_4.py"]
+        mock_getmtime.side_effect = [1.0, 2.0, FileNotFoundError()]
+        mock_find_path.return_value = dag_files
+
+        manager = DagFileProcessorManager(
+            dag_directory='directory',
+            max_runs=1,
+            processor_timeout=timedelta.max,
+            signal_conn=MagicMock(),
+            dag_ids=[],
+            pickle_dags=False,
+            async_mode=True,
+        )
+
+        manager.set_file_paths(dag_files)
+        manager.prepare_file_path_queue()
+        assert manager._file_path_queue == ['file_2.py', 'file_3.py']
+
+    @conf_vars({("scheduler", "file_parsing_sort_mode"): "modified_time"})
+    @mock.patch("zipfile.is_zipfile", return_value=True)
+    @mock.patch("airflow.utils.file.might_contain_dag", return_value=True)
+    @mock.patch("airflow.utils.file.find_path_from_directory", return_value=True)
+    @mock.patch("airflow.utils.file.os.path.isfile", return_value=True)
+    @mock.patch("airflow.utils.file.os.path.getmtime")
     def test_recently_modified_file_is_parsed_with_mtime_mode(
         self, mock_getmtime, mock_isfile, mock_find_path, mock_might_contain_dag, mock_zipfile
     ):
@@ -461,7 +495,7 @@ class TestDagFileProcessorManager:
             requests = manager._callback_to_execute[dag.fileloc]
             assert 1 == len(requests)
             assert requests[0].full_filepath == dag.fileloc
-            assert requests[0].msg == "Detected as zombie"
+            assert requests[0].msg == f"Detected {ti} as zombie"
             assert requests[0].is_failure_callback is True
             assert isinstance(requests[0].simple_task_instance, SimpleTaskInstance)
             assert ti.dag_id == requests[0].simple_task_instance.dag_id
@@ -746,6 +780,30 @@ class TestDagFileProcessorManager:
         parent_pipe.close()
 
         statsd_timing_mock.assert_called_with('dag_processing.last_duration.temp_dag', last_runtime)
+
+    def test_refresh_dags_dir_doesnt_delete_zipped_dags(self, tmpdir):
+        """Test DagFileProcessorManager._refresh_dag_dir method"""
+        manager = DagFileProcessorManager(
+            dag_directory=TEST_DAG_FOLDER,
+            max_runs=1,
+            processor_timeout=timedelta.max,
+            signal_conn=MagicMock(),
+            dag_ids=[],
+            pickle_dags=False,
+            async_mode=True,
+        )
+        dagbag = DagBag(dag_folder=tmpdir, include_examples=False)
+        zipped_dag_path = os.path.join(TEST_DAGS_FOLDER, "test_zip.zip")
+        dagbag.process_file(zipped_dag_path)
+        dag = dagbag.get_dag("test_zip_dag")
+        dag.sync_to_db()
+        SerializedDagModel.write_dag(dag)
+        manager.last_dag_dir_refresh_time = timezone.utcnow() - timedelta(minutes=10)
+        manager._refresh_dag_dir()
+        # Assert dag not deleted in SDM
+        assert SerializedDagModel.has_dag('test_zip_dag')
+        # assert code not deleted
+        assert DagCode.has_dag(dag.fileloc)
 
 
 class TestDagFileProcessorAgent(unittest.TestCase):

@@ -120,6 +120,8 @@ function in_container_fix_ownership() {
             "/root/.docker"
             "/opt/airflow/logs"
             "/opt/airflow/docs"
+            "/opt/airflow/dags"
+            "${AIRFLOW_SOURCES}"
         )
         find "${DIRECTORIES_TO_FIX[@]}" -print0 -user root 2>/dev/null |
             xargs --null chown "${HOST_USER_ID}.${HOST_GROUP_ID}" --no-dereference || true >/dev/null 2>&1

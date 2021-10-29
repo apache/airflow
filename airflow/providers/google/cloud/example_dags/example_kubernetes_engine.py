@@ -61,6 +61,7 @@ with models.DAG(
         namespace="default",
         image="perl",
         name="test-pod",
+        in_cluster=False,
     )
 
     # [START howto_operator_gke_start_pod_xcom]
@@ -74,6 +75,7 @@ with models.DAG(
         image="alpine",
         cmds=["sh", "-c", 'mkdir -p /airflow/xcom/;echo \'[1,2,3,4]\' > /airflow/xcom/return.json'],
         name="test-pod-xcom",
+        in_cluster=False,
     )
     # [END howto_operator_gke_start_pod_xcom]
 

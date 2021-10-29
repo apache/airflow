@@ -25,7 +25,7 @@ source "${LIBRARIES_DIR}/_all_libs.sh"
 
 initialization::set_output_color_variables
 
-PARALLEL_TAIL_LENGTH=5
+export PARALLEL_TAIL_LENGTH=5
 
 parallel::make_sure_gnu_parallel_is_installed
 
@@ -35,10 +35,11 @@ echo
 echo "${COLOR_BLUE}Waiting for all CI images to appear${COLOR_RESET}"
 echo
 
-
 parallel::initialize_monitoring
 
 parallel::monitor_progress
+
+build_images::login_to_docker_registry
 
 # shellcheck disable=SC2086
 parallel --results "${PARALLEL_MONITORED_DIR}" \

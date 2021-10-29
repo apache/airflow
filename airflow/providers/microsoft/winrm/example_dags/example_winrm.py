@@ -28,23 +28,22 @@
 """
 This is an example dag for using the WinRMOperator.
 """
-from datetime import timedelta
+from datetime import datetime, timedelta
 
 from airflow import DAG
 from airflow.operators.dummy import DummyOperator
 from airflow.providers.microsoft.winrm.hooks.winrm import WinRMHook
 from airflow.providers.microsoft.winrm.operators.winrm import WinRMOperator
-from airflow.utils.dates import days_ago
 
 with DAG(
     dag_id='POC_winrm_parallel',
     schedule_interval='0 0 * * *',
-    start_date=days_ago(2),
+    start_date=datetime(2021, 1, 1),
     dagrun_timeout=timedelta(minutes=60),
     tags=['example'],
+    catchup=False,
 ) as dag:
 
-    cmd = 'ls -l'
     run_this_last = DummyOperator(task_id='run_this_last')
 
     winRMHook = WinRMHook(ssh_conn_id='ssh_POC1')

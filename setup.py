@@ -23,7 +23,6 @@ import subprocess
 import sys
 import unittest
 from copy import deepcopy
-from distutils import log
 from os.path import dirname, relpath
 from textwrap import wrap
 from typing import Dict, List
@@ -31,6 +30,10 @@ from typing import Dict, List
 from setuptools import Command, Distribution, find_namespace_packages, setup
 from setuptools.command.develop import develop as develop_orig
 from setuptools.command.install import install as install_orig
+
+# Setuptools patches this import to point to a vendored copy instead of the
+# stdlib, which is deprecated in Python 3.10 and will be removed in 3.12.
+from distutils import log  # isort: skip
 
 # Controls whether providers are installed from packages or directly from sources
 # It is turned on by default in case of development environments such as Breeze
@@ -41,7 +44,7 @@ PY39 = sys.version_info >= (3, 9)
 
 logger = logging.getLogger(__name__)
 
-version = '2.2.0.dev0'
+version = '2.3.0.dev0'
 
 my_dir = dirname(__file__)
 
@@ -176,6 +179,8 @@ def write_version(filename: str = os.path.join(*[my_dir, "airflow", "git_version
         file.write(text)
 
 
+pandas_requirement = 'pandas>=0.17.1, <2.0'
+
 # 'Start dependencies group' and 'Start dependencies group' are mark for ./scripts/ci/check_order_setup.py
 # If you change this mark you should also change ./scripts/ci/check_order_setup.py
 # Start dependencies group
@@ -183,21 +188,18 @@ alibaba = [
     'oss2>=2.14.0',
 ]
 amazon = [
-    'boto3>=1.15.0,<1.18.0',
+    'boto3>=1.15.0,<1.19.0',
     'watchtower~=1.0.6',
     'jsonpath_ng>=1.5.3',
+    'redshift_connector~=2.0.888',
+    'sqlalchemy_redshift~=0.8.6',
+    pandas_requirement,
 ]
 apache_beam = [
     'apache-beam>=2.20.0',
 ]
 asana = ['asana>=0.10']
 async_packages = [
-    # DNS Python 2.0.0 and above breaks building documentation on Sphinx. When dnspython 2.0.0 is installed
-    # building documentation fails with trying to import google packages with
-    # TypeError("unsupported operand type(s) for +: 'SSL_VERIFY_PEER' and
-    # 'SSL_VERIFY_FAIL_IF_NO_PEER_CERT'")
-    # The issue is opened for it https://github.com/rthalley/dnspython/issues/681
-    'dnspython<2.0.0',
     'eventlet>= 0.9.7',
     'gevent>=0.13',
     'greenlet>=0.4.9',
@@ -207,7 +209,7 @@ atlas = [
 ]
 azure = [
     'azure-batch>=8.0.0',
-    'azure-cosmos>=3.0.1,<4',
+    'azure-cosmos>=4.0.0,<5',
     'azure-datalake-store>=0.0.45',
     'azure-identity>=1.3.1',
     'azure-keyvault>=4.1.0',
@@ -216,7 +218,8 @@ azure = [
     'azure-mgmt-datafactory>=1.0.0,<2.0',
     'azure-mgmt-datalake-store>=0.5.0',
     'azure-mgmt-resource>=2.2.0',
-    'azure-storage-blob>=12.7.0',
+    # limited due to https://github.com/Azure/azure-sdk-for-python/pull/18801  implementation released in 12.9
+    'azure-storage-blob>=12.7.0,<12.9.0',
     'azure-storage-common>=2.1.0',
     'azure-storage-file>=2.1.0',
 ]
@@ -263,7 +266,7 @@ doc = [
     'sphinxcontrib-spelling==7.2.1',
 ]
 docker = [
-    'docker',
+    'docker>=5.0.3',
 ]
 drill = ['sqlalchemy-drill>=1.1.0', 'sqlparse>=0.4.1']
 druid = [
@@ -274,9 +277,7 @@ elasticsearch = [
     'elasticsearch-dbapi',
     'elasticsearch-dsl>=5.0.0',
 ]
-exasol = [
-    'pyexasol>=0.5.1,<1.0.0',
-]
+exasol = ['pyexasol>=0.5.1,<1.0.0', pandas_requirement]
 facebook = [
     'facebook-business>=6.0.2',
 ]
@@ -285,7 +286,10 @@ flask_appbuilder_authlib = [
 ]
 google = [
     'PyOpenSSL',
-    'google-ads>=12.0.0',
+    # The Google Ads 14.0.1 breaks PIP and eager upgrade as it requires
+    # google-api-core>=2.0.0 which cannot be used yet (see below comment)
+    # and https://github.com/apache/airflow/issues/18705#issuecomment-933746150
+    'google-ads>=12.0.0,<14.0.1',
     # Maintainers, please do not require google-api-core>=2.x.x
     # Until this issue is closed
     # https://github.com/googleapis/google-cloud-python/issues/10566
@@ -299,9 +303,10 @@ google = [
     'google-cloud-automl>=2.1.0,<3.0.0',
     'google-cloud-bigquery-datatransfer>=3.0.0,<4.0.0',
     'google-cloud-bigtable>=1.0.0,<2.0.0',
+    'google-cloud-build>=3.0.0,<4.0.0',
     'google-cloud-container>=0.1.1,<2.0.0',
     'google-cloud-datacatalog>=3.0.0,<4.0.0',
-    'google-cloud-dataproc>=2.2.0,<3.0.0',
+    'google-cloud-dataproc>=2.2.0,<4.0.0',
     'google-cloud-dlp>=0.11.0,<2.0.0',
     'google-cloud-kms>=2.0.0,<3.0.0',
     'google-cloud-language>=1.1.1,<2.0.0',
@@ -329,6 +334,7 @@ google = [
     # pandas-gbq 0.15.0 release broke google provider's bigquery import
     # _check_google_client_version (airflow/providers/google/cloud/hooks/bigquery.py:49)
     'pandas-gbq<0.15.0',
+    pandas_requirement,
 ]
 grpc = [
     'google-auth>=1.0.0, <3.0.0',
@@ -345,6 +351,7 @@ hive = [
     'hmsclient>=0.1.0',
     'pyhive[hive]>=0.6.0;python_version<"3.9"',
     'thrift>=0.9.2',
+    pandas_requirement,
 ]
 http = [
     # The 2.26.0 release of requests got rid of the chardet LGPL mandatory dependency, allowing us to
@@ -353,6 +360,10 @@ http = [
 ]
 http_provider = [
     'apache-airflow-providers-http',
+]
+influxdb = [
+    'influxdb-client>=1.19.0',
+    pandas_requirement,
 ]
 jdbc = [
     'jaydebeapi>=1.1.1',
@@ -400,7 +411,7 @@ pagerduty = [
     'pdpyras>=4.1.2,<5',
 ]
 pandas = [
-    'pandas>=0.17.1, <2.0',
+    pandas_requirement,
 ]
 papermill = [
     'papermill[all]>=1.2.1',
@@ -421,7 +432,10 @@ plexus = [
 postgres = [
     'psycopg2-binary>=2.7.4',
 ]
-presto = ['presto-python-client>=0.7.0,<0.8']
+presto = [
+    'presto-python-client>=0.7.0,<0.8',
+    pandas_requirement,
+]
 psrp = [
     'pypsrp~=0.5',
 ]
@@ -434,10 +448,7 @@ rabbitmq = [
 redis = [
     'redis~=3.2',
 ]
-salesforce = [
-    'simple-salesforce>=1.0.0',
-    'tableauserverclient',
-]
+salesforce = ['simple-salesforce>=1.0.0', 'tableauserverclient', pandas_requirement]
 samba = [
     'smbprotocol>=1.5.0',
 ]
@@ -465,7 +476,7 @@ spark = [
 ssh = [
     'paramiko>=2.6.0',
     'pysftp>=0.2.9',
-    'sshtunnel>=0.1.4,<0.2',
+    'sshtunnel>=0.3.2,<0.5',
 ]
 statsd = [
     'statsd>=3.3.0, <4.0',
@@ -476,7 +487,10 @@ tableau = [
 telegram = [
     'python-telegram-bot~=13.0',
 ]
-trino = ['trino']
+trino = [
+    'trino>=0.301.0',
+    pandas_requirement,
+]
 vertica = [
     'vertica-python>=0.5.1',
 ]
@@ -497,7 +511,7 @@ zendesk = [
 ]
 # End dependencies group
 
-devel = [
+devel_only = [
     'aws_xray_sdk',
     'beautifulsoup4~=4.7.1',
     'black',
@@ -512,12 +526,11 @@ devel = [
     'freezegun',
     'github3.py',
     'gitpython',
-    'importlib-resources~=1.4',
     'ipdb',
     'jira',
     'jsondiff',
     'mongomock',
-    'moto~=2.2, >=2.2.1.dev9',
+    'moto~=2.2, >=2.2.7',
     'mypy==0.770',
     'parameterized',
     'paramiko',
@@ -538,12 +551,13 @@ devel = [
     'qds-sdk>=1.9.6',
     'pytest-httpx',
     'requests_mock',
+    'semver',
     'wheel',
     'yamllint',
 ]
 
-devel_minreq = cgroups + devel + doc + kubernetes + mysql + pandas + password
-devel_hadoop = devel_minreq + hdfs + hive + kerberos + presto + webhdfs
+devel = cgroups + devel_only + doc + kubernetes + mysql + pandas + password
+devel_hadoop = devel + hdfs + hive + kerberos + presto + webhdfs
 
 # Dict of all providers which are part of the Apache Airflow repository together with their requirements
 PROVIDERS_REQUIREMENTS: Dict[str, List[str]] = {
@@ -580,6 +594,7 @@ PROVIDERS_REQUIREMENTS: Dict[str, List[str]] = {
     'hashicorp': hashicorp,
     'http': http,
     'imap': [],
+    'influxdb': influxdb,
     'jdbc': jdbc,
     'jenkins': jenkins,
     'jira': jira,
@@ -752,6 +767,7 @@ ALL_DB_PROVIDERS = [
     'apache.pinot',
     'cloudant',
     'exasol',
+    'influxdb',
     'microsoft.mssql',
     'mongo',
     'mysql',
@@ -777,7 +793,7 @@ EXTRAS_REQUIREMENTS["all_dbs"] = all_dbs + pandas
 
 # This can be simplified to devel_hadoop + _all_requirements due to inclusions
 # but we keep it for explicit sake. We are de-duplicating it anyway.
-devel_all = list(set(_all_requirements + doc + devel_minreq + devel_hadoop))
+devel_all = list(set(_all_requirements + doc + devel + devel_hadoop))
 
 # Those are packages excluded for "all" dependencies
 PACKAGES_EXCLUDED_FOR_ALL = []
@@ -811,8 +827,8 @@ devel_ci = devel_all
 # Those are extras that we have to add for development purposes
 # They can be use to install some predefined set of dependencies.
 EXTRAS_REQUIREMENTS["doc"] = doc
-EXTRAS_REQUIREMENTS["devel"] = devel_minreq  # devel_minreq already includes doc
-EXTRAS_REQUIREMENTS["devel_hadoop"] = devel_hadoop  # devel_hadoop already includes devel_minreq
+EXTRAS_REQUIREMENTS["devel"] = devel  # devel already includes doc
+EXTRAS_REQUIREMENTS["devel_hadoop"] = devel_hadoop  # devel_hadoop already includes devel
 EXTRAS_REQUIREMENTS["devel_all"] = devel_all
 EXTRAS_REQUIREMENTS["devel_ci"] = devel_ci
 
@@ -1043,4 +1059,4 @@ def do_setup() -> None:
 
 
 if __name__ == "__main__":
-    do_setup()
+    do_setup()  # comment

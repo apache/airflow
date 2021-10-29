@@ -129,21 +129,17 @@ class BigQueryToMySqlOperator(BaseOperator):
             impersonation_chain=self.impersonation_chain,
         )
 
-        conn = hook.get_conn()
-        cursor = conn.cursor()
         i = 0
         while True:
-            response = cursor.get_tabledata(
+            response = hook.list_rows(
                 dataset_id=self.dataset_id,
                 table_id=self.table_id,
                 max_results=self.batch_size,
                 selected_fields=self.selected_fields,
                 start_index=i * self.batch_size,
             )
-
-            if 'rows' in response:
-                rows = response['rows']
-            else:
+            rows = [dict(r) for r in response]
+            if len(rows) == 0:
                 self.log.info('Job Finished')
                 return
 

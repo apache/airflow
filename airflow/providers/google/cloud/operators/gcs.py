@@ -26,6 +26,7 @@ from typing import Dict, Iterable, List, Optional, Sequence, Union
 
 from google.api_core.exceptions import Conflict
 from google.cloud.exceptions import GoogleCloudError
+from pendulum.datetime import DateTime
 
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
@@ -793,14 +794,22 @@ class GCSTimeSpanFileTransformOperator(BaseOperator):
 
     def execute(self, context: dict) -> None:
         # Define intervals and prefixes.
-        timespan_start = context["execution_date"]
-        timespan_end = context["dag"].following_schedule(timespan_start)
-        if timespan_end is None:
-            self.log.warning("No following schedule found, setting timespan end to max %s", timespan_end)
-            timespan_end = datetime.datetime.max
+        try:
+            timespan_start = context["data_interval_start"]
+            timespan_end = context["data_interval_end"]
+        except KeyError:  # Data interval context variables are only available in Airflow 2.2+
+            timespan_start = timezone.coerce_datetime(context["execution_date"])
+            timespan_end = timezone.coerce_datetime(context["dag"].following_schedule(timespan_start))
 
-        timespan_start = timespan_start.replace(tzinfo=timezone.utc)
-        timespan_end = timespan_end.replace(tzinfo=timezone.utc)
+        if timespan_end is None:  # Only possible in Airflow before 2.2.
+            self.log.warning("No following schedule found, setting timespan end to max %s", timespan_end)
+            timespan_end = DateTime.max
+        elif timespan_start >= timespan_end:  # Airflow 2.2 sets start == end for non-perodic schedules.
+            self.log.warning("DAG schedule not periodic, setting timespan end to max %s", timespan_end)
+            timespan_end = DateTime.max
+
+        timespan_start = timespan_start.in_timezone(timezone.utc)
+        timespan_end = timespan_end.in_timezone(timezone.utc)
 
         source_prefix_interp = GCSTimeSpanFileTransformOperator.interpolate_prefix(
             self.source_prefix,

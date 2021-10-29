@@ -90,9 +90,12 @@ def upgrade():
     # DagParser it will get set to correct value.
 
     op.execute(
-        "UPDATE dag SET concurrency={}, has_task_concurrency_limits={} where concurrency IS NULL".format(
-            concurrency, 1 if is_sqlite or is_mssql else sa.true()
-        )
+        f"""
+        UPDATE dag SET
+            concurrency={concurrency},
+            has_task_concurrency_limits={1 if is_sqlite or is_mssql else sa.true()}
+        where concurrency IS NULL
+        """
     )
 
     with op.batch_alter_table('dag', schema=None) as batch_op:

@@ -308,17 +308,19 @@ class TestHiveStatsCollectionOperator(TestHiveEnvironment):
                 op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
 
         select_count_query = (
-            "SELECT COUNT(*) AS __count FROM airflow."
-            + "static_babynames_partitioned WHERE ds = '2015-01-01';"
+            "SELECT COUNT(*) AS __count "
+            "FROM airflow.static_babynames_partitioned "
+            "WHERE ds = '2015-01-01';"
         )
         mock_presto_hook.get_first.assert_called_with(hql=select_count_query)
 
         expected_stats_select_query = (
-            "SELECT 1 FROM hive_stats WHERE table_name='airflow."
-            + "static_babynames_partitioned' AND "
-            + "partition_repr='{\"ds\": \"2015-01-01\"}' AND "
-            + "dttm='2015-01-01T00:00:00+00:00' "
-            + "LIMIT 1;"
+            "SELECT 1 "
+            "FROM hive_stats "
+            "WHERE table_name='airflow.static_babynames_partitioned' "
+            "  AND partition_repr='{\"ds\": \"2015-01-01\"}' "
+            "  AND dttm='2015-01-01T00:00:00+00:00' "
+            "LIMIT 1;"
         )
 
         raw_stats_select_query = mock_mysql_hook.get_records.call_args_list[0][0][0]

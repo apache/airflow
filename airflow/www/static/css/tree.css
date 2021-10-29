@@ -41,60 +41,6 @@ rect.state {
   cursor: pointer;
 }
 
-rect.null,
-rect.scheduled,
-rect.undefined {
-  fill: #fff;
-}
-
-rect.success {
-  fill: green;
-}
-
-rect.running {
-  fill: lime;
-}
-
-rect.failed {
-  fill: red;
-}
-
-rect.queued {
-  fill: gray;
-}
-
-rect.shutdown {
-  fill: blue;
-}
-
-rect.restarting {
-  fill: violet;
-}
-
-rect.upstream_failed {
-  fill: orange;
-}
-
-rect.up_for_retry {
-  fill: gold;
-}
-
-rect.up_for_reschedule {
-  fill: turquoise;
-}
-
-rect.skipped {
-  fill: pink;
-}
-
-rect.sensing {
-  fill: lightseagreen;
-}
-
-rect.deferred {
-  fill: lightseagreen;
-}
-
 .tooltip.in {
   opacity: 1;
   filter: alpha(opacity=100);
@@ -104,6 +50,11 @@ rect.deferred {
 .axis line {
   fill: none;
   stroke: #51504f;
+}
+
+rect.null,
+rect.undefined {
+  fill: #fff;
 }
 
 .axis text {

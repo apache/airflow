@@ -85,7 +85,7 @@ class DAGDetailSchema(DAGSchema):
     dag_run_timeout = fields.Nested(TimeDeltaSchema, attribute="dagrun_timeout")
     doc_md = fields.String()
     default_view = fields.String()
-    params = fields.Dict()
+    params = fields.Method('get_params', dump_only=True)
     tags = fields.Method("get_tags", dump_only=True)
     is_paused = fields.Method("get_is_paused", dump_only=True)
     is_active = fields.Method("get_is_active", dump_only=True)
@@ -114,6 +114,12 @@ class DAGDetailSchema(DAGSchema):
     def get_is_active(obj: DAG):
         """Checks entry in DAG table to see if this DAG is active"""
         return obj.get_is_active()
+
+    @staticmethod
+    def get_params(obj: DAG):
+        """Get the Params defined in a DAG"""
+        params = obj.params
+        return {k: v.dump() for k, v in params.items()}
 
 
 class DAGCollection(NamedTuple):

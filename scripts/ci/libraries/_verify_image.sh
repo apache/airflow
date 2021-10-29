@@ -288,6 +288,7 @@ function verify_image::verify_production_image_python_modules() {
     verify_image::check_command "Import: slack" "python -c 'import slack_sdk'"
     verify_image::check_command "Import: statsd" "python -c 'import statsd'"
     verify_image::check_command "Import: virtualenv" "python -c 'import virtualenv'"
+    verify_image::check_command "Import: pyodbc" "python -c 'import pyodbc'"
 
     start_end::group_end
 }

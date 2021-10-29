@@ -62,7 +62,7 @@ class TestDagRunsEndpoint:
         assert data[0]['id'] == dag_run.id
 
     def test_get_dag_runs_success_with_state_parameter(self):
-        url_template = '/api/experimental/dags/{}/dag_runs?state=running'
+        url_template = '/api/experimental/dags/{}/dag_runs?state=queued'
         dag_id = 'example_bash_operator'
         # Create DagRun
         dag_run = trigger_dag(dag_id=dag_id, run_id='test_get_dag_runs_success')
@@ -77,7 +77,7 @@ class TestDagRunsEndpoint:
         assert data[0]['id'] == dag_run.id
 
     def test_get_dag_runs_success_with_capital_state_parameter(self):
-        url_template = '/api/experimental/dags/{}/dag_runs?state=RUNNING'
+        url_template = '/api/experimental/dags/{}/dag_runs?state=QUEUED'
         dag_id = 'example_bash_operator'
         # Create DagRun
         dag_run = trigger_dag(dag_id=dag_id, run_id='test_get_dag_runs_success')

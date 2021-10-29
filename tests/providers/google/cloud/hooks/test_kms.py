@@ -37,8 +37,8 @@ TEST_PROJECT = "test-project"
 TEST_LOCATION = "global"
 TEST_KEY_RING = "test-key-ring"
 TEST_KEY = "test-key"
-TEST_KEY_ID = "projects/{}/locations/{}/keyRings/{}/cryptoKeys/{}".format(
-    TEST_PROJECT, TEST_LOCATION, TEST_KEY_RING, TEST_KEY
+TEST_KEY_ID = (
+    f"projects/{TEST_PROJECT}/locations/{TEST_LOCATION}/keyRings/{TEST_KEY_RING}/cryptoKeys/{TEST_KEY}"
 )
 
 RESPONSE = Response(PLAINTEXT, PLAINTEXT)

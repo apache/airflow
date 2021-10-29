@@ -36,6 +36,7 @@ const csrfToken = getMetaValue('csrf_token');
 const lastDagRunsUrl = getMetaValue('last_dag_runs_url');
 const dagStatsUrl = getMetaValue('dag_stats_url');
 const taskStatsUrl = getMetaValue('task_stats_url');
+const treeUrl = getMetaValue('tree_url');
 
 $('#tags_filter').select2({
   placeholder: 'Filter DAGs by tag',
@@ -88,7 +89,7 @@ const encodedDagIds = new URLSearchParams();
 $.each($('[id^=toggle]'), function toggleId() {
   const $input = $(this);
   const dagId = $input.data('dag-id');
-  encodedDagIds.append('dagIds', dagId);
+  encodedDagIds.append('dag_ids', dagId);
 
   $input.on('change', () => {
     const isPaused = $input.is(':checked');
@@ -118,11 +119,11 @@ $('.typeahead').typeahead({
   },
   autoSelect: false,
   afterSelect(value) {
-    const searchQuery = value.trim();
-    if (searchQuery) {
+    const dagId = value.trim();
+    if (dagId) {
       const query = new URLSearchParams(window.location.search);
-      query.set('search', searchQuery);
-      window.location = `${DAGS_INDEX}?${query}`;
+      query.set('dag_id', dagId);
+      window.location = `${treeUrl}?${query}`;
     }
   },
 });
@@ -151,6 +152,7 @@ function blockedHandler(error, json) {
 }
 
 function lastDagRunsHandler(error, json) {
+  $('.js-loading-last-run').remove();
   Object.keys(json).forEach((safeDagId) => {
     const dagId = json[safeDagId].dag_id;
     const executionDate = json[safeDagId].execution_date;
@@ -165,9 +167,6 @@ function lastDagRunsHandler(error, json) {
     g.selectAll('span')
       .style('display', null)
       .attr('data-lastrun', JSON.stringify(json[safeDagId]));
-
-    g.selectAll('.js-loading-last-run').remove();
-    $('.js-loading-last-run').remove();
   });
 }
 
@@ -235,7 +234,7 @@ function drawDagStatsForDag(dagId, states) {
     .attr('fill', '#51504f')
     .attr('text-anchor', 'middle')
     .attr('vertical-align', 'middle')
-    .attr('font-size', 8)
+    .attr('font-size', 9)
     .attr('y', 3)
     .style('pointer-events', 'none')
     .text((d) => (d.count > 0 ? d.count : ''));
@@ -305,7 +304,7 @@ function drawTaskStatsForDag(dagId, states) {
     .attr('fill', '#51504f')
     .attr('text-anchor', 'middle')
     .attr('vertical-align', 'middle')
-    .attr('font-size', 8)
+    .attr('font-size', 9)
     .attr('y', 3)
     .style('pointer-events', 'none')
     .text((d) => (d.count > 0 ? d.count : ''));
@@ -318,7 +317,7 @@ function taskStatsHandler(error, json) {
   });
 }
 
-if (encodedDagIds.has('dagIds')) {
+if (encodedDagIds.has('dag_ids')) {
   // dags on page fetch stats
   d3.json(blockedUrl)
     .header('X-CSRFToken', csrfToken)

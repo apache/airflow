@@ -29,7 +29,6 @@ from airflow import settings
 from airflow.exceptions import AirflowException, AirflowTaskTimeout
 from airflow.hooks.base import BaseHook
 from airflow.models import DagBag, TaskFail, TaskInstance
-from airflow.models.baseoperator import BaseOperator
 from airflow.operators.bash import BashOperator
 from airflow.operators.check_operator import CheckOperator, ValueCheckOperator
 from airflow.operators.dummy import DummyOperator
@@ -44,21 +43,6 @@ from tests.test_utils.db import clear_db_dags, clear_db_runs, clear_db_task_fail
 DEV_NULL = '/dev/null'
 DEFAULT_DATE = datetime(2015, 1, 1)
 TEST_DAG_ID = 'unit_tests'
-
-
-class OperatorSubclass(BaseOperator):
-    """
-    An operator to test template substitution
-    """
-
-    template_fields = ['some_templated_field']
-
-    def __init__(self, some_templated_field, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.some_templated_field = some_templated_field
-
-    def execute(self, context):
-        pass
 
 
 class TestCore:
@@ -244,36 +228,6 @@ class TestCore:
             )
         dag_maker.create_dagrun(run_type=DagRunType.MANUAL)
         op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
-
-    def test_complex_template(self, dag_maker):
-        def verify_templated_field(context):
-            assert context['ti'].task.some_templated_field['bar'][1] == context['ds']
-
-        with dag_maker():
-            op = OperatorSubclass(
-                task_id='test_complex_template',
-                some_templated_field={'foo': '123', 'bar': ['baz', '{{ ds }}']},
-            )
-        op.execute = verify_templated_field
-        dag_maker.create_dagrun(run_type=DagRunType.MANUAL)
-        op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
-
-    def test_template_non_bool(self, dag_maker):
-        """
-        Test templates can handle objects with no sense of truthiness
-        """
-
-        class NonBoolObject:
-            def __len__(self):
-                return NotImplemented
-
-            def __bool__(self):
-                return NotImplemented
-
-        with dag_maker():
-            op = OperatorSubclass(task_id='test_bad_template_obj', some_templated_field=NonBoolObject())
-        dag_maker.create_dagrun()
-        op.resolve_template_files()
 
     def test_task_get_template(self, session):
         dr = self.dag_bash.create_dagrun(

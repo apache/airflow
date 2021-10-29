@@ -333,7 +333,9 @@ class DataFusionHook(GoogleBaseHook):
         url = os.path.join(self._base_url(instance_url, namespace), quote(pipeline_name))
         response = self._cdap_request(url=url, method="PUT", body=pipeline)
         if response.status != 200:
-            raise AirflowException(f"Creating a pipeline failed with code {response.status}")
+            raise AirflowException(
+                f"Creating a pipeline failed with code {response.status} while calling {url}"
+            )
 
     def delete_pipeline(
         self,

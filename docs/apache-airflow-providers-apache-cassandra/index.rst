@@ -40,6 +40,7 @@ Content
 
     Example DAGs <https://github.com/apache/airflow/tree/main/airflow/providers/apache/cassandra/example_dags>
     PyPI Repository <https://pypi.org/project/apache-airflow-providers-apache-cassandra/>
+    Installing from sources <installing-providers-from-sources>
 
 .. THE REMAINDER OF THE FILE IS AUTOMATICALLY GENERATED. IT WILL BE OVERWRITTEN AT RELEASE TIME!
 
@@ -57,7 +58,7 @@ Package apache-airflow-providers-apache-cassandra
 `Apache Cassandra <http://cassandra.apache.org/>`__.
 
 
-Release: 2.0.1
+Release: 2.1.0
 
 Provider package
 ----------------

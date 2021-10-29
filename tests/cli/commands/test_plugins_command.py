@@ -17,6 +17,7 @@
 
 import io
 import json
+import textwrap
 import unittest
 from contextlib import redirect_stdout
 
@@ -68,3 +69,22 @@ class TestPluginsCommand(unittest.TestCase):
                 'operator_extra_links': [],
             }
         ]
+
+    @mock_plugin_manager(plugins=[TestPlugin])
+    def test_should_display_one_plugins_as_table(self):
+
+        with redirect_stdout(io.StringIO()) as temp_stdout:
+            plugins_command.dump_plugins(self.parser.parse_args(['plugins', '--output=table']))
+            stdout = temp_stdout.getvalue()
+
+        # Remove leading spaces
+        stdout = "\n".join(line.rstrip(" ") for line in stdout.splitlines())
+        # Assert that only columns with values are displayed
+        expected_output = textwrap.dedent(
+            """\
+            name            | hooks
+            ================+===========
+            test-plugin-cli | PluginHook
+            """
+        )
+        self.assertEqual(stdout, expected_output)

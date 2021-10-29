@@ -29,7 +29,8 @@ tasks on the same DAG. For example:
   on a daily DAG.
 - Different teams are responsible for different DAGs, but these DAGs have some cross-DAG
   dependencies.
-- A task may depend on another task on the same DAG, but for a different ``execution_date``.
+- A task may depend on another task on the same DAG, but for a different ``execution_date``
+  (start of the data interval).
 - Use ``execution_delta`` for tasks running at different times, like ``execution_delta=timedelta(hours=1)``
   to check against a task that runs 1 hour earlier.
 

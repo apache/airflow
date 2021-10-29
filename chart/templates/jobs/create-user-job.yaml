@@ -49,6 +49,9 @@ spec:
         tier: airflow
         component: create-user-job
         release: {{ .Release.Name }}
+{{- with .Values.labels }}
+{{ toYaml . | indent 8 }}
+{{- end }}
       {{- if or .Values.airflowPodAnnotations .Values.createUserJob.annotations }}
       annotations:
         {{- if .Values.airflowPodAnnotations }}

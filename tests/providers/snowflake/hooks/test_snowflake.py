@@ -86,7 +86,8 @@ class TestSnowflakeHook(unittest.TestCase):
 
     def test_get_uri(self):
         uri_shouldbe = (
-            'snowflake://user:pw@airflow/db/public?warehouse=af_wh&role=af_role&authenticator=snowflake'
+            'snowflake://user:pw@airflow.af_region/db/public?'
+            'warehouse=af_wh&role=af_role&authenticator=snowflake'
         )
         assert uri_shouldbe == self.db_hook.get_uri()
 
@@ -179,6 +180,22 @@ class TestSnowflakeHook(unittest.TestCase):
         params = self.db_hook._get_conn_params()
         assert 'private_key' in params
 
+    @mock.patch('airflow.providers.snowflake.hooks.snowflake.SnowflakeHook.run')
+    def test_connection_success(self, mock_run):
+        mock_run.return_value = [{'1': 1}]
+        status, msg = self.db_hook.test_connection()
+        assert status is True
+        assert msg == 'Connection successfully tested'
+
+    @mock.patch(
+        'airflow.providers.snowflake.hooks.snowflake.SnowflakeHook.run',
+        side_effect=Exception('Connection Errors'),
+    )
+    def test_connection_failure(self, mock_run):
+        status, msg = self.db_hook.test_connection()
+        assert status is False
+        assert msg == 'Connection Errors'
+
 
 """
     Testing hooks with assigning`extra_` parameters
@@ -243,7 +260,8 @@ class TestSnowflakeHookExtra(unittest.TestCase):
 
     def test_get_uri_extra(self):
         uri_shouldbe = (
-            'snowflake://user:pw@airflow/db/public?warehouse=af_wh&role=af_role&authenticator=snowflake'
+            'snowflake://user:pw@airflow.af_region/db/public?'
+            'warehouse=af_wh&role=af_role&authenticator=snowflake'
         )
         assert uri_shouldbe == self.db_hook_extra.get_uri()
 

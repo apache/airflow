@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 #
+from datetime import datetime
 from typing import Callable, Dict, List, Tuple, Union
 
 AIRFLOW_VAR_NAME_FORMAT_MAPPING = {
@@ -58,37 +59,32 @@ def context_to_airflow_vars(context, in_env_var_format=False):
         name_format = 'env_var_format'
     else:
         name_format = 'default'
+
     task = context.get('task')
-    if task and task.email:
-        if isinstance(task.email, str):
-            params[AIRFLOW_VAR_NAME_FORMAT_MAPPING['AIRFLOW_CONTEXT_DAG_EMAIL'][name_format]] = task.email
-        elif isinstance(task.email, list):
-            # os env variable value needs to be string
-            params[AIRFLOW_VAR_NAME_FORMAT_MAPPING['AIRFLOW_CONTEXT_DAG_EMAIL'][name_format]] = ','.join(
-                task.email
-            )
-    if task and task.owner:
-        if isinstance(task.owner, str):
-            params[AIRFLOW_VAR_NAME_FORMAT_MAPPING['AIRFLOW_CONTEXT_DAG_OWNER'][name_format]] = task.owner
-        elif isinstance(task.owner, list):
-            # os env variable value needs to be string
-            params[AIRFLOW_VAR_NAME_FORMAT_MAPPING['AIRFLOW_CONTEXT_DAG_OWNER'][name_format]] = ','.join(
-                task.owner
-            )
     task_instance = context.get('task_instance')
-    if task_instance and task_instance.dag_id:
-        params[AIRFLOW_VAR_NAME_FORMAT_MAPPING['AIRFLOW_CONTEXT_DAG_ID'][name_format]] = task_instance.dag_id
-    if task_instance and task_instance.task_id:
-        params[
-            AIRFLOW_VAR_NAME_FORMAT_MAPPING['AIRFLOW_CONTEXT_TASK_ID'][name_format]
-        ] = task_instance.task_id
-    if task_instance and task_instance.execution_date:
-        params[
-            AIRFLOW_VAR_NAME_FORMAT_MAPPING['AIRFLOW_CONTEXT_EXECUTION_DATE'][name_format]
-        ] = task_instance.execution_date.isoformat()
     dag_run = context.get('dag_run')
-    if dag_run and dag_run.run_id:
-        params[AIRFLOW_VAR_NAME_FORMAT_MAPPING['AIRFLOW_CONTEXT_DAG_RUN_ID'][name_format]] = dag_run.run_id
+
+    ops = [
+        (task, 'email', 'AIRFLOW_CONTEXT_DAG_EMAIL'),
+        (task, 'owner', 'AIRFLOW_CONTEXT_DAG_OWNER'),
+        (task_instance, 'dag_id', 'AIRFLOW_CONTEXT_DAG_ID'),
+        (task_instance, 'task_id', 'AIRFLOW_CONTEXT_TASK_ID'),
+        (task_instance, 'execution_date', 'AIRFLOW_CONTEXT_EXECUTION_DATE'),
+        (dag_run, 'run_id', 'AIRFLOW_CONTEXT_DAG_RUN_ID'),
+    ]
+
+    for subject, attr, mapping_key in ops:
+        _attr = getattr(subject, attr, None)
+        if subject and _attr:
+            mapping_value = AIRFLOW_VAR_NAME_FORMAT_MAPPING[mapping_key][name_format]
+            if isinstance(_attr, str):
+                params[mapping_value] = _attr
+            elif isinstance(_attr, datetime):
+                params[mapping_value] = _attr.isoformat()
+            elif isinstance(_attr, list):
+                # os env variable value needs to be string
+                params[mapping_value] = ','.join(_attr)
+
     return params
 
 

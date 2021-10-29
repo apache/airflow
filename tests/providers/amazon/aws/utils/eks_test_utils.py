@@ -26,15 +26,20 @@ from ..utils.eks_test_constants import (
     STATUS,
     ClusterAttributes,
     ClusterInputs,
+    FargateProfileAttributes,
+    FargateProfileInputs,
     NodegroupAttributes,
     NodegroupInputs,
     ResponseAttributes,
 )
 
+InputTypes = Union[Type[ClusterInputs], Type[NodegroupInputs], Type[FargateProfileInputs]]
+
 
 def attributes_to_test(
-    inputs: Union[Type[ClusterInputs], Type[NodegroupInputs]],
+    inputs: InputTypes,
     cluster_name: str,
+    fargate_profile_name: Optional[str] = None,
     nodegroup_name: Optional[str] = None,
 ) -> List[Tuple]:
     """
@@ -43,9 +48,11 @@ def attributes_to_test(
 
     :param inputs: A class containing lists of tuples to use for verifying the output
     of cluster or nodegroup creation tests.
-    :type inputs: Union[ClusterInputs, NodegroupInputs]
+    :type inputs: InputTypes
     :param cluster_name: The name of the cluster under test.
     :type cluster_name: str
+    :param fargate_profile_name: The name of the Fargate profile under test if applicable.
+    :type fargate_profile_name: str
     :param nodegroup_name: The name of the nodegroup under test if applicable.
     :type nodegroup_name: str
     :return: Returns a list of tuples containing the keys and values to be validated in testing.
@@ -54,6 +61,8 @@ def attributes_to_test(
     result: List[Tuple] = deepcopy(inputs.REQUIRED + inputs.OPTIONAL + [STATUS])
     if inputs == ClusterInputs:
         result += [(ClusterAttributes.NAME, cluster_name)]
+    elif inputs == FargateProfileInputs:
+        result += [(FargateProfileAttributes.FARGATE_PROFILE_NAME, fargate_profile_name)]
     elif inputs == NodegroupInputs:
         # The below tag is mandatory and must have a value of either 'owned' or 'shared'
         # A value of 'owned' denotes that the subnets are exclusive to the nodegroup.
@@ -77,7 +86,7 @@ def attributes_to_test(
 
 def generate_clusters(eks_hook: EKSHook, num_clusters: int, minimal: bool) -> List[str]:
     """
-    Generates a number of EKS Clusters with randomized data and adds them to the mocked backend.
+    Generates a number of EKS Clusters with data and adds them to the mocked backend.
 
     :param eks_hook: An EKSHook object used to call the EKS API.
     :type eks_hook: EKSHook
@@ -97,11 +106,39 @@ def generate_clusters(eks_hook: EKSHook, num_clusters: int, minimal: bool) -> Li
     ]
 
 
+def generate_fargate_profiles(
+    eks_hook: EKSHook, cluster_name: str, num_profiles: int, minimal: bool
+) -> List[str]:
+    """
+    Generates a number of EKS Fargate profiles with data and adds them to the mocked backend.
+
+    :param eks_hook: An EKSHook object used to call the EKS API.
+    :type eks_hook: EKSHook
+    :param cluster_name: The name of the EKS Cluster to attach the nodegroups to.
+    :type cluster_name: str
+    :param num_profiles: Number of Fargate profiles to generate.
+    :type num_profiles: int
+    :param minimal: If True, only the required values are generated; if False all values are generated.
+    :type minimal: bool
+    :return: Returns a list of the names of the generated nodegroups.
+    :rtype: List[str]
+    """
+    # Generates N Fargate profiles named profile0, profile1, .., profileN
+    return [
+        eks_hook.create_fargate_profile(
+            fargateProfileName="profile" + str(count),
+            clusterName=cluster_name,
+            **_input_builder(FargateProfileInputs, minimal),
+        )[ResponseAttributes.FARGATE_PROFILE][FargateProfileAttributes.FARGATE_PROFILE_NAME]
+        for count in range(num_profiles)
+    ]
+
+
 def generate_nodegroups(
     eks_hook: EKSHook, cluster_name: str, num_nodegroups: int, minimal: bool
 ) -> List[str]:
     """
-    Generates a number of EKS Managed Nodegroups with randomized data and adds them to the mocked backend.
+    Generates a number of EKS Managed Nodegroups with data and adds them to the mocked backend.
 
     :param eks_hook: An EKSHook object used to call the EKS API.
     :type eks_hook: EKSHook
@@ -149,13 +186,13 @@ def region_matches_partition(region: str, partition: str) -> bool:
     return partition == "aws"
 
 
-def _input_builder(options: Union[Type[ClusterInputs], Type[NodegroupInputs]], minimal: bool) -> Dict:
+def _input_builder(options: InputTypes, minimal: bool) -> Dict:
     """
     Assembles the inputs which will be used to generate test object into a dictionary.
 
     :param options: A class containing lists of tuples to use for to create
     the cluster or nodegroup used in testing.
-    :type options: Union[ClusterInputs, NodegroupInputs]
+    :type options: InputTypes
     :param minimal: If True, only the required values are generated; if False all values are generated.
     :type minimal: bool
     :return: Returns a list of tuples containing the keys and values to be validated in testing.
@@ -199,6 +236,19 @@ def convert_keys(original: Dict) -> Dict:
             nodegroup_name="nodegroupName",
             nodegroup_role_arn="nodeRole",
         )
+    elif "fargate_profile_name" in original.keys():
+        conversion_map = dict(
+            cluster_name="clusterName",
+            fargate_profile_name="fargateProfileName",
+            subnets="subnets",
+            # The following are "duplicated" because we used the more verbose/descriptive version
+            # in the CreateCluster Operator when creating a cluster alongside a Fargate profile, but
+            # the more terse version in the CreateFargateProfile Operator for the sake of convenience.
+            pod_execution_role_arn="podExecutionRoleArn",
+            fargate_pod_execution_role_arn="podExecutionRoleArn",
+            selectors="selectors",
+            fargate_selectors="selectors",
+        )
     else:
         conversion_map = dict(
             cluster_name="name",
@@ -211,3 +261,7 @@ def convert_keys(original: Dict) -> Dict:
 
 def iso_date(datetime: str) -> str:
     return datetime.strftime("%Y-%m-%dT%H:%M:%S") + "Z"
+
+
+def generate_dict(prefix, count) -> Dict:
+    return {f"{prefix}_{_count}": str(_count) for _count in range(count)}

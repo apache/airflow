@@ -286,15 +286,15 @@ class ZipPathPreprocessor:
                 self.upload_function = True
             else:
                 raise AirflowException(
-                    "Only one of '{}' in body or '{}' argument "
-                    "allowed. Found both.".format(GCF_SOURCE_UPLOAD_URL, GCF_ZIP_PATH)
+                    f"Only one of '{GCF_SOURCE_UPLOAD_URL}' in body or '{GCF_ZIP_PATH}' argument allowed. "
+                    f"Found both."
                 )
 
     def _verify_archive_url_and_zip_path(self) -> None:
         if GCF_SOURCE_ARCHIVE_URL in self.body and self.zip_path:
             raise AirflowException(
-                "Only one of '{}' in body or '{}' argument "
-                "allowed. Found both.".format(GCF_SOURCE_ARCHIVE_URL, GCF_ZIP_PATH)
+                f"Only one of '{GCF_SOURCE_ARCHIVE_URL}' in body or '{GCF_ZIP_PATH}' argument allowed. "
+                f"Found both."
             )
 
     def should_upload_function(self) -> bool:
@@ -304,7 +304,7 @@ class ZipPathPreprocessor:
         :rtype: bool
         """
         if self.upload_function is None:
-            raise AirflowException('validate() method has to be invoked before ' 'should_upload_function')
+            raise AirflowException('validate() method has to be invoked before should_upload_function')
         return self.upload_function
 
     def preprocess_body(self) -> None:

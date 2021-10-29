@@ -19,10 +19,6 @@
 AWS Database Migration Service Operators
 ========================================
 
-.. contents::
-  :depth: 1
-  :local:
-
 Prerequisite Tasks
 ------------------
 

@@ -152,6 +152,7 @@ with models.DAG(
     # [START howto_operator_start_python_job_async]
     start_python_job_async = BeamRunPythonPipelineOperator(
         task_id="start-python-job-async",
+        runner="DataflowRunner",
         py_file=GCS_PYTHON,
         py_options=[],
         pipeline_options={
@@ -160,14 +161,18 @@ with models.DAG(
         py_requirements=['apache-beam[gcp]==2.25.0'],
         py_interpreter='python3',
         py_system_site_packages=False,
-        dataflow_config={"location": 'europe-west3', "wait_until_finished": False},
+        dataflow_config={
+            "job_name": "start-python-job-async",
+            "location": 'europe-west3',
+            "wait_until_finished": False,
+        },
     )
     # [END howto_operator_start_python_job_async]
 
     # [START howto_sensor_wait_for_job_status]
     wait_for_python_job_async_done = DataflowJobStatusSensor(
         task_id="wait-for-python-job-async-done",
-        job_id="{{task_instance.xcom_pull('start-python-job-async')['job_id']}}",
+        job_id="{{task_instance.xcom_pull('start-python-job-async')['dataflow_job_id']}}",
         expected_statuses={DataflowJobStatus.JOB_STATE_DONE},
         location='europe-west3',
     )
@@ -191,9 +196,10 @@ with models.DAG(
 
     wait_for_python_job_async_metric = DataflowJobMetricsSensor(
         task_id="wait-for-python-job-async-metric",
-        job_id="{{task_instance.xcom_pull('start-python-job-async')['job_id']}}",
+        job_id="{{task_instance.xcom_pull('start-python-job-async')['dataflow_job_id']}}",
         location='europe-west3',
         callback=check_metric_scalar_gte(metric_name="Service-cpu_num_seconds", value=100),
+        fail_on_terminal_state=False,
     )
     # [END howto_sensor_wait_for_job_metric]
 
@@ -207,9 +213,10 @@ with models.DAG(
 
     wait_for_python_job_async_message = DataflowJobMessagesSensor(
         task_id="wait-for-python-job-async-message",
-        job_id="{{task_instance.xcom_pull('start-python-job-async')['job_id']}}",
+        job_id="{{task_instance.xcom_pull('start-python-job-async')['dataflow_job_id']}}",
         location='europe-west3',
         callback=check_message,
+        fail_on_terminal_state=False,
     )
     # [END howto_sensor_wait_for_job_message]
 
@@ -223,9 +230,10 @@ with models.DAG(
 
     wait_for_python_job_async_autoscaling_event = DataflowJobAutoScalingEventsSensor(
         task_id="wait-for-python-job-async-autoscaling-event",
-        job_id="{{task_instance.xcom_pull('start-python-job-async')['job_id']}}",
+        job_id="{{task_instance.xcom_pull('start-python-job-async')['dataflow_job_id']}}",
         location='europe-west3',
         callback=check_autoscaling_event,
+        fail_on_terminal_state=False,
     )
     # [END howto_sensor_wait_for_job_autoscaling_event]
 

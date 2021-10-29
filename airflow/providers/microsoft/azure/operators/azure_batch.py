@@ -220,10 +220,9 @@ class AzureBatchOperator(BaseOperator):
         if self.use_latest_image:
             if not all(elem for elem in [self.vm_publisher, self.vm_offer]):
                 raise AirflowException(
-                    "If use_latest_image_and_sku is"
-                    " set to True then the parameters vm_publisher, vm_offer, "
-                    "must all be set. Found "
-                    "vm_publisher={}, vm_offer={}".format(self.vm_publisher, self.vm_offer)
+                    f"If use_latest_image_and_sku is set to True then the parameters vm_publisher, "
+                    f"vm_offer, must all be set. "
+                    f"Found vm_publisher={self.vm_publisher}, vm_offer={self.vm_offer}"
                 )
         if self.vm_publisher:
             if not all([self.vm_sku, self.vm_offer, self.vm_node_agent_sku_id]):
@@ -242,12 +241,10 @@ class AzureBatchOperator(BaseOperator):
         if self.enable_auto_scale:
             if self.target_dedicated_nodes or self.target_low_priority_nodes:
                 raise AirflowException(
-                    "If enable_auto_scale is set, then the parameters "
-                    "target_dedicated_nodes and target_low_priority_nodes must not "
-                    "be set. Found target_dedicated_nodes={},"
-                    " target_low_priority_nodes={}".format(
-                        self.target_dedicated_nodes, self.target_low_priority_nodes
-                    )
+                    f"If enable_auto_scale is set, then the parameters target_dedicated_nodes and "
+                    f"target_low_priority_nodes must not be set. Found "
+                    f"target_dedicated_nodes={self.target_dedicated_nodes}, "
+                    f"target_low_priority_nodes={self.target_low_priority_nodes}"
                 )
             if not self.auto_scale_formula:
                 raise AirflowException("The auto_scale_formula is required when enable_auto_scale is set")

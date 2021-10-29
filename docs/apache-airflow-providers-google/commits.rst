@@ -35,6 +35,36 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+6.0.0
+.....
+
+Latest change: 2021-09-29
+
+================================================================================================  ===========  ========================================================================================
+Commit                                                                                            Committed    Subject
+================================================================================================  ===========  ========================================================================================
+`9279c44c9 <https://github.com/apache/airflow/commit/9279c44c91274b7ee31c244d41090c93e5753394>`_  2021-09-29   ``Fix part of Google system tests (#18494)``
+`2fadf3c3c <https://github.com/apache/airflow/commit/2fadf3c3cf6e8a5d26953ebce6401ab5059ee05f>`_  2021-09-27   ``Fix kubernetes engine system test (#18548)``
+`a458fcc57 <https://github.com/apache/airflow/commit/a458fcc573845ff65244a2dafd204ed70129f3e8>`_  2021-09-27   ``Updating miscellaneous provider DAGs to use TaskFlow API where applicable (#18278)``
+`97d689231 <https://github.com/apache/airflow/commit/97d6892318ce2866f09f2c21247ed3b1b9975695>`_  2021-09-25   ``Rename AzureDataLakeStorage to ADLS (#18493)``
+`a5439eee7 <https://github.com/apache/airflow/commit/a5439eee72cd380f8434e622e8bef7c35786ce39>`_  2021-09-23   ``Add index to the dataset name to have separate dataset for each example DAG (#18459)``
+`18d7e1e22 <https://github.com/apache/airflow/commit/18d7e1e2270ffcbc8077ba700f209ae69eccef99>`_  2021-09-21   ``Fix BigQuery system test (#18373)``
+`e25eea052 <https://github.com/apache/airflow/commit/e25eea052fd54c94b490a377de05c6bae4c24dbb>`_  2021-09-19   ``Inclusive Language (#18349)``
+`7458f1e78 <https://github.com/apache/airflow/commit/7458f1e7861e5146da61cbff9393d72c88a3608c>`_  2021-09-18   ``Remove check for at least one schema in GCSToBigquery (#18150)``
+`2474f8922 <https://github.com/apache/airflow/commit/2474f8922d0cb7435040f5e21ca61fb6b633dec2>`_  2021-09-13   ``Migrate Google Cloud Build from Discovery API to Python SDK (#18184)``
+`8ae2bb9bf <https://github.com/apache/airflow/commit/8ae2bb9bfa8cfd62a8ae5f6edabce47800ccb140>`_  2021-09-13   ``Fix error when create external table using table resource (#17998)``
+`9140ad8d8 <https://github.com/apache/airflow/commit/9140ad8d8f6dadd56bc592f5cdbf5585c2a8ce89>`_  2021-09-11   ``Use parameters instead of params (#18143)``
+`3d4bfdcbb <https://github.com/apache/airflow/commit/3d4bfdcbb97c5d68761e5bfd2699a50ca0edd12a>`_  2021-09-10   ``Add missing __init__.py files for some test packages (#18142)``
+`cfb602a33 <https://github.com/apache/airflow/commit/cfb602a33dc1904e2f51d74fa711722c8b702726>`_  2021-09-10   ``Fix ''BigQuery'' data extraction in ''BigQueryToMySqlOperator'' (#18073)``
+`2fd3f27eb <https://github.com/apache/airflow/commit/2fd3f27ebd2a4f695968fb7cc5d119e087820928>`_  2021-09-10   ``Make next_dagrun_info take a data interval (#18088)``
+`944dcfbb9 <https://github.com/apache/airflow/commit/944dcfbb918050274fd3a1cc51d8fdf460ea2429>`_  2021-09-07   ``Change TaskInstance and TaskReschedule PK from execution_date to run_id (#17719)``
+`bfad233b9 <https://github.com/apache/airflow/commit/bfad233b91875fb2dec4217f1b0ae2ba8dd9820c>`_  2021-09-06   ``Fix providers tests in main branch with eager upgrades (#18040)``
+`21348c194 <https://github.com/apache/airflow/commit/21348c194d4149237e357e0fff9ed444d27fa71d>`_  2021-09-03   ``fix(CloudSqlProxyRunner): don't query connections from Airflow DB (#18006)``
+`9a0c10ba3 <https://github.com/apache/airflow/commit/9a0c10ba3fac3bb88f4f103114d4590b3fb191cb>`_  2021-09-01   ``deduplicate running jobs on BigQueryInsertJobOperator (#17496)``
+`fe34582fc <https://github.com/apache/airflow/commit/fe34582fc2f418b96a5dc5c10b8b6a8b48bdb7ea>`_  2021-09-01   ``New google operator: SQLToGoogleSheetsOperator (#17887)``
+`500780651 <https://github.com/apache/airflow/commit/500780651cfef9254d5e365c0de6f8c7af6d05bf>`_  2021-08-31   ``Add possibility to run DAGs from system tests and see DAGs logs (#17868)``
+================================================================================================  ===========  ========================================================================================
+
 5.1.0
 .....
 
@@ -43,6 +73,7 @@ Latest change: 2021-08-30
 ================================================================================================  ===========  =========================================================================================================================
 Commit                                                                                            Committed    Subject
 ================================================================================================  ===========  =========================================================================================================================
+`0a6858847 <https://github.com/apache/airflow/commit/0a68588479e34cf175d744ea77b283d9d78ea71a>`_  2021-08-30   ``Add August 2021 Provider's documentation (#17890)``
 `b5da846dd <https://github.com/apache/airflow/commit/b5da846dd1f27d798dc7dc4f4227de4418919874>`_  2021-08-30   ``Fix missing Data Fusion sensor integration (#17914)``
 `07405e6df <https://github.com/apache/airflow/commit/07405e6df4508fbf3e67d879479e2afd37df8421>`_  2021-08-30   ``[AIRFLOW-9300] Add DatafusionPipelineStateSensor and aync option to the CloudDataFusionStartPipelineOperator (#17787)``
 `42e13e1a5 <https://github.com/apache/airflow/commit/42e13e1a5a4c97a2085ddf96f7d93e7bf71949b8>`_  2021-08-30   ``Remove all deprecation warnings in providers (#17900)``

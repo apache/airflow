@@ -66,6 +66,9 @@ class KubeConfig:
         self.worker_pods_pending_timeout_batch_size = conf.getint(
             self.kubernetes_section, 'worker_pods_pending_timeout_batch_size'
         )
+        self.worker_pods_queued_check_interval = conf.getint(
+            self.kubernetes_section, 'worker_pods_queued_check_interval'
+        )
 
         kube_client_request_args = conf.get(self.kubernetes_section, 'kube_client_request_args')
         if kube_client_request_args:

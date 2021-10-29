@@ -38,13 +38,9 @@ See following example:
 Set values for these fields:
 .. code-block::
 
-  Conn Id: "your_conn_id"
+  Connection Id: "your_conn_id"
   Extra: {"extra__dataprep__token": "TOKEN",
           "extra__dataprep__base_url": "https://api.clouddataprep.com"}
-
-.. contents::
-  :depth: 1
-  :local:
 
 Prerequisite Tasks
 ^^^^^^^^^^^^^^^^^^

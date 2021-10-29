@@ -15,6 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
+import os
 from unittest import mock
 
 import flask
@@ -24,6 +25,7 @@ from airflow.dag_processing.processor import DagFileProcessor
 from airflow.security import permissions
 from airflow.utils.session import create_session
 from airflow.utils.state import State
+from airflow.www.utils import UIAlert
 from airflow.www.views import FILTER_STATUS_COOKIE, FILTER_TAGS_COOKIE
 from tests.test_utils.api_connexion_utils import create_user
 from tests.test_utils.db import clear_db_dags, clear_db_import_errors, clear_db_serialized_dags
@@ -49,10 +51,10 @@ def test_home(capture_templates, admin_client):
         check_content_in_response('DAGs', resp)
         val_state_color_mapping = (
             'const STATE_COLOR = {'
-            '"deferred": "lightseagreen", "failed": "red", '
+            '"deferred": "mediumpurple", "failed": "red", '
             '"null": "lightblue", "queued": "gray", '
             '"removed": "lightgrey", "restarting": "violet", "running": "lime", '
-            '"scheduled": "tan", "sensing": "lightseagreen", '
+            '"scheduled": "tan", "sensing": "mediumpurple", '
             '"shutdown": "blue", "skipped": "pink", '
             '"success": "green", "up_for_reschedule": "turquoise", '
             '"up_for_retry": "gold", "upstream_failed": "orange"};'
@@ -128,7 +130,7 @@ def working_dags(tmpdir):
 
     with create_session() as session:
         for dag_id in TEST_FILTER_DAG_IDS:
-            filename = tmpdir / f"{dag_id}.py"
+            filename = os.path.join(tmpdir, f"{dag_id}.py")
             with open(filename, "w") as f:
                 f.writelines(dag_contents_template.format(dag_id))
             _process_file(filename, session)
@@ -138,7 +140,7 @@ def working_dags(tmpdir):
 def broken_dags(tmpdir, working_dags):
     with create_session() as session:
         for dag_id in TEST_FILTER_DAG_IDS:
-            filename = tmpdir / f"{dag_id}.py"
+            filename = os.path.join(tmpdir, f"{dag_id}.py")
             with open(filename, "w") as f:
                 f.writelines('airflow DAG')
             _process_file(filename, session)
@@ -185,3 +187,60 @@ def test_home_robots_header_in_response(user_client):
     # Responses should include X-Robots-Tag header
     resp = user_client.get('home', follow_redirects=True)
     assert resp.headers['X-Robots-Tag'] == 'noindex, nofollow'
+
+
+@pytest.mark.parametrize(
+    "client, flash_message, expected",
+    [
+        ("user_client", UIAlert("hello world"), True),
+        ("user_client", UIAlert("hello world", roles=["User"]), True),
+        ("user_client", UIAlert("hello world", roles=["User", "Admin"]), True),
+        ("user_client", UIAlert("hello world", roles=["Admin"]), False),
+        ("admin_client", UIAlert("hello world"), True),
+        ("admin_client", UIAlert("hello world", roles=["Admin"]), True),
+        ("admin_client", UIAlert("hello world", roles=["User", "Admin"]), True),
+    ],
+)
+def test_dashboard_flash_messages_role_filtering(request, client, flash_message, expected):
+    with mock.patch("airflow.settings.DASHBOARD_UIALERTS", [flash_message]):
+        resp = request.getfixturevalue(client).get("home", follow_redirects=True)
+    if expected:
+        check_content_in_response(flash_message.message, resp)
+    else:
+        check_content_not_in_response(flash_message.message, resp)
+
+
+def test_dashboard_flash_messages_many(user_client):
+    messages = [
+        UIAlert("hello world"),
+        UIAlert("im_not_here", roles=["Admin"]),
+        UIAlert("_hello_world_"),
+    ]
+    with mock.patch("airflow.settings.DASHBOARD_UIALERTS", messages):
+        resp = user_client.get("home", follow_redirects=True)
+    check_content_in_response("hello world", resp)
+    check_content_not_in_response("im_not_here", resp)
+    check_content_in_response("_hello_world_", resp)
+
+
+def test_dashboard_flash_messages_markup(user_client):
+    link = '<a href="http://example.com">hello world</a>'
+    user_input = flask.Markup("Hello <em>%s</em>") % ("foo&bar",)
+    messages = [
+        UIAlert(link, html=True),
+        UIAlert(user_input),
+    ]
+    with mock.patch("airflow.settings.DASHBOARD_UIALERTS", messages):
+        resp = user_client.get("home", follow_redirects=True)
+    check_content_in_response(link, resp)
+    check_content_in_response(user_input, resp)
+
+
+def test_dashboard_flash_messages_type(user_client):
+    messages = [
+        UIAlert("hello world", category="foo"),
+    ]
+    with mock.patch("airflow.settings.DASHBOARD_UIALERTS", messages):
+        resp = user_client.get("home", follow_redirects=True)
+    check_content_in_response("hello world", resp)
+    check_content_in_response("alert-foo", resp)

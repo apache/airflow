@@ -154,17 +154,17 @@ repos:
           - "--maxlevel"
           - "2"
   - repo: https://github.com/psf/black
-    rev: 21.7b0
+    rev: 21.9b0
     hooks:
       - id: black
         args: [--config=./pyproject.toml]
         exclude: ^airflow/_vendor/
   - repo: https://github.com/asottile/blacken-docs
-    rev: v1.10.0
+    rev: v1.11.0
     hooks:
       - id: blacken-docs
         alias: black
-        additional_dependencies: [black==21.7b0]
+        additional_dependencies: [black==21.9b0]
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v4.0.1
     hooks:
@@ -196,7 +196,7 @@ repos:
         files: ^chart/values\.schema\.json$|^chart/values_schema\.schema\.json$
         pass_filenames: true
   - repo: https://github.com/asottile/pyupgrade
-    rev: v2.23.3
+    rev: v2.29.0
     hooks:
       - id: pyupgrade
         args: ["--py36-plus"]
@@ -209,7 +209,7 @@ repos:
       - id: python-no-log-warn
         exclude: ^airflow/_vendor/
   - repo: https://github.com/adrienverge/yamllint
-    rev: v1.26.2
+    rev: v1.26.3
     hooks:
       - id: yamllint
         name: Check YAML files with yamllint
@@ -250,13 +250,32 @@ repos:
         exclude: |
           (?x)
           ^airflow/_vendor/
-  - repo: https://github.com/ikamensh/flynt/
-    rev: '0.66'
+        additional_dependencies: ['flake8>=4.0.1']
+  - repo: https://github.com/ikamensh/flynt
+    rev: '0.69'
     hooks:
       - id: flynt
         exclude: |
           (?x)
           ^airflow/_vendor/
+        args:
+         # If flynt detects too long text it ignores it. So we set a very large limit to make it easy
+         # to split the text by hand. Too long lines are detected by flake8 (below),
+         # so the user is informed to take action.
+         - --line-length
+         - '99999'
+  - repo: https://github.com/codespell-project/codespell
+    rev: v2.1.0
+    hooks:
+      - id: codespell
+        name: Run codespell to check for common misspellings in files
+        entry: codespell
+        language: python
+        types: [text]
+        exclude: ^airflow/_vendor/|^CHANGELOG.txt|^airflow/www/static/css/material-icons.css
+        args:
+          - --ignore-words=docs/spelling_wordlist.txt
+          - --skip=docs/*/commits.rst,airflow/providers/*/*.rst,*.lock,INTHEWILD.md,*.min.js,docs/apache-airflow/pipeline_example.csv
   - repo: local
     hooks:
       - id: lint-openapi
@@ -323,6 +342,19 @@ repos:
         language: python
         files: ^setup\.py$|^INSTALL$|^CONTRIBUTING\.rst$
         pass_filenames: false
+      - id: check-extras-order
+        name: Check order of extras in Dockerfile
+        entry: ./scripts/ci/pre_commit/pre_commit_check_order_dockerfile_extras.py
+        language: python
+        files: ^Dockerfile$
+        pass_filenames: false
+        additional_dependencies: ['rich']
+      - id: update-version
+        name: Update version to the latest version in the documentation
+        entry: ./scripts/ci/pre_commit/pre_commit_update_versions.py
+        language: python
+        files: ^docs
+        pass_filenames: false
       - id: pydevd
         language: pygrep
         name: Check for pydevd debug statements accidentally left
@@ -359,6 +391,7 @@ repos:
         pass_filenames: true
         exclude: >
           (?x)
+          ^airflow/www/fab_security/manager\.py$|
           ^airflow/providers/apache/cassandra/hooks/cassandra\.py$|
           ^airflow/providers/apache/hive/operators/hive_stats\.py$|
           ^airflow/providers/apache/hive/.*PROVIDER_CHANGES_*|
@@ -508,16 +541,16 @@ repos:
         # Keep dependency versions in sync w/ airflow/www/package.json
         additional_dependencies: ['stylelint@13.3.1', 'stylelint-config-standard@20.0.0']
       - id: providers-init-file
-        name: Provider init file
+        name: Provider init file is missing
         pass_filenames: false
         always_run: true
         entry: ./scripts/ci/pre_commit/pre_commit_check_providers_init.sh
         language: system
-      - id: providers-example-dags-init-file
-        name: Provider example_dags init file
+      - id: providers-subpackages-init-file
+        name: Provider subpackage init files are there
         pass_filenames: false
         always_run: true
-        entry: ./scripts/ci/pre_commit/pre_commit_check_providers_example_dag_init.py
+        entry: ./scripts/ci/pre_commit/pre_commit_check_providers_subpackages_all_have_init.py
         language: python
         require_serial: true
       - id: provider-yamls
@@ -530,8 +563,9 @@ repos:
         additional_dependencies:
           - 'PyYAML==5.3.1'
           - 'jsonschema==3.2.0'
-          - 'tabulate==0.8.7'
+          - 'tabulate==0.8.8'
           - 'jsonpath-ng==1.5.3'
+          - 'rich==10.9.0'
       - id: mermaid
         name: Generate mermaid images
         entry: ./scripts/ci/pre_commit/pre_commit_mermaid.sh

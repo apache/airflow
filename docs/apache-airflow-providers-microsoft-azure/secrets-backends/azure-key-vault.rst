@@ -34,6 +34,8 @@ Here is a sample configuration:
 For client authentication, the ``DefaultAzureCredential`` from the Azure Python SDK is used as credential provider,
 which supports service principal, managed identity and user credentials.
 
+For example, to specify a service principal with secret you can set the environment variables ``AZURE_TENANT_ID``, ``AZURE_CLIENT_ID`` and ``AZURE_CLIENT_SECRET``.
+
 Optional lookup
 """""""""""""""
 
@@ -64,3 +66,8 @@ Storing and Retrieving Variables
 
 If you have set ``variables_prefix`` as ``airflow-variables``, then for an Variable key of ``hello``,
 you would want to store your Variable at ``airflow-variables-hello``.
+
+Reference
+"""""""""
+
+For more details on client authentication refer to the `DefaultAzureCredential Class reference <https://docs.microsoft.com/en-us/python/api/azure-identity/azure.identity.defaultazurecredential?view=azure-python>`_.

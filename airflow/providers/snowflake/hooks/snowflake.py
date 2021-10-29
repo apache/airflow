@@ -212,7 +212,7 @@ class SnowflakeHook(DbApiHook):
         """Override DbApiHook get_uri method for get_sqlalchemy_engine()"""
         conn_config = self._get_conn_params()
         uri = (
-            'snowflake://{user}:{password}@{account}/{database}/{schema}'
+            'snowflake://{user}:{password}@{account}.{region}/{database}/{schema}'
             '?warehouse={warehouse}&role={role}&authenticator={authenticator}'
         )
         return uri.format(**conn_config)
@@ -302,3 +302,11 @@ class SnowflakeHook(DbApiHook):
                 conn.commit()
 
         return execution_info
+
+    def test_connection(self):
+        """Test the Snowflake connection by running a simple query."""
+        try:
+            self.run(sql="select 1")
+        except Exception as e:
+            return False, str(e)
+        return True, "Connection successfully tested"

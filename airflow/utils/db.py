@@ -18,8 +18,10 @@
 import logging
 import os
 import time
+from tempfile import gettempdir
+from typing import Iterable
 
-from sqlalchemy import Table, exc, func
+from sqlalchemy import Table, exc, func, inspect, or_, text
 
 from airflow import settings
 from airflow.configuration import conf
@@ -50,13 +52,13 @@ from airflow.models import (  # noqa: F401
 from airflow.models.serialized_dag import SerializedDagModel  # noqa: F401
 
 # TODO: remove create_session once we decide to break backward compatibility
-from airflow.utils.session import (  # noqa: F401 # pylint: disable=unused-import
-    create_global_lock,
-    create_session,
-    provide_session,
-)
+from airflow.utils.session import create_global_lock, create_session, provide_session  # noqa: F401
 
 log = logging.getLogger(__name__)
+
+
+def _format_airflow_moved_table_name(source_table, version):
+    return "__".join([settings.AIRFLOW_MOVED_TABLE_PREFIX, version.replace(".", "_"), source_table])
 
 
 @provide_session
@@ -230,7 +232,7 @@ def create_default_connections(session=None):
                                 "InstanceCount": 1
                             },
                             {
-                                "Name": "Slave nodes",
+                                "Name": "Core nodes",
                                 "Market": "ON_DEMAND",
                                 "InstanceRole": "CORE",
                                 "InstanceType": "r3.2xlarge",
@@ -507,7 +509,7 @@ def create_default_connections(session=None):
         Connection(
             conn_id="sqlite_default",
             conn_type="sqlite",
-            host="/tmp/sqlite_default.db",
+            host=os.path.join(gettempdir(), "sqlite_default.db"),
         ),
         session,
     )
@@ -648,7 +650,7 @@ def check_migrations(timeout):
             log.info('Waiting for migrations... %s second(s)', ticker)
 
 
-def check_conn_id_duplicates(session=None) -> str:
+def check_conn_id_duplicates(session=None) -> Iterable[str]:
     """
     Check unique conn_id in connection table
 
@@ -660,19 +662,18 @@ def check_conn_id_duplicates(session=None) -> str:
         dups = session.query(Connection.conn_id).group_by(Connection.conn_id).having(func.count() > 1).all()
     except (exc.OperationalError, exc.ProgrammingError):
         # fallback if tables hasn't been created yet
+        session.rollback()
         pass
     if dups:
-        return (
+        yield (
             'Seems you have non unique conn_id in connection table.\n'
             'You have to manage those duplicate connections '
             'before upgrading the database.\n'
             f'Duplicated conn_id: {[dup.conn_id for dup in dups]}'
         )
 
-    return ''
 
-
-def check_conn_type_null(session=None) -> str:
+def check_conn_type_null(session=None) -> Iterable[str]:
     """
     Check nullable conn_type column in Connection table
 
@@ -681,36 +682,166 @@ def check_conn_type_null(session=None) -> str:
     """
     n_nulls = []
     try:
-        n_nulls = session.query(Connection).filter(Connection.conn_type.is_(None)).all()
+        n_nulls = session.query(Connection.conn_id).filter(Connection.conn_type.is_(None)).all()
     except (exc.OperationalError, exc.ProgrammingError, exc.InternalError):
         # fallback if tables hasn't been created yet
+        session.rollback()
         pass
 
     if n_nulls:
-        return (
+        yield (
             'The conn_type column in the connection '
             'table must contain content.\n'
             'Make sure you don\'t have null '
             'in the conn_type column.\n'
             f'Null conn_type conn_id: {list(n_nulls)}'
         )
-    return ''
+
+
+def _format_dangling_error(source_table, target_table, invalid_count, reason):
+    noun = "row" if invalid_count == 1 else "rows"
+    return (
+        f"The {source_table} table has {invalid_count} {noun} {reason}, which "
+        f"is invalid. We could not move them out of the way because the "
+        f"{target_table} table already exists in your database. Please either "
+        f"drop the {target_table} table, or manually delete the invalid rows "
+        f"from the {source_table} table."
+    )
+
+
+def _move_dangling_run_data_to_new_table(session, source_table, target_table):
+    where_clause = "where dag_id is null or run_id is null or execution_date is null"
+    session.execute(text(f"create table {target_table} as select * from {source_table} {where_clause}"))
+    session.execute(text(f"delete from {source_table} {where_clause}"))
+
+
+def check_run_id_null(session) -> Iterable[str]:
+    import sqlalchemy.schema
+
+    metadata = sqlalchemy.schema.MetaData(session.bind)
+    try:
+        metadata.reflect(only=[DagRun.__tablename__])
+    except exc.InvalidRequestError:
+        # Table doesn't exist -- empty db
+        return
+
+    # We can't use the model here since it may differ from the db state due to
+    # this function is run prior to migration. Use the reflected table instead.
+    dagrun_table = metadata.tables[DagRun.__tablename__]
+
+    invalid_dagrun_filter = or_(
+        dagrun_table.c.dag_id.is_(None),
+        dagrun_table.c.run_id.is_(None),
+        dagrun_table.c.execution_date.is_(None),
+    )
+    invalid_dagrun_count = session.query(dagrun_table.c.id).filter(invalid_dagrun_filter).count()
+    if invalid_dagrun_count > 0:
+        dagrun_dangling_table_name = _format_airflow_moved_table_name(dagrun_table.name, "2.2")
+        if dagrun_dangling_table_name in inspect(session.get_bind()).get_table_names():
+            yield _format_dangling_error(
+                source_table=dagrun_table.name,
+                target_table=dagrun_dangling_table_name,
+                invalid_count=invalid_dagrun_count,
+                reason="with a NULL dag_id, run_id, or execution_date",
+            )
+            return
+        _move_dangling_run_data_to_new_table(session, dagrun_table.name, dagrun_dangling_table_name)
+
+
+def _move_dangling_task_data_to_new_table(session, source_table, target_table):
+    where_clause = f"""
+        where (task_id, dag_id, execution_date) IN (
+            select source.task_id, source.dag_id, source.execution_date
+            from {source_table} as source
+            left join dag_run as dr
+            on (source.dag_id = dr.dag_id and source.execution_date = dr.execution_date)
+            where dr.id is null
+        )
+    """
+    session.execute(text(f"create table {target_table} as select * from {source_table} {where_clause}"))
+    session.execute(text(f"delete from {source_table} {where_clause}"))
+
+
+def check_task_tables_without_matching_dagruns(session) -> Iterable[str]:
+    import sqlalchemy.schema
+    from sqlalchemy import and_, outerjoin
+
+    metadata = sqlalchemy.schema.MetaData(session.bind)
+    models_to_dagrun = [TaskInstance, TaskReschedule]
+    for model in models_to_dagrun + [DagRun]:
+        try:
+            metadata.reflect(only=[model.__tablename__])
+        except exc.InvalidRequestError:
+            # Table doesn't exist, but try the other ones in case the user is upgrading from an _old_ DB
+            # version
+            pass
+
+    # Key table doesn't exist -- likely empty DB.
+    if DagRun.__tablename__ not in metadata or TaskInstance.__tablename__ not in metadata:
+        return
+
+    # We can't use the model here since it may differ from the db state due to
+    # this function is run prior to migration. Use the reflected table instead.
+    dagrun_table = metadata.tables[DagRun.__tablename__]
+
+    existing_table_names = set(inspect(session.get_bind()).get_table_names())
+    errored = False
+
+    for model in models_to_dagrun:
+        # We can't use the model here since it may differ from the db state due to
+        # this function is run prior to migration. Use the reflected table instead.
+        source_table = metadata.tables.get(model.__tablename__)
+        if source_table is None:
+            continue
+
+        # Migration already applied, don't check again.
+        if "run_id" in source_table.columns:
+            continue
+
+        source_to_dag_run_join_cond = and_(
+            source_table.c.dag_id == dagrun_table.c.dag_id,
+            source_table.c.execution_date == dagrun_table.c.execution_date,
+        )
+        invalid_row_count = (
+            session.query(source_table.c.dag_id, source_table.c.task_id, source_table.c.execution_date)
+            .select_from(outerjoin(source_table, dagrun_table, source_to_dag_run_join_cond))
+            .filter(dagrun_table.c.dag_id.is_(None))
+            .count()
+        )
+        if invalid_row_count <= 0:
+            continue
+
+        dangling_table_name = _format_airflow_moved_table_name(source_table.name, "2.2")
+        if dangling_table_name in existing_table_names:
+            yield _format_dangling_error(
+                source_table=source_table.name,
+                target_table=dangling_table_name,
+                invalid_count=invalid_row_count,
+                reason=f"without a corresponding {dagrun_table.name} row",
+            )
+            errored = True
+            continue
+        _move_dangling_task_data_to_new_table(session, source_table.name, dangling_table_name)
+
+    if errored:
+        session.rollback()
+    else:
+        session.commit()
 
 
 @provide_session
-def auto_migrations_available(session=None):
+def _check_migration_errors(session=None) -> Iterable[str]:
     """
     :session: session of the sqlalchemy
     :rtype: list[str]
     """
-    errors_ = []
-
-    for check_fn in (check_conn_id_duplicates, check_conn_type_null):
-        err = check_fn(session)
-        if err:
-            errors_.append(err)
-
-    return errors_
+    for check_fn in (
+        check_conn_id_duplicates,
+        check_conn_type_null,
+        check_run_id_null,
+        check_task_tables_without_matching_dagruns,
+    ):
+        yield from check_fn(session)
 
 
 @provide_session
@@ -719,17 +850,22 @@ def upgradedb(session=None):
     # alembic adds significant import time, so we import it lazily
     from alembic import command
 
-    log.info("Creating tables")
     config = _get_alembic_config()
 
     config.set_main_option('sqlalchemy.url', settings.SQL_ALCHEMY_CONN.replace('%', '%%'))
-    # check automatic migration is available
-    errs = auto_migrations_available()
-    if errs:
-        for err in errs:
-            log.error("Automatic migration is not available\n%s", err)
-        return
+
+    errors_seen = False
+    for err in _check_migration_errors(session=session):
+        if not errors_seen:
+            log.error("Automatic migration is not available")
+            errors_seen = True
+        log.error("%s", err)
+
+    if errors_seen:
+        exit(1)
+
     with create_global_lock(session=session, pg_lock_id=2, lock_name="upgrade"):
+        log.info("Creating tables")
         command.upgrade(config, 'heads')
     add_default_pool_if_not_exists()
 

@@ -19,15 +19,10 @@
 Apache Drill Operators
 ======================
 
-.. contents::
-  :depth: 1
-  :local:
-
 Prerequisite
 ------------
 
 To use ``DrillOperator``, you must configure a :doc:`Drill Connection <connections/drill>`.
-
 
 .. _howto/operator:DrillOperator:
 

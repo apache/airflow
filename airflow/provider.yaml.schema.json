@@ -233,6 +233,18 @@
       "type": "object",
       "description": "Additional extras that the provider should have"
     },
+    "task-decorators": {
+        "type": "array",
+        "description": "Decorators to use with the TaskFlow API. Can be accessed by users via '@task.<name>'",
+        "items": {
+            "name": {
+                "type": "string"
+            },
+            "path": {
+                "type": "string"
+            }
+        }
+    },
     "secrets-backends": {
       "type": "array",
       "description": "Secrets Backend class names",

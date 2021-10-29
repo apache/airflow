@@ -27,10 +27,6 @@ so you can build responsive apps that work regardless of network latency or Inte
 Firestore also offers seamless integration with other Firebase and Google Cloud products, including
 Cloud Functions.
 
-.. contents::
-  :depth: 1
-  :local:
-
 Prerequisite Tasks
 ^^^^^^^^^^^^^^^^^^
 

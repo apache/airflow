@@ -154,6 +154,8 @@ require Breeze Docker images to be installed locally.
 ------------------------------------ ---------------------------------------------------------------- ------------
 ``check-executables-have-shebangs``    Checks that executables have shebang
 ------------------------------------ ---------------------------------------------------------------- ------------
+``check-extras-order``                 Checks that extras in Dockerfile are sorted
+------------------------------------ ---------------------------------------------------------------- ------------
 ``check-hooks-apply``                  Checks which hooks are applicable to the repository
 ------------------------------------ ---------------------------------------------------------------- ------------
 ``check-integrations``                 Checks if integration list is synchronized in code
@@ -185,6 +187,8 @@ require Breeze Docker images to be installed locally.
 ``flake8``                             Runs flake8                                                          *
 ------------------------------------ ---------------------------------------------------------------- ------------
 ``flynt``                              Runs flynt
+------------------------------------ ---------------------------------------------------------------- ------------
+``codespell``                          Checks for common misspellings in files.
 ------------------------------------ ---------------------------------------------------------------- ------------
 ``forbid-tabs``                        Fails if tabs are used in the project
 ------------------------------------ ---------------------------------------------------------------- ------------
@@ -224,7 +228,7 @@ require Breeze Docker images to be installed locally.
 ------------------------------------ ---------------------------------------------------------------- ------------
 ``providers-changelogs``               Updates documentation for providers changelogs
 ------------------------------------ ---------------------------------------------------------------- ------------
-``providers-example-dags-init-file``   Check that providers' example_dags __init__.py file is present
+``providers-subpackages-init-file``    Check that providers' subpackages __init__.py files are there
 ------------------------------------ ---------------------------------------------------------------- ------------
 ``providers-init-file``                Check that provider's __init__.py file is removed
 ------------------------------------ ---------------------------------------------------------------- ------------
@@ -264,7 +268,7 @@ require Breeze Docker images to be installed locally.
 ------------------------------------ ---------------------------------------------------------------- ------------
 ``update-setup-cfg-file``              Update setup.cfg file with all licenses
 ------------------------------------ ---------------------------------------------------------------- ------------
-``update-extras``                      Updates extras in the documentation
+``update-versions``                    Updates latest versions in the documentation
 ------------------------------------ ---------------------------------------------------------------- ------------
 ``verify-db-migrations-documented``    Verify DB Migrations have been documented
 ------------------------------------ ---------------------------------------------------------------- ------------

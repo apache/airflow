@@ -45,6 +45,6 @@ function docker_engine_resources::get_available_memory_in_docker() {
 function docker_engine_resources::check_all_resources() {
     docker_v run -t "${EXTRA_DOCKER_FLAGS[@]}" \
         --entrypoint "/bin/bash"  \
-        "${AIRFLOW_CI_IMAGE}" \
+        "${AIRFLOW_CI_IMAGE_WITH_TAG}" \
         -c "/opt/airflow/scripts/in_container/run_resource_check.sh"
 }

@@ -16,9 +16,13 @@
 # specific language governing permissions and limitations
 # under the License.
 import unittest
+from datetime import datetime
 from unittest.mock import patch
 
+from airflow.models import DAG, DagRun, TaskInstance
 from airflow.providers.papermill.operators.papermill import PapermillOperator
+
+DEFAULT_DATE = datetime(2021, 1, 1)
 
 
 class TestPapermillOperator(unittest.TestCase):
@@ -42,3 +46,23 @@ class TestPapermillOperator(unittest.TestCase):
         mock_papermill.execute_notebook.assert_called_once_with(
             in_nb, out_nb, parameters=parameters, progress_bar=False, report_mode=True
         )
+
+    def test_render_template(self):
+        args = {'owner': 'airflow', 'start_date': DEFAULT_DATE}
+        dag = DAG('test_render_template', default_args=args)
+
+        operator = PapermillOperator(
+            task_id="render_dag_test",
+            input_nb="/tmp/{{ dag.dag_id }}.ipynb",
+            output_nb="/tmp/out-{{ dag.dag_id }}.ipynb",
+            parameters={"msgs": "dag id is {{ dag.dag_id }}!"},
+            dag=dag,
+        )
+
+        ti = TaskInstance(operator, run_id="papermill_test")
+        ti.dag_run = DagRun(execution_date=DEFAULT_DATE)
+        ti.render_templates()
+
+        assert "/tmp/test_render_template.ipynb" == getattr(operator, 'input_nb')
+        assert '/tmp/out-test_render_template.ipynb' == getattr(operator, 'output_nb')
+        assert {"msgs": "dag id is test_render_template!"} == getattr(operator, 'parameters')

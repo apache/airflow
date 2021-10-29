@@ -25,11 +25,6 @@ used to store daily use data, including documents and photos. Google Cloud Stora
 with Google Cloud services. Google Drive has built-in mechanisms to facilitate group work e.g.
 document editor, file sharing mechanisms.
 
-
-.. contents::
-  :depth: 1
-  :local:
-
 Prerequisite Tasks
 ^^^^^^^^^^^^^^^^^^
 

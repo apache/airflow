@@ -27,10 +27,11 @@ from contextlib import redirect_stdout
 from datetime import timedelta
 from pathlib import Path
 from tempfile import NamedTemporaryFile
-from typing import Optional
+from typing import List, Optional
 from unittest import mock
 from unittest.mock import patch
 
+import jinja2
 import pendulum
 import pytest
 from dateutil.relativedelta import relativedelta
@@ -45,12 +46,12 @@ from airflow.exceptions import AirflowException, DuplicateTaskIdFound
 from airflow.models import DAG, DagModel, DagRun, DagTag, TaskFail, TaskInstance as TI
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.dag import dag as dag_decorator
-from airflow.models.dagparam import DagParam
+from airflow.models.param import DagParam, Param
 from airflow.operators.bash import BashOperator
 from airflow.operators.dummy import DummyOperator
 from airflow.operators.subdag import SubDagOperator
 from airflow.security import permissions
-from airflow.timetables.base import DagRunInfo
+from airflow.timetables.base import DagRunInfo, DataInterval, Timetable
 from airflow.timetables.simple import NullTimetable, OnceTimetable
 from airflow.utils import timezone
 from airflow.utils.file import list_py_file_paths
@@ -129,9 +130,18 @@ class TestDag(unittest.TestCase):
 
         dag = models.DAG('test-dag', default_args={'params': params1}, params=params2)
 
-        params_combined = params1.copy()
-        params_combined.update(params2)
-        assert params_combined == dag.params
+        assert params1['parameter1'] == dag.params['parameter1']
+        assert params2['parameter2'] == dag.params['parameter2']
+
+    def test_not_none_schedule_with_non_default_params(self):
+        """
+        Test if there is a DAG with not None schedule_interval and have some params that
+        don't have a default value raise a error while DAG parsing
+        """
+        params = {'param1': Param(type="string")}
+
+        with pytest.raises(AirflowException):
+            models.DAG('dummy-dag', params=params)
 
     def test_dag_invalid_default_view(self):
         """
@@ -497,15 +507,34 @@ class TestDag(unittest.TestCase):
         )
         session.close()
 
-    def test_user_defined_filters(self):
+    def test_user_defined_filters_macros(self):
         def jinja_udf(name):
             return f'Hello {name}'
 
-        dag = models.DAG('test-dag', start_date=DEFAULT_DATE, user_defined_filters={"hello": jinja_udf})
+        dag = models.DAG(
+            'test-dag',
+            start_date=DEFAULT_DATE,
+            user_defined_filters={"hello": jinja_udf},
+            user_defined_macros={"foo": "bar"},
+        )
         jinja_env = dag.get_template_env()
 
         assert 'hello' in jinja_env.filters
         assert jinja_env.filters['hello'] == jinja_udf
+        assert jinja_env.globals['foo'] == 'bar'
+
+    def test_set_jinja_env_additional_option(self):
+        dag = DAG("test-dag", jinja_environment_kwargs={'keep_trailing_newline': True, 'cache_size': 50})
+        jinja_env = dag.get_template_env()
+        assert jinja_env.keep_trailing_newline is True
+        assert jinja_env.cache.capacity == 50
+
+        assert jinja_env.undefined is jinja2.StrictUndefined
+
+    def test_template_undefined(self):
+        dag = DAG("test-dag", template_undefined=jinja2.Undefined)
+        jinja_env = dag.get_template_env()
+        assert jinja_env.undefined is jinja2.Undefined
 
     def test_resolve_template_files_value(self):
 
@@ -697,7 +726,7 @@ class TestDag(unittest.TestCase):
         clear_db_dags()
         dags = [DAG(f'dag-bulk-sync-{i}', start_date=DEFAULT_DATE, tags=["test-dag"]) for i in range(0, 4)]
 
-        with assert_queries_count(4):
+        with assert_queries_count(5):
             DAG.bulk_write_to_db(dags)
         with create_session() as session:
             assert {'dag-bulk-sync-0', 'dag-bulk-sync-1', 'dag-bulk-sync-2', 'dag-bulk-sync-3'} == {
@@ -714,14 +743,14 @@ class TestDag(unittest.TestCase):
                 assert row[0] is not None
 
         # Re-sync should do fewer queries
-        with assert_queries_count(3):
+        with assert_queries_count(4):
             DAG.bulk_write_to_db(dags)
-        with assert_queries_count(3):
+        with assert_queries_count(4):
             DAG.bulk_write_to_db(dags)
         # Adding tags
         for dag in dags:
             dag.tags.append("test-dag2")
-        with assert_queries_count(4):
+        with assert_queries_count(5):
             DAG.bulk_write_to_db(dags)
         with create_session() as session:
             assert {'dag-bulk-sync-0', 'dag-bulk-sync-1', 'dag-bulk-sync-2', 'dag-bulk-sync-3'} == {
@@ -740,7 +769,7 @@ class TestDag(unittest.TestCase):
         # Removing tags
         for dag in dags:
             dag.tags.remove("test-dag")
-        with assert_queries_count(4):
+        with assert_queries_count(5):
             DAG.bulk_write_to_db(dags)
         with create_session() as session:
             assert {'dag-bulk-sync-0', 'dag-bulk-sync-1', 'dag-bulk-sync-2', 'dag-bulk-sync-3'} == {
@@ -756,7 +785,8 @@ class TestDag(unittest.TestCase):
             for row in session.query(DagModel.last_parsed_time).all():
                 assert row[0] is not None
 
-    def test_bulk_write_to_db_max_active_runs(self):
+    @parameterized.expand([State.RUNNING, State.QUEUED])
+    def test_bulk_write_to_db_max_active_runs(self, state):
         """
         Test that DagModel.next_dagrun_create_after is set to NULL when the dag cannot be created due to max
         active runs being hit.
@@ -772,12 +802,11 @@ class TestDag(unittest.TestCase):
 
         model = session.query(DagModel).get((dag.dag_id,))
 
-        period_end = dag.following_schedule(DEFAULT_DATE)
         assert model.next_dagrun == DEFAULT_DATE
-        assert model.next_dagrun_create_after == period_end
+        assert model.next_dagrun_create_after == DEFAULT_DATE + timedelta(days=1)
 
         dr = dag.create_dagrun(
-            state=State.RUNNING,
+            state=state,
             execution_date=model.next_dagrun,
             run_type=DagRunType.SCHEDULED,
             session=session,
@@ -786,9 +815,12 @@ class TestDag(unittest.TestCase):
         DAG.bulk_write_to_db([dag])
 
         model = session.query(DagModel).get((dag.dag_id,))
-        assert model.next_dagrun == period_end
-        # Next dagrun after is not None because the dagrun would be in queued state
-        assert model.next_dagrun_create_after is not None
+        # We signal "at max active runs" by saying this run is never eligible to be created
+        assert model.next_dagrun_create_after is None
+        # test that bulk_write_to_db again doesn't update next_dagrun_create_after
+        DAG.bulk_write_to_db([dag])
+        model = session.query(DagModel).get((dag.dag_id,))
+        assert model.next_dagrun_create_after is None
 
     def test_sync_to_db(self):
         dag = DAG(
@@ -1148,7 +1180,7 @@ class TestDag(unittest.TestCase):
         # Even though there is a run for this date already, it is marked as manual/external, so we should
         # create a scheduled one anyway!
         assert model.next_dagrun == DEFAULT_DATE
-        assert model.next_dagrun_create_after == dag.following_schedule(DEFAULT_DATE)
+        assert model.next_dagrun_create_after == DEFAULT_DATE + delta
 
         self._clean_up(dag_id)
 
@@ -1503,7 +1535,7 @@ class TestDag(unittest.TestCase):
         next_info = dag.next_dagrun_info(None)
         assert next_info and next_info.logical_date == timezone.datetime(2015, 1, 1)
 
-        next_info = dag.next_dagrun_info(next_info.logical_date)
+        next_info = dag.next_dagrun_info(next_info.data_interval)
         assert next_info is None
 
     def test_next_dagrun_info_start_end_dates(self):
@@ -1521,18 +1553,18 @@ class TestDag(unittest.TestCase):
 
         # Create and schedule the dag runs
         dates = []
-        date = None
+        interval = None
         for _ in range(runs):
-            next_info = dag.next_dagrun_info(date)
+            next_info = dag.next_dagrun_info(interval)
             if next_info is None:
                 dates.append(None)
             else:
-                date = next_info.logical_date
-                dates.append(date)
+                interval = next_info.data_interval
+                dates.append(interval.start)
 
         assert all(date is not None for date in dates)
         assert dates[-1] == end_date
-        assert dag.next_dagrun_info(date) is None
+        assert dag.next_dagrun_info(interval.start) is None
 
     def test_next_dagrun_info_catchup(self):
         """
@@ -1618,7 +1650,7 @@ class TestDag(unittest.TestCase):
         assert next_info and next_info.logical_date == timezone.datetime(2020, 1, 4)
 
         # The date to create is in the future, this is handled by "DagModel.dags_needing_dagruns"
-        next_info = dag.next_dagrun_info(next_info.logical_date)
+        next_info = dag.next_dagrun_info(next_info.data_interval)
         assert next_info and next_info.logical_date == timezone.datetime(2020, 1, 5)
 
     @freeze_time(timezone.datetime(2020, 5, 4))
@@ -1637,15 +1669,49 @@ class TestDag(unittest.TestCase):
         next_info = dag.next_dagrun_info(None)
         assert next_info and next_info.logical_date == timezone.datetime(2020, 5, 1)
 
-        next_info = dag.next_dagrun_info(next_info.logical_date)
+        next_info = dag.next_dagrun_info(next_info.data_interval)
         assert next_info and next_info.logical_date == timezone.datetime(2020, 5, 2)
 
-        next_info = dag.next_dagrun_info(next_info.logical_date)
+        next_info = dag.next_dagrun_info(next_info.data_interval)
         assert next_info and next_info.logical_date == timezone.datetime(2020, 5, 3)
 
         # The date to create is in the future, this is handled by "DagModel.dags_needing_dagruns"
-        next_info = dag.next_dagrun_info(next_info.logical_date)
+        next_info = dag.next_dagrun_info(next_info.data_interval)
         assert next_info and next_info.logical_date == timezone.datetime(2020, 5, 4)
+
+    def test_next_dagrun_info_timetable_exception(self):
+        """Test the DAG does not crash the scheduler if the timetable raises an exception."""
+
+        class FailingTimetable(Timetable):
+            def next_dagrun_info(self, last_automated_data_interval, restriction):
+                raise RuntimeError("this fails")
+
+        dag = DAG(
+            "test_next_dagrun_info_timetable_exception",
+            start_date=timezone.datetime(2020, 5, 1),
+            timetable=FailingTimetable(),
+            catchup=True,
+        )
+
+        def _check_logs(records: List[logging.LogRecord], data_interval: DataInterval) -> None:
+            assert len(records) == 1
+            record = records[0]
+            assert record.exc_info is not None, "Should contain exception"
+            assert record.getMessage() == (
+                f"Failed to fetch run info after data interval {data_interval} "
+                f"for DAG 'test_next_dagrun_info_timetable_exception'"
+            )
+
+        with self.assertLogs(dag.log, level=logging.ERROR) as ctx:
+            next_info = dag.next_dagrun_info(None)
+        assert next_info is None, "failed next_dagrun_info should return None"
+        _check_logs(ctx.records, data_interval=None)
+
+        data_interval = DataInterval(timezone.datetime(2020, 5, 1), timezone.datetime(2020, 5, 2))
+        with self.assertLogs(dag.log, level=logging.ERROR) as ctx:
+            next_info = dag.next_dagrun_info(data_interval)
+        assert next_info is None, "failed next_dagrun_info should return None"
+        _check_logs(ctx.records, data_interval)
 
     def test_next_dagrun_after_auto_align(self):
         """
@@ -1735,6 +1801,32 @@ class TestDag(unittest.TestCase):
             dag.access_control = outdated_permissions
         assert dag.access_control == updated_permissions
 
+    def test_validate_params_on_trigger_dag(self):
+        dag = models.DAG('dummy-dag', schedule_interval=None, params={'param1': Param(type="string")})
+        with pytest.raises(TypeError, match="No value passed and Param has no default value"):
+            dag.create_dagrun(
+                run_id="test_dagrun_missing_param",
+                state=State.RUNNING,
+                execution_date=TEST_DATE,
+            )
+
+        dag = models.DAG('dummy-dag', schedule_interval=None, params={'param1': Param(type="string")})
+        with pytest.raises(ValueError, match="Invalid input for param param1: None is not of type 'string'"):
+            dag.create_dagrun(
+                run_id="test_dagrun_missing_param",
+                state=State.RUNNING,
+                execution_date=TEST_DATE,
+                conf={"param1": None},
+            )
+
+        dag = models.DAG('dummy-dag', schedule_interval=None, params={'param1': Param(type="string")})
+        dag.create_dagrun(
+            run_id="test_dagrun_missing_param",
+            state=State.RUNNING,
+            execution_date=TEST_DATE,
+            conf={"param1": "hello"},
+        )
+
 
 class TestDagModel:
     def test_dags_needing_dagruns_not_too_early(self):
@@ -1759,6 +1851,26 @@ class TestDagModel:
         session.rollback()
         session.close()
 
+    def test_max_active_runs_not_none(self):
+        dag = DAG(dag_id='test_max_active_runs_not_none', start_date=timezone.datetime(2038, 1, 1))
+        DummyOperator(task_id='dummy', dag=dag, owner='airflow')
+
+        session = settings.Session()
+        orm_dag = DagModel(
+            dag_id=dag.dag_id,
+            has_task_concurrency_limits=False,
+            next_dagrun=None,
+            next_dagrun_create_after=None,
+            is_active=True,
+        )
+        session.add(orm_dag)
+        session.flush()
+
+        assert orm_dag.max_active_runs is not None
+
+        session.rollback()
+        session.close()
+
     def test_dags_needing_dagruns_only_unpaused(self):
         """
         We should never create dagruns for unpaused DAGs
@@ -1770,8 +1882,8 @@ class TestDagModel:
         orm_dag = DagModel(
             dag_id=dag.dag_id,
             has_task_concurrency_limits=False,
-            next_dagrun=dag.start_date,
-            next_dagrun_create_after=dag.following_schedule(DEFAULT_DATE),
+            next_dagrun=DEFAULT_DATE,
+            next_dagrun_create_after=DEFAULT_DATE + timedelta(days=1),
             is_active=True,
         )
         session.add(orm_dag)
@@ -2089,3 +2201,36 @@ def test_iter_dagrun_infos_between(start_date, expected_infos):
         align=True,
     )
     assert expected_infos == list(iterator)
+
+
+def test_iter_dagrun_infos_between_error(caplog):
+    start = pendulum.instance(DEFAULT_DATE - datetime.timedelta(hours=1))
+    end = pendulum.instance(DEFAULT_DATE)
+
+    class FailingAfterOneTimetable(Timetable):
+        def next_dagrun_info(self, last_automated_data_interval, restriction):
+            if last_automated_data_interval is None:
+                return DagRunInfo.interval(start, end)
+            raise RuntimeError("this fails")
+
+    dag = DAG(
+        dag_id='test_iter_dagrun_infos_between_error',
+        start_date=DEFAULT_DATE,
+        timetable=FailingAfterOneTimetable(),
+    )
+
+    iterator = dag.iter_dagrun_infos_between(earliest=start, latest=end, align=True)
+    with caplog.at_level(logging.ERROR):
+        infos = list(iterator)
+
+    # The second timetable.next_dagrun_info() call raises an exception, so only the first result is returned.
+    assert infos == [DagRunInfo.interval(start, end)]
+
+    assert caplog.record_tuples == [
+        (
+            "airflow.models.dag.DAG",
+            logging.ERROR,
+            f"Failed to fetch run info after data interval {DataInterval(start, end)} for DAG {dag.dag_id!r}",
+        ),
+    ]
+    assert caplog.records[0].exc_info is not None, "should contain exception context"

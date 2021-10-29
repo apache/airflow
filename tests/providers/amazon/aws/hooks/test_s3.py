@@ -124,11 +124,14 @@ class TestAwsS3Hook:
         bucket = hook.get_bucket(s3_bucket)
         bucket.put_object(Key='a', Body=b'a')
         bucket.put_object(Key='dir/b', Body=b'b')
+        bucket.put_object(Key='dir/sub_dir/c', Body=b'c')
 
         assert [] == hook.list_prefixes(s3_bucket, prefix='non-existent/')
+        assert [] == hook.list_prefixes(s3_bucket)
         assert ['dir/'] == hook.list_prefixes(s3_bucket, delimiter='/')
-        assert ['a'] == hook.list_keys(s3_bucket, delimiter='/')
-        assert ['dir/b'] == hook.list_keys(s3_bucket, prefix='dir/')
+        assert [] == hook.list_prefixes(s3_bucket, prefix='dir/')
+        assert ['dir/sub_dir/'] == hook.list_prefixes(s3_bucket, delimiter='/', prefix='dir/')
+        assert [] == hook.list_prefixes(s3_bucket, prefix='dir/sub_dir/')
 
     def test_list_prefixes_paged(self, s3_bucket):
         hook = S3Hook()
@@ -202,6 +205,7 @@ class TestAwsS3Hook:
         bucket = hook.get_bucket(s3_bucket)
         bucket.put_object(Key='abc', Body=b'a')
         bucket.put_object(Key='a/b', Body=b'a')
+        bucket.put_object(Key='foo_5.txt', Body=b'a')
 
         assert hook.check_for_wildcard_key('a*', s3_bucket) is True
         assert hook.check_for_wildcard_key('abc', s3_bucket) is True
@@ -213,11 +217,17 @@ class TestAwsS3Hook:
         assert hook.check_for_wildcard_key(f's3://{s3_bucket}//a') is False
         assert hook.check_for_wildcard_key(f's3://{s3_bucket}//b') is False
 
+        assert hook.get_wildcard_key('a?b', s3_bucket).key == 'a/b'
+        assert hook.get_wildcard_key('a?c', s3_bucket, delimiter='/').key == 'abc'
+        assert hook.get_wildcard_key('foo_[0-9].txt', s3_bucket, delimiter='/').key == 'foo_5.txt'
+        assert hook.get_wildcard_key(f's3://{s3_bucket}/foo_[0-9].txt', delimiter='/').key == 'foo_5.txt'
+
     def test_get_wildcard_key(self, s3_bucket):
         hook = S3Hook()
         bucket = hook.get_bucket(s3_bucket)
         bucket.put_object(Key='abc', Body=b'a')
         bucket.put_object(Key='a/b', Body=b'a')
+        bucket.put_object(Key='foo_5.txt', Body=b'a')
 
         # The boto3 Class API is _odd_, and we can't do an isinstance check as
         # each instance is a different class, so lets just check one property
@@ -233,6 +243,11 @@ class TestAwsS3Hook:
         assert hook.get_wildcard_key('b', s3_bucket) is None
         assert hook.get_wildcard_key(f's3://{s3_bucket}/a') is None
         assert hook.get_wildcard_key(f's3://{s3_bucket}/b') is None
+
+        assert hook.get_wildcard_key('a?b', s3_bucket).key == 'a/b'
+        assert hook.get_wildcard_key('a?c', s3_bucket, delimiter='/').key == 'abc'
+        assert hook.get_wildcard_key('foo_[0-9].txt', s3_bucket, delimiter='/').key == 'foo_5.txt'
+        assert hook.get_wildcard_key(f's3://{s3_bucket}/foo_[0-9].txt', delimiter='/').key == 'foo_5.txt'
 
     def test_load_string(self, s3_bucket):
         hook = S3Hook()

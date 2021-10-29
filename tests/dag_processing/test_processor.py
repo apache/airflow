@@ -28,7 +28,7 @@ import pytest
 from airflow import settings
 from airflow.configuration import conf
 from airflow.dag_processing.processor import DagFileProcessor
-from airflow.models import DagBag, SlaMiss, TaskInstance, errors
+from airflow.models import DagBag, DagModel, SlaMiss, TaskInstance, errors
 from airflow.models.taskinstance import SimpleTaskInstance
 from airflow.operators.dummy import DummyOperator
 from airflow.utils import timezone
@@ -411,7 +411,7 @@ class TestDagFileProcessor:
 
     @conf_vars({("core", "dagbag_import_error_tracebacks"): "False"})
     def test_add_unparseable_file_before_sched_start_creates_import_error(self, tmpdir):
-        unparseable_filename = tmpdir / TEMP_DAG_FILENAME
+        unparseable_filename = os.path.join(tmpdir, TEMP_DAG_FILENAME)
         with open(unparseable_filename, 'w') as unparseable_file:
             unparseable_file.writelines(UNPARSEABLE_DAG_FILE_CONTENTS)
 
@@ -427,8 +427,8 @@ class TestDagFileProcessor:
 
     @conf_vars({("core", "dagbag_import_error_tracebacks"): "False"})
     def test_add_unparseable_zip_file_creates_import_error(self, tmpdir):
-        zip_filename = tmpdir / "test_zip.zip"
-        invalid_dag_filename = zip_filename / TEMP_DAG_FILENAME
+        zip_filename = os.path.join(tmpdir, "test_zip.zip")
+        invalid_dag_filename = os.path.join(zip_filename, TEMP_DAG_FILENAME)
         with ZipFile(zip_filename, "w") as zip_file:
             zip_file.writestr(TEMP_DAG_FILENAME, UNPARSEABLE_DAG_FILE_CONTENTS)
 
@@ -443,13 +443,13 @@ class TestDagFileProcessor:
             session.rollback()
 
     def test_no_import_errors_with_parseable_dag(self, tmpdir):
-        parseable_filename = tmpdir / TEMP_DAG_FILENAME
+        parseable_filename = os.path.join(tmpdir, TEMP_DAG_FILENAME)
 
         with open(parseable_filename, 'w') as parseable_file:
             parseable_file.writelines(PARSEABLE_DAG_FILE_CONTENTS)
 
         with create_session() as session:
-            self._process_file(parseable_file, session)
+            self._process_file(parseable_filename, session)
             import_errors = session.query(errors.ImportError).all()
 
             assert len(import_errors) == 0
@@ -457,7 +457,7 @@ class TestDagFileProcessor:
             session.rollback()
 
     def test_no_import_errors_with_parseable_dag_in_zip(self, tmpdir):
-        zip_filename = tmpdir / "test_zip.zip"
+        zip_filename = os.path.join(tmpdir, "test_zip.zip")
         with ZipFile(zip_filename, "w") as zip_file:
             zip_file.writestr(TEMP_DAG_FILENAME, PARSEABLE_DAG_FILE_CONTENTS)
 
@@ -471,7 +471,7 @@ class TestDagFileProcessor:
 
     @conf_vars({("core", "dagbag_import_error_tracebacks"): "False"})
     def test_new_import_error_replaces_old(self, tmpdir):
-        unparseable_filename = tmpdir / TEMP_DAG_FILENAME
+        unparseable_filename = os.path.join(tmpdir, TEMP_DAG_FILENAME)
 
         # Generate original import error
         with open(unparseable_filename, 'w') as unparseable_file:
@@ -496,7 +496,7 @@ class TestDagFileProcessor:
         session.rollback()
 
     def test_remove_error_clears_import_error(self, tmpdir):
-        filename_to_parse = tmpdir / TEMP_DAG_FILENAME
+        filename_to_parse = os.path.join(tmpdir, TEMP_DAG_FILENAME)
 
         # Generate original import error
         with open(filename_to_parse, 'w') as file_to_parse:
@@ -519,7 +519,7 @@ class TestDagFileProcessor:
         session = settings.Session()
 
         # Generate original import error
-        zip_filename = tmpdir / "test_zip.zip"
+        zip_filename = os.path.join(tmpdir, "test_zip.zip")
         with ZipFile(zip_filename, "w") as zip_file:
             zip_file.writestr(TEMP_DAG_FILENAME, UNPARSEABLE_DAG_FILE_CONTENTS)
         self._process_file(zip_filename, session)
@@ -538,7 +538,7 @@ class TestDagFileProcessor:
         session.rollback()
 
     def test_import_error_tracebacks(self, tmpdir):
-        unparseable_filename = tmpdir / TEMP_DAG_FILENAME
+        unparseable_filename = os.path.join(tmpdir, TEMP_DAG_FILENAME)
         with open(unparseable_filename, "w") as unparseable_file:
             unparseable_file.writelines(INVALID_DAG_WITH_DEPTH_FILE_CONTENTS)
 
@@ -564,7 +564,7 @@ class TestDagFileProcessor:
 
     @conf_vars({("core", "dagbag_import_error_traceback_depth"): "1"})
     def test_import_error_traceback_depth(self, tmpdir):
-        unparseable_filename = tmpdir / TEMP_DAG_FILENAME
+        unparseable_filename = os.path.join(tmpdir, TEMP_DAG_FILENAME)
         with open(unparseable_filename, "w") as unparseable_file:
             unparseable_file.writelines(INVALID_DAG_WITH_DEPTH_FILE_CONTENTS)
 
@@ -586,8 +586,8 @@ class TestDagFileProcessor:
             session.rollback()
 
     def test_import_error_tracebacks_zip(self, tmpdir):
-        invalid_zip_filename = tmpdir / "test_zip_invalid.zip"
-        invalid_dag_filename = invalid_zip_filename / TEMP_DAG_FILENAME
+        invalid_zip_filename = os.path.join(tmpdir, "test_zip_invalid.zip")
+        invalid_dag_filename = os.path.join(invalid_zip_filename, TEMP_DAG_FILENAME)
         with ZipFile(invalid_zip_filename, "w") as invalid_zip_file:
             invalid_zip_file.writestr(TEMP_DAG_FILENAME, INVALID_DAG_WITH_DEPTH_FILE_CONTENTS)
 
@@ -613,8 +613,8 @@ class TestDagFileProcessor:
 
     @conf_vars({("core", "dagbag_import_error_traceback_depth"): "1"})
     def test_import_error_tracebacks_zip_depth(self, tmpdir):
-        invalid_zip_filename = tmpdir / "test_zip_invalid.zip"
-        invalid_dag_filename = invalid_zip_filename / TEMP_DAG_FILENAME
+        invalid_zip_filename = os.path.join(tmpdir, "test_zip_invalid.zip")
+        invalid_dag_filename = os.path.join(invalid_zip_filename, TEMP_DAG_FILENAME)
         with ZipFile(invalid_zip_filename, "w") as invalid_zip_file:
             invalid_zip_file.writestr(TEMP_DAG_FILENAME, INVALID_DAG_WITH_DEPTH_FILE_CONTENTS)
 
@@ -633,3 +633,28 @@ class TestDagFileProcessor:
             )
             assert import_error.stacktrace == expected_stacktrace.format(invalid_dag_filename)
             session.rollback()
+
+    def test_process_file_should_deactivate_missing_dags(self):
+
+        dag_file = os.path.join(
+            os.path.dirname(os.path.realpath(__file__)), '../dags/test_only_dummy_tasks.py'
+        )
+
+        # write a DAG into the DB which is not present in its specified file
+        with create_session() as session:
+            orm_dag = DagModel(dag_id='missing_dag', is_active=True, fileloc=dag_file)
+            session.merge(orm_dag)
+            session.commit()
+
+        session = settings.Session()
+
+        dags = session.query(DagModel).all()
+        assert [dag.dag_id for dag in dags if dag.is_active] == ['missing_dag']
+
+        # re-parse the file and see that the DAG is no longer there
+        dag_file_processor = DagFileProcessor(dag_ids=[], log=mock.MagicMock())
+        dag_file_processor.process_file(dag_file, [])
+
+        dags = session.query(DagModel).all()
+        assert [dag.dag_id for dag in dags if dag.is_active] == ['test_only_dummy_tasks']
+        assert [dag.dag_id for dag in dags if not dag.is_active] == ['missing_dag']

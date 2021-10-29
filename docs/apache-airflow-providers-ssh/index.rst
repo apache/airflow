@@ -39,6 +39,7 @@ Content
     :caption: Resources
 
     PyPI Repository <https://pypi.org/project/apache-airflow-providers-ssh/>
+    Installing from sources <installing-providers-from-sources>
 
 .. THE REMAINDER OF THE FILE IS AUTOMATICALLY GENERATED. IT WILL BE OVERWRITTEN AT RELEASE TIME!
 
@@ -56,7 +57,7 @@ Package apache-airflow-providers-ssh
 `Secure Shell (SSH) <https://tools.ietf.org/html/rfc4251>`__
 
 
-Release: 2.1.1
+Release: 2.2.0
 
 Provider package
 ----------------

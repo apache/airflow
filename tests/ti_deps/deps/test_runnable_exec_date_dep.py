@@ -26,6 +26,7 @@ from airflow import settings
 from airflow.models import DagRun, TaskInstance
 from airflow.ti_deps.deps.runnable_exec_date_dep import RunnableExecDateDep
 from airflow.utils.timezone import datetime
+from airflow.utils.types import DagRunType
 
 
 @pytest.fixture(autouse=True, scope="function")
@@ -66,6 +67,7 @@ def test_exec_date_dep(
             start_date=datetime(2015, 1, 1),
             end_date=datetime(2016, 11, 5),
             schedule_interval=schedule_interval,
+            with_dagrun_type=DagRunType.MANUAL,
             session=session,
         )
         (ti,) = dag_maker.create_dagrun(execution_date=execution_date).task_instances
@@ -82,6 +84,7 @@ def test_exec_date_after_end_date(session, dag_maker, create_dummy_dag):
         start_date=datetime(2015, 1, 1),
         end_date=datetime(2016, 11, 5),
         schedule_interval=None,
+        with_dagrun_type=DagRunType.MANUAL,
         session=session,
     )
     (ti,) = dag_maker.create_dagrun(execution_date=datetime(2016, 11, 2)).task_instances

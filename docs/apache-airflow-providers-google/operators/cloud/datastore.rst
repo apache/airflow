@@ -24,10 +24,6 @@ high performance, and ease of application development.
 For more information about the service visit
 `Datastore product documentation <https://cloud.google.com/datastore/docs>`__
 
-.. contents::
-  :depth: 1
-  :local:
-
 Prerequisite Tasks
 ------------------
 

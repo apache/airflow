@@ -22,10 +22,6 @@ With `Google Sheets <https://www.google.pl/intl/en/sheets/about/>`__, everyone c
 spreadsheet at the same time. Use formulas functions, and formatting options to save time and simplify
 common spreadsheet tasks.
 
-.. contents::
-  :depth: 1
-  :local:
-
 Prerequisite Tasks
 ^^^^^^^^^^^^^^^^^^
 

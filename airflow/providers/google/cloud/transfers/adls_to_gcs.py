@@ -26,10 +26,10 @@ from typing import Optional, Sequence, Union
 
 from airflow.providers.google.cloud.hooks.gcs import GCSHook, _parse_gcs_url
 from airflow.providers.microsoft.azure.hooks.azure_data_lake import AzureDataLakeHook
-from airflow.providers.microsoft.azure.operators.adls_list import AzureDataLakeStorageListOperator
+from airflow.providers.microsoft.azure.operators.adls import ADLSListOperator
 
 
-class ADLSToGCSOperator(AzureDataLakeStorageListOperator):
+class ADLSToGCSOperator(ADLSListOperator):
     """
     Synchronizes an Azure Data Lake Storage path with a GCS bucket
 

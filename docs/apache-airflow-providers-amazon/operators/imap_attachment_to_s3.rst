@@ -21,10 +21,6 @@
 Imap Attachment To S3 Operator
 ==============================
 
-.. contents::
-  :depth: 1
-  :local:
-
 Overview
 --------
 

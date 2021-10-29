@@ -176,11 +176,11 @@ def parse(string: str, timezone=None) -> DateTime:
 
 
 def coerce_datetime(v: Union[None, dt.datetime, DateTime]) -> Optional[DateTime]:
-    """Convert whatever is passed in to ``pendulum.DateTime``."""
+    """Convert whatever is passed in to an timezone-aware ``pendulum.DateTime``."""
     if v is None:
         return None
-    if isinstance(v, DateTime):
-        return v
     if v.tzinfo is None:
         v = make_aware(v)
+    if isinstance(v, DateTime):
+        return v
     return pendulum.instance(v)

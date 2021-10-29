@@ -28,14 +28,31 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+2.0.3
+.....
+
+Latest change: 2021-09-29
+
+================================================================================================  ===========  ======================================================================================
+Commit                                                                                            Committed    Subject
+================================================================================================  ===========  ======================================================================================
+`ef037e702 <https://github.com/apache/airflow/commit/ef037e702182e4370cb00c853c4fb0e246a0479c>`_  2021-09-29   ``Static start_date and default arg cleanup for misc. provider example DAGs (#18597)``
+`7808be7ff <https://github.com/apache/airflow/commit/7808be7ffb693de2e4ea73d0c1e6e2470cde9095>`_  2021-09-21   ``Make Kubernetes job description fit on one log line (#18377)``
+`b8d06e812 <https://github.com/apache/airflow/commit/b8d06e812ac56af6b0d17830c63b705ace9d4959>`_  2021-09-08   ``Fix KubernetesPodOperator reattach when not deleting pods (#18070)``
+`64d2f5488 <https://github.com/apache/airflow/commit/64d2f5488f6764194a2f4f8a01f961990c75b840>`_  2021-09-07   ``Do not fail KubernetesPodOperator tasks if log reading fails (#17649)``
+`0a6858847 <https://github.com/apache/airflow/commit/0a68588479e34cf175d744ea77b283d9d78ea71a>`_  2021-08-30   ``Add August 2021 Provider's documentation (#17890)``
+`42e13e1a5 <https://github.com/apache/airflow/commit/42e13e1a5a4c97a2085ddf96f7d93e7bf71949b8>`_  2021-08-30   ``Remove all deprecation warnings in providers (#17900)``
+================================================================================================  ===========  ======================================================================================
+
 2.0.2
 .....
 
-Latest change: 2021-08-23
+Latest change: 2021-08-24
 
 ================================================================================================  ===========  ============================================================================
 Commit                                                                                            Committed    Subject
 ================================================================================================  ===========  ============================================================================
+`bb5602c65 <https://github.com/apache/airflow/commit/bb5602c652988d0b31ea5e0db8f03725a2f22d34>`_  2021-08-24   ``Prepare release for Kubernetes Provider (#17798)``
 `be75dcd39 <https://github.com/apache/airflow/commit/be75dcd39cd10264048c86e74110365bd5daf8b7>`_  2021-08-23   ``Update description about the new ''connection-types'' provider meta-data``
 `73d2b720e <https://github.com/apache/airflow/commit/73d2b720e0c79323a29741882a07eb8962256762>`_  2021-08-21   ``Fix using XCom with ''KubernetesPodOperator'' (#17760)``
 `76ed2a49c <https://github.com/apache/airflow/commit/76ed2a49c6cd285bf59706cf04f39a7444c382c9>`_  2021-08-19   ``Import Hooks lazily individually in providers manager (#17682)``

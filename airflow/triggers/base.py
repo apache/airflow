@@ -18,8 +18,10 @@
 import abc
 from typing import Any, AsyncIterator, Dict, Tuple
 
+from airflow.utils.log.logging_mixin import LoggingMixin
 
-class BaseTrigger(abc.ABC):
+
+class BaseTrigger(abc.ABC, LoggingMixin):
     """
     Base class for all triggers.
 

@@ -45,7 +45,7 @@ def import_all_classes(
     :param provider_ids - provider ids that should be loaded.
     :param print_imports - if imported class should also be printed in output
     :param print_skips - if skipped classes should also be printed in output
-    :return: tupple of list of all imported classes and all warnings generated
+    :return: tuple of list of all imported classes and all warnings generated
     """
     imported_classes = []
     tracebacks = []

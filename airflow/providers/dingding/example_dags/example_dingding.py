@@ -18,11 +18,10 @@
 """
 This is an example dag for using the DingdingOperator.
 """
-from datetime import timedelta
+from datetime import datetime, timedelta
 
 from airflow import DAG
 from airflow.providers.dingding.operators.dingding import DingdingOperator
-from airflow.utils.dates import days_ago
 
 
 # [START howto_operator_dingding_failure_callback]
@@ -43,7 +42,6 @@ def failure_callback(context):
     )
     return DingdingOperator(
         task_id='dingding_success_callback',
-        dingding_conn_id='dingding_default',
         message_type='text',
         message=message,
         at_all=True,
@@ -57,14 +55,14 @@ with DAG(
     default_args={'retries': 3, 'on_failure_callback': failure_callback},
     schedule_interval='@once',
     dagrun_timeout=timedelta(minutes=60),
-    start_date=days_ago(2),
+    start_date=datetime(2021, 1, 1),
     tags=['example'],
+    catchup=False,
 ) as dag:
 
     # [START howto_operator_dingding]
     text_msg_remind_none = DingdingOperator(
         task_id='text_msg_remind_none',
-        dingding_conn_id='dingding_default',
         message_type='text',
         message='Airflow dingding text message remind none',
         at_mobiles=None,
@@ -74,7 +72,6 @@ with DAG(
 
     text_msg_remind_specific = DingdingOperator(
         task_id='text_msg_remind_specific',
-        dingding_conn_id='dingding_default',
         message_type='text',
         message='Airflow dingding text message remind specific users',
         at_mobiles=['156XXXXXXXX', '130XXXXXXXX'],
@@ -83,7 +80,6 @@ with DAG(
 
     text_msg_remind_include_invalid = DingdingOperator(
         task_id='text_msg_remind_include_invalid',
-        dingding_conn_id='dingding_default',
         message_type='text',
         message='Airflow dingding text message remind users including invalid',
         # 123 is invalid user or user not in the group
@@ -94,7 +90,6 @@ with DAG(
     # [START howto_operator_dingding_remind_users]
     text_msg_remind_all = DingdingOperator(
         task_id='text_msg_remind_all',
-        dingding_conn_id='dingding_default',
         message_type='text',
         message='Airflow dingding text message remind all users in group',
         # list of user phone/email here in the group
@@ -106,7 +101,6 @@ with DAG(
 
     link_msg = DingdingOperator(
         task_id='link_msg',
-        dingding_conn_id='dingding_default',
         message_type='link',
         message={
             'title': 'Airflow dingding link message',
@@ -119,7 +113,6 @@ with DAG(
     # [START howto_operator_dingding_rich_text]
     markdown_msg = DingdingOperator(
         task_id='markdown_msg',
-        dingding_conn_id='dingding_default',
         message_type='markdown',
         message={
             'title': 'Airflow dingding markdown message',
@@ -135,7 +128,6 @@ with DAG(
 
     single_action_card_msg = DingdingOperator(
         task_id='single_action_card_msg',
-        dingding_conn_id='dingding_default',
         message_type='actionCard',
         message={
             'title': 'Airflow dingding single actionCard message',
@@ -151,7 +143,6 @@ with DAG(
 
     multi_action_card_msg = DingdingOperator(
         task_id='multi_action_card_msg',
-        dingding_conn_id='dingding_default',
         message_type='actionCard',
         message={
             'title': 'Airflow dingding multi actionCard message',
@@ -169,7 +160,6 @@ with DAG(
 
     feed_card_msg = DingdingOperator(
         task_id='feed_card_msg',
-        dingding_conn_id='dingding_default',
         message_type='feedCard',
         message={
             "links": [
@@ -194,7 +184,6 @@ with DAG(
 
     msg_failure_callback = DingdingOperator(
         task_id='msg_failure_callback',
-        dingding_conn_id='dingding_default',
         message_type='not_support_msg_type',
         message="",
     )
