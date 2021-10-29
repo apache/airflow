@@ -12,7 +12,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-ARG ALPINE_VERSION="3.12"
+ARG ALPINE_VERSION="3.14"
 
 FROM alpine:${ALPINE_VERSION} AS builder
 
@@ -28,12 +28,18 @@ LABEL org.apache.airflow.airflow-pgbouncer-exporter.version="${AIRFLOW_PGBOUNCER
 LABEL org.apache.airflow.commit-sha="${COMMIT_SHA}"
 LABEL maintainer="Apache Airflow Community <dev@airflow.apache.org>"
 
+# Add a non root user
+RUN addgroup -S pgbouncer_exporter \
+    && adduser -D -S -s /sbin/nologin -G pgbouncer_exporter pgbouncer_exporter
+
 # We want to make sure this one includes latest security fixes.
 # "Pin versions in apk add" https://github.com/hadolint/hadolint/wiki/DL3018
 # hadolint ignore=DL3018
 RUN apk --no-cache add libressl libressl-dev
 
 COPY pgbouncer_exporter-${PGBOUNCER_EXPORTER_VERSION}/pgbouncer_exporter /bin
+
+USER pgbouncer_exporter
 
 HEALTHCHECK CMD ["/bin/pgbouncer_exporter", "health"]
 
