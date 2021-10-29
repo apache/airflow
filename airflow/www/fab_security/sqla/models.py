@@ -34,9 +34,13 @@ from sqlalchemy import (
     String,
     Table,
     UniqueConstraint,
+    select,
 )
 from sqlalchemy.ext.declarative import declared_attr
-from sqlalchemy.orm import backref, relationship
+from sqlalchemy.orm import backref, column_property, object_session, relationship
+from sqlalchemy.sql.expression import column
+
+from airflow.utils.session import create_session
 
 """
 Compatibility note: The models in this file are duplicated from Flask AppBuilder.
@@ -172,7 +176,6 @@ class User(Model):
     roles = relationship("Role", secondary=assoc_user_role, backref="user")
     created_on = Column(DateTime, default=datetime.datetime.now, nullable=True)
     changed_on = Column(DateTime, default=datetime.datetime.now, nullable=True)
-    _perms = set()
 
     @declared_attr
     def created_by_fk(self):
@@ -218,11 +221,24 @@ class User(Model):
 
     @property
     def perms(self):
-        if not self._perms:
-            self._perms = set()
-            for role in self.roles:
-                self._perms.update({(perm.action.name, perm.resource.name) for perm in role.permissions})
-        return self._perms
+        def query_with_session(session):
+            return set(
+                session.query(Action.name, Resource.name)
+                .select_from(User)
+                .join(assoc_user_role)
+                .join(Role)
+                .join(assoc_permission_role)
+                .join(Permission)
+                .join(Action, Permission.action_id == Action.id)
+                .join(Resource, Permission.resource_id == Resource.id)
+                .filter(assoc_user_role.c.user_id == self.id)
+                .all()
+            )
+
+        if object_session(self):
+            return query_with_session(object_session(self))
+        with create_session() as session:
+            return query_with_session(session)
 
     def get_id(self):
         return self.id

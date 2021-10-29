@@ -97,6 +97,10 @@ class AnonymousUser(AnonymousUserMixin):
             self._roles = {current_app.appbuilder.sm.find_role(public_role)} if public_role else set()
         return self._roles
 
+    @roles.setter
+    def roles(self, roles):
+        self._roles = roles
+
     @property
     def perms(self):
         if not self._perms:
