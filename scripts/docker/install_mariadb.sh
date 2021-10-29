@@ -16,12 +16,17 @@
 # specific language governing permissions and limitations
 # under the License.
 set -exuo pipefail
+
+MARIADB_VERSION="10.6.4"
+readonly MARIADB_VERSION
+
+
 function install_mariadb_client() {
     echo
     echo Installing mariadb client
     echo
     apt-key adv --fetch-keys 'https://mariadb.org/mariadb_release_signing_key.asc'
-    echo "deb https://archive.mariadb.org/mariadb-10.6.4/repo/debian/ buster main" | tee -a /etc/apt/sources.list.d/mariadb.list
+    echo "deb https://archive.mariadb.org/mariadb-${MARIADB_VERSION}/repo/debian/ buster main" | tee -a /etc/apt/sources.list.d/mariadb.list
     apt-get update -yqq
     apt-get upgrade -yqq
     apt-get install --no-install-recommends -y libmariadb-dev mariadb-server mariadb-client
