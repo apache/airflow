@@ -659,8 +659,9 @@ class TestSageMakerHook(unittest.TestCase):
     def test_find_processing_job_by_name_job_not_exists_should_return_false(self, mock_conn):
         from botocore.exceptions import ClientError
         error_resp = {"Error": {"Code": "ValidationException"}}
-        mock_conn().describe_processing_job.side_effect = ClientError(error_response=error_resp,
-                                                                    operation_name = "dummy")
+        mock_conn().describe_processing_job.side_effect = ClientError(
+            error_response = error_resp, operation_name = "dummy"
+        )
         hook = SageMakerHook(aws_conn_id='sagemaker_test_conn_id')
 
         ret = hook.find_processing_job_by_name("existing_job")
