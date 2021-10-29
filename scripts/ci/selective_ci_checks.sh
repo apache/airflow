@@ -114,6 +114,15 @@ function output_all_basic_variables() {
     fi
     initialization::ga_output default-mssql-version "${MSSQL_VERSION}"
 
+    if [[ ${FULL_TESTS_NEEDED_LABEL} == "true" ]]; then
+        initialization::ga_output mariadb-versions \
+            "$(initialization::parameters_to_json "${CURRENT_MARIADB_VERSIONS[@]}")"
+    else
+        initialization::ga_output mariadb-versions \
+            "$(initialization::parameters_to_json "${MARIADB_VERSION}")"
+    fi
+    initialization::ga_output default-mariadb-version "${MARIADB_VERSION}"
+
 
 
     initialization::ga_output kind-versions \
@@ -127,11 +136,13 @@ function output_all_basic_variables() {
     if [[ ${FULL_TESTS_NEEDED_LABEL} == "true" ]]; then
         initialization::ga_output postgres-exclude '[{ "python-version": "3.6" }]'
         initialization::ga_output mysql-exclude '[{ "python-version": "3.7" }, { "python-version": "3.9" }]'
+        initialization::ga_output mariadb-exclude '[{ "python-version": "3.7" }, { "python-version": "3.9" }]'
         initialization::ga_output mssql-exclude '[{ "python-version": "3.6" }, { "python-version": "3.8" }]'
         initialization::ga_output sqlite-exclude '[{ "python-version": "3.7" }, { "python-version": "3.8" }]'
     else
         initialization::ga_output postgres-exclude '[]'
         initialization::ga_output mysql-exclude '[]'
+        initialization::ga_output mariadb-exclude '[]'
         initialization::ga_output mssql-exclude '[]'
         initialization::ga_output sqlite-exclude '[]'
     fi

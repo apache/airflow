@@ -102,7 +102,7 @@ function run_all_test_types_in_parallel() {
                 run_integration_tests_separately="false"
                 test_types_to_run="${test_types_to_run//Providers/}"
                 run_providers_tests_separately="false"
-            elif [[ ${BACKEND} == "mysql" ]]; then
+            elif [[ ${BACKEND} == "mysql" ]] || [[ ${BACKEND} == "mariadb" ]]; then
                 # Separate "Integration" and "Providers" tests for low memory condition for mysql
                 # To not run them in parallel with other tests as this often leads to memory issue
                 # (Error 137 or 143).

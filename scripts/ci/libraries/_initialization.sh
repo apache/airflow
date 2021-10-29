@@ -123,6 +123,11 @@ function initialization::initialize_base_variables() {
     CURRENT_MYSQL_VERSIONS+=("5.7" "8")
     export CURRENT_MYSQL_VERSIONS
 
+    # Currently supported versions of MariaDB
+    CURRENT_MARIADB_VERSIONS+=("10.6.4", )
+    export CURRENT_MARIADB_VERSIONS
+
+
     # Currently supported versions of MSSQL
     CURRENT_MSSQL_VERSIONS+=("2017-latest" "2019-latest")
     export CURRENT_MSSQL_VERSIONS
@@ -135,6 +140,9 @@ function initialization::initialize_base_variables() {
 
     # Default MySQL versions
     export MYSQL_VERSION=${MYSQL_VERSION:=${CURRENT_MYSQL_VERSIONS[0]}}
+
+    # default MariaDB version
+    export MARIADB_VERSION=${MARIADB_VERSION:=${CURRENT_MARIADB_VERSIONS[0]}}
 
     #Default MS SQL version
     export MSSQL_VERSION=${MSSQL_VERSION:=${CURRENT_MSSQL_VERSIONS[0]}}

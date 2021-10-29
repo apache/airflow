@@ -145,6 +145,7 @@ jobs:
       defaultPostgresVersion: ${{ steps.selective-checks.outputs.default-postgres-version }}
       mysqlVersions: ${{ steps.selective-checks.outputs.mysql-versions }}
       mssqlVersions: ${{ steps.selective-checks.outputs.mssql-versions }}
+      mariadbVersions: ${{ steps.selective-checks.outputs.mariadb-versions }}
       defaultMySQLVersion: ${{ steps.selective-checks.outputs.default-mysql-version }}
       helmVersions: ${{ steps.selective-checks.outputs.helm-versions }}
       defaultHelmVersion: ${{ steps.selective-checks.outputs.default-helm-version }}
@@ -153,6 +154,7 @@ jobs:
       testTypes: ${{ steps.selective-checks.outputs.test-types }}
       postgresExclude: ${{ steps.selective-checks.outputs.postgres-exclude }}
       mysqlExclude: ${{ steps.selective-checks.outputs.mysql-exclude }}
+      mariadbExclude: ${{ steps.selective-checks.outputs.mariadb-exclude }}
       mssqlExclude: ${{ steps.selective-checks.outputs.mssql-exclude }}
       sqliteExclude: ${{ steps.selective-checks.outputs.sqlite-exclude }}
       run-tests: ${{ steps.selective-checks.outputs.run-tests }}
@@ -736,6 +738,67 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
           path: "./files/coverage*.xml"
           retention-days: 7
 
+  tests-mariadb:
+    timeout-minutes: 130
+    name: >
+      MariaDB${{matrix.mariadb-version}}, Py${{matrix.python-version}}: ${{needs.build-info.outputs.testTypes}}
+    runs-on: ${{ fromJson(needs.build-info.outputs.runsOn) }}
+    needs: [ build-info, ci-images ]
+    strategy:
+      matrix:
+        python-version: ${{ fromJson(needs.build-info.outputs.pythonVersions) }}
+        mariadb-version: ${{ fromJson(needs.build-info.outputs.mariadbVersions) }}
+        exclude: ${{ fromJson(needs.build-info.outputs.mariadbExclude) }}
+      fail-fast: false
+    env:
+      RUNS_ON: ${{ fromJson(needs.build-info.outputs.runsOn) }}
+      BACKEND: mariadb
+      UPGRADE_TO_NEWER_DEPENDENCIES: ${{ needs.build-info.outputs.upgradeToNewerDependencies }}
+      PYTHON_MAJOR_MINOR_VERSION: ${{ matrix.python-version }}
+      MARIADB_VERSION: ${{ matrix.mariadb-version }}
+      INSTALL_MYSQL_CLIENT: false
+      INSTALL_MSSQL_CLIENT: false
+      INSTALL_MARIADB_CLIENT: true
+      TEST_TYPES: "${{needs.build-info.outputs.testTypes}}"
+    if: needs.build-info.outputs.run-tests == 'true'
+    steps:
+      - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
+        uses: actions/checkout@v2
+        with:
+          persist-credentials: false
+      - name: "Setup python"
+        uses: actions/setup-python@v2
+        with:
+          python-version: ${{ env.PYTHON_MAJOR_MINOR_VERSION }}
+      - name: "Free space"
+        run: ./scripts/ci/tools/free_space.sh
+      - name: "Prepare CI image ${{env.PYTHON_MAJOR_MINOR_VERSION}}:${{ env.GITHUB_REGISTRY_PULL_IMAGE_TAG }}"
+        run: ./scripts/ci/images/ci_prepare_ci_image_on_ci.sh
+      - name: "Tests: ${{needs.build-info.outputs.testTypes}}"
+        run: ./scripts/ci/testing/ci_run_airflow_testing.sh
+        env:
+          PR_LABELS: "${{ needs.build-info.outputs.pullRequestLabels }}"
+      - name: "Upload airflow logs"
+        uses: actions/upload-artifact@v2
+        if: failure()
+        with:
+          name: airflow-logs-${{matrix.python-version}}-${{matrix.mariadb-version}}
+          path: "./files/airflow_logs*"
+          retention-days: 7
+      - name: "Upload container logs"
+        uses: actions/upload-artifact@v2
+        if: failure()
+        with:
+          name: container-logs-mariadb-${{matrix.python-version}}-${{matrix.mariadb-version}}
+          path: "./files/container_logs*"
+          retention-days: 7
+      - name: "Upload artifact for coverage"
+        uses: actions/upload-artifact@v2
+        with:
+          name: coverage-mariadb-${{matrix.python-version}}-${{matrix.mariadb-version}}
+          path: "./files/coverage*.xml"
+          retention-days: 7
+
   tests-mssql:
     timeout-minutes: 130
     name: >
@@ -932,6 +995,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
       - tests-postgres
       - tests-sqlite
       - tests-mysql
+      - tests-mariadb
       - tests-mssql
       - tests-quarantined
     env:
@@ -1143,6 +1207,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
       - static-checks
       - tests-sqlite
       - tests-mysql
+      - tests-mariadb
       - tests-mssql
       - tests-postgres
     env:
