@@ -22,7 +22,7 @@ from base64 import b64encode
 import pytest
 
 from airflow.exceptions import AirflowException
-from airflow.models import DAG, Variable
+from airflow.models import DAG
 from airflow.providers.ssh.operators.ssh import SSHOperator
 from airflow.utils.timezone import datetime
 from tests.test_utils.config import conf_vars
