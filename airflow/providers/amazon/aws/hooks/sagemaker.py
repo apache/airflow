@@ -961,6 +961,6 @@ class SageMakerHook(AwsBaseHook):
             self.get_conn().describe_processing_job(ProcessingJobName=processing_job_name)
             return True
         except ClientError as e:
-            if e.response['Error']['Code'] == 'ValidationException':
+            if e.response['Error']['Code'] in ['ValidationException', 'ResourceNotFound']:
                 return False
             raise
