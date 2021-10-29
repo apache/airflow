@@ -22,7 +22,7 @@ from base64 import b64encode
 import pytest
 
 from airflow.exceptions import AirflowException
-from airflow.models import DAG
+from airflow.models import DAG, Variable
 from airflow.providers.ssh.operators.ssh import SSHOperator
 from airflow.utils.timezone import datetime
 from tests.test_utils.config import conf_vars
@@ -227,7 +227,7 @@ class TestSSHOperator:
             assert str(ctx.value) == "SSH operator error: SSH command not specified. Aborting."
         else:
             task.execute(None)
-        assert task.get_pty == get_pty_out
+            assert task.get_pty == get_pty_out
 
     def test_ssh_client_managed_correctly(self):
         # Ensure ssh_client gets created once
