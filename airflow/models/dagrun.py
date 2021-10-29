@@ -357,7 +357,6 @@ class DagRun(Base, LoggingMixin):
         :param session: database session
         :type session: sqlalchemy.orm.session.Session
         """
-
         return (
             session.query(cls)
             .filter(
