@@ -640,14 +640,14 @@ class TestShortCircuitOperator(unittest.TestCase):
             # Skip downstream tasks, respect trigger rules, default trigger rule on all downstream tasks
             (
                 False,
-                "soft",
+                False,
                 TriggerRule.ALL_SUCCESS,
                 {"short_circuit": State.SUCCESS, "op1": State.SKIPPED, "op2": State.NONE},
             ),
             # Skip downstream tasks, respect trigger rules, non-default trigger rule on a downstream task
             (
                 False,
-                "soft",
+                False,
                 TriggerRule.ALL_DONE,
                 {"short_circuit": State.SUCCESS, "op1": State.SKIPPED, "op2": State.SUCCESS},
             ),
@@ -700,17 +700,6 @@ class TestShortCircuitOperator(unittest.TestCase):
         assert self.op2.trigger_rule == test_trigger_rule
 
         self._assert_expected_task_states(dagrun, expected_task_states)
-
-    def test_invalid_short_mode(self):
-        """Checking a ValueError is raised when an invalid ``mode`` value is provided."""
-
-        with pytest.raises(ValueError):
-            self.short_circuit = ShortCircuitOperator(
-                task_id="short_circuit",
-                python_callable=lambda: False,
-                mode="medium",
-                dag=self.dag,
-            )
 
     def test_clear_skipped_downstream_task(self):
         """
