@@ -473,8 +473,8 @@ This can be done with the Apache RAT tool.
 
 * Download the latest jar from https://creadur.apache.org/rat/download_rat.cgi (unpack the binary,
   the jar is inside)
-* Unpack the provider binary archive (the `<package + version>.tar.gz` file) to a folder
-* Enter the folder and run the check (point to the place where you extracted the .jar)
+* Unpack the release source archive (the `<package + version>-source.tar.gz` file) to a folder
+* Enter the sources folder run the check
 
 ```shell script
 java -jar ../../apache-rat-0.13/apache-rat-0.13.jar -E .rat-excludes -d .
