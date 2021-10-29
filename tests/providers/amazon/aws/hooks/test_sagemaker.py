@@ -660,7 +660,7 @@ class TestSageMakerHook(unittest.TestCase):
         from botocore.exceptions import ClientError
         error_resp = {"Error": {"Code": "ValidationException"}}
         mock_conn().describe_processing_job.side_effect = ClientError(
-            error_response = error_resp, operation_name = "dummy"
+            error_response=error_resp, operation_name="dummy"
         )
         hook = SageMakerHook(aws_conn_id='sagemaker_test_conn_id')
 
