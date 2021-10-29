@@ -162,7 +162,7 @@ def _decode_timetable(var: Dict[str, Any]) -> Timetable:
     timetable_class = _get_registered_timetable(importable_string)
     if timetable_class is None:
         raise _TimetableNotRegistered(importable_string)
-    return timetable_class.deserialize(var["Encoding.VAR])
+    return timetable_class.deserialize(var[Encoding.VAR])
 
 
 class BaseSerialization:
