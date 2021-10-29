@@ -39,7 +39,6 @@ from flask_appbuilder.const import (
     LOGMSG_WAR_SEC_LOGIN_FAILED,
     LOGMSG_WAR_SEC_NO_USER,
     LOGMSG_WAR_SEC_NOLDAP_OBJ,
-    PERMISSION_PREFIX,
 )
 from flask_appbuilder.security.api import SecurityApi
 from flask_appbuilder.security.registerviews import (
