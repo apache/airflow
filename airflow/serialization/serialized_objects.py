@@ -417,7 +417,10 @@ class BaseSerialization:
     @classmethod
     def _deserialize_param(cls, param_dict: Dict):
         param_class = import_string(param_dict.pop(Param.CLASS_IDENTIFIER))
-        param_kwargs = cls._deserialize(param_dict)
+        try:
+            param_kwargs = cls._deserialize(param_dict)
+        except KeyError:
+            param_kwargs = param_dict
         return param_class(**param_kwargs)
 
     @classmethod
