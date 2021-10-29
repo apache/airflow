@@ -85,6 +85,7 @@ with models.DAG(
     "example_beam_native_java_direct_runner",
     schedule_interval=None,  # Override to match your needs
     start_date=START_DATE,
+    catchup=False,
     tags=['example'],
 ) as dag_native_java_direct_runner:
 
@@ -113,6 +114,7 @@ with models.DAG(
     "example_beam_native_java_dataflow_runner",
     schedule_interval=None,  # Override to match your needs
     start_date=START_DATE,
+    catchup=False,
     tags=['example'],
 ) as dag_native_java_dataflow_runner:
     # [START howto_operator_start_java_dataflow_runner_pipeline]
@@ -143,6 +145,7 @@ with models.DAG(
     "example_beam_native_java_spark_runner",
     schedule_interval=None,  # Override to match your needs
     start_date=START_DATE,
+    catchup=False,
     tags=['example'],
 ) as dag_native_java_spark_runner:
 
@@ -170,6 +173,7 @@ with models.DAG(
     "example_beam_native_java_flink_runner",
     schedule_interval=None,  # Override to match your needs
     start_date=START_DATE,
+    catchup=False,
     tags=['example'],
 ) as dag_native_java_flink_runner:
 
@@ -198,6 +202,7 @@ with models.DAG(
     "example_beam_native_python",
     start_date=START_DATE,
     schedule_interval=None,  # Override to match your needs
+    catchup=False,
     default_args=DEFAULT_ARGS,
     tags=['example'],
 ) as dag_native_python:
@@ -283,6 +288,7 @@ with models.DAG(
     default_args=DEFAULT_ARGS,
     start_date=START_DATE,
     schedule_interval=None,  # Override to match your needs
+    catchup=False,
     tags=['example'],
 ) as dag_native_python_dataflow_async:
     # [START howto_operator_start_python_dataflow_runner_pipeline_async_gcs_file]

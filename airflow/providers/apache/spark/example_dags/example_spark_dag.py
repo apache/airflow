@@ -31,6 +31,7 @@ with DAG(
     dag_id='example_spark_operator',
     schedule_interval=None,
     start_date=datetime(2021, 1, 1),
+    catchup=False,
     tags=['example'],
 ) as dag:
     # [START howto_operator_spark_submit]

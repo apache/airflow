@@ -28,6 +28,7 @@ with DAG(
     dag_id='example_druid_operator',
     schedule_interval=None,
     start_date=datetime(2021, 1, 1),
+    catchup=False,
     tags=['example'],
 ) as dag:
     # [START howto_operator_druid_submit]

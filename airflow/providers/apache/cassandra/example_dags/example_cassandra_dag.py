@@ -32,6 +32,7 @@ with DAG(
     schedule_interval=None,
     start_date=datetime(2021, 1, 1),
     default_args={'table': 'keyspace_name.table_name'},
+    catchup=False,
     tags=['example'],
 ) as dag:
     table_sensor = CassandraTableSensor(task_id="cassandra_table_sensor")
