@@ -658,6 +658,7 @@ class TestSageMakerHook(unittest.TestCase):
     @mock.patch.object(SageMakerHook, 'get_conn')
     def test_find_processing_job_by_name_job_not_exists_should_return_false(self, mock_conn):
         from botocore.exceptions import ClientError
+
         error_resp = {"Error": {"Code": "ValidationException"}}
         mock_conn().describe_processing_job.side_effect = ClientError(
             error_response=error_resp, operation_name="dummy"
