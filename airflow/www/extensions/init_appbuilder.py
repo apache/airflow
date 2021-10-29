@@ -21,7 +21,6 @@
 
 
 import logging
-from functools import reduce
 from typing import Dict
 
 from flask import Blueprint, current_app, url_for
@@ -41,10 +40,10 @@ from flask_appbuilder.filters import TemplateFilters
 from flask_appbuilder.menu import Menu, MenuApiManager
 from flask_appbuilder.views import IndexView, UtilView
 
-log = logging.getLogger(__name__)
-
 from airflow import settings
 from airflow.configuration import conf
+
+log = logging.getLogger(__name__)
 
 
 class AirflowAppBuilder:
