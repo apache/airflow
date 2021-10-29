@@ -43,16 +43,15 @@ from airflow.utils.state import State
 from airflow.utils.types import DagRunType
 
 
-# @security.requires_access(
-    # [
-    #     (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_DAG),
-    #     (permissions.ACTION_CAN_DELETE, permissions.RESOURCE_DAG_RUN),
-    # ]
-# )
+@security.requires_access(
+    [
+        (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_DAG),
+        (permissions.ACTION_CAN_DELETE, permissions.RESOURCE_DAG_RUN),
+    ]
+)
 @provide_session
 def delete_dag_run(dag_id, dag_run_id, session):
     """Delete a DAG Run"""
-    breakpoint()
     if session.query(DagRun).filter(DagRun.dag_id == dag_id, DagRun.run_id == dag_run_id).delete() == 0:
         raise NotFound(detail=f"DAGRun with DAG ID: '{dag_id}' and DagRun ID: '{dag_run_id}' not found")
     return NoContent, 204
