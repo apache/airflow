@@ -26,6 +26,7 @@ from time import sleep
 from urllib.parse import urlparse
 
 import requests
+from azure.identity import ClientSecretCredential
 from requests import PreparedRequest, exceptions as requests_exceptions
 from requests.auth import AuthBase
 
@@ -123,6 +124,7 @@ class DatabricksHook(BaseHook):
             raise ValueError('Retry limit must be greater than equal to 1')
         self.retry_limit = retry_limit
         self.retry_delay = retry_delay
+        self.add_credentials = None
 
     @staticmethod
     def _parse_host(host: str) -> str:
@@ -175,6 +177,28 @@ class DatabricksHook(BaseHook):
                 host = self._parse_host(self.databricks_conn.extra_dejson['host'])
             else:
                 host = self.databricks_conn.host
+        elif (
+            'azure_client_id' in self.databricks_conn.extra_dejson
+            and 'azure_client_secret' in self.databricks_conn.extra_dejson
+            and 'azure_tenant_id' in self.databricks_conn.extra_dejson
+        ):
+            self.log.info('Using AAD Token for SPN. ')
+
+            if 'host' in self.databricks_conn.extra_dejson:
+                host = self._parse_host(self.databricks_conn.extra_dejson['host'])
+            else:
+                host = self.databricks_conn.host
+
+            if self.add_credentials is None:
+                self.add_credentials = ClientSecretCredential(
+                    client_id=self.databricks_conn.extra_dejson['azure_client_id'],
+                    client_secret=self.databricks_conn.extra_dejson['azure_client_secret'],
+                    tenant_id=self.databricks_conn.extra_dejson['azure_tenant_id'],
+                )
+
+            aad_token = self.add_credentials.get_token("2ff814a6-3304-4ab8-85cb-cd0e6f879c1d/.default")
+            auth = _TokenAuth(aad_token.token)
+
         else:
             self.log.info('Using basic auth. ')
             auth = (self.databricks_conn.login, self.databricks_conn.password)
