@@ -29,7 +29,7 @@ function install_mariadb_client() {
     echo "deb https://archive.mariadb.org/mariadb-${MARIADB_VERSION}/repo/debian/ buster main" | tee -a /etc/apt/sources.list.d/mariadb.list
     apt-get update -yqq
     apt-get upgrade -yqq
-    apt-get install --no-install-recommends -y libmariadb-dev mariadb-server mariadb-client
+    apt-get install --no-install-recommends -y libmariadb-dev mariadb-client
     ln -s /usr/bin/mariadb_config /usr/bin/mysql_config
     rm -rf /var/lib/apt/lists/*
     apt-get autoremove -yqq --purge
