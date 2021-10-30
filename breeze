@@ -3200,6 +3200,7 @@ function breeze::print_cheatsheet() {
         echo "     * ${FLOWER_HOST_PORT} -> forwarded to Flower dashboard -> airflow:5555"
         echo "     * ${POSTGRES_HOST_PORT} -> forwarded to Postgres database -> postgres:5432"
         echo "     * ${MYSQL_HOST_PORT} -> forwarded to MySQL database  -> mysql:3306"
+        echo "     * ${MARIADB_HOST_PORT} -> forwarded to MariaDB database  -> mariadb:3306"
         echo "     * ${MSSQL_HOST_PORT} -> forwarded to MSSQL database  -> mssql:1443"
         echo "     * ${REDIS_HOST_PORT} -> forwarded to Redis broker -> redis:6379"
         echo
