@@ -338,7 +338,7 @@ class PythonVirtualenvOperator(PythonOperator):
         self,
         *,
         python_callable: Callable,
-        requirements: Union[Iterable[str], str, None] = None,
+        requirements: Optional[Iterable[str], str] = None,
         python_version: Optional[Union[str, int, float]] = None,
         use_dill: bool = False,
         system_site_packages: bool = True,
