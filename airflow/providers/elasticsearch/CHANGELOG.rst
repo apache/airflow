@@ -19,6 +19,20 @@
 Changelog
 ---------
 
+2.1.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add docs for AIP 39: Timetables (#17552)``
+* ``Adds example showing the ES_hook (#17944)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Update documentation for September providers release (#18613)``
+   * ``Updating the Elasticsearch example DAG to use the TaskFlow API (#18565)``
+
 2.0.3
 .....
 

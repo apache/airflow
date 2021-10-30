@@ -879,5 +879,5 @@ def test_number_of_queries_single_loop(mock_get_task_runner, return_codes, dag_m
     ti.refresh_from_task(task)
 
     job = LocalTaskJob(task_instance=ti, executor=MockExecutor())
-    with assert_queries_count(20):
+    with assert_queries_count(18):
         job.run()

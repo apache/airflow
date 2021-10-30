@@ -15,7 +15,6 @@
 # specific language governing permissions and limitations
 # under the License.
 from flask import current_app, request
-from flask_appbuilder.security.sqla.models import User
 from marshmallow import ValidationError
 from sqlalchemy import func
 from werkzeug.security import generate_password_hash
@@ -30,6 +29,7 @@ from airflow.api_connexion.schemas.user_schema import (
     user_schema,
 )
 from airflow.security import permissions
+from airflow.www.fab_security.sqla.models import User
 
 
 @security.requires_access([(permissions.ACTION_CAN_READ, permissions.RESOURCE_USER)])

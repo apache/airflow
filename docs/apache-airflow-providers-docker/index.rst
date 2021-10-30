@@ -53,7 +53,7 @@ Package apache-airflow-providers-docker
 `Docker <https://docs.docker.com/install/>`__
 
 
-Release: 2.2.0
+Release: 2.3.0
 
 Provider package
 ----------------
@@ -74,7 +74,7 @@ PIP requirements
 PIP package         Version required
 ==================  ==================
 ``apache-airflow``  ``>=2.1.0``
-``docker``
+``docker``          ``>=5.0.3``
 ==================  ==================
 
 .. include:: ../../airflow/providers/docker/CHANGELOG.rst

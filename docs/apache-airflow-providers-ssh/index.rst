@@ -57,7 +57,7 @@ Package apache-airflow-providers-ssh
 `Secure Shell (SSH) <https://tools.ietf.org/html/rfc4251>`__
 
 
-Release: 2.2.0
+Release: 2.3.0
 
 Provider package
 ----------------
@@ -80,7 +80,7 @@ PIP package         Version required
 ``apache-airflow``  ``>=2.1.0``
 ``paramiko``        ``>=2.6.0``
 ``pysftp``          ``>=0.2.9``
-``sshtunnel``       ``>=0.1.4,<0.2``
+``sshtunnel``       ``>=0.3.2,<0.5``
 ==================  ==================
 
 .. include:: ../../airflow/providers/ssh/CHANGELOG.rst

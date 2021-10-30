@@ -19,6 +19,19 @@
 Changelog
 ---------
 
+2.1.2
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Remove distutils usages for Python 3.10 (#19064)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Update documentation for September providers release (#18613)``
+   * ``Static start_date and default arg cleanup for misc. provider example DAGs (#18597)``
+
 2.1.1
 .....
 
