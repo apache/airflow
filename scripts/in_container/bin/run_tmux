@@ -39,6 +39,11 @@ export TMUX_SESSION="Airflow"
 # Start New Session with our name
 tmux new-session -d -s "${TMUX_SESSION}"
 
+# Enable mouse interaction with tmux. This allows selecting between the panes
+# by clicking with the mouse and also allows scrolling back through terminal
+# output with the mouse wheel.
+tmux set mouse on
+
 # Name first Pane and start bash
 tmux rename-window -t 0 'Main'
 tmux send-keys -t 'Main' 'bash' C-m 'clear' C-m
