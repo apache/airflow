@@ -35,7 +35,7 @@ TAG="${DOCKERHUB_USER}/${DOCKERHUB_REPO}:airflow-pgbouncer-${AIRFLOW_PGBOUNCER_V
 readonly TAG
 
 function center_text() {
-    read lines columns < <(stty size)
+    columns=$(tput cols || echo 80)
     printf "%*s\n" $(( (${#1} + columns) / 2)) "$1"
 }
 
