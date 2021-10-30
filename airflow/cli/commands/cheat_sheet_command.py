@@ -39,7 +39,7 @@ def display_commands_index():
         actions: List[ActionCommand]
         groups: List[GroupCommand]
         actions_iter, groups_iter = partition(lambda x: isinstance(x, GroupCommand), commands)
-        actions, groups = list(actions_iter), list(groups_iter)
+        actions, groups = list(actions_iter), list(groups_iter)  # type: ignore
 
         console = AirflowConsole()
         if actions:

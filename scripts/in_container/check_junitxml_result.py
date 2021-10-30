@@ -29,8 +29,11 @@ if __name__ == '__main__':
         with open(fname) as fh:
             root = ET.parse(fh)
         testsuite = root.find('.//testsuite')
-        num_failures = int(testsuite.get('failures'))
-        num_errors = int(testsuite.get('errors'))
+        num_failures = 0
+        num_errors = 0
+        if not testsuite:
+            num_failures = int(testsuite.get('failures'))  # type: ignore
+            num_errors = int(testsuite.get('errors'))  # type: ignore
         if num_failures == 0 and num_errors == 0:
             print(f'\n{TEXT_GREEN}==== No errors, no failures. Good to go! ===={TEXT_RESET}\n')
             sys.exit(0)

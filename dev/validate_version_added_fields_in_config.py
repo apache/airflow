@@ -96,7 +96,7 @@ print("Local options count:", len(local_options))
 local_options_plain: Set[Tuple[str, str]] = {
     (section_name, option_name) for section_name, option_name, version_added in local_options
 }
-computed_options: Set[Tuple[str, str, str]] = {
+computed_options = {
     (section_name, option_name, version_added)
     for section_name, option_name, version_added in computed_options
     if (section_name, option_name) in local_options_plain

@@ -57,7 +57,7 @@ class NullAnonymizer(Anonymizer):
     def _identity(self, value):
         return value
 
-    process_path = process_username = process_url = _identity
+    process_path = process_username = process_url = _identity  # type: ignore
 
     del _identity
 

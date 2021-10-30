@@ -242,7 +242,7 @@ class ProvidersManager(LoggingMixin):
         # Keeps dict of hooks keyed by connection type
         self._hooks_dict: Dict[str, HookInfo] = {}
 
-        self._taskflow_decorators: Dict[str, Callable] = LazyDictWithCache()
+        self._taskflow_decorators: LazyDictWithCache[str, Callable] = LazyDictWithCache()
         # keeps mapping between connection_types and hook class, package they come from
         self._hook_provider_dict: Dict[str, HookClassProvider] = {}
         # Keeps dict of hooks keyed by connection type. They are lazy evaluated at access time
@@ -367,7 +367,7 @@ class ProvidersManager(LoggingMixin):
             log.info("You have no providers installed.")
             return
         try:
-            for path in airflow.providers.__path__:
+            for path in airflow.providers.__path__:  # type: ignore
                 self._add_provider_info_from_local_source_files_on_path(path)
         except Exception as e:
             log.warning("Error when loading 'provider.yaml' files from airflow sources: %s", e)
@@ -561,7 +561,7 @@ class ProvidersManager(LoggingMixin):
         if name in self._taskflow_decorators:
             try:
                 existing = self._taskflow_decorators[name]
-                other_name = f'{existing.__module__}.{existing.__name}'
+                other_name = f'{existing.__module__}.{existing.__name}'  # type: ignore
             except Exception:
                 # If problem importing, then get the value from the functools.partial
                 other_name = self._taskflow_decorators._raw_dict[name].args[0]
@@ -584,7 +584,10 @@ class ProvidersManager(LoggingMixin):
         return getattr(obj, attr_name)
 
     def _import_hook(
-        self, connection_type: Optional[str], hook_class_name: str = None, package_name: str = None
+        self,
+        connection_type: Optional[str],
+        hook_class_name: Optional[str] = None,
+        package_name: Optional[str] = None,
     ) -> Optional[HookInfo]:
         """
         Imports hook and retrieves hook information. Either connection_type (for lazy loading)
@@ -613,8 +616,10 @@ class ProvidersManager(LoggingMixin):
         else:
             if not package_name:
                 raise ValueError(
-                    f"Provider package name is not set when hook_class_name ({hook_class_name}) " f"is used"
+                    f"Provider package name is not set when hook_class_name ({hook_class_name}) is used"
                 )
+        if not hook_class_name:
+            raise ValueError(f"The Hook class is missing for {connection_type} connection type")
         allowed_field_classes = [IntegerField, PasswordField, StringField, BooleanField]
         if not _sanity_check(package_name, hook_class_name):
             return None
@@ -787,7 +792,7 @@ class ProvidersManager(LoggingMixin):
         return self._hooks_lazy_dict  # type: ignore
 
     @property
-    def taskflow_decorators(self) -> Dict[str, Callable]:
+    def taskflow_decorators(self) -> LazyDictWithCache:
         self.initialize_providers_taskflow_decorator()
         return self._taskflow_decorators
 

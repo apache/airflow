@@ -19,6 +19,10 @@
 # (https://github.com/dpgaspar/Flask-AppBuilder).
 # Copyright 2013, Daniel Vaz Gaspar
 
+# Ignore type checking here, the FAB security manager has been ported from FAB
+# and it has a bit too many class variables/dynamic typing to bother
+# type: ignore
+
 import base64
 import datetime
 import json

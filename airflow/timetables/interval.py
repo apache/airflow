@@ -265,7 +265,7 @@ class DeltaDataIntervalTimetable(_DataIntervalTimetable):
         from airflow.serialization.serialized_objects import encode_relativedelta
 
         if isinstance(self._delta, datetime.timedelta):
-            delta = self._delta.total_seconds()
+            delta: Any = self._delta.total_seconds()
         else:
             delta = encode_relativedelta(self._delta)
         return {"delta": delta}

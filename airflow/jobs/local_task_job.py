@@ -152,6 +152,11 @@ class LocalTaskJob(BaseJob):
         # Without setting this, heartbeat may get us
         self.terminating = True
         self.log.info("Task exited with return code %s", return_code)
+        if not self.task_instance:
+            raise AirflowException("The task_instance should be already set here by start() command. "
+                                   "Likely this is an Airflow error that should be fixed. Please "
+                                   "report it as bug (add all details such as logs etc.) at "
+                                   "https://github.com/apache/airflow/issues/new/choose")
         self.task_instance.refresh_from_db()
 
         if self.task_instance.state == State.RUNNING:

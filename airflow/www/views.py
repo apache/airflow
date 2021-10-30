@@ -26,11 +26,11 @@ import socket
 import sys
 import traceback
 from collections import defaultdict
-from datetime import timedelta
+from datetime import timedelta, datetime
 from functools import wraps
 from json import JSONDecodeError
 from operator import itemgetter
-from typing import Any, Callable, List, Optional, Set, Tuple, Union
+from typing import Any, Callable, List, Optional, Set, Tuple, Union, Dict
 from urllib.parse import parse_qsl, unquote, urlencode, urlparse
 
 import lazy_object_proxy
@@ -543,7 +543,7 @@ class AirflowBaseView(BaseView):
     }
 
     if not conf.getboolean('core', 'unit_test_mode'):
-        extra_args['sqlite_warning'] = settings.Session.bind.dialect.name == 'sqlite'
+        extra_args['sqlite_warning'] = settings.Session.bind.dialect.name == 'sqlite'  # type: ignore
         extra_args['sequential_executor_warning'] = conf.get('core', 'executor') == 'SequentialExecutor'
 
     line_chart_attr = {
@@ -4559,8 +4559,8 @@ class DagDependenciesView(AirflowBaseView):
         )
     )
     last_refresh = timezone.utcnow() - refresh_interval
-    nodes = []
-    edges = []
+    nodes: List[Dict[str, Any]] = []
+    edges: List[Dict[str, Any]] = []
 
     @expose('/dag-dependencies')
     @auth.has_access(
@@ -4596,8 +4596,8 @@ class DagDependenciesView(AirflowBaseView):
 
     def _calculate_graph(self):
 
-        nodes = []
-        edges = []
+        nodes: List[Dict[str, Any]] = []
+        edges: List[Dict[str, Any]] = []
 
         for dag, dependencies in SerializedDagModel.get_dag_dependencies().items():
             dag_node_id = f"dag:{dag}"

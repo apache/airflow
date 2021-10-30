@@ -836,7 +836,7 @@ def check_task_tables_without_matching_dagruns(session) -> Iterable[str]:
     for model in models_to_dagrun:
         # We can't use the model here since it may differ from the db state due to
         # this function is run prior to migration. Use the reflected table instead.
-        source_table = metadata.tables.get(model.__tablename__)
+        source_table = metadata.tables.get(model.__tablename__)  # type: ignore
         if source_table is None:
             continue
 
@@ -889,7 +889,7 @@ def _check_migration_errors(session=None) -> Iterable[str]:
     ):
         yield from check_fn(session)
         # Ensure there is no "active" transaction. Seems odd, but without this MSSQL can hang
-        session.commit()
+        session.commit()  # type: ignore
 
 
 @provide_session

@@ -106,6 +106,16 @@ def _execute_in_fork(command_to_exec: CommandType, celery_task_id: Optional[str]
     try:
         from airflow.cli.cli_parser import get_parser
 
+        if not settings.engine:
+            raise AirflowException("The engine should be already set here by start() command. "
+                                   "Likely this is an Airflow error that should be fixed. Please "
+                                   "report it as bug (add all details such as logs etc.) at "
+                                   "https://github.com/apache/airflow/issues/new/choose")
+        if not settings.engine.pool:
+            raise AirflowException("The engine.pool should be already set here by start() command. "
+                                   "Likely this is an Airflow error that should be fixed. Please "
+                                   "report it as bug (add all details such as logs etc.) at "
+                                   "https://github.com/apache/airflow/issues/new/choose")
         settings.engine.pool.dispose()
         settings.engine.dispose()
 

@@ -19,8 +19,9 @@
 import copy
 from abc import ABCMeta
 from contextlib import ExitStack
-from typing import Callable, List, Optional, Tuple, Union
+from typing import Callable, List, Optional, Tuple, Union, Dict, Any
 
+from airflow import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.apache.beam.hooks.beam import BeamHook, BeamRunnerType
 from airflow.providers.google.cloud.hooks.dataflow import (
@@ -41,11 +42,16 @@ class BeamDataflowMixin(metaclass=ABCMeta):
     """
 
     dataflow_hook: Optional[DataflowHook]
-    dataflow_config: Optional[DataflowConfiguration]
+    dataflow_config: Union[DataflowConfiguration, Dict[Any, Any]]
+    gcp_conn_id: Optional[str]
+    delegate_to: Optional[str]
 
     def _set_dataflow(
         self, pipeline_options: dict, job_name_variable_key: Optional[str] = None
     ) -> Tuple[str, dict, Callable[[str], None]]:
+        if not isinstance(self.dataflow_config, DataflowConfiguration):
+            raise AirflowException("The self.dataflow_config should be converted to DataflowConfiguration "
+                                   "here")
         self.dataflow_hook = self.__set_dataflow_hook()
         self.dataflow_config.project_id = self.dataflow_config.project_id or self.dataflow_hook.project_id
         dataflow_job_name = self.__get_dataflow_job_name()
@@ -56,8 +62,11 @@ class BeamDataflowMixin(metaclass=ABCMeta):
         return dataflow_job_name, pipeline_options, process_line_callback
 
     def __set_dataflow_hook(self) -> DataflowHook:
+        if not isinstance(self.dataflow_config, DataflowConfiguration):
+            raise AirflowException("The self.dataflow_config should be converted to DataflowConfiguration "
+                                   "here")
         self.dataflow_hook = DataflowHook(
-            gcp_conn_id=self.dataflow_config.gcp_conn_id or self.gcp_conn_id,
+            gcp_conn_id=self.dataflow_config.gcp_conn_id or self.gcp_conn_id,  # type: ignore
             delegate_to=self.dataflow_config.delegate_to or self.delegate_to,
             poll_sleep=self.dataflow_config.poll_sleep,
             impersonation_chain=self.dataflow_config.impersonation_chain,
@@ -68,6 +77,12 @@ class BeamDataflowMixin(metaclass=ABCMeta):
         return self.dataflow_hook
 
     def __get_dataflow_job_name(self) -> str:
+        if not isinstance(self.dataflow_config, DataflowConfiguration):
+            raise AirflowException("The self.dataflow_config should be converted to DataflowConfiguration "
+                                   "here")
+        if not self.dataflow_config.job_name:
+            raise AirflowException("The self.dataflow_config.job_name "
+                                   f"should be set here: {self.dataflow_config}")
         return DataflowHook.build_dataflow_job_name(
             self.dataflow_config.job_name, self.dataflow_config.append_job_name
         )
@@ -75,6 +90,9 @@ class BeamDataflowMixin(metaclass=ABCMeta):
     def __get_dataflow_pipeline_options(
         self, pipeline_options: dict, job_name: str, job_name_key: Optional[str] = None
     ) -> dict:
+        if not isinstance(self.dataflow_config, DataflowConfiguration):
+            raise AirflowException("The self.dataflow_config should be converted to DataflowConfiguration "
+                                   "here")
         pipeline_options = copy.deepcopy(pipeline_options)
         if job_name_key is not None:
             pipeline_options[job_name_key] = job_name
@@ -271,6 +289,9 @@ class BeamRunPythonPipelineOperator(BaseOperator, BeamDataflowMixin):
 
     def on_kill(self) -> None:
         if self.dataflow_hook and self.dataflow_job_id:
+            if not isinstance(self.dataflow_config, DataflowConfiguration):
+                raise AirflowException("The self.dataflow_config should be converted"
+                                       " to DataflowConfiguration here")
             self.log.info('Dataflow job with id: `%s` was requested to be cancelled.', self.dataflow_job_id)
             self.dataflow_hook.cancel_job(
                 job_id=self.dataflow_job_id,
@@ -457,6 +478,9 @@ class BeamRunJavaPipelineOperator(BaseOperator, BeamDataflowMixin):
 
     def on_kill(self) -> None:
         if self.dataflow_hook and self.dataflow_job_id:
+            if not isinstance(self.dataflow_config, DataflowConfiguration):
+                raise AirflowException("The self.dataflow_config should be converted "
+                                       "to DataflowConfiguration here")
             self.log.info('Dataflow job with id: `%s` was requested to be cancelled.', self.dataflow_job_id)
             self.dataflow_hook.cancel_job(
                 job_id=self.dataflow_job_id,

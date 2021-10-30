@@ -246,6 +246,8 @@ class DockerOperator(BaseOperator):
 
         :return: The Docker Hook
         """
+        if not self.docker_conn_id:
+            raise ValueError("docker_conn_id should be set")
         return DockerHook(
             docker_conn_id=self.docker_conn_id,
             base_url=self.docker_url,
@@ -257,7 +259,7 @@ class DockerOperator(BaseOperator):
         """Run a Docker container with the provided image"""
         self.log.info('Starting docker container from image %s', self.image)
         if not self.cli:
-            raise Exception("The 'cli' should be initialized before!")
+            raise AirflowException("The 'cli' should be initialized before!")
         if self.mount_tmp_dir:
             with TemporaryDirectory(prefix='airflowtmp', dir=self.host_tmp_dir) as host_tmp_dir_generated:
                 tmp_mount = Mount(self.tmp_dir, host_tmp_dir_generated, "bind")
@@ -281,6 +283,8 @@ class DockerOperator(BaseOperator):
             self.environment['AIRFLOW_TMP_DIR'] = self.tmp_dir
         else:
             self.environment.pop('AIRFLOW_TMP_DIR', None)
+        if not self.cli:
+            raise AirflowException("The 'cli' should be initialized before!")
         self.container = self.cli.create_container(
             command=self.format_command(self.command),
             name=self.container_name,
@@ -304,12 +308,14 @@ class DockerOperator(BaseOperator):
             working_dir=self.working_dir,
             tty=self.tty,
         )
+        if not self.container:
+            raise AirflowException("This should not happen. The self.container should be set here")
         lines = self.cli.attach(container=self.container['Id'], stdout=True, stderr=True, stream=True)
         try:
             self.cli.start(self.container['Id'])
 
-            line = ''
-            res_lines = []
+            line: Union[str, bytes] = ''
+            res_lines: List[str] = []
             return_value = None
             for line in lines:
                 if hasattr(line, 'decode'):
@@ -320,8 +326,9 @@ class DockerOperator(BaseOperator):
                 self.log.info(line)
             result = self.cli.wait(self.container['Id'])
             if result['StatusCode'] != 0:
-                res_lines = "\n".join(res_lines)
-                raise AirflowException('docker container failed: ' + repr(result) + f"lines {res_lines}")
+                joined_lines = '\n'.join(res_lines)
+                raise AirflowException('docker container failed: ' + repr(result) +
+                                       f"lines {joined_lines}")
             if self.retrieve_output and not return_value:
                 return_value = self._attempt_to_retrieve_result()
             ret = None
@@ -397,7 +404,7 @@ class DockerOperator(BaseOperator):
             return APIClient(base_url=self.docker_url, version=self.api_version, tls=tls_config)
 
     @staticmethod
-    def format_command(command: Union[str, List[str]]) -> Union[List[str], str]:
+    def format_command(command: Union[str, List[str], None]) -> Union[List[str], str, None]:
         """
         Retrieve command(s). if command string starts with [, it returns the command list)
 

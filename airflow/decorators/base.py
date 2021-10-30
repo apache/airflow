@@ -116,7 +116,7 @@ class DecoratedOperator(BaseOperator):
         op_args: Tuple[Any],
         op_kwargs: Dict[str, Any],
         multiple_outputs: bool = False,
-        kwargs_to_upstream: dict = None,
+        kwargs_to_upstream: Optional[dict] = None,
         **kwargs,
     ) -> None:
         kwargs['task_id'] = get_unique_task_id(task_id, kwargs.get('dag'), kwargs.get('task_group'))
@@ -180,7 +180,7 @@ T = TypeVar("T", bound=Callable)
 def task_decorator_factory(
     python_callable: Optional[Callable] = None,
     multiple_outputs: Optional[bool] = None,
-    decorated_operator_class: BaseOperator = None,
+    decorated_operator_class: Optional[BaseOperator] = None,
     **kwargs,
 ) -> Callable[[T], T]:
     """

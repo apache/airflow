@@ -273,7 +273,7 @@ class TestEmailSmtp(unittest.TestCase):
 
     @mock.patch('smtplib.SMTP_SSL')
     @mock.patch('smtplib.SMTP')
-    def test_send_mime_complete_failure(self, mock_smtp: mock, mock_smtp_ssl):
+    def test_send_mime_complete_failure(self, mock_smtp, mock_smtp_ssl):
         mock_smtp.side_effect = SMTPServerDisconnected()
         msg = MIMEMultipart()
         with pytest.raises(SMTPServerDisconnected):

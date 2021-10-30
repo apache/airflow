@@ -18,12 +18,12 @@
 """Default configuration for the Airflow webserver"""
 import os
 
-from airflow.www.fab_security.manager import AUTH_DB
+from airflow.www.fab_security.manager import AUTH_DB  # type: ignore
 
-# from airflow.www.fab_security.manager import AUTH_LDAP
-# from airflow.www.fab_security.manager import AUTH_OAUTH
-# from airflow.www.fab_security.manager import AUTH_OID
-# from airflow.www.fab_security.manager import AUTH_REMOTE_USER
+# from airflow.www.fab_security.manager import AUTH_LDAP  # type: ignore
+# from airflow.www.fab_security.manager import AUTH_OAUTH  # type: ignore
+# from airflow.www.fab_security.manager import AUTH_OID  # type: ignore
+# from airflow.www.fab_security.manager import AUTH_REMOTE_USER  # type: ignore
 
 
 basedir = os.path.abspath(os.path.dirname(__file__))

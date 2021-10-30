@@ -26,7 +26,7 @@ from airflow.utils import db
 try:
     import mongomock
 except ImportError:
-    mongomock = None
+    mongomock = None  # type: ignore
 
 
 class MongoHookTest(MongoHook):

@@ -15,6 +15,11 @@
 # specific language governing permissions and limitations
 # under the License.
 
+# Ignore type checking here, the FAB security manager has been ported from FAB
+# and it has a bit too many class variables/dynamic typing to bother
+# type: ignore
+
+
 import logging
 import uuid
 from typing import List, Optional

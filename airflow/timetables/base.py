@@ -33,7 +33,7 @@ class DataInterval(NamedTuple):
     end: DateTime
 
     @classmethod
-    def exact(cls, at: DateTime) -> "DagRunInfo":
+    def exact(cls, at: DateTime) -> "DataInterval":
         """Represent an "interval" containing only an exact time."""
         return cls(start=at, end=at)
 

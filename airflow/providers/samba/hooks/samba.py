@@ -19,7 +19,7 @@
 import posixpath
 from functools import wraps
 from shutil import copyfileobj
-from typing import Optional
+from typing import Optional, Dict, Any
 
 import smbclient
 
@@ -57,12 +57,12 @@ class SambaHook(BaseHook):
 
         self._host = conn.host
         self._share = share or conn.schema
-        self._connection_cache = connection_cache = {}
+        self._connection_cache: Dict[Any, Any] = {}
         self._conn_kwargs = {
             "username": conn.login,
             "password": conn.password,
             "port": conn.port or 445,
-            "connection_cache": connection_cache,
+            "connection_cache": self._connection_cache,
         }
 
     def __enter__(self):

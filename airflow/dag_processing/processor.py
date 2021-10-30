@@ -424,7 +424,7 @@ class DagFileProcessor(LoggingMixin):
             if next_info is None:
                 self.log.info("Skipping SLA check for %s because task does not have scheduled date", ti)
             else:
-                while next_info.logical_date < ts:
+                while next_info and next_info.logical_date < ts:
                     next_info = dag.next_dagrun_info(next_info.data_interval, restricted=False)
 
                     if next_info is None:

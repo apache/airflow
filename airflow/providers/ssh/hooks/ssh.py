@@ -20,10 +20,12 @@ import os
 import warnings
 from base64 import decodebytes
 from io import StringIO
-from typing import Dict, Optional, Tuple, Union
+from typing import Dict, Optional, Tuple, Union, Type
 
 import paramiko
+from paramiko.client import SSHClient
 from paramiko.config import SSH_PORT
+from paramiko.pkey import PKey
 from sshtunnel import SSHTunnelForwarder
 
 from airflow.exceptions import AirflowException
@@ -71,7 +73,7 @@ class SSHHook(BaseHook):
     """
 
     # List of classes to try loading private keys as, ordered (roughly) by most common to least common
-    _pkey_loaders = (
+    _pkey_loaders: Tuple[Type[PKey], ...] = (
         paramiko.RSAKey,
         paramiko.ECDSAKey,
         paramiko.Ed25519Key,
@@ -133,7 +135,7 @@ class SSHHook(BaseHook):
         self.look_for_keys = True
 
         # Placeholder for deprecated __enter__
-        self.client = None
+        self.client: Optional[SSHClient] = None
 
         # Use connection to override defaults
         if self.ssh_conn_id is not None:
@@ -241,12 +243,16 @@ class SSHHook(BaseHook):
             with open(user_ssh_config_filename) as config_fd:
                 ssh_conf.parse(config_fd)
             host_info = ssh_conf.lookup(self.remote_host)
-            if host_info and host_info.get('proxycommand'):
-                self.host_proxy = paramiko.ProxyCommand(host_info.get('proxycommand'))
+            if host_info:
+                proxy_command = host_info.get('proxycommand')
+                if proxy_command:
+                    self.host_proxy = paramiko.ProxyCommand(proxy_command)
 
             if not (self.password or self.key_file):
-                if host_info and host_info.get('identityfile'):
-                    self.key_file = host_info.get('identityfile')[0]
+                if host_info:
+                    identity_file = host_info.get('identityfile')
+                    if identity_file:
+                        self.key_file = identity_file[0]
 
         self.port = self.port or SSH_PORT
 
@@ -273,12 +279,13 @@ class SSHHook(BaseHook):
         else:
             if self.host_key is not None:
                 client_host_keys = client.get_host_keys()
-                if self.port == SSH_PORT:
-                    client_host_keys.add(self.remote_host, self.host_key.get_name(), self.host_key)
-                else:
-                    client_host_keys.add(
-                        f"[{self.remote_host}]:{self.port}", self.host_key.get_name(), self.host_key
-                    )
+                if self.remote_host:
+                    if self.port == SSH_PORT:
+                        client_host_keys.add(self.remote_host, self.host_key.get_name(), self.host_key)
+                    else:
+                        client_host_keys.add(
+                            f"[{self.remote_host}]:{self.port}", self.host_key.get_name(), self.host_key
+                        )
             else:
                 pass  # will fallback to system host keys if none explicitly specified in conn extra
 
@@ -297,15 +304,17 @@ class SSHHook(BaseHook):
             connect_kwargs.update(password=password)
 
         if self.pkey:
-            connect_kwargs.update(pkey=self.pkey)
+            connect_kwargs.update(pkey=self.pkey)  # type: ignore
 
         if self.key_file:
             connect_kwargs.update(key_filename=self.key_file)
 
-        client.connect(**connect_kwargs)
+        client.connect(**connect_kwargs)  # type: ignore
 
         if self.keepalive_interval:
-            client.get_transport().set_keepalive(self.keepalive_interval)
+            transport = client.get_transport()
+            if transport:
+                transport.set_keepalive(self.keepalive_interval)
 
         self.client = client
         return client

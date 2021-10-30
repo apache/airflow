@@ -433,7 +433,7 @@ class KubernetesExecutor(BaseExecutor):
         self.kube_client: Optional[client.CoreV1Api] = None
         self.scheduler_job_id: Optional[str] = None
         self.event_scheduler: Optional[EventScheduler] = None
-        self.last_handled: Dict[TaskInstanceKey, int] = {}
+        self.last_handled: Dict[TaskInstanceKey, float] = {}
         super().__init__(parallelism=self.kube_config.parallelism)
 
     @provide_session
@@ -620,6 +620,11 @@ class KubernetesExecutor(BaseExecutor):
             except Empty:
                 break
 
+        if not self.event_scheduler:
+            raise AirflowException("The event_scheduler should be already set here by start() command. "
+                                   "Likely this is an Airflow error that should be fixed. Please "
+                                   "report it as bug (add all details such as logs etc.) at "
+                                   "https://github.com/apache/airflow/issues/new/choose")
         # Run any pending timed events
         next_event = self.event_scheduler.run(blocking=False)
         self.log.debug("Next timed event is in %f", next_event)

@@ -44,7 +44,7 @@ from typing import (
     Type,
     Union,
     cast,
-    overload,
+    overload, Sequence,
 )
 
 import jinja2
@@ -61,6 +61,7 @@ from airflow import settings, utils
 from airflow.compat.functools import cached_property
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException, DuplicateTaskIdFound, TaskNotFound
+from airflow.models import SlaMiss
 from airflow.models.base import ID_LEN, Base
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.dagbag import DagBag
@@ -337,7 +338,7 @@ class DAG(LoggingMixin):
         max_active_tasks: int = conf.getint('core', 'max_active_tasks_per_dag'),
         max_active_runs: int = conf.getint('core', 'max_active_runs_per_dag'),
         dagrun_timeout: Optional[timedelta] = None,
-        sla_miss_callback: Optional[Callable[["DAG", str, str, List[str], List[TaskInstance]], None]] = None,
+        sla_miss_callback: Optional[Callable[["DAG", str, str, Sequence[SlaMiss], Sequence[TaskInstance]], None]] = None,
         default_view: str = conf.get('webserver', 'dag_default_view').lower(),
         orientation: str = conf.get('webserver', 'dag_orientation'),
         catchup: bool = conf.getboolean('scheduler', 'catchup_by_default'),

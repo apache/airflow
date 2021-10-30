@@ -19,9 +19,13 @@ import abc
 import logging
 import re
 import sys
+from io import IOBase
 from logging import Handler, Logger, StreamHandler
 
 # 7-bit C1 ANSI escape sequences
+from types import TracebackType
+from typing import ContextManager, IO, Optional, Type, AnyStr, Iterator, Iterable
+
 ANSI_ESCAPE = re.compile(r'\x1B[@-_][0-?]*[ -/]*[@-~]')
 
 
@@ -72,8 +76,7 @@ class ExternalLoggingMixin:
         """Return whether handler is able to support external links."""
 
 
-# TODO: Formally inherit from io.IOBase
-class StreamLogWriter:
+class StreamLogWriter(IO[str]):
     """Allows to redirect stdout and stderr to logger"""
 
     encoding: None = None
@@ -133,6 +136,52 @@ class StreamLogWriter:
         For compatibility reasons.
         """
         return False
+
+    def fileno(self) -> int:
+        pass
+
+    def read(self, n: int = ...) -> AnyStr:
+        pass
+
+    def readable(self) -> bool:
+        pass
+
+    def readline(self, limit: int = ...) -> AnyStr:
+        pass
+
+    def readlines(self, hint: int = ...) -> list:
+        pass
+
+    def seek(self, offset: int, whence: int = ...) -> int:
+        pass
+
+    def seekable(self) -> bool:
+        pass
+
+    def tell(self) -> int:
+        pass
+
+    def truncate(self, size: Optional[int] = ...) -> int:
+        pass
+
+    def writable(self) -> bool:
+        pass
+
+    def writelines(self, lines: Iterable[AnyStr]) -> None:
+        pass
+
+    def __next__(self) -> AnyStr:
+        pass
+
+    def __iter__(self) -> Iterator[AnyStr]:
+        pass
+
+    def __enter__(self) -> IO[AnyStr]:
+        pass
+
+    def __exit__(self, t: Optional[Type[BaseException]], value: Optional[BaseException],
+                 traceback: Optional[TracebackType]) -> Optional[bool]:
+        pass
 
 
 class RedirectStdHandler(StreamHandler):

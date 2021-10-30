@@ -32,7 +32,6 @@ from airflow.api_connexion.schemas.dag_schema import (
 from airflow.exceptions import AirflowException, DagNotFound
 from airflow.models.dag import DagModel, DagTag
 from airflow.security import permissions
-from airflow.settings import Session
 from airflow.utils.session import provide_session
 
 
@@ -111,15 +110,15 @@ def patch_dag(session, dag_id, update_mask=None):
 
 @security.requires_access([(permissions.ACTION_CAN_DELETE, permissions.RESOURCE_DAG)])
 @provide_session
-def delete_dag(dag_id: str, session: Session):
+def delete_dag(dag_id: str, session):
     """Delete the specific DAG."""
     # TODO: This function is shared with the /delete endpoint used by the web
     # UI, so we're reusing it to simplify maintenance. Refactor the function to
     # another place when the experimental/legacy API is removed.
-    from airflow.api.common.experimental import delete_dag
+    from airflow.api.common.experimental import delete_dag as delete_dag_module
 
     try:
-        delete_dag.delete_dag(dag_id, session=session)
+        delete_dag_module.delete_dag(dag_id, session=session)
     except DagNotFound:
         raise NotFound(f"Dag with id: '{dag_id}' not found")
     except AirflowException:

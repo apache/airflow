@@ -22,7 +22,7 @@ import logging
 import os
 import sys
 import warnings
-from typing import Optional
+from typing import Optional, List
 
 import pendulum
 import sqlalchemy
@@ -564,7 +564,7 @@ MASK_SECRETS_IN_LOGS = False
 #   ]
 #
 # DASHBOARD_UIALERTS: List["UIAlert"]
-DASHBOARD_UIALERTS = []
+DASHBOARD_UIALERTS: List[str] = []
 
 # Prefix used to identify tables holding data moved during migration.
 AIRFLOW_MOVED_TABLE_PREFIX = "_airflow_moved"

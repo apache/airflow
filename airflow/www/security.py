@@ -17,6 +17,10 @@
 # under the License.
 #
 
+# Ignore type checking here, the FAB security manager has been ported from FAB
+# and it has a bit too many class variables/dynamic typing to bother
+# type: ignore
+
 import warnings
 from typing import Dict, Optional, Sequence, Set, Tuple
 
