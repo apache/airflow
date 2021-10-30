@@ -38,7 +38,7 @@ AUDIO_CONFIG = {"audio_encoding": "LINEAR16"}
 with models.DAG(
     "example_gcp_text_to_speech",
     start_date=dates.days_ago(1),
-    schedule_interval=None,  # Override to match your needs
+    schedule_interval='@once',  # Override to match your needs
     tags=['example'],
 ) as dag:
 

@@ -54,7 +54,7 @@ dag_id = "example_bigquery_sensors"
 
 with models.DAG(
     dag_id,
-    schedule_interval=None,  # Override to match your needs
+    schedule_interval='@once',  # Override to match your needs
     start_date=days_ago(1),
     tags=["example"],
     user_defined_macros={"DATASET": DATASET_NAME, "TABLE": TABLE_NAME},

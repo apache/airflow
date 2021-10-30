@@ -25,10 +25,6 @@ KubernetesPodOperator
 The :class:`~airflow.providers.cncf.kubernetes.operators.kubernetes_pod.KubernetesPodOperator` allows
 you to create and run Pods on a Kubernetes cluster.
 
-.. contents::
-  :depth: 1
-  :local:
-
 .. note::
   If you use `Google Kubernetes Engine <https://cloud.google.com/kubernetes-engine/>`__, consider
   using the
@@ -127,4 +123,4 @@ Reference
 For further information, look at:
 
 * `Kubernetes Documentation <https://kubernetes.io/docs/home/>`__
-* `Pull and Image from a Private Registry <https://kubernetes.io/docs/tasks/configure-pod-container/pull-image-private-registry/>`__
+* `Pull an Image from a Private Registry <https://kubernetes.io/docs/tasks/configure-pod-container/pull-image-private-registry/>`__

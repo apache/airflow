@@ -26,7 +26,7 @@ from airflow.executors.kubernetes_executor import KubeConfig, create_pod_id
 from airflow.kubernetes import pod_generator
 from airflow.kubernetes.kube_client import get_kube_client
 from airflow.kubernetes.pod_generator import PodGenerator
-from airflow.models import TaskInstance
+from airflow.models import DagRun, TaskInstance
 from airflow.settings import pod_mutation_hook
 from airflow.utils import cli as cli_utils, yaml
 from airflow.utils.cli import get_dag
@@ -38,9 +38,11 @@ def generate_pod_yaml(args):
     execution_date = args.execution_date
     dag = get_dag(subdir=args.subdir, dag_id=args.dag_id)
     yaml_output_path = args.output_path
+    dr = DagRun(dag.dag_id, execution_date=execution_date)
     kube_config = KubeConfig()
     for task in dag.tasks:
-        ti = TaskInstance(task, execution_date)
+        ti = TaskInstance(task, None)
+        ti.dag_run = dr
         pod = PodGenerator.construct_pod(
             dag_id=args.dag_id,
             task_id=ti.task_id,

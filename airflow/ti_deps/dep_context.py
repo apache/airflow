@@ -16,10 +16,15 @@
 # specific language governing permissions and limitations
 # under the License.
 
-import pendulum
+from typing import TYPE_CHECKING, List
+
 from sqlalchemy.orm.session import Session
 
 from airflow.utils.state import State
+
+if TYPE_CHECKING:
+    from airflow.models.dagrun import DagRun
+    from airflow.models.taskinstance import TaskInstance
 
 
 class DepContext:
@@ -85,23 +90,16 @@ class DepContext:
         self.ignore_ti_state = ignore_ti_state
         self.finished_tasks = finished_tasks
 
-    def ensure_finished_tasks(self, dag, execution_date: pendulum.DateTime, session: Session):
+    def ensure_finished_tasks(self, dag_run: "DagRun", session: Session) -> "List[TaskInstance]":
         """
         This method makes sure finished_tasks is populated if it's currently None.
         This is for the strange feature of running tasks without dag_run.
 
-        :param dag: The DAG for which to find finished tasks
-        :type dag: airflow.models.DAG
-        :param execution_date: The execution_date to look for
-        :param session: Database session to use
+        :param dag_run: The DagRun for which to find finished tasks
+        :type dag_run: airflow.models.DagRun
         :return: A list of all the finished tasks of this DAG and execution_date
         :rtype: list[airflow.models.TaskInstance]
         """
         if self.finished_tasks is None:
-            self.finished_tasks = dag.get_task_instances(
-                start_date=execution_date,
-                end_date=execution_date,
-                state=State.finished,
-                session=session,
-            )
+            self.finished_tasks = dag_run.get_task_instances(state=State.finished, session=session)
         return self.finished_tasks

@@ -33,6 +33,8 @@ class CloudDataFusionPipelineStateSensor(BaseSensorOperator):
     :type pipeline_name: str
     :param expected_statuses: State that is expected
     :type expected_statuses: set[str]
+    :param failure_statuses: State that will terminate the sensor with an exception
+    :type failure_statuses: set[str]
     :param instance_name: The name of the instance.
     :type instance_name: str
     :param location: The Cloud Data Fusion location in which to handle the request.
@@ -70,6 +72,7 @@ class CloudDataFusionPipelineStateSensor(BaseSensorOperator):
         expected_statuses: Set[str],
         instance_name: str,
         location: str,
+        failure_statuses: Set[str] = None,
         project_id: Optional[str] = None,
         namespace: str = "default",
         gcp_conn_id: str = 'google_cloud_default',
@@ -81,6 +84,7 @@ class CloudDataFusionPipelineStateSensor(BaseSensorOperator):
         self.pipeline_name = pipeline_name
         self.pipeline_id = pipeline_id
         self.expected_statuses = expected_statuses
+        self.failure_statuses = failure_statuses
         self.instance_name = instance_name
         self.location = location
         self.project_id = project_id
@@ -118,6 +122,12 @@ class CloudDataFusionPipelineStateSensor(BaseSensorOperator):
             pipeline_status = pipeline_workflow["status"]
         except AirflowException:
             pass  # Because the pipeline may not be visible in system yet
+
+        if self.failure_statuses and pipeline_status in self.failure_statuses:
+            raise AirflowException(
+                f"Pipeline with id '{self.pipeline_id}' state is: {pipeline_status}. "
+                f"Terminating sensor..."
+            )
 
         self.log.debug(
             "Current status of the pipeline workflow for %s: %s.", self.pipeline_id, pipeline_status

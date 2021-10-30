@@ -18,7 +18,7 @@
 import json
 from typing import List, NamedTuple
 
-from marshmallow import fields, post_dump, pre_load
+from marshmallow import fields, post_dump, pre_load, validate
 from marshmallow.schema import Schema
 from marshmallow.validate import Range
 from marshmallow_sqlalchemy import SQLAlchemySchema, auto_field
@@ -29,6 +29,7 @@ from airflow.api_connexion.parameters import validate_istimezone
 from airflow.api_connexion.schemas.enum_schemas import DagStateField
 from airflow.models.dagrun import DagRun
 from airflow.utils import timezone
+from airflow.utils.state import DagRunState
 from airflow.utils.types import DagRunType
 
 
@@ -104,6 +105,12 @@ class DAGRunSchema(SQLAlchemySchema):
         return data
 
 
+class SetDagRunStateFormSchema(Schema):
+    """Schema for handling the request of setting state of DAG run"""
+
+    state = DagStateField(validate=validate.OneOf([DagRunState.SUCCESS.value, DagRunState.FAILED.value]))
+
+
 class DAGRunCollection(NamedTuple):
     """List of DAGRuns with metadata"""
 
@@ -141,4 +148,5 @@ class DagRunsBatchFormSchema(Schema):
 
 dagrun_schema = DAGRunSchema()
 dagrun_collection_schema = DAGRunCollectionSchema()
+set_dagrun_state_form_schema = SetDagRunStateFormSchema()
 dagruns_batch_form_schema = DagRunsBatchFormSchema()

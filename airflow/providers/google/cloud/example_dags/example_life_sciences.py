@@ -76,7 +76,7 @@ MULTI_ACTION_PIPELINE = {
 with models.DAG(
     "example_gcp_life_sciences",
     default_args=dict(start_date=dates.days_ago(1)),
-    schedule_interval=None,
+    schedule_interval='@once',
     tags=['example'],
 ) as dag:
 

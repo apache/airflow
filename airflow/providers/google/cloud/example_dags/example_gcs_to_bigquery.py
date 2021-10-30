@@ -36,7 +36,7 @@ TABLE_NAME = os.environ.get("GCP_TABLE_NAME", 'gcs_to_bq_table')
 dag = models.DAG(
     dag_id='example_gcs_to_bigquery_operator',
     start_date=days_ago(2),
-    schedule_interval=None,
+    schedule_interval='@once',
     tags=['example'],
 )
 

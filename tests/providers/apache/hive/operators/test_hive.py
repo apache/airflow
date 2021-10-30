@@ -21,7 +21,7 @@ import unittest
 from unittest import mock
 
 from airflow.configuration import conf
-from airflow.models import TaskInstance
+from airflow.models import DagRun, TaskInstance
 from airflow.providers.apache.hive.operators.hive import HiveOperator
 from airflow.utils import timezone
 from tests.providers.apache.hive import DEFAULT_DATE, TestHiveEnvironment
@@ -83,16 +83,17 @@ class HiveOperatorTest(TestHiveEnvironment):
         mock_get_hook.return_value = mock_hook
         op = MockHiveOperator(task_id='test_mapred_job_name', hql=self.hql, dag=self.dag)
 
+        fake_dagrun_id = "test_mapred_job_name"
         fake_execution_date = timezone.datetime(2018, 6, 19)
-        fake_ti = TaskInstance(task=op, execution_date=fake_execution_date)
+        fake_ti = TaskInstance(task=op)
+        fake_ti.dag_run = DagRun(run_id=fake_dagrun_id, execution_date=fake_execution_date)
         fake_ti.hostname = 'fake_hostname'
         fake_context = {'ti': fake_ti}
 
         op.execute(fake_context)
         assert (
-            "Airflow HiveOperator task for {}.{}.{}.{}".format(
-                fake_ti.hostname, self.dag.dag_id, op.task_id, fake_execution_date.isoformat()
-            )
+            "Airflow HiveOperator task for "
+            f"{fake_ti.hostname}.{self.dag.dag_id}.{op.task_id}.{fake_execution_date.isoformat()}"
             == mock_hook.mapred_job_name
         )
 

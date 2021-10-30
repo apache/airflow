@@ -18,25 +18,24 @@
 
 """Example DAG demonstrating the usage of the AirbyteTriggerSyncOperator."""
 
-from datetime import timedelta
+from datetime import datetime, timedelta
 
 from airflow import DAG
 from airflow.providers.airbyte.operators.airbyte import AirbyteTriggerSyncOperator
 from airflow.providers.airbyte.sensors.airbyte import AirbyteJobSensor
-from airflow.utils.dates import days_ago
 
 with DAG(
     dag_id='example_airbyte_operator',
     schedule_interval=None,
-    start_date=days_ago(1),
+    start_date=datetime(2021, 1, 1),
     dagrun_timeout=timedelta(minutes=60),
     tags=['example'],
+    catchup=False,
 ) as dag:
 
     # [START howto_operator_airbyte_synchronous]
     sync_source_destination = AirbyteTriggerSyncOperator(
         task_id='airbyte_sync_source_dest_example',
-        airbyte_conn_id='airbyte_default',
         connection_id='15bc3800-82e4-48c3-a32d-620661273f28',
     )
     # [END howto_operator_airbyte_synchronous]
@@ -44,7 +43,6 @@ with DAG(
     # [START howto_operator_airbyte_asynchronous]
     async_source_destination = AirbyteTriggerSyncOperator(
         task_id='airbyte_async_source_dest_example',
-        airbyte_conn_id='airbyte_default',
         connection_id='15bc3800-82e4-48c3-a32d-620661273f28',
         asynchronous=True,
     )
@@ -52,7 +50,6 @@ with DAG(
     airbyte_sensor = AirbyteJobSensor(
         task_id='airbyte_sensor_source_dest_example',
         airbyte_job_id=async_source_destination.output,
-        airbyte_conn_id='airbyte_default',
     )
     # [END howto_operator_airbyte_asynchronous]
 

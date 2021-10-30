@@ -37,7 +37,7 @@ DESTINATION_PATH_3 = "/tmp/dest-dir-2/"
 
 
 with models.DAG(
-    "example_gcs_to_sftp", start_date=days_ago(1), schedule_interval=None, tags=['example']
+    "example_gcs_to_sftp", schedule_interval='@once', start_date=days_ago(1), tags=['example']
 ) as dag:
     # [START howto_operator_gcs_to_sftp_copy_single_file]
     copy_file_from_gcs_to_sftp = GCSToSFTPOperator(

@@ -27,6 +27,7 @@ This module contains Base AWS Hook.
 import configparser
 import datetime
 import logging
+import warnings
 from functools import wraps
 from typing import Any, Callable, Dict, Optional, Tuple, Union
 
@@ -433,12 +434,21 @@ class AwsBaseHook(BaseHook):
 
     def get_client_type(
         self,
-        client_type: str,
+        client_type: Optional[str] = None,
         region_name: Optional[str] = None,
         config: Optional[Config] = None,
     ) -> boto3.client:
         """Get the underlying boto3 client using boto3 session"""
         session, endpoint_url = self._get_credentials(region_name)
+
+        if client_type:
+            warnings.warn(
+                "client_type is deprecated. Set client_type from class attribute.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+        else:
+            client_type = self.client_type
 
         # No AWS Operators use the config argument to this method.
         # Keep backward compatibility with other users who might use it
@@ -449,12 +459,21 @@ class AwsBaseHook(BaseHook):
 
     def get_resource_type(
         self,
-        resource_type: str,
+        resource_type: Optional[str] = None,
         region_name: Optional[str] = None,
         config: Optional[Config] = None,
     ) -> boto3.resource:
         """Get the underlying boto3 resource using boto3 session"""
         session, endpoint_url = self._get_credentials(region_name)
+
+        if resource_type:
+            warnings.warn(
+                "resource_type is deprecated. Set resource_type from class attribute.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+        else:
+            resource_type = self.resource_type
 
         # No AWS Operators use the config argument to this method.
         # Keep backward compatibility with other users who might use it

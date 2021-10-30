@@ -442,8 +442,8 @@ class CloudSQLInstancePatchOperator(CloudSQLBaseOperator):
         )
         if not self._check_if_instance_exists(self.instance, hook):
             raise AirflowException(
-                'Cloud SQL instance with ID {} does not exist. '
-                'Please specify another instance to patch.'.format(self.instance)
+                f'Cloud SQL instance with ID {self.instance} does not exist. '
+                'Please specify another instance to patch.'
             )
         else:
             return hook.patch_instance(project_id=self.project_id, body=self.body, instance=self.instance)
@@ -699,11 +699,8 @@ class CloudSQLPatchInstanceDatabaseOperator(CloudSQLBaseOperator):
         )
         if not self._check_if_db_exists(self.database, hook):
             raise AirflowException(
-                "Cloud SQL instance with ID {instance} does not contain "
-                "database '{database}'. "
-                "Please specify another database to patch.".format(
-                    instance=self.instance, database=self.database
-                )
+                f"Cloud SQL instance with ID {self.instance} does not contain database '{self.database}'. "
+                "Please specify another database to patch."
             )
         else:
             return hook.patch_database(
@@ -786,8 +783,8 @@ class CloudSQLDeleteInstanceDatabaseOperator(CloudSQLBaseOperator):
         )
         if not self._check_if_db_exists(self.database, hook):
             print(
-                "Cloud SQL instance with ID {} does not contain database '{}'. "
-                "Aborting database delete.".format(self.instance, self.database)
+                f"Cloud SQL instance with ID {self.instance!r} does not contain database {self.database!r}. "
+                f"Aborting database delete."
             )
             return True
         else:

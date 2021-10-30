@@ -19,6 +19,17 @@
 Changelog
 ---------
 
+2.1.0
+.....
+
+Features
+~~~~~~~~
+
+* ``The celery provider is converted to work with Celery 5 following airflow 2.2.0 change of Celery version``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 2.0.0
 .....
 

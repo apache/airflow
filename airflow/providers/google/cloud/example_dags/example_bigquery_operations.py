@@ -57,7 +57,7 @@ DATA_SAMPLE_GCS_OBJECT_NAME = DATA_SAMPLE_GCS_URL_PARTS.path[1:]
 
 with models.DAG(
     "example_bigquery_operations",
-    schedule_interval=None,  # Override to match your needs
+    schedule_interval='@once',  # Override to match your needs
     start_date=days_ago(1),
     tags=["example"],
 ) as dag:
@@ -149,10 +149,9 @@ with models.DAG(
                 "sourceFormat": "CSV",
                 "compression": "NONE",
                 "csvOptions": {"skipLeadingRows": 1},
+                "sourceUris": [DATA_SAMPLE_GCS_URL],
             },
         },
-        bucket=DATA_SAMPLE_GCS_BUCKET_NAME,
-        source_objects=[DATA_SAMPLE_GCS_OBJECT_NAME],
     )
     # [END howto_operator_bigquery_create_external_table]
 
@@ -238,10 +237,10 @@ with models.DAG(
 
 with models.DAG(
     "example_bigquery_operations_location",
-    schedule_interval=None,  # Override to match your needs
+    schedule_interval='@once',  # Override to match your needs
     start_date=days_ago(1),
     tags=["example"],
-):
+) as dag_with_location:
     create_dataset_with_location = BigQueryCreateEmptyDatasetOperator(
         task_id="create_dataset_with_location",
         dataset_id=LOCATION_DATASET_NAME,

@@ -19,6 +19,21 @@
 Changelog
 ---------
 
+2.0.3
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``fix get_connections deprecation warn in hivemetastore hook (#18854)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``More f-strings (#18855)``
+   * ``Remove unnecessary string concatenations in AirflowException in s3_to_hive.py (#19026)``
+   * ``Update documentation for September providers release (#18613)``
+   * ``Updating miscellaneous provider DAGs to use TaskFlow API where applicable (#18278)``
+
 2.0.2
 .....
 

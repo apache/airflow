@@ -20,8 +20,8 @@ from unittest import mock
 
 import attr
 
-from airflow.models import TaskInstance
 from airflow.models.baseoperator import BaseOperator, BaseOperatorLink
+from airflow.models.xcom import XCom
 from airflow.providers.apache.hive.operators.hive import HiveOperator
 
 
@@ -83,8 +83,9 @@ class CustomBaseIndexOpLink(BaseOperatorLink):
         return f'BigQuery Console #{self.index + 1}'
 
     def get_link(self, operator, dttm):
-        ti = TaskInstance(task=operator, execution_date=dttm)
-        search_queries = ti.xcom_pull(task_ids=operator.task_id, key='search_query')
+        search_queries = XCom.get_one(
+            task_id=operator.task_id, dag_id=operator.dag_id, execution_date=dttm, key='search_query'
+        )
         if not search_queries:
             return None
         if len(search_queries) < self.index:
@@ -97,8 +98,9 @@ class CustomOpLink(BaseOperatorLink):
     name = 'Google Custom'
 
     def get_link(self, operator, dttm):
-        ti = TaskInstance(task=operator, execution_date=dttm)
-        search_query = ti.xcom_pull(task_ids=operator.task_id, key='search_query')
+        search_query = XCom.get_one(
+            task_id=operator.task_id, dag_id=operator.dag_id, execution_date=dttm, key='search_query'
+        )
         return f'http://google.com/custom_base_link?search={search_query}'
 
 

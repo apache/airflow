@@ -19,6 +19,21 @@
 Changelog
 ---------
 
+2.0.3
+.....
+
+Features
+~~~~~~~~
+
+* ``Remove distutils usages for Python 3.10 (#19064)``
+
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``More f-strings (#18855)``
+   * ``Update documentation for September providers release (#18613)``
+   * ``Updating miscellaneous provider DAGs to use TaskFlow API where applicable (#18278)``
+
 2.0.2
 .....
 

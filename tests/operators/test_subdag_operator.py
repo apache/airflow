@@ -16,12 +16,10 @@
 # specific language governing permissions and limitations
 # under the License.
 
-import unittest
 from unittest import mock
 from unittest.mock import Mock
 
 import pytest
-from parameterized import parameterized
 
 import airflow
 from airflow.exceptions import AirflowException
@@ -36,14 +34,11 @@ from tests.test_utils.db import clear_db_runs
 
 DEFAULT_DATE = datetime(2016, 1, 1)
 
-default_args = dict(
-    owner='airflow',
-    start_date=DEFAULT_DATE,
-)
+default_args = {"start_date": DEFAULT_DATE}
 
 
-class TestSubDagOperator(unittest.TestCase):
-    def setUp(self):
+class TestSubDagOperator:
+    def setup_method(self):
         clear_db_runs()
         self.dag_run_running = DagRun()
         self.dag_run_running.state = State.RUNNING
@@ -51,6 +46,9 @@ class TestSubDagOperator(unittest.TestCase):
         self.dag_run_success.state = State.SUCCESS
         self.dag_run_failed = DagRun()
         self.dag_run_failed.state = State.FAILED
+
+    def teardown_class(self):
+        clear_db_runs()
 
     def test_subdag_name(self):
         """
@@ -256,31 +254,28 @@ class TestSubDagOperator(unittest.TestCase):
         subdag.create_dagrun.assert_not_called()
         assert 3 == len(subdag_task._get_dagrun.mock_calls)
 
-    def test_rerun_failed_subdag(self):
+    def test_rerun_failed_subdag(self, dag_maker):
         """
         When there is an existing DagRun with failed state, reset the DagRun and the
         corresponding TaskInstances
         """
-        dag = DAG('parent', default_args=default_args)
-        subdag = DAG('parent.test', default_args=default_args)
-        subdag_task = SubDagOperator(task_id='test', subdag=subdag, dag=dag, poke_interval=1)
-        dummy_task = DummyOperator(task_id='dummy', dag=subdag)
-
         with create_session() as session:
-            dummy_task_instance = TaskInstance(
-                task=dummy_task,
+            with dag_maker('parent.test', default_args=default_args, session=session) as subdag:
+                dummy_task = DummyOperator(task_id='dummy')
+            sub_dagrun = dag_maker.create_dagrun(
+                run_type=DagRunType.SCHEDULED,
                 execution_date=DEFAULT_DATE,
                 state=State.FAILED,
+                external_trigger=True,
             )
-            session.add(dummy_task_instance)
-            session.commit()
 
-        sub_dagrun = subdag.create_dagrun(
-            run_type=DagRunType.SCHEDULED,
-            execution_date=DEFAULT_DATE,
-            state=State.FAILED,
-            external_trigger=True,
-        )
+            (dummy_task_instance,) = sub_dagrun.task_instances
+            dummy_task_instance.refresh_from_task(dummy_task)
+            dummy_task_instance.state == State.FAILED
+
+            with dag_maker('parent', default_args=default_args, session=session):
+                subdag_task = SubDagOperator(task_id='test', subdag=subdag, poke_interval=1)
+            dag_maker.create_dagrun(execution_date=DEFAULT_DATE, run_type=DagRunType.SCHEDULED)
 
         subdag_task._reset_dag_run_and_task_instances(sub_dagrun, execution_date=DEFAULT_DATE)
 
@@ -290,43 +285,54 @@ class TestSubDagOperator(unittest.TestCase):
         sub_dagrun.refresh_from_db()
         assert sub_dagrun.state == State.RUNNING
 
-    @parameterized.expand(
+    @pytest.mark.parametrize(
+        "propagate_option, states, skip_parent",
         [
             (SkippedStatePropagationOptions.ALL_LEAVES, [State.SKIPPED, State.SKIPPED], True),
             (SkippedStatePropagationOptions.ALL_LEAVES, [State.SKIPPED, State.SUCCESS], False),
             (SkippedStatePropagationOptions.ANY_LEAF, [State.SKIPPED, State.SUCCESS], True),
             (SkippedStatePropagationOptions.ANY_LEAF, [State.FAILED, State.SKIPPED], True),
             (None, [State.SKIPPED, State.SKIPPED], False),
-        ]
+        ],
     )
     @mock.patch('airflow.operators.subdag.SubDagOperator.skip')
     @mock.patch('airflow.operators.subdag.get_task_instance')
     def test_subdag_with_propagate_skipped_state(
-        self, propagate_option, states, skip_parent, mock_get_task_instance, mock_skip
+        self,
+        mock_get_task_instance,
+        mock_skip,
+        dag_maker,
+        propagate_option,
+        states,
+        skip_parent,
     ):
         """
         Tests that skipped state of leaf tasks propagates to the parent dag.
         Note that the skipped state propagation only takes affect when the dagrun's state is SUCCESS.
         """
-        dag = DAG('parent', default_args=default_args)
-        subdag = DAG('parent.test', default_args=default_args)
-        subdag_task = SubDagOperator(
-            task_id='test', subdag=subdag, dag=dag, poke_interval=1, propagate_skipped_state=propagate_option
-        )
-        dummy_subdag_tasks = [
-            DummyOperator(task_id=f'dummy_subdag_{i}', dag=subdag) for i in range(len(states))
-        ]
-        dummy_dag_task = DummyOperator(task_id='dummy_dag', dag=dag)
-        subdag_task >> dummy_dag_task
+        with dag_maker('parent.test', default_args=default_args) as subdag:
+            dummy_subdag_tasks = [DummyOperator(task_id=f'dummy_subdag_{i}') for i in range(len(states))]
+        dag_maker.create_dagrun(execution_date=DEFAULT_DATE)
 
-        subdag_task._get_dagrun = Mock()
-        subdag_task._get_dagrun.return_value = self.dag_run_success
+        with dag_maker('parent', default_args=default_args):
+            subdag_task = SubDagOperator(
+                task_id='test',
+                subdag=subdag,
+                poke_interval=1,
+                propagate_skipped_state=propagate_option,
+            )
+            dummy_dag_task = DummyOperator(task_id='dummy_dag')
+            subdag_task >> dummy_dag_task
+        dag_run = dag_maker.create_dagrun(execution_date=DEFAULT_DATE)
+
+        subdag_task._get_dagrun = Mock(return_value=self.dag_run_success)
+
         mock_get_task_instance.side_effect = [
-            TaskInstance(task=task, execution_date=DEFAULT_DATE, state=state)
+            TaskInstance(task=task, run_id=dag_run.run_id, state=state)
             for task, state in zip(dummy_subdag_tasks, states)
         ]
 
-        context = {'execution_date': DEFAULT_DATE, 'dag_run': DagRun(), 'task': subdag_task}
+        context = {'execution_date': DEFAULT_DATE, 'dag_run': dag_run, 'task': subdag_task}
         subdag_task.post_execute(context)
 
         if skip_parent:

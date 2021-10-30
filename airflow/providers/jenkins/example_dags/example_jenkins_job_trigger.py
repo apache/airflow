@@ -15,22 +15,21 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from datetime import datetime, timedelta
+from datetime import datetime
 
 from requests import Request
 
 from airflow import DAG
-from airflow.operators.python import PythonOperator
+from airflow.decorators import task
 from airflow.providers.jenkins.hooks.jenkins import JenkinsHook
 from airflow.providers.jenkins.operators.jenkins_job_trigger import JenkinsJobTriggerOperator
+
+JENKINS_CONNECTION_ID = "your_jenkins_connection"
 
 with DAG(
     "test_jenkins",
     default_args={
-        "owner": "airflow",
         "retries": 1,
-        "retry_delay": timedelta(minutes=5),
-        "depends_on_past": False,
         "concurrency": 8,
         "max_active_runs": 8,
     },
@@ -42,16 +41,17 @@ with DAG(
         job_name="generate-merlin-config",
         parameters={"first_parameter": "a_value", "second_parameter": "18"},
         # parameters="resources/parameter.json", You can also pass a path to a json file containing your param
-        jenkins_connection_id="your_jenkins_connection",  # T he connection must be configured first
+        jenkins_connection_id=JENKINS_CONNECTION_ID,  # The connection must be configured first
     )
 
+    @task
     def grab_artifact_from_jenkins(url):
         """
         Grab an artifact from the previous job
         The python-jenkins library doesn't expose a method for that
         But it's totally possible to build manually the request for that
         """
-        hook = JenkinsHook("your_jenkins_connection")
+        hook = JenkinsHook(JENKINS_CONNECTION_ID)
         jenkins_server = hook.get_jenkins_server()
         # The JenkinsJobTriggerOperator store the job url in the xcom variable corresponding to the task
         # You can then use it to access things or to get the job number
@@ -61,11 +61,7 @@ with DAG(
         response = jenkins_server.jenkins_open(request)
         return response  # We store the artifact content in a xcom variable for later use
 
-    artifact_grabber = PythonOperator(
-        task_id='artifact_grabber',
-        python_callable=grab_artifact_from_jenkins,
-        op_kwargs=dict(url=job_trigger.output),
-    )
+    grab_artifact_from_jenkins(job_trigger.output)
 
     # Task dependency created via `XComArgs`:
-    #   job_trigger >> artifact_grabber
+    #   job_trigger >> grab_artifact_from_jenkins()

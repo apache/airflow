@@ -75,15 +75,14 @@ def unify_bucket_name_and_key(func: T) -> T:
     def wrapper(*args, **kwargs) -> T:
         bound_args = function_signature.bind(*args, **kwargs)
 
-        def get_key_name() -> Optional[str]:
-            if 'wildcard_key' in bound_args.arguments:
-                return 'wildcard_key'
-            if 'key' in bound_args.arguments:
-                return 'key'
+        if 'wildcard_key' in bound_args.arguments:
+            key_name = 'wildcard_key'
+        elif 'key' in bound_args.arguments:
+            key_name = 'key'
+        else:
             raise ValueError('Missing key parameter!')
 
-        key_name = get_key_name()
-        if key_name and 'bucket_name' not in bound_args.arguments:
+        if 'bucket_name' not in bound_args.arguments:
             bound_args.arguments['bucket_name'], bound_args.arguments[key_name] = S3Hook.parse_s3_url(
                 bound_args.arguments[key_name]
             )
@@ -454,7 +453,7 @@ class S3Hook(AwsBaseHook):
         :return: the key object from the bucket or None if none has been found.
         :rtype: boto3.s3.Object
         """
-        prefix = re.split(r'[*]', wildcard_key, 1)[0]
+        prefix = re.split(r'[\[\*\?]', wildcard_key, 1)[0]
         key_list = self.list_keys(bucket_name, prefix=prefix, delimiter=delimiter)
         key_matches = [k for k in key_list if fnmatch.fnmatch(k, wildcard_key)]
         if key_matches:
@@ -561,9 +560,8 @@ class S3Hook(AwsBaseHook):
         available_compressions = ['gzip']
         if compression is not None and compression not in available_compressions:
             raise NotImplementedError(
-                "Received {} compression type. String "
-                "can currently be compressed in {} "
-                "only.".format(compression, available_compressions)
+                f"Received {compression} compression type. "
+                f"String can currently be compressed in {available_compressions} only."
             )
         if compression == 'gzip':
             bytes_data = gz.compress(bytes_data)
@@ -718,8 +716,8 @@ class S3Hook(AwsBaseHook):
             if parsed_url.scheme != '' or parsed_url.netloc != '':
                 raise AirflowException(
                     'If dest_bucket_name is provided, '
-                    + 'dest_bucket_key should be relative path '
-                    + 'from root level, rather than a full s3:// url'
+                    'dest_bucket_key should be relative path '
+                    'from root level, rather than a full s3:// url'
                 )
 
         if source_bucket_name is None:
@@ -729,8 +727,8 @@ class S3Hook(AwsBaseHook):
             if parsed_url.scheme != '' or parsed_url.netloc != '':
                 raise AirflowException(
                     'If source_bucket_name is provided, '
-                    + 'source_bucket_key should be relative path '
-                    + 'from root level, rather than a full s3:// url'
+                    'source_bucket_key should be relative path '
+                    'from root level, rather than a full s3:// url'
                 )
 
         copy_source = {'Bucket': source_bucket_name, 'Key': source_bucket_key, 'VersionId': source_version_id}

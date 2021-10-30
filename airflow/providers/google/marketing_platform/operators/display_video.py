@@ -21,6 +21,7 @@ import json
 import shutil
 import tempfile
 import urllib.request
+import warnings
 from typing import Any, Dict, List, Optional, Sequence, Union
 from urllib.parse import urlparse
 
@@ -339,8 +340,12 @@ class GoogleDisplayVideo360RunReportOperator(BaseOperator):
     :param report_id: Report ID to run.
     :type report_id: str
     :param params: Parameters for running a report as described here:
-        https://developers.google.com/bid-manager/v1/queries/runquery
+        https://developers.google.com/bid-manager/v1/queries/runquery. Please note that this
+        keyword is deprecated, please use `parameters` keyword to pass the parameters.
     :type params: Dict[str, Any]
+    :param parameters: Parameters for running a report as described here:
+        https://developers.google.com/bid-manager/v1/queries/runquery
+    :type parameters: Dict[str, Any]
     :param api_version: The version of the api that will be requested for example 'v3'.
     :type api_version: str
     :param gcp_conn_id: The connection ID to use when fetching connection info.
@@ -362,7 +367,7 @@ class GoogleDisplayVideo360RunReportOperator(BaseOperator):
 
     template_fields = (
         "report_id",
-        "params",
+        "parameters",
         "impersonation_chain",
     )
 
@@ -370,7 +375,8 @@ class GoogleDisplayVideo360RunReportOperator(BaseOperator):
         self,
         *,
         report_id: str,
-        params: Dict[str, Any],
+        params: Dict[str, Any] = None,
+        parameters: Dict[str, Any] = None,
         api_version: str = "v1",
         gcp_conn_id: str = "google_cloud_default",
         delegate_to: Optional[str] = None,
@@ -379,11 +385,22 @@ class GoogleDisplayVideo360RunReportOperator(BaseOperator):
     ) -> None:
         super().__init__(**kwargs)
         self.report_id = report_id
-        self.params = params
         self.api_version = api_version
         self.gcp_conn_id = gcp_conn_id
         self.delegate_to = delegate_to
+        self.parameters = parameters
         self.impersonation_chain = impersonation_chain
+
+        if params is None and parameters is None:
+            raise AirflowException("Argument ['parameters'] is required")
+        if params and parameters is None:
+            # TODO: Remove in provider version 6.0
+            warnings.warn(
+                "Please use 'parameters' instead of 'params'",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+            self.parameters = params
 
     def execute(self, context: dict) -> None:
         hook = GoogleDisplayVideo360Hook(
@@ -395,9 +412,9 @@ class GoogleDisplayVideo360RunReportOperator(BaseOperator):
         self.log.info(
             "Running report %s with the following params:\n %s",
             self.report_id,
-            self.params,
+            self.parameters,
         )
-        hook.run_query(query_id=self.report_id, params=self.params)
+        hook.run_query(query_id=self.report_id, params=self.parameters)
 
 
 class GoogleDisplayVideo360DownloadLineItemsOperator(BaseOperator):

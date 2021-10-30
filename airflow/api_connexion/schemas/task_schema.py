@@ -57,10 +57,17 @@ class TaskSchema(Schema):
     template_fields = fields.List(fields.String(), dump_only=True)
     sub_dag = fields.Nested(DAGSchema, dump_only=True)
     downstream_task_ids = fields.List(fields.String(), dump_only=True)
+    params = fields.Method('get_params', dump_only=True)
 
     def _get_class_reference(self, obj):
         result = ClassReferenceSchema().dump(obj)
         return result.data if hasattr(result, "data") else result
+
+    @staticmethod
+    def get_params(obj):
+        """Get the Params defined in a Task"""
+        params = obj.params
+        return {k: v.dump() for k, v in params.items()}
 
 
 class TaskCollection(NamedTuple):

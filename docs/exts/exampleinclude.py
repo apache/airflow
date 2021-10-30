@@ -20,6 +20,7 @@
 
 
 """Nice formatted include for examples"""
+import traceback
 from os import path
 
 from docutils import nodes
@@ -150,6 +151,11 @@ def register_source(app, env, modname):
             logger.info(
                 "Module \"%s\" could not be loaded. Full source will not be available. \"%s\"", modname, ex
             )
+            # We cannot use regular warnings or exception methods because those warnings are interpreted
+            # by running python process and converted into "real" warnings, so we need to print the
+            # traceback here at info level
+            tb = traceback.format_exc()
+            logger.info("%s", tb)
             env._viewcode_modules[modname] = False
             return False
 

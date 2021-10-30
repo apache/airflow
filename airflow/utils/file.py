@@ -213,7 +213,7 @@ def might_contain_dag(file_path: str, safe_mode: bool, zip_file: Optional[zipfil
     :param file_path: Path to the file to be checked.
     :param safe_mode: Is safe mode active?. If no, this function always returns True.
     :param zip_file: if passed, checks the archive. Otherwise, check local filesystem.
-    :return: True, if file might contain DAGS.
+    :return: True, if file might contain DAGs.
     """
     if not safe_mode:
         return True

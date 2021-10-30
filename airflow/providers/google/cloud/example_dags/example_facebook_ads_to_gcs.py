@@ -51,12 +51,12 @@ FIELDS = [
     AdsInsights.Field.clicks,
     AdsInsights.Field.impressions,
 ]
-PARAMS = {'level': 'ad', 'date_preset': 'yesterday'}
+PARAMETERS = {'level': 'ad', 'date_preset': 'yesterday'}
 # [END howto_FB_ADS_variables]
 
 with models.DAG(
     "example_facebook_ads_to_gcs",
-    schedule_interval=None,  # Override to match your needs
+    schedule_interval='@once',  # Override to match your needs
     start_date=days_ago(1),
 ) as dag:
 
@@ -90,7 +90,7 @@ with models.DAG(
         start_date=days_ago(2),
         owner='airflow',
         bucket_name=GCS_BUCKET,
-        params=PARAMS,
+        parameters=PARAMETERS,
         fields=FIELDS,
         gcp_conn_id=GCS_CONN_ID,
         object_name=GCS_OBJ_PATH,

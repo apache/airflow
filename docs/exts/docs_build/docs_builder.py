@@ -34,6 +34,7 @@ from docs.exts.docs_build.code_utils import (
     pretty_format_path,
 )
 from docs.exts.docs_build.errors import DocBuildError, parse_sphinx_warnings
+from docs.exts.docs_build.helm_chart_utils import chart_version
 from docs.exts.docs_build.spelling_checks import SpellingError, parse_spelling_warnings
 
 console = Console(force_terminal=True, color_system="standard", width=CONSOLE_WIDTH)
@@ -100,6 +101,8 @@ class AirflowDocsBuilder:
         if self.package_name.startswith('apache-airflow-providers-'):
             provider = next(p for p in ALL_PROVIDER_YAMLS if p['package-name'] == self.package_name)
             return provider['versions'][0]
+        if self.package_name == 'helm-chart':
+            return chart_version()
         return Exception(f"Unsupported package: {self.package_name}")
 
     @property

@@ -26,6 +26,7 @@ from parameterized import parameterized
 
 from airflow import settings
 from airflow.models import Variable, crypto, variable
+from airflow.secrets.metastore import MetastoreBackend
 from tests.test_utils import db
 from tests.test_utils.config import conf_vars
 
@@ -111,15 +112,63 @@ class TestVariable(unittest.TestCase):
             assert "new-db-value" == Variable.get("key")
 
         assert log_context.records[0].message == (
-            'You have the environment variable AIRFLOW_VAR_KEY defined, which takes precedence over '
-            'reading from the database. The value will be saved, but to read it you have to delete '
-            'the environment variable.'
+            "The variable key is defined in the EnvironmentVariablesBackend secrets backend, "
+            "which takes precedence over reading from the database. The value in the database "
+            "will be updated, but to read it you have to delete the conflicting variable from "
+            "EnvironmentVariablesBackend"
+        )
+
+    @mock.patch('airflow.models.variable.ensure_secrets_loaded')
+    def test_variable_set_with_extra_secret_backend(self, mock_ensure_secrets):
+
+        mock_backend = mock.Mock()
+        mock_backend.get_variable.return_value = "secret_val"
+        mock_backend.__class__.__name__ = 'MockSecretsBackend'
+        mock_ensure_secrets.return_value = [mock_backend, MetastoreBackend]
+
+        with self.assertLogs(variable.log) as log_context:
+            Variable.set("key", "new-db-value")
+
+        assert Variable.get("key") == "secret_val"
+
+        assert log_context.records[0].message == (
+            "The variable key is defined in the MockSecretsBackend secrets backend, "
+            "which takes precedence over reading from the database. The value in the database "
+            "will be updated, but to read it you have to delete the conflicting variable from "
+            "MockSecretsBackend"
         )
 
     def test_variable_set_get_round_trip_json(self):
         value = {"a": 17, "b": 47}
         Variable.set("tested_var_set_id", value, serialize_json=True)
         assert value == Variable.get("tested_var_set_id", deserialize_json=True)
+
+    def test_variable_update(self):
+        Variable.set("test_key", "value1")
+        assert "value1" == Variable.get("test_key")
+        Variable.update("test_key", "value2")
+        assert "value2" == Variable.get("test_key")
+
+    def test_variable_update_fails_on_non_metastore_variable(self):
+        with mock.patch.dict('os.environ', AIRFLOW_VAR_KEY="env-value"):
+            with pytest.raises(AttributeError):
+                Variable.update("key", "new-value")
+
+    def test_variable_update_preserves_description(self):
+        Variable.set("key", "value", description="a test variable")
+        assert Variable.get("key") == "value"
+        Variable.update("key", "value2")
+        session = settings.Session()
+        test_var = session.query(Variable).filter(Variable.key == 'key').one()
+        assert test_var.val == "value2"
+        assert test_var.description == "a test variable"
+
+    def test_set_variable_sets_description(self):
+        Variable.set('key', 'value', description="a test variable")
+        session = settings.Session()
+        test_var = session.query(Variable).filter(Variable.key == 'key').one()
+        assert test_var.description == "a test variable"
+        assert test_var.val == 'value'
 
     def test_variable_set_existing_value_to_blank(self):
         test_value = 'Some value'
@@ -135,6 +184,10 @@ class TestVariable(unittest.TestCase):
     def test_get_non_existing_var_should_raise_key_error(self):
         with pytest.raises(KeyError):
             Variable.get("thisIdDoesNotExist")
+
+    def test_update_non_existing_var_should_raise_key_error(self):
+        with pytest.raises(KeyError):
+            Variable.update("thisIdDoesNotExist", "value")
 
     def test_get_non_existing_var_with_none_default_should_return_none(self):
         assert Variable.get("thisIdDoesNotExist", default_var=None) is None

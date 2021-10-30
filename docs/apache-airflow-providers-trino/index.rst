@@ -33,6 +33,7 @@ Content
     :caption: Resources
 
     PyPI Repository <https://pypi.org/project/apache-airflow-providers-trino/>
+    Installing from sources <installing-providers-from-sources>
 
 .. THE REMAINDER OF THE FILE IS AUTOMATICALLY GENERATED. IT WILL BE OVERWRITTEN AT RELEASE TIME!
 
@@ -50,7 +51,7 @@ Package apache-airflow-providers-trino
 `Trino <https://trino.io/>`__
 
 
-Release: 2.0.1
+Release: 2.0.2
 
 Provider package
 ----------------
@@ -71,7 +72,8 @@ PIP requirements
 PIP package         Version required
 ==================  ==================
 ``apache-airflow``  ``>=2.1.0``
-``trino``
+``pandas``          ``>=0.17.1, <2.0``
+``trino``           ``>=0.301.0``
 ==================  ==================
 
 .. include:: ../../airflow/providers/trino/CHANGELOG.rst

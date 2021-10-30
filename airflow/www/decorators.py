@@ -39,6 +39,7 @@ def action_logging(f: T) -> T:
 
     @functools.wraps(f)
     def wrapper(*args, **kwargs):
+        __tracebackhide__ = True  # Hide from pytest traceback.
 
         with create_session() as session:
             if g.user.is_anonymous:

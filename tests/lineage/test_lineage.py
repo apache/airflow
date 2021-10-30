@@ -15,15 +15,15 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-import unittest
 from unittest import mock
 
 from airflow.lineage import AUTO, apply_lineage, get_backend, prepare_lineage
 from airflow.lineage.backend import LineageBackend
 from airflow.lineage.entities import File
-from airflow.models import DAG, TaskInstance as TI
+from airflow.models import TaskInstance as TI
 from airflow.operators.dummy import DummyOperator
 from airflow.utils import timezone
+from airflow.utils.types import DagRunType
 from tests.test_utils.config import conf_vars
 
 DEFAULT_DATE = timezone.datetime(2016, 1, 1)
@@ -34,10 +34,8 @@ class CustomLineageBackend(LineageBackend):
         pass
 
 
-class TestLineage(unittest.TestCase):
-    def test_lineage(self):
-        dag = DAG(dag_id='test_prepare_lineage', start_date=DEFAULT_DATE)
-
+class TestLineage:
+    def test_lineage(self, dag_maker):
         f1s = "/tmp/does_not_exist_1-{}"
         f2s = "/tmp/does_not_exist_2-{}"
         f3s = "/tmp/does_not_exist_3"
@@ -45,7 +43,7 @@ class TestLineage(unittest.TestCase):
         file2 = File(f2s.format("{{ execution_date }}"))
         file3 = File(f3s)
 
-        with dag:
+        with dag_maker(dag_id='test_prepare_lineage', start_date=DEFAULT_DATE) as dag:
             op1 = DummyOperator(
                 task_id='leave1',
                 inlets=file1,
@@ -64,12 +62,13 @@ class TestLineage(unittest.TestCase):
             op4.set_downstream(op5)
 
         dag.clear()
+        dag_run = dag_maker.create_dagrun(run_type=DagRunType.SCHEDULED)
 
         # execution_date is set in the context in order to avoid creating task instances
-        ctx1 = {"ti": TI(task=op1, execution_date=DEFAULT_DATE), "execution_date": DEFAULT_DATE}
-        ctx2 = {"ti": TI(task=op2, execution_date=DEFAULT_DATE), "execution_date": DEFAULT_DATE}
-        ctx3 = {"ti": TI(task=op3, execution_date=DEFAULT_DATE), "execution_date": DEFAULT_DATE}
-        ctx5 = {"ti": TI(task=op5, execution_date=DEFAULT_DATE), "execution_date": DEFAULT_DATE}
+        ctx1 = {"ti": TI(task=op1, run_id=dag_run.run_id), "execution_date": DEFAULT_DATE}
+        ctx2 = {"ti": TI(task=op2, run_id=dag_run.run_id), "execution_date": DEFAULT_DATE}
+        ctx3 = {"ti": TI(task=op3, run_id=dag_run.run_id), "execution_date": DEFAULT_DATE}
+        ctx5 = {"ti": TI(task=op5, run_id=dag_run.run_id), "execution_date": DEFAULT_DATE}
 
         # prepare with manual inlets and outlets
         op1.pre_execute(ctx1)
@@ -99,13 +98,12 @@ class TestLineage(unittest.TestCase):
         assert len(op5.inlets) == 2
         op5.post_execute(ctx5)
 
-    def test_lineage_render(self):
+    def test_lineage_render(self, dag_maker):
         # tests inlets / outlets are rendered if they are added
         # after initialization
-        dag = DAG(dag_id='test_lineage_render', start_date=DEFAULT_DATE)
-
-        with dag:
+        with dag_maker(dag_id='test_lineage_render', start_date=DEFAULT_DATE):
             op1 = DummyOperator(task_id='task1')
+        dag_run = dag_maker.create_dagrun(run_type=DagRunType.SCHEDULED)
 
         f1s = "/tmp/does_not_exist_1-{}"
         file1 = File(f1s.format("{{ execution_date }}"))
@@ -114,14 +112,14 @@ class TestLineage(unittest.TestCase):
         op1.outlets.append(file1)
 
         # execution_date is set in the context in order to avoid creating task instances
-        ctx1 = {"ti": TI(task=op1, execution_date=DEFAULT_DATE), "execution_date": DEFAULT_DATE}
+        ctx1 = {"ti": TI(task=op1, run_id=dag_run.run_id), "execution_date": DEFAULT_DATE}
 
         op1.pre_execute(ctx1)
         assert op1.inlets[0].url == f1s.format(DEFAULT_DATE)
         assert op1.outlets[0].url == f1s.format(DEFAULT_DATE)
 
     @mock.patch("airflow.lineage.get_backend")
-    def test_lineage_is_sent_to_backend(self, mock_get_backend):
+    def test_lineage_is_sent_to_backend(self, mock_get_backend, dag_maker):
         class TestBackend(LineageBackend):
             def send_lineage(self, operator, inlets=None, outlets=None, context=None):
                 assert len(inlets) == 1
@@ -132,17 +130,17 @@ class TestLineage(unittest.TestCase):
 
         mock_get_backend.return_value = TestBackend()
 
-        dag = DAG(dag_id='test_lineage_is_sent_to_backend', start_date=DEFAULT_DATE)
-
-        with dag:
+        with dag_maker(dag_id='test_lineage_is_sent_to_backend', start_date=DEFAULT_DATE):
             op1 = DummyOperator(task_id='task1')
+        dag_run = dag_maker.create_dagrun(run_type=DagRunType.SCHEDULED)
 
         file1 = File("/tmp/some_file")
 
         op1.inlets.append(file1)
         op1.outlets.append(file1)
 
-        ctx1 = {"ti": TI(task=op1, execution_date=DEFAULT_DATE), "execution_date": DEFAULT_DATE}
+        (ti,) = dag_run.task_instances
+        ctx1 = {"ti": ti, "execution_date": DEFAULT_DATE}
 
         prep = prepare_lineage(func)
         prep(op1, ctx1)

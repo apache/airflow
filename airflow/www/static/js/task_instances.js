@@ -79,25 +79,32 @@ export default function tiTooltip(ti, { includeTryNumber = false } = {}) {
   if (ti.operator !== undefined) {
     tt += `Operator: ${escapeHtml(ti.operator)}<br>`;
   }
-  // Don't translate/format this, keep it as the full ISO8601 date
-  if (ti.start_date instanceof moment) {
-    tt += `Started: ${escapeHtml(ti.start_date.toISOString())}<br>`;
-  } else {
-    tt += `Started: ${escapeHtml(ti.start_date)}<br>`;
-  }
+
   // Calculate duration on the fly if task instance is still running
   if (ti.state === 'running') {
     const startDate = ti.start_date instanceof moment ? ti.start_date : moment(ti.start_date);
     ti.duration = moment().diff(startDate, 'second');
+  } else if (!ti.duration && ti.end_date) {
+    const startDate = ti.start_date instanceof moment ? ti.start_date : moment(ti.start_date);
+    const endDate = ti.end_date instanceof moment ? ti.end_date : moment(ti.end_date);
+    ti.duration = moment(endDate).diff(startDate, 'second');
   }
 
   tt += `Duration: ${escapeHtml(convertSecsToHumanReadable(ti.duration))}<br>`;
+
+  const intervalStart = ti.data_interval_start;
+  const intervalEnd = ti.data_interval_end;
+  if (intervalStart && intervalEnd) {
+    tt += '<br><strong>Data Interval:</strong><br>';
+    tt += `Start: ${formatDateTime(intervalStart)}<br>`;
+    tt += `End: ${formatDateTime(intervalEnd)}<br>`;
+  }
 
   if (includeTryNumber) {
     tt += `Try Number: ${escapeHtml(ti.try_number)}<br>`;
   }
   // dagTZ has been defined in dag.html
-  tt += generateTooltipDateTimes(ti.start_date, ti.end_date, dagTZ);
+  tt += generateTooltipDateTimes(ti.start_date, ti.end_date, dagTZ || 'UTC');
   return tt;
 }
 

@@ -70,24 +70,33 @@ class _PythonVirtualenvDecoratedOperator(DecoratedOperator, PythonVirtualenvOper
 T = TypeVar("T", bound=Callable)
 
 
-def _virtualenv_task(
-    python_callable: Optional[Callable] = None, multiple_outputs: Optional[bool] = None, **kwargs
-):
+class PythonVirtualenvDecoratorMixin:
     """
-    Python operator decorator. Wraps a function into an Airflow operator.
-    Accepts kwargs for operator kwarg. Can be reused in a single DAG.
+    Helper class for inheritance. This class is only used for the __init__.pyi so that IDEs
+    will autocomplete docker decorator functions
 
-    :param python_callable: Function to decorate
-    :type python_callable: Optional[Callable]
-    :param multiple_outputs: if set, function return value will be
-        unrolled to multiple XCom values. List/Tuples will unroll to xcom values
-        with index as key. Dict will unroll to xcom values with keys as XCom keys.
-        Defaults to False.
-    :type multiple_outputs: bool
+    :meta private:
     """
-    return task_decorator_factory(
-        python_callable=python_callable,
-        multiple_outputs=multiple_outputs,
-        decorated_operator_class=_PythonVirtualenvDecoratedOperator,
-        **kwargs,
-    )
+
+    def virtualenv(
+        self, python_callable: Optional[Callable] = None, multiple_outputs: Optional[bool] = None, **kwargs
+    ):
+        """
+        Wraps a python function into an Airflow operator to run via a Python virtual environment.
+
+        Accepts kwargs for operator kwarg. Can be reused in a single DAG.
+
+        :param python_callable: Function to decorate
+        :type python_callable: Optional[Callable]
+        :param multiple_outputs: if set, function return value will be
+            unrolled to multiple XCom values. List/Tuples will unroll to xcom values
+            with index as key. Dict will unroll to xcom values with keys as XCom keys.
+            Defaults to False.
+        :type multiple_outputs: bool
+        """
+        return task_decorator_factory(
+            python_callable=python_callable,
+            multiple_outputs=multiple_outputs,
+            decorated_operator_class=_PythonVirtualenvDecoratedOperator,
+            **kwargs,
+        )

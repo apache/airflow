@@ -28,6 +28,21 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+2.0.3
+.....
+
+Latest change: 2021-10-17
+
+================================================================================================  ===========  ==========================================================================================
+Commit                                                                                            Committed    Subject
+================================================================================================  ===========  ==========================================================================================
+`86a2a19ad <https://github.com/apache/airflow/commit/86a2a19ad2bdc87a9ad14bb7fde9313b2d7489bb>`_  2021-10-17   ``More f-strings (#18855)``
+`80b5e65a6 <https://github.com/apache/airflow/commit/80b5e65a6abf0a136c5690548c5039f90dda01ab>`_  2021-10-17   ``Remove unnecessary string concatenations in AirflowException in s3_to_hive.py (#19026)``
+`232f7d158 <https://github.com/apache/airflow/commit/232f7d158741405f959e8b09b1687238920306a0>`_  2021-10-10   ``fix get_connections deprecation warn in hivemetastore hook (#18854)``
+`840ea3efb <https://github.com/apache/airflow/commit/840ea3efb9533837e9f36b75fa527a0fbafeb23a>`_  2021-09-30   ``Update documentation for September providers release (#18613)``
+`a458fcc57 <https://github.com/apache/airflow/commit/a458fcc573845ff65244a2dafd204ed70129f3e8>`_  2021-09-27   ``Updating miscellaneous provider DAGs to use TaskFlow API where applicable (#18278)``
+================================================================================================  ===========  ==========================================================================================
+
 2.0.2
 .....
 
@@ -36,6 +51,7 @@ Latest change: 2021-08-30
 ================================================================================================  ===========  ======================================================================================
 Commit                                                                                            Committed    Subject
 ================================================================================================  ===========  ======================================================================================
+`0a6858847 <https://github.com/apache/airflow/commit/0a68588479e34cf175d744ea77b283d9d78ea71a>`_  2021-08-30   ``Add August 2021 Provider's documentation (#17890)``
 `da99c3fa6 <https://github.com/apache/airflow/commit/da99c3fa6c366d762bba9fbf3118cc3b3d55f6b4>`_  2021-08-30   ``HiveHook fix get_pandas_df() failure when it tries to read an empty table (#17777)``
 `be75dcd39 <https://github.com/apache/airflow/commit/be75dcd39cd10264048c86e74110365bd5daf8b7>`_  2021-08-23   ``Update description about the new ''connection-types'' provider meta-data``
 `76ed2a49c <https://github.com/apache/airflow/commit/76ed2a49c6cd285bf59706cf04f39a7444c382c9>`_  2021-08-19   ``Import Hooks lazily individually in providers manager (#17682)``

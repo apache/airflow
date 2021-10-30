@@ -19,6 +19,25 @@
 Changelog
 ---------
 
+4.1.0
+.....
+
+
+Features
+~~~~~~~~
+
+* ``Restore filename to template_fields (#18466)``
+
+Bug Fixes
+~~~~~~~~~
+
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Static start_date and default arg cleanup for misc. provider example DAGs (#18597)``
+   * ``Add Slack operators how-to guide (#18525)``
+
+
 4.0.1
 .....
 

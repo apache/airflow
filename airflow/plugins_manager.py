@@ -34,9 +34,11 @@ except ImportError:
 from airflow import settings
 from airflow.utils.entry_points import entry_points_with_dist
 from airflow.utils.file import find_path_from_directory
+from airflow.utils.module_loading import as_importable_string
 
 if TYPE_CHECKING:
     from airflow.hooks.base import BaseHook
+    from airflow.timetables.base import Timetable
 
 log = logging.getLogger(__name__)
 
@@ -58,6 +60,7 @@ flask_appbuilder_menu_links: Optional[List[Any]] = None
 global_operator_extra_links: Optional[List[Any]] = None
 operator_extra_links: Optional[List[Any]] = None
 registered_operator_link_classes: Optional[Dict[str, Type]] = None
+timetable_classes: Optional[Dict[str, Type["Timetable"]]] = None
 """Mapping of class names to class of OperatorLinks registered by plugins.
 
 Used by the DAG serialization code to only allow specific classes to be created
@@ -145,6 +148,9 @@ class AirflowPlugin:
     # These extra links will be available on the task page in form of
     # buttons.
     operator_extra_links: List[Any] = []
+
+    # A list of timetable classes that can be used for DAG scheduling.
+    timetables: List[Type["Timetable"]] = []
 
     @classmethod
     def validate(cls):
@@ -371,6 +377,27 @@ def initialize_extra_operators_links_plugins():
                 for link in plugin.operator_extra_links
             }
         )
+
+
+def initialize_timetables_plugins():
+    """Collect timetable classes registered by plugins."""
+    global timetable_classes
+
+    if timetable_classes is not None:
+        return
+
+    ensure_plugins_loaded()
+
+    if plugins is None:
+        raise AirflowPluginException("Can't load plugins.")
+
+    log.debug("Initialize extra timetables plugins")
+
+    timetable_classes = {
+        as_importable_string(timetable_class): timetable_class
+        for plugin in plugins
+        for timetable_class in plugin.timetables
+    }
 
 
 def integrate_executor_plugins() -> None:

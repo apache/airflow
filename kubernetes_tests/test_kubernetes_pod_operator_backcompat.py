@@ -34,7 +34,7 @@ from airflow.kubernetes.pod_runtime_info_env import PodRuntimeInfoEnv
 from airflow.kubernetes.secret import Secret
 from airflow.kubernetes.volume import Volume
 from airflow.kubernetes.volume_mount import VolumeMount
-from airflow.models import DAG, TaskInstance
+from airflow.models import DAG, DagRun, TaskInstance
 from airflow.providers.cncf.kubernetes.operators.kubernetes_pod import KubernetesPodOperator
 from airflow.providers.cncf.kubernetes.utils.pod_launcher import PodLauncher
 from airflow.providers.cncf.kubernetes.utils.xcom_sidecar import PodDefaults
@@ -50,7 +50,9 @@ def create_context(task):
     dag = DAG(dag_id="dag")
     tzinfo = pendulum.timezone("Europe/Amsterdam")
     execution_date = timezone.datetime(2016, 1, 1, 1, 0, 0, tzinfo=tzinfo)
-    task_instance = TaskInstance(task=task, execution_date=execution_date)
+    dag_run = DagRun(dag_id=dag.dag_id, execution_date=execution_date)
+    task_instance = TaskInstance(task=task)
+    task_instance.dag_run = dag_run
     task_instance.xcom_push = mock.Mock()
     return {
         "dag": dag,

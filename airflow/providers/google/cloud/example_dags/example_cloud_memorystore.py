@@ -79,7 +79,7 @@ MEMCACHED_INSTANCE = {"name": "", "node_count": 1, "node_config": {"cpu_count": 
 
 with models.DAG(
     "gcp_cloud_memorystore_redis",
-    schedule_interval=None,  # Override to match your needs
+    schedule_interval='@once',  # Override to match your needs
     start_date=dates.days_ago(1),
     tags=['example'],
 ) as dag:
@@ -255,7 +255,7 @@ with models.DAG(
 
 with models.DAG(
     "gcp_cloud_memorystore_memcached",
-    schedule_interval=None,  # Override to match your needs
+    schedule_interval='@once',  # Override to match your needs
     start_date=dates.days_ago(1),
     tags=['example'],
 ) as dag_memcache:

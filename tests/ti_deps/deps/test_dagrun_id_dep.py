@@ -49,10 +49,3 @@ class TestDagrunRunningDep(unittest.TestCase):
         dagrun.run_id = None
         ti = Mock(get_dagrun=Mock(return_value=dagrun))
         assert DagrunIdDep().is_met(ti=ti)
-
-    def test_dagrun_is_none(self):
-        """
-        Task instances which don't yet have an associated dagrun.
-        """
-        ti = Mock(get_dagrun=Mock(return_value=None))
-        assert DagrunIdDep().is_met(ti=ti)

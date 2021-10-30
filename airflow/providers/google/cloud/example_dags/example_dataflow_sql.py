@@ -37,7 +37,7 @@ DATAFLOW_SQL_LOCATION = os.environ.get("GCP_DATAFLOW_SQL_LOCATION", "us-west1")
 with models.DAG(
     dag_id="example_gcp_dataflow_sql",
     start_date=days_ago(1),
-    schedule_interval=None,  # Override to match your needs
+    schedule_interval='@once',  # Override to match your needs
     tags=['example'],
 ) as dag_sql:
     # [START howto_operator_start_sql_job]

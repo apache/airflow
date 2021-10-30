@@ -18,6 +18,74 @@
 Changelog
 ---------
 
+6.1.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add value to 'namespaceId' of query (#19163)``
+* ``Add pre-commit hook for common misspelling check in files (#18964)``
+* ``Support query timeout as an argument in CassandraToGCSOperator (#18927)``
+* ``Update BigQueryCreateExternalTableOperator doc and parameters (#18676)``
+* ``Replacing non-attribute template_fields for BigQueryToMsSqlOperator (#19052)``
+* ``Upgrade the Dataproc package to 3.0.0 and migrate from v1beta2 to v1 api (#18879)``
+* ``Use google cloud credentials when executing beam command in subprocess (#18992)``
+* ``Replace default api_version of FacebookAdsReportToGcsOperator (#18996)``
+* ``Dataflow Operators - use project and location from job in on_kill method. (#18699)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix hard-coded /tmp directory in CloudSQL Hook (#19229)``
+* ``Fix bug in Dataflow hook when no jobs are returned (#18981)``
+* ``Fix BigQueryToMsSqlOperator documentation (#18995)``
+* ``Move validation of templated input params to run after the context init (#19048)``
+* ``Google provider catch invalid secret name (#18790)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Update dataflow.py (#19231)``
+   * ``More f-strings (#18855)``
+   * ``Simplify strings previously split across lines (#18679)``
+
+6.0.0
+.....
+
+Breaking changes
+~~~~~~~~~~~~~~~~
+* ``Migrate Google Cloud Build from Discovery API to Python SDK (#18184)``
+
+Features
+~~~~~~~~
+
+* ``Add index to the dataset name to have separate dataset for each example DAG (#18459)``
+* ``Add missing __init__.py files for some test packages (#18142)``
+* ``Add possibility to run DAGs from system tests and see DAGs logs (#17868)``
+* ``Rename AzureDataLakeStorage to ADLS (#18493)``
+* ``Make next_dagrun_info take a data interval (#18088)``
+* ``Use parameters instead of params (#18143)``
+* ``New google operator: SQLToGoogleSheetsOperator (#17887)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix part of Google system tests (#18494)``
+* ``Fix kubernetes engine system test (#18548)``
+* ``Fix BigQuery system test (#18373)``
+* ``Fix error when create external table using table resource (#17998)``
+* ``Fix ''BigQuery'' data extraction in ''BigQueryToMySqlOperator'' (#18073)``
+* ``Fix providers tests in main branch with eager upgrades (#18040)``
+* ``fix(CloudSqlProxyRunner): don't query connections from Airflow DB (#18006)``
+* ``Remove check for at least one schema in GCSToBigquery (#18150)``
+* ``deduplicate running jobs on BigQueryInsertJobOperator (#17496)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Updating miscellaneous provider DAGs to use TaskFlow API where applicable (#18278)``
+   * ``Inclusive Language (#18349)``
+   * ``Change TaskInstance and TaskReschedule PK from execution_date to run_id (#17719)``
+
 5.1.0
 .....
 

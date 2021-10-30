@@ -16,7 +16,6 @@
 # under the License.
 
 from flask import current_app, request
-from flask_appbuilder.security.sqla.models import Permission, Role
 from marshmallow import ValidationError
 from sqlalchemy import func
 
@@ -32,6 +31,7 @@ from airflow.api_connexion.schemas.role_and_permission_schema import (
     role_schema,
 )
 from airflow.security import permissions
+from airflow.www.fab_security.sqla.models import Action, Role
 
 
 def _check_action_and_resource(sm, perms):
@@ -73,13 +73,13 @@ def get_roles(limit, order_by='name', offset=None):
     return role_collection_schema.dump(RoleCollection(roles=roles, total_entries=total_entries))
 
 
-@security.requires_access([(permissions.ACTION_CAN_READ, permissions.RESOURCE_PERMISSION)])
+@security.requires_access([(permissions.ACTION_CAN_READ, permissions.RESOURCE_ACTION)])
 @format_parameters({'limit': check_limit})
 def get_permissions(limit=None, offset=None):
     """Get permissions"""
     session = current_app.appbuilder.get_session
-    total_entries = session.query(func.count(Permission.id)).scalar()
-    query = session.query(Permission)
+    total_entries = session.query(func.count(Action.id)).scalar()
+    query = session.query(Action)
     actions = query.offset(offset).limit(limit).all()
     return action_collection_schema.dump(ActionCollection(actions=actions, total_entries=total_entries))
 
@@ -119,14 +119,13 @@ def patch_role(role_name, update_mask=None):
             else:
                 raise BadRequest(detail=f"'{field}' in update_mask is unknown")
         data = data_
-    perms = data.get("permissions", [])
-    if perms:
-        perms = [
-            (item['permission']['name'], item['view_menu']['name']) for item in data['permissions'] if item
-        ]
+    if "permissions" in data:
+        perms = [(item["action"]["name"], item["resource"]["name"]) for item in data["permissions"] if item]
         _check_action_and_resource(security_manager, perms)
-    security_manager.update_role(pk=role.id, name=data['name'])
-    security_manager.init_role(role_name=data['name'], perms=perms or role.permissions)
+        security_manager.bulk_sync_roles([{"role": role_name, "perms": perms}])
+    new_name = data.get("name")
+    if new_name is not None and new_name != role.name:
+        security_manager.update_role(role_id=role.id, name=new_name)
     return role_schema.dump(role)
 
 
@@ -142,9 +141,7 @@ def post_role():
         raise BadRequest(detail=str(err.messages))
     role = security_manager.find_role(name=data['name'])
     if not role:
-        perms = [
-            (item['permission']['name'], item['view_menu']['name']) for item in data['permissions'] if item
-        ]
+        perms = [(item['action']['name'], item['resource']['name']) for item in data['permissions'] if item]
         _check_action_and_resource(security_manager, perms)
         security_manager.init_role(role_name=data['name'], perms=perms)
         return role_schema.dump(role)

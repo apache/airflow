@@ -26,12 +26,14 @@ from tests.test_utils.gcp_system_helpers import CLOUD_DAG_FOLDER, GoogleSystemTe
 @pytest.mark.credential_file(GCP_DATAFUSION_KEY)
 class CloudDataFusionExampleDagsSystemTest(GoogleSystemTest):
     def setUp(self) -> None:
+        super().setUp()
         self.create_gcs_bucket(name=BUCKET_1)
         self.create_gcs_bucket(name=BUCKET_2)
 
     def tearDown(self) -> None:
         self.delete_gcs_bucket(name=BUCKET_1)
         self.delete_gcs_bucket(name=BUCKET_2)
+        super().tearDown()
 
     @provide_gcp_context(GCP_DATAFUSION_KEY)
     def test_run_example_dag_function(self):

@@ -15,14 +15,30 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""This module is deprecated. Please use :mod:`airflow.providers.microsoft.azure.operators.adls_list`."""
+"""This module is deprecated. Please use :mod:`airflow.providers.microsoft.azure.operators.adls`."""
 
 import warnings
 
-from airflow.providers.microsoft.azure.operators.adls_list import AzureDataLakeStorageListOperator  # noqa
+from airflow.providers.microsoft.azure.operators.adls import ADLSListOperator
 
 warnings.warn(
-    "This module is deprecated. Please use `airflow.providers.microsoft.azure.operators.adls_list`.",
+    "This module is deprecated. Please use `airflow.providers.microsoft.azure.operators.adls`.",
     DeprecationWarning,
     stacklevel=2,
 )
+
+
+class AzureDataLakeStorageListOperator(ADLSListOperator):
+    """
+    This class is deprecated.
+    Please use Please use :mod:`airflow.providers.microsoft.azure.operators.adls.ADLSListOperator`.
+    """
+
+    def __init__(self, *args, **kwargs):
+        warnings.warn(
+            """This class is deprecated.
+            Please use Please use :mod:`airflow.providers.microsoft.azure.operators.adls.ADLSListOperator`""",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        super().__init__(*args, **kwargs)

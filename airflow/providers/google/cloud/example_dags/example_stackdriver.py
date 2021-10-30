@@ -116,7 +116,7 @@ TEST_NOTIFICATION_CHANNEL_2 = {
 
 with models.DAG(
     'example_stackdriver',
-    schedule_interval=None,  # Override to match your needs
+    schedule_interval='@once',  # Override to match your needs
     start_date=days_ago(1),
     tags=['example'],
 ) as dag:

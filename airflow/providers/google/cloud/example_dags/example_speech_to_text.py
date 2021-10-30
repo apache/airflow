@@ -44,7 +44,7 @@ AUDIO = {"uri": f"gs://{BUCKET_NAME}/{FILENAME}"}
 with models.DAG(
     "example_gcp_speech_to_text",
     start_date=dates.days_ago(1),
-    schedule_interval=None,  # Override to match your needs
+    schedule_interval='@once',  # Override to match your needs
     tags=['example'],
 ) as dag:
     text_to_speech_synthesize_task = CloudTextToSpeechSynthesizeOperator(

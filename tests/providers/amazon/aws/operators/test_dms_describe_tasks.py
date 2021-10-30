@@ -18,7 +18,7 @@ import json
 import unittest
 from unittest import mock
 
-from airflow.models import DAG, TaskInstance
+from airflow.models import DAG, DagRun, TaskInstance
 from airflow.providers.amazon.aws.hooks.dms import DmsHook
 from airflow.providers.amazon.aws.operators.dms_describe_tasks import DmsDescribeTasksOperator
 from airflow.utils import timezone
@@ -88,9 +88,10 @@ class TestDmsDescribeTasksOperator(unittest.TestCase):
             task_id='describe_tasks', dag=self.dag, describe_tasks_kwargs={'Filters': [FILTER]}
         )
 
-        ti = TaskInstance(task=describe_task, execution_date=timezone.utcnow())
-        ti.run()
-        marker, response = ti.xcom_pull(task_ids=describe_task.task_id, key="return_value")
+        dag_run = DagRun(dag_id=self.dag.dag_id, execution_date=timezone.utcnow(), run_id="test")
+        ti = TaskInstance(task=describe_task)
+        ti.dag_run = dag_run
+        marker, response = describe_task.execute(ti.get_template_context())
 
         assert marker is None
         assert response == MOCK_RESPONSE

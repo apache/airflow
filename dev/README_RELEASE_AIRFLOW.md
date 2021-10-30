@@ -38,11 +38,13 @@
   - [Summarize the voting for the Apache Airflow release](#summarize-the-voting-for-the-apache-airflow-release)
   - [Publish release to SVN](#publish-release-to-svn)
   - [Prepare PyPI "release" packages](#prepare-pypi-release-packages)
-  - [Update CHANGELOG.md](#update-changelogmd)
   - [Manually prepare production Docker Image](#manually-prepare-production-docker-image)
   - [Publish documentation](#publish-documentation)
   - [Notify developers of release](#notify-developers-of-release)
   - [Update Announcements page](#update-announcements-page)
+  - [Update the bug issue template](#update-the-bug-issue-template)
+  - [Update default Airflow version in the helm chart](#update-default-airflow-version-in-the-helm-chart)
+  - [Update airflow/config_templates/config.yml file](#update-airflowconfig_templatesconfigyml-file)
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
 
@@ -92,6 +94,10 @@ The Release Candidate artifacts we vote upon should be the exact ones we vote ag
     ```
 
 - Set your version to 2.0.N in `setup.py` (without the RC tag)
+- Replace the version in `README.md` and verify that installation instructions work fine.
+- Add a commit that updates `CHANGELOG.md` to add changes from previous version if it has not already added.
+For now this is done manually, example run  `git log --oneline v2-2-test..HEAD --pretty='format:- %s'` and categorize them.
+- Add section for the release in `UPDATING.md`. If no new entries exist, put "No breaking changes" (e.g. `2.1.4`).
 - Commit the version change.
 
 - Tag your release
@@ -136,7 +142,7 @@ The Release Candidate artifacts we vote upon should be the exact ones we vote ag
 - Tag & Push the latest constraints files. This pushes constraints with rc suffix (this is expected)!
 
     ```shell script
-    git checkout constraints-${VERSION_CONSTRAINT_BRANCH}
+    git checkout origin/constraints-${VERSION_CONSTRAINT_BRANCH}
     git tag -s "constraints-${VERSION}"
     git push origin "constraints-${VERSION}"
     ```
@@ -167,7 +173,7 @@ branches: `vX-Y-test` and `vX-Y-stable` (for example with `2.1.0rc1` release you
 
    ```shell script
    # First clone the repo
-   BRANCH_PREFIX=v2-1
+   export BRANCH_PREFIX=v2-1
    git branch ${BRANCH_PREFIX}-test
    git branch ${BRANCH_PREFIX}-stable
    git push origin ${BRANCH_PREFIX}-test ${BRANCH_PREFIX}-stable
@@ -248,40 +254,55 @@ also performs image verification before pushing the images.
 
 Subject:
 
-```
-[VOTE] Airflow 2.0.2rc3
+```shell script
+cat <<EOF
+[VOTE] Release Airflow ${VERSION_WITHOUT_RC} from ${VERSION}
+EOF
 ```
 
 Body:
 
-```
-Hey all,
+```shell script
+cat <<EOF
+Hey fellow Airflowers,
 
-I have cut Airflow 2.0.2 RC3. This email is calling a vote on the release,
-which will last for 72 hours. Consider this my (binding) +1.
+I have cut Airflow ${VERSION}. This email is calling a vote on the release,
+which will last for 72 hours, from Friday, October 8, 2021 at 4:00 pm UTC
+until Monday, October 11, 2021 at 4:00 pm UTC, or until 3 binding +1 votes have been received.
 
-Airflow 2.0.2 RC3 is available at:
-https://dist.apache.org/repos/dist/dev/airflow/2.0.2rc3/
+https://www.timeanddate.com/worldclock/fixedtime.html?msg=8&iso=20211011T1600&p1=1440
 
-*apache-airflow-2.0.2rc3-source.tar.gz* is a source release that comes
-with INSTALL instructions.
-*apache-airflow-2.0.2rc3-bin.tar.gz* is the binary Python "sdist" release.
+Consider this my (binding) +1.
+
+Airflow ${VERSION} is available at:
+https://dist.apache.org/repos/dist/dev/airflow/$VERSION/
+
+*apache-airflow-${VERSION_WITHOUT_RC}-source.tar.gz* is a source release that comes with INSTALL instructions.
+*apache-airflow-${VERSION_WITHOUT_RC}.tar.gz* is the binary Python "sdist" release.
+*apache_airflow-${VERSION_WITHOUT_RC}-py3-none-any.whl* is the binary Python wheel "binary" release.
 
 Public keys are available at:
 https://dist.apache.org/repos/dist/release/airflow/KEYS
 
-Only votes from PMC members are binding, but the release manager should encourage members of the community
-to test the release and vote with "(non-binding)".
+Please vote accordingly:
+
+[ ] +1 approve
+[ ] +0 no opinion
+[ ] -1 disapprove with the reason
+
+Only votes from PMC members are binding, but all members of the community
+are encouraged to test the release and vote with "(non-binding)".
 
 The test procedure for PMCs and Contributors who would like to test this RC are described in
-https://github.com/apache/airflow/blob/main/dev/README.md#vote-and-verify-the-apache-airflow-release-candidate
+https://github.com/apache/airflow/blob/main/dev/README_RELEASE_AIRFLOW.md#verify-the-release-candidate-by-pmcs
 
-Please note that the version number excludes the `rcX` string, so it's now
-simply 2.0.2. This will allow us to rename the artifact without modifying
+Please note that the version number excludes the \`rcX\` string, so it's now
+simply ${VERSION_WITHOUT_RC}. This will allow us to rename the artifact without modifying
 the artifact checksums when we actually release.
 
+Full Changelog: https://github.com/apache/airflow/blob/${VERSION}/CHANGELOG.txt
 
-Changes since 2.0.2rc2:
+Changes since ${VERSION}:
 *Bugs*:
 [AIRFLOW-3732] Fix issue when trying to edit connection in RBAC UI
 [AIRFLOW-2866] Fix missing CSRF token head when using RBAC UI (#3804)
@@ -307,6 +328,7 @@ Changes since 2.0.2rc2:
 
 Cheers,
 <your name>
+EOF
 ```
 
 
@@ -332,9 +354,9 @@ The files should be present in the sub-folder of
 
 The following files should be present (9 files):
 
-* -bin-tar.gz + .asc + .sha512
 * -source.tar.gz + .asc + .sha512
-* -.whl + .asc + .sha512
+* .tar.gz + .asc + .sha512
+* -py3-none-any.whl + .asc + .sha512
 
 As a PMC you should be able to clone the SVN repository:
 
@@ -361,8 +383,8 @@ This can be done with the Apache RAT tool.
 
 * Download the latest jar from https://creadur.apache.org/rat/download_rat.cgi (unpack the binary,
   the jar is inside)
-* Unpack the binary (`-bin.tar.gz`) to a folder
-* Enter the folder and run the check (point to the place where you extracted the .jar)
+* Unpack the release source archive (the `<package + version>-source.tar.gz` file) to a folder
+* Enter the sources folder run the check
 
 ```shell script
 java -jar ../../apache-rat-0.13/apache-rat-0.13.jar -E .rat-excludes -d .
@@ -372,7 +394,7 @@ where `.rat-excludes` is the file in the root of Airflow source code.
 
 ## Signature check
 
-Make sure you have the key of person signed imported in your GPG. You can find the valid keys in
+Make sure you have imported into your GPG the PGP key of the person signing the release. You can find the valid keys in
 [KEYS](https://dist.apache.org/repos/dist/release/airflow/KEYS).
 
 You can import the whole KEYS file:
@@ -404,7 +426,7 @@ Once you have the keys, the signatures can be verified by running this:
 ```shell script
 for i in *.asc
 do
-   echo "Checking $i"; gpg --verify $i
+   echo -e "Checking $i\n"; gpg --verify $i
 done
 ```
 
@@ -416,14 +438,15 @@ warning. By importing the server in the previous step and importing it via ID fr
 this is a valid Key already.
 
 ```
-Checking apache-airflow-2.0.2rc4-bin.tar.gz.asc
-gpg: assuming signed data in 'apache-airflow-2.0.2rc4-bin.tar.gz'
+Checking apache-airflow-2.0.2rc4.tar.gz.asc
+gpg: assuming signed data in 'apache-airflow-2.0.2rc4.tar.gz'
 gpg: Signature made sob, 22 sie 2020, 20:28:28 CEST
 gpg:                using RSA key 12717556040EEF2EEAF1B9C275FCCD0A25FA0E4B
 gpg: Good signature from "Kaxil Naik <kaxilnaik@gmail.com>" [unknown]
 gpg: WARNING: This key is not certified with a trusted signature!
 gpg:          There is no indication that the signature belongs to the owner.
 Primary key fingerprint: 1271 7556 040E EF2E EAF1  B9C2 75FC CD0A 25FA 0E4B
+
 Checking apache_airflow-2.0.2rc4-py2.py3-none-any.whl.asc
 gpg: assuming signed data in 'apache_airflow-2.0.2rc4-py2.py3-none-any.whl'
 gpg: Signature made sob, 22 sie 2020, 20:28:31 CEST
@@ -432,6 +455,7 @@ gpg: Good signature from "Kaxil Naik <kaxilnaik@gmail.com>" [unknown]
 gpg: WARNING: This key is not certified with a trusted signature!
 gpg:          There is no indication that the signature belongs to the owner.
 Primary key fingerprint: 1271 7556 040E EF2E EAF1  B9C2 75FC CD0A 25FA 0E4B
+
 Checking apache-airflow-2.0.2rc4-source.tar.gz.asc
 gpg: assuming signed data in 'apache-airflow-2.0.2rc4-source.tar.gz'
 gpg: Signature made sob, 22 sie 2020, 20:28:25 CEST
@@ -456,7 +480,7 @@ done
 You should get output similar to:
 
 ```
-Checking apache-airflow-2.0.2rc4-bin.tar.gz.sha512
+Checking apache-airflow-2.0.2rc4.tar.gz.sha512
 Checking apache_airflow-2.0.2rc4-py2.py3-none-any.whl.sha512
 Checking apache-airflow-2.0.2rc4-source.tar.gz.sha512
 ```
@@ -504,7 +528,7 @@ Once the vote has been passed, you will need to send a result vote to dev@airflo
 Subject:
 
 ```
-[RESULT][VOTE] Airflow 2.0.2rc3
+[RESULT][VOTE] Release Airflow 2.0.2 from 2.0.2rc3
 ```
 
 Message:
@@ -561,12 +585,12 @@ export AIRFLOW_DEV_SVN=$(pwd)
 # svn checkout https://dist.apache.org/repos/dist/release/airflow airflow-release
 cd <YOUR_AIFLOW_RELEASE_SVN>
 svn update
+export AIRFLOW_RELEASE_SVN=$(pwd)
 
 export RC=2.0.2rc5
 export VERSION=${RC/rc?/}
 
 # Create new folder for the release
-cd airflow-release
 svn mkdir "${VERSION}"
 cd "${VERSION}"
 
@@ -596,7 +620,7 @@ previously released RC candidates in "${AIRFLOW_SOURCES}/dist":
 - Verify the artifacts that would be uploaded:
 
     ```shell script
-    cd "${AIRFLOW_SOURCES}"
+    cd "${AIRFLOW_RELEASE_SVN}/${VERSION}"
     twine check dist/*
     ```
 
@@ -617,16 +641,6 @@ previously released RC candidates in "${AIRFLOW_SOURCES}/dist":
 
 - Again, confirm that the package is available here: https://pypi.python.org/pypi/apache-airflow
 
-## Update CHANGELOG.md
-
-- Get a diff between the last version and the current version:
-
-    ```shell script
-    git log 1.8.0..1.9.0 --pretty=oneline
-    ```
-
-- Update CHANGELOG.md with the details, and commit it.
-
 - Re-Tag & Push the constraints files with the final release version.
 
     ```shell script
@@ -642,6 +656,7 @@ previously released RC candidates in "${AIRFLOW_SOURCES}/dist":
     (both airflow and latest provider packages).
 
     ```shell script
+    git checkout ${VERSION}
     git push origin ${VERSION}
     ```
 
@@ -674,6 +689,7 @@ Documentation for providers can be found in the ``/docs/apache-airflow`` directo
     ```shell script
     git clone https://github.com/apache/airflow-site.git airflow-site
     cd airflow-site
+    git checkout -b ${VERSION}-docs
     export AIRFLOW_SITE_DIRECTORY="$(pwd)"
     ```
 
@@ -690,13 +706,15 @@ Documentation for providers can be found in the ``/docs/apache-airflow`` directo
     ./docs/start_doc_server.sh
     ```
 
-- Copy the documentation to the ``airflow-site`` repository, create commit and push changes.
+- Copy the documentation to the ``airflow-site`` repository, create commit, push changes and open a PR.
 
     ```shell script
     ./docs/publish_docs.py --package-filter apache-airflow --package-filter docker-stack
     cd "${AIRFLOW_SITE_DIRECTORY}"
+    git add .
     git commit -m "Add documentation for Apache Airflow ${VERSION}"
     git push
+    # and finally open a PR
     ```
 
 ## Notify developers of release
@@ -720,22 +738,23 @@ Dear Airflow community,
 
 I'm happy to announce that Airflow ${VERSION} was just released.
 
-The source release, as well as the binary "sdist" release, are available
-here:
+The released sources and packages can be downloaded via https://airflow.apache.org/docs/apache-airflow/stable/installation/installing-from-sources.html
 
-https://dist.apache.org/repos/dist/release/airflow/${VERSION}/
+Other installation methods are described in https://airflow.apache.org/docs/apache-airflow/stable/installation/
 
-We also made this version available on PyPI for convenience (`pip install apache-airflow`):
-
-https://pypi.python.org/pypi/apache-airflow
+We also made this version available on PyPI for convenience:
+\`pip install apache-airflow\`
+https://pypi.org/project/apache-airflow/${VERSION}/
 
 The documentation is available on:
 https://airflow.apache.org/
 https://airflow.apache.org/docs/apache-airflow/${VERSION}/
 
 Find the CHANGELOG here for more details:
+https://airflow.apache.org/docs/apache-airflow/${VERSION}/changelog.html
 
-https://airflow.apache.org/changelog.html#airflow-1-10-2-2019-01-19
+Container images are published at:
+https://hub.docker.com/r/apache/airflow/tags/?page=1&name=${VERSION}
 
 Cheers,
 <your name>
@@ -745,3 +764,25 @@ EOF
 ## Update Announcements page
 
 Update "Announcements" page at the [Official Airflow website](https://airflow.apache.org/announcements/)
+
+## Update the bug issue template
+
+Make sure the version you just released is listed in the bug issue template in `.github/ISSUE_TEMPLATE/airflow_bug_report.yml`.
+
+## Update default Airflow version in the helm chart
+
+Update the values of `airflowVersion`, `defaultAirflowTag` and `appVersion` in the helm chart so the next helm chart release
+will use the latest released version. You'll need to update `chart/values.yaml`, `chart/values.schema.json` and
+`chart/Chart.yaml`.
+
+## Update airflow/config_templates/config.yml file
+
+File `airflow/config_templates/config.yml` contains documentation on all configuration options available in Airflow. The `version_added` fields must be updated when a new Airflow version is released.
+
+- Get a diff between the released versions and the current local file on `main` branch:
+
+    ```shell script
+    ./dev/validate_version_added_fields_in_config.py
+    ```
+
+- Update `airflow/config_templates/config.yml` with the details, and commit it.

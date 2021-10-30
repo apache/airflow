@@ -18,7 +18,6 @@
 
 
 import ast
-import unittest
 from copy import deepcopy
 from unittest import mock
 
@@ -27,7 +26,6 @@ import pytest
 from googleapiclient.errors import HttpError
 
 from airflow.exceptions import AirflowException
-from airflow.models import DAG, TaskInstance
 from airflow.providers.google.cloud.operators.compute import (
     ComputeEngineCopyInstanceTemplateOperator,
     ComputeEngineInstanceGroupUpdateManagerTemplateOperator,
@@ -48,7 +46,7 @@ SET_MACHINE_TYPE_BODY = {'machineType': f'zones/{GCE_ZONE}/machineTypes/{GCE_SHO
 DEFAULT_DATE = timezone.datetime(2017, 1, 1)
 
 
-class TestGceInstanceStart(unittest.TestCase):
+class TestGceInstanceStart:
     @mock.patch('airflow.providers.google.cloud.operators.compute.ComputeEngineHook')
     def test_instance_start(self, mock_hook):
         mock_hook.return_value.start_instance.return_value = True
@@ -69,26 +67,24 @@ class TestGceInstanceStart(unittest.TestCase):
     # Setting all the operator's input parameters as template dag_ids
     # (could be anything else) just to test if the templating works for all fields
     @mock.patch('airflow.providers.google.cloud.operators.compute.ComputeEngineHook')
-    def test_instance_start_with_templates(self, _):
-        dag_id = 'test_dag_id'
-        args = {'start_date': DEFAULT_DATE}
-        self.dag = DAG(dag_id, default_args=args)
-        op = ComputeEngineStartInstanceOperator(
+    def test_instance_start_with_templates(self, _, create_task_instance_of_operator):
+        dag_id = 'test_instance_start_with_templates'
+        ti = create_task_instance_of_operator(
+            ComputeEngineStartInstanceOperator,
+            dag_id=dag_id,
             project_id='{{ dag.dag_id }}',
             zone='{{ dag.dag_id }}',
             resource_id='{{ dag.dag_id }}',
             gcp_conn_id='{{ dag.dag_id }}',
             api_version='{{ dag.dag_id }}',
             task_id='id',
-            dag=self.dag,
         )
-        ti = TaskInstance(op, DEFAULT_DATE)
         ti.render_templates()
-        assert dag_id == getattr(op, 'project_id')
-        assert dag_id == getattr(op, 'zone')
-        assert dag_id == getattr(op, 'resource_id')
-        assert dag_id == getattr(op, 'gcp_conn_id')
-        assert dag_id == getattr(op, 'api_version')
+        assert dag_id == ti.task.project_id
+        assert dag_id == ti.task.zone
+        assert dag_id == ti.task.resource_id
+        assert dag_id == ti.task.gcp_conn_id
+        assert dag_id == ti.task.api_version
 
     @mock.patch('airflow.providers.google.cloud.operators.compute.ComputeEngineHook')
     def test_start_should_throw_ex_when_missing_project_id(self, mock_hook):
@@ -129,7 +125,7 @@ class TestGceInstanceStart(unittest.TestCase):
         mock_hook.assert_not_called()
 
 
-class TestGceInstanceStop(unittest.TestCase):
+class TestGceInstanceStop:
     @mock.patch('airflow.providers.google.cloud.operators.compute.ComputeEngineHook')
     def test_instance_stop(self, mock_hook):
         op = ComputeEngineStopInstanceOperator(
@@ -148,26 +144,24 @@ class TestGceInstanceStop(unittest.TestCase):
     # Setting all the operator's input parameters as templated dag_ids
     # (could be anything else) just to test if the templating works for all fields
     @mock.patch('airflow.providers.google.cloud.operators.compute.ComputeEngineHook')
-    def test_instance_stop_with_templates(self, _):
-        dag_id = 'test_dag_id'
-        args = {'start_date': DEFAULT_DATE}
-        self.dag = DAG(dag_id, default_args=args)
-        op = ComputeEngineStopInstanceOperator(
+    def test_instance_stop_with_templates(self, _, create_task_instance_of_operator):
+        dag_id = 'test_instance_stop_with_templates'
+        ti = create_task_instance_of_operator(
+            ComputeEngineStopInstanceOperator,
+            dag_id=dag_id,
             project_id='{{ dag.dag_id }}',
             zone='{{ dag.dag_id }}',
             resource_id='{{ dag.dag_id }}',
             gcp_conn_id='{{ dag.dag_id }}',
             api_version='{{ dag.dag_id }}',
             task_id='id',
-            dag=self.dag,
         )
-        ti = TaskInstance(op, DEFAULT_DATE)
         ti.render_templates()
-        assert dag_id == getattr(op, 'project_id')
-        assert dag_id == getattr(op, 'zone')
-        assert dag_id == getattr(op, 'resource_id')
-        assert dag_id == getattr(op, 'gcp_conn_id')
-        assert dag_id == getattr(op, 'api_version')
+        assert dag_id == ti.task.project_id
+        assert dag_id == ti.task.zone
+        assert dag_id == ti.task.resource_id
+        assert dag_id == ti.task.gcp_conn_id
+        assert dag_id == ti.task.api_version
 
     @mock.patch('airflow.providers.google.cloud.operators.compute.ComputeEngineHook')
     def test_stop_should_throw_ex_when_missing_project_id(self, mock_hook):
@@ -216,7 +210,7 @@ class TestGceInstanceStop(unittest.TestCase):
         mock_hook.assert_not_called()
 
 
-class TestGceInstanceSetMachineType(unittest.TestCase):
+class TestGceInstanceSetMachineType:
     @mock.patch('airflow.providers.google.cloud.operators.compute.ComputeEngineHook')
     def test_set_machine_type(self, mock_hook):
         mock_hook.return_value.set_machine_type.return_value = True
@@ -240,11 +234,11 @@ class TestGceInstanceSetMachineType(unittest.TestCase):
     # Setting all the operator's input parameters as templated dag_ids
     # (could be anything else) just to test if the templating works for all fields
     @mock.patch('airflow.providers.google.cloud.operators.compute.ComputeEngineHook')
-    def test_set_machine_type_with_templates(self, _):
-        dag_id = 'test_dag_id'
-        args = {'start_date': DEFAULT_DATE}
-        self.dag = DAG(dag_id, default_args=args)
-        op = ComputeEngineSetMachineTypeOperator(
+    def test_set_machine_type_with_templates(self, _, create_task_instance_of_operator):
+        dag_id = 'test_set_machine_type_with_templates'
+        ti = create_task_instance_of_operator(
+            ComputeEngineSetMachineTypeOperator,
+            dag_id=dag_id,
             project_id='{{ dag.dag_id }}',
             zone='{{ dag.dag_id }}',
             resource_id='{{ dag.dag_id }}',
@@ -252,15 +246,13 @@ class TestGceInstanceSetMachineType(unittest.TestCase):
             gcp_conn_id='{{ dag.dag_id }}',
             api_version='{{ dag.dag_id }}',
             task_id='id',
-            dag=self.dag,
         )
-        ti = TaskInstance(op, DEFAULT_DATE)
         ti.render_templates()
-        assert dag_id == getattr(op, 'project_id')
-        assert dag_id == getattr(op, 'zone')
-        assert dag_id == getattr(op, 'resource_id')
-        assert dag_id == getattr(op, 'gcp_conn_id')
-        assert dag_id == getattr(op, 'api_version')
+        assert dag_id == ti.task.project_id
+        assert dag_id == ti.task.zone
+        assert dag_id == ti.task.resource_id
+        assert dag_id == ti.task.gcp_conn_id
+        assert dag_id == ti.task.api_version
 
     @mock.patch('airflow.providers.google.cloud.operators.compute.ComputeEngineHook')
     def test_set_machine_type_should_throw_ex_when_missing_project_id(self, mock_hook):
@@ -474,7 +466,7 @@ GCE_INSTANCE_TEMPLATE_BODY_GET_NEW = deepcopy(GCE_INSTANCE_TEMPLATE_BODY_GET)
 GCE_INSTANCE_TEMPLATE_BODY_GET_NEW['name'] = GCE_INSTANCE_TEMPLATE_NEW_NAME
 
 
-class TestGceInstanceTemplateCopy(unittest.TestCase):
+class TestGceInstanceTemplateCopy:
     @mock.patch('airflow.providers.google.cloud.operators.compute.ComputeEngineHook')
     def test_successful_copy_template(self, mock_hook):
         mock_hook.return_value.get_instance_template.side_effect = [
@@ -873,7 +865,7 @@ GCE_INSTANCE_GROUP_MANAGER_UPDATE_POLICY = {
 }
 
 
-class TestGceInstanceGroupManagerUpdate(unittest.TestCase):
+class TestGceInstanceGroupManagerUpdate:
     @mock.patch('airflow.providers.google.cloud.operators.compute.ComputeEngineHook')
     def test_successful_instance_group_update(self, mock_hook):
         mock_hook.return_value.get_instance_group_manager.return_value = deepcopy(

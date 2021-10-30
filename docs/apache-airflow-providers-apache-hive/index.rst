@@ -40,6 +40,7 @@ Content
 
     Example DAGs <https://github.com/apache/airflow/tree/main/airflow/providers/apache/hive/example_dags>
     PyPI Repository <https://pypi.org/project/apache-airflow-providers-apache-hive/>
+    Installing from sources <installing-providers-from-sources>
 
 .. THE REMAINDER OF THE FILE IS AUTOMATICALLY GENERATED. IT WILL BE OVERWRITTEN AT RELEASE TIME!
 
@@ -57,7 +58,7 @@ Package apache-airflow-providers-apache-hive
 `Apache Hive <https://hive.apache.org/>`__
 
 
-Release: 2.0.2
+Release: 2.0.3
 
 Provider package
 ----------------
@@ -79,6 +80,7 @@ PIP package         Version required
 ==================  ================================
 ``apache-airflow``  ``>=2.1.0``
 ``hmsclient``       ``>=0.1.0``
+``pandas``          ``>=0.17.1, <2.0``
 ``pyhive[hive]``    ``>=0.6.0;python_version<"3.9"``
 ``thrift``          ``>=0.9.2``
 ==================  ================================
@@ -113,7 +115,7 @@ Downloading official packages
 You can download officially released packages and verify their checksums and signatures from the
 `Official Apache Download site <https://downloads.apache.org/airflow/providers/>`_
 
-* `The apache-airflow-providers-apache-hive 2.0.2 sdist package <https://downloads.apache.org/airflow/providers/apache-airflow-providers-apache-hive-2.0.2.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache-airflow-providers-apache-hive-2.0.2.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache-airflow-providers-apache-hive-2.0.2.tar.gz.sha512>`__)
-* `The apache-airflow-providers-apache-hive 2.0.2 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_apache_hive-2.0.2-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_apache_hive-2.0.2-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_apache_hive-2.0.2-py3-none-any.whl.sha512>`__)
+* `The apache-airflow-providers-apache-hive 2.0.3 sdist package <https://downloads.apache.org/airflow/providers/apache-airflow-providers-apache-hive-2.0.3.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache-airflow-providers-apache-hive-2.0.3.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache-airflow-providers-apache-hive-2.0.3.tar.gz.sha512>`__)
+* `The apache-airflow-providers-apache-hive 2.0.3 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_apache_hive-2.0.3-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_apache_hive-2.0.3-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_apache_hive-2.0.3-py3-none-any.whl.sha512>`__)
 
 .. include:: ../../airflow/providers/apache/hive/CHANGELOG.rst

@@ -258,8 +258,8 @@ class MLEngineStartBatchPredictionJobOperator(BaseOperator):
             if not self._version_name:
                 prediction_request['predictionInput']['modelName'] = origin_name
             else:
-                prediction_request['predictionInput']['versionName'] = origin_name + '/versions/{}'.format(
-                    self._version_name
+                prediction_request['predictionInput']['versionName'] = (
+                    origin_name + f'/versions/{self._version_name}'
                 )
 
         if self._max_worker_count:

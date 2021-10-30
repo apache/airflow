@@ -28,6 +28,7 @@ from typing import Any, Dict, Iterable, List
 import jsonschema
 import yaml
 from jsonpath_ng.ext import parse
+from rich.console import Console
 from tabulate import tabulate
 
 try:
@@ -351,6 +352,19 @@ def check_providers_are_mentioned_in_issue_template(yaml_files: Dict[str, Dict])
         sys.exit(1)
 
 
+def check_providers_have_all_documentation_files(yaml_files: Dict[str, Dict]):
+    expected_files = ["commits.rst", "index.rst", "installing-providers-from-sources.rst"]
+    for package_info in yaml_files.values():
+        package_name = package_info['package-name']
+        provider_dir = os.path.join(DOCS_DIR, package_name)
+        for file in expected_files:
+            if not os.path.isfile(os.path.join(provider_dir, file)):
+                errors.append(
+                    f"The provider {package_name} misses `{file}` in documentation. "
+                    f"Please add the file to {provider_dir}"
+                )
+
+
 if __name__ == '__main__':
     all_provider_files = sorted(glob(f"{ROOT_DIR}/airflow/providers/**/provider.yaml", recursive=True))
     if len(sys.argv) > 1:
@@ -371,6 +385,7 @@ if __name__ == '__main__':
     check_hook_classes(all_parsed_yaml_files)
     check_unique_provider_name(all_parsed_yaml_files)
     check_providers_are_mentioned_in_issue_template(all_parsed_yaml_files)
+    check_providers_have_all_documentation_files(all_parsed_yaml_files)
 
     if all_files_loaded:
         # Only check those if all provider files are loaded
@@ -378,8 +393,8 @@ if __name__ == '__main__':
         check_invalid_integration(all_parsed_yaml_files)
 
     if errors:
-        print(f"Found {len(errors)} errors")
+        console = Console(width=400, color_system="standard")
+        console.print(f"[red]Found {len(errors)} errors in providers[/]")
         for error in errors:
-            print(error)
-            print()
+            console.print(f"[red]Error:[/] {error}")
         sys.exit(1)

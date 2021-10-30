@@ -41,6 +41,12 @@ database second.
 If you enable an alternative secrets backend, it will be searched first, followed by environment variables,
 then metastore.  This search ordering is not configurable.
 
+.. warning::
+
+    When using environment variables or an alternative secrets backend to store secrets or variables, it is possible to create key collisions.
+    In the event of a duplicated key between backends, all write operations will update the value in the metastore, but all read operations will
+    return the first match for the requested key starting with the custom backend, then the environment variables and finally the metastore.
+
 .. _secrets_backend_configuration:
 
 Configuration

@@ -138,7 +138,7 @@ db_patch_body = {"charset": "utf16", "collation": "utf16_general_ci"}
 
 with models.DAG(
     'example_gcp_sql',
-    schedule_interval=None,  # Override to match your needs
+    schedule_interval='@once',  # Override to match your needs
     start_date=days_ago(1),
     tags=['example'],
 ) as dag:

@@ -19,7 +19,7 @@
 
 .. _howto/connection:adf:
 
-Microsoft Azure Data Factory Connection
+Microsoft Azure Data Factory
 =======================================
 
 The Microsoft Azure Data Factory connection type enables the Azure Data Factory Integrations.
@@ -41,24 +41,30 @@ All hooks and operators related to Microsoft Azure Data Factory use ``azure_data
 Configuring the Connection
 --------------------------
 
-Login
+Client ID
     Specify the ``client_id`` used for the initial connection.
     This is needed for *token credentials* authentication mechanism.
 
-Password
+Secret
     Specify the ``secret`` used for the initial connection.
     This is needed for *token credentials* authentication mechanism.
 
-Extra (optional)
-    Specify the extra parameters (as json dictionary) that can be used in Azure Data Lake connection.
-    The following parameters are all optional:
+Tenant ID
+    Specify the ``tenantId`` used for the initial connection.
+    This is needed for *token credentials* authentication mechanism.
 
-    * ``tenantId``: Specify the tenant to use.
-      This is  needed for *token credentials* authentication mechanism.
-    * ``subscriptionId``: Specify the subscription id to use.
-      This is  needed for *token credentials* authentication mechanism.
-    * ``resourceGroup``: Specify the azure resource group name.
-    * ``factory``: Specify the azure data factory to use
+Subscription ID
+    Specify the ``subscriptionId`` used for the initial connection.
+    This is needed for *token credentials* authentication mechanism.
+
+Factory Name (optional)
+    Specify the Azure Data Factory to interface with.
+    If not specified in the connection, this needs to be passed in directly to hooks, operators, and sensors.
+
+Resource Group Name (optional)
+    Specify the Azure Resource Group Name under which the desired data factory resides.
+    If not specified in the connection, this needs to be passed in directly to hooks, operators, and sensors.
+
 
 When specifying the connection in environment variable you should specify
 it using URI syntax.

@@ -19,6 +19,49 @@
 Changelog
 ---------
 
+2.3.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add support of placement in the DockerSwarmOperator (#18990)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fixup string concatenations (#19099)``
+* ``Remove the docker timeout workaround (#18872)``
+
+
+Other
+~~~~~
+
+   * ``Move docker decorator example dag to docker provider (#18739)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+2.2.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add a Docker Taskflow decorator (#15330)``
+
+This version of Docker Provider has a new feature - TaskFlow decorator that only works in Airflow 2.2.
+If you try to use the decorator in pre-Airflow 2.2 version you will get an error:
+
+.. code-block:: text
+
+    AttributeError: '_TaskDecorator' object has no attribute 'docker'
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Static start_date and default arg cleanup for misc. provider example DAGs (#18597)``
+   * ``Cope with '@task.docker' decorated function not returning anything (#18463)``
+
 2.1.1
 .....
 

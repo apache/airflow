@@ -39,7 +39,7 @@ from tests.test_utils.db import clear_db_dags, clear_db_runs
 
 dag_folder_path = '/'.join(os.path.realpath(__file__).split('/')[:-1])
 
-DEFAULT_DATE = timezone.make_aware(datetime(2015, 1, 1))
+DEFAULT_DATE = timezone.make_aware(datetime(2015, 1, 1), timezone=timezone.utc)
 TEST_DAG_FOLDER = os.path.join(os.path.dirname(dag_folder_path), 'dags')
 TEST_DAG_ID = 'unit_tests'
 
@@ -157,6 +157,16 @@ class TestCliDags(unittest.TestCase):
             verbose=False,
         )
         mock_run.reset_mock()
+
+    @mock.patch("airflow.cli.commands.dag_command.get_dag")
+    def test_backfill_fails_without_loading_dags(self, mock_get_dag):
+
+        cli_args = self.parser.parse_args(['dags', 'backfill', 'example_bash_operator'])
+
+        with pytest.raises(AirflowException):
+            dag_command.dag_backfill(cli_args)
+
+        mock_get_dag.assert_not_called()
 
     def test_show_dag_print(self):
         with contextlib.redirect_stdout(io.StringIO()) as temp_stdout:
@@ -315,7 +325,10 @@ class TestCliDags(unittest.TestCase):
             dag = self.dagbag.dags[dag_id]
             # Create a DagRun for each DAG, to prepare for next step
             dag.create_dagrun(
-                run_type=DagRunType.MANUAL, execution_date=now, start_date=now, state=State.FAILED
+                run_type=DagRunType.SCHEDULED,
+                execution_date=now,
+                start_date=now,
+                state=State.FAILED,
             )
 
             # Test num-executions = 1 (default)
@@ -357,7 +370,7 @@ class TestCliDags(unittest.TestCase):
         assert "airflow" in out
         assert "paused" in out
         assert "airflow/example_dags/example_complex.py" in out
-        assert "False" in out
+        assert "- dag_id:" in out
 
     def test_cli_list_dag_runs(self):
         dag_command.dag_trigger(
@@ -510,6 +523,7 @@ class TestCliDags(unittest.TestCase):
                     executor=mock_executor.return_value,
                     start_date=cli_args.execution_date,
                     end_date=cli_args.execution_date,
+                    run_at_least_once=True,
                 ),
             ]
         )
@@ -540,6 +554,7 @@ class TestCliDags(unittest.TestCase):
                     executor=mock_executor.return_value,
                     start_date=cli_args.execution_date,
                     end_date=cli_args.execution_date,
+                    run_at_least_once=True,
                 ),
             ]
         )

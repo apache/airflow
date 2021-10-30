@@ -19,6 +19,17 @@
 Changelog
 ---------
 
+1.0.1
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix unexpected bug in exiting hook context manager (#18014)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 1.0.0
 .....
 

@@ -26,10 +26,6 @@ analyzing data to find meaningful insights using familiar SQL.
 Airflow provides operators to manage datasets and tables, run queries and validate
 data.
 
-.. contents::
-  :depth: 1
-  :local:
-
 Prerequisite Tasks
 ^^^^^^^^^^^^^^^^^^
 

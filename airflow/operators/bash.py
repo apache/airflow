@@ -44,6 +44,11 @@ class BashOperator(BaseOperator):
         of inheriting the current process environment, which is the default
         behavior. (templated)
     :type env: dict
+    :param append_env: If False(default) uses the environment variables passed in env params
+        and does not inherit the current process environment. If True, inherits the environment variables
+        from current passes and then environment variable passed by the user will either update the existing
+        inherited environment variables or the new variables gets appended to it
+    :type append_env: bool
     :param output_encoding: Output encoding of bash command
     :type output_encoding: str
     :param skip_exit_code: If task exits with this exit code, leave the task
@@ -135,6 +140,7 @@ class BashOperator(BaseOperator):
         *,
         bash_command: str,
         env: Optional[Dict[str, str]] = None,
+        append_env: bool = False,
         output_encoding: str = 'utf-8',
         skip_exit_code: int = 99,
         cwd: str = None,
@@ -146,6 +152,7 @@ class BashOperator(BaseOperator):
         self.output_encoding = output_encoding
         self.skip_exit_code = skip_exit_code
         self.cwd = cwd
+        self.append_env = append_env
         if kwargs.get('xcom_push') is not None:
             raise AirflowException("'xcom_push' was deprecated, use 'BaseOperator.do_xcom_push' instead")
 
@@ -156,9 +163,14 @@ class BashOperator(BaseOperator):
 
     def get_env(self, context):
         """Builds the set of environment variables to be exposed for the bash command"""
+        system_env = os.environ.copy()
         env = self.env
         if env is None:
-            env = os.environ.copy()
+            env = system_env
+        else:
+            if self.append_env:
+                system_env.update(env)
+                env = system_env
 
         airflow_context_vars = context_to_airflow_vars(context, in_env_var_format=True)
         self.log.debug(

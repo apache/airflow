@@ -19,6 +19,70 @@
 Changelog
 ---------
 
+3.3.0
+.....
+
+Features
+~~~~~~~~
+
+* ``update azure cosmos to latest version (#18695)``
+* ``Added sas_token var to BlobServiceClient return. Updated tests (#19234)``
+* ``Add pre-commit hook for common misspelling check in files (#18964)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix changelog for Azure Provider (#18736)``
+
+Other
+~~~~~
+
+* ``Expanding docs on client auth for AzureKeyVaultBackend (#18659)``
+* ``Static start_date and default arg cleanup for Microsoft providers example DAGs (#19062)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``More f-strings (#18855)``
+   * ``Revert &#34;update azure cosmos version (#18663)&#34; (#18694)``
+   * ``update azure cosmos version (#18663)``
+
+3.2.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Rename AzureDataLakeStorage to ADLS (#18493)``
+* ``Creating ADF pipeline run operator, sensor + ADF custom conn fields (#17885)``
+* ``Rename LocalToAzureDataLakeStorageOperator to LocalFilesystemToADLSOperator (#18168)``
+* ``Rename FileToWasbOperator to LocalFilesystemToWasbOperator (#18109)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fixed wasb hook attempting to create container when getting a blob client (#18287)``
+* ``Removing redundant relabeling of password conn field (#18386)``
+* ``Proper handling of Account URL custom conn field in AzureBatchHook (#18456)``
+* ``Proper handling of custom conn field values in the AzureDataExplorerHook (#18203)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Updating miscellaneous provider DAGs to use TaskFlow API where applicable (#18278)``
+
+Main
+....
+
+Changes in operators names and import paths are listed in the following table
+This is a backward compatible change. Deprecated operators will be removed in the next major release.
+
++------------------------------------+--------------------+---------------------------------------------------------+--------------------------------------------------+
+| Deprecated operator name           | New operator name  | Deprecated path                                         | New path                                         |
++------------------------------------+--------------------+---------------------------------------------------------+--------------------------------------------------+
+| AzureDataLakeStorageListOperator   | ADLSListOperator   | airflow.providers.microsoft.azure.operators.adls_list   | airflow.providers.microsoft.azure.operators.adls |
++------------------------------------+--------------------+---------------------------------------------------------+--------------------------------------------------+
+| AzureDataLakeStorageDeleteOperator | ADLSDeleteOperator | airflow.providers.microsoft.azure.operators.adls_delete | airflow.providers.microsoft.azure.operators.adls |
++------------------------------------+--------------------+---------------------------------------------------------+--------------------------------------------------+
+
 3.1.1
 .....
 

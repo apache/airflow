@@ -127,42 +127,6 @@ div.squares {
   font-size: 1;
 }
 
-span.success {
-  background-color: #1b8e49;
-}
-
-span.up_for_retry {
-  background-color: gold;
-}
-
-span.up_for_reschedule {
-  background-color: #00c7d4;
-}
-
-span.started {
-  background-color: #04d659;
-}
-
-span.error {
-  background-color: #e43921;
-}
-
-span.queued {
-  background-color: #cbcbcb;
-}
-
-span.upstream_failed {
-  background-color: orange;
-}
-
-span.skipped {
-  background-color: #f8cec8;
-}
-
-span.deferred {
-  background-color: lightseagreen;
-}
-
 .d3-tip {
   background: rgba(0, 0, 0, 0.85);
   color: #fff;

@@ -32,6 +32,8 @@ def has_access(permissions: Optional[Sequence[Tuple[str, str]]] = None) -> Calla
     def requires_access_decorator(func: T):
         @wraps(func)
         def decorated(*args, **kwargs):
+            __tracebackhide__ = True  # Hide from pytest traceback.
+
             appbuilder = current_app.appbuilder
             if not g.user.is_anonymous and not appbuilder.sm.current_user_has_permissions():
                 return (

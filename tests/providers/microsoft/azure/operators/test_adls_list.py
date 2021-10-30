@@ -19,7 +19,7 @@
 import unittest
 from unittest import mock
 
-from airflow.providers.microsoft.azure.operators.adls_list import AzureDataLakeStorageListOperator
+from airflow.providers.microsoft.azure.operators.adls import ADLSListOperator
 
 TASK_ID = 'test-adls-list-operator'
 TEST_PATH = 'test/*'
@@ -33,11 +33,11 @@ MOCK_FILES = [
 
 
 class TestAzureDataLakeStorageListOperator(unittest.TestCase):
-    @mock.patch('airflow.providers.microsoft.azure.operators.adls_list.AzureDataLakeHook')
+    @mock.patch('airflow.providers.microsoft.azure.operators.adls.AzureDataLakeHook')
     def test_execute(self, mock_hook):
         mock_hook.return_value.list.return_value = MOCK_FILES
 
-        operator = AzureDataLakeStorageListOperator(task_id=TASK_ID, path=TEST_PATH)
+        operator = ADLSListOperator(task_id=TASK_ID, path=TEST_PATH)
 
         files = operator.execute(None)
         mock_hook.return_value.list.assert_called_once_with(path=TEST_PATH)

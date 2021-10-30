@@ -20,7 +20,7 @@ from unittest import mock
 
 import pytest
 
-from airflow.models import DAG, TaskInstance
+from airflow.models import DAG, DagRun, TaskInstance
 from airflow.providers.amazon.aws.hooks.athena import AWSAthenaHook
 from airflow.providers.amazon.aws.operators.athena import AWSAthenaOperator
 from airflow.utils import timezone
@@ -205,8 +205,10 @@ class TestAWSAthenaOperator(unittest.TestCase):
     @mock.patch.object(AWSAthenaHook, 'check_query_status', side_effect=("SUCCESS",))
     @mock.patch.object(AWSAthenaHook, 'run_query', return_value=ATHENA_QUERY_ID)
     @mock.patch.object(AWSAthenaHook, 'get_conn')
-    def test_xcom_push_and_pull(self, mock_conn, mock_run_query, mock_check_query_status):
-        ti = TaskInstance(task=self.athena, execution_date=timezone.utcnow())
-        ti.run()
+    def test_return_value(self, mock_conn, mock_run_query, mock_check_query_status):
+        """Test we return the right value -- that will get put in to XCom by the execution engine"""
+        dag_run = DagRun(dag_id=self.dag.dag_id, execution_date=timezone.utcnow(), run_id="test")
+        ti = TaskInstance(task=self.athena)
+        ti.dag_run = dag_run
 
-        assert ti.xcom_pull(task_ids='test_aws_athena_operator') == ATHENA_QUERY_ID
+        assert self.athena.execute(ti.get_template_context()) == ATHENA_QUERY_ID

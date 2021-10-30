@@ -52,7 +52,7 @@ DATA = {
 
 with models.DAG(
     "example_dataprep",
-    schedule_interval=None,
+    schedule_interval='@once',
     start_date=dates.days_ago(1),  # Override to match your needs
 ) as dag:
     # [START how_to_dataprep_run_job_group_operator]

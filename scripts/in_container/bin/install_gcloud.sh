@@ -67,7 +67,7 @@ while IPS='' read -r line; do
     ln -sf "${line}" "/files/bin/${BIN_NAME}"
 done < <(find "${INSTALL_DIR}/bin/" -type f)
 
-# Sanity check
+# Coherence check
 if ! command -v gcloud > /dev/null; then
     echo 'Installation failed. The command "gcloud" was not found.'
     exit 1

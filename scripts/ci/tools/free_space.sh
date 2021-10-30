@@ -30,3 +30,7 @@ docker_v system prune --all --force --volumes
 
 echo "${COLOR_BLUE}Free disk space  ${COLOR_RESET}"
 df -h
+
+# always logout from the docker registry - this is necessary as we can have an expired token from
+# previous job!.
+docker_v logout "ghcr.io"

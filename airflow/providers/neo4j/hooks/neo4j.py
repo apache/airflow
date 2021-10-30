@@ -52,14 +52,14 @@ class Neo4jHook(BaseHook):
         Function that initiates a new Neo4j connection
         with username, password and database schema.
         """
+        if self.client is not None:
+            return self.client
+
         self.connection = self.get_connection(self.neo4j_conn_id)
         self.extras = self.connection.extra_dejson.copy()
 
         self.uri = self.get_uri(self.connection)
         self.log.info('URI: %s', self.uri)
-
-        if self.client is not None:
-            return self.client
 
         is_encrypted = self.connection.extra_dejson.get('encrypted', False)
 
@@ -76,6 +76,7 @@ class Neo4jHook(BaseHook):
         - neo4j_scheme - neo4j://
         - certs_self_signed - neo4j+ssc://
         - certs_trusted_ca - neo4j+s://
+
         :param conn: connection object.
         :return: uri
         """
@@ -106,7 +107,6 @@ class Neo4jHook(BaseHook):
         Function to create a neo4j session
         and execute the query in the session.
 
-
         :param query: Neo4j query
         :return: Result
         """
@@ -114,7 +114,8 @@ class Neo4jHook(BaseHook):
         if not self.connection.schema:
             with driver.session() as session:
                 result = session.run(query)
+                return result.data()
         else:
             with driver.session(database=self.connection.schema) as session:
                 result = session.run(query)
-        return result
+                return result.data()

@@ -26,7 +26,7 @@ from airflow.utils.dates import days_ago
 with models.DAG(
     'example_leveldb',
     start_date=days_ago(2),
-    schedule_interval=None,
+    schedule_interval='@once',
     tags=['example'],
 ) as dag:
     # [START howto_operator_leveldb_get_key]

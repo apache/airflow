@@ -20,7 +20,7 @@
 Building the image
 ==================
 
-Before you dive-deeply in the way how the Airflow Image is build, let us first explain why you might need
+Before you dive-deeply in the way how the Airflow Image is built, let us first explain why you might need
 to build the custom container image and we show a few typical ways you can do it.
 
 Why custom image ?
@@ -235,7 +235,7 @@ You should be aware, about a few things:
   in runtime, will have ``GID=0`` and will be group-writable.
 
 .. note::
-  When you build image for Airflow version < ``2.1`` (for example 2.0.2 or 1.10.15) the image is build with
+  When you build image for Airflow version < ``2.1`` (for example 2.0.2 or 1.10.15) the image is built with
   PIP 20.2.4 because ``PIP21+`` is only supported for ``Airflow 2.1+``
 
 .. note::
@@ -391,8 +391,7 @@ You can also download any version of Airflow constraints and adapt it with your 
 constraints and manually set your own versions of dependencies in your own constraints and use the version
 of constraints that you manually prepared.
 
-You can read more about constraints in the documentation of the
-`Installation <http://airflow.apache.org/docs/apache-airflow/stable/installation.html#constraints-files>`_
+You can read more about constraints in :doc:`apache-airflow:installation/installing-from-pypi`
 
 Note that if you place ``requirements.txt`` in the ``docker-context-files`` folder, it will be
 used to install all requirements declared there. It is recommended that the file
@@ -443,7 +442,7 @@ The following example adds ``mpi4py`` package which requires both ``build-essent
     :start-after: [START build]
     :end-before: [END build]
 
-The above image is equivalent of the "extended" image from previous chapter but it's size is only
+The above image is equivalent of the "extended" image from previous chapter but its size is only
 874 MB. Comparing to 1.1 GB of the "extended image" this is about 230 MB less, so you can achieve ~20%
 improvement in size of the image by using "customization" vs. extension. The saving can increase in case you
 have more complex dependencies to build.
@@ -479,7 +478,7 @@ This method is usually used for development purpose. But in case you have your o
 it to your forked version of source code without having to release it to PyPI. It is enough to have
 a branch or tag in your repository and use the tag or branch in the URL that you point the installation to.
 
-In case of GitHyb builds you need to pass the constraints reference manually in case you want to use
+In case of GitHub builds you need to pass the constraints reference manually in case you want to use
 specific constraints, otherwise the default ``constraints-main`` is used.
 
 The following example builds the production image in version ``3.7`` with default extras from the latest main version and
@@ -560,7 +559,7 @@ The following - rather complex - example shows capabilities of:
 Build images in security restricted environments
 ................................................
 
-You can also make sure your image is only build using local constraint file and locally downloaded
+You can also make sure your image is only built using local constraint file and locally downloaded
 wheel files. This is often useful in Enterprise environments where the binary files are verified and
 vetted by the security teams. It is also the most complex way of building the image. You should be an
 expert of building and using Dockerfiles in order to use it and have to have specific needs of security if
@@ -586,7 +585,7 @@ of Airflow when needed on an air-gaped system.
 
 Example of preparing the constraint files and wheel files. Note that ``mysql`` dependency is removed
 as ``mysqlclient`` is installed from Oracle's ``apt`` repository and if you want to add it, you need
-to provide this library from you repository if you want to build Airflow image in an "air-gaped" system.
+to provide this library from your repository if you want to build Airflow image in an "air-gaped" system.
 
 .. exampleinclude:: docker-examples/restricted/restricted_environments.sh
     :language: bash
@@ -608,11 +607,13 @@ where you can build the image using the packages downloaded by passing those bui
 * ``AIRFLOW_PRE_CACHED_PIP_PACKAGES="false"``  - to not pre-cache packages from PyPI when building image
 * ``AIRFLOW_CONSTRAINTS_LOCATION=/docker-context-files/YOUR_CONSTRAINT_FILE.txt`` - to downloaded constraint files
 * (Optional) ``INSTALL_MYSQL_CLIENT="false"`` if you do not want to install ``MySQL``
-  client from the Oracle repositories. In this case also make sure that your
+  client from the Oracle repositories.
+* (Optional) ``INSTALL_MSSQL_CLIENT="false"`` if you do not want to install ``MsSQL``
+  client from the Microsoft repositories.
 
 Note, that the solution we have for installing python packages from local packages, only solves the problem
 of "air-gaped" python installation. The Docker image also downloads ``apt`` dependencies and ``node-modules``.
-Those type of dependencies are however more likely to be available in your "air-gaped" system via transparent
+Those types of dependencies are however more likely to be available in your "air-gaped" system via transparent
 proxies and it should automatically reach out to your private registries, however in the future the
 solution might be applied to both of those installation steps.
 
@@ -646,7 +647,7 @@ There are a few things to remember when you modify the ``Dockerfile``:
   and only the required folders are added through exclusion (!). This allows to keep docker context small
   because there are many binary artifacts generated in the sources of Airflow and if they are added to
   the context, the time of building the image would increase significantly. If you want to add any new
-  folders to be available in the image you must add it here with leading ``!``
+  folders to be available in the image you must add them here with leading ``!``
 
   .. code-block:: text
 

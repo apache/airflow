@@ -68,7 +68,7 @@ def make_mock_cg_with_missing_events(container_state):
 
 class TestACIOperator(unittest.TestCase):
     @mock.patch(
-        "airflow.providers.microsoft.azure.operators." "azure_container_instances.AzureContainerInstanceHook"
+        "airflow.providers.microsoft.azure.operators.azure_container_instances.AzureContainerInstanceHook"
     )
     def test_execute(self, aci_mock):
         expected_c_state = ContainerState(state='Terminated', exit_code=0, detail_status='test')
@@ -106,7 +106,7 @@ class TestACIOperator(unittest.TestCase):
         assert aci_mock.return_value.delete.call_count == 1
 
     @mock.patch(
-        "airflow.providers.microsoft.azure.operators." "azure_container_instances.AzureContainerInstanceHook"
+        "airflow.providers.microsoft.azure.operators.azure_container_instances.AzureContainerInstanceHook"
     )
     def test_execute_with_failures(self, aci_mock):
         expected_c_state = ContainerState(state='Terminated', exit_code=1, detail_status='test')
@@ -130,7 +130,7 @@ class TestACIOperator(unittest.TestCase):
         assert aci_mock.return_value.delete.call_count == 1
 
     @mock.patch(
-        "airflow.providers.microsoft.azure.operators." "azure_container_instances.AzureContainerInstanceHook"
+        "airflow.providers.microsoft.azure.operators.azure_container_instances.AzureContainerInstanceHook"
     )
     def test_execute_with_tags(self, aci_mock):
         expected_c_state = ContainerState(state='Terminated', exit_code=0, detail_status='test')
@@ -171,7 +171,7 @@ class TestACIOperator(unittest.TestCase):
         assert aci_mock.return_value.delete.call_count == 1
 
     @mock.patch(
-        "airflow.providers.microsoft.azure.operators." "azure_container_instances.AzureContainerInstanceHook"
+        "airflow.providers.microsoft.azure.operators.azure_container_instances.AzureContainerInstanceHook"
     )
     def test_execute_with_messages_logs(self, aci_mock):
         events = [Event(message="test"), Event(message="messages")]

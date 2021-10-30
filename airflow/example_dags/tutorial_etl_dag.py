@@ -26,6 +26,7 @@ as part of the documentation that goes along with the Airflow Functional DAG tut
 # [START tutorial]
 # [START import_module]
 import json
+from datetime import datetime
 from textwrap import dedent
 
 # The DAG object; we'll need this to instantiate a DAG
@@ -33,7 +34,6 @@ from airflow import DAG
 
 # Operators; we need this to operate!
 from airflow.operators.python import PythonOperator
-from airflow.utils.dates import days_ago
 
 # [END import_module]
 
@@ -51,7 +51,8 @@ with DAG(
     default_args=default_args,
     description='ETL DAG tutorial',
     schedule_interval=None,
-    start_date=days_ago(2),
+    start_date=datetime(2021, 1, 1),
+    catchup=False,
     tags=['example'],
 ) as dag:
     # [END instantiate_dag]

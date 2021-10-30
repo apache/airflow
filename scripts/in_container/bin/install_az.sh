@@ -61,7 +61,7 @@ chmod a+x /files/opt/az/az
 
 ln -s /files/opt/az/az "${BIN_PATH}"
 
-# Sanity check
+# Coherence check
 if ! command -v az > /dev/null; then
     echo 'Installation failed. The command "az" was not found.'
     exit 1

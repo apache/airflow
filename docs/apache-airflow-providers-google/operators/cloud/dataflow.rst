@@ -22,10 +22,6 @@ Google Cloud Dataflow Operators
 executing a wide variety of data processing patterns. These pipelines are created
 using the Apache Beam programming model which allows for both batch and streaming processing.
 
-.. contents::
-  :depth: 1
-  :local:
-
 Prerequisite Tasks
 ^^^^^^^^^^^^^^^^^^
 

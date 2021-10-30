@@ -34,6 +34,7 @@ Content
     :caption: Resources
 
     PyPI Repository <https://pypi.org/project/apache-airflow-providers-mongo/>
+    Installing from sources <installing-providers-from-sources>
 
 .. THE REMAINDER OF THE FILE IS AUTOMATICALLY GENERATED. IT WILL BE OVERWRITTEN AT RELEASE TIME!
 
@@ -51,7 +52,7 @@ Package apache-airflow-providers-mongo
 `MongoDB <https://www.mongodb.com/what-is-mongodb>`__
 
 
-Release: 2.1.0
+Release: 2.2.0
 
 Provider package
 ----------------

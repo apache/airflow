@@ -201,8 +201,6 @@ class SalesforceHook(BaseHook):
         :return: the names of the fields.
         :rtype: list(str)
         """
-        self.get_conn()
-
         obj_description = self.describe_object(obj)
 
         return [field['name'] for field in obj_description['fields']]

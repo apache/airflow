@@ -25,10 +25,10 @@ Create Date: 2020-10-01 17:25:10.006322
 """
 
 from flask_appbuilder import SQLA
-from flask_appbuilder.security.sqla.models import Permission, PermissionView, ViewMenu
 
 from airflow import settings
 from airflow.security import permissions
+from airflow.www.fab_security.sqla.models import Action, Permission, Resource
 
 # revision identifiers, used by Alembic.
 revision = '849da589634d'
@@ -41,17 +41,17 @@ def prefix_individual_dag_permissions(session):
     dag_perms = ['can_dag_read', 'can_dag_edit']
     prefix = "DAG:"
     perms = (
-        session.query(PermissionView)
-        .join(Permission)
-        .filter(Permission.name.in_(dag_perms))
-        .join(ViewMenu)
-        .filter(ViewMenu.name != 'all_dags')
-        .filter(ViewMenu.name.notlike(prefix + '%'))
+        session.query(Permission)
+        .join(Action)
+        .filter(Action.name.in_(dag_perms))
+        .join(Resource)
+        .filter(Resource.name != 'all_dags')
+        .filter(Resource.name.notlike(prefix + '%'))
         .all()
     )
-    resource_ids = {permission.view_menu.id for permission in perms}
-    vm_query = session.query(ViewMenu).filter(ViewMenu.id.in_(resource_ids))
-    vm_query.update({ViewMenu.name: prefix + ViewMenu.name}, synchronize_session=False)
+    resource_ids = {permission.resource.id for permission in perms}
+    vm_query = session.query(Resource).filter(Resource.id.in_(resource_ids))
+    vm_query.update({Resource.name: prefix + Resource.name}, synchronize_session=False)
     session.commit()
 
 
@@ -60,7 +60,7 @@ def get_or_create_dag_resource(session):
     if dag_resource:
         return dag_resource
 
-    dag_resource = ViewMenu()
+    dag_resource = Resource()
     dag_resource.name = permissions.RESOURCE_DAG
     session.add(dag_resource)
     session.commit()
@@ -73,7 +73,7 @@ def get_or_create_action(session, action_name):
     if action:
         return action
 
-    action = Permission()
+    action = Action()
     action.name = action_name
     session.add(action)
     session.commit()
@@ -82,39 +82,39 @@ def get_or_create_action(session, action_name):
 
 
 def get_resource_query(session, resource_name):
-    return session.query(ViewMenu).filter(ViewMenu.name == resource_name)
+    return session.query(Resource).filter(Resource.name == resource_name)
 
 
 def get_action_query(session, action_name):
-    return session.query(Permission).filter(Permission.name == action_name)
+    return session.query(Action).filter(Action.name == action_name)
 
 
 def get_permission_with_action_query(session, action):
-    return session.query(PermissionView).filter(PermissionView.permission == action)
+    return session.query(Permission).filter(Permission.action == action)
 
 
 def get_permission_with_resource_query(session, resource):
-    return session.query(PermissionView).filter(PermissionView.view_menu_id == resource.id)
+    return session.query(Permission).filter(Permission.resource_id == resource.id)
 
 
 def update_permission_action(session, permission_query, action):
-    permission_query.update({PermissionView.permission_id: action.id}, synchronize_session=False)
+    permission_query.update({Permission.action_id: action.id}, synchronize_session=False)
     session.commit()
 
 
 def get_permission(session, resource, action):
     return (
-        session.query(PermissionView)
-        .filter(PermissionView.view_menu == resource)
-        .filter(PermissionView.permission == action)
+        session.query(Permission)
+        .filter(Permission.resource == resource)
+        .filter(Permission.action == action)
         .first()
     )
 
 
 def update_permission_resource(session, permission_query, resource):
     for permission in permission_query.all():
-        if not get_permission(session, resource, permission.permission):
-            permission.view_menu = resource
+        if not get_permission(session, resource, permission.action):
+            permission.resource = resource
         else:
             session.delete(permission)
 

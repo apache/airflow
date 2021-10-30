@@ -124,7 +124,7 @@ You can use those variables when you try to reproduce the build locally.
 |                                         |             |              |            | case of Postgres or MySQL. However,             |
 |                                         |             |              |            | it requires to perform manual init/reset        |
 |                                         |             |              |            | if you stop the environment.                    |
-+-----------------------------------------+-------------+--------------+-------------+-------------------------------------------------+
++-----------------------------------------+-------------+--------------+-------------+------------------------------------------------+
 |                                                           Mount variables                                                           |
 +-----------------------------------------+-------------+--------------+------------+-------------------------------------------------+
 | ``MOUNT_SELECTED_LOCAL_SOURCES``        |     true    |    false     |    false   | Determines whether local sources are            |
@@ -209,7 +209,7 @@ You can use those variables when you try to reproduce the build locally.
 +-----------------------------------------+-------------+--------------+------------+-------------------------------------------------+
 |                                                            Git variables                                                            |
 +-----------------------------------------+-------------+--------------+------------+-------------------------------------------------+
-| COMMIT_SHA                              |             | GITHUB_SHA   | GITHUB_SHA | SHA of the commit of the build is run           |
+| ``COMMIT_SHA``                          |             | GITHUB_SHA   | GITHUB_SHA | SHA of the commit of the build is run           |
 +-----------------------------------------+-------------+--------------+------------+-------------------------------------------------+
 |                                                         Verbosity variables                                                         |
 +-----------------------------------------+-------------+--------------+------------+-------------------------------------------------+
@@ -255,7 +255,7 @@ You can use those variables when you try to reproduce the build locally.
 |                                         |             |              |            | of the airflow repository                       |
 |                                         |             |              |            | ("constraints-main, "constraints-2-0")          |
 |                                         |             |              |            | but when this flag is set to anything but false |
-|                                         |             |              |            | (for example commit SHA), they are not used     |
+|                                         |             |              |            | (for example random value), they are not used   |
 |                                         |             |              |            | used and "eager" upgrade strategy is used       |
 |                                         |             |              |            | when installing dependencies. We set it         |
 |                                         |             |              |            | to true in case of direct pushes (merges)       |
@@ -265,7 +265,7 @@ You can use those variables when you try to reproduce the build locally.
 |                                         |             |              |            | we automatically push latest set of             |
 |                                         |             |              |            | "tested" constraints to the repository.         |
 |                                         |             |              |            |                                                 |
-|                                         |             |              |            | Setting the value to commit SHA is best way     |
+|                                         |             |              |            | Setting the value to random value is best way   |
 |                                         |             |              |            | to assure that constraints are upgraded even if |
 |                                         |             |              |            | there is no change to setup.py                  |
 |                                         |             |              |            |                                                 |

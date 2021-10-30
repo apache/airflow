@@ -18,10 +18,6 @@
 Alibaba Cloud OSS Operators
 ===========================
 
-.. contents::
-  :depth: 1
-  :local:
-
 Overview
 --------
 

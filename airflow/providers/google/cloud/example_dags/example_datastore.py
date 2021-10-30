@@ -42,7 +42,7 @@ BUCKET = os.environ.get("GCP_DATASTORE_BUCKET", "datastore-system-test")
 
 with models.DAG(
     "example_gcp_datastore",
-    schedule_interval=None,  # Override to match your needs
+    schedule_interval='@once',  # Override to match your needs
     start_date=dates.days_ago(1),
     tags=["example"],
 ) as dag:
@@ -83,7 +83,7 @@ TRANSACTION_OPTIONS: Dict[str, Any] = {"readWrite": {}}
 with models.DAG(
     "example_gcp_datastore_operations",
     start_date=dates.days_ago(1),
-    schedule_interval=None,  # Override to match your needs
+    schedule_interval='@once',  # Override to match your needs
     tags=["example"],
 ) as dag2:
     # [START how_to_allocate_ids]
@@ -131,7 +131,7 @@ with models.DAG(
 
     # [START how_to_query_def]
     QUERY = {
-        "partitionId": {"projectId": GCP_PROJECT_ID, "namespaceId": ""},
+        "partitionId": {"projectId": GCP_PROJECT_ID, "namespaceId": "query"},
         "readOptions": {"transaction": begin_transaction_query.output},
         "query": {},
     }

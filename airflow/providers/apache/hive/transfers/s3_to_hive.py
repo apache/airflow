@@ -143,7 +143,7 @@ class S3ToHiveOperator(BaseOperator):
         self.select_expression = select_expression
 
         if self.check_headers and not (self.field_dict is not None and self.headers):
-            raise AirflowException("To check_headers provide " + "field_dict and headers")
+            raise AirflowException("To check_headers provide field_dict and headers")
 
     def execute(self, context):
         # Downloading file from S3
@@ -162,7 +162,7 @@ class S3ToHiveOperator(BaseOperator):
 
         _, file_ext = os.path.splitext(s3_key_object.key)
         if self.select_expression and self.input_compressed and file_ext.lower() != '.gz':
-            raise AirflowException("GZIP is the only compression " + "format Amazon S3 Select supports")
+            raise AirflowException("GZIP is the only compression format Amazon S3 Select supports")
 
         with TemporaryDirectory(prefix='tmps32hive_') as tmp_dir, NamedTemporaryFile(
             mode="wb", dir=tmp_dir, suffix=file_ext

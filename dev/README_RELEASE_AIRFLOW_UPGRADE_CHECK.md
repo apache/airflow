@@ -120,7 +120,7 @@ official Apache releases must not include the rcN suffix.
 - Rename the sdist
 
     ```shell script
-    mv dist/apache-airflow-upgrade-check-${VERSION%rc?}.tar.gz apache-airflow-upgrade-check-${VERSION}-bin.tar.gz
+    mv dist/apache-airflow-upgrade-check-${VERSION%rc?}.tar.gz apache-airflow-upgrade-check-${VERSION}.tar.gz
     mv dist/apache_airflow_upgrade_check-${VERSION%rc?}-py2.py3-none-any.whl apache_airflow_upgrade_check-${VERSION}-py2.py3-none-any.whl
     ```
 
@@ -129,7 +129,7 @@ official Apache releases must not include the rcN suffix.
 
     ```shell script
     ${AIRFLOW_REPO_ROOT}/dev/sign.sh apache-airflow-upgrade-check-${VERSION}-source.tar.gz
-    ${AIRFLOW_REPO_ROOT}/dev/sign.sh apache-airflow-upgrade-check-${VERSION}-bin.tar.gz
+    ${AIRFLOW_REPO_ROOT}/dev/sign.sh apache-airflow-upgrade-check-${VERSION}.tar.gz
     ${AIRFLOW_REPO_ROOT}/dev/sign.sh apache_airflow_upgrade_check-${VERSION}-py2.py3-none-any.whl
     ```
 
@@ -228,7 +228,7 @@ The files can be downloaded from https://dist.apache.org/repos/dist/dev/airflow/
 - apache-airflow-upgrade-check-1.3.0rc1-source.tar.gz is a source
 release containing the files that made up the binary and wheel
 releases.
-- apache-airflow-upgrade-check-1.3.0rc1-bin.tar.gz is the binary
+- apache-airflow-upgrade-check-1.3.0rc1.tar.gz is the binary
 Python "sdist" release.
 - apache_airflow_upgrade_check-1.3.0rc1-py2.py3-none-any.whl is the
 binary Python pre-compiled wheel file.
@@ -283,9 +283,9 @@ The files should be present in the sub-folder of
 
 The following files should be present (9 files):
 
-* -bin-tar.gz + .asc + .sha512
 * -source.tar.gz + .asc + .sha512
-* -.whl + .asc + .sha512
+* .tar.gz + .asc + .sha512
+* -py3-none-any.whl + .asc + .sha512
 
 As a PMC you should be able to clone the SVN repository:
 
@@ -305,8 +305,8 @@ This can be done with the Apache RAT tool.
 
 * Download the latest jar from https://creadur.apache.org/rat/download_rat.cgi (unpack the binary,
   the jar is inside)
-* Unpack the binary (`-bin.tar.gz`) to a folder
-* Enter the folder and run the check (point to the place where you extracted the .jar)
+* Unpack the release source archive (the `<package + version>-source.tar.gz` file) to a folder
+* Enter the sources folder run the check
 
 ```shell script
 java -jar ../../apache-rat-0.13/apache-rat-0.13.jar -E .rat-excludes -d .
@@ -316,7 +316,7 @@ where `.rat-excludes` is the file in the root of Airflow source code.
 
 ## Signature check
 
-Make sure you have the key of person signed imported in your GPG. You can find the valid keys in
+Make sure you have imported into your GPG the PGP key of the person signing the release. You can find the valid keys in
 [KEYS](https://dist.apache.org/repos/dist/release/airflow/KEYS).
 
 You can import the whole KEYS file:
@@ -348,7 +348,7 @@ Once you have the keys, the signatures can be verified by running this:
 ```shell script
 for i in *.asc
 do
-   echo "Checking $i"; gpg --verify $i
+   echo -e "Checking $i\n"; gpg --verify $i
 done
 ```
 
@@ -360,14 +360,15 @@ warning. By importing the server in the previous step and importing it via ID fr
 this is a valid Key already.
 
 ```
-Checking apache-airflow-upgrade-check-1.3.0rc1-bin.tar.gz.asc
-gpg: assuming signed data in 'apache-airflow-upgrade-check-1.3.0rc1-bin.tar.gz'
+Checking apache-airflow-upgrade-check-1.3.0rc1.tar.gz.asc
+gpg: assuming signed data in 'apache-airflow-upgrade-check-1.3.0rc1.tar.gz'
 gpg: Signature made Tue  9 Mar 23:22:24 2021 GMT
 gpg:                using RSA key CDE15C6E4D3A8EC4ECF4BA4B6674E08AD7DE406F
 gpg: Good signature from "Kaxil Naik <kaxilnaik@apache.org>" [ultimate]
 gpg:                 aka "Kaxil Naik <kaxilnaik@gmail.com>" [ultimate]
 gpg: WARNING: This key is not certified with a trusted signature!
 gpg:          There is no indication that the signature belongs to the owner.
+
 Checking apache-airflow-upgrade-check-1.3.0rc1-source.tar.gz.asc
 gpg: assuming signed data in 'apache-airflow-upgrade-check-1.3.0rc1-source.tar.gz'
 gpg: Signature made Tue  9 Mar 23:22:21 2021 GMT
@@ -376,6 +377,7 @@ gpg: Good signature from "Kaxil Naik <kaxilnaik@apache.org>" [ultimate]
 gpg:                 aka "Kaxil Naik <kaxilnaik@gmail.com>" [ultimate]
 gpg: WARNING: This key is not certified with a trusted signature!
 gpg:          There is no indication that the signature belongs to the owner.
+
 Checking apache_airflow_upgrade_check-1.3.0rc1-py2.py3-none-any.whl.asc
 gpg: assuming signed data in 'apache_airflow_upgrade_check-1.3.0rc1-py2.py3-none-any.whl'
 gpg: Signature made Tue  9 Mar 23:22:27 2021 GMT
@@ -400,7 +402,7 @@ done
 You should get output similar to:
 
 ```
-Checking apache-airflow-upgrade-check-1.3.0rc1-bin.tar.gz.sha512
+Checking apache-airflow-upgrade-check-1.3.0rc1.tar.gz.sha512
 Checking apache_airflow_upgrade_check-1.3.0rc1-py2.py3-none-any.whl.sha512
 Checking apache-airflow-upgrade-check-1.3.0rc1-source.tar.gz.sha512
 ```

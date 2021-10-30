@@ -68,22 +68,28 @@ class _DataIntervalTimetable(Timetable):
     def next_dagrun_info(
         self,
         *,
-        last_automated_dagrun: Optional[DateTime],
+        last_automated_data_interval: Optional[DataInterval],
         restriction: TimeRestriction,
     ) -> Optional[DagRunInfo]:
         earliest = restriction.earliest
         if not restriction.catchup:
             earliest = self._skip_to_latest(earliest)
-        if last_automated_dagrun is None:
+        elif earliest is not None:
+            earliest = self._align(earliest)
+        if last_automated_data_interval is None:
             # First run; schedule the run at the first available time matching
             # the schedule, and retrospectively create a data interval for it.
             if earliest is None:
                 return None
-            start = self._align(earliest)
-        else:
-            # There's a previous run. Create a data interval starting from when
-            # the end of the previous interval.
-            start = self._get_next(last_automated_dagrun)
+            start = earliest
+        else:  # There's a previous run.
+            if earliest is not None:
+                # Catchup is False or DAG has new start date in the future.
+                # Make sure we get the later one.
+                start = max(last_automated_data_interval.end, earliest)
+            else:
+                # Data interval starts from the end of the previous interval.
+                start = last_automated_data_interval.end
         if restriction.latest is not None and start > restriction.latest:
             return None
         end = self._get_next(start)
@@ -114,7 +120,7 @@ class CronDataIntervalTimetable(_DataIntervalTimetable):
     a five/six-segment representation, or one of ``cron_presets``.
 
     The implementation extends on croniter to add timezone awareness. This is
-    because crontier works only with naive timestamps, and cannot consider DST
+    because croniter works only with naive timestamps, and cannot consider DST
     when determining the next/previous time.
 
     Don't pass ``@once`` in here; use ``OnceTimetable`` instead.
@@ -183,8 +189,8 @@ class CronDataIntervalTimetable(_DataIntervalTimetable):
     def _align(self, current: DateTime) -> DateTime:
         """Get the next scheduled time.
 
-        This is ``current + interval``, unless ``current`` is first interval,
-        then ``current`` is returned.
+        This is ``current + interval``, unless ``current`` falls right on the
+        interval boundary, when ``current`` is returned.
         """
         next_time = self._get_next(current)
         if self._get_prev(next_time) != current:
@@ -199,14 +205,14 @@ class CronDataIntervalTimetable(_DataIntervalTimetable):
 
         This is slightly different from the delta version at terminal values.
         If the next schedule should start *right now*, we want the data interval
-        that start right now now, not the one that ends now.
+        that start now, not the one that ends now.
         """
         current_time = DateTime.utcnow()
-        next_start = self._get_next(current_time)
         last_start = self._get_prev(current_time)
-        if next_start == current_time:
+        next_start = self._get_next(last_start)
+        if next_start == current_time:  # Current time is on interval boundary.
             new_start = last_start
-        elif next_start > current_time:
+        elif next_start > current_time:  # Current time is between boundaries.
             new_start = self._get_prev(last_start)
         else:
             raise AssertionError("next schedule shouldn't be earlier")
@@ -214,7 +220,7 @@ class CronDataIntervalTimetable(_DataIntervalTimetable):
             return new_start
         return max(new_start, earliest)
 
-    def infer_data_interval(self, *, run_after: DateTime) -> DataInterval:
+    def infer_manual_data_interval(self, *, run_after: DateTime) -> DataInterval:
         # Get the last complete period before run_after, e.g. if a DAG run is
         # scheduled at each midnight, the data interval of a manually triggered
         # run at 1am 25th is between 0am 24th and 0am 25th.
@@ -290,5 +296,5 @@ class DeltaDataIntervalTimetable(_DataIntervalTimetable):
             return new_start
         return max(new_start, earliest)
 
-    def infer_data_interval(self, run_after: DateTime) -> DataInterval:
+    def infer_manual_data_interval(self, run_after: DateTime) -> DataInterval:
         return DataInterval(start=self._get_prev(run_after), end=run_after)

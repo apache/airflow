@@ -53,7 +53,9 @@ class CassandraTableSensor(BaseSensorOperator):
 
     template_fields = ('table',)
 
-    def __init__(self, *, table: str, cassandra_conn_id: str, **kwargs: Any) -> None:
+    def __init__(
+        self, *, table: str, cassandra_conn_id: str = CassandraHook.default_conn_name, **kwargs: Any
+    ) -> None:
         super().__init__(**kwargs)
         self.cassandra_conn_id = cassandra_conn_id
         self.table = table

@@ -18,10 +18,6 @@
 Salesforce To S3 Operator
 ==============================
 
-.. contents::
-  :depth: 1
-  :local:
-
 .. _howto/operator:SalesforceToS3Operator:
 
 Overview

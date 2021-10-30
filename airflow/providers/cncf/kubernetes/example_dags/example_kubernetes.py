@@ -19,13 +19,14 @@
 This is an example dag for using the KubernetesPodOperator.
 """
 
+from datetime import datetime
+
 from kubernetes.client import models as k8s
 
 from airflow import DAG
 from airflow.kubernetes.secret import Secret
 from airflow.operators.bash import BashOperator
 from airflow.providers.cncf.kubernetes.operators.kubernetes_pod import KubernetesPodOperator
-from airflow.utils.dates import days_ago
 
 # [START howto_operator_k8s_cluster_resources]
 secret_file = Secret('volume', '/etc/sql_conn', 'airflow-secrets', 'sql_alchemy_conn')
@@ -100,7 +101,7 @@ tolerations = [k8s.V1Toleration(key="key", operator="Equal", value="value")]
 with DAG(
     dag_id='example_kubernetes_operator',
     schedule_interval=None,
-    start_date=days_ago(2),
+    start_date=datetime(2021, 1, 1),
     tags=['example'],
 ) as dag:
     k = KubernetesPodOperator(

@@ -57,7 +57,7 @@ works.
     f_in = File(url="/tmp/whole_directory/")
     outlets = []
     for file in FILE_CATEGORIES:
-        f_out = File(url="/tmp/{}/{{{{ execution_date }}}}".format(file))
+        f_out = File(url="/tmp/{}/{{{{ data_interval_start }}}}".format(file))
         outlets.append(f_out)
 
     run_this = BashOperator(
@@ -73,7 +73,7 @@ for the downstream task.
 .. note:: Operators can add inlets and outlets automatically if the operator supports it.
 
 In the example DAG task ``run_this`` (task_id=``run_me_first``) is a BashOperator that takes 3 inlets: ``CAT1``, ``CAT2``, ``CAT3``, that are
-generated from a list. Note that ``execution_date`` is a templated field and will be rendered when the task is running.
+generated from a list. Note that ``data_interval_start`` is a templated field and will be rendered when the task is running.
 
 .. note:: Behind the scenes Airflow prepares the lineage metadata as part of the ``pre_execute`` method of a task. When the task
           has finished execution ``post_execute`` is called and lineage metadata is pushed into XCOM. Thus if you are creating

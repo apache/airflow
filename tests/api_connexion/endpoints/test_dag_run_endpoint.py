@@ -18,17 +18,20 @@ from datetime import timedelta
 from unittest import mock
 
 import pytest
+from freezegun import freeze_time
 from parameterized import parameterized
 
 from airflow.api_connexion.exceptions import EXCEPTIONS_LINK_MAP
 from airflow.models import DAG, DagModel, DagRun
+from airflow.operators.dummy import DummyOperator
 from airflow.security import permissions
 from airflow.utils import timezone
 from airflow.utils.session import create_session, provide_session
+from airflow.utils.state import State
 from airflow.utils.types import DagRunType
-from tests.test_utils.api_connexion_utils import assert_401, create_user, delete_user
+from tests.test_utils.api_connexion_utils import assert_401, create_user, delete_roles, delete_user
 from tests.test_utils.config import conf_vars
-from tests.test_utils.db import clear_db_dags, clear_db_runs
+from tests.test_utils.db import clear_db_dags, clear_db_runs, clear_db_serialized_dags
 
 
 @pytest.fixture(scope="module")
@@ -42,6 +45,18 @@ def configured_app(minimal_app_for_api):
         permissions=[
             (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
             (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_DAG),
+            (permissions.ACTION_CAN_CREATE, permissions.RESOURCE_DAG_RUN),
+            (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG_RUN),
+            (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_DAG_RUN),
+            (permissions.ACTION_CAN_DELETE, permissions.RESOURCE_DAG_RUN),
+        ],
+    )
+    create_user(
+        app,  # type: ignore
+        username="test_dag_view_only",
+        role_name="TestViewDags",
+        permissions=[
+            (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
             (permissions.ACTION_CAN_CREATE, permissions.RESOURCE_DAG_RUN),
             (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG_RUN),
             (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_DAG_RUN),
@@ -72,9 +87,11 @@ def configured_app(minimal_app_for_api):
     yield app
 
     delete_user(app, username="test")  # type: ignore
+    delete_user(app, username="test_dag_view_only")  # type: ignore
     delete_user(app, username="test_view_dags")  # type: ignore
     delete_user(app, username="test_granular_permissions")  # type: ignore
     delete_user(app, username="test_no_permissions")  # type: ignore
+    delete_roles(app)
 
 
 class TestDagRunEndpoint:
@@ -87,11 +104,13 @@ class TestDagRunEndpoint:
         self.app = configured_app
         self.client = self.app.test_client()  # type:ignore
         clear_db_runs()
+        clear_db_serialized_dags()
         clear_db_dags()
 
     def teardown_method(self) -> None:
         clear_db_runs()
         clear_db_dags()
+        clear_db_serialized_dags()
 
     def _create_dag(self, dag_id):
         dag_instance = DagModel(dag_id=dag_id)
@@ -1143,7 +1162,10 @@ class TestPostDagRun(TestDagRunEndpoint):
 
         assert_401(response)
 
-    def test_should_raises_403_unauthorized(self):
+    @parameterized.expand(
+        ["test_dag_view_only", "test_view_dags", "test_granular_permissions", "test_no_permissions"]
+    )
+    def test_should_raises_403_unauthorized(self, username):
         self._create_dag("TEST_DAG_ID")
         response = self.client.post(
             "api/v1/dags/TEST_DAG_ID/dagRuns",
@@ -1151,6 +1173,100 @@ class TestPostDagRun(TestDagRunEndpoint):
                 "dag_run_id": "TEST_DAG_RUN_ID_1",
                 "execution_date": self.default_time,
             },
-            environ_overrides={'REMOTE_USER': "test_view_dags"},
+            environ_overrides={'REMOTE_USER': username},
         )
         assert response.status_code == 403
+
+
+class TestPatchDagRunState(TestDagRunEndpoint):
+    @pytest.mark.parametrize("state", ["failed", "success"])
+    def test_should_respond_200(self, state, dag_maker, session):
+        dag_id = "TEST_DAG_ID"
+        dag_run_id = 'TEST_DAG_RUN_ID'
+        with dag_maker(dag_id) as dag:
+            task = DummyOperator(task_id='task_id', dag=dag)
+        self.app.dag_bag.bag_dag(dag, root_dag=dag)
+        dr = dag_maker.create_dagrun(run_id=dag_run_id)
+        ti = dr.get_task_instance(task_id='task_id')
+        ti.task = task
+        ti.state = State.RUNNING
+        session.merge(ti)
+        session.commit()
+
+        request_json = {"state": state}
+
+        response = self.client.patch(
+            f"api/v1/dags/{dag_id}/dagRuns/{dag_run_id}",
+            json=request_json,
+            environ_overrides={"REMOTE_USER": "test"},
+        )
+
+        ti.refresh_from_db()
+        assert ti.state == state
+        dr = session.query(DagRun).filter(DagRun.run_id == dr.run_id).first()
+        assert response.status_code == 200
+        assert response.json == {
+            'conf': {},
+            'dag_id': dag_id,
+            'dag_run_id': dag_run_id,
+            'end_date': dr.end_date.isoformat(),
+            'execution_date': dr.execution_date.isoformat(),
+            'external_trigger': False,
+            'logical_date': dr.execution_date.isoformat(),
+            'start_date': dr.start_date.isoformat(),
+            'state': state,
+        }
+
+    @pytest.mark.parametrize('invalid_state', ["running", "queued"])
+    @freeze_time(TestDagRunEndpoint.default_time)
+    def test_should_response_400_for_non_existing_dag_run_state(self, invalid_state, dag_maker):
+        dag_id = "TEST_DAG_ID"
+        dag_run_id = 'TEST_DAG_RUN_ID'
+        with dag_maker(dag_id):
+            DummyOperator(task_id='task_id')
+        dag_maker.create_dagrun(run_id=dag_run_id)
+
+        request_json = {"state": invalid_state}
+
+        response = self.client.patch(
+            "api/v1/dags/TEST_DAG_ID/dagRuns/TEST_DAG_RUN_ID_1",
+            json=request_json,
+            environ_overrides={"REMOTE_USER": "test"},
+        )
+        assert response.status_code == 400
+        assert response.json == {
+            'detail': f"'{invalid_state}' is not one of ['success', 'failed'] - 'state'",
+            'status': 400,
+            'title': 'Bad Request',
+            'type': EXCEPTIONS_LINK_MAP[400],
+        }
+
+    def test_should_raises_401_unauthenticated(self, session):
+        response = self.client.patch(
+            "api/v1/dags/TEST_DAG_ID/dagRuns/TEST_DAG_RUN_ID_1",
+            json={
+                "state": 'success',
+            },
+        )
+
+        assert_401(response)
+
+    def test_should_raise_403_forbidden(self):
+        response = self.client.patch(
+            "api/v1/dags/TEST_DAG_ID/dagRuns/TEST_DAG_RUN_ID_1",
+            json={
+                "state": 'success',
+            },
+            environ_overrides={'REMOTE_USER': "test_no_permissions"},
+        )
+        assert response.status_code == 403
+
+    def test_should_respond_404(self):
+        response = self.client.patch(
+            "api/v1/dags/INVALID_DAG_ID/dagRuns/TEST_DAG_RUN_ID_1",
+            json={
+                "state": 'success',
+            },
+            environ_overrides={"REMOTE_USER": "test"},
+        )
+        assert response.status_code == 404

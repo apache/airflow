@@ -73,7 +73,7 @@ if BUCKET_NAME is None:
 with models.DAG(
     "example_google_firestore",
     default_args=dict(start_date=dates.days_ago(1)),
-    schedule_interval=None,
+    schedule_interval='@once',
     tags=["example"],
 ) as dag:
     # [START howto_operator_export_database_to_gcs]

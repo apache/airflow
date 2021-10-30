@@ -50,11 +50,11 @@ TEST_UPDATE_MASK = {"paths": ["memory_size_gb"]}  # type: Dict
 TEST_UPDATE_MASK_MEMCACHED = {"displayName": "updated name"}  # type: Dict
 TEST_PARENT = "projects/test-project-id/locations/test-location"  # type: str
 TEST_NAME = "projects/test-project-id/locations/test-location/instances/test-instance-id"  # type: str
-TEST_PARENT_DEFAULT_PROJECT_ID = "projects/{}/locations/test-location".format(
-    GCP_PROJECT_ID_HOOK_UNIT_TEST
+TEST_PARENT_DEFAULT_PROJECT_ID = (
+    f"projects/{GCP_PROJECT_ID_HOOK_UNIT_TEST}/locations/test-location"
 )  # type: str
-TEST_NAME_DEFAULT_PROJECT_ID = "projects/{}/locations/test-location/instances/test-instance-id".format(
-    GCP_PROJECT_ID_HOOK_UNIT_TEST
+TEST_NAME_DEFAULT_PROJECT_ID = (
+    f"projects/{GCP_PROJECT_ID_HOOK_UNIT_TEST}/locations/test-location/instances/test-instance-id"
 )  # type: str
 
 

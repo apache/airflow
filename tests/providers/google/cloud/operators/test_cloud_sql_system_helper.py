@@ -27,7 +27,7 @@ from typing import Optional
 from urllib.parse import urlsplit
 
 from tests.providers.google.cloud.utils.gcp_authenticator import GCP_CLOUDSQL_KEY, GcpAuthenticator
-from tests.test_utils.logging_command_executor import LoggingCommandExecutor
+from tests.test_utils.logging_command_executor import CommandExecutor
 
 GCP_PROJECT_ID = os.environ.get('GCP_PROJECT_ID', 'example-project')
 GCP_LOCATION = os.environ.get('GCP_LOCATION', 'europe-west1')
@@ -89,7 +89,7 @@ def get_mysql_instance_name(instance_suffix=''):
     return os.environ.get('GCSQL_MYSQL_INSTANCE_NAME', 'testmysql') + instance_suffix
 
 
-class CloudSqlQueryTestHelper(LoggingCommandExecutor):
+class CloudSqlQueryTestHelper(CommandExecutor):
     def create_instances(
         self, instance_suffix='', failover_instance_suffix=None, master_instance_suffix=None
     ):
@@ -153,30 +153,22 @@ class CloudSqlQueryTestHelper(LoggingCommandExecutor):
         )
 
     def check_if_instances_are_up(self, instance_suffix=''):
-        res_postgres = self.execute_cmd(
-            [
-                'gcloud',
-                'sql',
-                'instances',
-                'describe',
-                get_postgres_instance_name(instance_suffix),
-                f"--project={GCP_PROJECT_ID}",
-            ]
-        )
-        if res_postgres != 0:
-            self.raise_database_exception('postgres')
-        res_postgres = self.execute_cmd(
-            [
-                'gcloud',
-                'sql',
-                'instances',
-                'describe',
-                get_postgres_instance_name(instance_suffix),
-                f"--project={GCP_PROJECT_ID}",
-            ]
-        )
-        if res_postgres != 0:
-            self.raise_database_exception('mysql')
+        def check_db(db_instance_name, db_name):
+            retcode_db = self.execute_cmd(
+                [
+                    'gcloud',
+                    'sql',
+                    'instances',
+                    'describe',
+                    db_instance_name,
+                    f"--project={GCP_PROJECT_ID}",
+                ]
+            )
+            if retcode_db:
+                self.raise_database_exception(db_name)
+
+        check_db(db_instance_name=get_postgres_instance_name(instance_suffix), db_name='postgres')
+        check_db(db_instance_name=get_mysql_instance_name(instance_suffix), db_name='mysql')
 
     def authorize_address(self, instance_suffix=''):
         ip_address = self.__get_my_public_ip()

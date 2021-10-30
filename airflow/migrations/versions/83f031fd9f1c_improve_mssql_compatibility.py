@@ -19,7 +19,7 @@
 """improve mssql compatibility
 
 Revision ID: 83f031fd9f1c
-Revises: 97cdd93827b8
+Revises: ccde3e26fe78
 Create Date: 2021-04-06 12:22:02.197726
 
 """
@@ -32,7 +32,7 @@ from sqlalchemy.dialects import mssql
 
 # revision identifiers, used by Alembic.
 revision = '83f031fd9f1c'
-down_revision = '97cdd93827b8'
+down_revision = 'ccde3e26fe78'
 branch_labels = None
 depends_on = None
 
@@ -61,14 +61,12 @@ def get_table_constraints(conn, table_name):
     :return: a dictionary of ((constraint name, constraint type), column name) of table
     :rtype: defaultdict(list)
     """
-    query = """SELECT tc.CONSTRAINT_NAME , tc.CONSTRAINT_TYPE, ccu.COLUMN_NAME
+    query = f"""SELECT tc.CONSTRAINT_NAME , tc.CONSTRAINT_TYPE, ccu.COLUMN_NAME
      FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS AS tc
      JOIN INFORMATION_SCHEMA.CONSTRAINT_COLUMN_USAGE AS ccu ON ccu.CONSTRAINT_NAME = tc.CONSTRAINT_NAME
      WHERE tc.TABLE_NAME = '{table_name}' AND
      (tc.CONSTRAINT_TYPE = 'PRIMARY KEY' or UPPER(tc.CONSTRAINT_TYPE) = 'UNIQUE')
-    """.format(
-        table_name=table_name
-    )
+    """
     result = conn.execute(query).fetchall()
     constraint_dict = defaultdict(list)
     for constraint, constraint_type, column in result:

@@ -35,6 +35,7 @@ Content
 
     Example DAGs <https://github.com/apache/airflow/tree/main/airflow/providers/docker/example_dags>
     PyPI Repository <https://pypi.org/project/apache-airflow-providers-docker/>
+    Installing from sources <installing-providers-from-sources>
 
 .. THE REMAINDER OF THE FILE IS AUTOMATICALLY GENERATED. IT WILL BE OVERWRITTEN AT RELEASE TIME!
 
@@ -52,7 +53,7 @@ Package apache-airflow-providers-docker
 `Docker <https://docs.docker.com/install/>`__
 
 
-Release: 2.1.1
+Release: 2.3.0
 
 Provider package
 ----------------
@@ -73,7 +74,7 @@ PIP requirements
 PIP package         Version required
 ==================  ==================
 ``apache-airflow``  ``>=2.1.0``
-``docker``
+``docker``          ``>=5.0.3``
 ==================  ==================
 
 .. include:: ../../airflow/providers/docker/CHANGELOG.rst

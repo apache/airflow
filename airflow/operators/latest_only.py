@@ -19,11 +19,14 @@
 This module contains an operator to run downstream tasks only for the
 latest scheduled DagRun
 """
-from typing import Dict, Iterable, Union
+from typing import TYPE_CHECKING, Dict, Iterable, Union
 
 import pendulum
 
 from airflow.operators.branch import BaseBranchOperator
+
+if TYPE_CHECKING:
+    from airflow.models import DAG, DagRun
 
 
 class LatestOnlyOperator(BaseBranchOperator):
@@ -43,13 +46,20 @@ class LatestOnlyOperator(BaseBranchOperator):
     def choose_branch(self, context: Dict) -> Union[str, Iterable[str]]:
         # If the DAG Run is externally triggered, then return without
         # skipping downstream tasks
-        if context['dag_run'] and context['dag_run'].external_trigger:
+        dag_run: "DagRun" = context["dag_run"]
+        if dag_run.external_trigger:
             self.log.info("Externally triggered DAG_Run: allowing execution to proceed.")
             return list(context['task'].get_direct_relative_ids(upstream=False))
 
+        dag: "DAG" = context["dag"]
+        next_info = dag.next_dagrun_info(dag.get_run_data_interval(dag_run), restricted=False)
         now = pendulum.now('UTC')
-        left_window = context['dag'].following_schedule(context['execution_date'])
-        right_window = context['dag'].following_schedule(left_window)
+
+        if next_info is None:
+            self.log.info("Last scheduled execution: allowing execution to proceed.")
+            return list(context['task'].get_direct_relative_ids(upstream=False))
+
+        left_window, right_window = next_info.data_interval
         self.log.info(
             'Checking latest only with left_window: %s right_window: %s now: %s',
             left_window,

@@ -22,7 +22,6 @@ from unittest import mock
 
 import pytest
 from flask_appbuilder import SQLA, Model, expose, has_access
-from flask_appbuilder.security.sqla import models as sqla_models
 from flask_appbuilder.views import BaseView, ModelView
 from sqlalchemy import Column, Date, Float, Integer, String
 
@@ -32,6 +31,7 @@ from airflow.models import DagModel
 from airflow.models.dag import DAG
 from airflow.security import permissions
 from airflow.www import app as application
+from airflow.www.fab_security.sqla.models import assoc_permission_role
 from airflow.www.utils import CustomSQLAInterface
 from tests.test_utils import api_connexion_utils
 from tests.test_utils.asserts import assert_queries_count
@@ -100,7 +100,15 @@ class TestSecurity(unittest.TestCase):
 
     @classmethod
     def delete_roles(cls):
-        for role_name in ['team-a', 'MyRole1', 'MyRole5', 'Test_Role', 'MyRole3', 'MyRole2']:
+        for role_name in [
+            'team-a',
+            'MyRole1',
+            'MyRole5',
+            'Test_Role',
+            'MyRole3',
+            'MyRole2',
+            'dag_permission_role',
+        ]:
             api_connexion_utils.delete_role(cls.app, role_name)
 
     def expect_user_is_in_role(self, user, rolename):
@@ -123,8 +131,6 @@ class TestSecurity(unittest.TestCase):
             ), f"User should not have '{perm}' on DAG '{dag_id}'"
 
     def _has_dag_perm(self, perm, dag_id, user):
-        # if not user:
-        #     user = self.user
         return self.security_manager.has_access(perm, permissions.resource_name_for_dag(dag_id), user)
 
     def _create_dag(self, dag_id):
@@ -180,7 +186,7 @@ class TestSecurity(unittest.TestCase):
         assert len(role_perms) == len(role.permissions)
 
         # Check short circuit works
-        with assert_queries_count(2):  # One for permissionview, one for roles
+        with assert_queries_count(2):  # One for Permission, one for roles
             self.security_manager.bulk_sync_roles(mock_roles)
 
     def test_update_and_verify_permission_role(self):
@@ -191,7 +197,7 @@ class TestSecurity(unittest.TestCase):
         role = self.security_manager.find_role(role_name)
 
         perm = self.security_manager.get_permission(permissions.ACTION_CAN_EDIT, permissions.RESOURCE_ROLE)
-        self.security_manager.add_permission_role(role, perm)
+        self.security_manager.add_permission_to_role(role, perm)
         role_perms_len = len(role.permissions)
 
         self.security_manager.bulk_sync_roles(mock_roles)
@@ -297,6 +303,7 @@ class TestSecurity(unittest.TestCase):
             (permissions.ACTION_CAN_READ, permissions.RESOURCE_MY_PROFILE),
             (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_MY_PROFILE),
             (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_BROWSE_MENU),
+            (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_DAG_DEPENDENCIES),
             (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_DAG_RUN),
             (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_JOB),
             (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_AUDIT_LOG),
@@ -314,9 +321,7 @@ class TestSecurity(unittest.TestCase):
 
             perms_views = set()
             for role in self.security_manager.get_user_roles(user):
-                perms_views.update(
-                    {(perm_view.permission.name, perm_view.view_menu.name) for perm_view in role.permissions}
-                )
+                perms_views.update({(perm.action.name, perm.resource.name) for perm in role.permissions})
             assert perms_views == viewer_role_perms
 
     @mock.patch('airflow.www.security.AirflowSecurityManager.get_user_roles')
@@ -329,8 +334,8 @@ class TestSecurity(unittest.TestCase):
         with self.app.app_context():
             user = api_connexion_utils.create_user(
                 self.app,
-                username,
-                role_name,
+                username=username,
+                role_name=role_name,
                 permissions=[
                     (role_perm, role_vm),
                 ],
@@ -348,8 +353,8 @@ class TestSecurity(unittest.TestCase):
         with self.app.app_context():
             user = api_connexion_utils.create_user(
                 self.app,
-                "current_user_has_permissions",
-                "current_user_has_permissions",
+                username="current_user_has_permissions",
+                role_name="current_user_has_permissions",
                 permissions=[("can_some_action", "SomeBaseView")],
             )
             role = user.roles[0]
@@ -372,8 +377,8 @@ class TestSecurity(unittest.TestCase):
 
         user = api_connexion_utils.create_user(
             self.app,
-            username,
-            role_name,
+            username=username,
+            role_name=role_name,
             permissions=[
                 (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
                 (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
@@ -392,7 +397,7 @@ class TestSecurity(unittest.TestCase):
 
     def test_dont_get_inaccessible_dag_ids_for_dag_resource_permission(self):
         # In this test case,
-        # get_readable_dag_ids() don't return DAGs to which the user has CAN_EDIT permission
+        # get_readable_dag_ids() don't return DAGs to which the user has CAN_EDIT action
         username = "Monsieur User"
         role_name = "MyRole1"
         permission_action = [permissions.ACTION_CAN_EDIT]
@@ -400,8 +405,8 @@ class TestSecurity(unittest.TestCase):
 
         user = api_connexion_utils.create_user(
             self.app,
-            username,
-            role_name,
+            username=username,
+            role_name=role_name,
             permissions=[
                 (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_DAG),
             ],
@@ -417,14 +422,14 @@ class TestSecurity(unittest.TestCase):
 
         assert self.security_manager.get_readable_dag_ids(user) == set()
 
-    @mock.patch('airflow.www.security.AirflowSecurityManager._has_view_access')
-    def test_has_access(self, mock_has_view_access):
+    @mock.patch('airflow.www.security.AirflowSecurityManager._has_resource_access')
+    def test_has_access(self, mock_has_resource_access):
         user = mock.MagicMock()
         user.is_anonymous = False
-        mock_has_view_access.return_value = True
+        mock_has_resource_access.return_value = True
         assert self.security_manager.has_access('perm', 'view', user)
 
-    def test_sync_perm_for_dag_creates_permissions_on_view_menus(self):
+    def test_sync_perm_for_dag_creates_permissions_on_resources(self):
         test_dag_id = 'TEST_DAG'
         prefixed_test_dag_id = f'DAG:{test_dag_id}'
         self.security_manager.sync_perm_for_dag(test_dag_id, access_control=None)
@@ -466,8 +471,8 @@ class TestSecurity(unittest.TestCase):
         with self.app.app_context():
             user = api_connexion_utils.create_user(
                 self.app,
-                username,
-                role_name,
+                username=username,
+                role_name=role_name,
                 permissions=[
                     (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
                     (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
@@ -481,9 +486,9 @@ class TestSecurity(unittest.TestCase):
             )
 
     def test_access_control_with_invalid_permission(self):
-        invalid_permissions = [
-            'can_varimport',  # a real permission, but not a member of DAG_ACTIONS
-            'can_eat_pudding',  # clearly not a real permission
+        invalid_actions = [
+            'can_varimport',  # a real action, but not a member of DAG_ACTIONS
+            'can_eat_pudding',  # clearly not a real action
         ]
         username = "LaUser"
         user = api_connexion_utils.create_user(
@@ -491,11 +496,11 @@ class TestSecurity(unittest.TestCase):
             username=username,
             role_name='team-a',
         )
-        for permission in invalid_permissions:
+        for action in invalid_actions:
             self.expect_user_is_in_role(user, rolename='team-a')
             with pytest.raises(AirflowException) as ctx:
                 self.security_manager._sync_dag_view_permissions(
-                    'access_control_test', access_control={'team-a': {permission}}
+                    'access_control_test', access_control={'team-a': {action}}
                 )
             assert "invalid permissions" in str(ctx.value)
 
@@ -505,8 +510,8 @@ class TestSecurity(unittest.TestCase):
         with self.app.app_context():
             user = api_connexion_utils.create_user(
                 self.app,
-                username,
-                role_name,
+                username=username,
+                role_name=role_name,
                 permissions=[],
             )
             self.expect_user_is_in_role(user, rolename='team-a')
@@ -533,8 +538,8 @@ class TestSecurity(unittest.TestCase):
         with self.app.app_context():
             user = api_connexion_utils.create_user(
                 self.app,
-                username,
-                role_name,
+                username=username,
+                role_name=role_name,
                 permissions=[],
             )
             self.expect_user_is_in_role(user, rolename='team-a')
@@ -554,12 +559,12 @@ class TestSecurity(unittest.TestCase):
             )
 
     def test_no_additional_dag_permission_views_created(self):
-        ab_perm_view_role = sqla_models.assoc_permissionview_role
+        ab_perm_role = assoc_permission_role
 
         self.security_manager.sync_roles()
-        num_pv_before = self.db.session().query(ab_perm_view_role).count()
+        num_pv_before = self.db.session().query(ab_perm_role).count()
         self.security_manager.sync_roles()
-        num_pv_after = self.db.session().query(ab_perm_view_role).count()
+        num_pv_after = self.db.session().query(ab_perm_role).count()
         assert num_pv_before == num_pv_after
 
     def test_override_role_vm(self):
@@ -572,11 +577,11 @@ class TestSecurity(unittest.TestCase):
         assert len(roles_to_check) >= 5
         for role in roles_to_check:
             if role.name in ["Admin", "Op"]:
-                assert self.security_manager.exist_permission_on_roles(
+                assert self.security_manager.permission_exists_in_one_or_more_roles(
                     permissions.RESOURCE_CONFIG, permissions.ACTION_CAN_READ, [role.id]
                 )
             else:
-                assert not self.security_manager.exist_permission_on_roles(
+                assert not self.security_manager.permission_exists_in_one_or_more_roles(
                     permissions.RESOURCE_CONFIG, permissions.ACTION_CAN_READ, [role.id]
                 ), (
                     f"{role.name} should not have {permissions.ACTION_CAN_READ} "
@@ -641,10 +646,10 @@ class TestSecurity(unittest.TestCase):
             pvs = self.security_manager._get_all_non_dag_permissions()
 
         assert isinstance(pvs, dict)
-        for (perm_name, viewmodel_name), perm_view in pvs.items():
+        for (perm_name, viewmodel_name), perm in pvs.items():
             assert isinstance(perm_name, str)
             assert isinstance(viewmodel_name, str)
-            assert isinstance(perm_view, self.security_manager.permissionview_model)
+            assert isinstance(perm, self.security_manager.permission_model)
 
         assert ('can_read', 'Connections') in pvs
 
@@ -668,3 +673,32 @@ class TestSecurity(unittest.TestCase):
             ),
         ):
             self.security_manager.prefixed_dag_id("hello")
+
+    def test_parent_dag_access_applies_to_subdag(self):
+        username = 'dag_permission_user'
+        role_name = 'dag_permission_role'
+        parent_dag_name = "parent_dag"
+        with self.app.app_context():
+            mock_roles = [
+                {
+                    'role': role_name,
+                    'perms': [
+                        (permissions.ACTION_CAN_READ, f"DAG:{parent_dag_name}"),
+                        (permissions.ACTION_CAN_EDIT, f"DAG:{parent_dag_name}"),
+                    ],
+                }
+            ]
+            user = api_connexion_utils.create_user(
+                self.app,
+                username=username,
+                role_name=role_name,
+            )
+            self.security_manager.bulk_sync_roles(mock_roles)
+            self.security_manager._sync_dag_view_permissions(
+                parent_dag_name, access_control={role_name: READ_WRITE}
+            )
+            self.assert_user_has_dag_perms(perms=READ_WRITE, dag_id=parent_dag_name, user=user)
+            self.assert_user_has_dag_perms(perms=READ_WRITE, dag_id=parent_dag_name + ".subdag", user=user)
+            self.assert_user_has_dag_perms(
+                perms=READ_WRITE, dag_id=parent_dag_name + ".subdag.subsubdag", user=user
+            )

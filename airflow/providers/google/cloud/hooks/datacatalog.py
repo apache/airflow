@@ -19,7 +19,7 @@ from typing import Dict, Optional, Sequence, Tuple, Union
 
 from google.api_core.retry import Retry
 from google.cloud import datacatalog
-from google.cloud.datacatalog_v1beta1 import (
+from google.cloud.datacatalog import (
     CreateTagRequest,
     DataCatalogClient,
     Entry,

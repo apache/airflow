@@ -21,11 +21,6 @@ Upload data from Local Filesystem to Google Cloud Storage
 The `Google Cloud Storage <https://cloud.google.com/storage/>`__  (GCS) is used to store large data from various applications.
 This page shows how to upload data from local filesystem to GCS.
 
-.. contents::
-  :depth: 1
-  :local:
-
-
 Prerequisite Tasks
 ^^^^^^^^^^^^^^^^^^
 

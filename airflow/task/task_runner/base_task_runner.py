@@ -19,6 +19,7 @@
 import os
 import subprocess
 import threading
+from pwd import getpwnam
 from tempfile import NamedTemporaryFile
 from typing import Optional, Union
 
@@ -65,7 +66,7 @@ class BaseTaskRunner(LoggingMixin):
             # want to have to specify them in the sudo call - they would show
             # up in `ps` that way! And run commands now, as the other user
             # might not be able to run the cmds to get credentials
-            cfg_path = tmp_configuration_copy(chmod=0o600)
+            cfg_path = tmp_configuration_copy(chmod=0o600, include_env=True, include_cmds=True)
 
             # Give ownership of file to user; only they can read and write
             subprocess.call(['sudo', 'chown', self.run_as_user, cfg_path], close_fds=True)
@@ -82,9 +83,16 @@ class BaseTaskRunner(LoggingMixin):
             # we are running as the same user, and can pass through environment
             # variables then we don't need to include those in the config copy
             # - the runner can read/execute those values as it needs
-            cfg_path = tmp_configuration_copy(chmod=0o600)
+            cfg_path = tmp_configuration_copy(chmod=0o600, include_env=False, include_cmds=False)
 
         self._error_file = NamedTemporaryFile(delete=True)
+        if self.run_as_user:
+            try:
+                os.chown(self._error_file.name, getpwnam(self.run_as_user).pw_uid, -1)
+            except KeyError:
+                # No user `run_as_user` found
+                pass
+
         self._cfg_path = cfg_path
         self._command = (
             popen_prepend
@@ -175,4 +183,9 @@ class BaseTaskRunner(LoggingMixin):
                 subprocess.call(['sudo', 'rm', self._cfg_path], close_fds=True)
             else:
                 os.remove(self._cfg_path)
-        self._error_file.close()
+        try:
+            self._error_file.close()
+        except FileNotFoundError:
+            # The subprocess has deleted this file before we do
+            # so we ignore
+            pass

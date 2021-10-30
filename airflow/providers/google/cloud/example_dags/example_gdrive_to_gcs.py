@@ -31,7 +31,7 @@ FILE_NAME = os.environ.get("FILE_NAME", "file.pdf")
 with models.DAG(
     "example_gdrive_to_gcs_with_gdrive_sensor",
     start_date=days_ago(1),
-    schedule_interval=None,  # Override to match your needs
+    schedule_interval='@once',  # Override to match your needs
     tags=["example"],
 ) as dag:
     # [START detect_file]

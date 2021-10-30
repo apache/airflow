@@ -25,7 +25,7 @@ TODO: Review the workflow, change it accordingly to
       your environment & enable the code.
 """
 
-from datetime import timedelta
+from datetime import datetime, timedelta
 
 from docker.types import Mount
 
@@ -33,21 +33,13 @@ from airflow import DAG
 from airflow.operators.bash import BashOperator
 from airflow.operators.python import ShortCircuitOperator
 from airflow.providers.docker.operators.docker import DockerOperator
-from airflow.utils.dates import days_ago
 
 dag = DAG(
     "docker_sample_copy_data",
-    default_args={
-        "owner": "airflow",
-        "depends_on_past": False,
-        "email": ["airflow@example.com"],
-        "email_on_failure": False,
-        "email_on_retry": False,
-        "retries": 1,
-        "retry_delay": timedelta(minutes=5),
-    },
+    default_args={"retries": 1},
     schedule_interval=timedelta(minutes=10),
-    start_date=days_ago(2),
+    start_date=datetime(2021, 1, 1),
+    catchup=False,
 )
 
 locate_file_cmd = """
@@ -83,7 +75,7 @@ t_move = DockerOperator(
         "/bin/bash",
         "-c",
         "/bin/sleep 30; "
-        "/bin/mv {{ params.source_location }}/" + f"{t_view.output}" + " {{ params.target_location }};"
+        "/bin/mv {{ params.source_location }}/" + str(t_view.output) + " {{ params.target_location }};"
         "/bin/echo '{{ params.target_location }}/" + f"{t_view.output}';",
     ],
     task_id="move_data",

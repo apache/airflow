@@ -58,7 +58,7 @@ pushd "${TMP_DIR}" && unzip "${TMP_DIR}/awscliv2.zip" && cd aws && \
     --bin-dir "/files/bin/" && \
     popd
 
-# Sanity check
+# Coherence check
 if ! command -v aws > /dev/null; then
     echo 'Installation failed. The command "aws" was not found.'
     exit 1

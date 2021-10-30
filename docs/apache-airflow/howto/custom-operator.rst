@@ -37,7 +37,7 @@ There are two methods that you need to override in a derived class:
 .. note::
 
     When implementing custom operators, do not make any expensive operations in the ``__init__`` method. The operators
-    will instantiated once per scheduler cycle per task using them, and making database calls can significantly slow
+    will be instantiated once per scheduler cycle per task using them, and making database calls can significantly slow
     down scheduling and waste resources.
 
 Let's implement an example ``HelloOperator`` in a new file ``hello_operator.py``:

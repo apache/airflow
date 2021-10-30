@@ -26,8 +26,8 @@ from tests.test_utils.config import conf_vars
     ("dsn", "expected", "extra"),
     [
         param("postgres://host/the_database", {}, {}, id="postgres"),
-        param("mysql://host/the_database", {"collation": "utf8mb3_general_ci"}, {}, id="mysql"),
-        param("mysql+pymsql://host/the_database", {"collation": "utf8mb3_general_ci"}, {}, id="mysql+pymsql"),
+        param("mysql://host/the_database", {"collation": "utf8mb3_bin"}, {}, id="mysql"),
+        param("mysql+pymsql://host/the_database", {"collation": "utf8mb3_bin"}, {}, id="mysql+pymsql"),
         param(
             "mysql://host/the_database",
             {"collation": "ascii"},

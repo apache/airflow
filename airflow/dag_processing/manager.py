@@ -26,6 +26,7 @@ import random
 import signal
 import sys
 import time
+import zipfile
 from collections import defaultdict
 from datetime import datetime, timedelta
 from importlib import import_module
@@ -45,7 +46,7 @@ from airflow.models.taskinstance import SimpleTaskInstance
 from airflow.stats import Stats
 from airflow.utils import timezone
 from airflow.utils.callback_requests import CallbackRequest, SlaCallbackRequest, TaskCallbackRequest
-from airflow.utils.file import list_py_file_paths
+from airflow.utils.file import list_py_file_paths, might_contain_dag
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.mixins import MultiprocessingStartMethodMixin
 from airflow.utils.net import get_hostname
@@ -661,12 +662,29 @@ class DagFileProcessorManager(LoggingMixin):
             except Exception:
                 self.log.exception("Error removing old import errors")
 
-            SerializedDagModel.remove_deleted_dags(self._file_paths)
+            # Check if file path is a zipfile and get the full path of the python file.
+            # Without this, SerializedDagModel.remove_deleted_files would delete zipped dags.
+            # Likewise DagCode.remove_deleted_code
+            dag_filelocs = []
+            for fileloc in self._file_paths:
+                if zipfile.is_zipfile(fileloc):
+                    with zipfile.ZipFile(fileloc) as z:
+                        dag_filelocs.extend(
+                            [
+                                os.path.join(fileloc, info.filename)
+                                for info in z.infolist()
+                                if might_contain_dag(info.filename, True, z)
+                            ]
+                        )
+                else:
+                    dag_filelocs.append(fileloc)
+
+            SerializedDagModel.remove_deleted_dags(dag_filelocs)
             DagModel.deactivate_deleted_dags(self._file_paths)
 
             from airflow.models.dagcode import DagCode
 
-            DagCode.remove_deleted_code(self._file_paths)
+            DagCode.remove_deleted_code(dag_filelocs)
 
     def _print_stat(self):
         """Occasionally print out stats about how fast the files are getting processed"""
@@ -957,7 +975,11 @@ class DagFileProcessorManager(LoggingMixin):
         for file_path in self._file_paths:
 
             if is_mtime_mode:
-                files_with_mtime[file_path] = os.path.getmtime(file_path)
+                try:
+                    files_with_mtime[file_path] = os.path.getmtime(file_path)
+                except FileNotFoundError:
+                    self.log.warning("Skipping processing of missing file: %s", file_path)
+                    continue
                 file_modified_time = timezone.make_aware(datetime.fromtimestamp(files_with_mtime[file_path]))
             else:
                 file_paths.append(file_path)
@@ -1055,7 +1077,7 @@ class DagFileProcessorManager(LoggingMixin):
                 request = TaskCallbackRequest(
                     full_filepath=file_loc,
                     simple_task_instance=SimpleTaskInstance(ti),
-                    msg="Detected as zombie",
+                    msg=f"Detected {ti} as zombie",
                 )
                 self.log.info("Detected zombie job: %s", request)
                 self._add_callback_to_queue(request)

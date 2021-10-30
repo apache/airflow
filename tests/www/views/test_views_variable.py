@@ -21,8 +21,10 @@ from unittest import mock
 import pytest
 
 from airflow.models import Variable
+from airflow.security import permissions
 from airflow.utils.session import create_session
-from tests.test_utils.www import check_content_in_response, check_content_not_in_response
+from tests.test_utils.api_connexion_utils import create_user
+from tests.test_utils.www import check_content_in_response, check_content_not_in_response, client_with_login
 
 VARIABLE = {
     'key': 'test_key',
@@ -36,6 +38,27 @@ VARIABLE = {
 def clear_variables():
     with create_session() as session:
         session.query(Variable).delete()
+
+
+@pytest.fixture(scope="module")
+def user_variable_reader(app):
+    """Create User that can only read variables"""
+    return create_user(
+        app,
+        username="user_variable_reader",
+        role_name="role_variable_reader",
+        permissions=[(permissions.ACTION_CAN_READ, permissions.RESOURCE_VARIABLE)],
+    )
+
+
+@pytest.fixture()
+def client_variable_reader(app, user_variable_reader):
+    """Client for User that can only access the first DAG from TEST_FILTER_DAG_IDS"""
+    return client_with_login(
+        app,
+        username="user_variable_reader",
+        password="user_variable_reader",
+    )
 
 
 def test_can_handle_error_on_decrypt(session, admin_client):
@@ -107,6 +130,16 @@ def test_import_variables_anon(session, app):
     )
     check_content_not_in_response('variable(s) successfully updated.', resp)
     check_content_in_response('Sign In', resp)
+
+
+def test_import_variables_form_shown(app, admin_client):
+    resp = admin_client.get('/variable/list/')
+    check_content_in_response('Import Variables', resp)
+
+
+def test_import_variables_form_hidden(app, client_variable_reader):
+    resp = client_variable_reader.get('/variable/list/')
+    check_content_not_in_response('Import Variables', resp)
 
 
 def test_description_retrieval(session, admin_client):

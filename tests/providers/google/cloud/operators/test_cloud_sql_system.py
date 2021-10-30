@@ -41,6 +41,9 @@ SQL_QUERY_TEST_HELPER = CloudSqlQueryTestHelper()
 @pytest.mark.backend("mysql", "postgres")
 @pytest.mark.credential_file(GCP_CLOUDSQL_KEY)
 class CloudSqlExampleDagsIntegrationTest(GoogleSystemTest):
+    def setUp(self):
+        super().setUp()
+
     @provide_gcp_context(GCP_CLOUDSQL_KEY)
     def tearDown(self):
         if os.path.exists(TEARDOWN_LOCK_FILE):
@@ -103,6 +106,12 @@ class CloudSqlProxySystemTest(GoogleSystemTest):
             gcp_authenticator = GcpAuthenticator(gcp_key=GCP_CLOUDSQL_KEY)
             gcp_authenticator.gcp_authenticate()
             helper.delete_instances(instance_suffix=QUERY_SUFFIX)
+
+    def setUp(self):
+        super().setUp()
+
+    def tearDown(self):
+        super().tearDown()
 
     @staticmethod
     def generate_unique_path():

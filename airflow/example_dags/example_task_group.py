@@ -17,15 +17,17 @@
 # under the License.
 
 """Example DAG demonstrating the usage of the TaskGroup."""
+from datetime import datetime
 
 from airflow.models.dag import DAG
 from airflow.operators.bash import BashOperator
 from airflow.operators.dummy import DummyOperator
-from airflow.utils.dates import days_ago
 from airflow.utils.task_group import TaskGroup
 
 # [START howto_task_group]
-with DAG(dag_id="example_task_group", start_date=days_ago(2), tags=["example"]) as dag:
+with DAG(
+    dag_id="example_task_group", start_date=datetime(2021, 1, 1), catchup=False, tags=["example"]
+) as dag:
     start = DummyOperator(task_id="start")
 
     # [START howto_task_group_section_1]

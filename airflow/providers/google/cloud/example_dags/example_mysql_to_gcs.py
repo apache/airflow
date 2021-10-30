@@ -29,7 +29,7 @@ SQL_QUERY = "SELECT * from test_table"
 with models.DAG(
     'example_mysql_to_gcs',
     default_args=dict(start_date=dates.days_ago(1)),
-    schedule_interval=None,
+    schedule_interval='@once',
     tags=['example'],
 ) as dag:
     # [START howto_operator_mysql_to_gcs]

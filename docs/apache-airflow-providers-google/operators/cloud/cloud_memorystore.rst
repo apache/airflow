@@ -25,10 +25,6 @@ Redis service for the Google Cloud. Applications running on Google Cloud can ach
 extreme performance by leveraging the highly scalable, available, secure Redis service without the burden
 of managing complex Redis deployments.
 
-.. contents::
-  :depth: 1
-  :local:
-
 Prerequisite Tasks
 ^^^^^^^^^^^^^^^^^^
 

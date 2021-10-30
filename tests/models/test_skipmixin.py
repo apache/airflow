@@ -74,9 +74,10 @@ class TestSkipMixin:
         mock_now.return_value = now
         with dag_maker(
             'dag',
+            session=session,
         ):
             tasks = [DummyOperator(task_id='task')]
-        dag_maker.create_dagrun()
+        dag_maker.create_dagrun(execution_date=now)
         SkipMixin().skip(dag_run=None, execution_date=now, tasks=tasks, session=session)
 
         session.query(TI).filter(

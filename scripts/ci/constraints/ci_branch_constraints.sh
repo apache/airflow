@@ -22,10 +22,8 @@ if [[ ${GITHUB_REF} == 'refs/heads/main' ]]; then
   echo "::set-output name=branch::constraints-main"
 elif [[ ${GITHUB_REF} == 'refs/heads/main' ]]; then
   echo "::set-output name=branch::constraints-main"
-elif [[ ${GITHUB_REF} == 'refs/heads/v2-0-test' ]]; then
-  echo "::set-output name=branch::constraints-2-0"
-elif [[ ${GITHUB_REF} == 'refs/heads/v2-1-test' ]]; then
-  echo "::set-output name=branch::constraints-2-1"
+elif [[ ${GITHUB_REF} =~ refs/heads/v([0-9\-]*)\-(test|stable) ]]; then
+  echo "::set-output name=branch::constraints-${BASH_REMATCH[1]}"
 else
   echo
   echo "Unexpected ref ${GITHUB_REF}. Exiting!"

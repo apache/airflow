@@ -28,6 +28,7 @@ from tests.test_utils.gcp_system_helpers import GoogleSystemTest
 @pytest.mark.credential_file(GCP_BIGQUERY_KEY)
 class BigQueryDataframeResultsSystemTest(GoogleSystemTest):
     def setUp(self):
+        super().setUp()
         self.instance = hook.BigQueryHook()
 
     def test_output_is_dataframe_with_valid_query(self):
@@ -53,3 +54,6 @@ class BigQueryDataframeResultsSystemTest(GoogleSystemTest):
         with pytest.raises(Exception) as ctx:
             self.instance.get_pandas_df('select * except(b) from (select 1 a, 2 b)', dialect='legacy')
         assert 'Reason: ' in str(ctx.value), ""
+
+    def tearDown(self):
+        super().tearDown()

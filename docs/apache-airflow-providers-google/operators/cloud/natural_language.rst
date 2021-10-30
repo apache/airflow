@@ -28,10 +28,6 @@ You can use it to understand sentiment about your product on social media or
 parse intent from customer conversations happening in a call center or a
 messaging app.
 
-.. contents::
-  :depth: 1
-  :local:
-
 Prerequisite Tasks
 ^^^^^^^^^^^^^^^^^^
 

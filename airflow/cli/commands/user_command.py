@@ -199,9 +199,8 @@ def _import_users(users_list):
             print(f"Found existing user with email '{user['email']}'")
             if existing_user.username != user['username']:
                 raise SystemExit(
-                    "Error: Changing the username is not allowed - "
-                    "please delete and recreate the user with "
-                    "email '{}'".format(user['email'])
+                    f"Error: Changing the username is not allowed - please delete and recreate the user with"
+                    f" email {user['email']!r}"
                 )
 
             existing_user.roles = roles
@@ -216,13 +215,8 @@ def _import_users(users_list):
                 first_name=user['firstname'],
                 last_name=user['lastname'],
                 email=user['email'],
-                role=roles[0],  # add_user() requires exactly 1 role
+                role=roles,
             )
-
-            if len(roles) > 1:
-                new_user = appbuilder.sm.find_user(email=user['email'])
-                new_user.roles = roles
-                appbuilder.sm.update_user(new_user)
 
             users_created.append(user['email'])
 

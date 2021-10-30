@@ -25,7 +25,7 @@ cd "${AIRFLOW_SOURCES}"
 docker build . \
     --build-arg PYTHON_BASE_IMAGE="python:3.8-slim-buster" \
     --build-arg AIRFLOW_INSTALLATION_METHOD="https://github.com/apache/airflow/archive/v2-1-test.tar.gz#egg=apache-airflow" \
-    --build-arg AIRFLOW_CONSTRAINTS_REFERENCE="constraints-2-0" \
+    --build-arg AIRFLOW_CONSTRAINTS_REFERENCE="constraints-2-1" \
     --tag "my-github-v2-1:0.0.1"
 # [END build]
 docker rmi --force "my-github-v2-1:0.0.1"

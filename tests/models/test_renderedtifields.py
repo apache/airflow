@@ -23,12 +23,12 @@ from datetime import date, timedelta
 from unittest import mock
 
 import pytest
+from sqlalchemy.orm.session import make_transient
 
 from airflow import settings
 from airflow.configuration import TEST_DAGS_FOLDER
 from airflow.models import Variable
 from airflow.models.renderedtifields import RenderedTaskInstanceFields as RTIF
-from airflow.models.taskinstance import TaskInstance as TI
 from airflow.operators.bash import BashOperator
 from airflow.utils.session import create_session
 from airflow.utils.timezone import datetime
@@ -115,27 +115,32 @@ class TestRenderedTaskInstanceFields:
         Test that template_fields are rendered correctly, stored in the Database,
         and are correctly fetched using RTIF.get_templated_fields
         """
-        with dag_maker("test_serialized_rendered_fields") as dag:
+        with dag_maker("test_serialized_rendered_fields"):
             task = BashOperator(task_id="test", bash_command=templated_field)
-        dag_maker.create_dagrun()
-        ti = TI(task=task, execution_date=EXECUTION_DATE)
+            task_2 = BashOperator(task_id="test2", bash_command=templated_field)
+        dr = dag_maker.create_dagrun()
+
+        session = dag_maker.session
+
+        ti, ti2 = dr.task_instances
+        ti.task = task
+        ti2.task = task_2
         rtif = RTIF(ti=ti)
+
         assert ti.dag_id == rtif.dag_id
         assert ti.task_id == rtif.task_id
         assert ti.execution_date == rtif.execution_date
         assert expected_rendered_field == rtif.rendered_fields.get("bash_command")
 
-        with create_session() as session:
-            session.add(rtif)
+        session.add(rtif)
+        session.flush()
 
-        assert {"bash_command": expected_rendered_field, "env": None} == RTIF.get_templated_fields(ti=ti)
-
+        assert {"bash_command": expected_rendered_field, "env": None} == RTIF.get_templated_fields(
+            ti=ti, session=session
+        )
         # Test the else part of get_templated_fields
         # i.e. for the TIs that are not stored in RTIF table
         # Fetching them will return None
-        task_2 = BashOperator(task_id="test2", bash_command=templated_field, dag=dag)
-
-        ti2 = TI(task_2, EXECUTION_DATE)
         assert RTIF.get_templated_fields(ti=ti2) is None
 
     @pytest.mark.parametrize(
@@ -159,14 +164,15 @@ class TestRenderedTaskInstanceFields:
         session = settings.Session()
         with dag_maker("test_delete_old_records") as dag:
             task = BashOperator(task_id="test", bash_command="echo {{ ds }}")
-        dag_maker.create_dagrun()
-        rtif_list = [
-            RTIF(TI(task=task, execution_date=EXECUTION_DATE + timedelta(days=num)))
-            for num in range(rtif_num)
-        ]
+        rtif_list = []
+        for num in range(rtif_num):
+            dr = dag_maker.create_dagrun(run_id=str(num), execution_date=dag.start_date + timedelta(days=num))
+            ti = dr.task_instances[0]
+            ti.task = task
+            rtif_list.append(RTIF(ti))
 
         session.add_all(rtif_list)
-        session.commit()
+        session.flush()
 
         result = session.query(RTIF).filter(RTIF.dag_id == dag.dag_id, RTIF.task_id == task.task_id).all()
 
@@ -201,7 +207,11 @@ class TestRenderedTaskInstanceFields:
         with dag_maker("test_write"):
             task = BashOperator(task_id="test", bash_command="echo {{ var.value.test_key }}")
 
-        rtif = RTIF(TI(task=task, execution_date=EXECUTION_DATE))
+        dr = dag_maker.create_dagrun()
+        ti = dr.task_instances[0]
+        ti.task = task
+
+        rtif = RTIF(ti)
         rtif.write()
         result = (
             session.query(RTIF.dag_id, RTIF.task_id, RTIF.rendered_fields)
@@ -220,8 +230,10 @@ class TestRenderedTaskInstanceFields:
         self.clean_db()
         with dag_maker("test_write"):
             updated_task = BashOperator(task_id="test", bash_command="echo {{ var.value.test_key }}")
-        dag_maker.create_dagrun()
-        rtif_updated = RTIF(TI(task=updated_task, execution_date=EXECUTION_DATE))
+        dr = dag_maker.create_dagrun()
+        ti = dr.task_instances[0]
+        ti.task = updated_task
+        rtif_updated = RTIF(ti)
         rtif_updated.write()
 
         result_updated = (
@@ -248,10 +260,11 @@ class TestRenderedTaskInstanceFields:
         """
         with dag_maker("test_get_k8s_pod_yaml") as dag:
             task = BashOperator(task_id="test", bash_command="echo hi")
-        dag_maker.create_dagrun()
+        dr = dag_maker.create_dagrun()
         dag.fileloc = TEST_DAGS_FOLDER + '/test_get_k8s_pod_yaml.py'
 
-        ti = TI(task=task, execution_date=EXECUTION_DATE)
+        ti = dr.task_instances[0]
+        ti.task = task
 
         render_k8s_pod_yaml = mock.patch.object(
             ti, 'render_k8s_pod_yaml', return_value={"I'm a": "pod"}
@@ -274,6 +287,8 @@ class TestRenderedTaskInstanceFields:
             session.flush()
 
             assert expected_pod_yaml == RTIF.get_k8s_pod_yaml(ti=ti, session=session)
+            make_transient(ti)
+            # "Delete" it from the DB
             session.rollback()
 
             # Test the else part of get_k8s_pod_yaml
@@ -290,13 +305,14 @@ class TestRenderedTaskInstanceFields:
                 bash_command="echo {{ var.value.api_key }}",
                 env={'foo': 'secret', 'other_api_key': 'masked based on key name'},
             )
-        dag_maker.create_dagrun()
+        dr = dag_maker.create_dagrun()
         redact.side_effect = [
             'val 1',
             'val 2',
         ]
 
-        ti = TI(task=task, execution_date=EXECUTION_DATE)
+        ti = dr.task_instances[0]
+        ti.task = task
         rtif = RTIF(ti=ti)
         assert rtif.rendered_fields == {
             'bash_command': 'val 1',

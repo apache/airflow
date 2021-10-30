@@ -48,7 +48,7 @@ def safe_name(s: str) -> str:
 
 with models.DAG(
     dag_id="example_presto_to_gcs",
-    schedule_interval=None,  # Override to match your needs
+    schedule_interval='@once',  # Override to match your needs
     start_date=days_ago(1),
     tags=["example"],
 ) as dag:

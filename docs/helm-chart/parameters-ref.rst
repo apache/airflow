@@ -20,10 +20,6 @@ Parameters reference
 
 The following tables lists the configurable parameters of the Airflow chart and their default values.
 
-.. contents:: Sections:
-   :local:
-   :depth: 1
-
 .. jinja:: params_ctx
 
     {% for section in sections %}

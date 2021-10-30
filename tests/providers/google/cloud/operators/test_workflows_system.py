@@ -24,6 +24,12 @@ from tests.test_utils.gcp_system_helpers import CLOUD_DAG_FOLDER, GoogleSystemTe
 @pytest.mark.system("google.cloud")
 @pytest.mark.credential_file(GCP_WORKFLOWS_KEY)
 class CloudVisionExampleDagsSystemTest(GoogleSystemTest):
+    def setUp(self):
+        super().setUp()
+
     @provide_gcp_context(GCP_WORKFLOWS_KEY)
     def test_run_example_workflow_dag(self):
         self.run_dag('example_cloud_workflows', CLOUD_DAG_FOLDER)
+
+    def tearDown(self):
+        super().tearDown()

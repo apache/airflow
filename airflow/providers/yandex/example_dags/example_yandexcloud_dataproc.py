@@ -15,6 +15,8 @@
 # specific language governing permissions and limitations
 # under the License.
 
+from datetime import datetime
+
 from airflow import DAG
 from airflow.providers.yandex.operators.yandexcloud_dataproc import (
     DataprocCreateClusterOperator,
@@ -24,13 +26,8 @@ from airflow.providers.yandex.operators.yandexcloud_dataproc import (
     DataprocCreateSparkJobOperator,
     DataprocDeleteClusterOperator,
 )
-from airflow.utils.dates import days_ago
 
 # should be filled with appropriate ids
-
-# Airflow connection with type "yandexcloud" must be created.
-# By default connection with id "yandexcloud_default" will be used
-CONNECTION_ID = 'yandexcloud_default'
 
 # Name of the datacenter where Dataproc cluster will be created
 AVAILABILITY_ZONE_ID = 'ru-central1-c'
@@ -42,13 +39,12 @@ S3_BUCKET_NAME_FOR_JOB_LOGS = ''
 with DAG(
     'example_yandexcloud_dataproc_operator',
     schedule_interval=None,
-    start_date=days_ago(1),
+    start_date=datetime(2021, 1, 1),
     tags=['example'],
 ) as dag:
     create_cluster = DataprocCreateClusterOperator(
         task_id='create_cluster',
         zone=AVAILABILITY_ZONE_ID,
-        connection_id=CONNECTION_ID,
         s3_bucket=S3_BUCKET_NAME_FOR_JOB_LOGS,
         computenode_count=1,
         computenode_max_hosts_count=5,

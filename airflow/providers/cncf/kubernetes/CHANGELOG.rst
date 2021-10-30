@@ -19,6 +19,36 @@
 Changelog
 ---------
 
+2.1.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add more type hints to PodLauncher (#18928)``
+* ``Add more information to PodLauncher timeout error (#17953)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Update docstring to let users use &#39;node_selector&#39; (#19057)``
+   * ``Add pre-commit hook for common misspelling check in files (#18964)``
+
+2.0.3
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix KubernetesPodOperator reattach when not deleting pods (#18070)``
+* ``Make Kubernetes job description fit on one log line (#18377)``
+* ``Do not fail KubernetesPodOperator tasks if log reading fails (#17649)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Add August 2021 Provider's documentation (#17890)``
+   * ``Static start_date and default arg cleanup for misc. provider example DAGs (#18597)``
+   * ``Remove all deprecation warnings in providers (#17900)``
+
 2.0.2
 .....
 

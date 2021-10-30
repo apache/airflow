@@ -40,11 +40,11 @@ from airflow.exceptions import (
     AirflowDagCycleException,
     AirflowDagDuplicatedIdException,
     AirflowTimetableInvalid,
-    SerializedDagNotFound,
 )
 from airflow.stats import Stats
 from airflow.utils import timezone
 from airflow.utils.dag_cycle_tester import check_cycle
+from airflow.utils.docs import get_docs_url
 from airflow.utils.file import correct_maybe_zipped, list_py_file_paths, might_contain_dag
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.retries import MAX_DB_RETRIES, run_with_db_retries
@@ -255,7 +255,7 @@ class DagBag(LoggingMixin):
 
         row = SerializedDagModel.get(dag_id, session)
         if not row:
-            raise SerializedDagNotFound(f"DAG '{dag_id}' not found in serialized_dag table")
+            return None
 
         row.load_op_links = self.load_op_links
         dag = row.dag
@@ -316,7 +316,12 @@ class DagBag(LoggingMixin):
         if mod_name in sys.modules:
             del sys.modules[mod_name]
 
-        timeout_msg = f"DagBag import timeout for {filepath} after {self.DAGBAG_IMPORT_TIMEOUT}s"
+        timeout_msg = (
+            f"DagBag import timeout for {filepath} after {self.DAGBAG_IMPORT_TIMEOUT}s.\n"
+            "Please take a look at these docs to improve your DAG import time:\n"
+            f"* {get_docs_url('best-practices.html#top-level-python-code')}\n"
+            f"* {get_docs_url('best-practices.html#reducing-dag-complexity')}"
+        )
         with timeout(self.DAGBAG_IMPORT_TIMEOUT, error_message=timeout_msg):
             try:
                 loader = importlib.machinery.SourceFileLoader(mod_name, filepath)
@@ -377,6 +382,9 @@ class DagBag(LoggingMixin):
                         )
                     else:
                         self.import_errors[fileloc] = str(e)
+                finally:
+                    if sys.path[0] == filepath:
+                        del sys.path[0]
         return mods
 
     def _process_modules(self, filepath, mods, file_last_changed_on_disk):
@@ -622,25 +630,24 @@ class DagBag(LoggingMixin):
     @provide_session
     def _sync_perm_for_dag(self, dag, session: Optional[Session] = None):
         """Sync DAG specific permissions, if necessary"""
-        from flask_appbuilder.security.sqla import models as sqla_models
-
         from airflow.security.permissions import DAG_ACTIONS, resource_name_for_dag
+        from airflow.www.fab_security.sqla.models import Action, Permission, Resource
 
-        def needs_perm_views(dag_id: str) -> bool:
+        def needs_perms(dag_id: str) -> bool:
             dag_resource_name = resource_name_for_dag(dag_id)
             for permission_name in DAG_ACTIONS:
                 if not (
-                    session.query(sqla_models.PermissionView)
-                    .join(sqla_models.Permission)
-                    .join(sqla_models.ViewMenu)
-                    .filter(sqla_models.Permission.name == permission_name)
-                    .filter(sqla_models.ViewMenu.name == dag_resource_name)
+                    session.query(Permission)
+                    .join(Action)
+                    .join(Resource)
+                    .filter(Action.name == permission_name)
+                    .filter(Resource.name == dag_resource_name)
                     .one_or_none()
                 ):
                     return True
             return False
 
-        if dag.access_control or needs_perm_views(dag.dag_id):
+        if dag.access_control or needs_perms(dag.dag_id):
             self.log.debug("Syncing DAG permissions: %s to the DB", dag.dag_id)
             from airflow.www.security import ApplessAirflowSecurityManager
 

@@ -25,10 +25,6 @@ save money by turning clusters off when you don't need them.
 
 For more information about the service visit `Dataproc production documentation <Product documentation <https://cloud.google.com/dataproc/docs/reference>`__
 
-.. contents::
-  :depth: 1
-  :local:
-
 Prerequisite Tasks
 ------------------
 
@@ -105,7 +101,7 @@ The list currently includes Spark, Hadoop, Pig and Hive.
 For more information on versions and images take a look at `Cloud Dataproc Image version list <https://cloud.google.com/dataproc/docs/concepts/versioning/dataproc-versions>`__
 
 To submit a job to the cluster you need a provide a job source file. The job source file can be on GCS, the cluster or on your local
-file system. You can specify a file:/// path to refer to a local file on a cluster's master node.
+file system. You can specify a file:/// path to refer to a local file on a cluster's primary node.
 
 The job configuration can be submitted by using:
 :class:`~airflow.providers.google.cloud.operators.dataproc.DataprocSubmitJobOperator`.
