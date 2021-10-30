@@ -51,6 +51,7 @@ ARG PGBOUNCER_VERSION
 ARG AIRFLOW_PGBOUNCER_VERSION
 ARG COMMIT_SHA
 
+
 # We want to make sure this one includes latest security fixes.
 # "Pin versions in apk add" https://github.com/hadolint/hadolint/wiki/DL3018
 # hadolint ignore=DL3018

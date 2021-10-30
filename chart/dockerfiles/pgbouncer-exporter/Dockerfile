@@ -13,10 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 ARG ALPINE_VERSION="3.12"
-ARG PGBOUNCER_EXPORTER_VERSION
-ARG AIRFLOW_PGBOUNCER_EXPORTER_VERSION
 ARG GO_VERSION
-ARG COMMIT_SHA
 
 FROM golang:${GO_VERSION} AS builder
 
@@ -36,6 +33,11 @@ FROM alpine:${ALPINE_VERSION} AS final
 RUN apk --no-cache add libressl libressl-dev
 
 COPY --from=builder /usr/src/myapp/pgbouncer_exporter /bin
+
+ARG PGBOUNCER_EXPORTER_VERSION
+ARG AIRFLOW_PGBOUNCER_EXPORTER_VERSION
+ARG GO_VERSION
+ARG COMMIT_SHA
 
 LABEL org.apache.airflow.component="pgbouncer-exporter" \
     org.apache.airflow.pgbouncer-exporter.version="${PGBOUNCER_EXPORTER_VERSION}" \
