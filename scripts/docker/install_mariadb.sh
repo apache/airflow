@@ -36,7 +36,7 @@ function install_mariadb_client() {
     apt-get clean && rm -rf /var/lib/apt/lists/*
 }
 
-# Install MsSQL client from Microsoft repositories
+# Install MariaDB client from official repositories
 if [[ ${INSTALL_MARIADB_CLIENT:="true"} == "true" ]]; then
     install_mariadb_client "${@}"
 fi
