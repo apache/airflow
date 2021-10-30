@@ -19,6 +19,18 @@
 Changelog
 ---------
 
+3.0.1
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Handle leading slash in samba path (#18847)``
+* ``Open src and dst in binary for samba copy (#18752)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 3.0.0
 .....
 
