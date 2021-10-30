@@ -21,6 +21,8 @@ ARG PGBOUNCER_EXPORTER_VERSION
 
 WORKDIR /usr/src/myapp
 
+SHELL ["/bin/bash", "-o", "pipefail", "-e", "-u", "-x", "-c"]
+
 RUN URL="https://github.com/jbub/pgbouncer_exporter/archive/v${PGBOUNCER_EXPORTER_VERSION}.tar.gz" && \
     curl -L "${URL}" | tar -zx --strip-components 1 && \
     GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -v
