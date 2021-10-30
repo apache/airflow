@@ -52,7 +52,7 @@ docker build . \
 
 center_text "Checking image"
 
-docker run "${TAG}" pgbouncer --version
+docker run --rm "${TAG}" pgbouncer --version
 
 echo Image labels:
 docker inspect "${TAG}" --format '{{ json .ContainerConfig.Labels }}' | python3 -m json.tool
