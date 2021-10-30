@@ -1290,7 +1290,7 @@ class BaseSecurityManager:
         else:
             return None
 
-    def _has_access_builtin_roles(self, role, permission_name: str, view_name: str) -> bool:
+    def _has_access_builtin_roles(self, role, action_name: str, resource_name: str) -> bool:
         """Checks permission on builtin role"""
         perms = self.builtin_roles.get(role.name, [])
         for (_resource_name, _action_name) in perms:
