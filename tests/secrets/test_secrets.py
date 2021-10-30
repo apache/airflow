@@ -126,9 +126,13 @@ class TestVariableFromSecrets(unittest.TestCase):
         Metastore DB
         """
         mock_env_get.return_value = None
-        Variable.get_variable_from_secrets("fake_var_key")
+        Variable.get_variable_from_backends("fake_var_key")
         mock_meta_get.assert_called_once_with(key="fake_var_key")
         mock_env_get.assert_called_once_with(key="fake_var_key")
+
+        Variable.get_variable_from_backends("fake_var_key_2", skip_external_backends=True)
+        mock_meta_get.assert_called_with(key="fake_var_key_2")
+        mock_env_get.assert_called_with(key="fake_var_key_2")
 
     @mock.patch("airflow.secrets.metastore.MetastoreBackend.get_variable")
     @mock.patch("airflow.secrets.environment_variables.EnvironmentVariablesBackend.get_variable")
@@ -137,10 +141,14 @@ class TestVariableFromSecrets(unittest.TestCase):
         Test if Variable is present in Environment Variable, it does not look for it in
         Metastore DB
         """
-        mock_env_get.return_value = [["something"]]  # returns nonempty list
-        Variable.get_variable_from_secrets("fake_var_key")
+        mock_env_get.return_value = "something"
+        Variable.get_variable_from_backends("fake_var_key")
         mock_env_get.assert_called_once_with(key="fake_var_key")
-        mock_meta_get.not_called()
+        mock_meta_get.assert_not_called()
+
+        Variable.get_variable_from_backends("fake_var_key_2", skip_external_backends=True)
+        mock_env_get.assert_called_with(key="fake_var_key_2")
+        mock_meta_get.assert_not_called()
 
     def test_backend_fallback_to_default_var(self):
         """
@@ -149,3 +157,45 @@ class TestVariableFromSecrets(unittest.TestCase):
         """
         variable_value = Variable.get(key="test_var", default_var="new")
         assert "new" == variable_value
+
+        variable_value = Variable.get(key="test_var", default_var="new", skip_external_backends=True)
+        assert "new" == variable_value
+
+    @conf_vars(
+        {
+            (
+                "secrets",
+                "backend",
+            ): "airflow.providers.amazon.aws.secrets.systems_manager.SystemsManagerParameterStoreBackend",
+            ("secrets", "backend_kwargs"): '{"variables_prefix": "/airflow", "profile_name": null}',
+        }
+    )
+    @mock.patch.dict(
+        'os.environ',
+        {
+            'AIRFLOW_VAR_MYVAR': 'a_venv_value',
+        },
+    )
+    @mock.patch("airflow.secrets.metastore.MetastoreBackend.get_variable")
+    @mock.patch(
+        "airflow.providers.amazon.aws.secrets.systems_manager."
+        "SystemsManagerParameterStoreBackend.get_variable"
+    )
+    def test_backend_variable_skip_external_backends(self, mock_secret_get, mock_meta_get):
+        mock_secret_get.return_value = "a_secret_value"
+        mock_meta_get.return_value = "a_metastore_value"
+
+        backends = ensure_secrets_loaded()
+        backend_classes = [backend.__class__.__name__ for backend in backends]
+        assert 'SystemsManagerParameterStoreBackend' in backend_classes
+
+        assert "a_venv_value" == Variable.get(key="MYVAR", skip_external_backends=True)
+        mock_secret_get.assert_not_called()
+        mock_meta_get.assert_not_called()
+
+        assert "a_metastore_value" == Variable.get(key="not_myvar", skip_external_backends=True)
+        mock_secret_get.assert_not_called()
+        mock_meta_get.assert_called_once_with(key="not_myvar")
+
+        assert "a_secret_value" == Variable.get(key="not_myvar")
+        mock_secret_get.assert_called_once_with(key="not_myvar")

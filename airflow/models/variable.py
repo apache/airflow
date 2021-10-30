@@ -28,6 +28,7 @@ from sqlalchemy.orm import Session, reconstructor, synonym
 from airflow.configuration import ensure_secrets_loaded
 from airflow.models.base import ID_LEN, Base
 from airflow.models.crypto import get_fernet
+from airflow.secrets.environment_variables import EnvironmentVariablesBackend
 from airflow.secrets.metastore import MetastoreBackend
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.log.secrets_masker import mask_secret
@@ -124,6 +125,7 @@ class Variable(Base, LoggingMixin):
         key: str,
         default_var: Any = __NO_DEFAULT_SENTINEL,
         deserialize_json: bool = False,
+        skip_external_backends: bool = False,
     ) -> Any:
         """
         Gets a value for an Airflow Variable Key
@@ -131,8 +133,10 @@ class Variable(Base, LoggingMixin):
         :param key: Variable Key
         :param default_var: Default value of the Variable if the Variable doesn't exists
         :param deserialize_json: Deserialize the value to a Python dict
+        :param skip_external_backends: todo
         """
-        var_val = Variable.get_variable_from_secrets(key=key)
+
+        var_val = Variable.get_variable_from_backends(key=key, skip_external_backends=skip_external_backends)
         if var_val is None:
             if default_var is not cls.__NO_DEFAULT_SENTINEL:
                 return default_var
@@ -156,6 +160,7 @@ class Variable(Base, LoggingMixin):
         description: str = None,
         serialize_json: bool = False,
         session: Session = None,
+        skip_external_backends: bool = False,
     ):
         """
         Sets a value for an Airflow Variable with a given Key.
@@ -166,9 +171,11 @@ class Variable(Base, LoggingMixin):
         :param description: Value to set for the Variable
         :param serialize_json: Serialize the value to a JSON string
         :param session: SQL Alchemy Sessions
+        :param skip_external_backends: todo
         """
-        # check if the secret exists in the custom secrets backend.
-        cls.check_for_write_conflict(key)
+        if not skip_external_backends:
+            # check if the secret exists in the custom secrets backend.
+            cls.check_for_write_conflict(key)
         if serialize_json:
             stored_value = json.dumps(value, indent=2)
         else:
@@ -186,6 +193,7 @@ class Variable(Base, LoggingMixin):
         value: Any,
         serialize_json: bool = False,
         session: Session = None,
+        skip_external_backends: bool = False,
     ):
         """
         Updates a given Airflow Variable with the Provided value
@@ -194,10 +202,12 @@ class Variable(Base, LoggingMixin):
         :param value: Value to set for the Variable
         :param serialize_json: Serialize the value to a JSON string
         :param session: SQL Alchemy Session
+        :param skip_external_backends: todo
         """
-        cls.check_for_write_conflict(key)
+        if not skip_external_backends:
+            cls.check_for_write_conflict(key)
 
-        if cls.get_variable_from_secrets(key) is None:
+        if cls.get_variable_from_backends(key=key, skip_external_backends=skip_external_backends) is None:
             raise KeyError(f'Variable {key} does not exist')
 
         obj = session.query(cls).filter(cls.key == key).first()
@@ -223,6 +233,7 @@ class Variable(Base, LoggingMixin):
         if self._val and self.is_encrypted:
             self._val = fernet.rotate(self._val.encode('utf-8')).decode()
 
+    @staticmethod
     def check_for_write_conflict(key: str) -> None:
         """
         Logs a warning if a variable exists outside of the metastore.
@@ -254,22 +265,28 @@ class Variable(Base, LoggingMixin):
             return None
 
     @staticmethod
-    def get_variable_from_secrets(key: str) -> Optional[str]:
+    def get_variable_from_backends(key: str, skip_external_backends: Optional[bool] = False) -> Optional[str]:
         """
         Get Airflow Variable by iterating over all Secret Backends.
 
         :param key: Variable Key
+        :param skip_external_backends: todo
         :return: Variable Value
         """
-        for secrets_backend in ensure_secrets_loaded():
+        for backend in ensure_secrets_loaded():
+            if skip_external_backends and (
+                not isinstance(backend, MetastoreBackend) and
+                not isinstance(backend, EnvironmentVariablesBackend)
+            ):
+                continue
             try:
-                var_val = secrets_backend.get_variable(key=key)
+                var_val = backend.get_variable(key=key)
                 if var_val is not None:
                     return var_val
             except Exception:  # pylint: disable=broad-except
                 log.exception(
                     'Unable to retrieve variable from secrets backend (%s). '
                     'Checking subsequent secrets backend.',
-                    type(secrets_backend).__name__,
+                    type(backend).__name__,
                 )
         return None
