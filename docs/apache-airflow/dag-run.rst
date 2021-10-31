@@ -76,7 +76,7 @@ of a DAG run, for example, denotes the start of the data interval, not when the
 DAG is actually executed.
 
 Similarly, since the ``start_date`` argument for the DAG and its tasks points to
-the same logical date, it marks the start of *the DAG's fist data interval*, not
+the same logical date, it marks the start of *the DAG's first data interval*, not
 when tasks in the DAG will start running. In other words, a DAG run will only be
 scheduled one interval after ``start_date``.
 
