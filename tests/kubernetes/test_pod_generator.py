@@ -664,9 +664,8 @@ class TestPodGenerator:
     def test_pod_name_confirm_to_max_length(self, _, pod_id):
         name = PodGenerator.make_unique_pod_id(pod_id)
         assert len(name) <= 253
-        #parts = name[:-33]
         parts = name.split("-")
-        if len(pod_id) <= 63-33:
+        if len(pod_id) <= 63 - 33:
             assert len(parts[0]) == len(pod_id)
         else:
             assert len(parts[0]) <= 63
