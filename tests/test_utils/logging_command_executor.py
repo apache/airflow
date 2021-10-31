@@ -15,7 +15,6 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-import os
 import shlex
 import subprocess
 
@@ -31,8 +30,9 @@ class LoggingCommandExecutor(LoggingMixin):
     def execute_cmd(self, cmd, silent=False, cwd=None, env=None):
         if silent:
             self.log.info("Executing in silent mode: '%s'", " ".join(shlex.quote(c) for c in cmd))
-            with open(os.devnull, 'w') as dev_null:
-                return subprocess.call(args=cmd, stdout=dev_null, stderr=subprocess.STDOUT, env=env, cwd=cwd)
+            return subprocess.call(
+                args=cmd, stdout=subprocess.DEVNULL, stderr=subprocess.STDOUT, env=env, cwd=cwd
+            )
         else:
             self.log.info("Executing: '%s'", " ".join(shlex.quote(c) for c in cmd))
             with subprocess.Popen(
@@ -78,8 +78,9 @@ class CommandExecutor(LoggingCommandExecutor):
     def execute_cmd(self, cmd, silent=False, cwd=None, env=None):
         if silent:
             self.log.info("Executing in silent mode: '%s'", " ".join(shlex.quote(c) for c in cmd))
-            with open(os.devnull, 'w') as dev_null:
-                return subprocess.call(args=cmd, stdout=dev_null, stderr=subprocess.STDOUT, env=env, cwd=cwd)
+            return subprocess.call(
+                args=cmd, stdout=subprocess.DEVNULL, stderr=subprocess.STDOUT, env=env, cwd=cwd
+            )
         else:
             self.log.info("Executing: '%s'", " ".join(shlex.quote(c) for c in cmd))
             with subprocess.Popen(
