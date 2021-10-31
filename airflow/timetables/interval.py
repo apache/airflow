@@ -271,8 +271,9 @@ class DeltaDataIntervalTimetable(_DataIntervalTimetable):
         return {"delta": delta}
 
     def validate(self) -> None:
-        if self._delta.total_seconds() <= 0:
-            raise AirflowTimetableInvalid("schedule interval must be positive")
+        now = datetime.datetime.now()
+        if (now + self._delta) <= now:
+            raise AirflowTimetableInvalid(f"schedule interval must be positive, not {self._delta!r}")
 
     def _get_next(self, current: DateTime) -> DateTime:
         return convert_to_utc(current + self._delta)
