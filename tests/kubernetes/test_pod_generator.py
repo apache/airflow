@@ -502,9 +502,8 @@ class TestPodGenerator:
             pod_override_object=None,
             base_worker_pod=worker_config,
         )
-        len_uuid = len(self.static_uuid.hex)
 
-        assert result.metadata.name == 'a' * (63 - len_uuid) + '-' + self.static_uuid.hex
+        assert result.metadata.name == ('a' * 63)[:-33] + '-' + self.static_uuid.hex
         for _, v in result.metadata.labels.items():
             assert len(v) <= 63
 
@@ -665,8 +664,9 @@ class TestPodGenerator:
     def test_pod_name_confirm_to_max_length(self, _, pod_id):
         name = PodGenerator.make_unique_pod_id(pod_id)
         assert len(name) <= 253
+        #parts = name[:-33]
         parts = name.split("-")
-        if len(pod_id) <= 63:
+        if len(pod_id) <= 63-33:
             assert len(parts[0]) == len(pod_id)
         else:
             assert len(parts[0]) <= 63
@@ -691,7 +691,7 @@ class TestPodGenerator:
             len(name) <= 253 and all(ch.lower() == ch for ch in name) and re.match(regex, name)
         ), "pod_id is invalid - fails allowed regex check"
 
-        assert name.rsplit("-")[0] == expected_starts_with
+        assert name[:-33] == expected_starts_with
 
     def test_deserialize_model_string(self):
         fixture = """
