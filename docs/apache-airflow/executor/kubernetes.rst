@@ -21,22 +21,22 @@
 Kubernetes Executor
 ===================
 
-The kubernetes executor is introduced in Apache Airflow 1.10.0. The Kubernetes executor will create a new pod for every task instance.
+The Kubernetes executor runs each task instance in its own pod on a Kubernetes cluster.
 
-Example kubernetes files are available at ``scripts/in_container/kubernetes/app/{secrets,volumes,postgres}.yaml`` in the source distribution (please note that these examples are not ideal for production environments).
-The volumes are optional and depend on your configuration. There are two volumes available:
+Use of persistent volumes is optional and depends on your configuration. There are two types of volumes you may configure:
 
 - **Dags**:
 
-  - By storing dags onto persistent disk, it will be made available to all workers
+  - By storing dags on a persistent volume, it will be made available to all workers
 
-  - Another option is to use ``git-sync``. Before starting the container, a git pull of the dags repository will be performed and used throughout the lifecycle of the pod
+  - Alternatively, you can include dags in the image, or you can use use ``git-sync``.  With ``git-sync``, before starting the worker container,
+    a git pull of the dags repository will be performed and used throughout the lifecycle of the pod.
 
 - **Logs**:
 
-  - By storing logs onto a persistent disk, the files are accessible by workers and the webserver. If you don't configure this, the logs will be lost after the worker pods shuts down
+  - You can enable a persistent volume shared between webserver and workers to store task logs.
 
-  - Another option is to use S3/GCS/etc to store logs
+  - If you don't enable logging persistence, and if you have not enabled remote logging, logs will be lost after the worker pods shut down.
 
 To troubleshoot issue with KubernetesExecutor, you can use ``airflow kubernetes generate-dag-yaml`` command.
 This command generates the pods as they will be launched in Kubernetes and dumps them into yaml files for you to inspect.
@@ -46,26 +46,26 @@ This command generates the pods as they will be launched in Kubernetes and dumps
 pod_template_file
 #################
 
-As of Airflow 1.10.12, you can now use the ``pod_template_file`` option in the ``kubernetes`` section
+As of Airflow 1.10.12, you can use the ``pod_template_file`` option in the ``kubernetes`` section
 of the ``airflow.cfg`` file to form the basis of your KubernetesExecutor pods. This process is faster to execute
-and easier to modify.
+and easier to modify compared with the legacy configuration approach.
 
-We include multiple examples of working pod operators below, but we would also like to explain a few necessary components
-if you want to customize your template files. As long as you have these components, every other element
-in the template is customizable.
+We include multiple examples of working pod operators below, but we would also like to identify a few components
+that you must include if you want to provide a custom template file. Aside from these components, every other
+element in the template is customizable.
 
-1. Airflow will overwrite the base container image and the pod name
+1. Airflow will overwrite the base container ``image`` and the pod's ``metadata.name``.
 
 There are two points where Airflow potentially overwrites the base image: in the ``airflow.cfg``
 or the ``pod_override`` (discussed below) setting. This value is overwritten to ensure that users do
 not need to update multiple template files every time they upgrade their docker image. The other field
-that Airflow overwrites is the ``pod.metadata.name`` field. This field has to be unique across all pods,
+that Airflow overwrites is the ``metadata.name`` field. This field has to be unique across all pods,
 so we generate these names dynamically before launch.
 
-It's important to note while Airflow overwrites these fields, they **can not be left blank**.
-If these fields do not exist, kubernetes can not load the yaml into a Kubernetes V1Pod.
+It's important to note although Airflow overwrites these fields, they **can not be left blank** in the template.
+If these fields are not present in the template, kubernetes can not load the yaml into a Kubernetes V1Pod.
 
-2. Each Airflow ``pod_template_file`` must have a container named "base" at the ``pod.spec.containers[0]`` position
+2. A ``pod_template_file`` must have a container named ``base`` at the ``spec.containers[0]`` position
 
 Airflow uses the ``pod_template_file`` by making certain assumptions about the structure of the template.
 When airflow creates the worker pod's command, it assumes that the airflow worker container part exists
@@ -75,7 +75,7 @@ sidecar containers after this required container.
 
 With these requirements in mind, here are some examples of basic ``pod_template_file`` YAML files.
 
-pod_template_file using the ``dag_in_image`` setting:
+``pod_template_file`` using the ``dag_in_image`` setting:
 
 .. exampleinclude:: /../../airflow/kubernetes/pod_template_file_examples/dags_in_image_template.yaml
     :language: yaml
@@ -138,28 +138,22 @@ Here is an example of a task with both features:
 KubernetesExecutor Architecture
 ################################
 
-The KubernetesExecutor runs as a process in the Scheduler that only requires access to the Kubernetes API (it does *not* need to run inside of a Kubernetes cluster). The KubernetesExecutor requires a non-sqlite database in the backend, but there are no external brokers or persistent workers needed.
-For these reasons, we recommend the KubernetesExecutor for deployments have long periods of dormancy between DAG execution.
+KubernetesExecutor runs as a process in the Airflow Scheduler.  The scheduler itself does not necessarily need to be running on Kubernetes, but does need access to a Kubernetes cluster.
+
+KubernetesExecutor requires a non-sqlite database in the backend.
 
 When a DAG submits a task, the KubernetesExecutor requests a worker pod from the Kubernetes API. The worker pod then runs the task, reports the result, and terminates.
 
-
 .. image:: ../img/arch-diag-kubernetes.png
 
-
-In contrast to the Celery Executor, the Kubernetes Executor does not require additional components such as Redis and Flower, but does require the Kubernetes infrastructure.
 
 One example of an Airflow deployment running on a distributed set of five nodes in a Kubernetes cluster is shown below.
 
 .. image:: ../img/arch-diag-kubernetes2.png
 
-The Kubernetes Executor has an advantage over the Celery Executor in that Pods are only spun up when required for task execution compared to the Celery Executor where the workers are statically configured and are running all the time, regardless of workloads. However, this could be a disadvantage depending on the latency needs, since a task takes longer to start using the Kubernetes Executor, since it now includes the Pod startup time.
-
 Consistent with the regular Airflow architecture, the Workers need access to the DAG files to execute the tasks within those DAGs and interact with the Metadata repository. Also, configuration information specific to the Kubernetes Executor, such as the worker namespace and image information, needs to be specified in the Airflow Configuration file.
 
 Additionally, the Kubernetes Executor enables specification of additional features on a per-task basis using the Executor config.
-
-
 
 .. @startuml
 .. Airflow_Scheduler -> Kubernetes: Request a new pod with command "airflow run..."
@@ -170,6 +164,29 @@ Additionally, the Kubernetes Executor enables specification of additional featur
 .. @enduml
 .. image:: ../img/k8s-happy-path.png
 
+Comparison with CeleryExecutor
+------------------------------
+
+In contrast to CeleryExecutor, KubernetesExecutor does not require additional components such as Redis and Flower, but does require access to Kubernetes cluster.
+
+With KubernetesExecutor, each task runs in its own pod. The pod is created when the task is queued, and terminates when the task completes.
+Historically, in some cases this presented a resource utilization advantage over CeleryExecutor, where you needed a fixed number of
+long-running celery worker pods, whether or not there were tasks to run.
+
+However, the official Apache Airflow helm chart can automatically scale celery workers down to zero based on the number of tasks in the queue,
+so when using the official chart, this is no longer an advantage.
+
+With Celery workers you will tend to have less task latency because the worker pod is already up and running when the task is queued.  On the
+other hand, because multiple tasks are running in the same pod, with Celery you may have to be more mindful about resource utilization
+in your task design, particularly memory consumption.
+
+An positive of KubernetesExecutor is if you have long-running tasks.  With KubernetesExecutor, if you do a deployment while a task is running,
+the task will keep running until it completes (or times out, etc).  But with CeleryExecutor, provided you have set a grace period, the
+task will only keep running up until the grace period has elapsed, at which time the task will be terminated.
+
+Finally, note that it doesn't have to be either-or.  With CeleryKubernetesExecutor you have the best of both worlds.  Tasks by default will
+go to Celery workers.  But if you want a task to run with KubernetesExecutor, you send it to the ``kubernetes`` queue and it will
+run in its own pod.
 
 ***************
 Fault Tolerance
@@ -205,7 +222,7 @@ By monitoring this stream, the KubernetesExecutor can discover that the worker c
 But What About Cases Where the Scheduler Pod Crashes?
 =====================================================
 
-In cases of scheduler crashes, we can completely rebuild the state of the scheduler using the watcher's ``resourceVersion``.
+In cases of scheduler crashes, the scheduler will recover its state using the watcher's ``resourceVersion``.
 
 When monitoring the Kubernetes cluster's watcher thread, each event has a monotonically rising number called a resourceVersion.
 Every time the executor reads a resourceVersion, the executor stores the latest value in the backend database.
