@@ -151,7 +151,7 @@ if your DAG performs catchup internally.
 
 Backfill
 ---------
-There can be the case when you may want to run the dag for a specified historical period e.g.,
+There can be the case when you may want to run the DAG for a specified historical period e.g.,
 A data filling DAG is created with ``start_date`` **2019-11-21**, but another user requires the output data from a month ago i.e., **2019-10-21**.
 This process is known as Backfill.
 
