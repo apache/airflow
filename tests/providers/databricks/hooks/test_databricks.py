@@ -23,12 +23,18 @@ import unittest
 from unittest import mock
 
 import pytest
+from azure.core.credentials import AccessToken
 from requests import exceptions as requests_exceptions
 
 from airflow import __version__
 from airflow.exceptions import AirflowException
 from airflow.models import Connection
-from airflow.providers.databricks.hooks.databricks import SUBMIT_RUN_ENDPOINT, DatabricksHook, RunState
+from airflow.providers.databricks.hooks.databricks import (
+    DEFAULT_DATABRICKS_SCOPE,
+    SUBMIT_RUN_ENDPOINT,
+    DatabricksHook,
+    RunState,
+)
 from airflow.utils.session import provide_session
 
 TASK_ID = 'databricks-operator'
@@ -543,3 +549,42 @@ class TestRunState(unittest.TestCase):
     def test_is_successful(self):
         run_state = RunState('TERMINATED', 'SUCCESS', '')
         assert run_state.is_successful
+
+
+class TestDatabricksHookAadToken(unittest.TestCase):
+    """
+    Tests for DatabricksHook when auth is done with AAD token.
+    """
+
+    @provide_session
+    def setUp(self, session=None):
+        conn = session.query(Connection).filter(Connection.conn_id == DEFAULT_CONN_ID).first()
+        conn.extra = json.dumps(
+            {
+                'azure_client_id': '9ff815a6-4404-4ab8-85cb-cd0e6f879c1d',
+                'azure_client_secret': 'secret',
+                'host': HOST,
+                'azure_tenant_id': '3ff810a6-5504-4ab8-85cb-cd0e6f879c1d',
+            }
+        )
+        session.commit()
+        self.hook = DatabricksHook()
+
+    @mock.patch(
+        'airflow.providers.databricks.hooks.databricks.ClientSecretCredential.get_token',
+        return_value=AccessToken(token=TOKEN, expires_on=123),
+    )
+    @mock.patch('airflow.providers.databricks.hooks.databricks.requests')
+    def test_submit_run(self, mock_requests, mock_get_token):
+        mock_requests.codes.ok = 200
+        mock_requests.post.return_value.json.return_value = {'run_id': '1'}
+        status_code_mock = mock.PropertyMock(return_value=200)
+        type(mock_requests.post.return_value).status_code = status_code_mock
+        data = {'notebook_task': NOTEBOOK_TASK, 'new_cluster': NEW_CLUSTER}
+        run_id = self.hook.submit_run(data)
+
+        assert run_id == '1'
+        args = mock_requests.post.call_args
+        kwargs = args[1]
+        assert kwargs['auth'].token == TOKEN
+        mock_get_token.assert_called_once_with(DEFAULT_DATABRICKS_SCOPE)

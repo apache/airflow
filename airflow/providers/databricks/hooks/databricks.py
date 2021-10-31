@@ -34,6 +34,8 @@ from airflow import __version__
 from airflow.exceptions import AirflowException
 from airflow.hooks.base import BaseHook
 
+DEFAULT_DATABRICKS_SCOPE = "2ff814a6-3304-4ab8-85cb-cd0e6f879c1d/.default"
+
 RESTART_CLUSTER_ENDPOINT = ("POST", "api/2.0/clusters/restart")
 START_CLUSTER_ENDPOINT = ("POST", "api/2.0/clusters/start")
 TERMINATE_CLUSTER_ENDPOINT = ("POST", "api/2.0/clusters/delete")
@@ -196,7 +198,7 @@ class DatabricksHook(BaseHook):
                     tenant_id=self.databricks_conn.extra_dejson['azure_tenant_id'],
                 )
 
-            aad_token = self.add_credentials.get_token("2ff814a6-3304-4ab8-85cb-cd0e6f879c1d/.default")
+            aad_token = self.add_credentials.get_token(DEFAULT_DATABRICKS_SCOPE)
             auth = _TokenAuth(aad_token.token)
 
         else:
