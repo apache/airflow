@@ -184,9 +184,10 @@ An positive of KubernetesExecutor is if you have long-running tasks. With Kubern
 the task will keep running until it completes (or times out, etc). But with CeleryExecutor, provided you have set a grace period, the
 task will only keep running up until the grace period has elapsed, at which time the task will be terminated.
 
-Finally, note that it doesn't have to be either-or.  With CeleryKubernetesExecutor you have the best of both worlds.  Tasks by default will
-go to Celery workers.  But if you want a task to run with KubernetesExecutor, you send it to the ``kubernetes`` queue and it will
-run in its own pod.
+Finally, note that it does not have to be either-or; with CeleryKubernetesExecutor, it is possible to use both CeleryExecutor and
+KubernetesExecutor simultaneously on the same cluster. CeleryKubernetesExecutor will look at a task's ``queue`` to determine
+whether to run on Celery or Kubernetes.  By default, tasks are sent to Celery workers, but if you want a task to run using KubernetesExecutor,
+you send it to the  ``kubernetes`` queue and it will run in its own pod.
 
 ***************
 Fault Tolerance
