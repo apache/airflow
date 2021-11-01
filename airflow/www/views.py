@@ -30,7 +30,7 @@ from datetime import timedelta
 from functools import wraps
 from json import JSONDecodeError
 from operator import itemgetter
-from typing import Any, Callable, Iterable, List, Optional, Set, Tuple, Union
+from typing import TYPE_CHECKING, Any, Callable, Iterable, List, Optional, Set, Tuple, Union
 from urllib.parse import parse_qsl, unquote, urlencode, urlparse
 
 import lazy_object_proxy
@@ -131,6 +131,9 @@ from airflow.www.forms import (
     TaskInstanceEditForm,
 )
 from airflow.www.widgets import AirflowModelListWidget
+
+if TYPE_CHECKING:
+    from sqlalchemy.orm import Session
 
 PAGE_SIZE = conf.getint('webserver', 'page_size')
 FILTER_TAGS_COOKIE = 'tags_filter'
@@ -3920,6 +3923,7 @@ class DagRunModelView(AirflowPrivilegeVerifierModelView):
         'list': 'read',
         'action_clear': 'edit',
         'action_muldelete': 'delete',
+        'action_set_queued': 'edit',
         'action_set_running': 'edit',
         'action_set_failed': 'edit',
         'action_set_success': 'edit',
@@ -3977,26 +3981,38 @@ class DagRunModelView(AirflowPrivilegeVerifierModelView):
 
     @action('muldelete', "Delete", "Are you sure you want to delete selected records?", single=False)
     @action_has_dag_edit_access
-    @provide_session
-    def action_muldelete(self, items, session=None):
+    def action_muldelete(self, items: List[DagRun]):
         """Multiple delete."""
         self.datamodel.delete_all(items)
         self.update_redirect()
         return redirect(self.get_redirect())
 
+    @action('set_queued', "Set state to 'queued'", '', single=False)
+    @action_has_dag_edit_access
+    def action_set_queued(self, drs: List[DagRun]):
+        """Set state to queued."""
+        return self.action_set_dag_run_to_active_state(drs, State.QUEUED)
+
     @action('set_running', "Set state to 'running'", '', single=False)
     @action_has_dag_edit_access
-    @provide_session
-    def action_set_running(self, drs, session=None):
+    def action_set_running(self, drs: List[DagRun]):
         """Set state to running."""
+        return self.action_set_dag_run_to_active_state(drs, State.RUNNING)
+
+    @provide_session
+    def action_set_dag_run_to_active_state(self, drs: List[DagRun], state: str, *, session: "Session"):
+        if state not in [State.RUNNING, State.QUEUED]:
+            raise ValueError("This routine only supports Running and Queued.")
+
         try:
             count = 0
             for dr in session.query(DagRun).filter(DagRun.id.in_([dagrun.id for dagrun in drs])).all():
                 count += 1
-                dr.start_date = timezone.utcnow()
-                dr.state = State.RUNNING
+                if state == State.RUNNING:
+                    dr.start_date = timezone.utcnow()
+                dr.state = state
             session.commit()
-            flash(f"{count} dag runs were set to running")
+            flash(f"{count} dag runs were set to {state}.")
         except Exception as ex:
             flash(str(ex), 'error')
             flash('Failed to set state', 'error')
@@ -4010,7 +4026,7 @@ class DagRunModelView(AirflowPrivilegeVerifierModelView):
     )
     @action_has_dag_edit_access
     @provide_session
-    def action_set_failed(self, drs, session=None):
+    def action_set_failed(self, drs: List[DagRun], *, session: "Session"):
         """Set state to failed."""
         try:
             count = 0
@@ -4034,7 +4050,7 @@ class DagRunModelView(AirflowPrivilegeVerifierModelView):
     )
     @action_has_dag_edit_access
     @provide_session
-    def action_set_success(self, drs, session=None):
+    def action_set_success(self, drs: List[DagRun], *, session: "Session"):
         """Set state to success."""
         try:
             count = 0
@@ -4053,7 +4069,7 @@ class DagRunModelView(AirflowPrivilegeVerifierModelView):
     @action('clear', "Clear the state", "All task instances would be cleared, are you sure?", single=False)
     @action_has_dag_edit_access
     @provide_session
-    def action_clear(self, drs, session=None):
+    def action_clear(self, drs: List[DagRun], *, session: "Session"):
         """Clears the state."""
         try:
             count = 0
