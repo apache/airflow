@@ -224,7 +224,7 @@ But What About Cases Where the Scheduler Pod Crashes?
 
 In cases of scheduler crashes, the scheduler will recover its state using the watcher's ``resourceVersion``.
 
-When monitoring the Kubernetes cluster's watcher thread, each event has a monotonically rising number called a resourceVersion.
-Every time the executor reads a resourceVersion, the executor stores the latest value in the backend database.
+When monitoring the Kubernetes cluster's watcher thread, each event has a monotonically rising number called a ``resourceVersion``.
+Every time the executor reads a ``resourceVersion``, the executor stores the latest value in the backend database.
 Because the resourceVersion is stored, the scheduler can restart and continue reading the watcher stream from where it left off.
 Since the tasks are run independently of the executor and report results directly to the database, scheduler failures will not lead to task failures or re-runs.
