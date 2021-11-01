@@ -694,7 +694,7 @@ repos:
         # The below pre-commits are those requiring CI image to be built
       - id: build
         name: Check if image build is needed
-        entry: ./scripts/ci/pre_commit/pre_commit_ci_build.sh 3.6 false
+        entry: ./scripts/ci/pre_commit/pre_commit_ci_build.sh 3.7 false
         language: system
         always_run: true
         pass_filenames: false
