@@ -22,7 +22,7 @@ from typing import Dict, Optional, Sequence, Set, Tuple
 
 from flask import g
 from sqlalchemy import or_
-from sqlalchemy.orm import contains_eager, joinedload
+from sqlalchemy.orm import joinedload
 
 from airflow.exceptions import AirflowException
 from airflow.models import DagBag, DagModel

@@ -34,7 +34,6 @@ from sqlalchemy import (
     String,
     Table,
     UniqueConstraint,
-    select,
 )
 from sqlalchemy.ext.declarative import declared_attr
 from sqlalchemy.orm import backref, object_session, relationship
