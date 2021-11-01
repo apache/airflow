@@ -2234,3 +2234,40 @@ def test_iter_dagrun_infos_between_error(caplog):
         ),
     ]
     assert caplog.records[0].exc_info is not None, "should contain exception context"
+
+
+@pytest.mark.parametrize(
+    "logical_date, data_interval_start, data_interval_end, expected_data_interval",
+    [
+        pytest.param(None, None, None, None, id="no-next-run"),
+        pytest.param(
+            DEFAULT_DATE,
+            DEFAULT_DATE,
+            DEFAULT_DATE + timedelta(days=2),
+            DataInterval(DEFAULT_DATE, DEFAULT_DATE + timedelta(days=2)),
+            id="modern",
+        ),
+        pytest.param(
+            DEFAULT_DATE,
+            None,
+            None,
+            DataInterval(DEFAULT_DATE, DEFAULT_DATE + timedelta(days=1)),
+            id="legacy",
+        ),
+    ],
+)
+def test_get_next_data_interval(
+    logical_date,
+    data_interval_start,
+    data_interval_end,
+    expected_data_interval,
+):
+    dag = DAG(dag_id="test_get_next_data_interval", schedule_interval="@daily")
+    dag_model = DagModel(
+        dag_id="test_get_next_data_interval",
+        next_dagrun=logical_date,
+        next_dagrun_data_interval_start=data_interval_start,
+        next_dagrun_data_interval_end=data_interval_end,
+    )
+
+    assert dag.get_next_data_interval(dag_model) == expected_data_interval
