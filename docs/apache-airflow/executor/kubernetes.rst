@@ -176,7 +176,7 @@ long-running celery worker pods, whether or not there were tasks to run.
 However, the official Apache Airflow helm chart can automatically scale celery workers down to zero based on the number of tasks in the queue,
 so when using the official chart, this is no longer an advantage.
 
-With Celery workers you will tend to have less task latency because the worker pod is already up and running when the task is queued.  On the
+With Celery workers you will tend to have less task latency because the worker pod is already up and running when the task is queued. On the
 other hand, because multiple tasks are running in the same pod, with Celery you may have to be more mindful about resource utilization
 in your task design, particularly memory consumption.
 
