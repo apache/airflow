@@ -63,7 +63,7 @@ that Airflow overwrites is the ``metadata.name`` field. This field has to be uni
 so we generate these names dynamically before launch.
 
 It's important to note although Airflow overwrites these fields, they **can not be left blank** in the template.
-If these fields are not present in the template, kubernetes can not load the yaml into a Kubernetes V1Pod.
+If these fields are not present in the template, kubernetes can not load the yaml into a Kubernetes ``V1Pod``.
 
 2. A ``pod_template_file`` must have a container named ``base`` at the ``spec.containers[0]`` position
 
