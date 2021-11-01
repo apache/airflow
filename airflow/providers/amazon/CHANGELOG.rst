@@ -27,16 +27,8 @@ Features
 
 * ``MySQLToS3Operator add support for parquet format (#18755)``
 * ``Add RedshiftSQLHook, RedshiftSQLOperator (#18447)``
-* ``Add AWS Fargate profile support (#18645)``
-* ``Add emr cluster link (#18691)``
-* ``AwsGlueJobOperator: add wait_for_completion to Glue job run (#18814)``
-* ``AwsGlueJobOperator: add run_job_kwargs to Glue job run (#16796)``
-* ``Add additional dependency for postgres extra for amazon provider (#18737)``
 * ``Remove extra postgres dependency from AWS Provider (#18844)``
 * ``Removed duplicated code on S3ToRedshiftOperator (#18671)``
-* ``Enable AWS Secrets Manager backend to retrieve conns using different fields (#18764)``
-* ``Enable FTPToS3Operator to transfer several files (#17937)``
-* ``Support all Unix wildcards in S3KeySensor (#18211)``
 
 Bug Fixes
 ~~~~~~~~~
@@ -44,15 +36,7 @@ Bug Fixes
 * ``Fixing ses email backend (#18042)``
 * ``Fixup string concatenations (#19099)``
 * ``Update S3PrefixSensor to support checking multiple prefixes within a bucket (#18807)``
-* ``Adds an s3 list prefixes operator (#17145)``
 * ``Move validation of templated input params to run after the context init (#19048)``
-* ``ECSOperator: airflow exception on edge case when cloudwatch log stream is not found (#18733)``
-
-Other
-~~~~~
-
-* ``Amazon Athena Example (#18785)``
-* ``Amazon SQS Example (#18760)``
 
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):

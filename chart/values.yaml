@@ -622,6 +622,14 @@ createUserJob:
   affinity: {}
   tolerations: []
 
+  resources: {}
+  #  limits:
+  #   cpu: 100m
+  #   memory: 128Mi
+  #  requests:
+  #   cpu: 100m
+  #   memory: 128Mi
+
 # Airflow database migration job settings
 migrateDatabaseJob:
   # Annotations on the database migration pod
@@ -1191,6 +1199,14 @@ cleanup:
   nodeSelector: {}
   affinity: {}
   tolerations: []
+
+  resources: {}
+  #  limits:
+  #   cpu: 100m
+  #   memory: 128Mi
+  #  requests:
+  #   cpu: 100m
+  #   memory: 128Mi
 
   # Create ServiceAccount
   serviceAccount:

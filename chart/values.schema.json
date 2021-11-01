@@ -1694,6 +1694,24 @@
                     "description": "Specify Tolerations for the create user job pod.",
                     "type": "array",
                     "default": []
+                },
+                "resources": {
+                    "description": "Resources for the create user job pod",
+                    "type": "object",
+                    "$ref": "https://raw.githubusercontent.com/yannh/kubernetes-json-schema/master/v1.22.0/_definitions.json#/definitions/io.k8s.api.core.v1.ResourceRequirements",
+                    "default": {},
+                    "examples": [
+                        {
+                            "limits": {
+                                "cpu": "100m",
+                                "memory": "128Mi"
+                            },
+                            "requests": {
+                                "cpu": "100m",
+                                "memory": "128Mi"
+                            }
+                        }
+                    ]
                 }
             }
         },
@@ -3028,6 +3046,24 @@
                     "description": "Specify Tolerations for cleanup pods.",
                     "type": "array",
                     "default": []
+                },
+                "resources": {
+                    "description": "Resources for or cleanup pods",
+                    "type": "object",
+                    "$ref": "https://raw.githubusercontent.com/yannh/kubernetes-json-schema/master/v1.22.0/_definitions.json#/definitions/io.k8s.api.core.v1.ResourceRequirements",
+                    "default": {},
+                    "examples": [
+                        {
+                            "limits": {
+                                "cpu": "100m",
+                                "memory": "128Mi"
+                            },
+                            "requests": {
+                                "cpu": "100m",
+                                "memory": "128Mi"
+                            }
+                        }
+                    ]
                 },
                 "serviceAccount": {
                     "description": "Create ServiceAccount.",

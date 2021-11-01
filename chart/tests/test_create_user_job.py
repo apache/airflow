@@ -84,3 +84,25 @@ class CreateUserJobTest(unittest.TestCase):
             "spec.template.spec.tolerations[0].key",
             docs[0],
         )
+
+    def test_create_user_job_resources_are_configurable(self):
+        resources = {
+            "requests": {
+                "cpu": "128m",
+                "memory": "256Mi",
+            },
+            "limits": {
+                "cpu": "256m",
+                "memory": "512Mi",
+            },
+        }
+        docs = render_chart(
+            values={
+                "createUserJob": {
+                    "resources": resources,
+                },
+            },
+            show_only=["templates/jobs/create-user-job.yaml"],
+        )
+
+        assert resources == jmespath.search("spec.template.spec.containers[0].resources", docs[0])
