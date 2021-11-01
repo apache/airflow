@@ -76,7 +76,7 @@ of a DAG run, for example, denotes the start of the data interval, not when the
 DAG is actually executed.
 
 Similarly, since the ``start_date`` argument for the DAG and its tasks points to
-the same logical date, it marks the start of *the DAG's fist data interval*, not
+the same logical date, it marks the start of *the DAG's first data interval*, not
 when tasks in the DAG will start running. In other words, a DAG run will only be
 scheduled one interval after ``start_date``.
 
@@ -151,7 +151,7 @@ if your DAG performs catchup internally.
 
 Backfill
 ---------
-There can be the case when you may want to run the dag for a specified historical period e.g.,
+There can be the case when you may want to run the DAG for a specified historical period e.g.,
 A data filling DAG is created with ``start_date`` **2019-11-21**, but another user requires the output data from a month ago i.e., **2019-10-21**.
 This process is known as Backfill.
 
