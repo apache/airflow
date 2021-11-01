@@ -269,7 +269,9 @@ repos:
     hooks:
       - id: codespell
         name: Run codespell to check for common misspellings in files
-        entry: codespell
+        entry: bash -c 'echo "If you think that this failure is an error, consider adding the word(s)
+          to the codespell dictionary at docs/spelling_wordlist.txt.
+          The word(s) should be in lowercase." && exec codespell "$@"' --
         language: python
         types: [text]
         exclude: ^airflow/_vendor/|^CHANGELOG.txt|^airflow/www/static/css/material-icons.css
@@ -692,7 +694,7 @@ repos:
         # The below pre-commits are those requiring CI image to be built
       - id: build
         name: Check if image build is needed
-        entry: ./scripts/ci/pre_commit/pre_commit_ci_build.sh 3.6 false
+        entry: ./scripts/ci/pre_commit/pre_commit_ci_build.sh 3.7 false
         language: system
         always_run: true
         pass_filenames: false

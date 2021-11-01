@@ -2026,6 +2026,9 @@ def summarise_total_vs_bad_and_warnings(total: int, bad: int, warns: List[warnin
         console.print()
         raise_error = True
     if warns:
+        if os.environ.get('GITHUB_ACTIONS'):
+            # Ends group in GitHub Actions so that the errors are immediately visible in CI log
+            console.print("::endgroup::")
         console.print()
         console.print("[red]Unknown warnings generated:[/]")
         console.print()
@@ -2072,13 +2075,8 @@ KNOWN_DEPRECATED_MESSAGES: Set[Tuple[str, str]] = {
     ),
     (
         "Using or importing the ABCs from 'collections' instead of from 'collections.abc' is deprecated since"
-        " Python 3.3, and in 3.10 it will stop working",
+        " Python 3.3,and in 3.9 it will stop working",
         "apache_beam",
-    ),
-    (
-        "Using or importing the ABCs from 'collections' instead of from 'collections.abc' is deprecated since"
-        " Python 3.3, and in 3.10 it will stop working",
-        "dns",
     ),
     (
         'pyarrow.HadoopFileSystem is deprecated as of 2.0.0, please use pyarrow.fs.HadoopFileSystem instead.',

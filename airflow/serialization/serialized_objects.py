@@ -149,7 +149,7 @@ def _encode_timetable(var: Timetable) -> Dict[str, Any]:
     importable_string = as_importable_string(timetable_class)
     if _get_registered_timetable(importable_string) != timetable_class:
         raise _TimetableNotRegistered(importable_string)
-    return {"__type": importable_string, "__var": var.serialize()}
+    return {Encoding.TYPE: importable_string, Encoding.VAR: var.serialize()}
 
 
 def _decode_timetable(var: Dict[str, Any]) -> Timetable:
@@ -158,11 +158,11 @@ def _decode_timetable(var: Dict[str, Any]) -> Timetable:
     Most of the deserialization logic is delegated to the actual type, which
     we import from string.
     """
-    importable_string = var["__type"]
+    importable_string = var[Encoding.TYPE]
     timetable_class = _get_registered_timetable(importable_string)
     if timetable_class is None:
         raise _TimetableNotRegistered(importable_string)
-    return timetable_class.deserialize(var["__var"])
+    return timetable_class.deserialize(var[Encoding.VAR])
 
 
 class BaseSerialization:
@@ -270,8 +270,8 @@ class BaseSerialization:
                 serialized_object[key] = _encode_timetable(value)
             else:
                 value = cls._serialize(value)
-                if isinstance(value, dict) and "__type" in value:
-                    value = value["__var"]
+                if isinstance(value, dict) and Encoding.TYPE in value:
+                    value = value[Encoding.VAR]
                 serialized_object[key] = value
         return serialized_object
 

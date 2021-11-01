@@ -27,6 +27,7 @@ class MongoSensor(BaseSensorOperator):
     >>> mongo_sensor = MongoSensor(collection="coll",
     ...                            query={"key": "value"},
     ...                            mongo_conn_id="mongo_default",
+    ...                            mongo_db="admin",
     ...                            task_id="mongo_sensor")
 
     :param collection: Target MongoDB collection.
@@ -36,6 +37,8 @@ class MongoSensor(BaseSensorOperator):
     :param mongo_conn_id: The :ref:`Mongo connection id <howto/connection:mongo>` to use
         when connecting to MongoDB.
     :type mongo_conn_id: str
+    :param mongo_db: Target MongoDB name.
+    :type mongo_db: str
     """
 
     template_fields = ('collection', 'query')
