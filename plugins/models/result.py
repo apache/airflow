@@ -10,7 +10,6 @@ from distutils.util import strtobool
 from sqlalchemy import text, ForeignKey, sql
 import os
 
-
 ENV_TIMESCALE_ENABLE = strtobool(os.environ.get('ENV_TIMESCALE_ENABLE', 'false'))
 
 
@@ -63,24 +62,24 @@ class ResultModel(Base):
     user_id = Column(Integer)
     workorder_id = Column(Integer)
     vin = Column(String(256))
-    task_id = Column(String(250))
-    dag_id = Column(String(250))
-    execution_date = Column(UtcDateTime)
+    task_id = Column(String(250))  # 分析任务ID
+    dag_id = Column(String(250))  # 分析任务DAG ID
+    execution_date = Column(UtcDateTime)  # 分析任务执行时间
     line_code = Column(String(100))  # 产线代码
     factory_code = Column(String(100))  # 工厂代码
-    error_tag = Column(String(1000))
+    error_tag = Column(String(1000))  # 曲线分析异常标签
     result = Column(String(20))  # 分析结果, OK/NOK
-    verify_error = Column(Integer)
+    verify_error = Column(Integer)  # 曲线分析返回值
     final_state = Column(String(20))  # 最终状态牵涉2次检验
     # controller_name = Column(String(100))  # 控制器名称@工位编号/工位名称
-    bolt_number = Column(String(1000))  # 螺栓编号
+    bolt_number = Column(String(1000))  # 螺栓编号 {controller_name}_{job}_{batch_count}_{pset}
     craft_type = Column(Integer)  # 工艺类型
     car_code = Column(String(1000))  # 车辆编号
     type = Column(String(100), default="normal")  # 任务实例类型，normal/rework,正常/返修
-    should_analyze = Column(Boolean(), default=True)
-    training_task_id = Column(String(250))
-    training_dag_id = Column(String(250))
-    training_execution_date = Column(UtcDateTime)
+    should_analyze = Column(Boolean(), default=True)  # 是否需要分析
+    training_task_id = Column(String(250))  # 训练任务ID
+    training_dag_id = Column(String(250))  # 训练DAG ID
+    training_execution_date = Column(UtcDateTime)  # 训练任务执行时间
     controller_id = Column(Integer,
                            ForeignKey('tightening_controller.id', onupdate='CASCADE', ondelete='RESTRICT'),
                            nullable=True, default=sql.null())
