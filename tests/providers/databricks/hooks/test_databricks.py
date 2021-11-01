@@ -21,6 +21,7 @@ import itertools
 import json
 import unittest
 from unittest import mock
+from unittest.mock import call
 
 import pytest
 from azure.core.credentials import AccessToken
@@ -30,6 +31,7 @@ from airflow import __version__
 from airflow.exceptions import AirflowException
 from airflow.models import Connection
 from airflow.providers.databricks.hooks.databricks import (
+    AZURE_MANAGEMENT_ENDPOINT,
     DEFAULT_DATABRICKS_SCOPE,
     SUBMIT_RUN_ENDPOINT,
     DatabricksHook,
@@ -553,7 +555,7 @@ class TestRunState(unittest.TestCase):
 
 class TestDatabricksHookAadToken(unittest.TestCase):
     """
-    Tests for DatabricksHook when auth is done with AAD token.
+    Tests for DatabricksHook when auth is done with AAD token for SP as user inside workspace.
     """
 
     @provide_session
@@ -588,3 +590,45 @@ class TestDatabricksHookAadToken(unittest.TestCase):
         kwargs = args[1]
         assert kwargs['auth'].token == TOKEN
         mock_get_token.assert_called_once_with(DEFAULT_DATABRICKS_SCOPE)
+
+
+class TestDatabricksHookAadTokenSpOutside(unittest.TestCase):
+    """
+    Tests for DatabricksHook when auth is done with AAD token for SP outside of workspace.
+    """
+
+    @provide_session
+    def setUp(self, session=None):
+        conn = session.query(Connection).filter(Connection.conn_id == DEFAULT_CONN_ID).first()
+        conn.extra = json.dumps(
+            {
+                'azure_client_id': '9ff815a6-4404-4ab8-85cb-cd0e6f879c1d',
+                'azure_client_secret': 'secret',
+                'host': HOST,
+                'azure_resource_id': '/Some/resource',
+                'azure_tenant_id': '3ff810a6-5504-4ab8-85cb-cd0e6f879c1d',
+            }
+        )
+        session.commit()
+        self.hook = DatabricksHook()
+
+    @mock.patch(
+        'airflow.providers.databricks.hooks.databricks.ClientSecretCredential.get_token',
+        return_value=AccessToken(token=TOKEN, expires_on=123),
+    )
+    @mock.patch('airflow.providers.databricks.hooks.databricks.requests')
+    def test_submit_run(self, mock_requests, mock_get_token):
+        mock_requests.codes.ok = 200
+        mock_requests.post.return_value.json.return_value = {'run_id': '1'}
+        status_code_mock = mock.PropertyMock(return_value=200)
+        type(mock_requests.post.return_value).status_code = status_code_mock
+        data = {'notebook_task': NOTEBOOK_TASK, 'new_cluster': NEW_CLUSTER}
+        run_id = self.hook.submit_run(data)
+
+        assert run_id == '1'
+        args = mock_requests.post.call_args
+        kwargs = args[1]
+        assert kwargs['auth'].token == TOKEN
+        assert kwargs['headers']['X-Databricks-Azure-Workspace-Resource-Id'] == '/Some/resource'
+        assert kwargs['headers']['X-Databricks-Azure-SP-Management-Token'] == TOKEN
+        mock_get_token.assert_has_calls([call(AZURE_MANAGEMENT_ENDPOINT), call(DEFAULT_DATABRICKS_SCOPE)])

@@ -34,6 +34,8 @@ from airflow import __version__
 from airflow.exceptions import AirflowException
 from airflow.hooks.base import BaseHook
 
+AZURE_MANAGEMENT_ENDPOINT = "https://management.core.windows.net//.default"
+
 DEFAULT_DATABRICKS_SCOPE = "2ff814a6-3304-4ab8-85cb-cd0e6f879c1d/.default"
 
 RESTART_CLUSTER_ENDPOINT = ("POST", "api/2.0/clusters/restart")
@@ -172,6 +174,8 @@ class DatabricksHook(BaseHook):
 
         self.databricks_conn = self.get_connection(self.databricks_conn_id)
 
+        headers = USER_AGENT_HEADER.copy()
+
         if 'token' in self.databricks_conn.extra_dejson:
             self.log.info('Using token auth. ')
             auth = _TokenAuth(self.databricks_conn.extra_dejson['token'])
@@ -197,6 +201,14 @@ class DatabricksHook(BaseHook):
                     client_secret=self.databricks_conn.extra_dejson['azure_client_secret'],
                     tenant_id=self.databricks_conn.extra_dejson['azure_tenant_id'],
                 )
+
+            # SP is outside of the workspace
+            if 'azure_resource_id' in self.databricks_conn.extra_dejson:
+                mgmt_token = self.add_credentials.get_token(AZURE_MANAGEMENT_ENDPOINT)
+                headers['X-Databricks-Azure-Workspace-Resource-Id'] = self.databricks_conn.extra_dejson[
+                    'azure_resource_id'
+                ]
+                headers['X-Databricks-Azure-SP-Management-Token'] = mgmt_token.token
 
             aad_token = self.add_credentials.get_token(DEFAULT_DATABRICKS_SCOPE)
             auth = _TokenAuth(aad_token.token)
@@ -225,7 +237,7 @@ class DatabricksHook(BaseHook):
                     json=json if method in ('POST', 'PATCH') else None,
                     params=json if method == 'GET' else None,
                     auth=auth,
-                    headers=USER_AGENT_HEADER,
+                    headers=headers,
                     timeout=self.timeout_seconds,
                 )
                 response.raise_for_status()
