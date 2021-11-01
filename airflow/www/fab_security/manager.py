@@ -87,6 +87,8 @@ def _oauth_tokengetter(token=None):
 
 
 class AnonymousUser(AnonymousUserMixin):
+    """User object used when no active user is logged in."""
+
     _roles = set()
     _perms = set()
 
@@ -100,6 +102,7 @@ class AnonymousUser(AnonymousUserMixin):
     @roles.setter
     def roles(self, roles):
         self._roles = roles
+        self._perms = set()
 
     @property
     def perms(self):
