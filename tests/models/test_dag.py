@@ -2243,8 +2243,8 @@ def test_iter_dagrun_infos_between_error(caplog):
         pytest.param(
             DEFAULT_DATE,
             DEFAULT_DATE,
-            DEFAULT_DATE + timedelta(days=1),
-            DataInterval(DEFAULT_DATE, DEFAULT_DATE + timedelta(days=1)),
+            DEFAULT_DATE + timedelta(days=2),
+            DataInterval(DEFAULT_DATE, DEFAULT_DATE + timedelta(days=2)),
             id="modern",
         ),
         pytest.param(
