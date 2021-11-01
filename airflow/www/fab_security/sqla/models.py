@@ -34,11 +34,9 @@ from sqlalchemy import (
     String,
     Table,
     UniqueConstraint,
-    select,
 )
 from sqlalchemy.ext.declarative import declared_attr
-from sqlalchemy.orm import backref, column_property, object_session, relationship
-from sqlalchemy.sql.expression import column
+from sqlalchemy.orm import backref, object_session, relationship
 
 from airflow.utils.session import create_session
 
@@ -221,24 +219,10 @@ class User(Model):
 
     @property
     def perms(self):
-        def query_with_session(session):
-            return set(
-                session.query(Action.name, Resource.name)
-                .select_from(User)
-                .join(assoc_user_role)
-                .join(Role)
-                .join(assoc_permission_role)
-                .join(Permission)
-                .join(Action, Permission.action_id == Action.id)
-                .join(Resource, Permission.resource_id == Resource.id)
-                .filter(assoc_user_role.c.user_id == self.id)
-                .all()
-            )
-
-        if object_session(self):
-            return query_with_session(object_session(self))
-        with create_session() as session:
-            return query_with_session(session)
+        perms = set()
+        for role in self.roles:
+            perms.update((perm.action.name, perm.resource.name) for perm in role.permissions)
+        return perms
 
     def get_id(self):
         return self.id
