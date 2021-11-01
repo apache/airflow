@@ -90,8 +90,6 @@ class StreamLogWriter:
     def close(self):
         """
         Provide close method, for compatibility with the io.IOBase interface.
-
-        This is a no-op method.
         """
         self.flush()
 
