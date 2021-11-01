@@ -168,6 +168,41 @@ class TestStandardTaskRunner:
         assert runner.return_code() == -9
         assert "running out of memory" in caplog.text
 
+    def test_subprocess(self):
+        """
+        Test that ensures subprocess log can be redirected
+        to log files when executed in fork.
+        """
+        path = "/tmp/airflow_subprocess"
+        try:
+            os.unlink(path)
+        except OSError:
+            pass
+
+        dagbag = DagBag(
+            dag_folder=TEST_DAG_FOLDER,
+            include_examples=False,
+        )
+        dag = dagbag.dags.get('test_subprocess')
+        task = dag.get_task('subprocess_task')
+
+        with create_session() as session:
+            dag.create_dagrun(
+                run_id="test",
+                state=State.RUNNING,
+                execution_date=DEFAULT_DATE,
+                start_date=DEFAULT_DATE,
+                session=session,
+            )
+            ti = TaskInstance(task=task, execution_date=DEFAULT_DATE)
+            job1 = LocalTaskJob(task_instance=ti, ignore_ti_state=True)
+            session.commit()
+
+            runner = StandardTaskRunner(job1)
+            runner._start_by_fork()
+        
+        # TODO: check the log file after task complete
+
     def test_on_kill(self):
         """
         Test that ensures that clearing in the UI SIGTERMS
