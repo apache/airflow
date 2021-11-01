@@ -30,6 +30,7 @@ Helm Chart for Apache Airflow
     adding-connections-and-variables
     manage-dags-files
     manage-logs
+    setting-resources-for-containers
     keda
     using-additional-containers
     Installing from sources<installing-helm-chart-from-sources>
