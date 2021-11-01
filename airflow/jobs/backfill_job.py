@@ -282,9 +282,8 @@ class BackfillJob(BaseJob):
 
             if state in (State.FAILED, State.SUCCESS) and ti.state in self.STATES_COUNT_AS_RUNNING:
                 msg = (
-                    "Executor reports task instance {} finished ({}) "
-                    "although the task says its {}. Was the task "
-                    "killed externally? Info: {}".format(ti, state, ti.state, info)
+                    f"Executor reports task instance {ti} finished ({state}) although the task says its "
+                    f"{ti.state}. Was the task killed externally? Info: {info}"
                 )
                 self.log.error(msg)
                 ti.handle_failure_with_callback(error=msg)
@@ -579,8 +578,7 @@ class BackfillJob(BaseJob):
                         open_slots = pool.open_slots(session=session)
                         if open_slots <= 0:
                             raise NoAvailablePoolSlot(
-                                "Not scheduling since there are "
-                                "{} open slots in pool {}".format(open_slots, task.pool)
+                                f"Not scheduling since there are {open_slots} open slots in pool {task.pool}"
                             )
 
                         num_running_task_instances_in_dag = DAG.get_num_task_instances(
@@ -778,9 +776,8 @@ class BackfillJob(BaseJob):
             tasks_that_depend_on_past = [t.task_id for t in self.dag.task_dict.values() if t.depends_on_past]
             if tasks_that_depend_on_past:
                 raise AirflowException(
-                    'You cannot backfill backwards because one or more tasks depend_on_past: {}'.format(
-                        ",".join(tasks_that_depend_on_past)
-                    )
+                    f'You cannot backfill backwards because one or more '
+                    f'tasks depend_on_past: {",".join(tasks_that_depend_on_past)}'
                 )
             dagrun_infos = dagrun_infos[::-1]
 

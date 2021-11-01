@@ -19,6 +19,18 @@
 Changelog
 ---------
 
+2.2.0
+.....
+
+Features
+~~~~~~~~
+
+* ``SFTP hook to prefer the SSH paramiko key over the key file path (#18988)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``More f-strings (#18855)``
+
 2.1.1
 .....
 

@@ -190,9 +190,7 @@ def compare(target_version, github_token, previous_version=None, show_uncherrypi
         )
 
     print(
-        "Commits on branch: {:d}, {:d} ({}) yet to be cherry-picked".format(
-            num_cherrypicked, sum(num_uncherrypicked.values()), dict(num_uncherrypicked)
-        )
+        f"Commits on branch: {num_cherrypicked:d}, {sum(num_uncherrypicked.values()):d} ({dict(num_uncherrypicked)}) yet to be cherry-picked"
     )
 
 

@@ -17,7 +17,7 @@
 # under the License.
 import warnings
 from datetime import datetime
-from typing import TYPE_CHECKING, Any, Iterable, List, NamedTuple, Optional, Tuple, Union
+from typing import TYPE_CHECKING, Any, Dict, Iterable, List, NamedTuple, Optional, Tuple, Union
 
 from sqlalchemy import (
     Boolean,
@@ -181,6 +181,10 @@ class DagRun(Base, LoggingMixin):
             external_trigger=self.external_trigger,
         )
 
+    @property
+    def logical_date(self) -> datetime:
+        return self.execution_date
+
     def get_state(self):
         return self._state
 
@@ -206,6 +210,22 @@ class DagRun(Base, LoggingMixin):
         dr = session.query(DagRun).filter(DagRun.dag_id == self.dag_id, DagRun.run_id == self.run_id).one()
         self.id = dr.id
         self.state = dr.state
+
+    @classmethod
+    @provide_session
+    def active_runs_of_dags(cls, dag_ids=None, only_running=False, session=None) -> Dict[str, int]:
+        """Get the number of active dag runs for each dag."""
+        query = session.query(cls.dag_id, func.count('*'))
+        if dag_ids is not None:
+            # 'set' called to avoid duplicate dag_ids, but converted back to 'list'
+            # because SQLAlchemy doesn't accept a set here.
+            query = query.filter(cls.dag_id.in_(list(set(dag_ids))))
+        if only_running:
+            query = query.filter(cls.state == State.RUNNING)
+        else:
+            query = query.filter(cls.state.in_([State.RUNNING, State.QUEUED]))
+        query = query.group_by(cls.dag_id)
+        return {dag_id: count for dag_id, count in query.all()}
 
     @classmethod
     def next_dagruns_to_examine(
@@ -525,6 +545,31 @@ class DagRun(Base, LoggingMixin):
         # finally, if the roots aren't done, the dag is still running
         else:
             self.set_state(State.RUNNING)
+
+        if self._state == State.FAILED or self._state == State.SUCCESS:
+            msg = (
+                "DagRun Finished: dag_id=%s, execution_date=%s, run_id=%s, "
+                "run_start_date=%s, run_end_date=%s, run_duration=%s, "
+                "state=%s, external_trigger=%s, run_type=%s, "
+                "data_interval_start=%s, data_interval_end=%s, dag_hash=%s"
+            )
+            self.log.info(
+                msg,
+                self.dag_id,
+                self.execution_date,
+                self.run_id,
+                self.start_date,
+                self.end_date,
+                (self.end_date - self.start_date).total_seconds()
+                if self.start_date and self.end_date
+                else None,
+                self._state,
+                self.external_trigger,
+                self.run_type,
+                self.data_interval_start,
+                self.data_interval_end,
+                self.dag_hash,
+            )
 
         self._emit_true_scheduling_delay_stats_for_finished_state(finished_tasks)
         self._emit_duration_stats_for_finished_state()

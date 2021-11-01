@@ -38,15 +38,14 @@ Variable                                    Description
 ==========================================  ====================================
 ``{{ data_interval_start }}``               Start of the data interval (`pendulum.DateTime`_).
 ``{{ data_interval_end }}``                 End of the data interval (`pendulum.DateTime`_).
-``{{ ds }}``                                Start of the data interval as ``YYYY-MM-DD``.
-                                            Same as ``{{ data_interval_start | ds }}``.
-``{{ ds_nodash }}``                         Start of the data interval as ``YYYYMMDD``.
-                                            Same as ``{{ data_interval_start | ds_nodash }}``.
-``{{ ts }}``                                Same as ``{{ data_interval_start | ts }}``.
+``{{ ds }}``                                The DAG run's logical date as ``YYYY-MM-DD``.
+                                            Same as ``{{ dag_run.logical_date | ds }}``.
+``{{ ds_nodash }}``                         Same as ``{{ dag_run.logical_date | ds_nodash }}``.
+``{{ ts }}``                                Same as ``{{ dag_run.logical_date | ts }}``.
                                             Example: ``2018-01-01T00:00:00+00:00``.
-``{{ ts_nodash_with_tz }}``                 Same as ``{{ data_interval_start | ts_nodash_with_tz }}``.
+``{{ ts_nodash_with_tz }}``                 Same as ``{{ dag_run.logical_date | ts_nodash_with_tz }}``.
                                             Example: ``20180101T000000+0000``.
-``{{ ts_nodash }}``                         Same as ``{{ data_interval_start | ts_nodash }}``.
+``{{ ts_nodash }}``                         Same as ``{{ dag_run.logical_date | ts_nodash }}``.
                                             Example: ``20180101T000000``.
 ``{{ prev_data_interval_start_success }}``  Start of the data interval from prior successful DAG run
                                             (`pendulum.DateTime`_ or ``None``).
@@ -78,13 +77,18 @@ Variable                                    Description
                                             subcommand.
 ==========================================  ====================================
 
+.. note::
+
+    The DAG run's logical date, and values derived from it, such as ``ds`` and
+    ``ts``, **should not** be considered unique in a DAG. Use ``run_id`` instead.
+
 The following variables are deprecated. They are kept for backward compatibility, but you should convert
 existing code to use other variables instead.
 
 =====================================   ====================================
 Deprecated Variable                     Description
 =====================================   ====================================
-``{{ execution_date }}``                the execution date (logical date), same as ``logical_date``
+``{{ execution_date }}``                the execution date (logical date), same as ``dag_run.logical_date``
 ``{{ next_execution_date }}``           the next execution date (if available) (`pendulum.DateTime`_)
                                         if ``{{ execution_date }}`` is ``2018-01-01 00:00:00`` and
                                         ``schedule_interval`` is ``@weekly``, ``{{ next_execution_date }}``

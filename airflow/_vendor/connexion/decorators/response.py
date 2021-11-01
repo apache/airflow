@@ -29,7 +29,7 @@ class ResponseValidator(BaseDecorator):
     def validate_response(self, data, status_code, headers, url):
         """
         Validates the Response object based on what has been declared in the specification.
-        Ensures the response body matches the declated schema.
+        Ensures the response body matches the declared schema.
         :type data: dict
         :type status_code: int
         :type headers: dict

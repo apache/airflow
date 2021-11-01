@@ -136,8 +136,8 @@ Pyenv and setting up virtual-env
       libreadline-dev libsqlite3-dev wget curl llvm libncurses5-dev libncursesw5-dev \
       xz-utils tk-dev libffi-dev liblzma-dev python-openssl git
 
-  $ sudo apt install build-essentials python3.6-dev python3.7-dev python3.8-dev python3.9-dev python-dev openssl \
-       sqlite sqlite-dev default-libmysqlclient-dev libmysqld-dev postgresql
+  $ sudo apt install openssl \
+       sqlite default-libmysqlclient-dev libmysqlclient-dev postgresql
 
 2. Install pyenv
 
@@ -145,7 +145,7 @@ Pyenv and setting up virtual-env
 
   $ curl https://pyenv.run | bash
 
-3. Add the lines suggested at the end of installation  to ~/.bashrc
+3. Configure your shell's environment for Pyenv as suggested in Pyenv `README <https://github.com/pyenv/pyenv/blob/master/README.md#basic-github-checkout>`_
 
 4. Restart your shell so the path changes take effect and verifying installation
 

@@ -97,7 +97,7 @@ class BaseSensorOperator(BaseOperator, SkipMixin):
         self,
         *,
         poke_interval: float = 60,
-        timeout: float = 60 * 60 * 24 * 7,
+        timeout: float = conf.getfloat('sensors', 'default_timeout'),
         soft_fail: bool = False,
         mode: str = 'poke',
         exponential_backoff: bool = False,
@@ -122,13 +122,7 @@ class BaseSensorOperator(BaseOperator, SkipMixin):
             raise AirflowException("The timeout must be a non-negative number")
         if self.mode not in self.valid_modes:
             raise AirflowException(
-                "The mode must be one of {valid_modes},"
-                "'{d}.{t}'; received '{m}'.".format(
-                    valid_modes=self.valid_modes,
-                    d=self.dag.dag_id if self.has_dag() else "",
-                    t=self.task_id,
-                    m=self.mode,
-                )
+                f"The mode must be one of {self.valid_modes},'{self.dag.dag_id if self.has_dag() else ''}.{self.task_id}'; received '{self.mode}'."
             )
 
     def poke(self, context: Dict) -> bool:

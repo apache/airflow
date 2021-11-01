@@ -139,6 +139,7 @@ class TestBeamRunPythonPipelineOperator(unittest.TestCase):
             location='us-central1',
             multiple_jobs=False,
         )
+        dataflow_hook_mock.return_value.provide_authorized_gcloud.assert_called_once_with()
 
     @mock.patch('airflow.providers.apache.beam.operators.beam.BeamHook')
     @mock.patch('airflow.providers.apache.beam.operators.beam.GCSHook')

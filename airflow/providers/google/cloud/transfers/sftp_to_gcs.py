@@ -127,7 +127,7 @@ class SFTPToGCSOperator(BaseOperator):
             if total_wildcards > 1:
                 raise AirflowException(
                     "Only one wildcard '*' is allowed in source_path parameter. "
-                    "Found {} in {}.".format(total_wildcards, self.source_path)
+                    f"Found {total_wildcards} in {self.source_path}."
                 )
 
             prefix, delimiter = self.source_path.split(WILDCARD, 1)

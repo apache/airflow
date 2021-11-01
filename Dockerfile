@@ -487,5 +487,14 @@ LABEL org.apache.airflow.distro="debian" \
 # to learn more about the way how signals are handled by the image
 ENV DUMB_INIT_SETSID="1"
 
+# This one is to workaround https://github.com/apache/airflow/issues/17546
+# issue with /usr/lib/x86_64-linux-gnu/libstdc++.so.6: cannot allocate memory in static TLS block
+# We do not yet a more "correct" solution to the problem but in order to avoid raising new issues
+# by users of the prod image, we implement the workaround now.
+# The side effect of this is slightly (in the range of 100s of milliseconds) slower load for any
+# binary started and a little memory used for Heap allocated by initialization of libstdc++
+# This overhead is not happening for binaries that already link dynamically libstdc++
+ENV LD_PRELOAD="/usr/lib/x86_64-linux-gnu/libstdc++.so.6"
+
 ENTRYPOINT ["/usr/bin/dumb-init", "--", "/entrypoint"]
 CMD []

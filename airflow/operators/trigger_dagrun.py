@@ -107,8 +107,7 @@ class TriggerDagRunOperator(BaseOperator):
 
         if not isinstance(execution_date, (str, datetime.datetime, type(None))):
             raise TypeError(
-                "Expected str or datetime.datetime type for execution_date."
-                "Got {}".format(type(execution_date))
+                f"Expected str or datetime.datetime type for execution_date.Got {type(execution_date)}"
             )
 
         self.execution_date: Optional[datetime.datetime] = execution_date  # type: ignore

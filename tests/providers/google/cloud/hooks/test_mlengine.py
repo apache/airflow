@@ -911,9 +911,7 @@ class TestMLEngineHookWithDefaultProjectId(unittest.TestCase):
         model_name = 'test-model'
         version_name = 'test-version'
         operation_path = f'projects/{GCP_PROJECT_ID_HOOK_UNIT_TEST}/operations/test-operation'
-        version_path = 'projects/{}/models/{}/versions/{}'.format(
-            GCP_PROJECT_ID_HOOK_UNIT_TEST, model_name, version_name
-        )
+        version_path = f'projects/{GCP_PROJECT_ID_HOOK_UNIT_TEST}/models/{model_name}/versions/{version_name}'
         operation_done = {'name': operation_path, 'done': True}
         # fmt: off
         (
@@ -999,12 +997,8 @@ class TestMLEngineHookWithDefaultProjectId(unittest.TestCase):
         model_name = 'test-model'
         version_name = 'test-version'
         # fmt: off
-        operation_path = 'projects/{}/operations/test-operation'.format(
-            GCP_PROJECT_ID_HOOK_UNIT_TEST
-        )
-        version_path = 'projects/{}/models/{}/versions/{}'.format(
-            GCP_PROJECT_ID_HOOK_UNIT_TEST, model_name, version_name
-        )
+        operation_path = f'projects/{GCP_PROJECT_ID_HOOK_UNIT_TEST}/operations/test-operation'
+        version_path = f'projects/{GCP_PROJECT_ID_HOOK_UNIT_TEST}/models/{model_name}/versions/{version_name}'
         version = {'name': operation_path}
         operation_not_done = {'name': operation_path, 'done': False}
         operation_done = {'name': operation_path, 'done': True}

@@ -173,7 +173,7 @@ $(document).ready(() => {
         outObj.connection_id = this.value;
       } else if (this.value !== '' && this.name === 'port') {
         outObj[this.name] = Number(this.value);
-      } else if (this.value !== '' && this.name !== 'csrf_token') {
+      } else if (this.value !== '' && this.name !== 'csrf_token' && !this.name.match('extra__')) {
         outObj[this.name] = this.value;
       }
     });

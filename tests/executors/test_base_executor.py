@@ -69,5 +69,5 @@ def test_try_adopt_task_instances(dag_maker):
     dagrun = dag_maker.create_dagrun(execution_date=date)
     tis = dagrun.task_instances
 
-    assert [ti.task_id for ti in tis] == ["task_1", "task_2", "task_3"]
+    assert {ti.task_id for ti in tis} == {"task_1", "task_2", "task_3"}
     assert BaseExecutor().try_adopt_task_instances(tis) == tis

@@ -19,6 +19,17 @@
 Changelog
 ---------
 
+2.0.2
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Properly handle verify parameter in TrinoHook (#18791)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 2.0.1
 .....
 

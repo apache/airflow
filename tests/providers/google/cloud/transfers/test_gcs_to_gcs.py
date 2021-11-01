@@ -379,9 +379,7 @@ class TestGoogleCloudStorageToCloudStorageOperator(unittest.TestCase):
 
         total_wildcards = operator.source_object.count(WILDCARD)
 
-        error_msg = "Only one wildcard '[*]' is allowed in source_object parameter. Found {}".format(
-            total_wildcards
-        )
+        error_msg = f"Only one wildcard '[*]' is allowed in source_object parameter. Found {total_wildcards}"
 
         with pytest.raises(AirflowException, match=error_msg):
             operator.execute(None)

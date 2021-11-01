@@ -28,14 +28,28 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+2.3.0
+.....
+
+Latest change: 2021-10-25
+
+================================================================================================  ===========  ===============================================================================================================
+Commit                                                                                            Committed    Subject
+================================================================================================  ===========  ===============================================================================================================
+`d53d4f9c7 <https://github.com/apache/airflow/commit/d53d4f9c7c1280970fc4b9ee3240c8d1db5f2c57>`_  2021-10-25   ``Moving the example tag a little bit up to include the part where you specify the snowflake_conn_id (#19180)``
+`acfb7b5ac <https://github.com/apache/airflow/commit/acfb7b5acf887d38aa8751c18d17dbfe85e78b7c>`_  2021-10-25   ``Add test_connection method for Snowflake Hook (#19041)``
+`0a37be3e3 <https://github.com/apache/airflow/commit/0a37be3e3cf9289f63f1506bc31db409c2b46738>`_  2021-09-30   ``Add region to Snowflake URI. (#18650)``
+================================================================================================  ===========  ===============================================================================================================
+
 2.2.0
 .....
 
-Latest change: 2021-09-29
+Latest change: 2021-09-30
 
 ================================================================================================  ===========  ======================================================================================
 Commit                                                                                            Committed    Subject
 ================================================================================================  ===========  ======================================================================================
+`840ea3efb <https://github.com/apache/airflow/commit/840ea3efb9533837e9f36b75fa527a0fbafeb23a>`_  2021-09-30   ``Update documentation for September providers release (#18613)``
 `ef037e702 <https://github.com/apache/airflow/commit/ef037e702182e4370cb00c853c4fb0e246a0479c>`_  2021-09-29   ``Static start_date and default arg cleanup for misc. provider example DAGs (#18597)``
 `a8970764d <https://github.com/apache/airflow/commit/a8970764d98f33a54be0e880df27f86b311038ac>`_  2021-09-10   ``Add Snowflake operators based on SQL Checks  (#17741)``
 ================================================================================================  ===========  ======================================================================================

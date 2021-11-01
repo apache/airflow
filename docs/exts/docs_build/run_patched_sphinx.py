@@ -51,8 +51,7 @@ def run_autoapi(app):
     for _dir in normalized_dirs:
         if not os.path.exists(_dir):
             raise ExtensionError(
-                "AutoAPI Directory `{dir}` not found. "
-                "Please check your `autoapi_dirs` setting.".format(dir=_dir)
+                f"AutoAPI Directory `{_dir}` not found. Please check your `autoapi_dirs` setting."
             )
 
     # Change from app.confdir to app.srcdir.

@@ -227,7 +227,7 @@ class TestSSHOperator:
             assert str(ctx.value) == "SSH operator error: SSH command not specified. Aborting."
         else:
             task.execute(None)
-        assert task.get_pty == get_pty_out
+            assert task.get_pty == get_pty_out
 
     def test_ssh_client_managed_correctly(self):
         # Ensure ssh_client gets created once

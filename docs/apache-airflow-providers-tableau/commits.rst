@@ -28,14 +28,28 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+2.1.2
+.....
+
+Latest change: 2021-10-21
+
+================================================================================================  ===========  ======================================================================================
+Commit                                                                                            Committed    Subject
+================================================================================================  ===========  ======================================================================================
+`e4888a061 <https://github.com/apache/airflow/commit/e4888a061f2f657a3329786a68beca9f824b2f8e>`_  2021-10-21   ``Remove distutils usages for Python 3.10 (#19064)``
+`840ea3efb <https://github.com/apache/airflow/commit/840ea3efb9533837e9f36b75fa527a0fbafeb23a>`_  2021-09-30   ``Update documentation for September providers release (#18613)``
+`ef037e702 <https://github.com/apache/airflow/commit/ef037e702182e4370cb00c853c4fb0e246a0479c>`_  2021-09-29   ``Static start_date and default arg cleanup for misc. provider example DAGs (#18597)``
+================================================================================================  ===========  ======================================================================================
+
 2.1.1
 .....
 
-Latest change: 2021-08-23
+Latest change: 2021-08-30
 
 ================================================================================================  ===========  ============================================================================
 Commit                                                                                            Committed    Subject
 ================================================================================================  ===========  ============================================================================
+`0a6858847 <https://github.com/apache/airflow/commit/0a68588479e34cf175d744ea77b283d9d78ea71a>`_  2021-08-30   ``Add August 2021 Provider's documentation (#17890)``
 `be75dcd39 <https://github.com/apache/airflow/commit/be75dcd39cd10264048c86e74110365bd5daf8b7>`_  2021-08-23   ``Update description about the new ''connection-types'' provider meta-data``
 `76ed2a49c <https://github.com/apache/airflow/commit/76ed2a49c6cd285bf59706cf04f39a7444c382c9>`_  2021-08-19   ``Import Hooks lazily individually in providers manager (#17682)``
 `5df99d6c6 <https://github.com/apache/airflow/commit/5df99d6c690fbdd728c9fd9482ec9a7479dfd3c2>`_  2021-08-09   ``New generic tableau operator: TableauOperator  (#16915)``

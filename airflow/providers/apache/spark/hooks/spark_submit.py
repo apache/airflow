@@ -180,9 +180,7 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
         self._is_kubernetes = 'k8s' in self._connection['master']
         if self._is_kubernetes and kube_client is None:
             raise RuntimeError(
-                "{} specified by kubernetes dependencies are not installed!".format(
-                    self._connection['master']
-                )
+                f"{self._connection['master']} specified by kubernetes dependencies are not installed!"
             )
 
         self._should_track_driver_status = self._resolve_should_track_driver_status()
@@ -440,15 +438,12 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
         if returncode or (self._is_kubernetes and self._spark_exit_code != 0):
             if self._is_kubernetes:
                 raise AirflowException(
-                    "Cannot execute: {}. Error code is: {}. Kubernetes spark exit code is: {}".format(
-                        self._mask_cmd(spark_submit_cmd), returncode, self._spark_exit_code
-                    )
+                    f"Cannot execute: {self._mask_cmd(spark_submit_cmd)}. Error code is: {returncode}. "
+                    f"Kubernetes spark exit code is: {self._spark_exit_code}"
                 )
             else:
                 raise AirflowException(
-                    "Cannot execute: {}. Error code is: {}.".format(
-                        self._mask_cmd(spark_submit_cmd), returncode
-                    )
+                    f"Cannot execute: {self._mask_cmd(spark_submit_cmd)}. Error code is: {returncode}."
                 )
 
         self.log.debug("Should track driver: %s", self._should_track_driver_status)
@@ -468,9 +463,7 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
 
             if self._driver_status != "FINISHED":
                 raise AirflowException(
-                    "ERROR : Driver {} badly exited with status {}".format(
-                        self._driver_id, self._driver_status
-                    )
+                    f"ERROR : Driver {self._driver_id} badly exited with status {self._driver_status}"
                 )
 
     def _process_spark_submit_log(self, itr: Iterator[Any]) -> None:
@@ -601,9 +594,8 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
                     missed_job_status_reports += 1
                 else:
                     raise AirflowException(
-                        "Failed to poll for the driver status {} times: returncode = {}".format(
-                            max_missed_job_status_reports, returncode
-                        )
+                        f"Failed to poll for the driver status {max_missed_job_status_reports} times: "
+                        f"returncode = {returncode}"
                     )
 
     def _build_spark_driver_kill_command(self) -> List[str]:

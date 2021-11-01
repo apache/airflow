@@ -82,12 +82,7 @@ class BigQueryToMsSqlOperator(BaseOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = (
-        'dataset_id',
-        'table_id',
-        'mssql_table',
-        'impersonation_chain',
-    )
+    template_fields = ('source_project_dataset_table', 'mssql_table', 'impersonation_chain')
 
     def __init__(
         self,

@@ -368,9 +368,8 @@ class DataflowCreateJavaJobOperator(BaseOperator):
     ) -> None:
         # TODO: Remove one day
         warnings.warn(
-            "The `{cls}` operator is deprecated, please use "
-            "`providers.apache.beam.operators.beam.BeamRunJavaPipelineOperator` instead."
-            "".format(cls=self.__class__.__name__),
+            f"The `{self.__class__.__name__}` operator is deprecated, "
+            f"please use `providers.apache.beam.operators.beam.BeamRunJavaPipelineOperator` instead.",
             DeprecationWarning,
             stacklevel=2,
         )
@@ -448,12 +447,13 @@ class DataflowCreateJavaJobOperator(BaseOperator):
                         )
                 if not is_running:
                     pipeline_options["jobName"] = job_name
-                    self.beam_hook.start_java_pipeline(
-                        variables=pipeline_options,
-                        jar=self.jar,
-                        job_class=self.job_class,
-                        process_line_callback=process_line_callback,
-                    )
+                    with self.dataflow_hook.provide_authorized_gcloud():
+                        self.beam_hook.start_java_pipeline(
+                            variables=pipeline_options,
+                            jar=self.jar,
+                            job_class=self.job_class,
+                            process_line_callback=process_line_callback,
+                        )
                     self.dataflow_hook.wait_for_done(
                         job_name=job_name,
                         location=self.location,
@@ -1074,9 +1074,8 @@ class DataflowCreatePythonJobOperator(BaseOperator):
     ) -> None:
         # TODO: Remove one day
         warnings.warn(
-            "The `{cls}` operator is deprecated, please use "
-            "`providers.apache.beam.operators.beam.BeamRunPythonPipelineOperator` instead."
-            "".format(cls=self.__class__.__name__),
+            f"The `{self.__class__.__name__}` operator is deprecated, "
+            "please use `providers.apache.beam.operators.beam.BeamRunPythonPipelineOperator` instead.",
             DeprecationWarning,
             stacklevel=2,
         )
@@ -1142,15 +1141,16 @@ class DataflowCreatePythonJobOperator(BaseOperator):
                 tmp_gcs_file = exit_stack.enter_context(gcs_hook.provide_file(object_url=self.py_file))
                 self.py_file = tmp_gcs_file.name
 
-            self.beam_hook.start_python_pipeline(
-                variables=formatted_pipeline_options,
-                py_file=self.py_file,
-                py_options=self.py_options,
-                py_interpreter=self.py_interpreter,
-                py_requirements=self.py_requirements,
-                py_system_site_packages=self.py_system_site_packages,
-                process_line_callback=process_line_callback,
-            )
+            with self.dataflow_hook.provide_authorized_gcloud():
+                self.beam_hook.start_python_pipeline(
+                    variables=formatted_pipeline_options,
+                    py_file=self.py_file,
+                    py_options=self.py_options,
+                    py_interpreter=self.py_interpreter,
+                    py_requirements=self.py_requirements,
+                    py_system_site_packages=self.py_system_site_packages,
+                    process_line_callback=process_line_callback,
+                )
 
             self.dataflow_hook.wait_for_done(
                 job_name=job_name,

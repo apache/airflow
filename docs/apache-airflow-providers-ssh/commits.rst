@@ -28,14 +28,29 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+2.3.0
+.....
+
+Latest change: 2021-10-29
+
+================================================================================================  ===========  ========================================================================================
+Commit                                                                                            Committed    Subject
+================================================================================================  ===========  ========================================================================================
+`2197e4b59 <https://github.com/apache/airflow/commit/2197e4b59a7cf859eff5969b5f27b5e4f1084d3b>`_  2021-10-29   ``Correctly handle get_pty attribute if command passed as XComArg or template (#19323)``
+`1571f8054 <https://github.com/apache/airflow/commit/1571f80546853688778c2a3ec5194e5c8be0edbd>`_  2021-10-14   ``Add pre-commit hook for common misspelling check in files (#18964)``
+`73fcbb0e4 <https://github.com/apache/airflow/commit/73fcbb0e4e151c9965fd69ba08de59462bbbe6dc>`_  2021-10-13   ``Refactor SSHOperator so a subclass can run many commands (#10874) (#17378)``
+`537963f24 <https://github.com/apache/airflow/commit/537963f24d83b08c546112bac33bf0f44d95fe1c>`_  2021-10-05   ``update minimum version of sshtunnel to 0.3.2 (#18684)``
+================================================================================================  ===========  ========================================================================================
+
 2.2.0
 .....
 
-Latest change: 2021-09-10
+Latest change: 2021-09-30
 
 ================================================================================================  ===========  ======================================================================================================================
 Commit                                                                                            Committed    Subject
 ================================================================================================  ===========  ======================================================================================================================
+`840ea3efb <https://github.com/apache/airflow/commit/840ea3efb9533837e9f36b75fa527a0fbafeb23a>`_  2021-09-30   ``Update documentation for September providers release (#18613)``
 `68d99bc55 <https://github.com/apache/airflow/commit/68d99bc5582b52106f876ccc22cc1e115a42b252>`_  2021-09-10   ``[Airflow 16364] Add conn_timeout and cmd_timeout params to SSHOperator; add conn_timeout param to SSHHook (#17236)``
 ================================================================================================  ===========  ======================================================================================================================
 

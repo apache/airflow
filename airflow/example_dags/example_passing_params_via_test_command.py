@@ -36,10 +36,7 @@ def my_py_command(params, test_mode=None, task=None):
     """
     if test_mode:
         print(
-            " 'foo' was passed in via test={} command : kwargs[params][foo] \
-               = {}".format(
-                test_mode, task.params["foo"]
-            )
+            f" 'foo' was passed in via test={test_mode} command : kwargs[params][foo] = {task.params['foo']}"
         )
     # Print out the value of "miff", passed in below via the Python Operator
     print(f" 'miff' was passed in via task params = {params['miff']}")
@@ -72,7 +69,7 @@ with DAG(
         """
         echo " 'foo was passed in via Airflow CLI Test command with value {{ params.foo }} "
         echo " 'miff was passed in via BashOperator with value {{ params.miff }} "
-    """
+        """
     )
 
     also_run_this = BashOperator(
