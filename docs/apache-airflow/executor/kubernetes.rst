@@ -180,8 +180,8 @@ With Celery workers you will tend to have less task latency because the worker p
 other hand, because multiple tasks are running in the same pod, with Celery you may have to be more mindful about resource utilization
 in your task design, particularly memory consumption.
 
-An positive of KubernetesExecutor is if you have long-running tasks.  With KubernetesExecutor, if you do a deployment while a task is running,
-the task will keep running until it completes (or times out, etc).  But with CeleryExecutor, provided you have set a grace period, the
+An positive of KubernetesExecutor is if you have long-running tasks. With KubernetesExecutor, if you do a deployment while a task is running,
+the task will keep running until it completes (or times out, etc). But with CeleryExecutor, provided you have set a grace period, the
 task will only keep running up until the grace period has elapsed, at which time the task will be terminated.
 
 Finally, note that it doesn't have to be either-or.  With CeleryKubernetesExecutor you have the best of both worlds.  Tasks by default will
