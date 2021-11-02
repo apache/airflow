@@ -100,16 +100,60 @@ class TestSecurity(unittest.TestCase):
         log.debug("Complete setup!")
 
     @classmethod
-    def delete_roles(cls):
-        for role_name in [
+    def tearDownClass(cls):
+        role_names = cls.get_test_roles()
+        role_names.append("Admin")
+        roles = [cls.appbuilder.sm.find_role(name) for name in role_names]
+        perms = [
+            ('can_list', 'SomeModelView'),
+            ('can_show', 'SomeModelView'),
+            ('can_add', 'SomeModelView'),
+            (permissions.ACTION_CAN_EDIT, 'SomeModelView'),
+            (permissions.ACTION_CAN_DELETE, 'SomeModelView'),
+            (permissions.ACTION_CAN_ACCESS_MENU, 'SomeModelView'),
+            (permissions.ACTION_CAN_ACCESS_MENU, 'SomeModelView'),
+            (permissions.ACTION_CAN_ACCESS_MENU, 'BaseViews'),
+            (permissions.ACTION_CAN_ACCESS_MENU, 'SomeBaseView'),
+            (permissions.ACTION_CAN_ACCESS_MENU, 'ModelViews'),
+            ('can_some_other_action', 'AnotherBaseView'),
+            ('can_some_action', 'SomeBaseView'),
+        ]
+        for action, resource in perms:
+            perm = cls.appbuilder.sm.get_permission(action, resource)
+            for role in roles:
+                cls.appbuilder.sm.remove_permission_from_role(role, perm)
+            cls.appbuilder.sm.delete_permission(action, resource)
+
+        cls.appbuilder.sm.delete_resource('SomeModelView')
+        cls.appbuilder.sm.delete_resource('BaseViews')
+        cls.appbuilder.sm.delete_resource('SomeBaseView')
+        cls.appbuilder.sm.delete_resource('ModelViews')
+        cls.appbuilder.sm.delete_resource('AnotherBaseView')
+        cls.appbuilder.sm.delete_resource('SomeBaseView')
+        cls.appbuilder.sm.delete_action('can_list')
+        cls.appbuilder.sm.delete_action('can_show')
+        cls.appbuilder.sm.delete_action('can_add')
+        cls.appbuilder.sm.delete_action('can_some_other_action')
+        cls.appbuilder.sm.delete_action('can_some_action')
+
+        api_connexion_utils.delete_roles(cls.app)
+
+    @classmethod
+    def get_test_roles(cls):
+        return [
             'team-a',
             'MyRole1',
             'MyRole5',
             'Test_Role',
             'MyRole3',
             'MyRole2',
+            'MyRole7',
             'dag_permission_role',
-        ]:
+        ]
+
+    @classmethod
+    def delete_roles(cls):
+        for role_name in cls.get_test_roles():
             api_connexion_utils.delete_role(cls.app, role_name)
 
     def expect_user_is_in_role(self, user, rolename):
@@ -119,7 +163,6 @@ class TestSecurity(unittest.TestCase):
             self.security_manager.add_role(rolename)
             role = self.security_manager.find_role(rolename)
         user.roles = [role]
-        # TODO: Find a better place to update the user permissions automatically.
         self.security_manager.update_user(user)
 
     def assert_user_has_dag_perms(self, perms, dag_id, user=None):
@@ -217,7 +260,7 @@ class TestSecurity(unittest.TestCase):
         with self.app.app_context():
             user = AnonymousUser()
             self.app.config['AUTH_ROLE_PUBLIC'] = 'Public'
-            assert self.app.appbuilder.sm.get_user_roles(user) == {self.app.appbuilder.sm.get_public_role()}
+            assert user.roles == {self.app.appbuilder.sm.get_public_role()}
 
             self._create_dag("test_dag_id")
             self.security_manager.sync_roles()
@@ -228,7 +271,7 @@ class TestSecurity(unittest.TestCase):
         with self.app.app_context():
             user = AnonymousUser()
             self.app.config['AUTH_ROLE_PUBLIC'] = 'Public'
-            assert self.app.appbuilder.sm.get_user_roles(user) == {self.app.appbuilder.sm.get_public_role()}
+            assert user.roles == {self.app.appbuilder.sm.get_public_role()}
 
             dag_id = "test_dag_id"
             self._create_dag(dag_id)
@@ -244,7 +287,7 @@ class TestSecurity(unittest.TestCase):
             self.app.config['AUTH_ROLE_PUBLIC'] = 'Admin'
             user = AnonymousUser()
 
-            assert self.app.appbuilder.sm.get_user_roles(user) == {self.app.appbuilder.sm.get_public_role()}
+            assert user.roles == {self.app.appbuilder.sm.get_public_role()}
 
             test_dag_ids = ["test_dag_id_1", "test_dag_id_2", "test_dag_id_3"]
             for dag_id in test_dag_ids:
@@ -258,8 +301,6 @@ class TestSecurity(unittest.TestCase):
             user = AnonymousUser()
             self.app.config['AUTH_ROLE_PUBLIC'] = 'Admin'
 
-            # Call `.get_user_roles` bc `user` is a mock and the `user.roles` prop needs to be set.
-            user.roles = self.app.appbuilder.sm.get_user_roles(user)
             assert user.roles == {self.app.appbuilder.sm.get_public_role()}
 
             test_dag_ids = ["test_dag_id_1", "test_dag_id_2", "test_dag_id_3"]
@@ -273,13 +314,6 @@ class TestSecurity(unittest.TestCase):
                 assert self.app.appbuilder.sm.can_edit_dag(dag_id, user) is True
                 assert self._has_dag_perm(permissions.ACTION_CAN_READ, dag_id, user) is True
                 assert self._has_dag_perm(permissions.ACTION_CAN_EDIT, dag_id, user) is True
-
-    def test_get_user_roles(self):
-        user = mock.MagicMock()
-        user.is_anonymous = False
-        roles = self.appbuilder.sm.find_role('Admin')
-        user.roles = roles
-        assert self.security_manager.get_user_roles(user) == roles
 
     def test_get_user_roles_for_anonymous_user(self):
         viewer_role_perms = {
@@ -317,12 +351,11 @@ class TestSecurity(unittest.TestCase):
             user = AnonymousUser()
 
             perms_views = set()
-            for role in self.security_manager.get_user_roles(user):
+            for role in user.roles:
                 perms_views.update({(perm.action.name, perm.resource.name) for perm in role.permissions})
             assert perms_views == viewer_role_perms
 
-    @mock.patch('airflow.www.security.AirflowSecurityManager.get_user_roles')
-    def test_get_current_user_permissions(self, mock_get_user_roles):
+    def test_get_current_user_permissions(self):
         role_name = 'MyRole5'
         role_perm = 'can_some_action'
         role_vm = 'SomeBaseView'
@@ -349,26 +382,34 @@ class TestSecurity(unittest.TestCase):
             self.session.commit()
             assert len(user.perms) == 0
 
-    @mock.patch('airflow.www.security.AirflowSecurityManager.get_user_roles')
-    def test_current_user_has_permissions(self, mock_get_user_roles):
-        with self.app.app_context():
+    @mock.patch('airflow.www.security.AirflowSecurityManager.current_user', new_callable=mock.PropertyMock)
+    def test_current_user_has_permissions(self, mock_current_user):
+        with self.app.test_request_context():
             user = api_connexion_utils.create_user(
                 self.app,
                 username="current_user_has_permissions",
                 role_name="current_user_has_permissions",
                 permissions=[("can_some_action", "SomeBaseView")],
             )
+            mock_current_user.return_value = user
+
             role = user.roles[0]
-            mock_get_user_roles.return_value = [role]
-            assert self.security_manager.current_user_has_permissions()
+            user.roles = [role]
+            self.session.add(user)
+            self.session.commit()
+            assert bool(user.perms)
 
             # Role, but no permissions
             role.permissions = []
-            assert not self.security_manager.current_user_has_permissions()
+            self.session.add(role)
+            self.session.commit()
+            assert not user.perms
 
             # No role
-            mock_get_user_roles.return_value = []
-            assert not self.security_manager.current_user_has_permissions()
+            user.roles = []
+            self.session.add(user)
+            self.session.commit()
+            assert not user.perms
 
     def test_get_accessible_dag_ids(self):
         role_name = 'MyRole1'

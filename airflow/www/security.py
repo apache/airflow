@@ -247,24 +247,6 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
         else:
             raise AirflowException(f"Role named '{role_name}' does not exist")
 
-    @staticmethod
-    def get_user_roles(user=None):
-        """
-        Get all the roles associated with the user.
-
-        :param user: the ab_user in FAB model.
-        :return: a list of roles associated with the user.
-        """
-        if user is None:
-            user = g.user
-        return user.roles
-
-    def current_user_has_permissions(self) -> bool:
-        for role in self.get_user_roles():
-            if role.permissions:
-                return True
-        return False
-
     def get_readable_dags(self, user):
         """Gets the DAGs readable by authenticated user."""
         return self.get_accessible_dags([permissions.ACTION_CAN_READ], user)
@@ -284,7 +266,7 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
     def get_accessible_dags(self, user_actions, user, session=None):
         """Generic function to get readable or writable DAGs for user."""
         if user.is_anonymous:
-            roles = self.get_user_roles(user)
+            roles = user.roles
         else:
             user_query = (
                 session.query(User)
@@ -382,7 +364,7 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
         """Whether the user has this role name"""
         if not isinstance(role_name_or_list, list):
             role_name_or_list = [role_name_or_list]
-        return any(r.name in role_name_or_list for r in self.get_user_roles())
+        return any(r.name in role_name_or_list for r in self.current_user.roles)
 
     def has_all_dags_access(self):
         """

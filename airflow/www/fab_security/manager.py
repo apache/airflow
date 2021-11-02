@@ -1301,12 +1301,6 @@ class BaseSecurityManager:
                 return True
         return False
 
-    def get_user_roles(self, user) -> List[object]:
-        """Get current user roles, if user is not authenticated returns the public role"""
-        if not user.is_authenticated:
-            return [self.get_public_role()]
-        return user.roles
-
     def _get_user_permission_resources(
         self, user: object, action_name: str, resource_names: List[str]
     ) -> Set[str]:
