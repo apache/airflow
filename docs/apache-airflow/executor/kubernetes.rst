@@ -23,7 +23,7 @@ Kubernetes Executor
 
 The Kubernetes executor runs each task instance in its own pod on a Kubernetes cluster.
 
-KubernetesExecutor runs as a process in the Airflow Scheduler.  The scheduler itself does
+KubernetesExecutor runs as a process in the Airflow Scheduler. The scheduler itself does
 not necessarily need to be running on Kubernetes, but does need access to a Kubernetes cluster.
 
 KubernetesExecutor requires a non-sqlite database in the backend.
