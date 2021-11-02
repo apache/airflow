@@ -169,7 +169,11 @@ To get task logs out of the workers, you can:
 
   - Use a persistent volume mounted on both the webserver and workers.
 
-  - If you don't enable logging persistence, and if you have not enabled remote logging, logs will be lost after the worker pods shut down.
+  - Enabled remote logging.
+
+.. note::
+
+    If you don't enable logging persistence, and if you have not enabled remote logging, logs will be lost after the worker pods shut down.
 
 To troubleshoot issue with KubernetesExecutor, you can use ``airflow kubernetes generate-dag-yaml`` command.
 This command generates the pods as they will be launched in Kubernetes and dumps them into yaml files for you to inspect.
