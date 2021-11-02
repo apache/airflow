@@ -19,12 +19,22 @@
 import csv
 import tempfile
 import warnings
+from enum import Enum
 from typing import Any, Dict, List, Optional, Sequence, Union
+
+from facebook_business.adobjects.adsinsights import AdsInsights
 
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.facebook.ads.hooks.ads import FacebookAdsReportingHook
 from airflow.providers.google.cloud.hooks.gcs import GCSHook
+
+
+class FlushAction(Enum):
+    """Facebook Ads Export Options"""
+
+    EXPORT_ONCE = "ExportAtOnce"
+    EXPORT_EVERY_ACCOUNT = "ExportEveryAccount"
 
 
 class FacebookAdsReportToGcsOperator(BaseOperator):
@@ -78,7 +88,6 @@ class FacebookAdsReportToGcsOperator(BaseOperator):
         account from the list granting this role to the originating account (templated).
     :type impersonation_chain: Union[str, Sequence[str]]
     """
-
     template_fields = (
         "facebook_conn_id",
         "bucket_name",
@@ -96,6 +105,7 @@ class FacebookAdsReportToGcsOperator(BaseOperator):
         params: Dict[str, Any] = None,
         parameters: Dict[str, Any] = None,
         gzip: bool = False,
+        upload_as_account: bool = False,
         api_version: Optional[str] = None,
         gcp_conn_id: str = "google_cloud_default",
         facebook_conn_id: str = "facebook_default",
@@ -111,6 +121,7 @@ class FacebookAdsReportToGcsOperator(BaseOperator):
         self.fields = fields
         self.parameters = parameters
         self.gzip = gzip
+        self.upload_as_account = upload_as_account
         self.impersonation_chain = impersonation_chain
 
         if params is None and parameters is None:
@@ -128,11 +139,56 @@ class FacebookAdsReportToGcsOperator(BaseOperator):
         service = FacebookAdsReportingHook(
             facebook_conn_id=self.facebook_conn_id, api_version=self.api_version
         )
-        rows = service.bulk_facebook_report(params=self.parameters, fields=self.fields)
+        bulk_report = service.bulk_facebook_report(params=self.parameters, fields=self.fields)
+        converted_rows_with_action = self._generate_rows_with_action()
+        for account_id in bulk_report.keys():
+            rows = bulk_report.get(account_id, None)
+            if rows:
+                converted_rows_with_action = \
+                    self._prepare_rows_for_upload(rows=rows,
+                                                  converted_rows_with_action=converted_rows_with_action,
+                                                  account_id=account_id)
+            else:
+                self.log.warning("account_id: %s returned empty report", str(account_id))
 
+        total_row_count = self._decide_and_flush(converted_rows_with_action=converted_rows_with_action)
+        self.log.info("Facebook Returned %s data points in total: ", total_row_count)
+
+    def _generate_rows_with_action(self):
+        if self.upload_as_account:
+            return {FlushAction.EXPORT_EVERY_ACCOUNT: []}
+        else:
+            return {FlushAction.EXPORT_ONCE: []}
+
+    def _prepare_rows_for_upload(self, rows: List[AdsInsights], converted_rows_with_action: Dict[FlushAction, list],
+                                 account_id: str):
         converted_rows = [dict(row) for row in rows]
-        self.log.info("Facebook Returned %s data points", len(converted_rows))
+        if self.upload_as_account:
+            converted_rows_with_action[FlushAction.EXPORT_EVERY_ACCOUNT].append({"account_id": account_id,
+                                                                                 "converted_rows": converted_rows})
+        else:
+            converted_rows_with_action[FlushAction.EXPORT_ONCE].extend(converted_rows)
+        self.log.info("Facebook Returned %s data points for account_id %s: ", len(converted_rows), account_id)
+        return converted_rows_with_action
 
+    def _decide_and_flush(self, converted_rows_with_action: Dict[FlushAction, list]):
+        total_data_count = 0
+        if FlushAction.EXPORT_ONCE in converted_rows_with_action:
+            self._flush_rows(converted_rows=converted_rows_with_action.get(FlushAction.EXPORT_ONCE),
+                             object_name=self.object_name)
+            total_data_count += len(converted_rows_with_action.get(FlushAction.EXPORT_ONCE))
+        elif FlushAction.EXPORT_EVERY_ACCOUNT in converted_rows_with_action:
+            for converted_rows in converted_rows_with_action.get(FlushAction.EXPORT_EVERY_ACCOUNT):
+                self._flush_rows(converted_rows=converted_rows.get("converted_rows"),
+                                 object_name=self._transform_object_name_with_account_id(
+                                     account_id=converted_rows.get("account_id")))
+                total_data_count += len(converted_rows.get("converted_rows"))
+        else:
+            message = f"FlushAction not found in the data"
+            raise AirflowException(message)
+        return total_data_count
+
+    def _flush_rows(self, converted_rows: list, object_name: str):
         if converted_rows:
             headers = converted_rows[0].keys()
             with tempfile.NamedTemporaryFile("w", suffix=".csv") as csvfile:
@@ -146,8 +202,15 @@ class FacebookAdsReportToGcsOperator(BaseOperator):
                 )
                 hook.upload(
                     bucket_name=self.bucket_name,
-                    object_name=self.object_name,
+                    object_name=object_name,
                     filename=csvfile.name,
                     gzip=self.gzip,
                 )
                 self.log.info("%s uploaded to GCS", csvfile.name)
+
+    def _transform_object_name_with_account_id(self, account_id: str):
+        directory_parts = self.object_name.split("/")
+        directory_parts[len(directory_parts) - 1] = (
+            account_id + "_" + directory_parts[len(directory_parts) - 1]
+        )
+        return "/".join(directory_parts)
