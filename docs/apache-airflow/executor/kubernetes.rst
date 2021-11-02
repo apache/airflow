@@ -167,7 +167,7 @@ To get the DAGs into the workers, you can:
 
 To get task logs out of the workers, you can:
 
-  - You can enable a persistent volume shared between webserver and workers to store task logs.
+  - Use a persistent volume mounted on both the webserver and workers.
 
   - If you don't enable logging persistence, and if you have not enabled remote logging, logs will be lost after the worker pods shut down.
 
