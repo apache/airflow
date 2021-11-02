@@ -160,8 +160,9 @@ Use of persistent volumes is optional and depends on your configuration.
 
   - By storing dags on a persistent volume, it will be made available to all workers
 
-  - Alternatively, you can include dags in the image, or you can use use ``git-sync``.  With ``git-sync``, before starting the worker container,
-    a git pull of the dags repository will be performed and used throughout the lifecycle of the pod.
+  - Include dags in the image.
+  - Use ``git-sync`` which, before starting the worker container, will run a ``git pull`` of the dags repository.
+  - Storing dags on a persistent volume, which can be mounted on all workers.
 
 - **Logs**:
 
