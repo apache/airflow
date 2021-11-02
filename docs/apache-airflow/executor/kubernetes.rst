@@ -183,7 +183,7 @@ Comparison with CeleryExecutor
 In contrast to CeleryExecutor, KubernetesExecutor does not require additional components such as Redis and Flower, but does require access to Kubernetes cluster.
 
 With KubernetesExecutor, each task runs in its own pod. The pod is created when the task is queued, and terminates when the task completes.
-Historically, in some cases, this presented a resource utilization advantage over CeleryExecutor for burst-able workloads (where you needed a fixed number of
+Historically, in some cases, this presented a resource utilization advantage over CeleryExecutor for burstable workloads (where you needed a fixed number of
 long-running celery worker pods, whether or not there were tasks to run).
 
 However, the :doc:`official Apache Airflow Helm chart <helm-chart:index>` can automatically scale celery workers down to zero based on the number of tasks in the queue,
