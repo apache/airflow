@@ -599,13 +599,14 @@ class KubernetesExecutor(BaseExecutor, LoggingMixin):
                 try:
                     self.kube_scheduler.run_next(task)
                 except ApiException as e:
-                    if e.reason == "BadRequest":
-                        self.log.error("Request was invalid. Failing task")
+                    if e.reason in ("BadRequest", "Unprocessable Entity"):
+                        self.log.error(f"Pod creation failed with reason {e.reason!r}. Failing task")
                         key, _, _, _ = task
                         self.change_state(key, State.FAILED, e)
                     else:
                         self.log.warning(
-                            'ApiException when attempting to run task, re-queueing. Message: %s',
+                            'ApiException when attempting to run task, re-queueing. Reason: %r. Message: %s',
+                            e.reason,
                             json.loads(e.body)['message'],
                         )
                         self.task_queue.put(task)
