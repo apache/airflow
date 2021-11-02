@@ -215,6 +215,13 @@ class TestKubernetesExecutor:
         and be attempted on a subsequent executor sync.  When reason is 'Unprocessable Entity'
         or 'BadRequest', the task should be failed without being re-queued.
 
+        Note on error scenarios:
+
+        - 403 Forbidden will be returned when your request exceeds namespace quota.
+        - 422 Unprocessable Entity is returned when your parameters are valid but unsupported
+            e.g. limits lower than requests.
+        - 400 BadRequest is returned when your parameters are invalid e.g. asking for cpu=100ABC123.
+
         """
         import sys
 
