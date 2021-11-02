@@ -30,14 +30,14 @@ import dill
 from airflow import DAG
 from airflow.exceptions import AirflowException
 from airflow.operators.python import PythonOperator
+from airflow.providers.apache.beam.operators.beam import BeamRunPythonPipelineOperator
 from airflow.providers.google.cloud.hooks.gcs import GCSHook
-from airflow.providers.google.cloud.operators.dataflow import DataflowCreatePythonJobOperator
 from airflow.providers.google.cloud.operators.mlengine import MLEngineStartBatchPredictionJobOperator
 
-T = TypeVar("T", bound=Callable)  # pylint: disable=invalid-name
+T = TypeVar("T", bound=Callable)
 
 
-def create_evaluate_ops(  # pylint: disable=too-many-arguments
+def create_evaluate_ops(
     task_prefix: str,
     data_format: str,
     input_paths: List[str],
@@ -101,21 +101,24 @@ def create_evaluate_ops(  # pylint: disable=too-many-arguments
 
         def get_metric_fn_and_keys():
             import math  # imports should be outside of the metric_fn below.
+
             def error_and_squared_error(inst):
-                label = float(inst['input_label'])
-                classes = float(inst['classes'])  # 0 or 1
-                err = abs(classes-label)
-                squared_err = math.pow(classes-label, 2)
+                label = float(inst["input_label"])
+                classes = float(inst["classes"])  # 0 or 1
+                err = abs(classes - label)
+                squared_err = math.pow(classes - label, 2)
                 return (err, squared_err)  # returns a tuple.
-            return error_and_squared_error, ['err', 'mse']  # key order must match.
+
+            return error_and_squared_error, ["err", "mse"]  # key order must match.
+
 
         def validate_err_and_count(summary):
-            if summary['err'] > 0.2:
-                raise ValueError('Too high err>0.2; summary=%s' % summary)
-            if summary['mse'] > 0.05:
-                raise ValueError('Too high mse>0.05; summary=%s' % summary)
-            if summary['count'] < 1000:
-                raise ValueError('Too few instances<1000; summary=%s' % summary)
+            if summary["err"] > 0.2:
+                raise ValueError("Too high err>0.2; summary=%s" % summary)
+            if summary["mse"] > 0.05:
+                raise ValueError("Too high mse>0.05; summary=%s" % summary)
+            if summary["count"] < 1000:
+                raise ValueError("Too few instances<1000; summary=%s" % summary)
             return summary
 
     For the details on the other BatchPrediction-related arguments (project_id,
@@ -239,11 +242,11 @@ def create_evaluate_ops(  # pylint: disable=too-many-arguments
     )
 
     metric_fn_encoded = base64.b64encode(dill.dumps(metric_fn, recurse=True)).decode()
-    evaluate_summary = DataflowCreatePythonJobOperator(
+    evaluate_summary = BeamRunPythonPipelineOperator(
         task_id=(task_prefix + "-summary"),
         py_file=os.path.join(os.path.dirname(__file__), 'mlengine_prediction_summary.py'),
-        dataflow_default_options=dataflow_options,
-        options={
+        default_pipeline_options=dataflow_options,
+        pipeline_options={
             "prediction_path": prediction_path,
             "metric_fn_encoded": metric_fn_encoded,
             "metric_keys": ','.join(metric_keys),

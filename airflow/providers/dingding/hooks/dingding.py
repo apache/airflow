@@ -48,6 +48,11 @@ class DingdingHook(HttpHook):
     :type at_all: bool
     """
 
+    conn_name_attr = 'dingding_conn_id'
+    default_conn_name = 'dingding_default'
+    conn_type = 'dingding'
+    hook_name = 'Dingding'
+
     def __init__(
         self,
         dingding_conn_id='dingding_default',
@@ -110,8 +115,7 @@ class DingdingHook(HttpHook):
         support_type = ['text', 'link', 'markdown', 'actionCard', 'feedCard']
         if self.message_type not in support_type:
             raise ValueError(
-                'DingdingWebhookHook only support {} '
-                'so far, but receive {}'.format(support_type, self.message_type)
+                f'DingdingWebhookHook only support {support_type} so far, but receive {self.message_type}'
             )
 
         data = self._build_message()
@@ -122,5 +126,5 @@ class DingdingHook(HttpHook):
 
         # Dingding success send message will with errcode equal to 0
         if int(resp.json().get('errcode')) != 0:
-            raise AirflowException('Send Dingding message failed, receive error ' f'message {resp.text}')
+            raise AirflowException(f'Send Dingding message failed, receive error message {resp.text}')
         self.log.info('Success Send Dingding message')

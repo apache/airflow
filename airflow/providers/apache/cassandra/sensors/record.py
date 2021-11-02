@@ -24,7 +24,6 @@ from typing import Any, Dict
 
 from airflow.providers.apache.cassandra.hooks.cassandra import CassandraHook
 from airflow.sensors.base import BaseSensorOperator
-from airflow.utils.decorators import apply_defaults
 
 
 class CassandraRecordSensor(BaseSensorOperator):
@@ -56,8 +55,14 @@ class CassandraRecordSensor(BaseSensorOperator):
 
     template_fields = ('table', 'keys')
 
-    @apply_defaults
-    def __init__(self, *, table: str, keys: Dict[str, str], cassandra_conn_id: str, **kwargs: Any) -> None:
+    def __init__(
+        self,
+        *,
+        table: str,
+        keys: Dict[str, str],
+        cassandra_conn_id: str = CassandraHook.default_conn_name,
+        **kwargs: Any,
+    ) -> None:
         super().__init__(**kwargs)
         self.cassandra_conn_id = cassandra_conn_id
         self.table = table

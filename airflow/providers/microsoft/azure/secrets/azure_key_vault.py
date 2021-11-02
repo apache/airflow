@@ -19,7 +19,11 @@ from typing import Optional
 from azure.core.exceptions import ResourceNotFoundError
 from azure.identity import DefaultAzureCredential
 from azure.keyvault.secrets import SecretClient
-from cached_property import cached_property
+
+try:
+    from functools import cached_property
+except ImportError:
+    from cached_property import cached_property
 
 from airflow.secrets import BaseSecretsBackend
 from airflow.utils.log.logging_mixin import LoggingMixin
@@ -41,6 +45,16 @@ class AzureKeyVaultBackend(BaseSecretsBackend, LoggingMixin):
     if you provide ``{"connections_prefix": "airflow-connections"}`` and request conn_id ``smtp-default``.
     And if variables prefix is ``airflow-variables-hello``, this would be accessible
     if you provide ``{"variables_prefix": "airflow-variables"}`` and request variable key ``hello``.
+
+    For client authentication, the ``DefaultAzureCredential`` from the Azure Python SDK is used as
+    credential provider, which supports service principal, managed identity and user credentials
+
+    For example, to specify a service principal with secret you can set the environment variables
+    ``AZURE_TENANT_ID``, ``AZURE_CLIENT_ID`` and ``AZURE_CLIENT_SECRET``.
+
+    .. seealso::
+        For more details on client authentication refer to the ``DefaultAzureCredential`` Class reference:
+        https://docs.microsoft.com/en-us/python/api/azure-identity/azure.identity.defaultazurecredential?view=azure-python
 
     :param connections_prefix: Specifies the prefix of the secret to read to get Connections
         If set to None (null), requests for connections will not be sent to Azure Key Vault

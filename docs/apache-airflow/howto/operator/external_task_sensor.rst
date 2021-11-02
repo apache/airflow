@@ -29,7 +29,10 @@ tasks on the same DAG. For example:
   on a daily DAG.
 - Different teams are responsible for different DAGs, but these DAGs have some cross-DAG
   dependencies.
-- A task may depend on another task on the same DAG, but for a different ``execution_date``.
+- A task may depend on another task on the same DAG, but for a different ``execution_date``
+  (start of the data interval).
+- Use ``execution_delta`` for tasks running at different times, like ``execution_delta=timedelta(hours=1)``
+  to check against a task that runs 1 hour earlier.
 
 ``ExternalTaskSensor`` can be used to establish such dependencies across different DAGs. When it is
 used together with ``ExternalTaskMarker``, clearing dependent tasks can also happen across different
@@ -46,6 +49,7 @@ via ``allowed_states`` and ``failed_states`` parameters.
 
 .. exampleinclude:: /../../airflow/example_dags/example_external_task_marker_dag.py
     :language: python
+    :dedent: 4
     :start-after: [START howto_operator_external_task_sensor]
     :end-before: [END howto_operator_external_task_sensor]
 
@@ -60,5 +64,6 @@ user clears ``parent_task``.
 
 .. exampleinclude:: /../../airflow/example_dags/example_external_task_marker_dag.py
     :language: python
+    :dedent: 4
     :start-after: [START howto_operator_external_task_marker]
     :end-before: [END howto_operator_external_task_marker]

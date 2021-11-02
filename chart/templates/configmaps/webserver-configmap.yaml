@@ -14,6 +14,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+<<<<<<< HEAD
+<<<<<<< HEAD:chart/templates/configmaps/webserver-configmap.yaml
+=======
+>>>>>>> upstream/main
 
 ################################
 ## Airflow ConfigMap
@@ -36,3 +40,14 @@ data:
   webserver_config.py: |
     {{- tpl .Values.webserver.webserverConfig . | nindent 4 }}
 {{- end }}
+<<<<<<< HEAD
+=======
+---
+version: "3.7"
+services:
+  mssql:
+    volumes:
+      - mssql-db-volume:/var/opt/mssql
+>>>>>>> upstream/main:scripts/ci/docker-compose/backend-mssql-docker-volume.yml
+=======
+>>>>>>> upstream/main

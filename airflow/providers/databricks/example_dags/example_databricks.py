@@ -31,22 +31,17 @@ For more information about the state of a run refer to
 https://docs.databricks.com/api/latest/jobs.html#runstate
 """
 
+from datetime import datetime
+
 from airflow import DAG
 from airflow.providers.databricks.operators.databricks import DatabricksSubmitRunOperator
-from airflow.utils.dates import days_ago
-
-default_args = {
-    'owner': 'airflow',
-    'email': ['airflow@example.com'],
-    'depends_on_past': False,
-}
 
 with DAG(
     dag_id='example_databricks_operator',
-    default_args=default_args,
     schedule_interval='@daily',
-    start_date=days_ago(2),
+    start_date=datetime(2021, 1, 1),
     tags=['example'],
+    catchup=False,
 ) as dag:
     new_cluster = {
         'spark_version': '2.1.0-db3-scala2.11',

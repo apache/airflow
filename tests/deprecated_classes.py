@@ -1008,7 +1008,7 @@ OPERATORS = [
         'airflow.contrib.operators.sqoop_operator.SqoopOperator',
     ),
     (
-        'airflow.providers.apache.druid.operators.druid_check.DruidCheckOperator',
+        'airflow.operators.sql.SQLCheckOperator',
         'airflow.operators.druid_check_operator.DruidCheckOperator',
     ),
     (
@@ -1024,7 +1024,7 @@ OPERATORS = [
         'airflow.operators.pig_operator.PigOperator',
     ),
     (
-        'airflow.providers.microsoft.azure.operators.adls_list.AzureDataLakeStorageListOperator',
+        'airflow.providers.microsoft.azure.operators.adls.ADLSListOperator',
         'airflow.contrib.operators.adls_list_operator.AzureDataLakeStorageListOperator',
     ),
     (
@@ -1416,7 +1416,7 @@ SENSORS = [
         "airflow.contrib.sensors.gcs_sensor.GoogleCloudStorageObjectUpdatedSensor",
     ),
     (
-        "airflow.providers.google.cloud.sensors.gcs.GCSObjectsWtihPrefixExistenceSensor",
+        "airflow.providers.google.cloud.sensors.gcs.GCSObjectsWithPrefixExistenceSensor",
         "airflow.contrib.sensors.gcs_sensor.GoogleCloudStoragePrefixSensor",
     ),
     (
@@ -1717,7 +1717,7 @@ TRANSFERS = [
         'airflow.operators.mssql_to_hive.MsSqlToHiveTransfer',
     ),
     (
-        'airflow.providers.microsoft.azure.transfers.file_to_wasb.FileToWasbOperator',
+        'airflow.providers.microsoft.azure.transfers.local_to_wasb.LocalFilesystemToWasbOperator',
         'airflow.contrib.operators.file_to_wasb.FileToWasbOperator',
     ),
     (

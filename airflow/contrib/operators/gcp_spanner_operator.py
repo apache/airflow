@@ -15,7 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""This module is deprecated. Please use `airflow.providers.google.cloud.operators.spanner`."""
+"""This module is deprecated. Please use :mod:`airflow.providers.google.cloud.operators.spanner`."""
 
 import warnings
 
@@ -45,7 +45,7 @@ class CloudSpannerInstanceDatabaseDeleteOperator(SpannerDeleteDatabaseInstanceOp
         warnings.warn(
             self.__doc__,
             DeprecationWarning,
-            stacklevel=3,
+            stacklevel=2,
         )
         super().__init__(*args, **kwargs)
 
@@ -60,7 +60,7 @@ class CloudSpannerInstanceDatabaseDeployOperator(SpannerDeployDatabaseInstanceOp
         warnings.warn(
             self.__doc__,
             DeprecationWarning,
-            stacklevel=3,
+            stacklevel=2,
         )
         super().__init__(*args, **kwargs)
 
@@ -75,7 +75,7 @@ class CloudSpannerInstanceDatabaseQueryOperator(SpannerQueryDatabaseInstanceOper
         warnings.warn(
             self.__doc__,
             DeprecationWarning,
-            stacklevel=3,
+            stacklevel=2,
         )
         super().__init__(*args, **kwargs)
 
@@ -90,7 +90,7 @@ class CloudSpannerInstanceDatabaseUpdateOperator(SpannerUpdateDatabaseInstanceOp
         warnings.warn(
             self.__doc__,
             DeprecationWarning,
-            stacklevel=3,
+            stacklevel=2,
         )
         super().__init__(*args, **kwargs)
 
@@ -105,7 +105,7 @@ class CloudSpannerInstanceDeleteOperator(SpannerDeleteInstanceOperator):
         warnings.warn(
             self.__doc__,
             DeprecationWarning,
-            stacklevel=3,
+            stacklevel=2,
         )
         super().__init__(*args, **kwargs)
 
@@ -120,6 +120,6 @@ class CloudSpannerInstanceDeployOperator(SpannerDeployInstanceOperator):
         warnings.warn(
             self.__doc__,
             DeprecationWarning,
-            stacklevel=3,
+            stacklevel=2,
         )
         super().__init__(*args, **kwargs)

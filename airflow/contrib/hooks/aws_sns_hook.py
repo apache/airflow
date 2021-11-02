@@ -16,11 +16,10 @@
 # specific language governing permissions and limitations
 # under the License.
 
-"""This module is deprecated. Please use `airflow.providers.amazon.aws.hooks.sns`."""
+"""This module is deprecated. Please use :mod:`airflow.providers.amazon.aws.hooks.sns`."""
 
 import warnings
 
-# pylint: disable=unused-import
 from airflow.providers.amazon.aws.hooks.sns import AwsSnsHook  # noqa
 
 warnings.warn(

@@ -22,7 +22,6 @@ from urllib.parse import urlparse
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 from airflow.sensors.base import BaseSensorOperator
-from airflow.utils.decorators import apply_defaults
 
 
 class S3KeySensor(BaseSensorOperator):
@@ -58,7 +57,6 @@ class S3KeySensor(BaseSensorOperator):
 
     template_fields = ('bucket_key', 'bucket_name')
 
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -91,8 +89,8 @@ class S3KeySensor(BaseSensorOperator):
             if parsed_url.scheme != '' or parsed_url.netloc != '':
                 raise AirflowException(
                     'If bucket_name is provided, bucket_key'
-                    + ' should be relative path from root'
-                    + ' level, rather than a full s3:// url'
+                    ' should be relative path from root'
+                    ' level, rather than a full s3:// url'
                 )
 
         self.log.info('Poking for key : s3://%s/%s', self.bucket_name, self.bucket_key)
@@ -148,9 +146,9 @@ class S3KeySizeSensor(S3KeySensor):
 
             def check_fn(self, data: List) -> bool:
                 return any(f.get('Size', 0) > 1048576 for f in data if isinstance(f, dict))
+    :type check_fn: Optional[Callable[..., bool]]
     """
 
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -178,7 +176,7 @@ class S3KeySizeSensor(S3KeySensor):
             'MaxItems': None,
         }
         if self.wildcard_match:
-            prefix = re.split(r'[*]', self.bucket_key, 1)[0]
+            prefix = re.split(r'[\[\*\?]', self.bucket_key, 1)[0]
 
         paginator = s3_hook.get_conn().get_paginator('list_objects_v2')
         response = paginator.paginate(

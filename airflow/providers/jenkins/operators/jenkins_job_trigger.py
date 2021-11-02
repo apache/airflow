@@ -20,7 +20,7 @@ import ast
 import json
 import socket
 import time
-from typing import Any, Dict, List, Mapping, Optional, Union
+from typing import Any, Dict, Iterable, List, Mapping, Optional, Union
 from urllib.error import HTTPError, URLError
 
 import jenkins
@@ -30,7 +30,6 @@ from requests import Request
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.jenkins.hooks.jenkins import JenkinsHook
-from airflow.utils.decorators import apply_defaults
 
 JenkinsRequest = Mapping[str, Any]
 ParamType = Optional[Union[str, Dict, List]]
@@ -54,7 +53,7 @@ def jenkins_request_with_headers(jenkins_server: Jenkins, req: Request) -> Optio
         response_headers = response.headers
         if response_body is None:
             raise jenkins.EmptyResponseException(
-                "Error communicating with server[%s]: empty response" % jenkins_server.server
+                f"Error communicating with server[{jenkins_server.server}]: empty response"
             )
         return {'body': response_body.decode('utf-8'), 'headers': response_headers}
     except HTTPError as e:
@@ -66,9 +65,9 @@ def jenkins_request_with_headers(jenkins_server: Jenkins, req: Request) -> Optio
         else:
             raise
     except socket.timeout as e:
-        raise jenkins.TimeoutException('Error in request: %s' % e)
+        raise jenkins.TimeoutException(f'Error in request: {e}')
     except URLError as e:
-        raise JenkinsException('Error in request: %s' % e.reason)
+        raise JenkinsException(f'Error in request: {e.reason}')
     return None
 
 
@@ -92,13 +91,14 @@ class JenkinsJobTriggerOperator(BaseOperator):
     :param max_try_before_job_appears: The maximum number of requests to make
         while waiting for the job to appears on jenkins server (default 10)
     :type max_try_before_job_appears: int
+    :param allowed_jenkins_states: Iterable of allowed result jenkins states, default is ``['SUCCESS']``
+    :type allowed_jenkins_states: Optional[Iterable[str]]
     """
 
     template_fields = ('parameters',)
     template_ext = ('.json',)
     ui_color = '#f9ec86'
 
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -107,6 +107,7 @@ class JenkinsJobTriggerOperator(BaseOperator):
         parameters: ParamType = "",
         sleep_time: int = 10,
         max_try_before_job_appears: int = 10,
+        allowed_jenkins_states: Optional[Iterable[str]] = None,
         **kwargs,
     ):
         super().__init__(**kwargs)
@@ -115,6 +116,7 @@ class JenkinsJobTriggerOperator(BaseOperator):
         self.sleep_time = max(sleep_time, 1)
         self.jenkins_connection_id = jenkins_connection_id
         self.max_try_before_job_appears = max_try_before_job_appears
+        self.allowed_jenkins_states = list(allowed_jenkins_states) if allowed_jenkins_states else ['SUCCESS']
 
     def build_job(self, jenkins_server: Jenkins, params: ParamType = "") -> Optional[JenkinsRequest]:
         """
@@ -166,7 +168,7 @@ class JenkinsJobTriggerOperator(BaseOperator):
             )
             if location_answer is not None:
                 json_response = json.loads(location_answer['body'])
-                if 'executable' in json_response:
+                if 'executable' in json_response and 'number' in json_response['executable']:
                     build_number = json_response['executable']['number']
                     self.log.info('Job executed on Jenkins side with the build number %s', build_number)
                     return build_number
@@ -209,27 +211,24 @@ class JenkinsJobTriggerOperator(BaseOperator):
         time.sleep(self.sleep_time)
         keep_polling_job = True
         build_info = None
-        # pylint: disable=too-many-nested-blocks
+
         while keep_polling_job:
             try:
                 build_info = jenkins_server.get_build_info(name=self.job_name, number=build_number)
                 if build_info['result'] is not None:
                     keep_polling_job = False
-                    # Check if job had errors.
-                    if build_info['result'] != 'SUCCESS':
+                    # Check if job ended with not allowed state.
+                    if build_info['result'] not in self.allowed_jenkins_states:
                         raise AirflowException(
-                            'Jenkins job failed, final state : %s.'
-                            'Find more information on job url : %s'
-                            % (build_info['result'], build_info['url'])
+                            f"Jenkins job failed, final state : {build_info['result']}. "
+                            f"Find more information on job url : {build_info['url']}"
                         )
                 else:
                     self.log.info('Waiting for job to complete : %s , build %s', self.job_name, build_number)
                     time.sleep(self.sleep_time)
             except jenkins.NotFoundException as err:
-                # pylint: disable=no-member
-                raise AirflowException(
-                    'Jenkins job status check failed. Final error was: ' f'{err.resp.status}'
-                )
+
+                raise AirflowException(f'Jenkins job status check failed. Final error was: {err.resp.status}')
             except jenkins.JenkinsException as err:
                 raise AirflowException(
                     f'Jenkins call failed with error : {err}, if you have parameters '

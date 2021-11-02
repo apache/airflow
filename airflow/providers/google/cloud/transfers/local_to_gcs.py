@@ -23,7 +23,6 @@ from typing import Optional, Sequence, Union
 
 from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.gcs import GCSHook
-from airflow.utils.decorators import apply_defaults
 
 
 class LocalFilesystemToGCSOperator(BaseOperator):
@@ -73,7 +72,6 @@ class LocalFilesystemToGCSOperator(BaseOperator):
         'impersonation_chain',
     )
 
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -111,7 +109,7 @@ class LocalFilesystemToGCSOperator(BaseOperator):
     def execute(self, context):
         """Uploads a file or list of files to Google Cloud Storage"""
         hook = GCSHook(
-            google_cloud_storage_conn_id=self.gcp_conn_id,
+            gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,
             impersonation_chain=self.impersonation_chain,
         )

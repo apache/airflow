@@ -1,9 +1,6 @@
 [submodule ".github/actions/get-workflow-origin"]
 	path = .github/actions/get-workflow-origin
 	url = https://github.com/potiuk/get-workflow-origin
-[submodule ".github/actions/cancel-workflow-runs"]
-	path = .github/actions/cancel-workflow-runs
-	url = https://github.com/potiuk/cancel-workflow-runs
 [submodule ".github/actions/checks-action"]
 	path = .github/actions/checks-action
 	url = https://github.com/LouisBrunner/checks-action

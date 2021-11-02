@@ -19,6 +19,8 @@
 import unittest
 from unittest import mock
 
+import pytest
+
 from airflow.providers.apache.pig.hooks.pig import PigCliHook
 
 
@@ -52,7 +54,7 @@ class TestPigCliHook(unittest.TestCase):
         hook = self.pig_hook()
         stdout = hook.run_cli("")
 
-        self.assertEqual(stdout, "")
+        assert stdout == ""
 
     @mock.patch('subprocess.Popen')
     def test_run_cli_fail(self, popen_mock):
@@ -65,7 +67,8 @@ class TestPigCliHook(unittest.TestCase):
 
         from airflow.exceptions import AirflowException
 
-        self.assertRaises(AirflowException, hook.run_cli, "")
+        with pytest.raises(AirflowException):
+            hook.run_cli("")
 
     @mock.patch('subprocess.Popen')
     def test_run_cli_with_properties(self, popen_mock):
@@ -80,11 +83,11 @@ class TestPigCliHook(unittest.TestCase):
         hook.pig_properties = test_properties
 
         stdout = hook.run_cli("")
-        self.assertEqual(stdout, "")
+        assert stdout == ""
 
         popen_first_arg = popen_mock.call_args[0][0]
         for pig_prop in test_properties.split():
-            self.assertIn(pig_prop, popen_first_arg)
+            assert pig_prop in popen_first_arg
 
     @mock.patch('subprocess.Popen')
     def test_run_cli_verbose(self, popen_mock):
@@ -99,7 +102,7 @@ class TestPigCliHook(unittest.TestCase):
         hook = self.pig_hook()
         stdout = hook.run_cli("", verbose=True)
 
-        self.assertEqual(stdout, "".join(test_stdout_strings))
+        assert stdout == "".join(test_stdout_strings)
 
     def test_kill_no_sp(self):
         sp_mock = mock.Mock()
@@ -107,7 +110,7 @@ class TestPigCliHook(unittest.TestCase):
         hook.sub_process = sp_mock
 
         hook.kill()
-        self.assertFalse(sp_mock.kill.called)
+        assert not sp_mock.kill.called
 
     def test_kill_sp_done(self):
         sp_mock = mock.Mock()
@@ -117,7 +120,7 @@ class TestPigCliHook(unittest.TestCase):
         hook.sub_process = sp_mock
 
         hook.kill()
-        self.assertFalse(sp_mock.kill.called)
+        assert not sp_mock.kill.called
 
     def test_kill(self):
         sp_mock = mock.Mock()
@@ -127,4 +130,4 @@ class TestPigCliHook(unittest.TestCase):
         hook.sub_process = sp_mock
 
         hook.kill()
-        self.assertTrue(sp_mock.kill.called)
+        assert sp_mock.kill.called

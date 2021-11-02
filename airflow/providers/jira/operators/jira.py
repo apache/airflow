@@ -21,7 +21,6 @@ from typing import Any, Callable, Dict, Optional
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.jira.hooks.jira import JIRAError, JiraHook
-from airflow.utils.decorators import apply_defaults
 
 
 class JiraOperator(BaseOperator):
@@ -44,7 +43,6 @@ class JiraOperator(BaseOperator):
 
     template_fields = ("jira_method_args",)
 
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -89,6 +87,6 @@ class JiraOperator(BaseOperator):
             return jira_result
 
         except JIRAError as jira_error:
-            raise AirflowException("Failed to execute jiraOperator, error: %s" % str(jira_error))
+            raise AirflowException(f"Failed to execute jiraOperator, error: {str(jira_error)}")
         except Exception as e:
-            raise AirflowException("Jira operator error: %s" % str(e))
+            raise AirflowException(f"Jira operator error: {str(e)}")

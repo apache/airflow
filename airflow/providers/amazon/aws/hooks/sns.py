@@ -33,7 +33,7 @@ def _get_message_attribute(o):
     if hasattr(o, '__iter__'):
         return {'DataType': 'String.Array', 'StringValue': json.dumps(o)}
     raise TypeError(
-        'Values in MessageAttributes must be one of bytes, str, int, float, or iterable; ' f'got {type(o)}'
+        f'Values in MessageAttributes must be one of bytes, str, int, float, or iterable; got {type(o)}'
     )
 
 

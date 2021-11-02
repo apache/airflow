@@ -30,11 +30,10 @@ from airflow.utils.log.logging_mixin import LoggingMixin
 
 try:
     from airflow.kubernetes import kube_client
-except ImportError:
+except (ImportError, NameError):
     pass
 
 
-# pylint: disable=too-many-instance-attributes
 class SparkSubmitHook(BaseHook, LoggingMixin):
     """
     This hook is a wrapper around the spark-submit binary to kick off a spark-submit job.
@@ -43,9 +42,10 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
 
     :param conf: Arbitrary Spark configuration properties
     :type conf: dict
-    :param conn_id: The connection id as configured in Airflow administration. When an
-        invalid connection_id is supplied, it will default to yarn.
-    :type conn_id: str
+    :param spark_conn_id: The :ref:`spark connection id <howto/connection:spark>` as configured
+        in Airflow administration. When an invalid connection_id is supplied, it will default
+        to yarn.
+    :type spark_conn_id: str
     :param files: Upload additional files to the executor running the job, separated by a
         comma. Files will be placed in the working directory of each executor.
         For example, serialized objects.
@@ -117,7 +117,6 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
             "relabeling": {},
         }
 
-    # pylint: disable=too-many-arguments,too-many-locals,too-many-branches
     def __init__(
         self,
         conf: Optional[Dict[str, Any]] = None,
@@ -181,9 +180,7 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
         self._is_kubernetes = 'k8s' in self._connection['master']
         if self._is_kubernetes and kube_client is None:
             raise RuntimeError(
-                "{} specified by kubernetes dependencies are not installed!".format(
-                    self._connection['master']
-                )
+                f"{self._connection['master']} specified by kubernetes dependencies are not installed!"
             )
 
         self._should_track_driver_status = self._resolve_should_track_driver_status()
@@ -291,7 +288,7 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
         connection_cmd += ["--master", self._connection['master']]
 
         for key in self._conf:
-            connection_cmd += ["--conf", "{}={}".format(key, str(self._conf[key]))]
+            connection_cmd += ["--conf", f"{key}={str(self._conf[key])}"]
         if self._env_vars and (self._is_kubernetes or self._is_yarn):
             if self._is_yarn:
                 tmpl = "spark.yarn.appMasterEnv.{}={}"
@@ -308,7 +305,7 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
         if self._is_kubernetes and self._connection['namespace']:
             connection_cmd += [
                 "--conf",
-                "spark.kubernetes.namespace={}".format(self._connection['namespace']),
+                f"spark.kubernetes.namespace={self._connection['namespace']}",
             ]
         if self._files:
             connection_cmd += ["--files", self._files]
@@ -378,9 +375,7 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
                 "/usr/bin/curl",
                 "--max-time",
                 str(curl_max_wait_time),
-                "{host}/v1/submissions/status/{submission_id}".format(
-                    host=spark_host, submission_id=self._driver_id
-                ),
+                f"{spark_host}/v1/submissions/status/{self._driver_id}",
             ]
             self.log.info(connection_cmd)
 
@@ -389,8 +384,7 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
                 pass
             else:
                 raise AirflowException(
-                    "Invalid status: attempted to poll driver "
-                    + "status but no driver id is known. Giving up."
+                    "Invalid status: attempted to poll driver status but no driver id is known. Giving up."
                 )
 
         else:
@@ -405,8 +399,7 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
                 connection_cmd += ["--status", self._driver_id]
             else:
                 raise AirflowException(
-                    "Invalid status: attempted to poll driver "
-                    + "status but no driver id is known. Giving up."
+                    "Invalid status: attempted to poll driver status but no driver id is known. Giving up."
                 )
 
         self.log.debug("Poll driver status cmd: %s", connection_cmd)
@@ -445,15 +438,12 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
         if returncode or (self._is_kubernetes and self._spark_exit_code != 0):
             if self._is_kubernetes:
                 raise AirflowException(
-                    "Cannot execute: {}. Error code is: {}. Kubernetes spark exit code is: {}".format(
-                        self._mask_cmd(spark_submit_cmd), returncode, self._spark_exit_code
-                    )
+                    f"Cannot execute: {self._mask_cmd(spark_submit_cmd)}. Error code is: {returncode}. "
+                    f"Kubernetes spark exit code is: {self._spark_exit_code}"
                 )
             else:
                 raise AirflowException(
-                    "Cannot execute: {}. Error code is: {}.".format(
-                        self._mask_cmd(spark_submit_cmd), returncode
-                    )
+                    f"Cannot execute: {self._mask_cmd(spark_submit_cmd)}. Error code is: {returncode}."
                 )
 
         self.log.debug("Should track driver: %s", self._should_track_driver_status)
@@ -462,7 +452,7 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
         if self._should_track_driver_status:
             if self._driver_id is None:
                 raise AirflowException(
-                    "No driver id is known: something went wrong when executing " + "the spark submit command"
+                    "No driver id is known: something went wrong when executing the spark submit command"
                 )
 
             # We start with the SUBMITTED status as initial status
@@ -473,9 +463,7 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
 
             if self._driver_status != "FINISHED":
                 raise AirflowException(
-                    "ERROR : Driver {} badly exited with status {}".format(
-                        self._driver_id, self._driver_status
-                    )
+                    f"ERROR : Driver {self._driver_id} badly exited with status {self._driver_status}"
                 )
 
     def _process_spark_submit_log(self, itr: Iterator[Any]) -> None:
@@ -606,9 +594,8 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
                     missed_job_status_reports += 1
                 else:
                     raise AirflowException(
-                        "Failed to poll for the driver status {} times: returncode = {}".format(
-                            max_missed_job_status_reports, returncode
-                        )
+                        f"Failed to poll for the driver status {max_missed_job_status_reports} times: "
+                        f"returncode = {returncode}"
                     )
 
     def _build_spark_driver_kill_command(self) -> List[str]:
@@ -646,11 +633,12 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
                 self.log.info('Killing driver %s on cluster', self._driver_id)
 
                 kill_cmd = self._build_spark_driver_kill_command()
-                driver_kill = subprocess.Popen(kill_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-
-                self.log.info(
-                    "Spark driver %s killed with return code: %s", self._driver_id, driver_kill.wait()
-                )
+                with subprocess.Popen(
+                    kill_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE
+                ) as driver_kill:
+                    self.log.info(
+                        "Spark driver %s killed with return code: %s", self._driver_id, driver_kill.wait()
+                    )
 
         if self._submit_sp and self._submit_sp.poll() is None:
             self.log.info('Sending kill signal to %s', self._connection['spark_binary'])
@@ -658,7 +646,7 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
 
             if self._yarn_application_id:
                 kill_cmd = f"yarn application -kill {self._yarn_application_id}".split()
-                env = None
+                env = {**os.environ, **(self._env or {})}
                 if self._keytab is not None and self._principal is not None:
                     # we are ignoring renewal failures from renew_from_kt
                     # here as the failure could just be due to a non-renewable ticket,
@@ -667,11 +655,10 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
                     env = os.environ.copy()
                     env["KRB5CCNAME"] = airflow_conf.get('kerberos', 'ccache')
 
-                yarn_kill = subprocess.Popen(
+                with subprocess.Popen(
                     kill_cmd, env=env, stdout=subprocess.PIPE, stderr=subprocess.PIPE
-                )
-
-                self.log.info("YARN app killed with return code: %s", yarn_kill.wait())
+                ) as yarn_kill:
+                    self.log.info("YARN app killed with return code: %s", yarn_kill.wait())
 
             if self._kubernetes_driver_pod:
                 self.log.info('Killing pod %s on Kubernetes', self._kubernetes_driver_pod)
@@ -690,6 +677,5 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
 
                     self.log.info("Spark on K8s killed with response: %s", api_response)
 
-                except kube_client.ApiException as e:
-                    self.log.error("Exception when attempting to kill Spark on K8s:")
-                    self.log.exception(e)
+                except kube_client.ApiException:
+                    self.log.exception("Exception when attempting to kill Spark on K8s")

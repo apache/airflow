@@ -16,10 +16,9 @@
 # under the License.
 
 import logging
-from typing import Any, Dict, Iterator, List, Optional, Tuple
+from typing import Dict, Iterator, List, Optional, Tuple
 
-from cached_property import cached_property
-
+from airflow.compat.functools import cached_property
 from airflow.configuration import conf
 from airflow.models import TaskInstance
 from airflow.utils.helpers import render_log_filename
@@ -31,7 +30,7 @@ class TaskLogReader:
 
     def read_log_chunks(
         self, ti: TaskInstance, try_number: Optional[int], metadata
-    ) -> Tuple[List[str], Dict[str, Any]]:
+    ) -> Tuple[List[Tuple[Tuple[str, str]]], Dict[str, str]]:
         """
         Reads chunks of Task Instance logs.
 
@@ -42,7 +41,7 @@ class TaskLogReader:
         :type try_number: Optional[int]
         :param metadata: A dictionary containing information about how to read the task log
         :type metadata: dict
-        :rtype: Tuple[List[str], Dict[str, Any]]
+        :rtype: Tuple[List[Tuple[Tuple[str, str]]], Dict[str, str]]
 
         The following is an example of how to use this method to read log:
 
@@ -99,9 +98,12 @@ class TaskLogReader:
         return hasattr(self.log_handler, 'read')
 
     @property
-    def supports_external_link(self):
+    def supports_external_link(self) -> bool:
         """Check if the logging handler supports external links (e.g. to Elasticsearch, Stackdriver, etc)."""
-        return isinstance(self.log_handler, ExternalLoggingMixin)
+        if not isinstance(self.log_handler, ExternalLoggingMixin):
+            return False
+
+        return self.log_handler.supports_external_link
 
     def render_log_filename(self, ti: TaskInstance, try_number: Optional[int] = None):
         """

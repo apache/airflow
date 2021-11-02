@@ -43,8 +43,9 @@ If you need to generate a new fernet key you can use the following code snippet.
     .. code-block:: python
 
       from cryptography.fernet import Fernet
-      fernet_key= Fernet.generate_key()
-      print(fernet_key.decode()) # your fernet_key, keep it in secured place!
+
+      fernet_key = Fernet.generate_key()
+      print(fernet_key.decode())  # your fernet_key, keep it in secured place!
 
 
 Rotating encryption keys

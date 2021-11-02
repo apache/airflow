@@ -25,6 +25,8 @@ import tempfile
 import unittest
 from unittest.mock import patch
 
+import pytest
+
 from airflow.configuration import conf
 from tests.test_utils.config import conf_vars
 
@@ -99,7 +101,7 @@ def reset_logging():
     airflow_loggers = [
         logger for logger_name, logger in manager.loggerDict.items() if logger_name.startswith('airflow')
     ]
-    for logger in airflow_loggers:  # pylint: disable=too-many-nested-blocks
+    for logger in airflow_loggers:
         if isinstance(logger, logging.Logger):
             logger.setLevel(logging.NOTSET)
             logger.propagate = True
@@ -126,27 +128,26 @@ def settings_context(content, directory=None, name='LOGGING_CONFIG'):
 
     :param content:
           The content of the settings file
+    :param directory: the directory
+    :param name: str
     """
     initial_logging_config = os.environ.get("AIRFLOW__LOGGING__LOGGING_CONFIG_CLASS", "")
     try:
         settings_root = tempfile.mkdtemp()
         filename = f"{SETTINGS_DEFAULT_NAME}.py"
         if directory:
-            # Replace slashes by dots
-            module = directory.replace('/', '.') + '.' + SETTINGS_DEFAULT_NAME + '.' + name
-
-            # Create the directory structure
+            # Create the directory structure with __init__.py
             dir_path = os.path.join(settings_root, directory)
             pathlib.Path(dir_path).mkdir(parents=True, exist_ok=True)
 
-            # Add the __init__ for the directories
-            # This is required for Python 2.7
             basedir = settings_root
             for part in directory.split('/'):
                 open(os.path.join(basedir, '__init__.py'), 'w').close()
                 basedir = os.path.join(basedir, part)
             open(os.path.join(basedir, '__init__.py'), 'w').close()
 
+            # Replace slashes by dots
+            module = directory.replace('/', '.') + '.' + SETTINGS_DEFAULT_NAME + '.' + name
             settings_file = os.path.join(dir_path, filename)
         else:
             module = SETTINGS_DEFAULT_NAME + '.' + name
@@ -192,7 +193,7 @@ class TestLoggingSettings(unittest.TestCase):
         with settings_context(SETTINGS_FILE_INVALID):
             with patch.object(log, 'error') as mock_info:
                 # Load config
-                with self.assertRaises(ValueError):
+                with pytest.raises(ValueError):
                     configure_logging()
 
                 mock_info.assert_called_once_with(
@@ -230,7 +231,7 @@ class TestLoggingSettings(unittest.TestCase):
         with settings_context(SETTINGS_FILE_EMPTY):
             from airflow.logging_config import configure_logging
 
-            with self.assertRaises(ImportError):
+            with pytest.raises(ImportError):
                 configure_logging()
 
     # When the key is not available in the configuration
@@ -254,9 +255,9 @@ class TestLoggingSettings(unittest.TestCase):
         from airflow.logging_config import configure_logging
 
         with conf_vars({('logging', 'task_log_reader'): 'file.task'}):
-            with self.assertWarnsRegex(DeprecationWarning, r'file.task'):
+            with pytest.warns(DeprecationWarning, match=r'file.task'):
                 configure_logging()
-            self.assertEqual(conf.get('logging', 'task_log_reader'), 'task')
+            assert conf.get('logging', 'task_log_reader') == 'task'
 
     def test_loading_remote_logging_with_wasb_handler(self):
         """Test if logging can be configured successfully for Azure Blob Storage"""
@@ -275,4 +276,4 @@ class TestLoggingSettings(unittest.TestCase):
             configure_logging()
 
         logger = logging.getLogger('airflow.task')
-        self.assertIsInstance(logger.handlers[0], WasbTaskHandler)
+        assert isinstance(logger.handlers[0], WasbTaskHandler)

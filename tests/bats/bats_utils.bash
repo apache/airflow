@@ -28,6 +28,8 @@ export SKIP_IN_CONTAINER_CHECK="true"
 # shellcheck source=scripts/ci/libraries/_all_libs.sh
 source "scripts/ci/libraries/_all_libs.sh"
 
+initialization::create_directories
+
 initialization::initialize_common_environment
 
 # shellcheck disable=SC1091

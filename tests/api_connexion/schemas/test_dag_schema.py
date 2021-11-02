@@ -39,6 +39,7 @@ class TestDagSchema(unittest.TestCase):
             dag_id="test_dag_id",
             root_dag_id="test_root_dag_id",
             is_paused=True,
+            is_active=True,
             is_subdag=False,
             fileloc="/root/airflow/dags/my_dag.py",
             owners="airflow1,airflow2",
@@ -47,21 +48,19 @@ class TestDagSchema(unittest.TestCase):
             tags=[DagTag(name="tag-1"), DagTag(name="tag-2")],
         )
         serialized_dag = DAGSchema().dump(dag_model)
-        self.assertEqual(
-            {
-                "dag_id": "test_dag_id",
-                "description": "The description",
-                "fileloc": "/root/airflow/dags/my_dag.py",
-                "file_token": SERIALIZER.dumps("/root/airflow/dags/my_dag.py"),
-                "is_paused": True,
-                "is_subdag": False,
-                "owners": ["airflow1", "airflow2"],
-                "root_dag_id": "test_root_dag_id",
-                "schedule_interval": {"__type": "CronExpression", "value": "5 4 * * *"},
-                "tags": [{"name": "tag-1"}, {"name": "tag-2"}],
-            },
-            serialized_dag,
-        )
+        assert {
+            "dag_id": "test_dag_id",
+            "description": "The description",
+            "fileloc": "/root/airflow/dags/my_dag.py",
+            "file_token": SERIALIZER.dumps("/root/airflow/dags/my_dag.py"),
+            "is_paused": True,
+            "is_active": True,
+            "is_subdag": False,
+            "owners": ["airflow1", "airflow2"],
+            "root_dag_id": "test_root_dag_id",
+            "schedule_interval": {"__type": "CronExpression", "value": "5 4 * * *"},
+            "tags": [{"name": "tag-1"}, {"name": "tag-2"}],
+        } == serialized_dag
 
 
 class TestDAGCollectionSchema(unittest.TestCase):
@@ -70,38 +69,37 @@ class TestDAGCollectionSchema(unittest.TestCase):
         dag_model_b = DagModel(dag_id="test_dag_id_b", fileloc="/tmp/a.py")
         schema = DAGCollectionSchema()
         instance = DAGCollection(dags=[dag_model_a, dag_model_b], total_entries=2)
-        self.assertEqual(
-            {
-                "dags": [
-                    {
-                        "dag_id": "test_dag_id_a",
-                        "description": None,
-                        "fileloc": "/tmp/a.py",
-                        "file_token": SERIALIZER.dumps("/tmp/a.py"),
-                        "is_paused": None,
-                        "is_subdag": None,
-                        "owners": [],
-                        "root_dag_id": None,
-                        "schedule_interval": None,
-                        "tags": [],
-                    },
-                    {
-                        "dag_id": "test_dag_id_b",
-                        "description": None,
-                        "fileloc": "/tmp/a.py",
-                        "file_token": SERIALIZER.dumps("/tmp/a.py"),
-                        "is_paused": None,
-                        "is_subdag": None,
-                        "owners": [],
-                        "root_dag_id": None,
-                        "schedule_interval": None,
-                        "tags": [],
-                    },
-                ],
-                "total_entries": 2,
-            },
-            schema.dump(instance),
-        )
+        assert {
+            "dags": [
+                {
+                    "dag_id": "test_dag_id_a",
+                    "description": None,
+                    "fileloc": "/tmp/a.py",
+                    "file_token": SERIALIZER.dumps("/tmp/a.py"),
+                    "is_paused": None,
+                    "is_subdag": None,
+                    "is_active": None,
+                    "owners": [],
+                    "root_dag_id": None,
+                    "schedule_interval": None,
+                    "tags": [],
+                },
+                {
+                    "dag_id": "test_dag_id_b",
+                    "description": None,
+                    "fileloc": "/tmp/a.py",
+                    "file_token": SERIALIZER.dumps("/tmp/a.py"),
+                    "is_active": None,
+                    "is_paused": None,
+                    "is_subdag": None,
+                    "owners": [],
+                    "root_dag_id": None,
+                    "schedule_interval": None,
+                    "tags": [],
+                },
+            ],
+            "total_entries": 2,
+        } == schema.dump(instance)
 
 
 class TestDAGDetailSchema:
@@ -112,11 +110,14 @@ class TestDAGDetailSchema:
             doc_md="docs",
             orientation="LR",
             default_view="duration",
+            params={"foo": 1},
+            tags=['example1', 'example2'],
         )
         schema = DAGDetailSchema()
         expected = {
             'catchup': True,
             'concurrency': 16,
+            'max_active_tasks': 16,
             'dag_id': 'test_dag',
             'dag_run_timeout': None,
             'default_view': 'duration',
@@ -124,13 +125,22 @@ class TestDAGDetailSchema:
             'doc_md': 'docs',
             'fileloc': __file__,
             "file_token": SERIALIZER.dumps(__file__),
+            "is_active": None,
             'is_paused': None,
             'is_subdag': False,
             'orientation': 'LR',
             'owners': [],
+            'params': {
+                'foo': {
+                    '__class': 'airflow.models.param.Param',
+                    'value': 1,
+                    'description': None,
+                    'schema': {},
+                }
+            },
             'schedule_interval': {'__type': 'TimeDelta', 'days': 1, 'seconds': 0, 'microseconds': 0},
             'start_date': '2020-06-19T00:00:00+00:00',
-            'tags': None,
+            'tags': [{'name': "example1"}, {'name': "example2"}],
             'timezone': "Timezone('UTC')",
         }
         assert schema.dump(dag) == expected

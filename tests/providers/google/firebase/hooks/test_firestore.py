@@ -23,6 +23,8 @@ from typing import Optional
 from unittest import mock
 from unittest.mock import PropertyMock
 
+import pytest
+
 from airflow.exceptions import AirflowException
 from airflow.providers.google.firebase.hooks.firestore import CloudFirestoreHook
 from tests.providers.google.cloud.utils.base_gcp_mock import (
@@ -64,8 +66,8 @@ class TestCloudFirestoreHookWithPassedProjectId(unittest.TestCase):
         mock_build_from_document.assert_called_once_with(
             mock_build.return_value._rootDesc, http=mock_authorize.return_value
         )
-        self.assertEqual(mock_build_from_document.return_value, result)
-        self.assertEqual(self.hook._conn, result)
+        assert mock_build_from_document.return_value == result
+        assert self.hook._conn == result
 
     @mock.patch("airflow.providers.google.firebase.hooks.firestore.CloudFirestoreHook.get_conn")
     def test_immediately_complete(self, get_conn_mock):
@@ -120,7 +122,7 @@ class TestCloudFirestoreHookWithPassedProjectId(unittest.TestCase):
 
         execute_mock = mock.Mock(**{"side_effect": [TEST_WAITING_OPERATION, TEST_ERROR_OPERATION]})
         mock_operation_get.return_value.execute = execute_mock
-        with self.assertRaisesRegex(AirflowException, "error"):
+        with pytest.raises(AirflowException, match="error"):
             self.hook.export_documents(body=EXPORT_DOCUMENT_BODY, project_id=TEST_PROJECT_ID)
 
 
@@ -143,8 +145,8 @@ class TestCloudFirestoreHookWithDefaultProjectIdFromConnection(unittest.TestCase
         mock_build_from_document.assert_called_once_with(
             mock_build.return_value._rootDesc, http=mock_authorize.return_value
         )
-        self.assertEqual(mock_build_from_document.return_value, result)
-        self.assertEqual(self.hook._conn, result)
+        assert mock_build_from_document.return_value == result
+        assert self.hook._conn == result
 
     @mock.patch(
         'airflow.providers.google.common.hooks.base_google.GoogleBaseHook.project_id',
@@ -214,7 +216,7 @@ class TestCloudFirestoreHookWithDefaultProjectIdFromConnection(unittest.TestCase
 
         execute_mock = mock.Mock(**{"side_effect": [TEST_WAITING_OPERATION, TEST_ERROR_OPERATION]})
         mock_operation_get.return_value.execute = execute_mock
-        with self.assertRaisesRegex(AirflowException, "error"):
+        with pytest.raises(AirflowException, match="error"):
             self.hook.export_documents(body=EXPORT_DOCUMENT_BODY)
 
 
@@ -235,11 +237,10 @@ class TestCloudFirestoreHookWithoutProjectId(unittest.TestCase):
     )
     @mock.patch("airflow.providers.google.firebase.hooks.firestore.CloudFirestoreHook.get_conn")
     def test_create_build(self, mock_get_conn, mock_project_id):
-        with self.assertRaises(AirflowException) as e:
+        with pytest.raises(AirflowException) as ctx:
             self.hook.export_documents(body={})
 
-        self.assertEqual(
+        assert (
             "The project id must be passed either as keyword project_id parameter or as project_id extra in "
-            "Google Cloud connection definition. Both are not set!",
-            str(e.exception),
+            "Google Cloud connection definition. Both are not set!" == str(ctx.value)
         )

@@ -40,7 +40,7 @@ class TestAwsGlueJobSensor(unittest.TestCase):
             timeout=5,
             aws_conn_id='aws_default',
         )
-        self.assertTrue(op.poke(None))
+        assert op.poke(None)
 
     @mock.patch.object(AwsGlueJobHook, 'get_conn')
     @mock.patch.object(AwsGlueJobHook, 'get_job_state')
@@ -55,7 +55,7 @@ class TestAwsGlueJobSensor(unittest.TestCase):
             timeout=5,
             aws_conn_id='aws_default',
         )
-        self.assertFalse(op.poke(None))
+        assert not op.poke(None)
 
 
 if __name__ == '__main__':

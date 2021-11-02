@@ -25,10 +25,6 @@ With `Google Sheets <https://www.google.pl/intl/en/sheets/about/>`__, everyone c
 spreadsheet at the same time. Use formulas functions, and formatting options to save time and simplify
 common spreadsheet tasks.
 
-.. contents::
-  :depth: 1
-  :local:
-
 Prerequisite Tasks
 ^^^^^^^^^^^^^^^^^^
 
@@ -48,5 +44,5 @@ To upload data from Google Cloud Storage to Google Spreadsheet you can use the
     :start-after: [START upload_gcs_to_sheets]
     :end-before: [END upload_gcs_to_sheets]
 
-You can use :ref:`Jinja templating <jinja-templating>` with
+You can use :ref:`Jinja templating <concepts:jinja-templating>` with
 :template-fields:`airflow.providers.google.suite.transfers.gcs_to_sheets.GCSToGoogleSheetsOperator`.

@@ -26,19 +26,6 @@ This document is meant to give an overview of all common tasks while using the C
 
 .. _cli-remote:
 
-Set Up connection to a remote Airflow instance
-----------------------------------------------
-
-For some functions the CLI can use :doc:`the REST API <rest-api-ref>`. To configure the CLI to use the API
-when available configure as follows:
-
-.. code-block:: ini
-
-    [cli]
-    api_client = airflow.api.client.json_client
-    endpoint_url = http://<WEBSERVER>:<PORT>
-
-
 Set Up Bash/Zsh Completion
 --------------------------
 
@@ -89,7 +76,7 @@ For example, to print the ``example_complex`` DAG to the terminal:
 
   airflow dags show example_complex
 
-This will print the rendered DAG structure (similar to :ref:`Graph View <ui:graph-view>`) to the screen in DOT format.
+This will print the rendered DAG structure (similar to :ref:`Graph <ui:graph-view>`) to the screen in DOT format.
 
 Multiple file formats are supported. To use them, add the argument ``--save [filename].[format]``.
 
@@ -182,6 +169,7 @@ Some Airflow commands like ``airflow dags list`` or ``airflow tasks states-for-d
 which allow users to change the formatting of command's output. Possible options:
 
   - ``table`` - renders the information as a plain text table
+  - ``simple`` - renders the information as simple table which can be parsed by standard linux utilities
   - ``json`` - renders the information in form of json string
   - ``yaml`` - render the information in form of valid yaml
 

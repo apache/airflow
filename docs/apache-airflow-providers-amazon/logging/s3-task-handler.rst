@@ -17,7 +17,7 @@
 
 .. _write-logs-amazon-s3:
 
-Writing Logs to Amazon S3
+Writing logs to Amazon S3
 -------------------------
 
 Remote logging to Amazon S3 uses an existing Airflow connection to read or write logs. If you

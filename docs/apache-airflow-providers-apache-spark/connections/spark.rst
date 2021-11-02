@@ -15,6 +15,10 @@
     specific language governing permissions and limitations
     under the License.
 
+
+
+.. _howto/connection:spark:
+
 Apache Spark Connection
 =======================
 
@@ -23,7 +27,7 @@ The Apache Spark connection type enables connection to Apache Spark.
 Default Connection IDs
 ----------------------
 
-Spark Submit and Spark JDBC hooks and operators use ``spark_default`` by default, Spark SQL hooks and operators point to ``spark_sql_default`` by default, but don't use it.
+Spark Submit and Spark JDBC hooks and operators use ``spark_default`` by default. Spark SQL hooks and operators point to ``spark_sql_default`` by default.
 
 Configuring the Connection
 --------------------------
@@ -41,3 +45,15 @@ Extra (optional)
     * ``spark-home`` - If passed then build the ``spark-binary`` executable path using it (``spark-home``/bin/``spark-binary``); otherwise assume that ``spark-binary`` is present in the PATH of the executing user.
     * ``spark-binary`` - The command to use for Spark submit. Some distros may use ``spark2-submit``. Default ``spark-submit``.
     * ``namespace`` - Kubernetes namespace (``spark.kubernetes.namespace``) to divide cluster resources between multiple users (via resource quota).
+
+When specifying the connection in environment variable you should specify
+it using URI syntax.
+
+Note that all components of the URI should be URL-encoded. The URI and and the mongo
+connection string are not the same.
+
+For example:
+
+.. code-block:: bash
+
+   export AIRFLOW_CONN_SPARK_DEFAULT='spark://mysparkcluster.com:80?deploy_mode=cluster&spark_binary=command&namespace=kube+namespace'

@@ -117,7 +117,7 @@ class TestGoogleDisplayVideo360GetReportOperator(TestCase):
         mock_gcs_hook,
         mock_xcom,
         mock_temp,
-        mock_reuqest,
+        mock_request,
         mock_shutil,
     ):
         report_id = "REPORT_ID"
@@ -148,7 +148,7 @@ class TestGoogleDisplayVideo360GetReportOperator(TestCase):
         mock_hook.return_value.get_query.assert_called_once_with(query_id=report_id)
 
         mock_gcs_hook.assert_called_once_with(
-            google_cloud_storage_conn_id=GCP_CONN_ID,
+            gcp_conn_id=GCP_CONN_ID,
             delegate_to=None,
             impersonation_chain=None,
         )
@@ -169,10 +169,10 @@ class TestGoogleDisplayVideo360RunReportOperator(TestCase):
     @mock.patch("airflow.providers.google.marketing_platform.operators.display_video.BaseOperator")
     def test_execute(self, mock_base_op, hook_mock):
         report_id = "QUERY_ID"
-        params = {"param": "test"}
+        parameters = {"param": "test"}
         op = GoogleDisplayVideo360RunReportOperator(
             report_id=report_id,
-            params=params,
+            parameters=parameters,
             api_version=API_VERSION,
             task_id="test_task",
         )
@@ -183,7 +183,7 @@ class TestGoogleDisplayVideo360RunReportOperator(TestCase):
             api_version=API_VERSION,
             impersonation_chain=None,
         )
-        hook_mock.return_value.run_query.assert_called_once_with(query_id=report_id, params=params)
+        hook_mock.return_value.run_query.assert_called_once_with(query_id=report_id, params=parameters)
 
 
 class TestGoogleDisplayVideo360DownloadLineItemsOperator(TestCase):

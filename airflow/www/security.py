@@ -17,22 +17,36 @@
 # under the License.
 #
 
-from typing import Optional, Sequence, Set, Tuple
+import warnings
+from typing import Dict, Optional, Sequence, Set, Tuple
 
 from flask import current_app, g
-from flask_appbuilder.security.sqla import models as sqla_models
-from flask_appbuilder.security.sqla.manager import SecurityManager
-from flask_appbuilder.security.sqla.models import PermissionView, Role, User
 from sqlalchemy import or_
 from sqlalchemy.orm import joinedload
 
-from airflow import models
 from airflow.exceptions import AirflowException
-from airflow.models import DagModel
+from airflow.models import DagBag, DagModel
 from airflow.security import permissions
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.session import provide_session
+from airflow.www.fab_security.sqla.manager import SecurityManager
+from airflow.www.fab_security.sqla.models import Action, Permission, Resource, Role, User
 from airflow.www.utils import CustomSQLAInterface
+from airflow.www.views import (
+    ActionModelView,
+    CustomResetMyPasswordView,
+    CustomResetPasswordView,
+    CustomRoleModelView,
+    CustomUserDBModelView,
+    CustomUserInfoEditView,
+    CustomUserLDAPModelView,
+    CustomUserOAuthModelView,
+    CustomUserOIDModelView,
+    CustomUserRemoteUserModelView,
+    CustomUserStatsChartView,
+    PermissionPairModelView,
+    ResourceModelView,
+)
 
 EXISTING_ROLES = {
     'Admin',
@@ -44,7 +58,7 @@ EXISTING_ROLES = {
 
 
 class AirflowSecurityManager(SecurityManager, LoggingMixin):
-    """Custom security manager, which introduces an permission model adapted to Airflow"""
+    """Custom security manager, which introduces a permission model adapted to Airflow"""
 
     ###########################################################################
     #                               PERMISSIONS
@@ -52,13 +66,17 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
 
     # [START security_viewer_perms]
     VIEWER_PERMISSIONS = [
-        (permissions.ACTION_CAN_READ, permissions.RESOURCE_CONFIG),
+        (permissions.ACTION_CAN_READ, permissions.RESOURCE_AUDIT_LOG),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
+        (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG_DEPENDENCIES),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG_CODE),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG_RUN),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_IMPORT_ERROR),
-        (permissions.ACTION_CAN_READ, permissions.RESOURCE_AUDIT_LOG),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_JOB),
+        (permissions.ACTION_CAN_READ, permissions.RESOURCE_MY_PASSWORD),
+        (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_MY_PASSWORD),
+        (permissions.ACTION_CAN_READ, permissions.RESOURCE_MY_PROFILE),
+        (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_MY_PROFILE),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_PLUGIN),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_SLA_MISS),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK_INSTANCE),
@@ -66,25 +84,15 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_XCOM),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_WEBSITE),
         (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_BROWSE_MENU),
+        (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_DAG_DEPENDENCIES),
         (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_DAG_RUN),
-        (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_DOCS_LINK),
+        (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_DOCS),
         (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_DOCS_MENU),
         (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_JOB),
         (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_AUDIT_LOG),
         (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_PLUGIN),
         (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_SLA_MISS),
         (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_TASK_INSTANCE),
-        (permissions.ACTION_CAN_THIS_FORM_GET, permissions.RESOURCE_RESET_MY_PASSWORD_VIEW),
-        (permissions.ACTION_CAN_THIS_FORM_POST, permissions.RESOURCE_RESET_MY_PASSWORD_VIEW),
-        (permissions.ACTION_RESETMYPASSWORD, permissions.RESOURCE_USER_DB_MODELVIEW),
-        (permissions.ACTION_CAN_THIS_FORM_GET, permissions.RESOURCE_USERINFO_EDIT_VIEW),
-        (permissions.ACTION_CAN_THIS_FORM_POST, permissions.RESOURCE_USERINFO_EDIT_VIEW),
-        (permissions.ACTION_USERINFOEDIT, permissions.RESOURCE_USER_DB_MODELVIEW),
-        (permissions.ACTION_CAN_USERINFO, permissions.RESOURCE_USER_DB_MODELVIEW),
-        (permissions.ACTION_CAN_USERINFO, permissions.RESOURCE_USER_OID_MODELVIEW),
-        (permissions.ACTION_CAN_USERINFO, permissions.RESOURCE_USER_LDAP_MODELVIEW),
-        (permissions.ACTION_CAN_USERINFO, permissions.RESOURCE_USER_OAUTH_MODELVIEW),
-        (permissions.ACTION_CAN_USERINFO, permissions.RESOURCE_USER_REMOTEUSER_MODELVIEW),
     ]
     # [END security_viewer_perms]
 
@@ -103,7 +111,9 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
 
     # [START security_op_perms]
     OP_PERMISSIONS = [
+        (permissions.ACTION_CAN_READ, permissions.RESOURCE_CONFIG),
         (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_ADMIN_MENU),
+        (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_CONFIG),
         (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_CONNECTION),
         (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_POOL),
         (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_VARIABLE),
@@ -116,6 +126,7 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_POOL),
         (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_POOL),
         (permissions.ACTION_CAN_DELETE, permissions.RESOURCE_POOL),
+        (permissions.ACTION_CAN_READ, permissions.RESOURCE_PROVIDER),
         (permissions.ACTION_CAN_CREATE, permissions.RESOURCE_VARIABLE),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_VARIABLE),
         (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_VARIABLE),
@@ -127,19 +138,24 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
     ADMIN_PERMISSIONS = [
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK_RESCHEDULE),
         (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_TASK_RESCHEDULE),
+        (permissions.ACTION_CAN_READ, permissions.RESOURCE_TRIGGER),
+        (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_TRIGGER),
+        (permissions.ACTION_CAN_READ, permissions.RESOURCE_PASSWORD),
+        (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_PASSWORD),
+        (permissions.ACTION_CAN_READ, permissions.RESOURCE_ROLE),
+        (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_ROLE),
     ]
 
-    # global view-menu for dag-level access
-    DAG_VMS = {permissions.RESOURCE_DAG}
-
-    READ_DAG_PERMS = {permissions.ACTION_CAN_READ}
-    DAG_PERMS = {permissions.ACTION_CAN_READ, permissions.ACTION_CAN_EDIT}
+    # global resource for dag-level access
+    DAG_RESOURCES = {permissions.RESOURCE_DAG}
+    DAG_ACTIONS = permissions.DAG_ACTIONS
 
     ###########################################################################
     #                     DEFAULT ROLE CONFIGURATIONS
     ###########################################################################
 
     ROLE_CONFIGS = [
+        {'role': 'Public', 'perms': []},
         {'role': 'Viewer', 'perms': VIEWER_PERMISSIONS},
         {
             'role': 'User',
@@ -154,6 +170,20 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
             'perms': VIEWER_PERMISSIONS + USER_PERMISSIONS + OP_PERMISSIONS + ADMIN_PERMISSIONS,
         },
     ]
+
+    actionmodelview = ActionModelView
+    permissionmodelview = PermissionPairModelView
+    rolemodelview = CustomRoleModelView
+    resourcemodelview = ResourceModelView
+    userdbmodelview = CustomUserDBModelView
+    resetmypasswordview = CustomResetMyPasswordView
+    resetpasswordview = CustomResetPasswordView
+    userinfoeditview = CustomUserInfoEditView
+    userldapmodelview = CustomUserLDAPModelView
+    useroauthmodelview = CustomUserOAuthModelView
+    userremoteusermodelview = CustomUserRemoteUserModelView
+    useroidmodelview = CustomUserOIDModelView
+    userstatschartview = CustomUserStatsChartView
 
     def __init__(self, appbuilder):
         super().__init__(appbuilder)
@@ -172,23 +202,41 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
 
     def init_role(self, role_name, perms):
         """
-        Initialize the role with the permissions and related view-menus.
-
+        Initialize the role with actions and related resources.
         :param role_name:
         :param perms:
         :return:
         """
-        role = self.find_role(role_name)
-        if not role:
-            role = self.add_role(role_name)
+        warnings.warn(
+            "`init_role` has been deprecated. Please use `bulk_sync_roles` instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        self.bulk_sync_roles([{'role': role_name, 'perms': perms}])
 
-        self.add_permissions(role, set(perms))
+    def bulk_sync_roles(self, roles):
+        """Sync the provided roles and permissions."""
+        existing_roles = self._get_all_roles_with_permissions()
+        non_dag_perms = self._get_all_non_dag_permissions()
+
+        for config in roles:
+            role_name = config['role']
+            perms = config['perms']
+            role = existing_roles.get(role_name) or self.add_role(role_name)
+
+            for action_name, resource_name in perms:
+                perm = non_dag_perms.get((action_name, resource_name)) or self.create_permission(
+                    action_name, resource_name
+                )
+
+                if perm not in role.permissions:
+                    self.add_permission_to_role(role, perm)
 
     def add_permissions(self, role, perms):
-        """Adds resource permissions to a given role."""
-        for perm_name, view_name in perms:
-            perm_view = self.add_permission_view_menu(perm_name, view_name)
-            self.add_permission_role(role, perm_view)
+        """Adds permissions to a given role."""
+        for action_name, resource_name in perms:
+            permission = self.create_permission(action_name, resource_name)
+            self.add_permission_to_role(role, permission)
 
     def delete_role(self, role_name):
         """
@@ -197,7 +245,7 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
         :param role_name: the name of a role in the ab_role table
         """
         session = self.get_session
-        role = session.query(sqla_models.Role).filter(sqla_models.Role.name == role_name).first()
+        role = session.query(Role).filter(Role.name == role_name).first()
         if role:
             self.log.info("Deleting role '%s'", role_name)
             session.delete(role)
@@ -220,14 +268,18 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
             return [current_app.appbuilder.sm.find_role(public_role)] if public_role else []
         return user.roles
 
-    def get_all_permissions_views(self):
-        """Returns a set of tuples with the perm name and view menu name"""
-        perms_views = set()
+    def get_current_user_permissions(self):
+        """Returns permissions for logged in user as a set of tuples with the action and resource name"""
+        perms = set()
         for role in self.get_user_roles():
-            perms_views.update(
-                {(perm_view.permission.name, perm_view.view_menu.name) for perm_view in role.permissions}
-            )
-        return perms_views
+            perms.update({(perm.action.name, perm.resource.name) for perm in role.permissions})
+        return perms
+
+    def current_user_has_permissions(self) -> bool:
+        for role in self.get_user_roles():
+            if role.permissions:
+                return True
+        return False
 
     def get_readable_dags(self, user):
         """Gets the DAGs readable by authenticated user."""
@@ -254,28 +306,30 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
 
     @provide_session
     def get_accessible_dags(self, user_actions, user, session=None):
-        """Generic function to get readable or writable DAGs for authenticated user."""
+        """Generic function to get readable or writable DAGs for user."""
         if user.is_anonymous:
-            return set()
-
-        user_query = (
-            session.query(User)
-            .options(
-                joinedload(User.roles)
-                .subqueryload(Role.permissions)
-                .options(joinedload(PermissionView.permission), joinedload(PermissionView.view_menu))
+            roles = self.get_user_roles(user)
+        else:
+            user_query = (
+                session.query(User)
+                .options(
+                    joinedload(User.roles)
+                    .subqueryload(Role.permissions)
+                    .options(joinedload(Permission.action), joinedload(Permission.resource))
+                )
+                .filter(User.id == user.id)
+                .first()
             )
-            .filter(User.id == user.id)
-            .first()
-        )
+            roles = user_query.roles
+
         resources = set()
-        for role in user_query.roles:
+        for role in roles:
             for permission in role.permissions:
-                action = permission.permission.name
+                action = permission.action.name
                 if action not in user_actions:
                     continue
 
-                resource = permission.view_menu.name
+                resource = permission.resource.name
                 if resource == permissions.RESOURCE_DAG:
                     return session.query(DagModel)
 
@@ -289,7 +343,7 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
     def can_access_some_dags(self, action: str, dag_id: Optional[str] = None) -> bool:
         """Checks if user has read or write access to some dags."""
         if dag_id and dag_id != '~':
-            return self.has_access(action, self.prefixed_dag_id(dag_id))
+            return self.has_access(action, permissions.resource_name_for_dag(dag_id))
 
         user = g.user
         if action == permissions.ACTION_CAN_READ:
@@ -300,70 +354,97 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
         """Determines whether a user has DAG read access."""
         if not user:
             user = g.user
-        prefixed_dag_id = self.prefixed_dag_id(dag_id)
-        return self._has_view_access(
+        # To account for SubDags
+        root_dag_id = dag_id.split(".")[0]
+        dag_resource_name = permissions.resource_name_for_dag(root_dag_id)
+        return self._has_access(
             user, permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG
-        ) or self._has_view_access(user, permissions.ACTION_CAN_READ, prefixed_dag_id)
+        ) or self._has_access(user, permissions.ACTION_CAN_READ, dag_resource_name)
 
     def can_edit_dag(self, dag_id, user=None) -> bool:
         """Determines whether a user has DAG edit access."""
         if not user:
             user = g.user
-        prefixed_dag_id = self.prefixed_dag_id(dag_id)
+        # To account for SubDags
+        root_dag_id = dag_id.split(".")[0]
+        dag_resource_name = permissions.resource_name_for_dag(root_dag_id)
 
-        return self._has_view_access(
+        return self._has_access(
             user, permissions.ACTION_CAN_EDIT, permissions.RESOURCE_DAG
-        ) or self._has_view_access(user, permissions.ACTION_CAN_EDIT, prefixed_dag_id)
+        ) or self._has_access(user, permissions.ACTION_CAN_EDIT, dag_resource_name)
 
     def prefixed_dag_id(self, dag_id):
         """Returns the permission name for a DAG id."""
-        if dag_id == permissions.RESOURCE_DAG:
-            return dag_id
-
-        if dag_id.startswith(permissions.RESOURCE_DAG_PREFIX):
-            return dag_id
-        return f"{permissions.RESOURCE_DAG_PREFIX}{dag_id}"
+        warnings.warn(
+            "`prefixed_dag_id` has been deprecated. "
+            "Please use `airflow.security.permissions.resource_name_for_dag` instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        return permissions.resource_name_for_dag(dag_id)
 
     def is_dag_resource(self, resource_name):
-        """Determines if a permission belongs to a DAG or all DAGs."""
+        """Determines if a resource belongs to a DAG or all DAGs."""
         if resource_name == permissions.RESOURCE_DAG:
             return True
         return resource_name.startswith(permissions.RESOURCE_DAG_PREFIX)
 
-    def has_access(self, permission, resource, user=None) -> bool:
+    def _has_resource_access(self, user, action, resource) -> bool:
         """
-        Verify whether a given user could perform certain permission
+        Overriding the method to ensure that it always returns a bool
+        _has_resource_access can return NoneType which gives us
+        issues later on, this fixes that.
+        """
+        return bool(super()._has_resource_access(user, action, resource))
+
+    def has_access(self, action_name, resource_name, user=None) -> bool:
+        """
+        Verify whether a given user could perform a certain action
         (e.g can_read, can_write) on the given resource.
 
-        :param permission: permission on resource (e.g can_read, can_edit).
-        :type permission: str
-        :param resource: name of view-menu or resource.
-        :type resource: str
+        :param action_name: action_name on resource (e.g can_read, can_edit).
+        :type action_name: str
+        :param resource_name: name of view-menu or resource.
+        :type resource_name: str
         :param user: user name
         :type user: str
-        :return: a bool whether user could perform certain permission on the resource.
+        :return: Whether user could perform certain action on the resource.
         :rtype bool
         """
         if not user:
             user = g.user
 
         if user.is_anonymous:
-            return self.is_item_public(permission, resource)
+            user.roles = self.get_user_roles(user)
 
-        has_access = self._has_view_access(user, permission, resource)
+        has_access = self._has_access(user, action_name, resource_name)
         # FAB built-in view access method. Won't work for AllDag access.
-
-        if self.is_dag_resource(resource):
-            if permission == permissions.ACTION_CAN_READ:
-                has_access |= self.can_read_dag(resource, user)
-            elif permission == permissions.ACTION_CAN_EDIT:
-                has_access |= self.can_edit_dag(resource, user)
+        if self.is_dag_resource(resource_name):
+            if action_name == permissions.ACTION_CAN_READ:
+                has_access |= self.can_read_dag(resource_name, user)
+            elif action_name == permissions.ACTION_CAN_EDIT:
+                has_access |= self.can_edit_dag(resource_name, user)
 
         return has_access
 
+    def _has_access(self, user: User, action_name: str, resource_name: str) -> bool:
+        """
+        Wraps the FAB built-in view access method. Won't work for AllDag access.
+
+        :param user: user object
+        :type user: User
+        :param action_name: action_name on resource (e.g can_read, can_edit).
+        :type action_name: str
+        :param resource_name: name of resource.
+        :type resource_name: str
+        :return: a bool whether user could perform certain action on the resource.
+        :rtype bool
+        """
+        return bool(self._has_resource_access(user, action_name, resource_name))
+
     def _get_and_cache_perms(self):
-        """Cache permissions-views"""
-        self.perms = self.get_all_permissions_views()
+        """Cache permissions"""
+        self.perms = self.get_current_user_permissions()
 
     def _has_role(self, role_name_or_list):
         """Whether the user has this role name"""
@@ -371,21 +452,21 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
             role_name_or_list = [role_name_or_list]
         return any(r.name in role_name_or_list for r in self.get_user_roles())
 
-    def _has_perm(self, permission_name, view_menu_name):
+    def _has_perm(self, action_name, resource_name):
         """Whether the user has this perm"""
         if hasattr(self, 'perms') and self.perms is not None:
-            if (permission_name, view_menu_name) in self.perms:
+            if (action_name, resource_name) in self.perms:
                 return True
         # rebuild the permissions set
         self._get_and_cache_perms()
-        return (permission_name, view_menu_name) in self.perms
+        return (action_name, resource_name) in self.perms
 
     def has_all_dags_access(self):
         """
         Has all the dag access in any of the 3 cases:
         1. Role needs to be in (Admin, Viewer, User, Op).
-        2. Has can_read permission on dags view.
-        3. Has can_edit permission on dags view.
+        2. Has can_read action on dags resource.
+        3. Has can_edit action on dags resource.
         """
         return (
             self._has_role(['Admin', 'Viewer', 'Op', 'User'])
@@ -397,10 +478,10 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
         """FAB leaves faulty permissions that need to be cleaned up"""
         self.log.debug('Cleaning faulty perms')
         sesh = self.get_session
-        pvms = sesh.query(sqla_models.PermissionView).filter(
+        perms = sesh.query(Permission).filter(
             or_(
-                sqla_models.PermissionView.permission == None,  # noqa pylint: disable=singleton-comparison
-                sqla_models.PermissionView.view_menu == None,  # noqa pylint: disable=singleton-comparison
+                Permission.action == None,  # noqa
+                Permission.resource == None,  # noqa
             )
         )
         # Since FAB doesn't define ON DELETE CASCADE on these tables, we need
@@ -408,145 +489,129 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
         # relationship object too. :(
 
         deleted_count = 0
-        for pvm in pvms:
-            sesh.delete(pvm)
+        for perm in perms:
+            sesh.delete(perm)
             deleted_count += 1
         sesh.commit()
         if deleted_count:
             self.log.info('Deleted %s faulty permissions', deleted_count)
 
-    def _merge_perm(self, permission_name, view_menu_name):
+    def _merge_perm(self, action_name, resource_name):
         """
-        Add the new (permission, view_menu) to assoc_permissionview_role if it doesn't exist.
-        It will add the related entry to ab_permission
-        and ab_view_menu two meta tables as well.
+        Add the new (action, resource) to assoc_permission_role if it doesn't exist.
+        It will add the related entry to ab_permission and ab_resource two meta tables as well.
 
-        :param permission_name: Name of the permission.
-        :type permission_name: str
-        :param view_menu_name: Name of the view-menu
-        :type view_menu_name: str
+        :param action_name: Name of the action
+        :type action_name: str
+        :param resource_name: Name of the resource
+        :type resource_name: str
         :return:
         """
-        permission = self.find_permission(permission_name)
-        view_menu = self.find_view_menu(view_menu_name)
-        permission_view = None
-        if permission and view_menu:
-            permission_view = (
-                self.get_session.query(self.permissionview_model)
-                .filter_by(permission=permission, view_menu=view_menu)
+        action = self.get_action(action_name)
+        resource = self.get_resource(resource_name)
+        perm = None
+        if action and resource:
+            perm = (
+                self.get_session.query(self.permission_model)
+                .filter_by(action=action, resource=resource)
                 .first()
             )
-        if not permission_view and permission_name and view_menu_name:
-            self.add_permission_view_menu(permission_name, view_menu_name)
+        if not perm and action_name and resource_name:
+            self.create_permission(action_name, resource_name)
 
-    @provide_session
-    def create_custom_dag_permission_view(self, session=None):
+    def add_homepage_access_to_custom_roles(self):
         """
-        Workflow:
-        1. Fetch all the existing (permissions, view-menu) from Airflow DB.
-        2. Fetch all the existing dag models that are either active or paused.
-        3. Create both read and write permission view-menus relation for every dags from step 2
-        4. Find out all the dag specific roles(excluded pubic, admin, viewer, op, user)
-        5. Get all the permission-vm owned by the user role.
-        6. Grant all the user role's permission-vm except the all-dag view-menus to the dag roles.
-        7. Commit the updated permission-vm-role into db
+        Add Website.can_read access to all custom roles.
 
         :return: None.
         """
-        self.log.debug('Fetching a set of all permission, view_menu from FAB meta-table')
+        website_permission = self.create_permission(permissions.ACTION_CAN_READ, permissions.RESOURCE_WEBSITE)
+        custom_roles = [role for role in self.get_all_roles() if role.name not in EXISTING_ROLES]
+        for role in custom_roles:
+            self.add_permission_to_role(role, website_permission)
 
-        def merge_pv(perm, view_menu):
-            """Create permission view menu only if it doesn't exist"""
-            if view_menu and perm and (view_menu, perm) not in all_permission_views:
-                self._merge_perm(perm, view_menu)
+        self.get_session.commit()
 
-        all_permission_views = set()
-        for permission_view in self.get_session.query(self.permissionview_model).all():
-            if permission_view.permission and permission_view.view_menu:
-                all_permission_views.add((permission_view.permission.name, permission_view.view_menu.name))
-
-        # Get all the active / paused dags and insert them into a set
-        all_dags_models = (
-            session.query(models.DagModel)
-            .filter(or_(models.DagModel.is_active, models.DagModel.is_paused))
+    def get_all_permissions(self) -> Set[Tuple[str, str]]:
+        """Returns all permissions as a set of tuples with the action and resource names"""
+        return set(
+            self.get_session.query(self.permission_model)
+            .join(self.action_model)
+            .join(self.resource_model)
+            .with_entities(self.action_model.name, self.resource_model.name)
             .all()
         )
 
-        # create can_edit and can_read permissions for every dag(vm)
-        for dag in all_dags_models:
-            for perm in self.DAG_PERMS:
-                merge_pv(perm, self.prefixed_dag_id(dag.dag_id))
-
-        # for all the dag-level role, add the permission of viewer
-        # with the dag view to ab_permission_view
-        all_roles = self.get_all_roles()
-        user_role = self.find_role('User')
-
-        dag_role = [role for role in all_roles if role.name not in EXISTING_ROLES]
-        update_perm_views = []
-
-        # need to remove all_dag vm from all the existing view-menus
-        dag_vm = self.find_view_menu(permissions.RESOURCE_DAG)
-        ab_perm_view_role = sqla_models.assoc_permissionview_role
-        perm_view = self.permissionview_model
-        view_menu = self.viewmenu_model
-
-        all_perm_view_by_user = (
-            session.query(ab_perm_view_role)
-            .join(
-                perm_view,
-                perm_view.id == ab_perm_view_role.columns.permission_view_id,  # pylint: disable=no-member
-            )
-            .filter(ab_perm_view_role.columns.role_id == user_role.id)  # pylint: disable=no-member
-            .join(view_menu)
-            .filter(perm_view.view_menu_id != dag_vm.id)
-        )
-        all_perm_views = {role.permission_view_id for role in all_perm_view_by_user}
-
-        for role in dag_role:
-            # pylint: disable=no-member
-            # Get all the perm-view of the role
-
-            existing_perm_view_by_user = self.get_session.query(ab_perm_view_role).filter(
-                ab_perm_view_role.columns.role_id == role.id
-            )
-
-            existing_perms_views = {pv.permission_view_id for pv in existing_perm_view_by_user}
-            missing_perm_views = all_perm_views - existing_perms_views
-
-            for perm_view_id in missing_perm_views:
-                update_perm_views.append({'permission_view_id': perm_view_id, 'role_id': role.id})
-
-        if update_perm_views:
-            self.get_session.execute(
-                ab_perm_view_role.insert(), update_perm_views  # pylint: disable=no-value-for-parameter
-            )
-        self.get_session.commit()
-
-    def update_admin_perm_view(self):
+    def _get_all_non_dag_permissions(self) -> Dict[Tuple[str, str], Permission]:
         """
-        Admin should have all the permission-views, except the dag views.
+        Returns a dict with a key of (action_name, resource_name) and value of permission
+        with all permissions except those that are for specific DAGs.
+        """
+        return {
+            (action_name, resource_name): viewmodel
+            for action_name, resource_name, viewmodel in (
+                self.get_session.query(self.permission_model)
+                .join(self.action_model)
+                .join(self.resource_model)
+                .filter(~self.resource_model.name.like(f"{permissions.RESOURCE_DAG_PREFIX}%"))
+                .with_entities(self.action_model.name, self.resource_model.name, self.permission_model)
+                .all()
+            )
+        }
+
+    def _get_all_roles_with_permissions(self) -> Dict[str, Role]:
+        """Returns a dict with a key of role name and value of role with eagrly loaded permissions"""
+        return {
+            r.name: r
+            for r in (
+                self.get_session.query(self.role_model).options(joinedload(self.role_model.permissions)).all()
+            )
+        }
+
+    def create_dag_specific_permissions(self) -> None:
+        """
+        Creates 'can_read' and 'can_edit' permissions for all DAGs,
+        along with any `access_control` permissions provided in them.
+
+        This does iterate through ALL the DAGs, which can be slow. See `sync_perm_for_dag`
+        if you only need to sync a single DAG.
+
+        :return: None.
+        """
+        perms = self.get_all_permissions()
+        dagbag = DagBag(read_dags_from_db=True)
+        dagbag.collect_dags_from_db()
+        dags = dagbag.dags.values()
+
+        for dag in dags:
+            dag_resource_name = permissions.resource_name_for_dag(dag.dag_id)
+            for action_name in self.DAG_ACTIONS:
+                if (action_name, dag_resource_name) not in perms:
+                    self._merge_perm(action_name, dag_resource_name)
+
+            if dag.access_control:
+                self.sync_perm_for_dag(dag_resource_name, dag.access_control)
+
+    def update_admin_permission(self):
+        """
+        Admin should have all the permissions, except the dag permissions.
         because Admin already has Dags permission.
         Add the missing ones to the table for admin.
 
         :return: None.
         """
-        dag_pvs = (
-            self.get_session.query(sqla_models.ViewMenu)
-            .filter(sqla_models.ViewMenu.name.like(f"{permissions.RESOURCE_DAG_PREFIX}%"))
+        dag_resources = (
+            self.get_session.query(Resource)
+            .filter(Resource.name.like(f"{permissions.RESOURCE_DAG_PREFIX}%"))
             .all()
         )
-        pv_ids = [pv.id for pv in dag_pvs]
-        pvms = (
-            self.get_session.query(sqla_models.PermissionView)
-            .filter(~sqla_models.PermissionView.view_menu_id.in_(pv_ids))
-            .all()
-        )
+        resource_ids = [resource.id for resource in dag_resources]
+        perms = self.get_session.query(Permission).filter(~Permission.resource_id.in_(resource_ids)).all()
 
-        pvms = [p for p in pvms if p.permission and p.view_menu]
+        perms = [p for p in perms if p.action and p.resource]
 
         admin = self.find_role('Admin')
-        admin.permissions = list(set(admin.permissions) | set(pvms))
+        admin.permissions = list(set(admin.permissions) | set(perms))
 
         self.get_session.commit()
 
@@ -558,17 +623,15 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
 
         :return: None.
         """
-        # Create global all-dag VM
+        # Create global all-dag permissions
         self.create_perm_vm_for_all_dag()
 
-        # Create default user role.
-        for config in self.ROLE_CONFIGS:
-            role = config['role']
-            perms = config['perms']
-            self.init_role(role, perms)
-        self.create_custom_dag_permission_view()
+        # Sync the default roles (Admin, Viewer, User, Op, public) with related permissions
+        self.bulk_sync_roles(self.ROLE_CONFIGS)
+
+        self.add_homepage_access_to_custom_roles()
         # init existing roles, the rest role could be created through UI.
-        self.update_admin_perm_view()
+        self.update_admin_permission()
         self.clean_perms()
 
     def sync_resource_permissions(self, perms=None):
@@ -576,98 +639,96 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
         if not perms:
             return
 
-        for action, resource in perms:
-            self.add_view_menu(resource)
-            self.add_permission_view_menu(action, resource)
+        for action_name, resource_name in perms:
+            self.create_resource(resource_name)
+            self.create_permission(action_name, resource_name)
 
     def sync_perm_for_dag(self, dag_id, access_control=None):
         """
         Sync permissions for given dag id. The dag id surely exists in our dag bag
-        as only / refresh button or cli.sync_perm will call this function
+        as only / refresh button or DagBag will call this function
 
         :param dag_id: the ID of the DAG whose permissions should be updated
         :type dag_id: str
         :param access_control: a dict where each key is a rolename and
-            each value is a set() of permission names (e.g.,
+            each value is a set() of action names (e.g.,
             {'can_read'}
         :type access_control: dict
         :return:
         """
-        prefixed_dag_id = self.prefixed_dag_id(dag_id)
-        for dag_perm in self.DAG_PERMS:
-            perm_on_dag = self.find_permission_view_menu(dag_perm, prefixed_dag_id)
-            if perm_on_dag is None:
-                self.add_permission_view_menu(dag_perm, prefixed_dag_id)
+        dag_resource_name = permissions.resource_name_for_dag(dag_id)
+        for dag_action_name in self.DAG_ACTIONS:
+            self.create_permission(dag_action_name, dag_resource_name)
 
         if access_control:
-            self._sync_dag_view_permissions(prefixed_dag_id, access_control)
+            self._sync_dag_view_permissions(dag_resource_name, access_control)
 
     def _sync_dag_view_permissions(self, dag_id, access_control):
-        """Set the access policy on the given DAG's ViewModel.
+        """
+        Set the access policy on the given DAG's ViewModel.
 
         :param dag_id: the ID of the DAG whose permissions should be updated
         :type dag_id: str
         :param access_control: a dict where each key is a rolename and
-            each value is a set() of permission names (e.g.,
-            {'can_read'}
+            each value is a set() of action names (e.g. {'can_read'})
         :type access_control: dict
         """
-        prefixed_dag_id = self.prefixed_dag_id(dag_id)
+        dag_resource_name = permissions.resource_name_for_dag(dag_id)
 
-        def _get_or_create_dag_permission(perm_name):
-            dag_perm = self.find_permission_view_menu(perm_name, prefixed_dag_id)
-            if not dag_perm:
-                self.log.info("Creating new permission '%s' on view '%s'", perm_name, prefixed_dag_id)
-                dag_perm = self.add_permission_view_menu(perm_name, prefixed_dag_id)
+        def _get_or_create_dag_permission(action_name: str) -> Permission:
+            perm = self.get_permission(action_name, dag_resource_name)
+            if not perm:
+                self.log.info("Creating new action '%s' on resource '%s'", action_name, dag_resource_name)
+                perm = self.create_permission(action_name, dag_resource_name)
 
-            return dag_perm
+            return perm
 
-        def _revoke_stale_permissions(dag_view):
-            existing_dag_perms = self.find_permissions_view_menu(dag_view)
+        def _revoke_stale_permissions(resource: Resource):
+            existing_dag_perms = self.get_resource_permissions(resource)
             for perm in existing_dag_perms:
                 non_admin_roles = [role for role in perm.role if role.name != 'Admin']
                 for role in non_admin_roles:
                     target_perms_for_role = access_control.get(role.name, {})
-                    if perm.permission.name not in target_perms_for_role:
+                    if perm.action.name not in target_perms_for_role:
                         self.log.info(
                             "Revoking '%s' on DAG '%s' for role '%s'",
-                            perm.permission,
-                            prefixed_dag_id,
+                            perm.action,
+                            dag_resource_name,
                             role.name,
                         )
-                        self.del_permission_role(role, perm)
+                        self.remove_permission_from_role(role, perm)
 
-        dag_view = self.find_view_menu(prefixed_dag_id)
-        if dag_view:
-            _revoke_stale_permissions(dag_view)
+        resource = self.get_resource(dag_resource_name)
+        if resource:
+            _revoke_stale_permissions(resource)
 
-        for rolename, perms in access_control.items():
+        for rolename, action_names in access_control.items():
             role = self.find_role(rolename)
             if not role:
                 raise AirflowException(
-                    "The access_control mapping for DAG '{}' includes a role "
-                    "named '{}', but that role does not exist".format(dag_id, rolename)
+                    f"The access_control mapping for DAG '{dag_id}' includes a role named "
+                    f"'{rolename}', but that role does not exist"
                 )
 
-            perms = set(perms)
-            invalid_perms = perms - self.DAG_PERMS
-            if invalid_perms:
+            action_names = set(action_names)
+            invalid_action_names = action_names - self.DAG_ACTIONS
+            if invalid_action_names:
                 raise AirflowException(
-                    "The access_control map for DAG '{}' includes the following "
-                    "invalid permissions: {}; The set of valid permissions "
-                    "is: {}".format(prefixed_dag_id, invalid_perms, self.DAG_PERMS)
+                    f"The access_control map for DAG '{dag_resource_name}' includes "
+                    f"the following invalid permissions: {invalid_action_names}; "
+                    f"The set of valid permissions is: {self.DAG_ACTIONS}"
                 )
 
-            for perm_name in perms:
-                dag_perm = _get_or_create_dag_permission(perm_name)
-                self.add_permission_role(role, dag_perm)
+            for action_name in action_names:
+                dag_perm = _get_or_create_dag_permission(action_name)
+                self.add_permission_to_role(role, dag_perm)
 
     def create_perm_vm_for_all_dag(self):
         """Create perm-vm if not exist and insert into FAB security model for all-dags."""
         # create perm for global logical dag
-        for dag_vm in self.DAG_VMS:
-            for perm in self.DAG_PERMS:
-                self._merge_perm(permission_name=perm, view_menu_name=dag_vm)
+        for resource_name in self.DAG_RESOURCES:
+            for action_name in self.DAG_ACTIONS:
+                self._merge_perm(action_name, resource_name)
 
     def check_authorization(
         self, perms: Optional[Sequence[Tuple[str, str]]] = None, dag_id: Optional[str] = None
@@ -694,3 +755,33 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
                 return False
 
         return True
+
+    def reset_all_permissions(self) -> None:
+        """
+        Deletes all permission records and removes from roles,
+        then re-syncs them.
+
+        :return: None
+        :rtype: None
+        """
+        session = self.get_session
+        for role in self.get_all_roles():
+            role.permissions = []
+        session.commit()
+        session.query(Permission).delete()
+        session.query(Resource).delete()
+        session.query(Action).delete()
+        session.commit()
+
+        self.sync_roles()
+
+
+class ApplessAirflowSecurityManager(AirflowSecurityManager):
+    """Security Manager that doesn't need the whole flask app"""
+
+    def __init__(self, session=None):
+        self.session = session
+
+    @property
+    def get_session(self):
+        return self.session

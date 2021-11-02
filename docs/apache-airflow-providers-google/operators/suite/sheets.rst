@@ -31,11 +31,6 @@ The latest version of the Sheets API lets developers programmatically:
 
 For more information check `official documentation <https://developers.google.com/sheets/api>`__.
 
-
-.. contents::
-  :depth: 1
-  :local:
-
 Prerequisite Tasks
 ^^^^^^^^^^^^^^^^^^
 
@@ -55,7 +50,7 @@ To create new spreadsheet you can use the
     :start-after: [START create_spreadsheet]
     :end-before: [END create_spreadsheet]
 
-You can use :ref:`Jinja templating <jinja-templating>` with
+You can use :ref:`Jinja templating <concepts:jinja-templating>` with
 :template-fields:`airflow.providers.google.suite.operators.sheets.GoogleSheetsCreateSpreadsheetOperator`.
 
 To get the URL of newly created spreadsheet use XCom value:

@@ -19,6 +19,8 @@
 import unittest
 from unittest.mock import MagicMock, patch
 
+import pytest
+
 from airflow.exceptions import AirflowException
 from airflow.models.dag import DAG
 from airflow.providers.amazon.aws.operators.emr_modify_cluster import EmrModifyClusterOperator
@@ -54,18 +56,19 @@ class TestEmrModifyClusterOperator(unittest.TestCase):
         )
 
     def test_init(self):
-        self.assertEqual(self.operator.cluster_id, 'j-8989898989')
-        self.assertEqual(self.operator.step_concurrency_level, 1)
-        self.assertEqual(self.operator.aws_conn_id, 'aws_default')
+        assert self.operator.cluster_id == 'j-8989898989'
+        assert self.operator.step_concurrency_level == 1
+        assert self.operator.aws_conn_id == 'aws_default'
 
     def test_execute_returns_step_concurrency(self):
         self.emr_client_mock.modify_cluster.return_value = MODIFY_CLUSTER_SUCCESS_RETURN
 
         with patch('boto3.session.Session', self.boto3_session_mock):
-            self.assertEqual(self.operator.execute(self.mock_context), 1)
+            assert self.operator.execute(self.mock_context) == 1
 
     def test_execute_returns_error(self):
         self.emr_client_mock.modify_cluster.return_value = MODIFY_CLUSTER_ERROR_RETURN
 
         with patch('boto3.session.Session', self.boto3_session_mock):
-            self.assertRaises(AirflowException, self.operator.execute, self.mock_context)
+            with pytest.raises(AirflowException):
+                self.operator.execute(self.mock_context)

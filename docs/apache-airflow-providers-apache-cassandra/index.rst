@@ -38,5 +38,48 @@ Content
     :maxdepth: 1
     :caption: Resources
 
-    Example DAGs <https://github.com/apache/airflow/tree/master/airflow/providers/apache/cassandra/example_dags>
+    Example DAGs <https://github.com/apache/airflow/tree/main/airflow/providers/apache/cassandra/example_dags>
     PyPI Repository <https://pypi.org/project/apache-airflow-providers-apache-cassandra/>
+    Installing from sources <installing-providers-from-sources>
+
+.. THE REMAINDER OF THE FILE IS AUTOMATICALLY GENERATED. IT WILL BE OVERWRITTEN AT RELEASE TIME!
+
+
+.. toctree::
+    :maxdepth: 1
+    :caption: Commits
+
+    Detailed list of commits <commits>
+
+
+Package apache-airflow-providers-apache-cassandra
+------------------------------------------------------
+
+`Apache Cassandra <http://cassandra.apache.org/>`__.
+
+
+Release: 2.1.0
+
+Provider package
+----------------
+
+This is a provider package for ``apache.cassandra`` provider. All classes for this provider package
+are in ``airflow.providers.apache.cassandra`` python package.
+
+Installation
+------------
+
+You can install this package on top of an existing airflow 2.1+ installation via
+``pip install apache-airflow-providers-apache-cassandra``
+
+PIP requirements
+----------------
+
+====================  ==================
+PIP package           Version required
+====================  ==================
+``apache-airflow``    ``>=2.1.0``
+``cassandra-driver``  ``>=3.13.0,<4``
+====================  ==================
+
+.. include:: ../../airflow/providers/apache/cassandra/CHANGELOG.rst

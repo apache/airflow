@@ -75,9 +75,9 @@ class GKEHook(GoogleBaseHook):
 
     # To preserve backward compatibility
     # TODO: remove one day
-    def get_client(self) -> container_v1.ClusterManagerClient:  # pylint: disable=missing-docstring
+    def get_client(self) -> container_v1.ClusterManagerClient:
         warnings.warn(
-            "The get_client method has been deprecated. " "You should use the get_conn method.",
+            "The get_client method has been deprecated. You should use the get_conn method.",
             DeprecationWarning,
         )
         return self.get_conn()
@@ -99,7 +99,7 @@ class GKEHook(GoogleBaseHook):
             if operation.status == Operation.Status.RUNNING or operation.status == Operation.Status.PENDING:
                 time.sleep(OPERATIONAL_POLL_INTERVAL)
             else:
-                raise exceptions.GoogleCloudError("Operation has failed with status: %s" % operation.status)
+                raise exceptions.GoogleCloudError(f"Operation has failed with status: {operation.status}")
             # To update status of operation
             operation = self.get_operation(operation.name, project_id=project_id or self.project_id)
         return operation

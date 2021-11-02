@@ -27,8 +27,8 @@ from airflow.api_connexion.schemas.xcom_schema import (
     XComCollection,
     XComCollectionItemSchema,
     XComCollectionSchema,
-    xcom_collection_item_schema,
     xcom_collection_schema,
+    xcom_schema,
 )
 from airflow.models import DagRun as DR, XCom
 from airflow.security import permissions
@@ -94,4 +94,4 @@ def get_xcom_entry(
     query_object = query.one_or_none()
     if not query_object:
         raise NotFound("XCom entry not found")
-    return xcom_collection_item_schema.dump(query_object)
+    return xcom_schema.dump(query_object)

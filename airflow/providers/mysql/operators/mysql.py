@@ -15,11 +15,11 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from typing import Dict, Iterable, Mapping, Optional, Union
+import ast
+from typing import Dict, Iterable, List, Mapping, Optional, Union
 
 from airflow.models import BaseOperator
 from airflow.providers.mysql.hooks.mysql import MySqlHook
-from airflow.utils.decorators import apply_defaults
 
 
 class MySqlOperator(BaseOperator):
@@ -35,9 +35,11 @@ class MySqlOperator(BaseOperator):
         Template reference are recognized by str ending in '.sql'
         (templated)
     :type sql: str or list[str]
-    :param mysql_conn_id: reference to a specific mysql database
+    :param mysql_conn_id: Reference to :ref:`mysql connection id <howto/connection:mysql>`.
     :type mysql_conn_id: str
     :param parameters: (optional) the parameters to render the SQL query with.
+        Template reference are recognized by str ending in '.json'
+        (templated)
     :type parameters: dict or iterable
     :param autocommit: if True, each command is automatically committed.
         (default value: False)
@@ -46,15 +48,15 @@ class MySqlOperator(BaseOperator):
     :type database: str
     """
 
-    template_fields = ('sql',)
-    template_ext = ('.sql',)
+    template_fields = ('sql', 'parameters')
+    template_fields_renderers = {'sql': 'sql', 'parameters': 'json'}
+    template_ext = ('.sql', '.json')
     ui_color = '#ededed'
 
-    @apply_defaults
     def __init__(
         self,
         *,
-        sql: str,
+        sql: Union[str, List[str]],
         mysql_conn_id: str = 'mysql_default',
         parameters: Optional[Union[Mapping, Iterable]] = None,
         autocommit: bool = False,
@@ -67,6 +69,11 @@ class MySqlOperator(BaseOperator):
         self.autocommit = autocommit
         self.parameters = parameters
         self.database = database
+
+    def prepare_template(self) -> None:
+        """Parse template file for attribute parameters."""
+        if isinstance(self.parameters, str):
+            self.parameters = ast.literal_eval(self.parameters)
 
     def execute(self, context: Dict) -> None:
         self.log.info('Executing: %s', self.sql)

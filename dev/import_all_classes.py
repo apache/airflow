@@ -20,8 +20,12 @@ import importlib
 import pkgutil
 import sys
 import traceback
+import warnings
 from inspect import isclass
-from typing import List
+from typing import List, Set, Tuple
+from warnings import WarningMessage
+
+from rich import print
 
 
 def import_all_classes(
@@ -30,7 +34,7 @@ def import_all_classes(
     provider_ids: List[str] = None,
     print_imports: bool = False,
     print_skips: bool = False,
-) -> List[str]:
+) -> Tuple[List[str], List[WarningMessage]]:
     """
     Imports all classes in providers packages. This method loads and imports
     all the classes found in providers, so that we can find all the subclasses
@@ -41,10 +45,11 @@ def import_all_classes(
     :param provider_ids - provider ids that should be loaded.
     :param print_imports - if imported class should also be printed in output
     :param print_skips - if skipped classes should also be printed in output
-    :return: list of all imported classes
+    :return: tuple of list of all imported classes and all warnings generated
     """
     imported_classes = []
     tracebacks = []
+    printed_packages: Set[str] = set()
 
     def mk_prefix(provider_id):
         return f'{prefix}{provider_id}'
@@ -60,39 +65,45 @@ def import_all_classes(
         if any(provider_prefix in exception_string for provider_prefix in provider_prefixes):
             tracebacks.append(exception_string)
 
+    all_warnings: List[WarningMessage] = []
     for modinfo in pkgutil.walk_packages(path=paths, prefix=prefix, onerror=onerror):
         if not any(modinfo.name.startswith(provider_prefix) for provider_prefix in provider_prefixes):
             if print_skips:
                 print(f"Skipping module: {modinfo.name}")
             continue
         if print_imports:
-            print(f"Importing module: {modinfo.name}")
+            package_to_print = ".".join(modinfo.name.split(".")[:-1])
+            if package_to_print not in printed_packages:
+                printed_packages.add(package_to_print)
+                print(f"Importing package: {package_to_print}")
         try:
-            _module = importlib.import_module(modinfo.name)
-            for attribute_name in dir(_module):
-                class_name = modinfo.name + "." + attribute_name
-                attribute = getattr(_module, attribute_name)
-                if isclass(attribute):
-                    if print_imports:
-                        print(f"Imported {class_name}")
-                    imported_classes.append(class_name)
-        except Exception:  # noqa
+            with warnings.catch_warnings(record=True) as w:
+                warnings.filterwarnings("always", category=DeprecationWarning)
+                _module = importlib.import_module(modinfo.name)
+                for attribute_name in dir(_module):
+                    class_name = modinfo.name + "." + attribute_name
+                    attribute = getattr(_module, attribute_name)
+                    if isclass(attribute):
+                        imported_classes.append(class_name)
+            if w:
+                all_warnings.extend(w)
+        except Exception:
             exception_str = traceback.format_exc()
             tracebacks.append(exception_str)
     if tracebacks:
         print(
             """
-ERROR: There were some import errors
+[red]ERROR: There were some import errors[/]
 """,
             file=sys.stderr,
         )
         for trace in tracebacks:
-            print("----------------------------------------", file=sys.stderr)
+            print("[red]----------------------------------------[/]", file=sys.stderr)
             print(trace, file=sys.stderr)
-            print("----------------------------------------", file=sys.stderr)
+            print("[red]----------------------------------------[/]", file=sys.stderr)
         sys.exit(1)
     else:
-        return imported_classes
+        return imported_classes, all_warnings
 
 
 if __name__ == '__main__':
@@ -105,9 +116,18 @@ if __name__ == '__main__':
     print()
     print(f"Walking all packages in {args.path} with prefix {args.prefix}")
     print()
-    classes = import_all_classes(print_imports=True, print_skips=True, paths=args.path, prefix=args.prefix)
+    classes, warns = import_all_classes(
+        print_imports=True, print_skips=True, paths=args.path, prefix=args.prefix
+    )
     if len(classes) == 0:
-        raise Exception("Something is seriously wrong - no classes imported")
+        print("[red]Something is seriously wrong - no classes imported[/]")
+        sys.exit(1)
+    if warns:
+        print("[yellow]There were warnings generated during the import[/]")
+        for w in warns:
+            one_line_message = str(w.message).replace('\n', ' ')
+            print(f"[yellow]{w.filename}:{w.lineno}: {one_line_message}[/]")
+
     print()
-    print(f"SUCCESS: All provider packages are importable! Imported {len(classes)} classes.")
+    print(f"[green]SUCCESS: All provider packages are importable! Imported {len(classes)} classes.[/]")
     print()

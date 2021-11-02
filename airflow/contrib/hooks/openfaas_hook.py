@@ -15,11 +15,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""This module is deprecated. Please use `airflow.providers.openfaas.hooks.openfaas`."""
+"""This module is deprecated. Please use :mod:`airflow.providers.openfaas.hooks.openfaas`."""
 
 import warnings
 
-# pylint: disable=unused-import
 from airflow.providers.openfaas.hooks.openfaas import OK_STATUS_CODE, OpenFaasHook, requests  # noqa
 
 warnings.warn(

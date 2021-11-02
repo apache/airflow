@@ -17,6 +17,8 @@
 
 
 
+.. _howto/connection:postgres:
+
 PostgreSQL Connection
 ======================
 The Postgres connection type provides connection to a Postgres database.

@@ -16,7 +16,6 @@
 # specific language governing permissions and limitations
 # under the License.
 """Hook for SSH connections."""
-import getpass
 import os
 import warnings
 from base64 import decodebytes
@@ -30,16 +29,24 @@ from sshtunnel import SSHTunnelForwarder
 from airflow.exceptions import AirflowException
 from airflow.hooks.base import BaseHook
 
+try:
+    from airflow.utils.platform import getuser
+except ImportError:
+    from getpass import getuser
 
-class SSHHook(BaseHook):  # pylint: disable=too-many-instance-attributes
+TIMEOUT_DEFAULT = 10
+
+
+class SSHHook(BaseHook):
     """
     Hook for ssh remote execution using Paramiko.
     ref: https://github.com/paramiko/paramiko
     This hook also lets you create ssh tunnel and serve as basis for SFTP file transfer
 
-    :param ssh_conn_id: connection id from airflow Connections from where all the required
-        parameters can be fetched like username, password or key_file.
-        Thought the priority is given to the param passed during init
+    :param ssh_conn_id: :ref:`ssh connection id<howto/connection:ssh>` from airflow
+        Connections from where all the required parameters can be fetched like
+        username, password or key_file. Thought the priority is given to the
+        param passed during init
     :type ssh_conn_id: str
     :param remote_host: remote host to connect
     :type remote_host: str
@@ -51,12 +58,32 @@ class SSHHook(BaseHook):  # pylint: disable=too-many-instance-attributes
     :type key_file: str
     :param port: port of remote host to connect (Default is paramiko SSH_PORT)
     :type port: int
-    :param timeout: timeout for the attempt to connect to the remote_host.
+    :param conn_timeout: timeout (in seconds) for the attempt to connect to the remote_host.
+        The default is 10 seconds. If provided, it will replace the `conn_timeout` which was
+        predefined in the connection of `ssh_conn_id`.
+    :type conn_timeout: int
+    :param timeout: (Deprecated). timeout for the attempt to connect to the remote_host.
+        Use conn_timeout instead.
     :type timeout: int
     :param keepalive_interval: send a keepalive packet to remote host every
         keepalive_interval seconds
     :type keepalive_interval: int
     """
+
+    # List of classes to try loading private keys as, ordered (roughly) by most common to least common
+    _pkey_loaders = (
+        paramiko.RSAKey,
+        paramiko.ECDSAKey,
+        paramiko.Ed25519Key,
+        paramiko.DSSKey,
+    )
+
+    _host_key_mappings = {
+        'rsa': paramiko.RSAKey,
+        'dss': paramiko.DSSKey,
+        'ecdsa': paramiko.ECDSAKey,
+        'ed25519': paramiko.Ed25519Key,
+    }
 
     conn_name_attr = 'ssh_conn_id'
     default_conn_name = 'ssh_default'
@@ -73,7 +100,7 @@ class SSHHook(BaseHook):  # pylint: disable=too-many-instance-attributes
             },
         }
 
-    def __init__(  # pylint: disable=too-many-statements
+    def __init__(
         self,
         ssh_conn_id: Optional[str] = None,
         remote_host: Optional[str] = None,
@@ -81,7 +108,8 @@ class SSHHook(BaseHook):  # pylint: disable=too-many-instance-attributes
         password: Optional[str] = None,
         key_file: Optional[str] = None,
         port: Optional[int] = None,
-        timeout: int = 10,
+        timeout: Optional[int] = None,
+        conn_timeout: Optional[int] = None,
         keepalive_interval: int = 30,
     ) -> None:
         super().__init__()
@@ -93,6 +121,7 @@ class SSHHook(BaseHook):  # pylint: disable=too-many-instance-attributes
         self.pkey = None
         self.port = port
         self.timeout = timeout
+        self.conn_timeout = conn_timeout
         self.keepalive_interval = keepalive_interval
 
         # Default values, overridable from Connection
@@ -117,6 +146,7 @@ class SSHHook(BaseHook):  # pylint: disable=too-many-instance-attributes
                 self.remote_host = conn.host
             if self.port is None:
                 self.port = conn.port
+
             if conn.extra is not None:
                 extra_options = conn.extra_dejson
                 if "key_file" in extra_options and self.key_file is None:
@@ -124,36 +154,69 @@ class SSHHook(BaseHook):  # pylint: disable=too-many-instance-attributes
 
                 private_key = extra_options.get('private_key')
                 private_key_passphrase = extra_options.get('private_key_passphrase')
-                if private_key and private_key_passphrase:
-                    self.pkey = paramiko.RSAKey.from_private_key(
-                        StringIO(private_key), password=private_key_passphrase
-                    )
-                elif private_key and not private_key_passphrase:
-                    self.pkey = paramiko.RSAKey.from_private_key(StringIO(private_key))
+                if private_key:
+                    self.pkey = self._pkey_from_private_key(private_key, passphrase=private_key_passphrase)
 
                 if "timeout" in extra_options:
-                    self.timeout = int(extra_options["timeout"], 10)
+                    warnings.warn(
+                        'Extra option `timeout` is deprecated.'
+                        'Please use `conn_timeout` instead.'
+                        'The old option `timeout` will be removed in a future version.',
+                        DeprecationWarning,
+                        stacklevel=2,
+                    )
+                    self.timeout = int(extra_options['timeout'])
+
+                if "conn_timeout" in extra_options and self.conn_timeout is None:
+                    self.conn_timeout = int(extra_options['conn_timeout'])
 
                 if "compress" in extra_options and str(extra_options["compress"]).lower() == 'false':
                     self.compress = False
-                if (
-                    "no_host_key_check" in extra_options
-                    and str(extra_options["no_host_key_check"]).lower() == 'false'
-                ):
-                    self.no_host_key_check = False
+
+                host_key = extra_options.get("host_key")
+                no_host_key_check = extra_options.get("no_host_key_check")
+
+                if no_host_key_check is not None:
+                    no_host_key_check = str(no_host_key_check).lower() == "true"
+                    if host_key is not None and no_host_key_check:
+                        raise ValueError("Must check host key when provided")
+
+                    self.no_host_key_check = no_host_key_check
+
                 if (
                     "allow_host_key_change" in extra_options
                     and str(extra_options["allow_host_key_change"]).lower() == 'true'
                 ):
                     self.allow_host_key_change = True
+
                 if (
                     "look_for_keys" in extra_options
                     and str(extra_options["look_for_keys"]).lower() == 'false'
                 ):
                     self.look_for_keys = False
-                if "host_key" in extra_options and self.no_host_key_check is False:
-                    decoded_host_key = decodebytes(extra_options["host_key"].encode('utf-8'))
-                    self.host_key = paramiko.RSAKey(data=decoded_host_key)
+
+                if host_key is not None:
+                    if host_key.startswith("ssh-"):
+                        key_type, host_key = host_key.split(None)[:2]
+                        key_constructor = self._host_key_mappings[key_type[4:]]
+                    else:
+                        key_constructor = paramiko.RSAKey
+                    decoded_host_key = decodebytes(host_key.encode('utf-8'))
+                    self.host_key = key_constructor(data=decoded_host_key)
+                    self.no_host_key_check = False
+
+        if self.timeout:
+            warnings.warn(
+                'Parameter `timeout` is deprecated.'
+                'Please use `conn_timeout` instead.'
+                'The old option `timeout` will be removed in a future version.',
+                DeprecationWarning,
+                stacklevel=1,
+            )
+
+        if self.conn_timeout is None:
+            self.conn_timeout = self.timeout if self.timeout else TIMEOUT_DEFAULT
+
         if self.pkey and self.key_file:
             raise AirflowException(
                 "Params key_file and private_key both provided.  Must provide no more than one."
@@ -170,7 +233,7 @@ class SSHHook(BaseHook):  # pylint: disable=too-many-instance-attributes
                 self.remote_host,
                 self.ssh_conn_id,
             )
-            self.username = getpass.getuser()
+            self.username = getuser()
 
         user_ssh_config_filename = os.path.expanduser('~/.ssh/config')
         if os.path.isfile(user_ssh_config_filename):
@@ -198,26 +261,31 @@ class SSHHook(BaseHook):  # pylint: disable=too-many-instance-attributes
 
         if not self.allow_host_key_change:
             self.log.warning(
-                'Remote Identification Change is not verified. '
-                'This wont protect against Man-In-The-Middle attacks'
+                "Remote Identification Change is not verified. "
+                "This won't protect against Man-In-The-Middle attacks"
             )
             client.load_system_host_keys()
 
         if self.no_host_key_check:
-            self.log.warning('No Host Key Verification. This wont protect against Man-In-The-Middle attacks')
+            self.log.warning("No Host Key Verification. This won't protect against Man-In-The-Middle attacks")
             # Default is RejectPolicy
             client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
         else:
             if self.host_key is not None:
                 client_host_keys = client.get_host_keys()
-                client_host_keys.add(self.remote_host, 'ssh-rsa', self.host_key)
+                if self.port == SSH_PORT:
+                    client_host_keys.add(self.remote_host, self.host_key.get_name(), self.host_key)
+                else:
+                    client_host_keys.add(
+                        f"[{self.remote_host}]:{self.port}", self.host_key.get_name(), self.host_key
+                    )
             else:
                 pass  # will fallback to system host keys if none explicitly specified in conn extra
 
         connect_kwargs = dict(
             hostname=self.remote_host,
             username=self.username,
-            timeout=self.timeout,
+            timeout=self.conn_timeout,
             compress=self.compress,
             port=self.port,
             sock=self.host_proxy,
@@ -293,7 +361,7 @@ class SSHHook(BaseHook):  # pylint: disable=too-many-instance-attributes
             )
         else:
             tunnel_kwargs.update(
-                host_pkey_directories=[],
+                host_pkey_directories=None,
             )
 
         client = SSHTunnelForwarder(self.remote_host, **tunnel_kwargs)
@@ -320,3 +388,26 @@ class SSHHook(BaseHook):  # pylint: disable=too-many-instance-attributes
         )
 
         return self.get_tunnel(remote_port, remote_host, local_port)
+
+    def _pkey_from_private_key(self, private_key: str, passphrase: Optional[str] = None) -> paramiko.PKey:
+        """
+        Creates appropriate paramiko key for given private key
+
+        :param private_key: string containing private key
+        :return: ``paramiko.PKey`` appropriate for given key
+        :raises AirflowException: if key cannot be read
+        """
+        for pkey_class in self._pkey_loaders:
+            try:
+                key = pkey_class.from_private_key(StringIO(private_key), password=passphrase)
+                # Test it actually works. If Paramiko loads an openssh generated key, sometimes it will
+                # happily load it as the wrong type, only to fail when actually used.
+                key.sign_ssh_data(b'')
+                return key
+            except (paramiko.ssh_exception.SSHException, ValueError):
+                continue
+        raise AirflowException(
+            'Private key provided cannot be read by paramiko.'
+            'Ensure key provided is valid for one of the following'
+            'key formats: RSA, DSS, ECDSA, or Ed25519'
+        )

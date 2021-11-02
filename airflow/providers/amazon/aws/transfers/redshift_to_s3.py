@@ -16,30 +16,37 @@
 # specific language governing permissions and limitations
 # under the License.
 """Transfers data from AWS Redshift into a S3 Bucket."""
-from typing import List, Optional, Union
+from typing import Iterable, List, Mapping, Optional, Union
 
 from airflow.models import BaseOperator
+from airflow.providers.amazon.aws.hooks.redshift import RedshiftSQLHook
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
-from airflow.providers.postgres.hooks.postgres import PostgresHook
-from airflow.utils.decorators import apply_defaults
+from airflow.providers.amazon.aws.utils.redshift import build_credentials_block
 
 
 class RedshiftToS3Operator(BaseOperator):
     """
     Executes an UNLOAD command to s3 as a CSV with headers
 
-    :param schema: reference to a specific schema in redshift database
-    :type schema: str
-    :param table: reference to a specific table in redshift database
-    :type table: str
     :param s3_bucket: reference to a specific S3 bucket
     :type s3_bucket: str
     :param s3_key: reference to a specific S3 key. If ``table_as_file_name`` is set
         to False, this param must include the desired file name
     :type s3_key: str
+    :param schema: reference to a specific schema in redshift database
+        Applicable when ``table`` param provided.
+    :type schema: str
+    :param table: reference to a specific table in redshift database
+        Used when ``select_query`` param not provided.
+    :type table: str
+    :param select_query: custom select query to fetch data from redshift database
+    :type select_query: str
     :param redshift_conn_id: reference to a specific redshift database
     :type redshift_conn_id: str
     :param aws_conn_id: reference to a specific S3 connection
+        If the AWS connection contains 'aws_iam_role' in ``extras``
+        the operator will use AWS STS credentials with a token
+        https://docs.aws.amazon.com/redshift/latest/dg/copy-parameters-authorization.html#copy-credentials
     :type aws_conn_id: str
     :param verify: Whether or not to verify SSL certificates for S3 connection.
         By default SSL certificates are verified.
@@ -59,72 +66,93 @@ class RedshiftToS3Operator(BaseOperator):
     :type autocommit: bool
     :param include_header: If set to True the s3 file contains the header columns.
     :type include_header: bool
-    :param table_as_file_name: If set to True, the s3 file will be named as the table
+    :param parameters: (optional) the parameters to render the SQL query with.
+    :type parameters: dict or iterable
+    :param table_as_file_name: If set to True, the s3 file will be named as the table.
+        Applicable when ``table`` param provided.
     :type table_as_file_name: bool
     """
 
-    template_fields = ('s3_bucket', 's3_key', 'schema', 'table', 'unload_options')
-    template_ext = ()
+    template_fields = ('s3_bucket', 's3_key', 'schema', 'table', 'unload_options', 'select_query')
+    template_ext = ('.sql',)
+    template_fields_renderers = {'select_query': 'sql'}
     ui_color = '#ededed'
 
-    @apply_defaults
-    def __init__(  # pylint: disable=too-many-arguments
+    def __init__(
         self,
         *,
-        schema: str,
-        table: str,
         s3_bucket: str,
         s3_key: str,
+        schema: str = None,
+        table: str = None,
+        select_query: str = None,
         redshift_conn_id: str = 'redshift_default',
         aws_conn_id: str = 'aws_default',
         verify: Optional[Union[bool, str]] = None,
         unload_options: Optional[List] = None,
         autocommit: bool = False,
         include_header: bool = False,
+        parameters: Optional[Union[Mapping, Iterable]] = None,
         table_as_file_name: bool = True,  # Set to True by default for not breaking current workflows
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
+        self.s3_bucket = s3_bucket
+        self.s3_key = f'{s3_key}/{table}_' if (table and table_as_file_name) else s3_key
         self.schema = schema
         self.table = table
-        self.s3_bucket = s3_bucket
-        self.s3_key = s3_key
         self.redshift_conn_id = redshift_conn_id
         self.aws_conn_id = aws_conn_id
         self.verify = verify
         self.unload_options = unload_options or []  # type: List
         self.autocommit = autocommit
         self.include_header = include_header
+        self.parameters = parameters
         self.table_as_file_name = table_as_file_name
+
+        if select_query:
+            self.select_query = select_query
+        elif self.schema and self.table:
+            self.select_query = f"SELECT * FROM {self.schema}.{self.table}"
+        else:
+            raise ValueError(
+                'Please provide both `schema` and `table` params or `select_query` to fetch the data.'
+            )
 
         if self.include_header and 'HEADER' not in [uo.upper().strip() for uo in self.unload_options]:
             self.unload_options = list(self.unload_options) + [
                 'HEADER',
             ]
 
-    def execute(self, context) -> None:
-        postgres_hook = PostgresHook(postgres_conn_id=self.redshift_conn_id)
-        s3_hook = S3Hook(aws_conn_id=self.aws_conn_id, verify=self.verify)
-
-        credentials = s3_hook.get_credentials()
-        unload_options = '\n\t\t\t'.join(self.unload_options)
-        s3_key = f'{self.s3_key}/{self.table}_' if self.table_as_file_name else self.s3_key
-        select_query = f"SELECT * FROM {self.schema}.{self.table}"
-        unload_query = """
+    def _build_unload_query(
+        self, credentials_block: str, select_query: str, s3_key: str, unload_options: str
+    ) -> str:
+        return f"""
                     UNLOAD ('{select_query}')
-                    TO 's3://{s3_bucket}/{s3_key}'
-                    with credentials
-                    'aws_access_key_id={access_key};aws_secret_access_key={secret_key}'
+                    TO 's3://{self.s3_bucket}/{s3_key}'
+                    credentials
+                    '{credentials_block}'
                     {unload_options};
-                    """.format(
-            select_query=select_query,
-            s3_bucket=self.s3_bucket,
-            s3_key=s3_key,
-            access_key=credentials.access_key,
-            secret_key=credentials.secret_key,
-            unload_options=unload_options,
+        """
+
+    def execute(self, context) -> None:
+        redshift_hook = RedshiftSQLHook(redshift_conn_id=self.redshift_conn_id)
+        conn = S3Hook.get_connection(conn_id=self.aws_conn_id)
+
+        credentials_block = None
+        if conn.extra_dejson.get('role_arn', False):
+            credentials_block = f"aws_iam_role={conn.extra_dejson['role_arn']}"
+        else:
+            s3_hook = S3Hook(aws_conn_id=self.aws_conn_id, verify=self.verify)
+            credentials = s3_hook.get_credentials()
+            credentials_block = build_credentials_block(credentials)
+
+        unload_options = '\n\t\t\t'.join(self.unload_options)
+
+        unload_query = self._build_unload_query(
+            credentials_block, self.select_query, self.s3_key, unload_options
         )
 
         self.log.info('Executing UNLOAD command...')
-        postgres_hook.run(unload_query, self.autocommit)
+        redshift_hook.run(unload_query, self.autocommit, parameters=self.parameters)
         self.log.info("UNLOAD command complete...")

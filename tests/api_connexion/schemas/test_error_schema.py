@@ -21,7 +21,7 @@ from airflow.api_connexion.schemas.error_schema import (
     import_error_collection_schema,
     import_error_schema,
 )
-from airflow.models.errors import ImportError  # pylint: disable=redefined-builtin
+from airflow.models.errors import ImportError
 from airflow.utils import timezone
 from airflow.utils.session import provide_session
 from tests.test_utils.db import clear_db_import_errors
@@ -48,15 +48,12 @@ class TestErrorSchema(TestErrorSchemaBase):
         session.commit()
         serialized_data = import_error_schema.dump(import_error)
         serialized_data["import_error_id"] = 1
-        self.assertEqual(
-            {
-                "filename": "lorem.py",
-                "import_error_id": 1,
-                "stack_trace": "Lorem Ipsum",
-                "timestamp": "2020-06-10T12:02:44+00:00",
-            },
-            serialized_data,
-        )
+        assert {
+            "filename": "lorem.py",
+            "import_error_id": 1,
+            "stack_trace": "Lorem Ipsum",
+            "timestamp": "2020-06-10T12:02:44+00:00",
+        } == serialized_data
 
 
 class TestErrorCollectionSchema(TestErrorSchemaBase):
@@ -80,23 +77,20 @@ class TestErrorCollectionSchema(TestErrorSchemaBase):
         # To maintain consistency in the key sequence across the db in tests
         serialized_data["import_errors"][0]["import_error_id"] = 1
         serialized_data["import_errors"][1]["import_error_id"] = 2
-        self.assertEqual(
-            {
-                "import_errors": [
-                    {
-                        "filename": "Lorem_ipsum.py",
-                        "import_error_id": 1,
-                        "stack_trace": "Lorem ipsum",
-                        "timestamp": "2020-06-10T12:02:44+00:00",
-                    },
-                    {
-                        "filename": "Lorem_ipsum.py",
-                        "import_error_id": 2,
-                        "stack_trace": "Lorem ipsum",
-                        "timestamp": "2020-06-10T12:02:44+00:00",
-                    },
-                ],
-                "total_entries": 2,
-            },
-            serialized_data,
-        )
+        assert {
+            "import_errors": [
+                {
+                    "filename": "Lorem_ipsum.py",
+                    "import_error_id": 1,
+                    "stack_trace": "Lorem ipsum",
+                    "timestamp": "2020-06-10T12:02:44+00:00",
+                },
+                {
+                    "filename": "Lorem_ipsum.py",
+                    "import_error_id": 2,
+                    "stack_trace": "Lorem ipsum",
+                    "timestamp": "2020-06-10T12:02:44+00:00",
+                },
+            ],
+            "total_entries": 2,
+        } == serialized_data

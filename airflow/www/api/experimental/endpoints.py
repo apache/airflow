@@ -37,7 +37,7 @@ from airflow.version import version
 
 log = logging.getLogger(__name__)
 
-T = TypeVar("T", bound=Callable)  # pylint: disable=invalid-name
+T = TypeVar("T", bound=Callable)
 
 
 def requires_authentication(function: T):
@@ -59,7 +59,7 @@ def add_deprecation_headers(response: Response):
     <https://tools.ietf.org/id/draft-dalal-deprecation-header-03.html>`__.
     """
     response.headers['Deprecation'] = 'true'
-    doc_url = get_docs_url("stable-rest-api/migration.html")
+    doc_url = get_docs_url("upgrading-to-2.html#migration-guide-from-experimental-api-to-stable-api-v1")
     deprecation_link = f'<{doc_url}>; rel="deprecation"; type="text/html"'
     if 'link' in response.headers:
         response.headers['Link'] += f', {deprecation_link}'
@@ -88,6 +88,12 @@ def trigger_dag(dag_id):
     conf = None
     if 'conf' in data:
         conf = data['conf']
+        if not isinstance(conf, dict):
+            error_message = 'Dag Run conf must be a dictionary object, other types are not supported'
+            log.error(error_message)
+            response = jsonify({'error': error_message})
+            response.status_code = 400
+            return response
 
     execution_date = None
     if 'execution_date' in data and data['execution_date'] is not None:
@@ -98,8 +104,8 @@ def trigger_dag(dag_id):
             execution_date = timezone.parse(execution_date)
         except ValueError:
             error_message = (
-                'Given execution date, {}, could not be identified '
-                'as a date. Example date format: 2015-11-16T14:34:15+00:00'.format(execution_date)
+                f'Given execution date, {execution_date}, could not be identified as a date. '
+                f'Example date format: 2015-11-16T14:34:15+00:00'
             )
             log.error(error_message)
             response = jsonify({'error': error_message})
@@ -248,8 +254,8 @@ def task_instance_info(dag_id, execution_date, task_id):
         execution_date = timezone.parse(execution_date)
     except ValueError:
         error_message = (
-            'Given execution date, {}, could not be identified '
-            'as a date. Example date format: 2015-11-16T14:34:15+00:00'.format(execution_date)
+            f'Given execution date, {execution_date}, could not be identified as a date. '
+            f'Example date format: 2015-11-16T14:34:15+00:00'
         )
         log.error(error_message)
         response = jsonify({'error': error_message})
@@ -284,8 +290,8 @@ def dag_run_status(dag_id, execution_date):
         execution_date = timezone.parse(execution_date)
     except ValueError:
         error_message = (
-            'Given execution date, {}, could not be identified '
-            'as a date. Example date format: 2015-11-16T14:34:15+00:00'.format(execution_date)
+            f'Given execution date, {execution_date}, could not be identified as a date. '
+            f'Example date format: 2015-11-16T14:34:15+00:00'
         )
         log.error(error_message)
         response = jsonify({'error': error_message})
@@ -389,6 +395,7 @@ def delete_pool(name):
 
 
 @api_experimental.route('/lineage/<string:dag_id>/<string:execution_date>', methods=['GET'])
+@requires_authentication
 def get_lineage(dag_id: str, execution_date: str):
     """Get Lineage details for a DagRun"""
     # Convert string datetime into actual datetime
@@ -396,8 +403,8 @@ def get_lineage(dag_id: str, execution_date: str):
         execution_dt = timezone.parse(execution_date)
     except ValueError:
         error_message = (
-            'Given execution date, {}, could not be identified '
-            'as a date. Example date format: 2015-11-16T14:34:15+00:00'.format(execution_date)
+            f'Given execution date, {execution_date}, could not be identified as a date. '
+            f'Example date format: 2015-11-16T14:34:15+00:00'
         )
         log.error(error_message)
         response = jsonify({'error': error_message})

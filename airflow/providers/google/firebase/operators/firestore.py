@@ -20,7 +20,6 @@ from typing import Dict, Optional, Sequence, Union
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.google.firebase.hooks.firestore import CloudFirestoreHook
-from airflow.utils.decorators import apply_defaults
 
 
 class CloudFirestoreExportDatabaseOperator(BaseOperator):
@@ -63,7 +62,6 @@ class CloudFirestoreExportDatabaseOperator(BaseOperator):
         "impersonation_chain",
     )
 
-    @apply_defaults
     def __init__(
         self,
         *,

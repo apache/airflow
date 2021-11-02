@@ -64,23 +64,31 @@ DEFAULT_LOGGING_CONFIG: Dict[str, Any] = {
             'class': COLORED_FORMATTER_CLASS if COLORED_LOG else 'logging.Formatter',
         },
     },
+    'filters': {
+        'mask_secrets': {
+            '()': 'airflow.utils.log.secrets_masker.SecretsMasker',
+        },
+    },
     'handlers': {
         'console': {
             'class': 'airflow.utils.log.logging_mixin.RedirectStdHandler',
             'formatter': 'airflow_coloured',
             'stream': 'sys.stdout',
+            'filters': ['mask_secrets'],
         },
         'task': {
             'class': 'airflow.utils.log.file_task_handler.FileTaskHandler',
             'formatter': 'airflow',
             'base_log_folder': os.path.expanduser(BASE_LOG_FOLDER),
             'filename_template': FILENAME_TEMPLATE,
+            'filters': ['mask_secrets'],
         },
         'processor': {
             'class': 'airflow.utils.log.file_processor_handler.FileProcessorHandler',
             'formatter': 'airflow',
             'base_log_folder': os.path.expanduser(PROCESSOR_LOG_FOLDER),
             'filename_template': PROCESSOR_FILENAME_TEMPLATE,
+            'filters': ['mask_secrets'],
         },
     },
     'loggers': {
@@ -93,9 +101,10 @@ DEFAULT_LOGGING_CONFIG: Dict[str, Any] = {
             'handlers': ['task'],
             'level': LOG_LEVEL,
             'propagate': False,
+            'filters': ['mask_secrets'],
         },
         'flask_appbuilder': {
-            'handler': ['console'],
+            'handlers': ['console'],
             'level': FAB_LOG_LEVEL,
             'propagate': True,
         },
@@ -103,6 +112,7 @@ DEFAULT_LOGGING_CONFIG: Dict[str, Any] = {
     'root': {
         'handlers': ['console'],
         'level': LOG_LEVEL,
+        'filters': ['mask_secrets'],
     },
 }
 
@@ -110,7 +120,7 @@ EXTRA_LOGGER_NAMES: str = conf.get('logging', 'EXTRA_LOGGER_NAMES', fallback=Non
 if EXTRA_LOGGER_NAMES:
     new_loggers = {
         logger_name.strip(): {
-            'handler': ['console'],
+            'handlers': ['console'],
             'level': LOG_LEVEL,
             'propagate': True,
         }
@@ -244,6 +254,8 @@ if REMOTE_LOGGING:
         ELASTICSEARCH_WRITE_STDOUT: bool = conf.getboolean('elasticsearch', 'WRITE_STDOUT')
         ELASTICSEARCH_JSON_FORMAT: bool = conf.getboolean('elasticsearch', 'JSON_FORMAT')
         ELASTICSEARCH_JSON_FIELDS: str = conf.get('elasticsearch', 'JSON_FIELDS')
+        ELASTICSEARCH_HOST_FIELD: str = conf.get('elasticsearch', 'HOST_FIELD')
+        ELASTICSEARCH_OFFSET_FIELD: str = conf.get('elasticsearch', 'OFFSET_FIELD')
 
         ELASTIC_REMOTE_HANDLERS: Dict[str, Dict[str, Union[str, bool]]] = {
             'task': {
@@ -258,6 +270,8 @@ if REMOTE_LOGGING:
                 'write_stdout': ELASTICSEARCH_WRITE_STDOUT,
                 'json_format': ELASTICSEARCH_JSON_FORMAT,
                 'json_fields': ELASTICSEARCH_JSON_FIELDS,
+                'host_field': ELASTICSEARCH_HOST_FIELD,
+                'offset_field': ELASTICSEARCH_OFFSET_FIELD,
             },
         }
 
@@ -266,5 +280,5 @@ if REMOTE_LOGGING:
         raise AirflowException(
             "Incorrect remote log configuration. Please check the configuration of option 'host' in "
             "section 'elasticsearch' if you are using Elasticsearch. In the other case, "
-            "'remote_base_log_folder' option in 'core' section."
+            "'remote_base_log_folder' option in the 'logging' section."
         )

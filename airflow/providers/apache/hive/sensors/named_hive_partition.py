@@ -18,7 +18,6 @@
 from typing import Any, Dict, List, Tuple
 
 from airflow.sensors.base import BaseSensorOperator
-from airflow.utils.decorators import apply_defaults
 
 
 class NamedHivePartitionSensor(BaseSensorOperator):
@@ -33,8 +32,8 @@ class NamedHivePartitionSensor(BaseSensorOperator):
         you cannot use logical or comparison operators as in
         HivePartitionSensor.
     :type partition_names: list[str]
-    :param metastore_conn_id: reference to the metastore thrift service
-        connection id
+    :param metastore_conn_id: Reference to the
+        :ref:`metastore thrift service connection id <howto/connection:hive_metastore>`.
     :type metastore_conn_id: str
     """
 
@@ -42,7 +41,6 @@ class NamedHivePartitionSensor(BaseSensorOperator):
     ui_color = '#8d99ae'
     poke_context_fields = ('partition_names', 'metastore_conn_id')
 
-    @apply_defaults
     def __init__(
         self,
         *,

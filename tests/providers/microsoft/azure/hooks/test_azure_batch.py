@@ -49,17 +49,7 @@ class TestAzureBatchHook(unittest.TestCase):
             Connection(
                 conn_id=self.test_vm_conn_id,
                 conn_type="azure_batch",
-                extra=json.dumps(
-                    {
-                        "account_name": self.test_account_name,
-                        "account_key": self.test_account_key,
-                        "account_url": self.test_account_url,
-                        "vm_publisher": self.test_vm_publisher,
-                        "vm_offer": self.test_vm_offer,
-                        "vm_sku": self.test_vm_sku,
-                        "node_agent_sku_id": self.test_node_agent_sku,
-                    }
-                ),
+                extra=json.dumps({"extra__azure_batch__account_url": self.test_account_url}),
             )
         )
         # connect with cloud service
@@ -67,23 +57,14 @@ class TestAzureBatchHook(unittest.TestCase):
             Connection(
                 conn_id=self.test_cloud_conn_id,
                 conn_type="azure_batch",
-                extra=json.dumps(
-                    {
-                        "account_name": self.test_account_name,
-                        "account_key": self.test_account_key,
-                        "account_url": self.test_account_url,
-                        "os_family": self.test_cloud_os_family,
-                        "os_version": self.test_cloud_os_version,
-                        "node_agent_sku_id": self.test_node_agent_sku,
-                    }
-                ),
+                extra=json.dumps({"extra__azure_batch__account_url": self.test_account_url}),
             )
         )
 
     def test_connection_and_client(self):
         hook = AzureBatchHook(azure_batch_conn_id=self.test_vm_conn_id)
-        self.assertIsInstance(hook._connection(), Connection)
-        self.assertIsInstance(hook.get_conn(), BatchServiceClient)
+        assert isinstance(hook._connection(), Connection)
+        assert isinstance(hook.get_conn(), BatchServiceClient)
 
     def test_configure_pool_with_vm_config(self):
         hook = AzureBatchHook(azure_batch_conn_id=self.test_vm_conn_id)
@@ -95,7 +76,7 @@ class TestAzureBatchHook(unittest.TestCase):
             vm_offer="test.vm.offer",
             sku_starts_with="test-sku",
         )
-        self.assertIsInstance(pool, batch_models.PoolAddParameter)
+        assert isinstance(pool, batch_models.PoolAddParameter)
 
     def test_configure_pool_with_cloud_config(self):
         hook = AzureBatchHook(azure_batch_conn_id=self.test_cloud_conn_id)
@@ -107,7 +88,7 @@ class TestAzureBatchHook(unittest.TestCase):
             vm_offer="test.vm.offer",
             sku_starts_with="test-sku",
         )
-        self.assertIsInstance(pool, batch_models.PoolAddParameter)
+        assert isinstance(pool, batch_models.PoolAddParameter)
 
     def test_configure_pool_with_latest_vm(self):
         with mock.patch(
@@ -125,7 +106,7 @@ class TestAzureBatchHook(unittest.TestCase):
                 vm_offer="test.vm.offer",
                 sku_starts_with="test-sku",
             )
-            self.assertIsInstance(pool, batch_models.PoolAddParameter)
+            assert isinstance(pool, batch_models.PoolAddParameter)
 
     @mock.patch("airflow.providers.microsoft.azure.hooks.azure_batch.BatchServiceClient")
     def test_create_pool_with_vm_config(self, mock_batch):
@@ -168,7 +149,7 @@ class TestAzureBatchHook(unittest.TestCase):
         mock_instance = mock_batch.return_value.job.add
         job = hook.configure_job(job_id='myjob', pool_id='mypool')
         hook.create_job(job)
-        self.assertIsInstance(job, batch_models.JobAddParameter)
+        assert isinstance(job, batch_models.JobAddParameter)
         mock_instance.assert_called_once_with(job)
 
     @mock.patch('airflow.providers.microsoft.azure.hooks.azure_batch.BatchServiceClient')
@@ -177,7 +158,7 @@ class TestAzureBatchHook(unittest.TestCase):
         mock_instance = mock_batch.return_value.task.add
         task = hook.configure_task(task_id="mytask", command_line="echo hello")
         hook.add_single_task_to_job(job_id='myjob', task=task)
-        self.assertIsInstance(task, batch_models.TaskAddParameter)
+        assert isinstance(task, batch_models.TaskAddParameter)
         mock_instance.assert_called_once_with(job_id="myjob", task=task)
 
     @mock.patch('airflow.providers.microsoft.azure.hooks.azure_batch.BatchServiceClient')

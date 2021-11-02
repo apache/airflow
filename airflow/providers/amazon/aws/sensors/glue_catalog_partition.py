@@ -19,7 +19,6 @@ from typing import Optional
 
 from airflow.providers.amazon.aws.hooks.glue_catalog import AwsGlueCatalogHook
 from airflow.sensors.base import BaseSensorOperator
-from airflow.utils.decorators import apply_defaults
 
 
 class AwsGlueCatalogPartitionSensor(BaseSensorOperator):
@@ -56,7 +55,6 @@ class AwsGlueCatalogPartitionSensor(BaseSensorOperator):
     )
     ui_color = '#C5CAE9'
 
-    @apply_defaults
     def __init__(
         self,
         *,

@@ -22,7 +22,6 @@ from typing import Any, List, Optional, Sequence, Union
 from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.gcs import GCSHook
 from airflow.providers.google.suite.hooks.sheets import GSheetsHook
-from airflow.utils.decorators import apply_defaults
 
 
 class GoogleSheetsToGCSOperator(BaseOperator):
@@ -40,7 +39,7 @@ class GoogleSheetsToGCSOperator(BaseOperator):
     :type sheet_filter: List[str]
     :param destination_bucket: The destination Google cloud storage bucket where the
         report should be written to. (templated)
-    :param destination_bucket: str
+    :type destination_bucket: str
     :param destination_path: The Google cloud storage URI array for the object created by the operator.
         For example: ``path/to/my/files``.
     :type destination_path: str
@@ -69,7 +68,6 @@ class GoogleSheetsToGCSOperator(BaseOperator):
         "impersonation_chain",
     ]
 
-    @apply_defaults
     def __init__(
         self,
         *,

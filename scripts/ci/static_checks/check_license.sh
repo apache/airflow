@@ -31,10 +31,10 @@ function run_check_license() {
 
     echo "Running license checks. This can take a while."
     # We mount ALL airflow files for the licence check. We want to check them all!
-    if ! docker run -v "${AIRFLOW_SOURCES}:/opt/airflow" -t \
+    if ! docker_v run -v "${AIRFLOW_SOURCES}:/opt/airflow" -t \
             --user "$(id -ur):$(id -gr)" \
             --rm --env-file "${AIRFLOW_SOURCES}/scripts/ci/docker-compose/_docker.env" \
-            apache/airflow:apache-rat-2020.07.10-0.13 \
+            ghcr.io/apache/airflow-apache-rat:0.13-2021.07.04 \
             --exclude-file /opt/airflow/.rat-excludes \
             --d /opt/airflow | tee "${AIRFLOW_SOURCES}/logs/rat-results.txt" ; then
         echo

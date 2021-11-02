@@ -17,7 +17,7 @@
 
 import os
 from contextlib import contextmanager
-from typing import List
+from typing import List, Optional
 
 import pytest
 
@@ -29,10 +29,11 @@ from tests.test_utils.logging_command_executor import get_executor
 from tests.test_utils.system_tests_class import SystemTest
 
 AWS_DAG_FOLDER = os.path.join(AIRFLOW_MAIN_FOLDER, "airflow", "providers", "amazon", "aws", "example_dags")
+AWS_EKS_KEY = "aws_eks.json"
 
 
 @contextmanager
-def provide_aws_context():
+def provide_aws_context(key_file_path: Optional[str] = None):
     """
     Authenticates the context to be able use aws resources.
 

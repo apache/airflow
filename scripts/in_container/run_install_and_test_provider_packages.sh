@@ -24,7 +24,7 @@ function verify_parameters(){
     echo "Testing if all classes in import packages can be imported"
     echo
 
-    if [[ ${INSTALL_AIRFLOW_VERSION=""} == "" ]]; then
+    if [[ -z "${USE_AIRFLOW_VERSION=""}" ]]; then
         echo
         echo "${COLOR_RED}ERROR: You have to specify airflow version to install.${COLOR_RESET}"
         echo
@@ -46,19 +46,19 @@ function verify_parameters(){
 
 function install_airflow_as_specified() {
     group_start "Install Airflow as specified"
-    if [[ ${INSTALL_AIRFLOW_VERSION} == "none"  ]]; then
+    if [[ ${USE_AIRFLOW_VERSION} == "none"  ]]; then
         echo
         echo "Skip installing airflow - only install wheel packages that are present locally"
         echo
         uninstall_airflow_and_providers
-    elif [[ ${INSTALL_AIRFLOW_VERSION} == "wheel"  ]]; then
+    elif [[ ${USE_AIRFLOW_VERSION} == "wheel"  ]]; then
         echo
         echo "Install airflow from wheel including [${AIRFLOW_EXTRAS}] extras"
         echo
         uninstall_airflow_and_providers
         install_airflow_from_wheel "[${AIRFLOW_EXTRAS}]"
         uninstall_providers
-    elif [[ ${INSTALL_AIRFLOW_VERSION} == "sdist"  ]]; then
+    elif [[ ${USE_AIRFLOW_VERSION} == "sdist"  ]]; then
         echo
         echo "Install airflow from sdist including [${AIRFLOW_EXTRAS}] extras"
         echo
@@ -67,17 +67,11 @@ function install_airflow_as_specified() {
         uninstall_providers
     else
         echo
-        echo "Install airflow from PyPI including [${AIRFLOW_EXTRAS}] extras"
+        echo "Install airflow from PyPI without extras"
         echo
-        install_released_airflow_version "${INSTALL_AIRFLOW_VERSION}" "[${AIRFLOW_EXTRAS}]"
+        install_released_airflow_version "${USE_AIRFLOW_VERSION}"
         uninstall_providers
     fi
-    group_end
-}
-
-function install_deps() {
-    group_start "Installs all remaining dependencies that are not installed by '${AIRFLOW_EXTRAS}' "
-    install_remaining_dependencies
     group_end
 }
 
@@ -101,16 +95,12 @@ function discover_all_provider_packages() {
     # Columns is to force it wider, so it doesn't wrap at 80 characters
     COLUMNS=180 airflow providers list
 
-    local expected_number_of_providers=61
     local actual_number_of_providers
     actual_providers=$(airflow providers list --output yaml | grep package_name)
     actual_number_of_providers=$(wc -l <<<"$actual_providers")
-    if [[ ${actual_number_of_providers} != "${expected_number_of_providers}" ]]; then
+    if (( actual_number_of_providers < 67 )); then
         echo
-        echo  "${COLOR_RED}ERROR:Number of providers installed is wrong${COLOR_RESET}"
-        echo "Expected number was '${expected_number_of_providers}' and got '${actual_number_of_providers}'"
-        echo
-        echo "Either increase the number of providers if you added one or diagnose and fix the problem."
+        echo  "${COLOR_RED}ERROR:Number of providers installed is wrong: ${actual_number_of_providers}${COLOR_RESET}"
         echo
         echo "Providers were:"
         echo
@@ -123,16 +113,11 @@ function discover_all_provider_packages() {
 function discover_all_hooks() {
     group_start "Listing available hooks via 'airflow providers hooks'"
     COLUMNS=180 airflow providers hooks
-
-    local expected_number_of_hooks=59
     local actual_number_of_hooks
     actual_number_of_hooks=$(airflow providers hooks --output table | grep -c "| apache" | xargs)
-    if [[ ${actual_number_of_hooks} != "${expected_number_of_hooks}" ]]; then
+    if (( actual_number_of_hooks < 70 )); then
         echo
-        echo  "${COLOR_RED}ERROR: Number of hooks registered is wrong  ${COLOR_RESET}"
-        echo "Expected number was '${expected_number_of_hooks}' and got '${actual_number_of_hooks}'"
-        echo
-        echo "Either increase the number of hooks if you added one or diagnose and fix the problem."
+        echo  "${COLOR_RED}ERROR: Number of hooks registered is wrong: ${actual_number_of_hooks} ${COLOR_RESET}"
         echo
         exit 1
     fi
@@ -143,15 +128,11 @@ function discover_all_extra_links() {
     group_start "Listing available extra links via 'airflow providers links'"
     COLUMNS=180 airflow providers links
 
-    local expected_number_of_extra_links=4
     local actual_number_of_extra_links
     actual_number_of_extra_links=$(airflow providers links --output table | grep -c ^airflow.providers | xargs)
-    if [[ ${actual_number_of_extra_links} != "${expected_number_of_extra_links}" ]]; then
+    if (( actual_number_of_extra_links < 7 )); then
         echo
-        echo  "${COLOR_RED}ERROR: Number of links registered is wrong  ${COLOR_RESET}"
-        echo "Expected number was '${expected_number_of_extra_links}' and got '${actual_number_of_extra_links}'"
-        echo
-        echo "Either increase the number of links if you added one or diagnose and fix the problem."
+        echo  "${COLOR_RED}ERROR: Number of links registered is wrong: ${actual_number_of_extra_links}  ${COLOR_RESET}"
         echo
         exit 1
     fi
@@ -163,15 +144,11 @@ function discover_all_connection_form_widgets() {
 
     COLUMNS=180 airflow providers widgets
 
-    local expected_number_of_widgets=19
     local actual_number_of_widgets
     actual_number_of_widgets=$(airflow providers widgets --output table | grep -c ^extra)
-    if [[ ${actual_number_of_widgets} != "${expected_number_of_widgets}" ]]; then
+    if (( actual_number_of_widgets < 44 )); then
         echo
-        echo  "${COLOR_RED}ERROR: Number of connections with widgets registered is wrong  ${COLOR_RESET}"
-        echo "Expected number was '${expected_number_of_widgets}' and got '${actual_number_of_widgets}'"
-        echo
-        echo "Increase the number of connections with widgets if you added one or investigate"
+        echo  "${COLOR_RED}ERROR: Number of connections with widgets registered is wrong: ${actual_number_of_widgets}  ${COLOR_RESET}"
         echo
         exit 1
     fi
@@ -182,34 +159,87 @@ function discover_all_field_behaviours() {
     group_start "Listing connections with custom behaviours via 'airflow providers behaviours'"
     COLUMNS=180 airflow providers behaviours
 
-    local expected_number_of_connections_with_behaviours=11
     local actual_number_of_connections_with_behaviours
     actual_number_of_connections_with_behaviours=$(airflow providers behaviours --output table | grep -v "===" | \
         grep -v field_behaviours | grep -cv "^ " | xargs)
-    if [[ ${actual_number_of_connections_with_behaviours} != \
-            "${expected_number_of_connections_with_behaviours}" ]]; then
+    if (( actual_number_of_connections_with_behaviours < 21 )); then
         echo
-        echo  "${COLOR_RED}ERROR: Number of connections with customized behaviours is wrong  ${COLOR_RESET}"
-        echo "Expected number was '${expected_number_of_connections_with_behaviours}' and got '${actual_number_of_connections_with_behaviours}'"
-        echo
-        echo "Increase the number of connections if you added one or investigate."
+        echo  "${COLOR_RED}ERROR: Number of connections with customized behaviours is wrong: ${actual_number_of_connections_with_behaviours} ${COLOR_RESET}"
         echo
         exit 1
     fi
     group_end
 }
 
+function discover_all_logging_handlers() {
+    group_start "Listing available logging handlers via 'airflow providers logging'"
+    COLUMNS=180 airflow providers logging
+
+    local actual_number_of_logging
+    actual_number_of_logging=$(airflow providers logging --output table | grep -c ^airflow.providers | xargs)
+    if (( actual_number_of_logging < 6 )); then
+        echo
+        echo  "${COLOR_RED}ERROR: Number of logging handlers registered is wrong: ${actual_number_of_logging}  ${COLOR_RESET}"
+        echo
+        exit 1
+    fi
+    group_end
+}
+
+function discover_all_secrets_backends() {
+    group_start "Listing available secrets backends via 'airflow providers secrets'"
+    COLUMNS=180 airflow providers secrets
+
+    local actual_number_of_secrets
+    actual_number_of_secrets=$(airflow providers logging --output table | grep -c ^airflow.providers | xargs)
+    if (( actual_number_of_secrets < 5 )); then
+        echo
+        echo  "${COLOR_RED}ERROR: Number of secrets backends registered is wrong: ${actual_number_of_secrets}  ${COLOR_RESET}"
+        echo
+        exit 1
+    fi
+    group_end
+}
+
+function discover_all_auth_backends() {
+    group_start "Listing available API auth backends via 'airflow providers auth'"
+    COLUMNS=180 airflow providers auth
+
+    local actual_number_of_auth
+    actual_number_of_auth=$(airflow providers logging --output table | grep -c ^airflow.providers | xargs)
+    if (( actual_number_of_auth < 1 )); then
+        echo
+        echo  "${COLOR_RED}ERROR: Number of auth backends registered is wrong: ${actual_number_of_auth}  ${COLOR_RESET}"
+        echo
+        exit 1
+    fi
+    group_end
+}
+
+function ver() {
+  # convert SemVer number to comparable string (strips pre-release version)
+  # shellcheck disable=SC2086,SC2183
+  printf "%04d%04d%04d%.0s" ${1//[.-]/ }
+}
+
 setup_provider_packages
 verify_parameters
 install_airflow_as_specified
-install_deps
 install_provider_packages
 import_all_provider_classes
 
-if [[ ${BACKPORT_PACKAGES} != "true" ]]; then
-    discover_all_provider_packages
-    discover_all_hooks
-    discover_all_connection_form_widgets
-    discover_all_field_behaviours
-    discover_all_extra_links
+discover_all_provider_packages
+discover_all_hooks
+discover_all_connection_form_widgets
+discover_all_field_behaviours
+discover_all_extra_links
+
+# The commands below are available only for airflow version 2.2.0+
+airflow_version=$(airflow version)
+airflow_version_comparable=$(ver "${airflow_version}")
+min_airflow_version_comparable=$(ver "2.2.0")
+if (( airflow_version_comparable >= min_airflow_version_comparable )); then
+    discover_all_logging_handlers
+    discover_all_secrets_backends
+    discover_all_auth_backends
 fi

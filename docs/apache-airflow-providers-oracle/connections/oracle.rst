@@ -17,28 +17,25 @@
 
 
 
+.. _howto/connection:oracle:
+
 Oracle Connection
 =================
 The Oracle connection type provides connection to a Oracle database.
 
 Configuring the Connection
 --------------------------
-Dsn (required)
-    The Data Source Name. The host address for the Oracle server.
 
-Sid (optional)
-    The Oracle System ID. The uniquely identify a particular database on a system.
+Host (optional)
+    The host to connect to.
 
-Service_name (optional)
-    The db_unique_name of the database.
+Schema (optional)
+    Specify the schema name to be used in the database.
 
-Port (optional)
-    The port for the Oracle server, Default ``1521``.
-
-Login (required)
+Login (optional)
     Specify the user name to connect.
 
-Password (required)
+Password (optional)
     Specify the password to connect.
 
 Extra (optional)
@@ -59,9 +56,37 @@ Extra (optional)
       which are defined at the module level, Default mode is connecting.
     * ``purity`` - one of ``new``, ``self``, ``default``. Specify the session acquired from the pool.
       configuration parameter.
+    * ``dsn``. Specify a Data Source Name (and ignore Host).
+    * ``sid`` or ``service_name``. Use to form DSN instead of Schema.
 
-    More details on all Oracle connect parameters supported can be found in
-    `cx_Oracle documentation <https://cx-oracle.readthedocs.io/en/latest/module.html#cx_Oracle.connect>`_.
+    Connect using `dsn`, Host and `sid`, Host and `service_name`, or only Host `(OracleHook.getconn Documentation) <https://airflow.apache.org/docs/apache-airflow-providers-oracle/stable/_modules/airflow/providers/oracle/hooks/oracle.html#OracleHook.get_conn>`_.
+
+    For example:
+
+    .. code-block:: python
+
+        Host = "(DESCRIPTION=(ADDRESS=(PROTOCOL=TCP)(HOST=dbhost.example.com)(PORT=1521))(CONNECT_DATA=(SERVICE_NAME=orclpdb1)))"
+
+    or
+
+    .. code-block:: python
+
+        Host = "dbhost.example.com"
+        Schema = "orclpdb1"
+
+    or
+
+    .. code-block:: python
+
+        Host = "dbhost.example.com"
+        Schema = "orcl"
+
+
+    More details on all Oracle connect parameters supported can be found in `cx_Oracle documentation
+    <https://cx-oracle.readthedocs.io/en/latest/api_manual/module.html#cx_Oracle.connect>`_.
+
+    Information on creating an Oracle Connection through the web user interface can be found in Airflow's :doc:`Managing Connections Documentation <apache-airflow:howto/connection>`.
+
 
     Example "extras" field:
 

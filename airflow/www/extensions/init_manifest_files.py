@@ -39,7 +39,7 @@ def configure_manifest_files(app):
 
                 for source, target in manifest.copy().items():
                     manifest[source] = os.path.join("dist", target)
-        except Exception:  # noqa pylint: disable=broad-except
+        except Exception:
             print("Please make sure to build the frontend in static/ directory and restart the server")
 
     def get_asset_url(filename):
@@ -50,7 +50,7 @@ def configure_manifest_files(app):
     parse_manifest_json()
 
     @app.context_processor
-    def get_url_for_asset():  # pylint: disable=unused-variable
+    def get_url_for_asset():
         """
         Template tag to return the asset URL.
         WebPack renders the assets after minification and modification

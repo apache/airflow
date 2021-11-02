@@ -16,66 +16,29 @@
 # specific language governing permissions and limitations
 # under the License.
 
-import unittest
 from unittest import mock
 
+import pytest
+
 from airflow.providers.snowflake.transfers.s3_to_snowflake import S3ToSnowflakeOperator
-from tests.test_utils.asserts import assert_equal_ignore_multiple_spaces
 
 
-class TestS3ToSnowflakeTransfer(unittest.TestCase):
+class TestS3ToSnowflakeTransfer:
+    @pytest.mark.parametrize("columns_array", [None, ['col1', 'col2', 'col3']])
+    @pytest.mark.parametrize("s3_keys", [None, ['1.csv', '2.csv']])
+    @pytest.mark.parametrize("prefix", [None, 'prefix'])
+    @pytest.mark.parametrize("schema", [None, 'schema'])
     @mock.patch("airflow.providers.snowflake.hooks.snowflake.SnowflakeHook.run")
-    def test_execute(self, mock_run):
-        s3_keys = ['1.csv', '2.csv']
+    def test_execute(self, mock_run, schema, prefix, s3_keys, columns_array):
         table = 'table'
         stage = 'stage'
         file_format = 'file_format'
-        schema = 'schema'
 
         S3ToSnowflakeOperator(
             s3_keys=s3_keys,
             table=table,
             stage=stage,
-            file_format=file_format,
-            schema=schema,
-            columns_array=None,
-            task_id="task_id",
-            dag=None,
-        ).execute(None)
-
-        files = str(s3_keys)
-        files = files.replace('[', '(')
-        files = files.replace(']', ')')
-        base_sql = """
-                FROM @{stage}/
-                files={files}
-                file_format={file_format}
-            """.format(
-            stage=stage, files=files, file_format=file_format
-        )
-
-        copy_query = """
-                COPY INTO {schema}.{table} {base_sql}
-            """.format(
-            schema=schema, table=table, base_sql=base_sql
-        )
-
-        assert mock_run.call_count == 1
-        assert_equal_ignore_multiple_spaces(self, mock_run.call_args[0][0], copy_query)
-
-    @mock.patch("airflow.providers.snowflake.hooks.snowflake.SnowflakeHook.run")
-    def test_execute_with_columns(self, mock_run):
-        s3_keys = ['1.csv', '2.csv']
-        table = 'table'
-        stage = 'stage'
-        file_format = 'file_format'
-        schema = 'schema'
-        columns_array = ['col1', 'col2', 'col3']
-
-        S3ToSnowflakeOperator(
-            s3_keys=s3_keys,
-            table=table,
-            stage=stage,
+            prefix=prefix,
             file_format=file_format,
             schema=schema,
             columns_array=columns_array,
@@ -83,22 +46,21 @@ class TestS3ToSnowflakeTransfer(unittest.TestCase):
             dag=None,
         ).execute(None)
 
-        files = str(s3_keys)
-        files = files.replace('[', '(')
-        files = files.replace(']', ')')
-        base_sql = """
-                FROM @{stage}/
-                files={files}
-                file_format={file_format}
-            """.format(
-            stage=stage, files=files, file_format=file_format
-        )
+        copy_query = "COPY INTO "
+        if schema:
+            copy_query += f"{schema}.{table}"
+        else:
+            copy_query += table
+        if columns_array:
+            copy_query += f"({','.join(columns_array)})"
 
-        copy_query = """
-                COPY INTO {schema}.{table}({columns}) {base_sql}
-            """.format(
-            schema=schema, table=table, columns=",".join(columns_array), base_sql=base_sql
-        )
+        copy_query += f"\nFROM @{stage}/{prefix or ''}"
 
-        assert mock_run.call_count == 1
-        assert_equal_ignore_multiple_spaces(self, mock_run.call_args[0][0], copy_query)
+        if s3_keys:
+            files = ", ".join(f"'{key}'" for key in s3_keys)
+            copy_query += f"\nfiles=({files})"
+
+        copy_query += f"\nfile_format={file_format}"
+
+        mock_run.assert_called_once()
+        assert mock_run.call_args[0][0] == copy_query

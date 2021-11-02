@@ -16,10 +16,8 @@
 # specific language governing permissions and limitations
 # under the License.
 set -euo pipefail
-DOCKERHUB_USER=${DOCKERHUB_USER:="apache"}
-DOCKERHUB_REPO=${DOCKERHUB_REPO:="airflow"}
-readonly DOCKERHUB_USER
-readonly DOCKERHUB_REPO
+GITHUB_REPOSITORY=${GITHUB_REPOSITORY:="apache/airflow"}
+readonly GITHUB_REPOSITORY
 
 BATS_VERSION="1.2.1"
 BATS_ASSERT_VERSION="2.0.0"
@@ -30,7 +28,7 @@ readonly BATS_ASSERT_VERSION
 readonly BATS_SUPPORT_VERSION
 readonly BATS_FILE_VERSION
 
-AIRFLOW_BATS_VERSION="2020.09.05"
+AIRFLOW_BATS_VERSION="2021.07.04"
 readonly AIRFLOW_BATS_VERSION
 
 COMMIT_SHA=$(git rev-parse HEAD)
@@ -38,7 +36,7 @@ readonly COMMIT_SHA
 
 cd "$( dirname "${BASH_SOURCE[0]}" )" || exit 1
 
-TAG="${DOCKERHUB_USER}/${DOCKERHUB_REPO}:bats-${AIRFLOW_BATS_VERSION}-${BATS_VERSION}"
+TAG="ghcr.io/${GITHUB_REPOSITORY}-bats:${BATS_VERSION}-${AIRFLOW_BATS_VERSION}"
 readonly TAG
 
 docker build . \
@@ -48,6 +46,7 @@ docker build . \
     --build-arg "BATS_FILE_VERSION=${BATS_FILE_VERSION}" \
     --build-arg "BATS_ASSERT_VERSION=${BATS_ASSERT_VERSION}" \
     --build-arg "COMMIT_SHA=${COMMIT_SHA}" \
+    --label "org.opencontainers.image.source=https://github.com/${GITHUB_REPOSITORY}" \
     --tag "${TAG}"
 
 docker push "${TAG}"

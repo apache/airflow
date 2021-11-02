@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
+
 import unittest
 from unittest.mock import Mock
 
@@ -26,13 +27,13 @@ from airflow.ti_deps.deps.dag_ti_slots_available_dep import DagTISlotsAvailableD
 class TestDagTISlotsAvailableDep(unittest.TestCase):
     def test_concurrency_reached(self):
         """
-        Test concurrency reached should fail dep
+        Test max_active_tasks reached should fail dep
         """
         dag = Mock(concurrency=1, get_concurrency_reached=Mock(return_value=True))
         task = Mock(dag=dag, pool_slots=1)
         ti = TaskInstance(task, execution_date=None)
 
-        self.assertFalse(DagTISlotsAvailableDep().is_met(ti=ti))
+        assert not DagTISlotsAvailableDep().is_met(ti=ti)
 
     def test_all_conditions_met(self):
         """
@@ -42,4 +43,4 @@ class TestDagTISlotsAvailableDep(unittest.TestCase):
         task = Mock(dag=dag, pool_slots=1)
         ti = TaskInstance(task, execution_date=None)
 
-        self.assertTrue(DagTISlotsAvailableDep().is_met(ti=ti))
+        assert DagTISlotsAvailableDep().is_met(ti=ti)

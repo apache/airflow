@@ -92,7 +92,7 @@ class TestCloudVisionProductSetCreate(unittest.TestCase):
             task_id='id',
         )
         result = op.execute(None)
-        self.assertEqual(PRODUCTSET_ID_TEST, result)
+        assert PRODUCTSET_ID_TEST == result
 
 
 class TestCloudVisionProductSetUpdate(unittest.TestCase):
@@ -195,7 +195,7 @@ class TestCloudVisionProductCreate(unittest.TestCase):
             task_id='id',
         )
         result = op.execute(None)
-        self.assertEqual(PRODUCT_ID_TEST, result)
+        assert PRODUCT_ID_TEST == result
 
 
 class TestCloudVisionProductGet(unittest.TestCase):

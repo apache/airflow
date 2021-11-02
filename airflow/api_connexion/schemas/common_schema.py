@@ -155,12 +155,12 @@ class ClassReferenceSchema(Schema):
 
     def _get_module(self, obj):
         if isinstance(obj, SerializedBaseOperator):
-            return obj._task_module  # pylint: disable=protected-access
+            return obj._task_module
         return inspect.getmodule(obj).__name__
 
     def _get_class_name(self, obj):
         if isinstance(obj, SerializedBaseOperator):
-            return obj._task_type  # pylint: disable=protected-access
+            return obj._task_type
         if isinstance(obj, type):
             return obj.__name__
         return type(obj).__name__

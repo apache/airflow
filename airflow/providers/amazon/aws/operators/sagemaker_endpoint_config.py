@@ -18,7 +18,6 @@
 
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.operators.sagemaker_base import SageMakerBaseOperator
-from airflow.utils.decorators import apply_defaults
 
 
 class SageMakerEndpointConfigOperator(SageMakerBaseOperator):
@@ -37,7 +36,6 @@ class SageMakerEndpointConfigOperator(SageMakerBaseOperator):
 
     integer_fields = [['ProductionVariants', 'InitialInstanceCount']]
 
-    @apply_defaults
     def __init__(self, *, config: dict, **kwargs):
         super().__init__(config=config, **kwargs)
 
@@ -49,6 +47,6 @@ class SageMakerEndpointConfigOperator(SageMakerBaseOperator):
         self.log.info('Creating SageMaker Endpoint Config %s.', self.config['EndpointConfigName'])
         response = self.hook.create_endpoint_config(self.config)
         if response['ResponseMetadata']['HTTPStatusCode'] != 200:
-            raise AirflowException('Sagemaker endpoint config creation failed: %s' % response)
+            raise AirflowException(f'Sagemaker endpoint config creation failed: {response}')
         else:
             return {'EndpointConfig': self.hook.describe_endpoint_config(self.config['EndpointConfigName'])}

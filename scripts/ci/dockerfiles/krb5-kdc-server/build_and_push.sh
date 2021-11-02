@@ -16,12 +16,10 @@
 # specific language governing permissions and limitations
 # under the License.
 set -euo pipefail
-DOCKERHUB_USER=${DOCKERHUB_USER:="apache"}
-DOCKERHUB_REPO=${DOCKERHUB_REPO:="airflow"}
-readonly DOCKERHUB_USER
-readonly DOCKERHUB_REPO
+GITHUB_REPOSITORY=${GITHUB_REPOSITORY:="apache/airflow"}
+readonly GITHUB_REPOSITORY
 
-AIRFLOW_KRB5KDCSERVER_VERSION="2020.10.08"
+AIRFLOW_KRB5KDCSERVER_VERSION="2021.07.04"
 readonly AIRFLOW_KRB5KDCSERVER_VERSION
 
 COMMIT_SHA=$(git rev-parse HEAD)
@@ -29,13 +27,14 @@ readonly COMMIT_SHA
 
 cd "$( dirname "${BASH_SOURCE[0]}" )" || exit 1
 
-TAG="${DOCKERHUB_USER}/${DOCKERHUB_REPO}:krb5-kdc-server-${AIRFLOW_KRB5KDCSERVER_VERSION}"
+TAG="ghcr.io/${GITHUB_REPOSITORY}-krb5-kdc-server:${AIRFLOW_KRB5KDCSERVER_VERSION}"
 readonly TAG
 
 docker build . \
     --pull \
     --build-arg "AIRFLOW_KRB5KDCSERVER_VERSION=${AIRFLOW_KRB5KDCSERVER_VERSION}" \
     --build-arg "COMMIT_SHA=${COMMIT_SHA}" \
+    --label "org.opencontainers.image.source=https://github.com/${GITHUB_REPOSITORY}" \
     --tag "${TAG}"
 
 docker push "${TAG}"

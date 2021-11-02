@@ -18,6 +18,7 @@
 import unittest
 from unittest.mock import patch
 
+import pytest
 from sqlalchemy import or_
 
 from airflow import configuration, models
@@ -85,7 +86,8 @@ class TestS3ToMySqlTransfer(unittest.TestCase):
     def test_execute_exception(self, mock_remove, mock_bulk_load_custom, mock_download_file):
         mock_bulk_load_custom.side_effect = Exception
 
-        self.assertRaises(Exception, S3ToMySqlOperator(**self.s3_to_mysql_transfer_kwargs).execute, {})
+        with pytest.raises(Exception):
+            S3ToMySqlOperator(**self.s3_to_mysql_transfer_kwargs).execute({})
 
         mock_download_file.assert_called_once_with(key=self.s3_to_mysql_transfer_kwargs['s3_source_key'])
         mock_bulk_load_custom.assert_called_once_with(

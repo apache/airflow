@@ -17,6 +17,8 @@
 
 """Scheduler command"""
 import signal
+from multiprocessing import Process
+from typing import Optional
 
 import daemon
 from daemon.pidfile import TimeoutPIDLockFile
@@ -27,37 +29,60 @@ from airflow.utils import cli as cli_utils
 from airflow.utils.cli import process_subdir, setup_locations, setup_logging, sigint_handler, sigquit_handler
 
 
-@cli_utils.action_logging
-def scheduler(args):
-    """Starts Airflow Scheduler"""
-    print(settings.HEADER)
+def _create_scheduler_job(args):
     job = SchedulerJob(
         subdir=process_subdir(args.subdir),
         num_runs=args.num_runs,
         do_pickle=args.do_pickle,
     )
+    return job
+
+
+def _run_scheduler_job(args):
+    skip_serve_logs = args.skip_serve_logs
+    job = _create_scheduler_job(args)
+    sub_proc = _serve_logs(skip_serve_logs)
+    try:
+        job.run()
+    finally:
+        if sub_proc:
+            sub_proc.terminate()
+
+
+@cli_utils.action_logging
+def scheduler(args):
+    """Starts Airflow Scheduler"""
+    print(settings.HEADER)
 
     if args.daemon:
         pid, stdout, stderr, log_file = setup_locations(
             "scheduler", args.pid, args.stdout, args.stderr, args.log_file
         )
         handle = setup_logging(log_file)
-        stdout = open(stdout, 'w+')
-        stderr = open(stderr, 'w+')
-
-        ctx = daemon.DaemonContext(
-            pidfile=TimeoutPIDLockFile(pid, -1),
-            files_preserve=[handle],
-            stdout=stdout,
-            stderr=stderr,
-        )
-        with ctx:
-            job.run()
-
-        stdout.close()
-        stderr.close()
+        with open(stdout, 'w+') as stdout_handle, open(stderr, 'w+') as stderr_handle:
+            ctx = daemon.DaemonContext(
+                pidfile=TimeoutPIDLockFile(pid, -1),
+                files_preserve=[handle],
+                stdout=stdout_handle,
+                stderr=stderr_handle,
+            )
+            with ctx:
+                _run_scheduler_job(args=args)
     else:
         signal.signal(signal.SIGINT, sigint_handler)
         signal.signal(signal.SIGTERM, sigint_handler)
         signal.signal(signal.SIGQUIT, sigquit_handler)
-        job.run()
+        _run_scheduler_job(args=args)
+
+
+def _serve_logs(skip_serve_logs: bool = False) -> Optional[Process]:
+    """Starts serve_logs sub-process"""
+    from airflow.configuration import conf
+    from airflow.utils.serve_logs import serve_logs
+
+    if conf.get("core", "executor") in ["LocalExecutor", "SequentialExecutor"]:
+        if skip_serve_logs is False:
+            sub_proc = Process(target=serve_logs)
+            sub_proc.start()
+            return sub_proc
+    return None

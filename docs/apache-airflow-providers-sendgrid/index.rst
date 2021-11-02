@@ -33,3 +33,45 @@ Content
     :caption: Resources
 
     PyPI Repository <https://pypi.org/project/apache-airflow-providers-sendgrid/>
+    Installing from sources <installing-providers-from-sources>
+
+.. THE REMAINDER OF THE FILE IS AUTOMATICALLY GENERATED. IT WILL BE OVERWRITTEN AT RELEASE TIME!
+
+
+.. toctree::
+    :maxdepth: 1
+    :caption: Commits
+
+    Detailed list of commits <commits>
+
+
+Package apache-airflow-providers-sendgrid
+------------------------------------------------------
+
+`Sendgrid <https://sendgrid.com/>`__
+
+
+Release: 2.0.1
+
+Provider package
+----------------
+
+This is a provider package for ``sendgrid`` provider. All classes for this provider package
+are in ``airflow.providers.sendgrid`` python package.
+
+Installation
+------------
+
+You can install this package on top of an existing airflow 2.1+ installation via
+``pip install apache-airflow-providers-sendgrid``
+
+PIP requirements
+----------------
+
+=============  ==================
+PIP package    Version required
+=============  ==================
+``sendgrid``   ``>=6.0.0,<7``
+=============  ==================
+
+.. include:: ../../airflow/providers/sendgrid/CHANGELOG.rst

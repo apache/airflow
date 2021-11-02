@@ -21,6 +21,8 @@ import unittest
 from datetime import timedelta
 from unittest import mock
 
+import pytest
+
 from airflow.exceptions import AirflowSensorTimeout
 from airflow.models.dag import DAG
 from airflow.providers.apache.hive.sensors.named_hive_partition import NamedHivePartitionSensor
@@ -72,13 +74,13 @@ class TestNamedHivePartitionSensor(unittest.TestCase):
         partition = 'ds=2016-01-01/state=IT'
         name = f'{schema}.{table}/{partition}'
         parsed_schema, parsed_table, parsed_partition = NamedHivePartitionSensor.parse_partition_name(name)
-        self.assertEqual(schema, parsed_schema)
-        self.assertEqual(table, parsed_table)
-        self.assertEqual(partition, parsed_partition)
+        assert schema == parsed_schema
+        assert table == parsed_table
+        assert partition == parsed_partition
 
     def test_parse_partition_name_incorrect(self):
         name = 'incorrect.name'
-        with self.assertRaises(ValueError):
+        with pytest.raises(ValueError):
             NamedHivePartitionSensor.parse_partition_name(name)
 
     def test_parse_partition_name_default(self):
@@ -86,9 +88,9 @@ class TestNamedHivePartitionSensor(unittest.TestCase):
         partition = 'ds=2016-01-01/state=IT'
         name = f'{table}/{partition}'
         parsed_schema, parsed_table, parsed_partition = NamedHivePartitionSensor.parse_partition_name(name)
-        self.assertEqual('default', parsed_schema)
-        self.assertEqual(table, parsed_table)
-        self.assertEqual(partition, parsed_partition)
+        assert 'default' == parsed_schema
+        assert table == parsed_table
+        assert partition == parsed_partition
 
     def test_poke_existing(self):
         self.hook.metastore.__enter__().check_for_named_partition.return_value = True
@@ -100,7 +102,7 @@ class TestNamedHivePartitionSensor(unittest.TestCase):
             hook=self.hook,
             dag=self.dag,
         )
-        self.assertTrue(sensor.poke(None))
+        assert sensor.poke(None)
         self.hook.metastore.__enter__().check_for_named_partition.assert_called_with(
             self.database, self.table, f"{self.partition_by}={DEFAULT_DATE_DS}"
         )
@@ -115,7 +117,7 @@ class TestNamedHivePartitionSensor(unittest.TestCase):
             hook=self.hook,
             dag=self.dag,
         )
-        self.assertFalse(sensor.poke(None))
+        assert not sensor.poke(None)
         self.hook.metastore.__enter__().check_for_named_partition.assert_called_with(
             self.database, self.table, f"{self.partition_by}={self.next_day}"
         )
@@ -165,12 +167,12 @@ class TestPartitions(TestHiveEnvironment):
         name = NamedHivePartitionSensor.parse_partition_name(
             partition="schema.table/part1=this.can.be.an.issue/part2=ok"
         )
-        self.assertEqual(name[0], "schema")
-        self.assertEqual(name[1], "table")
-        self.assertEqual(name[2], "part1=this.can.be.an.issue/part2=ok")
+        assert name[0] == "schema"
+        assert name[1] == "table"
+        assert name[2] == "part1=this.can.be.an.issue/part2=ok"
 
     def test_times_out_on_nonexistent_partition(self):
-        with self.assertRaises(AirflowSensorTimeout):
+        with pytest.raises(AirflowSensorTimeout):
             mock_hive_metastore_hook = MockHiveMetastoreHook()
             mock_hive_metastore_hook.check_for_named_partition = mock.MagicMock(return_value=False)
 

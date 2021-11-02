@@ -21,31 +21,50 @@ import warnings
 from datetime import datetime
 from functools import reduce
 from itertools import filterfalse, tee
-from typing import Any, Callable, Dict, Generator, Iterable, List, Optional, TypeVar
+from typing import TYPE_CHECKING, Any, Callable, Dict, Generator, Iterable, List, Optional, Tuple, TypeVar
 from urllib import parse
 
+from flask import url_for
 from jinja2 import Template
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.utils.module_loading import import_string
 
+if TYPE_CHECKING:
+    from airflow.models import TaskInstance
+
 KEY_REGEX = re.compile(r'^[\w.-]+$')
+GROUP_KEY_REGEX = re.compile(r'^[\w-]+$')
+CAMELCASE_TO_SNAKE_CASE_REGEX = re.compile(r'(?!^)([A-Z]+)')
+
+T = TypeVar('T')
+S = TypeVar('S')
 
 
-def validate_key(k, max_length=250):
+def validate_key(k: str, max_length: int = 250):
     """Validates value used as a key."""
     if not isinstance(k, str):
-        raise TypeError("The key has to be a string")
-    elif len(k) > max_length:
+        raise TypeError(f"The key has to be a string and is {type(k)}:{k}")
+    if len(k) > max_length:
         raise AirflowException(f"The key has to be less than {max_length} characters")
-    elif not KEY_REGEX.match(k):
+    if not KEY_REGEX.match(k):
         raise AirflowException(
-            "The key ({k}) has to be made of alphanumeric characters, dashes, "
-            "dots and underscores exclusively".format(k=k)
+            f"The key ({k}) has to be made of alphanumeric characters, dashes, "
+            f"dots and underscores exclusively"
         )
-    else:
-        return True
+
+
+def validate_group_key(k: str, max_length: int = 200):
+    """Validates value used as a group key."""
+    if not isinstance(k, str):
+        raise TypeError(f"The key has to be a string and is {type(k)}:{k}")
+    if len(k) > max_length:
+        raise AirflowException(f"The key has to be less than {max_length} characters")
+    if not GROUP_KEY_REGEX.match(k):
+        raise AirflowException(
+            f"The key ({k!r}) has to be made of alphanumeric characters, dashes and underscores exclusively"
+        )
 
 
 def alchemy_to_dict(obj: Any) -> Optional[Dict]:
@@ -61,10 +80,10 @@ def alchemy_to_dict(obj: Any) -> Optional[Dict]:
     return output
 
 
-def ask_yesno(question):
+def ask_yesno(question: str) -> bool:
     """Helper to get yes / no answer from user."""
     yes = {'yes', 'y'}
-    no = {'no', 'n'}  # pylint: disable=invalid-name
+    no = {'no', 'n'}
 
     done = False
     print(question)
@@ -78,12 +97,12 @@ def ask_yesno(question):
             print("Please respond by yes or no.")
 
 
-def is_container(obj):
+def is_container(obj: Any) -> bool:
     """Test if an object is a container (iterable) but not a string"""
     return hasattr(obj, '__iter__') and not isinstance(obj, str)
 
 
-def as_tuple(obj):
+def as_tuple(obj: Any) -> tuple:
     """
     If obj is a container, returns obj as a tuple.
     Otherwise, returns a tuple containing obj.
@@ -92,10 +111,6 @@ def as_tuple(obj):
         return tuple(obj)
     else:
         return tuple([obj])
-
-
-T = TypeVar('T')  # pylint: disable=invalid-name
-S = TypeVar('S')  # pylint: disable=invalid-name
 
 
 def chunks(items: List[T], chunk_size: int) -> Generator[List[T], None, None]:
@@ -136,7 +151,7 @@ def parse_template_string(template_string):
         return template_string, None
 
 
-def render_log_filename(ti, try_number, filename_template):
+def render_log_filename(ti: "TaskInstance", try_number, filename_template) -> str:
     """
     Given task instance, try_number, filename_template, return the rendered log
     filename
@@ -160,12 +175,12 @@ def render_log_filename(ti, try_number, filename_template):
     )
 
 
-def convert_camel_to_snake(camel_str):
+def convert_camel_to_snake(camel_str: str) -> str:
     """Converts CamelCase to snake_case."""
-    return re.sub('(?!^)([A-Z]+)', r'_\1', camel_str).lower()
+    return CAMELCASE_TO_SNAKE_CASE_REGEX.sub(r'_\1', camel_str).lower()
 
 
-def merge_dicts(dict1, dict2):
+def merge_dicts(dict1: Dict, dict2: Dict) -> Dict:
     """
     Merge two dicts recursively, returning new dict (input dict is not mutated).
 
@@ -180,7 +195,7 @@ def merge_dicts(dict1, dict2):
     return merged
 
 
-def partition(pred: Callable, iterable: Iterable):
+def partition(pred: Callable[[T], bool], iterable: Iterable[T]) -> Tuple[Iterable[T], Iterable[T]]:
     """Use a predicate to partition entries into false entries and true entries"""
     iter_1, iter_2 = tee(iterable)
     return filterfalse(pred, iter_1), filter(pred, iter_2)
@@ -213,4 +228,5 @@ def build_airflow_url_with_query(query: Dict[str, Any]) -> str:
     'http://0.0.0.0:8000/base/graph?dag_id=my-task&root=&execution_date=2020-10-27T10%3A59%3A25.615587
     """
     view = conf.get('webserver', 'dag_default_view').lower()
-    return f"/{view}?{parse.urlencode(query)}"
+    url = url_for(f"Airflow.{view}")
+    return f"{url}?{parse.urlencode(query)}"

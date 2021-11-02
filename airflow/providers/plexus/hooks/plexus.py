@@ -53,8 +53,8 @@ class PlexusHook(BaseHook):
         response = requests.post(token_endpoint, data={"email": login, "password": pwd}, timeout=5)
         if not response.ok:
             raise AirflowException(
-                "Could not retrieve JWT Token. Status Code: [{}]. "
-                "Reason: {} - {}".format(response.status_code, response.reason, response.text)
+                "Could not retrieve JWT Token. "
+                f"Status Code: [{response.status_code}]. Reason: {response.reason} - {response.text}"
             )
         token = response.json()["access"]
         payload = jwt.decode(token, verify=False)
@@ -67,7 +67,7 @@ class PlexusHook(BaseHook):
     def token(self) -> Any:
         """Returns users token"""
         if self.__token is not None:
-            if arrow.get(self.__token_exp) <= arrow.now():
+            if not self.__token_exp or arrow.get(self.__token_exp) <= arrow.now():
                 self.__token = self._generate_token()
             return self.__token
         else:

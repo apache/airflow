@@ -24,6 +24,7 @@ from unittest import mock
 from unittest.mock import patch
 
 import kubernetes
+import pytest
 from parameterized import parameterized
 
 from airflow import AirflowException
@@ -77,7 +78,7 @@ class TestKubernetesHook(unittest.TestCase):
         kubernetes_hook = KubernetesHook(conn_id='kubernetes_in_cluster')
         api_conn = kubernetes_hook.get_conn()
         mock_kube_config_loader.assert_called_once()
-        self.assertIsInstance(api_conn, kubernetes.client.api_client.ApiClient)
+        assert isinstance(api_conn, kubernetes.client.api_client.ApiClient)
 
     @patch("kubernetes.config.kube_config.KubeConfigLoader")
     @patch("kubernetes.config.kube_config.KubeConfigMerger")
@@ -86,7 +87,7 @@ class TestKubernetesHook(unittest.TestCase):
         api_conn = kubernetes_hook.get_conn()
         mock_kube_config_loader.assert_called_once_with("path/to/file")
         mock_kube_config_merger.assert_called_once()
-        self.assertIsInstance(api_conn, kubernetes.client.api_client.ApiClient)
+        assert isinstance(api_conn, kubernetes.client.api_client.ApiClient)
 
     @patch("kubernetes.config.kube_config.KubeConfigLoader")
     @patch("kubernetes.config.kube_config.KubeConfigMerger")
@@ -97,7 +98,7 @@ class TestKubernetesHook(unittest.TestCase):
         mock_tempfile.is_called_once()
         mock_kube_config_loader.assert_called_once()
         mock_kube_config_merger.assert_called_once()
-        self.assertIsInstance(api_conn, kubernetes.client.api_client.ApiClient)
+        assert isinstance(api_conn, kubernetes.client.api_client.ApiClient)
 
     @patch("kubernetes.config.kube_config.KubeConfigLoader")
     @patch("kubernetes.config.kube_config.KubeConfigMerger")
@@ -111,13 +112,13 @@ class TestKubernetesHook(unittest.TestCase):
         api_conn = kubernetes_hook.get_conn()
         mock_kube_config_loader.assert_called_once_with("/mock/config")
         mock_kube_config_merger.assert_called_once()
-        self.assertIsInstance(api_conn, kubernetes.client.api_client.ApiClient)
+        assert isinstance(api_conn, kubernetes.client.api_client.ApiClient)
 
     def test_get_namespace(self):
         kubernetes_hook_with_namespace = KubernetesHook(conn_id='kubernetes_with_namespace')
         kubernetes_hook_without_namespace = KubernetesHook(conn_id='kubernetes_default_kube_config')
-        self.assertEqual(kubernetes_hook_with_namespace.get_namespace(), 'mock_namespace')
-        self.assertEqual(kubernetes_hook_without_namespace.get_namespace(), 'default')
+        assert kubernetes_hook_with_namespace.get_namespace() == 'mock_namespace'
+        assert kubernetes_hook_without_namespace.get_namespace() == 'default'
 
 
 class TestKubernetesHookIncorrectConfiguration(unittest.TestCase):
@@ -129,8 +130,8 @@ class TestKubernetesHookIncorrectConfiguration(unittest.TestCase):
         )
     )
     def test_should_raise_exception_on_invalid_configuration(self, conn_uri):
-        with mock.patch.dict("os.environ", AIRFLOW_CONN_KUBERNETES_DEFAULT=conn_uri), self.assertRaisesRegex(
-            AirflowException, "Invalid connection configuration"
+        with mock.patch.dict("os.environ", AIRFLOW_CONN_KUBERNETES_DEFAULT=conn_uri), pytest.raises(
+            AirflowException, match="Invalid connection configuration"
         ):
             kubernetes_hook = KubernetesHook()
             kubernetes_hook.get_conn()

@@ -33,7 +33,7 @@ def get_health():
             latest_scheduler_heartbeat = scheduler_job.latest_heartbeat.isoformat()
             if scheduler_job.is_alive():
                 scheduler_status = HEALTHY
-    except Exception:  # pylint: disable=broad-except
+    except Exception:
         metadatabase_status = UNHEALTHY
 
     payload = {

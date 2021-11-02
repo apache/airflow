@@ -26,10 +26,6 @@ in the cloud, and use models to make predictions for new data. AI Platform is a 
 of tools for training, evaluating, and tuning machine learning models. AI Platform can also
 be used to deploy a trained model, make predictions, and manage various model versions.
 
-.. contents::
-  :depth: 1
-  :local:
-
 Prerequisite tasks
 ^^^^^^^^^^^^^^^^^^
 
@@ -79,7 +75,7 @@ must be defined in the operator.
     :start-after: [START howto_operator_gcp_mlengine_get_model]
     :end-before: [END howto_operator_gcp_mlengine_get_model]
 
-You can use :ref:`Jinja templating <jinja-templating>` with the ``project_id`` and ``model``
+You can use :ref:`Jinja templating <concepts:jinja-templating>` with the ``project_id`` and ``model``
 fields to dynamically determine their values. The result are saved to :ref:`XCom <concepts:xcom>`,
 allowing them to be used by other operators. In this case, the
 :class:`~airflow.operators.bash.BashOperator` is used to print the model information.
@@ -140,7 +136,7 @@ while specifying the ``model_name`` parameter.
     :start-after: [START howto_operator_gcp_mlengine_list_versions]
     :end-before: [END howto_operator_gcp_mlengine_list_versions]
 
-You can use :ref:`Jinja templating <jinja-templating>` with the ``project_id`` and ``model``
+You can use :ref:`Jinja templating <concepts:jinja-templating>` with the ``project_id`` and ``model``
 fields to dynamically determine their values. The result are saved to :ref:`XCom <concepts:xcom>`,
 allowing them to be used by other operators. In this case, the
 :class:`~airflow.operators.bash.BashOperator` is used to print the version information.

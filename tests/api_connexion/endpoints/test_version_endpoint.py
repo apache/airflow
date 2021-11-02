@@ -14,19 +14,18 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-import unittest
 from unittest import mock
 
-from airflow.www import app
+import pytest
 
 
-class TestGetHealthTest(unittest.TestCase):
-    @classmethod
-    def setUpClass(cls) -> None:
-        super().setUpClass()
-        cls.app = app.create_app(testing=True)  # type:ignore
-
-    def setUp(self) -> None:
+class TestGetHealthTest:
+    @pytest.fixture(autouse=True)
+    def setup_attrs(self, minimal_app_for_api) -> None:
+        """
+        Setup For XCom endpoint TC
+        """
+        self.app = minimal_app_for_api
         self.client = self.app.test_client()  # type:ignore
 
     @mock.patch("airflow.api_connexion.endpoints.version_endpoint.airflow.__version__", "MOCK_VERSION")
@@ -36,6 +35,6 @@ class TestGetHealthTest(unittest.TestCase):
     def test_should_respond_200(self, mock_get_airflow_get_commit):
         response = self.client.get("/api/v1/version")
 
-        self.assertEqual(200, response.status_code)
-        self.assertEqual({'git_version': 'GIT_COMMIT', 'version': 'MOCK_VERSION'}, response.json)
+        assert 200 == response.status_code
+        assert {'git_version': 'GIT_COMMIT', 'version': 'MOCK_VERSION'} == response.json
         mock_get_airflow_get_commit.assert_called_once_with()

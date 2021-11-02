@@ -80,6 +80,7 @@ EXAMPLE_FLEX_TEMPLATE_SUBDIR = "dataflow/flex-templates/streaming_beam_sql"
 class CloudDataflowExampleDagFlexTemplateJavagSystemTest(GoogleSystemTest):
     @provide_gcp_context(GCP_GCS_TRANSFER_KEY, project_id=GoogleSystemTest._project_id())
     def setUp(self) -> None:
+        super().setUp()
         # Create a Cloud Storage bucket
         self.execute_cmd(["gsutil", "mb", f"gs://{GCS_FLEX_TEMPLATE_BUCKET_NAME}"])
 
@@ -120,8 +121,7 @@ class CloudDataflowExampleDagFlexTemplateJavagSystemTest(GoogleSystemTest):
                     "gcloud",
                     "builds",
                     "submit",
-                    "--substitutions="
-                    + ",".join([f"{k}={shlex.quote(v)}" for k, v in substitutions.items()]),
+                    "--substitutions=" + ",".join(f"{k}={shlex.quote(v)}" for k, v in substitutions.items()),
                     f"--config={f.name}",
                     "--no-source",
                 ]
@@ -250,6 +250,7 @@ class CloudDataflowExampleDagFlexTemplateJavagSystemTest(GoogleSystemTest):
 
         # Delete the Cloud Storage bucket
         self.execute_cmd(["gsutil", "rm", "-r", f"gs://{GCS_FLEX_TEMPLATE_BUCKET_NAME}"])
+        super().tearDown()
 
 
 @pytest.mark.backend("mysql", "postgres")
@@ -257,6 +258,7 @@ class CloudDataflowExampleDagFlexTemplateJavagSystemTest(GoogleSystemTest):
 class CloudDataflowExampleDagSqlSystemTest(GoogleSystemTest):
     @provide_gcp_context(GCP_GCS_TRANSFER_KEY, project_id=GoogleSystemTest._project_id())
     def setUp(self) -> None:
+        super().setUp()
         # Build image with pipeline
         with NamedTemporaryFile(suffix=".csv") as f:
             f.write(
@@ -364,3 +366,4 @@ class CloudDataflowExampleDagSqlSystemTest(GoogleSystemTest):
         )
         # Delete the BigQuery dataset,
         self.execute_cmd(["bq", "rm", "-r", "-f", "-d", f'{self._project_id()}:{BQ_SQL_DATASET}'])
+        super().tearDown()

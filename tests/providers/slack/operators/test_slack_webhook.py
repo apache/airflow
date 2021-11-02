@@ -49,17 +49,17 @@ class TestSlackWebhookOperator(unittest.TestCase):
         # Given / When
         operator = SlackWebhookOperator(task_id='slack_webhook_job', dag=self.dag, **self._config)
 
-        self.assertEqual(self._config['http_conn_id'], operator.http_conn_id)
-        self.assertEqual(self._config['webhook_token'], operator.webhook_token)
-        self.assertEqual(self._config['message'], operator.message)
-        self.assertEqual(self._config['attachments'], operator.attachments)
-        self.assertEqual(self._config['blocks'], operator.blocks)
-        self.assertEqual(self._config['channel'], operator.channel)
-        self.assertEqual(self._config['username'], operator.username)
-        self.assertEqual(self._config['icon_emoji'], operator.icon_emoji)
-        self.assertEqual(self._config['icon_url'], operator.icon_url)
-        self.assertEqual(self._config['link_names'], operator.link_names)
-        self.assertEqual(self._config['proxy'], operator.proxy)
+        assert self._config['http_conn_id'] == operator.http_conn_id
+        assert self._config['webhook_token'] == operator.webhook_token
+        assert self._config['message'] == operator.message
+        assert self._config['attachments'] == operator.attachments
+        assert self._config['blocks'] == operator.blocks
+        assert self._config['channel'] == operator.channel
+        assert self._config['username'] == operator.username
+        assert self._config['icon_emoji'] == operator.icon_emoji
+        assert self._config['icon_url'] == operator.icon_url
+        assert self._config['link_names'] == operator.link_names
+        assert self._config['proxy'] == operator.proxy
 
     def test_assert_templated_fields(self):
         operator = SlackWebhookOperator(task_id='slack_webhook_job', dag=self.dag, **self._config)
@@ -74,4 +74,4 @@ class TestSlackWebhookOperator(unittest.TestCase):
             'proxy',
         ]
 
-        self.assertEqual(operator.template_fields, template_fields)
+        assert operator.template_fields == template_fields

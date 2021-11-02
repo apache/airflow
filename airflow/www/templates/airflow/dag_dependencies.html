@@ -1,0 +1,78 @@
+{#
+Licensed to the Apache Software Foundation (ASF) under one
+or more contributor license agreements.  See the NOTICE file
+distributed with this work for additional information
+regarding copyright ownership.  The ASF licenses this file
+to you under the Apache License, Version 2.0 (the
+"License"); you may not use this file except in compliance
+with the License.  You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing,
+software distributed under the License is distributed on an
+"AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+KIND, either express or implied.  See the License for the
+specific language governing permissions and limitations
+under the License.
+#}
+
+{% extends "airflow/main.html" %}
+
+{% block title %}Airflow - DAG Dependencies{% endblock %}
+
+{% block head_css %}
+{{ super() }}
+<link rel="stylesheet" type="text/css" href="{{ url_for_asset('graph.css') }}">
+{% endblock %}
+
+{% block content %}
+{{ super() }}
+<h2>
+  {{ title }}
+  <div class="input-group" style="float: right">
+    <input type="text" id="searchbox" class="form-control" placeholder="Search for..." onenter="null">
+  </div>
+  <label for="deps-filter" class="h5" style="float: right; margin-right: 5px">
+    <input type="checkbox" id="deps-filter" checked> Only show DAGs with dependencies
+  </label>
+</h2>
+<hr/>
+<div class="legend-row">
+  <div>
+    <span class="legend-item dag">dag</span>
+    <span class="legend-item trigger">trigger</span>
+    <span class="legend-item sensor">sensor</span>
+  </div>
+  <div style="float:right">Last refresh: <time datetime="{{ last_refresh }}">{{ last_refresh }}</time></div>
+</div>
+<div id="error" style="display: none; margin-top: 10px;" class="alert alert-danger" role="alert">
+  <span class="glyphicon glyphicon-exclamation-sign" aria-hidden="true"></span>
+  <span id="error_msg">Oops.</span>
+</div>
+<br/>
+<div class="svg-wrapper">
+  <div class="graph-svg-wrap">
+    <svg id="graph-svg" width="{{ width }}" height="{{ height }}">
+      <g id="dig" transform="translate(20,20)"></g>
+      <filter id="blur-effect-1">
+        <feGaussianBlur stdDeviation="3"></feGaussianBlur>
+      </filter>
+    </svg>
+  </div>
+</div>
+{% endblock %}
+
+{% block tail %}
+  {{ super() }}
+  <script src="{{ url_for_asset('d3.min.js') }}"></script>
+  <script src="{{ url_for_asset('dagre-d3.min.js') }}"></script>
+  <script src="{{ url_for_asset('d3-shape.min.js') }}"></script>
+  <script src="{{ url_for_asset('d3-tip.js') }}"></script>
+  <script>
+    let dagNodes = {{ nodes|tojson }};
+    let edges = {{ edges|tojson }};
+    const arrange = '{{ arrange }}';
+  </script>
+  <script src="{{ url_for_asset('dagDependencies.js') }}"></script>
+{% endblock %}

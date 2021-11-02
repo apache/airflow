@@ -40,7 +40,7 @@ for i in range(num_smart_sensor_shard):
         dag_id=dag_id,
         default_args=args,
         schedule_interval=timedelta(minutes=5),
-        concurrency=1,
+        max_active_tasks=1,
         max_active_runs=1,
         catchup=False,
         dagrun_timeout=timedelta(hours=24),

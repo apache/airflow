@@ -32,7 +32,7 @@ from airflow.www.app import cached_app
 @suppress_logs_and_warning
 def users_list(args):
     """Lists users at the command line"""
-    appbuilder = cached_app().appbuilder  # pylint: disable=no-member
+    appbuilder = cached_app().appbuilder
     users = appbuilder.sm.get_all_users()
     fields = ['id', 'username', 'email', 'first_name', 'last_name', 'roles']
 
@@ -44,7 +44,7 @@ def users_list(args):
 @cli_utils.action_logging
 def users_create(args):
     """Creates new user in the DB"""
-    appbuilder = cached_app().appbuilder  # pylint: disable=no-member
+    appbuilder = cached_app().appbuilder
     role = appbuilder.sm.find_role(args.role)
     if not role:
         valid_roles = appbuilder.sm.get_all_roles()
@@ -65,23 +65,35 @@ def users_create(args):
         return
     user = appbuilder.sm.add_user(args.username, args.firstname, args.lastname, args.email, role, password)
     if user:
-        print(f'{args.role} user {args.username} created')
+        print(f'User "{args.username}" created with role "{args.role}"')
     else:
         raise SystemExit('Failed to create user')
+
+
+def _find_user(args):
+    if not args.username and not args.email:
+        raise SystemExit('Missing args: must supply one of --username or --email')
+
+    if args.username and args.email:
+        raise SystemExit('Conflicting args: must supply either --username or --email, but not both')
+
+    appbuilder = cached_app().appbuilder
+
+    user = appbuilder.sm.find_user(username=args.username, email=args.email)
+    if not user:
+        raise SystemExit(f'User "{args.username or args.email}" does not exist')
+    return user
 
 
 @cli_utils.action_logging
 def users_delete(args):
     """Deletes user from DB"""
-    appbuilder = cached_app().appbuilder  # pylint: disable=no-member
+    user = _find_user(args)
 
-    try:
-        user = next(u for u in appbuilder.sm.get_all_users() if u.username == args.username)
-    except StopIteration:
-        raise SystemExit(f'{args.username} is not a valid user')
+    appbuilder = cached_app().appbuilder
 
     if appbuilder.sm.del_register_user(user):
-        print(f'User {args.username} deleted')
+        print(f'User "{user.username}" deleted')
     else:
         raise SystemExit('Failed to delete user')
 
@@ -89,41 +101,34 @@ def users_delete(args):
 @cli_utils.action_logging
 def users_manage_role(args, remove=False):
     """Deletes or appends user roles"""
-    if not args.username and not args.email:
-        raise SystemExit('Missing args: must supply one of --username or --email')
+    user = _find_user(args)
 
-    if args.username and args.email:
-        raise SystemExit('Conflicting args: must supply either --username or --email, but not both')
-
-    appbuilder = cached_app().appbuilder  # pylint: disable=no-member
-    user = appbuilder.sm.find_user(username=args.username) or appbuilder.sm.find_user(email=args.email)
-    if not user:
-        raise SystemExit('User "{}" does not exist'.format(args.username or args.email))
+    appbuilder = cached_app().appbuilder
 
     role = appbuilder.sm.find_role(args.role)
     if not role:
         valid_roles = appbuilder.sm.get_all_roles()
-        raise SystemExit(f'{args.role} is not a valid role. Valid roles are: {valid_roles}')
+        raise SystemExit(f'"{args.role}" is not a valid role. Valid roles are: {valid_roles}')
 
     if remove:
-        if role in user.roles:
-            user.roles = [r for r in user.roles if r != role]
-            appbuilder.sm.update_user(user)
-            print(f'User "{user}" removed from role "{args.role}"')
-        else:
-            raise SystemExit(f'User "{user}" is not a member of role "{args.role}"')
+        if role not in user.roles:
+            raise SystemExit(f'User "{user.username}" is not a member of role "{args.role}"')
+
+        user.roles = [r for r in user.roles if r != role]
+        appbuilder.sm.update_user(user)
+        print(f'User "{user.username}" removed from role "{args.role}"')
     else:
         if role in user.roles:
-            raise SystemExit(f'User "{user}" is already a member of role "{args.role}"')
-        else:
-            user.roles.append(role)
-            appbuilder.sm.update_user(user)
-            print(f'User "{user}" added to role "{args.role}"')
+            raise SystemExit(f'User "{user.username}" is already a member of role "{args.role}"')
+
+        user.roles.append(role)
+        appbuilder.sm.update_user(user)
+        print(f'User "{user.username}" added to role "{args.role}"')
 
 
 def users_export(args):
     """Exports all users to the json file"""
-    appbuilder = cached_app().appbuilder  # pylint: disable=no-member
+    appbuilder = cached_app().appbuilder
     users = appbuilder.sm.get_all_users()
     fields = ['id', 'username', 'email', 'first_name', 'last_name', 'roles']
 
@@ -144,7 +149,7 @@ def users_export(args):
 
     with open(args.export, 'w') as file:
         file.write(json.dumps(users, sort_keys=True, indent=4))
-        print("{} users successfully exported to {}".format(len(users), file.name))
+        print(f"{len(users)} users successfully exported to {file.name}")
 
 
 @cli_utils.action_logging
@@ -154,7 +159,7 @@ def users_import(args):
     if not os.path.exists(json_file):
         raise SystemExit(f"File '{json_file}' does not exist")
 
-    users_list = None  # pylint: disable=redefined-outer-name
+    users_list = None
     try:
         with open(json_file) as file:
             users_list = json.loads(file.read())
@@ -169,8 +174,8 @@ def users_import(args):
         print("Updated the following users:\n\t{}".format("\n\t".join(users_updated)))
 
 
-def _import_users(users_list):  # pylint: disable=redefined-outer-name
-    appbuilder = cached_app().appbuilder  # pylint: disable=no-member
+def _import_users(users_list):
+    appbuilder = cached_app().appbuilder
     users_created = []
     users_updated = []
 
@@ -180,9 +185,9 @@ def _import_users(users_list):  # pylint: disable=redefined-outer-name
             role = appbuilder.sm.find_role(rolename)
             if not role:
                 valid_roles = appbuilder.sm.get_all_roles()
-                raise SystemExit(f"Error: '{rolename}' is not a valid role. Valid roles are: {valid_roles}")
-            else:
-                roles.append(role)
+                raise SystemExit(f'Error: "{rolename}" is not a valid role. Valid roles are: {valid_roles}')
+
+            roles.append(role)
 
         required_fields = ['username', 'firstname', 'lastname', 'email', 'roles']
         for field in required_fields:
@@ -191,34 +196,27 @@ def _import_users(users_list):  # pylint: disable=redefined-outer-name
 
         existing_user = appbuilder.sm.find_user(email=user['email'])
         if existing_user:
-            print("Found existing user with email '{}'".format(user['email']))
+            print(f"Found existing user with email '{user['email']}'")
+            if existing_user.username != user['username']:
+                raise SystemExit(
+                    f"Error: Changing the username is not allowed - please delete and recreate the user with"
+                    f" email {user['email']!r}"
+                )
+
             existing_user.roles = roles
             existing_user.first_name = user['firstname']
             existing_user.last_name = user['lastname']
-
-            if existing_user.username != user['username']:
-                raise SystemExit(
-                    "Error: Changing the username is not allowed - "
-                    "please delete and recreate the user with "
-                    "email '{}'".format(user['email'])
-                )
-
             appbuilder.sm.update_user(existing_user)
             users_updated.append(user['email'])
         else:
-            print("Creating new user with email '{}'".format(user['email']))
+            print(f"Creating new user with email '{user['email']}'")
             appbuilder.sm.add_user(
                 username=user['username'],
                 first_name=user['firstname'],
                 last_name=user['lastname'],
                 email=user['email'],
-                role=roles[0],  # add_user() requires exactly 1 role
+                role=roles,
             )
-
-            if len(roles) > 1:
-                new_user = appbuilder.sm.find_user(email=user['email'])
-                new_user.roles = roles
-                appbuilder.sm.update_user(new_user)
 
             users_created.append(user['email'])
 

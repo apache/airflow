@@ -22,12 +22,23 @@ description: |
     `MySQL <https://www.mysql.com/products/>`__
 
 versions:
+  - 2.1.1
+  - 2.1.0
+  - 2.0.0
+  - 1.1.0
+  - 1.0.2
+  - 1.0.1
   - 1.0.0
+
+additional-dependencies:
+  - apache-airflow>=2.1.0
+
 integrations:
   - integration-name: MySQL
     external-doc-url: https://www.mysql.com/
     how-to-guide:
       - /docs/apache-airflow-providers-mysql/operators.rst
+    logo: /integration-logos/mysql/MySQL.png
     tags: [software]
 
 operators:
@@ -48,9 +59,16 @@ transfers:
   - source-integration-name: Amazon Simple Storage Service (S3)
     target-integration-name: MySQL
     python-module: airflow.providers.mysql.transfers.s3_to_mysql
-  - source-integration-name: Snowflake
+  - source-integration-name: Presto
     target-integration-name: MySQL
     python-module: airflow.providers.mysql.transfers.presto_to_mysql
+  - source-integration-name: Trino
+    target-integration-name: MySQL
+    python-module: airflow.providers.mysql.transfers.trino_to_mysql
 
-hook-class-names:
+hook-class-names:  # deprecated - to be removed after providers add dependency on Airflow 2.2.0+
   - airflow.providers.mysql.hooks.mysql.MySqlHook
+
+connection-types:
+  - hook-class-name: airflow.providers.mysql.hooks.mysql.MySqlHook
+    connection-type: mysql

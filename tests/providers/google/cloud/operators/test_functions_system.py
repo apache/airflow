@@ -24,6 +24,12 @@ from tests.test_utils.gcp_system_helpers import CLOUD_DAG_FOLDER, GoogleSystemTe
 @pytest.mark.backend("mysql", "postgres")
 @pytest.mark.credential_file(GCP_FUNCTION_KEY)
 class GcpFunctionExampleDagsSystemTest(GoogleSystemTest):
+    def setUp(self):
+        super().setUp()
+
     @provide_gcp_context(GCP_FUNCTION_KEY)
     def test_run_example_dag_function(self):
         self.run_dag('example_gcp_function', CLOUD_DAG_FOLDER)
+
+    def tearDown(self):
+        super().tearDown()

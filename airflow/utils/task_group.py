@@ -19,11 +19,13 @@
 A TaskGroup is a collection of closely related tasks on the same DAG that should be grouped
 together when the DAG is displayed graphically.
 """
-
+import copy
+import re
 from typing import TYPE_CHECKING, Dict, Generator, List, Optional, Sequence, Set, Union
 
 from airflow.exceptions import AirflowException, DuplicateTaskIdFound
 from airflow.models.taskmixin import TaskMixin
+from airflow.utils.helpers import validate_group_key
 
 if TYPE_CHECKING:
     from airflow.models.baseoperator import BaseOperator
@@ -48,12 +50,23 @@ class TaskGroup(TaskMixin):
     :type parent_group: TaskGroup
     :param dag: The DAG that this TaskGroup belongs to.
     :type dag: airflow.models.DAG
+    :param default_args: A dictionary of default parameters to be used
+        as constructor keyword parameters when initialising operators,
+        will override default_args defined in the DAG level.
+        Note that operators have the same hook, and precede those defined
+        here, meaning that if your dict contains `'depends_on_past': True`
+        here and `'depends_on_past': False` in the operator's call
+        `default_args`, the actual value will be `False`.
+    :type default_args: dict
     :param tooltip: The tooltip of the TaskGroup node when displayed in the UI
     :type tooltip: str
     :param ui_color: The fill color of the TaskGroup node when displayed in the UI
     :type ui_color: str
     :param ui_fgcolor: The label color of the TaskGroup node when displayed in the UI
     :type ui_fgcolor: str
+    :param add_suffix_on_collision: If this task group name already exists,
+        automatically add `__1` etc suffixes
+    :type from_decorator: add_suffix_on_collision
     """
 
     def __init__(
@@ -62,13 +75,16 @@ class TaskGroup(TaskMixin):
         prefix_group_id: bool = True,
         parent_group: Optional["TaskGroup"] = None,
         dag: Optional["DAG"] = None,
+        default_args: Optional[Dict] = None,
         tooltip: str = "",
         ui_color: str = "CornflowerBlue",
         ui_fgcolor: str = "#000",
+        add_suffix_on_collision: bool = False,
     ):
         from airflow.models.dag import DagContext
 
         self.prefix_group_id = prefix_group_id
+        self.default_args = copy.deepcopy(default_args or {})
 
         if group_id is None:
             # This creates a root TaskGroup.
@@ -79,10 +95,15 @@ class TaskGroup(TaskMixin):
             self.used_group_ids: Set[Optional[str]] = set()
             self._parent_group = None
         else:
-            if not isinstance(group_id, str):
-                raise ValueError("group_id must be str")
-            if not group_id:
-                raise ValueError("group_id must not be empty")
+            if prefix_group_id:
+                # If group id is used as prefix, it should not contain spaces nor dots
+                # because it is used as prefix in the task_id
+                validate_group_key(group_id)
+            else:
+                if not isinstance(group_id, str):
+                    raise ValueError("group_id must be str")
+                if not group_id:
+                    raise ValueError("group_id must not be empty")
 
             dag = dag or DagContext.get_current_dag()
 
@@ -95,8 +116,22 @@ class TaskGroup(TaskMixin):
             self.used_group_ids = self._parent_group.used_group_ids
 
         self._group_id = group_id
-        if self.group_id in self.used_group_ids:
-            raise DuplicateTaskIdFound(f"group_id '{self.group_id}' has already been added to the DAG")
+        # if given group_id already used assign suffix by incrementing largest used suffix integer
+        # Example : task_group ==> task_group__1 -> task_group__2 -> task_group__3
+        if group_id in self.used_group_ids:
+            if not add_suffix_on_collision:
+                raise DuplicateTaskIdFound(f"group_id '{self.group_id}' has already been added to the DAG")
+            base = re.split(r'__\d+$', group_id)[0]
+            suffixes = sorted(
+                int(re.split(r'^.+__', used_group_id)[1])
+                for used_group_id in self.used_group_ids
+                if used_group_id is not None and re.match(rf'^{base}__\d+$', used_group_id)
+            )
+            if not suffixes:
+                self._group_id += '__1'
+            else:
+                self._group_id = f'{base}__{suffixes[-1] + 1}'
+
         self.used_group_ids.add(self.group_id)
         self.used_group_ids.add(self.downstream_join_id)
         self.used_group_ids.add(self.upstream_join_id)
@@ -163,7 +198,7 @@ class TaskGroup(TaskMixin):
         Overrides TaskMixin.update_relative.
 
         Update upstream_group_ids/downstream_group_ids/upstream_task_ids/downstream_task_ids
-        accordingly so that we can reduce the number of edges when displaying Graph View.
+        accordingly so that we can reduce the number of edges when displaying Graph view.
         """
         from airflow.models.baseoperator import BaseOperator
 
@@ -218,7 +253,7 @@ class TaskGroup(TaskMixin):
         """Set a TaskGroup/task/list of task upstream of this TaskGroup."""
         self._set_relative(task_or_task_list, upstream=True)
 
-    def __enter__(self):
+    def __enter__(self) -> "TaskGroup":
         TaskGroupContext.push_context_managed_task_group(self)
         return self
 
@@ -274,7 +309,7 @@ class TaskGroup(TaskMixin):
     def upstream_join_id(self) -> str:
         """
         If this TaskGroup has immediate upstream TaskGroups or tasks, a dummy node called
-        upstream_join_id will be created in Graph View to join the outgoing edges from this
+        upstream_join_id will be created in Graph view to join the outgoing edges from this
         TaskGroup to reduce the total number of edges needed to be displayed.
         """
         return f"{self.group_id}.upstream_join_id"
@@ -283,7 +318,7 @@ class TaskGroup(TaskMixin):
     def downstream_join_id(self) -> str:
         """
         If this TaskGroup has immediate downstream TaskGroups or tasks, a dummy node called
-        downstream_join_id will be created in Graph View to join the outgoing edges from this
+        downstream_join_id will be created in Graph view to join the outgoing edges from this
         TaskGroup to reduce the total number of edges needed to be displayed.
         """
         return f"{self.group_id}.downstream_join_id"

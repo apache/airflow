@@ -33,12 +33,12 @@ class TestPigOperator(unittest.TestCase):
 
         operator = PigOperator(pig=pig, task_id=task_id)
         operator.prepare_template()
-        self.assertEqual(pig, operator.pig)
+        assert pig == operator.pig
 
         # converts when pigparams_jinja_translate = true
         operator = PigOperator(pig=pig, task_id=task_id, pigparams_jinja_translate=True)
         operator.prepare_template()
-        self.assertEqual("sh echo {{ DATE }};", operator.pig)
+        assert "sh echo {{ DATE }};" == operator.pig
 
     @mock.patch.object(PigCliHook, 'run_cli')
     def test_execute(self, mock_run_cli):

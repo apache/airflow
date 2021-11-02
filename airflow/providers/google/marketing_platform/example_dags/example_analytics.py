@@ -40,7 +40,7 @@ DATA_ID = "kjdDu3_tQa6n8Q1kXFtSmg"
 
 with models.DAG(
     "example_google_analytics",
-    schedule_interval=None,  # Override to match your needs,
+    schedule_interval='@once',  # Override to match your needs,
     start_date=dates.days_ago(1),
 ) as dag:
     # [START howto_marketing_platform_list_accounts_operator]

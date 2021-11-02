@@ -19,6 +19,8 @@
 import unittest
 from unittest import mock
 
+import pytest
+
 from airflow import AirflowException
 from airflow.providers.amazon.aws.sensors.glacier import GlacierJobOperationSensor, JobStatus
 
@@ -41,28 +43,28 @@ class TestAmazonGlacierSensor(unittest.TestCase):
         side_effect=[{"Action": "", "StatusCode": JobStatus.SUCCEEDED.value}],
     )
     def test_poke_succeeded(self, _):
-        self.assertTrue(self.op.poke(None))
+        assert self.op.poke(None)
 
     @mock.patch(
         "airflow.providers.amazon.aws.sensors.glacier.GlacierHook.describe_job",
         side_effect=[{"Action": "", "StatusCode": JobStatus.IN_PROGRESS.value}],
     )
     def test_poke_in_progress(self, _):
-        self.assertFalse(self.op.poke(None))
+        assert not self.op.poke(None)
 
     @mock.patch(
         "airflow.providers.amazon.aws.sensors.glacier.GlacierHook.describe_job",
         side_effect=[{"Action": "", "StatusCode": ""}],
     )
     def test_poke_fail(self, _):
-        with self.assertRaises(AirflowException) as context:
+        with pytest.raises(AirflowException) as ctx:
             self.op.poke(None)
-        self.assertIn('Sensor failed', str(context.exception))
+        assert 'Sensor failed' in str(ctx.value)
 
 
 class TestSensorJobDescription(unittest.TestCase):
     def test_job_status_success(self):
-        self.assertEqual(JobStatus.SUCCEEDED.value, SUCCEEDED)
+        assert JobStatus.SUCCEEDED.value == SUCCEEDED
 
     def test_job_status_in_progress(self):
-        self.assertEqual(JobStatus.IN_PROGRESS.value, IN_PROGRESS)
+        assert JobStatus.IN_PROGRESS.value == IN_PROGRESS

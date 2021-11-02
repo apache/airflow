@@ -26,10 +26,6 @@ analyzing data to find meaningful insights using familiar SQL.
 Airflow provides operators to manage datasets and tables, run queries and validate
 data.
 
-.. contents::
-  :depth: 1
-  :local:
-
 Prerequisite Tasks
 ^^^^^^^^^^^^^^^^^^
 
@@ -82,22 +78,22 @@ To retrieve the list of tables in a given dataset use
     :start-after: [START howto_operator_bigquery_get_dataset_tables]
     :end-before: [END howto_operator_bigquery_get_dataset_tables]
 
-.. _howto/operator:BigQueryPatchDatasetOperator:
+.. _howto/operator:BigQueryUpdateTableOperator:
 
-Patch dataset
-"""""""""""""
+Update table
+""""""""""""""
 
-To patch a dataset in BigQuery you can use
-:class:`~airflow.providers.google.cloud.operators.bigquery.BigQueryPatchDatasetOperator`.
+To update a table in BigQuery you can use
+:class:`~airflow.providers.google.cloud.operators.bigquery.BigQueryUpdateTableOperator`.
 
-Note, this operator only replaces fields that are provided in the submitted dataset
-resource.
+The update method replaces the entire Table resource, whereas the patch
+method only replaces fields that are provided in the submitted Table resource.
 
 .. exampleinclude:: /../../airflow/providers/google/cloud/example_dags/example_bigquery_operations.py
     :language: python
     :dedent: 4
-    :start-after: [START howto_operator_bigquery_patch_dataset]
-    :end-before: [END howto_operator_bigquery_patch_dataset]
+    :start-after: [START howto_operator_bigquery_update_table]
+    :end-before: [END howto_operator_bigquery_update_table]
 
 .. _howto/operator:BigQueryUpdateDatasetOperator:
 
@@ -161,6 +157,15 @@ You can use this operator to create a view on top of an existing table.
     :start-after: [START howto_operator_bigquery_create_view]
     :end-before: [END howto_operator_bigquery_create_view]
 
+You can also use this operator to create a materialized view that periodically
+cache results of a query for increased performance and efficiency.
+
+.. exampleinclude:: /../../airflow/providers/google/cloud/example_dags/example_bigquery_operations.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_bigquery_create_materialized_view]
+    :end-before: [END howto_operator_bigquery_create_materialized_view]
+
 .. _howto/operator:BigQueryCreateExternalTableOperator:
 
 Create external table
@@ -219,6 +224,23 @@ in the given dataset.
     :start-after: [START howto_operator_bigquery_upsert_table]
     :end-before: [END howto_operator_bigquery_upsert_table]
 
+.. _howto/operator:BigQueryUpdateTableSchemaOperator:
+
+Update table schema
+"""""""""""""""""""
+
+To update the schema of a table you can use
+:class:`~airflow.providers.google.cloud.operators.bigquery.BigQueryUpdateTableSchemaOperator`.
+
+This operator updates the schema field values supplied, while leaving the rest unchanged. This is useful
+for instance to set new field descriptions on an existing table schema.
+
+.. exampleinclude:: /../../airflow/providers/google/cloud/example_dags/example_bigquery_operations.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_bigquery_update_table_schema]
+    :end-before: [END howto_operator_bigquery_update_table_schema]
+
 .. _howto/operator:BigQueryDeleteTableOperator:
 
 Delete table
@@ -240,6 +262,14 @@ You can also use this operator to delete a view.
     :dedent: 4
     :start-after: [START howto_operator_bigquery_delete_view]
     :end-before: [END howto_operator_bigquery_delete_view]
+
+You can also use this operator to delete a materialized view.
+
+.. exampleinclude:: /../../airflow/providers/google/cloud/example_dags/example_bigquery_operations.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_bigquery_delete_materialized_view]
+    :end-before: [END howto_operator_bigquery_delete_materialized_view]
 
 .. _howto/operator:BigQueryInsertJobOperator:
 

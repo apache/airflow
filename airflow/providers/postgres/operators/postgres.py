@@ -15,11 +15,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from typing import Iterable, Mapping, Optional, Union
+from typing import Iterable, List, Mapping, Optional, Union
 
 from airflow.models import BaseOperator
 from airflow.providers.postgres.hooks.postgres import PostgresHook
-from airflow.utils.decorators import apply_defaults
 
 
 class PostgresOperator(BaseOperator):
@@ -30,7 +29,8 @@ class PostgresOperator(BaseOperator):
     :type sql: Can receive a str representing a sql statement,
         a list of str (sql statements), or reference to a template file.
         Template reference are recognized by str ending in '.sql'
-    :param postgres_conn_id: reference to a specific postgres database
+    :param postgres_conn_id: The :ref:`postgres conn id <howto/connection:postgres>`
+        reference to a specific postgres database.
     :type postgres_conn_id: str
     :param autocommit: if True, each command is automatically committed.
         (default value: False)
@@ -46,11 +46,10 @@ class PostgresOperator(BaseOperator):
     template_ext = ('.sql',)
     ui_color = '#ededed'
 
-    @apply_defaults
     def __init__(
         self,
         *,
-        sql: str,
+        sql: Union[str, List[str]],
         postgres_conn_id: str = 'postgres_default',
         autocommit: bool = False,
         parameters: Optional[Union[Mapping, Iterable]] = None,
@@ -66,7 +65,6 @@ class PostgresOperator(BaseOperator):
         self.hook = None
 
     def execute(self, context):
-        self.log.info('Executing: %s', self.sql)
         self.hook = PostgresHook(postgres_conn_id=self.postgres_conn_id, schema=self.database)
         self.hook.run(self.sql, self.autocommit, parameters=self.parameters)
         for output in self.hook.conn.notices:

@@ -15,11 +15,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""This module is deprecated. Please use `airflow.providers.mongo.sensors.mongo`."""
+"""This module is deprecated. Please use :mod:`airflow.providers.mongo.sensors.mongo`."""
 
 import warnings
 
-# pylint: disable=unused-import
 from airflow.providers.mongo.sensors.mongo import MongoSensor  # noqa
 
 warnings.warn(

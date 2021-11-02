@@ -15,91 +15,95 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+import re
 
-import unittest
-from datetime import datetime
+import pytest
 
-from airflow.models import TaskInstance
-from airflow.models.dag import DAG
-from airflow.operators.dummy import DummyOperator
-from airflow.utils import helpers
-from airflow.utils.helpers import build_airflow_url_with_query, merge_dicts
+from airflow import AirflowException
+from airflow.utils import helpers, timezone
+from airflow.utils.helpers import build_airflow_url_with_query, merge_dicts, validate_group_key, validate_key
 from tests.test_utils.config import conf_vars
+from tests.test_utils.db import clear_db_dags, clear_db_runs
 
 
-class TestHelpers(unittest.TestCase):
-    def test_render_log_filename(self):
+@pytest.fixture()
+def clear_db():
+    clear_db_runs()
+    clear_db_dags()
+    yield
+    clear_db_runs()
+    clear_db_dags()
+
+
+class TestHelpers:
+    @pytest.mark.usefixtures("clear_db")
+    def test_render_log_filename(self, create_task_instance):
         try_number = 1
         dag_id = 'test_render_log_filename_dag'
         task_id = 'test_render_log_filename_task'
-        execution_date = datetime(2016, 1, 1)
+        execution_date = timezone.datetime(2016, 1, 1)
 
-        dag = DAG(dag_id, start_date=execution_date)
-        task = DummyOperator(task_id=task_id, dag=dag)
-        ti = TaskInstance(task=task, execution_date=execution_date)
-
+        ti = create_task_instance(dag_id=dag_id, task_id=task_id, execution_date=execution_date)
         filename_template = "{{ ti.dag_id }}/{{ ti.task_id }}/{{ ts }}/{{ try_number }}.log"
 
         ts = ti.get_template_context()['ts']
-        expected_filename = "{dag_id}/{task_id}/{ts}/{try_number}.log".format(
-            dag_id=dag_id, task_id=task_id, ts=ts, try_number=try_number
-        )
+        expected_filename = f"{dag_id}/{task_id}/{ts}/{try_number}.log"
 
         rendered_filename = helpers.render_log_filename(ti, try_number, filename_template)
 
-        self.assertEqual(rendered_filename, expected_filename)
+        assert rendered_filename == expected_filename
 
     def test_chunks(self):
-        with self.assertRaises(ValueError):
+        with pytest.raises(ValueError):
             list(helpers.chunks([1, 2, 3], 0))
 
-        with self.assertRaises(ValueError):
+        with pytest.raises(ValueError):
             list(helpers.chunks([1, 2, 3], -3))
 
-        self.assertEqual(list(helpers.chunks([], 5)), [])
-        self.assertEqual(list(helpers.chunks([1], 1)), [[1]])
-        self.assertEqual(list(helpers.chunks([1, 2, 3], 2)), [[1, 2], [3]])
+        assert list(helpers.chunks([], 5)) == []
+        assert list(helpers.chunks([1], 1)) == [[1]]
+        assert list(helpers.chunks([1, 2, 3], 2)) == [[1, 2], [3]]
 
     def test_reduce_in_chunks(self):
-        self.assertEqual(
-            helpers.reduce_in_chunks(lambda x, y: x + [y], [1, 2, 3, 4, 5], []), [[1, 2, 3, 4, 5]]
-        )
+        assert helpers.reduce_in_chunks(lambda x, y: x + [y], [1, 2, 3, 4, 5], []) == [[1, 2, 3, 4, 5]]
 
-        self.assertEqual(
-            helpers.reduce_in_chunks(lambda x, y: x + [y], [1, 2, 3, 4, 5], [], 2), [[1, 2], [3, 4], [5]]
-        )
+        assert helpers.reduce_in_chunks(lambda x, y: x + [y], [1, 2, 3, 4, 5], [], 2) == [[1, 2], [3, 4], [5]]
 
-        self.assertEqual(helpers.reduce_in_chunks(lambda x, y: x + y[0] * y[1], [1, 2, 3, 4], 0, 2), 14)
+        assert helpers.reduce_in_chunks(lambda x, y: x + y[0] * y[1], [1, 2, 3, 4], 0, 2) == 14
 
     def test_is_container(self):
-        self.assertFalse(helpers.is_container("a string is not a container"))
-        self.assertTrue(helpers.is_container(["a", "list", "is", "a", "container"]))
+        assert not helpers.is_container("a string is not a container")
+        assert helpers.is_container(["a", "list", "is", "a", "container"])
 
-        self.assertTrue(helpers.is_container(['test_list']))
-        self.assertFalse(helpers.is_container('test_str_not_iterable'))
+        assert helpers.is_container(['test_list'])
+        assert not helpers.is_container('test_str_not_iterable')
         # Pass an object that is not iter nor a string.
-        self.assertFalse(helpers.is_container(10))
+        assert not helpers.is_container(10)
 
     def test_as_tuple(self):
-        self.assertEqual(helpers.as_tuple("a string is not a container"), ("a string is not a container",))
+        assert helpers.as_tuple("a string is not a container") == ("a string is not a container",)
 
-        self.assertEqual(
-            helpers.as_tuple(["a", "list", "is", "a", "container"]), ("a", "list", "is", "a", "container")
+        assert helpers.as_tuple(["a", "list", "is", "a", "container"]) == (
+            "a",
+            "list",
+            "is",
+            "a",
+            "container",
         )
 
     def test_as_tuple_iter(self):
         test_list = ['test_str']
         as_tup = helpers.as_tuple(test_list)
-        self.assertTupleEqual(tuple(test_list), as_tup)
+        assert tuple(test_list) == as_tup
 
     def test_as_tuple_no_iter(self):
         test_str = 'test_str'
         as_tup = helpers.as_tuple(test_str)
-        self.assertTupleEqual((test_str,), as_tup)
+        assert (test_str,) == as_tup
 
     def test_convert_camel_to_snake(self):
-        self.assertEqual(helpers.convert_camel_to_snake('LocalTaskJob'), 'local_task_job')
-        self.assertEqual(helpers.convert_camel_to_snake('somethingVeryRandom'), 'something_very_random')
+        assert helpers.convert_camel_to_snake('LocalTaskJob') == 'local_task_job'
+        assert helpers.convert_camel_to_snake('somethingVeryRandom') == 'something_very_random'
 
     def test_merge_dicts(self):
         """
@@ -108,7 +112,7 @@ class TestHelpers(unittest.TestCase):
         dict1 = {'a': 1, 'b': 2, 'c': 3}
         dict2 = {'a': 1, 'b': 3, 'd': 42}
         merged = merge_dicts(dict1, dict2)
-        self.assertDictEqual(merged, {'a': 1, 'b': 3, 'c': 3, 'd': 42})
+        assert merged == {'a': 1, 'b': 3, 'c': 3, 'd': 42}
 
     def test_merge_dicts_recursive_overlap_l1(self):
         """
@@ -117,7 +121,7 @@ class TestHelpers(unittest.TestCase):
         dict1 = {'a': 1, 'r': {'a': 1, 'b': 2}}
         dict2 = {'a': 1, 'r': {'c': 3, 'b': 0}}
         merged = merge_dicts(dict1, dict2)
-        self.assertDictEqual(merged, {'a': 1, 'r': {'a': 1, 'b': 0, 'c': 3}})
+        assert merged == {'a': 1, 'r': {'a': 1, 'b': 0, 'c': 3}}
 
     def test_merge_dicts_recursive_overlap_l2(self):
         """
@@ -127,7 +131,7 @@ class TestHelpers(unittest.TestCase):
         dict1 = {'a': 1, 'r': {'a': 1, 'b': {'a': 1}}}
         dict2 = {'a': 1, 'r': {'c': 3, 'b': {'b': 1}}}
         merged = merge_dicts(dict1, dict2)
-        self.assertDictEqual(merged, {'a': 1, 'r': {'a': 1, 'b': {'a': 1, 'b': 1}, 'c': 3}})
+        assert merged == {'a': 1, 'r': {'a': 1, 'b': {'a': 1, 'b': 1}, 'c': 3}}
 
     def test_merge_dicts_recursive_right_only(self):
         """
@@ -136,14 +140,93 @@ class TestHelpers(unittest.TestCase):
         dict1 = {'a': 1}
         dict2 = {'a': 1, 'r': {'c': 3, 'b': 0}}
         merged = merge_dicts(dict1, dict2)
-        self.assertDictEqual(merged, {'a': 1, 'r': {'b': 0, 'c': 3}})
+        assert merged == {'a': 1, 'r': {'b': 0, 'c': 3}}
 
     @conf_vars(
         {
-            ("webserver", "dag_default_view"): "custom",
+            ("webserver", "dag_default_view"): "graph",
         }
     )
     def test_build_airflow_url_with_query(self):
+        """
+        Test query generated with dag_id and params
+        """
         query = {"dag_id": "test_dag", "param": "key/to.encode"}
-        url = build_airflow_url_with_query(query)
-        assert url == "/custom?dag_id=test_dag&param=key%2Fto.encode"
+        expected_url = "/graph?dag_id=test_dag&param=key%2Fto.encode"
+
+        from airflow.www.app import cached_app
+
+        with cached_app(testing=True).test_request_context():
+            assert build_airflow_url_with_query(query) == expected_url
+
+    @pytest.mark.parametrize(
+        "key_id, message, exception",
+        [
+            (3, "The key has to be a string and is <class 'int'>:3", TypeError),
+            (None, "The key has to be a string and is <class 'NoneType'>:None", TypeError),
+            ("simple_key", None, None),
+            ("simple-key", None, None),
+            ("group.simple_key", None, None),
+            ("root.group.simple-key", None, None),
+            (
+                "key with space",
+                "The key (key with space) has to be made of alphanumeric "
+                "characters, dashes, dots and underscores exclusively",
+                AirflowException,
+            ),
+            (
+                "key_with_!",
+                "The key (key_with_!) has to be made of alphanumeric "
+                "characters, dashes, dots and underscores exclusively",
+                AirflowException,
+            ),
+            (' ' * 251, "The key has to be less than 250 characters", AirflowException),
+        ],
+    )
+    def test_validate_key(self, key_id, message, exception):
+        if message:
+            with pytest.raises(exception, match=re.escape(message)):
+                validate_key(key_id)
+        else:
+            validate_key(key_id)
+
+    @pytest.mark.parametrize(
+        "key_id, message, exception",
+        [
+            (3, "The key has to be a string and is <class 'int'>:3", TypeError),
+            (None, "The key has to be a string and is <class 'NoneType'>:None", TypeError),
+            ("simple_key", None, None),
+            ("simple-key", None, None),
+            (
+                "group.simple_key",
+                "The key ('group.simple_key') has to be made of alphanumeric "
+                "characters, dashes and underscores exclusively",
+                AirflowException,
+            ),
+            (
+                "root.group-name.simple_key",
+                "The key ('root.group-name.simple_key') has to be made of alphanumeric "
+                "characters, dashes and underscores exclusively",
+                AirflowException,
+            ),
+            (
+                "key with space",
+                "The key ('key with space') has to be made of alphanumeric "
+                "characters, dashes and underscores exclusively",
+                AirflowException,
+            ),
+            (
+                "key_with_!",
+                "The key ('key_with_!') has to be made of alphanumeric "
+                "characters, dashes and underscores exclusively",
+                AirflowException,
+            ),
+            (' ' * 201, "The key has to be less than 200 characters", AirflowException),
+        ],
+    )
+    def test_validate_group_key(self, key_id, message, exception):
+        if message:
+            with pytest.raises(exception, match=re.escape(message)):
+                validate_group_key(key_id)
+        else:
+            validate_group_key(key_id)

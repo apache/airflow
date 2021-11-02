@@ -20,7 +20,6 @@ from typing import Iterable, Optional, Union
 
 from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
-from airflow.utils.decorators import apply_defaults
 
 
 class S3ListOperator(BaseOperator):
@@ -69,7 +68,6 @@ class S3ListOperator(BaseOperator):
     template_fields: Iterable[str] = ('bucket', 'prefix', 'delimiter')
     ui_color = '#ffd700'
 
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -91,7 +89,7 @@ class S3ListOperator(BaseOperator):
         hook = S3Hook(aws_conn_id=self.aws_conn_id, verify=self.verify)
 
         self.log.info(
-            'Getting the list of files from bucket: %s in prefix: %s (Delimiter {%s)',
+            'Getting the list of files from bucket: %s in prefix: %s (Delimiter %s)',
             self.bucket,
             self.prefix,
             self.delimiter,

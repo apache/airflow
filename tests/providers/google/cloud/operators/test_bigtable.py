@@ -21,6 +21,7 @@ from typing import Dict, List
 from unittest import mock
 
 import google.api_core.exceptions
+import pytest
 from google.cloud.bigtable.column_family import MaxVersionsGCRule
 from google.cloud.bigtable.instance import Instance
 from google.cloud.bigtable_admin_v2 import enums
@@ -69,7 +70,7 @@ class TestBigtableInstanceCreate(unittest.TestCase):
     def test_empty_attribute(
         self, missing_attribute, project_id, instance_id, main_cluster_id, main_cluster_zone, mock_hook
     ):
-        with self.assertRaises(AirflowException) as e:
+        with pytest.raises(AirflowException) as ctx:
             BigtableCreateInstanceOperator(
                 project_id=project_id,
                 instance_id=instance_id,
@@ -78,8 +79,8 @@ class TestBigtableInstanceCreate(unittest.TestCase):
                 task_id="id",
                 gcp_conn_id=GCP_CONN_ID,
             )
-        err = e.exception
-        self.assertEqual(str(err), f'Empty parameter: {missing_attribute}')
+        err = ctx.value
+        assert str(err) == f'Empty parameter: {missing_attribute}'
         mock_hook.assert_not_called()
 
     @mock.patch('airflow.providers.google.cloud.operators.bigtable.BigtableHook')
@@ -140,7 +141,7 @@ class TestBigtableInstanceCreate(unittest.TestCase):
             side_effect=google.api_core.exceptions.GoogleAPICallError('error')
         )
 
-        with self.assertRaises(google.api_core.exceptions.GoogleAPICallError):
+        with pytest.raises(google.api_core.exceptions.GoogleAPICallError):
             op.execute(None)
 
         mock_hook.assert_called_once_with(
@@ -291,7 +292,7 @@ class TestBigtableInstanceUpdate(unittest.TestCase):
     )
     @mock.patch('airflow.providers.google.cloud.operators.bigtable.BigtableHook')
     def test_empty_attribute(self, missing_attribute, project_id, instance_id, mock_hook):
-        with self.assertRaises(AirflowException) as e:
+        with pytest.raises(AirflowException) as ctx:
             BigtableUpdateInstanceOperator(
                 project_id=project_id,
                 instance_id=instance_id,
@@ -300,15 +301,15 @@ class TestBigtableInstanceUpdate(unittest.TestCase):
                 instance_labels=INSTANCE_LABELS,
                 task_id="id",
             )
-        err = e.exception
-        self.assertEqual(str(err), f'Empty parameter: {missing_attribute}')
+        err = ctx.value
+        assert str(err) == f'Empty parameter: {missing_attribute}'
         mock_hook.assert_not_called()
 
     @mock.patch('airflow.providers.google.cloud.operators.bigtable.BigtableHook')
     def test_update_instance_that_doesnt_exists(self, mock_hook):
         mock_hook.return_value.get_instance.return_value = None
 
-        with self.assertRaises(AirflowException) as e:
+        with pytest.raises(AirflowException) as ctx:
             op = BigtableUpdateInstanceOperator(
                 project_id=PROJECT_ID,
                 instance_id=INSTANCE_ID,
@@ -321,8 +322,8 @@ class TestBigtableInstanceUpdate(unittest.TestCase):
             )
             op.execute(None)
 
-        err = e.exception
-        self.assertEqual(str(err), f"Dependency: instance '{INSTANCE_ID}' does not exist.")
+        err = ctx.value
+        assert str(err) == f"Dependency: instance '{INSTANCE_ID}' does not exist."
 
         mock_hook.assert_called_once_with(
             gcp_conn_id=GCP_CONN_ID,
@@ -334,7 +335,7 @@ class TestBigtableInstanceUpdate(unittest.TestCase):
     def test_update_instance_that_doesnt_exists_empty_project_id(self, mock_hook):
         mock_hook.return_value.get_instance.return_value = None
 
-        with self.assertRaises(AirflowException) as e:
+        with pytest.raises(AirflowException) as ctx:
             op = BigtableUpdateInstanceOperator(
                 instance_id=INSTANCE_ID,
                 instance_display_name=INSTANCE_DISPLAY_NAME,
@@ -346,8 +347,8 @@ class TestBigtableInstanceUpdate(unittest.TestCase):
             )
             op.execute(None)
 
-        err = e.exception
-        self.assertEqual(str(err), f"Dependency: instance '{INSTANCE_ID}' does not exist.")
+        err = ctx.value
+        assert str(err) == f"Dependency: instance '{INSTANCE_ID}' does not exist."
 
         mock_hook.assert_called_once_with(
             gcp_conn_id=GCP_CONN_ID,
@@ -371,7 +372,7 @@ class TestBigtableInstanceUpdate(unittest.TestCase):
             side_effect=google.api_core.exceptions.GoogleAPICallError('error')
         )
 
-        with self.assertRaises(google.api_core.exceptions.GoogleAPICallError):
+        with pytest.raises(google.api_core.exceptions.GoogleAPICallError):
             op.execute(None)
 
         mock_hook.assert_called_once_with(
@@ -399,7 +400,7 @@ class TestBigtableClusterUpdate(unittest.TestCase):
     )
     @mock.patch('airflow.providers.google.cloud.operators.bigtable.BigtableHook')
     def test_empty_attribute(self, missing_attribute, project_id, instance_id, cluster_id, nodes, mock_hook):
-        with self.assertRaises(AirflowException) as e:
+        with pytest.raises(AirflowException) as ctx:
             BigtableUpdateClusterOperator(
                 project_id=project_id,
                 instance_id=instance_id,
@@ -408,15 +409,15 @@ class TestBigtableClusterUpdate(unittest.TestCase):
                 task_id="id",
                 gcp_conn_id=GCP_CONN_ID,
             )
-        err = e.exception
-        self.assertEqual(str(err), f'Empty parameter: {missing_attribute}')
+        err = ctx.value
+        assert str(err) == f'Empty parameter: {missing_attribute}'
         mock_hook.assert_not_called()
 
     @mock.patch('airflow.providers.google.cloud.operators.bigtable.BigtableHook')
     def test_updating_cluster_but_instance_does_not_exists(self, mock_hook):
         mock_hook.return_value.get_instance.return_value = None
 
-        with self.assertRaises(AirflowException) as e:
+        with pytest.raises(AirflowException) as ctx:
             op = BigtableUpdateClusterOperator(
                 project_id=PROJECT_ID,
                 instance_id=INSTANCE_ID,
@@ -428,8 +429,8 @@ class TestBigtableClusterUpdate(unittest.TestCase):
             )
             op.execute(None)
 
-        err = e.exception
-        self.assertEqual(str(err), f"Dependency: instance '{INSTANCE_ID}' does not exist.")
+        err = ctx.value
+        assert str(err) == f"Dependency: instance '{INSTANCE_ID}' does not exist."
         mock_hook.assert_called_once_with(
             gcp_conn_id=GCP_CONN_ID,
             impersonation_chain=IMPERSONATION_CHAIN,
@@ -440,7 +441,7 @@ class TestBigtableClusterUpdate(unittest.TestCase):
     def test_updating_cluster_but_instance_does_not_exists_empty_project_id(self, mock_hook):
         mock_hook.return_value.get_instance.return_value = None
 
-        with self.assertRaises(AirflowException) as e:
+        with pytest.raises(AirflowException) as ctx:
             op = BigtableUpdateClusterOperator(
                 instance_id=INSTANCE_ID,
                 cluster_id=CLUSTER_ID,
@@ -451,8 +452,8 @@ class TestBigtableClusterUpdate(unittest.TestCase):
             )
             op.execute(None)
 
-        err = e.exception
-        self.assertEqual(str(err), f"Dependency: instance '{INSTANCE_ID}' does not exist.")
+        err = ctx.value
+        assert str(err) == f"Dependency: instance '{INSTANCE_ID}' does not exist."
         mock_hook.assert_called_once_with(
             gcp_conn_id=GCP_CONN_ID,
             impersonation_chain=IMPERSONATION_CHAIN,
@@ -466,7 +467,7 @@ class TestBigtableClusterUpdate(unittest.TestCase):
             side_effect=google.api_core.exceptions.NotFound("Cluster not found.")
         )
 
-        with self.assertRaises(AirflowException) as e:
+        with pytest.raises(AirflowException) as ctx:
             op = BigtableUpdateClusterOperator(
                 project_id=PROJECT_ID,
                 instance_id=INSTANCE_ID,
@@ -478,11 +479,8 @@ class TestBigtableClusterUpdate(unittest.TestCase):
             )
             op.execute(None)
 
-        err = e.exception
-        self.assertEqual(
-            str(err),
-            f"Dependency: cluster '{CLUSTER_ID}' does not exist for instance '{INSTANCE_ID}'.",
-        )
+        err = ctx.value
+        assert str(err) == f"Dependency: cluster '{CLUSTER_ID}' does not exist for instance '{INSTANCE_ID}'."
         mock_hook.assert_called_once_with(
             gcp_conn_id=GCP_CONN_ID,
             impersonation_chain=IMPERSONATION_CHAIN,
@@ -498,7 +496,7 @@ class TestBigtableClusterUpdate(unittest.TestCase):
             side_effect=google.api_core.exceptions.NotFound("Cluster not found.")
         )
 
-        with self.assertRaises(AirflowException) as e:
+        with pytest.raises(AirflowException) as ctx:
             op = BigtableUpdateClusterOperator(
                 instance_id=INSTANCE_ID,
                 cluster_id=CLUSTER_ID,
@@ -509,11 +507,8 @@ class TestBigtableClusterUpdate(unittest.TestCase):
             )
             op.execute(None)
 
-        err = e.exception
-        self.assertEqual(
-            str(err),
-            f"Dependency: cluster '{CLUSTER_ID}' does not exist for instance '{INSTANCE_ID}'.",
-        )
+        err = ctx.value
+        assert str(err) == f"Dependency: cluster '{CLUSTER_ID}' does not exist for instance '{INSTANCE_ID}'."
         mock_hook.assert_called_once_with(
             gcp_conn_id=GCP_CONN_ID,
             impersonation_chain=IMPERSONATION_CHAIN,
@@ -538,7 +533,7 @@ class TestBigtableClusterUpdate(unittest.TestCase):
             side_effect=google.api_core.exceptions.GoogleAPICallError('error')
         )
 
-        with self.assertRaises(google.api_core.exceptions.GoogleAPICallError):
+        with pytest.raises(google.api_core.exceptions.GoogleAPICallError):
             op.execute(None)
 
         mock_hook.assert_called_once_with(
@@ -594,10 +589,10 @@ class TestBigtableInstanceDelete(unittest.TestCase):
     )
     @mock.patch('airflow.providers.google.cloud.operators.bigtable.BigtableHook')
     def test_empty_attribute(self, missing_attribute, project_id, instance_id, mock_hook):
-        with self.assertRaises(AirflowException) as e:
+        with pytest.raises(AirflowException) as ctx:
             BigtableDeleteInstanceOperator(project_id=project_id, instance_id=instance_id, task_id="id")
-        err = e.exception
-        self.assertEqual(str(err), f'Empty parameter: {missing_attribute}')
+        err = ctx.value
+        assert str(err) == f'Empty parameter: {missing_attribute}'
         mock_hook.assert_not_called()
 
     @mock.patch('airflow.providers.google.cloud.operators.bigtable.BigtableHook')
@@ -654,7 +649,7 @@ class TestBigtableInstanceDelete(unittest.TestCase):
             side_effect=google.api_core.exceptions.GoogleAPICallError('error')
         )
 
-        with self.assertRaises(google.api_core.exceptions.GoogleAPICallError):
+        with pytest.raises(google.api_core.exceptions.GoogleAPICallError):
             op.execute(None)
 
         mock_hook.assert_called_once_with(
@@ -695,7 +690,7 @@ class TestBigtableTableDelete(unittest.TestCase):
     )
     @mock.patch('airflow.providers.google.cloud.operators.bigtable.BigtableHook')
     def test_empty_attribute(self, missing_attribute, project_id, instance_id, table_id, mock_hook):
-        with self.assertRaises(AirflowException) as e:
+        with pytest.raises(AirflowException) as ctx:
             BigtableDeleteTableOperator(
                 project_id=project_id,
                 instance_id=instance_id,
@@ -703,8 +698,8 @@ class TestBigtableTableDelete(unittest.TestCase):
                 task_id="id",
                 gcp_conn_id=GCP_CONN_ID,
             )
-        err = e.exception
-        self.assertEqual(str(err), f'Empty parameter: {missing_attribute}')
+        err = ctx.value
+        assert str(err) == f'Empty parameter: {missing_attribute}'
         mock_hook.assert_not_called()
 
     @mock.patch('airflow.providers.google.cloud.operators.bigtable.BigtableHook')
@@ -764,10 +759,10 @@ class TestBigtableTableDelete(unittest.TestCase):
         )
 
         mock_hook.return_value.get_instance.return_value = None
-        with self.assertRaises(AirflowException) as e:
+        with pytest.raises(AirflowException) as ctx:
             op.execute(None)
-        err = e.exception
-        self.assertEqual(str(err), f"Dependency: instance '{INSTANCE_ID}' does not exist.")
+        err = ctx.value
+        assert str(err) == f"Dependency: instance '{INSTANCE_ID}' does not exist."
         mock_hook.assert_called_once_with(
             gcp_conn_id=GCP_CONN_ID,
             impersonation_chain=IMPERSONATION_CHAIN,
@@ -788,7 +783,7 @@ class TestBigtableTableDelete(unittest.TestCase):
             side_effect=google.api_core.exceptions.GoogleAPICallError('error')
         )
 
-        with self.assertRaises(google.api_core.exceptions.GoogleAPICallError):
+        with pytest.raises(google.api_core.exceptions.GoogleAPICallError):
             op.execute(None)
 
         mock_hook.assert_called_once_with(
@@ -835,7 +830,7 @@ class TestBigtableTableCreate(unittest.TestCase):
     )
     @mock.patch('airflow.providers.google.cloud.operators.bigtable.BigtableHook')
     def test_empty_attribute(self, missing_attribute, project_id, instance_id, table_id, mock_hook):
-        with self.assertRaises(AirflowException) as e:
+        with pytest.raises(AirflowException) as ctx:
             BigtableCreateTableOperator(
                 project_id=project_id,
                 instance_id=instance_id,
@@ -843,8 +838,8 @@ class TestBigtableTableCreate(unittest.TestCase):
                 task_id="id",
                 gcp_conn_id=GCP_CONN_ID,
             )
-        err = e.exception
-        self.assertEqual(str(err), f'Empty parameter: {missing_attribute}')
+        err = ctx.value
+        assert str(err) == f'Empty parameter: {missing_attribute}'
         mock_hook.assert_not_called()
 
     @mock.patch('airflow.providers.google.cloud.operators.bigtable.BigtableHook')
@@ -860,13 +855,10 @@ class TestBigtableTableCreate(unittest.TestCase):
             impersonation_chain=IMPERSONATION_CHAIN,
         )
         mock_hook.return_value.get_instance.return_value = None
-        with self.assertRaises(AirflowException) as e:
+        with pytest.raises(AirflowException) as ctx:
             op.execute(None)
-        err = e.exception
-        self.assertEqual(
-            str(err),
-            f"Dependency: instance '{INSTANCE_ID}' does not exist in project '{PROJECT_ID}'.",
-        )
+        err = ctx.value
+        assert str(err) == f"Dependency: instance '{INSTANCE_ID}' does not exist in project '{PROJECT_ID}'."
         mock_hook.assert_called_once_with(
             gcp_conn_id=GCP_CONN_ID,
             impersonation_chain=IMPERSONATION_CHAIN,
@@ -951,10 +943,10 @@ class TestBigtableTableCreate(unittest.TestCase):
             side_effect=google.api_core.exceptions.AlreadyExists("Table already exists.")
         )
 
-        with self.assertRaises(AirflowException) as e:
+        with pytest.raises(AirflowException) as ctx:
             op.execute(None)
-        err = e.exception
-        self.assertEqual(str(err), f"Table '{TABLE_ID}' already exists with different Column Families.")
+        err = ctx.value
+        assert str(err) == f"Table '{TABLE_ID}' already exists with different Column Families."
         mock_hook.assert_called_once_with(
             gcp_conn_id=GCP_CONN_ID,
             impersonation_chain=IMPERSONATION_CHAIN,
@@ -981,10 +973,10 @@ class TestBigtableTableCreate(unittest.TestCase):
             side_effect=google.api_core.exceptions.AlreadyExists("Table already exists.")
         )
 
-        with self.assertRaises(AirflowException) as e:
+        with pytest.raises(AirflowException) as ctx:
             op.execute(None)
-        err = e.exception
-        self.assertEqual(str(err), f"Table '{TABLE_ID}' already exists with different Column Families.")
+        err = ctx.value
+        assert str(err) == f"Table '{TABLE_ID}' already exists with different Column Families."
         mock_hook.assert_called_once_with(
             gcp_conn_id=GCP_CONN_ID,
             impersonation_chain=IMPERSONATION_CHAIN,

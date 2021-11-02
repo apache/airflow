@@ -19,9 +19,11 @@
 """
 Test for an order of dependencies in setup.py
 """
+import difflib
 import os
 import re
 import sys
+import textwrap
 from os.path import abspath, dirname
 from typing import List
 
@@ -34,31 +36,31 @@ SOURCE_DIR_PATH = os.path.abspath(os.path.join(MY_DIR_PATH, os.pardir, os.pardir
 sys.path.insert(0, SOURCE_DIR_PATH)
 
 
+class ConsoleDiff(difflib.Differ):
+    def _dump(self, tag, x, lo, hi):
+        """Generate comparison results for a same-tagged range."""
+        for i in range(lo, hi):
+            if tag == "+":
+                yield f'[green]{tag} {x[i]}[/]'
+            elif tag == "-":
+                yield f'[red]{tag} {x[i]}[/]'
+            else:
+                yield f'{tag} {x[i]}'
+
+
 def _check_list_sorted(the_list: List[str], message: str) -> None:
-    print(the_list)
     sorted_list = sorted(the_list)
     if the_list == sorted_list:
         print(f"{message} is [green]ok[/]")
+        print(the_list)
         print()
         return
-    i = 0
-    while sorted_list[i] == the_list[i]:
-        i += 1
-    print(f"{message} [red]NOK[/]")
+    print(textwrap.indent("\n".join(ConsoleDiff().compare(the_list, sorted_list)), " " * 4))
     print()
-    errors.append(
-        f"ERROR in {message}. First wrongly sorted element" f" {the_list[i]}. Should be {sorted_list[i]}"
-    )
+    errors.append(f"ERROR in {message}. The elements are not sorted.")
 
 
-def setup() -> str:
-    setup_py_file_path = abspath(os.path.join(dirname(__file__), os.pardir, os.pardir, os.pardir, 'setup.py'))
-    with open(setup_py_file_path) as setup_file:
-        setup_context = setup_file.read()
-    return setup_context
-
-
-def check_main_dependent_group(setup_context: str) -> None:
+def check_main_dependent_group(setup_contents: str) -> None:
     """
     Test for an order of dependencies groups between mark
     '# Start dependencies group' and '# End dependencies group' in setup.py
@@ -67,7 +69,7 @@ def check_main_dependent_group(setup_context: str) -> None:
     pattern_main_dependent_group = re.compile(
         '# Start dependencies group\n(.*)# End dependencies group', re.DOTALL
     )
-    main_dependent_group = pattern_main_dependent_group.findall(setup_context)[0]
+    main_dependent_group = pattern_main_dependent_group.findall(setup_contents)[0]
 
     pattern_sub_dependent = re.compile(r' = \[.*?]\n', re.DOTALL)
     main_dependent = pattern_sub_dependent.sub(',', main_dependent_group)
@@ -75,26 +77,17 @@ def check_main_dependent_group(setup_context: str) -> None:
     src = main_dependent.strip(',').split(',')
     _check_list_sorted(src, "Order of dependencies")
 
+    for group in src:
+        check_sub_dependent_group(group)
 
-def check_sub_dependent_group(setup_context: str) -> None:
+
+def check_sub_dependent_group(group_name: str) -> None:
     r"""
     Test for an order of each dependencies groups declare like
     `^dependent_group_name = [.*?]\n` in setup.py
     """
-    pattern_dependent_group_name = re.compile(r'^(\w+) = \[', re.MULTILINE)
-    dependent_group_names = pattern_dependent_group_name.findall(setup_context)
-
-    pattern_dependent_version = re.compile(r'[~|><=;].*')
-
-    for group_name in dependent_group_names:
-        print(f"[blue]Checking dependency group {group_name}[/]")
-        pattern_sub_dependent = re.compile(fr'{group_name} = \[(.*?)]\n', re.DOTALL)
-        sub_dependent = pattern_sub_dependent.findall(setup_context)[0]
-        pattern_dependent = re.compile(r"'(.*?)'")
-        dependent = pattern_dependent.findall(sub_dependent)
-
-        src = [pattern_dependent_version.sub('', p) for p in dependent]
-        _check_list_sorted(src, f"Order of dependency group: {group_name}")
+    print(f"[blue]Checking dependency group {group_name}[/]")
+    _check_list_sorted(getattr(setup, group_name), f"Order of dependency group: {group_name}")
 
 
 def check_alias_dependent_group(setup_context: str) -> None:
@@ -111,52 +104,15 @@ def check_alias_dependent_group(setup_context: str) -> None:
         _check_list_sorted(src, f"Order of alias dependencies group: {dependent}")
 
 
-def check_provider_requirements(setup_context: str) -> None:
-    """
-    Test for an order of dependencies in PROVIDERS_REQUIREMENTS in setup.py
-    """
-    print("[blue]Checking providers_requirements[/]")
-    pattern_providers_requirements = re.compile(r'PROVIDERS_REQUIREMENTS: [^{]*\{(.*?)}\n', re.DOTALL)
-    providers_requirements = pattern_providers_requirements.findall(setup_context)[0]
-    pattern_dependent = re.compile("'(.*?)'")
-    src = pattern_dependent.findall(providers_requirements)
-    _check_list_sorted(src, "Order of dependencies in: providers_require")
+def check_variable_order(var_name: str) -> None:
+    print(f"[blue]Checking {var_name}[/]")
 
+    var = getattr(setup, var_name)
 
-def check_extras_require(setup_context: str) -> None:
-    """
-    Test for an order of dependencies in EXTRAS_REQUIREMENTS in setup.py
-    """
-    print("[blue]Checking extras_requirements[/]")
-    pattern_extras_requires = re.compile(r'EXTRAS_REQUIREMENTS: [^{]*{(.*?)}\n', re.DOTALL)
-    extras_requires = pattern_extras_requires.findall(setup_context)[0]
-    pattern_dependent = re.compile(r"'(.*?)'")
-    src = pattern_dependent.findall(extras_requires)
-    _check_list_sorted(src, "Order of dependencies in: extras_require")
-
-
-def check_extras_deprecated_aliases(setup_context: str) -> None:
-    """
-    Test for an order of dependencies in EXTRAS_DEPRECATED_ALIASES in setup.py
-    """
-    print("[blue]Checking extras deprecated aliases[/]")
-    pattern_extras_deprecated_aliases = re.compile(r'EXTRAS_DEPRECATED_ALIASES: [^{]*{(.*?)}\n', re.DOTALL)
-    extras_deprecated_aliases = pattern_extras_deprecated_aliases.findall(setup_context)[0]
-    pattern_dependent = re.compile("'(.*?)',")
-    src = pattern_dependent.findall(extras_deprecated_aliases)
-    _check_list_sorted(src, "Order of dependencies in: extras_deprecated_aliases")
-
-
-def check_preinstalled_providers(setup_context: str) -> None:
-    """
-    Test for an order of providers in PREINSTALLED_PROVIDERS in setup.py
-    """
-    print("[blue]Checking preinstalled providers[/]")
-    pattern_preinstalled_providers = re.compile(r'PREINSTALLED_PROVIDERS = \[(.*?)]\n', re.DOTALL)
-    preinstalled_providers = pattern_preinstalled_providers.findall(setup_context)[0]
-    pattern_dependent = re.compile("'(.*?)',")
-    src = pattern_dependent.findall(preinstalled_providers)
-    _check_list_sorted(src, "Order of dependencies in: preinstalled_providers")
+    if isinstance(var, dict):
+        _check_list_sorted(list(var.keys()), f"Order of dependencies in: {var_name}")
+    else:
+        _check_list_sorted(var, f"Order of dependencies in: {var_name}")
 
 
 def check_install_and_setup_requires() -> None:
@@ -180,14 +136,17 @@ def check_install_and_setup_requires() -> None:
 
 
 if __name__ == '__main__':
-    setup_context_main = setup()
-    check_main_dependent_group(setup_context_main)
-    check_alias_dependent_group(setup_context_main)
-    check_sub_dependent_group(setup_context_main)
-    check_provider_requirements(setup_context_main)
-    check_extras_require(setup_context_main)
-    check_extras_deprecated_aliases(setup_context_main)
-    check_preinstalled_providers(setup_context_main)
+    import setup
+
+    with open(setup.__file__) as setup_file:
+        file_contents = setup_file.read()
+    check_main_dependent_group(file_contents)
+    check_alias_dependent_group(file_contents)
+    check_variable_order("PROVIDERS_REQUIREMENTS")
+    check_variable_order("CORE_EXTRAS_REQUIREMENTS")
+    check_variable_order("ADDITIONAL_EXTRAS_REQUIREMENTS")
+    check_variable_order("EXTRAS_DEPRECATED_ALIASES")
+    check_variable_order("PREINSTALLED_PROVIDERS")
     check_install_and_setup_requires()
 
     print()

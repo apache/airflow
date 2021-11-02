@@ -139,7 +139,9 @@ For example:
 
         import os
 
-        from airflow.providers.google.cloud.operators.bigquery import BigQueryCreateEmptyDatasetOperator
+        from airflow.providers.google.cloud.operators.bigquery import (
+            BigQueryCreateEmptyDatasetOperator,
+        )
 
         IMPERSONATION_CHAIN = "impersonated_account@your_project_id.iam.gserviceaccount.com"
 
@@ -180,7 +182,8 @@ For example, with the following ``terraform`` setup...
         terraform {
           required_version = "> 0.11.14"
         }
-        provider "google" {}
+        provider "google" {
+        }
         variable "project_id" {
           type = "string"
         }

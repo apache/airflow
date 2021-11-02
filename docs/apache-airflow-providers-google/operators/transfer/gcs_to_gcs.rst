@@ -121,6 +121,18 @@ folder in ``BUCKET_1_DST``, with file names unchanged.
     :start-after: [START howto_operator_gcs_to_gcs_delimiter]
     :end-before: [END howto_operator_gcs_to_gcs_delimiter]
 
+For source_objects with no wildcard, all files in source_objects would be listed, using provided delimiter if any.
+Then copy files from source_objects to destination_object and rename each source file.
+
+The following example would copy all the files in ``subdir/`` folder (i.e subdir/a.csv, subdir/b.csv, subdir/c.csv) from
+the ``BUCKET_1_SRC`` GCS bucket to the ``backup/`` folder in ``BUCKET_1_DST`` bucket. (i.e backup/a.csv, backup/b.csv, backup/c.csv)
+
+.. exampleinclude:: /../../airflow/providers/google/cloud/example_dags/example_gcs_to_gcs.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_gcs_to_gcs_without_wildcard]
+    :end-before: [END howto_operator_gcs_to_gcs_without_wildcard]
+
 The delimiter filed may be specified to select any source files starting with ``source_object`` and ending with the
 value supplied to ``delimiter``. This example uses the ``delimiter`` value to implement the same functionality as the
 prior example.

@@ -1,4 +1,3 @@
-# flake8: noqa
 # Disable Flake8 because of all the sphinx imports
 #
 # Licensed to the Apache Software Foundation (ASF) under one
@@ -22,7 +21,7 @@
 import re
 
 from docutils import nodes
-from pygments.lexers import Python3Lexer, PythonLexer, guess_lexer  # noqa pylint: disable=no-name-in-module
+from pygments.lexers import Python3Lexer, PythonLexer, guess_lexer
 from sphinx.transforms import SphinxTransform
 from sphinx.transforms.post_transforms.code import TrimDoctestFlagsTransform
 
@@ -61,7 +60,7 @@ class TrimDocMarkerFlagsTransform(SphinxTransform):
             try:
                 lexer = guess_lexer(node.rawsource)
                 return isinstance(lexer, (PythonLexer, Python3Lexer))
-            except Exception:  # noqa pylint: disable=broad-except
+            except Exception:
                 pass
 
         return False

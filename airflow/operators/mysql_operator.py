@@ -15,11 +15,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""This module is deprecated. Please use `airflow.providers.mysql.operators.mysql`."""
+"""This module is deprecated. Please use :mod:`airflow.providers.mysql.operators.mysql`."""
 
 import warnings
 
-# pylint: disable=unused-import
 from airflow.providers.mysql.operators.mysql import MySqlOperator  # noqa
 
 warnings.warn(

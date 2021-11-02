@@ -64,6 +64,9 @@ class BaseExecutor(LoggingMixin):
         self.running: Set[TaskInstanceKey] = set()
         self.event_buffer: Dict[TaskInstanceKey, EventBufferValueType] = {}
 
+    def __repr__(self):
+        return f"{self.__class__.__name__}(parallelism={self.parallelism})"
+
     def start(self):  # pragma: no cover
         """Executors may need to get things started."""
 
@@ -165,24 +168,24 @@ class BaseExecutor(LoggingMixin):
         :return: List of tuples from the queued_tasks according to the priority.
         """
         return sorted(
-            [(k, v) for k, v in self.queued_tasks.items()],  # pylint: disable=unnecessary-comprehension
+            self.queued_tasks.items(),
             key=lambda x: x[1][1],
             reverse=True,
         )
 
     def trigger_tasks(self, open_slots: int) -> None:
         """
-        Triggers tasks
+        Initiates async execution of the queued tasks, up to the number of available slots.
 
         :param open_slots: Number of open slots
         """
         sorted_queue = self.order_queued_tasks_by_priority()
 
         for _ in range(min((open_slots, len(self.queued_tasks)))):
-            key, (command, _, _, ti) = sorted_queue.pop(0)
+            key, (command, _, queue, ti) = sorted_queue.pop(0)
             self.queued_tasks.pop(key)
             self.running.add(key)
-            self.execute_async(key=key, command=command, queue=None, executor_config=ti.executor_config)
+            self.execute_async(key=key, command=command, queue=queue, executor_config=ti.executor_config)
 
     def change_state(self, key: TaskInstanceKey, state: str, info=None) -> None:
         """
@@ -223,7 +226,7 @@ class BaseExecutor(LoggingMixin):
         it will only return and flush events for the given dag_ids. Otherwise
         it returns and flushes all events.
 
-        :param dag_ids: to dag_ids to return events for, if None returns all
+        :param dag_ids: the dag_ids to return events for; returns all if given ``None``.
         :return: a dict of events
         """
         cleared_events: Dict[TaskInstanceKey, EventBufferValueType] = {}

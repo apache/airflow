@@ -27,7 +27,7 @@ class DynamodbToS3Test(unittest.TestCase):
     def setUp(self):
         self.output_queue = []
 
-    def mock_upload_file(self, Filename, Bucket, Key):  # pylint: disable=unused-argument,invalid-name
+    def mock_upload_file(self, Filename, Bucket, Key):
         with open(Filename) as f:
             lines = f.readlines()
             for line in lines:
@@ -62,4 +62,4 @@ class DynamodbToS3Test(unittest.TestCase):
 
         dynamodb_to_s3_operator.execute(context={})
 
-        self.assertEqual([{'a': 1}, {'b': 2}, {'c': 3}], self.output_queue)
+        assert [{'a': 1}, {'b': 2}, {'c': 3}] == self.output_queue

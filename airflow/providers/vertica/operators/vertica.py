@@ -19,7 +19,6 @@ from typing import Any, Dict, List, Union
 
 from airflow.models import BaseOperator
 from airflow.providers.vertica.hooks.vertica import VerticaHook
-from airflow.utils.decorators import apply_defaults
 
 
 class VerticaOperator(BaseOperator):
@@ -38,7 +37,6 @@ class VerticaOperator(BaseOperator):
     template_ext = ('.sql',)
     ui_color = '#b4e0ff'
 
-    @apply_defaults
     def __init__(
         self, *, sql: Union[str, List[str]], vertica_conn_id: str = 'vertica_default', **kwargs: Any
     ) -> None:

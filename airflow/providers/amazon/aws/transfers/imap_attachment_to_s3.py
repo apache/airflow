@@ -19,7 +19,6 @@
 from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 from airflow.providers.imap.hooks.imap import ImapHook
-from airflow.utils.decorators import apply_defaults
 
 
 class ImapAttachmentToS3Operator(BaseOperator):
@@ -51,7 +50,6 @@ class ImapAttachmentToS3Operator(BaseOperator):
 
     template_fields = ('imap_attachment_name', 's3_key', 'imap_mail_filter')
 
-    @apply_defaults
     def __init__(
         self,
         *,

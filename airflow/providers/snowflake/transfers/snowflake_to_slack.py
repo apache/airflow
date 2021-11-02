@@ -24,7 +24,6 @@ from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.slack.hooks.slack_webhook import SlackWebhookHook
 from airflow.providers.snowflake.hooks.snowflake import SnowflakeHook
-from airflow.utils.decorators import apply_defaults
 
 
 class SnowflakeToSlackOperator(BaseOperator):
@@ -46,7 +45,8 @@ class SnowflakeToSlackOperator(BaseOperator):
         You can use the default JINJA variable {{ results_df }} to access the pandas dataframe containing the
         SQL results
     :type slack_message: str
-    :param snowflake_conn_id: The Snowflake connection id
+    :param snowflake_conn_id: Reference to
+        :ref:`Snowflake connection id<howto/connection:snowflake>`
     :type snowflake_conn_id: str
     :param slack_conn_id: The connection id for Slack
     :type slack_conn_id: str
@@ -69,10 +69,10 @@ class SnowflakeToSlackOperator(BaseOperator):
 
     template_fields = ['sql', 'slack_message']
     template_ext = ['.sql', '.jinja', '.j2']
+    template_fields_renderers = {"slack_message": "jinja"}
     times_rendered = 0
 
-    @apply_defaults
-    def __init__(  # pylint: disable=too-many-arguments
+    def __init__(
         self,
         *,
         sql: str,

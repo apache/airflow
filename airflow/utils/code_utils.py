@@ -50,7 +50,7 @@ def get_python_source(x: Any) -> Optional[str]:
             pass
 
     if source_code is None:
-        source_code = 'No source code available for {}'.format(type(x))
+        source_code = f'No source code available for {type(x)}'
     return source_code
 
 

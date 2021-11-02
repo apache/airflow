@@ -20,12 +20,15 @@ from typing import Optional
 
 from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.sqs import SQSHook
-from airflow.utils.decorators import apply_defaults
 
 
 class SQSPublishOperator(BaseOperator):
     """
     Publish message to a SQS queue.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:SQSPublishOperator`
 
     :param sqs_queue: The SQS queue url (templated)
     :type sqs_queue: str
@@ -40,10 +43,10 @@ class SQSPublishOperator(BaseOperator):
     :type aws_conn_id: str
     """
 
-    template_fields = ('sqs_queue', 'message_content', 'delay_seconds')
+    template_fields = ('sqs_queue', 'message_content', 'delay_seconds', 'message_attributes')
+    template_fields_renderers = {'message_attributes': 'json'}
     ui_color = '#6ad3fa'
 
-    @apply_defaults
     def __init__(
         self,
         *,

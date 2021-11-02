@@ -81,4 +81,4 @@ if __name__ == "__main__":
     # Example:
 
     with trace_memory():
-        import airflow  # noqa # pylint: disable=unused-import
+        import airflow  # noqa

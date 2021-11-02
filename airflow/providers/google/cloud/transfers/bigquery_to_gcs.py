@@ -23,7 +23,6 @@ from google.cloud.bigquery.table import TableReference
 
 from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.bigquery import BigQueryHook
-from airflow.utils.decorators import apply_defaults
 
 
 class BigQueryToGCSOperator(BaseOperator):
@@ -86,10 +85,9 @@ class BigQueryToGCSOperator(BaseOperator):
     template_ext = ()
     ui_color = '#e4e6f0'
 
-    @apply_defaults
     def __init__(
         self,
-        *,  # pylint: disable=too-many-arguments
+        *,
         source_project_dataset_table: str,
         destination_cloud_storage_uris: List[str],
         compression: str = 'NONE',

@@ -18,7 +18,8 @@
 
 import os
 from contextlib import closing
-from typing import Iterable, Optional, Tuple, Union
+from copy import deepcopy
+from typing import Iterable, List, Optional, Tuple, Union
 
 import psycopg2
 import psycopg2.extensions
@@ -53,6 +54,10 @@ class PostgresHook(DbApiHook):
     set it to true. The cluster-identifier is extracted from the beginning of
     the host field, so is optional. It can however be overridden in the extra field.
     extras example: ``{"iam":true, "redshift":true, "cluster-identifier": "my_cluster_id"}``
+
+    :param postgres_conn_id: The :ref:`postgres conn id <howto/connection:postgres>`
+        reference to a specific postgres database.
+    :type postgres_conn_id: str
     """
 
     conn_name_attr = 'postgres_conn_id'
@@ -63,9 +68,9 @@ class PostgresHook(DbApiHook):
 
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
-        self.schema: Optional[str] = kwargs.pop("schema", None)
         self.connection: Optional[Connection] = kwargs.pop("connection", None)
         self.conn: connection = None
+        self.schema: Optional[str] = kwargs.pop("schema", None)
 
     def _get_cursor(self, raw_cursor: str) -> CursorType:
         _cursor = raw_cursor.lower()
@@ -80,7 +85,7 @@ class PostgresHook(DbApiHook):
     def get_conn(self) -> connection:
         """Establishes a connection to a postgres database."""
         conn_id = getattr(self, self.conn_name_attr)
-        conn = self.connection or self.get_connection(conn_id)
+        conn = deepcopy(self.connection or self.get_connection(conn_id))
 
         # check for authentication via AWS IAM
         if conn.extra_dejson.get('iam', False):
@@ -102,6 +107,8 @@ class PostgresHook(DbApiHook):
                 'iam',
                 'redshift',
                 'cursor',
+                'cluster-identifier',
+                'aws_conn_id',
             ]:
                 conn_args[arg_name] = arg_val
 
@@ -119,6 +126,7 @@ class PostgresHook(DbApiHook):
         So if users want to be aware when the input file does not exist,
         they have to check its existence by themselves.
         """
+        self.log.info("Running copy expert: %s, filename: %s", sql, filename)
         if not os.path.isfile(filename):
             with open(filename, 'w'):
                 pass
@@ -138,7 +146,6 @@ class PostgresHook(DbApiHook):
         """Dumps a database table into a tab-delimited file"""
         self.copy_expert(f"COPY {table} TO STDOUT", tmp_file)
 
-    # pylint: disable=signature-differs
     @staticmethod
     def _serialize_cell(cell: object, conn: Optional[connection] = None) -> object:
         """
@@ -190,6 +197,31 @@ class PostgresHook(DbApiHook):
             token = aws_hook.conn.generate_db_auth_token(conn.host, port, conn.login)
         return login, token, port
 
+    def get_table_primary_key(self, table: str, schema: Optional[str] = "public") -> List[str]:
+        """
+        Helper method that returns the table primary key
+
+        :param table: Name of the target table
+        :type table: str
+        :param table: Name of the target schema, public by default
+        :type table: str
+        :return: Primary key columns list
+        :rtype: List[str]
+        """
+        sql = """
+            select kcu.column_name
+            from information_schema.table_constraints tco
+                    join information_schema.key_column_usage kcu
+                        on kcu.constraint_name = tco.constraint_name
+                            and kcu.constraint_schema = tco.constraint_schema
+                            and kcu.constraint_name = tco.constraint_name
+            where tco.constraint_type = 'PRIMARY KEY'
+            and kcu.table_schema = %s
+            and kcu.table_name = %s
+        """
+        pk_columns = [row[0] for row in self.get_records(sql, (schema, table))]
+        return pk_columns or None
+
     @staticmethod
     def _generate_insert_sql(
         table: str, values: Tuple[str, ...], target_fields: Iterable[str], replace: bool, **kwargs
@@ -223,7 +255,7 @@ class PostgresHook(DbApiHook):
         else:
             target_fields_fragment = ''
 
-        sql = "INSERT INTO {} {} VALUES ({})".format(table, target_fields_fragment, ",".join(placeholders))
+        sql = f"INSERT INTO {table} {target_fields_fragment} VALUES ({','.join(placeholders)})"
 
         if replace:
             if target_fields is None:
@@ -237,8 +269,5 @@ class PostgresHook(DbApiHook):
             replace_target = [
                 "{0} = excluded.{0}".format(col) for col in target_fields if col not in replace_index_set
             ]
-            sql += " ON CONFLICT ({}) DO UPDATE SET {}".format(
-                ", ".join(replace_index),
-                ", ".join(replace_target),
-            )
+            sql += f" ON CONFLICT ({', '.join(replace_index)}) DO UPDATE SET {', '.join(replace_target)}"
         return sql

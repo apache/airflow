@@ -92,5 +92,5 @@ class TestIgnorePluginFile(unittest.TestCase):
             if file_ext != '.py':
                 continue
             detected_files.add(os.path.basename(file_path))
-        self.assertEqual(detected_files, should_not_ignore_files)
-        self.assertEqual(detected_files & should_ignore_files, set())
+        assert detected_files == should_not_ignore_files
+        assert detected_files & should_ignore_files == set()

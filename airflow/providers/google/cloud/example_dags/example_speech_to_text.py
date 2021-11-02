@@ -24,7 +24,7 @@ from airflow.providers.google.cloud.operators.text_to_speech import CloudTextToS
 from airflow.utils import dates
 
 GCP_PROJECT_ID = os.environ.get("GCP_PROJECT_ID", "example-project")
-BUCKET_NAME = os.environ.get("GCP_SPEECH_TO_TEXT_TEST_BUCKET", "gcp-speech-to-text-test-bucket")
+BUCKET_NAME = os.environ.get("GCP_SPEECH_TO_TEXT_TEST_BUCKET", "INVALID BUCKET NAME")
 
 # [START howto_operator_speech_to_text_gcp_filename]
 FILENAME = "gcp-speech-test-file"
@@ -44,7 +44,7 @@ AUDIO = {"uri": f"gs://{BUCKET_NAME}/{FILENAME}"}
 with models.DAG(
     "example_gcp_speech_to_text",
     start_date=dates.days_ago(1),
-    schedule_interval=None,  # Override to match your needs
+    schedule_interval='@once',  # Override to match your needs
     tags=['example'],
 ) as dag:
     text_to_speech_synthesize_task = CloudTextToSpeechSynthesizeOperator(

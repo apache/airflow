@@ -22,12 +22,20 @@ description: |
     `Java Database Connectivity (JDBC) <https://docs.oracle.com/javase/8/docs/technotes/guides/jdbc/>`__
 
 versions:
+  - 2.0.1
+  - 2.0.0
+  - 1.0.1
   - 1.0.0
+
+additional-dependencies:
+  - apache-airflow>=2.1.0
+
 integrations:
   - integration-name: Java Database Connectivity (JDBC)
     external-doc-url: https://docs.oracle.com/javase/8/docs/technotes/guides/jdbc/
     how-to-guide:
       - /docs/apache-airflow-providers-jdbc/operators.rst
+    logo: /integration-logos/jdbc/JDBC.png
     tags: [protocol]
 
 operators:
@@ -39,5 +47,9 @@ hooks:
     python-modules:
       - airflow.providers.jdbc.hooks.jdbc
 
-hook-class-names:
+hook-class-names:  # deprecated - to be removed after providers add dependency on Airflow 2.2.0+
   - airflow.providers.jdbc.hooks.jdbc.JdbcHook
+
+connection-types:
+  - hook-class-name: airflow.providers.jdbc.hooks.jdbc.JdbcHook
+    connection-type: jdbc

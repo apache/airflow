@@ -210,5 +210,5 @@ class CassandraHook(BaseHook, LoggingMixin):
         try:
             result = self.get_conn().execute(query, keys)
             return result.one() is not None
-        except Exception:  # pylint: disable=broad-except
+        except Exception:
             return False

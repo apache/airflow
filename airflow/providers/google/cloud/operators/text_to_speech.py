@@ -27,7 +27,6 @@ from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.gcs import GCSHook
 from airflow.providers.google.cloud.hooks.text_to_speech import CloudTextToSpeechHook
-from airflow.utils.decorators import apply_defaults
 
 
 class CloudTextToSpeechSynthesizeOperator(BaseOperator):
@@ -88,7 +87,6 @@ class CloudTextToSpeechSynthesizeOperator(BaseOperator):
     )
     # [END gcp_text_to_speech_synthesize_template_fields]
 
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -143,7 +141,7 @@ class CloudTextToSpeechSynthesizeOperator(BaseOperator):
         with NamedTemporaryFile() as temp_file:
             temp_file.write(result.audio_content)
             cloud_storage_hook = GCSHook(
-                google_cloud_storage_conn_id=self.gcp_conn_id,
+                gcp_conn_id=self.gcp_conn_id,
                 impersonation_chain=self.impersonation_chain,
             )
             cloud_storage_hook.upload(

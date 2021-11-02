@@ -18,6 +18,7 @@
 from flask import Response, request
 
 from airflow.api_connexion import security
+from airflow.api_connexion.exceptions import PermissionDenied
 from airflow.api_connexion.schemas.config_schema import Config, ConfigOption, ConfigSection, config_schema
 from airflow.configuration import conf
 from airflow.security import permissions
@@ -69,12 +70,18 @@ def get_config() -> Response:
         'text/plain': _config_to_text,
         'application/json': _config_to_json,
     }
-    response_types = serializer.keys()
-    return_type = request.accept_mimetypes.best_match(response_types)
-    conf_dict = conf.as_dict(display_source=False, display_sensitive=True)
-    config = _conf_dict_to_config(conf_dict)
+    return_type = request.accept_mimetypes.best_match(serializer.keys())
     if return_type not in serializer:
         return Response(status=406)
-    else:
+    elif conf.getboolean("webserver", "expose_config"):
+        conf_dict = conf.as_dict(display_source=False, display_sensitive=True)
+        config = _conf_dict_to_config(conf_dict)
         config_text = serializer[return_type](config)
         return Response(config_text, headers={'Content-Type': return_type})
+    else:
+        raise PermissionDenied(
+            detail=(
+                'Your Airflow administrator chose not to expose the configuration, most likely for security'
+                ' reasons.'
+            )
+        )

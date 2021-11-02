@@ -24,11 +24,6 @@ used to store large data from various applications.
 SFTP (SSH File Transfer Protocol) is a secure file transfer protocol.
 It runs over the SSH protocol. It supports the full security and authentication functionality of the SSH.
 
-
-.. contents::
-  :depth: 1
-  :local:
-
 Prerequisite Tasks
 ^^^^^^^^^^^^^^^^^^
 
@@ -42,7 +37,7 @@ Operator
 Transfer files between SFTP and Google Storage is performed with the
 :class:`~airflow.providers.google.cloud.transfers.sftp_to_gcs.SFTPToGCSOperator` operator.
 
-Use :ref:`Jinja templating <jinja-templating>` with
+Use :ref:`Jinja templating <concepts:jinja-templating>` with
 :template-fields:`airflow.providers.google.cloud.transfers.sftp_to_gcs.SFTPToGCSOperator`
 to define values dynamically.
 

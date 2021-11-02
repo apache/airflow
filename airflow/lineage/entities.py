@@ -62,8 +62,9 @@ class Column:
 # this is a temporary hack to satisfy mypy. Once
 # https://github.com/python/mypy/issues/6136 is resolved, use
 # `attr.converters.default_if_none(default=False)`
-# pylint: disable=missing-docstring
-def default_if_none(arg: Optional[bool]) -> bool:  # noqa: D103
+
+
+def default_if_none(arg: Optional[bool]) -> bool:
     return arg or False
 
 

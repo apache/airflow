@@ -35,6 +35,10 @@ from airflow.models.skipmixin import SkipMixin
 from airflow.models.taskreschedule import TaskReschedule
 from airflow.ti_deps.deps.ready_to_reschedule import ReadyToRescheduleDep
 from airflow.utils import timezone
+
+# We need to keep the import here because GCSToLocalFilesystemOperator released in
+# Google Provider before 3.0.0 imported apply_defaults from here.
+# See  https://github.com/apache/airflow/issues/16035
 from airflow.utils.decorators import apply_defaults
 
 
@@ -89,12 +93,11 @@ class BaseSensorOperator(BaseOperator, SkipMixin):
         'email_on_failure',
     )
 
-    @apply_defaults
     def __init__(
         self,
         *,
         poke_interval: float = 60,
-        timeout: float = 60 * 60 * 24 * 7,
+        timeout: float = conf.getfloat('sensors', 'default_timeout'),
         soft_fail: bool = False,
         mode: str = 'poke',
         exponential_backoff: bool = False,
@@ -119,13 +122,7 @@ class BaseSensorOperator(BaseOperator, SkipMixin):
             raise AirflowException("The timeout must be a non-negative number")
         if self.mode not in self.valid_modes:
             raise AirflowException(
-                "The mode must be one of {valid_modes},"
-                "'{d}.{t}'; received '{m}'.".format(
-                    valid_modes=self.valid_modes,
-                    d=self.dag.dag_id if self.dag else "",
-                    t=self.task_id,
-                    m=self.mode,
-                )
+                f"The mode must be one of {self.valid_modes},'{self.dag.dag_id if self.has_dag() else ''}.{self.task_id}'; received '{self.mode}'."
             )
 
     def poke(self, context: Dict) -> bool:
@@ -201,11 +198,14 @@ class BaseSensorOperator(BaseOperator, SkipMixin):
 
         if self.reschedule:
 
-            # If reschedule, use first start date of current try
-            task_reschedules = TaskReschedule.find_for_task_instance(context['ti'])
+            # If reschedule, use the start date of the first try (first try can be either the very
+            # first execution of the task, or the first execution after the task was cleared.)
+            first_try_number = context['ti'].max_tries - self.retries + 1
+            task_reschedules = TaskReschedule.find_for_task_instance(
+                context['ti'], try_number=first_try_number
+            )
             if task_reschedules:
                 started_at = task_reschedules[0].start_date
-                try_number = len(task_reschedules) + 1
             else:
                 started_at = timezone.utcnow()
 
@@ -227,10 +227,8 @@ class BaseSensorOperator(BaseOperator, SkipMixin):
 
         while not self.poke(context):
             if run_duration() > self.timeout:
-                # If sensor is in soft fail mode but will be retried then
-                # give it a chance and fail with timeout.
-                # This gives the ability to set up non-blocking AND soft-fail sensors.
-                if self.soft_fail and not context['ti'].is_eligible_to_retry():
+                # If sensor is in soft fail mode but times out raise AirflowSkipException.
+                if self.soft_fail:
                     raise AirflowSkipException(f"Snap. Time is OUT. DAG id: {log_dag_id}")
                 else:
                     raise AirflowSensorTimeout(f"Snap. Time is OUT. DAG id: {log_dag_id}")
@@ -250,9 +248,7 @@ class BaseSensorOperator(BaseOperator, SkipMixin):
             min_backoff = int(self.poke_interval * (2 ** (try_number - 2)))
 
             run_hash = int(
-                hashlib.sha1(
-                    f"{self.dag_id}#{self.task_id}#{started_at}#{try_number}".encode("utf-8")
-                ).hexdigest(),
+                hashlib.sha1(f"{self.dag_id}#{self.task_id}#{started_at}#{try_number}".encode()).hexdigest(),
                 16,
             )
             modded_hash = min_backoff + run_hash % min_backoff

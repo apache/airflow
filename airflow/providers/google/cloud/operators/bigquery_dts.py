@@ -23,7 +23,6 @@ from google.cloud.bigquery_datatransfer_v1 import StartManualTransferRunsRespons
 
 from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.bigquery_dts import BiqQueryDataTransferServiceHook, get_object_id
-from airflow.utils.decorators import apply_defaults
 
 
 class BigQueryCreateDataTransferOperator(BaseOperator):
@@ -73,7 +72,6 @@ class BigQueryCreateDataTransferOperator(BaseOperator):
         "impersonation_chain",
     )
 
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -158,7 +156,6 @@ class BigQueryDeleteDataTransferConfigOperator(BaseOperator):
         "impersonation_chain",
     )
 
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -249,7 +246,6 @@ class BigQueryDataTransferServiceStartTransferRunsOperator(BaseOperator):
         "impersonation_chain",
     )
 
-    @apply_defaults
     def __init__(
         self,
         *,

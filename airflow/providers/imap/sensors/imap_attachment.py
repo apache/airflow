@@ -18,7 +18,6 @@
 """This module allows you to poke for attachments on a mail server."""
 from airflow.providers.imap.hooks.imap import ImapHook
 from airflow.sensors.base import BaseSensorOperator
-from airflow.utils.decorators import apply_defaults
 
 
 class ImapAttachmentSensor(BaseSensorOperator):
@@ -36,13 +35,12 @@ class ImapAttachmentSensor(BaseSensorOperator):
     :param mail_filter: If set other than 'All' only specific mails will be checked.
         See :py:meth:`imaplib.IMAP4.search` for details.
     :type mail_filter: str
-    :param conn_id: The connection to run the sensor against.
-    :type conn_id: str
+    :param imap_conn_id: The :ref:`imap connection id <howto/connection:imap>` to run the sensor against.
+    :type imap_conn_id: str
     """
 
     template_fields = ('attachment_name', 'mail_filter')
 
-    @apply_defaults
     def __init__(
         self,
         *,

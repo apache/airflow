@@ -43,8 +43,10 @@ class AwsGlueJobHook(AwsBaseHook):
     :type num_of_dpus: int
     :param region_name: aws region name (example: us-east-1)
     :type region_name: Optional[str]
-    :param iam_role_name: AWS IAM Role for Glue Job
+    :param iam_role_name: AWS IAM Role for Glue Job Execution
     :type iam_role_name: Optional[str]
+    :param create_job_kwargs: Extra arguments for Glue Job Creation
+    :type create_job_kwargs: Optional[dict]
     """
 
     JOB_POLL_INTERVAL = 6  # polls job status after every JOB_POLL_INTERVAL seconds
@@ -58,8 +60,8 @@ class AwsGlueJobHook(AwsBaseHook):
         script_location: Optional[str] = None,
         retry_limit: int = 0,
         num_of_dpus: int = 10,
-        region_name: Optional[str] = None,
         iam_role_name: Optional[str] = None,
+        create_job_kwargs: Optional[dict] = None,
         *args,
         **kwargs,
     ):
@@ -69,10 +71,10 @@ class AwsGlueJobHook(AwsBaseHook):
         self.script_location = script_location
         self.retry_limit = retry_limit
         self.num_of_dpus = num_of_dpus
-        self.region_name = region_name
         self.s3_bucket = s3_bucket
         self.role_name = iam_role_name
         self.s3_glue_logs = 'logs/glue-logs/'
+        self.create_job_kwargs = create_job_kwargs or {}
         kwargs['client_type'] = 'glue'
         super().__init__(*args, **kwargs)
 
@@ -93,7 +95,11 @@ class AwsGlueJobHook(AwsBaseHook):
             self.log.error("Failed to create aws glue job, error: %s", general_error)
             raise
 
-    def initialize_job(self, script_arguments: Optional[dict] = None) -> Dict[str, str]:
+    def initialize_job(
+        self,
+        script_arguments: Optional[dict] = None,
+        run_kwargs: Optional[dict] = None,
+    ) -> Dict[str, str]:
         """
         Initializes connection with AWS Glue
         to run job
@@ -101,10 +107,11 @@ class AwsGlueJobHook(AwsBaseHook):
         """
         glue_client = self.get_conn()
         script_arguments = script_arguments or {}
+        run_kwargs = run_kwargs or {}
 
         try:
             job_name = self.get_or_create_glue_job()
-            job_run = glue_client.start_job_run(JobName=job_name, Arguments=script_arguments)
+            job_run = glue_client.start_job_run(JobName=job_name, Arguments=script_arguments, **run_kwargs)
             return job_run
         except Exception as general_error:
             self.log.error("Failed to run aws glue job, error: %s", general_error)
@@ -166,7 +173,7 @@ class AwsGlueJobHook(AwsBaseHook):
             return get_job_response['Job']['Name']
 
         except glue_client.exceptions.EntityNotFoundException:
-            self.log.info("Job doesnt exist. Now creating and running AWS Glue Job")
+            self.log.info("Job doesn't exist. Now creating and running AWS Glue Job")
             if self.s3_bucket is None:
                 raise AirflowException('Could not initialize glue job, error: Specify Parameter `s3_bucket`')
             s3_log_path = f's3://{self.s3_bucket}/{self.s3_glue_logs}{self.job_name}'
@@ -176,11 +183,12 @@ class AwsGlueJobHook(AwsBaseHook):
                     Name=self.job_name,
                     Description=self.desc,
                     LogUri=s3_log_path,
-                    Role=execution_role['Role']['RoleName'],
+                    Role=execution_role['Role']['Arn'],
                     ExecutionProperty={"MaxConcurrentRuns": self.concurrent_run_limit},
                     Command={"Name": "glueetl", "ScriptLocation": self.script_location},
                     MaxRetries=self.retry_limit,
                     AllocatedCapacity=self.num_of_dpus,
+                    **self.create_job_kwargs,
                 )
                 return create_job_response['Name']
             except Exception as general_error:

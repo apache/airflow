@@ -26,7 +26,7 @@ from airflow.utils.sqlalchemy import UtcDateTime
 
 class DagPickle(Base):
     """
-    Dags can originate from different places (user repos, master repo, ...)
+    Dags can originate from different places (user repos, main repo, ...)
     and also get executed in different places (different executors). This
     object represents a version of a DAG and becomes a source of truth for
     a BackfillJob execution. A pickle is a native python serialized object,

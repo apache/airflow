@@ -20,6 +20,7 @@
 import unittest
 from unittest.mock import MagicMock, patch
 
+import pytest
 from kylinpy.exceptions import KylinCubeError
 
 from airflow.exceptions import AirflowException
@@ -35,7 +36,7 @@ class TestKylinHook(unittest.TestCase):
         job = MagicMock()
         job.status = "ERROR"
         mock_job.return_value = job
-        self.assertEqual(self.hook.get_job_status('123'), "ERROR")
+        assert self.hook.get_job_status('123') == "ERROR"
 
     @patch("kylinpy.Kylin.get_datasource")
     def test_cube_run(self, cube_source):
@@ -63,13 +64,12 @@ class TestKylinHook(unittest.TestCase):
 
         cube_source.return_value = MockCubeSource()
         response_data = {"code": "000", "data": {}}
-        self.assertDictEqual(self.hook.cube_run('kylin_sales_cube', 'build'), response_data)
-        self.assertDictEqual(self.hook.cube_run('kylin_sales_cube', 'refresh'), response_data)
-        self.assertDictEqual(self.hook.cube_run('kylin_sales_cube', 'merge'), response_data)
-        self.assertDictEqual(self.hook.cube_run('kylin_sales_cube', 'build_streaming'), response_data)
-        self.assertRaises(
-            AirflowException,
-            self.hook.cube_run,
-            'kylin_sales_cube',
-            'build123',
-        )
+        assert self.hook.cube_run('kylin_sales_cube', 'build') == response_data
+        assert self.hook.cube_run('kylin_sales_cube', 'refresh') == response_data
+        assert self.hook.cube_run('kylin_sales_cube', 'merge') == response_data
+        assert self.hook.cube_run('kylin_sales_cube', 'build_streaming') == response_data
+        with pytest.raises(AirflowException):
+            self.hook.cube_run(
+                'kylin_sales_cube',
+                'build123',
+            )

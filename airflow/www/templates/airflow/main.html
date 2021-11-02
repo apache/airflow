@@ -18,6 +18,15 @@
 #}
 
 {% extends 'appbuilder/baselayout.html' %}
+{% from 'airflow/_messages.html' import message %}
+
+{% block page_title -%}
+  {% if title is defined -%}
+    {{ title }} - {{ appbuilder.app_name }}
+  {% else -%}
+    {{ appbuilder.app_name }}
+  {% endif%}
+{% endblock %}
 
 {% block head_css %}
   {{ super() }}
@@ -43,7 +52,7 @@
 {% block messages %}
   {% include 'appbuilder/flash.html' %}
   {% if scheduler_job is defined and (not scheduler_job or not scheduler_job.is_alive()) %}
-    <div class="alert alert-warning">
+    {% call message(category='warning', dismissable=false) %}
       <p>The scheduler does not appear to be running.
       {% if scheduler_job %}
       Last heartbeat was received
@@ -55,7 +64,22 @@
       {% endif %}
       </p>
       <p>The DAGs list may not update, and new tasks will not be scheduled.</p>
-    </div>
+    {% endcall %}
+  {% endif %}
+  {% if triggerer_job is defined and (not triggerer_job or not triggerer_job.is_alive()) %}
+    {% call message(category='warning', dismissable=false) %}
+      <p>The triggerer does not appear to be running.
+      {% if triggerer_job %}
+      Last heartbeat was received
+      <time class="scheduler-last-heartbeat"
+        title="{{ triggerer_job.latest_heartbeat.isoformat() }}"
+        datetime="{{ triggerer_job.latest_heartbeat.isoformat() }}"
+        data-datetime-convert="false"
+      >{{ macros.datetime_diff_for_humans(triggerer_job.latest_heartbeat) }}</time>.
+      {% endif %}
+      </p>
+      <p>Triggers will not run, and any deferred operator will remain deferred until it times out and fails.</p>
+    {% endcall %}
   {% endif %}
 {% endblock %}
 
@@ -66,7 +90,7 @@
       <div class="container">
         <div>
           {{ version_label }}: {% if airflow_version %}<a href="https://pypi.python.org/pypi/apache-airflow/{{ airflow_version }}" target="_blank">v{{ airflow_version }}</a>{% else %} N/A{% endif %}
-          {% if git_version %}<br>Git Version:<strong>{{ git_version }}</strong>{% endif %}
+          {% if git_version %}<br>Git Version: <strong>{{ git_version }}</strong>{% endif %}
         </div>
         <div></div>
       </div>
@@ -79,13 +103,14 @@
 
   <script>
     // below variables are used in main.js
+    // keep as var, changing to const or let breaks other code
     var Airflow = {
       serverTimezone: '{{ server_timezone }}',
-      defaultUITimezone: '{{ default_ui_timezone }}'
+      defaultUITimezone: '{{ default_ui_timezone }}',
     };
     var hostName = '{{ hostname }}';
     var csrfToken = '{{ csrf_token() }}';
-    $("time[title]").tooltip()
+    $('time[title]').tooltip();
   </script>
   <!--[if IE ]>
   <script src="{{ url_for_asset('ie.js') }}"></script>

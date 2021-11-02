@@ -25,7 +25,6 @@ from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator, BaseOperatorLink
 from airflow.models.taskinstance import TaskInstance
 from airflow.providers.google.cloud.hooks.mlengine import MLEngineHook
-from airflow.utils.decorators import apply_defaults
 
 log = logging.getLogger(__name__)
 
@@ -63,7 +62,6 @@ def _normalize_mlengine_job_id(job_id: str) -> str:
     return cleansed_job_id
 
 
-# pylint: disable=too-many-instance-attributes
 class MLEngineStartBatchPredictionJobOperator(BaseOperator):
     """
     Start a Google Cloud ML Engine prediction job.
@@ -177,9 +175,8 @@ class MLEngineStartBatchPredictionJobOperator(BaseOperator):
         '_impersonation_chain',
     ]
 
-    @apply_defaults
     def __init__(
-        self,  # pylint: disable=too-many-arguments
+        self,
         *,
         job_id: str,
         region: str,
@@ -261,8 +258,8 @@ class MLEngineStartBatchPredictionJobOperator(BaseOperator):
             if not self._version_name:
                 prediction_request['predictionInput']['modelName'] = origin_name
             else:
-                prediction_request['predictionInput']['versionName'] = origin_name + '/versions/{}'.format(
-                    self._version_name
+                prediction_request['predictionInput']['versionName'] = (
+                    origin_name + f'/versions/{self._version_name}'
                 )
 
         if self._max_worker_count:
@@ -341,7 +338,6 @@ class MLEngineManageModelOperator(BaseOperator):
         '_impersonation_chain',
     ]
 
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -422,7 +418,6 @@ class MLEngineCreateModelOperator(BaseOperator):
         '_impersonation_chain',
     ]
 
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -488,7 +483,6 @@ class MLEngineGetModelOperator(BaseOperator):
         '_impersonation_chain',
     ]
 
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -558,7 +552,6 @@ class MLEngineDeleteModelOperator(BaseOperator):
         '_impersonation_chain',
     ]
 
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -662,7 +655,6 @@ class MLEngineManageVersionOperator(BaseOperator):
         '_impersonation_chain',
     ]
 
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -766,7 +758,6 @@ class MLEngineCreateVersionOperator(BaseOperator):
         '_impersonation_chain',
     ]
 
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -850,7 +841,6 @@ class MLEngineSetDefaultVersionOperator(BaseOperator):
         '_impersonation_chain',
     ]
 
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -931,7 +921,6 @@ class MLEngineListVersionsOperator(BaseOperator):
         '_impersonation_chain',
     ]
 
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -1011,7 +1000,6 @@ class MLEngineDeleteVersionOperator(BaseOperator):
         '_impersonation_chain',
     ]
 
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -1068,7 +1056,6 @@ class AIPlatformConsoleLink(BaseOperatorLink):
         return console_link
 
 
-# pylint: disable=too-many-instance-attributes
 class MLEngineStartTrainingJobOperator(BaseOperator):
     """
     Operator for launching a MLEngine training job.
@@ -1104,7 +1091,7 @@ class MLEngineStartTrainingJobOperator(BaseOperator):
         provided, master_type must be set as well. If a custom image is
         specified, this is mutually exclusive with package_uris and
         training_python_module. (templated)
-    :type master_type: dict
+    :type master_config: dict
     :param runtime_version: The Google Cloud ML runtime version to use for
         training. (templated)
     :type runtime_version: str
@@ -1137,6 +1124,10 @@ class MLEngineStartTrainingJobOperator(BaseOperator):
     :type mode: str
     :param labels: a dictionary containing labels for the job; passed to BigQuery
     :type labels: Dict[str, str]
+    :param hyperparameters: Optional HyperparameterSpec dictionary for hyperparameter tuning.
+        For further reference, check:
+        https://cloud.google.com/ai-platform/training/docs/reference/rest/v1/projects.jobs#HyperparameterSpec
+    :type hyperparameters: Dict
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -1162,14 +1153,14 @@ class MLEngineStartTrainingJobOperator(BaseOperator):
         '_python_version',
         '_job_dir',
         '_service_account',
+        '_hyperparameters',
         '_impersonation_chain',
     ]
 
     operator_extra_links = (AIPlatformConsoleLink(),)
 
-    @apply_defaults
     def __init__(
-        self,  # pylint: disable=too-many-arguments
+        self,
         *,
         job_id: str,
         region: str,
@@ -1189,6 +1180,7 @@ class MLEngineStartTrainingJobOperator(BaseOperator):
         mode: str = 'PRODUCTION',
         labels: Optional[Dict[str, str]] = None,
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        hyperparameters: Optional[Dict] = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -1209,6 +1201,7 @@ class MLEngineStartTrainingJobOperator(BaseOperator):
         self._delegate_to = delegate_to
         self._mode = mode
         self._labels = labels
+        self._hyperparameters = hyperparameters
         self._impersonation_chain = impersonation_chain
 
         custom = self._scale_tier is not None and self._scale_tier.upper() == 'CUSTOM'
@@ -1273,6 +1266,9 @@ class MLEngineStartTrainingJobOperator(BaseOperator):
 
         if self._service_account:
             training_request['trainingInput']['serviceAccount'] = self._service_account
+
+        if self._hyperparameters:
+            training_request['trainingInput']['hyperparameters'] = self._hyperparameters
 
         if self._labels:
             training_request['labels'] = self._labels
@@ -1352,7 +1348,6 @@ class MLEngineTrainingCancelJobOperator(BaseOperator):
         '_impersonation_chain',
     ]
 
-    @apply_defaults
     def __init__(
         self,
         *,

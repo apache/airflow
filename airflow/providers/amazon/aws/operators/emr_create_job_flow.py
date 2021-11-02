@@ -16,12 +16,34 @@
 # specific language governing permissions and limitations
 # under the License.
 import ast
+from datetime import datetime
 from typing import Any, Dict, Optional, Union
 
 from airflow.exceptions import AirflowException
-from airflow.models import BaseOperator
+from airflow.models import BaseOperator, BaseOperatorLink, TaskInstance
 from airflow.providers.amazon.aws.hooks.emr import EmrHook
-from airflow.utils.decorators import apply_defaults
+
+
+class EmrClusterLink(BaseOperatorLink):
+    """Operator link for EmrCreateJobFlowOperator. It allows users to access the EMR Cluster"""
+
+    name = 'EMR Cluster'
+
+    def get_link(self, operator: BaseOperator, dttm: datetime) -> str:
+        """
+        Get link to EMR cluster.
+
+        :param operator: operator
+        :param dttm: datetime
+        :return: url link
+        """
+        ti = TaskInstance(task=operator, execution_date=dttm)
+        flow_id = ti.xcom_pull(task_ids=operator.task_id)
+        return (
+            f'https://console.aws.amazon.com/elasticmapreduce/home#cluster-details:{flow_id}'
+            if flow_id
+            else ''
+        )
 
 
 class EmrCreateJobFlowOperator(BaseOperator):
@@ -37,13 +59,16 @@ class EmrCreateJobFlowOperator(BaseOperator):
     :param job_flow_overrides: boto3 style arguments or reference to an arguments file
         (must be '.json') to override emr_connection extra. (templated)
     :type job_flow_overrides: dict|str
+    :param region_name: Region named passed to EmrHook
+    :type region_name: Optional[str]
     """
 
     template_fields = ['job_flow_overrides']
     template_ext = ('.json',)
+    template_fields_renderers = {"job_flow_overrides": "json"}
     ui_color = '#f9c915'
+    operator_extra_links = (EmrClusterLink(),)
 
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -78,7 +103,7 @@ class EmrCreateJobFlowOperator(BaseOperator):
         response = emr.create_job_flow(job_flow_overrides)
 
         if not response['ResponseMetadata']['HTTPStatusCode'] == 200:
-            raise AirflowException('JobFlow creation failed: %s' % response)
+            raise AirflowException(f'JobFlow creation failed: {response}')
         else:
             self.log.info('JobFlow with id %s created', response['JobFlowId'])
             return response['JobFlowId']

@@ -22,7 +22,6 @@ from typing import Dict, Iterable, List, Optional, Sequence, Union, cast
 from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 from airflow.providers.google.cloud.hooks.gcs import GCSHook
-from airflow.utils.decorators import apply_defaults
 
 
 class GCSToS3Operator(BaseOperator):
@@ -94,10 +93,9 @@ class GCSToS3Operator(BaseOperator):
     )
     ui_color = '#f0eee4'
 
-    @apply_defaults
     def __init__(
         self,
-        *,  # pylint: disable=too-many-arguments
+        *,
         bucket: str,
         prefix: Optional[str] = None,
         delimiter: Optional[str] = None,
@@ -140,7 +138,7 @@ class GCSToS3Operator(BaseOperator):
     def execute(self, context) -> List[str]:
         # list all files in an Google Cloud Storage bucket
         hook = GCSHook(
-            google_cloud_storage_conn_id=self.gcp_conn_id,
+            gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,
             impersonation_chain=self.google_impersonation_chain,
         )
@@ -175,7 +173,7 @@ class GCSToS3Operator(BaseOperator):
         if files:
 
             for file in files:
-                file_bytes = hook.download(self.bucket, file)
+                file_bytes = hook.download(object_name=file, bucket_name=self.bucket)
 
                 dest_key = self.dest_s3_key + file
                 self.log.info("Saving file to %s", dest_key)

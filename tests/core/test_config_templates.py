@@ -45,12 +45,13 @@ DEFAULT_AIRFLOW_SECTIONS = [
     'celery_broker_transport_options',
     'dask',
     'scheduler',
+    'triggerer',
     'kerberos',
     'github_enterprise',
-    'admin',
     'elasticsearch',
     'elasticsearch_configs',
     'kubernetes',
+    'sensors',
     'smart_sensor',
 ]
 
@@ -66,7 +67,6 @@ DEFAULT_TEST_SECTIONS = [
     'smtp',
     'celery',
     'scheduler',
-    'admin',
     'elasticsearch',
     'elasticsearch_configs',
     'kubernetes',
@@ -83,7 +83,7 @@ class TestAirflowCfg(unittest.TestCase):
     def test_should_be_ascii_file(self, filename: str):
         with open(os.path.join(CONFIG_TEMPLATES_FOLDER, filename), "rb") as f:
             content = f.read().decode("ascii")
-        self.assertTrue(content)
+        assert content
 
     @parameterized.expand(
         [
@@ -102,4 +102,4 @@ class TestAirflowCfg(unittest.TestCase):
         config = configparser.ConfigParser()
         config.read(filepath)
 
-        self.assertEqual(expected_sections, config.sections())
+        assert expected_sections == config.sections()

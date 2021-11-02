@@ -20,6 +20,7 @@ import datetime
 import unittest
 from unittest.mock import MagicMock, patch
 
+import pytest
 from dateutil.tz import tzlocal
 
 from airflow.exceptions import AirflowException
@@ -211,7 +212,7 @@ class TestEmrJobFlowSensor(unittest.TestCase):
             operator.execute(None)
 
             # make sure we called twice
-            self.assertEqual(self.mock_emr_client.describe_cluster.call_count, 3)
+            assert self.mock_emr_client.describe_cluster.call_count == 3
 
             # make sure it was called with the job_flow_id
             calls = [unittest.mock.call(ClusterId='j-8989898989')]
@@ -227,11 +228,11 @@ class TestEmrJobFlowSensor(unittest.TestCase):
                 task_id='test_task', poke_interval=0, job_flow_id='j-8989898989', aws_conn_id='aws_default'
             )
 
-            with self.assertRaises(AirflowException):
+            with pytest.raises(AirflowException):
                 operator.execute(None)
 
                 # make sure we called twice
-                self.assertEqual(self.mock_emr_client.describe_cluster.call_count, 2)
+                assert self.mock_emr_client.describe_cluster.call_count == 2
 
                 # make sure it was called with the job_flow_id
                 self.mock_emr_client.describe_cluster.assert_called_once_with(ClusterId='j-8989898989')
@@ -257,7 +258,7 @@ class TestEmrJobFlowSensor(unittest.TestCase):
             operator.execute(None)
 
             # make sure we called twice
-            self.assertEqual(self.mock_emr_client.describe_cluster.call_count, 3)
+            assert self.mock_emr_client.describe_cluster.call_count == 3
 
             # make sure it was called with the job_flow_id
             calls = [unittest.mock.call(ClusterId='j-8989898989')]

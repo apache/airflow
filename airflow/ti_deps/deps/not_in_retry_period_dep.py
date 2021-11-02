@@ -26,7 +26,7 @@ class NotInRetryPeriodDep(BaseTIDep):
     """Determines whether a task is not in retry period."""
 
     NAME = "Not In Retry Period"
-    IGNOREABLE = True
+    IGNORABLE = True
     IS_TASK_DEP = True
 
     @provide_session
@@ -47,7 +47,9 @@ class NotInRetryPeriodDep(BaseTIDep):
         next_task_retry_date = ti.next_retry_datetime()
         if ti.is_premature:
             yield self._failing_status(
-                reason="Task is not ready for retry yet but will be retried "
-                "automatically. Current date is {} and task will be retried "
-                "at {}.".format(cur_date.isoformat(), next_task_retry_date.isoformat())
+                reason=(
+                    f"Task is not ready for retry yet but will be retried automatically. "
+                    f"Current date is {cur_date.isoformat()} and task will be retried "
+                    f"at {next_task_retry_date.isoformat()}."
+                )
             )

@@ -19,7 +19,6 @@ from typing import Optional, Union
 
 from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
-from airflow.utils.decorators import apply_defaults
 
 
 class S3DeleteObjectsOperator(BaseOperator):
@@ -62,7 +61,6 @@ class S3DeleteObjectsOperator(BaseOperator):
 
     template_fields = ('keys', 'bucket', 'prefix')
 
-    @apply_defaults
     def __init__(
         self,
         *,

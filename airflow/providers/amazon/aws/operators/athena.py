@@ -19,16 +19,22 @@
 from typing import Any, Dict, Optional
 from uuid import uuid4
 
-from cached_property import cached_property
+try:
+    from functools import cached_property
+except ImportError:
+    from cached_property import cached_property
 
 from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.athena import AWSAthenaHook
-from airflow.utils.decorators import apply_defaults
 
 
 class AWSAthenaOperator(BaseOperator):
     """
     An operator that submits a presto query to athena.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:AWSAthenaOperator`
 
     :param query: Presto to be run on athena. (templated)
     :type query: str
@@ -55,9 +61,9 @@ class AWSAthenaOperator(BaseOperator):
     ui_color = '#44b5e2'
     template_fields = ('query', 'database', 'output_location')
     template_ext = ('.sql',)
+    template_fields_renderers = {"query": "sql"}
 
-    @apply_defaults
-    def __init__(  # pylint: disable=too-many-arguments
+    def __init__(
         self,
         *,
         query: str,
@@ -106,16 +112,13 @@ class AWSAthenaOperator(BaseOperator):
         if query_status in AWSAthenaHook.FAILURE_STATES:
             error_message = self.hook.get_state_change_reason(self.query_execution_id)
             raise Exception(
-                'Final state of Athena job is {}, query_execution_id is {}. Error: {}'.format(
-                    query_status, self.query_execution_id, error_message
-                )
+                f'Final state of Athena job is {query_status}, query_execution_id is '
+                f'{self.query_execution_id}. Error: {error_message}'
             )
         elif not query_status or query_status in AWSAthenaHook.INTERMEDIATE_STATES:
             raise Exception(
-                'Final state of Athena job is {}. '
-                'Max tries of poll status exceeded, query_execution_id is {}.'.format(
-                    query_status, self.query_execution_id
-                )
+                f'Final state of Athena job is {query_status}. Max tries of poll status exceeded, '
+                f'query_execution_id is {self.query_execution_id}.'
             )
 
         return self.query_execution_id
@@ -129,7 +132,7 @@ class AWSAthenaOperator(BaseOperator):
             http_status_code = None
             try:
                 http_status_code = response['ResponseMetadata']['HTTPStatusCode']
-            except Exception as ex:  # pylint: disable=broad-except
+            except Exception as ex:
                 self.log.error('Exception while cancelling query: %s', ex)
             finally:
                 if http_status_code is None or http_status_code != 200:

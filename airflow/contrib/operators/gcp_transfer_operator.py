@@ -56,7 +56,7 @@ class GcpTransferServiceJobCreateOperator(CloudDataTransferServiceCreateJobOpera
             Please use `airflow.providers.google.cloud.operators.data_transfer
             .CloudDataTransferServiceCreateJobOperator`.""",
             DeprecationWarning,
-            stacklevel=3,
+            stacklevel=2,
         )
         super().__init__(*args, **kwargs)
 
@@ -74,7 +74,7 @@ class GcpTransferServiceJobDeleteOperator(CloudDataTransferServiceDeleteJobOpera
             Please use `airflow.providers.google.cloud.operators.data_transfer
             .CloudDataTransferServiceDeleteJobOperator`.""",
             DeprecationWarning,
-            stacklevel=3,
+            stacklevel=2,
         )
         super().__init__(*args, **kwargs)
 
@@ -92,7 +92,7 @@ class GcpTransferServiceJobUpdateOperator(CloudDataTransferServiceUpdateJobOpera
             Please use `airflow.providers.google.cloud.operators.data_transfer
             .CloudDataTransferServiceUpdateJobOperator`.""",
             DeprecationWarning,
-            stacklevel=3,
+            stacklevel=2,
         )
         super().__init__(*args, **kwargs)
 
@@ -111,7 +111,7 @@ class GcpTransferServiceOperationCancelOperator(CloudDataTransferServiceCancelOp
             .CloudDataTransferServiceCancelOperationOperator`.
             """,
             DeprecationWarning,
-            stacklevel=3,
+            stacklevel=2,
         )
         super().__init__(*args, **kwargs)
 
@@ -129,7 +129,7 @@ class GcpTransferServiceOperationGetOperator(CloudDataTransferServiceGetOperatio
             Please use `airflow.providers.google.cloud.operators.data_transfer
             .CloudDataTransferServiceGetOperationOperator`.""",
             DeprecationWarning,
-            stacklevel=3,
+            stacklevel=2,
         )
         super().__init__(*args, **kwargs)
 
@@ -148,7 +148,7 @@ class GcpTransferServiceOperationPauseOperator(CloudDataTransferServicePauseOper
             .CloudDataTransferServicePauseOperationOperator`.
             """,
             DeprecationWarning,
-            stacklevel=3,
+            stacklevel=2,
         )
         super().__init__(*args, **kwargs)
 
@@ -167,7 +167,7 @@ class GcpTransferServiceOperationResumeOperator(CloudDataTransferServiceResumeOp
             .CloudDataTransferServiceResumeOperationOperator`.
             """,
             DeprecationWarning,
-            stacklevel=3,
+            stacklevel=2,
         )
         super().__init__(*args, **kwargs)
 
@@ -186,7 +186,7 @@ class GcpTransferServiceOperationsListOperator(CloudDataTransferServiceListOpera
             .CloudDataTransferServiceListOperationsOperator`.
             """,
             DeprecationWarning,
-            stacklevel=3,
+            stacklevel=2,
         )
         super().__init__(*args, **kwargs)
 
@@ -205,7 +205,7 @@ class GoogleCloudStorageToGoogleCloudStorageTransferOperator(CloudDataTransferSe
             .CloudDataTransferServiceGCSToGCSOperator`.
             """,
             DeprecationWarning,
-            stacklevel=3,
+            stacklevel=2,
         )
         super().__init__(*args, **kwargs)
 
@@ -224,6 +224,6 @@ class S3ToGoogleCloudStorageTransferOperator(CloudDataTransferServiceS3ToGCSOper
             .CloudDataTransferServiceS3ToGCSOperator`.
             """,
             DeprecationWarning,
-            stacklevel=3,
+            stacklevel=2,
         )
         super().__init__(*args, **kwargs)

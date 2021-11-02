@@ -24,7 +24,6 @@ from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.gcs import GCSHook
 from airflow.providers.sftp.hooks.sftp import SFTPHook
-from airflow.utils.decorators import apply_defaults
 
 WILDCARD = "*"
 
@@ -86,7 +85,6 @@ class SFTPToGCSOperator(BaseOperator):
         "impersonation_chain",
     )
 
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -129,7 +127,7 @@ class SFTPToGCSOperator(BaseOperator):
             if total_wildcards > 1:
                 raise AirflowException(
                     "Only one wildcard '*' is allowed in source_path parameter. "
-                    "Found {} in {}.".format(total_wildcards, self.source_path)
+                    f"Found {total_wildcards} in {self.source_path}."
                 )
 
             prefix, delimiter = self.source_path.split(WILDCARD, 1)

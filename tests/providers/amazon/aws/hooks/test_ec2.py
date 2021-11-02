@@ -30,14 +30,14 @@ class TestEC2Hook(unittest.TestCase):
             aws_conn_id="aws_conn_test",
             region_name="region-test",
         )
-        self.assertEqual(ec2_hook.aws_conn_id, "aws_conn_test")
-        self.assertEqual(ec2_hook.region_name, "region-test")
+        assert ec2_hook.aws_conn_id == "aws_conn_test"
+        assert ec2_hook.region_name == "region-test"
 
     @mock_ec2
     def test_get_conn_returns_boto3_resource(self):
         ec2_hook = EC2Hook()
         instances = list(ec2_hook.conn.instances.all())
-        self.assertIsNotNone(instances)
+        assert instances is not None
 
     @mock_ec2
     def test_get_instance(self):
@@ -49,7 +49,7 @@ class TestEC2Hook(unittest.TestCase):
         created_instance_id = created_instances[0].instance_id
         # test get_instance method
         existing_instance = ec2_hook.get_instance(instance_id=created_instance_id)
-        self.assertEqual(created_instance_id, existing_instance.instance_id)
+        assert created_instance_id == existing_instance.instance_id
 
     @mock_ec2
     def test_get_instance_state(self):
@@ -63,4 +63,4 @@ class TestEC2Hook(unittest.TestCase):
         created_instance_state = all_instances[0].state["Name"]
         # test get_instance_state method
         existing_instance_state = ec2_hook.get_instance_state(instance_id=created_instance_id)
-        self.assertEqual(created_instance_state, existing_instance_state)
+        assert created_instance_state == existing_instance_state

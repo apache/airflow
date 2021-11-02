@@ -21,7 +21,6 @@ from typing import Optional, Sequence, Union
 from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.glacier import GlacierHook
 from airflow.providers.google.cloud.hooks.gcs import GCSHook
-from airflow.utils.decorators import apply_defaults
 
 
 class GlacierToGCSOperator(BaseOperator):
@@ -63,12 +62,11 @@ class GlacierToGCSOperator(BaseOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
-    :type impersonation_chain: Union[str, Sequence[str]]
+    :type google_impersonation_chain: Union[str, Sequence[str]]
     """
 
     template_fields = ("vault_name", "bucket_name", "object_name")
 
-    @apply_defaults
     def __init__(
         self,
         *,

@@ -66,7 +66,7 @@ class GoogleCampaignManagerHook(GoogleBaseHook):
         :type report_id: str
         """
         response = (
-            self.get_conn()  # pylint: disable=no-member
+            self.get_conn()
             .reports()
             .delete(profileId=profile_id, reportId=report_id)
             .execute(num_retries=self.num_retries)
@@ -83,7 +83,7 @@ class GoogleCampaignManagerHook(GoogleBaseHook):
         :type report: Dict[str, Any]
         """
         response = (
-            self.get_conn()  # pylint: disable=no-member
+            self.get_conn()
             .reports()
             .insert(profileId=profile_id, body=report)
             .execute(num_retries=self.num_retries)
@@ -114,7 +114,7 @@ class GoogleCampaignManagerHook(GoogleBaseHook):
         """
         reports: List[dict] = []
         conn = self.get_conn()
-        request = conn.reports().list(  # pylint: disable=no-member
+        request = conn.reports().list(
             profileId=profile_id,
             maxResults=max_results,
             scope=scope,
@@ -124,9 +124,7 @@ class GoogleCampaignManagerHook(GoogleBaseHook):
         while request is not None:
             response = request.execute(num_retries=self.num_retries)
             reports.extend(response.get("items", []))
-            request = conn.reports().list_next(  # pylint: disable=no-member
-                previous_request=request, previous_response=response
-            )
+            request = conn.reports().list_next(previous_request=request, previous_response=response)
 
         return reports
 
@@ -143,7 +141,7 @@ class GoogleCampaignManagerHook(GoogleBaseHook):
         :type update_mask: Dict
         """
         response = (
-            self.get_conn()  # pylint: disable=no-member
+            self.get_conn()
             .reports()
             .patch(profileId=profile_id, reportId=report_id, body=update_mask)
             .execute(num_retries=self.num_retries)
@@ -162,7 +160,7 @@ class GoogleCampaignManagerHook(GoogleBaseHook):
         :type synchronous: Optional[bool]
         """
         response = (
-            self.get_conn()  # pylint: disable=no-member
+            self.get_conn()
             .reports()
             .run(profileId=profile_id, reportId=report_id, synchronous=synchronous)
             .execute(num_retries=self.num_retries)
@@ -179,7 +177,7 @@ class GoogleCampaignManagerHook(GoogleBaseHook):
         :type report_id: str
         """
         response = (
-            self.get_conn()  # pylint: disable=no-member
+            self.get_conn()
             .reports()
             .update(profileId=profile_id, reportId=report_id)
             .execute(num_retries=self.num_retries)
@@ -198,7 +196,7 @@ class GoogleCampaignManagerHook(GoogleBaseHook):
         :type file_id: str
         """
         response = (
-            self.get_conn()  # pylint: disable=no-member
+            self.get_conn()
             .reports()
             .files()
             .get(fileId=file_id, profileId=profile_id, reportId=report_id)
@@ -219,7 +217,7 @@ class GoogleCampaignManagerHook(GoogleBaseHook):
         :return: googleapiclient.http.HttpRequest
         """
         request = (
-            self.get_conn()  # pylint: disable=no-member
+            self.get_conn()
             .reports()
             .files()
             .get_media(fileId=file_id, profileId=profile_id, reportId=report_id)
@@ -275,7 +273,7 @@ class GoogleCampaignManagerHook(GoogleBaseHook):
         :type max_failed_inserts: int
         """
         response = (
-            self.get_conn()  # pylint: disable=no-member
+            self.get_conn()
             .conversions()
             .batchinsert(
                 profileId=profile_id,
@@ -325,7 +323,7 @@ class GoogleCampaignManagerHook(GoogleBaseHook):
         :type max_failed_updates: int
         """
         response = (
-            self.get_conn()  # pylint: disable=no-member
+            self.get_conn()
             .conversions()
             .batchupdate(
                 profileId=profile_id,

@@ -41,6 +41,11 @@ class OpsgenieAlertHook(HttpHook):
 
     """
 
+    conn_name_attr = 'opsgenie_conn_id'
+    default_conn_name = 'opsgenie_default'
+    conn_type = 'opsgenie'
+    hook_name = 'Opsgenie'
+
     def __init__(self, opsgenie_conn_id: str = 'opsgenie_default', *args, **kwargs) -> None:
         super().__init__(http_conn_id=opsgenie_conn_id, *args, **kwargs)  # type: ignore[misc]
 
@@ -82,5 +87,5 @@ class OpsgenieAlertHook(HttpHook):
         return self.run(
             endpoint='v2/alerts',
             data=json.dumps(payload),
-            headers={'Content-Type': 'application/json', 'Authorization': 'GenieKey %s' % api_key},
+            headers={'Content-Type': 'application/json', 'Authorization': f'GenieKey {api_key}'},
         )

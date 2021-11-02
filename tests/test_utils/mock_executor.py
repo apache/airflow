@@ -69,6 +69,7 @@ class MockExecutor(BaseExecutor):
             for index in range(min((open_slots, len(sorted_queue)))):
                 (key, (_, _, _, ti)) = sorted_queue[index]
                 self.queued_tasks.pop(key)
+                ti._try_number += 1
                 state = self.mock_task_results[key]
                 ti.set_state(state, session=session)
                 self.change_state(key, state)
@@ -85,7 +86,7 @@ class MockExecutor(BaseExecutor):
         # a list of all events for testing
         self.sorted_tasks.append((key, (state, info)))
 
-    def mock_task_fail(self, dag_id, task_id, date, try_number=1):
+    def mock_task_fail(self, dag_id, task_id, run_id: str, try_number=1):
         """
         Set the mock outcome of running this particular task instances to
         FAILED.
@@ -93,4 +94,5 @@ class MockExecutor(BaseExecutor):
         If the task identified by the tuple ``(dag_id, task_id, date,
         try_number)`` is run by this executor it's state will be FAILED.
         """
-        self.mock_task_results[TaskInstanceKey(dag_id, task_id, date, try_number)] = State.FAILED
+        assert isinstance(run_id, str)
+        self.mock_task_results[TaskInstanceKey(dag_id, task_id, run_id, try_number)] = State.FAILED

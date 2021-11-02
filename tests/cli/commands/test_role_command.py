@@ -17,31 +17,26 @@
 # under the License.
 #
 import io
-import unittest
+import json
 from contextlib import redirect_stdout
 
-from airflow import models
-from airflow.cli import cli_parser
+import pytest
+
 from airflow.cli.commands import role_command
 
 TEST_USER1_EMAIL = 'test-user1@example.com'
 TEST_USER2_EMAIL = 'test-user2@example.com'
 
 
-class TestCliRoles(unittest.TestCase):
-    @classmethod
-    def setUpClass(cls):
-        cls.dagbag = models.DagBag(include_examples=True)
-        cls.parser = cli_parser.get_parser()
-
-    def setUp(self):
-        from airflow.www import app as application
-
-        self.app = application.create_app(testing=True)
-        self.appbuilder = self.app.appbuilder  # pylint: disable=no-member
+class TestCliRoles:
+    @pytest.fixture(autouse=True)
+    def _set_attrs(self, app, dagbag, parser):
+        self.app = app
+        self.dagbag = dagbag
+        self.parser = parser
+        self.appbuilder = self.app.appbuilder
         self.clear_roles_and_roles()
-
-    def tearDown(self):
+        yield
         self.clear_roles_and_roles()
 
     def clear_roles_and_roles(self):
@@ -54,25 +49,25 @@ class TestCliRoles(unittest.TestCase):
                 self.appbuilder.sm.delete_role(role_name)
 
     def test_cli_create_roles(self):
-        self.assertIsNone(self.appbuilder.sm.find_role('FakeTeamA'))
-        self.assertIsNone(self.appbuilder.sm.find_role('FakeTeamB'))
+        assert self.appbuilder.sm.find_role('FakeTeamA') is None
+        assert self.appbuilder.sm.find_role('FakeTeamB') is None
 
         args = self.parser.parse_args(['roles', 'create', 'FakeTeamA', 'FakeTeamB'])
         role_command.roles_create(args)
 
-        self.assertIsNotNone(self.appbuilder.sm.find_role('FakeTeamA'))
-        self.assertIsNotNone(self.appbuilder.sm.find_role('FakeTeamB'))
+        assert self.appbuilder.sm.find_role('FakeTeamA') is not None
+        assert self.appbuilder.sm.find_role('FakeTeamB') is not None
 
     def test_cli_create_roles_is_reentrant(self):
-        self.assertIsNone(self.appbuilder.sm.find_role('FakeTeamA'))
-        self.assertIsNone(self.appbuilder.sm.find_role('FakeTeamB'))
+        assert self.appbuilder.sm.find_role('FakeTeamA') is None
+        assert self.appbuilder.sm.find_role('FakeTeamB') is None
 
         args = self.parser.parse_args(['roles', 'create', 'FakeTeamA', 'FakeTeamB'])
 
         role_command.roles_create(args)
 
-        self.assertIsNotNone(self.appbuilder.sm.find_role('FakeTeamA'))
-        self.assertIsNotNone(self.appbuilder.sm.find_role('FakeTeamB'))
+        assert self.appbuilder.sm.find_role('FakeTeamA') is not None
+        assert self.appbuilder.sm.find_role('FakeTeamB') is not None
 
     def test_cli_list_roles(self):
         self.appbuilder.sm.add_role('FakeTeamA')
@@ -82,8 +77,33 @@ class TestCliRoles(unittest.TestCase):
             role_command.roles_list(self.parser.parse_args(['roles', 'list']))
             stdout = stdout.getvalue()
 
-        self.assertIn('FakeTeamA', stdout)
-        self.assertIn('FakeTeamB', stdout)
+        assert 'FakeTeamA' in stdout
+        assert 'FakeTeamB' in stdout
 
     def test_cli_list_roles_with_args(self):
         role_command.roles_list(self.parser.parse_args(['roles', 'list', '--output', 'yaml']))
+
+    def test_cli_import_roles(self, tmp_path):
+        fn = tmp_path / 'import_roles.json'
+        fn.touch()
+        roles_list = ['FakeTeamA', 'FakeTeamB']
+        with open(fn, 'w') as outfile:
+            json.dump(roles_list, outfile)
+        role_command.roles_import(self.parser.parse_args(['roles', 'import', str(fn)]))
+        assert self.appbuilder.sm.find_role('FakeTeamA') is not None
+        assert self.appbuilder.sm.find_role('FakeTeamB') is not None
+
+    def test_cli_export_roles(self, tmp_path):
+        fn = tmp_path / 'export_roles.json'
+        fn.touch()
+        args = self.parser.parse_args(['roles', 'create', 'FakeTeamA', 'FakeTeamB'])
+        role_command.roles_create(args)
+
+        assert self.appbuilder.sm.find_role('FakeTeamA') is not None
+        assert self.appbuilder.sm.find_role('FakeTeamB') is not None
+
+        role_command.roles_export(self.parser.parse_args(['roles', 'export', str(fn)]))
+        with open(fn) as outfile:
+            roles_exported = json.load(outfile)
+        assert 'FakeTeamA' in roles_exported
+        assert 'FakeTeamB' in roles_exported

@@ -15,11 +15,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from typing import Iterable, Mapping, Optional, Union
+from typing import Iterable, List, Mapping, Optional, Union
 
 from airflow.models import BaseOperator
 from airflow.providers.jdbc.hooks.jdbc import JdbcHook
-from airflow.utils.decorators import apply_defaults
 
 
 class JdbcOperator(BaseOperator):
@@ -49,11 +48,10 @@ class JdbcOperator(BaseOperator):
     template_ext = ('.sql',)
     ui_color = '#ededed'
 
-    @apply_defaults
     def __init__(
         self,
         *,
-        sql: str,
+        sql: Union[str, List[str]],
         jdbc_conn_id: str = 'jdbc_default',
         autocommit: bool = False,
         parameters: Optional[Union[Mapping, Iterable]] = None,

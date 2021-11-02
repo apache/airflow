@@ -19,7 +19,7 @@
 
 {% extends "airflow/dag.html" %}
 
-{% block page_title %}{{ dag.dag_id }} - {{ title }} - Airflow{% endblock %}
+{% block page_title %}{{ dag.dag_id }} - DAG Details - {{ appbuilder.app_name }}{% endblock %}
 
 {% block content %}
   {{ super() }}
@@ -49,12 +49,23 @@
       <td>{{ dag.schedule_interval }}</td>
     </tr>
     <tr>
-      <th>Start Date</th>
-      <td>{{ dag.start_date }}</td>
+      <th>Catchup</th>
+      <td>{{ dag.catchup }}</td>
     </tr>
+    {% if dag.catchup %}
+      <tr>
+        <th>Start Date</th>
+        <td><time datetime="{{ dag.start_date }}">{{ dag.start_date }}</time></td>
+      </tr>
+    {% else %}
+      <tr>
+        <th>Started</th>
+        <td>{{ states|length > 0 }}</td>
+      </tr>
+    {% endif %}
     <tr>
       <th>End Date</th>
-      <td>{{ dag.end_date }}</td>
+      <td><time datetime="{{ dag.end_date }}">{{ dag.end_date }}</time></td>
     </tr>
     <tr>
       <th>Max Active Runs</th>
@@ -62,11 +73,11 @@
     </tr>
     <tr>
       <th>Concurrency</th>
-      <td>{{ dag.concurrency }}</td>
+      <td>{{ dag.max_active_tasks }}</td>
     </tr>
     <tr>
       <th>Default Args</th>
-      <td><code>{{ dag.default_args }}</code></td>
+      <td class="wrap">{{ dag.default_args | pprint }}</td>
     </tr>
     <tr>
       <th>Tasks Count</th>
@@ -77,12 +88,16 @@
       <td>{{ dag.task_ids }}</td>
     </tr>
     <tr>
-      <th>Filepath</th>
-      <td>{{ dag.filepath }}</td>
+      <th>Relative file location</th>
+      <td>{{ dag.relative_fileloc }}</td>
     </tr>
     <tr>
       <th>Owner</th>
       <td>{{ dag.owner }}</td>
+    </tr>
+    <tr>
+      <th>DAG Run Timeout</th>
+      <td>{{ dag.dagrun_timeout }}</td>
     </tr>
     <tr>
       <th>Tags</th>

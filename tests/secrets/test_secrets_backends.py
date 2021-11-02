@@ -56,18 +56,18 @@ class TestBaseSecretsBackend(unittest.TestCase):
     )
     def test_build_path(self, _, kwargs, output):
         build_path = BaseSecretsBackend.build_path
-        self.assertEqual(build_path(**kwargs), output)
+        assert build_path(**kwargs) == output
 
     def test_connection_env_secrets_backend(self):
         sample_conn_1 = SampleConn("sample_1", "A")
         env_secrets_backend = EnvironmentVariablesBackend()
         os.environ[sample_conn_1.var_name] = sample_conn_1.conn_uri
         conn_list = env_secrets_backend.get_connections(sample_conn_1.conn_id)
-        self.assertEqual(1, len(conn_list))
+        assert 1 == len(conn_list)
         conn = conn_list[0]
 
         # we could make this more precise by defining __eq__ method for Connection
-        self.assertEqual(sample_conn_1.host.lower(), conn.host)
+        assert sample_conn_1.host.lower() == conn.host
 
     def test_connection_metastore_secrets_backend(self):
         sample_conn_2 = SampleConn("sample_2", "A")
@@ -77,7 +77,7 @@ class TestBaseSecretsBackend(unittest.TestCase):
         metastore_backend = MetastoreBackend()
         conn_list = metastore_backend.get_connections("sample_2")
         host_list = {x.host for x in conn_list}
-        self.assertEqual({sample_conn_2.host.lower()}, set(host_list))
+        assert {sample_conn_2.host.lower()} == set(host_list)
 
     @mock.patch.dict(
         'os.environ',
@@ -89,15 +89,15 @@ class TestBaseSecretsBackend(unittest.TestCase):
     def test_variable_env_secrets_backend(self):
         env_secrets_backend = EnvironmentVariablesBackend()
         variable_value = env_secrets_backend.get_variable(key="hello")
-        self.assertEqual('World', variable_value)
-        self.assertIsNone(env_secrets_backend.get_variable(key="non_existent_key"))
-        self.assertEqual('', env_secrets_backend.get_variable(key="empty_str"))
+        assert 'World' == variable_value
+        assert env_secrets_backend.get_variable(key="non_existent_key") is None
+        assert '' == env_secrets_backend.get_variable(key="empty_str")
 
     def test_variable_metastore_secrets_backend(self):
         Variable.set(key="hello", value="World")
         Variable.set(key="empty_str", value="")
         metastore_backend = MetastoreBackend()
         variable_value = metastore_backend.get_variable(key="hello")
-        self.assertEqual("World", variable_value)
-        self.assertIsNone(metastore_backend.get_variable(key="non_existent_key"))
-        self.assertEqual('', metastore_backend.get_variable(key="empty_str"))
+        assert "World" == variable_value
+        assert metastore_backend.get_variable(key="non_existent_key") is None
+        assert '' == metastore_backend.get_variable(key="empty_str")

@@ -31,7 +31,7 @@ class GlacierSystemTest(AmazonSystemTest):
         GoogleSystemTest.create_gcs_bucket(BUCKET)
 
     def tearDown(self):
-        GoogleSystemTest.delete_gcs_bucket(BUCKET)  # pylint: disable=no-member
+        GoogleSystemTest.delete_gcs_bucket(BUCKET)
 
     def test_run_example_dag(self):
         self.run_dag(dag_id="example_glacier_to_gcs", dag_folder=AWS_DAG_FOLDER)

@@ -21,10 +21,12 @@ import os
 from pathlib import Path
 from typing import TYPE_CHECKING, Optional
 
-import requests
+import httpx
+from itsdangerous import TimedJSONWebSignatureSerializer
 
 from airflow.configuration import AirflowConfigException, conf
 from airflow.utils.helpers import parse_template_string
+from airflow.utils.log.non_caching_file_handler import NonCachingFileHandler
 
 if TYPE_CHECKING:
     from airflow.models import TaskInstance
@@ -54,7 +56,7 @@ class FileTaskHandler(logging.Handler):
         :param ti: task instance object
         """
         local_loc = self._init_file(ti)
-        self.handler = logging.FileHandler(local_loc, encoding='utf-8')
+        self.handler = NonCachingFileHandler(local_loc, encoding='utf-8')
         if self.formatter:
             self.handler.setFormatter(self.formatter)
         self.handler.setLevel(self.level)
@@ -94,7 +96,7 @@ class FileTaskHandler(logging.Handler):
     def _read_grouped_logs(self):
         return False
 
-    def _read(self, ti, try_number, metadata=None):  # pylint: disable=unused-argument
+    def _read(self, ti, try_number, metadata=None):
         """
         Template method that contains custom logic of reading
         logs given the try_number.
@@ -115,13 +117,13 @@ class FileTaskHandler(logging.Handler):
 
         if os.path.exists(location):
             try:
-                with open(location) as file:
+                with open(location, encoding="utf-8", errors="surrogateescape") as file:
                     log += f"*** Reading local file: {location}\n"
                     log += "".join(file.readlines())
-            except Exception as e:  # pylint: disable=broad-except
+            except Exception as e:
                 log = f"*** Failed to load local log file: {location}\n"
-                log += "*** {}\n".format(str(e))
-        elif conf.get('core', 'executor') == 'KubernetesExecutor':  # pylint: disable=too-many-nested-blocks
+                log += f"*** {str(e)}\n"
+        elif conf.get('core', 'executor') == 'KubernetesExecutor':
             try:
                 from airflow.kubernetes.kube_client import get_kube_client
 
@@ -141,9 +143,7 @@ class FileTaskHandler(logging.Handler):
                         if len(matches[0]) > len(ti.hostname):
                             ti.hostname = matches[0]
 
-                log += '*** Trying to get logs (last 100 lines) from worker pod {} ***\n\n'.format(
-                    ti.hostname
-                )
+                log += f'*** Trying to get logs (last 100 lines) from worker pod {ti.hostname} ***\n\n'
 
                 res = kube_client.read_namespaced_pod_log(
                     name=ti.hostname,
@@ -157,11 +157,11 @@ class FileTaskHandler(logging.Handler):
                 for line in res:
                     log += line.decode()
 
-            except Exception as f:  # pylint: disable=broad-except
-                log += '*** Unable to fetch logs from worker pod {} ***\n{}\n\n'.format(ti.hostname, str(f))
+            except Exception as f:
+                log += f'*** Unable to fetch logs from worker pod {ti.hostname} ***\n{str(f)}\n\n'
         else:
             url = os.path.join("http://{ti.hostname}:{worker_log_server_port}/log", log_relative_path).format(
-                ti=ti, worker_log_server_port=conf.get('celery', 'WORKER_LOG_SERVER_PORT')
+                ti=ti, worker_log_server_port=conf.get('logging', 'WORKER_LOG_SERVER_PORT')
             )
             log += f"*** Log file does not exist: {location}\n"
             log += f"*** Fetching from: {url}\n"
@@ -172,15 +172,35 @@ class FileTaskHandler(logging.Handler):
                 except (AirflowConfigException, ValueError):
                     pass
 
-                response = requests.get(url, timeout=timeout)
+                signer = TimedJSONWebSignatureSerializer(
+                    secret_key=conf.get('webserver', 'secret_key'),
+                    algorithm_name='HS512',
+                    expires_in=conf.getint('webserver', 'log_request_clock_grace', fallback=30),
+                    # This isn't really a "salt", more of a signing context
+                    salt='task-instance-logs',
+                )
+
+                response = httpx.get(
+                    url, timeout=timeout, headers={'Authorization': signer.dumps(log_relative_path)}
+                )
                 response.encoding = "utf-8"
 
+                if response.status_code == 403:
+                    log += (
+                        "*** !!!! Please make sure that all your Airflow components (e.g. "
+                        "schedulers, webservers and workers) have"
+                        " the same 'secret_key' configured in 'webserver' section !!!!!\n***"
+                    )
+                    log += (
+                        "*** See more at https://airflow.apache.org/docs/apache-airflow/"
+                        "stable/configurations-ref.html#secret-key\n***"
+                    )
                 # Check if the resource was properly fetched
                 response.raise_for_status()
 
                 log += '\n' + response.text
-            except Exception as e:  # pylint: disable=broad-except
-                log += "*** Failed to fetch log file from worker. {}\n".format(str(e))
+            except Exception as e:
+                log += f"*** Failed to fetch log file from worker. {str(e)}\n"
 
         return log, {'end_of_log': True}
 
@@ -207,7 +227,7 @@ class FileTaskHandler(logging.Handler):
             logs = [
                 [('default_host', f'Error fetching the logs. Try number {try_number} is invalid.')],
             ]
-            return logs
+            return logs, [{'end_of_log': True}]
         else:
             try_numbers = [try_number]
 
@@ -255,6 +275,9 @@ class FileTaskHandler(logging.Handler):
         if not os.path.exists(full_path):
             open(full_path, "a").close()
             # TODO: Investigate using 444 instead of 666.
-            os.chmod(full_path, 0o666)
+            try:
+                os.chmod(full_path, 0o666)
+            except OSError:
+                logging.warning("OSError while change ownership of the log file")
 
         return full_path

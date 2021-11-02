@@ -21,7 +21,6 @@ from typing import Any, Dict, Optional
 from celery.app import control
 
 from airflow.sensors.base import BaseSensorOperator
-from airflow.utils.decorators import apply_defaults
 
 
 class CeleryQueueSensor(BaseSensorOperator):
@@ -36,7 +35,6 @@ class CeleryQueueSensor(BaseSensorOperator):
     :type target_task_id: str
     """
 
-    @apply_defaults
     def __init__(self, *, celery_queue: str, target_task_id: Optional[str] = None, **kwargs) -> None:
 
         super().__init__(**kwargs)

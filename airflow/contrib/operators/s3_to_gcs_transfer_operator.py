@@ -21,7 +21,6 @@ Please use `airflow.providers.google.cloud.operators.cloud_storage_transfer_serv
 """
 import warnings
 
-# pylint: disable=unused-import,line-too-long
 from airflow.providers.google.cloud.operators.cloud_storage_transfer_service import (  # noqa isort:skip
     CloudDataTransferServiceS3ToGCSOperator,
 )

@@ -80,6 +80,7 @@ MONTH = 'month'
 NAME = 'name'
 OBJECT_CONDITIONS = 'object_conditions'
 OPERATIONS = 'operations'
+PATH = 'path'
 PROJECT_ID = 'projectId'
 SCHEDULE = 'schedule'
 SCHEDULE_END_DATE = 'scheduleEndDate'
@@ -166,7 +167,7 @@ class CloudDataTransferServiceHook(GoogleBaseHook):
         """
         body = self._inject_project_id(body, BODY, PROJECT_ID)
         try:
-            # pylint: disable=no-member
+
             transfer_job = (
                 self.get_conn().transferJobs().create(body=body).execute(num_retries=self.num_retries)
             )
@@ -182,11 +183,11 @@ class CloudDataTransferServiceHook(GoogleBaseHook):
                 if transfer_job.get(STATUS) == GcpTransferJobsStatus.DELETED:
                     body[JOB_NAME] = gen_job_name(job_name)
                     self.log.info(
-                        "Job `%s` has been soft deleted. Creating job with " "new name `%s`",
+                        "Job `%s` has been soft deleted. Creating job with new name `%s`",
                         job_name,
                         {body[JOB_NAME]},
                     )
-                    # pylint: disable=no-member
+
                     return (
                         self.get_conn().transferJobs().create(body=body).execute(num_retries=self.num_retries)
                     )
@@ -213,7 +214,7 @@ class CloudDataTransferServiceHook(GoogleBaseHook):
         :rtype: dict
         """
         return (
-            self.get_conn()  # pylint: disable=no-member
+            self.get_conn()
             .transferJobs()
             .get(jobName=job_name, projectId=project_id)
             .execute(num_retries=self.num_retries)
@@ -243,14 +244,13 @@ class CloudDataTransferServiceHook(GoogleBaseHook):
 
         conn = self.get_conn()
         request_filter = self._inject_project_id(request_filter, FILTER, FILTER_PROJECT_ID)
-        request = conn.transferJobs().list(filter=json.dumps(request_filter))  # pylint: disable=no-member
+        request = conn.transferJobs().list(filter=json.dumps(request_filter))
         jobs: List[dict] = []
 
         while request is not None:
             response = request.execute(num_retries=self.num_retries)
             jobs.extend(response[TRANSFER_JOBS])
 
-            # pylint: disable=no-member
             request = conn.transferJobs().list_next(previous_request=request, previous_response=response)
 
         return jobs
@@ -270,7 +270,7 @@ class CloudDataTransferServiceHook(GoogleBaseHook):
         :rtype: dict
         """
         return (
-            self.get_conn()  # pylint: disable=no-member
+            self.get_conn()
             .transferJobs()
             .patch(
                 jobName=job_name,
@@ -297,7 +297,7 @@ class CloudDataTransferServiceHook(GoogleBaseHook):
         """
         body = self._inject_project_id(body, BODY, PROJECT_ID)
         return (
-            self.get_conn()  # pylint: disable=no-member
+            self.get_conn()
             .transferJobs()
             .patch(jobName=job_name, body=body)
             .execute(num_retries=self.num_retries)
@@ -320,7 +320,7 @@ class CloudDataTransferServiceHook(GoogleBaseHook):
         :rtype: None
         """
         (
-            self.get_conn()  # pylint: disable=no-member
+            self.get_conn()
             .transferJobs()
             .patch(
                 jobName=job_name,
@@ -341,9 +341,7 @@ class CloudDataTransferServiceHook(GoogleBaseHook):
         :type operation_name: str
         :rtype: None
         """
-        self.get_conn().transferOperations().cancel(name=operation_name).execute(  # pylint: disable=no-member
-            num_retries=self.num_retries
-        )
+        self.get_conn().transferOperations().cancel(name=operation_name).execute(num_retries=self.num_retries)
 
     def get_transfer_operation(self, operation_name: str) -> dict:
         """
@@ -357,7 +355,7 @@ class CloudDataTransferServiceHook(GoogleBaseHook):
         :rtype: dict
         """
         return (
-            self.get_conn()  # pylint: disable=no-member
+            self.get_conn()
             .transferOperations()
             .get(name=operation_name)
             .execute(num_retries=self.num_retries)
@@ -398,16 +396,14 @@ class CloudDataTransferServiceHook(GoogleBaseHook):
 
         operations: List[dict] = []
 
-        request = conn.transferOperations().list(  # pylint: disable=no-member
-            name=TRANSFER_OPERATIONS, filter=json.dumps(request_filter)
-        )
+        request = conn.transferOperations().list(name=TRANSFER_OPERATIONS, filter=json.dumps(request_filter))
 
         while request is not None:
             response = request.execute(num_retries=self.num_retries)
             if OPERATIONS in response:
                 operations.extend(response[OPERATIONS])
 
-            request = conn.transferOperations().list_next(  # pylint: disable=no-member
+            request = conn.transferOperations().list_next(
                 previous_request=request, previous_response=response
             )
 
@@ -421,9 +417,7 @@ class CloudDataTransferServiceHook(GoogleBaseHook):
         :type operation_name: str
         :rtype: None
         """
-        self.get_conn().transferOperations().pause(name=operation_name).execute(  # pylint: disable=no-member
-            num_retries=self.num_retries
-        )
+        self.get_conn().transferOperations().pause(name=operation_name).execute(num_retries=self.num_retries)
 
     def resume_transfer_operation(self, operation_name: str) -> None:
         """
@@ -433,9 +427,7 @@ class CloudDataTransferServiceHook(GoogleBaseHook):
         :type operation_name: str
         :rtype: None
         """
-        self.get_conn().transferOperations().resume(name=operation_name).execute(  # pylint: disable=no-member
-            num_retries=self.num_retries
-        )
+        self.get_conn().transferOperations().resume(name=operation_name).execute(num_retries=self.num_retries)
 
     def wait_for_transfer_job(
         self,
@@ -485,10 +477,8 @@ class CloudDataTransferServiceHook(GoogleBaseHook):
         body[target_key] = body.get(target_key, self.project_id)
         if not body.get(target_key):
             raise AirflowException(
-                "The project id must be passed either as `{}` key in `{}` parameter or as project_id "
-                "extra in Google Cloud connection definition. Both are not set!".format(
-                    target_key, param_name
-                )
+                f"The project id must be passed either as `{target_key}` key in `{param_name}` "
+                f"parameter or as project_id extra in Google Cloud connection definition. Both are not set!"
             )
         return body
 

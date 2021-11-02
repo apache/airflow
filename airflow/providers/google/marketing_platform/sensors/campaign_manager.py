@@ -20,7 +20,6 @@ from typing import Dict, Optional, Sequence, Union
 
 from airflow.providers.google.marketing_platform.hooks.campaign_manager import GoogleCampaignManagerHook
 from airflow.sensors.base import BaseSensorOperator
-from airflow.utils.decorators import apply_defaults
 
 
 class GoogleCampaignManagerReportSensor(BaseSensorOperator):
@@ -78,7 +77,6 @@ class GoogleCampaignManagerReportSensor(BaseSensorOperator):
         self.log.info("Report status: %s", response["status"])
         return response["status"] != "PROCESSING"
 
-    @apply_defaults
     def __init__(
         self,
         *,

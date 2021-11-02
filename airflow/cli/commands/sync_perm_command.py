@@ -16,7 +16,6 @@
 # specific language governing permissions and limitations
 # under the License.
 """Sync permission command"""
-from airflow.models import DagBag
 from airflow.utils import cli as cli_utils
 from airflow.www.app import cached_app
 
@@ -24,14 +23,11 @@ from airflow.www.app import cached_app
 @cli_utils.action_logging
 def sync_perm(args):
     """Updates permissions for existing roles and DAGs"""
-    appbuilder = cached_app().appbuilder  # pylint: disable=no-member
-    print('Updating permission, view-menu for all existing roles')
-    appbuilder.sm.sync_roles()
-    # Add missing permissions for all the Base Views
+    appbuilder = cached_app().appbuilder
+    print('Updating actions and resources for all existing roles')
+    # Add missing permissions for all the Base Views _before_ syncing/creating roles
     appbuilder.add_permissions(update_perms=True)
-    print('Updating permission on all DAG views')
-    dagbag = DagBag(read_dags_from_db=True)
-    dagbag.collect_dags_from_db()
-    dags = dagbag.dags.values()
-    for dag in dags:
-        appbuilder.sm.sync_perm_for_dag(dag.dag_id, dag.access_control)
+    appbuilder.sm.sync_roles()
+    if args.include_dags:
+        print('Updating permission on all DAG views')
+        appbuilder.sm.create_dag_specific_permissions()

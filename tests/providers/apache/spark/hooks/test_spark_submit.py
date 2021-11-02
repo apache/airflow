@@ -21,6 +21,7 @@ import os
 import unittest
 from unittest.mock import call, patch
 
+import pytest
 from parameterized import parameterized
 
 from airflow.exceptions import AirflowException
@@ -59,7 +60,7 @@ class TestSparkSubmitHook(unittest.TestCase):
             '--bar',
             'bar',
             '--with-spaces',
-            'args should keep embdedded spaces',
+            'args should keep embedded spaces',
             'baz',
         ],
     }
@@ -87,9 +88,11 @@ class TestSparkSubmitHook(unittest.TestCase):
                 conn_id='spark_k8s_cluster',
                 conn_type='spark',
                 host='k8s://https://k8s-master',
-                extra='{"spark-home": "/opt/spark", '
-                + '"deploy-mode": "cluster", '
-                + '"namespace": "mynamespace"}',
+                extra=(
+                    '{"spark-home": "/opt/spark", '
+                    ' "deploy-mode": "cluster", '
+                    ' "namespace": "mynamespace"}'
+                ),
             )
         )
         db.merge_conn(
@@ -119,7 +122,7 @@ class TestSparkSubmitHook(unittest.TestCase):
                 conn_id='spark_binary_and_home_set',
                 conn_type='spark',
                 host='yarn',
-                extra='{"spark-home": "/path/to/spark_home", ' + '"spark-binary": "custom-spark-submit"}',
+                extra='{"spark-home": "/path/to/spark_home", "spark-binary": "custom-spark-submit"}',
             )
         )
         db.merge_conn(
@@ -194,10 +197,10 @@ class TestSparkSubmitHook(unittest.TestCase):
             '--bar',
             'bar',
             '--with-spaces',
-            'args should keep embdedded spaces',
+            'args should keep embedded spaces',
             'baz',
         ]
-        self.assertEqual(expected_build_cmd, cmd)
+        assert expected_build_cmd == cmd
 
     def test_build_track_driver_status_command(self):
         # note this function is only relevant for spark setup matching below condition
@@ -247,15 +250,12 @@ class TestSparkSubmitHook(unittest.TestCase):
         hook.submit()
 
         # Then
-        self.assertEqual(
-            mock_popen.mock_calls[0],
-            call(
-                ['spark-submit', '--master', 'yarn', '--name', 'default-name', ''],
-                stderr=-2,
-                stdout=-1,
-                universal_newlines=True,
-                bufsize=-1,
-            ),
+        assert mock_popen.mock_calls[0] == call(
+            ['spark-submit', '--master', 'yarn', '--name', 'default-name', ''],
+            stderr=-2,
+            stdout=-1,
+            universal_newlines=True,
+            bufsize=-1,
         )
 
     def test_resolve_should_track_driver_status(self):
@@ -296,15 +296,15 @@ class TestSparkSubmitHook(unittest.TestCase):
         )
 
         # Then
-        self.assertEqual(should_track_driver_status_default, False)
-        self.assertEqual(should_track_driver_status_spark_yarn_cluster, False)
-        self.assertEqual(should_track_driver_status_spark_k8s_cluster, False)
-        self.assertEqual(should_track_driver_status_spark_default_mesos, False)
-        self.assertEqual(should_track_driver_status_spark_home_set, False)
-        self.assertEqual(should_track_driver_status_spark_home_not_set, False)
-        self.assertEqual(should_track_driver_status_spark_binary_set, False)
-        self.assertEqual(should_track_driver_status_spark_binary_and_home_set, False)
-        self.assertEqual(should_track_driver_status_spark_standalone_cluster, True)
+        assert should_track_driver_status_default is False
+        assert should_track_driver_status_spark_yarn_cluster is False
+        assert should_track_driver_status_spark_k8s_cluster is False
+        assert should_track_driver_status_spark_default_mesos is False
+        assert should_track_driver_status_spark_home_set is False
+        assert should_track_driver_status_spark_home_not_set is False
+        assert should_track_driver_status_spark_binary_set is False
+        assert should_track_driver_status_spark_binary_and_home_set is False
+        assert should_track_driver_status_spark_standalone_cluster is True
 
     def test_resolve_connection_yarn_default(self):
         # Given
@@ -324,8 +324,8 @@ class TestSparkSubmitHook(unittest.TestCase):
             "spark_home": None,
             "namespace": None,
         }
-        self.assertEqual(connection, expected_spark_connection)
-        self.assertEqual(dict_cmd["--master"], "yarn")
+        assert connection == expected_spark_connection
+        assert dict_cmd["--master"] == "yarn"
 
     def test_resolve_connection_yarn_default_connection(self):
         # Given
@@ -345,9 +345,9 @@ class TestSparkSubmitHook(unittest.TestCase):
             "spark_home": None,
             "namespace": None,
         }
-        self.assertEqual(connection, expected_spark_connection)
-        self.assertEqual(dict_cmd["--master"], "yarn")
-        self.assertEqual(dict_cmd["--queue"], "root.default")
+        assert connection == expected_spark_connection
+        assert dict_cmd["--master"] == "yarn"
+        assert dict_cmd["--queue"] == "root.default"
 
     def test_resolve_connection_mesos_default_connection(self):
         # Given
@@ -367,8 +367,8 @@ class TestSparkSubmitHook(unittest.TestCase):
             "spark_home": None,
             "namespace": None,
         }
-        self.assertEqual(connection, expected_spark_connection)
-        self.assertEqual(dict_cmd["--master"], "mesos://host:5050")
+        assert connection == expected_spark_connection
+        assert dict_cmd["--master"] == "mesos://host:5050"
 
     def test_resolve_connection_spark_yarn_cluster_connection(self):
         # Given
@@ -388,10 +388,10 @@ class TestSparkSubmitHook(unittest.TestCase):
             "spark_home": None,
             "namespace": None,
         }
-        self.assertEqual(connection, expected_spark_connection)
-        self.assertEqual(dict_cmd["--master"], "yarn://yarn-master")
-        self.assertEqual(dict_cmd["--queue"], "root.etl")
-        self.assertEqual(dict_cmd["--deploy-mode"], "cluster")
+        assert connection == expected_spark_connection
+        assert dict_cmd["--master"] == "yarn://yarn-master"
+        assert dict_cmd["--queue"] == "root.etl"
+        assert dict_cmd["--deploy-mode"] == "cluster"
 
     def test_resolve_connection_spark_k8s_cluster_connection(self):
         # Given
@@ -411,9 +411,9 @@ class TestSparkSubmitHook(unittest.TestCase):
             "deploy_mode": "cluster",
             "namespace": "mynamespace",
         }
-        self.assertEqual(connection, expected_spark_connection)
-        self.assertEqual(dict_cmd["--master"], "k8s://https://k8s-master")
-        self.assertEqual(dict_cmd["--deploy-mode"], "cluster")
+        assert connection == expected_spark_connection
+        assert dict_cmd["--master"] == "k8s://https://k8s-master"
+        assert dict_cmd["--deploy-mode"] == "cluster"
 
     def test_resolve_connection_spark_k8s_cluster_ns_conf(self):
         # Given we specify the config option directly
@@ -436,10 +436,10 @@ class TestSparkSubmitHook(unittest.TestCase):
             "deploy_mode": "cluster",
             "namespace": "airflow",
         }
-        self.assertEqual(connection, expected_spark_connection)
-        self.assertEqual(dict_cmd["--master"], "k8s://https://k8s-master")
-        self.assertEqual(dict_cmd["--deploy-mode"], "cluster")
-        self.assertEqual(dict_cmd["--conf"], "spark.kubernetes.namespace=airflow")
+        assert connection == expected_spark_connection
+        assert dict_cmd["--master"] == "k8s://https://k8s-master"
+        assert dict_cmd["--deploy-mode"] == "cluster"
+        assert dict_cmd["--conf"] == "spark.kubernetes.namespace=airflow"
 
     def test_resolve_connection_spark_home_set_connection(self):
         # Given
@@ -458,8 +458,8 @@ class TestSparkSubmitHook(unittest.TestCase):
             "spark_home": "/opt/myspark",
             "namespace": None,
         }
-        self.assertEqual(connection, expected_spark_connection)
-        self.assertEqual(cmd[0], '/opt/myspark/bin/spark-submit')
+        assert connection == expected_spark_connection
+        assert cmd[0] == '/opt/myspark/bin/spark-submit'
 
     def test_resolve_connection_spark_home_not_set_connection(self):
         # Given
@@ -478,8 +478,8 @@ class TestSparkSubmitHook(unittest.TestCase):
             "spark_home": None,
             "namespace": None,
         }
-        self.assertEqual(connection, expected_spark_connection)
-        self.assertEqual(cmd[0], 'spark-submit')
+        assert connection == expected_spark_connection
+        assert cmd[0] == 'spark-submit'
 
     def test_resolve_connection_spark_binary_set_connection(self):
         # Given
@@ -498,8 +498,8 @@ class TestSparkSubmitHook(unittest.TestCase):
             "spark_home": None,
             "namespace": None,
         }
-        self.assertEqual(connection, expected_spark_connection)
-        self.assertEqual(cmd[0], 'custom-spark-submit')
+        assert connection == expected_spark_connection
+        assert cmd[0] == 'custom-spark-submit'
 
     def test_resolve_connection_spark_binary_default_value_override(self):
         # Given
@@ -518,8 +518,8 @@ class TestSparkSubmitHook(unittest.TestCase):
             "spark_home": None,
             "namespace": None,
         }
-        self.assertEqual(connection, expected_spark_connection)
-        self.assertEqual(cmd[0], 'another-custom-spark-submit')
+        assert connection == expected_spark_connection
+        assert cmd[0] == 'another-custom-spark-submit'
 
     def test_resolve_connection_spark_binary_default_value(self):
         # Given
@@ -538,8 +538,8 @@ class TestSparkSubmitHook(unittest.TestCase):
             "spark_home": None,
             "namespace": None,
         }
-        self.assertEqual(connection, expected_spark_connection)
-        self.assertEqual(cmd[0], 'spark-submit')
+        assert connection == expected_spark_connection
+        assert cmd[0] == 'spark-submit'
 
     def test_resolve_connection_spark_binary_and_home_set_connection(self):
         # Given
@@ -558,8 +558,8 @@ class TestSparkSubmitHook(unittest.TestCase):
             "spark_home": "/path/to/spark_home",
             "namespace": None,
         }
-        self.assertEqual(connection, expected_spark_connection)
-        self.assertEqual(cmd[0], '/path/to/spark_home/bin/custom-spark-submit')
+        assert connection == expected_spark_connection
+        assert cmd[0] == '/path/to/spark_home/bin/custom-spark-submit'
 
     def test_resolve_connection_spark_standalone_cluster_connection(self):
         # Given
@@ -578,8 +578,8 @@ class TestSparkSubmitHook(unittest.TestCase):
             "spark_home": "/path/to/spark_home",
             "namespace": None,
         }
-        self.assertEqual(connection, expected_spark_connection)
-        self.assertEqual(cmd[0], '/path/to/spark_home/bin/spark-submit')
+        assert connection == expected_spark_connection
+        assert cmd[0] == '/path/to/spark_home/bin/spark-submit'
 
     def test_resolve_spark_submit_env_vars_standalone_client_mode(self):
         # Given
@@ -589,7 +589,7 @@ class TestSparkSubmitHook(unittest.TestCase):
         hook._build_spark_submit_command(self._spark_job_file)
 
         # Then
-        self.assertEqual(hook._env, {"bar": "foo"})
+        assert hook._env == {"bar": "foo"}
 
     def test_resolve_spark_submit_env_vars_standalone_cluster_mode(self):
         def env_vars_exception_in_standalone_cluster_mode():
@@ -600,7 +600,8 @@ class TestSparkSubmitHook(unittest.TestCase):
             hook._build_spark_submit_command(self._spark_job_file)
 
         # Then
-        self.assertRaises(AirflowException, env_vars_exception_in_standalone_cluster_mode)
+        with pytest.raises(AirflowException):
+            env_vars_exception_in_standalone_cluster_mode()
 
     def test_resolve_spark_submit_env_vars_yarn(self):
         # Given
@@ -610,8 +611,8 @@ class TestSparkSubmitHook(unittest.TestCase):
         cmd = hook._build_spark_submit_command(self._spark_job_file)
 
         # Then
-        self.assertEqual(cmd[4], "spark.yarn.appMasterEnv.bar=foo")
-        self.assertEqual(hook._env, {"bar": "foo"})
+        assert cmd[4] == "spark.yarn.appMasterEnv.bar=foo"
+        assert hook._env == {"bar": "foo"}
 
     def test_resolve_spark_submit_env_vars_k8s(self):
         # Given
@@ -621,7 +622,7 @@ class TestSparkSubmitHook(unittest.TestCase):
         cmd = hook._build_spark_submit_command(self._spark_job_file)
 
         # Then
-        self.assertEqual(cmd[4], "spark.kubernetes.driverEnv.bar=foo")
+        assert cmd[4] == "spark.kubernetes.driverEnv.bar=foo"
 
     def test_process_spark_submit_log_yarn(self):
         # Given
@@ -629,51 +630,51 @@ class TestSparkSubmitHook(unittest.TestCase):
         log_lines = [
             'SPARK_MAJOR_VERSION is set to 2, using Spark2',
             'WARN NativeCodeLoader: Unable to load native-hadoop library for your '
-            + 'platform... using builtin-java classes where applicable',
+            'platform... using builtin-java classes where applicable',
             'WARN DomainSocketFactory: The short-circuit local reads feature cannot '
             'be used because libhadoop cannot be loaded.',
             'INFO Client: Requesting a new application from cluster with 10 NodeManagers',
-            'INFO Client: Submitting application application_1486558679801_1820 ' + 'to ResourceManager',
+            'INFO Client: Submitting application application_1486558679801_1820 to ResourceManager',
         ]
         # When
         hook._process_spark_submit_log(log_lines)
 
         # Then
 
-        self.assertEqual(hook._yarn_application_id, 'application_1486558679801_1820')
+        assert hook._yarn_application_id == 'application_1486558679801_1820'
 
     def test_process_spark_submit_log_k8s(self):
         # Given
         hook = SparkSubmitHook(conn_id='spark_k8s_cluster')
         log_lines = [
             'INFO  LoggingPodStatusWatcherImpl:54 - State changed, new state:'
-            + 'pod name: spark-pi-edf2ace37be7353a958b38733a12f8e6-driver'
-            + 'namespace: default'
-            + 'labels: spark-app-selector -> spark-465b868ada474bda82ccb84ab2747fcd,'
-            + 'spark-role -> driver'
-            + 'pod uid: ba9c61f6-205f-11e8-b65f-d48564c88e42'
-            + 'creation time: 2018-03-05T10:26:55Z'
-            + 'service account name: spark'
-            + 'volumes: spark-init-properties, download-jars-volume,'
-            + 'download-files-volume, spark-token-2vmlm'
-            + 'node name: N/A'
-            + 'start time: N/A'
-            + 'container images: N/A'
-            + 'phase: Pending'
-            + 'status: []'
-            + '2018-03-05 11:26:56 INFO  LoggingPodStatusWatcherImpl:54 - State changed,'
-            + ' new state:'
-            + 'pod name: spark-pi-edf2ace37be7353a958b38733a12f8e6-driver'
-            + 'namespace: default'
-            + 'Exit code: 999'
+            'pod name: spark-pi-edf2ace37be7353a958b38733a12f8e6-driver'
+            'namespace: default'
+            'labels: spark-app-selector -> spark-465b868ada474bda82ccb84ab2747fcd,'
+            'spark-role -> driver'
+            'pod uid: ba9c61f6-205f-11e8-b65f-d48564c88e42'
+            'creation time: 2018-03-05T10:26:55Z'
+            'service account name: spark'
+            'volumes: spark-init-properties, download-jars-volume,'
+            'download-files-volume, spark-token-2vmlm'
+            'node name: N/A'
+            'start time: N/A'
+            'container images: N/A'
+            'phase: Pending'
+            'status: []'
+            '2018-03-05 11:26:56 INFO  LoggingPodStatusWatcherImpl:54 - State changed,'
+            ' new state:'
+            'pod name: spark-pi-edf2ace37be7353a958b38733a12f8e6-driver'
+            'namespace: default'
+            'Exit code: 999'
         ]
 
         # When
         hook._process_spark_submit_log(log_lines)
 
         # Then
-        self.assertEqual(hook._kubernetes_driver_pod, 'spark-pi-edf2ace37be7353a958b38733a12f8e6-driver')
-        self.assertEqual(hook._spark_exit_code, 999)
+        assert hook._kubernetes_driver_pod == 'spark-pi-edf2ace37be7353a958b38733a12f8e6-driver'
+        assert hook._spark_exit_code == 999
 
     def test_process_spark_submit_log_k8s_spark_3(self):
         # Given
@@ -684,7 +685,7 @@ class TestSparkSubmitHook(unittest.TestCase):
         hook._process_spark_submit_log(log_lines)
 
         # Then
-        self.assertEqual(hook._spark_exit_code, 999)
+        assert hook._spark_exit_code == 999
 
     def test_process_spark_submit_log_standalone_cluster(self):
         # Given
@@ -694,23 +695,22 @@ class TestSparkSubmitHook(unittest.TestCase):
             '17/11/28 11:14:15 INFO RestSubmissionClient: Submitting a request '
             'to launch an application in spark://spark-standalone-master:6066',
             '17/11/28 11:14:15 INFO RestSubmissionClient: Submission successfully '
-            + 'created as driver-20171128111415-0001. Polling submission state...',
+            'created as driver-20171128111415-0001. Polling submission state...',
         ]
         # When
         hook._process_spark_submit_log(log_lines)
 
         # Then
 
-        self.assertEqual(hook._driver_id, 'driver-20171128111415-0001')
+        assert hook._driver_id == 'driver-20171128111415-0001'
 
     def test_process_spark_driver_status_log(self):
         # Given
         hook = SparkSubmitHook(conn_id='spark_standalone_cluster')
         log_lines = [
             'Submitting a request for the status of submission '
-            + 'driver-20171128111415-0001 in spark://spark-standalone-master:6066',
-            '17/11/28 11:15:37 INFO RestSubmissionClient: Server responded with '
-            + 'SubmissionStatusResponse:',
+            'driver-20171128111415-0001 in spark://spark-standalone-master:6066',
+            '17/11/28 11:15:37 INFO RestSubmissionClient: Server responded with SubmissionStatusResponse:',
             '{',
             '"action" : "SubmissionStatusResponse",',
             '"driverState" : "RUNNING",',
@@ -726,7 +726,7 @@ class TestSparkSubmitHook(unittest.TestCase):
 
         # Then
 
-        self.assertEqual(hook._driver_status, 'RUNNING')
+        assert hook._driver_status == 'RUNNING'
 
     @patch('airflow.providers.apache.spark.hooks.spark_submit.renew_from_kt')
     @patch('airflow.providers.apache.spark.hooks.spark_submit.subprocess.Popen')
@@ -739,14 +739,15 @@ class TestSparkSubmitHook(unittest.TestCase):
         log_lines = [
             'SPARK_MAJOR_VERSION is set to 2, using Spark2',
             'WARN NativeCodeLoader: Unable to load native-hadoop library for your '
-            + 'platform... using builtin-java classes where applicable',
+            'platform... using builtin-java classes where applicable',
             'WARN DomainSocketFactory: The short-circuit local reads feature cannot '
-            + 'be used because libhadoop cannot be loaded.',
+            'be used because libhadoop cannot be loaded.',
             'INFO Client: Requesting a new application from cluster with 10 '
-            + 'NodeManagerapplication_1486558679801_1820s',
-            'INFO Client: Submitting application application_1486558679801_1820 ' + 'to ResourceManager',
+            'NodeManagerapplication_1486558679801_1820s',
+            'INFO Client: Submitting application application_1486558679801_1820 to ResourceManager',
         ]
-        hook = SparkSubmitHook(conn_id='spark_yarn_cluster')
+        env = {"PATH": "hadoop/bin"}
+        hook = SparkSubmitHook(conn_id='spark_yarn_cluster', env_vars=env)
         hook._process_spark_submit_log(log_lines)
         hook.submit()
 
@@ -754,14 +755,14 @@ class TestSparkSubmitHook(unittest.TestCase):
         hook.on_kill()
 
         # Then
-        self.assertIn(
+        assert (
             call(
                 ['yarn', 'application', '-kill', 'application_1486558679801_1820'],
-                env=None,
+                env={**os.environ, **env},
                 stderr=-1,
                 stdout=-1,
-            ),
-            mock_popen.mock_calls,
+            )
+            in mock_popen.mock_calls
         )
         # resetting the mock to test  kill with keytab & principal
         mock_popen.reset_mock()
@@ -777,14 +778,14 @@ class TestSparkSubmitHook(unittest.TestCase):
         # Then
         expected_env = os.environ.copy()
         expected_env["KRB5CCNAME"] = '/tmp/airflow_krb5_ccache'
-        self.assertIn(
+        assert (
             call(
                 ['yarn', 'application', '-kill', 'application_1486558679801_1820'],
                 env=expected_env,
                 stderr=-1,
                 stdout=-1,
-            ),
-            mock_popen.mock_calls,
+            )
+            in mock_popen.mock_calls
         )
 
     def test_standalone_cluster_process_on_kill(self):
@@ -792,9 +793,9 @@ class TestSparkSubmitHook(unittest.TestCase):
         log_lines = [
             'Running Spark using the REST application submission protocol.',
             '17/11/28 11:14:15 INFO RestSubmissionClient: Submitting a request '
-            + 'to launch an application in spark://spark-standalone-master:6066',
+            'to launch an application in spark://spark-standalone-master:6066',
             '17/11/28 11:14:15 INFO RestSubmissionClient: Submission successfully '
-            + 'created as driver-20171128111415-0001. Polling submission state...',
+            'created as driver-20171128111415-0001. Polling submission state...',
         ]
         hook = SparkSubmitHook(conn_id='spark_standalone_cluster')
         hook._process_spark_submit_log(log_lines)
@@ -803,11 +804,11 @@ class TestSparkSubmitHook(unittest.TestCase):
         kill_cmd = hook._build_spark_driver_kill_command()
 
         # Then
-        self.assertEqual(kill_cmd[0], '/path/to/spark_home/bin/spark-submit')
-        self.assertEqual(kill_cmd[1], '--master')
-        self.assertEqual(kill_cmd[2], 'spark://spark-standalone-master:6066')
-        self.assertEqual(kill_cmd[3], '--kill')
-        self.assertEqual(kill_cmd[4], 'driver-20171128111415-0001')
+        assert kill_cmd[0] == '/path/to/spark_home/bin/spark-submit'
+        assert kill_cmd[1] == '--master'
+        assert kill_cmd[2] == 'spark://spark-standalone-master:6066'
+        assert kill_cmd[3] == '--kill'
+        assert kill_cmd[4] == 'driver-20171128111415-0001'
 
     @patch('airflow.kubernetes.kube_client.get_kube_client')
     @patch('airflow.providers.apache.spark.hooks.spark_submit.subprocess.Popen')
@@ -821,25 +822,25 @@ class TestSparkSubmitHook(unittest.TestCase):
         hook = SparkSubmitHook(conn_id='spark_k8s_cluster')
         log_lines = [
             'INFO  LoggingPodStatusWatcherImpl:54 - State changed, new state:'
-            + 'pod name: spark-pi-edf2ace37be7353a958b38733a12f8e6-driver'
-            + 'namespace: default'
-            + 'labels: spark-app-selector -> spark-465b868ada474bda82ccb84ab2747fcd,'
-            + 'spark-role -> driver'
-            + 'pod uid: ba9c61f6-205f-11e8-b65f-d48564c88e42'
-            + 'creation time: 2018-03-05T10:26:55Z'
-            + 'service account name: spark'
-            + 'volumes: spark-init-properties, download-jars-volume,'
-            + 'download-files-volume, spark-token-2vmlm'
-            + 'node name: N/A'
-            + 'start time: N/A'
-            + 'container images: N/A'
-            + 'phase: Pending'
-            + 'status: []'
-            + '2018-03-05 11:26:56 INFO  LoggingPodStatusWatcherImpl:54 - State changed,'
-            + ' new state:'
-            + 'pod name: spark-pi-edf2ace37be7353a958b38733a12f8e6-driver'
-            + 'namespace: default'
-            + 'Exit code: 0'
+            'pod name: spark-pi-edf2ace37be7353a958b38733a12f8e6-driver'
+            'namespace: default'
+            'labels: spark-app-selector -> spark-465b868ada474bda82ccb84ab2747fcd,'
+            'spark-role -> driver'
+            'pod uid: ba9c61f6-205f-11e8-b65f-d48564c88e42'
+            'creation time: 2018-03-05T10:26:55Z'
+            'service account name: spark'
+            'volumes: spark-init-properties, download-jars-volume,'
+            'download-files-volume, spark-token-2vmlm'
+            'node name: N/A'
+            'start time: N/A'
+            'container images: N/A'
+            'phase: Pending'
+            'status: []'
+            '2018-03-05 11:26:56 INFO  LoggingPodStatusWatcherImpl:54 - State changed,'
+            ' new state:'
+            'pod name: spark-pi-edf2ace37be7353a958b38733a12f8e6-driver'
+            'namespace: default'
+            'Exit code: 0'
         ]
         hook._process_spark_submit_log(log_lines)
         hook.submit()

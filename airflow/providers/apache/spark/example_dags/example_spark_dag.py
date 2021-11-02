@@ -26,13 +26,8 @@ from airflow.providers.apache.spark.operators.spark_sql import SparkSqlOperator
 from airflow.providers.apache.spark.operators.spark_submit import SparkSubmitOperator
 from airflow.utils.dates import days_ago
 
-args = {
-    'owner': 'Airflow',
-}
-
 with DAG(
     dag_id='example_spark_operator',
-    default_args=args,
     schedule_interval=None,
     start_date=days_ago(2),
     tags=['example'],

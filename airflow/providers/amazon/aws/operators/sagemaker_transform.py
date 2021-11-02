@@ -20,7 +20,6 @@ from typing import List, Optional
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 from airflow.providers.amazon.aws.operators.sagemaker_base import SageMakerBaseOperator
-from airflow.utils.decorators import apply_defaults
 
 
 class SageMakerTransformOperator(SageMakerBaseOperator):
@@ -62,7 +61,6 @@ class SageMakerTransformOperator(SageMakerBaseOperator):
     :type max_ingestion_time: int
     """
 
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -116,7 +114,7 @@ class SageMakerTransformOperator(SageMakerBaseOperator):
             max_ingestion_time=self.max_ingestion_time,
         )
         if response['ResponseMetadata']['HTTPStatusCode'] != 200:
-            raise AirflowException('Sagemaker transform Job creation failed: %s' % response)
+            raise AirflowException(f'Sagemaker transform Job creation failed: {response}')
         else:
             return {
                 'Model': self.hook.describe_model(transform_config['ModelName']),

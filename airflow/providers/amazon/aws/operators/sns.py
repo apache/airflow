@@ -21,7 +21,6 @@ from typing import Optional
 
 from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.sns import AwsSnsHook
-from airflow.utils.decorators import apply_defaults
 
 
 class SnsPublishOperator(BaseOperator):
@@ -43,8 +42,8 @@ class SnsPublishOperator(BaseOperator):
 
     template_fields = ['message', 'subject', 'message_attributes']
     template_ext = ()
+    template_fields_renderers = {"message_attributes": "json"}
 
-    @apply_defaults
     def __init__(
         self,
         *,

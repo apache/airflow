@@ -22,7 +22,6 @@ from typing import Any, Optional, Sequence, Union
 from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.gcs import GCSHook
 from airflow.providers.google.suite.hooks.sheets import GSheetsHook
-from airflow.utils.decorators import apply_defaults
 
 
 class GCSToGoogleSheetsOperator(BaseOperator):
@@ -66,7 +65,6 @@ class GCSToGoogleSheetsOperator(BaseOperator):
         "impersonation_chain",
     ]
 
-    @apply_defaults
     def __init__(
         self,
         *,

@@ -22,15 +22,30 @@ description: |
     Amazon integration (including `Amazon Web Services (AWS) <https://aws.amazon.com/>`__).
 
 versions:
+  - 2.4.0
+  - 2.3.0
+  - 2.2.0
+  - 2.1.0
+  - 2.0.0
+  - 1.4.0
+  - 1.3.0
+  - 1.2.0
+  - 1.1.0
   - 1.0.0
+
+additional-dependencies:
+  - apache-airflow>=2.1.0
 
 integrations:
   - integration-name: Amazon Athena
     external-doc-url: https://aws.amazon.com/athena/
     logo: /integration-logos/aws/Amazon-Athena_light-bg@4x.png
+    how-to-guide:
+      - /docs/apache-airflow-providers-amazon/operators/athena.rst
     tags: [aws]
   - integration-name: Amazon CloudFormation
     external-doc-url: https://aws.amazon.com/cloudformation/
+    logo: /integration-logos/aws/AWS-CloudFormation_light-bg@4x.png
     tags: [aws]
   - integration-name: Amazon CloudWatch Logs
     external-doc-url: https://aws.amazon.com/cloudwatch/
@@ -51,9 +66,17 @@ integrations:
     tags: [aws]
   - integration-name: Amazon ECS
     external-doc-url: https://aws.amazon.com/ecs/
+    logo: /integration-logos/aws/Amazon-Elastic-Container-Service_light-bg@4x.png
+    tags: [aws]
+  - integration-name: Amazon Elastic Kubernetes Service (EKS)
+    external-doc-url: https://aws.amazon.com/eks/
+    logo: /integration-logos/aws/Amazon-Elastic-Kubernetes-Service_light-bg@4x.png
+    how-to-guide:
+      - /docs/apache-airflow-providers-amazon/operators/eks.rst
     tags: [aws]
   - integration-name: Amazon ElastiCache
     external-doc-url: https://aws.amazon.com/elasticache/redis//
+    logo: /integration-logos/aws/Amazon-ElastiCache_light-bg@4x.png
     tags: [aws]
   - integration-name: Amazon EMR
     external-doc-url: https://aws.amazon.com/emr/
@@ -61,8 +84,15 @@ integrations:
       - /docs/apache-airflow-providers-amazon/operators/emr.rst
     logo: /integration-logos/aws/Amazon-EMR_light-bg@4x.png
     tags: [aws]
+  - integration-name: Amazon EMR on EKS
+    external-doc-url: https://docs.aws.amazon.com/emr/latest/EMR-on-EKS-DevelopmentGuide/emr-eks.html
+    how-to-guide:
+      - /docs/apache-airflow-providers-amazon/operators/emr_eks.rst
+    logo: /integration-logos/aws/Amazon-EMR_light-bg@4x.png
+    tags: [aws]
   - integration-name: Amazon Glacier
     external-doc-url: https://aws.amazon.com/glacier/
+    logo: /integration-logos/aws/Amazon-S3-Glacier_light-bg@4x.png
     how-to-guide:
       - /docs/apache-airflow-providers-amazon/operators/glacier.rst
     tags: [aws]
@@ -73,6 +103,8 @@ integrations:
   - integration-name: Amazon Redshift
     external-doc-url: https://aws.amazon.com/redshift/
     logo: /integration-logos/aws/Amazon-Redshift_light-bg@4x.png
+    how-to-guide:
+      - /docs/apache-airflow-providers-amazon/operators/redshift.rst
     tags: [aws]
   - integration-name: Amazon SageMaker
     external-doc-url: https://aws.amazon.com/sagemaker/
@@ -80,9 +112,11 @@ integrations:
     tags: [aws]
   - integration-name: Amazon SecretsManager
     external-doc-url: https://aws.amazon.com/secrets-manager/
+    logo: /integration-logos/aws/AWS-Secrets-Manager_light-bg@4x.png
     tags: [aws]
   - integration-name: Amazon Simple Email Service (SES)
     external-doc-url: https://aws.amazon.com/ses/
+    logo: /integration-logos/aws/Amazon-Simple-Email-Service-SES_light-bg@4x.png
     how-to-guide:
       - /docs/apache-airflow-providers-amazon/operators/ecs.rst
     tags: [aws]
@@ -93,13 +127,18 @@ integrations:
   - integration-name: Amazon Simple Queue Service (SQS)
     external-doc-url: https://aws.amazon.com/sqs/
     logo: /integration-logos/aws/Amazon-Simple-Queue-Service-SQS_light-bg@4x.png
+    how-to-guide:
+      - /docs/apache-airflow-providers-amazon/operators/sqs_publish.rst
     tags: [aws]
   - integration-name: Amazon Simple Storage Service (S3)
     external-doc-url: https://aws.amazon.com/s3/
     logo: /integration-logos/aws/Amazon-Simple-Storage-Service-S3_light-bg@4x.png
+    how-to-guide:
+      - /docs/apache-airflow-providers-amazon/operators/s3.rst
     tags: [aws]
   - integration-name: Amazon Web Services
     external-doc-url: https://aws.amazon.com/
+    logo: /integration-logos/aws/AWS-Cloud-alt_light-bg@4x.png
     tags: [aws]
   - integration-name: AWS Batch
     external-doc-url: https://aws.amazon.com/batch/
@@ -107,6 +146,7 @@ integrations:
     tags: [aws]
   - integration-name: AWS DataSync
     external-doc-url: https://aws.amazon.com/datasync/
+    logo: /integration-logos/aws/AWS-DataSync_light-bg@4x.png
     tags: [aws]
   - integration-name: AWS Glue
     external-doc-url: https://aws.amazon.com/glue/
@@ -118,6 +158,13 @@ integrations:
     tags: [aws]
   - integration-name: AWS Step Functions
     external-doc-url: https://aws.amazon.com/step-functions/
+    logo: /integration-logos/aws/AWS-Step-Functions_light-bg@4x.png
+    tags: [aws]
+  - integration-name: AWS Database Migration Service
+    external-doc-url: https://aws.amazon.com/dms/
+    logo: /integration-logos/aws/AWS-Database-Migration-Service_64@5x.png
+    how-to-guide:
+      - /docs/apache-airflow-providers-amazon/operators/dms.rst
     tags: [aws]
 
 operators:
@@ -133,6 +180,13 @@ operators:
   - integration-name: Amazon DataSync
     python-modules:
       - airflow.providers.amazon.aws.operators.datasync
+  - integration-name: AWS Database Migration Service
+    python-modules:
+      - airflow.providers.amazon.aws.operators.dms_create_task
+      - airflow.providers.amazon.aws.operators.dms_delete_task
+      - airflow.providers.amazon.aws.operators.dms_describe_tasks
+      - airflow.providers.amazon.aws.operators.dms_start_task
+      - airflow.providers.amazon.aws.operators.dms_stop_task
   - integration-name: Amazon EC2
     python-modules:
       - airflow.providers.amazon.aws.operators.ec2_start_instance
@@ -140,25 +194,34 @@ operators:
   - integration-name: Amazon ECS
     python-modules:
       - airflow.providers.amazon.aws.operators.ecs
+  - integration-name: Amazon Elastic Kubernetes Service (EKS)
+    python-modules:
+      - airflow.providers.amazon.aws.operators.eks
   - integration-name: Amazon EMR
     python-modules:
       - airflow.providers.amazon.aws.operators.emr_add_steps
       - airflow.providers.amazon.aws.operators.emr_create_job_flow
       - airflow.providers.amazon.aws.operators.emr_modify_cluster
       - airflow.providers.amazon.aws.operators.emr_terminate_job_flow
+  - integration-name: Amazon EMR on EKS
+    python-modules:
+      - airflow.providers.amazon.aws.operators.emr_containers
   - integration-name: Amazon Glacier
     python-modules:
       - airflow.providers.amazon.aws.operators.glacier
   - integration-name: AWS Glue
     python-modules:
       - airflow.providers.amazon.aws.operators.glue
+      - airflow.providers.amazon.aws.operators.glue_crawler
   - integration-name: Amazon Simple Storage Service (S3)
     python-modules:
       - airflow.providers.amazon.aws.operators.s3_bucket
+      - airflow.providers.amazon.aws.operators.s3_bucket_tagging
       - airflow.providers.amazon.aws.operators.s3_copy_object
       - airflow.providers.amazon.aws.operators.s3_delete_objects
       - airflow.providers.amazon.aws.operators.s3_file_transform
       - airflow.providers.amazon.aws.operators.s3_list
+      - airflow.providers.amazon.aws.operators.s3_list_prefixes
   - integration-name: Amazon SageMaker
     python-modules:
       - airflow.providers.amazon.aws.operators.sagemaker_base
@@ -179,6 +242,9 @@ operators:
     python-modules:
       - airflow.providers.amazon.aws.operators.step_function_get_execution_output
       - airflow.providers.amazon.aws.operators.step_function_start_execution
+  - integration-name: Amazon Redshift
+    python-modules:
+      - airflow.providers.amazon.aws.operators.redshift
 
 sensors:
   - integration-name: Amazon Athena
@@ -187,20 +253,30 @@ sensors:
   - integration-name: Amazon CloudFormation
     python-modules:
       - airflow.providers.amazon.aws.sensors.cloud_formation
+  - integration-name: AWS Database Migration Service
+    python-modules:
+      - airflow.providers.amazon.aws.sensors.dms_task
   - integration-name: Amazon EC2
     python-modules:
       - airflow.providers.amazon.aws.sensors.ec2_instance_state
+  - integration-name: Amazon Elastic Kubernetes Service (EKS)
+    python-modules:
+      - airflow.providers.amazon.aws.sensors.eks
   - integration-name: Amazon EMR
     python-modules:
       - airflow.providers.amazon.aws.sensors.emr_base
       - airflow.providers.amazon.aws.sensors.emr_job_flow
       - airflow.providers.amazon.aws.sensors.emr_step
+  - integration-name: Amazon EMR on EKS
+    python-modules:
+      - airflow.providers.amazon.aws.sensors.emr_containers
   - integration-name: Amazon Glacier
     python-modules:
       - airflow.providers.amazon.aws.sensors.glacier
   - integration-name: AWS Glue
     python-modules:
       - airflow.providers.amazon.aws.sensors.glue
+      - airflow.providers.amazon.aws.sensors.glue_crawler
       - airflow.providers.amazon.aws.sensors.glue_catalog_partition
   - integration-name: Amazon Redshift
     python-modules:
@@ -245,21 +321,31 @@ hooks:
   - integration-name: Amazon DataSync
     python-modules:
       - airflow.providers.amazon.aws.hooks.datasync
+  - integration-name: AWS Database Migration Service
+    python-modules:
+      - airflow.providers.amazon.aws.hooks.dms
   - integration-name: Amazon EC2
     python-modules:
       - airflow.providers.amazon.aws.hooks.ec2
   - integration-name: Amazon ElastiCache
     python-modules:
       - airflow.providers.amazon.aws.hooks.elasticache_replication_group
+  - integration-name: Amazon Elastic Kubernetes Service (EKS)
+    python-modules:
+      - airflow.providers.amazon.aws.hooks.eks
   - integration-name: Amazon EMR
     python-modules:
       - airflow.providers.amazon.aws.hooks.emr
+  - integration-name: Amazon EMR on EKS
+    python-modules:
+      - airflow.providers.amazon.aws.hooks.emr_containers
   - integration-name: Amazon Glacier
     python-modules:
       - airflow.providers.amazon.aws.hooks.glacier
   - integration-name: AWS Glue
     python-modules:
       - airflow.providers.amazon.aws.hooks.glue
+      - airflow.providers.amazon.aws.hooks.glue_crawler
       - airflow.providers.amazon.aws.hooks.glue_catalog
   - integration-name: Amazon Kinesis Data Firehose
     python-modules:
@@ -332,12 +418,52 @@ transfers:
     python-module: airflow.providers.amazon.aws.transfers.s3_to_redshift
   - source-integration-name: Amazon Simple Storage Service (S3)
     target-integration-name: SSH File Transfer Protocol (SFTP)
+    how-to-guide: /docs/apache-airflow-providers-amazon/operators/transfer/s3_to_sftp.rst
     python-module: airflow.providers.amazon.aws.transfers.s3_to_sftp
   - source-integration-name: SSH File Transfer Protocol (SFTP)
     target-integration-name: Amazon Simple Storage Service (S3)
+    how-to-guide: /docs/apache-airflow-providers-amazon/operators/transfer/sftp_to_s3.rst
     python-module: airflow.providers.amazon.aws.transfers.sftp_to_s3
+  - source-integration-name: Amazon Simple Storage Service (S3)
+    target-integration-name: File Transfer Protocol (FTP)
+    python-module: airflow.providers.amazon.aws.transfers.s3_to_ftp
+  - source-integration-name: Exasol
+    target-integration-name: Amazon Simple Storage Service (S3)
+    python-module: airflow.providers.amazon.aws.transfers.exasol_to_s3
+  - source-integration-name: File Transfer Protocol (FTP)
+    target-integration-name: Amazon Simple Storage Service (S3)
+    python-module: airflow.providers.amazon.aws.transfers.ftp_to_s3
+  - source-integration-name: Salesforce
+    target-integration-name: Amazon Simple Storage Service (S3)
+    how-to-guide: /docs/apache-airflow-providers-amazon/operators/salesforce_to_s3.rst
+    python-module: airflow.providers.amazon.aws.transfers.salesforce_to_s3
+  - source-integration-name: Local
+    target-integration-name: Amazon Simple Storage Service (S3)
+    python-module: airflow.providers.amazon.aws.transfers.local_to_s3
 
-hook-class-names:
+hook-class-names:  # deprecated - to be removed after providers add dependency on Airflow 2.2.0+
   - airflow.providers.amazon.aws.hooks.s3.S3Hook
   - airflow.providers.amazon.aws.hooks.base_aws.AwsBaseHook
   - airflow.providers.amazon.aws.hooks.emr.EmrHook
+  - airflow.providers.amazon.aws.hooks.redshift.RedshiftSQLHook
+
+extra-links:
+  - airflow.providers.amazon.aws.operators.emr_create_job_flow.EmrClusterLink
+
+connection-types:
+  - hook-class-name: airflow.providers.amazon.aws.hooks.s3.S3Hook
+    connection-type: s3
+  - hook-class-name: airflow.providers.amazon.aws.hooks.base_aws.AwsBaseHook
+    connection-type: aws
+  - hook-class-name: airflow.providers.amazon.aws.hooks.emr.EmrHook
+    connection-type: emr
+  - hook-class-name: airflow.providers.amazon.aws.hooks.redshift.RedshiftSQLHook
+    connection-type: redshift
+
+secrets-backends:
+  - airflow.providers.amazon.aws.secrets.secrets_manager.SecretsManagerBackend
+  - airflow.providers.amazon.aws.secrets.systems_manager.SystemsManagerParameterStoreBackend
+
+logging:
+  - airflow.providers.amazon.aws.log.s3_task_handler.S3TaskHandler
+  - airflow.providers.amazon.aws.log.cloudwatch_task_handler.CloudwatchTaskHandler

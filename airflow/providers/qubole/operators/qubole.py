@@ -30,7 +30,6 @@ from airflow.providers.qubole.hooks.qubole import (
     QuboleHook,
     flatten_list,
 )
-from airflow.utils.decorators import apply_defaults
 
 
 class QDSLink(BaseOperatorLink):
@@ -218,7 +217,6 @@ class QuboleOperator(BaseOperator):
 
     operator_extra_links = (QDSLink(),)
 
-    @apply_defaults
     def __init__(self, *, qubole_conn_id: str = "qubole_default", **kwargs) -> None:
         self.kwargs = kwargs
         self.kwargs['qubole_conn_id'] = qubole_conn_id
@@ -250,9 +248,17 @@ class QuboleOperator(BaseOperator):
         else:
             self.get_hook().kill(ti)
 
-    def get_results(self, ti=None, fp=None, inline: bool = True, delim=None, fetch: bool = True) -> str:
+    def get_results(
+        self,
+        ti=None,
+        fp=None,
+        inline: bool = True,
+        delim=None,
+        fetch: bool = True,
+        include_headers: bool = False,
+    ) -> str:
         """get_results from Qubole"""
-        return self.get_hook().get_results(ti, fp, inline, delim, fetch)
+        return self.get_hook().get_results(ti, fp, inline, delim, fetch, include_headers)
 
     def get_log(self, ti) -> None:
         """get_log from Qubole"""
@@ -267,7 +273,7 @@ class QuboleOperator(BaseOperator):
         return QuboleHook(**self.kwargs)
 
     def __getattribute__(self, name: str) -> str:
-        if name in QuboleOperator.template_fields:
+        if name in _get_template_fields(self):
             if name in self.kwargs:
                 return self.kwargs[name]
             else:
@@ -276,7 +282,13 @@ class QuboleOperator(BaseOperator):
             return object.__getattribute__(self, name)
 
     def __setattr__(self, name: str, value: str) -> None:
-        if name in QuboleOperator.template_fields:
+        if name in _get_template_fields(self):
             self.kwargs[name] = value
         else:
             object.__setattr__(self, name, value)
+
+
+def _get_template_fields(obj: BaseOperator) -> dict:
+    class_ = object.__getattribute__(obj, '__class__')
+    template_fields = object.__getattribute__(class_, 'template_fields')
+    return template_fields

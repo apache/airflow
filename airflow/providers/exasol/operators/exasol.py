@@ -19,7 +19,6 @@ from typing import Optional
 
 from airflow.models import BaseOperator
 from airflow.providers.exasol.hooks.exasol import ExasolHook
-from airflow.utils.decorators import apply_defaults
 
 
 class ExasolOperator(BaseOperator):
@@ -45,7 +44,6 @@ class ExasolOperator(BaseOperator):
     template_ext = ('.sql',)
     ui_color = '#ededed'
 
-    @apply_defaults
     def __init__(
         self,
         *,

@@ -26,7 +26,7 @@ from dateutil import relativedelta
 from sqlalchemy import event, nullsfirst
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm.session import Session
-from sqlalchemy.types import DateTime, Text, TypeDecorator
+from sqlalchemy.types import JSON, DateTime, Text, TypeDecorator, TypeEngine, UnicodeText
 
 from airflow.configuration import conf
 
@@ -37,7 +37,6 @@ utc = pendulum.tz.timezone('UTC')
 using_mysql = conf.get('core', 'sql_alchemy_conn').lower().startswith('mysql')
 
 
-# pylint: enable=unused-argument
 class UtcDateTime(TypeDecorator):
     """
     Almost equivalent to :class:`~sqlalchemy.types.DateTime` with
@@ -89,6 +88,51 @@ class UtcDateTime(TypeDecorator):
                 value = value.astimezone(utc)
 
         return value
+
+
+class ExtendedJSON(TypeDecorator):
+    """
+    A version of the JSON column that uses the Airflow extended JSON
+    serialization provided by airflow.serialization.
+    """
+
+    impl = Text
+
+    def db_supports_json(self):
+        """Checks if the database supports JSON (i.e. is NOT MSSQL)"""
+        return not conf.get("core", "sql_alchemy_conn").startswith("mssql")
+
+    def load_dialect_impl(self, dialect) -> "TypeEngine":
+        if self.db_supports_json():
+            return dialect.type_descriptor(JSON)
+        return dialect.type_descriptor(UnicodeText)
+
+    def process_bind_param(self, value, dialect):
+        from airflow.serialization.serialized_objects import BaseSerialization
+
+        if value is None:
+            return None
+
+        # First, encode it into our custom JSON-targeted dict format
+        value = BaseSerialization._serialize(value)  # pylint: disable=protected-access
+
+        # Then, if the database does not have native JSON support, encode it again as a string
+        if not self.db_supports_json():
+            value = json.dumps(value)
+
+        return value
+
+    def process_result_value(self, value, dialect):
+        from airflow.serialization.serialized_objects import BaseSerialization
+
+        if value is None:
+            return None
+
+        # Deserialise from a string first if needed
+        if not self.db_supports_json():
+            value = json.loads(value)
+
+        return BaseSerialization._deserialize(value)  # pylint: disable=protected-access
 
 
 class Interval(TypeDecorator):
@@ -188,15 +232,19 @@ def nulls_first(col, session: Session) -> Dict[str, Any]:
 USE_ROW_LEVEL_LOCKING: bool = conf.getboolean('scheduler', 'use_row_level_locking', fallback=True)
 
 
-def with_row_locks(query, **kwargs):
+def with_row_locks(query, session: Session, **kwargs):
     """
     Apply with_for_update to an SQLAlchemy query, if row level locking is in use.
 
     :param query: An SQLAlchemy Query object
+    :param session: ORM Session
     :param kwargs: Extra kwargs to pass to with_for_update (of, nowait, skip_locked, etc)
     :return: updated query
     """
-    if USE_ROW_LEVEL_LOCKING:
+    dialect = session.bind.dialect
+
+    # Don't use row level locks if the MySQL dialect (Mariadb & MySQL < 8) does not support it.
+    if USE_ROW_LEVEL_LOCKING and (dialect.name != "mysql" or dialect.supports_for_update_of):
         return query.with_for_update(**kwargs)
     else:
         return query

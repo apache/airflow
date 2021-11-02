@@ -27,6 +27,7 @@ Python callables.
 
 .. exampleinclude:: /../../airflow/example_dags/example_python_operator.py
     :language: python
+    :dedent: 4
     :start-after: [START howto_operator_python]
     :end-before: [END howto_operator_python]
 
@@ -38,6 +39,7 @@ to the Python callable.
 
 .. exampleinclude:: /../../airflow/example_dags/example_python_operator.py
     :language: python
+    :dedent: 4
     :start-after: [START howto_operator_python_kwargs]
     :end-before: [END howto_operator_python_kwargs]
 
@@ -45,11 +47,11 @@ Templating
 ^^^^^^^^^^
 
 Airflow passes in an additional set of keyword arguments: one for each of the
-:doc:`Jinja template variables <../../macros-ref>` and a ``templates_dict``
+:ref:`Jinja template variables <templates:variables>` and a ``templates_dict``
 argument.
 
 The ``templates_dict`` argument is templated, so each value in the dictionary
-is evaluated as a :ref:`Jinja template <jinja-templating>`.
+is evaluated as a :ref:`Jinja template <concepts:jinja-templating>`.
 
 
 
@@ -63,6 +65,7 @@ Python callables inside a new Python virtual environment.
 
 .. exampleinclude:: /../../airflow/example_dags/example_python_operator.py
     :language: python
+    :dedent: 4
     :start-after: [START howto_operator_python_venv]
     :end-before: [END howto_operator_python_venv]
 
@@ -74,7 +77,7 @@ Unfortunately we currently do not support to serialize ``var`` and ``ti`` / ``ta
 with the underlying library. For airflow context variables make sure that you either have access to Airflow through
 setting ``system_site_packages`` to ``True`` or add ``apache-airflow`` to the ``requirements`` argument.
 Otherwise you won't have access to the most context variables of Airflow in ``op_kwargs``.
-If you want the context related to datetime objects like ``execution_date`` you can add ``pendulum`` and
+If you want the context related to datetime objects like ``data_interval_start`` you can add ``pendulum`` and
 ``lazy_object_proxy``.
 
 Templating

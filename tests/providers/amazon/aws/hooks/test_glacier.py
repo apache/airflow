@@ -19,8 +19,6 @@
 import unittest
 from unittest import mock
 
-from testfixtures import LogCapture
-
 from airflow.providers.amazon.aws.hooks.glacier import GlacierHook
 
 CREDENTIALS = "aws_conn"
@@ -45,33 +43,27 @@ class TestAmazonGlacierHook(unittest.TestCase):
         result = self.hook.retrieve_inventory(VAULT_NAME)
         # then
         mock_conn.assert_called_once_with()
-        self.assertEqual(job_id, result)
+        assert job_id == result
 
     @mock.patch("airflow.providers.amazon.aws.hooks.glacier.GlacierHook.get_conn")
     def test_retrieve_inventory_should_log_mgs(self, mock_conn):
         # given
         job_id = {"jobId": "1234abcd"}
         # when
-        with LogCapture() as log:
+        with self.assertLogs() as log:
             mock_conn.return_value.initiate_job.return_value = job_id
             self.hook.retrieve_inventory(VAULT_NAME)
             # then
-            log.check(
-                (
-                    'airflow.providers.amazon.aws.hooks.glacier.GlacierHook',
-                    'INFO',
-                    f"Retrieving inventory for vault: {VAULT_NAME}",
-                ),
-                (
-                    'airflow.providers.amazon.aws.hooks.glacier.GlacierHook',
-                    'INFO',
-                    f"Initiated inventory-retrieval job for: {VAULT_NAME}",
-                ),
-                (
-                    'airflow.providers.amazon.aws.hooks.glacier.GlacierHook',
-                    'INFO',
-                    f"Retrieval Job ID: {job_id.get('jobId')}",
-                ),
+            self.assertEqual(
+                log.output,
+                [
+                    'INFO:airflow.providers.amazon.aws.hooks.glacier.GlacierHook:'
+                    + f"Retrieving inventory for vault: {VAULT_NAME}",
+                    'INFO:airflow.providers.amazon.aws.hooks.glacier.GlacierHook:'
+                    + f"Initiated inventory-retrieval job for: {VAULT_NAME}",
+                    'INFO:airflow.providers.amazon.aws.hooks.glacier.GlacierHook:'
+                    + f"Retrieval Job ID: {job_id.get('jobId')}",
+                ],
             )
 
     @mock.patch("airflow.providers.amazon.aws.hooks.glacier.GlacierHook.get_conn")
@@ -81,21 +73,21 @@ class TestAmazonGlacierHook(unittest.TestCase):
         response = self.hook.retrieve_inventory_results(VAULT_NAME, JOB_ID)
         # then
         mock_conn.assert_called_once_with()
-        self.assertEqual(response, RESPONSE_BODY)
+        assert response == RESPONSE_BODY
 
     @mock.patch("airflow.providers.amazon.aws.hooks.glacier.GlacierHook.get_conn")
     def test_retrieve_inventory_results_should_log_mgs(self, mock_conn):
         # when
-        with LogCapture() as log:
+        with self.assertLogs() as log:
             mock_conn.return_value.get_job_output.return_value = REQUEST_RESULT
             self.hook.retrieve_inventory_results(VAULT_NAME, JOB_ID)
             # then
-            log.check(
-                (
-                    'airflow.providers.amazon.aws.hooks.glacier.GlacierHook',
-                    'INFO',
-                    f"Retrieving the job results for vault: {VAULT_NAME}...",
-                ),
+            self.assertEqual(
+                log.output,
+                [
+                    'INFO:airflow.providers.amazon.aws.hooks.glacier.GlacierHook:'
+                    + f"Retrieving the job results for vault: {VAULT_NAME}...",
+                ],
             )
 
     @mock.patch("airflow.providers.amazon.aws.hooks.glacier.GlacierHook.get_conn")
@@ -105,24 +97,21 @@ class TestAmazonGlacierHook(unittest.TestCase):
         response = self.hook.describe_job(VAULT_NAME, JOB_ID)
         # then
         mock_conn.assert_called_once_with()
-        self.assertEqual(response, JOB_STATUS)
+        assert response == JOB_STATUS
 
     @mock.patch("airflow.providers.amazon.aws.hooks.glacier.GlacierHook.get_conn")
     def test_describe_job_should_log_mgs(self, mock_conn):
         # when
-        with LogCapture() as log:
+        with self.assertLogs() as log:
             mock_conn.return_value.describe_job.return_value = JOB_STATUS
             self.hook.describe_job(VAULT_NAME, JOB_ID)
             # then
-            log.check(
-                (
-                    'airflow.providers.amazon.aws.hooks.glacier.GlacierHook',
-                    'INFO',
-                    f"Retrieving status for vault: {VAULT_NAME} and job {JOB_ID}",
-                ),
-                (
-                    'airflow.providers.amazon.aws.hooks.glacier.GlacierHook',
-                    'INFO',
-                    f"Job status: {JOB_STATUS.get('Action')}, code status: {JOB_STATUS.get('StatusCode')}",
-                ),
+            self.assertEqual(
+                log.output,
+                [
+                    'INFO:airflow.providers.amazon.aws.hooks.glacier.GlacierHook:'
+                    + f"Retrieving status for vault: {VAULT_NAME} and job {JOB_ID}",
+                    'INFO:airflow.providers.amazon.aws.hooks.glacier.GlacierHook:'
+                    + f"Job status: {JOB_STATUS.get('Action')}, code status: {JOB_STATUS.get('StatusCode')}",
+                ],
             )

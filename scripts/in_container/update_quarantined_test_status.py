@@ -68,7 +68,7 @@ reverse_status_map: Dict[bool, str] = {status_map[key]: key for key in status_ma
 def get_url(result: TestResult) -> str:
     return (
         f"[{result.name}](https://github.com/{user}/{repo}/blob/"
-        f"master/{result.file}?test_id={result.test_id}#L{result.line})"
+        f"main/{result.file}?test_id={result.test_id}#L{result.line})"
     )
 
 
@@ -93,7 +93,7 @@ def parse_test_history(line: str) -> Optional[TestHistory]:
         comment = values[5] if len(values) >= 6 else ""
         try:
             states = parse_state_history(values[3])
-        except Exception:  # noqa
+        except Exception:
             states = []
         return TestHistory(
             test_id=the_id,
@@ -117,7 +117,7 @@ def parse_body(body: str) -> Dict[str, TestHistory]:
                 break
             try:
                 status = parse_test_history(line)
-            except Exception:  # noqa
+            except Exception:
                 continue
             if status:
                 test_history_map[status.test_id] = status
@@ -165,7 +165,7 @@ def get_table(history_map: Dict[str, TestHistory]) -> str:
             [
                 history.url,
                 "Succeeded" if history.states[0] else "Failed",
-                " ".join([reverse_status_map[state] for state in history.states]),
+                " ".join(reverse_status_map[state] for state in history.states),
                 get_history_status(history),
                 history.comment,
             ]

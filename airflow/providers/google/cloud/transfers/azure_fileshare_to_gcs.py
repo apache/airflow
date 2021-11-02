@@ -23,7 +23,6 @@ from airflow import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.gcs import GCSHook, _parse_gcs_url, gcs_object_is_directory
 from airflow.providers.microsoft.azure.hooks.azure_fileshare import AzureFileShareHook
-from airflow.utils.decorators import apply_defaults
 
 
 class AzureFileShareToGCSOperator(BaseOperator):
@@ -39,13 +38,10 @@ class AzureFileShareToGCSOperator(BaseOperator):
     :param prefix: Prefix string which filters objects whose name begin with
         such prefix. (templated)
     :type prefix: str
-    :param wasb_conn_id: The source WASB connection
-    :type wasb_conn_id: str
+    :param azure_fileshare_conn_id: The source WASB connection
+    :type azure_fileshare_conn_id: str
     :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud.
     :type gcp_conn_id: str
-    :param dest_gcs_conn_id: (Deprecated) The connection ID used to connect to Google Cloud.
-        This parameter has been deprecated. You should pass the gcp_conn_id parameter instead.
-    :type dest_gcs_conn_id: str
     :param dest_gcs: The destination Google Cloud Storage bucket and prefix
         where you want to store the files. (templated)
     :type dest_gcs: str
@@ -79,7 +75,6 @@ class AzureFileShareToGCSOperator(BaseOperator):
         'dest_gcs',
     )
 
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -87,7 +82,7 @@ class AzureFileShareToGCSOperator(BaseOperator):
         dest_gcs: str,
         directory_name: Optional[str] = None,
         prefix: str = '',
-        wasb_conn_id: str = 'wasb_default',
+        azure_fileshare_conn_id: str = 'azure_fileshare_default',
         gcp_conn_id: str = 'google_cloud_default',
         delegate_to: Optional[str] = None,
         replace: bool = False,
@@ -100,7 +95,7 @@ class AzureFileShareToGCSOperator(BaseOperator):
         self.share_name = share_name
         self.directory_name = directory_name
         self.prefix = prefix
-        self.wasb_conn_id = wasb_conn_id
+        self.azure_fileshare_conn_id = azure_fileshare_conn_id
         self.gcp_conn_id = gcp_conn_id
         self.dest_gcs = dest_gcs
         self.delegate_to = delegate_to
@@ -108,7 +103,8 @@ class AzureFileShareToGCSOperator(BaseOperator):
         self.gzip = gzip
         self.google_impersonation_chain = google_impersonation_chain
 
-        if dest_gcs and not gcs_object_is_directory(self.dest_gcs):
+    def _check_inputs(self) -> None:
+        if self.dest_gcs and not gcs_object_is_directory(self.dest_gcs):
             self.log.info(
                 'Destination Google Cloud Storage path is not a valid '
                 '"directory", define a path that ends with a slash "/" or '
@@ -119,20 +115,20 @@ class AzureFileShareToGCSOperator(BaseOperator):
             )
 
     def execute(self, context):
-        azure_fileshare_hook = AzureFileShareHook(self.wasb_conn_id)
+        self._check_inputs()
+        azure_fileshare_hook = AzureFileShareHook(self.azure_fileshare_conn_id)
         files = azure_fileshare_hook.list_files(
             share_name=self.share_name, directory_name=self.directory_name
         )
 
         gcs_hook = GCSHook(
-            google_cloud_storage_conn_id=self.gcp_conn_id,
+            gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,
             impersonation_chain=self.google_impersonation_chain,
         )
 
         dest_gcs_bucket, dest_gcs_object_prefix = _parse_gcs_url(self.dest_gcs)
 
-        # pylint: disable=too-many-nested-blocks
         if not self.replace:
             # if we are not replacing -> list all files in the GCS bucket
             # and only keep those files which are present in

@@ -45,7 +45,7 @@ configure multiple connections.
 Default Connection IDs
 ----------------------
 
-Some hooks and operators related to Microsoft Azure use ``azure_default`` by default.
+All hooks and operators related to Microsoft Azure Container Instances use ``azure_default`` by default.
 
 Configuring the Connection
 --------------------------
@@ -69,7 +69,7 @@ Extra (optional)
     * ``key_path``: If set, it uses the *JSON file* authentication mechanism.
       It specifies the path to the json file that contains the authentication information.
     * ``key_json``: If set, it uses the *JSON dictionary* authentication mechanism.
-      It specifies the json that contains the authentication information. See
+      It specifies the json that contains the authentication information.
 
 When specifying the connection in environment variable you should specify
 it using URI syntax.

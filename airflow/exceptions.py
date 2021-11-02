@@ -19,8 +19,11 @@
 # Note: Any AirflowException raised is expected to cause the TaskInstance
 #       to be marked in an ERROR state
 """Exceptions used by Airflow"""
-from typing import List, NamedTuple, Optional
+import datetime
+import warnings
+from typing import Any, Dict, List, NamedTuple, Optional
 
+from airflow.api_connexion.exceptions import NotFound as ApiConnextionNotFound
 from airflow.utils.code_utils import prepare_code_snippet
 from airflow.utils.platform import is_tty
 
@@ -40,7 +43,7 @@ class AirflowBadRequest(AirflowException):
     status_code = 400
 
 
-class AirflowNotFoundException(AirflowException):
+class AirflowNotFoundException(AirflowException, ApiConnextionNotFound):
     """Raise when the requested object/resource is not available in the system"""
 
     status_code = 404
@@ -98,8 +101,25 @@ class AirflowDagCycleException(AirflowException):
     """Raise when there is a cycle in Dag definition"""
 
 
+class AirflowDagDuplicatedIdException(AirflowException):
+    """Raise when a Dag's ID is already used by another Dag"""
+
+    def __init__(self, dag_id: str, incoming: str, existing: str) -> None:
+        super().__init__(dag_id, incoming, existing)
+        self.dag_id = dag_id
+        self.incoming = incoming
+        self.existing = existing
+
+    def __str__(self) -> str:
+        return f"Ignoring DAG {self.dag_id} from {self.incoming} - also found in {self.existing}"
+
+
 class AirflowClusterPolicyViolation(AirflowException):
     """Raise when there is a violation of a Cluster Policy in Dag definition"""
+
+
+class AirflowTimetableInvalid(AirflowException):
+    """Raise when a DAG has an invalid timetable."""
 
 
 class DagNotFound(AirflowNotFoundException):
@@ -121,13 +141,13 @@ class DagRunAlreadyExists(AirflowBadRequest):
 class DagFileExists(AirflowBadRequest):
     """Raise when a DAG ID is still in DagBag i.e., DAG file is in DAG folder"""
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        warnings.warn("DagFileExists is deprecated and will be removed.", DeprecationWarning, stacklevel=2)
+
 
 class DuplicateTaskIdFound(AirflowException):
     """Raise when a Task with duplicate task_id is defined in the same DAG"""
-
-
-class SerializedDagNotFound(DagNotFound):
-    """Raise when DAG is not found in the serialized_dags table in DB"""
 
 
 class SerializationError(AirflowException):
@@ -151,11 +171,11 @@ class NoAvailablePoolSlot(AirflowException):
 
 
 class DagConcurrencyLimitReached(AirflowException):
-    """Raise when DAG concurrency limit is reached"""
+    """Raise when DAG max_active_tasks limit is reached"""
 
 
 class TaskConcurrencyLimitReached(AirflowException):
-    """Raise when task concurrency limit is reached"""
+    """Raise when task max_active_tasks limit is reached"""
 
 
 class BackfillUnfinished(AirflowException):
@@ -212,3 +232,34 @@ class AirflowFileParseException(AirflowException):
 
 class ConnectionNotUnique(AirflowException):
     """Raise when multiple values are found for the same conn_id"""
+
+
+class TaskDeferred(BaseException):
+    """
+    Special exception raised to signal that the operator it was raised from
+    wishes to defer until a trigger fires.
+    """
+
+    def __init__(
+        self,
+        *,
+        trigger,
+        method_name: str,
+        kwargs: Optional[Dict[str, Any]] = None,
+        timeout: Optional[datetime.timedelta] = None,
+    ):
+        super().__init__()
+        self.trigger = trigger
+        self.method_name = method_name
+        self.kwargs = kwargs
+        self.timeout = timeout
+        # Check timeout type at runtime
+        if self.timeout is not None and not hasattr(self.timeout, "total_seconds"):
+            raise ValueError("Timeout value must be a timedelta")
+
+    def __repr__(self) -> str:
+        return f"<TaskDeferred trigger={self.trigger} method={self.method_name}>"
+
+
+class TaskDeferralError(AirflowException):
+    """Raised when a task failed during deferral for some reason."""

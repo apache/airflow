@@ -19,8 +19,16 @@
 
 set -euo pipefail
 
+BIN_PATH="/files/bin/terraform"
+
+if [[ $# != "0" && ${1} == "--reinstall" ]]; then
+    rm -f "${BIN_PATH}"
+fi
+
+hash -r
+
 if command -v terraform; then
-    echo 'The "terraform" command found. Installation not needed.'
+    echo 'The "terraform" command found. Installation not needed. Run with --reinstall to reinstall'
     exit 1
 fi
 
@@ -39,7 +47,7 @@ curl -# --fail "${DOWNLOAD_URL}" --output "${TMP_DIR}/terraform.zip"
 echo "Extracting archive"
 unzip "${TMP_DIR}/terraform.zip" -d /files/bin
 
-# Sanity check
+# Coherence check
 if ! command -v terraform > /dev/null; then
     echo 'Installation failed. The command "terraform" was not found.'
     exit 1

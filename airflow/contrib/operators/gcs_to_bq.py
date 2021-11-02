@@ -15,7 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""This module is deprecated. Please use `airflow.providers.google.cloud.transfers.gcs_to_bigquery`."""
+"""This module is deprecated. Please use :mod:`airflow.providers.google.cloud.transfers.gcs_to_bigquery`."""
 
 import warnings
 
@@ -31,14 +31,14 @@ warnings.warn(
 class GoogleCloudStorageToBigQueryOperator(GCSToBigQueryOperator):
     """
     This class is deprecated.
-    Please use `airflow.providers.google.cloud.transfers.gcs_to_bq.GCSToBigQueryOperator`.
+    Please use `airflow.providers.google.cloud.transfers.gcs_to_bigquery.GCSToBigQueryOperator`.
     """
 
     def __init__(self, *args, **kwargs):
         warnings.warn(
             """This class is deprecated.
-            Please use `airflow.providers.google.cloud.transfers.gcs_to_bq.GCSToBigQueryOperator`.""",
+            Please use `airflow.providers.google.cloud.transfers.gcs_to_bigquery.GCSToBigQueryOperator`.""",
             DeprecationWarning,
-            stacklevel=3,
+            stacklevel=2,
         )
         super().__init__(*args, **kwargs)

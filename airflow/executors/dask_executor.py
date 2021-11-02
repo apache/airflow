@@ -33,6 +33,10 @@ from airflow.exceptions import AirflowException
 from airflow.executors.base_executor import NOT_STARTED_MESSAGE, BaseExecutor, CommandType
 from airflow.models.taskinstance import TaskInstanceKey
 
+# queue="default" is a special case since this is the base config default queue name,
+# with respect to DaskExecutor, treat it as if no queue is provided
+_UNDEFINED_QUEUES = {None, 'default'}
+
 
 class DaskExecutor(BaseExecutor):
     """DaskExecutor submits tasks to a Dask Distributed cluster."""
@@ -81,7 +85,18 @@ class DaskExecutor(BaseExecutor):
         if not self.client:
             raise AirflowException(NOT_STARTED_MESSAGE)
 
-        future = self.client.submit(airflow_run, pure=False)
+        resources = None
+        if queue not in _UNDEFINED_QUEUES:
+            scheduler_info = self.client.scheduler_info()
+            avail_queues = {
+                resource for d in scheduler_info['workers'].values() for resource in d['resources']
+            }
+
+            if queue not in avail_queues:
+                raise AirflowException(f"Attempted to submit task to an unavailable queue: '{queue}'")
+            resources = {queue: 1}
+
+        future = self.client.submit(airflow_run, pure=False, resources=resources)
         self.futures[future] = key  # type: ignore
 
     def _process_future(self, future: Future) -> None:

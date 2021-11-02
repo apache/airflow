@@ -31,8 +31,17 @@ function traps::add_trap() {
     do
         # adding trap to exiting trap
         local handlers
-        handlers="$( trap -p "${signal}" | cut -f2 -d \' )"
+        # shellcheck disable=SC2046
+        handlers="$(_parse_current_traps "${signal}")"
         # shellcheck disable=SC2064
         trap "${trap};${handlers}" "${signal}"
     done
+}
+
+function _parse_current_traps() {
+  local signal="$1"
+  # Yes, eval is evil, but this is the only way I was able to "parse" the output of trap which is "already" quoted
+  eval "set -- $(trap -p "$signal")"
+  # Output format is `trap -- 'command' <signal>`
+  echo "${3-}"
 }

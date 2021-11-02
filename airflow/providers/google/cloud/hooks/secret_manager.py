@@ -18,7 +18,7 @@
 """Hook for Secrets Manager service"""
 from typing import Optional, Sequence, Union
 
-from airflow.providers.google.cloud._internal_client.secret_manager_client import _SecretManagerClient  # noqa
+from airflow.providers.google.cloud._internal_client.secret_manager_client import _SecretManagerClient
 from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
 
 

@@ -292,9 +292,7 @@ class WorkerTest(unittest.TestCase):
             show_only=["templates/workers/worker-deployment.yaml"],
         )
 
-        assert {"name": "logs", **expected_volume} == jmespath.search(
-            "spec.template.spec.volumes[1]", docs[0]
-        )
+        assert {"name": "logs", **expected_volume} in jmespath.search("spec.template.spec.volumes", docs[0])
 
     def test_worker_resources_are_configurable(self):
         docs = render_chart(
@@ -336,8 +334,10 @@ class WorkerTest(unittest.TestCase):
         )
         assert jmespath.search("spec.template.spec.containers[0].resources", docs[0]) == {}
 
-    def test_no_airflow_local_settings_by_default(self):
-        docs = render_chart(show_only=["templates/workers/worker-deployment.yaml"])
+    def test_no_airflow_local_settings(self):
+        docs = render_chart(
+            values={"airflowLocalSettings": None}, show_only=["templates/workers/worker-deployment.yaml"]
+        )
         volume_mounts = jmespath.search("spec.template.spec.containers[0].volumeMounts", docs[0])
         assert "airflow_local_settings.py" not in str(volume_mounts)
 
@@ -423,6 +423,14 @@ class WorkerTest(unittest.TestCase):
         assert jmespath.search("spec.template.spec.containers[1].command", docs[0]) is None
         assert ["bash", "/clean-logs"] == jmespath.search("spec.template.spec.containers[1].args", docs[0])
 
+    def test_log_groomer_collector_default_retention_days(self):
+        docs = render_chart(show_only=["templates/workers/worker-deployment.yaml"])
+
+        assert "AIRFLOW__LOG_RETENTION_DAYS" == jmespath.search(
+            "spec.template.spec.containers[1].env[0].name", docs[0]
+        )
+        assert "15" == jmespath.search("spec.template.spec.containers[1].env[0].value", docs[0])
+
     @parameterized.expand(
         [
             (None, None),
@@ -455,6 +463,28 @@ class WorkerTest(unittest.TestCase):
 
         assert ["RELEASE-NAME"] == jmespath.search("spec.template.spec.containers[1].command", docs[0])
         assert ["Helm"] == jmespath.search("spec.template.spec.containers[1].args", docs[0])
+
+    @parameterized.expand(
+        [
+            (None, None),
+            (30, "30"),
+        ]
+    )
+    def test_log_groomer_retention_days_overrides(self, retention_days, retention_result):
+        docs = render_chart(
+            values={"workers": {"logGroomerSidecar": {"retentionDays": retention_days}}},
+            show_only=["templates/workers/worker-deployment.yaml"],
+        )
+
+        if retention_result:
+            assert "AIRFLOW__LOG_RETENTION_DAYS" == jmespath.search(
+                "spec.template.spec.containers[1].env[0].name", docs[0]
+            )
+            assert retention_result == jmespath.search(
+                "spec.template.spec.containers[1].env[0].value", docs[0]
+            )
+        else:
+            assert jmespath.search("spec.template.spec.containers[1].env", docs[0]) is None
 
     def test_dags_gitsync_sidecar_and_init_container(self):
         docs = render_chart(

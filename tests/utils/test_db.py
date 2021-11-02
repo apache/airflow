@@ -68,11 +68,17 @@ class TestDb(unittest.TestCase):
             lambda t: (t[0] == 'remove_index' and t[1].name == 'permission_view_id'),
             # from test_security unit test
             lambda t: (t[0] == 'remove_table' and t[1].name == 'some_model'),
+            # MSSQL default tables
+            lambda t: (t[0] == 'remove_table' and t[1].name == 'spt_monitor'),
+            lambda t: (t[0] == 'remove_table' and t[1].name == 'spt_fallback_db'),
+            lambda t: (t[0] == 'remove_table' and t[1].name == 'spt_fallback_usg'),
+            lambda t: (t[0] == 'remove_table' and t[1].name == 'MSreplication_options'),
+            lambda t: (t[0] == 'remove_table' and t[1].name == 'spt_fallback_dev'),
         ]
         for ignore in ignores:
             diff = [d for d in diff if not ignore(d)]
 
-        self.assertFalse(diff, 'Database schema and SQLAlchemy model are not in sync: ' + str(diff))
+        assert not diff, 'Database schema and SQLAlchemy model are not in sync: ' + str(diff)
 
     def test_only_single_head_revision_in_migrations(self):
         config = Config()
@@ -87,4 +93,4 @@ class TestDb(unittest.TestCase):
         pattern = re.compile('conn_id=[\"|\'](.*?)[\"|\']', re.DOTALL)
         source = inspect.getsource(create_default_connections)
         src = pattern.findall(source)
-        self.assertListEqual(sorted(src), src)
+        assert sorted(src) == src

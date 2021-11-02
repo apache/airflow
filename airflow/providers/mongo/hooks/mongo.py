@@ -18,7 +18,7 @@
 """Hook for Mongo DB"""
 from ssl import CERT_NONE
 from types import TracebackType
-from typing import List, Optional, Type
+from typing import List, Optional, Type, Union
 
 import pymongo
 from pymongo import MongoClient, ReplaceOne
@@ -28,6 +28,7 @@ from airflow.hooks.base import BaseHook
 
 class MongoHook(BaseHook):
     """
+    Interact with Mongo. This hook uses the Mongo conn_id.
     PyMongo Wrapper to Interact With Mongo Database
     Mongo Connection Documentation
     https://docs.mongodb.com/manual/reference/connection-string/index.html
@@ -38,6 +39,10 @@ class MongoHook(BaseHook):
 
     ex.
         {"srv": true, "replicaSet": "test", "ssl": true, "connectTimeoutMS": 30000}
+
+    :param mongo_conn_id: The :ref:`Mongo connection id <howto/connection:mongo>` to use
+        when connecting to MongoDB.
+    :type mongo: str
     """
 
     conn_name_attr = 'conn_id'
@@ -117,8 +122,8 @@ class MongoHook(BaseHook):
     ) -> pymongo.command_cursor.CommandCursor:
         """
         Runs an aggregation pipeline and returns the results
-        https://api.mongodb.com/python/current/api/pymongo/collection.html#pymongo.collection.Collection.aggregate
-        https://api.mongodb.com/python/current/examples/aggregation.html
+        https://pymongo.readthedocs.io/en/stable/api/pymongo/collection.html#pymongo.collection.Collection.aggregate
+        https://pymongo.readthedocs.io/en/stable/examples/aggregation.html
         """
         collection = self.get_collection(mongo_collection, mongo_db=mongo_db)
 
@@ -130,25 +135,26 @@ class MongoHook(BaseHook):
         query: dict,
         find_one: bool = False,
         mongo_db: Optional[str] = None,
+        projection: Optional[Union[list, dict]] = None,
         **kwargs,
     ) -> pymongo.cursor.Cursor:
         """
         Runs a mongo find query and returns the results
-        https://api.mongodb.com/python/current/api/pymongo/collection.html#pymongo.collection.Collection.find
+        https://pymongo.readthedocs.io/en/stable/api/pymongo/collection.html#pymongo.collection.Collection.find
         """
         collection = self.get_collection(mongo_collection, mongo_db=mongo_db)
 
         if find_one:
-            return collection.find_one(query, **kwargs)
+            return collection.find_one(query, projection, **kwargs)
         else:
-            return collection.find(query, **kwargs)
+            return collection.find(query, projection, **kwargs)
 
     def insert_one(
         self, mongo_collection: str, doc: dict, mongo_db: Optional[str] = None, **kwargs
     ) -> pymongo.results.InsertOneResult:
         """
         Inserts a single document into a mongo collection
-        https://api.mongodb.com/python/current/api/pymongo/collection.html#pymongo.collection.Collection.insert_one
+        https://pymongo.readthedocs.io/en/stable/api/pymongo/collection.html#pymongo.collection.Collection.insert_one
         """
         collection = self.get_collection(mongo_collection, mongo_db=mongo_db)
 
@@ -159,7 +165,7 @@ class MongoHook(BaseHook):
     ) -> pymongo.results.InsertManyResult:
         """
         Inserts many docs into a mongo collection.
-        https://api.mongodb.com/python/current/api/pymongo/collection.html#pymongo.collection.Collection.insert_many
+        https://pymongo.readthedocs.io/en/stable/api/pymongo/collection.html#pymongo.collection.Collection.insert_many
         """
         collection = self.get_collection(mongo_collection, mongo_db=mongo_db)
 
@@ -175,7 +181,7 @@ class MongoHook(BaseHook):
     ) -> pymongo.results.UpdateResult:
         """
         Updates a single document in a mongo collection.
-        https://api.mongodb.com/python/current/api/pymongo/collection.html#pymongo.collection.Collection.update_one
+        https://pymongo.readthedocs.io/en/stable/api/pymongo/collection.html#pymongo.collection.Collection.update_one
 
         :param mongo_collection: The name of the collection to update.
         :type mongo_collection: str
@@ -202,7 +208,7 @@ class MongoHook(BaseHook):
     ) -> pymongo.results.UpdateResult:
         """
         Updates one or more documents in a mongo collection.
-        https://api.mongodb.com/python/current/api/pymongo/collection.html#pymongo.collection.Collection.update_many
+        https://pymongo.readthedocs.io/en/stable/api/pymongo/collection.html#pymongo.collection.Collection.update_many
 
         :param mongo_collection: The name of the collection to update.
         :type mongo_collection: str
@@ -229,7 +235,7 @@ class MongoHook(BaseHook):
     ) -> pymongo.results.UpdateResult:
         """
         Replaces a single document in a mongo collection.
-        https://api.mongodb.com/python/current/api/pymongo/collection.html#pymongo.collection.Collection.replace_one
+        https://pymongo.readthedocs.io/en/stable/api/pymongo/collection.html#pymongo.collection.Collection.replace_one
 
         .. note::
             If no ``filter_doc`` is given, it is assumed that the replacement
@@ -267,7 +273,7 @@ class MongoHook(BaseHook):
         Replaces many documents in a mongo collection.
 
         Uses bulk_write with multiple ReplaceOne operations
-        https://api.mongodb.com/python/current/api/pymongo/collection.html#pymongo.collection.Collection.bulk_write
+        https://pymongo.readthedocs.io/en/stable/api/pymongo/collection.html#pymongo.collection.Collection.bulk_write
 
         .. note::
             If no ``filter_docs``are given, it is assumed that all
@@ -309,7 +315,7 @@ class MongoHook(BaseHook):
     ) -> pymongo.results.DeleteResult:
         """
         Deletes a single document in a mongo collection.
-        https://api.mongodb.com/python/current/api/pymongo/collection.html#pymongo.collection.Collection.delete_one
+        https://pymongo.readthedocs.io/en/stable/api/pymongo/collection.html#pymongo.collection.Collection.delete_one
 
         :param mongo_collection: The name of the collection to delete from.
         :type mongo_collection: str
@@ -329,7 +335,7 @@ class MongoHook(BaseHook):
     ) -> pymongo.results.DeleteResult:
         """
         Deletes one or more documents in a mongo collection.
-        https://api.mongodb.com/python/current/api/pymongo/collection.html#pymongo.collection.Collection.delete_many
+        https://pymongo.readthedocs.io/en/stable/api/pymongo/collection.html#pymongo.collection.Collection.delete_many
 
         :param mongo_collection: The name of the collection to delete from.
         :type mongo_collection: str

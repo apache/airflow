@@ -31,6 +31,12 @@
 .dags-table-body {
   margin: 0 1px;
   overflow-x: auto;
+  padding-bottom: 34px;
+}
+
+.no-x-padding {
+  padding-left: 0;
+  padding-right: 0;
 }
 
 .dags-table-more {

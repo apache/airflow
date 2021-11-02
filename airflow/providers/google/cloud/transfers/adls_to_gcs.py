@@ -26,11 +26,10 @@ from typing import Optional, Sequence, Union
 
 from airflow.providers.google.cloud.hooks.gcs import GCSHook, _parse_gcs_url
 from airflow.providers.microsoft.azure.hooks.azure_data_lake import AzureDataLakeHook
-from airflow.providers.microsoft.azure.operators.adls_list import AzureDataLakeStorageListOperator
-from airflow.utils.decorators import apply_defaults
+from airflow.providers.microsoft.azure.operators.adls import ADLSListOperator
 
 
-class ADLSToGCSOperator(AzureDataLakeStorageListOperator):
+class ADLSToGCSOperator(ADLSListOperator):
     """
     Synchronizes an Azure Data Lake Storage path with a GCS bucket
 
@@ -111,7 +110,6 @@ class ADLSToGCSOperator(AzureDataLakeStorageListOperator):
     )
     ui_color = '#f0eee4'
 
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -150,7 +148,7 @@ class ADLSToGCSOperator(AzureDataLakeStorageListOperator):
         # use the super to list all files in an Azure Data Lake path
         files = super().execute(context)
         g_hook = GCSHook(
-            google_cloud_storage_conn_id=self.gcp_conn_id,
+            gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,
             impersonation_chain=self.google_impersonation_chain,
         )

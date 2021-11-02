@@ -21,10 +21,11 @@ import logging
 from sqlalchemy import or_
 
 from airflow import models
-from airflow.exceptions import DagNotFound
+from airflow.exceptions import AirflowException, DagNotFound
 from airflow.models import DagModel, TaskFail
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.utils.session import provide_session
+from airflow.utils.state import State
 
 log = logging.getLogger(__name__)
 
@@ -40,6 +41,14 @@ def delete_dag(dag_id: str, keep_records_in_log: bool = True, session=None) -> i
     :return count of deleted dags
     """
     log.info("Deleting DAG: %s", dag_id)
+    running_tis = (
+        session.query(models.TaskInstance.state)
+        .filter(models.TaskInstance.dag_id == dag_id)
+        .filter(models.TaskInstance.state == State.RUNNING)
+        .first()
+    )
+    if running_tis:
+        raise AirflowException("TaskInstances still running")
     dag = session.query(DagModel).filter(DagModel.dag_id == dag_id).first()
     if dag is None:
         raise DagNotFound(f"Dag id {dag_id} not found")
@@ -51,7 +60,7 @@ def delete_dag(dag_id: str, keep_records_in_log: bool = True, session=None) -> i
 
     count = 0
 
-    for model in models.base.Base._decl_class_registry.values():  # noqa pylint: disable=protected-access
+    for model in models.base.Base._decl_class_registry.values():
         if hasattr(model, "dag_id"):
             if keep_records_in_log and model.__name__ == 'Log':
                 continue

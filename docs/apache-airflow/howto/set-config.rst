@@ -85,6 +85,9 @@ For example:
 
     export AIRFLOW__CORE__SQL_ALCHEMY_CONN_SECRET=sql_alchemy_conn
 
+.. note::
+    The config options must follow the config prefix naming convention defined within the secrets backend. This means that ``sql_alchemy_conn`` is not defined with a connection prefix, but with config prefix. For example it should be named as ``airflow/config/sql_alchemy_conn``
+
 The idea behind this is to not store passwords on boxes in plain text files.
 
 The universal order of precedence for all configuration options is as follows:
@@ -112,3 +115,9 @@ the example below.
 
 .. note::
     See :doc:`../modules_management` for details on how Python and Airflow manage modules.
+
+.. note::
+    Use the same configuration across all the Airflow components. While each component
+    does not require all, some configurations need to be same otherwise they would not
+    work as expected. A good example for that is :ref:`secret_key<config:webserver__secret_key>` which
+    should be same on the Webserver and Worker to allow Webserver to fetch logs from Worker.

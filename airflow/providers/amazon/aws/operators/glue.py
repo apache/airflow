@@ -22,7 +22,6 @@ from typing import Optional
 from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.glue import AwsGlueJobHook
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
-from airflow.utils.decorators import apply_defaults
 
 
 class AwsGlueJobOperator(BaseOperator):
@@ -39,7 +38,7 @@ class AwsGlueJobOperator(BaseOperator):
     :type job_desc: Optional[str]
     :param concurrent_run_limit: The maximum number of concurrent runs allowed for a job
     :type concurrent_run_limit: Optional[int]
-    :param script_args: etl script arguments and AWS Glue arguments
+    :param script_args: etl script arguments and AWS Glue arguments (templated)
     :type script_args: dict
     :param retry_limit: The maximum number of times to retry this job if it fails
     :type retry_limit: Optional[int]
@@ -51,13 +50,22 @@ class AwsGlueJobOperator(BaseOperator):
     :type s3_bucket: Optional[str]
     :param iam_role_name: AWS IAM Role for Glue Job Execution
     :type iam_role_name: Optional[str]
+    :param create_job_kwargs: Extra arguments for Glue Job Creation
+    :type create_job_kwargs: Optional[dict]
+    :param run_job_kwargs: Extra arguments for Glue Job Run
+    :type run_job_kwargs: Optional[dict]
+    :param wait_for_completion: Whether or not wait for job run completion. (default: True)
+    :type wait_for_completion: bool
     """
 
-    template_fields = ()
+    template_fields = ('script_args',)
     template_ext = ()
+    template_fields_renderers = {
+        "script_args": "json",
+        "create_job_kwargs": "json",
+    }
     ui_color = '#ededed'
 
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -72,8 +80,11 @@ class AwsGlueJobOperator(BaseOperator):
         region_name: Optional[str] = None,
         s3_bucket: Optional[str] = None,
         iam_role_name: Optional[str] = None,
+        create_job_kwargs: Optional[dict] = None,
+        run_job_kwargs: Optional[dict] = None,
+        wait_for_completion: bool = True,
         **kwargs,
-    ):  # pylint: disable=too-many-arguments
+    ):
         super().__init__(**kwargs)
         self.job_name = job_name
         self.job_desc = job_desc
@@ -88,6 +99,9 @@ class AwsGlueJobOperator(BaseOperator):
         self.iam_role_name = iam_role_name
         self.s3_protocol = "s3://"
         self.s3_artifacts_prefix = 'artifacts/glue-scripts/'
+        self.create_job_kwargs = create_job_kwargs
+        self.run_job_kwargs = run_job_kwargs or {}
+        self.wait_for_completion = wait_for_completion
 
     def execute(self, context):
         """
@@ -98,26 +112,39 @@ class AwsGlueJobOperator(BaseOperator):
         if self.script_location and not self.script_location.startswith(self.s3_protocol):
             s3_hook = S3Hook(aws_conn_id=self.aws_conn_id)
             script_name = os.path.basename(self.script_location)
-            s3_hook.load_file(self.script_location, self.s3_bucket, self.s3_artifacts_prefix + script_name)
+            s3_hook.load_file(
+                self.script_location, self.s3_artifacts_prefix + script_name, bucket_name=self.s3_bucket
+            )
+            s3_script_location = f"s3://{self.s3_bucket}/{self.s3_artifacts_prefix}{script_name}"
+        else:
+            s3_script_location = self.script_location
         glue_job = AwsGlueJobHook(
             job_name=self.job_name,
             desc=self.job_desc,
             concurrent_run_limit=self.concurrent_run_limit,
-            script_location=self.script_location,
+            script_location=s3_script_location,
             retry_limit=self.retry_limit,
             num_of_dpus=self.num_of_dpus,
             aws_conn_id=self.aws_conn_id,
             region_name=self.region_name,
             s3_bucket=self.s3_bucket,
             iam_role_name=self.iam_role_name,
+            create_job_kwargs=self.create_job_kwargs,
         )
-        self.log.info("Initializing AWS Glue Job: %s", self.job_name)
-        glue_job_run = glue_job.initialize_job(self.script_args)
-        glue_job_run = glue_job.job_completion(self.job_name, glue_job_run['JobRunId'])
         self.log.info(
-            "AWS Glue Job: %s status: %s. Run Id: %s",
+            "Initializing AWS Glue Job: %s. Wait for completion: %s",
             self.job_name,
-            glue_job_run['JobRunState'],
-            glue_job_run['JobRunId'],
+            self.wait_for_completion,
         )
+        glue_job_run = glue_job.initialize_job(self.script_args, self.run_job_kwargs)
+        if self.wait_for_completion:
+            glue_job_run = glue_job.job_completion(self.job_name, glue_job_run['JobRunId'])
+            self.log.info(
+                "AWS Glue Job: %s status: %s. Run Id: %s",
+                self.job_name,
+                glue_job_run['JobRunState'],
+                glue_job_run['JobRunId'],
+            )
+        else:
+            self.log.info("AWS Glue Job: %s. Run Id: %s", self.job_name, glue_job_run['JobRunId'])
         return glue_job_run['JobRunId']

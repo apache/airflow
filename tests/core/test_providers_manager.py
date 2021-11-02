@@ -15,210 +15,167 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+import logging
+import re
+import sys
 import unittest
+from unittest.mock import call, patch
 
-from airflow.providers_manager import ProvidersManager
+import pytest
 
-ALL_PROVIDERS = [
-    'apache-airflow-providers-amazon',
-    'apache-airflow-providers-apache-cassandra',
-    'apache-airflow-providers-apache-druid',
-    'apache-airflow-providers-apache-hdfs',
-    'apache-airflow-providers-apache-hive',
-    'apache-airflow-providers-apache-kylin',
-    'apache-airflow-providers-apache-livy',
-    'apache-airflow-providers-apache-pig',
-    'apache-airflow-providers-apache-pinot',
-    'apache-airflow-providers-apache-spark',
-    'apache-airflow-providers-apache-sqoop',
-    'apache-airflow-providers-celery',
-    'apache-airflow-providers-cloudant',
-    'apache-airflow-providers-cncf-kubernetes',
-    'apache-airflow-providers-databricks',
-    'apache-airflow-providers-datadog',
-    'apache-airflow-providers-dingding',
-    'apache-airflow-providers-discord',
-    'apache-airflow-providers-docker',
-    'apache-airflow-providers-elasticsearch',
-    'apache-airflow-providers-exasol',
-    'apache-airflow-providers-facebook',
-    'apache-airflow-providers-ftp',
-    'apache-airflow-providers-google',
-    'apache-airflow-providers-grpc',
-    'apache-airflow-providers-hashicorp',
-    'apache-airflow-providers-http',
-    'apache-airflow-providers-imap',
-    'apache-airflow-providers-jdbc',
-    'apache-airflow-providers-jenkins',
-    'apache-airflow-providers-jira',
-    'apache-airflow-providers-microsoft-azure',
-    'apache-airflow-providers-microsoft-mssql',
-    'apache-airflow-providers-microsoft-winrm',
-    'apache-airflow-providers-mongo',
-    'apache-airflow-providers-mysql',
-    'apache-airflow-providers-odbc',
-    'apache-airflow-providers-openfaas',
-    'apache-airflow-providers-opsgenie',
-    'apache-airflow-providers-oracle',
-    'apache-airflow-providers-pagerduty',
-    'apache-airflow-providers-papermill',
-    'apache-airflow-providers-plexus',
-    'apache-airflow-providers-postgres',
-    'apache-airflow-providers-presto',
-    'apache-airflow-providers-qubole',
-    'apache-airflow-providers-redis',
-    'apache-airflow-providers-salesforce',
-    'apache-airflow-providers-samba',
-    'apache-airflow-providers-segment',
-    'apache-airflow-providers-sendgrid',
-    'apache-airflow-providers-sftp',
-    'apache-airflow-providers-singularity',
-    'apache-airflow-providers-slack',
-    # Uncomment when https://github.com/apache/airflow/issues/12881 is fixed
-    # 'apache-airflow-providers-snowflake',
-    'apache-airflow-providers-sqlite',
-    'apache-airflow-providers-ssh',
-    'apache-airflow-providers-telegram',
-    'apache-airflow-providers-vertica',
-    'apache-airflow-providers-yandex',
-    'apache-airflow-providers-zendesk',
-]
-
-CONNECTIONS_LIST = [
-    'aws',
-    'azure',
-    'azure_batch',
-    'azure_container_instances',
-    'azure_cosmos',
-    'azure_data_explorer',
-    'azure_data_lake',
-    'cassandra',
-    'cloudant',
-    'databricks',
-    'dataprep',
-    'docker',
-    'elasticsearch',
-    'emr',
-    'exasol',
-    'facebook_social',
-    'ftp',
-    'gcpcloudsql',
-    'gcpcloudsqldb',
-    'gcpssh',
-    'google_cloud_platform',
-    'grpc',
-    'hdfs',
-    'hive_cli',
-    'hive_metastore',
-    'hiveserver2',
-    'http',
-    'imap',
-    'jdbc',
-    'jenkins',
-    'jira',
-    'kubernetes',
-    'livy',
-    'mongo',
-    'mssql',
-    'mysql',
-    'odbc',
-    'oracle',
-    'pig_cli',
-    'postgres',
-    'presto',
-    'qubole',
-    'redis',
-    's3',
-    'samba',
-    'segment',
-    'sftp',
-    #  Uncomment when https://github.com/apache/airflow/issues/12881 is fixed
-    # 'snowflake',
-    'spark',
-    'spark_jdbc',
-    'spark_sql',
-    'sqlite',
-    'sqoop',
-    'ssh',
-    'tableau',
-    'vault',
-    'vertica',
-    'wasb',
-    'yandexcloud',
-]
-
-CONNECTION_FORM_WIDGETS = [
-    'extra__google_cloud_platform__key_path',
-    'extra__google_cloud_platform__keyfile_dict',
-    'extra__google_cloud_platform__num_retries',
-    'extra__google_cloud_platform__project',
-    'extra__google_cloud_platform__scope',
-    'extra__grpc__auth_type',
-    'extra__grpc__credential_pem_file',
-    'extra__grpc__scopes',
-    'extra__jdbc__drv_clsname',
-    'extra__jdbc__drv_path',
-    'extra__kubernetes__in_cluster',
-    'extra__kubernetes__kube_config',
-    'extra__kubernetes__kube_config_path',
-    'extra__kubernetes__namespace',
-    'extra__yandexcloud__folder_id',
-    'extra__yandexcloud__oauth',
-    'extra__yandexcloud__public_ssh_key',
-    'extra__yandexcloud__service_account_json',
-    'extra__yandexcloud__service_account_json_path',
-]
-
-CONNECTIONS_WITH_FIELD_BEHAVIOURS = [
-    'cloudant',
-    'docker',
-    'gcpssh',
-    'google_cloud_platform',
-    'jdbc',
-    'kubernetes',
-    'qubole',
-    'sftp',
-    'spark',
-    'ssh',
-    'yandexcloud',
-]
-
-EXTRA_LINKS = [
-    'airflow.providers.google.cloud.operators.bigquery.BigQueryConsoleIndexableLink',
-    'airflow.providers.google.cloud.operators.bigquery.BigQueryConsoleLink',
-    'airflow.providers.google.cloud.operators.mlengine.AIPlatformConsoleLink',
-    'airflow.providers.qubole.operators.qubole.QDSLink',
-]
+import airflow
+from airflow.providers_manager import ProviderInfo, ProvidersManager
 
 
 class TestProviderManager(unittest.TestCase):
-    def test_providers_are_loaded(self):
-        provider_manager = ProvidersManager()
-        provider_list = list(provider_manager.providers.keys())
-        # No need to sort the list - it should be sorted alphabetically !
-        for provider in provider_list:
-            package_name = provider_manager.providers[provider][1]['package-name']
-            version = provider_manager.providers[provider][0]
-            self.assertRegex(version, r'[0-9]*\.[0-9]*\.[0-9]*.*')
-            self.assertEqual(package_name, provider)
-        self.assertEqual(ALL_PROVIDERS, provider_list)
+    @pytest.fixture(autouse=True)
+    def inject_fixtures(self, caplog):
+        self._caplog = caplog
 
-    def test_hooks(self):
-        provider_manager = ProvidersManager()
-        connections_list = list(provider_manager.hooks.keys())
-        self.assertEqual(CONNECTIONS_LIST, connections_list)
+    def test_providers_are_loaded(self):
+        with self._caplog.at_level(logging.WARNING):
+            provider_manager = ProvidersManager()
+            provider_list = list(provider_manager.providers.keys())
+            # No need to sort the list - it should be sorted alphabetically !
+            for provider in provider_list:
+                package_name = provider_manager.providers[provider][1]['package-name']
+                version = provider_manager.providers[provider][0]
+                assert re.search(r'[0-9]*\.[0-9]*\.[0-9]*.*', version)
+                assert package_name == provider
+            # just a coherence check - no exact number as otherwise we would have to update
+            # several tests if we add new connections/provider which is not ideal
+            assert len(provider_list) > 65
+            assert [] == self._caplog.records
+
+    def test_hooks_deprecation_warnings_generated(self):
+        with pytest.warns(expected_warning=DeprecationWarning, match='hook-class-names') as warning_records:
+            providers_manager = ProvidersManager()
+            providers_manager._provider_dict['test-package'] = ProviderInfo(
+                version='0.0.1',
+                provider_info={'hook-class-names': ['airflow.providers.sftp.hooks.sftp.SFTPHook']},
+            )
+            providers_manager._discover_hooks()
+        assert warning_records
+
+    def test_hooks_deprecation_warnings_not_generated(self):
+        with pytest.warns(expected_warning=None) as warning_records:
+            providers_manager = ProvidersManager()
+            providers_manager._provider_dict['apache-airflow-providers-sftp'] = ProviderInfo(
+                version='0.0.1',
+                provider_info={
+                    'hook-class-names': ['airflow.providers.sftp.hooks.sftp.SFTPHook'],
+                    'connection-types': [
+                        {
+                            'hook-class-name': 'airflow.providers.sftp.hooks.sftp.SFTPHook',
+                            'connection-type': 'sftp',
+                        }
+                    ],
+                },
+            )
+            providers_manager._discover_hooks()
+        assert [] == [w.message for w in warning_records.list if "hook-class-names" in str(w.message)]
+
+    def test_warning_logs_generated(self):
+        with self._caplog.at_level(logging.WARNING):
+            providers_manager = ProvidersManager()
+            providers_manager._provider_dict['apache-airflow-providers-sftp'] = ProviderInfo(
+                version='0.0.1',
+                provider_info={
+                    'hook-class-names': ['airflow.providers.sftp.hooks.sftp.SFTPHook'],
+                    'connection-types': [
+                        {
+                            'hook-class-name': 'airflow.providers.sftp.hooks.sftp.SFTPHook',
+                            'connection-type': 'wrong-connection-type',
+                        }
+                    ],
+                },
+            )
+            providers_manager._discover_hooks()
+            _ = providers_manager._hooks_lazy_dict['wrong-connection-type']
+        assert len(self._caplog.records) == 1
+        assert "Inconsistency!" in self._caplog.records[0].message
+        assert "sftp" not in providers_manager.hooks
+
+    def test_warning_logs_not_generated(self):
+        with self._caplog.at_level(logging.WARNING):
+            providers_manager = ProvidersManager()
+            providers_manager._provider_dict['apache-airflow-providers-sftp'] = ProviderInfo(
+                version='0.0.1',
+                provider_info={
+                    'hook-class-names': ['airflow.providers.sftp.hooks.sftp.SFTPHook'],
+                    'connection-types': [
+                        {
+                            'hook-class-name': 'airflow.providers.sftp.hooks.sftp.SFTPHook',
+                            'connection-type': 'sftp',
+                        }
+                    ],
+                },
+            )
+            providers_manager._discover_hooks()
+            _ = providers_manager._hooks_lazy_dict['sftp']
+        assert not self._caplog.records
+        assert "sftp" in providers_manager.hooks
+
+    @patch('airflow.providers_manager.importlib.import_module')
+    def test_hooks(self, mock_import_module):
+        # importlib.resources relies on importing the containing module to read
+        # its content. The provider manager needs to read two validation schemas
+        # 'provider_info.schema.json' and 'customized_form_field_behaviours.schema.json'.
+        mock_import_module.side_effect = [airflow, airflow]
+
+        with pytest.warns(expected_warning=None) as warning_records:
+            with self._caplog.at_level(logging.WARNING):
+                provider_manager = ProvidersManager()
+                connections_list = list(provider_manager.hooks.keys())
+                assert len(connections_list) > 60
+        assert [] == [w.message for w in warning_records.list if "hook-class-names" in str(w.message)]
+        assert len(self._caplog.records) == 0
+
+        # The stdlib importlib.resources implementation in 3.9 does not rely on
+        # importlib.import_module, so the function should not be called. The
+        # implementation for 3.10+ and the backport we use for up to 3.8 uses it
+        # to import the top-level 'airflow' for the two schema files. Also see
+        # comment on mocking at the beginning of the function.
+        if sys.version_info[:2] == (3, 9):
+            assert mock_import_module.mock_calls == []
+        else:
+            assert mock_import_module.mock_calls == [call("airflow"), call("airflow")]
+
+    def test_hook_values(self):
+        with pytest.warns(expected_warning=None) as warning_records:
+            with self._caplog.at_level(logging.WARNING):
+                provider_manager = ProvidersManager()
+                connections_list = list(provider_manager.hooks.values())
+                assert len(connections_list) > 60
+        assert [] == [w.message for w in warning_records.list if "hook-class-names" in str(w.message)]
+        assert len(self._caplog.records) == 0
 
     def test_connection_form_widgets(self):
         provider_manager = ProvidersManager()
         connections_form_widgets = list(provider_manager.connection_form_widgets.keys())
-        self.assertEqual(CONNECTION_FORM_WIDGETS, connections_form_widgets)
+        assert len(connections_form_widgets) > 29
 
     def test_field_behaviours(self):
         provider_manager = ProvidersManager()
         connections_with_field_behaviours = list(provider_manager.field_behaviours.keys())
-        self.assertEqual(CONNECTIONS_WITH_FIELD_BEHAVIOURS, connections_with_field_behaviours)
+        assert len(connections_with_field_behaviours) > 16
 
     def test_extra_links(self):
         provider_manager = ProvidersManager()
         extra_link_class_names = list(provider_manager.extra_links_class_names)
-        self.assertEqual(EXTRA_LINKS, extra_link_class_names)
+        assert len(extra_link_class_names) > 6
+
+    def test_logging(self):
+        provider_manager = ProvidersManager()
+        logging_class_names = list(provider_manager.logging_class_names)
+        assert len(logging_class_names) > 5
+
+    def test_secrets_backends(self):
+        provider_manager = ProvidersManager()
+        secrets_backends_class_names = list(provider_manager.secrets_backend_class_names)
+        assert len(secrets_backends_class_names) > 4
+
+    def test_auth_backends(self):
+        provider_manager = ProvidersManager()
+        auth_backend_module_names = list(provider_manager.auth_backend_module_names)
+        assert len(auth_backend_module_names) > 0

@@ -29,10 +29,12 @@ from airflow.models.baseoperator import BaseOperator
 from airflow.secrets import BaseSecretsBackend
 from airflow.sensors.base import BaseSensorOperator
 
+program = f"./{__file__}" if not __file__.startswith("./") else __file__
+
 if __name__ != "__main__":
     raise Exception(
-        "This file is intended to be executed as an executable program. You cannot use it as a module."
-        "To run this script, run the './list-integrations.py' command"
+        "This file is intended to be used as an executable program. You cannot use it as a module."
+        f"To execute this script, run the '{program}' command"
     )
 
 AIRFLOW_ROOT = os.path.abspath(os.path.join(os.path.dirname(airflow.__file__), os.pardir))
@@ -66,8 +68,6 @@ def _find_clazzes(directory, base_class):
     return found_classes
 
 
-program = "./" + os.path.basename(sys.argv[0])
-
 HELP = """\
 List operators, hooks, sensors, secrets backend in the installed Airflow.
 
@@ -95,8 +95,8 @@ If you want to count the operators/sensors in each providers package, you can us
         sort -n -r
 """
 
-parser = argparse.ArgumentParser(  # noqa
-    description=HELP, formatter_class=argparse.RawTextHelpFormatter, epilog=EPILOG
+parser = argparse.ArgumentParser(
+    prog=program, description=HELP, formatter_class=argparse.RawTextHelpFormatter, epilog=EPILOG
 )
 # argparse handle `-h/--help/` internally
 parser.parse_args()
@@ -115,5 +115,5 @@ for integration_base_directory, integration_class in RESOURCE_TYPES.items():
         if "contrib" in integration_directory:
             continue
 
-        for clazz_to_print in sorted(_find_clazzes(integration_base_directory, integration_class)):
+        for clazz_to_print in sorted(_find_clazzes(integration_directory, integration_class)):
             print(clazz_to_print)

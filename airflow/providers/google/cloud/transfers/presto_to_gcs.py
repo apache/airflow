@@ -22,7 +22,6 @@ from prestodb.dbapi import Cursor as PrestoCursor
 
 from airflow.providers.google.cloud.transfers.sql_to_gcs import BaseSQLToGCSOperator
 from airflow.providers.presto.hooks.presto import PrestoHook
-from airflow.utils.decorators import apply_defaults
 
 
 class _PrestoToGCSPrestoCursorAdapter:
@@ -175,7 +174,6 @@ class PrestoToGCSOperator(BaseSQLToGCSOperator):
         "UUID": "STRING",
     }
 
-    @apply_defaults
     def __init__(self, *, presto_conn_id: str = "presto_default", **kwargs):
         super().__init__(**kwargs)
         self.presto_conn_id = presto_conn_id

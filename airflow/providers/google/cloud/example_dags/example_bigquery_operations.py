@@ -33,8 +33,9 @@ from airflow.providers.google.cloud.operators.bigquery import (
     BigQueryDeleteTableOperator,
     BigQueryGetDatasetOperator,
     BigQueryGetDatasetTablesOperator,
-    BigQueryPatchDatasetOperator,
     BigQueryUpdateDatasetOperator,
+    BigQueryUpdateTableOperator,
+    BigQueryUpdateTableSchemaOperator,
     BigQueryUpsertTableOperator,
 )
 from airflow.utils.dates import days_ago
@@ -46,7 +47,7 @@ DATASET_NAME = os.environ.get("GCP_BIGQUERY_DATASET_NAME", "test_dataset_operati
 LOCATION_DATASET_NAME = f"{DATASET_NAME}_location"
 DATA_SAMPLE_GCS_URL = os.environ.get(
     "GCP_BIGQUERY_DATA_GCS_URL",
-    "gs://cloud-samples-data/bigquery/us-states/us-states.csv",
+    "gs://INVALID BUCKET NAME/bigquery/us-states/us-states.csv",
 )
 
 DATA_SAMPLE_GCS_URL_PARTS = urlparse(DATA_SAMPLE_GCS_URL)
@@ -56,7 +57,7 @@ DATA_SAMPLE_GCS_OBJECT_NAME = DATA_SAMPLE_GCS_URL_PARTS.path[1:]
 
 with models.DAG(
     "example_bigquery_operations",
-    schedule_interval=None,  # Override to match your needs
+    schedule_interval='@once',  # Override to match your needs
     start_date=days_ago(1),
     tags=["example"],
 ) as dag:
@@ -71,6 +72,18 @@ with models.DAG(
         ],
     )
     # [END howto_operator_bigquery_create_table]
+
+    # [START howto_operator_bigquery_update_table_schema]
+    update_table_schema = BigQueryUpdateTableSchemaOperator(
+        task_id="update_table_schema",
+        dataset_id=DATASET_NAME,
+        table_id="test_table",
+        schema_fields_updates=[
+            {"name": "emp_name", "description": "Name of employee"},
+            {"name": "salary", "description": "Monthly salary in USD"},
+        ],
+    )
+    # [END howto_operator_bigquery_update_table_schema]
 
     # [START howto_operator_bigquery_delete_table]
     delete_table = BigQueryDeleteTableOperator(
@@ -97,23 +110,54 @@ with models.DAG(
     )
     # [END howto_operator_bigquery_delete_view]
 
+    # [START howto_operator_bigquery_create_materialized_view]
+    create_materialized_view = BigQueryCreateEmptyTableOperator(
+        task_id="create_materialized_view",
+        dataset_id=DATASET_NAME,
+        table_id="test_materialized_view",
+        materialized_view={
+            "query": f"SELECT SUM(salary)  AS sum_salary FROM `{PROJECT_ID}.{DATASET_NAME}.test_table`",
+            "enableRefresh": True,
+            "refreshIntervalMs": 2000000,
+        },
+    )
+    # [END howto_operator_bigquery_create_materialized_view]
+
+    # [START howto_operator_bigquery_delete_materialized_view]
+    delete_materialized_view = BigQueryDeleteTableOperator(
+        task_id="delete_materialized_view",
+        deletion_dataset_table=f"{PROJECT_ID}.{DATASET_NAME}.test_materialized_view",
+    )
+    # [END howto_operator_bigquery_delete_materialized_view]
+
     # [START howto_operator_bigquery_create_external_table]
     create_external_table = BigQueryCreateExternalTableOperator(
         task_id="create_external_table",
-        bucket=DATA_SAMPLE_GCS_BUCKET_NAME,
-        source_objects=[DATA_SAMPLE_GCS_OBJECT_NAME],
-        destination_project_dataset_table=f"{DATASET_NAME}.external_table",
-        skip_leading_rows=1,
-        schema_fields=[
-            {"name": "name", "type": "STRING"},
-            {"name": "post_abbr", "type": "STRING"},
-        ],
+        table_resource={
+            "tableReference": {
+                "projectId": PROJECT_ID,
+                "datasetId": DATASET_NAME,
+                "tableId": "external_table",
+            },
+            "schema": {
+                "fields": [
+                    {"name": "name", "type": "STRING"},
+                    {"name": "post_abbr", "type": "STRING"},
+                ]
+            },
+            "externalDataConfiguration": {
+                "sourceFormat": "CSV",
+                "compression": "NONE",
+                "csvOptions": {"skipLeadingRows": 1},
+                "sourceUris": [DATA_SAMPLE_GCS_URL],
+            },
+        },
     )
     # [END howto_operator_bigquery_create_external_table]
 
     # [START howto_operator_bigquery_upsert_table]
-    update_table = BigQueryUpsertTableOperator(
-        task_id="update_table",
+    upsert_table = BigQueryUpsertTableOperator(
+        task_id="upsert_table",
         dataset_id=DATASET_NAME,
         table_resource={
             "tableReference": {"tableId": "test_table_id"},
@@ -141,16 +185,21 @@ with models.DAG(
         bash_command="echo \"{{ task_instance.xcom_pull('get-dataset')['id'] }}\"",
     )
 
-    # [START howto_operator_bigquery_patch_dataset]
-    patch_dataset = BigQueryPatchDatasetOperator(
-        task_id="patch_dataset",
+    # [START howto_operator_bigquery_update_table]
+    update_table = BigQueryUpdateTableOperator(
+        task_id="update_table",
         dataset_id=DATASET_NAME,
-        dataset_resource={
-            "friendlyName": "Patched Dataset",
-            "description": "Patched dataset",
+        table_id="test_table",
+        fields=[
+            {"name": "emp_name", "type": "STRING", "mode": "REQUIRED"},
+            {"name": "salary", "type": "INTEGER", "mode": "NULLABLE"},
+        ],
+        table_resource={
+            "friendlyName": "Updated Table",
+            "description": "Updated Table",
         },
     )
-    # [END howto_operator_bigquery_patch_dataset]
+    # [END howto_operator_bigquery_update_table]
 
     # [START howto_operator_bigquery_update_dataset]
     update_dataset = BigQueryUpdateDatasetOperator(
@@ -166,20 +215,32 @@ with models.DAG(
     )
     # [END howto_operator_bigquery_delete_dataset]
 
-    create_dataset >> patch_dataset >> update_dataset >> get_dataset >> get_dataset_result >> delete_dataset
+    create_dataset >> update_dataset >> get_dataset >> get_dataset_result >> delete_dataset
 
-    update_dataset >> create_table >> create_view >> [
-        get_dataset_tables,
-        delete_view,
-    ] >> update_table >> delete_table >> delete_dataset
+    (
+        update_dataset
+        >> create_table
+        >> create_view
+        >> create_materialized_view
+        >> update_table
+        >> [
+            get_dataset_tables,
+            delete_view,
+        ]
+        >> upsert_table
+        >> update_table_schema
+        >> delete_materialized_view
+        >> delete_table
+        >> delete_dataset
+    )
     update_dataset >> create_external_table >> delete_dataset
 
 with models.DAG(
     "example_bigquery_operations_location",
-    schedule_interval=None,  # Override to match your needs
+    schedule_interval='@once',  # Override to match your needs
     start_date=days_ago(1),
     tags=["example"],
-):
+) as dag_with_location:
     create_dataset_with_location = BigQueryCreateEmptyDatasetOperator(
         task_id="create_dataset_with_location",
         dataset_id=LOCATION_DATASET_NAME,

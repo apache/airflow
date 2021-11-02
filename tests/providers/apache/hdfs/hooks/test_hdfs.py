@@ -43,10 +43,10 @@ class TestHDFSHook(unittest.TestCase):
     )
     def test_get_client(self):
         client = HDFSHook(proxy_user='foo').get_conn()
-        self.assertIsInstance(client, snakebite.client.Client)
-        self.assertEqual('localhost', client.host)
-        self.assertEqual(8020, client.port)
-        self.assertEqual('foo', client.service.channel.effective_user)
+        assert isinstance(client, snakebite.client.Client)
+        assert 'localhost' == client.host
+        assert 8020 == client.port
+        assert 'foo' == client.service.channel.effective_user
 
     @mock.patch.dict(
         'os.environ',
@@ -86,4 +86,4 @@ class TestHDFSHook(unittest.TestCase):
         conn_2 = Connection(conn_id='hdfs_default', conn_type='hdfs', host='localhost2', port=8020)
         mock_get_connections.return_value = [conn_1, conn_2]
         client = HDFSHook().get_conn()
-        self.assertIsInstance(client, snakebite.client.HAClient)
+        assert isinstance(client, snakebite.client.HAClient)

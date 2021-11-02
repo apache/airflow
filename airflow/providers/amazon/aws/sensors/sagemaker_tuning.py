@@ -18,7 +18,6 @@
 
 from airflow.providers.amazon.aws.hooks.sagemaker import SageMakerHook
 from airflow.providers.amazon.aws.sensors.sagemaker_base import SageMakerBaseSensor
-from airflow.utils.decorators import apply_defaults
 
 
 class SageMakerTuningSensor(SageMakerBaseSensor):
@@ -34,7 +33,6 @@ class SageMakerTuningSensor(SageMakerBaseSensor):
     template_fields = ['job_name']
     template_ext = ()
 
-    @apply_defaults
     def __init__(self, *, job_name: str, **kwargs):
         super().__init__(**kwargs)
         self.job_name = job_name

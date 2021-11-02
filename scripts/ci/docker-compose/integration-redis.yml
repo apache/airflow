@@ -15,13 +15,13 @@
 # specific language governing permissions and limitations
 # under the License.
 ---
-version: "2.2"
+version: "3.7"
 services:
   redis:
     image: redis:5.0.1
     volumes:
       - /dev/urandom:/dev/random   # Required to get non-blocking entropy source
-      - redis-db-volume:/data/presto
+      - redis-db-volume:/data/redis
     ports:
       - "${REDIS_HOST_PORT}:6379"
     healthcheck:

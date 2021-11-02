@@ -23,7 +23,6 @@ from tempfile import NamedTemporaryFile
 from airflow.models import BaseOperator
 from airflow.providers.apache.hive.hooks.hive import HiveServer2Hook
 from airflow.providers.samba.hooks.samba import SambaHook
-from airflow.utils.decorators import apply_defaults
 from airflow.utils.operator_helpers import context_to_airflow_vars
 
 
@@ -38,7 +37,8 @@ class HiveToSambaOperator(BaseOperator):
     :type destination_filepath: str
     :param samba_conn_id: reference to the samba destination
     :type samba_conn_id: str
-    :param hiveserver2_conn_id: reference to the hiveserver2 service
+    :param hiveserver2_conn_id: Reference to the
+        :ref: `Hive Server2 thrift service connection id <howto/connection:hiveserver2>`.
     :type hiveserver2_conn_id: str
     """
 
@@ -48,7 +48,6 @@ class HiveToSambaOperator(BaseOperator):
         '.sql',
     )
 
-    @apply_defaults
     def __init__(
         self,
         *,

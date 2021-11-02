@@ -1,4 +1,3 @@
-# pylint: disable=c-extension-no-member
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -140,7 +139,7 @@ class OdbcHook(DbApiHook):
             if self.connection.password:
                 conn_str += f"PWD={self.connection.password};"
             if self.connection.port:
-                f"PORT={self.connection.port};"
+                conn_str += f"PORT={self.connection.port};"
 
             extra_exclude = {'driver', 'dsn', 'connect_kwargs', 'sqlalchemy_scheme'}
             extra_params = {
@@ -160,20 +159,8 @@ class OdbcHook(DbApiHook):
 
         Hook ``connect_kwargs`` precedes ``connect_kwargs`` from conn extra.
 
-        String values for 'true' and 'false' are converted to bool type.
-
         If ``attrs_before`` provided, keys and values are converted to int, as required by pyodbc.
         """
-
-        def clean_bool(val):  # pylint: disable=inconsistent-return-statements
-            if hasattr(val, 'lower'):
-                if val.lower() == 'true':
-                    return True
-                elif val.lower() == 'false':
-                    return False
-            else:
-                return val
-
         conn_connect_kwargs = self.connection_extra_lower.get('connect_kwargs', {})
         hook_connect_kwargs = self._connect_kwargs or {}
         merged_connect_kwargs = merge_dicts(conn_connect_kwargs, hook_connect_kwargs)
@@ -183,7 +170,7 @@ class OdbcHook(DbApiHook):
                 int(k): int(v) for k, v in merged_connect_kwargs['attrs_before'].items()
             }
 
-        return {k: clean_bool(v) for k, v in merged_connect_kwargs.items()}
+        return merged_connect_kwargs
 
     def get_conn(self) -> pyodbc.Connection:
         """Returns a pyodbc connection object."""

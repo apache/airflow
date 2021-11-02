@@ -32,5 +32,5 @@ def get_code(dag_id: str) -> str:
     try:
         return DagCode.get_code_by_fileloc(dag.fileloc)
     except (OSError, DagCodeNotFound) as exception:
-        error_message = "Error {} while reading Dag id {} Code".format(str(exception), dag_id)
+        error_message = f"Error {str(exception)} while reading Dag id {dag_id} Code"
         raise AirflowException(error_message, exception)

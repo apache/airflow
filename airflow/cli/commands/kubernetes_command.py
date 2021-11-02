@@ -18,7 +18,6 @@
 import os
 import sys
 
-import yaml
 from kubernetes import client
 from kubernetes.client.api_client import ApiClient
 from kubernetes.client.rest import ApiException
@@ -27,9 +26,9 @@ from airflow.executors.kubernetes_executor import KubeConfig, create_pod_id
 from airflow.kubernetes import pod_generator
 from airflow.kubernetes.kube_client import get_kube_client
 from airflow.kubernetes.pod_generator import PodGenerator
-from airflow.models import TaskInstance
+from airflow.models import DagRun, TaskInstance
 from airflow.settings import pod_mutation_hook
-from airflow.utils import cli as cli_utils
+from airflow.utils import cli as cli_utils, yaml
 from airflow.utils.cli import get_dag
 
 
@@ -39,9 +38,11 @@ def generate_pod_yaml(args):
     execution_date = args.execution_date
     dag = get_dag(subdir=args.subdir, dag_id=args.dag_id)
     yaml_output_path = args.output_path
+    dr = DagRun(dag.dag_id, execution_date=execution_date)
     kube_config = KubeConfig()
     for task in dag.tasks:
-        ti = TaskInstance(task, execution_date)
+        ti = TaskInstance(task, None)
+        ti.dag_run = dr
         pod = PodGenerator.construct_pod(
             dag_id=args.dag_id,
             task_id=ti.task_id,
@@ -90,9 +91,17 @@ def cleanup_pods(args):
     print('Loading Kubernetes configuration')
     kube_client = get_kube_client()
     print(f'Listing pods in namespace {namespace}')
-    continue_token = None
-    while True:  # pylint: disable=too-many-nested-blocks
-        pod_list = kube_client.list_namespaced_pod(namespace=namespace, limit=500, _continue=continue_token)
+    airflow_pod_labels = [
+        'dag_id',
+        'task_id',
+        'execution_date',
+        'try_number',
+        'airflow_version',
+    ]
+    list_kwargs = {"namespace": namespace, "limit": 500, "label_selector": ','.join(airflow_pod_labels)}
+
+    while True:
+        pod_list = kube_client.list_namespaced_pod(**list_kwargs)
         for pod in pod_list.items:
             pod_name = pod.metadata.name
             print(f'Inspecting pod {pod_name}')
@@ -115,9 +124,10 @@ def cleanup_pods(args):
                     print(f"Can't remove POD: {e}", file=sys.stderr)
                 continue
             print(f'No action taken on pod {pod_name}')
-        continue_token = pod_list.metadata._continue  # pylint: disable=protected-access
+        continue_token = pod_list.metadata._continue
         if not continue_token:
             break
+        list_kwargs["_continue"] = continue_token
 
 
 def _delete_pod(name, namespace):

@@ -15,15 +15,14 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""This module is deprecated. Please use `airflow.sensors.weekday_sensor`."""
+"""This module is deprecated. Please use :mod:`airflow.sensors.weekday`."""
 
 import warnings
 
-# pylint: disable=unused-import
 from airflow.sensors.weekday import DayOfWeekSensor  # noqa
 
 warnings.warn(
-    "This module is deprecated. Please use `airflow.sensors.weekday_sensor`.",
+    "This module is deprecated. Please use `airflow.sensors.weekday`.",
     DeprecationWarning,
     stacklevel=2,
 )

@@ -18,6 +18,7 @@
 """
 Example Airflow DAG that shows how to use DataFusion.
 """
+import os
 
 from airflow import models
 from airflow.operators.bash import BashOperator
@@ -33,21 +34,31 @@ from airflow.providers.google.cloud.operators.datafusion import (
     CloudDataFusionStopPipelineOperator,
     CloudDataFusionUpdateInstanceOperator,
 )
+from airflow.providers.google.cloud.sensors.datafusion import CloudDataFusionPipelineStateSensor
 from airflow.utils import dates
 from airflow.utils.state import State
 
 # [START howto_data_fusion_env_variables]
+SERVICE_ACCOUNT = os.environ.get("GCP_DATAFUSION_SERVICE_ACCOUNT")
 LOCATION = "europe-north1"
 INSTANCE_NAME = "airflow-test-instance"
-INSTANCE = {"type": "BASIC", "displayName": INSTANCE_NAME}
+INSTANCE = {
+    "type": "BASIC",
+    "displayName": INSTANCE_NAME,
+    "dataprocServiceAccount": SERVICE_ACCOUNT,
+}
 
-BUCKET1 = "gs://test-bucket--2h83r23r"
-BUCKET2 = "gs://test-bucket--2d23h83r23r"
-PIPELINE_NAME = "airflow_test"
+BUCKET_1 = os.environ.get("GCP_DATAFUSION_BUCKET_1", "test-datafusion-bucket-1")
+BUCKET_2 = os.environ.get("GCP_DATAFUSION_BUCKET_2", "test-datafusion-bucket-2")
+
+BUCKET_1_URI = f"gs://{BUCKET_1}"
+BUCKET_2_URI = f"gs://{BUCKET_2}"
+
+PIPELINE_NAME = os.environ.get("GCP_DATAFUSION_PIPELINE_NAME", "airflow_test")
 PIPELINE = {
     "name": "test-pipe",
     "description": "Data Pipeline Application",
-    "artifact": {"name": "cdap-data-pipeline", "version": "6.1.2", "scope": "SYSTEM"},
+    "artifact": {"name": "cdap-data-pipeline", "version": "6.4.1", "scope": "SYSTEM"},
     "config": {
         "resources": {"memoryMB": 2048, "virtualCores": 1},
         "driverResources": {"memoryMB": 2048, "virtualCores": 1},
@@ -66,7 +77,7 @@ PIPELINE = {
                     "label": "GCS",
                     "artifact": {
                         "name": "google-cloud",
-                        "version": "0.14.2",
+                        "version": "0.17.3",
                         "scope": "SYSTEM",
                     },
                     "properties": {
@@ -79,7 +90,7 @@ PIPELINE = {
                         "encrypted": "false",
                         "schema": '{"type":"record","name":"etlSchemaBody","fields":'
                         '[{"name":"offset","type":"long"},{"name":"body","type":"string"}]}',
-                        "path": BUCKET1,
+                        "path": BUCKET_1_URI,
                         "referenceName": "foo_bucket",
                     },
                 },
@@ -99,7 +110,7 @@ PIPELINE = {
                     "label": "GCS2",
                     "artifact": {
                         "name": "google-cloud",
-                        "version": "0.14.2",
+                        "version": "0.17.3",
                         "scope": "SYSTEM",
                     },
                     "properties": {
@@ -111,7 +122,7 @@ PIPELINE = {
                         "schema": '{"type":"record","name":"etlSchemaBody","fields":'
                         '[{"name":"offset","type":"long"},{"name":"body","type":"string"}]}',
                         "referenceName": "bar",
-                        "path": BUCKET2,
+                        "path": BUCKET_2_URI,
                     },
                 },
                 "outputSchema": [
@@ -141,7 +152,7 @@ PIPELINE = {
 
 with models.DAG(
     "example_data_fusion",
-    schedule_interval=None,  # Override to match your needs
+    schedule_interval='@once',  # Override to match your needs
     start_date=dates.days_ago(1),
 ) as dag:
     # [START howto_cloud_data_fusion_create_instance_operator]
@@ -170,7 +181,7 @@ with models.DAG(
         location=LOCATION,
         instance_name=INSTANCE_NAME,
         instance=INSTANCE,
-        update_mask="instance.displayName",
+        update_mask="",
         task_id="update_instance",
     )
     # [END howto_cloud_data_fusion_update_instance_operator]
@@ -200,6 +211,29 @@ with models.DAG(
     )
     # [END howto_cloud_data_fusion_start_pipeline]
 
+    # [START howto_cloud_data_fusion_start_pipeline_async]
+    start_pipeline_async = CloudDataFusionStartPipelineOperator(
+        location=LOCATION,
+        pipeline_name=PIPELINE_NAME,
+        instance_name=INSTANCE_NAME,
+        asynchronous=True,
+        task_id="start_pipeline_async",
+    )
+
+    # [END howto_cloud_data_fusion_start_pipeline_async]
+
+    # [START howto_cloud_data_fusion_start_pipeline_sensor]
+    start_pipeline_sensor = CloudDataFusionPipelineStateSensor(
+        task_id="pipeline_state_sensor",
+        pipeline_name=PIPELINE_NAME,
+        pipeline_id=start_pipeline_async.output,
+        expected_statuses=["COMPLETED"],
+        failure_statuses=["FAILED"],
+        instance_name=INSTANCE_NAME,
+        location=LOCATION,
+    )
+    # [END howto_cloud_data_fusion_start_pipeline_sensor]
+
     # [START howto_cloud_data_fusion_stop_pipeline]
     stop_pipeline = CloudDataFusionStopPipelineOperator(
         location=LOCATION,
@@ -228,7 +262,16 @@ with models.DAG(
     sleep = BashOperator(task_id="sleep", bash_command="sleep 60")
 
     create_instance >> get_instance >> restart_instance >> update_instance >> sleep
-    sleep >> create_pipeline >> list_pipelines >> start_pipeline >> stop_pipeline >> delete_pipeline
+    (
+        sleep
+        >> create_pipeline
+        >> list_pipelines
+        >> start_pipeline_async
+        >> start_pipeline_sensor
+        >> start_pipeline
+        >> stop_pipeline
+        >> delete_pipeline
+    )
     delete_pipeline >> delete_instance
 
 if __name__ == "__main__":

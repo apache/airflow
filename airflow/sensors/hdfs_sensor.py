@@ -16,11 +16,10 @@
 # specific language governing permissions and limitations
 # under the License.
 
-"""This module is deprecated. Please use `airflow.providers.apache.hdfs.sensors.hdfs`."""
+"""This module is deprecated. Please use :mod:`airflow.providers.apache.hdfs.sensors.hdfs`."""
 
 import warnings
 
-# pylint: disable=unused-import
 from airflow.providers.apache.hdfs.sensors.hdfs import HdfsSensor  # noqa
 
 warnings.warn(

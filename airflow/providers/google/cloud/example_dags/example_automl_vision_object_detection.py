@@ -35,7 +35,7 @@ from airflow.utils.dates import days_ago
 GCP_PROJECT_ID = os.environ.get("GCP_PROJECT_ID", "your-project-id")
 GCP_AUTOML_LOCATION = os.environ.get("GCP_AUTOML_LOCATION", "us-central1")
 GCP_AUTOML_DETECTION_BUCKET = os.environ.get(
-    "GCP_AUTOML_DETECTION_BUCKET", "gs://cloud-ml-data/img/openimage/csv/salads_ml_use.csv"
+    "GCP_AUTOML_DETECTION_BUCKET", "gs://INVALID BUCKET NAME/img/openimage/csv/salads_ml_use.csv"
 )
 
 # Example values
@@ -71,7 +71,7 @@ with models.DAG(
         task_id="create_dataset_task", dataset=DATASET, location=GCP_AUTOML_LOCATION
     )
 
-    dataset_id = '{{ task_instance.xcom_pull("create_dataset_task", key="dataset_id") }}'
+    dataset_id = create_dataset_task.output["dataset_id"]
 
     import_dataset_task = AutoMLImportDataOperator(
         task_id="import_dataset_task",
@@ -84,7 +84,7 @@ with models.DAG(
 
     create_model = AutoMLTrainModelOperator(task_id="create_model", model=MODEL, location=GCP_AUTOML_LOCATION)
 
-    model_id = "{{ task_instance.xcom_pull('create_model', key='model_id') }}"
+    model_id = create_model.output["model_id"]
 
     delete_model_task = AutoMLDeleteModelOperator(
         task_id="delete_model_task",
@@ -100,4 +100,11 @@ with models.DAG(
         project_id=GCP_PROJECT_ID,
     )
 
-    create_dataset_task >> import_dataset_task >> create_model >> delete_model_task >> delete_datasets_task
+    import_dataset_task >> create_model
+    delete_model_task >> delete_datasets_task
+
+    # Task dependencies created via `XComArgs`:
+    #   create_dataset_task >> import_dataset_task
+    #   create_dataset_task >> create_model
+    #   create_model >> delete_model_task
+    #   create_dataset_task >> delete_datasets_task

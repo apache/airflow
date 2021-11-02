@@ -22,10 +22,6 @@ Airflow has initial support for Kerberos. This means that Airflow can renew kerb
 tickets for itself and store it in the ticket cache. The hooks and dags can make use of ticket
 to authenticate against kerberized services.
 
-.. contents::
-  :depth: 1
-  :local:
-
 Limitations
 '''''''''''
 
@@ -64,6 +60,28 @@ your ``airflow.cfg``
     keytab = /etc/airflow/airflow.keytab
     reinit_frequency = 3600
     principal = airflow
+
+If you need more granular options for your kerberos ticket the following options are available with the following default values:
+
+.. code-block:: ini
+
+    [kerberos]
+    # Location of your ccache file once kinit has been performed
+    ccache = /tmp/airflow_krb5_ccache
+    # principal gets augmented with fqdn
+    principal = airflow
+    reinit_frequency = 3600
+    kinit_path = kinit
+    keytab = airflow.keytab
+
+    # Allow kerberos token to be flag forwardable or not
+    forwardable = True
+
+    # Allow to include or remove local IP from kerberos token.
+    # This is particularly useful if you use Airflow inside a VM NATted behind host system IP.
+    include_ip = True
+
+Keep in mind that Kerberos ticket are generated via ``kinit`` and will your use your local ``krb5.conf`` by default.
 
 Launch the ticket renewer by
 

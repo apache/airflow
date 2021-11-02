@@ -43,4 +43,4 @@ class TestLivySensor(unittest.TestCase):
         for state in BatchState:
             with self.subTest(state.value):
                 mock_state.return_value = state
-                self.assertEqual(sensor.poke({}), state in LivyHook.TERMINAL_STATES)
+                assert sensor.poke({}) == (state in LivyHook.TERMINAL_STATES)

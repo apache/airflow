@@ -21,6 +21,8 @@ import os
 import unittest
 from unittest import mock
 
+import pytest
+
 from airflow.exceptions import AirflowException
 from airflow.providers.google.cloud.transfers.sftp_to_gcs import SFTPToGCSOperator
 
@@ -50,7 +52,6 @@ DESTINATION_PATH_DIR = "destination_dir"
 DESTINATION_PATH_FILE = "destination_dir/copy.txt"
 
 
-# pylint: disable=unused-argument
 class TestSFTPToGCSOperator(unittest.TestCase):
     @mock.patch("airflow.providers.google.cloud.transfers.sftp_to_gcs.GCSHook")
     @mock.patch("airflow.providers.google.cloud.transfers.sftp_to_gcs.SFTPHook")
@@ -213,8 +214,8 @@ class TestSFTPToGCSOperator(unittest.TestCase):
             sftp_conn_id=SFTP_CONN_ID,
             delegate_to=DELEGATE_TO,
         )
-        with self.assertRaises(AirflowException) as cm:
+        with pytest.raises(AirflowException) as ctx:
             task.execute(None)
 
-        err = cm.exception
-        self.assertIn("Only one wildcard '*' is allowed in source_path parameter", str(err))
+        err = ctx.value
+        assert "Only one wildcard '*' is allowed in source_path parameter" in str(err)

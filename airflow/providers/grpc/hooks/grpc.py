@@ -116,9 +116,8 @@ class GrpcHook(BaseHook):
             channel = self.custom_connection_func(self.conn)
         else:
             raise AirflowConfigException(
-                "auth_type not supported or not provided, channel cannot be established,\
-                given value: %s"
-                % str(auth_type)
+                "auth_type not supported or not provided, channel cannot be established, "
+                f"given value: {str(auth_type)}"
             )
 
         if self.interceptors:
@@ -148,8 +147,8 @@ class GrpcHook(BaseHook):
                     status code: %s, error details: %s",
                     stub.__class__.__name__,
                     call_func,
-                    ex.code(),  # pylint: disable=no-member
-                    ex.details(),  # pylint: disable=no-member
+                    ex.code(),
+                    ex.details(),
                 )
                 raise ex
 

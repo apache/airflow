@@ -19,6 +19,7 @@
 import unittest
 from unittest.mock import patch
 
+import pytest
 from paramiko import SFTP_FAILURE, SFTP_NO_SUCH_FILE
 
 from airflow.providers.sftp.sensors.sftp import SFTPSensor
@@ -32,7 +33,7 @@ class TestSFTPSensor(unittest.TestCase):
         context = {'ds': '1970-01-01'}
         output = sftp_sensor.poke(context)
         sftp_hook_mock.return_value.get_mod_time.assert_called_once_with('/path/to/file/1970-01-01.txt')
-        self.assertTrue(output)
+        assert output
 
     @patch('airflow.providers.sftp.sensors.sftp.SFTPHook')
     def test_file_absent(self, sftp_hook_mock):
@@ -41,17 +42,17 @@ class TestSFTPSensor(unittest.TestCase):
         context = {'ds': '1970-01-01'}
         output = sftp_sensor.poke(context)
         sftp_hook_mock.return_value.get_mod_time.assert_called_once_with('/path/to/file/1970-01-01.txt')
-        self.assertFalse(output)
+        assert not output
 
     @patch('airflow.providers.sftp.sensors.sftp.SFTPHook')
     def test_sftp_failure(self, sftp_hook_mock):
         sftp_hook_mock.return_value.get_mod_time.side_effect = OSError(SFTP_FAILURE, 'SFTP failure')
         sftp_sensor = SFTPSensor(task_id='unit_test', path='/path/to/file/1970-01-01.txt')
         context = {'ds': '1970-01-01'}
-        with self.assertRaises(OSError):
+        with pytest.raises(OSError):
             sftp_sensor.poke(context)
             sftp_hook_mock.return_value.get_mod_time.assert_called_once_with('/path/to/file/1970-01-01.txt')
 
     def test_hook_not_created_during_init(self):
         sftp_sensor = SFTPSensor(task_id='unit_test', path='/path/to/file/1970-01-01.txt')
-        self.assertIsNone(sftp_sensor.hook)
+        assert sftp_sensor.hook is None

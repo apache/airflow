@@ -50,19 +50,18 @@ function run_bats_tests() {
         fi
 
     done
+    local airflow_bats_image="ghcr.io/apache/airflow-bats:1.2.1-2021.07.04"
     # deduplicate
     FS=" " read -r -a bats_arguments <<< "$(tr ' ' '\n' <<< "${bats_arguments[@]}" | sort -u | tr '\n' ' ' )"
     if [[ ${#@} == "0" ]]; then
-        # Run all tests
-        docker run --workdir /airflow -v "$(pwd):/airflow" --rm \
-            apache/airflow:bats-2020.09.05-1.2.1 --tap /airflow/tests/bats/
+        # Run al tests
+        docker run --workdir /airflow -v "$(pwd):/airflow" --rm "${airflow_bats_image}" --tap /airflow/tests/bats/
     elif [[ ${#bats_arguments} == "0" ]]; then
         # Skip running anything if all filtered out
         true
     else
         # Run selected tests
-        docker run --workdir /airflow -v "$(pwd):/airflow" --rm \
-            apache/airflow:bats-2020.09.05-1.2.1 --tap "${bats_arguments[@]}"
+        docker run --workdir /airflow -v "$(pwd):/airflow" --rm "${airflow_bats_image}" --tap "${bats_arguments[@]}"
     fi
 }
 

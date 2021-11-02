@@ -21,20 +21,24 @@
 
 {% block content %}
   {{ super() }}
-  <h2>Wait a minute.</h2>
+  <h2>Wait a minute</h2>
   <div class="panel">
     <p>{{ message }}</p>
     {% if details %}
       <pre><code>{{ details }}</code></pre>
     {% endif %}
   </div>
-  <form method="POST">
+  {% if endpoint %}
+    <form method="POST" action="{{ endpoint }}">
+  {% else %}
+    <form method="POST">
+  {% endif %}
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
     <input type="hidden" name="confirmed" value="true">
-    {% for name,val in request.form.items() if name != "csrf_token" %}
+    {% for name,val in request.values.items() if name != "csrf_token" %}
       <input type="hidden" name="{{ name }}" value="{{ val }}">
     {% endfor %}
-    <button type="submit" class="btn btn-primary">OK!</button>
+    <button type="submit" class="btn btn-primary">OK</button>
     <button type="button" class="btn" onclick="window.history.back(); return false">Cancel</button>
   </form>
 {% endblock %}

@@ -21,6 +21,8 @@ import tempfile
 from datetime import datetime
 from unittest import TestCase
 
+import pytest
+
 from airflow.exceptions import AirflowException, DagRunAlreadyExists
 from airflow.models import DAG, DagBag, DagModel, DagRun, Log, TaskInstance
 from airflow.models.serialized_dag import SerializedDagModel
@@ -81,8 +83,22 @@ class TestDagRunOperator(TestCase):
 
         with create_session() as session:
             dagruns = session.query(DagRun).filter(DagRun.dag_id == TRIGGERED_DAG_ID).all()
-            self.assertEqual(len(dagruns), 1)
-            self.assertTrue(dagruns[0].external_trigger)
+            assert len(dagruns) == 1
+            assert dagruns[0].external_trigger
+
+    def test_trigger_dagrun_custom_run_id(self):
+        task = TriggerDagRunOperator(
+            task_id="test_task",
+            trigger_dag_id=TRIGGERED_DAG_ID,
+            trigger_run_id="custom_run_id",
+            dag=self.dag,
+        )
+        task.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
+
+        with create_session() as session:
+            dagruns = session.query(DagRun).filter(DagRun.dag_id == TRIGGERED_DAG_ID).all()
+            assert len(dagruns) == 1
+            assert dagruns[0].run_id == "custom_run_id"
 
     def test_trigger_dagrun_with_execution_date(self):
         """Test TriggerDagRunOperator with custom execution_date."""
@@ -97,9 +113,9 @@ class TestDagRunOperator(TestCase):
 
         with create_session() as session:
             dagruns = session.query(DagRun).filter(DagRun.dag_id == TRIGGERED_DAG_ID).all()
-            self.assertEqual(len(dagruns), 1)
-            self.assertTrue(dagruns[0].external_trigger)
-            self.assertEqual(dagruns[0].execution_date, utc_now)
+            assert len(dagruns) == 1
+            assert dagruns[0].external_trigger
+            assert dagruns[0].execution_date == utc_now
 
     def test_trigger_dagrun_twice(self):
         """Test TriggerDagRunOperator with custom execution_date."""
@@ -127,9 +143,9 @@ class TestDagRunOperator(TestCase):
             task.execute(None)
 
             dagruns = session.query(DagRun).filter(DagRun.dag_id == TRIGGERED_DAG_ID).all()
-            self.assertEqual(len(dagruns), 1)
-            self.assertTrue(dagruns[0].external_trigger)
-            self.assertEqual(dagruns[0].execution_date, utc_now)
+            assert len(dagruns) == 1
+            assert dagruns[0].external_trigger
+            assert dagruns[0].execution_date == utc_now
 
     def test_trigger_dagrun_with_templated_execution_date(self):
         """Test TriggerDagRunOperator with templated execution_date."""
@@ -143,9 +159,9 @@ class TestDagRunOperator(TestCase):
 
         with create_session() as session:
             dagruns = session.query(DagRun).filter(DagRun.dag_id == TRIGGERED_DAG_ID).all()
-            self.assertEqual(len(dagruns), 1)
-            self.assertTrue(dagruns[0].external_trigger)
-            self.assertEqual(dagruns[0].execution_date, DEFAULT_DATE)
+            assert len(dagruns) == 1
+            assert dagruns[0].external_trigger
+            assert dagruns[0].execution_date == DEFAULT_DATE
 
     def test_trigger_dagrun_operator_conf(self):
         """Test passing conf to the triggered DagRun."""
@@ -159,8 +175,19 @@ class TestDagRunOperator(TestCase):
 
         with create_session() as session:
             dagruns = session.query(DagRun).filter(DagRun.dag_id == TRIGGERED_DAG_ID).all()
-            self.assertEqual(len(dagruns), 1)
-            self.assertTrue(dagruns[0].conf, {"foo": "bar"})
+            assert len(dagruns) == 1
+            assert dagruns[0].conf, {"foo": "bar"}
+
+    def test_trigger_dagrun_operator_templated_invalid_conf(self):
+        """Test passing a conf that is not JSON Serializable raise error."""
+
+        with pytest.raises(AirflowException, match="^conf parameter should be JSON Serializable$"):
+            TriggerDagRunOperator(
+                task_id="test_trigger_dagrun_with_invalid_conf",
+                trigger_dag_id=TRIGGERED_DAG_ID,
+                conf={"foo": "{{ dag.dag_id }}", "datetime": timezone.utcnow()},
+                dag=self.dag,
+            )
 
     def test_trigger_dagrun_operator_templated_conf(self):
         """Test passing a templated conf to the triggered DagRun."""
@@ -174,8 +201,8 @@ class TestDagRunOperator(TestCase):
 
         with create_session() as session:
             dagruns = session.query(DagRun).filter(DagRun.dag_id == TRIGGERED_DAG_ID).all()
-            self.assertEqual(len(dagruns), 1)
-            self.assertTrue(dagruns[0].conf, {"foo": TEST_DAG_ID})
+            assert len(dagruns) == 1
+            assert dagruns[0].conf, {"foo": TEST_DAG_ID}
 
     def test_trigger_dagrun_with_reset_dag_run_false(self):
         """Test TriggerDagRunOperator with reset_dag_run."""
@@ -189,7 +216,7 @@ class TestDagRunOperator(TestCase):
         )
         task.run(start_date=execution_date, end_date=execution_date, ignore_ti_state=True)
 
-        with self.assertRaises(DagRunAlreadyExists):
+        with pytest.raises(DagRunAlreadyExists):
             task.run(start_date=execution_date, end_date=execution_date, ignore_ti_state=True)
 
     def test_trigger_dagrun_with_reset_dag_run_true(self):
@@ -207,8 +234,8 @@ class TestDagRunOperator(TestCase):
 
         with create_session() as session:
             dagruns = session.query(DagRun).filter(DagRun.dag_id == TRIGGERED_DAG_ID).all()
-            self.assertEqual(len(dagruns), 1)
-            self.assertTrue(dagruns[0].external_trigger)
+            assert len(dagruns) == 1
+            assert dagruns[0].external_trigger
 
     def test_trigger_dagrun_with_wait_for_completion_true(self):
         """Test TriggerDagRunOperator with wait_for_completion."""
@@ -219,14 +246,14 @@ class TestDagRunOperator(TestCase):
             execution_date=execution_date,
             wait_for_completion=True,
             poke_interval=10,
-            allowed_states=[State.RUNNING],
+            allowed_states=[State.QUEUED],
             dag=self.dag,
         )
         task.run(start_date=execution_date, end_date=execution_date)
 
         with create_session() as session:
             dagruns = session.query(DagRun).filter(DagRun.dag_id == TRIGGERED_DAG_ID).all()
-            self.assertEqual(len(dagruns), 1)
+            assert len(dagruns) == 1
 
     def test_trigger_dagrun_with_wait_for_completion_true_fail(self):
         """Test TriggerDagRunOperator with wait_for_completion but triggered dag fails."""
@@ -237,8 +264,41 @@ class TestDagRunOperator(TestCase):
             execution_date=execution_date,
             wait_for_completion=True,
             poke_interval=10,
-            failed_states=[State.RUNNING],
+            failed_states=[State.QUEUED],
             dag=self.dag,
         )
-        with self.assertRaises(AirflowException):
+        with pytest.raises(AirflowException):
+            task.run(start_date=execution_date, end_date=execution_date)
+
+    def test_trigger_dagrun_triggering_itself(self):
+        """Test TriggerDagRunOperator that triggers itself"""
+        execution_date = DEFAULT_DATE
+        task = TriggerDagRunOperator(
+            task_id="test_task",
+            trigger_dag_id=self.dag.dag_id,
+            dag=self.dag,
+        )
+        task.run(start_date=execution_date, end_date=execution_date)
+
+        with create_session() as session:
+            dagruns = (
+                session.query(DagRun)
+                .filter(DagRun.dag_id == self.dag.dag_id)
+                .order_by(DagRun.execution_date)
+                .all()
+            )
+            assert len(dagruns) == 2
+            assert dagruns[1].state == State.QUEUED
+
+    def test_trigger_dagrun_triggering_itself_with_execution_date(self):
+        """Test TriggerDagRunOperator that triggers itself with execution date,
+        fails with DagRunAlreadyExists"""
+        execution_date = DEFAULT_DATE
+        task = TriggerDagRunOperator(
+            task_id="test_task",
+            trigger_dag_id=self.dag.dag_id,
+            execution_date=execution_date,
+            dag=self.dag,
+        )
+        with pytest.raises(DagRunAlreadyExists):
             task.run(start_date=execution_date, end_date=execution_date)

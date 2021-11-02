@@ -16,16 +16,18 @@
 # specific language governing permissions and limitations
 # under the License.
 
-import unittest
+
+import pytest
 
 from airflow import models
 from airflow.api.common.experimental.delete_dag import delete_dag
-from airflow.exceptions import DagNotFound
+from airflow.exceptions import AirflowException, DagNotFound
 from airflow.operators.dummy import DummyOperator
 from airflow.utils.dates import days_ago
 from airflow.utils.session import create_session
 from airflow.utils.state import State
 from airflow.utils.types import DagRunType
+from tests.test_utils.db import clear_db_dags, clear_db_runs
 
 DM = models.DagModel
 DR = models.DagRun
@@ -36,21 +38,32 @@ TR = models.taskreschedule.TaskReschedule
 IE = models.ImportError
 
 
-class TestDeleteDAGCatchError(unittest.TestCase):
-    def setUp(self):
-        self.dagbag = models.DagBag(include_examples=True)
-        self.dag_id = 'example_bash_operator'
-        self.dag = self.dagbag.dags[self.dag_id]
-
-    def tearDown(self):
-        self.dag.clear()
-
+class TestDeleteDAGCatchError:
     def test_delete_dag_non_existent_dag(self):
-        with self.assertRaises(DagNotFound):
+        with pytest.raises(DagNotFound):
             delete_dag("non-existent DAG")
 
 
-class TestDeleteDAGSuccessfulDelete(unittest.TestCase):
+class TestDeleteDAGErrorsOnRunningTI:
+    def setup_method(self):
+        clear_db_dags()
+        clear_db_runs()
+
+    def teardown_method(self):
+        clear_db_dags()
+        clear_db_runs()
+
+    def test_delete_dag_running_taskinstances(self, session, create_task_instance):
+        dag_id = 'test-dag'
+        ti = create_task_instance(dag_id=dag_id, session=session)
+
+        ti.state = State.RUNNING
+        session.commit()
+        with pytest.raises(AirflowException):
+            delete_dag(dag_id)
+
+
+class TestDeleteDAGSuccessfulDelete:
     dag_file_path = "/usr/local/airflow/dags/test_dag_8.py"
     key = "test_dag_id"
 
@@ -67,8 +80,10 @@ class TestDeleteDAGSuccessfulDelete(unittest.TestCase):
         test_date = days_ago(1)
         with create_session() as session:
             session.add(DM(dag_id=self.key, fileloc=self.dag_file_path, is_subdag=for_sub_dag))
-            session.add(DR(dag_id=self.key, run_type=DagRunType.MANUAL))
-            session.add(TI(task=task, execution_date=test_date, state=State.SUCCESS))
+            dr = DR(dag_id=self.key, run_type=DagRunType.MANUAL, run_id="test", execution_date=test_date)
+            ti = TI(task=task, state=State.SUCCESS)
+            ti.dag_run = dr
+            session.add_all((dr, ti))
             # flush to ensure task instance if written before
             # task reschedule because of FK constraint
             session.flush()
@@ -84,8 +99,8 @@ class TestDeleteDAGSuccessfulDelete(unittest.TestCase):
             session.add(TF(task=task, execution_date=test_date, start_date=test_date, end_date=test_date))
             session.add(
                 TR(
-                    task=task,
-                    execution_date=test_date,
+                    task=ti.task,
+                    run_id=ti.run_id,
                     start_date=test_date,
                     end_date=test_date,
                     try_number=1,
@@ -100,7 +115,7 @@ class TestDeleteDAGSuccessfulDelete(unittest.TestCase):
                 )
             )
 
-    def tearDown(self):
+    def teardown_method(self):
         with create_session() as session:
             session.query(TR).filter(TR.dag_id == self.key).delete()
             session.query(TF).filter(TF.dag_id == self.key).delete()
@@ -112,23 +127,23 @@ class TestDeleteDAGSuccessfulDelete(unittest.TestCase):
 
     def check_dag_models_exists(self):
         with create_session() as session:
-            self.assertEqual(session.query(DM).filter(DM.dag_id == self.key).count(), 1)
-            self.assertEqual(session.query(DR).filter(DR.dag_id == self.key).count(), 1)
-            self.assertEqual(session.query(TI).filter(TI.dag_id == self.key).count(), 1)
-            self.assertEqual(session.query(TF).filter(TF.dag_id == self.key).count(), 1)
-            self.assertEqual(session.query(TR).filter(TR.dag_id == self.key).count(), 1)
-            self.assertEqual(session.query(LOG).filter(LOG.dag_id == self.key).count(), 1)
-            self.assertEqual(session.query(IE).filter(IE.filename == self.dag_file_path).count(), 1)
+            assert session.query(DM).filter(DM.dag_id == self.key).count() == 1
+            assert session.query(DR).filter(DR.dag_id == self.key).count() == 1
+            assert session.query(TI).filter(TI.dag_id == self.key).count() == 1
+            assert session.query(TF).filter(TF.dag_id == self.key).count() == 1
+            assert session.query(TR).filter(TR.dag_id == self.key).count() == 1
+            assert session.query(LOG).filter(LOG.dag_id == self.key).count() == 1
+            assert session.query(IE).filter(IE.filename == self.dag_file_path).count() == 1
 
     def check_dag_models_removed(self, expect_logs=1):
         with create_session() as session:
-            self.assertEqual(session.query(DM).filter(DM.dag_id == self.key).count(), 0)
-            self.assertEqual(session.query(DR).filter(DR.dag_id == self.key).count(), 0)
-            self.assertEqual(session.query(TI).filter(TI.dag_id == self.key).count(), 0)
-            self.assertEqual(session.query(TF).filter(TF.dag_id == self.key).count(), 0)
-            self.assertEqual(session.query(TR).filter(TR.dag_id == self.key).count(), 0)
-            self.assertEqual(session.query(LOG).filter(LOG.dag_id == self.key).count(), expect_logs)
-            self.assertEqual(session.query(IE).filter(IE.filename == self.dag_file_path).count(), 0)
+            assert session.query(DM).filter(DM.dag_id == self.key).count() == 0
+            assert session.query(DR).filter(DR.dag_id == self.key).count() == 0
+            assert session.query(TI).filter(TI.dag_id == self.key).count() == 0
+            assert session.query(TF).filter(TF.dag_id == self.key).count() == 0
+            assert session.query(TR).filter(TR.dag_id == self.key).count() == 0
+            assert session.query(LOG).filter(LOG.dag_id == self.key).count() == expect_logs
+            assert session.query(IE).filter(IE.filename == self.dag_file_path).count() == 0
 
     def test_delete_dag_successful_delete(self):
         self.setup_dag_models()

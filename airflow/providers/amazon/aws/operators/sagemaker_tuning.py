@@ -20,7 +20,6 @@ from typing import Optional
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 from airflow.providers.amazon.aws.operators.sagemaker_base import SageMakerBaseOperator
-from airflow.utils.decorators import apply_defaults
 
 
 class SageMakerTuningOperator(SageMakerBaseOperator):
@@ -55,7 +54,6 @@ class SageMakerTuningOperator(SageMakerBaseOperator):
         ['TrainingJobDefinition', 'StoppingCondition', 'MaxRuntimeInSeconds'],
     ]
 
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -92,6 +90,6 @@ class SageMakerTuningOperator(SageMakerBaseOperator):
             max_ingestion_time=self.max_ingestion_time,
         )
         if response['ResponseMetadata']['HTTPStatusCode'] != 200:
-            raise AirflowException('Sagemaker Tuning Job creation failed: %s' % response)
+            raise AirflowException(f'Sagemaker Tuning Job creation failed: {response}')
         else:
             return {'Tuning': self.hook.describe_tuning_job(self.config['HyperParameterTuningJobName'])}

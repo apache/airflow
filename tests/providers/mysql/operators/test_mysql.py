@@ -15,7 +15,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+import os
 import unittest
+from contextlib import closing
+from tempfile import NamedTemporaryFile
 
 import pytest
 from parameterized import parameterized
@@ -41,9 +44,10 @@ class TestMySql(unittest.TestCase):
 
     def tearDown(self):
         drop_tables = {'test_mysql_to_mysql', 'test_airflow'}
-        with MySqlHook().get_conn() as conn:
-            for table in drop_tables:
-                conn.execute(f"DROP TABLE IF EXISTS {table}")
+        with closing(MySqlHook().get_conn()) as conn:
+            with closing(conn.cursor()) as cursor:
+                for table in drop_tables:
+                    cursor.execute(f"DROP TABLE IF EXISTS {table}")
 
     @parameterized.expand(
         [
@@ -100,9 +104,25 @@ class TestMySql(unittest.TestCase):
                 database="foobar",
             )
 
-            from _mysql_exceptions import OperationalError
+            from MySQLdb import OperationalError
 
             try:
                 op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
             except OperationalError as e:
                 assert "Unknown database 'foobar'" in str(e)
+
+    def test_mysql_operator_resolve_parameters_template_json_file(self):
+
+        with NamedTemporaryFile(suffix='.json') as f:
+            f.write(b"{\n \"foo\": \"{{ ds }}\"}")
+            f.flush()
+            template_dir = os.path.dirname(f.name)
+            template_file = os.path.basename(f.name)
+
+            with DAG("test-dag", start_date=DEFAULT_DATE, template_searchpath=template_dir):
+                task = MySqlOperator(task_id="op1", parameters=template_file, sql="SELECT 1")
+
+            task.resolve_template_files()
+
+        assert isinstance(task.parameters, dict)
+        assert task.parameters["foo"] == "{{ ds }}"

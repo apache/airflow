@@ -24,7 +24,7 @@ from airflow.providers.google.cloud.operators.translate_speech import CloudTrans
 from airflow.utils import dates
 
 GCP_PROJECT_ID = os.environ.get("GCP_PROJECT_ID", "example-project")
-BUCKET_NAME = os.environ.get("GCP_TRANSLATE_SPEECH_TEST_BUCKET", "gcp-translate-speech-test-bucket")
+BUCKET_NAME = os.environ.get("GCP_TRANSLATE_SPEECH_TEST_BUCKET", "INVALID BUCKET NAME")
 
 # [START howto_operator_translate_speech_gcp_filename]
 FILENAME = "gcp-speech-test-file"
@@ -48,7 +48,7 @@ SOURCE_LANGUAGE = None  # type: None
 
 with models.DAG(
     "example_gcp_translate_speech",
-    schedule_interval=None,  # Override to match your needs
+    schedule_interval='@once',  # Override to match your needs
     start_date=dates.days_ago(1),
     tags=['example'],
 ) as dag:

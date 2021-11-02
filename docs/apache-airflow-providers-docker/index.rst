@@ -26,11 +26,55 @@ Content
     :maxdepth: 1
     :caption: References
 
+    Connection types <connections/docker>
     Python API <_api/airflow/providers/docker/index>
 
 .. toctree::
     :maxdepth: 1
     :caption: Resources
 
-    Example DAGs <https://github.com/apache/airflow/tree/master/airflow/providers/docker/example_dags>
+    Example DAGs <https://github.com/apache/airflow/tree/main/airflow/providers/docker/example_dags>
     PyPI Repository <https://pypi.org/project/apache-airflow-providers-docker/>
+    Installing from sources <installing-providers-from-sources>
+
+.. THE REMAINDER OF THE FILE IS AUTOMATICALLY GENERATED. IT WILL BE OVERWRITTEN AT RELEASE TIME!
+
+
+.. toctree::
+    :maxdepth: 1
+    :caption: Commits
+
+    Detailed list of commits <commits>
+
+
+Package apache-airflow-providers-docker
+------------------------------------------------------
+
+`Docker <https://docs.docker.com/install/>`__
+
+
+Release: 2.3.0
+
+Provider package
+----------------
+
+This is a provider package for ``docker`` provider. All classes for this provider package
+are in ``airflow.providers.docker`` python package.
+
+Installation
+------------
+
+You can install this package on top of an existing airflow 2.1+ installation via
+``pip install apache-airflow-providers-docker``
+
+PIP requirements
+----------------
+
+==================  ==================
+PIP package         Version required
+==================  ==================
+``apache-airflow``  ``>=2.1.0``
+``docker``          ``>=5.0.3``
+==================  ==================
+
+.. include:: ../../airflow/providers/docker/CHANGELOG.rst

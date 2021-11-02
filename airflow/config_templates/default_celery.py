@@ -41,8 +41,8 @@ DEFAULT_CELERY_CONFIG = {
     'event_serializer': 'json',
     'worker_prefetch_multiplier': conf.getint('celery', 'worker_prefetch_multiplier', fallback=1),
     'task_acks_late': True,
-    'task_default_queue': conf.get('celery', 'DEFAULT_QUEUE'),
-    'task_default_exchange': conf.get('celery', 'DEFAULT_QUEUE'),
+    'task_default_queue': conf.get('operators', 'DEFAULT_QUEUE'),
+    'task_default_exchange': conf.get('operators', 'DEFAULT_QUEUE'),
     'task_track_started': conf.get('celery', 'task_track_started', fallback=True),
     'broker_url': broker_url,
     'broker_transport_options': broker_transport_options,
@@ -87,9 +87,8 @@ except AirflowConfigException:
     )
 except Exception as e:
     raise AirflowException(
-        'Exception: There was an unknown Celery SSL Error. '
-        'Please ensure you want to use '
-        'SSL and/or have all necessary certs and key ({}).'.format(e)
+        f'Exception: There was an unknown Celery SSL Error. Please ensure you want to use SSL and/or have '
+        f'all necessary certs and key ({e}).'
     )
 
 result_backend = DEFAULT_CELERY_CONFIG['result_backend']

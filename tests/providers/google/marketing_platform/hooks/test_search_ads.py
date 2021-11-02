@@ -42,7 +42,7 @@ class TestSearchAdsHook(TestCase):
             http=mock_authorize.return_value,
             cache_discovery=False,
         )
-        self.assertEqual(mock_build.return_value, result)
+        assert mock_build.return_value == result
 
     @mock.patch("airflow.providers.google.marketing_platform.hooks.search_ads.GoogleSearchAdsHook.get_conn")
     def test_insert(self, get_conn_mock):
@@ -57,7 +57,7 @@ class TestSearchAdsHook(TestCase):
 
         get_conn_mock.return_value.reports.return_value.request.assert_called_once_with(body=report)
 
-        self.assertEqual(return_value, result)
+        assert return_value == result
 
     @mock.patch("airflow.providers.google.marketing_platform.hooks.search_ads.GoogleSearchAdsHook.get_conn")
     def test_get(self, get_conn_mock):
@@ -70,7 +70,7 @@ class TestSearchAdsHook(TestCase):
 
         get_conn_mock.return_value.reports.return_value.get.assert_called_once_with(reportId=report_id)
 
-        self.assertEqual(return_value, result)
+        assert return_value == result
 
     @mock.patch("airflow.providers.google.marketing_platform.hooks.search_ads.GoogleSearchAdsHook.get_conn")
     def test_get_file(self, get_conn_mock):
@@ -88,4 +88,4 @@ class TestSearchAdsHook(TestCase):
             reportFragment=report_fragment, reportId=report_id
         )
 
-        self.assertEqual(return_value, result)
+        assert return_value == result

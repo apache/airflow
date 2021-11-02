@@ -20,7 +20,7 @@
 
 set -eu
 
-# HEAD^1 says the "first" parent. For PR merge commits, or master commits, this is the "right" commit.
+# HEAD^1 says the "first" parent. For PR merge commits, or main commits, this is the "right" commit.
 #
 # In this example, 9c532b6 is the PR commit (HEAD^2), 4840892 is the head GitHub checks-out for us, and db121f7 is the
 # "merge target" (HEAD^1) -- i.e. mainline
@@ -50,7 +50,7 @@ mkdir -p "${GO_CLIENT_PATH}"
 # generate client for target patch
 mkdir -p "${GO_TARGET_CLIENT_PATH}"
 
-git reset --hard "${previous_mainline_commit}"
+git checkout "${previous_mainline_commit}" -- "$SPEC_FILE"
 ./clients/gen/go.sh "${SPEC_FILE}" "${GO_TARGET_CLIENT_PATH}"
 
 diff -u "${GO_TARGET_CLIENT_PATH}" "${GO_CLIENT_PATH}" || true

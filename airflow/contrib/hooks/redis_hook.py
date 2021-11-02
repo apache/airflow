@@ -15,11 +15,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""This module is deprecated. Please use `airflow.providers.redis.hooks.redis`."""
+"""This module is deprecated. Please use :mod:`airflow.providers.redis.hooks.redis`."""
 
 import warnings
 
-# pylint: disable=unused-import
 from airflow.providers.redis.hooks.redis import RedisHook  # noqa
 
 warnings.warn(

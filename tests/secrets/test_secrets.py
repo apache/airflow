@@ -55,8 +55,8 @@ class TestConnectionsFromSecrets(unittest.TestCase):
         backends = initialize_secrets_backends()
         backend_classes = [backend.__class__.__name__ for backend in backends]
 
-        self.assertEqual(3, len(backends))
-        self.assertIn('SystemsManagerParameterStoreBackend', backend_classes)
+        assert 3 == len(backends)
+        assert 'SystemsManagerParameterStoreBackend' in backend_classes
 
     @conf_vars(
         {
@@ -75,7 +75,7 @@ class TestConnectionsFromSecrets(unittest.TestCase):
             if backend.__class__.__name__ == 'SystemsManagerParameterStoreBackend'
         ][0]
 
-        self.assertEqual(systems_manager.kwargs, {'use_ssl': False})
+        assert systems_manager.kwargs == {'use_ssl': False}
 
     @conf_vars(
         {
@@ -101,14 +101,14 @@ class TestConnectionsFromSecrets(unittest.TestCase):
 
         backends = ensure_secrets_loaded()
         backend_classes = [backend.__class__.__name__ for backend in backends]
-        self.assertIn('SystemsManagerParameterStoreBackend', backend_classes)
+        assert 'SystemsManagerParameterStoreBackend' in backend_classes
 
         conn = Connection.get_connection_from_secrets(conn_id="test_mysql")
 
         # Assert that SystemsManagerParameterStoreBackend.get_conn_uri was called
         mock_get_uri.assert_called_once_with(conn_id='test_mysql')
 
-        self.assertEqual('mysql://airflow:airflow@host:5432/airflow', conn.get_uri())
+        assert 'mysql://airflow:airflow@host:5432/airflow' == conn.get_uri()
 
 
 class TestVariableFromSecrets(unittest.TestCase):
@@ -148,4 +148,4 @@ class TestVariableFromSecrets(unittest.TestCase):
         the value returned is default_var
         """
         variable_value = Variable.get(key="test_var", default_var="new")
-        self.assertEqual("new", variable_value)
+        assert "new" == variable_value

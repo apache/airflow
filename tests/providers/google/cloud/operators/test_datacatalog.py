@@ -144,7 +144,7 @@ class TestCloudDataCatalogCreateEntryOperator(TestCase):
             metadata=TEST_METADATA,
         )
         ti.xcom_push.assert_called_once_with(key="entry_id", value=TEST_ENTRY_ID)
-        self.assertEqual(TEST_ENTRY_DICT, result)
+        assert TEST_ENTRY_DICT == result
 
     @mock.patch(
         "airflow.providers.google.cloud.operators.datacatalog.CloudDataCatalogHook",
@@ -193,7 +193,7 @@ class TestCloudDataCatalogCreateEntryOperator(TestCase):
             metadata=TEST_METADATA,
         )
         ti.xcom_push.assert_called_once_with(key="entry_id", value=TEST_ENTRY_ID)
-        self.assertEqual(TEST_ENTRY_DICT, result)
+        assert TEST_ENTRY_DICT == result
 
 
 class TestCloudDataCatalogCreateEntryGroupOperator(TestCase):
@@ -230,7 +230,7 @@ class TestCloudDataCatalogCreateEntryGroupOperator(TestCase):
             metadata=TEST_METADATA,
         )
         ti.xcom_push.assert_called_once_with(key="entry_group_id", value=TEST_ENTRY_GROUP_ID)
-        self.assertEqual(result, TEST_ENTRY_GROUP_DICT)
+        assert result == TEST_ENTRY_GROUP_DICT
 
 
 class TestCloudDataCatalogCreateTagOperator(TestCase):
@@ -271,7 +271,7 @@ class TestCloudDataCatalogCreateTagOperator(TestCase):
             metadata=TEST_METADATA,
         )
         ti.xcom_push.assert_called_once_with(key="tag_id", value=TEST_TAG_ID)
-        self.assertEqual(TEST_TAG_DICT, result)
+        assert TEST_TAG_DICT == result
 
 
 class TestCloudDataCatalogCreateTagTemplateOperator(TestCase):
@@ -308,7 +308,7 @@ class TestCloudDataCatalogCreateTagTemplateOperator(TestCase):
             metadata=TEST_METADATA,
         )
         ti.xcom_push.assert_called_once_with(key="tag_template_id", value=TEST_TAG_TEMPLATE_ID)
-        self.assertEqual(TEST_TAG_TEMPLATE_DICT, result)
+        assert TEST_TAG_TEMPLATE_DICT == result
 
 
 class TestCloudDataCatalogCreateTagTemplateFieldOperator(TestCase):
@@ -347,7 +347,7 @@ class TestCloudDataCatalogCreateTagTemplateFieldOperator(TestCase):
             metadata=TEST_METADATA,
         )
         ti.xcom_push.assert_called_once_with(key="tag_template_field_id", value=TEST_TAG_TEMPLATE_FIELD_ID)
-        self.assertEqual(TEST_TAG_TEMPLATE_FIELD_DICT, result)
+        assert TEST_TAG_TEMPLATE_FIELD_DICT == result
 
 
 class TestCloudDataCatalogDeleteEntryOperator(TestCase):

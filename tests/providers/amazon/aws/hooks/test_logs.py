@@ -32,7 +32,7 @@ class TestAwsLogsHook(unittest.TestCase):
     @mock_logs
     def test_get_conn_returns_a_boto3_connection(self):
         hook = AwsLogsHook(aws_conn_id='aws_default', region_name="us-east-1")
-        self.assertIsNotNone(hook.get_conn())
+        assert hook.get_conn() is not None
 
     @unittest.skipIf(mock_logs is None, 'mock_logs package not present')
     # moto.logs does not support proper pagination so we cannot test that yet

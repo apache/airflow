@@ -225,16 +225,49 @@ class WebserverDeploymentTest(unittest.TestCase):
             assert {
                 "name": "logs",
                 "persistentVolumeClaim": {"claimName": expected_claim_name},
-            } == jmespath.search("spec.template.spec.volumes[1]", docs[0])
+            } in jmespath.search("spec.template.spec.volumes", docs[0])
             assert {
                 "name": "logs",
                 "mountPath": "/opt/airflow/logs",
-            } == jmespath.search("spec.template.spec.containers[0].volumeMounts[1]", docs[0])
+            } in jmespath.search("spec.template.spec.containers[0].volumeMounts", docs[0])
         else:
             assert "logs" not in [v["name"] for v in jmespath.search("spec.template.spec.volumes", docs[0])]
             assert "logs" not in [
                 v["name"] for v in jmespath.search("spec.template.spec.containers[0].volumeMounts", docs[0])
             ]
+
+    @parameterized.expand(
+        [
+            ("1.10.10", False),
+            ("1.10.12", True),
+            ("2.1.0", True),
+        ]
+    )
+    def test_config_volumes_and_mounts(self, af_version, pod_template_file_expected):
+        # setup
+        docs = render_chart(
+            values={"airflowVersion": af_version},
+            show_only=["templates/webserver/webserver-deployment.yaml"],
+        )
+
+        # default config
+        assert {
+            "name": "config",
+            "mountPath": "/opt/airflow/airflow.cfg",
+            "readOnly": True,
+            "subPath": "airflow.cfg",
+        } in jmespath.search("spec.template.spec.containers[0].volumeMounts", docs[0])
+
+        # pod_template_file config
+        assert pod_template_file_expected == (
+            {
+                "name": "config",
+                "mountPath": "/opt/airflow/pod_templates/pod_template_file.yaml",
+                "readOnly": True,
+                "subPath": "pod_template_file.yaml",
+            }
+            in jmespath.search("spec.template.spec.containers[0].volumeMounts", docs[0])
+        )
 
     def test_webserver_resources_are_configurable(self):
         docs = render_chart(
@@ -301,8 +334,10 @@ class WebserverDeploymentTest(unittest.TestCase):
 
         assert jmespath.search("spec.strategy", docs[0]) == expected_strategy
 
-    def test_no_airflow_local_settings_by_default(self):
-        docs = render_chart(show_only=["templates/webserver/webserver-deployment.yaml"])
+    def test_no_airflow_local_settings(self):
+        docs = render_chart(
+            values={"airflowLocalSettings": None}, show_only=["templates/webserver/webserver-deployment.yaml"]
+        )
         volume_mounts = jmespath.search("spec.template.spec.containers[0].volumeMounts", docs[0])
         assert "airflow_local_settings.py" not in str(volume_mounts)
 
@@ -452,6 +487,7 @@ class WebserverServiceTest(unittest.TestCase):
                         "type": "LoadBalancer",
                         "loadBalancerIP": "127.0.0.1",
                         "annotations": {"foo": "bar"},
+                        "loadBalancerSourceRanges": ["10.123.0.0/16"],
                     }
                 },
             },
@@ -462,6 +498,7 @@ class WebserverServiceTest(unittest.TestCase):
         assert "LoadBalancer" == jmespath.search("spec.type", docs[0])
         assert {"name": "airflow-ui", "port": 9000} in jmespath.search("spec.ports", docs[0])
         assert "127.0.0.1" == jmespath.search("spec.loadBalancerIP", docs[0])
+        assert ["10.123.0.0/16"] == jmespath.search("spec.loadBalancerSourceRanges", docs[0])
 
     @parameterized.expand(
         [

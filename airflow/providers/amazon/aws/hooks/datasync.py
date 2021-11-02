@@ -35,8 +35,9 @@ class AWSDataSyncHook(AwsBaseHook):
         :class:`~airflow.providers.amazon.aws.hooks.base_aws.AwsBaseHook`
         :class:`~airflow.providers.amazon.aws.operators.datasync.AWSDataSyncOperator`
 
-    :param int wait_for_task_execution: Time to wait between two
-        consecutive calls to check TaskExecution status.
+    :param wait_interval_seconds: Time to wait between two
+        consecutive calls to check TaskExecution status. Defaults to 30 seconds.
+    :type wait_interval_seconds: Optional[int]
     :raises ValueError: If wait_interval_seconds is not between 0 and 15*60 seconds.
     """
 
@@ -51,13 +52,13 @@ class AWSDataSyncHook(AwsBaseHook):
     TASK_EXECUTION_FAILURE_STATES = ("ERROR",)
     TASK_EXECUTION_SUCCESS_STATES = ("SUCCESS",)
 
-    def __init__(self, wait_interval_seconds: int = 5, *args, **kwargs) -> None:
+    def __init__(self, wait_interval_seconds: int = 30, *args, **kwargs) -> None:
         super().__init__(client_type='datasync', *args, **kwargs)  # type: ignore[misc]
         self.locations: list = []
         self.tasks: list = []
         # wait_interval_seconds = 0 is used during unit tests
         if wait_interval_seconds < 0 or wait_interval_seconds > 15 * 60:
-            raise ValueError("Invalid wait_interval_seconds %s" % wait_interval_seconds)
+            raise ValueError(f"Invalid wait_interval_seconds {wait_interval_seconds}")
         self.wait_interval_seconds = wait_interval_seconds
 
     def create_location(self, location_uri: str, **create_location_kwargs) -> str:
@@ -278,7 +279,7 @@ class AWSDataSyncHook(AwsBaseHook):
             return task_description["CurrentTaskExecutionArn"]
         return None
 
-    def wait_for_task_execution(self, task_execution_arn: str, max_iterations: int = 2 * 180) -> bool:
+    def wait_for_task_execution(self, task_execution_arn: str, max_iterations: int = 60) -> bool:
         """
         Wait for Task Execution status to be complete (SUCCESS/ERROR).
         The ``task_execution_arn`` must exist, or a boto3 ClientError will be raised.
@@ -314,4 +315,4 @@ class AWSDataSyncHook(AwsBaseHook):
             return False
         if iterations <= 0:
             raise AirflowTaskTimeout("Max iterations exceeded!")
-        raise AirflowException("Unknown status: %s" % status)  # Should never happen
+        raise AirflowException(f"Unknown status: {status}")  # Should never happen

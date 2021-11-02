@@ -25,7 +25,6 @@ from airflow.providers.google.cloud.hooks.cloud_storage_transfer_service import 
     CloudDataTransferServiceHook,
 )
 from airflow.sensors.base import BaseSensorOperator
-from airflow.utils.decorators import apply_defaults
 
 
 class CloudDataTransferServiceJobStatusSensor(BaseSensorOperator):
@@ -67,7 +66,6 @@ class CloudDataTransferServiceJobStatusSensor(BaseSensorOperator):
     )
     # [END gcp_transfer_job_sensor_template_fields]
 
-    @apply_defaults
     def __init__(
         self,
         *,

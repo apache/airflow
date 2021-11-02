@@ -20,7 +20,6 @@ from typing import Optional, Sequence, Union
 
 from airflow.providers.google.cloud.hooks.bigquery import BigQueryHook
 from airflow.sensors.base import BaseSensorOperator
-from airflow.utils.decorators import apply_defaults
 
 
 class BigQueryTableExistenceSensor(BaseSensorOperator):
@@ -62,7 +61,6 @@ class BigQueryTableExistenceSensor(BaseSensorOperator):
     )
     ui_color = '#f0eee4'
 
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -138,7 +136,6 @@ class BigQueryTablePartitionExistenceSensor(BaseSensorOperator):
     )
     ui_color = '#f0eee4'
 
-    @apply_defaults
     def __init__(
         self,
         *,

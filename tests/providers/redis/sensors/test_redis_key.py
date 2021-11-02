@@ -43,6 +43,6 @@ class TestRedisSensor(unittest.TestCase):
         hook = RedisHook(redis_conn_id='redis_default')
         redis = hook.get_conn()
         redis.set('test_key', 'test_value')
-        self.assertTrue(self.sensor.poke(None), "Key exists on first call.")
+        assert self.sensor.poke(None), "Key exists on first call."
         redis.delete('test_key')
-        self.assertFalse(self.sensor.poke(None), "Key does NOT exists on second call.")
+        assert not self.sensor.poke(None), "Key does NOT exists on second call."

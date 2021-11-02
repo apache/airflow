@@ -21,6 +21,7 @@ import unittest
 from unittest import mock
 
 import dill
+import pytest
 
 try:
     from airflow.providers.google.cloud.utils import mlengine_prediction_summary
@@ -31,10 +32,10 @@ except ImportError as e:
 
 class TestJsonCode(unittest.TestCase):
     def test_encode(self):
-        self.assertEqual(b'{"a": 1}', mlengine_prediction_summary.JsonCoder.encode({'a': 1}))
+        assert b'{"a": 1}' == mlengine_prediction_summary.JsonCoder.encode({'a': 1})
 
     def test_decode(self):
-        self.assertEqual({'a': 1}, mlengine_prediction_summary.JsonCoder.decode('{"a": 1}'))
+        assert {'a': 1} == mlengine_prediction_summary.JsonCoder.decode('{"a": 1}')
 
 
 class TestMakeSummary(unittest.TestCase):
@@ -42,17 +43,17 @@ class TestMakeSummary(unittest.TestCase):
         print(mlengine_prediction_summary.MakeSummary(1, lambda x: x, []))
 
     def test_run_without_all_arguments_should_raise_exception(self):
-        with self.assertRaises(SystemExit):
+        with pytest.raises(SystemExit):
             mlengine_prediction_summary.run()
 
-        with self.assertRaises(SystemExit):
+        with pytest.raises(SystemExit):
             mlengine_prediction_summary.run(
                 [
                     "--prediction_path=some/path",
                 ]
             )
 
-        with self.assertRaises(SystemExit):
+        with pytest.raises(SystemExit):
             mlengine_prediction_summary.run(
                 [
                     "--prediction_path=some/path",
@@ -61,7 +62,7 @@ class TestMakeSummary(unittest.TestCase):
             )
 
     def test_run_should_fail_for_invalid_encoded_fn(self):
-        with self.assertRaises(binascii.Error):
+        with pytest.raises(binascii.Error):
             mlengine_prediction_summary.run(
                 [
                     "--prediction_path=some/path",
@@ -74,7 +75,7 @@ class TestMakeSummary(unittest.TestCase):
         non_callable_value = 1
         fn_enc = base64.b64encode(dill.dumps(non_callable_value)).decode('utf-8')
 
-        with self.assertRaises(ValueError):
+        with pytest.raises(ValueError):
             mlengine_prediction_summary.run(
                 [
                     "--prediction_path=some/path",

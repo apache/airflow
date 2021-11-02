@@ -86,11 +86,11 @@ class RunState:
         return str(self.__dict__)
 
 
-class DatabricksHook(BaseHook):  # noqa
+class DatabricksHook(BaseHook):
     """
     Interact with Databricks.
 
-    :param databricks_conn_id: The name of the databricks connection to use.
+    :param databricks_conn_id: Reference to the :ref:`Databricks connection <howto/connection:databricks>`.
     :type databricks_conn_id: str
     :param timeout_seconds: The amount of time in seconds the requests library
         will wait before timing-out.
@@ -117,7 +117,7 @@ class DatabricksHook(BaseHook):  # noqa
     ) -> None:
         super().__init__()
         self.databricks_conn_id = databricks_conn_id
-        self.databricks_conn = self.get_connection(databricks_conn_id)
+        self.databricks_conn = None
         self.timeout_seconds = timeout_seconds
         if retry_limit < 1:
             raise ValueError('Retry limit must be greater than equal to 1')
@@ -166,6 +166,8 @@ class DatabricksHook(BaseHook):  # noqa
         """
         method, endpoint = endpoint_info
 
+        self.databricks_conn = self.get_connection(self.databricks_conn_id)
+
         if 'token' in self.databricks_conn.extra_dejson:
             self.log.info('Using token auth. ')
             auth = _TokenAuth(self.databricks_conn.extra_dejson['token'])
@@ -178,7 +180,7 @@ class DatabricksHook(BaseHook):  # noqa
             auth = (self.databricks_conn.login, self.databricks_conn.password)
             host = self.databricks_conn.host
 
-        url = 'https://{host}/{endpoint}'.format(host=self._parse_host(host), endpoint=endpoint)
+        url = f'https://{self._parse_host(host)}/{endpoint}'
 
         if method == 'GET':
             request_func = requests.get
@@ -214,7 +216,7 @@ class DatabricksHook(BaseHook):  # noqa
 
             if attempt_num == self.retry_limit:
                 raise AirflowException(
-                    ('API requests to Databricks failed {} times. ' + 'Giving up.').format(self.retry_limit)
+                    f'API requests to Databricks failed {self.retry_limit} times. Giving up.'
                 )
 
             attempt_num += 1

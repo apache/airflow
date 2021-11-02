@@ -38,5 +38,48 @@ Content
     :maxdepth: 1
     :caption: Resources
 
-    Example DAGs <https://github.com/apache/airflow/tree/master/airflow/providers/apache/spark/example_dags>
+    Example DAGs <https://github.com/apache/airflow/tree/main/airflow/providers/apache/spark/example_dags>
     PyPI Repository <https://pypi.org/project/apache-airflow-providers-apache-spark/>
+    Installing from sources <installing-providers-from-sources>
+
+.. THE REMAINDER OF THE FILE IS AUTOMATICALLY GENERATED. IT WILL BE OVERWRITTEN AT RELEASE TIME!
+
+
+.. toctree::
+    :maxdepth: 1
+    :caption: Commits
+
+    Detailed list of commits <commits>
+
+
+Package apache-airflow-providers-apache-spark
+------------------------------------------------------
+
+`Apache Spark <https://spark.apache.org/>`__
+
+
+Release: 2.0.1
+
+Provider package
+----------------
+
+This is a provider package for ``apache.spark`` provider. All classes for this provider package
+are in ``airflow.providers.apache.spark`` python package.
+
+Installation
+------------
+
+You can install this package on top of an existing airflow 2.1+ installation via
+``pip install apache-airflow-providers-apache-spark``
+
+PIP requirements
+----------------
+
+==================  ==================
+PIP package         Version required
+==================  ==================
+``apache-airflow``  ``>=2.1.0``
+``pyspark``
+==================  ==================
+
+.. include:: ../../airflow/providers/apache/spark/CHANGELOG.rst

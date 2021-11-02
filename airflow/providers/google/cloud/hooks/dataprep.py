@@ -38,7 +38,7 @@ class GoogleDataprepHook(BaseHook):
     """
 
     conn_name_attr = 'dataprep_conn_id'
-    default_conn_name = 'dataprep_default'
+    default_conn_name = 'google_cloud_dataprep_default'
     conn_type = 'dataprep'
     hook_name = 'Google Dataprep'
 

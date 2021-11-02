@@ -27,7 +27,7 @@ class PoolSlotsAvailableDep(BaseTIDep):
     """Dep for pool slots availability."""
 
     NAME = "Pool Slots Available"
-    IGNOREABLE = True
+    IGNORABLE = True
 
     @provide_session
     def _get_dep_statuses(self, ti, session, dep_context=None):
@@ -55,7 +55,7 @@ class PoolSlotsAvailableDep(BaseTIDep):
         else:
             # Controlled by UNIQUE key in slot_pool table,
             # only one result can be returned.
-            open_slots = pools[0].open_slots()
+            open_slots = pools[0].open_slots(session=session)
 
         if ti.state in EXECUTION_STATES:
             open_slots += ti.pool_slots

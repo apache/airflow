@@ -52,4 +52,4 @@ class AwsBaseHookSystemTest(GoogleSystemTest):
 
             client = hook.get_conn()
             response = client.list_buckets()
-            self.assertIn('Buckets', response)
+            assert 'Buckets' in response

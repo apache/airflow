@@ -29,7 +29,7 @@ class TestMySqlToS3Operator(unittest.TestCase):
     @mock.patch("airflow.providers.amazon.aws.transfers.mysql_to_s3.NamedTemporaryFile")
     @mock.patch("airflow.providers.amazon.aws.transfers.mysql_to_s3.S3Hook")
     @mock.patch("airflow.providers.amazon.aws.transfers.mysql_to_s3.MySqlHook")
-    def test_execute(self, mock_mysql_hook, mock_s3_hook, temp_mock):
+    def test_execute_csv(self, mock_mysql_hook, mock_s3_hook, temp_mock):
         query = "query"
         s3_bucket = "bucket"
         s3_key = "key"
@@ -47,6 +47,8 @@ class TestMySqlToS3Operator(unittest.TestCase):
                 mysql_conn_id="mysql_conn_id",
                 aws_conn_id="aws_conn_id",
                 task_id="task_id",
+                index=True,
+                header=True,
                 pd_csv_kwargs={'index': False, 'header': False},
                 dag=None,
             )
@@ -57,6 +59,41 @@ class TestMySqlToS3Operator(unittest.TestCase):
             get_pandas_df_mock.assert_called_once_with(query)
 
             temp_mock.assert_called_once_with(mode='r+', suffix=".csv")
+            mock_s3_hook.return_value.load_file.assert_called_once_with(
+                filename=f.name, key=s3_key, bucket_name=s3_bucket
+            )
+
+    @mock.patch("airflow.providers.amazon.aws.transfers.mysql_to_s3.NamedTemporaryFile")
+    @mock.patch("airflow.providers.amazon.aws.transfers.mysql_to_s3.S3Hook")
+    @mock.patch("airflow.providers.amazon.aws.transfers.mysql_to_s3.MySqlHook")
+    def test_execute_parquet(self, mock_mysql_hook, mock_s3_hook, temp_mock):
+        query = "query"
+        s3_bucket = "bucket"
+        s3_key = "key"
+
+        test_df = pd.DataFrame({'a': '1', 'b': '2'}, index=[0, 1])
+        get_pandas_df_mock = mock_mysql_hook.return_value.get_pandas_df
+        get_pandas_df_mock.return_value = test_df
+        with NamedTemporaryFile() as f:
+            temp_mock.return_value.__enter__.return_value.name = f.name
+
+            op = MySQLToS3Operator(
+                query=query,
+                s3_bucket=s3_bucket,
+                s3_key=s3_key,
+                mysql_conn_id="mysql_conn_id",
+                aws_conn_id="aws_conn_id",
+                task_id="task_id",
+                file_format="parquet",
+                dag=None,
+            )
+            op.execute(None)
+            mock_mysql_hook.assert_called_once_with(mysql_conn_id="mysql_conn_id")
+            mock_s3_hook.assert_called_once_with(aws_conn_id="aws_conn_id", verify=None)
+
+            get_pandas_df_mock.assert_called_once_with(query)
+
+            temp_mock.assert_called_once_with(mode='rb+', suffix=".parquet")
             mock_s3_hook.return_value.load_file.assert_called_once_with(
                 filename=f.name, key=s3_key, bucket_name=s3_bucket
             )

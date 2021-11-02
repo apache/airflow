@@ -54,7 +54,7 @@ class TestAwsRedshiftClusterSensor(unittest.TestCase):
             cluster_identifier='test_cluster',
             target_status='available',
         )
-        self.assertTrue(op.poke(None))
+        assert op.poke(None)
 
     @unittest.skipIf(mock_redshift is None, 'mock_redshift package not present')
     @mock_redshift
@@ -69,7 +69,7 @@ class TestAwsRedshiftClusterSensor(unittest.TestCase):
             target_status='available',
         )
 
-        self.assertFalse(op.poke(None))
+        assert not op.poke(None)
 
     @unittest.skipIf(mock_redshift is None, 'mock_redshift package not present')
     @mock_redshift
@@ -84,4 +84,4 @@ class TestAwsRedshiftClusterSensor(unittest.TestCase):
             target_status='cluster_not_found',
         )
 
-        self.assertTrue(op.poke(None))
+        assert op.poke(None)

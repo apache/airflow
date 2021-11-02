@@ -23,7 +23,12 @@ test -v ADDITIONAL_PYTHON_DEPS
 test -v EAGER_UPGRADE_ADDITIONAL_REQUIREMENTS
 test -v AIRFLOW_INSTALL_USER_FLAG
 test -v AIRFLOW_PIP_VERSION
-test -v CONTINUE_ON_PIP_CHECK_FAILURE
+
+# shellcheck source=scripts/docker/common.sh
+. "$( dirname "${BASH_SOURCE[0]}" )/common.sh"
+
+
+set -x
 
 # Installs additional dependencies passed as Argument to the Docker build command
 function install_additional_dependencies() {
@@ -35,7 +40,7 @@ function install_additional_dependencies() {
             ${ADDITIONAL_PYTHON_DEPS} ${EAGER_UPGRADE_ADDITIONAL_REQUIREMENTS}
         # make sure correct PIP version is used
         pip install ${AIRFLOW_INSTALL_USER_FLAG} --upgrade "pip==${AIRFLOW_PIP_VERSION}"
-        pip check || ${CONTINUE_ON_PIP_CHECK_FAILURE}
+        pip check
     else
         echo
         echo Installing additional dependencies upgrading only if needed
@@ -45,8 +50,12 @@ function install_additional_dependencies() {
             ${ADDITIONAL_PYTHON_DEPS}
         # make sure correct PIP version is used
         pip install ${AIRFLOW_INSTALL_USER_FLAG} --upgrade "pip==${AIRFLOW_PIP_VERSION}"
-        pip check || ${CONTINUE_ON_PIP_CHECK_FAILURE}
+        pip check
     fi
 }
+
+common::get_airflow_version_specification
+common::override_pip_version_if_needed
+common::get_constraints_location
 
 install_additional_dependencies

@@ -19,6 +19,8 @@ import io
 import unittest
 from unittest import mock
 
+import pytest
+
 from airflow.cli import cli_parser
 from airflow.cli.commands import config_command
 from tests.test_utils.config import conf_vars
@@ -39,8 +41,8 @@ class TestCliConfigList(unittest.TestCase):
     def test_cli_show_config_should_display_key(self):
         with contextlib.redirect_stdout(io.StringIO()) as temp_stdout:
             config_command.show_config(self.parser.parse_args(['config', 'list', '--color', 'off']))
-        self.assertIn('[core]', temp_stdout.getvalue())
-        self.assertIn('testkey = test_value', temp_stdout.getvalue())
+        assert '[core]' in temp_stdout.getvalue()
+        assert 'testkey = test_value' in temp_stdout.getvalue()
 
 
 class TestCliConfigGetValue(unittest.TestCase):
@@ -53,28 +55,26 @@ class TestCliConfigGetValue(unittest.TestCase):
         with contextlib.redirect_stdout(io.StringIO()) as temp_stdout:
             config_command.get_value(self.parser.parse_args(['config', 'get-value', 'core', 'test_key']))
 
-        self.assertEqual("test_value", temp_stdout.getvalue().strip())
+        assert "test_value" == temp_stdout.getvalue().strip()
 
     @mock.patch("airflow.cli.commands.config_command.conf")
     def test_should_raise_exception_when_section_is_missing(self, mock_conf):
         mock_conf.has_section.return_value = False
         mock_conf.has_option.return_value = True
 
-        with self.assertRaises(SystemExit) as err:
+        with pytest.raises(SystemExit) as ctx:
             config_command.get_value(
                 self.parser.parse_args(['config', 'get-value', 'missing-section', 'dags_folder'])
             )
-        self.assertEqual("The section [missing-section] is not found in config.", str(err.exception))
+        assert "The section [missing-section] is not found in config." == str(ctx.value)
 
     @mock.patch("airflow.cli.commands.config_command.conf")
     def test_should_raise_exception_when_option_is_missing(self, mock_conf):
         mock_conf.has_section.return_value = True
         mock_conf.has_option.return_value = False
 
-        with self.assertRaises(SystemExit) as err:
+        with pytest.raises(SystemExit) as ctx:
             config_command.get_value(
                 self.parser.parse_args(['config', 'get-value', 'missing-section', 'dags_folder'])
             )
-        self.assertEqual(
-            "The option [missing-section/dags_folder] is not found in config.", str(err.exception)
-        )
+        assert "The option [missing-section/dags_folder] is not found in config." == str(ctx.value)

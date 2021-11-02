@@ -18,17 +18,17 @@
 # under the License.
 import os
 
-from tests.test_utils.logging_command_executor import LoggingCommandExecutor
+from airflow.providers.google.cloud.example_dags.example_gcs import (
+    BUCKET_1,
+    BUCKET_2,
+    PATH_TO_SAVED_FILE,
+    PATH_TO_TRANSFORM_SCRIPT,
+    PATH_TO_UPLOAD_FILE,
+)
+from tests.test_utils.logging_command_executor import CommandExecutor
 
-BUCKET_1 = os.environ.get("GCP_GCS_BUCKET_1", "test-gcs-example-bucket")
-BUCKET_2 = os.environ.get("GCP_GCS_BUCKET_1", "test-gcs-example-bucket-2")
 
-PATH_TO_UPLOAD_FILE = os.environ.get("GCP_GCS_PATH_TO_UPLOAD_FILE", "test-gcs-example.txt")
-PATH_TO_SAVED_FILE = os.environ.get("GCP_GCS_PATH_TO_SAVED_FILE", "test-gcs-example-download.txt")
-PATH_TO_TRANSFORM_SCRIPT = os.environ.get('GCP_GCS_PATH_TO_TRANSFORM_SCRIPT', 'test.py')
-
-
-class GcsSystemTestHelper(LoggingCommandExecutor):
+class GcsSystemTestHelper(CommandExecutor):
     @staticmethod
     def create_test_file():
         # Create test file for upload
@@ -52,9 +52,12 @@ with open(source, "r") as src, open(destination, "w+") as dest:
 
     @staticmethod
     def remove_test_files():
-        os.remove(PATH_TO_UPLOAD_FILE)
-        os.remove(PATH_TO_SAVED_FILE)
-        os.remove(PATH_TO_TRANSFORM_SCRIPT)
+        if os.path.exists(PATH_TO_UPLOAD_FILE):
+            os.remove(PATH_TO_UPLOAD_FILE)
+        if os.path.exists(PATH_TO_SAVED_FILE):
+            os.remove(PATH_TO_SAVED_FILE)
+        if os.path.exists(PATH_TO_TRANSFORM_SCRIPT):
+            os.remove(PATH_TO_TRANSFORM_SCRIPT)
 
     def remove_bucket(self):
         self.execute_cmd(["gsutil", "rm", "-r", f"gs://{BUCKET_1}"])

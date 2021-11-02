@@ -20,7 +20,6 @@ from typing import Optional
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 from airflow.providers.amazon.aws.operators.sagemaker_base import SageMakerBaseOperator
-from airflow.utils.decorators import apply_defaults
 
 
 class SageMakerProcessingOperator(SageMakerBaseOperator):
@@ -52,7 +51,6 @@ class SageMakerProcessingOperator(SageMakerBaseOperator):
     :type action_if_job_exists: str
     """
 
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -119,5 +117,5 @@ class SageMakerProcessingOperator(SageMakerBaseOperator):
             max_ingestion_time=self.max_ingestion_time,
         )
         if response['ResponseMetadata']['HTTPStatusCode'] != 200:
-            raise AirflowException('Sagemaker Processing Job creation failed: %s' % response)
+            raise AirflowException(f'Sagemaker Processing Job creation failed: {response}')
         return {'Processing': self.hook.describe_processing_job(self.config['ProcessingJobName'])}

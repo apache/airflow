@@ -20,12 +20,15 @@ from typing import Optional
 
 from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
-from airflow.utils.decorators import apply_defaults
 
 
 class S3CreateBucketOperator(BaseOperator):
     """
     This operator creates an S3 bucket
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:S3CreateBucketOperator`
 
     :param bucket_name: This is bucket name you want to create
     :type bucket_name: str
@@ -39,7 +42,8 @@ class S3CreateBucketOperator(BaseOperator):
     :type region_name: Optional[str]
     """
 
-    @apply_defaults
+    template_fields = ("bucket_name",)
+
     def __init__(
         self,
         *,
@@ -67,6 +71,10 @@ class S3DeleteBucketOperator(BaseOperator):
     """
     This operator deletes an S3 bucket
 
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:S3DeleteBucketOperator`
+
     :param bucket_name: This is bucket name you want to delete
     :type bucket_name: str
     :param force_delete: Forcibly delete all objects in the bucket before deleting the bucket
@@ -78,6 +86,8 @@ class S3DeleteBucketOperator(BaseOperator):
         maintained on each worker node).
     :type aws_conn_id: Optional[str]
     """
+
+    template_fields = ("bucket_name",)
 
     def __init__(
         self,

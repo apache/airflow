@@ -46,7 +46,7 @@ class TestBigqueryTableExistenceSensor(TestCase):
         mock_hook.return_value.table_exists.return_value = True
         results = task.poke(mock.MagicMock())
 
-        self.assertEqual(True, results)
+        assert results is True
 
         mock_hook.assert_called_once_with(
             bigquery_conn_id=TEST_GCP_CONN_ID,
@@ -74,7 +74,7 @@ class TestBigqueryTablePartitionExistenceSensor(TestCase):
         mock_hook.return_value.table_partition_exists.return_value = True
         results = task.poke(mock.MagicMock())
 
-        self.assertEqual(True, results)
+        assert results is True
 
         mock_hook.assert_called_once_with(
             bigquery_conn_id=TEST_GCP_CONN_ID,

@@ -18,13 +18,14 @@
 """This module contains Google Cloud Storage sensors."""
 
 import os
+import textwrap
+import warnings
 from datetime import datetime
 from typing import Callable, List, Optional, Sequence, Set, Union
 
 from airflow.exceptions import AirflowException
 from airflow.providers.google.cloud.hooks.gcs import GCSHook
 from airflow.sensors.base import BaseSensorOperator, poke_mode_only
-from airflow.utils.decorators import apply_defaults
 
 
 class GCSObjectExistenceSensor(BaseSensorOperator):
@@ -61,12 +62,11 @@ class GCSObjectExistenceSensor(BaseSensorOperator):
     )
     ui_color = '#f0eee4'
 
-    @apply_defaults
     def __init__(
         self,
         *,
         bucket: str,
-        object: str,  # pylint: disable=redefined-builtin
+        object: str,
         google_cloud_conn_id: str = 'google_cloud_default',
         delegate_to: Optional[str] = None,
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
@@ -83,7 +83,7 @@ class GCSObjectExistenceSensor(BaseSensorOperator):
     def poke(self, context: dict) -> bool:
         self.log.info('Sensor checks existence of : %s, %s', self.bucket, self.object)
         hook = GCSHook(
-            google_cloud_storage_conn_id=self.google_cloud_conn_id,
+            gcp_conn_id=self.google_cloud_conn_id,
             delegate_to=self.delegate_to,
             impersonation_chain=self.impersonation_chain,
         )
@@ -93,10 +93,14 @@ class GCSObjectExistenceSensor(BaseSensorOperator):
 def ts_function(context):
     """
     Default callback for the GoogleCloudStorageObjectUpdatedSensor. The default
-    behaviour is check for the object being updated after execution_date +
-    schedule_interval.
+    behaviour is check for the object being updated after the data interval's
+    end, or execution_date + interval on Airflow versions prior to 2.2 (before
+    AIP-39 implementation).
     """
-    return context['dag'].following_schedule(context['execution_date'])
+    try:
+        return context["data_interval_end"]
+    except KeyError:
+        return context["dag"].following_schedule(context["execution_date"])
 
 
 class GCSObjectUpdateSensor(BaseSensorOperator):
@@ -137,11 +141,10 @@ class GCSObjectUpdateSensor(BaseSensorOperator):
     )
     ui_color = '#f0eee4'
 
-    @apply_defaults
     def __init__(
         self,
         bucket: str,
-        object: str,  # pylint: disable=redefined-builtin
+        object: str,
         ts_func: Callable = ts_function,
         google_cloud_conn_id: str = 'google_cloud_default',
         delegate_to: Optional[str] = None,
@@ -160,14 +163,14 @@ class GCSObjectUpdateSensor(BaseSensorOperator):
     def poke(self, context: dict) -> bool:
         self.log.info('Sensor checks existence of : %s, %s', self.bucket, self.object)
         hook = GCSHook(
-            google_cloud_storage_conn_id=self.google_cloud_conn_id,
+            gcp_conn_id=self.google_cloud_conn_id,
             delegate_to=self.delegate_to,
             impersonation_chain=self.impersonation_chain,
         )
         return hook.is_updated_after(self.bucket, self.object, self.ts_func(context))
 
 
-class GCSObjectsWtihPrefixExistenceSensor(BaseSensorOperator):
+class GCSObjectsWithPrefixExistenceSensor(BaseSensorOperator):
     """
     Checks for the existence of GCS objects at a given prefix, passing matches via XCom.
 
@@ -205,7 +208,6 @@ class GCSObjectsWtihPrefixExistenceSensor(BaseSensorOperator):
     )
     ui_color = '#f0eee4'
 
-    @apply_defaults
     def __init__(
         self,
         bucket: str,
@@ -226,7 +228,7 @@ class GCSObjectsWtihPrefixExistenceSensor(BaseSensorOperator):
     def poke(self, context: dict) -> bool:
         self.log.info('Sensor checks existence of objects: %s, %s', self.bucket, self.prefix)
         hook = GCSHook(
-            google_cloud_storage_conn_id=self.google_cloud_conn_id,
+            gcp_conn_id=self.google_cloud_conn_id,
             delegate_to=self.delegate_to,
             impersonation_chain=self.impersonation_chain,
         )
@@ -237,6 +239,22 @@ class GCSObjectsWtihPrefixExistenceSensor(BaseSensorOperator):
         """Overridden to allow matches to be passed"""
         super().execute(context)
         return self._matches
+
+
+class GCSObjectsWtihPrefixExistenceSensor(GCSObjectsWithPrefixExistenceSensor):
+    """
+    This class is deprecated.
+    Please use `airflow.providers.google.cloud.sensors.gcs.GCSObjectsWithPrefixExistenceSensor`.
+    """
+
+    def __init__(self, *args, **kwargs):
+        warnings.warn(
+            """This class is deprecated.
+            Please use `airflow.providers.google.cloud.sensors.gcs.GCSObjectsWithPrefixExistenceSensor`.""",
+            DeprecationWarning,
+            stacklevel=3,
+        )
+        super().__init__(*args, **kwargs)
 
 
 def get_time():
@@ -300,7 +318,6 @@ class GCSUploadSessionCompleteSensor(BaseSensorOperator):
     )
     ui_color = '#f0eee4'
 
-    @apply_defaults
     def __init__(
         self,
         bucket: str,
@@ -369,22 +386,21 @@ class GCSUploadSessionCompleteSensor(BaseSensorOperator):
                 self.previous_objects = current_objects
                 self.last_activity_time = get_time()
                 self.log.warning(
-                    """
+                    textwrap.dedent(
+                        """\
                     Objects were deleted during the last
                     poke interval. Updating the file counter and
                     resetting last_activity_time.
-                    %s
-                    """,
+                    %s\
+                    """
+                    ),
                     self.previous_objects - current_objects,
                 )
                 return False
 
             raise AirflowException(
-                """
-                Illegal behavior: objects were deleted in {} between pokes.
-                """.format(
-                    os.path.join(self.bucket, self.prefix)
-                )
+                "Illegal behavior: objects were deleted in "
+                f"{os.path.join(self.bucket, self.prefix)} between pokes."
             )
 
         if self.last_activity_time:
@@ -399,10 +415,13 @@ class GCSUploadSessionCompleteSensor(BaseSensorOperator):
 
             if current_num_objects >= self.min_objects:
                 self.log.info(
-                    """SUCCESS:
-                    Sensor found %s objects at %s.
-                    Waited at least %s seconds, with no new objects dropped.
-                    """,
+                    textwrap.dedent(
+                        """\
+                        SUCCESS:
+                        Sensor found %s objects at %s.
+                        Waited at least %s seconds, with no new objects dropped.
+                        """
+                    ),
                     current_num_objects,
                     path,
                     self.inactivity_period,

@@ -18,7 +18,7 @@
 from contextlib import closing
 from datetime import datetime
 from typing import Any, Optional
-from urllib.parse import quote_plus
+from urllib.parse import quote_plus, urlunsplit
 
 from sqlalchemy import create_engine
 
@@ -42,8 +42,23 @@ class ConnectorProtocol(Protocol):
         """
 
 
+#########################################################################################
+#                                                                                       #
+#  Note! Be extra careful when changing this file. This hook is used as a base for      #
+#  a number of DBApi-related hooks and providers depend on the methods implemented      #
+#  here. Whatever you add here, has to backwards compatible unless                      #
+#  `>=<Airflow version>` is added to providers' requirements using the new feature      #
+#                                                                                       #
+#########################################################################################
 class DbApiHook(BaseHook):
-    """Abstract base class for sql hooks."""
+    """
+    Abstract base class for sql hooks.
+
+    :param schema: Optional DB schema that overrides the schema specified in the connection. Make sure that
+        if you change the schema parameter value in the constructor of the derived Hook, such change
+        should be done before calling the ``DBApiHook.__init__()``.
+    :type schema: Optional[str]
+    """
 
     # Override to provide the connection name.
     conn_name_attr = None  # type: str
@@ -54,7 +69,7 @@ class DbApiHook(BaseHook):
     # Override with the object that exposes the connect method
     connector = None  # type: Optional[ConnectorProtocol]
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, schema: Optional[str] = None, **kwargs):
         super().__init__()
         if not self.conn_name_attr:
             raise AirflowException("conn_name_attr is not defined")
@@ -64,6 +79,11 @@ class DbApiHook(BaseHook):
             setattr(self, self.conn_name_attr, self.default_conn_name)
         else:
             setattr(self, self.conn_name_attr, kwargs[self.conn_name_attr])
+        # We should not make schema available in deriving hooks for backwards compatibility
+        # If a hook deriving from DBApiHook has a need to access schema, then it should retrieve it
+        # from kwargs and store it on its own. We do not run "pop" here as we want to give the
+        # Hook deriving from the DBApiHook to still have access to the field in it's constructor
+        self.__schema = schema
 
     def get_conn(self):
         """Returns a connection object"""
@@ -83,10 +103,8 @@ class DbApiHook(BaseHook):
         host = conn.host
         if conn.port is not None:
             host += f':{conn.port}'
-        uri = f'{conn.conn_type}://{login}{host}/'
-        if conn.schema:
-            uri += conn.schema
-        return uri
+        schema = self.__schema or conn.schema or ''
+        return urlunsplit((conn.conn_type, f'{login}{host}', schema, '', ''))
 
     def get_sqlalchemy_engine(self, engine_kwargs=None):
         """
@@ -111,7 +129,10 @@ class DbApiHook(BaseHook):
         :param kwargs: (optional) passed into pandas.io.sql.read_sql method
         :type kwargs: dict
         """
-        from pandas.io import sql as psql
+        try:
+            from pandas.io import sql as psql
+        except ImportError:
+            raise Exception("pandas library not installed, run: pip install 'apache-airflow[pandas]'.")
 
         with closing(self.get_conn()) as conn:
             return psql.read_sql(sql, con=conn, params=parameters, **kwargs)
@@ -152,7 +173,7 @@ class DbApiHook(BaseHook):
                     cur.execute(sql)
                 return cur.fetchone()
 
-    def run(self, sql, autocommit=False, parameters=None):
+    def run(self, sql, autocommit=False, parameters=None, handler=None):
         """
         Runs a command or a list of commands. Pass a list of sql
         statements to the sql parameter to get them to execute
@@ -166,8 +187,12 @@ class DbApiHook(BaseHook):
         :type autocommit: bool
         :param parameters: The parameters to render the SQL query with.
         :type parameters: dict or iterable
+        :param handler: The result handler which is called with the result of each statement.
+        :type handler: callable
+        :return: query results if handler was provided.
         """
-        if isinstance(sql, str):
+        scalar = isinstance(sql, str)
+        if scalar:
             sql = [sql]
 
         with closing(self.get_conn()) as conn:
@@ -175,20 +200,37 @@ class DbApiHook(BaseHook):
                 self.set_autocommit(conn, autocommit)
 
             with closing(conn.cursor()) as cur:
+                results = []
                 for sql_statement in sql:
-
-                    self.log.info("Running statement: %s, parameters: %s", sql_statement, parameters)
-                    if parameters:
-                        cur.execute(sql_statement, parameters)
-                    else:
-                        cur.execute(sql_statement)
-                    if hasattr(cur, 'rowcount'):
-                        self.log.info("Rows affected: %s", cur.rowcount)
+                    self._run_command(cur, sql_statement, parameters)
+                    if handler is not None:
+                        result = handler(cur)
+                        results.append(result)
 
             # If autocommit was set to False for db that supports autocommit,
             # or if db does not supports autocommit, we do a manual commit.
             if not self.get_autocommit(conn):
                 conn.commit()
+
+        if handler is None:
+            return None
+
+        if scalar:
+            return results[0]
+
+        return results
+
+    def _run_command(self, cur, sql_statement, parameters):
+        """Runs a statement using an already open cursor."""
+        self.log.info("Running statement: %s, parameters: %s", sql_statement, parameters)
+        if parameters:
+            cur.execute(sql_statement, parameters)
+        else:
+            cur.execute(sql_statement)
+
+        # According to PEP 249, this is -1 when query result is not applicable.
+        if cur.rowcount >= 0:
+            self.log.info("Rows affected: %s", cur.rowcount)
 
     def set_autocommit(self, conn, autocommit):
         """Sets the autocommit flag on the connection"""
@@ -248,7 +290,7 @@ class DbApiHook(BaseHook):
             sql = "INSERT INTO "
         else:
             sql = "REPLACE INTO "
-        sql += "{} {} VALUES ({})".format(table, target_fields, ",".join(placeholders))
+        sql += f"{table} {target_fields} VALUES ({','.join(placeholders)})"
         return sql
 
     def insert_rows(self, table, rows, target_fields=None, commit_every=1000, replace=False, **kwargs):
@@ -282,6 +324,7 @@ class DbApiHook(BaseHook):
                         lst.append(self._serialize_cell(cell, conn))
                     values = tuple(lst)
                     sql = self._generate_insert_sql(table, values, target_fields, replace, **kwargs)
+                    self.log.debug("Generated sql: %s", sql)
                     cur.execute(sql, values)
                     if commit_every and i % commit_every == 0:
                         conn.commit()
@@ -291,7 +334,7 @@ class DbApiHook(BaseHook):
         self.log.info("Done loading. Loaded a total of %s rows", i)
 
     @staticmethod
-    def _serialize_cell(cell, conn=None):  # pylint: disable=unused-argument
+    def _serialize_cell(cell, conn=None):
         """
         Returns the SQL literal of the cell as a string.
 
@@ -329,3 +372,16 @@ class DbApiHook(BaseHook):
         :type tmp_file: str
         """
         raise NotImplementedError()
+
+    def test_connection(self):
+        """Tests the connection by executing a select 1 query"""
+        status, message = False, ''
+        try:
+            if self.get_first("select 1"):
+                status = True
+                message = 'Connection successfully tested'
+        except Exception as e:
+            status = False
+            message = str(e)
+
+        return status, message

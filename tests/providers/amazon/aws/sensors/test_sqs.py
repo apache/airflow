@@ -17,9 +17,11 @@
 # under the License.
 
 
+import json
 import unittest
 from unittest import mock
 
+import pytest
 from moto import mock_sqs
 
 from airflow.exceptions import AirflowException
@@ -30,6 +32,9 @@ from airflow.utils import timezone
 
 DEFAULT_DATE = timezone.datetime(2017, 1, 1)
 
+QUEUE_NAME = 'test-queue'
+QUEUE_URL = f'https://{QUEUE_NAME}'
+
 
 class TestSQSSensor(unittest.TestCase):
     def setUp(self):
@@ -37,7 +42,7 @@ class TestSQSSensor(unittest.TestCase):
 
         self.dag = DAG('test_dag_id', default_args=args)
         self.sensor = SQSSensor(
-            task_id='test_task', dag=self.dag, sqs_queue='test', aws_conn_id='aws_default'
+            task_id='test_task', dag=self.dag, sqs_queue=QUEUE_URL, aws_conn_id='aws_default'
         )
 
         self.mock_context = mock.MagicMock()
@@ -45,27 +50,26 @@ class TestSQSSensor(unittest.TestCase):
 
     @mock_sqs
     def test_poke_success(self):
-        self.sqs_hook.create_queue('test')
-        self.sqs_hook.send_message(queue_url='test', message_body='hello')
+        self.sqs_hook.create_queue(QUEUE_NAME)
+        self.sqs_hook.send_message(queue_url=QUEUE_URL, message_body='hello')
 
         result = self.sensor.poke(self.mock_context)
-        self.assertTrue(result)
+        assert result
 
-        self.assertTrue(
-            "'Body': 'hello'" in str(self.mock_context['ti'].method_calls),
-            "context call should contain message hello",
-        )
+        assert "'Body': 'hello'" in str(
+            self.mock_context['ti'].method_calls
+        ), "context call should contain message hello"
 
     @mock_sqs
     def test_poke_no_message_failed(self):
 
-        self.sqs_hook.create_queue('test')
+        self.sqs_hook.create_queue(QUEUE_NAME)
         result = self.sensor.poke(self.mock_context)
-        self.assertFalse(result)
+        assert not result
 
         context_calls = []
 
-        self.assertTrue(self.mock_context['ti'].method_calls == context_calls, "context call  should be same")
+        assert self.mock_context['ti'].method_calls == context_calls, "context call  should be same"
 
     @mock.patch.object(SQSHook, 'get_conn')
     def test_poke_delete_raise_airflow_exception(self, mock_conn):
@@ -95,15 +99,192 @@ class TestSQSSensor(unittest.TestCase):
             'Failed': [{'Id': '22f67273-4dbc-4c19-83b5-aee71bfeb832'}]
         }
 
-        with self.assertRaises(AirflowException) as context:
+        with pytest.raises(AirflowException) as ctx:
             self.sensor.poke(self.mock_context)
 
-        self.assertTrue('Delete SQS Messages failed' in context.exception.args[0])
+        assert 'Delete SQS Messages failed' in ctx.value.args[0]
 
     @mock.patch.object(SQSHook, 'get_conn')
     def test_poke_receive_raise_exception(self, mock_conn):
         mock_conn.return_value.receive_message.side_effect = Exception('test exception')
-        with self.assertRaises(Exception) as context:
+        with pytest.raises(Exception) as ctx:
             self.sensor.poke(self.mock_context)
 
-        self.assertTrue('test exception' in context.exception.args[0])
+        assert 'test exception' in ctx.value.args[0]
+
+    @mock.patch.object(SQSHook, 'get_conn')
+    def test_poke_visibility_timeout(self, mock_conn):
+        # Check without visibility_timeout parameter
+        self.sqs_hook.create_queue(QUEUE_NAME)
+        self.sqs_hook.send_message(queue_url=QUEUE_URL, message_body='hello')
+
+        self.sensor.poke(self.mock_context)
+
+        calls_receive_message = [
+            mock.call().receive_message(QueueUrl=QUEUE_URL, MaxNumberOfMessages=5, WaitTimeSeconds=1)
+        ]
+        mock_conn.assert_has_calls(calls_receive_message)
+        # Check with visibility_timeout parameter
+        self.sensor = SQSSensor(
+            task_id='test_task2',
+            dag=self.dag,
+            sqs_queue=QUEUE_URL,
+            aws_conn_id='aws_default',
+            visibility_timeout=42,
+        )
+        self.sensor.poke(self.mock_context)
+
+        calls_receive_message = [
+            mock.call().receive_message(
+                QueueUrl=QUEUE_URL, MaxNumberOfMessages=5, WaitTimeSeconds=1, VisibilityTimeout=42
+            )
+        ]
+        mock_conn.assert_has_calls(calls_receive_message)
+
+    @mock_sqs
+    def test_poke_message_invalid_filtering(self):
+        self.sqs_hook.create_queue(QUEUE_NAME)
+        self.sqs_hook.send_message(queue_url=QUEUE_URL, message_body='hello')
+        sensor = SQSSensor(
+            task_id='test_task2',
+            dag=self.dag,
+            sqs_queue=QUEUE_URL,
+            aws_conn_id='aws_default',
+            message_filtering='invalid_option',
+        )
+        with pytest.raises(NotImplementedError) as ctx:
+            sensor.poke(self.mock_context)
+        assert 'Override this method to define custom filters' in ctx.value.args[0]
+
+    @mock.patch.object(SQSHook, "get_conn")
+    def test_poke_message_filtering_literal_values(self, mock_conn):
+        self.sqs_hook.create_queue(QUEUE_NAME)
+        matching = [{"id": 11, "body": "a matching message"}]
+        non_matching = [{"id": 12, "body": "a non-matching message"}]
+        all = matching + non_matching
+
+        def mock_receive_message(**kwargs):
+            messages = []
+            for message in all:
+                messages.append(
+                    {
+                        'MessageId': message['id'],
+                        'ReceiptHandle': 100 + message['id'],
+                        'Body': message['body'],
+                    }
+                )
+            return {'Messages': messages}
+
+        mock_conn.return_value.receive_message.side_effect = mock_receive_message
+
+        def mock_delete_message_batch(**kwargs):
+            return {'Successful'}
+
+        mock_conn.return_value.delete_message_batch.side_effect = mock_delete_message_batch
+
+        # Test that messages are filtered
+        self.sensor.message_filtering = 'literal'
+        self.sensor.message_filtering_match_values = ["a matching message"]
+        result = self.sensor.poke(self.mock_context)
+        assert result
+
+        # Test that only filtered messages are deleted
+        delete_entries = [{'Id': x['id'], 'ReceiptHandle': 100 + x['id']} for x in matching]
+        calls_delete_message_batch = [
+            mock.call().delete_message_batch(QueueUrl=QUEUE_URL, Entries=delete_entries)
+        ]
+        mock_conn.assert_has_calls(calls_delete_message_batch)
+
+    @mock.patch.object(SQSHook, "get_conn")
+    def test_poke_message_filtering_jsonpath(self, mock_conn):
+        self.sqs_hook.create_queue(QUEUE_NAME)
+        matching = [
+            {"id": 11, "key": {"matches": [1, 2]}},
+            {"id": 12, "key": {"matches": [3, 4, 5]}},
+            {"id": 13, "key": {"matches": [10]}},
+        ]
+        non_matching = [
+            {"id": 14, "key": {"nope": [5, 6]}},
+            {"id": 15, "key": {"nope": [7, 8]}},
+        ]
+        all = matching + non_matching
+
+        def mock_receive_message(**kwargs):
+            messages = []
+            for message in all:
+                messages.append(
+                    {
+                        'MessageId': message['id'],
+                        'ReceiptHandle': 100 + message['id'],
+                        'Body': json.dumps(message),
+                    }
+                )
+            return {'Messages': messages}
+
+        mock_conn.return_value.receive_message.side_effect = mock_receive_message
+
+        def mock_delete_message_batch(**kwargs):
+            return {'Successful'}
+
+        mock_conn.return_value.delete_message_batch.side_effect = mock_delete_message_batch
+
+        # Test that messages are filtered
+        self.sensor.message_filtering = 'jsonpath'
+        self.sensor.message_filtering_config = 'key.matches[*]'
+        result = self.sensor.poke(self.mock_context)
+        assert result
+
+        # Test that only filtered messages are deleted
+        delete_entries = [{'Id': x['id'], 'ReceiptHandle': 100 + x['id']} for x in matching]
+        calls_delete_message_batch = [
+            mock.call().delete_message_batch(QueueUrl=QUEUE_URL, Entries=delete_entries)
+        ]
+        mock_conn.assert_has_calls(calls_delete_message_batch)
+
+    @mock.patch.object(SQSHook, "get_conn")
+    def test_poke_message_filtering_jsonpath_values(self, mock_conn):
+        self.sqs_hook.create_queue(QUEUE_NAME)
+        matching = [
+            {"id": 11, "key": {"matches": [1, 2]}},
+            {"id": 12, "key": {"matches": [1, 4, 5]}},
+            {"id": 13, "key": {"matches": [4, 5]}},
+        ]
+        non_matching = [
+            {"id": 21, "key": {"matches": [10]}},
+            {"id": 22, "key": {"nope": [5, 6]}},
+            {"id": 23, "key": {"nope": [7, 8]}},
+        ]
+        all = matching + non_matching
+
+        def mock_receive_message(**kwargs):
+            messages = []
+            for message in all:
+                messages.append(
+                    {
+                        'MessageId': message['id'],
+                        'ReceiptHandle': 100 + message['id'],
+                        'Body': json.dumps(message),
+                    }
+                )
+            return {'Messages': messages}
+
+        mock_conn.return_value.receive_message.side_effect = mock_receive_message
+
+        def mock_delete_message_batch(**kwargs):
+            return {'Successful'}
+
+        mock_conn.return_value.delete_message_batch.side_effect = mock_delete_message_batch
+
+        # Test that messages are filtered
+        self.sensor.message_filtering = 'jsonpath'
+        self.sensor.message_filtering_config = 'key.matches[*]'
+        self.sensor.message_filtering_match_values = [1, 4]
+        result = self.sensor.poke(self.mock_context)
+        assert result
+
+        # Test that only filtered messages are deleted
+        delete_entries = [{'Id': x['id'], 'ReceiptHandle': 100 + x['id']} for x in matching]
+        calls_delete_message_batch = [
+            mock.call().delete_message_batch(QueueUrl='https://test-queue', Entries=delete_entries)
+        ]
+        mock_conn.assert_has_calls(calls_delete_message_batch)

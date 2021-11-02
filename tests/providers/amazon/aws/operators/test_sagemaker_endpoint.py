@@ -19,6 +19,7 @@
 import unittest
 from unittest import mock
 
+import pytest
 from botocore.exceptions import ClientError
 
 from airflow.exceptions import AirflowException
@@ -77,7 +78,7 @@ class TestSageMakerEndpointOperator(unittest.TestCase):
     def test_parse_config_integers(self):
         self.sagemaker.parse_config_integers()
         for variant in self.sagemaker.config['EndpointConfig']['ProductionVariants']:
-            self.assertEqual(variant['InitialInstanceCount'], int(variant['InitialInstanceCount']))
+            assert variant['InitialInstanceCount'] == int(variant['InitialInstanceCount'])
 
     @mock.patch.object(SageMakerHook, 'get_conn')
     @mock.patch.object(SageMakerHook, 'create_model')
@@ -98,7 +99,8 @@ class TestSageMakerEndpointOperator(unittest.TestCase):
     @mock.patch.object(SageMakerHook, 'create_endpoint')
     def test_execute_with_failure(self, mock_endpoint, mock_endpoint_config, mock_model, mock_client):
         mock_endpoint.return_value = {'EndpointArn': 'testarn', 'ResponseMetadata': {'HTTPStatusCode': 404}}
-        self.assertRaises(AirflowException, self.sagemaker.execute, None)
+        with pytest.raises(AirflowException):
+            self.sagemaker.execute(None)
 
     @mock.patch.object(SageMakerHook, 'get_conn')
     @mock.patch.object(SageMakerHook, 'create_model')

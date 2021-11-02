@@ -20,7 +20,10 @@
 from copy import deepcopy
 from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Union
 
-from cached_property import cached_property
+try:
+    from functools import cached_property
+except ImportError:
+    from cached_property import cached_property
 from google.api_core.retry import Retry
 from google.cloud.vision_v1 import ImageAnnotatorClient, ProductSearchClient
 from google.cloud.vision_v1.types import (
@@ -437,7 +440,7 @@ class CloudVisionHook(GoogleBaseHook):
         name = ProductSearchClient.reference_image_path(
             project=project_id, location=location, product=product_id, reference_image=reference_image_id
         )
-        # pylint: disable=assignment-from-no-return
+
         response = client.delete_reference_image(
             name=name,
             retry=retry,
@@ -489,7 +492,7 @@ class CloudVisionHook(GoogleBaseHook):
     ) -> None:
         """
         For the documentation see:
-        :py:class:`~airflow.providers.google.cloud.operators.vision.CloudVisionRemoveProductFromProductSetOperator` # pylint: disable=line-too-long # noqa
+        :py:class:`~airflow.providers.google.cloud.operators.vision.CloudVisionRemoveProductFromProductSetOperator`
         """
         client = self.get_conn()
 
@@ -518,7 +521,6 @@ class CloudVisionHook(GoogleBaseHook):
 
         self.log.info('Annotating image')
 
-        # pylint: disable=no-member
         response = client.annotate_image(request=request, retry=retry, timeout=timeout)
 
         self.log.info('Image annotated')
@@ -540,9 +542,7 @@ class CloudVisionHook(GoogleBaseHook):
 
         self.log.info('Annotating images')
 
-        response = client.batch_annotate_images(
-            requests=requests, retry=retry, timeout=timeout  # pylint: disable=no-member
-        )
+        response = client.batch_annotate_images(requests=requests, retry=retry, timeout=timeout)
 
         self.log.info('Images annotated')
 
@@ -568,7 +568,7 @@ class CloudVisionHook(GoogleBaseHook):
         if additional_properties is None:
             additional_properties = {}
 
-        response = client.text_detection(  # pylint: disable=no-member
+        response = client.text_detection(
             image=image, max_results=max_results, retry=retry, timeout=timeout, **additional_properties
         )
         response = MessageToDict(response)
@@ -598,7 +598,7 @@ class CloudVisionHook(GoogleBaseHook):
         if additional_properties is None:
             additional_properties = {}
 
-        response = client.document_text_detection(  # pylint: disable=no-member
+        response = client.document_text_detection(
             image=image, max_results=max_results, retry=retry, timeout=timeout, **additional_properties
         )
         response = MessageToDict(response)
@@ -628,7 +628,7 @@ class CloudVisionHook(GoogleBaseHook):
         if additional_properties is None:
             additional_properties = {}
 
-        response = client.label_detection(  # pylint: disable=no-member
+        response = client.label_detection(
             image=image, max_results=max_results, retry=retry, timeout=timeout, **additional_properties
         )
         response = MessageToDict(response)
@@ -658,7 +658,7 @@ class CloudVisionHook(GoogleBaseHook):
         if additional_properties is None:
             additional_properties = {}
 
-        response = client.safe_search_detection(  # pylint: disable=no-member
+        response = client.safe_search_detection(
             image=image, max_results=max_results, retry=retry, timeout=timeout, **additional_properties
         )
         response = MessageToDict(response)

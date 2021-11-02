@@ -19,6 +19,8 @@
 from unittest import TestCase
 from unittest.mock import Mock
 
+import pytest
+
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.elasticache_replication_group import ElastiCacheReplicationGroupHook
 
@@ -202,7 +204,7 @@ class TestElastiCacheReplicationGroupHook(TestCase):
             "ReplicationGroup": {"ReplicationGroupId": self.REPLICATION_GROUP_ID}
         }
 
-        with self.assertRaises(AirflowException):
+        with pytest.raises(AirflowException):
             # Try only 1 once with 1 sec buffer time. This will ensure that the `wait_for_deletion` loop
             # breaks quickly before the group is deleted and we get the Airflow exception
             self.hook.ensure_delete_replication_group(

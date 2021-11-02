@@ -19,6 +19,8 @@
 import unittest
 from unittest import mock
 
+import pytest
+
 from airflow.exceptions import AirflowException
 from airflow.providers.segment.hooks.segment import SegmentHook
 
@@ -46,10 +48,10 @@ class TestSegmentHook(unittest.TestCase):
 
     def test_get_conn(self):
         expected_connection = self.test_hook.get_conn()
-        self.assertEqual(expected_connection, self.conn)
-        self.assertIsNotNone(expected_connection.write_key)
-        self.assertEqual(expected_connection.write_key, self.expected_write_key)
+        assert expected_connection == self.conn
+        assert expected_connection.write_key is not None
+        assert expected_connection.write_key == self.expected_write_key
 
     def test_on_error(self):
-        with self.assertRaises(AirflowException):
+        with pytest.raises(AirflowException):
             self.test_hook.on_error('error', ['items'])

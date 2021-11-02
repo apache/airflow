@@ -15,11 +15,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""This module is deprecated. Please use `airflow.task.task_runner.cgroup_task_runner`."""
+"""This module is deprecated. Please use :mod:`airflow.task.task_runner.cgroup_task_runner`."""
 
 import warnings
 
-# pylint: disable=unused-import
 from airflow.task.task_runner.cgroup_task_runner import CgroupTaskRunner  # noqa
 
 warnings.warn(

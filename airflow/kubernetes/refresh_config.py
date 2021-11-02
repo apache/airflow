@@ -27,10 +27,11 @@ import time
 from typing import Optional, cast
 
 import pendulum
-import yaml
 from kubernetes.client import Configuration
 from kubernetes.config.exec_provider import ExecProvider
 from kubernetes.config.kube_config import KUBE_CONFIG_DEFAULT_LOCATION, KubeConfigLoader
+
+from airflow.utils import yaml
 
 
 def _parse_timestamp(ts_str: str) -> int:
@@ -61,13 +62,14 @@ class RefreshKubeConfigLoader(KubeConfigLoader):
             if 'token' not in status:
                 logging.error('exec: missing token field in plugin output')
                 return None
-            self.token = "Bearer %s" % status['token']  # pylint: disable=W0201
+            self.token = f"Bearer {status['token']}"
             ts_str = status.get('expirationTimestamp')
             if ts_str:
                 self.api_key_expire_ts = _parse_timestamp(ts_str)
             return True
-        except Exception as e:  # pylint: disable=W0703
+        except Exception as e:
             logging.error(str(e))
+            return None
 
     def refresh_api_key(self, client_configuration):
         """Refresh API key if expired"""
@@ -81,7 +83,7 @@ class RefreshKubeConfigLoader(KubeConfigLoader):
 
 class RefreshConfiguration(Configuration):
     """
-    Patched Configuration, this subclass taskes api key refresh callback hook
+    Patched Configuration, this subclass takes api key refresh callback hook
     into account
     """
 
@@ -91,7 +93,7 @@ class RefreshConfiguration(Configuration):
 
     def get_api_key_with_prefix(self, identifier):
         if self.refresh_api_key:
-            self.refresh_api_key(self)  # pylint: disable=E1102
+            self.refresh_api_key(self)
         return Configuration.get_api_key_with_prefix(self, identifier)
 
 

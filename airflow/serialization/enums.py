@@ -46,3 +46,5 @@ class DagAttributeTypes(str, Enum):
     TUPLE = 'tuple'
     POD = 'k8s.V1Pod'
     TASK_GROUP = 'taskgroup'
+    EDGE_INFO = 'edgeinfo'
+    PARAM = 'param'

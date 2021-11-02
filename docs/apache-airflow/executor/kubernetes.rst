@@ -113,23 +113,25 @@ create a V1pod with a single container, and overwrite the fields as follows:
     :start-after: [START task_with_volume]
     :end-before: [END task_with_volume]
 
-Note that volume mounts environment variables, ports, and devices will all be extended instead of overwritten.
+Note that the following fields **will all be extended** instead of overwritten. From *spec*: volumes, and init_containers. From *container*: volume mounts, environment variables, ports, and devices.
 
 To add a sidecar container to the launched pod, create a V1pod with an empty first container with the
 name ``base`` and a second container containing your desired sidecar.
 
 .. exampleinclude:: /../../airflow/example_dags/example_kubernetes_executor_config.py
     :language: python
+    :dedent: 8
     :start-after: [START task_with_sidecar]
     :end-before: [END task_with_sidecar]
 
 You can also create custom ``pod_template_file`` on a per-task basis so that you can recycle the same base values between multiple tasks.
-This will replace the default ``pod_template_file`` named in the airflow.cfg and then override that template using the ``pod_override_spec``.
+This will replace the default ``pod_template_file`` named in the airflow.cfg and then override that template using the ``pod_override``.
 
 Here is an example of a task with both features:
 
 .. exampleinclude:: /../../airflow/example_dags/example_kubernetes_executor_config.py
     :language: python
+    :dedent: 8
     :start-after: [START task_with_template]
     :end-before: [END task_with_template]
 

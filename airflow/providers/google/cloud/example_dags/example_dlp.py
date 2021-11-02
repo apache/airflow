@@ -33,6 +33,7 @@ from airflow.providers.google.cloud.operators.dlp import (
     CloudDLPCreateInspectTemplateOperator,
     CloudDLPCreateJobTriggerOperator,
     CloudDLPCreateStoredInfoTypeOperator,
+    CloudDLPDeidentifyContentOperator,
     CloudDLPDeleteInspectTemplateOperator,
     CloudDLPDeleteJobTriggerOperator,
     CloudDLPDeleteStoredInfoTypeOperator,
@@ -52,7 +53,7 @@ ITEM = ContentItem(
 )
 INSPECT_CONFIG = InspectConfig(info_types=[{"name": "PHONE_NUMBER"}, {"name": "US_TOLLFREE_PHONE_NUMBER"}])
 INSPECT_TEMPLATE = InspectTemplate(inspect_config=INSPECT_CONFIG)
-OUTPUT_BUCKET = os.environ.get("DLP_OUTPUT_BUCKET", "gs://test-dlp-airflow")
+OUTPUT_BUCKET = os.environ.get("DLP_OUTPUT_BUCKET", "gs://INVALID BUCKET NAME")
 OUTPUT_FILENAME = "test.txt"
 
 OBJECT_GCS_URI = os.path.join(OUTPUT_BUCKET, "tmp")
@@ -60,7 +61,7 @@ OBJECT_GCS_OUTPUT_URI = os.path.join(OUTPUT_BUCKET, "tmp", OUTPUT_FILENAME)
 
 with models.DAG(
     "example_gcp_dlp",
-    schedule_interval=None,  # Override to match your needs
+    schedule_interval='@once',  # Override to match your needs
     start_date=days_ago(1),
     tags=['example'],
 ) as dag1:
@@ -109,7 +110,7 @@ UPDATE_CUSTOM_INFO_TYPE = {
 
 with models.DAG(
     "example_gcp_dlp_info_types",
-    schedule_interval=None,
+    schedule_interval='@once',
     start_date=days_ago(1),
     tags=["example", "dlp", "info-types"],
 ) as dag2:
@@ -151,7 +152,7 @@ JOB_TRIGGER = {
 TRIGGER_ID = "example_trigger"
 
 with models.DAG(
-    "example_gcp_dlp_job", schedule_interval=None, start_date=days_ago(1), tags=["example", "dlp_job"]
+    "example_gcp_dlp_job", schedule_interval='@once', start_date=days_ago(1), tags=["example", "dlp_job"]
 ) as dag3:  # [START howto_operator_dlp_create_job_trigger]
     create_trigger = CloudDLPCreateJobTriggerOperator(
         project_id=GCP_PROJECT,
@@ -177,3 +178,33 @@ with models.DAG(
     )
     # [END howto_operator_dlp_delete_job_trigger]
     create_trigger >> update_trigger >> delete_trigger
+
+# [START dlp_deidentify_config_example]
+DEIDENTIFY_CONFIG = {
+    "info_type_transformations": {
+        "transformations": [
+            {
+                "primitive_transformation": {
+                    "replace_config": {"new_value": {"string_value": "[deidentified_number]"}}
+                }
+            }
+        ]
+    }
+}
+# [END dlp_deidentify_config_example]
+
+with models.DAG(
+    "example_gcp_dlp_deidentify_content",
+    schedule_interval='@once',
+    start_date=days_ago(1),
+    tags=["example", "dlp", "deidentify"],
+) as dag4:
+    # [START _howto_operator_dlp_deidentify_content]
+    deidentify_content = CloudDLPDeidentifyContentOperator(
+        project_id=GCP_PROJECT,
+        item=ITEM,
+        deidentify_config=DEIDENTIFY_CONFIG,
+        inspect_config=INSPECT_CONFIG,
+        task_id="deidentify_content",
+    )
+    # [END _howto_operator_dlp_deidentify_content]

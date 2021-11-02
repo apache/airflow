@@ -19,6 +19,7 @@ from typing import List, NamedTuple, Optional, Tuple
 
 from marshmallow import Schema, ValidationError, fields, validate, validates_schema
 from marshmallow.utils import get_value
+from marshmallow_sqlalchemy import SQLAlchemySchema, auto_field
 
 from airflow.api_connexion.parameters import validate_istimezone
 from airflow.api_connexion.schemas.enum_schemas import TaskInstanceStateField
@@ -27,29 +28,35 @@ from airflow.models import SlaMiss, TaskInstance
 from airflow.utils.state import State
 
 
-class TaskInstanceSchema(Schema):
+class TaskInstanceSchema(SQLAlchemySchema):
     """Task instance schema"""
 
-    task_id = fields.Str()
-    dag_id = fields.Str()
-    execution_date = fields.DateTime(validate=validate_istimezone)
-    start_date = fields.DateTime(validate=validate_istimezone)
-    end_date = fields.DateTime(validate=validate_istimezone)
-    duration = fields.Float()
-    state = TaskInstanceStateField()
-    _try_number = fields.Int(data_key="try_number")
-    max_tries = fields.Int()
-    hostname = fields.Str()
-    unixname = fields.Str()
-    pool = fields.Str()
-    pool_slots = fields.Int()
-    queue = fields.Str()
-    priority_weight = fields.Int()
-    operator = fields.Str()
-    queued_dttm = fields.DateTime(data_key="queued_when")
-    pid = fields.Int()
-    executor_config = fields.Str()
-    sla_miss = fields.Nested(SlaMissSchema, default=None)
+    class Meta:
+        """Meta"""
+
+        model = TaskInstance
+
+    task_id = auto_field()
+    dag_id = auto_field()
+    run_id = auto_field(data_key="dag_run_id")
+    execution_date = auto_field()
+    start_date = auto_field()
+    end_date = auto_field()
+    duration = auto_field()
+    state = auto_field()
+    _try_number = auto_field(data_key="try_number")
+    max_tries = auto_field()
+    hostname = auto_field()
+    unixname = auto_field()
+    pool = auto_field()
+    pool_slots = auto_field()
+    queue = auto_field()
+    priority_weight = auto_field()
+    operator = auto_field()
+    queued_dttm = auto_field(data_key="queued_when")
+    pid = auto_field()
+    executor_config = auto_field()
+    sla_miss = fields.Nested(SlaMissSchema, dump_default=None)
 
     def get_attribute(self, obj, attr, default):
         if attr == "sla_miss":
@@ -78,33 +85,34 @@ class TaskInstanceCollectionSchema(Schema):
 class TaskInstanceBatchFormSchema(Schema):
     """Schema for the request form passed to Task Instance Batch endpoint"""
 
-    page_offset = fields.Int(missing=0, min=0)
-    page_limit = fields.Int(missing=100, min=1)
-    dag_ids = fields.List(fields.Str(), missing=None)
-    execution_date_gte = fields.DateTime(missing=None, validate=validate_istimezone)
-    execution_date_lte = fields.DateTime(missing=None, validate=validate_istimezone)
-    start_date_gte = fields.DateTime(missing=None, validate=validate_istimezone)
-    start_date_lte = fields.DateTime(missing=None, validate=validate_istimezone)
-    end_date_gte = fields.DateTime(missing=None, validate=validate_istimezone)
-    end_date_lte = fields.DateTime(missing=None, validate=validate_istimezone)
-    duration_gte = fields.Int(missing=None)
-    duration_lte = fields.Int(missing=None)
-    state = fields.List(fields.Str(), missing=None)
-    pool = fields.List(fields.Str(), missing=None)
-    queue = fields.List(fields.Str(), missing=None)
+    page_offset = fields.Int(load_default=0, validate=validate.Range(min=0))
+    page_limit = fields.Int(load_default=100, validate=validate.Range(min=1))
+    dag_ids = fields.List(fields.Str(), load_default=None)
+    execution_date_gte = fields.DateTime(load_default=None, validate=validate_istimezone)
+    execution_date_lte = fields.DateTime(load_default=None, validate=validate_istimezone)
+    start_date_gte = fields.DateTime(load_default=None, validate=validate_istimezone)
+    start_date_lte = fields.DateTime(load_default=None, validate=validate_istimezone)
+    end_date_gte = fields.DateTime(load_default=None, validate=validate_istimezone)
+    end_date_lte = fields.DateTime(load_default=None, validate=validate_istimezone)
+    duration_gte = fields.Int(load_default=None)
+    duration_lte = fields.Int(load_default=None)
+    state = fields.List(fields.Str(), load_default=None)
+    pool = fields.List(fields.Str(), load_default=None)
+    queue = fields.List(fields.Str(), load_default=None)
 
 
 class ClearTaskInstanceFormSchema(Schema):
     """Schema for handling the request of clearing task instance of a Dag"""
 
-    dry_run = fields.Boolean(default=True)
-    start_date = fields.DateTime(missing=None, validate=validate_istimezone)
-    end_date = fields.DateTime(missing=None, validate=validate_istimezone)
-    only_failed = fields.Boolean(missing=True)
-    only_running = fields.Boolean(missing=False)
-    include_subdags = fields.Boolean(missing=False)
-    include_parentdag = fields.Boolean(missing=False)
-    reset_dag_runs = fields.Boolean(missing=False)
+    dry_run = fields.Boolean(load_default=True)
+    start_date = fields.DateTime(load_default=None, validate=validate_istimezone)
+    end_date = fields.DateTime(load_default=None, validate=validate_istimezone)
+    only_failed = fields.Boolean(load_default=True)
+    only_running = fields.Boolean(load_default=False)
+    include_subdags = fields.Boolean(load_default=False)
+    include_parentdag = fields.Boolean(load_default=False)
+    reset_dag_runs = fields.Boolean(load_default=False)
+    task_ids = fields.List(fields.String(), validate=validate.Length(min=1))
 
     @validates_schema
     def validate_form(self, data, **kwargs):
@@ -119,7 +127,7 @@ class ClearTaskInstanceFormSchema(Schema):
 class SetTaskInstanceStateFormSchema(Schema):
     """Schema for handling the request of setting state of task instance of a DAG"""
 
-    dry_run = fields.Boolean(default=True)
+    dry_run = fields.Boolean(dump_default=True)
     task_id = fields.Str(required=True)
     execution_date = fields.DateTime(required=True, validate=validate_istimezone)
     include_upstream = fields.Boolean(required=True)
@@ -133,17 +141,9 @@ class TaskInstanceReferenceSchema(Schema):
     """Schema for the task instance reference schema"""
 
     task_id = fields.Str()
-    dag_run_id = fields.Str()
+    run_id = fields.Str(data_key="dag_run_id")
     dag_id = fields.Str()
     execution_date = fields.DateTime()
-
-    def get_attribute(self, obj, attr, default):
-        """Overwritten marshmallow function"""
-        task_instance_attr = ['task_id', 'execution_date', 'dag_id']
-        if attr in task_instance_attr:
-            obj = obj[0]  # As object is a tuple of task_instance and dag_run_id
-            return get_value(obj, attr, default)
-        return obj[1]
 
 
 class TaskInstanceReferenceCollection(NamedTuple):

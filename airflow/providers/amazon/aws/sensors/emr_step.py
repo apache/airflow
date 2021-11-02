@@ -19,7 +19,6 @@
 from typing import Any, Dict, Iterable, Optional
 
 from airflow.providers.amazon.aws.sensors.emr_base import EmrBaseSensor
-from airflow.utils.decorators import apply_defaults
 
 
 class EmrStepSensor(EmrBaseSensor):
@@ -44,7 +43,6 @@ class EmrStepSensor(EmrBaseSensor):
     template_fields = ['job_flow_id', 'step_id', 'target_states', 'failed_states']
     template_ext = ()
 
-    @apply_defaults
     def __init__(
         self,
         *,

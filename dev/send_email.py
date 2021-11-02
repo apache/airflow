@@ -115,7 +115,7 @@ def inter_send_email(
         click.secho("✅ Email sent successfully", fg="green")
     except smtplib.SMTPAuthenticationError:
         sys.exit("SMTP User authentication error, Email not sent!")
-    except Exception as e:  # pylint: disable=broad-except
+    except Exception as e:
         sys.exit(f"SMTP exception {e}")
 
 
@@ -337,4 +337,4 @@ def announce(base_parameters, receiver_email: str):
 
 
 if __name__ == '__main__':
-    cli()  # pylint: disable=no-value-for-parameter
+    cli()

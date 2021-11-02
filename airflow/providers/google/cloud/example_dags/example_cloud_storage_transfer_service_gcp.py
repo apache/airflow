@@ -25,7 +25,7 @@ This DAG relies on the following OS environment variables
 * GCP_PROJECT_ID - Google Cloud Project to use for the Google Cloud Transfer Service.
 * GCP_TRANSFER_FIRST_TARGET_BUCKET - Google Cloud Storage bucket to which files are copied from AWS.
   It is also a source bucket in next step
-* GCP_TRANSFER_SECOND_TARGET_BUCKET - Google Cloud Storage bucket bucket to which files are copied
+* GCP_TRANSFER_SECOND_TARGET_BUCKET - Google Cloud Storage bucket to which files are copied
 """
 
 import os
@@ -101,7 +101,7 @@ update_body = {
 
 with models.DAG(
     "example_gcp_transfer",
-    schedule_interval=None,  # Override to match your needs
+    schedule_interval='@once',  # Override to match your needs
     start_date=days_ago(1),
     tags=["example"],
 ) as dag:

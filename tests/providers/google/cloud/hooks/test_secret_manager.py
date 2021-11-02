@@ -1,4 +1,3 @@
-# pylint: disable=no-member
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -48,7 +47,7 @@ class TestSecretsManagerHook(unittest.TestCase):
         secret = secrets_manager_hook.get_secret(secret_id="secret")
         mock_client.secret_version_path.assert_called_once_with('example-project', 'secret', 'latest')
         mock_client.access_secret_version.assert_called_once_with("full-path")
-        self.assertIsNone(secret)
+        assert secret is None
 
     @patch(INTERNAL_CLIENT_PACKAGE + "._SecretManagerClient.client", return_value=MagicMock())
     @patch(
@@ -66,4 +65,4 @@ class TestSecretsManagerHook(unittest.TestCase):
         secret = secrets_manager_hook.get_secret(secret_id="secret")
         mock_client.secret_version_path.assert_called_once_with('example-project', 'secret', 'latest')
         mock_client.access_secret_version.assert_called_once_with("full-path")
-        self.assertEqual("result", secret)
+        assert "result" == secret

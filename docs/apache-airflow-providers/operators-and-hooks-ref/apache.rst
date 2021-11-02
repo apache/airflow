@@ -20,8 +20,8 @@ ASF: Apache Software Foundation
 
 Airflow supports various software created by `Apache Software Foundation <https://www.apache.org/foundation/>`__.
 
-Software operators and hooks
-----------------------------
+Software
+--------
 
 These integrations allow you to perform various operations within software developed by Apache Software
 Foundation.
@@ -31,8 +31,8 @@ Foundation.
    :header-separator: "
 
 
-Transfer operators and hooks
-----------------------------
+Transfers
+---------
 
 These integrations allow you to copy data from/to software developed by Apache Software
 Foundation.

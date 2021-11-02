@@ -43,11 +43,11 @@ def init_jinja_globals(app):
         default_ui_timezone = server_timezone
 
     expose_hostname = conf.getboolean('webserver', 'EXPOSE_HOSTNAME', fallback=True)
-    hosstname = socket.getfqdn() if expose_hostname else 'redact'
+    hostname = socket.getfqdn() if expose_hostname else 'redact'
 
     try:
         airflow_version = airflow.__version__
-    except Exception as e:  # pylint: disable=broad-except
+    except Exception as e:
         airflow_version = None
         logging.error(e)
 
@@ -57,7 +57,7 @@ def init_jinja_globals(app):
         extra_globals = {
             'server_timezone': server_timezone,
             'default_ui_timezone': default_ui_timezone,
-            'hostname': hosstname,
+            'hostname': hostname,
             'navbar_color': conf.get('webserver', 'NAVBAR_COLOR'),
             'log_fetch_delay_sec': conf.getint('webserver', 'log_fetch_delay_sec', fallback=2),
             'log_auto_tailing_offset': conf.getint('webserver', 'log_auto_tailing_offset', fallback=30),
@@ -66,6 +66,7 @@ def init_jinja_globals(app):
             'airflow_version': airflow_version,
             'git_version': git_version,
             'k8s_or_k8scelery_executor': IS_K8S_OR_K8SCELERY_EXECUTOR,
+            'rest_api_enabled': conf.get('api', 'auth_backend') != 'airflow.api.auth.backend.deny_all',
         }
 
         if 'analytics_tool' in conf.getsection('webserver'):

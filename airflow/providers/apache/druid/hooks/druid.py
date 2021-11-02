@@ -68,9 +68,7 @@ class DruidHook(BaseHook):
         port = conn.port
         conn_type = 'http' if not conn.conn_type else conn.conn_type
         endpoint = conn.extra_dejson.get('endpoint', '')
-        return "{conn_type}://{host}:{port}/{endpoint}".format(
-            conn_type=conn_type, host=host, port=port, endpoint=endpoint
-        )
+        return f"{conn_type}://{host}:{port}/{endpoint}"
 
     def get_auth(self) -> Optional[requests.auth.HTTPBasicAuth]:
         """
@@ -111,7 +109,7 @@ class DruidHook(BaseHook):
             if self.max_ingestion_time and sec > self.max_ingestion_time:
                 # ensure that the job gets killed if the max ingestion time is exceeded
                 requests.post(f"{url}/{druid_task_id}/shutdown", auth=self.get_auth())
-                raise AirflowException('Druid ingestion took more than ' f'{self.max_ingestion_time} seconds')
+                raise AirflowException(f'Druid ingestion took more than {self.max_ingestion_time} seconds')
 
             time.sleep(self.timeout)
 
@@ -140,11 +138,13 @@ class DruidDbApiHook(DbApiHook):
 
     conn_name_attr = 'druid_broker_conn_id'
     default_conn_name = 'druid_broker_default'
+    conn_type = 'druid'
+    hook_name = 'Druid'
     supports_autocommit = False
 
     def get_conn(self) -> connect:
         """Establish a connection to druid broker."""
-        conn = self.get_connection(self.conn_name_attr)
+        conn = self.get_connection(getattr(self, self.conn_name_attr))
         druid_broker_conn = connect(
             host=conn.host,
             port=conn.port,

@@ -18,12 +18,13 @@
 
 import unittest
 from datetime import datetime, timedelta
-from subprocess import PIPE, STDOUT
-from tempfile import NamedTemporaryFile
+from tempfile import NamedTemporaryFile, TemporaryDirectory
 from unittest import mock
 
-from airflow.exceptions import AirflowException
-from airflow.models import DagRun
+import pytest
+from parameterized import parameterized
+
+from airflow.exceptions import AirflowException, AirflowSkipException
 from airflow.models.dag import DAG
 from airflow.operators.bash import BashOperator
 from airflow.utils import timezone
@@ -36,13 +37,25 @@ INTERVAL = timedelta(hours=12)
 
 
 class TestBashOperator(unittest.TestCase):
-    def test_echo_env_variables(self):
+    @parameterized.expand(
+        [
+            (False, None, 'MY_PATH_TO_AIRFLOW_HOME'),
+            (True, {'AIRFLOW_HOME': 'OVERRIDDEN_AIRFLOW_HOME'}, 'OVERRIDDEN_AIRFLOW_HOME'),
+        ]
+    )
+    def test_echo_env_variables(self, append_env, user_defined_env, expected_airflow_home):
         """
-        Test that env variables are exported correctly to the
-        task bash environment.
+        Test that env variables are exported correctly to the task bash environment.
         """
-        now = datetime.utcnow()
-        now = now.replace(tzinfo=timezone.utc)
+        utc_now = datetime.utcnow().replace(tzinfo=timezone.utc)
+        expected = (
+            f"{expected_airflow_home}\n"
+            "AWESOME_PYTHONPATH\n"
+            "bash_op_test\n"
+            "echo_env_vars\n"
+            f"{utc_now.isoformat()}\n"
+            f"manual__{utc_now.isoformat()}\n"
+        )
 
         dag = DAG(
             dag_id='bash_op_test',
@@ -53,8 +66,8 @@ class TestBashOperator(unittest.TestCase):
 
         dag.create_dagrun(
             run_type=DagRunType.MANUAL,
-            execution_date=DEFAULT_DATE,
-            start_date=now,
+            execution_date=utc_now,
+            start_date=utc_now,
             state=State.RUNNING,
             external_trigger=False,
         )
@@ -69,33 +82,36 @@ class TestBashOperator(unittest.TestCase):
                 'echo $AIRFLOW_CTX_TASK_ID>> {0};'
                 'echo $AIRFLOW_CTX_EXECUTION_DATE>> {0};'
                 'echo $AIRFLOW_CTX_DAG_RUN_ID>> {0};'.format(tmp_file.name),
+                append_env=append_env,
+                env=user_defined_env,
             )
 
             with mock.patch.dict(
                 'os.environ', {'AIRFLOW_HOME': 'MY_PATH_TO_AIRFLOW_HOME', 'PYTHONPATH': 'AWESOME_PYTHONPATH'}
             ):
-                task.run(DEFAULT_DATE, DEFAULT_DATE, ignore_first_depends_on_past=True, ignore_ti_state=True)
+                task.run(utc_now, utc_now, ignore_first_depends_on_past=True, ignore_ti_state=True)
 
             with open(tmp_file.name) as file:
                 output = ''.join(file.readlines())
-                self.assertIn('MY_PATH_TO_AIRFLOW_HOME', output)
-                # exported in run-tests as part of PYTHONPATH
-                self.assertIn('AWESOME_PYTHONPATH', output)
-                self.assertIn('bash_op_test', output)
-                self.assertIn('echo_env_vars', output)
-                self.assertIn(DEFAULT_DATE.isoformat(), output)
-                self.assertIn(DagRun.generate_run_id(DagRunType.MANUAL, DEFAULT_DATE), output)
+                assert expected == output
 
-    def test_return_value(self):
-        bash_operator = BashOperator(bash_command='echo "stdout"', task_id='test_return_value', dag=None)
-        return_value = bash_operator.execute(context={})
-
-        self.assertEqual(return_value, 'stdout')
+    @parameterized.expand(
+        [
+            ('test-val', 'test-val'),
+            ('test-val\ntest-val\n', ''),
+            ('test-val\ntest-val', 'test-val'),
+            ('', ''),
+        ]
+    )
+    def test_return_value(self, val, expected):
+        op = BashOperator(task_id='abc', bash_command=f'set -e; echo "{val}";')
+        line = op.execute({})
+        assert line == expected
 
     def test_raise_exception_on_non_zero_exit_code(self):
         bash_operator = BashOperator(bash_command='exit 42', task_id='test_return_value', dag=None)
-        with self.assertRaisesRegex(
-            AirflowException, "Bash command failed\\. The command returned a non-zero exit code\\."
+        with pytest.raises(
+            AirflowException, match="Bash command failed\\. The command returned a non-zero exit code 42\\."
         ):
             bash_operator.execute(context={})
 
@@ -104,34 +120,62 @@ class TestBashOperator(unittest.TestCase):
             bash_command='echo "stdout"', task_id='test_task_retries', retries=2, dag=None
         )
 
-        self.assertEqual(bash_operator.retries, 2)
+        assert bash_operator.retries == 2
 
     def test_default_retries(self):
         bash_operator = BashOperator(bash_command='echo "stdout"', task_id='test_default_retries', dag=None)
 
-        self.assertEqual(bash_operator.retries, 0)
+        assert bash_operator.retries == 0
 
-    @mock.patch.dict('os.environ', clear=True)
-    @mock.patch(
-        "airflow.operators.bash.TemporaryDirectory",
-        **{'return_value.__enter__.return_value': '/tmp/airflowtmpcatcat'},  # type: ignore
-    )
-    @mock.patch(
-        "airflow.operators.bash.Popen",
-        **{  # type: ignore
-            'return_value.stdout.readline.side_effect': [b'BAR', b'BAZ'],
-            'return_value.returncode': 0,
-        },
-    )
-    def test_should_exec_subprocess(self, mock_popen, mock_temporary_directory):
-        bash_operator = BashOperator(bash_command='echo "stdout"', task_id='test_return_value', dag=None)
-        bash_operator.execute({})
+    def test_command_not_found(self):
+        with pytest.raises(
+            AirflowException, match="Bash command failed\\. The command returned a non-zero exit code 127\\."
+        ):
+            BashOperator(task_id='abc', bash_command='set -e; something-that-isnt-on-path').execute({})
 
-        mock_popen.assert_called_once_with(
-            ['bash', '-c', 'echo "stdout"'],
-            cwd='/tmp/airflowtmpcatcat',
-            env={},
-            preexec_fn=mock.ANY,
-            stderr=STDOUT,
-            stdout=PIPE,
-        )
+    def test_unset_cwd(self):
+        val = "xxxx"
+        op = BashOperator(task_id='abc', bash_command=f'set -e; echo "{val}";')
+        line = op.execute({})
+        assert line == val
+
+    def test_cwd_does_not_exist(self):
+        test_cmd = 'set -e; echo "xxxx" |tee outputs.txt'
+        with TemporaryDirectory(prefix='test_command_with_cwd') as tmp_dir:
+            # Get a nonexistent temporary directory to do the test
+            pass
+        # There should be no exceptions when creating the operator even the `cwd` doesn't exist
+        bash_operator = BashOperator(task_id='abc', bash_command=test_cmd, cwd=tmp_dir)
+        with pytest.raises(AirflowException, match=f"Can not find the cwd: {tmp_dir}"):
+            bash_operator.execute({})
+
+    def test_cwd_is_file(self):
+        test_cmd = 'set -e; echo "xxxx" |tee outputs.txt'
+        with NamedTemporaryFile(suffix="var.env") as tmp_file:
+            # Test if the cwd is a file_path
+            with pytest.raises(AirflowException, match=f"The cwd {tmp_file.name} must be a directory"):
+                BashOperator(task_id='abc', bash_command=test_cmd, cwd=tmp_file.name).execute({})
+
+    def test_valid_cwd(self):
+        test_cmd = 'set -e; echo "xxxx" |tee outputs.txt'
+        with TemporaryDirectory(prefix='test_command_with_cwd') as test_cwd_folder:
+            # Test everything went alright
+            result = BashOperator(task_id='abc', bash_command=test_cmd, cwd=test_cwd_folder).execute({})
+            assert result == "xxxx"
+            with open(f'{test_cwd_folder}/outputs.txt') as tmp_file:
+                assert tmp_file.read().splitlines()[0] == "xxxx"
+
+    @parameterized.expand(
+        [
+            (None, 99, AirflowSkipException),
+            ({'skip_exit_code': 100}, 100, AirflowSkipException),
+            ({'skip_exit_code': 100}, 101, AirflowException),
+            ({'skip_exit_code': None}, 99, AirflowException),
+        ]
+    )
+    def test_skip(self, extra_kwargs, actual_exit_code, expected_exc):
+        kwargs = dict(task_id='abc', bash_command=f'set -e; echo "hello world"; exit {actual_exit_code};')
+        if extra_kwargs:
+            kwargs.update(**extra_kwargs)
+        with pytest.raises(expected_exc):
+            BashOperator(**kwargs).execute({})

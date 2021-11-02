@@ -25,7 +25,12 @@ from airflow.hooks.base import BaseHook
 
 
 class ZendeskHook(BaseHook):
-    """A hook to talk to Zendesk"""
+    """
+    Interact with Zendesk. This hook uses the Zendesk conn_id.
+
+    :param zendesk_conn_id: The Airflow connection used for Zendesk credentials.
+    :type zendesk_conn_id: str
+    """
 
     def __init__(self, zendesk_conn_id: str) -> None:
         super().__init__()
@@ -87,7 +92,6 @@ class ZendeskHook(BaseHook):
             keys += query_params['include'].split(',')
         results = {key: results[key] for key in keys}
 
-        # pylint: disable=too-many-nested-blocks
         if get_all_pages:
             while next_page is not None:
                 try:

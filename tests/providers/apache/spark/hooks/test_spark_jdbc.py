@@ -44,7 +44,7 @@ class TestSparkJDBCHook(unittest.TestCase):
     }
 
     # this config is invalid because if one of [partitionColumn, lowerBound, upperBound]
-    # is set, all of the options must be enabled (enforced by Spark)
+    # is set, all the options must be enabled (enforced by Spark)
     _invalid_config = {
         'cmd_type': 'spark_to_jdbc',
         'jdbc_table': 'tableMcTableFace',
@@ -99,7 +99,7 @@ class TestSparkJDBCHook(unittest.TestCase):
         connection = hook._resolve_jdbc_connection()
 
         # Then
-        self.assertEqual(connection, expected_connection)
+        assert connection == expected_connection
 
     def test_build_jdbc_arguments(self):
         # Given
@@ -143,7 +143,7 @@ class TestSparkJDBCHook(unittest.TestCase):
             '-createTableColumnTypes',
             'columnMcColumnFace INTEGER(100), name CHAR(64),comments VARCHAR(1024)',
         ]
-        self.assertEqual(expected_jdbc_arguments, cmd)
+        assert expected_jdbc_arguments == cmd
 
     def test_build_jdbc_arguments_invalid(self):
         # Given

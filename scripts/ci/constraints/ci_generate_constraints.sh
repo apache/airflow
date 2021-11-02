@@ -15,6 +15,14 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+if [[ $1 == "" ]]; then
+  >&2 echo "Requires python MAJOR/MINOR version as first parameter"
+  exit 1
+fi
+
+export PYTHON_MAJOR_MINOR_VERSION=$1
+shift
+
 # shellcheck source=scripts/ci/libraries/_script_init.sh
 . "$( dirname "${BASH_SOURCE[0]}" )/../libraries/_script_init.sh"
 

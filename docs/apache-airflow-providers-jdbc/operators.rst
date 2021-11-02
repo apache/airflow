@@ -24,10 +24,6 @@ Java Database Connectivity (JDBC) is an application programming interface
 (API) for the programming language Java, which defines how a client may
 access a database.
 
-.. contents::
-  :depth: 1
-  :local:
-
 Prerequisite Tasks
 ^^^^^^^^^^^^^^^^^^
 
@@ -36,7 +32,7 @@ To use this operator you need:
   * Install the python module jaydebeapi:
     .. code-block:: bash
 
-      pip install jaydebeapi
+        pip install apache-airflow[jdbc]
 
   * Install a `JVM <https://adoptopenjdk.net/installation.html>`_ and
     add a ``JAVA_HOME`` env variable.
@@ -53,17 +49,17 @@ database is listening for new connections.
 
   .. code-block:: python
 
-    import apache-airflow[jdbc]
-
     driver_class = "com.exasol.jdbc.EXADriver"
     driver_path = "/opt/airflow/drivers/exasol/EXASolution_JDBC-7.0.2/exajdbc.jar"
-    connection_url =  "jdbc:exa:localhost"
+    connection_url = "jdbc:exa:localhost"
     credentials = ["", ""]
 
-    conn = jaydebeapi.connect(driver_class,
-                              connection_url,
-                              credentials,
-                              driver_path,)
+    conn = jaydebeapi.connect(
+        driver_class,
+        connection_url,
+        credentials,
+        driver_path,
+    )
 
 Usage
 ^^^^^
@@ -88,7 +84,7 @@ each command (default is ``False``)
 Templating
 ----------
 
-You can use :ref:`Jinja templates <jinja-templating>` to parameterize
+You can use :ref:`Jinja templates <concepts:jinja-templating>` to parameterize
 ``sql``.
 
 .. exampleinclude:: /../../airflow/providers/jdbc/example_dags/example_jdbc_queries.py

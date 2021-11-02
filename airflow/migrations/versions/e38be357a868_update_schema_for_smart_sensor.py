@@ -27,6 +27,9 @@ import sqlalchemy as sa
 from alembic import op
 from sqlalchemy import func
 from sqlalchemy.dialects import mysql
+from sqlalchemy.engine.reflection import Inspector
+
+from airflow.models.base import COLLATION_ARGS
 
 # revision identifiers, used by Alembic.
 revision = 'e38be357a868'
@@ -35,21 +38,26 @@ branch_labels = None
 depends_on = None
 
 
-def mssql_timestamp():  # noqa: D103
+def mssql_timestamp():
     return sa.DateTime()
 
 
-def mysql_timestamp():  # noqa: D103
+def mysql_timestamp():
     return mysql.TIMESTAMP(fsp=6)
 
 
-def sa_timestamp():  # noqa: D103
+def sa_timestamp():
     return sa.TIMESTAMP(timezone=True)
 
 
-def upgrade():  # noqa: D103
+def upgrade():
 
     conn = op.get_bind()
+    inspector = Inspector.from_engine(conn)
+    tables = inspector.get_table_names()
+    if 'sensor_instance' in tables:
+        return
+
     if conn.dialect.name == 'mysql':
         timestamp = mysql_timestamp
     elif conn.dialect.name == 'mssql':
@@ -60,8 +68,8 @@ def upgrade():  # noqa: D103
     op.create_table(
         'sensor_instance',
         sa.Column('id', sa.Integer(), nullable=False),
-        sa.Column('task_id', sa.String(length=250), nullable=False),
-        sa.Column('dag_id', sa.String(length=250), nullable=False),
+        sa.Column('task_id', sa.String(length=250, **COLLATION_ARGS), nullable=False),
+        sa.Column('dag_id', sa.String(length=250, **COLLATION_ARGS), nullable=False),
         sa.Column('execution_date', timestamp(), nullable=False),
         sa.Column('state', sa.String(length=20), nullable=True),
         sa.Column('try_number', sa.Integer(), nullable=True),
@@ -83,5 +91,9 @@ def upgrade():  # noqa: D103
     op.create_index('si_updated_at', 'sensor_instance', ['updated_at'], unique=False)
 
 
-def downgrade():  # noqa: D103
-    op.drop_table('sensor_instance')
+def downgrade():
+    conn = op.get_bind()
+    inspector = Inspector.from_engine(conn)
+    tables = inspector.get_table_names()
+    if 'sensor_instance' in tables:
+        op.drop_table('sensor_instance')

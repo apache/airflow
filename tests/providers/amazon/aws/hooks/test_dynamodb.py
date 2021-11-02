@@ -33,7 +33,7 @@ class TestDynamoDBHook(unittest.TestCase):
     @mock_dynamodb2
     def test_get_conn_returns_a_boto3_connection(self):
         hook = AwsDynamoDBHook(aws_conn_id='aws_default')
-        self.assertIsNotNone(hook.get_conn())
+        assert hook.get_conn() is not None
 
     @unittest.skipIf(mock_dynamodb2 is None, 'mock_dynamodb2 package not present')
     @mock_dynamodb2
@@ -60,4 +60,4 @@ class TestDynamoDBHook(unittest.TestCase):
         hook.write_batch_data(items)
 
         table.meta.client.get_waiter('table_exists').wait(TableName='test_airflow')
-        self.assertEqual(table.item_count, 10)
+        assert table.item_count == 10

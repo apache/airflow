@@ -20,7 +20,6 @@ from typing import Optional, Union
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.step_function import StepFunctionHook
-from airflow.utils.decorators import apply_defaults
 
 
 class StepFunctionStartExecutionOperator(BaseOperator):
@@ -48,7 +47,6 @@ class StepFunctionStartExecutionOperator(BaseOperator):
     template_ext = ()
     ui_color = '#f9c915'
 
-    @apply_defaults
     def __init__(
         self,
         *,

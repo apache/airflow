@@ -38,11 +38,11 @@ Airflow has extensive support for the `Google Cloud <https://cloud.google.com/>`
 .. note::
     You can learn how to use Google Cloud integrations by analyzing the
     `source code of the Google Cloud example DAGs
-    <https://github.com/apache/airflow/tree/master/airflow/providers/google/cloud/example_dags/>`_
+    <https://github.com/apache/airflow/tree/main/airflow/providers/google/cloud/example_dags/>`_
 
 
-Service operators and hooks
-"""""""""""""""""""""""""""
+Services
+""""""""
 
 These integrations allow you to perform various operations within the Google Cloud.
 
@@ -51,8 +51,8 @@ These integrations allow you to perform various operations within the Google Clo
    :header-separator: !
 
 
-Transfer operators and hooks
-""""""""""""""""""""""""""""
+Transfers
+"""""""""
 
 These integrations allow you to copy data from/to Google Cloud.
 
@@ -66,7 +66,7 @@ Google Marketing Platform
 
 .. note::
     You can learn how to use Google Marketing Platform integrations by analyzing the
-    `source code <https://github.com/apache/airflow/tree/master/airflow/providers/google/marketing_platform/example_dags/>`_
+    `source code <https://github.com/apache/airflow/tree/main/airflow/providers/google/marketing_platform/example_dags/>`_
     of the example DAGs.
 
 

@@ -17,7 +17,12 @@
 
 import unittest
 from unittest import mock
+from unittest.mock import MagicMock
 
+import pytest
+
+from airflow import AirflowException
+from airflow.models.xcom import MAX_XCOM_SIZE
 from airflow.providers.google.cloud.transfers.gcs_to_local import GCSToLocalFilesystemOperator
 
 TASK_ID = "test-gcs-operator"
@@ -28,6 +33,8 @@ PREFIX = "TEST"
 MOCK_FILES = ["TEST1.csv", "TEST2.csv", "TEST3.csv"]
 TEST_OBJECT = "dir1/test-object"
 LOCAL_FILE_PATH = "/home/airflow/gcp/test-object"
+XCOM_KEY = "some_xkom_key"
+FILE_CONTENT = "some file content"
 
 
 class TestGoogleCloudStorageDownloadOperator(unittest.TestCase):
@@ -44,3 +51,39 @@ class TestGoogleCloudStorageDownloadOperator(unittest.TestCase):
         mock_hook.return_value.download.assert_called_once_with(
             bucket_name=TEST_BUCKET, object_name=TEST_OBJECT, filename=LOCAL_FILE_PATH
         )
+
+    @mock.patch("airflow.providers.google.cloud.transfers.gcs_to_local.GCSHook")
+    def test_size_lt_max_xcom_size(self, mock_hook):
+        operator = GCSToLocalFilesystemOperator(
+            task_id=TASK_ID,
+            bucket=TEST_BUCKET,
+            object_name=TEST_OBJECT,
+            store_to_xcom_key=XCOM_KEY,
+        )
+        context = {"ti": MagicMock()}
+        mock_hook.return_value.download.return_value = FILE_CONTENT
+        mock_hook.return_value.get_size.return_value = MAX_XCOM_SIZE - 1
+
+        operator.execute(context=context)
+        mock_hook.return_value.get_size.assert_called_once_with(
+            bucket_name=TEST_BUCKET, object_name=TEST_OBJECT
+        )
+        mock_hook.return_value.download.assert_called_once_with(
+            bucket_name=TEST_BUCKET, object_name=TEST_OBJECT
+        )
+        context["ti"].xcom_push.assert_called_once_with(key=XCOM_KEY, value=FILE_CONTENT)
+
+    @mock.patch("airflow.providers.google.cloud.transfers.gcs_to_local.GCSHook")
+    def test_size_gt_max_xcom_size(self, mock_hook):
+        operator = GCSToLocalFilesystemOperator(
+            task_id=TASK_ID,
+            bucket=TEST_BUCKET,
+            object_name=TEST_OBJECT,
+            store_to_xcom_key=XCOM_KEY,
+        )
+        context = {"ti": MagicMock()}
+        mock_hook.return_value.download.return_value = FILE_CONTENT
+        mock_hook.return_value.get_size.return_value = MAX_XCOM_SIZE + 1
+
+        with pytest.raises(AirflowException, match="file is too large"):
+            operator.execute(context=context)

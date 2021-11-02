@@ -23,7 +23,6 @@ from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 from airflow.providers.amazon.aws.operators.s3_list import S3ListOperator
 from airflow.providers.google.cloud.hooks.gcs import GCSHook, _parse_gcs_url, gcs_object_is_directory
-from airflow.utils.decorators import apply_defaults
 
 
 class S3ToGCSOperator(S3ListOperator):
@@ -88,14 +87,15 @@ class S3ToGCSOperator(S3ListOperator):
     .. code-block:: python
 
        s3_to_gcs_op = S3ToGCSOperator(
-            task_id='s3_to_gcs_example',
-            bucket='my-s3-bucket',
-            prefix='data/customers-201804',
-            dest_gcs_conn_id='google_cloud_default',
-            dest_gcs='gs://my.gcs.bucket/some/customers/',
-            replace=False,
-            gzip=True,
-            dag=my-dag)
+           task_id="s3_to_gcs_example",
+           bucket="my-s3-bucket",
+           prefix="data/customers-201804",
+           dest_gcs_conn_id="google_cloud_default",
+           dest_gcs="gs://my.gcs.bucket/some/customers/",
+           replace=False,
+           gzip=True,
+           dag=my - dag,
+       )
 
     Note that ``bucket``, ``prefix``, ``delimiter`` and ``dest_gcs`` are
     templated, so you can use variables in them if you wish.
@@ -110,8 +110,6 @@ class S3ToGCSOperator(S3ListOperator):
     )
     ui_color = '#e09411'
 
-    # pylint: disable=too-many-arguments
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -149,7 +147,8 @@ class S3ToGCSOperator(S3ListOperator):
         self.gzip = gzip
         self.google_impersonation_chain = google_impersonation_chain
 
-        if dest_gcs and not gcs_object_is_directory(self.dest_gcs):
+    def _check_inputs(self) -> None:
+        if self.dest_gcs and not gcs_object_is_directory(self.dest_gcs):
             self.log.info(
                 'Destination Google Cloud Storage path is not a valid '
                 '"directory", define a path that ends with a slash "/" or '
@@ -160,16 +159,16 @@ class S3ToGCSOperator(S3ListOperator):
             )
 
     def execute(self, context):
+        self._check_inputs()
         # use the super method to list all the files in an S3 bucket/key
         files = super().execute(context)
 
         gcs_hook = GCSHook(
-            google_cloud_storage_conn_id=self.gcp_conn_id,
+            gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,
             impersonation_chain=self.google_impersonation_chain,
         )
 
-        # pylint: disable=too-many-nested-blocks
         if not self.replace:
             # if we are not replacing -> list all files in the GCS bucket
             # and only keep those files which are present in

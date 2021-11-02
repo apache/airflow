@@ -15,11 +15,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from typing import Any, Iterable, Mapping, Optional, Union
+from typing import Any, Iterable, List, Mapping, Optional, Union
 
 from airflow.models import BaseOperator
 from airflow.providers.sqlite.hooks.sqlite import SqliteHook
-from airflow.utils.decorators import apply_defaults
 
 
 class SqliteOperator(BaseOperator):
@@ -45,11 +44,10 @@ class SqliteOperator(BaseOperator):
     template_ext = ('.sql',)
     ui_color = '#cdaaed'
 
-    @apply_defaults
     def __init__(
         self,
         *,
-        sql: str,
+        sql: Union[str, List[str]],
         sqlite_conn_id: str = 'sqlite_default',
         parameters: Optional[Union[Mapping, Iterable]] = None,
         **kwargs,

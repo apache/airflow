@@ -52,7 +52,10 @@ class TestGlueJobHook(unittest.TestCase):
             ),
         )
         iam_role = hook.get_iam_execution_role()
-        self.assertIsNotNone(iam_role)
+        assert iam_role is not None
+        assert "Role" in iam_role
+        assert "Arn" in iam_role['Role']
+        assert iam_role['Role']['Arn'] == "arn:aws:iam::123456789012:role/my_test_role"
 
     @mock.patch.object(AwsGlueJobHook, "get_iam_execution_role")
     @mock.patch.object(AwsGlueJobHook, "get_conn")
@@ -70,7 +73,7 @@ class TestGlueJobHook(unittest.TestCase):
             s3_bucket=some_s3_bucket,
             region_name=self.some_aws_region,
         ).get_or_create_glue_job()
-        self.assertEqual(glue_job, mock_glue_job)
+        assert glue_job == mock_glue_job
 
     @mock.patch.object(AwsGlueJobHook, "get_job_state")
     @mock.patch.object(AwsGlueJobHook, "get_or_create_glue_job")
@@ -78,6 +81,7 @@ class TestGlueJobHook(unittest.TestCase):
     def test_initialize_job(self, mock_get_conn, mock_get_or_create_glue_job, mock_get_job_state):
         some_data_path = "s3://glue-datasets/examples/medicare/SampleData.csv"
         some_script_arguments = {"--s3_input_data_path": some_data_path}
+        some_run_kwargs = {"NumberOfWorkers": 5}
         some_script = "s3:/glue-examples/glue-scripts/sample_aws_glue_job.py"
         some_s3_bucket = "my-includes"
 
@@ -93,9 +97,9 @@ class TestGlueJobHook(unittest.TestCase):
             s3_bucket=some_s3_bucket,
             region_name=self.some_aws_region,
         )
-        glue_job_run = glue_job_hook.initialize_job(some_script_arguments)
+        glue_job_run = glue_job_hook.initialize_job(some_script_arguments, some_run_kwargs)
         glue_job_run_state = glue_job_hook.get_job_state(glue_job_run['JobName'], glue_job_run['JobRunId'])
-        self.assertEqual(glue_job_run_state, mock_job_run_state, msg='Mocks but be equal')
+        assert glue_job_run_state == mock_job_run_state, 'Mocks but be equal'
 
 
 if __name__ == '__main__':

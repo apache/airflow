@@ -39,7 +39,7 @@ dag = DAG(dag_id='impersonation_with_custom_pkg', default_args=args)
 
 def print_today():
     date_time = FakeDatetime.utcnow()
-    print('Today is {}'.format(date_time.strftime('%Y-%m-%d')))
+    print(f"Today is {date_time.strftime('%Y-%m-%d')}")
 
 
 def check_hive_conf():

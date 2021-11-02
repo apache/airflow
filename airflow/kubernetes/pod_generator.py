@@ -30,39 +30,16 @@ import warnings
 from functools import reduce
 from typing import List, Optional, Union
 
-import yaml
 from dateutil import parser
 from kubernetes.client import models as k8s
 from kubernetes.client.api_client import ApiClient
 
 from airflow.exceptions import AirflowConfigException
-from airflow.kubernetes.pod_generator_deprecated import PodGenerator as PodGeneratorDeprecated
+from airflow.kubernetes.pod_generator_deprecated import PodDefaults, PodGenerator as PodGeneratorDeprecated
+from airflow.utils import yaml
 from airflow.version import version as airflow_version
 
-MAX_POD_ID_LEN = 253
-
 MAX_LABEL_LEN = 63
-
-
-class PodDefaults:
-    """Static defaults for Pods"""
-
-    XCOM_MOUNT_PATH = '/airflow/xcom'
-    SIDECAR_CONTAINER_NAME = 'airflow-xcom-sidecar'
-    XCOM_CMD = 'trap "exit 0" INT; while true; do sleep 30; done;'
-    VOLUME_MOUNT = k8s.V1VolumeMount(name='xcom', mount_path=XCOM_MOUNT_PATH)
-    VOLUME = k8s.V1Volume(name='xcom', empty_dir=k8s.V1EmptyDirVolumeSource())
-    SIDECAR_CONTAINER = k8s.V1Container(
-        name=SIDECAR_CONTAINER_NAME,
-        command=['sh', '-c', XCOM_CMD],
-        image='alpine',
-        volume_mounts=[VOLUME_MOUNT],
-        resources=k8s.V1ResourceRequirements(
-            requests={
-                "cpu": "1m",
-            }
-        ),
-    )
 
 
 def make_safe_label_value(string):
@@ -124,7 +101,7 @@ class PodGenerator:
     :type extract_xcom: bool
     """
 
-    def __init__(  # pylint: disable=too-many-arguments,too-many-locals
+    def __init__(
         self,
         pod: Optional[k8s.V1Pod] = None,
         pod_template_file: Optional[str] = None,
@@ -159,6 +136,10 @@ class PodGenerator:
     @staticmethod
     def add_xcom_sidecar(pod: k8s.V1Pod) -> k8s.V1Pod:
         """Adds sidecar"""
+        warnings.warn(
+            "This function is deprecated. "
+            "Please use airflow.providers.cncf.kubernetes.utils.xcom_sidecar.add_xcom_sidecar instead"
+        )
         pod_cp = copy.deepcopy(pod)
         pod_cp.spec.volumes = pod.spec.volumes or []
         pod_cp.spec.volumes.insert(0, PodDefaults.VOLUME)
@@ -306,7 +287,8 @@ class PodGenerator:
             client_spec.containers = PodGenerator.reconcile_containers(
                 base_spec.containers, client_spec.containers
             )
-            merged_spec = extend_object_field(base_spec, client_spec, 'volumes')
+            merged_spec = extend_object_field(base_spec, client_spec, 'init_containers')
+            merged_spec = extend_object_field(base_spec, merged_spec, 'volumes')
             return merge_objects(base_spec, merged_spec)
 
         return None
@@ -344,18 +326,19 @@ class PodGenerator:
         )
 
     @staticmethod
-    def construct_pod(  # pylint: disable=too-many-arguments
+    def construct_pod(
         dag_id: str,
         task_id: str,
         pod_id: str,
         try_number: int,
         kube_image: str,
-        date: datetime.datetime,
+        date: Optional[datetime.datetime],
         args: List[str],
         pod_override_object: Optional[k8s.V1Pod],
         base_worker_pod: k8s.V1Pod,
         namespace: str,
-        scheduler_job_id: str,
+        scheduler_job_id: int,
+        run_id: Optional[str] = None,
     ) -> k8s.V1Pod:
         """
         Construct a pod by gathering and consolidating the configuration from 3 places:
@@ -367,28 +350,35 @@ class PodGenerator:
             image = pod_override_object.spec.containers[0].image  # type: ignore
             if not image:
                 image = kube_image
-        except Exception:  # pylint: disable=W0703
+        except Exception:
             image = kube_image
+
+        annotations = {
+            'dag_id': dag_id,
+            'task_id': task_id,
+            'try_number': str(try_number),
+        }
+        labels = {
+            'airflow-worker': make_safe_label_value(str(scheduler_job_id)),
+            'dag_id': make_safe_label_value(dag_id),
+            'task_id': make_safe_label_value(task_id),
+            'try_number': str(try_number),
+            'airflow_version': airflow_version.replace('+', '-'),
+            'kubernetes_executor': 'True',
+        }
+        if date:
+            annotations['execution_date'] = date.isoformat()
+            labels['execution_date'] = datetime_to_label_safe_datestring(date)
+        if run_id:
+            annotations['run_id'] = run_id
+            labels['run_id'] = make_safe_label_value(run_id)
 
         dynamic_pod = k8s.V1Pod(
             metadata=k8s.V1ObjectMeta(
                 namespace=namespace,
-                annotations={
-                    'dag_id': dag_id,
-                    'task_id': task_id,
-                    'execution_date': date.isoformat(),
-                    'try_number': str(try_number),
-                },
+                annotations=annotations,
                 name=PodGenerator.make_unique_pod_id(pod_id),
-                labels={
-                    'airflow-worker': str(scheduler_job_id),
-                    'dag_id': dag_id,
-                    'task_id': task_id,
-                    'execution_date': datetime_to_label_safe_datestring(date),
-                    'try_number': str(try_number),
-                    'airflow_version': airflow_version.replace('+', '-'),
-                    'kubernetes_executor': 'True',
-                },
+                labels=labels,
             ),
             spec=k8s.V1PodSpec(
                 containers=[
@@ -409,13 +399,13 @@ class PodGenerator:
         return reduce(PodGenerator.reconcile_pods, pod_list)
 
     @staticmethod
-    def serialize_pod(pod: k8s.V1Pod):
+    def serialize_pod(pod: k8s.V1Pod) -> dict:
         """
 
         Converts a k8s.V1Pod into a jsonified object
 
-        @param pod:
-        @return:
+        :param pod: k8s.V1Pod object
+        :return: Serialized version of the pod returned as dict
         """
         api_client = ApiClient()
         return api_client.sanitize_for_serialization(pod)
@@ -436,25 +426,31 @@ class PodGenerator:
         else:
             pod = yaml.safe_load(path)
 
-        # pylint: disable=protected-access
         return PodGenerator.deserialize_model_dict(pod)
 
     @staticmethod
     def deserialize_model_dict(pod_dict: dict) -> k8s.V1Pod:
         """
         Deserializes python dictionary to k8s.V1Pod
-        @param pod_dict:
-        @return:
+
+        :param pod_dict: Serialized dict of k8s.V1Pod object
+        :return: De-serialized k8s.V1Pod
         """
         api_client = ApiClient()
-        return api_client._ApiClient__deserialize_model(pod_dict, k8s.V1Pod)  # pylint: disable=W0212
+        return api_client._ApiClient__deserialize_model(pod_dict, k8s.V1Pod)
 
     @staticmethod
-    def make_unique_pod_id(pod_id):
+    def make_unique_pod_id(pod_id: str) -> str:
         r"""
-        Kubernetes pod names must be <= 253 chars and must pass the following regex for
-        validation
+        Kubernetes pod names must consist of one or more lowercase
+        rfc1035/rfc1123 labels separated by '.' with a maximum length of 253
+        characters. Each label has a maximum length of 63 characters.
+
+        Name must pass the following regex for validation
         ``^[a-z0-9]([-a-z0-9]*[a-z0-9])?(\\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*$``
+
+        For more details, see:
+        https://github.com/kubernetes/kubernetes/blob/release-1.1/docs/design/identifiers.md
 
         :param pod_id: a dag_id with only alphanumeric characters
         :return: ``str`` valid Pod name of appropriate length
@@ -462,9 +458,11 @@ class PodGenerator:
         if not pod_id:
             return None
 
-        safe_uuid = uuid.uuid4().hex
-        safe_pod_id = pod_id[: MAX_POD_ID_LEN - len(safe_uuid) - 1] + "-" + safe_uuid
+        safe_uuid = uuid.uuid4().hex  # safe uuid will always be less than 63 chars
+        # Strip trailing '-' and '.' as they can't be followed by '.'
+        trimmed_pod_id = pod_id[:MAX_LABEL_LEN].rstrip('-.')
 
+        safe_pod_id = f"{trimmed_pod_id}.{safe_uuid}"
         return safe_pod_id
 
 

@@ -28,10 +28,6 @@ You can use it to understand sentiment about your product on social media or
 parse intent from customer conversations happening in a call center or a
 messaging app.
 
-.. contents::
-  :depth: 1
-  :local:
-
 Prerequisite Tasks
 ^^^^^^^^^^^^^^^^^^
 
@@ -76,7 +72,7 @@ Entity analysis is performed with the
     :start-after: [START howto_operator_gcp_natural_language_analyze_entities]
     :end-before: [END howto_operator_gcp_natural_language_analyze_entities]
 
-You can use :ref:`Jinja templating <jinja-templating>` with
+You can use :ref:`Jinja templating <concepts:jinja-templating>` with
 :template-fields:`airflow.providers.google.cloud.operators.natural_language.CloudNaturalLanguageAnalyzeEntitiesOperator`
 parameters which allows you to dynamically determine values. The result is saved to :ref:`XCom <concepts:xcom>`, which allows it
 to be used by other operators.
@@ -104,7 +100,7 @@ operator.
     :start-after: [START howto_operator_gcp_natural_language_analyze_entity_sentiment]
     :end-before: [END howto_operator_gcp_natural_language_analyze_entity_sentiment]
 
-You can use :ref:`Jinja templating <jinja-templating>` with
+You can use :ref:`Jinja templating <concepts:jinja-templating>` with
 :template-fields:`airflow.providers.google.cloud.operators.natural_language.CloudNaturalLanguageAnalyzeEntitiesOperator`
 parameters which allows you to dynamically determine values. The result is saved to :ref:`XCom <concepts:xcom>`, which allows it
 to be used by other operators.
@@ -133,7 +129,7 @@ operator.
     :start-after: [START howto_operator_gcp_natural_language_analyze_sentiment]
     :end-before: [END howto_operator_gcp_natural_language_analyze_sentiment]
 
-You can use :ref:`Jinja templating <jinja-templating>` with
+You can use :ref:`Jinja templating <concepts:jinja-templating>` with
 :template-fields:`airflow.providers.google.cloud.operators.natural_language.CloudNaturalLanguageAnalyzeSentimentOperator`
 parameters which allows you to dynamically determine values. The result is saved to :ref:`XCom <concepts:xcom>`, which allows it
 to be used by other operators.
@@ -161,7 +157,7 @@ operator.
     :start-after: [START howto_operator_gcp_natural_language_analyze_classify_text]
     :end-before: [END howto_operator_gcp_natural_language_analyze_classify_text]
 
-You can use :ref:`Jinja templating <jinja-templating>` with
+You can use :ref:`Jinja templating <concepts:jinja-templating>` with
 :template-fields:`airflow.providers.google.cloud.operators.natural_language.CloudNaturalLanguageClassifyTextOperator`
 parameters which allows you to dynamically determine values. The result is saved to :ref:`XCom <concepts:xcom>`, which allows it
 to be used by other operators.

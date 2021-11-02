@@ -20,6 +20,7 @@ import unittest
 from unittest import mock
 from unittest.mock import MagicMock
 
+import pytest
 from parameterized import parameterized
 
 from airflow.exceptions import AirflowException
@@ -43,10 +44,10 @@ class TestStepFunctionExecutionSensor(unittest.TestCase):
             task_id=TASK_ID, execution_arn=EXECUTION_ARN, aws_conn_id=AWS_CONN_ID, region_name=REGION_NAME
         )
 
-        self.assertEqual(TASK_ID, sensor.task_id)
-        self.assertEqual(EXECUTION_ARN, sensor.execution_arn)
-        self.assertEqual(AWS_CONN_ID, sensor.aws_conn_id)
-        self.assertEqual(REGION_NAME, sensor.region_name)
+        assert TASK_ID == sensor.task_id
+        assert EXECUTION_ARN == sensor.execution_arn
+        assert AWS_CONN_ID == sensor.aws_conn_id
+        assert REGION_NAME == sensor.region_name
 
     @parameterized.expand([('FAILED',), ('TIMED_OUT',), ('ABORTED',)])
     @mock.patch('airflow.providers.amazon.aws.sensors.step_function_execution.StepFunctionHook')
@@ -60,7 +61,7 @@ class TestStepFunctionExecutionSensor(unittest.TestCase):
             task_id=TASK_ID, execution_arn=EXECUTION_ARN, aws_conn_id=AWS_CONN_ID, region_name=REGION_NAME
         )
 
-        with self.assertRaises(AirflowException):
+        with pytest.raises(AirflowException):
             sensor.poke(self.mock_context)
 
     @mock.patch('airflow.providers.amazon.aws.sensors.step_function_execution.StepFunctionHook')
@@ -74,7 +75,7 @@ class TestStepFunctionExecutionSensor(unittest.TestCase):
             task_id=TASK_ID, execution_arn=EXECUTION_ARN, aws_conn_id=AWS_CONN_ID, region_name=REGION_NAME
         )
 
-        self.assertFalse(sensor.poke(self.mock_context))
+        assert not sensor.poke(self.mock_context)
 
     @mock.patch('airflow.providers.amazon.aws.sensors.step_function_execution.StepFunctionHook')
     def test_succeeded(self, mock_hook):
@@ -87,4 +88,4 @@ class TestStepFunctionExecutionSensor(unittest.TestCase):
             task_id=TASK_ID, execution_arn=EXECUTION_ARN, aws_conn_id=AWS_CONN_ID, region_name=REGION_NAME
         )
 
-        self.assertTrue(sensor.poke(self.mock_context))
+        assert sensor.poke(self.mock_context)

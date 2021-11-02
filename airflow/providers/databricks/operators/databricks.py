@@ -24,7 +24,6 @@ from typing import Any, Dict, List, Optional, Union
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.databricks.hooks.databricks import DatabricksHook
-from airflow.utils.decorators import apply_defaults
 
 XCOM_RUN_ID_KEY = 'run_id'
 XCOM_RUN_PAGE_URL_KEY = 'run_page_url'
@@ -162,7 +161,7 @@ class DatabricksSubmitRunOperator(BaseOperator):
         take precedence and override the top level json keys. (templated)
 
         .. seealso::
-            For more information about templating see :ref:`jinja-templating`.
+            For more information about templating see :ref:`concepts:jinja-templating`.
             https://docs.databricks.com/api/latest/jobs.html#runs-submit
     :type json: dict
     :param spark_jar_task: The main class and parameters for the JAR task. Note that
@@ -224,7 +223,7 @@ class DatabricksSubmitRunOperator(BaseOperator):
         which means to have no timeout.
         This field will be templated.
     :type timeout_seconds: int32
-    :param databricks_conn_id: The name of the Airflow connection to use.
+    :param databricks_conn_id: Reference to the :ref:`Databricks connection <howto/connection:databricks>`.
         By default and in the common case this will be ``databricks_default``. To use
         token based authentication, provide the key ``token`` in the extra field for the
         connection and create the key ``host`` and leave the ``host`` field empty.
@@ -248,8 +247,6 @@ class DatabricksSubmitRunOperator(BaseOperator):
     ui_color = '#1CB1C2'
     ui_fgcolor = '#fff'
 
-    # pylint: disable=too-many-arguments
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -394,7 +391,7 @@ class DatabricksRunNowOperator(BaseOperator):
         take precedence and override the top level json keys. (templated)
 
         .. seealso::
-            For more information about templating see :ref:`jinja-templating`.
+            For more information about templating see :ref:`concepts:jinja-templating`.
             https://docs.databricks.com/api/latest/jobs.html#run-now
     :type json: dict
     :param notebook_params: A dict from keys to values for jobs with notebook task,
@@ -438,7 +435,7 @@ class DatabricksRunNowOperator(BaseOperator):
         which means to have no timeout.
         This field will be templated.
     :type timeout_seconds: int32
-    :param databricks_conn_id: The name of the Airflow connection to use.
+    :param databricks_conn_id: Reference to the :ref:`Databricks connection <howto/connection:databricks>`.
         By default and in the common case this will be ``databricks_default``. To use
         token based authentication, provide the key ``token`` in the extra field for the
         connection and create the key ``host`` and leave the ``host`` field empty.
@@ -459,8 +456,6 @@ class DatabricksRunNowOperator(BaseOperator):
     ui_color = '#1CB1C2'
     ui_fgcolor = '#fff'
 
-    # pylint: disable=too-many-arguments
-    @apply_defaults
     def __init__(
         self,
         *,

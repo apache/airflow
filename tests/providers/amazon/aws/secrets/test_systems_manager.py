@@ -47,7 +47,7 @@ class TestSsmSecrets(TestCase):
         ssm_backend.client.put_parameter(**param)
 
         returned_uri = ssm_backend.get_conn_uri(conn_id="test_postgres")
-        self.assertEqual('postgresql://airflow:airflow@host:5432/airflow', returned_uri)
+        assert 'postgresql://airflow:airflow@host:5432/airflow' == returned_uri
 
     @mock_ssm
     def test_get_conn_uri_non_existent_key(self):
@@ -65,8 +65,8 @@ class TestSsmSecrets(TestCase):
         ssm_backend = SystemsManagerParameterStoreBackend()
         ssm_backend.client.put_parameter(**param)
 
-        self.assertIsNone(ssm_backend.get_conn_uri(conn_id=conn_id))
-        self.assertEqual([], ssm_backend.get_connections(conn_id=conn_id))
+        assert ssm_backend.get_conn_uri(conn_id=conn_id) is None
+        assert [] == ssm_backend.get_connections(conn_id=conn_id)
 
     @mock_ssm
     def test_get_variable(self):
@@ -76,7 +76,7 @@ class TestSsmSecrets(TestCase):
         ssm_backend.client.put_parameter(**param)
 
         returned_uri = ssm_backend.get_variable('hello')
-        self.assertEqual('world', returned_uri)
+        assert 'world' == returned_uri
 
     @mock_ssm
     def test_get_config(self):
@@ -90,7 +90,7 @@ class TestSsmSecrets(TestCase):
         ssm_backend.client.put_parameter(**param)
 
         returned_uri = ssm_backend.get_config('sql_alchemy_conn')
-        self.assertEqual('sqlite:///Users/test_user/airflow.db', returned_uri)
+        assert 'sqlite:///Users/test_user/airflow.db' == returned_uri
 
     @mock_ssm
     def test_get_variable_secret_string(self):
@@ -98,7 +98,7 @@ class TestSsmSecrets(TestCase):
         ssm_backend = SystemsManagerParameterStoreBackend()
         ssm_backend.client.put_parameter(**param)
         returned_uri = ssm_backend.get_variable('hello')
-        self.assertEqual('world', returned_uri)
+        assert 'world' == returned_uri
 
     @mock_ssm
     def test_get_variable_non_existent_key(self):
@@ -111,7 +111,7 @@ class TestSsmSecrets(TestCase):
         ssm_backend = SystemsManagerParameterStoreBackend()
         ssm_backend.client.put_parameter(**param)
 
-        self.assertIsNone(ssm_backend.get_variable("test_mysql"))
+        assert ssm_backend.get_variable("test_mysql") is None
 
     @conf_vars(
         {
@@ -146,7 +146,7 @@ class TestSsmSecrets(TestCase):
 
         ssm_backend = SystemsManagerParameterStoreBackend(**kwargs)
 
-        self.assertIsNone(ssm_backend.get_conn_uri("test_mysql"))
+        assert ssm_backend.get_conn_uri("test_mysql") is None
         mock_get_secret.assert_not_called()
 
     @mock.patch(
@@ -163,7 +163,7 @@ class TestSsmSecrets(TestCase):
 
         ssm_backend = SystemsManagerParameterStoreBackend(**kwargs)
 
-        self.assertIsNone(ssm_backend.get_variable("hello"))
+        assert ssm_backend.get_variable("hello") is None
         mock_get_secret.assert_not_called()
 
     @mock.patch(
@@ -180,5 +180,5 @@ class TestSsmSecrets(TestCase):
 
         ssm_backend = SystemsManagerParameterStoreBackend(**kwargs)
 
-        self.assertIsNone(ssm_backend.get_config("config"))
+        assert ssm_backend.get_config("config") is None
         mock_get_secret.assert_not_called()

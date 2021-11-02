@@ -17,6 +17,8 @@
 
 import unittest
 
+import pytest
+
 from airflow.providers.google.cloud.utils.field_validator import (
     GcpBodyFieldValidator,
     GcpFieldValidationException,
@@ -31,7 +33,7 @@ class TestGcpBodyFieldValidator(unittest.TestCase):
 
         validator = GcpBodyFieldValidator(specification, 'v1')
 
-        self.assertIsNone(validator.validate(body))
+        assert validator.validate(body) is None
 
     def test_validate_should_fail_if_body_is_none(self):
         specification = []
@@ -39,7 +41,7 @@ class TestGcpBodyFieldValidator(unittest.TestCase):
 
         validator = GcpBodyFieldValidator(specification, 'v1')
 
-        with self.assertRaises(AttributeError):
+        with pytest.raises(AttributeError):
             validator.validate(body)
 
     def test_validate_should_fail_if_specification_is_none(self):
@@ -48,7 +50,7 @@ class TestGcpBodyFieldValidator(unittest.TestCase):
 
         validator = GcpBodyFieldValidator(specification, 'v1')
 
-        with self.assertRaises(TypeError):
+        with pytest.raises(TypeError):
             validator.validate(body)
 
     def test_validate_should_raise_exception_name_attribute_is_missing_from_specs(self):
@@ -57,7 +59,7 @@ class TestGcpBodyFieldValidator(unittest.TestCase):
 
         validator = GcpBodyFieldValidator(specification, 'v1')
 
-        with self.assertRaises(KeyError):
+        with pytest.raises(KeyError):
             validator.validate(body)
 
     def test_validate_should_raise_exception_if_field_is_not_present(self):
@@ -66,7 +68,7 @@ class TestGcpBodyFieldValidator(unittest.TestCase):
 
         validator = GcpBodyFieldValidator(specification, 'v1')
 
-        with self.assertRaises(GcpFieldValidationException):
+        with pytest.raises(GcpFieldValidationException):
             validator.validate(body)
 
     def test_validate_should_validate_a_single_field(self):
@@ -75,7 +77,7 @@ class TestGcpBodyFieldValidator(unittest.TestCase):
 
         validator = GcpBodyFieldValidator(specification, 'v1')
 
-        self.assertIsNone(validator.validate(body))
+        assert validator.validate(body) is None
 
     def test_validate_should_fail_if_body_is_not_a_dict(self):
         specification = [dict(name="name", allow_empty=False)]
@@ -83,7 +85,7 @@ class TestGcpBodyFieldValidator(unittest.TestCase):
 
         validator = GcpBodyFieldValidator(specification, 'v1')
 
-        with self.assertRaises(AttributeError):
+        with pytest.raises(AttributeError):
             validator.validate(body)
 
     def test_validate_should_fail_for_set_allow_empty_when_field_is_none(self):
@@ -92,7 +94,7 @@ class TestGcpBodyFieldValidator(unittest.TestCase):
 
         validator = GcpBodyFieldValidator(specification, 'v1')
 
-        with self.assertRaises(GcpFieldValidationException):
+        with pytest.raises(GcpFieldValidationException):
             validator.validate(body)
 
     def test_validate_should_interpret_allow_empty_clause(self):
@@ -101,7 +103,7 @@ class TestGcpBodyFieldValidator(unittest.TestCase):
 
         validator = GcpBodyFieldValidator(specification, 'v1')
 
-        self.assertIsNone(validator.validate(body))
+        assert validator.validate(body) is None
 
     def test_validate_should_raise_if_empty_clause_is_false(self):
         specification = [dict(name="name", allow_empty=False)]
@@ -109,7 +111,7 @@ class TestGcpBodyFieldValidator(unittest.TestCase):
 
         validator = GcpBodyFieldValidator(specification, 'v1')
 
-        with self.assertRaises(GcpFieldValidationException):
+        with pytest.raises(GcpFieldValidationException):
             validator.validate(body)
 
     def test_validate_should_raise_if_version_mismatch_is_found(self):
@@ -126,7 +128,7 @@ class TestGcpBodyFieldValidator(unittest.TestCase):
 
         validator = GcpBodyFieldValidator(specification, 'v1')
 
-        self.assertIsNone(validator.validate(body))
+        assert validator.validate(body) is None
 
     def test_validate_should_interpret_optional_clause(self):
         specification = [dict(name="name", allow_empty=False, optional=True)]
@@ -134,7 +136,7 @@ class TestGcpBodyFieldValidator(unittest.TestCase):
 
         validator = GcpBodyFieldValidator(specification, 'v1')
 
-        self.assertIsNone(validator.validate(body))
+        assert validator.validate(body) is None
 
     def test_validate_should_raise_exception_if_optional_clause_is_false_and_field_not_present(self):
         specification = [dict(name="name", allow_empty=False, optional=False)]
@@ -142,7 +144,7 @@ class TestGcpBodyFieldValidator(unittest.TestCase):
 
         validator = GcpBodyFieldValidator(specification, 'v1')
 
-        with self.assertRaises(GcpFieldValidationException):
+        with pytest.raises(GcpFieldValidationException):
             validator.validate(body)
 
     def test_validate_should_interpret_dict_type(self):
@@ -151,7 +153,7 @@ class TestGcpBodyFieldValidator(unittest.TestCase):
 
         validator = GcpBodyFieldValidator(specification, 'v1')
 
-        self.assertIsNone(validator.validate(body))
+        assert validator.validate(body) is None
 
     def test_validate_should_fail_if_value_is_not_dict_as_per_specs(self):
         specification = [dict(name="labels", optional=True, type="dict")]
@@ -159,7 +161,7 @@ class TestGcpBodyFieldValidator(unittest.TestCase):
 
         validator = GcpBodyFieldValidator(specification, 'v1')
 
-        with self.assertRaises(GcpFieldValidationException):
+        with pytest.raises(GcpFieldValidationException):
             validator.validate(body)
 
     def test_validate_should_not_allow_both_type_and_allow_empty_in_a_spec(self):
@@ -168,7 +170,7 @@ class TestGcpBodyFieldValidator(unittest.TestCase):
 
         validator = GcpBodyFieldValidator(specification, 'v1')
 
-        with self.assertRaises(GcpValidationSpecificationException):
+        with pytest.raises(GcpValidationSpecificationException):
             validator.validate(body)
 
     def test_validate_should_allow_type_and_optional_in_a_spec(self):
@@ -177,7 +179,7 @@ class TestGcpBodyFieldValidator(unittest.TestCase):
 
         validator = GcpBodyFieldValidator(specification, 'v1')
 
-        self.assertIsNone(validator.validate(body))
+        assert validator.validate(body) is None
 
     def test_validate_should_fail_if_union_field_is_not_found(self):
         specification = [
@@ -193,7 +195,7 @@ class TestGcpBodyFieldValidator(unittest.TestCase):
         body = {}
 
         validator = GcpBodyFieldValidator(specification, 'v1')
-        self.assertIsNone(validator.validate(body))
+        assert validator.validate(body) is None
 
     def test_validate_should_fail_if_there_is_no_nested_field_for_union(self):
         specification = [dict(name="an_union", type="union", optional=False, fields=[])]
@@ -201,7 +203,7 @@ class TestGcpBodyFieldValidator(unittest.TestCase):
 
         validator = GcpBodyFieldValidator(specification, 'v1')
 
-        with self.assertRaises(GcpValidationSpecificationException):
+        with pytest.raises(GcpValidationSpecificationException):
             validator.validate(body)
 
     def test_validate_should_interpret_union_with_one_field(self):
@@ -217,7 +219,7 @@ class TestGcpBodyFieldValidator(unittest.TestCase):
         body = {"variant_1": "abc", "variant_2": "def"}
 
         validator = GcpBodyFieldValidator(specification, 'v1')
-        self.assertIsNone(validator.validate(body))
+        assert validator.validate(body) is None
 
     def test_validate_should_fail_if_both_field_of_union_is_present(self):
         specification = [
@@ -233,7 +235,7 @@ class TestGcpBodyFieldValidator(unittest.TestCase):
         body = {"variant_1": "abc", "variant_2": "def"}
 
         validator = GcpBodyFieldValidator(specification, 'v1')
-        with self.assertRaises(GcpFieldValidationException):
+        with pytest.raises(GcpFieldValidationException):
             validator.validate(body)
 
     def test_validate_should_validate_when_value_matches_regex(self):
@@ -249,7 +251,7 @@ class TestGcpBodyFieldValidator(unittest.TestCase):
         body = {"variant_1": "12"}
 
         validator = GcpBodyFieldValidator(specification, 'v1')
-        self.assertIsNone(validator.validate(body))
+        assert validator.validate(body) is None
 
     def test_validate_should_fail_when_value_does_not_match_regex(self):
         specification = [
@@ -264,7 +266,7 @@ class TestGcpBodyFieldValidator(unittest.TestCase):
         body = {"variant_1": "abc"}
 
         validator = GcpBodyFieldValidator(specification, 'v1')
-        with self.assertRaises(GcpFieldValidationException):
+        with pytest.raises(GcpFieldValidationException):
             validator.validate(body)
 
     def test_validate_should_raise_if_custom_validation_is_not_true(self):
@@ -276,7 +278,7 @@ class TestGcpBodyFieldValidator(unittest.TestCase):
         body = {"availableMemoryMb": 1}
 
         validator = GcpBodyFieldValidator(specification, 'v1')
-        with self.assertRaises(GcpFieldValidationException):
+        with pytest.raises(GcpFieldValidationException):
             validator.validate(body)
 
     def test_validate_should_not_raise_if_custom_validation_is_true(self):
@@ -288,7 +290,7 @@ class TestGcpBodyFieldValidator(unittest.TestCase):
         body = {"availableMemoryMb": 0}
 
         validator = GcpBodyFieldValidator(specification, 'v1')
-        self.assertIsNone(validator.validate(body))
+        assert validator.validate(body) is None
 
     def test_validate_should_validate_group_of_specs(self):
         specification = [

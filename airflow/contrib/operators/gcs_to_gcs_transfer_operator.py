@@ -22,8 +22,6 @@ Please use `airflow.providers.google.cloud.operators.cloud_storage_transfer_serv
 
 import warnings
 
-# pylint: disable=unused-import
-
 warnings.warn(
     "This module is deprecated. "
     "Please use `airflow.providers.google.cloud.operators.cloud_storage_transfer_service`.",

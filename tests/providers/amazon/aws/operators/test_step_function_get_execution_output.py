@@ -45,10 +45,10 @@ class TestStepFunctionGetExecutionOutputOperator(unittest.TestCase):
         )
 
         # Then
-        self.assertEqual(TASK_ID, operator.task_id)
-        self.assertEqual(EXECUTION_ARN, operator.execution_arn)
-        self.assertEqual(AWS_CONN_ID, operator.aws_conn_id)
-        self.assertEqual(REGION_NAME, operator.region_name)
+        assert TASK_ID == operator.task_id
+        assert EXECUTION_ARN == operator.execution_arn
+        assert AWS_CONN_ID == operator.aws_conn_id
+        assert REGION_NAME == operator.region_name
 
     @mock.patch('airflow.providers.amazon.aws.operators.step_function_get_execution_output.StepFunctionHook')
     def test_execute(self, mock_hook):
@@ -66,4 +66,4 @@ class TestStepFunctionGetExecutionOutputOperator(unittest.TestCase):
         result = operator.execute(self.mock_context)
 
         # Then
-        self.assertEqual({}, result)
+        assert {} == result

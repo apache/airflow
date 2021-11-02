@@ -20,6 +20,8 @@ import re
 import unittest
 from datetime import timedelta
 
+import pytest
+
 from airflow.exceptions import AirflowSensorTimeout
 from airflow.providers.apache.hdfs.sensors.hdfs import HdfsFolderSensor, HdfsRegexSensor, HdfsSensor
 from airflow.utils.timezone import datetime
@@ -70,7 +72,7 @@ class TestHdfsSensor(unittest.TestCase):
 
         # When
         # Then
-        with self.assertRaises(AirflowSensorTimeout):
+        with pytest.raises(AirflowSensorTimeout):
             task.execute(None)
 
     def test_legacy_file_does_not_exists(self):
@@ -89,7 +91,7 @@ class TestHdfsSensor(unittest.TestCase):
 
         # When
         # Then
-        with self.assertRaises(AirflowSensorTimeout):
+        with pytest.raises(AirflowSensorTimeout):
             task.execute(None)
 
 
@@ -145,7 +147,7 @@ class TestHdfsSensorFolder(unittest.TestCase):
 
         # When
         # Then
-        with self.assertRaises(AirflowSensorTimeout):
+        with pytest.raises(AirflowSensorTimeout):
             task.execute(None)
 
     def test_should_be_a_non_empty_directory(self):
@@ -192,7 +194,7 @@ class TestHdfsSensorFolder(unittest.TestCase):
 
         # When
         # Then
-        with self.assertRaises(AirflowSensorTimeout):
+        with pytest.raises(AirflowSensorTimeout):
             task.execute(None)
 
 
@@ -250,7 +252,7 @@ class TestHdfsSensorRegex(unittest.TestCase):
 
         # When
         # Then
-        with self.assertRaises(AirflowSensorTimeout):
+        with pytest.raises(AirflowSensorTimeout):
             task.execute(None)
 
     def test_should_match_regex_and_filesize(self):
@@ -305,7 +307,7 @@ class TestHdfsSensorRegex(unittest.TestCase):
 
         # When
         # Then
-        with self.assertRaises(AirflowSensorTimeout):
+        with pytest.raises(AirflowSensorTimeout):
             task.execute(None)
 
     def test_should_match_regex_but_copyingext(self):
@@ -332,5 +334,5 @@ class TestHdfsSensorRegex(unittest.TestCase):
 
         # When
         # Then
-        with self.assertRaises(AirflowSensorTimeout):
+        with pytest.raises(AirflowSensorTimeout):
             task.execute(None)

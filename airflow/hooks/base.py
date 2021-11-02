@@ -18,11 +18,14 @@
 """Base class for all hooks"""
 import logging
 import warnings
-from typing import Any, Dict, List
+from typing import TYPE_CHECKING, Any, Dict, List
 
-from airflow.models.connection import Connection
 from airflow.typing_compat import Protocol
 from airflow.utils.log.logging_mixin import LoggingMixin
+from airflow.utils.log.secrets_masker import redact
+
+if TYPE_CHECKING:
+    from airflow.models.connection import Connection  # Avoid circular imports.
 
 log = logging.getLogger(__name__)
 
@@ -37,7 +40,7 @@ class BaseHook(LoggingMixin):
     """
 
     @classmethod
-    def get_connections(cls, conn_id: str) -> List[Connection]:
+    def get_connections(cls, conn_id: str) -> List["Connection"]:
         """
         Get all connections as an iterable, given the connection id.
 
@@ -53,13 +56,15 @@ class BaseHook(LoggingMixin):
         return [cls.get_connection(conn_id)]
 
     @classmethod
-    def get_connection(cls, conn_id: str) -> Connection:
+    def get_connection(cls, conn_id: str) -> "Connection":
         """
         Get connection, given connection id.
 
         :param conn_id: connection id
         :return: connection
         """
+        from airflow.models.connection import Connection
+
         conn = Connection.get_connection_from_secrets(conn_id)
         if conn.host:
             log.info(
@@ -70,8 +75,8 @@ class BaseHook(LoggingMixin):
                 conn.port,
                 conn.schema,
                 conn.login,
-                "XXXXXXXX" if conn.password else None,
-                "XXXXXXXX" if conn.extra_dejson else None,
+                redact(conn.password),
+                redact(conn.extra_dejson),
             )
         return conn
 

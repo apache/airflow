@@ -21,7 +21,6 @@ from typing import Optional
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.telegram.hooks.telegram import TelegramHook
-from airflow.utils.decorators import apply_defaults
 
 
 class TelegramOperator(BaseOperator):
@@ -49,7 +48,6 @@ class TelegramOperator(BaseOperator):
     template_fields = ('text', 'chat_id')
     ui_color = '#FFBA40'
 
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -63,9 +61,7 @@ class TelegramOperator(BaseOperator):
         self.chat_id = chat_id
         self.token = token
         self.telegram_kwargs = telegram_kwargs or {}
-
-        if text is not None:
-            self.telegram_kwargs['text'] = text
+        self.text = text
 
         if telegram_conn_id is None:
             raise AirflowException("No valid Telegram connection id supplied.")
@@ -76,6 +72,9 @@ class TelegramOperator(BaseOperator):
 
     def execute(self, **kwargs) -> None:
         """Calls the TelegramHook to post the provided Telegram message"""
+        if self.text:
+            self.telegram_kwargs['text'] = self.text
+
         telegram_hook = TelegramHook(
             telegram_conn_id=self.telegram_conn_id,
             token=self.token,

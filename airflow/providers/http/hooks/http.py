@@ -31,9 +31,9 @@ class HttpHook(BaseHook):
 
     :param method: the API method to be called
     :type method: str
-    :param http_conn_id: connection that has the base API url i.e https://www.google.com/
-        and optional authentication credentials. Default headers can also be specified in
-        the Extra field in json format.
+    :param http_conn_id: :ref:`http connection<howto/connection:http>` that has the base
+        API url i.e https://www.google.com/ and optional authentication credentials. Default
+        headers can also be specified in the Extra field in json format.
     :type http_conn_id: str
     :param auth_type: The auth type for the service
     :type auth_type: AuthBase of python requests lib
@@ -95,7 +95,7 @@ class HttpHook(BaseHook):
 
     def run(
         self,
-        endpoint: Optional[str],
+        endpoint: Optional[str] = None,
         data: Optional[Union[Dict[str, Any], str]] = None,
         headers: Optional[Dict[str, Any]] = None,
         extra_options: Optional[Dict[str, Any]] = None,
@@ -170,22 +170,29 @@ class HttpHook(BaseHook):
         :param prepped_request: the prepared request generated in run()
         :type prepped_request: session.prepare_request
         :param extra_options: additional options to be used when executing the request
-            i.e. {'check_response': False} to avoid checking raising exceptions on non 2XX
+            i.e. ``{'check_response': False}`` to avoid checking raising exceptions on non 2XX
             or 3XX status codes
         :type extra_options: dict
         """
         extra_options = extra_options or {}
 
+        settings = session.merge_environment_settings(
+            prepped_request.url,
+            proxies=extra_options.get("proxies", {}),
+            stream=extra_options.get("stream", False),
+            verify=extra_options.get("verify"),
+            cert=extra_options.get("cert"),
+        )
+
+        # Send the request.
+        send_kwargs = {
+            "timeout": extra_options.get("timeout"),
+            "allow_redirects": extra_options.get("allow_redirects", True),
+        }
+        send_kwargs.update(settings)
+
         try:
-            response = session.send(
-                prepped_request,
-                stream=extra_options.get("stream", False),
-                verify=extra_options.get("verify", True),
-                proxies=extra_options.get("proxies", {}),
-                cert=extra_options.get("cert"),
-                timeout=extra_options.get("timeout"),
-                allow_redirects=extra_options.get("allow_redirects", True),
-            )
+            response = session.send(prepped_request, **send_kwargs)
 
             if extra_options.get('check_response', True):
                 self.check_response(response)
@@ -208,18 +215,23 @@ class HttpHook(BaseHook):
 
         .. code-block:: python
 
-            hook = HttpHook(http_conn_id='my_conn',method='GET')
+            hook = HttpHook(http_conn_id="my_conn", method="GET")
             retry_args = dict(
-                 wait=tenacity.wait_exponential(),
-                 stop=tenacity.stop_after_attempt(10),
-                 retry=requests.exceptions.ConnectionError
-             )
-             hook.run_with_advanced_retry(
-                     endpoint='v1/test',
-                     _retry_args=retry_args
-                 )
+                wait=tenacity.wait_exponential(),
+                stop=tenacity.stop_after_attempt(10),
+                retry=requests.exceptions.ConnectionError,
+            )
+            hook.run_with_advanced_retry(endpoint="v1/test", _retry_args=retry_args)
 
         """
         self._retry_obj = tenacity.Retrying(**_retry_args)
 
         return self._retry_obj(self.run, *args, **kwargs)
+
+    def test_connection(self):
+        """Test HTTP Connection"""
+        try:
+            self.run()
+            return True, 'Connection successfully tested'
+        except Exception as e:
+            return False, str(e)

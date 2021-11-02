@@ -21,7 +21,6 @@ from typing import Any, Dict, List, Optional, Union
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.emr import EmrHook
-from airflow.utils.decorators import apply_defaults
 
 
 class EmrAddStepsOperator(BaseOperator):
@@ -48,9 +47,9 @@ class EmrAddStepsOperator(BaseOperator):
 
     template_fields = ['job_flow_id', 'job_flow_name', 'cluster_states', 'steps']
     template_ext = ('.json',)
+    template_fields_renderers = {"steps": "json"}
     ui_color = '#f9c915'
 
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -100,7 +99,7 @@ class EmrAddStepsOperator(BaseOperator):
         response = emr.add_job_flow_steps(JobFlowId=job_flow_id, Steps=steps)
 
         if not response['ResponseMetadata']['HTTPStatusCode'] == 200:
-            raise AirflowException('Adding steps failed: %s' % response)
+            raise AirflowException(f'Adding steps failed: {response}')
         else:
             self.log.info('Steps %s added to JobFlow', response['StepIds'])
             return response['StepIds']

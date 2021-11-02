@@ -20,34 +20,36 @@
 # Pull/Build is happening. It only spins if the output log changes, so if pull/build is stalled
 # The spinner will not move.
 function spinner::spin() {
-    local FILE_TO_MONITOR=${1}
-    local SPIN=("-" "\\" "|" "/")
+    local file_to_monitor=${1}
+    SPIN=("-" "\\" "|" "/")
+    readonly SPIN
     echo -n "
-Build log: ${FILE_TO_MONITOR}
+Build log: ${file_to_monitor}
 " > "${DETECTED_TERMINAL}"
 
-    LAST_STEP=""
+    local last_step=""
     while "true"
     do
       for i in "${SPIN[@]}"
       do
-            echo -ne "\r${LAST_STEP}$i" > "${DETECTED_TERMINAL}"
-            local LAST_FILE_SIZE
-            local FILE_SIZE
-            LAST_FILE_SIZE=$(set +e; wc -c "${FILE_TO_MONITOR}" 2>/dev/null | awk '{print $1}' || true)
-            FILE_SIZE=${LAST_FILE_SIZE}
-            while [[ "${LAST_FILE_SIZE}" == "${FILE_SIZE}" ]];
+            echo -ne "\r${last_step}$i" > "${DETECTED_TERMINAL}"
+            local last_file_size
+            local file_size
+            last_file_size=$(set +e; wc -c "${file_to_monitor}" 2>/dev/null | awk '{print $1}' || true)
+            file_size=${last_file_size}
+            while [[ "${last_file_size}" == "${file_size}" ]];
             do
-                FILE_SIZE=$(set +e; wc -c "${FILE_TO_MONITOR}" 2>/dev/null | awk '{print $1}' || true)
+                file_size=$(set +e; wc -c "${file_to_monitor}" 2>/dev/null | awk '{print $1}' || true)
                 sleep 0.2
             done
-            LAST_FILE_SIZE=FILE_SIZE
+            last_file_size=file_size
             sleep 0.2
-            if [[ ! -f "${FILE_TO_MONITOR}" ]]; then
+            if [[ ! -f "${file_to_monitor}" ]]; then
                 exit
             fi
-            LAST_LINE=$(set +e; grep "Step" <"${FILE_TO_MONITOR}" | tail -1 || true)
-            [[ ${LAST_LINE} =~ ^(Step [0-9/]*)\ : ]] && LAST_STEP="${BASH_REMATCH[1]} :"
+            local last_line
+            last_line=$(set +e; grep "Step" <"${file_to_monitor}" | tail -1 || true)
+            [[ ${last_line} =~ ^(Step [0-9/]*)\ : ]] && last_step="${BASH_REMATCH[1]} :"
       done
     done
 }

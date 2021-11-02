@@ -47,8 +47,8 @@ class TestTextToSpeechHook(unittest.TestCase):
         mock_client.assert_called_once_with(
             credentials=mock_get_creds.return_value, client_info=mock_client_info.return_value
         )
-        self.assertEqual(mock_client.return_value, result)
-        self.assertEqual(self.gcp_text_to_speech_hook._client, result)
+        assert mock_client.return_value == result
+        assert self.gcp_text_to_speech_hook._client == result
 
     @patch("airflow.providers.google.cloud.hooks.text_to_speech.CloudTextToSpeechHook.get_conn")
     def test_synthesize_speech(self, get_conn):

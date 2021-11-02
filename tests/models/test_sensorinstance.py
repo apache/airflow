@@ -32,7 +32,7 @@ class SensorInstanceTest(unittest.TestCase):
             "airflow.providers.apache.hive.sensors.named_hive_partition.NamedHivePartitionSensor"
         )
 
-        self.assertEqual(obj1_classpath, obj1_importpath)
+        assert obj1_classpath == obj1_importpath
 
         def test_callable():
             return
@@ -41,4 +41,4 @@ class SensorInstanceTest(unittest.TestCase):
         obj3_classpath = SensorInstance.get_classpath(obj3)
         obj3_importpath = "airflow.sensors.python.PythonSensor"
 
-        self.assertEqual(obj3_classpath, obj3_importpath)
+        assert obj3_classpath == obj3_importpath

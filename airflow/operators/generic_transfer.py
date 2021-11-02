@@ -19,7 +19,6 @@ from typing import List, Optional, Union
 
 from airflow.hooks.base import BaseHook
 from airflow.models import BaseOperator
-from airflow.utils.decorators import apply_defaults
 
 
 class GenericTransfer(BaseOperator):
@@ -42,6 +41,8 @@ class GenericTransfer(BaseOperator):
     :param preoperator: sql statement or list of statements to be
         executed prior to loading the data. (templated)
     :type preoperator: str or list[str]
+    :param insert_args: extra params for `insert_rows` method.
+    :type insert_args: dict
     """
 
     template_fields = ('sql', 'destination_table', 'preoperator')
@@ -49,9 +50,9 @@ class GenericTransfer(BaseOperator):
         '.sql',
         '.hql',
     )
+    template_fields_renderers = {"preoperator": "sql"}
     ui_color = '#b0f07c'
 
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -60,6 +61,7 @@ class GenericTransfer(BaseOperator):
         source_conn_id: str,
         destination_conn_id: str,
         preoperator: Optional[Union[str, List[str]]] = None,
+        insert_args: Optional[dict] = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -68,6 +70,7 @@ class GenericTransfer(BaseOperator):
         self.source_conn_id = source_conn_id
         self.destination_conn_id = destination_conn_id
         self.preoperator = preoperator
+        self.insert_args = insert_args or {}
 
     def execute(self, context):
         source_hook = BaseHook.get_hook(self.source_conn_id)
@@ -83,4 +86,4 @@ class GenericTransfer(BaseOperator):
             destination_hook.run(self.preoperator)
 
         self.log.info("Inserting rows into %s", self.destination_conn_id)
-        destination_hook.insert_rows(table=self.destination_table, rows=results)
+        destination_hook.insert_rows(table=self.destination_table, rows=results, **self.insert_args)

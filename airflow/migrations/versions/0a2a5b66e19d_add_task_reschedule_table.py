@@ -26,9 +26,9 @@ import sqlalchemy as sa
 from alembic import op
 from sqlalchemy.dialects import mysql
 
-# revision identifiers, used by Alembic.
 from airflow.models.base import COLLATION_ARGS
 
+# revision identifiers, used by Alembic.
 revision = '0a2a5b66e19d'
 down_revision = '9635ae0956e7'
 branch_labels = None
@@ -41,19 +41,19 @@ INDEX_NAME = 'idx_' + TABLE_NAME + '_dag_task_date'
 # For Microsoft SQL Server, TIMESTAMP is a row-id type,
 # having nothing to do with date-time.  DateTime() will
 # be sufficient.
-def mssql_timestamp():  # noqa: D103
+def mssql_timestamp():
     return sa.DateTime()
 
 
-def mysql_timestamp():  # noqa: D103
+def mysql_timestamp():
     return mysql.TIMESTAMP(fsp=6)
 
 
-def sa_timestamp():  # noqa: D103
+def sa_timestamp():
     return sa.TIMESTAMP(timezone=True)
 
 
-def upgrade():  # noqa: D103
+def upgrade():
     # See 0e2a74e0fc9f_add_time_zone_awareness
     conn = op.get_bind()
     if conn.dialect.name == 'mysql':
@@ -85,6 +85,6 @@ def upgrade():  # noqa: D103
     op.create_index(INDEX_NAME, TABLE_NAME, ['dag_id', 'task_id', 'execution_date'], unique=False)
 
 
-def downgrade():  # noqa: D103
+def downgrade():
     op.drop_index(INDEX_NAME, table_name=TABLE_NAME)
     op.drop_table(TABLE_NAME)

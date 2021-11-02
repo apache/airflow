@@ -25,7 +25,6 @@ from azure.kusto.data._models import KustoResultTable
 from airflow.configuration import conf
 from airflow.models import BaseOperator
 from airflow.providers.microsoft.azure.hooks.adx import AzureDataExplorerHook
-from airflow.utils.decorators import apply_defaults
 
 
 class AzureDataExplorerQueryOperator(BaseOperator):
@@ -39,7 +38,8 @@ class AzureDataExplorerQueryOperator(BaseOperator):
     :param options: Optional query options. See:
       https://docs.microsoft.com/en-us/azure/kusto/api/netfx/request-properties#list-of-clientrequestproperties
     :type options: dict
-    :param azure_data_explorer_conn_id: Azure Data Explorer connection to use.
+    :param azure_data_explorer_conn_id: Reference to the
+        :ref:`Azure Data Explorer connection<howto/connection:adx>`.
     :type azure_data_explorer_conn_id: str
     """
 
@@ -47,7 +47,6 @@ class AzureDataExplorerQueryOperator(BaseOperator):
     template_fields = ('query', 'database')
     template_ext = ('.kql',)
 
-    @apply_defaults
     def __init__(
         self,
         *,

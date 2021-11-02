@@ -16,11 +16,10 @@
 # specific language governing permissions and limitations
 # under the License.
 
-"""This module is deprecated. Please use `airflow.providers.hashicorp.secrets.vault`."""
+"""This module is deprecated. Please use :mod:`airflow.providers.hashicorp.secrets.vault`."""
 
 import warnings
 
-# pylint: disable=unused-import
 from airflow.providers.hashicorp.secrets.vault import VaultBackend  # noqa
 
 warnings.warn(

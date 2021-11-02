@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
+
 import unittest
 from datetime import datetime
 from unittest.mock import Mock
@@ -27,8 +28,8 @@ from airflow.utils.state import State
 class TestTaskNotRunningDep(unittest.TestCase):
     def test_not_running_state(self):
         ti = Mock(state=State.QUEUED, end_date=datetime(2016, 1, 1))
-        self.assertTrue(TaskNotRunningDep().is_met(ti=ti))
+        assert TaskNotRunningDep().is_met(ti=ti)
 
     def test_running_state(self):
         ti = Mock(state=State.RUNNING, end_date=datetime(2016, 1, 1))
-        self.assertFalse(TaskNotRunningDep().is_met(ti=ti))
+        assert not TaskNotRunningDep().is_met(ti=ti)

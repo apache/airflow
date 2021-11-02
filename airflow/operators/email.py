@@ -18,7 +18,6 @@
 from typing import List, Optional, Union
 
 from airflow.models import BaseOperator
-from airflow.utils.decorators import apply_defaults
 from airflow.utils.email import send_email
 
 
@@ -51,8 +50,7 @@ class EmailOperator(BaseOperator):
     template_ext = ('.html',)
     ui_color = '#e6faf9'
 
-    @apply_defaults
-    def __init__(  # pylint: disable=invalid-name
+    def __init__(
         self,
         *,
         to: Union[List[str], str],
@@ -63,17 +61,19 @@ class EmailOperator(BaseOperator):
         bcc: Optional[Union[List[str], str]] = None,
         mime_subtype: str = 'mixed',
         mime_charset: str = 'utf-8',
+        conn_id: Optional[str] = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
-        self.to = to  # pylint: disable=invalid-name
+        self.to = to
         self.subject = subject
         self.html_content = html_content
         self.files = files or []
-        self.cc = cc  # pylint: disable=invalid-name
+        self.cc = cc
         self.bcc = bcc
         self.mime_subtype = mime_subtype
         self.mime_charset = mime_charset
+        self.conn_id = conn_id
 
     def execute(self, context):
         send_email(
@@ -85,4 +85,5 @@ class EmailOperator(BaseOperator):
             bcc=self.bcc,
             mime_subtype=self.mime_subtype,
             mime_charset=self.mime_charset,
+            conn_id=self.conn_id,
         )

@@ -15,14 +15,13 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""This module is deprecated.
-
-Please use `airflow.providers.microsoft.azure.hooks.azure_container_instance`.
+"""
+This module is deprecated.
+Please use :mod:`airflow.providers.microsoft.azure.hooks.azure_container_instance`.
 """
 
 import warnings
 
-# pylint: disable=unused-import
 from airflow.providers.microsoft.azure.hooks.azure_container_instance import (  # noqa
     AzureContainerInstanceHook,
 )

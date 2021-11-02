@@ -19,6 +19,8 @@
 import unittest
 from unittest import mock
 
+import pytest
+
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.sagemaker import SageMakerHook
 from airflow.providers.amazon.aws.sensors.sagemaker_endpoint import SageMakerEndpointSensor
@@ -60,7 +62,8 @@ class TestSageMakerEndpointSensor(unittest.TestCase):
         sensor = SageMakerEndpointSensor(
             task_id='test_task', poke_interval=1, aws_conn_id='aws_test', endpoint_name='test_job_name'
         )
-        self.assertRaises(AirflowException, sensor.execute, None)
+        with pytest.raises(AirflowException):
+            sensor.execute(None)
         mock_describe.assert_called_once_with('test_job_name')
 
     @mock.patch.object(SageMakerHook, 'get_conn')
@@ -81,7 +84,7 @@ class TestSageMakerEndpointSensor(unittest.TestCase):
         sensor.execute(None)
 
         # make sure we called 3 times(terminated when its completed)
-        self.assertEqual(mock_describe.call_count, 3)
+        assert mock_describe.call_count == 3
 
         # make sure the hook was initialized with the specific params
         calls = [mock.call(aws_conn_id='aws_test')]

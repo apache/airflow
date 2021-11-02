@@ -26,13 +26,13 @@ from typing import Any, Dict, List, Optional
 import sqlalchemy_jsonfield
 from sqlalchemy import BigInteger, Column, Index, String, and_
 from sqlalchemy.orm import Session, backref, foreign, relationship
-from sqlalchemy.sql import exists
+from sqlalchemy.sql.expression import func, literal
 
 from airflow.models.base import ID_LEN, Base
 from airflow.models.dag import DAG, DagModel
 from airflow.models.dagcode import DagCode
 from airflow.models.dagrun import DagRun
-from airflow.serialization.serialized_objects import SerializedDAG
+from airflow.serialization.serialized_objects import DagDependency, SerializedDAG
 from airflow.settings import MIN_SERIALIZED_DAG_UPDATE_INTERVAL, json
 from airflow.utils import timezone
 from airflow.utils.session import provide_session
@@ -86,9 +86,11 @@ class SerializedDagModel(Base):
         backref=backref('serialized_dag', uselist=False, innerjoin=True),
     )
 
+    load_op_links = True
+
     def __init__(self, dag: DAG):
         self.dag_id = dag.dag_id
-        self.fileloc = dag.full_filepath
+        self.fileloc = dag.fileloc
         self.fileloc_hash = DagCode.dag_fileloc_hash(self.fileloc)
         self.data = SerializedDAG.to_dict(dag)
         self.last_updated = timezone.utcnow()
@@ -99,7 +101,7 @@ class SerializedDagModel(Base):
 
     @classmethod
     @provide_session
-    def write_dag(cls, dag: DAG, min_update_interval: Optional[int] = None, session: Session = None):
+    def write_dag(cls, dag: DAG, min_update_interval: Optional[int] = None, session: Session = None) -> bool:
         """Serializes a DAG and writes it into database.
         If the record already exists, it checks if the Serialized DAG changed or not. If it is
         changed, it updates the record, ignores otherwise.
@@ -107,20 +109,28 @@ class SerializedDagModel(Base):
         :param dag: a DAG to be written into database
         :param min_update_interval: minimal interval in seconds to update serialized DAG
         :param session: ORM Session
+
+        :returns: Boolean indicating if the DAG was written to the DB
         """
         # Checks if (Current Time - Time when the DAG was written to DB) < min_update_interval
         # If Yes, does nothing
         # If No or the DAG does not exists, updates / writes Serialized DAG to DB
         if min_update_interval is not None:
-            if session.query(
-                exists().where(
+            if (
+                session.query(literal(True))
+                .filter(
                     and_(
                         cls.dag_id == dag.dag_id,
                         (timezone.utcnow() - timedelta(seconds=min_update_interval)) < cls.last_updated,
                     )
                 )
-            ).scalar():
-                return
+                .first()
+                is not None
+            ):
+                # TODO: .first() is not None can be changed to .scalar() once we update to sqlalchemy 1.4+
+                # as the associated sqlalchemy bug for MySQL was fixed
+                # related issue : https://github.com/sqlalchemy/sqlalchemy/issues/5481
+                return False
 
         log.debug("Checking if DAG (%s) changed", dag.dag_id)
         new_serialized_dag = cls(dag)
@@ -128,11 +138,12 @@ class SerializedDagModel(Base):
 
         if serialized_dag_hash_from_db == new_serialized_dag.dag_hash:
             log.debug("Serialized DAG (%s) is unchanged. Skipping writing to DB", dag.dag_id)
-            return
+            return False
 
         log.debug("Writing Serialized DAG: %s to the DB", dag.dag_id)
         session.merge(new_serialized_dag)
         log.debug("DAG: %s written to the DB", dag.dag_id)
+        return True
 
     @classmethod
     @provide_session
@@ -149,7 +160,7 @@ class SerializedDagModel(Base):
             log.debug("Deserializing DAG: %s", row.dag_id)
             dag = row.dag
 
-            # Sanity check.
+            # Coherence check
             if dag.dag_id == row.dag_id:
                 dags[row.dag_id] = dag
             else:
@@ -163,21 +174,21 @@ class SerializedDagModel(Base):
     @property
     def dag(self):
         """The DAG deserialized from the ``data`` column"""
+        SerializedDAG._load_operator_extra_links = self.load_op_links
+
         if isinstance(self.data, dict):
             dag = SerializedDAG.from_dict(self.data)  # type: Any
         else:
-            dag = SerializedDAG.from_json(self.data)  # noqa
+            dag = SerializedDAG.from_json(self.data)
         return dag
 
     @classmethod
     @provide_session
     def remove_dag(cls, dag_id: str, session: Session = None):
         """Deletes a DAG with given dag_id.
-
         :param dag_id: dag_id to be deleted
         :param session: ORM Session
         """
-        # pylint: disable=no-member
         session.execute(cls.__table__.delete().where(cls.dag_id == dag_id))
 
     @classmethod
@@ -194,7 +205,6 @@ class SerializedDagModel(Base):
             "Deleting Serialized DAGs (for which DAG files are deleted) from %s table ", cls.__tablename__
         )
 
-        # pylint: disable=no-member
         session.execute(
             cls.__table__.delete().where(
                 and_(cls.fileloc_hash.notin_(alive_fileloc_hashes), cls.fileloc.notin_(alive_dag_filelocs))
@@ -209,7 +219,7 @@ class SerializedDagModel(Base):
         :param dag_id: the DAG to check
         :param session: ORM Session
         """
-        return session.query(exists().where(cls.dag_id == dag_id)).scalar()
+        return session.query(literal(True)).filter(cls.dag_id == dag_id).first() is not None
 
     @classmethod
     @provide_session
@@ -253,7 +263,7 @@ class SerializedDagModel(Base):
 
     @classmethod
     @provide_session
-    def get_last_updated_datetime(cls, dag_id: str, session: Session = None) -> datetime:
+    def get_last_updated_datetime(cls, dag_id: str, session: Session = None) -> Optional[datetime]:
         """
         Get the date when the Serialized DAG associated to DAG was last updated
         in serialized_dag table
@@ -267,7 +277,18 @@ class SerializedDagModel(Base):
 
     @classmethod
     @provide_session
-    def get_latest_version_hash(cls, dag_id: str, session: Session = None) -> str:
+    def get_max_last_updated_datetime(cls, session: Session = None) -> Optional[datetime]:
+        """
+        Get the maximum date when any DAG was last updated in serialized_dag table
+
+        :param session: ORM Session
+        :type session: Session
+        """
+        return session.query(func.max(cls.last_updated)).scalar()
+
+    @classmethod
+    @provide_session
+    def get_latest_version_hash(cls, dag_id: str, session: Session = None) -> Optional[str]:
         """
         Get the latest DAG version for a given DAG ID.
 
@@ -275,7 +296,26 @@ class SerializedDagModel(Base):
         :type dag_id: str
         :param session: ORM Session
         :type session: Session
-        :return: DAG Hash
-        :rtype: str
+        :return: DAG Hash, or None if the DAG is not found
+        :rtype: str | None
         """
         return session.query(cls.dag_hash).filter(cls.dag_id == dag_id).scalar()
+
+    @classmethod
+    @provide_session
+    def get_dag_dependencies(cls, session: Session = None) -> Dict[str, List['DagDependency']]:
+        """
+        Get the dependencies between DAGs
+
+        :param session: ORM Session
+        :type session: Session
+        """
+        if session.bind.dialect.name in ["sqlite", "mysql"]:
+            query = session.query(cls.dag_id, func.json_extract(cls.data, "$.dag.dag_dependencies"))
+            iterator = ((dag_id, json.loads(deps_data) if deps_data else []) for dag_id, deps_data in query)
+        elif session.bind.dialect.name == "mssql":
+            query = session.query(cls.dag_id, func.json_query(cls.data, "$.dag.dag_dependencies"))
+            iterator = ((dag_id, json.loads(deps_data) if deps_data else []) for dag_id, deps_data in query)
+        else:
+            iterator = session.query(cls.dag_id, func.json_extract_path(cls.data, "dag", "dag_dependencies"))
+        return {dag_id: [DagDependency(**d) for d in (deps_data or [])] for dag_id, deps_data in iterator}

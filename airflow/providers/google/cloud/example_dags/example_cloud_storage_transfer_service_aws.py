@@ -28,7 +28,7 @@ This DAG relies on the following OS environment variables
   .. warning::
     You need to provide a large enough set of data so that operations do not execute too quickly.
     Otherwise, DAG will fail.
-* GCP_TRANSFER_SECOND_TARGET_BUCKET - Google Cloud Storage bucket bucket to which files are copied
+* GCP_TRANSFER_SECOND_TARGET_BUCKET - Google Cloud Storage bucket to which files are copied
 * WAIT_FOR_OPERATION_POKE_INTERVAL - interval of what to check the status of the operation
   A smaller value than the default value accelerates the system test and ensures its correct execution with
   smaller quantities of files in the source bucket
@@ -105,10 +105,6 @@ aws_to_gcs_transfer_body = {
 }
 # [END howto_operator_gcp_transfer_create_job_body_aws]
 
-
-# [START howto_operator_gcp_transfer_default_args]
-default_args = {'owner': 'airflow'}
-# [END howto_operator_gcp_transfer_default_args]
 
 with models.DAG(
     'example_gcp_transfer_aws',

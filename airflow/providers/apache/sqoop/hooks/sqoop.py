@@ -82,7 +82,6 @@ class SqoopHook(BaseHook):
         self.num_mappers = num_mappers
         self.properties = properties or {}
         self.log.info("Using connection to: %s:%s/%s", self.conn.host, self.conn.port, self.conn.schema)
-        self.sub_process: Any = None
 
     def get_conn(self) -> Any:
         return self.conn
@@ -107,17 +106,13 @@ class SqoopHook(BaseHook):
         """
         masked_cmd = ' '.join(self.cmd_mask_password(cmd))
         self.log.info("Executing command: %s", masked_cmd)
-        self.sub_process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, **kwargs)
-
-        for line in iter(self.sub_process.stdout):  # type: ignore
-            self.log.info(line.strip())
-
-        self.sub_process.wait()
-
-        self.log.info("Command exited with return code %s", self.sub_process.returncode)
-
-        if self.sub_process.returncode:
-            raise AirflowException(f"Sqoop command failed: {masked_cmd}")
+        with subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, **kwargs) as sub_process:
+            for line in iter(sub_process.stdout):  # type: ignore
+                self.log.info(line.strip())
+            sub_process.wait()
+            self.log.info("Command exited with return code %s", sub_process.returncode)
+            if sub_process.returncode:
+                raise AirflowException(f"Sqoop command failed: {masked_cmd}")
 
     def _prepare_command(self, export: bool = False) -> List[str]:
         sqoop_cmd_type = "export" if export else "import"
@@ -155,7 +150,11 @@ class SqoopHook(BaseHook):
         if self.conn.port:
             connect_str += f":{self.conn.port}"
         if self.conn.schema:
-            connect_str += f"/{self.conn.schema}"
+            self.log.info("CONNECTION TYPE %s", self.conn.conn_type)
+            if self.conn.conn_type != 'mssql':
+                connect_str += f"/{self.conn.schema}"
+            else:
+                connect_str += f";databaseName={self.conn.schema}"
         connection_cmd += ["--connect", connect_str]
 
         return connection_cmd
@@ -211,7 +210,6 @@ class SqoopHook(BaseHook):
 
         return cmd
 
-    # pylint: disable=too-many-arguments
     def import_table(
         self,
         table: str,
@@ -224,12 +222,14 @@ class SqoopHook(BaseHook):
         direct: bool = False,
         driver: Any = None,
         extra_import_options: Optional[Dict[str, Any]] = None,
+        schema: Optional[str] = None,
     ) -> Any:
         """
         Imports table from remote location to target dir. Arguments are
         copies of direct sqoop command line arguments
 
         :param table: Table to read
+        :param schema: Schema name
         :param target_dir: HDFS destination dir
         :param append: Append data to an existing dataset in HDFS
         :param file_type: "avro", "sequence", "text" or "parquet".
@@ -251,6 +251,8 @@ class SqoopHook(BaseHook):
             cmd += ["--columns", columns]
         if where:
             cmd += ["--where", where]
+        if schema:
+            cmd += ["--", "--schema", schema]
 
         self.popen(cmd)
 
@@ -285,7 +287,6 @@ class SqoopHook(BaseHook):
 
         self.popen(cmd)
 
-    # pylint: disable=too-many-arguments
     def _export_cmd(
         self,
         table: str,
@@ -302,6 +303,7 @@ class SqoopHook(BaseHook):
         batch: bool = False,
         relaxed_isolation: bool = False,
         extra_export_options: Optional[Dict[str, Any]] = None,
+        schema: Optional[str] = None,
     ) -> List[str]:
 
         cmd = self._prepare_command(export=True)
@@ -351,9 +353,11 @@ class SqoopHook(BaseHook):
         # The required option
         cmd += ["--table", table]
 
+        if schema:
+            cmd += ["--", "--schema", schema]
+
         return cmd
 
-    # pylint: disable=too-many-arguments
     def export_table(
         self,
         table: str,
@@ -370,12 +374,14 @@ class SqoopHook(BaseHook):
         batch: bool = False,
         relaxed_isolation: bool = False,
         extra_export_options: Optional[Dict[str, Any]] = None,
+        schema: Optional[str] = None,
     ) -> None:
         """
         Exports Hive table to remote location. Arguments are copies of direct
         sqoop command line Arguments
 
         :param table: Table remote destination
+        :param schema: Schema name
         :param export_dir: Hive table to export
         :param input_null_string: The string to be interpreted as null for
             string columns
@@ -412,6 +418,7 @@ class SqoopHook(BaseHook):
             batch,
             relaxed_isolation,
             extra_export_options,
+            schema,
         )
 
         self.popen(cmd)

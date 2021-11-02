@@ -16,15 +16,13 @@
 # specific language governing permissions and limitations
 # under the License.
 set -euo pipefail
-DOCKERHUB_USER=${DOCKERHUB_USER:="apache"}
-DOCKERHUB_REPO=${DOCKERHUB_REPO:="airflow"}
-readonly DOCKERHUB_USER
-readonly DOCKERHUB_REPO
+GITHUB_REPOSITORY=${GITHUB_REPOSITORY:="apache/airflow"}
+readonly GITHUB_REPOSITORY
 
 APACHERAT_VERSION="0.13"
 readonly APACHERAT_VERSION
 
-AIRFLOW_APACHERAT_VERSION="2020.07.10"
+AIRFLOW_APACHERAT_VERSION="2021.07.04"
 readonly AIRFLOW_APACHERAT_VERSION
 
 COMMIT_SHA=$(git rev-parse HEAD)
@@ -32,7 +30,7 @@ readonly COMMIT_SHA
 
 cd "$( dirname "${BASH_SOURCE[0]}" )" || exit 1
 
-TAG="${DOCKERHUB_USER}/${DOCKERHUB_REPO}:apache-rat-${AIRFLOW_APACHERAT_VERSION}-${APACHERAT_VERSION}"
+TAG="ghcr.io/${GITHUB_REPOSITORY}-apache-rat:${APACHERAT_VERSION}-${AIRFLOW_APACHERAT_VERSION}"
 readonly TAG
 
 docker build . \
@@ -40,6 +38,7 @@ docker build . \
     --build-arg "APACHERAT_VERSION=${APACHERAT_VERSION}" \
     --build-arg "AIRFLOW_APACHERAT_VERSION=${AIRFLOW_APACHERAT_VERSION}" \
     --build-arg "COMMIT_SHA=${COMMIT_SHA}" \
+    --label "org.opencontainers.image.source=https://github.com/${GITHUB_REPOSITORY}" \
     --tag "${TAG}"
 
 docker push "${TAG}"

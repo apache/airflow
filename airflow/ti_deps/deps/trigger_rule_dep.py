@@ -31,7 +31,7 @@ class TriggerRuleDep(BaseTIDep):
     """
 
     NAME = "Trigger Rule"
-    IGNOREABLE = True
+    IGNORABLE = True
     IS_TASK_DEP = True
 
     @staticmethod
@@ -61,12 +61,12 @@ class TriggerRuleDep(BaseTIDep):
             yield self._passing_status(reason="The task instance did not have any upstream tasks.")
             return
 
-        if ti.task.trigger_rule == TR.DUMMY:
-            yield self._passing_status(reason="The task had a dummy trigger rule set.")
+        if ti.task.trigger_rule == TR.ALWAYS:
+            yield self._passing_status(reason="The task had a always trigger rule set.")
             return
         # see if the task name is in the task upstream for our task
         successes, skipped, failed, upstream_failed, done = self._get_states_count_upstream_ti(
-            ti=ti, finished_tasks=dep_context.ensure_finished_tasks(ti.task.dag, ti.execution_date, session)
+            ti=ti, finished_tasks=dep_context.ensure_finished_tasks(ti.get_dagrun(session), session)
         )
 
         yield from self._evaluate_trigger_rule(
@@ -81,7 +81,7 @@ class TriggerRuleDep(BaseTIDep):
         )
 
     @provide_session
-    def _evaluate_trigger_rule(  # pylint: disable=too-many-branches
+    def _evaluate_trigger_rule(
         self, ti, successes, skipped, failed, upstream_failed, done, flag_upstream_failed, session
     ):
         """
@@ -134,15 +134,19 @@ class TriggerRuleDep(BaseTIDep):
                 if successes or skipped:
                     ti.set_state(State.SKIPPED, session)
             elif trigger_rule == TR.ONE_SUCCESS:
-                if upstream_done and not successes:
+                if upstream_done and done == skipped:
+                    # if upstream is done and all are skipped mark as skipped
                     ti.set_state(State.SKIPPED, session)
+                elif upstream_done and successes <= 0:
+                    # if upstream is done and there are no successes mark as upstream failed
+                    ti.set_state(State.UPSTREAM_FAILED, session)
             elif trigger_rule == TR.ONE_FAILED:
                 if upstream_done and not (failed or upstream_failed):
                     ti.set_state(State.SKIPPED, session)
             elif trigger_rule == TR.NONE_FAILED:
                 if upstream_failed or failed:
                     ti.set_state(State.UPSTREAM_FAILED, session)
-            elif trigger_rule == TR.NONE_FAILED_OR_SKIPPED:
+            elif trigger_rule == TR.NONE_FAILED_MIN_ONE_SUCCESS:
                 if upstream_failed or failed:
                     ti.set_state(State.UPSTREAM_FAILED, session)
                 elif skipped == upstream:
@@ -154,78 +158,83 @@ class TriggerRuleDep(BaseTIDep):
         if trigger_rule == TR.ONE_SUCCESS:
             if successes <= 0:
                 yield self._failing_status(
-                    reason="Task's trigger rule '{}' requires one upstream "
-                    "task success, but none were found. "
-                    "upstream_tasks_state={}, upstream_task_ids={}".format(
-                        trigger_rule, upstream_tasks_state, task.upstream_task_ids
+                    reason=(
+                        f"Task's trigger rule '{trigger_rule}' requires one upstream task success, "
+                        f"but none were found. upstream_tasks_state={upstream_tasks_state}, "
+                        f"upstream_task_ids={task.upstream_task_ids}"
                     )
                 )
         elif trigger_rule == TR.ONE_FAILED:
             if not failed and not upstream_failed:
                 yield self._failing_status(
-                    reason="Task's trigger rule '{}' requires one upstream "
-                    "task failure, but none were found. "
-                    "upstream_tasks_state={}, upstream_task_ids={}".format(
-                        trigger_rule, upstream_tasks_state, task.upstream_task_ids
+                    reason=(
+                        f"Task's trigger rule '{trigger_rule}' requires one upstream task failure, "
+                        f"but none were found. upstream_tasks_state={upstream_tasks_state}, "
+                        f"upstream_task_ids={task.upstream_task_ids}"
                     )
                 )
         elif trigger_rule == TR.ALL_SUCCESS:
             num_failures = upstream - successes
             if num_failures > 0:
                 yield self._failing_status(
-                    reason="Task's trigger rule '{}' requires all upstream "
-                    "tasks to have succeeded, but found {} non-success(es). "
-                    "upstream_tasks_state={}, upstream_task_ids={}".format(
-                        trigger_rule, num_failures, upstream_tasks_state, task.upstream_task_ids
+                    reason=(
+                        f"Task's trigger rule '{trigger_rule}' requires all upstream tasks to have "
+                        f"succeeded, but found {num_failures} non-success(es). "
+                        f"upstream_tasks_state={upstream_tasks_state}, "
+                        f"upstream_task_ids={task.upstream_task_ids}"
                     )
                 )
         elif trigger_rule == TR.ALL_FAILED:
             num_successes = upstream - failed - upstream_failed
             if num_successes > 0:
                 yield self._failing_status(
-                    reason="Task's trigger rule '{}' requires all upstream "
-                    "tasks to have failed, but found {} non-failure(s). "
-                    "upstream_tasks_state={}, upstream_task_ids={}".format(
-                        trigger_rule, num_successes, upstream_tasks_state, task.upstream_task_ids
+                    reason=(
+                        f"Task's trigger rule '{trigger_rule}' requires all upstream tasks to have failed, "
+                        f"but found {num_successes} non-failure(s). "
+                        f"upstream_tasks_state={upstream_tasks_state}, "
+                        f"upstream_task_ids={task.upstream_task_ids}"
                     )
                 )
         elif trigger_rule == TR.ALL_DONE:
             if not upstream_done:
                 yield self._failing_status(
-                    reason="Task's trigger rule '{}' requires all upstream "
-                    "tasks to have completed, but found {} task(s) that "
-                    "were not done. upstream_tasks_state={}, "
-                    "upstream_task_ids={}".format(
-                        trigger_rule, upstream_done, upstream_tasks_state, task.upstream_task_ids
+                    reason=(
+                        f"Task's trigger rule '{trigger_rule}' requires all upstream tasks to have "
+                        f"completed, but found {upstream_done} task(s) that were not done. "
+                        f"upstream_tasks_state={upstream_tasks_state}, "
+                        f"upstream_task_ids={task.upstream_task_ids}"
                     )
                 )
         elif trigger_rule == TR.NONE_FAILED:
             num_failures = upstream - successes - skipped
             if num_failures > 0:
                 yield self._failing_status(
-                    reason="Task's trigger rule '{}' requires all upstream "
-                    "tasks to have succeeded or been skipped, but found {} non-success(es). "
-                    "upstream_tasks_state={}, upstream_task_ids={}".format(
-                        trigger_rule, num_failures, upstream_tasks_state, task.upstream_task_ids
+                    reason=(
+                        f"Task's trigger rule '{trigger_rule}' requires all upstream tasks to have "
+                        f"succeeded or been skipped, but found {num_failures} non-success(es). "
+                        f"upstream_tasks_state={upstream_tasks_state}, "
+                        f"upstream_task_ids={task.upstream_task_ids}"
                     )
                 )
-        elif trigger_rule == TR.NONE_FAILED_OR_SKIPPED:
+        elif trigger_rule == TR.NONE_FAILED_MIN_ONE_SUCCESS:
             num_failures = upstream - successes - skipped
             if num_failures > 0:
                 yield self._failing_status(
-                    reason="Task's trigger rule '{}' requires all upstream "
-                    "tasks to have succeeded or been skipped, but found {} non-success(es). "
-                    "upstream_tasks_state={}, upstream_task_ids={}".format(
-                        trigger_rule, num_failures, upstream_tasks_state, task.upstream_task_ids
+                    reason=(
+                        f"Task's trigger rule '{trigger_rule}' requires all upstream tasks to have "
+                        f"succeeded or been skipped, but found {num_failures} non-success(es). "
+                        f"upstream_tasks_state={upstream_tasks_state}, "
+                        f"upstream_task_ids={task.upstream_task_ids}"
                     )
                 )
         elif trigger_rule == TR.NONE_SKIPPED:
             if not upstream_done or (skipped > 0):
                 yield self._failing_status(
-                    reason="Task's trigger rule '{}' requires all upstream "
-                    "tasks to not have been skipped, but found {} task(s) skipped. "
-                    "upstream_tasks_state={}, upstream_task_ids={}".format(
-                        trigger_rule, skipped, upstream_tasks_state, task.upstream_task_ids
+                    reason=(
+                        f"Task's trigger rule '{trigger_rule}' requires all upstream tasks to not have been "
+                        f"skipped, but found {skipped} task(s) skipped. "
+                        f"upstream_tasks_state={upstream_tasks_state}, "
+                        f"upstream_task_ids={task.upstream_task_ids}"
                     )
                 )
         else:

@@ -27,7 +27,7 @@ from airflow.operators.bash import BashOperator
 
 # DAG File used in performance tests. Its shape can be configured by environment variables.
 RE_TIME_DELTA = re.compile(
-    r"^((?P<days>[\.\d]+?)d)?((?P<hours>[\.\d]+?)h)?((?P<minutes>[\.\d]+?)m)?((?P<seconds>[\.\d]+?)s)?$"
+    r"^((?P<days>[.\d]+?)d)?((?P<hours>[.\d]+?)h)?((?P<minutes>[.\d]+?)m)?((?P<seconds>[.\d]+?)s)?$"
 )
 
 
@@ -40,12 +40,10 @@ def parse_time_delta(time_str: str):
     """
     parts = RE_TIME_DELTA.match(time_str)
 
-    # pylint: disable=do-not-use-asserts
     assert parts is not None, (
         f"Could not parse any time information from '{time_str}'. "
         f"Examples of valid strings: '8h', '2d8h5m20s', '2m4s'"
     )
-    # pylint: enable=do-not-use-asserts
 
     time_params = {name: float(param) for name, param in parts.groupdict().items() if param}
     return timedelta(**time_params)  # type: ignore
@@ -107,7 +105,7 @@ def chain_as_grid(*tasks: BashOperator):
     """
     if len(tasks) > 100 * 99 / 2:
         raise ValueError('Cannot generate grid DAGs with lateral size larger than 100 tasks.')
-    grid_size = min([n for n in range(100) if n * (n + 1) / 2 >= len(tasks)])
+    grid_size = min(n for n in range(100) if n * (n + 1) / 2 >= len(tasks))
 
     def index(i, j):
         """

@@ -18,11 +18,12 @@
 """
 Example use of Snowflake related operators.
 """
+from datetime import datetime
+
 from airflow import DAG
 from airflow.providers.snowflake.operators.snowflake import SnowflakeOperator
 from airflow.providers.snowflake.transfers.s3_to_snowflake import S3ToSnowflakeOperator
 from airflow.providers.snowflake.transfers.snowflake_to_slack import SnowflakeToSlackOperator
-from airflow.utils.dates import days_ago
 
 SNOWFLAKE_CONN_ID = 'my_snowflake_conn'
 SLACK_CONN_ID = 'my_slack_conn'
@@ -41,28 +42,26 @@ CREATE_TABLE_SQL_STRING = (
 )
 SQL_INSERT_STATEMENT = f"INSERT INTO {SNOWFLAKE_SAMPLE_TABLE} VALUES ('name', %(id)s)"
 SQL_LIST = [SQL_INSERT_STATEMENT % {"id": n} for n in range(0, 10)]
+SQL_MULTIPLE_STMTS = "; ".join(SQL_LIST)
 SNOWFLAKE_SLACK_SQL = f"SELECT name, id FROM {SNOWFLAKE_SAMPLE_TABLE} LIMIT 10;"
 SNOWFLAKE_SLACK_MESSAGE = (
     "Results in an ASCII table:\n```{{ results_df | tabulate(tablefmt='pretty', headers='keys') }}```"
 )
 
-default_args = {
-    'owner': 'airflow',
-}
+# [START howto_operator_snowflake]
 
 dag = DAG(
     'example_snowflake',
-    default_args=default_args,
-    start_date=days_ago(2),
+    start_date=datetime(2021, 1, 1),
+    default_args={'snowflake_conn_id': SNOWFLAKE_CONN_ID},
     tags=['example'],
+    catchup=False,
 )
 
-# [START howto_operator_snowflake]
 
 snowflake_op_sql_str = SnowflakeOperator(
     task_id='snowflake_op_sql_str',
     dag=dag,
-    snowflake_conn_id=SNOWFLAKE_CONN_ID,
     sql=CREATE_TABLE_SQL_STRING,
     warehouse=SNOWFLAKE_WAREHOUSE,
     database=SNOWFLAKE_DATABASE,
@@ -73,7 +72,6 @@ snowflake_op_sql_str = SnowflakeOperator(
 snowflake_op_with_params = SnowflakeOperator(
     task_id='snowflake_op_with_params',
     dag=dag,
-    snowflake_conn_id=SNOWFLAKE_CONN_ID,
     sql=SQL_INSERT_STATEMENT,
     parameters={"id": 56},
     warehouse=SNOWFLAKE_WAREHOUSE,
@@ -82,14 +80,17 @@ snowflake_op_with_params = SnowflakeOperator(
     role=SNOWFLAKE_ROLE,
 )
 
-snowflake_op_sql_list = SnowflakeOperator(
-    task_id='snowflake_op_sql_list', dag=dag, snowflake_conn_id=SNOWFLAKE_CONN_ID, sql=SQL_LIST
+snowflake_op_sql_list = SnowflakeOperator(task_id='snowflake_op_sql_list', dag=dag, sql=SQL_LIST)
+
+snowflake_op_sql_multiple_stmts = SnowflakeOperator(
+    task_id='snowflake_op_sql_multiple_stmts',
+    dag=dag,
+    sql=SQL_MULTIPLE_STMTS,
 )
 
 snowflake_op_template_file = SnowflakeOperator(
     task_id='snowflake_op_template_file',
     dag=dag,
-    snowflake_conn_id=SNOWFLAKE_CONN_ID,
     sql='/path/to/sql/<filename>.sql',
 )
 
@@ -99,7 +100,6 @@ snowflake_op_template_file = SnowflakeOperator(
 
 copy_into_table = S3ToSnowflakeOperator(
     task_id='copy_into_table',
-    snowflake_conn_id=SNOWFLAKE_CONN_ID,
     s3_keys=[S3_FILE_PATH],
     table=SNOWFLAKE_SAMPLE_TABLE,
     schema=SNOWFLAKE_SCHEMA,
@@ -116,16 +116,20 @@ slack_report = SnowflakeToSlackOperator(
     task_id="slack_report",
     sql=SNOWFLAKE_SLACK_SQL,
     slack_message=SNOWFLAKE_SLACK_MESSAGE,
-    snowflake_conn_id=SNOWFLAKE_CONN_ID,
     slack_conn_id=SLACK_CONN_ID,
     dag=dag,
 )
 
 # [END howto_operator_snowflake_to_slack]
 
-snowflake_op_sql_str >> [
-    snowflake_op_with_params,
-    snowflake_op_sql_list,
-    snowflake_op_template_file,
-    copy_into_table,
-] >> slack_report
+(
+    snowflake_op_sql_str
+    >> [
+        snowflake_op_with_params,
+        snowflake_op_sql_list,
+        snowflake_op_template_file,
+        copy_into_table,
+        snowflake_op_sql_multiple_stmts,
+    ]
+    >> slack_report
+)

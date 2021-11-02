@@ -15,45 +15,62 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
+import io
+import json
 import logging
 import os
 import shutil
-import unittest
 from unittest import mock
 from urllib.parse import quote
 
 import elasticsearch
+import freezegun
 import pendulum
-from parameterized import parameterized
+import pytest
 
 from airflow.configuration import conf
-from airflow.models import DAG, TaskInstance
-from airflow.operators.dummy import DummyOperator
 from airflow.providers.elasticsearch.log.es_task_handler import ElasticsearchTaskHandler
 from airflow.utils import timezone
-from airflow.utils.state import State
+from airflow.utils.state import DagRunState, TaskInstanceState
 from airflow.utils.timezone import datetime
+from tests.test_utils.db import clear_db_dags, clear_db_runs
 
 from .elasticmock import elasticmock
 
 
-class TestElasticsearchTaskHandler(unittest.TestCase):
-    DAG_ID = 'dag_for_testing_file_task_handler'
-    TASK_ID = 'task_for_testing_file_log_handler'
+class TestElasticsearchTaskHandler:
+    DAG_ID = 'dag_for_testing_es_task_handler'
+    TASK_ID = 'task_for_testing_es_log_handler'
     EXECUTION_DATE = datetime(2016, 1, 1)
     LOG_ID = f'{DAG_ID}-{TASK_ID}-2016-01-01T00:00:00+00:00-1'
+    JSON_LOG_ID = f'{DAG_ID}-{TASK_ID}-{ElasticsearchTaskHandler._clean_date(EXECUTION_DATE)}-1'
+
+    @pytest.fixture()
+    def ti(self, create_task_instance):
+        ti = create_task_instance(
+            dag_id=self.DAG_ID,
+            task_id=self.TASK_ID,
+            execution_date=self.EXECUTION_DATE,
+            dagrun_state=DagRunState.RUNNING,
+            state=TaskInstanceState.RUNNING,
+        )
+        ti.try_number = 1
+        ti.raw = False
+        yield ti
+        clear_db_runs()
+        clear_db_dags()
 
     @elasticmock
-    def setUp(self):
-        super().setUp()
+    def setup(self):
         self.local_log_location = 'local/log/location'
         self.filename_template = '{try_number}.log'
         self.log_id_template = '{dag_id}-{task_id}-{execution_date}-{try_number}'
         self.end_of_log_mark = 'end_of_log\n'
         self.write_stdout = False
         self.json_format = False
-        self.json_fields = 'asctime,filename,lineno,levelname,message'
+        self.json_fields = 'asctime,filename,lineno,levelname,message,exc_text'
+        self.host_field = 'host'
+        self.offset_field = 'offset'
         self.es_task_handler = ElasticsearchTaskHandler(
             self.local_log_location,
             self.filename_template,
@@ -62,30 +79,22 @@ class TestElasticsearchTaskHandler(unittest.TestCase):
             self.write_stdout,
             self.json_format,
             self.json_fields,
+            self.host_field,
+            self.offset_field,
         )
 
-        self.es = elasticsearch.Elasticsearch(  # pylint: disable=invalid-name
-            hosts=[{'host': 'localhost', 'port': 9200}]
-        )
+        self.es = elasticsearch.Elasticsearch(hosts=[{'host': 'localhost', 'port': 9200}])
         self.index_name = 'test_index'
         self.doc_type = 'log'
         self.test_message = 'some random stuff'
         self.body = {'message': self.test_message, 'log_id': self.LOG_ID, 'offset': 1}
-
         self.es.index(index=self.index_name, doc_type=self.doc_type, body=self.body, id=1)
 
-        self.dag = DAG(self.DAG_ID, start_date=self.EXECUTION_DATE)
-        task = DummyOperator(task_id=self.TASK_ID, dag=self.dag)
-        self.ti = TaskInstance(task=task, execution_date=self.EXECUTION_DATE)
-        self.ti.try_number = 1
-        self.ti.state = State.RUNNING
-        self.addCleanup(self.dag.clear)
-
-    def tearDown(self):
+    def teardown(self):
         shutil.rmtree(self.local_log_location.split(os.path.sep)[0], ignore_errors=True)
 
     def test_client(self):
-        self.assertIsInstance(self.es_task_handler.client, elasticsearch.Elasticsearch)
+        assert isinstance(self.es_task_handler.client, elasticsearch.Elasticsearch)
 
     def test_client_with_config(self):
         es_conf = dict(conf.getsection("elasticsearch_configs"))
@@ -93,7 +102,7 @@ class TestElasticsearchTaskHandler(unittest.TestCase):
             "use_ssl": False,
             "verify_certs": True,
         }
-        self.assertDictEqual(es_conf, expected_dict)
+        assert es_conf == expected_dict
         # ensure creating with configs does not fail
         ElasticsearchTaskHandler(
             self.local_log_location,
@@ -103,26 +112,29 @@ class TestElasticsearchTaskHandler(unittest.TestCase):
             self.write_stdout,
             self.json_format,
             self.json_fields,
-            es_conf,
+            self.host_field,
+            self.offset_field,
+            es_kwargs=es_conf,
         )
 
-    def test_read(self):
+    def test_read(self, ti):
         ts = pendulum.now()
         logs, metadatas = self.es_task_handler.read(
-            self.ti, 1, {'offset': 0, 'last_log_timestamp': str(ts), 'end_of_log': False}
+            ti, 1, {'offset': 0, 'last_log_timestamp': str(ts), 'end_of_log': False}
         )
 
-        self.assertEqual(1, len(logs))
-        self.assertEqual(len(logs), len(metadatas))
-        self.assertEqual(len(logs[0]), 1)
-        self.assertEqual(self.test_message, logs[0][0][-1])
-        self.assertFalse(metadatas[0]['end_of_log'])
-        self.assertEqual('1', metadatas[0]['offset'])
-        self.assertTrue(timezone.parse(metadatas[0]['last_log_timestamp']) > ts)
+        assert 1 == len(logs)
+        assert len(logs) == len(metadatas)
+        assert len(logs[0]) == 1
+        assert self.test_message == logs[0][0][-1]
+        assert not metadatas[0]['end_of_log']
+        assert '1' == metadatas[0]['offset']
+        assert timezone.parse(metadatas[0]['last_log_timestamp']) > ts
 
-    def test_read_with_match_phrase_query(self):
-        similar_log_id = '{task_id}-{dag_id}-2016-01-01T00:00:00+00:00-1'.format(
-            dag_id=TestElasticsearchTaskHandler.DAG_ID, task_id=TestElasticsearchTaskHandler.TASK_ID
+    def test_read_with_match_phrase_query(self, ti):
+        similar_log_id = (
+            f'{TestElasticsearchTaskHandler.TASK_ID}-'
+            f'{TestElasticsearchTaskHandler.DAG_ID}-2016-01-01T00:00:00+00:00-1'
         )
         another_test_message = 'another message'
 
@@ -131,129 +143,131 @@ class TestElasticsearchTaskHandler(unittest.TestCase):
 
         ts = pendulum.now()
         logs, metadatas = self.es_task_handler.read(
-            self.ti, 1, {'offset': 0, 'last_log_timestamp': str(ts), 'end_of_log': False}
+            ti, 1, {'offset': '0', 'last_log_timestamp': str(ts), 'end_of_log': False, 'max_offset': 2}
         )
-        self.assertEqual(1, len(logs))
-        self.assertEqual(len(logs), len(metadatas))
-        self.assertEqual(self.test_message, logs[0][0][-1])
-        self.assertNotEqual(another_test_message, logs[0])
+        assert 1 == len(logs)
+        assert len(logs) == len(metadatas)
+        assert self.test_message == logs[0][0][-1]
+        assert another_test_message != logs[0]
 
-        self.assertFalse(metadatas[0]['end_of_log'])
-        self.assertEqual('1', metadatas[0]['offset'])
-        self.assertTrue(timezone.parse(metadatas[0]['last_log_timestamp']) > ts)
+        assert not metadatas[0]['end_of_log']
+        assert '1' == metadatas[0]['offset']
+        assert timezone.parse(metadatas[0]['last_log_timestamp']) > ts
 
-    def test_read_with_none_metadata(self):
-        logs, metadatas = self.es_task_handler.read(self.ti, 1)
-        self.assertEqual(1, len(logs))
-        self.assertEqual(len(logs), len(metadatas))
-        self.assertEqual(self.test_message, logs[0][0][-1])
-        self.assertFalse(metadatas[0]['end_of_log'])
-        self.assertEqual('1', metadatas[0]['offset'])
-        self.assertTrue(timezone.parse(metadatas[0]['last_log_timestamp']) < pendulum.now())
+    def test_read_with_none_metadata(self, ti):
+        logs, metadatas = self.es_task_handler.read(ti, 1)
+        assert 1 == len(logs)
+        assert len(logs) == len(metadatas)
+        assert self.test_message == logs[0][0][-1]
+        assert not metadatas[0]['end_of_log']
+        assert '1' == metadatas[0]['offset']
+        assert timezone.parse(metadatas[0]['last_log_timestamp']) < pendulum.now()
 
-    def test_read_nonexistent_log(self):
+    def test_read_nonexistent_log(self, ti):
         ts = pendulum.now()
         # In ElasticMock, search is going to return all documents with matching index
         # and doc_type regardless of match filters, so we delete the log entry instead
         # of making a new TaskInstance to query.
         self.es.delete(index=self.index_name, doc_type=self.doc_type, id=1)
         logs, metadatas = self.es_task_handler.read(
-            self.ti, 1, {'offset': 0, 'last_log_timestamp': str(ts), 'end_of_log': False}
+            ti, 1, {'offset': 0, 'last_log_timestamp': str(ts), 'end_of_log': False}
         )
-        self.assertEqual(1, len(logs))
-        self.assertEqual(len(logs), len(metadatas))
-        self.assertEqual([[]], logs)
-        self.assertFalse(metadatas[0]['end_of_log'])
-        self.assertEqual('0', metadatas[0]['offset'])
+        assert 1 == len(logs)
+        assert len(logs) == len(metadatas)
+        assert [[]] == logs
+        assert not metadatas[0]['end_of_log']
+        assert '0' == metadatas[0]['offset']
         # last_log_timestamp won't change if no log lines read.
-        self.assertTrue(timezone.parse(metadatas[0]['last_log_timestamp']) == ts)
+        assert timezone.parse(metadatas[0]['last_log_timestamp']) == ts
 
-    def test_read_with_empty_metadata(self):
+    def test_read_with_empty_metadata(self, ti):
         ts = pendulum.now()
-        logs, metadatas = self.es_task_handler.read(self.ti, 1, {})
-        self.assertEqual(1, len(logs))
-        self.assertEqual(len(logs), len(metadatas))
-        self.assertEqual(self.test_message, logs[0][0][-1])
-        self.assertFalse(metadatas[0]['end_of_log'])
+        logs, metadatas = self.es_task_handler.read(ti, 1, {})
+        assert 1 == len(logs)
+        assert len(logs) == len(metadatas)
+        assert self.test_message == logs[0][0][-1]
+        assert not metadatas[0]['end_of_log']
         # offset should be initialized to 0 if not provided.
-        self.assertEqual('1', metadatas[0]['offset'])
+        assert '1' == metadatas[0]['offset']
         # last_log_timestamp will be initialized using log reading time
         # if not last_log_timestamp is provided.
-        self.assertTrue(timezone.parse(metadatas[0]['last_log_timestamp']) > ts)
+        assert timezone.parse(metadatas[0]['last_log_timestamp']) > ts
 
         # case where offset is missing but metadata not empty.
         self.es.delete(index=self.index_name, doc_type=self.doc_type, id=1)
-        logs, metadatas = self.es_task_handler.read(self.ti, 1, {'end_of_log': False})
-        self.assertEqual(1, len(logs))
-        self.assertEqual(len(logs), len(metadatas))
-        self.assertEqual([[]], logs)
-        self.assertFalse(metadatas[0]['end_of_log'])
+        logs, metadatas = self.es_task_handler.read(ti, 1, {'end_of_log': False})
+        assert 1 == len(logs)
+        assert len(logs) == len(metadatas)
+        assert [[]] == logs
+        assert not metadatas[0]['end_of_log']
         # offset should be initialized to 0 if not provided.
-        self.assertEqual('0', metadatas[0]['offset'])
+        assert '0' == metadatas[0]['offset']
         # last_log_timestamp will be initialized using log reading time
         # if not last_log_timestamp is provided.
-        self.assertTrue(timezone.parse(metadatas[0]['last_log_timestamp']) > ts)
+        assert timezone.parse(metadatas[0]['last_log_timestamp']) > ts
 
-    def test_read_timeout(self):
+    def test_read_timeout(self, ti):
         ts = pendulum.now().subtract(minutes=5)
 
         self.es.delete(index=self.index_name, doc_type=self.doc_type, id=1)
         logs, metadatas = self.es_task_handler.read(
-            self.ti, 1, {'offset': 0, 'last_log_timestamp': str(ts), 'end_of_log': False}
+            ti, 1, {'offset': 0, 'last_log_timestamp': str(ts), 'end_of_log': False}
         )
-        self.assertEqual(1, len(logs))
-        self.assertEqual(len(logs), len(metadatas))
-        self.assertEqual([[]], logs)
-        self.assertTrue(metadatas[0]['end_of_log'])
+        assert 1 == len(logs)
+        assert len(logs) == len(metadatas)
+        assert [[]] == logs
+        assert metadatas[0]['end_of_log']
         # offset should be initialized to 0 if not provided.
-        self.assertEqual('0', metadatas[0]['offset'])
-        self.assertTrue(timezone.parse(metadatas[0]['last_log_timestamp']) == ts)
+        assert '0' == metadatas[0]['offset']
+        assert timezone.parse(metadatas[0]['last_log_timestamp']) == ts
 
-    def test_read_as_download_logs(self):
+    def test_read_as_download_logs(self, ti):
         ts = pendulum.now()
         logs, metadatas = self.es_task_handler.read(
-            self.ti,
+            ti,
             1,
             {'offset': 0, 'last_log_timestamp': str(ts), 'download_logs': True, 'end_of_log': False},
         )
-        self.assertEqual(1, len(logs))
-        self.assertEqual(len(logs), len(metadatas))
-        self.assertEqual(len(logs[0]), 1)
-        self.assertEqual(self.test_message, logs[0][0][-1])
-        self.assertFalse(metadatas[0]['end_of_log'])
-        self.assertTrue(metadatas[0]['download_logs'])
-        self.assertEqual('1', metadatas[0]['offset'])
-        self.assertTrue(timezone.parse(metadatas[0]['last_log_timestamp']) > ts)
+        assert 1 == len(logs)
+        assert len(logs) == len(metadatas)
+        assert len(logs[0]) == 1
+        assert self.test_message == logs[0][0][-1]
+        assert not metadatas[0]['end_of_log']
+        assert metadatas[0]['download_logs']
+        assert '1' == metadatas[0]['offset']
+        assert timezone.parse(metadatas[0]['last_log_timestamp']) > ts
 
-    def test_read_raises(self):
+    def test_read_raises(self, ti):
         with mock.patch.object(self.es_task_handler.log, 'exception') as mock_exception:
             with mock.patch("elasticsearch_dsl.Search.execute") as mock_execute:
                 mock_execute.side_effect = Exception('Failed to read')
-                logs, metadatas = self.es_task_handler.read(self.ti, 1)
+                logs, metadatas = self.es_task_handler.read(ti, 1)
             assert mock_exception.call_count == 1
             args, kwargs = mock_exception.call_args
-            self.assertIn("Could not read log with log_id:", args[0])
+            assert "Could not read log with log_id:" in args[0]
 
-        self.assertEqual(1, len(logs))
-        self.assertEqual(len(logs), len(metadatas))
-        self.assertEqual([[]], logs)
-        self.assertFalse(metadatas[0]['end_of_log'])
-        self.assertEqual('0', metadatas[0]['offset'])
+        assert 1 == len(logs)
+        assert len(logs) == len(metadatas)
+        assert [[]] == logs
+        assert not metadatas[0]['end_of_log']
+        assert '0' == metadatas[0]['offset']
 
-    def test_set_context(self):
-        self.es_task_handler.set_context(self.ti)
-        self.assertTrue(self.es_task_handler.mark_end_on_close)
+    def test_set_context(self, ti):
+        self.es_task_handler.set_context(ti)
+        assert self.es_task_handler.mark_end_on_close
 
-    def test_set_context_w_json_format_and_write_stdout(self):
+    def test_set_context_w_json_format_and_write_stdout(self, ti):
         formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
         self.es_task_handler.formatter = formatter
         self.es_task_handler.write_stdout = True
         self.es_task_handler.json_format = True
-        self.es_task_handler.set_context(self.ti)
+        self.es_task_handler.set_context(ti)
 
-    def test_read_with_json_format(self):
+    def test_read_with_json_format(self, ti):
         ts = pendulum.now()
-        formatter = logging.Formatter('[%(asctime)s] {%(filename)s:%(lineno)d} %(levelname)s - %(message)s')
+        formatter = logging.Formatter(
+            '[%(asctime)s] {%(filename)s:%(lineno)d} %(levelname)s - %(message)s - %(exc_text)s'
+        )
         self.es_task_handler.formatter = formatter
         self.es_task_handler.json_format = True
 
@@ -266,21 +280,68 @@ class TestElasticsearchTaskHandler(unittest.TestCase):
             'lineno': 851,
             'levelname': 'INFO',
         }
-        self.es_task_handler.set_context(self.ti)
+        self.es_task_handler.set_context(ti)
         self.es.index(index=self.index_name, doc_type=self.doc_type, body=self.body, id=id)
 
         logs, _ = self.es_task_handler.read(
-            self.ti, 1, {'offset': 0, 'last_log_timestamp': str(ts), 'end_of_log': False}
+            ti, 1, {'offset': 0, 'last_log_timestamp': str(ts), 'end_of_log': False}
         )
-        self.assertEqual(
-            "[2020-12-24 19:25:00,962] {taskinstance.py:851} INFO - some random stuff", logs[0][0][1]
-        )
+        assert "[2020-12-24 19:25:00,962] {taskinstance.py:851} INFO - some random stuff - " == logs[0][0][1]
 
-    def test_close(self):
+    def test_read_with_json_format_with_custom_offset_and_host_fields(self, ti):
+        ts = pendulum.now()
+        formatter = logging.Formatter(
+            '[%(asctime)s] {%(filename)s:%(lineno)d} %(levelname)s - %(message)s - %(exc_text)s'
+        )
+        self.es_task_handler.formatter = formatter
+        self.es_task_handler.json_format = True
+        self.es_task_handler.host_field = "host.name"
+        self.es_task_handler.offset_field = "log.offset"
+
+        self.body = {
+            'message': self.test_message,
+            'log_id': f'{self.DAG_ID}-{self.TASK_ID}-2016_01_01T00_00_00_000000-1',
+            'log': {'offset': 1},
+            'host': {'name': 'somehostname'},
+            'asctime': '2020-12-24 19:25:00,962',
+            'filename': 'taskinstance.py',
+            'lineno': 851,
+            'levelname': 'INFO',
+        }
+        self.es_task_handler.set_context(ti)
+        self.es.index(index=self.index_name, doc_type=self.doc_type, body=self.body, id=id)
+
+        logs, _ = self.es_task_handler.read(
+            ti, 1, {'offset': 0, 'last_log_timestamp': str(ts), 'end_of_log': False}
+        )
+        assert "[2020-12-24 19:25:00,962] {taskinstance.py:851} INFO - some random stuff - " == logs[0][0][1]
+
+    def test_read_with_custom_offset_and_host_fields(self, ti):
+        ts = pendulum.now()
+        # Delete the existing log entry as it doesn't have the new offset and host fields
+        self.es.delete(index=self.index_name, doc_type=self.doc_type, id=1)
+
+        self.es_task_handler.host_field = "host.name"
+        self.es_task_handler.offset_field = "log.offset"
+
+        self.body = {
+            'message': self.test_message,
+            'log_id': self.LOG_ID,
+            'log': {'offset': 1},
+            'host': {'name': 'somehostname'},
+        }
+        self.es.index(index=self.index_name, doc_type=self.doc_type, body=self.body, id=id)
+
+        logs, _ = self.es_task_handler.read(
+            ti, 1, {'offset': 0, 'last_log_timestamp': str(ts), 'end_of_log': False}
+        )
+        assert self.test_message == logs[0][0][1]
+
+    def test_close(self, ti):
         formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
         self.es_task_handler.formatter = formatter
 
-        self.es_task_handler.set_context(self.ti)
+        self.es_task_handler.set_context(ti)
         self.es_task_handler.close()
         with open(
             os.path.join(self.local_log_location, self.filename_template.format(try_number=1))
@@ -289,100 +350,145 @@ class TestElasticsearchTaskHandler(unittest.TestCase):
             # have the log uploaded but will not be stored in elasticsearch.
             # so apply the strip() to log_file.read()
             log_line = log_file.read().strip()
-            self.assertEqual(self.end_of_log_mark.strip(), log_line)
-        self.assertTrue(self.es_task_handler.closed)
+            assert self.end_of_log_mark.strip() == log_line
+        assert self.es_task_handler.closed
 
-    def test_close_no_mark_end(self):
-        self.ti.raw = True
-        self.es_task_handler.set_context(self.ti)
+    def test_close_no_mark_end(self, ti):
+        ti.raw = True
+        self.es_task_handler.set_context(ti)
         self.es_task_handler.close()
         with open(
             os.path.join(self.local_log_location, self.filename_template.format(try_number=1))
         ) as log_file:
-            self.assertNotIn(self.end_of_log_mark, log_file.read())
-        self.assertTrue(self.es_task_handler.closed)
+            assert self.end_of_log_mark not in log_file.read()
+        assert self.es_task_handler.closed
 
-    def test_close_closed(self):
+    def test_close_closed(self, ti):
         self.es_task_handler.closed = True
-        self.es_task_handler.set_context(self.ti)
+        self.es_task_handler.set_context(ti)
         self.es_task_handler.close()
         with open(
             os.path.join(self.local_log_location, self.filename_template.format(try_number=1))
         ) as log_file:
-            self.assertEqual(0, len(log_file.read()))
+            assert 0 == len(log_file.read())
 
-    def test_close_with_no_handler(self):
-        self.es_task_handler.set_context(self.ti)
+    def test_close_with_no_handler(self, ti):
+        self.es_task_handler.set_context(ti)
         self.es_task_handler.handler = None
         self.es_task_handler.close()
         with open(
             os.path.join(self.local_log_location, self.filename_template.format(try_number=1))
         ) as log_file:
-            self.assertEqual(0, len(log_file.read()))
-        self.assertTrue(self.es_task_handler.closed)
+            assert 0 == len(log_file.read())
+        assert self.es_task_handler.closed
 
-    def test_close_with_no_stream(self):
-        self.es_task_handler.set_context(self.ti)
+    def test_close_with_no_stream(self, ti):
+        self.es_task_handler.set_context(ti)
         self.es_task_handler.handler.stream = None
         self.es_task_handler.close()
         with open(
             os.path.join(self.local_log_location, self.filename_template.format(try_number=1))
         ) as log_file:
-            self.assertIn(self.end_of_log_mark, log_file.read())
-        self.assertTrue(self.es_task_handler.closed)
+            assert self.end_of_log_mark in log_file.read()
+        assert self.es_task_handler.closed
 
-        self.es_task_handler.set_context(self.ti)
+        self.es_task_handler.set_context(ti)
         self.es_task_handler.handler.stream.close()
         self.es_task_handler.close()
         with open(
             os.path.join(self.local_log_location, self.filename_template.format(try_number=1))
         ) as log_file:
-            self.assertIn(self.end_of_log_mark, log_file.read())
-        self.assertTrue(self.es_task_handler.closed)
+            assert self.end_of_log_mark in log_file.read()
+        assert self.es_task_handler.closed
 
-    def test_render_log_id(self):
-        expected_log_id = (
-            'dag_for_testing_file_task_handler-'
-            'task_for_testing_file_log_handler-2016-01-01T00:00:00+00:00-1'
-        )
-        log_id = self.es_task_handler._render_log_id(self.ti, 1)
-        self.assertEqual(expected_log_id, log_id)
+    def test_render_log_id(self, ti):
+        assert self.LOG_ID == self.es_task_handler._render_log_id(ti, 1)
 
-        # Switch to use jinja template.
-        self.es_task_handler = ElasticsearchTaskHandler(
-            self.local_log_location,
-            self.filename_template,
-            '{{ ti.dag_id }}-{{ ti.task_id }}-{{ ts }}-{{ try_number }}',
-            self.end_of_log_mark,
-            self.write_stdout,
-            self.json_format,
-            self.json_fields,
-        )
-        log_id = self.es_task_handler._render_log_id(self.ti, 1)
-        self.assertEqual(expected_log_id, log_id)
+        self.es_task_handler.json_format = True
+        assert self.JSON_LOG_ID == self.es_task_handler._render_log_id(ti, 1)
 
-    def test_clean_execution_date(self):
-        clean_execution_date = self.es_task_handler._clean_execution_date(datetime(2016, 7, 8, 9, 10, 11, 12))
-        self.assertEqual('2016_07_08T09_10_11_000012', clean_execution_date)
+    def test_clean_date(self):
+        clean_execution_date = self.es_task_handler._clean_date(datetime(2016, 7, 8, 9, 10, 11, 12))
+        assert '2016_07_08T09_10_11_000012' == clean_execution_date
 
-    @parameterized.expand(
+    @pytest.mark.parametrize(
+        "json_format, es_frontend, expected_url",
         [
-            # Common case
-            ('localhost:5601/{log_id}', 'https://localhost:5601/' + quote(LOG_ID.replace('T', ' '))),
+            # Common cases
+            (True, 'localhost:5601/{log_id}', 'https://localhost:5601/' + quote(JSON_LOG_ID)),
+            (False, 'localhost:5601/{log_id}', 'https://localhost:5601/' + quote(LOG_ID)),
             # Ignore template if "{log_id}"" is missing in the URL
-            ('localhost:5601', 'https://localhost:5601'),
-        ]
+            (False, 'localhost:5601', 'https://localhost:5601'),
+            # scheme handling
+            (False, 'https://localhost:5601/path/{log_id}', 'https://localhost:5601/path/' + quote(LOG_ID)),
+            (False, 'http://localhost:5601/path/{log_id}', 'http://localhost:5601/path/' + quote(LOG_ID)),
+            (False, 'other://localhost:5601/path/{log_id}', 'other://localhost:5601/path/' + quote(LOG_ID)),
+        ],
     )
-    def test_get_external_log_url(self, es_frontend, expected_url):
+    def test_get_external_log_url(self, ti, json_format, es_frontend, expected_url):
         es_task_handler = ElasticsearchTaskHandler(
             self.local_log_location,
             self.filename_template,
             self.log_id_template,
             self.end_of_log_mark,
             self.write_stdout,
-            self.json_format,
+            json_format,
             self.json_fields,
+            self.host_field,
+            self.offset_field,
             frontend=es_frontend,
         )
-        url = es_task_handler.get_external_log_url(self.ti, self.ti.try_number)
-        self.assertEqual(expected_url, url)
+        url = es_task_handler.get_external_log_url(ti, ti.try_number)
+        assert expected_url == url
+
+    @pytest.mark.parametrize(
+        "frontend, expected",
+        [
+            ('localhost:5601/{log_id}', True),
+            (None, False),
+        ],
+    )
+    def test_supports_external_link(self, frontend, expected):
+        self.es_task_handler.frontend = frontend
+        assert self.es_task_handler.supports_external_link == expected
+
+    @mock.patch('sys.__stdout__', new_callable=io.StringIO)
+    def test_dynamic_offset(self, stdout_mock, ti):
+        # arrange
+        handler = ElasticsearchTaskHandler(
+            base_log_folder=self.local_log_location,
+            filename_template=self.filename_template,
+            log_id_template=self.log_id_template,
+            end_of_log_mark=self.end_of_log_mark,
+            write_stdout=True,
+            json_format=True,
+            json_fields=self.json_fields,
+            host_field=self.host_field,
+            offset_field=self.offset_field,
+        )
+        handler.formatter = logging.Formatter()
+
+        logger = logging.getLogger(__name__)
+        logger.handlers = [handler]
+        logger.propagate = False
+
+        ti._log = logger
+        handler.set_context(ti)
+
+        t1 = pendulum.naive(year=2017, month=1, day=1, hour=1, minute=1, second=15)
+        t2, t3 = t1 + pendulum.duration(seconds=5), t1 + pendulum.duration(seconds=10)
+
+        # act
+        with freezegun.freeze_time(t1):
+            ti.log.info("Test")
+        with freezegun.freeze_time(t2):
+            ti.log.info("Test2")
+        with freezegun.freeze_time(t3):
+            ti.log.info("Test3")
+
+        # assert
+        first_log, second_log, third_log = map(json.loads, stdout_mock.getvalue().strip().split("\n"))
+        assert first_log['offset'] < second_log['offset'] < third_log['offset']
+        assert first_log['asctime'] == t1.format("YYYY-MM-DD HH:mm:ss,SSS")
+        assert second_log['asctime'] == t2.format("YYYY-MM-DD HH:mm:ss,SSS")
+        assert third_log['asctime'] == t3.format("YYYY-MM-DD HH:mm:ss,SSS")

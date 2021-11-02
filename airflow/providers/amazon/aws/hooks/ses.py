@@ -36,7 +36,7 @@ class SESHook(AwsBaseHook):
         kwargs['client_type'] = 'ses'
         super().__init__(*args, **kwargs)
 
-    def send_email(  # pylint: disable=too-many-arguments
+    def send_email(
         self,
         mail_from: str,
         to: Union[str, Iterable[str]],
@@ -66,7 +66,7 @@ class SESHook(AwsBaseHook):
         :param return_path: The email address to which replies will be sent. By default, replies
             are sent to the original sender's email address.
         :param reply_to: The email address to which message bounces and complaints should be sent.
-            "Return-Path" is sometimes called "envelope from," "envelope sender," or "MAIL FROM."
+            "Return-Path" is sometimes called "envelope from", "envelope sender", or "MAIL FROM".
         :param custom_headers: Additional headers to add to the MIME message.
             No validations are run on these values and they should be able to be encoded.
         :return: Response from Amazon SES service with unique message identifier.

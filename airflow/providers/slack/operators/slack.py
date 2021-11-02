@@ -15,23 +15,22 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 import json
 from typing import Any, Dict, List, Optional
 
 from airflow.models import BaseOperator
 from airflow.providers.slack.hooks.slack import SlackHook
-from airflow.utils.decorators import apply_defaults
 
 
 class SlackAPIOperator(BaseOperator):
     """
     Base Slack Operator
     The SlackAPIPostOperator is derived from this operator.
-    In the future additional Slack API Operators will be derived from this class as well
+    In the future additional Slack API Operators will be derived from this class as well.
     Only one of `slack_conn_id` and `token` is required.
 
-    :param slack_conn_id: Slack connection ID which its password is Slack API token. Optional
+    :param slack_conn_id: :ref:`Slack connection id <howto/connection:slack>`
+        which its password is Slack API token. Optional
     :type slack_conn_id: str
     :param token: Slack API token (https://api.slack.com/web). Optional
     :type token: str
@@ -40,10 +39,9 @@ class SlackAPIOperator(BaseOperator):
     :param api_params: API Method call parameters (https://api.slack.com/methods). Optional
     :type api_params: dict
     :param client_args: Slack Hook parameters. Optional. Check airflow.providers.slack.hooks.SlackHook
-    :type api_params: dict
+    :type client_args: dict
     """
 
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -76,9 +74,9 @@ class SlackAPIOperator(BaseOperator):
             "SlackAPIOperator should not be used directly. Chose one of the subclasses instead"
         )
 
-    def execute(self, **kwargs):  # noqa: D403
+    def execute(self, **kwargs):
         """
-        SlackAPIOperator calls will not fail even if the call is not unsuccessful.
+        The SlackAPIOperator calls will not fail even if the call is not unsuccessful.
         It should not prevent a DAG from completing in success
         """
         if not self.api_params:
@@ -122,7 +120,6 @@ class SlackAPIPostOperator(SlackAPIOperator):
     template_fields = ('username', 'text', 'attachments', 'blocks', 'channel')
     ui_color = '#FFBA40'
 
-    @apply_defaults
     def __init__(
         self,
         channel: str = '#general',
@@ -131,7 +128,7 @@ class SlackAPIPostOperator(SlackAPIOperator):
         'Here is a cat video instead\n'
         'https://www.youtube.com/watch?v=J---aiyznGQ',
         icon_url: str = 'https://raw.githubusercontent.com/apache/'
-        'airflow/master/airflow/www/static/pin_100.png',
+        'airflow/main/airflow/www/static/pin_100.png',
         attachments: Optional[List] = None,
         blocks: Optional[List] = None,
         **kwargs,
@@ -163,15 +160,25 @@ class SlackAPIFileOperator(SlackAPIOperator):
 
     .. code-block:: python
 
-        slack = SlackAPIFileOperator(
-            task_id="slack_file_upload",
+        # Send file with filename and filetype
+        slack_operator_file = SlackAPIFileOperator(
+            task_id="slack_file_upload_1",
             dag=dag,
             slack_conn_id="slack",
             channel="#general",
             initial_comment="Hello World!",
-            filename="hello_world.csv",
-            filetype="csv",
-            content="hello,world,csv,file",
+            filename="/files/dags/test.txt",
+            filetype="txt",
+        )
+
+        # Send file content
+        slack_operator_file_content = SlackAPIFileOperator(
+            task_id="slack_file_upload_2",
+            dag=dag,
+            slack_conn_id="slack",
+            channel="#general",
+            initial_comment="Hello World!",
+            content="file content in txt",
         )
 
     :param channel: channel in which to sent file on slack name (templated)
@@ -190,14 +197,13 @@ class SlackAPIFileOperator(SlackAPIOperator):
     template_fields = ('channel', 'initial_comment', 'filename', 'filetype', 'content')
     ui_color = '#44BEDF'
 
-    @apply_defaults
     def __init__(
         self,
         channel: str = '#general',
         initial_comment: str = 'No message has been set!',
-        filename: str = 'default_name.csv',
-        filetype: str = 'csv',
-        content: str = 'default,content,csv,file',
+        filename: str = None,
+        filetype: str = None,
+        content: str = None,
         **kwargs,
     ) -> None:
         self.method = 'files.upload'
@@ -206,13 +212,32 @@ class SlackAPIFileOperator(SlackAPIOperator):
         self.filename = filename
         self.filetype = filetype
         self.content = content
+        self.file_params = {}
         super().__init__(method=self.method, **kwargs)
 
-    def construct_api_call_params(self) -> Any:
-        self.api_params = {
-            'channels': self.channel,
-            'content': self.content,
-            'filename': self.filename,
-            'filetype': self.filetype,
-            'initial_comment': self.initial_comment,
-        }
+    def execute(self, **kwargs):
+        """
+        The SlackAPIOperator calls will not fail even if the call is not unsuccessful.
+        It should not prevent a DAG from completing in success
+        """
+        slack = SlackHook(token=self.token, slack_conn_id=self.slack_conn_id)
+
+        # If file content is passed.
+        if self.content is not None:
+            self.api_params = {
+                'channels': self.channel,
+                'content': self.content,
+                'initial_comment': self.initial_comment,
+            }
+            slack.call(self.method, data=self.api_params)
+        # If file name is passed.
+        elif self.filename is not None:
+            self.api_params = {
+                'channels': self.channel,
+                'filename': self.filename,
+                'filetype': self.filetype,
+                'initial_comment': self.initial_comment,
+            }
+            with open(self.filename, "rb") as file_handle:
+                slack.call(self.method, data=self.api_params, files={'file': file_handle})
+                file_handle.close()

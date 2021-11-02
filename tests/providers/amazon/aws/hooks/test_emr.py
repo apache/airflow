@@ -34,7 +34,7 @@ class TestEmrHook(unittest.TestCase):
     @mock_emr
     def test_get_conn_returns_a_boto3_connection(self):
         hook = EmrHook(aws_conn_id='aws_default', region_name='ap-southeast-2')
-        self.assertIsNotNone(hook.get_conn().list_clusters())
+        assert hook.get_conn().list_clusters() is not None
 
     @mock_emr
     def test_create_job_flow_uses_the_emr_config_to_create_a_cluster(self):
@@ -43,7 +43,7 @@ class TestEmrHook(unittest.TestCase):
         hook = EmrHook(aws_conn_id='aws_default', emr_conn_id='emr_default')
         cluster = hook.create_job_flow({'Name': 'test_cluster'})
 
-        self.assertEqual(client.list_clusters()['Clusters'][0]['Id'], cluster['JobFlowId'])
+        assert client.list_clusters()['Clusters'][0]['Id'] == cluster['JobFlowId']
 
     @mock_emr
     def test_create_job_flow_extra_args(self):
@@ -64,7 +64,7 @@ class TestEmrHook(unittest.TestCase):
         cluster = client.describe_cluster(ClusterId=cluster['JobFlowId'])['Cluster']
 
         # The AmiVersion comes back as {Requested,Running}AmiVersion fields.
-        self.assertEqual(cluster['RequestedAmiVersion'], '3.2')
+        assert cluster['RequestedAmiVersion'] == '3.2'
 
     @mock_emr
     def test_get_cluster_id_by_name(self):
@@ -81,8 +81,8 @@ class TestEmrHook(unittest.TestCase):
 
         matching_cluster = hook.get_cluster_id_by_name('test_cluster', ['RUNNING', 'WAITING'])
 
-        self.assertEqual(matching_cluster, job_flow_id)
+        assert matching_cluster == job_flow_id
 
         no_match = hook.get_cluster_id_by_name('foo', ['RUNNING', 'WAITING', 'BOOTSTRAPPING'])
 
-        self.assertIsNone(no_match)
+        assert no_match is None

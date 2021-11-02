@@ -19,7 +19,7 @@ from typing import Dict, Optional, Sequence, Tuple, Union
 
 from google.api_core.retry import Retry
 from google.cloud import datacatalog
-from google.cloud.datacatalog_v1beta1 import (
+from google.cloud.datacatalog import (
     CreateTagRequest,
     DataCatalogClient,
     Entry,
@@ -1093,7 +1093,7 @@ class CloudDataCatalogHook(GoogleBaseHook):
         return result
 
     @GoogleBaseHook.fallback_to_default_project_id
-    def update_tag(  # pylint: disable=too-many-arguments
+    def update_tag(
         self,
         tag: Union[Dict, Tag],
         update_mask: Union[Dict, FieldMask],
@@ -1255,7 +1255,7 @@ class CloudDataCatalogHook(GoogleBaseHook):
         return result
 
     @GoogleBaseHook.fallback_to_default_project_id
-    def update_tag_template_field(  # pylint: disable=too-many-arguments
+    def update_tag_template_field(
         self,
         tag_template_field: Union[dict, TagTemplateField],
         update_mask: Union[dict, FieldMask],

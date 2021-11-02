@@ -20,7 +20,6 @@ from typing import Any, Callable, Dict, Optional
 from airflow.exceptions import AirflowException
 from airflow.providers.http.hooks.http import HttpHook
 from airflow.sensors.base import BaseSensorOperator
-from airflow.utils.decorators import apply_defaults
 
 
 class HttpSensor(BaseSensorOperator):
@@ -29,7 +28,10 @@ class HttpSensor(BaseSensorOperator):
     404 Not Found or `response_check` returning False.
 
     HTTP Error codes other than 404 (like 403) or Connection Refused Error
-    would fail the sensor itself directly (no more poking).
+    would raise an exception and fail the sensor itself directly (no more poking).
+    To avoid failing the task for other codes than 404, the argument ``extra_option``
+    can be passed with the value ``{'check_response': False}``. It will make the ``response_check``
+    be execute for any http status code.
 
     The response check can access the template context to the operator:
 
@@ -47,7 +49,8 @@ class HttpSensor(BaseSensorOperator):
         For more information on how to use this operator, take a look at the guide:
         :ref:`howto/operator:HttpSensor`
 
-    :param http_conn_id: The connection to run the sensor against
+    :param http_conn_id: The :ref:`http connection<howto/connection:http>` to run the
+        sensor against
     :type http_conn_id: str
     :param method: The HTTP request method to use
     :type method: str
@@ -70,7 +73,6 @@ class HttpSensor(BaseSensorOperator):
 
     template_fields = ('endpoint', 'request_params', 'headers')
 
-    @apply_defaults
     def __init__(
         self,
         *,

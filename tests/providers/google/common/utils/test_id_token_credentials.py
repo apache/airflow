@@ -21,6 +21,7 @@ import re
 import unittest
 from unittest import mock
 
+import pytest
 from google.auth import exceptions
 from google.auth.environment_vars import CREDENTIALS
 
@@ -36,12 +37,12 @@ class TestIDTokenCredentialsAdapter(unittest.TestCase):
         type(parent_credentials).id_token = mock.PropertyMock(side_effect=["ID_TOKEN1", "ID_TOKEN2"])
 
         creds = IDTokenCredentialsAdapter(credentials=parent_credentials)
-        self.assertEqual(creds.token, "ID_TOKEN1")
+        assert creds.token == "ID_TOKEN1"
 
         request_adapter = mock.MagicMock()
         creds.refresh(request_adapter)
 
-        self.assertEqual(creds.token, "ID_TOKEN2")
+        assert creds.token == "ID_TOKEN2"
 
 
 class TestGetDefaultIdTokenCredentials(unittest.TestCase):
@@ -57,9 +58,9 @@ class TestGetDefaultIdTokenCredentials(unittest.TestCase):
     def test_should_raise_exception(self, mock_metadata_ping, mock_gcloud_sdk_path):
         if CREDENTIALS in os.environ:
             del os.environ[CREDENTIALS]
-        with self.assertRaisesRegex(
+        with pytest.raises(
             exceptions.DefaultCredentialsError,
-            re.escape(
+            match=re.escape(
                 "Could not automatically determine credentials. Please set GOOGLE_APPLICATION_CREDENTIALS "
                 "or explicitly create credentials and re-run the application. For more information, please "
                 "see https://cloud.google.com/docs/authentication/getting-started"
@@ -83,9 +84,7 @@ class TestGetDefaultIdTokenCredentials(unittest.TestCase):
         if CREDENTIALS in os.environ:
             del os.environ[CREDENTIALS]
 
-        self.assertEqual(
-            credentials.return_value, get_default_id_token_credentials(target_audience="example.org")
-        )
+        assert credentials.return_value == get_default_id_token_credentials(target_audience="example.org")
 
     @mock.patch.dict("os.environ")
     @mock.patch(
@@ -107,8 +106,8 @@ class TestGetDefaultIdTokenCredentials(unittest.TestCase):
             del os.environ[CREDENTIALS]
 
         credentials = get_default_id_token_credentials(target_audience="example.org")
-        self.assertIsInstance(credentials, IDTokenCredentialsAdapter)
-        self.assertEqual(credentials.credentials.client_secret, "CLIENT_SECRET")
+        assert isinstance(credentials, IDTokenCredentialsAdapter)
+        assert credentials.credentials.client_secret == "CLIENT_SECRET"
 
     @mock.patch.dict("os.environ")
     @mock.patch(
@@ -137,7 +136,7 @@ class TestGetDefaultIdTokenCredentials(unittest.TestCase):
             del os.environ[CREDENTIALS]
 
         credentials = get_default_id_token_credentials(target_audience="example.org")
-        self.assertEqual(credentials.service_account_email, "CLIENT_EMAIL")
+        assert credentials.service_account_email == "CLIENT_EMAIL"
 
     @mock.patch.dict("os.environ")
     @mock.patch(
@@ -164,4 +163,4 @@ class TestGetDefaultIdTokenCredentials(unittest.TestCase):
         os.environ[CREDENTIALS] = __file__
 
         credentials = get_default_id_token_credentials(target_audience="example.org")
-        self.assertEqual(credentials.service_account_email, "CLIENT_EMAIL")
+        assert credentials.service_account_email == "CLIENT_EMAIL"

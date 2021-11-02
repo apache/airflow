@@ -15,6 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+
 """Microsoft SQLServer hook module"""
 
 import pymssql
@@ -37,12 +38,10 @@ class MsSqlHook(DbApiHook):
 
     def get_conn(
         self,
-    ) -> pymssql.connect:  # pylint: disable=protected-access  # pylint: disable=c-extension-no-member
+    ) -> pymssql.connect:
         """Returns a mssql connection object"""
-        conn = self.get_connection(
-            self.mssql_conn_id  # type: ignore[attr-defined]  # pylint: disable=no-member
-        )
-        # pylint: disable=c-extension-no-member
+        conn = self.get_connection(self.mssql_conn_id)  # type: ignore[attr-defined]
+
         conn = pymssql.connect(
             server=conn.host,
             user=conn.login,
@@ -54,10 +53,10 @@ class MsSqlHook(DbApiHook):
 
     def set_autocommit(
         self,
-        conn: pymssql.connect,  # pylint: disable=c-extension-no-member
+        conn: pymssql.connect,
         autocommit: bool,
     ) -> None:
         conn.autocommit(autocommit)
 
-    def get_autocommit(self, conn: pymssql.connect):  # pylint: disable=c-extension-no-member
+    def get_autocommit(self, conn: pymssql.connect):
         return conn.autocommit_state

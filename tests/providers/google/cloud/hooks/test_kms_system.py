@@ -34,6 +34,9 @@ GCP_KMS_KEY_NAME = os.environ.get('GCP_KMS_KEY_NAME', 'test-airflow-system-tests
 
 @pytest.mark.credential_file(GCP_KMS_KEY)
 class TestKmsHook(GoogleSystemTest):
+    def setUp(self):
+        super().setUp()
+
     @provide_gcp_context(GCP_KMS_KEY)
     def test_encrypt(self):
         with TemporaryDirectory() as tmp_dir:
@@ -66,7 +69,7 @@ class TestKmsHook(GoogleSystemTest):
             )
             with open(f"{tmp_dir}/mysecret.txt", "rb") as secret_file:
                 secret = secret_file.read()
-            self.assertEqual(secret, b"TEST-SECRET")
+            assert secret == b"TEST-SECRET"
 
     @provide_gcp_context(GCP_KMS_KEY)
     def test_decrypt(self):
@@ -101,4 +104,7 @@ class TestKmsHook(GoogleSystemTest):
                 ),
                 ciphertext=encrypted_secret,
             )
-            self.assertEqual(content, b"TEST-SECRET")
+            assert content == b"TEST-SECRET"
+
+    def tearDown(self):
+        super().tearDown()

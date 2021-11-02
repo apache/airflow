@@ -15,14 +15,13 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""This module is deprecated.
-
-Please use `airflow.providers.apache.hdfs.sensors.hdfs`.
+"""
+This module is deprecated.
+Please use :mod:`airflow.providers.apache.hdfs.sensors.hdfs`.
 """
 
 import warnings
 
-# pylint: disable=unused-import
 from airflow.providers.apache.hdfs.sensors.hdfs import HdfsFolderSensor, HdfsRegexSensor
 
 warnings.warn(
@@ -32,7 +31,6 @@ warnings.warn(
 )
 
 
-# pylint: disable=too-many-ancestors
 class HdfsSensorFolder(HdfsFolderSensor):
     """This class is deprecated.
 
@@ -46,12 +44,11 @@ class HdfsSensorFolder(HdfsFolderSensor):
             Please use
             `airflow.providers.apache.hdfs.sensors.hdfs.HdfsFolderSensor`.""",
             DeprecationWarning,
-            stacklevel=3,
+            stacklevel=2,
         )
         super().__init__(*args, **kwargs)
 
 
-# pylint: disable=too-many-ancestors
 class HdfsSensorRegex(HdfsRegexSensor):
     """This class is deprecated.
 
@@ -65,6 +62,6 @@ class HdfsSensorRegex(HdfsRegexSensor):
             Please use
             `airflow.providers.apache.hdfs.sensors.hdfs.HdfsRegexSensor`.""",
             DeprecationWarning,
-            stacklevel=3,
+            stacklevel=2,
         )
         super().__init__(*args, **kwargs)

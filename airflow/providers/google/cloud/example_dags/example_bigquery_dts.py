@@ -32,7 +32,7 @@ from airflow.providers.google.cloud.sensors.bigquery_dts import BigQueryDataTran
 from airflow.utils.dates import days_ago
 
 GCP_PROJECT_ID = os.environ.get("GCP_PROJECT_ID", "example-project")
-BUCKET_URI = os.environ.get("GCP_DTS_BUCKET_URI", "gs://cloud-ml-tables-data/bank-marketing.csv")
+BUCKET_URI = os.environ.get("GCP_DTS_BUCKET_URI", "gs://INVALID BUCKET NAME/bank-marketing.csv")
 GCP_DTS_BQ_DATASET = os.environ.get("GCP_DTS_BQ_DATASET", "test_dts")
 GCP_DTS_BQ_TABLE = os.environ.get("GCP_DTS_BQ_TABLE", "GCS_Test")
 
@@ -64,7 +64,7 @@ TRANSFER_CONFIG = {
 
 with models.DAG(
     "example_gcp_bigquery_dts",
-    schedule_interval=None,  # Override to match your needs
+    schedule_interval='@once',  # Override to match your needs
     start_date=days_ago(1),
     tags=['example'],
 ) as dag:
@@ -75,9 +75,7 @@ with models.DAG(
         task_id="gcp_bigquery_create_transfer",
     )
 
-    transfer_config_id = (
-        "{{ task_instance.xcom_pull('gcp_bigquery_create_transfer', key='transfer_config_id') }}"
-    )
+    transfer_config_id = gcp_bigquery_create_transfer.output["transfer_config_id"]
     # [END howto_bigquery_create_data_transfer]
 
     # [START howto_bigquery_start_transfer]
@@ -86,14 +84,13 @@ with models.DAG(
         transfer_config_id=transfer_config_id,
         requested_run_time={"seconds": int(time.time() + 60)},
     )
-    run_id = "{{ task_instance.xcom_pull('gcp_bigquery_start_transfer', key='run_id') }}"
     # [END howto_bigquery_start_transfer]
 
     # [START howto_bigquery_dts_sensor]
     gcp_run_sensor = BigQueryDataTransferServiceTransferRunSensor(
         task_id="gcp_run_sensor",
         transfer_config_id=transfer_config_id,
-        run_id=run_id,
+        run_id=gcp_bigquery_start_transfer.output["run_id"],
         expected_statuses={"SUCCEEDED"},
     )
     # [END howto_bigquery_dts_sensor]
@@ -104,9 +101,10 @@ with models.DAG(
     )
     # [END howto_bigquery_delete_data_transfer]
 
-    (
-        gcp_bigquery_create_transfer  # noqa
-        >> gcp_bigquery_start_transfer  # noqa
-        >> gcp_run_sensor  # noqa
-        >> gcp_bigquery_delete_transfer  # noqa
-    )
+    gcp_run_sensor >> gcp_bigquery_delete_transfer
+
+    # Task dependencies created via `XComArgs`:
+    #   gcp_bigquery_create_transfer >> gcp_bigquery_start_transfer
+    #   gcp_bigquery_create_transfer >> gcp_run_sensor
+    #   gcp_bigquery_start_transfer >> gcp_run_sensor
+    #   gcp_bigquery_create_transfer >> gcp_bigquery_delete_transfer

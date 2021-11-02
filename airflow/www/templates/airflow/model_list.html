@@ -77,7 +77,7 @@
         {% set formatter = formatters_columns.get(value) %}
         {% if formatter and formatter(item) %}
           <td>{{ formatter(item) }}</td>
-        {% elif item[value] != None %}
+        {% elif item[value] is not none %}
           <td>{{ item[value] }}</td>
         {% else %}
           <td></td>

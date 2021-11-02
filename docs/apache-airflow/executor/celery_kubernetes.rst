@@ -22,22 +22,22 @@ CeleryKubernetes Executor
 =========================
 
 The :class:`~airflow.executors.celery_kubernetes_executor.CeleryKubernetesExecutor` allows users
-to run simultaneously ``CeleryExecutor`` and a ``KubernetesExecutor``.
+to run simultaneously a ``CeleryExecutor`` and a ``KubernetesExecutor``.
 An executor is chosen to run a task based on the task's queue.
 
-``CeleryKubernetesExecutor`` inherits the scalability of ``CeleryExecutor`` to
-handle the high load at the peak time and runtime isolation of ``KubernetesExecutor``.
+``CeleryKubernetesExecutor`` inherits the scalability of the ``CeleryExecutor`` to
+handle the high load at the peak time and runtime isolation of the ``KubernetesExecutor``.
 
 
 When to use CeleryKubernetesExecutor
 ####################################
 
-``CeleryKubernetesExecutor`` should only be used at certain cases, given that
-it requires setting up ``CeleryExecutor`` and ``KubernetesExecutor``.
+The ``CeleryKubernetesExecutor`` should only be used at certain cases, given that
+it requires setting up the ``CeleryExecutor`` and the ``KubernetesExecutor``.
 
-We recommend considering ``CeleryKubernetesExecutor`` when your use case meets:
+We recommend considering the ``CeleryKubernetesExecutor`` when your use case meets:
 
-1. The number of tasks needed to be scheduled at the peak exceeds the scale that your kubernetes cluster
+1. The number of tasks needed to be scheduled at the peak exceeds the scale that your Kubernetes cluster
    can comfortably handle
 
 2. A relative small portion of your tasks requires runtime isolation.

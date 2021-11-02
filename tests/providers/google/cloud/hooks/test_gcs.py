@@ -15,7 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-# pylint: disable=too-many-lines
+
 import copy
 import io
 import os
@@ -26,6 +26,7 @@ from datetime import datetime, timedelta
 from unittest import mock
 
 import dateutil
+import pytest
 from google.cloud import exceptions, storage
 
 from airflow.exceptions import AirflowException
@@ -48,17 +49,19 @@ class TestGCSHookHelperFunctions(unittest.TestCase):
         Test GCS url parsing
         """
 
-        self.assertEqual(gcs._parse_gcs_url('gs://bucket/path/to/blob'), ('bucket', 'path/to/blob'))
+        assert gcs._parse_gcs_url('gs://bucket/path/to/blob') == ('bucket', 'path/to/blob')
 
         # invalid URI
-        self.assertRaises(AirflowException, gcs._parse_gcs_url, 'gs:/bucket/path/to/blob')
-        self.assertRaises(AirflowException, gcs._parse_gcs_url, 'http://google.com/aaa')
+        with pytest.raises(AirflowException):
+            gcs._parse_gcs_url('gs:/bucket/path/to/blob')
+        with pytest.raises(AirflowException):
+            gcs._parse_gcs_url('http://google.com/aaa')
 
         # trailing slash
-        self.assertEqual(gcs._parse_gcs_url('gs://bucket/path/to/blob/'), ('bucket', 'path/to/blob/'))
+        assert gcs._parse_gcs_url('gs://bucket/path/to/blob/') == ('bucket', 'path/to/blob/')
 
         # bucket only
-        self.assertEqual(gcs._parse_gcs_url('gs://bucket/'), ('bucket', ''))
+        assert gcs._parse_gcs_url('gs://bucket/') == ('bucket', '')
 
 
 class TestFallbackObjectUrlToObjectNameAndBucketName(unittest.TestCase):
@@ -83,9 +86,9 @@ class TestFallbackObjectUrlToObjectNameAndBucketName(unittest.TestCase):
         self.assertion_on_body.assert_called_once()
 
     def test_should_raise_exception_on_missing(self):
-        with self.assertRaisesRegex(
+        with pytest.raises(
             TypeError,
-            re.escape(
+            match=re.escape(
                 "test_method() missing 2 required positional arguments: 'bucket_name' and 'object_name'"
             ),
         ):
@@ -93,7 +96,7 @@ class TestFallbackObjectUrlToObjectNameAndBucketName(unittest.TestCase):
         self.assertion_on_body.assert_not_called()
 
     def test_should_raise_exception_on_mutually_exclusive(self):
-        with self.assertRaisesRegex(AirflowException, re.escape("The mutually exclusive parameters.")):
+        with pytest.raises(AirflowException, match=re.escape("The mutually exclusive parameters.")):
             self.test_method(
                 None,
                 bucket_name="BUCKET_NAME",
@@ -131,7 +134,7 @@ class TestGCSHook(unittest.TestCase):
         mock_client.assert_called_once_with(
             client_info="CLIENT_INFO", credentials="CREDENTIALS", project="PROJECT_ID"
         )
-        self.assertEqual(mock_client.return_value, result)
+        assert mock_client.return_value == result
 
     @mock.patch(GCS_STRING.format('GCSHook.get_conn'))
     def test_exists(self, mock_service):
@@ -148,7 +151,7 @@ class TestGCSHook(unittest.TestCase):
         response = self.gcs_hook.exists(bucket_name=test_bucket, object_name=test_object)
 
         # Then
-        self.assertTrue(response)
+        assert response
         bucket_mock.assert_called_once_with(test_bucket)
         blob_object.assert_called_once_with(blob_name=test_object)
         exists_method.assert_called_once_with()
@@ -168,7 +171,7 @@ class TestGCSHook(unittest.TestCase):
         response = self.gcs_hook.exists(bucket_name=test_bucket, object_name=test_object)
 
         # Then
-        self.assertFalse(response)
+        assert not response
 
     @mock.patch(GCS_STRING.format('GCSHook.get_conn'))
     def test_is_updated_after(self, mock_service):
@@ -186,7 +189,7 @@ class TestGCSHook(unittest.TestCase):
         )
 
         # Then
-        self.assertTrue(response)
+        assert response
 
     @mock.patch(GCS_STRING.format('GCSHook.get_conn'))
     def test_is_updated_before(self, mock_service):
@@ -204,7 +207,7 @@ class TestGCSHook(unittest.TestCase):
         )
 
         # Then
-        self.assertTrue(response)
+        assert response
 
     @mock.patch(GCS_STRING.format('GCSHook.get_conn'))
     def test_is_updated_between(self, mock_service):
@@ -225,7 +228,7 @@ class TestGCSHook(unittest.TestCase):
         )
 
         # Then
-        self.assertTrue(response)
+        assert response
 
     @mock.patch(GCS_STRING.format('GCSHook.get_conn'))
     def test_is_older_than_with_true_cond(self, mock_service):
@@ -243,7 +246,7 @@ class TestGCSHook(unittest.TestCase):
         )
 
         # Then
-        self.assertTrue(response)
+        assert response
 
     @mock.patch(GCS_STRING.format('GCSHook.get_conn'))
     def test_is_older_than_with_false_cond(self, mock_service):
@@ -260,7 +263,7 @@ class TestGCSHook(unittest.TestCase):
             bucket_name=test_bucket, object_name=test_object, seconds=86400  # 24hr
         )
         # Then
-        self.assertFalse(response)
+        assert not response
 
     @mock.patch('google.cloud.storage.Bucket')
     @mock.patch(GCS_STRING.format('GCSHook.get_conn'))
@@ -281,7 +284,7 @@ class TestGCSHook(unittest.TestCase):
         copy_method.return_value = destination_blob
 
         # When
-        response = self.gcs_hook.copy(  # pylint: disable=assignment-from-no-return
+        response = self.gcs_hook.copy(
             source_bucket=source_bucket,
             source_object=source_object,
             destination_bucket=destination_bucket,
@@ -289,7 +292,7 @@ class TestGCSHook(unittest.TestCase):
         )
 
         # Then
-        self.assertEqual(response, None)
+        assert response is None
         copy_method.assert_called_once_with(
             blob=source_blob, destination_bucket=destination_bucket_instance, new_name=destination_object
         )
@@ -300,7 +303,7 @@ class TestGCSHook(unittest.TestCase):
         destination_bucket = 'test-source-bucket'
         destination_object = 'test-source-object'
 
-        with self.assertRaises(ValueError) as e:
+        with pytest.raises(ValueError) as ctx:
             self.gcs_hook.copy(
                 source_bucket=source_bucket,
                 source_object=source_object,
@@ -308,10 +311,12 @@ class TestGCSHook(unittest.TestCase):
                 destination_object=destination_object,
             )
 
-        self.assertEqual(
-            str(e.exception),
-            'Either source/destination bucket or source/destination object '
-            'must be different, not both the same: bucket=%s, object=%s' % (source_bucket, source_object),
+        assert str(ctx.value) == (
+            'Either source/destination bucket or source/destination object must be different, '
+            'not both the same: bucket={}, object={}'
+        ).format(
+            source_bucket,
+            source_object,
         )
 
     def test_copy_empty_source_bucket(self):
@@ -320,7 +325,7 @@ class TestGCSHook(unittest.TestCase):
         destination_bucket = 'test-dest-bucket'
         destination_object = 'test-dest-object'
 
-        with self.assertRaises(ValueError) as e:
+        with pytest.raises(ValueError) as ctx:
             self.gcs_hook.copy(
                 source_bucket=source_bucket,
                 source_object=source_object,
@@ -328,7 +333,7 @@ class TestGCSHook(unittest.TestCase):
                 destination_object=destination_object,
             )
 
-        self.assertEqual(str(e.exception), 'source_bucket and source_object cannot be empty.')
+        assert str(ctx.value) == 'source_bucket and source_object cannot be empty.'
 
     def test_copy_empty_source_object(self):
         source_bucket = 'test-source-object'
@@ -336,7 +341,7 @@ class TestGCSHook(unittest.TestCase):
         destination_bucket = 'test-dest-bucket'
         destination_object = 'test-dest-object'
 
-        with self.assertRaises(ValueError) as e:
+        with pytest.raises(ValueError) as ctx:
             self.gcs_hook.copy(
                 source_bucket=source_bucket,
                 source_object=source_object,
@@ -344,7 +349,7 @@ class TestGCSHook(unittest.TestCase):
                 destination_object=destination_object,
             )
 
-        self.assertEqual(str(e.exception), 'source_bucket and source_object cannot be empty.')
+        assert str(ctx.value) == 'source_bucket and source_object cannot be empty.'
 
     @mock.patch('google.cloud.storage.Bucket')
     @mock.patch(GCS_STRING.format('GCSHook.get_conn'))
@@ -364,7 +369,7 @@ class TestGCSHook(unittest.TestCase):
         rewrite_method.side_effect = [(None, mock.ANY, mock.ANY), (mock.ANY, mock.ANY, mock.ANY)]
 
         # When
-        response = self.gcs_hook.rewrite(  # pylint: disable=assignment-from-no-return
+        response = self.gcs_hook.rewrite(
             source_bucket=source_bucket,
             source_object=source_object,
             destination_bucket=destination_bucket,
@@ -372,7 +377,7 @@ class TestGCSHook(unittest.TestCase):
         )
 
         # Then
-        self.assertEqual(response, None)
+        assert response is None
         rewrite_method.assert_called_once_with(source=source_blob)
 
     def test_rewrite_empty_source_bucket(self):
@@ -381,7 +386,7 @@ class TestGCSHook(unittest.TestCase):
         destination_bucket = 'test-dest-bucket'
         destination_object = 'test-dest-object'
 
-        with self.assertRaises(ValueError) as e:
+        with pytest.raises(ValueError) as ctx:
             self.gcs_hook.rewrite(
                 source_bucket=source_bucket,
                 source_object=source_object,
@@ -389,7 +394,7 @@ class TestGCSHook(unittest.TestCase):
                 destination_object=destination_object,
             )
 
-        self.assertEqual(str(e.exception), 'source_bucket and source_object cannot be empty.')
+        assert str(ctx.value) == 'source_bucket and source_object cannot be empty.'
 
     def test_rewrite_empty_source_object(self):
         source_bucket = 'test-source-object'
@@ -397,7 +402,7 @@ class TestGCSHook(unittest.TestCase):
         destination_bucket = 'test-dest-bucket'
         destination_object = 'test-dest-object'
 
-        with self.assertRaises(ValueError) as e:
+        with pytest.raises(ValueError) as ctx:
             self.gcs_hook.rewrite(
                 source_bucket=source_bucket,
                 source_object=source_object,
@@ -405,7 +410,7 @@ class TestGCSHook(unittest.TestCase):
                 destination_object=destination_object,
             )
 
-        self.assertEqual(str(e.exception), 'source_bucket and source_object cannot be empty.')
+        assert str(ctx.value) == 'source_bucket and source_object cannot be empty.'
 
     @mock.patch('google.cloud.storage.Bucket')
     @mock.patch(GCS_STRING.format('GCSHook.get_conn'))
@@ -419,10 +424,8 @@ class TestGCSHook(unittest.TestCase):
         delete_method = get_blob_method.return_value.delete
         delete_method.return_value = blob_to_be_deleted
 
-        response = self.gcs_hook.delete(  # pylint: disable=assignment-from-no-return
-            bucket_name=test_bucket, object_name=test_object
-        )
-        self.assertIsNone(response)
+        response = self.gcs_hook.delete(bucket_name=test_bucket, object_name=test_object)
+        assert response is None
 
     @mock.patch(GCS_STRING.format('GCSHook.get_conn'))
     def test_delete_nonexisting_object(self, mock_service):
@@ -434,7 +437,7 @@ class TestGCSHook(unittest.TestCase):
         delete_method = blob.return_value.delete
         delete_method.side_effect = exceptions.NotFound(message="Not Found")
 
-        with self.assertRaises(exceptions.NotFound):
+        with pytest.raises(exceptions.NotFound):
             self.gcs_hook.delete(bucket_name=test_bucket, object_name=test_object)
 
     @mock.patch(GCS_STRING.format('GCSHook.get_conn'))
@@ -470,7 +473,7 @@ class TestGCSHook(unittest.TestCase):
 
         response = self.gcs_hook.get_size(bucket_name=test_bucket, object_name=test_object)
 
-        self.assertEqual(response, returned_file_size)
+        assert response == returned_file_size
 
     @mock.patch(GCS_STRING.format('GCSHook.get_conn'))
     def test_object_get_crc32c(self, mock_service):
@@ -484,7 +487,7 @@ class TestGCSHook(unittest.TestCase):
 
         response = self.gcs_hook.get_crc32c(bucket_name=test_bucket, object_name=test_object)
 
-        self.assertEqual(response, returned_file_crc32c)
+        assert response == returned_file_crc32c
 
     @mock.patch(GCS_STRING.format('GCSHook.get_conn'))
     def test_object_get_md5hash(self, mock_service):
@@ -498,7 +501,7 @@ class TestGCSHook(unittest.TestCase):
 
         response = self.gcs_hook.get_md5hash(bucket_name=test_bucket, object_name=test_object)
 
-        self.assertEqual(response, returned_file_md5hash)
+        assert response == returned_file_md5hash
 
     @mock.patch('google.cloud.storage.Bucket')
     @mock.patch(GCS_STRING.format('GCSHook.get_conn'))
@@ -526,10 +529,10 @@ class TestGCSHook(unittest.TestCase):
             project_id=test_project,
         )
 
-        self.assertEqual(response, sample_bucket.id)
+        assert response == sample_bucket.id
 
-        self.assertEqual(sample_bucket.storage_class, test_storage_class)
-        self.assertDictEqual(sample_bucket.labels, test_labels)
+        assert sample_bucket.storage_class == test_storage_class
+        assert sample_bucket.labels == test_labels
 
         mock_service.return_value.bucket.return_value.create.assert_called_once_with(
             project=test_project, location=test_location
@@ -562,7 +565,7 @@ class TestGCSHook(unittest.TestCase):
             labels=test_labels,
             project_id=test_project,
         )
-        self.assertEqual(response, sample_bucket.id)
+        assert response == sample_bucket.id
 
         mock_service.return_value.bucket.return_value._patch_property.assert_called_once_with(
             name='versioning', value=test_versioning_enabled
@@ -593,49 +596,49 @@ class TestGCSHook(unittest.TestCase):
         )
 
     @mock.patch(GCS_STRING.format('GCSHook.get_conn'))
-    def test_compose_with_empty_source_objects(self, mock_service):  # pylint: disable=unused-argument
+    def test_compose_with_empty_source_objects(self, mock_service):
         test_bucket = 'test_bucket'
         test_source_objects = []
         test_destination_object = 'test_object_composed'
 
-        with self.assertRaises(ValueError) as e:
+        with pytest.raises(ValueError) as ctx:
             self.gcs_hook.compose(
                 bucket_name=test_bucket,
                 source_objects=test_source_objects,
                 destination_object=test_destination_object,
             )
 
-        self.assertEqual(str(e.exception), 'source_objects cannot be empty.')
+        assert str(ctx.value) == 'source_objects cannot be empty.'
 
     @mock.patch(GCS_STRING.format('GCSHook.get_conn'))
-    def test_compose_without_bucket(self, mock_service):  # pylint: disable=unused-argument
+    def test_compose_without_bucket(self, mock_service):
         test_bucket = None
         test_source_objects = ['test_object_1', 'test_object_2', 'test_object_3']
         test_destination_object = 'test_object_composed'
 
-        with self.assertRaises(ValueError) as e:
+        with pytest.raises(ValueError) as ctx:
             self.gcs_hook.compose(
                 bucket_name=test_bucket,
                 source_objects=test_source_objects,
                 destination_object=test_destination_object,
             )
 
-        self.assertEqual(str(e.exception), 'bucket_name and destination_object cannot be empty.')
+        assert str(ctx.value) == 'bucket_name and destination_object cannot be empty.'
 
     @mock.patch(GCS_STRING.format('GCSHook.get_conn'))
-    def test_compose_without_destination_object(self, mock_service):  # pylint: disable=unused-argument
+    def test_compose_without_destination_object(self, mock_service):
         test_bucket = 'test_bucket'
         test_source_objects = ['test_object_1', 'test_object_2', 'test_object_3']
         test_destination_object = None
 
-        with self.assertRaises(ValueError) as e:
+        with pytest.raises(ValueError) as ctx:
             self.gcs_hook.compose(
                 bucket_name=test_bucket,
                 source_objects=test_source_objects,
                 destination_object=test_destination_object,
             )
 
-        self.assertEqual(str(e.exception), 'bucket_name and destination_object cannot be empty.')
+        assert str(ctx.value) == 'bucket_name and destination_object cannot be empty.'
 
     @mock.patch(GCS_STRING.format('GCSHook.get_conn'))
     def test_download_as_string(self, mock_service):
@@ -648,7 +651,7 @@ class TestGCSHook(unittest.TestCase):
 
         response = self.gcs_hook.download(bucket_name=test_bucket, object_name=test_object, filename=None)
 
-        self.assertEqual(response, test_object_bytes)
+        assert response == test_object_bytes
         download_method.assert_called_once_with()
 
     @mock.patch(GCS_STRING.format('GCSHook.get_conn'))
@@ -671,7 +674,7 @@ class TestGCSHook(unittest.TestCase):
             bucket_name=test_bucket, object_name=test_object, filename=test_file
         )
 
-        self.assertEqual(response, test_file)
+        assert response == test_file
         download_filename_method.assert_called_once_with(test_file, timeout=60)
 
     @mock.patch(GCS_STRING.format('NamedTemporaryFile'))
@@ -696,7 +699,7 @@ class TestGCSHook(unittest.TestCase):
 
         with self.gcs_hook.provide_file(bucket_name=test_bucket, object_name=test_object) as response:
 
-            self.assertEqual(test_file, response.name)
+            assert test_file == response.name
         download_filename_method.assert_called_once_with(test_file, timeout=60)
         mock_temp_file.assert_has_calls(
             [
@@ -736,6 +739,39 @@ class TestGCSHook(unittest.TestCase):
             ]
         )
 
+    @mock.patch(GCS_STRING.format('GCSHook.get_conn'))
+    def test_list_by_timespans(self, mock_service):
+        test_bucket = 'test_bucket'
+
+        # Given
+        blob1 = mock.Mock()
+        blob1.name = "in-interval-1"
+        blob1.updated = datetime(2019, 8, 28, 14, 7, 20, 0, dateutil.tz.tzutc())
+        blob2 = mock.Mock()
+        blob2.name = "in-interval-2"
+        blob2.updated = datetime(2019, 8, 28, 14, 37, 20, 0, dateutil.tz.tzutc())
+        blob3 = mock.Mock()
+        blob3.name = "outside-interval"
+        blob3.updated = datetime(2019, 8, 29, 14, 7, 20, 0, dateutil.tz.tzutc())
+
+        mock_service.return_value.bucket.return_value.list_blobs.return_value.__iter__.return_value = [
+            blob1,
+            blob2,
+            blob3,
+        ]
+        mock_service.return_value.bucket.return_value.list_blobs.return_value.prefixes = None
+        mock_service.return_value.bucket.return_value.list_blobs.return_value.next_page_token = None
+
+        # When
+        response = self.gcs_hook.list_by_timespan(
+            bucket_name=test_bucket,
+            timespan_start=datetime(2019, 8, 28, 14, 0, 0, 0, dateutil.tz.tzutc()),
+            timespan_end=datetime(2019, 8, 28, 15, 0, 0, 0, dateutil.tz.tzutc()),
+        )
+
+        # Then
+        assert len(response) == 2 and all('in-interval' in b for b in response)
+
 
 class TestGCSHookUpload(unittest.TestCase):
     def setUp(self):
@@ -743,6 +779,7 @@ class TestGCSHookUpload(unittest.TestCase):
             self.gcs_hook = gcs.GCSHook(gcp_conn_id='test')
 
         # generate a 384KiB test file (larger than the minimum 256KiB multipart chunk size)
+
         self.testfile = tempfile.NamedTemporaryFile(delete=False)
         self.testfile.write(b"x" * 393216)
         self.testfile.flush()
@@ -771,7 +808,7 @@ class TestGCSHookUpload(unittest.TestCase):
         test_object = 'test_object'
 
         self.gcs_hook.upload(test_bucket, test_object, filename=self.testfile.name, gzip=True)
-        self.assertFalse(os.path.exists(self.testfile.name + '.gz'))
+        assert not os.path.exists(self.testfile.name + '.gz')
 
     @mock.patch(GCS_STRING.format('GCSHook.get_conn'))
     def test_upload_data_str(self, mock_service):
@@ -835,22 +872,22 @@ class TestGCSHookUpload(unittest.TestCase):
     def test_upload_exceptions(self, mock_service):
         test_bucket = 'test_bucket'
         test_object = 'test_object'
-        both_params_excep = (
+        both_params_except = (
             "'filename' and 'data' parameter provided. Please "
             "specify a single parameter, either 'filename' for "
             "local file uploads or 'data' for file content uploads."
         )
-        no_params_excep = "'filename' and 'data' parameter missing. One is required to upload to gcs."
+        no_params_except = "'filename' and 'data' parameter missing. One is required to upload to gcs."
 
-        with self.assertRaises(ValueError) as cm:
+        with pytest.raises(ValueError) as ctx:
             self.gcs_hook.upload(test_bucket, test_object)
-        self.assertEqual(no_params_excep, str(cm.exception))
+        assert no_params_except == str(ctx.value)
 
-        with self.assertRaises(ValueError) as cm:
+        with pytest.raises(ValueError) as ctx:
             self.gcs_hook.upload(
                 test_bucket, test_object, filename=self.testfile.name, data=self.testdata_str
             )
-        self.assertEqual(both_params_excep, str(cm.exception))
+        assert both_params_except == str(ctx.value)
 
 
 class TestSyncGcsHook(unittest.TestCase):

@@ -38,7 +38,7 @@ connectionhelper = sa.Table(
 )
 
 
-def upgrade():  # noqa: D103
+def upgrade():
     # first check if the user already has this done. This should only be
     # true for users who are upgrading from a previous version of Airflow
     # that predates Alembic integration
@@ -58,5 +58,5 @@ def upgrade():  # noqa: D103
     conn.execute(connectionhelper.update().values(is_encrypted=False))
 
 
-def downgrade():  # noqa: D103
+def downgrade():
     op.drop_column('connection', 'is_encrypted')

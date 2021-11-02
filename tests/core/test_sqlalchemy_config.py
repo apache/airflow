@@ -19,6 +19,7 @@
 import unittest
 from unittest.mock import patch
 
+import pytest
 from sqlalchemy.pool import NullPool
 
 from airflow import settings
@@ -56,6 +57,7 @@ class TestSqlAlchemySettings(unittest.TestCase):
             pool_pre_ping=True,
             pool_recycle=1800,
             pool_size=5,
+            isolation_level='READ COMMITTED',
         )
 
     @patch('airflow.settings.setup_event_handlers')
@@ -74,11 +76,15 @@ class TestSqlAlchemySettings(unittest.TestCase):
         }
         with conf_vars(config):
             settings.configure_orm()
+            engine_args = {}
+            if settings.SQL_ALCHEMY_CONN.startswith(('mysql', 'mssql')):
+                engine_args['isolation_level'] = 'READ COMMITTED'
             mock_create_engine.assert_called_once_with(
                 settings.SQL_ALCHEMY_CONN,
                 connect_args=SQL_ALCHEMY_CONNECT_ARGS,
                 poolclass=NullPool,
                 encoding='utf-8',
+                **engine_args,
             )
 
     @patch('airflow.settings.setup_event_handlers')
@@ -92,6 +98,6 @@ class TestSqlAlchemySettings(unittest.TestCase):
             ('core', 'sql_alchemy_connect_args'): 'does.not.exist',
             ('core', 'sql_alchemy_pool_enabled'): 'False',
         }
-        with self.assertRaises(AirflowConfigException):
+        with pytest.raises(AirflowConfigException):
             with conf_vars(config):
                 settings.configure_orm()

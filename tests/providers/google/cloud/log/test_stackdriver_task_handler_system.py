@@ -18,7 +18,6 @@ import importlib
 import random
 import string
 import subprocess
-import unittest
 from unittest import mock
 
 import pytest
@@ -28,16 +27,21 @@ from airflow.example_dags import example_complex
 from airflow.models import TaskInstance
 from airflow.utils.log.log_reader import TaskLogReader
 from airflow.utils.session import provide_session
-from tests.providers.google.cloud.utils.gcp_authenticator import GCP_STACKDDRIVER
+from tests.providers.google.cloud.utils.gcp_authenticator import GCP_STACKDRIVER
 from tests.test_utils.config import conf_vars
 from tests.test_utils.db import clear_db_runs
-from tests.test_utils.gcp_system_helpers import provide_gcp_context, resolve_full_gcp_key_path
+from tests.test_utils.gcp_system_helpers import (
+    GoogleSystemTest,
+    provide_gcp_context,
+    resolve_full_gcp_key_path,
+)
 
 
 @pytest.mark.system("google")
-@pytest.mark.credential_file(GCP_STACKDDRIVER)
-class TestStackdriverLoggingHandlerSystemTest(unittest.TestCase):
+@pytest.mark.credential_file(GCP_STACKDRIVER)
+class TestStackdriverLoggingHandlerSystemTest(GoogleSystemTest):
     def setUp(self) -> None:
+        super().setUp()
         clear_db_runs()
         self.log_name = 'stackdriver-tests-'.join(random.sample(string.ascii_lowercase, 16))
 
@@ -47,6 +51,7 @@ class TestStackdriverLoggingHandlerSystemTest(unittest.TestCase):
         importlib.reload(airflow_local_settings)
         settings.configure_logging()
         clear_db_runs()
+        super().tearDown()
 
     @provide_session
     def test_should_support_key_auth(self, session):
@@ -54,15 +59,15 @@ class TestStackdriverLoggingHandlerSystemTest(unittest.TestCase):
             'os.environ',
             AIRFLOW__LOGGING__REMOTE_LOGGING="true",
             AIRFLOW__LOGGING__REMOTE_BASE_LOG_FOLDER=f"stackdriver://{self.log_name}",
-            AIRFLOW__LOGGING__GOOGLE_KEY_PATH=resolve_full_gcp_key_path(GCP_STACKDDRIVER),
+            AIRFLOW__LOGGING__GOOGLE_KEY_PATH=resolve_full_gcp_key_path(GCP_STACKDRIVER),
             AIRFLOW__CORE__LOAD_EXAMPLES="false",
             AIRFLOW__CORE__DAGS_FOLDER=example_complex.__file__,
         ):
-            self.assertEqual(0, subprocess.Popen(["airflow", "dags", "trigger", "example_complex"]).wait())
-            self.assertEqual(0, subprocess.Popen(["airflow", "scheduler", "--num-runs", "1"]).wait())
+            assert 0 == subprocess.Popen(["airflow", "dags", "trigger", "example_complex"]).wait()
+            assert 0 == subprocess.Popen(["airflow", "scheduler", "--num-runs", "1"]).wait()
         ti = session.query(TaskInstance).filter(TaskInstance.task_id == "create_entry_group").first()
 
-        self.assert_remote_logs("INFO - Task exited with return code 0", ti)
+        self.assert_remote_logs("terminated with exit code 0", ti)
 
     @provide_session
     def test_should_support_adc(self, session):
@@ -72,16 +77,16 @@ class TestStackdriverLoggingHandlerSystemTest(unittest.TestCase):
             AIRFLOW__LOGGING__REMOTE_BASE_LOG_FOLDER=f"stackdriver://{self.log_name}",
             AIRFLOW__CORE__LOAD_EXAMPLES="false",
             AIRFLOW__CORE__DAGS_FOLDER=example_complex.__file__,
-            GOOGLE_APPLICATION_CREDENTIALS=resolve_full_gcp_key_path(GCP_STACKDDRIVER),
+            GOOGLE_APPLICATION_CREDENTIALS=resolve_full_gcp_key_path(GCP_STACKDRIVER),
         ):
-            self.assertEqual(0, subprocess.Popen(["airflow", "dags", "trigger", "example_complex"]).wait())
-            self.assertEqual(0, subprocess.Popen(["airflow", "scheduler", "--num-runs", "1"]).wait())
+            assert 0 == subprocess.Popen(["airflow", "dags", "trigger", "example_complex"]).wait()
+            assert 0 == subprocess.Popen(["airflow", "scheduler", "--num-runs", "1"]).wait()
         ti = session.query(TaskInstance).filter(TaskInstance.task_id == "create_entry_group").first()
 
-        self.assert_remote_logs("INFO - Task exited with return code 0", ti)
+        self.assert_remote_logs("terminated with exit code 0", ti)
 
     def assert_remote_logs(self, expected_message, ti):
-        with provide_gcp_context(GCP_STACKDDRIVER), conf_vars(
+        with provide_gcp_context(GCP_STACKDRIVER), conf_vars(
             {
                 ('logging', 'remote_logging'): 'True',
                 ('logging', 'remote_base_log_folder'): f"stackdriver://{self.log_name}",
@@ -94,4 +99,8 @@ class TestStackdriverLoggingHandlerSystemTest(unittest.TestCase):
 
             task_log_reader = TaskLogReader()
             logs = "\n".join(task_log_reader.read_log_stream(ti, try_number=None, metadata={}))
-            self.assertIn(expected_message, logs)
+            # Preview content
+            print("=" * 80)
+            print(logs)
+            print("=" * 80)
+            assert expected_message in logs

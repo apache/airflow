@@ -20,10 +20,6 @@ Google Display & Video 360 Operators
 `Google Display & Video 360 <https://marketingplatform.google.com/about/display-video-360/>`__ has the end-to-end
 campaign management features you need.
 
-.. contents::
-  :depth: 1
-  :local:
-
 Prerequisite Tasks
 ^^^^^^^^^^^^^^^^^^
 
@@ -43,7 +39,7 @@ To create Display&Video 360 report use
     :start-after: [START howto_google_display_video_createquery_report_operator]
     :end-before: [END howto_google_display_video_createquery_report_operator]
 
-Use :ref:`Jinja templating <jinja-templating>` with
+Use :ref:`Jinja templating <concepts:jinja-templating>` with
 :template-fields:`airflow.providers.google.marketing_platform.operators.display_video.GoogleDisplayVideo360CreateReportOperator`
 parameters which allow you to dynamically determine values. You can provide body definition using ``
 .json`` file as this operator supports this template extension.
@@ -63,7 +59,7 @@ To delete Display&Video 360 report use
     :start-after: [START howto_google_display_video_deletequery_report_operator]
     :end-before: [END howto_google_display_video_deletequery_report_operator]
 
-You can use :ref:`Jinja templating <jinja-templating>` with
+You can use :ref:`Jinja templating <concepts:jinja-templating>` with
 :template-fields:`airflow.providers.google.marketing_platform.operators.display_video.GoogleDisplayVideo360DeleteReportOperator`
 parameters which allow you to dynamically determine values.
 
@@ -81,7 +77,7 @@ To wait for the report use
     :start-after: [START howto_google_display_video_wait_report_operator]
     :end-before: [END howto_google_display_video_wait_report_operator]
 
-Use :ref:`Jinja templating <jinja-templating>` with
+Use :ref:`Jinja templating <concepts:jinja-templating>` with
 :template-fields:`airflow.providers.google.marketing_platform.sensors.display_video.GoogleDisplayVideo360ReportSensor`
 parameters which allow you to dynamically determine values.
 
@@ -99,7 +95,7 @@ To download a report to GCS bucket use
     :start-after: [START howto_google_display_video_getquery_report_operator]
     :end-before: [END howto_google_display_video_getquery_report_operator]
 
-Use :ref:`Jinja templating <jinja-templating>` with
+Use :ref:`Jinja templating <concepts:jinja-templating>` with
 :template-fields:`airflow.providers.google.marketing_platform.operators.display_video.GoogleDisplayVideo360DownloadReportOperator`
 parameters which allow you to dynamically determine values.
 
@@ -118,7 +114,7 @@ To run Display&Video 360 report use
     :start-after: [START howto_google_display_video_runquery_report_operator]
     :end-before: [END howto_google_display_video_runquery_report_operator]
 
-Use :ref:`Jinja templating <jinja-templating>` with
+Use :ref:`Jinja templating <concepts:jinja-templating>` with
 :template-fields:`airflow.providers.google.marketing_platform.operators.display_video.GoogleDisplayVideo360RunReportOperator`
 parameters which allow you to dynamically determine values.
 
@@ -147,7 +143,7 @@ To download line items in CSV format report use
     :start-after: [START howto_google_display_video_download_line_items_operator]
     :end-before: [END howto_google_display_video_download_line_items_operator]
 
-Use :ref:`Jinja templating <jinja-templating>` with
+Use :ref:`Jinja templating <concepts:jinja-templating>` with
 :template-fields:`airflow.providers.google.marketing_platform.operators.display_video.GoogleDisplayVideo360DownloadLineItemsOperator`
 parameters which allow you to dynamically determine values.
 
@@ -166,7 +162,7 @@ To run Display&Video 360 uploading line items use
     :start-after: [START howto_google_display_video_upload_line_items_operator]
     :end-before: [END howto_google_display_video_upload_line_items_operator]
 
-Use :ref:`Jinja templating <jinja-templating>` with
+Use :ref:`Jinja templating <concepts:jinja-templating>` with
 :template-fields:`airflow.providers.google.marketing_platform.operators.display_video.GoogleDisplayVideo360UploadLineItemsOperator`
 parameters which allow you to dynamically determine values.
 
@@ -184,7 +180,7 @@ To create SDF download task use
     :start-after: [START howto_google_display_video_create_sdf_download_task_operator]
     :end-before: [END howto_google_display_video_create_sdf_download_task_operator]
 
-Use :ref:`Jinja templating <jinja-templating>` with
+Use :ref:`Jinja templating <concepts:jinja-templating>` with
 :template-fields:`airflow.providers.google.marketing_platform.operators.display_video.GoogleDisplayVideo360CreateSDFDownloadTaskOperator`
 parameters which allow you to dynamically determine values.
 
@@ -203,7 +199,7 @@ To save SDF files and save them in the Google Cloud Storage use
     :start-after: [START howto_google_display_video_save_sdf_in_gcs_operator]
     :end-before: [END howto_google_display_video_save_sdf_in_gcs_operator]
 
-Use :ref:`Jinja templating <jinja-templating>` with
+Use :ref:`Jinja templating <concepts:jinja-templating>` with
 :template-fields:`airflow.providers.google.marketing_platform.operators.display_video.GoogleDisplayVideo360SDFtoGCSOperator`
 parameters which allow you to dynamically determine values.
 
@@ -221,6 +217,6 @@ Wait for SDF operation is executed by:
     :start-after: [START howto_google_display_video_wait_for_operation_sensor]
     :end-before: [END howto_google_display_video_wait_for_operation_sensor]
 
-Use :ref:`Jinja templating <jinja-templating>` with
+Use :ref:`Jinja templating <concepts:jinja-templating>` with
 :template-fields:`airflow.providers.google.marketing_platform.sensors.display_video.GoogleDisplayVideo360GetSDFDownloadOperationSensor`
 parameters which allow you to dynamically determine values.

@@ -22,7 +22,7 @@ from airflow.models.base import Base
 from airflow.utils.sqlalchemy import UtcDateTime
 
 
-class ImportError(Base):  # pylint: disable=redefined-builtin
+class ImportError(Base):
     """
     A table to store all Import Errors. The ImportErrors are recorded when parsing DAGs.
     This errors are displayed on the Webserver.

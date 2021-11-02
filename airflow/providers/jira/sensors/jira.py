@@ -21,7 +21,6 @@ from jira.resources import Issue, Resource
 
 from airflow.providers.jira.operators.jira import JIRAError, JiraOperator
 from airflow.sensors.base import BaseSensorOperator
-from airflow.utils.decorators import apply_defaults
 
 
 class JiraSensor(BaseSensorOperator):
@@ -38,7 +37,6 @@ class JiraSensor(BaseSensorOperator):
     :type result_processor: function
     """
 
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -85,7 +83,6 @@ class JiraTicketSensor(JiraSensor):
 
     template_fields = ("ticket_id",)
 
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -116,7 +113,7 @@ class JiraTicketSensor(JiraSensor):
     def issue_field_checker(self, issue: Issue) -> Optional[bool]:
         """Check issue using different conditions to prepare to evaluate sensor."""
         result = None
-        try:  # pylint: disable=too-many-nested-blocks
+        try:
             if issue is not None and self.field is not None and self.expected_value is not None:
 
                 field_val = getattr(issue.fields, self.field)
@@ -136,9 +133,8 @@ class JiraTicketSensor(JiraSensor):
 
         except JIRAError as jira_error:
             self.log.error("Jira error while checking with expected value: %s", jira_error)
-        except Exception as e:  # pylint: disable=broad-except
-            self.log.error("Error while checking with expected value %s:", self.expected_value)
-            self.log.exception(e)
+        except Exception:
+            self.log.exception("Error while checking with expected value %s:", self.expected_value)
         if result is True:
             self.log.info(
                 "Issue field %s has expected value %s, returning success", self.field, self.expected_value

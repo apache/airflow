@@ -21,6 +21,7 @@ import json
 import unittest
 from unittest.mock import patch
 
+import pytest
 from kubernetes.client.rest import ApiException
 
 from airflow import DAG
@@ -513,7 +514,7 @@ class TestSparkKubernetesSensor(unittest.TestCase):
     )
     def test_completed_application(self, mock_get_namespaced_crd, mock_kubernetes_hook):
         sensor = SparkKubernetesSensor(application_name="spark_pi", dag=self.dag, task_id="test_task_id")
-        self.assertTrue(sensor.poke(None))
+        assert sensor.poke(None)
         mock_kubernetes_hook.assert_called_once_with()
         mock_get_namespaced_crd.assert_called_once_with(
             group="sparkoperator.k8s.io",
@@ -529,7 +530,8 @@ class TestSparkKubernetesSensor(unittest.TestCase):
     )
     def test_failed_application(self, mock_get_namespaced_crd, mock_kubernetes_hook):
         sensor = SparkKubernetesSensor(application_name="spark_pi", dag=self.dag, task_id="test_task_id")
-        self.assertRaises(AirflowException, sensor.poke, None)
+        with pytest.raises(AirflowException):
+            sensor.poke(None)
         mock_kubernetes_hook.assert_called_once_with()
         mock_get_namespaced_crd.assert_called_once_with(
             group="sparkoperator.k8s.io",
@@ -545,7 +547,7 @@ class TestSparkKubernetesSensor(unittest.TestCase):
     )
     def test_not_processed_application(self, mock_get_namespaced_crd, mock_kubernetes_hook):
         sensor = SparkKubernetesSensor(application_name="spark_pi", dag=self.dag, task_id="test_task_id")
-        self.assertFalse(sensor.poke(None))
+        assert not sensor.poke(None)
         mock_kubernetes_hook.assert_called_once_with()
         mock_get_namespaced_crd.assert_called_once_with(
             group="sparkoperator.k8s.io",
@@ -561,7 +563,7 @@ class TestSparkKubernetesSensor(unittest.TestCase):
     )
     def test_new_application(self, mock_get_namespaced_crd, mock_kubernetes_hook):
         sensor = SparkKubernetesSensor(application_name="spark_pi", dag=self.dag, task_id="test_task_id")
-        self.assertFalse(sensor.poke(None))
+        assert not sensor.poke(None)
         mock_kubernetes_hook.assert_called_once_with()
         mock_get_namespaced_crd.assert_called_once_with(
             group="sparkoperator.k8s.io",
@@ -577,7 +579,7 @@ class TestSparkKubernetesSensor(unittest.TestCase):
     )
     def test_running_application(self, mock_get_namespaced_crd, mock_kubernetes_hook):
         sensor = SparkKubernetesSensor(application_name="spark_pi", dag=self.dag, task_id="test_task_id")
-        self.assertFalse(sensor.poke(None))
+        assert not sensor.poke(None)
         mock_kubernetes_hook.assert_called_once_with()
         mock_get_namespaced_crd.assert_called_once_with(
             group="sparkoperator.k8s.io",
@@ -593,7 +595,7 @@ class TestSparkKubernetesSensor(unittest.TestCase):
     )
     def test_submitted_application(self, mock_get_namespaced_crd, mock_kubernetes_hook):
         sensor = SparkKubernetesSensor(application_name="spark_pi", dag=self.dag, task_id="test_task_id")
-        self.assertFalse(sensor.poke(None))
+        assert not sensor.poke(None)
         mock_kubernetes_hook.assert_called_once_with()
         mock_get_namespaced_crd.assert_called_once_with(
             group="sparkoperator.k8s.io",
@@ -609,7 +611,7 @@ class TestSparkKubernetesSensor(unittest.TestCase):
     )
     def test_pending_rerun_application(self, mock_get_namespaced_crd, mock_kubernetes_hook):
         sensor = SparkKubernetesSensor(application_name="spark_pi", dag=self.dag, task_id="test_task_id")
-        self.assertFalse(sensor.poke(None))
+        assert not sensor.poke(None)
         mock_kubernetes_hook.assert_called_once_with()
         mock_get_namespaced_crd.assert_called_once_with(
             group="sparkoperator.k8s.io",
@@ -625,7 +627,8 @@ class TestSparkKubernetesSensor(unittest.TestCase):
     )
     def test_unknown_application(self, mock_get_namespaced_crd, mock_kubernetes_hook):
         sensor = SparkKubernetesSensor(application_name="spark_pi", dag=self.dag, task_id="test_task_id")
-        self.assertRaises(AirflowException, sensor.poke, None)
+        with pytest.raises(AirflowException):
+            sensor.poke(None)
         mock_kubernetes_hook.assert_called_once_with()
         mock_get_namespaced_crd.assert_called_once_with(
             group="sparkoperator.k8s.io",
@@ -655,6 +658,31 @@ class TestSparkKubernetesSensor(unittest.TestCase):
             namespace="sensor_namespace",
             plural="sparkapplications",
             version="v1beta2",
+        )
+
+    @patch(
+        "kubernetes.client.api.custom_objects_api.CustomObjectsApi.get_namespaced_custom_object",
+        return_value=TEST_COMPLETED_APPLICATION,
+    )
+    def test_api_group_and_version_from_sensor(self, mock_get_namespaced_crd, mock_kubernetes_hook):
+        api_group = 'sparkoperator.example.com'
+        api_version = 'v1alpha1'
+        sensor = SparkKubernetesSensor(
+            application_name="spark_pi",
+            dag=self.dag,
+            kubernetes_conn_id="kubernetes_with_namespace",
+            task_id="test_task_id",
+            api_group=api_group,
+            api_version=api_version,
+        )
+        sensor.poke(None)
+        mock_kubernetes_hook.assert_called_once_with()
+        mock_get_namespaced_crd.assert_called_once_with(
+            group=api_group,
+            name="spark_pi",
+            namespace="mock_namespace",
+            plural="sparkapplications",
+            version=api_version,
         )
 
     @patch(
@@ -696,7 +724,8 @@ class TestSparkKubernetesSensor(unittest.TestCase):
             dag=self.dag,
             task_id="test_task_id",
         )
-        self.assertRaises(AirflowException, sensor.poke, None)
+        with pytest.raises(AirflowException):
+            sensor.poke(None)
         mock_log_call.assert_called_once_with("spark-pi-driver", namespace="default")
         error_log_call.assert_called_once_with(TEST_POD_LOG_RESULT)
 
@@ -722,7 +751,7 @@ class TestSparkKubernetesSensor(unittest.TestCase):
         mock_log_call.assert_called_once_with("spark-pi-2020-02-24-1-driver", namespace="default")
         log_info_call = info_log_call.mock_calls[1]
         log_value = log_info_call[1][0]
-        self.assertEqual(log_value, TEST_POD_LOG_RESULT)
+        assert log_value == TEST_POD_LOG_RESULT
 
     @patch(
         "kubernetes.client.api.custom_objects_api.CustomObjectsApi.get_namespaced_custom_object",

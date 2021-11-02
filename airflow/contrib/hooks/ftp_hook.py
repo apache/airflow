@@ -15,11 +15,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""This module is deprecated. Please use `airflow.providers.ftp.hooks.ftp`."""
+"""This module is deprecated. Please use :mod:`airflow.providers.ftp.hooks.ftp`."""
 
 import warnings
 
-# pylint: disable=unused-import
 from airflow.providers.ftp.hooks.ftp import FTPHook, FTPSHook  # noqa
 
 warnings.warn(

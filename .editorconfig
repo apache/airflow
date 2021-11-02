@@ -47,3 +47,6 @@ indent_size = 2
 
 [*.{htm,html}]
 indent_size = 2
+
+[*.json]
+indent_size = 4

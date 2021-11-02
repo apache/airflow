@@ -19,7 +19,6 @@
 Example Airflow DAG for Google Cloud Memorystore service.
 """
 import os
-from urllib.parse import urlparse
 
 from google.cloud.memcache_v1beta2.types import cloud_memcache
 from google.cloud.redis_v1 import FailoverInstanceRequest, Instance
@@ -51,20 +50,21 @@ from airflow.utils import dates
 
 GCP_PROJECT_ID = os.environ.get("GCP_PROJECT_ID", "example-project")
 
-MEMORYSTORE_REDIS_INSTANCE_NAME = os.environ.get("GCP_MEMORYSTORE_INSTANCE_NAME", "test-memorystoreredis-")
+MEMORYSTORE_REDIS_INSTANCE_NAME = os.environ.get(
+    "GCP_MEMORYSTORE_REDIS_INSTANCE_NAME", "test-memorystore-redis"
+)
 MEMORYSTORE_REDIS_INSTANCE_NAME_2 = os.environ.get(
-    "GCP_MEMORYSTORE_INSTANCE_NAME2", "test-memorystore-redis-2"
+    "GCP_MEMORYSTORE_REDIS_INSTANCE_NAME_2", "test-memorystore-redis-2"
 )
 MEMORYSTORE_REDIS_INSTANCE_NAME_3 = os.environ.get(
-    "GCP_MEMORYSTORE_INSTANCE_NAME3", "test-memorystore-redis-3"
+    "GCP_MEMORYSTORE_REDIS_INSTANCE_NAME_3", "test-memorystore-redis-3"
 )
 MEMORYSTORE_MEMCACHED_INSTANCE_NAME = os.environ.get(
-    "GCP_MEMORYSTORE_INSTANCE_NAME4", "test-memorystore-memcached-1"
+    "GCP_MEMORYSTORE_MEMCACHED_INSTANCE_NAME", "test-memorystore-memcached-1"
 )
 
-EXPORT_GCS_URL = os.environ.get("GCP_MEMORYSTORE_EXPORT_GCS_URL", "gs://test-memorystore/my-export.rdb")
-EXPORT_GCS_URL_PARTS = urlparse(EXPORT_GCS_URL)
-BUCKET_NAME = EXPORT_GCS_URL_PARTS.netloc
+BUCKET_NAME = os.environ.get("GCP_MEMORYSTORE_BUCKET", "INVALID BUCKET NAME")
+EXPORT_GCS_URL = f"gs://{BUCKET_NAME}/my-export.rdb"
 
 # [START howto_operator_instance]
 FIRST_INSTANCE = {"tier": Instance.Tier.BASIC, "memory_size_gb": 1}
@@ -79,7 +79,7 @@ MEMCACHED_INSTANCE = {"name": "", "node_count": 1, "node_config": {"cpu_count": 
 
 with models.DAG(
     "gcp_cloud_memorystore_redis",
-    schedule_interval=None,  # Override to match your needs
+    schedule_interval='@once',  # Override to match your needs
     start_date=dates.days_ago(1),
     tags=['example'],
 ) as dag:
@@ -96,7 +96,7 @@ with models.DAG(
     # [START howto_operator_create_instance_result]
     create_instance_result = BashOperator(
         task_id="create-instance-result",
-        bash_command="echo \"{{ task_instance.xcom_pull('create-instance') }}\"",
+        bash_command=f"echo {create_instance.output}",
     )
     # [END howto_operator_create_instance_result]
 
@@ -120,7 +120,7 @@ with models.DAG(
 
     # [START howto_operator_get_instance_result]
     get_instance_result = BashOperator(
-        task_id="get-instance-result", bash_command="echo \"{{ task_instance.xcom_pull('get-instance') }}\""
+        task_id="get-instance-result", bash_command=f"echo {get_instance.output}"
     )
     # [END howto_operator_get_instance_result]
 
@@ -142,7 +142,7 @@ with models.DAG(
 
     # [START howto_operator_list_instances_result]
     list_instances_result = BashOperator(
-        task_id="list-instances-result", bash_command="echo \"{{ task_instance.xcom_pull('get-instance') }}\""
+        task_id="list-instances-result", bash_command=f"echo {get_instance.output}"
     )
     # [END howto_operator_list_instances_result]
 
@@ -236,14 +236,15 @@ with models.DAG(
 
     create_instance >> get_instance >> get_instance_result
     create_instance >> update_instance
-    create_instance >> create_instance_result
     create_instance >> export_instance
     create_instance_2 >> import_instance
     create_instance >> list_instances >> list_instances_result
     list_instances >> delete_instance
     export_instance >> update_instance
     update_instance >> delete_instance
+    create_instance >> create_instance_result
     get_instance >> set_acl_permission >> export_instance
+    get_instance >> list_instances_result
     export_instance >> import_instance
     export_instance >> delete_instance
     failover_instance >> delete_instance_2
@@ -251,9 +252,10 @@ with models.DAG(
 
     export_instance >> create_instance_and_import >> scale_instance >> export_and_delete_instance
 
+
 with models.DAG(
     "gcp_cloud_memorystore_memcached",
-    schedule_interval=None,  # Override to match your needs
+    schedule_interval='@once',  # Override to match your needs
     start_date=dates.days_ago(1),
     tags=['example'],
 ) as dag_memcache:

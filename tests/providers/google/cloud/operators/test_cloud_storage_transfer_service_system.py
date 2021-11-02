@@ -50,7 +50,13 @@ def helper():
 @pytest.mark.backend("mysql", "postgres")
 @pytest.mark.credential_file(GCP_GCS_TRANSFER_KEY)
 class GcpTransferExampleDagsSystemTest(GoogleSystemTest):
+    def setUp(self):
+        super().setUp()
+
     @pytest.mark.usefixtures("helper")
     @provide_gcp_context(GCP_GCS_TRANSFER_KEY)
     def test_run_example_dag_compute(self):
         self.run_dag('example_gcp_transfer', CLOUD_DAG_FOLDER)
+
+    def tearDown(self):
+        super().tearDown()

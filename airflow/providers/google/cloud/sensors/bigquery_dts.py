@@ -23,7 +23,6 @@ from google.cloud.bigquery_datatransfer_v1 import TransferState
 
 from airflow.providers.google.cloud.hooks.bigquery_dts import BiqQueryDataTransferServiceHook
 from airflow.sensors.base import BaseSensorOperator
-from airflow.utils.decorators import apply_defaults
 
 
 class BigQueryDataTransferServiceTransferRunSensor(BaseSensorOperator):
@@ -75,7 +74,6 @@ class BigQueryDataTransferServiceTransferRunSensor(BaseSensorOperator):
         "impersonation_chain",
     )
 
-    @apply_defaults
     def __init__(
         self,
         *,

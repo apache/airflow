@@ -22,10 +22,19 @@ description: |
     `Opsgenie <https://www.opsgenie.com/>`__
 
 versions:
+  - 2.0.1
+  - 2.0.0
+  - 1.0.2
+  - 1.0.1
   - 1.0.0
+
+additional-dependencies:
+  - apache-airflow>=2.1.0
+
 integrations:
   - integration-name: Opsgenie
     external-doc-url: https://www.opsgenie.com/
+    logo: /integration-logos/opsgenie/Opsgenie.png
     tags: [service]
 
 operators:
@@ -37,3 +46,10 @@ hooks:
   - integration-name: Opsgenie
     python-modules:
       - airflow.providers.opsgenie.hooks.opsgenie_alert
+
+hook-class-names:  # deprecated - to be removed after providers add dependency on Airflow 2.2.0+
+  - airflow.providers.opsgenie.hooks.opsgenie_alert.OpsgenieAlertHook
+
+connection-types:
+  - hook-class-name: airflow.providers.opsgenie.hooks.opsgenie_alert.OpsgenieAlertHook
+    connection-type: opsgenie

@@ -19,7 +19,6 @@
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 from airflow.providers.amazon.aws.operators.sagemaker_base import SageMakerBaseOperator
-from airflow.utils.decorators import apply_defaults
 
 
 class SageMakerModelOperator(SageMakerBaseOperator):
@@ -36,7 +35,6 @@ class SageMakerModelOperator(SageMakerBaseOperator):
     :type aws_conn_id: str
     """
 
-    @apply_defaults
     def __init__(self, *, config, **kwargs):
         super().__init__(config=config, **kwargs)
 
@@ -53,6 +51,6 @@ class SageMakerModelOperator(SageMakerBaseOperator):
         self.log.info('Creating SageMaker Model %s.', self.config['ModelName'])
         response = self.hook.create_model(self.config)
         if response['ResponseMetadata']['HTTPStatusCode'] != 200:
-            raise AirflowException('Sagemaker model creation failed: %s' % response)
+            raise AirflowException(f'Sagemaker model creation failed: {response}')
         else:
             return {'Model': self.hook.describe_model(self.config['ModelName'])}

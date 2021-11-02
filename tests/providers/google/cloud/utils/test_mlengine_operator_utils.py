@@ -22,12 +22,13 @@ from datetime import datetime
 from unittest import mock
 
 import dill
+import pytest
 
 from airflow.exceptions import AirflowException
 from airflow.models import DAG
 from airflow.operators.python import PythonOperator
+from airflow.providers.apache.beam.operators.beam import BeamRunPythonPipelineOperator
 from airflow.providers.google.cloud.hooks.gcs import GCSHook
-from airflow.providers.google.cloud.operators.dataflow import DataflowCreatePythonJobOperator
 from airflow.providers.google.cloud.utils.mlengine_operator_utils import create_evaluate_ops
 
 TASK_PREFIX = "test-task-prefix"
@@ -82,18 +83,18 @@ METRIC_KEYS_EXPECTED = ','.join(METRIC_KEYS)
 
 def validate_err_and_count(summary):
     if summary['err'] > 0.2:
-        raise ValueError('Too high err>0.2; summary=%s' % summary)
+        raise ValueError(f'Too high err>0.2; summary={summary}')
     if summary['mse'] > 0.05:
-        raise ValueError('Too high mse>0.05; summary=%s' % summary)
+        raise ValueError(f'Too high mse>0.05; summary={summary}')
     if summary['count'] < 1000:
-        raise ValueError('Too few instances<1000; summary=%s' % summary)
+        raise ValueError(f'Too few instances<1000; summary={summary}')
     return summary
 
 
 class TestMlengineOperatorUtils(unittest.TestCase):
     @mock.patch.object(PythonOperator, "set_upstream")
-    @mock.patch.object(DataflowCreatePythonJobOperator, "set_upstream")
-    def test_create_evaluate_ops(self, mock_dataflow, mock_python):
+    @mock.patch.object(BeamRunPythonPipelineOperator, "set_upstream")
+    def test_create_evaluate_ops(self, mock_beam_pipeline, mock_python):
         result = create_evaluate_ops(
             task_prefix=TASK_PREFIX,
             data_format=DATA_FORMAT,
@@ -110,30 +111,30 @@ class TestMlengineOperatorUtils(unittest.TestCase):
 
         evaluate_prediction, evaluate_summary, evaluate_validation = result
 
-        mock_dataflow.assert_called_once_with(evaluate_prediction)
+        mock_beam_pipeline.assert_called_once_with(evaluate_prediction)
         mock_python.assert_called_once_with(evaluate_summary)
 
-        self.assertEqual(TASK_PREFIX_PREDICTION, evaluate_prediction.task_id)
-        self.assertEqual(PROJECT_ID, evaluate_prediction._project_id)
-        self.assertEqual(BATCH_PREDICTION_JOB_ID, evaluate_prediction._job_id)
-        self.assertEqual(REGION, evaluate_prediction._region)
-        self.assertEqual(DATA_FORMAT, evaluate_prediction._data_format)
-        self.assertEqual(INPUT_PATHS, evaluate_prediction._input_paths)
-        self.assertEqual(PREDICTION_PATH, evaluate_prediction._output_path)
-        self.assertEqual(MODEL_URI, evaluate_prediction._uri)
+        assert TASK_PREFIX_PREDICTION == evaluate_prediction.task_id
+        assert PROJECT_ID == evaluate_prediction._project_id
+        assert BATCH_PREDICTION_JOB_ID == evaluate_prediction._job_id
+        assert REGION == evaluate_prediction._region
+        assert DATA_FORMAT == evaluate_prediction._data_format
+        assert INPUT_PATHS == evaluate_prediction._input_paths
+        assert PREDICTION_PATH == evaluate_prediction._output_path
+        assert MODEL_URI == evaluate_prediction._uri
 
-        self.assertEqual(TASK_PREFIX_SUMMARY, evaluate_summary.task_id)
-        self.assertEqual(DATAFLOW_OPTIONS, evaluate_summary.dataflow_default_options)
-        self.assertEqual(PREDICTION_PATH, evaluate_summary.options["prediction_path"])
-        self.assertEqual(METRIC_FN_ENCODED, evaluate_summary.options["metric_fn_encoded"])
-        self.assertEqual(METRIC_KEYS_EXPECTED, evaluate_summary.options["metric_keys"])
+        assert TASK_PREFIX_SUMMARY == evaluate_summary.task_id
+        assert DATAFLOW_OPTIONS == evaluate_summary.default_pipeline_options
+        assert PREDICTION_PATH == evaluate_summary.pipeline_options["prediction_path"]
+        assert METRIC_FN_ENCODED == evaluate_summary.pipeline_options["metric_fn_encoded"]
+        assert METRIC_KEYS_EXPECTED == evaluate_summary.pipeline_options["metric_keys"]
 
-        self.assertEqual(TASK_PREFIX_VALIDATION, evaluate_validation.task_id)
-        self.assertEqual(PREDICTION_PATH, evaluate_validation.templates_dict["prediction_path"])
+        assert TASK_PREFIX_VALIDATION == evaluate_validation.task_id
+        assert PREDICTION_PATH == evaluate_validation.templates_dict["prediction_path"]
 
     @mock.patch.object(PythonOperator, "set_upstream")
-    @mock.patch.object(DataflowCreatePythonJobOperator, "set_upstream")
-    def test_create_evaluate_ops_model_and_version_name(self, mock_dataflow, mock_python):
+    @mock.patch.object(BeamRunPythonPipelineOperator, "set_upstream")
+    def test_create_evaluate_ops_model_and_version_name(self, mock_beam_pipeline, mock_python):
         result = create_evaluate_ops(
             task_prefix=TASK_PREFIX,
             data_format=DATA_FORMAT,
@@ -151,30 +152,30 @@ class TestMlengineOperatorUtils(unittest.TestCase):
 
         evaluate_prediction, evaluate_summary, evaluate_validation = result
 
-        mock_dataflow.assert_called_once_with(evaluate_prediction)
+        mock_beam_pipeline.assert_called_once_with(evaluate_prediction)
         mock_python.assert_called_once_with(evaluate_summary)
 
-        self.assertEqual(TASK_PREFIX_PREDICTION, evaluate_prediction.task_id)
-        self.assertEqual(PROJECT_ID, evaluate_prediction._project_id)
-        self.assertEqual(BATCH_PREDICTION_JOB_ID, evaluate_prediction._job_id)
-        self.assertEqual(REGION, evaluate_prediction._region)
-        self.assertEqual(DATA_FORMAT, evaluate_prediction._data_format)
-        self.assertEqual(INPUT_PATHS, evaluate_prediction._input_paths)
-        self.assertEqual(PREDICTION_PATH, evaluate_prediction._output_path)
-        self.assertEqual(MODEL_NAME, evaluate_prediction._model_name)
-        self.assertEqual(VERSION_NAME, evaluate_prediction._version_name)
+        assert TASK_PREFIX_PREDICTION == evaluate_prediction.task_id
+        assert PROJECT_ID == evaluate_prediction._project_id
+        assert BATCH_PREDICTION_JOB_ID == evaluate_prediction._job_id
+        assert REGION == evaluate_prediction._region
+        assert DATA_FORMAT == evaluate_prediction._data_format
+        assert INPUT_PATHS == evaluate_prediction._input_paths
+        assert PREDICTION_PATH == evaluate_prediction._output_path
+        assert MODEL_NAME == evaluate_prediction._model_name
+        assert VERSION_NAME == evaluate_prediction._version_name
 
-        self.assertEqual(TASK_PREFIX_SUMMARY, evaluate_summary.task_id)
-        self.assertEqual(DATAFLOW_OPTIONS, evaluate_summary.dataflow_default_options)
-        self.assertEqual(PREDICTION_PATH, evaluate_summary.options["prediction_path"])
-        self.assertEqual(METRIC_FN_ENCODED, evaluate_summary.options["metric_fn_encoded"])
-        self.assertEqual(METRIC_KEYS_EXPECTED, evaluate_summary.options["metric_keys"])
+        assert TASK_PREFIX_SUMMARY == evaluate_summary.task_id
+        assert DATAFLOW_OPTIONS == evaluate_summary.default_pipeline_options
+        assert PREDICTION_PATH == evaluate_summary.pipeline_options["prediction_path"]
+        assert METRIC_FN_ENCODED == evaluate_summary.pipeline_options["metric_fn_encoded"]
+        assert METRIC_KEYS_EXPECTED == evaluate_summary.pipeline_options["metric_keys"]
 
-        self.assertEqual(TASK_PREFIX_VALIDATION, evaluate_validation.task_id)
-        self.assertEqual(PREDICTION_PATH, evaluate_validation.templates_dict["prediction_path"])
+        assert TASK_PREFIX_VALIDATION == evaluate_validation.task_id
+        assert PREDICTION_PATH == evaluate_validation.templates_dict["prediction_path"]
 
     @mock.patch.object(PythonOperator, "set_upstream")
-    @mock.patch.object(DataflowCreatePythonJobOperator, "set_upstream")
+    @mock.patch.object(BeamRunPythonPipelineOperator, "set_upstream")
     def test_create_evaluate_ops_dag(self, mock_dataflow, mock_python):
         result = create_evaluate_ops(
             task_prefix=TASK_PREFIX,
@@ -192,29 +193,29 @@ class TestMlengineOperatorUtils(unittest.TestCase):
         mock_dataflow.assert_called_once_with(evaluate_prediction)
         mock_python.assert_called_once_with(evaluate_summary)
 
-        self.assertEqual(TASK_PREFIX_PREDICTION, evaluate_prediction.task_id)
-        self.assertEqual(PROJECT_ID, evaluate_prediction._project_id)
-        self.assertEqual(BATCH_PREDICTION_JOB_ID, evaluate_prediction._job_id)
-        self.assertEqual(REGION, evaluate_prediction._region)
-        self.assertEqual(DATA_FORMAT, evaluate_prediction._data_format)
-        self.assertEqual(INPUT_PATHS, evaluate_prediction._input_paths)
-        self.assertEqual(PREDICTION_PATH, evaluate_prediction._output_path)
-        self.assertEqual(MODEL_NAME, evaluate_prediction._model_name)
-        self.assertEqual(VERSION_NAME, evaluate_prediction._version_name)
+        assert TASK_PREFIX_PREDICTION == evaluate_prediction.task_id
+        assert PROJECT_ID == evaluate_prediction._project_id
+        assert BATCH_PREDICTION_JOB_ID == evaluate_prediction._job_id
+        assert REGION == evaluate_prediction._region
+        assert DATA_FORMAT == evaluate_prediction._data_format
+        assert INPUT_PATHS == evaluate_prediction._input_paths
+        assert PREDICTION_PATH == evaluate_prediction._output_path
+        assert MODEL_NAME == evaluate_prediction._model_name
+        assert VERSION_NAME == evaluate_prediction._version_name
 
-        self.assertEqual(TASK_PREFIX_SUMMARY, evaluate_summary.task_id)
-        self.assertEqual(DATAFLOW_OPTIONS, evaluate_summary.dataflow_default_options)
-        self.assertEqual(PREDICTION_PATH, evaluate_summary.options["prediction_path"])
-        self.assertEqual(METRIC_FN_ENCODED, evaluate_summary.options["metric_fn_encoded"])
-        self.assertEqual(METRIC_KEYS_EXPECTED, evaluate_summary.options["metric_keys"])
+        assert TASK_PREFIX_SUMMARY == evaluate_summary.task_id
+        assert DATAFLOW_OPTIONS == evaluate_summary.default_pipeline_options
+        assert PREDICTION_PATH == evaluate_summary.pipeline_options["prediction_path"]
+        assert METRIC_FN_ENCODED == evaluate_summary.pipeline_options["metric_fn_encoded"]
+        assert METRIC_KEYS_EXPECTED == evaluate_summary.pipeline_options["metric_keys"]
 
-        self.assertEqual(TASK_PREFIX_VALIDATION, evaluate_validation.task_id)
-        self.assertEqual(PREDICTION_PATH, evaluate_validation.templates_dict["prediction_path"])
+        assert TASK_PREFIX_VALIDATION == evaluate_validation.task_id
+        assert PREDICTION_PATH == evaluate_validation.templates_dict["prediction_path"]
 
     @mock.patch.object(GCSHook, "download")
     @mock.patch.object(PythonOperator, "set_upstream")
-    @mock.patch.object(DataflowCreatePythonJobOperator, "set_upstream")
-    def test_apply_validate_fn(self, mock_dataflow, mock_python, mock_download):
+    @mock.patch.object(BeamRunPythonPipelineOperator, "set_upstream")
+    def test_apply_validate_fn(self, mock_beam_pipeline, mock_python, mock_download):
         result = create_evaluate_ops(
             task_prefix=TASK_PREFIX,
             data_format=DATA_FORMAT,
@@ -233,27 +234,25 @@ class TestMlengineOperatorUtils(unittest.TestCase):
 
         mock_download.return_value = json.dumps({"err": 0.3, "mse": 0.04, "count": 1100})
         templates_dict = {"prediction_path": PREDICTION_PATH}
-        with self.assertRaises(ValueError) as context:
+        with pytest.raises(ValueError) as ctx:
             evaluate_validation.python_callable(templates_dict=templates_dict)
 
-        self.assertEqual(
-            "Too high err>0.2; summary={'err': 0.3, 'mse': 0.04, 'count': 1100}", str(context.exception)
-        )
+        assert "Too high err>0.2; summary={'err': 0.3, 'mse': 0.04, 'count': 1100}" == str(ctx.value)
         mock_download.assert_called_once_with("path", "to/output/predictions.json/prediction.summary.json")
 
         invalid_prediction_paths = ["://path/to/output/predictions.json", "gs://", ""]
 
         for path in invalid_prediction_paths:
             templates_dict = {"prediction_path": path}
-            with self.assertRaises(ValueError) as context:
+            with pytest.raises(ValueError) as ctx:
                 evaluate_validation.python_callable(templates_dict=templates_dict)
-            self.assertEqual("Wrong format prediction_path:", str(context.exception)[:29])
+            assert "Wrong format prediction_path:" == str(ctx.value)[:29]
 
     def test_invalid_task_prefix(self):
         invalid_task_prefix_values = ["test-task-prefix&", "~test-task-prefix", "test-task(-prefix"]
 
         for invalid_task_prefix_value in invalid_task_prefix_values:
-            with self.assertRaises(AirflowException):
+            with pytest.raises(AirflowException):
                 create_evaluate_ops(
                     task_prefix=invalid_task_prefix_value,
                     data_format=DATA_FORMAT,
@@ -264,7 +263,7 @@ class TestMlengineOperatorUtils(unittest.TestCase):
                 )
 
     def test_non_callable_metric_fn(self):
-        with self.assertRaises(AirflowException):
+        with pytest.raises(AirflowException):
             create_evaluate_ops(
                 task_prefix=TASK_PREFIX,
                 data_format=DATA_FORMAT,
@@ -275,7 +274,7 @@ class TestMlengineOperatorUtils(unittest.TestCase):
             )
 
     def test_non_callable_validate_fn(self):
-        with self.assertRaises(AirflowException):
+        with pytest.raises(AirflowException):
             create_evaluate_ops(
                 task_prefix=TASK_PREFIX,
                 data_format=DATA_FORMAT,

@@ -94,7 +94,7 @@ class TestGrpcOperator(unittest.TestCase):
             operator.execute({})
             mock_hook.assert_called_once_with("grpc_default", interceptors=None, custom_connection_func=None)
             mocked_hook.run.assert_called_once_with(StubClass, "stream_call", data={}, streaming=False)
-            self.assertTrue(("'value1'", "'value2'") not in mock_info.call_args_list)
+            assert ("'value1'", "'value2'") not in mock_info.call_args_list
             mock_info.assert_any_call("Calling gRPC service")
             callback.assert_any_call("value1", {})
             callback.assert_any_call("value2", {})

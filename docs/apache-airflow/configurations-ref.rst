@@ -22,6 +22,11 @@ Configuration Reference
 This page contains the list of all the available Airflow configurations that you
 can set in ``airflow.cfg`` file or using environment variables.
 
+Use the same configuration across all the Airflow components. While each component
+does not require all, some configurations need to be same otherwise they would not
+work as expected. A good example for that is :ref:`secret_key<config:webserver__secret_key>` which
+should be same on the Webserver and Worker to allow Webserver to fetch logs from Worker.
+
 .. note::
     For more information on setting the configuration, see :doc:`howto/set-config`
 
@@ -79,4 +84,18 @@ can set in ``airflow.cfg`` file or using environment variables.
     {% endif %}
 
     {% endfor %}
+
+    {% if section["name"] in deprecated_options %}
+
+    {% for deprecated_option_name, (new_section_name, new_option_name, since_version) in deprecated_options[section["name"]].items() %}
+    .. _config:{{ section["name"] }}__{{ deprecated_option_name }}:
+
+    {{ deprecated_option_name }} (Deprecated)
+    {{ "-" * (deprecated_option_name + " (Deprecated)")|length }}
+
+    .. deprecated:: {{ since_version }}
+       The option has been moved to :ref:`{{ new_section_name }}.{{ new_option_name }} <config:{{ new_section_name }}__{{ new_option_name }}>`
+    {% endfor %}
+    {% endif %}
+
     {% endfor %}

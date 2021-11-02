@@ -68,14 +68,14 @@ def parse_license_file(project_name):
 
 
 if __name__ == "__main__":
-    print("{:<30}|{:<50}||{:<20}||{:<10}".format("PROJECT", "URL", "LICENSE TYPE DEFINED", "DETECTED"))
+    print(f"{'PROJECT':<30}|{'URL':<50}||{'LICENSE TYPE DEFINED':<20}||{'DETECTED':<10}")
 
     notices = get_notices()
 
     for notice in notices:
         notice = notice[0]
         license = parse_license_file(notice[1])
-        print("{:<30}|{:<50}||{:<20}||{:<10}".format(notice[1], notice[2][:50], notice[0], license))
+        print(f"{notice[1]:<30}|{notice[2][:50]:<50}||{notice[0]:<20}||{license:<10}")
 
     file_count = len([name for name in os.listdir("../licenses")])
-    print("Defined licenses: {} Files found: {}".format(len(notices), file_count))
+    print(f"Defined licenses: {len(notices)} Files found: {file_count}")

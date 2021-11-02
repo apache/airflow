@@ -25,19 +25,19 @@ class TestQuboleCheckHook(unittest.TestCase):
     def test_single_row_bool(self):
         query_result = ['true\ttrue']
         record_list = parse_first_row(query_result)
-        self.assertEqual([True, True], record_list)
+        assert [True, True] == record_list
 
     def test_multi_row_bool(self):
         query_result = ['true\tfalse', 'true\tfalse']
         record_list = parse_first_row(query_result)
-        self.assertEqual([True, False], record_list)
+        assert [True, False] == record_list
 
     def test_single_row_float(self):
         query_result = ['0.23\t34']
         record_list = parse_first_row(query_result)
-        self.assertEqual([0.23, 34], record_list)
+        assert [0.23, 34] == record_list
 
     def test_single_row_mixed_types(self):
         query_result = ['name\t44\t0.23\tTrue']
         record_list = parse_first_row(query_result)
-        self.assertEqual(["name", 44, 0.23, True], record_list)
+        assert ["name", 44, 0.23, True] == record_list

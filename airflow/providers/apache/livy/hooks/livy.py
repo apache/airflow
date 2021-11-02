@@ -49,6 +49,10 @@ class LivyHook(HttpHook, LoggingMixin):
 
     :param livy_conn_id: reference to a pre-defined Livy Connection.
     :type livy_conn_id: str
+    :param extra_options: A dictionary of options passed to Livy.
+    :type extra_options: Dict[str, Any]
+    :param extra_headers: A dictionary of headers passed to the HTTP request to livy.
+    :type extra_headers: Dict[str, Any]
 
     .. seealso::
         For more details refer to the Apache Livy API reference:
@@ -69,8 +73,15 @@ class LivyHook(HttpHook, LoggingMixin):
     conn_type = 'livy'
     hook_name = 'Apache Livy'
 
-    def __init__(self, livy_conn_id: str = default_conn_name) -> None:
+    def __init__(
+        self,
+        livy_conn_id: str = default_conn_name,
+        extra_options: Optional[Dict[str, Any]] = None,
+        extra_headers: Optional[Dict[str, Any]] = None,
+    ) -> None:
         super().__init__(http_conn_id=livy_conn_id)
+        self.extra_headers = extra_headers or {}
+        self.extra_options = extra_options or {}
 
     def get_conn(self, headers: Optional[Dict[str, Any]] = None) -> Any:
         """
@@ -92,7 +103,6 @@ class LivyHook(HttpHook, LoggingMixin):
         method: str = 'GET',
         data: Optional[Any] = None,
         headers: Optional[Dict[str, Any]] = None,
-        extra_options: Optional[Dict[Any, Any]] = None,
     ) -> Any:
         """
         Wrapper for HttpHook, allows to change method on the same HttpHook
@@ -105,20 +115,18 @@ class LivyHook(HttpHook, LoggingMixin):
         :type data: dict
         :param headers: headers
         :type headers: dict
-        :param extra_options: extra options
-        :type extra_options: dict
         :return: http response
         :rtype: requests.Response
         """
         if method not in ('GET', 'POST', 'PUT', 'DELETE', 'HEAD'):
             raise ValueError(f"Invalid http method '{method}'")
-        if extra_options is None:
-            extra_options = {'check_response': False}
+        if not self.extra_options:
+            self.extra_options = {'check_response': False}
 
         back_method = self.method
         self.method = method
         try:
-            result = self.run(endpoint, data, headers, extra_options)
+            result = self.run(endpoint, data, headers, self.extra_options)
         finally:
             self.method = back_method
         return result
@@ -137,16 +145,17 @@ class LivyHook(HttpHook, LoggingMixin):
             self.get_conn()
         self.log.info("Submitting job %s to %s", batch_submit_body, self.base_url)
 
-        response = self.run_method(method='POST', endpoint='/batches', data=batch_submit_body)
+        response = self.run_method(
+            method='POST', endpoint='/batches', data=batch_submit_body, headers=self.extra_headers
+        )
         self.log.debug("Got response: %s", response.text)
 
         try:
             response.raise_for_status()
         except requests.exceptions.HTTPError as err:
             raise AirflowException(
-                "Could not submit batch. Status code: {}. Message: '{}'".format(
-                    err.response.status_code, err.response.text
-                )
+                "Could not submit batch. "
+                f"Status code: {err.response.status_code}. Message: '{err.response.text}'"
             )
 
         batch_id = self._parse_post_response(response.json())
@@ -226,12 +235,59 @@ class LivyHook(HttpHook, LoggingMixin):
         except requests.exceptions.HTTPError as err:
             self.log.warning("Got status code %d for session %d", err.response.status_code, session_id)
             raise AirflowException(
-                "Could not kill the batch with session id: {}. Message: {}".format(
-                    session_id, err.response.text
-                )
+                f"Could not kill the batch with session id: {session_id}. Message: {err.response.text}"
             )
 
         return response.json()
+
+    def get_batch_logs(self, session_id: Union[int, str], log_start_position, log_batch_size) -> Any:
+        """
+        Gets the session logs for a specified batch.
+        :param session_id: identifier of the batch sessions
+        :type session_id: int
+        :param log_start_position: Position from where to pull the logs
+        :type log_start_position: int
+        :param log_batch_size: Number of lines to pull in one batch
+        :type log_batch_size: int
+
+        :return: response body
+        :rtype: dict
+        """
+        self._validate_session_id(session_id)
+        log_params = {'from': log_start_position, 'size': log_batch_size}
+        response = self.run_method(endpoint=f'/batches/{session_id}/log', data=log_params)
+        try:
+            response.raise_for_status()
+        except requests.exceptions.HTTPError as err:
+            self.log.warning("Got status code %d for session %d", err.response.status_code, session_id)
+            raise AirflowException(
+                f"Could not fetch the logs for batch with session id: {session_id}. "
+                f"Message: {err.response.text}"
+            )
+        return response.json()
+
+    def dump_batch_logs(self, session_id: Union[int, str]) -> Any:
+        """
+        Dumps the session logs for a specified batch
+
+        :param session_id: identifier of the batch sessions
+        :type session_id: int
+        :return: response body
+        :rtype: dict
+        """
+        self.log.info("Fetching the logs for batch session with id: %d", session_id)
+        log_start_line = 0
+        log_total_lines = 0
+        log_batch_size = 100
+
+        while log_start_line <= log_total_lines:
+            # Livy log  endpoint is paginated.
+            response = self.get_batch_logs(session_id, log_start_line, log_batch_size)
+            log_total_lines = self._parse_request_response(response, 'total')
+            log_start_line += log_batch_size
+            log_lines = self._parse_request_response(response, 'log')
+            for log_line in log_lines:
+                self.log.info(log_line)
 
     @staticmethod
     def _validate_session_id(session_id: Union[int, str]) -> None:
@@ -259,6 +315,18 @@ class LivyHook(HttpHook, LoggingMixin):
         return response.get('id')
 
     @staticmethod
+    def _parse_request_response(response: Dict[Any, Any], parameter) -> Any:
+        """
+        Parse batch response for batch id
+
+        :param response: response body
+        :type response: dict
+        :return: value of parameter
+        :rtype: Union[int, list]
+        """
+        return response.get(parameter)
+
+    @staticmethod
     def build_post_batch_body(
         file: str,
         args: Optional[Sequence[Union[str, int, float]]] = None,
@@ -281,7 +349,6 @@ class LivyHook(HttpHook, LoggingMixin):
         Build the post batch request body.
         For more information about the format refer to
         .. seealso:: https://livy.apache.org/docs/latest/rest-api.html
-
         :param file: Path of the file containing the application to execute (required).
         :type file: str
         :param proxy_user: User to impersonate when running the job.
@@ -317,8 +384,6 @@ class LivyHook(HttpHook, LoggingMixin):
         :return: request body
         :rtype: dict
         """
-        # pylint: disable-msg=too-many-arguments
-
         body: Dict[str, Any] = {'file': file}
 
         if proxy_user:

@@ -32,5 +32,48 @@ Content
     :maxdepth: 1
     :caption: Resources
 
-    Example DAGs <https://github.com/apache/airflow/tree/master/airflow/providers/qubole/example_dags>
+    Example DAGs <https://github.com/apache/airflow/tree/main/airflow/providers/qubole/example_dags>
     PyPI Repository <https://pypi.org/project/apache-airflow-providers-qubole/>
+    Installing from sources <installing-providers-from-sources>
+
+.. THE REMAINDER OF THE FILE IS AUTOMATICALLY GENERATED. IT WILL BE OVERWRITTEN AT RELEASE TIME!
+
+
+.. toctree::
+    :maxdepth: 1
+    :caption: Commits
+
+    Detailed list of commits <commits>
+
+
+Package apache-airflow-providers-qubole
+------------------------------------------------------
+
+`Qubole <https://www.qubole.com/>`__
+
+
+Release: 2.0.1
+
+Provider package
+----------------
+
+This is a provider package for ``qubole`` provider. All classes for this provider package
+are in ``airflow.providers.qubole`` python package.
+
+Installation
+------------
+
+You can install this package on top of an existing airflow 2.1+ installation via
+``pip install apache-airflow-providers-qubole``
+
+PIP requirements
+----------------
+
+==================  ==================
+PIP package         Version required
+==================  ==================
+``apache-airflow``  ``>=2.1.0``
+``qds-sdk``         ``>=1.10.4``
+==================  ==================
+
+.. include:: ../../airflow/providers/qubole/CHANGELOG.rst

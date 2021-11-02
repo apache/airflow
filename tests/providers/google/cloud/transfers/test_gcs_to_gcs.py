@@ -20,6 +20,8 @@ import unittest
 from datetime import datetime
 from unittest import mock
 
+import pytest
+
 from airflow.exceptions import AirflowException
 from airflow.providers.google.cloud.transfers.gcs_to_gcs import WILDCARD, GCSToGCSOperator
 
@@ -141,7 +143,7 @@ class TestGoogleCloudStorageToCloudStorageOperator(unittest.TestCase):
             source_bucket=TEST_BUCKET,
             source_object=SOURCE_OBJECT_WILDCARD_FILENAME,
             destination_bucket=DESTINATION_BUCKET,
-            destination_object='{}/{}'.format(DESTINATION_OBJECT_PREFIX, SOURCE_OBJECT_WILDCARD_SUFFIX[:-1]),
+            destination_object=f'{DESTINATION_OBJECT_PREFIX}/{SOURCE_OBJECT_WILDCARD_SUFFIX[:-1]}',
         )
 
         operator.execute(None)
@@ -377,11 +379,9 @@ class TestGoogleCloudStorageToCloudStorageOperator(unittest.TestCase):
 
         total_wildcards = operator.source_object.count(WILDCARD)
 
-        error_msg = "Only one wildcard '[*]' is allowed in source_object parameter. Found {}".format(
-            total_wildcards
-        )
+        error_msg = f"Only one wildcard '[*]' is allowed in source_object parameter. Found {total_wildcards}"
 
-        with self.assertRaisesRegex(AirflowException, error_msg):
+        with pytest.raises(AirflowException, match=error_msg):
             operator.execute(None)
 
     @mock.patch('airflow.providers.google.cloud.transfers.gcs_to_gcs.GCSHook')
@@ -400,7 +400,7 @@ class TestGoogleCloudStorageToCloudStorageOperator(unittest.TestCase):
             mock_warn.assert_called_once_with(
                 'destination_bucket is None. Defaulting it to source_bucket (%s)', TEST_BUCKET
             )
-            self.assertEqual(operator.destination_bucket, operator.source_bucket)
+            assert operator.destination_bucket == operator.source_bucket
 
     # Tests the use of delimiter and source object as list
     @mock.patch('airflow.providers.google.cloud.transfers.gcs_to_gcs.GCSHook')
@@ -419,9 +419,7 @@ class TestGoogleCloudStorageToCloudStorageOperator(unittest.TestCase):
             task_id=TASK_ID, source_bucket=TEST_BUCKET, source_objects=SOURCE_OBJECTS_TWO_EMPTY_STRING
         )
 
-        with self.assertRaisesRegex(
-            AirflowException, "You can't have two empty strings inside source_object"
-        ):
+        with pytest.raises(AirflowException, match="You can't have two empty strings inside source_object"):
             operator.execute(None)
 
     @mock.patch('airflow.providers.google.cloud.transfers.gcs_to_gcs.GCSHook')
@@ -492,8 +490,8 @@ class TestGoogleCloudStorageToCloudStorageOperator(unittest.TestCase):
 
         operator.execute(None)
         mock_calls = [
-            mock.call(TEST_BUCKET, 'test_object/file1.txt', DESTINATION_BUCKET, DESTINATION_OBJECT),
-            mock.call(TEST_BUCKET, 'test_object/file2.txt', DESTINATION_BUCKET, DESTINATION_OBJECT),
+            mock.call(TEST_BUCKET, 'test_object/file1.txt', DESTINATION_BUCKET, "test_object/file1.txt"),
+            mock.call(TEST_BUCKET, 'test_object/file2.txt', DESTINATION_BUCKET, "test_object/file2.txt"),
         ]
         mock_hook.return_value.rewrite.assert_has_calls(mock_calls)
 
@@ -530,3 +528,21 @@ class TestGoogleCloudStorageToCloudStorageOperator(unittest.TestCase):
             mock.call(TEST_BUCKET, 'test_object/file3.json', DESTINATION_BUCKET, 'test_object/file3.json'),
         ]
         mock_hook.return_value.rewrite.assert_has_calls(mock_calls_none)
+
+    @mock.patch('airflow.providers.google.cloud.transfers.gcs_to_gcs.GCSHook')
+    def test_execute_wildcard_with_replace_flag_false_with_destination_object(self, mock_hook):
+        operator = GCSToGCSOperator(
+            task_id=TASK_ID,
+            source_bucket=TEST_BUCKET,
+            source_object=SOURCE_OBJECT_WILDCARD_SUFFIX,
+            destination_bucket=DESTINATION_BUCKET,
+            destination_object=DESTINATION_OBJECT_PREFIX,
+            replace=False,
+        )
+
+        operator.execute(None)
+        mock_calls = [
+            mock.call(TEST_BUCKET, prefix="test_object", delimiter=""),
+            mock.call(DESTINATION_BUCKET, prefix="foo/bar", delimiter=""),
+        ]
+        mock_hook.return_value.list.assert_has_calls(mock_calls)

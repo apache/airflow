@@ -76,16 +76,14 @@ unit of work and continuity.
     Home <self>
     project
     license
-    start
-    installation
-    upgrading-to-2
-    upgrade-check
+    start/index
+    installation/index
+    upgrading-from-1-10/index
     tutorial
     tutorial_taskflow_api
     howto/index
     ui
-    concepts
-    scheduler
+    concepts/index
     executor/index
     dag-run
     plugins
@@ -98,11 +96,10 @@ unit of work and continuity.
     lineage
     dag-serialization
     modules_management
-    smart-sensor
+    Release Policies <release-process>
     changelog
     best-practices
     production-deployment
-    backport-providers
     faq
     privacy_notice
 
@@ -112,9 +109,10 @@ unit of work and continuity.
 
     Operators and hooks <operators-and-hooks-ref>
     CLI <cli-and-env-variables-ref>
-    Macros <macros-ref>
+    Templates <templates-ref>
     Python API <python-api-ref>
-    Experimental REST API <rest-api-ref>
     Stable REST API <stable-rest-api-ref>
+    deprecated-rest-api-ref
     Configurations <configurations-ref>
     Extra packages <extra-packages-ref>
+    Database Migrations <migrations-ref>

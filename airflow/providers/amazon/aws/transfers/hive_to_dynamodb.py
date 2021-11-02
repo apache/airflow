@@ -24,7 +24,6 @@ from typing import Callable, Optional
 from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.dynamodb import AwsDynamoDBHook
 from airflow.providers.apache.hive.hooks.hive import HiveServer2Hook
-from airflow.utils.decorators import apply_defaults
 
 
 class HiveToDynamoDBOperator(BaseOperator):
@@ -49,7 +48,8 @@ class HiveToDynamoDBOperator(BaseOperator):
     :type region_name: str
     :param schema: hive database schema
     :type schema: str
-    :param hiveserver2_conn_id: source hive connection
+    :param hiveserver2_conn_id: Reference to the
+        :ref: `Hive Server2 thrift service connection id <howto/connection:hiveserver2>`.
     :type hiveserver2_conn_id: str
     :param aws_conn_id: aws connection
     :type aws_conn_id: str
@@ -59,8 +59,7 @@ class HiveToDynamoDBOperator(BaseOperator):
     template_ext = ('.sql',)
     ui_color = '#a0e08c'
 
-    @apply_defaults
-    def __init__(  # pylint: disable=too-many-arguments
+    def __init__(
         self,
         *,
         sql: str,

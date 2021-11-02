@@ -22,7 +22,6 @@ from typing import Optional, Sequence, Union
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.gcs import GCSHook
-from airflow.utils.decorators import apply_defaults
 
 WILDCARD = '*'
 
@@ -185,10 +184,9 @@ class GCSToGCSOperator(BaseOperator):
     )
     ui_color = '#f0eee4'
 
-    @apply_defaults
     def __init__(
         self,
-        *,  # pylint: disable=too-many-arguments
+        *,
         source_bucket,
         source_object=None,
         source_objects=None,
@@ -234,15 +232,14 @@ class GCSToGCSOperator(BaseOperator):
     def execute(self, context):
 
         hook = GCSHook(
-            google_cloud_storage_conn_id=self.gcp_conn_id,
+            gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,
             impersonation_chain=self.impersonation_chain,
         )
         if self.source_objects and self.source_object:
             error_msg = (
-                "You can either set source_object parameter or source_objects "
-                "parameter but not both. Found source_object={} and"
-                " source_objects={}".format(self.source_object, self.source_objects)
+                f"You can either set source_object parameter or source_objects parameter but not both. "
+                f"Found source_object={self.source_object} and source_objects={self.source_objects}"
             )
             raise AirflowException(error_msg)
 
@@ -280,6 +277,45 @@ class GCSToGCSOperator(BaseOperator):
                 self._copy_source_without_wildcard(hook=hook, prefix=prefix)
 
     def _copy_source_without_wildcard(self, hook, prefix):
+        """
+        For source_objects with no wildcard, this operator would first list
+        all files in source_objects, using provided delimiter if any. Then copy
+        files from source_objects to destination_object and rename each source
+        file.
+
+        Example 1:
+
+
+        The following Operator would copy all the files from ``a/``folder
+        (i.e a/a.csv, a/b.csv, a/c.csv)in ``data`` bucket to the ``b/`` folder in
+        the ``data_backup`` bucket (b/a.csv, b/b.csv, b/c.csv) ::
+
+            copy_files = GCSToGCSOperator(
+                task_id='copy_files_without_wildcard',
+                source_bucket='data',
+                source_objects=['a/'],
+                destination_bucket='data_backup',
+                destination_object='b/',
+                gcp_conn_id=google_cloud_conn_id
+            )
+
+        Example 2:
+
+
+        The following Operator would copy all avro files from ``a/``folder
+        (i.e a/a.avro, a/b.avro, a/c.avro)in ``data`` bucket to the ``b/`` folder in
+        the ``data_backup`` bucket (b/a.avro, b/b.avro, b/c.avro) ::
+
+            copy_files = GCSToGCSOperator(
+                task_id='copy_files_without_wildcard',
+                source_bucket='data',
+                source_objects=['a/'],
+                destination_bucket='data_backup',
+                destination_object='b/',
+                delimiter='.avro',
+                gcp_conn_id=google_cloud_conn_id
+            )
+        """
         objects = hook.list(self.source_bucket, prefix=prefix, delimiter=self.delimiter)
 
         # If objects is empty and we have prefix, let's check if prefix is a blob
@@ -293,7 +329,7 @@ class GCSToGCSOperator(BaseOperator):
             if self.destination_object is None:
                 destination_object = source_obj
             else:
-                destination_object = self.destination_object
+                destination_object = source_obj.replace(prefix, self.destination_object, 1)
             self._copy_single_object(
                 hook=hook, source_object=source_obj, destination_object=destination_object
             )
@@ -303,7 +339,7 @@ class GCSToGCSOperator(BaseOperator):
         if total_wildcards > 1:
             error_msg = (
                 "Only one wildcard '*' is allowed in source_object parameter. "
-                "Found {} in {}.".format(total_wildcards, prefix)
+                f"Found {total_wildcards} in {prefix}."
             )
 
             raise AirflowException(error_msg)
@@ -315,7 +351,19 @@ class GCSToGCSOperator(BaseOperator):
             # and only keep those files which are present in
             # Source GCS bucket and not in Destination GCS bucket
 
-            existing_objects = hook.list(self.destination_bucket, prefix=prefix_, delimiter=delimiter)
+            if self.destination_object is None:
+                existing_objects = hook.list(self.destination_bucket, prefix=prefix_, delimiter=delimiter)
+            else:
+                self.log.info("Replaced destination_object with source_object prefix.")
+                destination_objects = hook.list(
+                    self.destination_bucket,
+                    prefix=self.destination_object,
+                    delimiter=delimiter,
+                )
+                existing_objects = [
+                    dest_object.replace(self.destination_object, prefix_, 1)
+                    for dest_object in destination_objects
+                ]
 
             objects = set(objects) - set(existing_objects)
             if len(objects) > 0:

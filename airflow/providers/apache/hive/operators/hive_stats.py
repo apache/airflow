@@ -25,7 +25,6 @@ from airflow.models import BaseOperator
 from airflow.providers.apache.hive.hooks.hive import HiveMetastoreHook
 from airflow.providers.mysql.hooks.mysql import MySqlHook
 from airflow.providers.presto.hooks.presto import PrestoHook
-from airflow.utils.decorators import apply_defaults
 
 
 class HiveStatsCollectionOperator(BaseOperator):
@@ -41,6 +40,9 @@ class HiveStatsCollectionOperator(BaseOperator):
             value BIGINT
         );
 
+    :param metastore_conn_id: Reference to the
+        :ref:`Hive Metastore connection id <howto/connection:hive_metastore>`.
+    :type metastore_conn_id: str
     :param table: the source table, in the format ``database.table_name``. (templated)
     :type table: str
     :param partition: the source partition. (templated)
@@ -62,7 +64,6 @@ class HiveStatsCollectionOperator(BaseOperator):
     template_fields = ('table', 'partition', 'ds', 'dttm')
     ui_color = '#aff7a6'
 
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -131,13 +132,11 @@ class HiveStatsCollectionOperator(BaseOperator):
             exprs.update(assign_exprs)
         exprs.update(self.extra_exprs)
         exprs = OrderedDict(exprs)
-        exprs_str = ",\n        ".join([v + " AS " + k[0] + '__' + k[1] for k, v in exprs.items()])
+        exprs_str = ",\n        ".join(v + " AS " + k[0] + '__' + k[1] for k, v in exprs.items())
 
         where_clause_ = [f"{k} = '{v}'" for k, v in self.partition.items()]
         where_clause = " AND\n        ".join(where_clause_)
-        sql = "SELECT {exprs_str} FROM {table} WHERE {where_clause};".format(
-            exprs_str=exprs_str, table=self.table, where_clause=where_clause
-        )
+        sql = f"SELECT {exprs_str} FROM {self.table} WHERE {where_clause};"
 
         presto = PrestoHook(presto_conn_id=self.presto_conn_id)
         self.log.info('Executing SQL check: %s', sql)
@@ -150,26 +149,22 @@ class HiveStatsCollectionOperator(BaseOperator):
 
         self.log.info("Deleting rows from previous runs if they exist")
         mysql = MySqlHook(self.mysql_conn_id)
-        sql = """
+        sql = f"""
         SELECT 1 FROM hive_stats
         WHERE
-            table_name='{table}' AND
+            table_name='{self.table}' AND
             partition_repr='{part_json}' AND
-            dttm='{dttm}'
+            dttm='{self.dttm}'
         LIMIT 1;
-        """.format(
-            table=self.table, part_json=part_json, dttm=self.dttm
-        )
+        """
         if mysql.get_records(sql):
-            sql = """
+            sql = f"""
             DELETE FROM hive_stats
             WHERE
-                table_name='{table}' AND
+                table_name='{self.table}' AND
                 partition_repr='{part_json}' AND
-                dttm='{dttm}';
-            """.format(
-                table=self.table, part_json=part_json, dttm=self.dttm
-            )
+                dttm='{self.dttm}';
+            """
             mysql.run(sql)
 
         self.log.info("Pivoting and loading cells into the Airflow db")

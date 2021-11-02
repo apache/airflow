@@ -18,8 +18,7 @@
 """MySQL to GCS operator."""
 
 import base64
-import calendar
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, time, timedelta
 from decimal import Decimal
 from typing import Dict
 
@@ -27,7 +26,6 @@ from MySQLdb.constants import FIELD_TYPE
 
 from airflow.providers.google.cloud.transfers.sql_to_gcs import BaseSQLToGCSOperator
 from airflow.providers.mysql.hooks.mysql import MySqlHook
-from airflow.utils.decorators import apply_defaults
 
 
 class MySQLToGCSOperator(BaseSQLToGCSOperator):
@@ -37,7 +35,7 @@ class MySQLToGCSOperator(BaseSQLToGCSOperator):
         For more information on how to use this operator, take a look at the guide:
         :ref:`howto/operator:MySQLToGCSOperator`
 
-    :param mysql_conn_id: Reference to a specific MySQL hook.
+    :param mysql_conn_id: Reference to :ref:`mysql connection id <howto/connection:mysql>`.
     :type mysql_conn_id: str
     :param ensure_utc: Ensure TIMESTAMP columns exported as UTC. If set to
         `False`, TIMESTAMP columns will be exported using the MySQL server's
@@ -65,7 +63,6 @@ class MySQLToGCSOperator(BaseSQLToGCSOperator):
         FIELD_TYPE.YEAR: 'INTEGER',
     }
 
-    @apply_defaults
     def __init__(self, *, mysql_conn_id='mysql_default', ensure_utc=False, **kwargs):
         super().__init__(**kwargs)
         self.mysql_conn_id = mysql_conn_id
@@ -102,10 +99,12 @@ class MySQLToGCSOperator(BaseSQLToGCSOperator):
         Takes a value from MySQLdb, and converts it to a value that's safe for
         JSON/Google Cloud Storage/BigQuery.
 
-        * Datetimes are converted to UTC seconds.
+        * Datetimes are converted to `str(value)` (`datetime.isoformat(' ')`)
+          strings.
+        * Times are converted to `str((datetime.min + value).time())` strings.
         * Decimals are converted to floats.
-        * Dates are converted to ISO formatted string if given schema_type is
-          DATE, or UTC seconds otherwise.
+        * Dates are converted to ISO formatted strings if given schema_type is
+          DATE, or `datetime.isoformat(' ')` strings otherwise.
         * Binary type fields are converted to integer if given schema_type is
           INTEGER, or encoded with base64 otherwise. Imported BYTES data must
           be base64-encoded according to BigQuery documentation:
@@ -119,16 +118,16 @@ class MySQLToGCSOperator(BaseSQLToGCSOperator):
         if value is None:
             return value
         if isinstance(value, datetime):
-            value = calendar.timegm(value.timetuple())
+            value = str(value)
         elif isinstance(value, timedelta):
-            value = value.total_seconds()
+            value = str((datetime.min + value).time())
         elif isinstance(value, Decimal):
             value = float(value)
         elif isinstance(value, date):
             if schema_type == "DATE":
                 value = value.isoformat()
             else:
-                value = calendar.timegm(value.timetuple())
+                value = str(datetime.combine(value, time.min))
         elif isinstance(value, bytes):
             if schema_type == "INTEGER":
                 value = int.from_bytes(value, "big")

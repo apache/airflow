@@ -103,7 +103,7 @@ def pool_import_helper(filepath):
 
     with open(filepath) as poolfile:
         data = poolfile.read()
-    try:  # pylint: disable=too-many-nested-blocks
+    try:
         pools_json = json.loads(data)
     except JSONDecodeError as e:
         raise SystemExit("Invalid json file: " + str(e))

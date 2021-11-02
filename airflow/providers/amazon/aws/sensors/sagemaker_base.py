@@ -20,7 +20,6 @@ from typing import Optional, Set
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.sagemaker import SageMakerHook
 from airflow.sensors.base import BaseSensorOperator
-from airflow.utils.decorators import apply_defaults
 
 
 class SageMakerBaseSensor(BaseSensorOperator):
@@ -33,7 +32,6 @@ class SageMakerBaseSensor(BaseSensorOperator):
 
     ui_color = '#ededed'
 
-    @apply_defaults
     def __init__(self, *, aws_conn_id: str = 'aws_default', **kwargs):
         super().__init__(**kwargs)
         self.aws_conn_id = aws_conn_id
@@ -63,7 +61,7 @@ class SageMakerBaseSensor(BaseSensorOperator):
 
         if state in self.failed_states():
             failed_reason = self.get_failed_reason_from_response(response)
-            raise AirflowException('Sagemaker job failed for the following reason: %s' % failed_reason)
+            raise AirflowException(f'Sagemaker job failed for the following reason: {failed_reason}')
         return True
 
     def non_terminal_states(self) -> Set[str]:
@@ -78,7 +76,7 @@ class SageMakerBaseSensor(BaseSensorOperator):
         """Placeholder for checking status of a SageMaker task."""
         raise NotImplementedError('Please implement get_sagemaker_response() in subclass')
 
-    def get_failed_reason_from_response(self, response: dict) -> str:  # pylint: disable=unused-argument
+    def get_failed_reason_from_response(self, response: dict) -> str:
         """Placeholder for extracting the reason for failure from an AWS response."""
         return 'Unknown'
 

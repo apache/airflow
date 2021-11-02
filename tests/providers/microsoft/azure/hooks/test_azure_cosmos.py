@@ -24,6 +24,7 @@ import unittest
 import uuid
 from unittest import mock
 
+import pytest
 from azure.cosmos.cosmos_client import CosmosClient
 
 from airflow.exceptions import AirflowException
@@ -61,8 +62,8 @@ class TestAzureCosmosDbHook(unittest.TestCase):
     @mock.patch('airflow.providers.microsoft.azure.hooks.azure_cosmos.CosmosClient', autospec=True)
     def test_client(self, mock_cosmos):
         hook = AzureCosmosDBHook(azure_cosmos_conn_id='azure_cosmos_test_key_id')
-        self.assertIsNone(hook._conn)
-        self.assertIsInstance(hook.get_conn(), CosmosClient)
+        assert hook._conn is None
+        assert isinstance(hook.get_conn(), CosmosClient)
 
     @mock.patch('airflow.providers.microsoft.azure.hooks.azure_cosmos.CosmosClient')
     def test_create_database(self, mock_cosmos):
@@ -75,12 +76,14 @@ class TestAzureCosmosDbHook(unittest.TestCase):
     @mock.patch('airflow.providers.microsoft.azure.hooks.azure_cosmos.CosmosClient')
     def test_create_database_exception(self, mock_cosmos):
         hook = AzureCosmosDBHook(azure_cosmos_conn_id='azure_cosmos_test_key_id')
-        self.assertRaises(AirflowException, hook.create_database, None)
+        with pytest.raises(AirflowException):
+            hook.create_database(None)
 
     @mock.patch('airflow.providers.microsoft.azure.hooks.azure_cosmos.CosmosClient')
     def test_create_container_exception(self, mock_cosmos):
         hook = AzureCosmosDBHook(azure_cosmos_conn_id='azure_cosmos_test_key_id')
-        self.assertRaises(AirflowException, hook.create_collection, None)
+        with pytest.raises(AirflowException):
+            hook.create_collection(None)
 
     @mock.patch('airflow.providers.microsoft.azure.hooks.azure_cosmos.CosmosClient')
     def test_create_container(self, mock_cosmos):
@@ -117,7 +120,7 @@ class TestAzureCosmosDbHook(unittest.TestCase):
         mock_cosmos.assert_any_call(self.test_end_point, {'masterKey': self.test_master_key})
         mock_cosmos.assert_has_calls(expected_calls)
         logging.getLogger().info(returned_item)
-        self.assertEqual(returned_item['id'], test_id)
+        assert returned_item['id'] == test_id
 
     @mock.patch('airflow.providers.microsoft.azure.hooks.azure_cosmos.CosmosClient')
     def test_upsert_document(self, mock_cosmos):
@@ -141,7 +144,7 @@ class TestAzureCosmosDbHook(unittest.TestCase):
         mock_cosmos.assert_any_call(self.test_end_point, {'masterKey': self.test_master_key})
         mock_cosmos.assert_has_calls(expected_calls)
         logging.getLogger().info(returned_item)
-        self.assertEqual(returned_item['id'], test_id)
+        assert returned_item['id'] == test_id
 
     @mock.patch('airflow.providers.microsoft.azure.hooks.azure_cosmos.CosmosClient')
     def test_insert_documents(self, mock_cosmos):
@@ -185,12 +188,14 @@ class TestAzureCosmosDbHook(unittest.TestCase):
     @mock.patch('airflow.providers.microsoft.azure.hooks.azure_cosmos.CosmosClient')
     def test_delete_database_exception(self, mock_cosmos):
         hook = AzureCosmosDBHook(azure_cosmos_conn_id='azure_cosmos_test_key_id')
-        self.assertRaises(AirflowException, hook.delete_database, None)
+        with pytest.raises(AirflowException):
+            hook.delete_database(None)
 
     @mock.patch('azure.cosmos.cosmos_client.CosmosClient')
     def test_delete_container_exception(self, mock_cosmos):
         hook = AzureCosmosDBHook(azure_cosmos_conn_id='azure_cosmos_test_key_id')
-        self.assertRaises(AirflowException, hook.delete_collection, None)
+        with pytest.raises(AirflowException):
+            hook.delete_collection(None)
 
     @mock.patch('airflow.providers.microsoft.azure.hooks.azure_cosmos.CosmosClient')
     def test_delete_container(self, mock_cosmos):

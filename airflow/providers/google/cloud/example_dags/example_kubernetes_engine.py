@@ -40,7 +40,7 @@ CLUSTER = {"name": CLUSTER_NAME, "initial_node_count": 1}
 
 with models.DAG(
     "example_gcp_gke",
-    schedule_interval=None,  # Override to match your needs
+    schedule_interval='@once',  # Override to match your needs
     start_date=days_ago(1),
     tags=['example'],
 ) as dag:
@@ -61,6 +61,7 @@ with models.DAG(
         namespace="default",
         image="perl",
         name="test-pod",
+        in_cluster=False,
     )
 
     # [START howto_operator_gke_start_pod_xcom]
@@ -74,6 +75,7 @@ with models.DAG(
         image="alpine",
         cmds=["sh", "-c", 'mkdir -p /airflow/xcom/;echo \'[1,2,3,4]\' > /airflow/xcom/return.json'],
         name="test-pod-xcom",
+        in_cluster=False,
     )
     # [END howto_operator_gke_start_pod_xcom]
 

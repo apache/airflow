@@ -23,14 +23,13 @@ from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.gcs import GCSHook
 from airflow.providers.google.suite.hooks.drive import GoogleDriveHook
-from airflow.utils.decorators import apply_defaults
 
 WILDCARD = "*"
 
 
 class GCSToGoogleDriveOperator(BaseOperator):
     """
-    Copies objects from a Google Cloud Storage service service to Google Drive service, with renaming
+    Copies objects from a Google Cloud Storage service to a Google Drive service, with renaming
     if requested.
 
     Using this operator requires the following OAuth 2.0 scope:
@@ -89,7 +88,6 @@ class GCSToGoogleDriveOperator(BaseOperator):
     )
     ui_color = "#f0eee4"
 
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -117,7 +115,7 @@ class GCSToGoogleDriveOperator(BaseOperator):
     def execute(self, context):
 
         self.gcs_hook = GCSHook(
-            google_cloud_storage_conn_id=self.gcp_conn_id,
+            gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,
             impersonation_chain=self.impersonation_chain,
         )
@@ -132,7 +130,7 @@ class GCSToGoogleDriveOperator(BaseOperator):
             if total_wildcards > 1:
                 error_msg = (
                     "Only one wildcard '*' is allowed in source_object parameter. "
-                    "Found {} in {}.".format(total_wildcards, self.source_object)
+                    f"Found {total_wildcards} in {self.source_object}."
                 )
 
                 raise AirflowException(error_msg)

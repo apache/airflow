@@ -19,15 +19,6 @@ if [[ ${VERBOSE_COMMANDS:="false"} == "true" ]]; then
     set -x
 fi
 
-function disable_rbac_if_requested() {
-    if [[ ${DISABLE_RBAC:="false"} == "true" ]]; then
-        export AIRFLOW__WEBSERVER__RBAC="False"
-    else
-        export AIRFLOW__WEBSERVER__RBAC="True"
-    fi
-}
-
-
 # shellcheck source=scripts/in_container/_in_container_script_init.sh
 . /opt/airflow/scripts/in_container/_in_container_script_init.sh
 
@@ -48,52 +39,47 @@ echo
 echo "Airflow home: ${AIRFLOW_HOME}"
 echo "Airflow sources: ${AIRFLOW_SOURCES}"
 echo "Airflow core SQL connection: ${AIRFLOW__CORE__SQL_ALCHEMY_CONN:=}"
-if [[ -n "${AIRFLOW__CORE__SQL_ENGINE_COLLATION_FOR_IDS=}" ]]; then
-    echo "Airflow collation for IDs: ${AIRFLOW__CORE__SQL_ENGINE_COLLATION_FOR_IDS}"
-fi
 
 echo
 
 RUN_TESTS=${RUN_TESTS:="false"}
 CI=${CI:="false"}
-INSTALL_AIRFLOW_VERSION="${INSTALL_AIRFLOW_VERSION:=""}"
+USE_AIRFLOW_VERSION="${USE_AIRFLOW_VERSION:=""}"
 
-if [[ ${GITHUB_ACTIONS:="false"} == "false" ]]; then
-    # Create links for useful CLI tools
-    # shellcheck source=scripts/in_container/run_cli_tool.sh
-    source <(bash scripts/in_container/run_cli_tool.sh)
-fi
-
-if [[ ${AIRFLOW_VERSION} == *1.10* || ${INSTALL_AIRFLOW_VERSION} == *1.10* ]]; then
+if [[ ${AIRFLOW_VERSION} == *1.10* || ${USE_AIRFLOW_VERSION} == *1.10* ]]; then
     export RUN_AIRFLOW_1_10="true"
 else
     export RUN_AIRFLOW_1_10="false"
 fi
 
-if [[ -z ${INSTALL_AIRFLOW_VERSION=} ]]; then
+if [[ ${USE_AIRFLOW_VERSION} == "" ]]; then
     export PYTHONPATH=${AIRFLOW_SOURCES}
     echo
     echo "Using already installed airflow version"
     echo
-    "${AIRFLOW_SOURCES}/airflow/www/ask_for_recompile_assets_if_needed.sh"
+    if [[ -d "${AIRFLOW_SOURCES}/airflow/www/" ]]; then
+        pushd "${AIRFLOW_SOURCES}/airflow/www/" >/dev/null
+        ./ask_for_recompile_assets_if_needed.sh
+        popd >/dev/null
+    fi
     # Cleanup the logs, tmp when entering the environment
     sudo rm -rf "${AIRFLOW_SOURCES}"/logs/*
     sudo rm -rf "${AIRFLOW_SOURCES}"/tmp/*
     mkdir -p "${AIRFLOW_SOURCES}"/logs/
     mkdir -p "${AIRFLOW_SOURCES}"/tmp/
-elif [[ ${INSTALL_AIRFLOW_VERSION} == "none"  ]]; then
+elif [[ ${USE_AIRFLOW_VERSION} == "none"  ]]; then
     echo
     echo "Skip installing airflow - only install wheel/tar.gz packages that are present locally"
     echo
     uninstall_airflow_and_providers
-elif [[ ${INSTALL_AIRFLOW_VERSION} == "wheel"  ]]; then
+elif [[ ${USE_AIRFLOW_VERSION} == "wheel"  ]]; then
     echo
     echo "Install airflow from wheel package with [${AIRFLOW_EXTRAS}] extras but uninstalling providers."
     echo
     uninstall_airflow_and_providers
     install_airflow_from_wheel "[${AIRFLOW_EXTRAS}]"
     uninstall_providers
-elif [[ ${INSTALL_AIRFLOW_VERSION} == "sdist"  ]]; then
+elif [[ ${USE_AIRFLOW_VERSION} == "sdist"  ]]; then
     echo
     echo "Install airflow from sdist package with [${AIRFLOW_EXTRAS}] extras but uninstalling providers."
     echo
@@ -102,14 +88,14 @@ elif [[ ${INSTALL_AIRFLOW_VERSION} == "sdist"  ]]; then
     uninstall_providers
 else
     echo
-    echo "Install airflow from PyPI including [${AIRFLOW_EXTRAS}] extras"
+    echo "Install airflow from PyPI without extras"
     echo
-    install_released_airflow_version "${INSTALL_AIRFLOW_VERSION}" "[${AIRFLOW_EXTRAS}]"
+    install_released_airflow_version "${USE_AIRFLOW_VERSION}"
 fi
-if [[ ${INSTALL_PACKAGES_FROM_DIST=} == "true" ]]; then
+if [[ ${USE_PACKAGES_FROM_DIST=} == "true" ]]; then
     echo
     echo "Install all packages from dist folder"
-    if [[ ${INSTALL_AIRFLOW_VERSION} == "wheel" ]]; then
+    if [[ ${USE_AIRFLOW_VERSION} == "wheel" ]]; then
         echo "(except apache-airflow)"
     fi
     if [[ ${PACKAGE_FORMAT} == "both" ]]; then
@@ -122,7 +108,7 @@ if [[ ${INSTALL_PACKAGES_FROM_DIST=} == "true" ]]; then
     installable_files=()
     for file in /dist/*.{whl,tar.gz}
     do
-        if [[ ${INSTALL_AIRFLOW_VERSION} == "wheel" && ${file} == "apache?airflow-[0-9]"* ]]; then
+        if [[ ${USE_AIRFLOW_VERSION} == "wheel" && ${file} == "apache?airflow-[0-9]"* ]]; then
             # Skip Apache Airflow package - it's just been installed above with extras
             echo "Skipping ${file}"
             continue
@@ -154,8 +140,6 @@ cp -f "${IN_CONTAINER_DIR}/airflow_ci.cfg" "${AIRFLOW_HOME}/unittests.cfg"
 
 # Change the default worker_concurrency for tests
 export AIRFLOW__CELERY__WORKER_CONCURRENCY=8
-
-disable_rbac_if_requested
 
 set +e
 "${IN_CONTAINER_DIR}/check_environment.sh"
@@ -200,6 +184,7 @@ ssh-keyscan -H localhost >> ~/.ssh/known_hosts 2>/dev/null
 
 cd "${AIRFLOW_SOURCES}"
 
+echo "START_AIRFLOW:=${START_AIRFLOW}"
 if [[ ${START_AIRFLOW:="false"} == "true" ]]; then
     export AIRFLOW__CORE__LOAD_DEFAULT_CONNECTIONS=${LOAD_DEFAULT_CONNECTIONS}
     export AIRFLOW__CORE__LOAD_EXAMPLES=${LOAD_EXAMPLES}
@@ -214,44 +199,46 @@ if [[ "${RUN_TESTS}" != "true" ]]; then
 fi
 set -u
 
-export RESULT_LOG_FILE="/files/test_result.xml"
+export RESULT_LOG_FILE="/files/test_result-${TEST_TYPE}-${BACKEND}.xml"
 
-if [[ "${GITHUB_ACTIONS}" == "true" ]]; then
-    EXTRA_PYTEST_ARGS=(
-        "--verbosity=0"
-        "--strict-markers"
-        "--durations=100"
-        "--cov=airflow/"
-        "--cov-config=.coveragerc"
-        "--cov-report=xml:/files/coverage.xml"
-        "--color=yes"
-        "--maxfail=50"
-        "--pythonwarnings=ignore::DeprecationWarning"
-        "--pythonwarnings=ignore::PendingDeprecationWarning"
-        "--junitxml=${RESULT_LOG_FILE}"
-        # timeouts in seconds for individual tests
-        "--setup-timeout=20"
-        "--execution-timeout=60"
-        "--teardown-timeout=20"
-        # Only display summary for non-expected case
-        # f - failed
-        # E - error
-        # X - xpassed (passed even if expected to fail)
-        # The following cases are not displayed:
-        # s - skipped
-        # x - xfailed (expected to fail and failed)
-        # p - passed
-        # P - passed with output
-        "-rfEX"
+EXTRA_PYTEST_ARGS=(
+    "--verbosity=0"
+    "--strict-markers"
+    "--durations=100"
+    "--cov=airflow/"
+    "--cov-config=.coveragerc"
+    "--cov-report=xml:/files/coverage-${TEST_TYPE}-${BACKEND}.xml"
+    "--color=yes"
+    "--maxfail=50"
+    "--pythonwarnings=ignore::DeprecationWarning"
+    "--pythonwarnings=ignore::PendingDeprecationWarning"
+    "--junitxml=${RESULT_LOG_FILE}"
+    # timeouts in seconds for individual tests
+    "--timeouts-order"
+    "moi"
+    "--setup-timeout=60"
+    "--execution-timeout=60"
+    "--teardown-timeout=60"
+    # Only display summary for non-expected case
+    # f - failed
+    # E - error
+    # X - xpassed (passed even if expected to fail)
+    # The following cases are not displayed:
+    # s - skipped
+    # x - xfailed (expected to fail and failed)
+    # p - passed
+    # P - passed with output
+    "-rfEX"
+)
+
+if [[ "${TEST_TYPE}" == "Helm" ]]; then
+    # Enable parallelism
+    EXTRA_PYTEST_ARGS+=(
+        "-n" "auto"
     )
-    if [[ "${TEST_TYPE}" != "Helm" ]]; then
-        EXTRA_PYTEST_ARGS+=(
-        "--with-db-init"
-        )
-    fi
 else
-    EXTRA_PYTEST_ARGS=(
-        "-rfEX"
+    EXTRA_PYTEST_ARGS+=(
+        "--with-db-init"
     )
 fi
 
@@ -325,7 +312,7 @@ else
     elif [[ ${TEST_TYPE:=""} == "All" || ${TEST_TYPE} == "Quarantined" || \
             ${TEST_TYPE} == "Always" || \
             ${TEST_TYPE} == "Postgres" || ${TEST_TYPE} == "MySQL" || \
-            ${TEST_TYPE} == "Heisentests" || ${TEST_TYPE} == "Long" || \
+            ${TEST_TYPE} == "Long" || \
             ${TEST_TYPE} == "Integration" ]]; then
         SELECTED_TESTS=("${ALL_TESTS[@]}")
     else
@@ -339,9 +326,9 @@ fi
 readonly SELECTED_TESTS CLI_TESTS API_TESTS PROVIDERS_TESTS CORE_TESTS WWW_TESTS \
     ALL_TESTS ALL_PRESELECTED_TESTS
 
-if [[ -n ${RUN_INTEGRATION_TESTS=} ]]; then
+if [[ -n ${LIST_OF_INTEGRATION_TESTS_TO_RUN=} ]]; then
     # Integration tests
-    for INT in ${RUN_INTEGRATION_TESTS}
+    for INT in ${LIST_OF_INTEGRATION_TESTS_TO_RUN}
     do
         EXTRA_PYTEST_ARGS+=("--integration" "${INT}")
     done
@@ -349,11 +336,6 @@ elif [[ ${TEST_TYPE:=""} == "Long" ]]; then
     EXTRA_PYTEST_ARGS+=(
         "-m" "long_running"
         "--include-long-running"
-    )
-elif [[ ${TEST_TYPE:=""} == "Heisentests" ]]; then
-    EXTRA_PYTEST_ARGS+=(
-        "-m" "heisentests"
-        "--include-heisentests"
     )
 elif [[ ${TEST_TYPE:=""} == "Postgres" ]]; then
     EXTRA_PYTEST_ARGS+=(

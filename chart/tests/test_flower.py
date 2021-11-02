@@ -280,6 +280,7 @@ class TestFlowerService:
                         "type": "LoadBalancer",
                         "loadBalancerIP": "127.0.0.1",
                         "annotations": {"foo": "bar"},
+                        "loadBalancerSourceRanges": ["10.123.0.0/16"],
                     }
                 },
             },
@@ -290,6 +291,7 @@ class TestFlowerService:
         assert "LoadBalancer" == jmespath.search("spec.type", docs[0])
         assert {"name": "flower-ui", "port": 9000} in jmespath.search("spec.ports", docs[0])
         assert "127.0.0.1" == jmespath.search("spec.loadBalancerIP", docs[0])
+        assert ["10.123.0.0/16"] == jmespath.search("spec.loadBalancerSourceRanges", docs[0])
 
     @pytest.mark.parametrize(
         "ports, expected_ports",

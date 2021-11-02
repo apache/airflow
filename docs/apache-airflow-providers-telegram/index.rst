@@ -38,5 +38,48 @@ Content
     :maxdepth: 1
     :caption: Resources
 
-    Example DAGs <https://github.com/apache/airflow/tree/master/airflow/providers/telegram/example_dags>
+    Example DAGs <https://github.com/apache/airflow/tree/main/airflow/providers/telegram/example_dags>
     PyPI Repository <https://pypi.org/project/apache-airflow-providers-telegram/>
+    Installing from sources <installing-providers-from-sources>
+
+.. THE REMAINDER OF THE FILE IS AUTOMATICALLY GENERATED. IT WILL BE OVERWRITTEN AT RELEASE TIME!
+
+
+.. toctree::
+    :maxdepth: 1
+    :caption: Commits
+
+    Detailed list of commits <commits>
+
+
+Package apache-airflow-providers-telegram
+------------------------------------------------------
+
+`Telegram <https://telegram.org/>`__
+
+
+Release: 2.0.1
+
+Provider package
+----------------
+
+This is a provider package for ``telegram`` provider. All classes for this provider package
+are in ``airflow.providers.telegram`` python package.
+
+Installation
+------------
+
+You can install this package on top of an existing airflow 2.1+ installation via
+``pip install apache-airflow-providers-telegram``
+
+PIP requirements
+----------------
+
+=======================  ==================
+PIP package              Version required
+=======================  ==================
+``apache-airflow``       ``>=2.1.0``
+``python-telegram-bot``  ``~=13.0``
+=======================  ==================
+
+.. include:: ../../airflow/providers/telegram/CHANGELOG.rst

@@ -18,7 +18,7 @@
 #
 import time
 from datetime import timedelta
-from typing import Optional, Set
+from typing import Any, Dict, Optional, Set
 
 from azure.batch import BatchServiceClient, batch_auth, models as batch_models
 from azure.batch.models import JobAddParameter, PoolAddParameter, TaskAddParameter
@@ -33,8 +33,9 @@ class AzureBatchHook(BaseHook):
     """
     Hook for Azure Batch APIs
 
-    Account name and account key should be in login and password parameters.
-    The account url should be in extra parameter as account_url
+    :param azure_batch_conn_id: :ref:`Azure Batch connection id<howto/connection:azure_batch>`
+        of a service principal which will be used to start the container instance.
+    :type azure_batch_conn_id: str
     """
 
     conn_name_attr = 'azure_batch_conn_id'
@@ -42,38 +43,57 @@ class AzureBatchHook(BaseHook):
     conn_type = 'azure_batch'
     hook_name = 'Azure Batch Service'
 
+    @staticmethod
+    def get_connection_form_widgets() -> Dict[str, Any]:
+        """Returns connection widgets to add to connection form"""
+        from flask_appbuilder.fieldwidgets import BS3TextFieldWidget
+        from flask_babel import lazy_gettext
+        from wtforms import StringField
+
+        return {
+            "extra__azure_batch__account_url": StringField(
+                lazy_gettext('Batch Account URL'), widget=BS3TextFieldWidget()
+            ),
+        }
+
+    @staticmethod
+    def get_ui_field_behaviour() -> Dict:
+        """Returns custom field behaviour"""
+        return {
+            "hidden_fields": ['schema', 'port', 'host', 'extra'],
+            "relabeling": {
+                'login': 'Batch Account Name',
+                'password': 'Batch Account Access Key',
+            },
+        }
+
     def __init__(self, azure_batch_conn_id: str = default_conn_name) -> None:
         super().__init__()
         self.conn_id = azure_batch_conn_id
         self.connection = self.get_conn()
-        self.extra = self._connection().extra_dejson
 
     def _connection(self) -> Connection:
-        """Get connected to azure batch service"""
+        """Get connected to Azure Batch service"""
         conn = self.get_connection(self.conn_id)
         return conn
 
     def get_conn(self):
         """
-        Get the batch client connection
+        Get the Batch client connection
 
-        :return: Azure batch client
+        :return: Azure Batch client
         """
         conn = self._connection()
 
-        def _get_required_param(name):
-            """Extract required parameter from extra JSON, raise exception if not found"""
-            value = conn.extra_dejson.get(name)
-            if not value:
-                raise AirflowException(f'Extra connection option is missing required parameter: `{name}`')
-            return value
+        batch_account_url = conn.extra_dejson.get('extra__azure_batch__account_url')
+        if not batch_account_url:
+            raise AirflowException('Batch Account URL parameter is missing.')
 
-        batch_account_url = _get_required_param('account_url')
         credentials = batch_auth.SharedKeyCredentials(conn.login, conn.password)
         batch_client = BatchServiceClient(credentials, batch_url=batch_account_url)
         return batch_client
 
-    def configure_pool(  # pylint: disable=too-many-arguments
+    def configure_pool(
         self,
         pool_id: str,
         vm_size: Optional[str] = None,
@@ -251,7 +271,7 @@ class AzureBatchHook(BaseHook):
             # refresh pool to ensure that there is no resize error
             pool = self.connection.pool.get(pool_id)
             if pool.resize_errors is not None:
-                resize_errors = "\n".join([repr(e) for e in pool.resize_errors])
+                resize_errors = "\n".join(repr(e) for e in pool.resize_errors)
                 raise RuntimeError(f'resize error encountered for pool {pool.id}:\n{resize_errors}')
             nodes = list(self.connection.compute_node.list(pool.id))
             if len(nodes) >= pool.target_dedicated_nodes and all(node.state in node_state for node in nodes):

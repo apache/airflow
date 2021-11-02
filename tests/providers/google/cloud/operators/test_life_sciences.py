@@ -43,7 +43,7 @@ class TestLifeSciencesRunPipelineOperator(unittest.TestCase):
             task_id='task-id', body=TEST_BODY, location=TEST_LOCATION, project_id=TEST_PROJECT_ID
         )
         result = operator.execute(None)
-        self.assertEqual(result, TEST_OPERATION)
+        assert result == TEST_OPERATION
 
     @mock.patch("airflow.providers.google.cloud.operators.life_sciences.LifeSciencesHook")
     def test_executes_without_project_id(self, mock_hook):
@@ -55,4 +55,4 @@ class TestLifeSciencesRunPipelineOperator(unittest.TestCase):
             location=TEST_LOCATION,
         )
         result = operator.execute(None)
-        self.assertEqual(result, TEST_OPERATION)
+        assert result == TEST_OPERATION

@@ -23,7 +23,7 @@ from google.cloud.spanner_v1.client import Client
 from google.cloud.spanner_v1.database import Database
 from google.cloud.spanner_v1.instance import Instance
 from google.cloud.spanner_v1.transaction import Transaction
-from google.longrunning.operations_grpc_pb2 import Operation  # noqa: F401
+from google.longrunning.operations_grpc_pb2 import Operation
 
 from airflow.exceptions import AirflowException
 from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
@@ -331,7 +331,7 @@ class SpannerHook(GoogleBaseHook):
         except AlreadyExists as e:
             if e.code == 409 and operation_id in e.message:
                 self.log.info(
-                    "Replayed update_ddl message - the operation id %s " "was already done before.",
+                    "Replayed update_ddl message - the operation id %s was already done before.",
                     operation_id,
                 )
                 return
@@ -365,7 +365,7 @@ class SpannerHook(GoogleBaseHook):
             )
             return False
         try:
-            database.drop()  # pylint: disable=E1111
+            database.drop()
         except GoogleAPICallError as e:
             self.log.error('An error occurred: %s. Exiting.', e.message)
             raise e

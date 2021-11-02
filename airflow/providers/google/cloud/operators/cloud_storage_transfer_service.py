@@ -37,7 +37,9 @@ from airflow.providers.google.cloud.hooks.cloud_storage_transfer_service import 
     HTTP_DATA_SOURCE,
     MINUTES,
     MONTH,
+    NAME,
     OBJECT_CONDITIONS,
+    PATH,
     PROJECT_ID,
     SCHEDULE,
     SCHEDULE_END_DATE,
@@ -52,7 +54,7 @@ from airflow.providers.google.cloud.hooks.cloud_storage_transfer_service import 
     CloudDataTransferServiceHook,
     GcpTransferJobsStatus,
 )
-from airflow.utils.decorators import apply_defaults
+from airflow.providers.google.cloud.utils.helpers import normalize_directory_path
 
 
 class TransferJobPreprocessor:
@@ -218,7 +220,6 @@ class CloudDataTransferServiceCreateJobOperator(BaseOperator):
     )
     # [END gcp_transfer_job_create_template_fields]
 
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -298,7 +299,6 @@ class CloudDataTransferServiceUpdateJobOperator(BaseOperator):
     )
     # [END gcp_transfer_job_update_template_fields]
 
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -376,7 +376,6 @@ class CloudDataTransferServiceDeleteJobOperator(BaseOperator):
     )
     # [END gcp_transfer_job_delete_template_fields]
 
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -444,7 +443,6 @@ class CloudDataTransferServiceGetOperationOperator(BaseOperator):
     )
     # [END gcp_transfer_operation_get_template_fields]
 
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -584,7 +582,6 @@ class CloudDataTransferServicePauseOperationOperator(BaseOperator):
     )
     # [END gcp_transfer_operation_pause_template_fields]
 
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -648,7 +645,6 @@ class CloudDataTransferServiceResumeOperationOperator(BaseOperator):
     )
     # [END gcp_transfer_operation_resume_template_fields]
 
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -713,7 +709,6 @@ class CloudDataTransferServiceCancelOperationOperator(BaseOperator):
     )
     # [END gcp_transfer_operation_cancel_template_fields]
 
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -758,17 +753,22 @@ class CloudDataTransferServiceS3ToGCSOperator(BaseOperator):
     .. code-block:: python
 
        s3_to_gcs_transfer_op = S3ToGoogleCloudStorageTransferOperator(
-            task_id='s3_to_gcs_transfer_example',
-            s3_bucket='my-s3-bucket',
-            project_id='my-gcp-project',
-            gcs_bucket='my-gcs-bucket',
-            dag=my_dag)
+           task_id="s3_to_gcs_transfer_example",
+           s3_bucket="my-s3-bucket",
+           project_id="my-gcp-project",
+           gcs_bucket="my-gcs-bucket",
+           dag=my_dag,
+       )
 
     :param s3_bucket: The S3 bucket where to find the objects. (templated)
     :type s3_bucket: str
     :param gcs_bucket: The destination Google Cloud Storage bucket
         where you want to store the files. (templated)
     :type gcs_bucket: str
+    :param s3_path: Optional root path where the source objects are. (templated)
+    :type s3_path: str
+    :param gcs_path: Optional root path for transferred objects. (templated)
+    :type gcs_path: str
     :param project_id: Optional ID of the Google Cloud Console project that
         owns the job
     :type project_id: str
@@ -798,7 +798,8 @@ class CloudDataTransferServiceS3ToGCSOperator(BaseOperator):
     :param transfer_options: Optional transfer service transfer options; see
         https://cloud.google.com/storage-transfer/docs/reference/rest/v1/TransferSpec
     :type transfer_options: dict
-    :param wait: Wait for transfer to finish
+    :param wait: Wait for transfer to finish. It must be set to True, if
+        'delete_job_after_completion' is set to True.
     :type wait: bool
     :param timeout: Time to wait for the operation to end in seconds. Defaults to 60 seconds if not specified.
     :type timeout: Optional[Union[float, timedelta]]
@@ -811,24 +812,30 @@ class CloudDataTransferServiceS3ToGCSOperator(BaseOperator):
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
     :type google_impersonation_chain: Union[str, Sequence[str]]
+    :param delete_job_after_completion: If True, delete the job after complete.
+        If set to True, 'wait' must be set to True.
+    :type delete_job_after_completion: bool
     """
 
     template_fields = (
         'gcp_conn_id',
         's3_bucket',
         'gcs_bucket',
+        's3_path',
+        'gcs_path',
         'description',
         'object_conditions',
         'google_impersonation_chain',
     )
     ui_color = '#e09411'
 
-    @apply_defaults
-    def __init__(  # pylint: disable=too-many-arguments
+    def __init__(
         self,
         *,
         s3_bucket: str,
         gcs_bucket: str,
+        s3_path: Optional[str] = None,
+        gcs_path: Optional[str] = None,
         project_id: Optional[str] = None,
         aws_conn_id: str = 'aws_default',
         gcp_conn_id: str = 'google_cloud_default',
@@ -840,12 +847,15 @@ class CloudDataTransferServiceS3ToGCSOperator(BaseOperator):
         wait: bool = True,
         timeout: Optional[float] = None,
         google_impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        delete_job_after_completion: bool = False,
         **kwargs,
     ) -> None:
 
         super().__init__(**kwargs)
         self.s3_bucket = s3_bucket
         self.gcs_bucket = gcs_bucket
+        self.s3_path = s3_path
+        self.gcs_path = gcs_path
         self.project_id = project_id
         self.aws_conn_id = aws_conn_id
         self.gcp_conn_id = gcp_conn_id
@@ -857,6 +867,12 @@ class CloudDataTransferServiceS3ToGCSOperator(BaseOperator):
         self.wait = wait
         self.timeout = timeout
         self.google_impersonation_chain = google_impersonation_chain
+        self.delete_job_after_completion = delete_job_after_completion
+        self._validate_inputs()
+
+    def _validate_inputs(self) -> None:
+        if self.delete_job_after_completion and not self.wait:
+            raise AirflowException("If 'delete_job_after_completion' is True, then 'wait' must also be True.")
 
     def execute(self, context) -> None:
         hook = CloudDataTransferServiceHook(
@@ -872,14 +888,22 @@ class CloudDataTransferServiceS3ToGCSOperator(BaseOperator):
 
         if self.wait:
             hook.wait_for_transfer_job(job, timeout=self.timeout)
+            if self.delete_job_after_completion:
+                hook.delete_transfer_job(job_name=job[NAME], project_id=self.project_id)
 
     def _create_body(self) -> dict:
         body = {
             DESCRIPTION: self.description,
             STATUS: GcpTransferJobsStatus.ENABLED,
             TRANSFER_SPEC: {
-                AWS_S3_DATA_SOURCE: {BUCKET_NAME: self.s3_bucket},
-                GCS_DATA_SINK: {BUCKET_NAME: self.gcs_bucket},
+                AWS_S3_DATA_SOURCE: {
+                    BUCKET_NAME: self.s3_bucket,
+                    PATH: normalize_directory_path(self.s3_path),
+                },
+                GCS_DATA_SINK: {
+                    BUCKET_NAME: self.gcs_bucket,
+                    PATH: normalize_directory_path(self.gcs_path),
+                },
             },
         }
 
@@ -916,11 +940,12 @@ class CloudDataTransferServiceGCSToGCSOperator(BaseOperator):
     .. code-block:: python
 
        gcs_to_gcs_transfer_op = GoogleCloudStorageToGoogleCloudStorageTransferOperator(
-            task_id='gcs_to_gcs_transfer_example',
-            source_bucket='my-source-bucket',
-            destination_bucket='my-destination-bucket',
-            project_id='my-gcp-project',
-            dag=my_dag)
+           task_id="gcs_to_gcs_transfer_example",
+           source_bucket="my-source-bucket",
+           destination_bucket="my-destination-bucket",
+           project_id="my-gcp-project",
+           dag=my_dag,
+       )
 
     :param source_bucket: The source Google Cloud Storage bucket where the
          object is. (templated)
@@ -928,6 +953,10 @@ class CloudDataTransferServiceGCSToGCSOperator(BaseOperator):
     :param destination_bucket: The destination Google Cloud Storage bucket
         where the object should be. (templated)
     :type destination_bucket: str
+    :param source_path: Optional root path where the source objects are. (templated)
+    :type source_path: str
+    :param destination_path: Optional root path for transferred objects. (templated)
+    :type destination_path: str
     :param project_id: The ID of the Google Cloud Console project that
         owns the job
     :type project_id: str
@@ -955,7 +984,8 @@ class CloudDataTransferServiceGCSToGCSOperator(BaseOperator):
     :param transfer_options: Optional transfer service transfer options; see
         https://cloud.google.com/storage-transfer/docs/reference/rest/v1/TransferSpec#TransferOptions
     :type transfer_options: dict
-    :param wait: Wait for transfer to finish; defaults to `True`
+    :param wait: Wait for transfer to finish. It must be set to True, if
+        'delete_job_after_completion' is set to True.
     :type wait: bool
     :param timeout: Time to wait for the operation to end in seconds. Defaults to 60 seconds if not specified.
     :type timeout: Optional[Union[float, timedelta]]
@@ -968,24 +998,30 @@ class CloudDataTransferServiceGCSToGCSOperator(BaseOperator):
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
     :type google_impersonation_chain: Union[str, Sequence[str]]
+    :param delete_job_after_completion: If True, delete the job after complete.
+        If set to True, 'wait' must be set to True.
+    :type delete_job_after_completion: bool
     """
 
     template_fields = (
         'gcp_conn_id',
         'source_bucket',
         'destination_bucket',
+        'source_path',
+        'destination_path',
         'description',
         'object_conditions',
         'google_impersonation_chain',
     )
     ui_color = '#e09411'
 
-    @apply_defaults
-    def __init__(  # pylint: disable=too-many-arguments
+    def __init__(
         self,
         *,
         source_bucket: str,
         destination_bucket: str,
+        source_path: Optional[str] = None,
+        destination_path: Optional[str] = None,
         project_id: Optional[str] = None,
         gcp_conn_id: str = 'google_cloud_default',
         delegate_to: Optional[str] = None,
@@ -996,12 +1032,15 @@ class CloudDataTransferServiceGCSToGCSOperator(BaseOperator):
         wait: bool = True,
         timeout: Optional[float] = None,
         google_impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        delete_job_after_completion: bool = False,
         **kwargs,
     ) -> None:
 
         super().__init__(**kwargs)
         self.source_bucket = source_bucket
         self.destination_bucket = destination_bucket
+        self.source_path = source_path
+        self.destination_path = destination_path
         self.project_id = project_id
         self.gcp_conn_id = gcp_conn_id
         self.delegate_to = delegate_to
@@ -1012,6 +1051,12 @@ class CloudDataTransferServiceGCSToGCSOperator(BaseOperator):
         self.wait = wait
         self.timeout = timeout
         self.google_impersonation_chain = google_impersonation_chain
+        self.delete_job_after_completion = delete_job_after_completion
+        self._validate_inputs()
+
+    def _validate_inputs(self) -> None:
+        if self.delete_job_after_completion and not self.wait:
+            raise AirflowException("If 'delete_job_after_completion' is True, then 'wait' must also be True.")
 
     def execute(self, context) -> None:
         hook = CloudDataTransferServiceHook(
@@ -1028,14 +1073,22 @@ class CloudDataTransferServiceGCSToGCSOperator(BaseOperator):
 
         if self.wait:
             hook.wait_for_transfer_job(job, timeout=self.timeout)
+            if self.delete_job_after_completion:
+                hook.delete_transfer_job(job_name=job[NAME], project_id=self.project_id)
 
     def _create_body(self) -> dict:
         body = {
             DESCRIPTION: self.description,
             STATUS: GcpTransferJobsStatus.ENABLED,
             TRANSFER_SPEC: {
-                GCS_DATA_SOURCE: {BUCKET_NAME: self.source_bucket},
-                GCS_DATA_SINK: {BUCKET_NAME: self.destination_bucket},
+                GCS_DATA_SOURCE: {
+                    BUCKET_NAME: self.source_bucket,
+                    PATH: normalize_directory_path(self.source_path),
+                },
+                GCS_DATA_SINK: {
+                    BUCKET_NAME: self.destination_bucket,
+                    PATH: normalize_directory_path(self.destination_path),
+                },
             },
         }
 

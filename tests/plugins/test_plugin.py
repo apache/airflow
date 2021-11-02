@@ -28,6 +28,7 @@ from airflow.models.baseoperator import BaseOperator
 # This is the class you derive to create a plugin
 from airflow.plugins_manager import AirflowPlugin
 from airflow.sensors.base import BaseSensorOperator
+from airflow.timetables.interval import CronDataIntervalTimetable
 from tests.test_utils.mock_operators import (
     AirflowLink,
     AirflowLink2,
@@ -77,15 +78,19 @@ v_appbuilder_package = {"name": "Test View", "category": "Test Plugin", "view": 
 
 v_nomenu_appbuilder_package = {"view": v_appbuilder_view}
 
-# Creating a flask appbuilder Menu Item
+# Creating flask appbuilder Menu Items
 appbuilder_mitem = {
     "name": "Google",
-    "category": "Search",
-    "category_icon": "fa-th",
     "href": "https://www.google.com",
+    "category": "Search",
+}
+appbuilder_mitem_toplevel = {
+    "name": "apache",
+    "href": "https://www.apache.org/",
+    "label": "The Apache Software Foundation",
 }
 
-# Creating a flask blueprint to intergrate the templates and static folder
+# Creating a flask blueprint to integrate the templates and static folder
 bp = Blueprint(
     "test_plugin",
     __name__,
@@ -93,6 +98,11 @@ bp = Blueprint(
     static_folder='static',
     static_url_path='/static/test_plugin',
 )
+
+
+# Extend an existing class to avoid the need to implement the full interface
+class CustomCronDataIntervalTimetable(CronDataIntervalTimetable):
+    pass
 
 
 # Defining the plugin class
@@ -105,12 +115,13 @@ class AirflowTestPlugin(AirflowPlugin):
     macros = [plugin_macro]
     flask_blueprints = [bp]
     appbuilder_views = [v_appbuilder_package]
-    appbuilder_menu_items = [appbuilder_mitem]
+    appbuilder_menu_items = [appbuilder_mitem, appbuilder_mitem_toplevel]
     global_operator_extra_links = [
         AirflowLink(),
         GithubLink(),
     ]
     operator_extra_links = [GoogleLink(), AirflowLink2(), CustomOpLink(), CustomBaseIndexOpLink(1)]
+    timetables = [CustomCronDataIntervalTimetable]
 
 
 class MockPluginA(AirflowPlugin):
@@ -123,3 +134,10 @@ class MockPluginB(AirflowPlugin):
 
 class MockPluginC(AirflowPlugin):
     name = 'plugin-c'
+
+
+class AirflowTestOnLoadPlugin(AirflowPlugin):
+    name = 'preload'
+
+    def on_load(self, *args, **kwargs):
+        self.name = 'postload'

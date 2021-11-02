@@ -37,7 +37,7 @@ class TestCgroupTaskRunner(unittest.TestCase):
         local_task_job.task_instance.command_as_list.return_value = ['sleep', '1000']
 
         runner = CgroupTaskRunner(local_task_job)
-        self.assertTrue(mock_super_init.called)
+        assert mock_super_init.called
 
         runner.on_finish()
-        self.assertTrue(mock_super_on_finish.called)
+        assert mock_super_on_finish.called

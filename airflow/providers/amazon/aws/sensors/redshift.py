@@ -19,7 +19,6 @@ from typing import Optional
 
 from airflow.providers.amazon.aws.hooks.redshift import RedshiftHook
 from airflow.sensors.base import BaseSensorOperator
-from airflow.utils.decorators import apply_defaults
 
 
 class AwsRedshiftClusterSensor(BaseSensorOperator):
@@ -34,7 +33,6 @@ class AwsRedshiftClusterSensor(BaseSensorOperator):
 
     template_fields = ('cluster_identifier', 'target_status')
 
-    @apply_defaults
     def __init__(
         self,
         *,

@@ -38,9 +38,9 @@ TASK_INSTANCE_TABLE = "task_instance"
 NEW_COLUMN = "executor_config"
 
 
-def upgrade():  # noqa: D103
+def upgrade():
     op.add_column(TASK_INSTANCE_TABLE, sa.Column(NEW_COLUMN, sa.PickleType(pickler=dill)))
 
 
-def downgrade():  # noqa: D103
+def downgrade():
     op.drop_column(TASK_INSTANCE_TABLE, NEW_COLUMN)

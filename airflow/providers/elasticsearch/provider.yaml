@@ -19,13 +19,26 @@
 package-name: apache-airflow-providers-elasticsearch
 name: Elasticsearch
 description: |
-    `Elasticsearch <https://https//www.elastic.co/elasticsearch>`__
+    `Elasticsearch <https://www.elastic.co/elasticsearch>`__
 
 versions:
+  - 2.1.0
+  - 2.0.3
+  - 2.0.2
+  - 2.0.1
+  - 1.0.4
+  - 1.0.3
+  - 1.0.2
+  - 1.0.1
   - 1.0.0
+
+additional-dependencies:
+  - apache-airflow>=2.1.0
+
 integrations:
   - integration-name: Elasticsearch
     external-doc-url: https://www.elastic.co/elasticsearch
+    logo: /integration-logos/elasticsearch/Elasticsearch.png
     tags: [software]
 
 hooks:
@@ -33,5 +46,12 @@ hooks:
     python-modules:
       - airflow.providers.elasticsearch.hooks.elasticsearch
 
-hook-class-names:
+hook-class-names:  # deprecated - to be removed after providers add dependency on Airflow 2.2.0+
   - airflow.providers.elasticsearch.hooks.elasticsearch.ElasticsearchHook
+
+connection-types:
+  - hook-class-name: airflow.providers.elasticsearch.hooks.elasticsearch.ElasticsearchHook
+    connection-type: elasticsearch
+
+logging:
+  - airflow.providers.elasticsearch.log.es_task_handler.ElasticsearchTaskHandler

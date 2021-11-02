@@ -22,7 +22,6 @@ Please use `airflow.providers.microsoft.azure.transfers.oracle_to_azure_data_lak
 
 import warnings
 
-# pylint: disable=unused-import
 from airflow.providers.microsoft.azure.transfers.oracle_to_azure_data_lake import (  # noqa
     OracleToAzureDataLakeOperator,
 )

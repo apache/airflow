@@ -24,11 +24,13 @@ packages found in that directory.
 """
 import argparse
 import glob
+import operator
 import os
 import subprocess
 from collections import defaultdict
-from distutils.version import LooseVersion
 from typing import Dict, List, NamedTuple
+
+from packaging.version import Version
 
 
 class VersionedFile(NamedTuple):
@@ -36,7 +38,7 @@ class VersionedFile(NamedTuple):
     version: str
     suffix: str
     type: str
-    comparable_version: LooseVersion
+    comparable_version: Version
 
 
 def split_version_and_suffix(file_name: str, suffix: str) -> VersionedFile:
@@ -47,7 +49,7 @@ def split_version_and_suffix(file_name: str, suffix: str) -> VersionedFile:
         version=version,
         suffix=suffix,
         type=no_version_file + "-" + suffix,
-        comparable_version=LooseVersion(version),
+        comparable_version=Version(version),
     )
 
 
@@ -60,14 +62,14 @@ def process_all_files(directory: str, suffix: str, execute: bool):
         package_types_dicts[versioned_file.type].append(versioned_file)
 
     for package_types in package_types_dicts.values():
-        package_types.sort(key=lambda x: x.comparable_version)
+        package_types.sort(key=operator.attrgetter("comparable_version"))
 
     for package_types in package_types_dicts.values():
         if len(package_types) == 1:
             versioned_file = package_types[0]
             print(
                 "Leaving the only version: "
-                f"${versioned_file.base + versioned_file.version + versioned_file.suffix}"
+                f"{versioned_file.base + versioned_file.version + versioned_file.suffix}"
             )
         # Leave only last version from each type
         for versioned_file in package_types[:-1]:
@@ -95,12 +97,9 @@ def parse_args() -> argparse.Namespace:
 
 if __name__ == '__main__':
     args = parse_args()
-    process_all_files(args.directory, "-bin.tar.gz", args.execute)
-    process_all_files(args.directory, "-bin.tar.gz.sha512", args.execute)
-    process_all_files(args.directory, "-bin.tar.gz.asc", args.execute)
-    process_all_files(args.directory, "-source.tar.gz", args.execute)
-    process_all_files(args.directory, "-source.tar.gz.sha512", args.execute)
-    process_all_files(args.directory, "-source.tar.gz.asc", args.execute)
+    process_all_files(args.directory, ".tar.gz", args.execute)
+    process_all_files(args.directory, ".tar.gz.sha512", args.execute)
+    process_all_files(args.directory, ".tar.gz.asc", args.execute)
     process_all_files(args.directory, "-py3-none-any.whl", args.execute)
     process_all_files(args.directory, "-py3-none-any.whl.sha512", args.execute)
     process_all_files(args.directory, "-py3-none-any.whl.asc", args.execute)

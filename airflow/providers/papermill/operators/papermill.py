@@ -22,7 +22,6 @@ import papermill as pm
 
 from airflow.lineage.entities import File
 from airflow.models import BaseOperator
-from airflow.utils.decorators import apply_defaults
 
 
 @attr.s(auto_attribs=True)
@@ -49,7 +48,8 @@ class PapermillOperator(BaseOperator):
 
     supports_lineage = True
 
-    @apply_defaults
+    template_fields = ('input_nb', 'output_nb', 'parameters')
+
     def __init__(
         self,
         *,
@@ -60,8 +60,11 @@ class PapermillOperator(BaseOperator):
     ) -> None:
         super().__init__(**kwargs)
 
+        self.input_nb = input_nb
+        self.output_nb = output_nb
+        self.parameters = parameters
         if input_nb:
-            self.inlets.append(NoteBook(url=input_nb, parameters=parameters))
+            self.inlets.append(NoteBook(url=input_nb, parameters=self.parameters))
         if output_nb:
             self.outlets.append(NoteBook(url=output_nb))
 
@@ -69,11 +72,11 @@ class PapermillOperator(BaseOperator):
         if not self.inlets or not self.outlets:
             raise ValueError("Input notebook or output notebook is not specified")
 
-        for i in range(len(self.inlets)):
+        for i, item in enumerate(self.inlets):
             pm.execute_notebook(
-                self.inlets[i].url,
+                item.url,
                 self.outlets[i].url,
-                parameters=self.inlets[i].parameters,
+                parameters=item.parameters,
                 progress_bar=False,
                 report_mode=True,
             )

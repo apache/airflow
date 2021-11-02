@@ -19,11 +19,15 @@
 from datetime import datetime, time
 from unittest.mock import patch
 
+import freezegun
 import pendulum
+import pytest
 from parameterized import parameterized
 
+from airflow.exceptions import TaskDeferred
 from airflow.models.dag import DAG
-from airflow.sensors.time_sensor import TimeSensor
+from airflow.sensors.time_sensor import TimeSensor, TimeSensorAsync
+from airflow.triggers.temporal import DateTimeTrigger
 from airflow.utils import timezone
 
 DEFAULT_TIMEZONE = "Asia/Singapore"  # UTC+08:00
@@ -48,3 +52,19 @@ class TestTimeSensor:
             dag = DAG("test", default_args={"start_date": start_date})
             op = TimeSensor(task_id="test", target_time=time(10, 0), dag=dag)
             assert op.poke(None) == expected
+
+
+class TestTimeSensorAsync:
+    @freezegun.freeze_time("2020-07-07 00:00:00")
+    def test_task_is_deferred(self):
+        with DAG("test_task_is_deferred", start_date=timezone.datetime(2020, 1, 1, 23, 0)):
+            op = TimeSensorAsync(task_id="test", target_time=time(10, 0))
+        assert not timezone.is_naive(op.target_datetime)
+
+        with pytest.raises(TaskDeferred) as exc_info:
+            op.execute({})
+
+        assert isinstance(exc_info.value.trigger, DateTimeTrigger)
+        assert exc_info.value.trigger.moment == timezone.datetime(2020, 7, 7, 10)
+        assert exc_info.value.method_name == "execute_complete"
+        assert exc_info.value.kwargs is None

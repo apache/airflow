@@ -32,7 +32,6 @@ from google.cloud.pubsub_v1.types import (
 
 from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.pubsub import PubSubHook
-from airflow.utils.decorators import apply_defaults
 
 
 class PubSubCreateTopicOperator(BaseOperator):
@@ -125,8 +124,6 @@ class PubSubCreateTopicOperator(BaseOperator):
     ]
     ui_color = '#0273d4'
 
-    # pylint: disable=too-many-arguments
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -191,7 +188,6 @@ class PubSubCreateTopicOperator(BaseOperator):
         self.log.info("Created topic %s", self.topic)
 
 
-# pylint: disable=too-many-instance-attributes
 class PubSubCreateSubscriptionOperator(BaseOperator):
     """Create a PubSub subscription.
 
@@ -345,8 +341,6 @@ class PubSubCreateSubscriptionOperator(BaseOperator):
     ]
     ui_color = '#0273d4'
 
-    # pylint: disable=too-many-arguments, too-many-locals
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -526,7 +520,6 @@ class PubSubDeleteTopicOperator(BaseOperator):
     ]
     ui_color = '#cb4335'
 
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -659,7 +652,6 @@ class PubSubDeleteSubscriptionOperator(BaseOperator):
     ]
     ui_color = '#cb4335'
 
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -786,7 +778,6 @@ class PubSubPublishMessageOperator(BaseOperator):
     ]
     ui_color = '#0273d4'
 
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -892,7 +883,6 @@ class PubSubPullOperator(BaseOperator):
         'impersonation_chain',
     ]
 
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -946,7 +936,7 @@ class PubSubPullOperator(BaseOperator):
     def _default_message_callback(
         self,
         pulled_messages: List[ReceivedMessage],
-        context: Dict[str, Any],  # pylint: disable=unused-argument
+        context: Dict[str, Any],
     ) -> list:
         """
         This method can be overridden by subclasses or by `messages_callback` constructor argument.

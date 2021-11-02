@@ -114,17 +114,19 @@ def create_user():
 
 @pytest.mark.quarantined
 class TestImpersonation(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.dagbag = models.DagBag(
+            dag_folder=TEST_DAG_FOLDER,
+            include_examples=False,
+        )
+        logger.info('Loaded DAGs:')
+        logger.info(cls.dagbag.dagbag_report())
+
     def setUp(self):
         check_original_docker_image()
         grant_permissions()
         add_default_pool_if_not_exists()
-        self.dagbag = models.DagBag(
-            dag_folder=TEST_DAG_FOLDER,
-            include_examples=False,
-        )
-        logger.info('Loaded DAGS:')
-        logger.info(self.dagbag.dagbag_report())
-
         create_user()
 
     def tearDown(self):
@@ -140,7 +142,7 @@ class TestImpersonation(unittest.TestCase):
         ti = models.TaskInstance(task=dag.get_task(task_id), execution_date=DEFAULT_DATE)
         ti.refresh_from_db()
 
-        self.assertEqual(ti.state, State.SUCCESS)
+        assert ti.state == State.SUCCESS
 
     def test_impersonation(self):
         """
@@ -185,7 +187,7 @@ class TestImpersonationWithCustomPythonPath(unittest.TestCase):
             dag_folder=TEST_DAG_CORRUPTED_FOLDER,
             include_examples=False,
         )
-        logger.info('Loaded DAGS:')
+        logger.info('Loaded DAGs:')
         logger.info(self.dagbag.dagbag_report())
 
         create_user()
@@ -203,7 +205,7 @@ class TestImpersonationWithCustomPythonPath(unittest.TestCase):
         ti = models.TaskInstance(task=dag.get_task(task_id), execution_date=DEFAULT_DATE)
         ti.refresh_from_db()
 
-        self.assertEqual(ti.state, State.SUCCESS)
+        assert ti.state == State.SUCCESS
 
     @mock_custom_module_path(TEST_UTILS_FOLDER)
     def test_impersonation_custom(self):

@@ -28,7 +28,24 @@
       <div>
           <pre>
 Something bad has happened.
-Please consider letting us know by creating a <b><a href="https://github.com/apache/airflow/issues/new/choose">bug report using GitHub</a></b>.
+
+Airflow is used by many users, and it is very likely that others had similar problems and you can easily find
+a solution to your problem.
+
+Consider following these steps:
+
+  * gather the relevant information (detailed logs with errors, reproduction steps, details of your deployment)
+
+  * find similar issues using:
+     * <b><a href="https://github.com/apache/airflow/discussions">GitHub Discussions</a></b>
+     * <b><a href="https://github.com/apache/airflow/issues">GitHub Issues</a></b>
+     * <b><a href="https://stackoverflow.com/questions/tagged/airflow">Stack Overflow</a></b>
+     * the usual search engine you use on a daily basis
+
+  * if you run Airflow on a Managed Service, consider opening an issue using the service support channels
+
+  * if you tried and have difficulty with diagnosing and fixing the problem yourself, consider creating a <b><a href="https://github.com/apache/airflow/issues/new/choose">bug report</a></b>.
+    Make sure however, to include all relevant details and results of your investigation so far.
 
 Python version: {{ python_version }}
 Airflow version: {{ airflow_version }}

@@ -20,10 +20,9 @@ import unittest
 import boto3
 from moto import mock_s3
 
-from airflow.models import DAG, TaskInstance
+from airflow.models import DAG
 from airflow.providers.amazon.aws.transfers.s3_to_sftp import S3ToSFTPOperator
 from airflow.providers.ssh.operators.ssh import SSHOperator
-from airflow.utils import timezone
 from airflow.utils.timezone import datetime
 from tests.test_utils.config import conf_vars
 
@@ -51,12 +50,11 @@ class TestS3ToSFTPOperator(unittest.TestCase):
         hook = SSHHook(ssh_conn_id='ssh_default')
         s3_hook = S3Hook('aws_default')
         hook.no_host_key_check = True
-        args = {
-            'owner': 'airflow',
-            'start_date': DEFAULT_DATE,
-        }
-        dag = DAG(TEST_DAG_ID + 'test_schedule_dag_once', default_args=args)
-        dag.schedule_interval = '@once'
+        dag = DAG(
+            TEST_DAG_ID + 'test_schedule_dag_once',
+            start_date=DEFAULT_DATE,
+            schedule_interval='@once',
+        )
 
         self.hook = hook
         self.s3_hook = s3_hook
@@ -81,7 +79,7 @@ class TestS3ToSFTPOperator(unittest.TestCase):
         # Test for creation of s3 bucket
         conn = boto3.client('s3')
         conn.create_bucket(Bucket=self.s3_bucket)
-        self.assertTrue(self.s3_hook.check_for_bucket(self.s3_bucket))
+        assert self.s3_hook.check_for_bucket(self.s3_bucket)
 
         with open(LOCAL_FILE_PATH, 'w') as file:
             file.write(test_remote_file_content)
@@ -90,10 +88,10 @@ class TestS3ToSFTPOperator(unittest.TestCase):
         # Check if object was created in s3
         objects_in_dest_bucket = conn.list_objects(Bucket=self.s3_bucket, Prefix=self.s3_key)
         # there should be object found, and there should only be one object found
-        self.assertEqual(len(objects_in_dest_bucket['Contents']), 1)
+        assert len(objects_in_dest_bucket['Contents']) == 1
 
         # the object found should be consistent with dest_key specified earlier
-        self.assertEqual(objects_in_dest_bucket['Contents'][0]['Key'], self.s3_key)
+        assert objects_in_dest_bucket['Contents'][0]['Key'] == self.s3_key
 
         # get remote file to local
         run_task = S3ToSFTPOperator(
@@ -105,7 +103,7 @@ class TestS3ToSFTPOperator(unittest.TestCase):
             task_id=TASK_ID,
             dag=self.dag,
         )
-        self.assertIsNotNone(run_task)
+        assert run_task is not None
 
         run_task.execute(None)
 
@@ -117,18 +115,14 @@ class TestS3ToSFTPOperator(unittest.TestCase):
             do_xcom_push=True,
             dag=self.dag,
         )
-        self.assertIsNotNone(check_file_task)
-        ti3 = TaskInstance(task=check_file_task, execution_date=timezone.utcnow())
-        ti3.run()
-        self.assertEqual(
-            ti3.xcom_pull(task_ids='test_check_file', key='return_value').strip(),
-            test_remote_file_content.encode('utf-8'),
-        )
+        assert check_file_task is not None
+        result = check_file_task.execute(None)
+        assert result.strip() == test_remote_file_content.encode('utf-8')
 
         # Clean up after finishing with test
         conn.delete_object(Bucket=self.s3_bucket, Key=self.s3_key)
         conn.delete_bucket(Bucket=self.s3_bucket)
-        self.assertFalse(self.s3_hook.check_for_bucket(self.s3_bucket))
+        assert not self.s3_hook.check_for_bucket(self.s3_bucket)
 
     def delete_remote_resource(self):
         # check the remote file content
@@ -139,9 +133,8 @@ class TestS3ToSFTPOperator(unittest.TestCase):
             do_xcom_push=True,
             dag=self.dag,
         )
-        self.assertIsNotNone(remove_file_task)
-        ti3 = TaskInstance(task=remove_file_task, execution_date=timezone.utcnow())
-        ti3.run()
+        assert remove_file_task is not None
+        remove_file_task.execute(None)
 
     def tearDown(self):
         self.delete_remote_resource()

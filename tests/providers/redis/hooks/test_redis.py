@@ -29,13 +29,13 @@ from airflow.providers.redis.hooks.redis import RedisHook
 class TestRedisHook(unittest.TestCase):
     def test_get_conn(self):
         hook = RedisHook(redis_conn_id='redis_default')
-        self.assertEqual(hook.redis, None)
+        assert hook.redis is None
 
-        self.assertEqual(hook.host, None, 'host initialised as None.')
-        self.assertEqual(hook.port, None, 'port initialised as None.')
-        self.assertEqual(hook.password, None, 'password initialised as None.')
-        self.assertEqual(hook.db, None, 'db initialised as None.')
-        self.assertIs(hook.get_conn(), hook.get_conn(), 'Connection initialized only if None.')
+        assert hook.host is None, 'host initialised as None.'
+        assert hook.port is None, 'port initialised as None.'
+        assert hook.password is None, 'password initialised as None.'
+        assert hook.db is None, 'db initialised as None.'
+        assert hook.get_conn() is hook.get_conn(), 'Connection initialized only if None.'
 
     @mock.patch('airflow.providers.redis.hooks.redis.Redis')
     @mock.patch(
@@ -76,20 +76,20 @@ class TestRedisHook(unittest.TestCase):
     def test_get_conn_password_stays_none(self):
         hook = RedisHook(redis_conn_id='redis_default')
         hook.get_conn()
-        self.assertEqual(hook.password, None)
+        assert hook.password is None
 
     @pytest.mark.integration("redis")
     def test_real_ping(self):
         hook = RedisHook(redis_conn_id='redis_default')
         redis = hook.get_conn()
 
-        self.assertTrue(redis.ping(), 'Connection to Redis with PING works.')
+        assert redis.ping(), 'Connection to Redis with PING works.'
 
     @pytest.mark.integration("redis")
     def test_real_get_and_set(self):
         hook = RedisHook(redis_conn_id='redis_default')
         redis = hook.get_conn()
 
-        self.assertTrue(redis.set('test_key', 'test_value'), 'Connection to Redis with SET works.')
-        self.assertEqual(redis.get('test_key'), b'test_value', 'Connection to Redis with GET works.')
-        self.assertEqual(redis.delete('test_key'), 1, 'Connection to Redis with DELETE works.')
+        assert redis.set('test_key', 'test_value'), 'Connection to Redis with SET works.'
+        assert redis.get('test_key') == b'test_value', 'Connection to Redis with GET works.'
+        assert redis.delete('test_key') == 1, 'Connection to Redis with DELETE works.'

@@ -20,7 +20,6 @@ from typing import Any, Optional
 
 from airflow.models import BaseOperator
 from airflow.providers.apache.pig.hooks.pig import PigCliHook
-from airflow.utils.decorators import apply_defaults
 
 
 class PigOperator(BaseOperator):
@@ -48,7 +47,6 @@ class PigOperator(BaseOperator):
     )
     ui_color = '#f0e4ec'
 
-    @apply_defaults
     def __init__(
         self,
         *,

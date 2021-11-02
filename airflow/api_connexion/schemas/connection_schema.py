@@ -33,13 +33,14 @@ class ConnectionCollectionItemSchema(SQLAlchemySchema):
 
     connection_id = auto_field('conn_id', required=True)
     conn_type = auto_field(required=True)
+    description = auto_field()
     host = auto_field()
     login = auto_field()
     schema = auto_field()
     port = auto_field()
 
 
-class ConnectionSchema(ConnectionCollectionItemSchema):  # pylint: disable=too-many-ancestors
+class ConnectionSchema(ConnectionCollectionItemSchema):
     """Connection schema"""
 
     password = auto_field(load_only=True)
@@ -60,6 +61,14 @@ class ConnectionCollectionSchema(Schema):
     total_entries = fields.Int()
 
 
+class ConnectionTestSchema(Schema):
+    """connection Test Schema"""
+
+    status = fields.Boolean(required=True)
+    message = fields.String(required=True)
+
+
 connection_schema = ConnectionSchema()
 connection_collection_item_schema = ConnectionCollectionItemSchema()
 connection_collection_schema = ConnectionCollectionSchema()
+connection_test_schema = ConnectionTestSchema()

@@ -50,5 +50,7 @@ Please note:
 
 - Each Dask worker must be able to import Airflow and any dependencies you
   require.
-- Dask does not support queues. If an Airflow task was created with a queue, a
-  warning will be raised but the task will be submitted to the cluster.
+- The DaskExecutor implements queues using
+  `Dask Worker Resources <https://distributed.dask.org/en/latest/resources.html>`_ functionality. To enable the use of
+  queues, start your Dask workers with resources of the same name as the desired queues and a limit of ``inf``.
+  E.g. ``dask-worker <scheduler_address> --resources="QUEUE1=inf,QUEUE2=inf"``.

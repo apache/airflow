@@ -54,7 +54,7 @@ class TestHiveToDynamoDBOperator(unittest.TestCase):
     @mock_dynamodb2
     def test_get_conn_returns_a_boto3_connection(self):
         hook = AwsDynamoDBHook(aws_conn_id='aws_default')
-        self.assertIsNotNone(hook.get_conn())
+        assert hook.get_conn() is not None
 
     @mock.patch(
         'airflow.providers.apache.hive.hooks.hive.HiveServer2Hook.get_pandas_df',
@@ -85,7 +85,7 @@ class TestHiveToDynamoDBOperator(unittest.TestCase):
 
         table = self.hook.get_conn().Table('test_airflow')
         table.meta.client.get_waiter('table_exists').wait(TableName='test_airflow')
-        self.assertEqual(table.item_count, 1)
+        assert table.item_count == 1
 
     @mock.patch(
         'airflow.providers.apache.hive.hooks.hive.HiveServer2Hook.get_pandas_df',
@@ -117,4 +117,4 @@ class TestHiveToDynamoDBOperator(unittest.TestCase):
 
         table = self.hook.get_conn().Table('test_airflow')
         table.meta.client.get_waiter('table_exists').wait(TableName='test_airflow')
-        self.assertEqual(table.item_count, 1)
+        assert table.item_count == 1

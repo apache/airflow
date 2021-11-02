@@ -15,11 +15,13 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""This module is deprecated. Please use `airflow.providers.apache.hive.sensors.metastore_partition`."""
+"""
+This module is deprecated.
+Please use :mod:`airflow.providers.apache.hive.sensors.metastore_partition`.
+"""
 
 import warnings
 
-# pylint: disable=unused-import
 from airflow.providers.apache.hive.sensors.metastore_partition import MetastorePartitionSensor  # noqa
 
 warnings.warn(

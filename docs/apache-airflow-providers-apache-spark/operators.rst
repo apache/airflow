@@ -19,10 +19,6 @@
 Apache Spark Operators
 ======================
 
-.. contents::
-  :depth: 1
-  :local:
-
 Prerequisite
 ------------
 

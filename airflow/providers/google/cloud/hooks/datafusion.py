@@ -74,12 +74,7 @@ class DataFusionHook(GoogleBaseHook):
         for time_to_wait in exponential_sleep_generator(initial=10, maximum=120):
             sleep(time_to_wait)
             operation = (
-                self.get_conn()  # pylint: disable=no-member
-                .projects()
-                .locations()
-                .operations()
-                .get(name=operation.get("name"))
-                .execute()
+                self.get_conn().projects().locations().operations().get(name=operation.get("name")).execute()
             )
             if operation.get("done"):
                 break
@@ -107,12 +102,13 @@ class DataFusionHook(GoogleBaseHook):
         current_state = None
         while monotonic() - start_time < timeout:
             try:
-                current_state = self._get_workflow_state(
+                workflow = self.get_pipeline_workflow(
                     pipeline_name=pipeline_name,
                     pipeline_id=pipeline_id,
                     instance_url=instance_url,
                     namespace=namespace,
                 )
+                current_state = workflow["status"]
             except AirflowException:
                 pass  # Because the pipeline may not be visible in system yet
             if current_state in success_states:
@@ -181,7 +177,7 @@ class DataFusionHook(GoogleBaseHook):
         :type project_id: str
         """
         operation = (
-            self.get_conn()  # pylint: disable=no-member
+            self.get_conn()
             .projects()
             .locations()
             .instances()
@@ -203,7 +199,7 @@ class DataFusionHook(GoogleBaseHook):
         :type project_id: str
         """
         operation = (
-            self.get_conn()  # pylint: disable=no-member
+            self.get_conn()
             .projects()
             .locations()
             .instances()
@@ -234,7 +230,7 @@ class DataFusionHook(GoogleBaseHook):
         :type project_id: str
         """
         operation = (
-            self.get_conn()  # pylint: disable=no-member
+            self.get_conn()
             .projects()
             .locations()
             .instances()
@@ -260,7 +256,7 @@ class DataFusionHook(GoogleBaseHook):
         :type project_id: str
         """
         instance = (
-            self.get_conn()  # pylint: disable=no-member
+            self.get_conn()
             .projects()
             .locations()
             .instances()
@@ -299,7 +295,7 @@ class DataFusionHook(GoogleBaseHook):
         :type project_id: str
         """
         operation = (
-            self.get_conn()  # pylint: disable=no-member
+            self.get_conn()
             .projects()
             .locations()
             .instances()
@@ -337,7 +333,9 @@ class DataFusionHook(GoogleBaseHook):
         url = os.path.join(self._base_url(instance_url, namespace), quote(pipeline_name))
         response = self._cdap_request(url=url, method="PUT", body=pipeline)
         if response.status != 200:
-            raise AirflowException(f"Creating a pipeline failed with code {response.status}")
+            raise AirflowException(
+                f"Creating a pipeline failed with code {response.status} while calling {url}"
+            )
 
     def delete_pipeline(
         self,
@@ -403,7 +401,7 @@ class DataFusionHook(GoogleBaseHook):
             raise AirflowException(f"Listing pipelines failed with code {response.status}")
         return json.loads(response.data)
 
-    def _get_workflow_state(
+    def get_pipeline_workflow(
         self,
         pipeline_name: str,
         instance_url: str,
@@ -422,7 +420,7 @@ class DataFusionHook(GoogleBaseHook):
         if response.status != 200:
             raise AirflowException(f"Retrieving a pipeline state failed with code {response.status}")
         workflow = json.loads(response.data)
-        return workflow["status"]
+        return workflow
 
     def start_pipeline(
         self,
@@ -469,15 +467,7 @@ class DataFusionHook(GoogleBaseHook):
             raise AirflowException(f"Starting a pipeline failed with code {response.status}")
 
         response_json = json.loads(response.data)
-        pipeline_id = response_json[0]["runId"]
-        self.wait_for_pipeline_state(
-            success_states=SUCCESS_STATES + [PipelineStates.RUNNING],
-            pipeline_name=pipeline_name,
-            pipeline_id=pipeline_id,
-            namespace=namespace,
-            instance_url=instance_url,
-        )
-        return pipeline_id
+        return response_json[0]["runId"]
 
     def stop_pipeline(self, pipeline_name: str, instance_url: str, namespace: str = "default") -> None:
         """

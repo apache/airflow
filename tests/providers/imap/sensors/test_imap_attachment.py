@@ -43,7 +43,7 @@ class TestImapAttachmentSensor(unittest.TestCase):
 
         has_attachment = ImapAttachmentSensor(**self.kwargs).poke(context={})
 
-        self.assertEqual(has_attachment, mock_imap_hook.has_mail_attachment.return_value)
+        assert has_attachment == mock_imap_hook.has_mail_attachment.return_value
         mock_imap_hook.has_mail_attachment.assert_called_once_with(
             name=self.kwargs['attachment_name'],
             check_regex=self.kwargs['check_regex'],

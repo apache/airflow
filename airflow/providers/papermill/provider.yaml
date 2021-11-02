@@ -22,12 +22,22 @@ description: |
     `Papermill <https://github.com/nteract/papermill>`__
 
 versions:
+  - 2.1.0
+  - 2.0.1
+  - 2.0.0
+  - 1.0.2
+  - 1.0.1
   - 1.0.0
+
+additional-dependencies:
+  - apache-airflow>=2.1.0
+
 integrations:
   - integration-name: Papermill
     external-doc-url: https://github.com/nteract/papermill
     how-to-guide:
       - /docs/apache-airflow-providers-papermill/operators.rst
+    logo: /integration-logos/papermill/Papermill.png
     tags: [software]
 
 operators:

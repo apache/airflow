@@ -41,7 +41,7 @@ from airflow.providers.google.marketing_platform.sensors.display_video import (
 from airflow.utils import dates
 
 # [START howto_display_video_env_variables]
-BUCKET = os.environ.get("GMP_DISPLAY_VIDEO_BUCKET", "gs://test-display-video-bucket")
+BUCKET = os.environ.get("GMP_DISPLAY_VIDEO_BUCKET", "gs://INVALID BUCKET NAME")
 ADVERTISER_ID = os.environ.get("GMP_ADVERTISER_ID", 1234567)
 OBJECT_NAME = os.environ.get("GMP_OBJECT_NAME", "files/report.csv")
 PATH_TO_UPLOAD_FILE = os.environ.get("GCP_GCS_PATH_TO_UPLOAD_FILE", "test-gcs-example.txt")
@@ -71,7 +71,7 @@ REPORT = {
     "schedule": {"frequency": "ONE_TIME"},
 }
 
-PARAMS = {"dataRange": "LAST_14_DAYS", "timezoneCode": "America/New_York"}
+PARAMETERS = {"dataRange": "LAST_14_DAYS", "timezoneCode": "America/New_York"}
 
 CREATE_SDF_DOWNLOAD_TASK_BODY_REQUEST: Dict = {
     "version": SDF_VERSION,
@@ -84,17 +84,17 @@ DOWNLOAD_LINE_ITEMS_REQUEST: Dict = {"filterType": ADVERTISER_ID, "format": "CSV
 
 with models.DAG(
     "example_display_video",
-    schedule_interval=None,  # Override to match your needs,
+    schedule_interval='@once',  # Override to match your needs,
     start_date=dates.days_ago(1),
 ) as dag1:
     # [START howto_google_display_video_createquery_report_operator]
     create_report = GoogleDisplayVideo360CreateReportOperator(body=REPORT, task_id="create_report")
-    report_id = "{{ task_instance.xcom_pull('create_report', key='report_id') }}"
+    report_id = create_report.output["report_id"]
     # [END howto_google_display_video_createquery_report_operator]
 
     # [START howto_google_display_video_runquery_report_operator]
     run_report = GoogleDisplayVideo360RunReportOperator(
-        report_id=report_id, params=PARAMS, task_id="run_report"
+        report_id=report_id, parameters=PARAMETERS, task_id="run_report"
     )
     # [END howto_google_display_video_runquery_report_operator]
 
@@ -115,11 +115,18 @@ with models.DAG(
     delete_report = GoogleDisplayVideo360DeleteReportOperator(report_id=report_id, task_id="delete_report")
     # [END howto_google_display_video_deletequery_report_operator]
 
-    create_report >> run_report >> wait_for_report >> get_report >> delete_report
+    run_report >> wait_for_report >> get_report >> delete_report
+
+    # Task dependencies created via `XComArgs`:
+    #   create_report >> run_report
+    #   create_report >> wait_for_report
+    #   create_report >> get_report
+    #   create_report >> delete_report
+
 
 with models.DAG(
     "example_display_video_misc",
-    schedule_interval=None,  # Override to match your needs,
+    schedule_interval='@once',  # Override to match your needs,
     start_date=dates.days_ago(1),
 ) as dag2:
     # [START howto_google_display_video_upload_multiple_entity_read_files_to_big_query]
@@ -152,7 +159,7 @@ with models.DAG(
 
 with models.DAG(
     "example_display_video_sdf",
-    schedule_interval=None,  # Override to match your needs,
+    schedule_interval='@once',  # Override to match your needs,
     start_date=dates.days_ago(1),
 ) as dag3:
     # [START howto_google_display_video_create_sdf_download_task_operator]
@@ -183,7 +190,7 @@ with models.DAG(
     upload_sdf_to_big_query = GCSToBigQueryOperator(
         task_id="upload_sdf_to_big_query",
         bucket=BUCKET,
-        source_objects=['{{ task_instance.xcom_pull("upload_sdf_to_bigquery")}}'],
+        source_objects=[save_sdf_in_gcs.output],
         destination_project_dataset_table=f"{BQ_DATA_SET}.gcs_to_bq_table",
         schema_fields=[
             {"name": "name", "type": "STRING", "mode": "NULLABLE"},
@@ -193,4 +200,7 @@ with models.DAG(
     )
     # [END howto_google_display_video_gcs_to_big_query_operator]
 
-    create_sdf_download_task >> wait_for_operation >> save_sdf_in_gcs >> upload_sdf_to_big_query
+    create_sdf_download_task >> wait_for_operation >> save_sdf_in_gcs
+
+    # Task dependency created via `XComArgs`:
+    #   save_sdf_in_gcs >> upload_sdf_to_big_query

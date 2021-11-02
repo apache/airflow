@@ -82,8 +82,8 @@ class JiraHook(BaseHook):
                     proxies=self.proxies,
                 )
             except JIRAError as jira_error:
-                raise AirflowException('Failed to create jira client, jira error: %s' % str(jira_error))
+                raise AirflowException(f'Failed to create jira client, jira error: {str(jira_error)}')
             except Exception as e:
-                raise AirflowException('Failed to create jira client, error: %s' % str(e))
+                raise AirflowException(f'Failed to create jira client, error: {str(e)}')
 
         return self.client

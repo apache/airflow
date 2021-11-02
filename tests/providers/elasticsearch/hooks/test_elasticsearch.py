@@ -39,7 +39,7 @@ class TestElasticsearchHookConn(unittest.TestCase):
 
     @mock.patch('airflow.providers.elasticsearch.hooks.elasticsearch.connect')
     def test_get_conn(self, mock_connect):
-        self.db_hook.test_conn_id = 'non_default'  # pylint: disable=attribute-defined-outside-init
+        self.db_hook.test_conn_id = 'non_default'
         self.db_hook.get_conn()
         mock_connect.assert_called_with(host='localhost', port=9200, scheme='http', user=None, password=None)
 
@@ -48,7 +48,7 @@ class TestElasticsearchHook(unittest.TestCase):
     def setUp(self):
         super().setUp()
 
-        self.cur = mock.MagicMock()
+        self.cur = mock.MagicMock(rowcount=0)
         self.conn = mock.MagicMock()
         self.conn.cursor.return_value = self.cur
         conn = self.conn
@@ -66,7 +66,7 @@ class TestElasticsearchHook(unittest.TestCase):
         result_sets = [('row1',), ('row2',)]
         self.cur.fetchone.return_value = result_sets[0]
 
-        self.assertEqual(result_sets[0], self.db_hook.get_first(statement))
+        assert result_sets[0] == self.db_hook.get_first(statement)
         self.conn.close.assert_called_once_with()
         self.cur.close.assert_called_once_with()
         self.cur.execute.assert_called_once_with(statement)
@@ -76,7 +76,7 @@ class TestElasticsearchHook(unittest.TestCase):
         result_sets = [('row1',), ('row2',)]
         self.cur.fetchall.return_value = result_sets
 
-        self.assertEqual(result_sets, self.db_hook.get_records(statement))
+        assert result_sets == self.db_hook.get_records(statement)
         self.conn.close.assert_called_once_with()
         self.cur.close.assert_called_once_with()
         self.cur.execute.assert_called_once_with(statement)
@@ -89,9 +89,9 @@ class TestElasticsearchHook(unittest.TestCase):
         self.cur.fetchall.return_value = result_sets
         df = self.db_hook.get_pandas_df(statement)
 
-        self.assertEqual(column, df.columns[0])
+        assert column == df.columns[0]
 
-        self.assertEqual(result_sets[0][0], df.values.tolist()[0][0])
-        self.assertEqual(result_sets[1][0], df.values.tolist()[1][0])
+        assert result_sets[0][0] == df.values.tolist()[0][0]
+        assert result_sets[1][0] == df.values.tolist()[1][0]
 
         self.cur.execute.assert_called_once_with(statement)

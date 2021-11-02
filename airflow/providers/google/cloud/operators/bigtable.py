@@ -26,7 +26,6 @@ from google.cloud.bigtable_admin_v2 import enums
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.bigtable import BigtableHook
-from airflow.utils.decorators import apply_defaults
 
 
 class BigtableValidationMixin:
@@ -110,10 +109,9 @@ class BigtableCreateInstanceOperator(BaseOperator, BigtableValidationMixin):
         'impersonation_chain',
     ]
 
-    @apply_defaults
     def __init__(
         self,
-        *,  # pylint: disable=too-many-arguments
+        *,
         instance_id: str,
         main_cluster_id: str,
         main_cluster_zone: str,
@@ -230,7 +228,6 @@ class BigtableUpdateInstanceOperator(BaseOperator, BigtableValidationMixin):
         'impersonation_chain',
     ]
 
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -314,7 +311,6 @@ class BigtableDeleteInstanceOperator(BaseOperator, BigtableValidationMixin):
         'impersonation_chain',
     ]  # type: Iterable[str]
 
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -396,7 +392,6 @@ class BigtableCreateTableOperator(BaseOperator, BigtableValidationMixin):
         'impersonation_chain',
     ]  # type: Iterable[str]
 
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -448,9 +443,7 @@ class BigtableCreateTableOperator(BaseOperator, BigtableValidationMixin):
         instance = hook.get_instance(project_id=self.project_id, instance_id=self.instance_id)
         if not instance:
             raise AirflowException(
-                "Dependency: instance '{}' does not exist in project '{}'.".format(
-                    self.instance_id, self.project_id
-                )
+                f"Dependency: instance '{self.instance_id}' does not exist in project '{self.project_id}'."
             )
         try:
             hook.create_table(
@@ -508,7 +501,6 @@ class BigtableDeleteTableOperator(BaseOperator, BigtableValidationMixin):
         'impersonation_chain',
     ]  # type: Iterable[str]
 
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -594,7 +586,6 @@ class BigtableUpdateClusterOperator(BaseOperator, BigtableValidationMixin):
         'impersonation_chain',
     ]  # type: Iterable[str]
 
-    @apply_defaults
     def __init__(
         self,
         *,
@@ -628,9 +619,7 @@ class BigtableUpdateClusterOperator(BaseOperator, BigtableValidationMixin):
             hook.update_cluster(instance=instance, cluster_id=self.cluster_id, nodes=self.nodes)
         except google.api_core.exceptions.NotFound:
             raise AirflowException(
-                "Dependency: cluster '{}' does not exist for instance '{}'.".format(
-                    self.cluster_id, self.instance_id
-                )
+                f"Dependency: cluster '{self.cluster_id}' does not exist for instance '{self.instance_id}'."
             )
         except google.api_core.exceptions.GoogleAPICallError as e:
             self.log.error('An error occurred. Exiting.')
