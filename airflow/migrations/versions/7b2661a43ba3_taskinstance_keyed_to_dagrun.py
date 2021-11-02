@@ -196,6 +196,9 @@ def upgrade():
         if dialect_name == "mysql":
             # Mysql creates an index and a constraint -- we have to drop both
             batch_op.drop_index('task_reschedule_dag_task_date_fkey')
+            batch_op.alter_column(
+                'dag_id', existing_type=sa.String(length=ID_LEN), type_=string_id_col_type, nullable=False
+            )
         batch_op.drop_index('idx_task_reschedule_dag_task_date')
 
     # Then update the new column by selecting the right value from DagRun

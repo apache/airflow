@@ -37,10 +37,10 @@ depends_on = None
 
 mapping = {
     ("PermissionModelView", "can_list"): [
-        (permissions.ACTION_CAN_READ, permissions.RESOURCE_PERMISSION),
+        (permissions.ACTION_CAN_READ, permissions.RESOURCE_ACTION),
     ],
     ("PermissionViewModelView", "can_list"): [
-        (permissions.ACTION_CAN_READ, permissions.RESOURCE_PERMISSION_VIEW),
+        (permissions.ACTION_CAN_READ, permissions.RESOURCE_PERMISSION),
     ],
     ("ResetMyPasswordView", "can_this_form_get"): [
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_MY_PASSWORD),
@@ -76,25 +76,25 @@ mapping = {
         (permissions.ACTION_CAN_CREATE, permissions.RESOURCE_ROLE),
     ],
     ("ViewMenuModelView", "can_list"): [
-        (permissions.ACTION_CAN_READ, permissions.RESOURCE_VIEW_MENU),
+        (permissions.ACTION_CAN_READ, permissions.RESOURCE_RESOURCE),
     ],
     ("UserDBModelView", "can_add"): [
-        (permissions.ACTION_CAN_CREATE, permissions.RESOURCE_VIEW_MENU),
+        (permissions.ACTION_CAN_CREATE, permissions.RESOURCE_RESOURCE),
     ],
     ("UserDBModelView", "can_userinfo"): [
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_MY_PROFILE),
     ],
     ("UserDBModelView", "can_download"): [
-        (permissions.ACTION_CAN_READ, permissions.RESOURCE_VIEW_MENU),
+        (permissions.ACTION_CAN_READ, permissions.RESOURCE_RESOURCE),
     ],
     ("UserDBModelView", "can_show"): [
-        (permissions.ACTION_CAN_READ, permissions.RESOURCE_VIEW_MENU),
+        (permissions.ACTION_CAN_READ, permissions.RESOURCE_RESOURCE),
     ],
     ("UserDBModelView", "can_list"): [
-        (permissions.ACTION_CAN_READ, permissions.RESOURCE_VIEW_MENU),
+        (permissions.ACTION_CAN_READ, permissions.RESOURCE_RESOURCE),
     ],
     ("UserDBModelView", "can_edit"): [
-        (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_VIEW_MENU),
+        (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_RESOURCE),
     ],
     ("UserDBModelView", "resetmypassword"): [
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_MY_PASSWORD),
@@ -106,7 +106,7 @@ mapping = {
         (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_MY_PROFILE),
     ],
     ("UserDBModelView", "can_delete"): [
-        (permissions.ACTION_CAN_DELETE, permissions.RESOURCE_VIEW_MENU),
+        (permissions.ACTION_CAN_DELETE, permissions.RESOURCE_RESOURCE),
     ],
     ("UserInfoEditView", "can_this_form_get"): [
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_MY_PROFILE),

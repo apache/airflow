@@ -105,6 +105,9 @@ class DockerSwarmOperator(DockerOperator):
     :type mode: docker.types.ServiceMode
     :param networks: List of network names or IDs or NetworkAttachmentConfig to attach the service to.
     :type networks: List[Union[str, NetworkAttachmentConfig]]
+    :param placement: Placement instructions for the scheduler. If a list is passed instead,
+        it is assumed to be a list of constraints as part of a Placement object.
+    :type placement: Union[types.Placement, List[types.Placement]]
     """
 
     def __init__(
@@ -116,6 +119,7 @@ class DockerSwarmOperator(DockerOperator):
         secrets: Optional[List[types.SecretReference]] = None,
         mode: Optional[types.ServiceMode] = None,
         networks: Optional[List[Union[str, types.NetworkAttachmentConfig]]] = None,
+        placement: Optional[Union[types.Placement, List[types.Placement]]] = None,
         **kwargs,
     ) -> None:
         super().__init__(image=image, **kwargs)
@@ -126,6 +130,7 @@ class DockerSwarmOperator(DockerOperator):
         self.secrets = secrets
         self.mode = mode
         self.networks = networks
+        self.placement = placement
 
     def execute(self, context) -> None:
         self.cli = self._get_cli()
@@ -153,6 +158,7 @@ class DockerSwarmOperator(DockerOperator):
                 restart_policy=types.RestartPolicy(condition='none'),
                 resources=types.Resources(mem_limit=self.mem_limit),
                 networks=self.networks,
+                placement=self.placement,
             ),
             name=f'airflow-{get_random_string()}',
             labels={'name': f'airflow__{self.dag_id}__{self.task_id}'},

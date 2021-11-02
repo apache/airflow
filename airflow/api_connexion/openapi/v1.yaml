@@ -2623,7 +2623,7 @@ components:
         DAG details.
 
         For details see:
-        (airflow.models.DAG)[https://airflow.apache.org/docs/apache-airflow/stable/_api/airflow/models/index.html#airflow.models.DAG]
+        [airflow.models.DAG](https://airflow.apache.org/docs/apache-airflow/stable/_api/airflow/models/index.html#airflow.models.DAG)
       allOf:
         - $ref: '#/components/schemas/DAG'
         - type: object
@@ -2692,7 +2692,7 @@ components:
       type: object
       description: |
         For details see:
-        (airflow.models.BaseOperator)[https://airflow.apache.org/docs/apache-airflow/stable/_api/airflow/models/index.html#airflow.models.BaseOperator]
+        [airflow.models.BaseOperator](https://airflow.apache.org/docs/apache-airflow/stable/_api/airflow/models/index.html#airflow.models.BaseOperator)
       properties:
         class_ref:
           $ref: '#/components/schemas/ClassReference'

@@ -26,7 +26,7 @@ from base64 import b64encode
 from datetime import datetime
 from decimal import Decimal
 from tempfile import NamedTemporaryFile
-from typing import Any, Dict, Iterable, List, Optional, Sequence, Tuple, Union
+from typing import Any, Dict, Iterable, List, NewType, Optional, Sequence, Tuple, Union
 from uuid import UUID
 
 from cassandra.util import Date, OrderedMapSerializedKey, SortedSet, Time
@@ -35,6 +35,9 @@ from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.apache.cassandra.hooks.cassandra import CassandraHook
 from airflow.providers.google.cloud.hooks.gcs import GCSHook
+
+NotSetType = NewType('NotSetType', object)
+NOT_SET = NotSetType(object())
 
 
 class CassandraToGCSOperator(BaseOperator):
@@ -84,6 +87,10 @@ class CassandraToGCSOperator(BaseOperator):
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
     :type impersonation_chain: Union[str, Sequence[str]]
+    :param query_timeout: (Optional) The amount of time, in seconds, used to execute the Cassandra query.
+        If not set, the timeout value will be set in Session.execute() by Cassandra driver.
+        If set to None, there is no timeout.
+    :type query_timeout: float | None
     """
 
     template_fields = (
@@ -110,6 +117,7 @@ class CassandraToGCSOperator(BaseOperator):
         google_cloud_storage_conn_id: Optional[str] = None,
         delegate_to: Optional[str] = None,
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        query_timeout: Union[float, None, NotSetType] = NOT_SET,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -133,6 +141,7 @@ class CassandraToGCSOperator(BaseOperator):
         self.delegate_to = delegate_to
         self.gzip = gzip
         self.impersonation_chain = impersonation_chain
+        self.query_timeout = query_timeout
 
     # Default Cassandra to BigQuery type mapping
     CQL_TYPE_MAP = {
@@ -162,7 +171,12 @@ class CassandraToGCSOperator(BaseOperator):
 
     def execute(self, context: Dict[str, str]):
         hook = CassandraHook(cassandra_conn_id=self.cassandra_conn_id)
-        cursor = hook.get_conn().execute(self.cql)
+
+        query_extra = {}
+        if self.query_timeout is not NOT_SET:
+            query_extra['timeout'] = self.query_timeout
+
+        cursor = hook.get_conn().execute(self.cql, **query_extra)
 
         files_to_upload = self._write_local_data_files(cursor)
 

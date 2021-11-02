@@ -1350,6 +1350,14 @@
       example: "/path/to/my_html_content_template_file"
       default: ~
       see_also: ":doc:`Email Configuration </howto/email-config>`"
+    - name: from_email
+      description: |
+        Email address that will be used as sender address.
+        It can either be raw email or the complete address in a format ``Sender Name <sender@email.com>``
+      version_added: 2.3.0
+      type: string
+      example: "Airflow <airflow@example.com>"
+      default: ~
 
 - name: smtp
   description: |

@@ -53,3 +53,17 @@ class TestMongoSensor(unittest.TestCase):
 
     def test_poke(self):
         assert self.sensor.poke(None)
+
+    def test_sensor_with_db(self):
+        hook = MongoHook('mongo_test')
+        hook.insert_one('nontest', {'1': '2'}, mongo_db='nontest')
+
+        sensor = MongoSensor(
+            task_id='test_task2',
+            mongo_conn_id='mongo_test',
+            dag=self.dag,
+            collection='nontest',
+            query={'1': '2'},
+            mongo_db="nontest",
+        )
+        assert sensor.poke(None)

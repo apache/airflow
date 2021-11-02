@@ -405,6 +405,7 @@ Currently, **officially** using Airflow:
 1. [The Dyrt](https://thedyrt.com/) [[@mfjackson](https://github.com/mfjackson)]
 1. [The Home Depot](https://www.homedepot.com/) [[@apekshithr](https://github.com/apekshithr)]
 1. [THE ICONIC](https://www.theiconic.com.au/) [[@revathijay](https://github.com/revathijay), [@ilikedata](https://github.com/ilikedata)]
+1. [theScore](https://www.thescore.com/) [[@kristenmalikk](https://github.com/kristenmalikk)]
 1. [Thinking Machines](https://thinkingmachin.es) [[@marksteve](https://github.com/marksteve)]
 1. [Thinknear](https://www.thinknear.com/) [[@d3cay1](https://github.com/d3cay1), [@ccson](https://github.com/ccson), & [@ababian](https://github.com/ababian)]
 1. [ThoughtWorks](https://www.thoughtworks.com/) [[@sann3](https://github.com/sann3)]

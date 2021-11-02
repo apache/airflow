@@ -111,6 +111,8 @@ spec:
               mountPath: {{ template "airflow_config_path" . }}
               subPath: airflow.cfg
               readOnly: true
+          resources:
+{{ toYaml .Values.createUserJob.resources | indent 12 }}
       volumes:
         - name: config
           configMap:

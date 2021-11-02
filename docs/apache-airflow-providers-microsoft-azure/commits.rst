@@ -28,14 +28,34 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+3.3.0
+.....
+
+Latest change: 2021-10-27
+
+================================================================================================  ===========  ===========================================================================================
+Commit                                                                                            Committed    Subject
+================================================================================================  ===========  ===========================================================================================
+`61d009305 <https://github.com/apache/airflow/commit/61d009305478e76e53aaf43ce07a181ebbd259d3>`_  2021-10-27   ``Added sas_token var to BlobServiceClient return. Updated tests (#19234)``
+`ceb2b53a1 <https://github.com/apache/airflow/commit/ceb2b53a109b8fdd617f725a72c6fdb9c119550b>`_  2021-10-20   ``Static start_date and default arg cleanup for Microsoft providers example DAGs (#19062)``
+`86a2a19ad <https://github.com/apache/airflow/commit/86a2a19ad2bdc87a9ad14bb7fde9313b2d7489bb>`_  2021-10-17   ``More f-strings (#18855)``
+`1571f8054 <https://github.com/apache/airflow/commit/1571f80546853688778c2a3ec5194e5c8be0edbd>`_  2021-10-14   ``Add pre-commit hook for common misspelling check in files (#18964)``
+`1b75f9181 <https://github.com/apache/airflow/commit/1b75f9181f80062a2c25d2fdd627d4f4d2735811>`_  2021-10-05   ``Fix changelog for Azure Provider (#18736)``
+`181ac36db <https://github.com/apache/airflow/commit/181ac36db3749050a60fc1f08ceace005c5cb58b>`_  2021-10-05   ``update azure cosmos to latest version (#18695)``
+`6d504b43e <https://github.com/apache/airflow/commit/6d504b43ea8d6c80be831c7830f4893727689404>`_  2021-10-04   ``Expanding docs on client auth for AzureKeyVaultBackend (#18659)``
+`c8485a83b <https://github.com/apache/airflow/commit/c8485a83bc58ad76fd112c8a53ee0c9c8e8f6663>`_  2021-10-03   ``Revert "update azure cosmos version (#18663)" (#18694)``
+`10421c693 <https://github.com/apache/airflow/commit/10421c693199eeea2c1ea54844319080fd6f7153>`_  2021-10-01   ``update azure cosmos version (#18663)``
+================================================================================================  ===========  ===========================================================================================
+
 3.2.0
 .....
 
-Latest change: 2021-09-27
+Latest change: 2021-09-30
 
 ================================================================================================  ===========  ========================================================================================
 Commit                                                                                            Committed    Subject
 ================================================================================================  ===========  ========================================================================================
+`840ea3efb <https://github.com/apache/airflow/commit/840ea3efb9533837e9f36b75fa527a0fbafeb23a>`_  2021-09-30   ``Update documentation for September providers release (#18613)``
 `a458fcc57 <https://github.com/apache/airflow/commit/a458fcc573845ff65244a2dafd204ed70129f3e8>`_  2021-09-27   ``Updating miscellaneous provider DAGs to use TaskFlow API where applicable (#18278)``
 `46484466c <https://github.com/apache/airflow/commit/46484466c43bd0a9c8b25f11f24d3d36a0b2d956>`_  2021-09-25   ``Removing redundant relabeling of password conn field (#18386)``
 `97d689231 <https://github.com/apache/airflow/commit/97d6892318ce2866f09f2c21247ed3b1b9975695>`_  2021-09-25   ``Rename AzureDataLakeStorage to ADLS (#18493)``
