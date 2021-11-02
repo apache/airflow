@@ -2203,6 +2203,7 @@ class DataprocCreateBatchOperator(BaseOperator):
 
     template_fields = (
         'project_id',
+        'batch_id',
         'region',
         'impersonation_chain',
     )
@@ -2254,6 +2255,7 @@ class DataprocCreateBatchOperator(BaseOperator):
             return Batch.to_dict(result)
         except AlreadyExists:
             self.log.info("Batch with given id already exists")
+            return hook.get_batch(self.batch_id)
 
     def on_kill(self):
         if self.operation:
