@@ -157,8 +157,7 @@ Managing dags and logs
 Use of persistent volumes is optional and depends on your configuration.
 
 - **Dags**:
-
-  - By storing dags on a persistent volume, it will be made available to all workers
+To get the DAGs into the workers, you can:
 
   - Include dags in the image.
   - Use ``git-sync`` which, before starting the worker container, will run a ``git pull`` of the dags repository.
