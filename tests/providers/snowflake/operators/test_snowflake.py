@@ -19,15 +19,8 @@
 import unittest
 from unittest import mock
 
-import pytest
-
 from airflow.models.dag import DAG
-from airflow.providers.snowflake.operators.snowflake import (
-    SnowflakeCheckOperator,
-    SnowflakeIntervalCheckOperator,
-    SnowflakeOperator,
-    SnowflakeValueCheckOperator,
-)
+from airflow.providers.snowflake.operators.snowflake import SnowflakeOperator
 from airflow.utils import timezone
 
 DEFAULT_DATE = timezone.datetime(2015, 1, 1)
@@ -55,24 +48,3 @@ class TestSnowflakeOperator(unittest.TestCase):
         operator = SnowflakeOperator(task_id='basic_snowflake', sql=sql, dag=self.dag, do_xcom_push=False)
         # do_xcom_push=False because otherwise the XCom test will fail due to the mocking (it actually works)
         operator.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
-
-
-@pytest.mark.parametrize(
-    "operator_class, kwargs",
-    [
-        (SnowflakeCheckOperator, dict(sql='Select * from test_table')),
-        (SnowflakeValueCheckOperator, dict(sql='Select * from test_table', pass_value=95)),
-        (SnowflakeIntervalCheckOperator, dict(table='test-table-id', metrics_thresholds={'COUNT(*)': 1.5})),
-    ],
-)
-class TestSnowflakeCheckOperators:
-    @mock.patch("airflow.providers.snowflake.operators.snowflake.get_db_hook")
-    def test_get_db_hook(
-        self,
-        mock_get_db_hook,
-        operator_class,
-        kwargs,
-    ):
-        operator = operator_class(task_id='snowflake_check', snowflake_conn_id='snowflake_default', **kwargs)
-        operator.get_db_hook()
-        mock_get_db_hook.assert_called_once()
