@@ -67,7 +67,7 @@
     {% endcall %}
   {% endif %}
   {% if triggerer_job is defined and (not triggerer_job or not triggerer_job.is_alive()) %}
-    {% call show_message(category='warning', dismissabie=false) %}
+    {% call show_message(category='warning', dismissible=false) %}
       <p>The triggerer does not appear to be running.
       {% if triggerer_job %}
       Last heartbeat was received
