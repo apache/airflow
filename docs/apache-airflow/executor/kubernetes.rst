@@ -56,7 +56,7 @@ Configuration
 .. _concepts:pod_template_file:
 
 pod_template_file
-#################
+~~~~~~~~~~~~~~~~~
 
 To customize the pod used for k8s executor worker processes, you may create a pod template file. You must provide
 the path to the template file in the ``pod_template_file`` option in the ``kubernetes`` section of ``airflow.cfg``.
@@ -64,7 +64,7 @@ the path to the template file in the ``pod_template_file`` option in the ``kuber
 Airflow has two strict requirements for pod template files: base image and pod name.
 
 Base image
-~~~~~~~~~~
+^^^^^^^^^^
 
 A ``pod_template_file`` must have a container named ``base`` at the ``spec.containers[0]`` position, and
 its ``image`` must be specified.
@@ -75,11 +75,11 @@ container is named ``base``.
 
 .. note::
 
-    Airflow may override the base container ``image``, e.g. through :ref:`pod_override` <_concepts:pod_override>`
+    Airflow may override the base container ``image``, e.g. through :ref:`pod_override <concepts:pod_override>`
     configuration; but it must be present in the template file and must not be blank.
 
 Pod name
-~~~~~~~~
+^^^^^^^^
 
 The pod's ``metadata.name`` must be set in the template file.  This field will *always* be set dynamically at
 pod launch to guarantee uniqueness across all pods. But again, it must be included in the template, and cannot
@@ -115,7 +115,7 @@ Pulling DAGs from ``git``:
 .. _concepts:pod_override:
 
 pod_override
-############
+~~~~~~~~~~~~
 
 When using the KubernetesExecutor, Airflow offers the ability to override system defaults on a per-task basis.
 To utilize this functionality, create a Kubernetes V1pod object and fill in your desired overrides.
@@ -152,7 +152,7 @@ Here is an example of a task with both features:
     :end-before: [END task_with_template]
 
 Managing dags and logs
-######################
+~~~~~~~~~~~~~~~~~~~~~~
 
 Use of persistent volumes is optional and depends on your configuration.
 
@@ -201,7 +201,6 @@ KubernetesExecutor simultaneously on the same cluster. CeleryKubernetesExecutor 
 whether to run on Celery or Kubernetes.  By default, tasks are sent to Celery workers, but if you want a task to run using KubernetesExecutor,
 you send it to the  ``kubernetes`` queue and it will run in its own pod.
 
----------------
 Fault Tolerance
 ---------------
 
@@ -210,9 +209,9 @@ Fault Tolerance
     To troubleshoot issues with KubernetesExecutor, you can use ``airflow kubernetes generate-dag-yaml`` command.
     This command generates the pods as they will be launched in Kubernetes and dumps them into yaml files for you to inspect.
 
-===========================
+
 Handling Worker Pod Crashes
-===========================
+~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 When dealing with distributed systems, we need a system that assumes that any component can crash at any moment for reasons ranging from OOM errors to node upgrades.
 
@@ -236,9 +235,8 @@ A Kubernetes watcher is a thread that can subscribe to every change that occurs 
 By monitoring this stream, the KubernetesExecutor can discover that the worker crashed and correctly report the task as failed.
 
 
-=====================================================
 But What About Cases Where the Scheduler Pod Crashes?
-=====================================================
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 In cases of scheduler crashes, the scheduler will recover its state using the watcher's ``resourceVersion``.
 
