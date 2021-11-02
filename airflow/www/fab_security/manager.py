@@ -1301,27 +1301,6 @@ class BaseSecurityManager:
                 return True
         return False
 
-    def _has_resource_access(self, user: User, action_name: str, resource_name: str) -> bool:
-        roles = user.roles
-        db_role_ids = []
-        # First check against builtin (statically configured) roles
-        # because no database query is needed
-        for role in roles:
-            if role.name in self.builtin_roles:
-                if self._has_access_builtin_roles(role, action_name, resource_name):
-                    return True
-            else:
-                db_role_ids.append(role.id)
-
-        # If it's not a builtin role check against database store roles
-        return self.permission_exists_in_one_or_more_roles(resource_name, action_name, db_role_ids)
-
-    def get_user_roles(self, user) -> List[Role]:
-        """Get current user roles, if user is not authenticated returns the public role"""
-        if not user.is_authenticated:
-            return [self.get_public_role()]
-        return user.roles
-
     def _get_user_permission_resources(
         self, user: Optional[User], action_name: str, resource_names: List[str]
     ) -> Set[str]:

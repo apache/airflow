@@ -280,7 +280,7 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
             user_actions = [permissions.ACTION_CAN_EDIT, permissions.ACTION_CAN_READ]
 
         if user.is_anonymous:
-            roles = self.get_user_roles(user)
+            roles = user.roles
         else:
             user_query = (
                 session.query(User)
@@ -374,7 +374,7 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
         """Whether the user has this role name"""
         if not isinstance(role_name_or_list, list):
             role_name_or_list = [role_name_or_list]
-        return any(r.name in role_name_or_list for r in self.get_user_roles())
+        return any(r.name in role_name_or_list for r in self.current_user.roles)
 
     def has_all_dags_access(self):
         """
