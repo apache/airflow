@@ -157,6 +157,7 @@ Managing dags and logs
 Use of persistent volumes is optional and depends on your configuration.
 
 - **Dags**:
+
 To get the DAGs into the workers, you can:
 
   - Include dags in the image.
