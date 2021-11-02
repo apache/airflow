@@ -154,7 +154,7 @@ Here is an example of a task with both features:
 Managing dags and logs
 ######################
 
-Use of persistent volumes is optional and depends on your configuration. There are two types of volumes you may configure:
+Use of persistent volumes is optional and depends on your configuration.
 
 - **Dags**:
 
