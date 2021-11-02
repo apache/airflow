@@ -44,6 +44,8 @@ from airflow.operators.bash import BashOperator
 from airflow.security import permissions
 from airflow.serialization.json_schema import load_dag_schema_dict
 from airflow.serialization.serialized_objects import SerializedBaseOperator, SerializedDAG
+from airflow.settings import TIMEZONE
+from airflow.timefilters.cron import CronTimeFilter
 from airflow.timetables.simple import NullTimetable, OnceTimetable
 from airflow.utils import timezone
 from tests.test_utils.mock_operators import CustomOperator, CustomOpLink, GoogleLink
@@ -1115,8 +1117,10 @@ class TestStringifiedDAGs:
             'email_on_failure': True,
             'email_on_retry': True,
             'end_date': None,
+            'exclude_date': None,
             'execution_timeout': None,
             'executor_config': {},
+            'include_date': None,
             'inlets': [],
             'label': '10',
             'max_active_tis_per_dag': None,
@@ -1524,6 +1528,19 @@ class TestStringifiedDAGs:
         assert isinstance(param, Param)
         assert param.description == 'hello'
         assert param.schema == {'type': 'string'}
+
+    @pytest.mark.parametrize(
+        "timefilter",
+        {
+            "cron": CronTimeFilter("* * * * THU", TIMEZONE),
+            "cron_all": CronTimeFilter("* * * * THU", TIMEZONE) & CronTimeFilter("* * * * FRI", TIMEZONE),
+            "cron_any": CronTimeFilter("* * * * THU", TIMEZONE) | CronTimeFilter("* * * * FRI", TIMEZONE),
+        },
+    )
+    def test_timefilter(self, timefilter):
+        op = BaseOperator(task_id='dummy', include_date=timefilter)
+        serialized = SerializedBaseOperator.serialize_operator(op)
+        assert SerializedBaseOperator.deserialize_operator(serialized).include_date == timefilter
 
 
 def test_kubernetes_optional():

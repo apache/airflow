@@ -40,6 +40,8 @@ from airflow.serialization.enums import DagAttributeTypes as DAT, Encoding
 from airflow.serialization.helpers import serialize_template_field
 from airflow.serialization.json_schema import Validator, load_dag_schema
 from airflow.settings import json
+from airflow.timefilters.base import AllTimeFilter, AnyTimeFilter, TimeFilter
+from airflow.timefilters.cron import CronTimeFilter
 from airflow.timetables.base import Timetable
 from airflow.utils.code_utils import get_python_source
 from airflow.utils.module_loading import as_importable_string, import_string
@@ -66,6 +68,12 @@ _OPERATOR_EXTRA_LINKS: Set[str] = {
     # Deprecated names, so that existing serialized dags load straight away.
     "airflow.operators.dagrun_operator.TriggerDagRunLink",
     "airflow.sensors.external_task_sensor.ExternalTaskSensorLink",
+}
+
+_TIME_FILTER_TYPE_MAP = {
+    DAT.CRON: CronTimeFilter,
+    DAT.ALL: AllTimeFilter,
+    DAT.ANY: AnyTimeFilter,
 }
 
 
@@ -325,6 +333,15 @@ class BaseSerialization:
             return SerializedTaskGroup.serialize_task_group(var)
         elif isinstance(var, Param):
             return cls._encode(cls._serialize_param(var), type_=DAT.PARAM)
+        elif isinstance(var, TimeFilter):
+            timefilter_class = type(var)
+            importable_string = as_importable_string(timefilter_class)
+            if not importable_string.startswith("airflow.timefilters."):
+                raise TypeError(f"Not a supported time filter: {importable_string}")
+            return cls._encode(
+                {str(k): cls._serialize(v) for k, v in var.__dict__.items()},
+                type_=next(key for key, cls in _TIME_FILTER_TYPE_MAP.items() if cls is timefilter_class),
+            )
         else:
             log.debug('Cast type %s to str in serialization.', type(var))
             return str(var)
@@ -367,7 +384,17 @@ class BaseSerialization:
         elif type_ == DAT.TUPLE:
             return tuple(cls._deserialize(v) for v in var)
         elif type_ == DAT.PARAM:
+<<<<<<< HEAD
             return cls._deserialize_param(var)
+=======
+            param_class = import_string(var['_type'])
+            del var['_type']
+            return param_class(**var)
+        elif type_ == DAT.CRON:
+            kwargs = {k: cls._deserialize(v) for k, v in var.items()}
+            timefilter_class = _TIME_FILTER_TYPE_MAP[type_]
+            return timefilter_class(**kwargs)
+>>>>>>> Implement task-level include/exclude time filter
         else:
             raise TypeError(f'Invalid type {type_!s} in deserialization.')
 
@@ -495,7 +522,7 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
     Class specific attributes used by UI are move to object attributes.
     """
 
-    _decorated_fields = {'executor_config'}
+    _decorated_fields = {'executor_config', 'include_date', 'exclude_date'}
 
     _CONSTRUCTOR_PARAMS = {
         k: v.default
@@ -612,11 +639,12 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
                 setattr(op, "operator_extra_links", list(op_extra_links_from_plugin.values()))
 
         for k, v in encoded_op.items():
-
             if k == "_downstream_task_ids":
                 v = set(v)
             elif k == "subdag":
                 v = SerializedDAG.deserialize_dag(v)
+            elif k in cls._decorated_fields:
+                v = cls._deserialize(v)
             elif k in {"retry_delay", "execution_timeout", "sla", "max_retry_delay"}:
                 v = cls._deserialize_timedelta(v)
             elif k in encoded_op["template_fields"]:
@@ -639,7 +667,7 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
                 v = cls._deserialize_deps(v)
             elif k == "params":
                 v = cls._deserialize_params_dict(v)
-            elif k in cls._decorated_fields or k not in op.get_serialized_fields():
+            elif k not in op.get_serialized_fields():
                 v = cls._deserialize(v)
             # else use v as it is
 

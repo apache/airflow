@@ -1,4 +1,3 @@
-#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -16,38 +15,20 @@
 # specific language governing permissions and limitations
 # under the License.
 
-"""Enums for DAG serialization."""
+from croniter import croniter
+from pendulum.tz.timezone import Timezone
 
-from enum import Enum, unique
-
-
-# Fields of an encoded object in serialization.
-@unique
-class Encoding(str, Enum):
-    """Enum of encoding constants."""
-
-    TYPE = '__type'
-    VAR = '__var'
+from airflow.timefilters.base import TimeFilter
+from airflow.utils.timezone import make_naive
 
 
-# Supported types for encoding. primitives and list are not encoded.
-@unique
-class DagAttributeTypes(str, Enum):
-    """Enum of supported attribute types of DAG."""
+class CronTimeFilter(TimeFilter):
+    """Time filter that match on a cron expression."""
 
-    DAG = 'dag'
-    OP = 'operator'
-    DATETIME = 'datetime'
-    TIMEDELTA = 'timedelta'
-    TIMEZONE = 'timezone'
-    RELATIVEDELTA = 'relativedelta'
-    DICT = 'dict'
-    SET = 'set'
-    TUPLE = 'tuple'
-    POD = 'k8s.V1Pod'
-    TASK_GROUP = 'taskgroup'
-    EDGE_INFO = 'edgeinfo'
-    PARAM = 'param'
-    CRON = 'cron'
-    ANY = 'any'
-    ALL = 'all'
+    def __init__(self, expression: str, timezone: Timezone):
+        self.expression = expression
+        self.timezone = timezone
+
+    def match(self, date):
+        naive = make_naive(date, self.timezone)
+        return croniter.match(self.expression, naive)

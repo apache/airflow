@@ -47,6 +47,9 @@
         }
       }
     },
+    "timefilter": {
+      "type": "object"
+    },
     "timezone": {
       "anyOf": [
         { "type": "string" },
@@ -173,6 +176,8 @@
         "owner": { "type": "string" },
         "start_date": { "$ref": "#/definitions/datetime" },
         "end_date": { "$ref": "#/definitions/datetime" },
+        "include_date": { "$ref": "#/definitions/timefilter" },
+        "exclude_date": { "$ref": "#/definitions/timefilter" },
         "trigger_rule": { "type": "string" },
         "depends_on_past": { "type": "boolean" },
         "wait_for_downstream": { "type": "boolean" },

@@ -46,6 +46,7 @@ from typing import (
 
 import attr
 import jinja2
+import pendulum
 from dateutil.relativedelta import relativedelta
 from sqlalchemy.orm import Session
 from sqlalchemy.orm.exc import NoResultFound
@@ -66,6 +67,7 @@ from airflow.ti_deps.deps.not_in_retry_period_dep import NotInRetryPeriodDep
 from airflow.ti_deps.deps.not_previously_skipped_dep import NotPreviouslySkippedDep
 from airflow.ti_deps.deps.prev_dagrun_dep import PrevDagrunDep
 from airflow.ti_deps.deps.trigger_rule_dep import TriggerRuleDep
+from airflow.timefilters.base import TimeFilter
 from airflow.triggers.base import BaseTrigger
 from airflow.utils import timezone
 from airflow.utils.edgemodifier import EdgeModifier
@@ -272,6 +274,12 @@ class BaseOperator(Operator, LoggingMixin, TaskMixin, metaclass=BaseOperatorMeta
     :type start_date: datetime.datetime
     :param end_date: if specified, the scheduler won't go beyond this date
     :type end_date: datetime.datetime
+    :param include_date: Apply a time filter to schedule the task only for those execution
+        dates that match (or else mark the task as skipped).
+    :type include_date: airflow.timefilters.base.TimeFilter
+    :param exclude_date: Apply a time filter to schedule the task only for those execution
+        dates that do not match (or else mark the task as skipped).
+    :type exclude_date: airflow.timefilters.base.TimeFilter
     :param depends_on_past: when set to true, task instances will run
         sequentially and only if the previous instance has succeeded or has been skipped.
         The task instance for the start_date is allowed to run.
@@ -462,6 +470,8 @@ class BaseOperator(Operator, LoggingMixin, TaskMixin, metaclass=BaseOperatorMeta
         'max_retry_delay',
         'start_date',
         'end_date',
+        'include_date',
+        'exclude_date',
         'depends_on_past',
         'wait_for_downstream',
         'priority_weight',
@@ -496,6 +506,8 @@ class BaseOperator(Operator, LoggingMixin, TaskMixin, metaclass=BaseOperatorMeta
         max_retry_delay: Optional[Union[timedelta, float]] = None,
         start_date: Optional[datetime] = None,
         end_date: Optional[datetime] = None,
+        include_date: Optional[TimeFilter] = None,
+        exclude_date: Optional[TimeFilter] = None,
         depends_on_past: bool = False,
         wait_for_downstream: bool = False,
         dag: Optional['DAG'] = None,
@@ -569,6 +581,9 @@ class BaseOperator(Operator, LoggingMixin, TaskMixin, metaclass=BaseOperatorMeta
         self.end_date = end_date
         if end_date:
             self.end_date = timezone.convert_to_utc(end_date)
+
+        self.include_date = include_date
+        self.exclude_date = exclude_date
 
         if trigger_rule == "dummy":
             warnings.warn(
@@ -1642,6 +1657,20 @@ class BaseOperator(Operator, LoggingMixin, TaskMixin, metaclass=BaseOperatorMeta
         which is caught in the main _execute_task wrapper.
         """
         raise TaskDeferred(trigger=trigger, method_name=method_name, kwargs=kwargs, timeout=timeout)
+
+    def include_in_dagrun(self, execution_date: pendulum.DateTime) -> bool:
+        """
+        Based on include/exclude date parameters, return true if this
+        task instance should be scheduled for execution, or marked as
+        skipped.
+        """
+        if self.include_date is not None and not self.include_date.match(execution_date):
+            return False
+
+        if self.exclude_date is not None and self.exclude_date.match(execution_date):
+            return False
+
+        return True
 
 
 Chainable = Union[BaseOperator, "XComArg", EdgeModifier, "TaskGroup"]

@@ -1,4 +1,3 @@
-#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -16,38 +15,29 @@
 # specific language governing permissions and limitations
 # under the License.
 
-"""Enums for DAG serialization."""
+import itertools
+import operator
 
-from enum import Enum, unique
+import pytest
+from pendulum import DateTime
 
+from airflow.timefilters.base import TimeFilter
 
-# Fields of an encoded object in serialization.
-@unique
-class Encoding(str, Enum):
-    """Enum of encoding constants."""
-
-    TYPE = '__type'
-    VAR = '__var'
+DATE = DateTime(1970, 1, 1)
 
 
-# Supported types for encoding. primitives and list are not encoded.
-@unique
-class DagAttributeTypes(str, Enum):
-    """Enum of supported attribute types of DAG."""
+class DummyTimeFilter(TimeFilter):
+    def __init__(self, matches):
+        self.matches = matches
 
-    DAG = 'dag'
-    OP = 'operator'
-    DATETIME = 'datetime'
-    TIMEDELTA = 'timedelta'
-    TIMEZONE = 'timezone'
-    RELATIVEDELTA = 'relativedelta'
-    DICT = 'dict'
-    SET = 'set'
-    TUPLE = 'tuple'
-    POD = 'k8s.V1Pod'
-    TASK_GROUP = 'taskgroup'
-    EDGE_INFO = 'edgeinfo'
-    PARAM = 'param'
-    CRON = 'cron'
-    ANY = 'any'
-    ALL = 'all'
+    def match(self, date):
+        assert date is DATE
+        return self.matches
+
+
+@pytest.mark.parametrize("operator", [operator.and_, operator.or_])
+def test_boolean(operator):
+    values = (True, False)
+    for combination in itertools.product(values, values):
+        timefilters = list(map(DummyTimeFilter, combination))
+        assert operator(*combination) == operator(*timefilters).match(DATE)

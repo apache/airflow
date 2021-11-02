@@ -1,4 +1,3 @@
-#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -16,38 +15,17 @@
 # specific language governing permissions and limitations
 # under the License.
 
-"""Enums for DAG serialization."""
+from pendulum import DateTime
 
-from enum import Enum, unique
+from airflow.settings import TIMEZONE
+from airflow.timefilters.cron import CronTimeFilter
 
-
-# Fields of an encoded object in serialization.
-@unique
-class Encoding(str, Enum):
-    """Enum of encoding constants."""
-
-    TYPE = '__type'
-    VAR = '__var'
+DATE = DateTime(1970, 1, 1, tzinfo=TIMEZONE)
 
 
-# Supported types for encoding. primitives and list are not encoded.
-@unique
-class DagAttributeTypes(str, Enum):
-    """Enum of supported attribute types of DAG."""
+def test_match():
+    assert CronTimeFilter("* * * * THU", TIMEZONE).match(DATE)
 
-    DAG = 'dag'
-    OP = 'operator'
-    DATETIME = 'datetime'
-    TIMEDELTA = 'timedelta'
-    TIMEZONE = 'timezone'
-    RELATIVEDELTA = 'relativedelta'
-    DICT = 'dict'
-    SET = 'set'
-    TUPLE = 'tuple'
-    POD = 'k8s.V1Pod'
-    TASK_GROUP = 'taskgroup'
-    EDGE_INFO = 'edgeinfo'
-    PARAM = 'param'
-    CRON = 'cron'
-    ANY = 'any'
-    ALL = 'all'
+
+def test_not_match():
+    assert not CronTimeFilter("* * * * FRI", TIMEZONE).match(DATE)

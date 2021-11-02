@@ -574,6 +574,32 @@ class TestBaseOperator:
         op = BaseOperator(task_id="test_task", weight_rule="upstream")
         assert WeightRule.UPSTREAM == op.weight_rule
 
+    @pytest.mark.parametrize(
+        ("include", "exclude", "expectation"),
+        [
+            (None, None, True),
+            (None, False, True),
+            (True, None, True),
+            (True, False, True),
+            (None, True, False),
+            (False, None, False),
+            (False, False, False),
+            (False, True, False),
+        ],
+    )
+    def test_include_in_dagrun(self, include, exclude, expectation):
+        include_date = mock.Mock()
+        include_date.match.side_effect = lambda d: include
+        exclude_date = mock.Mock()
+        exclude_date.match.side_effect = lambda d: exclude
+        task = BaseOperator(
+            task_id="dummy",
+            include_date=include_date if include is not None else None,
+            exclude_date=exclude_date if exclude is not None else None,
+        )
+        date = mock.Mock()
+        assert task.include_in_dagrun(date) == expectation
+
 
 def test_init_subclass_args():
     class InitSubclassOp(BaseOperator):

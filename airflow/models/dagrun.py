@@ -881,8 +881,11 @@ class DagRun(Base, LoggingMixin):
         # tasks using DummyOperator and without on_execute_callback / on_success_callback
         dummy_ti_ids = []
         schedulable_ti_ids = []
+        skippable_ti_ids = []
         for ti in schedulable_tis:
-            if (
+            if not ti.task.include_in_dagrun(self.execution_date):
+                skippable_ti_ids.append(ti.task_id)
+            elif (
                 ti.task.inherits_from_dummy_operator
                 and not ti.task.on_execute_callback
                 and not ti.task.on_success_callback
@@ -902,6 +905,25 @@ class DagRun(Base, LoggingMixin):
                     TI.task_id.in_(schedulable_ti_ids),
                 )
                 .update({TI.state: State.SCHEDULED}, synchronize_session=False)
+            )
+
+        if skippable_ti_ids:
+            count += (
+                session.query(TI)
+                .filter(
+                    TI.dag_id == self.dag_id,
+                    TI.run_id == self.run_id,
+                    TI.task_id.in_(skippable_ti_ids),
+                )
+                .update(
+                    {
+                        TI.state: State.SKIPPED,
+                        TI.start_date: timezone.utcnow(),
+                        TI.end_date: timezone.utcnow(),
+                        TI.duration: 0,
+                    },
+                    synchronize_session=False,
+                )
             )
 
         # Tasks using DummyOperator should not be executed, mark them as success
