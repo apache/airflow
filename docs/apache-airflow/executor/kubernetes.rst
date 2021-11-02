@@ -46,50 +46,54 @@ This command generates the pods as they will be launched in Kubernetes and dumps
 pod_template_file
 #################
 
-As of Airflow 1.10.12, you can use the ``pod_template_file`` option in the ``kubernetes`` section
-of the ``airflow.cfg`` file to form the basis of your KubernetesExecutor pods. This process is faster to execute
-and easier to modify compared with the legacy configuration approach.
+To customize the pod used for k8s executor worker processes, you may create a pod template file. You must provide
+the path to the template file in the ``pod_template_file`` option in the ``kubernetes`` section of ``airflow.cfg``.
 
-We include multiple examples of working pod operators below, but we would also like to identify a few components
-that you must include if you want to provide a custom template file. Aside from these components, every other
-element in the template is customizable.
+Airflow has two strict requirements for pod template files: base image and pod name.
 
-1. Airflow will overwrite the base container ``image`` and the pod's ``metadata.name``.
+Base image
+~~~~~~~~~~
 
-There are two points where Airflow potentially overwrites the base image: in the ``airflow.cfg``
-or the ``pod_override`` (discussed below) setting. This value is overwritten to ensure that users do
-not need to update multiple template files every time they upgrade their docker image. The other field
-that Airflow overwrites is the ``metadata.name`` field. This field has to be unique across all pods,
-so we generate these names dynamically before launch.
+A ``pod_template_file`` must have a container named ``base`` at the ``spec.containers[0]`` position, and
+its ``image`` must be specified.
 
-It's important to note although Airflow overwrites these fields, they **can not be left blank** in the template.
-If these fields are not present in the template, kubernetes can not load the yaml into a Kubernetes ``V1Pod``.
+You are free to create sidecar containers after this required container, but Airflow assumes that the
+airflow worker container exists at the beginning of the container array, and assumes that the
+container is named ``base``.
 
-2. A ``pod_template_file`` must have a container named ``base`` at the ``spec.containers[0]`` position
+.. note::
 
-Airflow uses the ``pod_template_file`` by making certain assumptions about the structure of the template.
-When airflow creates the worker pod's command, it assumes that the airflow worker container part exists
-at the beginning of the container array. It then assumes that the container is named ``base``
-when it merges this pod with internal configs. You are more than welcome to create
-sidecar containers after this required container.
+    Airflow may override the base container ``image``, e.g. through :ref:`pod_override` <_concepts:pod_override>`
+    configuration; but it must be present in the template file and must not be blank.
+
+Pod name
+~~~~~~~~
+
+The pod's ``metadata.name`` must be set in the template file.  This field will *always* be set dynamically at
+pod launch to guarantee uniqueness across all pods. But again, it must be included in the template, and cannot
+be left blank.
+
+
+Example pod templates
+~~~~~~~~~~~~~~~~~~~~~
 
 With these requirements in mind, here are some examples of basic ``pod_template_file`` YAML files.
 
-``pod_template_file`` using the ``dag_in_image`` setting:
+Storing DAGs in the image:
 
 .. exampleinclude:: /../../airflow/kubernetes/pod_template_file_examples/dags_in_image_template.yaml
     :language: yaml
     :start-after: [START template_with_dags_in_image]
     :end-before: [END template_with_dags_in_image]
 
-``pod_template_file`` which stores DAGs in a ``persistentVolume``:
+Storing DAGs in a ``persistentVolume``:
 
 .. exampleinclude:: /../../airflow/kubernetes/pod_template_file_examples/dags_in_volume_template.yaml
     :language: yaml
     :start-after: [START template_with_dags_in_volume]
     :end-before: [END template_with_dags_in_volume]
 
-``pod_template_file`` which pulls DAGs from git:
+Pulling DAGs from ``git``:
 
 .. exampleinclude:: /../../airflow/kubernetes/pod_template_file_examples/git_sync_template.yaml
     :language: yaml
