@@ -177,7 +177,7 @@ With KubernetesExecutor, each task runs in its own pod. The pod is created when 
 Historically, in some cases, this presented a resource utilization advantage over CeleryExecutor for burst-able workloads (where you needed a fixed number of
 long-running celery worker pods, whether or not there were tasks to run).
 
-However, the official Apache Airflow helm chart can automatically scale celery workers down to zero based on the number of tasks in the queue,
+However, the :doc:`official Apache Airflow Helm chart <helm-chart:index>` can automatically scale celery workers down to zero based on the number of tasks in the queue,
 so when using the official chart, this is no longer an advantage.
 
 With Celery workers you will tend to have less task latency because the worker pod is already up and running when the task is queued. On the
