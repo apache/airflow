@@ -23,23 +23,35 @@ Kubernetes Executor
 
 The Kubernetes executor runs each task instance in its own pod on a Kubernetes cluster.
 
-Use of persistent volumes is optional and depends on your configuration. There are two types of volumes you may configure:
+KubernetesExecutor runs as a process in the Airflow Scheduler.  The scheduler itself does
+not necessarily need to be running on Kubernetes, but does need access to a Kubernetes cluster.
 
-- **Dags**:
+KubernetesExecutor requires a non-sqlite database in the backend.
 
-  - By storing dags on a persistent volume, it will be made available to all workers
+When a DAG submits a task, the KubernetesExecutor requests a worker pod from the Kubernetes API. The worker pod then runs the task, reports the result, and terminates.
 
-  - Alternatively, you can include dags in the image, or you can use use ``git-sync``.  With ``git-sync``, before starting the worker container,
-    a git pull of the dags repository will be performed and used throughout the lifecycle of the pod.
+.. image:: ../img/arch-diag-kubernetes.png
 
-- **Logs**:
 
-  - You can enable a persistent volume shared between webserver and workers to store task logs.
+One example of an Airflow deployment running on a distributed set of five nodes in a Kubernetes cluster is shown below.
 
-  - If you don't enable logging persistence, and if you have not enabled remote logging, logs will be lost after the worker pods shut down.
+.. image:: ../img/arch-diag-kubernetes2.png
 
-To troubleshoot issue with KubernetesExecutor, you can use ``airflow kubernetes generate-dag-yaml`` command.
-This command generates the pods as they will be launched in Kubernetes and dumps them into yaml files for you to inspect.
+Consistent with the regular Airflow architecture, the Workers need access to the DAG files to execute the tasks within those DAGs and interact with the Metadata repository. Also, configuration information specific to the Kubernetes Executor, such as the worker namespace and image information, needs to be specified in the Airflow Configuration file.
+
+Additionally, the Kubernetes Executor enables specification of additional features on a per-task basis using the Executor config.
+
+.. @startuml
+.. Airflow_Scheduler -> Kubernetes: Request a new pod with command "airflow run..."
+.. Kubernetes -> Airflow_Worker: Create Airflow worker with command "airflow run..."
+.. Airflow_Worker -> Airflow_DB: Report task passing or failure to DB
+.. Airflow_Worker -> Kubernetes: Pod completes with state "Succeeded" and k8s records in ETCD
+.. Kubernetes -> Airflow_Scheduler: Airflow scheduler reads "Succeeded" from k8s watcher thread
+.. @enduml
+.. image:: ../img/k8s-happy-path.png
+
+Configuration
+-------------
 
 .. _concepts:pod_template_file:
 
@@ -139,34 +151,27 @@ Here is an example of a task with both features:
     :start-after: [START task_with_template]
     :end-before: [END task_with_template]
 
-KubernetesExecutor Architecture
-################################
+Managing dags and logs
+######################
 
-KubernetesExecutor runs as a process in the Airflow Scheduler.  The scheduler itself does not necessarily need to be running on Kubernetes, but does need access to a Kubernetes cluster.
+Use of persistent volumes is optional and depends on your configuration. There are two types of volumes you may configure:
 
-KubernetesExecutor requires a non-sqlite database in the backend.
+- **Dags**:
 
-When a DAG submits a task, the KubernetesExecutor requests a worker pod from the Kubernetes API. The worker pod then runs the task, reports the result, and terminates.
+  - By storing dags on a persistent volume, it will be made available to all workers
 
-.. image:: ../img/arch-diag-kubernetes.png
+  - Alternatively, you can include dags in the image, or you can use use ``git-sync``.  With ``git-sync``, before starting the worker container,
+    a git pull of the dags repository will be performed and used throughout the lifecycle of the pod.
 
+- **Logs**:
 
-One example of an Airflow deployment running on a distributed set of five nodes in a Kubernetes cluster is shown below.
+  - You can enable a persistent volume shared between webserver and workers to store task logs.
 
-.. image:: ../img/arch-diag-kubernetes2.png
+  - If you don't enable logging persistence, and if you have not enabled remote logging, logs will be lost after the worker pods shut down.
 
-Consistent with the regular Airflow architecture, the Workers need access to the DAG files to execute the tasks within those DAGs and interact with the Metadata repository. Also, configuration information specific to the Kubernetes Executor, such as the worker namespace and image information, needs to be specified in the Airflow Configuration file.
+To troubleshoot issue with KubernetesExecutor, you can use ``airflow kubernetes generate-dag-yaml`` command.
+This command generates the pods as they will be launched in Kubernetes and dumps them into yaml files for you to inspect.
 
-Additionally, the Kubernetes Executor enables specification of additional features on a per-task basis using the Executor config.
-
-.. @startuml
-.. Airflow_Scheduler -> Kubernetes: Request a new pod with command "airflow run..."
-.. Kubernetes -> Airflow_Worker: Create Airflow worker with command "airflow run..."
-.. Airflow_Worker -> Airflow_DB: Report task passing or failure to DB
-.. Airflow_Worker -> Kubernetes: Pod completes with state "Succeeded" and k8s records in ETCD
-.. Kubernetes -> Airflow_Scheduler: Airflow scheduler reads "Succeeded" from k8s watcher thread
-.. @enduml
-.. image:: ../img/k8s-happy-path.png
 
 Comparison with CeleryExecutor
 ------------------------------
@@ -193,9 +198,9 @@ KubernetesExecutor simultaneously on the same cluster. CeleryKubernetesExecutor 
 whether to run on Celery or Kubernetes.  By default, tasks are sent to Celery workers, but if you want a task to run using KubernetesExecutor,
 you send it to the  ``kubernetes`` queue and it will run in its own pod.
 
-***************
+---------------
 Fault Tolerance
-***************
+---------------
 
 ===========================
 Handling Worker Pod Crashes
