@@ -19,7 +19,7 @@
 
 {% extends base_template %}
 {% from 'appbuilder/loading_dots.html' import loading_dots %}
-{% from 'airflow/_messages.html' import message %}
+{% from 'airflow/_messages.html' import show_message %}
 
 {% block page_title %}
   {% if search_query %}"{{ search_query }}" - {% endif %}DAGs - {{ appbuilder.app_name }}
