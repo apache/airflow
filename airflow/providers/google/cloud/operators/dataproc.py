@@ -2252,10 +2252,17 @@ class DataprocCreateBatchOperator(BaseOperator):
             )
             result = hook.wait_for_operation(self.timeout, self.operation)
             self.log.info("Batch %s created", self.batch_id)
-            return Batch.to_dict(result)
         except AlreadyExists:
             self.log.info("Batch with given id already exists")
-            return hook.get_batch(self.batch_id)
+            result = hook.get_batch(
+                batch_id=self.batch_id,
+                region=self.region,
+                project_id=self.project_id,
+                retry=self.retry,
+                timeout=self.timeout,
+                metadata=self.metadata,
+            )
+        return Batch.to_dict(result)
 
     def on_kill(self):
         if self.operation:
