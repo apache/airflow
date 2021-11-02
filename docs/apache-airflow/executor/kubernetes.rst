@@ -183,8 +183,8 @@ Comparison with CeleryExecutor
 In contrast to CeleryExecutor, KubernetesExecutor does not require additional components such as Redis and Flower, but does require access to Kubernetes cluster.
 
 With KubernetesExecutor, each task runs in its own pod. The pod is created when the task is queued, and terminates when the task completes.
-Historically, in some cases, this presented a resource utilization advantage over CeleryExecutor for burstable workloads (where you needed a fixed number of
-long-running celery worker pods, whether or not there were tasks to run).
+Historically, in scenarios such as burstable workloads, this presented a resource utilization advantage over CeleryExecutor, where you needed
+a fixed number of long-running celery worker pods, whether or not there were tasks to run.
 
 However, the :doc:`official Apache Airflow Helm chart <helm-chart:index>` can automatically scale celery workers down to zero based on the number of tasks in the queue,
 so when using the official chart, this is no longer an advantage.
@@ -193,14 +193,16 @@ With Celery workers you will tend to have less task latency because the worker p
 other hand, because multiple tasks are running in the same pod, with Celery you may have to be more mindful about resource utilization
 in your task design, particularly memory consumption.
 
-A positive of KubernetesExecutor is if you have long-running tasks. With KubernetesExecutor, if you do a deployment while a task is running,
+One scenario where KubernetesExecutor can be helpful is if you have long-running tasks, because if you deploy while a task is running,
 the task will keep running until it completes (or times out, etc). But with CeleryExecutor, provided you have set a grace period, the
-task will only keep running up until the grace period has elapsed, at which time the task will be terminated.
+task will only keep running up until the grace period has elapsed, at which time the task will be terminated.  Another scenario where
+KubernetesExecutor can work well is when your tasks are not very uniform with respect to resource requirements or images.
 
 Finally, note that it does not have to be either-or; with CeleryKubernetesExecutor, it is possible to use both CeleryExecutor and
 KubernetesExecutor simultaneously on the same cluster. CeleryKubernetesExecutor will look at a task's ``queue`` to determine
 whether to run on Celery or Kubernetes.  By default, tasks are sent to Celery workers, but if you want a task to run using KubernetesExecutor,
-you send it to the  ``kubernetes`` queue and it will run in its own pod.
+you send it to the  ``kubernetes`` queue and it will run in its own pod.  And KubernetesPodOperator can be used
+to similar effect, no matter what executor you are using.
 
 Fault Tolerance
 ---------------
