@@ -20,7 +20,6 @@ import warnings
 from typing import Any, Callable, Dict, List, Optional, Sequence, Union
 
 from google.cloud.pubsub_v1.types import ReceivedMessage
-from google.protobuf.json_format import MessageToDict
 
 from airflow.providers.google.cloud.hooks.pubsub import PubSubHook
 from airflow.sensors.base import BaseSensorOperator
@@ -200,6 +199,6 @@ class PubSubPullSensor(BaseSensorOperator):
         :param context: same as in `execute`
         :return: value to be saved to XCom.
         """
-        messages_json = [MessageToDict(m) for m in pulled_messages]
+        messages_json = [ReceivedMessage.to_dict(m) for m in pulled_messages]
 
         return messages_json

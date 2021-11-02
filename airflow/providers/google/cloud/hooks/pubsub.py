@@ -111,7 +111,7 @@ class PubSubHook(GoogleBaseHook):
         self._validate_messages(messages)
 
         publisher = self.get_conn()
-        topic_path = PublisherClient.topic_path(project_id, topic)  # pylint: disable=no-member
+        topic_path = f"projects/{project_id}/topics/{topic}"
 
         self.log.info("Publish %d messages to topic (path) %s", len(messages), topic_path)
         try:
@@ -206,7 +206,7 @@ class PubSubHook(GoogleBaseHook):
         :type metadata: Sequence[Tuple[str, str]]]
         """
         publisher = self.get_conn()
-        topic_path = PublisherClient.topic_path(project_id, topic)  # pylint: disable=no-member
+        topic_path = f"projects/{project_id}/topics/{topic}"
 
         # Add airflow-version label to the topic
         labels = labels or {}
@@ -216,13 +216,15 @@ class PubSubHook(GoogleBaseHook):
         try:
             # pylint: disable=no-member
             publisher.create_topic(
-                name=topic_path,
-                labels=labels,
-                message_storage_policy=message_storage_policy,
-                kms_key_name=kms_key_name,
+                request={
+                    "name": topic_path,
+                    "labels": labels,
+                    "message_storage_policy": message_storage_policy,
+                    "kms_key_name": kms_key_name,
+                },
                 retry=retry,
                 timeout=timeout,
-                metadata=metadata,
+                metadata=metadata or (),
             )
         except AlreadyExists:
             self.log.warning('Topic already exists: %s', topic)
@@ -266,16 +268,13 @@ class PubSubHook(GoogleBaseHook):
         :type metadata: Sequence[Tuple[str, str]]]
         """
         publisher = self.get_conn()
-        topic_path = PublisherClient.topic_path(project_id, topic)  # pylint: disable=no-member
+        topic_path = f"projects/{project_id}/topics/{topic}"
 
         self.log.info("Deleting topic (path) %s", topic_path)
         try:
             # pylint: disable=no-member
             publisher.delete_topic(
-                topic=topic_path,
-                retry=retry,
-                timeout=timeout,
-                metadata=metadata,
+                request={"topic": topic_path}, retry=retry, timeout=timeout, metadata=metadata or ()
             )
         except NotFound:
             self.log.warning('Topic does not exist: %s', topic_path)
@@ -401,27 +400,29 @@ class PubSubHook(GoogleBaseHook):
         labels['airflow-version'] = 'v' + version.replace('.', '-').replace('+', '-')
 
         # pylint: disable=no-member
-        subscription_path = SubscriberClient.subscription_path(subscription_project_id, subscription)
-        topic_path = SubscriberClient.topic_path(project_id, topic)
+        subscription_path = f"projects/{subscription_project_id}/subscriptions/{subscription}"
+        topic_path = f"projects/{project_id}/topics/{topic}"
 
         self.log.info("Creating subscription (path) %s for topic (path) %a", subscription_path, topic_path)
         try:
             subscriber.create_subscription(
-                name=subscription_path,
-                topic=topic_path,
-                push_config=push_config,
-                ack_deadline_seconds=ack_deadline_secs,
-                retain_acked_messages=retain_acked_messages,
-                message_retention_duration=message_retention_duration,
-                labels=labels,
-                enable_message_ordering=enable_message_ordering,
-                expiration_policy=expiration_policy,
-                filter_=filter_,
-                dead_letter_policy=dead_letter_policy,
-                retry_policy=retry_policy,
+                request={
+                    "name": subscription_path,
+                    "topic": topic_path,
+                    "push_config": push_config,
+                    "ack_deadline_seconds": ack_deadline_secs,
+                    "retain_acked_messages": retain_acked_messages,
+                    "message_retention_duration": message_retention_duration,
+                    "labels": labels,
+                    "enable_message_ordering": enable_message_ordering,
+                    "expiration_policy": expiration_policy,
+                    "filter": filter_,
+                    "dead_letter_policy": dead_letter_policy,
+                    "retry_policy": retry_policy,
+                },
                 retry=retry,
                 timeout=timeout,
-                metadata=metadata,
+                metadata=metadata or (),
             )
         except AlreadyExists:
             self.log.warning('Subscription already exists: %s', subscription_path)
@@ -466,13 +467,16 @@ class PubSubHook(GoogleBaseHook):
         """
         subscriber = self.subscriber_client
         # noqa E501 # pylint: disable=no-member
-        subscription_path = SubscriberClient.subscription_path(project_id, subscription)
+        subscription_path = f"projects/{project_id}/subscriptions/{subscription}"
 
         self.log.info("Deleting subscription (path) %s", subscription_path)
         try:
             # pylint: disable=no-member
             subscriber.delete_subscription(
-                subscription=subscription_path, retry=retry, timeout=timeout, metadata=metadata
+                request={"subscription": subscription_path},
+                retry=retry,
+                timeout=timeout,
+                metadata=metadata or (),
             )
 
         except NotFound:
@@ -527,18 +531,20 @@ class PubSubHook(GoogleBaseHook):
         """
         subscriber = self.subscriber_client
         # noqa E501 # pylint: disable=no-member,line-too-long
-        subscription_path = SubscriberClient.subscription_path(project_id, subscription)
+        subscription_path = f"projects/{project_id}/subscriptions/{subscription}"
 
         self.log.info("Pulling max %d messages from subscription (path) %s", max_messages, subscription_path)
         try:
             # pylint: disable=no-member
             response = subscriber.pull(
-                subscription=subscription_path,
-                max_messages=max_messages,
-                return_immediately=return_immediately,
+                request={
+                    "subscription": subscription_path,
+                    "max_messages": max_messages,
+                    "return_immediately": return_immediately,
+                },
                 retry=retry,
                 timeout=timeout,
-                metadata=metadata,
+                metadata=metadata or (),
             )
             result = getattr(response, 'received_messages', [])
             self.log.info("Pulled %d messages from subscription (path) %s", len(result), subscription_path)
@@ -591,17 +597,16 @@ class PubSubHook(GoogleBaseHook):
 
         subscriber = self.subscriber_client
         # noqa E501 # pylint: disable=no-member
-        subscription_path = SubscriberClient.subscription_path(project_id, subscription)
+        subscription_path = f"projects/{project_id}/subscriptions/{subscription}"
 
         self.log.info("Acknowledging %d ack_ids from subscription (path) %s", len(ack_ids), subscription_path)
         try:
             # pylint: disable=no-member
             subscriber.acknowledge(
-                subscription=subscription_path,
-                ack_ids=ack_ids,
+                request={"subscription": subscription_path, "ack_ids": ack_ids},
                 retry=retry,
                 timeout=timeout,
-                metadata=metadata,
+                metadata=metadata or (),
             )
         except (HttpError, GoogleAPICallError) as e:
             raise PubSubException(

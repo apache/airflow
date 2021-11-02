@@ -627,6 +627,13 @@ class RefactorBackportPackages:
             """Check if select is exactly [airflow, . , models]"""
             return len(list(node.children[1].leaves())) == 3
 
+        def _contains_chain_in_import_filter(node: LN, capture: Capture, filename: Filename) -> bool:
+            if "module_import" in capture:
+                return bool("chain" in capture["module_import"].value) and filename.startswith(
+                    "./airflow/providers/google/"
+                )
+            return False
+
         os.makedirs(
             os.path.join(get_target_providers_package_folder("google"), "common", "utils"), exist_ok=True
         )
@@ -666,6 +673,12 @@ class RefactorBackportPackages:
             self.qry.select_module("airflow.utils.process_utils")
             .filter(callback=google_package_filter)
             .rename("airflow.providers.google.common.utils.process_utils")
+        )
+
+        (
+            self.qry.select_module("airflow.models.baseoperator")
+            .filter(callback=_contains_chain_in_import_filter)
+            .rename("airflow.providers.google.common.utils.helpers")
         )
 
         (

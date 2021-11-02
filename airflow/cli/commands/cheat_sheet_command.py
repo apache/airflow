@@ -25,7 +25,7 @@ from airflow.utils.cli import suppress_logs_and_warning
 from airflow.utils.helpers import partition
 
 
-@suppress_logs_and_warning()
+@suppress_logs_and_warning
 def cheat_sheet(args):
     """Display cheat-sheet."""
     display_commands_index()

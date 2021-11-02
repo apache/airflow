@@ -431,6 +431,7 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
                         name="base",
                         command=self.cmds,
                         ports=self.ports,
+                        image_pull_policy=self.image_pull_policy,
                         resources=self.k8s_resources,
                         volume_mounts=self.volume_mounts,
                         args=self.arguments,

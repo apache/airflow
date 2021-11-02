@@ -22,7 +22,14 @@ import ast
 from typing import Dict, List, Optional, Sequence, Tuple, Union
 
 from google.api_core.retry import Retry
-from google.protobuf.json_format import MessageToDict
+from google.cloud.automl_v1beta1 import (
+    BatchPredictResult,
+    ColumnSpec,
+    Dataset,
+    Model,
+    PredictResponse,
+    TableSpec,
+)
 
 from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.automl import CloudAutoMLHook
@@ -113,7 +120,7 @@ class AutoMLTrainModelOperator(BaseOperator):
             timeout=self.timeout,
             metadata=self.metadata,
         )
-        result = MessageToDict(operation.result())
+        result = Model.to_dict(operation.result())
         model_id = hook.extract_object_id(result)
         self.log.info("Model created: %s", model_id)
 
@@ -212,7 +219,7 @@ class AutoMLPredictOperator(BaseOperator):
             timeout=self.timeout,
             metadata=self.metadata,
         )
-        return MessageToDict(result)
+        return PredictResponse.to_dict(result)
 
 
 class AutoMLBatchPredictOperator(BaseOperator):
@@ -324,7 +331,7 @@ class AutoMLBatchPredictOperator(BaseOperator):
             timeout=self.timeout,
             metadata=self.metadata,
         )
-        result = MessageToDict(operation.result())
+        result = BatchPredictResult.to_dict(operation.result())
         self.log.info("Batch prediction ready.")
         return result
 
@@ -414,7 +421,7 @@ class AutoMLCreateDatasetOperator(BaseOperator):
             timeout=self.timeout,
             metadata=self.metadata,
         )
-        result = MessageToDict(result)
+        result = Dataset.to_dict(result)
         dataset_id = hook.extract_object_id(result)
         self.log.info("Creating completed. Dataset id: %s", dataset_id)
 
@@ -513,9 +520,8 @@ class AutoMLImportDataOperator(BaseOperator):
             timeout=self.timeout,
             metadata=self.metadata,
         )
-        result = MessageToDict(operation.result())
+        operation.result()
         self.log.info("Import completed")
-        return result
 
 
 class AutoMLTablesListColumnSpecsOperator(BaseOperator):
@@ -627,7 +633,7 @@ class AutoMLTablesListColumnSpecsOperator(BaseOperator):
             timeout=self.timeout,
             metadata=self.metadata,
         )
-        result = [MessageToDict(spec) for spec in page_iterator]
+        result = [ColumnSpec.to_dict(spec) for spec in page_iterator]
         self.log.info("Columns specs obtained.")
 
         return result
@@ -718,7 +724,7 @@ class AutoMLTablesUpdateDatasetOperator(BaseOperator):
             metadata=self.metadata,
         )
         self.log.info("Dataset updated.")
-        return MessageToDict(result)
+        return Dataset.to_dict(result)
 
 
 class AutoMLGetModelOperator(BaseOperator):
@@ -804,7 +810,7 @@ class AutoMLGetModelOperator(BaseOperator):
             timeout=self.timeout,
             metadata=self.metadata,
         )
-        return MessageToDict(result)
+        return Model.to_dict(result)
 
 
 class AutoMLDeleteModelOperator(BaseOperator):
@@ -890,8 +896,7 @@ class AutoMLDeleteModelOperator(BaseOperator):
             timeout=self.timeout,
             metadata=self.metadata,
         )
-        result = MessageToDict(operation.result())
-        return result
+        operation.result()
 
 
 class AutoMLDeployModelOperator(BaseOperator):
@@ -991,9 +996,8 @@ class AutoMLDeployModelOperator(BaseOperator):
             timeout=self.timeout,
             metadata=self.metadata,
         )
-        result = MessageToDict(operation.result())
+        operation.result()
         self.log.info("Model deployed.")
-        return result
 
 
 class AutoMLTablesListTableSpecsOperator(BaseOperator):
@@ -1092,7 +1096,7 @@ class AutoMLTablesListTableSpecsOperator(BaseOperator):
             timeout=self.timeout,
             metadata=self.metadata,
         )
-        result = [MessageToDict(spec) for spec in page_iterator]
+        result = [TableSpec.to_dict(spec) for spec in page_iterator]
         self.log.info(result)
         self.log.info("Table specs obtained.")
         return result
@@ -1173,7 +1177,7 @@ class AutoMLListDatasetOperator(BaseOperator):
             timeout=self.timeout,
             metadata=self.metadata,
         )
-        result = [MessageToDict(dataset) for dataset in page_iterator]
+        result = [Dataset.to_dict(dataset) for dataset in page_iterator]
         self.log.info("Datasets obtained.")
 
         self.xcom_push(

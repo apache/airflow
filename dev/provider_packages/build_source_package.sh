@@ -123,7 +123,7 @@ if (( $# > 0 )); then
         BACKPORTS="true"
     else
         echo
-        echo  "${COLOR_RED_ERROR} You can run the script with '--backports' flag only  ${COLOR_RESET}"
+        echo  "${COLOR_RED}ERROR: You can run the script with '--backports' flag only  ${COLOR_RESET}"
         echo
         exit 1
     fi

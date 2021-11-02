@@ -80,6 +80,10 @@ class AwsBatchOperator(BaseOperator):
         Override the region_name in connection (if provided)
     :type region_name: str
 
+    :param tags: collection of tags to apply to the AWS Batch job submission
+        if None, no tags are submitted
+    :type tags: dict
+
     .. note::
         Any custom waiters must return a waiter for these calls:
         .. code-block:: python
@@ -113,6 +117,7 @@ class AwsBatchOperator(BaseOperator):
         status_retries: Optional[int] = None,
         aws_conn_id: Optional[str] = None,
         region_name: Optional[str] = None,
+        tags: Optional[dict] = None,
         **kwargs,
     ):  # pylint: disable=too-many-arguments
 
@@ -125,6 +130,7 @@ class AwsBatchOperator(BaseOperator):
         self.array_properties = array_properties or {}
         self.parameters = parameters or {}
         self.waiters = waiters
+        self.tags = tags or {}
         self.hook = AwsBatchClientHook(
             max_retries=max_retries,
             status_retries=status_retries,
@@ -166,6 +172,7 @@ class AwsBatchOperator(BaseOperator):
                 arrayProperties=self.array_properties,
                 parameters=self.parameters,
                 containerOverrides=self.overrides,
+                tags=self.tags,
             )
             self.job_id = response["jobId"]
 

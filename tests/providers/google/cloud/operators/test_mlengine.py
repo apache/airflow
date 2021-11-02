@@ -315,7 +315,7 @@ class TestMLEngineBatchPredictionOperator(unittest.TestCase):
         self.assertEqual('A failure message', str(context.exception))
 
 
-class TestMLEngineTrainingOperator(unittest.TestCase):
+class TestMLEngineStartTrainingJobOperator(unittest.TestCase):
     TRAINING_DEFAULT_ARGS = {
         'project_id': 'test-project',
         'job_id': 'test_training',
@@ -405,6 +405,52 @@ class TestMLEngineTrainingOperator(unittest.TestCase):
         self.assertEqual(len(hook_instance.mock_calls), 1)
         hook_instance.create_job.assert_called_once_with(
             project_id='test-project', job=training_input, use_existing_job_fn=ANY
+        )
+
+    @patch('airflow.providers.google.cloud.operators.mlengine.MLEngineHook')
+    def test_success_create_training_job_with_master_image(self, hook):
+        arguments = {
+            'project_id': 'test-project',
+            'job_id': 'test_training',
+            'region': 'europe-west1',
+            'scale_tier': 'CUSTOM',
+            'master_type': 'n1-standard-8',
+            'master_config': {
+                'imageUri': 'eu.gcr.io/test-project/test-image:test-version',
+            },
+            'task_id': 'test-training',
+            'start_date': days_ago(1),
+        }
+        request = {
+            'jobId': 'test_training',
+            'trainingInput': {
+                'region': 'europe-west1',
+                'scaleTier': 'CUSTOM',
+                'masterType': 'n1-standard-8',
+                'masterConfig': {
+                    'imageUri': 'eu.gcr.io/test-project/test-image:test-version',
+                },
+            },
+        }
+
+        response = request.copy()
+        response['state'] = 'SUCCEEDED'
+        hook_instance = hook.return_value
+        hook_instance.create_job.return_value = response
+
+        operator = MLEngineStartTrainingJobOperator(**arguments)
+        operator.execute(MagicMock())
+
+        hook.assert_called_once_with(
+            gcp_conn_id='google_cloud_default',
+            delegate_to=None,
+            impersonation_chain=None,
+        )
+        self.assertEqual(len(hook_instance.mock_calls), 1)
+        hook_instance.create_job.assert_called_once_with(
+            project_id='test-project',
+            job=request,
+            use_existing_job_fn=ANY,
         )
 
     @patch('airflow.providers.google.cloud.operators.mlengine.MLEngineHook')

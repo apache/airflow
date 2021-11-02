@@ -33,3 +33,5 @@ Content
     :caption: References
 
     Python API <_api/airflow/providers/odbc/index>
+
+    PyPI Repository <https://pypi.org/project/apache-airflow-providers-odbc/>

@@ -62,7 +62,7 @@ do
         if [[ ${mermaid_installed} != "true" ]]; then
             echo "Installing mermaid"
             mkdir -p "${MERMAID_INSTALLATION_DIR}/node_modules"
-            pushd "${MERMAID_INSTALLATION_DIR}"
+            pushd "${MERMAID_INSTALLATION_DIR}" >/dev/null 2>&1 || exit 1
             npm install mermaid.cli
             cat >"${MERMAID_CONFIG_FILE}" <<EOF
 {

@@ -49,5 +49,8 @@ spec:
         query: >-
           SELECT ceil(COUNT(*)::decimal / {{ .Values.config.celery.worker_concurrency }})
           FROM task_instance
-          WHERE state='running' OR state='queued'
+          WHERE (state='running' OR state='queued')
+          {{- if eq .Values.executor "CeleryKubernetesExecutor" }}
+          AND queue != '{{ .Values.config.celery_kubernetes_executor.kubernetes_queue }}'
+          {{- end }}
 {{- end }}

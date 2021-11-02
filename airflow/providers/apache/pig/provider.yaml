@@ -26,6 +26,7 @@ versions:
 integrations:
   - integration-name: Apache Pig
     external-doc-url: https://pig.apache.org/
+    logo: /integration-logos/apache/pig.png
     tags: [apache]
 
 operators:

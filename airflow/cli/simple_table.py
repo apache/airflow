@@ -14,6 +14,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+import inspect
 import json
 from typing import Any, Callable, Dict, List, Optional, Union
 
@@ -22,6 +23,8 @@ from rich.box import ASCII_DOUBLE_HEAD
 from rich.console import Console
 from rich.syntax import Syntax
 from rich.table import Table
+
+from airflow.plugins_manager import PluginsDirectorySource
 
 
 class AirflowConsole(Console):
@@ -53,13 +56,16 @@ class AirflowConsole(Console):
             table.add_row(*[str(d) for d in row.values()])
         self.print(table)
 
-    def _normalize_data(self, value: Any, output: str) -> Union[list, str, dict]:
+    # pylint: disable=too-many-return-statements
+    def _normalize_data(self, value: Any, output: str) -> Optional[Union[list, str, dict]]:
         if isinstance(value, (tuple, list)):
             if output == "table":
                 return ",".join(self._normalize_data(x, output) for x in value)
             return [self._normalize_data(x, output) for x in value]
         if isinstance(value, dict) and output != "table":
             return {k: self._normalize_data(v, output) for k, v in value.items()}
+        if inspect.isclass(value) and not isinstance(value, PluginsDirectorySource):
+            return value.__name__
         if value is None:
             return None
         return str(value)

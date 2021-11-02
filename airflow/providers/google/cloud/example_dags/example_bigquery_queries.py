@@ -105,7 +105,7 @@ for location in [None, LOCATION]:
             configuration={
                 "query": {
                     "query": INSERT_ROWS_QUERY,
-                    "useLegacySql": "False",
+                    "useLegacySql": False,
                 }
             },
             location=location,

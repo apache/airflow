@@ -25,7 +25,7 @@ from parameterized import parameterized
 
 from tests.helm_template_generator import render_chart
 
-OBJECT_COUNT_IN_BASIC_DEPLOYMENT = 36
+OBJECT_COUNT_IN_BASIC_DEPLOYMENT = 38
 
 
 class TestBaseChartTest(unittest.TestCase):
@@ -50,6 +50,7 @@ class TestBaseChartTest(unittest.TestCase):
             ('ServiceAccount', 'TEST-BASIC-redis'),
             ('ServiceAccount', 'TEST-BASIC-scheduler'),
             ('ServiceAccount', 'TEST-BASIC-statsd'),
+            ('ServiceAccount', 'TEST-BASIC-triggerer'),
             ('ServiceAccount', 'TEST-BASIC-webserver'),
             ('ServiceAccount', 'TEST-BASIC-worker'),
             ('Secret', 'TEST-BASIC-airflow-metadata'),
@@ -74,6 +75,7 @@ class TestBaseChartTest(unittest.TestCase):
             ('Deployment', 'TEST-BASIC-flower'),
             ('Deployment', 'TEST-BASIC-scheduler'),
             ('Deployment', 'TEST-BASIC-statsd'),
+            ('Deployment', 'TEST-BASIC-triggerer'),
             ('Deployment', 'TEST-BASIC-webserver'),
             ('StatefulSet', 'TEST-BASIC-postgresql'),
             ('StatefulSet', 'TEST-BASIC-redis'),
@@ -96,7 +98,10 @@ class TestBaseChartTest(unittest.TestCase):
             ), f"Missing label TEST-LABEL on {k8s_name}. Current labels: {labels}"
 
     def test_basic_deployment_without_default_users(self):
-        k8s_objects = render_chart("TEST-BASIC", {"webserver": {'defaultUser': {'enabled': False}}})
+        k8s_objects = render_chart(
+            "TEST-BASIC",
+            values={"webserver": {"defaultUser": {'enabled': False}}},
+        )
         list_of_kind_names_tuples = [
             (k8s_object['kind'], k8s_object['metadata']['name']) for k8s_object in k8s_objects
         ]
@@ -213,6 +218,41 @@ class TestBaseChartTest(unittest.TestCase):
 
         if kind_k8s_obj_labels_tuples:
             warnings.warn(f"Unchecked objects: {kind_k8s_obj_labels_tuples.keys()}")
+
+    def test_labels_are_valid_on_job_templates(self):
+        """Test labels are correctly applied on all job templates created by this chart"""
+        release_name = "TEST-BASIC"
+        k8s_objects = render_chart(
+            name=release_name,
+            values={
+                "labels": {"label1": "value1", "label2": "value2"},
+                "executor": "CeleryExecutor",
+                "pgbouncer": {"enabled": True},
+                "redis": {"enabled": True},
+                "networkPolicies": {"enabled": True},
+                "cleanup": {"enabled": True},
+                "postgresql": {"enabled": False},  # We won't check the objects created by the postgres chart
+            },
+        )
+        dict_of_labels_in_job_templates = {
+            k8s_object['metadata']['name']: k8s_object['spec']['template']['metadata']['labels']
+            for k8s_object in k8s_objects
+            if k8s_object['kind'] == "Job"
+        }
+
+        kind_names_tuples = [
+            (f"{release_name}-create-user", "create-user-job"),
+            (f"{release_name}-run-airflow-migrations", "run-airflow-migrations"),
+        ]
+        for k8s_object_name, component in kind_names_tuples:
+            expected_labels = {
+                "label1": "value1",
+                "label2": "value2",
+                "tier": "airflow",
+                "release": release_name,
+                "component": component,
+            }
+            assert dict_of_labels_in_job_templates.get(k8s_object_name) == expected_labels
 
     def test_annotations_on_airflow_pods_in_deployment(self):
         """

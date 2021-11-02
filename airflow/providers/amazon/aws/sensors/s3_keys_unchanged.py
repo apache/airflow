@@ -88,7 +88,7 @@ class S3KeysUnchangedSensor(BaseSensorOperator):
 
         super().__init__(**kwargs)
 
-        self.bucket = bucket_name
+        self.bucket_name = bucket_name
         self.prefix = prefix
         if inactivity_period < 0:
             raise ValueError("inactivity_period must be non-negative")
@@ -120,7 +120,7 @@ class S3KeysUnchangedSensor(BaseSensorOperator):
             # and update previous_objects for the next poke.
             self.log.info(
                 "New objects found at %s, resetting last_activity_time.",
-                os.path.join(self.bucket, self.prefix),
+                os.path.join(self.bucket_name, self.prefix),
             )
             self.log.debug("New objects: %s", current_objects - self.previous_objects)
             self.last_activity_time = datetime.now()
@@ -143,7 +143,7 @@ class S3KeysUnchangedSensor(BaseSensorOperator):
 
             raise AirflowException(
                 "Illegal behavior: objects were deleted in %s between pokes."
-                % os.path.join(self.bucket, self.prefix)
+                % os.path.join(self.bucket_name, self.prefix)
             )
 
         if self.last_activity_time:
@@ -154,7 +154,7 @@ class S3KeysUnchangedSensor(BaseSensorOperator):
             self.inactivity_seconds = 0
 
         if self.inactivity_seconds >= self.inactivity_period:
-            path = os.path.join(self.bucket, self.prefix)
+            path = os.path.join(self.bucket_name, self.prefix)
 
             if current_num_objects >= self.min_objects:
                 self.log.info(
@@ -172,4 +172,4 @@ class S3KeysUnchangedSensor(BaseSensorOperator):
         return False
 
     def poke(self, context):
-        return self.is_keys_unchanged(set(self.hook.list_keys(self.bucket, prefix=self.prefix)))
+        return self.is_keys_unchanged(set(self.hook.list_keys(self.bucket_name, prefix=self.prefix)))

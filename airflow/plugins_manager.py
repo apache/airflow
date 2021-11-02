@@ -283,7 +283,7 @@ def ensure_plugins_loaded():
 
     num_loaded = len(plugins)
     if num_loaded > 0:
-        log.info("Loading %d plugin(s) took %.2f seconds", num_loaded, timer.duration)
+        log.debug("Loading %d plugin(s) took %.2f seconds", num_loaded, timer.duration)
 
 
 def initialize_web_ui_plugins():

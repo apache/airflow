@@ -20,9 +20,8 @@ from typing import Dict, Optional, Sequence, Tuple, Union
 
 from google.api_core.retry import Retry
 from google.cloud.memcache_v1beta2.types import cloud_memcache
-from google.cloud.redis_v1.gapic.enums import FailoverInstanceRequest
-from google.cloud.redis_v1.types import FieldMask, InputConfig, Instance, OutputConfig
-from google.protobuf.json_format import MessageToDict
+from google.cloud.redis_v1 import FailoverInstanceRequest, InputConfig, Instance, OutputConfig
+from google.protobuf.field_mask_pb2 import FieldMask
 
 from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.cloud_memorystore import (
@@ -134,7 +133,7 @@ class CloudMemorystoreCreateInstanceOperator(BaseOperator):
             timeout=self.timeout,
             metadata=self.metadata,
         )
-        return MessageToDict(result)
+        return Instance.to_dict(result)
 
 
 class CloudMemorystoreDeleteInstanceOperator(BaseOperator):
@@ -492,7 +491,7 @@ class CloudMemorystoreGetInstanceOperator(BaseOperator):
             timeout=self.timeout,
             metadata=self.metadata,
         )
-        return MessageToDict(result)
+        return Instance.to_dict(result)
 
 
 class CloudMemorystoreImportOperator(BaseOperator):
@@ -677,7 +676,7 @@ class CloudMemorystoreListInstancesOperator(BaseOperator):
             timeout=self.timeout,
             metadata=self.metadata,
         )
-        instances = [MessageToDict(a) for a in result]
+        instances = [Instance.to_dict(a) for a in result]
         return instances
 
 

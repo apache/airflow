@@ -138,7 +138,6 @@ disable=print-statement,
         xreadlines-attribute,
         exception-escape,
         comprehension-escape,
-        bad-continuation,  # Throws incorrect errors, see https://github.com/ambv/black/issues/48
         duplicate-code,  # deemed unnecessary
         abstract-method,  # deemed unnecessary
         keyword-arg-before-vararg,  # deemed unnecessary
@@ -155,6 +154,7 @@ disable=print-statement,
         ungrouped-imports,  # Disabled to avoid conflict with isort import order rules, which is enabled in the project.
         missing-module-docstring,
         import-outside-toplevel,    # We import outside toplevel to avoid cyclic imports
+        raise-missing-from  # We don't use raise...from
 
 # Enable the message, report, category or checker with the given id(s). You can
 # either give multiple identifier separated by comma (,) or put this option

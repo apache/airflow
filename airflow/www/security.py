@@ -216,8 +216,8 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
         if user is None:
             user = g.user
         if user.is_anonymous:
-            public_role = current_app.appbuilder.config.get('AUTH_ROLE_PUBLIC')
-            return [current_app.appbuilder.security_manager.find_role(public_role)] if public_role else []
+            public_role = current_app.appbuilder.get_app.config["AUTH_ROLE_PUBLIC"]
+            return [current_app.appbuilder.sm.find_role(public_role)] if public_role else []
         return user.roles
 
     def get_all_permissions_views(self):

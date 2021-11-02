@@ -23,6 +23,8 @@ Revises: 849da589634d
 Create Date: 2020-10-21 00:18:52.529438
 
 """
+import logging
+
 from airflow.security import permissions
 from airflow.www.app import create_app
 
@@ -307,7 +309,10 @@ def remap_permissions():
 
 def upgrade():
     """Apply Resource based permissions."""
+    log = logging.getLogger()
+    handlers = log.handlers[:]
     remap_permissions()
+    log.handlers = handlers
 
 
 def downgrade():

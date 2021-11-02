@@ -26,6 +26,7 @@ versions:
 integrations:
   - integration-name: Apache Sqoop
     external-doc-url: https://sqoop.apache.org/
+    logo: /integration-logos/apache/sqoop.png
     tags: [apache]
 
 operators:

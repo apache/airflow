@@ -2783,12 +2783,13 @@ class TestTriggerDag(TestBase):
             2. Conf is passed as a URL parameter -> passed conf json is in textarea
         """
         test_dag_id = "example_bash_operator"
+        doc_md = "Example Bash Operator"
 
         if not request_conf:
             resp = self.client.get(f'trigger?dag_id={test_dag_id}')
         else:
             test_request_conf = json.dumps(request_conf, indent=4)
-            resp = self.client.get(f'trigger?dag_id={test_dag_id}&conf={test_request_conf}')
+            resp = self.client.get(f'trigger?dag_id={test_dag_id}&conf={test_request_conf}&doc_md={doc_md}')
 
         expected_dag_conf = json.dumps(expected_conf, indent=4).replace("\"", "&#34;")
 

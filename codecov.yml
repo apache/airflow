@@ -16,6 +16,7 @@
 # under the License.
 ---
 codecov:
+  max_report_age: off  # yamllint disable-line rule:truthy
   require_ci_to_pass: true
   notify:
     wait_for_ci: false

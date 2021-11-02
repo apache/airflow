@@ -414,7 +414,7 @@ class TestTaskInstance(unittest.TestCase):
     @provide_session
     def test_ti_updates_with_task(self, session=None):
         """
-        test that updating the executor_config propogates to the TaskInstance DB
+        test that updating the executor_config propagates to the TaskInstance DB
         """
         with models.DAG(dag_id='test_run_pooling_task') as dag:
             task = DummyOperator(
@@ -1945,7 +1945,7 @@ class TestTaskInstance(unittest.TestCase):
                 for upstream, downstream in dependencies.items():
                     dag.set_dependency(upstream, downstream)
 
-            scheduler = SchedulerJob()
+            scheduler = SchedulerJob(subdir=os.devnull)
             scheduler.dagbag.bag_dag(dag, root_dag=dag)
 
             dag_run = dag.create_dagrun(run_id='test_dagrun_fast_follow', state=State.RUNNING)

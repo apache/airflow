@@ -25,7 +25,9 @@ import os
 from airflow import models
 from airflow.providers.google.cloud.operators.dataproc import (
     DataprocCreateClusterOperator,
+    DataprocCreateWorkflowTemplateOperator,
     DataprocDeleteClusterOperator,
+    DataprocInstantiateWorkflowTemplateOperator,
     DataprocSubmitJobOperator,
     DataprocUpdateClusterOperator,
 )
@@ -33,7 +35,7 @@ from airflow.providers.google.cloud.sensors.dataproc import DataprocJobSensor
 from airflow.utils.dates import days_ago
 
 PROJECT_ID = os.environ.get("GCP_PROJECT_ID", "an-id")
-CLUSTER_NAME = os.environ.get("GCP_DATAPROC_CLUSTER_NAME", "example-project")
+CLUSTER_NAME = os.environ.get("GCP_DATAPROC_CLUSTER_NAME", "example-cluster")
 REGION = os.environ.get("GCP_LOCATION", "europe-west1")
 ZONE = os.environ.get("GCP_REGION", "europe-west1-b")
 BUCKET = os.environ.get("GCP_DATAPROC_BUCKET", "dataproc-system-tests")
@@ -136,6 +138,18 @@ HADOOP_JOB = {
     },
 }
 # [END how_to_cloud_dataproc_hadoop_config]
+WORKFLOW_NAME = "airflow-dataproc-test"
+WORKFLOW_TEMPLATE = {
+    "id": WORKFLOW_NAME,
+    "placement": {
+        "managed_cluster": {
+            "cluster_name": CLUSTER_NAME,
+            "config": CLUSTER_CONFIG,
+        }
+    },
+    "jobs": [{"step_id": "pig_job_1", "pig_job": PIG_JOB["pig_job"]}],
+}
+
 
 with models.DAG("example_gcp_dataproc", start_date=days_ago(1), schedule_interval=None) as dag:
     # [START how_to_cloud_dataproc_create_cluster_operator]
@@ -159,6 +173,21 @@ with models.DAG("example_gcp_dataproc", start_date=days_ago(1), schedule_interva
         location=REGION,
     )
     # [END how_to_cloud_dataproc_update_cluster_operator]
+
+    # [START how_to_cloud_dataproc_create_workflow_template]
+    create_workflow_template = DataprocCreateWorkflowTemplateOperator(
+        task_id="create_workflow_template",
+        template=WORKFLOW_TEMPLATE,
+        project_id=PROJECT_ID,
+        location=REGION,
+    )
+    # [END how_to_cloud_dataproc_create_workflow_template]
+
+    # [START how_to_cloud_dataproc_trigger_workflow_template]
+    trigger_workflow = DataprocInstantiateWorkflowTemplateOperator(
+        task_id="trigger_workflow", region=REGION, project_id=PROJECT_ID, template_id=WORKFLOW_NAME
+    )
+    # [END how_to_cloud_dataproc_trigger_workflow_template]
 
     pig_task = DataprocSubmitJobOperator(
         task_id="pig_task", job=PIG_JOB, location=REGION, project_id=PROJECT_ID
@@ -210,6 +239,7 @@ with models.DAG("example_gcp_dataproc", start_date=days_ago(1), schedule_interva
     # [END how_to_cloud_dataproc_delete_cluster_operator]
 
     create_cluster >> scale_cluster
+    scale_cluster >> create_workflow_template >> trigger_workflow >> delete_cluster
     scale_cluster >> hive_task >> delete_cluster
     scale_cluster >> pig_task >> delete_cluster
     scale_cluster >> spark_sql_task >> delete_cluster

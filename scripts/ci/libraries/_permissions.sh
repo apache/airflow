@@ -41,19 +41,13 @@ function permissions::filterout_deleted_files {
 # Fixes permissions for groups for all the files that are quickly filtered using the permissions::filterout_deleted_files
 function permissions::fix_group_permissions() {
     if [[ ${PERMISSIONS_FIXED:=} == "true" ]]; then
-        verbosity::print_info
-        verbosity::print_info "Permissions already fixed"
-        verbosity::print_info
         return
     fi
-    verbosity::print_info
-    pushd "${AIRFLOW_SOURCES}" >/dev/null  || exit 1
+    pushd "${AIRFLOW_SOURCES}" >/dev/null 2>&1 || exit 1
     # This deals with files
     git ls-files -z -- ./ | permissions::filterout_deleted_files | xargs -0 chmod og-w
     # and this deals with directories
     git ls-tree -z -r -d --name-only HEAD | permissions::filterout_deleted_files | xargs -0 chmod og-w,og+x
-    popd >/dev/null || exit 1
-    verbosity::print_info "Fixed group permissions"
-    verbosity::print_info
+    popd >/dev/null 2>&1 || exit 1
     export PERMISSIONS_FIXED="true"
 }

@@ -31,7 +31,7 @@ $(document).ready(function () {
     $.each($("[id^='extra__']"), function () {
       $(this).parent().parent().addClass('hide')
     });
-    $.each($("[id^='extra__" + connectionType + "']"), function () {
+    $.each($("[id^='extra__" + connectionType + "__']"), function () {
       $(this).parent().parent().removeClass('hide')
     });
     $("label[orig_text]").each(function () {

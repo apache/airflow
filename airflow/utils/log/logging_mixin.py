@@ -57,7 +57,8 @@ class LoggingMixin:
 class ExternalLoggingMixin:
     """Define a log handler based on an external service (e.g. ELK, StackDriver)."""
 
-    @abc.abstractproperty
+    @property
+    @abc.abstractmethod
     def log_name(self) -> str:
         """Return log name"""
 

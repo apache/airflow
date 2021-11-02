@@ -78,6 +78,9 @@ spec:
 {{- if .Values.workers.extraVolumeMounts }}
 {{ toYaml .Values.workers.extraVolumeMounts | indent 8 }}
 {{- end }}
+{{- if .Values.workers.extraContainers }}
+{{- toYaml .Values.workers.extraContainers | nindent 4 }}
+{{- end }}
   hostNetwork: false
   {{- if or .Values.registry.secretName .Values.registry.connection }}
   imagePullSecrets:

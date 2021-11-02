@@ -1,0 +1,61 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "array",
+  "items": {
+    "type": "object",
+    "properties": {
+      "name": {
+        "type": "string"
+      },
+      "description": {
+        "type": ["string", "null"]
+      },
+      "options": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "name": {
+              "type": "string"
+            },
+            "description": {
+              "type": ["string", "null"]
+            },
+            "version_added": {
+              "type": ["string", "null"]
+            },
+            "type": {
+              "type": "string",
+              "enum": ["string", "boolean", "integer", "float"]
+            },
+            "example": {
+              "type": ["string", "null", "number"]
+            },
+            "default": {
+              "type": ["string", "null", "number"]
+            },
+            "sensitive": {
+              "type": "boolean",
+              "description": "When true, this option is sensitive and can be specified using AIRFLOW__{section}___{name}__SECRET or AIRFLOW__{section}___{name}__CMD environment variables. See: airflow.configuration.AirflowConfigParser.sensitive_config_values"
+            }
+          },
+          "required": [
+            "name",
+            "description",
+            "version_added",
+            "type",
+            "example",
+            "default"
+          ],
+          "additional_properties": false
+        }
+      }
+    },
+    "required": [
+      "name",
+      "description",
+      "options"
+    ],
+    "additional_properties": false
+  }
+}

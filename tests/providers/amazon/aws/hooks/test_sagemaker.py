@@ -22,7 +22,7 @@ import unittest
 from datetime import datetime
 from unittest import mock
 
-from tzlocal import get_localzone
+from dateutil.tz import tzlocal
 
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.logs import AwsLogsHook
@@ -478,7 +478,7 @@ class TestSageMakerHook(unittest.TestCase):
         self.assertFalse(changed)
 
     def test_secondary_training_status_message_status_changed(self):
-        now = datetime.now(get_localzone())
+        now = datetime.now(tzlocal())
         SECONDARY_STATUS_DESCRIPTION_1['LastModifiedTime'] = now
         expected = '{} {} - {}'.format(
             datetime.utcfromtimestamp(time.mktime(now.timetuple())).strftime('%Y-%m-%d %H:%M:%S'),

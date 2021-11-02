@@ -55,6 +55,17 @@ AUTH_TYPE = AUTH_DB
 # Will allow user self registration
 # AUTH_USER_REGISTRATION = True
 
+# The recaptcha it's automatically enabled for user self registration is active and the keys are necessary
+# RECAPTCHA_PRIVATE_KEY = PRIVATE_KEY
+# RECAPTCHA_PUBLIC_KEY = PUBLIC_KEY
+
+# Config for Flask-Mail necessary for user self registration
+# MAIL_SERVER = 'smtp.gmail.com'
+# MAIL_USE_TLS = True
+# MAIL_USERNAME = 'yourappemail@gmail.com'
+# MAIL_PASSWORD = 'passwordformail'
+# MAIL_DEFAULT_SENDER = 'sender@gmail.com'
+
 # The default user self registration role
 # AUTH_USER_REGISTRATION_ROLE = "Public"
 

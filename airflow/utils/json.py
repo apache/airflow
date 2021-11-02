@@ -16,10 +16,10 @@
 # specific language governing permissions and limitations
 # under the License.
 
-import json
 from datetime import date, datetime
 
 import numpy as np
+from flask.json import JSONEncoder
 
 try:
     from kubernetes.client import models as k8s
@@ -29,7 +29,7 @@ except ImportError:
 # Dates and JSON encoding/decoding
 
 
-class AirflowJsonEncoder(json.JSONEncoder):
+class AirflowJsonEncoder(JSONEncoder):
     """Custom Airflow json encoder implementation."""
 
     def __init__(self, *args, **kwargs):

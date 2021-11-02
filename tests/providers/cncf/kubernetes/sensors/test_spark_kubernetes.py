@@ -508,7 +508,7 @@ class TestSparkKubernetesSensor(unittest.TestCase):
         self.dag = DAG("test_dag_id", default_args=args)
 
     @patch(
-        "kubernetes.client.apis.custom_objects_api.CustomObjectsApi.get_namespaced_custom_object",
+        "kubernetes.client.api.custom_objects_api.CustomObjectsApi.get_namespaced_custom_object",
         return_value=TEST_COMPLETED_APPLICATION,
     )
     def test_completed_application(self, mock_get_namespaced_crd, mock_kubernetes_hook):
@@ -524,7 +524,7 @@ class TestSparkKubernetesSensor(unittest.TestCase):
         )
 
     @patch(
-        "kubernetes.client.apis.custom_objects_api.CustomObjectsApi.get_namespaced_custom_object",
+        "kubernetes.client.api.custom_objects_api.CustomObjectsApi.get_namespaced_custom_object",
         return_value=TEST_FAILED_APPLICATION,
     )
     def test_failed_application(self, mock_get_namespaced_crd, mock_kubernetes_hook):
@@ -540,7 +540,7 @@ class TestSparkKubernetesSensor(unittest.TestCase):
         )
 
     @patch(
-        "kubernetes.client.apis.custom_objects_api.CustomObjectsApi.get_namespaced_custom_object",
+        "kubernetes.client.api.custom_objects_api.CustomObjectsApi.get_namespaced_custom_object",
         return_value=TEST_NOT_PROCESSED_APPLICATION,
     )
     def test_not_processed_application(self, mock_get_namespaced_crd, mock_kubernetes_hook):
@@ -556,7 +556,7 @@ class TestSparkKubernetesSensor(unittest.TestCase):
         )
 
     @patch(
-        "kubernetes.client.apis.custom_objects_api.CustomObjectsApi.get_namespaced_custom_object",
+        "kubernetes.client.api.custom_objects_api.CustomObjectsApi.get_namespaced_custom_object",
         return_value=TEST_NEW_APPLICATION,
     )
     def test_new_application(self, mock_get_namespaced_crd, mock_kubernetes_hook):
@@ -572,7 +572,7 @@ class TestSparkKubernetesSensor(unittest.TestCase):
         )
 
     @patch(
-        "kubernetes.client.apis.custom_objects_api.CustomObjectsApi.get_namespaced_custom_object",
+        "kubernetes.client.api.custom_objects_api.CustomObjectsApi.get_namespaced_custom_object",
         return_value=TEST_RUNNING_APPLICATION,
     )
     def test_running_application(self, mock_get_namespaced_crd, mock_kubernetes_hook):
@@ -588,7 +588,7 @@ class TestSparkKubernetesSensor(unittest.TestCase):
         )
 
     @patch(
-        "kubernetes.client.apis.custom_objects_api.CustomObjectsApi.get_namespaced_custom_object",
+        "kubernetes.client.api.custom_objects_api.CustomObjectsApi.get_namespaced_custom_object",
         return_value=TEST_SUBMITTED_APPLICATION,
     )
     def test_submitted_application(self, mock_get_namespaced_crd, mock_kubernetes_hook):
@@ -604,7 +604,7 @@ class TestSparkKubernetesSensor(unittest.TestCase):
         )
 
     @patch(
-        "kubernetes.client.apis.custom_objects_api.CustomObjectsApi.get_namespaced_custom_object",
+        "kubernetes.client.api.custom_objects_api.CustomObjectsApi.get_namespaced_custom_object",
         return_value=TEST_PENDING_RERUN_APPLICATION,
     )
     def test_pending_rerun_application(self, mock_get_namespaced_crd, mock_kubernetes_hook):
@@ -620,7 +620,7 @@ class TestSparkKubernetesSensor(unittest.TestCase):
         )
 
     @patch(
-        "kubernetes.client.apis.custom_objects_api.CustomObjectsApi.get_namespaced_custom_object",
+        "kubernetes.client.api.custom_objects_api.CustomObjectsApi.get_namespaced_custom_object",
         return_value=TEST_UNKNOWN_APPLICATION,
     )
     def test_unknown_application(self, mock_get_namespaced_crd, mock_kubernetes_hook):
@@ -636,7 +636,7 @@ class TestSparkKubernetesSensor(unittest.TestCase):
         )
 
     @patch(
-        "kubernetes.client.apis.custom_objects_api.CustomObjectsApi.get_namespaced_custom_object",
+        "kubernetes.client.api.custom_objects_api.CustomObjectsApi.get_namespaced_custom_object",
         return_value=TEST_COMPLETED_APPLICATION,
     )
     def test_namespace_from_sensor(self, mock_get_namespaced_crd, mock_kubernetes_hook):
@@ -658,7 +658,7 @@ class TestSparkKubernetesSensor(unittest.TestCase):
         )
 
     @patch(
-        "kubernetes.client.apis.custom_objects_api.CustomObjectsApi.get_namespaced_custom_object",
+        "kubernetes.client.api.custom_objects_api.CustomObjectsApi.get_namespaced_custom_object",
         return_value=TEST_COMPLETED_APPLICATION,
     )
     def test_namespace_from_connection(self, mock_get_namespaced_crd, mock_kubernetes_hook):
@@ -679,7 +679,7 @@ class TestSparkKubernetesSensor(unittest.TestCase):
         )
 
     @patch(
-        "kubernetes.client.apis.custom_objects_api.CustomObjectsApi.get_namespaced_custom_object",
+        "kubernetes.client.api.custom_objects_api.CustomObjectsApi.get_namespaced_custom_object",
         return_value=TEST_FAILED_APPLICATION,
     )
     @patch("logging.Logger.error")
@@ -701,7 +701,7 @@ class TestSparkKubernetesSensor(unittest.TestCase):
         error_log_call.assert_called_once_with(TEST_POD_LOG_RESULT)
 
     @patch(
-        "kubernetes.client.apis.custom_objects_api.CustomObjectsApi.get_namespaced_custom_object",
+        "kubernetes.client.api.custom_objects_api.CustomObjectsApi.get_namespaced_custom_object",
         return_value=TEST_COMPLETED_APPLICATION,
     )
     @patch("logging.Logger.info")
@@ -725,7 +725,7 @@ class TestSparkKubernetesSensor(unittest.TestCase):
         self.assertEqual(log_value, TEST_POD_LOG_RESULT)
 
     @patch(
-        "kubernetes.client.apis.custom_objects_api.CustomObjectsApi.get_namespaced_custom_object",
+        "kubernetes.client.api.custom_objects_api.CustomObjectsApi.get_namespaced_custom_object",
         return_value=TEST_COMPLETED_APPLICATION,
     )
     @patch("logging.Logger.warning")

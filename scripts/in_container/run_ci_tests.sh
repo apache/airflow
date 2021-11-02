@@ -39,7 +39,7 @@ elif [[ "${RES}" != "0" ]]; then
         EXTRA_ARGS="--mysql-version ${MYSQL_VERSION} "
     fi
     echo """
-${COLOR_RED_ERROR}
+${COLOR_RED}ERROR:
 ***********************************************************************************************
 *
 * ERROR! Some tests failed, unfortunately. Those might be transient errors,
@@ -53,11 +53,11 @@ ${COLOR_RED_ERROR}
 *
 *     Run all tests:
 *
-*       ./breeze --backend ${BACKEND} ${EXTRA_ARGS}--python ${PYTHON_MAJOR_MINOR_VERSION} --db-reset --skip-mounting-local-sources --test-type ${TEST_TYPE}  tests
+*       ./breeze --backend ${BACKEND} ${EXTRA_ARGS}--python ${PYTHON_MAJOR_MINOR_VERSION} --db-reset --skip-mounting-local-sources --test-type ${TEST_TYPE} tests
 *
 *     Enter docker shell:
 *
-*       ./breeze --backend ${BACKEND} ${EXTRA_ARGS}--python ${PYTHON_MAJOR_MINOR_VERSION} --db-reset --skip-mounting-local-sources --test-type ${TEST_TYPE}  shell
+*       ./breeze --backend ${BACKEND} ${EXTRA_ARGS}--python ${PYTHON_MAJOR_MINOR_VERSION} --db-reset --skip-mounting-local-sources --test-type ${TEST_TYPE} shell
 *
 """
     if [[ ${GITHUB_REGISTRY_PULL_IMAGE_TAG=} != "" ]]; then

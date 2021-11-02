@@ -1545,6 +1545,70 @@ class DataprocSubmitPySparkJobOperator(DataprocJobBaseOperator):
         super().execute(context)
 
 
+class DataprocCreateWorkflowTemplateOperator(BaseOperator):
+    """
+    Creates new workflow template.
+
+    :param project_id: Required. The ID of the Google Cloud project the cluster belongs to.
+    :type project_id: str
+    :param location: Required. The Cloud Dataproc region in which to handle the request.
+    :type location: str
+    :param template: The Dataproc workflow template to create. If a dict is provided,
+        it must be of the same form as the protobuf message WorkflowTemplate.
+    :type template: Union[dict, WorkflowTemplate]
+    :param retry: A retry object used to retry requests. If ``None`` is specified, requests will not be
+        retried.
+    :type retry: google.api_core.retry.Retry
+    :param timeout: The amount of time, in seconds, to wait for the request to complete. Note that if
+        ``retry`` is specified, the timeout applies to each individual attempt.
+    :type timeout: float
+    :param metadata: Additional metadata that is provided to the method.
+    :type metadata: Sequence[Tuple[str, str]]
+    """
+
+    template_fields = ("location", "template")
+    template_fields_renderers = {"template": "json"}
+
+    def __init__(
+        self,
+        *,
+        location: str,
+        template: Dict,
+        project_id: str,
+        retry: Optional[Retry] = None,
+        timeout: Optional[float] = None,
+        metadata: Optional[Sequence[Tuple[str, str]]] = None,
+        gcp_conn_id: str = "google_cloud_default",
+        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        **kwargs,
+    ):
+        super().__init__(**kwargs)
+        self.location = location
+        self.template = template
+        self.project_id = project_id
+        self.retry = retry
+        self.timeout = timeout
+        self.metadata = metadata
+        self.gcp_conn_id = gcp_conn_id
+        self.impersonation_chain = impersonation_chain
+
+    def execute(self, context):
+        hook = DataprocHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain)
+        self.log.info("Creating template")
+        try:
+            workflow = hook.create_workflow_template(
+                location=self.location,
+                template=self.template,
+                project_id=self.project_id,
+                retry=self.retry,
+                timeout=self.timeout,
+                metadata=self.metadata,
+            )
+            self.log.info("Workflow %s created", workflow.name)
+        except AlreadyExists:
+            self.log.info("Workflow with given id already exists")
+
+
 class DataprocInstantiateWorkflowTemplateOperator(BaseOperator):
     """
     Instantiate a WorkflowTemplate on Google Cloud Dataproc. The operator will wait
@@ -1596,7 +1660,8 @@ class DataprocInstantiateWorkflowTemplateOperator(BaseOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = ['template_id', 'impersonation_chain']
+    template_fields = ['template_id', 'impersonation_chain', 'request_id', 'parameters']
+    template_fields_renderers = {"parameters": "json"}
 
     @apply_defaults
     def __init__(  # pylint: disable=too-many-arguments

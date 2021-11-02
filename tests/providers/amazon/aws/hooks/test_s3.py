@@ -231,6 +231,18 @@ class TestAwsS3Hook:
         resource = boto3.resource('s3').Object(s3_bucket, 'my_key')  # pylint: disable=no-member
         assert resource.get()['Body'].read() == b'Cont\xC3\xA9nt'
 
+    def test_load_string_compress(self, s3_bucket):
+        hook = S3Hook()
+        hook.load_string("Contént", "my_key", s3_bucket, compression='gzip')
+        resource = boto3.resource('s3').Object(s3_bucket, 'my_key')  # pylint: disable=no-member
+        data = gz.decompress(resource.get()['Body'].read())
+        assert data == b'Cont\xC3\xA9nt'
+
+    def test_load_string_compress_exception(self, s3_bucket):
+        hook = S3Hook()
+        with pytest.raises(NotImplementedError):
+            hook.load_string("Contént", "my_key", s3_bucket, compression='bad-compression')
+
     def test_load_string_acl(self, s3_bucket):
         hook = S3Hook()
         hook.load_string("Contént", "my_key", s3_bucket, acl_policy='public-read')

@@ -18,10 +18,12 @@
 #}
 
 {% extends base_template %}
+{% from 'appbuilder/dag_docs.html' import dag_docs %}
 
 {% block content %}
   {{ super() }}
   <h2>Trigger DAG: {{ dag_id }}</h2>
+  {{ dag_docs(doc_md) }}
   <form method="POST">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <input type="hidden" name="dag_id" value="{{ dag_id }}">

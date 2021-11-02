@@ -19,5 +19,5 @@ cd /opt/airflow/ || exit
 clear
 echo "Welcome to your tmux based running Airflow environment (courtesy of Breeze)."
 echo
-echo "     To stop Airflow and exit tmux just './stop_airflow.sh'."
+echo "     To stop Airflow and exit tmux just 'stop_airflow'."
 echo

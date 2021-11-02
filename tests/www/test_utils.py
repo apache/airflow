@@ -175,6 +175,16 @@ class TestUtils(unittest.TestCase):
         self.assertIn('%3Ca%261%3E', html)
         self.assertNotIn('<a&1>', html)
 
+    def test_dag_link_when_dag_is_none(self):
+        """Test that when there is no dag_id, dag_link does not contain hyperlink"""
+        from airflow.www.app import cached_app
+
+        with cached_app(testing=True).test_request_context():
+            html = str(utils.dag_link({}))
+
+        self.assertIn('None', html)
+        self.assertNotIn('<a href=', html)
+
     def test_dag_run_link(self):
         from airflow.www.app import cached_app
 

@@ -194,11 +194,25 @@ class ElasticsearchTaskHandler(FileTaskHandler, LoggingMixin):
         # to prevent it from showing in the UI.
         def concat_logs(lines):
             log_range = (len(lines) - 1) if lines[-1].message == self.end_of_log_mark.strip() else len(lines)
-            return '\n'.join([lines[i].message for i in range(log_range)])
+            return '\n'.join([self._format_msg(lines[i]) for i in range(log_range)])
 
         message = [(host, concat_logs(hosted_log)) for host, hosted_log in logs_by_host]
 
         return message, metadata
+
+    def _format_msg(self, log_line):
+        """Format ES Record to match settings.LOG_FORMAT when used with json_format"""
+        # Using formatter._style.format makes it future proof i.e.
+        # if we change the formatter style from '%' to '{' or '$', this will still work
+        if self.json_format:
+            try:
+                # pylint: disable=protected-access
+                return self.formatter._style.format(_ESJsonLogFmt(**log_line.to_dict()))
+            except Exception:  # noqa pylint: disable=broad-except
+                pass
+
+        # Just a safe-guard to preserve backwards-compatibility
+        return log_line.message
 
     def es_read(self, log_id: str, offset: str, metadata: dict) -> list:
         """
@@ -246,6 +260,7 @@ class ElasticsearchTaskHandler(FileTaskHandler, LoggingMixin):
 
         if self.json_format:
             self.formatter = JSONFormatter(
+                fmt=self.formatter._fmt,  # pylint: disable=protected-access
                 json_fields=self.json_fields,
                 extras={
                     'dag_id': str(ti.dag_id),
@@ -328,3 +343,11 @@ class ElasticsearchTaskHandler(FileTaskHandler, LoggingMixin):
         )
         url = 'https://' + self.frontend.format(log_id=quote(log_id))
         return url
+
+
+class _ESJsonLogFmt:
+    """Helper class to read ES Logs and re-format it to match settings.LOG_FORMAT"""
+
+    # A separate class is needed because 'self.formatter._style.format' uses '.__dict__'
+    def __init__(self, **kwargs):
+        self.__dict__.update(kwargs)

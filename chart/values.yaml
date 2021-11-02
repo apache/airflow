@@ -25,6 +25,9 @@ fullnameOverride: ""
 # Provide a name to substitute for the name of the chart
 nameOverride: ""
 
+# Provide a Kubernetes version (used for API Version selection) to override the auto-detected version
+kubeVersionOverride: ""
+
 # User and group of airflow user
 uid: 50000
 gid: 0
@@ -37,10 +40,10 @@ airflowHome: /opt/airflow
 defaultAirflowRepository: apache/airflow
 
 # Default airflow tag to deploy
-defaultAirflowTag: "2.1.2"
+defaultAirflowTag: "2.2.1"
 
 # Airflow version (Used to make some decisions based on Airflow Version being deployed)
-airflowVersion: "2.1.2"
+airflowVersion: "2.2.1"
 
 # Images
 images:
@@ -48,6 +51,11 @@ images:
     repository: ~
     tag: ~
     pullPolicy: IfNotPresent
+  # To avoid images with user code, you can turn this to 'true' and
+  # all the 'run-airflow-migrations' and 'wait-for-airflow-migrations' containers/jobs
+  # will use the images from 'defaultAirflowRepository:defaultAirflowTag' values
+  # to run and wait for DB migrations .
+  useDefaultImageForMigration: false
   pod_template:
     repository: ~
     tag: ~
@@ -70,7 +78,7 @@ images:
     pullPolicy: IfNotPresent
   pgbouncerExporter:
     repository: apache/airflow
-    tag: airflow-pgbouncer-exporter-2021.04.28-0.5.0
+    tag: airflow-pgbouncer-exporter-2021.09.22-0.12.0
     pullPolicy: IfNotPresent
   gitSync:
     repository: k8s.gcr.io/git-sync/git-sync
@@ -96,10 +104,19 @@ ingress:
     annotations: {}
 
     # The path for the web Ingress
-    path: ""
+    path: "/"
 
-    # The hostname for the web Ingress
+    # The pathType for the above path (used only with Kubernetes v1.19 and above)
+    pathType: "ImplementationSpecific"
+
+    # The hostname for the web Ingress (Deprecated - renamed to `ingress.web.hosts`)
     host: ""
+
+    # The hostnames for the web Ingress
+    hosts: []
+
+    # The Ingress Class for the web Ingress (used only with Kubernetes v1.19 and above)
+    ingressClassName: ""
 
     # configs for web Ingress TLS
     tls:
@@ -120,10 +137,19 @@ ingress:
     annotations: {}
 
     # The path for the flower Ingress
-    path: ""
+    path: "/"
 
-    # The hostname for the flower Ingress
+    # The pathType for the above path (used only with Kubernetes v1.19 and above)
+    pathType: "ImplementationSpecific"
+
+    # The hostname for the flower Ingress (Deprecated - renamed to `ingress.flower.hosts`)
     host: ""
+
+    # The hostnames for the flower Ingress
+    hosts: []
+
+    # The Ingress Class for the flower Ingress (used only with Kubernetes v1.19 and above)
+    ingressClassName: ""
 
     # configs for web Ingress TLS
     tls:
@@ -131,12 +157,6 @@ ingress:
       enabled: false
       # the name of a pre-created Secret containing a TLS private key and certificate
       secretName: ""
-
-    # HTTP paths to add to the flower Ingress before the default path
-    precedingPaths: []
-
-    # Http paths to add to the flower Ingress after the default path
-    succeedingPaths: []
 
 # Network policy configuration
 networkPolicies:
@@ -152,12 +172,30 @@ airflowPodAnnotations: {}
 airflowConfigAnnotations: {}
 
 # `airflow_local_settings` file as a string (can be templated).
-airflowLocalSettings: ~
+airflowLocalSettings: |-
+  {{- if semverCompare ">=2.2.0" .Values.airflowVersion }}
+  {{- if not (or .Values.webserverSecretKey .Values.webserverSecretKeySecretName) }}
+  from airflow.www.utils import UIAlert
+
+  DASHBOARD_UIALERTS = [
+    UIAlert(
+      'Usage of a dynamic webserver secret key detected. We recommend a static webserver secret key instead.'
+      ' See the <a href='
+      '"https://airflow.apache.org/docs/helm-chart/stable/production-guide.html#webserver-secret-key">'
+      'Helm Chart Production Guide</a> for more details.',
+      category="warning",
+      roles=["Admin"],
+      html=True,
+    )
+  ]
+  {{- end }}
+  {{- end }}
 
 # Enable RBAC (default on most clusters these days)
 rbac:
   # Specifies whether RBAC resources should be created
   create: true
+  createSCCRoleBinding: false
 
 # Airflow executor
 # Options: LocalExecutor, CeleryExecutor, KubernetesExecutor, CeleryKubernetesExecutor
@@ -415,6 +453,8 @@ workers:
   safeToEvict: true
 
   # Launch additional containers into worker.
+  # Note: If used with KubernetesExecutor, you are responsible for signaling sidecars to exit when the main
+  # container finishes so Airflow can continue the worker shutdown process!
   extraContainers: []
   # Add additional init containers into workers.
   extraInitContainers: []
@@ -446,11 +486,15 @@ workers:
   #   hostnames:
   #   - "test.hostname.two"
 
+  podAnnotations: {}
+
   logGroomerSidecar:
-    # Command to use when running the Airflow scheduler log groomer sidecar (templated).
+    # Command to use when running the Airflow worker log groomer sidecar (templated).
     command: ~
-    # Args to use when running the Airflow scheduler log groomer sidecar (templated).
+    # Args to use when running the Airflow worker log groomer sidecar (templated).
     args: ["bash", "/clean-logs"]
+    # Number of days to retain logs
+    retentionDays: 15
     resources: {}
     #  limits:
     #   cpu: 100m
@@ -461,13 +505,13 @@ workers:
 
 # Airflow scheduler settings
 scheduler:
-  # If the scheduler stops heartbeating for 5 minutes (10*30s) kill the
+  # If the scheduler stops heartbeating for 5 minutes (5*60s) kill the
   # scheduler and let Kubernetes restart it
   livenessProbe:
     initialDelaySeconds: 10
-    timeoutSeconds: 5
-    failureThreshold: 10
-    periodSeconds: 30
+    timeoutSeconds: 10
+    failureThreshold: 5
+    periodSeconds: 60
   # Airflow 2.0 allows users to run multiple schedulers,
   # However this feature is only recommended for MySQL 8+ and Postgres
   replicas: 1
@@ -537,6 +581,8 @@ scheduler:
             topologyKey: "kubernetes.io/hostname"
   tolerations: []
 
+  podAnnotations: {}
+
   logGroomerSidecar:
     # Whether to deploy the Airflow scheduler log groomer sidecar.
     enabled: true
@@ -544,6 +590,8 @@ scheduler:
     command: ~
     # Args to use when running the Airflow scheduler log groomer sidecar (templated).
     args: ["bash", "/clean-logs"]
+    # Number of days to retain logs
+    retentionDays: 15
     resources: {}
     #  limits:
     #   cpu: 100m
@@ -551,6 +599,7 @@ scheduler:
     #  requests:
     #   cpu: 100m
     #   memory: 128Mi
+
 # Airflow create user job settings
 createUserJob:
   # Annotations on the create user job pod
@@ -573,6 +622,14 @@ createUserJob:
   affinity: {}
   tolerations: []
 
+  resources: {}
+  #  limits:
+  #   cpu: 100m
+  #   memory: 128Mi
+  #  requests:
+  #   cpu: 100m
+  #   memory: 128Mi
+
 # Airflow database migration job settings
 migrateDatabaseJob:
   # Annotations on the database migration pod
@@ -591,6 +648,16 @@ migrateDatabaseJob:
     # Annotations to add to migrate database job kubernetes service account.
     annotations: {}
 
+  resources: {}
+  #  limits:
+  #   cpu: 100m
+  #   memory: 128Mi
+  #  requests:
+  #   cpu: 100m
+  #   memory: 128Mi
+
+  # Launch additional containers into database migration job
+  extraContainers: []
   nodeSelector: {}
   affinity: {}
   tolerations: []
@@ -699,6 +766,10 @@ webserver:
     #     port: 80
     #     targetPort: 8888
     loadBalancerIP: ~
+    ## Limit load balancer source ips to list of CIDRs
+    # loadBalancerSourceRanges:
+    #   - "10.123.0.0/16"
+    loadBalancerSourceRanges: []
 
   # Select certain nodes for airflow webserver pods.
   nodeSelector: {}
@@ -712,6 +783,83 @@ webserver:
                 component: webserver
             topologyKey: "kubernetes.io/hostname"
   tolerations: []
+
+  podAnnotations: {}
+
+# Airflow Triggerer Config
+triggerer:
+  enabled: true
+  # Number of airflow triggerers in the deployment
+  replicas: 1
+
+  # Command to use when running Airflow triggerers (templated).
+  command: ~
+  # Args to use when running Airflow triggerer (templated).
+  args: ["bash", "-c", "exec airflow triggerer"]
+
+  # Update Strategy for triggerers
+  strategy:
+    rollingUpdate:
+      maxSurge: "100%"
+      maxUnavailable: "50%"
+
+  # If the triggerer stops heartbeating for 5 minutes (5*60s) kill the
+  # triggerer and let Kubernetes restart it
+  livenessProbe:
+    initialDelaySeconds: 10
+    timeoutSeconds: 10
+    failureThreshold: 5
+    periodSeconds: 60
+
+  # Create ServiceAccount
+  serviceAccount:
+    # Specifies whether a ServiceAccount should be created
+    create: true
+    # The name of the ServiceAccount to use.
+    # If not set and create is true, a name is generated using the release name
+    name: ~
+
+    # Annotations to add to triggerer kubernetes service account.
+    annotations: {}
+
+  resources: {}
+  #  limits:
+  #   cpu: 100m
+  #   memory: 128Mi
+  #  requests:
+  #   cpu: 100m
+  #   memory: 128Mi
+
+  # Grace period for triggerer to finish after SIGTERM is sent from kubernetes
+  terminationGracePeriodSeconds: 60
+
+  # This setting tells kubernetes that its ok to evict
+  # when it wants to scale a node down.
+  safeToEvict: true
+
+  # Launch additional containers into triggerer.
+  extraContainers: []
+  # Add additional init containers into triggerers.
+  extraInitContainers: []
+
+  # Mount additional volumes into triggerer.
+  extraVolumes: []
+  extraVolumeMounts: []
+
+  # Select certain nodes for airflow triggerer pods.
+  nodeSelector: {}
+  affinity:
+    podAntiAffinity:
+      preferredDuringSchedulingIgnoredDuringExecution:
+        - weight: 100
+          podAffinityTerm:
+            labelSelector:
+              matchLabels:
+                component: triggerer
+            topologyKey: "kubernetes.io/hostname"
+  tolerations: []
+
+  podAnnotations: {}
 
 # Flower settings
 flower:
@@ -779,6 +927,10 @@ flower:
     #     port: 8080
     #     targetPort: flower-ui
     loadBalancerIP: ~
+    ## Limit load balancer source ips to list of CIDRs
+    # loadBalancerSourceRanges:
+    #   - "10.123.0.0/16"
+    loadBalancerSourceRanges: []
 
   # Launch additional containers into the flower pods.
   extraContainers: []
@@ -789,6 +941,8 @@ flower:
   nodeSelector: {}
   affinity: {}
   tolerations: []
+
+  podAnnotations: {}
 
 # Statsd settings
 statsd:
@@ -832,6 +986,10 @@ statsd:
 pgbouncer:
   # Enable PgBouncer
   enabled: false
+  # Command to use for PgBouncer(templated).
+  command: ["pgbouncer", "-u", "nobody", "/etc/pgbouncer/pgbouncer.ini"]
+  # Args to use for PgBouncer(templated).
+  args: ~
 
   # Create ServiceAccount
   serviceAccount:
@@ -1031,11 +1189,24 @@ cleanup:
   enabled: false
   # Run every 15 minutes
   schedule: "*/15 * * * *"
+  # Command to use when running the cleanup cronjob (templated).
+  command: ~
+  # Args to use when running the cleanup cronjob (templated).
+  args: ["bash", "-c", "exec airflow kubernetes cleanup-pods --namespace={{ .Release.Namespace }}"]
+
 
   # Select certain nodes for airflow cleanup pods.
   nodeSelector: {}
   affinity: {}
   tolerations: []
+
+  resources: {}
+  #  limits:
+  #   cpu: 100m
+  #   memory: 128Mi
+  #  requests:
+  #   cpu: 100m
+  #   memory: 128Mi
 
   # Create ServiceAccount
   serviceAccount:
@@ -1111,6 +1282,8 @@ config:
     reinit_frequency: '{{ .Values.kerberos.reinitFrequency }}'
     principal: '{{ .Values.kerberos.principal }}'
     ccache: '{{ .Values.kerberos.ccacheMountPath }}/{{ .Values.kerberos.ccacheFileName }}'
+  celery_kubernetes_executor:
+    kubernetes_queue: 'kubernetes'
   kubernetes:
     namespace: '{{ .Release.Namespace }}'
     airflow_configmap: '{{ include "airflow_config" . }}'
@@ -1125,8 +1298,8 @@ config:
 # If true, it creates ClusterRole/ClusterRolebinding (with access to entire cluster)
 multiNamespaceMode: false
 
-# `podTemplate` is a string containing the contents of `pod_template_file.yaml` used for KubernetesExecutor
-# workers. The default `podTemplate` will use normal `workers` configuration parameters
+# `podTemplate` is a templated string containing the contents of `pod_template_file.yaml` used for
+# KubernetesExecutor workers. The default `podTemplate` will use normal `workers` configuration parameters
 # (e.g. `workers.resources`). As such, you normally won't need to override this directly, however,
 # you can still provide a completely custom `pod_template_file.yaml` if desired.
 # If not set, a default one is created using `files/pod-template-file.kubernetes-helm-yaml`.
@@ -1143,7 +1316,7 @@ podTemplate: ~
 #     labels:
 #       tier: airflow
 #       component: worker
-#       release: my-release
+#       release: {{ .Release.Name }}
 #   spec:
 #     priorityClassName: high-priority
 #     containers:
@@ -1171,7 +1344,7 @@ dags:
     # git@github.com:apache/airflow.git
     # https example: https://github.com/apache/airflow.git
     repo: https://github.com/apache/airflow.git
-    branch: v2-1-stable
+    branch: v2-2-stable
     rev: HEAD
     depth: 1
     # the number of consecutive failures allowed before aborting

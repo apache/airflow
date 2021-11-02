@@ -17,8 +17,9 @@
 # under the License.
 import re
 import sys
+from collections import deque
 from datetime import datetime
-from typing import Dict, Optional
+from typing import Dict, Generator, Optional
 
 from botocore.waiter import Waiter
 
@@ -197,7 +198,13 @@ class ECSOperator(BaseOperator):  # pylint: disable=too-many-instance-attributes
         self._wait_for_task_ended()
 
         self._check_success_task()
+
         self.log.info('ECS Task has been successfully executed')
+
+        if self.do_xcom_push:
+            return self._last_log_message()
+
+        return None
 
     def _start_task(self):
         run_opts = {
@@ -260,6 +267,25 @@ class ECSOperator(BaseOperator):  # pylint: disable=too-many-instance-attributes
         waiter.config.max_attempts = sys.maxsize  # timeout is managed by airflow
         waiter.wait(cluster=self.cluster, tasks=[self.arn])
 
+        return
+
+    def _cloudwatch_log_events(self) -> Generator:
+        if self._aws_logs_enabled():
+            task_id = self.arn.split("/")[-1]
+            stream_name = f"{self.awslogs_stream_prefix}/{task_id}"
+            yield from self.get_logs_hook().get_log_events(self.awslogs_group, stream_name)
+        else:
+            yield from ()
+
+    def _aws_logs_enabled(self):
+        return self.awslogs_group and self.awslogs_stream_prefix
+
+    def _last_log_message(self):
+        try:
+            return deque(self._cloudwatch_log_events(), maxlen=1).pop()["message"]
+        except IndexError:
+            return None
+
     def _check_success_task(self) -> None:
         if not self.client or not self.arn:
             return
@@ -268,13 +294,9 @@ class ECSOperator(BaseOperator):  # pylint: disable=too-many-instance-attributes
         self.log.info('ECS Task stopped, check status: %s', response)
 
         # Get logs from CloudWatch if the awslogs log driver was used
-        if self.awslogs_group and self.awslogs_stream_prefix:
-            self.log.info('ECS Task logs output:')
-            task_id = self.arn.split("/")[-1]
-            stream_name = f"{self.awslogs_stream_prefix}/{task_id}"
-            for event in self.get_logs_hook().get_log_events(self.awslogs_group, stream_name):
-                event_dt = datetime.fromtimestamp(event['timestamp'] / 1000.0)
-                self.log.info("[%s] %s", event_dt.isoformat(), event['message'])
+        for event in self._cloudwatch_log_events():
+            event_dt = datetime.fromtimestamp(event['timestamp'] / 1000.0)
+            self.log.info("[%s] %s", event_dt.isoformat(), event['message'])
 
         if len(response.get('failures', [])) > 0:
             raise AirflowException(response)

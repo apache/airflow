@@ -215,7 +215,7 @@ firstPRWelcomeComment: >
 
   - In case of a new feature add useful documentation (in docstrings or in `docs/` directory).
   Adding a new operator? Check this short
-  [guide](https://github.com/apache/airflow/blob/master/docs/howto/custom-operator.rst)
+  [guide](https://github.com/apache/airflow/blob/master/docs/apache-airflow/howto/custom-operator.rst)
   Consider adding an example DAG that shows how users should use it.
 
   - Consider using [Breeze environment](https://github.com/apache/airflow/blob/master/BREEZE.rst) for testing

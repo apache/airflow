@@ -17,12 +17,13 @@
 # under the License.
 
 import unittest
+from unittest import mock
 
 from cryptography.fernet import Fernet
 from parameterized import parameterized
 
 from airflow import settings
-from airflow.models import Variable, crypto
+from airflow.models import Variable, crypto, variable
 from tests.test_utils import db
 from tests.test_utils.config import conf_vars
 
@@ -88,6 +89,23 @@ class TestVariable(unittest.TestCase):
     def test_variable_set_get_round_trip(self):
         Variable.set("tested_var_set_id", "Monday morning breakfast")
         self.assertEqual("Monday morning breakfast", Variable.get("tested_var_set_id"))
+
+    def test_variable_set_with_env_variable(self):
+        Variable.set("key", "db-value")
+        with self.assertLogs(variable.log) as log_context:
+            with mock.patch.dict('os.environ', AIRFLOW_VAR_KEY="env-value"):
+                Variable.set("key", "new-db-value")
+                self.assertEqual("env-value", Variable.get("key"))
+            self.assertEqual("new-db-value", Variable.get("key"))
+
+        self.assertEqual(
+            log_context.records[0].message,
+            (
+                'You have the environment variable AIRFLOW_VAR_KEY defined, which takes precedence over '
+                'reading from the database. The value will be saved, but to read it you have to delete '
+                'the environment variable.'
+            ),
+        )
 
     def test_variable_set_get_round_trip_json(self):
         value = {"a": 17, "b": 47}

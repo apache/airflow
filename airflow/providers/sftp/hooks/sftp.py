@@ -115,6 +115,12 @@ class SFTPHook(SSHHook):
             cnopts = pysftp.CnOpts()
             if self.no_host_key_check:
                 cnopts.hostkeys = None
+            else:
+                if self.host_key is not None:
+                    cnopts.hostkeys.add(self.remote_host, 'ssh-rsa', self.host_key)
+                else:
+                    pass  # will fallback to system host keys if none explicitly specified in conn extra
+
             cnopts.compression = self.compress
             cnopts.ciphers = self.ciphers
             conn_params = {

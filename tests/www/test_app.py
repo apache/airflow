@@ -15,7 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
+import subprocess
 import unittest
 from datetime import timedelta
 from unittest import mock
@@ -232,3 +232,10 @@ class TestApp(unittest.TestCase):
     def test_should_set_permanent_session_timeout(self):
         app = application.cached_app(testing=True)
         self.assertEqual(app.config['PERMANENT_SESSION_LIFETIME'], timedelta(minutes=3600))
+
+
+class TestFlaskCli(unittest.TestCase):
+    def test_flask_cli_should_display_routes(self):
+        with mock.patch.dict("os.environ", FLASK_APP="airflow.www.app:create_app"):
+            output = subprocess.check_output(["flask", "routes"])
+            self.assertIn("/api/v1/version", output.decode())

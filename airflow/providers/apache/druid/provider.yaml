@@ -27,6 +27,7 @@ versions:
 integrations:
   - integration-name: Apache Druid
     external-doc-url: https://druid.apache.org/
+    logo: /integration-logos/apache/druid-1.png
     tags: [apache]
 
 operators:

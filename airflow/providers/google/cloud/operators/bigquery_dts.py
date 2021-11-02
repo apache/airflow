@@ -19,7 +19,7 @@
 from typing import Optional, Sequence, Tuple, Union
 
 from google.api_core.retry import Retry
-from google.protobuf.json_format import MessageToDict
+from google.cloud.bigquery_datatransfer_v1 import StartManualTransferRunsResponse, TransferConfig
 
 from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.bigquery_dts import BiqQueryDataTransferServiceHook, get_object_id
@@ -110,7 +110,7 @@ class BigQueryCreateDataTransferOperator(BaseOperator):
             timeout=self.timeout,
             metadata=self.metadata,
         )
-        result = MessageToDict(response)
+        result = TransferConfig.to_dict(response)
         self.log.info("Created DTS transfer config %s", get_object_id(result))
         self.xcom_push(context, key="transfer_config_id", value=get_object_id(result))
         return result
@@ -289,10 +289,8 @@ class BigQueryDataTransferServiceStartTransferRunsOperator(BaseOperator):
             timeout=self.timeout,
             metadata=self.metadata,
         )
-        result = MessageToDict(response)
-        run_id = None
-        if 'runs' in result:
-            run_id = get_object_id(result['runs'][0])
-            self.xcom_push(context, key="run_id", value=run_id)
+        result = StartManualTransferRunsResponse.to_dict(response)
+        run_id = get_object_id(result['runs'][0])
+        self.xcom_push(context, key="run_id", value=run_id)
         self.log.info('Transfer run %s submitted successfully.', run_id)
         return result

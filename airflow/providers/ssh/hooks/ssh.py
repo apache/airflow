@@ -19,6 +19,7 @@
 import getpass
 import os
 import warnings
+from base64 import decodebytes
 from io import StringIO
 from typing import Dict, Optional, Tuple, Union
 
@@ -30,7 +31,7 @@ from airflow.exceptions import AirflowException
 from airflow.hooks.base import BaseHook
 
 
-class SSHHook(BaseHook):
+class SSHHook(BaseHook):  # pylint: disable=too-many-instance-attributes
     """
     Hook for ssh remote execution using Paramiko.
     ref: https://github.com/paramiko/paramiko
@@ -72,7 +73,7 @@ class SSHHook(BaseHook):
             },
         }
 
-    def __init__(
+    def __init__(  # pylint: disable=too-many-statements
         self,
         ssh_conn_id: Optional[str] = None,
         remote_host: Optional[str] = None,
@@ -99,6 +100,7 @@ class SSHHook(BaseHook):
         self.no_host_key_check = True
         self.allow_host_key_change = False
         self.host_proxy = None
+        self.host_key = None
         self.look_for_keys = True
 
         # Placeholder for deprecated __enter__
@@ -149,7 +151,9 @@ class SSHHook(BaseHook):
                     and str(extra_options["look_for_keys"]).lower() == 'false'
                 ):
                     self.look_for_keys = False
-
+                if "host_key" in extra_options and self.no_host_key_check is False:
+                    decoded_host_key = decodebytes(extra_options["host_key"].encode('utf-8'))
+                    self.host_key = paramiko.RSAKey(data=decoded_host_key)
         if self.pkey and self.key_file:
             raise AirflowException(
                 "Params key_file and private_key both provided.  Must provide no more than one."
@@ -198,10 +202,18 @@ class SSHHook(BaseHook):
                 'This wont protect against Man-In-The-Middle attacks'
             )
             client.load_system_host_keys()
+
         if self.no_host_key_check:
             self.log.warning('No Host Key Verification. This wont protect against Man-In-The-Middle attacks')
             # Default is RejectPolicy
             client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+        else:
+            if self.host_key is not None:
+                client_host_keys = client.get_host_keys()
+                client_host_keys.add(self.remote_host, 'ssh-rsa', self.host_key)
+            else:
+                pass  # will fallback to system host keys if none explicitly specified in conn extra
+
         connect_kwargs = dict(
             hostname=self.remote_host,
             username=self.username,

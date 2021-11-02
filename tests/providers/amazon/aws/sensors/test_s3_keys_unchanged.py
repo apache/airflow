@@ -61,6 +61,18 @@ class TestS3KeysUnchangedSensor(TestCase):
                 dag=self.dag,
             )
 
+    def test_render_template_fields(self):
+        S3KeysUnchangedSensor(
+            task_id='sensor_3',
+            bucket_name='test-bucket',
+            prefix='test-prefix/path',
+            inactivity_period=12,
+            poke_interval=0.1,
+            min_objects=1,
+            allow_delete=True,
+            dag=self.dag,
+        ).render_template_fields({})
+
     @freeze_time(DEFAULT_DATE, auto_tick_seconds=10)
     def test_files_deleted_between_pokes_throw_error(self):
         self.sensor.allow_delete = False

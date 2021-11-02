@@ -17,7 +17,7 @@
  under the License.
 #}
 {%- for item in items %}
-{% set title = item['source-integration-name'] + " to " + item['source-integration-name'] %}
+{% set title = item['source-integration-name'] + " to " + item['target-integration-name'] %}
 {{ title }}
 {{ header_separator * (title|length) }}
 {# Force new line #}

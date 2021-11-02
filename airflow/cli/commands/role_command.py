@@ -24,7 +24,7 @@ from airflow.utils.cli import suppress_logs_and_warning
 from airflow.www.app import cached_app
 
 
-@suppress_logs_and_warning()
+@suppress_logs_and_warning
 def roles_list(args):
     """Lists all existing roles"""
     appbuilder = cached_app().appbuilder  # pylint: disable=no-member
@@ -35,7 +35,7 @@ def roles_list(args):
 
 
 @cli_utils.action_logging
-@suppress_logs_and_warning()
+@suppress_logs_and_warning
 def roles_create(args):
     """Creates new empty role in DB"""
     appbuilder = cached_app().appbuilder  # pylint: disable=no-member

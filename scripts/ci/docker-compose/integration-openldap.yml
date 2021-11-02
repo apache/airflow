@@ -28,10 +28,19 @@ services:
       - ../openldap/ldif:/container/service/slapd/assets/config/bootstrap/ldif/custom:ro
       - /dev/urandom:/dev/random   # Required to get non-blocking entropy source
       - openldap-db-volume:/var/lib/ldap
+    healthcheck:
+      test: 'ss -ltp | grep 389'
+      interval: 5s
+      timeout: 30s
+      retries: 50
+    restart: always
+
   airflow:
     environment:
       - INTEGRATION_OPENLDAP=true
     depends_on:
-      - openldap
+      openldap:
+        condition: service_healthy
+
 volumes:
   openldap-db-volume:

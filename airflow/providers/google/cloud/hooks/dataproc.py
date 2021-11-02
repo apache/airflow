@@ -23,7 +23,6 @@ import uuid
 import warnings
 from typing import Any, Dict, Iterable, List, Optional, Sequence, Tuple, Union
 
-from cached_property import cached_property
 from google.api_core.exceptions import ServerError
 from google.api_core.retry import Retry
 from google.cloud.dataproc_v1beta2 import (  # pylint: disable=no-name-in-module
@@ -218,11 +217,14 @@ class DataprocHook(GoogleBaseHook):
             credentials=self._get_credentials(), client_info=self.client_info, client_options=client_options
         )
 
-    @cached_property
-    def get_template_client(self) -> WorkflowTemplateServiceClient:
+    def get_template_client(self, location: Optional[str] = None) -> WorkflowTemplateServiceClient:
         """Returns WorkflowTemplateServiceClient."""
+        client_options = None
+        if location and location != 'global':
+            client_options = {'api_endpoint': f'{location}-dataproc.googleapis.com:443'}
+
         return WorkflowTemplateServiceClient(
-            credentials=self._get_credentials(), client_info=self.client_info
+            credentials=self._get_credentials(), client_info=self.client_info, client_options=client_options
         )
 
     def get_job_client(self, location: Optional[str] = None) -> JobControllerClient:
@@ -591,7 +593,7 @@ class DataprocHook(GoogleBaseHook):
         :param metadata: Additional metadata that is provided to the method.
         :type metadata: Sequence[Tuple[str, str]]
         """
-        client = self.get_template_client
+        client = self.get_template_client(location)
         parent = client.region_path(project_id, location)
         return client.create_workflow_template(
             parent=parent, template=template, retry=retry, timeout=timeout, metadata=metadata
@@ -641,7 +643,7 @@ class DataprocHook(GoogleBaseHook):
         :param metadata: Additional metadata that is provided to the method.
         :type metadata: Sequence[Tuple[str, str]]
         """
-        client = self.get_template_client
+        client = self.get_template_client(location)
         name = client.workflow_template_path(project_id, location, template_name)
         operation = client.instantiate_workflow_template(
             name=name,
@@ -688,7 +690,7 @@ class DataprocHook(GoogleBaseHook):
         :param metadata: Additional metadata that is provided to the method.
         :type metadata: Sequence[Tuple[str, str]]
         """
-        client = self.get_template_client
+        client = self.get_template_client(location)
         parent = client.region_path(project_id, location)
         operation = client.instantiate_inline_workflow_template(
             parent=parent,

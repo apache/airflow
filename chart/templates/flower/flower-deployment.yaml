@@ -54,9 +54,9 @@ spec:
 {{- with .Values.labels }}
 {{ toYaml . | indent 8 }}
 {{- end }}
-      {{- if .Values.airflowPodAnnotations }}
+      {{- if or (.Values.airflowPodAnnotations) (.Values.flower.podAnnotations) }}
       annotations:
-      {{- toYaml .Values.airflowPodAnnotations | nindent 8 }}
+      {{- mustMerge .Values.flower.podAnnotations .Values.airflowPodAnnotations | toYaml | nindent 8 }}
       {{- end }}
     spec:
       nodeSelector:

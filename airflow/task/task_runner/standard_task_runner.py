@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """Standard task runner"""
+import logging
 import os
 
 import psutil
@@ -87,6 +88,7 @@ class StandardTaskRunner(BaseTaskRunner):
             finally:
                 # Explicitly flush any pending exception to Sentry if enabled
                 Sentry.flush()
+                logging.shutdown()
                 os._exit(return_code)  # pylint: disable=protected-access
 
     def return_code(self, timeout=0):

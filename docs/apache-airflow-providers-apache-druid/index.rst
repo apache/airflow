@@ -26,3 +26,4 @@ Content
     :caption: References
 
     Python API <_api/airflow/providers/apache/druid/index>
+    PyPI Repository <https://pypi.org/project/apache-airflow-providers-apache-druid/>

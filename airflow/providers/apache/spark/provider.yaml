@@ -28,6 +28,7 @@ integrations:
     external-doc-url: https://spark.apache.org/
     how-to-guide:
       - /docs/apache-airflow-providers-apache-spark/operators.rst
+    logo: /integration-logos/apache/spark.png
     tags: [apache]
 
 operators:

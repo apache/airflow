@@ -16,9 +16,9 @@
 # specific language governing permissions and limitations
 # under the License.
 # shellcheck source=scripts/ci/libraries/_script_init.sh
-
-
 . "$( dirname "${BASH_SOURCE[0]}" )/../libraries/_script_init.sh"
+
+DOCKER_COMPOSE_LOCAL=()
 
 if [[ -f ${BUILD_CACHE_DIR}/.skip_tests ]]; then
     echo
@@ -97,63 +97,60 @@ function run_airflow_testing_in_docker() {
     return "${exit_code}"
 }
 
+function prepare_tests_to_run() {
+    DOCKER_COMPOSE_LOCAL+=("-f" "${SCRIPTS_CI_DIR}/docker-compose/files.yml")
+    if [[ ${MOUNT_LOCAL_SOURCES} == "true" ]]; then
+        DOCKER_COMPOSE_LOCAL+=("-f" "${SCRIPTS_CI_DIR}/docker-compose/local.yml")
+    fi
+
+    if [[ ${GITHUB_ACTIONS} == "true" ]]; then
+        DOCKER_COMPOSE_LOCAL+=("-f" "${SCRIPTS_CI_DIR}/docker-compose/ga.yml")
+    fi
+
+    if [[ ${FORWARD_CREDENTIALS} == "true" ]]; then
+        DOCKER_COMPOSE_LOCAL+=("-f" "${SCRIPTS_CI_DIR}/docker-compose/forward-credentials.yml")
+    fi
+
+    if [[ -n ${INSTALL_AIRFLOW_VERSION=} || -n ${INSTALL_AIRFLOW_REFERENCE} ]]; then
+        DOCKER_COMPOSE_LOCAL+=("-f" "${SCRIPTS_CI_DIR}/docker-compose/remove-sources.yml")
+    fi
+    readonly DOCKER_COMPOSE_LOCAL
+
+    if [[ ${TEST_TYPE=} != "" ]]; then
+        # Handle case where test type is passed from outside
+        export TEST_TYPES="${TEST_TYPE}"
+    fi
+
+    if [[ ${TEST_TYPES=} == "" ]]; then
+        TEST_TYPES="Core Providers API CLI Integration Other WWW Heisentests"
+        echo
+        echo "Test types not specified. Running all: ${TEST_TYPES}"
+        echo
+    fi
+
+    if [[ ${TEST_TYPE=} != "" ]]; then
+        # Add Postgres/MySQL special test types in case we are running several test types
+        if [[ ${BACKEND} == "postgres" ]]; then
+            TEST_TYPES="${TEST_TYPES} Postgres"
+        fi
+        if [[ ${BACKEND} == "mysql" ]]; then
+            TEST_TYPES="${TEST_TYPES} MySQL"
+        fi
+    fi
+    readonly TEST_TYPES
+}
+
 build_images::prepare_ci_build
 
-build_images::rebuild_ci_image_if_needed
+build_images::rebuild_ci_image_if_needed_with_group
 
-DOCKER_COMPOSE_LOCAL=("-f" "${SCRIPTS_CI_DIR}/docker-compose/files.yml")
+prepare_tests_to_run
 
-if [[ ${MOUNT_LOCAL_SOURCES} == "true" ]]; then
-    DOCKER_COMPOSE_LOCAL+=("-f" "${SCRIPTS_CI_DIR}/docker-compose/local.yml")
-fi
-
-
-if [[ ${GITHUB_ACTIONS} == "true" ]]; then
-    DOCKER_COMPOSE_LOCAL+=("-f" "${SCRIPTS_CI_DIR}/docker-compose/ga.yml")
-fi
-
-if [[ ${FORWARD_CREDENTIALS} == "true" ]]; then
-    DOCKER_COMPOSE_LOCAL+=("-f" "${SCRIPTS_CI_DIR}/docker-compose/forward-credentials.yml")
-fi
-
-if [[ -n ${INSTALL_AIRFLOW_VERSION=} || -n ${INSTALL_AIRFLOW_REFERENCE} ]]; then
-    DOCKER_COMPOSE_LOCAL+=("-f" "${SCRIPTS_CI_DIR}/docker-compose/remove-sources.yml")
-fi
-
-readonly DOCKER_COMPOSE_LOCAL
-
-echo
-echo "Using docker image: ${AIRFLOW_CI_IMAGE} for docker compose runs"
-echo
-
-
-if [[ ${TEST_TYPE=} != "" ]]; then
-    # Handle case where test type is passed from outside
-    export TEST_TYPES="${TEST_TYPE}"
-fi
-
-if [[ ${TEST_TYPES=} == "" ]]; then
-    TEST_TYPES="Core Providers API CLI Integration Other WWW Heisentests"
-    echo
-    echo "Test types not specified. Running all: ${TEST_TYPES}"
-    echo
-fi
-
-if [[ ${TEST_TYPE=} != "" ]]; then
-    # Add Postgres/MySQL special test types in case we are running several test types
-    if [[ ${BACKEND} == "postgres" ]]; then
-        TEST_TYPES="${TEST_TYPES} Postgres"
-    fi
-    if [[ ${BACKEND} == "mysql" ]]; then
-        TEST_TYPES="${TEST_TYPES} MySQL"
-    fi
-fi
-readonly TEST_TYPES
-
-echo "Running TEST_TYPES: ${TEST_TYPES}"
 
 for TEST_TYPE in ${TEST_TYPES}
 do
+    start_end::group_start "Running tests ${TEST_TYPE}"
+
     INTEGRATIONS=()
     export INTEGRATIONS
 
@@ -180,4 +177,5 @@ do
     echo "**********************************************************************************************"
 
     run_airflow_testing_in_docker "${@}"
+    start_end::group_end
 done

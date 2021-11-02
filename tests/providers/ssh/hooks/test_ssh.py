@@ -51,8 +51,17 @@ def generate_key_string(pkey: paramiko.PKey, passphrase: Optional[str] = None):
     return key_str
 
 
+def generate_host_key(pkey: paramiko.PKey):
+    key_fh = StringIO()
+    pkey.write_private_key(key_fh)
+    key_fh.seek(0)
+    key_obj = paramiko.RSAKey(file_obj=key_fh)
+    return key_obj.get_base64()
+
+
 TEST_PKEY = paramiko.RSAKey.generate(4096)
 TEST_PRIVATE_KEY = generate_key_string(pkey=TEST_PKEY)
+TEST_HOST_KEY = generate_host_key(pkey=TEST_PKEY)
 
 PASSPHRASE = ''.join(random.choice(string.ascii_letters) for i in range(10))
 TEST_ENCRYPTED_PRIVATE_KEY = generate_key_string(pkey=TEST_PKEY, passphrase=PASSPHRASE)
@@ -63,6 +72,10 @@ class TestSSHHook(unittest.TestCase):
     CONN_SSH_WITH_PRIVATE_KEY_PASSPHRASE_EXTRA = 'ssh_with_private_key_passphrase_extra'
     CONN_SSH_WITH_EXTRA = 'ssh_with_extra'
     CONN_SSH_WITH_EXTRA_FALSE_LOOK_FOR_KEYS = 'ssh_with_extra_false_look_for_keys'
+    CONN_SSH_WITH_HOST_KEY_EXTRA = 'ssh_with_host_key_extra'
+    CONN_SSH_WITH_HOST_KEY_AND_NO_HOST_KEY_CHECK_FALSE = 'ssh_with_host_key_and_no_host_key_check_false'
+    CONN_SSH_WITH_HOST_KEY_AND_NO_HOST_KEY_CHECK_TRUE = 'ssh_with_host_key_and_no_host_key_check_true'
+    CONN_SSH_WITH_NO_HOST_KEY_AND_NO_HOST_KEY_CHECK_FALSE = 'ssh_with_no_host_key_and_no_host_key_check_false'
 
     @classmethod
     def tearDownClass(cls) -> None:
@@ -70,6 +83,11 @@ class TestSSHHook(unittest.TestCase):
             conns_to_reset = [
                 cls.CONN_SSH_WITH_PRIVATE_KEY_EXTRA,
                 cls.CONN_SSH_WITH_PRIVATE_KEY_PASSPHRASE_EXTRA,
+                cls.CONN_SSH_WITH_EXTRA,
+                cls.CONN_SSH_WITH_HOST_KEY_EXTRA,
+                cls.CONN_SSH_WITH_HOST_KEY_AND_NO_HOST_KEY_CHECK_FALSE,
+                cls.CONN_SSH_WITH_HOST_KEY_AND_NO_HOST_KEY_CHECK_TRUE,
+                cls.CONN_SSH_WITH_NO_HOST_KEY_AND_NO_HOST_KEY_CHECK_FALSE,
             ]
             connections = session.query(Connection).filter(Connection.conn_id.in_(conns_to_reset))
             connections.delete(synchronize_session=False)
@@ -114,6 +132,42 @@ class TestSSHHook(unittest.TestCase):
                 extra=json.dumps(
                     {"private_key": TEST_ENCRYPTED_PRIVATE_KEY, "private_key_passphrase": PASSPHRASE}
                 ),
+            )
+        )
+        db.merge_conn(
+            Connection(
+                conn_id=cls.CONN_SSH_WITH_HOST_KEY_EXTRA,
+                host='localhost',
+                conn_type='ssh',
+                extra=json.dumps({"private_key": TEST_PRIVATE_KEY, "host_key": TEST_HOST_KEY}),
+            )
+        )
+        db.merge_conn(
+            Connection(
+                conn_id=cls.CONN_SSH_WITH_HOST_KEY_AND_NO_HOST_KEY_CHECK_FALSE,
+                host='remote_host',
+                conn_type='ssh',
+                extra=json.dumps(
+                    {"private_key": TEST_PRIVATE_KEY, "host_key": TEST_HOST_KEY, "no_host_key_check": False}
+                ),
+            )
+        )
+        db.merge_conn(
+            Connection(
+                conn_id=cls.CONN_SSH_WITH_HOST_KEY_AND_NO_HOST_KEY_CHECK_TRUE,
+                host='remote_host',
+                conn_type='ssh',
+                extra=json.dumps(
+                    {"private_key": TEST_PRIVATE_KEY, "host_key": TEST_HOST_KEY, "no_host_key_check": True}
+                ),
+            )
+        )
+        db.merge_conn(
+            Connection(
+                conn_id=cls.CONN_SSH_WITH_NO_HOST_KEY_AND_NO_HOST_KEY_CHECK_FALSE,
+                host='remote_host',
+                conn_type='ssh',
+                extra=json.dumps({"private_key": TEST_PRIVATE_KEY, "no_host_key_check": False}),
             )
         )
 
@@ -344,3 +398,42 @@ class TestSSHHook(unittest.TestCase):
                 sock=None,
                 look_for_keys=True,
             )
+
+    @mock.patch('airflow.providers.ssh.hooks.ssh.paramiko.SSHClient')
+    def test_ssh_connection_with_host_key_extra(self, ssh_client):
+        hook = SSHHook(ssh_conn_id=self.CONN_SSH_WITH_HOST_KEY_EXTRA)
+        assert hook.host_key is None  # Since default no_host_key_check = True unless explicit override
+        with hook.get_conn():
+            assert ssh_client.return_value.connect.called is True
+            assert ssh_client.return_value.get_host_keys.return_value.add.called is False
+
+    @mock.patch('airflow.providers.ssh.hooks.ssh.paramiko.SSHClient')
+    def test_ssh_connection_with_host_key_where_no_host_key_check_is_true(self, ssh_client):
+        hook = SSHHook(ssh_conn_id=self.CONN_SSH_WITH_HOST_KEY_AND_NO_HOST_KEY_CHECK_TRUE)
+        assert hook.host_key is None
+        with hook.get_conn():
+            assert ssh_client.return_value.connect.called is True
+            assert ssh_client.return_value.get_host_keys.return_value.add.called is False
+
+    @mock.patch('airflow.providers.ssh.hooks.ssh.paramiko.SSHClient')
+    def test_ssh_connection_with_host_key_where_no_host_key_check_is_false(self, ssh_client):
+        hook = SSHHook(ssh_conn_id=self.CONN_SSH_WITH_HOST_KEY_AND_NO_HOST_KEY_CHECK_FALSE)
+        assert hook.host_key.get_base64() == TEST_HOST_KEY
+        with hook.get_conn():
+            assert ssh_client.return_value.connect.called is True
+            assert ssh_client.return_value.get_host_keys.return_value.add.called is True
+            assert ssh_client.return_value.get_host_keys.return_value.add.call_args == mock.call(
+                hook.remote_host, 'ssh-rsa', hook.host_key
+            )
+
+    @mock.patch('airflow.providers.ssh.hooks.ssh.paramiko.SSHClient')
+    def test_ssh_connection_with_no_host_key_where_no_host_key_check_is_false(self, ssh_client):
+        hook = SSHHook(ssh_conn_id=self.CONN_SSH_WITH_NO_HOST_KEY_AND_NO_HOST_KEY_CHECK_FALSE)
+        assert hook.host_key is None
+        with hook.get_conn():
+            assert ssh_client.return_value.connect.called is True
+            assert ssh_client.return_value.get_host_keys.return_value.add.called is False
+
+
+if __name__ == '__main__':
+    unittest.main()

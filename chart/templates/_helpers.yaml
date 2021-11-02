@@ -233,6 +233,14 @@ If release name contains chart name it will be used as a full name.
 {{ printf "%s:%s" .Values.defaultAirflowRepository .Values.defaultAirflowTag }}
 {{- end }}
 
+{{ define "airflow_image_for_migrations" -}}
+{{- if .Values.images.useDefaultImageForMigration -}}
+{{ template "default_airflow_image" . }}
+{{- else -}}
+{{ template "airflow_image" . }}
+{{- end -}}
+{{- end }}
+
 {{ define "flower_image" -}}
 {{ printf "%s:%s" (.Values.images.flower.repository | default .Values.defaultAirflowRepository) (.Values.images.flower.tag | default .Values.defaultAirflowTag) }}
 {{- end }}
@@ -501,6 +509,17 @@ Create the name of the worker service account to use
 {{- end -}}
 
 {{/*
+Create the name of the triggerer service account to use
+*/}}
+{{- define "triggerer.serviceAccountName" -}}
+{{- if .Values.triggerer.serviceAccount.create -}}
+    {{ default (printf "%s-triggerer" (include "airflow.fullname" .)) .Values.triggerer.serviceAccount.name }}
+{{- else -}}
+    {{ default "default" .Values.triggerer.serviceAccount.name }}
+{{- end -}}
+{{- end -}}
+
+{{/*
 Create the name of the pgbouncer service account to use
 */}}
 {{- define "pgbouncer.serviceAccountName" -}}
@@ -581,3 +600,13 @@ Create the name of the cleanup service account to use
   {{- $_ := set $config "auths" $auth -}}
   {{ $config | toJson | print }}
 {{- end }}
+
+{{/* Allow Kubernetes Version to be overridden. Credit to https://github.com/prometheus-community/helm-charts for Regex. */}}
+{{- define "kubeVersion" -}}
+  {{- $kubeVersion := default .Capabilities.KubeVersion.Version .Values.kubeVersionOverride -}}
+  {{/* Special use case for Amazon EKS, Google GKE */}}
+  {{- if and (regexMatch "\\d+\\.\\d+\\.\\d+-(?:eks|gke).+" $kubeVersion) (not .Values.kubeVersionOverride) -}}
+    {{- $kubeVersion = regexFind "\\d+\\.\\d+\\.\\d+" $kubeVersion -}}
+  {{- end -}}
+  {{- $kubeVersion -}}
+{{- end -}}

@@ -29,7 +29,8 @@ class CeleryKubernetesExecutor(LoggingMixin):
     """
     CeleryKubernetesExecutor consists of CeleryExecutor and KubernetesExecutor.
     It chooses an executor to use based on the queue defined on the task.
-    When the queue is `kubernetes`, KubernetesExecutor is selected to run the task,
+    When the queue is the value of ``kubernetes_queue`` in section ``[celery_kubernetes_executor]``
+    of the configuration (default value: `kubernetes`), KubernetesExecutor is selected to run the task,
     otherwise, CeleryExecutor is used.
     """
 

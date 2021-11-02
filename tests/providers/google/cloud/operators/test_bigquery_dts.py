@@ -18,6 +18,8 @@
 import unittest
 from unittest import mock
 
+from google.cloud.bigquery_datatransfer_v1 import StartManualTransferRunsResponse, TransferConfig, TransferRun
+
 from airflow.providers.google.cloud.operators.bigquery_dts import (
     BigQueryCreateDataTransferOperator,
     BigQueryDataTransferServiceStartTransferRunsOperator,
@@ -39,20 +41,23 @@ TRANSFER_CONFIG = {
 
 TRANSFER_CONFIG_ID = "id1234"
 
-NAME = "projects/123abc/locations/321cba/transferConfig/1a2b3c"
+TRANSFER_CONFIG_NAME = "projects/123abc/locations/321cba/transferConfig/1a2b3c"
+RUN_NAME = "projects/123abc/locations/321cba/transferConfig/1a2b3c/runs/123"
 
 
 class BigQueryCreateDataTransferOperatorTestCase(unittest.TestCase):
-    @mock.patch("airflow.providers.google.cloud.operators.bigquery_dts.BiqQueryDataTransferServiceHook")
-    @mock.patch("airflow.providers.google.cloud.operators.bigquery_dts.get_object_id")
-    def test_execute(self, mock_name, mock_hook):
-        mock_name.return_value = TRANSFER_CONFIG_ID
-        mock_xcom = mock.MagicMock()
+    @mock.patch(
+        "airflow.providers.google.cloud.operators.bigquery_dts.BiqQueryDataTransferServiceHook",
+        **{'return_value.create_transfer_config.return_value': TransferConfig(name=TRANSFER_CONFIG_NAME)},
+    )
+    def test_execute(self, mock_hook):
         op = BigQueryCreateDataTransferOperator(
             transfer_config=TRANSFER_CONFIG, project_id=PROJECT_ID, task_id="id"
         )
-        op.xcom_push = mock_xcom
-        op.execute(None)
+        ti = mock.MagicMock()
+
+        op.execute({'ti': ti})
+
         mock_hook.return_value.create_transfer_config.assert_called_once_with(
             authorization_code=None,
             metadata=None,
@@ -61,6 +66,7 @@ class BigQueryCreateDataTransferOperatorTestCase(unittest.TestCase):
             retry=None,
             timeout=None,
         )
+        ti.xcom_push.assert_called_once_with(execution_date=None, key='transfer_config_id', value='1a2b3c')
 
 
 class BigQueryDeleteDataTransferConfigOperatorTestCase(unittest.TestCase):
@@ -80,12 +86,22 @@ class BigQueryDeleteDataTransferConfigOperatorTestCase(unittest.TestCase):
 
 
 class BigQueryDataTransferServiceStartTransferRunsOperatorTestCase(unittest.TestCase):
-    @mock.patch("airflow.providers.google.cloud.operators.bigquery_dts.BiqQueryDataTransferServiceHook")
+    @mock.patch(
+        "airflow.providers.google.cloud.operators.bigquery_dts.BiqQueryDataTransferServiceHook",
+        **{
+            'return_value.start_manual_transfer_runs.return_value': StartManualTransferRunsResponse(
+                runs=[TransferRun(name=RUN_NAME)]
+            )
+        },
+    )
     def test_execute(self, mock_hook):
         op = BigQueryDataTransferServiceStartTransferRunsOperator(
             transfer_config_id=TRANSFER_CONFIG_ID, task_id="id", project_id=PROJECT_ID
         )
-        op.execute(None)
+        ti = mock.MagicMock()
+
+        op.execute({'ti': ti})
+
         mock_hook.return_value.start_manual_transfer_runs.assert_called_once_with(
             transfer_config_id=TRANSFER_CONFIG_ID,
             project_id=PROJECT_ID,
@@ -95,3 +111,4 @@ class BigQueryDataTransferServiceStartTransferRunsOperatorTestCase(unittest.Test
             retry=None,
             timeout=None,
         )
+        ti.xcom_push.assert_called_once_with(execution_date=None, key='run_id', value='123')

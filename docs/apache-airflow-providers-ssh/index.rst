@@ -33,3 +33,9 @@ Content
     :caption: References
 
     Python API <_api/airflow/providers/ssh/index>
+
+.. toctree::
+    :maxdepth: 1
+    :caption: Resources
+
+    PyPI Repository <https://pypi.org/project/apache-airflow-providers-ssh/>

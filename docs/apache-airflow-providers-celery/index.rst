@@ -27,3 +27,4 @@ Content
     :caption: References
 
     Python API <_api/airflow/providers/celery/index>
+    PyPI Repository <https://pypi.org/project/apache-airflow-providers-celery/>

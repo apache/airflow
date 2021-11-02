@@ -25,5 +25,3 @@ services:
     volumes:
       - /dev/urandom:/dev/random   # Required to get non-blocking entropy source
       - sqlite-db-volume:/root/airflow
-volumes:
-  sqlite-db-volume:

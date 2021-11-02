@@ -15,6 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 import jmespath
+import pytest
 from parameterized import parameterized
 
 from tests.helm_template_generator import render_chart
@@ -51,17 +52,29 @@ class TestKeda:
         else:
             assert docs == []
 
-    @parameterized.expand(
+    @staticmethod
+    def build_query(executor, concurrency=16, queue=None):
+        """Builds the query used by KEDA autoscaler to determine how many workers there should be"""
+        query = (
+            f"SELECT ceil(COUNT(*)::decimal / {concurrency}) "
+            "FROM task_instance WHERE (state='running' OR state='queued')"
+        )
+        if executor == 'CeleryKubernetesExecutor':
+            query += f" AND queue != '{queue or 'kubernetes'}'"
+        return query
+
+    @pytest.mark.parametrize(
+        'executor,concurrency',
         [
             ("CeleryExecutor", 8),
             ("CeleryExecutor", 16),
             ("CeleryKubernetesExecutor", 8),
             ("CeleryKubernetesExecutor", 16),
-        ]
+        ],
     )
     def test_keda_concurrency(self, executor, concurrency):
         """
-        ScaledObject should only be created when set to enabled and executor is Celery or CeleryKubernetes
+        Verify keda sql query uses configured concurrency
         """
         docs = render_chart(
             values={
@@ -71,10 +84,35 @@ class TestKeda:
             },
             show_only=["templates/workers/worker-kedaautoscaler.yaml"],
         )
-        expected_query = (
-            f"SELECT ceil(COUNT(*)::decimal / {concurrency}) "
-            "FROM task_instance WHERE state='running' OR state='queued'"
+        expected_query = self.build_query(executor=executor, concurrency=concurrency)
+        assert jmespath.search("spec.triggers[0].metadata.query", docs[0]) == expected_query
+
+    @pytest.mark.parametrize(
+        'executor,queue,should_filter',
+        [
+            ("CeleryExecutor", None, False),
+            ("CeleryExecutor", 'my_queue', False),
+            ("CeleryKubernetesExecutor", None, True),
+            ("CeleryKubernetesExecutor", 'my_queue', True),
+        ],
+    )
+    def test_keda_query_kubernetes_queue(self, executor, queue, should_filter):
+        """
+        Verify keda sql query ignores kubernetes queue when CKE is used.
+        Sometimes a user might want to use a different queue name for k8s executor tasks,
+        and we also verify here that we use the configured queue name in that case.
+        """
+        values = {
+            "workers": {"keda": {"enabled": True}, "persistence": {"enabled": False}},
+            "executor": executor,
+        }
+        if queue:
+            values.update({'config': {'celery_kubernetes_executor': {'kubernetes_queue': queue}}})
+        docs = render_chart(
+            values=values,
+            show_only=["templates/workers/worker-kedaautoscaler.yaml"],
         )
+        expected_query = self.build_query(executor=executor, queue=queue)
         assert jmespath.search("spec.triggers[0].metadata.query", docs[0]) == expected_query
 
     @parameterized.expand(

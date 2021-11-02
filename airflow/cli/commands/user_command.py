@@ -29,7 +29,7 @@ from airflow.utils.cli import suppress_logs_and_warning
 from airflow.www.app import cached_app
 
 
-@suppress_logs_and_warning()
+@suppress_logs_and_warning
 def users_list(args):
     """Lists users at the command line"""
     appbuilder = cached_app().appbuilder  # pylint: disable=no-member

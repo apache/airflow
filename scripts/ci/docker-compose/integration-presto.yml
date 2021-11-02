@@ -26,6 +26,12 @@ services:
     networks:
       example.com:
         ipv4_address: 10.5.0.3
+    healthcheck:
+      test: curl --fail http://localhost:8080/v1/info/ | grep '"starting":false'
+      interval: 5s
+      timeout: 30s
+      retries: 50
+    restart: always
 
     ports:
       - "38080:8080"
@@ -45,7 +51,8 @@ services:
     environment:
       - INTEGRATION_PRESTO=true
     depends_on:
-      - presto
+      presto:
+        condition: service_healthy
 
 volumes:
   presto-db-volume:

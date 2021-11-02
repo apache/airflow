@@ -269,7 +269,7 @@ def dag_next_execution(args):
 
 
 @cli_utils.action_logging
-@suppress_logs_and_warning()
+@suppress_logs_and_warning
 def dag_list_dags(args):
     """Displays dags with or without stats at the command line"""
     dagbag = DagBag(process_subdir(args.subdir))
@@ -286,7 +286,7 @@ def dag_list_dags(args):
 
 
 @cli_utils.action_logging
-@suppress_logs_and_warning()
+@suppress_logs_and_warning
 def dag_report(args):
     """Displays dagbag stats at the command line"""
     dagbag = DagBag(process_subdir(args.subdir))
@@ -304,7 +304,7 @@ def dag_report(args):
 
 
 @cli_utils.action_logging
-@suppress_logs_and_warning()
+@suppress_logs_and_warning
 def dag_list_jobs(args, dag=None):
     """Lists latest n jobs"""
     queries = []
@@ -339,7 +339,7 @@ def dag_list_jobs(args, dag=None):
 
 
 @cli_utils.action_logging
-@suppress_logs_and_warning()
+@suppress_logs_and_warning
 def dag_list_dag_runs(args, dag=None):
     """Lists dag runs for a given DAG"""
     if dag:

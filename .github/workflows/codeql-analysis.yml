@@ -36,6 +36,7 @@ jobs:
         uses: actions/checkout@v2
         with:
           fetch-depth: 2
+          persist-credentials: false
       - name: Selective checks
         id: selective-checks
         env:
@@ -68,6 +69,7 @@ jobs:
           # We must fetch at least the immediate parents so that if this is
           # a pull request then we can checkout the head.
           fetch-depth: 2
+          persist-credentials: false
         if: |
           matrix.language == 'python' && needs.selective-checks.outputs.needs-python-scans == 'true' ||
           matrix.language == 'javascript' && needs.selective-checks.outputs.needs-javascript-scans == 'true'

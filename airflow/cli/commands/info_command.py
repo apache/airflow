@@ -413,7 +413,7 @@ def _send_report_to_fileio(info):
         print(str(ex))
 
 
-@suppress_logs_and_warning()
+@suppress_logs_and_warning
 def show_info(args):
     """Show information related to Airflow, system and other."""
     # Enforce anonymization, when file_io upload is tuned on.

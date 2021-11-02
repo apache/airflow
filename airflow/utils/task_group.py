@@ -42,7 +42,7 @@ class TaskGroup(TaskMixin):
     :param prefix_group_id: If set to True, child task_id and group_id will be prefixed with
         this TaskGroup's group_id. If set to False, child task_id and group_id are not prefixed.
         Default is True.
-    :type prerfix_group_id: bool
+    :type prefix_group_id: bool
     :param parent_group: The parent TaskGroup of this TaskGroup. parent_group is set to None
         for the root TaskGroup.
     :type parent_group: TaskGroup

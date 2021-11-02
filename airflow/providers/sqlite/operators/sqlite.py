@@ -26,9 +26,15 @@ class SqliteOperator(BaseOperator):
     """
     Executes sql code in a specific Sqlite database
 
-    :param sql: the sql code to be executed. (templated)
-    :type sql: str or string pointing to a template file. File must have
-        a '.sql' extensions.
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:SqliteOperator`
+
+    :param sql: the sql code to be executed. Can receive a str representing a
+        sql statement, a list of str (sql statements), or reference to a template file.
+        Template reference are recognized by str ending in '.sql'
+        (templated)
+    :type sql: str or list[str]
     :param sqlite_conn_id: reference to a specific sqlite database
     :type sqlite_conn_id: str
     :param parameters: (optional) the parameters to render the SQL query with.
