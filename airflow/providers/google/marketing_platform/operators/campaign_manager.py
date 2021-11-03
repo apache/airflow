@@ -204,7 +204,7 @@ class GoogleCampaignManagerDownloadReportOperator(BaseOperator):
         self.api_version = api_version
         self.chunk_size = chunk_size
         self.gzip = gzip
-        self.bucket_name = self._set_bucket_name(bucket_name)
+        self.bucket_name = bucket_name
         self.report_name = report_name
         self.gcp_conn_id = gcp_conn_id
         self.delegate_to = delegate_to
@@ -254,8 +254,9 @@ class GoogleCampaignManagerDownloadReportOperator(BaseOperator):
 
             temp_file.flush()
             # Upload the local file to bucket
+            bucket_name = self._set_bucket_name(self.bucket_name)
             gcs_hook.upload(
-                bucket_name=self.bucket_name,
+                bucket_name=bucket_name,
                 object_name=report_name,
                 gzip=self.gzip,
                 filename=temp_file.name,
