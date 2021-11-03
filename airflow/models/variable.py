@@ -125,7 +125,7 @@ class Variable(Base, LoggingMixin):
         key: str,
         default_var: Any = __NO_DEFAULT_SENTINEL,
         deserialize_json: bool = False,
-        skip_external_backends: bool = False,
+        skip_secret_backend: bool = False,
     ) -> Any:
         """
         Gets a value for an Airflow Variable Key
@@ -133,10 +133,10 @@ class Variable(Base, LoggingMixin):
         :param key: Variable Key
         :param default_var: Default value of the Variable if the Variable doesn't exists
         :param deserialize_json: Deserialize the value to a Python dict
-        :param skip_external_backends: todo
+        :param skip_secret_backend: todo
         """
 
-        var_val = Variable.get_variable_from_backends(key=key, skip_external_backends=skip_external_backends)
+        var_val = Variable.get_variable_from_backends(key=key, skip_secret_backend=skip_secret_backend)
         if var_val is None:
             if default_var is not cls.__NO_DEFAULT_SENTINEL:
                 return default_var
@@ -207,7 +207,7 @@ class Variable(Base, LoggingMixin):
         if not skip_external_backends:
             cls.check_for_write_conflict(key)
 
-        if cls.get_variable_from_backends(key=key, skip_external_backends=skip_external_backends) is None:
+        if cls.get_variable_from_backends(key=key, skip_secret_backend=skip_external_backends) is None:
             raise KeyError(f'Variable {key} does not exist')
 
         obj = session.query(cls).filter(cls.key == key).first()
@@ -265,16 +265,16 @@ class Variable(Base, LoggingMixin):
             return None
 
     @staticmethod
-    def get_variable_from_backends(key: str, skip_external_backends: Optional[bool] = False) -> Optional[str]:
+    def get_variable_from_backends(key: str, skip_secret_backend: Optional[bool] = False) -> Optional[str]:
         """
         Get Airflow Variable by iterating over all Secret Backends.
 
         :param key: Variable Key
-        :param skip_external_backends: todo
+        :param skip_secret_backend: todo
         :return: Variable Value
         """
         for backend in ensure_secrets_loaded():
-            if skip_external_backends and (
+            if skip_secret_backend and (
                 not isinstance(backend, MetastoreBackend) and
                 not isinstance(backend, EnvironmentVariablesBackend)
             ):

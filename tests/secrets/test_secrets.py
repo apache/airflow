@@ -130,7 +130,7 @@ class TestVariableFromSecrets(unittest.TestCase):
         mock_meta_get.assert_called_once_with(key="fake_var_key")
         mock_env_get.assert_called_once_with(key="fake_var_key")
 
-        Variable.get_variable_from_backends("fake_var_key_2", skip_external_backends=True)
+        Variable.get_variable_from_backends("fake_var_key_2", skip_secret_backend=True)
         mock_meta_get.assert_called_with(key="fake_var_key_2")
         mock_env_get.assert_called_with(key="fake_var_key_2")
 
@@ -146,7 +146,7 @@ class TestVariableFromSecrets(unittest.TestCase):
         mock_env_get.assert_called_once_with(key="fake_var_key")
         mock_meta_get.assert_not_called()
 
-        Variable.get_variable_from_backends("fake_var_key_2", skip_external_backends=True)
+        Variable.get_variable_from_backends("fake_var_key_2", skip_secret_backend=True)
         mock_env_get.assert_called_with(key="fake_var_key_2")
         mock_meta_get.assert_not_called()
 
@@ -158,7 +158,7 @@ class TestVariableFromSecrets(unittest.TestCase):
         variable_value = Variable.get(key="test_var", default_var="new")
         assert "new" == variable_value
 
-        variable_value = Variable.get(key="test_var", default_var="new", skip_external_backends=True)
+        variable_value = Variable.get(key="test_var", default_var="new", skip_secret_backend=True)
         assert "new" == variable_value
 
     @conf_vars(
@@ -181,7 +181,7 @@ class TestVariableFromSecrets(unittest.TestCase):
         "airflow.providers.amazon.aws.secrets.systems_manager."
         "SystemsManagerParameterStoreBackend.get_variable"
     )
-    def test_backend_variable_skip_external_backends(self, mock_secret_get, mock_meta_get):
+    def test_backend_variable_skip_secret_backend(self, mock_secret_get, mock_meta_get):
         mock_secret_get.return_value = "a_secret_value"
         mock_meta_get.return_value = "a_metastore_value"
 
@@ -189,11 +189,11 @@ class TestVariableFromSecrets(unittest.TestCase):
         backend_classes = [backend.__class__.__name__ for backend in backends]
         assert 'SystemsManagerParameterStoreBackend' in backend_classes
 
-        assert "a_venv_value" == Variable.get(key="MYVAR", skip_external_backends=True)
+        assert "a_venv_value" == Variable.get(key="MYVAR", skip_secret_backend=True)
         mock_secret_get.assert_not_called()
         mock_meta_get.assert_not_called()
 
-        assert "a_metastore_value" == Variable.get(key="not_myvar", skip_external_backends=True)
+        assert "a_metastore_value" == Variable.get(key="not_myvar", skip_secret_backend=True)
         mock_secret_get.assert_not_called()
         mock_meta_get.assert_called_once_with(key="not_myvar")
 
