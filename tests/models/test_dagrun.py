@@ -146,10 +146,10 @@ class TestDagRun(unittest.TestCase):
         session = settings.Session()
         now = timezone.utcnow()
 
-        dag_id1 = "test_dagrun_find_duplicate"
+        dag_id = "test_dagrun_find_duplicate"
         dag_run = models.DagRun(
-            dag_id=dag_id1,
-            run_id=dag_id1,
+            dag_id=dag_id,
+            run_id=dag_id,
             run_type=DagRunType.MANUAL,
             execution_date=now,
             start_date=now,
@@ -160,10 +160,10 @@ class TestDagRun(unittest.TestCase):
 
         session.commit()
 
-        assert models.DagRun.find_duplicate(dag_id=dag_id1, run_id=dag_id1, execution_date=now) is not None
-        assert models.DagRun.find_duplicate(dag_id=dag_id1, run_id=dag_id1, execution_date=None) is not None
-        assert models.DagRun.find_duplicate(dag_id=dag_id1, run_id=None, execution_date=now) is not None
-        assert models.DagRun.find_duplicate(dag_id=dag_id1, run_id=None, execution_date=None) is None
+        assert models.DagRun.find_duplicate(dag_id=dag_id, run_id=dag_id, execution_date=now) is not None
+        assert models.DagRun.find_duplicate(dag_id=dag_id, run_id=dag_id, execution_date=None) is not None
+        assert models.DagRun.find_duplicate(dag_id=dag_id, run_id=None, execution_date=now) is not None
+        assert models.DagRun.find_duplicate(dag_id=dag_id, run_id=None, execution_date=None) is None
 
     def test_dagrun_success_when_all_skipped(self):
         """
