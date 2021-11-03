@@ -61,6 +61,9 @@ class SystemsManagerParameterStoreBackend(BaseSecretsBackend, LoggingMixin):
     :type config_prefix: str
     :param profile_name: The name of a profile to use. If not given, then the default profile is used.
     :type profile_name: str
+    :param connection_as_kwargs: if True, connection should be serialized as JSON; otherwise it should
+        use the Airflow Connection URI format
+    :type connection_as_kwargs: bool
     """
 
     def __init__(
