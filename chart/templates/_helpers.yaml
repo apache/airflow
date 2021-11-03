@@ -94,11 +94,12 @@ If release name contains chart name it will be used as a full name.
 {{- define "custom_airflow_environment" }}
   # Dynamically created environment variables
   {{- range $i, $config := .Values.env }}
+  {{- $values := omit $config "name" }}
   - name: {{ $config.name }}
-    value: {{ $config.value | quote }}
+    {{- toYaml $values | nindent 4 }}
     {{- if or (eq $.Values.executor "KubernetesExecutor") (eq $.Values.executor "CeleryKubernetesExecutor") }}
   - name: AIRFLOW__KUBERNETES_ENVIRONMENT_VARIABLES__{{ $config.name }}
-    value: {{ $config.value | quote }}
+    {{- toYaml $values | nindent 4 }}
     {{- end }}
   {{- end }}
   # Dynamically created secret envs
