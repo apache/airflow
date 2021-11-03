@@ -76,19 +76,12 @@ class TestGoogleSearchAdsInsertReportOperator(TestCase):
 
 
 class TestGoogleSearchAdsDownloadReportOperator(TestCase):
-    @classmethod
-    def setUpClass(cls):
-        super().setUpClass()
-
+    def setUp(self):
         with create_session() as session:
-            session.query(DagRun).delete()
             session.query(TI).delete()
 
     def tearDown(self):
-        super().tearDown()
-
         with create_session() as session:
-            session.query(DagRun).delete()
             session.query(TI).delete()
 
     @mock.patch("airflow.providers.google.marketing_platform.operators.search_ads.NamedTemporaryFile")
@@ -130,7 +123,7 @@ class TestGoogleSearchAdsDownloadReportOperator(TestCase):
         )
         xcom_mock.assert_called_once_with(None, key="file_name", value=FILE_NAME + ".csv.gz")
 
-    @parameterized.expand([BUCKET_NAME, f"gs://{BUCKET_NAME}", "XComArg"])
+    @parameterized.expand([BUCKET_NAME, f"gs://{BUCKET_NAME}", "XComArg", "{{ ti.xcom_pull(task_ids='f') }}"])
     @mock.patch("airflow.providers.google.marketing_platform.operators.search_ads.NamedTemporaryFile")
     @mock.patch("airflow.providers.google.marketing_platform.operators.search_ads.GCSHook")
     @mock.patch("airflow.providers.google.marketing_platform.operators.search_ads.GoogleSearchAdsHook")
@@ -149,19 +142,19 @@ class TestGoogleSearchAdsDownloadReportOperator(TestCase):
             catchup=False,
         )
 
-        if test_bucket_name == "XComArg":
+        if BUCKET_NAME not in test_bucket_name:
 
             @dag.task
             def f():
                 return BUCKET_NAME
 
-            test_bucket_name = f()
-            test_bucket_name.operator.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
+            taskflow_op = f()
+            taskflow_op.operator.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
 
         op = GoogleSearchAdsDownloadReportOperator(
             report_id=REPORT_ID,
             report_name=FILE_NAME,
-            bucket_name=test_bucket_name,
+            bucket_name=test_bucket_name if test_bucket_name != "XComArg" else taskflow_op,
             api_version=API_VERSION,
             task_id="test_task",
             dag=dag,
