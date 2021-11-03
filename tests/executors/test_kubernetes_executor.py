@@ -196,18 +196,18 @@ class TestKubernetesExecutor:
         AirflowKubernetesScheduler is None, reason='kubernetes python package is not installed'
     )
     @pytest.mark.parametrize(
-        'reason, status, should_requeue',
+        'status, should_requeue',
         [
-            ('Forbidden', 403, True),
-            ('fake-unhandled-reason', 12345, True),
-            ('Unprocessable Entity', 422, False),
-            ('BadRequest', 400, False),
+            pytest.param(403, True, id='403 Forbidden'),
+            pytest.param(12345, True, id='12345 fake-unhandled-reason'),
+            pytest.param(422, False, id='422 Unprocessable Entity'),
+            pytest.param(400, False, id='400 BadRequest'),
         ],
     )
     @mock.patch('airflow.executors.kubernetes_executor.KubernetesJobWatcher')
     @mock.patch('airflow.executors.kubernetes_executor.get_kube_client')
     def test_run_next_exception_requeue(
-        self, mock_get_kube_client, mock_kubernetes_job_watcher, reason, status, should_requeue
+        self, mock_get_kube_client, mock_kubernetes_job_watcher, status, should_requeue
     ):
         """
         When pod scheduling fails with either reason 'Forbidden', or any reason not yet
