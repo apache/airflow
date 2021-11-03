@@ -347,12 +347,12 @@ def downgrade():
         batch_op.drop_index('idx_task_reschedule_dag_task_run')
 
     with op.batch_alter_table('task_instance', schema=None) as batch_op:
+        batch_op.drop_constraint('task_instance_pkey', type_='primary')
         batch_op.alter_column('execution_date', existing_type=dt_type, existing_nullable=True, nullable=False)
         batch_op.alter_column(
             'dag_id', existing_type=string_id_col_type, existing_nullable=True, nullable=True
         )
 
-        batch_op.drop_constraint('task_instance_pkey', type_='primary')
         batch_op.create_primary_key('task_instance_pkey', ['dag_id', 'task_id', 'execution_date'])
 
         batch_op.drop_constraint('task_instance_dag_run_fkey', type_='foreignkey')
@@ -416,11 +416,11 @@ def downgrade():
         )
     else:
         with op.batch_alter_table('dag_run', schema=None) as batch_op:
-            batch_op.drop_index('dag_id_state', table_name='dag_run')
+            batch_op.drop_index('dag_id_state')
             batch_op.alter_column('run_id', existing_type=sa.VARCHAR(length=250), nullable=True)
             batch_op.alter_column('execution_date', existing_type=dt_type, nullable=True)
             batch_op.alter_column('dag_id', existing_type=sa.VARCHAR(length=250), nullable=True)
-            batch_op.create_index('dag_id_state', 'dag_run', ['dag_id', 'state'], unique=False)
+            batch_op.create_index('dag_id_state', ['dag_id', 'state'], unique=False)
 
 
 def _multi_table_update(dialect_name, target, column):
