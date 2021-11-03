@@ -21,7 +21,7 @@ from unittest import TestCase, mock
 
 from parameterized import parameterized
 
-from airflow.models import DAG, DagRun, TaskInstance as TI
+from airflow.models import DAG, TaskInstance as TI
 from airflow.providers.google.marketing_platform.operators.search_ads import (
     GoogleSearchAdsDownloadReportOperator,
     GoogleSearchAdsInsertReportOperator,
