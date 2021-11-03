@@ -196,18 +196,18 @@ class TestKubernetesExecutor:
         AirflowKubernetesScheduler is None, reason='kubernetes python package is not installed'
     )
     @pytest.mark.parametrize(
-        'reason, should_requeue',
+        'reason, status, should_requeue',
         [
-            ('Forbidden', True),
-            ('fake-unhandled-reason', True),
-            ('Unprocessable Entity', False),
-            ('BadRequest', False),
+            ('Forbidden', 403, True),
+            ('fake-unhandled-reason', 12345, True),
+            ('Unprocessable Entity',422, False),
+            ('BadRequest',400, False),
         ],
     )
     @mock.patch('airflow.executors.kubernetes_executor.KubernetesJobWatcher')
     @mock.patch('airflow.executors.kubernetes_executor.get_kube_client')
     def test_run_next_exception_requeue(
-        self, mock_get_kube_client, mock_kubernetes_job_watcher, reason, should_requeue
+        self, mock_get_kube_client, mock_kubernetes_job_watcher, reason, status, should_requeue
     ):
         """
         When pod scheduling fails with either reason 'Forbidden', or any reason not yet
@@ -225,15 +225,8 @@ class TestKubernetesExecutor:
         """
         import sys
 
-        reason_status_map = {
-            'BadRequest': 400,
-            'Forbidden': 403,
-            'Unprocessable Entity': 422,
-        }
-
         path = sys.path[0] + '/tests/kubernetes/pod_generator_base_with_secrets.yaml'
 
-        status = reason_status_map.get(reason, 12345)
         response = HTTPResponse(body='{"message": "any message"}', status=status)
 
         # A mock kube_client that throws errors when making a pod
