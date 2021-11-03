@@ -225,9 +225,16 @@ class TestKubernetesExecutor:
         """
         import sys
 
+        reason_status_map = {
+            'BadRequest': 400,
+            'Forbidden': 403,
+            'Unprocessable Entity': 422,
+        }
+
         path = sys.path[0] + '/tests/kubernetes/pod_generator_base_with_secrets.yaml'
 
-        response = HTTPResponse(body='{"message": "any message"}', reason=reason)
+        status = reason_status_map.get(reason, 12345)
+        response = HTTPResponse(body='{"message": "any message"}', status=status)
 
         # A mock kube_client that throws errors when making a pod
         mock_kube_client = mock.patch('kubernetes.client.CoreV1Api', autospec=True)

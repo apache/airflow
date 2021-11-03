@@ -599,7 +599,7 @@ class KubernetesExecutor(BaseExecutor, LoggingMixin):
                 try:
                     self.kube_scheduler.run_next(task)
                 except ApiException as e:
-                    if e.reason in ("BadRequest", "Unprocessable Entity"):
+                    if e.status in (400, 422):
                         self.log.error("Pod creation failed with reason %r. Failing task", e.reason)
                         key, _, _, _ = task
                         self.change_state(key, State.FAILED, e)
