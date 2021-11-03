@@ -171,7 +171,7 @@ class PythonOperator(BaseOperator):
         self.op_kwargs = determine_kwargs(self.python_callable, self.op_args, context)
 
         return_value = self.execute_callable()
-        self.log.info("Done. Returned value was: %s", return_value)
+        self.log.debug("Done. Returned value was: %s", return_value)
         return return_value
 
     def execute_callable(self):
