@@ -31,8 +31,11 @@ from kubernetes.client.api_client import ApiClient
 
 api_client = ApiClient()
 
-BASE_URL_SPEC = "https://raw.githubusercontent.com/yannh/kubernetes-json-schema/master/v"
 DEFAULT_KUBERNETES_VERSION = "1.22.0"
+BASE_URL_SPEC = (
+    f"https://raw.githubusercontent.com/yannh/kubernetes-json-schema/master/"
+    f"v{DEFAULT_KUBERNETES_VERSION}-standalone-strict"
+)
 
 crd_lookup = {
     'keda.sh/v1alpha1::ScaledObject': 'https://raw.githubusercontent.com/kedacore/keda/v2.0.0/config/crd/bases/keda.sh_scaledobjects.yaml',  # noqa: E501
