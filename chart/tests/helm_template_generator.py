@@ -40,7 +40,7 @@ BASE_URL_SPEC = (
 crd_lookup = {
     'keda.sh/v1alpha1::ScaledObject': 'https://raw.githubusercontent.com/kedacore/keda/v2.0.0/config/crd/bases/keda.sh_scaledobjects.yaml',  # noqa: E501
     # This object type was removed in k8s v1.22.0
-    'io.k8s.api.networking.v1beta1::Ingress': 'https://raw.githubusercontent.com/yannh/kubernetes-json-schema/master/v1.21.0/ingress-networking-v1beta1.json',  # noqa: E501
+    'networking.k8s.io/v1beta1::Ingress': 'https://raw.githubusercontent.com/yannh/kubernetes-json-schema/master/v1.21.0/ingress-networking-v1beta1.json',  # noqa: E501
 }
 
 
