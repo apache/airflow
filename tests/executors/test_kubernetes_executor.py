@@ -251,9 +251,8 @@ class TestKubernetesExecutor:
                 command=['airflow', 'tasks', 'run', 'true', 'some_parameter'],
             )
             kubernetes_executor.sync()
-            kubernetes_executor.sync()
 
-            assert mock_kube_client.create_namespaced_pod.called
+            assert mock_kube_client.create_namespaced_pod.call_count == 1
 
             if should_requeue:
                 assert not kubernetes_executor.task_queue.empty()
