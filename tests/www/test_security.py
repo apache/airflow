@@ -586,7 +586,6 @@ class TestSecurity(unittest.TestCase):
             self.security_manager._sync_dag_view_permissions(
                 'access_control_test', access_control={'team-a': READ_ONLY}
             )
-            # TODO: Don't manually set permissions
             self.assert_user_has_dag_perms(
                 perms=[permissions.ACTION_CAN_READ], dag_id='access_control_test', user=user
             )
