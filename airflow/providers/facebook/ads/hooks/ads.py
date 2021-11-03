@@ -144,6 +144,6 @@ class FacebookAdsReportingHook(BaseHook):
             self.log.info("Extracting data from returned Facebook Ads Iterators")
             all_insights[account_id] = list(report_object.get_insights())
             self.log.info(
-                str(account_id) + " Account Id used to extract data from Facebook Ads Iterators successfully"
+                "%s Account Id used to extract data from Facebook Ads Iterators successfully", account_id
             )
         return all_insights
