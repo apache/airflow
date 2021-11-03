@@ -36,10 +36,8 @@ from sqlalchemy import (
     UniqueConstraint,
 )
 from sqlalchemy.ext.declarative import declared_attr
-from sqlalchemy.orm import backref, object_session, relationship
+from sqlalchemy.orm import backref, relationship
 from sqlalchemy.orm.relationships import foreign
-
-from airflow.utils.session import create_session
 
 """
 Compatibility note: The models in this file are duplicated from Flask AppBuilder.
