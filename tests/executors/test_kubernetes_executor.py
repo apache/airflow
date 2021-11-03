@@ -200,8 +200,8 @@ class TestKubernetesExecutor:
         [
             ('Forbidden', 403, True),
             ('fake-unhandled-reason', 12345, True),
-            ('Unprocessable Entity',422, False),
-            ('BadRequest',400, False),
+            ('Unprocessable Entity', 422, False),
+            ('BadRequest', 400, False),
         ],
     )
     @mock.patch('airflow.executors.kubernetes_executor.KubernetesJobWatcher')
