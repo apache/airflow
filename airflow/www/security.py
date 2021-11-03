@@ -640,7 +640,6 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
             for action_name in self.DAG_ACTIONS:
                 self._merge_perm(action_name, resource_name)
 
-    # TODO: Dafuq happening here?
     def check_authorization(
         self, perms: Optional[Sequence[Tuple[str, str]]] = None, dag_id: Optional[str] = None
     ) -> bool:
