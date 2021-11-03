@@ -29,6 +29,7 @@ from airflow.configuration import ensure_secrets_loaded
 from airflow.models.base import ID_LEN, Base
 from airflow.models.crypto import get_fernet
 from airflow.secrets.environment_variables import EnvironmentVariablesBackend
+from airflow.secrets.local_filesystem import LocalFilesystemBackend
 from airflow.secrets.metastore import MetastoreBackend
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.log.secrets_masker import mask_secret
@@ -276,7 +277,8 @@ class Variable(Base, LoggingMixin):
         for backend in ensure_secrets_loaded():
             if skip_secret_backend and (
                 not isinstance(backend, MetastoreBackend) and
-                not isinstance(backend, EnvironmentVariablesBackend)
+                not isinstance(backend, EnvironmentVariablesBackend) and
+                not isinstance(backend, LocalFilesystemBackend)
             ):
                 continue
             try:
