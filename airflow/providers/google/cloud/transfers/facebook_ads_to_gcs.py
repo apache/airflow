@@ -92,6 +92,7 @@ class FacebookAdsReportToGcsOperator(BaseOperator):
         account from the list granting this role to the originating account (templated).
     :type impersonation_chain: Union[str, Sequence[str]]
     """
+
     template_fields = (
         "facebook_conn_id",
         "bucket_name",
@@ -194,7 +195,7 @@ class FacebookAdsReportToGcsOperator(BaseOperator):
                 )
                 total_data_count += len(converted_rows.get("converted_rows"))
         else:
-            message = f"FlushAction not found in the data"
+            message = "FlushAction not found in the data"
             raise AirflowException(message)
         return total_data_count
 
