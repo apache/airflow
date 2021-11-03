@@ -49,9 +49,9 @@ def get_schema_k8s(api_version, kind, kubernetes_version):
     if '/' in api_version:
         ext, _, api_version = api_version.partition("/")
         ext = ext.split(".")[0]
-        url = f'{BASE_URL_SPEC}{kubernetes_version}/{kind}-{ext}-{api_version}.json'
+        url = f'{BASE_URL_SPEC}/{kind}-{ext}-{api_version}.json'
     else:
-        url = f'{BASE_URL_SPEC}{kubernetes_version}/{kind}-{api_version}.json'
+        url = f'{BASE_URL_SPEC}/{kind}-{api_version}.json'
     request = requests.get(url)
     request.raise_for_status()
     schema = json.loads(
