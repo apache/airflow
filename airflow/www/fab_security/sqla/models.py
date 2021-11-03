@@ -127,7 +127,7 @@ class Role(Model):
 
     id = Column(Integer, get_sequence_or_identity("ab_role_id_seq"), primary_key=True)
     name = Column(String(64), unique=True, nullable=False)
-    permissions = relationship("Permission", secondary=assoc_permission_role, backref="role")
+    permissions = relationship("Permission", secondary=assoc_permission_role, backref="role", lazy="joined")
 
     def __repr__(self):
         return self.name
@@ -172,7 +172,7 @@ class User(Model):
     last_login = Column(DateTime)
     login_count = Column(Integer)
     fail_login_count = Column(Integer)
-    roles = relationship("Role", secondary=assoc_user_role, backref="user")
+    roles = relationship("Role", secondary=assoc_user_role, backref="user", lazy="joined")
     created_on = Column(DateTime, default=datetime.datetime.now, nullable=True)
     changed_on = Column(DateTime, default=datetime.datetime.now, nullable=True)
 
