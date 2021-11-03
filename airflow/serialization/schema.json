@@ -78,7 +78,7 @@
     "dag": {
       "type": "object",
       "properties": {
-        "params": { "$ref": "#/definitions/dict" },
+        "params": { "$ref": "#/definitions/params" },
         "_dag_id": { "type": "string" },
         "tasks": {  "$ref": "#/definitions/tasks" },
         "timezone": { "$ref": "#/definitions/timezone" },
@@ -145,13 +145,14 @@
       "required": [
         "__class",
         "default"
-          ],
-          "properties": {
+      ],
+      "properties": {
         "__class": { "type": "string" },
         "default": { "$ref": "#/definitions/dict" },
         "description": { "type": "string" },
         "schema": { "$ref": "#/definitions/dict" }
-          }},
+      }
+    },
     "operator": {
       "$comment": "A task/operator in a DAG",
       "type": "object",
