@@ -53,14 +53,10 @@ def get_users(*, limit: int, order_by: str = "id", offset: Optional[str] = None)
     appbuilder = current_app.appbuilder
     session = appbuilder.get_session
     total_entries = session.query(func.count(User.id)).scalar()
-    direction = desc if order_by.startswith("-") else asc
     to_replace = {"user_id": "id"}
     order_param = order_by.strip("-")
     order_param = to_replace.get(order_param, order_param)
     allowed_filter_attrs = [
-        'id',
-        "first_name",
-        "last_name",
         "user_name",
         "email",
         "is_active",
