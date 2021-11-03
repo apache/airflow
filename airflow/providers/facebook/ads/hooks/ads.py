@@ -120,7 +120,7 @@ class FacebookAdsReportingHook(BaseHook):
         :type sleep_time: int
 
         :return: Facebook Ads API response, converted to Facebook Ads Row objects
-        :rtype: Dict[List[AdsInsights], Any]
+        :rtype: Dict[str, List[AdsInsights]]
         """
         all_insights = {}
         api = self._get_service()
