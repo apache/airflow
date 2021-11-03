@@ -126,7 +126,7 @@ class FacebookAdsReportingHook(BaseHook):
         api = self._get_service()
         for account_id in self.facebook_ads_config["account_id"]:
             ad_account = AdAccount(account_id, api=api)
-            _async = ad_account.get_insights( params=params, fields=fields, is_async=True)
+            _async = ad_account.get_insights(params=params, fields=fields, is_async=True)
             while True:
                 request = _async.api_get()
                 async_status = request[AdReportRun.Field.async_status]
@@ -143,5 +143,7 @@ class FacebookAdsReportingHook(BaseHook):
             report_object = AdReportRun(report_run_id, api=api)
             self.log.info("Extracting data from returned Facebook Ads Iterators")
             all_insights[account_id] = list(report_object.get_insights())
-            self.log.info(str(account_id) + " Account Id used to extract data from Facebook Ads Iterators successfully")
+            self.log.info(
+                str(account_id) + " Account Id used to extract data from Facebook Ads Iterators successfully"
+            )
         return all_insights

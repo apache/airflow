@@ -78,6 +78,10 @@ class FacebookAdsReportToGcsOperator(BaseOperator):
     :type parameters: Dict[str, Any]
     :param gzip: Option to compress local file or file data for upload
     :type gzip: bool
+    :param upload_as_account: Option to export file with account_id
+        If set as True, each file will be exported in a separate file that has a prefix of account_id
+        If set as False, a single file will be exported for all account_id
+    :type upload_as_account: bool
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -144,10 +148,9 @@ class FacebookAdsReportToGcsOperator(BaseOperator):
         for account_id in bulk_report.keys():
             rows = bulk_report.get(account_id, None)
             if rows:
-                converted_rows_with_action = \
-                    self._prepare_rows_for_upload(rows=rows,
-                                                  converted_rows_with_action=converted_rows_with_action,
-                                                  account_id=account_id)
+                converted_rows_with_action = self._prepare_rows_for_upload(
+                    rows=rows, converted_rows_with_action=converted_rows_with_action, account_id=account_id
+                )
             else:
                 self.log.warning("account_id: %s returned empty report", str(account_id))
 
@@ -160,12 +163,14 @@ class FacebookAdsReportToGcsOperator(BaseOperator):
         else:
             return {FlushAction.EXPORT_ONCE: []}
 
-    def _prepare_rows_for_upload(self, rows: List[AdsInsights], converted_rows_with_action: Dict[FlushAction, list],
-                                 account_id: str):
+    def _prepare_rows_for_upload(
+        self, rows: List[AdsInsights], converted_rows_with_action: Dict[FlushAction, list], account_id: str
+    ):
         converted_rows = [dict(row) for row in rows]
         if self.upload_as_account:
-            converted_rows_with_action[FlushAction.EXPORT_EVERY_ACCOUNT].append({"account_id": account_id,
-                                                                                 "converted_rows": converted_rows})
+            converted_rows_with_action[FlushAction.EXPORT_EVERY_ACCOUNT].append(
+                {"account_id": account_id, "converted_rows": converted_rows}
+            )
         else:
             converted_rows_with_action[FlushAction.EXPORT_ONCE].extend(converted_rows)
         self.log.info("Facebook Returned %s data points for account_id %s: ", len(converted_rows), account_id)
@@ -174,14 +179,19 @@ class FacebookAdsReportToGcsOperator(BaseOperator):
     def _decide_and_flush(self, converted_rows_with_action: Dict[FlushAction, list]):
         total_data_count = 0
         if FlushAction.EXPORT_ONCE in converted_rows_with_action:
-            self._flush_rows(converted_rows=converted_rows_with_action.get(FlushAction.EXPORT_ONCE),
-                             object_name=self.object_name)
+            self._flush_rows(
+                converted_rows=converted_rows_with_action.get(FlushAction.EXPORT_ONCE),
+                object_name=self.object_name,
+            )
             total_data_count += len(converted_rows_with_action.get(FlushAction.EXPORT_ONCE))
         elif FlushAction.EXPORT_EVERY_ACCOUNT in converted_rows_with_action:
             for converted_rows in converted_rows_with_action.get(FlushAction.EXPORT_EVERY_ACCOUNT):
-                self._flush_rows(converted_rows=converted_rows.get("converted_rows"),
-                                 object_name=self._transform_object_name_with_account_id(
-                                     account_id=converted_rows.get("account_id")))
+                self._flush_rows(
+                    converted_rows=converted_rows.get("converted_rows"),
+                    object_name=self._transform_object_name_with_account_id(
+                        account_id=converted_rows.get("account_id")
+                    ),
+                )
                 total_data_count += len(converted_rows.get("converted_rows"))
         else:
             message = f"FlushAction not found in the data"
