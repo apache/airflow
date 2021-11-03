@@ -269,6 +269,7 @@ class TestKubernetesExecutor:
                 mock_kube_client.create_namespaced_pod.side_effect = None
 
                 # Execute the task without errors should empty the queue
+                mock_kube_client.create_namespaced_pod.reset_mock()
                 kubernetes_executor.sync()
                 assert mock_kube_client.create_namespaced_pod.called
                 assert kubernetes_executor.task_queue.empty()
