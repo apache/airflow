@@ -40,10 +40,10 @@ airflowHome: /opt/airflow
 defaultAirflowRepository: apache/airflow
 
 # Default airflow tag to deploy
-defaultAirflowTag: "2.2.0-python3.7"
+defaultAirflowTag: "2.2.1"
 
 # Airflow version (Used to make some decisions based on Airflow Version being deployed)
-airflowVersion: "2.2.0"
+airflowVersion: "2.2.1"
 
 # Images
 images:
@@ -622,6 +622,14 @@ createUserJob:
   affinity: {}
   tolerations: []
 
+  resources: {}
+  #  limits:
+  #   cpu: 100m
+  #   memory: 128Mi
+  #  requests:
+  #   cpu: 100m
+  #   memory: 128Mi
+
 # Airflow database migration job settings
 migrateDatabaseJob:
   # Annotations on the database migration pod
@@ -1191,6 +1199,14 @@ cleanup:
   nodeSelector: {}
   affinity: {}
   tolerations: []
+
+  resources: {}
+  #  limits:
+  #   cpu: 100m
+  #   memory: 128Mi
+  #  requests:
+  #   cpu: 100m
+  #   memory: 128Mi
 
   # Create ServiceAccount
   serviceAccount:

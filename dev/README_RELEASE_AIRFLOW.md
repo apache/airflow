@@ -272,6 +272,14 @@ until Monday, October 11, 2021 at 4:00 pm UTC, or until 3 binding +1 votes have 
 
 https://www.timeanddate.com/worldclock/fixedtime.html?msg=8&iso=20211011T1600&p1=1440
 
+
+Consider this my (binding) +1.
+
+Airflow ${VERSION} is available at:
+https://dist.apache.org/repos/dist/dev/airflow/$VERSION/
+
+
+
 Consider this my (binding) +1.
 
 Airflow ${VERSION} is available at:
@@ -354,9 +362,9 @@ The files should be present in the sub-folder of
 
 The following files should be present (9 files):
 
-* -bin-tar.gz + .asc + .sha512
 * -source.tar.gz + .asc + .sha512
-* -.whl + .asc + .sha512
+* .tar.gz + .asc + .sha512
+* -py3-none-any.whl + .asc + .sha512
 
 As a PMC you should be able to clone the SVN repository:
 
@@ -383,8 +391,8 @@ This can be done with the Apache RAT tool.
 
 * Download the latest jar from https://creadur.apache.org/rat/download_rat.cgi (unpack the binary,
   the jar is inside)
-* Unpack the binary (`-bin.tar.gz`) to a folder
-* Enter the folder and run the check (point to the place where you extracted the .jar)
+* Unpack the release source archive (the `<package + version>-source.tar.gz` file) to a folder
+* Enter the sources folder run the check
 
 ```shell script
 java -jar ../../apache-rat-0.13/apache-rat-0.13.jar -E .rat-excludes -d .
@@ -394,7 +402,7 @@ where `.rat-excludes` is the file in the root of Airflow source code.
 
 ## Signature check
 
-Make sure you have the key of person signed imported in your GPG. You can find the valid keys in
+Make sure you have imported into your GPG the PGP key of the person signing the release. You can find the valid keys in
 [KEYS](https://dist.apache.org/repos/dist/release/airflow/KEYS).
 
 You can import the whole KEYS file:
@@ -426,7 +434,7 @@ Once you have the keys, the signatures can be verified by running this:
 ```shell script
 for i in *.asc
 do
-   echo "Checking $i"; gpg --verify $i
+   echo -e "Checking $i\n"; gpg --verify $i
 done
 ```
 
@@ -438,14 +446,15 @@ warning. By importing the server in the previous step and importing it via ID fr
 this is a valid Key already.
 
 ```
-Checking apache-airflow-2.0.2rc4-bin.tar.gz.asc
-gpg: assuming signed data in 'apache-airflow-2.0.2rc4-bin.tar.gz'
+Checking apache-airflow-2.0.2rc4.tar.gz.asc
+gpg: assuming signed data in 'apache-airflow-2.0.2rc4.tar.gz'
 gpg: Signature made sob, 22 sie 2020, 20:28:28 CEST
 gpg:                using RSA key 12717556040EEF2EEAF1B9C275FCCD0A25FA0E4B
 gpg: Good signature from "Kaxil Naik <kaxilnaik@gmail.com>" [unknown]
 gpg: WARNING: This key is not certified with a trusted signature!
 gpg:          There is no indication that the signature belongs to the owner.
 Primary key fingerprint: 1271 7556 040E EF2E EAF1  B9C2 75FC CD0A 25FA 0E4B
+
 Checking apache_airflow-2.0.2rc4-py2.py3-none-any.whl.asc
 gpg: assuming signed data in 'apache_airflow-2.0.2rc4-py2.py3-none-any.whl'
 gpg: Signature made sob, 22 sie 2020, 20:28:31 CEST
@@ -454,6 +463,7 @@ gpg: Good signature from "Kaxil Naik <kaxilnaik@gmail.com>" [unknown]
 gpg: WARNING: This key is not certified with a trusted signature!
 gpg:          There is no indication that the signature belongs to the owner.
 Primary key fingerprint: 1271 7556 040E EF2E EAF1  B9C2 75FC CD0A 25FA 0E4B
+
 Checking apache-airflow-2.0.2rc4-source.tar.gz.asc
 gpg: assuming signed data in 'apache-airflow-2.0.2rc4-source.tar.gz'
 gpg: Signature made sob, 22 sie 2020, 20:28:25 CEST
@@ -478,7 +488,7 @@ done
 You should get output similar to:
 
 ```
-Checking apache-airflow-2.0.2rc4-bin.tar.gz.sha512
+Checking apache-airflow-2.0.2rc4.tar.gz.sha512
 Checking apache_airflow-2.0.2rc4-py2.py3-none-any.whl.sha512
 Checking apache-airflow-2.0.2rc4-source.tar.gz.sha512
 ```

@@ -19,6 +19,20 @@
 Changelog
 ---------
 
+2.1.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add more type hints to PodLauncher (#18928)``
+* ``Add more information to PodLauncher timeout error (#17953)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Update docstring to let users use &#39;node_selector&#39; (#19057)``
+   * ``Add pre-commit hook for common misspelling check in files (#18964)``
+
 2.0.3
 .....
 

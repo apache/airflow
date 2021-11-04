@@ -149,7 +149,7 @@ def _encode_timetable(var: Timetable) -> Dict[str, Any]:
     importable_string = as_importable_string(timetable_class)
     if _get_registered_timetable(importable_string) != timetable_class:
         raise _TimetableNotRegistered(importable_string)
-    return {"__type": importable_string, "__var": var.serialize()}
+    return {Encoding.TYPE: importable_string, Encoding.VAR: var.serialize()}
 
 
 def _decode_timetable(var: Dict[str, Any]) -> Timetable:
@@ -158,11 +158,11 @@ def _decode_timetable(var: Dict[str, Any]) -> Timetable:
     Most of the deserialization logic is delegated to the actual type, which
     we import from string.
     """
-    importable_string = var["__type"]
+    importable_string = var[Encoding.TYPE]
     timetable_class = _get_registered_timetable(importable_string)
     if timetable_class is None:
         raise _TimetableNotRegistered(importable_string)
-    return timetable_class.deserialize(var["__var"])
+    return timetable_class.deserialize(var[Encoding.VAR])
 
 
 class BaseSerialization:
@@ -270,8 +270,8 @@ class BaseSerialization:
                 serialized_object[key] = _encode_timetable(value)
             else:
                 value = cls._serialize(value)
-                if isinstance(value, dict) and "__type" in value:
-                    value = value["__var"]
+                if isinstance(value, dict) and Encoding.TYPE in value:
+                    value = value[Encoding.VAR]
                 serialized_object[key] = value
         return serialized_object
 
@@ -786,33 +786,33 @@ class SerializedDAG(DAG, BaseSerialization):
     def serialize_dag(cls, dag: DAG) -> dict:
         """Serializes a DAG into a JSON object."""
         try:
-            serialize_dag = cls.serialize_to_json(dag, cls._decorated_fields)
+            serialized_dag = cls.serialize_to_json(dag, cls._decorated_fields)
 
             # If schedule_interval is backed by timetable, serialize only
             # timetable; vice versa for a timetable backed by schedule_interval.
             if dag.timetable.summary == dag.schedule_interval:
-                del serialize_dag["schedule_interval"]
+                del serialized_dag["schedule_interval"]
             else:
-                del serialize_dag["timetable"]
+                del serialized_dag["timetable"]
 
-            serialize_dag["tasks"] = [cls._serialize(task) for _, task in dag.task_dict.items()]
-            serialize_dag["dag_dependencies"] = [
+            serialized_dag["tasks"] = [cls._serialize(task) for _, task in dag.task_dict.items()]
+            serialized_dag["dag_dependencies"] = [
                 vars(t)
                 for t in (SerializedBaseOperator.detect_dependencies(task) for task in dag.task_dict.values())
                 if t is not None
             ]
-            serialize_dag['_task_group'] = SerializedTaskGroup.serialize_task_group(dag.task_group)
+            serialized_dag['_task_group'] = SerializedTaskGroup.serialize_task_group(dag.task_group)
 
             # Edge info in the JSON exactly matches our internal structure
-            serialize_dag["edge_info"] = dag.edge_info
-            serialize_dag["params"] = cls._serialize_params_dict(dag.params)
+            serialized_dag["edge_info"] = dag.edge_info
+            serialized_dag["params"] = cls._serialize_params_dict(dag.params)
 
             # has_on_*_callback are only stored if the value is True, as the default is False
             if dag.has_on_success_callback:
-                serialize_dag['has_on_success_callback'] = True
+                serialized_dag['has_on_success_callback'] = True
             if dag.has_on_failure_callback:
-                serialize_dag['has_on_failure_callback'] = True
-            return serialize_dag
+                serialized_dag['has_on_failure_callback'] = True
+            return serialized_dag
         except SerializationError:
             raise
         except Exception as e:
@@ -923,7 +923,7 @@ class SerializedTaskGroup(TaskGroup, BaseSerialization):
     """A JSON serializable representation of TaskGroup."""
 
     @classmethod
-    def serialize_task_group(cls, task_group: TaskGroup) -> Optional[Union[Dict[str, Any]]]:
+    def serialize_task_group(cls, task_group: TaskGroup) -> Optional[Dict[str, Any]]:
         """Serializes TaskGroup into a JSON object."""
         if not task_group:
             return None

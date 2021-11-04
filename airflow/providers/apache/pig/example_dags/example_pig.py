@@ -17,15 +17,16 @@
 # under the License.
 
 """Example DAG demonstrating the usage of the PigOperator."""
+from datetime import datetime
 
 from airflow import DAG
 from airflow.providers.apache.pig.operators.pig import PigOperator
-from airflow.utils.dates import days_ago
 
 dag = DAG(
     dag_id='example_pig_operator',
     schedule_interval=None,
-    start_date=days_ago(2),
+    start_date=datetime(2021, 1, 1),
+    catchup=False,
     tags=['example'],
 )
 

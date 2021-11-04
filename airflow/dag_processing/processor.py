@@ -414,16 +414,21 @@ class DagFileProcessor(LoggingMixin):
 
             sla_misses = []
             next_info = dag.next_dagrun_info(dag.get_run_data_interval(ti.dag_run), restricted=False)
-            while next_info.logical_date < ts:
-                next_info = dag.next_dagrun_info(next_info.data_interval, restricted=False)
-                if next_info.logical_date + task.sla < ts:
-                    sla_miss = SlaMiss(
-                        task_id=ti.task_id,
-                        dag_id=ti.dag_id,
-                        execution_date=next_info.logical_date,
-                        timestamp=ts,
-                    )
-                    sla_misses.append(sla_miss)
+            if next_info is None:
+                self.log.info("Skipping SLA check for %s because task does not have scheduled date", ti)
+            else:
+                while next_info.logical_date < ts:
+                    next_info = dag.next_dagrun_info(next_info.data_interval, restricted=False)
+                    if next_info is None:
+                        break
+                    if next_info.logical_date + task.sla < ts:
+                        sla_miss = SlaMiss(
+                            task_id=ti.task_id,
+                            dag_id=ti.dag_id,
+                            execution_date=next_info.logical_date,
+                            timestamp=ts,
+                        )
+                        sla_misses.append(sla_miss)
             if sla_misses:
                 session.add_all(sla_misses)
         session.commit()

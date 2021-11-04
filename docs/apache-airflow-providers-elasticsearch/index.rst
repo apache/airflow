@@ -64,7 +64,7 @@ Package apache-airflow-providers-elasticsearch
 `Elasticsearch <https://www.elastic.co/elasticsearch>`__
 
 
-Release: 2.0.3
+Release: 2.1.0
 
 Provider package
 ----------------

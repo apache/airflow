@@ -523,7 +523,7 @@ class TestStringifiedDAGs:
         if isinstance(task.params, ParamsDict):
             assert serialized_task.params.dump() == task.params.dump()
 
-        # Check that for Deserialised task, task.subdag is None for all other Operators
+        # Check that for Deserialized task, task.subdag is None for all other Operators
         # except for the SubDagOperator where task.subdag is an instance of DAG object
         if task.task_type == "SubDagOperator":
             assert serialized_task.subdag is not None

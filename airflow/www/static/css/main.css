@@ -454,3 +454,12 @@ label[for="timezone-other"],
   color: #262626;
   background-color: #f5f5f5;
 }
+
+.tooltip {
+  z-index: 0;
+}
+
+.tooltip.in,
+.tooltip.d3-tip {
+  z-index: 1070;
+}

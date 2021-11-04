@@ -507,6 +507,7 @@ bq
 bugfix
 bugfixes
 buildType
+burstable
 bytestring
 cacert
 callables
@@ -1298,6 +1299,7 @@ sudo
 sudoers
 summarization
 superclass
+sur
 svg
 swp
 symlink

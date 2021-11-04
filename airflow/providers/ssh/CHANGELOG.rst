@@ -19,6 +19,22 @@
 Changelog
 ---------
 
+2.3.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Refactor SSHOperator so a subclass can run many commands (#10874) (#17378)``
+* ``update minimum version of sshtunnel to 0.3.2 (#18684)``
+* ``Correctly handle get_pty attribute if command passed as XComArg or template (#19323)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Add pre-commit hook for common misspelling check in files (#18964)``
+
+.. Review and move the new changes to one of the sections above:
+
 2.2.0
 .....
 

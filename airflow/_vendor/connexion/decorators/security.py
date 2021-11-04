@@ -186,7 +186,7 @@ def verify_oauth(token_info_func, scope_validate_func):
         if token_info is None:
             return None
 
-        # Fallback to 'scopes' for backward compability
+        # Fallback to 'scopes' for backward compatibility
         token_scopes = token_info.get('scope', token_info.get('scopes', ''))
         if not scope_validate_func(required_scopes, token_scopes):
             raise OAuthScopeProblem(
@@ -318,7 +318,7 @@ def verify_security(auth_funcs, required_scopes, function):
     def wrapper(request):
         token_info = get_authorization_info(auth_funcs, request, required_scopes)
 
-        # Fallback to 'uid' for backward compability
+        # Fallback to 'uid' for backward compatibility
         request.context['user'] = token_info.get('sub', token_info.get('uid'))
         request.context['token_info'] = token_info
         return function(request)
