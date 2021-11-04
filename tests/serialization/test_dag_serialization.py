@@ -1472,7 +1472,6 @@ class TestStringifiedDAGs:
                 "params": {"none": None, "str": "str", "dict": {"a": "b"}},
             },
         }
-        SerializedDAG.validate_schema(serialized)
         dag = SerializedDAG.from_dict(serialized)
 
         assert dag.params["none"] is None

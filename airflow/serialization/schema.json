@@ -78,7 +78,7 @@
     "dag": {
       "type": "object",
       "properties": {
-        "params": {"anyOf": [{ "$ref": "#/definitions/params_dict" }, {"$ref": "#/definitions/dict"}]},
+        "params": { "$ref": "#/definitions/params_dict" },
         "_dag_id": { "type": "string" },
         "tasks": {  "$ref": "#/definitions/tasks" },
         "timezone": { "$ref": "#/definitions/timezone" },
@@ -184,7 +184,7 @@
         "retry_delay": { "$ref": "#/definitions/timedelta" },
         "retry_exponential_backoff": { "type": "boolean" },
         "max_retry_delay": { "$ref": "#/definitions/timedelta" },
-        "params": {"anyOf": [{ "$ref": "#/definitions/params_dict" }, {"$ref": "#/definitions/dict"}]},
+        "params": { "$ref": "#/definitions/params_dict" },
         "priority_weight": { "type": "number" },
         "weight_rule": { "type": "string" },
         "executor_config": { "$ref": "#/definitions/dict" },
