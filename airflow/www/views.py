@@ -1704,6 +1704,10 @@ class Airflow(AirflowBaseView):
             flash(f"Cannot find dag {dag_id}")
             return redirect(origin)
 
+        if dag_orm.has_import_errors:
+            flash(f"Cannot create dagruns because the dag {dag_id} has import errors", "error")
+            return redirect(origin)
+
         if request.method == 'GET':
             # Populate conf textarea with conf requests parameter, or dag.params
             default_conf = ''
