@@ -57,7 +57,4 @@ class ValidStateDep(BaseTIDep):
             yield self._passing_status(reason=f"Task state {ti.state} was valid.")
             return
 
-        yield self._failing_status(
-            reason="Task is in the '{}' state which is not a valid state for "
-            "execution. The task must be cleared in order to be run.".format(ti.state)
-        )
+        yield self._failing_status(reason=f"Task is in the '{ti.state}' state.")
