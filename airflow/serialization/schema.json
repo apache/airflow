@@ -137,7 +137,7 @@
     },
     "params_dict": {
       "type": "object",
-      "additionalProperties": {"anyOf": [ { "$ref": "#/definitions/param" }, { "type":  "object"}]}
+      "additionalProperties": {"$ref": "#/definitions/param" }
     },
     "param": {
       "$comment": "A param for a dag / operator",
@@ -148,8 +148,8 @@
       ],
       "properties": {
         "__class": { "type": "string" },
-        "default": { "$ref": "#/definitions/dict" },
-        "description": { "type": "string" },
+        "default": {},
+        "description": {"anyOf": [{"type":"string"}, {"type":"null"}]},
         "schema": { "$ref": "#/definitions/dict" }
       }
     },
