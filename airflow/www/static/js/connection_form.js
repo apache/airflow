@@ -67,7 +67,7 @@ function getControlsContainer() {
    * well-known state during the change of connection types.
    */
 function restoreFieldBehaviours() {
-  Array.from(document.querySelectorAll('label[data-origText]')).forEach((elem) => {
+  Array.from(document.querySelectorAll('label[data-orig-text]')).forEach((elem) => {
     elem.innerText = elem.dataset.origText;
     delete elem.dataset.origText;
   });
