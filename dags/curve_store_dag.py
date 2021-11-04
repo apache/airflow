@@ -25,7 +25,7 @@ def onCurveAnalyFail(context):
 
 
 def onCurveAnalySuccess(context):
-    _logger.info("{0} Run Success".format(context))
+    _logger.info("Run Success")
 
 
 dag = DAG(

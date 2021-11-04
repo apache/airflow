@@ -120,7 +120,7 @@ class ResultStorageHook(BaseHook, ABC):
             )
 
             ResultStorageHook.save_curve(params)
-        _logger.info(params)
+        _logger.debug(params)
         params.update({
             'bolt_number': bolt_number,
             'craft_type': craft_type
