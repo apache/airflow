@@ -1385,6 +1385,10 @@ This is the current syntax for  `./breeze <./breeze>`_:
           Disables installation of the mysql client which might be problematic if you are building
           image in controlled environment. Only valid for production image.
 
+  --disable-mssql-client-installation
+          Disables installation of the mssql client which might be problematic if you are building
+          image in controlled environment. Only valid for production image.
+
   --constraints-location
           Url to the constraints file. In case of the production image it can also be a path to the
           constraint file placed in 'docker-context-files' folder, in which case it has to be
@@ -1984,6 +1988,10 @@ This is the current syntax for  `./breeze <./breeze>`_:
           Disables installation of the mysql client which might be problematic if you are building
           image in controlled environment. Only valid for production image.
 
+  --disable-mssql-client-installation
+          Disables installation of the mssql client which might be problematic if you are building
+          image in controlled environment. Only valid for production image.
+
   --constraints-location
           Url to the constraints file. In case of the production image it can also be a path to the
           constraint file placed in 'docker-context-files' folder, in which case it has to be
@@ -2571,6 +2579,10 @@ This is the current syntax for  `./breeze <./breeze>`_:
 
   --disable-mysql-client-installation
           Disables installation of the mysql client which might be problematic if you are building
+          image in controlled environment. Only valid for production image.
+
+  --disable-mssql-client-installation
+          Disables installation of the mssql client which might be problematic if you are building
           image in controlled environment. Only valid for production image.
 
   --constraints-location
