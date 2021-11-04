@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 # Might be empty
-AIRFLOW_COMMAND="${1:-}"
+airflow_command="${1:-}"
 
 set -euo pipefail
 
@@ -24,7 +24,7 @@ function run_check_with_retries {
     local cmd
     cmd="${1}"
     local countdown
-    countdown="${CONNECTION_CHECK_MAX_COUNT}"
+    countdown="${connection_check_max_count}"
 
     while true
     do
@@ -43,7 +43,7 @@ function run_check_with_retries {
         fi
         if [[ ${countdown} == 0 ]]; then
             echo
-            echo "ERROR! Maximum number of retries (${CONNECTION_CHECK_MAX_COUNT}) reached."
+            echo "ERROR! Maximum number of retries (${connection_check_max_count}) reached."
             echo
             echo "Last check result:"
             echo "$ ${cmd}"
@@ -257,15 +257,15 @@ check_uid_gid
 # reused with a different UID (but with GID=0)
 umask 0002
 
-CONNECTION_CHECK_MAX_COUNT=${CONNECTION_CHECK_MAX_COUNT:=20}
-readonly CONNECTION_CHECK_MAX_COUNT
+connection_check_max_count=${connection_check_max_count:=20}
+readonly connection_check_max_count
 
-CONNECTION_CHECK_SLEEP_TIME=${CONNECTION_CHECK_SLEEP_TIME:=3}
-readonly CONNECTION_CHECK_SLEEP_TIME
+connection_check_sleep_time=${connection_check_sleep_time:=3}
+readonly connection_check_sleep_time
 
 create_system_user_if_missing
 set_pythonpath_for_root_user
-if [[ "${CONNECTION_CHECK_MAX_COUNT}" -gt "0" ]]; then
+if [[ "${connection_check_max_count}" -gt "0" ]]; then
     wait_for_airflow_db
 fi
 
@@ -311,7 +311,7 @@ fi
 
 # Note: the broker backend configuration concerns only a subset of Airflow components
 if [[ ${AIRFLOW_COMMAND} =~ ^(scheduler|celery)$ ]] \
-    && [[ "${CONNECTION_CHECK_MAX_COUNT}" -gt "0" ]]; then
+    && [[ "${connection_check_max_count}" -gt "0" ]]; then
     wait_for_celery_broker
 fi
 
