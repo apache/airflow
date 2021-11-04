@@ -304,6 +304,7 @@ exec_to_bash_or_python_command_if_specified "${@}"
 #     docker run IMAGE airflow webserver
 #     docker run IMAGE webserver
 #
+
 if [[ ${AIRFLOW_COMMAND} == "airflow" ]]; then
    AIRFLOW_COMMAND="${2:-}"
    shift
