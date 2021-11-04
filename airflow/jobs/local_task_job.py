@@ -221,6 +221,12 @@ class LocalTaskJob(BaseJob):
                 error = self.task_runner.deserialize_run_error() or "task marked as failed externally"
             ti._run_finished_callback(error=error)
             self.terminating = True
+            # Set the Job state to terminating too otherwise
+            # this job will still be in running state till
+            # DagFileProcessorManager._find_zombie kills it.
+            # See BaseJob.heartbeat
+            self.state = State.SHUTDOWN
+            session.merge(self)
 
     @provide_session
     @Sentry.enrich_errors
