@@ -44,7 +44,7 @@ except Exception as e:
     _logger.error(e)
     DATA_STORAGE_DURATION = 90
 try:
-    DATA_STORAGE_MARGIN = int(os.environ.get('DATA_STORAGE_DURATION', '3'))
+    DATA_STORAGE_MARGIN = int(os.environ.get('DATA_STORAGE_MARGIN', '3'))
 except Exception as e:
     _logger.error(e)
     DATA_STORAGE_MARGIN = 3
