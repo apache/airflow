@@ -338,6 +338,11 @@ integrations:
     how-to-guide:
       - /docs/apache-airflow-providers-google/operators/leveldb/leveldb.rst
     tags: [google]
+  - integration-name: Google Vertex AI
+    external-doc-url: https://cloud.google.com/vertex-ai
+    how-to-guide:
+      - /docs/apache-airflow-providers-google/operators/cloud/vertex_ai.rst
+    tags: [gcp]
 
 operators:
   - integration-name: Google Ads
@@ -465,6 +470,9 @@ operators:
   - integration-name: Google LevelDB
     python-modules:
       - airflow.providers.google.leveldb.operators.leveldb
+  - integration-name: Google Vertex AI
+    python-modules:
+      - airflow.providers.google.cloud.operators.vertex_ai
 
 sensors:
   - integration-name: Google BigQuery
@@ -659,6 +667,9 @@ hooks:
   - integration-name: Google LevelDB
     python-modules:
       - airflow.providers.google.leveldb.hooks.leveldb
+  - integration-name: Google Vertex AI
+    python-modules:
+      - airflow.providers.google.cloud.hooks.vertex_ai
 
 transfers:
   - source-integration-name: Presto
