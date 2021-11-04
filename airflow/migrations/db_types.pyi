@@ -15,36 +15,14 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+#
 
-"""add dag_stats table
-
-Revision ID: f2ca10b85618
-Revises: 64de9cddf6c9
-Create Date: 2016-07-20 15:08:28.247537
-
-"""
 import sqlalchemy as sa
-from alembic import op
 
-from airflow.migrations.db_types import StringID
+TIMESTAMP = sa.TIMESTAMP
+"""Database specific timestamp with timezone"""
 
-# revision identifiers, used by Alembic.
-revision = 'f2ca10b85618'
-down_revision = '64de9cddf6c9'
-branch_labels = None
-depends_on = None
+StringID = sa.String
+"""String column type with correct DB collation applied"""
 
-
-def upgrade():
-    op.create_table(
-        'dag_stats',
-        sa.Column('dag_id', StringID(), nullable=False),
-        sa.Column('state', sa.String(length=50), nullable=False),
-        sa.Column('count', sa.Integer(), nullable=False, default=0),
-        sa.Column('dirty', sa.Boolean(), nullable=False, default=False),
-        sa.PrimaryKeyConstraint('dag_id', 'state'),
-    )
-
-
-def downgrade():
-    op.drop_table('dag_stats')
+MSSQL_USE_DATE_TIME2: bool

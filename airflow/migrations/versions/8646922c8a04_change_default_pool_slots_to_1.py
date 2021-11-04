@@ -30,7 +30,7 @@ from alembic import op
 from sqlalchemy import Column, Float, Integer, PickleType, String
 from sqlalchemy.ext.declarative import declarative_base
 
-from airflow.models.base import COLLATION_ARGS
+from airflow.migrations.db_types import StringID
 from airflow.utils.sqlalchemy import UtcDateTime
 
 # revision identifiers, used by Alembic.
@@ -41,7 +41,6 @@ depends_on = None
 
 Base = declarative_base()
 BATCH_SIZE = 5000
-ID_LEN = 250
 
 
 class TaskInstance(Base):  # type: ignore
@@ -49,8 +48,8 @@ class TaskInstance(Base):  # type: ignore
 
     __tablename__ = "task_instance"
 
-    task_id = Column(String(ID_LEN, **COLLATION_ARGS), primary_key=True)
-    dag_id = Column(String(ID_LEN, **COLLATION_ARGS), primary_key=True)
+    task_id = Column(StringID(), primary_key=True)
+    dag_id = Column(StringID(), primary_key=True)
     execution_date = Column(UtcDateTime, primary_key=True)
     start_date = Column(UtcDateTime)
     end_date = Column(UtcDateTime)
@@ -70,7 +69,7 @@ class TaskInstance(Base):  # type: ignore
     queued_by_job_id = Column(Integer)
     pid = Column(Integer)
     executor_config = Column(PickleType(pickler=dill))
-    external_executor_id = Column(String(ID_LEN, **COLLATION_ARGS))
+    external_executor_id = Column(StringID())
 
 
 def upgrade():
