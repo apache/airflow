@@ -27,6 +27,7 @@
   - [[\Optional\] Prepare new release branches and cache](#%5Coptional%5C-prepare-new-release-branches-and-cache)
   - [Prepare PyPI convenience "snapshot" packages](#prepare-pypi-convenience-snapshot-packages)
   - [Prepare production Docker Image](#prepare-production-docker-image)
+  - [Prepare issue for testing status of rc](#prepare-issue-for-testing-status-of-rc)
   - [Prepare Vote email on the Apache Airflow release candidate](#prepare-vote-email-on-the-apache-airflow-release-candidate)
 - [Verify the release candidate by PMCs](#verify-the-release-candidate-by-pmcs)
   - [SVN check](#svn-check)
@@ -337,6 +338,32 @@ Production Docker images should be manually prepared and pushed by the release m
 This will wipe Breeze cache and docker-context-files in order to make sure the build is "clean". It
 also performs image verification before pushing the images.
 
+## Prepare issue for testing status of rc
+
+For now this part works for bugfix releases only, for major/minor ones we will experiment and
+see if there is a way to only extract important/not tested bugfixes and high-level changes to
+make the process manageable.
+
+
+Create an issue for testing status of the RC (PREVIOUS_RELEASE should be the previous release version
+(for example 2.1.0).
+
+```shell script
+cat <<EOF
+Status of testing of Apache Airflow ${VERSION}
+EOF
+```
+
+Content is generated with:
+
+```shell
+./dev/prepare_release_issue.py generate-issue-content --previous-release <PREVIOUS_RELEASE> \
+    --current-release ${VERSION}
+
+```
+
+Copy the URL of the issue.
+
 ## Prepare Vote email on the Apache Airflow release candidate
 
 - Use the dev/airflow-jira script to generate a list of Airflow JIRAs that were closed in the release.
@@ -362,6 +389,8 @@ which will last for 72 hours, from Friday, October 8, 2021 at 4:00 pm UTC
 until Monday, October 11, 2021 at 4:00 pm UTC, or until 3 binding +1 votes have been received.
 
 https://www.timeanddate.com/worldclock/fixedtime.html?msg=8&iso=20211011T1600&p1=1440
+
+Status of testing of the release is kept in TODO:URL_OF_THE_ISSUE_HERE
 
 Consider this my (binding) +1.
 
