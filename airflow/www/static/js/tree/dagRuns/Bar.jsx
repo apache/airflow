@@ -73,7 +73,7 @@ const DagRunBar = ({
     </Flex>
     {index < totalRuns - 3 && index % 10 === 0 && (
     <VStack position="absolute" top="0" left="-22px" spacing={0}>
-      <Text fontSize={10} color="gray.400" whiteSpace="nowrap" transform="rotate(-30deg) translateX(28px)" mt="-23px !important">
+      <Text fontSize="10px" color="gray.400" whiteSpace="nowrap" transform="rotate(-30deg) translateX(28px)" mt="-23px !important">
         {moment.utc(run.executionDate).format('MMM DD, HH:mm')}
       </Text>
       <Box borderLeftWidth={1} zIndex={0} opacity={0.7} height="100px" />

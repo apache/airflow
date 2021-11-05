@@ -60,7 +60,7 @@ const StatusBox = ({
           width="10px"
           height="10px"
           backgroundColor={stateColors[instance.state] || 'white'}
-          borderRadius={2}
+          borderRadius="2px"
           borderWidth={instance.state ? 0 : 1}
         />
       </Flex>

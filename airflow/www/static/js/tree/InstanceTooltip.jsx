@@ -72,7 +72,7 @@ const InstanceTooltip = ({
   const taskIdTitle = isGroup ? 'Task Group Id: ' : 'Task Id: ';
 
   return (
-    <Box fontSize={12} py={4}>
+    <Box fontSize="12px" py="4px">
       {group.tooltip && (
         <Text>{group.tooltip}</Text>
       )}

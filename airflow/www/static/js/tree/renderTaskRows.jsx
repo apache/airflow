@@ -156,7 +156,7 @@ const Row = ({
         <Td width={0} p={0} borderBottom={0} />
         <Td p={0} align="right" _groupHover={{ backgroundColor: 'rgba(113, 128, 150, 0.1)' }} borderBottom={0}>
           <Collapse in={isFullyOpen}>
-            <TaskInstances dagRuns={dagRuns} />
+            <TaskInstances dagRuns={dagRuns} task={task} containerRef={containerRef} />
           </Collapse>
         </Td>
       </Tr>

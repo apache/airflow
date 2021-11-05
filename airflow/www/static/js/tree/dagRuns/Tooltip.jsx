@@ -31,7 +31,7 @@ const DagRunTooltip = ({
     state, runId, duration, dataIntervalStart, dataIntervalEnd, startDate, endDate, runType,
   },
 }) => (
-  <Box fontSize={12} py={4}>
+  <Box fontSize="12px" py="4px">
     <Text>
       <Text as="strong">Status:</Text>
       {' '}
