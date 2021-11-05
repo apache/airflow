@@ -498,7 +498,7 @@
     - name: keep_local_logs
       description: |
         Whether the local file logs for GCS, S3 and WASB remote logging should be kept after they are uploaded
-      version_added: 2.2.0
+      version_added: 2.3.0
       type: boolean
       example: ~
       default: "True"
