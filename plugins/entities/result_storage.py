@@ -11,6 +11,7 @@ from plugins.models.result import ResultModel
 from airflow.utils.db import provide_session
 from psycopg2 import errors
 from sqlalchemy.exc import IntegrityError
+import re
 
 RUNTIME_ENV = os.environ.get('RUNTIME_ENV', 'dev')
 
@@ -74,8 +75,16 @@ class ClsResultStorage(ClsEntity):
                 step_results = json.dumps(step_results, ensure_ascii=False)
             update_time = data.get("update_time")
             if update_time and isinstance(update_time, str):
-                update_time = update_time.replace('Z', '+00:00')
-                update_time = datetime.datetime.fromisoformat(update_time)
+                try:
+                    update_time = update_time.replace('Z', '+00:00')
+                    update_time = datetime.datetime.fromisoformat(update_time)
+                except Exception as e:
+                    assert len(update_time) >= 35, f'无法识别的时间格式：{update_time}'
+                    date_re = re.compile(r'(^[0-9-]+)(.[0-9:]+)(\.[0-9]+)(\+[0-9]+:[0-9]+)')
+                    groups = [*date_re.search(update_time).groups()]
+                    groups[2] = groups[2][0:7]
+                    date_str = "".join(groups)
+                    update_time = datetime.datetime.fromisoformat(date_str)
             result_body.update({
                 "entity_id": entity_id,
                 "step_results": step_results,
