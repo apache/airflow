@@ -100,9 +100,8 @@ function check_db_backend {
         check_service "PostgreSQL" "run_nc postgres 5432" "${max_check}"
     elif [[ ${BACKEND} == "mysql" ]]; then
         check_service "MySQL" "run_nc mysql 3306" "${max_check}"
-        check_service "MySQL" "run_nc mysql 3306" "${MAX_CHECK}"
     elif [[ ${BACKEND} == "mariadb" ]]; then
-        check_service "MariaDB" "run_nc mariadb 3306" "${MAX_CHECK}"
+        check_service "MariaDB" "run_nc mariadb 3306" "${max_check}"
     elif [[ ${BACKEND} == "mssql" ]]; then
         check_service "MSSQL" "run_nc mssql 1433" "${max_check}"
         check_service "MSSQL Login Check" "airflow db check" "${max_check}"
