@@ -28,6 +28,7 @@ REMOTE_FILE_PATH = os.environ.get("REMOTE_LOCAL_PATH", 'remote.txt')
 with models.DAG(
     "example_local_to_adls",
     start_date=datetime(2021, 1, 1),
+    catchup=False,
     schedule_interval=None,
     tags=['example'],
 ) as dag:

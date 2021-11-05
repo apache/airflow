@@ -582,18 +582,18 @@ class WebserverNetworkPolicyTest(unittest.TestCase):
     @parameterized.expand(
         [
             (
-                [{"name": "{{ .Release.Name }}", "protocol": "UDP", "port": "{{ .Values.ports.airflowUI }}"}],
-                [{"name": "RELEASE-NAME", "protocol": "UDP", "port": 8080}],
+                [{"protocol": "UDP", "port": "{{ .Values.ports.airflowUI }}"}],
+                [{"protocol": "UDP", "port": 8080}],
             ),
-            ([{"name": "only_sidecar", "port": "sidecar"}], [{"name": "only_sidecar", "port": "sidecar"}]),
+            ([{"port": "sidecar"}], [{"port": "sidecar"}]),
             (
                 [
-                    {"name": "flower-ui", "port": "{{ .Values.ports.airflowUI }}"},
-                    {"name": "sidecar", "port": 80},
+                    {"port": "{{ .Values.ports.airflowUI }}"},
+                    {"port": 80},
                 ],
                 [
-                    {"name": "flower-ui", "port": 8080},
-                    {"name": "sidecar", "port": 80},
+                    {"port": 8080},
+                    {"port": 80},
                 ],
             ),
         ],

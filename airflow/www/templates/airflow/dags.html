@@ -19,7 +19,7 @@
 
 {% extends base_template %}
 {% from 'appbuilder/loading_dots.html' import loading_dots %}
-{% from 'airflow/_messages.html' import message %}
+{% from 'airflow/_messages.html' import show_message %}
 
 {% block page_title %}
   {% if search_query %}"{{ search_query }}" - {% endif %}DAGs - {{ appbuilder.app_name }}
@@ -50,10 +50,10 @@
 
 {% block messages %}
   {% for m in dashboard_alerts %}
-    {{ message(m.message, m.category) }}
+    {{ show_message(m.message, m.category) }}
   {% endfor %}
   {% for original_table_name, moved_table_name in migration_moved_data_alerts %}
-    {% call message(category='error', dismissable=false) %}
+    {% call show_message(category='error', dismissible=false) %}
       Airflow found incompatible data in the <code>{{ original_table_name }}</code> table in the
       metadatabase, and has moved them to <code>{{ moved_table_name }}</code> during the database migration
       to upgrade. Please inspect the moved data to decide whether you need to keep them, and manually drop
@@ -62,14 +62,14 @@
   {% endfor %}
   {{ super() }}
   {% if sqlite_warning | default(true) %}
-    {% call message(category='warning', dismissable=false)  %}
+    {% call show_message(category='warning', dismissible=false)  %}
       Do not use <b>SQLite</b> as metadata DB in production &#8211; it should only be used for dev/testing
       We recommend using Postgres or MySQL.
       <a href={{ get_docs_url("howto/set-up-database.html") }}><b>Click here</b></a> for more information.
     {% endcall %}
   {% endif %}
   {% if sequential_executor_warning | default(false) %}
-    {% call message(category='warning', dismissable=false)  %}
+    {% call show_message(category='warning', dismissible=false)  %}
       Do not use <b>SequentialExecutor</b> in production.
       <a href={{ get_docs_url("executor/index.html") }}><b>Click here</b></a> for more information.
     {% endcall %}
