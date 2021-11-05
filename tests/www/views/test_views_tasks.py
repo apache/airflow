@@ -477,10 +477,7 @@ def test_run_with_runnable_states(_, admin_client, session, state):
     resp = admin_client.post('run', data=form, follow_redirects=True)
     check_content_in_response('', resp)
 
-    msg = (
-        f"Task is in the &#39;{state}&#39; state which is not a valid state for "
-        f"execution. The task must be cleared in order to be run"
-    )
+    msg = f"Task is in the &#39;{state}&#39 state."
     assert not re.search(msg, resp.get_data(as_text=True))
 
 
@@ -509,10 +506,7 @@ def test_run_with_not_runnable_states(_, admin_client, session, state):
     resp = admin_client.post('run', data=form, follow_redirects=True)
     check_content_in_response('', resp)
 
-    msg = (
-        f"Task is in the &#39;{state}&#39; state which is not a valid state for "
-        f"execution. The task must be cleared in order to be run"
-    )
+    msg = f"Task is in the &#39;{state}&#39; state."
     assert re.search(msg, resp.get_data(as_text=True))
 
 

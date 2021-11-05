@@ -43,5 +43,10 @@ def delete_fileshare():
     hook.delete_share(NAME)
 
 
-with DAG("example_fileshare", schedule_interval="@once", start_date=datetime(2021, 1, 1)) as dag:
+with DAG(
+    "example_fileshare",
+    schedule_interval="@once",
+    start_date=datetime(2021, 1, 1),
+    catchup=False,
+) as dag:
     create_fileshare() >> delete_fileshare()

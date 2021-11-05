@@ -19,6 +19,36 @@
 Changelog
 ---------
 
+2.4.0
+.....
+
+Features
+~~~~~~~~
+
+* ``MySQLToS3Operator add support for parquet format (#18755)``
+* ``Add RedshiftSQLHook, RedshiftSQLOperator (#18447)``
+* ``Remove extra postgres dependency from AWS Provider (#18844)``
+* ``Removed duplicated code on S3ToRedshiftOperator (#18671)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fixing ses email backend (#18042)``
+* ``Fixup string concatenations (#19099)``
+* ``Update S3PrefixSensor to support checking multiple prefixes within a bucket (#18807)``
+* ``Move validation of templated input params to run after the context init (#19048)``
+* ``fix SagemakerProcessingOperator ThrottlingException (#19195)``
+* ``Fix S3ToRedshiftOperator (#19358)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``More f-strings (#18855)``
+   * ``Prepare documentation for RC2 Amazon Provider release for September (#18830)``
+   * ``Simplify strings previously split across lines (#18679)``
+   * ``Doc: Fix typos in variable and comments (#19349)``
+   * ``Remove duplicated entries in changelog (#19331)``
+   * ``Prepare documentation for October Provider&#39;s release (#19321)``
+
 2.3.0
 .....
 

@@ -163,7 +163,7 @@ class Variable(Base, LoggingMixin):
 
         :param key: Variable Key
         :param value: Value to set for the Variable
-        :param description: Value to set for the Variable
+        :param description: Description of the Variable
         :param serialize_json: Serialize the value to a JSON string
         :param session: SQL Alchemy Sessions
         """

@@ -20,26 +20,22 @@ This is an example DAG which uses the LivyOperator.
 The tasks below trigger the computation of pi on the Spark instance
 using the Java and Python executables provided in the example library.
 """
+from datetime import datetime
 
 from airflow import DAG
 from airflow.providers.apache.livy.operators.livy import LivyOperator
-from airflow.utils.dates import days_ago
-
-args = {'owner': 'airflow', 'email': ['airflow@example.com'], 'depends_on_past': False}
 
 with DAG(
     dag_id='example_livy_operator',
-    default_args=args,
+    default_args={'args': [10]},
     schedule_interval='@daily',
-    start_date=days_ago(5),
+    start_date=datetime(2021, 1, 1),
+    catchup=False,
 ) as dag:
 
     livy_java_task = LivyOperator(
         task_id='pi_java_task',
-        dag=dag,
-        livy_conn_id='livy_conn_default',
         file='/spark-examples.jar',
-        args=[10],
         num_executors=1,
         conf={
             'spark.shuffle.compress': 'false',
@@ -47,13 +43,6 @@ with DAG(
         class_name='org.apache.spark.examples.SparkPi',
     )
 
-    livy_python_task = LivyOperator(
-        task_id='pi_python_task',
-        dag=dag,
-        livy_conn_id='livy_conn_default',
-        file='/pi.py',
-        args=[10],
-        polling_interval=60,
-    )
+    livy_python_task = LivyOperator(task_id='pi_python_task', file='/pi.py', polling_interval=60)
 
     livy_java_task >> livy_python_task

@@ -20,15 +20,17 @@
 This is an example DAG which uses the KylinCubeOperator.
 The tasks below include kylin build, refresh, merge operation.
 """
+from datetime import datetime
+
 from airflow import DAG
 from airflow.providers.apache.kylin.operators.kylin_cube import KylinCubeOperator
-from airflow.utils.dates import days_ago
 
 dag = DAG(
     dag_id='example_kylin_operator',
     schedule_interval=None,
-    start_date=days_ago(1),
-    default_args={'kylin_conn_id': 'kylin_default', 'project': 'learn_kylin', 'cube': 'kylin_sales_cube'},
+    start_date=datetime(2021, 1, 1),
+    catchup=False,
+    default_args={'project': 'learn_kylin', 'cube': 'kylin_sales_cube'},
     tags=['example'],
 )
 

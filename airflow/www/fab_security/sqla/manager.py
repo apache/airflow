@@ -22,15 +22,6 @@ from typing import List, Optional
 from flask_appbuilder import const as c
 from flask_appbuilder.models.sqla import Base
 from flask_appbuilder.models.sqla.interface import SQLAInterface
-from flask_appbuilder.security.sqla.models import (
-    Permission,
-    PermissionView,
-    RegisterUser,
-    Role,
-    User,
-    ViewMenu,
-    assoc_permissionview_role,
-)
 from sqlalchemy import and_, func, literal
 from sqlalchemy.engine.reflection import Inspector
 from sqlalchemy.orm import contains_eager
@@ -38,6 +29,15 @@ from sqlalchemy.orm.exc import MultipleResultsFound
 from werkzeug.security import generate_password_hash
 
 from airflow.www.fab_security.manager import BaseSecurityManager
+from airflow.www.fab_security.sqla.models import (
+    Action,
+    Permission,
+    RegisterUser,
+    Resource,
+    Role,
+    User,
+    assoc_permission_role,
+)
 
 log = logging.getLogger(__name__)
 
@@ -55,9 +55,9 @@ class SecurityManager(BaseSecurityManager):
     """ Override to set your own User Model """
     role_model = Role
     """ Override to set your own Role Model """
+    action_model = Action
+    resource_model = Resource
     permission_model = Permission
-    viewmenu_model = ViewMenu
-    permissionview_model = PermissionView
     registeruser_model = RegisterUser
 
     def __init__(self, appbuilder):
@@ -85,9 +85,9 @@ class SecurityManager(BaseSecurityManager):
             self.registerusermodelview.datamodel = SQLAInterface(self.registeruser_model)
 
         self.rolemodelview.datamodel = SQLAInterface(self.role_model)
+        self.actionmodelview.datamodel = SQLAInterface(self.action_model)
+        self.resourcemodelview.datamodel = SQLAInterface(self.resource_model)
         self.permissionmodelview.datamodel = SQLAInterface(self.permission_model)
-        self.viewmenumodelview.datamodel = SQLAInterface(self.viewmenu_model)
-        self.permissionviewmodelview.datamodel = SQLAInterface(self.permissionview_model)
         self.create_db()
 
     @property
@@ -278,16 +278,16 @@ class SecurityManager(BaseSecurityManager):
             return role.permissions
         return []
 
-    def get_action(self, name: str) -> Permission:
+    def get_action(self, name: str) -> Action:
         """
         Gets an existing action record.
 
         :param name: name
         :type name: str
         :return: Action record, if it exists
-        :rtype: Permission
+        :rtype: Action
         """
-        return self.get_session.query(self.permission_model).filter_by(name=name).one_or_none()
+        return self.get_session.query(self.action_model).filter_by(name=name).one_or_none()
 
     def permission_exists_in_one_or_more_roles(
         self, resource_name: str, action_name: str, role_ids: List[int]
@@ -302,17 +302,17 @@ class SecurityManager(BaseSecurityManager):
         :return: Boolean
         """
         q = (
-            self.appbuilder.get_session.query(self.permissionview_model)
+            self.appbuilder.get_session.query(self.permission_model)
             .join(
-                assoc_permissionview_role,
-                and_(self.permissionview_model.id == assoc_permissionview_role.c.permission_view_id),
+                assoc_permission_role,
+                and_(self.permission_model.id == assoc_permission_role.c.permission_view_id),
             )
             .join(self.role_model)
-            .join(self.permission_model)
-            .join(self.viewmenu_model)
+            .join(self.action_model)
+            .join(self.resource_model)
             .filter(
-                self.viewmenu_model.name == resource_name,
-                self.permission_model.name == action_name,
+                self.resource_model.name == resource_name,
+                self.action_model.name == action_name,
                 self.role_model.id.in_(role_ids),
             )
             .exists()
@@ -325,44 +325,44 @@ class SecurityManager(BaseSecurityManager):
     def filter_roles_by_perm_with_action(self, action_name: str, role_ids: List[int]):
         """Find roles with permission"""
         return (
-            self.appbuilder.get_session.query(self.permissionview_model)
+            self.appbuilder.get_session.query(self.permission_model)
             .join(
-                assoc_permissionview_role,
-                and_(self.permissionview_model.id == assoc_permissionview_role.c.permission_view_id),
+                assoc_permission_role,
+                and_(self.permission_model.id == assoc_permission_role.c.permission_view_id),
             )
             .join(self.role_model)
-            .join(self.permission_model)
-            .join(self.viewmenu_model)
+            .join(self.action_model)
+            .join(self.resource_model)
             .filter(
-                self.permission_model.name == action_name,
+                self.action_model.name == action_name,
                 self.role_model.id.in_(role_ids),
             )
         ).all()
 
-    def get_role_permissions_from_db(self, role_id: int) -> List[PermissionView]:
+    def get_role_permissions_from_db(self, role_id: int) -> List[Permission]:
         """Get all DB permissions from a role (one single query)"""
         return (
-            self.appbuilder.get_session.query(PermissionView)
-            .join(Permission)
-            .join(ViewMenu)
-            .join(PermissionView.role)
+            self.appbuilder.get_session.query(Permission)
+            .join(Action)
+            .join(Resource)
+            .join(Permission.role)
             .filter(Role.id == role_id)
-            .options(contains_eager(PermissionView.permission))
-            .options(contains_eager(PermissionView.view_menu))
+            .options(contains_eager(Permission.action))
+            .options(contains_eager(Permission.resource))
             .all()
         )
 
     def create_action(self, name):
         """
-        Adds a permission to the backend, model permission
+        Adds an action to the backend, model action
 
         :param name:
-            name of the permission: 'can_add','can_edit' etc...
+            name of the action: 'can_add','can_edit' etc...
         """
         action = self.get_action(name)
         if action is None:
             try:
-                action = self.permission_model()
+                action = self.action_model()
                 action.name = name
                 self.get_session.add(action)
                 self.get_session.commit()
@@ -387,8 +387,8 @@ class SecurityManager(BaseSecurityManager):
             return False
         try:
             perms = (
-                self.get_session.query(self.permissionview_model)
-                .filter(self.permissionview_model.permission == action)
+                self.get_session.query(self.permission_model)
+                .filter(self.permission_model.action == action)
                 .all()
             )
             if perms:
@@ -402,39 +402,39 @@ class SecurityManager(BaseSecurityManager):
             self.get_session.rollback()
             return False
 
-    def get_resource(self, name: str) -> ViewMenu:
+    def get_resource(self, name: str) -> Resource:
         """
         Returns a resource record by name, if it exists.
 
         :param name: Name of resource
         :type name: str
         :return: Resource record
-        :rtype: ViewMenu
+        :rtype: Resource
         """
-        return self.get_session.query(self.viewmenu_model).filter_by(name=name).one_or_none()
+        return self.get_session.query(self.resource_model).filter_by(name=name).one_or_none()
 
-    def get_all_resources(self) -> List[ViewMenu]:
+    def get_all_resources(self) -> List[Resource]:
         """
         Gets all existing resource records.
 
         :return: List of all resources
-        :rtype: List[ViewMenu]
+        :rtype: List[Resource]
         """
-        return self.get_session.query(self.viewmenu_model).all()
+        return self.get_session.query(self.resource_model).all()
 
-    def create_resource(self, name) -> ViewMenu:
+    def create_resource(self, name) -> Resource:
         """
         Create a resource with the given name.
 
         :param name: The name of the resource to create created.
         :type name: str
         :return: The FAB resource created.
-        :rtype: ViewMenu
+        :rtype: Resource
         """
         resource = self.get_resource(name)
         if resource is None:
             try:
-                resource = self.viewmenu_model()
+                resource = self.resource_model()
                 resource.name = name
                 self.get_session.add(resource)
                 self.get_session.commit()
@@ -446,7 +446,7 @@ class SecurityManager(BaseSecurityManager):
 
     def delete_resource(self, name: str) -> bool:
         """
-        Deletes a ViewMenu from the backend
+        Deletes a Resource from the backend
 
         :param name:
             name of the resource
@@ -457,8 +457,8 @@ class SecurityManager(BaseSecurityManager):
             return False
         try:
             perms = (
-                self.get_session.query(self.permissionview_model)
-                .filter(self.permissionview_model.view_menu == resource)
+                self.get_session.query(self.permission_model)
+                .filter(self.permission_model.resource == resource)
                 .all()
             )
             if perms:
@@ -478,7 +478,7 @@ class SecurityManager(BaseSecurityManager):
     ----------------------
     """
 
-    def get_permission(self, action_name: str, resource_name: str) -> PermissionView:
+    def get_permission(self, action_name: str, resource_name: str) -> Permission:
         """
         Gets a permission made with the given action->resource pair, if the permission already exists.
 
@@ -487,31 +487,31 @@ class SecurityManager(BaseSecurityManager):
         :param resource_name: Name of resource
         :type resource_name: str
         :return: The existing permission
-        :rtype: PermissionView
+        :rtype: Permission
         """
         action = self.get_action(action_name)
         resource = self.get_resource(resource_name)
         if action and resource:
             return (
-                self.get_session.query(self.permissionview_model)
-                .filter_by(permission=action, view_menu=resource)
+                self.get_session.query(self.permission_model)
+                .filter_by(action=action, resource=resource)
                 .one_or_none()
             )
 
-    def get_resource_permissions(self, resource: ViewMenu) -> PermissionView:
+    def get_resource_permissions(self, resource: Resource) -> Permission:
         """
         Retrieve permission pairs associated with a specific resource object.
 
         :param resource: Object representing a single resource.
-        :type resource: ViewMenu
-        :return: Permission objects representing resource->action pair
-        :rtype: PermissionView
+        :type resource: Resource
+        :return: Action objects representing resource->action pair
+        :rtype: Permission
         """
-        return self.get_session.query(self.permissionview_model).filter_by(view_menu_id=resource.id).all()
+        return self.get_session.query(self.permission_model).filter_by(resource_id=resource.id).all()
 
     def create_permission(self, action_name, resource_name):
         """
-        Adds a permission on a view or menu to the backend
+        Adds a permission on a resource to the backend
 
         :param action_name:
             name of the action to add: 'can_add','can_edit' etc...
@@ -525,8 +525,8 @@ class SecurityManager(BaseSecurityManager):
             return perm
         resource = self.create_resource(resource_name)
         action = self.create_action(action_name)
-        perm = self.permissionview_model()
-        perm.view_menu_id, perm.permission_id = resource.id, action.id
+        perm = self.permission_model()
+        perm.resource_id, perm.action_id = resource.id, action.id
         try:
             self.get_session.add(perm)
             self.get_session.commit()
@@ -560,16 +560,12 @@ class SecurityManager(BaseSecurityManager):
             log.warning(c.LOGMSG_WAR_SEC_DEL_PERMVIEW.format(resource_name, action_name, roles))
             return
         try:
-            # delete permission on view
+            # delete permission on resource
             self.get_session.delete(perm)
             self.get_session.commit()
             # if no more permission on permission view, delete permission
-            if (
-                not self.get_session.query(self.permissionview_model)
-                .filter_by(permission=perm.permission)
-                .all()
-            ):
-                self.delete_action(perm.permission.name)
+            if not self.get_session.query(self.permission_model).filter_by(action=perm.action).all():
+                self.delete_action(perm.action.name)
             log.info(c.LOGMSG_INF_SEC_DEL_PERMVIEW.format(action_name, resource_name))
         except Exception as e:
             log.error(c.LOGMSG_ERR_SEC_DEL_PERMVIEW.format(str(e)))
@@ -577,18 +573,18 @@ class SecurityManager(BaseSecurityManager):
 
     def perms_include_action(self, perms, action_name):
         for perm in perms:
-            if perm.permission and perm.permission.name == action_name:
+            if perm.action and perm.action.name == action_name:
                 return True
         return False
 
-    def add_permission_to_role(self, role: Role, permission: PermissionView) -> None:
+    def add_permission_to_role(self, role: Role, permission: Permission) -> None:
         """
         Add an existing permission pair to a role.
 
         :param role: The role about to get a new permission.
         :type role: Role
         :param permission: The permission pair to add to a role.
-        :type permission: PermissionView
+        :type permission: Permission
         :return: None
         :rtype: None
         """
@@ -602,14 +598,14 @@ class SecurityManager(BaseSecurityManager):
                 log.error(c.LOGMSG_ERR_SEC_ADD_PERMROLE.format(str(e)))
                 self.get_session.rollback()
 
-    def remove_permission_from_role(self, role: Role, permission: PermissionView) -> None:
+    def remove_permission_from_role(self, role: Role, permission: Permission) -> None:
         """
         Remove a permission pair from a role.
 
         :param role: User role containing permissions.
         :type role: Role
         :param permission: Object representing resource-> action pair
-        :type permission: PermissionView
+        :type permission: Permission
         """
         if permission in role.permissions:
             try:

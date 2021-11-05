@@ -198,6 +198,9 @@ class DAG(LoggingMixin):
     :type schedule_interval: datetime.timedelta or
         dateutil.relativedelta.relativedelta or str that acts as a cron
         expression
+    :param timetable: Specify which timetable to use (in which case schedule_interval
+        must not be set). See :doc:`/howto/timetable` for more information
+    :type timetable: airflow.timetables.base.Timetable
     :param start_date: The timestamp from which the scheduler will
         attempt to backfill
     :type start_date: datetime.datetime
@@ -607,12 +610,12 @@ class DAG(LoggingMixin):
             return None
         return self.timetable._get_prev(timezone.coerce_datetime(dttm))
 
-    def get_next_data_interval(self, dag_model: "DagModel") -> DataInterval:
+    def get_next_data_interval(self, dag_model: "DagModel") -> Optional[DataInterval]:
         """Get the data interval of the next scheduled run.
 
         For compatibility, this method infers the data interval from the DAG's
-        schedule if the run does not have an explicit one set, which is possible for
-        runs created prior to AIP-39.
+        schedule if the run does not have an explicit one set, which is possible
+        for runs created prior to AIP-39.
 
         This function is private to Airflow core and should not be depended as a
         part of the Python API.
@@ -621,11 +624,14 @@ class DAG(LoggingMixin):
         """
         if self.dag_id != dag_model.dag_id:
             raise ValueError(f"Arguments refer to different DAGs: {self.dag_id} != {dag_model.dag_id}")
+        if dag_model.next_dagrun is None:  # Next run not scheduled.
+            return None
         data_interval = dag_model.next_dagrun_data_interval
         if data_interval is not None:
             return data_interval
-        # Compatibility: runs scheduled before AIP-39 implementation don't have an
-        # explicit data interval. Try to infer from the logical date.
+        # Compatibility: A run was scheduled without an explicit data interval.
+        # This means the run was scheduled before AIP-39 implementation. Try to
+        # infer from the logical date.
         return self.infer_automated_data_interval(dag_model.next_dagrun)
 
     def get_run_data_interval(self, run: DagRun) -> DataInterval:
@@ -2127,7 +2133,7 @@ class DAG(LoggingMixin):
         :type task: task
         """
         if not self.start_date and not task.start_date:
-            raise AirflowException("Task is missing the start_date parameter")
+            raise AirflowException("DAG is missing the start_date parameter")
         # if the task has no start date, assign it the same as the DAG
         elif not task.start_date:
             task.start_date = self.start_date

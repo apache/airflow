@@ -19,6 +19,29 @@
 Changelog
 ---------
 
+2.3.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add support of placement in the DockerSwarmOperator (#18990)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fixup string concatenations (#19099)``
+* ``Remove the docker timeout workaround (#18872)``
+
+
+Other
+~~~~~
+
+   * ``Move docker decorator example dag to docker provider (#18739)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 2.2.0
 .....
 

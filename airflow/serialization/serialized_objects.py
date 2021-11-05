@@ -55,7 +55,6 @@ try:
 except ImportError:
     HAS_KUBERNETES = False
 
-
 if TYPE_CHECKING:
     from airflow.ti_deps.deps.base_ti_dep import BaseTIDep
 
@@ -149,7 +148,7 @@ def _encode_timetable(var: Timetable) -> Dict[str, Any]:
     importable_string = as_importable_string(timetable_class)
     if _get_registered_timetable(importable_string) != timetable_class:
         raise _TimetableNotRegistered(importable_string)
-    return {"__type": importable_string, "__var": var.serialize()}
+    return {Encoding.TYPE: importable_string, Encoding.VAR: var.serialize()}
 
 
 def _decode_timetable(var: Dict[str, Any]) -> Timetable:
@@ -158,11 +157,11 @@ def _decode_timetable(var: Dict[str, Any]) -> Timetable:
     Most of the deserialization logic is delegated to the actual type, which
     we import from string.
     """
-    importable_string = var["__type"]
+    importable_string = var[Encoding.TYPE]
     timetable_class = _get_registered_timetable(importable_string)
     if timetable_class is None:
         raise _TimetableNotRegistered(importable_string)
-    return timetable_class.deserialize(var["__var"])
+    return timetable_class.deserialize(var[Encoding.VAR])
 
 
 class BaseSerialization:
@@ -270,8 +269,8 @@ class BaseSerialization:
                 serialized_object[key] = _encode_timetable(value)
             else:
                 value = cls._serialize(value)
-                if isinstance(value, dict) and "__type" in value:
-                    value = value["__var"]
+                if isinstance(value, dict) and Encoding.TYPE in value:
+                    value = value[Encoding.VAR]
                 serialized_object[key] = value
         return serialized_object
 
@@ -325,7 +324,7 @@ class BaseSerialization:
         elif isinstance(var, TaskGroup):
             return SerializedTaskGroup.serialize_task_group(var)
         elif isinstance(var, Param):
-            return cls._encode(var.dump(), type_=DAT.PARAM)
+            return cls._encode(cls._serialize_param(var), type_=DAT.PARAM)
         else:
             log.debug('Cast type %s to str in serialization.', type(var))
             return str(var)
@@ -368,9 +367,7 @@ class BaseSerialization:
         elif type_ == DAT.TUPLE:
             return tuple(cls._deserialize(v) for v in var)
         elif type_ == DAT.PARAM:
-            param_class = import_string(var['_type'])
-            del var['_type']
-            return param_class(**var)
+            return cls._deserialize_param(var)
         else:
             raise TypeError(f'Invalid type {type_!s} in deserialization.')
 
@@ -410,29 +407,58 @@ class BaseSerialization:
         return False
 
     @classmethod
+    def _serialize_param(cls, param: Param):
+        return dict(
+            __class=f"{param.__module__}.{param.__class__.__name__}",
+            default=cls._serialize(param.value),
+            description=cls._serialize(param.description),
+            schema=cls._serialize(param.schema),
+        )
+
+    @classmethod
+    def _deserialize_param(cls, param_dict: Dict):
+        """
+        In 2.2.0, Param attrs were assumed to be json-serializable and were not run through
+        this class's ``_serialize`` method.  So before running through ``_deserialize``,
+        we first verify that it's necessary to do.
+        """
+        class_name = param_dict['__class']
+        class_ = import_string(class_name)  # type: Type[Param]
+        attrs = ('default', 'description', 'schema')
+        kwargs = {}
+        for attr in attrs:
+            if attr not in param_dict:
+                continue
+            val = param_dict[attr]
+            is_serialized = isinstance(val, dict) and '__type' in val
+            if is_serialized:
+                deserialized_val = cls._deserialize(param_dict[attr])
+                kwargs[attr] = deserialized_val
+            else:
+                kwargs[attr] = val
+        return class_(**kwargs)
+
+    @classmethod
     def _serialize_params_dict(cls, params: ParamsDict):
         """Serialize Params dict for a DAG/Task"""
         serialized_params = {}
         for k, v in params.items():
             # TODO: As of now, we would allow serialization of params which are of type Param only
             if f'{v.__module__}.{v.__class__.__name__}' == 'airflow.models.param.Param':
-                kwargs = v.dump()
-                kwargs['default'] = kwargs.pop('value')
-                serialized_params[k] = kwargs
+                serialized_params[k] = cls._serialize_param(v)
             else:
                 raise ValueError('Params to a DAG or a Task can be only of type airflow.models.param.Param')
         return serialized_params
 
     @classmethod
     def _deserialize_params_dict(cls, encoded_params: Dict) -> ParamsDict:
-        """Deserialize a DAGs Params dict"""
+        """Deserialize a DAG's Params dict"""
         op_params = {}
         for k, v in encoded_params.items():
             if isinstance(v, dict) and "__class" in v:
-                param_class = import_string(v['__class'])
-                op_params[k] = param_class(**v)
+                op_params[k] = cls._deserialize_param(v)
             else:
-                # Old style params, upgrade it
+                # Old style params, convert it
                 op_params[k] = Param(v)
 
         return ParamsDict(op_params)

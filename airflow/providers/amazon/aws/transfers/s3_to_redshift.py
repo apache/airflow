@@ -149,12 +149,7 @@ class S3ToRedshiftOperator(BaseOperator):
         copy_statement = self._build_copy_query(copy_destination, credentials_block, copy_options)
 
         if self.method == 'REPLACE':
-            sql = f"""
-            BEGIN;
-            DELETE FROM {destination};
-            {copy_statement}
-            COMMIT
-            """
+            sql = ["BEGIN;", f"DELETE FROM {destination};", copy_statement, "COMMIT"]
         elif self.method == 'UPSERT':
             keys = self.upsert_keys or redshift_hook.get_table_primary_key(self.table, self.schema)
             if not keys:
@@ -162,14 +157,16 @@ class S3ToRedshiftOperator(BaseOperator):
                     f"No primary key on {self.schema}.{self.table}. Please provide keys on 'upsert_keys'"
                 )
             where_statement = ' AND '.join([f'{self.table}.{k} = {copy_destination}.{k}' for k in keys])
-            sql = f"""
-            CREATE TABLE {copy_destination} (LIKE {destination});
-            {copy_statement}
-            BEGIN;
-            DELETE FROM {destination} USING {copy_destination} WHERE {where_statement};
-            INSERT INTO {destination} SELECT * FROM {copy_destination};
-            COMMIT
-            """
+
+            sql = [
+                f"CREATE TABLE {copy_destination} (LIKE {destination});",
+                copy_statement,
+                "BEGIN;",
+                f"DELETE FROM {destination} USING {copy_destination} WHERE {where_statement};",
+                f"INSERT INTO {destination} SELECT * FROM {copy_destination};",
+                "COMMIT",
+            ]
+
         else:
             sql = copy_statement
 

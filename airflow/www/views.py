@@ -4532,10 +4532,11 @@ class DagDependenciesView(AirflowBaseView):
         }
 
 
-class CustomPermissionModelView(PermissionModelView):
+class ActionModelView(PermissionModelView):
     """Customize permission names for FAB's builtin PermissionModelView."""
 
-    class_permission_name = permissions.RESOURCE_PERMISSION
+    class_permission_name = permissions.RESOURCE_ACTION
+    route_base = "/actions"
     method_permission_name = {
         'list': 'read',
     }
@@ -4543,17 +4544,36 @@ class CustomPermissionModelView(PermissionModelView):
         permissions.ACTION_CAN_READ,
     ]
 
+    list_title = lazy_gettext("List Actions")
+    show_title = lazy_gettext("Show Action")
+    add_title = lazy_gettext("Add Action")
+    edit_title = lazy_gettext("Edit Action")
 
-class CustomPermissionViewModelView(PermissionViewModelView):
+    label_columns = {"name": lazy_gettext("Name")}
+
+
+class PermissionPairModelView(PermissionViewModelView):
     """Customize permission names for FAB's builtin PermissionViewModelView."""
 
-    class_permission_name = permissions.RESOURCE_PERMISSION_VIEW
+    class_permission_name = permissions.RESOURCE_PERMISSION
+    route_base = "/permissions"
     method_permission_name = {
         'list': 'read',
     }
     base_permissions = [
         permissions.ACTION_CAN_READ,
     ]
+
+    list_title = lazy_gettext("List Permissions")
+    show_title = lazy_gettext("Show Permission")
+    add_title = lazy_gettext("Add Permission")
+    edit_title = lazy_gettext("Edit Permission")
+
+    label_columns = {
+        "action": lazy_gettext("Action"),
+        "resource": lazy_gettext("Resource"),
+    }
+    list_columns = ["action", "resource"]
 
 
 class CustomResetMyPasswordView(ResetMyPasswordView):
@@ -4600,16 +4620,24 @@ class CustomRoleModelView(RoleModelView):
     ]
 
 
-class CustomViewMenuModelView(ViewMenuModelView):
+class ResourceModelView(ViewMenuModelView):
     """Customize permission names for FAB's builtin ViewMenuModelView."""
 
-    class_permission_name = permissions.RESOURCE_VIEW_MENU
+    class_permission_name = permissions.RESOURCE_RESOURCE
+    route_base = "/resources"
     method_permission_name = {
         'list': 'read',
     }
     base_permissions = [
         permissions.ACTION_CAN_READ,
     ]
+
+    list_title = lazy_gettext("List Resources")
+    show_title = lazy_gettext("Show Resource")
+    add_title = lazy_gettext("Add Resource")
+    edit_title = lazy_gettext("Edit Resource")
+
+    label_columns = {"name": lazy_gettext("Name")}
 
 
 class CustomUserInfoEditView(UserInfoEditView):

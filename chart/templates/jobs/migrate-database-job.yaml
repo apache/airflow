@@ -34,13 +34,16 @@ metadata:
 {{- with .Values.labels }}
 {{ toYaml . | indent 4 }}
 {{- end }}
+  {{- $annotations := dict }}
+  {{- if .Values.migrateDatabaseJob.useHelmHooks }}
+    {{- $_ := set $annotations "helm.sh/hook" "post-install,post-upgrade" }}
+    {{- $_ := set $annotations "helm.sh/hook-weight" "1" }}
+    {{- $_ := set $annotations "helm.sh/hook-delete-policy" "before-hook-creation,hook-succeeded" }}
+  {{- end }}
+  {{- with $annotations := merge $annotations .Values.migrateDatabaseJob.jobAnnotations }}
   annotations:
-    "helm.sh/hook": post-install,post-upgrade
-    "helm.sh/hook-weight": "1"
-    "helm.sh/hook-delete-policy": before-hook-creation,hook-succeeded
-    {{- if .Values.migrateDatabaseJob.jobAnnotations }}
-    {{- toYaml .Values.migrateDatabaseJob.jobAnnotations | nindent 4 }}
-    {{- end }}
+    {{- $annotations | toYaml | nindent 4 }}
+  {{- end }}
 spec:
   template:
     metadata:
