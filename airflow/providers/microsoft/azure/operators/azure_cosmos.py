@@ -18,7 +18,7 @@
 
 import warnings
 
-from airflow.providers.microsoft.azure.operators.cosmo import AzureCosmosInsertDocumentOperator  # noqa
+from airflow.providers.microsoft.azure.operators.cosmos import AzureCosmosInsertDocumentOperator  # noqa
 
 warnings.warn(
     "This module is deprecated. Please use `airflow.providers.microsoft.azure.operators.cosmos`.",
