@@ -125,8 +125,8 @@ class PythonOperator(BaseOperator):
     :type templates_exts: list[str]
     :param show_return_value_in_logs: a bool value whether to show return_value
         logs.
-        It can be set to False to prevent log output of return value when you want to prevent huge log output
-        from returning excessive data, such as sending a large amount of XCom to TaskAPI.
+        It can be set to False to prevent log output of return value when you return huge data
+        such as sending a large amount of XCom to TaskAPI.
     :type show_return_value_in_logs: bool
     """
 
