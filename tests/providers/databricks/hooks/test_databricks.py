@@ -28,7 +28,8 @@ from requests import exceptions as requests_exceptions
 from airflow import __version__
 from airflow.exceptions import AirflowException
 from airflow.models import Connection
-from airflow.providers.databricks.hooks.databricks import SUBMIT_RUN_ENDPOINT, DatabricksHook, RunState
+from airflow.providers.databricks.hooks.databricks import SUBMIT_RUN_ENDPOINT, DatabricksHook, RunState, \
+    AZURE_LOGIN_URL, AZURE_AUTHENTICATION_ENDPOINT, AZURE_AUTHENTICATION_RESOURCE
 from airflow.utils.session import provide_session
 
 TASK_ID = 'databricks-operator'
@@ -44,6 +45,7 @@ HOST_WITH_SCHEME = 'https://xx.cloud.databricks.com'
 LOGIN = 'login'
 PASSWORD = 'password'
 TOKEN = 'token'
+TENANT_ID = 'tenant'
 USER_AGENT_HEADER = {'user-agent': f'airflow-{__version__}'}
 RUN_PAGE_URL = 'https://XX.cloud.databricks.com/#jobs/1/runs/1'
 LIFE_CYCLE_STATE = 'PENDING'
@@ -520,6 +522,134 @@ class TestDatabricksHookTokenWhenNoHostIsProvidedInExtra(TestDatabricksHookToken
         session.commit()
 
         self.hook = DatabricksHook()
+
+
+
+
+class TestDatabricksAzureServicePrincipal(unittest.TestCase):
+    """
+    Tests for DatabricksHook when auth is done via Azure Service Principal.
+    """
+    @provide_session
+    def setUp(self, session=None):
+        conn = session.query(Connection).filter(Connection.conn_id == DEFAULT_CONN_ID).first()
+        conn.login = LOGIN
+        conn.password = PASSWORD
+        conn.extra = json.dumps({'use_azure_service_principal': 'True', 'tenant_id': TENANT_ID})
+
+        session.commit()
+
+        self.hook = DatabricksHook()
+
+    @mock.patch('airflow.providers.databricks.hooks.databricks.requests')
+    def test_submit_run(self, mock_requests):
+        mock_requests.codes.ok = 200
+        mock_requests.post.return_value.json.return_value = {'run_id': '1'}
+        status_code_mock = mock.PropertyMock(return_value=200)
+        type(mock_requests.post.return_value).status_code = status_code_mock
+        data = {'notebook_task': NOTEBOOK_TASK, 'new_cluster': NEW_CLUSTER}
+        with mock.patch.object(self.hook, "_token_from_azure_service_principal") as mock_sp:
+            mock_sp.return_value = TOKEN
+            run_id = self.hook.submit_run(data)
+            
+            mock_sp.assert_called_once_with(LOGIN, PASSWORD, TENANT_ID)
+
+        assert run_id == '1'
+        args = mock_requests.post.call_args
+        kwargs = args[1]
+        assert kwargs['auth'].token == TOKEN
+
+    @mock.patch('airflow.providers.databricks.hooks.databricks.sleep')
+    def test_token_from_azure_service_principal_retries_with_retryable_error(self, mock_sleep):
+        for exception in [
+            requests_exceptions.ConnectionError,
+            requests_exceptions.SSLError,
+            requests_exceptions.Timeout,
+            requests_exceptions.ConnectTimeout,
+            requests_exceptions.HTTPError,
+        ]:
+            with mock.patch('airflow.providers.databricks.hooks.databricks.requests') as mock_requests:
+                with mock.patch.object(self.hook.log, 'error') as mock_errors:
+                    setup_mock_requests(mock_requests, exception)
+
+                    with pytest.raises(AirflowException):
+                        self.hook._token_from_azure_service_principal(LOGIN, PASSWORD, TENANT_ID)
+
+                    assert mock_errors.call_count == self.hook.retry_limit
+
+    @mock.patch('airflow.providers.databricks.hooks.databricks.requests')
+    def test_token_from_azure_service_principal_does_not_retry_with_non_retryable_error(self, mock_requests):
+        setup_mock_requests(mock_requests, requests_exceptions.HTTPError, status_code=400)
+
+        with mock.patch.object(self.hook.log, 'error') as mock_errors:
+            with pytest.raises(AirflowException):
+                self.hook._token_from_azure_service_principal(LOGIN, PASSWORD, TENANT_ID)
+
+            mock_errors.assert_not_called()
+
+    @mock.patch('airflow.providers.databricks.hooks.databricks.sleep')
+    def test_token_from_azure_service_principal_succeeds_after_retrying(self, mock_sleep):
+        for exception in [
+            requests_exceptions.ConnectionError,
+            requests_exceptions.SSLError,
+            requests_exceptions.Timeout,
+            requests_exceptions.ConnectTimeout,
+            requests_exceptions.HTTPError,
+        ]:
+            with mock.patch('airflow.providers.databricks.hooks.databricks.requests') as mock_requests:
+                with mock.patch.object(self.hook.log, 'error') as mock_errors:
+                    setup_mock_requests(
+                        mock_requests, exception, error_count=2, response_content={'access_token': TOKEN}
+                    )
+
+                    response = self.hook._token_from_azure_service_principal(LOGIN, PASSWORD, TENANT_ID)
+
+                    assert mock_errors.call_count == 2
+                    assert response == TOKEN
+
+    @mock.patch('airflow.providers.databricks.hooks.databricks.sleep')
+    def test_token_from_azure_service_principal_waits_between_retries(self, mock_sleep):
+        retry_delay = 5
+        self.hook = DatabricksHook(retry_delay=retry_delay)
+
+        for exception in [
+            requests_exceptions.ConnectionError,
+            requests_exceptions.SSLError,
+            requests_exceptions.Timeout,
+            requests_exceptions.ConnectTimeout,
+            requests_exceptions.HTTPError,
+        ]:
+            with mock.patch('airflow.providers.databricks.hooks.databricks.requests') as mock_requests:
+                with mock.patch.object(self.hook.log, 'error'):
+                    mock_sleep.reset_mock()
+                    setup_mock_requests(mock_requests, exception)
+
+                    with pytest.raises(AirflowException):
+                        self.hook._token_from_azure_service_principal(LOGIN, PASSWORD, TENANT_ID)
+
+                    assert len(mock_sleep.mock_calls) == self.hook.retry_limit - 1
+                    calls = [mock.call(retry_delay), mock.call(retry_delay)]
+                    mock_sleep.assert_has_calls(calls)
+
+    @mock.patch('airflow.providers.databricks.hooks.databricks.requests')
+    def test_token_from_azure_service_principal(self, mock_requests):
+        mock_requests.post.return_value = create_valid_response_mock({'access_token': TOKEN})
+        data = {'cluster_name': 'new_name'}
+        patched_cluster_name = self.hook._token_from_azure_service_principal(LOGIN, PASSWORD, TENANT_ID)
+
+        assert patched_cluster_name == TOKEN
+        mock_requests.post.assert_called_once_with(
+            f"{AZURE_LOGIN_URL}/{TENANT_ID}/{AZURE_AUTHENTICATION_ENDPOINT}",
+            data={
+                "grant_type": "client_credentials",
+                "client_id": LOGIN,
+                "resource": AZURE_AUTHENTICATION_RESOURCE,
+                "client_secret": PASSWORD
+            },
+            headers=USER_AGENT_HEADER,
+            timeout=self.hook.timeout_seconds,
+        )
+
 
 
 class TestRunState(unittest.TestCase):

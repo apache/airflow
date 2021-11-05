@@ -65,8 +65,8 @@ Extra (optional)
     This parameter is necessary if using the *PAT* authentication method (recommended):
 
     * ``token``: Specify PAT to use.
-    * ``use_azure_service_principal``: Set to ``false`` if login and password are an azure client id and
-      client secret.
+    * ``use_azure_service_principal``: Set to ``True`` if login and password are an azure client id and
+      client secret. Defaults to ``False``
     * ``tenant_id``: Specify the id of the tenant the azure service principal is defined in. Only used and required
       if ``use_azure_service_principal`` is set to true.
 
