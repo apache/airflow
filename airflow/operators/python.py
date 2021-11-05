@@ -179,7 +179,7 @@ class PythonOperator(BaseOperator):
 
         return_value = self.execute_callable()
         if self.show_return_value_in_logs:
-            self.log.debug("Done. Returned value was: %s", return_value)
+            self.log.info("Done. Returned value was: %s", return_value)
         return return_value
 
     def execute_callable(self):

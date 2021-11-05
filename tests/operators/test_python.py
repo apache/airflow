@@ -330,7 +330,7 @@ class TestPythonOperator(TestPythonBase):
             task_id='python_operator', python_callable=func, dag=self.dag
         )
 
-        with self.assertLogs('airflow.task.operators', level=logging.DEBUG) as cm:
+        with self.assertLogs('airflow.task.operators', level=logging.INFO) as cm:
             python_operator.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
             assert (
                 'DEBUG:airflow.task.operators:Done. Returned value was: test_return_value' in cm.output,
@@ -356,7 +356,7 @@ class TestPythonOperator(TestPythonBase):
             show_return_value_in_logs=False,
         )
 
-        with self.assertLogs('airflow.task.operators', level=logging.DEBUG) as cm:
+        with self.assertLogs('airflow.task.operators', level=logging.INFO) as cm:
             python_operator.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
             assert (
                 'DEBUG:airflow.task.operators:Done. Returned value was: test_return_value' not in cm.output,
