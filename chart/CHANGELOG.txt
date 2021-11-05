@@ -34,6 +34,7 @@ Misc
 """"
 - Chart: Update default Airflow version to ``2.2.1`` (#19326)
 - Modernize dockerfiles builds (#19327)
+- Chart: Use strict k8s schemas for template validation (#19379)
 
 Airflow Helm Chart 1.2.0, 2021-09-28
 ------------------------------------
