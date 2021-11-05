@@ -489,12 +489,10 @@ class KubernetesPodOperator(BaseOperator):
             ),
         )
 
-        if self.random_name_suffix:
-            if pod_template:
-                pod_template.metadata.name = PodGenerator.make_unique_pod_id(pod_template.metadata.name)
-            pod.metadata.name = PodGenerator.make_unique_pod_id(pod.metadata.name)
-
         pod = PodGenerator.reconcile_pods(pod_template, pod)
+
+        if self.random_name_suffix:
+            pod.metadata.name = PodGenerator.make_unique_pod_id(pod.metadata.name)
 
         for secret in self.secrets:
             self.log.debug("Adding secret to task %s", self.task_id)
