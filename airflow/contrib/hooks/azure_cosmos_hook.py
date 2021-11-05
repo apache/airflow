@@ -15,14 +15,14 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""This module is deprecated. Please use :mod:`airflow.providers.microsoft.azure.hooks.azure_cosmos`."""
+"""This module is deprecated. Please use :mod:`airflow.providers.microsoft.azure.hooks.cosmos`."""
 
 import warnings
 
-from airflow.providers.microsoft.azure.hooks.azure_cosmos import AzureCosmosDBHook  # noqa
+from airflow.providers.microsoft.azure.hooks.cosmos import AzureCosmosDBHook  # noqa
 
 warnings.warn(
-    "This module is deprecated. Please use `airflow.providers.microsoft.azure.hooks.azure_cosmos`.",
+    "This module is deprecated. Please use `airflow.providers.microsoft.azure.hooks.cosmos`.",
     DeprecationWarning,
     stacklevel=2,
 )

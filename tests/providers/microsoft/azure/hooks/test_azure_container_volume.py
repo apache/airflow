@@ -19,7 +19,7 @@ import json
 import unittest
 
 from airflow.models import Connection
-from airflow.providers.microsoft.azure.hooks.azure_container_volume import AzureContainerVolumeHook
+from airflow.providers.microsoft.azure.hooks.container_volume import AzureContainerVolumeHook
 from airflow.utils import db
 
 

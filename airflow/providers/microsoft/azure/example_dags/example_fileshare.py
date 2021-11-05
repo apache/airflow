@@ -19,7 +19,7 @@ from datetime import datetime
 
 from airflow.decorators import task
 from airflow.models import DAG
-from airflow.providers.microsoft.azure.hooks.azure_fileshare import AzureFileShareHook
+from airflow.providers.microsoft.azure.hooks.fileshare import AzureFileShareHook
 
 NAME = 'myfileshare'
 DIRECTORY = "mydirectory"
