@@ -26,6 +26,7 @@ from google.cloud import storage
 
 from airflow import version
 from airflow.providers.google.cloud.utils.credentials_provider import get_credentials_and_project_id
+
 try:
     from airflow.utils.log.remote_file_task_handler import RemoteFileTaskHandler
 except ImportError:

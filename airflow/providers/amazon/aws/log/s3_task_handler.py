@@ -22,6 +22,7 @@ except ImportError:
     from cached_property import cached_property
 
 from airflow.configuration import conf
+
 try:
     from airflow.utils.log.remote_file_task_handler import RemoteFileTaskHandler
 except ImportError:
