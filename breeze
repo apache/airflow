@@ -1140,7 +1140,7 @@ function breeze::parse_arguments() {
             shift 2
             ;;
         -f | --forward-credentials)
-            echo "Forwarding credentials. Be careful as your credentials ar available in the container!"
+            echo "Forwarding credentials. Be careful as your credentials are available in the container!"
             echo
             export FORWARD_CREDENTIALS="true"
             shift
@@ -2730,6 +2730,10 @@ Build options:
 
 --disable-mysql-client-installation
         Disables installation of the mysql client which might be problematic if you are building
+        image in controlled environment. Only valid for production image.
+
+--disable-mssql-client-installation
+        Disables installation of the mssql client which might be problematic if you are building
         image in controlled environment. Only valid for production image.
 
 --constraints-location

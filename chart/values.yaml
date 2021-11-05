@@ -327,11 +327,17 @@ webserverSecretKeySecretName: ~
 #
 #  kubectl create secret generic {{ .Release.name }}-kerberos-keytab --from-file=kerberos.keytab
 #
+#
+#  Alternatively, instead of manually creating the secret, it is possible to specify
+#  kerberos.keytabBase64Content parameter. This parameter should contain base64 encoded keytab.
+#
+
 kerberos:
   enabled: false
   ccacheMountPath: /var/kerberos-ccache
   ccacheFileName: cache
   configPath: /etc/krb5.conf
+  keytabBase64Content: ~
   keytabPath: /etc/airflow.keytab
   principal: airflow@FOO.COM
   reinitFrequency: 3600
@@ -621,6 +627,9 @@ createUserJob:
   nodeSelector: {}
   affinity: {}
   tolerations: []
+  # In case you need to disable the helm hooks that create the jobs after install.
+  # Disable this if you are using ArgoCD for example
+  useHelmHooks: true
 
   resources: {}
   #  limits:
@@ -661,6 +670,9 @@ migrateDatabaseJob:
   nodeSelector: {}
   affinity: {}
   tolerations: []
+  # In case you need to disable the helm hooks that create the jobs after install.
+  # Disable this if you are using ArgoCD for example
+  useHelmHooks: true
 
 # Airflow webserver settings
 webserver:

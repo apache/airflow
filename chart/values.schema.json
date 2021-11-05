@@ -862,6 +862,14 @@
                     "type": "string",
                     "default": "/etc/krb5.conf"
                 },
+                "keytabBase64Content": {
+                    "description": "Kerberos keytab base64 encoded content.",
+                    "type": [
+                        "string",
+                        "null"
+                    ],
+                    "default": null
+                },
                 "keytabPath": {
                     "description": "Path to mount the keytab for refreshing credentials in the kerberos sidecar.",
                     "type": "string",
@@ -1712,6 +1720,11 @@
                             }
                         }
                     ]
+                },
+                "useHelmHooks": {
+                    "description": "Specify if you want to use the default Helm Hook annotations",
+                    "type": "boolean",
+                    "default": true
                 }
             }
         },
@@ -1795,6 +1808,11 @@
                     "description": "Specify Tolerations for the migrate database job pod.",
                     "type": "array",
                     "default": []
+                },
+                "useHelmHooks": {
+                    "description": "Specify if you want to use the default Helm Hook annotations",
+                    "type": "boolean",
+                    "default": true
                 }
             }
         },

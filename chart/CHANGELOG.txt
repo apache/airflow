@@ -1,3 +1,43 @@
+Airflow Helm Chart 1.3.0, 2021-11-08
+------------------------------------
+
+New Features
+""""""""""""
+
+- Chart: Add resources for ``cleanup`` and ``createuser`` jobs (#19263)
+- Chart: Add labels to jobs created by cleanup pods (#19225)
+- Add migration job resources (#19175)
+- Allow custom pod annotations to all components (#18481)
+- Chart: Make PgBouncer cmd/args configurable (#18910)
+- Chart: Use python 3.7 by default; support disabling triggerer (#18920)
+- Chart: Allow disabling the Helm hooks in the helm chart (#18776)
+- Allow specifying kerberos keytab in the chart (#19054)
+
+Improvements
+""""""""""""
+
+- Chart: Increase default liveness probe timeout (#19003)
+- Chart: Mount DAGs in triggerer (#18753)
+
+Bug Fixes
+"""""""""
+
+- Allow Airflow UI to create worker pod via Clear > Run (#18272)
+- Allow airflow standard images to run in openshift utilising the official helm chart #18136 (#18147)
+
+Doc only changes
+""""""""""""""""
+
+- Chart: Fix `extraEnvFrom` examples (#19144)
+- Chart docs: Update webserver secret key reference configuration (#18595)
+- Fix helm chart links in source install guide (#18588)
+
+Misc
+""""
+- Chart: Update default Airflow version to ``2.2.1`` (#19326)
+- Modernize dockerfiles builds (#19327)
+- Chart: Use strict k8s schemas for template validation (#19379)
+
 Airflow Helm Chart 1.2.0, 2021-09-28
 ------------------------------------
 

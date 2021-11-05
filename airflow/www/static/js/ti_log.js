@@ -17,7 +17,7 @@
  * under the License.
  */
 
-/* global document, window, $, */
+/* global document, window, $, moment, Airflow */
 import { escapeHtml } from './main';
 import getMetaValue from './meta_value';
 import { formatDateTime } from './datetime_utils';
@@ -115,9 +115,10 @@ function autoTailingLog(tryNumber, metadata = null, autoTailing = false) {
 
         // The message may contain HTML, so either have to escape it or write it as text.
         const escapedMessage = escapeHtml(item[1]);
+        const tzOffset = moment().tz(Airflow.serverTimezone).format('Z');
         const linkifiedMessage = escapedMessage
           .replace(urlRegex, (url) => `<a href="${url}" target="_blank">${url}</a>`)
-          .replaceAll(dateRegex, (date) => `<time datetime="${date}+00:00">${formatDateTime(`${date}+00:00`)}</time>`);
+          .replaceAll(dateRegex, (date) => `<time datetime="${date}${tzOffset}">${formatDateTime(`${date}${tzOffset}`)}</time>`);
         logBlock.innerHTML += `${linkifiedMessage}\n`;
       });
 

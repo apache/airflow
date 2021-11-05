@@ -128,7 +128,7 @@ class ExtendedJSON(TypeDecorator):
         if value is None:
             return None
 
-        # Deserialise from a string first if needed
+        # Deserialize from a string first if needed
         if not self.db_supports_json():
             value = json.loads(value)
 

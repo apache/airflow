@@ -49,7 +49,7 @@ class TestTriggerDag(unittest.TestCase):
         dag = DAG(dag_id)
         dag_bag_mock.dags = [dag_id]
         dag_bag_mock.get_dag.return_value = dag
-        dag_run_mock.find.return_value = DagRun()
+        dag_run_mock.find_duplicate.return_value = DagRun()
         with pytest.raises(AirflowException):
             _trigger_dag(dag_id, dag_bag_mock)
 
@@ -60,7 +60,7 @@ class TestTriggerDag(unittest.TestCase):
         dag_id = "trigger_dag"
         dag_bag_mock.dags = [dag_id]
         dag_bag_mock.get_dag.return_value = dag_mock
-        dag_run_mock.find.return_value = None
+        dag_run_mock.find_duplicate.return_value = None
         dag1 = mock.MagicMock(subdags=[])
         dag2 = mock.MagicMock(subdags=[])
         dag_mock.subdags = [dag1, dag2]
@@ -76,7 +76,7 @@ class TestTriggerDag(unittest.TestCase):
         dag_id = "trigger_dag"
         dag_bag_mock.dags = [dag_id]
         dag_bag_mock.get_dag.return_value = dag_mock
-        dag_run_mock.find.return_value = None
+        dag_run_mock.find_duplicate.return_value = None
         dag1 = mock.MagicMock(subdags=[])
         dag2 = mock.MagicMock(subdags=[dag1])
         dag_mock.subdags = [dag1, dag2]
