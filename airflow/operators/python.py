@@ -124,8 +124,10 @@ class PythonOperator(BaseOperator):
         processing templated fields, for examples ``['.sql', '.hql']``
     :type templates_exts: list[str]
     :param show_return_value_in_logs: a bool value whether to show return_value
-        logs
-    :type show_return_value_in_logs: str
+        logs.
+        It can be set to False to prevent log output of return value when you want to prevent huge log output
+        from returning excessive data, such as sending a large amount of XCom to TaskAPI.
+    :type show_return_value_in_logs: bool
     """
 
     template_fields = ('templates_dict', 'op_args', 'op_kwargs')
