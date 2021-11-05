@@ -22,7 +22,7 @@ import warnings
 from airflow.providers.microsoft.azure.hooks.container_instance import AzureContainerInstanceHook  # noqa
 
 warnings.warn(
-    "This module is deprecated. " "Please use `airflow.providers.microsoft.azure.hooks.container_instance`.",
+    "This module is deprecated. Please use `airflow.providers.microsoft.azure.hooks.container_instance`.",
     DeprecationWarning,
     stacklevel=2,
 )
