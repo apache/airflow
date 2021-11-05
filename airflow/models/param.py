@@ -14,8 +14,6 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-import json
-import warnings
 from typing import Any, Dict, Optional
 
 import jsonschema
@@ -53,34 +51,16 @@ class Param:
     CLASS_IDENTIFIER = '__class'
 
     def __init__(self, default: Any = __NO_VALUE_SENTINEL, description: str = None, **kwargs):
-
         self.value = default
         self.description = description
         self.schema = kwargs.pop('schema') if 'schema' in kwargs else kwargs
 
+        # If we have a value, validate it once. May raise ValueError.
         if self.has_value:
-            self._validate(self.value, self.schema)
-
-    @staticmethod
-    def _validate(value, schema):
-        """
-        1. Check that value is json-serializable; if not, warn.  In future release we will require
-        the value to be json-serializable.
-        2. Validate ``value`` against ``schema``
-        """
-        try:
-            json.dumps(value)
-        except TypeError:
-            warnings.warn(
-                "The use of non-json-serializable params is deprecated and will be removed in a"
-                " future release",
-                DeprecationWarning,
-                stacklevel=2,
-            )
-        try:
-            jsonschema.validate(value, schema, format_checker=FormatChecker())
-        except ValidationError as err:
-            raise ValueError(err)
+            try:
+                jsonschema.validate(self.value, self.schema, format_checker=FormatChecker())
+            except ValidationError as err:
+                raise ValueError(err)
 
     def resolve(self, value: Optional[Any] = __NO_VALUE_SENTINEL, suppress_exception: bool = False) -> Any:
         """
