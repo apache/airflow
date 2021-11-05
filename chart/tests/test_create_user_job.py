@@ -85,7 +85,6 @@ class CreateUserJobTest(unittest.TestCase):
             docs[0],
         )
 
-
     def test_create_user_job_resources_are_configurable(self):
         resources = {
             "requests": {
@@ -110,11 +109,7 @@ class CreateUserJobTest(unittest.TestCase):
 
     def test_should_disable_default_helm_hooks(self):
         docs = render_chart(
-            values={
-                "createUserJob": {
-                    "useHelmHooks": False
-                }
-            },
+            values={"createUserJob": {"useHelmHooks": False}},
             show_only=["templates/jobs/create-user-job.yaml"],
         )
         annotations = jmespath.search("spec.template.metadata.annotations", docs[0])

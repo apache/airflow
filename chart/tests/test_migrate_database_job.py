@@ -158,11 +158,7 @@ class TestMigrateDatabaseJob:
 
     def test_should_disable_default_helm_hooks(self):
         docs = render_chart(
-            values={
-                "migrateDatabaseJob": {
-                    "useHelmHooks": False
-                }
-            },
+            values={"migrateDatabaseJob": {"useHelmHooks": False}},
             show_only=["templates/jobs/migrate-database-job.yaml"],
         )
         annotations = jmespath.search("spec.template.metadata.annotations", docs[0])
