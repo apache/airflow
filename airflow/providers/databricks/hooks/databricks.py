@@ -23,6 +23,7 @@ operators talk to the ``api/2.0/jobs/runs/submit``
 `endpoint <https://docs.databricks.com/api/latest/jobs.html#runs-submit>`_.
 """
 from time import sleep
+from typing import Any
 from urllib.parse import urlparse
 
 import requests
@@ -45,6 +46,10 @@ USER_AGENT_HEADER = {'user-agent': f'airflow-{__version__}'}
 
 INSTALL_LIBS_ENDPOINT = ('POST', 'api/2.0/libraries/install')
 UNINSTALL_LIBS_ENDPOINT = ('POST', 'api/2.0/libraries/uninstall')
+
+AZURE_LOGIN_URL = "https://login.microsoftonline.com"
+AZURE_AUTHENTICATION_ENDPOINT = "oauth2/token"
+AZURE_AUTHENTICATION_RESOURCE = "2ff814a6-3304-4ab8-85cb-cd0e6f879c1d"
 
 
 class RunState:
@@ -151,6 +156,57 @@ class DatabricksHook(BaseHook):
             # In this case, host = xx.cloud.databricks.com
             return host
 
+    @staticmethod
+    def _get_bool(val: Any) -> bool:
+        if val == 'False':
+            return False
+        return True
+
+    def _token_from_azure_service_principal(self, client_id: str, client_secret: str, tenant_id: str) -> str:
+        """
+        Utility function for obtaining a login token for an azure application for Azure Databricks.
+
+        :param client_id: The Azure Application ID to use for obtaining a login token
+        :param client_secret: The corresponding client secret to use
+        :param tenant_id: The ID of the azure tenant the applications ia located in
+        """
+        if not tenant_id:
+            raise AirflowException("tenant_id has to be supplied as a connection extra when using azure service "
+                                   "principals as authentication method.")
+        attempt_num = 1
+        while True:
+            try:
+                response = requests.post(
+                    f"{AZURE_LOGIN_URL}/{tenant_id}/{AZURE_AUTHENTICATION_ENDPOINT}",
+                    data={
+                        "grant_type": "client_credentials",
+                        "client_id": client_id,
+                        "resource": AZURE_AUTHENTICATION_RESOURCE,
+                        "client_secret": client_secret
+                    },
+                    headers=USER_AGENT_HEADER,
+                    timeout=self.timeout_seconds,
+                )
+                response.raise_for_status()
+                return response.json()['access_token']
+            except requests_exceptions.RequestException as e:
+                if not _retryable_error(e):
+                    # In this case, the user probably made a mistake.
+                    # Don't retry.
+                    raise AirflowException(
+                        f'Response: {e.response.content}, Status Code: {e.response.status_code}'
+                    )
+
+                self._log_request_error(attempt_num, e)
+
+            if attempt_num == self.retry_limit:
+                raise AirflowException(
+                    f'API requests to Databricks failed {self.retry_limit} times. Giving up.'
+                )
+
+            attempt_num += 1
+            sleep(self.retry_delay)
+
     def _do_api_call(self, endpoint_info, json):
         """
         Utility function to perform an API call with retries
@@ -168,17 +224,22 @@ class DatabricksHook(BaseHook):
 
         self.databricks_conn = self.get_connection(self.databricks_conn_id)
 
+        host = self.databricks_conn.host
         if 'token' in self.databricks_conn.extra_dejson:
             self.log.info('Using token auth. ')
             auth = _TokenAuth(self.databricks_conn.extra_dejson['token'])
             if 'host' in self.databricks_conn.extra_dejson:
                 host = self._parse_host(self.databricks_conn.extra_dejson['host'])
-            else:
-                host = self.databricks_conn.host
+
+        elif self._get_bool(self.databricks_conn.extra_dejson.get('use_azure_service_principal', 'False')):
+            self.log.info('Using azure service principal auth. ')
+            token = self._token_from_azure_service_principal(self.databricks_conn.login,
+                                                             self.databricks_conn.password,
+                                                             self.databricks_conn.extra_dejson.get('tenant_id'))
+            auth = _TokenAuth(token)
         else:
             self.log.info('Using basic auth. ')
             auth = (self.databricks_conn.login, self.databricks_conn.password)
-            host = self.databricks_conn.host
 
         url = f'https://{self._parse_host(host)}/{endpoint}'
 

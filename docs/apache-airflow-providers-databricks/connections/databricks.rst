@@ -27,13 +27,18 @@ The Databricks connection type enables the Databricks Integration.
 Authenticating to Databricks
 ----------------------------
 
-There are two ways to connect to Databricks using Airflow.
+There are three ways to connect to Databricks using Airflow.
 
 1. Use a `Personal Access Token (PAT)
    <https://docs.databricks.com/dev-tools/api/latest/authentication.html>`_
    i.e. add a token to the Airflow connection. This is the recommended method.
 2. Use Databricks login credentials
    i.e. add the username and password used to login to the Databricks account to the Airflow connection.
+3. Use a `service principal
+   <https://docs.microsoft.com/en-us/azure/databricks/dev-tools/api/latest/aad/service-prin-aad-token>`_
+   on Azure Databricks
+   i.e. add the Client ID as username, the application secret as password to the Airflow connection and set
+   ``use_azure_service_principal`` as well as ``tenant_id`` in the connection extras of the connection.
 
 
 Default Connection IDs
@@ -60,6 +65,10 @@ Extra (optional)
     This parameter is necessary if using the *PAT* authentication method (recommended):
 
     * ``token``: Specify PAT to use.
+    * ``use_azure_service_principal``: Set to ``false`` if login and password are an azure client id and
+      client secret.
+    * ``tenant_id``: Specify the id of the tenant the azure service principal is defined in. Only used and required
+      if ``use_azure_service_principal`` is set to true.
 
 When specifying the connection using an environment variable you should specify
 it using URI syntax.
