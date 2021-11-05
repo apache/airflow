@@ -459,7 +459,7 @@ repos:
       - id: restrict-start_date
         language: pygrep
         name: "'start_date' should not be defined in default_args in example_dags"
-        entry: "default_args\\s*=\\s*{\\s*(\"|')start_date(\"|')|(\"|')start_date(\"|'):"
+        entry: "default_args\\s*=\\s*(({|dict\\()+|.+,+)\\s*(\"|')*start_date(=|\"|')*\\s*(:|=)"
         files: \.*example_dags.*\.py$
         exclude: ^airflow/_vendor/
         pass_filenames: true
