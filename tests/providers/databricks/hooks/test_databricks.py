@@ -28,12 +28,12 @@ from requests import exceptions as requests_exceptions
 from airflow import __version__
 from airflow.exceptions import AirflowException
 from airflow.models import Connection
-from airflow.providers.databricks.hooks.databricks import ( 
-    AZURE_AUTHENTICATION_ENDPOINT, 
+from airflow.providers.databricks.hooks.databricks import (
+    AZURE_AUTHENTICATION_ENDPOINT,
     AZURE_AUTHENTICATION_RESOURCE,
     AZURE_LOGIN_URL,
-    SUBMIT_RUN_ENDPOINT, 
-    DatabricksHook, 
+    SUBMIT_RUN_ENDPOINT,
+    DatabricksHook,
     RunState,
 )
 from airflow.utils.session import provide_session
@@ -639,7 +639,6 @@ class TestDatabricksAzureServicePrincipal(unittest.TestCase):
     @mock.patch('airflow.providers.databricks.hooks.databricks.requests')
     def test_token_from_azure_service_principal(self, mock_requests):
         mock_requests.post.return_value = create_valid_response_mock({'access_token': TOKEN})
-        data = {'cluster_name': 'new_name'}
         patched_cluster_name = self.hook._token_from_azure_service_principal(LOGIN, PASSWORD, TENANT_ID)
 
         assert patched_cluster_name == TOKEN
@@ -654,7 +653,6 @@ class TestDatabricksAzureServicePrincipal(unittest.TestCase):
             headers=USER_AGENT_HEADER,
             timeout=self.hook.timeout_seconds,
         )
-
 
 
 class TestRunState(unittest.TestCase):
