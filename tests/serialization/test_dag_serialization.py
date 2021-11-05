@@ -1466,7 +1466,7 @@ class TestStringifiedDAGs:
             "__version": 1,
             "dag": {
                 "_dag_id": "simple_dag",
-                "fileloc": '__file__',
+                "fileloc": '/path/to/file.py',
                 "tasks": [],
                 "timezone": "UTC",
                 "params": {"none": None, "str": "str", "dict": {"a": "b"}},
