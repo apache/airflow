@@ -28,6 +28,7 @@ from airflow.utils.dates import days_ago
 GCP_PROJECT_ID = os.environ.get('GCP_PROJECT_ID', 'gcp-project-id')
 S3BUCKET_NAME = os.environ.get('S3BUCKET_NAME', 'example-s3bucket-name')
 GCS_BUCKET = os.environ.get('GCP_GCS_BUCKET', 'example-gcsbucket-name')
+GCS_BUCKET_URL = f"gs://{GCS_BUCKET}/"
 UPLOAD_FILE = '/tmp/example-file.txt'
 PREFIX = 'TESTS'
 
@@ -56,7 +57,7 @@ with models.DAG(
     )
     # [START howto_transfer_s3togcs_operator]
     transfer_to_gcs = S3ToGCSOperator(
-        task_id='s3_to_gcs_task', bucket=S3BUCKET_NAME, prefix=PREFIX, dest_gcs="gs://" + GCS_BUCKET
+        task_id='s3_to_gcs_task', bucket=S3BUCKET_NAME, prefix=PREFIX, dest_gcs=GCS_BUCKET_URL
     )
     # [END howto_transfer_s3togcs_operator]
 

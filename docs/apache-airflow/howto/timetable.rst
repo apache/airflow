@@ -254,7 +254,7 @@ Timetable Display in UI
 -----------------------
 
 By default, a custom timetable is displayed by their class name in the UI (e.g.
-the *Schedule* column in the "DAGs" table. It is possible to customize this
+the *Schedule* column in the "DAGs" table). It is possible to customize this
 by overriding the ``summary`` property. This is especially useful for
 parameterized timetables to include arguments provided in ``__init__``. For
 our ``SometimeAfterWorkdayTimetable`` class, for example, we could have:

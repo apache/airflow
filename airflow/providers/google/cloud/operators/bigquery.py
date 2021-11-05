@@ -1142,7 +1142,7 @@ class BigQueryCreateExternalTableOperator(BaseOperator):
         if not table_resource:
             warnings.warn(
                 "Passing table parameters via keywords arguments will be deprecated. "
-                "Please use provide table definition using `table_resource` parameter.",
+                "Please provide table definition using `table_resource` parameter.",
                 DeprecationWarning,
                 stacklevel=2,
             )
