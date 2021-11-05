@@ -28,8 +28,14 @@ from requests import exceptions as requests_exceptions
 from airflow import __version__
 from airflow.exceptions import AirflowException
 from airflow.models import Connection
-from airflow.providers.databricks.hooks.databricks import SUBMIT_RUN_ENDPOINT, DatabricksHook, RunState, \
-    AZURE_LOGIN_URL, AZURE_AUTHENTICATION_ENDPOINT, AZURE_AUTHENTICATION_RESOURCE
+from airflow.providers.databricks.hooks.databricks import ( 
+    AZURE_AUTHENTICATION_ENDPOINT, 
+    AZURE_AUTHENTICATION_RESOURCE,
+    AZURE_LOGIN_URL,
+    SUBMIT_RUN_ENDPOINT, 
+    DatabricksHook, 
+    RunState,
+)
 from airflow.utils.session import provide_session
 
 TASK_ID = 'databricks-operator'
@@ -524,12 +530,11 @@ class TestDatabricksHookTokenWhenNoHostIsProvidedInExtra(TestDatabricksHookToken
         self.hook = DatabricksHook()
 
 
-
-
 class TestDatabricksAzureServicePrincipal(unittest.TestCase):
     """
     Tests for DatabricksHook when auth is done via Azure Service Principal.
     """
+
     @provide_session
     def setUp(self, session=None):
         conn = session.query(Connection).filter(Connection.conn_id == DEFAULT_CONN_ID).first()
@@ -551,7 +556,7 @@ class TestDatabricksAzureServicePrincipal(unittest.TestCase):
         with mock.patch.object(self.hook, "_token_from_azure_service_principal") as mock_sp:
             mock_sp.return_value = TOKEN
             run_id = self.hook.submit_run(data)
-            
+
             mock_sp.assert_called_once_with(LOGIN, PASSWORD, TENANT_ID)
 
         assert run_id == '1'
@@ -644,7 +649,7 @@ class TestDatabricksAzureServicePrincipal(unittest.TestCase):
                 "grant_type": "client_credentials",
                 "client_id": LOGIN,
                 "resource": AZURE_AUTHENTICATION_RESOURCE,
-                "client_secret": PASSWORD
+                "client_secret": PASSWORD,
             },
             headers=USER_AGENT_HEADER,
             timeout=self.hook.timeout_seconds,

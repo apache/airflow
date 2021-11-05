@@ -171,8 +171,10 @@ class DatabricksHook(BaseHook):
         :param tenant_id: The ID of the azure tenant the applications ia located in
         """
         if not tenant_id:
-            raise AirflowException("tenant_id has to be supplied as a connection extra when using azure service "
-                                   "principals as authentication method.")
+            raise AirflowException(
+                "tenant_id has to be supplied as a connection extra when using azure service "
+                "principals as authentication method."
+            )
         attempt_num = 1
         while True:
             try:
@@ -182,7 +184,7 @@ class DatabricksHook(BaseHook):
                         "grant_type": "client_credentials",
                         "client_id": client_id,
                         "resource": AZURE_AUTHENTICATION_RESOURCE,
-                        "client_secret": client_secret
+                        "client_secret": client_secret,
                     },
                     headers=USER_AGENT_HEADER,
                     timeout=self.timeout_seconds,
@@ -233,9 +235,11 @@ class DatabricksHook(BaseHook):
 
         elif self._get_bool(self.databricks_conn.extra_dejson.get('use_azure_service_principal', 'False')):
             self.log.info('Using azure service principal auth. ')
-            token = self._token_from_azure_service_principal(self.databricks_conn.login,
-                                                             self.databricks_conn.password,
-                                                             self.databricks_conn.extra_dejson.get('tenant_id'))
+            token = self._token_from_azure_service_principal(
+                self.databricks_conn.login,
+                self.databricks_conn.password,
+                self.databricks_conn.extra_dejson.get('tenant_id'),
+            )
             auth = _TokenAuth(token)
         else:
             self.log.info('Using basic auth. ')
