@@ -130,10 +130,14 @@ with models.DAG(
     )
     # [END howto_campaign_manager_delete_report_operator]
 
-    create_report >> run_report >> wait_for_report >> get_report >> delete_report
+    wait_for_report >> get_report >> delete_report
 
     # Task dependencies created via `XComArgs`:
     #   create_report >> run_report
+    #   create_report >> wait_for_report
+    #   create_report >> get_report
+    #   run_report >> get_report
+    #   run_report >> wait_for_report
 
     # [START howto_campaign_manager_insert_conversions]
     insert_conversion = GoogleCampaignManagerBatchInsertConversionsOperator(
