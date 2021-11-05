@@ -2117,6 +2117,7 @@ KNOWN_DEPRECATED_DIRECT_IMPORTS: Set[str] = {
     "This module is deprecated. Please use `airflow.providers.microsoft.azure.hooks.batch`.",
     "This module is deprecated. Please use `airflow.providers.microsoft.azure.hooks.container_instance`.",
     "This module is deprecated. Please use `airflow.providers.microsoft.azure.hooks.container_registry`.",
+    "This module is deprecated. Please use `airflow.providers.microsoft.azure.hooks.container_volume`.",
     "This module is deprecated. Please use `airflow.providers.microsoft.azure.hooks.cosmos`.",
     "This module is deprecated. Please use `airflow.providers.microsoft.azure.hooks.data_factory`.",
     "This module is deprecated. Please use `airflow.providers.microsoft.azure.hooks.data_lake`.",
