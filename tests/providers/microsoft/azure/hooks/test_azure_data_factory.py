@@ -146,6 +146,7 @@ def test_get_connection_by_credential_client_secret(connection_id: str, credenti
     with patch.object(hook, "_create_client") as mock_create_client:
         mock_create_client.return_value = MagicMock()
         connection = hook.get_conn()
+        assert connection is not None
         mock_create_client.assert_called_once()
         assert isinstance(mock_create_client.call_args[0][0], credential_type)
         assert mock_create_client.call_args[0][1] == "subscriptionId"
