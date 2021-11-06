@@ -23,13 +23,14 @@ operators to manage a cluster and submit jobs.
 import os
 
 from airflow import models
+from airflow.contrib.operators.dataproc_operator import DataprocClusterCreateOperator
 from airflow.providers.google.cloud.operators.dataproc import (
     DataprocCreateClusterOperator,
     DataprocCreateWorkflowTemplateOperator,
     DataprocDeleteClusterOperator,
     DataprocInstantiateWorkflowTemplateOperator,
     DataprocSubmitJobOperator,
-    DataprocUpdateClusterOperator,
+    DataprocUpdateClusterOperator, ClusterGenerator,
 )
 from airflow.providers.google.cloud.sensors.dataproc import DataprocJobSensor
 from airflow.utils.dates import days_ago
@@ -63,6 +64,52 @@ CLUSTER_CONFIG = {
 }
 
 # [END how_to_cloud_dataproc_create_cluster]
+
+# Cluster definition upgrading from Airflow 1.10.x ( before using CLUSTER_CONFIG )
+# [START how_to_cloud_dataproc_create_cluster_upgrading_from_v1_10_1]
+path = f"gs://goog-dataproc-initialization-actions-us-central1/python/pip-install.sh"
+
+create_cluster = DataprocClusterCreateOperator(
+                    task_id='create_dataproc_cluster',
+                    cluster_name="test",
+                    project_id="test",
+                    zone="us-central1-a",
+                    region="us-central1",
+                    master_machine_type="n1-standard-4",
+                    worker_machine_type="n1-standard-4",
+                    num_workers=2,
+                    storage_bucket="test_bucket",
+                    init_actions_uris=[
+                        path
+                    ],
+                    metadata={'PIP_PACKAGES': 'pyyaml requests pandas openpyxl'},
+                )
+# [END how_to_cloud_dataproc_create_cluster_upgrading_from_v1_10_1]
+
+# Cluster definition upgrading from Airflow 1.10.x ( after using CLUSTER_CONFIG )
+# [START how_to_cloud_dataproc_create_cluster_upgrading_from_v1_10_2]
+cluster_config = ClusterGenerator(
+                    project_id="test",
+                    zone="us-central1-a",
+                    master_machine_type="n1-standard-4",
+                    worker_machine_type="n1-standard-4",
+                    num_workers=2,
+                    storage_bucket="test",
+                    init_actions_uris=[
+                        path
+                    ],
+                    metadata={'PIP_PACKAGES': 'pyyaml requests pandas openpyxl'},
+                ).make()
+
+create_cluster_operator = DataprocClusterCreateOperator(
+                    task_id='create_dataproc_cluster',
+                    cluster_name="test",
+                    project_id="test",
+                    region="us-central1",
+                    cluster_config=cluster_config,
+                )
+# [END how_to_cloud_dataproc_create_cluster_upgrading_from_v1_10_2]
+
 
 # Update options
 # [START how_to_cloud_dataproc_updatemask_cluster_operator]
