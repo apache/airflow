@@ -130,14 +130,20 @@ Pyenv and setting up virtual-env
 
 1. Install pyenv and configure your shell's environment for Pyenv as suggested in Pyenv `README <https://github.com/pyenv/pyenv/blob/master/README.md#installation>`_
 
-2. Restart your shell so the path changes take effect and verifying installation
+2. After installing pyenv, you need to install a few more required packages for Airflow
+
+.. code-block:: bash
+
+  $ sudo apt-get install openssl sqlite default-libmysqlclient-dev libmysqlclient-dev postgresql
+
+3. Restart your shell so the path changes take effect and verifying installation
 
 .. code-block:: bash
 
   $ exec $SHELL
   $ pyenv --version
 
-3. Checking available version, installing required Python version to pyenv and verifying it
+4. Checking available version, installing required Python version to pyenv and verifying it
 
 .. code-block:: bash
 
@@ -145,14 +151,14 @@ Pyenv and setting up virtual-env
   $ pyenv install 3.8.5
   $ pyenv versions
 
-4. Creating new virtual environment named ``airflow-env`` for installed version python. In next chapter virtual
+5. Creating new virtual environment named ``airflow-env`` for installed version python. In next chapter virtual
    environment ``airflow-env`` will be used for installing airflow.
 
 .. code-block:: bash
 
   $ pyenv virtualenv 3.8.5 airflow-env
 
-5. Entering virtual environment ``airflow-env``
+6. Entering virtual environment ``airflow-env``
 
 .. code-block:: bash
 
