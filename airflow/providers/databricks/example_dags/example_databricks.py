@@ -17,14 +17,15 @@
 # under the License.
 """
 This is an example DAG which uses the DatabricksSubmitRunOperator.
-In this example, we create two tasks which execute sequentially.
+In this example, we create three tasks which execute sequentially.
 The first task is to run a notebook at the workspace path "/test"
-and the second task is to run a JAR uploaded to DBFS. Both,
-tasks use new clusters.
+and the second task is to run a JAR uploaded to DBFS. The thrird 
+task runs a python or pyspark program with a parameter and an
+.egg file uploaded to DBFS. All tasks tasks use new clusters.
 
 Because we have set a downstream dependency on the notebook task,
 the spark jar task will NOT run until the notebook task completes
-successfully.
+successfully. The pyspark task follows the jar task.
 
 The definition of a successful run is if the run has a result_state of "SUCCESS".
 For more information about the state of a run refer to
@@ -44,8 +45,8 @@ with DAG(
     catchup=False,
 ) as dag:
     new_cluster = {
-        'spark_version': '2.1.0-db3-scala2.11',
-        'node_type_id': 'r3.xlarge',
+        'spark_version': '9.1.x-scala2.12',
+        'node_type_id': 'r5.2xlarge',
         'aws_attributes': {'availability': 'ON_DEMAND'},
         'num_workers': 8,
     }
@@ -71,4 +72,17 @@ with DAG(
         libraries=[{'jar': 'dbfs:/lib/etl-0.1.jar'}],
     )
     # [END howto_operator_databricks_named]
-    notebook_task >> spark_jar_task
+
+    # [START howto_operator_databricks_pyspark]
+    # Example of creating a python or pyspark job with parameter passed via python's sys.argv
+    pyspark_task = DatabricksSubmitRunOperator(
+        task_id='spark_python_task',
+        new_cluster=new_cluster,
+        spark_python_task={
+            "python_file":  "dbfs:/programs/etl.py",
+            "parameters": [ "/dbfs/programs/job-config.json" ]
+        },
+        libraries=[{"egg":"dbfs:/libs/etl-0.0.1-py3.8.egg"}],
+    )
+    # [END howto_operator_databricks_pyspark]
+    notebook_task >> spark_jar_task >> pyspark_task
