@@ -144,15 +144,14 @@ class AzureDataFactoryHook(BaseHook):
         tenant = conn.extra_dejson.get('extra__azure_data_factory__tenantId')
         subscription_id = conn.extra_dejson.get('extra__azure_data_factory__subscriptionId')
 
-        credential = DefaultAzureCredential()
+        credential = None
         if conn.login is not None and conn.password is not None:
             credential = ClientSecretCredential(
                 client_id=conn.login, client_secret=conn.password, tenant_id=tenant
             )
-        self._conn = DataFactoryManagementClient(
-            credential=credential,
-            subscription_id=subscription_id,
-        )
+        else:
+            credential = DefaultAzureCredential()
+        self._conn = self._create_client(credential, subscription_id)
 
         return self._conn
 
@@ -177,6 +176,13 @@ class AzureDataFactoryHook(BaseHook):
         }
 
         return factory_name in factories
+
+    @staticmethod
+    def _create_client(credential, subscription_id):
+        return DataFactoryManagementClient(
+            credential=credential,
+            subscription_id=subscription_id,
+        )
 
     @provide_targeted_factory
     def update_factory(
