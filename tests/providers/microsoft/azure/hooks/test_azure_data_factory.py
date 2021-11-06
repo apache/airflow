@@ -72,7 +72,7 @@ def setup_module():
                 "extra__azure_data_factory__resource_group_name": DEFAULT_RESOURCE_GROUP,
                 "extra__azure_data_factory__factory_name": DEFAULT_FACTORY,
             }
-        )
+        ),
     )
 
     db.merge_conn(connection_client_secret)
@@ -133,9 +133,13 @@ def test_provide_targeted_factory():
         provide_targeted_factory(echo)(hook)
 
 
-@pytest.mark.parametrize(("connection_id", "credential_type"),
-                         [(DEFAULT_CONNECTION_CLIENT_SECRET, ClientSecretCredential),
-                          (DEFAULT_CONNECTION_DEFAULT_CREDENTIAL, DefaultAzureCredential)])
+@pytest.mark.parametrize(
+    ("connection_id", "credential_type"),
+    [
+        (DEFAULT_CONNECTION_CLIENT_SECRET, ClientSecretCredential),
+        (DEFAULT_CONNECTION_DEFAULT_CREDENTIAL, DefaultAzureCredential),
+    ],
+)
 def test_get_connection_by_credential_client_secret(connection_id: str, credential_type: Type):
     hook = AzureDataFactoryHook(connection_id)
 
