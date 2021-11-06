@@ -59,15 +59,12 @@ With this configuration we can create the cluster:
 
 Generating Cluster Config
 ^^^^^^^^^^^^^^^^^^^^^^^^^
-If you are upgrading from Airflow 1.10.x and are not using **CLUSTER_CONFIG** or you would like to generate CLUSTER_CONFIG using functional API,
-You can easily refactor your operator usage to use **CLUSTER_CONFIG**,
-Config can be generated using **make()** of
+If you are upgrading from Airflow 1.10.x and are not using **CLUSTER_CONFIG** or you would like to generate it using functional API,
+You can easily generate config using **make()** of
 :class:`~airflow.providers.google.cloud.operators.dataproc.ClusterGenerator`
-
 this is been proved specially useful if you are using **metadata** argument from older API, refer `AIRFLOW#16911 <https://github.com/apache/airflow/issues/16911>`__
 
 eg. your cluster creation may look like this in **v1.10.x**
-
 .. exampleinclude:: /../../airflow/providers/google/cloud/example_dags/example_dataproc.py
     :language: python
     :dedent: 0
