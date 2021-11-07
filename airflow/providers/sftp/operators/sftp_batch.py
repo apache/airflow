@@ -19,7 +19,7 @@
 import os
 import re
 from pathlib import Path
-from typing import Any, List
+from typing import Any, List, Union
 
 from paramiko.sftp_client import SFTPClient
 
@@ -44,10 +44,10 @@ class SFTPBatchOperator(BaseOperator):
         Nullable. If provided, it will replace the `remote_host` which was
         defined in `ssh_hook` or predefined in the connection of `ssh_conn_id`.
     :type remote_host: str
-    :param local_folder: local folder path to get or put. (templated)
-    :type local_folder: str
-    :param remote_folder: remote folder path to get or put. (templated)
-    :type remote_folder: str
+    :param local_path: local folder path to get or put. (templated)
+    :type local_path: str or list
+    :param remote_path: remote folder path to get or put. (templated)
+    :type remote_path: str or list
     :param regexp_mask: regexp mask for file match in local_folder or remote_folder to get or put. (templated)
     :type regexp_mask: str
     :param operation: specify operation 'get' or 'put', defaults to put
@@ -75,8 +75,8 @@ class SFTPBatchOperator(BaseOperator):
 
     template_fields = (
         'remote_host',
-        'local_folder',
-        'remote_folder',
+        'local_path',
+        'remote_path',
         'regexp_mask',
     )
 
@@ -86,8 +86,8 @@ class SFTPBatchOperator(BaseOperator):
         ssh_hook=None,
         ssh_conn_id=None,
         remote_host=None,
-        local_folder=None,
-        remote_folder=None,
+        local_path: Union[str, list] = None,
+        remote_path: Union[str, list] = None,
         regexp_mask=None,
         operation=SFTPOperation.PUT,
         confirm=True,
@@ -98,16 +98,27 @@ class SFTPBatchOperator(BaseOperator):
         self.ssh_hook = ssh_hook
         self.ssh_conn_id = ssh_conn_id
         self.remote_host = remote_host
-        self.local_folder = local_folder
-        self.remote_folder = remote_folder
+        self.local_path = local_path
+        self.remote_path = remote_path
         self.regexp_mask = regexp_mask
         self.operation = operation
         self.confirm = confirm
         self.create_intermediate_dirs = create_intermediate_dirs
         if not (self.operation.lower() == SFTPOperation.GET or self.operation.lower() == SFTPOperation.PUT):
             raise TypeError(
-                f"unsupported operation value {self.operation},"
-                f"expected {SFTPOperation.GET} or {SFTPOperation.PUT}"
+                f"""Unsupported operation value {self.operation},
+                expected {SFTPOperation.GET} or {SFTPOperation.PUT}"""
+            )
+        if not (
+            (isinstance(self.local_path, str) and isinstance(self.remote_path, str))
+            or (isinstance(self.local_path, list) and isinstance(self.remote_path, str))
+            or (isinstance(self.remote_path, list) and isinstance(self.local_path, str))
+        ):
+            raise TypeError(
+                """Unsupported path argument value local_path and remote_path
+                Possible options: \n local_path is str and remote_path is str\n
+                local_path is list and remote_path is str\n
+                local_path is str and remote_path is list"""
             )
 
     def execute(self, context: Any) -> str:
@@ -118,22 +129,34 @@ class SFTPBatchOperator(BaseOperator):
             with self.ssh_hook.get_conn() as ssh_client:
                 sftp_client = ssh_client.open_sftp()
                 if self.operation.lower() == SFTPOperation.PUT:
-                    files_list = self._search_files(os.listdir(self.local_folder))
-                    for file in files_list:
-                        local_file = os.path.basename(file)
-                        file_msg = file
-                        self._transfer(sftp_client, self.local_folder, local_file, self.remote_folder)
+                    if isinstance(self.local_path, str):
+                        files_list = self._search_files(os.listdir(self.local_path))
+                        for file in files_list:
+                            local_file = os.path.basename(file)
+                            file_msg = file
+                            self._transfer(sftp_client, self.local_path, local_file, self.remote_path)
+                    if isinstance(self.local_path, list) and isinstance(self.remote_path, str):
+                        for file in self.local_path:
+                            local_file = os.path.basename(file)
+                            file_msg = file
+                            self._transfer(sftp_client, os.path.dirname(file), local_file, self.remote_path)
                 elif self.operation.lower() == SFTPOperation.GET:
-                    files_list = self._search_files(sftp_client.listdir(self.remote_folder))
-                    for file in files_list:
-                        remote_file = os.path.basename(file)
-                        file_msg = file
-                        self._transfer(sftp_client, self.local_folder, remote_file, self.remote_folder)
+                    if isinstance(self.remote_path, str):
+                        files_list = self._search_files(sftp_client.listdir(self.remote_path))
+                        for file in files_list:
+                            remote_file = os.path.basename(file)
+                            file_msg = file
+                            self._transfer(sftp_client, self.local_path, remote_file, self.remote_path)
+                    if isinstance(self.remote_path, list) and isinstance(self.local_path, str):
+                        for file in self.remote_path:
+                            remote_file = os.path.basename(file)
+                            file_msg = file
+                            self._transfer(sftp_client, self.local_path, remote_file, os.path.dirname(file))
 
         except Exception as e:
             raise AirflowException(f"Error while transferring {file_msg}, error: {str(e)}")
 
-        return self.local_folder
+        return self.local_path
 
     def _search_files(self, files) -> List:
         if self.regexp_mask:
