@@ -170,7 +170,10 @@ class MySQLToS3Operator(BaseOperator):
         self._fix_int_dtypes(data_df)
         file_options = FILE_OPTIONS_MAP[self.file_format]
         with NamedTemporaryFile(mode=file_options.mode, suffix=file_options.suffix) as tmp_file:
-            data_df.to_csv(tmp_file.name, **self.pd_kwargs)
+            if self.file_format == FILE_FORMAT.CSV:
+                data_df.to_csv(tmp_file.name, **self.pd_kwargs)
+            else:
+                data_df.to_parquet(tmp_file.name, **self.pd_kwargs)
             s3_conn.load_file(filename=tmp_file.name, key=self.s3_key, bucket_name=self.s3_bucket)
 
         if s3_conn.check_for_key(self.s3_key, bucket_name=self.s3_bucket):
