@@ -72,7 +72,7 @@ class TestVaultSecrets(TestCase):
                 'data': {
                     'conn_type': 'postgresql',
                     'login': 'airflow',
-                    'password': 'airflow',
+                    'password': 'Airflow123',
                     'host': 'host',
                     'port': '5432',
                     'schema': 'airflow',
