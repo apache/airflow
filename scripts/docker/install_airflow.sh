@@ -39,7 +39,7 @@ function install_airflow() {
         exit 1
     fi
     # Remove mysql from extras if client is not going to be installed
-    if [[ ${INSTALL_MYSQL_CLIENT} == "false" ]] && [[ ${INSTALL_MARIADB_CLIENT} == "false" ]]; then
+    if [[ ${INSTALL_MYSQL_CLIENT} != "true" ]]; then
         AIRFLOW_EXTRAS=${AIRFLOW_EXTRAS/mysql,}
     fi
     if [[ "${UPGRADE_TO_NEWER_DEPENDENCIES}" != "false" ]]; then

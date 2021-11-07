@@ -24,11 +24,6 @@ ARG PYTHON_BASE_IMAGE="python:3.6-slim-buster"
 ARG AIRFLOW_VERSION="2.2.0.dev0"
 ARG AIRFLOW_IMAGE_REPOSITORY="https://github.com/apache/airflow"
 
-# We should install either mysql or mariadb, not both! They are conflicting
-ARG INSTALL_MYSQL_CLIENT=true
-ARG INSTALL_MSSQL_CLIENT=true
-ARG INSTALL_MARIADB_CLIENT=false
-
 # By increasing this number we can do force build of all dependencies
 ARG DEPENDENCIES_EPOCH_NUMBER="6"
 
@@ -37,7 +32,6 @@ ENV PYTHON_BASE_IMAGE=${PYTHON_BASE_IMAGE} AIRFLOW_VERSION=${AIRFLOW_VERSION} \
     DEBIAN_FRONTEND=noninteractive LANGUAGE=C.UTF-8 LANG=C.UTF-8 LC_ALL=C.UTF-8 \
     LC_CTYPE=C.UTF-8 LC_MESSAGES=C.UTF-8 \
     DEPENDENCIES_EPOCH_NUMBER=${DEPENDENCIES_EPOCH_NUMBER}
-
 
 # Print versions
 RUN echo "Base image: ${PYTHON_BASE_IMAGE}, Airflow version: ${AIRFLOW_VERSION}"
@@ -108,13 +102,8 @@ RUN mkdir -pv /usr/share/man/man1 \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
-ENV INSTALL_MYSQL_CLIENT=${INSTALL_MYSQL_CLIENT} \
-    INSTALL_MARIADB_CLIENT=${INSTALL_MARIADB_CLIENT} \
-    INSTALL_MSSQL_CLIENT=${INSTALL_MSSQL_CLIENT}
-
 COPY scripts/docker/*.sh /scripts/docker/
 RUN bash /scripts/docker/install_mysql.sh dev \
-    && bash /scripts/docker/install_mariadb.sh \
     && bash /scripts/docker/install_mssql.sh \
     && adduser airflow \
     && echo "airflow:airflow" | chpasswd \
@@ -263,10 +252,13 @@ ENV AIRFLOW_REPO=${AIRFLOW_REPO}\
     INSTALL_FROM_PYPI=${INSTALL_FROM_PYPI} \
     AIRFLOW_PIP_VERSION=${AIRFLOW_PIP_VERSION} \
 # In the CI image we always:
+# * install MySQL, MsSQL
 # * install airflow from current sources, not from PyPI package
 # * install airflow without `--user` flag
 # * install airflow in editable mode
 # * install always current version of airflow
+    INSTALL_MYSQL_CLIENT="true" \
+    INSTALL_MSSQL_CLIENT="true" \
     AIRFLOW_INSTALLATION_METHOD="." \
     AIRFLOW_INSTALL_USER_FLAG="" \
     AIRFLOW_INSTALL_EDITABLE_FLAG="--editable" \

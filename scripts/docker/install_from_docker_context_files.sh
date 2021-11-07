@@ -26,7 +26,7 @@
 . "$( dirname "${BASH_SOURCE[0]}" )/common.sh"
 
 function install_airflow_and_providers_from_docker_context_files(){
-    if [[ ${INSTALL_MYSQL_CLIENT} == "false" ]] && [[ ${INSTALL_MARIADB_CLIENT} == "false" ]]; then
+    if [[ ${INSTALL_MYSQL_CLIENT} != "true" ]]; then
         AIRFLOW_EXTRAS=${AIRFLOW_EXTRAS/mysql,}
     fi
 
