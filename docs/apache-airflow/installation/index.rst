@@ -63,7 +63,7 @@ More details: :doc:`installing-from-sources`
 
 * This option is best if you expect to build all your software from sources.
 * Apache Airflow is one of the projects that belong to the `Apache Software Foundation <https://www.apache.org/>`__ .
-  It is a requirement for all ASF projects that they can be installed using official sources released via `Official Apache Mirrors <http://ws.apache.org/mirrors.cgi/>`__ .
+  It is a requirement for all ASF projects that they can be installed using official sources released via `Official Apache Downloads <http://ws.apache.org/mirrors.cgi/>`__ .
 * This is the best choice if you have a strong need to `verify the integrity and provenance of the software <https://www.apache.org/dyn/closer.cgi#verify>`__
 
 **Intended users**
