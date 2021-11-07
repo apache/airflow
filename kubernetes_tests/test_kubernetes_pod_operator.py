@@ -824,7 +824,10 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
 
         path = sys.path[0] + '/tests/kubernetes/pod.yaml'
         k = KubernetesPodOperator(
-            task_id="task" + self.get_current_task_name(), pod_template_file=path, do_xcom_push=True
+            task_id="task" + self.get_current_task_name(),
+            random_name_suffix=False,
+            pod_template_file=path,
+            do_xcom_push=True,
         )
 
         monitor_mock.return_value = (State.SUCCESS, None, None)

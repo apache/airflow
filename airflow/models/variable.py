@@ -197,7 +197,7 @@ class Variable(Base, LoggingMixin):
         """
         cls.check_for_write_conflict(key)
 
-        if cls.get_variable_from_secrets(key) is None:
+        if cls.get_variable_from_secrets(key=key) is None:
             raise KeyError(f'Variable {key} does not exist')
 
         obj = session.query(cls).filter(cls.key == key).first()
@@ -223,6 +223,7 @@ class Variable(Base, LoggingMixin):
         if self._val and self.is_encrypted:
             self._val = fernet.rotate(self._val.encode('utf-8')).decode()
 
+    @staticmethod
     def check_for_write_conflict(key: str) -> None:
         """
         Logs a warning if a variable exists outside of the metastore.

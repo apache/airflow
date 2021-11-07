@@ -73,8 +73,11 @@ class KubernetesPodOperator(BaseOperator):
         but fully qualified URLS will point to custom repositories. (templated)
     :type image: str
     :param name: name of the pod in which the task will run, will be used (plus a random
-        suffix) to generate a pod id (DNS-1123 subdomain, containing only [a-z0-9.-]).
+        suffix if random_name_suffix is True) to generate a pod id (DNS-1123 subdomain,
+        containing only [a-z0-9.-]).
     :type name: str
+    :param random_name_suffix: if True, will generate a random suffix.
+    :type random_name_suffix: bool
     :param cmds: entrypoint of the container. (templated)
         The docker images's entrypoint is used if this is not provided.
     :type cmds: list[str]
@@ -180,6 +183,7 @@ class KubernetesPodOperator(BaseOperator):
         namespace: Optional[str] = None,
         image: Optional[str] = None,
         name: Optional[str] = None,
+        random_name_suffix: Optional[bool] = True,
         cmds: Optional[List[str]] = None,
         arguments: Optional[List[str]] = None,
         ports: Optional[List[k8s.V1ContainerPort]] = None,
@@ -275,6 +279,7 @@ class KubernetesPodOperator(BaseOperator):
         self.priority_class_name = priority_class_name
         self.pod_template_file = pod_template_file
         self.name = self._set_name(name)
+        self.random_name_suffix = random_name_suffix
         self.termination_grace_period = termination_grace_period
         self.client: CoreV1Api = None
         self.pod: k8s.V1Pod = None
@@ -450,7 +455,7 @@ class KubernetesPodOperator(BaseOperator):
             metadata=k8s.V1ObjectMeta(
                 namespace=self.namespace,
                 labels=self.labels,
-                name=PodGenerator.make_unique_pod_id(self.name),
+                name=self.name,
                 annotations=self.annotations,
             ),
             spec=k8s.V1PodSpec(
@@ -485,6 +490,9 @@ class KubernetesPodOperator(BaseOperator):
         )
 
         pod = PodGenerator.reconcile_pods(pod_template, pod)
+
+        if self.random_name_suffix:
+            pod.metadata.name = PodGenerator.make_unique_pod_id(pod.metadata.name)
 
         for secret in self.secrets:
             self.log.debug("Adding secret to task %s", self.task_id)

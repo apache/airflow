@@ -38,12 +38,12 @@ This DAG relies on the following OS environment variables
 """
 import os
 import subprocess
+from datetime import datetime
 from os.path import expanduser
 from urllib.parse import quote_plus
 
 from airflow import models
 from airflow.providers.google.cloud.operators.cloud_sql import CloudSQLExecuteQueryOperator
-from airflow.utils.dates import days_ago
 
 GCP_PROJECT_ID = os.environ.get('GCP_PROJECT_ID', 'example-project')
 GCP_REGION = os.environ.get('GCP_REGION', 'europe-west1')
@@ -269,7 +269,8 @@ tasks = []
 with models.DAG(
     dag_id='example_gcp_sql_query',
     schedule_interval='@once',
-    start_date=days_ago(1),
+    start_date=datetime(2021, 1, 1),
+    catchup=False,
     tags=['example'],
 ) as dag:
     prev_task = None
