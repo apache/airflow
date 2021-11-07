@@ -111,25 +111,7 @@ class SFTPOperator(BaseOperator):
     def execute(self, context: Any) -> str:
         file_msg = None
         try:
-            if self.ssh_conn_id:
-                if self.ssh_hook and isinstance(self.ssh_hook, SSHHook):
-                    self.log.info("ssh_conn_id is ignored when ssh_hook is provided.")
-                else:
-                    self.log.info(
-                        "ssh_hook is not provided or invalid. Trying ssh_conn_id to create SSHHook."
-                    )
-                    self.ssh_hook = SSHHook(ssh_conn_id=self.ssh_conn_id)
-
-            if not self.ssh_hook:
-                raise AirflowException("Cannot operate without ssh_hook or ssh_conn_id.")
-
-            if self.remote_host is not None:
-                self.log.info(
-                    "remote_host is provided explicitly. "
-                    "It will replace the remote_host which was defined "
-                    "in ssh_hook or predefined in connection of ssh_conn_id."
-                )
-                self.ssh_hook.remote_host = self.remote_host
+            _check_conn(self)
 
             with self.ssh_hook.get_conn() as ssh_client:
                 sftp_client = ssh_client.open_sftp()
@@ -178,3 +160,23 @@ def _make_intermediate_dirs(sftp_client, remote_directory) -> None:
         sftp_client.mkdir(basename)
         sftp_client.chdir(basename)
         return
+
+
+def _check_conn(obj):
+    if obj.ssh_conn_id:
+        if obj.ssh_hook and isinstance(obj.ssh_hook, SSHHook):
+            obj.log.info("ssh_conn_id is ignored when ssh_hook is provided.")
+        else:
+            obj.log.info("ssh_hook is not provided or invalid. Trying ssh_conn_id to create SSHHook.")
+            obj.ssh_hook = SSHHook(ssh_conn_id=obj.ssh_conn_id)
+
+    if not obj.ssh_hook:
+        raise AirflowException("Cannot operate without ssh_hook or ssh_conn_id.")
+
+    if obj.remote_host is not None:
+        obj.log.info(
+            "remote_host is provided explicitly. "
+            "It will replace the remote_host which was defined "
+            "in ssh_hook or predefined in connection of ssh_conn_id."
+        )
+        obj.ssh_hook.remote_host = obj.remote_host

@@ -15,7 +15,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+import base64
 import os
+import shutil
 from base64 import b64encode
 from unittest import mock
 
@@ -24,6 +26,7 @@ import pytest
 from airflow.exceptions import AirflowException
 from airflow.models import DAG
 from airflow.providers.sftp.operators.sftp import SFTPOperation, SFTPOperator
+from airflow.providers.sftp.operators.sftp_batch import SFTPBatchOperator
 from airflow.providers.ssh.operators.ssh import SSHOperator
 from airflow.utils import timezone
 from airflow.utils.timezone import datetime
@@ -42,10 +45,15 @@ class TestSFTPOperator:
         self.hook = hook
         self.test_dir = "/tmp"
         self.test_local_dir = "/tmp/tmp2"
+        self.test_local_batch_dir = "/tmp/tmp2/batch"
         self.test_remote_dir = "/tmp/tmp1"
+        self.test_remote_batch_dir = "/tmp/tmp1/batch"
         self.test_local_filename = 'test_local_file'
         self.test_remote_filename = 'test_remote_file'
         self.test_local_filepath = f'{self.test_dir}/{self.test_local_filename}'
+        self.test_txt_file = 'file1.txt'
+        self.test_csv_file = 'file1.csv'
+        self.test_csv2_file = 'file2.csv'
         # Local Filepath with Intermediate Directory
         self.test_local_filepath_int_dir = f'{self.test_local_dir}/{self.test_local_filename}'
         self.test_remote_filepath = f'{self.test_dir}/{self.test_remote_filename}'
@@ -57,12 +65,16 @@ class TestSFTPOperator:
             os.remove(self.test_local_filepath)
         if os.path.exists(self.test_local_filepath_int_dir):
             os.remove(self.test_local_filepath_int_dir)
+        if os.path.exists(self.test_local_batch_dir):
+            shutil.rmtree(self.test_local_batch_dir)
         if os.path.exists(self.test_local_dir):
             os.rmdir(self.test_local_dir)
         if os.path.exists(self.test_remote_filepath):
             os.remove(self.test_remote_filepath)
         if os.path.exists(self.test_remote_filepath_int_dir):
             os.remove(self.test_remote_filepath_int_dir)
+        if os.path.exists(self.test_remote_batch_dir):
+            shutil.rmtree(self.test_remote_batch_dir)
         if os.path.exists(self.test_remote_dir):
             os.rmdir(self.test_remote_dir)
 
@@ -376,3 +388,87 @@ class TestSFTPOperator:
         except Exception:
             pass
         assert task_3.ssh_hook.ssh_conn_id == self.hook.ssh_conn_id
+
+    @conf_vars({('core', 'enable_xcom_pickling'): 'False'})
+    def test_csv_files_transfer_put(self, dag_maker):
+        test_local_file_content = (
+            b"This is remote file content \n which is also multiline "
+            b"another line here \n this is last line. EOF"
+        )
+        test_local_dir = self.test_local_dir + '/batch'
+        test_remote_dir = self.test_remote_dir + '/batch'
+        os.mkdir(self.test_local_dir)
+        os.mkdir(test_local_dir)
+        with open(f'{test_local_dir}/{self.test_txt_file}', 'wb') as f:
+            f.write(test_local_file_content)
+        with open(f'{test_local_dir}/{self.test_csv_file}', 'wb') as f:
+            f.write(test_local_file_content)
+        with open(f'{test_local_dir}/{self.test_csv2_file}', 'wb') as f:
+            f.write(test_local_file_content)
+
+        with dag_maker(dag_id="unit_tests_sftp_op_csv_file_transfer_put"):
+            SFTPBatchOperator(  # Put test file to remote.
+                task_id="put_test_task",
+                ssh_hook=self.hook,
+                local_folder=test_local_dir,
+                remote_folder=test_remote_dir,
+                regexp_mask=".*[.]csv",
+                operation=SFTPOperation.PUT,
+                create_intermediate_dirs=True,
+            )
+            SSHOperator(  # Check files exists
+                task_id="check_file_task",
+                ssh_hook=self.hook,
+                command=fr"find {test_remote_dir} -maxdepth 1 -type f -not -path '*/\.*' | wc -l",
+                do_xcom_push=True,
+            )
+
+        dagrun = dag_maker.create_dagrun(execution_date=timezone.utcnow())
+        tis = {ti.task_id: ti for ti in dagrun.task_instances}
+        tis["put_test_task"].run()
+        tis["check_file_task"].run()
+
+        pulled = tis["check_file_task"].xcom_pull(task_ids="check_file_task", key='return_value')
+        assert base64.b64decode(pulled.strip().encode('ascii')) == b"2\n"
+
+    @conf_vars({('core', 'enable_xcom_pickling'): 'False'})
+    def test_csv_files_transfer_get(self, dag_maker):
+        test_local_file_content = (
+            b"This is remote file content \n which is also multiline "
+            b"another line here \n this is last line. EOF"
+        )
+        test_local_dir = self.test_local_dir + '/batch'
+        test_remote_dir = self.test_remote_dir + '/batch'
+        os.mkdir(self.test_remote_dir)
+        os.mkdir(test_remote_dir)
+        with open(f'{test_remote_dir}/{self.test_txt_file}', 'wb') as f:
+            f.write(test_local_file_content)
+        with open(f'{test_remote_dir}/{self.test_csv_file}', 'wb') as f:
+            f.write(test_local_file_content)
+        with open(f'{test_remote_dir}/{self.test_csv2_file}', 'wb') as f:
+            f.write(test_local_file_content)
+
+        with dag_maker(dag_id="unit_tests_sftp_op_csv_file_transfer_get"):
+            SFTPBatchOperator(  # Put test file to remote.
+                task_id="put_test_task",
+                ssh_hook=self.hook,
+                local_folder=test_local_dir,
+                remote_folder=test_remote_dir,
+                regexp_mask=".*[.]csv",
+                operation=SFTPOperation.GET,
+                create_intermediate_dirs=True,
+            )
+            SSHOperator(  # Check files exists
+                task_id="check_file_task",
+                ssh_hook=self.hook,
+                command=fr"find {test_local_dir} -maxdepth 1 -type f -not -path '*/\.*' | wc -l",
+                do_xcom_push=True,
+            )
+
+        dagrun = dag_maker.create_dagrun(execution_date=timezone.utcnow())
+        tis = {ti.task_id: ti for ti in dagrun.task_instances}
+        tis["put_test_task"].run()
+        tis["check_file_task"].run()
+
+        pulled = tis["check_file_task"].xcom_pull(task_ids="check_file_task", key='return_value')
+        assert base64.b64decode(pulled.strip().encode('ascii')) == b"2\n"
