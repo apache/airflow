@@ -59,28 +59,16 @@ With this configuration we can create the cluster:
 
 Generating Cluster Config
 ^^^^^^^^^^^^^^^^^^^^^^^^^
-If you are upgrading from Airflow 1.10.x and are not using **CLUSTER_CONFIG** or you would like to generate it using functional API,
-You can easily generate config using **make()** of
+You can also generate **CLUSTER_CONFIG** using functional API,
+this could be easily done using **make()** of
 :class:`~airflow.providers.google.cloud.operators.dataproc.ClusterGenerator`
-
-this is been proved specially useful if you are using **metadata** argument from older API, refer `AIRFLOW#16911 <https://github.com/apache/airflow/issues/16911>`__
-
-eg. your cluster creation may look like this in **v1.10.x**
+You can generate and use config as followed:
 
 .. exampleinclude:: /../../airflow/providers/google/cloud/example_dags/example_dataproc.py
     :language: python
     :dedent: 0
-    :start-after: [START how_to_cloud_dataproc_create_cluster_upgrading_from_v1_10_1]
-    :end-before: [END how_to_cloud_dataproc_create_cluster_upgrading_from_v1_10_1]
-
-
-After upgrading to **v2.x.x** and using **CLUSTER_CONFIG**, it will look like followed:
-
-.. exampleinclude:: /../../airflow/providers/google/cloud/example_dags/example_dataproc.py
-    :language: python
-    :dedent: 0
-    :start-after: [START how_to_cloud_dataproc_create_cluster_upgrading_from_v1_10_2]
-    :end-before: [END how_to_cloud_dataproc_create_cluster_upgrading_from_v1_10_2]
+    :start-after: [START how_to_cloud_dataproc_create_cluster_generate_cluster_config]
+    :end-before: [END how_to_cloud_dataproc_create_cluster_generate_cluster_config]
 
 Update a cluster
 ----------------

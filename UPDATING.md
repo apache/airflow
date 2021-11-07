@@ -1899,6 +1899,8 @@ create_cluster = DataprocClusterCreateOperator(
 After upgrading to **v2.x.x** and using **CLUSTER_CONFIG**, it will look like followed:
 
 ```python
+path = f"gs://goog-dataproc-initialization-actions-us-central1/python/pip-install.sh"
+
 CLUSTER_CONFIG = ClusterGenerator(
                     project_id="test",
                     zone="us-central1-a",
