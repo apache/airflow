@@ -2,7 +2,6 @@
     "$schema": "http://json-schema.org/draft-07/schema",
     "description": "Default values for airflow. Declare variables to be passed into your templates.",
     "type": "object",
-    "additionalProperties": false,
     "x-docsSectionOrder": [
         "Common",
         "Airflow",
@@ -297,7 +296,6 @@
         "rbac": {
             "description": "Enable RBAC (default on most clusters these days).",
             "type": "object",
-            "additionalProperties": false,
             "x-docsSection": "Kubernetes",
             "properties": {
                 "create": {
@@ -339,7 +337,6 @@
                 "airflow": {
                     "description": "Configuration of the airflow image.",
                     "type": "object",
-                    "additionalProperties": false,
                     "properties": {
                         "repository": {
                             "description": "The airflow image repository.",
@@ -410,7 +407,6 @@
                 "flower": {
                     "description": "Configuration of the flower image.",
                     "type": "object",
-                    "additionalProperties": false,
                     "properties": {
                         "repository": {
                             "description": "The flower image repository.",
@@ -443,7 +439,6 @@
                 "statsd": {
                     "description": "Configuration of the statsd image.",
                     "type": "object",
-                    "additionalProperties": false,
                     "properties": {
                         "repository": {
                             "description": "The statsd image repository.",
@@ -470,7 +465,6 @@
                 "redis": {
                     "description": "Configuration of the redis image.",
                     "type": "object",
-                    "additionalProperties": false,
                     "properties": {
                         "repository": {
                             "description": "The redis image repository.",
@@ -497,7 +491,6 @@
                 "pgbouncer": {
                     "description": "Configuration of the PgBouncer image.",
                     "type": "object",
-                    "additionalProperties": false,
                     "properties": {
                         "repository": {
                             "description": "The PgBouncer image repository.",
@@ -524,7 +517,6 @@
                 "pgbouncerExporter": {
                     "description": "Configuration of the PgBouncer exporter image.",
                     "type": "object",
-                    "additionalProperties": false,
                     "properties": {
                         "repository": {
                             "description": "The PgBouncer exporter image repository.",
@@ -551,7 +543,6 @@
                 "gitSync": {
                     "description": "Configuration of the gitSync image.",
                     "type": "object",
-                    "additionalProperties": false,
                     "properties": {
                         "repository": {
                             "description": "The gitSync image repository.",
@@ -905,7 +896,6 @@
             "description": "Kerberos configurations for airflow",
             "type": "object",
             "x-docsSection": "Kerberos",
-            "additionalProperties": false,
             "properties": {
                 "enabled": {
                     "description": "Enable kerberos.",
@@ -1018,7 +1008,6 @@
                 "serviceAccount": {
                     "description": "Create ServiceAccount.",
                     "type": "object",
-                    "additionalProperties": false,
                     "properties": {
                         "create": {
                             "description": "Specifies whether a ServiceAccount should be created.",
@@ -1533,7 +1522,6 @@
                 "logGroomerSidecar": {
                     "description": "Configuration for the schedulers log groomer sidecar.",
                     "type": "object",
-                    "additionalProperties": false,
                     "properties": {
                         "enabled": {
                             "description": "Whether to deploy the Airflow scheduler log groomer sidecar.",
@@ -1678,7 +1666,6 @@
                 "serviceAccount": {
                     "description": "Create ServiceAccount.",
                     "type": "object",
-                    "additionalProperties": false,
                     "properties": {
                         "create": {
                             "description": "Specifies whether a ServiceAccount should be created.",
@@ -1919,7 +1906,6 @@
                 "serviceAccount": {
                     "description": "Create ServiceAccount.",
                     "type": "object",
-                    "additionalProperties": false,
                     "properties": {
                         "create": {
                             "description": "Specifies whether a ServiceAccount should be created.",
@@ -2107,7 +2093,6 @@
                 "serviceAccount": {
                     "description": "Create ServiceAccount.",
                     "type": "object",
-                    "additionalProperties": false,
                     "properties": {
                         "create": {
                             "description": "Specifies whether a ServiceAccount should be created.",
@@ -2610,7 +2595,6 @@
                 "serviceAccount": {
                     "description": "Create ServiceAccount.",
                     "type": "object",
-                    "additionalProperties": false,
                     "properties": {
                         "create": {
                             "description": "Specifies whether a ServiceAccount should be created.",
@@ -2740,7 +2724,6 @@
                 "serviceAccount": {
                     "description": "Create ServiceAccount.",
                     "type": "object",
-                    "additionalProperties": false,
                     "properties": {
                         "create": {
                             "description": "Specifies whether a ServiceAccount should be created.",
@@ -2964,7 +2947,6 @@
                 "ssl": {
                     "description": "SSL certificates for PgBouncer connection.",
                     "type": "object",
-                    "additionalProperties": false,
                     "properties": {
                         "ca": {
                             "description": "Certificate Authority for server side",
@@ -3019,7 +3001,6 @@
                 "serviceAccount": {
                     "description": "Create ServiceAccount.",
                     "type": "object",
-                    "additionalProperties": false,
                     "properties": {
                         "create": {
                             "description": "Specifies whether a ServiceAccount should be created.",
@@ -3206,7 +3187,6 @@
                 "serviceAccount": {
                     "description": "Create ServiceAccount.",
                     "type": "object",
-                    "additionalProperties": false,
                     "properties": {
                         "create": {
                             "description": "Specifies whether a ServiceAccount should be created.",
@@ -3524,7 +3504,6 @@
             "description": "Configuration for PostgreSQL subchart.",
             "type": "object",
             "x-docsSection": "Database",
-            "additionalProperties": true,
             "properties": {
                 "enabled": {
                     "description": "Enable PostgreSQL subchart.",
