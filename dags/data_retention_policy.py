@@ -146,7 +146,7 @@ def clear_tasks(start_date=None, end_date=None, session=None):
     return count
 
 
-def do_saic_data_retention_policy_task(test_mode, **kwargs):
+def do_data_retention_policy_task(test_mode, **kwargs):
     results, end_date = get_all_need_delete_results(test_mode, **kwargs)
     need_delete_curve_files = get_all_need_delete_curves(results)
     _logger.info("Try To Remove Object: {}".format(','.join(need_delete_curve_files)))
@@ -157,4 +157,4 @@ def do_saic_data_retention_policy_task(test_mode, **kwargs):
 
 auto_vacuum_task = PythonOperator(provide_context=True,
                                   task_id='auto_vacuum_task', dag=dag,
-                                  python_callable=do_saic_data_retention_policy_task)
+                                  python_callable=do_data_retention_policy_task)
