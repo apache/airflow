@@ -15,8 +15,6 @@ KIND, either express or implied.  See the License for the
 specific language governing permissions and limitations
 under the License.
 
-.. _howto/operator:SFTPOperator:
-
 SFTPOperator
 ==========================
 Use the :class:`~airflow.providers.sftp.operators.sftp.py` to
@@ -50,25 +48,62 @@ You can use the operator for the following tasks:
     put_dir_files = SFTPBatchOperator(
         task_id="put_dir_files",
         ssh_conn_id="ssh_default",
-        local_folder="/tmp/dir_for_remote_transfer/",
-        remote_folder="/tmp/dir_for_remote_transfer/remote/",
+        local_path="/tmp/dir_for_remote_transfer/",
+        remote_path="/tmp/dir_for_remote_transfer/remote/",
         operation=SFTPOperation.PUT,
         create_intermediate_dirs=True,
     )
 
-3. Send all files from the local directory that match the specified pattern to the remote server
+
+3. Send all files from local directory to remote server
 
 .. code-block:: python
 
-  put_dir_txt_files = SFTPBatchOperator(
-      task_id="put_dir_txt_files",
-      ssh_conn_id="ssh_default",
-      local_folder="/tmp/dir_for_remote_transfer/",
-      remote_folder="/tmp/dir_for_remote_transfer/remote/txt/",
-      regexp_mask=".*[.]txt",
-      operation=SFTPOperation.PUT,
-      create_intermediate_dirs=True,
-  )
+    put_dir_files = SFTPBatchOperator(
+        task_id="put_dir_files",
+        ssh_conn_id="ssh_default",
+        local_path="/tmp/dir_for_remote_transfer/",
+        remote_path=[
+            "/tmp/dir_for_remote_transfer/remote/txt/file1.txt",
+            "/tmp/dir_for_remote_transfer/remote/txt/file2.txt",
+        ],
+        operation=SFTPOperation.PUT,
+        create_intermediate_dirs=True,
+    )
+
+
+4. Send all files from the local directory that match the specified pattern to the remote server
+
+.. code-block:: python
+
+    put_dir_txt_files = SFTPBatchOperator(
+        task_id="put_dir_txt_files",
+        ssh_conn_id="ssh_default",
+        local_path="/tmp/dir_for_remote_transfer/",
+        remote_path="/tmp/dir_for_remote_transfer/remote/txt/",
+        regexp_mask=".*[.]txt",
+        operation=SFTPOperation.PUT,
+        create_intermediate_dirs=True,
+    )
+
+
+5. Send list of files from the local directory that match the specified pattern to the remote server
+
+.. code-block:: python
+
+    put_dir_txt_files = SFTPBatchOperator(
+        task_id="put_dir_txt_files",
+        ssh_conn_id="ssh_default",
+        local_path=[
+            "/tmp/dir_for_remote_transfer/file1.txt",
+            "/tmp/dir_for_remote_transfer/file2.txt",
+        ],
+        remote_path="/tmp/dir_for_remote_transfer/remote/txt/",
+        regexp_mask=".*[.]txt",
+        operation=SFTPOperation.PUT,
+        create_intermediate_dirs=True,
+    )
+
 
 The operator also supports transfer files from a remote server to a local,
 for this you need to change the parameter ``operation`` from ``SFTPOperation.PUT`` to ``SFTPOperation.GET``.

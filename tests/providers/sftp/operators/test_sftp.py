@@ -17,6 +17,7 @@
 # under the License.
 import base64
 import os
+import pathlib
 import shutil
 from base64 import b64encode
 from unittest import mock
@@ -61,22 +62,10 @@ class TestSFTPOperator:
         self.test_remote_filepath_int_dir = f'{self.test_remote_dir}/{self.test_remote_filename}'
 
     def teardown_method(self):
-        if os.path.exists(self.test_local_filepath):
-            os.remove(self.test_local_filepath)
-        if os.path.exists(self.test_local_filepath_int_dir):
-            os.remove(self.test_local_filepath_int_dir)
-        if os.path.exists(self.test_local_batch_dir):
-            shutil.rmtree(self.test_local_batch_dir)
         if os.path.exists(self.test_local_dir):
-            os.rmdir(self.test_local_dir)
-        if os.path.exists(self.test_remote_filepath):
-            os.remove(self.test_remote_filepath)
-        if os.path.exists(self.test_remote_filepath_int_dir):
-            os.remove(self.test_remote_filepath_int_dir)
-        if os.path.exists(self.test_remote_batch_dir):
-            shutil.rmtree(self.test_remote_batch_dir)
+            shutil.rmtree(self.test_local_dir)
         if os.path.exists(self.test_remote_dir):
-            os.rmdir(self.test_remote_dir)
+            shutil.rmtree(self.test_remote_dir)
 
     @conf_vars({('core', 'enable_xcom_pickling'): 'True'})
     def test_pickle_file_transfer_put(self, dag_maker):
@@ -390,7 +379,7 @@ class TestSFTPOperator:
         assert task_3.ssh_hook.ssh_conn_id == self.hook.ssh_conn_id
 
     @conf_vars({('core', 'enable_xcom_pickling'): 'False'})
-    def test_csv_files_transfer_put(self, dag_maker):
+    def test_csv_files_regexp_transfer_put(self, dag_maker):
         test_local_file_content = (
             b"This is remote file content \n which is also multiline "
             b"another line here \n this is last line. EOF"
@@ -406,12 +395,12 @@ class TestSFTPOperator:
         with open(f'{test_local_dir}/{self.test_csv2_file}', 'wb') as f:
             f.write(test_local_file_content)
 
-        with dag_maker(dag_id="unit_tests_sftp_op_csv_file_transfer_put"):
+        with dag_maker(dag_id="unit_tests_sftp_op_csv_files_regexp_transfer_put"):
             SFTPBatchOperator(  # Put test file to remote.
                 task_id="put_test_task",
                 ssh_hook=self.hook,
-                local_folder=test_local_dir,
-                remote_folder=test_remote_dir,
+                local_path=test_local_dir,
+                remote_path=test_remote_dir,
                 regexp_mask=".*[.]csv",
                 operation=SFTPOperation.PUT,
                 create_intermediate_dirs=True,
@@ -432,7 +421,48 @@ class TestSFTPOperator:
         assert base64.b64decode(pulled.strip().encode('ascii')) == b"2\n"
 
     @conf_vars({('core', 'enable_xcom_pickling'): 'False'})
-    def test_csv_files_transfer_get(self, dag_maker):
+    def test_csv_files_transfer_put(self, dag_maker):
+        test_local_file_content = (
+            b"This is remote file content \n which is also multiline "
+            b"another line here \n this is last line. EOF"
+        )
+        pathlib.Path(self.test_local_batch_dir).mkdir(parents=True, exist_ok=True)
+        with open(f'{self.test_local_batch_dir}/{self.test_txt_file}', 'wb') as f:
+            f.write(test_local_file_content)
+        with open(f'{self.test_local_batch_dir}/{self.test_csv_file}', 'wb') as f:
+            f.write(test_local_file_content)
+        with open(f'{self.test_local_batch_dir}/{self.test_csv2_file}', 'wb') as f:
+            f.write(test_local_file_content)
+
+        with dag_maker(dag_id="unit_tests_sftp_op_csv_file_transfer_put"):
+            SFTPBatchOperator(  # Put test file to remote.
+                task_id="put_test_task",
+                ssh_hook=self.hook,
+                local_path=[
+                    f'{self.test_local_batch_dir}/{self.test_csv_file}',
+                    f'{self.test_local_batch_dir}/{self.test_csv2_file}',
+                ],
+                remote_path=self.test_remote_batch_dir,
+                operation=SFTPOperation.PUT,
+                create_intermediate_dirs=True,
+            )
+            SSHOperator(  # Check files exists
+                task_id="check_file_task",
+                ssh_hook=self.hook,
+                command=fr"find {self.test_remote_batch_dir} -maxdepth 1 -type f -not -path '*/\.*' | wc -l",
+                do_xcom_push=True,
+            )
+
+        dagrun = dag_maker.create_dagrun(execution_date=timezone.utcnow())
+        tis = {ti.task_id: ti for ti in dagrun.task_instances}
+        tis["put_test_task"].run()
+        tis["check_file_task"].run()
+
+        pulled = tis["check_file_task"].xcom_pull(task_ids="check_file_task", key='return_value')
+        assert base64.b64decode(pulled.strip().encode('ascii')) == b"2\n"
+
+    @conf_vars({('core', 'enable_xcom_pickling'): 'False'})
+    def test_csv_files_regexp_transfer_get(self, dag_maker):
         test_local_file_content = (
             b"This is remote file content \n which is also multiline "
             b"another line here \n this is last line. EOF"
@@ -448,12 +478,12 @@ class TestSFTPOperator:
         with open(f'{test_remote_dir}/{self.test_csv2_file}', 'wb') as f:
             f.write(test_local_file_content)
 
-        with dag_maker(dag_id="unit_tests_sftp_op_csv_file_transfer_get"):
+        with dag_maker(dag_id="unit_tests_sftp_op_csv_files_regexp_transfer_get"):
             SFTPBatchOperator(  # Put test file to remote.
                 task_id="put_test_task",
                 ssh_hook=self.hook,
-                local_folder=test_local_dir,
-                remote_folder=test_remote_dir,
+                local_path=test_local_dir,
+                remote_path=test_remote_dir,
                 regexp_mask=".*[.]csv",
                 operation=SFTPOperation.GET,
                 create_intermediate_dirs=True,
@@ -462,6 +492,47 @@ class TestSFTPOperator:
                 task_id="check_file_task",
                 ssh_hook=self.hook,
                 command=fr"find {test_local_dir} -maxdepth 1 -type f -not -path '*/\.*' | wc -l",
+                do_xcom_push=True,
+            )
+
+        dagrun = dag_maker.create_dagrun(execution_date=timezone.utcnow())
+        tis = {ti.task_id: ti for ti in dagrun.task_instances}
+        tis["put_test_task"].run()
+        tis["check_file_task"].run()
+
+        pulled = tis["check_file_task"].xcom_pull(task_ids="check_file_task", key='return_value')
+        assert base64.b64decode(pulled.strip().encode('ascii')) == b"2\n"
+
+    @conf_vars({('core', 'enable_xcom_pickling'): 'False'})
+    def test_csv_files_transfer_get(self, dag_maker):
+        test_local_file_content = (
+            b"This is remote file content \n which is also multiline "
+            b"another line here \n this is last line. EOF"
+        )
+        pathlib.Path(self.test_remote_batch_dir).mkdir(parents=True, exist_ok=True)
+        with open(f'{self.test_remote_batch_dir}/{self.test_txt_file}', 'wb') as f:
+            f.write(test_local_file_content)
+        with open(f'{self.test_remote_batch_dir}/{self.test_csv_file}', 'wb') as f:
+            f.write(test_local_file_content)
+        with open(f'{self.test_remote_batch_dir}/{self.test_csv2_file}', 'wb') as f:
+            f.write(test_local_file_content)
+
+        with dag_maker(dag_id="unit_tests_sftp_op_csv_file_transfer_get"):
+            SFTPBatchOperator(  # Put test file to remote.
+                task_id="put_test_task",
+                ssh_hook=self.hook,
+                local_path=self.test_local_batch_dir,
+                remote_path=[
+                    f'{self.test_remote_batch_dir}/{self.test_csv_file}',
+                    f'{self.test_remote_batch_dir}/{self.test_csv2_file}',
+                ],
+                operation=SFTPOperation.GET,
+                create_intermediate_dirs=True,
+            )
+            SSHOperator(  # Check files exists
+                task_id="check_file_task",
+                ssh_hook=self.hook,
+                command=fr"find {self.test_local_batch_dir} -maxdepth 1 -type f -not -path '*/\.*' | wc -l",
                 do_xcom_push=True,
             )
 
