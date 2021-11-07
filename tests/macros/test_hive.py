@@ -19,7 +19,7 @@
 import unittest
 from datetime import datetime
 
-from airflow.macros import hive
+from airflow.providers.apache.hive.macros import hive
 
 
 class TestHive(unittest.TestCase):
