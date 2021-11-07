@@ -22,11 +22,11 @@ This hook enable the submitting and running of jobs to the Databricks platform. 
 operators talk to the ``api/2.0/jobs/runs/submit``
 `endpoint <https://docs.databricks.com/api/latest/jobs.html#runs-submit>`_.
 """
+import time
 from time import sleep
 from urllib.parse import urlparse
 
 import requests
-from azure.identity import ClientSecretCredential
 from requests import PreparedRequest, exceptions as requests_exceptions
 from requests.auth import AuthBase
 
@@ -34,9 +34,15 @@ from airflow import __version__
 from airflow.exceptions import AirflowException
 from airflow.hooks.base import BaseHook
 
-AZURE_MANAGEMENT_ENDPOINT = "https://management.core.windows.net//.default"
+# https://docs.microsoft.com/en-us/azure/databricks/dev-tools/api/latest/aad/service-prin-aad-token#--get-an-azure-active-directory-access-token
+AZURE_TOKEN_SERVICE_URL = "https://login.microsoftonline.com/{}/oauth2/token"
+# https://docs.microsoft.com/en-us/azure/active-directory/managed-identities-azure-resources/how-to-use-vm-token
+AZURE_METADATA_SERVICE_TOKEN_URL = "http://169.254.169.254/metadata/identity/oauth2/token"
+AZURE_METADATA_SERVICE_INSTANCE_URL = "http://169.254.169.254/metadata/instance"
 
-DEFAULT_DATABRICKS_SCOPE = "2ff814a6-3304-4ab8-85cb-cd0e6f879c1d/.default"
+TOKEN_REFRESH_LEAD_TIME = 120
+AZURE_MANAGEMENT_ENDPOINT = "https://management.core.windows.net/"
+DEFAULT_DATABRICKS_SCOPE = "2ff814a6-3304-4ab8-85cb-cd0e6f879c1d"
 
 RESTART_CLUSTER_ENDPOINT = ("POST", "api/2.0/clusters/restart")
 START_CLUSTER_ENDPOINT = ("POST", "api/2.0/clusters/start")
@@ -128,7 +134,8 @@ class DatabricksHook(BaseHook):
             raise ValueError('Retry limit must be greater than equal to 1')
         self.retry_limit = retry_limit
         self.retry_delay = retry_delay
-        self.add_credentials = None
+        self.aad_tokens = {}
+        self.aad_timeout_seconds = 10
 
     @staticmethod
     def _parse_host(host: str) -> str:
@@ -157,6 +164,87 @@ class DatabricksHook(BaseHook):
             # In this case, host = xx.cloud.databricks.com
             return host
 
+    def _get_aad_token(self, resource: str) -> str:
+        """
+        Function to get AAD token for given resource. Supports managed identity or service principal auth
+        :param resource: resource to issue token to
+        :return: AAD token, or raise an exception
+        """
+        if resource in self.aad_tokens:
+            d = self.aad_tokens[resource]
+            now = int(time.time())
+            if d['expires_on'] > (now - TOKEN_REFRESH_LEAD_TIME):  # it expires in more than 5 minutes
+                return d['token']
+            self.log.info("Existing AAD token is expired, or going to expire soon. Refreshing...")
+
+        attempt_num = 1
+        while True:
+            try:
+                if self.databricks_conn.extra_dejson.get('use_azure_managed_identity', False):
+                    params = {
+                        "api-version": "2018-02-01",
+                        "resource": resource,
+                    }
+                    resp = requests.get(
+                        AZURE_METADATA_SERVICE_TOKEN_URL,
+                        params=params,
+                        headers={**USER_AGENT_HEADER, "Metadata": "true"},
+                        timeout=self.aad_timeout_seconds,
+                    )
+                else:
+                    tenant_id = self.databricks_conn.extra_dejson['azure_tenant_id']
+                    data = {
+                        "grant_type": "client_credentials",
+                        "client_id": self.databricks_conn.login,
+                        "resource": resource,
+                        "client_secret": self.databricks_conn.password,
+                    }
+                    resp = requests.post(
+                        AZURE_TOKEN_SERVICE_URL.format(tenant_id),
+                        data=data,
+                        headers={**USER_AGENT_HEADER, 'Content-Type': 'application/x-www-form-urlencoded'},
+                        timeout=self.aad_timeout_seconds,
+                    )
+
+                resp.raise_for_status()
+                jsn = resp.json()
+                if 'access_token' not in jsn or jsn.get('token_type') != 'Bearer' or 'expires_on' not in jsn:
+                    raise AirflowException(f"Can't get necessary data from AAD token: {jsn}")
+
+                token = jsn['access_token']
+                self.aad_tokens[resource] = {'token': token, 'expires_on': int(jsn["expires_on"])}
+
+                return token
+            except requests_exceptions.RequestException as e:
+                if not _retryable_error(e):
+                    raise AirflowException(
+                        f'Response: {e.response.content}, Status Code: {e.response.status_code}'
+                    )
+
+                self._log_request_error(attempt_num, e)
+
+            if attempt_num == self.retry_limit:
+                raise AirflowException(f'API requests to Azure failed {self.retry_limit} times. Giving up.')
+
+            attempt_num += 1
+            sleep(self.retry_delay)
+
+    def _fill_aad_tokens(self, headers: dict) -> str:
+        """
+        Fills headers if necessary (SPN is outside of the workspace) and generates AAD token
+        :param headers: dictionary with headers to fill-in
+        :return: AAD token
+        """
+        # SP is outside of the workspace
+        if 'azure_resource_id' in self.databricks_conn.extra_dejson:
+            mgmt_token = self._get_aad_token(AZURE_MANAGEMENT_ENDPOINT)
+            headers['X-Databricks-Azure-Workspace-Resource-Id'] = self.databricks_conn.extra_dejson[
+                'azure_resource_id'
+            ]
+            headers['X-Databricks-Azure-SP-Management-Token'] = mgmt_token
+
+        return self._get_aad_token(DEFAULT_DATABRICKS_SCOPE)
+
     def _do_api_call(self, endpoint_info, json):
         """
         Utility function to perform an API call with retries
@@ -175,48 +263,42 @@ class DatabricksHook(BaseHook):
         self.databricks_conn = self.get_connection(self.databricks_conn_id)
 
         headers = USER_AGENT_HEADER.copy()
+        if 'host' in self.databricks_conn.extra_dejson:
+            host = self._parse_host(self.databricks_conn.extra_dejson['host'])
+        else:
+            host = self.databricks_conn.host
 
         if 'token' in self.databricks_conn.extra_dejson:
-            self.log.info('Using token auth. ')
+            self.log.info('Using token auth.')
             auth = _TokenAuth(self.databricks_conn.extra_dejson['token'])
-            if 'host' in self.databricks_conn.extra_dejson:
-                host = self._parse_host(self.databricks_conn.extra_dejson['host'])
-            else:
-                host = self.databricks_conn.host
-        elif (
-            'azure_client_id' in self.databricks_conn.extra_dejson
-            and 'azure_client_secret' in self.databricks_conn.extra_dejson
-            and 'azure_tenant_id' in self.databricks_conn.extra_dejson
-        ):
+        elif 'azure_tenant_id' in self.databricks_conn.extra_dejson:
+            if self.databricks_conn.login == "" or self.databricks_conn.password == "":
+                raise AirflowException("Azure SPN credentials aren't provided")
+
             self.log.info('Using AAD Token for SPN. ')
+            auth = _TokenAuth(self._fill_aad_tokens(headers))
+        elif self.databricks_conn.extra_dejson.get('use_azure_managed_identity', False):
+            self.log.info('Using AAD Token for managed identity.')
+            # check for Azure Metadata Service
+            # https://docs.microsoft.com/en-us/azure/virtual-machines/linux/instance-metadata-service
+            try:
+                jsn = requests.get(
+                    AZURE_METADATA_SERVICE_TOKEN_URL,
+                    params={"api-version": "2021-02-01"},
+                    headers={"Metadata": "true"},
+                    timeout=2,
+                ).json()
+                if 'compute' not in jsn or 'azEnvironment' not in jsn['compute']:
+                    raise AirflowException(
+                        f"Was able to fetch some metadata, but it doesn't look like Azure Metadata: {jsn}"
+                    )
+            except (requests_exceptions.RequestException, ValueError) as e:
+                raise AirflowException(f"Can't reach Azure Metadata Service: {e}")
 
-            if 'host' in self.databricks_conn.extra_dejson:
-                host = self._parse_host(self.databricks_conn.extra_dejson['host'])
-            else:
-                host = self.databricks_conn.host
-
-            if self.add_credentials is None:
-                self.add_credentials = ClientSecretCredential(
-                    client_id=self.databricks_conn.extra_dejson['azure_client_id'],
-                    client_secret=self.databricks_conn.extra_dejson['azure_client_secret'],
-                    tenant_id=self.databricks_conn.extra_dejson['azure_tenant_id'],
-                )
-
-            # SP is outside of the workspace
-            if 'azure_resource_id' in self.databricks_conn.extra_dejson:
-                mgmt_token = self.add_credentials.get_token(AZURE_MANAGEMENT_ENDPOINT)
-                headers['X-Databricks-Azure-Workspace-Resource-Id'] = self.databricks_conn.extra_dejson[
-                    'azure_resource_id'
-                ]
-                headers['X-Databricks-Azure-SP-Management-Token'] = mgmt_token.token
-
-            aad_token = self.add_credentials.get_token(DEFAULT_DATABRICKS_SCOPE)
-            auth = _TokenAuth(aad_token.token)
-
+            auth = _TokenAuth(self._fill_aad_tokens(headers))
         else:
-            self.log.info('Using basic auth. ')
+            self.log.info('Using basic auth.')
             auth = (self.databricks_conn.login, self.databricks_conn.password)
-            host = self.databricks_conn.host
 
         url = f'https://{self._parse_host(host)}/{endpoint}'
 

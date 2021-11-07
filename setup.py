@@ -244,7 +244,6 @@ dask = [
 ]
 databricks = [
     'requests>=2.26.0, <3',
-    'azure-identity>=1.3.1',
 ]
 datadog = [
     'datadog>=0.14.0',

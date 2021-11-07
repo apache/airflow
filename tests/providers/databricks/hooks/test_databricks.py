@@ -21,10 +21,8 @@ import itertools
 import json
 import unittest
 from unittest import mock
-from unittest.mock import call
 
 import pytest
-from azure.core.credentials import AccessToken
 from requests import exceptions as requests_exceptions
 
 from airflow import __version__
@@ -136,6 +134,13 @@ def uninstall_endpoint(host):
 def create_valid_response_mock(content):
     response = mock.MagicMock()
     response.json.return_value = content
+    return response
+
+
+def create_successful_response_mock(content):
+    response = mock.MagicMock()
+    response.json.return_value = content
+    response.status_code = 200
     return response
 
 
@@ -553,6 +558,18 @@ class TestRunState(unittest.TestCase):
         assert run_state.is_successful
 
 
+def create_aad_token_for_resource(resource: str) -> dict:
+    return {
+        "token_type": "Bearer",
+        "expires_in": "599",
+        "ext_expires_in": "599",
+        "expires_on": "1575500666",
+        "not_before": "1575499766",
+        "resource": resource,
+        "access_token": TOKEN,
+    }
+
+
 class TestDatabricksHookAadToken(unittest.TestCase):
     """
     Tests for DatabricksHook when auth is done with AAD token for SP as user inside workspace.
@@ -572,14 +589,13 @@ class TestDatabricksHookAadToken(unittest.TestCase):
         session.commit()
         self.hook = DatabricksHook()
 
-    @mock.patch(
-        'airflow.providers.databricks.hooks.databricks.ClientSecretCredential.get_token',
-        return_value=AccessToken(token=TOKEN, expires_on=123),
-    )
     @mock.patch('airflow.providers.databricks.hooks.databricks.requests')
-    def test_submit_run(self, mock_requests, mock_get_token):
+    def test_submit_run(self, mock_requests):
         mock_requests.codes.ok = 200
-        mock_requests.post.return_value.json.return_value = {'run_id': '1'}
+        mock_requests.post.side_effect = [
+            create_successful_response_mock(create_aad_token_for_resource(DEFAULT_DATABRICKS_SCOPE)),
+            create_successful_response_mock({'run_id': '1'}),
+        ]
         status_code_mock = mock.PropertyMock(return_value=200)
         type(mock_requests.post.return_value).status_code = status_code_mock
         data = {'notebook_task': NOTEBOOK_TASK, 'new_cluster': NEW_CLUSTER}
@@ -589,7 +605,6 @@ class TestDatabricksHookAadToken(unittest.TestCase):
         args = mock_requests.post.call_args
         kwargs = args[1]
         assert kwargs['auth'].token == TOKEN
-        mock_get_token.assert_called_once_with(DEFAULT_DATABRICKS_SCOPE)
 
 
 class TestDatabricksHookAadTokenSpOutside(unittest.TestCase):
@@ -612,14 +627,14 @@ class TestDatabricksHookAadTokenSpOutside(unittest.TestCase):
         session.commit()
         self.hook = DatabricksHook()
 
-    @mock.patch(
-        'airflow.providers.databricks.hooks.databricks.ClientSecretCredential.get_token',
-        return_value=AccessToken(token=TOKEN, expires_on=123),
-    )
     @mock.patch('airflow.providers.databricks.hooks.databricks.requests')
-    def test_submit_run(self, mock_requests, mock_get_token):
+    def test_submit_run(self, mock_requests):
         mock_requests.codes.ok = 200
-        mock_requests.post.return_value.json.return_value = {'run_id': '1'}
+        mock_requests.post.side_effect = [
+            create_successful_response_mock(create_aad_token_for_resource(AZURE_MANAGEMENT_ENDPOINT)),
+            create_successful_response_mock(create_aad_token_for_resource(DEFAULT_DATABRICKS_SCOPE)),
+            create_successful_response_mock({'run_id': '1'}),
+        ]
         status_code_mock = mock.PropertyMock(return_value=200)
         type(mock_requests.post.return_value).status_code = status_code_mock
         data = {'notebook_task': NOTEBOOK_TASK, 'new_cluster': NEW_CLUSTER}
@@ -631,4 +646,3 @@ class TestDatabricksHookAadTokenSpOutside(unittest.TestCase):
         assert kwargs['auth'].token == TOKEN
         assert kwargs['headers']['X-Databricks-Azure-Workspace-Resource-Id'] == '/Some/resource'
         assert kwargs['headers']['X-Databricks-Azure-SP-Management-Token'] == TOKEN
-        mock_get_token.assert_has_calls([call(AZURE_MANAGEMENT_ENDPOINT), call(DEFAULT_DATABRICKS_SCOPE)])
