@@ -33,6 +33,9 @@ class TestBaseChartTest(unittest.TestCase):
         k8s_objects = render_chart(
             "TEST-BASIC",
             values={
+                "chart": {
+                    'metadata': 'AA',
+                },
                 'labels': {"TEST-LABEL": "TEST-VALUE"},
                 "fullnameOverride": "TEST-BASIC",
             },
