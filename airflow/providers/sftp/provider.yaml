@@ -45,6 +45,7 @@ operators:
   - integration-name: SSH File Transfer Protocol (SFTP)
     python-modules:
       - airflow.providers.sftp.operators.sftp
+      - airflow.providers.sftp.operators.sftp_batch
 
 sensors:
   - integration-name: SSH File Transfer Protocol (SFTP)
