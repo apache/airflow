@@ -27,11 +27,14 @@ The Microsoft Azure Data Factory connection type enables the Azure Data Factory 
 Authenticating to Azure Data Factory
 ------------------------------------
 
-There is one way to connect to Azure Data Factory using Airflow.
+There are multiple ways to connect to Azure Data Factory using Airflow.
 
 1. Use `token credentials
    <https://docs.microsoft.com/en-us/azure/developer/python/azure-sdk-authenticate?tabs=cmd#authenticate-with-token-credentials>`_
    i.e. add specific credentials (client_id, secret, tenant) and subscription id to the Airflow connection.
+2. Fallback on `DefaultAzureCredential
+   <https://docs.microsoft.com/en-us/python/api/overview/azure/identity-readme?view=azure-python#defaultazurecredential>`_.
+   This includes a mechanism to try different options to authenticate: Managed System Identity, environment variables, authentication through Azure CLI...
 
 Default Connection IDs
 ----------------------
@@ -44,18 +47,21 @@ Configuring the Connection
 Client ID
     Specify the ``client_id`` used for the initial connection.
     This is needed for *token credentials* authentication mechanism.
+    It can be left out to fall back on ``DefaultAzureCredential``.
 
 Secret
     Specify the ``secret`` used for the initial connection.
     This is needed for *token credentials* authentication mechanism.
+    It can be left out to fall back on ``DefaultAzureCredential``.
 
 Tenant ID
     Specify the ``tenantId`` used for the initial connection.
     This is needed for *token credentials* authentication mechanism.
+    It can be left out to fall back on ``DefaultAzureCredential``.
 
 Subscription ID
     Specify the ``subscriptionId`` used for the initial connection.
-    This is needed for *token credentials* authentication mechanism.
+    This is needed for all authentication mechanisms.
 
 Factory Name (optional)
     Specify the Azure Data Factory to interface with.
