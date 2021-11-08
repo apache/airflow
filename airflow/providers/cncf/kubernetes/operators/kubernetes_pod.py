@@ -221,7 +221,7 @@ class KubernetesPodOperator(BaseOperator):
         priority_class_name: Optional[str] = None,
         pod_runtime_info_envs: List[PodRuntimeInfoEnv] = None,
         termination_grace_period: Optional[int] = None,
-        configmaps: Optional[str] = None,
+        configmaps: Optional[List[str]] = None,
         **kwargs,
     ) -> None:
         if kwargs.get('xcom_push') is not None:
