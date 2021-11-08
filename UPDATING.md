@@ -96,6 +96,11 @@ Param().resolve()  # raises TypeError
 The `max_queued_runs_per_dag` configuration option in `[core]` section has been removed. Previously, this controlled the number of queued dagrun
 the scheduler can create in a dag. Now, the maximum number is controlled internally by the DAG's `max_active_runs`
 
+### Manually triggering a DAG with `schedule_interval=None` no longer creates a TypeError when checking SLA
+
+The DAG processor now checks for a valid DAG run date before checking a task for an SLA miss. Previously, this generated a TypeError.
+Now, task instances are checked for a valid date before the current date is compared.
+
 ## Airflow 2.2.0
 
 Note: Upgrading the database to `2.2.0` or later can take some time to complete, particularly if you have a large `task_instance` table.
