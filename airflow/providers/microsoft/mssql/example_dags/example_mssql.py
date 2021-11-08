@@ -120,7 +120,7 @@ get_countries_from_continent = MsSqlOperator(
     task_id="get_countries_from_continent",
     mssql_conn_id='airflow_mssql',
     sql=r"""SELECT * FROM Country where {{ params.column }}='{{ params.value }}';""",
-    params={"column":"CONVERT(VARCHAR, continent)","value": "Asia"},
+    params={"column": "CONVERT(VARCHAR, continent)", "value": "Asia"},
 )
 (
     create_table_mssql_task
