@@ -344,7 +344,7 @@ Make sure you have imported into your GPG the PGP key of the person signing the 
 
 You can import the whole KEYS file:
 
-```shell
+```shell script
 gpg --import KEYS
 ```
 
@@ -352,8 +352,8 @@ You can also import the keys individually from a keyserver. The below one uses K
 retrieves it from the default GPG keyserver
 [OpenPGP.org](https://keys.openpgp.org):
 
-```shell
-gpg --receive-keys 12717556040EEF2EEAF1B9C275FCCD0A25FA0E4B
+```shell script
+gpg --keyserver keys.openpgp.org --receive-keys CDE15C6E4D3A8EC4ECF4BA4B6674E08AD7DE406F
 ```
 
 You should choose to import the key when asked.
@@ -362,13 +362,13 @@ Note that by being default, the OpenPGP server tends to be overloaded often and 
 errors or timeouts. Many of the release managers also uploaded their keys to the
 [GNUPG.net](https://keys.gnupg.net) keyserver, and you can retrieve it from there.
 
-```shell
-gpg --keyserver keys.gnupg.net --receive-keys 12717556040EEF2EEAF1B9C275FCCD0A25FA0E4B
+```shell script
+gpg --keyserver keys.gnupg.net --receive-keys CDE15C6E4D3A8EC4ECF4BA4B6674E08AD7DE406F
 ```
 
 Once you have the keys, the signatures can be verified by running this:
 
-```shell
+```shell script
 for i in *.asc
 do
    echo -e "Checking $i\n"; gpg --verify $i
@@ -377,10 +377,11 @@ done
 
 This should produce results similar to the below. The "Good signature from ..." is indication
 that the signatures are correct. Do not worry about the "not certified with a trusted signature"
-warning. Most of the certificates used by release managers are self signed, that's why you get this
-warning. By importing the server in the previous step and importing it via ID from
+warning. Most of the certificates used by release managers are self-signed, and that's why you get this
+warning. By importing the key either from the server in the previous step or from the
 [KEYS](https://dist.apache.org/repos/dist/release/airflow/KEYS) page, you know that
-this is a valid Key already.
+this is a valid key already.  To suppress the warning you may edit the key's trust level
+by running `gpg --edit-key <key id> trust` and entering `5` to assign trust level `ultimate`.
 
 ```
 Checking airflow-1.0.0.tgz.asc
