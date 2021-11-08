@@ -46,7 +46,7 @@ NEW_CLUSTER = {'spark_version': '2.0.x-scala2.10', 'node_type_id': 'development-
 EXISTING_CLUSTER_ID = 'existing-cluster-id'
 RUN_NAME = 'run-name'
 RUN_ID = 1
-JOB_ID = 42
+JOB_ID = "42"
 NOTEBOOK_PARAMS = {"dry-run": "true", "oldest-time-to-consider": "1457570074236"}
 JAR_PARAMS = ["param1", "param2"]
 RENDERED_TEMPLATED_JAR_PARAMS = [f'/test-{DATE}']
@@ -134,6 +134,18 @@ class TestDatabricksSubmitRunOperator(unittest.TestCase):
         op = DatabricksSubmitRunOperator(task_id=TASK_ID, json=json)
         expected = databricks_operator._deep_string_coerce(
             {'new_cluster': NEW_CLUSTER, 'notebook_task': NOTEBOOK_TASK, 'run_name': RUN_NAME}
+        )
+        assert expected == op.json
+
+    def test_pipeline_task(self):
+        """
+        Test the initializer with a specified run_name.
+        """
+        pipeline_task = {"pipeline_id": "test-dlt"}
+        json = {'new_cluster': NEW_CLUSTER, 'run_name': RUN_NAME, "pipeline_task": pipeline_task}
+        op = DatabricksSubmitRunOperator(task_id=TASK_ID, json=json)
+        expected = databricks_operator._deep_string_coerce(
+            {'new_cluster': NEW_CLUSTER, "pipeline_task": pipeline_task, 'run_name': RUN_NAME}
         )
         assert expected == op.json
 
@@ -301,7 +313,8 @@ class TestDatabricksRunNowOperator(unittest.TestCase):
         provided. The named parameters should override top level keys in the
         json dict.
         """
-        override_notebook_params = {'workers': 999}
+        override_notebook_params = {'workers': "999"}
+        override_jar_params = ['workers', "998"]
         json = {'notebook_params': NOTEBOOK_PARAMS, 'jar_params': JAR_PARAMS}
 
         op = DatabricksRunNowOperator(
@@ -310,13 +323,14 @@ class TestDatabricksRunNowOperator(unittest.TestCase):
             job_id=JOB_ID,
             notebook_params=override_notebook_params,
             python_params=PYTHON_PARAMS,
+            jar_params=override_jar_params,
             spark_submit_params=SPARK_SUBMIT_PARAMS,
         )
 
         expected = databricks_operator._deep_string_coerce(
             {
                 'notebook_params': override_notebook_params,
-                'jar_params': JAR_PARAMS,
+                'jar_params': override_jar_params,
                 'python_params': PYTHON_PARAMS,
                 'spark_submit_params': SPARK_SUBMIT_PARAMS,
                 'job_id': JOB_ID,

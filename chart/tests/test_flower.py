@@ -358,18 +358,18 @@ class TestFlowerNetworkPolicy:
         "ports, expected_ports",
         [
             (
-                [{"name": "{{ .Release.Name }}", "protocol": "UDP", "port": "{{ .Values.ports.flowerUI }}"}],
-                [{"name": "RELEASE-NAME", "protocol": "UDP", "port": 5555}],
+                [{"protocol": "UDP", "port": "{{ .Values.ports.flowerUI }}"}],
+                [{"protocol": "UDP", "port": 5555}],
             ),
-            ([{"name": "only_sidecar", "port": "sidecar"}], [{"name": "only_sidecar", "port": "sidecar"}]),
+            ([{"port": "sidecar"}], [{"port": "sidecar"}]),
             (
                 [
-                    {"name": "flower-ui", "port": "{{ .Values.ports.flowerUI }}"},
-                    {"name": "sidecar", "port": 80},
+                    {"port": "{{ .Values.ports.flowerUI }}"},
+                    {"port": 80},
                 ],
                 [
-                    {"name": "flower-ui", "port": 5555},
-                    {"name": "sidecar", "port": 80},
+                    {"port": 5555},
+                    {"port": 80},
                 ],
             ),
         ],
