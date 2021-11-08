@@ -27,24 +27,24 @@ The Google Cloud connection type enables the Google Cloud Integrations.
 Authenticating to Google Cloud
 ------------------------------
 
-There are four ways to connect to Google Cloud using Airflow.
+There are two ways to connect to Google Cloud using Airflow.
 
-1. Use `Application Default Credentials
+1. Using a `Application Default Credentials
    <https://google-auth.readthedocs.io/en/latest/reference/google.auth.html#google.auth.default>`_,
-2. Use a `service account
-   <https://cloud.google.com/docs/authentication/#service_accounts>`_ key
-   file (JSON format) on disk - ``Keyfile Path``.
-3. Use a `service account
-   <https://cloud.google.com/docs/authentication/#service_accounts>`_ key
-   file (JSON format) from connection configuration - ``Keyfile JSON``.
-4. Use a `service account
-   <https://cloud.google.com/docs/authentication/#service_accounts>`_ key
-   from Secret Manager - ``Keyfile secret name``. For this `Application Default Credentials
-   <https://google-auth.readthedocs.io/en/latest/reference/google.auth.html#google.auth.default>`_ (ADC)
-   need to have permission to access payloads of secrets.
+2. Using a `service account
+   <https://cloud.google.com/docs/authentication/#service_accounts>`_ by specifying a key file in JSON format.
+   Key can be specified as a path to the key file (``Keyfile Path``), as a key payload (``Keyfile JSON``)
+   or as secret in Secret Manager (``Keyfile secret name``). Only one way of defining the key can be used at a time.
+   If you need to manage multiple keys then you should configure multiple connections.
 
-Only one authorization method can be used at a time. If you need to manage multiple keys then you should
-configure multiple connections.
+   .. warning:: Additional permissions might be needed
+
+   Connection which uses key from the Secret Manager requires that `Application Default Credentials
+   <https://google-auth.readthedocs.io/en/latest/reference/google.auth.html#google.auth.default>`_ (ADC)
+   have permission to access payloads of secrets.
+
+   .. note:: Besides storing only key in Secret Manager there is an option for storing entire connection.
+   For more details take a look at :ref:`Google Secret Manager Backend <google_cloud_secret_manager_backend>`.
 
 Default Connection IDs
 ----------------------
