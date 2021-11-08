@@ -47,7 +47,7 @@ function run_test_types_in_parallel() {
         # shellcheck disable=SC2086
         parallel --ungroup --bg --semaphore --semaphorename "${SEMAPHORE_NAME}" \
             --jobs "${MAX_PARALLEL_TEST_JOBS}" --timeout 2700 \
-            "$( dirname "${BASH_SOURCE[0]}" )/ci_run_single_airflow_test_in_docker.sh" "${@}"
+            "$( dirname "${BASH_SOURCE[0]}" )/ci_run_single_airflow_test_in_docker.sh" "${@}" >"${JOB_LOG}" 2>&1
     done
     parallel --semaphore --semaphorename "${SEMAPHORE_NAME}" --wait
     parallel::kill_monitor
