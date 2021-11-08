@@ -481,6 +481,8 @@ paths:
           application/json:
             schema:
               $ref: '#/components/schemas/DAG'
+            example:
+              is_paused: true
       responses:
         '200':
           description: Success.
