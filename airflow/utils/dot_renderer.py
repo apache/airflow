@@ -24,6 +24,7 @@ import graphviz
 from airflow.models import TaskInstance
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.dag import DAG
+from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.taskmixin import TaskMixin
 from airflow.utils.state import State
 from airflow.utils.task_group import TaskGroup
@@ -152,6 +153,9 @@ def render_dag(dag: DAG, tis: Optional[List[TaskInstance]] = None) -> graphviz.D
     states_by_task_id = None
     if tis is not None:
         states_by_task_id = {ti.task_id: ti.state for ti in tis}
+
+    for dag, dependencies in SerializedDagModel.get_dag_dependencies().items():
+        print(f'dependency {dag}')
 
     _draw_nodes(dag.task_group, dot, states_by_task_id)
 
