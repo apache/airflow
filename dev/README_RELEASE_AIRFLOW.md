@@ -24,7 +24,7 @@
   - [Selecting what to cherry-pick](#selecting-what-to-cherry-pick)
 - [Prepare the Apache Airflow Package RC](#prepare-the-apache-airflow-package-rc)
   - [Build RC artifacts](#build-rc-artifacts)
-  - [[\Optional\] Create new release branch](#%5Coptional%5C-create-new-release-branch)
+  - [[\Optional\] Prepare new release branches and cache](#%5Coptional%5C-prepare-new-release-branches-and-cache)
   - [Prepare PyPI convenience "snapshot" packages](#prepare-pypi-convenience-snapshot-packages)
   - [Prepare production Docker Image](#prepare-production-docker-image)
   - [Prepare Vote email on the Apache Airflow release candidate](#prepare-vote-email-on-the-apache-airflow-release-candidate)
@@ -164,29 +164,115 @@ For now this is done manually, example run  `git log --oneline v2-2-test..HEAD -
     svn commit -m "Add artifacts for Airflow ${VERSION}"
     ```
 
-## [\Optional\] Create new release branch
+## [\Optional\] Prepare new release branches and cache
 
 When you just released the `X.Y.0` version (first release of new minor version) you need to create release
 branches: `vX-Y-test` and `vX-Y-stable` (for example with `2.1.0rc1` release you need to create v2-1-test and
-`v2-1-stable` branches):
+`v2-1-stable` branches). You also need to configure the branch
 
+### Create test source branch
 
    ```shell script
    # First clone the repo
-   export BRANCH_PREFIX=v2-1
-   git branch ${BRANCH_PREFIX}-test
-   git branch ${BRANCH_PREFIX}-stable
-   git push origin ${BRANCH_PREFIX}-test ${BRANCH_PREFIX}-stable
+   export BRANCH_PREFIX=2-1
+   git branch v${BRANCH_PREFIX}-test
    ```
 
-Search and replace all the vX-Y for previous branches (TODO: we should likely automate this a bit more)
+### Re-tag images from main
 
 Run script to re-tag images from the ``main`` branch to the  ``vX-Y-test`` branch:
 
    ```shell script
-   ./dev/retag_docker_images.py --source-branch main --target-branch ${BRANCH_PREFIX}-test
+   ./dev/retag_docker_images.py --source-branch main --target-branch v${BRANCH_PREFIX}-test
    ```
 
+
+### Update default branches
+
+In ``./scripts/ci/libraries/_intialization.sh`` update branches to reflect the new branch:
+
+```bash
+export DEFAULT_BRANCH=${DEFAULT_BRANCH="main"}
+export DEFAULT_CONSTRAINTS_BRANCH=${DEFAULT_CONSTRAINTS_BRANCH="constraints-main"}
+```
+
+should become this, where ``X-Y`` is your new branch version:
+
+```bash
+export DEFAULT_BRANCH=${DEFAULT_BRANCH="vX-Y-test"}
+export DEFAULT_CONSTRAINTS_BRANCH=${DEFAULT_CONSTRAINTS_BRANCH="constraints-X-Y"}
+```
+
+In ``./scripts/ci/libraries/_build_images.sh`` add branch to preload packages from (replace X and Y in
+values for comparison and regexp):
+
+```bash
+    elif [[ ${AIRFLOW_VERSION} =~ v?X\.Y* ]]; then
+        AIRFLOW_BRANCH_FOR_PYPI_PRELOADING="vX-Y-stable"
+```
+
+### Commit the changes to the test branch
+
+```bash
+git add -p .
+git commit "Update default branches for ${BRANCH_PREFIX}"
+```
+
+### Create stable branch
+
+```bash
+git branch v${BRANCH_PREFIX}-stable
+````
+
+### Push test and stable branch
+
+```bash
+git checkout v${BRANCH_PREFIX}-test
+git push --set-upstream origin v${BRANCH_PREFIX}-test
+git checkout v${BRANCH_PREFIX}-stable
+git push --set-upstream origin v${BRANCH_PREFIX}-stable
+````
+
+### Update coverage branches
+
+Add ``vX-Y-stable`` and ``vX-Y-test`` branches in ``codecov.yml`` (there are 2 places in the file!)
+
+```yaml
+    branches:
+      - main
+      - v2-0-stable
+      - v2-0-test
+      - v2-1-stable
+      - v2-1-test
+      - v2-2-stable
+      - v2-2-test
+```
+
+#### Add protected branches to .asf.yaml
+
+Add vX-Y-stable to .asf.yaml (X-Y is your new branch)
+
+```yaml
+protected_branches:
+    main:
+        required_pull_request_reviews:
+        required_approving_review_count: 1
+    ...
+    vX-Y-stable:
+        required_pull_request_reviews:
+        required_approving_review_count: 1
+
+```
+
+### Create constraints orphan branch
+
+   ```shell script
+   # First clone the repo
+   export BRANCH_PREFIX=2-1
+   git checkout constraints-main
+   git checkout -b constraints-${BRANCH_PREFIX}
+   git push origin constraints-${BRANCH_PREFIX}
+   ```
 
 ## Prepare PyPI convenience "snapshot" packages
 

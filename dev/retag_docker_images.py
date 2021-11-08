@@ -38,8 +38,8 @@ GHCR_IO_PREFIX = "ghcr.io/apache/airflow"
 GHCR_IO_IMAGES = [
     "{prefix}/{branch}/ci-manifest/python{python_version}:latest",
     "{prefix}/{branch}/ci/python{python_version}:latest",
-    "{prefix}/{branch}/prod-build/python{python_version}-build-v2:latest",
-    "{prefix}/{branch}/prod/python{python_version}-build-v2:latest",
+    "{prefix}/{branch}/prod-build/python{python_version}-build:latest",
+    "{prefix}/{branch}/prod/python{python_version}-build:latest",
     "{prefix}/{branch}/python:{python_version}-slim-buster",
 ]
 
