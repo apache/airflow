@@ -34,7 +34,6 @@ from airflow import __version__
 from airflow.exceptions import AirflowException
 from airflow.hooks.base import BaseHook
 
-
 RESTART_CLUSTER_ENDPOINT = ("POST", "api/2.1/clusters/restart")
 START_CLUSTER_ENDPOINT = ("POST", "api/2.1/clusters/start")
 TERMINATE_CLUSTER_ENDPOINT = ("POST", "api/2.1/clusters/delete")
