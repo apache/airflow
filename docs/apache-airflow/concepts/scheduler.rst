@@ -65,7 +65,7 @@ DAG File Processing
 
 The Airflow Scheduler is responsible for turning the Python files contained in the DAGs folder into DAG objects that contain tasks to be scheduled.
 
-There are two primary components involved in DAG file processing.  The ``DagFileProcessorManager`` is an infinite loop that determines which files need
+There are two primary components involved in DAG file processing.  The ``DagFileProcessorManager`` is a process executing an infinite loop that determines which files need
 to be processed, and the ``DagFileProcessorProcess`` is a separate process that is started to convert an individual file into one or more DAG objects.
 
 .. image:: /img/dag_file_processing_diagram.png
