@@ -26,7 +26,7 @@ import socket
 import sys
 import traceback
 from collections import defaultdict
-from datetime import timedelta
+from datetime import datetime, timedelta
 from functools import wraps
 from json import JSONDecodeError
 from operator import itemgetter
@@ -3942,6 +3942,7 @@ class DagRunModelView(AirflowPrivilegeVerifierModelView):
         'end_date',
         'external_trigger',
         'conf',
+        'duration'
     ]
     search_columns = [
         'state',
@@ -3958,11 +3959,36 @@ class DagRunModelView(AirflowPrivilegeVerifierModelView):
     }
     edit_columns = ['state', 'dag_id', 'execution_date', 'start_date', 'end_date', 'run_id', 'conf']
 
+    #duration is not a column, its derived
+    order_columns = [
+        'state',
+        'dag_id',
+        'execution_date',
+        'run_id',
+        'run_type',
+        'queued_at',
+        'start_date',
+        'end_date',
+        'external_trigger',
+        'conf',
+    ]
+
     base_order = ('execution_date', 'desc')
 
     base_filters = [['dag_id', DagEditFilter, lambda: []]]
 
     edit_form = DagRunEditForm
+
+    def duration_f(self):
+        """Duration calculation."""
+        end_date = self.get('end_date')
+        start_date = self.get('start_date')
+
+        difference = 0
+        if start_date and end_date:
+            difference =  (end_date - start_date).total_seconds()
+
+        return difference
 
     formatters_columns = {
         'execution_date': wwwutils.datetime_f('execution_date'),
@@ -3973,6 +3999,7 @@ class DagRunModelView(AirflowPrivilegeVerifierModelView):
         'dag_id': wwwutils.dag_link,
         'run_id': wwwutils.dag_run_link,
         'conf': wwwutils.json_f('conf'),
+        'duration': duration_f
     }
 
     @action('muldelete', "Delete", "Are you sure you want to delete selected records?", single=False)
