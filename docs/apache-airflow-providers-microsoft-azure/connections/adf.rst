@@ -55,21 +55,25 @@ Secret
     It can be left out to fall back on ``DefaultAzureCredential``.
 
 Tenant ID
-    Specify the ``tenantId`` used for the initial connection.
+    Specify the Azure tenant ID used for the initial connection.
     This is needed for *token credentials* authentication mechanism.
     It can be left out to fall back on ``DefaultAzureCredential``.
+    Use the key ``extra__azure_data_factory__tenantId`` to pass in the tenant ID.
 
 Subscription ID
-    Specify the ``subscriptionId`` used for the initial connection.
+    Specify the ID of the subscription used for the initial connection.
     This is needed for all authentication mechanisms.
+    Use the key ``extra__azure_data_factory__subscriptionId`` to pass in the Azure subscription ID.
 
 Factory Name (optional)
     Specify the Azure Data Factory to interface with.
     If not specified in the connection, this needs to be passed in directly to hooks, operators, and sensors.
+    Use the key ``extra__azure_data_factory__factory_name`` to pass in the factory name.
 
 Resource Group Name (optional)
     Specify the Azure Resource Group Name under which the desired data factory resides.
     If not specified in the connection, this needs to be passed in directly to hooks, operators, and sensors.
+    Use the key ``extra__azure_data_factory__resource_group_name`` to pass in the resource group name.
 
 
 When specifying the connection in environment variable you should specify
@@ -77,8 +81,13 @@ it using URI syntax.
 
 Note that all components of the URI should be URL-encoded.
 
-For example:
+Examples
+--------
 
 .. code-block:: bash
 
-   export AIRFLOW_CONN_AZURE_DATA_FACTORY_DEFAULT='azure-data-factory://client%20id:secret@?tenantId=tenant+id&subscriptionId=subscription+id&resourceGroup=group+name&factory=factory+name'
+   export AIRFLOW_CONN_AZURE_DATA_FACTORY_DEFAULT='azure-data-factory://applicationid:serviceprincipalpassword@?extra__azure_data_factory__tenantId=tenant+id&extra__azure_data_factory__subscriptionId=subscription+id&extra__azure_data_factory__resource_group_name=group+name&extra__azure_data_factory__factory_name=factory+name'
+
+.. code-block:: bash
+
+   export AIRFLOW_CONN_AZURE_DATA_FACTORY_DEFAULT='azure-data-factory://applicationid:serviceprincipalpassword@?extra__azure_data_factory__tenantId=tenant+id&extra__azure_data_factory__subscriptionId=subscription+id'
