@@ -378,7 +378,7 @@ done
 This should produce results similar to the below. The "Good signature from ..." is indication
 that the signatures are correct. Do not worry about the "not certified with a trusted signature"
 warning. Most of the certificates used by release managers are self-signed, and that's why you get this
-warning. By importing the key ethier from the server in the previous step or from the
+warning. By importing the key either from the server in the previous step or from the
 [KEYS](https://dist.apache.org/repos/dist/release/airflow/KEYS) page, you know that
 this is a valid key already.  To suppress the warning you may edit the key's trust level
 by running `gpg --edit-key <key id> trust` and entering `5` to assign trust level `ultimate`.
