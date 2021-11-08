@@ -43,7 +43,6 @@ def auth_current_user() -> Optional[User]:
     ab_security_manager = current_app.appbuilder.sm
     user = None
     if ab_security_manager.auth_type == AUTH_LDAP:
-        user = ab_security_manager.backend.authenticate(auth.username, auth.password)
         user = ab_security_manager.auth_user_ldap(auth.username, auth.password)
     if user is None:
         user = ab_security_manager.auth_user_db(auth.username, auth.password)
