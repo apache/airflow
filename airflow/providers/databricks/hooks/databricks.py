@@ -34,6 +34,20 @@ from airflow import __version__
 from airflow.exceptions import AirflowException
 from airflow.hooks.base import BaseHook
 
+RESTART_CLUSTER_ENDPOINT = ("POST", "api/2.1/clusters/restart")
+START_CLUSTER_ENDPOINT = ("POST", "api/2.1/clusters/start")
+TERMINATE_CLUSTER_ENDPOINT = ("POST", "api/2.1/clusters/delete")
+
+RUN_NOW_ENDPOINT = ('POST', 'api/2.1/jobs/run-now')
+SUBMIT_RUN_ENDPOINT = ('POST', 'api/2.1/jobs/runs/submit')
+GET_RUN_ENDPOINT = ('GET', 'api/2.1/jobs/runs/get')
+CANCEL_RUN_ENDPOINT = ('POST', 'api/2.1/jobs/runs/cancel')
+
+INSTALL_LIBS_ENDPOINT = ('POST', 'api/2.1/libraries/install')
+UNINSTALL_LIBS_ENDPOINT = ('POST', 'api/2.1/libraries/uninstall')
+
+USER_AGENT_HEADER = {'user-agent': f'airflow-{__version__}'}
+
 # https://docs.microsoft.com/en-us/azure/databricks/dev-tools/api/latest/aad/service-prin-aad-token#--get-an-azure-active-directory-access-token
 AZURE_TOKEN_SERVICE_URL = "https://login.microsoftonline.com/{}/oauth2/token"
 # https://docs.microsoft.com/en-us/azure/active-directory/managed-identities-azure-resources/how-to-use-vm-token
@@ -43,19 +57,6 @@ AZURE_METADATA_SERVICE_INSTANCE_URL = "http://169.254.169.254/metadata/instance"
 TOKEN_REFRESH_LEAD_TIME = 120
 AZURE_MANAGEMENT_ENDPOINT = "https://management.core.windows.net/"
 DEFAULT_DATABRICKS_SCOPE = "2ff814a6-3304-4ab8-85cb-cd0e6f879c1d"
-
-RESTART_CLUSTER_ENDPOINT = ("POST", "api/2.0/clusters/restart")
-START_CLUSTER_ENDPOINT = ("POST", "api/2.0/clusters/start")
-TERMINATE_CLUSTER_ENDPOINT = ("POST", "api/2.0/clusters/delete")
-
-RUN_NOW_ENDPOINT = ('POST', 'api/2.0/jobs/run-now')
-SUBMIT_RUN_ENDPOINT = ('POST', 'api/2.0/jobs/runs/submit')
-GET_RUN_ENDPOINT = ('GET', 'api/2.0/jobs/runs/get')
-CANCEL_RUN_ENDPOINT = ('POST', 'api/2.0/jobs/runs/cancel')
-USER_AGENT_HEADER = {'user-agent': f'airflow-{__version__}'}
-
-INSTALL_LIBS_ENDPOINT = ('POST', 'api/2.0/libraries/install')
-UNINSTALL_LIBS_ENDPOINT = ('POST', 'api/2.0/libraries/uninstall')
 
 
 class RunState:

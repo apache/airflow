@@ -72,63 +72,63 @@ def run_now_endpoint(host):
     """
     Utility function to generate the run now endpoint given the host.
     """
-    return f'https://{host}/api/2.0/jobs/run-now'
+    return f'https://{host}/api/2.1/jobs/run-now'
 
 
 def submit_run_endpoint(host):
     """
     Utility function to generate the submit run endpoint given the host.
     """
-    return f'https://{host}/api/2.0/jobs/runs/submit'
+    return f'https://{host}/api/2.1/jobs/runs/submit'
 
 
 def get_run_endpoint(host):
     """
     Utility function to generate the get run endpoint given the host.
     """
-    return f'https://{host}/api/2.0/jobs/runs/get'
+    return f'https://{host}/api/2.1/jobs/runs/get'
 
 
 def cancel_run_endpoint(host):
     """
     Utility function to generate the get run endpoint given the host.
     """
-    return f'https://{host}/api/2.0/jobs/runs/cancel'
+    return f'https://{host}/api/2.1/jobs/runs/cancel'
 
 
 def start_cluster_endpoint(host):
     """
     Utility function to generate the get run endpoint given the host.
     """
-    return f'https://{host}/api/2.0/clusters/start'
+    return f'https://{host}/api/2.1/clusters/start'
 
 
 def restart_cluster_endpoint(host):
     """
     Utility function to generate the get run endpoint given the host.
     """
-    return f'https://{host}/api/2.0/clusters/restart'
+    return f'https://{host}/api/2.1/clusters/restart'
 
 
 def terminate_cluster_endpoint(host):
     """
     Utility function to generate the get run endpoint given the host.
     """
-    return f'https://{host}/api/2.0/clusters/delete'
+    return f'https://{host}/api/2.1/clusters/delete'
 
 
 def install_endpoint(host):
     """
     Utility function to generate the install endpoint given the host.
     """
-    return f'https://{host}/api/2.0/libraries/install'
+    return f'https://{host}/api/2.1/libraries/install'
 
 
 def uninstall_endpoint(host):
     """
     Utility function to generate the uninstall endpoint given the host.
     """
-    return f'https://{host}/api/2.0/libraries/uninstall'
+    return f'https://{host}/api/2.1/libraries/uninstall'
 
 
 def create_valid_response_mock(content):
@@ -269,7 +269,7 @@ class TestDatabricksHook(unittest.TestCase):
     def test_do_api_call_patch(self, mock_requests):
         mock_requests.patch.return_value.json.return_value = {'cluster_name': 'new_name'}
         data = {'cluster_name': 'new_name'}
-        patched_cluster_name = self.hook._do_api_call(('PATCH', 'api/2.0/jobs/runs/submit'), data)
+        patched_cluster_name = self.hook._do_api_call(('PATCH', 'api/2.1/jobs/runs/submit'), data)
 
         assert patched_cluster_name['cluster_name'] == 'new_name'
         mock_requests.patch.assert_called_once_with(
