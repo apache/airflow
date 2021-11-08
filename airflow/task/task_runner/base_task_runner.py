@@ -21,6 +21,7 @@ import subprocess
 import threading
 
 from airflow.utils.platform import IS_WINDOWS
+
 if not IS_WINDOWS:
     from pwd import getpwnam
 
