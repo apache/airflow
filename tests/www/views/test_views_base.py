@@ -267,11 +267,14 @@ def test_views_post(admin_client, url, check_response):
         ("resetpassword/form?pk=1", "viewer_client", "Access is Denied"),
     ],
     ids=["my-viewer", "pk-admin", "pk-viewer"],
+    # ids=["pk-viewer"],
 )
 def test_resetmypasswordview_edit(request, url, client, content):
     resp = request.getfixturevalue(client).post(
         url, data={'password': 'blah', 'conf_password': 'blah'}, follow_redirects=True
     )
+    # if client == "viewer_client":
+    breakpoint()
     check_content_in_response(content, resp)
 
 

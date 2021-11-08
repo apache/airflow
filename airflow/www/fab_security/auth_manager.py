@@ -1,29 +1,44 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+
 import logging
 import uuid
-
-from flask_appbuilder import const as c
-
 from typing import List, Optional, Set, Tuple
 
+from flask_appbuilder import const as c
 from sqlalchemy import and_, func, literal
+from sqlalchemy.orm.exc import MultipleResultsFound
+from werkzeug.security import generate_password_hash
 
 from airflow.security import permissions
 from airflow.www.fab_security.sqla.models import (
     Action,
     Permission,
-    RegisterUser,   
+    RegisterUser,
     Resource,
     Role,
     User,
     assoc_permission_role,
 )
-from sqlalchemy.orm.exc import MultipleResultsFound
-from werkzeug.security import generate_password_hash
 
 log = logging.getLogger(__name__)
 
-class AuthorizationManager:
 
+class AuthorizationManager:
     def __init__(self, get_session):
         self._get_session = get_session
 
@@ -60,7 +75,7 @@ class AuthorizationManager:
         :rtype: Action
         """
         return self.get_session.query(Action).filter_by(name=name).one_or_none()
-    
+
     def delete_action(self, name: str) -> bool:
         """
         Deletes a permission action.
@@ -75,11 +90,7 @@ class AuthorizationManager:
             log.warning(c.LOGMSG_WAR_SEC_DEL_PERMISSION.format(name))
             return False
         try:
-            perms = (
-                self.get_session.query(Permission)
-                .filter(Permission.action == action)
-                .all()
-            )
+            perms = self.get_session.query(Permission).filter(Permission.action == action).all()
             if perms:
                 log.warning(c.LOGMSG_WAR_SEC_DEL_PERM_PVM.format(action, perms))
                 return False
@@ -135,11 +146,7 @@ class AuthorizationManager:
             log.warning(c.LOGMSG_WAR_SEC_DEL_VIEWMENU.format(name))
             return False
         try:
-            perms = (
-                self.get_session.query(Permission)
-                .filter(Permission.resource == resource)
-                .all()
-            )
+            perms = self.get_session.query(Permission).filter(Permission.resource == resource).all()
             if perms:
                 log.warning(c.LOGMSG_WAR_SEC_DEL_VIEWMENU_PVM.format(resource, perms))
                 return False
@@ -201,9 +208,7 @@ class AuthorizationManager:
         resource = self.get_resource(resource_name)
         if action and resource:
             return (
-                self.get_session.query(Permission)
-                .filter_by(action=action, resource=resource)
-                .one_or_none()
+                self.get_session.query(Permission).filter_by(action=action, resource=resource).one_or_none()
             )
 
     def get_all_permissions(self) -> Set[Tuple[str, str]]:
@@ -233,9 +238,7 @@ class AuthorizationManager:
         perm = self.get_permission(action_name, resource_name)
         if not perm:
             return
-        roles = (
-            self.get_session.query(Role).filter(Role.permissions.contains(perm)).first()
-        )
+        roles = self.get_session.query(Role).filter(Role.permissions.contains(perm)).first()
         if roles:
             log.warning(c.LOGMSG_WAR_SEC_DEL_PERMVIEW.format(resource_name, action_name, roles))
             return
@@ -271,10 +274,10 @@ class AuthorizationManager:
 
     def get_role(self, name):
         return self.get_session.query(Role).filter_by(name=name).one_or_none()
-    
+
     def get_all_roles(self):
         return self.get_session.query(Role).all()
-    
+
     def update_role(self, role_id, name: str) -> Optional[Role]:
         role = self.get_session.query(Role).get(role_id)
         if not role:
@@ -376,7 +379,7 @@ class AuthorizationManager:
 
     def get_user_by_id(self, id):
         return self.get_session.query(User).get(id)
-    
+
     def get_user_by_username(self, username, case_sensitive=False):
         try:
             if case_sensitive:
@@ -385,11 +388,7 @@ class AuthorizationManager:
                     .filter(func.lower(User.username) == func.lower(username))
                     .one_or_none()
                 )
-            return (
-                self.get_session.query(User)
-                .filter(User.username == username)
-                .one_or_none()
-            )
+            return self.get_session.query(User).filter(User.username == username).one_or_none()
         except MultipleResultsFound:
             log.error(f"Multiple results found for user {username}")
             return None

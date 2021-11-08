@@ -141,12 +141,12 @@ def _sanity_check(provider_package: str, class_name: str) -> bool:
     try:
         import_string(class_name)
     except Exception as e:
-        log.warning(
-            "Exception when importing '%s' from '%s' package: %s",
-            class_name,
-            provider_package,
-            e,
-        )
+        # log.warning(
+        #     "Exception when importing '%s' from '%s' package: %s",
+        #     class_name,
+        #     provider_package,
+        #     e,
+        # )
         return False
     return True
 

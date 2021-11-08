@@ -47,9 +47,7 @@ def upgrade():
     )
 
     for role in roles_to_modify:
-        if appbuilder.sm.permission_exists_in_one_or_more_roles(
-            permissions.RESOURCE_CONFIG, permissions.ACTION_CAN_READ, [role.id]
-        ):
+        if can_read_on_config_perm in role.permissions:
             appbuilder.sm.remove_permission_from_role(role, can_read_on_config_perm)
 
     log.handlers = handlers
@@ -64,7 +62,5 @@ def downgrade():
     )
 
     for role in roles_to_modify:
-        if not appbuilder.sm.permission_exists_in_one_or_more_roles(
-            permissions.RESOURCE_CONFIG, permissions.ACTION_CAN_READ, [role.id]
-        ):
+        if not can_read_on_config_perm in role.permissions:
             appbuilder.sm.add_permission_to_role(role, can_read_on_config_perm)

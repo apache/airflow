@@ -102,7 +102,7 @@ class Permission(Model):
     action_id = Column("permission_id", Integer, ForeignKey("ab_permission.id"))
     action = relationship("Action", lazy="joined")
     resource_id = Column("view_menu_id", Integer, ForeignKey("ab_view_menu.id"))
-    resource = relationship("Resource", lazy="joined")
+    resource = relationship("Resource", lazy="joined", backref="permissions")
 
     def __repr__(self):
         return str(self.action).replace("_", " ") + " on " + str(self.resource)
@@ -179,7 +179,7 @@ class User(Model):
         return False
 
     @property
-    def perms(self):
+    def permissions(self):
         perms = set()
         for role in self.roles:
             perms.update((perm.action.name, perm.resource.name) for perm in role.permissions)

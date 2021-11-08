@@ -16,18 +16,16 @@
 # under the License.
 
 import logging
-import uuid
-from typing import List, Optional
+from typing import List, Optional, Set, Tuple
 
 from flask_appbuilder import const as c
 from flask_appbuilder.models.sqla import Base
 from flask_appbuilder.models.sqla.interface import SQLAInterface
 from sqlalchemy import and_, func, literal
 from sqlalchemy.engine.reflection import Inspector
-from sqlalchemy.orm import contains_eager
-from sqlalchemy.orm.exc import MultipleResultsFound
 from werkzeug.security import generate_password_hash
 
+from airflow.www.fab_security.auth_manager import AuthorizationManager
 from airflow.www.fab_security.manager import BaseSecurityManager
 from airflow.www.fab_security.sqla.models import (
     Action,
@@ -94,9 +92,6 @@ class SecurityManager(BaseSecurityManager):
     def get_session(self):
         return self.appbuilder.get_session
 
-    def register_views(self):
-        super().register_views()
-
     def create_db(self):
         try:
             engine = self.get_session.get_bind(mapper=None, clause=None)
@@ -110,37 +105,16 @@ class SecurityManager(BaseSecurityManager):
             log.error(c.LOGMSG_ERR_SEC_CREATE_DB.format(str(e)))
             exit(1)
 
-    def find_register_user(self, registration_hash):
-        return (
-            self.get_session.query(self.registeruser_model)
-            .filter(self.registeruser_model.registration_hash == registration_hash)
-            .scalar()
-        )
-
     def add_register_user(self, username, first_name, last_name, email, password="", hashed_password=""):
         """
         Add a registration request for the user.
 
         :rtype : RegisterUser
         """
-        register_user = self.registeruser_model()
-        register_user.username = username
-        register_user.email = email
-        register_user.first_name = first_name
-        register_user.last_name = last_name
-        if hashed_password:
-            register_user.password = hashed_password
-        else:
-            register_user.password = generate_password_hash(password)
-        register_user.registration_hash = str(uuid.uuid1())
-        try:
-            self.get_session.add(register_user)
-            self.get_session.commit()
-            return register_user
-        except Exception as e:
-            log.error(c.LOGMSG_ERR_SEC_ADD_REGISTER_USER.format(str(e)))
-            self.appbuilder.get_session.rollback()
-            return None
+        return self.auth.add_register_user(username, first_name, last_name, email, password, hashed_password)
+
+    def find_register_user(self, registration_hash):
+        return self.auth.find_register_user(registration_hash)
 
     def del_register_user(self, register_user):
         """
@@ -148,43 +122,7 @@ class SecurityManager(BaseSecurityManager):
 
         :param register_user: RegisterUser object to delete
         """
-        try:
-            self.get_session.delete(register_user)
-            self.get_session.commit()
-            return True
-        except Exception as e:
-            log.error(c.LOGMSG_ERR_SEC_DEL_REGISTER_USER.format(str(e)))
-            self.get_session.rollback()
-            return False
-
-    def find_user(self, username=None, email=None):
-        """Finds user by username or email"""
-        if username:
-            try:
-                if self.auth_username_ci:
-                    return (
-                        self.get_session.query(self.user_model)
-                        .filter(func.lower(self.user_model.username) == func.lower(username))
-                        .one_or_none()
-                    )
-                else:
-                    return (
-                        self.get_session.query(self.user_model)
-                        .filter(self.user_model.username == username)
-                        .one_or_none()
-                    )
-            except MultipleResultsFound:
-                log.error(f"Multiple results found for user {username}")
-                return None
-        elif email:
-            try:
-                return self.get_session.query(self.user_model).filter_by(email=email).one_or_none()
-            except MultipleResultsFound:
-                log.error(f"Multiple results found for user with email {email}")
-                return None
-
-    def get_all_users(self):
-        return self.get_session.query(self.user_model).all()
+        return self.auth.del_register_user(register_user)
 
     def add_user(
         self,
@@ -197,81 +135,52 @@ class SecurityManager(BaseSecurityManager):
         hashed_password="",
     ):
         """Generic function to create user"""
-        try:
-            user = self.user_model()
-            user.first_name = first_name
-            user.last_name = last_name
-            user.username = username
-            user.email = email
-            user.active = True
-            user.roles = role if isinstance(role, list) else [role]
-            if hashed_password:
-                user.password = hashed_password
-            else:
-                user.password = generate_password_hash(password)
-            self.get_session.add(user)
-            self.get_session.commit()
-            log.info(c.LOGMSG_INF_SEC_ADD_USER.format(username))
-            return user
-        except Exception as e:
-            log.error(c.LOGMSG_ERR_SEC_ADD_USER.format(str(e)))
-            self.get_session.rollback()
-            return False
+        return self.auth.add_user(username, first_name, last_name, email, role, password, hashed_password)
+    
+    def get_user_by_id(self, pk):
+        return self.auth.get_user_by_id(pk)
 
-    def count_users(self):
-        return self.get_session.query(func.count(self.user_model.id)).scalar()
+    def find_user(self, username=None, email=None):
+        """Finds user by username or email"""
+        if username:
+            case_sensitive = (not self.auth_username_ci)
+            return self.auth.get_user_by_username(username, case_sensitive=case_sensitive)
+        elif email:
+            return self.auth.get_user_by_username(email)
+
+    def get_all_users(self):
+        return self.auth.get_all_users()
 
     def update_user(self, user):
-        try:
-            self.get_session.merge(user)
-            self.get_session.commit()
-            log.info(c.LOGMSG_INF_SEC_UPD_USER.format(user))
-        except Exception as e:
-            log.error(c.LOGMSG_ERR_SEC_UPD_USER.format(str(e)))
-            self.get_session.rollback()
-            return False
+        return self.auth.update_user(user)
 
-    def get_user_by_id(self, pk):
-        return self.get_session.query(self.user_model).get(pk)
+    def count_users(self):
+        return self.auth.count_users()
 
     def add_role(self, name: str) -> Optional[Role]:
-        role = self.find_role(name)
-        if role is None:
-            try:
-                role = self.role_model()
-                role.name = name
-                self.get_session.add(role)
-                self.get_session.commit()
-                log.info(c.LOGMSG_INF_SEC_ADD_ROLE.format(name))
-                return role
-            except Exception as e:
-                log.error(c.LOGMSG_ERR_SEC_ADD_ROLE.format(str(e)))
-                self.get_session.rollback()
-        return role
-
-    def update_role(self, role_id, name: str) -> Optional[Role]:
-        role = self.get_session.query(self.role_model).get(role_id)
-        if not role:
-            return
-        try:
-            role.name = name
-            self.get_session.merge(role)
-            self.get_session.commit()
-            log.info(c.LOGMSG_INF_SEC_UPD_ROLE.format(role))
-        except Exception as e:
-            log.error(c.LOGMSG_ERR_SEC_UPD_ROLE.format(str(e)))
-            self.get_session.rollback()
-            return
+        return self.auth.add_role(name)
 
     def find_role(self, name):
-        return self.get_session.query(self.role_model).filter_by(name=name).one_or_none()
+        return self.auth.get_role(name)
+
+    def update_role(self, role_id, name: str) -> Optional[Role]:
+        return self.auth.update_role(role_id, name)
+    
+    def delete_role(self, name):
+        return self.auth.delete_role(name)
 
     def get_all_roles(self):
-        return self.get_session.query(self.role_model).all()
+        return self.auth.get_all_roles()
 
-    def get_public_role(self):
-        return self.get_session.query(self.role_model).filter_by(name=self.auth_role_public).one_or_none()
+    def create_action(self, name):
+        """
+        Adds an action to the backend, model action
 
+        :param name:
+            name of the action: 'can_add','can_edit' etc...
+        """
+        return self.auth.create_action(name)
+    
     def get_action(self, name: str) -> Action:
         """
         Gets an existing action record.
@@ -281,90 +190,7 @@ class SecurityManager(BaseSecurityManager):
         :return: Action record, if it exists
         :rtype: Action
         """
-        return self.get_session.query(self.action_model).filter_by(name=name).one_or_none()
-
-    def permission_exists_in_one_or_more_roles(
-        self, resource_name: str, action_name: str, role_ids: List[int]
-    ) -> bool:
-        """
-            Method to efficiently check if a certain permission exists
-            on a list of role id's. This is used by `has_access`
-
-        :param resource_name: The view's name to check if exists on one of the roles
-        :param action_name: The permission name to check if exists
-        :param role_ids: a list of Role ids
-        :return: Boolean
-        """
-        q = (
-            self.appbuilder.get_session.query(self.permission_model)
-            .join(
-                assoc_permission_role,
-                and_(self.permission_model.id == assoc_permission_role.c.permission_view_id),
-            )
-            .join(self.role_model)
-            .join(self.action_model)
-            .join(self.resource_model)
-            .filter(
-                self.resource_model.name == resource_name,
-                self.action_model.name == action_name,
-                self.role_model.id.in_(role_ids),
-            )
-            .exists()
-        )
-        # Special case for MSSQL/Oracle (works on PG and MySQL > 8)
-        if self.appbuilder.get_session.bind.dialect.name in ("mssql", "oracle"):
-            return self.appbuilder.get_session.query(literal(True)).filter(q).scalar()
-        return self.appbuilder.get_session.query(q).scalar()
-
-    def filter_roles_by_perm_with_action(self, action_name: str, role_ids: List[int]):
-        """Find roles with permission"""
-        return (
-            self.appbuilder.get_session.query(self.permission_model)
-            .join(
-                assoc_permission_role,
-                and_(self.permission_model.id == assoc_permission_role.c.permission_view_id),
-            )
-            .join(self.role_model)
-            .join(self.action_model)
-            .join(self.resource_model)
-            .filter(
-                self.action_model.name == action_name,
-                self.role_model.id.in_(role_ids),
-            )
-        ).all()
-
-    def get_permissions_from_roles(self, role_id: int) -> List[Permission]:
-        """Get all DB permissions from a role (one single query)"""
-        return (
-            self.appbuilder.get_session.query(Permission)
-            .join(Action)
-            .join(Resource)
-            .join(Permission.role)
-            .filter(Role.id == role_id)
-            .options(contains_eager(Permission.action))
-            .options(contains_eager(Permission.resource))
-            .all()
-        )
-
-    def create_action(self, name):
-        """
-        Adds an action to the backend, model action
-
-        :param name:
-            name of the action: 'can_add','can_edit' etc...
-        """
-        action = self.get_action(name)
-        if action is None:
-            try:
-                action = self.action_model()
-                action.name = name
-                self.get_session.add(action)
-                self.get_session.commit()
-                return action
-            except Exception as e:
-                log.error(c.LOGMSG_ERR_SEC_ADD_PERMISSION.format(str(e)))
-                self.get_session.rollback()
-        return action
+        return self.auth.get_action(name)
 
     def delete_action(self, name: str) -> bool:
         """
@@ -375,46 +201,7 @@ class SecurityManager(BaseSecurityManager):
         :return: Whether or not delete was successful.
         :rtype: bool
         """
-        action = self.get_action(name)
-        if not action:
-            log.warning(c.LOGMSG_WAR_SEC_DEL_PERMISSION.format(name))
-            return False
-        try:
-            perms = (
-                self.get_session.query(self.permission_model)
-                .filter(self.permission_model.action == action)
-                .all()
-            )
-            if perms:
-                log.warning(c.LOGMSG_WAR_SEC_DEL_PERM_PVM.format(action, perms))
-                return False
-            self.get_session.delete(action)
-            self.get_session.commit()
-            return True
-        except Exception as e:
-            log.error(c.LOGMSG_ERR_SEC_DEL_PERMISSION.format(str(e)))
-            self.get_session.rollback()
-            return False
-
-    def get_resource(self, name: str) -> Resource:
-        """
-        Returns a resource record by name, if it exists.
-
-        :param name: Name of resource
-        :type name: str
-        :return: Resource record
-        :rtype: Resource
-        """
-        return self.get_session.query(self.resource_model).filter_by(name=name).one_or_none()
-
-    def get_all_resources(self) -> List[Resource]:
-        """
-        Gets all existing resource records.
-
-        :return: List of all resources
-        :rtype: List[Resource]
-        """
-        return self.get_session.query(self.resource_model).all()
+        return self.auth.delete_action(name)
 
     def create_resource(self, name) -> Resource:
         """
@@ -425,18 +212,18 @@ class SecurityManager(BaseSecurityManager):
         :return: The FAB resource created.
         :rtype: Resource
         """
-        resource = self.get_resource(name)
-        if resource is None:
-            try:
-                resource = self.resource_model()
-                resource.name = name
-                self.get_session.add(resource)
-                self.get_session.commit()
-                return resource
-            except Exception as e:
-                log.error(c.LOGMSG_ERR_SEC_ADD_VIEWMENU.format(str(e)))
-                self.get_session.rollback()
-        return resource
+        return self.auth.create_resource(name=name)
+
+    def get_resource(self, name: str) -> Resource:
+        """
+        Returns a resource record by name, if it exists.
+
+        :param name: Name of resource
+        :type name: str
+        :return: Resource record
+        :rtype: Resource
+        """
+        return self.auth.get_resource(name=name)
 
     def delete_resource(self, name: str) -> bool:
         """
@@ -445,32 +232,27 @@ class SecurityManager(BaseSecurityManager):
         :param name:
             name of the resource
         """
-        resource = self.get_resource(name)
-        if not resource:
-            log.warning(c.LOGMSG_WAR_SEC_DEL_VIEWMENU.format(name))
-            return False
-        try:
-            perms = (
-                self.get_session.query(self.permission_model)
-                .filter(self.permission_model.resource == resource)
-                .all()
-            )
-            if perms:
-                log.warning(c.LOGMSG_WAR_SEC_DEL_VIEWMENU_PVM.format(resource, perms))
-                return False
-            self.get_session.delete(resource)
-            self.get_session.commit()
-            return True
-        except Exception as e:
-            log.error(c.LOGMSG_ERR_SEC_DEL_PERMISSION.format(str(e)))
-            self.get_session.rollback()
-            return False
+        return self.auth.delete_resource(name=name)
+    
+    def get_all_resources(self) -> List[Resource]:
+        """
+        Gets all existing resource records.
 
-    """
-    ----------------------
-     PERMISSION VIEW MENU
-    ----------------------
-    """
+        :return: List of all resources
+        :rtype: List[Resource]
+        """
+        return self.auth.get_all_resources()
+
+    def create_permission(self, action_name, resource_name):
+        """
+        Adds a permission on a resource to the backend
+
+        :param action_name:
+            name of the action to add: 'can_add','can_edit' etc...
+        :param resource_name:
+            name of the resource to add
+        """
+        return self.auth.create_permission(action_name, resource_name)
 
     def get_permission(self, action_name: str, resource_name: str) -> Permission:
         """
@@ -483,52 +265,11 @@ class SecurityManager(BaseSecurityManager):
         :return: The existing permission
         :rtype: Permission
         """
-        action = self.get_action(action_name)
-        resource = self.get_resource(resource_name)
-        if action and resource:
-            return (
-                self.get_session.query(self.permission_model)
-                .filter_by(action=action, resource=resource)
-                .one_or_none()
-            )
-
-    def get_resource_permissions(self, resource: Resource) -> Permission:
-        """
-        Retrieve permission pairs associated with a specific resource object.
-
-        :param resource: Object representing a single resource.
-        :type resource: Resource
-        :return: Action objects representing resource->action pair
-        :rtype: Permission
-        """
-        return self.get_session.query(self.permission_model).filter_by(resource_id=resource.id).all()
-
-    def create_permission(self, action_name, resource_name):
-        """
-        Adds a permission on a resource to the backend
-
-        :param action_name:
-            name of the action to add: 'can_add','can_edit' etc...
-        :param resource_name:
-            name of the resource to add
-        """
-        if not (action_name and resource_name):
-            return None
-        perm = self.get_permission(action_name, resource_name)
-        if perm:
-            return perm
-        resource = self.create_resource(resource_name)
-        action = self.create_action(action_name)
-        perm = self.permission_model()
-        perm.resource_id, perm.action_id = resource.id, action.id
-        try:
-            self.get_session.add(perm)
-            self.get_session.commit()
-            log.info(c.LOGMSG_INF_SEC_ADD_PERMVIEW.format(str(perm)))
-            return perm
-        except Exception as e:
-            log.error(c.LOGMSG_ERR_SEC_ADD_PERMVIEW.format(str(e)))
-            self.get_session.rollback()
+        return self.auth.get_permission(action_name, resource_name)
+    
+    def get_all_permissions(self) -> Set[Tuple[str, str]]:
+        """Returns all permissions as a set of tuples with the action and resource names"""
+        return self.auth.get_all_permissions()
 
     def delete_permission(self, action_name: str, resource_name: str) -> None:
         """
@@ -542,34 +283,7 @@ class SecurityManager(BaseSecurityManager):
         :return: None
         :rtype: None
         """
-        if not (action_name and resource_name):
-            return
-        perm = self.get_permission(action_name, resource_name)
-        if not perm:
-            return
-        roles = (
-            self.get_session.query(self.role_model).filter(self.role_model.permissions.contains(perm)).first()
-        )
-        if roles:
-            log.warning(c.LOGMSG_WAR_SEC_DEL_PERMVIEW.format(resource_name, action_name, roles))
-            return
-        try:
-            # delete permission on resource
-            self.get_session.delete(perm)
-            self.get_session.commit()
-            # if no more permission on permission view, delete permission
-            if not self.get_session.query(self.permission_model).filter_by(action=perm.action).all():
-                self.delete_action(perm.action.name)
-            log.info(c.LOGMSG_INF_SEC_DEL_PERMVIEW.format(action_name, resource_name))
-        except Exception as e:
-            log.error(c.LOGMSG_ERR_SEC_DEL_PERMVIEW.format(str(e)))
-            self.get_session.rollback()
-
-    def perms_include_action(self, perms, action_name):
-        for perm in perms:
-            if perm.action and perm.action.name == action_name:
-                return True
-        return False
+        return self.auth.delete_permission(action_name, resource_name)
 
     def add_permission_to_role(self, role: Role, permission: Permission) -> None:
         """
@@ -582,15 +296,7 @@ class SecurityManager(BaseSecurityManager):
         :return: None
         :rtype: None
         """
-        if permission and permission not in role.permissions:
-            try:
-                role.permissions.append(permission)
-                self.get_session.merge(role)
-                self.get_session.commit()
-                log.info(c.LOGMSG_INF_SEC_ADD_PERMROLE.format(str(permission), role.name))
-            except Exception as e:
-                log.error(c.LOGMSG_ERR_SEC_ADD_PERMROLE.format(str(e)))
-                self.get_session.rollback()
+        return self.auth.add_permission_to_role(role, permission)
 
     def remove_permission_from_role(self, role: Role, permission: Permission) -> None:
         """
@@ -601,12 +307,4 @@ class SecurityManager(BaseSecurityManager):
         :param permission: Object representing resource-> action pair
         :type permission: Permission
         """
-        if permission in role.permissions:
-            try:
-                role.permissions.remove(permission)
-                self.get_session.merge(role)
-                self.get_session.commit()
-                log.info(c.LOGMSG_INF_SEC_DEL_PERMROLE.format(str(permission), role.name))
-            except Exception as e:
-                log.error(c.LOGMSG_ERR_SEC_DEL_PERMROLE.format(str(e)))
-                self.get_session.rollback()
+        return self.auth.remove_permission_from_role(role, permission)

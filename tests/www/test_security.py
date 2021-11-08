@@ -211,6 +211,7 @@ class TestSecurity(unittest.TestCase):
         self.security_manager.bulk_sync_roles([{'role': role_name, 'perms': role_perms}])
 
         role = self.appbuilder.sm.find_role(role_name)
+        # breakpoint()
         assert role is not None
         assert len(role_perms) == len(role.permissions)
 
@@ -260,7 +261,7 @@ class TestSecurity(unittest.TestCase):
         with self.app.app_context():
             user = AnonymousUser()
             self.app.config['AUTH_ROLE_PUBLIC'] = 'Public'
-            assert user.roles == {self.app.appbuilder.sm.get_public_role()}
+            assert user.roles == {self.app.appbuilder.sm.find_role(self.app.appbuilder.sm.auth_role_public)}
 
             self._create_dag("test_dag_id")
             self.security_manager.sync_roles()
@@ -271,7 +272,7 @@ class TestSecurity(unittest.TestCase):
         with self.app.app_context():
             user = AnonymousUser()
             self.app.config['AUTH_ROLE_PUBLIC'] = 'Public'
-            assert user.roles == {self.app.appbuilder.sm.get_public_role()}
+            assert user.roles == {self.app.appbuilder.sm.find_role(self.app.appbuilder.sm.auth_role_public)}
 
             dag_id = "test_dag_id"
             self._create_dag(dag_id)
@@ -287,7 +288,7 @@ class TestSecurity(unittest.TestCase):
             self.app.config['AUTH_ROLE_PUBLIC'] = 'Admin'
             user = AnonymousUser()
 
-            assert user.roles == {self.app.appbuilder.sm.get_public_role()}
+            assert user.roles == {self.app.appbuilder.sm.find_role(self.app.appbuilder.sm.auth_role_public)}
 
             test_dag_ids = ["test_dag_id_1", "test_dag_id_2", "test_dag_id_3"]
             for dag_id in test_dag_ids:
@@ -301,7 +302,7 @@ class TestSecurity(unittest.TestCase):
             user = AnonymousUser()
             self.app.config['AUTH_ROLE_PUBLIC'] = 'Admin'
 
-            assert user.roles == {self.app.appbuilder.sm.get_public_role()}
+            assert user.roles == {self.app.appbuilder.sm.find_role(self.app.appbuilder.sm.auth_role_public)}
 
             test_dag_ids = ["test_dag_id_1", "test_dag_id_2", "test_dag_id_3"]
 
@@ -375,12 +376,12 @@ class TestSecurity(unittest.TestCase):
             self.session.add(user)
             self.session.commit()
 
-            assert user.perms == {(role_perm, role_vm)}
+            assert user.permissions == {(role_perm, role_vm)}
 
             user.roles = []
             self.session.add(user)
             self.session.commit()
-            assert len(user.perms) == 0
+            assert len(user.permissions) == 0
 
     @mock.patch('airflow.www.security.AirflowSecurityManager.current_user', new_callable=mock.PropertyMock)
     def test_current_user_has_permissions(self, mock_current_user):
@@ -397,19 +398,19 @@ class TestSecurity(unittest.TestCase):
             user.roles = [role]
             self.session.add(user)
             self.session.commit()
-            assert bool(user.perms)
+            assert bool(user.permissions)
 
             # Role, but no permissions
             role.permissions = []
             self.session.add(role)
             self.session.commit()
-            assert not user.perms
+            assert not user.permissions
 
             # No role
             user.roles = []
             self.session.add(user)
             self.session.commit()
-            assert not user.perms
+            assert not user.permissions
 
     def test_get_accessible_dag_ids(self):
         role_name = 'MyRole1'
@@ -476,19 +477,6 @@ class TestSecurity(unittest.TestCase):
             self.security_manager.get_permission(permissions.ACTION_CAN_EDIT, prefixed_test_dag_id)
             is not None
         )
-
-    @mock.patch('airflow.www.security.AirflowSecurityManager.has_access')
-    @mock.patch('airflow.www.security.AirflowSecurityManager._has_role')
-    def test_has_all_dag_access(self, mock_has_role, mock_has_access):
-        mock_has_role.return_value = True
-        assert self.security_manager.has_all_dags_access()
-
-        mock_has_role.return_value = False
-        mock_has_access.return_value = False
-        assert not self.security_manager.has_all_dags_access()
-
-        mock_has_access.return_value = True
-        assert self.security_manager.has_all_dags_access()
 
     def test_access_control_with_non_existent_role(self):
         with pytest.raises(AirflowException) as ctx:
@@ -610,15 +598,12 @@ class TestSecurity(unittest.TestCase):
     def test_correct_roles_have_perms_to_read_config(self):
         roles_to_check = self.security_manager.get_all_roles()
         assert len(roles_to_check) >= 5
+        can_read_config = self.security_manager.get_permission(permissions.ACTION_CAN_READ, permissions.RESOURCE_CONFIG)
         for role in roles_to_check:
             if role.name in ["Admin", "Op"]:
-                assert self.security_manager.permission_exists_in_one_or_more_roles(
-                    permissions.RESOURCE_CONFIG, permissions.ACTION_CAN_READ, [role.id]
-                )
+                assert can_read_config in role.permissions
             else:
-                assert not self.security_manager.permission_exists_in_one_or_more_roles(
-                    permissions.RESOURCE_CONFIG, permissions.ACTION_CAN_READ, [role.id]
-                ), (
+                assert not can_read_config in role.permissions, (
                     f"{role.name} should not have {permissions.ACTION_CAN_READ} "
                     f"on {permissions.RESOURCE_CONFIG}"
                 )

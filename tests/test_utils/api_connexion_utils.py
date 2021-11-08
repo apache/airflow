@@ -76,6 +76,8 @@ def create_role(app, name, permissions=None):
         permissions = []
     for permission in permissions:
         perm_object = appbuilder.sm.get_permission(*permission)
+        if not perm_object:
+            perm_object = appbuilder.sm.create_permission(*permission)
         appbuilder.sm.add_permission_to_role(role, perm_object)
     return role
 

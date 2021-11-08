@@ -200,12 +200,10 @@ def user_edit_one_dag(acl_app):
 
 @pytest.mark.usefixtures("user_edit_one_dag")
 def test_permission_exist(acl_app):
-    perms_views = acl_app.appbuilder.sm.get_resource_permissions(
-        acl_app.appbuilder.sm.get_resource('DAG:example_bash_operator'),
-    )
-    assert len(perms_views) == 2
+    resource = acl_app.appbuilder.sm.get_resource('DAG:example_bash_operator')
+    assert len(resource.permissions) == 2
 
-    perms = {str(perm) for perm in perms_views}
+    perms = {str(perm) for perm in resource.permissions}
     assert "can read on DAG:example_bash_operator" in perms
     assert "can edit on DAG:example_bash_operator" in perms
 

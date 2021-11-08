@@ -104,7 +104,7 @@ class AnonymousUser(AnonymousUserMixin):
         self._perms = set()
 
     @property
-    def perms(self):
+    def permissions(self):
         if not self._perms:
             self._perms = set()
             for role in self.roles:
@@ -1293,54 +1293,14 @@ class BaseSecurityManager:
         else:
             return None
 
-    def _has_access_builtin_roles(self, role, action_name: str, resource_name: str) -> bool:
-        """Checks permission on builtin role"""
-        perms = self.builtin_roles.get(role.name, [])
-        for (_resource_name, _action_name) in perms:
-            if re.match(_resource_name, resource_name) and re.match(_action_name, action_name):
-                return True
-        return False
-
-    def _get_user_permission_resources(
-        self, user: object, action_name: str, resource_names: List[str]
-    ) -> Set[str]:
-        """
-        Return a set of resource names with a certain action name
-        that a user has access to. Mainly used to fetch all menu permissions
-        on a single db call, will also check public permissions and builtin roles
-        """
-        db_role_ids = []
-        if user is None:
-            # include public role
-            roles = [self.get_public_role()]
-        else:
-            roles = user.roles
-        # First check against builtin (statically configured) roles
-        # because no database query is needed
-        result = set()
-        for role in roles:
-            if role.name in self.builtin_roles:
-                for resource_name in resource_names:
-                    if self._has_access_builtin_roles(role, action_name, resource_name):
-                        result.add(resource_name)
-            else:
-                db_role_ids.append(role.id)
-        # Then check against database-stored roles
-        role_resource_names = [
-            perm.resource.name for perm in self.filter_roles_by_perm_with_action(action_name, db_role_ids)
-        ]
-        result.update(role_resource_names)
-        return result
-
     def get_user_menu_access(self, menu_names: List[str] = None) -> Set[str]:
-        if current_user.is_authenticated:
-            return self._get_user_permission_resources(g.user, "menu_access", resource_names=menu_names)
-        elif current_user_jwt:
-            return self._get_user_permission_resources(
-                current_user_jwt, "menu_access", resource_names=menu_names
-            )
+        if not current_user.is_authenticated and current_user_jwt:
+            user = current_user_jwt
         else:
-            return self._get_user_permission_resources(None, "menu_access", resource_names=menu_names)
+            user = current_user
+        user = self._get_user_permission_resources(user, "menu_access", resource_names=menu_names)
+        menu_perms = {("menu_access", menu_name) for menu_name in menu_names}
+        return menu_perms & user.perms
 
     def add_permissions_view(self, base_action_names, resource_name):  # Keep name for compatibility with FAB.
         """
@@ -1352,42 +1312,7 @@ class BaseSecurityManager:
         :param resource_name:
             name of the resource to add
         """
-        resource = self.create_resource(resource_name)
-        perms = self.get_resource_permissions(resource)
-
-        if not perms:
-            # No permissions yet on this view
-            for action_name in base_action_names:
-                action = self.create_permission(action_name, resource_name)
-                if self.auth_role_admin not in self.builtin_roles:
-                    admin_role = self.find_role(self.auth_role_admin)
-                    self.add_permission_to_role(admin_role, action)
-        else:
-            # Permissions on this view exist but....
-            admin_role = self.find_role(self.auth_role_admin)
-            for action_name in base_action_names:
-                # Check if base view permissions exist
-                if not self.perms_include_action(perms, action_name):
-                    action = self.create_permission(action_name, resource_name)
-                    if self.auth_role_admin not in self.builtin_roles:
-                        self.add_permission_to_role(admin_role, action)
-            for perm in perms:
-                if perm.action is None:
-                    # Skip this perm, it has a null permission
-                    continue
-                if perm.action.name not in base_action_names:
-                    # perm to delete
-                    roles = self.get_all_roles()
-                    action = self.get_action(perm.action.name)
-                    # del permission from all roles
-                    for role in roles:
-                        # TODO: An action can't be removed from a role.
-                        # This is a bug in FAB. It has been reported.
-                        self.remove_permission_from_role(role, action)
-                    self.delete_permission(perm.action.name, resource_name)
-                elif self.auth_role_admin not in self.builtin_roles and perm not in admin_role.permissions:
-                    # Role Admin must have all permissions
-                    self.add_permission_to_role(admin_role, perm)
+        pass
 
     def add_permissions_menu(self, resource_name):
         """
@@ -1396,13 +1321,7 @@ class BaseSecurityManager:
         :param resource_name:
             The resource name
         """
-        self.create_resource(resource_name)
-        perm = self.get_permission("menu_access", resource_name)
-        if not perm:
-            perm = self.create_permission("menu_access", resource_name)
-        if self.auth_role_admin not in self.builtin_roles:
-            role_admin = self.find_role(self.auth_role_admin)
-            self.add_permission_to_role(role_admin, perm)
+        pass
 
     def security_cleanup(self, baseviews, menus):
         """
@@ -1422,8 +1341,7 @@ class BaseSecurityManager:
             if menus.find(resource.name):
                 found = True
             if not found:
-                permissions = self.get_resource_permissions(resource)
-                for permission in permissions:
+                for permission in resource.permissions:
                     for role in roles:
                         self.remove_permission_from_role(role, permission)
                     self.delete_permission(permission.action.name, resource.name)

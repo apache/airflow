@@ -184,10 +184,8 @@ def delete_user(username):
     security_manager = current_app.appbuilder.sm
 
     user = security_manager.find_user(username=username)
+    security_manager.find_user(user=user)
     if user is None:
         detail = f"The User with username `{username}` was not found"
         raise NotFound(title="User not found", detail=detail)
-
-    user.roles = []  # Clear foreign keys on this user first.
-    security_manager.get_session.delete(user)
-    security_manager.get_session.commit()
+    security_manager.delete_user(user=user)
