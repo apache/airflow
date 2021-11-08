@@ -273,8 +273,6 @@ def test_resetmypasswordview_edit(request, url, client, content):
     resp = request.getfixturevalue(client).post(
         url, data={'password': 'blah', 'conf_password': 'blah'}, follow_redirects=True
     )
-    # if client == "viewer_client":
-    breakpoint()
     check_content_in_response(content, resp)
 
 

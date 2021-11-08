@@ -200,7 +200,6 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
                 continue
             view.datamodel = CustomSQLAInterface(view.datamodel.obj)
         # self.permissions = None
-        
 
     def init_role(self, role_name, perms):
         """
@@ -321,8 +320,7 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
         if not user:
             user = g.user
 
-        admin = self.find_role(self.auth_role_admin)
-        if admin in user.roles:
+        if any(role for role in user.roles if role.name == self.auth_role_admin):
             return True
 
         if (action_name, resource_name) in user.permissions:
@@ -425,9 +423,9 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
         perms = self.get_session.query(Permission).filter(~Permission.resource_id.in_(dag_resource_ids)).all()
 
         perms = [p for p in perms if p.action and p.resource]
-        
+
         # TODO: Add Generic DAG permisions
-        
+
         admin = self.find_role('Admin')
         admin.permissions = list(set(admin.permissions) | set(perms))
 
@@ -538,7 +536,11 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
             ):
                 if self.has_access(action, resource):
                     continue
-                elif dag_id and dag_id != '~' and self.has_access(action, permissions.resource_name_for_dag(dag_id)):
+                elif (
+                    dag_id
+                    and dag_id != '~'
+                    and self.has_access(action, permissions.resource_name_for_dag(dag_id))
+                ):
                     continue
                 elif action == permissions.ACTION_CAN_READ and any(self.get_readable_dags(g.user)):
                     continue

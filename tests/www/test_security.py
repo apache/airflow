@@ -211,7 +211,6 @@ class TestSecurity(unittest.TestCase):
         self.security_manager.bulk_sync_roles([{'role': role_name, 'perms': role_perms}])
 
         role = self.appbuilder.sm.find_role(role_name)
-        # breakpoint()
         assert role is not None
         assert len(role_perms) == len(role.permissions)
 
@@ -598,7 +597,9 @@ class TestSecurity(unittest.TestCase):
     def test_correct_roles_have_perms_to_read_config(self):
         roles_to_check = self.security_manager.get_all_roles()
         assert len(roles_to_check) >= 5
-        can_read_config = self.security_manager.get_permission(permissions.ACTION_CAN_READ, permissions.RESOURCE_CONFIG)
+        can_read_config = self.security_manager.get_permission(
+            permissions.ACTION_CAN_READ, permissions.RESOURCE_CONFIG
+        )
         for role in roles_to_check:
             if role.name in ["Admin", "Op"]:
                 assert can_read_config in role.permissions
