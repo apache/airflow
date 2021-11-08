@@ -263,10 +263,6 @@ class AuthorizationManager:
                 self.get_session.commit()
                 log.info(c.LOGMSG_INF_SEC_ADD_ROLE.format(name))
 
-                # All roles must have access to the homepage.
-                # website_perm = self.create_permission(permissions.ACTION_CAN_READ, permissions.RESOURCE_WEBSITE)
-                # self.add_permission_to_role(role, website_perm)
-
             except Exception as e:
                 log.error(c.LOGMSG_ERR_SEC_ADD_ROLE.format(str(e)))
                 self.get_session.rollback()
@@ -448,7 +444,7 @@ class AuthorizationManager:
             return register_user
         except Exception as e:
             log.error(c.LOGMSG_ERR_SEC_ADD_REGISTER_USER.format(str(e)))
-            self.appbuilder.get_session.rollback()
+            self.get_session.rollback()
             return None
 
     def find_register_user(self, registration_hash):

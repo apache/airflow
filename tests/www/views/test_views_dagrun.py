@@ -41,6 +41,7 @@ def client_dr_without_dag_edit(app):
             (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_DAG_RUN),
             (permissions.ACTION_CAN_DELETE, permissions.RESOURCE_DAG_RUN),
             (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_DAG_RUN),
+            (permissions.ACTION_CAN_READ, permissions.RESOURCE_WEBSITE),
         ],
     )
 
@@ -109,7 +110,7 @@ def running_dag_run(session):
 def test_delete_dagrun(session, admin_client, running_dag_run):
     composite_key = _get_appbuilder_pk_string(DagRunModelView, running_dag_run)
     assert session.query(DagRun).filter(DagRun.dag_id == running_dag_run.dag_id).count() == 1
-    admin_client.post(f"/dagrun/delete/{composite_key}", follow_redirects=True)
+    response = admin_client.post(f"/dagrun/delete/{composite_key}", follow_redirects=True)
     assert session.query(DagRun).filter(DagRun.dag_id == running_dag_run.dag_id).count() == 0
 
 

@@ -25,6 +25,7 @@ from sqlalchemy import and_, func, literal
 from sqlalchemy.engine.reflection import Inspector
 from werkzeug.security import generate_password_hash
 
+from airflow.security import permissions
 from airflow.www.fab_security.auth_manager import AuthorizationManager
 from airflow.www.fab_security.manager import BaseSecurityManager
 from airflow.www.fab_security.sqla.models import (
@@ -136,14 +137,14 @@ class SecurityManager(BaseSecurityManager):
     ):
         """Generic function to create user"""
         return self.auth.add_user(username, first_name, last_name, email, role, password, hashed_password)
-    
+
     def get_user_by_id(self, pk):
         return self.auth.get_user_by_id(pk)
 
     def find_user(self, username=None, email=None):
         """Finds user by username or email"""
         if username:
-            case_sensitive = (not self.auth_username_ci)
+            case_sensitive = not self.auth_username_ci
             return self.auth.get_user_by_username(username, case_sensitive=case_sensitive)
         elif email:
             return self.auth.get_user_by_username(email)
@@ -158,14 +159,18 @@ class SecurityManager(BaseSecurityManager):
         return self.auth.count_users()
 
     def add_role(self, name: str) -> Optional[Role]:
-        return self.auth.add_role(name)
+        role = self.auth.add_role(name)
+        if role.name != self.auth_role_public:
+            website_perm = self.create_permission(permissions.ACTION_CAN_READ, permissions.RESOURCE_WEBSITE)
+            self.add_permission_to_role(role, website_perm)
+        return role
 
     def find_role(self, name):
         return self.auth.get_role(name)
 
     def update_role(self, role_id, name: str) -> Optional[Role]:
         return self.auth.update_role(role_id, name)
-    
+
     def delete_role(self, name):
         return self.auth.delete_role(name)
 
@@ -180,7 +185,7 @@ class SecurityManager(BaseSecurityManager):
             name of the action: 'can_add','can_edit' etc...
         """
         return self.auth.create_action(name)
-    
+
     def get_action(self, name: str) -> Action:
         """
         Gets an existing action record.
@@ -233,7 +238,7 @@ class SecurityManager(BaseSecurityManager):
             name of the resource
         """
         return self.auth.delete_resource(name=name)
-    
+
     def get_all_resources(self) -> List[Resource]:
         """
         Gets all existing resource records.
@@ -266,7 +271,7 @@ class SecurityManager(BaseSecurityManager):
         :rtype: Permission
         """
         return self.auth.get_permission(action_name, resource_name)
-    
+
     def get_all_permissions(self) -> Set[Tuple[str, str]]:
         """Returns all permissions as a set of tuples with the action and resource names"""
         return self.auth.get_all_permissions()

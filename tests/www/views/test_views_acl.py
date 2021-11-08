@@ -823,7 +823,7 @@ def user_no_permissions(acl_app):
     with create_user_scope(
         acl_app,
         username="no_permissions_user",
-        role_name="no_permissions_role",
+        role_name="Public",
     ) as user:
         yield user
 

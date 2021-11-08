@@ -194,7 +194,10 @@ class TestSecurity(unittest.TestCase):
 
     def test_init_role_baseview(self):
         role_name = 'MyRole7'
-        role_perms = [('can_some_other_action', 'AnotherBaseView')]
+        role_perms = [
+            ('can_some_other_action', 'AnotherBaseView'),
+            (permissions.ACTION_CAN_READ, permissions.RESOURCE_WEBSITE),
+        ]
         with pytest.warns(
             DeprecationWarning,
             match="`init_role` has been deprecated\\. Please use `bulk_sync_roles` instead\\.",
@@ -207,7 +210,10 @@ class TestSecurity(unittest.TestCase):
 
     def test_bulk_sync_roles_baseview(self):
         role_name = 'MyRole3'
-        role_perms = [('can_some_action', 'SomeBaseView')]
+        role_perms = [
+            ('can_some_action', 'SomeBaseView'),
+            (permissions.ACTION_CAN_READ, permissions.RESOURCE_WEBSITE),
+        ]
         self.security_manager.bulk_sync_roles([{'role': role_name, 'perms': role_perms}])
 
         role = self.appbuilder.sm.find_role(role_name)
@@ -222,6 +228,7 @@ class TestSecurity(unittest.TestCase):
             ('can_add', 'SomeModelView'),
             (permissions.ACTION_CAN_EDIT, 'SomeModelView'),
             (permissions.ACTION_CAN_DELETE, 'SomeModelView'),
+            (permissions.ACTION_CAN_READ, permissions.RESOURCE_WEBSITE),
         ]
         mock_roles = [{'role': role_name, 'perms': role_perms}]
         self.security_manager.bulk_sync_roles(mock_roles)
@@ -236,7 +243,7 @@ class TestSecurity(unittest.TestCase):
 
     def test_update_and_verify_permission_role(self):
         role_name = 'Test_Role'
-        role_perms = []
+        role_perms = [(permissions.ACTION_CAN_READ, permissions.RESOURCE_WEBSITE)]
         mock_roles = [{'role': role_name, 'perms': role_perms}]
         self.security_manager.bulk_sync_roles(mock_roles)
         role = self.security_manager.find_role(role_name)
@@ -247,13 +254,11 @@ class TestSecurity(unittest.TestCase):
 
         self.security_manager.bulk_sync_roles(mock_roles)
         new_role_perms_len = len(role.permissions)
-
         assert role_perms_len == new_role_perms_len
-        assert new_role_perms_len == 1
+        assert new_role_perms_len == 2
 
     def test_verify_public_role_has_no_permissions(self):
         public = self.appbuilder.sm.find_role("Public")
-
         assert public.permissions == []
 
     def test_verify_default_anon_user_has_no_accessible_dag_ids(self):
@@ -375,7 +380,10 @@ class TestSecurity(unittest.TestCase):
             self.session.add(user)
             self.session.commit()
 
-            assert user.permissions == {(role_perm, role_vm)}
+            assert user.permissions == {
+                (role_perm, role_vm),
+                (permissions.ACTION_CAN_READ, permissions.RESOURCE_WEBSITE),
+            }
 
             user.roles = []
             self.session.add(user)
