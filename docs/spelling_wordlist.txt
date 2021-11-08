@@ -507,6 +507,7 @@ bq
 bugfix
 bugfixes
 buildType
+burstable
 bytestring
 cacert
 callables

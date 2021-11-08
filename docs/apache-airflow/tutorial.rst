@@ -447,7 +447,7 @@ Here we are passing a ``GET`` request to get the data from the URL and save it i
 .. code-block:: python
 
   from airflow.decorators import task
-  from airflow.hooks.postgres import PostgresHook
+  from airflow.providers.postgres.hooks.postgres import PostgresHook
 
 
   @task

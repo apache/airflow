@@ -28,6 +28,7 @@ with DAG(
     "example_local_to_wasb",
     schedule_interval="@once",
     start_date=datetime(2021, 1, 1),
+    catchup=False,
     default_args={"container_name": "mycontainer", "blob_name": "myblob"},
 ) as dag:
     upload = LocalFilesystemToWasbOperator(task_id="upload_file", file_path=PATH_TO_UPLOAD_FILE)

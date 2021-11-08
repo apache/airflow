@@ -560,7 +560,7 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
         }
 
     def _get_all_roles_with_permissions(self) -> Dict[str, Role]:
-        """Returns a dict with a key of role name and value of role with eagrly loaded permissions"""
+        """Returns a dict with a key of role name and value of role with early loaded permissions"""
         return {
             r.name: r
             for r in (
