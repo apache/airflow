@@ -27,14 +27,18 @@ The Databricks connection type enables the Databricks Integration.
 Authenticating to Databricks
 ----------------------------
 
-There are two ways to connect to Databricks using Airflow.
+There are several ways to connect to Databricks using Airflow.
 
 1. Use a `Personal Access Token (PAT)
    <https://docs.databricks.com/dev-tools/api/latest/authentication.html>`_
    i.e. add a token to the Airflow connection. This is the recommended method.
 2. Use Databricks login credentials
    i.e. add the username and password used to login to the Databricks account to the Airflow connection.
-
+3. Using Azure Active Directory (AAD) token generated from Azure Service Principal's ID and secret
+   (only on Azure Databricks).  Service principal could be defined as a
+   `user inside workspace <https://docs.microsoft.com/en-us/azure/databricks/dev-tools/api/latest/aad/service-prin-aad-token#--api-access-for-service-principals-that-are-azure-databricks-workspace-users-and-admins>`_, or `outside of workspace having Owner or Contributor permissions <https://docs.microsoft.com/en-us/azure/databricks/dev-tools/api/latest/aad/service-prin-aad-token#--api-access-for-service-principals-that-are-not-workspace-users>`_
+4. Using Azure Active Directory (AAD) token obtained for `Azure managed identity <https://docs.microsoft.com/en-us/azure/active-directory/managed-identities-azure-resources/how-to-use-vm-token>`_,
+   when Airflow runs on the VM with assigned managed identity (system-assigned or user-assigned)
 
 Default Connection IDs
 ----------------------
@@ -48,18 +52,33 @@ Host (required)
     Specify the Databricks workspace URL
 
 Login (optional)
-    Specify the ``username`` used to login to Databricks.
-    This is only needed if using the *Databricks login credentials* authentication method.
+    * If authentication with *Databricks login credentials* is used then specify the ``username`` used to login to Databricks.
+    * If *authentication with Azure Service Principal* is used then specify the ID of the Azure Service Principal
 
 Password (optional)
-    Specify the ``password`` used to login to Databricks.
-    This is only needed if using the *Databricks login credentials* authentication method.
+    * If authentication with *Databricks login credentials*  is used then specify the ``password`` used to login to Databricks.
+    * If *authentication with Azure Service Principal* is used then specify the secret of the Azure Service Principal
 
 Extra (optional)
     Specify the extra parameter (as json dictionary) that can be used in the Databricks connection.
-    This parameter is necessary if using the *PAT* authentication method (recommended):
+
+    Following parameter is necessary if using the *PAT* authentication method (recommended):
 
     * ``token``: Specify PAT to use.
+
+    Following parameters are necessary if using authentication with AAD token:
+
+    * ``azure_tenant_id``: ID of the Azure Active Directory tenant
+    * ``azure_resource_id``: optional Resource ID of the Azure Databricks workspace (required if Service Principal isn't
+      a user inside workspace)
+
+    Following parameters are necessary if using authentication with AAD token for Azure managed identity:
+
+    * ``use_azure_managed_identity``: required boolean flag to specify if managed identity needs to be used instead of
+      service principal
+    * ``azure_resource_id``: optional Resource ID of the Azure Databricks workspace (required if managed identity isn't
+      a user inside workspace)
+
 
 When specifying the connection using an environment variable you should specify
 it using URI syntax.
