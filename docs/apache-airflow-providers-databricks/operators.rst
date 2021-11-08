@@ -83,3 +83,10 @@ You can also use named parameters to initialize the operator and run the job.
     :language: python
     :start-after: [START howto_operator_databricks_named]
     :end-before: [END howto_operator_databricks_named]
+
+Python and PySpark jobs are supported:
+
+.. exampleinclude:: /../../airflow/providers/databricks/example_dags/example_databricks.py
+    :language: python
+    :start-after: [START howto_operator_databricks_pyspark]
+    :end-before: [END howto_operator_databricks_pyspark]
