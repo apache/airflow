@@ -91,4 +91,3 @@ Examples
 .. code-block:: bash
 
    export AIRFLOW_CONN_AZURE_DATA_FACTORY_DEFAULT='azure-data-factory://applicationid:serviceprincipalpassword@?extra__azure_data_factory__tenantId=tenant+id&extra__azure_data_factory__subscriptionId=subscription+id'
-
