@@ -19,13 +19,6 @@
 Changelog
 ---------
 
-2.0.3
-.....
-
-Misc
-~~~~
-   * ``Update API version from 2.0 to 2.1``
-
 2.0.2
 .....
 
