@@ -58,7 +58,7 @@ In order to have a repeatable installation, we also keep a set of "known-to-be-w
 for each released version e.g. :subst-code:`constraints-|version|`. This way, we keep a tested and working set of dependencies.
 
 Those "known-to-be-working" constraints are per major/minor Python version. You can use them as constraint
-files when installing Airflow from PyPI. Note that you have to specify correct Airflow 
+files when installing Airflow from PyPI. Note that you have to specify the correct Airflow
 and Python versions in the URL.
 
 You can create the URL to the file substituting the variables in the template below.
