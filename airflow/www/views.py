@@ -1558,6 +1558,13 @@ class Airflow(AirflowBaseView):
 
         dag_run = dag.get_dagrun(execution_date=execution_date)
         ti = dag_run.get_task_instance(task_id=task.task_id)
+        if not ti:
+            flash(
+                "Could not queue task instance for execution, task instance is missing",
+                "error",
+            )
+            return redirect(origin)
+
         ti.refresh_from_task(task)
 
         # Make sure the task instance can be run
