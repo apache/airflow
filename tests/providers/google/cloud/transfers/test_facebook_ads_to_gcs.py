@@ -109,5 +109,5 @@ class TestFacebookAdsReportToGcsOperator:
         )
         mock_gcs_hook.return_value.upload.assert_has_calls(
             [mock.call(bucket_name=GCS_BUCKET, object_name=GCS_OBJ_PATH_1, filename=mock.ANY, gzip=False)],
-            [mock.call(bucket_name=GCS_BUCKET, object_name=GCS_OBJ_PATH_2, filename=mock.ANY, gzip=False)],
+            [mock.call(bucket_name=GCS_BUCKET, object_name=GCS_OBJ_PATH_2, fidlename=mock.ANY, gzip=False)],
         )

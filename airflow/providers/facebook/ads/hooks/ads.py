@@ -18,12 +18,13 @@
 """This module contains Facebook Ads Reporting hooks"""
 import time
 from enum import Enum
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 
 try:
     from functools import cached_property
 except ImportError:
     from cached_property import cached_property
+
 from facebook_business.adobjects.adaccount import AdAccount
 from facebook_business.adobjects.adreportrun import AdReportRun
 from facebook_business.adobjects.adsinsights import AdsInsights
@@ -73,6 +74,7 @@ class FacebookAdsReportingHook(BaseHook):
         self.facebook_conn_id = facebook_conn_id
         self.api_version = api_version
         self.client_required_fields = ["app_id", "app_secret", "access_token", "account_id"]
+        self.is_backward = False
 
     def _get_service(self) -> FacebookAdsApi:
         """Returns Facebook Ads Client using a service account"""
@@ -97,8 +99,9 @@ class FacebookAdsReportingHook(BaseHook):
         if missing_keys:
             message = f"{missing_keys} fields are missing"
             raise AirflowException(message)
+        # Solve a way to check in bulk_facebook_report to handle list and dict return there
         if type(config["account_id"]) is not list:
-            config["account_id"] = [config["account_id"]]
+            self.is_backward = True
         return config
 
     def bulk_facebook_report(
@@ -106,7 +109,7 @@ class FacebookAdsReportingHook(BaseHook):
         params: Dict[str, Any],
         fields: List[str],
         sleep_time: int = 5,
-    ) -> Dict[str, List[AdsInsights]]:
+    ) -> Union[List[AdsInsights], Dict[str, List[AdsInsights]]]:
         """
         Pulls data from the Facebook Ads API
 
@@ -119,31 +122,47 @@ class FacebookAdsReportingHook(BaseHook):
         :param sleep_time: Time to sleep when async call is happening
         :type sleep_time: int
 
-        :return: Facebook Ads API response, converted to Facebook Ads Row objects
-        :rtype: Dict[str, List[AdsInsights]]
+        :return: Facebook Ads API response,
+            converted to Facebook Ads Row objects regarding given Account ID type
+        :rtype: List[AdsInsights] or Dict[str, List[AdsInsights]]
         """
-        all_insights = {}
         api = self._get_service()
-        for account_id in self.facebook_ads_config["account_id"]:
-            ad_account = AdAccount(account_id, api=api)
-            _async = ad_account.get_insights(params=params, fields=fields, is_async=True)
-            while True:
-                request = _async.api_get()
-                async_status = request[AdReportRun.Field.async_status]
-                percent = request[AdReportRun.Field.async_percent_completion]
-                self.log.info("%s %s completed, async_status: %s", percent, "%", async_status)
-                if async_status == JobStatus.COMPLETED.value:
-                    self.log.info("Job run completed")
-                    break
-                if async_status in [JobStatus.SKIPPED.value, JobStatus.FAILED.value]:
-                    message = f"{async_status}. Please retry."
-                    raise AirflowException(message)
-                time.sleep(sleep_time)
-            report_run_id = _async.api_get()["report_run_id"]
-            report_object = AdReportRun(report_run_id, api=api)
-            self.log.info("Extracting data from returned Facebook Ads Iterators")
-            all_insights[account_id] = list(report_object.get_insights())
-            self.log.info(
-                "%s Account Id used to extract data from Facebook Ads Iterators successfully", account_id
+        if self.is_backward:
+            return self._facebook_report(
+                account_id=self.facebook_ads_config["account_id"],
+                api=api,
+                params=params,
+                fields=fields,
+                sleep_time=sleep_time,
             )
-        return all_insights
+        else:
+            all_insights = {}
+            for account_id in self.facebook_ads_config["account_id"]:
+                all_insights[account_id] = self._facebook_report(
+                    account_id=account_id, api=api, params=params, fields=fields, sleep_time=sleep_time
+                )
+                self.log.info(
+                    "%s Account Id used to extract data from Facebook Ads Iterators successfully", account_id
+                )
+            return all_insights
+
+    def _facebook_report(self, account_id, api, params, fields, sleep_time) -> List[AdsInsights]:
+        ad_account = AdAccount(account_id, api=api)
+        _async = ad_account.get_insights(params=params, fields=fields, is_async=True)
+        while True:
+            request = _async.api_get()
+            async_status = request[AdReportRun.Field.async_status]
+            percent = request[AdReportRun.Field.async_percent_completion]
+            self.log.info("%s %s completed, async_status: %s", percent, "%", async_status)
+            if async_status == JobStatus.COMPLETED.value:
+                self.log.info("Job run completed")
+                break
+            if async_status in [JobStatus.SKIPPED.value, JobStatus.FAILED.value]:
+                message = f"{async_status}. Please retry."
+                raise AirflowException(message)
+            time.sleep(sleep_time)
+        report_run_id = _async.api_get()["report_run_id"]
+        report_object = AdReportRun(report_run_id, api=api)
+        self.log.info("Extracting data from returned Facebook Ads Iterators")
+        insights = report_object.get_insights()
+        return list(insights)

@@ -145,36 +145,53 @@ class FacebookAdsReportToGcsOperator(BaseOperator):
             facebook_conn_id=self.facebook_conn_id, api_version=self.api_version
         )
         bulk_report = service.bulk_facebook_report(params=self.parameters, fields=self.fields)
-        converted_rows_with_action = self._generate_rows_with_action()
-        for account_id in bulk_report.keys():
-            rows = bulk_report.get(account_id, None)
-            if rows:
-                converted_rows_with_action = self._prepare_rows_for_upload(
-                    rows=rows, converted_rows_with_action=converted_rows_with_action, account_id=account_id
-                )
-            else:
-                self.log.warning("account_id: %s returned empty report", str(account_id))
 
+        if isinstance(bulk_report, list):
+            converted_rows_with_action = self._generate_rows_with_action(False)
+            converted_rows_with_action = self._prepare_rows_for_upload(
+                rows=bulk_report, converted_rows_with_action=converted_rows_with_action, account_id=None
+            )
+        elif isinstance(bulk_report, dict):
+            converted_rows_with_action = self._generate_rows_with_action(True)
+            for account_id in bulk_report.keys():
+                rows = bulk_report.get(account_id, [])
+                if rows:
+                    converted_rows_with_action = self._prepare_rows_for_upload(
+                        rows=rows,
+                        converted_rows_with_action=converted_rows_with_action,
+                        account_id=account_id,
+                    )
+                else:
+                    self.log.warning("account_id: %s returned empty report", str(account_id))
+        else:
+            message = "Facebook Ads Hook returned different type than expected"
+            raise AirflowException(message)
         total_row_count = self._decide_and_flush(converted_rows_with_action=converted_rows_with_action)
         self.log.info("Facebook Returned %s data points in total: ", total_row_count)
 
-    def _generate_rows_with_action(self):
-        if self.upload_as_account:
+    def _generate_rows_with_action(self, type_check: bool):
+        if type_check and self.upload_as_account:
             return {FlushAction.EXPORT_EVERY_ACCOUNT: []}
         else:
             return {FlushAction.EXPORT_ONCE: []}
 
     def _prepare_rows_for_upload(
-        self, rows: List[AdsInsights], converted_rows_with_action: Dict[FlushAction, list], account_id: str
+        self,
+        rows: List[AdsInsights],
+        converted_rows_with_action: Dict[FlushAction, list],
+        account_id: Optional[str],
     ):
         converted_rows = [dict(row) for row in rows]
-        if self.upload_as_account:
+        if account_id is not None and self.upload_as_account:
             converted_rows_with_action[FlushAction.EXPORT_EVERY_ACCOUNT].append(
                 {"account_id": account_id, "converted_rows": converted_rows}
             )
+            self.log.info(
+                "Facebook Returned %s data points for account_id: %s", len(converted_rows), account_id
+            )
         else:
             converted_rows_with_action[FlushAction.EXPORT_ONCE].extend(converted_rows)
-        self.log.info("Facebook Returned %s data points for account_id %s: ", len(converted_rows), account_id)
+            self.log.info("Facebook Returned %s data points ", len(converted_rows))
         return converted_rows_with_action
 
     def _decide_and_flush(self, converted_rows_with_action: Dict[FlushAction, list]):
