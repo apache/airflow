@@ -18,6 +18,7 @@
 """
 Example use of MsSql related operators.
 """
+# [START mssql_operator_howto_guide]
 
 from datetime import datetime
 
@@ -131,3 +132,4 @@ get_countries_from_continent = MsSqlOperator(
     >> get_all_description
     >> get_countries_from_continent
 )
+# [END mssql_operator_howto_guide]
