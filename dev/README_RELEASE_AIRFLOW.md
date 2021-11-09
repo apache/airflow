@@ -233,7 +233,14 @@ git checkout v${BRANCH_PREFIX}-stable
 git push --set-upstream origin v${BRANCH_PREFIX}-stable
 ````
 
-### Update coverage branches
+### Add branches in the main branch
+
+You have to do those steps in the `main` branch of the repository:
+
+```bash
+git checkout main
+git pull
+```
 
 Add ``vX-Y-stable`` and ``vX-Y-test`` branches in ``codecov.yml`` (there are 2 places in the file!)
 
@@ -248,9 +255,7 @@ Add ``vX-Y-stable`` and ``vX-Y-test`` branches in ``codecov.yml`` (there are 2 p
       - v2-2-test
 ```
 
-#### Add protected branches to .asf.yaml
-
-Add vX-Y-stable to .asf.yaml (X-Y is your new branch)
+Add vX-Y-stable to `.asf.yaml` (X-Y is your new branch)
 
 ```yaml
 protected_branches:
@@ -264,7 +269,7 @@ protected_branches:
 
 ```
 
-### Create constraints orphan branch
+### Create constraints branch out of the constraints-main one
 
    ```shell script
    # First clone the repo
