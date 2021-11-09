@@ -19,7 +19,7 @@ from functools import wraps
 from typing import Any, Callable, Container, Dict, Optional, TypeVar, cast
 
 from pendulum.parsing import ParserError
-from sqlalchemy import desc
+from sqlalchemy import desc, text
 from sqlalchemy.orm.query import Query
 
 from airflow.api_connexion.exceptions import BadRequest
@@ -107,7 +107,7 @@ def apply_sorting(
     if to_replace:
         lstriped_orderby = to_replace.get(lstriped_orderby, lstriped_orderby)
     if order_by[0] == "-":
-        order_by = desc(lstriped_orderby)
+        order_by = desc(text(lstriped_orderby))
     else:
-        order_by = lstriped_orderby
+        order_by = text(lstriped_orderby)
     return query.order_by(order_by)
