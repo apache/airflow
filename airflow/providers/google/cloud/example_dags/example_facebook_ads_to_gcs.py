@@ -19,10 +19,12 @@
 Example Airflow DAG that shows how to use FacebookAdsReportToGcsOperator.
 """
 import os
+from datetime import datetime
 
 from facebook_business.adobjects.adsinsights import AdsInsights
 
 from airflow import models
+from airflow.models.baseoperator import chain
 from airflow.providers.google.cloud.operators.bigquery import (
     BigQueryCreateEmptyDatasetOperator,
     BigQueryCreateEmptyTableOperator,
@@ -32,7 +34,6 @@ from airflow.providers.google.cloud.operators.bigquery import (
 from airflow.providers.google.cloud.operators.gcs import GCSCreateBucketOperator, GCSDeleteBucketOperator
 from airflow.providers.google.cloud.transfers.facebook_ads_to_gcs import FacebookAdsReportToGcsOperator
 from airflow.providers.google.cloud.transfers.gcs_to_bigquery import GCSToBigQueryOperator
-from airflow.utils.dates import days_ago
 
 # [START howto_GCS_env_variables]
 GCP_PROJECT_ID = os.environ.get("GCP_PROJECT_ID", "free-tier-1997")
@@ -57,7 +58,8 @@ PARAMETERS = {'level': 'ad', 'date_preset': 'yesterday'}
 with models.DAG(
     "example_facebook_ads_to_gcs",
     schedule_interval='@once',  # Override to match your needs
-    start_date=days_ago(1),
+    start_date=datetime(2021, 1, 1),
+    catchup=False,
 ) as dag:
 
     create_bucket = GCSCreateBucketOperator(
@@ -87,7 +89,6 @@ with models.DAG(
     # [START howto_operator_facebook_ads_to_gcs]
     run_operator = FacebookAdsReportToGcsOperator(
         task_id='run_fetch_data',
-        start_date=days_ago(2),
         owner='airflow',
         bucket_name=GCS_BUCKET,
         parameters=PARAMETERS,
@@ -127,5 +128,13 @@ with models.DAG(
         delete_contents=True,
     )
 
-    create_bucket >> create_dataset >> create_table >> run_operator >> load_csv
-    load_csv >> read_data_from_gcs_many_chunks >> delete_bucket >> delete_dataset
+    chain(
+        create_bucket,
+        create_dataset,
+        create_table,
+        run_operator,
+        load_csv,
+        read_data_from_gcs_many_chunks,
+        delete_bucket,
+        delete_dataset,
+    )
