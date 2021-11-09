@@ -76,7 +76,7 @@ function testing::get_maximum_parallel_test_jobs() {
         echo "${COLOR_YELLOW}Maximum parallel test jobs forced via MAX_PARALLEL_TEST_JOBS = ${MAX_PARALLEL_TEST_JOBS}${COLOR_RESET}"
         echo
     else
-        MAX_PARALLEL_TEST_JOBS=1
+        MAX_PARALLEL_TEST_JOBS=${CPUS_AVAILABLE_FOR_DOCKER}
         echo
         echo "${COLOR_YELLOW}Maximum parallel test jobs set to number of CPUs available for Docker = ${MAX_PARALLEL_TEST_JOBS}${COLOR_RESET}"
         echo
