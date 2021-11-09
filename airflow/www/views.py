@@ -3942,7 +3942,7 @@ class DagRunModelView(AirflowPrivilegeVerifierModelView):
         'end_date',
         'external_trigger',
         'conf',
-        'duration'
+        'duration',
     ]
     search_columns = [
         'state',
@@ -3959,7 +3959,7 @@ class DagRunModelView(AirflowPrivilegeVerifierModelView):
     }
     edit_columns = ['state', 'dag_id', 'execution_date', 'start_date', 'end_date', 'run_id', 'conf']
 
-    #duration is not a column, its derived
+    # duration is not a DB column, its derived
     order_columns = [
         'state',
         'dag_id',
@@ -3986,7 +3986,7 @@ class DagRunModelView(AirflowPrivilegeVerifierModelView):
 
         difference = 0
         if start_date and end_date:
-            difference =  (end_date - start_date).total_seconds()
+            difference = (end_date - start_date).total_seconds()
 
         return difference
 
@@ -3999,7 +3999,7 @@ class DagRunModelView(AirflowPrivilegeVerifierModelView):
         'dag_id': wwwutils.dag_link,
         'run_id': wwwutils.dag_run_link,
         'conf': wwwutils.json_f('conf'),
-        'duration': duration_f
+        'duration': duration_f,
     }
 
     @action('muldelete', "Delete", "Are you sure you want to delete selected records?", single=False)
