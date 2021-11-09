@@ -66,27 +66,14 @@ Your ``dags/create_table.sql`` should look like this:
     );
 
 
-
 Inserting data into a MSSQL database table
 ---------------------------------------------
 We can then create a MsSqlOperator task that populate the ``Users`` table.
 
-.. code-block:: python
-
-  populate_user_table = MsSqlOperator(
-    task_id='populate_user_table',
-    mssql_conn_id='airflow_mssql',
-    sql=r"""
-            INSERT INTO Users (username, description)
-            VALUES ( 'Danny', 'Musician');
-            INSERT INTO Users (username, description)
-            VALUES ( 'Simone', 'Chef');
-            INSERT INTO Users (username, description)
-            VALUES ( 'Lily', 'Florist');
-            INSERT INTO Users (username, description)
-            VALUES ( 'Tim', 'Pet shop owner');
-            """,
-)
+.. exampleinclude:: /../../airflow/providers/microsoft/mssql/example_dags/example_mssql.py
+    :language: python
+    :start-after: [START mssql_operator_howto_guide_populate_user_table]
+    :end-before: [END mssql_operator_howto_guide_populate_user_table]
 
 
 Fetching records from your MSSQL database table
@@ -94,14 +81,10 @@ Fetching records from your MSSQL database table
 
 Fetching records from your MSSQL database table can be as simple as:
 
-.. code-block:: python
-
-  get_all_countries = MsSqlOperator(
-    task_id="get_all_countries",
-    mssql_conn_id='airflow_mssql',
-    sql=r"""SELECT * FROM Country;""",
-)
-
+.. exampleinclude:: /../../airflow/providers/microsoft/mssql/example_dags/example_mssql.py
+    :language: python
+    :start-after: [START mssql_operator_howto_guide_get_all_countries]
+    :end-before: [END mssql_operator_howto_guide_get_all_countries]
 
 
 Passing Parameters into MsSqlOperator
@@ -112,14 +95,12 @@ SQL requests during runtime.
 
 To find the countries in Asian continent:
 
-.. code-block:: python
+.. exampleinclude:: /../../airflow/providers/microsoft/mssql/example_dags/example_mssql.py
+    :language: python
+    :start-after: [START mssql_operator_howto_guide_params_passing_get_query]
+    :end-before: [END mssql_operator_howto_guide_params_passing_get_query]
 
-  get_countries_from_continent = MsSqlOperator(
-    task_id="get_countries_from_continent",
-    mssql_conn_id='airflow_mssql',
-    sql=r"""SELECT * FROM Country where {{ params.column }}='{{ params.value }}';""",
-    params={"column": "CONVERT(VARCHAR, continent)", "value": "Asia"},
-)
+
 The complete MSSQL Operator DAG
 ----------------------------------
 

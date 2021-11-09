@@ -117,12 +117,14 @@ get_all_description = MsSqlOperator(
 )
 # [END mssql_operator_howto_guide_get_all_description]
 
+# [START mssql_operator_howto_guide_params_passing_get_query]
 get_countries_from_continent = MsSqlOperator(
     task_id="get_countries_from_continent",
     mssql_conn_id='airflow_mssql',
     sql=r"""SELECT * FROM Country where {{ params.column }}='{{ params.value }}';""",
     params={"column": "CONVERT(VARCHAR, continent)", "value": "Asia"},
 )
+# [END mssql_operator_howto_guide_params_passing_get_query]
 (
     create_table_mssql_task
     >> insert_mssql_hook()
