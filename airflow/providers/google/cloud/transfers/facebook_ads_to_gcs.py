@@ -79,6 +79,7 @@ class FacebookAdsReportToGcsOperator(BaseOperator):
     :param gzip: Option to compress local file or file data for upload
     :type gzip: bool
     :param upload_as_account: Option to export file with account_id
+        This parameter only works if Account Id sets as array in Facebook Connection
         If set as True, each file will be exported in a separate file that has a prefix of account_id
         If set as False, a single file will be exported for all account_id
     :type upload_as_account: bool
