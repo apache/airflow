@@ -66,13 +66,6 @@ class AzureContainerVolumeHook(BaseHook):
                 'password': 'Azure Secret',
             },
             "placeholders": {
-                'extra': json.dumps(
-                    {
-                        "key_path": "path to json file for auth",
-                        "key_json": "specifies json dict for auth",
-                    },
-                    indent=1,
-                ),
                 'login': 'client_id (token credentials auth)',
                 'password': 'secret (token credentials auth)',
                 'extra__azure_container_volume__connection_string': 'connection string auth',
