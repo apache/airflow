@@ -48,8 +48,7 @@ Port (required)
 
 Extra (optional)
     Specify the extra parameters (as json dictionary) that can be used in MSSQL
-    connection. 
+    connection.
 
     More details on all MSSQL parameters supported can be found in
     `MSSQL documentation <https://docs.microsoft.com/en-us/sql/connect/jdbc/setting-the-connection-properties?view=sql-server-ver15>`_.
-
