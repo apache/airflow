@@ -66,8 +66,9 @@ const DagRunBar = ({
           alignItems="center"
           px="1px"
           zIndex={1}
+          data-testid="run"
         >
-          {run.runType === 'manual' && <MdPlayArrow size="8px" color="white" />}
+          {run.runType === 'manual' && <MdPlayArrow size="8px" color="white" data-testid="manual-run" />}
         </Flex>
       </Tooltip>
     </Flex>

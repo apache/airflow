@@ -42,14 +42,14 @@ const formatData = (data) => {
   formattedData = camelcaseKeys(formattedData, { deep: true });
   // make sure dagRuns are sorted by date
   formattedData.dagRuns = formattedData.dagRuns
-    .sort((a, b) => new Date(a.executionDate) - new Date(b.executionDate));
+    .sort((a, b) => new Date(a.dataIntervalStart) - new Date(b.dataIntervalStart));
   return formattedData;
 };
 
 const useTreeData = () => {
   const [data, setData] = useState(formatData(treeData));
   const defaultIsOpen = isPaused !== 'True' && !JSON.parse(localStorage.getItem('disableAutoRefresh')) && areActiveRuns(data.dagRuns);
-  const { isOpen, onToggle } = useDisclosure({ defaultIsOpen });
+  const { isOpen: isRefreshOn, onToggle } = useDisclosure({ defaultIsOpen });
 
   const handleRefresh = useCallback(async () => {
     try {
@@ -69,7 +69,7 @@ const useTreeData = () => {
   }, [data, onToggle]);
 
   const onToggleRefresh = () => {
-    if (isOpen) {
+    if (isRefreshOn) {
       localStorage.setItem('disableAutoRefresh', 'true');
     } else {
       localStorage.removeItem('disableAutoRefresh');
@@ -79,17 +79,17 @@ const useTreeData = () => {
 
   useEffect(() => {
     let refreshInterval;
-    if (isOpen) {
+    if (isRefreshOn) {
       refreshInterval = setInterval(handleRefresh, autoRefreshInterval * 1000);
     } else {
       clearInterval(refreshInterval);
     }
     return () => clearInterval(refreshInterval);
-  }, [isOpen, handleRefresh]);
+  }, [isRefreshOn, handleRefresh]);
 
   return {
     data,
-    refreshOn: isOpen,
+    isRefreshOn,
     onToggleRefresh,
   };
 };

@@ -1207,6 +1207,9 @@ commands:
     # Check JS code in .js, .jsx, and .html files, report any errors/warnings and fix them if possible
     yarn run lint:fix
 
+    # Runs tests for all .test.js and .test.jsx files
+    yarn test
+
 React, JSX and Chakra
 -----------------------------
 

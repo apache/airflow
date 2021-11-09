@@ -36,7 +36,7 @@ import DagRuns from './dagRuns';
 const Tree = () => {
   const containerRef = useRef();
   const scrollRef = useRef();
-  const { data: { groups = {} }, refreshOn, onToggleRefresh } = useTreeData();
+  const { data: { groups = {} }, isRefreshOn, onToggleRefresh } = useTreeData();
 
   useEffect(() => {
     // Set initial scroll to far right if it is scrollable
@@ -49,11 +49,11 @@ const Tree = () => {
   return (
     <Box position="relative">
       <FormControl display="flex" alignItems="center" justifyContent="flex-end" width="100%">
-        {refreshOn && <Spinner color="blue.500" speed="1s" mr="4px" />}
+        {isRefreshOn && <Spinner color="blue.500" speed="1s" mr="4px" />}
         <FormLabel htmlFor="auto-refresh" mb={0} fontSize="12px" fontWeight="normal">
           Auto-refresh
         </FormLabel>
-        <Switch id="auto-refresh" onChange={onToggleRefresh} isChecked={refreshOn} size="lg" />
+        <Switch id="auto-refresh" onChange={onToggleRefresh} isChecked={isRefreshOn} size="lg" />
       </FormControl>
       <Text transform="rotate(-90deg)" position="absolute" left="-6px" top="130px">Runs</Text>
       <Text transform="rotate(-90deg)" position="absolute" left="-6px" top="190px">Tasks</Text>

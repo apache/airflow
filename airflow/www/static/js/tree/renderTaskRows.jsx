@@ -76,7 +76,7 @@ const TaskName = ({
         {taskName}
       </Text>
       {isGroup && (
-        isOpen ? <FiChevronDown /> : <FiChevronUp />
+        isOpen ? <FiChevronDown data-testid="open-group" /> : <FiChevronUp data-testid="closed-group" />
       )}
     </Flex>
   </Box>
@@ -96,7 +96,7 @@ const TaskInstances = ({ task, containerRef, dagRuns }) => (
             group={task}
           />
         )
-        : <Box key={`${run.runId}-${task.id}`} width="18px" />;
+        : <Box key={`${run.runId}-${task.id}`} width="18px" data-testid="blank-task" />;
     })}
   </Flex>
 );
