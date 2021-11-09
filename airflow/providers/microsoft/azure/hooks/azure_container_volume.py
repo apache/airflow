@@ -57,8 +57,6 @@ class AzureContainerVolumeHook(BaseHook):
     @staticmethod
     def get_ui_field_behaviour() -> Dict:
         """Returns custom field behaviour"""
-        import json
-
         return {
             "hidden_fields": ['schema', 'port', 'host', "extra"],
             "relabeling": {
