@@ -38,6 +38,11 @@
   - [Publish documentation](#publish-documentation)
   - [Notify developers of release](#notify-developers-of-release)
   - [Update Announcements page](#update-announcements-page)
+  - [Create release on GitHub](#create-release-on-github)
+  - [Close the milestone](#close-the-milestone)
+  - [Announce the release on the community slack](#announce-the-release-on-the-community-slack)
+  - [Tweet about the release](#tweet-about-the-release)
+  - [Bump chart version in Chart.yaml](#bump-chart-version-in-chartyaml)
   - [Remove old releases](#remove-old-releases)
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
@@ -499,6 +504,7 @@ svn checkout https://dist.apache.org/repos/dist/release/airflow airflow-release
 
 # Create new folder for the release
 cd airflow-release/helm-chart
+export AIRFLOW_SVN_RELEASE_HELM=$(pwd)
 svn mkdir ${VERSION}
 cd ${VERSION}
 
@@ -518,7 +524,7 @@ Create and push the release tag:
 ```shell
 cd "${AIRFLOW_REPO_ROOT}"
 git checkout helm-chart/${RC}
-git tag -s helm-chart/${VERSION}
+git tag -s helm-chart/${VERSION} -m "Apache Airflow Helm Chart ${VERSION}"
 git push origin helm-chart/${VERSION}
 ```
 
@@ -529,11 +535,12 @@ In our cases, documentation for the released versions is published in a separate
 build tools are available in the `apache/airflow` repository, so you have to coordinate
 between the two repositories to be able to build the documentation.
 
-- First, copy the airflow-site repository and set the environment variable ``AIRFLOW_SITE_DIRECTORY``.
+- First, copy the airflow-site repository, create branch, and set the environment variable ``AIRFLOW_SITE_DIRECTORY``.
 
     ```shell
     git clone https://github.com/apache/airflow-site.git airflow-site
     cd airflow-site
+    git checkout -b helm-${VERSION}-docs
     export AIRFLOW_SITE_DIRECTORY="$(pwd)"
     ```
 
@@ -543,20 +550,6 @@ between the two repositories to be able to build the documentation.
     cd "${AIRFLOW_REPO_ROOT}"
     git checkout helm-chart/${VERSION}
     ./breeze build-docs -- --package-filter helm-chart --for-production
-    ```
-
-- Update `index.yaml`
-
-  We upload `index.yaml` to the Airflow website to allow: `helm repo add https://airflow.apache.org`.
-
-    ```shell
-    cd "${AIRFLOW_SITE_DIRECTORY}"
-    curl https://dist.apache.org/repos/dist/dev/airflow/helm-chart/${RC}/index.yaml -o index.yaml
-    https://dist.apache.org/repos/dist/dev/airflow/helm-chart/${VERSION}
-    sed -i "s|https://dist.apache.org/repos/dist/dev/airflow/helm-chart/$RC|https://downloads.apache.org/airflow/helm-chart/$VERSION|" index.yaml
-
-    git commit -m "Add documentation for Apache Airflow Helm Chart ${VERSION}"
-    git push
     ```
 
 - Now you can preview the documentation.
@@ -569,14 +562,33 @@ between the two repositories to be able to build the documentation.
 
     ```shell
     ./docs/publish_docs.py --package-filter helm-chart
+    ```
+
+- Update `index.yaml`
+
+  Regenerate `index.yaml` so it can be added to the Airflow website to allow: `helm repo add https://airflow.apache.org`.
+
+    ```shell
     cd "${AIRFLOW_SITE_DIRECTORY}"
+    curl https://dist.apache.org/repos/dist/dev/airflow/helm-chart/$RC/index.yaml -o index.yaml
+    cp ${AIRFLOW_SVN_RELEASE_HELM}/${VERSION}/airflow-${VERSION}.tgz .
+    helm repo index --merge ./index.yaml . --url "https://downloads.apache.org/airflow/helm-chart/$VERSION"
+    rm airflow-${VERSION}.tgz
+    mv index.yaml landing-pages/site/static/index.yaml
+    ```
+
+- Commit new docs, push, and open PR
+
+    ```shell
+    git add .
     git commit -m "Add documentation for Apache Airflow Helm Chart ${VERSION}"
     git push
+    # and finally open a PR
     ```
 
 ## Notify developers of release
 
-- Notify users@airflow.apache.org (cc'ing dev@airflow.apache.org and announce@apache.org) that
+- Notify users@airflow.apache.org (cc'ing dev@airflow.apache.org) that
 the artifacts have been published:
 
 Subject:
@@ -597,7 +609,7 @@ I am pleased to announce that we have released Apache Airflow Helm chart $VERSIO
 
 The source release, as well as the "binary" Helm Chart release, are available:
 
-📦   Official Sources: https://airflow.apache.org/helm-chart/installing-helm-chart-from-sources.html
+📦   Official Sources: https://airflow.apache.org/docs/helm-chart/$VERSION/installing-helm-chart-from-sources.html
 📦   ArtifactHub: https://artifacthub.io/packages/helm/apache-airflow/airflow
 📚   Docs: https://airflow.apache.org/docs/helm-chart/$VERSION/
 🚀   Quick Start Installation Guide: https://airflow.apache.org/docs/helm-chart/$VERSION/quick-start.html
@@ -610,9 +622,58 @@ Cheers,
 EOF
 ```
 
+Send the same email to announce@apache.org, except change the opening line to `Dear community,`.
+It is more reliable to set it via the web ui at https://lists.apache.org/list.html?announce@apache.org
+
 ## Update Announcements page
 
 Update "Announcements" page at the [Official Airflow website](https://airflow.apache.org/announcements/)
+
+## Create release on GitHub
+
+Create a new release on GitHub with the changelog and assets from the release svn.
+
+## Close the milestone
+
+Close the milestone on GitHub. Create the next one if it hasn't been already (it probably has been).
+
+## Announce the release on the community slack
+
+Post this in the #announce channel:
+
+```shell
+cat <<EOF
+We’ve just released Apache Airflow Helm Chart ${VERSION} 🎉
+
+📦 ArtifactHub: https://artifacthub.io/packages/helm/apache-airflow/airflow
+📚 Docs: https://airflow.apache.org/docs/helm-chart/$VERSION/
+🚀 Quick Start Installation Guide: https://airflow.apache.org/docs/helm-chart/$VERSION/quick-start.html
+🛠 Changelog: https://airflow.apache.org/docs/helm-chart/$VERSION/changelog.html
+
+Thanks to all the contributors who made this possible.
+EOF
+```
+
+## Tweet about the release
+
+Tweet about the release:
+
+```shell
+cat <<EOF
+We've just released Apache Airflow Helm chart $VERSION 🎉
+
+📦 ArtifactHub: https://artifacthub.io/packages/helm/apache-airflow/airflow
+📚 Docs: https://airflow.apache.org/docs/helm-chart/$VERSION/
+🛠️ Changelog: https://airflow.apache.org/docs/helm-chart/$VERSION/changelog.html
+
+Thanks to all the contributors who made this possible.
+EOF
+```
+
+## Bump chart version in Chart.yaml
+
+Bump the chart version to the next version in `chart/Chart.yaml` in main.
+
 
 ## Remove old releases
 
