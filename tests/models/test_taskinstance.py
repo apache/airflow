@@ -1946,7 +1946,6 @@ class TestTaskInstance:
                             '--subdir',
                             __file__,
                         ],
-                        'image': ':',
                         'name': 'base',
                         'env': [{'name': 'AIRFLOW_IS_K8S_EXECUTOR_POD', 'value': 'True'}],
                     }

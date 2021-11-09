@@ -17,7 +17,6 @@
 import os
 import re
 import sys
-import unittest
 import uuid
 from unittest import mock
 
@@ -38,8 +37,8 @@ from airflow.kubernetes.pod_generator import (
 from airflow.kubernetes.secret import Secret
 
 
-class TestPodGenerator(unittest.TestCase):
-    def setUp(self):
+class TestPodGenerator:
+    def setup_method(self):
         self.static_uuid = uuid.UUID('cf4a56d2-8101-4217-b027-2af6216feb48')
         self.deserialize_result = {
             'apiVersion': 'v1',
@@ -395,10 +394,17 @@ class TestPodGenerator(unittest.TestCase):
 
         assert result_dict == expected_dict
 
+    @pytest.mark.parametrize(
+        'config_image, expected_image',
+        [
+            pytest.param('my_image:my_tag', 'my_image:my_tag', id='image_in_cfg'),
+            pytest.param(None, 'busybox', id='no_image_in_cfg'),
+        ],
+    )
     @mock.patch('uuid.uuid4')
-    def test_construct_pod(self, mock_uuid):
-        path = sys.path[0] + '/tests/kubernetes/pod_generator_base_with_secrets.yaml'
-        worker_config = PodGenerator.deserialize_model_file(path)
+    def test_construct_pod(self, mock_uuid, config_image, expected_image):
+        template_file = sys.path[0] + '/tests/kubernetes/pod_generator_base_with_secrets.yaml'
+        worker_config = PodGenerator.deserialize_model_file(template_file)
         mock_uuid.return_value = self.static_uuid
         executor_config = k8s.V1Pod(
             spec=k8s.V1PodSpec(
@@ -414,7 +420,7 @@ class TestPodGenerator(unittest.TestCase):
             dag_id=self.dag_id,
             task_id=self.task_id,
             pod_id='pod_id',
-            kube_image='airflow_image',
+            kube_image=config_image,
             try_number=self.try_number,
             date=self.execution_date,
             args=['command'],
@@ -430,7 +436,7 @@ class TestPodGenerator(unittest.TestCase):
         expected.metadata.name = 'pod_id.' + self.static_uuid.hex
         expected.metadata.namespace = 'test_namespace'
         expected.spec.containers[0].args = ['command']
-        expected.spec.containers[0].image = 'airflow_image'
+        expected.spec.containers[0].image = expected_image
         expected.spec.containers[0].resources = {'limits': {'cpu': '1m', 'memory': '1G'}}
         expected.spec.containers[0].env.append(
             k8s.V1EnvVar(
