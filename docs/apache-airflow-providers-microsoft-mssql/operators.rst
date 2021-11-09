@@ -69,7 +69,7 @@ Your ``dags/create_table.sql`` should look like this:
 
 Inserting data into a MSSQL database table
 ---------------------------------------------
-We can then create a MsSqlOperator task that populate the ``Users`` table. 
+We can then create a MsSqlOperator task that populate the ``Users`` table.
 
 .. code-block:: python
 
