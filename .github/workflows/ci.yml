@@ -223,7 +223,9 @@ jobs:
     name: React UI tests
     runs-on: ${{ fromJson(needs.build-info.outputs.runsOn) }}
     needs: [build-info]
-    if: needs.build-info.outputs.run-ui-tests == 'true'
+    if: >
+      needs.build-info.outputs.run-ui-tests == 'true' &&
+      needs.build-info.outputs.default-branch == 'main'
     steps:
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
         uses: actions/checkout@v2
