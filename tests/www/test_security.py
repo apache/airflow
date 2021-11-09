@@ -21,7 +21,6 @@ from unittest import mock
 
 import pytest
 from flask_appbuilder import SQLA, Model, expose, has_access
-from flask_appbuilder.security.sqla import models as sqla_models
 from flask_appbuilder.views import BaseView, ModelView
 from sqlalchemy import Column, Date, Float, Integer, String
 
@@ -265,11 +264,7 @@ def test_bulk_sync_roles_modelview(app, security_manager, role):
     assert len(_role.permissions) == len(params['permissions'])
 
     # Check short circuit works
-<<<<<<< HEAD
     with assert_queries_count(2):  # One for Permission, one for roles
-=======
-    with assert_queries_count(2):  # One for permissionview, one for roles
->>>>>>> Incorporated review comments
         security_manager.bulk_sync_roles(params['mock_roles'])
 
 
@@ -281,11 +276,7 @@ def test_bulk_sync_roles_modelview(app, security_manager, role):
 def test_update_and_verify_permission_role(app, security_manager, role):
     _role, params = role
     perm = security_manager.get_permission(permissions.ACTION_CAN_EDIT, permissions.RESOURCE_ROLE)
-<<<<<<< HEAD
     security_manager.add_permission_to_role(_role, perm)
-=======
-    security_manager.add_permission_role(_role, perm)
->>>>>>> Incorporated review comments
     role_perms_len = len(_role.permissions)
 
     security_manager.bulk_sync_roles(params['mock_roles'])
@@ -419,9 +410,7 @@ def test_get_user_roles_for_anonymous_user(app, security_manager):
 
         perms_views = set()
         for role in security_manager.get_user_roles(user):
-            perms_views.update(
-                {(perm.action.name, perm.resource.name) for perm in role.permissions}
-            )
+            perms_views.update({(perm.action.name, perm.resource.name) for perm in role.permissions})
         assert perms_views == viewer_role_perms
 
 
@@ -587,15 +576,9 @@ def test_all_dag_access_doesnt_give_non_dag_access(app, security_manager):
 
 
 def test_access_control_with_invalid_permission(app, security_manager):
-<<<<<<< HEAD
     invalid_actions = [
         'can_varimport',  # a real action, but not a member of DAG_ACTIONS
         'can_eat_pudding',  # clearly not a real action
-=======
-    invalid_permissions = [
-        'can_varimport',  # a real permission, but not a member of DAG_ACTIONS
-        'can_eat_pudding',  # clearly not a real permission
->>>>>>> Incorporated review comments
     ]
     username = "LaUser"
     rolename = "team-a"
@@ -604,11 +587,7 @@ def test_access_control_with_invalid_permission(app, security_manager):
         username=username,
         role_name=rolename,
     ):
-<<<<<<< HEAD
         for action in invalid_actions:
-=======
-        for permission in invalid_permissions:
->>>>>>> Incorporated review comments
             with pytest.raises(AirflowException) as ctx:
                 security_manager._sync_dag_view_permissions(
                     'access_control_test', access_control={rolename: {action}}
