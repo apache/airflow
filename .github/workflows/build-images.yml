@@ -58,11 +58,54 @@ jobs:
   build-info:
     timeout-minutes: 10
     name: "Build Info"
-    runs-on: ${{ github.repository == 'apache/airflow' && 'self-hosted' || 'ubuntu-20.04' }}
+    runs-on: >-
+      ${{ (
+        (
+          github.event_name == 'push' ||
+          github.event_name == 'schedule' ||
+          contains(fromJSON('[
+            "BasPH",
+            "Fokko",
+            "KevinYang21",
+            "XD-DENG",
+            "aijamalnk",
+            "alexvanboxel",
+            "aoen",
+            "artwr",
+            "ashb",
+            "bolkedebruin",
+            "criccomini",
+            "dimberman",
+            "feng-tao",
+            "houqp",
+            "jghoman",
+            "jmcarp",
+            "kaxil",
+            "leahecole",
+            "mik-laj",
+            "milton0825",
+            "mistercrunch",
+            "msumit",
+            "potiuk",
+            "r39132",
+            "ryanahamilton",
+            "ryw",
+            "saguziel",
+            "sekikn",
+            "turbaszek",
+            "zhongjiajie",
+            "ephraimbuddy",
+            "jhtimmins",
+            "dstandish",
+            "xinbinhuang",
+            "yuqian",
+            "eladkal"
+          ]'), github.event.pull_request.user.login)
+        ) && github.repository == 'apache/airflow'
+      ) && 'self-hosted' || 'ubuntu-20.04' }}
     env:
       targetBranch: ${{ github.event.pull_request.base.ref }}
     outputs:
-      runsOn: ${{ github.repository == 'apache/airflow' && '["self-hosted"]' || '["ubuntu-20.04"]' }}
       pythonVersions: "${{ steps.selective-checks.python-versions }}"
       upgradeToNewerDependencies: ${{ steps.selective-checks.outputs.upgrade-to-newer-dependencies }}
       allPythonVersions: ${{ steps.selective-checks.outputs.all-python-versions }}
@@ -77,7 +120,19 @@ jobs:
           github.event.pull_request.head.sha ||
           github.sha
         }}"
+      runsOn: ${{ steps.set-runs-on.outputs.runsOn }}
     steps:
+      # Avoid having to specify the runs-on logic every time. We use the custom
+      # env var AIRFLOW_SELF_HOSTED_RUNNER set only on our runners, but never
+      # on the public runners
+      - name: Set runs-on
+        id: set-runs-on
+        run: |
+          if [[ ${AIRFLOW_SELF_HOSTED_RUNNER} != "" ]]; then
+            echo "::set-output name=runsOn::\"self-hosted\""
+          else
+            echo "::set-output name=runsOn::\"ubuntu-20.04\""
+          fi
       - name: Discover PR merge commit
         id: discover-pr-merge-commit
         run: |
