@@ -809,7 +809,7 @@ class S3Hook(AwsBaseHook):
         try:
             s3_obj = self.get_key(key, bucket_name)
         except ClientError as e:
-            if e.response.get('Error', {}).get('Code', {}) == 404:
+            if e.response.get('Error', {}).get('Code') == 404:
                 raise AirflowException(
                     f'The source file in Bucket {bucket_name} with path {key} does not exist'
                 )
