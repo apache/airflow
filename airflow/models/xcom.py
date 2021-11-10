@@ -17,11 +17,13 @@
 # under the License.
 
 import datetime
+import inspect
 import json
 import logging
 import pickle
 import warnings
-from typing import TYPE_CHECKING, Any, Iterable, Optional, Type, Union, cast, overload
+from functools import wraps
+from typing import TYPE_CHECKING, Any, Iterable, List, Optional, Type, Union, cast, overload
 
 import pendulum
 from sqlalchemy import Column, Index, Integer, LargeBinary, String
@@ -172,6 +174,14 @@ class BaseXCom(Base, LoggingMixin):
             if dagrun_id is None:
                 raise ValueError(f"DAG run not found on DAG {dag_id!r} with ID {run_id!r}")
 
+        value = cls.serialize_value(
+            value=value,
+            key=key,
+            task_id=task_id,
+            dag_id=dag_id,
+            run_id=dagrun_id,
+        )
+
         # Remove duplicate XComs and insert a new one.
         session.query(cls).filter(
             cls.key == key,
@@ -182,7 +192,7 @@ class BaseXCom(Base, LoggingMixin):
         new = cast(Any, cls)(  # Work around Mypy complaining model not defining '__init__'.
             dagrun_id=dagrun_id,
             key=key,
-            value=cls.serialize_value(value),
+            value=value,
             run_id=run_id,
             task_id=task_id,
             dag_id=dag_id,
@@ -467,8 +477,16 @@ class BaseXCom(Base, LoggingMixin):
         return session.query(cls).filter_by(dag_id=dag_id, task_id=task_id, run_id=run_id).delete()
 
     @staticmethod
-    def serialize_value(value: Any):
-        """Serialize Xcom value to str or pickled object"""
+    def serialize_value(
+        value: Any,
+        *,
+        key=None,
+        task_id=None,
+        dag_id=None,
+        run_id=None,
+        mapping_index: int = -1,
+    ):
+        """Serialize XCom value to str or pickled object"""
         if conf.getboolean('core', 'enable_xcom_pickling'):
             return pickle.dumps(value)
         try:
@@ -510,16 +528,58 @@ class BaseXCom(Base, LoggingMixin):
         return BaseXCom.deserialize_value(self)
 
 
+def _patch_outdated_serializer(clazz, params):
+    """
+    Previously XCom.serialize_value only accepted one argument ``value``.  In order to give
+    custom XCom backends more flexibility with how they store values we now forward to
+    ``XCom.serialize_value`` all params passed to ``XCom.set``.  In order to maintain
+    compatibility with XCom backends written with the old signature we check the signature
+    and if necessary we patch with a method that ignores kwargs the backend does not accept.
+    """
+    old_serializer = clazz.serialize_value
+
+    @wraps(old_serializer)
+    def _shim(**kwargs):
+        kwargs = {k: kwargs.get(k) for k in params}
+        warnings.warn(
+            f"Method `serialize_value` in XCom backend {XCom.__name__} is using outdated signature and"
+            f"must be updated to accept all params in `BaseXCom.set` except `session`. Support will be "
+            f"removed in a future release.",
+            DeprecationWarning,
+        )
+        return old_serializer(**kwargs)
+
+    clazz.serialize_value = _shim
+
+
+def _get_function_params(function) -> List[str]:
+    """
+    Returns the list of variables names of a function
+
+    :param function: The function to inspect
+    :rtype: List[str]
+    """
+    parameters = inspect.signature(function).parameters
+    bound_arguments = [
+        name for name, p in parameters.items() if p.kind not in (p.VAR_POSITIONAL, p.VAR_KEYWORD)
+    ]
+    return bound_arguments
+
+
 def resolve_xcom_backend() -> Type[BaseXCom]:
     """Resolves custom XCom class"""
     clazz = conf.getimport("core", "xcom_backend", fallback=f"airflow.models.xcom.{BaseXCom.__name__}")
-    if clazz:
-        if not issubclass(clazz, BaseXCom):
-            raise TypeError(
-                f"Your custom XCom class `{clazz.__name__}` is not a subclass of `{BaseXCom.__name__}`."
-            )
-        return clazz
-    return BaseXCom
+    if not clazz:
+        return BaseXCom
+    if not issubclass(clazz, BaseXCom):
+        raise TypeError(
+            f"Your custom XCom class `{clazz.__name__}` is not a subclass of `{BaseXCom.__name__}`."
+        )
+    base_xcom_params = _get_function_params(BaseXCom.serialize_value)
+    xcom_params = _get_function_params(clazz.serialize_value)
+    if not set(base_xcom_params) == set(xcom_params):
+        _patch_outdated_serializer(clazz=clazz, params=xcom_params)
+    return clazz
 
 
 if TYPE_CHECKING:
