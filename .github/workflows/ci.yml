@@ -51,6 +51,7 @@ env:
   GITHUB_REGISTRY_PUSH_IMAGE_TAG: "latest"
   INSTALL_PROVIDERS_FROM_SOURCES: "true"
   AIRFLOW_LOGIN_TO_GITHUB_REGISTRY: "true"
+  ENABLE_TEST_COVERAGE: "${{ github.event_name == 'push' }}"
 
   # You can switch between building the image in "Build Images" workflow or building them in CI workflow
   # Separately for each job.
