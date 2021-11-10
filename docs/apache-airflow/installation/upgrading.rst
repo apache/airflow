@@ -35,7 +35,7 @@ In some cases the upgrade happens automatically - it depends if in your deployme
 built-in as post-install action. For example when you are using :doc:`helm-chart:index` with
 post-upgrade hooks enabled, the database upgrade happens automatically right after the new software
 is installed. Similarly all Airflow-As-A-Service solutions perform the upgrade automatically for you,
-when you choose to upgrade airflow via their UI
+when you choose to upgrade airflow via their UI.
 
 How to upgrade
 ==============
