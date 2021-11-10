@@ -31,6 +31,16 @@ set the below:
     [webserver]
     x_frame_enabled = False
 
+Disable Deployment Exposure Warning
+------------------------------------------------------
+
+Airflow warns when recent requests are made to /robot.txt. To disable this warning set the bewlow:
+
+.. code-block:: ini
+
+    [webserver]
+    warn_deployment_exposure = False
+
 Sensitive Variable fields
 -------------------------
 
