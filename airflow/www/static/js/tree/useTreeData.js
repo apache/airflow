@@ -35,6 +35,12 @@ const isPaused = getMetaValue('is_paused');
 const areActiveRuns = (runs) => runs.filter((run) => ['queued', 'running', 'scheduled'].includes(run.state)).length > 0;
 
 const formatData = (data) => {
+  if (!data || !Object.keys(data).length) {
+    return {
+      groups: {},
+      dagRuns: [],
+    };
+  }
   let formattedData = data;
   // Convert to json if needed
   if (typeof data === 'string') formattedData = JSON.parse(data);

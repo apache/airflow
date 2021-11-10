@@ -120,4 +120,39 @@ describe('Test DagRuns', () => {
     );
     expect(getByText(moment.utc(dagRuns[0].executionDate).format('MMM DD, HH:mm'))).toBeInTheDocument();
   });
+
+  test('Handles empty data correctly', () => {
+    global.treeData = {
+      groups: {},
+      dagRuns: [],
+    };
+    const { queryByTestId } = render(
+      <React.StrictMode>
+        <ChakraProvider>
+          <Table>
+            <Tbody>
+              <DagRuns containerRef={mockRef} />
+            </Tbody>
+          </Table>
+        </ChakraProvider>
+      </React.StrictMode>,
+    );
+    expect(queryByTestId('run')).toBeNull();
+  });
+
+  test('Handles no data correctly', () => {
+    global.treeData = {};
+    const { queryByTestId } = render(
+      <React.StrictMode>
+        <ChakraProvider>
+          <Table>
+            <Tbody>
+              <DagRuns containerRef={mockRef} />
+            </Tbody>
+          </Table>
+        </ChakraProvider>
+      </React.StrictMode>,
+    );
+    expect(queryByTestId('run')).toBeNull();
+  });
 });

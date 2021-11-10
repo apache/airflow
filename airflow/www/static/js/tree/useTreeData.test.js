@@ -75,4 +75,26 @@ describe('Test useTreeData hook', () => {
 
     expect(isRefreshOn).toBe(false);
   });
+
+  test('Can handle no treeData', () => {
+    global.treeData = null;
+
+    const { result } = renderHook(() => useTreeData());
+    const { data, isRefreshOn } = result.current;
+
+    expect(data.dagRuns).toStrictEqual([]);
+    expect(data.groups).toStrictEqual({});
+    expect(isRefreshOn).toBe(false);
+  });
+
+  test('Can handle empty treeData object', () => {
+    global.treeData = {};
+
+    const { result } = renderHook(() => useTreeData());
+    const { data, isRefreshOn } = result.current;
+
+    expect(data.dagRuns).toStrictEqual([]);
+    expect(data.groups).toStrictEqual({});
+    expect(isRefreshOn).toBe(false);
+  });
 });

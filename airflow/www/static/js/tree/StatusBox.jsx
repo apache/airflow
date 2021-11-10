@@ -54,6 +54,7 @@ const StatusBox = ({
         alignItems="center"
         onClick={onClick}
         cursor={!group.children && 'pointer'}
+        data-testid="task-instance"
         {...rest}
       >
         <Box

@@ -22,8 +22,7 @@
 import React from 'react';
 import { Box, Text } from '@chakra-ui/react';
 
-import { formatDateTime } from '../datetime_utils';
-import { getDuration, formatDuration } from './utils';
+import { formatDateTime, getDuration, formatDuration } from '../datetime_utils';
 
 const InstanceTooltip = ({
   group,
@@ -43,6 +42,7 @@ const InstanceTooltip = ({
       ['up_for_reschedule', 0],
       ['running', 0],
       ['deferred', 0],
+      ['sensing', 0],
       ['queued', 0],
       ['scheduled', 0],
       ['skipped', 0],

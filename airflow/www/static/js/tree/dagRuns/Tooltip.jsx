@@ -23,8 +23,7 @@ import React from 'react';
 import { Box, Text } from '@chakra-ui/react';
 import { MdPlayArrow } from 'react-icons/md';
 
-import { formatDateTime } from '../../datetime_utils';
-import { formatDuration } from '../utils';
+import { formatDateTime, formatDuration } from '../../datetime_utils';
 
 const DagRunTooltip = ({
   dagRun: {

@@ -28,7 +28,7 @@ import {
 
 import useTreeData from '../useTreeData';
 import DagRunBar from './Bar';
-import { getDuration, formatDuration } from '../utils';
+import { getDuration, formatDuration } from '../../datetime_utils';
 
 const DurationTick = ({ children, ...rest }) => (
   <Text fontSize={10} color="gray.400" right={1} position="absolute" whiteSpace="nowrap" {...rest}>

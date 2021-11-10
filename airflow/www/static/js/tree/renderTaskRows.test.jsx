@@ -49,7 +49,7 @@ const mockTreeData = {
             endDate: '2021-10-26T15:42:03.391939+00:00',
             executionDate: '2021-10-25T15:41:09.726436+00:00',
             operator: 'DummyOperator',
-            runId: 'scheduled__2021-10-25T15:41:09.726436+00:00',
+            runId: 'run1',
             startDate: '2021-10-26T15:42:03.391917+00:00',
             state: 'success',
             taskId: 'group_1',
@@ -68,7 +68,7 @@ const mockTreeData = {
                 endDate: '2021-10-26T15:42:03.391939+00:00',
                 executionDate: '2021-10-25T15:41:09.726436+00:00',
                 operator: 'DummyOperator',
-                runId: 'scheduled__2021-10-25T15:41:09.726436+00:00',
+                runId: 'run1',
                 startDate: '2021-10-26T15:42:03.391917+00:00',
                 state: 'success',
                 taskId: 'group_1.task_1',
@@ -101,7 +101,7 @@ describe('Test renderTaskRows', () => {
     global.treeData = mockTreeData;
     const containerRef = {};
 
-    const { getByTestId, getByText } = render(
+    const { getByTestId, getByText, getAllByTestId } = render(
       <React.StrictMode>
         <ChakraProvider>
           <Table>
@@ -115,11 +115,55 @@ describe('Test renderTaskRows', () => {
 
     const groupName = getByText('group_1');
 
+    expect(getAllByTestId('task-instance')).toHaveLength(2);
     expect(groupName).toBeInTheDocument();
     expect(getByTestId('closed-group')).toBeInTheDocument();
 
     fireEvent.click(groupName);
 
     expect(getByTestId('open-group')).toBeInTheDocument();
+  });
+
+  test('Still renders names if there are no instances', () => {
+    global.treeData = {
+      groups: {
+        id: null,
+        label: null,
+        children: [
+          {
+            extraLinks: [],
+            id: 'group_1',
+            label: 'group_1',
+            instances: [],
+            children: [
+              {
+                id: 'group_1.task_1',
+                label: 'group_1.task_1',
+                extraLinks: [],
+                instances: [],
+              },
+            ],
+          },
+        ],
+        instances: [],
+      },
+      dagRuns: [],
+    };
+    const containerRef = {};
+
+    const { queryByTestId, getByText } = render(
+      <React.StrictMode>
+        <ChakraProvider>
+          <Table>
+            <Tbody>
+              {renderTaskRows({ task: mockTreeData.groups, containerRef })}
+            </Tbody>
+          </Table>
+        </ChakraProvider>
+      </React.StrictMode>,
+    );
+
+    expect(getByText('group_1')).toBeInTheDocument();
+    expect(queryByTestId('task-instance')).toBeNull();
   });
 });
