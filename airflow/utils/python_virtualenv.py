@@ -36,11 +36,13 @@ def _generate_virtualenv_cmd(tmp_dir: str, python_bin: str, system_site_packages
     return cmd
 
 
-def _generate_pip_install_cmd(tmp_dir: str, requirements: List[str]) -> Optional[List[str]]:
+def _generate_pip_install_cmd(tmp_dir: str, requirements: List[str], pip_proxy: Optional[str] = None) -> Optional[List[str]]:
     if not requirements:
         return None
     # direct path alleviates need to activate
     cmd = [f'{tmp_dir}/bin/pip', 'install']
+    if pip_proxy:
+        cmd.append(f"--proxy={pip_proxy}")
     return cmd + requirements
 
 
@@ -75,7 +77,7 @@ def remove_task_decorator(python_source: str, task_decorator_name: str) -> str:
 
 
 def prepare_virtualenv(
-    venv_directory: str, python_bin: str, system_site_packages: bool, requirements: List[str]
+    venv_directory: str, python_bin: str, system_site_packages: bool, requirements: List[str], pip_proxy: Optional[str] = None
 ) -> str:
     """
     Creates a virtual environment and installs the additional python packages
@@ -94,7 +96,7 @@ def prepare_virtualenv(
     """
     virtualenv_cmd = _generate_virtualenv_cmd(venv_directory, python_bin, system_site_packages)
     execute_in_subprocess(virtualenv_cmd)
-    pip_cmd = _generate_pip_install_cmd(venv_directory, requirements)
+    pip_cmd = _generate_pip_install_cmd(venv_directory, requirements, pip_proxy)
     if pip_cmd:
         execute_in_subprocess(pip_cmd)
 

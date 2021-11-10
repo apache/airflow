@@ -343,6 +343,7 @@ class PythonVirtualenvOperator(PythonOperator):
         string_args: Optional[Iterable[str]] = None,
         templates_dict: Optional[Dict] = None,
         templates_exts: Optional[List[str]] = None,
+        pip_proxy: Optional[str] = None,
         **kwargs,
     ):
         if (
@@ -381,6 +382,7 @@ class PythonVirtualenvOperator(PythonOperator):
             if self.use_dill and 'dill' not in self.requirements:
                 self.requirements.append('dill')
         self.pickling_library = dill if self.use_dill else pickle
+        self.pip_proxy = pip_proxy
 
     def execute(self, context: Dict):
         serializable_context = {key: context[key] for key in self._get_serializable_context_keys()}
@@ -401,6 +403,7 @@ class PythonVirtualenvOperator(PythonOperator):
                 python_bin=f'python{self.python_version}' if self.python_version else None,
                 system_site_packages=self.system_site_packages,
                 requirements=self.requirements,
+                pip_proxy=self.pip_proxy,
             )
 
             self._write_args(input_filename)
