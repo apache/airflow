@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-export MEMORY_REQUIRED_FOR_INTEGRATION_TEST_PARALLEL_RUN=33000
+export MEMORY_REQUIRED_FOR_HEAVY_TEST_PARALLEL_RUN=33000
 
 function testing::skip_tests_if_requested(){
     if [[ -f ${BUILD_CACHE_DIR}/.skip_tests ]]; then
