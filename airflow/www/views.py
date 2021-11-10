@@ -30,7 +30,7 @@ from datetime import timedelta
 from functools import wraps
 from json import JSONDecodeError
 from operator import itemgetter
-from typing import TYPE_CHECKING, Any, Callable, Iterable, List, Optional, Set, Tuple, Union
+from typing import Any, Callable, Iterable, List, Optional, Set, Tuple, Union
 from urllib.parse import parse_qsl, unquote, urlencode, urlparse
 
 import lazy_object_proxy
@@ -131,9 +131,6 @@ from airflow.www.forms import (
     TaskInstanceEditForm,
 )
 from airflow.www.widgets import AirflowModelListWidget
-
-if TYPE_CHECKING:
-    from sqlalchemy.orm import Session
 
 PAGE_SIZE = conf.getint('webserver', 'page_size')
 FILTER_TAGS_COOKIE = 'tags_filter'
@@ -4000,7 +3997,7 @@ class DagRunModelView(AirflowPrivilegeVerifierModelView):
         return self.set_dag_runs_to_active_state(drs, State.RUNNING)
 
     @provide_session
-    def set_dag_runs_to_active_state(self, drs: List[DagRun], state: str, *, session: "Session"):
+    def set_dag_runs_to_active_state(self, drs: List[DagRun], state: str, session=None):
         if state not in [State.RUNNING, State.QUEUED]:
             raise ValueError("This routine only supports Running and Queued.")
         try:
@@ -4025,7 +4022,7 @@ class DagRunModelView(AirflowPrivilegeVerifierModelView):
     )
     @action_has_dag_edit_access
     @provide_session
-    def action_set_failed(self, drs: List[DagRun], *, session: "Session"):
+    def action_set_failed(self, drs: List[DagRun], session=None):
         """Set state to failed."""
         try:
             count = 0
@@ -4049,7 +4046,7 @@ class DagRunModelView(AirflowPrivilegeVerifierModelView):
     )
     @action_has_dag_edit_access
     @provide_session
-    def action_set_success(self, drs: List[DagRun], *, session: "Session"):
+    def action_set_success(self, drs: List[DagRun], session=None):
         """Set state to success."""
         try:
             count = 0
@@ -4068,7 +4065,7 @@ class DagRunModelView(AirflowPrivilegeVerifierModelView):
     @action('clear', "Clear the state", "All task instances would be cleared, are you sure?", single=False)
     @action_has_dag_edit_access
     @provide_session
-    def action_clear(self, drs: List[DagRun], *, session: "Session"):
+    def action_clear(self, drs: List[DagRun], session=None):
         """Clears the state."""
         try:
             count = 0
