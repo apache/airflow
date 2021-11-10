@@ -79,7 +79,7 @@ class ClsResultStorage(ClsEntity):
                     update_time = update_time.replace('Z', '+00:00')
                     update_time = datetime.datetime.fromisoformat(update_time)
                 except Exception as e:
-                    assert len(update_time) >= 35, f'无法识别的时间格式：{update_time}'
+                    assert len(update_time) > 32, f'无法识别的时间格式：{update_time}'
                     date_re = re.compile(r'(^[0-9-]+)(.[0-9:]+)(\.[0-9]+)(\+[0-9]+:[0-9]+)')
                     groups = [*date_re.search(update_time).groups()]
                     groups[2] = groups[2][0:7]
