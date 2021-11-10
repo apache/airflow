@@ -300,6 +300,9 @@ class PythonVirtualenvOperator(PythonOperator):
     :param templates_exts: a list of file extensions to resolve while
         processing templated fields, for examples ``['.sql', '.hql']``
     :type templates_exts: list[str]
+    :param pip_proxy: The proxy server to use as when performing `pip install --proxy` to
+        create the virtual environment.
+    :type Optional[str]
     """
 
     BASE_SERIALIZABLE_CONTEXT_KEYS = {
