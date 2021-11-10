@@ -23,6 +23,7 @@ from unittest.mock import Mock, patch
 import pandas as pd
 import pytest
 from numpy import nan
+from parameterized import parameterized
 from requests import Session as request_session
 from simple_salesforce import Salesforce, api
 
@@ -48,8 +49,52 @@ class TestSalesforceHook(unittest.TestCase):
 
         assert self.salesforce_hook.conn.return_value is not None
 
+    @parameterized.expand(
+        [
+            (
+                "all extras",
+                '''
+                {
+                    "extra__salesforce__client_id": "my_client",
+                    "extra__salesforce__consumer_key": "",
+                    "extra__salesforce__domain": "test",
+                    "extra__salesforce__instance": "",
+                    "extra__salesforce__instance_url": "",
+                    "extra__salesforce__organization_id": "",
+                    "extra__salesforce__private_key": "",
+                    "extra__salesforce__private_key_file_path": "",
+                    "extra__salesforce__proxies": "",
+                    "extra__salesforce__security_token": "token",
+                    "extra__salesforce__version": "42.0"
+                }
+                ''',
+            ),
+            (
+                "required extras",
+                '''
+                {
+                    "extra__salesforce__client_id": "my_client",
+                    "extra__salesforce__domain": "test",
+                    "extra__salesforce__security_token": "token",
+                    "extra__salesforce__version": "42.0"
+                }
+                ''',
+            ),
+            (
+                "required extras no prefix",
+                '''
+                {
+                    "client_id": "my_client",
+                    "domain": "test",
+                    "security_token": "token",
+                    "version": "42.0"
+                }
+                ''',
+            ),
+        ]
+    )
     @patch("airflow.providers.salesforce.hooks.salesforce.Salesforce")
-    def test_get_conn_password_auth(self, mock_salesforce):
+    def test_get_conn_password_auth(self, _, extras_string, mock_salesforce):
         """
         Testing mock password authentication to Salesforce. Users should provide a username, password, and
         security token in the Connection. Providing a client ID, Salesforce API version, proxy mapping, and
@@ -61,21 +106,7 @@ class TestSalesforceHook(unittest.TestCase):
             conn_type="salesforce",
             login=None,
             password=None,
-            extra='''
-            {
-                "extra__salesforce__client_id": "my_client",
-                "extra__salesforce__consumer_key": "",
-                "extra__salesforce__domain": "test",
-                "extra__salesforce__instance": "",
-                "extra__salesforce__instance_url": "",
-                "extra__salesforce__organization_id": "",
-                "extra__salesforce__private_key": "",
-                "extra__salesforce__private_key_file_path": "",
-                "extra__salesforce__proxies": "",
-                "extra__salesforce__security_token": "token",
-                "extra__salesforce__version": "42.0"
-            }
-            ''',
+            extra=extras_string,
         )
         TestSalesforceHook._insert_conn_db_entry(password_auth_conn.conn_id, password_auth_conn)
 
@@ -86,23 +117,67 @@ class TestSalesforceHook(unittest.TestCase):
         mock_salesforce.assert_called_once_with(
             username=password_auth_conn.login,
             password=password_auth_conn.password,
-            security_token=extras["extra__salesforce__security_token"],
-            domain=extras["extra__salesforce__domain"],
+            security_token=extras.get('extra__salesforce__security_token') or extras.get('security_token'),
+            domain=extras.get('extra__salesforce__domain') or extras.get('domain'),
             session_id=None,
             instance=None,
             instance_url=None,
             organizationId=None,
-            version=extras["extra__salesforce__version"],
+            version=extras.get('extra__salesforce__version') or extras.get('version'),
             proxies=None,
             session=None,
-            client_id=extras["extra__salesforce__client_id"],
+            client_id=extras.get('extra__salesforce__client_id') or extras.get('client_id'),
             consumer_key=None,
             privatekey_file=None,
             privatekey=None,
         )
 
+    @parameterized.expand(
+        [
+            (
+                "all extras",
+                '''
+                {
+                    "extra__salesforce__client_id": "my_client2",
+                    "extra__salesforce__consumer_key": "",
+                    "extra__salesforce__domain": "test",
+                    "extra__salesforce__instance": "",
+                    "extra__salesforce__instance_url": "https://my.salesforce.com",
+                    "extra__salesforce__organization_id": "",
+                    "extra__salesforce__private_key": "",
+                    "extra__salesforce__private_key_file_path": "",
+                    "extra__salesforce__proxies": "",
+                    "extra__salesforce__security_token": "",
+                    "extra__salesforce__version": "29.0"
+                }
+                ''',
+            ),
+            (
+                "required extras",
+                '''
+                {
+                    "extra__salesforce__client_id": "my_client2",
+                    "extra__salesforce__domain": "test",
+                    "extra__salesforce__instance_url": "https://my.salesforce.com",
+                    "extra__salesforce__version": "29.0"
+                }
+                ''',
+            ),
+            (
+                "required extras no prefix",
+                '''
+                {
+                    "client_id": "my_client2",
+                    "domain": "test",
+                    "instance_url": "https://my.salesforce.com",
+                    "version": "29.0"
+                }
+                ''',
+            ),
+        ]
+    )
     @patch("airflow.providers.salesforce.hooks.salesforce.Salesforce")
-    def test_get_conn_direct_session_access(self, mock_salesforce):
+    def test_get_conn_direct_session_access(self, _, extras_string, mock_salesforce):
         """
         Testing mock direct session access to Salesforce. Users should provide an instance
         (or instance URL) in the Connection and set a `session_id` value when calling `SalesforceHook`.
@@ -115,21 +190,7 @@ class TestSalesforceHook(unittest.TestCase):
             conn_type="salesforce",
             login=None,
             password=None,
-            extra='''
-            {
-                "extra__salesforce__client_id": "my_client2",
-                "extra__salesforce__consumer_key": "",
-                "extra__salesforce__domain": "test",
-                "extra__salesforce__instance": "",
-                "extra__salesforce__instance_url": "https://my.salesforce.com",
-                "extra__salesforce__organization_id": "",
-                "extra__salesforce__private_key": "",
-                "extra__salesforce__private_key_file_path": "",
-                "extra__salesforce__proxies": "",
-                "extra__salesforce__security_token": "",
-                "extra__salesforce__version": "29.0"
-            }
-            ''',
+            extra=extras_string,
         )
         TestSalesforceHook._insert_conn_db_entry(direct_access_conn.conn_id, direct_access_conn)
 
@@ -145,22 +206,68 @@ class TestSalesforceHook(unittest.TestCase):
             username=direct_access_conn.login,
             password=direct_access_conn.password,
             security_token=None,
-            domain=extras["extra__salesforce__domain"],
+            domain=extras.get('extra__salesforce__domain') or extras.get('domain'),
             session_id=self.salesforce_hook.session_id,
             instance=None,
-            instance_url=extras["extra__salesforce__instance_url"],
+            instance_url=extras.get('extra__salesforce__instance_url') or extras.get('instance_url'),
             organizationId=None,
-            version=extras["extra__salesforce__version"],
+            version=extras.get('extra__salesforce__version') or extras.get('version'),
             proxies=None,
             session=self.salesforce_hook.session,
-            client_id=extras["extra__salesforce__client_id"],
+            client_id=extras.get('extra__salesforce__client_id') or extras.get('client_id'),
             consumer_key=None,
             privatekey_file=None,
             privatekey=None,
         )
 
+    @parameterized.expand(
+        [
+            (
+                "all extras",
+                '''
+                {
+                    "extra__salesforce__client_id": "my_client3",
+                    "extra__salesforce__consumer_key": "consumer_key",
+                    "extra__salesforce__domain": "login",
+                    "extra__salesforce__instance": "",
+                    "extra__salesforce__instance_url": "",
+                    "extra__salesforce__organization_id": "",
+                    "extra__salesforce__private_key": "private_key",
+                    "extra__salesforce__private_key_file_path": "",
+                    "extra__salesforce__proxies": "",
+                    "extra__salesforce__security_token": "",
+                    "extra__salesforce__version": "34.0"
+                }
+                ''',
+            ),
+            (
+                "required extras",
+                '''
+                {
+                    "extra__salesforce__client_id": "my_client3",
+                    "extra__salesforce__consumer_key": "consumer_key",
+                    "extra__salesforce__domain": "login",
+                    "extra__salesforce__private_key": "private_key",
+                    "extra__salesforce__version": "34.0"
+                }
+                ''',
+            ),
+            (
+                "required extras no prefix",
+                '''
+                {
+                    "client_id": "my_client3",
+                    "consumer_key": "consumer_key",
+                    "domain": "login",
+                    "private_key": "private_key",
+                    "version": "34.0"
+                }
+                ''',
+            ),
+        ]
+    )
     @patch("airflow.providers.salesforce.hooks.salesforce.Salesforce")
-    def test_get_conn_jwt_auth(self, mock_salesforce):
+    def test_get_conn_jwt_auth(self, _, extras_string, mock_salesforce):
         """
         Testing mock JWT bearer authentication to Salesforce. Users should provide consumer key and private
         key (or path to a private key) in the Connection. Providing a client ID, Salesforce API version, proxy
@@ -173,21 +280,7 @@ class TestSalesforceHook(unittest.TestCase):
             conn_type="salesforce",
             login=None,
             password=None,
-            extra='''
-            {
-                "extra__salesforce__client_id": "my_client3",
-                "extra__salesforce__consumer_key": "consumer_key",
-                "extra__salesforce__domain": "login",
-                "extra__salesforce__instance": "",
-                "extra__salesforce__instance_url": "",
-                "extra__salesforce__organization_id": "",
-                "extra__salesforce__private_key": "private_key",
-                "extra__salesforce__private_key_file_path": "",
-                "extra__salesforce__proxies": "",
-                "extra__salesforce__security_token": "",
-                "extra__salesforce__version": "34.0"
-            }
-            ''',
+            extra=extras_string,
         )
         TestSalesforceHook._insert_conn_db_entry(jwt_auth_conn.conn_id, jwt_auth_conn)
 
@@ -199,22 +292,60 @@ class TestSalesforceHook(unittest.TestCase):
             username=jwt_auth_conn.login,
             password=jwt_auth_conn.password,
             security_token=None,
-            domain=extras["extra__salesforce__domain"],
+            domain=extras.get('extra__salesforce__domain') or extras.get('domain'),
             session_id=None,
             instance=None,
             instance_url=None,
             organizationId=None,
-            version=extras["extra__salesforce__version"],
+            version=extras.get('extra__salesforce__version') or extras.get('version'),
             proxies=None,
             session=None,
-            client_id=extras["extra__salesforce__client_id"],
-            consumer_key=extras["extra__salesforce__consumer_key"],
+            client_id=extras.get('extra__salesforce__client_id') or extras.get('client_id'),
+            consumer_key=extras.get('extra__salesforce__consumer_key') or extras.get('consumer_key'),
             privatekey_file=None,
-            privatekey=extras["extra__salesforce__private_key"],
+            privatekey=extras.get('extra__salesforce__private_key') or extras.get('private_key'),
         )
 
+    @parameterized.expand(
+        [
+            (
+                "all extras",
+                '''
+                {
+                    "extra__salesforce__client_id": "",
+                    "extra__salesforce__consumer_key": "",
+                    "extra__salesforce__domain": "",
+                    "extra__salesforce__instance": "",
+                    "extra__salesforce__instance_url": "",
+                    "extra__salesforce__organization_id": "my_organization",
+                    "extra__salesforce__private_key": "",
+                    "extra__salesforce__private_key_file_path": "",
+                    "extra__salesforce__proxies": "",
+                    "extra__salesforce__security_token": "",
+                    "extra__salesforce__version": ""
+                }
+                ''',
+            ),
+            (
+                "required extras",
+                '''
+                {
+                    "extra__salesforce__organization_id": "my_organization",
+                }
+                ''',
+            ),
+            (
+                "required extras no prefix",
+                '''
+                {
+                    "organization_id": "my_organization",
+                }
+                ''',
+            ),
+        ]
+    )
     @patch("airflow.providers.salesforce.hooks.salesforce.Salesforce")
-    def test_get_conn_ip_filtering_auth(self, mock_salesforce):
+    def test_get_conn_ip_filtering_auth(self, _, extras_string, mock_salesforce):
         """
         Testing mock IP filtering (aka allow-listing) authentication to Salesforce. Users should provide
         username, password, and organization ID in the Connection. Providing a client ID, Salesforce API
@@ -227,21 +358,7 @@ class TestSalesforceHook(unittest.TestCase):
             conn_type="salesforce",
             login="username",
             password="password",
-            extra='''
-            {
-                "extra__salesforce__client_id": "",
-                "extra__salesforce__consumer_key": "",
-                "extra__salesforce__domain": "",
-                "extra__salesforce__instance": "",
-                "extra__salesforce__instance_url": "",
-                "extra__salesforce__organization_id": "my_organization",
-                "extra__salesforce__private_key": "",
-                "extra__salesforce__private_key_file_path": "",
-                "extra__salesforce__proxies": "",
-                "extra__salesforce__security_token": "",
-                "extra__salesforce__version": ""
-            }
-            ''',
+            extra=extras_string,
         )
         TestSalesforceHook._insert_conn_db_entry(ip_filtering_auth_conn.conn_id, ip_filtering_auth_conn)
 
@@ -257,7 +374,7 @@ class TestSalesforceHook(unittest.TestCase):
             session_id=None,
             instance=None,
             instance_url=None,
-            organizationId=extras["extra__salesforce__organization_id"],
+            organizationId=extras.get('extra__salesforce__organization_id') or extras.get('organization_id'),
             version=api.DEFAULT_API_VERSION,
             proxies=None,
             session=None,
