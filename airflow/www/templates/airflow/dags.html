@@ -57,7 +57,8 @@
       Airflow found incompatible data in the <code>{{ original_table_name }}</code> table in the
       metadatabase, and has moved them to <code>{{ moved_table_name }}</code> during the database migration
       to upgrade. Please inspect the moved data to decide whether you need to keep them, and manually drop
-      the <code>{{ moved_table_name }}</code> table to dismiss this warning.
+      the <code>{{ moved_table_name }}</code> table to dismiss this warning. Read more about it
+      in <a href={{ get_docs_url("installing/upgrading.html") }}><b>Upgrading</b></a>.
     {% endcall %}
   {% endfor %}
   {{ super() }}
