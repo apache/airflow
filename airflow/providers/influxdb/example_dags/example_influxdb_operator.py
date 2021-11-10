@@ -23,17 +23,14 @@ from airflow.providers.influxdb.operators.influxdb import InfluxDBOperator
 dag = DAG(
     'example_influxdb_operator',
     start_date=datetime(2021, 1, 1),
-    default_args={'influxdb_conn_id': 'influxdb_conn_id'},
     tags=['example'],
     catchup=False,
 )
 
 # [START howto_operator_influxdb]
 
-query_influxdb_task = InfluxDBOperator(
+query_influxdb_task = InfluxDBOperator(influxdb_conn_id='influxdb_conn_id',
     task_id='query_influxdb', sql='from(bucket:"test-influx") |> range(start: -10m)', dag=dag
 )
 
 # [END howto_operator_influxdb]
-
-query_influxdb_task

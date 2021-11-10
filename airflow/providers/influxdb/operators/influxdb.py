@@ -41,20 +41,14 @@ class InfluxDBOperator(BaseOperator):
         *,
         sql: str,
         influxdb_conn_id: str = 'influxdb_default',
-        parameters: Optional[Union[Mapping, Iterable]] = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
         self.influxdb_conn_id = influxdb_conn_id
         self.sql = sql
-        self.parameters = parameters
         self.hook = None
-
-    def get_hook(self):
-        """Function to retrieve the InfluxDB Hook."""
-        return InfluxDBHook(conn_id=self.influxdb_conn_id)
 
     def execute(self, context: Dict) -> None:
         self.log.info('Executing: %s', self.sql)
-        self.hook = self.get_hook()
+        self.hook = InfluxDBHook(conn_id=self.influxdb_conn_id)
         self.hook.query(self.sql)

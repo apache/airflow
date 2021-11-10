@@ -19,12 +19,6 @@ import unittest
 from unittest import mock
 
 from airflow.providers.influxdb.operators.influxdb import InfluxDBOperator
-from airflow.utils import timezone
-
-DEFAULT_DATE = timezone.datetime(2015, 1, 1)
-DEFAULT_DATE_ISO = DEFAULT_DATE.isoformat()
-DEFAULT_DATE_DS = DEFAULT_DATE_ISO[:10]
-TEST_DAG_ID = 'unit_test_dag'
 
 
 class TestInfluxDBOperator(unittest.TestCase):
