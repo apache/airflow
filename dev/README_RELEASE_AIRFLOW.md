@@ -24,7 +24,7 @@
   - [Selecting what to cherry-pick](#selecting-what-to-cherry-pick)
 - [Prepare the Apache Airflow Package RC](#prepare-the-apache-airflow-package-rc)
   - [Build RC artifacts](#build-rc-artifacts)
-  - [[\Optional\] Create new release branch](#%5Coptional%5C-create-new-release-branch)
+  - [[\Optional\] Prepare new release branches and cache](#%5Coptional%5C-prepare-new-release-branches-and-cache)
   - [Prepare PyPI convenience "snapshot" packages](#prepare-pypi-convenience-snapshot-packages)
   - [Prepare production Docker Image](#prepare-production-docker-image)
   - [Prepare Vote email on the Apache Airflow release candidate](#prepare-vote-email-on-the-apache-airflow-release-candidate)
@@ -164,29 +164,120 @@ For now this is done manually, example run  `git log --oneline v2-2-test..HEAD -
     svn commit -m "Add artifacts for Airflow ${VERSION}"
     ```
 
-## [\Optional\] Create new release branch
+## [\Optional\] Prepare new release branches and cache
 
 When you just released the `X.Y.0` version (first release of new minor version) you need to create release
 branches: `vX-Y-test` and `vX-Y-stable` (for example with `2.1.0rc1` release you need to create v2-1-test and
-`v2-1-stable` branches):
+`v2-1-stable` branches). You also need to configure the branch
 
+### Create test source branch
 
    ```shell script
    # First clone the repo
-   export BRANCH_PREFIX=v2-1
-   git branch ${BRANCH_PREFIX}-test
-   git branch ${BRANCH_PREFIX}-stable
-   git push origin ${BRANCH_PREFIX}-test ${BRANCH_PREFIX}-stable
+   export BRANCH_PREFIX=2-1
+   git branch v${BRANCH_PREFIX}-test
    ```
 
-Search and replace all the vX-Y for previous branches (TODO: we should likely automate this a bit more)
+### Re-tag images from main
 
 Run script to re-tag images from the ``main`` branch to the  ``vX-Y-test`` branch:
 
    ```shell script
-   ./dev/retag_docker_images.py --source-branch main --target-branch ${BRANCH_PREFIX}-test
+   ./dev/retag_docker_images.py --source-branch main --target-branch v${BRANCH_PREFIX}-test
    ```
 
+
+### Update default branches
+
+In ``./scripts/ci/libraries/_intialization.sh`` update branches to reflect the new branch:
+
+```bash
+export DEFAULT_BRANCH=${DEFAULT_BRANCH="main"}
+export DEFAULT_CONSTRAINTS_BRANCH=${DEFAULT_CONSTRAINTS_BRANCH="constraints-main"}
+```
+
+should become this, where ``X-Y`` is your new branch version:
+
+```bash
+export DEFAULT_BRANCH=${DEFAULT_BRANCH="vX-Y-test"}
+export DEFAULT_CONSTRAINTS_BRANCH=${DEFAULT_CONSTRAINTS_BRANCH="constraints-X-Y"}
+```
+
+In ``./scripts/ci/libraries/_build_images.sh`` add branch to preload packages from (replace X and Y in
+values for comparison and regexp):
+
+```bash
+    elif [[ ${AIRFLOW_VERSION} =~ v?X\.Y* ]]; then
+        AIRFLOW_BRANCH_FOR_PYPI_PRELOADING="vX-Y-stable"
+```
+
+### Commit the changes to the test branch
+
+```bash
+git add -p .
+git commit "Update default branches for ${BRANCH_PREFIX}"
+```
+
+### Create stable branch
+
+```bash
+git branch v${BRANCH_PREFIX}-stable
+````
+
+### Push test and stable branch
+
+```bash
+git checkout v${BRANCH_PREFIX}-test
+git push --set-upstream origin v${BRANCH_PREFIX}-test
+git checkout v${BRANCH_PREFIX}-stable
+git push --set-upstream origin v${BRANCH_PREFIX}-stable
+````
+
+### Add branches in the main branch
+
+You have to do those steps in the `main` branch of the repository:
+
+```bash
+git checkout main
+git pull
+```
+
+Add ``vX-Y-stable`` and ``vX-Y-test`` branches in ``codecov.yml`` (there are 2 places in the file!)
+
+```yaml
+    branches:
+      - main
+      - v2-0-stable
+      - v2-0-test
+      - v2-1-stable
+      - v2-1-test
+      - v2-2-stable
+      - v2-2-test
+```
+
+Add vX-Y-stable to `.asf.yaml` (X-Y is your new branch)
+
+```yaml
+protected_branches:
+    main:
+        required_pull_request_reviews:
+        required_approving_review_count: 1
+    ...
+    vX-Y-stable:
+        required_pull_request_reviews:
+        required_approving_review_count: 1
+
+```
+
+### Create constraints branch out of the constraints-main one
+
+   ```shell script
+   # First clone the repo
+   export BRANCH_PREFIX=2-1
+   git checkout constraints-main
+   git checkout -b constraints-${BRANCH_PREFIX}
+   git push origin constraints-${BRANCH_PREFIX}
+   ```
 
 ## Prepare PyPI convenience "snapshot" packages
 
@@ -416,7 +507,7 @@ retrieves it from the default GPG keyserver
 [OpenPGP.org](https://keys.openpgp.org):
 
 ```shell script
-gpg --receive-keys 12717556040EEF2EEAF1B9C275FCCD0A25FA0E4B
+gpg --keyserver keys.openpgp.org --receive-keys CDE15C6E4D3A8EC4ECF4BA4B6674E08AD7DE406F
 ```
 
 You should choose to import the key when asked.
@@ -426,7 +517,7 @@ errors or timeouts. Many of the release managers also uploaded their keys to the
 [GNUPG.net](https://keys.gnupg.net) keyserver, and you can retrieve it from there.
 
 ```shell script
-gpg --keyserver keys.gnupg.net --receive-keys 12717556040EEF2EEAF1B9C275FCCD0A25FA0E4B
+gpg --keyserver keys.gnupg.net --receive-keys CDE15C6E4D3A8EC4ECF4BA4B6674E08AD7DE406F
 ```
 
 Once you have the keys, the signatures can be verified by running this:
@@ -440,10 +531,11 @@ done
 
 This should produce results similar to the below. The "Good signature from ..." is indication
 that the signatures are correct. Do not worry about the "not certified with a trusted signature"
-warning. Most of the certificates used by release managers are self signed, that's why you get this
-warning. By importing the server in the previous step and importing it via ID from
+warning. Most of the certificates used by release managers are self-signed, and that's why you get this
+warning. By importing the key either from the server in the previous step or from the
 [KEYS](https://dist.apache.org/repos/dist/release/airflow/KEYS) page, you know that
-this is a valid Key already.
+this is a valid key already.  To suppress the warning you may edit the key's trust level
+by running `gpg --edit-key <key id> trust` and entering `5` to assign trust level `ultimate`.
 
 ```
 Checking apache-airflow-2.0.2rc4.tar.gz.asc

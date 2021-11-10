@@ -31,11 +31,16 @@ For high-level changelog, see :doc:`package information including changelog <ind
 2.4.0
 .....
 
-Latest change: 2021-10-29
+Latest change: 2021-11-04
 
-================================================================================================  ===========  ================================================================================================
+================================================================================================  ===========  ========================================================================================
 Commit                                                                                            Committed    Subject
-================================================================================================  ===========  ================================================================================================
+================================================================================================  ===========  ========================================================================================
+`96dd70348 <https://github.com/apache/airflow/commit/96dd70348ad7e31cfeae6d21af70671b41551fe9>`_  2021-11-04   `` fix SagemakerProcessingOperator ThrottlingException (#19195)``
+`a3266ba2b <https://github.com/apache/airflow/commit/a3266ba2b9c0d6d8b669178f3ce8752bef92924f>`_  2021-11-03   ``Doc: Fix typos in variable and comments (#19349)``
+`6148ddd36 <https://github.com/apache/airflow/commit/6148ddd365939bb5129b342900a576bd855e9fc4>`_  2021-11-03   ``Fix S3ToRedshiftOperator (#19358)``
+`1600f1dfd <https://github.com/apache/airflow/commit/1600f1dfd767ebb0097e1455348dc13ea68e9bb5>`_  2021-10-30   ``Remove duplicated entries in changelog (#19331)``
+`d9567eb10 <https://github.com/apache/airflow/commit/d9567eb106929b21329c01171fd398fbef2dc6c6>`_  2021-10-29   ``Prepare documentation for October Provider's release (#19321)``
 `1543dc28f <https://github.com/apache/airflow/commit/1543dc28f4a2f1631dfaedd948e646a181ccf7ee>`_  2021-10-29   ``Fixing ses email backend (#18042)``
 `3c08c025c <https://github.com/apache/airflow/commit/3c08c025c5445ffc0533ac28d07ccf2e69a19ca8>`_  2021-10-27   ``Move validation of templated input params to run after the context init (#19048)``
 `f5ad26dcd <https://github.com/apache/airflow/commit/f5ad26dcdd7bcb724992528dce71056965b94d26>`_  2021-10-21   ``Fixup string concatenations (#19099)``
@@ -45,6 +50,16 @@ Commit                                                                          
 `1d7cfdbcd <https://github.com/apache/airflow/commit/1d7cfdbcd91705b2f88ef4ece503b7a072767e02>`_  2021-10-10   ``Remove extra postgres dependency from AWS Provider (#18844)``
 `1df9a512c <https://github.com/apache/airflow/commit/1df9a512c284f2585ce01bb77ac91d550f6ccaa3>`_  2021-10-08   ``Add RedshiftSQLHook, RedshiftSQLOperator (#18447)``
 `22768ff61 <https://github.com/apache/airflow/commit/22768ff61e1b8d3294c30562fa2ee284ee0f7739>`_  2021-10-08   ``Removed duplicated code on S3ToRedshiftOperator (#18671)``
+================================================================================================  ===========  ========================================================================================
+
+2.3.0
+.....
+
+Latest change: 2021-10-08
+
+================================================================================================  ===========  =========================================================================================================================
+Commit                                                                                            Committed    Subject
+================================================================================================  ===========  =========================================================================================================================
 `a680e876b <https://github.com/apache/airflow/commit/a680e876b680ecd05f7ac8da6c5a8f2518b9e071>`_  2021-10-08   ``Prepare documentation for RC2 Amazon Provider release for September (#18830)``
 `ea8f47890 <https://github.com/apache/airflow/commit/ea8f47890908e3a132273ec96f753ea6af66f837>`_  2021-10-08   ``Add AWS Fargate profile support (#18645)``
 `9344c3452 <https://github.com/apache/airflow/commit/9344c345220fc9c3355596f96132051c96b03ac6>`_  2021-10-08   ``Enable AWS Secrets Manager backend to retrieve conns using different fields (#18764)``
@@ -59,16 +74,6 @@ Commit                                                                          
 `12763f125 <https://github.com/apache/airflow/commit/12763f125ab90a1f9e769f1e51dc34cd0dd6d51a>`_  2021-10-05   ``Add additional dependency for postgres extra for amazon provider (#18737)``
 `86bf2a29b <https://github.com/apache/airflow/commit/86bf2a29ba784b25c335408eb4647ad2eb48b525>`_  2021-10-04   ``Simplify strings previously split across lines (#18679)``
 `12133861e <https://github.com/apache/airflow/commit/12133861ecefd28f1d569cf2d190c2f26f6fd2fb>`_  2021-10-01   ``Support all Unix wildcards in S3KeySensor (#18211)``
-================================================================================================  ===========  ================================================================================================
-
-2.3.0
-.....
-
-Latest change: 2021-09-30
-
-================================================================================================  ===========  =========================================================================================================================
-Commit                                                                                            Committed    Subject
-================================================================================================  ===========  =========================================================================================================================
 `840ea3efb <https://github.com/apache/airflow/commit/840ea3efb9533837e9f36b75fa527a0fbafeb23a>`_  2021-09-30   ``Update documentation for September providers release (#18613)``
 `8a1437e55 <https://github.com/apache/airflow/commit/8a1437e55ed50bcb9301c55c1217e9e66532f6ed>`_  2021-09-29   ``Refresh credentials for long-running pods on EKS (#17951)``
 `2fbd23878 <https://github.com/apache/airflow/commit/2fbd23878f185372c3e46221c3c95918d6cbcffa>`_  2021-09-28   ``Update s3_list.py (#18561)``

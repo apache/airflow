@@ -45,7 +45,10 @@ class KubeConfig:
 
         self.worker_container_repository = conf.get(self.kubernetes_section, 'worker_container_repository')
         self.worker_container_tag = conf.get(self.kubernetes_section, 'worker_container_tag')
-        self.kube_image = f'{self.worker_container_repository}:{self.worker_container_tag}'
+        if self.worker_container_repository and self.worker_container_tag:
+            self.kube_image = f'{self.worker_container_repository}:{self.worker_container_tag}'
+        else:
+            self.kube_image = None
 
         # The Kubernetes Namespace in which the Scheduler and Webserver reside. Note
         # that if your

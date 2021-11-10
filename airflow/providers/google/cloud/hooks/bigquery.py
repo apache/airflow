@@ -622,7 +622,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         :param labels: A dictionary containing labels for the BiqQuery table.
         :type labels: dict
         :param description: A string containing the description for the BigQuery table.
-        :type descriptin: str
+        :type description: str
         :param encryption_configuration: [Optional] Custom encryption configuration (e.g., Cloud KMS keys).
             **Example**: ::
 
@@ -632,8 +632,8 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         :type encryption_configuration: dict
         """
         warnings.warn(
-            "This method is deprecated. Please use `BigQueryHook.create_empty_table` method with"
-            "pass passing the `table_resource` object. This gives more flexibility than this method.",
+            "This method is deprecated. Please use `BigQueryHook.create_empty_table` method with "
+            "passing the `table_resource` object. This gives more flexibility than this method.",
             DeprecationWarning,
         )
         location = location or self.location

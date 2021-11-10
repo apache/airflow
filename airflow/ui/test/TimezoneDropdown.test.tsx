@@ -41,14 +41,14 @@ describe('test timezone dropdown', () => {
     fireEvent.click(button);
     const focusedElement = document.activeElement;
     if (focusedElement) {
-      fireEvent.change(focusedElement, { target: { value: 'Anch' } });
+      fireEvent.change(focusedElement, { target: { value: 'Baku' } });
     }
-    const optionText = '-08:00 America/Anchorage';
+    const optionText = '+04:00 Asia/Baku';
     const option = getByText(optionText);
     expect(option).toBeInTheDocument();
     fireEvent.click(option);
 
     expect(queryByText(optionText)).toBeNull();
-    expect(getByText('-08:00', { exact: false })).toBeInTheDocument();
+    expect(getByText('+04:00', { exact: false })).toBeInTheDocument();
   });
 });

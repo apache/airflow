@@ -137,10 +137,10 @@ class TestVariableFromSecrets(unittest.TestCase):
         Test if Variable is present in Environment Variable, it does not look for it in
         Metastore DB
         """
-        mock_env_get.return_value = [["something"]]  # returns nonempty list
+        mock_env_get.return_value = "something"
         Variable.get_variable_from_secrets("fake_var_key")
         mock_env_get.assert_called_once_with(key="fake_var_key")
-        mock_meta_get.not_called()
+        mock_meta_get.assert_not_called()
 
     def test_backend_fallback_to_default_var(self):
         """
@@ -149,3 +149,43 @@ class TestVariableFromSecrets(unittest.TestCase):
         """
         variable_value = Variable.get(key="test_var", default_var="new")
         assert "new" == variable_value
+
+    @conf_vars(
+        {
+            (
+                "secrets",
+                "backend",
+            ): "airflow.providers.amazon.aws.secrets.systems_manager.SystemsManagerParameterStoreBackend",
+            ("secrets", "backend_kwargs"): '{"variables_prefix": "/airflow", "profile_name": null}',
+        }
+    )
+    @mock.patch.dict(
+        'os.environ',
+        {
+            'AIRFLOW_VAR_MYVAR': 'a_venv_value',
+        },
+    )
+    @mock.patch("airflow.secrets.metastore.MetastoreBackend.get_variable")
+    @mock.patch(
+        "airflow.providers.amazon.aws.secrets.systems_manager."
+        "SystemsManagerParameterStoreBackend.get_variable"
+    )
+    def test_backend_variable_order(self, mock_secret_get, mock_meta_get):
+        backends = ensure_secrets_loaded()
+        backend_classes = [backend.__class__.__name__ for backend in backends]
+        assert 'SystemsManagerParameterStoreBackend' in backend_classes
+
+        mock_secret_get.return_value = None
+        mock_meta_get.return_value = None
+
+        assert "a_venv_value" == Variable.get(key="MYVAR")
+        mock_secret_get.assert_called_with(key="MYVAR")
+        mock_meta_get.assert_not_called()
+
+        mock_secret_get.return_value = None
+        mock_meta_get.return_value = "a_metastore_value"
+        assert "a_metastore_value" == Variable.get(key="not_myvar")
+        mock_meta_get.assert_called_once_with(key="not_myvar")
+
+        mock_secret_get.return_value = "a_secret_value"
+        assert "a_secret_value" == Variable.get(key="not_myvar")

@@ -461,6 +461,7 @@ class BaseOperator(Operator, LoggingMixin, TaskMixin, metaclass=BaseOperatorMeta
         'retry_exponential_backoff',
         'max_retry_delay',
         'start_date',
+        'end_date',
         'depends_on_past',
         'wait_for_downstream',
         'priority_weight',
