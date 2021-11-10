@@ -32,6 +32,7 @@ Installation
     Installing from sources <installing-from-sources>
     Installing from PyPI <installing-from-pypi>
     Setting up the database <setting-up-the-database>
+    Upgrading <upgrading>
 
 This page describes installations options that you might use when considering how to install Airflow.
 Airflow consists of many components, often distributed among many physical or virtual machines, therefore
