@@ -90,7 +90,52 @@ If additional parameters for package installation are needed pass them in ``requ
 All supported options are listed in the `requirements file format <https://pip.pypa.io/en/stable/reference/requirements-file-format/#supported-options>`_.
 
 
+.. _howto/operator:ShortCircuitOperator:
+
+ShortCircuitOperator
+========================
+
+Use the :class:`~airflow.operators.python.ShortCircuitOperator` to control whether a pipeline continues only
+if a condition is satisfied. The evaluation of this condition is done via the output of a ``python_callable``.
+If the ``python_callable`` returns True, the condition is considered satisfied and the pipeline is allowed to
+continue. In the example below, the tasks that follow the "condition_is_True" ShortCircuitOperator will
+execute while the tasks downstream of the "condition_is_False" ShortCircuitOperator will be skipped.
+
+
+.. exampleinclude:: /../../airflow/example_dags/example_short_circuit_operator.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_short_circuit]
+    :end-before: [END howto_operator_short_circuit]
+
+
+The "short-circuiting" can be configured to either respect or ignore the ``trigger_rule`` defined
+for downstream tasks. If ``ignore_downstream_trigger_rules`` is set to True, the default configuration, all
+downstream tasks are skipped without considering the ``trigger_rule`` defined for tasks.  If this parameter is
+set to False, the direct, downstream tasks are skipped but the specified ``trigger_rule`` for other subsequent
+downstream tasks are respected. In this mode, the operator assumes the direct, downstream task(s) were
+purposely meant to be skipped but perhaps not other subsequent tasks.
+
+In the example below, notice that the ShortCircuitOperator task is configured to respect downstream trigger
+rules. This means while the tasks that follow the "short_circuit" ShortCircuitOperator task will be skipped
+since the ``python_callable`` returns False, "task_7" will still execute as its set to execute when upstream
+tasks have completed running regardless of status.
+
+.. exampleinclude:: /../../airflow/example_dags/example_short_circuit_operator.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_short_circuit_trigger_rules]
+    :end-before: [END howto_operator_short_circuit_trigger_rules]
+
+
+
+Passing in arguments
+^^^^^^^^^^^^^^^^^^^^
+
+Both the ``op_args`` and ``op_kwargs`` arguments can be used in same way as described for the PythonOperator.
+
+
 Templating
 ^^^^^^^^^^
 
-You can use jinja Templating the same way you use it in PythonOperator.
+Jinja templating can be used in same way as described for the PythonOperator.
