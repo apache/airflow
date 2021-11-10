@@ -160,6 +160,10 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
             credentials=self._get_credentials(),
         )
 
+    def get_uri(self) -> str:
+        """Override DbApiHook get_uri method for get_sqlalchemy_engine()"""
+        return "bigquery://"
+
     @staticmethod
     def _resolve_table_reference(
         table_resource: Dict[str, Any],

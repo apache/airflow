@@ -22,12 +22,15 @@ import unittest
 from unittest import mock
 
 import pytest
+import sqlalchemy
 from google.cloud.bigquery import DEFAULT_RETRY, DatasetReference, Table, TableReference
 from google.cloud.bigquery.dataset import AccessEntry, Dataset, DatasetListItem
 from google.cloud.exceptions import NotFound
 from parameterized import parameterized
 
 from airflow import AirflowException
+from airflow.hooks.base import BaseHook
+from airflow.models import crypto
 from airflow.providers.google.cloud.hooks.bigquery import (
     BigQueryCursor,
     BigQueryHook,
@@ -2016,3 +2019,38 @@ class TestBigQueryWithLabelsAndDescription(_BigQueryBaseTestClass):
 
         _, kwargs = mock_create.call_args
         assert kwargs['table_resource']['description'] is description
+
+
+class TestConnection(unittest.TestCase):
+    def setUp(self):
+        crypto._fernet = None
+        patcher = mock.patch('airflow.models.connection.mask_secret', autospec=True)
+        self.mask_secret = patcher.start()
+
+        self.addCleanup(patcher.stop)
+
+    def tearDown(self):
+        crypto._fernet = None
+    @mock.patch.dict(
+        'os.environ',
+        {
+            'AIRFLOW_CONN_TEST_URI': 'google-cloud-platform://?__extra__=%7B%22extra__google_cloud_platform__key_path%22%3A+%22%2Fopt%2FYOUR_FILE_PATH%2Fservice-account.json%22%2C+%22extra__google_cloud_platform__keyfile_dict%22%3A+%22%22%2C+%22extra__google_cloud_platform__num_retries%22%3A+5%2C+%22extra__google_cloud_platform__project%22%3A+%22YOUR_GCP_PROJECT%22%2C+%22extra__google_cloud_platform__scope%22%3A+%22https%3A%2F%2Fwww.googleapis.com%2Fauth%2Fcloud-platform%22%7D',
+        },
+    )
+    def test_dbapi_get_uri(self):
+        conn = BaseHook.get_connection(conn_id='test_uri')
+        hook = conn.get_hook()
+        assert hook.get_uri().startswith('bigquery://')
+
+    @mock.patch.dict(
+        'os.environ',
+        {
+            'AIRFLOW_CONN_TEST_URI': 'google-cloud-platform://?__extra__=%7B%22extra__google_cloud_platform__key_path%22%3A+%22%2Fopt%2FYOUR_FILE_PATH%2Fservice-account.json%22%2C+%22extra__google_cloud_platform__keyfile_dict%22%3A+%22%22%2C+%22extra__google_cloud_platform__num_retries%22%3A+5%2C+%22extra__google_cloud_platform__project%22%3A+%22YOUR_GCP_PROJECT%22%2C+%22extra__google_cloud_platform__scope%22%3A+%22https%3A%2F%2Fwww.googleapis.com%2Fauth%2Fcloud-platform%22%7D',
+        },
+    )
+    def test_dbapi_get_sqlalchemy_engine(self):
+        conn = BaseHook.get_connection(conn_id='test_uri')
+        hook = conn.get_hook()
+        engine = hook.get_sqlalchemy_engine()
+        assert isinstance(engine, sqlalchemy.engine.Engine)
+        assert 'postgres://username:password@ec2.compute.com:5432/the_database' == str(engine.url)
