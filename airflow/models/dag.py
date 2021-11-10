@@ -687,13 +687,13 @@ class DAG(LoggingMixin):
         """Get information about the next DagRun of this dag after ``date_last_automated_dagrun``.
 
         This calculates what time interval the next DagRun should operate on
-        (its execution date), and when it can be scheduled, , according to the
+        (its execution date) and when it can be scheduled, according to the
         dag's timetable, start_date, end_date, etc. This doesn't check max
         active run or any other "max_active_tasks" type limits, but only
         performs calculations based on the various date and interval fields of
         this dag and its tasks.
 
-        :param date_last_automated_dagrun: The ``max(execution_date)`` of
+        :param last_automated_dagrun: The ``max(execution_date)`` of
             existing "automated" DagRuns for this dag (scheduled or backfill,
             but not manual).
         :param restricted: If set to *False* (default is *True*), ignore
@@ -2903,7 +2903,8 @@ class DagModel(Base):
         Calculate ``next_dagrun`` and `next_dagrun_create_after``
 
         :param dag: The DAG object
-        :param most_recent_dag_run: DateTime of most recent run of this dag, or none if not yet scheduled.
+        :param most_recent_dag_run: DataInterval (or datetime) of most recent run of this dag, or none
+            if not yet scheduled.
         """
         if isinstance(most_recent_dag_run, datetime):
             warnings.warn(
