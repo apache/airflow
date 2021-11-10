@@ -83,7 +83,7 @@ Here's a basic example of how a sensor might trigger deferral::
 
     class WaitOneHourSensor(BaseSensorOperator):
         def execute(self, context):
-            self.defer(trigger=TimeDeltaTrigger(timedelta(hours=1), method_name="execute_complete")
+            self.defer(trigger=TimeDeltaTrigger(timedelta(hours=1)), method_name="execute_complete")
 
         def execute_complete(self, context, event=None):
             # We have no more work to do here. Mark as complete.
