@@ -3984,9 +3984,9 @@ class DagRunModelView(AirflowPrivilegeVerifierModelView):
         end_date = self.get('end_date')
         start_date = self.get('start_date')
 
-        difference = 0
+        difference = '0.0'
         if start_date and end_date:
-            difference = (end_date - start_date).total_seconds()
+            difference = str(end_date - start_date)
 
         return difference
 
