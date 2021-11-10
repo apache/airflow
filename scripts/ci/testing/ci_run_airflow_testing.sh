@@ -29,8 +29,6 @@ export SEMAPHORE_NAME
 # shellcheck source=scripts/ci/libraries/_script_init.sh
 . "$( dirname "${BASH_SOURCE[0]}" )/../libraries/_script_init.sh"
 
-
-
 # Starts test types in parallel
 # test_types_to_run - list of test types (it's not an array, it is space-separate list)
 # ${@} - additional arguments to pass to test execution
@@ -59,13 +57,13 @@ function run_test_types_in_parallel() {
 # Runs all test types in parallel depending on the number of CPUs available
 # We monitors their progress, display the progress  and summarize the result when finished.
 #
-# In case there is not enough memory (MEMORY_REQUIRED_FOR_INTEGRATION_TEST_PARALLEL_RUN) available for
+# In case there is not enough memory (MEMORY_REQUIRED_FOR_HEAVY_TEST_PARALLEL_RUN) available for
 # the docker engine, the integration tests (which take a lot of memory for all the integrations)
 # are run sequentially after all other tests were run in parallel.
 #
 # Input:
 #   * TEST_TYPES  - contains all test types that should be executed
-#   * MEMORY_REQUIRED_FOR_INTEGRATION_TEST_PARALLEL_RUN - memory in bytes required to run integration tests
+#   * MEMORY_REQUIRED_FOR_HEAVY_TEST_PARALLEL_RUN - memory in bytes required to run integration tests
 #             in parallel to other tests
 #
 function run_all_test_types_in_parallel() {
@@ -75,46 +73,38 @@ function run_all_test_types_in_parallel() {
     echo
     echo "${COLOR_YELLOW}Running maximum ${MAX_PARALLEL_TEST_JOBS} test types in parallel${COLOR_RESET}"
     echo
-
-    local run_integration_tests_separately="false"
-    local run_providers_tests_separately="false"
+    local sequential_tests=()
     # shellcheck disable=SC2153
     local test_types_to_run=${TEST_TYPES}
 
-    if [[ ${test_types_to_run} == *"Integration"* ]]; then
-        if (( MEMORY_AVAILABLE_FOR_DOCKER < MEMORY_REQUIRED_FOR_INTEGRATION_TEST_PARALLEL_RUN )) ; then
-            # In case of Integration tests - they need more resources (Memory) thus we only run them in
-            # parallel if we have more than 32 GB memory available. Otherwise we run them sequentially
-            # after cleaning up the memory and stopping all docker instances
-            echo ""
-            echo "${COLOR_YELLOW}There is not enough memory to run Integration test in parallel${COLOR_RESET}"
-            echo "${COLOR_YELLOW}   Available memory: ${MEMORY_AVAILABLE_FOR_DOCKER}${COLOR_RESET}"
-            echo "${COLOR_YELLOW}   Required memory: ${MEMORY_REQUIRED_FOR_INTEGRATION_TEST_PARALLEL_RUN}${COLOR_RESET}"
-            echo ""
-            echo "${COLOR_YELLOW}Integration tests will be run separately at the end after cleaning up docker${COLOR_RESET}"
-            echo ""
-            if [[ ${BACKEND} == "mssql" ]]; then
-                # Skip running "Integration" and "Providers" tests for low memory condition for mssql
-                # Both might lead to memory issues even in run on their own. We have no need to
-                # Test those specifically for MSSQL (and they will be tested in `main` as there
-                # We have no memory limits
-                test_types_to_run="${test_types_to_run//Integration/}"
-                run_integration_tests_separately="false"
+    if (( MEMORY_AVAILABLE_FOR_DOCKER < MEMORY_REQUIRED_FOR_HEAVY_TEST_PARALLEL_RUN )) ; then
+        # In case of Heavy tests - they need more resources (Memory) thus we only run them in
+        # parallel if we have more than 32 GB memory available. Otherwise we run them sequentially
+        # after cleaning up the memory and stopping all docker instances
+        echo ""
+        echo "${COLOR_YELLOW}There is not enough memory to run heavy test in parallel${COLOR_RESET}"
+        echo "${COLOR_YELLOW}   Available memory: ${MEMORY_AVAILABLE_FOR_DOCKER}${COLOR_RESET}"
+        echo "${COLOR_YELLOW}   Required memory: ${MEMORY_REQUIRED_FOR_HEAVY_TEST_PARALLEL_RUN}${COLOR_RESET}"
+        echo ""
+        echo "${COLOR_YELLOW}Heavy tests will be run sequentially after parallel tests including cleaning up docker between tests${COLOR_RESET}"
+        echo ""
+        if [[ ${test_types_to_run} == *"Integration"* ]]; then
+            echo "${COLOR_YELLOW}Remove Integration from tests_types_to_run and add them to sequential tests due to low memory.${COLOR_RESET}"
+            test_types_to_run="${test_types_to_run//Integration/}"
+            sequential_tests+=("Integration")
+        fi
+        if [[ ${test_types_to_run} == *"Core"* ]]; then
+            echo "${COLOR_YELLOW}Remove Core from tests_types_to_run and add them to sequential tests due to low memory.${COLOR_RESET}"
+            test_types_to_run="${test_types_to_run//Core/}"
+            sequential_tests+=("Core")
+        fi
+        if [[ ${BACKEND} == "mssql" || ${BACKEND} == "mysql" ]]; then
+            # For mssql/mysql - they take far more memory than postgres (or sqlite) - we skip the Provider
+            # tests altogether as they take too much memory even if run sequentially.
+            # Those tests will run in `main` anyway.
+            if [[ ${test_types_to_run} == *"Providers"* ]]; then
+                echo "${COLOR_YELLOW}Remove Providers from tests_types_to_run and skip running them altogether (mysql/mssql case).${COLOR_RESET}"
                 test_types_to_run="${test_types_to_run//Providers/}"
-                run_providers_tests_separately="false"
-            elif [[ ${BACKEND} == "mysql" ]]; then
-                # Separate "Integration" and "Providers" tests for low memory condition for mysql
-                # To not run them in parallel with other tests as this often leads to memory issue
-                # (Error 137 or 143).
-                test_types_to_run="${test_types_to_run//Integration/}"
-                run_integration_tests_separately="true"
-                test_types_to_run="${test_types_to_run//Providers/}"
-                run_providers_tests_separately="true"
-            else
-                # Remove Integration from list of tests to run in parallel
-                # and run them separately for all other backends
-                test_types_to_run="${test_types_to_run//Integration/}"
-                run_integration_tests_separately="true"
             fi
         fi
     fi
@@ -123,17 +113,15 @@ function run_all_test_types_in_parallel() {
 
     parallel::initialize_monitoring
 
+    # Run all tests that should run in parallel (from test_types_to_run variable)
     run_test_types_in_parallel "${@}"
-    if [[ ${run_providers_tests_separately} == "true" ]]; then
+
+    # if needed run remaining tests sequentially
+    for sequential_test in "${sequential_tests[@]}"; do
         parallel::cleanup_runner
-        test_types_to_run="Providers"
+        test_types_to_run="${sequential_test}"
         run_test_types_in_parallel "${@}"
-    fi
-    if [[ ${run_integration_tests_separately} == "true" ]]; then
-        parallel::cleanup_runner
-        test_types_to_run="Integration"
-        run_test_types_in_parallel "${@}"
-    fi
+    done
     set -e
     # this will exit with error code in case some of the non-Quarantined tests failed
     parallel::print_job_summary_and_return_status_code
