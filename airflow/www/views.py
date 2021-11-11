@@ -3998,7 +3998,7 @@ class DagRunModelView(AirflowPrivilegeVerifierModelView):
 
     @provide_session
     def _set_dag_runs_to_active_state(self, drs: List[DagRun], state: str, session=None):
-        """This routine only support Running and Queued state."""
+        """This routine only supports Running and Queued state."""
         try:
             count = 0
             for dr in session.query(DagRun).filter(DagRun.id.in_([dagrun.id for dagrun in drs])).all():
