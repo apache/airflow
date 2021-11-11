@@ -150,7 +150,7 @@ class PythonOperator(BaseOperator):
         op_kwargs: Optional[Dict] = None,
         templates_dict: Optional[Dict] = None,
         templates_exts: Optional[List[str]] = None,
-        show_return_value_in_logs: Optional[bool] = True,
+        show_return_value_in_logs: bool = True,
         **kwargs,
     ) -> None:
         if kwargs.get("provide_context"):
