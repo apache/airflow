@@ -669,7 +669,7 @@ class TestPodGenerator:
             assert len(parts[0]) == len(pod_id)
         else:
             assert len(parts[0]) <= 63
-        assert len(parts[1]) <= 63
+        assert len(parts[1]) == 32
 
     @parameterized.expand(
         (
