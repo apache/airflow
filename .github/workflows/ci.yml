@@ -67,6 +67,7 @@ jobs:
           cd $GITHUB_WORKSPACE/docker-airflow
           echo $(pwd)
           cp $GITHUB_WORKSPACE/airflow/dist/$(cat $GITHUB_WORKSPACE/AIRFLOW_RELEASE_NAME) ./$(cat $GITHUB_WORKSPACE/AIRFLOW_RELEASE_NAME)
+          cp $GITHUB_WORKSPACE/airflow/requirements.txt ./requirements.txt
           docker build --build-arg AIRFLOW_WHEEL_NAME=$(cat $GITHUB_WORKSPACE/AIRFLOW_RELEASE_NAME) -t ghcr.io/masami10/airflow/airflow-base:latest --no-cache .
           docker tag ghcr.io/masami10/airflow/airflow-base:latest ghcr.io/masami10/airflow/airflow-base:$(cat $GITHUB_WORKSPACE/AIRFLOW_RELEASE_VERSION)
           docker push ghcr.io/masami10/airflow/airflow-base:$(cat $GITHUB_WORKSPACE/AIRFLOW_RELEASE_VERSION)
