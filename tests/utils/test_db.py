@@ -23,6 +23,7 @@ import unittest
 from alembic.autogenerate import compare_metadata
 from alembic.config import Config
 from alembic.migration import MigrationContext
+from alembic.runtime.environment import EnvironmentContext
 from alembic.script import ScriptDirectory
 from sqlalchemy import MetaData
 
@@ -85,9 +86,17 @@ class TestDb(unittest.TestCase):
         config.set_main_option("script_location", "airflow:migrations")
         script = ScriptDirectory.from_config(config)
 
-        # This will raise if there are multiple heads
-        # To resolve, use the command `alembic merge`
-        script.get_current_head()
+        from airflow.settings import engine
+
+        with EnvironmentContext(
+            config,
+            script,
+            as_sql=True,
+        ) as env:
+            env.configure(dialect_name=engine.dialect.name)
+            # This will raise if there are multiple heads
+            # To resolve, use the command `alembic merge`
+            script.get_current_head()
 
     def test_default_connections_sort(self):
         pattern = re.compile('conn_id=[\"|\'](.*?)[\"|\']', re.DOTALL)

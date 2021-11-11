@@ -25,13 +25,13 @@ Create Date: 2017-06-19 16:53:12.851141
 
 import sqlalchemy as sa
 from alembic import op
-from sqlalchemy import Column, Integer, String
+from sqlalchemy import Column, Integer
 from sqlalchemy.engine.reflection import Inspector
 from sqlalchemy.ext.declarative import declarative_base
 
 from airflow import settings
+from airflow.migrations.db_types import StringID
 from airflow.models import DagBag
-from airflow.models.base import COLLATION_ARGS
 
 # revision identifiers, used by Alembic.
 revision = 'cc1e65623dc7'
@@ -41,7 +41,6 @@ depends_on = None
 
 Base = declarative_base()
 BATCH_SIZE = 5000
-ID_LEN = 250
 
 
 class TaskInstance(Base):  # type: ignore
@@ -49,8 +48,8 @@ class TaskInstance(Base):  # type: ignore
 
     __tablename__ = "task_instance"
 
-    task_id = Column(String(ID_LEN, **COLLATION_ARGS), primary_key=True)
-    dag_id = Column(String(ID_LEN, **COLLATION_ARGS), primary_key=True)
+    task_id = Column(StringID(), primary_key=True)
+    dag_id = Column(StringID(), primary_key=True)
     execution_date = Column(sa.DateTime, primary_key=True)
     max_tries = Column(Integer)
     try_number = Column(Integer, default=0)

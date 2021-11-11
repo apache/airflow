@@ -31,7 +31,7 @@ from sqlalchemy import Boolean, Column, Integer, PickleType, String
 from sqlalchemy.engine.reflection import Inspector
 from sqlalchemy.ext.declarative import declarative_base
 
-from airflow.models.base import ID_LEN
+from airflow.migrations.db_types import StringID
 from airflow.utils import timezone
 from airflow.utils.sqlalchemy import UtcDateTime
 from airflow.utils.state import State
@@ -55,12 +55,12 @@ class DagRun(Base):  # type: ignore
     __tablename__ = "dag_run"
 
     id = Column(Integer, primary_key=True)
-    dag_id = Column(String(ID_LEN))
+    dag_id = Column(StringID())
     execution_date = Column(UtcDateTime, default=timezone.utcnow)
     start_date = Column(UtcDateTime, default=timezone.utcnow)
     end_date = Column(UtcDateTime)
     _state = Column('state', String(50), default=State.RUNNING)
-    run_id = Column(String(ID_LEN))
+    run_id = Column(StringID())
     external_trigger = Column(Boolean, default=True)
     run_type = Column(String(50), nullable=False)
     conf = Column(PickleType)
@@ -96,7 +96,9 @@ def upgrade():
 
         # Make run_type not nullable
         with op.batch_alter_table("dag_run") as batch_op:
-            batch_op.alter_column("run_type", type_=run_type_col_type, nullable=False)
+            batch_op.alter_column(
+                "run_type", existing_type=run_type_col_type, type_=run_type_col_type, nullable=False
+            )
 
 
 def downgrade():

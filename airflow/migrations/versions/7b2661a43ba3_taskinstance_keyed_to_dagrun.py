@@ -30,7 +30,7 @@ import sqlalchemy as sa
 from alembic import op
 from sqlalchemy.sql import and_, column, select, table
 
-from airflow.models.base import COLLATION_ARGS
+from airflow.migrations.db_types import TIMESTAMP, StringID
 
 ID_LEN = 250
 
@@ -39,19 +39,6 @@ revision = '7b2661a43ba3'
 down_revision = '142555e44c17'
 branch_labels = None
 depends_on = None
-
-
-def _datetime_type(dialect_name):
-    if dialect_name == "mssql":
-        from sqlalchemy.dialects import mssql
-
-        return mssql.DATETIME2(precision=6)
-    elif dialect_name == "mysql":
-        from sqlalchemy.dialects import mysql
-
-        return mysql.DATETIME(fsp=6)
-
-    return sa.TIMESTAMP(timezone=True)
 
 
 # Just Enough Table to run the conditions for update.
@@ -106,9 +93,9 @@ def upgrade():
     """Apply TaskInstance keyed to DagRun"""
     conn = op.get_bind()
     dialect_name = conn.dialect.name
-    dt_type = _datetime_type(dialect_name)
 
-    string_id_col_type = sa.String(length=ID_LEN, **COLLATION_ARGS)
+    dt_type = TIMESTAMP
+    string_id_col_type = StringID()
 
     if dialect_name == 'sqlite':
         naming_convention = {
@@ -326,8 +313,8 @@ def upgrade():
 def downgrade():
     """Unapply TaskInstance keyed to DagRun"""
     dialect_name = op.get_bind().dialect.name
-    dt_type = _datetime_type(dialect_name)
-    string_id_col_type = sa.String(length=ID_LEN, **COLLATION_ARGS)
+    dt_type = TIMESTAMP
+    string_id_col_type = StringID()
 
     op.add_column('task_instance', sa.Column('execution_date', dt_type, nullable=True))
     op.add_column('task_reschedule', sa.Column('execution_date', dt_type, nullable=True))
