@@ -687,7 +687,7 @@ class TestPodGenerator:
             len(name) <= 253 and all(ch.lower() == ch for ch in name) and re.match(regex, name)
         ), "pod_id is invalid - fails allowed regex check"
 
-        assert name[:-33] == expected_starts_with
+        assert name.rsplit("-")[0] == expected_starts_with
 
     def test_deserialize_model_string(self):
         fixture = """
