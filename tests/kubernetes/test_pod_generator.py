@@ -503,7 +503,7 @@ class TestPodGenerator:
             base_worker_pod=worker_config,
         )
 
-        assert result.metadata.name == ('a' * 63)[:-33] + '-' + self.static_uuid.hex
+        assert result.metadata.name == 'a' * 30 + '-' + self.static_uuid.hex
         for _, v in result.metadata.labels.items():
             assert len(v) <= 63
 
