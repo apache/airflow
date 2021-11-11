@@ -180,6 +180,9 @@ class PythonOperator(BaseOperator):
         return_value = self.execute_callable()
         if self.show_return_value_in_logs:
             self.log.info("Done. Returned value was: %s", return_value)
+        else:
+            self.log.info("Done. Returned value not shown")
+
         return return_value
 
     def execute_callable(self):

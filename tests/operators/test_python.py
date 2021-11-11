@@ -355,16 +355,13 @@ class TestPythonOperator(TestPythonBase):
             show_return_value_in_logs=False,
         )
 
-        try:
-            with self.assertLogs('airflow.task.operators', level=logging.INFO) as cm:
-                python_operator.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
-        except AssertionError as e:
-            # ignore when the log is not captured.
-            if e.args[0] != 'no logs of level INFO or higher triggered on airflow.task.operators':
-                raise e
+        with self.assertLogs('airflow.task.operators', level=logging.INFO) as cm:
+            python_operator.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
 
-        assert 'INFO:airflow.task.operators:Done. Returned value was: test_return_value' not in cm.records, \
+        assert 'INFO:airflow.task.operators:Done. Returned value was: test_return_value' not in cm.output, \
             'Return value should not be shown'
+        assert 'INFO:airflow.task.operators:Done. Returned value not shown' in cm.output, \
+            'Log message that the option is turned off should be shown'
 
 
 class TestBranchOperator(unittest.TestCase):
