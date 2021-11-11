@@ -54,6 +54,6 @@ class TimeDeltaSensorAsync(TimeDeltaSensor):
         target_dttm += self.delta
         self.defer(trigger=DateTimeTrigger(moment=target_dttm), method_name="execute_complete")
 
-    def execute_complete(self, context, event=None):  # pylint: disable=unused-argument
+    def execute_complete(self, context, event=None):
         """Callback for when the trigger fires - returns immediately."""
         return None
