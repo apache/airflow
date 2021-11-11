@@ -55,6 +55,7 @@
     "file-loader": "^6.0.0",
     "imports-loader": "^1.1.0",
     "jest": "^27.3.1",
+    "license-checker": "^25.0.1",
     "mini-css-extract-plugin": "1.6.0",
     "moment": "^2.29.1",
     "moment-locales-webpack-plugin": "^1.2.0",
@@ -65,6 +66,7 @@
     "url-loader": "4.1.0",
     "webpack": "4.44.2",
     "webpack-cli": "3.3.12",
+    "webpack-license-plugin": "^4.2.1",
     "webpack-manifest-plugin": "^2.2.0"
   },
   "dependencies": {

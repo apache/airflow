@@ -25,6 +25,7 @@ const CopyWebpackPlugin = require('copy-webpack-plugin');
 const MiniCssExtractPlugin = require('mini-css-extract-plugin');
 const MomentLocalesPlugin = require('moment-locales-webpack-plugin');
 const OptimizeCSSAssetsPlugin = require('optimize-css-assets-webpack-plugin');
+const LicensePlugin = require('webpack-license-plugin');
 
 // Input Directory (airflow/www)
 // noinspection JSUnresolvedVariable
@@ -34,6 +35,22 @@ const JS_DIR = path.resolve(__dirname, './static/js');
 // Output Directory (airflow/www/static/dist)
 // noinspection JSUnresolvedVariable
 const BUILD_DIR = path.resolve(__dirname, './static/dist');
+
+// Convert licenses json into a standard format for LICENSES.txt
+const formatLicenses = (packages) => {
+  let text = `Apache Airflow
+Copyright 2016-2021 The Apache Software Foundation
+
+This product includes software developed at The Apache Software
+Foundation (http://www.apache.org/).
+
+=======================================================================
+`;
+  packages.forEach((p) => {
+    text += `${p.name}|${p.version}:\n-----\n${p.license}\n${p.licenseText || p.author}\n${p.repository || ''}\n\n\n`;
+  });
+  return text;
+};
 
 const config = {
   entry: {
@@ -220,6 +237,14 @@ const config = {
           flatten: true,
         },
       ],
+    }),
+    new LicensePlugin({
+      additionalFiles: {
+        '../../../../licenses/LICENSES-ui.txt': formatLicenses,
+      },
+      unacceptableLicenseTest: (licenseIdentifier) => (
+        ['BCL', 'JSR', 'ASL', 'RSAL', 'SSPL', 'CPOL', 'NPL', 'BSD-4', 'QPL', 'GPL', 'LGPL'].includes(licenseIdentifier)
+      ),
     }),
   ],
   optimization: {
