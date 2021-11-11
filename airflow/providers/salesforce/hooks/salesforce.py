@@ -143,27 +143,19 @@ class SalesforceHook(BaseHook):
         conn = Salesforce(
             username=connection.login,
             password=connection.password,
-            security_token=extras.get('security_token')
-            or extras.get('extra__salesforce__security_token')
-            or None,
-            domain=extras.get('domain') or extras.get('extra__salesforce__domain') or None,
+            security_token=extras.get('extra__salesforce__security_token') or None,
+            domain=extras.get('extra__salesforce__domain') or None,
             session_id=self.session_id,
-            instance=extras.get('instance') or extras.get('extra__salesforce__instance') or None,
-            instance_url=extras.get('instance_url') or extras.get('extra__salesforce__instance_url') or None,
-            organizationId=extras.get('organization_id')
-            or extras.get('extra__salesforce__organization_id')
-            or None,
-            version=extras.get('version')
-            or extras.get('extra__salesforce__version')
-            or api.DEFAULT_API_VERSION,
-            proxies=extras.get('proxies') or extras.get('extra__salesforce__proxies') or None,
+            instance=extras.get('extra__salesforce__instance') or None,
+            instance_url=extras.get('extra__salesforce__instance_url') or None,
+            organizationId=extras.get('extra__salesforce__organization_id') or None,
+            version=extras.get('extra__salesforce__version') or api.DEFAULT_API_VERSION,
+            proxies=extras.get('extra__salesforce__proxies') or None,
             session=self.session,
-            client_id=extras.get('client_id') or extras.get('extra__salesforce__client_id') or None,
-            consumer_key=extras.get('consumer_key') or extras.get('extra__salesforce__consumer_key') or None,
-            privatekey_file=extras.get('private_key_file_path')
-            or extras.get('extra__salesforce__private_key_file_path')
-            or None,
-            privatekey=extras.get('private_key') or extras.get('extra__salesforce__private_key') or None,
+            client_id=extras.get('extra__salesforce__client_id') or None,
+            consumer_key=extras.get('extra__salesforce__consumer_key') or None,
+            privatekey_file=extras.get('extra__salesforce__private_key_file_path') or None,
+            privatekey=extras.get('extra__salesforce__private_key') or None,
         )
         return conn
 
