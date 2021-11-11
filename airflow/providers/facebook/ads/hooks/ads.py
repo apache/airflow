@@ -99,8 +99,7 @@ class FacebookAdsReportingHook(BaseHook):
         if missing_keys:
             message = f"{missing_keys} fields are missing"
             raise AirflowException(message)
-        # Solve a way to check in bulk_facebook_report to handle list and dict return there
-        if type(config["account_id"]) is not list:
+        if not isinstance(config["account_id"], list):
             self.is_backward = True
         return config
 
