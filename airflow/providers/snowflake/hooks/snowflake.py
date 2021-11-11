@@ -268,8 +268,7 @@ class SnowflakeHook(DbApiHook):
         """
         self.query_ids = []
 
-        with self.get_conn() as conn:
-            conn = self.get_conn()
+        with closing(self.get_conn()) as conn:
             self.set_autocommit(conn, autocommit)
 
             if isinstance(sql, str):
