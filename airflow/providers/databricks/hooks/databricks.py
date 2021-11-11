@@ -34,17 +34,17 @@ from airflow import __version__
 from airflow.exceptions import AirflowException
 from airflow.hooks.base import BaseHook
 
-RESTART_CLUSTER_ENDPOINT = ("POST", "api/2.1/clusters/restart")
-START_CLUSTER_ENDPOINT = ("POST", "api/2.1/clusters/start")
-TERMINATE_CLUSTER_ENDPOINT = ("POST", "api/2.1/clusters/delete")
+RESTART_CLUSTER_ENDPOINT = ("POST", "api/2.0/clusters/restart")
+START_CLUSTER_ENDPOINT = ("POST", "api/2.0/clusters/start")
+TERMINATE_CLUSTER_ENDPOINT = ("POST", "api/2.0/clusters/delete")
 
 RUN_NOW_ENDPOINT = ('POST', 'api/2.1/jobs/run-now')
 SUBMIT_RUN_ENDPOINT = ('POST', 'api/2.1/jobs/runs/submit')
 GET_RUN_ENDPOINT = ('GET', 'api/2.1/jobs/runs/get')
 CANCEL_RUN_ENDPOINT = ('POST', 'api/2.1/jobs/runs/cancel')
 
-INSTALL_LIBS_ENDPOINT = ('POST', 'api/2.1/libraries/install')
-UNINSTALL_LIBS_ENDPOINT = ('POST', 'api/2.1/libraries/uninstall')
+INSTALL_LIBS_ENDPOINT = ('POST', 'api/2.0/libraries/install')
+UNINSTALL_LIBS_ENDPOINT = ('POST', 'api/2.0/libraries/uninstall')
 
 USER_AGENT_HEADER = {'user-agent': f'airflow-{__version__}'}
 
