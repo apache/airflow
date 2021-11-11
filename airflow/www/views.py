@@ -4001,7 +4001,7 @@ class DagRunModelView(AirflowPrivilegeVerifierModelView):
         """This routine only supports Running and Queued state."""
         try:
             count = 0
-            for dr in session.query(DagRun).filter(DagRun.id.in_([dagrun.id for dagrun in drs])).all():
+            for dr in session.query(DagRun).filter(DagRun.id.in_([dagrun.id for dagrun in drs])):
                 count += 1
                 if state == State.RUNNING:
                     dr.start_date = timezone.utcnow()
