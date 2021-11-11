@@ -27,15 +27,11 @@ import logging
 import time
 from typing import Any, Dict, Iterable, List, Optional
 
-try:
-    from functools import cached_property
-except ImportError:
-    from cached_property import cached_property
-
 import pandas as pd
 from requests import Session
 from simple_salesforce import Salesforce, api
 
+from airflow.compat.functools import cached_property
 from airflow.hooks.base import BaseHook
 
 log = logging.getLogger(__name__)

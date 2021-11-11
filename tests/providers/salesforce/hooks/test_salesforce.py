@@ -23,7 +23,6 @@ from unittest.mock import Mock, patch
 import pandas as pd
 import pytest
 from numpy import nan
-from parameterized import parameterized
 from requests import Session as request_session
 from simple_salesforce import Salesforce, api
 
@@ -49,45 +48,13 @@ class TestSalesforceHook(unittest.TestCase):
 
         assert self.salesforce_hook.conn.return_value is not None
 
-    @parameterized.expand(
-        [
-            (
-                "all extras",
-                '''
-                {
-                    "extra__salesforce__client_id": "my_client",
-                    "extra__salesforce__consumer_key": "",
-                    "extra__salesforce__domain": "test",
-                    "extra__salesforce__instance": "",
-                    "extra__salesforce__instance_url": "",
-                    "extra__salesforce__organization_id": "",
-                    "extra__salesforce__private_key": "",
-                    "extra__salesforce__private_key_file_path": "",
-                    "extra__salesforce__proxies": "",
-                    "extra__salesforce__security_token": "token",
-                    "extra__salesforce__version": "42.0"
-                }
-                ''',
-            ),
-            (
-                "required extras",
-                '''
-                {
-                    "extra__salesforce__client_id": "my_client",
-                    "extra__salesforce__domain": "test",
-                    "extra__salesforce__security_token": "token",
-                    "extra__salesforce__version": "42.0"
-                }
-                ''',
-            ),
-        ]
-    )
     @patch("airflow.providers.salesforce.hooks.salesforce.Salesforce")
-    def test_get_conn_password_auth(self, _, extras_string, mock_salesforce):
+    def test_get_conn_password_auth(self, mock_salesforce):
         """
         Testing mock password authentication to Salesforce. Users should provide a username, password, and
         security token in the Connection. Providing a client ID, Salesforce API version, proxy mapping, and
-        domain are optional. Connection params set as empty strings should be converted to `None`.
+        domain are optional. Connection params not provided or set as empty strings should be converted to
+        `None`.
         """
 
         password_auth_conn = Connection(
@@ -95,7 +62,14 @@ class TestSalesforceHook(unittest.TestCase):
             conn_type="salesforce",
             login=None,
             password=None,
-            extra=extras_string,
+            extra='''
+            {
+                "extra__salesforce__client_id": "my_client",
+                "extra__salesforce__domain": "test",
+                "extra__salesforce__security_token": "token",
+                "extra__salesforce__version": "42.0"
+            }
+            ''',
         )
         TestSalesforceHook._insert_conn_db_entry(password_auth_conn.conn_id, password_auth_conn)
 
@@ -106,61 +80,28 @@ class TestSalesforceHook(unittest.TestCase):
         mock_salesforce.assert_called_once_with(
             username=password_auth_conn.login,
             password=password_auth_conn.password,
-            security_token=extras.get('extra__salesforce__security_token'),
-            domain=extras.get('extra__salesforce__domain'),
+            security_token=extras["extra__salesforce__security_token"],
+            domain=extras["extra__salesforce__domain"],
             session_id=None,
             instance=None,
             instance_url=None,
             organizationId=None,
-            version=extras.get('extra__salesforce__version'),
+            version=extras["extra__salesforce__version"],
             proxies=None,
             session=None,
-            client_id=extras.get('extra__salesforce__client_id'),
+            client_id=extras["extra__salesforce__client_id"],
             consumer_key=None,
             privatekey_file=None,
             privatekey=None,
         )
 
-    @parameterized.expand(
-        [
-            (
-                "all extras",
-                '''
-                {
-                    "extra__salesforce__client_id": "my_client2",
-                    "extra__salesforce__consumer_key": "",
-                    "extra__salesforce__domain": "test",
-                    "extra__salesforce__instance": "",
-                    "extra__salesforce__instance_url": "https://my.salesforce.com",
-                    "extra__salesforce__organization_id": "",
-                    "extra__salesforce__private_key": "",
-                    "extra__salesforce__private_key_file_path": "",
-                    "extra__salesforce__proxies": "",
-                    "extra__salesforce__security_token": "",
-                    "extra__salesforce__version": "29.0"
-                }
-                ''',
-            ),
-            (
-                "required extras",
-                '''
-                {
-                    "extra__salesforce__client_id": "my_client2",
-                    "extra__salesforce__domain": "test",
-                    "extra__salesforce__instance_url": "https://my.salesforce.com",
-                    "extra__salesforce__version": "29.0"
-                }
-                ''',
-            ),
-        ]
-    )
     @patch("airflow.providers.salesforce.hooks.salesforce.Salesforce")
-    def test_get_conn_direct_session_access(self, _, extras_string, mock_salesforce):
+    def test_get_conn_direct_session_access(self, mock_salesforce):
         """
         Testing mock direct session access to Salesforce. Users should provide an instance
         (or instance URL) in the Connection and set a `session_id` value when calling `SalesforceHook`.
         Providing a client ID, Salesforce API version, proxy mapping, and domain are optional. Connection
-        params set as empty strings should be converted to `None`.
+        params not provided or set as empty strings should be converted to `None`.
         """
 
         direct_access_conn = Connection(
@@ -168,7 +109,14 @@ class TestSalesforceHook(unittest.TestCase):
             conn_type="salesforce",
             login=None,
             password=None,
-            extra=extras_string,
+            extra='''
+            {
+                "extra__salesforce__client_id": "my_client2",
+                "extra__salesforce__domain": "test",
+                "extra__salesforce__instance_url": "https://my.salesforce.com",
+                "extra__salesforce__version": "29.0"
+            }
+            ''',
         )
         TestSalesforceHook._insert_conn_db_entry(direct_access_conn.conn_id, direct_access_conn)
 
@@ -184,61 +132,27 @@ class TestSalesforceHook(unittest.TestCase):
             username=direct_access_conn.login,
             password=direct_access_conn.password,
             security_token=None,
-            domain=extras.get('extra__salesforce__domain'),
+            domain=extras["extra__salesforce__domain"],
             session_id=self.salesforce_hook.session_id,
             instance=None,
-            instance_url=extras.get('extra__salesforce__instance_url'),
+            instance_url=extras["extra__salesforce__instance_url"],
             organizationId=None,
-            version=extras.get('extra__salesforce__version'),
+            version=extras["extra__salesforce__version"],
             proxies=None,
             session=self.salesforce_hook.session,
-            client_id=extras.get('extra__salesforce__client_id'),
+            client_id=extras["extra__salesforce__client_id"],
             consumer_key=None,
             privatekey_file=None,
             privatekey=None,
         )
 
-    @parameterized.expand(
-        [
-            (
-                "all extras",
-                '''
-                {
-                    "extra__salesforce__client_id": "my_client3",
-                    "extra__salesforce__consumer_key": "consumer_key",
-                    "extra__salesforce__domain": "login",
-                    "extra__salesforce__instance": "",
-                    "extra__salesforce__instance_url": "",
-                    "extra__salesforce__organization_id": "",
-                    "extra__salesforce__private_key": "private_key",
-                    "extra__salesforce__private_key_file_path": "",
-                    "extra__salesforce__proxies": "",
-                    "extra__salesforce__security_token": "",
-                    "extra__salesforce__version": "34.0"
-                }
-                ''',
-            ),
-            (
-                "required extras",
-                '''
-                {
-                    "extra__salesforce__client_id": "my_client3",
-                    "extra__salesforce__consumer_key": "consumer_key",
-                    "extra__salesforce__domain": "login",
-                    "extra__salesforce__private_key": "private_key",
-                    "extra__salesforce__version": "34.0"
-                }
-                ''',
-            ),
-        ]
-    )
     @patch("airflow.providers.salesforce.hooks.salesforce.Salesforce")
-    def test_get_conn_jwt_auth(self, _, extras_string, mock_salesforce):
+    def test_get_conn_jwt_auth(self, mock_salesforce):
         """
         Testing mock JWT bearer authentication to Salesforce. Users should provide consumer key and private
         key (or path to a private key) in the Connection. Providing a client ID, Salesforce API version, proxy
-        mapping, and domain are optional. Connection params set as empty strings should be converted to
-        `None`.
+        mapping, and domain are optional. Connection params not provided or set as empty strings should be
+        converted to `None`.
         """
 
         jwt_auth_conn = Connection(
@@ -246,7 +160,15 @@ class TestSalesforceHook(unittest.TestCase):
             conn_type="salesforce",
             login=None,
             password=None,
-            extra=extras_string,
+            extra='''
+            {
+                "extra__salesforce__client_id": "my_client3",
+                "extra__salesforce__consumer_key": "consumer_key",
+                "extra__salesforce__domain": "login",
+                "extra__salesforce__private_key": "private_key",
+                "extra__salesforce__version": "34.0"
+            }
+            ''',
         )
         TestSalesforceHook._insert_conn_db_entry(jwt_auth_conn.conn_id, jwt_auth_conn)
 
@@ -258,57 +180,27 @@ class TestSalesforceHook(unittest.TestCase):
             username=jwt_auth_conn.login,
             password=jwt_auth_conn.password,
             security_token=None,
-            domain=extras.get('extra__salesforce__domain'),
+            domain=extras["extra__salesforce__domain"],
             session_id=None,
             instance=None,
             instance_url=None,
             organizationId=None,
-            version=extras.get('extra__salesforce__version'),
+            version=extras["extra__salesforce__version"],
             proxies=None,
             session=None,
-            client_id=extras.get('extra__salesforce__client_id'),
-            consumer_key=extras.get('extra__salesforce__consumer_key'),
+            client_id=extras["extra__salesforce__client_id"],
+            consumer_key=extras["extra__salesforce__consumer_key"],
             privatekey_file=None,
-            privatekey=extras.get('extra__salesforce__private_key'),
+            privatekey=extras["extra__salesforce__private_key"],
         )
 
-    @parameterized.expand(
-        [
-            (
-                "all extras",
-                '''
-                {
-                    "extra__salesforce__client_id": "",
-                    "extra__salesforce__consumer_key": "",
-                    "extra__salesforce__domain": "",
-                    "extra__salesforce__instance": "",
-                    "extra__salesforce__instance_url": "",
-                    "extra__salesforce__organization_id": "my_organization",
-                    "extra__salesforce__private_key": "",
-                    "extra__salesforce__private_key_file_path": "",
-                    "extra__salesforce__proxies": "",
-                    "extra__salesforce__security_token": "",
-                    "extra__salesforce__version": ""
-                }
-                ''',
-            ),
-            (
-                "required extras",
-                '''
-                {
-                    "extra__salesforce__organization_id": "my_organization",
-                }
-                ''',
-            ),
-        ]
-    )
     @patch("airflow.providers.salesforce.hooks.salesforce.Salesforce")
-    def test_get_conn_ip_filtering_auth(self, _, extras_string, mock_salesforce):
+    def test_get_conn_ip_filtering_auth(self, mock_salesforce):
         """
         Testing mock IP filtering (aka allow-listing) authentication to Salesforce. Users should provide
         username, password, and organization ID in the Connection. Providing a client ID, Salesforce API
-        version, proxy mapping, and domain are optional. Connection params set as empty strings should be
-        converted to `None`.
+        version, proxy mapping, and domain are optional. Connection params not provided or set as empty
+        strings should be converted to `None`.
         """
 
         ip_filtering_auth_conn = Connection(
@@ -316,7 +208,11 @@ class TestSalesforceHook(unittest.TestCase):
             conn_type="salesforce",
             login="username",
             password="password",
-            extra=extras_string,
+            extra='''
+            {
+                "extra__salesforce__organization_id": "my_organization"
+            }
+            ''',
         )
         TestSalesforceHook._insert_conn_db_entry(ip_filtering_auth_conn.conn_id, ip_filtering_auth_conn)
 
@@ -332,7 +228,57 @@ class TestSalesforceHook(unittest.TestCase):
             session_id=None,
             instance=None,
             instance_url=None,
-            organizationId=extras.get('extra__salesforce__organization_id'),
+            organizationId=extras["extra__salesforce__organization_id"],
+            version=api.DEFAULT_API_VERSION,
+            proxies=None,
+            session=None,
+            client_id=None,
+            consumer_key=None,
+            privatekey_file=None,
+            privatekey=None,
+        )
+
+    @patch("airflow.providers.salesforce.hooks.salesforce.Salesforce")
+    def test_get_conn_default_to_none(self, mock_salesforce):
+        """
+        Testing mock authentication to Salesforce so that every extra connection param set as an empty
+        string will be converted to `None`.
+        """
+
+        default_to_none_conn = Connection(
+            conn_id="default_to_none_conn",
+            conn_type="salesforce",
+            login=None,
+            password=None,
+            extra='''
+            {
+                "extra__salesforce__client_id": "",
+                "extra__salesforce__consumer_key": "",
+                "extra__salesforce__domain": "",
+                "extra__salesforce__instance": "",
+                "extra__salesforce__instance_url": "",
+                "extra__salesforce__organization_id": "",
+                "extra__salesforce__private_key": "",
+                "extra__salesforce__private_key_file_path": "",
+                "extra__salesforce__proxies": "",
+                "extra__salesforce__security_token": ""
+            }
+            ''',
+        )
+        TestSalesforceHook._insert_conn_db_entry(default_to_none_conn.conn_id, default_to_none_conn)
+
+        self.salesforce_hook = SalesforceHook(salesforce_conn_id="default_to_none_conn")
+        self.salesforce_hook.get_conn()
+
+        mock_salesforce.assert_called_once_with(
+            username=default_to_none_conn.login,
+            password=default_to_none_conn.password,
+            security_token=None,
+            domain=None,
+            session_id=None,
+            instance=None,
+            instance_url=None,
+            organizationId=None,
             version=api.DEFAULT_API_VERSION,
             proxies=None,
             session=None,
