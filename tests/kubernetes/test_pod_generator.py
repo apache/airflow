@@ -665,11 +665,8 @@ class TestPodGenerator:
         name = PodGenerator.make_unique_pod_id(pod_id)
         assert len(name) <= 253
         parts = name.split("-")
-        if len(pod_id) <= 63 - 33:
-            assert len(parts[0]) == len(pod_id)
-        else:
-            assert len(parts[0]) <= 63
-        assert len(parts[1]) == 32
+        assert parts[0] == pod_id[:30]
+        assert len(parts[1]) <= 63
 
     @parameterized.expand(
         (
