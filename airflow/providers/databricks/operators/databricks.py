@@ -334,7 +334,6 @@ class DatabricksSubmitRunOperator(BaseOperator):
 
     def execute(self, context):
         hook = self._get_hook()
-        print(self.json)
         self.run_id = hook.submit_run(self.json)
         _handle_databricks_operator_execution(self, hook, self.log, context)
 
