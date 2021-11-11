@@ -29,8 +29,11 @@ dag = DAG(
 
 # [START howto_operator_influxdb]
 
-query_influxdb_task = InfluxDBOperator(influxdb_conn_id='influxdb_conn_id',
-    task_id='query_influxdb', sql='from(bucket:"test-influx") |> range(start: -10m)', dag=dag
+query_influxdb_task = InfluxDBOperator(
+    influxdb_conn_id='influxdb_conn_id',
+    task_id='query_influxdb',
+    sql='from(bucket:"test-influx") |> range(start: -10m)',
+    dag=dag,
 )
 
 # [END howto_operator_influxdb]
