@@ -44,7 +44,6 @@ def create_user_scope(app, username, **kwargs):
     try:
         yield test_user
     finally:
-        delete_user_roles(app, username)
         delete_user(app, username)
 
 
@@ -97,12 +96,6 @@ def delete_role(app, name):
 
 def delete_roles(app):
     for role in app.appbuilder.sm.get_all_roles():
-        delete_role(app, role.name)
-
-
-def delete_user_roles(app, username):
-    user = app.appbuilder.sm.find_user(username)
-    for role in user.roles:
         delete_role(app, role.name)
 
 
