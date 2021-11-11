@@ -332,10 +332,9 @@ class TestPythonOperator(TestPythonBase):
 
         with self.assertLogs('airflow.task.operators', level=logging.INFO) as cm:
             python_operator.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
-            assert (
-                'DEBUG:airflow.task.operators:Done. Returned value was: test_return_value' in cm.output,
-                'Return value should be shown'
-            )
+
+        assert 'INFO:airflow.task.operators:Done. Returned value was: test_return_value' in cm.output, \
+            'Return value should be shown'
 
     def test_return_value_log_with_show_return_value_in_logs_false(self):
         self.dag.create_dagrun(
@@ -356,12 +355,16 @@ class TestPythonOperator(TestPythonBase):
             show_return_value_in_logs=False,
         )
 
-        with self.assertLogs('airflow.task.operators', level=logging.INFO) as cm:
-            python_operator.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
-            assert (
-                'DEBUG:airflow.task.operators:Done. Returned value was: test_return_value' not in cm.output,
-                'Return value should not be shown'
-            )
+        try:
+            with self.assertLogs('airflow.task.operators', level=logging.INFO) as cm:
+                python_operator.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
+        except AssertionError as e:
+            # ignore when the log is not captured.
+            if e.args[0] != 'no logs of level INFO or higher triggered on airflow.task.operators':
+                raise e
+
+        assert 'INFO:airflow.task.operators:Done. Returned value was: test_return_value' not in cm.records, \
+            'Return value should not be shown'
 
 
 class TestBranchOperator(unittest.TestCase):
