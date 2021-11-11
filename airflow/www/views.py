@@ -3142,7 +3142,7 @@ class DagFilter(BaseFilter):
 class DagEditFilter(BaseFilter):
     """Filter using DagIDs"""
 
-    def apply(self, query, func):  # pylint: disable=redefined-outer-name,unused-argument
+    def apply(self, query, func):
         filter_dag_ids = current_app.appbuilder.sm.get_editable_dag_ids(g.user)
         return query.filter(self.model.dag_id.in_(filter_dag_ids))
 

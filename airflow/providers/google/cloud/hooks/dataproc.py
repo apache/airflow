@@ -672,7 +672,7 @@ class DataprocHook(GoogleBaseHook):
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
         metadata: Optional[Sequence[Tuple[str, str]]] = None,
-    ):  # pylint: disable=too-many-arguments
+    ):
         """
         Instantiates a template and begins execution.
 

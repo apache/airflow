@@ -388,7 +388,7 @@ class Connection(Base, LoggingMixin):
                 conn = secrets_backend.get_connection(conn_id=conn_id)
                 if conn:
                     return conn
-            except Exception:  # pylint: disable=broad-except
+            except Exception:
                 log.exception(
                     'Unable to retrieve connection from secrets backend (%s). '
                     'Checking subsequent secrets backend.',

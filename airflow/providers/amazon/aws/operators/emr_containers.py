@@ -62,7 +62,7 @@ class EMRContainerOperator(BaseOperator):
     template_fields = ["name", "virtual_cluster_id", "execution_role_arn", "release_label", "job_driver"]
     ui_color = "#f9c915"
 
-    def __init__(  # pylint: disable=too-many-arguments
+    def __init__(
         self,
         *,
         name: str,
