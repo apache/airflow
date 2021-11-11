@@ -76,19 +76,13 @@ def get_task_instance(dag_id: str, dag_run_id: str, task_id: str, session=None):
 
 def _convert_state(states):
     if not states:
-        return
-    for idx, item in enumerate(states):
-        # we do not support 'null' maybe we should?
-        # to support null, we should add it to TaskState in
-        # openapi doc
-        if item in ['null', 'none']:
-            states[idx] = State.NONE
-    return states
+        return None
+    return [State.NONE if item in {"null, "none"} else s for s in states]
 
 
 def _apply_array_filter(query, key, values):
     if values is not None:
-        cond = [(key == v) for v in values]
+        cond = ((key == v) for v in values)
         query = query.filter(or_(*cond))
     return query
 
@@ -197,8 +191,7 @@ def get_task_instances_batch(session=None):
         data = task_instance_batch_form.load(body)
     except ValidationError as err:
         raise BadRequest(detail=str(err.messages))
-    state = data['state']
-    states = _convert_state(state)
+    states = _convert_state(data['state'])
     base_query = session.query(TI).join(TI.dag_run)
 
     base_query = _apply_array_filter(base_query, key=TI.dag_id, values=data["dag_ids"])
