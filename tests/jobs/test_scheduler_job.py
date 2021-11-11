@@ -1274,8 +1274,8 @@ class TestSchedulerJob:
         session.flush()
         session.refresh(dr)
         assert dr.state == State.FAILED
-        # check that next_dagrun has been updated by Schedulerjob._update_dag_next_dagruns
-        assert dag_maker.dag_model.next_dagrun == dr.execution_date + timedelta(days=1)
+        # check that next_dagrun_create_after has been updated by calculate_dagrun_date_fields
+        assert dag_maker.dag_model.next_dagrun_create_after == dr.execution_date + timedelta(days=1)
         # check that no running/queued runs yet
         assert (
             session.query(DagRun).filter(DagRun.state.in_([DagRunState.RUNNING, DagRunState.QUEUED])).count()
@@ -2873,6 +2873,65 @@ class TestSchedulerJob:
             session.query(DagRun).filter(DagRun.state.in_([DagRunState.RUNNING, DagRunState.QUEUED])).count()
             == 0
         )
+
+    def test_max_active_runs_creation_phasing(self, dag_maker, session):
+        """
+        Test that when creating runs once max_active_runs is reached that the runs come in the right order
+        without gaps
+        """
+
+        def complete_one_dagrun():
+            ti = (
+                session.query(TaskInstance)
+                .join(TaskInstance.dag_run)
+                .filter(TaskInstance.state != State.SUCCESS)
+                .order_by(DagRun.execution_date)
+                .first()
+            )
+            if ti:
+                ti.state = State.SUCCESS
+                session.flush()
+
+        with dag_maker(max_active_runs=3, session=session) as dag:
+            # Need to use something that doesn't immediately get marked as success by the scheduler
+            BashOperator(task_id='task', bash_command='true')
+
+        self.scheduler_job = SchedulerJob(subdir=os.devnull)
+        self.scheduler_job.executor = MockExecutor(do_update=True)
+        self.scheduler_job.processor_agent = mock.MagicMock(spec=DagFileProcessorAgent)
+
+        DagModel.dags_needing_dagruns(session).all()
+        for _ in range(3):
+            self.scheduler_job._do_scheduling(session)
+
+        model: DagModel = session.query(DagModel).get(dag.dag_id)
+
+        # Pre-condition
+        assert DagRun.active_runs_of_dags(session=session) == {'test_dag': 3}
+
+        assert model.next_dagrun == timezone.convert_to_utc(
+            timezone.DateTime(
+                2016,
+                1,
+                3,
+            )
+        )
+        assert model.next_dagrun_create_after is None
+
+        complete_one_dagrun()
+
+        assert DagRun.active_runs_of_dags(session=session) == {'test_dag': 3}
+
+        for _ in range(5):
+            self.scheduler_job._do_scheduling(session)
+            complete_one_dagrun()
+            model: DagModel = session.query(DagModel).get(dag.dag_id)
+
+        expected_execution_dates = [datetime.datetime(2016, 1, d, tzinfo=timezone.utc) for d in range(1, 6)]
+        dagrun_execution_dates = [
+            dr.execution_date for dr in session.query(DagRun).order_by(DagRun.execution_date).all()
+        ]
+        assert dagrun_execution_dates == expected_execution_dates
 
     def test_do_schedule_max_active_runs_and_manual_trigger(self, dag_maker):
         """

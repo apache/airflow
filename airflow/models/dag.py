@@ -630,6 +630,7 @@ class DAG(LoggingMixin):
         data_interval = dag_model.next_dagrun_data_interval
         if data_interval is not None:
             return data_interval
+
         # Compatibility: A run was scheduled without an explicit data interval.
         # This means the run was scheduled before AIP-39 implementation. Try to
         # infer from the logical date.
