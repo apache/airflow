@@ -3988,18 +3988,17 @@ class DagRunModelView(AirflowPrivilegeVerifierModelView):
     @action_has_dag_edit_access
     def action_set_queued(self, drs: List[DagRun]):
         """Set state to queued."""
-        return self.set_dag_runs_to_active_state(drs, State.QUEUED)
+        return self._set_dag_runs_to_active_state(drs, State.QUEUED)
 
     @action('set_running', "Set state to 'running'", '', single=False)
     @action_has_dag_edit_access
     def action_set_running(self, drs: List[DagRun]):
         """Set state to running."""
-        return self.set_dag_runs_to_active_state(drs, State.RUNNING)
+        return self._set_dag_runs_to_active_state(drs, State.RUNNING)
 
     @provide_session
-    def set_dag_runs_to_active_state(self, drs: List[DagRun], state: str, session=None):
-        if state not in [State.RUNNING, State.QUEUED]:
-            raise ValueError("This routine only supports Running and Queued.")
+    def _set_dag_runs_to_active_state(self, drs: List[DagRun], state: str, session=None):
+        """This routine only support Running and Queued state."""
         try:
             count = 0
             for dr in session.query(DagRun).filter(DagRun.id.in_([dagrun.id for dagrun in drs])).all():
