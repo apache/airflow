@@ -77,7 +77,7 @@ def get_task_instance(dag_id: str, dag_run_id: str, task_id: str, session=None):
 def _convert_state(states):
     if not states:
         return None
-    return [State.NONE if item in {"null, "none"} else s for s in states]
+    return [State.NONE if s == "none" else s for s in states]
 
 
 def _apply_array_filter(query, key, values):
