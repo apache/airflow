@@ -43,7 +43,9 @@ There are two ways to connect to Google Cloud using Airflow.
    <https://google-auth.readthedocs.io/en/latest/reference/google.auth.html#google.auth.default>`_ (ADC)
    have permission to access payloads of secrets.
 
-   .. note:: Besides storing only key in Secret Manager there is an option for storing entire connection.
+   .. note:: Alternative way of storing connections
+
+   Besides storing only key in Secret Manager there is an option for storing entire connection.
    For more details take a look at :ref:`Google Secret Manager Backend <google_cloud_secret_manager_backend>`.
 
 Default Connection IDs
