@@ -197,7 +197,7 @@ class TestDagFileProcessor:
 
         sla_callback.assert_not_called()
 
-    def test_dag_file_processor_sla_miss_doesnot_have_integrity_error(self, dag_maker):
+    def test_dag_file_processor_sla_miss_doesnot_raise_integrity_error(self, dag_maker):
         """
         Test that the dag file processor does not try to insert already existing item into the database
         """
@@ -221,6 +221,15 @@ class TestDagFileProcessor:
 
         dag_file_processor = DagFileProcessor(dag_ids=[], log=mock.MagicMock())
         dag_file_processor.manage_slas(dag=dag, session=session)
+        sla_miss_count = (
+            session.query(SlaMiss)
+            .filter(
+                SlaMiss.dag_id == dag.dag_id,
+                SlaMiss.task_id == task.task_id,
+            )
+            .count()
+        )
+        assert sla_miss_count == 1
         # Now call manage_slas and see that it runs without errors
         # because of existing SlaMiss above.
         # Since this is run often, it's possible that it runs before another
