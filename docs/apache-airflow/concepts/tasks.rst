@@ -214,6 +214,8 @@ Examples of ``sla_miss_callback`` function signature:
     def my_sla_miss_callback(*args):
         ...
 
+Example DAG:
+
 .. exampleinclude:: /../../airflow/example_dags/example_sla_dag.py
     :language: python
     :start-after: [START howto_task_sla]
