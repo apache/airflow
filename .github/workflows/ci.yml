@@ -158,6 +158,7 @@ jobs:
       sqliteExclude: ${{ steps.selective-checks.outputs.sqlite-exclude }}
       run-tests: ${{ steps.selective-checks.outputs.run-tests }}
       run-ui-tests: ${{ steps.selective-checks.outputs.run-ui-tests }}
+      run-www-tests: ${{ steps.selective-checks.outputs.run-www-tests }}
       run-kubernetes-tests: ${{ steps.selective-checks.outputs.run-kubernetes-tests }}
       basic-checks-only: ${{ steps.selective-checks.outputs.basic-checks-only }}
       image-build: ${{ steps.selective-checks.outputs.image-build }}
@@ -241,6 +242,29 @@ jobs:
           key: ${{ runner.os }}-ui-node-modules-${{ hashFiles('airflow/ui/**/yarn.lock') }}
       - run: yarn --cwd airflow/ui/ install --frozen-lockfile --non-interactive
       - run: yarn --cwd airflow/ui/ run test
+
+  tests-www:
+    timeout-minutes: 10
+    name: React WWW tests
+    runs-on: ${{ fromJson(needs.build-info.outputs.runsOn) }}
+    needs: [build-info]
+    if: needs.build-info.outputs.run-www-tests == 'true'
+    steps:
+      - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
+        uses: actions/checkout@v2
+        with:
+          persist-credentials: false
+      - name: "Setup node"
+        uses: actions/setup-node@v2
+        with:
+          node-version: 14
+      - name: "Cache eslint"
+        uses: actions/cache@v2
+        with:
+          path: 'airflow/www/node_modules'
+          key: ${{ runner.os }}-ui-node-modules-${{ hashFiles('airflow/ui/**/yarn.lock') }}
+      - run: yarn --cwd airflow/www/ install --frozen-lockfile --non-interactive
+      - run: yarn --cwd airflow/www/ run test
 
 
   test-openapi-client-generation:

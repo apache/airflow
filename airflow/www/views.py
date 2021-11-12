@@ -30,7 +30,7 @@ from datetime import timedelta
 from functools import wraps
 from json import JSONDecodeError
 from operator import itemgetter
-from typing import Any, Callable, Iterable, List, Optional, Set, Tuple, Union
+from typing import Any, Callable, List, Optional, Set, Tuple, Union
 from urllib.parse import parse_qsl, unquote, urlencode, urlparse
 
 import lazy_object_proxy
@@ -219,23 +219,103 @@ def get_date_time_num_runs_dag_runs_form_data(www_request, session, dag):
     }
 
 
-def task_group_to_dict(task_group):
+def task_group_to_tree(task_item_or_group, dag, dag_runs, tis):
     """
     Create a nested dict representation of this TaskGroup and its children used to construct
     the Graph.
     """
-    if isinstance(task_group, BaseOperator):
+    if isinstance(task_item_or_group, BaseOperator):
         return {
-            'id': task_group.task_id,
+            'id': task_item_or_group.task_id,
+            'instances': [wwwutils.encode_ti(ti) for ti in tis if ti.task_id == task_item_or_group.task_id],
+            'label': task_item_or_group.label,
+            'extra_links': task_item_or_group.extra_links,
+        }
+
+    # Task Group
+    task_group = task_item_or_group
+
+    children = [task_group_to_tree(child, dag, dag_runs, tis) for child in task_group.children.values()]
+
+    def get_summary(dag_run, children):
+        priority = [
+            'failed',
+            'upstream_failed',
+            'up_for_retry',
+            'up_for_reschedule',
+            'queued',
+            'scheduled',
+            'deferred',
+            'sensing',
+            'running',
+            'shutdown',
+            'restarting',
+            'removed',
+            'no_status',
+            'success',
+            'skipped',
+        ]
+
+        child_instances = [child['instances'] for child in children if 'instances' in child]
+        child_instances = [item for sublist in child_instances for item in sublist]
+
+        children_start_dates = [
+            item['start_date'] for item in child_instances if item['run_id'] == dag_run.run_id
+        ]
+        children_end_dates = [
+            item['end_date'] for item in child_instances if item['run_id'] == dag_run.run_id
+        ]
+        children_states = [item['state'] for item in child_instances if item['run_id'] == dag_run.run_id]
+
+        group_state = None
+        for state in priority:
+            if state in children_states:
+                group_state = state
+                break
+        group_start_date = wwwutils.datetime_to_string(
+            min((timezone.parse(date) for date in children_start_dates if date), default=None)
+        )
+        group_end_date = wwwutils.datetime_to_string(
+            max((timezone.parse(date) for date in children_end_dates if date), default=None)
+        )
+
+        return {
+            'task_id': task_group.group_id,
+            'run_id': dag_run.run_id,
+            'state': group_state,
+            'start_date': group_start_date,
+            'end_date': group_end_date,
+        }
+
+    group_summaries = [get_summary(dr, children) for dr in dag_runs]
+    group_summaries.reverse()
+
+    return {
+        'id': task_group.group_id,
+        'label': task_group.label,
+        'children': children,
+        'tooltip': task_group.tooltip,
+        'instances': group_summaries,
+    }
+
+
+def task_group_to_dict(task_item_or_group):
+    """
+    Create a nested dict representation of this TaskGroup and its children used to construct
+    the Graph.
+    """
+    if isinstance(task_item_or_group, BaseOperator):
+        return {
+            'id': task_item_or_group.task_id,
             'value': {
-                'label': task_group.label,
-                'labelStyle': f"fill:{task_group.ui_fgcolor};",
-                'style': f"fill:{task_group.ui_color};",
+                'label': task_item_or_group.label,
+                'labelStyle': f"fill:{task_item_or_group.ui_fgcolor};",
+                'style': f"fill:{task_item_or_group.ui_color};",
                 'rx': 5,
                 'ry': 5,
             },
         }
-
+    task_group = task_item_or_group
     children = [
         task_group_to_dict(child) for child in sorted(task_group.children.values(), key=lambda t: t.label)
     ]
@@ -924,20 +1004,15 @@ class Airflow(AirflowBaseView):
             ),
         )
 
-        def _datetime_to_string(value: Optional[DateTime]) -> Optional[str]:
-            if value is None:
-                return None
-            return value.isoformat()
-
         resp = {
             r.dag_id.replace('.', '__dot__'): {
                 "dag_id": r.dag_id,
                 "state": r.state,
-                "execution_date": _datetime_to_string(r.execution_date),
-                "start_date": _datetime_to_string(r.start_date),
-                "end_date": _datetime_to_string(r.end_date),
-                "data_interval_start": _datetime_to_string(r.data_interval_start),
-                "data_interval_end": _datetime_to_string(r.data_interval_end),
+                "execution_date": wwwutils.datetime_to_string(r.execution_date),
+                "start_date": wwwutils.datetime_to_string(r.start_date),
+                "end_date": wwwutils.datetime_to_string(r.end_date),
+                "data_interval_start": wwwutils.datetime_to_string(r.data_interval_start),
+                "data_interval_end": wwwutils.datetime_to_string(r.data_interval_end),
             }
             for r in query
         }
@@ -2140,102 +2215,6 @@ class Airflow(AirflowBaseView):
             State.SUCCESS,
         )
 
-    def _get_tree_data(
-        self,
-        dag_runs: Iterable[DagRun],
-        dag: DAG,
-        base_date: DateTime,
-        session: settings.Session,
-    ):
-        """Returns formatted dag_runs for Tree view"""
-        dates = sorted(dag_runs.keys())
-        min_date = min(dag_runs, default=None)
-
-        task_instances = {
-            (ti.task_id, ti.execution_date): ti
-            for ti in dag.get_task_instances(start_date=min_date, end_date=base_date, session=session)
-        }
-
-        expanded = set()
-        # The default recursion traces every path so that tree view has full
-        # expand/collapse functionality. After 5,000 nodes we stop and fall
-        # back on a quick DFS search for performance. See PR #320.
-        node_count = 0
-        node_limit = 5000 / max(1, len(dag.leaves))
-
-        def encode_ti(task_instance: Optional[models.TaskInstance]) -> Optional[List]:
-            if not task_instance:
-                return None
-
-            # NOTE: order of entry is important here because client JS relies on it for
-            # tree node reconstruction. Remember to change JS code in tree.html
-            # whenever order is altered.
-            task_instance_data = [
-                task_instance.state,
-                task_instance.try_number,
-                None,  # start_ts
-                None,  # duration
-            ]
-
-            if task_instance.start_date:
-                # round to seconds to reduce payload size
-                task_instance_data[2] = int(task_instance.start_date.timestamp())
-                if task_instance.duration is not None:
-                    task_instance_data[3] = truncate_task_duration(task_instance.duration)
-
-            return task_instance_data
-
-        def recurse_nodes(task, visited):
-            nonlocal node_count
-            node_count += 1
-            visited.add(task)
-            task_id = task.task_id
-
-            node = {
-                'name': task.task_id,
-                'instances': [encode_ti(task_instances.get((task_id, d))) for d in dates],
-                'num_dep': len(task.downstream_list),
-                'operator': task.task_type,
-                'retries': task.retries,
-                'owner': task.owner,
-                'ui_color': task.ui_color,
-            }
-
-            if task.downstream_list:
-                children = [
-                    recurse_nodes(t, visited)
-                    for t in task.downstream_list
-                    if node_count < node_limit or t not in visited
-                ]
-
-                # D3 tree uses children vs _children to define what is
-                # expanded or not. The following block makes it such that
-                # repeated nodes are collapsed by default.
-                if task.task_id not in expanded:
-                    children_key = 'children'
-                    expanded.add(task.task_id)
-                else:
-                    children_key = "_children"
-                node[children_key] = children
-
-            if task.depends_on_past:
-                node['depends_on_past'] = task.depends_on_past
-            if task.start_date:
-                # round to seconds to reduce payload size
-                node['start_ts'] = int(task.start_date.timestamp())
-                if task.end_date:
-                    # round to seconds to reduce payload size
-                    node['end_ts'] = int(task.end_date.timestamp())
-            if task.extra_links:
-                node['extra_links'] = task.extra_links
-            return node
-
-        return {
-            'name': '[DAG]',
-            'children': [recurse_nodes(t, set()) for t in dag.roots],
-            'instances': [dag_runs.get(d) or {'execution_date': d.isoformat()} for d in dates],
-        }
-
     @expose('/tree')
     @auth.has_access(
         [
@@ -2277,9 +2256,10 @@ class Airflow(AirflowBaseView):
             .limit(num_runs)
             .all()
         )
-        dag_runs = {dr.execution_date: alchemy_to_dict(dr) for dr in dag_runs}
+        encoded_runs = [wwwutils.encode_dag_run(dr) for dr in dag_runs]
+        dag_run_dates = {dr.execution_date: alchemy_to_dict(dr) for dr in dag_runs}
 
-        max_date = max(dag_runs.keys(), default=None)
+        max_date = max(dag_run_dates, default=None)
 
         form = DateTimeWithNumRunsForm(
             data={
@@ -2296,7 +2276,14 @@ class Airflow(AirflowBaseView):
         else:
             external_log_name = None
 
-        data = self._get_tree_data(dag_runs, dag, base_date, session=session)
+        min_date = min(dag_run_dates, default=None)
+
+        tis = dag.get_task_instances(start_date=min_date, end_date=base_date, session=session)
+
+        data = {
+            'groups': task_group_to_tree(dag.task_group, dag, dag_runs, tis),
+            'dag_runs': encoded_runs,
+        }
 
         # avoid spaces to reduce payload size
         data = htmlsafe_json_dumps(data, separators=(',', ':'))
@@ -3014,11 +3001,17 @@ class Airflow(AirflowBaseView):
                 .limit(num_runs)
                 .all()
             )
-            dag_runs = {dr.execution_date: alchemy_to_dict(dr) for dr in dag_runs}
-            tree_data = self._get_tree_data(dag_runs, dag, base_date, session=session)
+            encoded_runs = [wwwutils.encode_dag_run(dr) for dr in dag_runs]
+            dag_run_dates = {dr.execution_date: alchemy_to_dict(dr) for dr in dag_runs}
+            min_date = min(dag_run_dates, default=None)
+            tis = dag.get_task_instances(start_date=min_date, end_date=base_date, session=session)
+            data = {
+                'groups': task_group_to_tree(dag.task_group, dag, dag_runs, tis),
+                'dag_runs': encoded_runs,
+            }
 
         # avoid spaces to reduce payload size
-        return htmlsafe_json_dumps(tree_data, separators=(',', ':'))
+        return htmlsafe_json_dumps(data, separators=(',', ':'))
 
     @expose('/robots.txt')
     @action_logging
