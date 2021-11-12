@@ -1056,7 +1056,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
           PR_LABELS: "${{ needs.build-info.outputs.pullRequestLabels }}"
       - name: "Upload KinD logs"
         uses: actions/upload-artifact@v2
-        if: failure()
+        if: failure() || cancelled()
         with:
           name: >
             kind-logs-${{matrix.executor}}
@@ -1124,7 +1124,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
           PR_LABELS: "${{ needs.build-info.outputs.pullRequestLabels }}"
       - name: "Upload KinD logs"
         uses: actions/upload-artifact@v2
-        if: failure()
+        if: failure() || cancelled()
         with:
           name: >
             kind-logs-KubernetesExecutor

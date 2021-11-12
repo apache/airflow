@@ -96,7 +96,7 @@ def _get_config_value_from_secret_backend(config_key):
         if not secrets_client:
             return None
         return secrets_client.get_config(config_key)
-    except Exception as e:  # pylint: disable=broad-except
+    except Exception as e:
         raise AirflowConfigException(
             'Cannot retrieve config from alternative secrets backend. '
             'Make sure it is configured properly and that the Backend '

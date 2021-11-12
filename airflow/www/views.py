@@ -1528,31 +1528,8 @@ class Airflow(AirflowBaseView):
         ignore_ti_state = request.form.get('ignore_ti_state') == "true"
 
         executor = ExecutorLoader.get_default_executor()
-        valid_celery_config = False
-        valid_kubernetes_config = False
-        valid_celery_kubernetes_config = False
 
-        try:
-            from airflow.executors.celery_executor import CeleryExecutor
-
-            valid_celery_config = isinstance(executor, CeleryExecutor)
-        except ImportError:
-            pass
-
-        try:
-            from airflow.executors.kubernetes_executor import KubernetesExecutor
-
-            valid_kubernetes_config = isinstance(executor, KubernetesExecutor)
-        except ImportError:
-            pass
-        try:
-            from airflow.executors.celery_kubernetes_executor import CeleryKubernetesExecutor
-
-            valid_celery_kubernetes_config = isinstance(executor, CeleryKubernetesExecutor)
-        except ImportError:
-            pass
-
-        if not valid_celery_config and not valid_kubernetes_config and not valid_celery_kubernetes_config:
+        if not getattr(executor, "supports_ad_hoc_ti_run", False):
             flash("Only works with the Celery, CeleryKubernetes or Kubernetes executors, sorry", "error")
             return redirect(origin)
 
@@ -3142,7 +3119,7 @@ class DagFilter(BaseFilter):
 class DagEditFilter(BaseFilter):
     """Filter using DagIDs"""
 
-    def apply(self, query, func):  # pylint: disable=redefined-outer-name,unused-argument
+    def apply(self, query, func):
         filter_dag_ids = current_app.appbuilder.sm.get_editable_dag_ids(g.user)
         return query.filter(self.model.dag_id.in_(filter_dag_ids))
 

@@ -11,7 +11,7 @@ Bug Fixes
 - Remove incorrect type comment in ``Swagger2Specification._set_defaults`` classmethod (#19065)
 - Add TriggererJob to jobs check command (#19179, #19185)
 - Hide tooltip when next run is ``None`` (#19112)
-- Crerate TI context with data interval compat layer (#19148)
+- Create TI context with data interval compat layer (#19148)
 - Fix queued dag runs changes ``catchup=False`` behaviour (#19130, #19145)
 - add detailed information to logging when a dag or a task finishes. (#19097)
 - Warn about unsupported Python 3.10 (#19060)
