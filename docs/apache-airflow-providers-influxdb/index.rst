@@ -27,7 +27,7 @@ Content
     :caption: Guides
 
     Connection types <connections/influxdb>
-    Operators <operators/influxdb>
+    Operators <operators/index>
 
 .. toctree::
     :maxdepth: 1

@@ -20,7 +20,7 @@
 .. _howto/operator:InfluxDBOperator:
 
 InfluxDBOperator
-=============
+=================
 
 Use the :class:`~airflow.providers.influxdb.operators.InfluxDBOperator` to execute
 SQL commands in a `InfluxDB <https://www.influxdata.com/>`__ database.
