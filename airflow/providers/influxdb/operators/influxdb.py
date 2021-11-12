@@ -24,10 +24,6 @@ class InfluxDBOperator(BaseOperator):
     """
     Executes sql code in a specific InfluxDB database
 
-    .. seealso::
-        For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:InfluxDBOperator`
-
     :param sql: the sql code to be executed. Can receive a str representing a
         sql statement
     :type sql: str
