@@ -2579,6 +2579,11 @@ class BigQueryBaseCursor(LoggingMixin):
             stacklevel=3,
         )
         return self.hook.run_query(*args, **kwargs)
+    
+    def get_records(self, sql, parameters=None):
+        if self.location is None:
+            raise Exception("Need to specify location when instantiating BigQueryHook, otherwise it would result in Job Not Found error!")
+        return super().get_records()
 
 
 class BigQueryCursor(BigQueryBaseCursor):
