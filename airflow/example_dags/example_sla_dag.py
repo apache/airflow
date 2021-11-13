@@ -24,13 +24,12 @@ from airflow.decorators import dag, task
 
 
 # [START howto_task_sla]
-def sla_callback(*args):
+def sla_callback(dag, task_list, blocking_task_list, slas, blocking_tis):
     arguments = ["dag", "task_list", "blocking_task_list", "slas", "blocking_tis"]
-    print(*zip(arguments, args))
+    print(*zip(arguments, [dag, task_list, blocking_task_list, slas, blocking_tis]))
 
 
 @dag(
-    "example_sla_dag",
     schedule_interval="*/2 * * * *",
     start_date=datetime(2021, 1, 1),
     catchup=False,
