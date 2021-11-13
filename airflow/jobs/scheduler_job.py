@@ -1053,9 +1053,12 @@ class SchedulerJob(BaseJob):
     def _verify_integrity_if_dag_changed(self, dag_run: DagRun, session=None):
         """Only run DagRun.verify integrity if Serialized DAG has changed since it is slow"""
         latest_version = SerializedDagModel.get_latest_version_hash(dag_run.dag_id, session=session)
-        if dag_run.dag_hash == latest_version:
-            self.log.debug("DAG %s not changed structure, skipping dagrun.verify_integrity", dag_run.dag_id)
-            return
+
+        # TODO: If the following code exists, ``task_instance_mutation_hook`` will
+        # not be triggered when the dag is not changed, it is in ``verify_integrity``
+        # if dag_run.dag_hash == latest_version:
+        #     self.log.debug("DAG %s not changed structure, skipping dagrun.verify_integrity", dag_run.dag_id)
+        #     return
 
         dag_run.dag_hash = latest_version
 
