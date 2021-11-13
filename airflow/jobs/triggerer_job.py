@@ -158,7 +158,6 @@ class TriggererJob(BaseJob):
             trigger_id, event = self.runner.events.popleft()
             # Tell the model to wake up its tasks
             Trigger.submit_event(trigger_id=trigger_id, event=event)
-            self.runner.triggers[trigger_id]["is_submitted"] = True
             # Emit stat event
             Stats.incr('triggers.succeeded')
 
@@ -184,7 +183,6 @@ class TriggerDetails(TypedDict):
     task: asyncio.Task
     name: str
     events: int
-    is_submitted: bool
 
 
 class TriggerRunner(threading.Thread, LoggingMixin):
@@ -262,11 +260,10 @@ class TriggerRunner(threading.Thread, LoggingMixin):
         while self.to_create:
             trigger_id, trigger_instance = self.to_create.popleft()
             if trigger_id not in self.triggers:
-                self.triggers[trigger_id]: TriggerDetails = {
+                self.triggers[trigger_id] = {
                     "task": create_task(self.run_trigger(trigger_id, trigger_instance)),
                     "name": f"{trigger_instance!r} (ID {trigger_id})",
                     "events": 0,
-                    "is_submitted": False,
                 }
             else:
                 self.log.warning("Trigger %s had insertion attempted twice", trigger_id)
@@ -318,8 +315,7 @@ class TriggerRunner(threading.Thread, LoggingMixin):
                         details["name"],
                     )
                     self.failed_triggers.append(trigger_id)
-                if details['is_submitted'] is True:
-                    del self.triggers[trigger_id]
+                del self.triggers[trigger_id]
             await asyncio.sleep(0)
 
     async def block_watchdog(self):
