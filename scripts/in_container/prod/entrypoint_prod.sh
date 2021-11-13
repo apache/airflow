@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 # Might be empty
-airflow_command="${1:-}"
+AIRFLOW_COMMAND="${1:-}"
 
 set -euo pipefail
 
@@ -51,7 +51,7 @@ function run_check_with_retries {
             echo
             exit 1
         else
-            sleep "${CONNECTION_CHECK_SLEEP_TIME}"
+            sleep "${connection_check_sleep_time}"
         fi
     done
 }
@@ -81,7 +81,7 @@ function wait_for_connection {
     # Detects backend type depending on the URL schema and assigns
     # default port numbers if not specified in the URL.
     # Then it loops until connection to the host/port specified can be established
-    # It tries `CONNECTION_CHECK_MAX_COUNT` times and sleeps `CONNECTION_CHECK_SLEEP_TIME` between checks
+    # It tries `connection_check_max_count` times and sleeps `connection_check_sleep_time` between checks
     local connection_url
     connection_url="${1}"
     local detected_backend
@@ -305,6 +305,7 @@ exec_to_bash_or_python_command_if_specified "${@}"
 #     docker run IMAGE webserver
 #
 
+
 if [[ ${AIRFLOW_COMMAND} == "airflow" ]]; then
    AIRFLOW_COMMAND="${2:-}"
    shift
@@ -312,7 +313,7 @@ fi
 
 # Note: the broker backend configuration concerns only a subset of Airflow components
 if [[ ${AIRFLOW_COMMAND} =~ ^(scheduler|celery)$ ]] \
-    && [[ "${connection_check_max_count}" -gt "0" ]]; then
+    && [[ "${cticonneon_check_max_count}" -gt "0" ]]; then
     wait_for_celery_broker
 fi
 
