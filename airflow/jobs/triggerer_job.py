@@ -125,6 +125,7 @@ class TriggererJob(BaseJob):
         while not self.runner.stop:
             # Clean out unused triggers
             Trigger.clean_unused()
+            self.purge_completed_triggers_list()
             # Load/delete triggers
             self.load_triggers()
             # Handle events
@@ -147,6 +148,25 @@ class TriggererJob(BaseJob):
         Trigger.assign_unassigned(self.id, self.capacity)
         ids = Trigger.ids_for_triggerer(self.id)
         self.runner.update_triggers(set(ids))
+
+    @provide_session
+    def purge_completed_triggers_list(self, session):
+        """
+        The runner will wait to remove a trigger from its ``triggers`` dictionary until it is
+        purged from the ``completed_triggers`` list.
+        Once a trigger is deleted from the database, there's no chance it will be created again
+        and we can remove it.
+        """
+        if self.runner.completed_triggers:
+            ids = {
+                trigger_id
+                for (trigger_id,) in session.query(Trigger.id)
+                .filter(Trigger.id.in_(self.runner.completed_triggers))
+                .all()
+            }
+            purge_ids = self.runner.completed_triggers.difference(ids)
+            if purge_ids:
+                self.runner.completed_triggers.difference_update(purge_ids)
 
     def handle_events(self):
         """
@@ -213,12 +233,16 @@ class TriggerRunner(threading.Thread, LoggingMixin):
     # Outbound queue of failed triggers
     failed_triggers: Deque[int]
 
+    # Waiting area after triggers have completed but before they've been deleted from the database
+    completed_triggers: Set[int]
+
     # Should-we-stop flag
     stop: bool = False
 
     def __init__(self):
         super().__init__()
         self.triggers = {}
+        self.completed_triggers = set()
         self.trigger_cache = {}
         self.to_create = deque()
         self.to_delete = deque()
@@ -259,6 +283,8 @@ class TriggerRunner(threading.Thread, LoggingMixin):
         """
         while self.to_create:
             trigger_id, trigger_instance = self.to_create.popleft()
+            if trigger_id in self.completed_triggers:
+                continue
             if trigger_id not in self.triggers:
                 self.triggers[trigger_id] = {
                     "task": create_task(self.run_trigger(trigger_id, trigger_instance)),
@@ -315,6 +341,7 @@ class TriggerRunner(threading.Thread, LoggingMixin):
                         details["name"],
                     )
                     self.failed_triggers.append(trigger_id)
+                self.completed_triggers.add(trigger_id)
                 del self.triggers[trigger_id]
             await asyncio.sleep(0)
 
@@ -398,6 +425,9 @@ class TriggerRunner(threading.Thread, LoggingMixin):
             except BaseException:
                 # Either the trigger code or the path to it is bad. Fail the trigger.
                 self.failed_triggers.append(new_id)
+                continue
+            # the trigger recently completed and we should not create it again
+            if new_id in self.completed_triggers:
                 continue
             self.to_create.append((new_id, trigger_class(**new_triggers[new_id].kwargs)))
         # Remove old triggers
