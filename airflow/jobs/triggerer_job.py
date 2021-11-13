@@ -283,8 +283,6 @@ class TriggerRunner(threading.Thread, LoggingMixin):
         """
         while self.to_create:
             trigger_id, trigger_instance = self.to_create.popleft()
-            if trigger_id in self.completed_triggers:
-                continue
             if trigger_id not in self.triggers:
                 self.triggers[trigger_id] = {
                     "task": create_task(self.run_trigger(trigger_id, trigger_instance)),
