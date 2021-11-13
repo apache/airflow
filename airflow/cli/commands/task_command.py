@@ -24,6 +24,7 @@ import textwrap
 from contextlib import contextmanager, redirect_stderr, redirect_stdout, suppress
 from typing import List, Optional
 
+from airflow.operators.subdag import SubDagOperator
 from pendulum.parsing.exceptions import ParserError
 from sqlalchemy.orm.exc import NoResultFound
 
@@ -342,8 +343,13 @@ def task_list(args, dag=None):
     if args.tree:
         dag.tree_view()
     else:
-        tasks = sorted(t.task_id for t in dag.tasks)
-        print("\n".join(tasks))
+        def print_task_list(tasks, parent=""):
+            tasks = []
+            for t in dag.tasks:
+                if isinstance(t, SubDagOperator):
+                    print_task_list(t.subdag.tasks, parent + "." + t.task_id)
+                    tasks.append(parent + "." + t.task_id)
+            print("\n".join(sorted(tasks)))
 
 
 SUPPORTED_DEBUGGER_MODULES: List[str] = [

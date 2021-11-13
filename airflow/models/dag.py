@@ -49,6 +49,7 @@ from typing import (
 
 import jinja2
 import pendulum
+from airflow.operators.subdag import SubDagOperator
 from dateutil.relativedelta import relativedelta
 from jinja2.nativetypes import NativeEnvironment
 from sqlalchemy import Boolean, Column, ForeignKey, Index, Integer, String, Text, func, or_
@@ -2109,17 +2110,19 @@ class DAG(LoggingMixin):
 
         return dp
 
-    def tree_view(self) -> None:
+    def tree_view(self, level=0) -> None:
         """Print an ASCII tree representation of the DAG."""
 
         def get_downstream(task, level=0):
             print((" " * level * 4) + str(task))
             level += 1
+            if isinstance(task, SubDagOperator):
+                task.subdag.tree_view(level=level)
             for t in task.downstream_list:
                 get_downstream(t, level)
 
         for t in self.roots:
-            get_downstream(t)
+            get_downstream(t, level=level)
 
     @property
     def task(self):
