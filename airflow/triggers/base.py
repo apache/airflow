@@ -58,7 +58,7 @@ class BaseTrigger(abc.ABC, LoggingMixin):
 
         If it yields, it is likely that it will be resumed very quickly,
         but it may not be (e.g. if the workload is being moved to another
-        trigger process, or a multi-event trigger was being used for a
+        triggerer process, or a multi-event trigger was being used for a
         single-event task defer).
 
         In either case, Trigger classes should assume they will be persisted,
@@ -69,7 +69,7 @@ class BaseTrigger(abc.ABC, LoggingMixin):
     def cleanup(self) -> None:
         """
         Called when the trigger is no longer needed and it's being removed
-        from the active trigger process.
+        from the active triggerer process.
         """
 
     def __repr__(self) -> str:
