@@ -524,6 +524,37 @@ class TestDatabricksHookToken(unittest.TestCase):
         assert kwargs['auth'].token == TOKEN
 
 
+class TestDatabricksHookTokenInPassword(unittest.TestCase):
+    """
+    Tests for DatabricksHook.
+    """
+
+    @provide_session
+    def setUp(self, session=None):
+        conn = session.query(Connection).filter(Connection.conn_id == DEFAULT_CONN_ID).first()
+        conn.host = HOST
+        conn.login = None
+        conn.password = TOKEN
+        conn.extra = None
+        session.commit()
+
+        self.hook = DatabricksHook(retry_delay=0)
+
+    @mock.patch('airflow.providers.databricks.hooks.databricks.requests')
+    def test_submit_run(self, mock_requests):
+        mock_requests.codes.ok = 200
+        mock_requests.post.return_value.json.return_value = {'run_id': '1'}
+        status_code_mock = mock.PropertyMock(return_value=200)
+        type(mock_requests.post.return_value).status_code = status_code_mock
+        data = {'notebook_task': NOTEBOOK_TASK, 'new_cluster': NEW_CLUSTER}
+        run_id = self.hook.submit_run(data)
+
+        assert run_id == '1'
+        args = mock_requests.post.call_args
+        kwargs = args[1]
+        assert kwargs['auth'].token == TOKEN
+
+
 class TestDatabricksHookTokenWhenNoHostIsProvidedInExtra(TestDatabricksHookToken):
     @provide_session
     def setUp(self, session=None):
@@ -578,10 +609,10 @@ class TestDatabricksHookAadToken(unittest.TestCase):
     @provide_session
     def setUp(self, session=None):
         conn = session.query(Connection).filter(Connection.conn_id == DEFAULT_CONN_ID).first()
+        conn.login = '9ff815a6-4404-4ab8-85cb-cd0e6f879c1d'
+        conn.password = 'secret'
         conn.extra = json.dumps(
             {
-                'azure_client_id': '9ff815a6-4404-4ab8-85cb-cd0e6f879c1d',
-                'azure_client_secret': 'secret',
                 'host': HOST,
                 'azure_tenant_id': '3ff810a6-5504-4ab8-85cb-cd0e6f879c1d',
             }
@@ -615,11 +646,11 @@ class TestDatabricksHookAadTokenSpOutside(unittest.TestCase):
     @provide_session
     def setUp(self, session=None):
         conn = session.query(Connection).filter(Connection.conn_id == DEFAULT_CONN_ID).first()
+        conn.login = '9ff815a6-4404-4ab8-85cb-cd0e6f879c1d'
+        conn.password = 'secret'
+        conn.host = HOST
         conn.extra = json.dumps(
             {
-                'azure_client_id': '9ff815a6-4404-4ab8-85cb-cd0e6f879c1d',
-                'azure_client_secret': 'secret',
-                'host': HOST,
                 'azure_resource_id': '/Some/resource',
                 'azure_tenant_id': '3ff810a6-5504-4ab8-85cb-cd0e6f879c1d',
             }
