@@ -25,7 +25,7 @@ import pytest
 
 from airflow.exceptions import AirflowException
 from airflow.models import Connection
-from airflow.providers.microsoft.azure.hooks.azure_fileshare import AzureFileShareHook
+from airflow.providers.microsoft.azure.hooks.fileshare import AzureFileShareHook
 from airflow.utils.process_utils import patch_environ
 from tests.test_utils import AIRFLOW_MAIN_FOLDER
 from tests.test_utils.system_tests_class import SystemTest

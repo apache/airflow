@@ -18,7 +18,7 @@
 from typing import Any, Sequence
 
 from airflow.models import BaseOperator
-from airflow.providers.microsoft.azure.hooks.azure_data_lake import AzureDataLakeHook
+from airflow.providers.microsoft.azure.hooks.data_lake import AzureDataLakeHook
 
 
 class ADLSDeleteOperator(BaseOperator):
