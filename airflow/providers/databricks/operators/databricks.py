@@ -264,6 +264,7 @@ class DatabricksSubmitRunOperator(BaseOperator):
         self,
         *,
         json: Optional[Any] = None,
+        tasks: Optional[List[object]] = None,
         spark_jar_task: Optional[Dict[str, str]] = None,
         notebook_task: Optional[Dict[str, str]] = None,
         spark_python_task: Optional[Dict[str, Union[str, List[str]]]] = None,
@@ -279,6 +280,8 @@ class DatabricksSubmitRunOperator(BaseOperator):
         databricks_retry_limit: int = 3,
         databricks_retry_delay: int = 1,
         do_xcom_push: bool = False,
+        idempotency_token: Optional[str] = None,
+        access_control_list: Optional[List[Dict[str, str]]] = None,
         **kwargs,
     ) -> None:
         """Creates a new ``DatabricksSubmitRunOperator``."""
@@ -288,6 +291,8 @@ class DatabricksSubmitRunOperator(BaseOperator):
         self.polling_period_seconds = polling_period_seconds
         self.databricks_retry_limit = databricks_retry_limit
         self.databricks_retry_delay = databricks_retry_delay
+        if tasks is not None:
+            self.json['tasks'] = tasks
         if spark_jar_task is not None:
             self.json['spark_jar_task'] = spark_jar_task
         if notebook_task is not None:
@@ -310,6 +315,10 @@ class DatabricksSubmitRunOperator(BaseOperator):
             self.json['timeout_seconds'] = timeout_seconds
         if 'run_name' not in self.json:
             self.json['run_name'] = run_name or kwargs['task_id']
+        if idempotency_token is not None:
+            self.json['idempotency_token'] = idempotency_token
+        if access_control_list is not None:
+            self.json['access_control_list'] = access_control_list
 
         self.json = _deep_string_coerce(self.json)
         # This variable will be used in case our task gets killed.

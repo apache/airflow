@@ -100,35 +100,35 @@ def start_cluster_endpoint(host):
     """
     Utility function to generate the get run endpoint given the host.
     """
-    return f'https://{host}/api/2.1/clusters/start'
+    return f'https://{host}/api/2.0/clusters/start'
 
 
 def restart_cluster_endpoint(host):
     """
     Utility function to generate the get run endpoint given the host.
     """
-    return f'https://{host}/api/2.1/clusters/restart'
+    return f'https://{host}/api/2.0/clusters/restart'
 
 
 def terminate_cluster_endpoint(host):
     """
     Utility function to generate the get run endpoint given the host.
     """
-    return f'https://{host}/api/2.1/clusters/delete'
+    return f'https://{host}/api/2.0/clusters/delete'
 
 
 def install_endpoint(host):
     """
     Utility function to generate the install endpoint given the host.
     """
-    return f'https://{host}/api/2.1/libraries/install'
+    return f'https://{host}/api/2.0/libraries/install'
 
 
 def uninstall_endpoint(host):
     """
     Utility function to generate the uninstall endpoint given the host.
     """
-    return f'https://{host}/api/2.1/libraries/uninstall'
+    return f'https://{host}/api/2.0/libraries/uninstall'
 
 
 def create_valid_response_mock(content):
