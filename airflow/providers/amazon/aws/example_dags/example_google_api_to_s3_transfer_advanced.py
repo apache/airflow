@@ -33,13 +33,13 @@ YOUTUBE_CONN_ID is optional for public videos. It does only need to authenticate
 on a YouTube channel you want to retrieve.
 """
 
+from datetime import datetime
 from os import getenv
 
 from airflow import DAG
 from airflow.operators.dummy import DummyOperator
-from airflow.operators.python import BranchPythonOperator, get_current_context
+from airflow.operators.python import BranchPythonOperator
 from airflow.providers.amazon.aws.transfers.google_api_to_s3 import GoogleApiToS3Operator
-from airflow.utils.dates import days_ago
 
 # [START howto_operator_google_api_to_s3_transfer_advanced_env_variables]
 YOUTUBE_CONN_ID = getenv("YOUTUBE_CONN_ID", "google_cloud_default")
@@ -53,13 +53,12 @@ YOUTUBE_VIDEO_FIELDS = getenv("YOUTUBE_VIDEO_FIELDS", "items(id,snippet(descript
 
 
 # [START howto_operator_google_api_to_s3_transfer_advanced_task_1_2]
-def _check_and_transform_video_ids(task_output):
+def _check_and_transform_video_ids(task_output, task_instance):
     video_ids_response = task_output
     video_ids = [item['id']['videoId'] for item in video_ids_response['items']]
 
     if video_ids:
-        context = get_current_context()
-        context["task_instance"].xcom_push(key='video_ids', value={'id': ','.join(video_ids)})
+        task_instance.xcom_push(key='video_ids', value={'id': ','.join(video_ids)})
         return 'video_data_to_s3'
     return 'no_video_ids'
 
@@ -73,7 +72,8 @@ s3_file_name, _ = s3_file.rsplit('.', 1)
 with DAG(
     dag_id="example_google_api_to_s3_transfer_advanced",
     schedule_interval=None,
-    start_date=days_ago(1),
+    start_date=datetime(2021, 1, 1),
+    catchup=False,
     tags=['example'],
 ) as dag:
     # [START howto_operator_google_api_to_s3_transfer_advanced_task_1]

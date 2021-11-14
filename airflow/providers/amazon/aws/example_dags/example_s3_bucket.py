@@ -15,12 +15,12 @@
 # specific language governing permissions and limitations
 # under the License.
 import os
+from datetime import datetime
 
 from airflow.decorators import task
 from airflow.models.dag import DAG
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 from airflow.providers.amazon.aws.operators.s3_bucket import S3CreateBucketOperator, S3DeleteBucketOperator
-from airflow.utils.dates import days_ago
 
 BUCKET_NAME = os.environ.get('BUCKET_NAME', 'test-airflow-12345')
 
@@ -38,28 +38,23 @@ def upload_keys():
         )
 
 
+# [START howto_operator_s3_bucket]
 with DAG(
     dag_id='s3_bucket_dag',
     schedule_interval=None,
-    start_date=days_ago(2),
+    start_date=datetime(2021, 1, 1),
+    catchup=False,
     default_args={"bucket_name": BUCKET_NAME},
     max_active_runs=1,
     tags=['example'],
 ) as dag:
 
-    # [START howto_operator_s3_bucket]
-    create_bucket = S3CreateBucketOperator(
-        task_id='s3_bucket_dag_create',
-        region_name='us-east-1',
-    )
+    create_bucket = S3CreateBucketOperator(task_id='s3_bucket_dag_create', region_name='us-east-1')
 
     # Using a task-decorated function to add keys
     add_keys_to_bucket = upload_keys()
 
-    delete_bucket = S3DeleteBucketOperator(
-        task_id='s3_bucket_dag_delete',
-        force_delete=True,
-    )
-    # [END howto_operator_s3_bucket]
+    delete_bucket = S3DeleteBucketOperator(task_id='s3_bucket_dag_delete', force_delete=True)
 
     create_bucket >> add_keys_to_bucket >> delete_bucket
+    # [END howto_operator_s3_bucket]
