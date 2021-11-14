@@ -270,8 +270,13 @@ class DatabricksHook(BaseHook):
             host = self.databricks_conn.host
 
         if 'token' in self.databricks_conn.extra_dejson:
-            self.log.info('Using token auth.')
+            self.log.info(
+                'Using token auth. For security reasons, please set token in Password field instead of extra'
+            )
             auth = _TokenAuth(self.databricks_conn.extra_dejson['token'])
+        elif not self.databricks_conn.login and self.databricks_conn.password:
+            self.log.info('Using token auth.')
+            auth = _TokenAuth(self.databricks_conn.password)
         elif 'azure_tenant_id' in self.databricks_conn.extra_dejson:
             if self.databricks_conn.login == "" or self.databricks_conn.password == "":
                 raise AirflowException("Azure SPN credentials aren't provided")
