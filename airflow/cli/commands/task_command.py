@@ -228,7 +228,13 @@ def _capture_task_logs(ti):
 
 @cli_utils.action_logging
 def task_run(args, dag=None):
-    """Runs a single task instance"""
+    """Run a single task instance.
+
+    Note that there must be at least one DagRun for this to start,
+    i.e. it must have been scheduled and/or triggered previously.
+    Alternatively, if you just need to run it for testing then use
+    "airflow tasks test ..." command instead.
+    """
     # Load custom airflow config
 
     if args.local and args.raw:
