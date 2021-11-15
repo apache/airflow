@@ -60,37 +60,3 @@ class MsSqlHook(DbApiHook):
 
     def get_autocommit(self, conn: pymssql.connect):
         return conn.autocommit_state
-
-    @staticmethod
-    def _generate_insert_sql(
-        table: str, values, target_fields: Iterable[str], replace: bool, **kwargs
-    ) -> str:
-        """
-        Static helper method that generates the INSERT SQL statement.
-
-        :param table: Name of the target table
-        :type table: str
-        :param values: The row to insert into the table
-        :type values: tuple of cell values
-        :param target_fields: The names of the columns to fill in the table
-        :type target_fields: iterable of strings
-        :param replace: Whether to replace instead of insert
-        :type replace: bool
-        :return: The generated INSERT SQL statement
-        :rtype: str
-        """
-        if replace:
-            raise NotImplementedError()
-
-        placeholders = [
-            "?",
-        ] * len(values)
-
-        if target_fields:
-            target_fields_fragment = ", ".join(target_fields)
-            target_fields_fragment = f"({target_fields_fragment})"
-        else:
-            target_fields_fragment = ''
-
-        sql = f"INSERT INTO {table} {target_fields_fragment} VALUES ({','.join(placeholders)})"
-        return sql
