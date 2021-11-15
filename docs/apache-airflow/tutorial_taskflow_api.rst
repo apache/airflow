@@ -306,7 +306,7 @@ to a TaskFlow function which parses the response as JSON.
         return json.loads(api_results)
 
 
-    parsed_results = parsed_results(api_results=get_api_results_task.output)
+    parsed_results = parse_results(api_results=get_api_results_task.output)
 
 The reverse can also be done: passing the output of a TaskFlow function as an input to a traditional task.
 
