@@ -292,6 +292,12 @@ Before updating to this 2.2 release you will have to manually resolve any incons
 
 As part of this change the `clean_tis_without_dagrun_interval` config option under `[scheduler]` section has been removed and has no effect.
 
+### TaskInstance and TaskReschedule now define `run_id` instead of `execution_date`
+
+As a part of the TaskInstance-DagRun relation change, the `execution_date` columns on TaskInstance and TaskReschedule have been removed from the database, and replaced by [association proxy](https://docs.sqlalchemy.org/en/13/orm/extensions/associationproxy.html) fields at the ORM level. If you access Airflow’s metadatabase directly, you should rewrite the implementation to use the `run_id` columns instead.
+
+Note that Airflow’s metadatabase definition on both the database and ORM levels are considered implementation detail without strict backward compatibility guarantees.
+
 ### DaskExecutor - Dask Worker Resources and queues
 
 If dask workers are not started with complementary resources to match the specified queues, it will now result in an `AirflowException`, whereas before it would have just ignored the `queue` argument.
