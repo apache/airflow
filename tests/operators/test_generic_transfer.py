@@ -25,6 +25,7 @@ from parameterized import parameterized
 
 from airflow.models.dag import DAG
 from airflow.operators.generic_transfer import GenericTransfer
+from airflow.providers.microsoft.mssql.hooks.mssql import MsSqlHook
 from airflow.providers.mysql.hooks.mysql import MySqlHook
 from airflow.providers.postgres.hooks.postgres import PostgresHook
 from airflow.utils import timezone
@@ -94,6 +95,37 @@ class TestMySql(unittest.TestCase):
         assert mock_insert.called
         _, kwargs = mock_insert.call_args
         assert 'replace' in kwargs
+
+
+@pytest.mark.backend("mssql")
+class TestMsSql(unittest.TestCase):
+    def setUp(self):
+        args = {'owner': 'airflow', 'start_date': DEFAULT_DATE}
+        dag = DAG(TEST_DAG_ID, default_args=args)
+        self.dag = dag
+
+    def tearDown(self):
+        drop_tables = {'test_mssql_to_mssql', 'test_airflow'}
+        with closing(MsSqlHook().get_conn()) as conn:
+            for table in drop_tables:
+                with closing(conn.cursor()) as cur:
+                    cur.execute(f"DROP TABLE IF EXISTS {table}")
+
+    def test_mssql_to_mssql(self):
+        sql = "SELECT * FROM connection;"
+        op = GenericTransfer(
+            task_id='test_ms2ms',
+            preoperator=[
+                "DROP TABLE IF EXISTS test_mssql_to_mssql",
+                "CREATE TABLE IF NOT EXISTS test_mssql_to_mssql LIKE connection",
+            ],
+            source_conn_id='airflow_db',
+            destination_conn_id='airflow_db',
+            destination_table="test_mssql_to_mssql",
+            sql=sql,
+            dag=self.dag,
+        )
+        op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
 
 
 @pytest.mark.backend("postgres")

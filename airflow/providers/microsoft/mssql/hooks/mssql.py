@@ -18,6 +18,8 @@
 
 """Microsoft SQLServer hook module"""
 
+from typing import Iterable, Sized
+
 import pymssql
 
 from airflow.hooks.dbapi import DbApiHook
@@ -60,3 +62,30 @@ class MsSqlHook(DbApiHook):
 
     def get_autocommit(self, conn: pymssql.connect):
         return conn.autocommit_state
+
+    @staticmethod
+    def _generate_insert_sql(
+        table: str, values: Sized, target_fields: Iterable[str], replace: bool, **kwargs
+    ) -> str:
+        """
+        Static helper method that generates the INSERT SQL statement.
+
+        :param table: Name of the target table
+        :param values: The row to insert into the table
+        :param target_fields: The names of the columns to fill in the table
+        :param replace: Whether to replace instead of insert (replace currently not supported)
+        :return: The generated INSERT SQL statement
+        """
+        if replace:
+            raise NotImplementedError("replace is not supported currently")
+
+        placeholders = ["?"] * len(values)
+
+        if target_fields:
+            target_fields = ", ".join(target_fields)
+            target_fields = f"({target_fields})"
+        else:
+            target_fields = ""
+
+        sql = f"INSERT INTO {table} {target_fields} VALUES ({','.join(placeholders)})"
+        return sql
