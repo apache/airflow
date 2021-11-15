@@ -5,7 +5,7 @@ Bug Fixes
 """""""""
 
 - Fix bug when checking for existence of a Variable (#19395)
-- Fix Serialization when``relativedelta`` is passed as ``schedule_interval``  (#19418)
+- Fix Serialization when ``relativedelta`` is passed as ``schedule_interval``  (#19418)
 - Fix moving of dangling TaskInstance rows for SQL Server (#19425)
 - Fix task instance modal in gantt view (#19258)
 - Fix serialization of ``Params`` with set data type (#19267)
@@ -41,7 +41,7 @@ Bug Fixes
 
 - Fix Unexpected commit error in schedulerjob (#19213)
 - Add DagRun.logical_date as a property (#19198)
-- Clear ti.next_method and ti.next_kwargs on task finish (#19183)
+- Clear ``ti.next_method`` and ``ti.next_kwargs`` on task finish (#19183)
 - Faster PostgreSQL db migration to Airflow 2.2 (#19166)
 - Remove incorrect type comment in ``Swagger2Specification._set_defaults`` classmethod (#19065)
 - Add TriggererJob to jobs check command (#19179, #19185)
@@ -54,7 +54,7 @@ Bug Fixes
 - Prevent scheduler crash when serialized dag is missing (#19113)
 - Don't install SQLAlchemy/Pendulum adapters for other DBs (#18745)
 - Workaround libstdcpp TLS error (#19010)
-- Change `ds`, `ts`, etc. back to use logical date (#19088)
+- Change ``ds``, ``ts``, etc. back to use logical date (#19088)
 - Ensure task state doesn't change when marked as failed/success/skipped (#19095)
 - Relax packaging requirement (#19087)
 - Rename trigger page label to Logical Date (#19061)
