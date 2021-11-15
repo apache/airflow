@@ -43,6 +43,7 @@ to execute a BigQuery load job.
 
 .. exampleinclude:: /../../airflow/providers/google/cloud/example_dags/example_gcs_to_bigquery.py
     :language: python
+    :dedent: 4
     :start-after: [START howto_operator_gcs_to_bigquery]
     :end-before: [END howto_operator_gcs_to_bigquery]
 
@@ -61,6 +62,7 @@ processes all files older than ``data_interval_start``.
 
 .. exampleinclude:: /../../airflow/providers/google/cloud/example_dags/example_gcs_timespan_file_transform.py
     :language: python
+    :dedent: 4
     :start-after: [START howto_operator_gcs_timespan_file_transform_operator_Task]
     :end-before: [END howto_operator_gcs_timespan_file_transform_operator_Task]
 

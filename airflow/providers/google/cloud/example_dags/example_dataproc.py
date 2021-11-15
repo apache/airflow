@@ -21,6 +21,7 @@ operators to manage a cluster and submit jobs.
 """
 
 import os
+from datetime import datetime
 
 from airflow import models
 from airflow.providers.google.cloud.operators.dataproc import (
@@ -32,7 +33,6 @@ from airflow.providers.google.cloud.operators.dataproc import (
     DataprocUpdateClusterOperator,
 )
 from airflow.providers.google.cloud.sensors.dataproc import DataprocJobSensor
-from airflow.utils.dates import days_ago
 
 PROJECT_ID = os.environ.get("GCP_PROJECT_ID", "an-id")
 CLUSTER_NAME = os.environ.get("GCP_DATAPROC_CLUSTER_NAME", "example-cluster")
@@ -151,7 +151,12 @@ WORKFLOW_TEMPLATE = {
 }
 
 
-with models.DAG("example_gcp_dataproc", schedule_interval='@once', start_date=days_ago(1)) as dag:
+with models.DAG(
+    "example_gcp_dataproc",
+    schedule_interval='@once',
+    start_date=datetime(2021, 1, 1),
+    catchup=False,
+) as dag:
     # [START how_to_cloud_dataproc_create_cluster_operator]
     create_cluster = DataprocCreateClusterOperator(
         task_id="create_cluster",
