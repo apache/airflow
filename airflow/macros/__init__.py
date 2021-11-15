@@ -19,13 +19,17 @@ import time  # noqa
 import uuid  # noqa
 from datetime import datetime, timedelta
 from random import random  # noqa
+from typing import Any, Optional, Union
 
 import dateutil  # noqa
+import lazy_object_proxy
 
 from airflow.macros import hive  # noqa
 
+TemplateStringInput = Union[str, lazy_object_proxy.Proxy]
 
-def ds_add(ds, days):
+
+def ds_add(ds: TemplateStringInput, days: int) -> str:
     """
     Add or subtract days from a YYYY-MM-DD
 
@@ -39,13 +43,13 @@ def ds_add(ds, days):
     >>> ds_add('2015-01-06', -5)
     '2015-01-01'
     """
-    ds = datetime.strptime(ds, '%Y-%m-%d')
-    if days:
-        ds = ds + timedelta(days)
-    return ds.isoformat()[:10]
+    if not days:
+        return str(ds)
+    dt = datetime.strptime(str(ds), "%Y-%m-%d") + timedelta(days=days)
+    return dt.strftime("%Y-%m-%d")
 
 
-def ds_format(ds, input_format, output_format):
+def ds_format(ds: TemplateStringInput, input_format: str, output_format: str) -> str:
     """
     Takes an input string and outputs another string
     as specified in the output format
@@ -62,10 +66,10 @@ def ds_format(ds, input_format, output_format):
     >>> ds_format('1/5/2015', "%m/%d/%Y",  "%Y-%m-%d")
     '2015-01-05'
     """
-    return datetime.strptime(ds, input_format).strftime(output_format)
+    return datetime.strptime(str(ds), input_format).strftime(output_format)
 
 
-def datetime_diff_for_humans(dt, since=None):
+def datetime_diff_for_humans(dt: Any, since: Optional[datetime] = None) -> str:
     """
     Return a human-readable/approximate difference between two datetimes, or
     one and now.
