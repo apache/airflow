@@ -1873,6 +1873,58 @@ https://cloud.google.com/compute/docs/disks/performance
 
 Hence, the default value for `master_disk_size` in `DataprocCreateClusterOperator` has been changed from 500GB to 1TB.
 
+##### Generating Cluster Config
+
+If you are upgrading from Airflow 1.10.x and are not using **CLUSTER_CONFIG**,
+You can easily generate config using **make()** of `airflow.providers.google.cloud.operators.dataproc.ClusterGenerator`
+
+This has been proved specially useful if you are using **metadata** argument from older API, refer [AIRFLOW-16911](https://github.com/apache/airflow/issues/16911) for details.
+
+eg. your cluster creation may look like this in **v1.10.x**
+
+```python
+path = f"gs://goog-dataproc-initialization-actions-us-central1/python/pip-install.sh"
+
+create_cluster = DataprocClusterCreateOperator(
+    task_id="create_dataproc_cluster",
+    cluster_name="test",
+    project_id="test",
+    zone="us-central1-a",
+    region="us-central1",
+    master_machine_type="n1-standard-4",
+    worker_machine_type="n1-standard-4",
+    num_workers=2,
+    storage_bucket="test_bucket",
+    init_actions_uris=[path],
+    metadata={"PIP_PACKAGES": "pyyaml requests pandas openpyxl"},
+)
+```
+
+After upgrading to **v2.x.x** and using **CLUSTER_CONFIG**, it will look like followed:
+
+```python
+path = f"gs://goog-dataproc-initialization-actions-us-central1/python/pip-install.sh"
+
+CLUSTER_CONFIG = ClusterGenerator(
+    project_id="test",
+    zone="us-central1-a",
+    master_machine_type="n1-standard-4",
+    worker_machine_type="n1-standard-4",
+    num_workers=2,
+    storage_bucket="test",
+    init_actions_uris=[path],
+    metadata={"PIP_PACKAGES": "pyyaml requests pandas openpyxl"},
+).make()
+
+create_cluster_operator = DataprocClusterCreateOperator(
+    task_id="create_dataproc_cluster",
+    cluster_name="test",
+    project_id="test",
+    region="us-central1",
+    cluster_config=CLUSTER_CONFIG,
+)
+```
+
 #### `airflow.providers.google.cloud.operators.bigquery.BigQueryGetDatasetTablesOperator`
 
 We changed signature of `BigQueryGetDatasetTablesOperator`.
