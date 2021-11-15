@@ -298,6 +298,7 @@ function kind::wait_for_webserver_healthy() {
             echo
             echo  "${COLOR_RED}ERROR: Timeout while waiting for the webserver health check  ${COLOR_RESET}"
             echo
+            return 1
         fi
     done
     echo
