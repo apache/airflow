@@ -34,7 +34,7 @@ set the below:
 Disable Deployment Exposure Warning
 ------------------------------------------------------
 
-Airflow warns when recent requests are made to /robot.txt. To disable this warning set the bewlow:
+Airflow warns when recent requests are made to /robot.txt. To disable this warning set the below:
 
 .. code-block:: ini
 
