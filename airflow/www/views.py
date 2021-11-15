@@ -288,7 +288,6 @@ def task_group_to_tree(task_item_or_group, dag, dag_runs, tis):
         }
 
     group_summaries = [get_summary(dr, children) for dr in dag_runs]
-    group_summaries.reverse()
 
     return {
         'id': task_group.group_id,
@@ -2256,6 +2255,7 @@ class Airflow(AirflowBaseView):
             .limit(num_runs)
             .all()
         )
+        dag_runs.reverse()
         encoded_runs = [wwwutils.encode_dag_run(dr) for dr in dag_runs]
         dag_run_dates = {dr.execution_date: alchemy_to_dict(dr) for dr in dag_runs}
 
@@ -3001,6 +3001,7 @@ class Airflow(AirflowBaseView):
                 .limit(num_runs)
                 .all()
             )
+            dag_runs.reverse()
             encoded_runs = [wwwutils.encode_dag_run(dr) for dr in dag_runs]
             dag_run_dates = {dr.execution_date: alchemy_to_dict(dr) for dr in dag_runs}
             min_date = min(dag_run_dates, default=None)

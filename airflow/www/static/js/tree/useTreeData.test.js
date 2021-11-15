@@ -20,11 +20,11 @@
 import { renderHook } from '@testing-library/react-hooks';
 import useTreeData from './useTreeData';
 
-/* global describe, test, expect */
+/* global describe, test, expect, fetch, beforeEach */
 
 global.autoRefreshInterval = 5;
 
-const treeData = {
+const pendingTreeData = {
   groups: {},
   dag_runs: [
     {
@@ -41,9 +41,18 @@ const treeData = {
   ],
 };
 
+const finalTreeData = {
+  groups: {},
+  dag_runs: [{ ...pendingTreeData.dag_runs[0], state: 'failed' }],
+};
+
 describe('Test useTreeData hook', () => {
+  beforeEach(() => {
+    fetch.resetMocks();
+  });
+
   test('data is valid camelcase json', () => {
-    global.treeData = JSON.stringify(treeData);
+    global.treeData = JSON.stringify(pendingTreeData);
 
     const { result } = renderHook(() => useTreeData());
     const { data, isRefreshOn, onToggleRefresh } = result.current;
@@ -55,20 +64,23 @@ describe('Test useTreeData hook', () => {
     expect(typeof onToggleRefresh).toBe('function');
   });
 
-  test('data with an unfinished state should have refresh on by default', () => {
-    global.treeData = JSON.stringify(treeData);
+  test('queued run should have refreshOn by default and then turn off when run failed', async () => {
+    // return a dag run of failed during refresh
+    fetch.mockResponse(JSON.stringify(finalTreeData));
+    global.treeData = JSON.stringify(pendingTreeData);
+    global.autoRefreshInterval = 0.1;
 
-    const { result } = renderHook(() => useTreeData());
-    const { isRefreshOn } = result.current;
+    const { result, waitFor } = renderHook(() => useTreeData());
 
-    expect(isRefreshOn).toBe(true);
+    expect(result.current.isRefreshOn).toBe(true);
+
+    await waitFor(() => expect(fetch).toBeCalled());
+
+    expect(result.current.isRefreshOn).toBe(false);
   });
 
   test('data with a finished state should have refresh off by default', () => {
-    global.treeData = JSON.stringify({
-      groups: {},
-      dag_runs: [{ ...treeData.dag_runs[0], state: 'failed' }],
-    });
+    global.treeData = JSON.stringify(finalTreeData);
 
     const { result } = renderHook(() => useTreeData());
     const { isRefreshOn } = result.current;

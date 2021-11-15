@@ -1,3 +1,5 @@
+// We need this lint rule for now because these are only dev-dependencies
+/* eslint-disable import/no-extraneous-dependencies */
 /*!
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
@@ -17,8 +19,10 @@
  * under the License.
  */
 
-// eslint-disable-next-line import/no-extraneous-dependencies
 import '@testing-library/jest-dom';
+import { enableFetchMocks } from 'jest-fetch-mock';
+
+enableFetchMocks();
 
 // Mock a global object we use across the app
 global.stateColors = {
