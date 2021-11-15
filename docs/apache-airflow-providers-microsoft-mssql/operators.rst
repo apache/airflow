@@ -15,13 +15,11 @@
     specific language governing permissions and limitations
     under the License.
 
-How-to Guide for MsSqlOperator
-=================================
-
 .. _howto/operator:MsSqlOperator:
 
-Introduction
-------------
+MsSqlOperator
+=============
+
 The purpose of MSSQL Operator is to define tasks involving interactions with the MSSQL database.
 
 Use the :class:`~airflow.providers.microsoft.mssql.operators.mssql.MsSqlOperator` to execute
@@ -56,7 +54,7 @@ This way you can easily maintain the SQL queries separated from the code.
 
 Your ``dags/create_table.sql`` should look like this:
 
-::
+.. code-block::sql
 
       -- create Users table
       CREATE TABLE Users (

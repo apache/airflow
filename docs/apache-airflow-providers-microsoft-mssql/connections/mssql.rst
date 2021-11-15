@@ -21,13 +21,12 @@
 
 MSSQL Connection
 ======================
-The MSSQL connection type enables connection to `MSSQL <https://www.microsoft.com/en-in/sql-server/>`__.
+The MSSQL connection type enables connection to `Microsoft SQL Server <https://www.microsoft.com/en-in/sql-server/>`__.
 
 Default Connection IDs
 ----------------------
 
-MSSQL Hook uses parameter ``mssql_conn_id`` for Connection IDs and the value of the parameter
-as ``mssql_default`` by default.
+MSSQL Hook uses parameter ``mssql_conn_id`` for the connection ID. The default value is ``mssql_default``.
 
 Configuring the Connection
 --------------------------
