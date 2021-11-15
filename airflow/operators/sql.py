@@ -46,10 +46,18 @@ class BaseSQLOperator(BaseOperator):
     You can custom the behavior by overriding the .get_db_hook() method.
     """
 
-    def __init__(self, *, conn_id: Optional[str] = None, database: Optional[str] = None, **kwargs):
+    def __init__(
+        self,
+        *,
+        conn_id: Optional[str] = None,
+        database: Optional[str] = None,
+        hook_params: Optional[Dict] = None,
+        **kwargs,
+    ):
         super().__init__(**kwargs)
         self.conn_id = conn_id
         self.database = database
+        self.hook_params = {} if hook_params is None else hook_params
 
     @cached_property
     def _hook(self):
@@ -57,7 +65,7 @@ class BaseSQLOperator(BaseOperator):
         self.log.debug("Get connection for %s", self.conn_id)
         conn = BaseHook.get_connection(self.conn_id)
 
-        hook = conn.get_hook()
+        hook = conn.get_hook(hook_kwargs=self.hook_params)
         if not isinstance(hook, DbApiHook):
             raise AirflowException(
                 f'The connection type is not supported by {self.__class__.__name__}. '
