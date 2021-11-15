@@ -1,3 +1,38 @@
+Airflow 2.2.2, 2021-11-15
+-------------------------
+
+Bug Fixes
+"""""""""
+
+- Fix bug when checking for existence of a Variable (#19395)
+- Fix Serialization when``relativedelta`` is passed as ``schedule_interval``  (#19418)
+- Fix moving of dangling TaskInstance rows for SQL Server (#19425)
+- Fix task instance modal in gantt view (#19258)
+- Fix serialization of ``Params`` with set data type (#19267)
+- Check if job object is ``None`` before calling ``.is_alive()`` (#19380)
+- Task should fail immediately when pod is unprocessable (#19359)
+- Fix downgrade for a DB Migration (#19390)
+- Only mark SchedulerJobs as failed, not any jobs (#19375)
+- Fix message on "Mark as" confirmation page (#19363)
+- Bugfix: Check next run exists before reading data interval (#19307)
+- Fix MySQL db migration with default encoding/collation (#19268)
+- Fix hidden tooltip position (#19261)
+- ``sqlite_default`` Connection has been hard-coded to ``/tmp``, use ``gettempdir`` instead (#19255)
+- Fix Toggle Wrap on DAG code page (#19211)
+- Clarify "dag not found" error message in CLI (#19338)
+- Add Note to SLA regarding ``schedule_interval`` (#19173)
+- Use ``execution_date`` to check for existing ``DagRun`` for ``TriggerDagRunOperator`` (#18968)
+- Add explicit session parameter in ``PoolSlotsAvailableDep`` (#18875)
+- FAB still requires ``WTForms<3.0`` (#19466)
+- Fix missing dagruns when ``catchup=True`` (#19528)
+
+Doc only changes
+""""""""""""""""
+
+- Add missing parameter documentation for "timetable" (#19282)
+- Improve Kubernetes Executor docs (#19339)
+- Update image tag used in docker docs
+
 Airflow 2.2.1, 2021-10-29
 -------------------------
 
