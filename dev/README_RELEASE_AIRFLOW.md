@@ -788,15 +788,11 @@ previously released RC candidates in "${AIRFLOW_SOURCES}/dist":
 ./scripts/ci/tools/prepare_prod_docker_images.sh ${VERSION}
 ```
 
-This will wipe Breeze cache and docker-context-files in order to make sure the build is "clean". It
-also performs image verification before pushing the images.
-
-If this is the newest image released, push the latest image as well.
-
-```shell script
-docker tag "apache/airflow:${VERSION}" "apache/airflow:latest"
-docker push "apache/airflow:latest"
-```
+If you release 'official' (non-rc) version you will be asked if you want to
+tag the images as latest - if you are releasing the latest stable branch, you
+should answer y and tags will be created and pushed. If you are releasing a
+patch release from an older branch, you should answer n and creating tags will
+be skipped.
 
 ## Publish documentation
 
