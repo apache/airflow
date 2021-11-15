@@ -136,7 +136,6 @@ name ``base`` and a second container containing your desired sidecar.
 
 .. exampleinclude:: /../../airflow/example_dags/example_kubernetes_executor.py
     :language: python
-    :dedent: 8
     :start-after: [START task_with_sidecar]
     :end-before: [END task_with_sidecar]
 
