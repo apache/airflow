@@ -1087,3 +1087,36 @@ def test_empty_branch(dag_maker, choice, expected_states):
         return ti.state
 
     assert [get_state(tis[task_id]) for task_id in task_ids] == expected_states
+
+
+def test_virtualenv_serializable_context_fields(create_task_instance):
+    """Ensure all template context fields are listed in the operator.
+
+    This exists mainly so when a field is added to the context, we remember to
+    also add it to PythonVirtualenvOperator.
+    """
+    # These are intentionally NOT serialized into the virtual environment:
+    # * Variables pointing to the task instance itself.
+    # * Variables that are accessor instances.
+    intentionally_excluded_context_keys = [
+        "task_instance",
+        "ti",
+        "var",  # Accessor for Variable; var->json and var->value.
+        "conn",  # Accessor for Connection.
+    ]
+
+    ti = create_task_instance(
+        dag_id="test_virtualenv_serializable_context_fields",
+        task_id="test_virtualenv_serializable_context_fields_task",
+        schedule_interval=None,
+    )
+    context = ti.get_template_context()
+
+    declared_keys = {
+        *PythonVirtualenvOperator.BASE_SERIALIZABLE_CONTEXT_KEYS,
+        *PythonVirtualenvOperator.PENDULUM_SERIALIZABLE_CONTEXT_KEYS,
+        *PythonVirtualenvOperator.AIRFLOW_SERIALIZABLE_CONTEXT_KEYS,
+        *intentionally_excluded_context_keys,
+    }
+
+    assert set(context) == declared_keys
