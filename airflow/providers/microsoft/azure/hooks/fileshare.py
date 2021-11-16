@@ -71,12 +71,10 @@ class AzureFileShareHook(BaseHook):
             "relabeling": {
                 'login': 'Blob Storage Login (optional)',
                 'password': 'Blob Storage Key (optional)',
-                'host': 'Account Name (Active Directory Auth)',
             },
             "placeholders": {
                 'login': 'account name',
                 'password': 'secret',
-                'host': 'account url',
                 'extra__azure_fileshare__sas_token': 'account url or token (optional)',
                 'extra__azure_fileshare__connection_string': 'account url or token (optional)',
                 'extra__azure_fileshare__protocol': 'account url or token (optional)',
