@@ -789,24 +789,28 @@ class Airflow(AirflowBaseView):
                 # Second segment is a version marker that we don't need to show.
                 yield segments[2], table_name
 
-        robots_file_access_count = session.query(Log).filter(Log.event == "robots").filter(
-            Log.dttm > (utcnow() - timedelta(days=7))).count()
-
         if (
             permissions.ACTION_CAN_ACCESS_MENU,
             permissions.RESOURCE_ADMIN_MENU,
-        ) in user_permissions and robots_file_access_count > 0 \
-            and conf.getboolean("webserver", "warn_deployment_exposure"):
-            flash(
-                Markup(
-                    'Recent requests have been made to /robots.txt. '
-                    'This indicates that this deployment may be accessible to the public internet. '
-                    'This warning can be disabled by setting webserver.warn_deployment_exposure=False in '
-                    'airflow.cfg. Read more about web deployment security <a href='
-                    '"https://airflow.apache.org/docs/apache-airflow/stable/security/webserver.html">here</a> '
-                ),
-                "warning",
+        ) in user_permissions and conf.getboolean("webserver", "warn_deployment_exposure"):
+            robots_file_access_count = (
+                session.query(Log)
+                .filter(Log.event == "robots")
+                .filter(Log.dttm > (utcnow() - timedelta(days=7)))
+                .count()
             )
+            if robots_file_access_count > 0:
+                flash(
+                    Markup(
+                        'Recent requests have been made to /robots.txt. '
+                        'This indicates that this deployment may be accessible to the public internet. '
+                        'This warning can be disabled by setting webserver.warn_deployment_exposure=False in '
+                        'airflow.cfg. Read more about web deployment security <a href='
+                        '"https://airflow.apache.org/docs/apache-airflow/stable/security/webserver.html">'
+                        'here</a>'
+                    ),
+                    "warning",
+                )
 
         return self.render_template(
             'airflow/dags.html',
