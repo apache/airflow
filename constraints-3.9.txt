@@ -58,7 +58,7 @@ ansiwrap==0.8.4
 anyio==3.3.4
 apache-airflow-providers-airbyte==2.1.1
 apache-airflow-providers-alibaba==1.0.0
-apache-airflow-providers-amazon==2.3.0
+apache-airflow-providers-amazon==2.4.0
 apache-airflow-providers-apache-beam==3.1.0
 apache-airflow-providers-apache-cassandra==2.1.0
 apache-airflow-providers-apache-drill==1.0.1
