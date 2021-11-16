@@ -10,8 +10,6 @@ New Features
 - Allow custom pod annotations to all components (#18481)
 - Chart: Make PgBouncer cmd/args configurable (#18910)
 - Chart: Use python 3.7 by default; support disabling triggerer (#18920)
-- Chart: Allow disabling the Helm hooks in the helm chart (#18776)
-- Allow specifying kerberos keytab in the chart (#19054)
 
 Improvements
 """"""""""""
