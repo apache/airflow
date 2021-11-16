@@ -313,7 +313,7 @@ fi
 
 # Note: the broker backend configuration concerns only a subset of Airflow components
 if [[ ${AIRFLOW_COMMAND} =~ ^(scheduler|celery)$ ]] \
-    && [[ "${cticonneon_check_max_count}" -gt "0" ]]; then
+    && [[ "${connection_check_max_count}" -gt "0" ]]; then
     wait_for_celery_broker
 fi
 
