@@ -332,7 +332,7 @@ is not supposed to be used by and advertised to the end-users who do not read th
 Production Docker images should be manually prepared and pushed by the release manager.
 
 ```shell script
-./scripts/ci/tools/prepare_prod_docker_images.sh ${VERSION}
+./dev/prepare_prod_docker_images.sh ${VERSION}
 ```
 
 This will wipe Breeze cache and docker-context-files in order to make sure the build is "clean". It
@@ -785,7 +785,7 @@ previously released RC candidates in "${AIRFLOW_SOURCES}/dist":
 
 
 ```shell script
-./scripts/ci/tools/prepare_prod_docker_images.sh ${VERSION}
+./dev/prepare_prod_docker_images.sh ${VERSION}
 ```
 
 If you release 'official' (non-rc) version you will be asked if you want to
