@@ -38,7 +38,7 @@
 - [Publish release](#publish-release)
   - [Summarize the voting for the Apache Airflow release](#summarize-the-voting-for-the-apache-airflow-release)
   - [Publish release to SVN](#publish-release-to-svn)
-  - [Publish the Regular convenience package to PyPI](#publish-the-regular-convenience-package-to-pypi-1)
+  - [Publish the packages to PyPI](#publish-the-packages-to-pypi)
   - [Publish documentation prepared before](#publish-documentation-prepared-before)
   - [Add tags in git](#add-tags-in-git-1)
   - [Notify developers of release](#notify-developers-of-release)
@@ -738,13 +738,13 @@ Verify that the packages appear in
 [providers](https://dist.apache.org/repos/dist/release/airflow/providers)
 
 
-## Publish the Regular convenience package to PyPI
+## Publish the packages to PyPI
 
-By that time the packages with proper name (renamed from rc* to final version should be in your dist
-folder.
+By that time the packages should be in your dist folder.
 
 ```shell script
 cd ${AIRFLOW_REPO_ROOT}
+git checkout <ONE_OF_THE_RC_TAGS_FOR_ONE_OF_THE_RELEASED_PROVIDERS>
 ```
 
 * Verify the artifacts that would be uploaded:
@@ -767,6 +767,8 @@ twine upload -r pypitest ${AIRFLOW_REPO_ROOT}/dist/*.whl ${AIRFLOW_REPO_ROOT}/di
 ```shell script
 twine upload -r pypi ${AIRFLOW_REPO_ROOT}/dist/*.whl ${AIRFLOW_REPO_ROOT}/dist/*.tar.gz
 ```
+
+Copy links to updated packages.
 
 * Again, confirm that the packages are available under the links printed.
 
@@ -805,11 +807,13 @@ Dear Airflow community,
 
 I'm happy to announce that new versions of Airflow Providers packages were just released.
 
+TODO: If there is just a few packages to release - paste the links to PyPI packages. Otherwise delete this TODO (too many links make the message unclear).
+
 The source release, as well as the binary releases, are available here:
 
 https://airflow.apache.org/docs/apache-airflow-providers/installing-from-sources
 
-You can install the providers via PyPI  https://airflow.apache.org/apache-airflow-providers/installing-from-pypi
+You can install the providers via PyPI  https://airflow.apache.org/docs/apache-airflow-providers/installing-from-pypi
 
 The documentation is available at https://airflow.apache.org/docs/ and linked from the PyPI packages.
 
