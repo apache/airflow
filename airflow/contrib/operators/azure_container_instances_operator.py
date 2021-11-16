@@ -17,17 +17,17 @@
 # under the License.
 """
 This module is deprecated. Please use
-`airflow.providers.microsoft.azure.operators.azure_container_instances`.
+`airflow.providers.microsoft.azure.operators.container_instances`.
 """
 import warnings
 
-from airflow.providers.microsoft.azure.operators.azure_container_instances import (  # noqa
+from airflow.providers.microsoft.azure.operators.container_instances import (  # noqa
     AzureContainerInstancesOperator,
 )
 
 warnings.warn(
     "This module is deprecated. "
-    "Please use `airflow.providers.microsoft.azure.operators.azure_container_instances`.",
+    "Please use `airflow.providers.microsoft.azure.operators.container_instances`.",
     DeprecationWarning,
     stacklevel=2,
 )

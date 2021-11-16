@@ -806,10 +806,15 @@ class S3Hook(AwsBaseHook):
         """
         self.log.info('Downloading source S3 file from Bucket %s with path %s', bucket_name, key)
 
-        if not self.check_for_key(key, bucket_name):
-            raise AirflowException(f'The source file in Bucket {bucket_name} with path {key} does not exist')
-
-        s3_obj = self.get_key(key, bucket_name)
+        try:
+            s3_obj = self.get_key(key, bucket_name)
+        except ClientError as e:
+            if e.response.get('Error', {}).get('Code') == 404:
+                raise AirflowException(
+                    f'The source file in Bucket {bucket_name} with path {key} does not exist'
+                )
+            else:
+                raise e
 
         with NamedTemporaryFile(dir=local_path, prefix='airflow_tmp_', delete=False) as local_tmp_file:
             s3_obj.download_fileobj(local_tmp_file)

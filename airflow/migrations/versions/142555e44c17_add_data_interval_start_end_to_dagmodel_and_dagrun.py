@@ -25,8 +25,9 @@ Create Date: 2021-06-09 08:28:02.089817
 """
 
 from alembic import op
-from sqlalchemy import TIMESTAMP, Column
-from sqlalchemy.dialects import mssql, mysql
+from sqlalchemy import Column
+
+from airflow.migrations.db_types import TIMESTAMP
 
 # Revision identifiers, used by Alembic.
 revision = "142555e44c17"
@@ -35,36 +36,14 @@ branch_labels = None
 depends_on = None
 
 
-def _use_date_time2(conn):
-    result = conn.execute(
-        """SELECT CASE WHEN CONVERT(VARCHAR(128), SERVERPROPERTY ('productversion'))
-        like '8%' THEN '2000' WHEN CONVERT(VARCHAR(128), SERVERPROPERTY ('productversion'))
-        like '9%' THEN '2005' ELSE '2005Plus' END AS MajorVersion"""
-    ).fetchone()
-    mssql_version = result[0]
-    return mssql_version not in ("2000", "2005")
-
-
-def _get_timestamp(conn):
-    dialect_name = conn.dialect.name
-    if dialect_name == "mysql":
-        return mysql.TIMESTAMP(fsp=6, timezone=True)
-    if dialect_name != "mssql":
-        return TIMESTAMP(timezone=True)
-    if _use_date_time2(conn):
-        return mssql.DATETIME2(precision=6)
-    return mssql.DATETIME
-
-
 def upgrade():
     """Apply data_interval fields to DagModel and DagRun."""
-    column_type = _get_timestamp(op.get_bind())
     with op.batch_alter_table("dag_run") as batch_op:
-        batch_op.add_column(Column("data_interval_start", column_type))
-        batch_op.add_column(Column("data_interval_end", column_type))
+        batch_op.add_column(Column("data_interval_start", TIMESTAMP))
+        batch_op.add_column(Column("data_interval_end", TIMESTAMP))
     with op.batch_alter_table("dag") as batch_op:
-        batch_op.add_column(Column("next_dagrun_data_interval_start", column_type))
-        batch_op.add_column(Column("next_dagrun_data_interval_end", column_type))
+        batch_op.add_column(Column("next_dagrun_data_interval_start", TIMESTAMP))
+        batch_op.add_column(Column("next_dagrun_data_interval_end", TIMESTAMP))
 
 
 def downgrade():

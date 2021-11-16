@@ -48,6 +48,7 @@ with DAG(
     default_args={'cluster_name': "{{ dag_run.conf['cluster_name'] }}"},
     schedule_interval=None,
     start_date=datetime(2021, 1, 1),
+    catchup=False,
     max_active_runs=1,
     tags=['example', 'templated'],
     # render_template_as_native_obj=True is what converts the Jinja to Python objects, instead of a string.

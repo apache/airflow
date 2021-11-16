@@ -23,11 +23,9 @@ Revises: 83f031fd9f1c
 Create Date: 2021-04-06 13:22:02.197726
 
 """
-import sqlalchemy as sa
 from alembic import op
-from sqlalchemy.dialects import mssql, mysql
 
-from airflow.models.base import COLLATION_ARGS
+from airflow.migrations.db_types import TIMESTAMP, StringID
 
 # revision identifiers, used by Alembic.
 revision = 'e9304a3141f0'
@@ -36,32 +34,12 @@ branch_labels = None
 depends_on = None
 
 
-def _use_date_time2(conn):
-    result = conn.execute(
-        """SELECT CASE WHEN CONVERT(VARCHAR(128), SERVERPROPERTY ('productversion'))
-        like '8%' THEN '2000' WHEN CONVERT(VARCHAR(128), SERVERPROPERTY ('productversion'))
-        like '9%' THEN '2005' ELSE '2005Plus' END AS MajorVersion"""
-    ).fetchone()
-    mssql_version = result[0]
-    return mssql_version not in ("2000", "2005")
-
-
-def _get_timestamp(conn):
-    dialect_name = conn.dialect.name
-    if dialect_name == "mssql":
-        return mssql.DATETIME2(precision=6) if _use_date_time2(conn) else mssql.DATETIME
-    elif dialect_name == "mysql":
-        return mysql.TIMESTAMP(fsp=6, timezone=True)
-    else:
-        return sa.TIMESTAMP(timezone=True)
-
-
 def upgrade():
     """Apply make xcom pkey columns non-nullable"""
     conn = op.get_bind()
     with op.batch_alter_table('xcom') as bop:
-        bop.alter_column("key", type_=sa.String(length=512, **COLLATION_ARGS), nullable=False)
-        bop.alter_column("execution_date", type_=_get_timestamp(conn), nullable=False)
+        bop.alter_column("key", type_=StringID(length=512), nullable=False)
+        bop.alter_column("execution_date", type_=TIMESTAMP, nullable=False)
         if conn.dialect.name == 'mssql':
             bop.create_primary_key('pk_xcom', ['dag_id', 'task_id', 'key', 'execution_date'])
 
@@ -72,5 +50,5 @@ def downgrade():
     with op.batch_alter_table('xcom') as bop:
         if conn.dialect.name == 'mssql':
             bop.drop_constraint('pk_xcom', 'primary')
-        bop.alter_column("key", type_=sa.String(length=512, **COLLATION_ARGS), nullable=True)
-        bop.alter_column("execution_date", type_=_get_timestamp(conn), nullable=True)
+        bop.alter_column("key", type_=StringID(length=512), nullable=True)
+        bop.alter_column("execution_date", type_=TIMESTAMP, nullable=True)

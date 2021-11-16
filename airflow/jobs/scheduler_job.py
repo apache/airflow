@@ -913,26 +913,23 @@ class SchedulerJob(BaseJob):
                     creating_job_id=self.id,
                 )
                 active_runs_of_dags[dag.dag_id] += 1
-            self._update_dag_next_dagruns(dag, dag_model, active_runs_of_dags[dag.dag_id])
+            if self._should_update_dag_next_dagruns(dag, dag_model, active_runs_of_dags[dag.dag_id]):
+                dag_model.calculate_dagrun_date_fields(dag, data_interval)
         # TODO[HA]: Should we do a session.flush() so we don't have to keep lots of state/object in
         # memory for larger dags? or expunge_all()
 
-    def _update_dag_next_dagruns(self, dag, dag_model: DagModel, total_active_runs) -> None:
-        """
-        Update the next_dagrun, next_dagrun_data_interval_start/end
-        and next_dagrun_create_after for this dag.
-        """
-        if total_active_runs >= dag_model.max_active_runs:
+    def _should_update_dag_next_dagruns(self, dag, dag_model: DagModel, total_active_runs) -> bool:
+        """Check if the dag's next_dagruns_create_after should be updated."""
+        if total_active_runs >= dag.max_active_runs:
             self.log.info(
                 "DAG %s is at (or above) max_active_runs (%d of %d), not creating any more runs",
                 dag_model.dag_id,
                 total_active_runs,
-                dag_model.max_active_runs,
+                dag.max_active_runs,
             )
             dag_model.next_dagrun_create_after = None
-        else:
-            data_interval = dag.get_next_data_interval(dag_model)
-            dag_model.calculate_dagrun_date_fields(dag, data_interval)
+            return False
+        return True
 
     def _start_queued_dagruns(
         self,
@@ -1015,7 +1012,8 @@ class SchedulerJob(BaseJob):
             self.log.info("Run %s of %s has timed-out", dag_run.run_id, dag_run.dag_id)
             active_runs = dag.get_num_active_runs(only_running=False, session=session)
             # Work out if we should allow creating a new DagRun now?
-            self._update_dag_next_dagruns(dag, dag_model, active_runs)
+            if self._should_update_dag_next_dagruns(dag, dag_model, active_runs):
+                dag_model.calculate_dagrun_date_fields(dag, dag.get_run_data_interval(dag_run))
 
             callback_to_execute = DagCallbackRequest(
                 full_filepath=dag.fileloc,
@@ -1040,7 +1038,8 @@ class SchedulerJob(BaseJob):
         if dag_run.state in State.finished:
             active_runs = dag.get_num_active_runs(only_running=False, session=session)
             # Work out if we should allow creating a new DagRun now?
-            self._update_dag_next_dagruns(dag, dag_model, active_runs)
+            if self._should_update_dag_next_dagruns(dag, dag_model, active_runs):
+                dag_model.calculate_dagrun_date_fields(dag, dag.get_run_data_interval(dag_run))
 
         # This will do one query per dag run. We "could" build up a complex
         # query to update all the TIs across all the execution dates and dag

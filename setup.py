@@ -347,6 +347,7 @@ hashicorp = [
 ]
 hdfs = [
     'snakebite-py3',
+    'hdfs[avro,dataframe,kerberos]>=2.0.4',
 ]
 hive = [
     'hmsclient>=0.1.0',

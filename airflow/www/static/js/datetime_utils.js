@@ -97,3 +97,15 @@ export function setDisplayedTimezone(tz) {
   moment.tz.setDefault(tz);
   updateAllDateTimes();
 }
+
+// moment will resolve the enddate to now if it is undefined
+export const getDuration = (startDate, endDate) => (
+  moment(endDate || undefined).diff(startDate || undefined)
+);
+
+export const formatDuration = (dur) => {
+  const duration = moment.duration(dur);
+  const days = duration.days();
+  // .as('milliseconds') is necessary for .format() to work correctly
+  return `${days > 0 ? `${days}d` : ''}${moment.utc(duration.as('milliseconds')).format('HH:mm:ss')}`;
+};

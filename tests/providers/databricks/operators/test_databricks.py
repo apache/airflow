@@ -126,6 +126,12 @@ class TestDatabricksSubmitRunOperator(unittest.TestCase):
         )
         assert expected == op.json
 
+    def test_init_with_tasks(self):
+        tasks = [{"task_key": 1, "new_cluster": NEW_CLUSTER, "notebook_task": NOTEBOOK_TASK}]
+        op = DatabricksSubmitRunOperator(task_id=TASK_ID, tasks=tasks)
+        expected = databricks_operator._deep_string_coerce({'run_name': TASK_ID, "tasks": tasks})
+        assert expected == op.json
+
     def test_init_with_specified_run_name(self):
         """
         Test the initializer with a specified run_name.

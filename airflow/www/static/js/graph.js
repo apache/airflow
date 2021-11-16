@@ -427,6 +427,7 @@ function groupTooltip(node, tis) {
     ['up_for_reschedule', 0],
     ['running', 0],
     ['deferred', 0],
+    ['sensing', 0],
     ['queued', 0],
     ['scheduled', 0],
     ['skipped', 0],

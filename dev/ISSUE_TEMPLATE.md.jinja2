@@ -1,0 +1,21 @@
+
+
+We have a kind request for all the contributors to the latest [Apache Airflow RC {{version}}](https://pypi.org/project/apache-airflow/{{version}}/).
+
+Could you please help us to test the RC versions of Airflow?
+
+Please let us know in the comment if the issue is addressed in the latest RC.
+
+{% for pr_number in pr_list %}
+    {%- set pr = pull_requests[pr_number] -%}
+- [ ] [{{ pr.title }} (#{{ pr.number }})]({{ pr.html_url }}): {{ user_logins[pr_number] }}
+        {%- if linked_issues[pr_number] %}
+     Linked issues:
+            {%- for linked_issue in linked_issues[pr_number] %}
+     - [{{ linked_issue.title }} (#{{ linked_issue.number }})]({{ linked_issue.html_url }})
+            {%- endfor %}
+        {%- endif %}
+{% endfor %}
+
+Thanks to all who contributed to the release (probably not a complete list!):
+{{ all_user_logins }}

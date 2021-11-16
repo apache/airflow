@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-"""This module contains operator to move data from Hive to S3 bucket."""
+"""This module contains an operator to move data from an S3 bucket to Hive."""
 
 import bz2
 import gzip

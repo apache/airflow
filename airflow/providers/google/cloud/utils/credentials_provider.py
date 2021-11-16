@@ -33,6 +33,7 @@ from google.auth import impersonated_credentials
 from google.auth.environment_vars import CREDENTIALS, LEGACY_PROJECT, PROJECT
 
 from airflow.exceptions import AirflowException
+from airflow.providers.google.cloud._internal_client.secret_manager_client import _SecretManagerClient
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.process_utils import patch_environ
 
@@ -202,6 +203,7 @@ class _CredentialProvider(LoggingMixin):
         self,
         key_path: Optional[str] = None,
         keyfile_dict: Optional[Dict[str, str]] = None,
+        key_secret_name: Optional[str] = None,
         scopes: Optional[Collection[str]] = None,
         delegate_to: Optional[str] = None,
         disable_logging: bool = False,
@@ -209,13 +211,15 @@ class _CredentialProvider(LoggingMixin):
         delegates: Optional[Sequence[str]] = None,
     ) -> None:
         super().__init__()
-        if key_path and keyfile_dict:
+        key_options = [key_path, key_secret_name, keyfile_dict]
+        if len([x for x in key_options if x]) > 1:
             raise AirflowException(
-                "The `keyfile_dict` and `key_path` fields are mutually exclusive. "
-                "Please provide only one value."
+                "The `keyfile_dict`, `key_path`, and `key_secret_name` fields"
+                "are all mutually exclusive. Please provide only one value."
             )
         self.key_path = key_path
         self.keyfile_dict = keyfile_dict
+        self.key_secret_name = key_secret_name
         self.scopes = scopes
         self.delegate_to = delegate_to
         self.disable_logging = disable_logging
@@ -231,6 +235,8 @@ class _CredentialProvider(LoggingMixin):
         """
         if self.key_path:
             credentials, project_id = self._get_credentials_using_key_path()
+        elif self.key_secret_name:
+            credentials, project_id = self._get_credentials_using_key_secret_name()
         elif self.keyfile_dict:
             credentials, project_id = self._get_credentials_using_keyfile_dict()
         else:
@@ -279,6 +285,31 @@ class _CredentialProvider(LoggingMixin):
         self._log_debug('Getting connection using JSON key file %s', self.key_path)
         credentials = google.oauth2.service_account.Credentials.from_service_account_file(
             self.key_path, scopes=self.scopes
+        )
+        project_id = credentials.project_id
+        return credentials, project_id
+
+    def _get_credentials_using_key_secret_name(self):
+        self._log_debug('Getting connection using JSON key data from GCP secret: %s', self.key_secret_name)
+
+        # Use ADC to access GCP Secret Manager.
+        adc_credentials, adc_project_id = google.auth.default(scopes=self.scopes)
+        secret_manager_client = _SecretManagerClient(credentials=adc_credentials)
+
+        if not secret_manager_client.is_valid_secret_name(self.key_secret_name):
+            raise AirflowException('Invalid secret name specified for fetching JSON key data.')
+
+        secret_value = secret_manager_client.get_secret(self.key_secret_name, adc_project_id)
+        if secret_value is None:
+            raise AirflowException(f"Failed getting value of secret {self.key_secret_name}.")
+
+        try:
+            keyfile_dict = json.loads(secret_value)
+        except json.decoder.JSONDecodeError:
+            raise AirflowException('Key data read from GCP Secret Manager is not valid JSON.')
+
+        credentials = google.oauth2.service_account.Credentials.from_service_account_info(
+            keyfile_dict, scopes=self.scopes
         )
         project_id = credentials.project_id
         return credentials, project_id

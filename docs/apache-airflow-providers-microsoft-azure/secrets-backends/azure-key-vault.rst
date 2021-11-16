@@ -20,7 +20,7 @@ Azure Key Vault Backend
 ^^^^^^^^^^^^^^^^^^^^^^^
 
 To enable the Azure Key Vault as secrets backend, specify
-:py:class:`~airflow.providers.microsoft.azure.secrets.azure_key_vault.AzureKeyVaultBackend`
+:py:class:`~airflow.providers.microsoft.azure.secrets.key_vault.AzureKeyVaultBackend`
 as the ``backend`` in  ``[secrets]`` section of ``airflow.cfg``.
 
 Here is a sample configuration:
@@ -28,7 +28,7 @@ Here is a sample configuration:
 .. code-block:: ini
 
     [secrets]
-    backend = airflow.providers.microsoft.azure.secrets.azure_key_vault.AzureKeyVaultBackend
+    backend = airflow.providers.microsoft.azure.secrets.key_vault.AzureKeyVaultBackend
     backend_kwargs = {"connections_prefix": "airflow-connections", "variables_prefix": "airflow-variables", "vault_url": "https://example-akv-resource-name.vault.azure.net/"}
 
 For client authentication, the ``DefaultAzureCredential`` from the Azure Python SDK is used as credential provider,
@@ -49,7 +49,7 @@ For example, if you want to set parameter ``connections_prefix`` to ``"airflow-c
 .. code-block:: ini
 
     [secrets]
-    backend = airflow.providers.microsoft.azure.secrets.azure_key_vault.AzureKeyVaultBackend
+    backend = airflow.providers.microsoft.azure.secrets.key_vault.AzureKeyVaultBackend
     backend_kwargs = {"connections_prefix": "airflow-connections", "variables_prefix": null, "vault_url": "https://example-akv-resource-name.vault.azure.net/"}
 
 Storing and Retrieving Connections

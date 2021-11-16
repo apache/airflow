@@ -18,7 +18,7 @@
 import json
 import textwrap
 import time
-from typing import Any, List, Optional, Union
+from typing import Any, Dict, List, Optional, Union
 from urllib.parse import urlencode
 
 import markdown
@@ -28,10 +28,12 @@ from flask.helpers import flash
 from flask_appbuilder.forms import FieldConverter
 from flask_appbuilder.models.sqla import filters as fab_sqlafilters
 from flask_appbuilder.models.sqla.interface import SQLAInterface
+from pendulum.datetime import DateTime
 from pygments import highlight, lexers
 from pygments.formatters import HtmlFormatter
 from sqlalchemy.ext.associationproxy import AssociationProxy
 
+from airflow import models
 from airflow.models import errors
 from airflow.utils import timezone
 from airflow.utils.code_utils import get_python_source
@@ -39,6 +41,47 @@ from airflow.utils.json import AirflowJsonEncoder
 from airflow.utils.state import State
 from airflow.www.forms import DateTimeWithTimezoneField
 from airflow.www.widgets import AirflowDateTimePickerWidget
+
+
+def datetime_to_string(value: Optional[DateTime]) -> Optional[str]:
+    if value is None:
+        return None
+    return value.isoformat()
+
+
+def encode_ti(task_instance: Optional[models.TaskInstance]) -> Optional[Dict[str, Any]]:
+    if not task_instance:
+        return None
+
+    return {
+        'task_id': task_instance.task_id,
+        'dag_id': task_instance.dag_id,
+        'run_id': task_instance.run_id,
+        'state': task_instance.state,
+        'duration': task_instance.duration,
+        'start_date': datetime_to_string(task_instance.start_date),
+        'end_date': datetime_to_string(task_instance.end_date),
+        'operator': task_instance.operator,
+        'execution_date': datetime_to_string(task_instance.execution_date),
+        'try_number': task_instance.try_number,
+    }
+
+
+def encode_dag_run(dag_run: Optional[models.DagRun]) -> Optional[Dict[str, Any]]:
+    if not dag_run:
+        return None
+
+    return {
+        'dag_id': dag_run.dag_id,
+        'run_id': dag_run.run_id,
+        'start_date': datetime_to_string(dag_run.start_date),
+        'end_date': datetime_to_string(dag_run.end_date),
+        'state': dag_run.state,
+        'execution_date': datetime_to_string(dag_run.execution_date),
+        'data_interval_start': datetime_to_string(dag_run.data_interval_start),
+        'data_interval_end': datetime_to_string(dag_run.data_interval_end),
+        'run_type': dag_run.run_type,
+    }
 
 
 def check_import_errors(fileloc, session):

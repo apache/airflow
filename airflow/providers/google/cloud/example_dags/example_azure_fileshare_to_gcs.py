@@ -37,7 +37,8 @@ with DAG(
         'retry_delay': timedelta(minutes=5),
     },
     schedule_interval='@once',
-    start_date=datetime(2018, 11, 1),
+    start_date=datetime(2021, 1, 1),
+    catchup=False,
     tags=['example'],
 ) as dag:
     # [START howto_operator_azure_fileshare_to_gcs_basic]
@@ -46,8 +47,6 @@ with DAG(
         share_name=AZURE_SHARE_NAME,
         dest_gcs=DEST_GCS_BUCKET,
         directory_name=AZURE_DIRECTORY_NAME,
-        azure_fileshare_conn_id='azure_fileshare_default',
-        gcp_conn_id='google_cloud_default',
         replace=False,
         gzip=True,
         google_impersonation_chain=None,

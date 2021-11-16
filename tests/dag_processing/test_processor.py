@@ -197,6 +197,45 @@ class TestDagFileProcessor:
 
         sla_callback.assert_not_called()
 
+    def test_dag_file_processor_sla_miss_doesnot_raise_integrity_error(self, dag_maker):
+        """
+        Test that the dag file processor does not try to insert already existing item into the database
+        """
+        session = settings.Session()
+
+        # Create dag with a start of 2 days ago, but an sla of 1 day
+        # ago so we'll already have an sla_miss on the books
+        test_start_date = days_ago(2)
+        with dag_maker(
+            dag_id='test_sla_miss',
+            default_args={'start_date': test_start_date, 'sla': datetime.timedelta(days=1)},
+        ) as dag:
+            task = DummyOperator(task_id='dummy')
+
+        dag_maker.create_dagrun(execution_date=test_start_date, state=State.SUCCESS)
+
+        # Create a TaskInstance for two days ago
+        ti = TaskInstance(task=task, execution_date=test_start_date, state='success')
+        session.merge(ti)
+        session.flush()
+
+        dag_file_processor = DagFileProcessor(dag_ids=[], log=mock.MagicMock())
+        dag_file_processor.manage_slas(dag=dag, session=session)
+        sla_miss_count = (
+            session.query(SlaMiss)
+            .filter(
+                SlaMiss.dag_id == dag.dag_id,
+                SlaMiss.task_id == task.task_id,
+            )
+            .count()
+        )
+        assert sla_miss_count == 1
+        # Now call manage_slas and see that it runs without errors
+        # because of existing SlaMiss above.
+        # Since this is run often, it's possible that it runs before another
+        # ti is successful thereby trying to insert a duplicate record.
+        dag_file_processor.manage_slas(dag=dag, session=session)
+
     def test_dag_file_processor_sla_miss_callback_exception(self, create_dummy_dag):
         """
         Test that the dag file processor gracefully logs an exception if there is a problem
