@@ -324,7 +324,8 @@ class SFTPHook(SSHHook):
     def test_connection(self) -> Tuple[bool, str]:
         """Test the SFTP connection by checking if remote entity '/some/path' exists"""
         try:
-            self.path_exists('/some/path')
+            conn = self.get_conn()
+            conn.pwd
             return True, "Connection successfully tested"
         except Exception as e:
             return False, str(e)
