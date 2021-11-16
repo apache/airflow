@@ -34,17 +34,17 @@ TEST_TRAINING_PIPELINE: dict = {}
 TEST_TRAINING_PIPELINE_NAME: str = "test-training-pipeline"
 
 BASE_STRING = "airflow.providers.google.common.hooks.base_google.{}"
-VERTEX_AI_STRING = "airflow.providers.google.cloud.hooks.vertex_ai.custom_job.{}"
+CUSTOM_JOB_STRING = "airflow.providers.google.cloud.hooks.vertex_ai.custom_job.{}"
 
 
-class TestVertexAIWithDefaultProjectIdHook(TestCase):
+class TestCustomJobWithDefaultProjectIdHook(TestCase):
     def setUp(self):
         with mock.patch(
             BASE_STRING.format("GoogleBaseHook.__init__"), new=mock_base_gcp_hook_default_project_id
         ):
             self.hook = CustomJobHook(gcp_conn_id=TEST_GCP_CONN_ID)
 
-    @mock.patch(VERTEX_AI_STRING.format("CustomJobHook.get_pipeline_service_client"))
+    @mock.patch(CUSTOM_JOB_STRING.format("CustomJobHook.get_pipeline_service_client"))
     def test_cancel_pipeline_job(self, mock_client) -> None:
         self.hook.cancel_pipeline_job(
             project_id=TEST_PROJECT_ID,
@@ -64,7 +64,7 @@ class TestVertexAIWithDefaultProjectIdHook(TestCase):
             TEST_PROJECT_ID, TEST_REGION, TEST_PIPELINE_JOB_ID
         )
 
-    @mock.patch(VERTEX_AI_STRING.format("CustomJobHook.get_pipeline_service_client"))
+    @mock.patch(CUSTOM_JOB_STRING.format("CustomJobHook.get_pipeline_service_client"))
     def test_cancel_training_pipeline(self, mock_client) -> None:
         self.hook.cancel_training_pipeline(
             project_id=TEST_PROJECT_ID,
@@ -84,7 +84,7 @@ class TestVertexAIWithDefaultProjectIdHook(TestCase):
             TEST_PROJECT_ID, TEST_REGION, TEST_TRAINING_PIPELINE_NAME
         )
 
-    @mock.patch(VERTEX_AI_STRING.format("CustomJobHook.get_pipeline_service_client"))
+    @mock.patch(CUSTOM_JOB_STRING.format("CustomJobHook.get_pipeline_service_client"))
     def test_create_pipeline_job(self, mock_client) -> None:
         self.hook.create_pipeline_job(
             project_id=TEST_PROJECT_ID,
@@ -105,7 +105,7 @@ class TestVertexAIWithDefaultProjectIdHook(TestCase):
         )
         mock_client.return_value.common_location_path.assert_called_once_with(TEST_PROJECT_ID, TEST_REGION)
 
-    @mock.patch(VERTEX_AI_STRING.format("CustomJobHook.get_pipeline_service_client"))
+    @mock.patch(CUSTOM_JOB_STRING.format("CustomJobHook.get_pipeline_service_client"))
     def test_create_training_pipeline(self, mock_client) -> None:
         self.hook.create_training_pipeline(
             project_id=TEST_PROJECT_ID,
@@ -124,7 +124,7 @@ class TestVertexAIWithDefaultProjectIdHook(TestCase):
         )
         mock_client.return_value.common_location_path.assert_called_once_with(TEST_PROJECT_ID, TEST_REGION)
 
-    @mock.patch(VERTEX_AI_STRING.format("CustomJobHook.get_pipeline_service_client"))
+    @mock.patch(CUSTOM_JOB_STRING.format("CustomJobHook.get_pipeline_service_client"))
     def test_delete_pipeline_job(self, mock_client) -> None:
         self.hook.delete_pipeline_job(
             project_id=TEST_PROJECT_ID,
@@ -144,7 +144,7 @@ class TestVertexAIWithDefaultProjectIdHook(TestCase):
             TEST_PROJECT_ID, TEST_REGION, TEST_PIPELINE_JOB_ID
         )
 
-    @mock.patch(VERTEX_AI_STRING.format("CustomJobHook.get_pipeline_service_client"))
+    @mock.patch(CUSTOM_JOB_STRING.format("CustomJobHook.get_pipeline_service_client"))
     def test_delete_training_pipeline(self, mock_client) -> None:
         self.hook.delete_training_pipeline(
             project_id=TEST_PROJECT_ID,
@@ -164,7 +164,7 @@ class TestVertexAIWithDefaultProjectIdHook(TestCase):
             TEST_PROJECT_ID, TEST_REGION, TEST_TRAINING_PIPELINE_NAME
         )
 
-    @mock.patch(VERTEX_AI_STRING.format("CustomJobHook.get_pipeline_service_client"))
+    @mock.patch(CUSTOM_JOB_STRING.format("CustomJobHook.get_pipeline_service_client"))
     def test_get_pipeline_job(self, mock_client) -> None:
         self.hook.get_pipeline_job(
             project_id=TEST_PROJECT_ID,
@@ -184,7 +184,7 @@ class TestVertexAIWithDefaultProjectIdHook(TestCase):
             TEST_PROJECT_ID, TEST_REGION, TEST_PIPELINE_JOB_ID
         )
 
-    @mock.patch(VERTEX_AI_STRING.format("CustomJobHook.get_pipeline_service_client"))
+    @mock.patch(CUSTOM_JOB_STRING.format("CustomJobHook.get_pipeline_service_client"))
     def test_get_training_pipeline(self, mock_client) -> None:
         self.hook.get_training_pipeline(
             project_id=TEST_PROJECT_ID,
@@ -204,7 +204,7 @@ class TestVertexAIWithDefaultProjectIdHook(TestCase):
             TEST_PROJECT_ID, TEST_REGION, TEST_TRAINING_PIPELINE_NAME
         )
 
-    @mock.patch(VERTEX_AI_STRING.format("CustomJobHook.get_pipeline_service_client"))
+    @mock.patch(CUSTOM_JOB_STRING.format("CustomJobHook.get_pipeline_service_client"))
     def test_list_pipeline_jobs(self, mock_client) -> None:
         self.hook.list_pipeline_jobs(
             project_id=TEST_PROJECT_ID,
@@ -225,7 +225,7 @@ class TestVertexAIWithDefaultProjectIdHook(TestCase):
         )
         mock_client.return_value.common_location_path.assert_called_once_with(TEST_PROJECT_ID, TEST_REGION)
 
-    @mock.patch(VERTEX_AI_STRING.format("CustomJobHook.get_pipeline_service_client"))
+    @mock.patch(CUSTOM_JOB_STRING.format("CustomJobHook.get_pipeline_service_client"))
     def test_list_training_pipelines(self, mock_client) -> None:
         self.hook.list_training_pipelines(
             project_id=TEST_PROJECT_ID,
@@ -247,14 +247,14 @@ class TestVertexAIWithDefaultProjectIdHook(TestCase):
         mock_client.return_value.common_location_path.assert_called_once_with(TEST_PROJECT_ID, TEST_REGION)
 
 
-class TestVertexAIWithoutDefaultProjectIdHook(TestCase):
+class TestCustomJobWithoutDefaultProjectIdHook(TestCase):
     def setUp(self):
         with mock.patch(
             BASE_STRING.format("GoogleBaseHook.__init__"), new=mock_base_gcp_hook_no_default_project_id
         ):
             self.hook = CustomJobHook(gcp_conn_id=TEST_GCP_CONN_ID)
 
-    @mock.patch(VERTEX_AI_STRING.format("CustomJobHook.get_pipeline_service_client"))
+    @mock.patch(CUSTOM_JOB_STRING.format("CustomJobHook.get_pipeline_service_client"))
     def test_cancel_pipeline_job(self, mock_client) -> None:
         self.hook.cancel_pipeline_job(
             project_id=TEST_PROJECT_ID,
@@ -274,7 +274,7 @@ class TestVertexAIWithoutDefaultProjectIdHook(TestCase):
             TEST_PROJECT_ID, TEST_REGION, TEST_PIPELINE_JOB_ID
         )
 
-    @mock.patch(VERTEX_AI_STRING.format("CustomJobHook.get_pipeline_service_client"))
+    @mock.patch(CUSTOM_JOB_STRING.format("CustomJobHook.get_pipeline_service_client"))
     def test_cancel_training_pipeline(self, mock_client) -> None:
         self.hook.cancel_training_pipeline(
             project_id=TEST_PROJECT_ID,
@@ -294,7 +294,7 @@ class TestVertexAIWithoutDefaultProjectIdHook(TestCase):
             TEST_PROJECT_ID, TEST_REGION, TEST_TRAINING_PIPELINE_NAME
         )
 
-    @mock.patch(VERTEX_AI_STRING.format("CustomJobHook.get_pipeline_service_client"))
+    @mock.patch(CUSTOM_JOB_STRING.format("CustomJobHook.get_pipeline_service_client"))
     def test_create_pipeline_job(self, mock_client) -> None:
         self.hook.create_pipeline_job(
             project_id=TEST_PROJECT_ID,
@@ -315,7 +315,7 @@ class TestVertexAIWithoutDefaultProjectIdHook(TestCase):
         )
         mock_client.return_value.common_location_path.assert_called_once_with(TEST_PROJECT_ID, TEST_REGION)
 
-    @mock.patch(VERTEX_AI_STRING.format("CustomJobHook.get_pipeline_service_client"))
+    @mock.patch(CUSTOM_JOB_STRING.format("CustomJobHook.get_pipeline_service_client"))
     def test_create_training_pipeline(self, mock_client) -> None:
         self.hook.create_training_pipeline(
             project_id=TEST_PROJECT_ID,
@@ -334,7 +334,7 @@ class TestVertexAIWithoutDefaultProjectIdHook(TestCase):
         )
         mock_client.return_value.common_location_path.assert_called_once_with(TEST_PROJECT_ID, TEST_REGION)
 
-    @mock.patch(VERTEX_AI_STRING.format("CustomJobHook.get_pipeline_service_client"))
+    @mock.patch(CUSTOM_JOB_STRING.format("CustomJobHook.get_pipeline_service_client"))
     def test_delete_pipeline_job(self, mock_client) -> None:
         self.hook.delete_pipeline_job(
             project_id=TEST_PROJECT_ID,
@@ -354,7 +354,7 @@ class TestVertexAIWithoutDefaultProjectIdHook(TestCase):
             TEST_PROJECT_ID, TEST_REGION, TEST_PIPELINE_JOB_ID
         )
 
-    @mock.patch(VERTEX_AI_STRING.format("CustomJobHook.get_pipeline_service_client"))
+    @mock.patch(CUSTOM_JOB_STRING.format("CustomJobHook.get_pipeline_service_client"))
     def test_delete_training_pipeline(self, mock_client) -> None:
         self.hook.delete_training_pipeline(
             project_id=TEST_PROJECT_ID,
@@ -374,7 +374,7 @@ class TestVertexAIWithoutDefaultProjectIdHook(TestCase):
             TEST_PROJECT_ID, TEST_REGION, TEST_TRAINING_PIPELINE_NAME
         )
 
-    @mock.patch(VERTEX_AI_STRING.format("CustomJobHook.get_pipeline_service_client"))
+    @mock.patch(CUSTOM_JOB_STRING.format("CustomJobHook.get_pipeline_service_client"))
     def test_get_pipeline_job(self, mock_client) -> None:
         self.hook.get_pipeline_job(
             project_id=TEST_PROJECT_ID,
@@ -394,7 +394,7 @@ class TestVertexAIWithoutDefaultProjectIdHook(TestCase):
             TEST_PROJECT_ID, TEST_REGION, TEST_PIPELINE_JOB_ID
         )
 
-    @mock.patch(VERTEX_AI_STRING.format("CustomJobHook.get_pipeline_service_client"))
+    @mock.patch(CUSTOM_JOB_STRING.format("CustomJobHook.get_pipeline_service_client"))
     def test_get_training_pipeline(self, mock_client) -> None:
         self.hook.get_training_pipeline(
             project_id=TEST_PROJECT_ID,
@@ -414,7 +414,7 @@ class TestVertexAIWithoutDefaultProjectIdHook(TestCase):
             TEST_PROJECT_ID, TEST_REGION, TEST_TRAINING_PIPELINE_NAME
         )
 
-    @mock.patch(VERTEX_AI_STRING.format("CustomJobHook.get_pipeline_service_client"))
+    @mock.patch(CUSTOM_JOB_STRING.format("CustomJobHook.get_pipeline_service_client"))
     def test_list_pipeline_jobs(self, mock_client) -> None:
         self.hook.list_pipeline_jobs(
             project_id=TEST_PROJECT_ID,
@@ -435,7 +435,7 @@ class TestVertexAIWithoutDefaultProjectIdHook(TestCase):
         )
         mock_client.return_value.common_location_path.assert_called_once_with(TEST_PROJECT_ID, TEST_REGION)
 
-    @mock.patch(VERTEX_AI_STRING.format("CustomJobHook.get_pipeline_service_client"))
+    @mock.patch(CUSTOM_JOB_STRING.format("CustomJobHook.get_pipeline_service_client"))
     def test_list_training_pipelines(self, mock_client) -> None:
         self.hook.list_training_pipelines(
             project_id=TEST_PROJECT_ID,
