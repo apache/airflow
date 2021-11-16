@@ -304,6 +304,37 @@ class TestSFTPHook(unittest.TestCase):
         assert dirs == [os.path.join(TMP_PATH, TMP_DIR_FOR_TESTS, SUB_DIR)]
         assert unknowns == []
 
+    @mock.patch('airflow.providers.sftp.hooks.sftp.SFTPHook.get_connection')
+    @mock.patch(
+        'airflow.providers.sftp.hooks.sftp.SFTPHook.get_conn.pwd', side_effect=Exception('Connection Error')
+    )
+    def test_connection_failure(self, mock_get_connection, mock_pwd):
+        connection = Connection(
+            login='login',
+            host='host',
+        )
+        mock_get_connection.return_value = connection
+
+        hook = SFTPHook()
+        status, msg = hook.test_connection()
+        assert status is False
+        assert msg == 'Connection Error'
+
+    @mock.patch('airflow.providers.sftp.hooks.sftp.SFTPHook.get_connection')
+    @mock.patch('airflow.providers.sftp.hooks.sftp.SFTPHook.get_conn.pwd')
+    def test_connection_success(self, mock_get_connection, mock_pwd):
+        connection = Connection(
+            login='login',
+            host='host',
+        )
+        mock_get_connection.return_value = connection
+        mock_pwd.return_value = '/home/some_user'
+
+        hook = SFTPHook()
+        status, msg = hook.test_connection()
+        assert status is True
+        assert msg == 'Connection successfully tested'
+
     def tearDown(self):
         shutil.rmtree(os.path.join(TMP_PATH, TMP_DIR_FOR_TESTS))
         os.remove(os.path.join(TMP_PATH, TMP_FILE_FOR_TESTS))
