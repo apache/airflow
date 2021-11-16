@@ -74,7 +74,6 @@ class FacebookAdsReportingHook(BaseHook):
         self.facebook_conn_id = facebook_conn_id
         self.api_version = api_version
         self.client_required_fields = ["app_id", "app_secret", "access_token", "account_id"]
-        self.is_backward = False
 
     def _get_service(self) -> FacebookAdsApi:
         """Returns Facebook Ads Client using a service account"""
@@ -85,6 +84,13 @@ class FacebookAdsReportingHook(BaseHook):
             access_token=config["access_token"],
             api_version=self.api_version,
         )
+
+    @cached_property
+    def multiple_accounts(self) -> bool:
+        """
+        Checks whether provided account_id in the Facebook Ads Connection is provided as a list
+        """
+        return isinstance(self.facebook_ads_config["account_id"], list)
 
     @cached_property
     def facebook_ads_config(self) -> Dict:
@@ -99,8 +105,6 @@ class FacebookAdsReportingHook(BaseHook):
         if missing_keys:
             message = f"{missing_keys} fields are missing"
             raise AirflowException(message)
-        if not isinstance(config["account_id"], list):
-            self.is_backward = True
         return config
 
     def bulk_facebook_report(
@@ -126,15 +130,7 @@ class FacebookAdsReportingHook(BaseHook):
         :rtype: List[AdsInsights] or Dict[str, List[AdsInsights]]
         """
         api = self._get_service()
-        if self.is_backward:
-            return self._facebook_report(
-                account_id=self.facebook_ads_config["account_id"],
-                api=api,
-                params=params,
-                fields=fields,
-                sleep_time=sleep_time,
-            )
-        else:
+        if self.multiple_accounts:
             all_insights = {}
             for account_id in self.facebook_ads_config["account_id"]:
                 all_insights[account_id] = self._facebook_report(
@@ -144,6 +140,14 @@ class FacebookAdsReportingHook(BaseHook):
                     "%s Account Id used to extract data from Facebook Ads Iterators successfully", account_id
                 )
             return all_insights
+        else:
+            return self._facebook_report(
+                account_id=self.facebook_ads_config["account_id"],
+                api=api,
+                params=params,
+                fields=fields,
+                sleep_time=sleep_time,
+            )
 
     def _facebook_report(self, account_id, api, params, fields, sleep_time) -> List[AdsInsights]:
         ad_account = AdAccount(account_id, api=api)
