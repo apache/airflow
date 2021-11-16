@@ -24,7 +24,6 @@ import os
 from datetime import datetime
 
 from airflow import models
-from airflow.contrib.operators.dataproc_operator import DataprocClusterCreateOperator
 from airflow.providers.google.cloud.operators.dataproc import (
     ClusterGenerator,
     DataprocCreateClusterOperator,
@@ -81,7 +80,7 @@ CLUSTER_CONFIG = ClusterGenerator(
     metadata={'PIP_PACKAGES': 'pyyaml requests pandas openpyxl'},
 ).make()
 
-create_cluster_operator = DataprocClusterCreateOperator(
+create_cluster_operator = DataprocCreateClusterOperator(
     task_id='create_dataproc_cluster',
     cluster_name="test",
     project_id="test",
