@@ -397,9 +397,9 @@ class CustomJobHook(GoogleBaseHook):
         project_id: str,
         region: str,
         custom_job: str,
-        retry: Retry,
-        timeout: float,
-        metadata: Sequence[Tuple[str, str]],
+        retry: Optional[Retry] = None,
+        timeout: Optional[float] = None,
+        metadata: Optional[Sequence[Tuple[str, str]]] = None,
     ) -> None:
         """
         Cancels a CustomJob. Starts asynchronous cancellation on the CustomJob. The server makes a best effort
@@ -529,9 +529,9 @@ class CustomJobHook(GoogleBaseHook):
         project_id: str,
         region: str,
         custom_job: CustomJob,
-        retry: Retry,
-        timeout: float,
-        metadata: Sequence[Tuple[str, str]],
+        retry: Optional[Retry] = None,
+        timeout: Optional[float] = None,
+        metadata: Optional[Sequence[Tuple[str, str]]] = None,
     ) -> CustomJob:
         """
         Creates a CustomJob. A created CustomJob right away will be attempted to be run.
@@ -1991,9 +1991,9 @@ class CustomJobHook(GoogleBaseHook):
         project_id: str,
         region: str,
         custom_job: str,
-        retry: Retry,
-        timeout: float,
-        metadata: Sequence[Tuple[str, str]],
+        retry: Optional[Retry] = None,
+        timeout: Optional[float] = None,
+        metadata: Optional[Sequence[Tuple[str, str]]] = None,
     ) -> Operation:
         """
         Deletes a CustomJob.
@@ -2108,9 +2108,9 @@ class CustomJobHook(GoogleBaseHook):
         project_id: str,
         region: str,
         custom_job: str,
-        retry: Retry,
-        timeout: float,
-        metadata: Sequence[Tuple[str, str]],
+        retry: Optional[Retry] = None,
+        timeout: Optional[float] = None,
+        metadata: Optional[Sequence[Tuple[str, str]]] = None,
     ) -> CustomJob:
         """
         Gets a CustomJob.
@@ -2317,9 +2317,9 @@ class CustomJobHook(GoogleBaseHook):
         page_token: Optional[str],
         filter: Optional[str],
         read_mask: Optional[str],
-        retry: Retry,
-        timeout: float,
-        metadata: Sequence[Tuple[str, str]],
+        retry: Optional[Retry] = None,
+        timeout: Optional[float] = None,
+        metadata: Optional[Sequence[Tuple[str, str]]] = None,
     ) -> ListCustomJobsPager:
         """
         Lists CustomJobs in a Location.
