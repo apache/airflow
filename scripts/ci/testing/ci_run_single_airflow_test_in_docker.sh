@@ -126,6 +126,15 @@ function run_airflow_testing_in_docker() {
          run airflow "${@}"
     docker ps
     exit_code=$?
+    if [[ ${exit_code} != "0" && ${CI} == "true" ]]; then
+        docker ps --all
+        local container
+        for container in $(docker ps --all --format '{{.Names}}')
+        do
+            testing::dump_container_logs "${container}"
+        done
+    fi
+
     docker-compose --log-level INFO -f "${SCRIPTS_CI_DIR}/docker-compose/base.yml" \
         "${INTEGRATIONS[@]}" \
         --project-name "airflow-${TEST_TYPE}-${BACKEND}" \
