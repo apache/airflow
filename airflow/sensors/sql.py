@@ -20,6 +20,7 @@ from typing import Iterable
 
 from airflow.exceptions import AirflowException
 from airflow.hooks.base import BaseHook
+from airflow.hooks.dbapi import DbApiHook
 from airflow.sensors.base import BaseSensorOperator
 
 
@@ -83,27 +84,13 @@ class SqlSensor(BaseSensorOperator):
 
     def _get_hook(self):
         conn = BaseHook.get_connection(self.conn_id)
-
-        allowed_conn_type = {
-            'google_cloud_platform',
-            'jdbc',
-            'mssql',
-            'mysql',
-            'odbc',
-            'oracle',
-            'postgres',
-            'presto',
-            'snowflake',
-            'sqlite',
-            'trino',
-            'vertica',
-        }
-        if conn.conn_type not in allowed_conn_type:
+        hook = conn.get_hook(hook_params=self.hook_params)
+        if not isinstance(hook, DbApiHook):
             raise AirflowException(
-                f"Connection type ({conn.conn_type}) is not supported by SqlSensor. "
-                + f"Supported connection types: {list(allowed_conn_type)}"
+                f'The connection type is not supported by {self.__class__.__name__}. '
+                f'The associated hook should be a subclass of `DbApiHook`. Got {hook.__class__.__name__}'
             )
-        return conn.get_hook(hook_params=self.hook_params)
+        return hook
 
     def poke(self, context):
         hook = self._get_hook()
