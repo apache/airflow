@@ -26,6 +26,7 @@ const MiniCssExtractPlugin = require('mini-css-extract-plugin');
 const MomentLocalesPlugin = require('moment-locales-webpack-plugin');
 const OptimizeCSSAssetsPlugin = require('optimize-css-assets-webpack-plugin');
 const LicensePlugin = require('webpack-license-plugin');
+const TerserPlugin = require('terser-webpack-plugin');
 
 // Input Directory (airflow/www)
 // noinspection JSUnresolvedVariable
@@ -248,7 +249,11 @@ const config = {
     }),
   ],
   optimization: {
-    minimizer: [new OptimizeCSSAssetsPlugin({})],
+    minimize: process.env.NODE_ENV === 'production',
+    minimizer: [
+      new OptimizeCSSAssetsPlugin({}),
+      new TerserPlugin(),
+    ],
   },
 };
 
