@@ -73,7 +73,7 @@ SIMPLE_LOG_FORMAT = conf.get('logging', 'simple_log_format')
 SQL_ALCHEMY_CONN: Optional[str] = None
 PLUGINS_FOLDER: Optional[str] = None
 LOGGING_CLASS_PATH: Optional[str] = None
-DONOT_MODIFY_HANDLERS: Optional[str] = None
+DONOT_MODIFY_HANDLERS: Optional[bool] = None
 DAGS_FOLDER: str = os.path.expanduser(conf.get('core', 'DAGS_FOLDER'))
 
 engine: Optional[Engine] = None
