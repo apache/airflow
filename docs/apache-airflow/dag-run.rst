@@ -229,11 +229,17 @@ Example of a parameterized DAG:
 
 .. code-block:: python
 
+    from datetime import datetime
+
     from airflow import DAG
     from airflow.operators.bash import BashOperator
-    from airflow.utils.dates import days_ago
 
-    dag = DAG("example_parameterized_dag", schedule_interval=None, start_date=days_ago(2))
+    dag = DAG(
+        "example_parameterized_dag",
+        schedule_interval=None,
+        start_date=datetime(2021, 1, 1),
+        catchup=False,
+    )
 
     parameterized_task = BashOperator(
         task_id="parameterized_task",

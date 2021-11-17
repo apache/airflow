@@ -37,18 +37,20 @@ Declaring a DAG
 There are three ways to declare a DAG - either you can use a context manager,
 which will add the DAG to anything inside it implicitly::
 
-    with DAG("my_dag_name") as dag:
+    with DAG(
+        "my_dag_name", start_date=datetime(2021, 1, 1), schedule_interval="@daily", catchup=False
+    ) as dag:
         op = DummyOperator(task_id="task")
 
 Or, you can use a standard constructor, passing the dag into any
 operators you use::
 
-    my_dag = DAG("my_dag_name")
+    my_dag = DAG("my_dag_name", start_date=datetime(2021, 1, 1), schedule_interval="@daily", catchup=False)
     op = DummyOperator(task_id="task", dag=my_dag)
 
 Or, you can use the ``@dag`` decorator to :ref:`turn a function into a DAG generator <concepts:dag-decorator>`::
 
-    @dag(start_date=days_ago(2))
+    @dag(start_date=datetime(2021, 1, 1), schedule_interval="@daily", catchup=False)
     def generate_dag():
         op = DummyOperator(task_id="task")
 

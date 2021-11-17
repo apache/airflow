@@ -175,8 +175,9 @@ Similarly, `DAG.concurrency` has been renamed to `DAG.max_active_tasks`.
 ```python
 dag = DAG(
     dag_id="example_dag",
+    start_date=datetime(2021, 1, 1),
+    catchup=False,
     concurrency=3,
-    start_date=days_ago(2),
 )
 ```
 
@@ -185,8 +186,9 @@ dag = DAG(
 ```python
 dag = DAG(
     dag_id="example_dag",
+    start_date=datetime(2021, 1, 1),
+    catchup=False,
     max_active_tasks=3,
-    start_date=days_ago(2),
 )
 ```
 
