@@ -125,6 +125,7 @@ function run_airflow_testing_in_docker() {
       "${DOCKER_COMPOSE_LOCAL[@]}" \
       --project-name "airflow-${TEST_TYPE}-${BACKEND}" \
          run airflow "${@}"
+    docker ps
     exit_code=$?
     docker ps
     if [[ ${exit_code} != "0" && ${CI} == "true" ]]; then
