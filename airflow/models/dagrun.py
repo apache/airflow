@@ -217,6 +217,11 @@ class DagRun(Base, LoggingMixin):
             if state == State.QUEUED:
                 self.queued_at = timezone.utcnow()
 
+    @provide_session
+    def reset_run_type(self, session: Session = None):
+        self.run_type = DagRunType.SCHEDULED
+        session.merge(self)
+
     @declared_attr
     def state(self):
         return synonym('_state', descriptor=property(self.get_state, self.set_state))

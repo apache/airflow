@@ -298,6 +298,11 @@ ARG_BF_IGNORE_DEPENDENCIES = Arg(
     ),
     action="store_true",
 )
+ARG_BF_RESET_RUN_TYPE = Arg(
+    ("-r", "--reset-run-type"),
+    help=("Set DAGRun type from 'backfill' to 'scheduled' for finished DAG runs only (successful/failed)"),
+    action="store_true",
+)
 ARG_BF_IGNORE_FIRST_DEPENDS_ON_PAST = Arg(
     ("-I", "--ignore-first-depends-on-past"),
     help=(
@@ -1118,6 +1123,7 @@ DAGS_COMMANDS = (
             ARG_YES,
             ARG_CONTINUE_ON_FAILURES,
             ARG_BF_IGNORE_DEPENDENCIES,
+            ARG_BF_RESET_RUN_TYPE,
             ARG_BF_IGNORE_FIRST_DEPENDS_ON_PAST,
             ARG_SUBDIR,
             ARG_POOL,

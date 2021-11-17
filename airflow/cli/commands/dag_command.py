@@ -43,6 +43,7 @@ from airflow.utils.cli import get_dag, process_subdir, sigint_handler, suppress_
 from airflow.utils.dot_renderer import render_dag, render_dag_dependencies
 from airflow.utils.session import NEW_SESSION, create_session, provide_session
 from airflow.utils.state import DagRunState
+from airflow.utils.types import DagRunType
 
 
 @cli_utils.action_cli
@@ -70,6 +71,22 @@ def dag_backfill(args, dag=None):
     # If only one date is passed, using same as start and end
     args.end_date = args.end_date or args.start_date
     args.start_date = args.start_date or args.end_date
+
+    if args.reset_run_type:
+        with create_session() as session:
+            dagruns = DagRun.find(
+                dag_id=dag.get_dags_ids(),
+                execution_start_date=args.start_date,
+                execution_end_date=args.end_date,
+                run_type=DagRunType.BACKFILL_JOB,
+                session=session,
+            )
+
+            for dr in dagruns:
+                if dr.state in [DagRunState.FAILED, DagRunState.SUCCESS]:
+                    dr.reset_run_type()
+
+        return  # will not perform actual backfill, just reset the type
 
     if args.task_regex:
         dag = dag.partial_subset(

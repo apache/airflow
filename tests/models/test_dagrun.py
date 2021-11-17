@@ -113,6 +113,17 @@ class TestDagRun:
         dr0 = session.query(DagRun).filter(DagRun.dag_id == dag_id, DagRun.execution_date == now).first()
         assert dr0.state == DagRunState.QUEUED
 
+    def test_reset_dagrun_type(self, session):
+        now = timezone.utcnow()
+        dag_id = 'test_reset_dagrun_type'
+        dag = DAG(dag_id=dag_id, start_date=now)
+        dag_run = self.create_dag_run(dag, execution_date=now, is_backfill=True, session=session)
+        assert dag_run.run_type == DagRunType.BACKFILL_JOB
+        dag_run.reset_run_type()
+
+        dr = session.query(DagRun).filter(DagRun.dag_id == dag_id, DagRun.execution_date == now).first()
+        assert dr.run_type == DagRunType.SCHEDULED
+
     def test_dagrun_find(self, session):
         now = timezone.utcnow()
 
