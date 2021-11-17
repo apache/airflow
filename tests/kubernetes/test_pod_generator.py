@@ -665,8 +665,13 @@ class TestPodGenerator:
         name = PodGenerator.make_unique_pod_id(pod_id)
         assert len(name) <= 253
         parts = name.split("-")
-        assert parts[0] == pod_id[:30]
-        assert len(parts[1]) <= 63
+
+        # 63 is the MAX_LABEL_LEN in pod_generator.py
+        # 33 is the length of uuid4 + 1 for the seperating '-' (32 + 1)
+        # 30 is the max length of the prefix
+        # so 30 = 63 - (32 + 1)
+        assert len(parts[0]) <= 30
+        assert len(parts[1]) == 32
 
     @parameterized.expand(
         (
