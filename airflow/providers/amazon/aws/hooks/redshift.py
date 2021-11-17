@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """Interact with AWS Redshift clusters."""
+import time
 
 from typing import Dict, List, Optional, Union
 
@@ -138,6 +139,25 @@ class RedshiftHook(AwsBaseHook):
         )
         return response['Snapshot'] if response['Snapshot'] else None
 
+    def wait_for_state(self, cluster_identifier: str, target_state: str, check_interval: float) -> None:
+        """
+        Wait Redshift Cluster until its state is equal to the target_state.
+
+        :param cluster_identifier: unique identifier of a cluster
+        :type cluster_identifier: str
+        :param target_state: target state of instance
+        :type target_state: str
+        :param check_interval: time in seconds that the job should wait in
+            between each instance state checks until operation is completed
+        :type check_interval: float
+        :return: None
+        :rtype: None
+        """
+        cluster_state = self.cluster_status(cluster_identifier=cluster_identifier)
+        while cluster_state != target_state:
+            self.log.info("instance state: %s", cluster_state)
+            time.sleep(check_interval)
+            cluster_state = self.cluster_status(cluster_identifier=cluster_identifier)
 
 class RedshiftSQLHook(DbApiHook):
     """
