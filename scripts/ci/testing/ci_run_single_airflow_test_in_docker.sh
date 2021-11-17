@@ -117,7 +117,7 @@ function run_airflow_testing_in_docker() {
         --project-name "airflow-${TEST_TYPE}-${BACKEND}" \
         down --remove-orphans \
         --volumes --timeout 10
-    docker-compose --log-level DEBUG \
+    docker-compose --log-level INFO \
       -f "${SCRIPTS_CI_DIR}/docker-compose/base.yml" \
       "${backend_docker_compose[@]}" \
       "${INTEGRATIONS[@]}" \
