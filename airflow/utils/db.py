@@ -22,6 +22,7 @@ from tempfile import gettempdir
 from typing import Iterable
 
 from sqlalchemy import Table, exc, func, inspect, or_, text
+from sqlalchemy.orm.session import Session
 
 from airflow import settings
 from airflow.configuration import conf
@@ -47,9 +48,7 @@ from airflow.models import (  # noqa: F401
     Variable,
     XCom,
 )
-
-# We need to add this model manually to get reset working well
-from airflow.models.serialized_dag import SerializedDagModel  # noqa: F401
+from airflow.models.serialized_dag import SerializedDagModel
 
 # TODO: remove create_session once we decide to break backward compatibility
 from airflow.utils.session import create_global_lock, create_session, provide_session  # noqa: F401
@@ -80,6 +79,11 @@ def add_default_pool_if_not_exists(session=None):
         )
         session.add(default_pool)
         session.commit()
+
+
+@provide_session
+def clear_serialized_dags(*, session: Session) -> None:
+    session.query(SerializedDagModel).delete(synchronize_session=False)
 
 
 @provide_session
@@ -910,6 +914,7 @@ def upgradedb(session=None):
         log.info("Creating tables")
         command.upgrade(config, 'heads')
     add_default_pool_if_not_exists()
+    clear_serialized_dags()  # Clear all serialized DAGs so they can be re-serialized again on next access.
 
 
 @provide_session
