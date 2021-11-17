@@ -79,7 +79,7 @@ elif [[ ${GENERATE_CONSTRAINTS_MODE} == "pypi-providers" ]]; then
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
 #
-# Those constraints are actually those that that regular users use to install released version of Airflow.
+# Those constraints are actually those that regular users use to install released version of Airflow.
 # We also use those constraints after "apache-airflow" is released and the constraints are tagged with
 # "constraints-X.Y.Z" tag to build the production image for that version.
 #

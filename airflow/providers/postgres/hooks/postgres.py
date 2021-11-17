@@ -227,8 +227,8 @@ class PostgresHook(DbApiHook):
         table: str, values: Tuple[str, ...], target_fields: Iterable[str], replace: bool, **kwargs
     ) -> str:
         """
-        Static helper method that generate the INSERT SQL statement.
-        The REPLACE variant is specific to MySQL syntax.
+        Static helper method that generates the INSERT SQL statement.
+        The REPLACE variant is specific to PostgreSQL syntax.
 
         :param table: Name of the target table
         :type table: str
