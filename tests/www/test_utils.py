@@ -87,11 +87,11 @@ class TestUtils(unittest.TestCase):
     def test_params_all(self):
         query = utils.get_params(tags=['tag1', 'tag2'], status='active', page=3, search='bash_')
         assert {
-            'tags': ['tag1', 'tag2'],
-            'page': ['3'],
-            'search': ['bash_'],
-            'status': ['active'],
-        } == parse_qs(query)
+                   'tags': ['tag1', 'tag2'],
+                   'page': ['3'],
+                   'search': ['bash_'],
+                   'status': ['active'],
+               } == parse_qs(query)
 
     def test_params_escape(self):
         assert 'search=%27%3E%22%2F%3E%3Cimg+src%3Dx+onerror%3Dalert%281%29%3E' == utils.get_params(
@@ -160,7 +160,7 @@ class TestAttrRenderer(unittest.TestCase):
         self.attr_renderer = utils.get_attr_renderer()
 
     def test_python_callable(self):
-        def example_callable(unused_self):
+        def example_callable():
             print("example")
 
         rendered = self.attr_renderer["python_callable"](example_callable)
@@ -184,29 +184,46 @@ class TestAttrRenderer(unittest.TestCase):
 class TestWrappedMarkdown(unittest.TestCase):
     def test_wrapped_markdown_with_docstring_curly_braces(self):
         rendered = wrapped_markdown("{braces}", css_class="a_class")
-        assert '<div class="a_class" ><p>{braces}</p></div>' == rendered
+        self.assertEqual(
+            '''<div class="a_class" ><p>{braces}</p>
+</div>''', rendered)
 
     def test_wrapped_markdown_with_some_markdown(self):
-        rendered = wrapped_markdown("*italic*\n**bold**\n", css_class="a_class")
-        assert (
+        rendered = wrapped_markdown("""*italic*
+        **bold**
+        """, css_class="a_class")
+        self.assertEqual(
             '''<div class="a_class" ><p><em>italic</em>
-<strong>bold</strong></p></div>'''
-            == rendered
-        )
+<strong>bold</strong></p>
+</div>''', rendered)
 
     def test_wrapped_markdown_with_table(self):
         rendered = wrapped_markdown(
-            """| Job | Duration |
-               | ----------- | ----------- |
-               | ETL | 14m |"""
+            """
+| Job | Duration |
+| ----------- | ----------- |
+| ETL | 14m |
+"""
         )
 
-        assert (
-            '<div class="rich_doc" ><table>\n<thead>\n<tr>\n<th>Job</th>\n'
-            '<th>Duration</th>\n</tr>\n</thead>\n<tbody>\n<tr>\n<td>ETL'
-            '</td>\n<td>14m</td>\n</tr>\n</tbody>\n'
-            '</table></div>'
-        ) == rendered
+        self.assertEqual(
+            '''<div class="rich_doc" ><table>
+<thead>
+<tr>
+<th>Job</th>
+<th>Duration</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>ETL</td>
+<td>14m</td>
+</tr>
+</tbody>
+</table>
+</div>'''
+            , rendered
+        )
 
     def test_wrapped_markdown_with_indented_lines(self):
         rendered = wrapped_markdown(
@@ -217,7 +234,8 @@ class TestWrappedMarkdown(unittest.TestCase):
             """
         )
 
-        assert '<div class="rich_doc" ><h1>header</h1>\n<p>1st line\n2nd line</p></div>' == rendered
+        self.assertEqual('''<div class="rich_doc" ><h1>header</h1>\n<p>1st line\n2nd line</p>
+</div>''', rendered)
 
     def test_wrapped_markdown_with_raw_code_block(self):
         rendered = wrapped_markdown(
@@ -234,11 +252,10 @@ class TestWrappedMarkdown(unittest.TestCase):
             """
         )
 
-        assert (
-            '<div class="rich_doc" ><h1>Markdown code block</h1>\n'
-            '<p>Inline <code>code</code> works well.</p>\n'
-            '<pre><code>Code block\ndoes not\nrespect\nnewlines\n</code></pre></div>'
-        ) == rendered
+        self.assertEqual('''<div class="rich_doc" ><h1>Markdown code block</h1>
+<p>Inline <code>code</code> works well.</p>
+<pre><code>Code block\ndoes not\nrespect\nnewlines\n</code></pre>
+</div>''', rendered)
 
     def test_wrapped_markdown_with_nested_list(self):
         rendered = wrapped_markdown(
@@ -250,7 +267,12 @@ class TestWrappedMarkdown(unittest.TestCase):
             """
         )
 
-        assert (
-            '<div class="rich_doc" ><h3>Docstring with a code block</h3>\n'
-            '<ul>\n<li>And<ul>\n<li>A nested list</li>\n</ul>\n</li>\n</ul></div>'
-        ) == rendered
+        self.assertEqual('''<div class="rich_doc" ><h3>Docstring with a code block</h3>
+<ul>
+<li>And
+<ul>
+<li>A nested list</li>
+</ul>
+</li>
+</ul>
+</div>''', rendered)
