@@ -1006,7 +1006,7 @@ class BaseOperator(Operator, LoggingMixin, DAGNode, metaclass=BaseOperatorMeta):
         if self._post_execute_hook is not None:
             self._post_execute_hook(context, result)
 
-    def on_kill(self) -> None:
+    def on_kill(self, context=None) -> None:
         """
         Override this method to cleanup subprocesses when a task instance
         gets killed. Any use of the threading, subprocess or multiprocessing

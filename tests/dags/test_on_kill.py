@@ -46,8 +46,26 @@ class DummyWithOnKill(DummyOperator):
         self.log.info("Executed on_kill")
 
 
+class DummyWithOnKillWithContext(DummyOperator):
+    def execute(self, context):
+        import os
+
+        # This runs extra processes, so that we can be sure that we correctly
+        # tidy up all processes launched by a task when killing
+        if not os.fork():
+            os.system('sleep 10')
+        time.sleep(10)
+
+    def on_kill(self, context):
+        self.log.info("Executing on_kill")
+        with open("/tmp/airflow_on_kill", "w") as f:
+            f.write(context['task'].task_id)
+
+
 # DAG tests backfill with pooled tasks
 # Previously backfill would queue the task but never run it
-dag1 = DAG(dag_id='test_on_kill', start_date=datetime(2015, 1, 1))
+with DAG(dag_id='test_on_kill', start_date=datetime(2015, 1, 1)) as dag1:
+    dag1_task1 = DummyWithOnKill(task_id='task1', owner='airflow')
 
-dag1_task1 = DummyWithOnKill(task_id='task1', dag=dag1, owner='airflow')
+with DAG(dag_id='test_on_kill_with_context', start_date=datetime(2015, 1, 1)) as dag2:
+    DummyWithOnKillWithContext(task_id='task2')

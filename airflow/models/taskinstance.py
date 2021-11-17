@@ -108,6 +108,7 @@ from airflow.utils.helpers import render_template_to_string
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.net import get_hostname
 from airflow.utils.operator_helpers import context_to_airflow_vars
+from airflow.utils.parameters import inspect_function_arguments
 from airflow.utils.platform import getuser
 from airflow.utils.retries import run_with_db_retries
 from airflow.utils.session import NEW_SESSION, create_session, provide_session
@@ -1401,13 +1402,24 @@ class TaskInstance(Base, LoggingMixin):
 
             session.commit()
 
+    def _infer_on_kill_kwargs(self, context):
+        """
+        Prior to 2.3, BaseOperator.on_kill did not receive airflow context.
+        We need to infer whether or not to provide it.
+        """
+        kwargs = {}
+        signature = inspect_function_arguments(self.task.on_kill)
+        if 'context' in signature.bound_arguments:
+            kwargs.update(context=context)
+        return kwargs
+
     def _execute_task_with_callbacks(self, context):
         """Prepare Task for Execution"""
         from airflow.models.renderedtifields import RenderedTaskInstanceFields
 
         def signal_handler(signum, frame):
             self.log.error("Received SIGTERM. Terminating subprocesses.")
-            self.task.on_kill()
+            self.task.on_kill(**self._infer_on_kill_kwargs(context))
             raise AirflowException("Task received SIGTERM signal")
 
         signal.signal(signal.SIGTERM, signal_handler)
@@ -1506,7 +1518,7 @@ class TaskInstance(Base, LoggingMixin):
                 with timeout(timeout_seconds):
                     result = execute_callable(context=context)
             except AirflowTaskTimeout:
-                task_copy.on_kill()
+                task_copy.on_kill(**self._infer_on_kill_kwargs(context))
                 raise
         else:
             result = execute_callable(context=context)

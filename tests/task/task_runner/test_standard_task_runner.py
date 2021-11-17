@@ -174,7 +174,14 @@ class TestStandardTaskRunner:
         assert runner.return_code() == -9
         assert "running out of memory" in caplog.text
 
-    def test_on_kill(self):
+    @pytest.mark.parametrize(
+        'dag_id, task_id, expected_message',
+        [
+            pytest.param('test_on_kill', 'task1', "ON_KILL_TEST", id='without_context'),
+            pytest.param('test_on_kill_with_context', 'task2', 'task2', id='with_context'),
+        ],
+    )
+    def test_on_kill(self, dag_id, task_id, expected_message):
         """
         Test that ensures that clearing in the UI SIGTERMS
         the task
@@ -194,8 +201,8 @@ class TestStandardTaskRunner:
             dag_folder=TEST_DAG_FOLDER,
             include_examples=False,
         )
-        dag = dagbag.dags.get('test_on_kill')
-        task = dag.get_task('task1')
+        dag = dagbag.dags.get(dag_id)
+        task = dag.get_task(task_id)
 
         with create_session() as session:
             dag.create_dagrun(
@@ -242,7 +249,7 @@ class TestStandardTaskRunner:
         logging.info("The file appeared")
 
         with open(path_on_kill_killed) as f:
-            assert "ON_KILL_TEST" == f.readline()
+            assert expected_message == f.readline()
 
         for process in processes:
             assert not psutil.pid_exists(process.pid), f"{process} is still alive"
