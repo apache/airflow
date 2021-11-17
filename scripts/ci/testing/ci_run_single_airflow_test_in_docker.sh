@@ -126,6 +126,7 @@ function run_airflow_testing_in_docker() {
          run airflow "${@}"
     exit_code=$?
     docker-compose --log-level INFO -f "${SCRIPTS_CI_DIR}/docker-compose/base.yml" \
+        "${INTEGRATIONS[@]}" \
         --project-name "airflow-${TEST_TYPE}-${BACKEND}" \
         down --remove-orphans \
         --volumes --timeout 10
