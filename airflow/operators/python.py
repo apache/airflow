@@ -303,6 +303,7 @@ class PythonVirtualenvOperator(PythonOperator):
     """
 
     BASE_SERIALIZABLE_CONTEXT_KEYS = {
+        'ds',
         'ds_nodash',
         'inlets',
         'next_ds',
@@ -322,8 +323,13 @@ class PythonVirtualenvOperator(PythonOperator):
         'yesterday_ds_nodash',
     }
     PENDULUM_SERIALIZABLE_CONTEXT_KEYS = {
+        'data_interval_end',
+        'data_interval_start',
         'execution_date',
+        'logical_date',
         'next_execution_date',
+        'prev_data_interval_end_success',
+        'prev_data_interval_start_success',
         'prev_execution_date',
         'prev_execution_date_success',
         'prev_start_date_success',
