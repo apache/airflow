@@ -2302,7 +2302,7 @@ class DataprocDeleteBatchOperator(BaseOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = ("region", "project_id", "impersonation_chain")
+    template_fields = ("batch_id", "region", "project_id", "impersonation_chain")
 
     def __init__(
         self,
@@ -2374,7 +2374,7 @@ class DataprocGetBatchOperator(BaseOperator):
     :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = ("region", "project_id", "impersonation_chain")
+    template_fields = ("batch_id", "region", "project_id", "impersonation_chain")
 
     def __init__(
         self,
