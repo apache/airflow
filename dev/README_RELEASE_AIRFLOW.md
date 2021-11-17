@@ -43,7 +43,11 @@
   - [Publish documentation](#publish-documentation)
   - [Notify developers of release](#notify-developers-of-release)
   - [Update Announcements page](#update-announcements-page)
-  - [Update the bug issue template](#update-the-bug-issue-template)
+  - [Create release on GitHub](#create-release-on-github)
+  - [Close the milestone](#close-the-milestone)
+  - [Announce the release on the community slack](#announce-the-release-on-the-community-slack)
+  - [Tweet about the release](#tweet-about-the-release)
+  - [Update `main` with latest release details](#update-main-with-latest-release-details)
   - [Update default Airflow version in the helm chart](#update-default-airflow-version-in-the-helm-chart)
   - [Update airflow/config_templates/config.yml file](#update-airflowconfig_templatesconfigyml-file)
 
@@ -81,7 +85,7 @@ The Release Candidate artifacts we vote upon should be the exact ones we vote ag
     # Set Version
     export VERSION=2.1.2rc3
     export VERSION_SUFFIX=rc3
-    export VERSION_CONSTRAINT_BRANCH=2-1
+    export VERSION_BRANCH=2-1
     export VERSION_WITHOUT_RC=${VERSION/rc?/}
 
     # Set AIRFLOW_REPO_ROOT to the path of your git repo
@@ -94,17 +98,29 @@ The Release Candidate artifacts we vote upon should be the exact ones we vote ag
     export AIRFLOW_REPO_ROOT=$(pwd)
     ```
 
+- Check out the 'test' branch
+
+    ```shell script
+    git checkout v${VERSION_BRANCH}-test
+    ```
+
 - Set your version to 2.0.N in `setup.py` (without the RC tag)
 - Replace the version in `README.md` and verify that installation instructions work fine.
 - Add a commit that updates `CHANGELOG.md` to add changes from previous version if it has not already added.
 For now this is done manually, example run  `git log --oneline v2-2-test..HEAD --pretty='format:- %s'` and categorize them.
 - Add section for the release in `UPDATING.md`. If no new entries exist, put "No breaking changes" (e.g. `2.1.4`).
 - Commit the version change.
+- PR from the 'test' branch to the 'stable' branch, and manually merge it once approved.
+- Check out the 'stable' branch
+
+    ```shell script
+    git checkout v${VERSION_BRANCH}-stable
+    ```
 
 - Tag your release
 
     ```shell script
-    git tag -s ${VERSION}
+    git tag -s ${VERSION} -m "Apache Airflow ${VERSION}"
     ```
 
 - Clean the checkout: the sdist step below will
@@ -143,7 +159,7 @@ For now this is done manually, example run  `git log --oneline v2-2-test..HEAD -
 - Tag & Push the latest constraints files. This pushes constraints with rc suffix (this is expected)!
 
     ```shell script
-    git checkout origin/constraints-${VERSION_CONSTRAINT_BRANCH}
+    git checkout origin/constraints-${VERSION_BRANCH}
     git tag -s "constraints-${VERSION}"
     git push origin "constraints-${VERSION}"
     ```
@@ -153,9 +169,11 @@ For now this is done manually, example run  `git log --oneline v2-2-test..HEAD -
     ```shell script
     # First clone the repo
     svn checkout https://dist.apache.org/repos/dist/dev/airflow airflow-dev
+    cd airflow-dev
+    # Or move into it if you already have it cloned
 
     # Create new folder for the release
-    cd airflow-dev
+    svn update
     svn mkdir ${VERSION}
 
     # Move the artifacts to svn folder & commit
@@ -287,6 +305,13 @@ publish "snapshots" of the RC builds to PyPI for installing via pip:
 
 To do this we need to
 
+- Checkout the rc tag:
+
+    ```shell script
+    cd "${AIRFLOW_REPO_ROOT}"
+    git checkout ${VERSION}
+    ```
+
 - Build the package:
 
     ```shell script
@@ -309,7 +334,10 @@ To do this we need to
 https://test.pypi.org/project/apache-airflow/#files
 
 - Upload the package to PyPI's production environment:
-`twine upload -r pypi dist/*`
+
+    ```shell script
+    twine upload -r pypi dist/*
+    ```
 
 - Again, confirm that the package is available here:
 https://pypi.python.org/pypi/apache-airflow
@@ -422,7 +450,7 @@ the artifact checksums when we actually release.
 
 Full Changelog: https://github.com/apache/airflow/blob/${VERSION}/CHANGELOG.txt
 
-Changes since ${VERSION}:
+Changes since PREVIOUS_VERSION_OR_RC:
 *Bugs*:
 [AIRFLOW-3732] Fix issue when trying to edit connection in RBAC UI
 [AIRFLOW-2866] Fix missing CSRF token head when using RBAC UI (#3804)
@@ -718,8 +746,6 @@ cd "${VERSION}"
 # Move the artifacts to svn folder & commit
 for f in ${AIRFLOW_DEV_SVN}/$RC/*; do
     svn cp "$f" "${$(basename $f)/}"
-    # Those will be used to upload to PyPI
-    cp "$f" "${AIRFLOW_SOURCES}/dist/${$(basename $f)/}"
 done
 svn commit -m "Release Airflow ${VERSION} from ${RC}"
 
@@ -742,13 +768,13 @@ previously released RC candidates in "${AIRFLOW_SOURCES}/dist":
 
     ```shell script
     cd "${AIRFLOW_RELEASE_SVN}/${VERSION}"
-    twine check dist/*
+    twine check *.whl *${VERSION}.tar.gz
     ```
 
 - Upload the package to PyPI's test environment:
 
     ```shell script
-    twine upload -r pypitest dist/*
+    twine upload -r pypitest *.whl *${VERSION}.tar.gz
     ```
 
 - Verify that the test package looks good by downloading it and installing it into a virtual environment.
@@ -757,7 +783,7 @@ previously released RC candidates in "${AIRFLOW_SOURCES}/dist":
 - Upload the package to PyPI's production environment:
 
     ```shell script
-    twine upload -r pypi dist/*
+    twine upload -r pypi *.whl *${VERSION}.tar.gz
     ```
 
 - Again, confirm that the package is available here: https://pypi.python.org/pypi/apache-airflow
@@ -765,8 +791,9 @@ previously released RC candidates in "${AIRFLOW_SOURCES}/dist":
 - Re-Tag & Push the constraints files with the final release version.
 
     ```shell script
+    cd "${AIRFLOW_REPO_ROOT}"
     git checkout constraints-${RC}
-    git tag -s "constraints-${VERSION}"
+    git tag -s "constraints-${VERSION}" -m "Constraints for Apache Airflow ${VERSION}"
     git push origin "constraints-${VERSION}"
     ```
 
@@ -777,7 +804,8 @@ previously released RC candidates in "${AIRFLOW_SOURCES}/dist":
     (both airflow and latest provider packages).
 
     ```shell script
-    git checkout ${VERSION}
+    git checkout ${RC}
+    git tag -s ${VERSION} -m "Apache Airflow ${VERSION}"
     git push origin ${VERSION}
     ```
 
@@ -836,14 +864,14 @@ Documentation for providers can be found in the ``/docs/apache-airflow`` directo
 
 ## Notify developers of release
 
-- Notify users@airflow.apache.org (cc'ing dev@airflow.apache.org and announce@apache.org) that
+- Notify users@airflow.apache.org (cc'ing dev@airflow.apache.org) that
 the artifacts have been published:
 
 Subject:
 
 ```shell script
 cat <<EOF
-Airflow ${VERSION} is released
+[ANNOUNCE] Apache Airflow ${VERSION} Released
 EOF
 ```
 
@@ -878,13 +906,61 @@ Cheers,
 EOF
 ```
 
+Send the same email to announce@apache.org, except change the opening line to `Dear community,`.
+
 ## Update Announcements page
 
 Update "Announcements" page at the [Official Airflow website](https://airflow.apache.org/announcements/)
 
-## Update the bug issue template
+## Create release on GitHub
 
-Make sure the version you just released is listed in the bug issue template in `.github/ISSUE_TEMPLATE/airflow_bug_report.yml`.
+Create a new release on GitHub with the changelog and assets from the release svn.
+
+## Close the milestone
+
+Close the milestone on GitHub. Create the next one if it hasn't been already (it probably has been).
+
+## Announce the release on the community slack
+
+Post this in the #announce channel:
+
+```shell
+cat <<EOF
+We’ve just released Apache Airflow $VERSION 🎉
+
+📦 PyPI: https://pypi.org/project/apache-airflow/$VERSION/
+📚 Docs: https://airflow.apache.org/docs/apache-airflow/$VERSION/
+🛠 Changelog: https://airflow.apache.org/docs/apache-airflow/$VERSION/changelog.html
+🐳 Docker Image: “docker pull apache/airflow:$VERSION"
+🚏 Constraints: https://github.com/apache/airflow/tree/constraints-$VERSION
+
+Thanks to all the contributors who made this possible.
+EOF
+```
+
+## Tweet about the release
+
+Tweet about the release:
+
+```shell
+cat <<EOF
+We’ve just released Apache Airflow $VERSION 🎉
+
+📦 PyPI: https://pypi.org/project/apache-airflow/$VERSION/
+📚 Docs: https://airflow.apache.org/docs/apache-airflow/$VERSION/
+🛠 Changelog: https://airflow.apache.org/docs/apache-airflow/$VERSION/changelog.html
+🐳 Docker Image: "docker pull apache/airflow:$VERSION"
+
+Thanks to all the contributors who made this possible.
+EOF
+```
+
+## Update `main` with latest release details
+
+This includes:
+
+- Sync `CHANGELOG.txt`, `UPDATING.md` and `README.md` changes
+- Updating issue templates in `.github/ISSUE_TEMPLATE/` with the new version
 
 ## Update default Airflow version in the helm chart
 
