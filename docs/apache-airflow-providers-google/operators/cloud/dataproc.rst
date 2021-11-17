@@ -218,7 +218,7 @@ Create a Batch
 Dataproc supports creating a batch workload.
 
 A batch can be created using:
-:class: `~airflow.providers.google.cloud.operators.dataproc.DataprocCreateBatchOperator`.
+:class: ``~airflow.providers.google.cloud.operators.dataproc.DataprocCreateBatchOperator``.
 
 .. exampleinclude:: /../../airflow/providers/google/cloud/example_dags/example_dataproc.py
     :language: python
@@ -230,7 +230,7 @@ Get a Batch
 -----------
 
 To get a batch you can use:
-:class: `~airflow.providers.google.cloud.operators.dataproc.DataprocGetBatchOperator`.
+:class: ``~airflow.providers.google.cloud.operators.dataproc.DataprocGetBatchOperator``.
 
 .. exampleinclude:: /../../airflow/providers/google/cloud/example_dags/example_dataproc.py
     :language: python
@@ -242,7 +242,7 @@ List a Batch
 ------------
 
 To get a list of exists batches you can use:
-:class: `~airflow.providers.google.cloud.operators.dataproc.DataprocListBatchesOperator`.
+:class: ``~airflow.providers.google.cloud.operators.dataproc.DataprocListBatchesOperator``.
 
 .. exampleinclude:: /../../airflow/providers/google/cloud/example_dags/example_dataproc.py
     :language: python
@@ -254,7 +254,7 @@ Delete a Batch
 --------------
 
 To delete a batch you can use:
-:class: `~airflow.providers.google.cloud.operators.dataproc.DataprocDeleteBatchOperator`.
+:class: ``~airflow.providers.google.cloud.operators.dataproc.DataprocDeleteBatchOperator``.
 
 .. exampleinclude:: /../../airflow/providers/google/cloud/example_dags/example_dataproc.py
     :language: python
