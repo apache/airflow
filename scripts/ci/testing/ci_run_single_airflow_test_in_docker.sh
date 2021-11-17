@@ -113,6 +113,7 @@ function run_airflow_testing_in_docker() {
     echo "Making sure docker-compose is down and remnants removed"
     echo
     docker-compose -f "${SCRIPTS_CI_DIR}/docker-compose/base.yml" \
+        "${INTEGRATIONS[@]}" \
         --project-name "airflow-${TEST_TYPE}-${BACKEND}" \
         down --remove-orphans \
         --volumes --timeout 10
@@ -123,8 +124,10 @@ function run_airflow_testing_in_docker() {
       "${DOCKER_COMPOSE_LOCAL[@]}" \
       --project-name "airflow-${TEST_TYPE}-${BACKEND}" \
          run airflow "${@}"
+    docker ps
     exit_code=$?
     docker-compose --log-level INFO -f "${SCRIPTS_CI_DIR}/docker-compose/base.yml" \
+        "${INTEGRATIONS[@]}" \
         --project-name "airflow-${TEST_TYPE}-${BACKEND}" \
         down --remove-orphans \
         --volumes --timeout 10
