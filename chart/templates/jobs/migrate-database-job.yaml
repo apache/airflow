@@ -98,6 +98,12 @@ spec:
               mountPath: {{ template "airflow_config_path" . }}
               subPath: airflow.cfg
               readOnly: true
+            {{- if .Values.airflowLocalSettings }}
+            - name: config
+              mountPath: {{ template"airflow_local_setting_path" . }}
+              subPath: airflow_local_settings.py
+              readOnly: true
+            {{- end }}
           resources:
 {{ toYaml .Values.migrateDatabaseJob.resources | indent 12 }}
 {{- if .Values.migrateDatabaseJob.extraContainers }}
