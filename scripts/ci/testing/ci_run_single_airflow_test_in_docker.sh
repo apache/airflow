@@ -127,7 +127,6 @@ function run_airflow_testing_in_docker() {
          run airflow "${@}"
     docker ps
     exit_code=$?
-    docker ps
     if [[ ${exit_code} != "0" && ${CI} == "true" ]]; then
         docker ps --all
         local container
