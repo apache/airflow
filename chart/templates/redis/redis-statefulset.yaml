@@ -71,6 +71,8 @@ spec:
         - name: redis
           image: {{ template "redis_image" . }}
           imagePullPolicy: {{ .Values.images.redis.pullPolicy }}
+          securityContext:
+            runAsUser: {{ .Values.uid }}
           command: ["/bin/sh"]
           resources:
 {{ toYaml .Values.redis.resources | indent 12 }}
