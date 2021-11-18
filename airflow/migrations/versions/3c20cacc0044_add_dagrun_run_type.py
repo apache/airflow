@@ -27,14 +27,10 @@ Create Date: 2020-04-08 13:35:25.671327
 
 import sqlalchemy as sa
 from alembic import op
-from sqlalchemy import Boolean, Column, Integer, PickleType, String
+from sqlalchemy import Column, Integer, String
 from sqlalchemy.engine.reflection import Inspector
 from sqlalchemy.ext.declarative import declarative_base
 
-from airflow.migrations.db_types import StringID
-from airflow.utils import timezone
-from airflow.utils.sqlalchemy import UtcDateTime
-from airflow.utils.state import State
 from airflow.utils.types import DagRunType
 
 # revision identifiers, used by Alembic.
@@ -47,23 +43,13 @@ Base = declarative_base()
 
 
 class DagRun(Base):  # type: ignore
-    """
-    DagRun describes an instance of a Dag. It can be created
-    by the scheduler (for regular runs) or by an external trigger
-    """
+    """Minimal model definition for migrations"""
 
     __tablename__ = "dag_run"
 
     id = Column(Integer, primary_key=True)
-    dag_id = Column(StringID())
-    execution_date = Column(UtcDateTime, default=timezone.utcnow)
-    start_date = Column(UtcDateTime, default=timezone.utcnow)
-    end_date = Column(UtcDateTime)
-    _state = Column('state', String(50), default=State.RUNNING)
-    run_id = Column(StringID())
-    external_trigger = Column(Boolean, default=True)
+    run_id = Column(String())
     run_type = Column(String(50), nullable=False)
-    conf = Column(PickleType)
 
 
 def upgrade():
