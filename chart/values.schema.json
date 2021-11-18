@@ -3192,8 +3192,11 @@
                 },
                 "uid": {
                     "description": "Redis run as user parameter.",
-                    "type": "integer",
-                    "default": 1001
+                    "type": [
+                        "integer",
+                        "null"
+                    ],
+                    "default": null
                 },
                 "serviceAccount": {
                     "description": "Create ServiceAccount.",
