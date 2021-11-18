@@ -17,7 +17,6 @@
 # under the License.
 """Interact with AWS Redshift clusters."""
 import time
-
 from typing import Dict, List, Optional, Union
 
 try:

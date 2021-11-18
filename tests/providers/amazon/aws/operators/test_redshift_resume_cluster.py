@@ -18,6 +18,7 @@
 #
 
 import unittest
+
 import boto3
 
 from airflow.providers.amazon.aws.operators.redshift_resume_cluster import RedshiftResumeClusterOperator
