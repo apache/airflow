@@ -447,8 +447,7 @@ def dag_test(args, session=None):
 @provide_session
 @cli_utils.action_logging
 def dag_reserialize(args, session=None):
-    session.query(SerializedDagModel).delete()
-    session.commit()
+    session.query(SerializedDagModel).delete(synchronize_session=False)
 
     if not args.clear_only:
         dagbag = DagBag()
