@@ -24,7 +24,7 @@ from airflow.api.client.api_client import Client
 from airflow.configuration import conf
 
 
-def get_current_api_client() -> Client:
+def get_current_api_client() -> Client:  # DP-432: api client init
     """Return current API Client based on current Airflow configuration"""
     api_module = import_module(conf.get('cli', 'api_client'))  # type: Any
     auth_backend = api.load_auth()

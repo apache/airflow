@@ -780,7 +780,7 @@ DAGS_COMMANDS = (
     ActionCommand(
         name='trigger',
         help='Trigger a DAG run',
-        func=lazy_load_command('airflow.cli.commands.dag_command.dag_trigger'),
+        func=lazy_load_command('airflow.cli.commands.dag_command.dag_trigger'),  # DP-432: task run trigger
         args=(ARG_DAG_ID, ARG_SUBDIR, ARG_RUN_ID, ARG_CONF, ARG_EXEC_DATE),
     ),
     ActionCommand(
@@ -893,7 +893,7 @@ TASKS_COMMANDS = (
     ActionCommand(
         name='clear',
         help="Clear a set of task instance, as if they never ran",
-        func=lazy_load_command('airflow.cli.commands.task_command.task_clear'),
+        func=lazy_load_command('airflow.cli.commands.task_command.task_clear'), # DP-432: clear task command
         args=(
             ARG_DAG_ID,
             ARG_TASK_REGEX,
@@ -1362,7 +1362,7 @@ airflow_commands: List[CLICommand] = [
     GroupCommand(
         name='dags',
         help='Manage DAGs',
-        subcommands=DAGS_COMMANDS,
+        subcommands=DAGS_COMMANDS,  # DP-432: airflow commands entry point
     ),
     GroupCommand(
         name="kubernetes", help='Tools to help run the KubernetesExecutor', subcommands=KUBERNETES_COMMANDS
@@ -1370,7 +1370,7 @@ airflow_commands: List[CLICommand] = [
     GroupCommand(
         name='tasks',
         help='Manage tasks',
-        subcommands=TASKS_COMMANDS,
+        subcommands=TASKS_COMMANDS,  # DP-432: task commands entry point
     ),
     GroupCommand(
         name='pools',

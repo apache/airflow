@@ -79,7 +79,7 @@ def _trigger_dag(
 
     triggers = []
     dags_to_trigger = [dag] + dag.subdags
-    for _dag in dags_to_trigger:
+    for _dag in dags_to_trigger:  # DP-432 trigger multiple dags
         trigger = _dag.create_dagrun(
             run_id=run_id,
             execution_date=execution_date,
@@ -123,4 +123,4 @@ def trigger_dag(
         replace_microseconds=replace_microseconds,
     )
 
-    return triggers[0] if triggers else None
+    return triggers[0] if triggers else None  # DP-432 trigger multiple dags

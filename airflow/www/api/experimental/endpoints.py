@@ -74,7 +74,7 @@ api_experimental.after_request(add_deprecation_headers)
 
 @api_experimental.route('/dags/<string:dag_id>/dag_runs', methods=['POST'])
 @requires_authentication
-def trigger_dag(dag_id):
+def trigger_dag(dag_id):  # DP-432 dag_runs api endpoint method
     """
     Trigger a new dag run for a Dag with an execution date of now unless
     specified in the data.
@@ -112,7 +112,7 @@ def trigger_dag(dag_id):
         replace_microseconds = to_boolean(data['replace_microseconds'])
 
     try:
-        dr = trigger.trigger_dag(dag_id, run_id, conf, execution_date, replace_microseconds)
+        dr = trigger.trigger_dag(dag_id, run_id, conf, execution_date, replace_microseconds)  # DP-432 airflow trigger dag module  call
     except AirflowException as err:
         log.error(err)
         response = jsonify(error=f"{err}")

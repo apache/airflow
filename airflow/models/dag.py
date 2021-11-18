@@ -1720,7 +1720,7 @@ class DAG(LoggingMixin):
         args.func(args, self)
 
     @provide_session
-    def create_dagrun(
+    def create_dagrun( # DP-432 direct call for create dag run
         self,
         state: State,
         execution_date: Optional[datetime] = None,

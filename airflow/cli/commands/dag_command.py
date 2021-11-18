@@ -122,7 +122,7 @@ def dag_trigger(args):
     """Creates a dag run for the specified dag"""
     api_client = get_current_api_client()
     try:
-        message = api_client.trigger_dag(
+        message = api_client.trigger_dag( # DP-432 dag_trigger CLI calls pai client
             dag_id=args.dag_id, run_id=args.run_id, conf=args.conf, execution_date=args.exec_date
         )
         print(message)

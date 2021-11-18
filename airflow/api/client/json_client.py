@@ -42,7 +42,7 @@ class Client(api_client.Client):
 
         return resp.json()
 
-    def trigger_dag(self, dag_id, run_id=None, conf=None, execution_date=None):
+    def trigger_dag(self, dag_id, run_id=None, conf=None, execution_date=None):  # DP-432 trigger dag API payload
         endpoint = f'/api/experimental/dags/{dag_id}/dag_runs'
         url = urljoin(self._api_base_url, endpoint)
         data = self._request(
