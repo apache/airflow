@@ -487,7 +487,8 @@ Lets look at our DAG:
 
   @dag(
       schedule_interval="0 0 * * *",
-      start_date=datetime.today() - timedelta(days=2),
+      start_date=datetime(2021, 1, 1),
+      catchup=False,
       dagrun_timeout=timedelta(minutes=60),
   )
   def Etl():

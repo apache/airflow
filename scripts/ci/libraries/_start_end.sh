@@ -71,21 +71,6 @@ function start_end::script_start {
     fi
 }
 
-function start_end::dump_container_logs() {
-    start_end::group_start "${COLOR_BLUE}Dumping container logs ${container}${COLOR_RESET}"
-    local container="${1}"
-    local dump_file
-    dump_file=${AIRFLOW_SOURCES}/files/container_logs_${container}_$(date "+%Y-%m-%d")_${CI_BUILD_ID}_${CI_JOB_ID}.log
-    echo "${COLOR_BLUE}###########################################################################################${COLOR_RESET}"
-    echo "                   Dumping logs from ${container} container"
-    echo "${COLOR_BLUE}###########################################################################################${COLOR_RESET}"
-    docker_v logs "${container}" > "${dump_file}"
-    echo "                   Container ${container} logs dumped to ${dump_file}"
-    echo "${COLOR_BLUE}###########################################################################################${COLOR_RESET}"
-    start_end::group_end
-}
-
-
 #
 # Trap function executed always at the end of the script. In case of verbose output it also
 # Prints the exit code that the script exits with. Removes verbosity of commands in case it was run with
@@ -106,13 +91,6 @@ function start_end::script_end {
         echo
         echo "${COLOR_RED}ERROR: The previous step completed with error. Please take a look at output above ${COLOR_RESET}"
         echo
-        if [[ ${CI} == "true" ]]; then
-            local container
-            for container in $(docker ps --format '{{.Names}}')
-            do
-                start_end::dump_container_logs "${container}"
-            done
-        fi
         verbosity::print_info "${COLOR_RED}###########################################################################################${COLOR_RESET}"
         verbosity::print_info "${COLOR_RED}                   EXITING WITH STATUS CODE ${exit_code}${COLOR_RESET}"
         verbosity::print_info "${COLOR_RED}###########################################################################################${COLOR_RESET}"

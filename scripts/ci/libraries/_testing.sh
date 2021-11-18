@@ -114,3 +114,17 @@ function testing::get_test_types_to_run() {
     fi
     readonly TEST_TYPES
 }
+
+function testing::dump_container_logs() {
+    start_end::group_start "${COLOR_BLUE}Dumping container logs ${container}${COLOR_RESET}"
+    local container="${1}"
+    local dump_file
+    dump_file=${AIRFLOW_SOURCES}/files/container_logs_${container}_$(date "+%Y-%m-%d")_${CI_BUILD_ID}_${CI_JOB_ID}.log
+    echo "${COLOR_BLUE}###########################################################################################${COLOR_RESET}"
+    echo "                   Dumping logs from ${container} container"
+    echo "${COLOR_BLUE}###########################################################################################${COLOR_RESET}"
+    docker_v logs "${container}" > "${dump_file}"
+    echo "                   Container ${container} logs dumped to ${dump_file}"
+    echo "${COLOR_BLUE}###########################################################################################${COLOR_RESET}"
+    start_end::group_end
+}

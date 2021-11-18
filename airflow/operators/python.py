@@ -123,6 +123,11 @@ class PythonOperator(BaseOperator):
     :param templates_exts: a list of file extensions to resolve while
         processing templated fields, for examples ``['.sql', '.hql']``
     :type templates_exts: list[str]
+    :param show_return_value_in_logs: a bool value whether to show return_value
+        logs. Defaults to True, which allows return value log output.
+        It can be set to False to prevent log output of return value when you return huge data
+        such as transmission a large amount of XCom to TaskAPI.
+    :type show_return_value_in_logs: bool
     """
 
     template_fields = ('templates_dict', 'op_args', 'op_kwargs')
@@ -145,6 +150,7 @@ class PythonOperator(BaseOperator):
         op_kwargs: Optional[Dict] = None,
         templates_dict: Optional[Dict] = None,
         templates_exts: Optional[List[str]] = None,
+        show_return_value_in_logs: bool = True,
         **kwargs,
     ) -> None:
         if kwargs.get("provide_context"):
@@ -163,6 +169,7 @@ class PythonOperator(BaseOperator):
         self.templates_dict = templates_dict
         if templates_exts:
             self.template_ext = templates_exts
+        self.show_return_value_in_logs = show_return_value_in_logs
 
     def execute(self, context: Dict):
         context.update(self.op_kwargs)
@@ -171,7 +178,11 @@ class PythonOperator(BaseOperator):
         self.op_kwargs = determine_kwargs(self.python_callable, self.op_args, context)
 
         return_value = self.execute_callable()
-        self.log.info("Done. Returned value was: %s", return_value)
+        if self.show_return_value_in_logs:
+            self.log.info("Done. Returned value was: %s", return_value)
+        else:
+            self.log.info("Done. Returned value not shown")
+
         return return_value
 
     def execute_callable(self):

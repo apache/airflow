@@ -124,7 +124,7 @@ Please note that the scheduler will override the ``metadata.name`` of the V1pod 
 To overwrite the base container of the pod launched by the KubernetesExecutor,
 create a V1pod with a single container, and overwrite the fields as follows:
 
-.. exampleinclude:: /../../airflow/example_dags/example_kubernetes_executor_config.py
+.. exampleinclude:: /../../airflow/example_dags/example_kubernetes_executor.py
     :language: python
     :start-after: [START task_with_volume]
     :end-before: [END task_with_volume]
@@ -134,9 +134,8 @@ Note that the following fields **will all be extended** instead of overwritten. 
 To add a sidecar container to the launched pod, create a V1pod with an empty first container with the
 name ``base`` and a second container containing your desired sidecar.
 
-.. exampleinclude:: /../../airflow/example_dags/example_kubernetes_executor_config.py
+.. exampleinclude:: /../../airflow/example_dags/example_kubernetes_executor.py
     :language: python
-    :dedent: 8
     :start-after: [START task_with_sidecar]
     :end-before: [END task_with_sidecar]
 
@@ -145,11 +144,38 @@ This will replace the default ``pod_template_file`` named in the airflow.cfg and
 
 Here is an example of a task with both features:
 
-.. exampleinclude:: /../../airflow/example_dags/example_kubernetes_executor_config.py
-    :language: python
-    :dedent: 8
-    :start-after: [START task_with_template]
-    :end-before: [END task_with_template]
+.. code-block:: python
+
+    import os
+    from datetime import datetime
+
+    from airflow import DAG
+    from airflow.decorators import task
+    from airflow.example_dags.libs.helper import print_stuff
+    from airflow.settings import AIRFLOW_HOME
+
+    from kubernetes.client import models as k8s
+
+    with DAG(
+        dag_id="example_pod_template_file",
+        schedule_interval=None,
+        start_date=datetime(2021, 1, 1),
+        catchup=False,
+        tags=["example3"],
+    ) as dag:
+        executor_config_template = {
+            "pod_template_file": os.path.join(
+                AIRFLOW_HOME, "pod_templates/basic_template.yaml"
+            ),
+            "pod_override": k8s.V1Pod(
+                metadata=k8s.V1ObjectMeta(labels={"release": "stable"})
+            ),
+        }
+
+        @task(executor_config=executor_config_template)
+        def task_with_template():
+            print_stuff()
+
 
 Managing dags and logs
 ~~~~~~~~~~~~~~~~~~~~~~
