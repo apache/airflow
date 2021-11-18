@@ -70,7 +70,7 @@ class AirflowAppBuilder:
     This is where you will register all your views
     and create the menu structure.
     Will hold your flask app object, all your views, and security classes.
-    initialize your application like this for SQLAlchemy::
+    Initialize your application like this for SQLAlchemy::
         from flask import Flask
         from flask_appbuilder import SQLA, AppBuilder
         app = Flask(__name__)
