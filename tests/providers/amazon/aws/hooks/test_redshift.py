@@ -117,6 +117,7 @@ class TestRedshiftHook(unittest.TestCase):
         status = hook.cluster_status('test_cluster')
         assert status == 'available'
 
+
 class TestRedshiftSQLHookConn(unittest.TestCase):
     def setUp(self):
         super().setUp()

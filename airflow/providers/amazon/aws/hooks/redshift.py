@@ -158,6 +158,7 @@ class RedshiftHook(AwsBaseHook):
             time.sleep(check_interval)
             cluster_state = self.cluster_status(cluster_identifier=cluster_identifier)
 
+
 class RedshiftSQLHook(DbApiHook):
     """
     Execute statements against Amazon Redshift, using redshift_connector
