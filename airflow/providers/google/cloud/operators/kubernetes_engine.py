@@ -285,6 +285,15 @@ class GKEStartPodOperator(KubernetesPodOperator):
     :param gcp_conn_id: The google cloud connection id to use. This allows for
         users to specify a service account.
     :type gcp_conn_id: str
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+    :type impersonation_chain: Union[str, Sequence[str]]
     """
 
     template_fields = {'project_id', 'location', 'cluster_name'} | set(KubernetesPodOperator.template_fields)
@@ -297,6 +306,7 @@ class GKEStartPodOperator(KubernetesPodOperator):
         use_internal_ip: bool = False,
         project_id: Optional[str] = None,
         gcp_conn_id: str = 'google_cloud_default',
+        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -305,6 +315,7 @@ class GKEStartPodOperator(KubernetesPodOperator):
         self.cluster_name = cluster_name
         self.gcp_conn_id = gcp_conn_id
         self.use_internal_ip = use_internal_ip
+        self.impersonation_chain = impersonation_chain
 
         if self.gcp_conn_id is None:
             raise AirflowException(
@@ -350,6 +361,22 @@ class GKEStartPodOperator(KubernetesPodOperator):
                 "--project",
                 self.project_id,
             ]
+            if self.impersonation_chain:
+                if isinstance(self.impersonation_chain, str):
+                    impersonation_account = self.impersonation_chain
+                elif len(self.impersonation_chain) == 1:
+                    impersonation_account = self.impersonation_chain[:-1]
+                else:
+                    raise AirflowException(
+                        "Chained list of accounts is not supported, please specify only one service account"
+                    )
+
+                cmd.extend(
+                    [
+                        '--impersonate-service-account',
+                        impersonation_account,
+                    ]
+                )
             if self.use_internal_ip:
                 cmd.append('--internal-ip')
             execute_in_subprocess(cmd)
