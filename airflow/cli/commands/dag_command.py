@@ -449,3 +449,8 @@ def dag_test(args, session=None):
 def dag_reserialize(args, session=None):
     session.query(SerializedDagModel).delete()
     session.commit()
+
+    if not args.clear_only:
+        dagbag = DagBag()
+        dagbag.collect_dags(only_if_updated=False, safe_mode=False)
+        dagbag.sync_to_db()
