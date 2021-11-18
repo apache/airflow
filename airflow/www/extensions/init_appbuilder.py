@@ -67,7 +67,7 @@ def dynamic_class_import(class_path):
 class AirflowAppBuilder:
     """
     This is the base class for all the framework.
-    This is were you will register all your views
+    This is where you will register all your views
     and create the menu structure.
     Will hold your flask app object, all your views, and security classes.
     initialize your application like this for SQLAlchemy::
