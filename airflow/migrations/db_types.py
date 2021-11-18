@@ -48,17 +48,32 @@ MSSQL_USE_DATE_TIME2 = Proxy(_mssql_use_date_time2)
 def _mssql_TIMESTAMP():
     from sqlalchemy.dialects import mssql
 
-    return mssql.DATETIME2(precision=6) if MSSQL_USE_DATE_TIME2 else mssql.DATETIME
+    if MSSQL_USE_DATE_TIME2:
+
+        class DATETIME2(mssql.DATETIME2):
+            def __init__(self, *args, precision=6, **kwargs):
+                super().__init__(*args, precision=precision, **kwargs)
+
+        return DATETIME2
+    return mssql.DATETIME
 
 
 def _mysql_TIMESTAMP():
     from sqlalchemy.dialects import mysql
 
-    return mysql.TIMESTAMP(fsp=6, timezone=True)
+    class TIMESTAMP(mysql.TIMESTAMP):
+        def __init__(self, *args, fsp=6, timezone=True, **kwargs):
+            super().__init__(*args, fsp=fsp, timezone=timezone, **kwargs)
+
+    return TIMESTAMP
 
 
 def _sa_TIMESTAMP():
-    return sa.TIMESTAMP(timezone=True)
+    class TIMESTAMP(sa.TIMESTAMP):
+        def __init__(self, *args, timezone=True, **kwargs):
+            super().__init__(*args, timezone=timezone, **kwargs)
+
+    return TIMESTAMP
 
 
 def _sa_StringID():
