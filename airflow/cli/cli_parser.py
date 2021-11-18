@@ -775,15 +775,6 @@ ARG_CLEAR_ONLY = Arg(
     action="store_true",
     help="If passed, serialized DAGs will be cleared but not reserialized.",
 )
-ARG_RESERIALIZE_TIMEOUT = Arg(
-    ("--timeout",), type=int, help="Timeout in minutes for the serialization process. Default 10"
-)
-
-ARG_RESERIALIZE_PICKLE = Arg(
-    ("--pickle",),
-    action="store_true",
-    help="Store the serialized representations of the DAGs as pickle instead of JSON",
-)
 
 ALTERNATIVE_CONN_SPECS_ARGS = [
     ARG_CONN_TYPE,
@@ -1002,7 +993,7 @@ DAGS_COMMANDS = (
             "version of Airflow that you are running."
         ),
         func=lazy_load_command('airflow.cli.commands.dag_command.dag_reserialize'),
-        args=(ARG_CLEAR_ONLY, ARG_RESERIALIZE_TIMEOUT, ARG_RESERIALIZE_PICKLE),
+        args=(ARG_CLEAR_ONLY,),
     ),
 )
 TASKS_COMMANDS = (
