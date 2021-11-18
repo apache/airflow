@@ -127,13 +127,14 @@ class AirflowAppBuilder:
         update_perms=conf.getboolean('webserver', 'UPDATE_FAB_PERMS'),
     ):
         """
-        AppBuilder constructor
+        App-builder constructor.
+
         :param app:
             The flask app object
         :param session:
             The SQLAlchemy session object
         :param menu:
-            optional, a previous contructed menu
+            optional, a previous constructed menu
         :param indexview:
             optional, your customized indexview
         :param static_folder:
@@ -146,7 +147,6 @@ class AirflowAppBuilder:
             optional, update permissions flag (Boolean) you can use
             FAB_UPDATE_PERMS config key also
         """
-
         self.baseviews = []
         self._addon_managers = []
         self.addon_managers = {}
@@ -306,9 +306,7 @@ class AirflowAppBuilder:
         self.get_app.register_blueprint(bp)
 
     def _add_admin_views(self):
-        """
-        Registers indexview, utilview (back function), babel views and Security views.
-        """
+        """Register indexview, utilview (back function), babel views and Security views."""
         self.indexview = self._check_and_init(self.indexview)
         self.add_view_no_menu(self.indexview)
         self.add_view_no_menu(UtilView())
@@ -318,9 +316,7 @@ class AirflowAppBuilder:
         self.menuapi_manager.register_views()
 
     def _add_addon_views(self):
-        """
-        Registers declared addon's
-        """
+        """Register declared addons."""
         for addon in self._addon_managers:
             addon_class = dynamic_class_import(addon)
             if addon_class:
@@ -355,8 +351,8 @@ class AirflowAppBuilder:
         category_label="",
         menu_cond=None,
     ):
-        """
-        Add your views associated with menus using this method.
+        """Add your views associated with menus using this method.
+
         :param baseview:
             A BaseView type class instantiated or not.
             This method will instantiate the class for you if needed.
@@ -373,7 +369,7 @@ class AirflowAppBuilder:
             if absent param name will be used
         :param category:
             The menu category where the menu will be included,
-            if non provided the view will be acessible as a top menu.
+            if non provided the view will be accessible as a top menu.
         :param category_icon:
             Font-Awesome icon name for the category, optional.
         :param category_label:
