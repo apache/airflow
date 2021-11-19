@@ -85,6 +85,9 @@ class KubernetesHook(BaseHook):
             "extra__kubernetes__namespace": StringField(
                 lazy_gettext('Namespace'), widget=BS3TextFieldWidget()
             ),
+            "extra__kubernetes__cluster_context": StringField(
+                lazy_gettext('Cluster context'), widget=BS3TextFieldWidget()
+            ),
         }
 
     @staticmethod
@@ -96,25 +99,46 @@ class KubernetesHook(BaseHook):
         }
 
     def __init__(
-        self, conn_id: str = default_conn_name, client_configuration: Optional[client.Configuration] = None
+        self,
+        conn_id: str = default_conn_name,
+        client_configuration: Optional[client.Configuration] = None,
+        cluster_context: Optional[str] = None,
+        config_file: Optional[str] = None,
+        in_cluster: Optional[bool] = None,
     ) -> None:
         super().__init__()
         self.conn_id = conn_id
         self.client_configuration = client_configuration
+        self.cluster_context = cluster_context
+        self.config_file = config_file
+        self.in_cluster = in_cluster
+
+    @staticmethod
+    def _coalesce_param(*params):
+        for param in params:
+            if param is not None:
+                return param
 
     def get_conn(self) -> Any:
         """Returns kubernetes api session for use with requests"""
         connection = self.get_connection(self.conn_id)
         extras = connection.extra_dejson
-        in_cluster = extras.get("extra__kubernetes__in_cluster") or None
-        kubeconfig_path = extras.get("extra__kubernetes__kube_config_path") or None
+        in_cluster = self._coalesce_param(
+            self.in_cluster, extras.get("extra__kubernetes__in_cluster") or None
+        )
+        cluster_context = self._coalesce_param(
+            self.cluster_context, extras.get("extra__kubernetes__cluster_context") or None
+        )
+        kubeconfig_path = self._coalesce_param(
+            self.config_file, extras.get("extra__kubernetes__kube_config_path") or None
+        )
         kubeconfig = extras.get("extra__kubernetes__kube_config") or None
         num_selected_configuration = len([o for o in [in_cluster, kubeconfig, kubeconfig_path] if o])
 
         if num_selected_configuration > 1:
             raise AirflowException(
-                "Invalid connection configuration. Options extra__kubernetes__kube_config_path, "
-                "extra__kubernetes__kube_config, extra__kubernetes__in_cluster are mutually exclusive. "
+                "Invalid connection configuration. Options kube_config_path, "
+                "kube_config, in_cluster are mutually exclusive. "
                 "You can only use one option at a time."
             )
         if in_cluster:
@@ -125,7 +149,9 @@ class KubernetesHook(BaseHook):
         if kubeconfig_path is not None:
             self.log.debug("loading kube_config from: %s", kubeconfig_path)
             config.load_kube_config(
-                config_file=kubeconfig_path, client_configuration=self.client_configuration
+                config_file=kubeconfig_path,
+                client_configuration=self.client_configuration,
+                context=cluster_context,
             )
             return client.ApiClient()
 
@@ -135,12 +161,17 @@ class KubernetesHook(BaseHook):
                 temp_config.write(kubeconfig.encode())
                 temp_config.flush()
                 config.load_kube_config(
-                    config_file=temp_config.name, client_configuration=self.client_configuration
+                    config_file=temp_config.name,
+                    client_configuration=self.client_configuration,
+                    context=cluster_context,
                 )
             return client.ApiClient()
 
         self.log.debug("loading kube_config from: default file")
-        config.load_kube_config(client_configuration=self.client_configuration)
+        config.load_kube_config(
+            client_configuration=self.client_configuration,
+            context=cluster_context,
+        )
         return client.ApiClient()
 
     @cached_property
