@@ -28,7 +28,7 @@ try:
     from kubernetes.client.api_client import ApiClient
     from kubernetes.client.rest import ApiException
 
-    from airflow.kubernetes.refresh_config import RefreshConfiguration, load_kube_config
+    from airflow.k8s.refresh_config import RefreshConfiguration, load_kube_config
 
     has_kubernetes = True
 

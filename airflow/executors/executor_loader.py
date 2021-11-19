@@ -128,7 +128,7 @@ class ExecutorLoader:
         local_executor = import_string(cls.executors[LOCAL_EXECUTOR])()
         kubernetes_executor = import_string(cls.executors[KUBERNETES_EXECUTOR])()
 
-        local_kubernetes_executor_cls = import_string(cls.executors[CELERY_KUBERNETES_EXECUTOR])
+        local_kubernetes_executor_cls = import_string(cls.executors[LOCAL_KUBERNETES_EXECUTOR])
         return local_kubernetes_executor_cls(local_executor, kubernetes_executor)
 
 

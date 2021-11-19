@@ -73,6 +73,7 @@ class LocalKubernetesExecutor(LoggingMixin):
         self.local_executor.job_id = value
 
     def start(self) -> None:
+        self.log.info("Starting local and Kubernetes Executor")
         """Start local and kubernetes executor"""
         self.local_executor.start()
         self.kubernetes_executor.start()
@@ -130,9 +131,7 @@ class LocalKubernetesExecutor(LoggingMixin):
         :param task_instance: TaskInstance
         :return: True if the task is known to this executor
         """
-        return self.local_executor.has_task(task_instance) or self.kubernetes_executor.has_task(
-            task_instance
-        )
+        return self.local_executor.has_task(task_instance) or self.kubernetes_executor.has_task(task_instance)
 
     def heartbeat(self) -> None:
         """Heartbeat sent to trigger new jobs in local and kubernetes executor"""
