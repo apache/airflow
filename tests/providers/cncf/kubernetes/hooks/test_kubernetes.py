@@ -81,6 +81,10 @@ class TestKubernetesHook:
         conn_id,
         in_cluster_called,
     ):
+        """
+        Verifies whether in_cluster is called depending on combination of hook param and connection extra.
+        Hook param should beat extra.
+        """
         kubernetes_hook = KubernetesHook(conn_id=conn_id, in_cluster=in_cluster_param)
         api_conn = kubernetes_hook.get_conn()
         if in_cluster_called:
@@ -107,6 +111,10 @@ class TestKubernetesHook:
     def test_kube_config_path(
         self, mock_kube_config_merger, mock_kube_config_loader, config_path_param, conn_id, call_path
     ):
+        """
+        Verifies kube config path depending on combination of hook param and connection extra.
+        Hook param should beat extra.
+        """
         kubernetes_hook = KubernetesHook(conn_id=conn_id, config_file=config_path_param)
         api_conn = kubernetes_hook.get_conn()
         mock_kube_config_merger.assert_called_once_with(call_path)
@@ -126,6 +134,9 @@ class TestKubernetesHook:
     def test_kube_config_connection(
         self, mock_tempfile, mock_kube_config_merger, mock_kube_config_loader, conn_id, has_config
     ):
+        """
+        Verifies whether temporary kube config file is created.
+        """
         mock_tempfile.return_value.__enter__.return_value.name = "fake-temp-file"
         mock_kube_config_merger.return_value.config = {"fake_config": "value"}
         kubernetes_hook = KubernetesHook(conn_id=conn_id)
@@ -151,6 +162,10 @@ class TestKubernetesHook:
     )
     @patch("kubernetes.config.load_kube_config")
     def test_cluster_context(self, mock_load_kube_config, context_param, conn_id, expected_context):
+        """
+        Verifies cluster context depending on combination of hook param and connection extra.
+        Hook param should beat extra.
+        """
         kubernetes_hook = KubernetesHook(conn_id=conn_id, cluster_context=context_param)
         kubernetes_hook.get_conn()
         mock_load_kube_config.assert_called_with(client_configuration=None, context=expected_context)
