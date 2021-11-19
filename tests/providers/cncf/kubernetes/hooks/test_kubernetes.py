@@ -63,11 +63,13 @@ class TestKubernetesHook(unittest.TestCase):
         mock_kube_config_loader.assert_called_once()
         assert isinstance(api_conn, kubernetes.client.api_client.ApiClient)
 
-    @patch("kubernetes.config.incluster_config.InClusterConfigLoader")
-    def test_in_cluster_connection_empty(self, mock_kube_config_loader):
+    @patch("kubernetes.config.kube_config.KubeConfigMerger")
+    @patch("kubernetes.config.kube_config.KubeConfigLoader")
+    def test_in_cluster_connection_empty(self, mock_kube_config_merger, mock_kube_config_loader):
         kubernetes_hook = KubernetesHook(conn_id='kubernetes_in_cluster_empty')
         api_conn = kubernetes_hook.get_conn()
-        mock_kube_config_loader.assert_not_called()
+        mock_kube_config_loader.assert_called_once_with(KUBE_CONFIG_PATH)
+        mock_kube_config_merger.assert_called_once()
         assert isinstance(api_conn, kubernetes.client.api_client.ApiClient)
 
     @patch("kubernetes.config.kube_config.KubeConfigLoader")
