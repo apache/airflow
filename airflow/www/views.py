@@ -2078,11 +2078,11 @@ class Airflow(AirflowBaseView):
                 duration = None
 
             dagrun_attributes = [
-                ("Logical date", dag_run.execution_date.isoformat()),
-                ("Queued at", dag_run.queued_at),
-                ("Start date", dag_run.start_date),
-                ("End date", dag_run.end_date),
-                ("Duration", duration),
+                ("Logical date", wwwutils.datetime_html(dag_run.execution_date)),
+                ("Queued at", wwwutils.datetime_html(dag_run.queued_at)),
+                ("Start date", wwwutils.datetime_html(dag_run.start_date)),
+                ("End date", wwwutils.datetime_html(dag_run.end_date)),
+                ("Duration", str(duration)),
                 ("Current state", wwwutils.state_token(dag_run.state)),
                 ("Run type", dag_run.run_type),
                 ("Externally triggered", dag_run.external_trigger),
