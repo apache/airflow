@@ -127,6 +127,16 @@ class FacebookAdsReportingHook(BaseHook):
 
         :return: Facebook Ads API response,
             converted to Facebook Ads Row objects regarding given Account ID type
+            If the type of Account ID is a List
+                Ex: "account_id": ["act_111111", "act_22222"]
+                Return: {"act_111111": List[AdInsights], "act_22222": List[AdInsights]}
+            If the type of Account ID is a single string
+                Ex: "account_id": "act_111111"
+                Return: List[AdInsights]
+            For Account ID:
+                https://developers.facebook.com/docs/marketing-api/reference/ads-insights/
+            For AdInsights:
+                https://developers.facebook.com/docs/marketing-api/reference/adgroup/insights
         :rtype: List[AdsInsights] or Dict[str, List[AdsInsights]]
         """
         api = self._get_service()
@@ -150,6 +160,9 @@ class FacebookAdsReportingHook(BaseHook):
             )
 
     def _facebook_report(self, account_id, api, params, fields, sleep_time) -> List[AdsInsights]:
+        """
+            List[AdInsights] holds the data returned from Facebook Graph API regarding given params and
+        """
         ad_account = AdAccount(account_id, api=api)
         _async = ad_account.get_insights(params=params, fields=fields, is_async=True)
         while True:

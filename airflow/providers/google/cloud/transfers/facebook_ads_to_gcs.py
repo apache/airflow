@@ -165,7 +165,10 @@ class FacebookAdsReportToGcsOperator(BaseOperator):
                 else:
                     self.log.warning("account_id: %s returned empty report", str(account_id))
         else:
-            message = "Facebook Ads Hook returned different type than expected"
+            message = (
+                "Facebook Ads Hook returned different type than expected. Expected return types should be "
+                "List or Dict. Actual return type of the Hook: " + str(type(bulk_report))
+            )
             raise AirflowException(message)
         total_row_count = self._decide_and_flush(converted_rows_with_action=converted_rows_with_action)
         self.log.info("Facebook Returned %s data points in total: ", total_row_count)
@@ -213,7 +216,10 @@ class FacebookAdsReportToGcsOperator(BaseOperator):
                 )
                 total_data_count += len(converted_rows.get("converted_rows"))
         else:
-            message = "FlushAction not found in the data"
+            message = (
+                "FlushAction not found in the data. Please check the FlushAction in the operator. Converted "
+                "Rows with Action: " + str(converted_rows_with_action)
+            )
             raise AirflowException(message)
         return total_data_count
 
