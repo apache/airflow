@@ -130,7 +130,6 @@ from airflow.www.forms import (
     DateTimeWithNumRunsWithDagRunsForm,
     TaskInstanceEditForm,
 )
-from airflow.www.utils import json_render
 from airflow.www.widgets import AirflowModelListWidget
 
 PAGE_SIZE = conf.getint('webserver', 'page_size')
@@ -2087,7 +2086,7 @@ class Airflow(AirflowBaseView):
                 ("Current state", wwwutils.state_token(dag_run.state)),
                 ("Run type", dag_run.run_type),
                 ("Externally triggered", dag_run.external_trigger),
-                ("Config", json_render(dag_run.conf, lexers.JsonLexer)),
+                ("Config", wwwutils.json_render(dag_run.conf, lexers.JsonLexer)),
             ]
 
             return self.render_template(
