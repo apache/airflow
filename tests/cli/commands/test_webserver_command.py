@@ -369,7 +369,6 @@ class TestCliWebServer:
             )
 
     def test_cli_webserver_args(self):
-
         with mock.patch("subprocess.Popen") as Popen, mock.patch.object(webserver_command, 'GunicornMonitor'):
             args = self.parser.parse_args(
                 [
