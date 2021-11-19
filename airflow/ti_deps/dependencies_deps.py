@@ -55,6 +55,7 @@ RUNNING_DEPS = {
     TaskConcurrencyDep(),
     PoolSlotsAvailableDep(),
     TaskNotRunningDep(),
+    DagrunRunningDep(),
 }
 
 BACKFILL_QUEUED_DEPS = {
