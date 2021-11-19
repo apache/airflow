@@ -18,6 +18,7 @@
 #
 
 import json
+import os
 import tempfile
 import unittest
 from unittest import mock
@@ -32,6 +33,8 @@ from airflow.models import Connection
 from airflow.providers.cncf.kubernetes.hooks.kubernetes import KubernetesHook
 from airflow.utils import db
 from tests.test_utils.db import clear_db_connections
+
+KUBE_CONFIG_PATH = os.getenv('KUBECONFIG', '~/.kube/config')
 
 
 class TestKubernetesHook(unittest.TestCase):
@@ -81,7 +84,7 @@ class TestKubernetesHook(unittest.TestCase):
     def test_kube_config_path_empty(self, mock_kube_config_loader, mock_kube_config_merger):
         kubernetes_hook = KubernetesHook(conn_id='kubernetes_kube_config_path_empty')
         api_conn = kubernetes_hook.get_conn()
-        mock_kube_config_loader.assert_called_once_with("~/.kube/config")
+        mock_kube_config_loader.assert_called_once_with(KUBE_CONFIG_PATH)
         mock_kube_config_merger.assert_called_once()
         assert isinstance(api_conn, kubernetes.client.api_client.ApiClient)
 
@@ -101,7 +104,7 @@ class TestKubernetesHook(unittest.TestCase):
     def test_kube_config_connection_empty(self, mock_kube_config_loader, mock_kube_config_merger):
         kubernetes_hook = KubernetesHook(conn_id='kubernetes_kube_config_empty')
         api_conn = kubernetes_hook.get_conn()
-        mock_kube_config_loader.assert_called_once_with("~/.kube/config")
+        mock_kube_config_loader.assert_called_once_with(KUBE_CONFIG_PATH)
         mock_kube_config_merger.assert_called_once()
         assert isinstance(api_conn, kubernetes.client.api_client.ApiClient)
 
