@@ -441,7 +441,7 @@ def webserver(args):
             ).start()
 
         if args.daemon:
-            # This makes possible errors get reported before demonization
+            # This makes possible errors get reported before daemonization
             os.environ['SKIP_DAGS_PARSING'] = 'True'
             app = create_app(None)
             os.environ.pop('SKIP_DAGS_PARSING')
