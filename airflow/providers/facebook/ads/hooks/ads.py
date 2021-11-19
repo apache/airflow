@@ -114,6 +114,16 @@ class FacebookAdsReportingHook(BaseHook):
         """
         Pulls data from the Facebook Ads API regarding Account ID with matching return type
 
+        .. seealso::
+            If the type of Account ID is a List account_id -> list
+                Return: Dict of key: account_id, value: list of facebook_ads_report pairs
+            If the type of Account ID is a single string account_id -> str
+                Return: list of facebook_ads_report
+            For Account ID:
+                https://developers.facebook.com/docs/marketing-api/reference/ads-insights/
+            For AdsInsights:
+                https://developers.facebook.com/docs/marketing-api/reference/adgroup/insights
+
         :param fields: List of fields that is obtained from Facebook. Found in AdsInsights.Field class.
             https://developers.facebook.com/docs/marketing-api/insights/parameters/v6.0
         :type fields: List[str]
@@ -125,16 +135,6 @@ class FacebookAdsReportingHook(BaseHook):
 
         :return: Facebook Ads API response,
             converted to Facebook Ads Row objects regarding given Account ID type
-            If the type of Account ID is a List
-                Ex: "account_id": ["act_111111", "act_22222"]
-                Return: {"act_111111": List[AdInsights], "act_22222": List[AdInsights]}
-            If the type of Account ID is a single string
-                Ex: "account_id": "act_111111"
-                Return: List[AdInsights]
-            For Account ID:
-                https://developers.facebook.com/docs/marketing-api/reference/ads-insights/
-            For AdInsights:
-                https://developers.facebook.com/docs/marketing-api/reference/adgroup/insights
         :rtype: List[AdsInsights] or Dict[str, List[AdsInsights]]
         """
         api = self._get_service()
