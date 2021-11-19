@@ -369,14 +369,13 @@ class TestCliWebServer:
             )
 
     def test_cli_webserver_args(self):
-        access_logformat = "custom_log_format"
 
         with mock.patch("subprocess.Popen") as Popen, mock.patch.object(webserver_command, 'GunicornMonitor'):
             args = self.parser.parse_args(
                 [
                     "webserver",
                     "--access-logformat",
-                    access_logformat,
+                    "custom_log_format",
                     "--pid",
                     "/tmp/x.pid",
                 ]
@@ -407,7 +406,7 @@ class TestCliWebServer:
                     '--error-logfile',
                     '-',
                     '--access-logformat',
-                    access_logformat,
+                    'custom_log_format',
                     'airflow.www.app:cached_app()',
                 ],
                 close_fds=True,
