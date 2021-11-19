@@ -37,37 +37,17 @@ from tests.test_utils.db import clear_db_connections
 class TestKubernetesHook(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:
-        db.merge_conn(
-            Connection(
-                conn_id='kubernetes_in_cluster',
-                conn_type='kubernetes',
-                extra=json.dumps({'extra__kubernetes__in_cluster': True}),
-            )
-        )
-        db.merge_conn(
-            Connection(
-                conn_id='kubernetes_kube_config',
-                conn_type='kubernetes',
-                extra=json.dumps({'extra__kubernetes__kube_config': '{"test": "kube"}'}),
-            )
-        )
-        db.merge_conn(
-            Connection(
-                conn_id='kubernetes_kube_config_path',
-                conn_type='kubernetes',
-                extra=json.dumps({'extra__kubernetes__kube_config_path': 'path/to/file'}),
-            )
-        )
-        db.merge_conn(
-            Connection(conn_id='kubernetes_default_kube_config', conn_type='kubernetes', extra=json.dumps({}))
-        )
-        db.merge_conn(
-            Connection(
-                conn_id='kubernetes_with_namespace',
-                conn_type='kubernetes',
-                extra=json.dumps({'extra__kubernetes__namespace': 'mock_namespace'}),
-            )
-        )
+        for conn_id, extra in [
+            ('kubernetes_in_cluster', {'extra__kubernetes__in_cluster': True}),
+            ('kubernetes_kube_config', {'extra__kubernetes__kube_config': '{"test": "kube"}'}),
+            ('kubernetes_kube_config_path', {'extra__kubernetes__kube_config_path': 'path/to/file'}),
+            ('kubernetes_in_cluster_empty', {'extra__kubernetes__in_cluster': ''}),
+            ('kubernetes_kube_config_empty', {'extra__kubernetes__kube_config': ''}),
+            ('kubernetes_kube_config_path_empty', {'extra__kubernetes__kube_config_path': ''}),
+            ('kubernetes_with_namespace', {'extra__kubernetes__namespace': 'mock_namespace'}),
+            ('kubernetes_default_kube_config', {}),
+        ]:
+            db.merge_conn(Connection(conn_type='kubernetes', conn_id=conn_id, extra=json.dumps(extra)))
 
     @classmethod
     def tearDownClass(cls) -> None:
@@ -78,6 +58,13 @@ class TestKubernetesHook(unittest.TestCase):
         kubernetes_hook = KubernetesHook(conn_id='kubernetes_in_cluster')
         api_conn = kubernetes_hook.get_conn()
         mock_kube_config_loader.assert_called_once()
+        assert isinstance(api_conn, kubernetes.client.api_client.ApiClient)
+
+    @patch("kubernetes.config.incluster_config.InClusterConfigLoader")
+    def test_in_cluster_connection_empty(self, mock_kube_config_loader):
+        kubernetes_hook = KubernetesHook(conn_id='kubernetes_in_cluster_empty')
+        api_conn = kubernetes_hook.get_conn()
+        mock_kube_config_loader.assert_not_called()
         assert isinstance(api_conn, kubernetes.client.api_client.ApiClient)
 
     @patch("kubernetes.config.kube_config.KubeConfigLoader")
@@ -91,12 +78,30 @@ class TestKubernetesHook(unittest.TestCase):
 
     @patch("kubernetes.config.kube_config.KubeConfigLoader")
     @patch("kubernetes.config.kube_config.KubeConfigMerger")
+    def test_kube_config_path_empty(self, mock_kube_config_loader, mock_kube_config_merger):
+        kubernetes_hook = KubernetesHook(conn_id='kubernetes_kube_config_path_empty')
+        api_conn = kubernetes_hook.get_conn()
+        mock_kube_config_loader.assert_called_once_with("~/.kube/config")
+        mock_kube_config_merger.assert_called_once()
+        assert isinstance(api_conn, kubernetes.client.api_client.ApiClient)
+
+    @patch("kubernetes.config.kube_config.KubeConfigLoader")
+    @patch("kubernetes.config.kube_config.KubeConfigMerger")
     @patch.object(tempfile, 'NamedTemporaryFile')
     def test_kube_config_connection(self, mock_kube_config_loader, mock_kube_config_merger, mock_tempfile):
         kubernetes_hook = KubernetesHook(conn_id='kubernetes_kube_config')
         api_conn = kubernetes_hook.get_conn()
         mock_tempfile.is_called_once()
         mock_kube_config_loader.assert_called_once()
+        mock_kube_config_merger.assert_called_once()
+        assert isinstance(api_conn, kubernetes.client.api_client.ApiClient)
+
+    @patch("kubernetes.config.kube_config.KubeConfigLoader")
+    @patch("kubernetes.config.kube_config.KubeConfigMerger")
+    def test_kube_config_connection_empty(self, mock_kube_config_loader, mock_kube_config_merger):
+        kubernetes_hook = KubernetesHook(conn_id='kubernetes_kube_config_empty')
+        api_conn = kubernetes_hook.get_conn()
+        mock_kube_config_loader.assert_called_once_with("~/.kube/config")
         mock_kube_config_merger.assert_called_once()
         assert isinstance(api_conn, kubernetes.client.api_client.ApiClient)
 
