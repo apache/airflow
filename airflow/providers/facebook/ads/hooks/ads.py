@@ -87,9 +87,7 @@ class FacebookAdsReportingHook(BaseHook):
 
     @cached_property
     def multiple_accounts(self) -> bool:
-        """
-        Checks whether provided account_id in the Facebook Ads Connection is provided as a list
-        """
+        """Checks whether provided account_id in the Facebook Ads Connection is provided as a list"""
         return isinstance(self.facebook_ads_config["account_id"], list)
 
     @cached_property
@@ -114,14 +112,14 @@ class FacebookAdsReportingHook(BaseHook):
         sleep_time: int = 5,
     ) -> Union[List[AdsInsights], Dict[str, List[AdsInsights]]]:
         """
-        Pulls data from the Facebook Ads API
+        Pulls data from the Facebook Ads API regarding Account ID with matching return type
 
         :param fields: List of fields that is obtained from Facebook. Found in AdsInsights.Field class.
             https://developers.facebook.com/docs/marketing-api/insights/parameters/v6.0
         :type fields: List[str]
         :param params: Parameters that determine the query for Facebook
             https://developers.facebook.com/docs/marketing-api/insights/parameters/v6.0
-        :type fields: Dict[str, Any]
+        :type params: Dict[str, Any]
         :param sleep_time: Time to sleep when async call is happening
         :type sleep_time: int
 
@@ -159,9 +157,30 @@ class FacebookAdsReportingHook(BaseHook):
                 sleep_time=sleep_time,
             )
 
-    def _facebook_report(self, account_id, api, params, fields, sleep_time) -> List[AdsInsights]:
+    def _facebook_report(
+        self,
+        account_id: str,
+        api: FacebookAdsApi,
+        params: Dict[str, Any],
+        fields: List[str],
+        sleep_time: int = 5,
+    ) -> List[AdsInsights]:
         """
-            List[AdInsights] holds the data returned from Facebook Graph API regarding given params and
+        Pulls data from the Facebook Ads API with given account_id
+
+        :param account_id: Facebook Account ID that holds ads information
+                https://developers.facebook.com/docs/marketing-api/reference/ads-insights/
+        :type account_id: str
+        :param api: FacebookAdsApi created in the hook
+        :type api: FacebookAdsApi
+        :param fields: List of fields that is obtained from Facebook. Found in AdsInsights.Field class.
+            https://developers.facebook.com/docs/marketing-api/insights/parameters/v6.0
+        :type fields: List[str]
+        :param params: Parameters that determine the query for Facebook
+            https://developers.facebook.com/docs/marketing-api/insights/parameters/v6.0
+        :type params: Dict[str, Any]
+        :param sleep_time: Time to sleep when async call is happening
+        :type sleep_time: int
         """
         ad_account = AdAccount(account_id, api=api)
         _async = ad_account.get_insights(params=params, fields=fields, is_async=True)
