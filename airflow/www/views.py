@@ -94,6 +94,7 @@ from airflow.api.common.experimental.mark_tasks import (
     set_dag_run_state_to_failed,
     set_dag_run_state_to_success,
 )
+from airflow.compat.functools import cached_property
 from airflow.configuration import AIRFLOW_CONFIG, conf
 from airflow.exceptions import AirflowException
 from airflow.executors.executor_loader import ExecutorLoader
@@ -3314,6 +3315,9 @@ def lazy_add_provider_discovered_options_to_connection_form():
     )
     for key, value in ProvidersManager().connection_form_widgets.items():
         setattr(ConnectionForm, key, value.field)
+        ConnectionModelView.add_columns.append(key)
+        ConnectionModelView.edit_columns.append(key)
+        ConnectionModelView.extra_fields.append(key)
 
 
 # Used to store a dictionary of field behaviours used to dynamically change available
@@ -3323,7 +3327,9 @@ def lazy_add_provider_discovered_options_to_connection_form():
 class ConnectionFormWidget(FormWidget):
     """Form widget used to display connection"""
 
-    field_behaviours = json.dumps(ProvidersManager().field_behaviours)
+    @cached_property
+    def field_behaviours(self):
+        return json.dumps(ProvidersManager().field_behaviours)
 
 
 class ConnectionModelView(AirflowModelView):
@@ -3351,7 +3357,6 @@ class ConnectionModelView(AirflowModelView):
         permissions.ACTION_CAN_ACCESS_MENU,
     ]
 
-    extra_fields = list(ProvidersManager().connection_form_widgets.keys())
     list_columns = [
         'conn_id',
         'conn_type',
@@ -3361,7 +3366,7 @@ class ConnectionModelView(AirflowModelView):
         'is_encrypted',
         'is_extra_encrypted',
     ]
-    add_columns = edit_columns = [
+    add_columns = [
         'conn_id',
         'conn_type',
         'description',
@@ -3371,7 +3376,11 @@ class ConnectionModelView(AirflowModelView):
         'password',
         'port',
         'extra',
-    ] + extra_fields
+    ]
+    edit_columns = add_columns.copy()
+
+    # Initialized later by lazy_add_provider_discovered_options_to_connection_form
+    extra_fields = []
 
     add_form = edit_form = ConnectionForm
     add_template = 'airflow/conn_create.html'
