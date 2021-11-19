@@ -87,11 +87,11 @@ class TestUtils(unittest.TestCase):
     def test_params_all(self):
         query = utils.get_params(tags=['tag1', 'tag2'], status='active', page=3, search='bash_')
         assert {
-                   'tags': ['tag1', 'tag2'],
-                   'page': ['3'],
-                   'search': ['bash_'],
-                   'status': ['active'],
-               } == parse_qs(query)
+            'tags': ['tag1', 'tag2'],
+            'page': ['3'],
+            'search': ['bash_'],
+            'status': ['active'],
+        } == parse_qs(query)
 
     def test_params_escape(self):
         assert 'search=%27%3E%22%2F%3E%3Cimg+src%3Dx+onerror%3Dalert%281%29%3E' == utils.get_params(
@@ -186,16 +186,23 @@ class TestWrappedMarkdown(unittest.TestCase):
         rendered = wrapped_markdown("{braces}", css_class="a_class")
         self.assertEqual(
             '''<div class="a_class" ><p>{braces}</p>
-</div>''', rendered)
+</div>''',
+            rendered,
+        )
 
     def test_wrapped_markdown_with_some_markdown(self):
-        rendered = wrapped_markdown("""*italic*
+        rendered = wrapped_markdown(
+            """*italic*
         **bold**
-        """, css_class="a_class")
+        """,
+            css_class="a_class",
+        )
         self.assertEqual(
             '''<div class="a_class" ><p><em>italic</em>
 <strong>bold</strong></p>
-</div>''', rendered)
+</div>''',
+            rendered,
+        )
 
     def test_wrapped_markdown_with_table(self):
         rendered = wrapped_markdown(
@@ -221,8 +228,8 @@ class TestWrappedMarkdown(unittest.TestCase):
 </tr>
 </tbody>
 </table>
-</div>'''
-            , rendered
+</div>''',
+            rendered,
         )
 
     def test_wrapped_markdown_with_indented_lines(self):
@@ -234,8 +241,11 @@ class TestWrappedMarkdown(unittest.TestCase):
             """
         )
 
-        self.assertEqual('''<div class="rich_doc" ><h1>header</h1>\n<p>1st line\n2nd line</p>
-</div>''', rendered)
+        self.assertEqual(
+            '''<div class="rich_doc" ><h1>header</h1>\n<p>1st line\n2nd line</p>
+</div>''',
+            rendered,
+        )
 
     def test_wrapped_markdown_with_raw_code_block(self):
         rendered = wrapped_markdown(
@@ -252,10 +262,13 @@ class TestWrappedMarkdown(unittest.TestCase):
             """
         )
 
-        self.assertEqual('''<div class="rich_doc" ><h1>Markdown code block</h1>
+        self.assertEqual(
+            '''<div class="rich_doc" ><h1>Markdown code block</h1>
 <p>Inline <code>code</code> works well.</p>
 <pre><code>Code block\ndoes not\nrespect\nnewlines\n</code></pre>
-</div>''', rendered)
+</div>''',
+            rendered,
+        )
 
     def test_wrapped_markdown_with_nested_list(self):
         rendered = wrapped_markdown(
@@ -267,7 +280,8 @@ class TestWrappedMarkdown(unittest.TestCase):
             """
         )
 
-        self.assertEqual('''<div class="rich_doc" ><h3>Docstring with a code block</h3>
+        self.assertEqual(
+            '''<div class="rich_doc" ><h3>Docstring with a code block</h3>
 <ul>
 <li>And
 <ul>
@@ -275,4 +289,41 @@ class TestWrappedMarkdown(unittest.TestCase):
 </ul>
 </li>
 </ul>
-</div>''', rendered)
+</div>''',
+            rendered,
+        )
+
+    def test_wrapped_markdown_with_collapsible_section(self):
+        rendered = wrapped_markdown(
+            """
+# A collapsible section with markdown
+<details>
+  <summary>Click to expand!</summary>
+
+  ## Heading
+  1. A numbered
+  2. list
+     * With some
+     * Sub bullets
+</details>
+            """
+        )
+
+        self.assertEqual(
+            '''<div class="rich_doc" ><h1>A collapsible section with markdown</h1>
+<details>
+  <summary>Click to expand!</summary>
+<h2>Heading</h2>
+<ol>
+<li>A numbered</li>
+<li>list
+<ul>
+<li>With some</li>
+<li>Sub bullets</li>
+</ul>
+</li>
+</ol>
+</details>
+</div>''',
+            rendered,
+        )
