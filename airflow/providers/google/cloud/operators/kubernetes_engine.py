@@ -365,7 +365,7 @@ class GKEStartPodOperator(KubernetesPodOperator):
                 if isinstance(self.impersonation_chain, str):
                     impersonation_account = self.impersonation_chain
                 elif len(self.impersonation_chain) == 1:
-                    impersonation_account = self.impersonation_chain[:-1]
+                    impersonation_account = self.impersonation_chain[0]
                 else:
                     raise AirflowException(
                         "Chained list of accounts is not supported, please specify only one service account"
