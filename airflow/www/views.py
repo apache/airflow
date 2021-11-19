@@ -3366,7 +3366,7 @@ class ConnectionModelView(AirflowModelView):
         'is_encrypted',
         'is_extra_encrypted',
     ]
-    add_columns = edit_columns = [
+    add_columns = [
         'conn_id',
         'conn_type',
         'description',
@@ -3377,6 +3377,7 @@ class ConnectionModelView(AirflowModelView):
         'port',
         'extra',
     ]
+    edit_columns = add_columns.copy()
 
     # Initialized later by lazy_add_provider_discovered_options_to_connection_form
     extra_fields = []
