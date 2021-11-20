@@ -52,9 +52,7 @@ def convert_volume(volume) -> k8s.V1Volume:
     :param volume:
     :return: k8s.V1Volume
     """
-    from airflow.providers.cncf.kubernetes.backcompat.volume import Volume
-
-    return _convert_kube_model_object(volume, Volume, k8s.V1Volume)
+    return _convert_kube_model_object(volume, "Volume", k8s.V1Volume)
 
 
 def convert_volume_mount(volume_mount) -> k8s.V1VolumeMount:
@@ -64,9 +62,7 @@ def convert_volume_mount(volume_mount) -> k8s.V1VolumeMount:
     :param volume_mount:
     :return: k8s.V1VolumeMount
     """
-    from airflow.providers.cncf.kubernetes.backcompat.volume_mount import VolumeMount
-
-    return _convert_kube_model_object(volume_mount, VolumeMount, k8s.V1VolumeMount)
+    return _convert_kube_model_object(volume_mount, "VolumeMount", k8s.V1VolumeMount)
 
 
 def convert_resources(resources) -> k8s.V1ResourceRequirements:
