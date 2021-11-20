@@ -112,17 +112,12 @@ class FacebookAdsReportingHook(BaseHook):
         sleep_time: int = 5,
     ) -> Union[List[AdsInsights], Dict[str, List[AdsInsights]]]:
         """
-        Pulls data from the Facebook Ads API regarding Account ID with matching return type
-
-        .. seealso::
-            If the type of Account ID is a List account_id -> list
-                Return: Dict of key: account_id, value: list of facebook_ads_report pairs
-            If the type of Account ID is a single string account_id -> str
-                Return: list of facebook_ads_report
-            For Account ID:
-                https://developers.facebook.com/docs/marketing-api/reference/ads-insights/
-            For AdsInsights:
-                https://developers.facebook.com/docs/marketing-api/reference/adgroup/insights
+        Pulls data from the Facebook Ads API regarding Account ID with matching return type.
+        The return type and value depends on the ``account_id`` configuration. If the
+        configuration is a str representing a single Account ID, the return value is the
+        list of reports for that ID. If the configuration is a list of str representing
+        multiple Account IDs, the return value is a dict of Account IDs and their
+        respective list of reports.
 
         :param fields: List of fields that is obtained from Facebook. Found in AdsInsights.Field class.
             https://developers.facebook.com/docs/marketing-api/insights/parameters/v6.0
