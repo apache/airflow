@@ -441,7 +441,7 @@ class AwsBaseHook(BaseHook):
         """Get the underlying boto3 client using boto3 session"""
         session, endpoint_url = self._get_credentials(region_name)
 
-        if client_type:
+        if client_type and client_type != 'iam':
             warnings.warn(
                 "client_type is deprecated. Set client_type from class attribute.",
                 DeprecationWarning,
@@ -491,9 +491,9 @@ class AwsBaseHook(BaseHook):
         :rtype: Union[boto3.client, boto3.resource]
         """
         if self.client_type:
-            return self.get_client_type(self.client_type, region_name=self.region_name)
+            return self.get_client_type(None, region_name=self.region_name)
         elif self.resource_type:
-            return self.get_resource_type(self.resource_type, region_name=self.region_name)
+            return self.get_resource_type(None, region_name=self.region_name)
         else:
             # Rare possibility - subclasses have not specified a client_type or resource_type
             raise NotImplementedError('Could not get boto3 connection!')
