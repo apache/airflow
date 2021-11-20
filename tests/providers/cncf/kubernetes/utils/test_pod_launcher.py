@@ -286,5 +286,4 @@ class TestPodLauncher(unittest.TestCase):
         event_container_statuses.status.container_statuses = None
         for e in [event, event_status, event_container_statuses]:
             self.pod_launcher.read_pod = mock.MagicMock(return_value=e)
-            assert self.pod_launcher.base_container_is_running(None) == False
-
+            assert self.pod_launcher.base_container_is_running(None) is False
