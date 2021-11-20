@@ -3034,7 +3034,7 @@ components:
         state:
           type: array
           items:
-            type: string
+            $ref: '#/components/schemas/TaskState'
           description:
             The value can be repeated to retrieve multiple matching values (OR condition).
         pool:
