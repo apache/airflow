@@ -29,8 +29,8 @@ this example.*
 from datetime import datetime
 
 from airflow import DAG
-from airflow.providers.microsoft.azure.operators.azure_cosmos import AzureCosmosInsertDocumentOperator
-from airflow.providers.microsoft.azure.sensors.azure_cosmos import AzureCosmosDocumentSensor
+from airflow.providers.microsoft.azure.operators.cosmos import AzureCosmosInsertDocumentOperator
+from airflow.providers.microsoft.azure.sensors.cosmos import AzureCosmosDocumentSensor
 
 with DAG(
     dag_id='example_azure_cosmosdb_sensor',

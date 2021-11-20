@@ -106,9 +106,9 @@ class KubernetesHook(BaseHook):
         """Returns kubernetes api session for use with requests"""
         connection = self.get_connection(self.conn_id)
         extras = connection.extra_dejson
-        in_cluster = extras.get("extra__kubernetes__in_cluster")
-        kubeconfig_path = extras.get("extra__kubernetes__kube_config_path")
-        kubeconfig = extras.get("extra__kubernetes__kube_config")
+        in_cluster = extras.get("extra__kubernetes__in_cluster") or None
+        kubeconfig_path = extras.get("extra__kubernetes__kube_config_path") or None
+        kubeconfig = extras.get("extra__kubernetes__kube_config") or None
         num_selected_configuration = len([o for o in [in_cluster, kubeconfig, kubeconfig_path] if o])
 
         if num_selected_configuration > 1:

@@ -40,7 +40,7 @@ from airflow.utils import cli as cli_utils
 from airflow.utils.cli import setup_locations, setup_logging
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.process_utils import check_if_pidfile_process_is_running
-from airflow.www.app import cached_app, create_app
+from airflow.www.app import create_app
 
 log = logging.getLogger(__name__)
 
@@ -354,11 +354,6 @@ def webserver(args):
             ssl_context=(ssl_cert, ssl_key) if ssl_cert and ssl_key else None,
         )
     else:
-        # This pre-warms the cache, and makes possible errors
-        # get reported earlier (i.e. before demonization)
-        os.environ['SKIP_DAGS_PARSING'] = 'True'
-        app = cached_app(None)
-        os.environ.pop('SKIP_DAGS_PARSING')
 
         pid_file, stdout, stderr, log_file = setup_locations(
             "webserver", args.pid, args.stdout, args.stderr, args.log_file
@@ -446,6 +441,11 @@ def webserver(args):
             ).start()
 
         if args.daemon:
+            # This makes possible errors get reported before daemonization
+            os.environ['SKIP_DAGS_PARSING'] = 'True'
+            app = create_app(None)
+            os.environ.pop('SKIP_DAGS_PARSING')
+
             handle = setup_logging(log_file)
 
             base, ext = os.path.splitext(pid_file)

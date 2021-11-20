@@ -31,6 +31,7 @@ const treeDataUrl = getMetaValue('tree_data');
 const numRuns = getMetaValue('num_runs');
 const urlRoot = getMetaValue('root');
 const isPaused = getMetaValue('is_paused');
+const baseDate = getMetaValue('base_date');
 
 const areActiveRuns = (runs) => runs.filter((run) => ['queued', 'running', 'scheduled'].includes(run.state)).length > 0;
 
@@ -46,20 +47,19 @@ const formatData = (data) => {
   if (typeof data === 'string') formattedData = JSON.parse(data);
   // change from pacal to camelcase
   formattedData = camelcaseKeys(formattedData, { deep: true });
-  // make sure dagRuns are sorted by date
-  formattedData.dagRuns = formattedData.dagRuns
-    .sort((a, b) => new Date(a.dataIntervalStart) - new Date(b.dataIntervalStart));
   return formattedData;
 };
 
 const useTreeData = () => {
   const [data, setData] = useState(formatData(treeData));
   const defaultIsOpen = isPaused !== 'True' && !JSON.parse(localStorage.getItem('disableAutoRefresh')) && areActiveRuns(data.dagRuns);
-  const { isOpen: isRefreshOn, onToggle } = useDisclosure({ defaultIsOpen });
+  const { isOpen: isRefreshOn, onToggle, onClose } = useDisclosure({ defaultIsOpen });
 
   const handleRefresh = useCallback(async () => {
     try {
-      const resp = await fetch(`${treeDataUrl}?dag_id=${dagId}&num_runs=${numRuns}&root=${urlRoot}`);
+      const root = urlRoot ? `&root=${urlRoot}` : '';
+      const base = baseDate ? `&base_date=${baseDate}` : '';
+      const resp = await fetch(`${treeDataUrl}?dag_id=${dagId}&num_runs=${numRuns}${root}${base}`);
       let newData = await resp.json();
       if (newData) {
         newData = formatData(newData);
@@ -67,12 +67,13 @@ const useTreeData = () => {
           setData(newData);
         }
         // turn off auto refresh if there are no active runs
-        if (!areActiveRuns(newData.dagRuns)) onToggle();
+        if (!areActiveRuns(newData.dagRuns)) onClose();
       }
     } catch (e) {
+      onClose();
       console.error(e);
     }
-  }, [data, onToggle]);
+  }, [data, onClose]);
 
   const onToggleRefresh = () => {
     if (isRefreshOn) {

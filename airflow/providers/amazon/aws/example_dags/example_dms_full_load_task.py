@@ -18,7 +18,7 @@
 """
 This is an example dag for running full load DMS replication task.
 """
-from datetime import timedelta
+from datetime import datetime, timedelta
 from os import getenv
 
 from airflow import DAG
@@ -26,7 +26,6 @@ from airflow.providers.amazon.aws.operators.dms_create_task import DmsCreateTask
 from airflow.providers.amazon.aws.operators.dms_delete_task import DmsDeleteTaskOperator
 from airflow.providers.amazon.aws.operators.dms_start_task import DmsStartTaskOperator
 from airflow.providers.amazon.aws.sensors.dms_task import DmsTaskCompletedSensor
-from airflow.utils.dates import days_ago
 
 REPLICATION_TASK_ID = getenv('REPLICATION_TASK_ID', 'full-load-test-export')
 SOURCE_ENDPOINT_ARN = getenv('SOURCE_ENDPOINT_ARN', 'source_endpoint_arn')
@@ -50,20 +49,14 @@ TABLE_MAPPINGS = {
 
 with DAG(
     dag_id='dms_full_load_task_run_dag',
-    default_args={
-        'owner': 'airflow',
-        'depends_on_past': False,
-        'email': ['airflow@example.com'],
-        'email_on_failure': False,
-        'email_on_retry': False,
-    },
     dagrun_timeout=timedelta(hours=2),
-    start_date=days_ago(2),
+    start_date=datetime(2021, 1, 1),
     schedule_interval='0 3 * * *',
+    catchup=False,
     tags=['example'],
 ) as dag:
 
-    # [START howto_dms_create_task_operator]
+    # [START howto_dms_operators]
     create_task = DmsCreateTaskOperator(
         task_id='create_task',
         replication_task_id=REPLICATION_TASK_ID,
@@ -72,28 +65,22 @@ with DAG(
         replication_instance_arn=REPLICATION_INSTANCE_ARN,
         table_mappings=TABLE_MAPPINGS,
     )
-    # [END howto_dms_create_task_operator]
 
-    # [START howto_dms_start_task_operator]
     start_task = DmsStartTaskOperator(
         task_id='start_task',
         replication_task_arn=create_task.output,
     )
-    # [END howto_dms_start_task_operator]
 
-    # [START howto_dms_task_completed_sensor]
     wait_for_completion = DmsTaskCompletedSensor(
         task_id='wait_for_completion',
         replication_task_arn=create_task.output,
     )
-    # [END howto_dms_task_completed_sensor]
 
-    # [START howto_dms_delete_task_operator]
     delete_task = DmsDeleteTaskOperator(
         task_id='delete_task',
         replication_task_arn=create_task.output,
     )
-    # [END howto_dms_delete_task_operator]
+    # [END howto_dms_operators]
 
     start_task >> wait_for_completion >> delete_task
 

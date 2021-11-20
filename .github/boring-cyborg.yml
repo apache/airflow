@@ -52,7 +52,6 @@ labelPRBasedOnFilePath:
   area:kubernetes:
     - airflow/**/kubernetes_*.py
     - airflow/example_dags/example_kubernetes_executor.py
-    - airflow/example_dags/example_kubernetes_executor_config.py
     - airflow/providers/cncf/kubernetes/**/*
     - airflow/kubernetes/**/*
     - airflow/kubernetes_executor_templates/**/*

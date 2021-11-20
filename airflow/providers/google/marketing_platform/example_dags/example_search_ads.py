@@ -19,6 +19,7 @@
 Example Airflow DAG that shows how to use SearchAds.
 """
 import os
+from datetime import datetime
 
 from airflow import models
 from airflow.providers.google.marketing_platform.operators.search_ads import (
@@ -26,7 +27,6 @@ from airflow.providers.google.marketing_platform.operators.search_ads import (
     GoogleSearchAdsInsertReportOperator,
 )
 from airflow.providers.google.marketing_platform.sensors.search_ads import GoogleSearchAdsReportSensor
-from airflow.utils import dates
 
 # [START howto_search_ads_env_variables]
 AGENCY_ID = os.environ.get("GMP_AGENCY_ID")
@@ -47,7 +47,8 @@ REPORT = {
 with models.DAG(
     "example_search_ads",
     schedule_interval='@once',  # Override to match your needs,
-    start_date=dates.days_ago(1),
+    start_date=datetime(2021, 1, 1),
+    catchup=False,
 ) as dag:
     # [START howto_search_ads_generate_report_operator]
     generate_report = GoogleSearchAdsInsertReportOperator(report=REPORT, task_id="generate_report")

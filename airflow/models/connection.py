@@ -285,8 +285,8 @@ class Connection(Base, LoggingMixin):
         if self._extra and self.is_extra_encrypted:
             self._extra = fernet.rotate(self._extra.encode('utf-8')).decode()
 
-    def get_hook(self):
-        """Return hook based on conn_type."""
+    def get_hook(self, *, hook_kwargs=None):
+        """Return hook based on conn_type"""
         (
             hook_class_name,
             conn_id_param,
@@ -304,7 +304,9 @@ class Connection(Base, LoggingMixin):
                 "Could not import %s when discovering %s %s", hook_class_name, hook_name, package_name
             )
             raise
-        return hook_class(**{conn_id_param: self.conn_id})
+        if hook_kwargs is None:
+            hook_kwargs = {}
+        return hook_class(**{conn_id_param: self.conn_id}, **hook_kwargs)
 
     def __repr__(self):
         return self.conn_id

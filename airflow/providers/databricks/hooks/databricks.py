@@ -34,17 +34,17 @@ from airflow import __version__
 from airflow.exceptions import AirflowException
 from airflow.hooks.base import BaseHook
 
-RESTART_CLUSTER_ENDPOINT = ("POST", "api/2.1/clusters/restart")
-START_CLUSTER_ENDPOINT = ("POST", "api/2.1/clusters/start")
-TERMINATE_CLUSTER_ENDPOINT = ("POST", "api/2.1/clusters/delete")
+RESTART_CLUSTER_ENDPOINT = ("POST", "api/2.0/clusters/restart")
+START_CLUSTER_ENDPOINT = ("POST", "api/2.0/clusters/start")
+TERMINATE_CLUSTER_ENDPOINT = ("POST", "api/2.0/clusters/delete")
 
 RUN_NOW_ENDPOINT = ('POST', 'api/2.1/jobs/run-now')
 SUBMIT_RUN_ENDPOINT = ('POST', 'api/2.1/jobs/runs/submit')
 GET_RUN_ENDPOINT = ('GET', 'api/2.1/jobs/runs/get')
 CANCEL_RUN_ENDPOINT = ('POST', 'api/2.1/jobs/runs/cancel')
 
-INSTALL_LIBS_ENDPOINT = ('POST', 'api/2.1/libraries/install')
-UNINSTALL_LIBS_ENDPOINT = ('POST', 'api/2.1/libraries/uninstall')
+INSTALL_LIBS_ENDPOINT = ('POST', 'api/2.0/libraries/install')
+UNINSTALL_LIBS_ENDPOINT = ('POST', 'api/2.0/libraries/uninstall')
 
 USER_AGENT_HEADER = {'user-agent': f'airflow-{__version__}'}
 
@@ -270,8 +270,13 @@ class DatabricksHook(BaseHook):
             host = self.databricks_conn.host
 
         if 'token' in self.databricks_conn.extra_dejson:
-            self.log.info('Using token auth.')
+            self.log.info(
+                'Using token auth. For security reasons, please set token in Password field instead of extra'
+            )
             auth = _TokenAuth(self.databricks_conn.extra_dejson['token'])
+        elif not self.databricks_conn.login and self.databricks_conn.password:
+            self.log.info('Using token auth.')
+            auth = _TokenAuth(self.databricks_conn.password)
         elif 'azure_tenant_id' in self.databricks_conn.extra_dejson:
             if self.databricks_conn.login == "" or self.databricks_conn.password == "":
                 raise AirflowException("Azure SPN credentials aren't provided")

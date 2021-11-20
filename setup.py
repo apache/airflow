@@ -347,6 +347,7 @@ hashicorp = [
 ]
 hdfs = [
     'snakebite-py3',
+    'hdfs[avro,dataframe,kerberos]>=2.0.4',
 ]
 hive = [
     'hmsclient>=0.1.0',
@@ -531,7 +532,7 @@ devel_only = [
     'jira',
     'jsondiff',
     'mongomock',
-    'moto~=2.2, >=2.2.7',
+    'moto~=2.2, >=2.2.12',
     'mypy==0.770',
     'parameterized',
     'paramiko',

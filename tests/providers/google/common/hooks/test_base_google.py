@@ -332,6 +332,7 @@ class TestGoogleBaseHook(unittest.TestCase):
         mock_get_creds_and_proj_id.assert_called_once_with(
             key_path=None,
             keyfile_dict=None,
+            key_secret_name=None,
             scopes=self.instance.scopes,
             delegate_to=None,
             target_principal=None,
@@ -348,6 +349,7 @@ class TestGoogleBaseHook(unittest.TestCase):
         mock_get_creds_and_proj_id.assert_called_once_with(
             key_path='KEY_PATH.json',
             keyfile_dict=None,
+            key_secret_name=None,
             scopes=self.instance.scopes,
             delegate_to=None,
             target_principal=None,
@@ -375,6 +377,7 @@ class TestGoogleBaseHook(unittest.TestCase):
         mock_get_creds_and_proj_id.assert_called_once_with(
             key_path=None,
             keyfile_dict=service_account,
+            key_secret_name=None,
             scopes=self.instance.scopes,
             delegate_to=None,
             target_principal=None,
@@ -392,6 +395,7 @@ class TestGoogleBaseHook(unittest.TestCase):
         mock_get_creds_and_proj_id.assert_called_once_with(
             key_path=None,
             keyfile_dict=None,
+            key_secret_name=None,
             scopes=self.instance.scopes,
             delegate_to="USER",
             target_principal=None,
@@ -425,6 +429,7 @@ class TestGoogleBaseHook(unittest.TestCase):
         mock_get_creds_and_proj_id.assert_called_once_with(
             key_path=None,
             keyfile_dict=None,
+            key_secret_name=None,
             scopes=self.instance.scopes,
             delegate_to=None,
             target_principal=None,
@@ -442,7 +447,9 @@ class TestGoogleBaseHook(unittest.TestCase):
         }
         with pytest.raises(
             AirflowException,
-            match=re.escape('The `keyfile_dict` and `key_path` fields are mutually exclusive.'),
+            match=re.escape(
+                "The `keyfile_dict`, `key_path`, and `key_secret_name` fields" "are all mutually exclusive. "
+            ),
         ):
             self.instance._get_credentials_and_project_id()
 
@@ -626,6 +633,7 @@ class TestGoogleBaseHook(unittest.TestCase):
         mock_get_creds_and_proj_id.assert_called_once_with(
             key_path=None,
             keyfile_dict=None,
+            key_secret_name=None,
             scopes=self.instance.scopes,
             delegate_to=None,
             target_principal=target_principal,

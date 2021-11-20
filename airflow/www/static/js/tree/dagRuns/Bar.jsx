@@ -43,7 +43,7 @@ const DagRunBar = ({
       pb="2px"
       px="3px"
       onClick={() => {
-        callModalDag({ execution_date: run.executionDate, dagId: run.dagId });
+        callModalDag({ execution_date: run.executionDate, dag_id: run.dagId });
       }}
     >
       <Tooltip

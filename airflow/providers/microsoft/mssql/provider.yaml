@@ -35,6 +35,8 @@ integrations:
   - integration-name: Microsoft SQL Server (MSSQL)
     external-doc-url: https://www.microsoft.com/en-us/sql-server/sql-server-downloads
     logo: /integration-logos/mssql/Microsoft-SQL-Server.png
+    how-to-guide:
+      - /docs/apache-airflow-providers-microsoft-mssql/operators.rst
     tags: [software]
 
 operators:
