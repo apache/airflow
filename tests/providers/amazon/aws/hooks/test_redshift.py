@@ -108,15 +108,6 @@ class TestRedshiftHook(unittest.TestCase):
         status = hook.cluster_status('test_cluster')
         assert status == 'available'
 
-    @unittest.skipIf(mock_redshift is None, 'mock_redshift package not present')
-    @mock_redshift
-    def test_wait_for_state_waits_for_available_cluster(self):
-        self._create_clusters()
-        hook = RedshiftHook(aws_conn_id='aws_default')
-        hook.wait_for_state(cluster_identifier='test_cluster', target_state='available', check_interval=5)
-        status = hook.cluster_status('test_cluster')
-        assert status == 'available'
-
 
 class TestRedshiftSQLHookConn(unittest.TestCase):
     def setUp(self):

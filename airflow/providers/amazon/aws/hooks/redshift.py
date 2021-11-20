@@ -24,6 +24,8 @@ try:
 except ImportError:
     from cached_property import cached_property
 
+from enum import Enum
+
 import redshift_connector
 from redshift_connector import Connection as RedshiftConnection
 from sqlalchemy import create_engine
@@ -31,6 +33,20 @@ from sqlalchemy.engine.url import URL
 
 from airflow.hooks.dbapi import DbApiHook
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
+
+
+class ClusterStates(Enum):
+    """Contains the possible State values of a Redshift Cluster."""
+
+    AVAILABLE = 'available'
+    CREATING = 'creating'
+    DELETING = 'deleting'
+    RESUMING = 'resuming'
+    MODIFYING = 'modifying'
+    PAUSED = 'paused'
+    REBOOTING = 'rebooting'
+    RENAMING = 'renaming'
+    RESIZING = 'resizing'
 
 
 class RedshiftHook(AwsBaseHook):
@@ -137,26 +153,6 @@ class RedshiftHook(AwsBaseHook):
             ClusterIdentifier=cluster_identifier,
         )
         return response['Snapshot'] if response['Snapshot'] else None
-
-    def wait_for_state(self, cluster_identifier: str, target_state: str, check_interval: float) -> None:
-        """
-        Wait Redshift Cluster until its state is equal to the target_state.
-
-        :param cluster_identifier: unique identifier of a cluster
-        :type cluster_identifier: str
-        :param target_state: target state of instance
-        :type target_state: str
-        :param check_interval: time in seconds that the job should wait in
-            between each instance state checks until operation is completed
-        :type check_interval: float
-        :return: None
-        :rtype: None
-        """
-        cluster_state = self.cluster_status(cluster_identifier=cluster_identifier)
-        while cluster_state != target_state:
-            self.log.info("instance state: %s", cluster_state)
-            time.sleep(check_interval)
-            cluster_state = self.cluster_status(cluster_identifier=cluster_identifier)
 
 
 class RedshiftSQLHook(DbApiHook):

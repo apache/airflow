@@ -17,7 +17,7 @@
 # under the License.
 
 from airflow.models import BaseOperator
-from airflow.providers.amazon.aws.hooks.redshift import RedshiftHook
+from airflow.providers.amazon.aws.hooks.redshift import ClusterStates, RedshiftHook
 
 
 class RedshiftPauseClusterOperator(BaseOperator):
@@ -53,11 +53,6 @@ class RedshiftPauseClusterOperator(BaseOperator):
     def execute(self, context):
         redshift_hook = RedshiftHook(aws_conn_id=self.aws_conn_id)
         self.log.info("Pausing Redshift cluster %s", self.cluster_identifier)
-        cluster_state = redshift_hook.cluster_status(cluster_identifier=self.cluster_identifier)
-        if cluster_state == 'available':
+        cluster_state = ClusterStates(redshift_hook.cluster_status(cluster_identifier=self.cluster_identifier))
+        if cluster_state == ClusterStates.AVAILABLE:
             redshift_hook.get_conn().pause_cluster(ClusterIdentifier=self.cluster_identifier)
-        redshift_hook.wait_for_state(
-            cluster_identifier=self.cluster_identifier,
-            target_state="paused",
-            check_interval=self.check_interval,
-        )
