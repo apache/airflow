@@ -17,10 +17,7 @@
 # under the License.
 from unittest import mock
 
-from parameterized import parameterized
-
 from airflow.configuration import conf
-from airflow.executors.kubernetes_executor import KubernetesExecutor
 from airflow.executors.local_executor import LocalExecutor
 from airflow.executors.local_kubernetes_executor import LocalKubernetesExecutor
 
