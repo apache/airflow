@@ -21,7 +21,7 @@
 
 
 function parallel::initialize_monitoring() {
-    PARALLEL_MONITORED_DIR="$(mktemp -d)"
+    PARALLEL_MONITORED_DIR="./files/container_logs$(mktemp -d)"
     export PARALLEL_MONITORED_DIR
 
     PARALLEL_TAIL_LENGTH=${PARALLEL_TAIL_LENGTH:=2}
