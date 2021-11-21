@@ -19,12 +19,49 @@ from unittest import mock
 
 from parameterized import parameterized
 
+from airflow.configuration import conf
+from airflow.executors.kubernetes_executor import KubernetesExecutor
 from airflow.executors.local_executor import LocalExecutor
 from airflow.executors.local_kubernetes_executor import LocalKubernetesExecutor
-from airflow.executors.kubernetes_executor import KubernetesExecutor
 
-KUBERNETES_QUEUE = CeleryKubernetesExecutor.KUBERNETES_QUEUE
+KUBERNETES_QUEUE = LocalKubernetesExecutor.KUBERNETES_QUEUE
 
 
 class TestLocalKubernetesExecutor:
-    pass
+    def test_queued_tasks(self):
+        local_executor_mock = mock.MagicMock()
+        k8s_executor_mock = mock.MagicMock()
+        local_kubernetes_executor = LocalKubernetesExecutor(local_executor_mock, k8s_executor_mock)
+
+        local_queued_tasks = {('dag_id', 'task_id', '2020-08-30', 1): 'queued_command'}
+        k8s_queued_tasks = {('dag_id_2', 'task_id_2', '2020-08-30', 2): 'queued_command'}
+
+        local_executor_mock.queued_tasks = local_queued_tasks
+        k8s_executor_mock.queued_tasks = k8s_queued_tasks
+
+        expected_queued_tasks = {**local_queued_tasks, **k8s_queued_tasks}
+
+        assert local_kubernetes_executor.queued_tasks == expected_queued_tasks
+        assert len(local_kubernetes_executor.queued_tasks) == 2
+
+    def test_running(self):
+        local_executor_mock = mock.MagicMock()
+        k8s_executor_mock = mock.MagicMock()
+        local_kubernetes_executor = LocalKubernetesExecutor(local_executor_mock, k8s_executor_mock)
+
+        local_running_tasks = {('dag_id', 'task_id', '2020-08-30', 1)}
+        k8s_running_tasks = {}
+
+        local_executor_mock.running = local_running_tasks
+        k8s_executor_mock.running = k8s_running_tasks
+
+        assert local_kubernetes_executor.running == local_running_tasks.union(k8s_running_tasks)
+        assert len(local_kubernetes_executor.running) == 1
+
+    def test_slots_available(self):
+        local_executor = LocalExecutor()
+        k8s_executor_mock = mock.MagicMock()
+        local_kubernetes_executor = LocalKubernetesExecutor(local_executor, k8s_executor_mock)
+
+        # Should be equal to Local Executor default parallelism.
+        assert local_kubernetes_executor.slots_available == conf.getint('core', 'PARALLELISM')
