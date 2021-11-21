@@ -15,6 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+import ast
 import os
 from typing import Any, Iterable, Optional
 
@@ -92,6 +93,7 @@ class TrinoHook(DbApiHook):
             auth=auth,
             isolation_level=self.get_isolation_level(),  # type: ignore[func-returns-value]
             verify=_boolify(extra.get('verify', True)),
+            session_properties=ast.literal_eval(extra.get('session_properties')),
         )
 
         return trino_conn
