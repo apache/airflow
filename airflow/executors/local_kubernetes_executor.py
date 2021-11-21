@@ -31,7 +31,7 @@ class LocalKubernetesExecutor(LoggingMixin):
     It chooses an executor to use based on the queue defined on the task.
     When the queue is the value of ``kubernetes_queue`` in section ``[local_kubernetes_executor]``
     of the configuration (default value: `kubernetes`), KubernetesExecutor is selected to run the task,
-    otherwise, CeleryExecutor is used.
+    otherwise, LocalExecutor is used.
     """
 
     supports_ad_hoc_ti_run: bool = True
@@ -147,10 +147,10 @@ class LocalKubernetesExecutor(LoggingMixin):
         :param dag_ids: dag_ids to return events for, if None returns all
         :return: a dict of events
         """
-        cleared_events_from_celery = self.local_executor.get_event_buffer(dag_ids)
+        cleared_events_from_local = self.local_executor.get_event_buffer(dag_ids)
         cleared_events_from_kubernetes = self.kubernetes_executor.get_event_buffer(dag_ids)
 
-        return {**cleared_events_from_celery, **cleared_events_from_kubernetes}
+        return {**cleared_events_from_local, **cleared_events_from_kubernetes}
 
     def try_adopt_task_instances(self, tis: List[TaskInstance]) -> List[TaskInstance]:
         """
@@ -162,15 +162,15 @@ class LocalKubernetesExecutor(LoggingMixin):
         :return: any TaskInstances that were unable to be adopted
         :rtype: list[airflow.models.TaskInstance]
         """
-        celery_tis = []
+        local_tis = []
         kubernetes_tis = []
         abandoned_tis = []
         for ti in tis:
             if ti.queue == self.KUBERNETES_QUEUE:
                 kubernetes_tis.append(ti)
             else:
-                celery_tis.append(ti)
-        abandoned_tis.extend(self.local_executor.try_adopt_task_instances(celery_tis))
+                local_tis.append(ti)
+        abandoned_tis.extend(self.local_executor.try_adopt_task_instances(local_tis))
         abandoned_tis.extend(self.kubernetes_executor.try_adopt_task_instances(kubernetes_tis))
         return abandoned_tis
 
