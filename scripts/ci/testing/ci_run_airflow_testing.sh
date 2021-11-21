@@ -35,12 +35,12 @@ export SEMAPHORE_NAME
 function run_test_types_in_parallel() {
     start_end::group_start "Monitoring tests: ${test_types_to_run}"
     parallel::monitor_progress
-    mkdir -p "${PARALLEL_MONITORED_DIR}/${SEMAPHORE_NAME}"
+    mkdir -p "./files/container_logs${PARALLEL_MONITORED_DIR}/${SEMAPHORE_NAME}"
     for TEST_TYPE in ${test_types_to_run}
     do
         export TEST_TYPE
-        mkdir -p "${PARALLEL_MONITORED_DIR}/${SEMAPHORE_NAME}/${TEST_TYPE}"
-        export JOB_LOG="${PARALLEL_MONITORED_DIR}/${SEMAPHORE_NAME}/${TEST_TYPE}/stdout"
+        mkdir -p "./files/container_logs${PARALLEL_MONITORED_DIR}/${SEMAPHORE_NAME}/${TEST_TYPE}"
+        export JOB_LOG="./files/container_logs${PARALLEL_MONITORED_DIR}/${SEMAPHORE_NAME}/${TEST_TYPE}/stdout"
         export PARALLEL_JOB_STATUS="${PARALLEL_MONITORED_DIR}/${SEMAPHORE_NAME}/${TEST_TYPE}/status"
         # Each test job will get SIGTERM followed by SIGTERM 200ms later and SIGKILL 200ms later after 45 mins
         # shellcheck disable=SC2086
