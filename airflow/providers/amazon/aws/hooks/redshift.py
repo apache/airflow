@@ -47,6 +47,7 @@ class ClusterStates(Enum):
     REBOOTING = 'rebooting'
     RENAMING = 'renaming'
     RESIZING = 'resizing'
+    NONEXISTENT = 'nonexistent'
 
 
 class RedshiftHook(AwsBaseHook):
@@ -68,7 +69,7 @@ class RedshiftHook(AwsBaseHook):
         super().__init__(*args, **kwargs)
 
     # TODO: Wrap create_cluster_snapshot
-    def cluster_status(self, cluster_identifier: str) -> str:
+    def cluster_status(self, cluster_identifier: str) -> ClusterStates:
         """
         Return status of a cluster
 
@@ -81,9 +82,9 @@ class RedshiftHook(AwsBaseHook):
         """
         try:
             response = self.get_conn().describe_clusters(ClusterIdentifier=cluster_identifier)['Clusters']
-            return response[0]['ClusterStatus'] if response else None
+            return ClusterStates(response[0]['ClusterStatus']) if response else None
         except self.get_conn().exceptions.ClusterNotFoundFault:
-            return 'cluster_not_found'
+            return ClusterStates.NONEXISTENT
 
     def delete_cluster(
         self,

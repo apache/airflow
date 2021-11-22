@@ -17,7 +17,7 @@
 # under the License.
 from typing import Optional
 
-from airflow.providers.amazon.aws.hooks.redshift import RedshiftHook
+from airflow.providers.amazon.aws.hooks.redshift import ClusterStates, RedshiftHook
 from airflow.sensors.base import BaseSensorOperator
 
 
@@ -43,7 +43,10 @@ class AwsRedshiftClusterSensor(BaseSensorOperator):
     ):
         super().__init__(**kwargs)
         self.cluster_identifier = cluster_identifier
-        self.target_status = target_status
+        self.target_status = (
+            target_status if isinstance(target_status, ClusterStates) else ClusterStates(str(target_status))
+        )
+
         self.aws_conn_id = aws_conn_id
         self.hook: Optional[RedshiftHook] = None
 

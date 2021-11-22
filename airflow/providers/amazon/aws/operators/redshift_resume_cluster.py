@@ -53,6 +53,6 @@ class RedshiftResumeClusterOperator(BaseOperator):
     def execute(self, context):
         redshift_hook = RedshiftHook(aws_conn_id=self.aws_conn_id)
         self.log.info("Starting Redshift cluster %s", self.cluster_identifier)
-        cluster_state = ClusterStates(redshift_hook.cluster_status(cluster_identifier=self.cluster_identifier))
+        cluster_state = redshift_hook.cluster_status(cluster_identifier=self.cluster_identifier)
         if cluster_state == ClusterStates.PAUSED:
             redshift_hook.get_conn().resume_cluster(ClusterIdentifier=self.cluster_identifier)

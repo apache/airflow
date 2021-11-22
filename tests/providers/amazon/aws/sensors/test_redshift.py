@@ -21,6 +21,7 @@ import unittest
 
 import boto3
 
+from airflow.providers.amazon.aws.hooks.redshift import ClusterStates
 from airflow.providers.amazon.aws.sensors.redshift import AwsRedshiftClusterSensor
 
 try:
@@ -58,6 +59,20 @@ class TestAwsRedshiftClusterSensor(unittest.TestCase):
 
     @unittest.skipIf(mock_redshift is None, 'mock_redshift package not present')
     @mock_redshift
+    def test_poke_with_cluster_state(self):
+        self._create_cluster()
+        op = AwsRedshiftClusterSensor(
+            task_id='test_cluster_sensor',
+            poke_interval=1,
+            timeout=5,
+            aws_conn_id='aws_default',
+            cluster_identifier='test_cluster',
+            target_status=ClusterStates.AVAILABLE,
+        )
+        assert op.poke(None)
+
+    @unittest.skipIf(mock_redshift is None, 'mock_redshift package not present')
+    @mock_redshift
     def test_poke_false(self):
         self._create_cluster()
         op = AwsRedshiftClusterSensor(
@@ -81,7 +96,7 @@ class TestAwsRedshiftClusterSensor(unittest.TestCase):
             timeout=5,
             aws_conn_id='aws_default',
             cluster_identifier='test_cluster_not_found',
-            target_status='cluster_not_found',
+            target_status=ClusterStates.NONEXISTENT,
         )
 
         assert op.poke(None)
