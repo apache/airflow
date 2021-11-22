@@ -100,11 +100,9 @@ class TriggerDagRunOperator(BaseOperator):
         self.allowed_states = allowed_states or [State.SUCCESS]
         self.failed_states = failed_states or [State.FAILED]
 
-        if not isinstance(execution_date, (str, datetime.datetime, type(None))):
-            raise TypeError(
-                "Expected str or datetime.datetime type for execution_date."
-                "Got {}".format(type(execution_date))
-            )
+        if execution_date is not None and not isinstance(execution_date, (str, datetime.datetime)):
+            error = f"Expected str or datetime.datetime type for execution_date. Got {type(execution_date)}."
+            raise TypeError(error)
 
         self.execution_date = execution_date
 
