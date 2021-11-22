@@ -18,7 +18,12 @@
 import subprocess
 import unittest
 
-from docker_tests_utils import display_dependency_conflict_message, docker_image, run_bash, run_command
+from docker_tests.docker_tests_utils import (
+    display_dependency_conflict_message,
+    docker_image,
+    run_bash,
+    run_command,
+)
 
 
 class TestFiles(unittest.TestCase):
