@@ -175,7 +175,8 @@ you can pass ``render_template_as_native_obj=True`` to the DAG as follows:
     dag = DAG(
         dag_id="example_template_as_python_object",
         schedule_interval=None,
-        start_date=days_ago(2),
+        start_date=datetime(2021, 1, 1),
+        catchup=False,
         render_template_as_native_obj=True,
     )
 

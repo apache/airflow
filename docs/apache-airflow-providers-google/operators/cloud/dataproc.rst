@@ -57,6 +57,19 @@ With this configuration we can create the cluster:
     :start-after: [START how_to_cloud_dataproc_create_cluster_operator]
     :end-before: [END how_to_cloud_dataproc_create_cluster_operator]
 
+Generating Cluster Config
+^^^^^^^^^^^^^^^^^^^^^^^^^
+You can also generate **CLUSTER_CONFIG** using functional API,
+this could be easily done using **make()** of
+:class:`~airflow.providers.google.cloud.operators.dataproc.ClusterGenerator`
+You can generate and use config as followed:
+
+.. exampleinclude:: /../../airflow/providers/google/cloud/example_dags/example_dataproc.py
+    :language: python
+    :dedent: 0
+    :start-after: [START how_to_cloud_dataproc_create_cluster_generate_cluster_config]
+    :end-before: [END how_to_cloud_dataproc_create_cluster_generate_cluster_config]
+
 Update a cluster
 ----------------
 You can scale the cluster up or down by providing a cluster config and a updateMask.

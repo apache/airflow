@@ -30,22 +30,21 @@ works.
 
 .. code-block:: python
 
+    from datetime import datetime, timedelta
+
     from airflow.operators.bash import BashOperator
     from airflow.operators.dummy import DummyOperator
     from airflow.lineage import AUTO
     from airflow.lineage.entities import File
     from airflow.models import DAG
-    from airflow.utils.dates import days_ago
-    from datetime import timedelta
 
     FILE_CATEGORIES = ["CAT1", "CAT2", "CAT3"]
 
-    args = {"owner": "airflow", "start_date": days_ago(2)}
-
     dag = DAG(
         dag_id="example_lineage",
-        default_args=args,
+        start_date=datetime(2021, 1, 1),
         schedule_interval="0 0 * * *",
+        catchup=False,
         dagrun_timeout=timedelta(minutes=60),
     )
 

@@ -29,6 +29,10 @@ class MsSqlOperator(BaseOperator):
     """
     Executes sql code in a specific Microsoft SQL database
 
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:MsSqlOperator`
+
     This operator may use one of two hooks, depending on the ``conn_type`` of the connection.
 
     If conn_type is ``'odbc'``, then :py:class:`~airflow.providers.odbc.hooks.odbc.OdbcHook`

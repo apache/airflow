@@ -21,14 +21,13 @@ This is an example dag for a AWS EMR Pipeline.
 Starting by creating a cluster, adding steps/operations, checking steps and finally when finished
 terminating the cluster.
 """
-from datetime import timedelta
+from datetime import datetime, timedelta
 
 from airflow import DAG
 from airflow.providers.amazon.aws.operators.emr_add_steps import EmrAddStepsOperator
 from airflow.providers.amazon.aws.operators.emr_create_job_flow import EmrCreateJobFlowOperator
 from airflow.providers.amazon.aws.operators.emr_terminate_job_flow import EmrTerminateJobFlowOperator
 from airflow.providers.amazon.aws.sensors.emr_step import EmrStepSensor
-from airflow.utils.dates import days_ago
 
 SPARK_STEPS = [
     {
@@ -64,16 +63,10 @@ JOB_FLOW_OVERRIDES = {
 
 with DAG(
     dag_id='emr_job_flow_manual_steps_dag',
-    default_args={
-        'owner': 'airflow',
-        'depends_on_past': False,
-        'email': ['airflow@example.com'],
-        'email_on_failure': False,
-        'email_on_retry': False,
-    },
     dagrun_timeout=timedelta(hours=2),
-    start_date=days_ago(2),
+    start_date=datetime(2021, 1, 1),
     schedule_interval='0 3 * * *',
+    catchup=False,
     tags=['example'],
 ) as dag:
 
@@ -81,14 +74,11 @@ with DAG(
     cluster_creator = EmrCreateJobFlowOperator(
         task_id='create_job_flow',
         job_flow_overrides=JOB_FLOW_OVERRIDES,
-        aws_conn_id='aws_default',
-        emr_conn_id='emr_default',
     )
 
     step_adder = EmrAddStepsOperator(
         task_id='add_steps',
         job_flow_id=cluster_creator.output,
-        aws_conn_id='aws_default',
         steps=SPARK_STEPS,
     )
 
@@ -96,13 +86,10 @@ with DAG(
         task_id='watch_step',
         job_flow_id=cluster_creator.output,
         step_id="{{ task_instance.xcom_pull(task_ids='add_steps', key='return_value')[0] }}",
-        aws_conn_id='aws_default',
     )
 
     cluster_remover = EmrTerminateJobFlowOperator(
-        task_id='remove_cluster',
-        job_flow_id=cluster_creator.output,
-        aws_conn_id='aws_default',
+        task_id='remove_cluster', job_flow_id=cluster_creator.output
     )
 
     step_adder >> step_checker >> cluster_remover

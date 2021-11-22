@@ -25,7 +25,13 @@ from datetime import datetime
 from airflow import DAG
 from airflow.providers.amazon.aws.operators.redshift import RedshiftSQLOperator
 
-with DAG(dag_id="redshift", start_date=datetime(2021, 1, 1), schedule_interval=None, tags=['example']) as dag:
+with DAG(
+    dag_id="redshift",
+    start_date=datetime(2021, 1, 1),
+    schedule_interval=None,
+    catchup=False,
+    tags=['example'],
+) as dag:
     # [START howto_operator_redshift_create_table]
     setup__task_create_table = RedshiftSQLOperator(
         task_id='setup__create_table',
