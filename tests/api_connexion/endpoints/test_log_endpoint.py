@@ -59,7 +59,6 @@ def configured_app(minimal_app_for_api):
 class TestGetLog:
     DAG_ID = 'dag_for_testing_log_endpoint'
     TASK_ID = 'task_for_testing_log_endpoint'
-    RUN_ID = 'TEST_DAG_RUN_ID'
     TRY_NUMBER = 1
 
     default_time = "2020-06-10T20:00:00+00:00"
@@ -74,7 +73,7 @@ class TestGetLog:
         with dag_maker(self.DAG_ID, start_date=timezone.parse(self.default_time), session=session) as dag:
             DummyOperator(task_id=self.TASK_ID)
         dr = dag_maker.create_dagrun(
-            run_id=self.RUN_ID,
+            run_id='TEST_DAG_RUN_ID',
             run_type=DagRunType.SCHEDULED,
             execution_date=timezone.parse(self.default_time),
             start_date=timezone.parse(self.default_time),
@@ -87,7 +86,7 @@ class TestGetLog:
         ) as dummy_dag:
             DummyOperator(task_id=self.TASK_ID)
         dag_maker.create_dagrun(
-            run_id=self.RUN_ID,
+            run_id='TEST_DAG_RUN_ID',
             run_type=DagRunType.SCHEDULED,
             execution_date=timezone.parse(self.default_time),
             start_date=timezone.parse(self.default_time),
@@ -129,7 +128,7 @@ class TestGetLog:
         serializer = URLSafeSerializer(key)
         token = serializer.dumps({"download_logs": False})
         response = self.client.get(
-            f"api/v1/dags/{self.DAG_ID}/dagRuns/{self.RUN_ID}/"
+            f"api/v1/dags/{self.DAG_ID}/dagRuns/TEST_DAG_RUN_ID/"
             f"taskInstances/{self.TASK_ID}/logs/1?token={token}",
             headers={'Accept': 'application/json'},
             environ_overrides={'REMOTE_USER': "test"},
@@ -151,7 +150,7 @@ class TestGetLog:
         token = serializer.dumps({"download_logs": True})
 
         response = self.client.get(
-            f"api/v1/dags/{self.DAG_ID}/dagRuns/{self.RUN_ID}/"
+            f"api/v1/dags/{self.DAG_ID}/dagRuns/TEST_DAG_RUN_ID/"
             f"taskInstances/{self.TASK_ID}/logs/1?token={token}",
             headers={'Accept': 'text/plain'},
             environ_overrides={'REMOTE_USER': "test"},
@@ -177,7 +176,7 @@ class TestGetLog:
         token = serializer.dumps({"download_logs": True})
 
         response = self.client.get(
-            f"api/v1/dags/{self.DAG_ID}/dagRuns/{self.RUN_ID}/"
+            f"api/v1/dags/{self.DAG_ID}/dagRuns/TEST_DAG_RUN_ID/"
             f"taskInstances/{self.TASK_ID}/logs/1?token={token}",
             headers={'Accept': 'text/plain'},
             environ_overrides={'REMOTE_USER': "test"},
@@ -197,7 +196,7 @@ class TestGetLog:
         token = serializer.dumps({"download_logs": True})
 
         response = self.client.get(
-            f"api/v1/dags/{self.DAG_ID}/dagRuns/{self.RUN_ID}/"
+            f"api/v1/dags/{self.DAG_ID}/dagRuns/TEST_DAG_RUN_ID/"
             f"taskInstances/Invalid-Task-ID/logs/1?token={token}",
             environ_overrides={'REMOTE_USER': "test"},
         )
@@ -218,7 +217,7 @@ class TestGetLog:
             read_mock.side_effect = [first_return, second_return, third_return, fourth_return]
 
             response = self.client.get(
-                f"api/v1/dags/{self.DAG_ID}/dagRuns/{self.RUN_ID}/"
+                f"api/v1/dags/{self.DAG_ID}/dagRuns/TEST_DAG_RUN_ID/"
                 f"taskInstances/{self.TASK_ID}/logs/1?full_content=True",
                 headers={"Accept": 'text/plain'},
                 environ_overrides={'REMOTE_USER': "test"},
@@ -239,7 +238,7 @@ class TestGetLog:
 
         # check guessing
         response = self.client.get(
-            f"api/v1/dags/{self.DAG_ID}/dagRuns/{self.RUN_ID}/"
+            f"api/v1/dags/{self.DAG_ID}/dagRuns/TEST_DAG_RUN_ID/"
             f"taskInstances/{self.TASK_ID}/logs/1?token={token}",
             headers={'Content-Type': 'application/jso'},
             environ_overrides={'REMOTE_USER': "test"},
@@ -251,7 +250,7 @@ class TestGetLog:
         token = {"download_logs": False}
 
         response = self.client.get(
-            f"api/v1/dags/{self.DAG_ID}/dagRuns/{self.RUN_ID}/"
+            f"api/v1/dags/{self.DAG_ID}/dagRuns/TEST_DAG_RUN_ID/"
             f"taskInstances/{self.TASK_ID}/logs/1?token={token}",
             headers={'Accept': 'application/json'},
             environ_overrides={'REMOTE_USER': "test"},
@@ -284,7 +283,7 @@ class TestGetLog:
         token = serializer.dumps({"download_logs": False})
 
         response = self.client.get(
-            f"api/v1/dags/{self.DAG_ID}/dagRuns/{self.RUN_ID}/"
+            f"api/v1/dags/{self.DAG_ID}/dagRuns/TEST_DAG_RUN_ID/"
             f"taskInstances/{self.TASK_ID}/logs/1?token={token}",
             headers={'Accept': 'application/json'},
         )
@@ -297,7 +296,7 @@ class TestGetLog:
         token = serializer.dumps({"download_logs": True})
 
         response = self.client.get(
-            f"api/v1/dags/{self.DAG_ID}/dagRuns/{self.RUN_ID}/"
+            f"api/v1/dags/{self.DAG_ID}/dagRuns/TEST_DAG_RUN_ID/"
             f"taskInstances/{self.TASK_ID}/logs/1?token={token}",
             headers={'Accept': 'text/plain'},
             environ_overrides={'REMOTE_USER': "test_no_permissions"},
