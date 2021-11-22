@@ -63,6 +63,8 @@ def run_python(python_script, **kwargs):
         "--rm",
         "-e",
         "COLUMNS=180",
+        "-e",
+        "PYTHONDONTWRITEBYTECODE=true",
         docker_image,
         "python",
         "-c",
