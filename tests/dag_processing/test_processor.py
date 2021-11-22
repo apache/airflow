@@ -482,13 +482,12 @@ class TestDagFileProcessor:
             session.rollback()
 
     @conf_vars({("core", "dagbag_import_error_tracebacks"): "False"})
-    def test_dag_model_has_import_error_is_true_when_import_error_exists(self, tmpdir):
+    def test_dag_model_has_import_error_is_true_when_import_error_exists(self, tmpdir, session):
         dag_file = os.path.join(TEST_DAGS_FOLDER, "test_example_bash_operator.py")
         temp_dagfile = os.path.join(tmpdir, TEMP_DAG_FILENAME)
         with open(dag_file) as main_dag, open(temp_dagfile, 'w') as next_dag:
             for line in main_dag:
                 next_dag.write(line)
-        session = settings.Session()
         # first we parse the dag
         self._process_file(temp_dagfile, session)
         # assert DagModel.has_import_errors is false
@@ -504,8 +503,7 @@ class TestDagFileProcessor:
         assert len(import_errors) == 1
         import_error = import_errors[0]
         assert import_error.filename == temp_dagfile
-        assert import_error.stacktrace == f"invalid syntax ({TEMP_DAG_FILENAME}, line 53)"
-        session.rollback()
+        assert import_error.stacktrace
         dm = session.query(DagModel).filter(DagModel.fileloc == temp_dagfile).first()
         assert dm.has_import_errors
 
