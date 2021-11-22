@@ -29,6 +29,7 @@ from airflow.models.param import Param
 from airflow.models.pool import Pool
 from airflow.models.renderedtifields import RenderedTaskInstanceFields
 from airflow.models.sensorinstance import SensorInstance  # noqa: F401
+from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.skipmixin import SkipMixin
 from airflow.models.slamiss import SlaMiss
 from airflow.models.taskfail import TaskFail
