@@ -25,27 +25,27 @@ import unittest
 from contextlib import redirect_stdout
 from datetime import datetime
 from unittest import mock
-
-import pytest
-from parameterized import parameterized
-
-from airflow.cli import cli_parser
-from airflow.cli.commands import task_command
-from airflow.configuration import conf
-from airflow.exceptions import AirflowException, DagRunNotFound
-from airflow.models import DagBag, DagRun, TaskInstance
-from airflow.utils import timezone
-from airflow.utils.dates import days_ago
-from airflow.utils.session import create_session
-from airflow.utils.state import State
-from airflow.utils.types import DagRunType
-from tests.test_utils.config import conf_vars
-from tests.test_utils.db import clear_db_runs
-
-DEFAULT_DATE = days_ago(1)
-ROOT_FOLDER = os.path.realpath(
-    os.path.join(os.path.dirname(os.path.realpath(__file__)), os.pardir, os.pardir)
-)
+#
+# import pytest
+# from parameterized import parameterized
+#
+# from airflow.cli import cli_parser
+# from airflow.cli.commands import task_command
+# from airflow.configuration import conf
+# from airflow.exceptions import AirflowException, DagRunNotFound
+# from airflow.models import DagBag, DagRun, TaskInstance
+# from airflow.utils import timezone
+# from airflow.utils.dates import days_ago
+# from airflow.utils.session import create_session
+# from airflow.utils.state import State
+# from airflow.utils.types import DagRunType
+# from tests.test_utils.config import conf_vars
+# from tests.test_utils.db import clear_db_runs
+#
+# DEFAULT_DATE = days_ago(1)
+# ROOT_FOLDER = os.path.realpath(
+#     os.path.join(os.path.dirname(os.path.realpath(__file__)), os.pardir, os.pardir)
+# )
 
 
 # def reset(dag_id):
