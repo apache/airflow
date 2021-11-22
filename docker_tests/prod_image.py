@@ -163,7 +163,20 @@ class TestPythonPackages:
 
 class TestExecuteAsRoot:
     def test_execute_airflow_as_root(self):
-        run_command(["docker", "run", "--rm", "--user", "0", docker_image, "airflow", "info"])
+        run_command(
+            [
+                "docker",
+                "run",
+                "--rm",
+                "--user",
+                "0",
+                "-e",
+                "PYTHONDONTWRITEBYTECODE=true",
+                docker_image,
+                "airflow",
+                "info",
+            ]
+        )
 
     def test_run_custom_python_packages_as_root(self):
         with tempfile.TemporaryDirectory() as tmp_dir:
