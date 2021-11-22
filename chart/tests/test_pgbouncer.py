@@ -266,6 +266,34 @@ class PgbouncerTest(unittest.TestCase):
         assert ["RELEASE-NAME"] == jmespath.search("spec.template.spec.containers[0].command", docs[0])
         assert ["Helm"] == jmespath.search("spec.template.spec.containers[0].args", docs[0])
 
+    def test_should_add_extra_volume_and_extra_volume_mount(self):
+        docs = render_chart(
+            values={
+                "pgbouncer": {
+                    "enabled": True,
+                    "extraVolumes": [
+                        {
+                            "name": "pgbouncer-client-certificates",
+                            "secret": {"secretName": "pgbouncer-client-tls-certificate"},
+                        }
+                    ],
+                    "extraVolumeMounts": [
+                        {"name": "pgbouncer-client-certificates", "mountPath": "/etc/pgbouncer/certs"}
+                    ],
+                },
+            },
+            show_only=["templates/pgbouncer/pgbouncer-deployment.yaml"],
+        )
+
+        print(docs[0])
+
+        assert "pgbouncer-client-certificates" in jmespath.search(
+            "spec.template.spec.volumes[*].name", docs[0]
+        )
+        assert "pgbouncer-client-certificates" in jmespath.search(
+            "spec.template.spec.containers[0].volumeMounts[*].name", docs[0]
+        )
+
 
 class PgbouncerConfigTest(unittest.TestCase):
     def test_config_not_created_by_default(self):
@@ -427,7 +455,7 @@ class PgbouncerExporterTest(unittest.TestCase):
     def test_exporter_secret_with_overrides(self):
         connection = self._get_connection(
             {
-                "pgbouncer": {"enabled": True},
+                "pgbouncer": {"enabled": True, "metricsExporterSidecar": {"sslmode": "disable"}},
                 "data": {
                     "metadataConnection": {
                         "user": "username@123123",

@@ -3004,6 +3004,16 @@
                     ],
                     "default": null
                 },
+                "extraVolumes": {
+                    "description": "Mount additional volumes into pgbouncer.",
+                    "type": "array",
+                    "default": []
+                },
+                "extraVolumeMounts": {
+                    "description": "Mount additional volumes into pgbouncer.",
+                    "type": "array",
+                    "default": []
+                },
                 "serviceAccount": {
                     "description": "Create ServiceAccount.",
                     "type": "object",
@@ -3082,6 +3092,17 @@
                                 }
                             ],
                             "$ref": "https://raw.githubusercontent.com/yannh/kubernetes-json-schema/master/v1.22.0-standalone-strict/resourcerequirements-v1.json"
+                        },
+                        "sslmode": {
+                            "description": "SSL mode for metricsExporterSidecar",
+                            "type": "string",
+                            "enum": [
+                                "disable",
+                                "require",
+                                "verify-ca",
+                                "verify-full"
+                            ],
+                            "default": "disable"
                         }
                     }
                 }
