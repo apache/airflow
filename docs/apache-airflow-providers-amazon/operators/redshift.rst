@@ -15,17 +15,19 @@
     specific language governing permissions and limitations
     under the License.
 
-.. _howto/operator:RedshiftSQLOperator:
+Amazon Redshift Operators
+=================================================
+
+`Amazon Redshift <https://aws.amazon.com/redshift/>`__ is a fully managed,
+petabyte-scale data warehouse service in the cloud. You can start with just a few hundred gigabytes
+of data and scale to a petabyte or more. This enables you to use your data to acquire new insights
+for your business and customers.
+
+Airflow provides operators to create and interact with the Redshift clusters and compute infrastructure.
 
 RedshiftSQLOperator
-===================
-
-.. contents::
-  :depth: 1
-  :local:
-
-Overview
---------
+^^^^^^^^^^^^^^^^^^^^^^^^^^
+.. _howto/operator:RedshiftSQLOperator:
 
 Use the :class:`RedshiftSQLOperator <airflow.providers.amazon.aws.operators.redshift>` to execute
 statements against an Amazon Redshift cluster.
@@ -33,16 +35,6 @@ statements against an Amazon Redshift cluster.
 :class:`RedshiftSQLOperator <airflow.providers.amazon.aws.operators.redshift.RedshiftSQLOperator>` works together with
 :class:`RedshiftSQLHook <airflow.providers.amazon.aws.hooks.redshift.RedshiftSQLHook>` to establish
 connections with Amazon Redshift.
-
-
-example_redshift.py
--------------------
-
-Purpose
-"""""""
-
-This is a basic example dag for using :class:`RedshiftSQLOperator <airflow.providers.amazon.aws.operators.redshift>`
-to execute statements against an Amazon Redshift cluster.
 
 Create a table
 """"""""""""""
@@ -86,7 +78,7 @@ parameters into SQL statements.
     :end-before: [END howto_operator_redshift_get_with_filter]
 
 The complete RedshiftSQLOperator DAG
-------------------------------------
+"""""""""""""""""""""""""""""""""""""""""""
 
 All together, here is our DAG:
 
@@ -94,3 +86,20 @@ All together, here is our DAG:
     :language: python
     :start-after: [START redshift_operator_howto_guide]
     :end-before: [END redshift_operator_howto_guide]
+
+
+.. _howto/operator:RedshiftResumeClusterOperator:
+Resume a Redshift Cluster
+"""""""""""""""""""""""""""""""""""""""""""
+To resume an existing AWS Redshift Cluster you can use
+:class:`~airflow.providers.amazon.aws.operators.redshift_resume_cluster.RedshiftResumeClusterOperator`.
+
+This Operator leverages the AWS CLI `resume-cluster <https://docs.aws.amazon.com/cli/latest/reference/redshift/resume-cluster.html>`__ API
+
+.. _howto/operator:RedshiftPauseClusterOperator:
+Pause a Redshift Cluster
+"""""""""""""""""""""""""""""""""""""""""""
+To pause an existing AWS Redshift Cluster you can use
+:class:`~airflow.providers.amazon.aws.operators.redshift_pause_cluster.RedshiftPauseClusterOperator`.
+
+This Operator leverages the AWS CLI `pause-cluster <https://docs.aws.amazon.com/cli/latest/reference/redshift/pause-cluster.html>`__ API
