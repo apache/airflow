@@ -44,11 +44,14 @@ def send_email(
     mime_subtype: str = 'mixed',
     mime_charset: str = 'utf-8',
     conn_id: Optional[str] = None,
+    custom_headers: Optional[Dict[str, Any]] = None,
     **kwargs,
 ):
     """Send email using backend specified in EMAIL_BACKEND."""
     backend = conf.getimport('email', 'EMAIL_BACKEND')
     backend_conn_id = conn_id or conf.get("email", "EMAIL_CONN_ID")
+    from_email = conf.get('email', 'from_email', fallback=None)
+
     to_list = get_email_address_list(to)
     to_comma_separated = ", ".join(to_list)
 
@@ -63,6 +66,8 @@ def send_email(
         mime_subtype=mime_subtype,
         mime_charset=mime_charset,
         conn_id=backend_conn_id,
+        from_email=from_email,
+        custom_headers=custom_headers,
         **kwargs,
     )
 
@@ -78,6 +83,8 @@ def send_email_smtp(
     mime_subtype: str = 'mixed',
     mime_charset: str = 'utf-8',
     conn_id: str = "smtp_default",
+    from_email: str = None,
+    custom_headers: Optional[Dict[str, Any]] = None,
     **kwargs,
 ):
     """
@@ -87,8 +94,10 @@ def send_email_smtp(
     """
     smtp_mail_from = conf.get('smtp', 'SMTP_MAIL_FROM')
 
+    mail_from = smtp_mail_from or from_email
+
     msg, recipients = build_mime_message(
-        mail_from=smtp_mail_from,
+        mail_from=mail_from,
         to=to,
         subject=subject,
         html_content=html_content,
@@ -97,9 +106,10 @@ def send_email_smtp(
         bcc=bcc,
         mime_subtype=mime_subtype,
         mime_charset=mime_charset,
+        custom_headers=custom_headers,
     )
 
-    send_mime_email(e_from=smtp_mail_from, e_to=recipients, mime_msg=msg, conn_id=conn_id, dryrun=dryrun)
+    send_mime_email(e_from=mail_from, e_to=recipients, mime_msg=msg, conn_id=conn_id, dryrun=dryrun)
 
 
 def build_mime_message(

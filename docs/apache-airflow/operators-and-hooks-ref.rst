@@ -33,10 +33,10 @@ For details see: :doc:`apache-airflow-providers:operators-and-hooks-ref/index`.
    * - Module
      - Guides
 
-   * - :mod:`airflow.hooks.base_hook`
+   * - :mod:`airflow.hooks.base`
      -
 
-   * - :mod:`airflow.hooks.dbapi_hook`
+   * - :mod:`airflow.hooks.dbapi`
      -
 
    * - :mod:`airflow.models.baseoperator`
@@ -56,10 +56,10 @@ For details see: :doc:`apache-airflow-providers:operators-and-hooks-ref/index`.
    * - :mod:`airflow.operators.bash`
      - :doc:`How to use <howto/operator/bash>`
 
-   * - :mod:`airflow.operators.branch_operator`
+   * - :mod:`airflow.operators.branch`
      -
 
-   * - :mod:`airflow.operators.trigger_dagrun`
+   * - :mod:`airflow.operators.datetime`
      -
 
    * - :mod:`airflow.operators.dummy`
@@ -77,10 +77,13 @@ For details see: :doc:`apache-airflow-providers:operators-and-hooks-ref/index`.
    * - :mod:`airflow.operators.python`
      - :doc:`How to use <howto/operator/python>`
 
+   * - :mod:`airflow.operators.sql`
+     -
+
    * - :mod:`airflow.operators.subdag`
      -
 
-   * - :mod:`airflow.operators.sql`
+   * - :mod:`airflow.operators.trigger_dagrun`
      -
 
 **Sensors:**
@@ -106,6 +109,9 @@ For details see: :doc:`apache-airflow-providers:operators-and-hooks-ref/index`.
    * - :mod:`airflow.sensors.python`
      -
 
+   * - :mod:`airflow.sensors.smart_sensor`
+     - :doc:`concepts/smart-sensors`
+
    * - :mod:`airflow.sensors.sql`
      -
 
@@ -115,11 +121,9 @@ For details see: :doc:`apache-airflow-providers:operators-and-hooks-ref/index`.
    * - :mod:`airflow.sensors.time_sensor`
      -
 
-   * - :mod:`airflow.sensors.weekday_sensor`
+   * - :mod:`airflow.sensors.weekday`
      -
 
-   * - :mod:`airflow.sensors.smart_sensor_operator`
-     - :doc:`concepts/smart-sensors`
 
 **Hooks:**
 
@@ -130,4 +134,7 @@ For details see: :doc:`apache-airflow-providers:operators-and-hooks-ref/index`.
      - Guides
 
    * - :mod:`airflow.hooks.filesystem`
+     -
+
+   * - :mod:`airflow.hooks.subprocess`
      -

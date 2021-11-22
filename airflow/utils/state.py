@@ -49,7 +49,7 @@ class TaskInstanceState(str, Enum):
     SENSING = "sensing"  # Smart sensor offloaded to the sensor DAG
     DEFERRED = "deferred"  # Deferrable operator waiting on a trigger
 
-    def __str__(self) -> str:  # pylint: disable=invalid-str-returned
+    def __str__(self) -> str:
         return self.value
 
 
@@ -120,9 +120,9 @@ class State:
         TaskInstanceState.SKIPPED: 'pink',
         TaskInstanceState.REMOVED: 'lightgrey',
         TaskInstanceState.SCHEDULED: 'tan',
-        TaskInstanceState.SENSING: 'lightseagreen',
-        TaskInstanceState.DEFERRED: 'lightseagreen',
+        TaskInstanceState.DEFERRED: 'mediumpurple',
     }
+    state_color[TaskInstanceState.SENSING] = state_color[TaskInstanceState.DEFERRED]
     state_color.update(STATE_COLORS)  # type: ignore
 
     @classmethod

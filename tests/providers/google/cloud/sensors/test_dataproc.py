@@ -19,7 +19,7 @@ import unittest
 from unittest import mock
 
 import pytest
-from google.cloud.dataproc_v1beta2.types import JobStatus
+from google.cloud.dataproc_v1.types import JobStatus
 
 from airflow import AirflowException
 from airflow.providers.google.cloud.sensors.dataproc import DataprocJobSensor

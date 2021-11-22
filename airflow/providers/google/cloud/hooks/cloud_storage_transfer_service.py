@@ -80,6 +80,7 @@ MONTH = 'month'
 NAME = 'name'
 OBJECT_CONDITIONS = 'object_conditions'
 OPERATIONS = 'operations'
+PATH = 'path'
 PROJECT_ID = 'projectId'
 SCHEDULE = 'schedule'
 SCHEDULE_END_DATE = 'scheduleEndDate'
@@ -182,7 +183,7 @@ class CloudDataTransferServiceHook(GoogleBaseHook):
                 if transfer_job.get(STATUS) == GcpTransferJobsStatus.DELETED:
                     body[JOB_NAME] = gen_job_name(job_name)
                     self.log.info(
-                        "Job `%s` has been soft deleted. Creating job with " "new name `%s`",
+                        "Job `%s` has been soft deleted. Creating job with new name `%s`",
                         job_name,
                         {body[JOB_NAME]},
                     )
@@ -476,10 +477,8 @@ class CloudDataTransferServiceHook(GoogleBaseHook):
         body[target_key] = body.get(target_key, self.project_id)
         if not body.get(target_key):
             raise AirflowException(
-                "The project id must be passed either as `{}` key in `{}` parameter or as project_id "
-                "extra in Google Cloud connection definition. Both are not set!".format(
-                    target_key, param_name
-                )
+                f"The project id must be passed either as `{target_key}` key in `{param_name}` "
+                f"parameter or as project_id extra in Google Cloud connection definition. Both are not set!"
             )
         return body
 

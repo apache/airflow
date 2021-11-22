@@ -92,9 +92,8 @@ class HiveOperatorTest(TestHiveEnvironment):
 
         op.execute(fake_context)
         assert (
-            "Airflow HiveOperator task for {}.{}.{}.{}".format(
-                fake_ti.hostname, self.dag.dag_id, op.task_id, fake_execution_date.isoformat()
-            )
+            "Airflow HiveOperator task for "
+            f"{fake_ti.hostname}.{self.dag.dag_id}.{op.task_id}.{fake_execution_date.isoformat()}"
             == mock_hook.mapred_job_name
         )
 

@@ -51,6 +51,7 @@ class TestDAGRunSchema(TestDAGRunBase):
     @provide_session
     def test_serialize(self, session):
         dagrun_model = DagRun(
+            dag_id="my-dag-run",
             run_id="my-dag-run",
             state='running',
             run_type=DagRunType.MANUAL.value,
@@ -64,7 +65,7 @@ class TestDAGRunSchema(TestDAGRunBase):
         deserialized_dagrun = dagrun_schema.dump(dagrun_model)
 
         assert deserialized_dagrun == {
-            "dag_id": None,
+            "dag_id": "my-dag-run",
             "dag_run_id": "my-dag-run",
             "end_date": None,
             "state": "running",
@@ -128,6 +129,7 @@ class TestDagRunCollection(TestDAGRunBase):
     @provide_session
     def test_serialize(self, session):
         dagrun_model_1 = DagRun(
+            dag_id="my-dag-run",
             run_id="my-dag-run",
             state='running',
             execution_date=timezone.parse(self.default_time),
@@ -136,6 +138,7 @@ class TestDagRunCollection(TestDAGRunBase):
             conf='{"start": "stop"}',
         )
         dagrun_model_2 = DagRun(
+            dag_id="my-dag-run",
             run_id="my-dag-run-2",
             state='running',
             execution_date=timezone.parse(self.second_time),
@@ -150,7 +153,7 @@ class TestDagRunCollection(TestDAGRunBase):
         assert deserialized_dagruns == {
             "dag_runs": [
                 {
-                    "dag_id": None,
+                    "dag_id": "my-dag-run",
                     "dag_run_id": "my-dag-run",
                     "end_date": None,
                     "execution_date": self.default_time,
@@ -161,7 +164,7 @@ class TestDagRunCollection(TestDAGRunBase):
                     "conf": {"start": "stop"},
                 },
                 {
-                    "dag_id": None,
+                    "dag_id": "my-dag-run",
                     "dag_run_id": "my-dag-run-2",
                     "end_date": None,
                     "state": "running",

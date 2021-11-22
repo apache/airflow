@@ -154,7 +154,7 @@ repos:
           - "--maxlevel"
           - "2"
   - repo: https://github.com/psf/black
-    rev: 21.8b0
+    rev: 21.9b0
     hooks:
       - id: black
         args: [--config=./pyproject.toml]
@@ -164,7 +164,7 @@ repos:
     hooks:
       - id: blacken-docs
         alias: black
-        additional_dependencies: [black==21.8b0]
+        additional_dependencies: [black==21.9b0]
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v4.0.1
     hooks:
@@ -196,7 +196,7 @@ repos:
         files: ^chart/values\.schema\.json$|^chart/values_schema\.schema\.json$
         pass_filenames: true
   - repo: https://github.com/asottile/pyupgrade
-    rev: v2.25.1
+    rev: v2.29.0
     hooks:
       - id: pyupgrade
         args: ["--py36-plus"]
@@ -250,6 +250,7 @@ repos:
         exclude: |
           (?x)
           ^airflow/_vendor/
+        additional_dependencies: ['flake8>=4.0.1']
   - repo: https://github.com/ikamensh/flynt
     rev: '0.69'
     hooks:
@@ -257,6 +258,26 @@ repos:
         exclude: |
           (?x)
           ^airflow/_vendor/
+        args:
+         # If flynt detects too long text it ignores it. So we set a very large limit to make it easy
+         # to split the text by hand. Too long lines are detected by flake8 (below),
+         # so the user is informed to take action.
+         - --line-length
+         - '99999'
+  - repo: https://github.com/codespell-project/codespell
+    rev: v2.1.0
+    hooks:
+      - id: codespell
+        name: Run codespell to check for common misspellings in files
+        entry: bash -c 'echo "If you think that this failure is an error, consider adding the word(s)
+          to the codespell dictionary at docs/spelling_wordlist.txt.
+          The word(s) should be in lowercase." && exec codespell "$@"' --
+        language: python
+        types: [text]
+        exclude: ^airflow/_vendor/|^CHANGELOG.txt|^airflow/www/static/css/material-icons.css
+        args:
+          - --ignore-words=docs/spelling_wordlist.txt
+          - --skip=docs/*/commits.rst,airflow/providers/*/*.rst,*.lock,INTHEWILD.md,*.min.js,docs/apache-airflow/pipeline_example.csv
   - repo: local
     hooks:
       - id: lint-openapi
@@ -544,7 +565,7 @@ repos:
         additional_dependencies:
           - 'PyYAML==5.3.1'
           - 'jsonschema==3.2.0'
-          - 'tabulate==0.8.7'
+          - 'tabulate==0.8.8'
           - 'jsonpath-ng==1.5.3'
           - 'rich==10.9.0'
       - id: mermaid
@@ -673,7 +694,7 @@ repos:
         # The below pre-commits are those requiring CI image to be built
       - id: build
         name: Check if image build is needed
-        entry: ./scripts/ci/pre_commit/pre_commit_ci_build.sh 3.6 false
+        entry: ./scripts/ci/pre_commit/pre_commit_ci_build.sh 3.7 false
         language: system
         always_run: true
         pass_filenames: false

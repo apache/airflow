@@ -60,12 +60,15 @@ def get_dag_details(dag_id):
 @security.requires_access([(permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG)])
 @format_parameters({'limit': check_limit})
 @provide_session
-def get_dags(limit, session, offset=0, only_active=True, tags=None):
+def get_dags(limit, session, offset=0, only_active=True, tags=None, dag_id_pattern=None):
     """Get all DAGs."""
     if only_active:
         dags_query = session.query(DagModel).filter(~DagModel.is_subdag, DagModel.is_active)
     else:
         dags_query = session.query(DagModel).filter(~DagModel.is_subdag)
+
+    if dag_id_pattern:
+        dags_query = dags_query.filter(DagModel.dag_id.ilike(f'%{dag_id_pattern}%'))
 
     readable_dags = current_app.appbuilder.sm.get_accessible_dag_ids(g.user)
 

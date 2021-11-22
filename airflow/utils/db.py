@@ -18,9 +18,10 @@
 import logging
 import os
 import time
+from tempfile import gettempdir
 from typing import Iterable
 
-from sqlalchemy import Table, exc, func
+from sqlalchemy import Table, exc, func, inspect, or_, text
 
 from airflow import settings
 from airflow.configuration import conf
@@ -51,13 +52,13 @@ from airflow.models import (  # noqa: F401
 from airflow.models.serialized_dag import SerializedDagModel  # noqa: F401
 
 # TODO: remove create_session once we decide to break backward compatibility
-from airflow.utils.session import (  # noqa: F401 # pylint: disable=unused-import
-    create_global_lock,
-    create_session,
-    provide_session,
-)
+from airflow.utils.session import create_global_lock, create_session, provide_session  # noqa: F401
 
 log = logging.getLogger(__name__)
+
+
+def _format_airflow_moved_table_name(source_table, version):
+    return "__".join([settings.AIRFLOW_MOVED_TABLE_PREFIX, version.replace(".", "_"), source_table])
 
 
 @provide_session
@@ -508,7 +509,7 @@ def create_default_connections(session=None):
         Connection(
             conn_id="sqlite_default",
             conn_type="sqlite",
-            host="/tmp/sqlite_default.db",
+            host=os.path.join(gettempdir(), "sqlite_default.db"),
         ),
         session,
     )
@@ -626,13 +627,17 @@ def check_migrations(timeout):
     :param timeout: Timeout for the migration in seconds
     :return: None
     """
-    from alembic.runtime.migration import MigrationContext
+    from alembic.runtime.environment import EnvironmentContext
     from alembic.script import ScriptDirectory
 
     config = _get_alembic_config()
     script_ = ScriptDirectory.from_config(config)
-    with settings.engine.connect() as connection:
-        context = MigrationContext.configure(connection)
+    with EnvironmentContext(
+        config,
+        script_,
+    ) as env, settings.engine.connect() as connection:
+        env.configure(connection)
+        context = env.get_context()
         ticker = 0
         while True:
             source_heads = set(script_.get_heads())
@@ -641,8 +646,8 @@ def check_migrations(timeout):
                 break
             if ticker >= timeout:
                 raise TimeoutError(
-                    f"There are still unapplied migrations after {ticker} seconds. "
-                    f"Migration Head(s) in DB: {db_heads} | Migration Head(s) in Source Code: {source_heads}"
+                    f"There are still unapplied migrations after {ticker} seconds. Migration"
+                    f"Head(s) in DB: {db_heads} | Migration Head(s) in Source Code: {source_heads}"
                 )
             ticker += 1
             time.sleep(1)
@@ -697,60 +702,175 @@ def check_conn_type_null(session=None) -> Iterable[str]:
         )
 
 
-def check_task_tables_without_matching_dagruns(session) -> Iterable[str]:
-    from itertools import chain
+def _format_dangling_error(source_table, target_table, invalid_count, reason):
+    noun = "row" if invalid_count == 1 else "rows"
+    return (
+        f"The {source_table} table has {invalid_count} {noun} {reason}, which "
+        f"is invalid. We could not move them out of the way because the "
+        f"{target_table} table already exists in your database. Please either "
+        f"drop the {target_table} table, or manually delete the invalid rows "
+        f"from the {source_table} table."
+    )
 
+
+def _move_dangling_run_data_to_new_table(session, source_table: "Table", target_table_name: str):
+    where_clause = "where dag_id is null or run_id is null or execution_date is null"
+    _move_dangling_table(session, source_table, target_table_name, where_clause)
+
+
+def _move_dangling_table(session, source_table: "Table", target_table_name: str, where_clause: str):
+    dialect_name = session.get_bind().dialect.name
+
+    delete_where = " AND ".join(
+        f"{source_table.name}.{c.name} = d.{c.name}" for c in source_table.primary_key.columns
+    )
+    if dialect_name == "mssql":
+        session.execute(
+            text(f"select source.* into {target_table_name} from {source_table} as source {where_clause}")
+        )
+        session.execute(
+            text(
+                f"delete from {source_table} from {source_table} join {target_table_name} AS d ON "
+                + delete_where
+            )
+        )
+    else:
+        # Postgres, MySQL and SQLite all have the same CREATE TABLE a AS SELECT ... syntax
+        session.execute(
+            text(
+                f"create table {target_table_name} as select source.* from {source_table} as source "
+                + where_clause
+            )
+        )
+
+        # But different join-delete syntax.
+        if dialect_name == "mysql":
+            session.execute(
+                text(
+                    f"delete {source_table} from {source_table} join {target_table_name} as d on "
+                    + delete_where
+                )
+            )
+        elif dialect_name == "sqlite":
+            session.execute(
+                text(
+                    f"delete from {source_table} where ROWID in (select {source_table}.ROWID from "
+                    f"{source_table} as source join {target_table_name} as d on {delete_where})"
+                )
+            )
+        else:
+            session.execute(
+                text(f"delete from {source_table} using {target_table_name} as d where {delete_where}")
+            )
+
+
+def check_run_id_null(session) -> Iterable[str]:
+    import sqlalchemy.schema
+
+    metadata = sqlalchemy.schema.MetaData(session.bind)
+    try:
+        metadata.reflect(only=[DagRun.__tablename__], extend_existing=True, resolve_fks=False)
+    except exc.InvalidRequestError:
+        # Table doesn't exist -- empty db
+        return
+
+    # We can't use the model here since it may differ from the db state due to
+    # this function is run prior to migration. Use the reflected table instead.
+    dagrun_table = metadata.tables[DagRun.__tablename__]
+
+    invalid_dagrun_filter = or_(
+        dagrun_table.c.dag_id.is_(None),
+        dagrun_table.c.run_id.is_(None),
+        dagrun_table.c.execution_date.is_(None),
+    )
+    invalid_dagrun_count = session.query(dagrun_table.c.id).filter(invalid_dagrun_filter).count()
+    if invalid_dagrun_count > 0:
+        dagrun_dangling_table_name = _format_airflow_moved_table_name(dagrun_table.name, "2.2")
+        if dagrun_dangling_table_name in inspect(session.get_bind()).get_table_names():
+            yield _format_dangling_error(
+                source_table=dagrun_table.name,
+                target_table=dagrun_dangling_table_name,
+                invalid_count=invalid_dagrun_count,
+                reason="with a NULL dag_id, run_id, or execution_date",
+            )
+            return
+        _move_dangling_run_data_to_new_table(session, dagrun_table, dagrun_dangling_table_name)
+
+
+def _move_dangling_task_data_to_new_table(session, source_table: "Table", target_table_name: str):
+    where_clause = """
+        left join dag_run as dr
+        on (source.dag_id = dr.dag_id and source.execution_date = dr.execution_date)
+        where dr.id is null
+    """
+    _move_dangling_table(session, source_table, target_table_name, where_clause)
+
+
+def check_task_tables_without_matching_dagruns(session) -> Iterable[str]:
     import sqlalchemy.schema
     from sqlalchemy import and_, outerjoin
 
     metadata = sqlalchemy.schema.MetaData(session.bind)
-    models_to_dagrun = [TaskInstance, TaskFail]
-    models_to_ti = []
-    for model in models_to_dagrun + models_to_ti + [DagRun]:
+    models_to_dagrun = [TaskInstance, TaskReschedule]
+    for model in models_to_dagrun + [DagRun]:
         try:
-            metadata.reflect(only=[model.__tablename__])
+            metadata.reflect(only=[model.__tablename__], extend_existing=True, resolve_fks=False)
         except exc.InvalidRequestError:
-            # Table doesn't exist, but try the other ones incase the user is upgrading from an _old_ DB
+            # Table doesn't exist, but try the other ones in case the user is upgrading from an _old_ DB
             # version
             pass
 
+    # Key table doesn't exist -- likely empty DB.
     if DagRun.__tablename__ not in metadata or TaskInstance.__tablename__ not in metadata:
-        # Key table doesn't exist -- likely empty DB
-        session.rollback()
         return
 
-    for (model, target) in chain(
-        ((m, metadata.tables[DagRun.__tablename__]) for m in models_to_dagrun),
-        ((m, metadata.tables[TaskInstance.__tablename__]) for m in models_to_ti),
-    ):
-        table = metadata.tables.get(model.__tablename__)
-        if table is None:
+    # We can't use the model here since it may differ from the db state due to
+    # this function is run prior to migration. Use the reflected table instead.
+    dagrun_table = metadata.tables[DagRun.__tablename__]
+
+    existing_table_names = set(inspect(session.get_bind()).get_table_names())
+    errored = False
+
+    for model in models_to_dagrun:
+        # We can't use the model here since it may differ from the db state due to
+        # this function is run prior to migration. Use the reflected table instead.
+        source_table = metadata.tables.get(model.__tablename__)
+        if source_table is None:
             continue
-        if 'run_id' in table.columns:
-            # Migration already applied, don't check again
+
+        # Migration already applied, don't check again.
+        if "run_id" in source_table.columns:
             continue
 
-        # We can't use the model here (as that would have the associationproxy, we instead need to use the
-        # _reflected_ table)
-        join_cond = and_(table.c.dag_id == target.c.dag_id, table.c.execution_date == target.c.execution_date)
-        if "task_id" in target.columns:
-            join_cond = and_(join_cond, table.c.task_id == target.c.task_id)
+        source_to_dag_run_join_cond = and_(
+            source_table.c.dag_id == dagrun_table.c.dag_id,
+            source_table.c.execution_date == dagrun_table.c.execution_date,
+        )
+        invalid_row_count = (
+            session.query(source_table.c.dag_id, source_table.c.task_id, source_table.c.execution_date)
+            .select_from(outerjoin(source_table, dagrun_table, source_to_dag_run_join_cond))
+            .filter(dagrun_table.c.dag_id.is_(None))
+            .count()
+        )
+        if invalid_row_count <= 0:
+            continue
 
-        query = (
-            session.query(table.c.dag_id, table.c.task_id, table.c.execution_date)
-            .select_from(outerjoin(table, target, join_cond))
-            .filter(target.c.dag_id.is_(None))
-        )  # type: ignore
-
-        num = query.count()
-
-        if num > 0:
-            yield (
-                f'The {table.name} table has {num} row{"s" if num != 1 else ""} without a '
-                f'corresponding {target.name} row. You must manually correct this problem '
-                '(possibly by deleting the problem rows).'
+        dangling_table_name = _format_airflow_moved_table_name(source_table.name, "2.2")
+        if dangling_table_name in existing_table_names:
+            yield _format_dangling_error(
+                source_table=source_table.name,
+                target_table=dangling_table_name,
+                invalid_count=invalid_row_count,
+                reason=f"without a corresponding {dagrun_table.name} row",
             )
-    session.rollback()
+            errored = True
+            continue
+        _move_dangling_task_data_to_new_table(session, source_table, dangling_table_name)
+
+    if errored:
+        session.rollback()
+    else:
+        session.commit()
 
 
 @provide_session
@@ -762,9 +882,12 @@ def _check_migration_errors(session=None) -> Iterable[str]:
     for check_fn in (
         check_conn_id_duplicates,
         check_conn_type_null,
+        check_run_id_null,
         check_task_tables_without_matching_dagruns,
     ):
         yield from check_fn(session)
+        # Ensure there is no "active" transaction. Seems odd, but without this MSSQL can hang
+        session.commit()
 
 
 @provide_session

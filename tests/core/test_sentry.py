@@ -106,6 +106,19 @@ class TestSentryHook:
 
         importlib.reload(sentry)
 
+    @pytest.fixture
+    def sentry_minimum(self):
+        """
+        Minimum sentry config
+        """
+        with conf_vars({('sentry', 'sentry_on'): 'True'}):
+            from airflow import sentry
+
+            importlib.reload(sentry)
+            yield sentry.Sentry
+
+        importlib.reload(sentry)
+
     def test_add_tagging(self, sentry, task_instance):
         """
         Test adding tags.
@@ -135,3 +148,10 @@ class TestSentryHook:
         called = sentry_sdk.call_args[1]['before_send']
         expected = import_string('tests.core.test_sentry.before_send')
         assert called == expected
+
+    def test_before_send_minimum_config(self, sentry_sdk, sentry_minimum):
+        """
+        Test before_send doesn't raise an exception when not set
+        """
+        assert sentry_minimum
+        sentry_sdk.assert_called_once()

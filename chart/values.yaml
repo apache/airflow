@@ -40,10 +40,10 @@ airflowHome: /opt/airflow
 defaultAirflowRepository: apache/airflow
 
 # Default airflow tag to deploy
-defaultAirflowTag: "2.1.4"
+defaultAirflowTag: "2.2.2"
 
 # Airflow version (Used to make some decisions based on Airflow Version being deployed)
-airflowVersion: "2.1.4"
+airflowVersion: "2.2.2"
 
 # Images
 images:
@@ -327,11 +327,17 @@ webserverSecretKeySecretName: ~
 #
 #  kubectl create secret generic {{ .Release.name }}-kerberos-keytab --from-file=kerberos.keytab
 #
+#
+#  Alternatively, instead of manually creating the secret, it is possible to specify
+#  kerberos.keytabBase64Content parameter. This parameter should contain base64 encoded keytab.
+#
+
 kerberos:
   enabled: false
   ccacheMountPath: /var/kerberos-ccache
   ccacheFileName: cache
   configPath: /etc/krb5.conf
+  keytabBase64Content: ~
   keytabPath: /etc/airflow.keytab
   principal: airflow@FOO.COM
   reinitFrequency: 3600
@@ -505,13 +511,13 @@ workers:
 
 # Airflow scheduler settings
 scheduler:
-  # If the scheduler stops heartbeating for 5 minutes (10*30s) kill the
+  # If the scheduler stops heartbeating for 5 minutes (5*60s) kill the
   # scheduler and let Kubernetes restart it
   livenessProbe:
     initialDelaySeconds: 10
-    timeoutSeconds: 5
-    failureThreshold: 10
-    periodSeconds: 30
+    timeoutSeconds: 10
+    failureThreshold: 5
+    periodSeconds: 60
   # Airflow 2.0 allows users to run multiple schedulers,
   # However this feature is only recommended for MySQL 8+ and Postgres
   replicas: 1
@@ -621,6 +627,17 @@ createUserJob:
   nodeSelector: {}
   affinity: {}
   tolerations: []
+  # In case you need to disable the helm hooks that create the jobs after install.
+  # Disable this if you are using ArgoCD for example
+  useHelmHooks: true
+
+  resources: {}
+  #  limits:
+  #   cpu: 100m
+  #   memory: 128Mi
+  #  requests:
+  #   cpu: 100m
+  #   memory: 128Mi
 
 # Airflow database migration job settings
 migrateDatabaseJob:
@@ -640,11 +657,22 @@ migrateDatabaseJob:
     # Annotations to add to migrate database job kubernetes service account.
     annotations: {}
 
+  resources: {}
+  #  limits:
+  #   cpu: 100m
+  #   memory: 128Mi
+  #  requests:
+  #   cpu: 100m
+  #   memory: 128Mi
+
   # Launch additional containers into database migration job
   extraContainers: []
   nodeSelector: {}
   affinity: {}
   tolerations: []
+  # In case you need to disable the helm hooks that create the jobs after install.
+  # Disable this if you are using ArgoCD for example
+  useHelmHooks: true
 
 # Airflow webserver settings
 webserver:
@@ -772,6 +800,7 @@ webserver:
 
 # Airflow Triggerer Config
 triggerer:
+  enabled: true
   # Number of airflow triggerers in the deployment
   replicas: 1
 
@@ -786,13 +815,13 @@ triggerer:
       maxSurge: "100%"
       maxUnavailable: "50%"
 
-  # If the triggerer stops heartbeating for 5 minutes (10*30s) kill the
+  # If the triggerer stops heartbeating for 5 minutes (5*60s) kill the
   # triggerer and let Kubernetes restart it
   livenessProbe:
     initialDelaySeconds: 10
-    timeoutSeconds: 5
-    failureThreshold: 10
-    periodSeconds: 30
+    timeoutSeconds: 10
+    failureThreshold: 5
+    periodSeconds: 60
 
   # Create ServiceAccount
   serviceAccount:
@@ -969,6 +998,10 @@ statsd:
 pgbouncer:
   # Enable PgBouncer
   enabled: false
+  # Command to use for PgBouncer(templated).
+  command: ["pgbouncer", "-u", "nobody", "/etc/pgbouncer/pgbouncer.ini"]
+  # Args to use for PgBouncer(templated).
+  args: ~
 
   # Create ServiceAccount
   serviceAccount:
@@ -1179,6 +1212,14 @@ cleanup:
   affinity: {}
   tolerations: []
 
+  resources: {}
+  #  limits:
+  #   cpu: 100m
+  #   memory: 128Mi
+  #  requests:
+  #   cpu: 100m
+  #   memory: 128Mi
+
   # Create ServiceAccount
   serviceAccount:
     # Specifies whether a ServiceAccount should be created
@@ -1315,7 +1356,7 @@ dags:
     # git@github.com:apache/airflow.git
     # https example: https://github.com/apache/airflow.git
     repo: https://github.com/apache/airflow.git
-    branch: v2-1-stable
+    branch: v2-2-stable
     rev: HEAD
     depth: 1
     # the number of consecutive failures allowed before aborting

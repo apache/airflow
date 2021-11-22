@@ -28,7 +28,7 @@ import sqlalchemy as sa
 from alembic import op
 from sqlalchemy.engine.reflection import Inspector
 
-from airflow.models.base import COLLATION_ARGS
+from airflow.migrations.db_types import StringID
 
 # revision identifiers, used by Alembic.
 revision = '03afc6b6f902'
@@ -63,7 +63,7 @@ def upgrade():
             op.alter_column(
                 table_name='ab_view_menu',
                 column_name='name',
-                type_=sa.String(length=250, **COLLATION_ARGS),
+                type_=StringID(length=250),
                 nullable=False,
             )
 

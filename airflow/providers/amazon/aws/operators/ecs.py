@@ -453,6 +453,10 @@ class ECSOperator(BaseOperator):
             raise AirflowException(response)
 
         for task in response['tasks']:
+
+            if task.get('stopCode', '') == 'TaskFailedToStart':
+                raise AirflowException(f"The task failed to start due to: {task.get('stoppedReason', '')}")
+
             # This is a `stoppedReason` that indicates a task has not
             # successfully finished, but there is no other indication of failure
             # in the response.
@@ -466,13 +470,16 @@ class ECSOperator(BaseOperator):
             containers = task['containers']
             for container in containers:
                 if container.get('lastStatus') == 'STOPPED' and container['exitCode'] != 0:
-                    last_logs = "\n".join(
-                        self.task_log_fetcher.get_last_log_messages(self.number_logs_exception)
-                    )
-                    raise AirflowException(
-                        f"This task is not in success state - last {self.number_logs_exception} "
-                        f"logs from Cloudwatch:\n{last_logs}"
-                    )
+                    if self.task_log_fetcher:
+                        last_logs = "\n".join(
+                            self.task_log_fetcher.get_last_log_messages(self.number_logs_exception)
+                        )
+                        raise AirflowException(
+                            f"This task is not in success state - last {self.number_logs_exception} "
+                            f"logs from Cloudwatch:\n{last_logs}"
+                        )
+                    else:
+                        raise AirflowException(f'This task is not in success state {task}')
                 elif container.get('lastStatus') == 'PENDING':
                     raise AirflowException(f'This task is still pending {task}')
                 elif 'error' in container.get('reason', '').lower():

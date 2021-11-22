@@ -28,14 +28,29 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+2.1.0
+.....
+
+Latest change: 2021-10-21
+
+================================================================================================  ===========  ======================================================================
+Commit                                                                                            Committed    Subject
+================================================================================================  ===========  ======================================================================
+`0a6850647 <https://github.com/apache/airflow/commit/0a6850647e531b08f68118ff8ca20577a5b4062c>`_  2021-10-21   ``Update docstring to let users use 'node_selector' (#19057)``
+`1571f8054 <https://github.com/apache/airflow/commit/1571f80546853688778c2a3ec5194e5c8be0edbd>`_  2021-10-14   ``Add pre-commit hook for common misspelling check in files (#18964)``
+`b2045d6d1 <https://github.com/apache/airflow/commit/b2045d6d1d4d2424c02d7d9b40520440aa4e5070>`_  2021-10-13   ``Add more type hints to PodLauncher (#18928)``
+`c8b86e69e <https://github.com/apache/airflow/commit/c8b86e69e49e330ab2f551358a6998d5800adb9a>`_  2021-10-12   ``Add more information to PodLauncher timeout error (#17953)``
+================================================================================================  ===========  ======================================================================
+
 2.0.3
 .....
 
-Latest change: 2021-09-29
+Latest change: 2021-09-30
 
 ================================================================================================  ===========  ======================================================================================
 Commit                                                                                            Committed    Subject
 ================================================================================================  ===========  ======================================================================================
+`840ea3efb <https://github.com/apache/airflow/commit/840ea3efb9533837e9f36b75fa527a0fbafeb23a>`_  2021-09-30   ``Update documentation for September providers release (#18613)``
 `ef037e702 <https://github.com/apache/airflow/commit/ef037e702182e4370cb00c853c4fb0e246a0479c>`_  2021-09-29   ``Static start_date and default arg cleanup for misc. provider example DAGs (#18597)``
 `7808be7ff <https://github.com/apache/airflow/commit/7808be7ffb693de2e4ea73d0c1e6e2470cde9095>`_  2021-09-21   ``Make Kubernetes job description fit on one log line (#18377)``
 `b8d06e812 <https://github.com/apache/airflow/commit/b8d06e812ac56af6b0d17830c63b705ace9d4959>`_  2021-09-08   ``Fix KubernetesPodOperator reattach when not deleting pods (#18070)``

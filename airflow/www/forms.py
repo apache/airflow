@@ -90,7 +90,7 @@ class DateTimeWithTimezoneField(Field):
 class DateTimeForm(FlaskForm):
     """Date filter form needed for task views"""
 
-    execution_date = DateTimeWithTimezoneField("Execution date", widget=AirflowDateTimePickerWidget())
+    execution_date = DateTimeWithTimezoneField("Logical date", widget=AirflowDateTimePickerWidget())
 
 
 class DateTimeWithNumRunsForm(FlaskForm):
@@ -133,7 +133,7 @@ class DagRunEditForm(DynamicForm):
     run_id = StringField(lazy_gettext('Run Id'), widget=BS3TextFieldROWidget())
     state = StringField(lazy_gettext('State'), widget=BS3TextFieldROWidget())
     execution_date = DateTimeWithTimezoneField(
-        lazy_gettext('Execution Date'),
+        lazy_gettext('Logical Date'),
         widget=AirflowDateTimePickerROWidget(),
     )
     conf = TextAreaField(lazy_gettext('Conf'), widget=BS3TextAreaROWidget())
@@ -167,7 +167,7 @@ class TaskInstanceEditForm(DynamicForm):
         validators=[InputRequired()],
     )
     execution_date = DateTimeWithTimezoneField(
-        lazy_gettext('Execution Date'),
+        lazy_gettext('Logical Date'),
         widget=AirflowDateTimePickerROWidget(),
         validators=[InputRequired()],
     )
@@ -176,7 +176,9 @@ class TaskInstanceEditForm(DynamicForm):
 class ConnectionForm(DynamicForm):
     """Form for editing and adding Connection"""
 
-    conn_id = StringField(lazy_gettext('Conn Id'), validators=[InputRequired()], widget=BS3TextFieldWidget())
+    conn_id = StringField(
+        lazy_gettext('Connection Id'), validators=[InputRequired()], widget=BS3TextFieldWidget()
+    )
     description = StringField(lazy_gettext('Description'), widget=BS3TextAreaFieldWidget())
     host = StringField(lazy_gettext('Host'), widget=BS3TextFieldWidget())
     schema = StringField(lazy_gettext('Schema'), widget=BS3TextFieldWidget())

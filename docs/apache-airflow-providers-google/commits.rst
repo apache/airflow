@@ -35,14 +35,42 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+6.1.0
+.....
+
+Latest change: 2021-10-28
+
+================================================================================================  ===========  ======================================================================================
+Commit                                                                                            Committed    Subject
+================================================================================================  ===========  ======================================================================================
+`55abc2f62 <https://github.com/apache/airflow/commit/55abc2f620a96832661d1797442a834bf958bb3e>`_  2021-10-28   ``Support query timeout as an argument in CassandraToGCSOperator (#18927)``
+`e4aa377da <https://github.com/apache/airflow/commit/e4aa377da7fe1801dff04d54c5ed4fd525af94c4>`_  2021-10-28   ``Update BigQueryCreateExternalTableOperator doc and parameters (#18676)``
+`20847fdbf <https://github.com/apache/airflow/commit/20847fdbf8ecd3be394d24d47ce151c26d018ea1>`_  2021-10-27   ``Add value to "namespaceId" of query (#19163)``
+`3c08c025c <https://github.com/apache/airflow/commit/3c08c025c5445ffc0533ac28d07ccf2e69a19ca8>`_  2021-10-27   ``Move validation of templated input params to run after the context init (#19048)``
+`eba1b68b3 <https://github.com/apache/airflow/commit/eba1b68b30ad2818df0b8fde3be30688ec5c0042>`_  2021-10-27   ``Update dataflow.py (#19231)``
+`7ecf29f70 <https://github.com/apache/airflow/commit/7ecf29f70d3fbb1d6174fe693334a0f7fce38a70>`_  2021-10-26   ``Fix hard-coded /tmp directory in CloudSQL Hook (#19229)``
+`726a1517e <https://github.com/apache/airflow/commit/726a1517ec368e0f5906368350d6fa96836943ae>`_  2021-10-26   ``Fix bug in Dataflow hook when no jobs are returned (#18981)``
+`d9192a55b <https://github.com/apache/airflow/commit/d9192a55bacab339c4634f090160bd2d8ed77d7f>`_  2021-10-22   ``Replacing non-attribute template_fields for BigQueryToMsSqlOperator (#19052)``
+`4fae04a47 <https://github.com/apache/airflow/commit/4fae04a47119c9f2319ae5e533edcf457e4df003>`_  2021-10-21   ``Upgrade the Dataproc package to 3.0.0 and migrate from v1beta2 to v1 api (#18879)``
+`0e95b5777 <https://github.com/apache/airflow/commit/0e95b5777242b00f41812c099f1cf8e2fc0df40c>`_  2021-10-19   ``Google provider catch invalid secret name (#18790)``
+`86a2a19ad <https://github.com/apache/airflow/commit/86a2a19ad2bdc87a9ad14bb7fde9313b2d7489bb>`_  2021-10-17   ``More f-strings (#18855)``
+`a418fd96f <https://github.com/apache/airflow/commit/a418fd96f70eac1d4d7dc91553f41d5153beda93>`_  2021-10-17   ``Use google cloud credentials when executing beam command in subprocess (#18992)``
+`5c3e45382 <https://github.com/apache/airflow/commit/5c3e4538208cc317e6e45ae7b247e7fb83840f49>`_  2021-10-15   ``Fix BigQueryToMsSqlOperator documentation (#18995)``
+`406b38b2e <https://github.com/apache/airflow/commit/406b38b2e3fcf9d7fad28573bf77bb9fee5847d1>`_  2021-10-15   ``Replace default api_version of FacebookAdsReportToGcsOperator (#18996)``
+`1571f8054 <https://github.com/apache/airflow/commit/1571f80546853688778c2a3ec5194e5c8be0edbd>`_  2021-10-14   ``Add pre-commit hook for common misspelling check in files (#18964)``
+`20df60de2 <https://github.com/apache/airflow/commit/20df60de24e1dbeab2dcf5b989b69080d1b3ed34>`_  2021-10-07   ``Dataflow Operators - use project and location from job in on_kill method. (#18699)``
+`86bf2a29b <https://github.com/apache/airflow/commit/86bf2a29ba784b25c335408eb4647ad2eb48b525>`_  2021-10-04   ``Simplify strings previously split across lines (#18679)``
+================================================================================================  ===========  ======================================================================================
+
 6.0.0
 .....
 
-Latest change: 2021-09-29
+Latest change: 2021-09-30
 
 ================================================================================================  ===========  ========================================================================================
 Commit                                                                                            Committed    Subject
 ================================================================================================  ===========  ========================================================================================
+`840ea3efb <https://github.com/apache/airflow/commit/840ea3efb9533837e9f36b75fa527a0fbafeb23a>`_  2021-09-30   ``Update documentation for September providers release (#18613)``
 `9279c44c9 <https://github.com/apache/airflow/commit/9279c44c91274b7ee31c244d41090c93e5753394>`_  2021-09-29   ``Fix part of Google system tests (#18494)``
 `2fadf3c3c <https://github.com/apache/airflow/commit/2fadf3c3cf6e8a5d26953ebce6401ab5059ee05f>`_  2021-09-27   ``Fix kubernetes engine system test (#18548)``
 `a458fcc57 <https://github.com/apache/airflow/commit/a458fcc573845ff65244a2dafd204ed70129f3e8>`_  2021-09-27   ``Updating miscellaneous provider DAGs to use TaskFlow API where applicable (#18278)``

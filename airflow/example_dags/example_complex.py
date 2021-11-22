@@ -24,7 +24,6 @@ from datetime import datetime
 from airflow import models
 from airflow.models.baseoperator import chain
 from airflow.operators.bash import BashOperator
-from airflow.operators.python import PythonOperator
 
 with models.DAG(
     dag_id="example_complex",
@@ -131,7 +130,7 @@ with models.DAG(
     )
 
     # Search
-    search_catalog = PythonOperator(task_id="search_catalog", python_callable=lambda: print("search_catalog"))
+    search_catalog = BashOperator(task_id="search_catalog", bash_command="echo search_catalog")
 
     search_catalog_result = BashOperator(
         task_id="search_catalog_result", bash_command="echo search_catalog_result"

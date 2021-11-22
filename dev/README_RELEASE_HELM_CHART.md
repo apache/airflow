@@ -38,6 +38,11 @@
   - [Publish documentation](#publish-documentation)
   - [Notify developers of release](#notify-developers-of-release)
   - [Update Announcements page](#update-announcements-page)
+  - [Create release on GitHub](#create-release-on-github)
+  - [Close the milestone](#close-the-milestone)
+  - [Announce the release on the community slack](#announce-the-release-on-the-community-slack)
+  - [Tweet about the release](#tweet-about-the-release)
+  - [Bump chart version in Chart.yaml](#bump-chart-version-in-chartyaml)
   - [Remove old releases](#remove-old-releases)
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
@@ -328,8 +333,8 @@ This can be done with the Apache RAT tool.
 
 * Download the latest jar from https://creadur.apache.org/rat/download_rat.cgi (unpack the binary,
   the jar is inside)
-* Unpack the binary (`-bin.tar.gz`) to a folder
-* Enter the folder and run the check (point to the place where you extracted the .jar)
+* Unpack the release source archive (the `<package + version>-source.tar.gz` file) to a folder
+* Enter the sources folder run the check
 
 ```shell
 java -jar $PATH_TO_RAT/apache-rat-0.13/apache-rat-0.13.jar chart -E .rat-excludes
@@ -339,12 +344,12 @@ where `.rat-excludes` is the file in the root of Chart source code.
 
 ## Signature check
 
-Make sure you have the key of person signed imported in your GPG. You can find the valid keys in
+Make sure you have imported into your GPG the PGP key of the person signing the release. You can find the valid keys in
 [KEYS](https://dist.apache.org/repos/dist/release/airflow/KEYS).
 
 You can import the whole KEYS file:
 
-```shell
+```shell script
 gpg --import KEYS
 ```
 
@@ -352,8 +357,8 @@ You can also import the keys individually from a keyserver. The below one uses K
 retrieves it from the default GPG keyserver
 [OpenPGP.org](https://keys.openpgp.org):
 
-```shell
-gpg --receive-keys 12717556040EEF2EEAF1B9C275FCCD0A25FA0E4B
+```shell script
+gpg --keyserver keys.openpgp.org --receive-keys CDE15C6E4D3A8EC4ECF4BA4B6674E08AD7DE406F
 ```
 
 You should choose to import the key when asked.
@@ -362,25 +367,26 @@ Note that by being default, the OpenPGP server tends to be overloaded often and 
 errors or timeouts. Many of the release managers also uploaded their keys to the
 [GNUPG.net](https://keys.gnupg.net) keyserver, and you can retrieve it from there.
 
-```shell
-gpg --keyserver keys.gnupg.net --receive-keys 12717556040EEF2EEAF1B9C275FCCD0A25FA0E4B
+```shell script
+gpg --keyserver keys.gnupg.net --receive-keys CDE15C6E4D3A8EC4ECF4BA4B6674E08AD7DE406F
 ```
 
 Once you have the keys, the signatures can be verified by running this:
 
-```shell
+```shell script
 for i in *.asc
 do
-   echo "Checking $i"; gpg --verify $i
+   echo -e "Checking $i\n"; gpg --verify $i
 done
 ```
 
 This should produce results similar to the below. The "Good signature from ..." is indication
 that the signatures are correct. Do not worry about the "not certified with a trusted signature"
-warning. Most of the certificates used by release managers are self signed, that's why you get this
-warning. By importing the server in the previous step and importing it via ID from
+warning. Most of the certificates used by release managers are self-signed, and that's why you get this
+warning. By importing the key either from the server in the previous step or from the
 [KEYS](https://dist.apache.org/repos/dist/release/airflow/KEYS) page, you know that
-this is a valid Key already.
+this is a valid key already.  To suppress the warning you may edit the key's trust level
+by running `gpg --edit-key <key id> trust` and entering `5` to assign trust level `ultimate`.
 
 ```
 Checking airflow-1.0.0.tgz.asc
@@ -393,6 +399,7 @@ gpg:                 aka "Kaxil Naik <kaxilnaik@gmail.com>" [unknown]
 gpg: WARNING: The key's User ID is not certified with a trusted signature!
 gpg:          There is no indication that the signature belongs to the owner.
 Primary key fingerprint: CDE1 5C6E 4D3A 8EC4 ECF4  BA4B 6674 E08A D7DE 406F
+
 Checking airflow-chart-1.0.0-source.tar.gz.asc
 gpg: assuming signed data in 'airflow-chart-1.0.0-source.tar.gz'
 gpg: Signature made Sun 16 May 02:24:09 2021 BST
@@ -497,6 +504,7 @@ svn checkout https://dist.apache.org/repos/dist/release/airflow airflow-release
 
 # Create new folder for the release
 cd airflow-release/helm-chart
+export AIRFLOW_SVN_RELEASE_HELM=$(pwd)
 svn mkdir ${VERSION}
 cd ${VERSION}
 
@@ -516,7 +524,7 @@ Create and push the release tag:
 ```shell
 cd "${AIRFLOW_REPO_ROOT}"
 git checkout helm-chart/${RC}
-git tag -s helm-chart/${VERSION}
+git tag -s helm-chart/${VERSION} -m "Apache Airflow Helm Chart ${VERSION}"
 git push origin helm-chart/${VERSION}
 ```
 
@@ -527,11 +535,12 @@ In our cases, documentation for the released versions is published in a separate
 build tools are available in the `apache/airflow` repository, so you have to coordinate
 between the two repositories to be able to build the documentation.
 
-- First, copy the airflow-site repository and set the environment variable ``AIRFLOW_SITE_DIRECTORY``.
+- First, copy the airflow-site repository, create branch, and set the environment variable ``AIRFLOW_SITE_DIRECTORY``.
 
     ```shell
     git clone https://github.com/apache/airflow-site.git airflow-site
     cd airflow-site
+    git checkout -b helm-${VERSION}-docs
     export AIRFLOW_SITE_DIRECTORY="$(pwd)"
     ```
 
@@ -541,20 +550,6 @@ between the two repositories to be able to build the documentation.
     cd "${AIRFLOW_REPO_ROOT}"
     git checkout helm-chart/${VERSION}
     ./breeze build-docs -- --package-filter helm-chart --for-production
-    ```
-
-- Update `index.yaml`
-
-  We upload `index.yaml` to the Airflow website to allow: `helm repo add https://airflow.apache.org`.
-
-    ```shell
-    cd "${AIRFLOW_SITE_DIRECTORY}"
-    curl https://dist.apache.org/repos/dist/dev/airflow/helm-chart/${RC}/index.yaml -o index.yaml
-    https://dist.apache.org/repos/dist/dev/airflow/helm-chart/${VERSION}
-    sed -i "s|https://dist.apache.org/repos/dist/dev/airflow/helm-chart/$RC|https://downloads.apache.org/airflow/helm-chart/$VERSION|" index.yaml
-
-    git commit -m "Add documentation for Apache Airflow Helm Chart ${VERSION}"
-    git push
     ```
 
 - Now you can preview the documentation.
@@ -567,14 +562,33 @@ between the two repositories to be able to build the documentation.
 
     ```shell
     ./docs/publish_docs.py --package-filter helm-chart
+    ```
+
+- Update `index.yaml`
+
+  Regenerate `index.yaml` so it can be added to the Airflow website to allow: `helm repo add https://airflow.apache.org`.
+
+    ```shell
     cd "${AIRFLOW_SITE_DIRECTORY}"
+    curl https://dist.apache.org/repos/dist/dev/airflow/helm-chart/$RC/index.yaml -o index.yaml
+    cp ${AIRFLOW_SVN_RELEASE_HELM}/${VERSION}/airflow-${VERSION}.tgz .
+    helm repo index --merge ./index.yaml . --url "https://downloads.apache.org/airflow/helm-chart/$VERSION"
+    rm airflow-${VERSION}.tgz
+    mv index.yaml landing-pages/site/static/index.yaml
+    ```
+
+- Commit new docs, push, and open PR
+
+    ```shell
+    git add .
     git commit -m "Add documentation for Apache Airflow Helm Chart ${VERSION}"
     git push
+    # and finally open a PR
     ```
 
 ## Notify developers of release
 
-- Notify users@airflow.apache.org (cc'ing dev@airflow.apache.org and announce@apache.org) that
+- Notify users@airflow.apache.org (cc'ing dev@airflow.apache.org) that
 the artifacts have been published:
 
 Subject:
@@ -595,7 +609,7 @@ I am pleased to announce that we have released Apache Airflow Helm chart $VERSIO
 
 The source release, as well as the "binary" Helm Chart release, are available:
 
-📦   Official Sources: https://airflow.apache.org/helm-chart/installing-helm-chart-from-sources.html
+📦   Official Sources: https://airflow.apache.org/docs/helm-chart/$VERSION/installing-helm-chart-from-sources.html
 📦   ArtifactHub: https://artifacthub.io/packages/helm/apache-airflow/airflow
 📚   Docs: https://airflow.apache.org/docs/helm-chart/$VERSION/
 🚀   Quick Start Installation Guide: https://airflow.apache.org/docs/helm-chart/$VERSION/quick-start.html
@@ -608,9 +622,58 @@ Cheers,
 EOF
 ```
 
+Send the same email to announce@apache.org, except change the opening line to `Dear community,`.
+It is more reliable to set it via the web ui at https://lists.apache.org/list.html?announce@apache.org
+
 ## Update Announcements page
 
 Update "Announcements" page at the [Official Airflow website](https://airflow.apache.org/announcements/)
+
+## Create release on GitHub
+
+Create a new release on GitHub with the changelog and assets from the release svn.
+
+## Close the milestone
+
+Close the milestone on GitHub. Create the next one if it hasn't been already (it probably has been).
+
+## Announce the release on the community slack
+
+Post this in the #announce channel:
+
+```shell
+cat <<EOF
+We’ve just released Apache Airflow Helm Chart ${VERSION} 🎉
+
+📦 ArtifactHub: https://artifacthub.io/packages/helm/apache-airflow/airflow
+📚 Docs: https://airflow.apache.org/docs/helm-chart/$VERSION/
+🚀 Quick Start Installation Guide: https://airflow.apache.org/docs/helm-chart/$VERSION/quick-start.html
+🛠 Changelog: https://airflow.apache.org/docs/helm-chart/$VERSION/changelog.html
+
+Thanks to all the contributors who made this possible.
+EOF
+```
+
+## Tweet about the release
+
+Tweet about the release:
+
+```shell
+cat <<EOF
+We've just released Apache Airflow Helm chart $VERSION 🎉
+
+📦 ArtifactHub: https://artifacthub.io/packages/helm/apache-airflow/airflow
+📚 Docs: https://airflow.apache.org/docs/helm-chart/$VERSION/
+🛠️ Changelog: https://airflow.apache.org/docs/helm-chart/$VERSION/changelog.html
+
+Thanks to all the contributors who made this possible.
+EOF
+```
+
+## Bump chart version in Chart.yaml
+
+Bump the chart version to the next version in `chart/Chart.yaml` in main.
+
 
 ## Remove old releases
 

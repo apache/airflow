@@ -179,8 +179,8 @@ class KubernetesJobWatcher(multiprocessing.Process, LoggingMixin):
             # Return resource version 0
             return '0'
         raise AirflowException(
-            'Kubernetes failure for %s with code %s and message: %s'
-            % (raw_object['reason'], raw_object['code'], raw_object['message'])
+            f"Kubernetes failure for {raw_object['reason']} with code {raw_object['code']} and message: "
+            f"{raw_object['message']}"
         )
 
     def process_status(
@@ -419,8 +419,10 @@ def get_base_pod_from_template(pod_template_file: Optional[str], kube_config: An
         return PodGenerator.deserialize_model_file(kube_config.pod_template_file)
 
 
-class KubernetesExecutor(BaseExecutor, LoggingMixin):
+class KubernetesExecutor(BaseExecutor):
     """Executor for Kubernetes"""
+
+    supports_ad_hoc_ti_run: bool = True
 
     def __init__(self):
         self.kube_config = KubeConfig()
@@ -468,12 +470,12 @@ class KubernetesExecutor(BaseExecutor, LoggingMixin):
                 continue
 
             # Build the pod selector
-            dict_string = "dag_id={},task_id={},airflow-worker={}".format(
-                pod_generator.make_safe_label_value(task.dag_id),
-                pod_generator.make_safe_label_value(task.task_id),
-                pod_generator.make_safe_label_value(str(self.scheduler_job_id)),
+            base_label_selector = (
+                f"dag_id={pod_generator.make_safe_label_value(task.dag_id)},"
+                f"task_id={pod_generator.make_safe_label_value(task.task_id)},"
+                f"airflow-worker={pod_generator.make_safe_label_value(str(self.scheduler_job_id))}"
             )
-            kwargs = dict(label_selector=dict_string)
+            kwargs = dict(label_selector=base_label_selector)
             if self.kube_config.kube_client_request_args:
                 kwargs.update(**self.kube_config.kube_client_request_args)
 
@@ -483,8 +485,9 @@ class KubernetesExecutor(BaseExecutor, LoggingMixin):
             if pod_list.items:
                 continue
             # Fallback to old style of using execution_date
-            kwargs['label_selector'] = dict_string + ',execution_date={}'.format(
-                pod_generator.datetime_to_label_safe_datestring(task.execution_date)
+            kwargs['label_selector'] = (
+                f'{base_label_selector},'
+                f'execution_date={pod_generator.datetime_to_label_safe_datestring(task.execution_date)}'
             )
             pod_list = self.kube_client.list_namespaced_pod(self.kube_config.kube_namespace, **kwargs)
             if pod_list.items:
@@ -598,13 +601,17 @@ class KubernetesExecutor(BaseExecutor, LoggingMixin):
                 try:
                     self.kube_scheduler.run_next(task)
                 except ApiException as e:
-                    if e.reason == "BadRequest":
-                        self.log.error("Request was invalid. Failing task")
+
+                    # These codes indicate something is wrong with pod definition; otherwise we assume pod
+                    # definition is ok, and that retrying may work
+                    if e.status in (400, 422):
+                        self.log.error("Pod creation failed with reason %r. Failing task", e.reason)
                         key, _, _, _ = task
                         self.change_state(key, State.FAILED, e)
                     else:
                         self.log.warning(
-                            'ApiException when attempting to run task, re-queueing. Message: %s',
+                            'ApiException when attempting to run task, re-queueing. Reason: %r. Message: %s',
+                            e.reason,
                             json.loads(e.body)['message'],
                         )
                         self.task_queue.put(task)

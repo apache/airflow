@@ -141,7 +141,7 @@ function create_www_user() {
     airflow users create \
        --username "${_AIRFLOW_WWW_USER_USERNAME="admin"}" \
        --firstname "${_AIRFLOW_WWW_USER_FIRSTNAME="Airflow"}" \
-       --lastname "${_AIRFLOW_WWW_USER_LASTNME="Admin"}" \
+       --lastname "${_AIRFLOW_WWW_USER_LASTNAME="Admin"}" \
        --email "${_AIRFLOW_WWW_USER_EMAIL="airflowadmin@example.com"}" \
        --role "${_AIRFLOW_WWW_USER_ROLE="Admin"}" \
        --password "${local_password}" || true
@@ -281,7 +281,7 @@ if [[ -n "${_PIP_ADDITIONAL_REQUIREMENTS=}" ]] ; then
     >&2 echo
     >&2 echo "!!!!!  Installing additional requirements: '${_PIP_ADDITIONAL_REQUIREMENTS}' !!!!!!!!!!!!"
     >&2 echo
-    >&2 echo "WARNING: This is a developpment/test feature only. NEVER use it in production!"
+    >&2 echo "WARNING: This is a development/test feature only. NEVER use it in production!"
     >&2 echo "         Instead, build a custom image as described in"
     >&2 echo
     >&2 echo "         https://airflow.apache.org/docs/docker-stack/build.html"

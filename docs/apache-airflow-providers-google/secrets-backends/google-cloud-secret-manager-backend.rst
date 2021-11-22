@@ -151,6 +151,10 @@ command as in the example below.
         --replication-policy=automatic
     Created version [1] of the secret [airflow-variables-first-variable].
 
+.. note:: If only key of the connection should be hidden there is an option to store
+    only that key in Cloud Secret Manager and not entire connection. For more details take
+    a look at :ref:`Google Cloud Connection <howto/connection:gcp>`.
+
 Checking configuration
 ======================
 
@@ -160,8 +164,8 @@ You can use the ``airflow connections get`` command to check if the connection i
 
     $ airflow connections get first-connection
     Id: null
-    Conn Id: first-connection
-    Conn Type: mysql
+    Connection Id: first-connection
+    Connection Type: mysql
     Host: example.org
     Schema: ''
     Login: null

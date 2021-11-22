@@ -739,17 +739,9 @@ class TestCloudSqlQueryValidation(unittest.TestCase):
         get_connection,
     ):
         uri = (
-            "gcpcloudsql://user:password@127.0.0.1:3200/testdb?"
-            "database_type={database_type}&"
-            "project_id={project_id}&location={location}&instance={instance_name}&"
-            "use_proxy={use_proxy}&use_ssl={use_ssl}".format(
-                database_type=database_type,
-                project_id=project_id,
-                location=location,
-                instance_name=instance_name,
-                use_proxy=use_proxy,
-                use_ssl=use_ssl,
-            )
+            f"gcpcloudsql://user:password@127.0.0.1:3200/testdb?"
+            f"database_type={database_type}&project_id={project_id}&location={location}"
+            f"&instance={instance_name}&use_proxy={use_proxy}&use_ssl={use_ssl}"
         )
         self._setup_connections(get_connection, uri)
         with pytest.raises(AirflowException) as ctx:
@@ -763,9 +755,7 @@ class TestCloudSqlQueryValidation(unittest.TestCase):
         uri = (
             "gcpcloudsql://user:password@127.0.0.1:3200/testdb?database_type=postgres&"
             "project_id=example-project&location=europe-west1&"
-            "instance="
-            "test_db_with_long_name_a_bit_above"
-            "_the_limit_of_UNIX_socket_asdadadasadasd&"
+            "instance=test_db_with_long_name_a_bit_above_the_limit_of_UNIX_socket_asdadadasadasd&"
             "use_proxy=True&sql_proxy_use_tcp=False"
         )
         self._setup_connections(get_connection, uri)

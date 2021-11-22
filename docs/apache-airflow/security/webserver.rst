@@ -220,7 +220,7 @@ webserver_config.py itself if you wish.
         ) -> Dict[str, Union[str, List[str]]]:
 
             # Creates the user info payload from Github.
-            # The user previously allowed your app to act on thier behalf,
+            # The user previously allowed your app to act on their behalf,
             #   so now we can query the user and teams endpoints for their data.
             # Username and team membership are added to the payload and returned to FAB.
 

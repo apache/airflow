@@ -19,6 +19,19 @@
 Changelog
 ---------
 
+2.3.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add test_connection method for Snowflake Hook (#19041)``
+* ``Add region to Snowflake URI. (#18650)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Moving the example tag a little bit up to include the part where you specify the snowflake_conn_id (#19180)``
+
 2.2.0
 .....
 

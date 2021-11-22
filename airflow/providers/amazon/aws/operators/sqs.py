@@ -26,6 +26,10 @@ class SQSPublishOperator(BaseOperator):
     """
     Publish message to a SQS queue.
 
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:SQSPublishOperator`
+
     :param sqs_queue: The SQS queue url (templated)
     :type sqs_queue: str
     :param message_content: The message content (templated)

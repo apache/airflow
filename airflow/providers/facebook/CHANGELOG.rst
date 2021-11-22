@@ -19,6 +19,17 @@
 Changelog
 ---------
 
+2.1.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Align the default version with Facebook business SDK (#18883)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 2.0.1
 .....
 

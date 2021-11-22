@@ -93,7 +93,7 @@ STATE_COLORS = {
     "upstream_failed": "orange",
     "skipped": "pink",
     "scheduled": "tan",
-    "deferred": "lightseagreen",
+    "deferred": "mediumpurple",
 }
 
 
@@ -344,24 +344,24 @@ def configure_adapters():
     """Register Adapters and DB Converters"""
     from pendulum import DateTime as Pendulum
 
-    try:
+    if SQL_ALCHEMY_CONN.startswith('sqlite'):
         from sqlite3 import register_adapter
 
         register_adapter(Pendulum, lambda val: val.isoformat(' '))
-    except ImportError:
-        pass
-    try:
-        import MySQLdb.converters
 
-        MySQLdb.converters.conversions[Pendulum] = MySQLdb.converters.DateTime2literal
-    except ImportError:
-        pass
-    try:
-        import pymysql.converters
+    if SQL_ALCHEMY_CONN.startswith('mysql'):
+        try:
+            import MySQLdb.converters
 
-        pymysql.converters.conversions[Pendulum] = pymysql.converters.escape_datetime
-    except ImportError:
-        pass
+            MySQLdb.converters.conversions[Pendulum] = MySQLdb.converters.DateTime2literal
+        except ImportError:
+            pass
+        try:
+            import pymysql.converters
+
+            pymysql.converters.conversions[Pendulum] = pymysql.converters.escape_datetime
+        except ImportError:
+            pass
 
 
 def validate_session():
@@ -550,7 +550,7 @@ MASK_SECRETS_IN_LOGS = False
 
 # Display alerts on the dashboard
 # Useful for warning about setup issues or announcing changes to end users
-# List of UIAlerts, which allows for specifiying the message, category, and roles the
+# List of UIAlerts, which allows for specifying the message, category, and roles the
 # message should be shown to. For example:
 #   from airflow.www.utils import UIAlert
 #
@@ -563,3 +563,6 @@ MASK_SECRETS_IN_LOGS = False
 #
 # DASHBOARD_UIALERTS: List["UIAlert"]
 DASHBOARD_UIALERTS = []
+
+# Prefix used to identify tables holding data moved during migration.
+AIRFLOW_MOVED_TABLE_PREFIX = "_airflow_moved"

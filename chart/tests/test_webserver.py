@@ -137,6 +137,24 @@ class WebserverDeploymentTest(unittest.TestCase):
             "image": "test-registry/test-repo:test-tag",
         } == jmespath.search("spec.template.spec.containers[-1]", docs[0])
 
+    @parameterized.expand(
+        [
+            ("2.0.0", ["airflow", "db", "check-migrations"]),
+            ("2.1.0", ["airflow", "db", "check-migrations"]),
+            ("1.10.2", ["python", "-c"]),
+        ],
+    )
+    def test_wait_for_migration_airflow_version(self, airflow_version, expected_arg):
+        docs = render_chart(
+            values={
+                "airflowVersion": airflow_version,
+            },
+            show_only=["templates/webserver/webserver-deployment.yaml"],
+        )
+        # Don't test the full string, just the length of the expect matches
+        actual = jmespath.search("spec.template.spec.initContainers[0].args", docs[0])
+        assert expected_arg == actual[: len(expected_arg)]
+
     def test_should_add_extra_init_containers(self):
         docs = render_chart(
             values={
@@ -235,6 +253,39 @@ class WebserverDeploymentTest(unittest.TestCase):
             assert "logs" not in [
                 v["name"] for v in jmespath.search("spec.template.spec.containers[0].volumeMounts", docs[0])
             ]
+
+    @parameterized.expand(
+        [
+            ("1.10.10", False),
+            ("1.10.12", True),
+            ("2.1.0", True),
+        ]
+    )
+    def test_config_volumes_and_mounts(self, af_version, pod_template_file_expected):
+        # setup
+        docs = render_chart(
+            values={"airflowVersion": af_version},
+            show_only=["templates/webserver/webserver-deployment.yaml"],
+        )
+
+        # default config
+        assert {
+            "name": "config",
+            "mountPath": "/opt/airflow/airflow.cfg",
+            "readOnly": True,
+            "subPath": "airflow.cfg",
+        } in jmespath.search("spec.template.spec.containers[0].volumeMounts", docs[0])
+
+        # pod_template_file config
+        assert pod_template_file_expected == (
+            {
+                "name": "config",
+                "mountPath": "/opt/airflow/pod_templates/pod_template_file.yaml",
+                "readOnly": True,
+                "subPath": "pod_template_file.yaml",
+            }
+            in jmespath.search("spec.template.spec.containers[0].volumeMounts", docs[0])
+        )
 
     def test_webserver_resources_are_configurable(self):
         docs = render_chart(
@@ -549,18 +600,18 @@ class WebserverNetworkPolicyTest(unittest.TestCase):
     @parameterized.expand(
         [
             (
-                [{"name": "{{ .Release.Name }}", "protocol": "UDP", "port": "{{ .Values.ports.airflowUI }}"}],
-                [{"name": "RELEASE-NAME", "protocol": "UDP", "port": 8080}],
+                [{"protocol": "UDP", "port": "{{ .Values.ports.airflowUI }}"}],
+                [{"protocol": "UDP", "port": 8080}],
             ),
-            ([{"name": "only_sidecar", "port": "sidecar"}], [{"name": "only_sidecar", "port": "sidecar"}]),
+            ([{"port": "sidecar"}], [{"port": "sidecar"}]),
             (
                 [
-                    {"name": "flower-ui", "port": "{{ .Values.ports.airflowUI }}"},
-                    {"name": "sidecar", "port": 80},
+                    {"port": "{{ .Values.ports.airflowUI }}"},
+                    {"port": 80},
                 ],
                 [
-                    {"name": "flower-ui", "port": 8080},
-                    {"name": "sidecar", "port": 80},
+                    {"port": 8080},
+                    {"port": 80},
                 ],
             ),
         ],

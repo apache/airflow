@@ -51,6 +51,7 @@ env:
   GITHUB_REGISTRY_PUSH_IMAGE_TAG: "latest"
   INSTALL_PROVIDERS_FROM_SOURCES: "true"
   AIRFLOW_LOGIN_TO_GITHUB_REGISTRY: "true"
+  ENABLE_TEST_COVERAGE: "${{ github.event_name == 'push' }}"
 
   # You can switch between building the image in "Build Images" workflow or building them in CI workflow
   # Separately for each job.
@@ -157,6 +158,7 @@ jobs:
       sqliteExclude: ${{ steps.selective-checks.outputs.sqlite-exclude }}
       run-tests: ${{ steps.selective-checks.outputs.run-tests }}
       run-ui-tests: ${{ steps.selective-checks.outputs.run-ui-tests }}
+      run-www-tests: ${{ steps.selective-checks.outputs.run-www-tests }}
       run-kubernetes-tests: ${{ steps.selective-checks.outputs.run-kubernetes-tests }}
       basic-checks-only: ${{ steps.selective-checks.outputs.basic-checks-only }}
       image-build: ${{ steps.selective-checks.outputs.image-build }}
@@ -240,6 +242,29 @@ jobs:
           key: ${{ runner.os }}-ui-node-modules-${{ hashFiles('airflow/ui/**/yarn.lock') }}
       - run: yarn --cwd airflow/ui/ install --frozen-lockfile --non-interactive
       - run: yarn --cwd airflow/ui/ run test
+
+  tests-www:
+    timeout-minutes: 10
+    name: React WWW tests
+    runs-on: ${{ fromJson(needs.build-info.outputs.runsOn) }}
+    needs: [build-info]
+    if: needs.build-info.outputs.run-www-tests == 'true'
+    steps:
+      - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
+        uses: actions/checkout@v2
+        with:
+          persist-credentials: false
+      - name: "Setup node"
+        uses: actions/setup-node@v2
+        with:
+          node-version: 14
+      - name: "Cache eslint"
+        uses: actions/cache@v2
+        with:
+          path: 'airflow/www/node_modules'
+          key: ${{ runner.os }}-ui-node-modules-${{ hashFiles('airflow/ui/**/yarn.lock') }}
+      - run: yarn --cwd airflow/www/ install --frozen-lockfile --non-interactive
+      - run: yarn --cwd airflow/www/ run test
 
 
   test-openapi-client-generation:
@@ -1055,7 +1080,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
           PR_LABELS: "${{ needs.build-info.outputs.pullRequestLabels }}"
       - name: "Upload KinD logs"
         uses: actions/upload-artifact@v2
-        if: failure()
+        if: failure() || cancelled()
         with:
           name: >
             kind-logs-${{matrix.executor}}
@@ -1123,7 +1148,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
           PR_LABELS: "${{ needs.build-info.outputs.pullRequestLabels }}"
       - name: "Upload KinD logs"
         uses: actions/upload-artifact@v2
-        if: failure()
+        if: failure() || cancelled()
         with:
           name: >
             kind-logs-KubernetesExecutor
@@ -1214,7 +1239,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
   push-images-to-github-registry:
     permissions:
       packages: write
-    timeout-minutes: 10
+    timeout-minutes: 40
     name: "Push images as cache to GitHub Registry"
     runs-on: ${{ fromJson(needs.build-info.outputs.runsOn) }}
     needs:

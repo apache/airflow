@@ -18,6 +18,37 @@
 Changelog
 ---------
 
+6.1.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add value to 'namespaceId' of query (#19163)``
+* ``Add pre-commit hook for common misspelling check in files (#18964)``
+* ``Support query timeout as an argument in CassandraToGCSOperator (#18927)``
+* ``Update BigQueryCreateExternalTableOperator doc and parameters (#18676)``
+* ``Replacing non-attribute template_fields for BigQueryToMsSqlOperator (#19052)``
+* ``Upgrade the Dataproc package to 3.0.0 and migrate from v1beta2 to v1 api (#18879)``
+* ``Use google cloud credentials when executing beam command in subprocess (#18992)``
+* ``Replace default api_version of FacebookAdsReportToGcsOperator (#18996)``
+* ``Dataflow Operators - use project and location from job in on_kill method. (#18699)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix hard-coded /tmp directory in CloudSQL Hook (#19229)``
+* ``Fix bug in Dataflow hook when no jobs are returned (#18981)``
+* ``Fix BigQueryToMsSqlOperator documentation (#18995)``
+* ``Move validation of templated input params to run after the context init (#19048)``
+* ``Google provider catch invalid secret name (#18790)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Update dataflow.py (#19231)``
+   * ``More f-strings (#18855)``
+   * ``Simplify strings previously split across lines (#18679)``
+
 6.0.0
 .....
 

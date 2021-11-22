@@ -400,7 +400,7 @@ function startOrStopRefresh() {
 
 $('#auto_refresh').change(() => {
   if ($('#auto_refresh').is(':checked')) {
-    // Run an initial refesh before starting interval if manually turned on
+    // Run an initial refresh before starting interval if manually turned on
     handleRefresh();
     localStorage.removeItem('disableAutoRefresh');
   } else {
@@ -427,6 +427,7 @@ function groupTooltip(node, tis) {
     ['up_for_reschedule', 0],
     ['running', 0],
     ['deferred', 0],
+    ['sensing', 0],
     ['queued', 0],
     ['scheduled', 0],
     ['skipped', 0],
@@ -451,8 +452,12 @@ function groupTooltip(node, tis) {
   });
 
   const groupDuration = convertSecsToHumanReadable(moment(maxEnd).diff(minStart, 'second'));
+  const tooltipText = node.tooltip ? `<p>${node.tooltip}</p>` : '';
 
-  let tt = `<strong>Duration:</strong> ${groupDuration} <br><br>`;
+  let tt = `
+    ${tooltipText}
+    <strong>Duration:</strong> ${groupDuration} <br><br>
+  `;
   numMap.forEach((key, val) => {
     if (key > 0) {
       tt += `<strong>${escapeHtml(val)}:</strong> ${key} <br>`;
@@ -628,7 +633,7 @@ function expandGroup(nodeId, node) {
   edges.forEach((edge) => {
     const sourceId = mapTaskToNode.get(edge.source_id);
     const targetId = mapTaskToNode.get(edge.target_id);
-    if (sourceId !== targetId && !g.hasEdge(sourceId, targetId)) {
+    if (sourceId !== targetId && !g.hasEdge(sourceId, targetId) && sourceId && targetId) {
       g.setEdge(sourceId, targetId, {
         curve: d3.curveBasis,
         arrowheadClass: 'arrowhead',

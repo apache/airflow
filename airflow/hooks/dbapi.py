@@ -262,7 +262,7 @@ class DbApiHook(BaseHook):
     @staticmethod
     def _generate_insert_sql(table, values, target_fields, replace, **kwargs):
         """
-        Static helper method that generate the INSERT SQL statement.
+        Static helper method that generates the INSERT SQL statement.
         The REPLACE variant is specific to MySQL syntax.
 
         :param table: Name of the target table
@@ -377,12 +377,9 @@ class DbApiHook(BaseHook):
         """Tests the connection by executing a select 1 query"""
         status, message = False, ''
         try:
-            with closing(self.get_conn()) as conn:
-                with closing(conn.cursor()) as cur:
-                    cur.execute("select 1")
-                    if cur.fetchone():
-                        status = True
-                        message = 'Connection successfully tested'
+            if self.get_first("select 1"):
+                status = True
+                message = 'Connection successfully tested'
         except Exception as e:
             status = False
             message = str(e)

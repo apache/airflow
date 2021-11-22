@@ -54,13 +54,6 @@ spec:
       volumeMounts:
         - mountPath: "/opt/airflow/logs"
           name: airflow-logs
-        - mountPath: /opt/airflow/dags
-          name: airflow-dags
-          readOnly: false
-        - mountPath: /opt/airflow/dags
-          name: airflow-dags
-          readOnly: true
-          subPath: repo/tests/dags
   hostNetwork: false
   restartPolicy: Never
   securityContext:
@@ -74,9 +67,6 @@ spec:
     []
   serviceAccountName: 'RELEASE-NAME-worker-serviceaccount'
   volumes:
-    - name: dags
-      persistentVolumeClaim:
-        claimName: RELEASE-NAME-dags
     - emptyDir: {}
       name: airflow-logs
     - configMap:

@@ -141,8 +141,8 @@ class LocalTaskJob(BaseJob):
                     Stats.incr('local_task_job_prolonged_heartbeat_failure', 1, 1)
                     self.log.error("Heartbeat time limit exceeded!")
                     raise AirflowException(
-                        "Time since last heartbeat({:.2f}s) "
-                        "exceeded limit ({}s).".format(time_since_last_heartbeat, heartbeat_time_limit)
+                        f"Time since last heartbeat({time_since_last_heartbeat:.2f}s) exceeded limit "
+                        f"({heartbeat_time_limit}s)."
                     )
         finally:
             self.on_kill()
@@ -189,7 +189,7 @@ class LocalTaskJob(BaseJob):
             same_hostname = fqdn == ti.hostname
             if not same_hostname:
                 self.log.warning(
-                    "The recorded hostname %s " "does not match this instance's hostname " "%s",
+                    "The recorded hostname %s does not match this instance's hostname %s",
                     ti.hostname,
                     fqdn,
                 )
@@ -209,7 +209,7 @@ class LocalTaskJob(BaseJob):
                 raise AirflowException("PID of job runner does not match")
         elif self.task_runner.return_code() is None and hasattr(self.task_runner, 'process'):
             self.log.warning(
-                "State of this instance has been externally set to %s. " "Terminating instance.", ti.state
+                "State of this instance has been externally set to %s. Terminating instance.", ti.state
             )
             self.task_runner.terminate()
             if ti.state == State.SUCCESS:

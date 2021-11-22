@@ -17,7 +17,6 @@
 import unittest.mock
 
 import pytest
-from flask_appbuilder.security.sqla.models import User
 from parameterized import parameterized
 from sqlalchemy.sql.functions import count
 
@@ -25,6 +24,7 @@ from airflow.api_connexion.exceptions import EXCEPTIONS_LINK_MAP
 from airflow.security import permissions
 from airflow.utils import timezone
 from airflow.utils.session import create_session
+from airflow.www.fab_security.sqla.models import User
 from tests.test_utils.api_connexion_utils import assert_401, create_user, delete_user
 from tests.test_utils.config import conf_vars
 
@@ -471,6 +471,65 @@ class TestPatchUser(TestUserEndpoint):
         data = response.json
         assert data["first_name"] == "Changed"
         assert data["last_name"] == "User"
+
+    @pytest.mark.parametrize(
+        "payload, error_message",
+        [
+            ({"username": "another_user"}, "The username `another_user` already exists"),
+            ({"email": "another_user@example.com"}, "The email `another_user@example.com` already exists"),
+        ],
+        ids=["username", "email"],
+    )
+    @pytest.mark.usefixtures("user_different")
+    @pytest.mark.usefixtures("autoclean_admin_user")
+    def test_patch_already_exists(
+        self,
+        payload,
+        error_message,
+        autoclean_user_payload,
+        autoclean_username,
+    ):
+        autoclean_user_payload.update(payload)
+        response = self.client.patch(
+            f"/api/v1/users/{autoclean_username}",
+            json=autoclean_user_payload,
+            environ_overrides={"REMOTE_USER": "test"},
+        )
+        assert response.status_code == 409, response.json
+
+        assert response.json["detail"] == error_message
+
+    @pytest.mark.parametrize(
+        "field",
+        ["username", "first_name", "last_name", "email"],
+    )
+    @pytest.mark.usefixtures("autoclean_admin_user")
+    def test_required_fields(
+        self,
+        field,
+        autoclean_user_payload,
+        autoclean_username,
+    ):
+        autoclean_user_payload.pop(field)
+        response = self.client.patch(
+            f"/api/v1/users/{autoclean_username}",
+            json=autoclean_user_payload,
+            environ_overrides={"REMOTE_USER": "test"},
+        )
+        assert response.status_code == 400, response.json
+        assert response.json['detail'] == "{'%s': ['Missing data for required field.']}" % field
+
+    @pytest.mark.usefixtures('autoclean_admin_user')
+    def test_username_can_be_updated(self, autoclean_user_payload, autoclean_username):
+        testusername = 'testusername'
+        autoclean_user_payload.update({"username": testusername})
+        response = self.client.patch(
+            f"/api/v1/users/{autoclean_username}",
+            json=autoclean_user_payload,
+            environ_overrides={"REMOTE_USER": "test"},
+        )
+        _delete_user(username=testusername)
+        assert response.json['username'] == testusername
 
     @pytest.mark.usefixtures("autoclean_admin_user")
     @unittest.mock.patch(

@@ -52,7 +52,7 @@ from airflow.utils.net import get_hostname
 from airflow.utils.session import create_session, provide_session
 
 
-def _get_dag_run(dag, exec_date_or_run_id, create_if_necssary, session):
+def _get_dag_run(dag, exec_date_or_run_id, create_if_necessary, session):
     dag_run = dag.get_dagrun(run_id=exec_date_or_run_id, session=session)
     if dag_run:
         return dag_run
@@ -61,7 +61,7 @@ def _get_dag_run(dag, exec_date_or_run_id, create_if_necssary, session):
     with suppress(ParserError, TypeError):
         execution_date = timezone.parse(exec_date_or_run_id)
 
-    if create_if_necssary and not execution_date:
+    if create_if_necessary and not execution_date:
         return DagRun(dag_id=dag.dag_id, run_id=exec_date_or_run_id)
     try:
         return (
@@ -73,7 +73,7 @@ def _get_dag_run(dag, exec_date_or_run_id, create_if_necssary, session):
             .one()
         )
     except NoResultFound:
-        if create_if_necssary:
+        if create_if_necessary:
             return DagRun(dag.dag_id, execution_date=execution_date)
         raise DagRunNotFound(
             f"DagRun for {dag.dag_id} with run_id or execution_date of {exec_date_or_run_id!r} not found"
@@ -81,12 +81,12 @@ def _get_dag_run(dag, exec_date_or_run_id, create_if_necssary, session):
 
 
 @provide_session
-def _get_ti(task, exec_date_or_run_id, create_if_necssary=False, session=None):
+def _get_ti(task, exec_date_or_run_id, create_if_necessary=False, session=None):
     """Get the task instance through DagRun.run_id, if that fails, get the TI the old way"""
-    dag_run = _get_dag_run(task.dag, exec_date_or_run_id, create_if_necssary, session)
+    dag_run = _get_dag_run(task.dag, exec_date_or_run_id, create_if_necessary, session)
 
     ti = dag_run.get_task_instance(task.task_id)
-    if not ti and create_if_necssary:
+    if not ti and create_if_necessary:
         ti = TaskInstance(task, run_id=None)
         ti.dag_run = dag_run
     ti.refresh_from_task(task)
@@ -228,7 +228,13 @@ def _capture_task_logs(ti):
 
 @cli_utils.action_logging
 def task_run(args, dag=None):
-    """Runs a single task instance"""
+    """Run a single task instance.
+
+    Note that there must be at least one DagRun for this to start,
+    i.e. it must have been scheduled and/or triggered previously.
+    Alternatively, if you just need to run it for testing then use
+    "airflow tasks test ..." command instead.
+    """
     # Load custom airflow config
 
     if args.local and args.raw:
@@ -241,13 +247,14 @@ def task_run(args, dag=None):
         unsupported_options = [o for o in RAW_TASK_UNSUPPORTED_OPTION if getattr(args, o)]
 
         if unsupported_options:
+            unsupported_raw_task_flags = ', '.join(f'--{o}' for o in RAW_TASK_UNSUPPORTED_OPTION)
+            unsupported_flags = ', '.join(f'--{o}' for o in unsupported_options)
             raise AirflowException(
-                "Option --raw does not work with some of the other options on this command. You "
-                "can't use --raw option and the following options: {}. You provided the option {}. "
-                "Delete it to execute the command".format(
-                    ", ".join(f"--{o}" for o in RAW_TASK_UNSUPPORTED_OPTION),
-                    ", ".join(f"--{o}" for o in unsupported_options),
-                )
+                "Option --raw does not work with some of the other options on this command. "
+                "You can't use --raw option and the following options: "
+                f"{unsupported_raw_task_flags}. "
+                f"You provided the option {unsupported_flags}. "
+                "Delete it to execute the command."
             )
     if dag and args.pickle:
         raise AirflowException("You cannot use the --pickle option when using DAG.cli() method.")
@@ -448,7 +455,7 @@ def task_test(args, dag=None):
     if task.params:
         task.params.validate()
 
-    ti = _get_ti(task, args.execution_date_or_run_id, create_if_necssary=True)
+    ti = _get_ti(task, args.execution_date_or_run_id, create_if_necessary=True)
 
     try:
         if args.dry_run:
@@ -474,7 +481,7 @@ def task_render(args):
     """Renders and displays templated fields for a given task"""
     dag = get_dag(args.subdir, args.dag_id)
     task = dag.get_task(task_id=args.task_id)
-    ti = _get_ti(task, args.execution_date_or_run_id, create_if_necssary=True)
+    ti = _get_ti(task, args.execution_date_or_run_id, create_if_necessary=True)
     ti.render_templates()
     for attr in task.__class__.template_fields:
         print(

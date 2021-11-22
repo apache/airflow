@@ -221,6 +221,10 @@ function needs_ui_tests() {
     initialization::ga_output run-ui-tests "${@}"
 }
 
+function needs_www_tests() {
+    initialization::ga_output run-www-tests "${@}"
+}
+
 if [[ ${DEFAULT_BRANCH} == "main" ]]; then
     ALL_TESTS="Always API Core Other CLI Providers WWW Integration"
 else
@@ -243,6 +247,7 @@ function set_outputs_run_everything_and_exit() {
     set_image_build "true"
     set_upgrade_to_newer_dependencies "${upgrade_to_newer_dependencies}"
     needs_ui_tests "true"
+    needs_www_tests "true"
     exit
 }
 
@@ -269,6 +274,7 @@ function set_output_skip_all_tests_and_docs_and_exit() {
     set_image_build "false"
     set_upgrade_to_newer_dependencies "false"
     needs_ui_tests "false"
+    needs_www_tests "false"
     exit
 }
 
@@ -286,6 +292,7 @@ function set_output_skip_tests_but_build_images_and_exit() {
     set_image_build "true"
     set_upgrade_to_newer_dependencies "${upgrade_to_newer_dependencies}"
     needs_ui_tests "false"
+    needs_www_tests "false"
     exit
 }
 
@@ -457,6 +464,24 @@ function check_if_ui_tests_should_be_run() {
         needs_ui_tests "false"
     else
         needs_ui_tests "true"
+    fi
+    start_end::group_end
+}
+
+function check_if_www_tests_should_be_run() {
+    start_end::group_start "Check WWW"
+    local pattern_array=(
+        "^airflow/www/.*\.js[x]?$"
+        # tsconfig.json, package.json, etc.
+        "^airflow/www/[^/]+\.json$"
+        "^airflow/www/.*\.lock$"
+    )
+    show_changed_files
+
+    if [[ $(count_changed_files) == "0" ]]; then
+        needs_www_tests "false"
+    else
+        needs_www_tests "true"
     fi
     start_end::group_end
 }
@@ -724,6 +749,7 @@ check_if_api_codegen_should_be_run
 check_if_javascript_security_scans_should_be_run
 check_if_python_security_scans_should_be_run
 check_if_ui_tests_should_be_run
+check_if_www_tests_should_be_run
 check_if_tests_are_needed_at_all
 get_count_all_files
 get_count_api_files

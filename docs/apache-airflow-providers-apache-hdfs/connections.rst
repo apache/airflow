@@ -44,6 +44,7 @@ Extra (optional, connection parameters)
     parameters out of the standard python parameters are supported:
 
     * ``autoconfig`` - Default value is bool: False. Use snakebite's automatically configured client. This HDFSHook implementation requires snakebite.
+    * ``hdfs_namenode_principal`` - Specifies the Kerberos principal to use for HDFS.
 
     The following extra parameters can be used to configure SSL for Web HDFS Hook:
 

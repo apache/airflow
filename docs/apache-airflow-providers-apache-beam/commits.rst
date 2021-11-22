@@ -28,14 +28,26 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+3.1.0
+.....
+
+Latest change: 2021-10-17
+
+================================================================================================  ===========  ===================================================================================
+Commit                                                                                            Committed    Subject
+================================================================================================  ===========  ===================================================================================
+`a418fd96f <https://github.com/apache/airflow/commit/a418fd96f70eac1d4d7dc91553f41d5153beda93>`_  2021-10-17   ``Use google cloud credentials when executing beam command in subprocess (#18992)``
+================================================================================================  ===========  ===================================================================================
+
 3.0.1
 .....
 
-Latest change: 2021-07-26
+Latest change: 2021-08-30
 
 ================================================================================================  ===========  ===================================================================
 Commit                                                                                            Committed    Subject
 ================================================================================================  ===========  ===================================================================
+`0a6858847 <https://github.com/apache/airflow/commit/0a68588479e34cf175d744ea77b283d9d78ea71a>`_  2021-08-30   ``Add August 2021 Provider's documentation (#17890)``
 `87f408b1e <https://github.com/apache/airflow/commit/87f408b1e78968580c760acb275ae5bb042161db>`_  2021-07-26   ``Prepares docs for Rc2 release of July providers (#17116)``
 `d02ded65e <https://github.com/apache/airflow/commit/d02ded65eaa7d2281e249b3fa028605d1b4c52fb>`_  2021-07-15   ``Fixed wrongly escaped characters in amazon's changelog (#17020)``
 `b916b7507 <https://github.com/apache/airflow/commit/b916b7507921129dc48d6add1bdc4b923b60c9b9>`_  2021-07-15   ``Prepare documentation for July release of providers. (#17015)``

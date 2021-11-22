@@ -25,6 +25,7 @@ This DAG relies on the following OS environment variables:
 * GCP_BUCKET_NAME - Google Cloud Storage bucket where the file exists.
 """
 import os
+from datetime import datetime
 
 from google.api_core.retry import Retry
 
@@ -35,7 +36,6 @@ from airflow.providers.google.cloud.operators.video_intelligence import (
     CloudVideoIntelligenceDetectVideoLabelsOperator,
     CloudVideoIntelligenceDetectVideoShotsOperator,
 )
-from airflow.utils.dates import days_ago
 
 # [START howto_operator_video_intelligence_os_args]
 GCP_BUCKET_NAME = os.environ.get("GCP_VIDEO_INTELLIGENCE_BUCKET_NAME", "INVALID BUCKET NAME")
@@ -50,7 +50,8 @@ INPUT_URI = f"gs://{GCP_BUCKET_NAME}/video.mp4"
 with models.DAG(
     "example_gcp_video_intelligence",
     schedule_interval='@once',  # Override to match your needs
-    start_date=days_ago(1),
+    start_date=datetime(2021, 1, 1),
+    catchup=False,
     tags=['example'],
 ) as dag:
 

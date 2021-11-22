@@ -239,7 +239,12 @@ Then you can import and use the ``ALL_TASKS`` constant in all your DAGs like tha
 
     from my_company_utils.common import ALL_TASKS
 
-    with DAG(dag_id="my_dag", schedule_interval=None, start_date=days_ago(2)) as dag:
+    with DAG(
+        dag_id="my_dag",
+        schedule_interval=None,
+        start_date=datetime(2021, 1, 1),
+        catchup=False,
+    ) as dag:
         for task in ALL_TASKS:
             # create your operators and relations here
             pass
@@ -314,7 +319,7 @@ In case you see long delays between updating it and the time it is ready to be t
 at the following configuration parameters and fine tune them according your needs (see details of
 each parameter by following the links):
 
-* :ref:`config:scheduler__processor_poll_interval`
+* :ref:`config:scheduler__scheduler_idle_sleep_time`
 * :ref:`config:scheduler__min_file_process_interval`
 * :ref:`config:scheduler__dag_dir_list_interval`
 * :ref:`config:scheduler__parsing_processes`

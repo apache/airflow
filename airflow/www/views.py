@@ -30,7 +30,7 @@ from datetime import timedelta
 from functools import wraps
 from json import JSONDecodeError
 from operator import itemgetter
-from typing import Any, Callable, Iterable, List, Optional, Set, Tuple, Union
+from typing import Any, Callable, List, Optional, Set, Tuple, Union
 from urllib.parse import parse_qsl, unquote, urlencode, urlparse
 
 import lazy_object_proxy
@@ -82,7 +82,7 @@ from pendulum.datetime import DateTime
 from pendulum.parsing.exceptions import ParserError
 from pygments import highlight, lexers
 from pygments.formatters import HtmlFormatter
-from sqlalchemy import Date, and_, desc, func, union_all
+from sqlalchemy import Date, and_, desc, func, inspect, union_all
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import joinedload
 from wtforms import SelectField, validators
@@ -94,6 +94,7 @@ from airflow.api.common.experimental.mark_tasks import (
     set_dag_run_state_to_failed,
     set_dag_run_state_to_success,
 )
+from airflow.compat.functools import cached_property
 from airflow.configuration import AIRFLOW_CONFIG, conf
 from airflow.exceptions import AirflowException
 from airflow.executors.executor_loader import ExecutorLoader
@@ -219,23 +220,102 @@ def get_date_time_num_runs_dag_runs_form_data(www_request, session, dag):
     }
 
 
-def task_group_to_dict(task_group):
+def task_group_to_tree(task_item_or_group, dag, dag_runs, tis):
     """
     Create a nested dict representation of this TaskGroup and its children used to construct
     the Graph.
     """
-    if isinstance(task_group, BaseOperator):
+    if isinstance(task_item_or_group, BaseOperator):
         return {
-            'id': task_group.task_id,
+            'id': task_item_or_group.task_id,
+            'instances': [wwwutils.encode_ti(ti) for ti in tis if ti.task_id == task_item_or_group.task_id],
+            'label': task_item_or_group.label,
+            'extra_links': task_item_or_group.extra_links,
+        }
+
+    # Task Group
+    task_group = task_item_or_group
+
+    children = [task_group_to_tree(child, dag, dag_runs, tis) for child in task_group.children.values()]
+
+    def get_summary(dag_run, children):
+        priority = [
+            'failed',
+            'upstream_failed',
+            'up_for_retry',
+            'up_for_reschedule',
+            'queued',
+            'scheduled',
+            'deferred',
+            'sensing',
+            'running',
+            'shutdown',
+            'restarting',
+            'removed',
+            'no_status',
+            'success',
+            'skipped',
+        ]
+
+        child_instances = [child['instances'] for child in children if 'instances' in child]
+        child_instances = [item for sublist in child_instances for item in sublist]
+
+        children_start_dates = [
+            item['start_date'] for item in child_instances if item['run_id'] == dag_run.run_id
+        ]
+        children_end_dates = [
+            item['end_date'] for item in child_instances if item['run_id'] == dag_run.run_id
+        ]
+        children_states = [item['state'] for item in child_instances if item['run_id'] == dag_run.run_id]
+
+        group_state = None
+        for state in priority:
+            if state in children_states:
+                group_state = state
+                break
+        group_start_date = wwwutils.datetime_to_string(
+            min((timezone.parse(date) for date in children_start_dates if date), default=None)
+        )
+        group_end_date = wwwutils.datetime_to_string(
+            max((timezone.parse(date) for date in children_end_dates if date), default=None)
+        )
+
+        return {
+            'task_id': task_group.group_id,
+            'run_id': dag_run.run_id,
+            'state': group_state,
+            'start_date': group_start_date,
+            'end_date': group_end_date,
+        }
+
+    group_summaries = [get_summary(dr, children) for dr in dag_runs]
+
+    return {
+        'id': task_group.group_id,
+        'label': task_group.label,
+        'children': children,
+        'tooltip': task_group.tooltip,
+        'instances': group_summaries,
+    }
+
+
+def task_group_to_dict(task_item_or_group):
+    """
+    Create a nested dict representation of this TaskGroup and its children used to construct
+    the Graph.
+    """
+    if isinstance(task_item_or_group, BaseOperator):
+        return {
+            'id': task_item_or_group.task_id,
             'value': {
-                'label': task_group.label,
-                'labelStyle': f"fill:{task_group.ui_fgcolor};",
-                'style': f"fill:{task_group.ui_color};",
+                'label': task_item_or_group.label,
+                'labelStyle': f"fill:{task_item_or_group.ui_fgcolor};",
+                'style': f"fill:{task_item_or_group.ui_color};",
                 'rx': 5,
                 'ry': 5,
             },
         }
-
+    task_group = task_item_or_group
     children = [
         task_group_to_dict(child) for child in sorted(task_group.children.values(), key=lambda t: t.label)
     ]
@@ -276,8 +356,8 @@ def task_group_to_dict(task_group):
             'rx': 5,
             'ry': 5,
             'clusterLabelPos': 'top',
+            'tooltip': task_group.tooltip,
         },
-        'tooltip': task_group.tooltip,
         'children': children,
     }
 
@@ -692,10 +772,21 @@ class Airflow(AirflowBaseView):
             fm for fm in settings.DASHBOARD_UIALERTS if fm.should_show(current_app.appbuilder.sm)
         ]
 
+        def _iter_parsed_moved_data_table_names():
+            for table_name in inspect(session.get_bind()).get_table_names():
+                segments = table_name.split("__", 2)
+                if len(segments) < 3:
+                    continue
+                if segments[0] != settings.AIRFLOW_MOVED_TABLE_PREFIX:
+                    continue
+                # Second segment is a version marker that we don't need to show.
+                yield segments[2], table_name
+
         return self.render_template(
             'airflow/dags.html',
             dags=dags,
             dashboard_alerts=dashboard_alerts,
+            migration_moved_data_alerts=sorted(set(_iter_parsed_moved_data_table_names())),
             current_page=current_page,
             search_query=arg_search_query if arg_search_query else '',
             page_title=page_title,
@@ -913,20 +1004,15 @@ class Airflow(AirflowBaseView):
             ),
         )
 
-        def _datetime_to_string(value: Optional[DateTime]) -> Optional[str]:
-            if value is None:
-                return None
-            return value.isoformat()
-
         resp = {
             r.dag_id.replace('.', '__dot__'): {
                 "dag_id": r.dag_id,
                 "state": r.state,
-                "execution_date": _datetime_to_string(r.execution_date),
-                "start_date": _datetime_to_string(r.start_date),
-                "end_date": _datetime_to_string(r.end_date),
-                "data_interval_start": _datetime_to_string(r.data_interval_start),
-                "data_interval_end": _datetime_to_string(r.data_interval_end),
+                "execution_date": wwwutils.datetime_to_string(r.execution_date),
+                "start_date": wwwutils.datetime_to_string(r.start_date),
+                "end_date": wwwutils.datetime_to_string(r.end_date),
+                "data_interval_start": wwwutils.datetime_to_string(r.data_interval_start),
+                "data_interval_end": wwwutils.datetime_to_string(r.data_interval_end),
             }
             for r in query
         }
@@ -1189,8 +1275,8 @@ class Airflow(AirflowBaseView):
             execution_date = timezone.parse(execution_date)
         except ValueError:
             error_message = (
-                'Given execution date, {}, could not be identified '
-                'as a date. Example date format: 2015-11-16T14:34:15+00:00'.format(execution_date)
+                f'Given execution date, {execution_date}, could not be identified as a date. '
+                'Example date format: 2015-11-16T14:34:15+00:00'
             )
             response = jsonify({'error': error_message})
             response.status_code = 400
@@ -1517,29 +1603,20 @@ class Airflow(AirflowBaseView):
         ignore_ti_state = request.form.get('ignore_ti_state') == "true"
 
         executor = ExecutorLoader.get_default_executor()
-        valid_celery_config = False
-        valid_kubernetes_config = False
 
-        try:
-            from airflow.executors.celery_executor import CeleryExecutor
-
-            valid_celery_config = isinstance(executor, CeleryExecutor)
-        except ImportError:
-            pass
-
-        try:
-            from airflow.executors.kubernetes_executor import KubernetesExecutor
-
-            valid_kubernetes_config = isinstance(executor, KubernetesExecutor)
-        except ImportError:
-            pass
-
-        if not valid_celery_config and not valid_kubernetes_config:
-            flash("Only works with the Celery or Kubernetes executors, sorry", "error")
+        if not getattr(executor, "supports_ad_hoc_ti_run", False):
+            flash("Only works with the Celery, CeleryKubernetes or Kubernetes executors, sorry", "error")
             return redirect(origin)
 
         dag_run = dag.get_dagrun(execution_date=execution_date)
         ti = dag_run.get_task_instance(task_id=task.task_id)
+        if not ti:
+            flash(
+                "Could not queue task instance for execution, task instance is missing",
+                "error",
+            )
+            return redirect(origin)
+
         ti.refresh_from_task(task)
 
         # Make sure the task instance can be run
@@ -1553,8 +1630,7 @@ class Airflow(AirflowBaseView):
         if failed_deps:
             failed_deps_str = ", ".join(f"{dep.dep_name}: {dep.reason}" for dep in failed_deps)
             flash(
-                "Could not queue task instance for execution, dependencies not met: "
-                "{}".format(failed_deps_str),
+                f"Could not queue task instance for execution, dependencies not met: {failed_deps_str}",
                 "error",
             )
             return redirect(origin)
@@ -2139,102 +2215,6 @@ class Airflow(AirflowBaseView):
             State.SUCCESS,
         )
 
-    def _get_tree_data(
-        self,
-        dag_runs: Iterable[DagRun],
-        dag: DAG,
-        base_date: DateTime,
-        session: settings.Session,
-    ):
-        """Returns formatted dag_runs for Tree view"""
-        dates = sorted(dag_runs.keys())
-        min_date = min(dag_runs, default=None)
-
-        task_instances = {
-            (ti.task_id, ti.execution_date): ti
-            for ti in dag.get_task_instances(start_date=min_date, end_date=base_date, session=session)
-        }
-
-        expanded = set()
-        # The default recursion traces every path so that tree view has full
-        # expand/collapse functionality. After 5,000 nodes we stop and fall
-        # back on a quick DFS search for performance. See PR #320.
-        node_count = 0
-        node_limit = 5000 / max(1, len(dag.leaves))
-
-        def encode_ti(task_instance: Optional[models.TaskInstance]) -> Optional[List]:
-            if not task_instance:
-                return None
-
-            # NOTE: order of entry is important here because client JS relies on it for
-            # tree node reconstruction. Remember to change JS code in tree.html
-            # whenever order is altered.
-            task_instance_data = [
-                task_instance.state,
-                task_instance.try_number,
-                None,  # start_ts
-                None,  # duration
-            ]
-
-            if task_instance.start_date:
-                # round to seconds to reduce payload size
-                task_instance_data[2] = int(task_instance.start_date.timestamp())
-                if task_instance.duration is not None:
-                    task_instance_data[3] = truncate_task_duration(task_instance.duration)
-
-            return task_instance_data
-
-        def recurse_nodes(task, visited):
-            nonlocal node_count
-            node_count += 1
-            visited.add(task)
-            task_id = task.task_id
-
-            node = {
-                'name': task.task_id,
-                'instances': [encode_ti(task_instances.get((task_id, d))) for d in dates],
-                'num_dep': len(task.downstream_list),
-                'operator': task.task_type,
-                'retries': task.retries,
-                'owner': task.owner,
-                'ui_color': task.ui_color,
-            }
-
-            if task.downstream_list:
-                children = [
-                    recurse_nodes(t, visited)
-                    for t in task.downstream_list
-                    if node_count < node_limit or t not in visited
-                ]
-
-                # D3 tree uses children vs _children to define what is
-                # expanded or not. The following block makes it such that
-                # repeated nodes are collapsed by default.
-                if task.task_id not in expanded:
-                    children_key = 'children'
-                    expanded.add(task.task_id)
-                else:
-                    children_key = "_children"
-                node[children_key] = children
-
-            if task.depends_on_past:
-                node['depends_on_past'] = task.depends_on_past
-            if task.start_date:
-                # round to seconds to reduce payload size
-                node['start_ts'] = int(task.start_date.timestamp())
-                if task.end_date:
-                    # round to seconds to reduce payload size
-                    node['end_ts'] = int(task.end_date.timestamp())
-            if task.extra_links:
-                node['extra_links'] = task.extra_links
-            return node
-
-        return {
-            'name': '[DAG]',
-            'children': [recurse_nodes(t, set()) for t in dag.roots],
-            'instances': [dag_runs.get(d) or {'execution_date': d.isoformat()} for d in dates],
-        }
-
     @expose('/tree')
     @auth.has_access(
         [
@@ -2276,9 +2256,11 @@ class Airflow(AirflowBaseView):
             .limit(num_runs)
             .all()
         )
-        dag_runs = {dr.execution_date: alchemy_to_dict(dr) for dr in dag_runs}
+        dag_runs.reverse()
+        encoded_runs = [wwwutils.encode_dag_run(dr) for dr in dag_runs]
+        dag_run_dates = {dr.execution_date: alchemy_to_dict(dr) for dr in dag_runs}
 
-        max_date = max(dag_runs.keys(), default=None)
+        max_date = max(dag_run_dates, default=None)
 
         form = DateTimeWithNumRunsForm(
             data={
@@ -2295,7 +2277,14 @@ class Airflow(AirflowBaseView):
         else:
             external_log_name = None
 
-        data = self._get_tree_data(dag_runs, dag, base_date, session=session)
+        min_date = min(dag_run_dates, default=None)
+
+        tis = dag.get_task_instances(start_date=min_date, end_date=base_date, session=session)
+
+        data = {
+            'groups': task_group_to_tree(dag.task_group, dag, dag_runs, tis),
+            'dag_runs': encoded_runs,
+        }
 
         # avoid spaces to reduce payload size
         data = htmlsafe_json_dumps(data, separators=(',', ':'))
@@ -2846,6 +2835,7 @@ class Airflow(AirflowBaseView):
             task_dict['end_date'] = task_dict['end_date'] or timezone.utcnow()
             task_dict['extraLinks'] = dag.get_task(ti.task_id).extra_links
             task_dict['try_number'] = try_count
+            task_dict['execution_date'] = dttm
             tasks.append(task_dict)
 
         tf_count = 0
@@ -2867,6 +2857,7 @@ class Airflow(AirflowBaseView):
             task_dict['operator'] = task.task_type
             task_dict['try_number'] = try_count
             task_dict['extraLinks'] = task.extra_links
+            task_dict['execution_date'] = dttm
             tasks.append(task_dict)
 
         task_names = [ti.task_id for ti in tis]
@@ -3011,11 +3002,18 @@ class Airflow(AirflowBaseView):
                 .limit(num_runs)
                 .all()
             )
-            dag_runs = {dr.execution_date: alchemy_to_dict(dr) for dr in dag_runs}
-            tree_data = self._get_tree_data(dag_runs, dag, base_date, session=session)
+            dag_runs.reverse()
+            encoded_runs = [wwwutils.encode_dag_run(dr) for dr in dag_runs]
+            dag_run_dates = {dr.execution_date: alchemy_to_dict(dr) for dr in dag_runs}
+            min_date = min(dag_run_dates, default=None)
+            tis = dag.get_task_instances(start_date=min_date, end_date=base_date, session=session)
+            data = {
+                'groups': task_group_to_tree(dag.task_group, dag, dag_runs, tis),
+                'dag_runs': encoded_runs,
+            }
 
         # avoid spaces to reduce payload size
-        return htmlsafe_json_dumps(tree_data, separators=(',', ':'))
+        return htmlsafe_json_dumps(data, separators=(',', ':'))
 
     @expose('/robots.txt')
     @action_logging
@@ -3116,7 +3114,7 @@ class DagFilter(BaseFilter):
 class DagEditFilter(BaseFilter):
     """Filter using DagIDs"""
 
-    def apply(self, query, func):  # pylint: disable=redefined-outer-name,unused-argument
+    def apply(self, query, func):
         filter_dag_ids = current_app.appbuilder.sm.get_editable_dag_ids(g.user)
         return query.filter(self.model.dag_id.in_(filter_dag_ids))
 
@@ -3213,6 +3211,11 @@ class SlaMissModelView(AirflowModelView):
     ]
 
     list_columns = ['dag_id', 'task_id', 'execution_date', 'email_sent', 'timestamp']
+
+    label_columns = {
+        'execution_date': 'Logical Date',
+    }
+
     add_columns = ['dag_id', 'task_id', 'execution_date', 'email_sent', 'timestamp']
     edit_columns = ['dag_id', 'task_id', 'execution_date', 'email_sent', 'timestamp']
     search_columns = ['dag_id', 'task_id', 'email_sent', 'timestamp', 'execution_date']
@@ -3248,6 +3251,10 @@ class XComModelView(AirflowModelView):
         permissions.ACTION_CAN_DELETE,
         permissions.ACTION_CAN_ACCESS_MENU,
     ]
+
+    label_columns = {
+        'execution_date': 'Logical Date',
+    }
 
     search_columns = ['key', 'value', 'timestamp', 'execution_date', 'task_id', 'dag_id']
     list_columns = ['key', 'value', 'timestamp', 'execution_date', 'task_id', 'dag_id']
@@ -3297,17 +3304,20 @@ def lazy_add_provider_discovered_options_to_connection_form():
         return _connection_types
 
     ConnectionForm.conn_type = SelectField(
-        lazy_gettext('Conn Type'),
+        lazy_gettext('Connection Type'),
         choices=sorted(_get_connection_types(), key=itemgetter(1)),
         widget=Select2Widget(),
         validators=[InputRequired()],
         description="""
-            Conn Type missing?
+            Connection Type missing?
             Make sure you've installed the corresponding Airflow Provider Package.
         """,
     )
     for key, value in ProvidersManager().connection_form_widgets.items():
         setattr(ConnectionForm, key, value.field)
+        ConnectionModelView.add_columns.append(key)
+        ConnectionModelView.edit_columns.append(key)
+        ConnectionModelView.extra_fields.append(key)
 
 
 # Used to store a dictionary of field behaviours used to dynamically change available
@@ -3317,7 +3327,9 @@ def lazy_add_provider_discovered_options_to_connection_form():
 class ConnectionFormWidget(FormWidget):
     """Form widget used to display connection"""
 
-    field_behaviours = json.dumps(ProvidersManager().field_behaviours)
+    @cached_property
+    def field_behaviours(self):
+        return json.dumps(ProvidersManager().field_behaviours)
 
 
 class ConnectionModelView(AirflowModelView):
@@ -3345,7 +3357,6 @@ class ConnectionModelView(AirflowModelView):
         permissions.ACTION_CAN_ACCESS_MENU,
     ]
 
-    extra_fields = list(ProvidersManager().connection_form_widgets.keys())
     list_columns = [
         'conn_id',
         'conn_type',
@@ -3355,7 +3366,7 @@ class ConnectionModelView(AirflowModelView):
         'is_encrypted',
         'is_extra_encrypted',
     ]
-    add_columns = edit_columns = [
+    add_columns = [
         'conn_id',
         'conn_type',
         'description',
@@ -3365,7 +3376,11 @@ class ConnectionModelView(AirflowModelView):
         'password',
         'port',
         'extra',
-    ] + extra_fields
+    ]
+    edit_columns = add_columns.copy()
+
+    # Initialized later by lazy_add_provider_discovered_options_to_connection_form
+    extra_fields = []
 
     add_form = edit_form = ConnectionForm
     add_template = 'airflow/conn_create.html'
@@ -3406,34 +3421,55 @@ class ConnectionModelView(AirflowModelView):
         for selected_conn in connections:
             new_conn_id = selected_conn.conn_id
             match = re.search(r"_copy(\d+)$", selected_conn.conn_id)
+
+            base_conn_id = selected_conn.conn_id
             if match:
-                conn_id_prefix = selected_conn.conn_id[: match.start()]
-                new_conn_id = f"{conn_id_prefix}_copy{int(match.group(1)) + 1}"
-            else:
-                new_conn_id += '_copy1'
+                base_conn_id = base_conn_id.split('_copy')[0]
 
-            dup_conn = Connection(
-                new_conn_id,
-                selected_conn.conn_type,
-                selected_conn.description,
-                selected_conn.host,
-                selected_conn.login,
-                selected_conn.password,
-                selected_conn.schema,
-                selected_conn.port,
-                selected_conn.extra,
+            potential_connection_ids = [f"{base_conn_id}_copy{i}" for i in range(1, 11)]
+
+            query = session.query(Connection.conn_id).filter(Connection.conn_id.in_(potential_connection_ids))
+
+            found_conn_id_set = {conn_id for conn_id, in query}
+
+            possible_conn_id_iter = (
+                connection_id
+                for connection_id in potential_connection_ids
+                if connection_id not in found_conn_id_set
             )
-
             try:
-                session.add(dup_conn)
-                session.commit()
-                flash(f"Connection {new_conn_id} added successfully.", "success")
-            except IntegrityError:
+                new_conn_id = next(possible_conn_id_iter)
+            except StopIteration:
                 flash(
-                    f"Connection {new_conn_id} can't be added. Integrity error, probably unique constraint.",
+                    f"Connection {new_conn_id} can't be added because it already exists, "
+                    f"Please rename the existing connections",
                     "warning",
                 )
-                session.rollback()
+            else:
+
+                dup_conn = Connection(
+                    new_conn_id,
+                    selected_conn.conn_type,
+                    selected_conn.description,
+                    selected_conn.host,
+                    selected_conn.login,
+                    selected_conn.password,
+                    selected_conn.schema,
+                    selected_conn.port,
+                    selected_conn.extra,
+                )
+
+                try:
+                    session.add(dup_conn)
+                    session.commit()
+                    flash(f"Connection {new_conn_id} added successfully.", "success")
+                except IntegrityError:
+                    flash(
+                        f"Connection {new_conn_id} can't be added. Integrity error, "
+                        f"probably unique constraint.",
+                        "warning",
+                    )
+                    session.rollback()
 
         self.update_redirect()
         return redirect(self.get_redirect())
@@ -3904,6 +3940,9 @@ class DagRunModelView(AirflowPrivilegeVerifierModelView):
         'end_date',
         'external_trigger',
     ]
+    label_columns = {
+        'execution_date': 'Logical Date',
+    }
     edit_columns = ['state', 'dag_id', 'execution_date', 'start_date', 'end_date', 'run_id', 'conf']
 
     base_order = ('execution_date', 'desc')
@@ -3969,10 +4008,7 @@ class DagRunModelView(AirflowPrivilegeVerifierModelView):
                     current_app.dag_bag.get_dag(dr.dag_id), dr.execution_date, commit=True, session=session
                 )
             altered_ti_count = len(altered_tis)
-            flash(
-                "{count} dag runs and {altered_ti_count} task instances "
-                "were set to failed".format(count=count, altered_ti_count=altered_ti_count)
-            )
+            flash(f"{count} dag runs and {altered_ti_count} task instances were set to failed")
         except Exception:
             flash('Failed to set state', 'error')
         return redirect(self.get_default_url())
@@ -3996,10 +4032,7 @@ class DagRunModelView(AirflowPrivilegeVerifierModelView):
                     current_app.dag_bag.get_dag(dr.dag_id), dr.execution_date, commit=True, session=session
                 )
             altered_ti_count = len(altered_tis)
-            flash(
-                "{count} dag runs and {altered_ti_count} task instances "
-                "were set to success".format(count=count, altered_ti_count=altered_ti_count)
-            )
+            flash(f"{count} dag runs and {altered_ti_count} task instances were set to success")
         except Exception:
             flash('Failed to set state', 'error')
         return redirect(self.get_default_url())
@@ -4048,6 +4081,10 @@ class LogModelView(AirflowModelView):
     list_columns = ['id', 'dttm', 'dag_id', 'task_id', 'event', 'execution_date', 'owner', 'extra']
     search_columns = ['dag_id', 'task_id', 'event', 'execution_date', 'owner', 'extra']
 
+    label_columns = {
+        'execution_date': 'Logical Date',
+    }
+
     base_order = ('dttm', 'desc')
 
     base_filters = [['dag_id', DagFilter, lambda: []]]
@@ -4091,7 +4128,7 @@ class TaskRescheduleModelView(AirflowModelView):
     ]
 
     label_columns = {
-        'dag_run.execution_date': 'Execution Date',
+        'dag_run.execution_date': 'Logical Date',
     }
 
     search_columns = [
@@ -4222,7 +4259,7 @@ class TaskInstanceModelView(AirflowPrivilegeVerifierModelView):
     ]
 
     label_columns = {
-        'dag_run.execution_date': 'Execution Date',
+        'dag_run.execution_date': 'Logical Date',
     }
 
     search_columns = [
@@ -4482,10 +4519,11 @@ class DagDependenciesView(AirflowBaseView):
         }
 
 
-class CustomPermissionModelView(PermissionModelView):
+class ActionModelView(PermissionModelView):
     """Customize permission names for FAB's builtin PermissionModelView."""
 
-    class_permission_name = permissions.RESOURCE_PERMISSION
+    class_permission_name = permissions.RESOURCE_ACTION
+    route_base = "/actions"
     method_permission_name = {
         'list': 'read',
     }
@@ -4493,17 +4531,36 @@ class CustomPermissionModelView(PermissionModelView):
         permissions.ACTION_CAN_READ,
     ]
 
+    list_title = lazy_gettext("List Actions")
+    show_title = lazy_gettext("Show Action")
+    add_title = lazy_gettext("Add Action")
+    edit_title = lazy_gettext("Edit Action")
 
-class CustomPermissionViewModelView(PermissionViewModelView):
+    label_columns = {"name": lazy_gettext("Name")}
+
+
+class PermissionPairModelView(PermissionViewModelView):
     """Customize permission names for FAB's builtin PermissionViewModelView."""
 
-    class_permission_name = permissions.RESOURCE_PERMISSION_VIEW
+    class_permission_name = permissions.RESOURCE_PERMISSION
+    route_base = "/permissions"
     method_permission_name = {
         'list': 'read',
     }
     base_permissions = [
         permissions.ACTION_CAN_READ,
     ]
+
+    list_title = lazy_gettext("List Permissions")
+    show_title = lazy_gettext("Show Permission")
+    add_title = lazy_gettext("Add Permission")
+    edit_title = lazy_gettext("Edit Permission")
+
+    label_columns = {
+        "action": lazy_gettext("Action"),
+        "resource": lazy_gettext("Resource"),
+    }
+    list_columns = ["action", "resource"]
 
 
 class CustomResetMyPasswordView(ResetMyPasswordView):
@@ -4550,16 +4607,24 @@ class CustomRoleModelView(RoleModelView):
     ]
 
 
-class CustomViewMenuModelView(ViewMenuModelView):
+class ResourceModelView(ViewMenuModelView):
     """Customize permission names for FAB's builtin ViewMenuModelView."""
 
-    class_permission_name = permissions.RESOURCE_VIEW_MENU
+    class_permission_name = permissions.RESOURCE_RESOURCE
+    route_base = "/resources"
     method_permission_name = {
         'list': 'read',
     }
     base_permissions = [
         permissions.ACTION_CAN_READ,
     ]
+
+    list_title = lazy_gettext("List Resources")
+    show_title = lazy_gettext("Show Resource")
+    add_title = lazy_gettext("Add Resource")
+    edit_title = lazy_gettext("Edit Resource")
+
+    label_columns = {"name": lazy_gettext("Name")}
 
 
 class CustomUserInfoEditView(UserInfoEditView):

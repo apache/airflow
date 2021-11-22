@@ -1238,7 +1238,7 @@ def validate_provider_info_with_runtime_schema(provider_info: Dict[str, Any]) ->
         console.print("[red]Provider info not validated against runtime schema[/]")
         raise Exception(
             "Error when validating schema. The schema must be compatible with "
-            + "airflow/provider_info.schema.json.",
+            "airflow/provider_info.schema.json.",
             ex,
         )
 
@@ -2026,6 +2026,9 @@ def summarise_total_vs_bad_and_warnings(total: int, bad: int, warns: List[warnin
         console.print()
         raise_error = True
     if warns:
+        if os.environ.get('GITHUB_ACTIONS'):
+            # Ends group in GitHub Actions so that the errors are immediately visible in CI log
+            console.print("::endgroup::")
         console.print()
         console.print("[red]Unknown warnings generated:[/]")
         console.print()
@@ -2072,13 +2075,8 @@ KNOWN_DEPRECATED_MESSAGES: Set[Tuple[str, str]] = {
     ),
     (
         "Using or importing the ABCs from 'collections' instead of from 'collections.abc' is deprecated since"
-        " Python 3.3, and in 3.10 it will stop working",
+        " Python 3.3,and in 3.9 it will stop working",
         "apache_beam",
-    ),
-    (
-        "Using or importing the ABCs from 'collections' instead of from 'collections.abc' is deprecated since"
-        " Python 3.3, and in 3.10 it will stop working",
-        "dns",
     ),
     (
         'pyarrow.HadoopFileSystem is deprecated as of 2.0.0, please use pyarrow.fs.HadoopFileSystem instead.',
@@ -2116,7 +2114,20 @@ KNOWN_DEPRECATED_MESSAGES: Set[Tuple[str, str]] = {
 # ignore those messages when the warnings are generated directly by importlib - which means that
 # we imported it directly during module walk by the importlib library
 KNOWN_DEPRECATED_DIRECT_IMPORTS: Set[str] = {
+    "This module is deprecated. Please use `airflow.providers.microsoft.azure.hooks.batch`.",
+    "This module is deprecated. Please use `airflow.providers.microsoft.azure.hooks.container_instance`.",
+    "This module is deprecated. Please use `airflow.providers.microsoft.azure.hooks.container_registry`.",
+    "This module is deprecated. Please use `airflow.providers.microsoft.azure.hooks.container_volume`.",
+    "This module is deprecated. Please use `airflow.providers.microsoft.azure.hooks.cosmos`.",
     "This module is deprecated. Please use `airflow.providers.microsoft.azure.hooks.data_factory`.",
+    "This module is deprecated. Please use `airflow.providers.microsoft.azure.hooks.data_lake`.",
+    "This module is deprecated. Please use `airflow.providers.microsoft.azure.hooks.fileshare`.",
+    "This module is deprecated. Please use `airflow.providers.microsoft.azure.operators.batch`.",
+    "This module is deprecated. "
+    "Please use `airflow.providers.microsoft.azure.operators.container_instances`.",
+    "This module is deprecated. Please use `airflow.providers.microsoft.azure.operators.cosmos`.",
+    "This module is deprecated. Please use `airflow.providers.microsoft.azure.secrets.key_vault`.",
+    "This module is deprecated. Please use `airflow.providers.microsoft.azure.sensors.cosmos`.",
     "This module is deprecated. Please use `airflow.providers.amazon.aws.hooks.dynamodb`.",
     "This module is deprecated. Please use `airflow.providers.microsoft.azure.transfers.local_to_wasb`.",
     "This module is deprecated. Please use `airflow.providers.tableau.operators.tableau_refresh_workbook`.",

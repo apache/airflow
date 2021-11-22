@@ -22,7 +22,7 @@ from typing import Iterable, Optional, Sequence, Union
 from airflow import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.gcs import GCSHook, _parse_gcs_url, gcs_object_is_directory
-from airflow.providers.microsoft.azure.hooks.azure_fileshare import AzureFileShareHook
+from airflow.providers.microsoft.azure.hooks.fileshare import AzureFileShareHook
 
 
 class AzureFileShareToGCSOperator(BaseOperator):
@@ -103,7 +103,8 @@ class AzureFileShareToGCSOperator(BaseOperator):
         self.gzip = gzip
         self.google_impersonation_chain = google_impersonation_chain
 
-        if dest_gcs and not gcs_object_is_directory(self.dest_gcs):
+    def _check_inputs(self) -> None:
+        if self.dest_gcs and not gcs_object_is_directory(self.dest_gcs):
             self.log.info(
                 'Destination Google Cloud Storage path is not a valid '
                 '"directory", define a path that ends with a slash "/" or '
@@ -114,6 +115,7 @@ class AzureFileShareToGCSOperator(BaseOperator):
             )
 
     def execute(self, context):
+        self._check_inputs()
         azure_fileshare_hook = AzureFileShareHook(self.azure_fileshare_conn_id)
         files = azure_fileshare_hook.list_files(
             share_name=self.share_name, directory_name=self.directory_name

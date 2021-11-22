@@ -411,7 +411,7 @@ class MLEngineHook(GoogleBaseHook):
         """
         hook = self.get_conn()
         if 'name' not in model or not model['name']:
-            raise ValueError("Model name must be provided and " "could not be an empty string")
+            raise ValueError("Model name must be provided and could not be an empty string")
         project = f'projects/{project_id}'
 
         self._append_label(model)
@@ -463,7 +463,7 @@ class MLEngineHook(GoogleBaseHook):
         """
         hook = self.get_conn()
         if not model_name:
-            raise ValueError("Model name must be provided and " "it could not be an empty string")
+            raise ValueError("Model name must be provided and it could not be an empty string")
         full_model_name = f'projects/{project_id}/models/{model_name}'
         request = hook.projects().models().get(name=full_model_name)
         try:

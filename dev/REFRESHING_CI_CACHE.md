@@ -48,7 +48,7 @@ manual refresh might be needed.
 # Manually generating constraint files
 
 ```bash
-export CURRENT_PYTHON_MAJOR_MINOR_VERSIONS_AS_STRING="3.6 3.7 3.8 3.9"
+export CURRENT_PYTHON_MAJOR_MINOR_VERSIONS_AS_STRING="3.7 3.8 3.9 3.6"
 for python_version in $(echo "${CURRENT_PYTHON_MAJOR_MINOR_VERSIONS_AS_STRING}")
 do
   ./breeze build-image --upgrade-to-newer-dependencies --python ${python_version} --build-cache-local
@@ -78,7 +78,7 @@ git push
 # Manually refreshing the images
 
 The images can be rebuilt and refreshed after the constraints are pushed. Refreshing image for particular
-python version is a simple as running the [refresh_images.sh](refresh_images.sh) script with pyhon version
+python version is a simple as running the [refresh_images.sh](refresh_images.sh) script with python version
 as parameter:
 
 ```bash
@@ -90,5 +90,5 @@ If you have fast network and powerful computer, you can refresh the images in pa
 or with gnu parallel:
 
 ```bash
-parallel -j 4 --linebuffer --tagstring '{}' ./dev/refresh_images.sh ::: 3.6 3.7 3.8 3.9
+parallel -j 4 --linebuffer --tagstring '{}' ./dev/refresh_images.sh ::: 3.7 3.8 3.9 3.6
 ```

@@ -113,8 +113,8 @@ class ExternalTaskSensor(BaseSensorOperator):
 
         if set(self.failed_states).intersection(set(self.allowed_states)):
             raise AirflowException(
-                "Duplicate values provided as allowed "
-                "`{}` and failed states `{}`".format(self.allowed_states, self.failed_states)
+                f"Duplicate values provided as allowed "
+                f"`{self.allowed_states}` and failed states `{self.failed_states}`"
             )
 
         if external_task_id is not None and external_task_ids is not None:

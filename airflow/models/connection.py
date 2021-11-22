@@ -230,10 +230,8 @@ class Connection(Base, LoggingMixin):
             fernet = get_fernet()
             if not fernet.is_encrypted:
                 raise AirflowException(
-                    "Can't decrypt encrypted password for login={}, \
-                    FERNET_KEY configuration is missing".format(
-                        self.login
-                    )
+                    f"Can't decrypt encrypted password for login={self.login}  "
+                    f"FERNET_KEY configuration is missing"
                 )
             return fernet.decrypt(bytes(self._password, 'utf-8')).decode()
         else:
@@ -257,10 +255,8 @@ class Connection(Base, LoggingMixin):
             fernet = get_fernet()
             if not fernet.is_encrypted:
                 raise AirflowException(
-                    "Can't decrypt `extra` params for login={},\
-                    FERNET_KEY configuration is missing".format(
-                        self.login
-                    )
+                    f"Can't decrypt `extra` params for login={self.login}, "
+                    f"FERNET_KEY configuration is missing"
                 )
             return fernet.decrypt(bytes(self._extra, 'utf-8')).decode()
         else:
@@ -289,8 +285,8 @@ class Connection(Base, LoggingMixin):
         if self._extra and self.is_extra_encrypted:
             self._extra = fernet.rotate(self._extra.encode('utf-8')).decode()
 
-    def get_hook(self):
-        """Return hook based on conn_type."""
+    def get_hook(self, *, hook_kwargs=None):
+        """Return hook based on conn_type"""
         (
             hook_class_name,
             conn_id_param,
@@ -308,7 +304,9 @@ class Connection(Base, LoggingMixin):
                 "Could not import %s when discovering %s %s", hook_class_name, hook_name, package_name
             )
             raise
-        return hook_class(**{conn_id_param: self.conn_id})
+        if hook_kwargs is None:
+            hook_kwargs = {}
+        return hook_class(**{conn_id_param: self.conn_id}, **hook_kwargs)
 
     def __repr__(self):
         return self.conn_id
@@ -324,14 +322,10 @@ class Connection(Base, LoggingMixin):
             DeprecationWarning,
             stacklevel=2,
         )
-        return "id: {}. Host: {}, Port: {}, Schema: {}, Login: {}, Password: {}, extra: {}".format(
-            self.conn_id,
-            self.host,
-            self.port,
-            self.schema,
-            self.login,
-            "XXXXXXXX" if self.password else None,
-            "XXXXXXXX" if self.extra_dejson else None,
+        return (
+            f"id: {self.conn_id}. Host: {self.host}, Port: {self.port}, Schema: {self.schema}, "
+            f"Login: {self.login}, Password: {'XXXXXXXX' if self.password else None}, "
+            f"extra: {'XXXXXXXX' if self.extra_dejson else None}"
         )
 
     def debug_info(self):
@@ -345,14 +339,10 @@ class Connection(Base, LoggingMixin):
             DeprecationWarning,
             stacklevel=2,
         )
-        return "id: {}. Host: {}, Port: {}, Schema: {}, Login: {}, Password: {}, extra: {}".format(
-            self.conn_id,
-            self.host,
-            self.port,
-            self.schema,
-            self.login,
-            "XXXXXXXX" if self.password else None,
-            self.extra_dejson,
+        return (
+            f"id: {self.conn_id}. Host: {self.host}, Port: {self.port}, Schema: {self.schema}, "
+            f"Login: {self.login}, Password: {'XXXXXXXX' if self.password else None}, "
+            f"extra: {self.extra_dejson}"
         )
 
     def test_connection(self):
@@ -400,7 +390,7 @@ class Connection(Base, LoggingMixin):
                 conn = secrets_backend.get_connection(conn_id=conn_id)
                 if conn:
                     return conn
-            except Exception:  # pylint: disable=broad-except
+            except Exception:
                 log.exception(
                     'Unable to retrieve connection from secrets backend (%s). '
                     'Checking subsequent secrets backend.',

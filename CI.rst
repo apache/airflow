@@ -550,6 +550,8 @@ This workflow is a regular workflow that performs all checks of Airflow code.
 +---------------------------+----------------------------------------------+-------+-------+------+
 | UI tests                  | React UI tests for new Airflow UI            | Yes   | Yes   | Yes  |
 +---------------------------+----------------------------------------------+-------+-------+------+
+| WWW tests                 | React tests for current Airflow UI           | Yes   | Yes   | Yes  |
++---------------------------+----------------------------------------------+-------+-------+------+
 | Test image building       | Tests if PROD image build examples work      | Yes   | Yes   | Yes  |
 +---------------------------+----------------------------------------------+-------+-------+------+
 | CI Images                 | Waits for and verify CI Images (3)           | Yes   | Yes   | Yes  |

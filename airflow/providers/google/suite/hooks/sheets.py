@@ -271,11 +271,8 @@ class GSheetsHook(GoogleBaseHook):
         """
         if len(ranges) != len(values):
             raise AirflowException(
-                "'Ranges' and 'Lists' must be of equal length. \n \
-                'Ranges' is of length: {} and \n \
-                'Values' is of length: {}.".format(
-                    str(len(ranges)), str(len(values))
-                )
+                f"'Ranges' and 'Lists' must be of equal length. "
+                f"'Ranges' is of length: {len(ranges)} and 'Values' is of length: {len(values)}."
             )
         service = self.get_conn()
         data = []

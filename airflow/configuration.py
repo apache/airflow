@@ -32,7 +32,7 @@ from collections import OrderedDict
 # Ignored Mypy on configparser because it thinks the configparser module has no _UNSET attribute
 from configparser import _UNSET, ConfigParser, NoOptionError, NoSectionError  # type: ignore
 from json.decoder import JSONDecodeError
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional, Tuple, Union
 
 from airflow.exceptions import AirflowConfigException
 from airflow.secrets import DEFAULT_SECRETS_SEARCH_PATH, BaseSecretsBackend
@@ -46,6 +46,15 @@ log = logging.getLogger(__name__)
 if not sys.warnoptions:
     warnings.filterwarnings(action='default', category=DeprecationWarning, module='airflow')
     warnings.filterwarnings(action='default', category=PendingDeprecationWarning, module='airflow')
+
+_SQLITE3_VERSION_PATTERN = re.compile(r"(?P<version>^\d+(?:\.\d+)*)\D?.*$")
+
+
+def _parse_sqlite_version(s: str) -> Tuple[int, ...]:
+    match = _SQLITE3_VERSION_PATTERN.match(s)
+    if match is None:
+        return ()
+    return tuple(int(p) for p in match.group("version").split("."))
 
 
 def expand_env_var(env_var):
@@ -87,7 +96,7 @@ def _get_config_value_from_secret_backend(config_key):
         if not secrets_client:
             return None
         return secrets_client.get_config(config_key)
-    except Exception as e:  # pylint: disable=broad-except
+    except Exception as e:
         raise AirflowConfigException(
             'Cannot retrieve config from alternative secrets backend. '
             'Make sure it is configured properly and that the Backend '
@@ -167,6 +176,7 @@ class AirflowConfigParser(ConfigParser):
         ('metrics', 'statsd_datadog_tags'): ('scheduler', 'statsd_datadog_tags', '2.0.0'),
         ('metrics', 'statsd_custom_client_path'): ('scheduler', 'statsd_custom_client_path', '2.0.0'),
         ('scheduler', 'parsing_processes'): ('scheduler', 'max_threads', '1.10.14'),
+        ('scheduler', 'scheduler_idle_sleep_time'): ('scheduler', 'processor_poll_interval', '2.2.0'),
         ('operators', 'default_queue'): ('celery', 'default_queue', '2.1.0'),
         ('core', 'hide_sensitive_var_conn_fields'): ('admin', 'hide_sensitive_variable_fields', '2.1.0'),
         ('core', 'sensitive_var_conn_names'): ('admin', 'sensitive_variable_fields', '2.1.0'),
@@ -266,15 +276,15 @@ class AirflowConfigParser(ConfigParser):
             raise AirflowConfigException(f"error: cannot use sqlite with the {self.get('core', 'executor')}")
         if is_sqlite:
             import sqlite3
-            from distutils.version import StrictVersion
 
             from airflow.utils.docs import get_docs_url
 
             # Some of the features in storing rendered fields require sqlite version >= 3.15.0
-            min_sqlite_version = '3.15.0'
-            if StrictVersion(sqlite3.sqlite_version) < StrictVersion(min_sqlite_version):
+            min_sqlite_version = (3, 15, 0)
+            if _parse_sqlite_version(sqlite3.sqlite_version) < min_sqlite_version:
+                min_sqlite_version_str = ".".join(str(s) for s in min_sqlite_version)
                 raise AirflowConfigException(
-                    f"error: sqlite C library version too old (< {min_sqlite_version}). "
+                    f"error: sqlite C library version too old (< {min_sqlite_version_str}). "
                     f"See {get_docs_url('howto/set-up-database.html#setting-up-a-sqlite-database')}"
                 )
 
@@ -293,12 +303,9 @@ class AirflowConfigParser(ConfigParser):
     @staticmethod
     def _create_future_warning(name, section, current_value, new_value, version):
         warnings.warn(
-            'The {name} setting in [{section}] has the old default value '
-            'of {current_value!r}. This value has been changed to {new_value!r} in the '
-            'running config, but please update your config before Apache '
-            'Airflow {version}.'.format(
-                name=name, section=section, current_value=current_value, new_value=new_value, version=version
-            ),
+            f'The {name!r} setting in [{section}] has the old default value of {current_value!r}. '
+            f'This value has been changed to {new_value!r} in the running config, but '
+            f'please update your config before Apache Airflow {version}.',
             FutureWarning,
         )
 
@@ -723,24 +730,15 @@ class AirflowConfigParser(ConfigParser):
     def _warn_deprecate(section, key, deprecated_section, deprecated_name):
         if section == deprecated_section:
             warnings.warn(
-                'The {old} option in [{section}] has been renamed to {new} - the old '
-                'setting has been used, but please update your config.'.format(
-                    old=deprecated_name,
-                    new=key,
-                    section=section,
-                ),
+                f'The {deprecated_name} option in [{section}] has been renamed to {key} - '
+                f'the old setting has been used, but please update your config.',
                 DeprecationWarning,
                 stacklevel=3,
             )
         else:
             warnings.warn(
-                'The {old_key} option in [{old_section}] has been moved to the {new_key} option in '
-                '[{new_section}] - the old setting has been used, but please update your config.'.format(
-                    old_section=deprecated_section,
-                    old_key=deprecated_name,
-                    new_key=key,
-                    new_section=section,
-                ),
+                f'The {deprecated_name} option in [{deprecated_section}] has been moved to the {key} option '
+                f'in [{section}] - the old setting has been used, but please update your config.',
                 DeprecationWarning,
                 stacklevel=3,
             )

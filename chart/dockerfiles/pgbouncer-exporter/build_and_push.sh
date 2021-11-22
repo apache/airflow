@@ -33,30 +33,33 @@ readonly EXPECTED_GO_VERSION
 COMMIT_SHA=$(git rev-parse HEAD)
 readonly COMMIT_SHA
 
+TAG="${DOCKERHUB_USER}/${DOCKERHUB_REPO}:airflow-pgbouncer-exporter-${AIRFLOW_PGBOUNCER_EXPORTER_VERSION}-${PGBOUNCER_EXPORTER_VERSION}"
+readonly TAG
+
+function center_text() {
+    columns=$(tput cols || echo 80)
+    printf "%*s\n" $(( (${#1} + columns) / 2)) "$1"
+}
+
 cd "$( dirname "${BASH_SOURCE[0]}" )" || exit 1
 
-PGBOUNCER_EXPORTER_DIR="$(pwd)/pgbouncer_exporter-${PGBOUNCER_EXPORTER_VERSION}"
-readonly  PGBOUNCER_EXPORTER_DIR
+center_text "Building image"
 
-# Needs to be set for alpine images to run net package of GO
-rm -rf "$(pwd)/pgbouncer_exporter*"
-mkdir -pv "${PGBOUNCER_EXPORTER_DIR}"
-
-curl -L "https://github.com/jbub/pgbouncer_exporter/archive/v${PGBOUNCER_EXPORTER_VERSION}.tar.gz" | tar -zx
-
-cd "${PGBOUNCER_EXPORTER_DIR}"
-
-docker run --rm -e CGO_ENABLED=0 -v "$PWD":/usr/src/myapp -w /usr/src/myapp golang:${EXPECTED_GO_VERSION} go build -v
-
-tag="${DOCKERHUB_USER}/${DOCKERHUB_REPO}:airflow-pgbouncer-exporter-${AIRFLOW_PGBOUNCER_EXPORTER_VERSION}-${PGBOUNCER_EXPORTER_VERSION}"
-
-cd ..
 docker build . \
     --pull \
     --build-arg "PGBOUNCER_EXPORTER_VERSION=${PGBOUNCER_EXPORTER_VERSION}" \
     --build-arg "AIRFLOW_PGBOUNCER_EXPORTER_VERSION=${AIRFLOW_PGBOUNCER_EXPORTER_VERSION}"\
     --build-arg "COMMIT_SHA=${COMMIT_SHA}" \
     --build-arg "GO_VERSION=${EXPECTED_GO_VERSION}" \
-    --tag "${tag}"
+    --tag "${TAG}"
 
-docker push "${tag}"
+center_text "Checking image"
+
+docker run --rm "${TAG}" --version
+
+echo Image labels:
+docker inspect "${TAG}" --format '{{ json .ContainerConfig.Labels }}' | python3 -m json.tool
+
+center_text "Pushing image"
+
+docker push "${TAG}"

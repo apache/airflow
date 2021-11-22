@@ -175,7 +175,7 @@ class BaseExecutor(LoggingMixin):
 
     def trigger_tasks(self, open_slots: int) -> None:
         """
-        Triggers tasks
+        Initiates async execution of the queued tasks, up to the number of available slots.
 
         :param open_slots: Number of open slots
         """
@@ -226,7 +226,7 @@ class BaseExecutor(LoggingMixin):
         it will only return and flush events for the given dag_ids. Otherwise
         it returns and flushes all events.
 
-        :param dag_ids: to dag_ids to return events for, if None returns all
+        :param dag_ids: the dag_ids to return events for; returns all if given ``None``.
         :return: a dict of events
         """
         cleared_events: Dict[TaskInstanceKey, EventBufferValueType] = {}

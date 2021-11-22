@@ -581,7 +581,7 @@ For production image:
   ./breeze build-image --force-pull-images --production-image
 
 For CI image Breeze automatically uses force pulling in case it determines that your image is very outdated,
-however uou can also force it with the same flag.
+however you can also force it with the same flag.
 
 .. code-block:: bash
 

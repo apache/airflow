@@ -15,7 +15,6 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-import os
 import shlex
 import subprocess
 
@@ -23,12 +22,17 @@ from airflow.exceptions import AirflowException
 from airflow.utils.log.logging_mixin import LoggingMixin
 
 
+class CommandExecutionError(Exception):
+    """Raise in case of error during command execution"""
+
+
 class LoggingCommandExecutor(LoggingMixin):
     def execute_cmd(self, cmd, silent=False, cwd=None, env=None):
         if silent:
             self.log.info("Executing in silent mode: '%s'", " ".join(shlex.quote(c) for c in cmd))
-            with open(os.devnull, 'w') as dev_null:
-                return subprocess.call(args=cmd, stdout=dev_null, stderr=subprocess.STDOUT, env=env, cwd=cwd)
+            return subprocess.call(
+                args=cmd, stdout=subprocess.DEVNULL, stderr=subprocess.STDOUT, env=env, cwd=cwd
+            )
         else:
             self.log.info("Executing: '%s'", " ".join(shlex.quote(c) for c in cmd))
             with subprocess.Popen(
@@ -60,6 +64,41 @@ class LoggingCommandExecutor(LoggingMixin):
                     f"Retcode {retcode} on {' '.join(cmd)} with stdout: {output}, stderr: {err}"
                 )
             return output
+
+
+class CommandExecutor(LoggingCommandExecutor):
+    """
+    Due to 'LoggingCommandExecutor' class just returns the status code of command execution
+    ('execute_cmd' method) and continues to perform code with possible errors, separate
+    inherited 'CommandExecutor' class was created to use it if you need to break code performing
+    and immediately raise an exception in case of error during command execution,
+    so re-written 'execute_cmd' method will raise 'CommandExecutionError' exception.
+    """
+
+    def execute_cmd(self, cmd, silent=False, cwd=None, env=None):
+        if silent:
+            self.log.info("Executing in silent mode: '%s'", " ".join(shlex.quote(c) for c in cmd))
+            return subprocess.call(
+                args=cmd, stdout=subprocess.DEVNULL, stderr=subprocess.STDOUT, env=env, cwd=cwd
+            )
+        else:
+            self.log.info("Executing: '%s'", " ".join(shlex.quote(c) for c in cmd))
+            with subprocess.Popen(
+                args=cmd,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                universal_newlines=True,
+                cwd=cwd,
+                env=env,
+            ) as process:
+                output, err = process.communicate()
+                retcode = process.poll()
+                if retcode:
+                    raise CommandExecutionError(
+                        f"Error when executing '{' '.join(cmd)}' with stdout: {output}, stderr: {err}"
+                    )
+                self.log.info("Stdout: %s", output)
+                self.log.info("Stderr: %s", err)
 
 
 def get_executor() -> LoggingCommandExecutor:

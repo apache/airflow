@@ -60,6 +60,34 @@ In the UI, it appears as if Airflow is running your tasks a day **late**
 
     You should refer to :doc:`/dag-run` for details on scheduling a DAG.
 
+DAG File Processing
+-------------------
+
+The Airflow Scheduler is responsible for turning the Python files contained in the DAGs folder into DAG objects that contain tasks to be scheduled.
+
+There are two primary components involved in DAG file processing.  The ``DagFileProcessorManager`` is a process executing an infinite loop that determines which files need
+to be processed, and the ``DagFileProcessorProcess`` is a separate process that is started to convert an individual file into one or more DAG objects.
+
+.. image:: /img/dag_file_processing_diagram.png
+
+``DagFileProcessorManager`` has the following steps:
+
+1. Check for new files:  If the elapsed time since the DAG was last refreshed is > :ref:`config:scheduler__dag_dir_list_interval` then update the file paths list
+2. Exclude recently processed files:  Exclude files that have been processed more recently than :ref:`min_file_process_interval<config:scheduler__min_file_process_interval>` and have not been modified
+3. Queue file paths: Add files discovered to the file path queue
+4. Process files:  Start a new ``DagFileProcessorProcess`` for each file, up to a maximum of :ref:`config:scheduler__parsing_processes`
+5. Collect results: Collect the result from any finished DAG processors
+6. Log statistics:  Print statistics and emit ``dag_processing.total_parse_time``
+
+``DagFileProcessorProcess`` has the following steps:
+
+1. Process file: The entire process must complete within :ref:`dag_file_processor_timeout<config:core__dag_file_processor_timeout>`
+2. Load modules from file: Uses Python imp command, must complete within :ref:`dagbag_import_timeout<config:core__dagbag_import_timeout>`
+3. Process modules:  Find DAG objects within Python module
+4. Return DagBag:  Provide the ``DagFileProcessorManager`` a list of the discovered DAG objects
+
+
+
 Triggering DAG with Future Date
 -------------------------------
 
@@ -366,7 +394,7 @@ However you can also look at other non-performance-related scheduler configurati
   The scheduler can run multiple processes in parallel to parse DAG files. This defines
   how many processes will run.
 
-- :ref:`config:scheduler__processor_poll_interval`
+- :ref:`config:scheduler__scheduler_idle_sleep_time`
   Controls how long the scheduler will sleep between loops, but if there was nothing to do
   in the loop. i.e. if it scheduled something then it will start the next loop
   iteration straight away. This parameter is badly named (historical reasons) and it will be

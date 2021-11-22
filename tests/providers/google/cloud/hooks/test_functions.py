@@ -278,9 +278,7 @@ class TestFunctionHookDefaultProjectId(unittest.TestCase):
 
         function_id = "function1234"
         input_data = {'key': 'value'}
-        name = "projects/{project_id}/locations/{location}/functions/{function_id}".format(
-            project_id=GCP_PROJECT_ID_HOOK_UNIT_TEST, location=GCF_LOCATION, function_id=function_id
-        )
+        name = f"projects/{GCP_PROJECT_ID_HOOK_UNIT_TEST}/locations/{GCF_LOCATION}/functions/{function_id}"
 
         result = self.gcf_function_hook.call_function(
             function_id=function_id,

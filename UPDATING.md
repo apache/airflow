@@ -27,6 +27,9 @@ assists users migrating to a new version.
 **Table of contents**
 
 - [Main](#main)
+- [Airflow 2.2.2](#airflow-222)
+- [Airflow 2.2.1](#airflow-221)
+- [Airflow 2.2.0](#airflow-220)
 - [Airflow 2.1.4](#airflow-214)
 - [Airflow 2.1.3](#airflow-213)
 - [Airflow 2.1.2](#airflow-212)
@@ -75,6 +78,35 @@ More tips can be found in the guide:
 https://developers.google.com/style/inclusive-documentation
 
 -->
+
+## Airflow 2.2.2
+
+No breaking changes.
+
+## Airflow 2.2.1
+
+### ``Param``'s default value for ``default`` removed
+
+``Param``, introduced in Airflow 2.2.0, accidentally set the default value to ``None``. This default has been removed. If you want ``None`` as your default, explicitly set it as such. For example:
+
+```python
+Param(None, type=["null", "string"])
+```
+
+Now if you resolve a ``Param`` without a default and don't pass a value, you will get an ``TypeError``. For Example:
+
+```python
+Param().resolve()  # raises TypeError
+```
+
+### `max_queued_runs_per_dag` configuration has been removed
+
+The `max_queued_runs_per_dag` configuration option in `[core]` section has been removed. Previously, this controlled the number of queued dagrun
+the scheduler can create in a dag. Now, the maximum number is controlled internally by the DAG's `max_active_runs`
+
+## Airflow 2.2.0
+
+Note: Upgrading the database to `2.2.0` or later can take some time to complete, particularly if you have a large `task_instance` table.
 
 ### `worker_log_server_port` configuration has been moved to the ``logging`` section.
 
@@ -138,8 +170,9 @@ Similarly, `DAG.concurrency` has been renamed to `DAG.max_active_tasks`.
 ```python
 dag = DAG(
     dag_id="example_dag",
+    start_date=datetime(2021, 1, 1),
+    catchup=False,
     concurrency=3,
-    start_date=days_ago(2),
 )
 ```
 
@@ -148,8 +181,9 @@ dag = DAG(
 ```python
 dag = DAG(
     dag_id="example_dag",
+    start_date=datetime(2021, 1, 1),
+    catchup=False,
     max_active_tasks=3,
-    start_date=days_ago(2),
 )
 ```
 
@@ -175,6 +209,27 @@ with DAG(dag_id="task_concurrency_example"):
 ```python
 with DAG(dag_id="task_concurrency_example"):
     BashOperator(task_id="t1", max_active_tis_per_dag=2, bash_command="echo Hi")
+```
+
+### `processor_poll_interval` config have been renamed to `scheduler_idle_sleep_time`
+
+`[scheduler] processor_poll_interval` setting in `airflow.cfg` has been renamed to `[scheduler] scheduler_idle_sleep_time`
+for better understanding.
+
+It controls the 'time to sleep' at the end of the Scheduler loop if nothing was scheduled inside `SchedulerJob`.
+
+**Before**:
+
+```ini
+[scheduler]
+processor_poll_interval = 16
+```
+
+**Now**:
+
+```ini
+[scheduler]
+scheduler_idle_sleep_time = 16
 ```
 
 ### Marking success/failed automatically clears failed downstream tasks
@@ -239,6 +294,16 @@ Before updating to this 2.2 release you will have to manually resolve any incons
 
 As part of this change the `clean_tis_without_dagrun_interval` config option under `[scheduler]` section has been removed and has no effect.
 
+### TaskInstance and TaskReschedule now define `run_id` instead of `execution_date`
+
+As a part of the TaskInstance-DagRun relation change, the `execution_date` columns on TaskInstance and TaskReschedule have been removed from the database, and replaced by [association proxy](https://docs.sqlalchemy.org/en/13/orm/extensions/associationproxy.html) fields at the ORM level. If you access Airflow’s metadatabase directly, you should rewrite the implementation to use the `run_id` columns instead.
+
+Note that Airflow’s metadatabase definition on both the database and ORM levels are considered implementation detail without strict backward compatibility guarantees.
+
+### DaskExecutor - Dask Worker Resources and queues
+
+If dask workers are not started with complementary resources to match the specified queues, it will now result in an `AirflowException`, whereas before it would have just ignored the `queue` argument.
+
 ## Airflow 2.1.4
 
 No breaking changes.
@@ -255,7 +320,7 @@ No breaking changes.
 
 ### `activate_dag_runs` argument of the function `clear_task_instances` is replaced with `dag_run_state`
 
-To achieve the previous default behaviour of `clear_task_instances` with `activate_dag_runs=True`, no change is needed. To achieve the previous behaviour of `activate_dag_runs=False`, pass `dag_run_state=False` instead. (The previous paramater is still accepted, but is deprecated)
+To achieve the previous default behaviour of `clear_task_instances` with `activate_dag_runs=True`, no change is needed. To achieve the previous behaviour of `activate_dag_runs=False`, pass `dag_run_state=False` instead. (The previous parameter is still accepted, but is deprecated)
 
 ### `dag.set_dag_runs_state` is deprecated
 
@@ -1816,6 +1881,58 @@ https://cloud.google.com/compute/docs/disks/performance
 
 Hence, the default value for `master_disk_size` in `DataprocCreateClusterOperator` has been changed from 500GB to 1TB.
 
+##### Generating Cluster Config
+
+If you are upgrading from Airflow 1.10.x and are not using **CLUSTER_CONFIG**,
+You can easily generate config using **make()** of `airflow.providers.google.cloud.operators.dataproc.ClusterGenerator`
+
+This has been proved specially useful if you are using **metadata** argument from older API, refer [AIRFLOW-16911](https://github.com/apache/airflow/issues/16911) for details.
+
+eg. your cluster creation may look like this in **v1.10.x**
+
+```python
+path = f"gs://goog-dataproc-initialization-actions-us-central1/python/pip-install.sh"
+
+create_cluster = DataprocClusterCreateOperator(
+    task_id="create_dataproc_cluster",
+    cluster_name="test",
+    project_id="test",
+    zone="us-central1-a",
+    region="us-central1",
+    master_machine_type="n1-standard-4",
+    worker_machine_type="n1-standard-4",
+    num_workers=2,
+    storage_bucket="test_bucket",
+    init_actions_uris=[path],
+    metadata={"PIP_PACKAGES": "pyyaml requests pandas openpyxl"},
+)
+```
+
+After upgrading to **v2.x.x** and using **CLUSTER_CONFIG**, it will look like followed:
+
+```python
+path = f"gs://goog-dataproc-initialization-actions-us-central1/python/pip-install.sh"
+
+CLUSTER_CONFIG = ClusterGenerator(
+    project_id="test",
+    zone="us-central1-a",
+    master_machine_type="n1-standard-4",
+    worker_machine_type="n1-standard-4",
+    num_workers=2,
+    storage_bucket="test",
+    init_actions_uris=[path],
+    metadata={"PIP_PACKAGES": "pyyaml requests pandas openpyxl"},
+).make()
+
+create_cluster_operator = DataprocClusterCreateOperator(
+    task_id="create_dataproc_cluster",
+    cluster_name="test",
+    project_id="test",
+    region="us-central1",
+    cluster_config=CLUSTER_CONFIG,
+)
+```
+
 #### `airflow.providers.google.cloud.operators.bigquery.BigQueryGetDatasetTablesOperator`
 
 We changed signature of `BigQueryGetDatasetTablesOperator`.
@@ -3224,7 +3341,7 @@ Please read through the new scheduler options, defaults have changed since 1.7.1
 
 #### child_process_log_directory
 
-In order to increase the robustness of the scheduler, DAGS are now processed in their own process. Therefore each
+In order to increase the robustness of the scheduler, DAGs are now processed in their own process. Therefore each
 DAG has its own log file for the scheduler. These log files are placed in `child_process_log_directory` which defaults to
 `<AIRFLOW_HOME>/scheduler/latest`. You will need to make sure these log files are removed.
 

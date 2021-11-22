@@ -127,7 +127,7 @@ class _SessionFactory(LoggingMixin):
                 method="sts-assume-role",
             )
         session = botocore.session.get_session()
-        session._credentials = credentials  # pylint: disable=protected-access
+        session._credentials = credentials
         region_name = self.basic_session.region_name
         session.set_config_variable("region", region_name)
         return boto3.session.Session(botocore_session=session, **session_kwargs)

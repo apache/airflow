@@ -15,15 +15,14 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Used for unit tests"""
-from airflow import DAG
-from airflow.operators.bash import BashOperator
-from airflow.utils.dates import days_ago
+#
 
-with DAG(dag_id='test_utils', schedule_interval=None, tags=['example']) as dag:
-    task = BashOperator(
-        task_id='sleeps_forever',
-        bash_command="sleep 10000000000",
-        start_date=days_ago(2),
-        owner='airflow',
-    )
+import sqlalchemy as sa
+
+TIMESTAMP = sa.TIMESTAMP
+"""Database specific timestamp with timezone"""
+
+StringID = sa.String
+"""String column type with correct DB collation applied"""
+
+MSSQL_USE_DATE_TIME2: bool

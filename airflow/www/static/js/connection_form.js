@@ -24,6 +24,7 @@
 import getMetaValue from './meta_value';
 
 const restApiEnabled = getMetaValue('rest_api_enabled') === 'True';
+const connectionTestUrl = getMetaValue('test_url');
 
 function decode(str) {
   return new DOMParser().parseFromString(str, 'text/html').documentElement.textContent;
@@ -66,7 +67,7 @@ function getControlsContainer() {
    * well-known state during the change of connection types.
    */
 function restoreFieldBehaviours() {
-  Array.from(document.querySelectorAll('label[data-origText]')).forEach((elem) => {
+  Array.from(document.querySelectorAll('label[data-orig-text]')).forEach((elem) => {
     elem.innerText = elem.dataset.origText;
     delete elem.dataset.origText;
   });
@@ -172,7 +173,7 @@ $(document).ready(() => {
         outObj.connection_id = this.value;
       } else if (this.value !== '' && this.name === 'port') {
         outObj[this.name] = Number(this.value);
-      } else if (this.value !== '' && this.name !== 'csrf_token') {
+      } else if (this.value !== '' && this.name !== 'csrf_token' && !this.name.match('extra__')) {
         outObj[this.name] = this.value;
       }
     });
@@ -206,7 +207,7 @@ $(document).ready(() => {
   $('#test-connection').on('click', (e) => {
     e.preventDefault();
     $.ajax({
-      url: '/api/v1/connections/test',
+      url: connectionTestUrl,
       type: 'post',
       contentType: 'application/json',
       dataType: 'json',

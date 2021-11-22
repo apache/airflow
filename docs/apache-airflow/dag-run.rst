@@ -76,14 +76,14 @@ of a DAG run, for example, denotes the start of the data interval, not when the
 DAG is actually executed.
 
 Similarly, since the ``start_date`` argument for the DAG and its tasks points to
-the same logical date, it marks the start of *the DAG's fist data interval*, not
+the same logical date, it marks the start of *the DAG's first data interval*, not
 when tasks in the DAG will start running. In other words, a DAG run will only be
 scheduled one interval after ``start_date``.
 
 .. tip::
 
     If ``schedule_interval`` is not enough to express your DAG's schedule,
-    logical date, or data interval, see :doc:`/howto/timetable`.
+    logical date, or data interval, see :doc:`/concepts/timetable`.
 
 Re-run DAG
 ''''''''''
@@ -151,7 +151,7 @@ if your DAG performs catchup internally.
 
 Backfill
 ---------
-There can be the case when you may want to run the dag for a specified historical period e.g.,
+There can be the case when you may want to run the DAG for a specified historical period e.g.,
 A data filling DAG is created with ``start_date`` **2019-11-21**, but another user requires the output data from a month ago i.e., **2019-10-21**.
 This process is known as Backfill.
 
@@ -229,11 +229,17 @@ Example of a parameterized DAG:
 
 .. code-block:: python
 
+    from datetime import datetime
+
     from airflow import DAG
     from airflow.operators.bash import BashOperator
-    from airflow.utils.dates import days_ago
 
-    dag = DAG("example_parameterized_dag", schedule_interval=None, start_date=days_ago(2))
+    dag = DAG(
+        "example_parameterized_dag",
+        schedule_interval=None,
+        start_date=datetime(2021, 1, 1),
+        catchup=False,
+    )
 
     parameterized_task = BashOperator(
         task_id="parameterized_task",

@@ -1,0 +1,37 @@
+current-context: federal-context
+apiVersion: v1
+clusters:
+- cluster:
+    api-version: v1
+    server: http://cow.org:8080
+  name: cow-cluster
+- cluster:
+    certificate-authority: path/to/my/cafile
+    server: https://horse.org:4443
+  name: horse-cluster
+- cluster:
+    insecure-skip-tls-verify: true
+    server: https://pig.org:443
+  name: pig-cluster
+contexts:
+- context:
+    cluster: horse-cluster
+    namespace: chisel-ns
+    user: green-user
+  name: federal-context
+- context:
+    cluster: pig-cluster
+    namespace: saw-ns
+    user: black-user
+  name: queen-anne-context
+kind: Config
+preferences:
+  colors: true
+users:
+- name: blue-user
+  user:
+    token: blue-token
+- name: green-user
+  user:
+    client-certificate: path/to/my/client/cert
+    client-key: path/to/my/client/key

@@ -85,6 +85,28 @@ class PythonOperator(BaseOperator):
         For more information on how to use this operator, take a look at the guide:
         :ref:`howto/operator:PythonOperator`
 
+    When running your callable, Airflow will pass a set of keyword arguments that can be used in your
+    function. This set of kwargs correspond exactly to what you can use in your jinja templates.
+    For this to work, you need to define ``**kwargs`` in your function header, or you can add directly the
+    keyword arguments you would like to get - for example with the below code your callable will get
+    the values of ``ti`` and ``next_ds`` context variables.
+
+    With explicit arguments:
+
+    .. code-block:: python
+
+       def my_python_callable(ti, next_ds):
+           pass
+
+    With kwargs:
+
+    .. code-block:: python
+
+       def my_python_callable(**kwargs):
+           ti = kwargs["ti"]
+           next_ds = kwargs["next_ds"]
+
+
     :param python_callable: A reference to an object that is callable
     :type python_callable: python callable
     :param op_kwargs: a dictionary of keyword arguments that will get unpacked
@@ -101,6 +123,11 @@ class PythonOperator(BaseOperator):
     :param templates_exts: a list of file extensions to resolve while
         processing templated fields, for examples ``['.sql', '.hql']``
     :type templates_exts: list[str]
+    :param show_return_value_in_logs: a bool value whether to show return_value
+        logs. Defaults to True, which allows return value log output.
+        It can be set to False to prevent log output of return value when you return huge data
+        such as transmission a large amount of XCom to TaskAPI.
+    :type show_return_value_in_logs: bool
     """
 
     template_fields = ('templates_dict', 'op_args', 'op_kwargs')
@@ -123,6 +150,7 @@ class PythonOperator(BaseOperator):
         op_kwargs: Optional[Dict] = None,
         templates_dict: Optional[Dict] = None,
         templates_exts: Optional[List[str]] = None,
+        show_return_value_in_logs: bool = True,
         **kwargs,
     ) -> None:
         if kwargs.get("provide_context"):
@@ -141,6 +169,7 @@ class PythonOperator(BaseOperator):
         self.templates_dict = templates_dict
         if templates_exts:
             self.template_ext = templates_exts
+        self.show_return_value_in_logs = show_return_value_in_logs
 
     def execute(self, context: Dict):
         context.update(self.op_kwargs)
@@ -149,7 +178,11 @@ class PythonOperator(BaseOperator):
         self.op_kwargs = determine_kwargs(self.python_callable, self.op_args, context)
 
         return_value = self.execute_callable()
-        self.log.info("Done. Returned value was: %s", return_value)
+        if self.show_return_value_in_logs:
+            self.log.info("Done. Returned value was: %s", return_value)
+        else:
+            self.log.info("Done. Returned value not shown")
+
         return return_value
 
     def execute_callable(self):
@@ -281,6 +314,7 @@ class PythonVirtualenvOperator(PythonOperator):
     """
 
     BASE_SERIALIZABLE_CONTEXT_KEYS = {
+        'ds',
         'ds_nodash',
         'inlets',
         'next_ds',
@@ -300,8 +334,13 @@ class PythonVirtualenvOperator(PythonOperator):
         'yesterday_ds_nodash',
     }
     PENDULUM_SERIALIZABLE_CONTEXT_KEYS = {
+        'data_interval_end',
+        'data_interval_start',
         'execution_date',
+        'logical_date',
         'next_execution_date',
+        'prev_data_interval_end_success',
+        'prev_data_interval_start_success',
         'prev_execution_date',
         'prev_execution_date_success',
         'prev_start_date_success',

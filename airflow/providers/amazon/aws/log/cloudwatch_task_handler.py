@@ -101,9 +101,8 @@ class CloudwatchTaskHandler(FileTaskHandler, LoggingMixin):
     def _read(self, task_instance, try_number, metadata=None):
         stream_name = self._render_filename(task_instance, try_number)
         return (
-            '*** Reading remote log from Cloudwatch log_group: {} log_stream: {}.\n{}\n'.format(
-                self.log_group, stream_name, self.get_cloudwatch_logs(stream_name=stream_name)
-            ),
+            f'*** Reading remote log from Cloudwatch log_group: {self.log_group} '
+            f'log_stream: {stream_name}.\n{self.get_cloudwatch_logs(stream_name=stream_name)}\n',
             {'end_of_log': True},
         )
 
@@ -123,9 +122,7 @@ class CloudwatchTaskHandler(FileTaskHandler, LoggingMixin):
 
             return '\n'.join(self._event_to_str(event) for event in events)
         except Exception:
-            msg = 'Could not read remote logs from log_group: {} log_stream: {}.'.format(
-                self.log_group, stream_name
-            )
+            msg = f'Could not read remote logs from log_group: {self.log_group} log_stream: {stream_name}.'
             self.log.exception(msg)
             return msg
 

@@ -227,8 +227,8 @@ class PostgresHook(DbApiHook):
         table: str, values: Tuple[str, ...], target_fields: Iterable[str], replace: bool, **kwargs
     ) -> str:
         """
-        Static helper method that generate the INSERT SQL statement.
-        The REPLACE variant is specific to MySQL syntax.
+        Static helper method that generates the INSERT SQL statement.
+        The REPLACE variant is specific to PostgreSQL syntax.
 
         :param table: Name of the target table
         :type table: str
@@ -269,8 +269,5 @@ class PostgresHook(DbApiHook):
             replace_target = [
                 "{0} = excluded.{0}".format(col) for col in target_fields if col not in replace_index_set
             ]
-            sql += " ON CONFLICT ({}) DO UPDATE SET {}".format(
-                ", ".join(replace_index),
-                ", ".join(replace_target),
-            )
+            sql += f" ON CONFLICT ({', '.join(replace_index)}) DO UPDATE SET {', '.join(replace_target)}"
         return sql

@@ -109,7 +109,7 @@ if conf.getboolean("sentry", 'sentry_on', fallback=False):
                         ", ".join(unsupported_options),
                     )
 
-                sentry_config_opts['before_send'] = conf.getimport('sentry', 'before_send')
+                sentry_config_opts['before_send'] = conf.getimport('sentry', 'before_send', fallback=None)
 
             if dsn:
                 sentry_sdk.init(dsn=dsn, integrations=integrations, **sentry_config_opts)

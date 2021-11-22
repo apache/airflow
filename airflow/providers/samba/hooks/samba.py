@@ -80,7 +80,7 @@ class SambaHook(BaseHook):
         self._connection_cache.clear()
 
     def _join_path(self, path):
-        return f"//{posixpath.join(self._host, self._share, path)}"
+        return f"//{posixpath.join(self._host, self._share, path.lstrip('/'))}"
 
     @wraps(smbclient.link)
     def link(self, src, dst, follow_symlinks=True):
@@ -243,5 +243,5 @@ class SambaHook(BaseHook):
 
     def push_from_local(self, destination_filepath: str, local_filepath: str):
         """Push local file to samba server"""
-        with open(local_filepath, "rb") as f, self.open_file(destination_filepath, mode="w") as g:
+        with open(local_filepath, "rb") as f, self.open_file(destination_filepath, mode="wb") as g:
             copyfileobj(f, g)

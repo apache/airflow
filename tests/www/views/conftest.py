@@ -25,7 +25,7 @@ import pytest
 from airflow import settings
 from airflow.models import DagBag
 from airflow.www.app import create_app
-from tests.test_utils.api_connexion_utils import create_user, delete_roles
+from tests.test_utils.api_connexion_utils import delete_roles
 from tests.test_utils.decorators import dont_initialize_flask_app_submodules
 from tests.test_utils.www import client_with_login
 
@@ -112,18 +112,6 @@ def viewer_client(app):
 @pytest.fixture()
 def user_client(app):
     return client_with_login(app, username="test_user", password="test_user")
-
-
-@pytest.fixture(scope="module")
-def client_factory(app):
-    def factory(name, role_name, permissions):
-        create_user(app, username=name, role_name=role_name, permissions=permissions)
-        client = app.test_client()
-        resp = client.post("/login/", data={"username": name, "password": name})
-        assert resp.status_code == 302
-        return client
-
-    return factory
 
 
 class _TemplateWithContext(NamedTuple):

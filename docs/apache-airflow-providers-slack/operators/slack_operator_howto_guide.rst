@@ -25,20 +25,14 @@ Slack operators can send text messages (:class:`~airflow.providers.slack.operato
 or files (:class:`~airflow.providers.slack.operators.slack.SlackAPIPostOperator`) to specified Slack channels.
 Provide either ``slack_conn_id`` or ``token`` for the connection, and specify ``channel`` (name or ID).
 
-Example Codes for Sending Files
--------------------------------
+Example Code for Sending Files
+------------------------------
 
-Sending files by specifying file names
-
-.. exampleinclude:: /../../airflow/providers/slack/example_dags/example_slack.py
-    :language: python
-    :start-after: [START slack_operator_howto_guide_send_file]
-    :end-before: [END slack_operator_howto_guide_send_file]
-
-
-Sending files by directly providing file contents
+The example below demonstrates how to send files to a Slack channel by both specifying file names as well as
+directly providing file contents. Note that the ``slack_conn_id``, ``channel``, and ``initial_comment`` values
+for the operators are specified as ``default_args`` of the DAG.
 
 .. exampleinclude:: /../../airflow/providers/slack/example_dags/example_slack.py
     :language: python
-    :start-after: [START slack_operator_howto_guide_send_file_content]
-    :end-before: [END slack_operator_howto_guide_send_file_content]
+    :start-after: [START slack_operator_howto_guide]
+    :end-before: [END slack_operator_howto_guide]

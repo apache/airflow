@@ -132,9 +132,9 @@ class VerticaToMySqlOperator(BaseOperator):
                 with closing(mysql.get_conn()) as conn:
                     with closing(conn.cursor()) as cursor:
                         cursor.execute(
-                            "LOAD DATA LOCAL INFILE '%s' INTO "
-                            "TABLE %s LINES TERMINATED BY '\r\n' (%s)"
-                            % (tmpfile.name, self.mysql_table, ", ".join(selected_columns))
+                            f"LOAD DATA LOCAL INFILE '{tmpfile.name}' "
+                            f"INTO TABLE {self.mysql_table} "
+                            f"LINES TERMINATED BY '\r\n' ({', '.join(selected_columns)})"
                         )
                         conn.commit()
                 tmpfile.close()

@@ -16,9 +16,10 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from typing import Any
+import functools
+from typing import Any, Type
 
-from sqlalchemy import MetaData
+from sqlalchemy import MetaData, String
 from sqlalchemy.ext.declarative import declarative_base
 
 from airflow.configuration import conf
@@ -61,3 +62,5 @@ def get_id_collation_args():
 
 
 COLLATION_ARGS = get_id_collation_args()
+
+StringID: Type[String] = functools.partial(String, length=ID_LEN, **COLLATION_ARGS)
