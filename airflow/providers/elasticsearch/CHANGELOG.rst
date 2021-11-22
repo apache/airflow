@@ -100,7 +100,6 @@ Bug fixes
    appropriate section above if needed. Do not delete the lines(!):
    * ``Bump pyupgrade v2.13.0 to v2.18.1 (#15991)``
    * ``Updated documentation for June 2021 provider release (#16294)``
-   * ``More documentation update for June providers release (#16405)``
    * ``Docs: Fix url for ''Elasticsearch'' (#16275)``
    * ``Add ElasticSearch Connection Doc (#16436)``
    * ``More documentation update for June providers release (#16405)``
