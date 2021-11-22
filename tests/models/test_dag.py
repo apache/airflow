@@ -822,7 +822,7 @@ class TestDag(unittest.TestCase):
         model = session.query(DagModel).get((dag.dag_id,))
         assert model.next_dagrun_create_after is None
 
-    def test_bulk_write_to_db_has_import_error(self):
+    def test_bulk_write_to_db_has_import_error(self, session):
         """
         Test that DagModel.has_import_error is set to false if no import errors.
         """
@@ -830,7 +830,6 @@ class TestDag(unittest.TestCase):
 
         DummyOperator(task_id='dummy', dag=dag, owner='airflow')
 
-        session = settings.Session()
         dag.clear()
         DAG.bulk_write_to_db([dag], session)
 
@@ -1958,9 +1957,6 @@ class TestDagModel:
         session.flush()
         needed = DagModel.dags_needing_dagruns(session).all()
         assert needed == []
-
-        session.rollback()
-        session.close()
 
     @pytest.mark.parametrize(
         ('fileloc', 'expected_relative'),
