@@ -822,7 +822,7 @@ class TestDag(unittest.TestCase):
         model = session.query(DagModel).get((dag.dag_id,))
         assert model.next_dagrun_create_after is None
 
-    def test_bulk_write_to_db_has_import_error(self, session):
+    def test_bulk_write_to_db_has_import_error(self):
         """
         Test that DagModel.has_import_error is set to false if no import errors.
         """
@@ -830,6 +830,7 @@ class TestDag(unittest.TestCase):
 
         DummyOperator(task_id='dummy', dag=dag, owner='airflow')
 
+        session = settings.Session()
         dag.clear()
         DAG.bulk_write_to_db([dag], session)
 
@@ -850,6 +851,7 @@ class TestDag(unittest.TestCase):
         model = session.query(DagModel).get((dag.dag_id,))
         # assert that has_import_error is now false
         assert not model.has_import_errors
+        session.close()
 
     def test_sync_to_db(self):
         dag = DAG(
