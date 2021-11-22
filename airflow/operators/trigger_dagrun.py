@@ -106,7 +106,7 @@ class TriggerDagRunOperator(BaseOperator):
                 "Got {}".format(type(execution_date))
             )
 
-        self.execution_date: Optional[datetime.datetime] = execution_date  # type: ignore
+        self.execution_date = execution_date
 
         try:
             json.dumps(self.conf)
@@ -115,28 +115,25 @@ class TriggerDagRunOperator(BaseOperator):
 
     def execute(self, context: Dict):
         if isinstance(self.execution_date, datetime.datetime):
-            execution_date = self.execution_date
+            parsed_execution_date = self.execution_date
         elif isinstance(self.execution_date, str):
-            execution_date = timezone.parse(self.execution_date)
-            self.execution_date = execution_date
+            parsed_execution_date = timezone.parse(self.execution_date)
         else:
-            execution_date = timezone.utcnow()
+            parsed_execution_date = timezone.utcnow()
 
-        run_id = DagRun.generate_run_id(DagRunType.MANUAL, execution_date)
+        run_id = DagRun.generate_run_id(DagRunType.MANUAL, parsed_execution_date)
         try:
-            # Ignore MyPy type for self.execution_date
-            # because it doesn't pick up the timezone.parse() for strings
             dag_run = trigger_dag(
                 dag_id=self.trigger_dag_id,
                 run_id=run_id,
                 conf=self.conf,
-                execution_date=execution_date,
+                execution_date=parsed_execution_date,
                 replace_microseconds=False,
             )
 
         except DagRunAlreadyExists as e:
             if self.reset_dag_run:
-                self.log.info("Clearing %s on %s", self.trigger_dag_id, self.execution_date)
+                self.log.info("Clearing %s on %s", self.trigger_dag_id, parsed_execution_date)
 
                 # Get target dag object and call clear()
 
@@ -148,7 +145,7 @@ class TriggerDagRunOperator(BaseOperator):
 
                 dag = dag_bag.get_dag(self.trigger_dag_id)
 
-                dag.clear(start_date=self.execution_date, end_date=self.execution_date)
+                dag.clear(start_date=parsed_execution_date, end_date=parsed_execution_date)
 
                 dag_run = DagRun.find(dag_id=dag.dag_id, run_id=run_id)[0]
             else:
