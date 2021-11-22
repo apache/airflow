@@ -81,6 +81,19 @@ class TestGetLog:
 
         configured_app.dag_bag.bag_dag(dag, root_dag=dag)
 
+        # Add dummy dag for checking picking correct log with same task_id and different dag_id case.
+        with dag_maker(
+            f'{self.DAG_ID}_copy', start_date=timezone.parse(self.default_time), session=session
+        ) as dummy_dag:
+            DummyOperator(task_id=self.TASK_ID)
+        dag_maker.create_dagrun(
+            run_id='TEST_DAG_RUN_ID',
+            run_type=DagRunType.SCHEDULED,
+            execution_date=timezone.parse(self.default_time),
+            start_date=timezone.parse(self.default_time),
+        )
+        configured_app.dag_bag.bag_dag(dummy_dag, root_dag=dummy_dag)
+
         self.ti = dr.task_instances[0]
         self.ti.try_number = 1
 
