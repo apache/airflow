@@ -613,6 +613,7 @@ class TestDagFileProcessorManager:
         manager._kill_timed_out_processors()
         mock_kill.assert_called_once_with()
 
+    @pytest.mark.quarantined
     @mock.patch("airflow.dag_processing.processor.DagFileProcessorProcess.pid", new_callable=PropertyMock)
     @mock.patch("airflow.dag_processing.processor.DagFileProcessorProcess")
     def test_kill_timed_out_processors_no_kill(self, mock_dag_file_processor, mock_pid):
@@ -784,6 +785,7 @@ class TestDagFileProcessorManager:
 
         statsd_timing_mock.assert_called_with('dag_processing.last_duration.temp_dag', last_runtime)
 
+    @pytest.mark.quarantined
     def test_refresh_dags_dir_doesnt_delete_zipped_dags(self, tmpdir):
         """Test DagFileProcessorManager._refresh_dag_dir method"""
         manager = DagFileProcessorManager(
