@@ -16,7 +16,6 @@
 # under the License.
 
 import subprocess
-import unittest
 
 from docker_tests.docker_tests_utils import (
     display_dependency_conflict_message,
@@ -26,12 +25,12 @@ from docker_tests.docker_tests_utils import (
 )
 
 
-class TestFiles(unittest.TestCase):
+class TestFiles:
     def test_dist_folder_should_exists(self):
         run_bash('[ -f /opt/airflow/airflow/www/static/dist/manifest.json ] || exit 1')
 
 
-class TestPythonPackages(unittest.TestCase):
+class TestPythonPackages:
     def test_pip_dependencies_conflict(self):
         try:
             run_command(

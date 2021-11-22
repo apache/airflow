@@ -108,7 +108,7 @@ if [[ ${interactive} == "true" ]]; then
     echo
     echo "Activating the virtual environment for docker testing"
     echo
-    echo "You can run testing via 'pytest docker tests/....'"
+    echo "You can run testing via 'pytest docker_tests/....'"
     echo "You can add -s to see the output of your tests on screen"
     echo
     echo "You are entering the virtualenv now. Type exit to exit back to the original shell"

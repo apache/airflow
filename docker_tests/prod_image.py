@@ -31,6 +31,8 @@ from docker_tests.docker_tests_utils import (
     run_python,
 )
 
+INSTALLED_PROVIDER_PATH = SOURCE_ROOT / "scripts" / "ci" / "installed_providers.txt"
+
 
 class TestCommands:
     def test_without_command(self):
@@ -69,10 +71,7 @@ class TestCommands:
 
 class TestPythonPackages:
     def test_required_providers_are_installed(self):
-        lines = (
-            d.strip()
-            for d in (SOURCE_ROOT / "scripts" / "ci" / "installed_providers.txt").read_text().splitlines()
-        )
+        lines = (d.strip() for d in INSTALLED_PROVIDER_PATH.read_text().splitlines())
         lines = (d for d in lines)
         packages_to_install = {f"apache-airflow-providers-{d.replace('.', '-')}" for d in lines}
         assert len(packages_to_install) != 0
@@ -82,7 +81,10 @@ class TestPythonPackages:
         packages_installed = {d['package_name'] for d in providers}
         assert len(packages_installed) != 0
 
-        assert packages_to_install == packages_installed
+        assert packages_to_install == packages_installed, (
+            f"List of expected installed packages and image content mismatch. "
+            f"Check {INSTALLED_PROVIDER_PATH} file."
+        )
 
     def test_pip_dependencies_conflict(self):
         try:
@@ -190,6 +192,8 @@ class TestExecuteAsRoot:
                     "--rm",
                     "-e",
                     f"PYTHONPATH={tmp_dir}",
+                    "-e",
+                    "PYTHONDONTWRITEBYTECODE=true",
                     "-v",
                     f"{tmp_dir}:{tmp_dir}",
                     "--user",
