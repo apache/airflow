@@ -807,7 +807,6 @@ class TestDagFileProcessorManager:
         assert DagCode.has_dag(dag.fileloc)
 
 
-@pytest.mark.quarantined
 class TestDagFileProcessorAgent(unittest.TestCase):
     def setUp(self):
         # Make sure that the configure_logging is not cached
