@@ -633,6 +633,7 @@ class TestDagFileProcessorManager:
         manager._kill_timed_out_processors()
         mock_dag_file_processor.kill.assert_not_called()
 
+    @pytest.mark.quarantined
     @conf_vars({('core', 'load_examples'): 'False'})
     @pytest.mark.execution_timeout(10)
     def test_dag_with_system_exit(self):
@@ -673,6 +674,7 @@ class TestDagFileProcessorManager:
         with create_session() as session:
             assert session.query(DagModel).get(dag_id) is not None
 
+    @pytest.mark.quarantined
     @conf_vars({('core', 'load_examples'): 'False'})
     @pytest.mark.backend("mysql", "postgres")
     @pytest.mark.execution_timeout(30)
@@ -747,6 +749,7 @@ class TestDagFileProcessorManager:
             child_pipe.close()
             thread.join(timeout=1.0)
 
+    @pytest.mark.quarantined
     @conf_vars({('core', 'load_examples'): 'False'})
     @mock.patch('airflow.dag_processing.manager.Stats.timing')
     def test_send_file_processing_statsd_timing(self, statsd_timing_mock, tmpdir):
@@ -806,7 +809,6 @@ class TestDagFileProcessorManager:
         assert DagCode.has_dag(dag.fileloc)
 
 
-@pytest.mark.quarantined
 class TestDagFileProcessorAgent(unittest.TestCase):
     def setUp(self):
         # Make sure that the configure_logging is not cached
