@@ -109,7 +109,6 @@ class FakeDagFileProcessorRunner(DagFileProcessorProcess):
         return self._waitable_handle
 
 
-@pytest.mark.quarantined
 class TestDagFileProcessorManager:
     def setup_method(self):
         clear_db_runs()
@@ -807,6 +806,7 @@ class TestDagFileProcessorManager:
         assert DagCode.has_dag(dag.fileloc)
 
 
+@pytest.mark.quarantined
 class TestDagFileProcessorAgent(unittest.TestCase):
     def setUp(self):
         # Make sure that the configure_logging is not cached
