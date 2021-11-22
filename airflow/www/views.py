@@ -2049,6 +2049,56 @@ class Airflow(AirflowBaseView):
         origin = get_safe_url(request.form.get('origin'))
         return self._mark_dagrun_state_as_success(dag_id, execution_date, confirmed, origin)
 
+    @expose("/dagrun_details")
+    @auth.has_access(
+        [
+            (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
+            (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG_RUN),
+        ]
+    )
+    @action_logging
+    @provide_session
+    def dagrun_details(self, session=None):
+        """Retrieve DAG Run details."""
+        dag_id = request.args.get("dag_id")
+        run_id = request.args.get("run_id")
+
+        dag = current_app.dag_bag.get_dag(dag_id)
+        dag_run: Optional[DagRun] = (
+            session.query(DagRun).filter(DagRun.dag_id == dag_id, DagRun.run_id == run_id).one_or_none()
+        )
+
+        if dag_run is None:
+            flash(f"No DAG run found for DAG id {dag_id} and run id {run_id}", "error")
+            return redirect(request.referrer or url_for('Airflow.index'))
+        else:
+            try:
+                duration = dag_run.end_date - dag_run.start_date
+            except TypeError:
+                # Raised if end_date is None e.g. when DAG is still running
+                duration = None
+
+            dagrun_attributes = [
+                ("Logical date", wwwutils.datetime_html(dag_run.execution_date)),
+                ("Queued at", wwwutils.datetime_html(dag_run.queued_at)),
+                ("Start date", wwwutils.datetime_html(dag_run.start_date)),
+                ("End date", wwwutils.datetime_html(dag_run.end_date)),
+                ("Duration", str(duration)),
+                ("Current state", wwwutils.state_token(dag_run.state)),
+                ("Run type", dag_run.run_type),
+                ("Externally triggered", dag_run.external_trigger),
+                ("Config", wwwutils.json_render(dag_run.conf, lexers.JsonLexer)),
+            ]
+
+            return self.render_template(
+                "airflow/dagrun_details.html",
+                dag=dag,
+                dag_id=dag_id,
+                run_id=run_id,
+                execution_date=dag_run.execution_date.isoformat(),
+                dagrun_attributes=dagrun_attributes,
+            )
+
     def _mark_task_instance_state(
         self,
         dag_id,
