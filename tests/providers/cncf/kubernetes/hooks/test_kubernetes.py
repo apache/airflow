@@ -61,6 +61,8 @@ class TestKubernetesHook:
     @pytest.mark.parametrize(
         'in_cluster_param, conn_id, in_cluster_called',
         (
+            pytest.param(True, None, True),
+            pytest.param(None, None, False),
             pytest.param(None, 'in_cluster', True),
             pytest.param(True, 'in_cluster', True),
             pytest.param(False, 'in_cluster', False),
@@ -100,6 +102,8 @@ class TestKubernetesHook:
     @pytest.mark.parametrize(
         'config_path_param, conn_id, call_path',
         (
+            pytest.param(None, None, KUBE_CONFIG_PATH),
+            pytest.param('/my/path/override', None, '/my/path/override'),
             pytest.param(None, 'kube_config_path', 'path/to/file'),
             pytest.param('/my/path/override', 'kube_config_path', '/my/path/override'),
             pytest.param(None, 'kube_config_path_empty', KUBE_CONFIG_PATH),
@@ -124,6 +128,7 @@ class TestKubernetesHook:
     @pytest.mark.parametrize(
         'conn_id, has_config',
         (
+            pytest.param(None, False),
             pytest.param('kube_config', True),
             pytest.param('kube_config_empty', False),
         ),
@@ -154,6 +159,8 @@ class TestKubernetesHook:
     @pytest.mark.parametrize(
         'context_param, conn_id, expected_context',
         (
+            pytest.param('param-context', None, 'param-context'),
+            pytest.param(None, None, None),
             pytest.param('param-context', 'context', 'param-context'),
             pytest.param(None, 'context', 'my-context'),
             pytest.param('param-context', 'context_empty', 'param-context'),
@@ -173,11 +180,7 @@ class TestKubernetesHook:
     @patch("kubernetes.config.kube_config.KubeConfigLoader")
     @patch("kubernetes.config.kube_config.KubeConfigMerger")
     @patch("kubernetes.config.kube_config.KUBE_CONFIG_DEFAULT_LOCATION", "/mock/config")
-    def test_default_kube_config_connection(
-        self,
-        mock_kube_config_merger,
-        mock_kube_config_loader,
-    ):
+    def test_default_kube_config_connection(self, mock_kube_config_merger, mock_kube_config_loader):
         kubernetes_hook = KubernetesHook(conn_id='default_kube_config')
         api_conn = kubernetes_hook.get_conn()
         mock_kube_config_merger.assert_called_once_with("/mock/config")
@@ -189,6 +192,14 @@ class TestKubernetesHook:
         kubernetes_hook_without_namespace = KubernetesHook(conn_id='default_kube_config')
         assert kubernetes_hook_with_namespace.get_namespace() == 'mock_namespace'
         assert kubernetes_hook_without_namespace.get_namespace() == 'default'
+
+    @patch("kubernetes.config.kube_config.KubeConfigLoader")
+    @patch("kubernetes.config.kube_config.KubeConfigMerger")
+    def test_client_types(self, mock_kube_config_merger, mock_kube_config_loader):
+        hook = KubernetesHook(None)
+        assert isinstance(hook.core_v1_client, kubernetes.client.CoreV1Api)
+        assert isinstance(hook.api_client, kubernetes.client.ApiClient)
+        assert isinstance(hook.get_conn(), kubernetes.client.ApiClient)
 
 
 class TestKubernetesHookIncorrectConfiguration:

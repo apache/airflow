@@ -100,7 +100,7 @@ class KubernetesHook(BaseHook):
 
     def __init__(
         self,
-        conn_id: str = default_conn_name,
+        conn_id: Optional[str] = default_conn_name,
         client_configuration: Optional[client.Configuration] = None,
         cluster_context: Optional[str] = None,
         config_file: Optional[str] = None,
@@ -121,8 +121,11 @@ class KubernetesHook(BaseHook):
 
     def get_conn(self) -> Any:
         """Returns kubernetes api session for use with requests"""
-        connection = self.get_connection(self.conn_id)
-        extras = connection.extra_dejson
+        if self.conn_id:
+            connection = self.get_connection(self.conn_id)
+            extras = connection.extra_dejson
+        else:
+            extras = {}
         in_cluster = self._coalesce_param(
             self.in_cluster, extras.get("extra__kubernetes__in_cluster") or None
         )
@@ -178,6 +181,10 @@ class KubernetesHook(BaseHook):
     def api_client(self) -> Any:
         """Cached Kubernetes API client"""
         return self.get_conn()
+
+    @cached_property
+    def core_v1_client(self):
+        return client.CoreV1Api(api_client=self.api_client)
 
     def create_custom_object(
         self, group: str, version: str, plural: str, body: Union[str, dict], namespace: Optional[str] = None
@@ -240,10 +247,11 @@ class KubernetesHook(BaseHook):
 
     def get_namespace(self) -> str:
         """Returns the namespace that defined in the connection"""
-        connection = self.get_connection(self.conn_id)
-        extras = connection.extra_dejson
-        namespace = extras.get("extra__kubernetes__namespace", "default")
-        return namespace
+        if self.conn_id:
+            connection = self.get_connection(self.conn_id)
+            extras = connection.extra_dejson
+            namespace = extras.get("extra__kubernetes__namespace", "default")
+            return namespace
 
     def get_pod_log_stream(
         self,
