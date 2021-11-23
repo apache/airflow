@@ -44,7 +44,6 @@ Bug Fixes
    appropriate section above if needed. Do not delete the lines(!):
    * ``More f-strings (#18855)``
    * ``Prepare documentation for RC2 Amazon Provider release for September (#18830)``
-   * ``Simplify strings previously split across lines (#18679)``
    * ``Doc: Fix typos in variable and comments (#19349)``
    * ``Remove duplicated entries in changelog (#19331)``
    * ``Prepare documentation for October Provider&#39;s release (#19321)``

@@ -85,6 +85,7 @@ blacken-docs
 boring-cyborg
 build
 build-providers-dependencies
+changelog-duplicates
 check-apache-license
 check-builtin-literals
 check-executables-have-shebangs
