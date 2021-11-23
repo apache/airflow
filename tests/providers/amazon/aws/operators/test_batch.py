@@ -95,7 +95,7 @@ class TestAwsBatchOperator(unittest.TestCase):
         assert self.batch.hook.client == self.client_mock
         assert self.batch.tags == {}
 
-        self.get_client_type_mock.assert_called_once_with("batch", region_name="eu-west-1")
+        self.get_client_type_mock.assert_called_once_with(region_name="eu-west-1")
 
     def test_template_fields_overrides(self):
         assert self.batch.template_fields == (

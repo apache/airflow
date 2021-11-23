@@ -539,7 +539,7 @@ class AwsBaseHook(BaseHook):
         if "/" in role:
             return role
         else:
-            session, endpoint_url = self._get_credentials()
+            session, endpoint_url = self._get_credentials(region_name=None)
             _client = session.client('iam', endpoint_url=endpoint_url, config=self.config, verify=self.verify)
             return _client.get_role(RoleName=role)["Role"]["Arn"]
 
