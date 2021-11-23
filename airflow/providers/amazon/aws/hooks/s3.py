@@ -174,7 +174,12 @@ class S3Hook(AwsBaseHook):
         :rtype: boto3.S3.Bucket
         """
         session, endpoint_url = self._get_credentials()
-        s3_resource = session.client('s3', endpoint_url=endpoint_url, config=self.config, verify=self.verify)
+        s3_resource = session.resource(
+            "s3",
+            endpoint_url=endpoint_url,
+            config=self.config,
+            verify=self.verify,
+        )
         return s3_resource.Bucket(bucket_name)
 
     @provide_bucket_name
@@ -342,7 +347,12 @@ class S3Hook(AwsBaseHook):
         :rtype: boto3.s3.Object
         """
         session, endpoint_url = self._get_credentials()
-        s3_resource = session.client('s3', endpoint_url=endpoint_url, config=self.config, verify=self.verify)
+        s3_resource = session.resource(
+            "s3",
+            endpoint_url=endpoint_url,
+            config=self.config,
+            verify=self.verify,
+        )
         obj = s3_resource.Object(bucket_name, key)
         obj.load()
         return obj
