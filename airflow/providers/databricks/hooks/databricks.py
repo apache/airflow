@@ -411,8 +411,8 @@ class DatabricksHook(BaseHook):
         failure unless you have enabled xcom pickling.  This can be done using the following
         environment variable: ``AIRLFOW_CORE_ENABLE_XCOM_PICKLING=TRUE``
 
-        If you do not want to enable xcom pickling then use the ``get_run_state_str`` method to get
-        string describing state, or ``get_run_state_lifecycle``, ``get_run_state_result``, or
+        If you do not want to enable xcom pickling, use the ``get_run_state_str`` method to get
+        a string describing state, or ``get_run_state_lifecycle``, ``get_run_state_result``, or
         ``get_run_state_message`` to get individual components of the run state.
 
         :param run_id: id of the run
