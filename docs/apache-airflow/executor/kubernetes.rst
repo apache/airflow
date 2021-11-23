@@ -96,8 +96,7 @@ With these requirements in mind, here are some examples of basic ``pod_template_
     The examples below should work when using default airflow configuration values. However, many custom
     configuration values need to be explicitly passed to the pod via this template too. This includes,
     but is not limited to, sql configuration, required Airflow connections, dag folder path and
-    logging settings. See
-    https://airflow.apache.org/docs/apache-airflow/stable/configurations-ref.html for details.
+    logging settings. See :doc:`../configurations-ref` for details.
 
 Storing DAGs in the image:
 
