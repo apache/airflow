@@ -3377,10 +3377,12 @@ def lazy_add_provider_discovered_options_to_connection_form():
 # Used to store a dictionary of field behaviours used to dynamically change available
 # fields in ConnectionForm based on type of connection chosen
 # See airflow.hooks.base_hook.DiscoverableHook for details on how to customize your Hooks.
-# those field behaviours are rendered as scripts in the conn_create.html and conn_edit.html templates
 #
 # Additionally, a list of connection types that support testing via Airflow REST API is stored to dynamically
 # enable/disable the Test Connection button.
+#
+# These field behaviours and testable connection types are rendered as scripts in the conn_create.html and
+# conn_edit.html templates.
 class ConnectionFormWidget(FormWidget):
     """Form widget used to display connection"""
 
