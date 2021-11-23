@@ -409,7 +409,7 @@ class DatabricksHook(BaseHook):
 
         Please note that any Airflow tasks that call the ``get_run_state`` method will result in
         failure unless you have enabled xcom pickling.  This can be done using the following
-        environment variable: ``AIRLFOW_CORE_ENABLE_XCOM_PICKLING=TRUE``
+        environment variable: ``AIRFLOW__CORE__ENABLE_XCOM_PICKLING``
 
         If you do not want to enable xcom pickling then use the ``get_run_state_str`` method to get
         string describing state, or ``get_run_state_lifecycle``, ``get_run_state_result``, or
