@@ -3378,12 +3378,23 @@ def lazy_add_provider_discovered_options_to_connection_form():
 # fields in ConnectionForm based on type of connection chosen
 # See airflow.hooks.base_hook.DiscoverableHook for details on how to customize your Hooks.
 # those field behaviours are rendered as scripts in the conn_create.html and conn_edit.html templates
+#
+# Additionally, a list of connection types that support testing via Airflow REST API is stored to dynamically
+# enable/disable the Test Connection button.
 class ConnectionFormWidget(FormWidget):
     """Form widget used to display connection"""
 
     @cached_property
     def field_behaviours(self):
         return json.dumps(ProvidersManager().field_behaviours)
+
+    @cached_property
+    def testable_connection_types(self):
+        return [
+            connection_type
+            for connection_type, provider_info in ProvidersManager().hooks.items()
+            if provider_info.is_connection_type_testable is True
+        ]
 
 
 class ConnectionModelView(AirflowModelView):

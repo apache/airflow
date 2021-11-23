@@ -173,6 +173,7 @@ class HookInfo(NamedTuple):
     package_name: str
     hook_name: str
     connection_type: str
+    is_connection_type_testable: bool
 
 
 class ConnectionFormWidgetInfo(NamedTuple):
@@ -674,6 +675,7 @@ class ProvidersManager(LoggingMixin):
         connection_type = hook_connection_type
         connection_id_attribute_name: str = self._get_attr(hook_class, 'conn_name_attr')
         hook_name: str = self._get_attr(hook_class, 'hook_name')
+        is_connection_type_testable: bool = hasattr(hook_class, 'test_connection')
 
         if not connection_type or not connection_id_attribute_name or not hook_name:
             log.warning(
@@ -691,6 +693,7 @@ class ProvidersManager(LoggingMixin):
             package_name=package_name,
             hook_name=hook_name,
             connection_type=connection_type,
+            is_connection_type_testable=is_connection_type_testable,
         )
 
     def _add_widgets(self, package_name: str, hook_class: type, widgets: Dict[str, Any]):
