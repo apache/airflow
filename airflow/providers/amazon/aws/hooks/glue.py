@@ -59,7 +59,7 @@ class AwsGlueJobHook(AwsBaseHook):
         concurrent_run_limit: int = 1,
         script_location: Optional[str] = None,
         retry_limit: int = 0,
-        num_of_dpus: int = 10,
+        num_of_dpus: Optional[int] = None,
         iam_role_name: Optional[str] = None,
         create_job_kwargs: Optional[dict] = None,
         *args,
@@ -70,11 +70,23 @@ class AwsGlueJobHook(AwsBaseHook):
         self.concurrent_run_limit = concurrent_run_limit
         self.script_location = script_location
         self.retry_limit = retry_limit
-        self.num_of_dpus = num_of_dpus
         self.s3_bucket = s3_bucket
         self.role_name = iam_role_name
         self.s3_glue_logs = 'logs/glue-logs/'
         self.create_job_kwargs = create_job_kwargs or {}
+        
+        if "WorkerType" in self.create_job_kwargs and "NumberOfWorkers" in self.create_job_kwargs:
+            if num_of_dpus is not None:
+                raise ValueError("Cannot specify num_of_dpus with custom WorkerType")
+        elif "WorkerType" not in self.create_job_kwargs and "NumberOfWorkers" in self.create_job_kwargs:
+            raise ValueError("Need to specify custom WorkerType when specifying NumberOfWorkers")
+        elif "WorkerType" in self.create_job_kwargs and "NumberOfWorkers" not in self.create_job_kwargs:
+            raise ValueError("Need to specify NumberOfWorkers when specifying custom WorkerType")
+        elif num_of_dpus is None:
+            self.num_of_dpus = 10
+        else:
+            self.num_of_dpus = num_of_dpus
+        
         kwargs['client_type'] = 'glue'
         super().__init__(*args, **kwargs)
 
