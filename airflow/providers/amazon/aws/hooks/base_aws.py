@@ -441,7 +441,7 @@ class AwsBaseHook(BaseHook):
         """Get the underlying boto3 client using boto3 session"""
         session, endpoint_url = self._get_credentials(region_name)
 
-        if client_type and client_type != 'iam':
+        if client_type:
             warnings.warn(
                 "client_type is deprecated. Set client_type from class attribute.",
                 DeprecationWarning,
@@ -539,7 +539,9 @@ class AwsBaseHook(BaseHook):
         if "/" in role:
             return role
         else:
-            return self.get_client_type("iam").get_role(RoleName=role)["Role"]["Arn"]
+            session, endpoint_url = self._get_credentials(None)
+            _client_type = session.client('iam', endpoint_url=endpoint_url, config=self.config, verify=self.verify)
+            return _client_type.get_role(RoleName=role)["Role"]["Arn"]
 
     @staticmethod
     def retry(should_retry: Callable[[Exception], bool]):
