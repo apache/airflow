@@ -392,7 +392,10 @@ class AwsBaseHook(BaseHook):
         if not (self.client_type or self.resource_type):
             raise AirflowException('Either client_type or resource_type must be provided.')
 
-    def _get_credentials(self, region_name: Optional[str]) -> Tuple[boto3.session.Session, Optional[str]]:
+    def _get_credentials(
+        self,
+        region_name: Optional[str] = None,
+    ) -> Tuple[boto3.session.Session, Optional[str]]:
 
         if not self.aws_conn_id:
             session = boto3.session.Session(region_name=region_name)
@@ -539,7 +542,7 @@ class AwsBaseHook(BaseHook):
         if "/" in role:
             return role
         else:
-            session, endpoint_url = self._get_credentials(region_name=None)
+            session, endpoint_url = self._get_credentials()
             _client = session.client('iam', endpoint_url=endpoint_url, config=self.config, verify=self.verify)
             return _client.get_role(RoleName=role)["Role"]["Arn"]
 
