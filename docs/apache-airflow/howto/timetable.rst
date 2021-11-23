@@ -93,17 +93,17 @@ know when to schedule the DAG's next run.
 * ``next_dagrun_info``: The scheduler uses this to learn the timetable's regular
   schedule, i.e. the "one for every workday, run at the end of it" part in our
   example.
-* ``infer_data_interval``: When a DAG run is manually triggered (from the web
+* ``infer_manual_data_interval``: When a DAG run is manually triggered (from the web
   UI, for example), the scheduler uses this method to learn about how to
   reverse-infer the out-of-schedule run's data interval.
 
-We'll start with ``infer_data_interval`` since it's the easier of the two:
+We'll start with ``infer_manual_data_interval`` since it's the easier of the two:
 
 .. exampleinclude:: /../../airflow/example_dags/plugins/workday.py
     :language: python
     :dedent: 4
-    :start-after: [START howto_timetable_infer_data_interval]
-    :end-before: [END howto_timetable_infer_data_interval]
+    :start-after: [START howto_timetable_infer_manual_data_interval]
+    :end-before: [END howto_timetable_infer_manual_data_interval]
 
 The method accepts one argument ``run_after``, a ``pendulum.DateTime`` object
 that indicates when the DAG is externally triggered. Since our timetable creates
