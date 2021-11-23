@@ -164,7 +164,7 @@ class S3Hook(AwsBaseHook):
             return False
 
     @provide_bucket_name
-    def get_bucket(self, bucket_name: Optional[str] = None) -> str:
+    def get_bucket(self, bucket_name: Optional[str] = None, *, region_name: Optional[str] = None) -> str:
         """
         Returns a boto3.S3.Bucket object
 
@@ -172,8 +172,10 @@ class S3Hook(AwsBaseHook):
         :type bucket_name: str
         :return: the bucket object to the bucket name.
         :rtype: boto3.S3.Bucket
+        :param region_name: The name of the aws region in which to get the bucket.
+        :type region_name: str
         """
-        session, endpoint_url = self._get_credentials()
+        session, endpoint_url = self._get_credentials(region_name=region_name)
         s3_resource = session.client('s3', endpoint_url=endpoint_url, config=self.config, verify=self.verify)
         return s3_resource.Bucket(bucket_name)
 
@@ -330,7 +332,13 @@ class S3Hook(AwsBaseHook):
 
     @provide_bucket_name
     @unify_bucket_name_and_key
-    def get_key(self, key: str, bucket_name: Optional[str] = None) -> S3Transfer:
+    def get_key(
+        self,
+        key: str,
+        bucket_name: Optional[str] = None,
+        *,
+        region_name: Optional[str] = None,
+    ) -> S3Transfer:
         """
         Returns a boto3.s3.Object
 
@@ -338,10 +346,12 @@ class S3Hook(AwsBaseHook):
         :type key: str
         :param bucket_name: the name of the bucket
         :type bucket_name: str
+        :param region_name: the name of the bucket's region
+        :type region_name: str
         :return: the key object from the bucket
         :rtype: boto3.s3.Object
         """
-        session, endpoint_url = self._get_credentials()
+        session, endpoint_url = self._get_credentials(region_name=region_name)
         s3_resource = session.client('s3', endpoint_url=endpoint_url, config=self.config, verify=self.verify)
         obj = s3_resource.Object(bucket_name, key)
         obj.load()
