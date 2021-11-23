@@ -217,7 +217,7 @@ jobs:
           PR_LABELS: "${{ steps.source-run-info.outputs.pullRequestLabels }}"
         run: |
           if [[ ${PR_LABELS=} == *"use public runners"* ]]; then
-            echo "Forcing running the on Public Runners via `use public runners` label"
+            echo "Forcing running on Public Runners via `use public runners` label"
             echo "::set-output name=runsOn::\"ubuntu-20.04\""
           elif [[ ${AIRFLOW_SELF_HOSTED_RUNNER} == "" ]]; then
             echo "Regular PR running with Public Runner"
