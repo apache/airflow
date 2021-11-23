@@ -179,17 +179,29 @@ class AwsGlueJobHook(AwsBaseHook):
             s3_log_path = f's3://{self.s3_bucket}/{self.s3_glue_logs}{self.job_name}'
             execution_role = self.get_iam_execution_role()
             try:
-                create_job_response = glue_client.create_job(
-                    Name=self.job_name,
-                    Description=self.desc,
-                    LogUri=s3_log_path,
-                    Role=execution_role['Role']['Arn'],
-                    ExecutionProperty={"MaxConcurrentRuns": self.concurrent_run_limit},
-                    Command={"Name": "glueetl", "ScriptLocation": self.script_location},
-                    MaxRetries=self.retry_limit,
-                    AllocatedCapacity=self.num_of_dpus,
-                    **self.create_job_kwargs,
-                )
+                if "WorkerType" in self.create_job_kwargs and "NumberOfWorkers" in self.create_job_kwargs:
+                    create_job_response = glue_client.create_job(
+                        Name=self.job_name,
+                        Description=self.desc,
+                        LogUri=s3_log_path,
+                        Role=execution_role['Role']['Arn'],
+                        ExecutionProperty={"MaxConcurrentRuns": self.concurrent_run_limit},
+                        Command={"Name": "glueetl", "ScriptLocation": self.script_location},
+                        MaxRetries=self.retry_limit,
+                        **self.create_job_kwargs,
+                    )
+                else:
+                    create_job_response = glue_client.create_job(
+                        Name=self.job_name,
+                        Description=self.desc,
+                        LogUri=s3_log_path,
+                        Role=execution_role['Role']['Arn'],
+                        ExecutionProperty={"MaxConcurrentRuns": self.concurrent_run_limit},
+                        Command={"Name": "glueetl", "ScriptLocation": self.script_location},
+                        MaxRetries=self.retry_limit,
+                        MaxCapacity=self.num_of_dpus,
+                        **self.create_job_kwargs,
+                    )
                 return create_job_response['Name']
             except Exception as general_error:
                 self.log.error("Failed to create aws glue job, error: %s", general_error)
