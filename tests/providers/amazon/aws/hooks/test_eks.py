@@ -746,7 +746,14 @@ class TestEksHooks:
         if expected_result == PossibleTestResults.SUCCESS:
             result: Dict = eks_hook.create_nodegroup(**test_inputs)[ResponseAttributes.NODEGROUP]
 
-            for key, expected_value in test_inputs.items():
+            expected_output = deepcopy(test_inputs)
+            # The Create Nodegroup hook magically adds the required
+            # cluster/owned tag, so add that to the expected outputs.
+            expected_output['tags'] = {
+                f'kubernetes.io/cluster/{generated_test_data.existing_cluster_name}': 'owned'
+            }
+
+            for key, expected_value in expected_output.items():
                 assert result[key] == expected_value
         else:
             if launch_template and disk_size:
