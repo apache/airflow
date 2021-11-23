@@ -491,7 +491,7 @@ class AwsBaseHook(BaseHook):
         :rtype: Union[boto3.client, boto3.resource]
         """
         if self.client_type:
-            return self.get_client_type(None, region_name=self.region_name)
+            return self.get_client_type(region_name=self.region_name)
         elif self.resource_type:
             return self.get_resource_type(None, region_name=self.region_name)
         else:
