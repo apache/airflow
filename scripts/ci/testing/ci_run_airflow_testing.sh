@@ -97,6 +97,11 @@ function run_all_test_types_in_parallel() {
             test_types_to_run="${test_types_to_run//Core/}"
             sequential_tests+=("Core")
         fi
+        if [[ ${test_types_to_run} == *"Other"* ]]; then
+            echo "${COLOR_YELLOW}Remove Other from tests_types_to_run and add them to sequential tests due to low memory.${COLOR_RESET}"
+            test_types_to_run="${test_types_to_run//Other/}"
+            sequential_tests+=("Other")
+        fi
         if [[ ${BACKEND} == "mssql" || ${BACKEND} == "mysql" ]]; then
             # For mssql/mysql - they take far more memory than postgres (or sqlite) - we skip the Provider
             # tests altogether as they take too much memory even if run sequentially.
