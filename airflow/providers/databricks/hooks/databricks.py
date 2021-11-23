@@ -429,7 +429,7 @@ class DatabricksHook(BaseHook):
 
     def get_run_state_str(self, run_id: str) -> str:
         """
-        Returns string representation of RunState
+        Return the string representation of RunState.
 
         :param run_id: id of the run
         :return: string describing run state
