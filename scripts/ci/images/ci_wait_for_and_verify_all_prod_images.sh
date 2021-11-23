@@ -25,7 +25,7 @@ source "${LIBRARIES_DIR}/_all_libs.sh"
 
 initialization::set_output_color_variables
 
-"$( dirname "${BASH_SOURCE[0]}" )/ci_run_docker_tests.sh" "--initialize"
+"$( dirname "${BASH_SOURCE[0]}" )/ci_run_docker_tests.py" "--initialize"
 
 export PARALLEL_TAIL_LENGTH=5
 

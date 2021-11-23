@@ -23,8 +23,11 @@ import sys
 from pathlib import Path
 from typing import List
 
-AIRFLOW_SOURCE = Path(__file__).resolve().parents[3]
+AIRFLOW_SOURCE = Path(__file__).resolve().parent.parent.parent
 BUILD_CACHE_DIR = AIRFLOW_SOURCE / ".build"
+
+CBLUE = '\033[94m'
+CEND = '\033[0m'
 
 
 def get_parser():
@@ -45,7 +48,7 @@ def get_parser():
 
 
 def run_verbose(cmd: List[str], **kwargs):
-    print(f"$ {' '.join(shlex.quote(c) for c in cmd)}")
+    print(f"{CBLUE}$ {' '.join(shlex.quote(c) for c in cmd)}{CEND}")
     subprocess.run(cmd, **kwargs)
 
 
