@@ -31,6 +31,9 @@ class PSRPHook(BaseHook):
     Hook for PowerShell Remoting Protocol execution.
 
     The hook must be used as a context manager.
+
+    :param psrp_conn_id: Required. The name of the PSRP connection.
+    :type psrp_conn_id: str
     """
 
     _client = None
