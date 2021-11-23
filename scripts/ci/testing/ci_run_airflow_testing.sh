@@ -90,7 +90,7 @@ function run_all_test_types_in_parallel() {
         if [[ ${test_types_to_run} == *"Integration"* ]]; then
             echo "${COLOR_YELLOW}Remove Integration from tests_types_to_run and add them to sequential tests due to low memory.${COLOR_RESET}"
             test_types_to_run="${test_types_to_run//Integration/}"
-            sequential_tests+=("Integration")
+            sequential_tests+=("Integration" "CLI")
         fi
         if [[ ${test_types_to_run} == *"Core"* ]]; then
             echo "${COLOR_YELLOW}Remove Core from tests_types_to_run and add them to sequential tests due to low memory.${COLOR_RESET}"
