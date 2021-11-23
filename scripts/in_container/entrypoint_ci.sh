@@ -202,7 +202,7 @@ set -u
 export RESULT_LOG_FILE="/files/test_result-${TEST_TYPE}-${BACKEND}.xml"
 
 EXTRA_PYTEST_ARGS=(
-    "--verbosity=0"
+    "--verbosity=1"
     "--strict-markers"
     "--durations=100"
     "--maxfail=50"

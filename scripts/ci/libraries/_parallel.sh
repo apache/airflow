@@ -105,7 +105,7 @@ function parallel::monitor_loop() {
 
         end_time=${SECONDS}
         echo "${COLOR_YELLOW}########## $((end_time - start_time)) seconds passed since start ##########${COLOR_RESET}"
-        sleep 15
+        sleep 1
         progress_report_number=$((progress_report_number + 1))
     done
 }
