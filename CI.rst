@@ -124,7 +124,7 @@ You can use those variables when you try to reproduce the build locally.
 |                                         |             |              |            | case of Postgres or MySQL. However,             |
 |                                         |             |              |            | it requires to perform manual init/reset        |
 |                                         |             |              |            | if you stop the environment.                    |
-+-----------------------------------------+-------------+--------------+-------------+------------------------------------------------+
++-----------------------------------------+-------------+--------------+------------+-------------------------------------------------+
 |                                                           Mount variables                                                           |
 +-----------------------------------------+-------------+--------------+------------+-------------------------------------------------+
 | ``MOUNT_SELECTED_LOCAL_SOURCES``        |     true    |    false     |    false   | Determines whether local sources are            |
