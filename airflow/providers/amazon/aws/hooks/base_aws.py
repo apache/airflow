@@ -493,7 +493,7 @@ class AwsBaseHook(BaseHook):
         if self.client_type:
             return self.get_client_type(region_name=self.region_name)
         elif self.resource_type:
-            return self.get_resource_type(None, region_name=self.region_name)
+            return self.get_resource_type(region_name=self.region_name)
         else:
             # Rare possibility - subclasses have not specified a client_type or resource_type
             raise NotImplementedError('Could not get boto3 connection!')
