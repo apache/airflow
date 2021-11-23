@@ -48,8 +48,10 @@ from airflow.exceptions import AirflowException, AirflowTaskTimeout
 from airflow.executors.base_executor import BaseExecutor, CommandType, EventBufferValueType
 from airflow.models.taskinstance import TaskInstance, TaskInstanceKey
 from airflow.stats import Stats
+from airflow.utils.event_scheduler import EventScheduler
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.net import get_hostname
+from airflow.utils.session import provide_session
 from airflow.utils.state import State
 from airflow.utils.timeout import timeout
 from airflow.utils.timezone import utcnow
@@ -233,11 +235,23 @@ class CeleryExecutor(BaseExecutor):
         self.task_adoption_timeout = datetime.timedelta(
             seconds=conf.getint('celery', 'task_adoption_timeout', fallback=600)
         )
+        self.stuck_queued_task_check_interval = conf.getint(
+            'celery', 'stuck_queued_task_check_interval', fallback=300
+        )
         self.task_publish_retries: Dict[TaskInstanceKey, int] = OrderedDict()
         self.task_publish_max_retries = conf.getint('celery', 'task_publish_max_retries', fallback=3)
+        self.event_scheduler: Optional[EventScheduler] = None
 
     def start(self) -> None:
         self.log.debug('Starting Celery Executor using %s processes for syncing', self._sync_parallelism)
+        self.event_scheduler = EventScheduler()
+        # Use EventScheduler to avoid checking this too often
+        self.event_scheduler.call_regular_interval(
+            self.stuck_queued_task_check_interval,
+            self._clear_stuck_queued_tasks(),
+        )
+        # Clear stuck queued tasks at startup
+        self._clear_stuck_queued_tasks()
 
     def _num_tasks_per_send_process(self, to_send_count: int) -> int:
         """
@@ -338,6 +352,10 @@ class CeleryExecutor(BaseExecutor):
         if self.adopted_task_timeouts:
             self._check_for_stalled_adopted_tasks()
 
+        # Run any pending timed events
+        next_event = self.event_scheduler.run(blocking=False)
+        self.log.debug("Next timed event is in %f", next_event)
+
     def _check_for_stalled_adopted_tasks(self):
         """
         See if any of the tasks we adopted from another Executor run have not
@@ -376,6 +394,43 @@ class CeleryExecutor(BaseExecutor):
             )
             for key in timedout_keys:
                 self.change_state(key, State.FAILED)
+
+    @provide_session
+    def _clear_stuck_queued_tasks(self, session=None):
+        """
+        For some reasons, tasks can get stuck in queued state in DB while still not in
+        self.queued_tasks and not in self.running_tasks.
+
+        In such situation, we update the task instance state to scheduled so that
+        it can be queued again. We chose to use task_adoption_timeout to decide
+        """
+        self.log.debug("Checking for stuck queued tasks")
+        queued_tasks = session.query(TaskInstance).filter(TaskInstance.state == State.QUEUED).all()
+
+        for task in queued_tasks:
+
+            self.log.info("Checking task %s", task)
+
+            if task.key in self.queued_tasks or task.key in self.running or not task.external_executor_id:
+                continue
+            # The pending state means task is waiting for execution or unknown
+            if AsyncResult(id=task.external_executor_id, app=app).state != 'PENDING':
+                continue
+            # We use the task_adoption_timeout to decide if the task is stuck
+            max_allowed_time = utcnow() - self.task_adoption_timeout
+
+            if max_allowed_time > task.queued_dttm:
+                # Using the if condition above instead of adding to query so that the logging below is correct
+                self.log.info(
+                    'TaskInstance: %s found in queued state for more than %s seconds, rescheduling',
+                    task,
+                    self.task_adoption_timeout.total_seconds(),
+                )
+                session.query(TaskInstance).filter(
+                    TaskInstance.dag_id == task.dag_id,
+                    TaskInstance.task_id == task.task_id,
+                    TaskInstance.run_id == task.run_id,
+                ).update({TaskInstance.state: State.SCHEDULED})
 
     def debug_dump(self) -> None:
         """Called in response to SIGUSR2 by the scheduler"""
