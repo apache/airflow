@@ -16,6 +16,7 @@
 # under the License.
 
 import os
+import shlex
 import subprocess
 from pathlib import Path
 from typing import List
@@ -28,7 +29,7 @@ if not docker_image:
 
 
 def run_command(cmd: List[str], print_output_on_error: bool = True, **kwargs):
-    print(f"$ {' '.join(c for c in cmd)}")
+    print(f"$ {' '.join(shlex.quote(c) for c in cmd)}")
     try:
         return subprocess.check_output(cmd, **kwargs).decode()
     except subprocess.CalledProcessError as ex:
@@ -40,7 +41,7 @@ def run_command(cmd: List[str], print_output_on_error: bool = True, **kwargs):
         raise
 
 
-def run_bash(bash_script, **kwargs):
+def run_bash_in_docker(bash_script, **kwargs):
     docker_command = [
         "docker",
         "run",
@@ -56,7 +57,7 @@ def run_bash(bash_script, **kwargs):
     return run_command(docker_command, **kwargs)
 
 
-def run_python(python_script, **kwargs):
+def run_python_in_docker(python_script, **kwargs):
     docker_command = [
         "docker",
         "run",

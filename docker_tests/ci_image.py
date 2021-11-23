@@ -20,14 +20,14 @@ import subprocess
 from docker_tests.docker_tests_utils import (
     display_dependency_conflict_message,
     docker_image,
-    run_bash,
+    run_bash_in_docker,
     run_command,
 )
 
 
 class TestFiles:
     def test_dist_folder_should_exists(self):
-        run_bash('[ -f /opt/airflow/airflow/www/static/dist/manifest.json ] || exit 1')
+        run_bash_in_docker('[ -f /opt/airflow/airflow/www/static/dist/manifest.json ] || exit 1')
 
 
 class TestPythonPackages:

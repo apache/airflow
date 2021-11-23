@@ -26,9 +26,9 @@ from docker_tests.docker_tests_utils import (
     SOURCE_ROOT,
     display_dependency_conflict_message,
     docker_image,
-    run_bash,
+    run_bash_in_docker,
     run_command,
-    run_python,
+    run_python_in_docker,
 )
 
 INSTALLED_PROVIDER_PATH = SOURCE_ROOT / "scripts" / "ci" / "installed_providers.txt"
@@ -76,7 +76,7 @@ class TestPythonPackages:
         packages_to_install = {f"apache-airflow-providers-{d.replace('.', '-')}" for d in lines}
         assert len(packages_to_install) != 0
 
-        output = run_bash("airflow providers list --output json", stderr=subprocess.DEVNULL)
+        output = run_bash_in_docker("airflow providers list --output json", stderr=subprocess.DEVNULL)
         providers = json.loads(output)
         packages_installed = {d['package_name'] for d in providers}
         assert len(packages_installed) != 0
@@ -88,7 +88,7 @@ class TestPythonPackages:
 
     def test_pip_dependencies_conflict(self):
         try:
-            run_bash("pip check")
+            run_bash_in_docker("pip check")
         except subprocess.CalledProcessError as ex:
             display_dependency_conflict_message()
             raise ex
@@ -160,7 +160,7 @@ class TestPythonPackages:
 
     @pytest.mark.parametrize("package_name,import_names", PACKAGE_IMPORTS.items())
     def test_check_dependencies_imports(self, package_name, import_names):
-        run_python(f"import {','.join(import_names)}")
+        run_python_in_docker(f"import {','.join(import_names)}")
 
 
 class TestExecuteAsRoot:
