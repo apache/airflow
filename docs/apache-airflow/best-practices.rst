@@ -445,11 +445,11 @@ Unit tests ensure that there is no incorrect code in your DAG. You can write uni
 
 
     @pytest.fixture()
-    def dagbag(self):
+    def dagbag():
         return DagBag()
 
 
-    def test_dag_loaded(self, dagbag):
+    def test_dag_loaded(dagbag):
         dag = dagbag.get_dag(dag_id="hello_world")
         assert dagbag.import_errors == {}
         assert dag is not None
