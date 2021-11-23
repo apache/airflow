@@ -539,9 +539,9 @@ class AwsBaseHook(BaseHook):
         if "/" in role:
             return role
         else:
-            session, endpoint_url = self._get_credentials(None)
-            _client_type = session.client('iam', endpoint_url=endpoint_url, config=self.config, verify=self.verify)
-            return _client_type.get_role(RoleName=role)["Role"]["Arn"]
+            session, endpoint_url = self._get_credentials()
+            _client = session.client('iam', endpoint_url=endpoint_url, config=self.config, verify=self.verify)
+            return _client.get_role(RoleName=role)["Role"]["Arn"]
 
     @staticmethod
     def retry(should_retry: Callable[[Exception], bool]):
