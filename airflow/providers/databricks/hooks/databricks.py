@@ -442,7 +442,7 @@ class DatabricksHook(BaseHook):
 
     def get_run_state_lifecycle(self, run_id: str) -> str:
         """
-        Returns lifecycle state of the run
+        Returns the lifecycle state of the run
 
         :param run_id: id of the run
         :return: string with lifecycle state
@@ -451,7 +451,7 @@ class DatabricksHook(BaseHook):
 
     def get_run_state_result(self, run_id: str) -> str:
         """
-        Returns resulting state of the run
+        Returns the resulting state of the run
 
         :param run_id: id of the run
         :return: string with resulting state
@@ -460,7 +460,7 @@ class DatabricksHook(BaseHook):
 
     def get_run_state_message(self, run_id: str) -> str:
         """
-        Returns state message for the run
+        Returns the state message for the run
 
         :param run_id: id of the run
         :return: string with state message
