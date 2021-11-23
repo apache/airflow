@@ -79,10 +79,7 @@ Bug Fixes
 
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):
-   * ``Fixed wrongly escaped characters in amazon's changelog (#17020)``
    * ``Simplify 'default_args' in Kubernetes example DAGs (#16870)``
-   * ``Enable using custom pod launcher in Kubernetes Pod Operator (#16945)``
-   * ``Prepare documentation for July release of providers. (#17015)``
    * ``Updating task dependencies (#16624)``
    * ``Removes pylint from our toolchain (#16682)``
    * ``Prepare documentation for July release of providers. (#17015)``

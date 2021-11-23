@@ -64,7 +64,7 @@ Breaking changes
 Features
 ~~~~~~~~
 
-* ``WinRM Operator: Fix stout decoding issue (#13153)``
+* ``WinRM Operator: Allow running as powershell script (#13153)``
 
 Bug Fixes
 ~~~~~~~~~
