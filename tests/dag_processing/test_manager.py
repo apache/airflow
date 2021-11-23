@@ -633,45 +633,45 @@ class TestDagFileProcessorManager:
         manager._kill_timed_out_processors()
         mock_dag_file_processor.kill.assert_not_called()
 
-    @conf_vars({('core', 'load_examples'): 'False'})
-    @pytest.mark.execution_timeout(10)
-    def test_dag_with_system_exit(self):
-        """
-        Test to check that a DAG with a system.exit() doesn't break the scheduler.
-        """
-
-        dag_id = 'exit_test_dag'
-        dag_directory = TEST_DAG_FOLDER.parent / 'dags_with_system_exit'
-
-        # Delete the one valid DAG/SerializedDAG, and check that it gets re-created
-        clear_db_dags()
-        clear_db_serialized_dags()
-
-        child_pipe, parent_pipe = multiprocessing.Pipe()
-
-        manager = DagFileProcessorManager(
-            dag_directory=dag_directory,
-            dag_ids=[],
-            max_runs=1,
-            processor_timeout=timedelta(seconds=5),
-            signal_conn=child_pipe,
-            pickle_dags=False,
-            async_mode=True,
-        )
-
-        manager._run_parsing_loop()
-
-        result = None
-        while parent_pipe.poll(timeout=None):
-            result = parent_pipe.recv()
-            if isinstance(result, DagParsingStat) and result.done:
-                break
-
-        # Three files in folder should be processed
-        assert sum(stat.run_count for stat in manager._file_stats.values()) == 3
-
-        with create_session() as session:
-            assert session.query(DagModel).get(dag_id) is not None
+    # @conf_vars({('core', 'load_examples'): 'False'})
+    # @pytest.mark.execution_timeout(10)
+    # def test_dag_with_system_exit(self):
+    #     """
+    #     Test to check that a DAG with a system.exit() doesn't break the scheduler.
+    #     """
+    #
+    #     dag_id = 'exit_test_dag'
+    #     dag_directory = TEST_DAG_FOLDER.parent / 'dags_with_system_exit'
+    #
+    #     # Delete the one valid DAG/SerializedDAG, and check that it gets re-created
+    #     clear_db_dags()
+    #     clear_db_serialized_dags()
+    #
+    #     child_pipe, parent_pipe = multiprocessing.Pipe()
+    #
+    #     manager = DagFileProcessorManager(
+    #         dag_directory=dag_directory,
+    #         dag_ids=[],
+    #         max_runs=1,
+    #         processor_timeout=timedelta(seconds=5),
+    #         signal_conn=child_pipe,
+    #         pickle_dags=False,
+    #         async_mode=True,
+    #     )
+    #
+    #     manager._run_parsing_loop()
+    #
+    #     result = None
+    #     while parent_pipe.poll(timeout=None):
+    #         result = parent_pipe.recv()
+    #         if isinstance(result, DagParsingStat) and result.done:
+    #             break
+    #
+    #     # Three files in folder should be processed
+    #     assert sum(stat.run_count for stat in manager._file_stats.values()) == 3
+    #
+    #     with create_session() as session:
+    #         assert session.query(DagModel).get(dag_id) is not None
 
     @conf_vars({('core', 'load_examples'): 'False'})
     @pytest.mark.backend("mysql", "postgres")

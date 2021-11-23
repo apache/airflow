@@ -50,7 +50,10 @@ function check_upgrade_to_newer_dependencies_needed() {
         # cached in the image because docker layer will get invalidated.
         # This upgrade_to_newer_dependencies variable can later be overridden
         # in case we find that any of the setup.* files changed (see below)
-        upgrade_to_newer_dependencies="${RANDOM}"
+        # Only happens for Apache Airflow repo.
+        if [[ ${GITHUB_REPOSITORY} == "apache/airflow" ]]; then
+            upgrade_to_newer_dependencies="${RANDOM}"
+        fi
     fi
 }
 

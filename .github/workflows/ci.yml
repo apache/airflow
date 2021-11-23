@@ -67,6 +67,7 @@ env:
   # You can also switch back to building images locally and disabling the "Build Images" workflow
   # by defining AIRFLOW_GITHUB_REGISTRY_WAIT_FOR_IMAGE secret with value set to "false"
   GITHUB_REGISTRY_WAIT_FOR_IMAGE: ${{ secrets.AIRFLOW_GITHUB_REGISTRY_WAIT_FOR_IMAGE != 'false' }}
+  FORCE_TEST_TYPE: "Other"
 
 concurrency:
   group: ci-${{ github.event.pull_request.number || github.ref }}
@@ -151,7 +152,7 @@ jobs:
       defaultHelmVersion: ${{ steps.selective-checks.outputs.default-helm-version }}
       kindVersions: ${{ steps.selective-checks.outputs.kind-versions }}
       defaultKindVersion: ${{ steps.selective-checks.outputs.default-kind-version }}
-      testTypes: "Other"
+      testTypes: ${{ steps.selective-checks.outputs.test-types }}
       postgresExclude: ${{ steps.selective-checks.outputs.postgres-exclude }}
       mysqlExclude: ${{ steps.selective-checks.outputs.mysql-exclude }}
       mssqlExclude: ${{ steps.selective-checks.outputs.mssql-exclude }}
