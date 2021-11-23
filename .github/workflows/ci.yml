@@ -99,12 +99,20 @@ jobs:
             "aoen",
             "artwr",
             "ashb",
+            "bbovenzi",
             "bolkedebruin",
             "criccomini",
             "dimberman",
+            "dstandish",
+            "eladkal",
+            "ephraimbuddy",
+            "feluelle",
             "feng-tao",
             "houqp",
+            "jedcunningham",
+            "jgao54",
             "jghoman",
+            "jhtimmins",
             "jmcarp",
             "kaxil",
             "leahecole",
@@ -119,13 +127,11 @@ jobs:
             "saguziel",
             "sekikn",
             "turbaszek",
-            "zhongjiajie",
-            "ephraimbuddy",
-            "jhtimmins",
-            "dstandish",
+            "uranusjr",
+            "vikramkoka",
             "xinbinhuang",
-            "yuqian",
-            "eladkal"
+            "yuqian90",
+            "zhongjiajie"
           ]'), github.event.pull_request.user.login)
         ) && github.repository == 'apache/airflow'
       ) && 'self-hosted' || 'ubuntu-20.04' }}
