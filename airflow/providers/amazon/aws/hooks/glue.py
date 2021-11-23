@@ -75,12 +75,15 @@ class AwsGlueJobHook(AwsBaseHook):
         self.s3_glue_logs = 'logs/glue-logs/'
         self.create_job_kwargs = create_job_kwargs or {}
         
-        if "WorkerType" in self.create_job_kwargs and "NumberOfWorkers" in self.create_job_kwargs:
+        worker_type_exists = "WorkerType" in self.create_job_kwargs
+        num_workers_exists = "NumberOfWorkers" in self.create_job_kwargs
+        
+        if worker_type_exists and num_workers_exists:
             if num_of_dpus is not None:
                 raise ValueError("Cannot specify num_of_dpus with custom WorkerType")
-        elif "WorkerType" not in self.create_job_kwargs and "NumberOfWorkers" in self.create_job_kwargs:
+        elif not worker_type_exists and num_workers_exists:
             raise ValueError("Need to specify custom WorkerType when specifying NumberOfWorkers")
-        elif "WorkerType" in self.create_job_kwargs and "NumberOfWorkers" not in self.create_job_kwargs:
+        elif worker_type_exists and not num_workers_exists:
             raise ValueError("Need to specify NumberOfWorkers when specifying custom WorkerType")
         elif num_of_dpus is None:
             self.num_of_dpus = 10
