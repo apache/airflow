@@ -32,8 +32,8 @@ UTC = timezone("UTC")
 
 class AfterWorkdayTimetable(Timetable):
 
-    # [START howto_timetable_infer_data_interval]
-    def infer_data_interval(self, run_after: DateTime) -> DataInterval:
+    # [START howto_timetable_infer_manual_data_interval]
+    def infer_manual_data_interval(self, run_after: DateTime) -> DataInterval:
         weekday = run_after.weekday()
         if weekday in (0, 6):  # Monday and Sunday -- interval is last Friday.
             days_since_friday = (run_after.weekday() - 4) % 7
@@ -43,7 +43,7 @@ class AfterWorkdayTimetable(Timetable):
         start = DateTime.combine((run_after - delta).date(), Time.min).replace(tzinfo=UTC)
         return DataInterval(start=start, end=(start + timedelta(days=1)))
 
-    # [END howto_timetable_infer_data_interval]
+    # [END howto_timetable_infer_manual_data_interval]
 
     # [START howto_timetable_next_dagrun_info]
     def next_dagrun_info(
