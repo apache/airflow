@@ -491,9 +491,9 @@ class AwsBaseHook(BaseHook):
         :rtype: Union[boto3.client, boto3.resource]
         """
         if self.client_type:
-            return self.get_client_type(self.client_type, region_name=self.region_name)
+            return self.get_client_type(region_name=self.region_name)
         elif self.resource_type:
-            return self.get_resource_type(self.resource_type, region_name=self.region_name)
+            return self.get_resource_type(region_name=self.region_name)
         else:
             # Rare possibility - subclasses have not specified a client_type or resource_type
             raise NotImplementedError('Could not get boto3 connection!')
@@ -539,7 +539,9 @@ class AwsBaseHook(BaseHook):
         if "/" in role:
             return role
         else:
-            return self.get_client_type("iam").get_role(RoleName=role)["Role"]["Arn"]
+            session, endpoint_url = self._get_credentials()
+            _client = session.client('iam', endpoint_url=endpoint_url, config=self.config, verify=self.verify)
+            return _client.get_role(RoleName=role)["Role"]["Arn"]
 
     @staticmethod
     def retry(should_retry: Callable[[Exception], bool]):
