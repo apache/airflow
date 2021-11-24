@@ -238,6 +238,7 @@ repos:
           ^scripts/.*\.py$|
           ^dev|
           ^provider_packages|
+          ^docker_tests|
           ^kubernetes_tests|
           .*example_dags/.*|
           ^chart/.*\.py$|

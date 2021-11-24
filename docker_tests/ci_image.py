@@ -1,4 +1,3 @@
-#!/usr/bin/env bash
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -16,14 +15,27 @@
 # specific language governing permissions and limitations
 # under the License.
 
-function verify_image::verify_prod_image {
-    DOCKER_IMAGE="${1}"
-    export DOCKER_IMAGE
-    python3 "${SCRIPTS_CI_DIR}/images/ci_run_docker_tests.py" "${AIRFLOW_SOURCES}/docker_tests/prod_image.py"
-}
+import subprocess
 
-function verify_image::verify_ci_image {
-    DOCKER_IMAGE="${1}"
-    export DOCKER_IMAGE
-    python3 "${SCRIPTS_CI_DIR}/images/ci_run_docker_tests.py" "${AIRFLOW_SOURCES}/docker_tests/ci_image.py"
-}
+from docker_tests.docker_tests_utils import (
+    display_dependency_conflict_message,
+    docker_image,
+    run_bash_in_docker,
+    run_command,
+)
+
+
+class TestFiles:
+    def test_dist_folder_should_exists(self):
+        run_bash_in_docker('[ -f /opt/airflow/airflow/www/static/dist/manifest.json ] || exit 1')
+
+
+class TestPythonPackages:
+    def test_pip_dependencies_conflict(self):
+        try:
+            run_command(
+                ["docker", "run", "--rm", "--entrypoint", "/bin/bash", docker_image, "-c", 'pip check']
+            )
+        except subprocess.CalledProcessError as ex:
+            display_dependency_conflict_message()
+            raise ex

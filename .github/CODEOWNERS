@@ -50,8 +50,9 @@
 /.github/workflows/ @potiuk @ashb @kaxil
 breeze @potiuk
 breeze-complete @potiuk
-Dockerfile @potiuk @ashb
+Dockerfile @potiuk @ashb @mik-laj
 Dockerfile.ci @potiuk @ashb
 /dev/ @potiuk @ashb @kaxil
 /provider_packages/ @potiuk @ashb
-/scripts/ @potiuk @ashb
+/scripts/ @potiuk @ashb @mik-laj
+/docker_tests/ @potiuk @ashb @mik-laj

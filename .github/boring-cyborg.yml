@@ -190,8 +190,8 @@ labelPRBasedOnFilePath:
     - Dockerfile
     - docs/docker-stack/**/*
     - scripts/in_container/prod/*
-    - scripts/ci/tools/verify_docker_image.sh
     - scripts/ci/libraries/_verify_image.sh
+    - docker_tests/**/*
 
 # Various Flags to control behaviour of the "Labeler"
 labelerFlags:
