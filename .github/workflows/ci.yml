@@ -84,6 +84,10 @@ jobs:
     # When changing this list, ensure that it is kept in sync with the
     # /runners/apache/airflow/configOverlay
     # parameter in AWS SSM ParameterStore (which is what the runner uses)
+    # and restart the self-hosted runners.
+    #
+    # This list of committers can be generated with:
+    #   https://github.com/apache/airflow-ci-infra/blob/main/scripts/list_committers
     runs-on: >-
       ${{ (
         (
