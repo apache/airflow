@@ -608,7 +608,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
         uses: actions/upload-artifact@v2
         with:
           name: airflow-provider-packages
-          path: "./dist/apache_airflow_providers_*.tar.gz"
+          path: "./dist/apache-airflow-providers-*.tar.gz"
           retention-days: 1
 
   tests-helm:
