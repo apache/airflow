@@ -575,6 +575,7 @@ cloudwatch
 cls
 cmake
 cmd
+cmdlet
 cmdline
 cmds
 cname

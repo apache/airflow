@@ -17,9 +17,10 @@
 # under the License.
 #
 
-import unittest
+from unittest import TestCase
 from unittest.mock import MagicMock, call, patch
 
+from parameterized import parameterized
 from pypsrp.messages import InformationRecord
 from pypsrp.powershell import PSInvocationState
 
@@ -29,43 +30,66 @@ from airflow.providers.microsoft.psrp.hooks.psrp import PSRPHook
 CONNECTION_ID = "conn_id"
 
 
-class TestPSRPHook(unittest.TestCase):
-    @patch(
-        f"{PSRPHook.__module__}.{PSRPHook.__name__}.get_connection",
-        return_value=Connection(
-            login='username',
-            password='password',
-            host='remote_host',
-        ),
-    )
-    @patch(f"{PSRPHook.__module__}.WSMan")
-    @patch(f"{PSRPHook.__module__}.PowerShell")
-    @patch(f"{PSRPHook.__module__}.RunspacePool")
-    @patch("logging.Logger.info")
-    def test_invoke_powershell(self, log_info, runspace_pool, powershell, ws_man, get_connection):
-        with PSRPHook(CONNECTION_ID) as hook:
-            ps = powershell.return_value = MagicMock()
-            ps.state = PSInvocationState.RUNNING
-            ps.output = []
-            ps.streams.debug = []
-            ps.streams.information = []
-            ps.streams.error = []
+class MockPowerShell(MagicMock):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.state = PSInvocationState.NOT_STARTED
 
-            def poll_invoke():
-                ps.output.append("<output>")
-                ps.streams.debug.append(MagicMock(spec=InformationRecord, message_data="<message>"))
-                ps.state = PSInvocationState.COMPLETED
+    def poll_invoke(self):
+        self.output.append("<output>")
+        self.streams.debug.append(MagicMock(spec=InformationRecord, message_data="<message>"))
+        self.state = PSInvocationState.COMPLETED
 
-            def end_invoke():
-                ps.streams.error = []
+    def begin_invoke(self):
+        self.state = PSInvocationState.RUNNING
+        self.output = []
+        self.streams.debug = []
+        self.streams.information = []
+        self.streams.error = []
 
-            ps.poll_invoke.side_effect = poll_invoke
-            ps.end_invoke.side_effect = end_invoke
+    def end_invoke(self):
+        while self.state == PSInvocationState.RUNNING:
+            self.poll_invoke()
+        self.streams.error = []
 
-            hook.invoke_powershell("foo")
+
+def mock_powershell_factory():
+    return MagicMock(return_value=MockPowerShell())
+
+
+@patch(
+    f"{PSRPHook.__module__}.{PSRPHook.__name__}.get_connection",
+    new=lambda _, conn_id: Connection(
+        conn_id=conn_id,
+        login='username',
+        password='password',
+        host='remote_host',
+    ),
+)
+@patch(f"{PSRPHook.__module__}.WSMan")
+@patch(f"{PSRPHook.__module__}.PowerShell", new_callable=mock_powershell_factory)
+@patch(f"{PSRPHook.__module__}.RunspacePool")
+@patch("logging.Logger.info")
+class TestPSRPHook(TestCase):
+    @parameterized.expand([(False,), (True,)])
+    def test_invoke(self, log_info, runspace_pool, powershell, ws_man, logging):
+        with PSRPHook(CONNECTION_ID, logging=logging) as hook:
+            with hook.invoke() as ps:
+                assert ps.state == PSInvocationState.NOT_STARTED
+            assert ps.state == PSInvocationState.COMPLETED
 
         assert ws_man().__exit__.mock_calls == [call(None, None, None)]
-
-        assert call('%s', '<output>') in log_info.mock_calls
-        assert call('Information: %s', '<message>') in log_info.mock_calls
+        assert not (logging ^ (call('%s', '<output>') in log_info.mock_calls))
+        assert not (logging ^ (call('Information: %s', '<message>') in log_info.mock_calls))
         assert call('Invocation state: %s', 'Completed') in log_info.mock_calls
+
+    def test_invoke_cmdlet(self, *mocks):
+        with PSRPHook(CONNECTION_ID, logging=False) as hook:
+            ps = hook.invoke_cmdlet('foo', bar="1", baz="2")
+            assert [call('foo', use_local_scope=None)] == ps.add_cmdlet.mock_calls
+            assert [call({'bar': '1', 'baz': '2'})] == ps.add_parameters.mock_calls
+
+    def test_invoke_powershell(self, *mocks):
+        with PSRPHook(CONNECTION_ID, logging=False) as hook:
+            ps = hook.invoke_powershell('foo')
+            assert call('foo') in ps.add_script.mock_calls

@@ -16,7 +16,9 @@
 # specific language governing permissions and limitations
 # under the License.
 
+from contextlib import contextmanager
 from time import sleep
+from typing import Dict
 
 from pypsrp.messages import ErrorRecord, InformationRecord, ProgressRecord
 from pypsrp.powershell import PowerShell, PSInvocationState, RunspacePool
@@ -34,13 +36,16 @@ class PSRPHook(BaseHook):
 
     :param psrp_conn_id: Required. The name of the PSRP connection.
     :type psrp_conn_id: str
+    :param logging: If true (default), log command output and streams during execution.
+    :type logging: bool
     """
 
     _client = None
     _poll_interval = 1
 
-    def __init__(self, psrp_conn_id: str):
+    def __init__(self, psrp_conn_id: str, logging: bool = True):
         self.conn_id = psrp_conn_id
+        self._logging = logging
 
     def __enter__(self):
         conn = self.get_connection(self.conn_id)
@@ -64,41 +69,59 @@ class PSRPHook(BaseHook):
         finally:
             self._client = None
 
-    def invoke_powershell(self, script: str) -> PowerShell:
+    @contextmanager
+    def invoke(self) -> PowerShell:
+        """
+        Context manager that yields a PowerShell object to which commands can be
+        added. Upon exit, the commands will be invoked.
+        """
         with RunspacePool(self._client) as pool:
             ps = PowerShell(pool)
-            ps.add_script(script)
+            yield ps
             ps.begin_invoke()
-            streams = [
-                (ps.output, self._log_output),
-                (ps.streams.debug, self._log_record),
-                (ps.streams.information, self._log_record),
-                (ps.streams.error, self._log_record),
-            ]
-            offsets = [0 for _ in streams]
+            if self._logging:
+                streams = [
+                    (ps.output, self._log_output),
+                    (ps.streams.debug, self._log_record),
+                    (ps.streams.information, self._log_record),
+                    (ps.streams.error, self._log_record),
+                ]
+                offsets = [0 for _ in streams]
 
-            # We're using polling to make sure output and streams are
-            # handled while the process is running.
-            while ps.state == PSInvocationState.RUNNING:
-                sleep(self._poll_interval)
-                ps.poll_invoke()
+                # We're using polling to make sure output and streams are
+                # handled while the process is running.
+                while ps.state == PSInvocationState.RUNNING:
+                    sleep(self._poll_interval)
+                    ps.poll_invoke()
 
-                for (i, (stream, handler)) in enumerate(streams):
-                    offset = offsets[i]
-                    while len(stream) > offset:
-                        handler(stream[offset])
-                        offset += 1
-                    offsets[i] = offset
+                    for (i, (stream, handler)) in enumerate(streams):
+                        offset = offsets[i]
+                        while len(stream) > offset:
+                            handler(stream[offset])
+                            offset += 1
+                        offsets[i] = offset
 
             # For good measure, we'll make sure the process has
-            # stopped running.
+            # stopped running in any case.
             ps.end_invoke()
 
             if ps.streams.error:
                 raise AirflowException("Process had one or more errors")
 
             self.log.info("Invocation state: %s", str(PSInvocationState(ps.state)))
-            return ps
+
+    def invoke_cmdlet(self, name: str, use_local_scope=None, **parameters: Dict[str, str]) -> PowerShell:
+        """Invoke a PowerShell cmdlet and return session."""
+        with self.invoke() as ps:
+            ps.add_cmdlet(name, use_local_scope=use_local_scope)
+            ps.add_parameters(parameters)
+        return ps
+
+    def invoke_powershell(self, script: str) -> PowerShell:
+        """Invoke a PowerShell script and return session."""
+        with self.invoke() as ps:
+            ps.add_script(script)
+        return ps
 
     def _log_output(self, message: str):
         self.log.info("%s", message)

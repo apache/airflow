@@ -16,8 +16,9 @@
 # specific language governing permissions and limitations
 # under the License.
 
-import unittest
-from unittest.mock import patch
+from itertools import product
+from unittest import TestCase
+from unittest.mock import call, patch
 
 import pytest
 from parameterized import parameterized
@@ -28,22 +29,35 @@ from airflow.providers.microsoft.psrp.operators.psrp import PSRPOperator
 CONNECTION_ID = "conn_id"
 
 
-class TestPSRPOperator(unittest.TestCase):
+class TestPSRPOperator(TestCase):
     def test_no_command_or_powershell(self):
-        exception_msg = "Must provide either 'command' or 'powershell'"
+        exception_msg = "Must provide exactly one of 'command', 'powershell', or 'cmdlet'"
         with pytest.raises(ValueError, match=exception_msg):
             PSRPOperator(task_id='test_task_id', psrp_conn_id=CONNECTION_ID)
 
     @parameterized.expand(
-        [
-            (False,),
-            (True,),
-        ]
+        list(
+            product(
+                [
+                    # These tuples map the command parameter to an execution method
+                    # and parameter set.
+                    ("command", "powershell", None),
+                    ("powershell", "powershell", None),
+                    ("cmdlet", "cmdlet", {"bar": "baz"}),
+                ],
+                [False, True],
+            )
+        )
     )
     @patch(f"{PSRPOperator.__module__}.PSRPHook")
-    def test_execute(self, had_errors, hook):
-        op = PSRPOperator(task_id='test_task_id', psrp_conn_id=CONNECTION_ID, command='dummy')
-        ps = hook.return_value.__enter__.return_value.invoke_powershell.return_value
+    def test_execute(self, parameter, had_errors, hook):
+        kwargs = {parameter[0]: "foo"}
+        if parameter[2]:
+            kwargs["parameters"] = parameter[2]
+        op = PSRPOperator(task_id='test_task_id', psrp_conn_id=CONNECTION_ID, **kwargs)
+        hook = hook.return_value.__enter__.return_value
+        method = getattr(hook, f"invoke_{parameter[1]}")
+        ps = method.return_value
         ps.output = ["<output>"]
         ps.had_errors = had_errors
         if had_errors:
@@ -53,3 +67,5 @@ class TestPSRPOperator(unittest.TestCase):
         else:
             output = op.execute(None)
             assert output == ps.output
+        if parameter[2]:
+            assert method.mock_calls == [call('foo', bar='baz')]
