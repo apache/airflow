@@ -487,7 +487,7 @@ function initialization::initialize_provider_package_building() {
 # Determine versions of kubernetes cluster and tools used
 function initialization::initialize_kubernetes_variables() {
     # Currently supported versions of Kubernetes
-    CURRENT_KUBERNETES_VERSIONS+=("v1.20.2" "v1.19.7" "v1.18.15")
+    CURRENT_KUBERNETES_VERSIONS+=("v1.21.1" "v1.20.2")
     export CURRENT_KUBERNETES_VERSIONS
     # Currently supported modes of Kubernetes
     CURRENT_KUBERNETES_MODES+=("image")
