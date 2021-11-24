@@ -29,7 +29,9 @@ from airflow import __version__
 from airflow.exceptions import AirflowException
 from airflow.models import Connection
 from airflow.providers.databricks.hooks.databricks import (
+    AZURE_DEFAULT_AD_ENDPOINT,
     AZURE_MANAGEMENT_ENDPOINT,
+    AZURE_TOKEN_SERVICE_URL,
     DEFAULT_DATABRICKS_SCOPE,
     SUBMIT_RUN_ENDPOINT,
     DatabricksHook,
@@ -638,6 +640,53 @@ class TestDatabricksHookAadToken(unittest.TestCase):
         assert kwargs['auth'].token == TOKEN
 
 
+class TestDatabricksHookAadTokenOtherClouds(unittest.TestCase):
+    """
+    Tests for DatabricksHook when auth is done with AAD token for SP as user inside workspace and
+    using non-global Azure cloud (China, GovCloud, Germany)
+    """
+
+    @provide_session
+    def setUp(self, session=None):
+        self.tenant_id = '3ff810a6-5504-4ab8-85cb-cd0e6f879c1d'
+        self.ad_endpoint = 'https://login.microsoftonline.de'
+        self.client_id = '9ff815a6-4404-4ab8-85cb-cd0e6f879c1d'
+        conn = session.query(Connection).filter(Connection.conn_id == DEFAULT_CONN_ID).first()
+        conn.login = self.client_id
+        conn.password = 'secret'
+        conn.extra = json.dumps(
+            {
+                'host': HOST,
+                'azure_tenant_id': self.tenant_id,
+                'azure_ad_endpoint': self.ad_endpoint,
+            }
+        )
+        session.commit()
+        self.hook = DatabricksHook()
+
+    @mock.patch('airflow.providers.databricks.hooks.databricks.requests')
+    def test_submit_run(self, mock_requests):
+        mock_requests.codes.ok = 200
+        mock_requests.post.side_effect = [
+            create_successful_response_mock(create_aad_token_for_resource(DEFAULT_DATABRICKS_SCOPE)),
+            create_successful_response_mock({'run_id': '1'}),
+        ]
+        status_code_mock = mock.PropertyMock(return_value=200)
+        type(mock_requests.post.return_value).status_code = status_code_mock
+        data = {'notebook_task': NOTEBOOK_TASK, 'new_cluster': NEW_CLUSTER}
+        run_id = self.hook.submit_run(data)
+
+        ad_call_args = mock_requests.method_calls[0]
+        assert ad_call_args[1][0] == AZURE_TOKEN_SERVICE_URL.format(self.ad_endpoint, self.tenant_id)
+        assert ad_call_args[2]['data']['client_id'] == self.client_id
+        assert ad_call_args[2]['data']['resource'] == DEFAULT_DATABRICKS_SCOPE
+
+        assert run_id == '1'
+        args = mock_requests.post.call_args
+        kwargs = args[1]
+        assert kwargs['auth'].token == TOKEN
+
+
 class TestDatabricksHookAadTokenSpOutside(unittest.TestCase):
     """
     Tests for DatabricksHook when auth is done with AAD token for SP outside of workspace.
@@ -646,7 +695,9 @@ class TestDatabricksHookAadTokenSpOutside(unittest.TestCase):
     @provide_session
     def setUp(self, session=None):
         conn = session.query(Connection).filter(Connection.conn_id == DEFAULT_CONN_ID).first()
-        conn.login = '9ff815a6-4404-4ab8-85cb-cd0e6f879c1d'
+        self.tenant_id = '3ff810a6-5504-4ab8-85cb-cd0e6f879c1d'
+        self.client_id = '9ff815a6-4404-4ab8-85cb-cd0e6f879c1d'
+        conn.login = self.client_id
         conn.password = 'secret'
         conn.host = HOST
         conn.extra = json.dumps(
@@ -670,6 +721,16 @@ class TestDatabricksHookAadTokenSpOutside(unittest.TestCase):
         type(mock_requests.post.return_value).status_code = status_code_mock
         data = {'notebook_task': NOTEBOOK_TASK, 'new_cluster': NEW_CLUSTER}
         run_id = self.hook.submit_run(data)
+
+        ad_call_args = mock_requests.method_calls[0]
+        assert ad_call_args[1][0] == AZURE_TOKEN_SERVICE_URL.format(AZURE_DEFAULT_AD_ENDPOINT, self.tenant_id)
+        assert ad_call_args[2]['data']['client_id'] == self.client_id
+        assert ad_call_args[2]['data']['resource'] == AZURE_MANAGEMENT_ENDPOINT
+
+        ad_call_args = mock_requests.method_calls[1]
+        assert ad_call_args[1][0] == AZURE_TOKEN_SERVICE_URL.format(AZURE_DEFAULT_AD_ENDPOINT, self.tenant_id)
+        assert ad_call_args[2]['data']['client_id'] == self.client_id
+        assert ad_call_args[2]['data']['resource'] == DEFAULT_DATABRICKS_SCOPE
 
         assert run_id == '1'
         args = mock_requests.post.call_args

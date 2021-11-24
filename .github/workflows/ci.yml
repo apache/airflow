@@ -99,12 +99,20 @@ jobs:
             "aoen",
             "artwr",
             "ashb",
+            "bbovenzi",
             "bolkedebruin",
             "criccomini",
             "dimberman",
+            "dstandish",
+            "eladkal",
+            "ephraimbuddy",
+            "feluelle",
             "feng-tao",
             "houqp",
+            "jedcunningham",
+            "jgao54",
             "jghoman",
+            "jhtimmins",
             "jmcarp",
             "kaxil",
             "leahecole",
@@ -119,13 +127,11 @@ jobs:
             "saguziel",
             "sekikn",
             "turbaszek",
-            "zhongjiajie",
-            "ephraimbuddy",
-            "jhtimmins",
-            "dstandish",
+            "uranusjr",
+            "vikramkoka",
             "xinbinhuang",
-            "yuqian",
-            "eladkal"
+            "yuqian90",
+            "zhongjiajie"
           ]'), github.event.pull_request.user.login)
         ) && github.repository == 'apache/airflow'
       ) && 'self-hosted' || 'ubuntu-20.04' }}
@@ -171,17 +177,6 @@ jobs:
       pullRequestLabels: ${{ steps.source-run-info.outputs.pullRequestLabels }}
       runsOn: ${{ steps.set-runs-on.outputs.runsOn }}
     steps:
-      # Avoid having to specify the runs-on logic every time. We use the custom
-      # env var AIRFLOW_SELF_HOSTED_RUNNER set only on our runners, but never
-      # on the public runners
-      - name: Set runs-on
-        id: set-runs-on
-        run: |
-          if [[ ${AIRFLOW_SELF_HOSTED_RUNNER} != "" ]]; then
-            echo "::set-output name=runsOn::\"self-hosted\""
-          else
-            echo "::set-output name=runsOn::\"ubuntu-20.04\""
-          fi
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
         uses: actions/checkout@v2
         with:
@@ -218,6 +213,24 @@ jobs:
           else
             # Run all checks
             ./scripts/ci/selective_ci_checks.sh
+          fi
+      # Avoid having to specify the runs-on logic every time. We use the custom
+      # env var AIRFLOW_SELF_HOSTED_RUNNER set only on our runners, but never
+      # on the public runners
+      - name: Set runs-on
+        id: set-runs-on
+        env:
+          PR_LABELS: "${{ steps.source-run-info.outputs.pullRequestLabels }}"
+        run: |
+          if [[ ${PR_LABELS=} == *"use public runners"* ]]; then
+            echo "Forcing running on Public Runners via `use public runners` label"
+            echo "::set-output name=runsOn::\"ubuntu-20.04\""
+          elif [[ ${AIRFLOW_SELF_HOSTED_RUNNER} == "" ]]; then
+            echo "Regular PR running with Public Runner"
+            echo "::set-output name=runsOn::\"ubuntu-20.04\""
+          else
+            echo "Maintainer or main run running with self-hosted runner"
+            echo "::set-output name=runsOn::\"self-hosted\""
           fi
 
   tests-ui:

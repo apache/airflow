@@ -23,7 +23,6 @@ from airflow.providers.amazon.aws.hooks.cloud_formation import AWSCloudFormation
 
 try:
     from moto import mock_cloudformation
-    from moto.ec2.models import NetworkInterface as some_model
 except ImportError:
     mock_cloudformation = None
 
@@ -39,10 +38,20 @@ class TestAWSCloudFormationHook(unittest.TestCase):
             {
                 'Resources': {
                     "myResource": {
-                        "Type": some_model.cloudformation_type(),
-                        "Properties": {"myProperty": "myPropertyValue"},
+                        "Type": "AWS::EC2::VPC",
+                        "Properties": {
+                            "CidrBlock": {"Ref": "VPCCidr"},
+                            "Tags": [{"Key": "Name", "Value": "Primary_CF_VPC"}],
+                        },
                     }
-                }
+                },
+                "Parameters": {
+                    "VPCCidr": {
+                        "Type": "String",
+                        "Default": "10.0.0.0/16",
+                        "Description": "Enter the CIDR block for the VPC. Default is 10.0.0.0/16.",
+                    }
+                },
             }
         )
 
@@ -51,7 +60,7 @@ class TestAWSCloudFormationHook(unittest.TestCase):
             params={
                 'TimeoutInMinutes': timeout,
                 'TemplateBody': template_body,
-                'Parameters': [{'ParameterKey': 'myParam', 'ParameterValue': 'myParamValue'}],
+                'Parameters': [{'ParameterKey': "VPCCidr", 'ParameterValue': '10.0.0.0/16'}],
             },
         )
 

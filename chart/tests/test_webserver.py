@@ -137,6 +137,24 @@ class WebserverDeploymentTest(unittest.TestCase):
             "image": "test-registry/test-repo:test-tag",
         } == jmespath.search("spec.template.spec.containers[-1]", docs[0])
 
+    @parameterized.expand(
+        [
+            ("2.0.0", ["airflow", "db", "check-migrations"]),
+            ("2.1.0", ["airflow", "db", "check-migrations"]),
+            ("1.10.2", ["python", "-c"]),
+        ],
+    )
+    def test_wait_for_migration_airflow_version(self, airflow_version, expected_arg):
+        docs = render_chart(
+            values={
+                "airflowVersion": airflow_version,
+            },
+            show_only=["templates/webserver/webserver-deployment.yaml"],
+        )
+        # Don't test the full string, just the length of the expect matches
+        actual = jmespath.search("spec.template.spec.initContainers[0].args", docs[0])
+        assert expected_arg == actual[: len(expected_arg)]
+
     def test_should_add_extra_init_containers(self):
         docs = render_chart(
             values={
