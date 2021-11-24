@@ -390,8 +390,10 @@ class CeleryExecutor(BaseExecutor):
     @provide_session
     def _clear_stuck_queued_tasks(self, session=None):
         """
-        For some reasons, tasks can get stuck in queued state in DB while still not in
-        self.queued_tasks and not in self.running_tasks.
+        Tasks can get stuck in queued state in DB while still not in
+        self.queued_tasks and not in self.running_tasks. This usually happens
+        when the worker is autoscaled down and the task has not been picked up
+        by any worker(we think).
 
         In such situation, we update the task instance state to scheduled so that
         it can be queued again. We chose to use task_adoption_timeout to decide
