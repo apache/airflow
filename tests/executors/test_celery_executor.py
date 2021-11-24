@@ -493,8 +493,8 @@ class TestCeleryExecutor:
     @pytest.mark.parametrize(
         "last_check_time, state",
         [
-            (time.time() - 300, State.SCHEDULED),
-            (time.time() - 290, State.QUEUED),
+            (time.time() - 400, State.SCHEDULED),
+            (time.time() - 200, State.QUEUED),
         ],
     )
     def test_the_check_interval_to_clear_stuck_queued_task_is_correct(
