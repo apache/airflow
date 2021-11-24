@@ -77,6 +77,7 @@ of default parameters that we can use when creating tasks.
 
 .. exampleinclude:: /../../airflow/example_dags/tutorial.py
     :language: python
+    :dedent: 4
     :start-after: [START default_args]
     :end-before: [END default_args]
 
