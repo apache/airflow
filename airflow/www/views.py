@@ -3395,7 +3395,7 @@ class ConnectionFormWidget(FormWidget):
         return [
             connection_type
             for connection_type, provider_info in ProvidersManager().hooks.items()
-            if provider_info.is_connection_type_testable is True
+            if provider_info.connection_testable
         ]
 
 
