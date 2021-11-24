@@ -486,7 +486,7 @@ class HiveMetastoreHook(BaseHook):
 
     def __init__(self, metastore_conn_id: str = default_conn_name) -> None:
         super().__init__()
-        self.conn_id = metastore_conn_id
+        self.conn = self.get_connection(metastore_conn_id)
         self.metastore = self.get_metastore_client()
 
     def __getstate__(self) -> Dict[str, Any]:
@@ -506,9 +506,10 @@ class HiveMetastoreHook(BaseHook):
         from thrift.protocol import TBinaryProtocol
         from thrift.transport import TSocket, TTransport
 
-        conn = self._find_valid_server()
+        host = self._find_valid_host()
+        conn = self.conn
 
-        if not conn:
+        if not host:
             raise AirflowException("Failed to locate the valid server.")
 
         auth_mechanism = conn.extra_dejson.get('authMechanism', 'NOSASL')
@@ -517,7 +518,7 @@ class HiveMetastoreHook(BaseHook):
             auth_mechanism = conn.extra_dejson.get('authMechanism', 'GSSAPI')
             kerberos_service_name = conn.extra_dejson.get('kerberos_service_name', 'hive')
 
-        conn_socket = TSocket.TSocket(conn.host, conn.port)
+        conn_socket = TSocket.TSocket(host, conn.port)
 
         if conf.get('core', 'security') == 'kerberos' and auth_mechanism == 'GSSAPI':
             try:
@@ -527,7 +528,7 @@ class HiveMetastoreHook(BaseHook):
 
             def sasl_factory() -> sasl.Client:
                 sasl_client = sasl.Client()
-                sasl_client.setAttr("host", conn.host)
+                sasl_client.setAttr("host", host)
                 sasl_client.setAttr("service", kerberos_service_name)
                 sasl_client.init()
                 return sasl_client
@@ -542,16 +543,18 @@ class HiveMetastoreHook(BaseHook):
 
         return hmsclient.HMSClient(iprot=protocol)
 
-    def _find_valid_server(self) -> Any:
-        conn = self.get_connection(self.conn_id)
-        host_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        self.log.info("Trying to connect to %s:%s", conn.host, conn.port)
-        if host_socket.connect_ex((conn.host, conn.port)) == 0:
-            self.log.info("Connected to %s:%s", conn.host, conn.port)
-            host_socket.close()
-            return conn
-        else:
-            self.log.error("Could not connect to %s:%s", conn.host, conn.port)
+    def _find_valid_host(self) -> Any:
+        conn = self.conn
+        hosts = conn.host.split(',')
+        for host in hosts:
+            host_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            self.log.info("Trying to connect to %s:%s", host, conn.port)
+            if host_socket.connect_ex((host, conn.port)) == 0:
+                self.log.info("Connected to %s:%s", host, conn.port)
+                host_socket.close()
+                return host
+            else:
+                self.log.error("Could not connect to %s:%s", host, conn.port)
         return None
 
     def get_conn(self) -> Any:
