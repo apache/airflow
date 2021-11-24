@@ -48,7 +48,6 @@ from airflow.exceptions import AirflowException, AirflowTaskTimeout
 from airflow.executors.base_executor import BaseExecutor, CommandType, EventBufferValueType
 from airflow.models.taskinstance import TaskInstance, TaskInstanceKey
 from airflow.stats import Stats
-from airflow.utils.event_scheduler import EventScheduler
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.net import get_hostname
 from airflow.utils.session import provide_session
@@ -235,23 +234,18 @@ class CeleryExecutor(BaseExecutor):
         self.task_adoption_timeout = datetime.timedelta(
             seconds=conf.getint('celery', 'task_adoption_timeout', fallback=600)
         )
+        self.stuck_tasks_last_check_time: int = time.time()
         self.stuck_queued_task_check_interval = conf.getint(
             'celery', 'stuck_queued_task_check_interval', fallback=300
         )
         self.task_publish_retries: Dict[TaskInstanceKey, int] = OrderedDict()
         self.task_publish_max_retries = conf.getint('celery', 'task_publish_max_retries', fallback=3)
-        self.event_scheduler: Optional[EventScheduler] = None
 
     def start(self) -> None:
         self.log.debug('Starting Celery Executor using %s processes for syncing', self._sync_parallelism)
-        self.event_scheduler = EventScheduler()
-        # Use EventScheduler to avoid checking this too often
-        self.event_scheduler.call_regular_interval(
-            self.stuck_queued_task_check_interval,
-            self._clear_stuck_queued_tasks(),
-        )
         # Clear stuck queued tasks at startup
         self._clear_stuck_queued_tasks()
+        self.stuck_tasks_last_check_time = time.time()
 
     def _num_tasks_per_send_process(self, to_send_count: int) -> int:
         """
@@ -351,10 +345,8 @@ class CeleryExecutor(BaseExecutor):
 
         if self.adopted_task_timeouts:
             self._check_for_stalled_adopted_tasks()
-
-        # Run any pending timed events
-        next_event = self.event_scheduler.run(blocking=False)
-        self.log.debug("Next timed event is in %f", next_event)
+        if time.time() - self.stuck_tasks_last_check_time > self.stuck_queued_task_check_interval:
+            self._clear_stuck_queued_tasks()
 
     def _check_for_stalled_adopted_tasks(self):
         """

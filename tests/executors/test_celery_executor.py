@@ -20,6 +20,7 @@ import json
 import os
 import signal
 import sys
+import time
 import unittest
 from datetime import datetime, timedelta
 from unittest import mock
@@ -371,7 +372,6 @@ class TestCeleryExecutor:
         key_2 = TaskInstanceKey(dag.dag_id, task_2.task_id, "runid", try_number)
 
         executor = celery_executor.CeleryExecutor()
-        executor.start()
         executor.adopted_task_timeouts = {
             key_1: queued_dttm + executor.task_adoption_timeout,
             key_2: queued_dttm + executor.task_adoption_timeout,
@@ -400,7 +400,6 @@ class TestCeleryExecutor:
         key_2 = TaskInstanceKey(dag.dag_id, task_2.task_id, "runid", try_number)
 
         executor = celery_executor.CeleryExecutor()
-        executor.start()
         executor.adopted_task_timeouts = {
             key_2: queued_dttm_2 + executor.task_adoption_timeout,
             key_1: queued_dttm + executor.task_adoption_timeout,
@@ -432,9 +431,7 @@ class TestCeleryExecutor:
         session.merge(ti)
         session.flush()
         executor = celery_executor.CeleryExecutor()
-
-        executor.start()
-        assert len(executor.event_scheduler.queue) == 1
+        executor._clear_stuck_queued_tasks()
         session.flush()
         ti = session.query(TaskInstance).filter(TaskInstance.task_id == ti.task_id).one()
         assert ti.state == state
@@ -451,8 +448,7 @@ class TestCeleryExecutor:
         session.flush()
         executor = celery_executor.CeleryExecutor()
         executor.queued_tasks = {ti.key: AsyncResult("231")}
-        executor.start()
-        assert len(executor.event_scheduler.queue) == 1
+        executor._clear_stuck_queued_tasks()
         session.flush()
         ti = session.query(TaskInstance).filter(TaskInstance.task_id == ti.task_id).one()
         assert ti.state == State.QUEUED
@@ -469,8 +465,7 @@ class TestCeleryExecutor:
         session.flush()
         executor = celery_executor.CeleryExecutor()
         executor.running = {ti.key: AsyncResult("231")}
-        executor.start()
-        assert len(executor.event_scheduler.queue) == 1
+        executor._clear_stuck_queued_tasks()
         session.flush()
         ti = session.query(TaskInstance).filter(TaskInstance.task_id == ti.task_id).one()
         assert ti.state == State.QUEUED
@@ -487,13 +482,36 @@ class TestCeleryExecutor:
         session.merge(ti)
         session.flush()
         executor = celery_executor.CeleryExecutor()
-        executor.start()
-        assert len(executor.event_scheduler.queue) == 1
+        executor._clear_stuck_queued_tasks()
         session.flush()
         ti = session.query(TaskInstance).filter(TaskInstance.task_id == ti.task_id).one()
         # Since AsyncResult is mocked, the returned_value is not PENDING
         # We end up not clearing the task
         assert ti.state == State.QUEUED
+
+    @pytest.mark.backend("mysql", "postgres")
+    @pytest.mark.parametrize(
+        "last_check_time, state",
+        [
+            (time.time() - 300, State.SCHEDULED),
+            (time.time() - 290, State.QUEUED),
+        ],
+    )
+    def test_the_check_interval_to_clear_stuck_queued_task_is_correct(
+        self, last_check_time, state, session, dag_maker, create_dummy_dag, create_task_instance
+    ):
+        ti = create_task_instance(state=State.QUEUED)
+        ti.queued_dttm = timezone.utcnow() - timedelta(days=2)
+        ti.external_executor_id = '231'
+        session.merge(ti)
+        session.flush()
+        executor = celery_executor.CeleryExecutor()
+        executor.tasks = {ti.key: AsyncResult("231")}
+        executor.stuck_tasks_last_check_time = last_check_time
+        executor.sync()
+        session.flush()
+        ti = session.query(TaskInstance).filter(TaskInstance.task_id == ti.task_id).one()
+        assert ti.state == state
 
 
 def test_operation_timeout_config():
