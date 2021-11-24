@@ -563,12 +563,6 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
         env:
           USE_AIRFLOW_VERSION: "2.1.0"
           PACKAGE_FORMAT: "wheel"
-      - name: "Upload wheel artifacts"
-        uses: actions/upload-artifact@v2
-        with:
-          name: airflow-wheels
-          path: "./dist/*.whl"
-          retention-days: 1
           
   prepare-test-provider-packages-sdist:
     timeout-minutes: 40
@@ -610,6 +604,12 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
         env:
           USE_AIRFLOW_VERSION: "sdist"
           PACKAGE_FORMAT: "sdist"
+      - name: "Upload provider distribution artifacts"
+        uses: actions/upload-artifact@v2
+        with:
+          name: airflow-provider-packages
+          path: "./dist/apache_airflow_providers_*.tar.gz"
+          retention-days: 1
 
   tests-helm:
     timeout-minutes: 40
