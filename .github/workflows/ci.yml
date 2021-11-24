@@ -563,7 +563,13 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
         env:
           USE_AIRFLOW_VERSION: "2.1.0"
           PACKAGE_FORMAT: "wheel"
-
+      - name: "Upload wheel artifacts"
+        uses: actions/upload-artifact@v2
+        with:
+          name: airflow-wheels
+          path: "./dist/*.whl"
+          retention-days: 1
+          
   prepare-test-provider-packages-sdist:
     timeout-minutes: 40
     name: "Build and test provider packages sdist"
