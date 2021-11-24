@@ -942,7 +942,7 @@ function build_images::build_prod_images_from_locally_built_airflow_packages() {
     build_images::cleanup_docker_context_files
 
     # Build necessary provider packages
-    IFS=$'\n' read -d '' -r -a installed_providers < "${AIRFLOW_SOURCES}/scripts/ci/installed_providers.txt"
+    IFS=$'\n' read -d '' -r -a installed_providers < "${AIRFLOW_SOURCES}/scripts/ci/installed_providers.txt" || true
     runs::run_prepare_provider_packages "${installed_providers[@]}"
     mv "${AIRFLOW_SOURCES}/dist/"* "${AIRFLOW_SOURCES}/docker-context-files/"
 
