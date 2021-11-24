@@ -397,9 +397,8 @@ class CeleryExecutor(BaseExecutor):
         it can be queued again. We chose to use task_adoption_timeout to decide
         """
         self.log.debug("Checking for stuck queued tasks")
-        queued_tasks = session.query(TaskInstance).filter(TaskInstance.state == State.QUEUED).all()
 
-        for task in queued_tasks:
+        for task in session.query(TaskInstance).filter(TaskInstance.state == State.QUEUED):
 
             self.log.info("Checking task %s", task)
 
@@ -418,11 +417,8 @@ class CeleryExecutor(BaseExecutor):
                     task,
                     self.task_adoption_timeout.total_seconds(),
                 )
-                session.query(TaskInstance).filter(
-                    TaskInstance.dag_id == task.dag_id,
-                    TaskInstance.task_id == task.task_id,
-                    TaskInstance.run_id == task.run_id,
-                ).update({TaskInstance.state: State.SCHEDULED})
+                task.state = State.SCHEDULED
+                session.merge(task)
 
     def debug_dump(self) -> None:
         """Called in response to SIGUSR2 by the scheduler"""
