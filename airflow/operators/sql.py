@@ -485,16 +485,16 @@ class SQLThresholdCheckOperator(BaseSQLOperator):
 
 class BranchSQLOperator(BaseSQLOperator, SkipMixin):
     """
-    Executes sql code in a specific database
+    Allows a DAG to "branch" or follow a specified path based on the results of a SQL query.
 
-    :param sql: the sql code to be executed. (templated)
+    :param sql: The SQL code to be executed, should return true or false (templated)
     :type sql: Can receive a str representing a sql statement or reference to a template file.
                Template reference are recognized by str ending in '.sql'.
                Expected SQL query to return Boolean (True/False), integer (0 = False, Otherwise = 1)
                or string (true/y/yes/1/on/false/n/no/0/off).
-    :param follow_task_ids_if_true: task id or task ids to follow if query return true
+    :param follow_task_ids_if_true: task id or task ids to follow if query returns true
     :type follow_task_ids_if_true: str or list
-    :param follow_task_ids_if_false: task id or task ids to follow if query return true
+    :param follow_task_ids_if_false: task id or task ids to follow if query returns false
     :type follow_task_ids_if_false: str or list
     :param conn_id: the connection ID used to connect to the database.
     :type conn_id: str
