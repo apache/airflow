@@ -26,6 +26,14 @@ from airflow.providers.google.cloud.operators.vertex_ai.custom_job import (
     DeleteCustomTrainingJobOperator,
     ListCustomTrainingJobOperator,
 )
+from airflow.providers.google.cloud.operators.vertex_ai.dataset import (
+    CreateDatasetOperator,
+    DeleteDatasetOperator,
+    ExportDataOperator,
+    ImportDataOperator,
+    ListDatasetsOperator,
+    UpdateDatasetOperator,
+)
 
 VERTEX_AI_PATH = "airflow.providers.google.cloud.operators.vertex_ai.{}"
 TIMEOUT = 120
@@ -60,6 +68,28 @@ PYTHON_PACKAGE = "/files/trainer-0.1.tar.gz"
 PYTHON_PACKAGE_CMDARGS = "test-python-cmd"
 PYTHON_PACKAGE_GCS_URI = "gs://test-vertex-ai-bucket/trainer-0.1.tar.gz"
 PYTHON_MODULE_NAME = "trainer.task"
+
+TEST_DATASET = {
+    "display_name": "test-dataset-name",
+    "metadata_schema_uri": "gs://google-cloud-aiplatform/schema/dataset/metadata/image_1.0.0.yaml",
+    "metadata": "test-image-dataset",
+}
+TEST_DATASET_ID = "test-dataset-id"
+TEST_EXPORT_CONFIG = {
+    "annotationsFilter": "test-filter",
+    "gcs_destination": {"output_uri_prefix": "airflow-system-tests-data"},
+}
+TEST_IMPORT_CONFIG = [
+    {
+        "data_item_labels": {
+            "test-labels-name": "test-labels-value",
+        },
+        "import_schema_uri": "test-shema-uri",
+        "gcs_source": {"uris": ['test-string']},
+    },
+    {},
+]
+TEST_UPDATE_MASK = "test-update-mask"
 
 
 class TestVertexAICreateCustomContainerTrainingJobOperator:
@@ -355,6 +385,186 @@ class TestVertexAIListCustomTrainingJobOperator:
             page_token=page_token,
             filter=filter,
             read_mask=read_mask,
+            retry=RETRY,
+            timeout=TIMEOUT,
+            metadata=METADATA,
+        )
+
+
+class TestVertexAICreateDatasetOperator:
+    @mock.patch(VERTEX_AI_PATH.format("dataset.Dataset.to_dict"))
+    @mock.patch(VERTEX_AI_PATH.format("dataset.DatasetHook"))
+    def test_execute(self, mock_hook, to_dict_mock):
+        op = CreateDatasetOperator(
+            task_id=TASK_ID,
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+            region=GCP_LOCATION,
+            project_id=GCP_PROJECT,
+            dataset=TEST_DATASET,
+            retry=RETRY,
+            timeout=TIMEOUT,
+            metadata=METADATA,
+        )
+        op.execute(context={})
+        mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID, impersonation_chain=IMPERSONATION_CHAIN)
+        mock_hook.return_value.create_dataset.assert_called_once_with(
+            region=GCP_LOCATION,
+            project_id=GCP_PROJECT,
+            dataset=TEST_DATASET,
+            retry=RETRY,
+            timeout=TIMEOUT,
+            metadata=METADATA,
+        )
+
+
+class TestVertexAIDeleteDatasetOperator:
+    @mock.patch(VERTEX_AI_PATH.format("dataset.Dataset.to_dict"))
+    @mock.patch(VERTEX_AI_PATH.format("dataset.DatasetHook"))
+    def test_execute(self, mock_hook, to_dict_mock):
+        op = DeleteDatasetOperator(
+            task_id=TASK_ID,
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+            region=GCP_LOCATION,
+            project_id=GCP_PROJECT,
+            dataset_id=TEST_DATASET_ID,
+            retry=RETRY,
+            timeout=TIMEOUT,
+            metadata=METADATA,
+        )
+        op.execute(context={})
+        mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID, impersonation_chain=IMPERSONATION_CHAIN)
+        mock_hook.return_value.delete_dataset.assert_called_once_with(
+            region=GCP_LOCATION,
+            project_id=GCP_PROJECT,
+            dataset=TEST_DATASET_ID,
+            retry=RETRY,
+            timeout=TIMEOUT,
+            metadata=METADATA,
+        )
+
+
+class TestVertexAIExportDataOperator:
+    @mock.patch(VERTEX_AI_PATH.format("dataset.Dataset.to_dict"))
+    @mock.patch(VERTEX_AI_PATH.format("dataset.DatasetHook"))
+    def test_execute(self, mock_hook, to_dict_mock):
+        op = ExportDataOperator(
+            task_id=TASK_ID,
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+            region=GCP_LOCATION,
+            project_id=GCP_PROJECT,
+            dataset_id=TEST_DATASET_ID,
+            export_config=TEST_EXPORT_CONFIG,
+            retry=RETRY,
+            timeout=TIMEOUT,
+            metadata=METADATA,
+        )
+        op.execute(context={})
+        mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID, impersonation_chain=IMPERSONATION_CHAIN)
+        mock_hook.return_value.export_data.assert_called_once_with(
+            region=GCP_LOCATION,
+            project_id=GCP_PROJECT,
+            dataset=TEST_DATASET_ID,
+            export_config=TEST_EXPORT_CONFIG,
+            retry=RETRY,
+            timeout=TIMEOUT,
+            metadata=METADATA,
+        )
+
+
+class TestVertexAIImportDataOperator:
+    @mock.patch(VERTEX_AI_PATH.format("dataset.Dataset.to_dict"))
+    @mock.patch(VERTEX_AI_PATH.format("dataset.DatasetHook"))
+    def test_execute(self, mock_hook, to_dict_mock):
+        op = ImportDataOperator(
+            task_id=TASK_ID,
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+            region=GCP_LOCATION,
+            project_id=GCP_PROJECT,
+            dataset_id=TEST_DATASET_ID,
+            import_configs=TEST_IMPORT_CONFIG,
+            retry=RETRY,
+            timeout=TIMEOUT,
+            metadata=METADATA,
+        )
+        op.execute(context={})
+        mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID, impersonation_chain=IMPERSONATION_CHAIN)
+        mock_hook.return_value.import_data.assert_called_once_with(
+            region=GCP_LOCATION,
+            project_id=GCP_PROJECT,
+            dataset=TEST_DATASET_ID,
+            import_configs=TEST_IMPORT_CONFIG,
+            retry=RETRY,
+            timeout=TIMEOUT,
+            metadata=METADATA,
+        )
+
+
+class TestVertexAIListDatasetsOperator:
+    @mock.patch(VERTEX_AI_PATH.format("dataset.Dataset.to_dict"))
+    @mock.patch(VERTEX_AI_PATH.format("dataset.DatasetHook"))
+    def test_execute(self, mock_hook, to_dict_mock):
+        page_token = "page_token"
+        page_size = 42
+        filter = "filter"
+        read_mask = "read_mask"
+        order_by = "order_by"
+
+        op = ListDatasetsOperator(
+            task_id=TASK_ID,
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+            region=GCP_LOCATION,
+            project_id=GCP_PROJECT,
+            filter=filter,
+            page_size=page_size,
+            page_token=page_token,
+            read_mask=read_mask,
+            order_by=order_by,
+            retry=RETRY,
+            timeout=TIMEOUT,
+            metadata=METADATA,
+        )
+        op.execute(context={})
+        mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID, impersonation_chain=IMPERSONATION_CHAIN)
+        mock_hook.return_value.list_datasets.assert_called_once_with(
+            region=GCP_LOCATION,
+            project_id=GCP_PROJECT,
+            filter=filter,
+            page_size=page_size,
+            page_token=page_token,
+            read_mask=read_mask,
+            order_by=order_by,
+            retry=RETRY,
+            timeout=TIMEOUT,
+            metadata=METADATA,
+        )
+
+
+class TestVertexAIUpdateDatasetOperator:
+    @mock.patch(VERTEX_AI_PATH.format("dataset.Dataset.to_dict"))
+    @mock.patch(VERTEX_AI_PATH.format("dataset.DatasetHook"))
+    def test_execute(self, mock_hook, to_dict_mock):
+        op = UpdateDatasetOperator(
+            task_id=TASK_ID,
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+            region=GCP_LOCATION,
+            dataset=TEST_DATASET,
+            update_mask=TEST_UPDATE_MASK,
+            retry=RETRY,
+            timeout=TIMEOUT,
+            metadata=METADATA,
+        )
+        op.execute(context={})
+        mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID, impersonation_chain=IMPERSONATION_CHAIN)
+        mock_hook.return_value.update_dataset.assert_called_once_with(
+            region=GCP_LOCATION,
+            dataset=TEST_DATASET,
+            update_mask=TEST_UPDATE_MASK,
             retry=RETRY,
             timeout=TIMEOUT,
             metadata=METADATA,
