@@ -82,7 +82,7 @@ class ClsResultStorage(ClsEntity):
                     date_re = re.compile(r'(^[0-9-]+)(.[0-9:]+)(\.[0-9]+)(\+[0-9]+:[0-9]+)')
                     groups = [*date_re.search(update_time).groups()]
                     assert groups is not None and groups[2] is not None, f'无法识别的时间格式：{update_time}'
-                    groups[2] = groups[2][0:7] if len(groups[2]) > 6 else groups[2].ljust(6, '0')
+                    groups[2] = groups[2][0:7] if len(groups[2]) > 6 else groups[2].ljust(7, '0')
                     date_str = "".join(groups)
                     update_time = datetime.datetime.fromisoformat(date_str)
             result_body.update({
