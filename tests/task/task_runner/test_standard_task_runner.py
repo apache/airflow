@@ -24,6 +24,7 @@ from unittest import mock
 import psutil
 import pytest
 
+from airflow.config_templates.airflow_local_settings import DEFAULT_LOGGING_CONFIG
 from airflow.jobs.local_task_job import LocalTaskJob
 from airflow.models.dagbag import DagBag
 from airflow.models.taskinstance import TaskInstance
@@ -70,6 +71,7 @@ class TestStandardTaskRunner:
         airflow_logger = logging.getLogger('airflow')
         airflow_logger.handlers = []
         clear_db_runs()
+        dictConfig(DEFAULT_LOGGING_CONFIG)
 
     def test_start_and_terminate(self):
         local_task_job = mock.Mock()
