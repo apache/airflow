@@ -24,7 +24,7 @@ from tests.test_utils.gcp_system_helpers import CLOUD_DAG_FOLDER, GoogleSystemTe
 
 @pytest.mark.backend("mysql", "postgres")
 @pytest.mark.credential_file(GCP_VERTEX_AI_KEY)
-class DataprocExampleDagsTest(GoogleSystemTest):
+class VertexAIExampleDagsTest(GoogleSystemTest):
     @provide_gcp_context(GCP_VERTEX_AI_KEY)
     def setUp(self):
         super().setUp()
@@ -36,5 +36,9 @@ class DataprocExampleDagsTest(GoogleSystemTest):
         super().tearDown()
 
     @provide_gcp_context(GCP_VERTEX_AI_KEY)
-    def test_run_example_dag(self):
-        self.run_dag(dag_id="example_gcp_vertex_ai", dag_folder=CLOUD_DAG_FOLDER)
+    def test_run_custom_jobs_example_dag(self):
+        self.run_dag(dag_id="example_gcp_vertex_ai_custom_jobs", dag_folder=CLOUD_DAG_FOLDER)
+
+    @provide_gcp_context(GCP_VERTEX_AI_KEY)
+    def test_run_dataset_example_dag(self):
+        self.run_dag(dag_id="example_gcp_vertex_ai_dataset", dag_folder=CLOUD_DAG_FOLDER)
