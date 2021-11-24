@@ -260,6 +260,7 @@ jobs:
       - run: yarn --cwd airflow/ui/ install --frozen-lockfile --non-interactive
       - run: yarn --cwd airflow/ui/ run test
 
+
   tests-www:
     timeout-minutes: 10
     name: React WWW tests
@@ -282,7 +283,6 @@ jobs:
           key: ${{ runner.os }}-ui-node-modules-${{ hashFiles('airflow/ui/**/yarn.lock') }}
       - run: yarn --cwd airflow/www/ install --frozen-lockfile --non-interactive
       - run: yarn --cwd airflow/www/ run test
-
 
   test-openapi-client-generation:
     timeout-minutes: 10
@@ -563,7 +563,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
         env:
           USE_AIRFLOW_VERSION: "2.1.0"
           PACKAGE_FORMAT: "wheel"
-          
+
   prepare-test-provider-packages-sdist:
     timeout-minutes: 40
     name: "Build and test provider packages sdist"
