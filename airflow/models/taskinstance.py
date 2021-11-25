@@ -2116,27 +2116,40 @@ class TaskInstance(Base, LoggingMixin):
         :param value: A value for the XCom. The value is pickled and stored
             in the database.
         :type value: any picklable object
-        :param execution_date: if provided, the XCom will not be visible until
-            this date. This can be used, for example, to send a message to a
-            task on a future date without it being immediately visible.
+        :param execution_date: Deprecated parameter.
         :type execution_date: datetime
         :param session: Sqlalchemy ORM Session
         :type session: Session
         """
-        self_execution_date = self.get_dagrun(session).execution_date
-        if execution_date and execution_date < self_execution_date:
-            raise ValueError(
-                f'execution_date can not be in the past (current execution_date is '
-                f'{self_execution_date}; received {execution_date})'
-            )
+        run_id = None
+        if execution_date:
+            self_execution_date = self.get_dagrun(session).execution_date
+            if execution_date < self_execution_date:
+                raise ValueError(
+                    f'execution_date can not be in the past (current execution_date is '
+                    f'{self_execution_date}; received {execution_date})'
+                )
+            elif execution_date != self_execution_date:
+                warnings.warn(
+                    "Passing `execution_date` parameter to xcom_push is deprecated.",
+                    DeprecationWarning,
+                    stacklevel=3,
+                )
+            else:
+                run_id = self.run_id
+                execution_date = None
+        else:
+            run_id = self.run_id
 
         XCom.set(
             key=key,
             value=value,
             task_id=self.task_id,
             dag_id=self.dag_id,
-            execution_date=execution_date or self_execution_date,
+            execution_date=execution_date,
+            run_id=run_id,
             session=session,
+            __deprecation_warnings=False,
         )
 
     @provide_session
@@ -2182,11 +2195,9 @@ class TaskInstance(Base, LoggingMixin):
         if dag_id is None:
             dag_id = self.dag_id
 
-        execution_date = self.get_dagrun(session).execution_date
-
         query = XCom.get_many(
-            execution_date=execution_date,
             key=key,
+            run_id=self.run_id,
             dag_ids=dag_id,
             task_ids=task_ids,
             include_prior_dates=include_prior_dates,

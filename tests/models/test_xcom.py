@@ -20,6 +20,7 @@ from unittest import mock
 import pytest
 
 from airflow.configuration import conf
+from airflow.models import dagrun
 from airflow.models.xcom import XCOM_RETURN_KEY, BaseXCom, XCom, resolve_xcom_backend
 from airflow.utils import timezone
 from tests.test_utils.config import conf_vars
@@ -31,6 +32,16 @@ class CustomXCom(BaseXCom):
 
 
 class TestXCom:
+    @pytest.fixture
+    def dag_run(self, session):
+        run = dagrun.DagRun(
+            dag_id="dag", run_type=dagrun.DagRunType.SCHEDULED, execution_date=timezone.utcnow()
+        )
+        run.run_id = dagrun.DagRun.generate_run_id(run.run_type, run.execution_date)
+        session.add(run)
+        session.flush()
+        return run
+
     @conf_vars({("core", "xcom_backend"): "tests.models.test_xcom.CustomXCom"})
     def test_resolve_xcom_class(self):
         cls = resolve_xcom_backend()
@@ -57,12 +68,13 @@ class TestXCom:
             pytest.param(False, id='enable_xcom_pickling=False'),
         ],
     )
-    def test_xcom_get_one_get_many(self, enable_xcom_pickling, session):
+    def test_xcom_get_one_get_many(self, enable_xcom_pickling, dag_run, session):
         json_obj = {"key": "value"}
-        execution_date = timezone.utcnow()
+        execution_date = dag_run.execution_date
         key = "xcom_test1"
-        dag_id = "test_dag1"
+        dag_id = dag_run.dag_id
         task_id = "test_task1"
+        run_id = dag_run.run_id
 
         with conf_vars({("core", "enable_xcom_pickling"): str(enable_xcom_pickling)}):
             XCom.set(
@@ -70,23 +82,19 @@ class TestXCom:
                 value=json_obj,
                 dag_id=dag_id,
                 task_id=task_id,
-                execution_date=execution_date,
+                run_id=run_id,
                 session=session,
             )
 
             ret_value = (
-                XCom.get_many(
-                    key=key, dag_ids=dag_id, task_ids=task_id, execution_date=execution_date, session=session
-                )
+                XCom.get_many(key=key, dag_ids=dag_id, task_ids=task_id, run_id=run_id, session=session)
                 .first()
                 .value
             )
 
             assert ret_value == json_obj
 
-            ret_value = XCom.get_one(
-                key=key, dag_id=dag_id, task_id=task_id, execution_date=execution_date, session=session
-            )
+            ret_value = XCom.get_one(key=key, dag_id=dag_id, task_id=task_id, run_id=run_id, session=session)
 
             assert ret_value == json_obj
 
@@ -104,12 +112,12 @@ class TestXCom:
 
             assert ret_value == json_obj
 
-    def test_xcom_deserialize_with_json_to_pickle_switch(self, session):
+    def test_xcom_deserialize_with_json_to_pickle_switch(self, dag_run, session):
         json_obj = {"key": "value"}
-        execution_date = timezone.utcnow()
         key = "xcom_test3"
-        dag_id = "test_dag"
+        dag_id = dag_run.dag_id
         task_id = "test_task3"
+        run_id = dag_run.run_id
 
         with conf_vars({("core", "enable_xcom_pickling"): "False"}):
             XCom.set(
@@ -117,23 +125,21 @@ class TestXCom:
                 value=json_obj,
                 dag_id=dag_id,
                 task_id=task_id,
-                execution_date=execution_date,
+                run_id=run_id,
                 session=session,
             )
 
         with conf_vars({("core", "enable_xcom_pickling"): "True"}):
-            ret_value = XCom.get_one(
-                key=key, dag_id=dag_id, task_id=task_id, execution_date=execution_date, session=session
-            )
+            ret_value = XCom.get_one(key=key, dag_id=dag_id, task_id=task_id, run_id=run_id, session=session)
 
         assert ret_value == json_obj
 
-    def test_xcom_deserialize_with_pickle_to_json_switch(self, session):
+    def test_xcom_deserialize_with_pickle_to_json_switch(self, dag_run, session):
         json_obj = {"key": "value"}
-        execution_date = timezone.utcnow()
         key = "xcom_test3"
-        dag_id = "test_dag"
+        dag_id = dag_run.dag_id
         task_id = "test_task3"
+        run_id = dag_run.run_id
 
         with conf_vars({("core", "enable_xcom_pickling"): "True"}):
             XCom.set(
@@ -141,19 +147,17 @@ class TestXCom:
                 value=json_obj,
                 dag_id=dag_id,
                 task_id=task_id,
-                execution_date=execution_date,
+                run_id=run_id,
                 session=session,
             )
 
         with conf_vars({("core", "enable_xcom_pickling"): "False"}):
-            ret_value = XCom.get_one(
-                key=key, dag_id=dag_id, task_id=task_id, execution_date=execution_date, session=session
-            )
+            ret_value = XCom.get_one(key=key, dag_id=dag_id, task_id=task_id, run_id=run_id, session=session)
 
         assert ret_value == json_obj
 
     @conf_vars({("core", "xcom_enable_pickling"): "False"})
-    def test_xcom_disable_pickle_type_fail_on_non_json(self, session):
+    def test_xcom_disable_pickle_type_fail_on_non_json(self, dag_run, session):
         class PickleRce:
             def __reduce__(self):
                 return os.system, ("ls -alt",)
@@ -162,41 +166,36 @@ class TestXCom:
             XCom.set(
                 key="xcom_test3",
                 value=PickleRce(),
-                dag_id="test_dag3",
+                dag_id=dag_run.dag_id,
                 task_id="test_task3",
-                execution_date=timezone.utcnow(),
+                run_id=dag_run.run_id,
                 session=session,
             )
 
     @conf_vars({("core", "xcom_enable_pickling"): "True"})
-    def test_xcom_get_many(self, session):
+    def test_xcom_get_many(self, dag_run, session):
         json_obj = {"key": "value"}
-        execution_date = timezone.utcnow()
         key = "xcom_test4"
-        dag_id1 = "test_dag4"
-        task_id1 = "test_task4"
-        dag_id2 = "test_dag5"
-        task_id2 = "test_task5"
 
         XCom.set(
             key=key,
             value=json_obj,
-            dag_id=dag_id1,
-            task_id=task_id1,
-            execution_date=execution_date,
+            dag_id=dag_run.dag_id,
+            task_id="test_task4",
+            run_id=dag_run.run_id,
             session=session,
         )
 
         XCom.set(
             key=key,
             value=json_obj,
-            dag_id=dag_id2,
-            task_id=task_id2,
-            execution_date=execution_date,
+            dag_id=dag_run.dag_id,
+            task_id="test_task5",
+            run_id=dag_run.run_id,
             session=session,
         )
 
-        results = XCom.get_many(key=key, execution_date=execution_date, session=session)
+        results = XCom.get_many(key=key, run_id=dag_run.run_id, session=session)
 
         for result in results:
             assert result.value == json_obj
@@ -217,24 +216,24 @@ class TestXCom:
         mock_orm_deserialize.assert_called_once_with()
 
     @conf_vars({("core", "xcom_backend"): "tests.models.test_xcom.CustomXCom"})
-    def test_get_one_doesnt_use_orm_deserialize_value(self, session):
+    def test_get_one_doesnt_use_orm_deserialize_value(self, dag_run, session):
         """Test that XCom.get_one does not call orm_deserialize_value"""
         json_obj = {"key": "value"}
-        execution_date = timezone.utcnow()
-        key = XCOM_RETURN_KEY
-        dag_id = "test_dag"
         task_id = "test_task"
 
         XCom = resolve_xcom_backend()
         XCom.set(
-            key=key,
+            key=XCOM_RETURN_KEY,
             value=json_obj,
-            dag_id=dag_id,
+            dag_id=dag_run.dag_id,
             task_id=task_id,
-            execution_date=execution_date,
+            run_id=dag_run.run_id,
             session=session,
         )
 
-        value = XCom.get_one(dag_id=dag_id, task_id=task_id, execution_date=execution_date, session=session)
+        value = XCom.get_one(dag_id=dag_run.dag_id, task_id=task_id, run_id=dag_run.run_id, session=session)
 
         assert value == json_obj
+
+
+# TODO: Add a test of `include_prior_dates` at all! And when given a run_id or a execution_date
