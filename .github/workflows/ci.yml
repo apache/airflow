@@ -319,6 +319,11 @@ jobs:
         uses: actions/setup-python@v2
         with:
           python-version: ${{needs.build-info.outputs.defaultPythonVersion}}
+      - name: "Cache virtualenv environmnent"
+        uses: actions/cache@v2
+        with:
+          path: '.build/.docker_venv'
+          key: ${{ runner.os }}-docker-venv-${{ hashFiles('scripts/ci/images/ci_run_docker_tests.py') }}
       - name: "Test examples of PROD image building"
         run: ./scripts/ci/images/ci_test_examples_of_prod_image_building.sh
 
@@ -348,6 +353,11 @@ jobs:
         run: ./scripts/ci/tools/free_space.sh
         if: |
           needs.build-info.outputs.waitForImage == 'true'
+      - name: "Cache virtualenv environmnent"
+        uses: actions/cache@v2
+        with:
+          path: '.build/.docker_venv'
+          key: ${{ runner.os }}-docker-venv-${{ hashFiles('scripts/ci/images/ci_run_docker_tests.py') }}
       - name: >
           Wait for CI images
           ${{ needs.build-info.outputs.pythonVersions }}:${{ env.GITHUB_REGISTRY_PULL_IMAGE_TAG }}
@@ -1032,6 +1042,11 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
         run: ./scripts/ci/tools/free_space.sh
         if: |
           needs.build-info.outputs.waitForImage == 'true'
+      - name: "Cache virtualenv environmnent"
+        uses: actions/cache@v2
+        with:
+          path: '.build/.docker_venv'
+          key: ${{ runner.os }}-docker-venv-${{ hashFiles('scripts/ci/images/ci_run_docker_tests.py') }}
       - name: >
           Wait for PROD images
           ${{ needs.build-info.outputs.pythonVersions }}:${{ env.GITHUB_REGISTRY_PULL_IMAGE_TAG }}
