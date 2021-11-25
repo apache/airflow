@@ -18,6 +18,7 @@
 
 from contextlib import contextmanager
 from typing import Any, Dict, Optional
+from weakref import WeakKeyDictionary
 
 from pypsrp.messages import ErrorRecord, InformationRecord, ProgressRecord
 from pypsrp.powershell import PowerShell, PSInvocationState, RunspacePool
@@ -31,7 +32,8 @@ class PSRPHook(BaseHook):
     """
     Hook for PowerShell Remoting Protocol execution.
 
-    The hook must be used as a context manager.
+    The hook must be used as a context manager. Entering the context opens a
+    runspace pool which can be reused for multiple shell sessions.
 
     :param psrp_conn_id: Required. The name of the PSRP connection.
     :type psrp_conn_id: str
@@ -44,9 +46,14 @@ class PSRPHook(BaseHook):
         :py:class:`~pypsrp.powershell.RunspacePool` for a description of the
         available options.
     :type runspace_options: dict
+
+    You can provide an alternative `configuration_name` using either `runspace_options`
+    or by setting this key as the extra fields of your connection.
     """
 
-    _client = None
+    _conn = None
+    _configuration_name = None
+    _wsman_ref: "WeakKeyDictionary[RunspacePool, WSMan]" = WeakKeyDictionary()
 
     def __init__(
         self,
@@ -61,10 +68,31 @@ class PSRPHook(BaseHook):
         self._runspace_options = runspace_options or {}
 
     def __enter__(self):
-        conn = self.get_connection(self.conn_id)
+        conn = self.get_conn()
+        self._wsman_ref[conn].__enter__()
+        conn.__enter__()
+        self._conn = conn
+        return self
 
+    def __exit__(self, exc_type, exc_value, traceback):
+        try:
+            self._conn.__exit__(exc_type, exc_value, traceback)
+            self._wsman_ref[self._conn].__exit__(exc_type, exc_value, traceback)
+        finally:
+            del self._conn
+
+    def get_conn(self) -> RunspacePool:
+        """
+        Returns a runspace pool.
+
+        If the hook context has already been entered into, this will return the
+        active pool.
+        """
+        if self._conn is not None:
+            return self._conn
+        conn = self.get_connection(self.conn_id)
         self.log.info("Establishing WinRM connection %s to host: %s", self.conn_id, conn.host)
-        self._client = WSMan(
+        wsman = WSMan(
             conn.host,
             ssl=True,
             auth="ntlm",
@@ -73,14 +101,13 @@ class PSRPHook(BaseHook):
             password=conn.password,
             cert_validation=False,
         )
-        self._client.__enter__()
-        return self
-
-    def __exit__(self, exc_type, exc_value, traceback):
-        try:
-            self._client.__exit__(exc_type, exc_value, traceback)
-        finally:
-            self._client = None
+        runspace_options = self._runspace_options.copy()
+        configuration_name = conn.extra_dejson.get('configuration_name')
+        if configuration_name is not None:
+            runspace_options['configuration_name'] = configuration_name
+        pool = RunspacePool(wsman, **runspace_options)
+        self._wsman_ref[pool] = wsman
+        return pool
 
     @contextmanager
     def invoke(self) -> PowerShell:
@@ -88,39 +115,38 @@ class PSRPHook(BaseHook):
         Context manager that yields a PowerShell object to which commands can be
         added. Upon exit, the commands will be invoked.
         """
-        with RunspacePool(self._client, **self._runspace_options) as pool:
-            ps = PowerShell(pool)
-            yield ps
-            ps.begin_invoke()
-            if self._logging:
-                streams = [
-                    (ps.output, self._log_output),
-                    (ps.streams.debug, self._log_record),
-                    (ps.streams.information, self._log_record),
-                    (ps.streams.error, self._log_record),
-                ]
-                offsets = [0 for _ in streams]
+        ps = PowerShell(self._conn)
+        yield ps
+        ps.begin_invoke()
+        if self._logging:
+            streams = [
+                (ps.output, self._log_output),
+                (ps.streams.debug, self._log_record),
+                (ps.streams.information, self._log_record),
+                (ps.streams.error, self._log_record),
+            ]
+            offsets = [0 for _ in streams]
 
-                # We're using polling to make sure output and streams are
-                # handled while the process is running.
-                while ps.state == PSInvocationState.RUNNING:
-                    ps.poll_invoke(timeout=self._operation_timeout)
+            # We're using polling to make sure output and streams are
+            # handled while the process is running.
+            while ps.state == PSInvocationState.RUNNING:
+                ps.poll_invoke(timeout=self._operation_timeout)
 
-                    for (i, (stream, handler)) in enumerate(streams):
-                        offset = offsets[i]
-                        while len(stream) > offset:
-                            handler(stream[offset])
-                            offset += 1
-                        offsets[i] = offset
+                for (i, (stream, handler)) in enumerate(streams):
+                    offset = offsets[i]
+                    while len(stream) > offset:
+                        handler(stream[offset])
+                        offset += 1
+                    offsets[i] = offset
 
-            # For good measure, we'll make sure the process has
-            # stopped running in any case.
-            ps.end_invoke()
+        # For good measure, we'll make sure the process has
+        # stopped running in any case.
+        ps.end_invoke()
 
-            if ps.streams.error:
-                raise AirflowException("Process had one or more errors")
+        if ps.streams.error:
+            raise AirflowException("Process had one or more errors")
 
-            self.log.info("Invocation state: %s", str(PSInvocationState(ps.state)))
+        self.log.info("Invocation state: %s", str(PSInvocationState(ps.state)))
 
     def invoke_cmdlet(self, name: str, use_local_scope=None, **parameters: Dict[str, str]) -> PowerShell:
         """Invoke a PowerShell cmdlet and return session."""

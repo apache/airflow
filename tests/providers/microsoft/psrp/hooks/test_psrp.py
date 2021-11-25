@@ -22,7 +22,7 @@ from unittest.mock import MagicMock, call, patch
 
 from parameterized import parameterized
 from pypsrp.messages import InformationRecord
-from pypsrp.powershell import PSInvocationState
+from pypsrp.powershell import PSInvocationState, RunspacePoolState
 
 from airflow.models import Connection
 from airflow.providers.microsoft.psrp.hooks.psrp import PSRPHook
@@ -79,6 +79,11 @@ class TestPSRPHook(TestCase):
                 assert ps.state == PSInvocationState.NOT_STARTED
             assert ps.state == PSInvocationState.COMPLETED
 
+            # Since we've entered into the hook context, the
+            # `get_conn` method returns the active runspace pool.
+            assert hook.get_conn() is runspace_pool.return_value
+
+        assert runspace_pool.return_value.__exit__.mock_calls == [call(None, None, None)]
         assert ws_man().__exit__.mock_calls == [call(None, None, None)]
         assert not (logging ^ (call('%s', '<output>') in log_info.mock_calls))
         assert not (logging ^ (call('Information: %s', '<message>') in log_info.mock_calls))
