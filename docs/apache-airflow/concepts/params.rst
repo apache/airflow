@@ -33,7 +33,7 @@ which won't be doing any such validations.
 
     with DAG(
       'my_dag',
-      params: {
+      params = {
         'int_param': Param(10, type='integer', minimum=0, maximum=20),          # a int param with default value
         'str_param': Param(type='string', minLength=2, maxLength=4),            # a mandatory str param
         'dummy_param': Param(type=['null', 'number', 'string'])                 # a param which can be None as well
@@ -47,6 +47,7 @@ which won't be doing any such validations.
             maxLength=255,
         ),
       }
+    )
 
 ``Param`` make use of `json-schema <https://json-schema.org/>`__ to define the properties and doing the
 validation, so one can use the full json-schema specifications mentioned at
