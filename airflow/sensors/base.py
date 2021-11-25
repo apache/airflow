@@ -23,6 +23,7 @@ import time
 from datetime import timedelta
 from typing import Any, Callable, Dict, Iterable
 
+from airflow import settings
 from airflow.configuration import conf
 from airflow.exceptions import (
     AirflowException,
@@ -40,6 +41,13 @@ from airflow.utils import timezone
 # Google Provider before 3.0.0 imported apply_defaults from here.
 # See  https://github.com/apache/airflow/issues/16035
 from airflow.utils.decorators import apply_defaults
+
+# As documented in https://dev.mysql.com/doc/refman/5.7/en/datetime.html.
+_MYSQL_TIMESTAMP_MAX = datetime.datetime(2038, 1, 19, 3, 14, 7, tzinfo=timezone.utc)
+
+
+def _is_metadatabase_mysql() -> bool:
+    return settings.engine and settings.engine.url.get_backend_name() == "mysql"
 
 
 class BaseSensorOperator(BaseOperator, SkipMixin):
@@ -124,6 +132,17 @@ class BaseSensorOperator(BaseOperator, SkipMixin):
             raise AirflowException(
                 f"The mode must be one of {self.valid_modes},'{self.dag.dag_id if self.has_dag() else ''}.{self.task_id}'; received '{self.mode}'."
             )
+
+        # Sanity check for poke_interval isn't immediately over MySQL's TIMESTAMP limit.
+        # This check is only rudimentary to catch trivial user errors, e.g. mistakenly
+        # set the value to milliseconds instead of seconds. There's another check when
+        # we actually try to reschedule to ensure database sanity.
+        if self.reschedule and _is_metadatabase_mysql():
+            if timezone.utcnow() + datetime.timedelta(seconds=self.poke_interval) > _MYSQL_TIMESTAMP_MAX:
+                raise AirflowException(
+                    f"Cannot set poke_interval to {self.poke_interval} seconds in reschedule "
+                    f"mode since it will take reschedule time over MySQL's TIMESTAMP limit."
+                )
 
     def poke(self, context: Dict) -> bool:
         """
@@ -233,9 +252,13 @@ class BaseSensorOperator(BaseOperator, SkipMixin):
                 else:
                     raise AirflowSensorTimeout(f"Snap. Time is OUT. DAG id: {log_dag_id}")
             if self.reschedule:
-                reschedule_date = timezone.utcnow() + timedelta(
-                    seconds=self._get_next_poke_interval(started_at, run_duration, try_number)
-                )
+                next_poke_interval = self._get_next_poke_interval(started_at, run_duration, try_number)
+                reschedule_date = timezone.utcnow() + timedelta(seconds=next_poke_interval)
+                if _is_metadatabase_mysql() and reschedule_date > _MYSQL_TIMESTAMP_MAX:
+                    raise AirflowSensorTimeout(
+                        f"Cannot reschedule DAG {log_dag_id} to {reschedule_date.isoformat()} "
+                        f"since it is over MySQL's TIMESTAMP storage limit."
+                    )
                 raise AirflowRescheduleException(reschedule_date)
             else:
                 time.sleep(self._get_next_poke_interval(started_at, run_duration, try_number))

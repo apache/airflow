@@ -498,6 +498,28 @@ class TestBaseSensor:
             assert interval2 >= sensor.poke_interval
             assert interval2 > interval1
 
+    @pytest.mark.backend("mysql")
+    def test_reschedule_poke_interval_too_long_on_mysql(self, make_sensor):
+        with pytest.raises(AirflowException) as ctx:
+            make_sensor(poke_interval=863998946, mode="reschedule", return_value="irrelevant")
+        assert str(ctx.value) == (
+            "Cannot set poke_interval to 863998946 seconds in reschedule mode "
+            "since it will take reschedule time over MySQL's TIMESTAMP limit."
+        )
+
+    @pytest.mark.backend("mysql")
+    def test_reschedule_date_too_late_on_mysql(self, make_sensor):
+        sensor, _ = make_sensor(poke_interval=60 * 60 * 24, mode="reschedule", return_value=False)
+
+        # A few hours until TIMESTAMP's limit, the next poke will take us over.
+        with freeze_time(datetime(2038, 1, 19, tzinfo=timezone.utc)):
+            with pytest.raises(AirflowSensorTimeout) as ctx:
+                self._run(sensor)
+        assert str(ctx.value) == (
+            "Cannot reschedule DAG unit_test_dag to 2038-01-20T00:00:00+00:00 "
+            "since it is over MySQL's TIMESTAMP storage limit."
+        )
+
     def test_reschedule_and_retry_timeout(self, make_sensor):
         """
         Test mode="reschedule", retries and timeout configurations interact correctly.
