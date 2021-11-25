@@ -26,10 +26,8 @@ import lazy_object_proxy
 
 from airflow.macros import hive  # noqa
 
-TemplateStringInput = Union[str, lazy_object_proxy.Proxy]
 
-
-def ds_add(ds: TemplateStringInput, days: int) -> str:
+def ds_add(ds: Union[str, lazy_object_proxy.Proxy], days: int) -> str:
     """
     Add or subtract days from a YYYY-MM-DD
 
@@ -49,7 +47,7 @@ def ds_add(ds: TemplateStringInput, days: int) -> str:
     return dt.strftime("%Y-%m-%d")
 
 
-def ds_format(ds: TemplateStringInput, input_format: str, output_format: str) -> str:
+def ds_format(ds: Union[str, lazy_object_proxy.Proxy], input_format: str, output_format: str) -> str:
     """
     Takes an input string and outputs another string
     as specified in the output format
