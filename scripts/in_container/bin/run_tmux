@@ -33,6 +33,11 @@ fi
 mkdir -p ~/.tmux/tmp
 chmod 777 -R ~/.tmux/tmp
 
+# Creating a new tmux session (below) will start a new login shell and /etc/profile
+# will overwrite the custom Dockerfile PATH variable. Adding the custom PATH export
+# to home directory profile here will take precedence.
+echo "export PATH=$PATH" >> ~/.profile
+
 # Set Session Name
 export TMUX_SESSION="Airflow"
 
