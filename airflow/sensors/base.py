@@ -17,6 +17,7 @@
 # under the License.
 
 import datetime
+import functools
 import hashlib
 import os
 import time
@@ -46,8 +47,11 @@ from airflow.utils.decorators import apply_defaults
 _MYSQL_TIMESTAMP_MAX = datetime.datetime(2038, 1, 19, 3, 14, 7, tzinfo=timezone.utc)
 
 
+@functools.lru_cache(maxsize=None)
 def _is_metadatabase_mysql() -> bool:
-    return settings.engine and settings.engine.url.get_backend_name() == "mysql"
+    if settings.engine is None:
+        raise AirflowException("Must initialize ORM first")
+    return settings.engine.url.get_backend_name() == "mysql"
 
 
 class BaseSensorOperator(BaseOperator, SkipMixin):
