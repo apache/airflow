@@ -17,7 +17,6 @@
 # under the License.
 
 from contextlib import contextmanager
-from time import sleep
 from typing import Any, Dict, Optional
 
 from pypsrp.messages import ErrorRecord, InformationRecord, ProgressRecord
@@ -38,6 +37,8 @@ class PSRPHook(BaseHook):
     :type psrp_conn_id: str
     :param logging: If true (default), log command output and streams during execution.
     :type logging: bool
+    :param operation_timeout: Override the default WSMan timeout when polling the pipeline.
+    :type operation_timeout: float
     :param runspace_options:
         Optional dictionary which is passed when creating the runspace pool. See
         :py:class:`~pypsrp.powershell.RunspacePool` for a description of the
@@ -46,13 +47,17 @@ class PSRPHook(BaseHook):
     """
 
     _client = None
-    _poll_interval = 1
 
     def __init__(
-        self, psrp_conn_id: str, logging: bool = True, runspace_options: Optional[Dict[str, Any]] = None
+        self,
+        psrp_conn_id: str,
+        logging: bool = True,
+        operation_timeout: Optional[float] = None,
+        runspace_options: Optional[Dict[str, Any]] = None,
     ):
         self.conn_id = psrp_conn_id
         self._logging = logging
+        self._operation_timeout = operation_timeout
         self._runspace_options = runspace_options or {}
 
     def __enter__(self):
@@ -99,8 +104,7 @@ class PSRPHook(BaseHook):
                 # We're using polling to make sure output and streams are
                 # handled while the process is running.
                 while ps.state == PSInvocationState.RUNNING:
-                    sleep(self._poll_interval)
-                    ps.poll_invoke()
+                    ps.poll_invoke(timeout=self._operation_timeout)
 
                     for (i, (stream, handler)) in enumerate(streams):
                         offset = offsets[i]

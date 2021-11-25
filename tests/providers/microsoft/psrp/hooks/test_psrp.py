@@ -35,7 +35,7 @@ class MockPowerShell(MagicMock):
         super().__init__(*args, **kwargs)
         self.state = PSInvocationState.NOT_STARTED
 
-    def poll_invoke(self):
+    def poll_invoke(self, timeout=None):
         self.output.append("<output>")
         self.streams.debug.append(MagicMock(spec=InformationRecord, message_data="<message>"))
         self.state = PSInvocationState.COMPLETED
