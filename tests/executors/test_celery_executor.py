@@ -34,6 +34,7 @@ from celery.backends.base import BaseBackend, BaseKeyValueStoreBackend
 from celery.backends.database import DatabaseBackend
 from celery.contrib.testing.worker import start_worker
 from celery.result import AsyncResult
+from freezegun import freeze_time
 from kombu.asynchronous import set_event_loop
 from parameterized import parameterized
 
@@ -482,16 +483,22 @@ class TestCeleryExecutor:
         assert ti.state == State.QUEUED
 
     @pytest.mark.backend("mysql", "postgres")
+    @freeze_time("2020-01-01")
     @pytest.mark.parametrize(
-        "last_check_time, state",
+        "state",
         [
-            (time.time() - 400, State.SCHEDULED),
-            (time.time() - 200, State.QUEUED),
+            (State.SCHEDULED),
+            (State.QUEUED),
         ],
     )
     def test_the_check_interval_to_clear_stuck_queued_task_is_correct(
-        self, last_check_time, state, session, dag_maker, create_dummy_dag, create_task_instance
+        self, state, session, dag_maker, create_dummy_dag, create_task_instance
     ):
+        if state == State.SCHEDULED:
+            last_check_time = time.time() - 302  # should clear ti state
+        else:
+            last_check_time = time.time() - 298  # should not clear ti state
+
         ti = create_task_instance(state=State.QUEUED)
         ti.queued_dttm = timezone.utcnow() - timedelta(days=2)
         ti.external_executor_id = '231'
