@@ -504,7 +504,7 @@ This is an example test want to verify the structure of a code-generated DAG aga
         with DAG(
             dag_id=TEST_DAG_ID,
             schedule_interval="@daily",
-            default_args={"start_date": DATA_INTERVAL_START},
+            start_date=DATA_INTERVAL_START,
         ) as dag:
             MyCustomOperator(
                 task_id=TEST_TASK_ID,
