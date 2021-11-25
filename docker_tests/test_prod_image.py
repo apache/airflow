@@ -22,12 +22,12 @@ from pathlib import Path
 
 import pytest
 
+from docker_tests.command_utils import run_command
+from docker_tests.constants import SOURCE_ROOT
 from docker_tests.docker_tests_utils import (
-    SOURCE_ROOT,
     display_dependency_conflict_message,
     docker_image,
     run_bash_in_docker,
-    run_command,
     run_python_in_docker,
 )
 
@@ -50,21 +50,24 @@ class TestCommands:
     def test_airflow_version(self):
         """Checking 'airflow version' command  It should return zero exit code."""
         output = run_command(
-            ["docker", "run", "--rm", "-e", "COLUMNS=180", docker_image, "airflow", "version"]
+            ["docker", "run", "--rm", "-e", "COLUMNS=180", docker_image, "airflow", "version"],
+            return_output=True,
         )
         assert "2." in output
 
     def test_python_version(self):
         """Checking 'python --version' command  It should return zero exit code."""
         output = run_command(
-            ["docker", "run", "--rm", "-e", "COLUMNS=180", docker_image, "python", "--version"]
+            ["docker", "run", "--rm", "-e", "COLUMNS=180", docker_image, "python", "--version"],
+            return_output=True,
         )
         assert "Python 3." in output
 
     def test_bash_version(self):
         """Checking 'bash --version' command  It should return zero exit code."""
         output = run_command(
-            ["docker", "run", "--rm", "-e", "COLUMNS=180", docker_image, "bash", "--version"]
+            ["docker", "run", "--rm", "-e", "COLUMNS=180", docker_image, "bash", "--version"],
+            return_output=True,
         )
         assert "GNU bash," in output
 
