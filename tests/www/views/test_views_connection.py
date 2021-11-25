@@ -194,7 +194,7 @@ def connection():
     yield connection
     with create_session() as session:
         session.query(Connection).filter(Connection.conn_id == CONNECTION["conn_id"]).delete()
-    
+
 
 def test_connection_muldelete(admin_client, connection):
     conn_id = connection.id
