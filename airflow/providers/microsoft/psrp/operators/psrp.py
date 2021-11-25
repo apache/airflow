@@ -16,8 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from typing import TYPE_CHECKING, List, Optional, Sequence
-from typing import TYPE_CHECKING, Dict, List, Optional, Sequence
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Sequence
 
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
@@ -34,7 +33,13 @@ class PSRPOperator(BaseOperator):
     :param psrp_conn_id: connection id
     :param command: command to execute on remote host. (templated)
     :param powershell: powershell to execute on remote host. (templated)
+    :param cmdlet: cmdlet to execute on remote host. (templated)
+    :param parameters: parameters to provide to cmdlet. (templated)
     :param logging: whether to log command output and streams during execution
+    :param runspace_options:
+        Optional dictionary which is passed when creating the runspace pool. See
+        :py:class:`~pypsrp.powershell.RunspacePool` for a description of the
+        available options.
     """
 
     template_fields: Sequence[str] = (
@@ -54,6 +59,7 @@ class PSRPOperator(BaseOperator):
         cmdlet: Optional[str] = None,
         parameters: Optional[Dict[str, str]] = None,
         logging: bool = True,
+        runspace_options: Optional[Dict[str, Any]] = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -68,9 +74,10 @@ class PSRPOperator(BaseOperator):
         self.cmdlet = cmdlet
         self.parameters = parameters or {}
         self.logging = logging
+        self.runspace_options = runspace_options
 
     def execute(self, context: "Context") -> List[str]:
-        with PSRPHook(self.conn_id, logging=self.logging) as hook:
+        with PSRPHook(self.conn_id, logging=self.logging, runspace_options=self.runspace_options) as hook:
             ps = (
                 hook.invoke_cmdlet(self.cmdlet, **self.parameters)
                 if self.cmdlet

@@ -18,7 +18,7 @@
 
 from contextlib import contextmanager
 from time import sleep
-from typing import Dict
+from typing import Any, Dict, Optional
 
 from pypsrp.messages import ErrorRecord, InformationRecord, ProgressRecord
 from pypsrp.powershell import PowerShell, PSInvocationState, RunspacePool
@@ -38,14 +38,22 @@ class PSRPHook(BaseHook):
     :type psrp_conn_id: str
     :param logging: If true (default), log command output and streams during execution.
     :type logging: bool
+    :param runspace_options:
+        Optional dictionary which is passed when creating the runspace pool. See
+        :py:class:`~pypsrp.powershell.RunspacePool` for a description of the
+        available options.
+    :type runspace_options: dict
     """
 
     _client = None
     _poll_interval = 1
 
-    def __init__(self, psrp_conn_id: str, logging: bool = True):
+    def __init__(
+        self, psrp_conn_id: str, logging: bool = True, runspace_options: Optional[Dict[str, Any]] = None
+    ):
         self.conn_id = psrp_conn_id
         self._logging = logging
+        self._runspace_options = runspace_options or {}
 
     def __enter__(self):
         conn = self.get_connection(self.conn_id)
@@ -75,7 +83,7 @@ class PSRPHook(BaseHook):
         Context manager that yields a PowerShell object to which commands can be
         added. Upon exit, the commands will be invoked.
         """
-        with RunspacePool(self._client) as pool:
+        with RunspacePool(self._client, **self._runspace_options) as pool:
             ps = PowerShell(pool)
             yield ps
             ps.begin_invoke()

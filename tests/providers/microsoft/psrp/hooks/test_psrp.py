@@ -73,7 +73,8 @@ def mock_powershell_factory():
 class TestPSRPHook(TestCase):
     @parameterized.expand([(False,), (True,)])
     def test_invoke(self, log_info, runspace_pool, powershell, ws_man, logging):
-        with PSRPHook(CONNECTION_ID, logging=logging) as hook:
+        runspace_options = {"connection_name": "foo"}
+        with PSRPHook(CONNECTION_ID, logging=logging, runspace_options=runspace_options) as hook:
             with hook.invoke() as ps:
                 assert ps.state == PSInvocationState.NOT_STARTED
             assert ps.state == PSInvocationState.COMPLETED
@@ -82,6 +83,7 @@ class TestPSRPHook(TestCase):
         assert not (logging ^ (call('%s', '<output>') in log_info.mock_calls))
         assert not (logging ^ (call('Information: %s', '<message>') in log_info.mock_calls))
         assert call('Invocation state: %s', 'Completed') in log_info.mock_calls
+        assert runspace_pool.call_args == call(ws_man.return_value, connection_name='foo')
 
     def test_invoke_cmdlet(self, *mocks):
         with PSRPHook(CONNECTION_ID, logging=False) as hook:
