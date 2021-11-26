@@ -802,7 +802,7 @@ class CloudDataFusionStartPipelineOperator(BaseOperator):
         runtime_args: Optional[Dict[str, Any]] = None,
         success_states: Optional[List[str]] = None,
         namespace: str = "default",
-        pipeline_timeout: int = 10 * 60,
+        pipeline_timeout: int = 5 * 60,
         project_id: Optional[str] = None,
         api_version: str = "v1beta1",
         gcp_conn_id: str = "google_cloud_default",
@@ -823,13 +823,12 @@ class CloudDataFusionStartPipelineOperator(BaseOperator):
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
         self.asynchronous = asynchronous
+        self.pipeline_timeout = pipeline_timeout
 
         if success_states:
             self.success_states = success_states
-            self.pipeline_timeout = pipeline_timeout
         else:
             self.success_states = SUCCESS_STATES + [PipelineStates.RUNNING]
-            self.pipeline_timeout = 5 * 60
 
     def execute(self, context: dict) -> str:
         hook = DataFusionHook(
