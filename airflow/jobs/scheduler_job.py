@@ -324,7 +324,18 @@ class SchedulerJob(BaseJob):
                 query = query.filter(not_(TI.dag_id.in_(starved_dags)))
 
             if starved_tasks:
-                query = query.filter(not_(TI.filter_for_tis(starved_tasks)))
+                if settings.Session.bind.dialect.name == 'mssql':
+                    task_filter = or_(
+                        and_(
+                            TaskInstance.dag_id == dag_id,
+                            TaskInstance.task_id == task_id,
+                        )
+                        for (dag_id, task_id) in starved_tasks
+                    )
+                else:
+                    task_filter = tuple_(TaskInstance.dag_id, TaskInstance.task_id).in_(starved_tasks)
+
+                query = query.filter(not_(task_filter))
 
             query = query.limit(max_tis)
 
@@ -444,7 +455,7 @@ class SchedulerJob(BaseJob):
                                     " this task has been reached.",
                                     task_instance,
                                 )
-                                starved_tasks.add(task_instance.key)
+                                starved_tasks.add((task_instance.dag_id, task_instance.task_id))
                                 continue
 
                     if task_instance.pool_slots > open_slots:
@@ -458,7 +469,7 @@ class SchedulerJob(BaseJob):
                         )
                         pool_num_starving_tasks[pool_name] += 1
                         num_starving_tasks_total += 1
-                        starved_tasks.add(task_instance.key)
+                        starved_tasks.add((task_instance.dag_id, task_instance.task_id))
                         # Though we can execute tasks with lower priority if there's enough room
                         continue
 
@@ -480,7 +491,7 @@ class SchedulerJob(BaseJob):
             if is_done or not found_new_filters:
                 break
 
-            self.log.info(
+            self.log.debug(
                 "Found no task instances to queue on the %s. iteration "
                 "but there could be more candidate task instances to check.",
                 loop_count,
