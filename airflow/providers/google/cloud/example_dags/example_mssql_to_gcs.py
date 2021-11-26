@@ -15,6 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 import os
+
 from airflow import models
 from airflow.providers.google.cloud.transfers.mssql_to_gcs import MSSQLToGCSOperator
 from airflow.utils import dates
@@ -32,6 +33,11 @@ with models.DAG(
 ) as dag:
     # [START howto_operator_mysql_to_gcs]
     upload = MSSQLToGCSOperator(
-        task_id='mssql_to_gcs', mssql_conn_id='airflow_mssql', sql=SQL_QUERY, bucket=GCS_BUCKET, filename=FILENAME, export_format='csv'
+        task_id='mssql_to_gcs',
+        mssql_conn_id='airflow_mssql',
+        sql=SQL_QUERY,
+        bucket=GCS_BUCKET,
+        filename=FILENAME,
+        export_format='csv',
     )
     # [END howto_operator_mysql_to_gcs]
