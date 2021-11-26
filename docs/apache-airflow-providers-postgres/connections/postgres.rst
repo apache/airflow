@@ -58,8 +58,7 @@ Extra (optional)
     * ``keepalives_idle`` - Controls the number of seconds of inactivity after which TCP
       should send a keepalive message to the server.
     * ``client_encoding``: specifies client encoding(character set) of the client connection.
-      Refer to https://www.postgresql.org/docs/9.3/multibyte.html for supported character set
-      values.
+      Refer to `Postgres supported character sets <https://www.postgresql.org/docs/9.3/multibyte.html>`_
 
     More details on all Postgres parameters supported can be found in
     `Postgres documentation <https://www.postgresql.org/docs/current/static/libpq-connect.html#LIBPQ-CONNSTRING>`_.
