@@ -37,6 +37,7 @@ class DruidOperator(BaseOperator):
 
     template_fields = ('json_index_file',)
     template_ext = ('.json',)
+    template_fields_renderers = {'json_index_file': 'json'}
 
     def __init__(
         self,

@@ -155,3 +155,11 @@ class TestMigrateDatabaseJob:
                 "memory": "512Mi",
             },
         } == jmespath.search("spec.template.spec.containers[0].resources", docs[0])
+
+    def test_should_disable_default_helm_hooks(self):
+        docs = render_chart(
+            values={"migrateDatabaseJob": {"useHelmHooks": False}},
+            show_only=["templates/jobs/migrate-database-job.yaml"],
+        )
+        annotations = jmespath.search("spec.template.metadata.annotations", docs[0])
+        assert annotations is None

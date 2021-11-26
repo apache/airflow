@@ -24,9 +24,8 @@ Create Date: 2018-06-17 22:50:00.053620
 """
 import sqlalchemy as sa
 from alembic import op
-from sqlalchemy.dialects import mysql
 
-from airflow.models.base import COLLATION_ARGS
+from airflow.migrations.db_types import TIMESTAMP, StringID
 
 # revision identifiers, used by Alembic.
 revision = '0a2a5b66e19d'
@@ -38,43 +37,25 @@ TABLE_NAME = 'task_reschedule'
 INDEX_NAME = 'idx_' + TABLE_NAME + '_dag_task_date'
 
 
-# For Microsoft SQL Server, TIMESTAMP is a row-id type,
-# having nothing to do with date-time.  DateTime() will
-# be sufficient.
-def mssql_timestamp():
-    return sa.DateTime()
-
-
-def mysql_timestamp():
-    return mysql.TIMESTAMP(fsp=6)
-
-
-def sa_timestamp():
-    return sa.TIMESTAMP(timezone=True)
-
-
 def upgrade():
     # See 0e2a74e0fc9f_add_time_zone_awareness
-    conn = op.get_bind()
-    if conn.dialect.name == 'mysql':
-        timestamp = mysql_timestamp
-    elif conn.dialect.name == 'mssql':
-        timestamp = mssql_timestamp
-    else:
-        timestamp = sa_timestamp
+    timestamp = TIMESTAMP
+    if op.get_bind().dialect.name == 'mssql':
+        # We need to keep this as it was for this old migration on mssql
+        timestamp = sa.DateTime()
 
     op.create_table(
         TABLE_NAME,
         sa.Column('id', sa.Integer(), nullable=False),
-        sa.Column('task_id', sa.String(length=250, **COLLATION_ARGS), nullable=False),
-        sa.Column('dag_id', sa.String(length=250, **COLLATION_ARGS), nullable=False),
+        sa.Column('task_id', StringID(), nullable=False),
+        sa.Column('dag_id', StringID(), nullable=False),
         # use explicit server_default=None otherwise mysql implies defaults for first timestamp column
-        sa.Column('execution_date', timestamp(), nullable=False, server_default=None),
+        sa.Column('execution_date', timestamp, nullable=False, server_default=None),
         sa.Column('try_number', sa.Integer(), nullable=False),
-        sa.Column('start_date', timestamp(), nullable=False),
-        sa.Column('end_date', timestamp(), nullable=False),
+        sa.Column('start_date', timestamp, nullable=False),
+        sa.Column('end_date', timestamp, nullable=False),
         sa.Column('duration', sa.Integer(), nullable=False),
-        sa.Column('reschedule_date', timestamp(), nullable=False),
+        sa.Column('reschedule_date', timestamp, nullable=False),
         sa.PrimaryKeyConstraint('id'),
         sa.ForeignKeyConstraint(
             ['task_id', 'dag_id', 'execution_date'],

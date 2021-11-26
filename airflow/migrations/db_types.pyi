@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -15,17 +15,14 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+#
 
-# This is an example docker build script. It is not intended for PRODUCTION use
-set -euo pipefail
-AIRFLOW_SOURCES="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../../../" && pwd)"
-cd "${AIRFLOW_SOURCES}"
+import sqlalchemy as sa
 
-# [START build]
-docker build . \
-    --build-arg PYTHON_BASE_IMAGE="python:3.8-slim-buster" \
-    --build-arg AIRFLOW_INSTALLATION_METHOD="https://github.com/apache/airflow/archive/v2-1-test.tar.gz#egg=apache-airflow" \
-    --build-arg AIRFLOW_CONSTRAINTS_REFERENCE="constraints-2-1" \
-    --tag "my-github-v2-1:0.0.1"
-# [END build]
-docker rmi --force "my-github-v2-1:0.0.1"
+TIMESTAMP = sa.TIMESTAMP
+"""Database specific timestamp with timezone"""
+
+StringID = sa.String
+"""String column type with correct DB collation applied"""
+
+MSSQL_USE_DATE_TIME2: bool

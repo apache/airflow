@@ -42,7 +42,7 @@ Configuring the Connection
 --------------------------
 
 Host (optional)
-    The host of your Hive Metastore node.
+    The host of your Hive Metastore node. It is possible to specify multiple hosts as a comma-separated list.
 
 Port (optional)
     Your Hive Metastore port number.

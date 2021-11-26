@@ -419,8 +419,10 @@ def get_base_pod_from_template(pod_template_file: Optional[str], kube_config: An
         return PodGenerator.deserialize_model_file(kube_config.pod_template_file)
 
 
-class KubernetesExecutor(BaseExecutor, LoggingMixin):
+class KubernetesExecutor(BaseExecutor):
     """Executor for Kubernetes"""
+
+    supports_ad_hoc_ti_run: bool = True
 
     def __init__(self):
         self.kube_config = KubeConfig()
@@ -599,13 +601,17 @@ class KubernetesExecutor(BaseExecutor, LoggingMixin):
                 try:
                     self.kube_scheduler.run_next(task)
                 except ApiException as e:
-                    if e.reason == "BadRequest":
-                        self.log.error("Request was invalid. Failing task")
+
+                    # These codes indicate something is wrong with pod definition; otherwise we assume pod
+                    # definition is ok, and that retrying may work
+                    if e.status in (400, 422):
+                        self.log.error("Pod creation failed with reason %r. Failing task", e.reason)
                         key, _, _, _ = task
                         self.change_state(key, State.FAILED, e)
                     else:
                         self.log.warning(
-                            'ApiException when attempting to run task, re-queueing. Message: %s',
+                            'ApiException when attempting to run task, re-queueing. Reason: %r. Message: %s',
+                            e.reason,
                             json.loads(e.body)['message'],
                         )
                         self.task_queue.put(task)

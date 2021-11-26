@@ -180,7 +180,7 @@ class SQSSensor(BaseSensorOperator):
         filtered_messages = []
         for message in messages:
             body = message['Body']
-            # Body is a string, deserialise to an object and then parse
+            # Body is a string, deserialize to an object and then parse
             body = json.loads(body)
             results = jsonpath_expr.find(body)
             if not results:

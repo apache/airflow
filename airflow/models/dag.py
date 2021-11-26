@@ -302,6 +302,7 @@ class DAG(LoggingMixin):
         'task_ids',
         'parent_dag',
         'start_date',
+        'end_date',
         'schedule_interval',
         'fileloc',
         'template_searchpath',
@@ -610,12 +611,12 @@ class DAG(LoggingMixin):
             return None
         return self.timetable._get_prev(timezone.coerce_datetime(dttm))
 
-    def get_next_data_interval(self, dag_model: "DagModel") -> DataInterval:
+    def get_next_data_interval(self, dag_model: "DagModel") -> Optional[DataInterval]:
         """Get the data interval of the next scheduled run.
 
         For compatibility, this method infers the data interval from the DAG's
-        schedule if the run does not have an explicit one set, which is possible for
-        runs created prior to AIP-39.
+        schedule if the run does not have an explicit one set, which is possible
+        for runs created prior to AIP-39.
 
         This function is private to Airflow core and should not be depended as a
         part of the Python API.
@@ -624,11 +625,15 @@ class DAG(LoggingMixin):
         """
         if self.dag_id != dag_model.dag_id:
             raise ValueError(f"Arguments refer to different DAGs: {self.dag_id} != {dag_model.dag_id}")
+        if dag_model.next_dagrun is None:  # Next run not scheduled.
+            return None
         data_interval = dag_model.next_dagrun_data_interval
         if data_interval is not None:
             return data_interval
-        # Compatibility: runs scheduled before AIP-39 implementation don't have an
-        # explicit data interval. Try to infer from the logical date.
+
+        # Compatibility: A run was scheduled without an explicit data interval.
+        # This means the run was scheduled before AIP-39 implementation. Try to
+        # infer from the logical date.
         return self.infer_automated_data_interval(dag_model.next_dagrun)
 
     def get_run_data_interval(self, run: DagRun) -> DataInterval:
@@ -683,13 +688,13 @@ class DAG(LoggingMixin):
         """Get information about the next DagRun of this dag after ``date_last_automated_dagrun``.
 
         This calculates what time interval the next DagRun should operate on
-        (its execution date), and when it can be scheduled, , according to the
+        (its execution date) and when it can be scheduled, according to the
         dag's timetable, start_date, end_date, etc. This doesn't check max
         active run or any other "max_active_tasks" type limits, but only
         performs calculations based on the various date and interval fields of
         this dag and its tasks.
 
-        :param date_last_automated_dagrun: The ``max(execution_date)`` of
+        :param last_automated_dagrun: The ``max(execution_date)`` of
             existing "automated" DagRuns for this dag (scheduled or backfill,
             but not manual).
         :param restricted: If set to *False* (default is *True*), ignore
@@ -2130,7 +2135,7 @@ class DAG(LoggingMixin):
         :type task: task
         """
         if not self.start_date and not task.start_date:
-            raise AirflowException("Task is missing the start_date parameter")
+            raise AirflowException("DAG is missing the start_date parameter")
         # if the task has no start date, assign it the same as the DAG
         elif not task.start_date:
             task.start_date = self.start_date
@@ -2899,7 +2904,8 @@ class DagModel(Base):
         Calculate ``next_dagrun`` and `next_dagrun_create_after``
 
         :param dag: The DAG object
-        :param most_recent_dag_run: DateTime of most recent run of this dag, or none if not yet scheduled.
+        :param most_recent_dag_run: DataInterval (or datetime) of most recent run of this dag, or none
+            if not yet scheduled.
         """
         if isinstance(most_recent_dag_run, datetime):
             warnings.warn(

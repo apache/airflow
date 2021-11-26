@@ -36,7 +36,7 @@ class GenericTransfer(BaseOperator):
     :type destination_table: str
     :param source_conn_id: source connection
     :type source_conn_id: str
-    :param destination_conn_id: source connection
+    :param destination_conn_id: destination connection
     :type destination_conn_id: str
     :param preoperator: sql statement or list of statements to be
         executed prior to loading the data. (templated)

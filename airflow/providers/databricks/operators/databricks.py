@@ -142,7 +142,9 @@ class DatabricksSubmitRunOperator(BaseOperator):
         - ``spark_jar_task``
         - ``notebook_task``
         - ``spark_python_task``
+        - ``spark_jar_task``
         - ``spark_submit_task``
+        - ``pipeline_task``
         - ``new_cluster``
         - ``existing_cluster_id``
         - ``libraries``
@@ -167,7 +169,7 @@ class DatabricksSubmitRunOperator(BaseOperator):
     :param spark_jar_task: The main class and parameters for the JAR task. Note that
         the actual JAR is specified in the ``libraries``.
         *EITHER* ``spark_jar_task`` *OR* ``notebook_task`` *OR* ``spark_python_task``
-        *OR* ``spark_submit_task`` should be specified.
+        *OR* ``spark_submit_task`` *OR* ``pipeline_task`` should be specified.
         This field will be templated.
 
         .. seealso::
@@ -175,7 +177,7 @@ class DatabricksSubmitRunOperator(BaseOperator):
     :type spark_jar_task: dict
     :param notebook_task: The notebook path and parameters for the notebook task.
         *EITHER* ``spark_jar_task`` *OR* ``notebook_task`` *OR* ``spark_python_task``
-        *OR* ``spark_submit_task`` should be specified.
+        *OR* ``spark_submit_task`` *OR* ``pipeline_task`` should be specified.
         This field will be templated.
 
         .. seealso::
@@ -183,7 +185,7 @@ class DatabricksSubmitRunOperator(BaseOperator):
     :type notebook_task: dict
     :param spark_python_task: The python file path and parameters to run the python file with.
         *EITHER* ``spark_jar_task`` *OR* ``notebook_task`` *OR* ``spark_python_task``
-        *OR* ``spark_submit_task`` should be specified.
+        *OR* ``spark_submit_task`` *OR* ``pipeline_task`` should be specified.
         This field will be templated.
 
         .. seealso::
@@ -191,21 +193,32 @@ class DatabricksSubmitRunOperator(BaseOperator):
     :type spark_python_task: dict
     :param spark_submit_task: Parameters needed to run a spark-submit command.
         *EITHER* ``spark_jar_task`` *OR* ``notebook_task`` *OR* ``spark_python_task``
-        *OR* ``spark_submit_task`` should be specified.
+        *OR* ``spark_submit_task`` *OR* ``pipeline_task`` should be specified.
         This field will be templated.
 
         .. seealso::
             https://docs.databricks.com/api/latest/jobs.html#jobssparksubmittask
     :type spark_submit_task: dict
+    :param pipeline_task: Parameters needed to execute a Delta Live Tables pipeline task.
+        The provided dictionary must contain at least ``pipeline_id`` field!
+        *EITHER* ``spark_jar_task`` *OR* ``notebook_task`` *OR* ``spark_python_task``
+        *OR* ``spark_submit_task`` *OR* ``pipeline_task`` should be specified.
+        This field will be templated.
+
+        .. seealso::
+            https://docs.databricks.com/dev-tools/api/2.0/jobs.html#jobspipelinetask
+    :type pipeline_task: dict
     :param new_cluster: Specs for a new cluster on which this task will be run.
-        *EITHER* ``new_cluster`` *OR* ``existing_cluster_id`` should be specified.
+        *EITHER* ``new_cluster`` *OR* ``existing_cluster_id`` should be specified
+        (except when ``pipeline_task`` is used).
         This field will be templated.
 
         .. seealso::
             https://docs.databricks.com/api/latest/jobs.html#jobsclusterspecnewcluster
     :type new_cluster: dict
     :param existing_cluster_id: ID for existing cluster on which to run this task.
-        *EITHER* ``new_cluster`` *OR* ``existing_cluster_id`` should be specified.
+        *EITHER* ``new_cluster`` *OR* ``existing_cluster_id`` should be specified
+        (except when ``pipeline_task`` is used).
         This field will be templated.
     :type existing_cluster_id: str
     :param libraries: Libraries which this run will use.
@@ -251,10 +264,12 @@ class DatabricksSubmitRunOperator(BaseOperator):
         self,
         *,
         json: Optional[Any] = None,
+        tasks: Optional[List[object]] = None,
         spark_jar_task: Optional[Dict[str, str]] = None,
         notebook_task: Optional[Dict[str, str]] = None,
         spark_python_task: Optional[Dict[str, Union[str, List[str]]]] = None,
         spark_submit_task: Optional[Dict[str, List[str]]] = None,
+        pipeline_task: Optional[Dict[str, str]] = None,
         new_cluster: Optional[Dict[str, object]] = None,
         existing_cluster_id: Optional[str] = None,
         libraries: Optional[List[Dict[str, str]]] = None,
@@ -265,6 +280,8 @@ class DatabricksSubmitRunOperator(BaseOperator):
         databricks_retry_limit: int = 3,
         databricks_retry_delay: int = 1,
         do_xcom_push: bool = False,
+        idempotency_token: Optional[str] = None,
+        access_control_list: Optional[List[Dict[str, str]]] = None,
         **kwargs,
     ) -> None:
         """Creates a new ``DatabricksSubmitRunOperator``."""
@@ -274,6 +291,8 @@ class DatabricksSubmitRunOperator(BaseOperator):
         self.polling_period_seconds = polling_period_seconds
         self.databricks_retry_limit = databricks_retry_limit
         self.databricks_retry_delay = databricks_retry_delay
+        if tasks is not None:
+            self.json['tasks'] = tasks
         if spark_jar_task is not None:
             self.json['spark_jar_task'] = spark_jar_task
         if notebook_task is not None:
@@ -282,6 +301,8 @@ class DatabricksSubmitRunOperator(BaseOperator):
             self.json['spark_python_task'] = spark_python_task
         if spark_submit_task is not None:
             self.json['spark_submit_task'] = spark_submit_task
+        if pipeline_task is not None:
+            self.json['pipeline_task'] = pipeline_task
         if new_cluster is not None:
             self.json['new_cluster'] = new_cluster
         if existing_cluster_id is not None:
@@ -294,6 +315,10 @@ class DatabricksSubmitRunOperator(BaseOperator):
             self.json['timeout_seconds'] = timeout_seconds
         if 'run_name' not in self.json:
             self.json['run_name'] = run_name or kwargs['task_id']
+        if idempotency_token is not None:
+            self.json['idempotency_token'] = idempotency_token
+        if access_control_list is not None:
+            self.json['access_control_list'] = access_control_list
 
         self.json = _deep_string_coerce(self.json)
         # This variable will be used in case our task gets killed.
@@ -356,12 +381,15 @@ class DatabricksRunNowOperator(BaseOperator):
 
         python_params = ["douglas adams", "42"]
 
+        jar_params = ["douglas adams", "42"]
+
         spark_submit_params = ["--class", "org.apache.spark.examples.SparkPi"]
 
         notebook_run = DatabricksRunNowOperator(
             job_id=job_id,
             notebook_params=notebook_params,
             python_params=python_params,
+            jar_params=jar_params,
             spark_submit_params=spark_submit_params
         )
 
@@ -374,6 +402,7 @@ class DatabricksRunNowOperator(BaseOperator):
         - ``json``
         - ``notebook_params``
         - ``python_params``
+        - ``jar_params``
         - ``spark_submit_params``
 
 
@@ -420,6 +449,18 @@ class DatabricksRunNowOperator(BaseOperator):
         .. seealso::
             https://docs.databricks.com/api/latest/jobs.html#run-now
     :type python_params: list[str]
+    :param jar_params: A list of parameters for jobs with JAR tasks,
+        e.g. "jar_params": ["john doe", "35"].
+        The parameters will be passed to JAR file as command line parameters.
+        If specified upon run-now, it would overwrite the parameters specified in
+        job setting.
+        The json representation of this field (i.e. {"jar_params":["john doe","35"]})
+        cannot exceed 10,000 bytes.
+        This field will be templated.
+
+        .. seealso::
+            https://docs.databricks.com/api/latest/jobs.html#run-now
+    :type jar_params: list[str]
     :param spark_submit_params: A list of parameters for jobs with spark submit task,
         e.g. "spark_submit_params": ["--class", "org.apache.spark.examples.SparkPi"].
         The parameters will be passed to spark-submit script as command line parameters.
@@ -463,6 +504,7 @@ class DatabricksRunNowOperator(BaseOperator):
         json: Optional[Any] = None,
         notebook_params: Optional[Dict[str, str]] = None,
         python_params: Optional[List[str]] = None,
+        jar_params: Optional[List[str]] = None,
         spark_submit_params: Optional[List[str]] = None,
         databricks_conn_id: str = 'databricks_default',
         polling_period_seconds: int = 30,
@@ -485,6 +527,8 @@ class DatabricksRunNowOperator(BaseOperator):
             self.json['notebook_params'] = notebook_params
         if python_params is not None:
             self.json['python_params'] = python_params
+        if jar_params is not None:
+            self.json['jar_params'] = jar_params
         if spark_submit_params is not None:
             self.json['spark_submit_params'] = spark_submit_params
 

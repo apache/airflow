@@ -18,11 +18,10 @@
 This is an example dag for an Amazon EMR on EKS Spark job.
 """
 import os
-from datetime import timedelta
+from datetime import datetime, timedelta
 
 from airflow import DAG
 from airflow.providers.amazon.aws.operators.emr_containers import EMRContainerOperator
-from airflow.utils.dates import days_ago
 
 # [START howto_operator_emr_eks_env_variables]
 VIRTUAL_CLUSTER_ID = os.getenv("VIRTUAL_CLUSTER_ID", "test-cluster")
@@ -59,8 +58,9 @@ CONFIGURATION_OVERRIDES_ARG = {
 with DAG(
     dag_id='emr_eks_pi_job',
     dagrun_timeout=timedelta(hours=2),
-    start_date=days_ago(1),
+    start_date=datetime(2021, 1, 1),
     schedule_interval="@once",
+    catchup=False,
     tags=["emr_containers", "example"],
 ) as dag:
 

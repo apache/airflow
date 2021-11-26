@@ -35,7 +35,7 @@
         {{ dag_import_errors.append((category, m)) if dag_import_errors.append((category, m)) != None else '' }}
       {% elif not (request.path == appbuilder.get_url_for_login and 'access is denied' in m.lower()) %}
       {# Don't show 'Access is Denied' alert if user is logged out and on the login page. #}
-        {{ message(m, category) }}
+        {{ show_message(m, category) }}
       {% endif %}
     {% endfor %}
   {% endif %}

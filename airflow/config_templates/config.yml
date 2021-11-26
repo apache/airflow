@@ -451,8 +451,11 @@
   options:
     - name: base_log_folder
       description: |
-        The folder where airflow should store its log files
-        This path must be absolute
+        The folder where airflow should store its log files.
+        This path must be absolute.
+        There are a few existing configurations that assume this is set to the default.
+        If you choose to override this you may need to update the dag_processor_manager_log_location and
+        dag_processor_manager_log_location settings as well.
       version_added: 2.0.0
       type: string
       example: ~
@@ -588,7 +591,7 @@
       default: "{{{{ filename }}}}.log"
     - name: dag_processor_manager_log_location
       description: |
-        full path of dag_processor_manager logfile
+        Full path of dag_processor_manager logfile.
       version_added: 2.0.0
       type: string
       example: ~

@@ -17,7 +17,7 @@
 # under the License.
 
 import unittest
-from unittest.mock import patch
+from unittest.mock import call, patch
 
 import pytest
 from hdfs import HdfsError
@@ -34,24 +34,35 @@ class TestWebHDFSHook(unittest.TestCase):
     @patch('airflow.providers.apache.hdfs.hooks.webhdfs.InsecureClient')
     @patch(
         'airflow.providers.apache.hdfs.hooks.webhdfs.WebHDFSHook.get_connection',
-        return_value=Connection(host='host_2', port=321, login='user'),
+        return_value=Connection(host='host_1.com,host_2.com', port=321, login='user'),
     )
     @patch("airflow.providers.apache.hdfs.hooks.webhdfs.socket")
     def test_get_conn(self, socket_mock, mock_get_connection, mock_insecure_client, mock_session):
+        mock_insecure_client.side_effect = [HdfsError('Error'), mock_insecure_client.return_value]
         socket_mock.socket.return_value.connect_ex.return_value = 0
         conn = self.webhdfs_hook.get_conn()
         connection = mock_get_connection.return_value
-        mock_insecure_client.assert_called_once_with(
-            f'http://{connection.host}:{connection.port}',
-            user=connection.login,
-            session=mock_session.return_value,
+        hosts = connection.host.split(',')
+        mock_insecure_client.assert_has_calls(
+            [
+                call(
+                    f'http://{host}:{connection.port}',
+                    user=connection.login,
+                    session=mock_session.return_value,
+                )
+                for host in hosts
+            ]
         )
         mock_insecure_client.return_value.status.assert_called_once_with('/')
         assert conn == mock_insecure_client.return_value
 
     @patch('airflow.providers.apache.hdfs.hooks.webhdfs.InsecureClient', side_effect=HdfsError('Error'))
+    @patch(
+        'airflow.providers.apache.hdfs.hooks.webhdfs.WebHDFSHook.get_connection',
+        return_value=Connection(host='host_2', port=321, login='user'),
+    )
     @patch("airflow.providers.apache.hdfs.hooks.webhdfs.socket")
-    def test_get_conn_hdfs_error(self, socket_mock, mock_insecure_client):
+    def test_get_conn_hdfs_error(self, socket_mock, mock_get_connection, mock_insecure_client):
         socket_mock.socket.return_value.connect_ex.return_value = 0
         with pytest.raises(AirflowWebHDFSHookException):
             self.webhdfs_hook.get_conn()

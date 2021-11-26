@@ -46,7 +46,6 @@ Misc
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):
    * ``Update description about the new ''connection-types'' provider meta-data (#17767)``
-   * ``Import Hooks lazily individually in providers manager (#17682)``
 
 2.0.0
 .....

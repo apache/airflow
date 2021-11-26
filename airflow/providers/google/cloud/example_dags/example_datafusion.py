@@ -19,6 +19,7 @@
 Example Airflow DAG that shows how to use DataFusion.
 """
 import os
+from datetime import datetime
 
 from airflow import models
 from airflow.operators.bash import BashOperator
@@ -35,7 +36,6 @@ from airflow.providers.google.cloud.operators.datafusion import (
     CloudDataFusionUpdateInstanceOperator,
 )
 from airflow.providers.google.cloud.sensors.datafusion import CloudDataFusionPipelineStateSensor
-from airflow.utils import dates
 from airflow.utils.state import State
 
 # [START howto_data_fusion_env_variables]
@@ -153,7 +153,8 @@ PIPELINE = {
 with models.DAG(
     "example_data_fusion",
     schedule_interval='@once',  # Override to match your needs
-    start_date=dates.days_ago(1),
+    start_date=datetime(2021, 1, 1),
+    catchup=False,
 ) as dag:
     # [START howto_cloud_data_fusion_create_instance_operator]
     create_instance = CloudDataFusionCreateInstanceOperator(

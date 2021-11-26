@@ -29,18 +29,16 @@ AWS_CONN_ID = 'aws_default'
 
 @task(task_id="create_queue")
 def create_queue_fn():
-    """This is a python callback that creates an SQS queue"""
-    hook = SQSHook(aws_conn_id=AWS_CONN_ID)
-    result = hook.create_queue(
-        queue_name=QUEUE_NAME,
-    )
+    """This is a Python function that creates an SQS queue"""
+    hook = SQSHook()
+    result = hook.create_queue(queue_name=QUEUE_NAME)
     return result['QueueUrl']
 
 
 @task(task_id="delete_queue")
 def delete_queue_fn(queue_url):
-    """This is a python callback that deletes an SQS queue"""
-    hook = SQSHook(aws_conn_id=AWS_CONN_ID)
+    """This is a Python function that deletes an SQS queue"""
+    hook = SQSHook()
     hook.get_conn().delete_queue(QueueUrl=queue_url)
 
 
@@ -63,7 +61,6 @@ with DAG(
         message_content="{{ task_instance }}-{{ execution_date }}",
         message_attributes=None,
         delay_seconds=0,
-        aws_conn_id=AWS_CONN_ID,
     )
 
     read_from_queue = SQSSensor(
@@ -75,7 +72,6 @@ with DAG(
         message_filtering=None,
         message_filtering_match_values=None,
         message_filtering_config=None,
-        aws_conn_id=AWS_CONN_ID,
     )
 
     # Using a task-decorated function to delete the SQS queue we created earlier

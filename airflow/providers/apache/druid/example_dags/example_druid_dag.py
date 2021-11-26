@@ -19,22 +19,20 @@
 """
 Example Airflow DAG to submit Apache Druid json index file using `DruidOperator`
 """
+from datetime import datetime
+
 from airflow.models import DAG
 from airflow.providers.apache.druid.operators.druid import DruidOperator
-from airflow.utils.dates import days_ago
 
 with DAG(
     dag_id='example_druid_operator',
     schedule_interval=None,
-    start_date=days_ago(2),
+    start_date=datetime(2021, 1, 1),
+    catchup=False,
     tags=['example'],
 ) as dag:
     # [START howto_operator_druid_submit]
-    submit_job = DruidOperator(
-        task_id='spark_submit_job',
-        json_index_file='json_index.json',
-        druid_ingest_conn_id='druid_ingest_default',
-    )
+    submit_job = DruidOperator(task_id='spark_submit_job', json_index_file='json_index.json')
     # Example content of json_index.json:
     JSON_INDEX_STR = """
         {

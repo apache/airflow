@@ -20,6 +20,8 @@ Example Airflow DAG for Google Cloud Storage operators.
 """
 
 import os
+from datetime import datetime
+from tempfile import gettempdir
 
 from airflow import models
 from airflow.operators.bash import BashOperator
@@ -39,8 +41,9 @@ from airflow.providers.google.cloud.sensors.gcs import (
 from airflow.providers.google.cloud.transfers.gcs_to_gcs import GCSToGCSOperator
 from airflow.providers.google.cloud.transfers.gcs_to_local import GCSToLocalFilesystemOperator
 from airflow.providers.google.cloud.transfers.local_to_gcs import LocalFilesystemToGCSOperator
-from airflow.utils.dates import days_ago
 from airflow.utils.state import State
+
+START_DATE = datetime(2021, 1, 1)
 
 PROJECT_ID = os.environ.get("GCP_PROJECT_ID", "example-id")
 BUCKET_1 = os.environ.get("GCP_GCS_BUCKET_1", "test-gcs-example-bucket")
@@ -50,21 +53,38 @@ GCS_ACL_OBJECT_ROLE = "OWNER"
 
 BUCKET_2 = os.environ.get("GCP_GCS_BUCKET_2", "test-gcs-example-bucket-2")
 
-PATH_TO_TRANSFORM_SCRIPT = os.environ.get('GCP_GCS_PATH_TO_TRANSFORM_SCRIPT', 'test.py')
-PATH_TO_UPLOAD_FILE = os.environ.get("GCP_GCS_PATH_TO_UPLOAD_FILE", "test-gcs-example.txt")
+temp_dir_path = gettempdir()
+PATH_TO_TRANSFORM_SCRIPT = os.environ.get(
+    "GCP_GCS_PATH_TO_TRANSFORM_SCRIPT", os.path.join(temp_dir_path, "transform_script.py")
+)
+PATH_TO_UPLOAD_FILE = os.environ.get(
+    "GCP_GCS_PATH_TO_UPLOAD_FILE", os.path.join(temp_dir_path, "test-gcs-example-upload.txt")
+)
 PATH_TO_UPLOAD_FILE_PREFIX = os.environ.get("GCP_GCS_PATH_TO_UPLOAD_FILE_PREFIX", "test-gcs-")
-PATH_TO_SAVED_FILE = os.environ.get("GCP_GCS_PATH_TO_SAVED_FILE", "test-gcs-example-download.txt")
+PATH_TO_SAVED_FILE = os.environ.get(
+    "GCP_GCS_PATH_TO_SAVED_FILE", os.path.join(temp_dir_path, "test-gcs-example-download.txt")
+)
 
 BUCKET_FILE_LOCATION = PATH_TO_UPLOAD_FILE.rpartition("/")[-1]
 
 with models.DAG(
     "example_gcs",
-    start_date=days_ago(1),
+    start_date=START_DATE,
+    catchup=False,
     schedule_interval='@once',
     tags=['example'],
 ) as dag:
     create_bucket1 = GCSCreateBucketOperator(
-        task_id="create_bucket1", bucket_name=BUCKET_1, project_id=PROJECT_ID
+        task_id="create_bucket1",
+        bucket_name=BUCKET_1,
+        project_id=PROJECT_ID,
+        resource={
+            "iamConfiguration": {
+                "uniformBucketLevelAccess": {
+                    "enabled": False,
+                },
+            },
+        },
     )
 
     create_bucket2 = GCSCreateBucketOperator(
@@ -159,7 +179,8 @@ with models.DAG(
 
 with models.DAG(
     "example_gcs_sensors",
-    start_date=days_ago(1),
+    start_date=START_DATE,
+    catchup=False,
     schedule_interval='@once',
     tags=['example'],
 ) as dag2:
@@ -175,7 +196,7 @@ with models.DAG(
     # [START howto_sensor_object_exists_task]
     gcs_object_exists = GCSObjectExistenceSensor(
         bucket=BUCKET_1,
-        object=PATH_TO_UPLOAD_FILE,
+        object=BUCKET_FILE_LOCATION,
         mode='poke',
         task_id="gcs_object_exists_task",
     )

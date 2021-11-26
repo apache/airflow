@@ -141,7 +141,7 @@ class TestDotRenderer:
 
         dot = dot_renderer.render_dag(dag)
 
-        assert dot.source == '\n'.join(
+        assert dot.source.strip() == '\n'.join(
             [
                 'digraph example_task_group {',
                 '\tgraph [label=example_task_group labelloc=t rankdir=LR]',

@@ -182,6 +182,9 @@ class GoogleBaseHook(BaseHook):
             "extra__google_cloud_platform__scope": StringField(
                 lazy_gettext('Scopes (comma separated)'), widget=BS3TextFieldWidget()
             ),
+            "extra__google_cloud_platform__key_secret_name": StringField(
+                lazy_gettext('Keyfile Secret Name (in GCP Secret Manager)'), widget=BS3TextFieldWidget()
+            ),
             "extra__google_cloud_platform__num_retries": IntegerField(
                 lazy_gettext('Number of Retries'),
                 validators=[NumberRange(min=0)],
@@ -225,12 +228,14 @@ class GoogleBaseHook(BaseHook):
                 keyfile_dict_json = json.loads(keyfile_dict)
         except json.decoder.JSONDecodeError:
             raise AirflowException('Invalid key JSON.')
+        key_secret_name: Optional[str] = self._get_field('key_secret_name', None)
 
         target_principal, delegates = _get_target_principal_and_delegates(self.impersonation_chain)
 
         credentials, project_id = get_credentials_and_project_id(
             key_path=key_path,
             keyfile_dict=keyfile_dict_json,
+            key_secret_name=key_secret_name,
             scopes=self.scopes,
             delegate_to=self.delegate_to,
             target_principal=target_principal,

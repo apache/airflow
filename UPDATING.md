@@ -27,6 +27,7 @@ assists users migrating to a new version.
 **Table of contents**
 
 - [Main](#main)
+- [Airflow 2.2.2](#airflow-222)
 - [Airflow 2.2.1](#airflow-221)
 - [Airflow 2.2.0](#airflow-220)
 - [Airflow 2.1.4](#airflow-214)
@@ -77,6 +78,10 @@ More tips can be found in the guide:
 https://developers.google.com/style/inclusive-documentation
 
 -->
+
+## Airflow 2.2.2
+
+No breaking changes.
 
 ## Airflow 2.2.1
 
@@ -165,8 +170,9 @@ Similarly, `DAG.concurrency` has been renamed to `DAG.max_active_tasks`.
 ```python
 dag = DAG(
     dag_id="example_dag",
+    start_date=datetime(2021, 1, 1),
+    catchup=False,
     concurrency=3,
-    start_date=days_ago(2),
 )
 ```
 
@@ -175,8 +181,9 @@ dag = DAG(
 ```python
 dag = DAG(
     dag_id="example_dag",
+    start_date=datetime(2021, 1, 1),
+    catchup=False,
     max_active_tasks=3,
-    start_date=days_ago(2),
 )
 ```
 
@@ -286,6 +293,12 @@ In Airflow 2.2 we have changed this and now there is a database-level foreign ke
 Before updating to this 2.2 release you will have to manually resolve any inconsistencies (add back DagRun rows, or delete TaskInstances) if you have any "dangling" TaskInstance" rows.
 
 As part of this change the `clean_tis_without_dagrun_interval` config option under `[scheduler]` section has been removed and has no effect.
+
+### TaskInstance and TaskReschedule now define `run_id` instead of `execution_date`
+
+As a part of the TaskInstance-DagRun relation change, the `execution_date` columns on TaskInstance and TaskReschedule have been removed from the database, and replaced by [association proxy](https://docs.sqlalchemy.org/en/13/orm/extensions/associationproxy.html) fields at the ORM level. If you access Airflow’s metadatabase directly, you should rewrite the implementation to use the `run_id` columns instead.
+
+Note that Airflow’s metadatabase definition on both the database and ORM levels are considered implementation detail without strict backward compatibility guarantees.
 
 ### DaskExecutor - Dask Worker Resources and queues
 
@@ -1867,6 +1880,58 @@ It is highly recommended to have 1TB+ disk size for Dataproc to have sufficient 
 https://cloud.google.com/compute/docs/disks/performance
 
 Hence, the default value for `master_disk_size` in `DataprocCreateClusterOperator` has been changed from 500GB to 1TB.
+
+##### Generating Cluster Config
+
+If you are upgrading from Airflow 1.10.x and are not using **CLUSTER_CONFIG**,
+You can easily generate config using **make()** of `airflow.providers.google.cloud.operators.dataproc.ClusterGenerator`
+
+This has been proved specially useful if you are using **metadata** argument from older API, refer [AIRFLOW-16911](https://github.com/apache/airflow/issues/16911) for details.
+
+eg. your cluster creation may look like this in **v1.10.x**
+
+```python
+path = f"gs://goog-dataproc-initialization-actions-us-central1/python/pip-install.sh"
+
+create_cluster = DataprocClusterCreateOperator(
+    task_id="create_dataproc_cluster",
+    cluster_name="test",
+    project_id="test",
+    zone="us-central1-a",
+    region="us-central1",
+    master_machine_type="n1-standard-4",
+    worker_machine_type="n1-standard-4",
+    num_workers=2,
+    storage_bucket="test_bucket",
+    init_actions_uris=[path],
+    metadata={"PIP_PACKAGES": "pyyaml requests pandas openpyxl"},
+)
+```
+
+After upgrading to **v2.x.x** and using **CLUSTER_CONFIG**, it will look like followed:
+
+```python
+path = f"gs://goog-dataproc-initialization-actions-us-central1/python/pip-install.sh"
+
+CLUSTER_CONFIG = ClusterGenerator(
+    project_id="test",
+    zone="us-central1-a",
+    master_machine_type="n1-standard-4",
+    worker_machine_type="n1-standard-4",
+    num_workers=2,
+    storage_bucket="test",
+    init_actions_uris=[path],
+    metadata={"PIP_PACKAGES": "pyyaml requests pandas openpyxl"},
+).make()
+
+create_cluster_operator = DataprocClusterCreateOperator(
+    task_id="create_dataproc_cluster",
+    cluster_name="test",
+    project_id="test",
+    region="us-central1",
+    cluster_config=CLUSTER_CONFIG,
+)
+```
 
 #### `airflow.providers.google.cloud.operators.bigquery.BigQueryGetDatasetTablesOperator`
 

@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-"""This module contains operator to move data from MSSQL to Hive."""
+"""This module contains an operator to move data from MSSQL to Hive."""
 
 from collections import OrderedDict
 from tempfile import NamedTemporaryFile

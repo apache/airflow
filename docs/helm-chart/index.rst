@@ -30,6 +30,7 @@ Helm Chart for Apache Airflow
     adding-connections-and-variables
     manage-dags-files
     manage-logs
+    setting-resources-for-containers
     keda
     using-additional-containers
     Installing from sources<installing-helm-chart-from-sources>
@@ -56,7 +57,7 @@ deployment on a `Kubernetes <http://kubernetes.io>`__ cluster using the
 Requirements
 ------------
 
--  Kubernetes 1.14+ cluster
+-  Kubernetes 1.20+ cluster
 -  Helm 3.0+
 -  PV provisioner support in the underlying infrastructure (optionally)
 
@@ -117,3 +118,14 @@ To uninstall/delete the ``airflow`` deployment:
     helm delete airflow --namespace airflow
 
 The command removes all the Kubernetes components associated with the chart and deletes the release.
+
+Installing the Chart with ArgoCD
+--------------------------------
+
+When installing the chart using ArgoCD, you MUST set the two following values, or your application
+will not start as the migrations will not be run:
+
+.. code-block:: yaml
+
+   createUserJob.useHelmHooks: false
+   migrateDatabaseJob.useHelmHooks: false

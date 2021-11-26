@@ -14,7 +14,6 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 from typing import Any, Dict, Optional
 
 import jsonschema
@@ -49,6 +48,7 @@ class Param:
     """
 
     __NO_VALUE_SENTINEL = NoValueSentinel()
+    CLASS_IDENTIFIER = '__class'
 
     def __init__(self, default: Any = __NO_VALUE_SENTINEL, description: str = None, **kwargs):
         self.value = default
@@ -90,7 +90,7 @@ class Param:
 
     def dump(self) -> dict:
         """Dump the Param as a dictionary"""
-        out_dict = {'__class': f'{self.__module__}.{self.__class__.__name__}'}
+        out_dict = {self.CLASS_IDENTIFIER: f'{self.__module__}.{self.__class__.__name__}'}
         out_dict.update(self.__dict__)
         return out_dict
 

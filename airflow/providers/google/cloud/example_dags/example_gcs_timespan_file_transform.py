@@ -20,10 +20,10 @@ Example Airflow DAG for Google Cloud Storage time-span file transform operator.
 """
 
 import os
+from datetime import datetime
 
 from airflow import models
 from airflow.providers.google.cloud.operators.gcs import GCSTimeSpanFileTransformOperator
-from airflow.utils.dates import days_ago
 from airflow.utils.state import State
 
 SOURCE_BUCKET = os.environ.get("GCP_GCS_BUCKET_1", "test-gcs-example-bucket")
@@ -40,7 +40,8 @@ PATH_TO_TRANSFORM_SCRIPT = os.environ.get(
 
 with models.DAG(
     "example_gcs_timespan_file_transform",
-    start_date=days_ago(1),
+    start_date=datetime(2021, 1, 1),
+    catchup=False,
     schedule_interval='@once',
     tags=['example'],
 ) as dag:

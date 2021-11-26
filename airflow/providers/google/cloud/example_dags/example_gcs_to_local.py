@@ -14,12 +14,11 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 import os
+from datetime import datetime
 
 from airflow import models
 from airflow.providers.google.cloud.transfers.gcs_to_local import GCSToLocalFilesystemOperator
-from airflow.utils.dates import days_ago
 
 PROJECT_ID = os.environ.get("GCP_PROJECT_ID", "example-id")
 BUCKET = os.environ.get("GCP_GCS_BUCKET", "test-gcs-example-bucket")
@@ -29,8 +28,9 @@ PATH_TO_LOCAL_FILE = os.environ.get("GCP_GCS_PATH_TO_SAVED_FILE", "test-gcs-exam
 
 with models.DAG(
     "example_gcs_to_local",
-    start_date=days_ago(1),
     schedule_interval='@once',
+    start_date=datetime(2021, 1, 1),
+    catchup=False,
     tags=['example'],
 ) as dag:
     # [START howto_operator_gcs_download_file_task]

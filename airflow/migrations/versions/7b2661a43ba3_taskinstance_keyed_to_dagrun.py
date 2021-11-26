@@ -30,7 +30,7 @@ import sqlalchemy as sa
 from alembic import op
 from sqlalchemy.sql import and_, column, select, table
 
-from airflow.models.base import COLLATION_ARGS
+from airflow.migrations.db_types import TIMESTAMP, StringID
 
 ID_LEN = 250
 
@@ -39,19 +39,6 @@ revision = '7b2661a43ba3'
 down_revision = '142555e44c17'
 branch_labels = None
 depends_on = None
-
-
-def _datetime_type(dialect_name):
-    if dialect_name == "mssql":
-        from sqlalchemy.dialects import mssql
-
-        return mssql.DATETIME2(precision=6)
-    elif dialect_name == "mysql":
-        from sqlalchemy.dialects import mysql
-
-        return mysql.DATETIME(fsp=6)
-
-    return sa.TIMESTAMP(timezone=True)
 
 
 # Just Enough Table to run the conditions for update.
@@ -106,9 +93,9 @@ def upgrade():
     """Apply TaskInstance keyed to DagRun"""
     conn = op.get_bind()
     dialect_name = conn.dialect.name
-    dt_type = _datetime_type(dialect_name)
 
-    string_id_col_type = sa.String(length=ID_LEN, **COLLATION_ARGS)
+    dt_type = TIMESTAMP
+    string_id_col_type = StringID()
 
     if dialect_name == 'sqlite':
         naming_convention = {
@@ -326,8 +313,8 @@ def upgrade():
 def downgrade():
     """Unapply TaskInstance keyed to DagRun"""
     dialect_name = op.get_bind().dialect.name
-    dt_type = _datetime_type(dialect_name)
-    string_id_col_type = sa.String(length=ID_LEN, **COLLATION_ARGS)
+    dt_type = TIMESTAMP
+    string_id_col_type = StringID()
 
     op.add_column('task_instance', sa.Column('execution_date', dt_type, nullable=True))
     op.add_column('task_reschedule', sa.Column('execution_date', dt_type, nullable=True))
@@ -347,12 +334,12 @@ def downgrade():
         batch_op.drop_index('idx_task_reschedule_dag_task_run')
 
     with op.batch_alter_table('task_instance', schema=None) as batch_op:
+        batch_op.drop_constraint('task_instance_pkey', type_='primary')
         batch_op.alter_column('execution_date', existing_type=dt_type, existing_nullable=True, nullable=False)
         batch_op.alter_column(
             'dag_id', existing_type=string_id_col_type, existing_nullable=True, nullable=True
         )
 
-        batch_op.drop_constraint('task_instance_pkey', type_='primary')
         batch_op.create_primary_key('task_instance_pkey', ['dag_id', 'task_id', 'execution_date'])
 
         batch_op.drop_constraint('task_instance_dag_run_fkey', type_='foreignkey')
@@ -416,11 +403,11 @@ def downgrade():
         )
     else:
         with op.batch_alter_table('dag_run', schema=None) as batch_op:
-            batch_op.drop_index('dag_id_state', table_name='dag_run')
+            batch_op.drop_index('dag_id_state')
             batch_op.alter_column('run_id', existing_type=sa.VARCHAR(length=250), nullable=True)
             batch_op.alter_column('execution_date', existing_type=dt_type, nullable=True)
             batch_op.alter_column('dag_id', existing_type=sa.VARCHAR(length=250), nullable=True)
-            batch_op.create_index('dag_id_state', 'dag_run', ['dag_id', 'state'], unique=False)
+            batch_op.create_index('dag_id_state', ['dag_id', 'state'], unique=False)
 
 
 def _multi_table_update(dialect_name, target, column):

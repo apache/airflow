@@ -1,4 +1,3 @@
-#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -15,15 +14,28 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Used for unit tests"""
-from airflow import DAG
-from airflow.operators.bash import BashOperator
-from airflow.utils.dates import days_ago
 
-with DAG(dag_id='test_utils', schedule_interval=None, tags=['example']) as dag:
-    task = BashOperator(
-        task_id='sleeps_forever',
-        bash_command="sleep 10000000000",
-        start_date=days_ago(2),
-        owner='airflow',
-    )
+import subprocess
+
+from docker_tests.command_utils import run_command
+from docker_tests.docker_tests_utils import (
+    display_dependency_conflict_message,
+    docker_image,
+    run_bash_in_docker,
+)
+
+
+class TestFiles:
+    def test_dist_folder_should_exists(self):
+        run_bash_in_docker('[ -f /opt/airflow/airflow/www/static/dist/manifest.json ] || exit 1')
+
+
+class TestPythonPackages:
+    def test_pip_dependencies_conflict(self):
+        try:
+            run_command(
+                ["docker", "run", "--rm", "--entrypoint", "/bin/bash", docker_image, "-c", 'pip check']
+            )
+        except subprocess.CalledProcessError as ex:
+            display_dependency_conflict_message()
+            raise ex

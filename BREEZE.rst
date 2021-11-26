@@ -1391,6 +1391,10 @@ This is the current syntax for  `./breeze <./breeze>`_:
           Disables installation of the mysql client which might be problematic if you are building
           image in controlled environment. Only valid for production image.
 
+  --disable-mssql-client-installation
+          Disables installation of the mssql client which might be problematic if you are building
+          image in controlled environment. Only valid for production image.
+
   --constraints-location
           Url to the constraints file. In case of the production image it can also be a path to the
           constraint file placed in 'docker-context-files' folder, in which case it has to be
@@ -1990,6 +1994,10 @@ This is the current syntax for  `./breeze <./breeze>`_:
           Disables installation of the mysql client which might be problematic if you are building
           image in controlled environment. Only valid for production image.
 
+  --disable-mssql-client-installation
+          Disables installation of the mssql client which might be problematic if you are building
+          image in controlled environment. Only valid for production image.
+
   --constraints-location
           Url to the constraints file. In case of the production image it can also be a path to the
           constraint file placed in 'docker-context-files' folder, in which case it has to be
@@ -2187,21 +2195,21 @@ This is the current syntax for  `./breeze <./breeze>`_:
 
                  all airflow-config-yaml airflow-providers-available airflow-provider-yaml-files-ok
                  base-operator bats-tests bats-in-container-tests black blacken-docs boring-cyborg
-                 build build-providers-dependencies check-apache-license check-builtin-literals
-                 check-executables-have-shebangs check-extras-order check-hooks-apply
-                 check-integrations check-merge-conflict check-xml daysago-import-check
-                 debug-statements detect-private-key doctoc dont-use-safe-filter end-of-file-fixer
-                 fix-encoding-pragma flake8 flynt codespell forbid-tabs helm-lint identity
-                 incorrect-use-of-LoggingMixin insert-license isort json-schema language-matters
-                 lint-dockerfile lint-openapi markdownlint mermaid mixed-line-ending mypy mypy-helm
-                 no-providers-in-core-examples no-relative-imports pre-commit-descriptions
-                 pre-commit-hook-names pretty-format-json provide-create-sessions
-                 providers-changelogs providers-init-file providers-subpackages-init-file
-                 provider-yamls pydevd pydocstyle python-no-log-warn pyupgrade restrict-start_date
-                 rst-backticks setup-order setup-extra-packages shellcheck sort-in-the-wild
-                 sort-spelling-wordlist stylelint trailing-whitespace ui-lint update-breeze-file
-                 update-extras update-local-yml-file update-setup-cfg-file update-versions
-                 verify-db-migrations-documented version-sync www-lint yamllint yesqa
+                 build build-providers-dependencies changelog-duplicates check-apache-license
+                 check-builtin-literals check-executables-have-shebangs check-extras-order
+                 check-hooks-apply check-integrations check-merge-conflict check-xml
+                 daysago-import-check debug-statements detect-private-key doctoc dont-use-safe-filter
+                 end-of-file-fixer fix-encoding-pragma flake8 flynt codespell forbid-tabs helm-lint
+                 identity incorrect-use-of-LoggingMixin insert-license isort json-schema
+                 language-matters lint-dockerfile lint-openapi markdownlint mermaid mixed-line-ending
+                 mypy mypy-helm no-providers-in-core-examples no-relative-imports
+                 pre-commit-descriptions pre-commit-hook-names pretty-format-json
+                 provide-create-sessions providers-changelogs providers-init-file
+                 providers-subpackages-init-file provider-yamls pydevd pydocstyle python-no-log-warn
+                 pyupgrade restrict-start_date rst-backticks setup-order setup-extra-packages
+                 shellcheck sort-in-the-wild sort-spelling-wordlist stylelint trailing-whitespace
+                 ui-lint update-breeze-file update-extras update-local-yml-file update-setup-cfg-file
+                 update-versions verify-db-migrations-documented version-sync www-lint yamllint yesqa
 
         You can pass extra arguments including options to the pre-commit framework as
         <EXTRA_ARGS> passed after --. For example:
@@ -2389,9 +2397,9 @@ This is the current syntax for  `./breeze <./breeze>`_:
           Kubernetes version - only used in case one of kind-cluster commands is used.
           One of:
 
-                 v1.20.2 v1.19.7 v1.18.15
+                 v1.21.1 v1.20.2
 
-          Default: v1.20.2
+          Default: v1.21.1
 
   --kind-version KIND_VERSION
           Kind version - only used in case one of kind-cluster commands is used.
@@ -2577,6 +2585,10 @@ This is the current syntax for  `./breeze <./breeze>`_:
 
   --disable-mysql-client-installation
           Disables installation of the mysql client which might be problematic if you are building
+          image in controlled environment. Only valid for production image.
+
+  --disable-mssql-client-installation
+          Disables installation of the mssql client which might be problematic if you are building
           image in controlled environment. Only valid for production image.
 
   --constraints-location

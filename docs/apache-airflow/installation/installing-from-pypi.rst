@@ -46,19 +46,19 @@ This is an example, see further for more explanation.
 Constraints files
 '''''''''''''''''
 
-Airflow installation might be sometimes tricky because Airflow is a bit of both a library and application.
+Airflow installation can be tricky sometimes because Airflow is both a library and an application.
 Libraries usually keep their dependencies open and applications usually pin them, but we should do neither
 and both at the same time. We decided to keep our dependencies as open as possible
 (in ``setup.cfg`` and ``setup.py``) so users can install different
 version of libraries if needed. This means that from time to time plain ``pip install apache-airflow`` will
-not work or will produce unusable Airflow installation.
+not work or will produce an unusable Airflow installation.
 
-In order to have repeatable installation, we also keep a set of "known-to-be-working" constraint files in the
-``constraints-main``, ``constraints-2-0``, ``constraints-2-1`` etc. orphan branches and then we create tag
-for each released version e.g. :subst-code:`constraints-|version|`. This way, when we keep a tested and working set of dependencies.
+In order to have a repeatable installation, we also keep a set of "known-to-be-working" constraint files in the
+``constraints-main``, ``constraints-2-0``, ``constraints-2-1`` etc. orphan branches and then we create a tag
+for each released version e.g. :subst-code:`constraints-|version|`. This way, we keep a tested and working set of dependencies.
 
 Those "known-to-be-working" constraints are per major/minor Python version. You can use them as constraint
-files when installing Airflow from PyPI. Note that you have to specify correct Airflow version
+files when installing Airflow from PyPI. Note that you have to specify the correct Airflow
 and Python versions in the URL.
 
 You can create the URL to the file substituting the variables in the template below.

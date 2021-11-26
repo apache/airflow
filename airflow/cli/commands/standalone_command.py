@@ -228,7 +228,10 @@ class StandaloneCommand:
         Checks if the given job name is running and heartbeating correctly
         (used to tell if scheduler is alive)
         """
-        return job.most_recent_job().is_alive()
+        recent = job.most_recent_job()
+        if not recent:
+            return False
+        return recent.is_alive()
 
     def print_ready(self):
         """

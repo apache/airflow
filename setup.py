@@ -307,6 +307,7 @@ google = [
     'google-cloud-container>=0.1.1,<2.0.0',
     'google-cloud-datacatalog>=3.0.0,<4.0.0',
     'google-cloud-dataproc>=2.2.0,<4.0.0',
+    'google-cloud-dataproc-metastore>=1.2.0,<2.0.0',
     'google-cloud-dlp>=0.11.0,<2.0.0',
     'google-cloud-kms>=2.0.0,<3.0.0',
     'google-cloud-language>=1.1.1,<2.0.0',
@@ -346,6 +347,7 @@ hashicorp = [
 ]
 hdfs = [
     'snakebite-py3',
+    'hdfs[avro,dataframe,kerberos]>=2.0.4',
 ]
 hive = [
     'hmsclient>=0.1.0',
@@ -530,7 +532,7 @@ devel_only = [
     'jira',
     'jsondiff',
     'mongomock',
-    'moto~=2.2, >=2.2.7',
+    'moto~=2.2, >=2.2.12',
     'mypy==0.770',
     'parameterized',
     'paramiko',

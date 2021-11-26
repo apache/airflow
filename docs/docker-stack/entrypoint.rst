@@ -206,7 +206,7 @@ propagation (See the next chapter).
 
 .. code-block:: Dockerfile
 
-    FROM airflow::2.3.0.dev0
+    FROM airflow:2.3.0.dev0
     COPY my_entrypoint.sh /
     ENTRYPOINT ["/usr/bin/dumb-init", "--", "/my_entrypoint.sh"]
 
@@ -250,15 +250,15 @@ Similarly to custom entrypoint, it can be added to the image by extending it.
 
 .. code-block:: Dockerfile
 
-    FROM airflow::2.3.0.dev0
+    FROM airflow:2.3.0.dev0
     COPY my_after_entrypoint_script.sh /
 
-
-And then you can run this script by running the command:
+Build your image and then you can run this script by running the command:
 
 .. code-block:: bash
 
-  docker run -it apache/airflow:2.3.0.dev0-python3.6 bash -c "/my_after_entrypoint_script.sh"
+  docker build . --tag my-image:0.0.1
+  docker run -it my-image:0.0.1 bash -c "/my_after_entrypoint_script.sh"
 
 
 Signal propagation

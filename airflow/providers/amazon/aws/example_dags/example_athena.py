@@ -36,7 +36,6 @@ SAMPLE_DATA = """"Alice",20
 "Charlie",30
 """
 SAMPLE_FILENAME = 'airflow_sample.csv'
-AWS_CONN_ID = 'aws_default'
 
 
 @task(task_id='setup__add_sample_data_to_s3')
@@ -99,7 +98,6 @@ with DAG(
         output_location=f's3://{S3_BUCKET}/{S3_KEY}',
         sleep_time=30,
         max_tries=None,
-        aws_conn_id=AWS_CONN_ID,
     )
 
     read_table = AWSAthenaOperator(
@@ -109,21 +107,17 @@ with DAG(
         output_location=f's3://{S3_BUCKET}/{S3_KEY}',
         sleep_time=30,
         max_tries=None,
-        aws_conn_id=AWS_CONN_ID,
     )
 
     get_read_state = AthenaSensor(
         task_id='query__get_read_state',
-        query_execution_id="{{ task_instance.xcom_pull('query__read_table', key='return_value') }}",
+        query_execution_id=read_table.output,
         max_retries=None,
         sleep_time=10,
-        aws_conn_id=AWS_CONN_ID,
     )
 
     # Using a task-decorated function to read the results from S3
-    read_results_from_s3 = read_results_from_s3(
-        "{{ task_instance.xcom_pull('query__read_table', key='return_value') }}"
-    )
+    read_results_from_s3 = read_results_from_s3(read_table.output)
 
     drop_table = AWSAthenaOperator(
         task_id='teardown__drop_table',
@@ -132,7 +126,6 @@ with DAG(
         output_location=f's3://{S3_BUCKET}/{S3_KEY}',
         sleep_time=30,
         max_tries=None,
-        aws_conn_id=AWS_CONN_ID,
     )
 
     # Using a task-decorated function to delete the S3 file we created earlier
@@ -148,3 +141,7 @@ with DAG(
         >> remove_sample_data_from_s3
     )
     # [END howto_athena_operator_and_sensor]
+
+    # Task dependencies created via `XComArgs`:
+    #   read_table >> get_read_state
+    #   read_table >> read_results_from_s3

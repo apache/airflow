@@ -27,7 +27,7 @@ The document below describes the database engine configurations, the necessary c
 Choosing database backend
 -------------------------
 
-If you want to take a real test drive of Airflow, you should consider setting up a database backend to **MySQL**, **PostgreSQL** , **MsSQL**.
+If you want to take a real test drive of Airflow, you should consider setting up a database backend to **PostgreSQL**, **MySQL**, or **MSSQL**.
 By default, Airflow uses **SQLite**, which is intended for development purposes only.
 
 Airflow supports the following database engine versions, so make sure which version you have. Old versions may not support all SQL statements.
@@ -147,49 +147,6 @@ Post install add ``/usr/local/lib`` to library path
 
   export LD_LIBRARY_PATH=/usr/local/lib:$LD_LIBRARY_PATH
 
-Setting up a MySQL Database
----------------------------
-
-You need to create a database and a database user that Airflow will use to access this database.
-In the example below, a database ``airflow_db`` and user  with username ``airflow_user`` with password ``airflow_pass`` will be created
-
-.. code-block:: sql
-
-   CREATE DATABASE airflow_db CHARACTER SET utf8 COLLATE utf8mb4_unicode_ci;
-   CREATE USER 'airflow_user' IDENTIFIED BY 'airflow_pass';
-   GRANT ALL PRIVILEGES ON airflow_db.* TO 'airflow_user';
-
-
-.. note::
-
-   The database must use a UTF-8 character set. A small caveat that you must be aware of is that utf8 in newer versions of MySQL is really utf8mb4 which
-   causes Airflow indexes to grow too large (see https://github.com/apache/airflow/pull/17603#issuecomment-901121618). Therefore as of Airflow 2.2
-   all MySQL databases have ``sql_engine_collation_for_ids`` set automatically to ``utf8mb3_bin`` (unless you override it). This might
-   lead to a mixture of collation ids for id fields in Airflow Database, but it has no negative consequences since all relevant IDs in Airflow use
-   ASCII characters only.
-
-We rely on more strict ANSI SQL settings for MySQL in order to have sane defaults.
-Make sure to have specified ``explicit_defaults_for_timestamp=1`` option under ``[mysqld]`` section
-in your ``my.cnf`` file. You can also activate these options with the ``--explicit-defaults-for-timestamp`` switch passed to ``mysqld`` executable
-
-We recommend using the ``mysqlclient`` driver and specifying it in your SqlAlchemy connection string.
-
-.. code-block:: text
-
-    mysql+mysqldb://<user>:<password>@<host>[:<port>]/<dbname>
-
-But we also support the ``mysql-connector-python`` driver, which lets you connect through SSL
-without any cert options provided.
-
-.. code-block:: text
-
-   mysql+mysqlconnector://<user>:<password>@<host>[:<port>]/<dbname>
-
-However if you want to use other drivers visit the `MySQL Dialect <https://docs.sqlalchemy.org/en/13/dialects/mysql.html>`__  in SQLAlchemy documentation for more information regarding download
-and setup of the SqlAlchemy connection.
-
-In addition, you also should pay particular attention to MySQL's encoding. Although the ``utf8mb4`` character set is more and more popular for MySQL (actually, ``utf8mb4`` becomes default character set in MySQL8.0), using the ``utf8mb4`` encoding requires additional setting in Airflow 2+ (See more details in `#7570 <https://github.com/apache/airflow/pull/7570>`__.). If you use ``utf8mb4`` as character set, you should also set ``sql_engine_collation_for_ids=utf8mb3_bin``.
-
 Setting up a PostgreSQL Database
 --------------------------------
 
@@ -273,6 +230,48 @@ For more information regarding setup of the PostgreSQL connection, see `PostgreS
 
      hba
 
+Setting up a MySQL Database
+---------------------------
+
+You need to create a database and a database user that Airflow will use to access this database.
+In the example below, a database ``airflow_db`` and user  with username ``airflow_user`` with password ``airflow_pass`` will be created
+
+.. code-block:: sql
+
+   CREATE DATABASE airflow_db CHARACTER SET utf8 COLLATE utf8mb4_unicode_ci;
+   CREATE USER 'airflow_user' IDENTIFIED BY 'airflow_pass';
+   GRANT ALL PRIVILEGES ON airflow_db.* TO 'airflow_user';
+
+
+.. note::
+
+   The database must use a UTF-8 character set. A small caveat that you must be aware of is that utf8 in newer versions of MySQL is really utf8mb4 which
+   causes Airflow indexes to grow too large (see https://github.com/apache/airflow/pull/17603#issuecomment-901121618). Therefore as of Airflow 2.2
+   all MySQL databases have ``sql_engine_collation_for_ids`` set automatically to ``utf8mb3_bin`` (unless you override it). This might
+   lead to a mixture of collation ids for id fields in Airflow Database, but it has no negative consequences since all relevant IDs in Airflow use
+   ASCII characters only.
+
+We rely on more strict ANSI SQL settings for MySQL in order to have sane defaults.
+Make sure to have specified ``explicit_defaults_for_timestamp=1`` option under ``[mysqld]`` section
+in your ``my.cnf`` file. You can also activate these options with the ``--explicit-defaults-for-timestamp`` switch passed to ``mysqld`` executable
+
+We recommend using the ``mysqlclient`` driver and specifying it in your SqlAlchemy connection string.
+
+.. code-block:: text
+
+    mysql+mysqldb://<user>:<password>@<host>[:<port>]/<dbname>
+
+But we also support the ``mysql-connector-python`` driver, which lets you connect through SSL
+without any cert options provided.
+
+.. code-block:: text
+
+   mysql+mysqlconnector://<user>:<password>@<host>[:<port>]/<dbname>
+
+However if you want to use other drivers visit the `MySQL Dialect <https://docs.sqlalchemy.org/en/13/dialects/mysql.html>`__  in SQLAlchemy documentation for more information regarding download
+and setup of the SqlAlchemy connection.
+
+In addition, you also should pay particular attention to MySQL's encoding. Although the ``utf8mb4`` character set is more and more popular for MySQL (actually, ``utf8mb4`` becomes default character set in MySQL8.0), using the ``utf8mb4`` encoding requires additional setting in Airflow 2+ (See more details in `#7570 <https://github.com/apache/airflow/pull/7570>`__.). If you use ``utf8mb4`` as character set, you should also set ``sql_engine_collation_for_ids=utf8mb3_bin``.
 
 Setting up a MsSQL Database
 ---------------------------

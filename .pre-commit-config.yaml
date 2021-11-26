@@ -238,6 +238,7 @@ repos:
           ^scripts/.*\.py$|
           ^dev|
           ^provider_packages|
+          ^docker_tests|
           ^kubernetes_tests|
           .*example_dags/.*|
           ^chart/.*\.py$|
@@ -269,7 +270,9 @@ repos:
     hooks:
       - id: codespell
         name: Run codespell to check for common misspellings in files
-        entry: codespell
+        entry: bash -c 'echo "If you think that this failure is an error, consider adding the word(s)
+          to the codespell dictionary at docs/spelling_wordlist.txt.
+          The word(s) should be in lowercase." && exec codespell "$@"' --
         language: python
         types: [text]
         exclude: ^airflow/_vendor/|^CHANGELOG.txt|^airflow/www/static/css/material-icons.css
@@ -621,7 +624,7 @@ repos:
         entry: ./scripts/ci/pre_commit/pre_commit_json_schema.py
         args:
           - --spec-url
-          - https://raw.githubusercontent.com/yannh/kubernetes-json-schema/master/v1.18.15-standalone/service-v1.json
+          - https://raw.githubusercontent.com/yannh/kubernetes-json-schema/master/v1.20.2-standalone/service-v1.json
         language: python
         pass_filenames: true
         files: scripts/ci/kubernetes/nodeport.yaml
@@ -688,11 +691,17 @@ repos:
         files: ^airflow/www/static/js/
         entry: scripts/ci/static_checks/www_lint.sh
         pass_filenames: false
+      - id: changelog-duplicates
+        name: Check changelogs for duplicate entries
+        language: python
+        files: CHANGELOG\.txt$|CHANGELOG\.rst$
+        entry: scripts/ci/pre_commit/pre_commit_changelog_duplicates.py
+        pass_filenames: true
         ## ADD MOST PRE-COMMITS ABOVE THAT LINE
         # The below pre-commits are those requiring CI image to be built
       - id: build
         name: Check if image build is needed
-        entry: ./scripts/ci/pre_commit/pre_commit_ci_build.sh 3.6 false
+        entry: ./scripts/ci/pre_commit/pre_commit_ci_build.sh 3.7 false
         language: system
         always_run: true
         pass_filenames: false

@@ -276,3 +276,14 @@ class TestPodLauncher(unittest.TestCase):
                 pod=mock.sentinel,
                 startup_timeout=0,
             )
+
+    def test_base_container_is_running_none_event(self):
+        event = mock.MagicMock()
+        event_status = mock.MagicMock()
+        event_status.status = None
+        event_container_statuses = mock.MagicMock()
+        event_container_statuses.status = mock.MagicMock()
+        event_container_statuses.status.container_statuses = None
+        for e in [event, event_status, event_container_statuses]:
+            self.pod_launcher.read_pod = mock.MagicMock(return_value=e)
+            assert self.pod_launcher.base_container_is_running(None) is False

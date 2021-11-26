@@ -507,6 +507,7 @@ bq
 bugfix
 bugfixes
 buildType
+burstable
 bytestring
 cacert
 callables
@@ -960,6 +961,7 @@ mediawiki
 memberOf
 mesos
 metaclass
+metadatabase
 metarouter
 metastore
 mget
