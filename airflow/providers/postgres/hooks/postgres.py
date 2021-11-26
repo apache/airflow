@@ -138,7 +138,6 @@ class PostgresHook(DbApiHook):
                     file.truncate(file.tell())
                     conn.commit()
 
-
     def get_uri(self) -> str:
         conn = self.get_connection(getattr(self, self.conn_name_attr))
         uri = super().get_uri()
