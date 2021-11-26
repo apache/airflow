@@ -22,7 +22,7 @@ AIRFLOW_SOURCES="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../../../" && pwd)"
 cd "${AIRFLOW_SOURCES}"
 
 # [START download]
-export AIRFLOW_VERSION="2.3.0.dev0"
+export AIRFLOW_VERSION="2.2.2"
 rm docker-context-files/*.whl docker-context-files/*.tar.gz docker-context-files/*.txt || true
 
 curl -Lo "docker-context-files/constraints-3.7.txt" \

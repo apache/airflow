@@ -22,7 +22,7 @@ AIRFLOW_SOURCES="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../../../" && pwd)"
 cd "${AIRFLOW_SOURCES}"
 
 # [START build]
-export AIRFLOW_VERSION=2.2.1
+export AIRFLOW_VERSION=2.2.2
 
 docker build . \
     --build-arg PYTHON_BASE_IMAGE="python:3.8-slim-buster" \

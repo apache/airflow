@@ -46,9 +46,6 @@ def update_version(pattern: re.Pattern, v: str, file_path: str):
 REPLACEMENTS = {
     r'^(FROM apache\/airflow:).*($)': "docs/docker-stack/docker-examples/extending/*/Dockerfile",
     r'(apache\/airflow:)[^-]*(\-)': "docs/docker-stack/entrypoint.rst",
-    r'^(export AIRFLOW_VERSION=")[^"]+("$)': (
-        "docs/docker-stack/docker-examples/restricted/restricted_environments.sh"
-    ),
 }
 
 if __name__ == '__main__':
