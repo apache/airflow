@@ -62,7 +62,7 @@ def create_virtualenv():
         run_verbose([sys.executable, "-m", "venv", str(virtualenv_path)])
 
     python_bin = virtualenv_path / "bin" / "python"
-    run_verbose([str(python_bin), "-m", "pip", "install", "pytest", "pytest-xdist"])
+    run_verbose([str(python_bin), "-m", "pip", "install", "pytest", "pytest-xdist", "requests"])
     return python_bin
 
 

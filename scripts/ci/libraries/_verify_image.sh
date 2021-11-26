@@ -19,11 +19,11 @@
 function verify_image::verify_prod_image {
     DOCKER_IMAGE="${1}"
     export DOCKER_IMAGE
-    python3 "${SCRIPTS_CI_DIR}/images/ci_run_docker_tests.py" "${AIRFLOW_SOURCES}/docker_tests/prod_image.py"
+    python3 "${SCRIPTS_CI_DIR}/images/ci_run_docker_tests.py" "${AIRFLOW_SOURCES}/docker_tests/test_prod_image.py"
 }
 
 function verify_image::verify_ci_image {
     DOCKER_IMAGE="${1}"
     export DOCKER_IMAGE
-    python3 "${SCRIPTS_CI_DIR}/images/ci_run_docker_tests.py" "${AIRFLOW_SOURCES}/docker_tests/ci_image.py"
+    python3 "${SCRIPTS_CI_DIR}/images/ci_run_docker_tests.py" "${AIRFLOW_SOURCES}/docker_tests/test_ci_image.py"
 }

@@ -16,29 +16,13 @@
 # under the License.
 
 import os
-import shlex
-import subprocess
-from pathlib import Path
-from typing import List
+
+from docker_tests.command_utils import run_command
 
 docker_image = os.environ.get('DOCKER_IMAGE')
-SOURCE_ROOT = Path(__file__).resolve().parents[1]
 
 if not docker_image:
     raise Exception("The DOCKER_IMAGE environment variable is required")
-
-
-def run_command(cmd: List[str], print_output_on_error: bool = True, **kwargs):
-    print(f"$ {' '.join(shlex.quote(c) for c in cmd)}")
-    try:
-        return subprocess.check_output(cmd, **kwargs).decode()
-    except subprocess.CalledProcessError as ex:
-        if print_output_on_error:
-            print("========================= OUTPUT start ============================")
-            print(ex.stderr)
-            print(ex.stdout)
-            print("========================= OUTPUT end ============================")
-        raise
 
 
 def run_bash_in_docker(bash_script, **kwargs):
