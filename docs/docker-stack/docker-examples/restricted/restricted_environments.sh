@@ -28,9 +28,6 @@ rm docker-context-files/*.whl docker-context-files/*.tar.gz docker-context-files
 curl -Lo "docker-context-files/constraints-3.7.txt" \
     "https://raw.githubusercontent.com/apache/airflow/constraints-${AIRFLOW_VERSION}/constraints-3.7.txt"
 
-# For Airflow pre 2.1 you need to use PIP 20.2.4 to install/download Airflow packages.
-pip install pip==20.2.4
-
 pip download --dest docker-context-files \
     --constraint docker-context-files/constraints-3.7.txt  \
     "apache-airflow[async,aws,azure,celery,dask,elasticsearch,gcp,kubernetes,postgres,redis,slack,ssh,statsd,virtualenv]==${AIRFLOW_VERSION}"
