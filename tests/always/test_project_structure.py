@@ -219,6 +219,10 @@ class TestGoogleProviderProjectStructure(unittest.TestCase):
         'airflow.providers.google.cloud.operators.datastore.CloudDatastoreGetOperationOperator',
         'airflow.providers.google.cloud.sensors.gcs.GCSObjectUpdateSensor',
         'airflow.providers.google.cloud.sensors.gcs.GCSUploadSessionCompleteSensor',
+        'airflow.providers.google.cloud.operators.dataproc.DataprocGetBatchOperator',
+        'airflow.providers.google.cloud.operators.dataproc.DataprocCreateBatchOperator',
+        'airflow.providers.google.cloud.operators.dataproc.DataprocListBatchesOperator',
+        'airflow.providers.google.cloud.operators.dataproc.DataprocDeleteBatchOperator',
     }
 
     def test_example_dags(self):

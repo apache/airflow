@@ -149,6 +149,13 @@ WORKFLOW_TEMPLATE = {
     },
     "jobs": [{"step_id": "pig_job_1", "pig_job": PIG_JOB["pig_job"]}],
 }
+BATCH_ID = "test-batch-id"
+BATCH_CONFIG = {
+    "spark_batch": {
+        "jar_file_uris": ["file:///usr/lib/spark/examples/jars/spark-examples.jar"],
+        "main_class": "org.apache.spark.examples.SparkPi",
+    },
+}
 
 
 with models.DAG("example_gcp_dataproc", schedule_interval='@once', start_date=days_ago(1)) as dag:
@@ -249,6 +256,3 @@ with models.DAG("example_gcp_dataproc", schedule_interval='@once', start_date=da
     scale_cluster >> pyspark_task >> delete_cluster
     scale_cluster >> sparkr_task >> delete_cluster
     scale_cluster >> hadoop_task >> delete_cluster
-
-    # Task dependency created via `XComArgs`:
-    #   spark_task_async >> spark_task_async_sensor

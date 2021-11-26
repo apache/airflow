@@ -199,7 +199,6 @@ Once a workflow is created users can trigger it using
     :start-after: [START how_to_cloud_dataproc_trigger_workflow_template]
     :end-before: [END how_to_cloud_dataproc_trigger_workflow_template]
 
-
 References
 ^^^^^^^^^^
 For further information, take a look at:

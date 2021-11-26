@@ -102,7 +102,7 @@ PIP package                             Version required
 ``google-cloud-build``                  ``>=3.0.0,<4.0.0``
 ``google-cloud-container``              ``>=0.1.1,<2.0.0``
 ``google-cloud-datacatalog``            ``>=3.0.0,<4.0.0``
-``google-cloud-dataproc``               ``>=2.2.0,<2.6.0``
+``google-cloud-dataproc``               ``>=3.1.0,<2.6.0``
 ``google-cloud-dlp``                    ``>=0.11.0,<2.0.0``
 ``google-cloud-kms``                    ``>=2.0.0,<3.0.0``
 ``google-cloud-language``               ``>=1.1.1,<2.0.0``
