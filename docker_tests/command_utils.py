@@ -1,4 +1,3 @@
-#!/usr/bin/env bash
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -16,17 +15,22 @@
 # specific language governing permissions and limitations
 # under the License.
 
-# This is an example docker build script. It is not intended for PRODUCTION use
-set -euo pipefail
-AIRFLOW_SOURCES="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../../../" && pwd)"
-cd "${AIRFLOW_SOURCES}"
+import shlex
+import subprocess
+from typing import List
 
-# [START build]
-export AIRFLOW_VERSION=2.2.2
 
-docker build . \
-    --build-arg PYTHON_BASE_IMAGE="python:3.7-slim-buster" \
-    --build-arg AIRFLOW_VERSION="${AIRFLOW_VERSION}" \
-    --tag "my-pypi-selected-version:0.0.1"
-# [END build]
-docker rmi --force "my-pypi-selected-version:0.0.1"
+def run_command(cmd: List[str], *, print_output_on_error: bool = True, return_output: bool = False, **kwargs):
+    print(f"$ {' '.join(shlex.quote(c) for c in cmd)}")
+    try:
+        if return_output:
+            return subprocess.check_output(cmd, **kwargs).decode()
+        else:
+            subprocess.run(cmd, check=True, **kwargs)
+    except subprocess.CalledProcessError as ex:
+        if print_output_on_error:
+            print("========================= OUTPUT start ============================")
+            print(ex.stderr)
+            print(ex.stdout)
+            print("========================= OUTPUT end ============================")
+        raise

@@ -17,11 +17,11 @@
 
 import subprocess
 
+from docker_tests.command_utils import run_command
 from docker_tests.docker_tests_utils import (
     display_dependency_conflict_message,
     docker_image,
     run_bash_in_docker,
-    run_command,
 )
 
 
