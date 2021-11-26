@@ -244,7 +244,7 @@ class SchedulerJob(BaseJob):
             # COMMIT/ROLLBACK)
             lock_acquired = session.execute(
                 text("SELECT pg_try_advisory_xact_lock(:id)").bindparams(
-                    id=DBLocks.SCHEDULER_CRITICAL_SECTION
+                    id=DBLocks.SCHEDULER_CRITICAL_SECTION.value
                 )
             ).scalar()
             if not lock_acquired:
