@@ -138,6 +138,14 @@ class PostgresHook(DbApiHook):
                     file.truncate(file.tell())
                     conn.commit()
 
+    def get_uri(self) -> str:
+        conn = self.get_connection(getattr(self, self.conn_name_attr))
+        uri = super().get_uri()
+        if conn.extra_dejson.get('client_encoding', False):
+            charset = conn.extra_dejson["client_encoding"]
+            return f"{uri}?client_encoding={charset}"
+        return uri
+
     def bulk_load(self, table: str, tmp_file: str) -> None:
         """Loads a tab-delimited file into a database table"""
         self.copy_expert(f"COPY {table} FROM STDIN", tmp_file)
