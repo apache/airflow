@@ -68,7 +68,7 @@ class TestAwsBatchClient(unittest.TestCase):
         assert self.batch_client.aws_conn_id == 'airflow_test'
         assert self.batch_client.client == self.client_mock
 
-        self.get_client_type_mock.assert_called_once_with("batch", region_name=AWS_REGION)
+        self.get_client_type_mock.assert_called_once_with(region_name=AWS_REGION)
 
     def test_wait_for_job_with_success(self):
         self.client_mock.describe_jobs.return_value = {"jobs": [{"jobId": JOB_ID, "status": "SUCCEEDED"}]}

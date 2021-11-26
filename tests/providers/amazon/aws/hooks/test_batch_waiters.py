@@ -333,7 +333,7 @@ class TestAwsBatchWaiters(unittest.TestCase):
 
         # init the mock client
         self.client_mock = self.batch_waiters.client
-        get_client_type_mock.assert_called_once_with("batch", region_name=self.region_name)
+        get_client_type_mock.assert_called_once_with(region_name=self.region_name)
 
         # don't pause in these unit tests
         self.mock_delay = mock.Mock(return_value=None)
