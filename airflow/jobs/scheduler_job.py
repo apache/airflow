@@ -451,7 +451,7 @@ class SchedulerJob(BaseJob):
             if is_done or not found_new_filters:
                 break
 
-            self.log.info(
+            self.log.debug(
                 "Found no task instances to queue on the %s. iteration "
                 "but there could be more candidate task instances to check.",
                 loop_count,
