@@ -1024,6 +1024,9 @@ def create_global_lock(session, lock: DBLocks, lock_timeout=1800):
 
         yield None
     finally:
+        # The session may have been "closed" (which is fine, the lock lasts more than a transaction) -- ensure
+        # we get a usable connection
+        conn = session.connection()
         if dialect.name == 'postgresql':
             conn.execute('SET LOCK_TIMEOUT TO DEFAULT')
             conn.execute(text('SELECT pg_advisory_unlock(:id)'), id=lock.value)
