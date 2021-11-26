@@ -299,10 +299,10 @@ class SchedulerJob(BaseJob):
                 if settings.Session.bind.dialect.name == 'mssql':
                     task_filter = or_(
                         and_(
-                            TaskInstance.dag_id == ti.dag_id,
-                            TaskInstance.task_id == ti.task_id,
+                            TaskInstance.dag_id == dag_id,
+                            TaskInstance.task_id == task_id,
                         )
-                        for ti in tis
+                        for (dag_id, task_id) in starved_tasks
                     )
                 else:
                     task_filter = tuple_(TaskInstance.dag_id, TaskInstance.task_id).in_(starved_tasks)
