@@ -26,10 +26,14 @@ from datetime import datetime
 from airflow import models
 from airflow.providers.google.cloud.operators.dataproc import (
     ClusterGenerator,
+    DataprocCreateBatchOperator,
     DataprocCreateClusterOperator,
     DataprocCreateWorkflowTemplateOperator,
+    DataprocDeleteBatchOperator,
     DataprocDeleteClusterOperator,
+    DataprocGetBatchOperator,
     DataprocInstantiateWorkflowTemplateOperator,
+    DataprocListBatchesOperator,
     DataprocSubmitJobOperator,
     DataprocUpdateClusterOperator,
 )
@@ -174,6 +178,13 @@ WORKFLOW_TEMPLATE = {
     },
     "jobs": [{"step_id": "pig_job_1", "pig_job": PIG_JOB["pig_job"]}],
 }
+BATCH_ID = "test-batch-id"
+BATCH_CONFIG = {
+    "spark_batch": {
+        "jar_file_uris": ["file:///usr/lib/spark/examples/jars/spark-examples.jar"],
+        "main_class": "org.apache.spark.examples.SparkPi",
+    },
+}
 
 
 with models.DAG(
@@ -282,3 +293,41 @@ with models.DAG(
 
     # Task dependency created via `XComArgs`:
     #   spark_task_async >> spark_task_async_sensor
+
+with models.DAG(
+    "example_gcp_batch_dataproc",
+    schedule_interval='@once',
+    start_date=datetime(2021, 1, 1),
+    catchup=False,
+) as dag_batch:
+    # [START how_to_cloud_dataproc_create_batch_operator]
+    create_batch = DataprocCreateBatchOperator(
+        task_id="create_batch",
+        project_id=PROJECT_ID,
+        region=REGION,
+        batch=BATCH_CONFIG,
+        batch_id=BATCH_ID,
+    )
+    # [END how_to_cloud_dataproc_create_batch_operator]
+
+    # [START how_to_cloud_dataproc_get_batch_operator]
+    get_batch = DataprocGetBatchOperator(
+        task_id="get_batch", project_id=PROJECT_ID, region=REGION, batch_id=BATCH_ID
+    )
+    # [END how_to_cloud_dataproc_get_batch_operator]
+
+    # [START how_to_cloud_dataproc_list_batches_operator]
+    list_batches = DataprocListBatchesOperator(
+        task_id="list_batches",
+        project_id=PROJECT_ID,
+        region=REGION,
+    )
+    # [END how_to_cloud_dataproc_list_batches_operator]
+
+    # [START how_to_cloud_dataproc_delete_batch_operator]
+    delete_batch = DataprocDeleteBatchOperator(
+        task_id="delete_batch", project_id=PROJECT_ID, region=REGION, batch_id=BATCH_ID
+    )
+    # [END how_to_cloud_dataproc_delete_batch_operator]
+
+    create_batch >> get_batch >> list_batches >> delete_batch
