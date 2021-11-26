@@ -301,7 +301,7 @@ class SchedulerJob(BaseJob):
                         and_(
                             TaskInstance.dag_id == ti.dag_id,
                             TaskInstance.task_id == ti.task_id,
-                            )
+                        )
                         for ti in tis
                     )
                 else:
