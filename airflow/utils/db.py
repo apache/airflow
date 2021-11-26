@@ -1001,6 +1001,7 @@ class DBLocks(enum.IntEnum):
 
     INIT = enum.auto()
     MIGRATIONS = enum.auto()
+    SCHEDULER_CRITICAL_SECTION = enum.auto()
 
     def __str__(self):
         return f"airflow_{self._name_}"
