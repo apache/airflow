@@ -19,6 +19,7 @@
 
 import itertools
 import json
+import time
 import unittest
 from unittest import mock
 
@@ -34,6 +35,7 @@ from airflow.providers.databricks.hooks.databricks import (
     AZURE_TOKEN_SERVICE_URL,
     DEFAULT_DATABRICKS_SCOPE,
     SUBMIT_RUN_ENDPOINT,
+    TOKEN_REFRESH_LEAD_TIME,
     DatabricksHook,
     RunState,
 )
@@ -63,7 +65,7 @@ GET_RUN_RESPONSE = {
 }
 NOTEBOOK_PARAMS = {"dry-run": "true", "oldest-time-to-consider": "1457570074236"}
 JAR_PARAMS = ["param1", "param2"]
-RESULT_STATE = None  # type: None
+RESULT_STATE = ''
 LIBRARIES = [
     {"jar": "dbfs:/mnt/libraries/library.jar"},
     {"maven": {"coordinates": "org.jsoup:jsoup:1.7.2", "exclusions": ["slf4j:slf4j"]}},
@@ -519,6 +521,14 @@ class TestDatabricksHook(unittest.TestCase):
             headers=USER_AGENT_HEADER,
             timeout=self.hook.timeout_seconds,
         )
+
+    def test_is_aad_token_valid_returns_true(self):
+        aad_token = {'token': 'my_token', 'expires_on': int(time.time()) + TOKEN_REFRESH_LEAD_TIME + 10}
+        self.assertTrue(self.hook._is_aad_token_valid(aad_token))
+
+    def test_is_aad_token_valid_returns_false(self):
+        aad_token = {'token': 'my_token', 'expires_on': int(time.time())}
+        self.assertFalse(self.hook._is_aad_token_valid(aad_token))
 
 
 class TestDatabricksHookToken(unittest.TestCase):
