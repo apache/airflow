@@ -46,7 +46,6 @@ class InfluxDBOperator(BaseOperator):
         super().__init__(**kwargs)
         self.influxdb_conn_id = influxdb_conn_id
         self.sql = sql
-        self.hook = None
 
     def execute(self, context: Dict) -> None:
         self.log.info('Executing: %s', self.sql)
