@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2021-11-24T21:21:35Z
+# This constraints file was automatically generated on 2021-11-27T18:41:05Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -199,7 +199,7 @@ colorama==0.4.4
 colorlog==4.8.0
 commonmark==0.9.1
 contextvars==2.4
-coverage==6.1.2
+coverage==6.2
 crcmod==1.7
 croniter==1.0.15
 cryptography==3.4.8
@@ -235,9 +235,9 @@ flaky==3.7.0
 flower==1.0.0
 freezegun==1.1.0
 frozenlist==1.2.0
-fsspec==2021.11.0
+fsspec==2021.11.1
 future==0.18.2
-gcsfs==2021.11.0
+gcsfs==2021.11.1
 geomet==0.2.1.post1
 gevent==21.8.0
 gitdb==4.0.9
@@ -307,15 +307,15 @@ immutables==0.16
 importlib-metadata==4.8.2
 importlib-resources==5.4.0
 inflection==0.5.1
-influxdb-client==1.23.0
+influxdb-client==1.24.0
 iniconfig==1.1.1
 ipdb==0.13.9
 ipython-genutils==0.2.0
-ipython==7.16.1
+ipython==7.16.2
 iso8601==1.0.2
 isodate==0.6.0
 itsdangerous==1.1.0
-jedi==0.18.1
+jedi==0.17.2
 jeepney==0.7.1
 jira==3.1.1
 jmespath==0.10.0
@@ -326,7 +326,7 @@ jsonschema==3.2.0
 jupyter-client==7.1.0
 jupyter-core==4.9.1
 jwcrypto==1.0
-keyring==23.2.1
+keyring==23.3.0
 kombu==5.1.0
 krb5==0.2.0
 kubernetes==11.0.0
@@ -377,7 +377,7 @@ pandas==1.1.5
 papermill==2.3.3
 parameterized==0.8.1
 paramiko==2.8.0
-parso==0.8.2
+parso==0.7.1
 pathspec==0.9.0
 pbr==5.8.0
 pdpyras==4.3.0
@@ -396,7 +396,7 @@ pre-commit==2.15.0
 presto-python-client==0.7.0
 prison==0.2.1
 prometheus-client==0.12.0
-prompt-toolkit==3.0.22
+prompt-toolkit==3.0.23
 proto-plus==1.19.8
 protobuf==3.19.1
 psutil==5.8.0
@@ -418,7 +418,7 @@ pydata-google-auth==1.2.0
 pydot==1.4.2
 pydruid==0.6.2
 pyenchant==3.2.2
-pyexasol==0.23.1
+pyexasol==0.23.2
 pyflakes==2.4.0
 pykerberos==1.2.1
 pymongo==3.12.1
@@ -444,7 +444,7 @@ python-dateutil==2.8.2
 python-http-client==3.3.3
 python-jenkins==1.7.0
 python-jose==3.3.0
-python-ldap==3.3.1
+python-ldap==3.4.0
 python-nvd3==0.15.0
 python-slugify==4.0.1
 python-telegram-bot==13.8.1

@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2021-11-24T21:24:43Z
+# This constraints file was automatically generated on 2021-11-27T18:44:08Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install just the 'bare' 'apache-airflow' package build from the HEAD of
 # the branch, without installing any of the providers.
@@ -73,7 +73,7 @@ email-validator==1.1.3
 eventlet==0.33.0
 filelock==3.4.0
 flower==1.0.0
-fsspec==2021.11.0
+fsspec==2021.11.1
 gevent==21.8.0
 google-ads==14.0.0
 google-api-core==2.2.2
@@ -122,7 +122,7 @@ platformdirs==2.4.0
 plyvel==1.3.0
 prison==0.2.1
 prometheus-client==0.12.0
-prompt-toolkit==3.0.22
+prompt-toolkit==3.0.23
 proto-plus==1.18.1
 protobuf==3.19.1
 psutil==5.8.0
@@ -137,7 +137,7 @@ pyrsistent==0.18.0
 pyspnego==0.3.1
 python-daemon==2.3.0
 python-dateutil==2.8.2
-python-ldap==3.3.1
+python-ldap==3.4.0
 python-nvd3==0.15.0
 python-slugify==4.0.1
 python3-openid==3.2.0
