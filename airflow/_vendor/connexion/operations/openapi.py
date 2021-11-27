@@ -197,7 +197,7 @@ class OpenAPIOperation(AbstractOperation):
         except (KeyError, IndexError):
             pass
         try:
-            return (deep_get(self._responses, example_path), status_code)
+            return deep_get(self._responses, example_path), status_code
         except KeyError:
             pass
         try:
@@ -210,7 +210,7 @@ class OpenAPIOperation(AbstractOperation):
             return (self._nested_example(deep_get(self._responses, schema_path)),
                     status_code)
         except KeyError:
-            return (None, status_code)
+            return None, status_code
 
     def _nested_example(self, schema):
         try:
