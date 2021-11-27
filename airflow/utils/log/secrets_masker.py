@@ -15,6 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """Mask sensitive information from logs"""
+import os
 import collections
 import logging
 import re
@@ -46,6 +47,8 @@ DEFAULT_SENSITIVE_FIELDS = frozenset(
     }
 )
 """Names of fields (Connection extra, Variable key name etc.) that are deemed sensitive"""
+
+UNMASKED_SECRETS = {'airflow'}
 
 
 @cache
@@ -232,11 +235,12 @@ class SecretsMasker(logging.Filter):
 
     def add_mask(self, secret: Union[str, dict, Iterable], name: str = None):
         """Add a new secret to be masked to this filter instance."""
+        test_mode = os.environ["AIRFLOW__CORE__UNIT_TEST_MODE"]
         if isinstance(secret, dict):
             for k, v in secret.items():
                 self.add_mask(v, k)
         elif isinstance(secret, str):
-            if not secret:
+            if not secret or (test_mode and secret in UNMASKED_SECRETS):
                 return
             pattern = re.escape(secret)
             if pattern not in self.patterns and (not name or should_hide_value_for_key(name)):
