@@ -48,7 +48,7 @@ DEFAULT_SENSITIVE_FIELDS = frozenset(
 )
 """Names of fields (Connection extra, Variable key name etc.) that are deemed sensitive"""
 
-UNMASKED_SECRETS = {'airflow'}
+SKIP_MASKING_FOR_TESTS = {'airflow'}
 
 
 @cache
@@ -240,7 +240,7 @@ class SecretsMasker(logging.Filter):
             for k, v in secret.items():
                 self.add_mask(v, k)
         elif isinstance(secret, str):
-            if not secret or (test_mode and secret in UNMASKED_SECRETS):
+            if not secret or (test_mode and secret in SKIP_MASKING_FOR_TESTS):
                 return
             pattern = re.escape(secret)
             if pattern not in self.patterns and (not name or should_hide_value_for_key(name)):
