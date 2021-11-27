@@ -15,9 +15,9 @@
 # specific language governing permissions and limitations
 # under the License.
 """Mask sensitive information from logs"""
-import os
 import collections
 import logging
+import os
 import re
 from typing import TYPE_CHECKING, Iterable, Optional, Set, TypeVar, Union
 
