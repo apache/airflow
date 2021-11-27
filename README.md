@@ -100,6 +100,15 @@ using the latest stable version of SQLite for local development.
 
 **Note**: Python v3.10 is not supported yet. For details, see [#19059](https://github.com/apache/airflow/issues/19059).
 
+**Note**: Airflow currently can be run on POSIX-compliant Operating Systems. For development it is regularly
+tested on fairly modern Linux Distros and recent versions of MacOS.
+On Windows you can run it via WSL2 (Windows Subsystem for Linux 2) or via Linux Containers.
+The work to add Windows support is tracked via [#10388](https://github.com/apache/airflow/issues/10388) but
+it is not a high priority. You should only use Linux-based distros as "Production" execution environment
+as this is the only environment that is supported. The only distro that is used in our CI tests and that
+is used in the [Community managed DockerHub image](https://hub.docker.com/p/apache/airflow) is
+`Debian Buster`.
+
 ## Getting started
 
 Visit the official Airflow website documentation (latest **stable** release) for help with
