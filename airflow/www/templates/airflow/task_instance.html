@@ -50,7 +50,38 @@
   <br>
   <div style="width: 600px;">
     <h4>Task Actions</h4>
-    <form action="{{ url_for('Airflow.clear') }}" method="POST">
+    <form method="POST" action="{{ url_for('Airflow.run') }}">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <input type="hidden" name="dag_id" value="{{ dag.dag_id }}">
+      <input type="hidden" name="task_id" value="{{ task_id }}">
+      <input type="hidden" name="execution_date" value="{{ execution_date }}">
+      <input type="hidden" name="origin" value="{{ url_for('Airflow.tree', dag_id=dag.dag_id) }}">
+      <div class="row">
+        <span class="btn-group col-xs-12 col-sm-9 task-instance-modal-column" data-toggle="buttons">
+          <label
+            class="btn btn-default"
+            title="Ignores all non-critical dependencies, including task state and task_deps">
+            <input type="checkbox" value="true" name="ignore_all_deps" autocomplete="off">
+            Ignore All Deps</label>
+          <label class="btn btn-default"
+            title="Ignore previous success/failure">
+            <input type="checkbox" value="true" name="ignore_ti_state" autocomplete="off">
+            Ignore Task State
+          </label>
+          <label class="btn btn-default"
+            title="Disregard the task-specific dependencies, e.g. status of upstream task instances and depends_on_past">
+            <input type="checkbox" value="true" name="ignore_task_deps" autocomplete="off">
+            Ignore Task Deps
+          </label>
+        </span>
+        <span class="col-xs-12 col-sm-3 task-instance-modal-column">
+          <button type="submit" id="btn_run" class="btn btn-primary btn-block" title="Runs a single task instance">
+            Run
+          </button>
+        </span>
+      </div>
+    </form>
+    <form method="POST" action="{{ url_for('Airflow.clear') }}">
       <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
       <input type="hidden" name="dag_id" value="{{ dag.dag_id }}">
       <input type="hidden" name="task_id" value="{{ task_id }}">
@@ -87,6 +118,70 @@
           <button type="submit" id="btn_clear" class="btn btn-primary btn-block"
               title="Clearing deletes the previous state of the task instance, allowing it to get re-triggered by the scheduler or a backfill command">
             Clear
+          </button>
+        </span>
+      </div>
+    </form>
+    <form method="GET" action="{{ url_for('Airflow.confirm') }}">
+      <input type="hidden" name="dag_id" value="{{ dag.dag_id }}">
+      <input type="hidden" name="task_id" value="{{ task_id }}">
+      <input type="hidden" name="execution_date" value="{{ execution_date }}">
+      <input type="hidden" name="origin" value="{{ url_for('Airflow.tree', dag_id=dag.dag_id) }}">
+      <input type="hidden" name="state" value="failed">
+      <div class="row">
+        <span class="btn-group col-xs-12 col-sm-9 task-instance-modal-column" data-toggle="buttons">
+          <label class="btn btn-default">
+            <input type="checkbox" value="true" name="past" autocomplete="off">
+            Past
+          </label>
+          <label class="btn btn-default">
+            <input type="checkbox" value="true" name="future" autocomplete="off">
+            Future
+          </label>
+          <label class="btn btn-default">
+            <input type="checkbox" value="true" name="upstream" autocomplete="off">
+            Upstream
+          </label>
+          <label class="btn btn-default">
+            <input type="checkbox" value="true" name="downstream" autocomplete="off">
+            Downstream
+          </label>
+        </span>
+        <span class="col-xs-12 col-sm-3 task-instance-modal-column">
+          <button type="submit" id="btn_failed" class="btn btn-primary btn-block">
+            Mark Failed
+          </button>
+        </span>
+      </div>
+    </form>
+    <form method="GET" action="{{ url_for('Airflow.confirm') }}">
+      <input type="hidden" name="dag_id" value="{{ dag.dag_id }}">
+      <input type="hidden" name="task_id" value="{{ task_id }}">
+      <input type="hidden" name="execution_date" value="{{ execution_date }}">
+      <input type="hidden" name="origin" value="{{ url_for('Airflow.tree', dag_id=dag.dag_id) }}">
+      <input type="hidden" name="state" value="success">
+      <div class="row">
+        <span class="btn-group col-xs-12 col-sm-9 task-instance-modal-column" data-toggle="buttons">
+          <label class="btn btn-default">
+            <input type="checkbox" value="true" name="past" autocomplete="off">
+            Past
+          </label>
+          <label class="btn btn-default">
+            <input type="checkbox" value="true" name="future" autocomplete="off">
+            Future
+          </label>
+          <label class="btn btn-default">
+            <input type="checkbox" value="true" name="upstream" autocomplete="off">
+            Upstream
+          </label>
+          <label class="btn btn-default">
+            <input type="checkbox" value="true" name="downstream" autocomplete="off">
+            Downstream
+          </label>
+        </span>
+        <span class="col-xs-12 col-sm-3 task-instance-modal-column">
+          <button type="submit" id="btn_success" class="btn btn-primary btn-block">
+            Mark Success
           </button>
         </span>
       </div>
