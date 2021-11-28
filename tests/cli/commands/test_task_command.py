@@ -444,23 +444,10 @@ class TestLogsfromTaskRunCommand(unittest.TestCase):
 
     @mock.patch("airflow.cli.commands.task_command.LocalTaskJob")
     def test_external_executor_id_present_for_fork_run_task(self, mock_local_job):
-        naive_date = datetime(2016, 1, 1)
-        dag_id = 'test_run_fork_has_external_executor_id'
-        task0_id = 'test_run_fork_task'
-
-        dag = self.dagbag.get_dag(dag_id)
-        args_list = [
-            'tasks',
-            'run',
-            '--local',
-            dag_id,
-            task0_id,
-            naive_date.isoformat(),
-        ]
-        args = self.parser.parse_args(args_list)
+        args = self.parser.parse_args(self.task_args)
         args.external_executor_id = "ABCD12345"
 
-        task_command.task_run(args, dag=dag)
+        task_command.task_run(args)
         mock_local_job.assert_called_once_with(
             task_instance=mock.ANY,
             mark_success=False,
@@ -522,7 +509,7 @@ class TestLogsfromTaskRunCommand(unittest.TestCase):
         assert "standard_task_runner.py" in logs
         assert (
             f"INFO - Running: ['airflow', 'tasks', 'run', '{self.dag_id}', "
-            f"'{self.task_id}', '{self.execution_date_str}'," in logs
+            f"'{self.task_id}', '{self.run_id}'," in logs
         )
 
         self.assert_log_line("Log from DAG Logger", logs_list)
