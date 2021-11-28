@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2021-11-27T18:40:54Z
+# This constraints file was automatically generated on 2021-11-28T22:30:57Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -275,7 +275,7 @@ google-cloud-workflows==1.5.0
 google-crc32c==1.3.0
 google-resumable-media==2.1.0
 googleapis-common-protos==1.53.0
-graphviz==0.18.2
+graphviz==0.19
 greenlet==1.1.2
 grpc-google-iam-v1==0.12.3
 grpcio-gcp==0.2.2
@@ -315,7 +315,7 @@ jsonschema==3.2.0
 jupyter-client==7.1.0
 jupyter-core==4.9.1
 jwcrypto==1.0
-keyring==23.3.0
+keyring==23.4.0
 kombu==5.2.2
 krb5==0.2.0
 kubernetes==11.0.0
@@ -457,7 +457,7 @@ requests-toolbelt==0.9.1
 requests==2.26.0
 responses==0.16.0
 rfc3986==1.5.0
-rich==10.14.0
+rich==10.15.0
 rsa==4.8
 s3transfer==0.5.0
 scramp==1.4.1
