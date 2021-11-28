@@ -241,17 +241,18 @@ class DatabricksHook(BaseHook):
             attempt_num += 1
             sleep(self.retry_delay)
 
-    def _fill_aad_headers(self, headers: dict) -> dict:
+    def _get_aad_headers(self) -> dict:
         """
         Fills AAD headers if necessary (SPN is outside of the workspace)
-        :param headers: dictionary with headers to fill-in
         :return: dictionary with filled AAD headers
         """
-        mgmt_token = self._get_aad_token(AZURE_MANAGEMENT_ENDPOINT)
-        headers['X-Databricks-Azure-Workspace-Resource-Id'] = self.databricks_conn.extra_dejson[
-            'azure_resource_id'
-        ]
-        headers['X-Databricks-Azure-SP-Management-Token'] = mgmt_token
+        headers = {}
+        if 'azure_resource_id' in self.databricks_conn.extra_dejson:
+            mgmt_token = self._get_aad_token(AZURE_MANAGEMENT_ENDPOINT)
+            headers['X-Databricks-Azure-Workspace-Resource-Id'] = self.databricks_conn.extra_dejson[
+                'azure_resource_id'
+            ]
+            headers['X-Databricks-Azure-SP-Management-Token'] = mgmt_token
         return headers
 
     def _do_api_call(self, endpoint_info, json):
@@ -270,9 +271,8 @@ class DatabricksHook(BaseHook):
         method, endpoint = endpoint_info
         url = f'https://{self.host}/{endpoint}'
 
-        headers = USER_AGENT_HEADER.copy()
-        if 'azure_resource_id' in self.databricks_conn.extra_dejson:
-            headers = self._fill_aad_headers(headers)
+        aad_headers = self._get_aad_headers()
+        headers = {**USER_AGENT_HEADER.copy(), **aad_headers}
 
         if 'token' in self.databricks_conn.extra_dejson:
             self.log.info(
