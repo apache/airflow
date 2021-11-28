@@ -14,7 +14,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-[tool.black]
-line-length = 110
-target-version = ['py36', 'py37', 'py38', 'py39']
-skip-string-normalization = true
+
+from airflow_breeze.visuals import ASCIIART
+
+
+def test_visuals():
+    assert 2051 == len(ASCIIART)

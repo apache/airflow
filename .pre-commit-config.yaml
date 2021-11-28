@@ -404,6 +404,13 @@ repos:
           ^docs/apache-airflow-providers-apache-hive/commits\.rst$|
           git|
           ^CHANGELOG\.txt$
+      - id: capitalized-breeze
+        language: pygrep
+        name: Only capitalized Breeze used in Breeze2.
+        description: Please use capitalized "Breeze" in the new Breeze docs
+        entry: "breeze"
+        pass_filenames: true
+        files: ^dev/breeze/doc
       - id: base-operator
         language: pygrep
         name: Check BaseOperator[Link] core imports
