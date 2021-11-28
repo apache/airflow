@@ -93,7 +93,7 @@ class TestGlueJobHook(unittest.TestCase):
             create_job_kwargs={'WorkerType': 'G.2X', 'NumberOfWorkers': 60},
         ).get_or_create_glue_job()
         assert glue_job == mock_glue_job
-        
+
     @mock.patch.object(AwsGlueJobHook, "get_iam_execution_role")
     @mock.patch.object(AwsGlueJobHook, "get_conn")
     def test_init_worker_type_value_error(self, mock_get_conn, mock_get_iam_execution_role):
@@ -101,8 +101,8 @@ class TestGlueJobHook(unittest.TestCase):
         some_script = "s3:/glue-examples/glue-scripts/sample_aws_glue_job.py"
         some_s3_bucket = "my-includes"
 
-        try:
-            glue_hook = AwsGlueJobHook(
+        with self.assertRaises(ValueError, msg="Expected error message here"):
+            AwsGlueJobHook(
                 job_name='aws_test_glue_job',
                 desc='This is test case job from Airflow',
                 script_location=some_script,
@@ -112,10 +112,6 @@ class TestGlueJobHook(unittest.TestCase):
                 num_of_dpus=20,
                 create_job_kwargs={'WorkerType': 'G.2X', 'NumberOfWorkers': 60},
             )
-        except ValueError as e:
-            self.assertEqual(type(e), ValueError)
-        else:
-            raise AssertionError("ValueError was not raised")
 
     @mock.patch.object(AwsGlueJobHook, "get_job_state")
     @mock.patch.object(AwsGlueJobHook, "get_or_create_glue_job")
