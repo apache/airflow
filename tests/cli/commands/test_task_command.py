@@ -541,24 +541,23 @@ class TestLogsfromTaskRunCommand(unittest.TestCase):
     def test_log_file_template_with_run_task(self):
         """Verify that the taskinstance has the right context for log_filename_template"""
 
-        with mock.patch.object(task_command, "_run_task_by_selected_method"):
-            with conf_vars({('core', 'dags_folder'): self.dag_path}):
-                # increment the try_number of the task to be run
-                with create_session() as session:
-                    ti = session.query(TaskInstance).filter_by(run_id=self.run_id)
-                    ti.try_number = 1
+        with conf_vars({('core', 'dags_folder'): self.dag_path}):
+            # increment the try_number of the task to be run
+            with create_session() as session:
+                ti = session.query(TaskInstance).filter_by(run_id=self.run_id).first()
+                ti.try_number = 1
 
-                log_file_path = os.path.join(os.path.dirname(self.ti_log_file_path), "2.log")
+            log_file_path = os.path.join(os.path.dirname(self.ti_log_file_path), "2.log")
 
+            try:
+                task_command.task_run(self.parser.parse_args(self.task_args))
+
+                assert os.path.exists(log_file_path)
+            finally:
                 try:
-                    task_command.task_run(self.parser.parse_args(self.task_args))
-
-                    assert os.path.exists(log_file_path)
-                finally:
-                    try:
-                        os.remove(log_file_path)
-                    except OSError:
-                        pass
+                    os.remove(log_file_path)
+                except OSError:
+                    pass
 
     @mock.patch.object(task_command, "_run_task_by_selected_method")
     def test_root_logger_restored(self, run_task_mock):
