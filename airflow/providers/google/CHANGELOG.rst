@@ -18,6 +18,43 @@
 Changelog
 ---------
 
+6.2.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Added wait mechanizm to the DataprocJobSensor to avoid 509 errors when Job is not available (#19740)``
+* ``Add support in GCP connection for reading key from Secret Manager (#19164)``
+* ``Add dataproc metastore operators (#18945)``
+* ``Add support of 'path' parameter for GCloud Storage Transfer Service operators (#17446)``
+* ``Move 'bucket_name' validation out of '__init__' in Google Marketing Platform operators (#19383)``
+* ``Create dataproc serverless spark batches operator (#19248)``
+* ``updates pipeline_timeout CloudDataFusionStartPipelineOperator (#18773)``
+* ``Support impersonation_chain parameter in the GKEStartPodOperator (#19518)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix badly merged impersonation in GKEPodOperator (#19696)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Fix typos in warnings, docstrings, exceptions (#19424)``
+   * ``Fix Cloud SQL system tests (#19014)``
+   * ``Fix GCS system tests (#19227)``
+   * ``Update 'default_args' value in example_functions DAG from str to int (#19865)``
+   * ``Clean up ''default_args'' usage in docs (#19803)``
+   * ``Clean-up of google cloud example dags - batch 3 (#19664)``
+   * ``Misc. documentation typos and language improvements (#19599)``
+   * ``Cleanup dynamic 'start_date' use for miscellaneous Google example DAGs (#19400)``
+   * ``Remove reference to deprecated operator in example_dataproc (#19619)``
+   * ``#16691 Providing more information in docs for DataprocCreateCluster operator migration (#19446)``
+   * ``Clean-up of google cloud example dags - batch 2 (#19527)``
+   * ``Update Azure modules to comply with AIP-21 (#19431)``
+   * ``Remove remaining 'pylint: disable' comments (#19541)``
+   * ``Clean-up of google cloud example dags (#19436)``
+
 6.1.0
 .....
 

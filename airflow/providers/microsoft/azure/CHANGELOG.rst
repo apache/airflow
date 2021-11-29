@@ -19,6 +19,26 @@
 Changelog
 ---------
 
+3.4.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Remove unnecessary connection form customizations in Azure (#19595)``
+* ``Update Azure modules to comply with AIP-21 (#19431)``
+* ``Remove 'host' from hidden fields in 'WasbHook' (#19475)``
+* ``use DefaultAzureCredential if login not provided for Data Factory (#19079)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix argument error in AzureContainerInstancesOperator (#19668)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Ensure ''catchup=False'' is used in example dags (#19396)``
+
 3.3.0
 .....
 
@@ -43,7 +63,7 @@ Other
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):
    * ``More f-strings (#18855)``
-   * ``Revert &#34;update azure cosmos version (#18663)&#34; (#18694)``
+   * ``Revert 'update azure cosmos version (#18663)' (#18694)``
    * ``update azure cosmos version (#18663)``
 
 3.2.0

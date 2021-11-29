@@ -19,6 +19,18 @@
 Changelog
 ---------
 
+2.3.1
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Remove duplicate get_connection in SnowflakeHook (#19543)``
+
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 2.3.0
 .....
 
