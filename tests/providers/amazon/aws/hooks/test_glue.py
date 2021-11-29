@@ -101,7 +101,10 @@ class TestGlueJobHook(unittest.TestCase):
         some_script = "s3:/glue-examples/glue-scripts/sample_aws_glue_job.py"
         some_s3_bucket = "my-includes"
 
-        with self.assertRaises(ValueError, msg="ValueError should be raised for specifying the num_of_dpus and worker type together!"):
+        with self.assertRaises(
+            ValueError,
+            msg="ValueError should be raised for specifying the num_of_dpus and worker type together!",
+        ):
             AwsGlueJobHook(
                 job_name='aws_test_glue_job',
                 desc='This is test case job from Airflow',
