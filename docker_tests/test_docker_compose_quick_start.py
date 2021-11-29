@@ -123,6 +123,7 @@ def test_trigger_dag_and_wait_for_result():
         os.mkdir(f"{tmp_dir}/logs")
         os.mkdir(f"{tmp_dir}/plugins")
         (Path(tmp_dir) / ".env").write_text(f"AIRFLOW_UID={subprocess.check_output(['id', '-u']).decode()}\n")
+        print(".emv=", (Path(tmp_dir) / ".env").read_text())
         copyfile(
             str(SOURCE_ROOT / "airflow" / "example_dags" / "example_bash_operator.py"),
             f"{tmp_dir}/dags/example_bash_operator.py",
@@ -140,10 +141,7 @@ def test_trigger_dag_and_wait_for_result():
             with multiprocessing.Pool() as pool:
                 pool.map_async(
                     wait_for_container,
-                    subprocess.check_output(["docker", "compose", 'ps', '-q'], timeout=50)
-                    .decode()
-                    .strip()
-                    .splitlines(),
+                    subprocess.check_output(["docker", "compose", 'ps', '-q']).decode().strip().splitlines(),
                 ).get(timeout=None)
             api_request("PATCH", path=f"dags/{DAG_ID}", json={"is_paused": False})
             api_request("POST", path=f"dags/{DAG_ID}/dagRuns", json={"dag_run_id": DAG_RUN_ID})
