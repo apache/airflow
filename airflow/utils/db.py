@@ -995,8 +995,8 @@ class DBLocks(enum.IntEnum):
     """
     Cross-db Identifiers for advisory global database locks.
 
-    Postgres uses int64 lock ids so we use the integer value, MySQL uses names, so we use the ``_name_``
-    field.
+    Postgres uses int64 lock ids so we use the integer value, MySQL uses names, so we
+    call ``str()`, which is implemented using the ``_name_`` field.
     """
 
     MIGRATIONS = enum.auto()
@@ -1018,7 +1018,7 @@ def create_global_lock(session, lock: DBLocks, lock_timeout=1800):
         elif dialect.name == 'mysql' and dialect.server_version_info >= (5, 6):
             conn.execute(text("SELECT GET_LOCK(:id, :timeout)"), id=str(lock), timeout=lock_timeout)
         elif dialect.name == 'mssql':
-            # TODO: make locking works for MSSQL
+            # TODO: make locking work for MSSQL
             pass
 
         yield
@@ -1031,5 +1031,5 @@ def create_global_lock(session, lock: DBLocks, lock_timeout=1800):
         elif dialect.name == 'mysql' and dialect.server_version_info >= (5, 6):
             conn.execute(text("select RELEASE_LOCK(:id)"), id=str(lock))
         elif dialect.name == 'mssql':
-            # TODO: make locking works for MSSQL
+            # TODO: make locking work for MSSQL
             pass
