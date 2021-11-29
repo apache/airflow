@@ -1009,7 +1009,7 @@ class DBLocks(enum.IntEnum):
 @contextlib.contextmanager
 def create_global_lock(session, lock: DBLocks, lock_timeout=1800):
     """Contextmanager that will create and teardown a global db lock."""
-    conn = session.connection()
+    conn = session.get_bind().connect()
     dialect = conn.dialect
     try:
         if dialect.name == 'postgresql':
@@ -1021,14 +1021,13 @@ def create_global_lock(session, lock: DBLocks, lock_timeout=1800):
             # TODO: make locking works for MSSQL
             pass
 
-        yield None
+        yield
     finally:
-        # The session may have been "closed" (which is fine, the lock lasts more than a transaction) -- ensure
-        # we get a usable connection
-        conn = session.connection()
         if dialect.name == 'postgresql':
             conn.execute('SET LOCK_TIMEOUT TO DEFAULT')
-            conn.execute(text('SELECT pg_advisory_unlock(:id)'), id=lock.value)
+            (unlocked,) = conn.execute(text('SELECT pg_advisory_unlock(:id)'), id=lock.value).fetchone()
+            if not unlocked:
+                raise RuntimeError("Error releasing DB lock!")
         elif dialect.name == 'mysql' and dialect.server_version_info >= (5, 6):
             conn.execute(text("select RELEASE_LOCK(:id)"), id=str(lock))
         elif dialect.name == 'mssql':
