@@ -21,7 +21,7 @@ import unittest
 
 import boto3
 
-from airflow.providers.amazon.aws.hooks.redshift import ClusterStates
+from airflow.providers.amazon.aws.hooks.redshift import RedshiftClusterStates
 from airflow.providers.amazon.aws.sensors.redshift import AwsRedshiftClusterSensor
 
 try:
@@ -67,7 +67,7 @@ class TestAwsRedshiftClusterSensor(unittest.TestCase):
             timeout=5,
             aws_conn_id='aws_default',
             cluster_identifier='test_cluster',
-            target_status=ClusterStates.AVAILABLE,
+            target_status=RedshiftClusterStates.AVAILABLE,
         )
         assert op.poke(None)
 
@@ -96,7 +96,7 @@ class TestAwsRedshiftClusterSensor(unittest.TestCase):
             timeout=5,
             aws_conn_id='aws_default',
             cluster_identifier='test_cluster_not_found',
-            target_status=ClusterStates.NONEXISTENT,
+            target_status=RedshiftClusterStates.NONEXISTENT,
         )
 
         assert op.poke(None)

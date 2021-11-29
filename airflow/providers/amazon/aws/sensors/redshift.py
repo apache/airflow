@@ -17,7 +17,7 @@
 # under the License.
 from typing import Optional
 
-from airflow.providers.amazon.aws.hooks.redshift import ClusterStates, RedshiftHook
+from airflow.providers.amazon.aws.hooks.redshift import RedshiftClusterStates, RedshiftHook
 from airflow.sensors.base import BaseSensorOperator
 
 
@@ -28,7 +28,7 @@ class AwsRedshiftClusterSensor(BaseSensorOperator):
     :param cluster_identifier: The identifier for the cluster being pinged.
     :type cluster_identifier: str
     :param target_status: The cluster status desired.
-    :type target_status: ClusterStates
+    :type target_status: RedshiftClusterStates
     """
 
     template_fields = ('cluster_identifier', 'target_status')
@@ -37,21 +37,25 @@ class AwsRedshiftClusterSensor(BaseSensorOperator):
         self,
         *,
         cluster_identifier: str,
-        target_status: ClusterStates = ClusterStates.AVAILABLE,
+        target_status: RedshiftClusterStates = RedshiftClusterStates.AVAILABLE,
         aws_conn_id: str = 'aws_default',
         **kwargs,
     ):
         super().__init__(**kwargs)
         self.cluster_identifier = cluster_identifier
         self.target_status = (
-            target_status if isinstance(target_status, ClusterStates) else ClusterStates(str(target_status))
+            target_status
+            if isinstance(target_status, RedshiftClusterStates)
+            else RedshiftClusterStates(str(target_status))
         )
 
         self.aws_conn_id = aws_conn_id
         self.hook: Optional[RedshiftHook] = None
 
     def poke(self, context):
-        self.log.info('Poking for status : %s\nfor cluster %s', self.target_status.value, self.cluster_identifier)
+        self.log.info(
+            'Poking for status : %s\nfor cluster %s', self.target_status.value, self.cluster_identifier
+        )
         return self.get_hook().cluster_status(self.cluster_identifier) == self.target_status
 
     def get_hook(self) -> RedshiftHook:

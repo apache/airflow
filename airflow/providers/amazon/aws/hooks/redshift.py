@@ -16,7 +16,6 @@
 # specific language governing permissions and limitations
 # under the License.
 """Interact with AWS Redshift clusters."""
-import time
 from typing import Dict, List, Optional, Union
 
 try:
@@ -35,7 +34,7 @@ from airflow.hooks.dbapi import DbApiHook
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 
 
-class ClusterStates(Enum):
+class RedshiftClusterStates(Enum):
     """Contains the possible State values of a Redshift Cluster."""
 
     AVAILABLE = 'available'
@@ -69,7 +68,7 @@ class RedshiftHook(AwsBaseHook):
         super().__init__(*args, **kwargs)
 
     # TODO: Wrap create_cluster_snapshot
-    def cluster_status(self, cluster_identifier: str) -> ClusterStates:
+    def cluster_status(self, cluster_identifier: str) -> RedshiftClusterStates:
         """
         Return status of a cluster
 
@@ -82,9 +81,9 @@ class RedshiftHook(AwsBaseHook):
         """
         try:
             response = self.get_conn().describe_clusters(ClusterIdentifier=cluster_identifier)['Clusters']
-            return ClusterStates(response[0]['ClusterStatus']) if response else None
+            return RedshiftClusterStates(response[0]['ClusterStatus']) if response else None
         except self.get_conn().exceptions.ClusterNotFoundFault:
-            return ClusterStates.NONEXISTENT
+            return RedshiftClusterStates.NONEXISTENT
 
     def delete_cluster(
         self,
