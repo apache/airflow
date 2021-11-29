@@ -466,8 +466,7 @@ class PodGenerator:
         trimmed_pod_id = pod_id[:label_prefix_length].rstrip('-.')
 
         # previously used a '.' as the separator, but this could create errors in some situations
-        safe_pod_id = f"{trimmed_pod_id}-{safe_uuid}"
-        return safe_pod_id
+        return f"{trimmed_pod_id}-{safe_uuid}"
 
 
 def merge_objects(base_obj, client_obj):
