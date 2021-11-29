@@ -36,6 +36,8 @@ class InfluxDBOperator(BaseOperator):
     :type influxdb_conn_id: str
     """
 
+    template_fields = ['sql']
+
     def __init__(
         self,
         *,
