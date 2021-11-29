@@ -84,6 +84,10 @@ jobs:
     # When changing this list, ensure that it is kept in sync with the
     # /runners/apache/airflow/configOverlay
     # parameter in AWS SSM ParameterStore (which is what the runner uses)
+    # and restart the self-hosted runners.
+    #
+    # This list of committers can be generated with:
+    #   https://github.com/apache/airflow-ci-infra/blob/main/scripts/list_committers
     runs-on: >-
       ${{ (
         (
@@ -315,6 +319,11 @@ jobs:
         uses: actions/setup-python@v2
         with:
           python-version: ${{needs.build-info.outputs.defaultPythonVersion}}
+      - name: "Cache virtualenv environmnent"
+        uses: actions/cache@v2
+        with:
+          path: '.build/.docker_venv'
+          key: ${{ runner.os }}-docker-venv-${{ hashFiles('scripts/ci/images/ci_run_docker_tests.py') }}
       - name: "Test examples of PROD image building"
         run: ./scripts/ci/images/ci_test_examples_of_prod_image_building.sh
 
@@ -344,6 +353,11 @@ jobs:
         run: ./scripts/ci/tools/free_space.sh
         if: |
           needs.build-info.outputs.waitForImage == 'true'
+      - name: "Cache virtualenv environmnent"
+        uses: actions/cache@v2
+        with:
+          path: '.build/.docker_venv'
+          key: ${{ runner.os }}-docker-venv-${{ hashFiles('scripts/ci/images/ci_run_docker_tests.py') }}
       - name: >
           Wait for CI images
           ${{ needs.build-info.outputs.pythonVersions }}:${{ env.GITHUB_REGISTRY_PULL_IMAGE_TAG }}
@@ -600,6 +614,12 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
         env:
           USE_AIRFLOW_VERSION: "sdist"
           PACKAGE_FORMAT: "sdist"
+      - name: "Upload provider distribution artifacts"
+        uses: actions/upload-artifact@v2
+        with:
+          name: airflow-provider-packages
+          path: "./dist/apache-airflow-providers-*.tar.gz"
+          retention-days: 1
 
   tests-helm:
     timeout-minutes: 40
@@ -936,7 +956,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
         uses: actions/upload-artifact@v2
         if: always()
         with:
-          name: quarantined_tests
+          name: quarantined-tests
           path: "files/test_result-*.xml"
           retention-days: 7
       - name: "Upload airflow logs"
@@ -1022,6 +1042,11 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
         run: ./scripts/ci/tools/free_space.sh
         if: |
           needs.build-info.outputs.waitForImage == 'true'
+      - name: "Cache virtualenv environmnent"
+        uses: actions/cache@v2
+        with:
+          path: '.build/.docker_venv'
+          key: ${{ runner.os }}-docker-venv-${{ hashFiles('scripts/ci/images/ci_run_docker_tests.py') }}
       - name: >
           Wait for PROD images
           ${{ needs.build-info.outputs.pythonVersions }}:${{ env.GITHUB_REGISTRY_PULL_IMAGE_TAG }}

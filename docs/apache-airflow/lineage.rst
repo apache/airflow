@@ -32,11 +32,11 @@ works.
 
     from datetime import datetime, timedelta
 
-    from airflow.operators.bash import BashOperator
-    from airflow.operators.dummy import DummyOperator
     from airflow.lineage import AUTO
     from airflow.lineage.entities import File
     from airflow.models import DAG
+    from airflow.operators.bash import BashOperator
+    from airflow.operators.dummy import DummyOperator
 
     FILE_CATEGORIES = ["CAT1", "CAT2", "CAT3"]
 
