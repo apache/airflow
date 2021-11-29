@@ -331,7 +331,7 @@ jobs:
     timeout-minutes: 60
     name: "Test docker-compose quick start"
     runs-on: ${{ fromJson(needs.build-info.outputs.runsOn) }}
-    needs: [build-info]
+    needs: [build-info, prod-images]
     if: needs.build-info.outputs.image-build == 'true'
     steps:
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
