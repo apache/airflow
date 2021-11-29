@@ -34,7 +34,7 @@ the more confidence they can give you." Keep their [cheatsheet](https://testing-
 
 - Neutrino handles our App's configuration and Webpack build. Check out their [docs](https://neutrinojs.org/api/) if you need to customize it.
 
-- State management is handled with [Context](https://reactjs.org/docs/context.html) and [react-query](https://react-query.tanstack.com/). Context is used for App-level state that doesn't often change (authentication, dark/light mode). React Query handles all the state and side effects (loading, error, caching, etc.) of async data from the API.
+- State management is handled with [Context](https://reactjs.org/docs/context.html) and [react-query](https://react-query.tanstack.com/). Context is used for App-level state that doesn't change frequently (authentication, dark/light mode). React Query handles all the state and side effects (loading, error, caching, etc.) of async data from the API.
 
 ## Project Structure
 
