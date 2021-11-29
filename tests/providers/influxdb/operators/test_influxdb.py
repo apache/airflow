@@ -25,9 +25,7 @@ class TestInfluxDBOperator(unittest.TestCase):
     @mock.patch('airflow.providers.influxdb.operators.influxdb.InfluxDBHook')
     def test_influxdb_operator_test(self, mock_hook):
 
-        sql = """
-            from(bucket:"test") |> range(start: -10m)
-            """
+        sql = """from(bucket:"test") |> range(start: -10m)"""
         op = InfluxDBOperator(task_id='basic_influxdb', sql=sql, influxdb_conn_id='influxdb_default')
         op.execute(mock.MagicMock())
         mock_hook.assert_called_once_with(conn_id='influxdb_default')
