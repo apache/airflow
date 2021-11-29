@@ -235,7 +235,9 @@ class SecretsMasker(logging.Filter):
 
     def add_mask(self, secret: Union[str, dict, Iterable], name: str = None):
         """Add a new secret to be masked to this filter instance."""
-        test_mode = os.environ.get("AIRFLOW__CORE__UNIT_TEST_MODE")
+        from airflow.configuration import conf
+        
+        test_mode: bool = conf.getboolean('core', 'unit_test_mode')
         if isinstance(secret, dict):
             for k, v in secret.items():
                 self.add_mask(v, k)
