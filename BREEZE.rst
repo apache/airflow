@@ -2422,6 +2422,7 @@ This is the current syntax for  `./breeze <./breeze>`_:
           One of:
 
                  KubernetesExecutor CeleryExecutor LocalExecutor CeleryKubernetesExecutor
+                 LocalKubernetesExecutor
 
           Default: KubernetesExecutor
 
