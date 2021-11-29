@@ -17,7 +17,6 @@
 """Mask sensitive information from logs"""
 import collections
 import logging
-import os
 import re
 from typing import TYPE_CHECKING, Iterable, Optional, Set, TypeVar, Union
 
@@ -236,7 +235,7 @@ class SecretsMasker(logging.Filter):
     def add_mask(self, secret: Union[str, dict, Iterable], name: str = None):
         """Add a new secret to be masked to this filter instance."""
         from airflow.configuration import conf
-        
+
         test_mode: bool = conf.getboolean('core', 'unit_test_mode')
         if isinstance(secret, dict):
             for k, v in secret.items():
