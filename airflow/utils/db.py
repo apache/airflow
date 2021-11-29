@@ -596,7 +596,7 @@ def initdb(session=None):
     if conf.getboolean('core', 'LOAD_DEFAULT_CONNECTIONS'):
         create_default_connections(session=session)
 
-    with create_global_lock(session=session, lock=DBLocks.INIT):
+    with create_global_lock(session=session, lock=DBLocks.MIGRATIONS):
 
         dagbag = DagBag()
         # Save DAGs in the ORM
@@ -999,7 +999,6 @@ class DBLocks(enum.IntEnum):
     field.
     """
 
-    INIT = enum.auto()
     MIGRATIONS = enum.auto()
     SCHEDULER_CRITICAL_SECTION = enum.auto()
 
