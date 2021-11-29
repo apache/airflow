@@ -44,7 +44,8 @@ from flask_appbuilder.views import IndexView, UtilView
 from airflow import settings
 from airflow.configuration import conf
 
-log = logging.getLogger(__name__)
+# This module contains code imported from FlaskAppbuilder, so lets use _its_ logger name
+log = logging.getLogger("flask_appbuilder.base")
 
 
 def dynamic_class_import(class_path):

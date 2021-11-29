@@ -302,6 +302,7 @@ Redhat
 ReidentifyContentResponse
 Reinitialising
 Remoting
+Reserialize
 ResourceRequirements
 Roadmap
 Robinhood
@@ -1167,6 +1168,8 @@ replicaSet
 repo
 repos
 reqs
+reserialize
+reserialized
 resetdb
 resourceVersion
 resultset

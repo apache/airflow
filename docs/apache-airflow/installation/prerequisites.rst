@@ -43,3 +43,12 @@ Starting with Airflow 2.1.2, Airflow is tested with Python 3.6, 3.7, 3.8, and 3.
 
 The minimum memory required we recommend Airflow to run with is 4GB, but the actual requirements depends
 wildly on the deployment options you have
+
+**Note**: Airflow currently can be run on POSIX-compliant Operating Systems. For development it is regularly
+tested on fairly modern Linux Distros and recent versions of MacOS.
+On Windows you can run it via WSL2 (Windows Subsystem for Linux 2) or via Linux Containers.
+The work to add Windows support is tracked via `#10388 <https://github.com/apache/airflow/issues/10388>`__ but
+it is not a high priority. You should only use Linux-based distros as "Production" execution environment
+as this is the only environment that is supported. The only distro that is used in our CI tests and that
+is used in the `Community managed DockerHub image <https://hub.docker.com/p/apache/airflow>`__ is
+``Debian Buster``.

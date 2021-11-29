@@ -103,7 +103,7 @@ class SqlSensor(BaseSensorOperator):
                 f"Connection type ({conn.conn_type}) is not supported by SqlSensor. "
                 + f"Supported connection types: {list(allowed_conn_type)}"
             )
-        return conn.get_hook(hook_kwargs=self.hook_params)
+        return conn.get_hook(hook_params=self.hook_params)
 
     def poke(self, context):
         hook = self._get_hook()

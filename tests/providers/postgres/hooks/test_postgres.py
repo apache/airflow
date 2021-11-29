@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 #
-
+import json
 import unittest
 from tempfile import NamedTemporaryFile
 from unittest import mock
@@ -55,6 +55,17 @@ class TestPostgresHookConn(unittest.TestCase):
         self.db_hook.get_conn()
         mock_connect.assert_called_once_with(
             user='login', password='password', host='host', dbname='schema', port=None
+        )
+
+    @mock.patch('airflow.providers.postgres.hooks.postgres.psycopg2.connect')
+    def test_get_uri(self, mock_connect):
+        self.connection.extra = json.dumps({'client_encoding': 'utf-8'})
+        self.connection.conn_type = 'postgres'
+        self.db_hook.get_conn()
+        assert mock_connect.call_count == 1
+
+        self.assertEqual(
+            self.db_hook.get_uri(), "postgres://login:password@host/schema?client_encoding=utf-8"
         )
 
     @mock.patch('airflow.providers.postgres.hooks.postgres.psycopg2.connect')
