@@ -21,8 +21,6 @@ from typing import List
 from kubernetes.client import ApiClient, models as k8s
 
 from airflow.exceptions import AirflowException
-from airflow.providers.cncf.kubernetes.backcompat.pod import Port, Resources
-from airflow.providers.cncf.kubernetes.backcompat.pod_runtime_info_env import PodRuntimeInfoEnv
 
 
 def _convert_kube_model_object(obj, old_class_name, new_class):
@@ -73,6 +71,7 @@ def convert_resources(resources) -> k8s.V1ResourceRequirements:
     :return: k8s.V1ResourceRequirements
     """
     if isinstance(resources, dict):
+        from airflow.providers.cncf.kubernetes.backcompat.pod import Resources
         resources = Resources(**resources)
     return _convert_kube_model_object(resources, "Resources", k8s.V1ResourceRequirements)
 
