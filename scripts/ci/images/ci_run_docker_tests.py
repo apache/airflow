@@ -49,8 +49,7 @@ def get_parser():
 
 def run_verbose(cmd: List[str], *, check=True, **kwargs):
     print(f"{CBLUE}$ {' '.join(shlex.quote(c) for c in cmd)}{CEND}")
-    r = subprocess.run(cmd, check=check, **kwargs)
-    print(r)
+    subprocess.run(cmd, check=check, **kwargs)
 
 
 def create_virtualenv():
@@ -93,7 +92,6 @@ def main():
         "--pythonwarnings=ignore::PendingDeprecationWarning",
         "-n",
         "auto",
-        "-s",
     )
 
     run_verbose([str(python_bin), "-m", "pytest", *pytest_args, *extra_pytest_args])
