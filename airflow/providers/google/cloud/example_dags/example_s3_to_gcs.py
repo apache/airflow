@@ -16,6 +16,7 @@
 # under the License.
 
 import os
+from datetime import datetime
 
 from airflow import models
 from airflow.decorators import task
@@ -23,7 +24,6 @@ from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 from airflow.providers.amazon.aws.operators.s3_bucket import S3CreateBucketOperator, S3DeleteBucketOperator
 from airflow.providers.google.cloud.operators.gcs import GCSCreateBucketOperator, GCSDeleteBucketOperator
 from airflow.providers.google.cloud.transfers.s3_to_gcs import S3ToGCSOperator
-from airflow.utils.dates import days_ago
 
 GCP_PROJECT_ID = os.environ.get('GCP_PROJECT_ID', 'gcp-project-id')
 S3BUCKET_NAME = os.environ.get('S3BUCKET_NAME', 'example-s3bucket-name')
@@ -43,7 +43,8 @@ def upload_file():
 with models.DAG(
     'example_s3_to_gcs',
     schedule_interval='@once',
-    start_date=days_ago(2),
+    start_date=datetime(2021, 1, 1),
+    catchup=False,
     tags=['example'],
 ) as dag:
     create_s3_bucket = S3CreateBucketOperator(

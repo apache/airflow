@@ -173,6 +173,7 @@ class KubernetesPodOperator(BaseOperator):
         'labels',
         'config_file',
         'pod_template_file',
+        'namespace',
     )
 
     # fmt: off

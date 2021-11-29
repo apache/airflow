@@ -370,13 +370,26 @@ class TestGetTaskInstances(TestTaskInstanceEndpoint):
                     {"state": State.RUNNING},
                     {"state": State.QUEUED},
                     {"state": State.SUCCESS},
+                    {"state": State.NONE},
                 ],
                 False,
                 (
                     "/api/v1/dags/example_python_operator/dagRuns/"
-                    "TEST_DAG_RUN_ID/taskInstances?state=running,queued"
+                    "TEST_DAG_RUN_ID/taskInstances?state=running,queued,none"
                 ),
-                2,
+                3,
+            ),
+            (
+                "test null states with no filter",
+                [
+                    {"state": State.NONE},
+                    {"state": State.NONE},
+                    {"state": State.NONE},
+                    {"state": State.NONE},
+                ],
+                False,
+                ("/api/v1/dags/example_python_operator/dagRuns/" "TEST_DAG_RUN_ID/taskInstances"),
+                4,
             ),
             (
                 "test pool filter",
@@ -503,10 +516,24 @@ class TestGetTaskInstancesBatch(TestTaskInstanceEndpoint):
                     {"state": State.RUNNING},
                     {"state": State.QUEUED},
                     {"state": State.SUCCESS},
+                    {"state": State.NONE},
                 ],
                 False,
-                {"state": ["running", "queued"]},
-                2,
+                {"state": ["running", "queued", "none"]},
+                3,
+                "test_task_read_only",
+            ),
+            (
+                "test dag with null states",
+                [
+                    {"state": State.NONE},
+                    {"state": State.NONE},
+                    {"state": State.NONE},
+                    {"state": State.NONE},
+                ],
+                False,
+                {},
+                4,
                 "test_task_read_only",
             ),
             (

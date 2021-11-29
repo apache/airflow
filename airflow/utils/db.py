@@ -627,13 +627,17 @@ def check_migrations(timeout):
     :param timeout: Timeout for the migration in seconds
     :return: None
     """
-    from alembic.runtime.migration import MigrationContext
+    from alembic.runtime.environment import EnvironmentContext
     from alembic.script import ScriptDirectory
 
     config = _get_alembic_config()
     script_ = ScriptDirectory.from_config(config)
-    with settings.engine.connect() as connection:
-        context = MigrationContext.configure(connection)
+    with EnvironmentContext(
+        config,
+        script_,
+    ) as env, settings.engine.connect() as connection:
+        env.configure(connection)
+        context = env.get_context()
         ticker = 0
         while True:
             source_heads = set(script_.get_heads())
@@ -642,8 +646,8 @@ def check_migrations(timeout):
                 break
             if ticker >= timeout:
                 raise TimeoutError(
-                    f"There are still unapplied migrations after {ticker} seconds. "
-                    f"Migration Head(s) in DB: {db_heads} | Migration Head(s) in Source Code: {source_heads}"
+                    f"There are still unapplied migrations after {ticker} seconds. Migration"
+                    f"Head(s) in DB: {db_heads} | Migration Head(s) in Source Code: {source_heads}"
                 )
             ticker += 1
             time.sleep(1)

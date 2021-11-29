@@ -49,7 +49,9 @@ UNINSTALL_LIBS_ENDPOINT = ('POST', 'api/2.0/libraries/uninstall')
 USER_AGENT_HEADER = {'user-agent': f'airflow-{__version__}'}
 
 # https://docs.microsoft.com/en-us/azure/databricks/dev-tools/api/latest/aad/service-prin-aad-token#--get-an-azure-active-directory-access-token
-AZURE_TOKEN_SERVICE_URL = "https://login.microsoftonline.com/{}/oauth2/token"
+# https://docs.microsoft.com/en-us/graph/deployments#app-registration-and-token-service-root-endpoints
+AZURE_DEFAULT_AD_ENDPOINT = "https://login.microsoftonline.com"
+AZURE_TOKEN_SERVICE_URL = "{}/{}/oauth2/token"
 # https://docs.microsoft.com/en-us/azure/active-directory/managed-identities-azure-resources/how-to-use-vm-token
 AZURE_METADATA_SERVICE_TOKEN_URL = "http://169.254.169.254/metadata/identity/oauth2/token"
 AZURE_METADATA_SERVICE_INSTANCE_URL = "http://169.254.169.254/metadata/instance"
@@ -200,8 +202,11 @@ class DatabricksHook(BaseHook):
                         "resource": resource,
                         "client_secret": self.databricks_conn.password,
                     }
+                    azure_ad_endpoint = self.databricks_conn.extra_dejson.get(
+                        "azure_ad_endpoint", AZURE_DEFAULT_AD_ENDPOINT
+                    )
                     resp = requests.post(
-                        AZURE_TOKEN_SERVICE_URL.format(tenant_id),
+                        AZURE_TOKEN_SERVICE_URL.format(azure_ad_endpoint, tenant_id),
                         data=data,
                         headers={**USER_AGENT_HEADER, 'Content-Type': 'application/x-www-form-urlencoded'},
                         timeout=self.aad_timeout_seconds,
@@ -402,6 +407,14 @@ class DatabricksHook(BaseHook):
         """
         Retrieves run state of the run.
 
+        Please note that any Airflow tasks that call the ``get_run_state`` method will result in
+        failure unless you have enabled xcom pickling.  This can be done using the following
+        environment variable: ``AIRFLOW__CORE__ENABLE_XCOM_PICKLING``
+
+        If you do not want to enable xcom pickling, use the ``get_run_state_str`` method to get
+        a string describing state, or ``get_run_state_lifecycle``, ``get_run_state_result``, or
+        ``get_run_state_message`` to get individual components of the run state.
+
         :param run_id: id of the run
         :return: state of the run
         """
@@ -413,6 +426,46 @@ class DatabricksHook(BaseHook):
         result_state = state.get('result_state', None)
         state_message = state['state_message']
         return RunState(life_cycle_state, result_state, state_message)
+
+    def get_run_state_str(self, run_id: str) -> str:
+        """
+        Return the string representation of RunState.
+
+        :param run_id: id of the run
+        :return: string describing run state
+        """
+        state = self.get_run_state(run_id)
+        run_state_str = (
+            f"State: {state.life_cycle_state}. Result: {state.result_state}. {state.state_message}"
+        )
+        return run_state_str
+
+    def get_run_state_lifecycle(self, run_id: str) -> str:
+        """
+        Returns the lifecycle state of the run
+
+        :param run_id: id of the run
+        :return: string with lifecycle state
+        """
+        return self.get_run_state(run_id).life_cycle_state
+
+    def get_run_state_result(self, run_id: str) -> str:
+        """
+        Returns the resulting state of the run
+
+        :param run_id: id of the run
+        :return: string with resulting state
+        """
+        return self.get_run_state(run_id).result_state
+
+    def get_run_state_message(self, run_id: str) -> str:
+        """
+        Returns the state message for the run
+
+        :param run_id: id of the run
+        :return: string with state message
+        """
+        return self.get_run_state(run_id).state_message
 
     def cancel_run(self, run_id: str) -> None:
         """

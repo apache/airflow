@@ -86,15 +86,13 @@ and ``end_dates`` in your DAG definitions. This is mostly in order to preserve b
 case a naive ``start_date`` or ``end_date`` is encountered the default time zone is applied. It is applied
 in such a way that it is assumed that the naive date time is already in the default time zone. In other
 words if you have a default time zone setting of ``Europe/Amsterdam`` and create a naive datetime ``start_date`` of
-``datetime(2017,1,1)`` it is assumed to be a ``start_date`` of Jan 1, 2017 Amsterdam time.
+``datetime(2017, 1, 1)`` it is assumed to be a ``start_date`` of Jan 1, 2017 Amsterdam time.
 
 .. code-block:: python
 
-    default_args = dict(start_date=datetime(2016, 1, 1), owner="airflow")
-
-    dag = DAG("my_dag", default_args=default_args)
-    op = DummyOperator(task_id="dummy", dag=dag)
-    print(op.owner)  # Airflow
+    dag = DAG("my_dag", start_date=datetime(2017, 1, 1), default_args={"retries": 3})
+    op = BashOperator(task_id="dummy", bash_command="Hello World!", dag=dag)
+    print(op.retries)  # 3
 
 Unfortunately, during DST transitions, some datetimes don’t exist or are ambiguous.
 In such situations, pendulum raises an exception. That’s why you should always create aware
@@ -134,9 +132,7 @@ using ``pendulum``.
 
     local_tz = pendulum.timezone("Europe/Amsterdam")
 
-    default_args = dict(start_date=datetime(2016, 1, 1, tzinfo=local_tz), owner="airflow")
-
-    dag = DAG("my_tz_dag", default_args=default_args)
+    dag = DAG("my_tz_dag", start_date=datetime(2016, 1, 1, tzinfo=local_tz))
     op = DummyOperator(task_id="dummy", dag=dag)
     print(dag.timezone)  # <Timezone [Europe/Amsterdam]>
 

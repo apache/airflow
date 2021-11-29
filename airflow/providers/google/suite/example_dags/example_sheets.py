@@ -17,13 +17,13 @@
 # under the License.
 
 import os
+from datetime import datetime
 
 from airflow import models
 from airflow.operators.bash import BashOperator
 from airflow.providers.google.cloud.transfers.sheets_to_gcs import GoogleSheetsToGCSOperator
 from airflow.providers.google.suite.operators.sheets import GoogleSheetsCreateSpreadsheetOperator
 from airflow.providers.google.suite.transfers.gcs_to_sheets import GCSToGoogleSheetsOperator
-from airflow.utils.dates import days_ago
 
 GCS_BUCKET = os.environ.get("SHEETS_GCS_BUCKET", "test28397ye")
 SPREADSHEET_ID = os.environ.get("SPREADSHEET_ID", "1234567890qwerty")
@@ -37,7 +37,8 @@ SPREADSHEET = {
 with models.DAG(
     "example_sheets_gcs",
     schedule_interval='@once',  # Override to match your needs,
-    start_date=days_ago(1),
+    start_date=datetime(2021, 1, 1),
+    catchup=False,
     tags=["example"],
 ) as dag:
     # [START upload_sheet_to_gcs]

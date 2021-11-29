@@ -305,33 +305,32 @@ class TestSFTPHook(unittest.TestCase):
         assert unknowns == []
 
     @mock.patch('airflow.providers.sftp.hooks.sftp.SFTPHook.get_connection')
-    @mock.patch(
-        'airflow.providers.sftp.hooks.sftp.SFTPHook.get_conn.pwd', side_effect=Exception('Connection Error')
-    )
-    def test_connection_failure(self, mock_get_connection, mock_pwd):
+    def test_connection_failure(self, mock_get_connection):
         connection = Connection(
             login='login',
             host='host',
         )
         mock_get_connection.return_value = connection
+        with mock.patch.object(SFTPHook, 'get_conn') as get_conn:
+            type(get_conn.return_value).pwd = mock.PropertyMock(side_effect=Exception('Connection Error'))
 
-        hook = SFTPHook()
-        status, msg = hook.test_connection()
+            hook = SFTPHook()
+            status, msg = hook.test_connection()
         assert status is False
         assert msg == 'Connection Error'
 
     @mock.patch('airflow.providers.sftp.hooks.sftp.SFTPHook.get_connection')
-    @mock.patch('airflow.providers.sftp.hooks.sftp.SFTPHook.get_conn.pwd')
-    def test_connection_success(self, mock_get_connection, mock_pwd):
+    def test_connection_success(self, mock_get_connection):
         connection = Connection(
             login='login',
             host='host',
         )
         mock_get_connection.return_value = connection
-        mock_pwd.return_value = '/home/some_user'
 
-        hook = SFTPHook()
-        status, msg = hook.test_connection()
+        with mock.patch.object(SFTPHook, 'get_conn') as get_conn:
+            get_conn.return_value.pwd = '/home/someuser'
+            hook = SFTPHook()
+            status, msg = hook.test_connection()
         assert status is True
         assert msg == 'Connection successfully tested'
 

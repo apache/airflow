@@ -24,13 +24,11 @@ Create Date: 2019-06-13 21:51:32.878437
 
 """
 
-import dill
 import sqlalchemy as sa
 from alembic import op
-from sqlalchemy import Column, Float, Integer, PickleType, String
+from sqlalchemy import Column, String
 from sqlalchemy.ext.declarative import declarative_base
 
-from airflow.migrations.db_types import StringID
 from airflow.utils.session import create_session
 from airflow.utils.sqlalchemy import UtcDateTime
 
@@ -45,40 +43,14 @@ ID_LEN = 250
 
 
 class TaskInstance(Base):  # type: ignore
-    """
-    Task instances store the state of a task instance. This table is the
-    authority and single source of truth around what tasks have run and the
-    state they are in.
-
-    The SqlAlchemy model doesn't have a SqlAlchemy foreign key to the task or
-    dag model deliberately to have more control over transactions.
-
-    Database transactions on this table should insure double triggers and
-    any confusion around what task instances are or aren't ready to run
-    even while multiple schedulers may be firing task instances.
-    """
+    """Minimal model definition for migrations"""
 
     __tablename__ = "task_instance"
 
-    task_id = Column(StringID(), primary_key=True)
-    dag_id = Column(StringID(), primary_key=True)
+    task_id = Column(String(), primary_key=True)
+    dag_id = Column(String(), primary_key=True)
     execution_date = Column(UtcDateTime, primary_key=True)
-    start_date = Column(UtcDateTime)
-    end_date = Column(UtcDateTime)
-    duration = Column(Float)
-    state = Column(String(20))
-    _try_number = Column('try_number', Integer, default=0)
-    max_tries = Column(Integer)
-    hostname = Column(String(1000))
-    unixname = Column(String(1000))
-    job_id = Column(Integer)
     pool = Column(String(50), nullable=False)
-    queue = Column(String(256))
-    priority_weight = Column(Integer)
-    operator = Column(String(1000))
-    queued_dttm = Column(UtcDateTime)
-    pid = Column(Integer)
-    executor_config = Column(PickleType(pickler=dill))
 
 
 def upgrade():

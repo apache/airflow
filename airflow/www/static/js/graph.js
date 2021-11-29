@@ -633,7 +633,7 @@ function expandGroup(nodeId, node) {
   edges.forEach((edge) => {
     const sourceId = mapTaskToNode.get(edge.source_id);
     const targetId = mapTaskToNode.get(edge.target_id);
-    if (sourceId !== targetId && !g.hasEdge(sourceId, targetId)) {
+    if (sourceId !== targetId && !g.hasEdge(sourceId, targetId) && sourceId && targetId) {
       g.setEdge(sourceId, targetId, {
         curve: d3.curveBasis,
         arrowheadClass: 'arrowhead',

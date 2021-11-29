@@ -239,7 +239,12 @@ Then you can import and use the ``ALL_TASKS`` constant in all your DAGs like tha
 
     from my_company_utils.common import ALL_TASKS
 
-    with DAG(dag_id="my_dag", schedule_interval=None, start_date=days_ago(2)) as dag:
+    with DAG(
+        dag_id="my_dag",
+        schedule_interval=None,
+        start_date=datetime(2021, 1, 1),
+        catchup=False,
+    ) as dag:
         for task in ALL_TASKS:
             # create your operators and relations here
             pass
@@ -440,11 +445,11 @@ Unit tests ensure that there is no incorrect code in your DAG. You can write uni
 
 
     @pytest.fixture()
-    def dagbag(self):
+    def dagbag():
         return DagBag()
 
 
-    def test_dag_loaded(self, dagbag):
+    def test_dag_loaded(dagbag):
         dag = dagbag.get_dag(dag_id="hello_world")
         assert dagbag.import_errors == {}
         assert dag is not None
@@ -499,7 +504,7 @@ This is an example test want to verify the structure of a code-generated DAG aga
         with DAG(
             dag_id=TEST_DAG_ID,
             schedule_interval="@daily",
-            default_args={"start_date": DATA_INTERVAL_START},
+            start_date=DATA_INTERVAL_START,
         ) as dag:
             MyCustomOperator(
                 task_id=TEST_TASK_ID,

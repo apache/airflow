@@ -77,6 +77,7 @@ of default parameters that we can use when creating tasks.
 
 .. exampleinclude:: /../../airflow/example_dags/tutorial.py
     :language: python
+    :dedent: 4
     :start-after: [START default_args]
     :end-before: [END default_args]
 
@@ -487,7 +488,8 @@ Lets look at our DAG:
 
   @dag(
       schedule_interval="0 0 * * *",
-      start_date=datetime.today() - timedelta(days=2),
+      start_date=datetime(2021, 1, 1),
+      catchup=False,
       dagrun_timeout=timedelta(minutes=60),
   )
   def Etl():

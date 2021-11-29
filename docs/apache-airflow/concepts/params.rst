@@ -32,21 +32,22 @@ which won't be doing any such validations.
     from airflow.models.param import Param
 
     with DAG(
-      'my_dag',
-      params: {
-        'int_param': Param(10, type='integer', minimum=0, maximum=20),          # a int param with default value
-        'str_param': Param(type='string', minLength=2, maxLength=4),            # a mandatory str param
-        'dummy_param': Param(type=['null', 'number', 'string'])                 # a param which can be None as well
-        'old_param': 'old_way_of_passing',                                      # i.e. no data or type validations
-        'simple_param': Param('im_just_like_old_param'),                        # i.e. no data or type validations
-        'email_param': Param(
-            default='example@example.com',
-            type='string',
-            format='idn-email',
-            minLength=5,
-            maxLength=255,
-        ),
-      }
+        'my_dag',
+        params={
+            'int_param': Param(10, type='integer', minimum=0, maximum=20),  # a int param with default value
+            'str_param': Param(type='string', minLength=2, maxLength=4),    # a mandatory str param
+            'dummy_param': Param(type=['null', 'number', 'string'])         # a param which can be None as well
+            'old_param': 'old_way_of_passing',                              # i.e. no data or type validations
+            'simple_param': Param('im_just_like_old_param'),                # i.e. no data or type validations
+            'email_param': Param(
+                default='example@example.com',
+                type='string',
+                format='idn-email',
+                minLength=5,
+                maxLength=255,
+            ),
+        },
+    )
 
 ``Param`` make use of `json-schema <https://json-schema.org/>`__ to define the properties and doing the
 validation, so one can use the full json-schema specifications mentioned at
