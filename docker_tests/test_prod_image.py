@@ -79,7 +79,9 @@ class TestPythonPackages:
         packages_to_install = {f"apache-airflow-providers-{d.replace('.', '-')}" for d in lines}
         assert len(packages_to_install) != 0
 
-        output = run_bash_in_docker("airflow providers list --output json", stderr=subprocess.DEVNULL)
+        output = run_bash_in_docker(
+            "airflow providers list --output json", stderr=subprocess.DEVNULL, return_output=True
+        )
         providers = json.loads(output)
         packages_installed = {d['package_name'] for d in providers}
         assert len(packages_installed) != 0
