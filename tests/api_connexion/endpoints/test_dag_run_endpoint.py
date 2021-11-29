@@ -269,6 +269,56 @@ class TestGetDagRun(TestDagRunEndpoint):
         assert_401(response)
 
 
+class TestGetLineage(TestDagRunEndpoint):
+    @mock.patch("airflow.api_connexion.endpoints.dag_run_endpoint.get_lineage")
+    def test_should_respond_200(self, mock_lineage, session):
+        dagrun_model = DagRun(
+            dag_id="TEST_DAG_ID",
+            run_id="TEST_DAG_RUN_ID",
+            run_type=DagRunType.MANUAL,
+            execution_date=timezone.parse(self.default_time),
+            start_date=timezone.parse(self.default_time),
+            external_trigger=True,
+        )
+        session.add(dagrun_model)
+        session.commit()
+
+        self.client.get(
+            "api/v1/dags/TEST_DAG_ID/dagRuns/TEST_DAG_RUN_ID/lineage",
+            environ_overrides={'REMOTE_USER': "test"},
+        )
+        assert mock_lineage.called_once_with(dag_id="TEST_DAG_ID", dag_run_id="TEST_DAG_RUN_ID")
+
+    def test_should_respond_404(self):
+        response = self.client.get(
+            "api/v1/dags/invalid-id/dagRuns/invalid-id/lineage", environ_overrides={'REMOTE_USER': "test"}
+        )
+        assert response.status_code == 404
+        expected_resp = {
+            'detail': "DAGRun with DAG ID: 'invalid-id' and DagRun ID: 'invalid-id' not found",
+            'status': 404,
+            'title': 'DAGRun not found',
+            'type': EXCEPTIONS_LINK_MAP[404],
+        }
+        assert expected_resp == response.json
+
+    def test_should_raises_401_unauthenticated(self, session):
+        dagrun_model = DagRun(
+            dag_id="TEST_DAG_ID",
+            run_id="TEST_DAG_RUN_ID",
+            run_type=DagRunType.MANUAL,
+            execution_date=timezone.parse(self.default_time),
+            start_date=timezone.parse(self.default_time),
+            external_trigger=True,
+        )
+        session.add(dagrun_model)
+        session.commit()
+
+        response = self.client.get("api/v1/dags/TEST_DAG_ID/dagRuns/TEST_DAG_RUN_ID/lineage")
+
+        assert_401(response)
+
+
 class TestGetDagRuns(TestDagRunEndpoint):
     def test_should_respond_200(self, session):
         self._create_test_dag_run()

@@ -17,25 +17,33 @@
 # under the License.
 """Lineage apis"""
 import datetime
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
-from airflow.api.common.experimental import check_and_get_dag, check_and_get_dagrun
+from airflow.api.common.experimental import check_and_get_dag
+from airflow.exceptions import DagRunNotFound
 from airflow.lineage import PIPELINE_INLETS, PIPELINE_OUTLETS
 from airflow.models.xcom import XCom
 from airflow.utils.session import provide_session
 
 
 @provide_session
-def get_lineage(dag_id: str, execution_date: datetime.datetime, session=None) -> Dict[str, Dict[str, Any]]:
+def get_lineage(
+    *,
+    dag_id: str,
+    execution_date: Optional[datetime.datetime] = None,
+    run_id: Optional[str] = None,
+    session=None,
+) -> Dict[str, Dict[str, Any]]:
     """Gets the lineage information for dag specified"""
     dag = check_and_get_dag(dag_id)
-    check_and_get_dagrun(dag, execution_date)
+    if not dag.get_dagrun(execution_date=execution_date, run_id=run_id):
+        raise DagRunNotFound(f"DagRun {dag_id} {execution_date} {run_id} not found")
 
     inlets: List[XCom] = XCom.get_many(
-        dag_ids=dag_id, execution_date=execution_date, key=PIPELINE_INLETS, session=session
+        dag_ids=dag_id, execution_date=execution_date, run_id=run_id, key=PIPELINE_INLETS, session=session
     ).all()
     outlets: List[XCom] = XCom.get_many(
-        dag_ids=dag_id, execution_date=execution_date, key=PIPELINE_OUTLETS, session=session
+        dag_ids=dag_id, execution_date=execution_date, run_id=run_id, key=PIPELINE_OUTLETS, session=session
     ).all()
 
     lineage: Dict[str, Dict[str, Any]] = {}

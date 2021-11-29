@@ -749,6 +749,29 @@ paths:
         '404':
           $ref: '#/components/responses/NotFound'
 
+  /dags/{dag_id}/dagRuns/{dag_run_id}/lineage:
+    parameters:
+      - $ref: '#/components/parameters/DAGID'
+      - $ref: '#/components/parameters/DAGRunID'
+    get:
+      summary: Get DAG lineage
+      x-openapi-router-controller: airflow.api_connexion.endpoints.dag_run_endpoint
+      operationId: getlineage
+      tags: [DAGRun]
+      responses:
+        '200':
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Lineage'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/PermissionDenied'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
   /eventLogs:
     get:
       summary: List log entries
@@ -2203,6 +2226,17 @@ components:
               items:
                 $ref: '#/components/schemas/DAGRun'
         - $ref: '#/components/schemas/CollectionInfo'
+
+    Lineage:
+      type: object
+      description: |
+        Lineage of a DAG.
+
+        *New in version 2.3.0*
+      properties:
+        task_ids:
+          type: object
+          description: The lineage object.
 
     EventLog:
       type: object

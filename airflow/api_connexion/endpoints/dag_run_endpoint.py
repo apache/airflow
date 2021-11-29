@@ -22,6 +22,7 @@ from marshmallow import ValidationError
 from sqlalchemy import or_
 
 from airflow._vendor.connexion import NoContent
+from airflow.api.common.experimental.get_lineage import get_lineage
 from airflow.api.common.experimental.mark_tasks import (
     set_dag_run_state_to_failed,
     set_dag_run_state_to_success,
@@ -34,6 +35,7 @@ from airflow.api_connexion.schemas.dag_run_schema import (
     dagrun_collection_schema,
     dagrun_schema,
     dagruns_batch_form_schema,
+    lineage_schema,
     set_dagrun_state_form_schema,
 )
 from airflow.models import DagModel, DagRun
@@ -73,6 +75,24 @@ def get_dag_run(dag_id, dag_run_id, session):
             detail=f"DAGRun with DAG ID: '{dag_id}' and DagRun ID: '{dag_run_id}' not found",
         )
     return dagrun_schema.dump(dag_run)
+
+
+@security.requires_access(
+    [
+        (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
+        (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG_RUN),
+    ]
+)
+@provide_session
+def getlineage(dag_id, dag_run_id, session):
+    dag_run = session.query(DagRun).filter(DagRun.dag_id == dag_id, DagRun.run_id == dag_run_id).one_or_none()
+    if dag_run is None:
+        raise NotFound(
+            "DAGRun not found",
+            detail=f"DAGRun with DAG ID: '{dag_id}' and DagRun ID: '{dag_run_id}' not found",
+        )
+    lineage = get_lineage(dag_id=dag_id, run_id=dag_run_id, session=session)
+    return lineage_schema.dump(lineage)
 
 
 @security.requires_access(

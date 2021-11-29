@@ -146,7 +146,14 @@ class DagRunsBatchFormSchema(Schema):
     end_date_lte = fields.DateTime(load_default=None, validate=validate_istimezone)
 
 
+class LineageSchema(Schema):
+    """Lineage Schema"""
+
+    task_ids = fields.Dict(fields.Str(), fields.Dict())
+
+
 dagrun_schema = DAGRunSchema()
 dagrun_collection_schema = DAGRunCollectionSchema()
 set_dagrun_state_form_schema = SetDagRunStateFormSchema()
 dagruns_batch_form_schema = DagRunsBatchFormSchema()
+lineage_schema = LineageSchema()

@@ -28,13 +28,13 @@ class Client:
         if auth:
             self._session.auth = auth
 
-    def trigger_dag(self, dag_id, run_id=None, conf=None, execution_date=None):
+    def trigger_dag(self, *, dag_id, run_id=None, conf=None, execution_date=None, **kwargs):
         """Create a dag run for the specified dag.
 
-        :param dag_id:
-        :param run_id:
-        :param conf:
-        :param execution_date:
+        :param dag_id: The ID of the dag to run
+        :param run_id: The DagRun ID for the dag, generated if not specified
+        :param conf: a dictionary of configuration items to be passed into the DAG
+        :param execution_date: The execution date of the dag to run
         :return:
         """
         raise NotImplementedError()
@@ -42,7 +42,7 @@ class Client:
     def delete_dag(self, dag_id):
         """Delete all DB records related to the specified dag.
 
-        :param dag_id:
+        :param dag_id: the ID of the dag to be deleted
         """
         raise NotImplementedError()
 
