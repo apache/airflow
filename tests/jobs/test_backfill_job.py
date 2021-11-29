@@ -24,7 +24,6 @@ import threading
 from unittest.mock import patch
 
 import pytest
-from parameterized import parameterized
 
 from airflow import settings
 from airflow.cli import cli_parser
@@ -798,7 +797,7 @@ class TestBackfillJob:
         ti.refresh_from_db()
         assert ti.state == State.SUCCESS
 
-    @parameterized.expand([(True,), (False,)])
+    @pytest.mark.parametrize("ignore_depends_on_past", [True, False])
     def test_backfill_depends_on_past_works_independently_on_ignore_depends_on_past(
         self, ignore_depends_on_past
     ):
