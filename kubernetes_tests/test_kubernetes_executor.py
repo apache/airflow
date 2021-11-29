@@ -25,7 +25,7 @@ from kubernetes_tests.test_base import EXECUTOR, TestBase
 @pytest.mark.skipif(EXECUTOR != 'KubernetesExecutor', reason="Only runs on KubernetesExecutor")
 class TestKubernetesExecutor(TestBase):
     def test_integration_run_dag(self):
-        dag_id = 'example_kubernetes_executor_config'
+        dag_id = 'example_kubernetes_executor'
         dag_run_id, execution_date = self.start_job_in_kubernetes(dag_id, self.host)
         print(f"Found the job with execution_date {execution_date}")
 
@@ -48,7 +48,7 @@ class TestKubernetesExecutor(TestBase):
         )
 
     def test_integration_run_dag_with_scheduler_failure(self):
-        dag_id = 'example_kubernetes_executor_config'
+        dag_id = 'example_kubernetes_executor'
 
         dag_run_id, execution_date = self.start_job_in_kubernetes(dag_id, self.host)
 

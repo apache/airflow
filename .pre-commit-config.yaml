@@ -238,6 +238,7 @@ repos:
           ^scripts/.*\.py$|
           ^dev|
           ^provider_packages|
+          ^docker_tests|
           ^kubernetes_tests|
           .*example_dags/.*|
           ^chart/.*\.py$|
@@ -623,7 +624,7 @@ repos:
         entry: ./scripts/ci/pre_commit/pre_commit_json_schema.py
         args:
           - --spec-url
-          - https://raw.githubusercontent.com/yannh/kubernetes-json-schema/master/v1.18.15-standalone/service-v1.json
+          - https://raw.githubusercontent.com/yannh/kubernetes-json-schema/master/v1.20.2-standalone/service-v1.json
         language: python
         pass_filenames: true
         files: scripts/ci/kubernetes/nodeport.yaml
@@ -690,6 +691,12 @@ repos:
         files: ^airflow/www/static/js/
         entry: scripts/ci/static_checks/www_lint.sh
         pass_filenames: false
+      - id: changelog-duplicates
+        name: Check changelogs for duplicate entries
+        language: python
+        files: CHANGELOG\.txt$|CHANGELOG\.rst$
+        entry: scripts/ci/pre_commit/pre_commit_changelog_duplicates.py
+        pass_filenames: true
         ## ADD MOST PRE-COMMITS ABOVE THAT LINE
         # The below pre-commits are those requiring CI image to be built
       - id: build

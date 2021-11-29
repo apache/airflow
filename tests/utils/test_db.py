@@ -29,7 +29,7 @@ from sqlalchemy import MetaData
 
 from airflow.models import Base as airflow_base
 from airflow.settings import engine
-from airflow.utils.db import create_default_connections
+from airflow.utils.db import check_migrations, create_default_connections
 
 
 class TestDb(unittest.TestCase):
@@ -103,3 +103,7 @@ class TestDb(unittest.TestCase):
         source = inspect.getsource(create_default_connections)
         src = pattern.findall(source)
         assert sorted(src) == src
+
+    def test_check_migrations(self):
+        # Should run without error. Can't easily test the behaviour, but we can check it works
+        check_migrations(1)

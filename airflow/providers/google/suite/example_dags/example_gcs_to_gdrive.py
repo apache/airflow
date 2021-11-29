@@ -19,17 +19,18 @@
 Example DAG using GoogleCloudStorageToGoogleDriveOperator.
 """
 import os
+from datetime import datetime
 
 from airflow import models
 from airflow.providers.google.suite.transfers.gcs_to_gdrive import GCSToGoogleDriveOperator
-from airflow.utils.dates import days_ago
 
 GCS_TO_GDRIVE_BUCKET = os.environ.get("GCS_TO_DRIVE_BUCKET", "example-object")
 
 with models.DAG(
     "example_gcs_to_gdrive",
     schedule_interval=None,  # Override to match your needs,
-    start_date=days_ago(1),
+    start_date=datetime(2021, 1, 1),
+    catchup=False,
     tags=['example'],
 ) as dag:
     # [START howto_operator_gcs_to_gdrive_copy_single_file]

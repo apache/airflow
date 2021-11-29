@@ -72,6 +72,7 @@ Extra (optional)
     * ``azure_tenant_id``: ID of the Azure Active Directory tenant
     * ``azure_resource_id``: optional Resource ID of the Azure Databricks workspace (required if Service Principal isn't
       a user inside workspace)
+    * ``azure_ad_endpoint``: optional host name of Azure AD endpoint if you're using special `Azure Cloud (GovCloud, China, Germany) <https://docs.microsoft.com/en-us/graph/deployments#app-registration-and-token-service-root-endpoints>`_. The value must contain a protocol. For example: ``https://login.microsoftonline.de``.
 
     Following parameters are necessary if using authentication with AAD token for Azure managed identity:
 

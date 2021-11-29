@@ -542,7 +542,11 @@ Create the name of the cleanup service account to use
 {{- end -}}
 
 {{ define "wait-for-migrations-command" }}
-  {{/* From Airflow 2.0.0 this can become [airflow, db, check-migrations] */}}
+  {{- if semverCompare ">=2.0.0" .Values.airflowVersion }}
+  - airflow
+  - db
+  - check-migrations
+  {{- else }}
   - python
   - -c
   - |
@@ -581,6 +585,7 @@ Create the name of the cleanup service account to use
                 ticker += 1
                 time.sleep(1)
                 logging.info('Waiting for migrations... %s second(s)', ticker)
+  {{- end }}
 {{- end }}
 
 {{ define "registry_docker_config" -}}

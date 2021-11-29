@@ -176,7 +176,6 @@ access token, which will allow to act on its behalf using its permissions. ``imp
 does not even need to have a generated key.
 
 .. warning::
-  :class:`~airflow.providers.google.cloud.operators.kubernetes_engine.GKEStartPodOperator`,
   :class:`~airflow.providers.google.cloud.operators.dataflow.DataflowCreateJavaJobOperator` and
   :class:`~airflow.providers.google.cloud.operators.dataflow.DataflowCreatePythonJobOperator`
   do not support direct impersonation as of now.

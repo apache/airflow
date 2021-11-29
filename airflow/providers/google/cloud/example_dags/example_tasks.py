@@ -46,7 +46,6 @@ from airflow.providers.google.cloud.operators.tasks import (
     CloudTasksTaskRunOperator,
     CloudTasksTasksListOperator,
 )
-from airflow.utils.dates import days_ago
 
 timestamp = timestamp_pb2.Timestamp()
 timestamp.FromDatetime(datetime.now() + timedelta(hours=12))
@@ -68,7 +67,8 @@ TASK = {
 with models.DAG(
     "example_gcp_tasks",
     schedule_interval='@once',  # Override to match your needs
-    start_date=days_ago(1),
+    start_date=datetime(2021, 1, 1),
+    catchup=False,
     tags=['example'],
 ) as dag:
 

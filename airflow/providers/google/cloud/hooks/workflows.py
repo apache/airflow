@@ -212,8 +212,8 @@ class WorkflowsHook(GoogleBaseHook):
 
         :param filter_: Filter to restrict results to specific workflows.
         :type filter_: str
-        :param order_by: Comma-separated list of fields that that
-            specify the order of the results. Default sorting order for a field is ascending.
+        :param order_by: Comma-separated list of fields that
+            specifies the order of the results. Default sorting order for a field is ascending.
             To specify descending order for a field, append a "desc" suffix.
             If not specified, the results will be returned in an unspecified order.
         :type order_by: str
