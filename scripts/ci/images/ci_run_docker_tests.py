@@ -49,7 +49,8 @@ def get_parser():
 
 def run_verbose(cmd: List[str], *, check=True, **kwargs):
     print(f"{CBLUE}$ {' '.join(shlex.quote(c) for c in cmd)}{CEND}")
-    subprocess.run(cmd, check=check, **kwargs)
+    r = subprocess.run(cmd, check=check, **kwargs)
+    print(r)
 
 
 def create_virtualenv():
