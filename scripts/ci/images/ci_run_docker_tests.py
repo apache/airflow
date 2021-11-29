@@ -93,6 +93,7 @@ def main():
         "--pythonwarnings=ignore::PendingDeprecationWarning",
         "-n",
         "auto",
+        "-s",
     )
 
     run_verbose([str(python_bin), "-m", "pytest", *pytest_args, *extra_pytest_args])

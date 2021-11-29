@@ -138,11 +138,10 @@ def test_trigger_dag_and_wait_for_result():
             # See:
             # https://github.com/docker/compose/releases/tag/v2.1.1
             # https://github.com/docker/compose/pull/8777
-            with multiprocessing.Pool() as pool:
-                pool.map_async(
-                    wait_for_container,
-                    subprocess.check_output(["docker", "compose", 'ps', '-q']).decode().strip().splitlines(),
-                ).get(timeout=None)
+            for container_id in (
+                subprocess.check_output(["docker", "compose", 'ps', '-q']).decode().strip().splitlines()
+            ):
+                wait_for_container(container_id)
             api_request("PATCH", path=f"dags/{DAG_ID}", json={"is_paused": False})
             api_request("POST", path=f"dags/{DAG_ID}/dagRuns", json={"dag_run_id": DAG_RUN_ID})
             try:
