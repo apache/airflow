@@ -239,10 +239,6 @@ class ShortCircuitOperator(PythonOperator, SkipMixin):
         For more information on how to use this operator, take a look at the guide:
         :ref:`howto/operator:ShortCircuitOperator`
 
-    .. seealso::
-        For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:ShortCircuitOperator`
-
     :param ignore_downstream_trigger_rules: If set to True, all downstream tasks from this operator task will
         be skipped. This is the default behavior. If set to False, the direct, downstream task(s) will be
         skipped but the ``trigger_rule`` defined for a other downstream tasks will be respected.

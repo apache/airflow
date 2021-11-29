@@ -112,7 +112,7 @@ execute while the tasks downstream of the "condition_is_False" ShortCircuitOpera
 The "short-circuiting" can be configured to either respect or ignore the ``trigger_rule`` defined
 for downstream tasks. If ``ignore_downstream_trigger_rules`` is set to True, the default configuration, all
 downstream tasks are skipped without considering the ``trigger_rule`` defined for tasks.  If this parameter is
-set to False, the direct, downstream tasks are skipped but the specified ``trigger_rule`` for other subsequent
+set to False, the direct downstream tasks are skipped but the specified ``trigger_rule`` for other subsequent
 downstream tasks are respected. In this mode, the operator assumes the direct, downstream task(s) were
 purposely meant to be skipped but perhaps not other subsequent tasks.
 
