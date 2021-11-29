@@ -31,7 +31,7 @@ with models.DAG(
     schedule_interval='@once',
     tags=['example'],
 ) as dag:
-    # [START howto_operator_mysql_to_gcs]
+    # [START howto_operator_mssql_to_gcs]
     upload = MSSQLToGCSOperator(
         task_id='mssql_to_gcs',
         mssql_conn_id='airflow_mssql',
@@ -40,4 +40,4 @@ with models.DAG(
         filename=FILENAME,
         export_format='csv',
     )
-    # [END howto_operator_mysql_to_gcs]
+    # [END howto_operator_mssql_to_gcs]
