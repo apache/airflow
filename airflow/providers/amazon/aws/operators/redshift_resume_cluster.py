@@ -22,7 +22,7 @@ from airflow.providers.amazon.aws.hooks.redshift import RedshiftClusterStates, R
 
 class RedshiftResumeClusterOperator(BaseOperator):
     """
-    Resume an AWS Redshift Cluster using boto3.
+    Resume a paused AWS Redshift Cluster
 
     .. seealso::
     For more information on how to use this operator, take a look at the guide:
