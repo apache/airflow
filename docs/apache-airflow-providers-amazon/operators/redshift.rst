@@ -101,7 +101,7 @@ All together, here is our DAG:
 Resume a Redshift Cluster
 """""""""""""""""""""""""""""""""""""""""""
 
-To resume an existing AWS Redshift Cluster you can use
+To resume a 'paused' AWS Redshift Cluster you can use
 :class:`~airflow.providers.amazon.aws.operators.redshift_resume_cluster.RedshiftResumeClusterOperator`.
 
 This Operator leverages the AWS CLI
