@@ -25,6 +25,6 @@ The :class:`~airflow.executors.local_kubernetes_executor.LocalKubernetesExecutor
 to simultaneously run a ``LocalExecutor`` and a ``KubernetesExecutor``.
 An executor is chosen to run a task based on the task's queue.
 
-``LocalKubernetesExecutor`` provides the capability of running low intesive tasks locally
+``LocalKubernetesExecutor`` provides the capability of running low-intensive tasks locally
 using ``LocalExecutor`` and to handle the high load at the peak time and runtime isolation
 of the ``KubernetesExecutor``.
