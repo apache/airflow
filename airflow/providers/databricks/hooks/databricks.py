@@ -255,6 +255,26 @@ class DatabricksHook(BaseHook):
             headers['X-Databricks-Azure-SP-Management-Token'] = mgmt_token
         return headers
 
+    @staticmethod
+    def _check_azure_metadata_service() -> None:
+        """
+        Check for Azure Metadata Service
+        https://docs.microsoft.com/en-us/azure/virtual-machines/linux/instance-metadata-service
+        """
+        try:
+            jsn = requests.get(
+                AZURE_METADATA_SERVICE_TOKEN_URL,
+                params={"api-version": "2021-02-01"},
+                headers={"Metadata": "true"},
+                timeout=2,
+            ).json()
+            if 'compute' not in jsn or 'azEnvironment' not in jsn['compute']:
+                raise AirflowException(
+                    f"Was able to fetch some metadata, but it doesn't look like Azure Metadata: {jsn}"
+                )
+        except (requests_exceptions.RequestException, ValueError) as e:
+            raise AirflowException(f"Can't reach Azure Metadata Service: {e}")
+
     def _do_api_call(self, endpoint_info, json):
         """
         Utility function to perform an API call with retries
@@ -289,22 +309,7 @@ class DatabricksHook(BaseHook):
             auth = _TokenAuth(self._get_aad_token(DEFAULT_DATABRICKS_SCOPE))
         elif self.databricks_conn.extra_dejson.get('use_azure_managed_identity', False):
             self.log.info('Using AAD Token for managed identity.')
-            # check for Azure Metadata Service
-            # https://docs.microsoft.com/en-us/azure/virtual-machines/linux/instance-metadata-service
-            try:
-                jsn = requests.get(
-                    AZURE_METADATA_SERVICE_TOKEN_URL,
-                    params={"api-version": "2021-02-01"},
-                    headers={"Metadata": "true"},
-                    timeout=2,
-                ).json()
-                if 'compute' not in jsn or 'azEnvironment' not in jsn['compute']:
-                    raise AirflowException(
-                        f"Was able to fetch some metadata, but it doesn't look like Azure Metadata: {jsn}"
-                    )
-            except (requests_exceptions.RequestException, ValueError) as e:
-                raise AirflowException(f"Can't reach Azure Metadata Service: {e}")
-
+            self._check_azure_metadata_service()
             auth = _TokenAuth(self._get_aad_token(DEFAULT_DATABRICKS_SCOPE))
         else:
             self.log.info('Using basic auth.')
