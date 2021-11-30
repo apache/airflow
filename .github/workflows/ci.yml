@@ -327,6 +327,34 @@ jobs:
       - name: "Test examples of PROD image building"
         run: ./scripts/ci/images/ci_test_examples_of_prod_image_building.sh
 
+  test-docker-compose-quick-start:
+    timeout-minutes: 60
+    name: "Test docker-compose quick start"
+    runs-on: ${{ fromJson(needs.build-info.outputs.runsOn) }}
+    needs: [build-info, prod-images]
+    if: needs.build-info.outputs.image-build == 'true'
+    steps:
+      - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 2
+          persist-credentials: false
+      - name: "Free space"
+        run: ./scripts/ci/tools/free_space.sh
+        if: |
+          needs.build-info.outputs.waitForImage == 'true'
+      - name: "Setup python"
+        uses: actions/setup-python@v2
+        with:
+          python-version: ${{needs.build-info.outputs.defaultPythonVersion}}
+      - name: "Cache virtualenv environmnent"
+        uses: actions/cache@v2
+        with:
+          path: '.build/.docker_venv'
+          key: ${{ runner.os }}-docker-venv-${{ hashFiles('scripts/ci/images/ci_run_docker_tests.py') }}
+      - name: "Test docker-compose quick start"
+        run: ./scripts/ci/images/ci_run_docker_compose_quick_start_test.sh
+
   ci-images:
     timeout-minutes: 120
     name: "Wait for CI images"
