@@ -528,6 +528,52 @@ class TestCeleryExecutor:
                 ti = session.query(TaskInstance).filter(TaskInstance.task_id == ti.task_id).one()
                 assert ti.state == state
 
+    @mock.patch("celery.backends.database.DatabaseBackend.ResultSession")
+    @pytest.mark.backend("mysql", "postgres")
+    @freeze_time("2020-01-01")
+    @pytest.mark.parametrize(
+        "query_return_value, state",
+        [
+            (True, State.QUEUED),
+            (None, State.SCHEDULED),
+        ],
+    )
+    def test_the_check_interval_to_clear_stuck_queued_task_is_correct_for_db_query(
+        self,
+        mock_result_session,
+        query_return_value,
+        state,
+        session,
+        dag_maker,
+        create_dummy_dag,
+        create_task_instance,
+    ):
+        """Here we test that task are not cleared if found in celery database"""
+        with _prepare_app():
+            mock_backend = DatabaseBackend(app=celery_executor.app, url="sqlite3://")
+            with mock.patch('airflow.executors.celery_executor.Celery.backend', mock_backend):
+                mock_session = mock_backend.ResultSession.return_value
+                mock_session.query.return_value.filter.return_value.all.return_value = [
+                    mock.MagicMock(**{"to_dict.return_value": {"status": "SUCCESS", "task_id": "123"}})
+                ]
+                mock_session.query.return_value.filter.return_value.one_or_none.return_value = (
+                    query_return_value
+                )
+                last_check_time = time.time() - 302  # should clear ti state
+
+                ti = create_task_instance(state=State.QUEUED)
+                ti.queued_dttm = timezone.utcnow() - timedelta(days=2)
+                ti.external_executor_id = '231'
+                session.merge(ti)
+                session.flush()
+                executor = celery_executor.CeleryExecutor()
+                executor.tasks = {ti.key: AsyncResult("231")}
+                executor.stuck_tasks_last_check_time = last_check_time
+                executor.sync()
+                session.flush()
+                ti = session.query(TaskInstance).filter(TaskInstance.task_id == ti.task_id).one()
+                assert ti.state == state
+
 
 def test_operation_timeout_config():
     assert celery_executor.OPERATION_TIMEOUT == 1
