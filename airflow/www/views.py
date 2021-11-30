@@ -1704,6 +1704,10 @@ class Airflow(AirflowBaseView):
             flash(f"Cannot find dag {dag_id}")
             return redirect(origin)
 
+        if dag_orm.has_import_errors:
+            flash(f"Cannot create dagruns because the dag {dag_id} has import errors", "error")
+            return redirect(origin)
+
         if request.method == 'GET':
             # Populate conf textarea with conf requests parameter, or dag.params
             default_conf = ''
@@ -3373,13 +3377,26 @@ def lazy_add_provider_discovered_options_to_connection_form():
 # Used to store a dictionary of field behaviours used to dynamically change available
 # fields in ConnectionForm based on type of connection chosen
 # See airflow.hooks.base_hook.DiscoverableHook for details on how to customize your Hooks.
-# those field behaviours are rendered as scripts in the conn_create.html and conn_edit.html templates
+#
+# Additionally, a list of connection types that support testing via Airflow REST API is stored to dynamically
+# enable/disable the Test Connection button.
+#
+# These field behaviours and testable connection types are rendered as scripts in the conn_create.html and
+# conn_edit.html templates.
 class ConnectionFormWidget(FormWidget):
     """Form widget used to display connection"""
 
     @cached_property
     def field_behaviours(self):
         return json.dumps(ProvidersManager().field_behaviours)
+
+    @cached_property
+    def testable_connection_types(self):
+        return [
+            connection_type
+            for connection_type, provider_info in ProvidersManager().hooks.items()
+            if provider_info.connection_testable
+        ]
 
 
 class ConnectionModelView(AirflowModelView):
@@ -3980,6 +3997,7 @@ class DagRunModelView(AirflowPrivilegeVerifierModelView):
         'end_date',
         'external_trigger',
         'conf',
+        'duration',
     ]
     search_columns = [
         'state',
@@ -3996,11 +4014,36 @@ class DagRunModelView(AirflowPrivilegeVerifierModelView):
     }
     edit_columns = ['state', 'dag_id', 'execution_date', 'start_date', 'end_date', 'run_id', 'conf']
 
+    # duration is not a DB column, its derived
+    order_columns = [
+        'state',
+        'dag_id',
+        'execution_date',
+        'run_id',
+        'run_type',
+        'queued_at',
+        'start_date',
+        'end_date',
+        'external_trigger',
+        'conf',
+    ]
+
     base_order = ('execution_date', 'desc')
 
     base_filters = [['dag_id', DagEditFilter, lambda: []]]
 
     edit_form = DagRunEditForm
+
+    def duration_f(self):
+        """Duration calculation."""
+        end_date = self.get('end_date')
+        start_date = self.get('start_date')
+
+        difference = '0.0'
+        if start_date and end_date:
+            difference = str(end_date - start_date)
+
+        return difference
 
     formatters_columns = {
         'execution_date': wwwutils.datetime_f('execution_date'),
@@ -4011,6 +4054,7 @@ class DagRunModelView(AirflowPrivilegeVerifierModelView):
         'dag_id': wwwutils.dag_link,
         'run_id': wwwutils.dag_run_link,
         'conf': wwwutils.json_f('conf'),
+        'duration': duration_f,
     }
 
     @action('muldelete', "Delete", "Are you sure you want to delete selected records?", single=False)
@@ -4738,6 +4782,22 @@ class MultiResourceUserMixin:
         permissions.ACTION_CAN_DELETE,
     ]
 
+    @property
+    def class_permission_name(self):
+        """Returns appropriate permission name depending on request method name."""
+        if request:
+            action_name = request.view_args.get("name")
+            _, method_name = request.url_rule.endpoint.rsplit(".", 1)
+            if method_name == 'action' and action_name:
+                return self.class_permission_name_mapping.get(action_name, self._class_permission_name)
+            if method_name:
+                return self.class_permission_name_mapping.get(method_name, self._class_permission_name)
+        return self._class_permission_name
+
+    @class_permission_name.setter
+    def class_permission_name(self, name):
+        self._class_permission_name = name
+
     @expose("/show/<pk>", methods=["GET"])
     @has_access
     def show(self, pk):
@@ -4784,22 +4844,6 @@ class CustomUserDBModelView(MultiResourceUserMixin, UserDBModelView):
         permissions.ACTION_CAN_EDIT,
         permissions.ACTION_CAN_DELETE,
     ]
-
-    @property
-    def class_permission_name(self):
-        """Returns appropriate permission name depending on request method name."""
-        if request:
-            action_name = request.view_args.get("name")
-            _, method_name = request.url_rule.endpoint.rsplit(".", 1)
-            if method_name == 'action' and action_name:
-                return self.class_permission_name_mapping.get(action_name, self._class_permission_name)
-            if method_name:
-                return self.class_permission_name_mapping.get(method_name, self._class_permission_name)
-        return self._class_permission_name
-
-    @class_permission_name.setter
-    def class_permission_name(self, name):
-        self._class_permission_name = name
 
 
 class CustomUserLDAPModelView(MultiResourceUserMixin, UserLDAPModelView):

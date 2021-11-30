@@ -19,6 +19,26 @@
 Changelog
 ---------
 
+2.2.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Added namespace as a template field in the KPO. (#19718)``
+* ``Decouple name randomization from name kwarg (#19398)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Checking event.status.container_statuses before filtering (#19713)``
+* ``Coalesce 'extra' params to None in KubernetesHook (#19694)``
+* ``Change to correct type in KubernetesPodOperator (#19459)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Fix duplicate changelog entries (#19759)``
+
 2.1.0
 .....
 
@@ -30,7 +50,7 @@ Features
 
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):
-   * ``Update docstring to let users use &#39;node_selector&#39; (#19057)``
+   * ``Update docstring to let users use 'node_selector' (#19057)``
    * ``Add pre-commit hook for common misspelling check in files (#18964)``
 
 2.0.3

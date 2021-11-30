@@ -186,7 +186,7 @@ class FlaskApi(AbstractAPI):
     def _serialize_data(cls, data, mimetype):
         # TODO: harmonize flask and aiohttp serialization when mimetype=None or mimetype is not JSON
         #       (cases where it might not make sense to jsonify the data)
-        if isinstance(mimetype, str) and is_json_mimetype(mimetype):
+        if (isinstance(mimetype, str) and is_json_mimetype(mimetype)):
             body = cls.jsonifier.dumps(data)
         elif not (isinstance(data, bytes) or isinstance(data, str)):
             warnings.warn(

@@ -244,8 +244,14 @@ def get_dag_runs_batch(session):
 @provide_session
 def post_dag_run(dag_id, session):
     """Trigger a DAG."""
-    if not session.query(DagModel).filter(DagModel.dag_id == dag_id).first():
+    dm = session.query(DagModel).filter(DagModel.dag_id == dag_id).first()
+    if not dm:
         raise NotFound(title="DAG not found", detail=f"DAG with dag_id: '{dag_id}' not found")
+    if dm.has_import_errors:
+        raise BadRequest(
+            title="DAG cannot be triggered",
+            detail=f"DAG with dag_id: '{dag_id}' has import errors",
+        )
     try:
         post_body = dagrun_schema.load(request.json, session=session)
     except ValidationError as err:

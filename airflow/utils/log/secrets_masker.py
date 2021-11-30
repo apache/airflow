@@ -47,6 +47,8 @@ DEFAULT_SENSITIVE_FIELDS = frozenset(
 )
 """Names of fields (Connection extra, Variable key name etc.) that are deemed sensitive"""
 
+SECRETS_TO_SKIP_MASKING_FOR_TESTS = {'airflow'}
+
 
 @cache
 def get_sensitive_variables_fields():
@@ -232,11 +234,14 @@ class SecretsMasker(logging.Filter):
 
     def add_mask(self, secret: Union[str, dict, Iterable], name: str = None):
         """Add a new secret to be masked to this filter instance."""
+        from airflow.configuration import conf
+
+        test_mode: bool = conf.getboolean('core', 'unit_test_mode')
         if isinstance(secret, dict):
             for k, v in secret.items():
                 self.add_mask(v, k)
         elif isinstance(secret, str):
-            if not secret:
+            if not secret or (test_mode and secret in SECRETS_TO_SKIP_MASKING_FOR_TESTS):
                 return
             pattern = re.escape(secret)
             if pattern not in self.patterns and (not name or should_hide_value_for_key(name)):

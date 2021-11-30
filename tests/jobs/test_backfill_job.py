@@ -797,25 +797,20 @@ class TestBackfillJob:
         ti.refresh_from_db()
         assert ti.state == State.SUCCESS
 
-    @pytest.mark.quarantined
-    def test_backfill_depends_on_past(self):
-        """
-        Test that backfill respects ignore_depends_on_past
-        """
+    @pytest.mark.parametrize("ignore_depends_on_past", [True, False])
+    def test_backfill_depends_on_past_works_independently_on_ignore_depends_on_past(
+        self, ignore_depends_on_past
+    ):
         dag = self.dagbag.get_dag('test_depends_on_past')
         dag.clear()
         run_date = DEFAULT_DATE + datetime.timedelta(days=5)
-
-        # backfill should deadlock
-        with pytest.raises(AirflowException, match='BackfillJob is deadlocked'):
-            BackfillJob(dag=dag, start_date=run_date, end_date=run_date).run()
 
         BackfillJob(
             dag=dag,
             start_date=run_date,
             end_date=run_date,
             executor=MockExecutor(),
-            ignore_first_depends_on_past=True,
+            ignore_first_depends_on_past=ignore_depends_on_past,
         ).run()
 
         # ti should have succeeded

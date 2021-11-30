@@ -181,7 +181,7 @@ class HiveCliHook(BaseHook):
 
     def run_cli(
         self,
-        hql: Union[str, str],
+        hql: str,
         schema: Optional[str] = None,
         verbose: bool = True,
         hive_conf: Optional[Dict[Any, Any]] = None,
@@ -189,9 +189,14 @@ class HiveCliHook(BaseHook):
         """
         Run an hql statement using the hive cli. If hive_conf is specified
         it should be a dict and the entries will be set as key/value pairs
-        in HiveConf
+        in HiveConf.
 
-
+        :param hql: an hql (hive query language) statement to run with hive cli
+        :type hql: str
+        :param schema: Name of hive schema (database) to use
+        :type schema: str
+        :param verbose: Provides additional logging. Defaults to True.
+        :type verbose: bool
         :param hive_conf: if specified these key value pairs will be passed
             to hive as ``-hiveconf "key"="value"``. Note that they will be
             passed after the ``hive_cli_params`` and thus will override
@@ -263,7 +268,7 @@ class HiveCliHook(BaseHook):
 
                 return stdout
 
-    def test_hql(self, hql: Union[str, str]) -> None:
+    def test_hql(self, hql: str) -> None:
         """Test an hql statement using the hive cli and EXPLAIN"""
         create, insert, other = [], [], []
         for query in hql.split(';'):  # naive
@@ -567,10 +572,10 @@ class HiveMetastoreHook(BaseHook):
         :param schema: Name of hive schema (database) @table belongs to
         :type schema: str
         :param table: Name of hive table @partition belongs to
-        :type schema: str
-        :partition: Expression that matches the partitions to check for
+        :type table: str
+        :param partition: Expression that matches the partitions to check for
             (eg `a = 'b' AND c = 'd'`)
-        :type schema: str
+        :type partition: str
         :rtype: bool
 
         >>> hh = HiveMetastoreHook()
@@ -591,8 +596,8 @@ class HiveMetastoreHook(BaseHook):
         :type schema: str
         :param table: Name of hive table @partition belongs to
         :type table: str
-        :partition: Name of the partitions to check for (eg `a=b/c=d`)
-        :type table: str
+        :param partition_name: Name of the partitions to check for (eg `a=b/c=d`)
+        :type partition_name: str
         :rtype: bool
 
         >>> hh = HiveMetastoreHook()
@@ -875,7 +880,7 @@ class HiveServer2Hook(DbApiHook):
 
     def _get_results(
         self,
-        hql: Union[str, str, List[str]],
+        hql: Union[str, List[str]],
         schema: str = 'default',
         fetch_size: Optional[int] = None,
         hive_conf: Optional[Dict[Any, Any]] = None,
@@ -929,7 +934,7 @@ class HiveServer2Hook(DbApiHook):
 
     def get_results(
         self,
-        hql: Union[str, str],
+        hql: str,
         schema: str = 'default',
         fetch_size: Optional[int] = None,
         hive_conf: Optional[Dict[Any, Any]] = None,
@@ -955,7 +960,7 @@ class HiveServer2Hook(DbApiHook):
 
     def to_csv(
         self,
-        hql: Union[str, str],
+        hql: str,
         csv_filepath: str,
         schema: str = 'default',
         delimiter: str = ',',
@@ -1012,7 +1017,7 @@ class HiveServer2Hook(DbApiHook):
         self.log.info("Done. Loaded a total of %s rows.", i)
 
     def get_records(
-        self, hql: Union[str, str], schema: str = 'default', hive_conf: Optional[Dict[Any, Any]] = None
+        self, hql: str, schema: str = 'default', hive_conf: Optional[Dict[Any, Any]] = None
     ) -> Any:
         """
         Get a set of records from a Hive query.
@@ -1035,7 +1040,7 @@ class HiveServer2Hook(DbApiHook):
 
     def get_pandas_df(  # type: ignore
         self,
-        hql: Union[str, str],
+        hql: str,
         schema: str = 'default',
         hive_conf: Optional[Dict[Any, Any]] = None,
         **kwargs,

@@ -29,7 +29,7 @@ from collections import defaultdict
 from datetime import timedelta
 from typing import Collection, DefaultDict, Dict, Iterator, List, Optional, Tuple
 
-from sqlalchemy import and_, func, not_, or_, tuple_
+from sqlalchemy import and_, func, not_, or_, text, tuple_
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import load_only, selectinload
 from sqlalchemy.orm.session import Session, make_transient
@@ -234,7 +234,24 @@ class SchedulerJob(BaseJob):
         :type max_tis: int
         :return: list[airflow.models.TaskInstance]
         """
+        from airflow.utils.db import DBLocks
+
         executable_tis: List[TI] = []
+
+        if session.get_bind().dialect.name == "postgresql":
+            # Optimization: to avoid littering the DB errors of "ERROR: canceling statement due to lock
+            # timeout", try to take out a transactional advisory lock (unlocks automatically on
+            # COMMIT/ROLLBACK)
+            lock_acquired = session.execute(
+                text("SELECT pg_try_advisory_xact_lock(:id)").bindparams(
+                    id=DBLocks.SCHEDULER_CRITICAL_SECTION.value
+                )
+            ).scalar()
+            if not lock_acquired:
+                # Throw an error like the one that would happen with NOWAIT
+                raise OperationalError(
+                    "Failed to acquire advisory lock", params=None, orig=RuntimeError('55P03')
+                )
 
         # Get the pool settings. We get a lock on the pool rows, treating this as a "critical section"
         # Throws an exception if lock cannot be obtained, rather than blocking
