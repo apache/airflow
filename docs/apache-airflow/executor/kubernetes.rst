@@ -217,7 +217,7 @@ In contrast to CeleryExecutor, KubernetesExecutor does not require additional co
 
 With KubernetesExecutor, each task runs in its own pod. The pod is created when the task is queued, and terminates when the task completes.
 Historically, in scenarios such as burstable workloads, this presented a resource utilization advantage over CeleryExecutor, where you needed
-a fixed number of long-running celery worker pods, whether or not there were tasks to run.
+a fixed number of long-running Celery worker pods, whether or not there were tasks to run.
 
 However, the :doc:`official Apache Airflow Helm chart <helm-chart:index>` can automatically scale celery workers down to zero based on the number of tasks in the queue,
 so when using the official chart, this is no longer an advantage.

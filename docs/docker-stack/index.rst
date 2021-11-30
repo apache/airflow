@@ -52,7 +52,7 @@ You can find the following images there (Assuming Airflow version |airflow-versi
 * :subst-code:`apache/airflow:|airflow-version|-pythonX.Y` - the versioned Airflow image with specific Python version
 
 Those are "reference" images. They contain the most common set of extras, dependencies and providers that are
-often used by the users and they are good to "try-things-out" when you want to just take airflow for a spin,
+often used by the users and they are good to "try-things-out" when you want to just take Airflow for a spin,
 
 The Apache Airflow image provided as convenience package is optimized for size, and
 it provides just a bare minimal set of the extras and dependencies installed and in most cases
