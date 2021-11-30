@@ -24,7 +24,7 @@ When you create new or modify existing DAG files, it is necessary to deploy them
 Bake DAGs in Docker image
 -------------------------
 
-The recommended way to update your DAGs with this chart is to build a new docker image with the latest DAG code:
+The recommended way to update your DAGs with this chart is to build a new Docker image with the latest DAG code:
 
 .. code-block:: bash
 
@@ -37,7 +37,7 @@ The recommended way to update your DAGs with this chart is to build a new docker
 
 .. note::
 
-   In airflow images prior to version 2.0.2, there was a bug that required you to use
+   In Airflow images prior to version 2.0.2, there was a bug that required you to use
    a bit longer Dockerfile, to make sure the image remains OpenShift-compatible (i.e dag
    has root group similarly as other files). In 2.0.2 this has been fixed.
 

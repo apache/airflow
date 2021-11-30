@@ -108,7 +108,7 @@ class AbstractURIParser(BaseDecorator, metaclass=abc.ABCMeta):
                 # multiple values in a path is impossible
                 values = [values]
 
-            if param_schema is not None and param_schema['type'] == 'array':
+            if (param_schema is not None and param_schema['type'] == 'array'):
                 # resolve variable re-assignment, handle explode
                 values = self._resolve_param_duplicates(values, param_defn, _in)
                 # handle array styles
@@ -186,7 +186,7 @@ class OpenAPIURIParser(AbstractURIParser):
         """
         root_key = k.split("[", 1)[0]
         if k == root_key:
-            return k, v, False
+            return (k, v, False)
         key_path = re.findall(r'\[([^\[\]]*)\]', k)
         root = prev = node = {}
         for k in key_path:
@@ -194,7 +194,7 @@ class OpenAPIURIParser(AbstractURIParser):
             prev = node
             node = node[k]
         prev[k] = v[0]
-        return root_key, [root], True
+        return (root_key, [root], True)
 
     def _preprocess_deep_objects(self, query_data):
         """ deep objects provide a way of rendering nested objects using query

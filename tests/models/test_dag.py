@@ -822,6 +822,37 @@ class TestDag(unittest.TestCase):
         model = session.query(DagModel).get((dag.dag_id,))
         assert model.next_dagrun_create_after is None
 
+    def test_bulk_write_to_db_has_import_error(self):
+        """
+        Test that DagModel.has_import_error is set to false if no import errors.
+        """
+        dag = DAG(dag_id='test_has_import_error', start_date=DEFAULT_DATE)
+
+        DummyOperator(task_id='dummy', dag=dag, owner='airflow')
+
+        session = settings.Session()
+        dag.clear()
+        DAG.bulk_write_to_db([dag], session)
+
+        model = session.query(DagModel).get((dag.dag_id,))
+
+        assert not model.has_import_errors
+
+        # Simulate Dagfileprocessor setting the import error to true
+        model.has_import_errors = True
+        session.merge(model)
+        session.flush()
+        model = session.query(DagModel).get((dag.dag_id,))
+        # assert
+        assert model.has_import_errors
+        # parse
+        DAG.bulk_write_to_db([dag])
+
+        model = session.query(DagModel).get((dag.dag_id,))
+        # assert that has_import_error is now false
+        assert not model.has_import_errors
+        session.close()
+
     def test_sync_to_db(self):
         dag = DAG(
             'dag',
@@ -1863,9 +1894,10 @@ class TestDagModel:
             next_dagrun_create_after=None,
             is_active=True,
         )
+        # assert max_active_runs updated
+        assert orm_dag.max_active_runs == 16
         session.add(orm_dag)
         session.flush()
-
         assert orm_dag.max_active_runs is not None
 
         session.rollback()
@@ -1900,6 +1932,33 @@ class TestDagModel:
 
         session.rollback()
         session.close()
+
+    def test_dags_needing_dagruns_doesnot_send_dagmodel_with_import_errors(self, session):
+        """
+        We check that has_import_error is false for dags
+        being set to scheduler to create dagruns
+        """
+        dag = DAG(dag_id='test_dags', start_date=DEFAULT_DATE)
+        DummyOperator(task_id='dummy', dag=dag, owner='airflow')
+
+        orm_dag = DagModel(
+            dag_id=dag.dag_id,
+            has_task_concurrency_limits=False,
+            next_dagrun=DEFAULT_DATE,
+            next_dagrun_create_after=DEFAULT_DATE + timedelta(days=1),
+            is_active=True,
+        )
+        assert not orm_dag.has_import_errors
+        session.add(orm_dag)
+        session.flush()
+
+        needed = DagModel.dags_needing_dagruns(session).all()
+        assert needed == [orm_dag]
+        orm_dag.has_import_errors = True
+        session.merge(orm_dag)
+        session.flush()
+        needed = DagModel.dags_needing_dagruns(session).all()
+        assert needed == []
 
     @pytest.mark.parametrize(
         ('fileloc', 'expected_relative'),

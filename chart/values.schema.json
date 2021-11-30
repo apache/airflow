@@ -3149,7 +3149,7 @@
             }
         },
         "multiNamespaceMode": {
-            "description": "Whether the KubernetesExecutor can launch workers and pods in multiple namespaces. If true, it creates ``ClusterRole``/``ClusterRolebinding`` (with access to entire cluster)",
+            "description": "Whether Airflow can launch workers and/or pods in multiple namespaces. If true, it creates ``ClusterRole``/``ClusterRolebinding`` (with access to entire cluster)",
             "x-docsSection": "Airflow",
             "type": "boolean",
             "default": false

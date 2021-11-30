@@ -18,14 +18,14 @@
 Setting resources for containers
 --------------------------------
 
-It is possible to set `resources <https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/>`__ for the Containers managed by the chart. You can define different resources for various airflow k8s Containers. By default the resources are not set.
+It is possible to set `resources <https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/>`__ for the Containers managed by the chart. You can define different resources for various Airflow k8s Containers. By default the resources are not set.
 
 .. note::
     The k8s scheduler can use resources to decide which node to place the Pod on. Since a Pod resource request/limit is the sum of the resource requests/limits for each Container in the Pod, it is advised to specify resources for each Container in the Pod.
 
 Possible Containers where resources can be configured include:
 
-* Main airflow Containers and their sidecars. You can add the resources for these Containers through the following parameters:
+* Main Airflow Containers and their sidecars. You can add the resources for these Containers through the following parameters:
 
    * ``workers.resources``
    * ``workers.logGroomerSidecar.resources``
@@ -37,7 +37,7 @@ Possible Containers where resources can be configured include:
    * ``flower.resources``
    * ``triggerer.resources``
 
-* Containers used for airflow k8s jobs or cron jobs. You can add the resources for these Containers through the following parameters:
+* Containers used for Airflow k8s jobs or cron jobs. You can add the resources for these Containers through the following parameters:
 
    * ``cleanup.resources``
    * ``createUserJob.resources``

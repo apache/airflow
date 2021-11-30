@@ -37,6 +37,7 @@ from airflow.executors.debug_executor import DebugExecutor
 from airflow.jobs.base_job import BaseJob
 from airflow.models import DagBag, DagModel, DagRun, TaskInstance
 from airflow.models.dag import DAG
+from airflow.models.serialized_dag import SerializedDagModel
 from airflow.utils import cli as cli_utils
 from airflow.utils.cli import (
     get_dag,
@@ -441,3 +442,14 @@ def dag_test(args, session=None):
             _display_dot_via_imgcat(dot_graph)
         if show_dagrun:
             print(dot_graph.source)
+
+
+@provide_session
+@cli_utils.action_logging
+def dag_reserialize(args, session=None):
+    session.query(SerializedDagModel).delete(synchronize_session=False)
+
+    if not args.clear_only:
+        dagbag = DagBag()
+        dagbag.collect_dags(only_if_updated=False, safe_mode=False)
+        dagbag.sync_to_db()

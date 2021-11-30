@@ -81,8 +81,8 @@ In the simplest case building your image consists of those steps:
 
 4) Once you build the image locally you have usually several options to make them available for your deployment:
 
-* For ``docker-compose`` deployment, that's all you need. The image is stored in docker engine cache
-  and docker compose will use it from there.
+* For ``docker-compose`` deployment, that's all you need. The image is stored in Docker engine cache
+  and Docker Compose will use it from there.
 
 * For some - development targeted - Kubernetes deployments you can load the images directly to
   Kubernetes clusters. Clusters such as ``kind`` or ``minikube`` have dedicated ``load`` method to load the

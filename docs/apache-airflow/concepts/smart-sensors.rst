@@ -55,7 +55,7 @@ store poke context at sensor_instance table and then exits with a ‘sensing’ 
 
 When the smart sensor mode is enabled, a special set of builtin smart sensor DAGs
 (named smart_sensor_group_shard_xxx) is created by the system; These DAGs contain ``SmartSensorOperator``
-task and manage the smart sensor jobs for the airflow cluster. The SmartSensorOperator task can fetch
+task and manage the smart sensor jobs for the Airflow cluster. The SmartSensorOperator task can fetch
 hundreds of ‘sensing’ instances from sensor_instance table and poke on behalf of them in batches.
 Users don’t need to change their existing DAGs.
 
@@ -79,7 +79,7 @@ Add the following settings in the ``airflow.cfg``:
 
 *   ``use_smart_sensor``: This config indicates if the smart sensor is enabled.
 *   ``shards``: This config indicates the number of concurrently running smart sensor jobs for
-    the airflow cluster.
+    the Airflow cluster.
 *   ``sensors_enabled``: This config is a list of sensor class names that will use the smart sensor.
     The users use the same class names (e.g. HivePartitionSensor) in their DAGs and they don’t have
     the control to use smart sensors or not, unless they exclude their tasks explicitly.

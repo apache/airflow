@@ -19,6 +19,21 @@
 Changelog
 ---------
 
+2.0.2
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``fix bug of SparkSql Operator log  going to infinite loop. (#19449)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Cleanup of start_date and default arg use for Apache example DAGs (#18657)``
+   * ``Prepare documentation for October Provider's release (#19321)``
+   * ``More f-strings (#18855)``
+   * ``Remove unnecessary string concatenations in AirflowException messages (#18817)``
+
 2.0.1
 .....
 
