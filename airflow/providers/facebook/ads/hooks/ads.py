@@ -111,8 +111,8 @@ class FacebookAdsReportingHook(BaseHook):
         fields: List[str],
         sleep_time: int = 5,
     ) -> Union[List[AdsInsights], Dict[str, List[AdsInsights]]]:
-        """
-        Pulls data from the Facebook Ads API regarding Account ID with matching return type.
+        """Pulls data from the Facebook Ads API regarding Account ID with matching return type.
+
         The return type and value depends on the ``account_id`` configuration. If the
         configuration is a str representing a single Account ID, the return value is the
         list of reports for that ID. If the configuration is a list of str representing
