@@ -32,9 +32,6 @@ class RedshiftPauseClusterOperator(BaseOperator):
     :type cluster_identifier: str
     :param aws_conn_id: aws connection to use
     :type aws_conn_id: str
-    :param check_interval: time in seconds that the job should wait in
-        between each instance state checks until operation is completed
-    :type check_interval: float
     """
 
     template_fields = ("cluster_identifier",)
@@ -46,13 +43,11 @@ class RedshiftPauseClusterOperator(BaseOperator):
         *,
         cluster_identifier: str,
         aws_conn_id: str = "aws_default",
-        check_interval: float = 15,
         **kwargs,
     ):
         super().__init__(**kwargs)
         self.cluster_identifier = cluster_identifier
         self.aws_conn_id = aws_conn_id
-        self.check_interval = check_interval
 
     def execute(self, context):
         redshift_hook = RedshiftHook(aws_conn_id=self.aws_conn_id)

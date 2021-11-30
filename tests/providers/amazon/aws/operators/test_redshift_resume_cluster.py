@@ -52,10 +52,8 @@ class TestResumeClusterOperator(unittest.TestCase):
         redshift_operator = RedshiftResumeClusterOperator(
             task_id="task_test",
             cluster_identifier="test_cluster",
-            aws_conn_id="aws_conn_test",
-            check_interval=3,
+            aws_conn_id="aws_conn_test"
         )
         assert redshift_operator.task_id == "task_test"
         assert redshift_operator.cluster_identifier == "test_cluster"
         assert redshift_operator.aws_conn_id == "aws_conn_test"
-        assert redshift_operator.check_interval == 3
