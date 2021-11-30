@@ -189,7 +189,7 @@ alibaba = [
 ]
 amazon = [
     'boto3>=1.15.0,<1.19.0',
-    'watchtower~=1.0.6',
+    'watchtower~=2.0.1',
     'jsonpath_ng>=1.5.3',
     'redshift_connector~=2.0.888',
     'sqlalchemy_redshift~=0.8.6',
