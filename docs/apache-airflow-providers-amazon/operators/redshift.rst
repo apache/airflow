@@ -112,7 +112,7 @@ This Operator leverages the AWS CLI
 Pause a Redshift Cluster
 """""""""""""""""""""""""""""""""""""""""""
 
-To pause an existing AWS Redshift Cluster you can use
+To pause an 'available' AWS Redshift Cluster you can use
 :class:`~airflow.providers.amazon.aws.operators.redshift_pause_cluster.RedshiftPauseClusterOperator`.
 
 This Operator leverages the AWS CLI
