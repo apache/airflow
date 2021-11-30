@@ -27,12 +27,11 @@ from collections import defaultdict
 from datetime import datetime, timedelta
 from functools import partial
 from tempfile import NamedTemporaryFile
-from typing import IO, TYPE_CHECKING, Any, Callable, Dict, Iterable, List, NamedTuple, Optional, Tuple, Union
+from typing import IO, TYPE_CHECKING, Any, Iterable, List, NamedTuple, Optional, Tuple, Union
 from urllib.parse import quote
 
 import dill
 import jinja2
-import lazy_object_proxy
 import pendulum
 from jinja2 import TemplateAssertionError, UndefinedError
 from sqlalchemy import (
@@ -88,6 +87,7 @@ from airflow.ti_deps.dependencies_deps import REQUEUEABLE_DEPS, RUNNING_DEPS
 from airflow.timetables.base import DataInterval
 from airflow.typing_compat import Literal
 from airflow.utils import timezone
+from airflow.utils.context import Context
 from airflow.utils.email import send_email
 from airflow.utils.helpers import is_container
 from airflow.utils.log.logging_mixin import LoggingMixin
@@ -108,7 +108,6 @@ except ImportError:
     ApiClient = None
 
 TR = TaskReschedule
-Context = Dict[str, Any]
 
 _CURRENT_CONTEXT: List[Context] = []
 log = logging.getLogger(__name__)
@@ -1917,30 +1916,6 @@ class TaskInstance(Base, LoggingMixin):
                 except AirflowNotFoundException:
                     return default_conn
 
-        # Create lazy proxies for deprecated stuff.
-
-        def deprecated_proxy(
-            func: Callable[[], Any],
-            *,
-            key: str,
-            replacements: Optional[List[str]] = None,
-        ) -> lazy_object_proxy.Proxy:
-            def deprecated_func():
-                message = (
-                    f"Accessing {key!r} from the template is deprecated and "
-                    f"will be removed in a future version."
-                )
-                if replacements:
-                    display_except_last = ", ".join(repr(r) for r in replacements[:-1])
-                    if display_except_last:
-                        message += f" Please use {display_except_last} or {replacements[-1]!r} instead."
-                    else:
-                        message += f" Please use {replacements[-1]!r} instead."
-                warnings.warn(message, DeprecationWarning)
-                return func()
-
-            return lazy_object_proxy.Proxy(deprecated_func)
-
         @cache
         def get_yesterday_ds() -> str:
             return (self.execution_date - timedelta(1)).strftime('%Y-%m-%d')
@@ -2004,7 +1979,7 @@ class TaskInstance(Base, LoggingMixin):
                 return None
             return prev_ds.replace('-', '')
 
-        return {
+        context = {
             'conf': conf,
             'dag': dag,
             'dag_run': dag_run,
@@ -2012,46 +1987,33 @@ class TaskInstance(Base, LoggingMixin):
             'data_interval_start': timezone.coerce_datetime(data_interval.start),
             'ds': ds,
             'ds_nodash': ds_nodash,
-            'execution_date': deprecated_proxy(
-                lambda: logical_date,
-                key='execution_date',
-                replacements=['logical_date', 'data_interval_start'],
-            ),
+            'execution_date': logical_date,
             'inlets': task.inlets,
             'logical_date': logical_date,
             'macros': macros,
-            'next_ds': deprecated_proxy(get_next_ds, key="next_ds", replacements=["data_interval_end | ds"]),
-            'next_ds_nodash': deprecated_proxy(
-                get_next_ds_nodash,
-                key="next_ds_nodash",
-                replacements=["data_interval_end | ds_nodash"],
-            ),
-            'next_execution_date': deprecated_proxy(
-                get_next_execution_date,
-                key='next_execution_date',
-                replacements=['data_interval_end'],
-            ),
+            'next_ds': get_next_ds(),
+            'next_ds_nodash': get_next_ds_nodash(),
+            'next_execution_date': get_next_execution_date(),
             'outlets': task.outlets,
             'params': task.params,
-            'prev_data_interval_start_success': lazy_object_proxy.Proxy(get_prev_data_interval_start_success),
-            'prev_data_interval_end_success': lazy_object_proxy.Proxy(get_prev_data_interval_end_success),
-            'prev_ds': deprecated_proxy(get_prev_ds, key="prev_ds"),
-            'prev_ds_nodash': deprecated_proxy(get_prev_ds_nodash, key="prev_ds_nodash"),
-            'prev_execution_date': deprecated_proxy(get_prev_execution_date, key='prev_execution_date'),
-            'prev_execution_date_success': deprecated_proxy(
-                lambda: self.get_previous_execution_date(state=State.SUCCESS, session=session),
-                key='prev_execution_date_success',
-                replacements=['prev_data_interval_start_success'],
+            'prev_data_interval_start_success': get_prev_data_interval_start_success(),
+            'prev_data_interval_end_success': get_prev_data_interval_end_success(),
+            'prev_ds': get_prev_ds(),
+            'prev_ds_nodash': get_prev_ds_nodash(),
+            'prev_execution_date': get_prev_execution_date(),
+            'prev_execution_date_success': self.get_previous_execution_date(
+                state=State.SUCCESS,
+                session=session,
             ),
-            'prev_start_date_success': lazy_object_proxy.Proxy(get_prev_start_date_success),
+            'prev_start_date_success': get_prev_start_date_success(),
             'run_id': self.run_id,
             'task': task,
             'task_instance': self,
             'task_instance_key_str': f"{task.dag_id}__{task.task_id}__{ds_nodash}",
             'test_mode': self.test_mode,
             'ti': self,
-            'tomorrow_ds': deprecated_proxy(get_tomorrow_ds, key='tomorrow_ds'),
-            'tomorrow_ds_nodash': deprecated_proxy(get_tomorrow_ds_nodash, key='tomorrow_ds_nodash'),
+            'tomorrow_ds': get_tomorrow_ds(),
+            'tomorrow_ds_nodash': get_tomorrow_ds_nodash(),
             'ts': ts,
             'ts_nodash': ts_nodash,
             'ts_nodash_with_tz': ts_nodash_with_tz,
@@ -2060,9 +2022,10 @@ class TaskInstance(Base, LoggingMixin):
                 'value': VariableAccessor(),
             },
             'conn': ConnectionAccessor(),
-            'yesterday_ds': deprecated_proxy(get_yesterday_ds, key='yesterday_ds'),
-            'yesterday_ds_nodash': deprecated_proxy(get_yesterday_ds_nodash, key='yesterday_ds_nodash'),
+            'yesterday_ds': get_yesterday_ds(),
+            'yesterday_ds_nodash': get_yesterday_ds_nodash(),
         }
+        return Context(context)
 
     @provide_session
     def get_rendered_template_fields(self, session=None):

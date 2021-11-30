@@ -1,0 +1,99 @@
+#
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+
+"""Jinja2 template rendering context helper."""
+
+import contextlib
+import warnings
+from typing import Any, Container, Iterable, Iterator, List, Mapping, Tuple
+
+
+def _create_deprecation_warning(key: str, replacements: List[str]) -> DeprecationWarning:
+    message = f"Accessing {key!r} from the template is deprecated and will be removed in a future version."
+    if not replacements:
+        return DeprecationWarning(message)
+    display_except_last = ", ".join(repr(r) for r in replacements[:-1])
+    if display_except_last:
+        message += f" Please use {display_except_last} or {replacements[-1]!r} instead."
+    else:
+        message += f" Please use {replacements[-1]!r} instead."
+    return DeprecationWarning(message)
+
+
+class Context(Mapping[str, Any]):
+    """Jinja2 template context for task rendering.
+
+    This is a mapping (dict-like) class that can lazily emit warnings when
+    (and only when) deprecated context keys are accessed.
+    """
+
+    DEPRECATION_REPLACEMENTS: Mapping[str, List[str]] = {
+        "execution_date": ["data_interval_start", "logical_date"],
+        "next_ds": ["{{ data_interval_end | ds }}"],
+        "next_ds_nodash": ["{{ data_interval_end | ds_nodash }}"],
+        "next_execution_date": ["data_interval_end"],
+        "prev_ds": [],
+        "prev_ds_nodash": [],
+        "prev_execution_date": [],
+        "prev_execution_date_success": ["prev_data_interval_start_success"],
+        "tomorrow_ds": [],
+        "tomorrow_ds_nodash": [],
+        "yesterday_ds": [],
+        "yesterday_ds_nodash": [],
+    }
+
+    def __init__(self, context: Mapping[str, Any]) -> None:
+        self._context = context
+
+    def __getitem__(self, key: str) -> Any:
+        with contextlib.suppress(KeyError):
+            warnings.warn(_create_deprecation_warning(key, self.DEPRECATION_REPLACEMENTS[key]), stacklevel=2)
+        with contextlib.suppress(KeyError):
+            return self._context[key]
+        raise KeyError(key)
+
+    def __contains__(self, key: str) -> bool:
+        return key in self._context
+
+    def __iter__(self) -> Iterator[str]:
+        return iter(self._context)
+
+    def __len__(self) -> int:
+        return len(self._context)
+
+    def __eq__(self, other: Any) -> bool:
+        if not isinstance(other, Context):
+            return NotImplemented
+        return self._context == other._context
+
+    def __ne__(self, other: Any) -> bool:
+        if not isinstance(other, Context):
+            return NotImplemented
+        return self._context != other._context
+
+    def keys(self) -> Iterable[str]:
+        return self._context.keys()
+
+    def items(self) -> Iterable[Tuple[str, Any]]:
+        return self._context.items()
+
+    def values(self) -> Iterable[Any]:
+        return self._context.values()
+
+    def copy_only(self, keys: Container[str]) -> "Context[str, Any]":
+        return type(self)({k: v for k, v in self._context.items() if k in keys})

@@ -17,7 +17,7 @@
 # under the License.
 #
 from datetime import datetime
-from typing import Callable, Dict, List, Tuple, Union
+from typing import Callable, Dict, List, Mapping, Tuple, Union
 
 AIRFLOW_VAR_NAME_FORMAT_MAPPING = {
     'AIRFLOW_CONTEXT_DAG_ID': {'default': 'airflow.ctx.dag_id', 'env_var_format': 'AIRFLOW_CTX_DAG_ID'},
@@ -88,7 +88,7 @@ def context_to_airflow_vars(context, in_env_var_format=False):
     return params
 
 
-def determine_kwargs(func: Callable, args: Union[Tuple, List], kwargs: Dict) -> Dict:
+def determine_kwargs(func: Callable, args: Union[Tuple, List], kwargs: Mapping) -> Dict:
     """
     Inspect the signature of a given callable to determine which arguments in kwargs need
     to be passed to the callable.
