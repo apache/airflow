@@ -20,7 +20,7 @@
 
 import contextlib
 import warnings
-from typing import Any, Container, Iterable, Iterator, List, Mapping, Tuple
+from typing import Any, Container, Dict, Iterable, Iterator, List, MutableMapping, Tuple
 
 
 def _create_deprecation_warning(key: str, replacements: List[str]) -> DeprecationWarning:
@@ -35,14 +35,14 @@ def _create_deprecation_warning(key: str, replacements: List[str]) -> Deprecatio
     return DeprecationWarning(message)
 
 
-class Context(Mapping[str, Any]):
+class Context(MutableMapping[str, Any]):
     """Jinja2 template context for task rendering.
 
     This is a mapping (dict-like) class that can lazily emit warnings when
     (and only when) deprecated context keys are accessed.
     """
 
-    DEPRECATION_REPLACEMENTS: Mapping[str, List[str]] = {
+    _DEPRECATION_REPLACEMENTS: Dict[str, List[str]] = {
         "execution_date": ["data_interval_start", "logical_date"],
         "next_ds": ["{{ data_interval_end | ds }}"],
         "next_ds_nodash": ["{{ data_interval_end | ds_nodash }}"],
@@ -57,15 +57,24 @@ class Context(Mapping[str, Any]):
         "yesterday_ds_nodash": [],
     }
 
-    def __init__(self, context: Mapping[str, Any]) -> None:
+    def __init__(self, context: MutableMapping[str, Any]) -> None:
         self._context = context
+        self._deprecation_replacements = self._DEPRECATION_REPLACEMENTS.copy()
 
     def __getitem__(self, key: str) -> Any:
         with contextlib.suppress(KeyError):
-            warnings.warn(_create_deprecation_warning(key, self.DEPRECATION_REPLACEMENTS[key]), stacklevel=2)
+            warnings.warn(_create_deprecation_warning(key, self._deprecation_replacements[key]), stacklevel=2)
         with contextlib.suppress(KeyError):
             return self._context[key]
         raise KeyError(key)
+
+    def __setitem__(self, key: str, value: Any) -> None:
+        self._deprecation_replacements.pop(key, None)
+        self._context[key] = value
+
+    def __delitem__(self, key: str) -> None:
+        self._deprecation_replacements.pop(key, None)
+        del self._context[key]
 
     def __contains__(self, key: str) -> bool:
         return key in self._context
