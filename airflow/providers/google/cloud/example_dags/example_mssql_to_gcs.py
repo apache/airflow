@@ -27,8 +27,9 @@ SQL_QUERY = "USE airflow SELECT * FROM Country;"
 
 with models.DAG(
     'example_mssql_to_gcs',
-    default_args=dict(start_date=dates.days_ago(1)),
     schedule_interval='@once',
+    start_date=datetime(2021, 12, 1),
+    catchup=False,
     tags=['example'],
 ) as dag:
     # [START howto_operator_mssql_to_gcs]
