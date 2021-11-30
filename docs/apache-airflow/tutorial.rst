@@ -374,7 +374,7 @@ Lets look at another example; we need to get some data from a file which is host
 
 Initial setup
 ''''''''''''''''''''
-We need to have docker and postgres installed.
+We need to have Docker and Postgres installed.
 We will be using this `docker file <https://airflow.apache.org/docs/apache-airflow/stable/start/docker.html#docker-compose-yaml>`_
 Follow the instructions properly to set up Airflow.
 
