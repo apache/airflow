@@ -24,7 +24,7 @@ import types
 import warnings
 from tempfile import TemporaryDirectory
 from textwrap import dedent
-from typing import Any, Callable, Dict, Iterable, List, Optional, Union
+from typing import Callable, Dict, Iterable, List, Optional, Union
 
 import dill
 
@@ -489,7 +489,7 @@ class PythonVirtualenvOperator(PythonOperator):
         return super().__deepcopy__(memo)
 
 
-def get_current_context() -> Dict[str, Any]:
+def get_current_context() -> Context:
     """
     Obtain the execution context for the currently executing operator without
     altering user method's signature.

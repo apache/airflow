@@ -1074,7 +1074,7 @@ class MyContextAssertOperator(BaseOperator):
 
 def get_all_the_context(**context):
     current_context = get_current_context()
-    assert context == current_context
+    assert context == current_context._context
 
 
 @pytest.fixture()
