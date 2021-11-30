@@ -18,6 +18,12 @@
 
 # This stub exists to "fake" the Context class as a TypedDict to provide
 # better typehint and editor support.
+#
+# Unfortunately 'conn', 'macros', 'var.json', and 'var.value' need to be
+# annotated as Any and loose discoverability because we don't know what
+# attributes are injected at runtime, and giving them a class would trigger
+# undefined attribute errors from Mypy. Hopefully there will be a mechanism to
+# declare "these are defined, but don't error if others are accessed" someday.
 
 from typing import Any, Optional
 
@@ -29,18 +35,15 @@ from airflow.models.dag import DAG
 from airflow.models.dagrun import DagRun
 from airflow.models.param import ParamsDict
 from airflow.models.taskinstance import TaskInstance
-from airflow.typing_compat import Protocol, TypedDict
+from airflow.typing_compat import TypedDict
 
-class _Macros(Protocol):
-    def ds_add(self, ds: str, days: int) -> str: ...
-    def ds_format(self, ds: str, input_format: str, output_format: str) -> str: ...
-
-class _Var(TypedDict):
+class _VariableAccessors(TypedDict):
     json: Any
     value: Any
 
 class Context(TypedDict, total=False):
     conf: AirflowConfigParser
+    conn: Any
     dag: DAG
     dag_run: DagRun
     data_interval_end: DateTime
@@ -50,7 +53,7 @@ class Context(TypedDict, total=False):
     execution_date: DateTime
     inlets: list
     logical_date: DateTime
-    macros: _Macros
+    macros: Any
     next_ds: Optional[str]
     next_ds_nodash: Optional[str]
     next_execution_date: Optional[DateTime]
@@ -74,7 +77,6 @@ class Context(TypedDict, total=False):
     ts: str
     ts_nodash: str
     ts_nodash_with_tz: str
-    var: _Var
-    conn: Any
+    var: _VariableAccessors
     yesterday_ds: str
     yesterday_ds_nodash: str

@@ -61,7 +61,6 @@ from airflow.configuration import conf
 from airflow.exceptions import (
     AirflowException,
     AirflowFailException,
-    AirflowNotFoundException,
     AirflowRescheduleException,
     AirflowSensorTimeout,
     AirflowSkipException,
@@ -72,12 +71,10 @@ from airflow.exceptions import (
     TaskDeferred,
 )
 from airflow.models.base import COLLATION_ARGS, ID_LEN, Base
-from airflow.models.connection import Connection
 from airflow.models.log import Log
 from airflow.models.param import ParamsDict
 from airflow.models.taskfail import TaskFail
 from airflow.models.taskreschedule import TaskReschedule
-from airflow.models.variable import Variable
 from airflow.models.xcom import XCOM_RETURN_KEY, XCom
 from airflow.plugins_manager import integrate_macros_plugins
 from airflow.sentry import Sentry
@@ -87,7 +84,7 @@ from airflow.ti_deps.dependencies_deps import REQUEUEABLE_DEPS, RUNNING_DEPS
 from airflow.timetables.base import DataInterval
 from airflow.typing_compat import Literal
 from airflow.utils import timezone
-from airflow.utils.context import Context
+from airflow.utils.context import ConnectionAccessor, Context, VariableAccessor
 from airflow.utils.email import send_email
 from airflow.utils.helpers import is_container
 from airflow.utils.log.logging_mixin import LoggingMixin
@@ -1780,23 +1777,25 @@ class TaskInstance(Base, LoggingMixin):
         # Do not use provide_session here -- it expunges everything on exit!
         if not session:
             session = settings.Session()
-        task: "BaseOperator" = self.task
-        dag: DAG = task.dag
+
         from airflow import macros
 
         integrate_macros_plugins()
 
+        task: "BaseOperator" = self.task
+        dag: DAG = task.dag
         dag_run = self.get_dagrun(session)
         data_interval = dag.get_run_data_interval(dag_run)
 
+        # Validates Params and convert them into a simple dict.
         params = ParamsDict(suppress_exception=ignore_param_exceptions)
-
         with contextlib.suppress(AttributeError):
             params.update(dag.params)
         if task.params:
             params.update(task.params)
         if conf.getboolean('core', 'dag_run_conf_overrides_params'):
             self.overwrite_params_with_dag_run_conf(params=params, dag_run=dag_run)
+        task.params = params.validate()
 
         logical_date = timezone.coerce_datetime(self.execution_date)
         ds = logical_date.strftime('%Y-%m-%d')
@@ -1804,9 +1803,6 @@ class TaskInstance(Base, LoggingMixin):
         ts = logical_date.isoformat()
         ts_nodash = logical_date.strftime('%Y%m%dT%H%M%S')
         ts_nodash_with_tz = ts.replace('-', '').replace(':', '')
-
-        # Now validates Params and convert them into a simple dict
-        task.params = params.validate()
 
         @cache  # Prevent multiple database access.
         def _get_previous_dagrun_success() -> Optional["DagRun"]:
@@ -1835,87 +1831,6 @@ class TaskInstance(Base, LoggingMixin):
             if dagrun is None:
                 return None
             return timezone.coerce_datetime(dagrun.start_date)
-
-        # Custom accessors.
-        class VariableAccessor:
-            """
-            Wrapper around Variable. This way you can get variables in
-            templates by using ``{{ var.value.variable_name }}`` or
-            ``{{ var.value.get('variable_name', 'fallback') }}``.
-            """
-
-            def __init__(self):
-                self.var = None
-
-            def __getattr__(
-                self,
-                item: str,
-            ):
-                self.var = Variable.get(item)
-                return self.var
-
-            def __repr__(self):
-                return str(self.var)
-
-            @staticmethod
-            def get(
-                item: str,
-                default_var: Any = Variable._Variable__NO_DEFAULT_SENTINEL,
-            ):
-                """Get Airflow Variable value"""
-                return Variable.get(item, default_var=default_var)
-
-        class VariableJsonAccessor:
-            """
-            Wrapper around Variable. This way you can get variables in
-            templates by using ``{{ var.json.variable_name }}`` or
-            ``{{ var.json.get('variable_name', {'fall': 'back'}) }}``.
-            """
-
-            def __init__(self):
-                self.var = None
-
-            def __getattr__(
-                self,
-                item: str,
-            ):
-                self.var = Variable.get(item, deserialize_json=True)
-                return self.var
-
-            def __repr__(self):
-                return str(self.var)
-
-            @staticmethod
-            def get(
-                item: str,
-                default_var: Any = Variable._Variable__NO_DEFAULT_SENTINEL,
-            ):
-                """Get Airflow Variable after deserializing JSON value"""
-                return Variable.get(item, default_var=default_var, deserialize_json=True)
-
-        class ConnectionAccessor:
-            """
-            Wrapper around Connection. This way you can get connections in
-            templates by using ``{{ conn.conn_id }}`` or
-            ``{{ conn.get('conn_id') }}``.
-            """
-
-            def __getattr__(
-                self,
-                item: str,
-            ):
-                return Connection.get_connection_from_secrets(item)
-
-            @staticmethod
-            def get(
-                item: str,
-                default_conn: Any = None,
-            ):
-                """Get Airflow Connection value"""
-                try:
-                    return Connection.get_connection_from_secrets(item)
-                except AirflowNotFoundException:
-                    return default_conn
 
         @cache
         def get_yesterday_ds() -> str:
@@ -2019,8 +1934,8 @@ class TaskInstance(Base, LoggingMixin):
             'ts_nodash': ts_nodash,
             'ts_nodash_with_tz': ts_nodash_with_tz,
             'var': {
-                'json': VariableJsonAccessor(),
-                'value': VariableAccessor(),
+                'json': VariableAccessor(deserialize_json=True),
+                'value': VariableAccessor(deserialize_json=False),
             },
             'conn': ConnectionAccessor(),
             'yesterday_ds': get_yesterday_ds(),

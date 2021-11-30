@@ -22,6 +22,57 @@ import contextlib
 import warnings
 from typing import Any, Container, Dict, Iterable, Iterator, List, MutableMapping, Tuple
 
+_NOT_SET: Any = object()
+
+
+class VariableAccessor:
+    """Wrapper to access Variable values in template."""
+
+    def __init__(self, *, deserialize_json: bool) -> None:
+        self._deserialize_json = deserialize_json
+        self.var: Any = None
+
+    def __getattr__(self, key: str) -> Any:
+        from airflow.models.variable import Variable
+
+        self.var = Variable.get(key, deserialize_json=self._deserialize_json)
+        return self.var
+
+    def __repr__(self) -> str:
+        return str(self.var)
+
+    def get(self, key, default: Any = _NOT_SET) -> Any:
+        from airflow.models.variable import Variable
+
+        if default is _NOT_SET:
+            return Variable.get(key, deserialize_json=self._deserialize_json)
+        return Variable.get(key, default, deserialize_json=self._deserialize_json)
+
+
+class ConnectionAccessor:
+    """Wrapper to access Connection entries in template."""
+
+    def __init__(self) -> None:
+        self.var: Any = None
+
+    def __getattr__(self, key: str) -> Any:
+        from airflow.models.connection import Connection
+
+        self.var = Connection.get_connection_from_secrets(key)
+        return self.var
+
+    def __repr__(self) -> str:
+        return str(self.var)
+
+    def get(self, key: str, default_conn: Any = None) -> Any:
+        from airflow.exceptions import AirflowNotFoundException
+        from airflow.models.connection import Connection
+
+        try:
+            return Connection.get_connection_from_secrets(key)
+        except AirflowNotFoundException:
+            return default_conn
+
 
 def _create_deprecation_warning(key: str, replacements: List[str]) -> DeprecationWarning:
     message = f"Accessing {key!r} from the template is deprecated and will be removed in a future version."
