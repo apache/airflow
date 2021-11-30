@@ -20,8 +20,5 @@ export FORCE_ANSWER_TO_QUESTIONS=${FORCE_ANSWER_TO_QUESTIONS:="quit"}
 export REMEMBER_LAST_ANSWER="true"
 export PRINT_INFO_FROM_SCRIPTS="false"
 
-# Temporarily remove mypy checks until we fix them for Python 3.7
-exit 0
-
 # shellcheck source=scripts/ci/static_checks/mypy.sh
 . "$( dirname "${BASH_SOURCE[0]}" )/../static_checks/mypy.sh" "${@}"

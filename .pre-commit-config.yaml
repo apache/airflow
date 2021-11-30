@@ -721,22 +721,23 @@ repos:
       - id: mypy
         name: Run mypy
         language: system
-        entry: ./scripts/ci/pre_commit/pre_commit_mypy.sh
+        entry: ./scripts/ci/pre_commit/pre_commit_mypy.sh --namespace-packages
         files: \.py$
-        exclude: ^dev|^provider_packages|^chart|^docs|^airflow/_vendor/
+        exclude: ^provider_packages|^chart|^docs|^airflow/_vendor/
+        require_serial: true
       - id: mypy
         name: Run mypy for helm chart tests
         language: system
         entry: ./scripts/ci/pre_commit/pre_commit_mypy.sh
         files: ^chart/.*\.py$
-        require_serial: false
+        require_serial: true
       - id: mypy
         name: Run mypy for /docs/ folder
         language: system
         entry: ./scripts/ci/pre_commit/pre_commit_mypy.sh
         files: ^docs/.*\.py$
         exclude: rtd-deprecation
-        require_serial: false
+        require_serial: true
       - id: flake8
         name: Run flake8
         language: system
