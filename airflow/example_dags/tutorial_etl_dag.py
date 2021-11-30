@@ -37,18 +37,14 @@ from airflow.operators.python import PythonOperator
 
 # [END import_module]
 
-# [START default_args]
-# These args will get passed on to each operator
-# You can override them on a per-task basis during operator initialization
-default_args = {
-    'owner': 'airflow',
-}
-# [END default_args]
-
 # [START instantiate_dag]
 with DAG(
     'tutorial_etl_dag',
-    default_args=default_args,
+    # [START default_args]
+    # These args will get passed on to each operator
+    # You can override them on a per-task basis during operator initialization
+    default_args={'retries': 2},
+    # [END default_args]
     description='ETL DAG tutorial',
     schedule_interval=None,
     start_date=datetime(2021, 1, 1),

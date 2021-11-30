@@ -227,6 +227,10 @@ export function callModalDag(dag) {
     dag_id: dag && dag.dag_id,
     execution_date: dag && dag.execution_date,
   });
+  updateButtonUrl(buttons.dagrun_details, {
+    dag_id: dag && dag.dag_id,
+    run_id: dag && dag.run_id,
+  });
 }
 
 // Task Instance Modal actions

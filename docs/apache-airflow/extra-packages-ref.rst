@@ -46,7 +46,7 @@ python dependencies for the provided package.
 +---------------------+-----------------------------------------------------+----------------------------------------------------------------------------+
 | cgroups             | ``pip install 'apache-airflow[cgroups]'``           | Needed To use CgroupTaskRunner                                             |
 +---------------------+-----------------------------------------------------+----------------------------------------------------------------------------+
-| cncf.kubernetes     | ``pip install 'apache-airflow[cncf.kubernetes]'``   | Kubernetes Executor (also installs the kubernetes provider package)        |
+| cncf.kubernetes     | ``pip install 'apache-airflow[cncf.kubernetes]'``   | Kubernetes Executor (also installs the Kubernetes provider package)        |
 +---------------------+-----------------------------------------------------+----------------------------------------------------------------------------+
 | dask                | ``pip install 'apache-airflow[dask]'``              | DaskExecutor                                                               |
 +---------------------+-----------------------------------------------------+----------------------------------------------------------------------------+

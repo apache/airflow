@@ -41,7 +41,6 @@ from airflow.providers.cncf.kubernetes.utils.xcom_sidecar import PodDefaults
 from airflow.utils import timezone
 from airflow.utils.state import State
 from airflow.version import version as airflow_version
-from kubernetes_tests.test_base import EXECUTOR
 
 # noinspection DuplicatedCode
 
@@ -64,7 +63,6 @@ def create_context(task):
 
 
 # noinspection DuplicatedCode,PyUnusedLocal
-@pytest.mark.skipif(EXECUTOR != 'KubernetesExecutor', reason="Only runs on KubernetesExecutor")
 class TestKubernetesPodOperatorSystem(unittest.TestCase):
     def get_current_task_name(self):
         # reverse test name to make pod name unique (it has limited length)

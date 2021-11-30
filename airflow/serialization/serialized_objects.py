@@ -146,7 +146,7 @@ def _encode_timetable(var: Timetable) -> Dict[str, Any]:
     """
     timetable_class = type(var)
     importable_string = as_importable_string(timetable_class)
-    if _get_registered_timetable(importable_string) != timetable_class:
+    if _get_registered_timetable(importable_string) is None:
         raise _TimetableNotRegistered(importable_string)
     return {Encoding.TYPE: importable_string, Encoding.VAR: var.serialize()}
 

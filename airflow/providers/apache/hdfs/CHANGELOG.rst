@@ -19,6 +19,18 @@
 Changelog
 ---------
 
+2.2.0
+.....
+
+Features
+~~~~~~~~
+
+* ``hdfs provider: restore HA support for webhdfs (#19711)``
+
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 2.1.1
 .....
 

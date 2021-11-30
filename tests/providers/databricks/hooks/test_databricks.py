@@ -390,6 +390,30 @@ class TestDatabricksHook(unittest.TestCase):
         )
 
     @mock.patch('airflow.providers.databricks.hooks.databricks.requests')
+    def test_get_run_state_str(self, mock_requests):
+        mock_requests.get.return_value.json.return_value = GET_RUN_RESPONSE
+        run_state_str = self.hook.get_run_state_str(RUN_ID)
+        assert run_state_str == f"State: {LIFE_CYCLE_STATE}. Result: {RESULT_STATE}. {STATE_MESSAGE}"
+
+    @mock.patch('airflow.providers.databricks.hooks.databricks.requests')
+    def test_get_run_state_lifecycle(self, mock_requests):
+        mock_requests.get.return_value.json.return_value = GET_RUN_RESPONSE
+        lifecycle_state = self.hook.get_run_state_lifecycle(RUN_ID)
+        assert lifecycle_state == LIFE_CYCLE_STATE
+
+    @mock.patch('airflow.providers.databricks.hooks.databricks.requests')
+    def test_get_run_state_result(self, mock_requests):
+        mock_requests.get.return_value.json.return_value = GET_RUN_RESPONSE
+        result_state = self.hook.get_run_state_result(RUN_ID)
+        assert result_state == RESULT_STATE
+
+    @mock.patch('airflow.providers.databricks.hooks.databricks.requests')
+    def test_get_run_state_cycle(self, mock_requests):
+        mock_requests.get.return_value.json.return_value = GET_RUN_RESPONSE
+        state_message = self.hook.get_run_state_message(RUN_ID)
+        assert state_message == STATE_MESSAGE
+
+    @mock.patch('airflow.providers.databricks.hooks.databricks.requests')
     def test_cancel_run(self, mock_requests):
         mock_requests.post.return_value.json.return_value = GET_RUN_RESPONSE
 

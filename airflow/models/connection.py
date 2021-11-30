@@ -285,28 +285,25 @@ class Connection(Base, LoggingMixin):
         if self._extra and self.is_extra_encrypted:
             self._extra = fernet.rotate(self._extra.encode('utf-8')).decode()
 
-    def get_hook(self, *, hook_kwargs=None):
+    def get_hook(self, *, hook_params=None):
         """Return hook based on conn_type"""
-        (
-            hook_class_name,
-            conn_id_param,
-            package_name,
-            hook_name,
-            connection_type,
-        ) = ProvidersManager().hooks.get(self.conn_type, (None, None, None, None, None))
+        hook = ProvidersManager().hooks.get(self.conn_type, None)
 
-        if not hook_class_name:
+        if hook is None:
             raise AirflowException(f'Unknown hook type "{self.conn_type}"')
         try:
-            hook_class = import_string(hook_class_name)
+            hook_class = import_string(hook.hook_class_name)
         except ImportError:
             warnings.warn(
-                "Could not import %s when discovering %s %s", hook_class_name, hook_name, package_name
+                "Could not import %s when discovering %s %s",
+                hook.hook_class_name,
+                hook.hook_name,
+                hook.package_name,
             )
             raise
-        if hook_kwargs is None:
-            hook_kwargs = {}
-        return hook_class(**{conn_id_param: self.conn_id}, **hook_kwargs)
+        if hook_params is None:
+            hook_params = {}
+        return hook_class(**{hook.connection_id_attribute_name: self.conn_id}, **hook_params)
 
     def __repr__(self):
         return self.conn_id

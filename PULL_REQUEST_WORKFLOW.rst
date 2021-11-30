@@ -81,13 +81,9 @@ We approached the problem by:
    More about it can be found in `Approval workflow and Matrix tests <#approval-workflow-and-matrix-tests>`_
    chapter.
 
-4) We've also applied (and received) funds to run self-hosted runners. This is not yet implemented, due to
-   discussions about security of self-hosted runners for public repositories. Running self-hosted runners by
-   public repositories is currently (as of end of October 2020)
-   `Discouraged by GitHub <https://docs.github.com/en/free-pro-team@latest/actions/hosting-your-own-runners/about-self-hosted-runners#self-hosted-runner-security-with-public-repositories>`_
-   and we are working on solving the problem - also involving Apache Software Foundation infrastructure team.
-   This document does not describe this part of the approach. Most likely we will add soon a document
-   describing details of the approach taken there.
+4) We've also applied (and received) funds to run self-hosted runners. They are used for ``main`` runs
+   and whenever the PRs are done by one of the maintainers. Maintainers can force using Public GitHub runners
+   by applying "use public runners" label to the PR before submitting it.
 
 Selective CI Checks
 -------------------

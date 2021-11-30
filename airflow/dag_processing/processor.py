@@ -544,6 +544,12 @@ class DagFileProcessor(LoggingMixin):
 
         # Add the errors of the processed files
         for filename, stacktrace in dagbag.import_errors.items():
+            (
+                session.query(DagModel)
+                .filter(DagModel.fileloc == filename)
+                .update({'has_import_errors': True}, synchronize_session='fetch')
+            )
+
             session.add(
                 errors.ImportError(filename=filename, timestamp=timezone.utcnow(), stacktrace=stacktrace)
             )

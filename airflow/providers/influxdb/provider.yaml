@@ -21,6 +21,7 @@ name: Influxdb
 description: |
     `InfluxDB <https://www.influxdata.com/>`__
 versions:
+  - 1.1.0
   - 1.0.0
 integrations:
   - integration-name: Influxdb
@@ -31,6 +32,11 @@ hooks:
   - integration-name: Influxdb
     python-modules:
       - airflow.providers.influxdb.hooks.influxdb
+
+operators:
+  - integration-name: Influxdb
+    python-modules:
+      - airflow.providers.influxdb.operators.influxdb
 
 connection-types:
   - hook-class-name: airflow.providers.influxdb.hooks.influxdb.InfluxDBHook

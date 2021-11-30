@@ -212,6 +212,55 @@ Once a workflow is created users can trigger it using
     :start-after: [START how_to_cloud_dataproc_trigger_workflow_template]
     :end-before: [END how_to_cloud_dataproc_trigger_workflow_template]
 
+Create a Batch
+--------------
+
+Dataproc supports creating a batch workload.
+
+A batch can be created using:
+:class: ``~airflow.providers.google.cloud.operators.dataproc.DataprocCreateBatchOperator``.
+
+.. exampleinclude:: /../../airflow/providers/google/cloud/example_dags/example_dataproc.py
+    :language: python
+    :dedent: 4
+    :start-after: [START how_to_cloud_dataproc_create_batch_operator]
+    :end-before: [END how_to_cloud_dataproc_create_batch_operator]
+
+Get a Batch
+-----------
+
+To get a batch you can use:
+:class: ``~airflow.providers.google.cloud.operators.dataproc.DataprocGetBatchOperator``.
+
+.. exampleinclude:: /../../airflow/providers/google/cloud/example_dags/example_dataproc.py
+    :language: python
+    :dedent: 4
+    :start-after: [START how_to_cloud_dataproc_get_batch_operator]
+    :end-before: [END how_to_cloud_dataproc_get_batch_operator]
+
+List a Batch
+------------
+
+To get a list of exists batches you can use:
+:class: ``~airflow.providers.google.cloud.operators.dataproc.DataprocListBatchesOperator``.
+
+.. exampleinclude:: /../../airflow/providers/google/cloud/example_dags/example_dataproc.py
+    :language: python
+    :dedent: 4
+    :start-after: [START how_to_cloud_dataproc_list_batches_operator]
+    :end-before: [END how_to_cloud_dataproc_list_batches_operator]
+
+Delete a Batch
+--------------
+
+To delete a batch you can use:
+:class: ``~airflow.providers.google.cloud.operators.dataproc.DataprocDeleteBatchOperator``.
+
+.. exampleinclude:: /../../airflow/providers/google/cloud/example_dags/example_dataproc.py
+    :language: python
+    :dedent: 4
+    :start-after: [START how_to_cloud_dataproc_delete_batch_operator]
+    :end-before: [END how_to_cloud_dataproc_delete_batch_operator]
 
 References
 ^^^^^^^^^^

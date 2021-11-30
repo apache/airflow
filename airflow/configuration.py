@@ -1072,8 +1072,8 @@ def _TEST_CONFIG():
 _deprecated = {
     'DEFAULT_CONFIG': _DEFAULT_CONFIG,
     'TEST_CONFIG': _TEST_CONFIG,
-    'TEST_CONFIG_FILE_PATH': functools.partial(_default_config_file_path, ('default_test.cfg')),
-    'DEFAULT_CONFIG_FILE_PATH': functools.partial(_default_config_file_path, ('default_airflow.cfg')),
+    'TEST_CONFIG_FILE_PATH': functools.partial(_default_config_file_path, 'default_test.cfg'),
+    'DEFAULT_CONFIG_FILE_PATH': functools.partial(_default_config_file_path, 'default_airflow.cfg'),
 }
 
 

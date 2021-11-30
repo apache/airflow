@@ -260,17 +260,18 @@ def test_views_post(admin_client, url, check_response):
 
 
 @pytest.mark.parametrize(
-    "url, client, content",
+    "url, client, content, username",
     [
-        ("resetmypassword/form", "viewer_client", "Password Changed"),
-        ("resetpassword/form?pk=1", "admin_client", "Password Changed"),
-        ("resetpassword/form?pk=1", "viewer_client", "Access is Denied"),
+        ("resetmypassword/form", "viewer_client", "Password Changed", "test_viewer"),
+        ("resetpassword/form?pk={}", "admin_client", "Password Changed", "test_admin"),
+        ("resetpassword/form?pk={}", "viewer_client", "Access is Denied", "test_viewer"),
     ],
     ids=["my-viewer", "pk-admin", "pk-viewer"],
 )
-def test_resetmypasswordview_edit(request, url, client, content):
+def test_resetmypasswordview_edit(app, request, url, client, content, username):
+    user = app.appbuilder.sm.find_user(username)
     resp = request.getfixturevalue(client).post(
-        url, data={'password': 'blah', 'conf_password': 'blah'}, follow_redirects=True
+        url.format(user.id), data={'password': 'blah', 'conf_password': 'blah'}, follow_redirects=True
     )
     check_content_in_response(content, resp)
 

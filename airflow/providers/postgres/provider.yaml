@@ -22,6 +22,7 @@ description: |
   `PostgreSQL <https://www.postgresql.org/>`__
 
 versions:
+  - 2.4.0
   - 2.3.0
   - 2.2.0
   - 2.1.0

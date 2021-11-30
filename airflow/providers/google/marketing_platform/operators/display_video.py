@@ -261,7 +261,7 @@ class GoogleDisplayVideo360DownloadReportOperator(BaseOperator):
         self.report_id = report_id
         self.chunk_size = chunk_size
         self.gzip = gzip
-        self.bucket_name = self._set_bucket_name(bucket_name)
+        self.bucket_name = bucket_name
         self.report_name = report_name
         self.api_version = api_version
         self.gcp_conn_id = gcp_conn_id
@@ -309,8 +309,9 @@ class GoogleDisplayVideo360DownloadReportOperator(BaseOperator):
 
             temp_file.flush()
             # Upload the local file to bucket
+            bucket_name = self._set_bucket_name(self.bucket_name)
             gcs_hook.upload(
-                bucket_name=self.bucket_name,
+                bucket_name=bucket_name,
                 object_name=report_name,
                 gzip=self.gzip,
                 filename=temp_file.name,

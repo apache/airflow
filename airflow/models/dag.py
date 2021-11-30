@@ -2450,6 +2450,7 @@ class DAG(LoggingMixin):
                 orm_dag.fileloc = dag.fileloc
                 orm_dag.owners = dag.owner
             orm_dag.is_active = True
+            orm_dag.has_import_errors = False
             orm_dag.last_parsed_time = timezone.utcnow()
             orm_dag.default_view = dag.default_view
             orm_dag.description = dag.description
@@ -2710,6 +2711,7 @@ class DagModel(Base):
     max_active_runs = Column(Integer, nullable=True)
 
     has_task_concurrency_limits = Column(Boolean, nullable=False)
+    has_import_errors = Column(Boolean(), default=False)
 
     # The logical date of the next dag run.
     next_dagrun = Column(UtcDateTime)
@@ -2744,8 +2746,10 @@ class DagModel(Base):
                 self.max_active_tasks = concurrency
             else:
                 self.max_active_tasks = conf.getint('core', 'max_active_tasks_per_dag')
+
         if self.max_active_runs is None:
             self.max_active_runs = conf.getint('core', 'max_active_runs_per_dag')
+
         if self.has_task_concurrency_limits is None:
             # Be safe -- this will be updated later once the DAG is parsed
             self.has_task_concurrency_limits = True
@@ -2882,11 +2886,13 @@ class DagModel(Base):
         # TODO[HA]: Bake this query, it is run _A lot_
         # We limit so that _one_ scheduler doesn't try to do all the creation
         # of dag runs
+
         query = (
             session.query(cls)
             .filter(
                 cls.is_paused == expression.false(),
                 cls.is_active == expression.true(),
+                cls.has_import_errors == expression.false(),
                 cls.next_dagrun_create_after <= func.now(),
             )
             .order_by(cls.next_dagrun_create_after)
