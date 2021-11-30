@@ -394,8 +394,6 @@ class PythonVirtualenvOperator(PythonOperator):
         self.use_dill = use_dill
         self.system_site_packages = system_site_packages
         if not self.system_site_packages:
-            if 'lazy-object-proxy' not in self.requirements:
-                self.requirements.append('lazy-object-proxy')
             if self.use_dill and 'dill' not in self.requirements:
                 self.requirements.append('dill')
         self.pickling_library = dill if self.use_dill else pickle
