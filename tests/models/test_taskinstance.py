@@ -331,7 +331,7 @@ class TestTaskInstance:
         ti = create_task_instance(
             dag_id='test_mark_non_runnable_task_as_success',
             task_id='test_mark_non_runnable_task_as_success_op',
-            dagrun_state=non_runnable_state,
+            state=non_runnable_state,
         )
         ti.run(mark_success=True)
         assert ti.state == State.SUCCESS

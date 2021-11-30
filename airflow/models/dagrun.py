@@ -161,7 +161,8 @@ class DagRun(Base, LoggingMixin):
         self.start_date = start_date
         self.external_trigger = external_trigger
         self.conf = conf or {}
-        self.state = state
+        if state is not None:
+            self.state = state
         if queued_at is self.__NO_VALUE:
             self.queued_at = timezone.utcnow() if state == State.QUEUED else None
         else:
