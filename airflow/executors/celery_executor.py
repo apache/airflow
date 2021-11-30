@@ -397,29 +397,41 @@ class CeleryExecutor(BaseExecutor):
         In such situation, we update the task instance state to scheduled so that
         it can be queued again. We chose to use task_adoption_timeout to decide
         """
+        if not isinstance(app.backend, DatabaseBackend):
+            # We only want to do this for database backends where
+            # this case has been spotted
+            return
         self.log.debug("Checking for stuck queued tasks")
 
-        for task in session.query(TaskInstance).filter(TaskInstance.state == State.QUEUED):
+        max_allowed_time = utcnow() - self.task_adoption_timeout
+
+        for task in session.query(TaskInstance).filter(
+            TaskInstance.state == State.QUEUED, TaskInstance.queued_dttm < max_allowed_time
+        ):
 
             self.log.info("Checking task %s", task)
 
-            if task.key in self.queued_tasks or task.key in self.running or not task.external_executor_id:
+            if task.key in self.queued_tasks or task.key in self.running:
                 continue
-            # The pending state means task is waiting for execution or unknown
-            if AsyncResult(id=task.external_executor_id, app=app).state != 'PENDING':
-                continue
-            # We use the task_adoption_timeout to decide if the task is stuck
-            max_allowed_time = utcnow() - self.task_adoption_timeout
 
-            if max_allowed_time > task.queued_dttm:
-                # Using the if condition above instead of adding to query so that the logging below is correct
-                self.log.info(
-                    'TaskInstance: %s found in queued state for more than %s seconds, rescheduling',
-                    task,
-                    self.task_adoption_timeout.total_seconds(),
-                )
-                task.state = State.SCHEDULED
-                session.merge(task)
+            session = app.backend.ResultSession()
+            task_cls = getattr(app.backend, "task_cls", TaskDb)
+            with session_cleanup(session):
+                if (
+                    session.query(task_cls)
+                    .filter(task_cls.task_id == task.external_executor_id)
+                    .one_or_none()
+                ):
+                    # The task is still running in the worker
+                    continue
+
+            self.log.info(
+                'TaskInstance: %s found in queued state for more than %s seconds, rescheduling',
+                task,
+                self.task_adoption_timeout.total_seconds(),
+            )
+            task.state = State.SCHEDULED
+            session.merge(task)
 
     def debug_dump(self) -> None:
         """Called in response to SIGUSR2 by the scheduler"""
