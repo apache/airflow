@@ -15,10 +15,10 @@
 # specific language governing permissions and limitations
 # under the License.
 import os
+from datetime import datetime
 
 from airflow import models
 from airflow.providers.google.cloud.transfers.mssql_to_gcs import MSSQLToGCSOperator
-from airflow.utils import dates
 
 GCS_BUCKET = os.environ.get("GCP_GCS_BUCKET", "example-airflow")
 FILENAME = 'test_file'
