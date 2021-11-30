@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2021-11-28T22:31:18Z
+# This constraints file was automatically generated on 2021-11-30T05:58:42Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package nd all available community provider packages.
@@ -220,7 +220,7 @@ hmsclient==0.1.1
 httpcore==0.14.3
 httplib2==0.19.1
 httpx==0.21.1
-humanize==3.12.0
+humanize==3.13.1
 hvac==0.11.2
 identify==2.4.0
 idna==3.3
@@ -268,7 +268,7 @@ mccabe==0.6.1
 mongomock==3.23.0
 monotonic==1.6
 moreorless==0.4.0
-moto==2.2.16
+moto==2.2.17
 msal-extensions==0.3.0
 msal==1.16.0
 msgpack==1.0.3
@@ -300,7 +300,7 @@ pandas-gbq==0.14.1
 pandas==1.3.4
 papermill==2.3.3
 parameterized==0.8.1
-paramiko==2.8.0
+paramiko==2.8.1
 parso==0.8.2
 partd==1.2.0
 pathspec==0.9.0
@@ -345,7 +345,7 @@ pyenchant==3.2.2
 pyexasol==0.23.2
 pyflakes==2.4.0
 pykerberos==1.2.1
-pymongo==3.12.1
+pymongo==3.12.2
 pymssql==2.2.2
 pyodbc==4.0.32
 pyparsing==2.4.7
@@ -390,7 +390,7 @@ requests-toolbelt==0.9.1
 requests==2.26.0
 responses==0.16.0
 rfc3986==1.5.0
-rich==10.15.0
+rich==10.15.1
 rsa==4.8
 s3transfer==0.5.0
 sasl==0.3.1
