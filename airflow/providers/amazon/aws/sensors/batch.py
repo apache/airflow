@@ -33,16 +33,6 @@ class BatchSensor(BaseSensorOperator):
     :type aws_conn_id: str
     """
 
-    INTERMEDIATE_STATES = (
-        'SUBMITTED',
-        'PENDING',
-        'RUNNABLE',
-        'STARTING',
-        'RUNNING',
-    )
-    FAILURE_STATES = ('FAILED',)
-    SUCCESS_STATES = ('SUCCEEDED',)
-
     template_fields = ['job_id']
     template_ext = ()
     ui_color = '#66c3ff'
@@ -65,13 +55,16 @@ class BatchSensor(BaseSensorOperator):
         job_description = self.get_hook().get_job_description(self.job_id)
         state = job_description['status']
 
-        if state in self.FAILURE_STATES:
-            raise AirflowException(f'Batch sensor failed. Batch Job Status: {state}')
+        if state == AwsBatchClientHook.SUCCESS_STATE:
+            return True
 
-        if state in self.INTERMEDIATE_STATES:
+        if state in AwsBatchClientHook.INTERMEDIATE_STATES:
             return False
 
-        return True
+        if state == AwsBatchClientHook.FAILURE_STATE:
+            raise AirflowException(f'Batch sensor failed. AWS Batch job status: {state}')
+
+        raise AirflowException(f'Batch sensor failed. Unknown AWS Batch job status: {state}')
 
     def get_hook(self) -> AwsBatchClientHook:
         """Create and return a AwsBatchClientHook"""
