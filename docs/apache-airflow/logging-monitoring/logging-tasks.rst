@@ -120,7 +120,7 @@ Some external systems require specific configuration in Airflow for redirection 
 Serving logs from workers
 -------------------------
 
-Most task handlers send logs upon completion of a task. In order to view logs in real time, airflow automatically starts an http server to serve the logs in the following cases:
+Most task handlers send logs upon completion of a task. In order to view logs in real time, Airflow automatically starts an http server to serve the logs in the following cases:
 
 - If ``SchedulerExecutor`` or ``LocalExecutor`` is used, then when ``airflow scheduler`` is running.
 - If ``CeleryExecutor`` is used, then when ``airflow worker`` is running.

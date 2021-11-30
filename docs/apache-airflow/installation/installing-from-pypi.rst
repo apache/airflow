@@ -89,8 +89,8 @@ In order to simplify the installation, we have prepared examples of how to upgra
 Installing Airflow with extras and providers
 ============================================
 
-If you need to install extra dependencies of airflow, you can use the script below to make an installation
-a one-liner (the example below installs postgres and google provider, as well as ``async`` extra.
+If you need to install extra dependencies of Airflow, you can use the script below to make an installation
+a one-liner (the example below installs Postgres and Google providers, as well as ``async`` extra).
 
 .. code-block:: bash
     :substitutions:

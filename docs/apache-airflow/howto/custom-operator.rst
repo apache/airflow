@@ -32,7 +32,7 @@ There are two methods that you need to override in a derived class:
   You can specify the ``default_args`` in the dag file. See :ref:`Default args <concepts:default-arguments>` for more details.
 
 * Execute - The code to execute when the runner calls the operator. The method contains the
-  airflow context as a parameter that can be used to read config values.
+  Airflow context as a parameter that can be used to read config values.
 
 .. note::
 
