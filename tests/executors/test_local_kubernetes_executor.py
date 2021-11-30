@@ -21,8 +21,6 @@ from airflow.configuration import conf
 from airflow.executors.local_executor import LocalExecutor
 from airflow.executors.local_kubernetes_executor import LocalKubernetesExecutor
 
-KUBERNETES_QUEUE = LocalKubernetesExecutor.KUBERNETES_QUEUE
-
 
 class TestLocalKubernetesExecutor:
     def test_queued_tasks(self):
