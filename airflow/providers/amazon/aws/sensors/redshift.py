@@ -43,12 +43,7 @@ class AwsRedshiftClusterSensor(BaseSensorOperator):
     ):
         super().__init__(**kwargs)
         self.cluster_identifier = cluster_identifier
-        self.target_status = (
-            target_status
-            if isinstance(target_status, RedshiftClusterStates)
-            else RedshiftClusterStates(str(target_status))
-        )
-
+        self.target_status = RedshiftClusterStates(target_status)
         self.aws_conn_id = aws_conn_id
         self.hook: Optional[RedshiftHook] = None
 
