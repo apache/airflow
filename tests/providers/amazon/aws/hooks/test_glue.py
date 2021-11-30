@@ -103,7 +103,7 @@ class TestGlueJobHook(unittest.TestCase):
 
         with self.assertRaises(
             ValueError,
-            msg="ValueError should be raised for specifying the num_of_dpus and worker type together!",
+            msg="ValueError should be raised for specifying the num_of_dpus and worker type together.",
         ):
             GlueJobHook(
                 job_name='aws_test_glue_job',
