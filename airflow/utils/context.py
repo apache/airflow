@@ -61,6 +61,9 @@ class Context(MutableMapping[str, Any]):
         self._context = context
         self._deprecation_replacements = self._DEPRECATION_REPLACEMENTS.copy()
 
+    def __repr__(self) -> str:
+        return repr(self._context)
+
     def __getitem__(self, key: str) -> Any:
         with contextlib.suppress(KeyError):
             warnings.warn(_create_deprecation_warning(key, self._deprecation_replacements[key]), stacklevel=2)
