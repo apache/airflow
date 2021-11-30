@@ -114,6 +114,7 @@ log = logging.getLogger(__name__)
 
 
 if TYPE_CHECKING:
+    from airflow.models.baseoperator import BaseOperator
     from airflow.models.dag import DAG, DagModel, DagRun
 
 
@@ -1779,7 +1780,7 @@ class TaskInstance(Base, LoggingMixin):
         # Do not use provide_session here -- it expunges everything on exit!
         if not session:
             session = settings.Session()
-        task = self.task
+        task: "BaseOperator" = self.task
         dag: DAG = task.dag
         from airflow import macros
 
