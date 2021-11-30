@@ -16,15 +16,15 @@
 # specific language governing permissions and limitations
 # under the License.
 """
-This is an example dag for using a Kubernetes Executor Configuration.
+This is an example dag for using a Local Kubernetes Executor Configuration.
 """
 import logging
 from datetime import datetime
 
 from airflow import DAG
 from airflow.configuration import conf
+from airflow.decorators import task
 from airflow.example_dags.libs.helper import print_stuff
-from airflow.operators.python_operator import PythonOperator
 
 log = logging.getLogger(__name__)
 
@@ -34,7 +34,7 @@ worker_container_tag = conf.get('kubernetes', 'worker_container_tag')
 try:
     from kubernetes.client import models as k8s
 except ImportError:
-    log.warning("Could not import DAGs in example_kubernetes_executor.py", exc_info=True)
+    log.warning("Could not import DAGs in example_local_kubernetes_executor.py", exc_info=True)
     log.warning("Install Kubernetes dependencies with: pip install apache-airflow[cncf.kubernetes]")
 
 with DAG(
@@ -49,13 +49,13 @@ with DAG(
         "pod_override": k8s.V1Pod(metadata=k8s.V1ObjectMeta(annotations={"test": "annotation"}))
     }
 
-    task_with_template = PythonOperator(
-        task_id="task_with_kubernetes_executor",
-        python_callable=print_stuff,
-        pool='kubernetes',
+    @task(
+        executor_config='start_task_executor_config',
         queue='kubernetes',
-        executor_config=start_task_executor_config,
+        task_id='task_with_kubernetes_executor',
     )
+    def task_with_template():
+        print_stuff()
 
     def print_context(ds, **kwargs):
         """Print the Airflow context and ds variable from the context."""
@@ -63,9 +63,8 @@ with DAG(
         print(ds)
         return 'Whatever you return gets printed in the logs'
 
-    task_with_local = PythonOperator(
-        task_id="task_with_local_executor",
-        python_callable=print_context,
-    )
+    @task(task_id='task_with_local_executor')
+    def task_with_local():
+        print_context()
 
     task_with_local >> task_with_template
