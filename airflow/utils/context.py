@@ -64,6 +64,15 @@ class Context(MutableMapping[str, Any]):
     def __repr__(self) -> str:
         return repr(self._context)
 
+    def __reduce_ex__(self, protocol: int) -> Tuple[Any, ...]:
+        """Pickle the context as a dict.
+
+        We are intentionally going through ``__getitem__`` in this function,
+        instead of using ``items()``, to trigger deprecation warnings.
+        """
+        items = [(key, self[key]) for key in self._context]
+        return dict, (items,)
+
     def __getitem__(self, key: str) -> Any:
         with contextlib.suppress(KeyError):
             warnings.warn(_create_deprecation_warning(key, self._deprecation_replacements[key]), stacklevel=2)

@@ -399,7 +399,7 @@ class PythonVirtualenvOperator(PythonOperator):
         self.pickling_library = dill if self.use_dill else pickle
 
     def execute(self, context: Context):
-        serializable_keys = self._get_serializable_context_keys()
+        serializable_keys = set(self._iter_serializable_context_keys())
         serializable_context = context.copy_only(serializable_keys)
         return super().execute(context=serializable_context)
 
@@ -458,19 +458,13 @@ class PythonVirtualenvOperator(PythonOperator):
             with open(filename, 'wb') as file:
                 self.pickling_library.dump({'args': self.op_args, 'kwargs': self.op_kwargs}, file)
 
-    def _get_serializable_context_keys(self):
-        def _is_airflow_env():
-            return self.system_site_packages or 'apache-airflow' in self.requirements
-
-        def _is_pendulum_env():
-            return 'pendulum' in self.requirements and 'lazy_object_proxy' in self.requirements
-
-        serializable_context_keys = self.BASE_SERIALIZABLE_CONTEXT_KEYS.copy()
-        if _is_airflow_env():
-            serializable_context_keys.update(self.AIRFLOW_SERIALIZABLE_CONTEXT_KEYS)
-        if _is_pendulum_env() or _is_airflow_env():
-            serializable_context_keys.update(self.PENDULUM_SERIALIZABLE_CONTEXT_KEYS)
-        return serializable_context_keys
+    def _iter_serializable_context_keys(self):
+        yield from self.BASE_SERIALIZABLE_CONTEXT_KEYS
+        if self.system_site_packages or 'apache-airflow' in self.requirements:
+            yield from self.AIRFLOW_SERIALIZABLE_CONTEXT_KEYS
+            yield from self.PENDULUM_SERIALIZABLE_CONTEXT_KEYS
+        elif 'pendulum' in self.requirements:
+            yield from self.PENDULUM_SERIALIZABLE_CONTEXT_KEYS
 
     def _write_string_args(self, filename):
         with open(filename, 'w') as file:
