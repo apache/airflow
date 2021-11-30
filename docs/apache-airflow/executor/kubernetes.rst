@@ -93,7 +93,7 @@ With these requirements in mind, here are some examples of basic ``pod_template_
 
 .. note::
 
-    The examples below should work when using default airflow configuration values. However, many custom
+    The examples below should work when using default Airflow configuration values. However, many custom
     configuration values need to be explicitly passed to the pod via this template too. This includes,
     but is not limited to, sql configuration, required Airflow connections, dag folder path and
     logging settings. See :doc:`../configurations-ref` for details.

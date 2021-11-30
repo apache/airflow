@@ -98,14 +98,14 @@ Now add the secret to your values file:
 
     webserverSecretKey: <secret_key>
 
-Alternatively, create a kubernetes Secret and use ``webserverSecretKeySecretName``:
+Alternatively, create a Kubernetes Secret and use ``webserverSecretKeySecretName``:
 
 .. code-block:: yaml
 
     webserverSecretKeySecretName: my-webserver-secret
     # where the random key is under `webserver-secret-key` in the k8s Secret
 
-Example to create a kubernetes Secret from ``kubectl``:
+Example to create a Kubernetes Secret from ``kubectl``:
 
 .. code-block:: bash
 

@@ -38,7 +38,7 @@ Endpoints
 .. http:post:: /api/experimental/dags/<DAG_ID>/dag_runs
 
   Creates a dag_run for a given dag id.
-  Note: If execution_date is not specified in the body, airflow by default creates only one DAG per second for a given DAG_ID.
+  Note: If execution_date is not specified in the body, Airflow by default creates only one DAG per second for a given DAG_ID.
   In order to create multiple DagRun within one second, you should set parameter ``"replace_microseconds"`` to ``"false"`` (boolean as string).
 
   The execution_date must be specified with the format ``YYYY-mm-DDTHH:MM:SS.ssssss``.

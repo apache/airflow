@@ -374,11 +374,11 @@ Lets look at another example; we need to get some data from a file which is host
 
 Initial setup
 ''''''''''''''''''''
-We need to have docker and postgres installed.
+We need to have Docker and Postgres installed.
 We will be using this `docker file <https://airflow.apache.org/docs/apache-airflow/stable/start/docker.html#docker-compose-yaml>`_
 Follow the instructions properly to set up Airflow.
 
-Create a Employee table in postgres using this:
+Create a Employee table in Postgres using this:
 
 .. code-block:: sql
 
@@ -400,7 +400,7 @@ Create a Employee table in postgres using this:
       "Leave" INTEGER
   );
 
-We also need to add a connection to postgres. Go to the UI and click "Admin" >> "Connections". Specify the following for each field:
+We also need to add a connection to Postgres. Go to the UI and click "Admin" >> "Connections". Specify the following for each field:
 
 - Conn id: LOCAL
 - Conn Type: postgres

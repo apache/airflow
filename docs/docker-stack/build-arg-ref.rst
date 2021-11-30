@@ -211,7 +211,7 @@ You can see some examples of those in:
 | ``AIRFLOW_CONSTRAINTS_LOCATION``         |                                          | If not empty, it will override the       |
 |                                          |                                          | source of the constraints with the       |
 |                                          |                                          | specified URL or file. Note that the     |
-|                                          |                                          | file has to be in docker context so      |
+|                                          |                                          | file has to be in Docker context so      |
 |                                          |                                          | it's best to place such file in          |
 |                                          |                                          | one of the folders included in           |
 |                                          |                                          | ``.dockerignore`` file.                  |
@@ -246,7 +246,7 @@ When image is build from PIP, by default pre-caching of PIP dependencies is used
 builds during development. When pre-cached PIP dependencies are used and ``setup.py`` or ``setup.cfg`` changes, the
 PIP dependencies are already pre-installed, thus resulting in much faster image rebuild. This is purely an optimization
 of time needed to build the images and should be disabled if you want to install Airflow from
-docker context files.
+Docker context files.
 
 +------------------------------------------+------------------------------------------+------------------------------------------+
 | Build argument                           | Default value                            | Description                              |
