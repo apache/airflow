@@ -4782,6 +4782,22 @@ class MultiResourceUserMixin:
         permissions.ACTION_CAN_DELETE,
     ]
 
+    @property
+    def class_permission_name(self):
+        """Returns appropriate permission name depending on request method name."""
+        if request:
+            action_name = request.view_args.get("name")
+            _, method_name = request.url_rule.endpoint.rsplit(".", 1)
+            if method_name == 'action' and action_name:
+                return self.class_permission_name_mapping.get(action_name, self._class_permission_name)
+            if method_name:
+                return self.class_permission_name_mapping.get(method_name, self._class_permission_name)
+        return self._class_permission_name
+
+    @class_permission_name.setter
+    def class_permission_name(self, name):
+        self._class_permission_name = name
+
     @expose("/show/<pk>", methods=["GET"])
     @has_access
     def show(self, pk):
@@ -4828,22 +4844,6 @@ class CustomUserDBModelView(MultiResourceUserMixin, UserDBModelView):
         permissions.ACTION_CAN_EDIT,
         permissions.ACTION_CAN_DELETE,
     ]
-
-    @property
-    def class_permission_name(self):
-        """Returns appropriate permission name depending on request method name."""
-        if request:
-            action_name = request.view_args.get("name")
-            _, method_name = request.url_rule.endpoint.rsplit(".", 1)
-            if method_name == 'action' and action_name:
-                return self.class_permission_name_mapping.get(action_name, self._class_permission_name)
-            if method_name:
-                return self.class_permission_name_mapping.get(method_name, self._class_permission_name)
-        return self._class_permission_name
-
-    @class_permission_name.setter
-    def class_permission_name(self, name):
-        self._class_permission_name = name
 
 
 class CustomUserLDAPModelView(MultiResourceUserMixin, UserLDAPModelView):
