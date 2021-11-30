@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2021-11-30T05:58:42Z
+# This constraints file was automatically generated on 2021-11-30T14:27:16Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package nd all available community provider packages.
@@ -477,7 +477,7 @@ websocket-client==1.2.1
 wrapt==1.13.3
 xmltodict==0.12.0
 yamllint==1.26.3
-yandexcloud==0.116.0
+yandexcloud==0.117.0
 yarl==1.7.2
 zdesk==2.7.1
 zict==2.0.0
