@@ -113,9 +113,34 @@ function applyFieldBehaviours(connection) {
   }
 }
 
+/**
+ * Dynamically enable/disable the Test Connection button as determined by the selected
+ * connection type.
+ @param {string} connectionType The connection type to change to.
+ @param {Array} testableConnections Connection types that currently support testing via
+  Airflow REST API.
+ */
+function handleTestConnection(connectionType, testableConnections) {
+  const testButton = document.getElementById('test-connection');
+  const testConnEnabled = testableConnections.includes(connectionType);
+
+  if (testConnEnabled) {
+  // If connection type can be tested in via REST API, enable button and clear toolip.
+    $(testButton).prop('disabled', false).removeAttr('title');
+  } else {
+  // If connection type can NOT be tested via REST API, disable button and display toolip
+  // alerting the user.
+    $(testButton).prop('disabled', true)
+      .attr('title', 'This connection type does not currently support testing via '
+        + 'Airflow REST API.');
+  }
+}
+
 $(document).ready(() => {
   const fieldBehavioursElem = document.getElementById('field_behaviours');
   const config = JSON.parse(decode(fieldBehavioursElem.textContent));
+  const testableConnsElem = document.getElementById('testable_connection_types');
+  const testableConns = decode(testableConnsElem.textContent);
 
   // Prevent login/password fields from triggering browser auth extensions
   const form = document.getElementById('model_form');
@@ -129,8 +154,9 @@ $(document).ready(() => {
   const testConnBtn = $('<button id="test-connection" type="button" class="btn btn-sm btn-primary" '
     + 'style="margin-left: 3px; pointer-events: all">Test\n <i class="fa fa-rocket"></i></button>');
 
+  // Disable the Test Connection button if Airflow REST APIs are not enabled.
   if (!restApiEnabled) {
-    $(testConnBtn).addClass('disabled')
+    $(testConnBtn).prop('disabled', true)
       .attr('title', 'Airflow REST APIs have been disabled. '
         + 'See api->auth_backend section of the Airflow configuration.');
   }
@@ -156,6 +182,11 @@ $(document).ready(() => {
 
     // Apply behaviours to fields.
     applyFieldBehaviours(config[connType]);
+
+    // Enable/Disable the Test Connection button. Only applicable if Airflow REST APIs are enabled.
+    if (restApiEnabled) {
+      handleTestConnection(connType, testableConns);
+    }
   }
 
   /**
