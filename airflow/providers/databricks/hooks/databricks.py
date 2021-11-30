@@ -256,6 +256,20 @@ class DatabricksHook(BaseHook):
         return headers
 
     @staticmethod
+    def _is_aad_token_valid(aad_token: dict) -> bool:
+        """
+        Utility function to check AAD token hasn't expired yet
+        :param aad_token: dict with properties of AAD token
+        :type aad_token: dict
+        :return: true if token is valid, false otherwise
+        :rtype: bool
+        """
+        now = int(time.time())
+        if aad_token['expires_on'] > (now + TOKEN_REFRESH_LEAD_TIME):
+            return True
+        return False
+
+    @staticmethod
     def _check_azure_metadata_service() -> None:
         """
         Check for Azure Metadata Service
@@ -519,20 +533,6 @@ class DatabricksHook(BaseHook):
         :type json: dict
         """
         self._do_api_call(UNINSTALL_LIBS_ENDPOINT, json)
-
-    @staticmethod
-    def _is_aad_token_valid(aad_token: dict) -> bool:
-        """
-        Utility function to check AAD token hasn't expired yet
-        :param aad_token: dict with properties of AAD token
-        :type aad_token: dict
-        :return: true if token is valid, false otherwise
-        :rtype: bool
-        """
-        now = int(time.time())
-        if aad_token['expires_on'] > (now + TOKEN_REFRESH_LEAD_TIME):
-            return True
-        return False
 
 
 def _retryable_error(exception) -> bool:
