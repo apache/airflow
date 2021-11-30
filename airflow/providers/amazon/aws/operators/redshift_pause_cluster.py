@@ -24,6 +24,10 @@ class RedshiftPauseClusterOperator(BaseOperator):
     """
     Pause an AWS Redshift Cluster using boto3.
 
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:RedshiftPauseClusterOperator`
+
     :param cluster_identifier: id of the AWS Redshift Cluster
     :type cluster_identifier: str
     :param aws_conn_id: aws connection to use
