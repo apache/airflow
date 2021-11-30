@@ -58,7 +58,7 @@ with DAG(
         print_stuff()
 
     @task(task_id='task_with_local_executor')
-    def task_with_local():
+    def task_with_local(ds=None, **kwargs):
         """Print the Airflow context and ds variable from the context."""
         print(kwargs)
         print(ds)
