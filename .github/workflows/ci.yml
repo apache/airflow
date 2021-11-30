@@ -237,6 +237,26 @@ jobs:
             echo "::set-output name=runsOn::\"self-hosted\""
           fi
 
+  run-new-breeze-tests:
+    timeout-minutes: 10
+    name: Breeze2 tests
+    runs-on: ${{ fromJson(needs.build-info.outputs.runsOn) }}
+    needs: [build-info]
+    defaults:
+      run:
+        shell: bash
+        working-directory: ./dev/breeze
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v2
+        with:
+          python-version: '3.7'
+          cache: 'pip'
+      - run: pip install .
+      - run: python3 -m pytest -n auto --color=yes
+
   tests-ui:
     timeout-minutes: 10
     name: React UI tests
