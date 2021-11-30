@@ -50,21 +50,18 @@ with DAG(
     }
 
     @task(
-        executor_config='start_task_executor_config',
+        executor_config=start_task_executor_config,
         queue='kubernetes',
         task_id='task_with_kubernetes_executor',
     )
     def task_with_template():
         print_stuff()
 
-    def print_context(ds, **kwargs):
+    @task(task_id='task_with_local_executor')
+    def task_with_local():
         """Print the Airflow context and ds variable from the context."""
         print(kwargs)
         print(ds)
         return 'Whatever you return gets printed in the logs'
 
-    @task(task_id='task_with_local_executor')
-    def task_with_local():
-        print_context()
-
-    task_with_local >> task_with_template
+    task_with_local() >> task_with_template()
