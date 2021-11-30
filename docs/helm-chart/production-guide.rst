@@ -23,25 +23,32 @@ The following are things to consider when using this Helm chart in a production 
 Database
 --------
 
-You will want to use an external database instead of the one deployed with the chart by default.
-Both **PostgreSQL** and **MySQL** are supported. Supported versions can be
-found on the :doc:`Set up a Database Backend <apache-airflow:howto/set-up-database>` page.
+It is advised to set up an external database for the Airflow metastore. The default Helm chart deploys a
+Postgres database running in a container. For production usage, a database running on a dedicated machine or
+leveraging a cloud provider's database service such as AWS RDS is advised. Supported databases and versions
+can be found at :doc:`Set up a Database Backend <apache-airflow:howto/set-up-database>`.
+
+First disable the Postgres in Docker container:
 
 .. code-block:: yaml
 
-  # Don't deploy postgres
   postgresql:
     enabled: false
 
-  # Use an external database
+To provide the database credentials to Airflow, store the credentials in a Kubernetes secret. Note that
+special characters in the username/password must be URL encoded.
+
+.. code-block:: bash
+
+  kubectl create secret generic mydatabase --from-literal=connection=postgresql://user:pass@host:5432/db
+
+Helm defaults to fetching the value from a secret named ``[RELEASE NAME]-airflow-metadata``, but you can
+configure the secret name:
+
+.. code-block:: yaml
+
   data:
-    metadataConnection:
-      user: ...
-      pass: ...
-      protocol: postgresql  # or 'mysql'
-      host: ...
-      port: ...
-      db: ...
+    metadataSecretName: mydatabase
 
 .. _production-guide:pgbouncer:
 
