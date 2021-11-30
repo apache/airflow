@@ -189,6 +189,8 @@ class DagRun(Base, LoggingMixin):
         return self._state
 
     def set_state(self, state: DagRunState):
+        if state not in State.dag_states:
+            raise ValueError(f"invalid DagRun state: {state}")
         if self._state != state:
             self._state = state
             self.end_date = timezone.utcnow() if self._state in State.finished else None
