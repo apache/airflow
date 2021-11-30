@@ -22,7 +22,7 @@ from airflow.providers.amazon.aws.hooks.redshift import RedshiftClusterStates, R
 
 class RedshiftPauseClusterOperator(BaseOperator):
     """
-    Pause an AWS Redshift Cluster using boto3.
+    Pause an AWS Redshift Cluster if it has status `available`.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
