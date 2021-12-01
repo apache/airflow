@@ -245,7 +245,7 @@ class KubernetesHook(BaseHook):
         except client.rest.ApiException as e:
             raise AirflowException(f"Exception when calling -> get_custom_object: {e}\n")
 
-    def get_namespace(self) -> str:
+    def get_namespace(self) -> Optional[str]:
         """Returns the namespace that defined in the connection"""
         if self.conn_id:
             connection = self.get_connection(self.conn_id)
