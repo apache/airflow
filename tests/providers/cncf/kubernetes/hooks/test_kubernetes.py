@@ -61,14 +61,14 @@ class TestKubernetesHook:
     @pytest.mark.parametrize(
         'in_cluster_param, conn_id, in_cluster_called',
         (
-            pytest.param(True, None, True),
-            pytest.param(None, None, False),
-            pytest.param(None, 'in_cluster', True),
-            pytest.param(True, 'in_cluster', True),
-            pytest.param(False, 'in_cluster', False),
-            pytest.param(None, 'in_cluster_empty', False),
-            pytest.param(True, 'in_cluster_empty', True),
-            pytest.param(False, 'in_cluster_empty', False),
+            (True, None, True),
+            (None, None, False),
+            (None, 'in_cluster', True),
+            (True, 'in_cluster', True),
+            (False, 'in_cluster', False),
+            (None, 'in_cluster_empty', False),
+            (True, 'in_cluster_empty', True),
+            (False, 'in_cluster_empty', False),
         ),
     )
     @patch("kubernetes.config.kube_config.KubeConfigLoader")
