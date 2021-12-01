@@ -81,7 +81,7 @@ class CloudwatchTaskHandler(FileTaskHandler, LoggingMixin):
         self.handler = watchtower.CloudWatchLogHandler(
             log_group=self.log_group,
             stream_name=self._render_filename(ti, ti.try_number),
-            boto3_session=self.hook.get_session(self.region_name),
+            boto3_client=self.hook.get_conn(),
         )
 
     def close(self):
