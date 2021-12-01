@@ -2118,14 +2118,7 @@ class TestRunRawTaskQueriesCount:
     def teardown_method(self) -> None:
         self._clean()
 
-    @pytest.mark.parametrize(
-        "expected_query_count, mark_success",
-        [
-            # Expected queries, mark_success
-            (10, False),
-            (5, True),
-        ],
-    )
+    @pytest.mark.parametrize("expected_query_count, mark_success", [(12, False), (5, True)])
     @provide_session
     def test_execute_queries_count(
         self, expected_query_count, mark_success, create_task_instance, session=None

@@ -19,15 +19,14 @@ import time  # noqa
 import uuid  # noqa
 from datetime import datetime, timedelta
 from random import random  # noqa
-from typing import Any, Optional, Union
+from typing import Any, Optional
 
 import dateutil  # noqa
-import lazy_object_proxy
 
 from airflow.macros import hive  # noqa
 
 
-def ds_add(ds: Union[str, lazy_object_proxy.Proxy], days: int) -> str:
+def ds_add(ds: str, days: int) -> str:
     """
     Add or subtract days from a YYYY-MM-DD
 
@@ -47,7 +46,7 @@ def ds_add(ds: Union[str, lazy_object_proxy.Proxy], days: int) -> str:
     return dt.strftime("%Y-%m-%d")
 
 
-def ds_format(ds: Union[str, lazy_object_proxy.Proxy], input_format: str, output_format: str) -> str:
+def ds_format(ds: str, input_format: str, output_format: str) -> str:
     """
     Takes an input string and outputs another string
     as specified in the output format
