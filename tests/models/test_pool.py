@@ -44,7 +44,7 @@ class TestPool:
         clear_db_runs()
         clear_db_pools()
 
-    def setup_method(self, session):
+    def setup_method(self):
         self.clean_db()
         self.pools = []
 
