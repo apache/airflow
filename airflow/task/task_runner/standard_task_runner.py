@@ -85,12 +85,12 @@ class StandardTaskRunner(BaseTaskRunner):
                 args.func(args, dag=self.dag)
                 return_code = 0
             except Exception:
+                return_code = 1
                 self.log.exception(
                     "Failed to execute job %s for task %s",
                     self._task_instance.job_id,
                     self._task_instance.task_id,
                 )
-                return_code = 1
             finally:
                 # Explicitly flush any pending exception to Sentry if enabled
                 Sentry.flush()
