@@ -460,7 +460,6 @@ class KubernetesExecutor(BaseExecutor, LoggingMixin):
                 del self.last_handled[key]
 
         for task in queued_tasks:
-
             self.log.debug("Checking task %s", task)
 
             # Check to see if we've handled it ourselves recently
@@ -471,7 +470,7 @@ class KubernetesExecutor(BaseExecutor, LoggingMixin):
             dict_string = "dag_id={},task_id={},airflow-worker={}".format(
                 pod_generator.make_safe_label_value(task.dag_id),
                 pod_generator.make_safe_label_value(task.task_id),
-                pod_generator.make_safe_label_value(str(self.scheduler_job_id)),
+                pod_generator.make_safe_label_value(str(task.queued_by_job_id)),
             )
             kwargs = dict(label_selector=dict_string)
             if self.kube_config.kube_client_request_args:
