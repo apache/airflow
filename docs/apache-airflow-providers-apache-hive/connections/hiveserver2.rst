@@ -29,7 +29,7 @@ Authenticating to Hive Server2
 
 Connect to Hive Server2 using `PyHive
 <https://pypi.org/project/PyHive/>`_.
-Choose between authenticating via LDAP, kerberos, or custom.
+Choose between authenticating via LDAP, Kerberos, or custom.
 
 Default Connection IDs
 ----------------------
@@ -61,7 +61,7 @@ Extra (optional)
     * ``auth_mechanism``
       Specify the authentication method for PyHive choose between ``PLAIN``, ``LDAP``, ``KERBEROS`` or, ``Custom`` the default is ``PLAIN``.
     * ``kerberos_service_name``
-      If authenticating with kerberos specify the kerberos service name the default is ``hive``.
+      If authenticating with Kerberos specify the Kerberos service name, the default is ``hive``.
     * ``run_set_variable_statements``
       Specify the if you want to run set variable statements the default is ```True``.
 

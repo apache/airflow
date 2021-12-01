@@ -35,7 +35,7 @@ Here are a few imperative requirements for your workers:
 - Airflow configuration settings should be homogeneous across the cluster
 - Operators that are executed on the worker need to have their dependencies
   met in that context. For example, if you use the ``HiveOperator``,
-  the hive CLI needs to be installed on that box, or if you use the
+  the Hive CLI needs to be installed on that box, or if you use the
   ``MySqlOperator``, the required Python library needs to be available in
   the :envvar:`PYTHONPATH` somehow
 - The worker needs to have access to its ``DAGS_FOLDER``, and you need to

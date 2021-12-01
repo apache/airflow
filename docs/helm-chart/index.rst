@@ -82,7 +82,7 @@ Features
 Installing the Chart
 --------------------
 
-To install this chart using helm 3, run the following commands:
+To install this chart using Helm 3, run the following commands:
 
 .. code-block:: bash
 
