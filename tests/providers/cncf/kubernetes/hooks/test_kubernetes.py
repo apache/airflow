@@ -63,6 +63,7 @@ class TestKubernetesHook:
         (
             (True, None, True),
             (None, None, False),
+            (False, None, False),
             (None, 'in_cluster', True),
             (True, 'in_cluster', True),
             (False, 'in_cluster', False),
@@ -187,11 +188,17 @@ class TestKubernetesHook:
         mock_kube_config_loader.assert_called_once()
         assert isinstance(api_conn, kubernetes.client.api_client.ApiClient)
 
-    def test_get_namespace(self):
-        kubernetes_hook_with_namespace = KubernetesHook(conn_id='with_namespace')
-        kubernetes_hook_without_namespace = KubernetesHook(conn_id='default_kube_config')
-        assert kubernetes_hook_with_namespace.get_namespace() == 'mock_namespace'
-        assert kubernetes_hook_without_namespace.get_namespace() == 'default'
+    @pytest.mark.parametrize(
+        'conn_id, expected',
+        (
+            pytest.param(None, None, id='no-conn-id'),
+            pytest.param('with_namespace', 'mock_namespace', id='conn-with-namespace'),
+            pytest.param('default_kube_config', 'default', id='conn-without-namespace'),
+        ),
+    )
+    def test_get_namespace(self, conn_id, expected):
+        hook = KubernetesHook(conn_id=conn_id)
+        assert hook.get_namespace() == expected
 
     @patch("kubernetes.config.kube_config.KubeConfigLoader")
     @patch("kubernetes.config.kube_config.KubeConfigMerger")
