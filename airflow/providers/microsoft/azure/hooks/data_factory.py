@@ -157,7 +157,7 @@ class AzureDataFactoryHook(BaseHook):
 
         try:
             subscription_id = conn.extra_dejson['extra__azure_data_factory__subscriptionId']
-        except:
+        except KeyError:
             raise ValueError("A Subscription ID is required to connect to Azure Data Factory.")
 
         credential: Credentials
