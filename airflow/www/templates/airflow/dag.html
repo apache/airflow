@@ -109,6 +109,9 @@
             <span class="material-icons" aria-hidden="true">nature</span>
             Tree
           </a></li>
+          <li><a href="{{ url_for('Airflow.dagruns', dag_id=dag.dag_id, root=root, num_runs=num_runs_arg, base_date=base_date_arg) }}">
+            <span class="material-icons" aria-hidden="true">fact_check</span>
+            Dag Runs</a></li>
           <li><a href="{{ url_for('Airflow.graph', dag_id=dag.dag_id, root=root, num_runs=num_runs_arg, base_date=base_date_arg, execution_date=execution_date_arg) }}">
             <span class="material-icons" aria-hidden="true">account_tree</span>
             Graph</a></li>

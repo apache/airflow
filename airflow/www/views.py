@@ -75,7 +75,7 @@ from flask_appbuilder.security.views import (
     UserStatsChartView,
     ViewMenuModelView,
 )
-from flask_appbuilder.widgets import FormWidget
+from flask_appbuilder.widgets import FormWidget, ListWidget
 from flask_babel import lazy_gettext
 from jinja2.utils import htmlsafe_json_dumps, pformat  # type: ignore
 from pendulum.datetime import DateTime
@@ -121,7 +121,7 @@ from airflow.utils.session import create_session, provide_session
 from airflow.utils.state import State
 from airflow.utils.strings import to_boolean
 from airflow.version import version
-from airflow.www import auth, utils as wwwutils
+from airflow.www import auth, dagrun_table_formatters, utils as wwwutils
 from airflow.www.decorators import action_logging, gzipped
 from airflow.www.forms import (
     ConnectionForm,
@@ -2356,6 +2356,104 @@ class Airflow(AirflowBaseView):
             external_log_name=external_log_name,
             dag_model=dag_model,
             auto_refresh_interval=conf.getint('webserver', 'auto_refresh_interval'),
+        )
+
+    @expose('/dag_dagruns')
+    @auth.has_access(
+        [
+            (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
+            (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK_INSTANCE),
+            (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK_LOG),
+            (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG_RUN),
+        ]
+    )
+    @gzipped
+    @action_logging
+    @provide_session
+    def dagruns(self, session=None):
+        """List most recent dag runs for a selected dag"""
+        dag_id = request.args.get('dag_id')
+        dag = current_app.dag_bag.get_dag(dag_id)
+        if not dag:
+            flash(f'DAG "{dag_id}" seems to be missing from DagBag.', "error")
+            return redirect(url_for('Airflow.index'))
+        wwwutils.check_import_errors(dag.fileloc, session)
+
+        try:
+            base_date = timezone.parse(request.args["base_date"])
+        except (KeyError, ValueError):
+            base_date = dag.get_latest_execution_date() or timezone.utcnow()
+
+        query_limit = 50
+        dag_runs = (
+            session.query(DagRun)
+            .filter(DagRun.dag_id == dag.dag_id, DagRun.execution_date <= base_date)
+            .order_by(DagRun.execution_date.desc())
+            .limit(query_limit)
+            .all()
+        )
+        dag_runs.reverse()
+
+        dag_run_dates = {dr.execution_date: alchemy_to_dict(dr) for dr in dag_runs}
+        min_date = min(dag_run_dates, default=None)
+        task_instances = dag.get_task_instances(start_date=min_date, end_date=base_date, session=session)
+
+        extra_column_provider = dagrun_table_formatters.get_formatter(dag)
+
+        values = []
+        for dr in dag_runs:
+            tis_for_this_dr = [ti for ti in task_instances if ti.run_id == dr.run_id]
+            values.append(
+                {
+                    "state": dr.state,
+                    "dag_id": dag_id,  # Not visible Needed for dag_run_link to work
+                    "run_id": dr.run_id,
+                    "run_type": dr.run_type,
+                    "start_date": dr.start_date,
+                    "end_date": dr.end_date,
+                    **extra_column_provider.extra_dagrun_fields(dr, tis_for_this_dr, session),
+                }
+            )
+
+        labels = extra_column_provider.labels(
+            {
+                "state": "State",
+                "run_id": "Dag Run",
+                "run_type": "Run type",
+                "start_date": "Start Date",
+                "end_date": "End Date",
+                "duration": "Duration",
+            }
+        )
+
+        dagrun_list = ListWidget(
+            label_columns=labels,
+            include_columns=labels.keys(),
+            value_columns=values,
+            order_columns=labels.keys(),
+            formatters_columns={
+                'start_date': wwwutils.datetime_f('start_date'),
+                'end_date': wwwutils.datetime_f('end_date'),
+                'state': wwwutils.state_f,
+                'run_id': wwwutils.dag_run_link,
+                'duration': DagRunModelView.duration_f,
+                **extra_column_provider.formatters(),
+            },
+            count=len(values),
+            page_size=query_limit,
+            page=1,
+            pks=[dr.id for dr in dag_runs],
+            actions=[],
+            filters=DagRunModelView.datamodel.get_filters([]),
+            modelview_name=DagRunModelView.__name__,
+        )
+        dagrun_list.template = "airflow/model_list.html"
+
+        return self.render_template(
+            "airflow/dagruns.html",
+            dagrun_list=dagrun_list,
+            dag=dag,
+            doc_md=dag.doc_md,
         )
 
     @expose('/calendar')
