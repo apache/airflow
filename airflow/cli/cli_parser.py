@@ -913,6 +913,33 @@ DAGS_COMMANDS = (
         ),
     ),
     ActionCommand(
+        name='show-dependencies',
+        help="Displays DAGs with their dependencies",
+        description=(
+            "The --imgcat option only works in iTerm.\n"
+            "\n"
+            "For more information, see: https://www.iterm2.com/documentation-images.html\n"
+            "\n"
+            "The --save option saves the result to the indicated file.\n"
+            "\n"
+            "The file format is determined by the file extension. "
+            "For more information about supported "
+            "format, see: https://www.graphviz.org/doc/info/output.html\n"
+            "\n"
+            "If you want to create a PNG file then you should execute the following command:\n"
+            "airflow dags show <DAG_ID> --save output.png\n"
+            "\n"
+            "If you want to create a DOT file then you should execute the following command:\n"
+            "airflow dags show <DAG_ID> --save output.dot\n"
+        ),
+        func=lazy_load_command('airflow.cli.commands.dag_command.dag_dependencies_show'),
+        args=(
+            ARG_SUBDIR,
+            ARG_SAVE,
+            ARG_IMGCAT,
+        ),
+    ),
+    ActionCommand(
         name='backfill',
         help="Run subsections of a DAG for a specified date range",
         description=(

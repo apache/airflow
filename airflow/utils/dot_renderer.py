@@ -154,9 +154,6 @@ def render_dag(dag: DAG, tis: Optional[List[TaskInstance]] = None) -> graphviz.D
     if tis is not None:
         states_by_task_id = {ti.task_id: ti.state for ti in tis}
 
-    for dag, dependencies in SerializedDagModel.get_dag_dependencies().items():
-        print(f'dependency {dag}')
-
     _draw_nodes(dag.task_group, dot, states_by_task_id)
 
     for edge in dag_edges(dag):

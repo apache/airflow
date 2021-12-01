@@ -37,6 +37,7 @@ from airflow.executors.debug_executor import DebugExecutor
 from airflow.jobs.base_job import BaseJob
 from airflow.models import DagBag, DagModel, DagRun, TaskInstance
 from airflow.models.dag import DAG
+from airflow.models.serialized_dag import SerializedDagModel
 from airflow.utils import cli as cli_utils
 from airflow.utils.cli import (
     get_dag,
@@ -182,6 +183,14 @@ def set_is_paused(is_paused, args):
     dag.set_is_paused(is_paused=is_paused)
 
     print(f"Dag: {args.dag_id}, paused: {is_paused}")
+
+
+def dag_dependencies_show(args):
+    """Displays DAG dependencies"""
+    for dag, dependencies in SerializedDagModel.get_dag_dependencies().items():
+        print(f"DAG: {dag}")
+        for dep in dependencies:
+            print(f"DEP: {dep}")
 
 
 def dag_show(args):
