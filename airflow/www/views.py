@@ -4373,13 +4373,16 @@ class TaskInstanceModelView(AirflowPrivilegeVerifierModelView):
         'task_id',
         'run_id',
         'execution_date',
-        'hostname',
-        'queue',
-        'pool',
         'operator',
         'start_date',
         'end_date',
+        'hostname',
+        'priority_weight',
+        'queue',
         'queued_dttm',
+        'try_number',
+        'pool',
+        'queued_by_job_id',
     ]
 
     edit_columns = [
