@@ -194,8 +194,8 @@ with models.DAG(
         dataset_id=DATASET_NAME,
         table_id="test_table",
         fields=[
-            {"name": "emp_name", "type": "STRING", "mode": "REQUIRED"},
-            {"name": "salary", "type": "INTEGER", "mode": "NULLABLE"},
+            {"name": "emp_name", "type": "STRING", "mode": "REQUIRED"},  # type: ignore
+            {"name": "salary", "type": "INTEGER", "mode": "NULLABLE"},  # type: ignore
         ],
         table_resource={
             "friendlyName": "Updated Table",

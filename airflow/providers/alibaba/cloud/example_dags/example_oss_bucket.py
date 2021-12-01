@@ -29,9 +29,9 @@ with DAG(
     catchup=False,
 ) as dag:
 
-    create_bucket = OSSCreateBucketOperator(task_id='task1')
+    create_bucket = OSSCreateBucketOperator(task_id='task1')  # type: ignore[call-arg]
 
-    delete_bucket = OSSDeleteBucketOperator(task_id='task2')
+    delete_bucket = OSSDeleteBucketOperator(task_id='task2')  # type: ignore[call-arg]
 
     create_bucket >> delete_bucket
 # [END howto_operator_oss_bucket]

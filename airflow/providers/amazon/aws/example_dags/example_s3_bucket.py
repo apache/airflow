@@ -49,12 +49,16 @@ with DAG(
     tags=['example'],
 ) as dag:
 
-    create_bucket = S3CreateBucketOperator(task_id='s3_bucket_dag_create', region_name='us-east-1')
+    create_bucket = S3CreateBucketOperator(  # type: ignore[call-arg]
+        task_id='s3_bucket_dag_create', region_name='us-east-1'
+    )
 
     # Using a task-decorated function to add keys
     add_keys_to_bucket = upload_keys()
 
-    delete_bucket = S3DeleteBucketOperator(task_id='s3_bucket_dag_delete', force_delete=True)
+    delete_bucket = S3DeleteBucketOperator(  # type: ignore[call-arg]
+        task_id='s3_bucket_dag_delete', force_delete=True
+    )
 
     create_bucket >> add_keys_to_bucket >> delete_bucket
     # [END howto_operator_s3_bucket]

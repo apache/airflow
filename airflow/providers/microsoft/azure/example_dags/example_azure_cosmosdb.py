@@ -16,6 +16,9 @@
 # specific language governing permissions and limitations
 # under the License.
 
+# Ignore mypy argument checking. Some operator args will be passed via ``default_args``.
+# type: ignore[call-arg]
+
 """
 This is only an example DAG to highlight usage of AzureCosmosDocumentSensor to detect
 if a document now exists.

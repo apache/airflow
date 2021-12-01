@@ -16,6 +16,9 @@
 # specific language governing permissions and limitations
 # under the License.
 
+# Ignore mypy argument checking. Some operator args will be passed via ``default_args``.
+# type: ignore[call-arg]
+
 """
 Example Airflow DAG to check if a Cassandra Table and a Records exists
 or not using `CassandraTableSensor` and `CassandraRecordSensor`.

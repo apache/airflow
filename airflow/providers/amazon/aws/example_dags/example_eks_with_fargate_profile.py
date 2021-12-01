@@ -14,6 +14,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+
+# Ignore mypy argument checking. Some operator args will be passed via ``default_args``.
+# type: ignore[call-arg]
+
 from datetime import datetime
 from os import environ
 
@@ -65,7 +69,7 @@ with DAG(
     )
 
     # [START howto_operator_eks_create_fargate_profile]
-    create_fargate_profile = EKSCreateFargateProfileOperator(
+    create_fargate_profile = EKSCreateFargateProfileOperator(  # type: ignore
         task_id='create_eks_fargate_profile',
         pod_execution_role_arn=ROLE_ARN,
         fargate_profile_name=FARGATE_PROFILE_NAME,

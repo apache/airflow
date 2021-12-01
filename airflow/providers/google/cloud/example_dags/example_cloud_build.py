@@ -220,7 +220,7 @@ with models.DAG(
         task_id="run_build_trigger",
         project_id=GCP_PROJECT_ID,
         trigger_id=create_build_trigger.output['id'],
-        source=create_build_from_repo_body['source']['repo_source'],
+        source=create_build_from_repo_body['source']['repo_source'],  # type: ignore
     )
     # [END howto_operator_run_build_trigger]
 

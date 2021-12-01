@@ -82,7 +82,7 @@ elif GCF_SOURCE_REPOSITORY:
     body['sourceRepository'] = {'url': GCF_SOURCE_REPOSITORY}
 elif GCF_ZIP_PATH:
     body['sourceUploadUrl'] = ''
-    default_args['zip_path'] = GCF_ZIP_PATH
+    default_args['zip_path'] = GCF_ZIP_PATH  # type: ignore
 elif GCF_SOURCE_UPLOAD_URL:
     body['sourceUploadUrl'] = GCF_SOURCE_UPLOAD_URL
 else:

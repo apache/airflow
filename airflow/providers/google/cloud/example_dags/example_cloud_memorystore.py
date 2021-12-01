@@ -132,7 +132,7 @@ with models.DAG(
         task_id="failover-instance",
         location="europe-north1",
         instance=MEMORYSTORE_REDIS_INSTANCE_NAME_2,
-        data_protection_mode=FailoverInstanceRequest.DataProtectionMode.LIMITED_DATA_LOSS,
+        data_protection_mode=FailoverInstanceRequest.DataProtectionMode.LIMITED_DATA_LOSS,  # type: ignore
         project_id=GCP_PROJECT_ID,
     )
     # [END howto_operator_failover_instance]

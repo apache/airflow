@@ -74,7 +74,7 @@ with models.DAG(
         'params': [],
     }
 
-    hyperparams['params'].append(
+    hyperparams['params'].append(  # type: ignore
         {
             'parameterName': 'hidden1',
             'type': 'INTEGER',
@@ -84,11 +84,11 @@ with models.DAG(
         }
     )
 
-    hyperparams['params'].append(
+    hyperparams['params'].append(  # type: ignore
         {'parameterName': 'numRnnCells', 'type': 'DISCRETE', 'discreteValues': [1, 2, 3, 4]}
     )
 
-    hyperparams['params'].append(
+    hyperparams['params'].append(  # type: ignore
         {
             'parameterName': 'rnnCellType',
             'type': 'CATEGORICAL',

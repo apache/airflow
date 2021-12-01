@@ -129,7 +129,7 @@ with models.DAG(
         project_id=PROJECT_ID,
         region=REGION,
         service_id=SERVICE_ID,
-        metadata_import=METADATA_IMPORT,
+        metadata_import=METADATA_IMPORT,  # type: ignore
         metadata_import_id=METADATA_IMPORT_ID,
         timeout=TIMEOUT,
     )

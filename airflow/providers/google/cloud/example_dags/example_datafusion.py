@@ -228,8 +228,8 @@ with models.DAG(
         task_id="pipeline_state_sensor",
         pipeline_name=PIPELINE_NAME,
         pipeline_id=start_pipeline_async.output,
-        expected_statuses=["COMPLETED"],
-        failure_statuses=["FAILED"],
+        expected_statuses={"COMPLETED"},
+        failure_statuses={"FAILED"},
         instance_name=INSTANCE_NAME,
         location=LOCATION,
     )

@@ -102,7 +102,7 @@ with DAG(
         location=LOCATION,
         project_id=PROJECT_ID,
         workflow_id=WORKFLOW_ID,
-        update_mask={"paths": ["name", "description"]},
+        update_mask={"paths": ["name", "description"]},  # type: ignore
     )
     # [END how_to_update_workflow]
 

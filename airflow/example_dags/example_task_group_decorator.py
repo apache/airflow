@@ -70,7 +70,7 @@ with DAG(
     start_task = task_start()
     end_task = task_end()
     for i in range(5):
-        current_task_group = task_group_function(i)
+        current_task_group = task_group_function(i)  # type: ignore
         start_task >> current_task_group >> end_task
 
 # [END howto_task_group_decorator]
