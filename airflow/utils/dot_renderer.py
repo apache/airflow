@@ -24,7 +24,6 @@ import graphviz
 from airflow.models import TaskInstance
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.dag import DAG
-from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.taskmixin import TaskMixin
 from airflow.utils.state import State
 from airflow.utils.task_group import TaskGroup
