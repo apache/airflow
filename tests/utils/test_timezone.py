@@ -70,3 +70,11 @@ class TestTimezone(unittest.TestCase):
         )
         with pytest.raises(ValueError):
             timezone.make_aware(datetime.datetime(2011, 9, 1, 13, 20, 30, tzinfo=EAT), EAT)
+
+    def test_td_format(self):
+        td = datetime.timedelta(seconds=3602)
+        assert timezone.td_format(td) == '1 hour, 2 seconds'
+        td = 3200.0
+        assert timezone.td_format(td) == '53 minutes, 20 seconds'
+        td = 0.123
+        assert timezone.td_format(td) == '< 1 second'

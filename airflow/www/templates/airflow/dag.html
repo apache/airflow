@@ -131,6 +131,9 @@
           <li><a href="{{ url_for('Airflow.dag_details', dag_id=dag.dag_id) }}">
             <span class="material-icons" aria-hidden="true">details</span>
             Details</a></li>
+          <li><a href="{{ url_for('Airflow.dagrun_history', dag_id=dag.dag_id, limit=50) }}">
+          <span class="glyphicon glyphicon-tasks" aria-hidden="true"></span>
+          DagRun History</a></li>
           <li><a href="{{ url_for('Airflow.code', dag_id=dag.dag_id, root=root) }}">
             <span class="material-icons" aria-hidden="true">code</span>
             Code</a></li>

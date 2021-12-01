@@ -285,6 +285,19 @@ def test_dag_details_trigger_origin_graph_view(app, admin_client):
     check_content_in_response(href, resp)
 
 
+def test_dagrun_history_view(app, admin_client):
+    app.dag_bag.get_dag('test_graph_view').create_dagrun(
+        run_type=DagRunType.SCHEDULED,
+        execution_date=DEFAULT_DATE,
+        start_date=timezone.utcnow(),
+        state=State.RUNNING,
+    )
+
+    url = 'dagrun_history?dag_id=test_graph_view&limit=50'
+    resp = admin_client.get(url, follow_redirects=True)
+    check_content_in_response('DagRun History', resp)
+
+
 def test_last_dagruns(admin_client):
     resp = admin_client.post('last_dagruns', follow_redirects=True)
     check_content_in_response('example_bash_operator', resp)

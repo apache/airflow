@@ -1018,6 +1018,58 @@ class Airflow(AirflowBaseView):
         }
         return wwwutils.json_response(resp)
 
+    @expose('/dagrun_history', methods=['GET'])
+    @auth.has_access(
+        [
+            (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
+            (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG_RUN),
+        ]
+    )
+    @gzipped
+    @provide_session
+    def dagrun_history(self, session=None):
+
+        dag_id = request.args.get('dag_id')
+        limit, limit_arg = PAGE_SIZE, request.args.get('limit')
+        try:
+            if limit_arg:
+                temp_limit = int(limit_arg)
+                if temp_limit and temp_limit > 0:
+                    limit = temp_limit
+        except ValueError:
+            logging.exception(
+                f'Issue parsing limit value in url for {dag_id}: {limit_arg} pair in dagrun_history view.'
+                f' We will use default limit value of {limit}'
+            )
+
+        DR = models.DagRun
+        query = (
+            session.query(
+                DR.execution_date,
+                DR.state,
+                DR.start_date,
+                DR.end_date,
+                func.sec_to_time(
+                    func.timestampdiff(sqla.text('second'), DR.start_date, DR.end_date)
+                ),
+                func.substring_index(DR.run_id, '_', 1),
+            )
+            .filter(DR.dag_id == dag_id)
+            .order_by(DR.execution_date.desc())
+            .limit(limit)
+        )
+        dag_runs = query.all()
+        from airflow.utils.timezone import td_format
+        content = self.render_template(
+            'airflow/dagrun_history.html',
+            dag=current_app.dag_bag.get_dag(dag_id),
+            dag_runs=dag_runs,
+            State=State,
+            td_format_func=td_format,
+            limit=limit,
+        )
+        return content
+
     @expose('/code')
     @auth.has_access(
         [
