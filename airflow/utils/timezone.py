@@ -20,6 +20,7 @@ import datetime as dt
 from typing import Optional, Union
 
 import pendulum
+from dateutil.relativedelta import relativedelta
 from pendulum.datetime import DateTime
 
 from airflow.settings import TIMEZONE
@@ -186,34 +187,29 @@ def coerce_datetime(v: Union[None, dt.datetime, DateTime]) -> Optional[DateTime]
     return pendulum.instance(v)
 
 
-def td_format(td_object: Union[None, dt.timedelta, float]):
+def td_format(td_object: Union[None, dt.timedelta, float, int]) -> Union[None, str]:
     """
-    Format a timedelta object or float into a readable string for time duration.
+    Format a timedelta object or float/int into a readable string for time duration.
     For example timedelta(seconds=3602) would become `1 hour 2 seconds`
     """
     if not td_object:
         return None
-    if isinstance(td_object, float):
-        td_object = dt.timedelta(seconds=float(td_object))
+    if isinstance(td_object, dt.timedelta):
+        delta = relativedelta() + td_object
+    else:
+        delta = relativedelta(seconds=td_object)
+    delta = delta.normalized()
 
-    seconds = int(td_object.total_seconds())
-    periods = [
-        ('year', 60 * 60 * 24 * 365),
-        ('month', 60 * 60 * 24 * 30),
-        ('day', 60 * 60 * 24),
-        ('hour', 60 * 60),
-        ('minute', 60),
-        ('second', 1),
-    ]
+    def _format_part(key: str) -> str:
+        value = int(getattr(delta, key))
+        if value < 1:
+            return ""
+        if value < 2:
+            key = key[:-1]  # Remove 's'.
+        return f"{value} {key}"
 
-    strings = []
-    for period_name, period_seconds in periods:
-        if seconds > period_seconds:
-            period_value, seconds = divmod(seconds, period_seconds)
-            has_s = 's' if period_value > 1 else ''
-            strings.append(f"{period_value} {period_name}{has_s}")
-
-    if not strings:
-        return '< 1 second'
-
-    return ", ".join(strings)
+    parts = map(_format_part, ("years", "months", "days", "hours", "minutes", "seconds"))
+    joined = ", ".join(part for part in parts if part)
+    if not joined:
+        return "< 1 second"
+    return joined
