@@ -102,12 +102,12 @@ class TestKubernetesHook:
     @pytest.mark.parametrize(
         'config_path_param, conn_id, call_path',
         (
-            pytest.param(None, None, KUBE_CONFIG_PATH),
-            pytest.param('/my/path/override', None, '/my/path/override'),
-            pytest.param(None, 'kube_config_path', 'path/to/file'),
-            pytest.param('/my/path/override', 'kube_config_path', '/my/path/override'),
-            pytest.param(None, 'kube_config_path_empty', KUBE_CONFIG_PATH),
-            pytest.param('/my/path/override', 'kube_config_path_empty', '/my/path/override'),
+            (None, None, KUBE_CONFIG_PATH),
+            ('/my/path/override', None, '/my/path/override'),
+            (None, 'kube_config_path', 'path/to/file'),
+            ('/my/path/override', 'kube_config_path', '/my/path/override'),
+            (None, 'kube_config_path_empty', KUBE_CONFIG_PATH),
+            ('/my/path/override', 'kube_config_path_empty', '/my/path/override'),
         ),
     )
     @patch("kubernetes.config.kube_config.KubeConfigLoader")
