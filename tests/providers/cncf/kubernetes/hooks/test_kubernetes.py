@@ -159,12 +159,12 @@ class TestKubernetesHook:
     @pytest.mark.parametrize(
         'context_param, conn_id, expected_context',
         (
-            pytest.param('param-context', None, 'param-context'),
-            pytest.param(None, None, None),
-            pytest.param('param-context', 'context', 'param-context'),
-            pytest.param(None, 'context', 'my-context'),
-            pytest.param('param-context', 'context_empty', 'param-context'),
-            pytest.param(None, 'context_empty', None),
+            ('param-context', None, 'param-context'),
+            (None, None, None),
+            ('param-context', 'context', 'param-context'),
+            (None, 'context', 'my-context'),
+            ('param-context', 'context_empty', 'param-context'),
+            (None, 'context_empty', None),
         ),
     )
     @patch("kubernetes.config.load_kube_config")
