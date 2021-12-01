@@ -134,7 +134,7 @@ class WasbHook(BaseHook):
             app_id = conn.login
             app_secret = conn.password
             tenant = extra.get('tenant_id') or extra.get('extra__wasb__tenant_id')
-            token_credential = ClientSecretCredential(tenant, app_id, app_secret)
+            token_credential = ClientSecretCredential(tenant, app_id, app_secret)  # type: ignore
             return BlobServiceClient(account_url=conn.host, credential=token_credential)
         sas_token = extra.get('sas_token') or extra.get('extra__wasb__sas_token')
         if sas_token and sas_token.startswith('https'):

@@ -131,7 +131,7 @@ class AzureDataFactoryHook(BaseHook):
             },
         }
 
-    def __init__(self, azure_data_factory_conn_id: Optional[str] = default_conn_name):
+    def __init__(self, azure_data_factory_conn_id: str = default_conn_name):
         self._conn: DataFactoryManagementClient = None
         self.conn_id = azure_data_factory_conn_id
         super().__init__()
@@ -144,13 +144,12 @@ class AzureDataFactoryHook(BaseHook):
         tenant = conn.extra_dejson.get('extra__azure_data_factory__tenantId')
         subscription_id = conn.extra_dejson.get('extra__azure_data_factory__subscriptionId')
 
-        credential = None
         if conn.login is not None and conn.password is not None:
             credential = ClientSecretCredential(
-                client_id=conn.login, client_secret=conn.password, tenant_id=tenant
+                client_id=conn.login, client_secret=conn.password, tenant_id=tenant  # type: ignore
             )
         else:
-            credential = DefaultAzureCredential()
+            credential = DefaultAzureCredential()  # type: ignore
         self._conn = self._create_client(credential, subscription_id)
 
         return self._conn
@@ -623,8 +622,8 @@ class AzureDataFactoryHook(BaseHook):
         expected_statuses: Union[str, Set[str]],
         resource_group_name: Optional[str] = None,
         factory_name: Optional[str] = None,
-        check_interval: Optional[int] = 60,
-        timeout: Optional[int] = 60 * 60 * 24 * 7,
+        check_interval: int = 60,
+        timeout: int = 60 * 60 * 24 * 7,
     ) -> bool:
         """
         Waits for a pipeline run to match an expected status.
@@ -643,7 +642,7 @@ class AzureDataFactoryHook(BaseHook):
             "factory_name": factory_name,
             "resource_group_name": resource_group_name,
         }
-        pipeline_run_status = self.get_pipeline_run_status(**pipeline_run_info)
+        pipeline_run_status = self.get_pipeline_run_status(**pipeline_run_info)  # type: ignore
 
         start_time = time.monotonic()
 
@@ -660,7 +659,7 @@ class AzureDataFactoryHook(BaseHook):
             # Wait to check the status of the pipeline run based on the ``check_interval`` configured.
             time.sleep(check_interval)
 
-            pipeline_run_status = self.get_pipeline_run_status(**pipeline_run_info)
+            pipeline_run_status = self.get_pipeline_run_status(**pipeline_run_info)  # type: ignore
 
         return pipeline_run_status in expected_statuses
 
