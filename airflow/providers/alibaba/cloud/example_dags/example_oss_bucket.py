@@ -14,6 +14,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+
+# Ignore mypy argument checking. Some operator args will be passed via ``default_args``.
+# type: ignore[call-arg]
+
 from datetime import datetime
 
 from airflow.models.dag import DAG
@@ -29,9 +33,9 @@ with DAG(
     catchup=False,
 ) as dag:
 
-    create_bucket = OSSCreateBucketOperator(task_id='task1')  # type: ignore[call-arg]
+    create_bucket = OSSCreateBucketOperator(task_id='task1')
 
-    delete_bucket = OSSDeleteBucketOperator(task_id='task2')  # type: ignore[call-arg]
+    delete_bucket = OSSDeleteBucketOperator(task_id='task2')
 
     create_bucket >> delete_bucket
 # [END howto_operator_oss_bucket]
