@@ -1650,7 +1650,7 @@ class TaskInstance(Base, LoggingMixin):
         # Don't record reschedule request in test mode
         if test_mode:
             return
-        self.refresh_from_db(session)
+        self.refresh_from_db(session, lock_for_update=True)
 
         self.end_date = timezone.utcnow()
         self.set_duration()
