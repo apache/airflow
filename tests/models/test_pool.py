@@ -15,12 +15,18 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+import random
+import string
+
+import pytest
 
 from airflow import settings
+from airflow.exceptions import AirflowBadRequest, PoolNotFound
 from airflow.models.pool import Pool
 from airflow.models.taskinstance import TaskInstance as TI
 from airflow.operators.dummy import DummyOperator
 from airflow.utils import timezone
+from airflow.utils.session import create_session
 from airflow.utils.state import State
 from tests.test_utils.db import clear_db_dags, clear_db_pools, clear_db_runs, set_default_pool_slots
 
@@ -28,14 +34,32 @@ DEFAULT_DATE = timezone.datetime(2016, 1, 1)
 
 
 class TestPool:
+
+    USER_POOL_COUNT = 2
+    TOTAL_POOL_COUNT = USER_POOL_COUNT + 1  # including default_pool
+
     @staticmethod
     def clean_db():
         clear_db_dags()
         clear_db_runs()
         clear_db_pools()
 
-    def setup_method(self):
+    def setup_method(self, session):
         self.clean_db()
+        self.pools = []
+
+    def add_pools(self):
+        self.pools = [Pool.get_default_pool()]
+        for i in range(self.USER_POOL_COUNT):
+            name = f'experimental_{i + 1}'
+            pool = Pool(
+                pool=name,
+                slots=i,
+                description=name,
+            )
+            self.pools.append(pool)
+        with create_session() as session:
+            session.add_all(self.pools)
 
     def teardown_method(self):
         self.clean_db()
@@ -149,3 +173,87 @@ class TestPool:
                 "running": 1,
             }
         } == Pool.slots_stats()
+
+    def test_get_pool(self):
+        self.add_pools()
+        pool = Pool.get_pool(pool_name=self.pools[0].pool)
+        assert pool.pool == self.pools[0].pool
+
+    def test_get_pool_non_existing(self):
+        self.add_pools()
+        assert not Pool.get_pool(pool_name='test')
+
+    def test_get_pool_bad_name(self):
+        for name in ('', '    '):
+            with pytest.raises(AirflowBadRequest, match="^Pool name shouldn't be empty$"):
+                Pool.get_pool(pool_name=name)
+
+    def test_get_pools(self):
+        self.add_pools()
+        pools = sorted(Pool.get_pools(), key=lambda p: p.pool)
+        assert pools[0].pool == self.pools[0].pool
+        assert pools[1].pool == self.pools[1].pool
+
+    def test_create_pool(self, session):
+        self.add_pools()
+        pool = Pool.create_or_update_pool(name='foo', slots=5, description='')
+        assert pool.pool == 'foo'
+        assert pool.slots == 5
+        assert pool.description == ''
+        assert session.query(Pool).count() == self.TOTAL_POOL_COUNT + 1
+
+    def test_create_pool_existing(self, session):
+        self.add_pools()
+        pool = Pool.create_or_update_pool(name=self.pools[0].pool, slots=5, description='')
+        assert pool.pool == self.pools[0].pool
+        assert pool.slots == 5
+        assert pool.description == ''
+        assert session.query(Pool).count() == self.TOTAL_POOL_COUNT
+
+    def test_create_pool_bad_name(self):
+        for name in ('', '    '):
+            with pytest.raises(AirflowBadRequest, match="^Pool name shouldn't be empty$"):
+                Pool.create_or_update_pool(
+                    name=name,
+                    slots=5,
+                    description='',
+                )
+
+    def test_create_pool_name_too_long(self):
+        long_name = ''.join(random.choices(string.ascii_lowercase, k=300))
+        column_length = Pool.pool.property.columns[0].type.length
+        with pytest.raises(
+            AirflowBadRequest, match="^Pool name can't be more than %d characters$" % column_length
+        ):
+            Pool.create_or_update_pool(
+                name=long_name,
+                slots=5,
+                description='',
+            )
+
+    def test_create_pool_bad_slots(self):
+        with pytest.raises(AirflowBadRequest, match="^Bad value for `slots`: foo$"):
+            Pool.create_or_update_pool(
+                name='foo',
+                slots='foo',
+                description='',
+            )
+
+    def test_delete_pool(self, session):
+        self.add_pools()
+        pool = Pool.delete_pool(name=self.pools[-1].pool)
+        assert pool.pool == self.pools[-1].pool
+        assert session.query(Pool).count() == self.TOTAL_POOL_COUNT - 1
+
+    def test_delete_pool_non_existing(self):
+        with pytest.raises(PoolNotFound, match="^Pool 'test' doesn't exist$"):
+            Pool.delete_pool(name='test')
+
+    def test_delete_pool_bad_name(self):
+        for name in ('', '    '):
+            with pytest.raises(AirflowBadRequest, match="^Pool name shouldn't be empty$"):
+                Pool.delete_pool(name=name)
+
+    def test_delete_default_pool_not_allowed(self):
+        with pytest.raises(AirflowBadRequest, match="^default_pool cannot be deleted$"):
+            Pool.delete_pool(Pool.DEFAULT_POOL_NAME)

@@ -25,7 +25,7 @@ from freezegun import freeze_time
 
 from airflow.api.client.local_client import Client
 from airflow.example_dags import example_bash_operator
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, PoolNotFound
 from airflow.models import DAG, DagBag, DagModel, DagRun, Pool
 from airflow.utils import timezone
 from airflow.utils.session import create_session
@@ -132,6 +132,10 @@ class TestLocalClient(unittest.TestCase):
         self.client.create_pool(name='foo', slots=1, description='')
         pool = self.client.get_pool(name='foo')
         assert pool == ('foo', 1, '')
+
+    def test_get_pool_non_existing_raises(self):
+        with pytest.raises(PoolNotFound):
+            self.client.get_pool(name='foo')
 
     def test_get_pools(self):
         self.client.create_pool(name='foo1', slots=1, description='')

@@ -71,6 +71,8 @@ class Pool(Base):
         :param session: SQLAlchemy ORM Session
         :return: the pool object
         """
+        if not (pool_name and pool_name.strip()):
+            raise AirflowBadRequest("Pool name shouldn't be empty")
         return session.query(Pool).filter(Pool.pool == pool_name).first()
 
     @staticmethod
@@ -88,6 +90,8 @@ class Pool(Base):
     @provide_session
     def create_or_update_pool(name, slots, description, session=None):
         """Create a pool with given parameters or update it if it already exists."""
+        if not (name and name.strip()):
+            raise AirflowBadRequest("Pool name shouldn't be empty")
         try:
             slots = int(slots)
         except ValueError:
@@ -115,6 +119,9 @@ class Pool(Base):
     @provide_session
     def delete_pool(name, session=None):
         """Delete pool by a given name."""
+        if not (name and name.strip()):
+            raise AirflowBadRequest("Pool name shouldn't be empty")
+
         if name == Pool.DEFAULT_POOL_NAME:
             raise AirflowBadRequest("default_pool cannot be deleted")
 

@@ -20,6 +20,7 @@
 from airflow.api.client import api_client
 from airflow.api.common import delete_dag, trigger_dag
 from airflow.api.common.experimental.get_lineage import get_lineage as get_lineage_api
+from airflow.exceptions import PoolNotFound
 from airflow.models.pool import Pool
 
 
@@ -37,14 +38,16 @@ class Client(api_client.Client):
         return f"Removed {count} record(s)"
 
     def get_pool(self, name):
-        the_pool = Pool.get_pool(name=name)
+        the_pool = Pool.get_pool(pool_name=name)
+        if not the_pool:
+            raise PoolNotFound(f"Pool {name} not found")
         return the_pool.pool, the_pool.slots, the_pool.description
 
     def get_pools(self):
         return [(p.pool, p.slots, p.description) for p in Pool.get_pools()]
 
     def create_pool(self, name, slots, description):
-        the_pool = Pool.create_pool(name=name, slots=slots, description=description)
+        the_pool = Pool.create_or_update_pool(name=name, slots=slots, description=description)
         return the_pool.pool, the_pool.slots, the_pool.description
 
     def delete_pool(self, name):
