@@ -128,9 +128,9 @@ class TestKubernetesHook:
     @pytest.mark.parametrize(
         'conn_id, has_config',
         (
-            pytest.param(None, False),
-            pytest.param('kube_config', True),
-            pytest.param('kube_config_empty', False),
+            (None, False),
+            ('kube_config', True),
+            ('kube_config_empty', False),
         ),
     )
     @patch("kubernetes.config.kube_config.KubeConfigLoader")
