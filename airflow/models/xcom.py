@@ -16,11 +16,12 @@
 # specific language governing permissions and limitations
 # under the License.
 
+import datetime
 import json
 import logging
 import pickle
 import warnings
-from typing import Any, Iterable, Optional, Union
+from typing import Any, Iterable, Optional, Union, overload
 
 import pendulum
 from sqlalchemy import Column, LargeBinary, String
@@ -80,54 +81,112 @@ class BaseXCom(Base, LoggingMixin):
     def __repr__(self):
         return f'<XCom "{self.key}" ({self.task_id} @ {self.execution_date})>'
 
+    @overload
+    @classmethod
+    def set(
+        cls,
+        key: str,
+        value: Any,
+        *,
+        task_id: str,
+        dag_id: str,
+        run_id: str,
+        session: Optional[Session] = None,
+    ) -> None:
+        ...
+
+    @overload
+    @classmethod
+    def set(
+        cls,
+        key: str,
+        value: Any,
+        task_id: str,
+        dag_id: str,
+        execution_date: datetime.datetime,
+        session: Optional[Session] = None,
+    ) -> None:
+        ...
+
     @classmethod
     @provide_session
     def set(
         cls,
-        key,
-        value,
-        task_id,
-        dag_id,
-        execution_date=None,
-        run_id=None,
-        session=None,
-        __deprecation_warnings=True,
+        key: str,
+        value: Any,
+        task_id: str,
+        dag_id: str,
+        execution_date: Optional[datetime.datetime] = None,
+        *,
+        run_id: Optional[str] = None,
+        session: Session,
     ):
-        """
-        Store an XCom value.
+        """Store an XCom value.
 
-        :return: None
+        :param key: Key to store the value under.
+        :param value: Value to store. What types are possible depends on whether
+            ``enable_xcom_pickling`` is true or not. If so, this can be any
+            picklable object; only be JSON-serializable may be used otherwise.
+        :param task_id: Task ID of the task.
+        :param dag_id: DAG ID of the task.
+        :param run_id: DAG run ID of the task.
+        :param execution_date: Execution date of the task. Deprecated; use
+            ``run_id`` instead.
+        :type execution_date: datetime
+        :param session: database session
+        :type session: sqlalchemy.orm.session.Session
         """
         if not (execution_date is None) ^ (run_id is None):
             raise ValueError("Exactly one of execution_date or run_id must be passed")
 
-        if run_id:
+        if run_id is not None:
             from airflow.models.dagrun import DagRun
 
             dag_run = session.query(DagRun).filter_by(dag_id=dag_id, run_id=run_id).one()
-
             execution_date = dag_run.execution_date
-        elif __deprecation_warnings:
-            # Avoid duplicate warnings when called from ti.xcom_pull
-            warnings.warn(
-                "Passing `execution_date` parameter to XCom.set is deprecated; please pass `run_id`",
-                DeprecationWarning,
-                stacklevel=3,
-            )
+        else:  # Guarantees execution_date is not None.
+            message = "Passing 'execution_date' to 'XCom.set()' is deprecated. Use 'run_id' instead."
+            warnings.warn(message, DeprecationWarning, stacklevel=3)
 
         value = XCom.serialize_value(value)
 
-        # remove any duplicate XComs
+        # Remove duplicate XComs and insert a new one.
         session.query(cls).filter(
-            cls.key == key, cls.execution_date == execution_date, cls.task_id == task_id, cls.dag_id == dag_id
+            cls.key == key,
+            cls.execution_date == execution_date,
+            cls.task_id == task_id,
+            cls.dag_id == dag_id,
         ).delete()
-
+        session.add(cls(key=key, value=value, execution_date=execution_date, task_id=task_id, dag_id=dag_id))
         session.flush()
 
-        # insert new XCom
-        session.add(XCom(key=key, value=value, execution_date=execution_date, task_id=task_id, dag_id=dag_id))
+    @overload
+    @classmethod
+    def get_one(
+        cls,
+        *,
+        run_id: str,
+        key: Optional[str] = None,
+        task_id: Optional[str] = None,
+        dag_id: Optional[str] = None,
+        include_prior_dates: bool = False,
+        session: Optional[Session] = None,
+    ) -> Query:
+        ...
 
-        session.flush()
+    @overload
+    @classmethod
+    def get_one(
+        cls,
+        execution_date: pendulum.DateTime,
+        key: Optional[str] = None,
+        task_id: Optional[str] = None,
+        dag_id: Optional[str] = None,
+        include_prior_dates: bool = False,
+        *,
+        session: Optional[Session] = None,
+    ) -> Query:
+        ...
 
     @classmethod
     @provide_session
@@ -141,31 +200,31 @@ class BaseXCom(Base, LoggingMixin):
         include_prior_dates: bool = False,
         session: Session = None,
     ) -> Optional[Any]:
-        """
-        Retrieve an XCom value, optionally meeting certain criteria. Returns None
-        of there are no results.
+        """Retrieve an XCom value, optionally meeting certain criteria.
 
-        ``run_id`` and ``execution_date`` are mutually exclusive.
+        If there are no matching results, *None* is returned.
 
-        This method returns "full" XCom values (i.e. it uses ``deserialize_value`` from the XCom backend).
-        Please use :meth:`get_many` if you want the "shortened" value via ``orm_deserialize_value``
+        This method returns "full" XCom values (i.e. uses ``deserialize_value``
+        from the XCom backend). Use :meth:`get_many` if you want the "shortened"
+        value via ``orm_deserialize_value``.
 
-        :param execution_date: Execution date for the task. (Deprecated)
-        :type execution_date: pendulum.datetime
-        :param run_id: Dag run id for the task
+        :param run_id: DAG run ID of the task.
         :type run_id: str
-        :param key: A key for the XCom. If provided, only XComs with matching
-            keys will be returned. To remove the filter, pass key=None.
-        :type key: str
-        :param task_id: Only XComs from task with matching id will be
-            pulled. Can pass None to remove the filter.
-        :type task_id: str
+        :param execution_date: Execution date of the task. Deprecated; use
+            ``run_id`` instead.
+        :type execution_date: pendulum.DateTime
+        :param key: If provided, only XComs matching the key will be returned.
+            Pass *None* to remove the filter.
+        :type key: str | None
+        :param task_id: If provided, only pulls XComs from task(s) with matching
+            ID. Pass *None* to remove the filter.
+        :type task_id: str | None
         :param dag_id: If provided, only pulls XCom from this DAG.
-            If None (default), the DAG of the calling task is used.
-        :type dag_id: str
-        :param include_prior_dates: If False, only XCom from the current
-            execution_date are returned. If True, XCom from previous dates
-            are returned as well.
+            If *None* (default), the DAG of the calling task is used.
+        :type dag_id: str | None
+        :param include_prior_dates: If *False* (default), only XCom values from
+            the current DAG run are returned. If *True*, XCom values from
+            previous DAG runs are returned as well.
         :type include_prior_dates: bool
         :param session: database session
         :type session: sqlalchemy.orm.session.Session
@@ -174,11 +233,8 @@ class BaseXCom(Base, LoggingMixin):
             raise ValueError("Exactly one of execution_date or run_id must be passed")
 
         if execution_date:
-            warnings.warn(
-                "Passing `execution_date` parameter to XCom.get_one is deprecated; please pass `run_id`.",
-                DeprecationWarning,
-                stacklevel=3,
-            )
+            message = "Passing 'execution_date' to 'XCom.get_one()' is deprecated. Use 'run_id' instead."
+            warnings.warn(message, DeprecationWarning, stacklevel=3)
 
         result = (
             cls.get_many(
@@ -197,6 +253,36 @@ class BaseXCom(Base, LoggingMixin):
             return cls.deserialize_value(result)
         return None
 
+    @overload
+    @classmethod
+    def get_many(
+        cls,
+        *,
+        run_id: str,
+        key: Optional[str] = None,
+        task_ids: Union[str, Iterable[str], None] = None,
+        dag_ids: Union[str, Iterable[str], None] = None,
+        include_prior_dates: bool = False,
+        limit: Optional[int] = None,
+        session: Optional[Session] = None,
+    ) -> Query:
+        ...
+
+    @overload
+    @classmethod
+    def get_many(
+        cls,
+        execution_date: pendulum.DateTime,
+        key: Optional[str] = None,
+        task_ids: Union[str, Iterable[str], None] = None,
+        dag_ids: Union[str, Iterable[str], None] = None,
+        include_prior_dates: bool = False,
+        limit: Optional[int] = None,
+        *,
+        session: Optional[Session] = None,
+    ) -> Query:
+        ...
+
     @classmethod
     @provide_session
     def get_many(
@@ -208,34 +294,34 @@ class BaseXCom(Base, LoggingMixin):
         dag_ids: Optional[Union[str, Iterable[str]]] = None,
         include_prior_dates: bool = False,
         limit: Optional[int] = None,
-        session: Session = None,
-    ) -> Query:
-        """
-        Composes a query to get one or more values from the xcom table.
+        *,
+        session: Session,
+    ) -> Iterable["XCom"]:
+        """Composes a query to get XCom values.
 
-        ``run_id`` and ``execution_date`` are mutually exclusive.
+        An iterable of full XCom objects are returned. If you just want one
+        stored value, use :meth:`get_one` instead. The built-in XCom backend
+        implements this to return a SQLAlchemy query.
 
-        This function returns an SQLAlchemy query of full XCom objects. If you just want one stored value then
-        use :meth:`get_one`.
-
-        :param execution_date: Execution date for the task. (Deprecated)
-        :type execution_date: pendulum.datetime
-        :param run_id: Dag run id for the task
+        :param run_id: DAG run ID of the task.
         :type run_id: str
-        :param key: A key for the XCom. If provided, only XComs with matching
-            keys will be returned. To remove the filter, pass key=None.
-        :type key: str
-        :param task_ids: Only XComs from tasks with matching ids will be
-            pulled. Can pass None to remove the filter.
-        :type task_ids: str or iterable of strings (representing task_ids)
-        :param dag_ids: If provided, only pulls XComs from this DAG.
-            If None (default), the DAG of the calling task is used.
-        :type dag_ids: str
-        :param include_prior_dates: If False, only XComs from the current
-            execution_date are returned. If True, XComs from previous dates
-            are returned as well.
+        :param execution_date: Execution date of the task. Deprecated; use
+            ``run_id`` instead.
+        :type execution_date: pendulum.DateTime
+        :param key: If provided, only XComs with matching keys will be returned.
+            Pass *None* to remove the filter.
+        :type key: str | list[str] | None
+        :param task_ids: If provided, only pulls XComs from task(s) with matching
+            ID. Pass *None* to remove the filter.
+        :type task_ids: str | list[str] | None
+        :param dag_ids: If provided, only pulls XCom from specified DAG(s).
+            If *None* (default), the DAG of the calling task is used.
+        :type dag_ids: str | list[str] | None
+        :param include_prior_dates: If *False*, only XCom values from the
+            current DAG run are returned. If True, XCom values from previous
+            DAG runs are returned as well.
         :type include_prior_dates: bool
-        :param limit: If required, limit the number of returned objects.
+        :param limit: If provided, limit the number of returned objects.
             XCom objects can be quite big and you might want to limit the
             number of rows.
         :type limit: int
@@ -246,55 +332,47 @@ class BaseXCom(Base, LoggingMixin):
 
         if not (execution_date is None) ^ (run_id is None):
             raise ValueError("Exactly one of execution_date or run_id must be passed")
-        if execution_date:
-            warnings.warn(
-                "Passing `execution_date` parameter to XCom.get_many is deprecated; please pass `run_id`.",
-                DeprecationWarning,
-                stacklevel=3,
-            )
+        if execution_date is not None:
+            message = "Passing 'execution_date' to 'XCom.get_many()' is deprecated. Use 'run_id' instead."
+            warnings.warn(message, DeprecationWarning, stacklevel=3)
 
-        filters = []
+        query = session.query(cls)
 
         if key:
-            filters.append(cls.key == key)
+            query = query.filter(cls.key == key)
 
-        if task_ids:
-            if is_container(task_ids):
-                filters.append(cls.task_id.in_(task_ids))
-            else:
-                filters.append(cls.task_id == task_ids)
+        if is_container(task_ids):
+            query = query.filter(cls.task_id.in_(task_ids))
+        elif task_ids is not None:
+            query = query.filter(cls.task_id == task_ids)
 
-        if dag_ids:
-            if is_container(dag_ids):
-                filters.append(cls.dag_id.in_(dag_ids))
-            else:
-                filters.append(cls.dag_id == dag_ids)
+        if is_container(dag_ids):
+            query = query.filter(cls.dag_id.in_(dag_ids))
+        elif dag_ids is not None:
+            query = query.filter(cls.dag_id == dag_ids)
 
         if include_prior_dates:
             if execution_date is not None:
-                filters.append(cls.execution_date <= execution_date)
+                query = query.filter(cls.execution_date <= execution_date)
             else:
                 dr = session.query(DagRun.execution_date).filter(DagRun.run_id == run_id).subquery
-                filters.append(cls.execution_date <= dr.execution_date)
+                query = query.filter(cls.execution_date <= dr.execution_date)
                 run_id = None
         elif execution_date is not None:
-            filters.append(cls.execution_date == execution_date)
+            query = query.filter(cls.execution_date == execution_date)
 
-        query = session.query(cls).filter(*filters)
         if run_id:
             query = query.join(cls.dag_run).filter(DagRun.run_id == run_id)
 
         query = query.order_by(cls.execution_date.desc(), cls.timestamp.desc())
-
         if limit:
             return query.limit(limit)
-        else:
-            return query
+        return query
 
     @classmethod
     @provide_session
     def delete(cls, xcoms, session=None):
-        """Delete Xcom"""
+        """Delete an XCom."""
         if isinstance(xcoms, XCom):
             xcoms = [xcoms]
         for xcom in xcoms:
@@ -303,34 +381,50 @@ class BaseXCom(Base, LoggingMixin):
             session.delete(xcom)
         session.commit()
 
+    @overload
+    @classmethod
+    def clear(cls, *, dag_id: str, task_id: str, run_id: str, session: Optional[Session] = None) -> None:
+        ...
+
+    @overload
+    @classmethod
+    def clear(
+        cls,
+        execution_date: pendulum.DateTime,
+        dag_id: str,
+        task_id: str,
+        session: Optional[Session] = None,
+    ) -> None:
+        ...
+
     @classmethod
     @provide_session
     def clear(
         cls,
         execution_date: Optional[pendulum.DateTime] = None,
-        dag_id: str = None,
-        task_id: str = None,
-        run_id: str = None,
-        session: Session = None,
+        dag_id: Optional[str] = None,
+        task_id: Optional[str] = None,
+        *,
+        run_id: Optional[str] = None,
+        session: Session,
     ) -> None:
-        """
-        Clears all XCom data from the database for the task instance
+        """Clears XCom data for the task instance.
 
-        ``run_id`` and ``execution_date`` are mutually exclusive.
-
-        :param execution_date: Execution date for the task. (Deprecated)
-        :type execution_date: pendulum.datetime or None
-        :param dag_id: ID of DAG to clear the XCom for.
+        :param run_id: DAG run ID of the task.
+        :type run_id: str
+        :param execution_date: Execution date of the task. Deprecated; use
+            ``run_id`` instead.
+        :type execution_date: pendulum.DateTime
+        :param task_id: Clears XComs from task with matching ID.
+        :type task_ids: str
+        :param dag_id: Clears XCom from this DAG.
         :type dag_id: str
-        :param task_id: Only XComs from task with matching id will be cleared.
-        :type task_id: str
-        :param run_id: Dag run id for the task
-        :type run_id: str or None
         :param session: database session
         :type session: sqlalchemy.orm.session.Session
         """
-        # Given the historic order of this function (execution_date was first argument) to add a new optional
-        # param we need to add default values for everything :(
+        # Given the historic order of this function (execution_date was first
+        # argument), we need to add default values for everything to add a new
+        # optional parameter :(
         if not dag_id:
             raise TypeError("clear() missing required argument: dag_id")
         if not task_id:
@@ -338,12 +432,6 @@ class BaseXCom(Base, LoggingMixin):
 
         if not (execution_date is None) ^ (run_id is None):
             raise ValueError("Exactly one of execution_date or run_id must be passed")
-        if execution_date:
-            warnings.warn(
-                "Passing `execution_date` parameter to XCom.clear is deprecated; please pass `run_id`.",
-                DeprecationWarning,
-                stacklevel=3,
-            )
 
         query = session.query(cls).filter(
             cls.dag_id == dag_id,
@@ -351,6 +439,8 @@ class BaseXCom(Base, LoggingMixin):
         )
 
         if execution_date is not None:
+            message = "Passing 'execution_date' to 'XCom.clear()' is deprecated. Use 'run_id' instead."
+            warnings.warn(message, DeprecationWarning, stacklevel=3)
             query = query.filter(cls.execution_date == execution_date)
         else:
             from airflow.models.dagrun import DagRun

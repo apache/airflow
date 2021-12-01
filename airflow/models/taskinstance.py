@@ -2111,45 +2111,32 @@ class TaskInstance(Base, LoggingMixin):
         """
         Make an XCom available for tasks to pull.
 
-        :param key: A key for the XCom
+        :param key: Key to store the value under.
         :type key: str
-        :param value: A value for the XCom. The value is pickled and stored
-            in the database.
-        :type value: any picklable object
-        :param execution_date: Deprecated parameter.
+        :param value: Value to store. What types are possible depends on whether
+            ``enable_xcom_pickling`` is true or not. If so, this can be any
+            picklable object; only be JSON-serializable may be used otherwise.
+        :param execution_date: Deprecated parameter that has no effect.
         :type execution_date: datetime
-        :param session: Sqlalchemy ORM Session
-        :type session: Session
         """
-        run_id = None
-        if execution_date:
+        if execution_date is not None:
             self_execution_date = self.get_dagrun(session).execution_date
             if execution_date < self_execution_date:
                 raise ValueError(
                     f'execution_date can not be in the past (current execution_date is '
                     f'{self_execution_date}; received {execution_date})'
                 )
-            elif execution_date != self_execution_date:
-                warnings.warn(
-                    "Passing `execution_date` parameter to xcom_push is deprecated.",
-                    DeprecationWarning,
-                    stacklevel=3,
-                )
-            else:
-                run_id = self.run_id
-                execution_date = None
-        else:
-            run_id = self.run_id
+            elif execution_date is not None:
+                message = "Passing 'execution_date' to 'TaskInstance.xcom_push()' is deprecated."
+                warnings.warn(message, DeprecationWarning, stacklevel=3)
 
         XCom.set(
             key=key,
             value=value,
             task_id=self.task_id,
             dag_id=self.dag_id,
-            execution_date=execution_date,
-            run_id=run_id,
+            run_id=self.run_id,
             session=session,
-            __deprecation_warnings=False,
         )
 
     @provide_session
