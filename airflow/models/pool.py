@@ -21,7 +21,7 @@ from typing import Dict, Iterable, Optional, Tuple
 from sqlalchemy import Column, Integer, String, Text, func
 from sqlalchemy.orm.session import Session
 
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowBadRequest, AirflowException, PoolNotFound
 from airflow.models.base import Base
 from airflow.ti_deps.dependencies_states import EXECUTION_STATES
 from airflow.typing_compat import TypedDict
@@ -57,6 +57,12 @@ class Pool(Base):
 
     @staticmethod
     @provide_session
+    def get_pools(session=None):
+        """Get all pools."""
+        return session.query(Pool).all()
+
+    @staticmethod
+    @provide_session
     def get_pool(pool_name, session: Session = None):
         """
         Get the Pool with specific pool name from the Pools.
@@ -77,6 +83,49 @@ class Pool(Base):
         :return: the pool object
         """
         return Pool.get_pool(Pool.DEFAULT_POOL_NAME, session=session)
+
+    @staticmethod
+    @provide_session
+    def create_or_update_pool(name, slots, description, session=None):
+        """Create a pool with given parameters or update it if it already exists."""
+        try:
+            slots = int(slots)
+        except ValueError:
+            raise AirflowBadRequest(f"Bad value for `slots`: {slots}")
+
+        # Get the length of the pool column
+        pool_name_length = Pool.pool.property.columns[0].type.length
+        if len(name) > pool_name_length:
+            raise AirflowBadRequest(f"Pool name can't be more than {pool_name_length} characters")
+
+        session.expire_on_commit = False
+        pool = session.query(Pool).filter_by(pool=name).first()
+        if pool is None:
+            pool = Pool(pool=name, slots=slots, description=description)
+            session.add(pool)
+        else:
+            pool.slots = slots
+            pool.description = description
+
+        session.commit()
+
+        return pool
+
+    @staticmethod
+    @provide_session
+    def delete_pool(name, session=None):
+        """Delete pool by a given name."""
+        if name == Pool.DEFAULT_POOL_NAME:
+            raise AirflowBadRequest("default_pool cannot be deleted")
+
+        pool = session.query(Pool).filter_by(pool=name).first()
+        if pool is None:
+            raise PoolNotFound(f"Pool '{name}' doesn't exist")
+
+        session.delete(pool)
+        session.commit()
+
+        return pool
 
     @staticmethod
     @provide_session

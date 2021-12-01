@@ -18,7 +18,6 @@
 """Delete DAGs APIs."""
 import logging
 
-from deprecated import deprecated
 from sqlalchemy import or_
 
 from airflow import models
@@ -31,7 +30,6 @@ from airflow.utils.state import State
 log = logging.getLogger(__name__)
 
 
-@deprecated(version='2.2.3', reason="Use airflow.api.common.delete_dag.delete_dag() instead.")
 @provide_session
 def delete_dag(dag_id: str, keep_records_in_log: bool = True, session=None) -> int:
     """

@@ -20,8 +20,6 @@ import json
 from datetime import datetime
 from typing import List, Optional, Union
 
-from deprecated import deprecated
-
 from airflow.exceptions import DagNotFound, DagRunAlreadyExists
 from airflow.models import DagBag, DagModel, DagRun
 from airflow.utils import timezone
@@ -96,7 +94,6 @@ def _trigger_dag(
     return dag_runs
 
 
-@deprecated(reason="Use airflow.api.common.trigger_dag instead", version="2.2.3")
 def trigger_dag(
     dag_id: str,
     run_id: Optional[str] = None,

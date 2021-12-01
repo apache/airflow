@@ -18,8 +18,9 @@
 """Local client API"""
 
 from airflow.api.client import api_client
-from airflow.api.common.experimental import delete_dag, pool, trigger_dag
+from airflow.api.common import delete_dag, trigger_dag
 from airflow.api.common.experimental.get_lineage import get_lineage as get_lineage_api
+from airflow.models.pool import Pool
 
 
 class Client(api_client.Client):
@@ -36,18 +37,18 @@ class Client(api_client.Client):
         return f"Removed {count} record(s)"
 
     def get_pool(self, name):
-        the_pool = pool.get_pool(name=name)
+        the_pool = Pool.get_pool(name=name)
         return the_pool.pool, the_pool.slots, the_pool.description
 
     def get_pools(self):
-        return [(p.pool, p.slots, p.description) for p in pool.get_pools()]
+        return [(p.pool, p.slots, p.description) for p in Pool.get_pools()]
 
     def create_pool(self, name, slots, description):
-        the_pool = pool.create_pool(name=name, slots=slots, description=description)
+        the_pool = Pool.create_pool(name=name, slots=slots, description=description)
         return the_pool.pool, the_pool.slots, the_pool.description
 
     def delete_pool(self, name):
-        the_pool = pool.delete_pool(name=name)
+        the_pool = Pool.delete_pool(name=name)
         return the_pool.pool, the_pool.slots, the_pool.description
 
     def get_lineage(self, dag_id, execution_date):
