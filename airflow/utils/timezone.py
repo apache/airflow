@@ -186,15 +186,15 @@ def coerce_datetime(v: Union[None, dt.datetime, DateTime]) -> Optional[DateTime]
     return pendulum.instance(v)
 
 
-def td_format(td_object):
+def td_format(td_object: Union[None, dt.timedelta, float]):
     """
-    Format a timedelta object (or a float) into a readable string for time.
-    For example Timedelta(seconds=3602) would become `1 hour 2 seconds`
+    Format a timedelta object or float into a readable string for time duration.
+    For example timedelta(seconds=3602) would become `1 hour 2 seconds`
     """
     if not td_object:
         return None
     if isinstance(td_object, float):
-        td_object = datetime.timedelta(seconds=float(td_object))
+        td_object = dt.timedelta(seconds=float(td_object))
 
     seconds = int(td_object.total_seconds())
     periods = [
@@ -211,7 +211,7 @@ def td_format(td_object):
         if seconds > period_seconds:
             period_value, seconds = divmod(seconds, period_seconds)
             has_s = 's' if period_value > 1 else ''
-            strings.append("%s %s%s" % (period_value, period_name, has_s))
+            strings.append(f"{period_value} {period_name}{has_s}")
 
     if not strings:
         return '< 1 second'

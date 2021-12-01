@@ -1049,9 +1049,7 @@ class Airflow(AirflowBaseView):
                 DR.state,
                 DR.start_date,
                 DR.end_date,
-                func.sec_to_time(
-                    func.timestampdiff(sqla.text('second'), DR.start_date, DR.end_date)
-                ),
+                func.sec_to_time(func.timestampdiff(sqla.text('second'), DR.start_date, DR.end_date)),
                 func.substring_index(DR.run_id, '_', 1),
             )
             .filter(DR.dag_id == dag_id)
