@@ -17,6 +17,8 @@
 # under the License.
 """Hook for SSH connections."""
 import os
+import random
+import time
 import warnings
 from base64 import decodebytes
 from io import StringIO
@@ -257,58 +259,74 @@ class SSHHook(BaseHook):
         :rtype: paramiko.client.SSHClient
         """
         self.log.debug('Creating SSH client for conn_id: %s', self.ssh_conn_id)
-        client = paramiko.SSHClient()
 
-        if not self.allow_host_key_change:
-            self.log.warning(
-                "Remote Identification Change is not verified. "
-                "This won't protect against Man-In-The-Middle attacks"
-            )
-            client.load_system_host_keys()
+        max_time_to_wait = 10
+        for time_to_wait in self._exponential_sleep_generator(initial=1, maximum=max_time_to_wait):
+            try:
+                client = paramiko.SSHClient()
 
-        if self.no_host_key_check:
-            self.log.warning("No Host Key Verification. This won't protect against Man-In-The-Middle attacks")
-            # Default is RejectPolicy
-            client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-        else:
-            if self.host_key is not None:
-                client_host_keys = client.get_host_keys()
-                if self.port == SSH_PORT:
-                    client_host_keys.add(self.remote_host, self.host_key.get_name(), self.host_key)
-                else:
-                    client_host_keys.add(
-                        f"[{self.remote_host}]:{self.port}", self.host_key.get_name(), self.host_key
+                if not self.allow_host_key_change:
+                    self.log.warning(
+                        "Remote Identification Change is not verified. "
+                        "This won't protect against Man-In-The-Middle attacks"
                     )
-            else:
-                pass  # will fallback to system host keys if none explicitly specified in conn extra
+                    client.load_system_host_keys()
 
-        connect_kwargs = dict(
-            hostname=self.remote_host,
-            username=self.username,
-            timeout=self.conn_timeout,
-            compress=self.compress,
-            port=self.port,
-            sock=self.host_proxy,
-            look_for_keys=self.look_for_keys,
-        )
+                if self.no_host_key_check:
+                    self.log.warning(
+                        "No Host Key Verification. This won't protect against Man-In-The-Middle attacks"
+                    )
+                    # Default is RejectPolicy
+                    client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+                else:
+                    if self.host_key is not None:
+                        client_host_keys = client.get_host_keys()
+                        if self.port == SSH_PORT:
+                            client_host_keys.add(self.remote_host, self.host_key.get_name(), self.host_key)
+                        else:
+                            client_host_keys.add(
+                                f"[{self.remote_host}]:{self.port}", self.host_key.get_name(), self.host_key
+                            )
+                    else:
+                        pass  # will fallback to system host keys if none explicitly specified in conn extra
 
-        if self.password:
-            password = self.password.strip()
-            connect_kwargs.update(password=password)
+                connect_kwargs = dict(
+                    hostname=self.remote_host,
+                    username=self.username,
+                    timeout=self.conn_timeout,
+                    compress=self.compress,
+                    port=self.port,
+                    sock=self.host_proxy,
+                    look_for_keys=self.look_for_keys,
+                )
+                self.log.warning(connect_kwargs)
 
-        if self.pkey:
-            connect_kwargs.update(pkey=self.pkey)
+                if self.password:
+                    password = self.password.strip()
+                    connect_kwargs.update(password=password)
 
-        if self.key_file:
-            connect_kwargs.update(key_filename=self.key_file)
+                if self.pkey:
+                    connect_kwargs.update(pkey=self.pkey)
 
-        client.connect(**connect_kwargs)
+                if self.key_file:
+                    connect_kwargs.update(key_filename=self.key_file)
 
-        if self.keepalive_interval:
-            client.get_transport().set_keepalive(self.keepalive_interval)
+                client.connect(**connect_kwargs)
 
-        self.client = client
-        return client
+                if self.keepalive_interval:
+                    client.get_transport().set_keepalive(self.keepalive_interval)
+
+                self.client = client
+                return client
+
+            except paramiko.SSHException:
+                # exponential_sleep_generator is an infinite generator, so we need to
+                # check the end condition.
+                if time_to_wait == max_time_to_wait:
+                    raise
+            self.log.info("Failed to connect. Waiting %ds to retry", time_to_wait)
+            time.sleep(time_to_wait)
+        raise AirflowException("SSH connection failed")
 
     def __enter__(self) -> 'SSHHook':
         warnings.warn(
@@ -411,3 +429,23 @@ class SSHHook(BaseHook):
             'Ensure key provided is valid for one of the following'
             'key formats: RSA, DSS, ECDSA, or Ed25519'
         )
+
+    def _exponential_sleep_generator(self, initial, maximum, multiplier=2.0):
+        """
+        Generates sleep intervals based on the exponential back-off algorithm.
+
+        :param initial: The minimum amount of time to delay. This must be greater than 0.
+        :type initial: float
+        :param maximum: The maximum amount of time to delay.
+        :type maximum: float
+        :param multiplier: The multiplier applied to the delay.
+        :type multiplier: float
+
+        :return: successive sleep intervals.
+        """
+        delay = initial
+        while True:
+            # Introduce jitter by yielding a delay that is uniformly distributed
+            # to average out to the delay time.
+            yield min(random.uniform(0.0, delay * 2.0), maximum)
+            delay = delay * multiplier
