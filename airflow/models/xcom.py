@@ -43,6 +43,17 @@ log = logging.getLogger(__name__)
 MAX_XCOM_SIZE = 49344
 XCOM_RETURN_KEY = 'return_value'
 
+# Work around 'airflow task test' generating a temporary in-memory DAG run
+# without storing it in the database. To avoid interfering with actual XCom
+# entries but still behave _somewhat_ consistently, we store XCom to a distant
+# time in the future. Eventually we want to migrate XCom's primary to use run_id
+# instead, so execution_date can just be None for this case.
+IN_MEMORY_DAGRUN_ID = "__airflow_in_memory_dagrun__"
+
+# This is the largest possible value we can store in MySQL.
+# https://dev.mysql.com/doc/refman/5.7/en/datetime.html
+_DISTANT_FUTURE = datetime.datetime(2038, 1, 19, 3, 14, 7, tzinfo=timezone.utc)
+
 
 class BaseXCom(Base, LoggingMixin):
     """Base class for XCom objects."""
@@ -139,11 +150,16 @@ class BaseXCom(Base, LoggingMixin):
         if not (execution_date is None) ^ (run_id is None):
             raise ValueError("Exactly one of execution_date or run_id must be passed")
 
-        if run_id is not None:
+        if run_id == IN_MEMORY_DAGRUN_ID:
+            execution_date = _DISTANT_FUTURE
+        elif run_id is not None:
             from airflow.models.dagrun import DagRun
 
-            dag_run = session.query(DagRun).filter_by(dag_id=dag_id, run_id=run_id).one()
-            execution_date = dag_run.execution_date
+            execution_date = (
+                session.query(DagRun.execution_date)
+                .filter(DagRun.dag_id == dag_id, DagRun.run_id == run_id)
+                .scalar()
+            )
         else:  # Guarantees execution_date is not None.
             message = "Passing 'execution_date' to 'XCom.set()' is deprecated. Use 'run_id' instead."
             warnings.warn(message, DeprecationWarning, stacklevel=3)
@@ -249,7 +265,7 @@ class BaseXCom(Base, LoggingMixin):
             )
         elif execution_date is not None:
             message = "Passing 'execution_date' to 'XCom.get_one()' is deprecated. Use 'run_id' instead."
-            warnings.warn(message, DeprecationWarning, stacklevel=3)
+            warnings.warn(message, PendingDeprecationWarning, stacklevel=3)
 
             query = cls.get_many(
                 execution_date=execution_date,
@@ -348,7 +364,7 @@ class BaseXCom(Base, LoggingMixin):
             raise ValueError("Exactly one of execution_date or run_id must be passed")
         if execution_date is not None:
             message = "Passing 'execution_date' to 'XCom.get_many()' is deprecated. Use 'run_id' instead."
-            warnings.warn(message, DeprecationWarning, stacklevel=3)
+            warnings.warn(message, PendingDeprecationWarning, stacklevel=3)
 
         query = session.query(cls)
 

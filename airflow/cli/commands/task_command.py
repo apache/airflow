@@ -36,6 +36,7 @@ from airflow.jobs.local_task_job import LocalTaskJob
 from airflow.models import DagPickle, TaskInstance
 from airflow.models.dag import DAG
 from airflow.models.dagrun import DagRun
+from airflow.models.xcom import IN_MEMORY_DAGRUN_ID
 from airflow.ti_deps.dep_context import DepContext
 from airflow.ti_deps.dependencies_deps import SCHEDULER_QUEUED_DEPS
 from airflow.utils import cli as cli_utils
@@ -74,7 +75,7 @@ def _get_dag_run(dag, exec_date_or_run_id, create_if_necessary, session):
         )
     except NoResultFound:
         if create_if_necessary:
-            return DagRun(dag.dag_id, execution_date=execution_date)
+            return DagRun(dag.dag_id, run_id=IN_MEMORY_DAGRUN_ID, execution_date=execution_date)
         raise DagRunNotFound(
             f"DagRun for {dag.dag_id} with run_id or execution_date of {exec_date_or_run_id!r} not found"
         ) from None
@@ -87,7 +88,7 @@ def _get_ti(task, exec_date_or_run_id, create_if_necessary=False, session=None):
 
     ti = dag_run.get_task_instance(task.task_id)
     if not ti and create_if_necessary:
-        ti = TaskInstance(task, run_id=None)
+        ti = TaskInstance(task, run_id=dag_run.run_id)
         ti.dag_run = dag_run
     ti.refresh_from_task(task)
     return ti
