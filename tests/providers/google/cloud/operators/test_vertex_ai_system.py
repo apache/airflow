@@ -17,7 +17,6 @@
 # under the License.
 import pytest
 
-from airflow.providers.google.cloud.example_dags.example_vertex_ai import BUCKET, REGION
 from tests.providers.google.cloud.utils.gcp_authenticator import GCP_VERTEX_AI_KEY
 from tests.test_utils.gcp_system_helpers import CLOUD_DAG_FOLDER, GoogleSystemTest, provide_gcp_context
 
@@ -28,11 +27,9 @@ class VertexAIExampleDagsTest(GoogleSystemTest):
     @provide_gcp_context(GCP_VERTEX_AI_KEY)
     def setUp(self):
         super().setUp()
-        self.create_gcs_bucket(BUCKET, REGION)
 
     @provide_gcp_context(GCP_VERTEX_AI_KEY)
     def tearDown(self):
-        self.delete_gcs_bucket(BUCKET)
         super().tearDown()
 
     @provide_gcp_context(GCP_VERTEX_AI_KEY)
