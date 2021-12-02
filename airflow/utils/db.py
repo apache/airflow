@@ -737,13 +737,24 @@ def _move_dangling_table(session, source_table: "Table", target_table_name: str,
             )
         )
     else:
-        # Postgres, MySQL and SQLite all have the same CREATE TABLE a AS SELECT ... syntax
-        session.execute(
-            text(
-                f"create table {target_table_name} as select source.* from {source_table} as source "
-                + where_clause
+        if dialect_name == "mysql":
+            # CREATE TABLE AS SELECT must be broken into two queries in mySQL for GTID consistency.
+            # More info: https://github.com/apache/airflow/issues/19988
+            session.execute(text(f"create table {target_table_name} like {source_table}"))
+            session.execute(
+                text(
+                    f"INSERT INTO {target_table_name} select source.* from {source_table} as source "
+                    + where_clause
+                )
             )
-        )
+        # Postgres and SQLite have the same CREATE TABLE a AS SELECT ... syntax
+        else:
+            session.execute(
+                text(
+                    f"create table {target_table_name} as select source.* from {source_table} as source "
+                    + where_clause
+                )
+            )
 
         # But different join-delete syntax.
         if dialect_name == "mysql":
