@@ -254,7 +254,7 @@ jobs:
         with:
           python-version: '3.7'
           cache: 'pip'
-      - run: pip install .
+      - run: pip install -e .
       - run: python3 -m pytest -n auto --color=yes
 
   tests-ui:
