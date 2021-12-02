@@ -114,19 +114,13 @@ in the configuration file. When turned off, the scheduler creates a DAG run only
     from datetime import datetime, timedelta
 
 
-    default_args = {
-        "owner": "airflow",
-        "depends_on_past": False,
-        "email": ["airflow@example.com"],
-        "email_on_failure": False,
-        "email_on_retry": False,
-        "retries": 1,
-        "retry_delay": timedelta(minutes=5),
-    }
-
     dag = DAG(
         "tutorial",
-        default_args=default_args,
+        default_args={
+            "depends_on_past": True,
+            "retries": 1,
+            "retry_delay": timedelta(minutes=3),
+        },
         start_date=datetime(2015, 12, 1),
         description="A simple tutorial DAG",
         schedule_interval="@daily",
@@ -229,11 +223,17 @@ Example of a parameterized DAG:
 
 .. code-block:: python
 
+    from datetime import datetime
+
     from airflow import DAG
     from airflow.operators.bash import BashOperator
-    from airflow.utils.dates import days_ago
 
-    dag = DAG("example_parameterized_dag", schedule_interval=None, start_date=days_ago(2))
+    dag = DAG(
+        "example_parameterized_dag",
+        schedule_interval=None,
+        start_date=datetime(2021, 1, 1),
+        catchup=False,
+    )
 
     parameterized_task = BashOperator(
         task_id="parameterized_task",

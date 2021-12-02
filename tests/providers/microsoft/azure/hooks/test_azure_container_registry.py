@@ -19,7 +19,7 @@
 import unittest
 
 from airflow.models import Connection
-from airflow.providers.microsoft.azure.hooks.azure_container_registry import AzureContainerRegistryHook
+from airflow.providers.microsoft.azure.hooks.container_registry import AzureContainerRegistryHook
 from airflow.utils import db
 
 

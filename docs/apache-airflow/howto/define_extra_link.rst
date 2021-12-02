@@ -61,7 +61,7 @@ The following code shows how to add extra links to an operator via Plugins:
 .. note:: Operator Extra Links should be registered via Airflow Plugins or custom Airflow Provider to work.
 
 You can also add a global operator extra link that will be available to
-all the operators through an airflow plugin or through airflow providers. You can learn more about it in the
+all the operators through an Airflow plugin or through Airflow providers. You can learn more about it in the
 :ref:`plugin example <plugin-example>` and in :doc:`apache-airflow-providers:index`.
 
 You can see all the extra links available via community-managed providers in

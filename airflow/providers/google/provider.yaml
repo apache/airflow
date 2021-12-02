@@ -29,6 +29,7 @@ description: |
       - `Google Workspace <https://workspace.google.pl/>`__ (formerly Google Suite)
 
 versions:
+  - 6.2.0
   - 6.1.0
   - 6.0.0
   - 5.1.0
@@ -81,7 +82,7 @@ integrations:
     logo: /integration-logos/gcp/Cloud-Bigtable.png
     tags: [gcp]
   - integration-name: Google Cloud Build
-    external-doc-url: https://cloud.google.com/cloud-build/
+    external-doc-url: https://cloud.google.com/build/
     how-to-guide:
       - /docs/apache-airflow-providers-google/operators/cloud/cloud_build.rst
     logo: /integration-logos/gcp/Cloud-Build.png
@@ -105,7 +106,7 @@ integrations:
     logo: /integration-logos/gcp/Cloud-Functions.png
     tags: [gcp]
   - integration-name: Google Cloud Key Management Service (KMS)
-    external-doc-url: https://cloud.google.com/kms/
+    external-doc-url: https://cloud.google.com/security-key-management/
     logo: /integration-logos/gcp/Key-Management-Service.png
     tags: [gcp]
   - integration-name: Google Cloud Life Sciences
@@ -155,13 +156,13 @@ integrations:
     logo: /integration-logos/gcp/Cloud-SQL.png
     tags: [gcp]
   - integration-name: Google Cloud Stackdriver
-    external-doc-url: https://cloud.google.com/stackdriver
+    external-doc-url: https://cloud.google.com/products/operations/
     how-to-guide:
       - /docs/apache-airflow-providers-google/operators/cloud/stackdriver.rst
     logo: /integration-logos/gcp/Google-Cloud-Stackdriver.png
     tags: [gcp]
   - integration-name: Google Cloud Storage (GCS)
-    external-doc-url: https://cloud.google.com/gcs/
+    external-doc-url: https://cloud.google.com/storage/
     how-to-guide:
       - /docs/apache-airflow-providers-google/operators/cloud/gcs.rst
     logo: /integration-logos/gcp/Cloud-Storage.png
@@ -184,7 +185,7 @@ integrations:
     logo: /integration-logos/gcp/Cloud-Translation-API.png
     tags: [gcp]
   - integration-name: Google Cloud Video Intelligence
-    external-doc-url: https://cloud.google.com/video_intelligence/
+    external-doc-url: https://cloud.google.com/video-intelligence/
     how-to-guide:
       - /docs/apache-airflow-providers-google/operators/cloud/video_intelligence.rst
     logo: /integration-logos/gcp/Cloud-Video-Intelligence-API.png
@@ -203,11 +204,11 @@ integrations:
     logo: /integration-logos/gcp/Compute-Engine.png
     tags: [gcp]
   - integration-name: Google Data Proc
-    external-doc-url: https://cloud.yandex.com/services/data-proc
+    external-doc-url: https://cloud.google.com/dataproc/
     logo: /integration-logos/gcp/Google-Data-Proc.png
     tags: [gcp]
   - integration-name: Google Data Catalog
-    external-doc-url: https://cloud.google.com/data-catalog
+    external-doc-url: https://cloud.google.com/data-catalog/
     how-to-guide:
       - /docs/apache-airflow-providers-google/operators/cloud/datacatalog.rst
     logo: /integration-logos/gcp/Google-Data-Catalog.png
@@ -230,6 +231,11 @@ integrations:
       - /docs/apache-airflow-providers-google/operators/cloud/dataprep.rst
     logo: /integration-logos/gcp/Google-Dataprep.png
     tags: [gcp]
+  - integration-name: Google Dataproc Metastore
+    external-doc-url: https://cloud.google.com/dataproc-metastore/
+    how-to-guide:
+      - /docs/apache-airflow-providers-google/operators/cloud/dataproc_metastore.rst
+    tags: [gcp]
   - integration-name: Google Dataproc
     external-doc-url: https://cloud.google.com/dataproc/
     how-to-guide:
@@ -247,7 +253,7 @@ integrations:
     logo: /integration-logos/gcp/Google-Deployment-Manager.png
     tags: [gcp]
   - integration-name: Google API Python Client
-    external-doc-url: https://github.com/googleapis/google-api-python-client
+    external-doc-url: https://github.com/googleapis/google-api-python-client/
     logo: /integration-logos/gcp/Google-API-Python-Client.png
     tags: [google]
   - integration-name: Google Campaign Manager
@@ -261,7 +267,7 @@ integrations:
     logo: /integration-logos/gcp/Google-Cloud.png
     tags: [gcp]
   - integration-name: Google Discovery API
-    external-doc-url: https://developers.google.com/discovery
+    external-doc-url: https://developers.google.com/discovery/
     logo: /integration-logos/gcp/Google-Cloud-Generic.png
     tags: [google]
   - integration-name: Google Display&Video 360
@@ -291,19 +297,19 @@ integrations:
     logo: /integration-logos/gcp/Google-Spreadsheet.png
     tags: [google]
   - integration-name: Google Cloud Storage Transfer Service
-    external-doc-url: https://cloud.google.com/storage/transfer/
+    external-doc-url: https://cloud.google.com/storage-transfer-service/
     how-to-guide:
       - /docs/apache-airflow-providers-google/operators/cloud/cloud_storage_transfer_service.rst
     logo: /integration-logos/gcp/Cloud-Storage.png
     tags: [gcp]
   - integration-name: Google Kubernetes Engine
-    external-doc-url: https://cloud.google.com/kubernetes_engine/
+    external-doc-url: https://cloud.google.com/kubernetes-engine/
     how-to-guide:
       - /docs/apache-airflow-providers-google/operators/cloud/kubernetes_engine.rst
     logo: /integration-logos/gcp/Kubernetes-Engine.png
     tags: [gcp]
   - integration-name: Google Machine Learning Engine
-    external-doc-url: https://cloud.google.com/ai-platform/
+    external-doc-url: https://cloud.google.com/vertex-ai/
     how-to-guide:
       - /docs/apache-airflow-providers-google/operators/cloud/mlengine.rst
     logo: /integration-logos/gcp/AI-Platform.png
@@ -368,6 +374,9 @@ operators:
   - integration-name: Google Dataprep
     python-modules:
       - airflow.providers.google.cloud.operators.dataprep
+  - integration-name: Google Dataproc Metastore
+    python-modules:
+      - airflow.providers.google.cloud.operators.dataproc_metastore
   - integration-name: Google Dataproc
     python-modules:
       - airflow.providers.google.cloud.operators.dataproc
@@ -537,6 +546,9 @@ hooks:
   - integration-name: Google Dataprep
     python-modules:
       - airflow.providers.google.cloud.hooks.dataprep
+  - integration-name: Google Dataproc Metastore
+    python-modules:
+      - airflow.providers.google.cloud.hooks.dataproc_metastore
   - integration-name: Google Dataproc
     python-modules:
       - airflow.providers.google.cloud.hooks.dataproc

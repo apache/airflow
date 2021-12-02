@@ -62,7 +62,11 @@ def get_log(session, dag_id, dag_run_id, task_id, task_try_number, full_content=
 
     ti = (
         session.query(TaskInstance)
-        .filter(TaskInstance.task_id == task_id, TaskInstance.run_id == dag_run_id)
+        .filter(
+            TaskInstance.task_id == task_id,
+            TaskInstance.dag_id == dag_id,
+            TaskInstance.run_id == dag_run_id,
+        )
         .join(TaskInstance.dag_run)
         .one_or_none()
     )

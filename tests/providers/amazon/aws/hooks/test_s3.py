@@ -444,7 +444,6 @@ class TestAwsS3Hook:
 
         s3_hook.download_file(key=key, bucket_name=bucket)
 
-        s3_hook.check_for_key.assert_called_once_with(key, bucket)
         s3_hook.get_key.assert_called_once_with(key, bucket)
         s3_obj.download_fileobj.assert_called_once_with(mock_temp_file)
 

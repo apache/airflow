@@ -56,7 +56,7 @@ are in ``airflow.providers.apache.sqoop`` python package.
 Installation
 ------------
 
-You can install this package on top of an existing airflow 2.1+ installation via
+You can install this package on top of an existing Airflow 2.1+ installation via
 ``pip install apache-airflow-providers-apache-sqoop``
 
 .. include:: ../../airflow/providers/apache/sqoop/CHANGELOG.rst

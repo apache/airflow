@@ -302,6 +302,7 @@ class DAG(LoggingMixin):
         'task_ids',
         'parent_dag',
         'start_date',
+        'end_date',
         'schedule_interval',
         'fileloc',
         'template_searchpath',
@@ -629,6 +630,7 @@ class DAG(LoggingMixin):
         data_interval = dag_model.next_dagrun_data_interval
         if data_interval is not None:
             return data_interval
+
         # Compatibility: A run was scheduled without an explicit data interval.
         # This means the run was scheduled before AIP-39 implementation. Try to
         # infer from the logical date.
@@ -686,13 +688,13 @@ class DAG(LoggingMixin):
         """Get information about the next DagRun of this dag after ``date_last_automated_dagrun``.
 
         This calculates what time interval the next DagRun should operate on
-        (its execution date), and when it can be scheduled, , according to the
+        (its execution date) and when it can be scheduled, according to the
         dag's timetable, start_date, end_date, etc. This doesn't check max
         active run or any other "max_active_tasks" type limits, but only
         performs calculations based on the various date and interval fields of
         this dag and its tasks.
 
-        :param date_last_automated_dagrun: The ``max(execution_date)`` of
+        :param last_automated_dagrun: The ``max(execution_date)`` of
             existing "automated" DagRuns for this dag (scheduled or backfill,
             but not manual).
         :param restricted: If set to *False* (default is *True*), ignore
@@ -2133,7 +2135,7 @@ class DAG(LoggingMixin):
         :type task: task
         """
         if not self.start_date and not task.start_date:
-            raise AirflowException("Task is missing the start_date parameter")
+            raise AirflowException("DAG is missing the start_date parameter")
         # if the task has no start date, assign it the same as the DAG
         elif not task.start_date:
             task.start_date = self.start_date
@@ -2448,6 +2450,7 @@ class DAG(LoggingMixin):
                 orm_dag.fileloc = dag.fileloc
                 orm_dag.owners = dag.owner
             orm_dag.is_active = True
+            orm_dag.has_import_errors = False
             orm_dag.last_parsed_time = timezone.utcnow()
             orm_dag.default_view = dag.default_view
             orm_dag.description = dag.description
@@ -2708,6 +2711,7 @@ class DagModel(Base):
     max_active_runs = Column(Integer, nullable=True)
 
     has_task_concurrency_limits = Column(Boolean, nullable=False)
+    has_import_errors = Column(Boolean(), default=False)
 
     # The logical date of the next dag run.
     next_dagrun = Column(UtcDateTime)
@@ -2742,8 +2746,10 @@ class DagModel(Base):
                 self.max_active_tasks = concurrency
             else:
                 self.max_active_tasks = conf.getint('core', 'max_active_tasks_per_dag')
+
         if self.max_active_runs is None:
             self.max_active_runs = conf.getint('core', 'max_active_runs_per_dag')
+
         if self.has_task_concurrency_limits is None:
             # Be safe -- this will be updated later once the DAG is parsed
             self.has_task_concurrency_limits = True
@@ -2880,11 +2886,13 @@ class DagModel(Base):
         # TODO[HA]: Bake this query, it is run _A lot_
         # We limit so that _one_ scheduler doesn't try to do all the creation
         # of dag runs
+
         query = (
             session.query(cls)
             .filter(
                 cls.is_paused == expression.false(),
                 cls.is_active == expression.true(),
+                cls.has_import_errors == expression.false(),
                 cls.next_dagrun_create_after <= func.now(),
             )
             .order_by(cls.next_dagrun_create_after)
@@ -2902,7 +2910,8 @@ class DagModel(Base):
         Calculate ``next_dagrun`` and `next_dagrun_create_after``
 
         :param dag: The DAG object
-        :param most_recent_dag_run: DateTime of most recent run of this dag, or none if not yet scheduled.
+        :param most_recent_dag_run: DataInterval (or datetime) of most recent run of this dag, or none
+            if not yet scheduled.
         """
         if isinstance(most_recent_dag_run, datetime):
             warnings.warn(

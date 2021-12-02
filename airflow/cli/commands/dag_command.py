@@ -461,3 +461,14 @@ def dag_test(args, session=None):
             _display_dot_via_imgcat(dot_graph)
         if show_dagrun:
             print(dot_graph.source)
+
+
+@provide_session
+@cli_utils.action_logging
+def dag_reserialize(args, session=None):
+    session.query(SerializedDagModel).delete(synchronize_session=False)
+
+    if not args.clear_only:
+        dagbag = DagBag()
+        dagbag.collect_dags(only_if_updated=False, safe_mode=False)
+        dagbag.sync_to_db()

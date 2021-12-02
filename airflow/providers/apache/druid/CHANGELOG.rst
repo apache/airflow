@@ -19,6 +19,22 @@
 Changelog
 ---------
 
+2.1.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add DruidOperator template_fields_renderers fields (#19420)``
+* ``Add max_ingestion_time to DruidOperator docstring (#18693)``
+* ``Add guide for Apache Druid operators (#18527)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Cleanup of start_date and default arg use for Apache example DAGs (#18657)``
+   * ``Prepare documentation for October Provider's release (#19321)``
+   * ``Update documentation for September providers release (#18613)``
+
 2.0.2
 .....
 

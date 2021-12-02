@@ -18,12 +18,11 @@
 """
 This is an example dag for a AWS EMR Pipeline with auto steps.
 """
-from datetime import timedelta
+from datetime import datetime, timedelta
 
 from airflow import DAG
 from airflow.providers.amazon.aws.operators.emr_create_job_flow import EmrCreateJobFlowOperator
 from airflow.providers.amazon.aws.sensors.emr_job_flow import EmrJobFlowSensor
-from airflow.utils.dates import days_ago
 
 # [START howto_operator_emr_automatic_steps_config]
 SPARK_STEPS = [
@@ -62,16 +61,10 @@ JOB_FLOW_OVERRIDES = {
 
 with DAG(
     dag_id='emr_job_flow_automatic_steps_dag',
-    default_args={
-        'owner': 'airflow',
-        'depends_on_past': False,
-        'email': ['airflow@example.com'],
-        'email_on_failure': False,
-        'email_on_retry': False,
-    },
     dagrun_timeout=timedelta(hours=2),
-    start_date=days_ago(2),
+    start_date=datetime(2021, 1, 1),
     schedule_interval='0 3 * * *',
+    catchup=False,
     tags=['example'],
 ) as dag:
 
@@ -79,15 +72,9 @@ with DAG(
     job_flow_creator = EmrCreateJobFlowOperator(
         task_id='create_job_flow',
         job_flow_overrides=JOB_FLOW_OVERRIDES,
-        aws_conn_id='aws_default',
-        emr_conn_id='emr_default',
     )
 
-    job_sensor = EmrJobFlowSensor(
-        task_id='check_job_flow',
-        job_flow_id=job_flow_creator.output,
-        aws_conn_id='aws_default',
-    )
+    job_sensor = EmrJobFlowSensor(task_id='check_job_flow', job_flow_id=job_flow_creator.output)
     # [END howto_operator_emr_automatic_steps_tasks]
 
     # Task dependency created via `XComArgs`:

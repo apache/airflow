@@ -17,9 +17,11 @@
 
 
 import json
+from typing import Type
 from unittest.mock import MagicMock, Mock, patch
 
 import pytest
+from azure.identity import ClientSecretCredential, DefaultAzureCredential
 from pytest import fixture
 
 from airflow.exceptions import AirflowException
@@ -38,14 +40,17 @@ RESOURCE_GROUP = "testResourceGroup"
 DEFAULT_FACTORY = "defaultFactory"
 FACTORY = "testFactory"
 
+DEFAULT_CONNECTION_CLIENT_SECRET = "azure_data_factory_test_client_secret"
+DEFAULT_CONNECTION_DEFAULT_CREDENTIAL = "azure_data_factory_test_default_credential"
+
 MODEL = object()
 NAME = "testName"
 ID = "testId"
 
 
 def setup_module():
-    connection = Connection(
-        conn_id="azure_data_factory_test",
+    connection_client_secret = Connection(
+        conn_id=DEFAULT_CONNECTION_CLIENT_SECRET,
         conn_type="azure_data_factory",
         login="clientId",
         password="clientSecret",
@@ -58,13 +63,25 @@ def setup_module():
             }
         ),
     )
+    connection_default_credential = Connection(
+        conn_id=DEFAULT_CONNECTION_DEFAULT_CREDENTIAL,
+        conn_type="azure_data_factory",
+        extra=json.dumps(
+            {
+                "extra__azure_data_factory__subscriptionId": "subscriptionId",
+                "extra__azure_data_factory__resource_group_name": DEFAULT_RESOURCE_GROUP,
+                "extra__azure_data_factory__factory_name": DEFAULT_FACTORY,
+            }
+        ),
+    )
 
-    db.merge_conn(connection)
+    db.merge_conn(connection_client_secret)
+    db.merge_conn(connection_default_credential)
 
 
 @fixture
 def hook():
-    client = AzureDataFactoryHook(azure_data_factory_conn_id="azure_data_factory_test")
+    client = AzureDataFactoryHook(azure_data_factory_conn_id=DEFAULT_CONNECTION_CLIENT_SECRET)
     client._conn = MagicMock(
         spec=[
             "factories",
@@ -114,6 +131,25 @@ def test_provide_targeted_factory():
     with pytest.raises(AirflowException):
         conn.extra_dejson = {}
         provide_targeted_factory(echo)(hook)
+
+
+@pytest.mark.parametrize(
+    ("connection_id", "credential_type"),
+    [
+        (DEFAULT_CONNECTION_CLIENT_SECRET, ClientSecretCredential),
+        (DEFAULT_CONNECTION_DEFAULT_CREDENTIAL, DefaultAzureCredential),
+    ],
+)
+def test_get_connection_by_credential_client_secret(connection_id: str, credential_type: Type):
+    hook = AzureDataFactoryHook(connection_id)
+
+    with patch.object(hook, "_create_client") as mock_create_client:
+        mock_create_client.return_value = MagicMock()
+        connection = hook.get_conn()
+        assert connection is not None
+        mock_create_client.assert_called_once()
+        assert isinstance(mock_create_client.call_args[0][0], credential_type)
+        assert mock_create_client.call_args[0][1] == "subscriptionId"
 
 
 @parametrize(

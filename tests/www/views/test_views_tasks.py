@@ -255,29 +255,6 @@ def test_rendered_k8s_without_k8s(admin_client):
     assert 404 == resp.status_code
 
 
-@pytest.mark.parametrize(
-    "test_str, expected_text",
-    [
-        ("hello\nworld", r'\"conf\":{\"abc\":\"hello\\nworld\"}'),
-        ("hello'world", r'\"conf\":{\"abc\":\"hello\\u0027world\"}'),
-        ("<script>", r'\"conf\":{\"abc\":\"\\u003cscript\\u003e\"}'),
-        ("\"", r'\"conf\":{\"abc\":\"\\\"\"}'),
-    ],
-)
-def test_escape_in_tree_view(app, admin_client, test_str, expected_text):
-    app.dag_bag.get_dag('test_tree_view').create_dagrun(
-        execution_date=DEFAULT_DATE,
-        start_date=timezone.utcnow(),
-        run_type=DagRunType.MANUAL,
-        state=State.RUNNING,
-        conf={"abc": test_str},
-    )
-
-    url = 'tree?dag_id=test_tree_view'
-    resp = admin_client.get(url, follow_redirects=True)
-    check_content_in_response(expected_text, resp)
-
-
 def test_dag_details_trigger_origin_tree_view(app, admin_client):
     app.dag_bag.get_dag('test_tree_view').create_dagrun(
         run_type=DagRunType.SCHEDULED,
@@ -477,10 +454,7 @@ def test_run_with_runnable_states(_, admin_client, session, state):
     resp = admin_client.post('run', data=form, follow_redirects=True)
     check_content_in_response('', resp)
 
-    msg = (
-        f"Task is in the &#39;{state}&#39; state which is not a valid state for "
-        f"execution. The task must be cleared in order to be run"
-    )
+    msg = f"Task is in the &#39;{state}&#39 state."
     assert not re.search(msg, resp.get_data(as_text=True))
 
 
@@ -509,10 +483,7 @@ def test_run_with_not_runnable_states(_, admin_client, session, state):
     resp = admin_client.post('run', data=form, follow_redirects=True)
     check_content_in_response('', resp)
 
-    msg = (
-        f"Task is in the &#39;{state}&#39; state which is not a valid state for "
-        f"execution. The task must be cleared in order to be run"
-    )
+    msg = f"Task is in the &#39;{state}&#39; state."
     assert re.search(msg, resp.get_data(as_text=True))
 
 

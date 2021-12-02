@@ -253,3 +253,15 @@ class TestSqlSensor(TestHiveEnvironment):
             dag=self.dag,
         )
         op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
+
+    def test_sql_sensor_hook_params(self):
+        op = SqlSensor(
+            task_id='sql_sensor_hook_params',
+            conn_id='google_cloud_default',
+            sql="SELECT 1",
+            hook_params={
+                'delegate_to': 'me',
+            },
+        )
+        hook = op._get_hook()
+        assert hook.delegate_to == 'me'

@@ -32,6 +32,7 @@ Installation
     Installing from sources <installing-from-sources>
     Installing from PyPI <installing-from-pypi>
     Setting up the database <setting-up-the-database>
+    Upgrading <upgrading>
 
 This page describes installations options that you might use when considering how to install Airflow.
 Airflow consists of many components, often distributed among many physical or virtual machines, therefore
@@ -62,7 +63,7 @@ More details: :doc:`installing-from-sources`
 
 * This option is best if you expect to build all your software from sources.
 * Apache Airflow is one of the projects that belong to the `Apache Software Foundation <https://www.apache.org/>`__ .
-  It is a requirement for all ASF projects that they can be installed using official sources released via `Official Apache Mirrors <http://ws.apache.org/mirrors.cgi/>`__ .
+  It is a requirement for all ASF projects that they can be installed using official sources released via `Official Apache Downloads <http://ws.apache.org/mirrors.cgi/>`__ .
 * This is the best choice if you have a strong need to `verify the integrity and provenance of the software <https://www.apache.org/dyn/closer.cgi#verify>`__
 
 **Intended users**
@@ -161,7 +162,7 @@ and official constraint files- same that are used for installing Airflow from Py
 
 * Users who are familiar with Containers and Docker stack and understand how to build their own container images.
 * Users who understand how to install providers and dependencies from PyPI with constraints if they want to extend or customize the image.
-* Users who know how to create deployments using Docker by linking together multiple docker containers and maintaining such deployments.
+* Users who know how to create deployments using Docker by linking together multiple Docker containers and maintaining such deployments.
 
 **What are you expected to handle**
 

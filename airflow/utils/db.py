@@ -15,6 +15,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+import contextlib
+import enum
 import logging
 import os
 import time
@@ -52,7 +54,7 @@ from airflow.models import (  # noqa: F401
 from airflow.models.serialized_dag import SerializedDagModel  # noqa: F401
 
 # TODO: remove create_session once we decide to break backward compatibility
-from airflow.utils.session import create_global_lock, create_session, provide_session  # noqa: F401
+from airflow.utils.session import create_session, provide_session  # noqa: F401
 
 log = logging.getLogger(__name__)
 
@@ -594,7 +596,7 @@ def initdb(session=None):
     if conf.getboolean('core', 'LOAD_DEFAULT_CONNECTIONS'):
         create_default_connections(session=session)
 
-    with create_global_lock(session=session):
+    with create_global_lock(session=session, lock=DBLocks.MIGRATIONS):
 
         dagbag = DagBag()
         # Save DAGs in the ORM
@@ -627,13 +629,17 @@ def check_migrations(timeout):
     :param timeout: Timeout for the migration in seconds
     :return: None
     """
-    from alembic.runtime.migration import MigrationContext
+    from alembic.runtime.environment import EnvironmentContext
     from alembic.script import ScriptDirectory
 
     config = _get_alembic_config()
     script_ = ScriptDirectory.from_config(config)
-    with settings.engine.connect() as connection:
-        context = MigrationContext.configure(connection)
+    with EnvironmentContext(
+        config,
+        script_,
+    ) as env, settings.engine.connect() as connection:
+        env.configure(connection)
+        context = env.get_context()
         ticker = 0
         while True:
             source_heads = set(script_.get_heads())
@@ -642,8 +648,8 @@ def check_migrations(timeout):
                 break
             if ticker >= timeout:
                 raise TimeoutError(
-                    f"There are still unapplied migrations after {ticker} seconds. "
-                    f"Migration Head(s) in DB: {db_heads} | Migration Head(s) in Source Code: {source_heads}"
+                    f"There are still unapplied migrations after {ticker} seconds. Migration"
+                    f"Head(s) in DB: {db_heads} | Migration Head(s) in Source Code: {source_heads}"
                 )
             ticker += 1
             time.sleep(1)
@@ -709,10 +715,55 @@ def _format_dangling_error(source_table, target_table, invalid_count, reason):
     )
 
 
-def _move_dangling_run_data_to_new_table(session, source_table, target_table):
+def _move_dangling_run_data_to_new_table(session, source_table: "Table", target_table_name: str):
     where_clause = "where dag_id is null or run_id is null or execution_date is null"
-    session.execute(text(f"create table {target_table} as select * from {source_table} {where_clause}"))
-    session.execute(text(f"delete from {source_table} {where_clause}"))
+    _move_dangling_table(session, source_table, target_table_name, where_clause)
+
+
+def _move_dangling_table(session, source_table: "Table", target_table_name: str, where_clause: str):
+    dialect_name = session.get_bind().dialect.name
+
+    delete_where = " AND ".join(
+        f"{source_table.name}.{c.name} = d.{c.name}" for c in source_table.primary_key.columns
+    )
+    if dialect_name == "mssql":
+        session.execute(
+            text(f"select source.* into {target_table_name} from {source_table} as source {where_clause}")
+        )
+        session.execute(
+            text(
+                f"delete from {source_table} from {source_table} join {target_table_name} AS d ON "
+                + delete_where
+            )
+        )
+    else:
+        # Postgres, MySQL and SQLite all have the same CREATE TABLE a AS SELECT ... syntax
+        session.execute(
+            text(
+                f"create table {target_table_name} as select source.* from {source_table} as source "
+                + where_clause
+            )
+        )
+
+        # But different join-delete syntax.
+        if dialect_name == "mysql":
+            session.execute(
+                text(
+                    f"delete {source_table} from {source_table} join {target_table_name} as d on "
+                    + delete_where
+                )
+            )
+        elif dialect_name == "sqlite":
+            session.execute(
+                text(
+                    f"delete from {source_table} where ROWID in (select {source_table}.ROWID from "
+                    f"{source_table} as source join {target_table_name} as d on {delete_where})"
+                )
+            )
+        else:
+            session.execute(
+                text(f"delete from {source_table} using {target_table_name} as d where {delete_where}")
+            )
 
 
 def check_run_id_null(session) -> Iterable[str]:
@@ -720,7 +771,7 @@ def check_run_id_null(session) -> Iterable[str]:
 
     metadata = sqlalchemy.schema.MetaData(session.bind)
     try:
-        metadata.reflect(only=[DagRun.__tablename__])
+        metadata.reflect(only=[DagRun.__tablename__], extend_existing=True, resolve_fks=False)
     except exc.InvalidRequestError:
         # Table doesn't exist -- empty db
         return
@@ -745,21 +796,16 @@ def check_run_id_null(session) -> Iterable[str]:
                 reason="with a NULL dag_id, run_id, or execution_date",
             )
             return
-        _move_dangling_run_data_to_new_table(session, dagrun_table.name, dagrun_dangling_table_name)
+        _move_dangling_run_data_to_new_table(session, dagrun_table, dagrun_dangling_table_name)
 
 
-def _move_dangling_task_data_to_new_table(session, source_table, target_table):
-    where_clause = f"""
-        where (task_id, dag_id, execution_date) IN (
-            select source.task_id, source.dag_id, source.execution_date
-            from {source_table} as source
-            left join dag_run as dr
-            on (source.dag_id = dr.dag_id and source.execution_date = dr.execution_date)
-            where dr.id is null
-        )
+def _move_dangling_task_data_to_new_table(session, source_table: "Table", target_table_name: str):
+    where_clause = """
+        left join dag_run as dr
+        on (source.dag_id = dr.dag_id and source.execution_date = dr.execution_date)
+        where dr.id is null
     """
-    session.execute(text(f"create table {target_table} as select * from {source_table} {where_clause}"))
-    session.execute(text(f"delete from {source_table} {where_clause}"))
+    _move_dangling_table(session, source_table, target_table_name, where_clause)
 
 
 def check_task_tables_without_matching_dagruns(session) -> Iterable[str]:
@@ -770,7 +816,7 @@ def check_task_tables_without_matching_dagruns(session) -> Iterable[str]:
     models_to_dagrun = [TaskInstance, TaskReschedule]
     for model in models_to_dagrun + [DagRun]:
         try:
-            metadata.reflect(only=[model.__tablename__])
+            metadata.reflect(only=[model.__tablename__], extend_existing=True, resolve_fks=False)
         except exc.InvalidRequestError:
             # Table doesn't exist, but try the other ones in case the user is upgrading from an _old_ DB
             # version
@@ -821,7 +867,7 @@ def check_task_tables_without_matching_dagruns(session) -> Iterable[str]:
             )
             errored = True
             continue
-        _move_dangling_task_data_to_new_table(session, source_table.name, dangling_table_name)
+        _move_dangling_task_data_to_new_table(session, source_table, dangling_table_name)
 
     if errored:
         session.rollback()
@@ -842,6 +888,8 @@ def _check_migration_errors(session=None) -> Iterable[str]:
         check_task_tables_without_matching_dagruns,
     ):
         yield from check_fn(session)
+        # Ensure there is no "active" transaction. Seems odd, but without this MSSQL can hang
+        session.commit()
 
 
 @provide_session
@@ -864,7 +912,7 @@ def upgradedb(session=None):
     if errors_seen:
         exit(1)
 
-    with create_global_lock(session=session, pg_lock_id=2, lock_name="upgrade"):
+    with create_global_lock(session=session, lock=DBLocks.MIGRATIONS):
         log.info("Creating tables")
         command.upgrade(config, 'heads')
     add_default_pool_if_not_exists()
@@ -877,7 +925,7 @@ def resetdb(session=None):
 
     connection = settings.engine.connect()
 
-    with create_global_lock(session=session, pg_lock_id=4, lock_name="reset"):
+    with create_global_lock(session=session, lock=DBLocks.MIGRATIONS):
         drop_airflow_models(connection)
         drop_flask_models(connection)
 
@@ -940,3 +988,48 @@ def check(session=None):
     """
     session.execute('select 1 as is_alive;')
     log.info("Connection successful.")
+
+
+@enum.unique
+class DBLocks(enum.IntEnum):
+    """
+    Cross-db Identifiers for advisory global database locks.
+
+    Postgres uses int64 lock ids so we use the integer value, MySQL uses names, so we
+    call ``str()`, which is implemented using the ``_name_`` field.
+    """
+
+    MIGRATIONS = enum.auto()
+    SCHEDULER_CRITICAL_SECTION = enum.auto()
+
+    def __str__(self):
+        return f"airflow_{self._name_}"
+
+
+@contextlib.contextmanager
+def create_global_lock(session, lock: DBLocks, lock_timeout=1800):
+    """Contextmanager that will create and teardown a global db lock."""
+    conn = session.get_bind().connect()
+    dialect = conn.dialect
+    try:
+        if dialect.name == 'postgresql':
+            conn.execute(text('SET LOCK_TIMEOUT to :timeout'), timeout=lock_timeout)
+            conn.execute(text('SELECT pg_advisory_lock(:id)'), id=lock.value)
+        elif dialect.name == 'mysql' and dialect.server_version_info >= (5, 6):
+            conn.execute(text("SELECT GET_LOCK(:id, :timeout)"), id=str(lock), timeout=lock_timeout)
+        elif dialect.name == 'mssql':
+            # TODO: make locking work for MSSQL
+            pass
+
+        yield
+    finally:
+        if dialect.name == 'postgresql':
+            conn.execute('SET LOCK_TIMEOUT TO DEFAULT')
+            (unlocked,) = conn.execute(text('SELECT pg_advisory_unlock(:id)'), id=lock.value).fetchone()
+            if not unlocked:
+                raise RuntimeError("Error releasing DB lock!")
+        elif dialect.name == 'mysql' and dialect.server_version_info >= (5, 6):
+            conn.execute(text("select RELEASE_LOCK(:id)"), id=str(lock))
+        elif dialect.name == 'mssql':
+            # TODO: make locking work for MSSQL
+            pass

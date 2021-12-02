@@ -21,6 +21,7 @@ Example DAG using GCSToBigQueryOperator.
 """
 
 import os
+from datetime import datetime
 
 from airflow import models
 from airflow.providers.google.cloud.operators.bigquery import (
@@ -28,39 +29,39 @@ from airflow.providers.google.cloud.operators.bigquery import (
     BigQueryDeleteDatasetOperator,
 )
 from airflow.providers.google.cloud.transfers.gcs_to_bigquery import GCSToBigQueryOperator
-from airflow.utils.dates import days_ago
 
 DATASET_NAME = os.environ.get("GCP_DATASET_NAME", 'airflow_test')
 TABLE_NAME = os.environ.get("GCP_TABLE_NAME", 'gcs_to_bq_table')
 
-dag = models.DAG(
+with models.DAG(
     dag_id='example_gcs_to_bigquery_operator',
-    start_date=days_ago(2),
+    start_date=datetime(2021, 1, 1),
+    catchup=False,
     schedule_interval='@once',
     tags=['example'],
-)
+) as dag:
+    create_test_dataset = BigQueryCreateEmptyDatasetOperator(
+        task_id='create_airflow_test_dataset', dataset_id=DATASET_NAME
+    )
 
-create_test_dataset = BigQueryCreateEmptyDatasetOperator(
-    task_id='create_airflow_test_dataset', dataset_id=DATASET_NAME, dag=dag
-)
+    # [START howto_operator_gcs_to_bigquery]
+    load_csv = GCSToBigQueryOperator(
+        task_id='gcs_to_bigquery_example',
+        bucket='cloud-samples-data',
+        source_objects=['bigquery/us-states/us-states.csv'],
+        destination_project_dataset_table=f"{DATASET_NAME}.{TABLE_NAME}",
+        schema_fields=[
+            {'name': 'name', 'type': 'STRING', 'mode': 'NULLABLE'},
+            {'name': 'post_abbr', 'type': 'STRING', 'mode': 'NULLABLE'},
+        ],
+        write_disposition='WRITE_TRUNCATE',
+    )
+    # [END howto_operator_gcs_to_bigquery]
 
-# [START howto_operator_gcs_to_bigquery]
-load_csv = GCSToBigQueryOperator(
-    task_id='gcs_to_bigquery_example',
-    bucket='cloud-samples-data',
-    source_objects=['bigquery/us-states/us-states.csv'],
-    destination_project_dataset_table=f"{DATASET_NAME}.{TABLE_NAME}",
-    schema_fields=[
-        {'name': 'name', 'type': 'STRING', 'mode': 'NULLABLE'},
-        {'name': 'post_abbr', 'type': 'STRING', 'mode': 'NULLABLE'},
-    ],
-    write_disposition='WRITE_TRUNCATE',
-    dag=dag,
-)
-# [END howto_operator_gcs_to_bigquery]
-
-delete_test_dataset = BigQueryDeleteDatasetOperator(
-    task_id='delete_airflow_test_dataset', dataset_id=DATASET_NAME, delete_contents=True, dag=dag
-)
+    delete_test_dataset = BigQueryDeleteDatasetOperator(
+        task_id='delete_airflow_test_dataset',
+        dataset_id=DATASET_NAME,
+        delete_contents=True,
+    )
 
 create_test_dataset >> load_csv >> delete_test_dataset

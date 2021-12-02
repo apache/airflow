@@ -86,7 +86,7 @@ class WasbHook(BaseHook):
     def get_ui_field_behaviour() -> Dict:
         """Returns custom field behaviour"""
         return {
-            "hidden_fields": ['schema', 'port', 'host'],
+            "hidden_fields": ['schema', 'port'],
             "relabeling": {
                 'login': 'Blob Storage Login (optional)',
                 'password': 'Blob Storage Key (optional)',

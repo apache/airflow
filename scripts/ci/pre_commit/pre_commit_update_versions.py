@@ -29,31 +29,28 @@ sys.path.insert(0, AIRFLOW_SOURCES_DIR)
 from setup import version  # isort:skip
 
 
-def update_version(pattern, v: str, file_path: str):
+def update_version(pattern: re.Pattern, v: str, file_path: str):
     print(f"Replacing {pattern} to {version} in {file_path}")
     with open(file_path, "r+") as f:
-        file_contents = f.read()
-        lines = file_contents.splitlines(keepends=True)
-        for i in range(0, len(lines)):
-            lines[i] = re.sub(pattern, fr'\g<1>{v}\g<2>', lines[i])
-        file_contents = "".join(lines)
+        file_content = f.read()
+        if not pattern.search(file_content):
+            raise Exception(f"Pattern {pattern!r} doesn't found in {file_path!r} file")
+        new_content = pattern.sub(fr'\g<1>{v}\g<2>', file_content)
+        if file_content == new_content:
+            return
         f.seek(0)
         f.truncate()
-        f.write(file_contents)
+        f.write(new_content)
 
 
 REPLACEMENTS = {
-    r'(FROM apache/airflow:).*($)': "docs/docker-stack/docker-examples/extending/*/Dockerfile",
-    r'(apache/airflow:)[^-]*(\-)': "docs/docker-stack/entrypoint.rst",
-    r'(/constraints-)[^-]*(/constraints)': "docs/docker-stack/docker-examples/"
-    "restricted/restricted_environments.sh",
-    r'(AIRFLOW_VERSION=")[^"]*(" \\)': "docs/docker-stack/docker-examples/"
-    "restricted/restricted_environments.sh",
+    r'^(FROM apache\/airflow:).*($)': "docs/docker-stack/docker-examples/extending/*/Dockerfile",
+    r'(apache\/airflow:)[^-]*(\-)': "docs/docker-stack/entrypoint.rst",
 }
 
 if __name__ == '__main__':
     for regexp, p in REPLACEMENTS.items():
-        text_pattern = re.compile(regexp)
+        text_pattern = re.compile(regexp, flags=re.MULTILINE)
         files = glob.glob(join(AIRFLOW_SOURCES_DIR, p), recursive=True)
         if not files:
             print(f"ERROR! No files matched on {p}")

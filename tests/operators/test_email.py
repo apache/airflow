@@ -51,6 +51,7 @@ class TestEmailOperator(unittest.TestCase):
             task_id='task',
             dag=self.dag,
             files=["/tmp/Report-A-{{ execution_date.strftime('%Y-%m-%d') }}.csv"],
+            custom_headers={'Reply-To': 'reply_to@example.com'},
             **kwargs,
         )
         task.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
@@ -59,5 +60,6 @@ class TestEmailOperator(unittest.TestCase):
         with conf_vars({('email', 'email_backend'): 'tests.operators.test_email.send_email_test'}):
             self._run_as_operator()
         assert send_email_test.call_count == 1
-        resulting_files = send_email_test.call_args[1]['files']
-        assert resulting_files[0] == '/tmp/Report-A-2016-01-01.csv'
+        call_args = send_email_test.call_args[1]
+        assert call_args['files'] == ['/tmp/Report-A-2016-01-01.csv']
+        assert call_args['custom_headers'] == {'Reply-To': 'reply_to@example.com'}

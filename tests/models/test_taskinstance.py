@@ -331,7 +331,7 @@ class TestTaskInstance:
         ti = create_task_instance(
             dag_id='test_mark_non_runnable_task_as_success',
             task_id='test_mark_non_runnable_task_as_success_op',
-            dagrun_state=non_runnable_state,
+            state=non_runnable_state,
         )
         ti.run(mark_success=True)
         assert ti.state == State.SUCCESS
@@ -1946,7 +1946,6 @@ class TestTaskInstance:
                             '--subdir',
                             __file__,
                         ],
-                        'image': ':',
                         'name': 'base',
                         'env': [{'name': 'AIRFLOW_IS_K8S_EXECUTOR_POD', 'value': 'True'}],
                     }
@@ -2119,14 +2118,7 @@ class TestRunRawTaskQueriesCount:
     def teardown_method(self) -> None:
         self._clean()
 
-    @pytest.mark.parametrize(
-        "expected_query_count, mark_success",
-        [
-            # Expected queries, mark_success
-            (10, False),
-            (5, True),
-        ],
-    )
+    @pytest.mark.parametrize("expected_query_count, mark_success", [(12, False), (5, True)])
     @provide_session
     def test_execute_queries_count(
         self, expected_query_count, mark_success, create_task_instance, session=None

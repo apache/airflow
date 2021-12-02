@@ -389,6 +389,12 @@ class DagFileProcessor(LoggingMixin):
             .group_by(TI.task_id)
             .subquery('sq')
         )
+        # get recorded SlaMiss
+        recorded_slas_query = set(
+            session.query(SlaMiss.dag_id, SlaMiss.task_id, SlaMiss.execution_date).filter(
+                SlaMiss.dag_id == dag.dag_id, SlaMiss.task_id.in_(dag.task_ids)
+            )
+        )
 
         max_tis: Iterator[TI] = (
             session.query(TI)
@@ -401,6 +407,7 @@ class DagFileProcessor(LoggingMixin):
         )
 
         ts = timezone.utcnow()
+
         for ti in max_tis:
             task = dag.get_task(ti.task_id)
             if not task.sla:
@@ -419,9 +426,13 @@ class DagFileProcessor(LoggingMixin):
             else:
                 while next_info.logical_date < ts:
                     next_info = dag.next_dagrun_info(next_info.data_interval, restricted=False)
+
                     if next_info is None:
                         break
+                    if (ti.dag_id, ti.task_id, next_info.logical_date) in recorded_slas_query:
+                        break
                     if next_info.logical_date + task.sla < ts:
+
                         sla_miss = SlaMiss(
                             task_id=ti.task_id,
                             dag_id=ti.dag_id,
@@ -533,6 +544,12 @@ class DagFileProcessor(LoggingMixin):
 
         # Add the errors of the processed files
         for filename, stacktrace in dagbag.import_errors.items():
+            (
+                session.query(DagModel)
+                .filter(DagModel.fileloc == filename)
+                .update({'has_import_errors': True}, synchronize_session='fetch')
+            )
+
             session.add(
                 errors.ImportError(filename=filename, timestamp=timezone.utcnow(), stacktrace=stacktrace)
             )

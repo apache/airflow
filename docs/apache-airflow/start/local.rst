@@ -31,7 +31,7 @@ This quick start guide will help you bootstrap an Airflow standalone instance on
    ``pip`` - especially when it comes to constraint vs. requirements management.
    Installing via ``Poetry`` or ``pip-tools`` is not currently supported.
 
-   If you wish to install airflow using those tools you should use the constraint files and convert
+   If you wish to install Airflow using those tools you should use the constraint files and convert
    them to appropriate format and workflow that your tool requires.
 
 The installation of Airflow is painless if you are following the instructions below. Airflow uses

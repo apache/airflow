@@ -124,7 +124,7 @@ You can use those variables when you try to reproduce the build locally.
 |                                         |             |              |            | case of Postgres or MySQL. However,             |
 |                                         |             |              |            | it requires to perform manual init/reset        |
 |                                         |             |              |            | if you stop the environment.                    |
-+-----------------------------------------+-------------+--------------+-------------+------------------------------------------------+
++-----------------------------------------+-------------+--------------+------------+-------------------------------------------------+
 |                                                           Mount variables                                                           |
 +-----------------------------------------+-------------+--------------+------------+-------------------------------------------------+
 | ``MOUNT_SELECTED_LOCAL_SOURCES``        |     true    |    false     |    false   | Determines whether local sources are            |
@@ -549,6 +549,8 @@ This workflow is a regular workflow that performs all checks of Airflow code.
 | Test OpenAPI client gen   | Tests if OpenAPIClient continues to generate | Yes   | Yes   | Yes  |
 +---------------------------+----------------------------------------------+-------+-------+------+
 | UI tests                  | React UI tests for new Airflow UI            | Yes   | Yes   | Yes  |
++---------------------------+----------------------------------------------+-------+-------+------+
+| WWW tests                 | React tests for current Airflow UI           | Yes   | Yes   | Yes  |
 +---------------------------+----------------------------------------------+-------+-------+------+
 | Test image building       | Tests if PROD image build examples work      | Yes   | Yes   | Yes  |
 +---------------------------+----------------------------------------------+-------+-------+------+

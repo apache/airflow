@@ -81,8 +81,8 @@ In the simplest case building your image consists of those steps:
 
 4) Once you build the image locally you have usually several options to make them available for your deployment:
 
-* For ``docker-compose`` deployment, that's all you need. The image is stored in docker engine cache
-  and docker compose will use it from there.
+* For ``docker-compose`` deployment, that's all you need. The image is stored in Docker engine cache
+  and Docker Compose will use it from there.
 
 * For some - development targeted - Kubernetes deployments you can load the images directly to
   Kubernetes clusters. Clusters such as ``kind`` or ``minikube`` have dedicated ``load`` method to load the
@@ -491,11 +491,11 @@ constraints are taken from latest version of the constraints-main branch in GitH
 
 The following example builds the production image with default extras from the
 latest ``v2-*-test`` version and constraints are taken from the latest version of
-the ``constraints-2-*`` branch in GitHub (for example ``v2-1-test`` branch matches ``constraints-2-1``).
+the ``constraints-2-*`` branch in GitHub (for example ``v2-2-test`` branch matches ``constraints-2-2``).
 Note that this command might fail occasionally as only the "released version" constraints when building a
 version and "main" constraints when building main are guaranteed to work.
 
-.. exampleinclude:: docker-examples/customizing/github-v2-1-test.sh
+.. exampleinclude:: docker-examples/customizing/github-v2-2-test.sh
     :language: bash
     :start-after: [START build]
     :end-before: [END build]
