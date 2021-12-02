@@ -14,34 +14,53 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+import datetime
+import operator
 import os
 from unittest import mock
 
 import pytest
 
 from airflow.configuration import conf
-from airflow.models import dagrun
+from airflow.models.dagrun import DagRun, DagRunType
 from airflow.models.xcom import XCOM_RETURN_KEY, BaseXCom, XCom, resolve_xcom_backend
 from airflow.utils import timezone
 from tests.test_utils.config import conf_vars
 
 
 class CustomXCom(BaseXCom):
-    def orm_deserialize_value(self):
-        return 'Short value...'
+    orm_deserialize_value = mock.Mock()
+
+
+@pytest.fixture()
+def dag_run_factory(session):
+    runs = []
+
+    def func(dag_id, execution_date):
+        run = DagRun(
+            dag_id=dag_id,
+            run_type=DagRunType.SCHEDULED,
+            run_id=DagRun.generate_run_id(DagRunType.SCHEDULED, execution_date),
+            execution_date=execution_date,
+        )
+        session.add(run)
+        session.flush()
+        runs.append(run)
+        return run
+
+    yield func
+
+    for run in runs:
+        session.delete(run)
+    session.flush()
+
+
+@pytest.fixture()
+def dag_run(dag_run_factory):
+    return dag_run_factory(dag_id="dag", execution_date=timezone.datetime(2021, 12, 3, 4, 56))
 
 
 class TestXCom:
-    @pytest.fixture
-    def dag_run(self, session):
-        run = dagrun.DagRun(
-            dag_id="dag", run_type=dagrun.DagRunType.SCHEDULED, execution_date=timezone.utcnow()
-        )
-        run.run_id = dagrun.DagRun.generate_run_id(run.run_type, run.execution_date)
-        session.add(run)
-        session.flush()
-        return run
-
     @conf_vars({("core", "xcom_backend"): "tests.models.test_xcom.CustomXCom"})
     def test_resolve_xcom_class(self):
         cls = resolve_xcom_backend()
@@ -61,100 +80,45 @@ class TestXCom:
         assert issubclass(cls, BaseXCom)
         assert cls().serialize_value([1]) == b"[1]"
 
-    @pytest.mark.parametrize(
-        ("enable_xcom_pickling",),
-        [
-            pytest.param(True, id='enable_xcom_pickling=True'),
-            pytest.param(False, id='enable_xcom_pickling=False'),
-        ],
-    )
-    def test_xcom_get_one_get_many(self, enable_xcom_pickling, dag_run, session):
-        json_obj = {"key": "value"}
-        execution_date = dag_run.execution_date
-        key = "xcom_test1"
-        dag_id = dag_run.dag_id
-        task_id = "test_task1"
-        run_id = dag_run.run_id
-
-        with conf_vars({("core", "enable_xcom_pickling"): str(enable_xcom_pickling)}):
-            XCom.set(
-                key=key,
-                value=json_obj,
-                dag_id=dag_id,
-                task_id=task_id,
-                run_id=run_id,
-                session=session,
-            )
-
-            ret_value = (
-                XCom.get_many(key=key, dag_ids=dag_id, task_ids=task_id, run_id=run_id, session=session)
-                .first()
-                .value
-            )
-
-            assert ret_value == json_obj
-
-            ret_value = XCom.get_one(key=key, dag_id=dag_id, task_id=task_id, run_id=run_id, session=session)
-
-            assert ret_value == json_obj
-
-            ret_value = (
-                session.query(XCom)
-                .filter(
-                    XCom.key == key,
-                    XCom.dag_id == dag_id,
-                    XCom.task_id == task_id,
-                    XCom.execution_date == execution_date,
-                )
-                .first()
-                .value
-            )
-
-            assert ret_value == json_obj
-
     def test_xcom_deserialize_with_json_to_pickle_switch(self, dag_run, session):
-        json_obj = {"key": "value"}
-        key = "xcom_test3"
-        dag_id = dag_run.dag_id
-        task_id = "test_task3"
-        run_id = dag_run.run_id
-
         with conf_vars({("core", "enable_xcom_pickling"): "False"}):
             XCom.set(
-                key=key,
-                value=json_obj,
-                dag_id=dag_id,
-                task_id=task_id,
-                run_id=run_id,
+                key="xcom_test3",
+                value={"key": "value"},
+                dag_id=dag_run.dag_id,
+                task_id="test_task3",
+                run_id=dag_run.run_id,
                 session=session,
             )
-
         with conf_vars({("core", "enable_xcom_pickling"): "True"}):
-            ret_value = XCom.get_one(key=key, dag_id=dag_id, task_id=task_id, run_id=run_id, session=session)
-
-        assert ret_value == json_obj
+            ret_value = XCom.get_one(
+                key="xcom_test3",
+                dag_id=dag_run.dag_id,
+                task_id="test_task3",
+                run_id=dag_run.run_id,
+                session=session,
+            )
+        assert ret_value == {"key": "value"}
 
     def test_xcom_deserialize_with_pickle_to_json_switch(self, dag_run, session):
-        json_obj = {"key": "value"}
-        key = "xcom_test3"
-        dag_id = dag_run.dag_id
-        task_id = "test_task3"
-        run_id = dag_run.run_id
-
         with conf_vars({("core", "enable_xcom_pickling"): "True"}):
             XCom.set(
-                key=key,
-                value=json_obj,
-                dag_id=dag_id,
-                task_id=task_id,
-                run_id=run_id,
+                key="xcom_test3",
+                value={"key": "value"},
+                dag_id=dag_run.dag_id,
+                task_id="test_task3",
+                run_id=dag_run.run_id,
                 session=session,
             )
-
         with conf_vars({("core", "enable_xcom_pickling"): "False"}):
-            ret_value = XCom.get_one(key=key, dag_id=dag_id, task_id=task_id, run_id=run_id, session=session)
-
-        assert ret_value == json_obj
+            ret_value = XCom.get_one(
+                key="xcom_test3",
+                dag_id=dag_run.dag_id,
+                task_id="test_task3",
+                run_id=dag_run.run_id,
+                session=session,
+            )
+        assert ret_value == {"key": "value"}
 
     @conf_vars({("core", "xcom_enable_pickling"): "False"})
     def test_xcom_disable_pickle_type_fail_on_non_json(self, dag_run, session):
@@ -172,37 +136,8 @@ class TestXCom:
                 session=session,
             )
 
-    @conf_vars({("core", "xcom_enable_pickling"): "True"})
-    def test_xcom_get_many(self, dag_run, session):
-        json_obj = {"key": "value"}
-        key = "xcom_test4"
-
-        XCom.set(
-            key=key,
-            value=json_obj,
-            dag_id=dag_run.dag_id,
-            task_id="test_task4",
-            run_id=dag_run.run_id,
-            session=session,
-        )
-
-        XCom.set(
-            key=key,
-            value=json_obj,
-            dag_id=dag_run.dag_id,
-            task_id="test_task5",
-            run_id=dag_run.run_id,
-            session=session,
-        )
-
-        results = XCom.get_many(key=key, run_id=dag_run.run_id, session=session)
-
-        for result in results:
-            assert result.value == json_obj
-
     @mock.patch("airflow.models.xcom.XCom.orm_deserialize_value")
     def test_xcom_init_on_load_uses_orm_deserialize_value(self, mock_orm_deserialize):
-
         instance = BaseXCom(
             key="key",
             value="value",
@@ -211,29 +146,231 @@ class TestXCom:
             task_id="task_id",
             dag_id="dag_id",
         )
-
         instance.init_on_load()
         mock_orm_deserialize.assert_called_once_with()
 
     @conf_vars({("core", "xcom_backend"): "tests.models.test_xcom.CustomXCom"})
-    def test_get_one_doesnt_use_orm_deserialize_value(self, dag_run, session):
+    def test_get_one_custom_backend_no_use_orm_deserialize_value(self, dag_run, session):
         """Test that XCom.get_one does not call orm_deserialize_value"""
-        json_obj = {"key": "value"}
-        task_id = "test_task"
-
         XCom = resolve_xcom_backend()
         XCom.set(
             key=XCOM_RETURN_KEY,
-            value=json_obj,
+            value={"key": "value"},
             dag_id=dag_run.dag_id,
-            task_id=task_id,
+            task_id="test_task",
             run_id=dag_run.run_id,
             session=session,
         )
 
-        value = XCom.get_one(dag_id=dag_run.dag_id, task_id=task_id, run_id=dag_run.run_id, session=session)
+        value = XCom.get_one(
+            dag_id=dag_run.dag_id,
+            task_id="test_task",
+            run_id=dag_run.run_id,
+            session=session,
+        )
+        assert value == {"key": "value"}
+        XCom.orm_deserialize_value.assert_not_called()
 
-        assert value == json_obj
+
+class TestXComGet:
+    @pytest.fixture(
+        autouse=True,
+        params=[
+            pytest.param("true", id="enable_xcom_pickling=true"),
+            pytest.param("false", id="enable_xcom_pickling=false"),
+        ],
+    )
+    def setup_xcom(self, request):
+        with conf_vars({("core", "enable_xcom_pickling"): str(request.param)}):
+            yield
+
+    @pytest.fixture()
+    def push_simple_json_xcom(self, session):
+        def func(*, dag_run: DagRun, task_id: str, key: str, value):
+            return XCom.set(
+                key=key,
+                value=value,
+                dag_id=dag_run.dag_id,
+                task_id=task_id,
+                run_id=dag_run.run_id,
+                session=session,
+            )
+
+        return func
+
+    @pytest.fixture()
+    def setup_for_xcom_get_one(self, dag_run, push_simple_json_xcom):
+        push_simple_json_xcom(dag_run=dag_run, task_id="task_id_1", key="xcom_1", value={"key": "value"})
+
+    @pytest.mark.usefixtures("setup_for_xcom_get_one")
+    def test_xcom_get_one(self, session, dag_run):
+        stored_value = XCom.get_one(
+            key="xcom_1",
+            dag_id=dag_run.dag_id,
+            task_id="task_id_1",
+            run_id=dag_run.run_id,
+            session=session,
+        )
+        assert stored_value == {"key": "value"}
+
+    @pytest.mark.usefixtures("setup_for_xcom_get_one")
+    def test_xcom_get_one_with_execution_date(self, session, dag_run):
+        with pytest.deprecated_call():
+            stored_value = XCom.get_one(
+                key="xcom_1",
+                dag_id=dag_run.dag_id,
+                task_id="task_id_1",
+                execution_date=dag_run.logical_date,
+                session=session,
+            )
+        assert stored_value == {"key": "value"}
+
+    @pytest.fixture()
+    def dag_runs_for_xcom_get_one_from_prior_date(self, dag_run_factory, push_simple_json_xcom):
+        date1 = timezone.datetime(2021, 12, 3, 4, 56)
+        dr1 = dag_run_factory(dag_id="dag", execution_date=date1)
+        dr2 = dag_run_factory(dag_id="dag", execution_date=date1 + datetime.timedelta(days=1))
+
+        # The earlier run pushes an XCom, but not the later run, but the later
+        # run can get this earlier XCom with ``include_prior_dates``.
+        push_simple_json_xcom(dag_run=dr1, task_id="task_1", key="xcom_1", value={"key": "value"})
+
+        return dr1, dr2
+
+    def test_xcom_get_one_from_prior_date(self, session, dag_runs_for_xcom_get_one_from_prior_date):
+        _, dr2 = dag_runs_for_xcom_get_one_from_prior_date
+        retrieved_value = XCom.get_one(
+            run_id=dr2.run_id,
+            key="xcom_1",
+            task_id="task_1",
+            dag_id="dag",
+            include_prior_dates=True,
+            session=session,
+        )
+        assert retrieved_value == {"key": "value"}
+
+    def test_xcom_get_one_from_prior_with_execution_date(
+        self,
+        session,
+        dag_runs_for_xcom_get_one_from_prior_date,
+    ):
+        _, dr2 = dag_runs_for_xcom_get_one_from_prior_date
+        with pytest.deprecated_call():
+            retrieved_value = XCom.get_one(
+                execution_date=dr2.execution_date,
+                key="xcom_1",
+                task_id="task_1",
+                dag_id="dag",
+                include_prior_dates=True,
+                session=session,
+            )
+        assert retrieved_value == {"key": "value"}
+
+    @pytest.fixture()
+    def setup_for_xcom_get_many_single_argument_value(self, dag_run, push_simple_json_xcom):
+        push_simple_json_xcom(dag_run=dag_run, task_id="task_id_1", key="xcom_1", value={"key": "value"})
+
+    @pytest.mark.usefixtures("setup_for_xcom_get_many_single_argument_value")
+    def test_xcom_get_many_single_argument_value(self, session, dag_run):
+        stored_xcoms = XCom.get_many(
+            key="xcom_1",
+            dag_ids=dag_run.dag_id,
+            task_ids="task_id_1",
+            run_id=dag_run.run_id,
+            session=session,
+        ).all()
+        assert len(stored_xcoms) == 1
+        assert stored_xcoms[0].key == "xcom_1"
+        assert stored_xcoms[0].value == {"key": "value"}
+
+    @pytest.mark.usefixtures("setup_for_xcom_get_many_single_argument_value")
+    def test_xcom_get_many_single_argument_value_with_execution_date(self, session, dag_run):
+        with pytest.deprecated_call():
+            stored_xcoms = XCom.get_many(
+                execution_date=dag_run.logical_date,
+                key="xcom_1",
+                dag_ids=dag_run.dag_id,
+                task_ids="task_id_1",
+                session=session,
+            ).all()
+        assert len(stored_xcoms) == 1
+        assert stored_xcoms[0].key == "xcom_1"
+        assert stored_xcoms[0].value == {"key": "value"}
+
+    @pytest.fixture()
+    def setup_for_xcom_get_many_multiple_tasks(self, dag_run, push_simple_json_xcom):
+        push_simple_json_xcom(dag_run=dag_run, key="xcom_1", value={"key1": "value1"}, task_id="task_id_1")
+        push_simple_json_xcom(dag_run=dag_run, key="xcom_1", value={"key2": "value2"}, task_id="task_id_2")
+
+    @pytest.mark.usefixtures("setup_for_xcom_get_many_multiple_tasks")
+    def test_xcom_get_many_multiple_tasks(self, session, dag_run):
+        stored_xcoms = XCom.get_many(
+            key="xcom_1",
+            dag_ids=dag_run.dag_id,
+            task_ids=["task_id_1", "task_id_2"],
+            run_id=dag_run.run_id,
+            session=session,
+        )
+        sorted_values = [x.value for x in sorted(stored_xcoms, key=operator.attrgetter("task_id"))]
+        assert sorted_values == [{"key1": "value1"}, {"key2": "value2"}]
+
+    @pytest.mark.usefixtures("setup_for_xcom_get_many_multiple_tasks")
+    def test_xcom_get_many_multiple_tasks_with_execution_date(self, session, dag_run):
+        with pytest.deprecated_call():
+            stored_xcoms = XCom.get_many(
+                execution_date=dag_run.logical_date,
+                key="xcom_1",
+                dag_ids=dag_run.dag_id,
+                task_ids=["task_id_1", "task_id_2"],
+                session=session,
+            )
+        sorted_values = [x.value for x in sorted(stored_xcoms, key=operator.attrgetter("task_id"))]
+        assert sorted_values == [{"key1": "value1"}, {"key2": "value2"}]
+
+    @pytest.fixture()
+    def dag_runs_for_xcom_get_many_from_prior_dates(self, dag_run_factory, push_simple_json_xcom):
+        date1 = timezone.datetime(2021, 12, 3, 4, 56)
+        date2 = date1 + datetime.timedelta(days=1)
+        dr1 = dag_run_factory(dag_id="dag", execution_date=date1)
+        dr2 = dag_run_factory(dag_id="dag", execution_date=date2)
+        push_simple_json_xcom(dag_run=dr1, task_id="task_1", key="xcom_1", value={"key1": "value1"})
+        push_simple_json_xcom(dag_run=dr2, task_id="task_1", key="xcom_1", value={"key2": "value2"})
+        return dr1, dr2
+
+    def test_xcom_get_many_from_prior_dates(self, session, dag_runs_for_xcom_get_many_from_prior_dates):
+        dr1, dr2 = dag_runs_for_xcom_get_many_from_prior_dates
+        stored_xcoms = XCom.get_many(
+            run_id=dr2.run_id,
+            key="xcom_1",
+            dag_ids="dag",
+            task_ids="task_1",
+            include_prior_dates=True,
+            session=session,
+        )
+
+        # The retrieved XComs should be ordered by logical date, latest first.
+        assert [x.value for x in stored_xcoms] == [{"key2": "value2"}, {"key1": "value1"}]
+        assert [x.execution_date for x in stored_xcoms] == [dr2.logical_date, dr1.logical_date]
+
+    def test_xcom_get_many_from_prior_dates_with_execution_date(
+        self,
+        session,
+        dag_runs_for_xcom_get_many_from_prior_dates,
+    ):
+        dr1, dr2 = dag_runs_for_xcom_get_many_from_prior_dates
+        with pytest.deprecated_call():
+            stored_xcoms = XCom.get_many(
+                execution_date=dr2.execution_date,
+                key="xcom_1",
+                dag_ids="dag",
+                task_ids="task_1",
+                include_prior_dates=True,
+                session=session,
+            )
+
+        # The retrieved XComs should be ordered by logical date, latest first.
+        assert [x.value for x in stored_xcoms] == [{"key2": "value2"}, {"key1": "value1"}]
+        assert [x.execution_date for x in stored_xcoms] == [dr2.logical_date, dr1.logical_date]
 
 
-# TODO: Add a test of `include_prior_dates` at all! And when given a run_id or a execution_date
+# TODO: Tests for set and clear (both run_id and execution_date).

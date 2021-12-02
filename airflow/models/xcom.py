@@ -21,7 +21,7 @@ import json
 import logging
 import pickle
 import warnings
-from typing import Any, Iterable, Optional, Union, overload
+from typing import TYPE_CHECKING, Any, Iterable, Optional, Type, Union, overload
 
 import pendulum
 from sqlalchemy import Column, LargeBinary, String
@@ -120,7 +120,7 @@ class BaseXCom(Base, LoggingMixin):
         *,
         run_id: Optional[str] = None,
         session: Session,
-    ):
+    ) -> None:
         """Store an XCom value.
 
         :param key: Key to store the value under.
@@ -148,8 +148,6 @@ class BaseXCom(Base, LoggingMixin):
             message = "Passing 'execution_date' to 'XCom.set()' is deprecated. Use 'run_id' instead."
             warnings.warn(message, DeprecationWarning, stacklevel=3)
 
-        value = XCom.serialize_value(value)
-
         # Remove duplicate XComs and insert a new one.
         session.query(cls).filter(
             cls.key == key,
@@ -157,7 +155,15 @@ class BaseXCom(Base, LoggingMixin):
             cls.task_id == task_id,
             cls.dag_id == dag_id,
         ).delete()
-        session.add(cls(key=key, value=value, execution_date=execution_date, task_id=task_id, dag_id=dag_id))
+        klass: Any = cls  # Work around Mypy complaining SQLAlchemy model init kawrgs.
+        new = klass(
+            key=key,
+            value=cls.serialize_value(value),
+            execution_date=execution_date,
+            task_id=task_id,
+            dag_id=dag_id,
+        )
+        session.add(new)
         session.flush()
 
     @overload
@@ -171,7 +177,7 @@ class BaseXCom(Base, LoggingMixin):
         dag_id: Optional[str] = None,
         include_prior_dates: bool = False,
         session: Optional[Session] = None,
-    ) -> Query:
+    ) -> Optional[Any]:
         ...
 
     @overload
@@ -185,7 +191,7 @@ class BaseXCom(Base, LoggingMixin):
         include_prior_dates: bool = False,
         *,
         session: Optional[Session] = None,
-    ) -> Query:
+    ) -> Optional[Any]:
         ...
 
     @classmethod
@@ -232,13 +238,8 @@ class BaseXCom(Base, LoggingMixin):
         if not (execution_date is None) ^ (run_id is None):
             raise ValueError("Exactly one of execution_date or run_id must be passed")
 
-        if execution_date:
-            message = "Passing 'execution_date' to 'XCom.get_one()' is deprecated. Use 'run_id' instead."
-            warnings.warn(message, DeprecationWarning, stacklevel=3)
-
-        result = (
-            cls.get_many(
-                execution_date=execution_date,
+        if run_id is not None:
+            query = cls.get_many(
                 run_id=run_id,
                 key=key,
                 task_ids=task_id,
@@ -246,9 +247,22 @@ class BaseXCom(Base, LoggingMixin):
                 include_prior_dates=include_prior_dates,
                 session=session,
             )
-            .with_entities(cls.value)
-            .first()
-        )
+        elif execution_date is not None:
+            message = "Passing 'execution_date' to 'XCom.get_one()' is deprecated. Use 'run_id' instead."
+            warnings.warn(message, DeprecationWarning, stacklevel=3)
+
+            query = cls.get_many(
+                execution_date=execution_date,
+                key=key,
+                task_ids=task_id,
+                dag_ids=dag_id,
+                include_prior_dates=include_prior_dates,
+                session=session,
+            )
+        else:
+            raise RuntimeError("Should not happen?")
+
+        result = query.with_entities(cls.value).first()
         if result:
             return cls.deserialize_value(result)
         return None
@@ -296,7 +310,7 @@ class BaseXCom(Base, LoggingMixin):
         limit: Optional[int] = None,
         *,
         session: Session,
-    ) -> Iterable["XCom"]:
+    ) -> Query:
         """Composes a query to get XCom values.
 
         An iterable of full XCom objects are returned. If you just want one
@@ -355,8 +369,8 @@ class BaseXCom(Base, LoggingMixin):
             if execution_date is not None:
                 query = query.filter(cls.execution_date <= execution_date)
             else:
-                dr = session.query(DagRun.execution_date).filter(DagRun.run_id == run_id).subquery
-                query = query.filter(cls.execution_date <= dr.execution_date)
+                dr = session.query(DagRun.execution_date).filter(DagRun.run_id == run_id).subquery()
+                query = query.filter(cls.execution_date <= dr.c.execution_date)
                 run_id = None
         elif execution_date is not None:
             query = query.filter(cls.execution_date == execution_date)
@@ -491,7 +505,7 @@ class BaseXCom(Base, LoggingMixin):
         return BaseXCom.deserialize_value(self)
 
 
-def resolve_xcom_backend():
+def resolve_xcom_backend() -> Type[BaseXCom]:
     """Resolves custom XCom class"""
     clazz = conf.getimport("core", "xcom_backend", fallback=f"airflow.models.xcom.{BaseXCom.__name__}")
     if clazz:
@@ -503,4 +517,7 @@ def resolve_xcom_backend():
     return BaseXCom
 
 
-XCom = resolve_xcom_backend()
+if TYPE_CHECKING:
+    XCom = BaseXCom  # Hack to avoid Mypy "Variable is not valid as a type".
+else:
+    XCom = resolve_xcom_backend()
