@@ -334,4 +334,4 @@ class RedisTest(unittest.TestCase):
             },
             show_only=["templates/redis/redis-statefulset.yaml"],
         )
-        assert jmespath.search("spec.template.spec.containers[0].securityContext", docs[0]) == 1001
+        assert jmespath.search("spec.template.spec.containers[0].securityContext.runAsUser", docs[0]) == 1001
