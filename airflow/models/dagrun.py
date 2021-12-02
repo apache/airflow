@@ -161,7 +161,8 @@ class DagRun(Base, LoggingMixin):
         self.start_date = start_date
         self.external_trigger = external_trigger
         self.conf = conf or {}
-        self.state = state
+        if state is not None:
+            self.state = state
         if queued_at is self.__NO_VALUE:
             self.queued_at = timezone.utcnow() if state == State.QUEUED else None
         else:
@@ -189,6 +190,8 @@ class DagRun(Base, LoggingMixin):
         return self._state
 
     def set_state(self, state: DagRunState):
+        if state not in State.dag_states:
+            raise ValueError(f"invalid DagRun state: {state}")
         if self._state != state:
             self._state = state
             self.end_date = timezone.utcnow() if self._state in State.finished else None

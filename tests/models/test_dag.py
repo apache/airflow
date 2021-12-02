@@ -1370,7 +1370,7 @@ class TestDag(unittest.TestCase):
 
     @parameterized.expand(
         [
-            (State.NONE,),
+            (State.QUEUED,),
             (State.RUNNING,),
         ]
     )
@@ -1455,7 +1455,7 @@ class TestDag(unittest.TestCase):
 
     @parameterized.expand(
         [
-            (State.NONE,),
+            (State.QUEUED,),
             (State.RUNNING,),
         ]
     )
@@ -1485,7 +1485,7 @@ class TestDag(unittest.TestCase):
 
     @parameterized.expand(
         [
-            (State.NONE,),
+            (State.QUEUED,),
             (State.RUNNING,),
         ]
     )
