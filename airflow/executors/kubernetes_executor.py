@@ -709,7 +709,7 @@ class KubernetesExecutor(BaseExecutor):
             kube_client.patch_namespaced_pod(
                 name=pod.metadata.name,
                 namespace=pod.metadata.namespace,
-                body=PodGenerator.serialize_pod(pod),
+                body={"metadata": {"labels": {"airflow-worker": pod.metadata.labels['airflow-worker']}}},
             )
             pod_ids.pop(pod_id)
             self.running.add(pod_id)
@@ -737,7 +737,7 @@ class KubernetesExecutor(BaseExecutor):
                 kube_client.patch_namespaced_pod(
                     name=pod.metadata.name,
                     namespace=pod.metadata.namespace,
-                    body=PodGenerator.serialize_pod(pod),
+                    body={"metadata": {"labels": {"airflow-worker": pod.metadata.labels['airflow-worker']}}},
                 )
             except ApiException as e:
                 self.log.info("Failed to adopt pod %s. Reason: %s", pod.metadata.name, e)
