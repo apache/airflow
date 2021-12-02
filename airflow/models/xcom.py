@@ -461,23 +461,21 @@ class BaseXCom(Base, LoggingMixin):
             raise TypeError("clear() missing required argument: dag_id")
         if not task_id:
             raise TypeError("clear() missing required argument: task_id")
-
         if not (execution_date is None) ^ (run_id is None):
             raise ValueError("Exactly one of execution_date or run_id must be passed")
 
-        query = session.query(cls).filter(
-            cls.dag_id == dag_id,
-            cls.task_id == task_id,
-        )
-
+        query = session.query(cls).filter(cls.dag_id == dag_id, cls.task_id == task_id)
         if execution_date is not None:
             message = "Passing 'execution_date' to 'XCom.clear()' is deprecated. Use 'run_id' instead."
             warnings.warn(message, DeprecationWarning, stacklevel=3)
             query = query.filter(cls.execution_date == execution_date)
+        elif run_id == IN_MEMORY_DAGRUN_ID:
+            query = query.filter(cls.execution_date == _DISTANT_FUTURE)
         else:
             from airflow.models.dagrun import DagRun
 
-            query = query.join(cls.dag_run).filter(DagRun.run_id == run_id)
+            execution_date = session.query(DagRun.execution_date).filter(DagRun.run_id == run_id).scalar()
+            query = query.filter(cls.execution_date == execution_date)
 
         return query.delete()
 

@@ -25,6 +25,7 @@ from airflow.configuration import conf
 from airflow.models.dagrun import DagRun, DagRunType
 from airflow.models.xcom import XCOM_RETURN_KEY, BaseXCom, XCom, resolve_xcom_backend
 from airflow.utils import timezone
+from airflow.utils.session import create_session
 from tests.test_utils.config import conf_vars
 
 
@@ -32,10 +33,15 @@ class CustomXCom(BaseXCom):
     orm_deserialize_value = mock.Mock()
 
 
+@pytest.fixture(scope="module", autouse=True)
+def reset_db():
+    """Delete XCom entries left over by other test modules before we start."""
+    with create_session() as session:
+        session.query(XCom).delete()
+
+
 @pytest.fixture()
 def dag_run_factory(session):
-    runs = []
-
     def func(dag_id, execution_date):
         run = DagRun(
             dag_id=dag_id,
@@ -45,13 +51,9 @@ def dag_run_factory(session):
         )
         session.add(run)
         session.flush()
-        runs.append(run)
         return run
 
     yield func
-
-    for run in runs:
-        session.delete(run)
     session.flush()
 
 
@@ -172,32 +174,34 @@ class TestXCom:
         XCom.orm_deserialize_value.assert_not_called()
 
 
+@pytest.fixture(
+    params=[
+        pytest.param("true", id="enable_xcom_pickling=true"),
+        pytest.param("false", id="enable_xcom_pickling=false"),
+    ],
+)
+def setup_xcom_pickling(request):
+    with conf_vars({("core", "enable_xcom_pickling"): str(request.param)}):
+        yield
+
+
+@pytest.fixture()
+def push_simple_json_xcom(session):
+    def func(*, dag_run: DagRun, task_id: str, key: str, value):
+        return XCom.set(
+            key=key,
+            value=value,
+            dag_id=dag_run.dag_id,
+            task_id=task_id,
+            run_id=dag_run.run_id,
+            session=session,
+        )
+
+    return func
+
+
+@pytest.mark.usefixtures("setup_xcom_pickling")
 class TestXComGet:
-    @pytest.fixture(
-        autouse=True,
-        params=[
-            pytest.param("true", id="enable_xcom_pickling=true"),
-            pytest.param("false", id="enable_xcom_pickling=false"),
-        ],
-    )
-    def setup_xcom(self, request):
-        with conf_vars({("core", "enable_xcom_pickling"): str(request.param)}):
-            yield
-
-    @pytest.fixture()
-    def push_simple_json_xcom(self, session):
-        def func(*, dag_run: DagRun, task_id: str, key: str, value):
-            return XCom.set(
-                key=key,
-                value=value,
-                dag_id=dag_run.dag_id,
-                task_id=task_id,
-                run_id=dag_run.run_id,
-                session=session,
-            )
-
-        return func
-
     @pytest.fixture()
     def setup_for_xcom_get_one(self, dag_run, push_simple_json_xcom):
         push_simple_json_xcom(dag_run=dag_run, task_id="task_id_1", key="xcom_1", value={"key": "value"})
@@ -373,4 +377,118 @@ class TestXComGet:
         assert [x.execution_date for x in stored_xcoms] == [dr2.logical_date, dr1.logical_date]
 
 
-# TODO: Tests for set and clear (both run_id and execution_date).
+@pytest.mark.usefixtures("setup_xcom_pickling")
+class TestXComSet:
+    def test_xcom_set(self, session, dag_run):
+        XCom.set(
+            key="xcom_1",
+            value={"key": "value"},
+            dag_id=dag_run.dag_id,
+            task_id="task_1",
+            run_id=dag_run.run_id,
+            session=session,
+        )
+        stored_xcoms = session.query(XCom).all()
+        assert stored_xcoms[0].key == "xcom_1"
+        assert stored_xcoms[0].value == {"key": "value"}
+        assert stored_xcoms[0].dag_id == "dag"
+        assert stored_xcoms[0].task_id == "task_1"
+        assert stored_xcoms[0].execution_date == dag_run.logical_date
+
+    def test_xcom_set_with_execution_date(self, session, dag_run):
+        with pytest.deprecated_call():
+            XCom.set(
+                key="xcom_1",
+                value={"key": "value"},
+                dag_id=dag_run.dag_id,
+                task_id="task_1",
+                execution_date=dag_run.execution_date,
+                session=session,
+            )
+        stored_xcoms = session.query(XCom).all()
+        assert stored_xcoms[0].key == "xcom_1"
+        assert stored_xcoms[0].value == {"key": "value"}
+        assert stored_xcoms[0].dag_id == "dag"
+        assert stored_xcoms[0].task_id == "task_1"
+        assert stored_xcoms[0].execution_date == dag_run.logical_date
+
+    @pytest.fixture()
+    def setup_for_xcom_set_again_replace(self, dag_run, push_simple_json_xcom):
+        push_simple_json_xcom(dag_run=dag_run, task_id="task_1", key="xcom_1", value={"key1": "value1"})
+
+    @pytest.mark.usefixtures("setup_for_xcom_set_again_replace")
+    def test_xcom_set_again_replace(self, session, dag_run):
+        assert session.query(XCom).one().value == {"key1": "value1"}
+        XCom.set(
+            key="xcom_1",
+            value={"key2": "value2"},
+            dag_id=dag_run.dag_id,
+            task_id="task_1",
+            run_id=dag_run.run_id,
+            session=session,
+        )
+        assert session.query(XCom).one().value == {"key2": "value2"}
+
+    @pytest.mark.usefixtures("setup_for_xcom_set_again_replace")
+    def test_xcom_set_again_replace_with_execution_date(self, session, dag_run):
+        assert session.query(XCom).one().value == {"key1": "value1"}
+        with pytest.deprecated_call():
+            XCom.set(
+                key="xcom_1",
+                value={"key2": "value2"},
+                dag_id=dag_run.dag_id,
+                task_id="task_1",
+                execution_date=dag_run.logical_date,
+                session=session,
+            )
+        assert session.query(XCom).one().value == {"key2": "value2"}
+
+
+@pytest.mark.usefixtures("setup_xcom_pickling")
+class TestXComClear:
+    @pytest.fixture()
+    def setup_for_xcom_clear(self, dag_run, push_simple_json_xcom):
+        push_simple_json_xcom(dag_run=dag_run, task_id="task_1", key="xcom_1", value={"key": "value"})
+
+    @pytest.mark.usefixtures("setup_for_xcom_clear")
+    def test_xcom_clear(self, session, dag_run):
+        assert session.query(XCom).count() == 1
+        XCom.clear(
+            dag_id=dag_run.dag_id,
+            task_id="task_1",
+            run_id=dag_run.run_id,
+            session=session,
+        )
+        assert session.query(XCom).count() == 0
+
+    @pytest.mark.usefixtures("setup_for_xcom_clear")
+    def test_xcom_clear_with_execution_date(self, session, dag_run):
+        assert session.query(XCom).count() == 1
+        with pytest.deprecated_call():
+            XCom.clear(
+                dag_id=dag_run.dag_id,
+                task_id="task_1",
+                execution_date=dag_run.execution_date,
+                session=session,
+            )
+        assert session.query(XCom).count() == 0
+
+    @pytest.mark.usefixtures("setup_for_xcom_clear")
+    def test_xcom_clear_different_run(self, session, dag_run):
+        XCom.clear(
+            dag_id=dag_run.dag_id,
+            task_id="task_1",
+            run_id="different_run",
+            session=session,
+        )
+        assert session.query(XCom).count() == 1
+
+    @pytest.mark.usefixtures("setup_for_xcom_clear")
+    def test_xcom_clear_different_execution_date(self, session, dag_run):
+        XCom.clear(
+            dag_id=dag_run.dag_id,
+            task_id="task_1",
+            execution_date=timezone.utcnow(),
+            session=session,
+        )
+        assert session.query(XCom).count() == 1
