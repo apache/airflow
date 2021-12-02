@@ -385,13 +385,15 @@ class BaseXCom(Base, LoggingMixin):
             if execution_date is not None:
                 query = query.filter(cls.execution_date <= execution_date)
             else:
+                # This returns an empty query result for IN_MEMORY_DAGRUN_ID,
+                # but that is impossible to implement. Sorry?
                 dr = session.query(DagRun.execution_date).filter(DagRun.run_id == run_id).subquery()
                 query = query.filter(cls.execution_date <= dr.c.execution_date)
-                run_id = None
         elif execution_date is not None:
             query = query.filter(cls.execution_date == execution_date)
-
-        if run_id:
+        elif run_id == IN_MEMORY_DAGRUN_ID:
+            query = query.filter(cls.execution_date == _DISTANT_FUTURE)
+        else:
             query = query.join(cls.dag_run).filter(DagRun.run_id == run_id)
 
         query = query.order_by(cls.execution_date.desc(), cls.timestamp.desc())
