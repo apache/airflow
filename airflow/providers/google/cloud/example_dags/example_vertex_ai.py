@@ -25,7 +25,6 @@ This DAG relies on the following OS environment variables:
 * GCP_BUCKET_NAME - Google Cloud Storage bucket where the file exists.
 """
 import os
-from random import randint
 from uuid import uuid4
 
 from airflow import models
@@ -38,28 +37,22 @@ from airflow.providers.google.cloud.operators.vertex_ai.dataset import (
     CreateDatasetOperator,
     DeleteDatasetOperator,
     ExportDataOperator,
+    GetDatasetOperator,
     ImportDataOperator,
     ListDatasetsOperator,
     UpdateDatasetOperator,
 )
 from airflow.utils.dates import days_ago
 
-# from google.cloud import aiplatform
-
-
 PROJECT_ID = os.environ.get("GCP_PROJECT_ID", "an-id")
 REGION = os.environ.get("GCP_LOCATION", "us-central1")
 BUCKET = os.environ.get("GCP_VERTEX_AI_BUCKET", "vertex-ai-system-tests")
 
 STAGING_BUCKET = f"gs://{BUCKET}"
-BASE_OUTPUT_DIR = f"{STAGING_BUCKET}/models"
 DISPLAY_NAME = str(uuid4())  # Create random display name
-DISPLAY_NAME_2 = str(uuid4())
-DISPLAY_NAME_3 = str(uuid4())
-DISPLAY_NAME_4 = str(uuid4())
-ARGS = ["--tfds", "tf_flowers:3.*.*"]
 CONTAINER_URI = "gcr.io/cloud-aiplatform/training/tf-cpu.2-2:latest"
-RESOURCE_ID = str(randint(10000000, 99999999))  # Create random resource ID
+CUSTOM_CONTAINER_URI = os.environ.get("CUSTOM_CONTAINER_URI", "path_to_container_with_model")
+MODEL_SERVING_CONTAINER_URI = "gcr.io/cloud-aiplatform/prediction/tf2-cpu.2-2:latest"
 REPLICA_COUNT = 1
 MACHINE_TYPE = "n1-standard-4"
 ACCELERATOR_TYPE = "ACCELERATOR_TYPE_UNSPECIFIED"
@@ -67,15 +60,11 @@ ACCELERATOR_COUNT = 0
 TRAINING_FRACTION_SPLIT = 0.7
 TEST_FRACTION_SPLIT = 0.15
 VALIDATION_FRACTION_SPLIT = 0.15
-# This example uses an ImageDataset, but you can use another type
-# DATASET =  aiplatform.ImageDataset(RESOURCE_ID) if RESOURCE_ID else None
-COMMAND = ['python3', 'run_script.py']
-COMMAND_2 = ['echo', 'Hello World']
-GCS_DESTINATION = f"gs://{BUCKET}/output-dir/"
-PYTHON_PACKAGE = "/files/trainer-0.1.tar.gz"
-PYTHON_PACKAGE_CMDARGS = f"--model-dir={GCS_DESTINATION}"
-PYTHON_PACKAGE_GCS_URI = "gs://test-vertex-ai-bucket/trainer-0.1.tar.gz"
-PYTHON_MODULE_NAME = "trainer.task"
+
+PYTHON_PACKAGE_GCS_URI = os.environ.get("PYTHON_PACKAGE_GSC_URI", "path_to_test_model_in_arch")
+PYTHON_MODULE_NAME = "aiplatform_custom_trainer_script.task"
+
+LOCAL_TRAINING_SCRIPT_PATH = os.environ.get("LOCAL_TRAINING_SCRIPT_PATH", "path_to_training_script")
 
 IMAGE_DATASET = {
     "display_name": str(uuid4()),
@@ -102,22 +91,23 @@ TIME_SERIES_DATASET = {
     "metadata_schema_uri": "gs://google-cloud-aiplatform/schema/dataset/metadata/time_series_1.0.0.yaml",
     "metadata": "test-video-dataset",
 }
-DATASET_ID = "3255741890774958080"
+DATASET_ID = os.environ.get("DATASET_ID", "test-dataset-id")
 TEST_EXPORT_CONFIG = {"gcs_destination": {"output_uri_prefix": "gs://test-vertex-ai-bucket/exports"}}
 TEST_IMPORT_CONFIG = [
     {
         "data_item_labels": {
             "test-labels-name": "test-labels-value",
         },
-        "import_schema_uri": "gs://google-cloud-aiplatform/schema/dataset/ioformat/image_bounding_box_io_format_1.0.0.yaml",
+        "import_schema_uri": (
+            "gs://google-cloud-aiplatform/schema/dataset/ioformat/image_bounding_box_io_format_1.0.0.yaml"
+        ),
         "gcs_source": {
             "uris": ["gs://ucaip-test-us-central1/dataset/salads_oid_ml_use_public_unassigned.jsonl"]
         },
     },
 ]
-TEST_UPDATE_MASK = {
-    "paths": "display_name",
-}
+DATASET_TO_UPDATE = {"display_name": "test-name"}
+TEST_UPDATE_MASK = {"paths": ["displayName"]}
 
 with models.DAG(
     "example_gcp_vertex_ai_custom_jobs",
@@ -128,12 +118,13 @@ with models.DAG(
     create_custom_container_training_job = CreateCustomContainerTrainingJobOperator(
         task_id="custom_container_task",
         staging_bucket=STAGING_BUCKET,
-        display_name=DISPLAY_NAME,
-        args=ARGS,
-        container_uri=CONTAINER_URI,
-        model_serving_container_image_uri=CONTAINER_URI,
-        command=COMMAND_2,
-        model_display_name=DISPLAY_NAME_2,
+        display_name=f"train-housing-container-{DISPLAY_NAME}",
+        container_uri=CUSTOM_CONTAINER_URI,
+        model_serving_container_image_uri=MODEL_SERVING_CONTAINER_URI,
+        # run params
+        dataset_id=DATASET_ID,
+        command=["python3", "task.py"],
+        model_display_name=f"container-housing-model-{DISPLAY_NAME}",
         replica_count=REPLICA_COUNT,
         machine_type=MACHINE_TYPE,
         accelerator_type=ACCELERATOR_TYPE,
@@ -143,7 +134,6 @@ with models.DAG(
         test_fraction_split=TEST_FRACTION_SPLIT,
         region=REGION,
         project_id=PROJECT_ID,
-        base_output_dir=BASE_OUTPUT_DIR,
     )
     # [END how_to_cloud_vertex_ai_create_custom_container_training_job_operator]
 
@@ -151,13 +141,14 @@ with models.DAG(
     create_custom_python_package_training_job = CreateCustomPythonPackageTrainingJobOperator(
         task_id="python_package_task",
         staging_bucket=STAGING_BUCKET,
-        display_name=DISPLAY_NAME_3,
+        display_name=f"train-housing-py-package-{DISPLAY_NAME}",
         python_package_gcs_uri=PYTHON_PACKAGE_GCS_URI,
         python_module_name=PYTHON_MODULE_NAME,
         container_uri=CONTAINER_URI,
-        args=ARGS,
-        model_serving_container_image_uri=CONTAINER_URI,
-        model_display_name=DISPLAY_NAME_4,
+        model_serving_container_image_uri=MODEL_SERVING_CONTAINER_URI,
+        # run params
+        dataset_id=DATASET_ID,
+        model_display_name=f"py-package-housing-model-{DISPLAY_NAME}",
         replica_count=REPLICA_COUNT,
         machine_type=MACHINE_TYPE,
         accelerator_type=ACCELERATOR_TYPE,
@@ -174,13 +165,16 @@ with models.DAG(
     create_custom_training_job = CreateCustomTrainingJobOperator(
         task_id="custom_task",
         staging_bucket=STAGING_BUCKET,
-        display_name=DISPLAY_NAME,
-        script_path=PYTHON_PACKAGE,
-        args=PYTHON_PACKAGE_CMDARGS,
+        display_name=f"train-housing-custom-{DISPLAY_NAME}",
+        script_path=LOCAL_TRAINING_SCRIPT_PATH,
         container_uri=CONTAINER_URI,
-        model_serving_container_image_uri=CONTAINER_URI,
-        requirements=[],
+        requirements=["gcsfs==0.7.1"],
+        model_serving_container_image_uri=MODEL_SERVING_CONTAINER_URI,
+        # run params
+        dataset_id=DATASET_ID,
         replica_count=1,
+        model_display_name=f"custom-housing-model-{DISPLAY_NAME}",
+        sync=False,
         region=REGION,
         project_id=PROJECT_ID,
     )
@@ -224,19 +218,28 @@ with models.DAG(
     )
     # [END how_to_cloud_vertex_ai_create_dataset_operator]
 
-    # # [START how_to_cloud_vertex_ai_delete_dataset_operator]
+    # [START how_to_cloud_vertex_ai_delete_dataset_operator]
     delete_dataset_job = DeleteDatasetOperator(
         task_id="delete_dataset",
-        dataset_id=DATASET_ID,
+        dataset_id=create_text_dataset_job.output['dataset_id'],
         region=REGION,
         project_id=PROJECT_ID,
     )
     # [END how_to_cloud_vertex_ai_delete_dataset_operator]
 
+    # [START how_to_cloud_vertex_ai_get_dataset_operator]
+    get_dataset = GetDatasetOperator(
+        task_id="get_dataset",
+        project_id=PROJECT_ID,
+        region=REGION,
+        dataset_id=create_tabular_dataset_job.output['dataset_id'],
+    )
+    # [END how_to_cloud_vertex_ai_get_dataset_operator]
+
     # [START how_to_cloud_vertex_ai_export_data_operator]
     export_data_job = ExportDataOperator(
         task_id="export_data",
-        dataset_id="7732319920381231104",
+        dataset_id=create_image_dataset_job.output['dataset_id'],
         region=REGION,
         project_id=PROJECT_ID,
         export_config=TEST_EXPORT_CONFIG,
@@ -246,7 +249,7 @@ with models.DAG(
     # [START how_to_cloud_vertex_ai_import_data_operator]
     import_data_job = ImportDataOperator(
         task_id="import_data",
-        dataset_id="7732319920381231104",
+        dataset_id=create_image_dataset_job.output['dataset_id'],
         region=REGION,
         project_id=PROJECT_ID,
         import_configs=TEST_IMPORT_CONFIG,
@@ -264,8 +267,17 @@ with models.DAG(
     # [START how_to_cloud_vertex_ai_update_dataset_operator]
     update_dataset_job = UpdateDatasetOperator(
         task_id="update_dataset",
+        project_id=PROJECT_ID,
         region=REGION,
-        dataset=TEXT_DATASET,
+        dataset_id=create_video_dataset_job.output['dataset_id'],
+        dataset=DATASET_TO_UPDATE,
         update_mask=TEST_UPDATE_MASK,
     )
     # [END how_to_cloud_vertex_ai_update_dataset_operator]
+
+    create_time_series_dataset_job
+    create_text_dataset_job >> delete_dataset_job
+    create_tabular_dataset_job >> get_dataset
+    create_image_dataset_job >> import_data_job >> export_data_job
+    create_video_dataset_job >> update_dataset_job
+    list_dataset_job

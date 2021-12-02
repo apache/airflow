@@ -18,7 +18,7 @@
 #
 """This module contains a Google Cloud Vertex AI hook."""
 
-from typing import Optional, Sequence, Tuple
+from typing import Dict, Optional, Sequence, Tuple
 
 from google.api_core.operation import Operation
 from google.api_core.retry import Retry
@@ -55,6 +55,11 @@ class DatasetHook(GoogleBaseHook):
         except Exception:
             error = operation.exception(timeout=timeout)
             raise AirflowException(error)
+
+    @staticmethod
+    def extract_dataset_id(obj: Dict) -> str:
+        """Returns unique id of the dataset."""
+        return obj["name"].rpartition("/")[-1]
 
     @GoogleBaseHook.fallback_to_default_project_id
     def create_dataset(
@@ -493,7 +498,9 @@ class DatasetHook(GoogleBaseHook):
 
     def update_dataset(
         self,
+        project_id: str,
         region: str,
+        dataset_id: str,
         dataset: Dataset,
         update_mask: FieldMask,
         retry: Optional[Retry] = None,
@@ -503,8 +510,12 @@ class DatasetHook(GoogleBaseHook):
         """
         Updates a Dataset.
 
+        :param project_id: Required. The ID of the Google Cloud project that the service belongs to.
+        :type project_id: str
         :param region: Required. The ID of the Google Cloud region that the service belongs to.
         :type region: str
+        :param dataset_id: Required. The ID of the Dataset.
+        :type dataset_id: str
         :param dataset:  Required. The Dataset which replaces the resource on the server.
         :type dataset: google.cloud.aiplatform_v1.types.Dataset
         :param update_mask:  Required. The update mask applies to the resource. For the ``FieldMask``
@@ -522,6 +533,7 @@ class DatasetHook(GoogleBaseHook):
         :type metadata: Sequence[Tuple[str, str]]
         """
         client = self.get_dataset_service_client(region)
+        dataset["name"] = client.dataset_path(project_id, region, dataset_id)
 
         result = client.update_dataset(
             request={

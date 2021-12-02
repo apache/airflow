@@ -253,7 +253,9 @@ class TestVertexAIWithDefaultProjectIdHook(TestCase):
     @mock.patch(DATASET_STRING.format("DatasetHook.get_dataset_service_client"))
     def test_update_dataset(self, mock_client) -> None:
         self.hook.update_dataset(
+            project_id=TEST_PROJECT_ID,
             region=TEST_REGION,
+            dataset_id=TEST_DATASET_ID,
             dataset=TEST_DATASET,
             update_mask=TEST_UPDATE_MASK,
         )
@@ -266,6 +268,9 @@ class TestVertexAIWithDefaultProjectIdHook(TestCase):
             metadata=None,
             retry=None,
             timeout=None,
+        )
+        mock_client.return_value.dataset_path.assert_called_once_with(
+            TEST_PROJECT_ID, TEST_REGION, TEST_DATASET_ID
         )
 
 
@@ -478,7 +483,9 @@ class TestVertexAIWithoutDefaultProjectIdHook(TestCase):
     @mock.patch(DATASET_STRING.format("DatasetHook.get_dataset_service_client"))
     def test_update_dataset(self, mock_client) -> None:
         self.hook.update_dataset(
+            project_id=TEST_PROJECT_ID,
             region=TEST_REGION,
+            dataset_id=TEST_DATASET_ID,
             dataset=TEST_DATASET,
             update_mask=TEST_UPDATE_MASK,
         )
@@ -491,4 +498,7 @@ class TestVertexAIWithoutDefaultProjectIdHook(TestCase):
             metadata=None,
             retry=None,
             timeout=None,
+        )
+        mock_client.return_value.dataset_path.assert_called_once_with(
+            TEST_PROJECT_ID, TEST_REGION, TEST_DATASET_ID
         )

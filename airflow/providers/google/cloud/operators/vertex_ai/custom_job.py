@@ -21,10 +21,54 @@
 from typing import Dict, List, Optional, Sequence, Tuple, Union
 
 from google.api_core.retry import Retry
-from google.cloud.aiplatform import datasets
+from google.cloud.aiplatform.models import Model
+from google.cloud.aiplatform_v1.types.dataset import Dataset
 
-from airflow.models import BaseOperator
+from airflow.models import BaseOperator, BaseOperatorLink
+from airflow.models.taskinstance import TaskInstance
 from airflow.providers.google.cloud.hooks.vertex_ai.custom_job import CustomJobHook
+
+VERTEX_AI_BASE_LINK = "https://console.cloud.google.com/vertex-ai"
+VERTEX_AI_MODEL_LINK = (
+    VERTEX_AI_BASE_LINK + "/locations/{region}/models/{model_id}/deploy?project={project_id}"
+)
+VERTEX_AI_TRAINING_PIPELINES_LINK = VERTEX_AI_BASE_LINK + "/training/training-pipelines?project={project_id}"
+
+
+class VertexAIModelLink(BaseOperatorLink):
+    """Helper class for constructing Vertex AI Model link"""
+
+    name = "Vertex AI Model"
+
+    def get_link(self, operator, dttm):
+        ti = TaskInstance(task=operator, execution_date=dttm)
+        model_conf = ti.xcom_pull(task_ids=operator.task_id, key="model_conf")
+        return (
+            VERTEX_AI_MODEL_LINK.format(
+                region=model_conf["region"],
+                model_id=model_conf["model_id"],
+                project_id=model_conf["project_id"],
+            )
+            if model_conf
+            else ""
+        )
+
+
+class VertexAITrainingPipelinesLink(BaseOperatorLink):
+    """Helper class for constructing Vertex AI Training Pipelines link"""
+
+    name = "Vertex AI Training Pipelines"
+
+    def get_link(self, operator, dttm):
+        ti = TaskInstance(task=operator, execution_date=dttm)
+        project_id = ti.xcom_pull(task_ids=operator.task_id, key="project_id")
+        return (
+            VERTEX_AI_TRAINING_PIPELINES_LINK.format(
+                project_id=project_id,
+            )
+            if project_id
+            else ""
+        )
 
 
 class _CustomTrainingJobBaseOperator(BaseOperator):
@@ -53,14 +97,7 @@ class _CustomTrainingJobBaseOperator(BaseOperator):
         model_encryption_spec_key_name: Optional[str] = None,
         staging_bucket: Optional[str] = None,
         # RUN
-        dataset: Optional[
-            Union[
-                datasets.ImageDataset,
-                datasets.TabularDataset,
-                datasets.TextDataset,
-                datasets.VideoDataset,
-            ]
-        ] = None,
+        dataset_id: Optional[str] = None,
         annotation_schema_uri: Optional[str] = None,
         model_display_name: Optional[str] = None,
         model_labels: Optional[Dict[str, str]] = None,
@@ -113,7 +150,7 @@ class _CustomTrainingJobBaseOperator(BaseOperator):
         self.staging_bucket = staging_bucket
         # END Custom
         # START Run param
-        self.dataset = dataset
+        self.dataset = Dataset(name=dataset_id) if dataset_id else None
         self.annotation_schema_uri = annotation_schema_uri
         self.model_display_name = model_display_name
         self.model_labels = model_labels
@@ -167,6 +204,7 @@ class CreateCustomContainerTrainingJobOperator(_CustomTrainingJobBaseOperator):
         'command',
         'impersonation_chain',
     ]
+    operator_extra_links = (VertexAIModelLink(),)
 
     def __init__(
         self,
@@ -227,7 +265,17 @@ class CreateCustomContainerTrainingJobOperator(_CustomTrainingJobBaseOperator):
             tensorboard=self.tensorboard,
             sync=True,
         )
-        return model
+        model_id = self.hook.extract_model_id(model)
+        self.xcom_push(
+            context,
+            key="model_conf",
+            value={
+                "model_id": model_id,
+                "region": self.region,
+                "project_id": self.project_id,
+            },
+        )
+        return Model.to_dict(model)
 
 
 class CreateCustomPythonPackageTrainingJobOperator(_CustomTrainingJobBaseOperator):
@@ -237,6 +285,7 @@ class CreateCustomPythonPackageTrainingJobOperator(_CustomTrainingJobBaseOperato
         'region',
         'impersonation_chain',
     ]
+    operator_extra_links = (VertexAIModelLink(),)
 
     def __init__(
         self,
@@ -300,7 +349,18 @@ class CreateCustomPythonPackageTrainingJobOperator(_CustomTrainingJobBaseOperato
             tensorboard=self.tensorboard,
             sync=True,
         )
-        return model
+
+        model_id = self.hook.extract_model_id(model)
+        self.xcom_push(
+            context,
+            key="model_conf",
+            value={
+                "model_id": model_id,
+                "region": self.region,
+                "project_id": self.project_id,
+            },
+        )
+        return Model.to_dict(model)
 
 
 class CreateCustomTrainingJobOperator(_CustomTrainingJobBaseOperator):
@@ -312,6 +372,7 @@ class CreateCustomTrainingJobOperator(_CustomTrainingJobBaseOperator):
         'requirements',
         'impersonation_chain',
     ]
+    operator_extra_links = (VertexAIModelLink(),)
 
     def __init__(
         self,
@@ -375,7 +436,18 @@ class CreateCustomTrainingJobOperator(_CustomTrainingJobBaseOperator):
             tensorboard=self.tensorboard,
             sync=True,
         )
-        return model
+
+        model_id = self.hook.extract_model_id(model)
+        self.xcom_push(
+            context,
+            key="model_conf",
+            value={
+                "model_id": model_id,
+                "region": self.region,
+                "project_id": self.project_id,
+            },
+        )
+        return Model.to_dict(model)
 
 
 class DeleteCustomTrainingJobOperator(BaseOperator):
@@ -431,7 +503,14 @@ class DeleteCustomTrainingJobOperator(BaseOperator):
 class ListCustomTrainingJobOperator(BaseOperator):
     """Lists CustomTrainingJob, CustomPythonTrainingJob, or CustomContainerTrainingJob in a Location."""
 
-    template_fields = ("region", "project_id", "impersonation_chain")
+    template_fields = [
+        "region",
+        "project_id",
+        "impersonation_chain",
+    ]
+    operator_extra_links = [
+        VertexAITrainingPipelinesLink(),
+    ]
 
     def __init__(
         self,
@@ -475,3 +554,4 @@ class ListCustomTrainingJobOperator(BaseOperator):
             timeout=self.timeout,
             metadata=self.metadata,
         )
+        self.xcom_push(context, key="project_id", value=self.project_id)

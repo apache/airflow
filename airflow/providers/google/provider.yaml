@@ -817,6 +817,8 @@ extra-links:
   - airflow.providers.google.cloud.operators.mlengine.AIPlatformConsoleLink
   - airflow.providers.google.cloud.operators.dataproc.DataprocJobLink
   - airflow.providers.google.cloud.operators.dataproc.DataprocClusterLink
+  - airflow.providers.google.cloud.operators.vertex_ai.custom_job.VertexAIModelLink
+  - airflow.providers.google.cloud.operators.vertex_ai.custom_job.VertexAITrainingPipelinesLink
 
 additional-extras:
   apache.beam: apache-beam[gcp]

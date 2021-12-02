@@ -217,6 +217,11 @@ class CustomJobHook(GoogleBaseHook):
             staging_bucket=staging_bucket,
         )
 
+    @staticmethod
+    def extract_model_id(obj: Dict) -> str:
+        """Returns unique id of the Model."""
+        return obj["name"].rpartition("/")[-1]
+
     def wait_for_operation(self, timeout: float, operation: Operation):
         """Waits for long-lasting operation to complete."""
         try:
@@ -267,7 +272,6 @@ class CustomJobHook(GoogleBaseHook):
         sync=True,
     ) -> Model:
         """Run Job for training pipeline"""
-        self.log.info("START RUN JOB")
         model = job.run(
             dataset=dataset,
             annotation_schema_uri=annotation_schema_uri,
@@ -296,9 +300,7 @@ class CustomJobHook(GoogleBaseHook):
             tensorboard=tensorboard,
             sync=sync,
         )
-        self.log.info(f"END RUN JOB. {model}")
         model.wait()
-        self.log.info("STOP WAIT")
         return model
 
     @GoogleBaseHook.fallback_to_default_project_id

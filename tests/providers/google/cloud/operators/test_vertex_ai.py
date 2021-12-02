@@ -116,7 +116,7 @@ class TestVertexAICreateCustomContainerTrainingJobOperator:
             region=GCP_LOCATION,
             project_id=GCP_PROJECT,
         )
-        op.execute(context={})
+        op.execute(context={'ti': mock.MagicMock()})
         mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID, impersonation_chain=IMPERSONATION_CHAIN)
         mock_hook.return_value.create_custom_container_training_job.assert_called_once_with(
             staging_bucket=STAGING_BUCKET,
@@ -194,7 +194,7 @@ class TestVertexAICreateCustomPythonPackageTrainingJobOperator:
             region=GCP_LOCATION,
             project_id=GCP_PROJECT,
         )
-        op.execute(context={})
+        op.execute(context={'ti': mock.MagicMock()})
         mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID, impersonation_chain=IMPERSONATION_CHAIN)
         mock_hook.return_value.create_custom_python_package_training_job.assert_called_once_with(
             staging_bucket=STAGING_BUCKET,
@@ -266,7 +266,7 @@ class TestVertexAICreateCustomTrainingJobOperator:
             region=GCP_LOCATION,
             project_id=GCP_PROJECT,
         )
-        op.execute(context={})
+        op.execute(context={'ti': mock.MagicMock()})
         mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID, impersonation_chain=IMPERSONATION_CHAIN)
         mock_hook.return_value.create_custom_training_job.assert_called_once_with(
             staging_bucket=STAGING_BUCKET,
@@ -376,7 +376,7 @@ class TestVertexAIListCustomTrainingJobOperator:
             timeout=TIMEOUT,
             metadata=METADATA,
         )
-        op.execute(context={})
+        op.execute(context={'ti': mock.MagicMock()})
         mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID, impersonation_chain=IMPERSONATION_CHAIN)
         mock_hook.return_value.list_training_pipelines.assert_called_once_with(
             region=GCP_LOCATION,
@@ -406,7 +406,7 @@ class TestVertexAICreateDatasetOperator:
             timeout=TIMEOUT,
             metadata=METADATA,
         )
-        op.execute(context={})
+        op.execute(context={'ti': mock.MagicMock()})
         mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID, impersonation_chain=IMPERSONATION_CHAIN)
         mock_hook.return_value.create_dataset.assert_called_once_with(
             region=GCP_LOCATION,
@@ -528,7 +528,7 @@ class TestVertexAIListDatasetsOperator:
             timeout=TIMEOUT,
             metadata=METADATA,
         )
-        op.execute(context={})
+        op.execute(context={'ti': mock.MagicMock()})
         mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID, impersonation_chain=IMPERSONATION_CHAIN)
         mock_hook.return_value.list_datasets.assert_called_once_with(
             region=GCP_LOCATION,
@@ -552,7 +552,9 @@ class TestVertexAIUpdateDatasetOperator:
             task_id=TASK_ID,
             gcp_conn_id=GCP_CONN_ID,
             impersonation_chain=IMPERSONATION_CHAIN,
+            project_id=GCP_PROJECT,
             region=GCP_LOCATION,
+            dataset_id=TEST_DATASET_ID,
             dataset=TEST_DATASET,
             update_mask=TEST_UPDATE_MASK,
             retry=RETRY,
@@ -562,7 +564,9 @@ class TestVertexAIUpdateDatasetOperator:
         op.execute(context={})
         mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID, impersonation_chain=IMPERSONATION_CHAIN)
         mock_hook.return_value.update_dataset.assert_called_once_with(
+            project_id=GCP_PROJECT,
             region=GCP_LOCATION,
+            dataset_id=TEST_DATASET_ID,
             dataset=TEST_DATASET,
             update_mask=TEST_UPDATE_MASK,
             retry=RETRY,
