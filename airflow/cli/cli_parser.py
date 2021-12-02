@@ -927,10 +927,10 @@ DAGS_COMMANDS = (
             "format, see: https://www.graphviz.org/doc/info/output.html\n"
             "\n"
             "If you want to create a PNG file then you should execute the following command:\n"
-            "airflow dags show <DAG_ID> --save output.png\n"
+            "airflow dags show-dependencies --save output.png\n"
             "\n"
             "If you want to create a DOT file then you should execute the following command:\n"
-            "airflow dags show <DAG_ID> --save output.dot\n"
+            "airflow dags show-dependencies --save output.dot\n"
         ),
         func=lazy_load_command('airflow.cli.commands.dag_command.dag_dependencies_show'),
         args=(
