@@ -17,7 +17,9 @@
 # under the License.
 """This module contains SFTP hook."""
 import datetime
+import re
 import stat
+import fnmatch
 from typing import Dict, List, Optional, Tuple
 
 import pysftp
@@ -259,6 +261,20 @@ class SFTPHook(SSHHook):
         conn = self.get_conn()
         ftp_mdtm = conn.stat(path).st_mtime
         return datetime.datetime.fromtimestamp(ftp_mdtm).strftime('%Y%m%d%H%M%S')
+
+    def get_file_name_using_pattern(self, path: str, pattern: str) -> str:
+        """
+        Returns True if a file with the given pattern exists
+        :param path: full path to the remote directory
+        :type path: str
+        :param pattern: full path to the remote directory
+        :type pattern: str
+        """
+        conn = self.get_conn()
+        list_of_files = conn.open_sftp().listdir(path)
+        for file in list_of_files:
+            if re.search(file, pattern):
+                return file
 
     def path_exists(self, path: str) -> bool:
         """

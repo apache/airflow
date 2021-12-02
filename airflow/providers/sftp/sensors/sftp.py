@@ -54,3 +54,38 @@ class SFTPSensor(BaseSensorOperator):
             return False
         self.hook.close_conn()
         return True
+
+
+class SFTPFilePatternSensor(BaseSensorOperator):
+    """
+        Waits for a file or directory to be present on SFTP.
+
+        :param path: Remote file or directory path
+        :type path: str
+        :param sftp_conn_id: The connection to run the sensor against
+        :type sftp_conn_id: str
+        """
+
+    template_fields = ('path',)
+    file_pattern: Optional[str] = None
+
+    def __init__(self, *, file_path: str, file_pattern: str, sftp_conn_id: str = 'sftp_default', **kwargs) -> None:
+        super().__init__(**kwargs)
+        self.path = file_path
+        self.hook: Optional[SFTPHook] = None
+        self.sftp_conn_id = sftp_conn_id
+        self.file_pattern = file_pattern
+
+    def poke(self, context: dict) -> bool:
+        self.hook = SFTPHook(self.sftp_conn_id)
+        self.log.info('Poking for %s', self.path)
+
+        try:
+            file_name = self.hook.get_file_name_using_pattern(self.path,self.file_pattern)
+            self.log.info('Found File %s', str(file_name))
+        except OSError as e:
+            if e.errno != SFTP_NO_SUCH_FILE:
+                raise e
+            return False
+        self.hook.close_conn()
+        return True
