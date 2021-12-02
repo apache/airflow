@@ -124,7 +124,7 @@ class SFTPToWasbOperator(BaseOperator):
         self.log.info("Found %s files at sftp source path: %s", str(len(found_files)), self.sftp_source_path)
 
         for file in found_files:
-            future_blob_name = self.get_future_blob_name(file)
+            future_blob_name = self.get_full_path_blob(file)
             sftp_files.append(SftpFile(file, future_blob_name))
 
         return sftp_files
@@ -162,7 +162,7 @@ class SFTPToWasbOperator(BaseOperator):
         """Property of sftp hook to be re-used."""
         return SFTPHook(self.sftp_conn_id)
 
-    def get_future_blob_name(self, file: str) -> str:
+    def get_full_path_blob(self, file: str) -> str:
         """Get a blob name based by the previous name and a blob_prefix variable"""
         return self.blob_prefix + os.path.basename(file)
 
