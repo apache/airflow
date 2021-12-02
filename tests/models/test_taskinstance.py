@@ -357,7 +357,7 @@ class TestTaskInstance:
         test that try to create a task with pool_slots less than 1
         """
 
-        with pytest.raises(AirflowException):
+        with pytest.raises(ValueError, match="pool slots .* cannot be less than 1"):
             dag = models.DAG(dag_id='test_run_pooling_task')
             DummyOperator(
                 task_id='test_run_pooling_task_op',
@@ -1926,7 +1926,7 @@ class TestTaskInstance:
                     'try_number': '1',
                 },
                 'labels': {
-                    'airflow-worker': 'worker-config',
+                    'airflow-worker': '0',
                     'airflow_version': version,
                     'dag_id': 'test_render_k8s_pod_yaml',
                     'execution_date': '2016-01-01T00_00_00_plus_00_00',

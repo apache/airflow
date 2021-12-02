@@ -1094,9 +1094,8 @@ class TestStringifiedDAGs:
         """
         base_operator = BaseOperator(task_id="10")
         fields = base_operator.__dict__
-        assert {
+        assert fields == {
             '_BaseOperator__instantiated': True,
-            '_dag': None,
             '_downstream_task_ids': set(),
             '_inlets': [],
             '_log': base_operator.log,
@@ -1139,12 +1138,11 @@ class TestStringifiedDAGs:
             'run_as_user': None,
             'sla': None,
             'start_date': None,
-            'subdag': None,
             'task_id': '10',
             'trigger_rule': 'all_success',
             'wait_for_downstream': False,
             'weight_rule': 'downstream',
-        } == fields, """
+        }, """
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
      ACTION NEEDED! PLEASE READ THIS CAREFULLY AND CORRECT TESTS CAREFULLY

@@ -27,7 +27,20 @@ from collections import defaultdict
 from datetime import datetime, timedelta
 from functools import partial
 from tempfile import NamedTemporaryFile
-from typing import IO, TYPE_CHECKING, Any, Iterable, List, NamedTuple, Optional, Tuple, Union
+from typing import (
+    IO,
+    TYPE_CHECKING,
+    Any,
+    Dict,
+    Iterable,
+    Iterator,
+    List,
+    NamedTuple,
+    Optional,
+    Set,
+    Tuple,
+    Union,
+)
 from urllib.parse import quote
 
 import dill
@@ -86,7 +99,6 @@ from airflow.typing_compat import Literal
 from airflow.utils import timezone
 from airflow.utils.context import ConnectionAccessor, Context, VariableAccessor
 from airflow.utils.email import send_email
-from airflow.utils.helpers import is_container
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.net import get_hostname
 from airflow.utils.operator_helpers import context_to_airflow_vars
@@ -117,7 +129,7 @@ if TYPE_CHECKING:
 
 
 @contextlib.contextmanager
-def set_current_context(context: Context) -> None:
+def set_current_context(context: Context) -> Iterator[Context]:
     """
     Sets the current execution context to the provided context object.
     This method should be called once per Task execution, before calling operator.execute.
@@ -179,7 +191,9 @@ def clear_task_instances(
     :param activate_dag_runs: Deprecated parameter, do not pass
     """
     job_ids = []
-    task_id_by_key = defaultdict(lambda: defaultdict(lambda: defaultdict(set)))
+    task_id_by_key: Dict[str, Dict[str, Dict[int, Set[str]]]] = defaultdict(
+        lambda: defaultdict(lambda: defaultdict(set))
+    )
     for ti in tis:
         if ti.state == State.RUNNING:
             if ti.job_id:
@@ -404,7 +418,11 @@ class TaskInstance(Base, LoggingMixin):
     execution_date = association_proxy("dag_run", "execution_date")
 
     def __init__(
-        self, task, execution_date: Optional[datetime] = None, run_id: str = None, state: Optional[str] = None
+        self,
+        task: "BaseOperator",
+        execution_date: Optional[datetime] = None,
+        run_id: Optional[str] = None,
+        state: Optional[str] = None,
     ):
         super().__init__()
         self.dag_id = task.dag_id
@@ -562,7 +580,7 @@ class TaskInstance(Base, LoggingMixin):
     def generate_command(
         dag_id: str,
         task_id: str,
-        run_id: str = None,
+        run_id: str,
         mark_success: bool = False,
         ignore_all_deps: bool = False,
         ignore_depends_on_past: bool = False,
@@ -760,7 +778,7 @@ class TaskInstance(Base, LoggingMixin):
 
         self.log.debug("Refreshed TaskInstance %s", self)
 
-    def refresh_from_task(self, task, pool_override=None):
+    def refresh_from_task(self, task: "BaseOperator", pool_override=None):
         """
         Copy common attributes from the given task.
 
@@ -880,7 +898,7 @@ class TaskInstance(Base, LoggingMixin):
                 # XXX: This uses DAG internals, but as the outer comment
                 # said, the block is only reached for legacy reasons for
                 # development code, so that's OK-ish.
-                schedule = dag.timetable._schedule
+                schedule = dag.timetable._schedule  # type: ignore
             except AttributeError:
                 return None
             dt = pendulum.instance(self.execution_date)
@@ -1798,7 +1816,7 @@ class TaskInstance(Base, LoggingMixin):
             params.update(task.params)
         if conf.getboolean('core', 'dag_run_conf_overrides_params'):
             self.overwrite_params_with_dag_run_conf(params=params, dag_run=dag_run)
-        task.params = params.validate()
+        validated_params = task.params = params.validate()
 
         logical_date = timezone.coerce_datetime(self.execution_date)
         ds = logical_date.strftime('%Y-%m-%d')
@@ -1914,7 +1932,7 @@ class TaskInstance(Base, LoggingMixin):
             'next_ds_nodash': get_next_ds_nodash(),
             'next_execution_date': get_next_execution_date(),
             'outlets': task.outlets,
-            'params': task.params,
+            'params': validated_params,
             'prev_data_interval_start_success': get_prev_data_interval_start_success(),
             'prev_data_interval_end_success': get_prev_data_interval_end_success(),
             'prev_ds': get_prev_ds(),
@@ -2006,7 +2024,7 @@ class TaskInstance(Base, LoggingMixin):
             date=self.execution_date,
             args=self.command_as_list(),
             pod_override_object=PodGenerator.from_obj(self.executor_config),
-            scheduler_job_id="worker-config",
+            scheduler_job_id=0,
             namespace=kube_config.executor_namespace,
             base_worker_pod=PodGenerator.deserialize_model_file(kube_config.pod_template_file),
         )
@@ -2199,7 +2217,11 @@ class TaskInstance(Base, LoggingMixin):
         # Since we're only fetching the values field, and not the
         # whole class, the @recreate annotation does not kick in.
         # Therefore we need to deserialize the fields by ourselves.
-        if is_container(task_ids):
+        if task_ids is None or isinstance(task_ids, str):
+            xcom = query.with_entities(XCom.value).first()
+            if xcom:
+                return XCom.deserialize_value(xcom)
+        else:
             vals_kv = {
                 result.task_id: XCom.deserialize_value(result)
                 for result in query.with_entities(XCom.task_id, XCom.value)
@@ -2207,10 +2229,6 @@ class TaskInstance(Base, LoggingMixin):
 
             values_ordered_by_id = [vals_kv.get(task_id) for task_id in task_ids]
             return values_ordered_by_id
-        else:
-            xcom = query.with_entities(XCom.value).first()
-            if xcom:
-                return XCom.deserialize_value(xcom)
 
     @provide_session
     def get_num_running_task_instances(self, session):
@@ -2261,7 +2279,7 @@ class TaskInstance(Base, LoggingMixin):
                 TaskInstance.task_id == first_task_id,
             )
 
-        if settings.Session.bind.dialect.name == 'mssql':
+        if settings.engine.dialect.name == 'mssql':
             return or_(
                 and_(
                     TaskInstance.dag_id == ti.dag_id,
@@ -2291,7 +2309,7 @@ class SimpleTaskInstance:
     def __init__(self, ti: TaskInstance):
         self._dag_id: str = ti.dag_id
         self._task_id: str = ti.task_id
-        self._run_id: datetime = ti.run_id
+        self._run_id: str = ti.run_id
         self._start_date: datetime = ti.start_date
         self._end_date: datetime = ti.end_date
         self._try_number: int = ti.try_number

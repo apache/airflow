@@ -153,7 +153,7 @@ class Variable(Base, LoggingMixin):
         cls,
         key: str,
         value: Any,
-        description: str = None,
+        description: Optional[str] = None,
         serialize_json: bool = False,
         session: Session = None,
     ):

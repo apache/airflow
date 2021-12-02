@@ -41,6 +41,13 @@ class _VariableAccessors(TypedDict):
     json: Any
     value: Any
 
+class VariableAccessor:
+    def __init__(self, *, deserialize_json: bool) -> None: ...
+    def get(self, key, default: Any = ...) -> Any: ...
+
+class ConnectionAccessor:
+    def get(self, key: str, default_conn: Any = None) -> Any: ...
+
 class Context(TypedDict, total=False):
     conf: AirflowConfigParser
     conn: Any

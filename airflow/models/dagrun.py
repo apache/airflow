@@ -51,7 +51,7 @@ from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.session import provide_session
 from airflow.utils.sqlalchemy import UtcDateTime, nulls_first, skip_locked, with_row_locks
 from airflow.utils.state import DagRunState, State, TaskInstanceState
-from airflow.utils.types import DagRunType
+from airflow.utils.types import NOTSET, ArgNotSet, DagRunType
 
 if TYPE_CHECKING:
     from airflow.models.dag import DAG
@@ -75,8 +75,6 @@ class DagRun(Base, LoggingMixin):
 
     __tablename__ = "dag_run"
 
-    __NO_VALUE = object()
-
     id = Column(Integer, primary_key=True)
     dag_id = Column(String(ID_LEN, **COLLATION_ARGS), nullable=False)
     queued_at = Column(UtcDateTime)
@@ -96,7 +94,7 @@ class DagRun(Base, LoggingMixin):
     last_scheduling_decision = Column(UtcDateTime)
     dag_hash = Column(String(32))
 
-    dag = None
+    dag: "Optional[DAG]" = None
 
     __table_args__ = (
         Index('dag_id_state', dag_id, _state),
@@ -138,7 +136,7 @@ class DagRun(Base, LoggingMixin):
         self,
         dag_id: Optional[str] = None,
         run_id: Optional[str] = None,
-        queued_at: Optional[datetime] = __NO_VALUE,
+        queued_at: Union[datetime, None, ArgNotSet] = NOTSET,  # type: ignore
         execution_date: Optional[datetime] = None,
         start_date: Optional[datetime] = None,
         external_trigger: Optional[bool] = None,
@@ -163,7 +161,7 @@ class DagRun(Base, LoggingMixin):
         self.conf = conf or {}
         if state is not None:
             self.state = state
-        if queued_at is self.__NO_VALUE:
+        if queued_at is NOTSET:
             self.queued_at = timezone.utcnow() if state == State.QUEUED else None
         else:
             self.queued_at = queued_at
@@ -203,7 +201,7 @@ class DagRun(Base, LoggingMixin):
         return synonym('_state', descriptor=property(self.get_state, self.set_state))
 
     @provide_session
-    def refresh_from_db(self, session: Session = None):
+    def refresh_from_db(self, session: Session = None) -> None:
         """
         Reloads the current dagrun from the database
 
@@ -412,7 +410,7 @@ class DagRun(Base, LoggingMixin):
                 tis = tis.filter(TI.state == state)
             else:
                 # this is required to deal with NULL values
-                if None in state:
+                if TaskInstanceState.NONE in state:
                     if all(x is None for x in state):
                         tis = tis.filter(TI.state.is_(None))
                     else:
@@ -528,7 +526,7 @@ class DagRun(Base, LoggingMixin):
         # if all roots finished and at least one failed, the run failed
         if not unfinished_tasks and any(leaf_ti.state in State.failed_states for leaf_ti in leaf_tis):
             self.log.error('Marking run %s failed', self)
-            self.set_state(State.FAILED)
+            self.set_state(DagRunState.FAILED)
             if execute_callbacks:
                 dag.handle_callback(self, success=False, reason='task_failure', session=session)
             elif dag.has_on_failure_callback:
@@ -543,7 +541,7 @@ class DagRun(Base, LoggingMixin):
         # if all leaves succeeded and no unfinished tasks, the run succeeded
         elif not unfinished_tasks and all(leaf_ti.state in State.success_states for leaf_ti in leaf_tis):
             self.log.info('Marking run %s successful', self)
-            self.set_state(State.SUCCESS)
+            self.set_state(DagRunState.SUCCESS)
             if execute_callbacks:
                 dag.handle_callback(self, success=True, reason='success', session=session)
             elif dag.has_on_success_callback:
@@ -564,7 +562,7 @@ class DagRun(Base, LoggingMixin):
             and not are_runnable_tasks
         ):
             self.log.error('Deadlock; marking run %s failed', self)
-            self.set_state(State.FAILED)
+            self.set_state(DagRunState.FAILED)
             if execute_callbacks:
                 dag.handle_callback(self, success=False, reason='all_tasks_deadlocked', session=session)
             elif dag.has_on_failure_callback:
@@ -578,9 +576,9 @@ class DagRun(Base, LoggingMixin):
 
         # finally, if the roots aren't done, the dag is still running
         else:
-            self.set_state(State.RUNNING)
+            self.set_state(DagRunState.RUNNING)
 
-        if self._state == State.FAILED or self._state == State.SUCCESS:
+        if self._state == DagRunState.FAILED or self._state == DagRunState.SUCCESS:
             msg = (
                 "DagRun Finished: dag_id=%s, execution_date=%s, run_id=%s, "
                 "run_start_date=%s, run_end_date=%s, run_duration=%s, "

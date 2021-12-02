@@ -866,7 +866,6 @@ class TestDag(unittest.TestCase):
             )
             # parent_dag and is_subdag was set by DagBag. We don't use DagBag, so this value is not set.
             subdag.parent_dag = dag
-            subdag.is_subdag = True
             SubDagOperator(task_id='subtask', owner='owner2', subdag=subdag)
         session = settings.Session()
         dag.sync_to_db(session=session)
@@ -932,7 +931,6 @@ class TestDag(unittest.TestCase):
 
         # parent_dag and is_subdag was set by DagBag. We don't use DagBag, so this value is not set.
         subdag.parent_dag = dag
-        subdag.is_subdag = True
 
         session.query(DagModel).filter(DagModel.dag_id.in_([subdag_id, dag_id])).delete(
             synchronize_session=False
@@ -1427,7 +1425,6 @@ class TestDag(unittest.TestCase):
         SubDagOperator(task_id='test', subdag=subdag, dag=dag)
         t_2 = DummyOperator(task_id='task', dag=subdag)
         subdag.parent_dag = dag
-        subdag.is_subdag = True
 
         dag.sync_to_db()
 
@@ -1806,7 +1803,6 @@ class TestDag(unittest.TestCase):
         subdag = section_1.subdag
         # parent_dag and is_subdag was set by DagBag. We don't use DagBag, so this value is not set.
         subdag.parent_dag = dag
-        subdag.is_subdag = True
 
         next_parent_info = dag.next_dagrun_info(None)
         assert next_parent_info.logical_date == timezone.datetime(2019, 1, 1, 0, 0)
