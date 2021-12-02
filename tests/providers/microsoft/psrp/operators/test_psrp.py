@@ -35,6 +35,10 @@ class TestPSRPOperator(TestCase):
         with pytest.raises(ValueError, match=exception_msg):
             PSRPOperator(task_id='test_task_id', psrp_conn_id=CONNECTION_ID)
 
+    def test_cmdlet_task_id_default(self):
+        operator = PSRPOperator(cmdlet='Invoke-Foo', psrp_conn_id=CONNECTION_ID)
+        assert operator.task_id == 'Invoke-Foo'
+
     @parameterized.expand(
         list(
             product(

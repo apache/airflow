@@ -33,8 +33,12 @@ class PSRPOperator(BaseOperator):
     :param psrp_conn_id: connection id
     :param command: command to execute on remote host. (templated)
     :param powershell: powershell to execute on remote host. (templated)
-    :param cmdlet: cmdlet to execute on remote host. (templated)
-    :param parameters: parameters to provide to cmdlet. (templated)
+    :param cmdlet:
+        cmdlet to execute on remote host (templated). Also used as the default
+        value for `task_id`.
+    :param parameters:
+        parameters to provide to cmdlet (templated). This is allowed only if
+        the `cmdlet` parameter is also given.
     :param logging: whether to log command output and streams during execution
     :param runspace_options:
         Optional dictionary which is passed when creating the runspace pool. See
@@ -62,12 +66,14 @@ class PSRPOperator(BaseOperator):
         runspace_options: Optional[Dict[str, Any]] = None,
         **kwargs,
     ) -> None:
-        super().__init__(**kwargs)
         args = {command, powershell, cmdlet}
         if not exactly_one(*args):
             raise ValueError("Must provide exactly one of 'command', 'powershell', or 'cmdlet'")
         if parameters and not cmdlet:
             raise ValueError("Parameters only allowed with 'cmdlet'")
+        if cmdlet:
+            kwargs.setdefault('task_id', cmdlet)
+        super().__init__(**kwargs)
         self.conn_id = psrp_conn_id
         self.command = command
         self.powershell = powershell
