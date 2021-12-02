@@ -1755,7 +1755,7 @@ class DAG(LoggingMixin):
             acyclic = False
             for node in list(graph_unsorted.values()):
                 for edge in node.upstream_list:
-                    if edge.task_id in graph_unsorted:
+                    if edge.node_id in graph_unsorted:
                         break
                 # no edges in upstream tasks
                 else:
@@ -2075,10 +2075,10 @@ class DAG(LoggingMixin):
         # the cut.
         subdag_task_groups = dag.task_group.get_task_group_dict()
         for group in subdag_task_groups.values():
-            group.upstream_group_ids = group.upstream_group_ids.intersection(subdag_task_groups.keys())
-            group.downstream_group_ids = group.downstream_group_ids.intersection(subdag_task_groups.keys())
-            group.upstream_task_ids = group.upstream_task_ids.intersection(dag.task_dict.keys())
-            group.downstream_task_ids = group.downstream_task_ids.intersection(dag.task_dict.keys())
+            group.upstream_group_ids.intersection_update(subdag_task_groups.keys())
+            group.downstream_group_ids.intersection_update(subdag_task_groups.keys())
+            group.upstream_task_ids.intersection_update(dag.task_dict.keys())
+            group.downstream_task_ids.intersection_update(dag.task_dict.keys())
 
         for t in dag.tasks:
             # Removing upstream/downstream references to tasks that did not
@@ -2092,7 +2092,7 @@ class DAG(LoggingMixin):
         return dag
 
     def has_task(self, task_id: str):
-        return task_id in (t.task_id for t in self.tasks)
+        return task_id in self.task_dict
 
     def get_task(self, task_id: str, include_subdags: bool = False) -> BaseOperator:
         if task_id in self.task_dict:
@@ -2196,6 +2196,11 @@ class DAG(LoggingMixin):
         """
         for task in tasks:
             self.add_task(task)
+
+    def remove_task(self, task_id: str) -> None:
+        del self.task_dict[task_id]
+        self._task_group.used_group_ids.remove(task_id)
+        self.task_count = len(self.task_dict)
 
     def run(
         self,
