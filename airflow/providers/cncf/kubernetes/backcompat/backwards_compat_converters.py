@@ -72,7 +72,6 @@ def convert_resources(resources) -> k8s.V1ResourceRequirements:
     """
     if isinstance(resources, dict):
         from airflow.providers.cncf.kubernetes.backcompat.pod import Resources
-        
         resources = Resources(**resources)
     return _convert_kube_model_object(resources, "Resources", k8s.V1ResourceRequirements)
 
