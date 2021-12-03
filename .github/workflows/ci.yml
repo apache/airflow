@@ -68,10 +68,6 @@ env:
   # by defining AIRFLOW_GITHUB_REGISTRY_WAIT_FOR_IMAGE secret with value set to "false"
   GITHUB_REGISTRY_WAIT_FOR_IMAGE: ${{ secrets.AIRFLOW_GITHUB_REGISTRY_WAIT_FOR_IMAGE != 'false' }}
 
-concurrency:
-  group: ci-${{ github.event.pull_request.number || github.ref }}
-  cancel-in-progress: true
-
 jobs:
 
   build-info:

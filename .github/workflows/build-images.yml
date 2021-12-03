@@ -49,10 +49,6 @@ env:
   AIRFLOW_LOGIN_TO_GITHUB_REGISTRY: "true"
   GITHUB_REGISTRY_PUSH_IMAGE_TAG: ${{ github.event.pull_request.head.sha || github.sha }}
 
-concurrency:
-  group: build-${{ github.event.pull_request.number || github.ref }}
-  cancel-in-progress: true
-
 jobs:
 
   build-info:
