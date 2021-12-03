@@ -789,7 +789,7 @@ class TestStringifiedDAGs:
         dag = SerializedDAG.from_dict(serialized)
 
         assert dag.params["my_param"] == param.value
-        observed_param = dict.get(dag.params, 'my_param')
+        observed_param = dag.params.get_param('my_param')
         assert isinstance(observed_param, Param)
         assert observed_param.description == param.description
         assert observed_param.schema == param.schema
@@ -1475,7 +1475,7 @@ class TestStringifiedDAGs:
         dag = SerializedDAG.from_dict(serialized)
 
         assert dag.params["none"] is None
-        assert isinstance(dict.__getitem__(dag.params, "none"), Param)
+        assert isinstance(dag.params.get_param("none"), Param)
         assert dag.params["str"] == "str"
 
     def test_params_serialize_default_2_2_0(self):
@@ -1495,7 +1495,7 @@ class TestStringifiedDAGs:
         SerializedDAG.validate_schema(serialized)
         dag = SerializedDAG.from_dict(serialized)
 
-        assert isinstance(dict.__getitem__(dag.params, "str"), Param)
+        assert isinstance(dag.params.get_param("str"), Param)
         assert dag.params["str"] == "str"
 
     def test_params_serialize_default(self):
@@ -1520,7 +1520,7 @@ class TestStringifiedDAGs:
         dag = SerializedDAG.from_dict(serialized)
 
         assert dag.params["my_param"] == "a string value"
-        param = dict.get(dag.params, 'my_param')
+        param = dag.params.get_param('my_param')
         assert isinstance(param, Param)
         assert param.description == 'hello'
         assert param.schema == {'type': 'string'}

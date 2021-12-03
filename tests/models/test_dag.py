@@ -46,7 +46,7 @@ from airflow.exceptions import AirflowException, DuplicateTaskIdFound
 from airflow.models import DAG, DagModel, DagRun, DagTag, TaskFail, TaskInstance as TI
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.dag import dag as dag_decorator
-from airflow.models.param import DagParam, Param
+from airflow.models.param import DagParam, Param, ParamsDict
 from airflow.operators.bash import BashOperator
 from airflow.operators.dummy import DummyOperator
 from airflow.operators.subdag import SubDagOperator
@@ -115,7 +115,7 @@ class TestDag(unittest.TestCase):
         """
         dag = models.DAG('test-dag')
 
-        assert isinstance(dag.params, dict)
+        assert isinstance(dag.params, ParamsDict)
         assert 0 == len(dag.params)
 
     def test_params_passed_and_params_in_default_args_no_override(self):
