@@ -100,7 +100,7 @@ class PythonDecoratorMixin:
 
 
 def python_task(
-    python_callable: Optional[Callable] = None, multiple_outputs: Optional[bool] = None, **kwargs
+    python_callable: Callable, multiple_outputs: Optional[bool] = None, **kwargs
 ):
     """
     Wraps a function into an Airflow operator.

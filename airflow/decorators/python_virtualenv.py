@@ -17,7 +17,7 @@
 
 import inspect
 from textwrap import dedent
-from typing import Callable, Optional, TypeVar
+from typing import Callable, Dict, Optional, Tuple, TypeVar
 
 from airflow.decorators.base import DecoratedOperator, task_decorator_factory
 from airflow.operators.python import PythonVirtualenvOperator
