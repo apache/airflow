@@ -16,7 +16,6 @@
 # under the License.
 """Classes for interacting with Kubernetes API"""
 """This module is deprecated. Please use :mod:`kubernetes.client.models.V1EnvVar`."""
-
 import warnings
 
 import kubernetes.client.models as k8s
