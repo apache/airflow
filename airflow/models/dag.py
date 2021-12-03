@@ -27,7 +27,7 @@ import sys
 import traceback
 import warnings
 from collections import OrderedDict
-from datetime import datetime, timedelta, tzinfo
+from datetime import datetime, timedelta
 from inspect import signature
 from typing import (
     TYPE_CHECKING,
@@ -51,6 +51,7 @@ import jinja2
 import pendulum
 from dateutil.relativedelta import relativedelta
 from jinja2.nativetypes import NativeEnvironment
+from pendulum.tz.timezone import Timezone
 from sqlalchemy import Boolean, Column, ForeignKey, Index, Integer, String, Text, func, or_
 from sqlalchemy.orm import backref, joinedload, relationship
 from sqlalchemy.orm.query import Query
@@ -85,7 +86,7 @@ from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.session import provide_session
 from airflow.utils.sqlalchemy import Interval, UtcDateTime, skip_locked, with_row_locks
 from airflow.utils.state import DagRunState, State, TaskInstanceState
-from airflow.utils.types import DagRunType, EdgeInfoType
+from airflow.utils.types import NOTSET, ArgNotSet, DagRunType, EdgeInfoType
 
 if TYPE_CHECKING:
     from airflow.utils.task_group import TaskGroup
@@ -96,11 +97,14 @@ log = logging.getLogger(__name__)
 DEFAULT_VIEW_PRESETS = ['tree', 'graph', 'duration', 'gantt', 'landing_times']
 ORIENTATION_PRESETS = ['LR', 'TB', 'RL', 'BT']
 
-ScheduleIntervalArgNotSet = type("ScheduleIntervalArgNotSet", (), {})
 
 DagStateChangeCallback = Callable[[Context], None]
-ScheduleInterval = Union[str, timedelta, relativedelta]
-ScheduleIntervalArg = Union[ScheduleInterval, None, Type[ScheduleIntervalArgNotSet]]
+ScheduleInterval = Union[None, str, timedelta, relativedelta]
+
+# FIXME: Ideally this should be Union[Literal[NOTSET], ScheduleInterval],
+# but Mypy cannot handle that right now. Track progress of PEP 661 for progress.
+# See also: https://discuss.python.org/t/9126/7
+ScheduleIntervalArg = Union[ArgNotSet, ScheduleInterval]
 
 
 # Backward compatibility: If neither schedule_interval nor timetable is
@@ -146,9 +150,9 @@ def _get_model_data_interval(
     return DataInterval(start, end)
 
 
-def create_timetable(interval: ScheduleIntervalArg, timezone: tzinfo) -> Timetable:
+def create_timetable(interval: ScheduleIntervalArg, timezone: Timezone) -> Timetable:
     """Create a Timetable instance from a ``schedule_interval`` argument."""
-    if interval is ScheduleIntervalArgNotSet:
+    if interval is NOTSET:
         return DeltaDataIntervalTimetable(DEFAULT_SCHEDULE_INTERVAL)
     if interval is None:
         return NullTimetable()
@@ -326,7 +330,7 @@ class DAG(LoggingMixin):
         self,
         dag_id: str,
         description: Optional[str] = None,
-        schedule_interval: ScheduleIntervalArg = ScheduleIntervalArgNotSet,
+        schedule_interval: ScheduleIntervalArg = NOTSET,
         timetable: Optional[Timetable] = None,
         start_date: Optional[datetime] = None,
         end_date: Optional[datetime] = None,
@@ -429,10 +433,10 @@ class DAG(LoggingMixin):
         # Calculate the DAG's timetable.
         if timetable is None:
             self.timetable = create_timetable(schedule_interval, self.timezone)
-            if schedule_interval is ScheduleIntervalArgNotSet:
+            if isinstance(schedule_interval, ArgNotSet):
                 schedule_interval = DEFAULT_SCHEDULE_INTERVAL
             self.schedule_interval: ScheduleInterval = schedule_interval
-        elif schedule_interval is ScheduleIntervalArgNotSet:
+        elif isinstance(schedule_interval, ArgNotSet):
             self.timetable = timetable
             self.schedule_interval = self.timetable.summary
         else:
@@ -560,19 +564,20 @@ class DAG(LoggingMixin):
         self,
         start_date: pendulum.DateTime,
         num: Optional[int] = None,
-        end_date: Optional[datetime] = timezone.utcnow(),
+        end_date: Optional[datetime] = None,
     ) -> List[datetime]:
         message = "`DAG.date_range()` is deprecated."
         if num is not None:
-            result = utils_date_range(start_date=start_date, num=num)
-        else:
-            message += " Please use `DAG.iter_dagrun_infos_between(..., align=False)` instead."
-            result = [
-                info.logical_date
-                for info in self.iter_dagrun_infos_between(start_date, end_date, align=False)
-            ]
+            warnings.warn(message, category=DeprecationWarning, stacklevel=2)
+            return utils_date_range(start_date=start_date, num=num)
+        message += " Please use `DAG.iter_dagrun_infos_between(..., align=False)` instead."
         warnings.warn(message, category=DeprecationWarning, stacklevel=2)
-        return result
+        if end_date is None:
+            coerced_end_date = timezone.utcnow()
+        else:
+            coerced_end_date = end_date
+        it = self.iter_dagrun_infos_between(start_date, pendulum.instance(coerced_end_date), align=False)
+        return [info.logical_date for info in it]
 
     def is_fixed_time_schedule(self):
         warnings.warn(
@@ -1097,14 +1102,14 @@ class DAG(LoggingMixin):
         return self.get_is_paused()
 
     @property
-    def normalized_schedule_interval(self) -> Optional[ScheduleInterval]:
+    def normalized_schedule_interval(self) -> ScheduleInterval:
         warnings.warn(
             "DAG.normalized_schedule_interval() is deprecated.",
             category=DeprecationWarning,
             stacklevel=2,
         )
         if isinstance(self.schedule_interval, str) and self.schedule_interval in cron_presets:
-            _schedule_interval = cron_presets.get(self.schedule_interval)  # type: Optional[ScheduleInterval]
+            _schedule_interval: ScheduleInterval = cron_presets.get(self.schedule_interval)
         elif self.schedule_interval == '@once':
             _schedule_interval = None
         else:
@@ -1233,9 +1238,9 @@ class DAG(LoggingMixin):
 
     @property
     def latest_execution_date(self):
-        """This attribute is deprecated. Please use `airflow.models.DAG.get_latest_execution_date` method."""
+        """This attribute is deprecated. Please use `airflow.models.DAG.get_latest_execution_date`."""
         warnings.warn(
-            "This attribute is deprecated. Please use `airflow.models.DAG.get_latest_execution_date` method.",
+            "This attribute is deprecated. Please use `airflow.models.DAG.get_latest_execution_date`.",
             DeprecationWarning,
             stacklevel=2,
         )
@@ -1804,7 +1809,7 @@ class DAG(LoggingMixin):
         max_recursion_depth: Optional[int] = None,
         dag_bag: Optional["DagBag"] = None,
         exclude_task_ids: FrozenSet[str] = frozenset({}),
-    ):
+    ) -> Union[int, Iterable[TaskInstance]]:
         """
         Clears a set of task instances associated with the current dag for
         a specified date range.
