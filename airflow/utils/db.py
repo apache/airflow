@@ -738,8 +738,8 @@ def _move_dangling_table(session, source_table: "Table", target_table_name: str,
         )
     else:
         if dialect_name == "mysql":
-            # CREATE TABLE AS SELECT must be broken into two queries in mySQL for GTID consistency.
-            # More info: https://github.com/apache/airflow/issues/19988
+            # CREATE TABLE AS SELECT must be broken into two queries for  MySQL as the single query
+            # approach fails when replication is enabled ("Statement violates GTID consistency")```
             session.execute(text(f"create table {target_table_name} like {source_table}"))
             session.execute(
                 text(
