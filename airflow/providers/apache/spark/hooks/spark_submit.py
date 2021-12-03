@@ -520,9 +520,14 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
         :param itr: An iterator which iterates over the input of the subprocess
         """
         driver_found = False
+        valid_response = False
         # Consume the iterator
         for line in itr:
             line = line.strip()
+
+            # A valid Spark status response should contain a submissionId
+            if "submissionId" in line:
+                valid_response = True
 
             # Check if the log line is about the driver status and extract the status.
             if "driverState" in line:
@@ -531,7 +536,7 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
 
             self.log.debug("spark driver status log: %s", line)
 
-        if not driver_found:
+        if valid_response and not driver_found:
             self._driver_status = "UNKNOWN"
 
     def _start_driver_status_tracking(self) -> None:

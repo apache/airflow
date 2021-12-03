@@ -260,6 +260,16 @@ class DagFileProcessorAgent(LoggingMixin, MultiprocessingStartMethodMixin):
         os.environ['AIRFLOW__LOGGING__COLORED_CONSOLE_LOG'] = 'False'
         # Replicating the behavior of how logging module was loaded
         # in logging_config.py
+
+        # TODO: This reloading should be removed when we fix our logging behaviour
+        # In case of "spawn" method of starting processes for multiprocessing, reinitializing of the
+        # SQLAlchemy engine causes extremely unexpected behaviour of messing with objects already loaded
+        # in a parent process (likely via resources shared in memory by the ORM libraries).
+        # This caused flaky tests in our CI for many months and has been discovered while
+        # iterating on https://github.com/apache/airflow/pull/19860
+        # The issue that describes the problem and possible remediation is
+        # at https://github.com/apache/airflow/issues/19934
+
         importlib.reload(import_module(airflow.settings.LOGGING_CLASS_PATH.rsplit('.', 1)[0]))  # type: ignore
         importlib.reload(airflow.settings)
         airflow.settings.initialize()
