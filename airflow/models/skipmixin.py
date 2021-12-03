@@ -19,8 +19,6 @@
 import warnings
 from typing import TYPE_CHECKING, Iterable, Optional, Sequence, Union
 
-import pendulum
-
 from airflow.models.taskinstance import TaskInstance
 from airflow.utils import timezone
 from airflow.utils.log.logging_mixin import LoggingMixin
@@ -28,6 +26,7 @@ from airflow.utils.session import create_session, provide_session
 from airflow.utils.state import State
 
 if TYPE_CHECKING:
+    from pendulum import DateTime
     from sqlalchemy import Session
 
     from airflow.models import DagRun
@@ -68,7 +67,7 @@ class SkipMixin(LoggingMixin):
     def skip(
         self,
         dag_run: "DagRun",
-        execution_date: "pendulum.DateTime",
+        execution_date: "DateTime",
         tasks: Sequence["BaseOperator"],
         *,
         session: "Session",
