@@ -63,6 +63,11 @@ class SFTPToWasbOperator(BaseOperator):
     :param move_object: When move object is True, the object is moved instead
         of copied to the new location. This is the equivalent of a mv command
         as opposed to a cp command.
+    :param wasb_overwrite_object: Whether the blob to be uploaded
+        should overwrite the current data.
+        When wasb_overwrite_object is True, it will overwrite the existing data.
+        If set to False, the operation might fail with
+        ResourceExistsError in case a blob object already exists.
     :type move_object: bool
     """
 
@@ -78,6 +83,7 @@ class SFTPToWasbOperator(BaseOperator):
         wasb_conn_id: str = 'wasb_default',
         load_options: Optional[dict] = None,
         move_object: bool = False,
+        wasb_overwrite_object: bool = False,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -88,7 +94,7 @@ class SFTPToWasbOperator(BaseOperator):
         self.wasb_conn_id = wasb_conn_id
         self.container_name = container_name
         self.wasb_conn_id = wasb_conn_id
-        self.load_options = load_options or {}
+        self.load_options = load_options or {"overwrite": wasb_overwrite_object}
         self.move_object = move_object
 
     def dry_run(self) -> None:

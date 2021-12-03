@@ -33,7 +33,8 @@ Please follow Azure
 to do it.
 
 You can check `https://airflow.apache.org/docs/apache-airflow-providers-microsoft-azure/stable/connections/wasb.htmlhow to do such connection <https://airflow.apache.org/docs/stable/howto/connection/index.html#editing-a-connection-with-the-ui>`_.
-Please, check `WASB <https://airflow.apache.org/docs/apache-airflow-providers-microsoft-azure/stable/connections/wasb.html>`_ and `SFTP <https://airflow.apache.org/docs/apache-airflow-providers-sftp/stable/connections/sftp.html>`_
+Please, check `WASB <https://airflow.apache.org/docs/apache-airflow-providers-microsoft-azure/stable/connections/wasb.html>`_
+and `SFTP <https://airflow.apache.org/docs/apache-airflow-providers-sftp/stable/connections/sftp.html>`_
 for setting up connection fields.
 
 See following example.
