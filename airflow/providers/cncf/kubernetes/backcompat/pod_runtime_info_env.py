@@ -15,8 +15,17 @@
 # specific language governing permissions and limitations
 # under the License.
 """Classes for interacting with Kubernetes API"""
+"""This module is deprecated. Please use :mod:`kubernetes.client.models.V1Volume`."""
+
+import warnings
 
 import kubernetes.client.models as k8s
+
+warnings.warn(
+    "This module is deprecated. Please use `kubernetes.client.models.V1EnvVar`.",
+    DeprecationWarning,
+    stacklevel=2,
+)
 
 
 class PodRuntimeInfoEnv:
