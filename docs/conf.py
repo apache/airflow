@@ -128,7 +128,6 @@ rst_epilog = f"""
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom
 # ones.
 extensions = [
-    'provider_init_hack',
     'sphinx.ext.autodoc',
     'sphinx.ext.viewcode',
     'sphinxarg.ext',
@@ -677,6 +676,9 @@ if PACKAGE_NAME == 'apache-airflow':
 # Keep the AutoAPI generated files on the filesystem after the run.
 # Useful for debugging.
 autoapi_keep_files = True
+
+# Providers are namespace packages so we need to set this for them to be found.
+autoapi_python_use_implicit_namespaces = True
 
 # Relative path to output the AutoAPI files into. This can also be used to place the generated documentation
 # anywhere in your documentation hierarchy.
