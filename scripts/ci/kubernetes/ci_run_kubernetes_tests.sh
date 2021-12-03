@@ -88,7 +88,7 @@ function create_virtualenv() {
         --constraint
         "https://raw.githubusercontent.com/${CONSTRAINTS_GITHUB_REPOSITORY}/${DEFAULT_CONSTRAINTS_BRANCH}/constraints-${HOST_PYTHON_VERSION}.txt"
     )
-    if [[ -n ${GITHUB_REGISTRY_PULL_IMAGE_TAG=} ]]; then
+    if [[ ${CI:=} == "true" && -n ${GITHUB_REGISTRY_PULL_IMAGE_TAG=} ]]; then
         # Disable constraints when building in CI with specific version of sources
         # In case there will be conflicting constraints
         constraints=()
