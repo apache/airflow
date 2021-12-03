@@ -38,7 +38,7 @@ The recommended way to update your DAGs with this chart is to build a new Docker
 .. note::
 
    In Airflow images prior to version 2.0.2, there was a bug that required you to use
-   a bit longer Dockerfile, to make sure the image remains OpenShift-compatible (i.e dag
+   a bit longer Dockerfile, to make sure the image remains OpenShift-compatible (i.e DAG
    has root group similarly as other files). In 2.0.2 this has been fixed.
 
 .. code-block:: bash

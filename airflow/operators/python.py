@@ -24,7 +24,7 @@ import types
 import warnings
 from tempfile import TemporaryDirectory
 from textwrap import dedent
-from typing import Any, Callable, Dict, Iterable, List, Optional, Union
+from typing import Callable, Dict, Iterable, List, Optional, Union
 
 import dill
 
@@ -32,6 +32,7 @@ from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.models.skipmixin import SkipMixin
 from airflow.models.taskinstance import _CURRENT_CONTEXT
+from airflow.utils.context import Context
 from airflow.utils.operator_helpers import determine_kwargs
 from airflow.utils.process_utils import execute_in_subprocess
 from airflow.utils.python_virtualenv import prepare_virtualenv, write_python_script
@@ -393,14 +394,13 @@ class PythonVirtualenvOperator(PythonOperator):
         self.use_dill = use_dill
         self.system_site_packages = system_site_packages
         if not self.system_site_packages:
-            if 'lazy-object-proxy' not in self.requirements:
-                self.requirements.append('lazy-object-proxy')
             if self.use_dill and 'dill' not in self.requirements:
                 self.requirements.append('dill')
         self.pickling_library = dill if self.use_dill else pickle
 
-    def execute(self, context: Dict):
-        serializable_context = {key: context[key] for key in self._get_serializable_context_keys()}
+    def execute(self, context: Context):
+        serializable_keys = set(self._iter_serializable_context_keys())
+        serializable_context = context.copy_only(serializable_keys)
         return super().execute(context=serializable_context)
 
     def execute_callable(self):
@@ -458,19 +458,13 @@ class PythonVirtualenvOperator(PythonOperator):
             with open(filename, 'wb') as file:
                 self.pickling_library.dump({'args': self.op_args, 'kwargs': self.op_kwargs}, file)
 
-    def _get_serializable_context_keys(self):
-        def _is_airflow_env():
-            return self.system_site_packages or 'apache-airflow' in self.requirements
-
-        def _is_pendulum_env():
-            return 'pendulum' in self.requirements and 'lazy_object_proxy' in self.requirements
-
-        serializable_context_keys = self.BASE_SERIALIZABLE_CONTEXT_KEYS.copy()
-        if _is_airflow_env():
-            serializable_context_keys.update(self.AIRFLOW_SERIALIZABLE_CONTEXT_KEYS)
-        if _is_pendulum_env() or _is_airflow_env():
-            serializable_context_keys.update(self.PENDULUM_SERIALIZABLE_CONTEXT_KEYS)
-        return serializable_context_keys
+    def _iter_serializable_context_keys(self):
+        yield from self.BASE_SERIALIZABLE_CONTEXT_KEYS
+        if self.system_site_packages or 'apache-airflow' in self.requirements:
+            yield from self.AIRFLOW_SERIALIZABLE_CONTEXT_KEYS
+            yield from self.PENDULUM_SERIALIZABLE_CONTEXT_KEYS
+        elif 'pendulum' in self.requirements:
+            yield from self.PENDULUM_SERIALIZABLE_CONTEXT_KEYS
 
     def _write_string_args(self, filename):
         with open(filename, 'w') as file:
@@ -495,7 +489,7 @@ class PythonVirtualenvOperator(PythonOperator):
         return super().__deepcopy__(memo)
 
 
-def get_current_context() -> Dict[str, Any]:
+def get_current_context() -> Context:
     """
     Obtain the execution context for the currently executing operator without
     altering user method's signature.

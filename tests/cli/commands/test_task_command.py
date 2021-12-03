@@ -22,6 +22,7 @@ import logging
 import os
 import re
 import unittest
+from argparse import ArgumentParser
 from contextlib import redirect_stdout
 from datetime import datetime
 from unittest import mock
@@ -29,6 +30,7 @@ from unittest import mock
 import pytest
 from parameterized import parameterized
 
+from airflow import DAG
 from airflow.cli import cli_parser
 from airflow.cli.commands import task_command
 from airflow.configuration import conf
@@ -60,6 +62,10 @@ def reset(dag_id):
 class TestCliTasks(unittest.TestCase):
     run_id = 'TEST_RUN_ID'
     dag_id = 'example_python_operator'
+    parser: ArgumentParser
+    dagbag: DagBag
+    dag: DAG
+    dag_run: DagRun
 
     @classmethod
     def setUpClass(cls):

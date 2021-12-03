@@ -27,12 +27,11 @@ from collections import defaultdict
 from datetime import datetime, timedelta
 from functools import partial
 from tempfile import NamedTemporaryFile
-from typing import IO, TYPE_CHECKING, Any, Callable, Dict, Iterable, List, NamedTuple, Optional, Tuple, Union
+from typing import IO, TYPE_CHECKING, Any, Iterable, List, NamedTuple, Optional, Tuple, Union
 from urllib.parse import quote
 
 import dill
 import jinja2
-import lazy_object_proxy
 import pendulum
 from jinja2 import TemplateAssertionError, UndefinedError
 from sqlalchemy import (
@@ -62,7 +61,6 @@ from airflow.configuration import conf
 from airflow.exceptions import (
     AirflowException,
     AirflowFailException,
-    AirflowNotFoundException,
     AirflowRescheduleException,
     AirflowSensorTimeout,
     AirflowSkipException,
@@ -73,12 +71,10 @@ from airflow.exceptions import (
     TaskDeferred,
 )
 from airflow.models.base import COLLATION_ARGS, ID_LEN, Base
-from airflow.models.connection import Connection
 from airflow.models.log import Log
 from airflow.models.param import ParamsDict
 from airflow.models.taskfail import TaskFail
 from airflow.models.taskreschedule import TaskReschedule
-from airflow.models.variable import Variable
 from airflow.models.xcom import XCOM_RETURN_KEY, XCom
 from airflow.plugins_manager import integrate_macros_plugins
 from airflow.sentry import Sentry
@@ -88,6 +84,7 @@ from airflow.ti_deps.dependencies_deps import REQUEUEABLE_DEPS, RUNNING_DEPS
 from airflow.timetables.base import DataInterval
 from airflow.typing_compat import Literal
 from airflow.utils import timezone
+from airflow.utils.context import ConnectionAccessor, Context, VariableAccessor
 from airflow.utils.email import send_email
 from airflow.utils.helpers import is_container
 from airflow.utils.log.logging_mixin import LoggingMixin
@@ -108,18 +105,18 @@ except ImportError:
     ApiClient = None
 
 TR = TaskReschedule
-Context = Dict[str, Any]
 
 _CURRENT_CONTEXT: List[Context] = []
 log = logging.getLogger(__name__)
 
 
 if TYPE_CHECKING:
+    from airflow.models.baseoperator import BaseOperator
     from airflow.models.dag import DAG, DagModel, DagRun
 
 
 @contextlib.contextmanager
-def set_current_context(context: Context):
+def set_current_context(context: Context) -> None:
     """
     Sets the current execution context to the provided context object.
     This method should be called once per Task execution, before calling operator.execute.
@@ -1780,23 +1777,25 @@ class TaskInstance(Base, LoggingMixin):
         # Do not use provide_session here -- it expunges everything on exit!
         if not session:
             session = settings.Session()
-        task = self.task
-        dag: DAG = task.dag
+
         from airflow import macros
 
         integrate_macros_plugins()
 
+        task: "BaseOperator" = self.task
+        dag: DAG = task.dag
         dag_run = self.get_dagrun(session)
         data_interval = dag.get_run_data_interval(dag_run)
 
+        # Validates Params and convert them into a simple dict.
         params = ParamsDict(suppress_exception=ignore_param_exceptions)
-
         with contextlib.suppress(AttributeError):
             params.update(dag.params)
         if task.params:
             params.update(task.params)
         if conf.getboolean('core', 'dag_run_conf_overrides_params'):
             self.overwrite_params_with_dag_run_conf(params=params, dag_run=dag_run)
+        task.params = params.validate()
 
         logical_date = timezone.coerce_datetime(self.execution_date)
         ds = logical_date.strftime('%Y-%m-%d')
@@ -1804,9 +1803,6 @@ class TaskInstance(Base, LoggingMixin):
         ts = logical_date.isoformat()
         ts_nodash = logical_date.strftime('%Y%m%dT%H%M%S')
         ts_nodash_with_tz = ts.replace('-', '').replace(':', '')
-
-        # Now validates Params and convert them into a simple dict
-        task.params = params.validate()
 
         @cache  # Prevent multiple database access.
         def _get_previous_dagrun_success() -> Optional["DagRun"]:
@@ -1835,111 +1831,6 @@ class TaskInstance(Base, LoggingMixin):
             if dagrun is None:
                 return None
             return timezone.coerce_datetime(dagrun.start_date)
-
-        # Custom accessors.
-        class VariableAccessor:
-            """
-            Wrapper around Variable. This way you can get variables in
-            templates by using ``{{ var.value.variable_name }}`` or
-            ``{{ var.value.get('variable_name', 'fallback') }}``.
-            """
-
-            def __init__(self):
-                self.var = None
-
-            def __getattr__(
-                self,
-                item: str,
-            ):
-                self.var = Variable.get(item)
-                return self.var
-
-            def __repr__(self):
-                return str(self.var)
-
-            @staticmethod
-            def get(
-                item: str,
-                default_var: Any = Variable._Variable__NO_DEFAULT_SENTINEL,
-            ):
-                """Get Airflow Variable value"""
-                return Variable.get(item, default_var=default_var)
-
-        class VariableJsonAccessor:
-            """
-            Wrapper around Variable. This way you can get variables in
-            templates by using ``{{ var.json.variable_name }}`` or
-            ``{{ var.json.get('variable_name', {'fall': 'back'}) }}``.
-            """
-
-            def __init__(self):
-                self.var = None
-
-            def __getattr__(
-                self,
-                item: str,
-            ):
-                self.var = Variable.get(item, deserialize_json=True)
-                return self.var
-
-            def __repr__(self):
-                return str(self.var)
-
-            @staticmethod
-            def get(
-                item: str,
-                default_var: Any = Variable._Variable__NO_DEFAULT_SENTINEL,
-            ):
-                """Get Airflow Variable after deserializing JSON value"""
-                return Variable.get(item, default_var=default_var, deserialize_json=True)
-
-        class ConnectionAccessor:
-            """
-            Wrapper around Connection. This way you can get connections in
-            templates by using ``{{ conn.conn_id }}`` or
-            ``{{ conn.get('conn_id') }}``.
-            """
-
-            def __getattr__(
-                self,
-                item: str,
-            ):
-                return Connection.get_connection_from_secrets(item)
-
-            @staticmethod
-            def get(
-                item: str,
-                default_conn: Any = None,
-            ):
-                """Get Airflow Connection value"""
-                try:
-                    return Connection.get_connection_from_secrets(item)
-                except AirflowNotFoundException:
-                    return default_conn
-
-        # Create lazy proxies for deprecated stuff.
-
-        def deprecated_proxy(
-            func: Callable[[], Any],
-            *,
-            key: str,
-            replacements: Optional[List[str]] = None,
-        ) -> lazy_object_proxy.Proxy:
-            def deprecated_func():
-                message = (
-                    f"Accessing {key!r} from the template is deprecated and "
-                    f"will be removed in a future version."
-                )
-                if replacements:
-                    display_except_last = ", ".join(repr(r) for r in replacements[:-1])
-                    if display_except_last:
-                        message += f" Please use {display_except_last} or {replacements[-1]!r} instead."
-                    else:
-                        message += f" Please use {replacements[-1]!r} instead."
-                warnings.warn(message, DeprecationWarning)
-                return func()
-
-            return lazy_object_proxy.Proxy(deprecated_func)
 
         @cache
         def get_yesterday_ds() -> str:
@@ -2004,7 +1895,7 @@ class TaskInstance(Base, LoggingMixin):
                 return None
             return prev_ds.replace('-', '')
 
-        return {
+        context = {
             'conf': conf,
             'dag': dag,
             'dag_run': dag_run,
@@ -2012,57 +1903,45 @@ class TaskInstance(Base, LoggingMixin):
             'data_interval_start': timezone.coerce_datetime(data_interval.start),
             'ds': ds,
             'ds_nodash': ds_nodash,
-            'execution_date': deprecated_proxy(
-                lambda: logical_date,
-                key='execution_date',
-                replacements=['logical_date', 'data_interval_start'],
-            ),
+            'execution_date': logical_date,
             'inlets': task.inlets,
             'logical_date': logical_date,
             'macros': macros,
-            'next_ds': deprecated_proxy(get_next_ds, key="next_ds", replacements=["data_interval_end | ds"]),
-            'next_ds_nodash': deprecated_proxy(
-                get_next_ds_nodash,
-                key="next_ds_nodash",
-                replacements=["data_interval_end | ds_nodash"],
-            ),
-            'next_execution_date': deprecated_proxy(
-                get_next_execution_date,
-                key='next_execution_date',
-                replacements=['data_interval_end'],
-            ),
+            'next_ds': get_next_ds(),
+            'next_ds_nodash': get_next_ds_nodash(),
+            'next_execution_date': get_next_execution_date(),
             'outlets': task.outlets,
             'params': task.params,
-            'prev_data_interval_start_success': lazy_object_proxy.Proxy(get_prev_data_interval_start_success),
-            'prev_data_interval_end_success': lazy_object_proxy.Proxy(get_prev_data_interval_end_success),
-            'prev_ds': deprecated_proxy(get_prev_ds, key="prev_ds"),
-            'prev_ds_nodash': deprecated_proxy(get_prev_ds_nodash, key="prev_ds_nodash"),
-            'prev_execution_date': deprecated_proxy(get_prev_execution_date, key='prev_execution_date'),
-            'prev_execution_date_success': deprecated_proxy(
-                lambda: self.get_previous_execution_date(state=State.SUCCESS, session=session),
-                key='prev_execution_date_success',
-                replacements=['prev_data_interval_start_success'],
+            'prev_data_interval_start_success': get_prev_data_interval_start_success(),
+            'prev_data_interval_end_success': get_prev_data_interval_end_success(),
+            'prev_ds': get_prev_ds(),
+            'prev_ds_nodash': get_prev_ds_nodash(),
+            'prev_execution_date': get_prev_execution_date(),
+            'prev_execution_date_success': self.get_previous_execution_date(
+                state=State.SUCCESS,
+                session=session,
             ),
-            'prev_start_date_success': lazy_object_proxy.Proxy(get_prev_start_date_success),
+            'prev_start_date_success': get_prev_start_date_success(),
             'run_id': self.run_id,
             'task': task,
             'task_instance': self,
             'task_instance_key_str': f"{task.dag_id}__{task.task_id}__{ds_nodash}",
             'test_mode': self.test_mode,
             'ti': self,
-            'tomorrow_ds': deprecated_proxy(get_tomorrow_ds, key='tomorrow_ds'),
-            'tomorrow_ds_nodash': deprecated_proxy(get_tomorrow_ds_nodash, key='tomorrow_ds_nodash'),
+            'tomorrow_ds': get_tomorrow_ds(),
+            'tomorrow_ds_nodash': get_tomorrow_ds_nodash(),
             'ts': ts,
             'ts_nodash': ts_nodash,
             'ts_nodash_with_tz': ts_nodash_with_tz,
             'var': {
-                'json': VariableJsonAccessor(),
-                'value': VariableAccessor(),
+                'json': VariableAccessor(deserialize_json=True),
+                'value': VariableAccessor(deserialize_json=False),
             },
             'conn': ConnectionAccessor(),
-            'yesterday_ds': deprecated_proxy(get_yesterday_ds, key='yesterday_ds'),
-            'yesterday_ds_nodash': deprecated_proxy(get_yesterday_ds_nodash, key='yesterday_ds_nodash'),
+            'yesterday_ds': get_yesterday_ds(),
+            'yesterday_ds_nodash': get_yesterday_ds_nodash(),
         }
+        return Context(context)
 
     @provide_session
     def get_rendered_template_fields(self, session=None):

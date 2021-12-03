@@ -16,13 +16,13 @@
 # specific language governing permissions and limitations
 # under the License.
 import unittest
-from datetime import datetime
 from unittest.mock import patch
 
 from airflow.models import DAG, DagRun, TaskInstance
 from airflow.providers.papermill.operators.papermill import PapermillOperator
+from airflow.utils import timezone
 
-DEFAULT_DATE = datetime(2021, 1, 1)
+DEFAULT_DATE = timezone.datetime(2021, 1, 1)
 
 
 class TestPapermillOperator(unittest.TestCase):

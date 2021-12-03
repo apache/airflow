@@ -18,8 +18,8 @@
 Params
 ======
 
-Params are Airflow's concept of providing runtime configuration to tasks when a dag gets triggered manually.
-Params are configured while defining the dag & tasks, that can be altered while doing a manual trigger. The
+Params are Airflow's concept of providing runtime configuration to tasks when a DAG gets triggered manually.
+Params are configured while defining the DAG & tasks, that can be altered while doing a manual trigger. The
 ability to update params while triggering a DAG depends on the flag ``core.dag_run_conf_overrides_params``,
 so if that flag is ``False``, params would behave like constants.
 

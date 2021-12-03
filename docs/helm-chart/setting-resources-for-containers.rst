@@ -51,7 +51,7 @@ Possible Containers where resources can be configured include:
    * ``redis.resources``
 
 
-For example, specifying resources for worker kerberos sidecar:
+For example, specifying resources for worker Kerberos sidecar:
 
 .. code-block:: yaml
 
