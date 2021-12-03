@@ -47,7 +47,7 @@ class VertexAIDatasetLink(BaseOperatorLink):
         return (
             VERTEX_AI_DATASET_LINK.format(
                 region=dataset_conf["region"],
-                model_id=dataset_conf["model_id"],
+                dataset_id=dataset_conf["dataset_id"],
                 project_id=dataset_conf["project_id"],
             )
             if dataset_conf

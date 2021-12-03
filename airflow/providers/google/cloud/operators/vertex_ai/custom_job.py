@@ -265,7 +265,9 @@ class CreateCustomContainerTrainingJobOperator(_CustomTrainingJobBaseOperator):
             tensorboard=self.tensorboard,
             sync=True,
         )
-        model_id = self.hook.extract_model_id(model)
+
+        result = Model.to_dict(model)
+        model_id = self.hook.extract_model_id(result)
         self.xcom_push(
             context,
             key="model_conf",
@@ -275,7 +277,7 @@ class CreateCustomContainerTrainingJobOperator(_CustomTrainingJobBaseOperator):
                 "project_id": self.project_id,
             },
         )
-        return Model.to_dict(model)
+        return result
 
 
 class CreateCustomPythonPackageTrainingJobOperator(_CustomTrainingJobBaseOperator):
@@ -350,7 +352,8 @@ class CreateCustomPythonPackageTrainingJobOperator(_CustomTrainingJobBaseOperato
             sync=True,
         )
 
-        model_id = self.hook.extract_model_id(model)
+        result = Model.to_dict(model)
+        model_id = self.hook.extract_model_id(result)
         self.xcom_push(
             context,
             key="model_conf",
@@ -360,7 +363,7 @@ class CreateCustomPythonPackageTrainingJobOperator(_CustomTrainingJobBaseOperato
                 "project_id": self.project_id,
             },
         )
-        return Model.to_dict(model)
+        return result
 
 
 class CreateCustomTrainingJobOperator(_CustomTrainingJobBaseOperator):
@@ -437,7 +440,8 @@ class CreateCustomTrainingJobOperator(_CustomTrainingJobBaseOperator):
             sync=True,
         )
 
-        model_id = self.hook.extract_model_id(model)
+        result = Model.to_dict(model)
+        model_id = self.hook.extract_model_id(result)
         self.xcom_push(
             context,
             key="model_conf",
@@ -447,7 +451,7 @@ class CreateCustomTrainingJobOperator(_CustomTrainingJobBaseOperator):
                 "project_id": self.project_id,
             },
         )
-        return Model.to_dict(model)
+        return result
 
 
 class DeleteCustomTrainingJobOperator(BaseOperator):
