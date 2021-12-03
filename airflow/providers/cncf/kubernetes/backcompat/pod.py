@@ -15,7 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """Classes for interacting with Kubernetes API"""
-"""This module is deprecated. Please use :mod:`kubernetes.client.models.V1Volume`."""
+"""This module is deprecated. Please use :mod:`kubernetes.client.models.V1ResourceRequirements` and and `kubernetes.client.models.V1ContainerPort`."""
 
 import warnings
 
