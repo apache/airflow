@@ -27,7 +27,7 @@ on:  # yamllint disable-line rule:truthy
 permissions:
   contents: read
 concurrency:
-  group: codeql-${{ github.event.pull_request.number || github.ref }}
+  group: codeql-${{ (github.event_name == 'pull_request' && github.event.pull_request.number) || github.ref }}
   cancel-in-progress: true
 
 jobs:
