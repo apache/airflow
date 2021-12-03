@@ -17,7 +17,9 @@
 # under the License.
 
 import warnings
-from typing import TYPE_CHECKING, Iterable, Union
+from typing import TYPE_CHECKING, Iterable, Optional, Sequence, Union
+
+import pendulum
 
 from airflow.models.taskinstance import TaskInstance
 from airflow.utils import timezone
@@ -66,9 +68,10 @@ class SkipMixin(LoggingMixin):
     def skip(
         self,
         dag_run: "DagRun",
-        execution_date: "timezone.DateTime",
-        tasks: "Iterable[BaseOperator]",
-        session: "Session" = None,
+        execution_date: "pendulum.DateTime",
+        tasks: Sequence["BaseOperator"],
+        *,
+        session: "Session",
     ):
         """
         Sets tasks instances to skipped from the same dag run.
@@ -114,11 +117,7 @@ class SkipMixin(LoggingMixin):
         session.commit()
 
         # SkipMixin may not necessarily have a task_id attribute. Only store to XCom if one is available.
-        try:
-            task_id = self.task_id
-        except AttributeError:
-            task_id = None
-
+        task_id: Optional[str] = getattr(self, "task_id", None)
         if task_id is not None:
             from airflow.models.xcom import XCom
 
