@@ -393,11 +393,10 @@ you can also start integrations (separate Docker images) if specified as extra `
 chose which backend database should be used with ``--backend`` flag and python version with ``--python`` flag.
 
 You can also have breeze launch Airflow automatically ``breeze start-airflow``, this will drop you in a
-tmux session with four panes:
+tmux session with three panes:
 
    - one to monitor the scheduler,
    - one for the webserver,
-   - one monitors and compiles JavaScript files,
    - one with a shell for additional commands.
 
 Managing Prod environment (with ``--production-image`` flag):
