@@ -120,7 +120,7 @@ class TestDruidHook(unittest.TestCase):
 
     @requests_mock.mock()
     def test_submit_timeout(self, m):
-        self.db_hook.timeout = 1
+        self.db_hook.timeout = 5
         self.db_hook.max_ingestion_time = 5
         task_post = m.post(
             'http://druid-overlord:8081/druid/indexer/v1/task',
@@ -141,7 +141,31 @@ class TestDruidHook(unittest.TestCase):
             self.db_hook.submit_indexing_job('Long json file')
 
         assert task_post.called_once
-        assert status_check.called
+        assert status_check.call_count == 3
+        assert shutdown_post.called_once
+
+    @requests_mock.mock()
+    def test_default_timeout(self, m):
+        self.db_hook.max_ingestion_time = 5
+        task_post = m.post(
+            'http://druid-overlord:8081/druid/indexer/v1/task',
+            text='{"task":"9f8a7359-77d4-4612-b0cd-cc2f6a3c28de"}',
+        )
+        status_check = m.get(
+            'http://druid-overlord:8081/druid/indexer/v1/task/9f8a7359-77d4-4612-b0cd-cc2f6a3c28de/status',
+            text='{"status":{"status": "RUNNING"}}',
+        )
+        shutdown_post = m.post(
+            'http://druid-overlord:8081/druid/indexer/v1/task/'
+            '9f8a7359-77d4-4612-b0cd-cc2f6a3c28de/shutdown',
+            text='{"task":"9f8a7359-77d4-4612-b0cd-cc2f6a3c28de"}',
+        )
+
+        with pytest.raises(AirflowException):
+            self.db_hook.submit_indexing_job('Long json file')
+
+        assert task_post.called_once
+        assert status_check.call_count == 7
         assert shutdown_post.called_once
 
     @patch('airflow.providers.apache.druid.hooks.druid.DruidHook.get_connection')
