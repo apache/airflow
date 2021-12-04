@@ -123,3 +123,10 @@ class TestAirflowCommon:
 
         for doc in docs:
             assert expected_image == jmespath.search("spec.template.spec.initContainers[0].image", doc)
+
+    def test_should_set_correct_helm_hooks_weight(self):
+        docs = render_chart(
+            show_only=["templates/secrets/fernetkey-secret.yaml"],
+        )
+        annotations = jmespath.search("metadata.annotations", docs[0])
+        assert annotations["helm.sh/hook-weight"] == "0"
