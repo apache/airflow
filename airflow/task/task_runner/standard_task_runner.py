@@ -52,16 +52,16 @@ class StandardTaskRunner(BaseTaskRunner):
             self.log.info("Started process %d to run task", pid)
             return psutil.Process(pid)
         else:
+            # Start a new process group
+            os.setpgid(0, 0)
             import signal
+
+            signal.signal(signal.SIGINT, signal.SIG_DFL)
+            signal.signal(signal.SIGTERM, signal.SIG_DFL)
 
             from airflow import settings
             from airflow.cli.cli_parser import get_parser
             from airflow.sentry import Sentry
-
-            signal.signal(signal.SIGINT, signal.SIG_DFL)
-            signal.signal(signal.SIGTERM, signal.SIG_DFL)
-            # Start a new process group
-            os.setpgid(0, 0)
 
             # Force a new SQLAlchemy session. We can't share open DB handles
             # between process. The cli code will re-create this as part of its

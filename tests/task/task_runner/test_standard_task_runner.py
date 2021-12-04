@@ -33,6 +33,7 @@ from airflow.utils import timezone
 from airflow.utils.platform import getuser
 from airflow.utils.session import create_session
 from airflow.utils.state import State
+from airflow.utils.timeout import timeout
 from tests.test_utils.db import clear_db_runs
 
 TEST_DAG_FOLDER = os.environ['AIRFLOW__CORE__DAGS_FOLDER']
@@ -79,7 +80,7 @@ class TestStandardTaskRunner:
         local_task_job.task_instance.command_as_list.return_value = [
             'airflow',
             'tasks',
-            'test',
+            'run',
             'test_on_kill',
             'task1',
             '2016-01-01',
@@ -87,14 +88,17 @@ class TestStandardTaskRunner:
 
         runner = StandardTaskRunner(local_task_job)
         runner.start()
-        time.sleep(0.5)
+        # Wait until process sets its pgid to be equal to pid
+        with timeout(seconds=1):
+            while True:
+                runner_pgid = os.getpgid(runner.process.pid)
+                if runner_pgid == runner.process.pid:
+                    break
+                time.sleep(0.01)
 
-        pgid = os.getpgid(runner.process.pid)
-        assert pgid > 0
-        assert pgid != os.getpgid(0), "Task should be in a different process group to us"
-
-        processes = list(self._procs_in_pgroup(pgid))
-
+        assert runner_pgid > 0
+        assert runner_pgid != os.getpgid(0), "Task should be in a different process group to us"
+        processes = list(self._procs_in_pgroup(runner_pgid))
         runner.terminate()
 
         for process in processes:
@@ -217,10 +221,11 @@ class TestStandardTaskRunner:
             session.close()  # explicitly close as `create_session`s commit will blow up otherwise
 
         # Wait some time for the result
-        for _ in range(20):
-            if os.path.exists(path):
-                break
-            time.sleep(2)
+        with timeout(seconds=40):
+            while True:
+                if os.path.exists(path):
+                    break
+                time.sleep(0.01)
 
         with open(path) as f:
             assert "ON_KILL_TEST" == f.readline()
