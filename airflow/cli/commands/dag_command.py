@@ -464,7 +464,7 @@ def dag_test(args, session=None):
 
 
 @provide_session
-@cli_utils.action_logging
+@cli_utils.action_cli()
 def dag_reserialize(args, session=None):
     session.query(SerializedDagModel).delete(synchronize_session=False)
 
