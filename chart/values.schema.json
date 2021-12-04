@@ -3375,7 +3375,14 @@
             "x-docsSection": "Kubernetes",
             "default": {},
             "additionalProperties": {
-                "$ref": "https://raw.githubusercontent.com/yannh/kubernetes-json-schema/master/v1.22.0-standalone-strict/quantity-resource.json"
+                "oneOf": [
+                    {
+                        "type": "string"
+                    },
+                    {
+                        "type": "number"
+                    }
+                ]
             }
         },
         "limits": {
