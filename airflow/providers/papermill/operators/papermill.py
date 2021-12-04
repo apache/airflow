@@ -44,7 +44,8 @@ class PapermillOperator(BaseOperator):
     :type output_nb: str
     :param parameters: the notebook parameters to set
     :type parameters: dict
-    :param kernel_name: name of kernel to execute the notebook against
+    :param kernel_name: (optional) name of kernel to execute the notebook against
+        (ignores kernel name in the notebook document metadata)
     :type kernel_name: str
     """
 
