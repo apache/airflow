@@ -42,7 +42,7 @@ if TYPE_CHECKING:
         class _DockerTask(_TaskDecorator, DockerDecoratorMixin):
             pass
 
-        _TaskDecorator = _DockerTask  # type: ignore
+        _TaskDecorator = _DockerTask
     except ImportError:
         pass
 # [END mixin_for_autocomplete]
