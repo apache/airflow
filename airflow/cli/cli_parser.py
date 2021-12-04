@@ -30,7 +30,9 @@ from airflow import PY37, settings
 from airflow.cli.commands.legacy_commands import check_legacy_command
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
+from airflow.executors import celery_executor, celery_kubernetes_executor
 from airflow.executors.executor_constants import CELERY_EXECUTOR, CELERY_KUBERNETES_EXECUTOR
+from airflow.executors.executor_loader import ExecutorLoader
 from airflow.utils.cli import ColorMode
 from airflow.utils.helpers import partition
 from airflow.utils.module_loading import import_string
@@ -60,10 +62,17 @@ class DefaultHelpParser(argparse.ArgumentParser):
         if action.dest == 'subcommand' and value == 'celery':
             executor = conf.get('core', 'EXECUTOR')
             if executor not in (CELERY_EXECUTOR, CELERY_KUBERNETES_EXECUTOR):
-                message = (
-                    f'celery subcommand works only with CeleryExecutor, your current executor: {executor}'
-                )
-                raise ArgumentError(action, message)
+                executor_cls, _ = ExecutorLoader.import_executor_cls(executor)
+                if not issubclass(
+                    executor_cls,
+                    (celery_executor.CeleryExecutor, celery_kubernetes_executor.CeleryKubernetesExecutor),
+                ):
+                    message = (
+                        f'celery subcommand works only with CeleryExecutor, CeleryKubernetesExecutor and '
+                        f'executors derived from them, your current executor: {executor}, subclassed from: '
+                        f'{", ".join([base_cls.__qualname__ for base_cls in executor_cls.__bases__])}'
+                    )
+                    raise ArgumentError(action, message)
         if action.dest == 'subcommand' and value == 'kubernetes':
             try:
                 import kubernetes.client  # noqa: F401
@@ -809,7 +818,6 @@ class GroupCommand(NamedTuple):
 
 
 CLICommand = Union[ActionCommand, GroupCommand]
-
 
 DAGS_COMMANDS = (
     ActionCommand(

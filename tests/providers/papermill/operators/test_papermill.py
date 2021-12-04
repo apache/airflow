@@ -30,6 +30,7 @@ class TestPapermillOperator(unittest.TestCase):
     def test_execute(self, mock_papermill):
         in_nb = "/tmp/does_not_exist"
         out_nb = "/tmp/will_not_exist"
+        kernel_name = "python3"
         parameters = {"msg": "hello_world", "train": 1}
 
         op = PapermillOperator(
@@ -37,14 +38,20 @@ class TestPapermillOperator(unittest.TestCase):
             output_nb=out_nb,
             parameters=parameters,
             task_id="papermill_operator_test",
+            kernel_name=kernel_name,
             dag=None,
         )
 
-        op.pre_execute(context={})  # make sure to have the inlets
+        op.pre_execute(context={})  # Make sure to have the inlets
         op.execute(context={})
 
         mock_papermill.execute_notebook.assert_called_once_with(
-            in_nb, out_nb, parameters=parameters, progress_bar=False, report_mode=True
+            in_nb,
+            out_nb,
+            parameters=parameters,
+            kernel_name=kernel_name,
+            progress_bar=False,
+            report_mode=True,
         )
 
     def test_render_template(self):
@@ -56,6 +63,7 @@ class TestPapermillOperator(unittest.TestCase):
             input_nb="/tmp/{{ dag.dag_id }}.ipynb",
             output_nb="/tmp/out-{{ dag.dag_id }}.ipynb",
             parameters={"msgs": "dag id is {{ dag.dag_id }}!"},
+            kernel_name="python3",
             dag=dag,
         )
 
@@ -66,3 +74,4 @@ class TestPapermillOperator(unittest.TestCase):
         assert "/tmp/test_render_template.ipynb" == getattr(operator, 'input_nb')
         assert '/tmp/out-test_render_template.ipynb' == getattr(operator, 'output_nb')
         assert {"msgs": "dag id is test_render_template!"} == getattr(operator, 'parameters')
+        assert "python3" == getattr(operator, 'kernel_name')

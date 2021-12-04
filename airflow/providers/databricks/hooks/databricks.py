@@ -176,7 +176,7 @@ class DatabricksHook(BaseHook):
         if resource in self.aad_tokens:
             d = self.aad_tokens[resource]
             now = int(time.time())
-            if d['expires_on'] > (now - TOKEN_REFRESH_LEAD_TIME):  # it expires in more than 5 minutes
+            if d['expires_on'] > (now + TOKEN_REFRESH_LEAD_TIME):  # it expires in more than 2 minutes
                 return d['token']
             self.log.info("Existing AAD token is expired, or going to expire soon. Refreshing...")
 

@@ -22,6 +22,7 @@ import tempfile
 import unittest
 from datetime import datetime, timedelta
 from unittest import mock
+from unittest.mock import MagicMock
 
 import pytest
 
@@ -550,9 +551,7 @@ class TestCliDags(unittest.TestCase):
             ]
         )
 
-    @mock.patch(
-        "airflow.cli.commands.dag_command.render_dag", **{'return_value.source': "SOURCE"}  # type: ignore
-    )
+    @mock.patch("airflow.cli.commands.dag_command.render_dag", return_value=MagicMock(source="SOURCE"))
     @mock.patch("airflow.cli.commands.dag_command.DebugExecutor")
     @mock.patch("airflow.cli.commands.dag_command.get_dag")
     def test_dag_test_show_dag(self, mock_get_dag, mock_executor, mock_render_dag):

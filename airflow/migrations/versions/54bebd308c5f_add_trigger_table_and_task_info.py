@@ -60,8 +60,8 @@ def upgrade():
 def downgrade():
     """Unapply Add trigger table and task info"""
     with op.batch_alter_table('task_instance', schema=None) as batch_op:
+        batch_op.drop_constraint('task_instance_trigger_id_fkey', type_='foreignkey')
         batch_op.drop_index('ti_trigger_id')
-        batch_op.drop_constraint('task_instance_trigger_id_fkey')
         batch_op.drop_column('trigger_id')
         batch_op.drop_column('trigger_timeout')
         batch_op.drop_column('next_method')
