@@ -25,6 +25,7 @@ from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.models.dag import DAG, DagContext
 from airflow.models.xcom_arg import XComArg
+from airflow.utils.context import Context
 from airflow.utils.task_group import TaskGroup, TaskGroupContext
 
 
@@ -130,7 +131,7 @@ class DecoratedOperator(BaseOperator):
         self.op_kwargs = op_kwargs
         super().__init__(**kwargs_to_upstream, **kwargs)
 
-    def execute(self, context: Dict):
+    def execute(self, context: Context):
         return_value = super().execute(context)
         return self._handle_output(return_value=return_value, context=context, xcom_push=self.xcom_push)
 
