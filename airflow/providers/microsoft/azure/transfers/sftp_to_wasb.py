@@ -155,7 +155,7 @@ class SFTPToWasbOperator(BaseOperator):
         if total_wildcards > 1:
             raise AirflowException(
                 "Only one wildcard '*' is allowed in sftp_source_path parameter. "
-                "Found {} in {}.".format(total_wildcards, self.sftp_source_path)
+                f"Found {total_wildcards} in {self.sftp_source_path}."
             )
 
     @property
