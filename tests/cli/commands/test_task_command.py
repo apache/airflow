@@ -379,8 +379,6 @@ class TestCliTasks(unittest.TestCase):
         task_command.task_clear(args)
 
 
-# For this test memory spins out of control on Python 3.6. TODO(potiuk): FIXME")
-@pytest.mark.quarantined
 class TestLogsfromTaskRunCommand(unittest.TestCase):
     def setUp(self) -> None:
         self.dag_id = "test_logging_dag"
@@ -510,6 +508,8 @@ class TestLogsfromTaskRunCommand(unittest.TestCase):
             f"task_id={self.task_id}, execution_date=20170101T000000" in logs
         )
 
+    # For this test memory spins out of control on Python 3.6. TODO(potiuk): FIXME")
+    @pytest.mark.quarantined
     @mock.patch("airflow.task.task_runner.standard_task_runner.CAN_FORK", False)
     def test_logging_with_run_task_subprocess(self):
         # We are not using self.assertLogs as we want to verify what actually is stored in the Log file
@@ -585,6 +585,7 @@ class TestLogsfromTaskRunCommand(unittest.TestCase):
 
         assert self.root_logger.handlers == self.root_handlers
 
+    @pytest.mark.quarantined
     @mock.patch.object(task_command, "_run_task_by_selected_method")
     def test_disable_handler_modifying(self, run_task_mock):
         """If [core] donot_modify_handlers is set to True, the root logger is untouched"""
