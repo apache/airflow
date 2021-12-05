@@ -99,7 +99,7 @@ You can use the operator for the following tasks:
             "/tmp/dir_for_remote_transfer/file2.txt",
         ],
         remote_path="/tmp/dir_for_remote_transfer/remote/txt/",
-        regexp_mask=".*[.]txt",
+        regexp_mask=r".*\.txt",
         operation=SFTPOperation.PUT,
         create_intermediate_dirs=True,
     )
@@ -107,5 +107,5 @@ You can use the operator for the following tasks:
 
 The operator also supports transfer files from a remote server to a local,
 for this you need to change the parameter ``operation`` from ``SFTPOperation.PUT`` to ``SFTPOperation.GET``.
-Parameter ``create_intermediate_dirs`` needed for create missing intermediate directories when
+Parameter ``create_intermediate_dirs`` is needed to create missing intermediate directories when
 copying from remote to local and vice-versa. Default is False.
