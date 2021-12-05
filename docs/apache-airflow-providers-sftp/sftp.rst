@@ -81,7 +81,7 @@ You can use the operator for the following tasks:
         ssh_conn_id="ssh_default",
         local_path="/tmp/dir_for_remote_transfer/",
         remote_path="/tmp/dir_for_remote_transfer/remote/txt/",
-        regexp_mask=".*[.]txt",
+        regexp_mask=r".*\.txt",
         operation=SFTPOperation.PUT,
         create_intermediate_dirs=True,
     )
