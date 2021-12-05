@@ -87,7 +87,6 @@ Alternatively, you can drop the table by following the steps below:
 2. Run the following commands in the python shell:
 
  .. code-block:: python
- 
    from airflow.settings import Session
    session = Session()
    session.execute("DROP TABLE _airflow_moved__2_2__task_instance")
