@@ -80,6 +80,16 @@ Otherwise you won't have access to the most context variables of Airflow in ``op
 If you want the context related to datetime objects like ``data_interval_start`` you can add ``pendulum`` and
 ``lazy_object_proxy``.
 
+If additional parameters for package installation are needed pass them in ``requirements.txt`` as in the example below:
+
+.. code-block::
+
+  SomePackage==0.2.1 --pre --index-url http://some.archives.com/archives
+  AnotherPackage==1.4.3 --no-index --find-links /my/local/archives
+
+All supported options are listed in the `requirements file format <https://pip.pypa.io/en/stable/reference/requirements-file-format/#supported-options>`_.
+
+
 Templating
 ^^^^^^^^^^
 
