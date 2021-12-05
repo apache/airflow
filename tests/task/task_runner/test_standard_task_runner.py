@@ -222,7 +222,7 @@ class TestStandardTaskRunner:
             processes = list(self._procs_in_pgroup(runner_pgid))
 
             logging.info("Waiting for the task to start")
-            with timeout(seconds=4):
+            with timeout(seconds=20):
                 while True:
                     if os.path.exists(path_on_kill_running):
                         break
