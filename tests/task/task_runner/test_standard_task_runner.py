@@ -179,9 +179,14 @@ class TestStandardTaskRunner:
         Test that ensures that clearing in the UI SIGTERMS
         the task
         """
-        path = "/tmp/airflow_on_kill"
+        path_on_kill_running = "/tmp/airflow_on_kill_running"
+        path_on_kill_killed = "/tmp/airflow_on_kill_killed"
         try:
-            os.unlink(path)
+            os.unlink(path_on_kill_running)
+        except OSError:
+            pass
+        try:
+            os.unlink(path_on_kill_killed)
         except OSError:
             pass
 
@@ -207,27 +212,36 @@ class TestStandardTaskRunner:
             runner = StandardTaskRunner(job1)
             runner.start()
 
-            # give the task some time to startup
+            with timeout(seconds=3):
+                while True:
+                    runner_pgid = os.getpgid(runner.process.pid)
+                    if runner_pgid == runner.process.pid:
+                        break
+                    time.sleep(0.01)
+
+            processes = list(self._procs_in_pgroup(runner_pgid))
+
+            logging.info("Waiting for the task to start")
+            with timeout(seconds=4):
+                while True:
+                    if os.path.exists(path_on_kill_running):
+                        break
+                    time.sleep(0.01)
+            logging.info("Task started. Give the task some time to settle")
             time.sleep(3)
-
-            pgid = os.getpgid(runner.process.pid)
-            assert pgid > 0
-            assert pgid != os.getpgid(0), "Task should be in a different process group to us"
-
-            processes = list(self._procs_in_pgroup(pgid))
-
+            logging.info(f"Terminating processes {processes} belonging to {runner_pgid} group")
             runner.terminate()
-
             session.close()  # explicitly close as `create_session`s commit will blow up otherwise
 
-        # Wait some time for the result
-        with timeout(seconds=40):
+        logging.info("Waiting for the on kill killed file to appear")
+        with timeout(seconds=4):
             while True:
-                if os.path.exists(path):
+                if os.path.exists(path_on_kill_killed):
                     break
                 time.sleep(0.01)
+        logging.info("The file appeared")
 
-        with open(path) as f:
+        with open(path_on_kill_killed) as f:
             assert "ON_KILL_TEST" == f.readline()
 
         for process in processes:
