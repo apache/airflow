@@ -17,13 +17,14 @@
  * under the License.
  */
 
-/* global document, CodeMirror */
+/* global document, CodeMirror, window */
 
 const textArea = document.getElementById('json');
+const height = window.innerHeight * 0.6;
 
 CodeMirror.fromTextArea(textArea, {
   lineNumbers: true,
   mode: { name: 'javascript', json: true },
   gutters: ['CodeMirror-lint-markers'],
   lint: true,
-});
+}).setSize(null, height);
