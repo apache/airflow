@@ -399,8 +399,8 @@ class TestSFTPOperator:
             SFTPBatchOperator(  # Put test file to remote.
                 task_id="put_test_task",
                 ssh_hook=self.hook,
-                local_path=test_local_dir,
-                remote_path=test_remote_dir,
+                local_folder=test_local_dir,
+                remote_folder=test_remote_dir,
                 regexp_mask=".*[.]csv",
                 operation=SFTPOperation.PUT,
                 create_intermediate_dirs=True,
@@ -438,11 +438,11 @@ class TestSFTPOperator:
             SFTPBatchOperator(  # Put test file to remote.
                 task_id="put_test_task",
                 ssh_hook=self.hook,
-                local_path=[
+                local_files_path=[
                     f'{self.test_local_batch_dir}/{self.test_csv_file}',
                     f'{self.test_local_batch_dir}/{self.test_csv2_file}',
                 ],
-                remote_path=self.test_remote_batch_dir,
+                remote_folder=self.test_remote_batch_dir,
                 operation=SFTPOperation.PUT,
                 create_intermediate_dirs=True,
             )
@@ -482,8 +482,8 @@ class TestSFTPOperator:
             SFTPBatchOperator(  # Put test file to remote.
                 task_id="put_test_task",
                 ssh_hook=self.hook,
-                local_path=test_local_dir,
-                remote_path=test_remote_dir,
+                local_folder=test_local_dir,
+                remote_folder=test_remote_dir,
                 regexp_mask=".*[.]csv",
                 operation=SFTPOperation.GET,
                 create_intermediate_dirs=True,
@@ -521,8 +521,8 @@ class TestSFTPOperator:
             SFTPBatchOperator(  # Put test file to remote.
                 task_id="put_test_task",
                 ssh_hook=self.hook,
-                local_path=self.test_local_batch_dir,
-                remote_path=[
+                local_folder=self.test_local_batch_dir,
+                remote_files_path=[
                     f'{self.test_remote_batch_dir}/{self.test_csv_file}',
                     f'{self.test_remote_batch_dir}/{self.test_csv2_file}',
                 ],
@@ -543,3 +543,64 @@ class TestSFTPOperator:
 
         pulled = tis["check_file_task"].xcom_pull(task_ids="check_file_task", key='return_value')
         assert base64.b64decode(pulled.strip().encode('ascii')) == b"2\n"
+
+    @conf_vars({('core', 'enable_xcom_pickling'): 'False'})
+    def test_arg_batch(self, dag_maker):
+
+        with dag_maker(dag_id="unit_tests_sftp_op_csv_file_transfer_get"):
+            with pytest.raises(TypeError):
+                SFTPBatchOperator(  # Put test file to remote.
+                    task_id="local_folder_is_not_str",
+                    ssh_hook=self.hook,
+                    local_folder=[
+                        f'{self.test_local_batch_dir}/{self.test_csv_file}',
+                        f'{self.test_local_batch_dir}/{self.test_csv2_file}',
+                    ],
+                    remote_files_path=[
+                        f'{self.test_remote_batch_dir}/{self.test_csv_file}',
+                        f'{self.test_remote_batch_dir}/{self.test_csv2_file}',
+                    ],
+                    operation=SFTPOperation.GET,
+                    create_intermediate_dirs=True,
+                )
+            with pytest.raises(TypeError):
+                SFTPBatchOperator(  # Put test file to remote.
+                    task_id="local_files_path_and_remote_files_path",
+                    ssh_hook=self.hook,
+                    local_files_path=[
+                        f'{self.test_local_batch_dir}/{self.test_csv_file}',
+                        f'{self.test_local_batch_dir}/{self.test_csv2_file}',
+                    ],
+                    remote_files_path=[
+                        f'{self.test_remote_batch_dir}/{self.test_csv_file}',
+                        f'{self.test_remote_batch_dir}/{self.test_csv2_file}',
+                    ],
+                    operation=SFTPOperation.GET,
+                    create_intermediate_dirs=True,
+                )
+            with pytest.raises(TypeError):
+                SFTPBatchOperator(  # Put test file to remote.
+                    task_id="local_files_path_put_with_regexp",
+                    ssh_hook=self.hook,
+                    local_files_path=[
+                        f'{self.test_local_batch_dir}/{self.test_csv_file}',
+                        f'{self.test_local_batch_dir}/{self.test_csv2_file}',
+                    ],
+                    remote_folder=self.test_remote_batch_dir,
+                    regexp_mask=".*[.]csv",
+                    operation=SFTPOperation.PUT,
+                    create_intermediate_dirs=True,
+                )
+            with pytest.raises(TypeError):
+                SFTPBatchOperator(  # Put test file to remote.
+                    task_id="remote_files_path_get_with_regexp",
+                    ssh_hook=self.hook,
+                    local_folder=self.test_local_batch_dir,
+                    remote_files_path=[
+                        f'{self.test_remote_batch_dir}/{self.test_csv_file}',
+                        f'{self.test_remote_batch_dir}/{self.test_csv2_file}',
+                    ],
+                    regexp_mask=".*[.]csv",
+                    operation=SFTPOperation.GET,
+                    create_intermediate_dirs=True,
+                )
