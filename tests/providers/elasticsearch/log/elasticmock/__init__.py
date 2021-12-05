@@ -42,7 +42,7 @@ from functools import wraps
 from typing import Dict
 from unittest.mock import patch
 
-from elasticsearch.client import _normalize_hosts
+from elasticsearch.client import _normalize_hosts  # type: ignore
 
 from .fake_elasticsearch import FakeElasticsearch
 
