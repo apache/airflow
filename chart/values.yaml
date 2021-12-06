@@ -56,7 +56,7 @@ images:
   # will use the images from 'defaultAirflowRepository:defaultAirflowTag' values
   # to run and wait for DB migrations .
   useDefaultImageForMigration: false
-  # timeout for airflow-migrations to complete
+  # timeout (in seconds) for airflow-migrations to complete
   migrationsWaitTimeout: 60
   pod_template:
     repository: ~

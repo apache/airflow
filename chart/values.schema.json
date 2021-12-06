@@ -373,7 +373,7 @@
                     "default": false
                 },
                 "migrationsWaitTimeout": {
-                    "description": "The time to wait for the DB migrations to complete.",
+                    "description": "The time (in seconds) to wait for the DB migrations to complete.",
                     "type": "number",
                     "x-docsSection": "Images",
                     "default": 60
