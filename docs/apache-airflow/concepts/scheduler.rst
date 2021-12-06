@@ -130,7 +130,7 @@ This does however place some requirements on the Database.
 Database Requirements
 """""""""""""""""""""
 
-The short version is that users of PostgreSQL 9.6+ or MySQL 8+ are all ready to go -- you can start running as
+The short version is that users of PostgreSQL 10+ or MySQL 8+ are all ready to go -- you can start running as
 many copies of the scheduler as you like -- there is no further set up or config options needed. If you are
 using a different database please read on.
 
@@ -146,7 +146,7 @@ UPDATE NOWAIT`` but the exact query is slightly different).
 
 The following databases are fully supported and provide an "optimal" experience:
 
-- PostgreSQL 9.6+
+- PostgreSQL 10+
 - MySQL 8+
 
 .. warning::

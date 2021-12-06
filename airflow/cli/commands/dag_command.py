@@ -46,7 +46,7 @@ from airflow.utils.cli import (
     sigint_handler,
     suppress_logs_and_warning,
 )
-from airflow.utils.dot_renderer import render_dag
+from airflow.utils.dot_renderer import render_dag, render_dag_dependencies
 from airflow.utils.session import create_session, provide_session
 from airflow.utils.state import State
 
@@ -183,6 +183,25 @@ def set_is_paused(is_paused, args):
     dag.set_is_paused(is_paused=is_paused)
 
     print(f"Dag: {args.dag_id}, paused: {is_paused}")
+
+
+def dag_dependencies_show(args):
+    """Displays DAG dependencies, save to file or show as imgcat image"""
+    dot = render_dag_dependencies(SerializedDagModel.get_dag_dependencies())
+    filename = args.save
+    imgcat = args.imgcat
+
+    if filename and imgcat:
+        raise SystemExit(
+            "Option --save and --imgcat are mutually exclusive. "
+            "Please remove one option to execute the command.",
+        )
+    elif filename:
+        _save_dot_to_file(dot, filename)
+    elif imgcat:
+        _display_dot_via_imgcat(dot)
+    else:
+        print(dot.source)
 
 
 def dag_show(args):

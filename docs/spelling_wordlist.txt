@@ -936,6 +936,7 @@ lifecycle
 lineterminator
 linter
 linux
+liveness
 livy
 loadBalancerIP
 localExecutor

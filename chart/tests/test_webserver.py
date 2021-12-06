@@ -139,8 +139,8 @@ class WebserverDeploymentTest(unittest.TestCase):
 
     @parameterized.expand(
         [
-            ("2.0.0", ["airflow", "db", "check-migrations"]),
-            ("2.1.0", ["airflow", "db", "check-migrations"]),
+            ("2.0.0", ["airflow", "db", "check-migrations", "--migration-wait-timeout=60"]),
+            ("2.1.0", ["airflow", "db", "check-migrations", "--migration-wait-timeout=60"]),
             ("1.10.2", ["python", "-c"]),
         ],
     )

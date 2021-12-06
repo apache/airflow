@@ -68,6 +68,7 @@ with DAG(
         qubole_result_2 = hive_s3_location.get_results(ti)
         return filecmp.cmp(qubole_result_1, qubole_result_2)
 
+    # [START howto_operator_qubole_run_hive_query]
     hive_show_table = QuboleOperator(
         task_id='hive_show_table',
         command_type='hivecmd',
@@ -82,7 +83,9 @@ with DAG(
             'cluster_label': 'default',
         },
     )
+    # [END howto_operator_qubole_run_hive_query]
 
+    # [START howto_operator_qubole_run_hive_script]
     hive_s3_location = QuboleOperator(
         task_id='hive_s3_location',
         command_type="hivecmd",
@@ -92,6 +95,7 @@ with DAG(
         # If the script at s3 location has any qubole specific macros to be replaced
         # macros='[{"date": "{{ ds }}"}, {"name" : "abc"}]',
     )
+    # [END howto_operator_qubole_run_hive_script]
 
     options = ['hadoop_jar_cmd', 'presto_cmd', 'db_query', 'spark_cmd']
 
@@ -101,6 +105,7 @@ with DAG(
 
     join = DummyOperator(task_id='join', trigger_rule=TriggerRule.ONE_SUCCESS)
 
+    # [START howto_operator_qubole_run_hadoop_jar]
     hadoop_jar_cmd = QuboleOperator(
         task_id='hadoop_jar_cmd',
         command_type='hadoopcmd',
@@ -116,31 +121,41 @@ with DAG(
             'cluster_label': 'default',
         },
     )
+    # [END howto_operator_qubole_run_hadoop_jar]
 
+    # [START howto_operator_qubole_run_pig_script]
     pig_cmd = QuboleOperator(
         task_id='pig_cmd',
         command_type="pigcmd",
         script_location="s3://public-qubole/qbol-library/scripts/script1-hadoop-s3-small.pig",
         parameters="key1=value1 key2=value2",
     )
+    # [END howto_operator_qubole_run_pig_script]
 
     branching >> hadoop_jar_cmd >> pig_cmd >> join
 
+    # [START howto_operator_qubole_run_presto_query]
     presto_cmd = QuboleOperator(task_id='presto_cmd', command_type='prestocmd', query='show tables')
+    # [END howto_operator_qubole_run_presto_query]
 
+    # [START howto_operator_qubole_run_shell_script]
     shell_cmd = QuboleOperator(
         task_id='shell_cmd',
         command_type="shellcmd",
         script_location="s3://public-qubole/qbol-library/scripts/shellx.sh",
         parameters="param1 param2",
     )
+    # [END howto_operator_qubole_run_shell_script]
 
     branching >> presto_cmd >> shell_cmd >> join
 
+    # [START howto_operator_qubole_run_db_tap_query]
     db_query = QuboleOperator(
         task_id='db_query', command_type='dbtapquerycmd', query='show tables', db_tap_id=2064
     )
+    # [END howto_operator_qubole_run_db_tap_query]
 
+    # [START howto_operator_qubole_run_db_export]
     db_export = QuboleOperator(
         task_id='db_export',
         command_type='dbexportcmd',
@@ -150,9 +165,11 @@ with DAG(
         partition_spec='dt=20110104-02',
         dbtap_id=2064,
     )
+    # [END howto_operator_qubole_run_db_export]
 
     branching >> db_query >> db_export >> join
 
+    # [START howto_operator_qubole_run_db_import]
     db_import = QuboleOperator(
         task_id='db_import',
         command_type='dbimportcmd',
@@ -163,10 +180,11 @@ with DAG(
         parallelism=2,
         dbtap_id=2064,
     )
+    # [END howto_operator_qubole_run_db_import]
 
+    # [START howto_operator_qubole_run_spark_scala]
     prog = '''
     import scala.math.random
-
     import org.apache.spark._
 
     /** Computes an approximation to pi */
@@ -185,7 +203,6 @@ with DAG(
         spark.stop()
       }
     }
-
     '''
 
     spark_cmd = QuboleOperator(
@@ -196,6 +213,7 @@ with DAG(
         arguments='--class SparkPi',
         tags='airflow_example_run',
     )
+    # [END howto_operator_qubole_run_spark_scala]
 
     branching >> db_import >> spark_cmd >> join
 
@@ -218,6 +236,7 @@ with DAG(
         """
     )
 
+    # [START howto_sensor_qubole_run_file_sensor]
     check_s3_file = QuboleFileSensor(
         task_id='check_s3_file',
         poke_interval=60,
@@ -229,7 +248,9 @@ with DAG(
             ]  # will check for availability of all the files in array
         },
     )
+    # [END howto_sensor_qubole_run_file_sensor]
 
+    # [START howto_sensor_qubole_run_partition_sensor]
     check_hive_partition = QubolePartitionSensor(
         task_id='check_hive_partition',
         poke_interval=10,
@@ -243,5 +264,6 @@ with DAG(
             ],  # will check for partitions like [month=12/day=12,month=12/day=13]
         },
     )
+    # [END howto_sensor_qubole_run_partition_sensor]
 
     check_s3_file >> check_hive_partition

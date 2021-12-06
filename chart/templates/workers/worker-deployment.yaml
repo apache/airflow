@@ -68,7 +68,7 @@ spec:
         checksum/result-backend-secret: {{ include (print $.Template.BasePath "/secrets/result-backend-connection-secret.yaml") . | sha256sum }}
         checksum/pgbouncer-config-secret: {{ include (print $.Template.BasePath "/secrets/pgbouncer-config-secret.yaml") . | sha256sum }}
         checksum/webserver-secret-key: {{ include (print $.Template.BasePath "/secrets/webserver-secret-key-secret.yaml") . | sha256sum }}
-        checksum/kerberos-keytab: {{ include (print $.Template.BasePath "/secrets/kerberos-keytab.yaml") . | sha256sum }}
+        checksum/kerberos-keytab: {{ include (print $.Template.BasePath "/secrets/kerberos-keytab-secret.yaml") . | sha256sum }}
         checksum/airflow-config: {{ include (print $.Template.BasePath "/configmaps/configmap.yaml") . | sha256sum }}
         checksum/extra-configmaps: {{ include (print $.Template.BasePath "/configmaps/extra-configmaps.yaml") . | sha256sum }}
         checksum/extra-secrets: {{ include (print $.Template.BasePath "/secrets/extra-secrets.yaml") . | sha256sum }}

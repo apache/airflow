@@ -22,6 +22,7 @@ import os
 import shutil
 from datetime import timedelta
 from tempfile import mkdtemp
+from typing import Generator, Optional
 from unittest import mock
 from unittest.mock import MagicMock, patch
 
@@ -1897,6 +1898,7 @@ class TestSchedulerJob:
 
         def _create_dagruns(dag: DAG):
             next_info = dag.next_dagrun_info(None)
+            assert next_info is not None
             for _ in range(5):
                 yield dag.create_dagrun(
                     run_type=DagRunType.SCHEDULED,
@@ -1905,6 +1907,8 @@ class TestSchedulerJob:
                     state=State.RUNNING,
                 )
                 next_info = dag.next_dagrun_info(next_info.data_interval)
+                if next_info is None:
+                    break
 
         # Create 5 dagruns for each DAG.
         # To increase the chances the TIs from the "full" pool will get retrieved first, we schedule all
@@ -3435,6 +3439,8 @@ class TestSchedulerJobQueriesCount:
     made that affects the performance of the SchedulerJob.
     """
 
+    scheduler_job: Optional[SchedulerJob]
+
     @staticmethod
     def clean_db():
         clear_db_runs()
@@ -3446,7 +3452,7 @@ class TestSchedulerJobQueriesCount:
         clear_db_serialized_dags()
 
     @pytest.fixture(autouse=True)
-    def per_test(self) -> None:
+    def per_test(self) -> Generator:
         self.clean_db()
 
         yield

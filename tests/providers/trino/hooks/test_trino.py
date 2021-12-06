@@ -36,7 +36,7 @@ KERBEROS_AUTHENTICATION = 'airflow.providers.trino.hooks.trino.trino.auth.Kerber
 TRINO_DBAPI_CONNECT = 'airflow.providers.trino.hooks.trino.trino.dbapi.connect'
 
 
-class TestTrinoHookConn(unittest.TestCase):
+class TestTrinoHookConn:
     @patch(BASIC_AUTHENTICATION)
     @patch(TRINO_DBAPI_CONNECT)
     @patch(HOOK_GET_CONNECTION)
@@ -117,7 +117,7 @@ class TestTrinoHookConn(unittest.TestCase):
             schema='hive',
             source='airflow',
             user='login',
-            isolation_level=0,
+            isolation_level=IsolationLevel.AUTOCOMMIT,
             auth=None if not auth else auth.return_value,
             verify=verify,
         )

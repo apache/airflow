@@ -448,7 +448,7 @@ ARG_MIGRATION_TIMEOUT = Arg(
     ("-t", "--migration-wait-timeout"),
     help="timeout to wait for db to migrate ",
     type=int,
-    default=0,
+    default=60,
 )
 
 # webserver
@@ -922,6 +922,33 @@ DAGS_COMMANDS = (
         func=lazy_load_command('airflow.cli.commands.dag_command.dag_show'),
         args=(
             ARG_DAG_ID,
+            ARG_SUBDIR,
+            ARG_SAVE,
+            ARG_IMGCAT,
+        ),
+    ),
+    ActionCommand(
+        name='show-dependencies',
+        help="Displays DAGs with their dependencies",
+        description=(
+            "The --imgcat option only works in iTerm.\n"
+            "\n"
+            "For more information, see: https://www.iterm2.com/documentation-images.html\n"
+            "\n"
+            "The --save option saves the result to the indicated file.\n"
+            "\n"
+            "The file format is determined by the file extension. "
+            "For more information about supported "
+            "format, see: https://www.graphviz.org/doc/info/output.html\n"
+            "\n"
+            "If you want to create a PNG file then you should execute the following command:\n"
+            "airflow dags show-dependencies --save output.png\n"
+            "\n"
+            "If you want to create a DOT file then you should execute the following command:\n"
+            "airflow dags show-dependencies --save output.dot\n"
+        ),
+        func=lazy_load_command('airflow.cli.commands.dag_command.dag_dependencies_show'),
+        args=(
             ARG_SUBDIR,
             ARG_SAVE,
             ARG_IMGCAT,

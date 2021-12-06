@@ -191,6 +191,25 @@ class TestCliDags(unittest.TestCase):
 
         mock_get_dag.assert_not_called()
 
+    def test_show_dag_dependencies_print(self):
+        with contextlib.redirect_stdout(io.StringIO()) as temp_stdout:
+            dag_command.dag_dependencies_show(self.parser.parse_args(['dags', 'show-dependencies']))
+        out = temp_stdout.getvalue()
+        assert "digraph" in out
+        assert "graph [rankdir=LR]" in out
+
+    @mock.patch("airflow.cli.commands.dag_command.render_dag_dependencies")
+    def test_show_dag_dependencies_save(self, mock_render_dag_dependencies):
+        with contextlib.redirect_stdout(io.StringIO()) as temp_stdout:
+            dag_command.dag_dependencies_show(
+                self.parser.parse_args(['dags', 'show-dependencies', '--save', 'output.png'])
+            )
+        out = temp_stdout.getvalue()
+        mock_render_dag_dependencies.return_value.render.assert_called_once_with(
+            cleanup=True, filename='output', format='png'
+        )
+        assert "File output.png saved" in out
+
     def test_show_dag_print(self):
         with contextlib.redirect_stdout(io.StringIO()) as temp_stdout:
             dag_command.dag_show(self.parser.parse_args(['dags', 'show', 'example_bash_operator']))
@@ -200,7 +219,7 @@ class TestCliDags(unittest.TestCase):
         assert "runme_2 -> run_after_loop" in out
 
     @mock.patch("airflow.cli.commands.dag_command.render_dag")
-    def test_show_dag_dave(self, mock_render_dag):
+    def test_show_dag_save(self, mock_render_dag):
         with contextlib.redirect_stdout(io.StringIO()) as temp_stdout:
             dag_command.dag_show(
                 self.parser.parse_args(['dags', 'show', 'example_bash_operator', '--save', 'awesome.png'])

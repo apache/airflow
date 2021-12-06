@@ -281,32 +281,20 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
                 return True
         return False
 
-    def get_readable_dags(self, user):
-        """Gets the DAGs readable by authenticated user."""
-        return self.get_accessible_dags([permissions.ACTION_CAN_READ], user)
-
-    def get_editable_dags(self, user):
-        """Gets the DAGs editable by authenticated user."""
-        return self.get_accessible_dags([permissions.ACTION_CAN_EDIT], user)
-
     def get_readable_dag_ids(self, user) -> Set[str]:
         """Gets the DAG IDs readable by authenticated user."""
-        return {dag.dag_id for dag in self.get_readable_dags(user)}
+        return self.get_accessible_dag_ids(user, [permissions.ACTION_CAN_READ])
 
     def get_editable_dag_ids(self, user) -> Set[str]:
         """Gets the DAG IDs editable by authenticated user."""
-        return {dag.dag_id for dag in self.get_editable_dags(user)}
-
-    def get_accessible_dag_ids(self, user) -> Set[str]:
-        """Gets the DAG IDs editable or readable by authenticated user."""
-        accessible_dags = self.get_accessible_dags(
-            [permissions.ACTION_CAN_EDIT, permissions.ACTION_CAN_READ], user
-        )
-        return {dag.dag_id for dag in accessible_dags}
+        return self.get_accessible_dag_ids(user, [permissions.ACTION_CAN_EDIT])
 
     @provide_session
-    def get_accessible_dags(self, user_actions, user, session=None):
+    def get_accessible_dag_ids(self, user, user_actions=None, session=None) -> Set[str]:
         """Generic function to get readable or writable DAGs for user."""
+        if not user_actions:
+            user_actions = [permissions.ACTION_CAN_EDIT, permissions.ACTION_CAN_READ]
+
         if user.is_anonymous:
             roles = self.get_user_roles(user)
         else:
@@ -331,14 +319,13 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
 
                 resource = permission.resource.name
                 if resource == permissions.RESOURCE_DAG:
-                    return session.query(DagModel)
+                    return {dag.dag_id for dag in session.query(DagModel.dag_id)}
 
                 if resource.startswith(permissions.RESOURCE_DAG_PREFIX):
                     resources.add(resource[len(permissions.RESOURCE_DAG_PREFIX) :])
                 else:
                     resources.add(resource)
-
-        return session.query(DagModel).filter(DagModel.dag_id.in_(resources))
+        return {dag.dag_id for dag in session.query(DagModel.dag_id).filter(DagModel.dag_id.in_(resources))}
 
     def can_access_some_dags(self, action: str, dag_id: Optional[str] = None) -> bool:
         """Checks if user has read or write access to some dags."""
@@ -347,8 +334,8 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
 
         user = g.user
         if action == permissions.ACTION_CAN_READ:
-            return any(self.get_readable_dags(user))
-        return any(self.get_editable_dags(user))
+            return any(self.get_readable_dag_ids(user))
+        return any(self.get_editable_dag_ids(user))
 
     def can_read_dag(self, dag_id, user=None) -> bool:
         """Determines whether a user has DAG read access."""
