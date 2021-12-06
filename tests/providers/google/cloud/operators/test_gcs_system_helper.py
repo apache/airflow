@@ -30,12 +30,12 @@ from tests.test_utils.logging_command_executor import CommandExecutor
 
 class GcsSystemTestHelper(CommandExecutor):
     @staticmethod
-    def create_test_file():
-        # Create test file for upload
+    def create_file_to_upload():
         with open(PATH_TO_UPLOAD_FILE, "w+") as file:
             file.writelines(["This is a test file"])
 
-        # Create script for transform operator
+    @staticmethod
+    def create_script_to_transform():
         with open(PATH_TO_TRANSFORM_SCRIPT, "w+") as file:
             file.write(
                 """import sys
@@ -51,13 +51,16 @@ with open(source, "r") as src, open(destination, "w+") as dest:
             )
 
     @staticmethod
-    def remove_test_files():
-        if os.path.exists(PATH_TO_UPLOAD_FILE):
-            os.remove(PATH_TO_UPLOAD_FILE)
-        if os.path.exists(PATH_TO_SAVED_FILE):
-            os.remove(PATH_TO_SAVED_FILE)
-        if os.path.exists(PATH_TO_TRANSFORM_SCRIPT):
-            os.remove(PATH_TO_TRANSFORM_SCRIPT)
+    def remove_file_to_upload():
+        os.remove(PATH_TO_UPLOAD_FILE)
+
+    @staticmethod
+    def remove_script_to_transform():
+        os.remove(PATH_TO_TRANSFORM_SCRIPT)
+
+    @staticmethod
+    def remove_saved_file():
+        os.remove(PATH_TO_SAVED_FILE)
 
     def remove_bucket(self):
         self.execute_cmd(["gsutil", "rm", "-r", f"gs://{BUCKET_1}"])

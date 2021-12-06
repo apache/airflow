@@ -34,8 +34,8 @@ Under the hood, the :class:`~airflow.providers.postgres.operators.postgres.Postg
 Common Database Operations with PostgresOperator
 ------------------------------------------------
 
-To use the postgres operator to carry out SQL request, two parameters are required: ``sql`` and ``postgres_conn_id``.
-These two parameters are eventually fed to the postgres hook object that interacts directly with the postgres database.
+To use the PostgresOperator to carry out SQL request, two parameters are required: ``sql`` and ``postgres_conn_id``.
+These two parameters are eventually fed to the PostgresHook object that interacts directly with the Postgres database.
 
 Creating a Postgres database table
 ----------------------------------
@@ -100,10 +100,10 @@ We can then create a PostgresOperator task that populate the ``pet`` table.
   )
 
 
-Fetching records from your postgres database table
+Fetching records from your Postgres database table
 --------------------------------------------------
 
-Fetching records from your postgres database table can be as simple as:
+Fetching records from your Postgres database table can be as simple as:
 
 .. code-block:: python
 
@@ -171,5 +171,5 @@ Conclusion
 In this how-to guide we explored the Apache Airflow PostgreOperator. Let's quickly highlight the key takeaways.
 In Airflow-2.0, PostgresOperator class now resides in the ``providers`` package. It is best practice to create subdirectory
 called ``sql`` in your ``dags`` directory where you can store your sql files. This will make your code more elegant and more
-maintainable. And finally, we looked at the different ways you can dynamically pass parameters into our postgres operator
-tasks  using ``parameters`` or ``params`` attribute.
+maintainable. And finally, we looked at the different ways you can dynamically pass parameters into our PostgresOperator
+tasks using ``parameters`` or ``params`` attribute.

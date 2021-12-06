@@ -114,3 +114,12 @@ class CreateUserJobTest(unittest.TestCase):
         )
         annotations = jmespath.search("spec.template.metadata.annotations", docs[0])
         assert annotations is None
+
+    def test_should_set_correct_helm_hooks_weight(self):
+        docs = render_chart(
+            show_only=[
+                "templates/jobs/create-user-job.yaml",
+            ],
+        )
+        annotations = jmespath.search("metadata.annotations", docs[0])
+        assert annotations["helm.sh/hook-weight"] == "2"

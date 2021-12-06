@@ -23,11 +23,11 @@ This article will show you how to install Airflow using Helm Chart on `Kind <htt
 Install kind, and create a cluster
 ----------------------------------
 
-We recommend testing with Kubernetes 1.16+, example:
+We recommend testing with Kubernetes 1.20+, example:
 
 .. code-block:: bash
 
-   kind create cluster --image kindest/node:v1.18.15
+   kind create cluster --image kindest/node:v1.21.1
 
 Confirm it’s up:
 

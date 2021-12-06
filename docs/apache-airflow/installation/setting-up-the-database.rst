@@ -30,3 +30,6 @@ not running while the upgrade is being executed.
 
 In some deployments, such as :doc:`helm-chart:index`, both initializing and running the database migration
 is executed automatically when Airflow is upgraded.
+
+Sometimes, after the upgrade, you are also supposed to do some post-migration actions.
+See :doc:`/installation/upgrading` for more details about upgrading and doing post-migration actions.

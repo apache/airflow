@@ -46,7 +46,7 @@ except ImportError:
     sys.exit(-1)
 
 STATUS_COLOR_MAP = {
-    'Resolved': 'green',
+    'Closed': 'green',
     'Open': 'red',
 }
 
@@ -59,17 +59,10 @@ def get_commits_between_tags(repo, earlier_tag, later_tag):
     return list(log.strip('"').split('"\n"'))
 
 
-def get_issue_status(issue):
-    status = issue.state.capitalize()
-    if status == 'Closed':
-        return 'Resolved'
-    return status
-
-
 def style_issue_status(status):
     if status in STATUS_COLOR_MAP:
-        return click.style(status[:10].ljust(10), STATUS_COLOR_MAP[status])
-    return status[:10].ljust(10)
+        return click.style(status[:6].ljust(6), STATUS_COLOR_MAP[status])
+    return status[:6].ljust(6)
 
 
 def get_issue_type(issue):
@@ -106,6 +99,10 @@ def is_cherrypicked(repo: git.Repo, issue: Issue, previous_version: Optional[str
     if log:
         return True
     return False
+
+
+def is_pr(issue: Issue) -> bool:
+    return "apache/airflow/pull/" in issue.html_url
 
 
 def print_changelog(sections):
@@ -148,25 +145,28 @@ def compare(target_version, github_token, previous_version=None, show_uncherrypi
     num_cherrypicked = 0
     num_uncherrypicked = Counter()
 
-    # :<18 says left align, pad to 18
+    # :<18 says left align, pad to 18, :>6 says right align, pad to 6
     # :<50.50 truncates after 50 chars
     # !s forces as string
-    formatstr = "{id:<8}|{typ!s:<15}|{status!s}|{description:<83.83}|{merged:<6}|{commit:>9.7}"
+    formatstr = "{number:>6} | {typ!s:<5} | {changelog!s:<13} | {status!s} | {title:<83.83} | {merged:<6} | {commit:>7.7} | {url}"
 
     print(
         formatstr.format(
-            id="ISSUE",
+            number="NUMBER",
             typ="TYPE",
-            status="STATUS".ljust(10),
-            description="DESCRIPTION",
+            changelog="CHANGELOG",
+            status="STATUS".ljust(6),
+            title="TITLE",
             merged="MERGED",
             commit="COMMIT",
+            url="URL",
         )
     )
 
     for issue in milestone_issues:
         commit_in_main = get_commit_in_main_associated_with_pr(repo, issue)
-        status = get_issue_status(issue)
+        status = issue.state.capitalize()
+        issue_is_pr = is_pr(issue)
 
         # Checks if commit was cherrypicked into branch.
         if is_cherrypicked(repo, issue, previous_version):
@@ -174,15 +174,19 @@ def compare(target_version, github_token, previous_version=None, show_uncherrypi
             if show_uncherrypicked_only:
                 continue
             cherrypicked = click.style("Yes".ljust(6), "green")
-        else:
+        elif issue_is_pr:
             num_uncherrypicked[status] += 1
             cherrypicked = click.style("No".ljust(6), "red")
+        else:
+            cherrypicked = ""
 
         fields = dict(
-            id=issue.number,
-            typ=get_issue_type(issue),
+            number=issue.number,
+            typ="PR" if issue_is_pr else "Issue",
+            changelog=get_issue_type(issue) if issue_is_pr else "",
             status=style_issue_status(status),
-            description=issue.title,
+            title=issue.title,
+            url=issue.html_url,
         )
 
         print(

@@ -42,7 +42,7 @@ def get_pools(session=None):
 
 @provide_session
 def create_pool(name, slots, description, session=None):
-    """Create a pool with a given parameters."""
+    """Create a pool with given parameters."""
     if not (name and name.strip()):
         raise AirflowBadRequest("Pool name shouldn't be empty")
 
@@ -54,7 +54,7 @@ def create_pool(name, slots, description, session=None):
     # Get the length of the pool column
     pool_name_length = Pool.pool.property.columns[0].type.length
     if len(name) > pool_name_length:
-        raise AirflowBadRequest("Pool name can't be more than %d characters" % pool_name_length)
+        raise AirflowBadRequest(f"Pool name can't be more than {pool_name_length} characters")
 
     session.expire_on_commit = False
     pool = session.query(Pool).filter_by(pool=name).first()

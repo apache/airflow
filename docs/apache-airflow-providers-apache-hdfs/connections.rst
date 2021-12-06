@@ -31,7 +31,7 @@ parameter as ``webhdfs_default`` by default.
 Configuring the Connection
 --------------------------
 Host
-    The host to connect to, it can be ``local``, ``yarn`` or an URL.
+    The host to connect to, it can be ``local``, ``yarn`` or an URL. For Web HDFS Hook it is possible to specify multiple hosts as a comma-separated list.
 
 Port
     Specify the port in case of host be an URL.

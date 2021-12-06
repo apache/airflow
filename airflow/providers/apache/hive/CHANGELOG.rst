@@ -19,6 +19,23 @@
 Changelog
 ---------
 
+2.1.0
+.....
+
+Features
+~~~~~~~~
+
+* ``hive provider: restore HA support for metastore (#19777)``
+
+Bug Fixes
+~~~~~~~~~
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Fix typos in Hive transfer operator docstrings (#19474)``
+   * ``Improve various docstrings in Apache Hive providers (#19866)``
+   * ``Cleanup of start_date and default arg use for Apache example DAGs (#18657)``
+
 2.0.3
 .....
 

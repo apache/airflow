@@ -1,8 +1,10 @@
 {
-  "extends": "airbnb-base",
+  "extends": ["airbnb", "airbnb/hooks"],
   "parser": "babel-eslint",
-  "plugins": [ "html" ],
+  "plugins": [ "html", "react" ],
   "rules": {
-    "no-param-reassign": 1
+    "no-param-reassign": 1,
+    "react/prop-types": 0,
+    "react/jsx-props-no-spreading": 0
   }
 }

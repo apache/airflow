@@ -302,6 +302,7 @@ Redhat
 ReidentifyContentResponse
 Reinitialising
 Remoting
+Reserialize
 ResourceRequirements
 Roadmap
 Robinhood
@@ -935,6 +936,7 @@ lifecycle
 lineterminator
 linter
 linux
+liveness
 livy
 loadBalancerIP
 localExecutor
@@ -961,6 +963,7 @@ mediawiki
 memberOf
 mesos
 metaclass
+metadatabase
 metarouter
 metastore
 mget
@@ -1166,6 +1169,8 @@ replicaSet
 repo
 repos
 reqs
+reserialize
+reserialized
 resetdb
 resourceVersion
 resultset

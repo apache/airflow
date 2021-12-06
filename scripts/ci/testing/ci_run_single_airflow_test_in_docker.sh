@@ -25,6 +25,7 @@ export PRINT_INFO_FROM_SCRIPTS
 
 DOCKER_COMPOSE_LOCAL=()
 INTEGRATIONS=()
+INTEGRATION_BREEZE_FLAGS=()
 
 function prepare_tests() {
     DOCKER_COMPOSE_LOCAL+=("-f" "${SCRIPTS_CI_DIR}/docker-compose/files.yml")
@@ -59,8 +60,8 @@ function prepare_tests() {
 
     for _INT in ${ENABLED_INTEGRATIONS}
     do
-        INTEGRATIONS+=("-f")
-        INTEGRATIONS+=("${SCRIPTS_CI_DIR}/docker-compose/integration-${_INT}.yml")
+        INTEGRATIONS+=("-f" "${SCRIPTS_CI_DIR}/docker-compose/integration-${_INT}.yml")
+        INTEGRATION_BREEZE_FLAGS+=("--integration" "${_INT}")
     done
 
     readonly INTEGRATIONS
@@ -113,6 +114,7 @@ function run_airflow_testing_in_docker() {
     echo "Making sure docker-compose is down and remnants removed"
     echo
     docker-compose -f "${SCRIPTS_CI_DIR}/docker-compose/base.yml" \
+        "${INTEGRATIONS[@]}" \
         --project-name "airflow-${TEST_TYPE}-${BACKEND}" \
         down --remove-orphans \
         --volumes --timeout 10
@@ -124,7 +126,18 @@ function run_airflow_testing_in_docker() {
       --project-name "airflow-${TEST_TYPE}-${BACKEND}" \
          run airflow "${@}"
     exit_code=$?
+    docker ps
+    if [[ ${exit_code} != "0" && ${CI} == "true" ]]; then
+        docker ps --all
+        local container
+        for container in $(docker ps --all --format '{{.Names}}')
+        do
+            testing::dump_container_logs "${container}"
+        done
+    fi
+
     docker-compose --log-level INFO -f "${SCRIPTS_CI_DIR}/docker-compose/base.yml" \
+        "${INTEGRATIONS[@]}" \
         --project-name "airflow-${TEST_TYPE}-${BACKEND}" \
         down --remove-orphans \
         --volumes --timeout 10
@@ -146,8 +159,8 @@ function run_airflow_testing_in_docker() {
         echo "${COLOR_RED}***********************************************************************************************${COLOR_RESET}"
         echo
         echo "${COLOR_BLUE}***********************************************************************************************${COLOR_RESET}"
-        echo "${COLOR_BLUE}Reproduce the failed tests on your local machine:${COLOR_RESET}"
-        echo "${COLOR_YELLOW}./breeze --github-image-id ${GITHUB_REGISTRY_PULL_IMAGE_TAG=} --backend ${BACKEND} ${EXTRA_ARGS}--python ${PYTHON_MAJOR_MINOR_VERSION} --db-reset --skip-mounting-local-sources --test-type ${TEST_TYPE} shell${COLOR_RESET}"
+        echo "${COLOR_BLUE}Reproduce the failed tests on your local machine (note that you need to use docker-compose v1 rather than v2 to enable Kerberos integration):${COLOR_RESET}"
+        echo "${COLOR_YELLOW}./breeze --github-image-id ${GITHUB_REGISTRY_PULL_IMAGE_TAG=} --backend ${BACKEND} ${EXTRA_ARGS}--python ${PYTHON_MAJOR_MINOR_VERSION} --db-reset --skip-mounting-local-sources --test-type ${TEST_TYPE} ${INTEGRATION_BREEZE_FLAGS[*]} shell${COLOR_RESET}"
         echo "${COLOR_BLUE}Then you can run failed tests with:${COLOR_RESET}"
         echo "${COLOR_YELLOW}pytest [TEST_NAME]${COLOR_RESET}"
         echo "${COLOR_BLUE}***********************************************************************************************${COLOR_RESET}"

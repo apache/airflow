@@ -87,7 +87,7 @@ class TriggererJob(BaseJob):
         """
         self.runner.stop = True
 
-    def _exit_gracefully(self, signum, frame) -> None:  # pylint: disable=unused-argument
+    def _exit_gracefully(self, signum, frame) -> None:
         """Helper method to clean up processor_agent to avoid leaving orphan processes."""
         # The first time, try to exit nicely
         if not self.runner.stop:
@@ -104,7 +104,7 @@ class TriggererJob(BaseJob):
             self.runner.start()
             # Start our own DB loop in the main thread
             self._run_trigger_loop()
-        except Exception:  # pylint: disable=broad-except
+        except Exception:
             self.log.exception("Exception when executing TriggererJob._run_trigger_loop")
             raise
         finally:
@@ -227,8 +227,7 @@ class TriggerRunner(threading.Thread, LoggingMixin):
 
     def run(self):
         """Sync entrypoint - just runs arun in an async loop."""
-        # Pylint complains about this with a 3.6 base, can remove with 3.7+
-        asyncio.run(self.arun())  # pylint: disable=no-member
+        asyncio.run(self.arun())
 
     async def arun(self):
         """
@@ -288,7 +287,7 @@ class TriggerRunner(threading.Thread, LoggingMixin):
         ones that have exited, optionally warning users if the exit was
         not normal.
         """
-        for trigger_id, details in list(self.triggers.items()):  # pylint: disable=too-many-nested-blocks
+        for trigger_id, details in list(self.triggers.items()):
             if details["task"].done():
                 # Check to see if it exited for good reasons
                 try:

@@ -38,7 +38,7 @@ metadata:
   {{- $annotations := dict }}
   {{- if .Values.createUserJob.useHelmHooks }}
     {{- $_ := set $annotations "helm.sh/hook" "post-install,post-upgrade" }}
-    {{- $_ := set $annotations "helm.sh/hook-weight" "1" }}
+    {{- $_ := set $annotations "helm.sh/hook-weight" "2" }}
     {{- $_ := set $annotations "helm.sh/hook-delete-policy" "before-hook-creation,hook-succeeded" }}
   {{- end }}
   {{- with $annotations := merge $annotations .Values.createUserJob.jobAnnotations }}

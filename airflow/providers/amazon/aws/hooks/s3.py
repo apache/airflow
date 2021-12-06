@@ -173,7 +173,13 @@ class S3Hook(AwsBaseHook):
         :return: the bucket object to the bucket name.
         :rtype: boto3.S3.Bucket
         """
-        s3_resource = self.get_resource_type('s3')
+        session, endpoint_url = self._get_credentials()
+        s3_resource = session.resource(
+            "s3",
+            endpoint_url=endpoint_url,
+            config=self.config,
+            verify=self.verify,
+        )
         return s3_resource.Bucket(bucket_name)
 
     @provide_bucket_name
@@ -340,7 +346,14 @@ class S3Hook(AwsBaseHook):
         :return: the key object from the bucket
         :rtype: boto3.s3.Object
         """
-        obj = self.get_resource_type('s3').Object(bucket_name, key)
+        session, endpoint_url = self._get_credentials()
+        s3_resource = session.resource(
+            "s3",
+            endpoint_url=endpoint_url,
+            config=self.config,
+            verify=self.verify,
+        )
+        obj = s3_resource.Object(bucket_name, key)
         obj.load()
         return obj
 
@@ -806,10 +819,15 @@ class S3Hook(AwsBaseHook):
         """
         self.log.info('Downloading source S3 file from Bucket %s with path %s', bucket_name, key)
 
-        if not self.check_for_key(key, bucket_name):
-            raise AirflowException(f'The source file in Bucket {bucket_name} with path {key} does not exist')
-
-        s3_obj = self.get_key(key, bucket_name)
+        try:
+            s3_obj = self.get_key(key, bucket_name)
+        except ClientError as e:
+            if e.response.get('Error', {}).get('Code') == 404:
+                raise AirflowException(
+                    f'The source file in Bucket {bucket_name} with path {key} does not exist'
+                )
+            else:
+                raise e
 
         with NamedTemporaryFile(dir=local_path, prefix='airflow_tmp_', delete=False) as local_tmp_file:
             s3_obj.download_fileobj(local_tmp_file)

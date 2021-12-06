@@ -22,6 +22,7 @@ description: |
     Amazon integration (including `Amazon Web Services (AWS) <https://aws.amazon.com/>`__).
 
 versions:
+  - 2.5.0
   - 2.4.0
   - 2.3.0
   - 2.2.0
@@ -250,6 +251,9 @@ sensors:
   - integration-name: Amazon Athena
     python-modules:
       - airflow.providers.amazon.aws.sensors.athena
+  - integration-name: AWS Batch
+    python-modules:
+      - airflow.providers.amazon.aws.sensors.batch
   - integration-name: Amazon CloudFormation
     python-modules:
       - airflow.providers.amazon.aws.sensors.cloud_formation

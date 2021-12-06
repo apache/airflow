@@ -57,20 +57,22 @@ Login (optional)
 
 Password (optional)
     * If authentication with *Databricks login credentials*  is used then specify the ``password`` used to login to Databricks.
-    * If *authentication with Azure Service Principal* is used then specify the secret of the Azure Service Principal
+    * If authentication with *Azure Service Principal* is used then specify the secret of the Azure Service Principal
+    * if authentication with *PAT* is used, then specify PAT and leave login empty (recommended)
 
 Extra (optional)
     Specify the extra parameter (as json dictionary) that can be used in the Databricks connection.
 
-    Following parameter is necessary if using the *PAT* authentication method (recommended):
+    Following parameter could be used if using the *PAT* authentication method:
 
-    * ``token``: Specify PAT to use.
+    * ``token``: Specify PAT to use. (it's better to put PAT into Password field so it won't be seen as plain text)
 
     Following parameters are necessary if using authentication with AAD token:
 
     * ``azure_tenant_id``: ID of the Azure Active Directory tenant
     * ``azure_resource_id``: optional Resource ID of the Azure Databricks workspace (required if Service Principal isn't
       a user inside workspace)
+    * ``azure_ad_endpoint``: optional host name of Azure AD endpoint if you're using special `Azure Cloud (GovCloud, China, Germany) <https://docs.microsoft.com/en-us/graph/deployments#app-registration-and-token-service-root-endpoints>`_. The value must contain a protocol. For example: ``https://login.microsoftonline.de``.
 
     Following parameters are necessary if using authentication with AAD token for Azure managed identity:
 

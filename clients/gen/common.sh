@@ -17,7 +17,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-OPENAPI_GENERATOR_CLI_VER=5.1.1
+OPENAPI_GENERATOR_CLI_VER=5.3.0
 readonly OPENAPI_GENERATOR_CLI_VER
 
 GIT_USER=${GIT_USER:-apache}
@@ -71,6 +71,7 @@ function run_pre_commit {
 
     # prepend license headers
     pre-commit run --all-files || true
+    echo "Output above might state Failed: 'Some sources were modified by the hook' - This is expected as the hook is used to add the licences."
 }
 
 function gen_client {

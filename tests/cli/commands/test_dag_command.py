@@ -22,6 +22,7 @@ import tempfile
 import unittest
 from datetime import datetime, timedelta
 from unittest import mock
+from unittest.mock import MagicMock
 
 import pytest
 
@@ -30,6 +31,7 @@ from airflow.cli import cli_parser
 from airflow.cli.commands import dag_command
 from airflow.exceptions import AirflowException
 from airflow.models import DagBag, DagModel, DagRun
+from airflow.models.serialized_dag import SerializedDagModel
 from airflow.utils import timezone
 from airflow.utils.session import create_session
 from airflow.utils.state import State
@@ -61,6 +63,27 @@ class TestCliDags(unittest.TestCase):
     def tearDownClass(cls) -> None:
         clear_db_runs()
         clear_db_dags()
+
+    def test_reserialize(self):
+        # Assert that there are serialized Dags
+        with create_session() as session:
+            serialized_dags_before_command = session.query(SerializedDagModel).all()
+        assert len(serialized_dags_before_command)  # There are serialized DAGs to delete
+
+        # Run clear of serialized dags
+        dag_command.dag_reserialize(self.parser.parse_args(['dags', 'reserialize', "--clear-only"]))
+        # Assert no serialized Dags
+        with create_session() as session:
+            serialized_dags_after_clear = session.query(SerializedDagModel).all()
+        assert not len(serialized_dags_after_clear)
+
+        # Serialize manually
+        dag_command.dag_reserialize(self.parser.parse_args(['dags', 'reserialize']))
+
+        # Check serialized DAGs are back
+        with create_session() as session:
+            serialized_dags_after_reserialize = session.query(SerializedDagModel).all()
+        assert len(serialized_dags_after_reserialize) >= 40  # Serialized DAGs back
 
     @mock.patch("airflow.cli.commands.dag_command.DAG.run")
     def test_backfill(self, mock_run):
@@ -168,6 +191,25 @@ class TestCliDags(unittest.TestCase):
 
         mock_get_dag.assert_not_called()
 
+    def test_show_dag_dependencies_print(self):
+        with contextlib.redirect_stdout(io.StringIO()) as temp_stdout:
+            dag_command.dag_dependencies_show(self.parser.parse_args(['dags', 'show-dependencies']))
+        out = temp_stdout.getvalue()
+        assert "digraph" in out
+        assert "graph [rankdir=LR]" in out
+
+    @mock.patch("airflow.cli.commands.dag_command.render_dag_dependencies")
+    def test_show_dag_dependencies_save(self, mock_render_dag_dependencies):
+        with contextlib.redirect_stdout(io.StringIO()) as temp_stdout:
+            dag_command.dag_dependencies_show(
+                self.parser.parse_args(['dags', 'show-dependencies', '--save', 'output.png'])
+            )
+        out = temp_stdout.getvalue()
+        mock_render_dag_dependencies.return_value.render.assert_called_once_with(
+            cleanup=True, filename='output', format='png'
+        )
+        assert "File output.png saved" in out
+
     def test_show_dag_print(self):
         with contextlib.redirect_stdout(io.StringIO()) as temp_stdout:
             dag_command.dag_show(self.parser.parse_args(['dags', 'show', 'example_bash_operator']))
@@ -177,7 +219,7 @@ class TestCliDags(unittest.TestCase):
         assert "runme_2 -> run_after_loop" in out
 
     @mock.patch("airflow.cli.commands.dag_command.render_dag")
-    def test_show_dag_dave(self, mock_render_dag):
+    def test_show_dag_save(self, mock_render_dag):
         with contextlib.redirect_stdout(io.StringIO()) as temp_stdout:
             dag_command.dag_show(
                 self.parser.parse_args(['dags', 'show', 'example_bash_operator', '--save', 'awesome.png'])
@@ -528,9 +570,7 @@ class TestCliDags(unittest.TestCase):
             ]
         )
 
-    @mock.patch(
-        "airflow.cli.commands.dag_command.render_dag", **{'return_value.source': "SOURCE"}  # type: ignore
-    )
+    @mock.patch("airflow.cli.commands.dag_command.render_dag", return_value=MagicMock(source="SOURCE"))
     @mock.patch("airflow.cli.commands.dag_command.DebugExecutor")
     @mock.patch("airflow.cli.commands.dag_command.get_dag")
     def test_dag_test_show_dag(self, mock_get_dag, mock_executor, mock_render_dag):

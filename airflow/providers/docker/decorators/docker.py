@@ -123,7 +123,7 @@ class _DockerDecoratedOperator(DecoratedOperator, DockerOperator):
         return res
 
 
-T = TypeVar("T", bound=Callable)  # pylint: disable=invalid-name
+T = TypeVar("T", bound=Callable)
 
 
 def docker_task(

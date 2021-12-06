@@ -57,7 +57,7 @@ deployment on a `Kubernetes <http://kubernetes.io>`__ cluster using the
 Requirements
 ------------
 
--  Kubernetes 1.14+ cluster
+-  Kubernetes 1.20+ cluster
 -  Helm 3.0+
 -  PV provisioner support in the underlying infrastructure (optionally)
 
@@ -82,7 +82,7 @@ Features
 Installing the Chart
 --------------------
 
-To install this chart using helm 3, run the following commands:
+To install this chart using Helm 3, run the following commands:
 
 .. code-block:: bash
 

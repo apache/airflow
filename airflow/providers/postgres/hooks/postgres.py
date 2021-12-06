@@ -138,6 +138,14 @@ class PostgresHook(DbApiHook):
                     file.truncate(file.tell())
                     conn.commit()
 
+    def get_uri(self) -> str:
+        conn = self.get_connection(getattr(self, self.conn_name_attr))
+        uri = super().get_uri()
+        if conn.extra_dejson.get('client_encoding', False):
+            charset = conn.extra_dejson["client_encoding"]
+            return f"{uri}?client_encoding={charset}"
+        return uri
+
     def bulk_load(self, table: str, tmp_file: str) -> None:
         """Loads a tab-delimited file into a database table"""
         self.copy_expert(f"COPY {table} FROM STDIN", tmp_file)
@@ -184,7 +192,13 @@ class PostgresHook(DbApiHook):
             # Pull the custer-identifier from the beginning of the Redshift URL
             # ex. my-cluster.ccdre4hpd39h.us-east-1.redshift.amazonaws.com returns my-cluster
             cluster_identifier = conn.extra_dejson.get('cluster-identifier', conn.host.split('.')[0])
-            client = aws_hook.get_client_type('redshift')
+            session, endpoint_url = aws_hook._get_credentials()
+            client = session.client(
+                "redshift",
+                endpoint_url=endpoint_url,
+                config=aws_hook.config,
+                verify=aws_hook.verify,
+            )
             cluster_creds = client.get_cluster_credentials(
                 DbUser=conn.login,
                 DbName=self.schema or conn.schema,
@@ -227,8 +241,8 @@ class PostgresHook(DbApiHook):
         table: str, values: Tuple[str, ...], target_fields: Iterable[str], replace: bool, **kwargs
     ) -> str:
         """
-        Static helper method that generate the INSERT SQL statement.
-        The REPLACE variant is specific to MySQL syntax.
+        Static helper method that generates the INSERT SQL statement.
+        The REPLACE variant is specific to PostgreSQL syntax.
 
         :param table: Name of the target table
         :type table: str

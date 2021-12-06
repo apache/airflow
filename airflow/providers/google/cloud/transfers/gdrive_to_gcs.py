@@ -67,8 +67,6 @@ class GoogleDriveToGCSOperator(BaseOperator):
     template_fields = [
         "bucket_name",
         "object_name",
-        "destination_bucket",
-        "destination_object",
         "folder_id",
         "file_name",
         "drive_id",

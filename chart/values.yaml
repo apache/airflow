@@ -40,10 +40,10 @@ airflowHome: /opt/airflow
 defaultAirflowRepository: apache/airflow
 
 # Default airflow tag to deploy
-defaultAirflowTag: "2.2.1"
+defaultAirflowTag: "2.2.2"
 
 # Airflow version (Used to make some decisions based on Airflow Version being deployed)
-airflowVersion: "2.2.1"
+airflowVersion: "2.2.2"
 
 # Images
 images:
@@ -1306,7 +1306,7 @@ config:
     multi_namespace_mode: '{{ if .Values.multiNamespaceMode }}True{{ else }}False{{ end }}'
 # yamllint enable rule:line-length
 
-# Whether the KubernetesExecutor can launch workers and pods in multiple namespaces
+# Whether Airflow can launch workers and/or pods in multiple namespaces
 # If true, it creates ClusterRole/ClusterRolebinding (with access to entire cluster)
 multiNamespaceMode: false
 

@@ -17,7 +17,6 @@
 # under the License.
 
 import unittest
-from datetime import datetime
 from unittest import mock
 
 import pytest
@@ -27,6 +26,7 @@ from airflow.exceptions import AirflowException
 from airflow.models import DAG, DagRun, TaskInstance
 from airflow.models.variable import Variable
 from airflow.providers.amazon.aws.sensors.s3_key import S3KeySensor, S3KeySizeSensor
+from airflow.utils import timezone
 
 
 class TestS3KeySensor(unittest.TestCase):
@@ -79,7 +79,7 @@ class TestS3KeySensor(unittest.TestCase):
 
         Variable.set("test_bucket_key", "s3://bucket/key")
 
-        execution_date = datetime(2020, 1, 1)
+        execution_date = timezone.datetime(2020, 1, 1)
 
         dag = DAG("test_s3_key", start_date=execution_date)
         op = S3KeySensor(

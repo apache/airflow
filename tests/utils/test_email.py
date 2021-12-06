@@ -100,6 +100,7 @@ class TestEmail(unittest.TestCase):
             mime_subtype='mixed',
             conn_id='smtp_default',
             from_email=None,
+            custom_headers=None,
         )
         assert not mock_send_email.called
 
@@ -174,7 +175,13 @@ class TestEmailSmtp(unittest.TestCase):
             attachment.write(b'attachment')
             attachment.seek(0)
             utils.email.send_email_smtp(
-                'to', 'subject', 'content', files=[attachment.name], cc='cc', bcc='bcc'
+                'to',
+                'subject',
+                'content',
+                files=[attachment.name],
+                cc='cc',
+                bcc='bcc',
+                custom_headers={'Reply-To': 'reply_to@example.com'},
             )
             assert mock_send_mime.called
             _, call_args = mock_send_mime.call_args
@@ -189,6 +196,7 @@ class TestEmailSmtp(unittest.TestCase):
             ].get('Content-Disposition')
             mimeapp = MIMEApplication('attachment')
             assert mimeapp.get_payload() == msg.get_payload()[-1].get_payload()
+            assert msg['Reply-To'] == 'reply_to@example.com'
 
     @mock.patch('smtplib.SMTP_SSL')
     @mock.patch('smtplib.SMTP')

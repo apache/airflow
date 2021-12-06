@@ -246,7 +246,7 @@ class Variable(Base, LoggingMixin):
                             "from {cls}".format(key=key, cls=secrets_backend.__class__.__name__)
                         )
                         return
-                except Exception:  # pylint: disable=broad-except
+                except Exception:
                     log.exception(
                         'Unable to retrieve variable from secrets backend (%s). '
                         'Checking subsequent secrets backend.',
@@ -267,7 +267,7 @@ class Variable(Base, LoggingMixin):
                 var_val = secrets_backend.get_variable(key=key)
                 if var_val is not None:
                     return var_val
-            except Exception:  # pylint: disable=broad-except
+            except Exception:
                 log.exception(
                     'Unable to retrieve variable from secrets backend (%s). '
                     'Checking subsequent secrets backend.',

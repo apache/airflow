@@ -427,6 +427,7 @@ function groupTooltip(node, tis) {
     ['up_for_reschedule', 0],
     ['running', 0],
     ['deferred', 0],
+    ['sensing', 0],
     ['queued', 0],
     ['scheduled', 0],
     ['skipped', 0],
@@ -632,7 +633,7 @@ function expandGroup(nodeId, node) {
   edges.forEach((edge) => {
     const sourceId = mapTaskToNode.get(edge.source_id);
     const targetId = mapTaskToNode.get(edge.target_id);
-    if (sourceId !== targetId && !g.hasEdge(sourceId, targetId)) {
+    if (sourceId !== targetId && !g.hasEdge(sourceId, targetId) && sourceId && targetId) {
       g.setEdge(sourceId, targetId, {
         curve: d3.curveBasis,
         arrowheadClass: 'arrowhead',

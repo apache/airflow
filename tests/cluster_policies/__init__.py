@@ -15,6 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from abc import ABC
 from datetime import timedelta
 from typing import Callable, List
 
@@ -77,8 +78,12 @@ def dag_policy(dag: DAG):
 # [END example_dag_cluster_policy]
 
 
+class TimedOperator(BaseOperator, ABC):
+    timeout: timedelta
+
+
 # [START example_task_cluster_policy]
-def task_policy(task: BaseOperator):
+def task_policy(task: TimedOperator):
     if task.task_type == 'HivePartitionSensor':
         task.queue = "sensor_queue"
     if task.timeout > timedelta(hours=48):

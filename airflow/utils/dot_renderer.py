@@ -25,6 +25,7 @@ from airflow.models import TaskInstance
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.dag import DAG
 from airflow.models.taskmixin import TaskMixin
+from airflow.serialization.serialized_objects import DagDependency
 from airflow.utils.state import State
 from airflow.utils.task_group import TaskGroup
 from airflow.www.views import dag_edges
@@ -126,6 +127,33 @@ def _draw_nodes(node: TaskMixin, parent_graph: graphviz.Digraph, states_by_task_
                     label=node.label,
                 )
                 _draw_task_group(node, sub, states_by_task_id)
+
+
+def render_dag_dependencies(deps: Optional[Dict[str, List['DagDependency']]]) -> graphviz.Digraph:
+    """
+    Renders the DAG dependency to the DOT object.
+
+    :param deps: List of DAG dependencies
+    :type deps: Optional[List[DagDependency]]
+    :return: Graphviz object
+    :rtype: graphviz.Digraph
+    """
+    dot = graphviz.Digraph(graph_attr={"rankdir": "LR"})
+
+    for dag, dependencies in deps.items():
+        for dep in dependencies:
+            with dot.subgraph(
+                name=dag,
+                graph_attr={
+                    "rankdir": "LR",
+                    "labelloc": "t",
+                    "label": dag,
+                },
+            ) as dep_subgraph:
+                dep_subgraph.edge(dep.source, dep.dependency_id)
+                dep_subgraph.edge(dep.dependency_id, dep.target)
+
+    return dot
 
 
 def render_dag(dag: DAG, tis: Optional[List[TaskInstance]] = None) -> graphviz.Digraph:

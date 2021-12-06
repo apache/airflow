@@ -205,11 +205,8 @@ EXTRA_PYTEST_ARGS=(
     "--verbosity=0"
     "--strict-markers"
     "--durations=100"
-    "--cov=airflow/"
-    "--cov-config=.coveragerc"
-    "--cov-report=xml:/files/coverage-${TEST_TYPE}-${BACKEND}.xml"
-    "--color=yes"
     "--maxfail=50"
+    "--color=yes"
     "--pythonwarnings=ignore::DeprecationWarning"
     "--pythonwarnings=ignore::PendingDeprecationWarning"
     "--junitxml=${RESULT_LOG_FILE}"
@@ -239,6 +236,14 @@ if [[ "${TEST_TYPE}" == "Helm" ]]; then
 else
     EXTRA_PYTEST_ARGS+=(
         "--with-db-init"
+    )
+fi
+
+if [[ ${ENABLE_TEST_COVERAGE:="false"} == "true" ]]; then
+    EXTRA_PYTEST_ARGS+=(
+        "--cov=airflow/"
+        "--cov-config=.coveragerc"
+        "--cov-report=xml:/files/coverage-${TEST_TYPE}-${BACKEND}.xml"
     )
 fi
 

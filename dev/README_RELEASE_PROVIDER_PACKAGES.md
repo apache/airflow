@@ -38,7 +38,7 @@
 - [Publish release](#publish-release)
   - [Summarize the voting for the Apache Airflow release](#summarize-the-voting-for-the-apache-airflow-release)
   - [Publish release to SVN](#publish-release-to-svn)
-  - [Publish the Regular convenience package to PyPI](#publish-the-regular-convenience-package-to-pypi-1)
+  - [Publish the packages to PyPI](#publish-the-packages-to-pypi)
   - [Publish documentation prepared before](#publish-documentation-prepared-before)
   - [Add tags in git](#add-tags-in-git-1)
   - [Notify developers of release](#notify-developers-of-release)
@@ -498,7 +498,7 @@ retrieves it from the default GPG keyserver
 [OpenPGP.org](https://keys.openpgp.org):
 
 ```shell script
-gpg --receive-keys 12717556040EEF2EEAF1B9C275FCCD0A25FA0E4B
+gpg --keyserver keys.openpgp.org --receive-keys CDE15C6E4D3A8EC4ECF4BA4B6674E08AD7DE406F
 ```
 
 You should choose to import the key when asked.
@@ -508,7 +508,7 @@ errors or timeouts. Many of the release managers also uploaded their keys to the
 [GNUPG.net](https://keys.gnupg.net) keyserver, and you can retrieve it from there.
 
 ```shell script
-gpg --keyserver keys.gnupg.net --receive-keys 12717556040EEF2EEAF1B9C275FCCD0A25FA0E4B
+gpg --keyserver keys.gnupg.net --receive-keys CDE15C6E4D3A8EC4ECF4BA4B6674E08AD7DE406F
 ```
 
 Once you have the keys, the signatures can be verified by running this:
@@ -522,10 +522,11 @@ done
 
 This should produce results similar to the below. The "Good signature from ..." is indication
 that the signatures are correct. Do not worry about the "not certified with a trusted signature"
-warning. Most of the certificates used by release managers are self signed, that's why you get this
-warning. By importing the server in the previous step and importing it via ID from
+warning. Most of the certificates used by release managers are self-signed, and that's why you get this
+warning. By importing the key either from the server in the previous step or from the
 [KEYS](https://dist.apache.org/repos/dist/release/airflow/KEYS) page, you know that
-this is a valid Key already.
+this is a valid key already.  To suppress the warning you may edit the key's trust level
+by running `gpg --edit-key <key id> trust` and entering `5` to assign trust level `ultimate`.
 
 ```
 Checking apache-airflow-2.0.2rc4.tar.gz.asc
@@ -737,13 +738,13 @@ Verify that the packages appear in
 [providers](https://dist.apache.org/repos/dist/release/airflow/providers)
 
 
-## Publish the Regular convenience package to PyPI
+## Publish the packages to PyPI
 
-By that time the packages with proper name (renamed from rc* to final version should be in your dist
-folder.
+By that time the packages should be in your dist folder.
 
 ```shell script
 cd ${AIRFLOW_REPO_ROOT}
+git checkout <ONE_OF_THE_RC_TAGS_FOR_ONE_OF_THE_RELEASED_PROVIDERS>
 ```
 
 * Verify the artifacts that would be uploaded:
@@ -766,6 +767,8 @@ twine upload -r pypitest ${AIRFLOW_REPO_ROOT}/dist/*.whl ${AIRFLOW_REPO_ROOT}/di
 ```shell script
 twine upload -r pypi ${AIRFLOW_REPO_ROOT}/dist/*.whl ${AIRFLOW_REPO_ROOT}/dist/*.tar.gz
 ```
+
+Copy links to updated packages.
 
 * Again, confirm that the packages are available under the links printed.
 
@@ -804,11 +807,13 @@ Dear Airflow community,
 
 I'm happy to announce that new versions of Airflow Providers packages were just released.
 
+TODO: If there is just a few packages to release - paste the links to PyPI packages. Otherwise delete this TODO (too many links make the message unclear).
+
 The source release, as well as the binary releases, are available here:
 
 https://airflow.apache.org/docs/apache-airflow-providers/installing-from-sources
 
-You can install the providers via PyPI  https://airflow.apache.org/apache-airflow-providers/installing-from-pypi
+You can install the providers via PyPI  https://airflow.apache.org/docs/apache-airflow-providers/installing-from-pypi
 
 The documentation is available at https://airflow.apache.org/docs/ and linked from the PyPI packages.
 

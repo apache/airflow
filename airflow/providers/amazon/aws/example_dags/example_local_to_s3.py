@@ -29,6 +29,7 @@ with models.DAG(
     "example_local_to_s3",
     schedule_interval=None,
     start_date=datetime(2021, 1, 1),  # Override to match your needs
+    catchup=False,
 ) as dag:
     # [START howto_local_transfer_data_to_s3]
     create_local_to_s3_job = LocalFilesystemToS3Operator(
@@ -37,6 +38,4 @@ with models.DAG(
         dest_key=S3_KEY,
         dest_bucket=S3_BUCKET,
     )
-
-    create_local_to_s3_job
     # [END howto_local_transfer_data_to_s3]

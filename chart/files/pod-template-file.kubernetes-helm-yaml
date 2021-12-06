@@ -44,9 +44,7 @@ spec:
     {{- end }}
   {{- end }}
   containers:
-    - args: []
-      command: []
-      envFrom:
+    - envFrom:
       {{- include "custom_airflow_environment_from" . | default "\n  []" | indent 6 }}
       env:
         - name: AIRFLOW__CORE__EXECUTOR
@@ -56,7 +54,6 @@ spec:
       image: {{ template "pod_template_image" . }}
       imagePullPolicy: {{ .Values.images.airflow.pullPolicy }}
       name: base
-      ports: []
       resources:
 {{ toYaml .Values.workers.resources | indent 8 }}
       volumeMounts:
@@ -81,7 +78,6 @@ spec:
 {{- if .Values.workers.extraContainers }}
 {{- toYaml .Values.workers.extraContainers | nindent 4 }}
 {{- end }}
-  hostNetwork: false
   {{- if or .Values.registry.secretName .Values.registry.connection }}
   imagePullSecrets:
     - name: {{ template "registry_secret" . }}

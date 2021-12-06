@@ -96,7 +96,7 @@ def _get_config_value_from_secret_backend(config_key):
         if not secrets_client:
             return None
         return secrets_client.get_config(config_key)
-    except Exception as e:  # pylint: disable=broad-except
+    except Exception as e:
         raise AirflowConfigException(
             'Cannot retrieve config from alternative secrets backend. '
             'Make sure it is configured properly and that the Backend '
@@ -1072,8 +1072,8 @@ def _TEST_CONFIG():
 _deprecated = {
     'DEFAULT_CONFIG': _DEFAULT_CONFIG,
     'TEST_CONFIG': _TEST_CONFIG,
-    'TEST_CONFIG_FILE_PATH': functools.partial(_default_config_file_path, ('default_test.cfg')),
-    'DEFAULT_CONFIG_FILE_PATH': functools.partial(_default_config_file_path, ('default_airflow.cfg')),
+    'TEST_CONFIG_FILE_PATH': functools.partial(_default_config_file_path, 'default_test.cfg'),
+    'DEFAULT_CONFIG_FILE_PATH': functools.partial(_default_config_file_path, 'default_airflow.cfg'),
 }
 
 

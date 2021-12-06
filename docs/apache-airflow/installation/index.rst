@@ -32,6 +32,7 @@ Installation
     Installing from sources <installing-from-sources>
     Installing from PyPI <installing-from-pypi>
     Setting up the database <setting-up-the-database>
+    Upgrading <upgrading>
 
 This page describes installations options that you might use when considering how to install Airflow.
 Airflow consists of many components, often distributed among many physical or virtual machines, therefore
@@ -161,7 +162,7 @@ and official constraint files- same that are used for installing Airflow from Py
 
 * Users who are familiar with Containers and Docker stack and understand how to build their own container images.
 * Users who understand how to install providers and dependencies from PyPI with constraints if they want to extend or customize the image.
-* Users who know how to create deployments using Docker by linking together multiple docker containers and maintaining such deployments.
+* Users who know how to create deployments using Docker by linking together multiple Docker containers and maintaining such deployments.
 
 **What are you expected to handle**
 

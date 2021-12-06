@@ -17,9 +17,11 @@
 # under the License.
 """This module contains a Dataproc Job sensor."""
 # pylint: disable=C0302
+import time
 import warnings
-from typing import Optional
+from typing import Dict, Optional
 
+from google.api_core.exceptions import ServerError
 from google.cloud.dataproc_v1.types import JobStatus
 
 from airflow.exceptions import AirflowException
@@ -42,6 +44,8 @@ class DataprocJobSensor(BaseSensorOperator):
     :type location: str
     :param gcp_conn_id: The connection ID to use connecting to Google Cloud Platform.
     :type gcp_conn_id: str
+    :param wait_timeout: How many seconds wait for job to be ready.
+    :type wait_timeout: int
     """
 
     template_fields = ('project_id', 'region', 'dataproc_job_id')
@@ -55,6 +59,7 @@ class DataprocJobSensor(BaseSensorOperator):
         region: str = None,
         location: Optional[str] = None,
         gcp_conn_id: str = 'google_cloud_default',
+        wait_timeout: Optional[int] = None,
         **kwargs,
     ) -> None:
         if region is None:
@@ -73,12 +78,36 @@ class DataprocJobSensor(BaseSensorOperator):
         self.gcp_conn_id = gcp_conn_id
         self.dataproc_job_id = dataproc_job_id
         self.region = region
+        self.wait_timeout = wait_timeout
+        self.start_sensor_time = None
 
-    def poke(self, context: dict) -> bool:
+    def execute(self, context: Dict):
+        self.start_sensor_time = time.monotonic()
+        super().execute(context)
+
+    def _duration(self):
+        return time.monotonic() - self.start_sensor_time
+
+    def poke(self, context: Dict) -> bool:
         hook = DataprocHook(gcp_conn_id=self.gcp_conn_id)
-        job = hook.get_job(job_id=self.dataproc_job_id, region=self.region, project_id=self.project_id)
-        state = job.status.state
+        if self.wait_timeout:
+            try:
+                job = hook.get_job(
+                    job_id=self.dataproc_job_id, region=self.region, project_id=self.project_id
+                )
+            except ServerError as err:
+                self.log.info(f"DURATION RUN: {self._duration()}")
+                if self._duration() > self.wait_timeout:
+                    raise AirflowException(
+                        f"Timeout: dataproc job {self.dataproc_job_id} "
+                        f"is not ready after {self.wait_timeout}s"
+                    )
+                self.log.info("Retrying. Dataproc API returned server error when waiting for job: %s", err)
+                return False
+        else:
+            job = hook.get_job(job_id=self.dataproc_job_id, region=self.region, project_id=self.project_id)
 
+        state = job.status.state
         if state == JobStatus.State.ERROR:
             raise AirflowException(f'Job failed:\n{job}')
         elif state in {

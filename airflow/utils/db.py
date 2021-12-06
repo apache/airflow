@@ -15,6 +15,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+import contextlib
+import enum
 import logging
 import os
 import time
@@ -52,7 +54,7 @@ from airflow.models import (  # noqa: F401
 from airflow.models.serialized_dag import SerializedDagModel  # noqa: F401
 
 # TODO: remove create_session once we decide to break backward compatibility
-from airflow.utils.session import create_global_lock, create_session, provide_session  # noqa: F401
+from airflow.utils.session import create_session, provide_session  # noqa: F401
 
 log = logging.getLogger(__name__)
 
@@ -594,7 +596,7 @@ def initdb(session=None):
     if conf.getboolean('core', 'LOAD_DEFAULT_CONNECTIONS'):
         create_default_connections(session=session)
 
-    with create_global_lock(session=session):
+    with create_global_lock(session=session, lock=DBLocks.MIGRATIONS):
 
         dagbag = DagBag()
         # Save DAGs in the ORM
@@ -627,13 +629,17 @@ def check_migrations(timeout):
     :param timeout: Timeout for the migration in seconds
     :return: None
     """
-    from alembic.runtime.migration import MigrationContext
+    from alembic.runtime.environment import EnvironmentContext
     from alembic.script import ScriptDirectory
 
     config = _get_alembic_config()
     script_ = ScriptDirectory.from_config(config)
-    with settings.engine.connect() as connection:
-        context = MigrationContext.configure(connection)
+    with EnvironmentContext(
+        config,
+        script_,
+    ) as env, settings.engine.connect() as connection:
+        env.configure(connection)
+        context = env.get_context()
         ticker = 0
         while True:
             source_heads = set(script_.get_heads())
@@ -642,8 +648,8 @@ def check_migrations(timeout):
                 break
             if ticker >= timeout:
                 raise TimeoutError(
-                    f"There are still unapplied migrations after {ticker} seconds. "
-                    f"Migration Head(s) in DB: {db_heads} | Migration Head(s) in Source Code: {source_heads}"
+                    f"There are still unapplied migrations after {ticker} seconds. Migration"
+                    f"Head(s) in DB: {db_heads} | Migration Head(s) in Source Code: {source_heads}"
                 )
             ticker += 1
             time.sleep(1)
@@ -731,13 +737,24 @@ def _move_dangling_table(session, source_table: "Table", target_table_name: str,
             )
         )
     else:
-        # Postgres, MySQL and SQLite all have the same CREATE TABLE a AS SELECT ... syntax
-        session.execute(
-            text(
-                f"create table {target_table_name} as select source.* from {source_table} as source "
-                + where_clause
+        if dialect_name == "mysql":
+            # CREATE TABLE AS SELECT must be broken into two queries for  MySQL as the single query
+            # approach fails when replication is enabled ("Statement violates GTID consistency")```
+            session.execute(text(f"create table {target_table_name} like {source_table}"))
+            session.execute(
+                text(
+                    f"INSERT INTO {target_table_name} select source.* from {source_table} as source "
+                    + where_clause
+                )
             )
-        )
+        # Postgres and SQLite have the same CREATE TABLE a AS SELECT ... syntax
+        else:
+            session.execute(
+                text(
+                    f"create table {target_table_name} as select source.* from {source_table} as source "
+                    + where_clause
+                )
+            )
 
         # But different join-delete syntax.
         if dialect_name == "mysql":
@@ -906,7 +923,7 @@ def upgradedb(session=None):
     if errors_seen:
         exit(1)
 
-    with create_global_lock(session=session, pg_lock_id=2, lock_name="upgrade"):
+    with create_global_lock(session=session, lock=DBLocks.MIGRATIONS):
         log.info("Creating tables")
         command.upgrade(config, 'heads')
     add_default_pool_if_not_exists()
@@ -919,7 +936,7 @@ def resetdb(session=None):
 
     connection = settings.engine.connect()
 
-    with create_global_lock(session=session, pg_lock_id=4, lock_name="reset"):
+    with create_global_lock(session=session, lock=DBLocks.MIGRATIONS):
         drop_airflow_models(connection)
         drop_flask_models(connection)
 
@@ -982,3 +999,48 @@ def check(session=None):
     """
     session.execute('select 1 as is_alive;')
     log.info("Connection successful.")
+
+
+@enum.unique
+class DBLocks(enum.IntEnum):
+    """
+    Cross-db Identifiers for advisory global database locks.
+
+    Postgres uses int64 lock ids so we use the integer value, MySQL uses names, so we
+    call ``str()`, which is implemented using the ``_name_`` field.
+    """
+
+    MIGRATIONS = enum.auto()
+    SCHEDULER_CRITICAL_SECTION = enum.auto()
+
+    def __str__(self):
+        return f"airflow_{self._name_}"
+
+
+@contextlib.contextmanager
+def create_global_lock(session, lock: DBLocks, lock_timeout=1800):
+    """Contextmanager that will create and teardown a global db lock."""
+    conn = session.get_bind().connect()
+    dialect = conn.dialect
+    try:
+        if dialect.name == 'postgresql':
+            conn.execute(text('SET LOCK_TIMEOUT to :timeout'), timeout=lock_timeout)
+            conn.execute(text('SELECT pg_advisory_lock(:id)'), id=lock.value)
+        elif dialect.name == 'mysql' and dialect.server_version_info >= (5, 6):
+            conn.execute(text("SELECT GET_LOCK(:id, :timeout)"), id=str(lock), timeout=lock_timeout)
+        elif dialect.name == 'mssql':
+            # TODO: make locking work for MSSQL
+            pass
+
+        yield
+    finally:
+        if dialect.name == 'postgresql':
+            conn.execute('SET LOCK_TIMEOUT TO DEFAULT')
+            (unlocked,) = conn.execute(text('SELECT pg_advisory_unlock(:id)'), id=lock.value).fetchone()
+            if not unlocked:
+                raise RuntimeError("Error releasing DB lock!")
+        elif dialect.name == 'mysql' and dialect.server_version_info >= (5, 6):
+            conn.execute(text("select RELEASE_LOCK(:id)"), id=str(lock))
+        elif dialect.name == 'mssql':
+            # TODO: make locking work for MSSQL
+            pass

@@ -27,6 +27,11 @@ import logging
 import time
 from typing import Any, Dict, Iterable, List, Optional
 
+try:
+    from functools import cached_property
+except ImportError:
+    from cached_property import cached_property
+
 import pandas as pd
 from requests import Session
 from simple_salesforce import Salesforce, api
@@ -75,7 +80,6 @@ class SalesforceHook(BaseHook):
     ) -> None:
         super().__init__()
         self.conn_id = salesforce_conn_id
-        self.conn = None
         self.session_id = session_id
         self.session = session
 
@@ -126,28 +130,37 @@ class SalesforceHook(BaseHook):
             },
         }
 
+    @cached_property
+    def conn(self) -> api.Salesforce:
+        """Returns a Salesforce instance. (cached)"""
+        connection = self.get_connection(self.conn_id)
+        extras = connection.extra_dejson
+        # all extras below (besides the version one) are explicitly defaulted to None
+        # because simple-salesforce has a built-in authentication-choosing method that
+        # relies on which arguments are None and without "or None" setting this connection
+        # in the UI will result in the blank extras being empty strings instead of None,
+        # which would break the connection if "get" was used on its own.
+        conn = Salesforce(
+            username=connection.login,
+            password=connection.password,
+            security_token=extras.get('extra__salesforce__security_token') or None,
+            domain=extras.get('extra__salesforce__domain') or None,
+            session_id=self.session_id,
+            instance=extras.get('extra__salesforce__instance') or None,
+            instance_url=extras.get('extra__salesforce__instance_url') or None,
+            organizationId=extras.get('extra__salesforce__organization_id') or None,
+            version=extras.get('extra__salesforce__version') or api.DEFAULT_API_VERSION,
+            proxies=extras.get('extra__salesforce__proxies') or None,
+            session=self.session,
+            client_id=extras.get('extra__salesforce__client_id') or None,
+            consumer_key=extras.get('extra__salesforce__consumer_key') or None,
+            privatekey_file=extras.get('extra__salesforce__private_key_file_path') or None,
+            privatekey=extras.get('extra__salesforce__private_key') or None,
+        )
+        return conn
+
     def get_conn(self) -> api.Salesforce:
-        """Sign into Salesforce, only if we are not already signed in."""
-        if not self.conn:
-            connection = self.get_connection(self.conn_id)
-            extras = connection.extra_dejson
-            self.conn = Salesforce(
-                username=connection.login,
-                password=connection.password,
-                security_token=extras["extra__salesforce__security_token"] or None,
-                domain=extras["extra__salesforce__domain"] or None,
-                session_id=self.session_id,
-                instance=extras["extra__salesforce__instance"] or None,
-                instance_url=extras["extra__salesforce__instance_url"] or None,
-                organizationId=extras["extra__salesforce__organization_id"] or None,
-                version=extras["extra__salesforce__version"] or api.DEFAULT_API_VERSION,
-                proxies=extras["extra__salesforce__proxies"] or None,
-                session=self.session,
-                client_id=extras["extra__salesforce__client_id"] or None,
-                consumer_key=extras["extra__salesforce__consumer_key"] or None,
-                privatekey_file=extras["extra__salesforce__private_key_file_path"] or None,
-                privatekey=extras["extra__salesforce__private_key"] or None,
-            )
+        """Returns a Salesforce instance. (cached)"""
         return self.conn
 
     def make_query(

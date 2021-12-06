@@ -1,4 +1,3 @@
-#!/usr/bin/env bash
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -15,31 +14,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-AIRFLOW_SOURCES_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")"/../../../ && pwd)"
-export AIRFLOW_SOURCES_DIR
 
-usage() {
-    local cmdname
-    cmdname="$(basename -- "$0")"
+from airflow_breeze.visuals import ASCIIART
 
-    cat << EOF
-Usage: ${cmdname} <AIRFLOW_VERSION>
 
-Prepares prod docker images for the version specified.
-
-EOF
-}
-
-if [[ "$#" -ne 1 ]]; then
-    >&2 echo "You must provide Airflow version."
-    usage
-    exit 1
-fi
-
-export INSTALL_AIRFLOW_VERSION="${1}"
-
-for python_version in "3.6" "3.7" "3.8" "3.9"
-do
-  export PYTHON_MAJOR_MINOR_VERSION=${python_version}
-  "${AIRFLOW_SOURCES_DIR}/scripts/ci/tools/build_dockerhub.sh"
-done
+def test_visuals():
+    assert 2051 == len(ASCIIART)
