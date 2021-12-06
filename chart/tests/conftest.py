@@ -22,7 +22,7 @@ import pytest
 from filelock import FileLock
 
 
-@pytest.fixture(autouse=True, scope="session")
+@pytest.fixture(autouse=True, scope="module")
 def upgrade_helm(tmp_path_factory, worker_id):
     """
     Upgrade Helm repo

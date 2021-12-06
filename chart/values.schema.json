@@ -372,6 +372,12 @@
                     "x-docsSection": "Images",
                     "default": false
                 },
+                "migrationsWaitTimeout": {
+                    "description": "The time to wait for the DB migrations to complete.",
+                    "type": "number",
+                    "x-docsSection": "Images",
+                    "default": 60
+                },
                 "pod_template": {
                     "description": "Configuration of the pod_template image.",
                     "type": "object",
