@@ -79,7 +79,7 @@ table or rename it or move it to another database using those tools. If you don'
 can use the ``airflow db shell`` command - this will drop you in the db shell tool for your database and you
 will be able to both inspect and delete the table.
 
-Alternatively, you can drop the table by following the steps below:
+How to drop the table using Kubernetes:
 
 
 1. Exec into any of the Airflow pods - webserver or scheduler: ``kubectl exec -it <your-webserver-pod> python``
