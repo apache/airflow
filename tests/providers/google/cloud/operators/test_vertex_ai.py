@@ -69,6 +69,9 @@ PYTHON_PACKAGE_CMDARGS = "test-python-cmd"
 PYTHON_PACKAGE_GCS_URI = "gs://test-vertex-ai-bucket/trainer-0.1.tar.gz"
 PYTHON_MODULE_NAME = "trainer.task"
 
+TRAINING_PIPELINE_ID = "test-training-pipeline-id"
+CUSTOM_JOB_ID = "test-custom-job-id"
+
 TEST_DATASET = {
     "display_name": "test-dataset-name",
     "metadata_schema_uri": "gs://google-cloud-aiplatform/schema/dataset/metadata/image_1.0.0.yaml",
@@ -325,7 +328,8 @@ class TestVertexAIDeleteCustomTrainingJobOperator:
     def test_execute(self, mock_hook):
         op = DeleteCustomTrainingJobOperator(
             task_id=TASK_ID,
-            training_pipeline=DISPLAY_NAME,
+            training_pipeline_id=TRAINING_PIPELINE_ID,
+            custom_job_id=CUSTOM_JOB_ID,
             region=GCP_LOCATION,
             project_id=GCP_PROJECT,
             retry=RETRY,
@@ -337,7 +341,7 @@ class TestVertexAIDeleteCustomTrainingJobOperator:
         op.execute(context={})
         mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID, impersonation_chain=IMPERSONATION_CHAIN)
         mock_hook.return_value.delete_training_pipeline.assert_called_once_with(
-            training_pipeline=DISPLAY_NAME,
+            training_pipeline=TRAINING_PIPELINE_ID,
             region=GCP_LOCATION,
             project_id=GCP_PROJECT,
             retry=RETRY,
@@ -345,7 +349,7 @@ class TestVertexAIDeleteCustomTrainingJobOperator:
             metadata=METADATA,
         )
         mock_hook.return_value.delete_custom_job.assert_called_once_with(
-            custom_job=f"{DISPLAY_NAME}-custom-job",
+            custom_job=CUSTOM_JOB_ID,
             region=GCP_LOCATION,
             project_id=GCP_PROJECT,
             retry=RETRY,

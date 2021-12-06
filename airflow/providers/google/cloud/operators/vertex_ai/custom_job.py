@@ -20,9 +20,11 @@
 
 from typing import Dict, List, Optional, Sequence, Tuple, Union
 
+from google.api_core.exceptions import NotFound
 from google.api_core.retry import Retry
 from google.cloud.aiplatform.models import Model
 from google.cloud.aiplatform_v1.types.dataset import Dataset
+from google.cloud.aiplatform_v1.types.training_pipeline import TrainingPipeline
 
 from airflow.models import BaseOperator, BaseOperatorLink
 from airflow.models.taskinstance import TaskInstance
@@ -186,14 +188,7 @@ class _CustomTrainingJobBaseOperator(BaseOperator):
         Callback called when the operator is killed.
         Cancel any running job.
         """
-        self.hook.cancel_training_pipeline(
-            project_id=self.project_id,
-            region=self.region,
-            training_pipeline=self.display_name,
-        )
-        self.hook.cancel_custom_job(
-            project_id=self.project_id, region=self.region, custom_job=f"{self.display_name}-custom-job"
-        )
+        self.hook.cancel_job()
 
 
 class CreateCustomContainerTrainingJobOperator(_CustomTrainingJobBaseOperator):
@@ -462,7 +457,8 @@ class DeleteCustomTrainingJobOperator(BaseOperator):
     def __init__(
         self,
         *,
-        training_pipeline: str,
+        training_pipeline_id: str,
+        custom_job_id: str,
         region: str,
         project_id: str,
         retry: Optional[Retry] = None,
@@ -473,7 +469,8 @@ class DeleteCustomTrainingJobOperator(BaseOperator):
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
-        self.training_pipeline = training_pipeline
+        self.training_pipeline = training_pipeline_id
+        self.custom_job = custom_job_id
         self.region = region
         self.project_id = project_id
         self.retry = retry
@@ -484,24 +481,34 @@ class DeleteCustomTrainingJobOperator(BaseOperator):
 
     def execute(self, context: Dict):
         hook = CustomJobHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain)
-        self.log.info("Deleting custom training job: %s", self.training_pipeline)
-        hook.delete_training_pipeline(
-            training_pipeline=self.training_pipeline,
-            region=self.region,
-            project_id=self.project_id,
-            retry=self.retry,
-            timeout=self.timeout,
-            metadata=self.metadata,
-        )
-        hook.delete_custom_job(
-            custom_job=f"{self.training_pipeline}-custom-job",
-            region=self.region,
-            project_id=self.project_id,
-            retry=self.retry,
-            timeout=self.timeout,
-            metadata=self.metadata,
-        )
-        self.log.info("Custom training job deleted.")
+        try:
+            self.log.info("Deleting custom training pipeline: %s", self.training_pipeline)
+            training_pipeline_operation = hook.delete_training_pipeline(
+                training_pipeline=self.training_pipeline,
+                region=self.region,
+                project_id=self.project_id,
+                retry=self.retry,
+                timeout=self.timeout,
+                metadata=self.metadata,
+            )
+            hook.wait_for_operation(timeout=self.timeout, operation=training_pipeline_operation)
+            self.log.info("Training pipeline was deleted.")
+        except NotFound:
+            self.log.info("The Training Pipeline ID %s does not exist.", self.training_pipeline)
+        try:
+            self.log.info("Deleting custom job: %s", self.custom_job)
+            custom_job_operation = hook.delete_custom_job(
+                custom_job=self.custom_job,
+                region=self.region,
+                project_id=self.project_id,
+                retry=self.retry,
+                timeout=self.timeout,
+                metadata=self.metadata,
+            )
+            hook.wait_for_operation(timeout=self.timeout, operation=custom_job_operation)
+            self.log.info("Custom job was deleted.")
+        except NotFound:
+            self.log.info("The Custom Job ID %s does not exist.", self.custom_job)
 
 
 class ListCustomTrainingJobOperator(BaseOperator):
@@ -547,7 +554,7 @@ class ListCustomTrainingJobOperator(BaseOperator):
 
     def execute(self, context: Dict):
         hook = CustomJobHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain)
-        hook.list_training_pipelines(
+        results = hook.list_training_pipelines(
             region=self.region,
             project_id=self.project_id,
             page_size=self.page_size,
@@ -559,3 +566,4 @@ class ListCustomTrainingJobOperator(BaseOperator):
             metadata=self.metadata,
         )
         self.xcom_push(context, key="project_id", value=self.project_id)
+        return [TrainingPipeline.to_dict(result) for result in results]

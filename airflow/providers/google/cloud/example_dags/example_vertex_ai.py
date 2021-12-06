@@ -32,6 +32,8 @@ from airflow.providers.google.cloud.operators.vertex_ai.custom_job import (
     CreateCustomContainerTrainingJobOperator,
     CreateCustomPythonPackageTrainingJobOperator,
     CreateCustomTrainingJobOperator,
+    DeleteCustomTrainingJobOperator,
+    ListCustomTrainingJobOperator,
 )
 from airflow.providers.google.cloud.operators.vertex_ai.dataset import (
     CreateDatasetOperator,
@@ -65,6 +67,9 @@ PYTHON_PACKAGE_GCS_URI = os.environ.get("PYTHON_PACKAGE_GSC_URI", "path_to_test_
 PYTHON_MODULE_NAME = "aiplatform_custom_trainer_script.task"
 
 LOCAL_TRAINING_SCRIPT_PATH = os.environ.get("LOCAL_TRAINING_SCRIPT_PATH", "path_to_training_script")
+
+TRAINING_PIPELINE_ID = "test-training-pipeline-id"
+CUSTOM_JOB_ID = "test-custom-job-id"
 
 IMAGE_DATASET = {
     "display_name": str(uuid4()),
@@ -179,6 +184,24 @@ with models.DAG(
         project_id=PROJECT_ID,
     )
     # [END how_to_cloud_vertex_ai_create_custom_training_job_operator]
+
+    # [START how_to_cloud_vertex_ai_delete_custom_training_job_operator]
+    delete_custom_training_job = DeleteCustomTrainingJobOperator(
+        task_id="delete_custom_training_job",
+        training_pipeline_id=TRAINING_PIPELINE_ID,
+        custom_job_id=CUSTOM_JOB_ID,
+        region=REGION,
+        project_id=PROJECT_ID,
+    )
+    # [END how_to_cloud_vertex_ai_delete_custom_training_job_operator]
+
+    # [START how_to_cloud_vertex_ai_list_custom_training_job_operator]
+    list_custom_training_job = ListCustomTrainingJobOperator(
+        task_id="list_custom_training_job",
+        region=REGION,
+        project_id=PROJECT_ID,
+    )
+    # [END how_to_cloud_vertex_ai_list_custom_training_job_operator]
 
 with models.DAG(
     "example_gcp_vertex_ai_dataset",

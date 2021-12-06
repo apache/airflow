@@ -43,6 +43,19 @@ from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
 class CustomJobHook(GoogleBaseHook):
     """Hook for Google Cloud Vertex AI Custom Job APIs."""
 
+    def __init__(
+        self,
+        gcp_conn_id: str = "google_cloud_default",
+        delegate_to: Optional[str] = None,
+        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+    ) -> None:
+        super().__init__(
+            gcp_conn_id=gcp_conn_id,
+            delegate_to=delegate_to,
+            impersonation_chain=impersonation_chain,
+        )
+        self._job = None
+
     def get_pipeline_service_client(
         self,
         region: Optional[str] = None,
@@ -229,6 +242,10 @@ class CustomJobHook(GoogleBaseHook):
         except Exception:
             error = operation.exception(timeout=timeout)
             raise AirflowException(error)
+
+    def cancel_job(self) -> None:
+        """Cancel Job for training pipeline"""
+        self._job.cancel()
 
     def _run_job(
         self,
@@ -957,7 +974,7 @@ class CustomJobHook(GoogleBaseHook):
                 be immediately returned and synced when the Future has completed.
         :type sync: bool
         """
-        job = self.get_custom_container_training_job(
+        self._job = self.get_custom_container_training_job(
             project=project_id,
             location=region,
             display_name=display_name,
@@ -981,7 +998,7 @@ class CustomJobHook(GoogleBaseHook):
         )
 
         model = self._run_job(
-            job=job,
+            job=self._job,
             dataset=dataset,
             annotation_schema_uri=annotation_schema_uri,
             model_display_name=model_display_name,
@@ -1405,7 +1422,7 @@ class CustomJobHook(GoogleBaseHook):
                 be immediately returned and synced when the Future has completed.
         :type sync: bool
         """
-        job = self.get_custom_python_package_training_job(
+        self._job = self.get_custom_python_package_training_job(
             project=project_id,
             location=region,
             display_name=display_name,
@@ -1430,7 +1447,7 @@ class CustomJobHook(GoogleBaseHook):
         )
 
         model = self._run_job(
-            job=job,
+            job=self._job,
             dataset=dataset,
             annotation_schema_uri=annotation_schema_uri,
             model_display_name=model_display_name,
@@ -1853,7 +1870,7 @@ class CustomJobHook(GoogleBaseHook):
                 be immediately returned and synced when the Future has completed.
         :type sync: bool
         """
-        job = self.get_custom_training_job(
+        self._job = self.get_custom_training_job(
             project=project_id,
             location=region,
             display_name=display_name,
@@ -1878,7 +1895,7 @@ class CustomJobHook(GoogleBaseHook):
         )
 
         model = self._run_job(
-            job=job,
+            job=self._job,
             dataset=dataset,
             annotation_schema_uri=annotation_schema_uri,
             model_display_name=model_display_name,
@@ -2014,7 +2031,7 @@ class CustomJobHook(GoogleBaseHook):
         :type metadata: Sequence[Tuple[str, str]]
         """
         client = self.get_job_service_client(region)
-        name = JobServiceClient.custom_job_path(project_id, region, custom_job)
+        name = client.custom_job_path(project_id, region, custom_job)
 
         result = client.delete_custom_job(
             request={
