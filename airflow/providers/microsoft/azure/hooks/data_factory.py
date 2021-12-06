@@ -115,14 +115,13 @@ class AzureDataFactoryHook(BaseHook):
         from flask_appbuilder.fieldwidgets import BS3TextFieldWidget
         from flask_babel import lazy_gettext
         from wtforms import StringField
-        from wtforms.validators import InputRequired
 
         return {
             "extra__azure_data_factory__tenantId": StringField(
                 lazy_gettext('Tenant ID'), widget=BS3TextFieldWidget()
             ),
             "extra__azure_data_factory__subscriptionId": StringField(
-                lazy_gettext('Subscription ID'), validators=[InputRequired()], widget=BS3TextFieldWidget()
+                lazy_gettext('Subscription ID'), widget=BS3TextFieldWidget()
             ),
             "extra__azure_data_factory__resource_group_name": StringField(
                 lazy_gettext('Resource Group Name'), widget=BS3TextFieldWidget()
