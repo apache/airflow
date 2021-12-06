@@ -63,6 +63,10 @@ class QuboleOperator(BaseOperator):
     """
     Execute tasks (commands) on QDS (https://qubole.com).
 
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:QuboleOperator`
+
     :param qubole_conn_id: Connection id which consists of qds auth_token
     :type qubole_conn_id: str
 
