@@ -136,6 +136,11 @@ from airflow.www.widgets import AirflowModelListWidget
 PAGE_SIZE = conf.getint('webserver', 'page_size')
 FILTER_TAGS_COOKIE = 'tags_filter'
 FILTER_STATUS_COOKIE = 'dag_status_filter'
+LINECHART_X_AXIS_TICKFORMAT = (
+    "function (d, i) { let xLabel;"
+    "if (i === undefined) {xLabel = d3.time.format('%H:%M, %d %b %Y')(new Date(parseInt(d)));"
+    "} else {xLabel = d3.time.format('%H:%M')(new Date(parseInt(d)));} return xLabel;}"
+)
 
 
 def truncate_task_duration(task_duration):
@@ -2562,17 +2567,19 @@ class Airflow(AirflowBaseView):
         chart_height = wwwutils.get_chart_height(dag)
         chart = nvd3.lineChart(
             name="lineChart",
-            x_is_date=True,
-            x_axis_format="%d %b %Y, %H:%M",
+            x_custom_format=True,
+            x_axis_date=True,
+            x_axis_format=LINECHART_X_AXIS_TICKFORMAT,
             height=chart_height,
-            chart_attr=self.line_chart_attr
+            chart_attr=self.line_chart_attr,
         )
         cum_chart = nvd3.lineChart(
             name="cumLineChart",
-            x_is_date=True,
-            x_axis_format="%d %b %Y, %H:%M",
+            x_custom_format=True,
+            x_axis_date=True,
+            x_axis_format=LINECHART_X_AXIS_TICKFORMAT,
             height=chart_height,
-            chart_attr=self.line_chart_attr
+            chart_attr=self.line_chart_attr,
         )
 
         y_points = defaultdict(list)
@@ -2698,9 +2705,9 @@ class Airflow(AirflowBaseView):
         chart_height = wwwutils.get_chart_height(dag)
         chart = nvd3.lineChart(
             name="lineChart",
-            x_is_date=True,
-            x_axis_format="%d %b %Y, %H:%M",
-            y_axis_format='d',
+            x_custom_format=True,
+            x_axis_date=True,
+            x_axis_format=LINECHART_X_AXIS_TICKFORMAT,
             height=chart_height,
             chart_attr=self.line_chart_attr,
         )
@@ -2777,10 +2784,11 @@ class Airflow(AirflowBaseView):
         chart_height = wwwutils.get_chart_height(dag)
         chart = nvd3.lineChart(
             name="lineChart",
-            x_is_date=True,
-            x_axis_format="%d %b %Y, %H:%M",
+            x_custom_format=True,
+            x_axis_date=True,
+            x_axis_format=LINECHART_X_AXIS_TICKFORMAT,
             height=chart_height,
-            chart_attr=self.line_chart_attr
+            chart_attr=self.line_chart_attr,
         )
         y_points = {}
         x_points = {}
