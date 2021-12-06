@@ -16,6 +16,12 @@
 # specific language governing permissions and limitations
 # under the License.
 
+"""Hacks to patch up Sphinx-AutoAPI before running Sphinx.
+
+Unfortunately we have a problem updating to a newer version of Sphinx-AutoAPI,
+and have to use v1.0.0, so monkeypatching is used as the last resort.
+"""
+
 import os
 import sys
 
@@ -29,7 +35,24 @@ from autoapi.extension import (
     default_file_mapping,
     default_ignore_patterns,
 )
+from autoapi.mappers.python.objects import PythonPythonMapper
 from sphinx.cmd.build import main
+
+
+def new_python_python_mapper_display_getter(self: PythonPythonMapper) -> bool:
+    """Patched getter to apply our special skip magic.
+
+    If the docstring is exactly ``:sphinx-autoapi-skip:``, don't display this.
+    """
+    if ":sphinx-autoapi-skip:" in self.docstring.split():
+        return False
+    return old_python_python_mapper_property.__get__(self, PythonPythonMapper)
+
+
+# HACK: sphinx-autoapi 1.0.0 is way too old to understand various modern Python
+# magic such as typing.overload, so we apply magic to tell it when to skip.
+old_python_python_mapper_property = PythonPythonMapper.display
+PythonPythonMapper.display = property(new_python_python_mapper_display_getter)
 
 
 def run_autoapi(app):
@@ -95,10 +118,8 @@ def run_autoapi(app):
         sphinx_mapper_obj.output_rst(root=normalized_root, source_suffix=out_suffix)
 
 
-# HACK: sphinx-auto map did not correctly use the confdir attribute instead of srcdir when specifying the
-# directory to contain the generated files.
-# Unfortunately we have a problem updating to a newer version of this library and we have to use
-# sphinx-autoapi v1.0.0, so I am monkeypatching this library to fix this one problem.
+# HACK: sphinx-autoapi does not correctly use the confdir attribute instead of
+# srcdir when specifying the directory to contain the generated files.
 autoapi.extension.run_autoapi = run_autoapi
 
 sys.exit(main(sys.argv[1:]))

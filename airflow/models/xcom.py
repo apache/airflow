@@ -92,34 +92,6 @@ class BaseXCom(Base, LoggingMixin):
         run_id: str,
         session: Optional[Session] = None,
     ) -> None:
-        ...
-
-    @overload
-    @classmethod
-    def set(
-        cls,
-        key: str,
-        value: Any,
-        task_id: str,
-        dag_id: str,
-        execution_date: datetime.datetime,
-        session: Optional[Session] = None,
-    ) -> None:
-        ...
-
-    @classmethod
-    @provide_session
-    def set(
-        cls,
-        key: str,
-        value: Any,
-        task_id: str,
-        dag_id: str,
-        execution_date: Optional[datetime.datetime] = None,
-        *,
-        run_id: Optional[str] = None,
-        session: Session,
-    ) -> None:
         """Store an XCom value.
 
         A deprecated form of this function accepts ``execution_date`` instead of
@@ -134,6 +106,34 @@ class BaseXCom(Base, LoggingMixin):
             created for this function.
         :type session: sqlalchemy.orm.session.Session
         """
+
+    @overload
+    @classmethod
+    def set(
+        cls,
+        key: str,
+        value: Any,
+        task_id: str,
+        dag_id: str,
+        execution_date: datetime.datetime,
+        session: Optional[Session] = None,
+    ) -> None:
+        """:sphinx-autoapi-skip:"""
+
+    @classmethod
+    @provide_session
+    def set(
+        cls,
+        key: str,
+        value: Any,
+        task_id: str,
+        dag_id: str,
+        execution_date: Optional[datetime.datetime] = None,
+        *,
+        run_id: Optional[str] = None,
+        session: Session,
+    ) -> None:
+        """:sphinx-autoapi-skip:"""
         if not (execution_date is None) ^ (run_id is None):
             raise ValueError("Exactly one of execution_date or run_id must be passed")
 
@@ -172,35 +172,6 @@ class BaseXCom(Base, LoggingMixin):
         include_prior_dates: bool = False,
         session: Optional[Session] = None,
     ) -> Optional[Any]:
-        ...
-
-    @overload
-    @classmethod
-    def get_one(
-        cls,
-        execution_date: pendulum.DateTime,
-        key: Optional[str] = None,
-        task_id: Optional[str] = None,
-        dag_id: Optional[str] = None,
-        include_prior_dates: bool = False,
-        *,
-        session: Optional[Session] = None,
-    ) -> Optional[Any]:
-        ...
-
-    @classmethod
-    @provide_session
-    def get_one(
-        cls,
-        execution_date: Optional[pendulum.DateTime] = None,
-        key: Optional[str] = None,
-        task_id: Optional[Union[str, Iterable[str]]] = None,
-        dag_id: Optional[Union[str, Iterable[str]]] = None,
-        include_prior_dates: bool = False,
-        *,
-        run_id: Optional[str] = None,
-        session: Session,
-    ) -> Optional[Any]:
         """Retrieve an XCom value, optionally meeting certain criteria.
 
         This method returns "full" XCom values (i.e. uses ``deserialize_value``
@@ -226,6 +197,35 @@ class BaseXCom(Base, LoggingMixin):
             created for this function.
         :type session: sqlalchemy.orm.session.Session
         """
+
+    @overload
+    @classmethod
+    def get_one(
+        cls,
+        execution_date: pendulum.DateTime,
+        key: Optional[str] = None,
+        task_id: Optional[str] = None,
+        dag_id: Optional[str] = None,
+        include_prior_dates: bool = False,
+        *,
+        session: Optional[Session] = None,
+    ) -> Optional[Any]:
+        """:sphinx-autoapi-skip:"""
+
+    @classmethod
+    @provide_session
+    def get_one(
+        cls,
+        execution_date: Optional[pendulum.DateTime] = None,
+        key: Optional[str] = None,
+        task_id: Optional[Union[str, Iterable[str]]] = None,
+        dag_id: Optional[Union[str, Iterable[str]]] = None,
+        include_prior_dates: bool = False,
+        *,
+        run_id: Optional[str] = None,
+        session: Session,
+    ) -> Optional[Any]:
+        """:sphinx-autoapi-skip:"""
         if not (execution_date is None) ^ (run_id is None):
             raise ValueError("Exactly one of execution_date or run_id must be passed")
 
@@ -268,37 +268,6 @@ class BaseXCom(Base, LoggingMixin):
         limit: Optional[int] = None,
         session: Optional[Session] = None,
     ) -> Query:
-        ...
-
-    @overload
-    @classmethod
-    def get_many(
-        cls,
-        execution_date: pendulum.DateTime,
-        key: Optional[str] = None,
-        task_ids: Union[str, Iterable[str], None] = None,
-        dag_ids: Union[str, Iterable[str], None] = None,
-        include_prior_dates: bool = False,
-        limit: Optional[int] = None,
-        *,
-        session: Optional[Session] = None,
-    ) -> Query:
-        ...
-
-    @classmethod
-    @provide_session
-    def get_many(
-        cls,
-        execution_date: Optional[pendulum.DateTime] = None,
-        key: Optional[str] = None,
-        task_ids: Optional[Union[str, Iterable[str]]] = None,
-        dag_ids: Optional[Union[str, Iterable[str]]] = None,
-        include_prior_dates: bool = False,
-        limit: Optional[int] = None,
-        *,
-        run_id: Optional[str] = None,
-        session: Session,
-    ) -> Query:
         """Composes a query to get one or more XCom entries.
 
         This function returns an SQLAlchemy query of full XCom objects. If you
@@ -321,6 +290,37 @@ class BaseXCom(Base, LoggingMixin):
             created for this function.
         :type session: sqlalchemy.orm.session.Session
         """
+
+    @overload
+    @classmethod
+    def get_many(
+        cls,
+        execution_date: pendulum.DateTime,
+        key: Optional[str] = None,
+        task_ids: Union[str, Iterable[str], None] = None,
+        dag_ids: Union[str, Iterable[str], None] = None,
+        include_prior_dates: bool = False,
+        limit: Optional[int] = None,
+        *,
+        session: Optional[Session] = None,
+    ) -> Query:
+        """:sphinx-autoapi-skip:"""
+
+    @classmethod
+    @provide_session
+    def get_many(
+        cls,
+        execution_date: Optional[pendulum.DateTime] = None,
+        key: Optional[str] = None,
+        task_ids: Optional[Union[str, Iterable[str]]] = None,
+        dag_ids: Optional[Union[str, Iterable[str]]] = None,
+        include_prior_dates: bool = False,
+        limit: Optional[int] = None,
+        *,
+        run_id: Optional[str] = None,
+        session: Session,
+    ) -> Query:
+        """:sphinx-autoapi-skip:"""
         if not (execution_date is None) ^ (run_id is None):
             raise ValueError("Exactly one of execution_date or run_id must be passed")
 
@@ -379,30 +379,6 @@ class BaseXCom(Base, LoggingMixin):
     @overload
     @classmethod
     def clear(cls, *, dag_id: str, task_id: str, run_id: str, session: Optional[Session] = None) -> None:
-        ...
-
-    @overload
-    @classmethod
-    def clear(
-        cls,
-        execution_date: pendulum.DateTime,
-        dag_id: str,
-        task_id: str,
-        session: Optional[Session] = None,
-    ) -> None:
-        ...
-
-    @classmethod
-    @provide_session
-    def clear(
-        cls,
-        execution_date: Optional[pendulum.DateTime] = None,
-        dag_id: Optional[str] = None,
-        task_id: Optional[str] = None,
-        *,
-        run_id: Optional[str] = None,
-        session: Session,
-    ) -> None:
         """Clear all XCom data from the database for the given task instance.
 
         A deprecated form of this function accepts ``execution_date`` instead of
@@ -415,6 +391,30 @@ class BaseXCom(Base, LoggingMixin):
             created for this function.
         :type session: sqlalchemy.orm.session.Session
         """
+
+    @overload
+    @classmethod
+    def clear(
+        cls,
+        execution_date: pendulum.DateTime,
+        dag_id: str,
+        task_id: str,
+        session: Optional[Session] = None,
+    ) -> None:
+        """:sphinx-autoapi-skip:"""
+
+    @classmethod
+    @provide_session
+    def clear(
+        cls,
+        execution_date: Optional[pendulum.DateTime] = None,
+        dag_id: Optional[str] = None,
+        task_id: Optional[str] = None,
+        *,
+        run_id: Optional[str] = None,
+        session: Session,
+    ) -> None:
+        """:sphinx-autoapi-skip:"""
         # Given the historic order of this function (execution_date was first argument) to add a new optional
         # param we need to add default values for everything :(
         if dag_id is None:
