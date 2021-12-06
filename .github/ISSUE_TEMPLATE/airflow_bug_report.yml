@@ -17,6 +17,28 @@ body:
         You can open [Pull Request](https://github.com/apache/airflow/pulls) immediately instead.
         <br clear='left'/>"
       # yamllint enable rule:line-length
+  - type: dropdown
+    attributes:
+      label: Apache Airflow version
+      description: >
+        What Apache Airflow version are you using? Only Airflow 2 is supported for bugs. If you wish to
+        discuss Airflow 1.10, open [Discussion](https://github.com/apache/airflow/discussions) instead!
+      multiple: false
+      options:
+        - "2.2.2 (latest released)"
+        - "2.2.1"
+        - "2.2.0"
+        - "2.1.4"
+        - "2.1.3"
+        - "2.1.2"
+        - "2.1.1"
+        - "2.1.0"
+        - "2.0.2"
+        - "2.0.1"
+        - "2.0.0"
+        - "main (development)"
+    validations:
+      required: true
   - type: textarea
     attributes:
       label: What happened
@@ -45,28 +67,6 @@ body:
         as minimally and precisely as possible. Keep in mind we do not have access to your cluster or DAGs.
         Remember that non-reproducible issues will be closed! Opening a discussion is recommended as a
         first step.
-  - type: dropdown
-    attributes:
-      label: Apache Airflow version
-      description: >
-        What Apache Airflow version are you using? Only Airflow 2 is supported for bugs. If you wish to
-        discuss Airflow 1.10, open [Discussion](https://github.com/apache/airflow/discussions) instead!
-      multiple: false
-      options:
-        - "2.2.2 (latest released)"
-        - "2.2.1"
-        - "2.2.0"
-        - "2.1.4"
-        - "2.1.3"
-        - "2.1.2"
-        - "2.1.1"
-        - "2.1.0"
-        - "2.0.2"
-        - "2.0.1"
-        - "2.0.0"
-        - "main (development)"
-    validations:
-      required: true
   - type: input
     attributes:
       label: Operating System
