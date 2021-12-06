@@ -69,7 +69,6 @@ class SkipMixin(LoggingMixin):
         dag_run: "DagRun",
         execution_date: "DateTime",
         tasks: Sequence["BaseOperator"],
-        *,
         session: "Session",
     ):
         """

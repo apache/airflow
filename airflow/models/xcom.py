@@ -129,9 +129,9 @@ class BaseXCom(Base, LoggingMixin):
         task_id: str,
         dag_id: str,
         execution_date: Optional[datetime.datetime] = None,
+        session: Session = None,
         *,
         run_id: Optional[str] = None,
-        session: Session,
     ) -> None:
         """:sphinx-autoapi-skip:"""
         if not (execution_date is None) ^ (run_id is None):
@@ -207,7 +207,6 @@ class BaseXCom(Base, LoggingMixin):
         task_id: Optional[str] = None,
         dag_id: Optional[str] = None,
         include_prior_dates: bool = False,
-        *,
         session: Optional[Session] = None,
     ) -> Optional[Any]:
         """:sphinx-autoapi-skip:"""
@@ -221,9 +220,9 @@ class BaseXCom(Base, LoggingMixin):
         task_id: Optional[Union[str, Iterable[str]]] = None,
         dag_id: Optional[Union[str, Iterable[str]]] = None,
         include_prior_dates: bool = False,
+        session: Session = None,
         *,
         run_id: Optional[str] = None,
-        session: Session,
     ) -> Optional[Any]:
         """:sphinx-autoapi-skip:"""
         if not (execution_date is None) ^ (run_id is None):
@@ -301,7 +300,6 @@ class BaseXCom(Base, LoggingMixin):
         dag_ids: Union[str, Iterable[str], None] = None,
         include_prior_dates: bool = False,
         limit: Optional[int] = None,
-        *,
         session: Optional[Session] = None,
     ) -> Query:
         """:sphinx-autoapi-skip:"""
@@ -316,9 +314,9 @@ class BaseXCom(Base, LoggingMixin):
         dag_ids: Optional[Union[str, Iterable[str]]] = None,
         include_prior_dates: bool = False,
         limit: Optional[int] = None,
+        session: Session = None,
         *,
         run_id: Optional[str] = None,
-        session: Session,
     ) -> Query:
         """:sphinx-autoapi-skip:"""
         if not (execution_date is None) ^ (run_id is None):
@@ -366,7 +364,7 @@ class BaseXCom(Base, LoggingMixin):
 
     @classmethod
     @provide_session
-    def delete(cls, xcoms: Union["XCom", Iterable["XCom"]], *, session: Session) -> None:
+    def delete(cls, xcoms: Union["XCom", Iterable["XCom"]], session: Session) -> None:
         """Delete one or multiple XCom entries."""
         if isinstance(xcoms, XCom):
             xcoms = [xcoms]
@@ -410,9 +408,8 @@ class BaseXCom(Base, LoggingMixin):
         execution_date: Optional[pendulum.DateTime] = None,
         dag_id: Optional[str] = None,
         task_id: Optional[str] = None,
-        *,
         run_id: Optional[str] = None,
-        session: Session,
+        session: Session = None,
     ) -> None:
         """:sphinx-autoapi-skip:"""
         # Given the historic order of this function (execution_date was first argument) to add a new optional
