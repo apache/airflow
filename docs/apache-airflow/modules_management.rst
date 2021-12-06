@@ -147,7 +147,7 @@ Airflow, when running dynamically adds three directories to the ``sys.path``:
    can write code that the webserver will be able to execute (ideally the webserver should
    never run code which can be modified by users who write DAGs). Therefore if you need to share some code
    with the webserver, it is highly recommended that you share it via ``config`` or ``plugins`` folder or
-   via installed airflow packages (see below). Those folders are usually managed and accessible by different
+   via installed Airflow packages (see below). Those folders are usually managed and accessible by different
    users (Admins/DevOps) than DAG folders (those are usually data-scientists), so they are considered
    as safe because they are part of configuration of the Airflow installation and controlled by the
    people managing the installation.

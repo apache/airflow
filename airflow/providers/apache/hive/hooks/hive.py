@@ -181,7 +181,7 @@ class HiveCliHook(BaseHook):
 
     def run_cli(
         self,
-        hql: Union[str, str],
+        hql: str,
         schema: Optional[str] = None,
         verbose: bool = True,
         hive_conf: Optional[Dict[Any, Any]] = None,
@@ -189,9 +189,14 @@ class HiveCliHook(BaseHook):
         """
         Run an hql statement using the hive cli. If hive_conf is specified
         it should be a dict and the entries will be set as key/value pairs
-        in HiveConf
+        in HiveConf.
 
-
+        :param hql: an hql (hive query language) statement to run with hive cli
+        :type hql: str
+        :param schema: Name of hive schema (database) to use
+        :type schema: str
+        :param verbose: Provides additional logging. Defaults to True.
+        :type verbose: bool
         :param hive_conf: if specified these key value pairs will be passed
             to hive as ``-hiveconf "key"="value"``. Note that they will be
             passed after the ``hive_cli_params`` and thus will override
@@ -263,7 +268,7 @@ class HiveCliHook(BaseHook):
 
                 return stdout
 
-    def test_hql(self, hql: Union[str, str]) -> None:
+    def test_hql(self, hql: str) -> None:
         """Test an hql statement using the hive cli and EXPLAIN"""
         create, insert, other = [], [], []
         for query in hql.split(';'):  # naive
@@ -486,7 +491,7 @@ class HiveMetastoreHook(BaseHook):
 
     def __init__(self, metastore_conn_id: str = default_conn_name) -> None:
         super().__init__()
-        self.conn_id = metastore_conn_id
+        self.conn = self.get_connection(metastore_conn_id)
         self.metastore = self.get_metastore_client()
 
     def __getstate__(self) -> Dict[str, Any]:
@@ -506,9 +511,10 @@ class HiveMetastoreHook(BaseHook):
         from thrift.protocol import TBinaryProtocol
         from thrift.transport import TSocket, TTransport
 
-        conn = self._find_valid_server()
+        host = self._find_valid_host()
+        conn = self.conn
 
-        if not conn:
+        if not host:
             raise AirflowException("Failed to locate the valid server.")
 
         auth_mechanism = conn.extra_dejson.get('authMechanism', 'NOSASL')
@@ -517,7 +523,7 @@ class HiveMetastoreHook(BaseHook):
             auth_mechanism = conn.extra_dejson.get('authMechanism', 'GSSAPI')
             kerberos_service_name = conn.extra_dejson.get('kerberos_service_name', 'hive')
 
-        conn_socket = TSocket.TSocket(conn.host, conn.port)
+        conn_socket = TSocket.TSocket(host, conn.port)
 
         if conf.get('core', 'security') == 'kerberos' and auth_mechanism == 'GSSAPI':
             try:
@@ -527,7 +533,7 @@ class HiveMetastoreHook(BaseHook):
 
             def sasl_factory() -> sasl.Client:
                 sasl_client = sasl.Client()
-                sasl_client.setAttr("host", conn.host)
+                sasl_client.setAttr("host", host)
                 sasl_client.setAttr("service", kerberos_service_name)
                 sasl_client.init()
                 return sasl_client
@@ -542,16 +548,18 @@ class HiveMetastoreHook(BaseHook):
 
         return hmsclient.HMSClient(iprot=protocol)
 
-    def _find_valid_server(self) -> Any:
-        conn = self.get_connection(self.conn_id)
-        host_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        self.log.info("Trying to connect to %s:%s", conn.host, conn.port)
-        if host_socket.connect_ex((conn.host, conn.port)) == 0:
-            self.log.info("Connected to %s:%s", conn.host, conn.port)
-            host_socket.close()
-            return conn
-        else:
-            self.log.error("Could not connect to %s:%s", conn.host, conn.port)
+    def _find_valid_host(self) -> Any:
+        conn = self.conn
+        hosts = conn.host.split(',')
+        for host in hosts:
+            host_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            self.log.info("Trying to connect to %s:%s", host, conn.port)
+            if host_socket.connect_ex((host, conn.port)) == 0:
+                self.log.info("Connected to %s:%s", host, conn.port)
+                host_socket.close()
+                return host
+            else:
+                self.log.error("Could not connect to %s:%s", host, conn.port)
         return None
 
     def get_conn(self) -> Any:
@@ -564,10 +572,10 @@ class HiveMetastoreHook(BaseHook):
         :param schema: Name of hive schema (database) @table belongs to
         :type schema: str
         :param table: Name of hive table @partition belongs to
-        :type schema: str
-        :partition: Expression that matches the partitions to check for
+        :type table: str
+        :param partition: Expression that matches the partitions to check for
             (eg `a = 'b' AND c = 'd'`)
-        :type schema: str
+        :type partition: str
         :rtype: bool
 
         >>> hh = HiveMetastoreHook()
@@ -588,8 +596,8 @@ class HiveMetastoreHook(BaseHook):
         :type schema: str
         :param table: Name of hive table @partition belongs to
         :type table: str
-        :partition: Name of the partitions to check for (eg `a=b/c=d`)
-        :type table: str
+        :param partition_name: Name of the partitions to check for (eg `a=b/c=d`)
+        :type partition_name: str
         :rtype: bool
 
         >>> hh = HiveMetastoreHook()
@@ -872,7 +880,7 @@ class HiveServer2Hook(DbApiHook):
 
     def _get_results(
         self,
-        hql: Union[str, str, List[str]],
+        hql: Union[str, List[str]],
         schema: str = 'default',
         fetch_size: Optional[int] = None,
         hive_conf: Optional[Dict[Any, Any]] = None,
@@ -926,7 +934,7 @@ class HiveServer2Hook(DbApiHook):
 
     def get_results(
         self,
-        hql: Union[str, str],
+        hql: str,
         schema: str = 'default',
         fetch_size: Optional[int] = None,
         hive_conf: Optional[Dict[Any, Any]] = None,
@@ -952,7 +960,7 @@ class HiveServer2Hook(DbApiHook):
 
     def to_csv(
         self,
-        hql: Union[str, str],
+        hql: str,
         csv_filepath: str,
         schema: str = 'default',
         delimiter: str = ',',
@@ -1009,7 +1017,7 @@ class HiveServer2Hook(DbApiHook):
         self.log.info("Done. Loaded a total of %s rows.", i)
 
     def get_records(
-        self, hql: Union[str, str], schema: str = 'default', hive_conf: Optional[Dict[Any, Any]] = None
+        self, hql: str, schema: str = 'default', hive_conf: Optional[Dict[Any, Any]] = None
     ) -> Any:
         """
         Get a set of records from a Hive query.
@@ -1032,7 +1040,7 @@ class HiveServer2Hook(DbApiHook):
 
     def get_pandas_df(  # type: ignore
         self,
-        hql: Union[str, str],
+        hql: str,
         schema: str = 'default',
         hive_conf: Optional[Dict[Any, Any]] = None,
         **kwargs,

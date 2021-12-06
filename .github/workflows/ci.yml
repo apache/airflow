@@ -84,6 +84,10 @@ jobs:
     # When changing this list, ensure that it is kept in sync with the
     # /runners/apache/airflow/configOverlay
     # parameter in AWS SSM ParameterStore (which is what the runner uses)
+    # and restart the self-hosted runners.
+    #
+    # This list of committers can be generated with:
+    #   https://github.com/apache/airflow-ci-infra/blob/main/scripts/list_committers
     runs-on: >-
       ${{ (
         (
@@ -99,12 +103,20 @@ jobs:
             "aoen",
             "artwr",
             "ashb",
+            "bbovenzi",
             "bolkedebruin",
             "criccomini",
             "dimberman",
+            "dstandish",
+            "eladkal",
+            "ephraimbuddy",
+            "feluelle",
             "feng-tao",
             "houqp",
+            "jedcunningham",
+            "jgao54",
             "jghoman",
+            "jhtimmins",
             "jmcarp",
             "kaxil",
             "leahecole",
@@ -119,13 +131,11 @@ jobs:
             "saguziel",
             "sekikn",
             "turbaszek",
-            "zhongjiajie",
-            "ephraimbuddy",
-            "jhtimmins",
-            "dstandish",
+            "uranusjr",
+            "vikramkoka",
             "xinbinhuang",
-            "yuqian",
-            "eladkal"
+            "yuqian90",
+            "zhongjiajie"
           ]'), github.event.pull_request.user.login)
         ) && github.repository == 'apache/airflow'
       ) && 'self-hosted' || 'ubuntu-20.04' }}
@@ -171,17 +181,6 @@ jobs:
       pullRequestLabels: ${{ steps.source-run-info.outputs.pullRequestLabels }}
       runsOn: ${{ steps.set-runs-on.outputs.runsOn }}
     steps:
-      # Avoid having to specify the runs-on logic every time. We use the custom
-      # env var AIRFLOW_SELF_HOSTED_RUNNER set only on our runners, but never
-      # on the public runners
-      - name: Set runs-on
-        id: set-runs-on
-        run: |
-          if [[ ${AIRFLOW_SELF_HOSTED_RUNNER} != "" ]]; then
-            echo "::set-output name=runsOn::\"self-hosted\""
-          else
-            echo "::set-output name=runsOn::\"ubuntu-20.04\""
-          fi
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
         uses: actions/checkout@v2
         with:
@@ -219,6 +218,44 @@ jobs:
             # Run all checks
             ./scripts/ci/selective_ci_checks.sh
           fi
+      # Avoid having to specify the runs-on logic every time. We use the custom
+      # env var AIRFLOW_SELF_HOSTED_RUNNER set only on our runners, but never
+      # on the public runners
+      - name: Set runs-on
+        id: set-runs-on
+        env:
+          PR_LABELS: "${{ steps.source-run-info.outputs.pullRequestLabels }}"
+        run: |
+          if [[ ${PR_LABELS=} == *"use public runners"* ]]; then
+            echo "Forcing running on Public Runners via `use public runners` label"
+            echo "::set-output name=runsOn::\"ubuntu-20.04\""
+          elif [[ ${AIRFLOW_SELF_HOSTED_RUNNER} == "" ]]; then
+            echo "Regular PR running with Public Runner"
+            echo "::set-output name=runsOn::\"ubuntu-20.04\""
+          else
+            echo "Maintainer or main run running with self-hosted runner"
+            echo "::set-output name=runsOn::\"self-hosted\""
+          fi
+
+  run-new-breeze-tests:
+    timeout-minutes: 10
+    name: Breeze2 tests
+    runs-on: ${{ fromJson(needs.build-info.outputs.runsOn) }}
+    needs: [build-info]
+    defaults:
+      run:
+        shell: bash
+        working-directory: ./dev/breeze
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v2
+        with:
+          python-version: '3.7'
+          cache: 'pip'
+      - run: pip install .
+      - run: python3 -m pytest -n auto --color=yes
 
   tests-ui:
     timeout-minutes: 10
@@ -302,8 +339,41 @@ jobs:
         uses: actions/setup-python@v2
         with:
           python-version: ${{needs.build-info.outputs.defaultPythonVersion}}
+      - name: "Cache virtualenv environmnent"
+        uses: actions/cache@v2
+        with:
+          path: '.build/.docker_venv'
+          key: ${{ runner.os }}-docker-venv-${{ hashFiles('scripts/ci/images/ci_run_docker_tests.py') }}
       - name: "Test examples of PROD image building"
         run: ./scripts/ci/images/ci_test_examples_of_prod_image_building.sh
+
+  test-docker-compose-quick-start:
+    timeout-minutes: 60
+    name: "Test docker-compose quick start"
+    runs-on: ${{ fromJson(needs.build-info.outputs.runsOn) }}
+    needs: [build-info, prod-images]
+    if: needs.build-info.outputs.image-build == 'true'
+    steps:
+      - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 2
+          persist-credentials: false
+      - name: "Free space"
+        run: ./scripts/ci/tools/free_space.sh
+        if: |
+          needs.build-info.outputs.waitForImage == 'true'
+      - name: "Setup python"
+        uses: actions/setup-python@v2
+        with:
+          python-version: ${{needs.build-info.outputs.defaultPythonVersion}}
+      - name: "Cache virtualenv environmnent"
+        uses: actions/cache@v2
+        with:
+          path: '.build/.docker_venv'
+          key: ${{ runner.os }}-docker-venv-${{ hashFiles('scripts/ci/images/ci_run_docker_tests.py') }}
+      - name: "Test docker-compose quick start"
+        run: ./scripts/ci/images/ci_run_docker_compose_quick_start_test.sh
 
   ci-images:
     timeout-minutes: 120
@@ -331,6 +401,11 @@ jobs:
         run: ./scripts/ci/tools/free_space.sh
         if: |
           needs.build-info.outputs.waitForImage == 'true'
+      - name: "Cache virtualenv environmnent"
+        uses: actions/cache@v2
+        with:
+          path: '.build/.docker_venv'
+          key: ${{ runner.os }}-docker-venv-${{ hashFiles('scripts/ci/images/ci_run_docker_tests.py') }}
       - name: >
           Wait for CI images
           ${{ needs.build-info.outputs.pythonVersions }}:${{ env.GITHUB_REGISTRY_PULL_IMAGE_TAG }}
@@ -354,7 +429,6 @@ jobs:
     needs: [build-info, ci-images]
     env:
       RUNS_ON: ${{ fromJson(needs.build-info.outputs.runsOn) }}
-      SKIP: "identity"
       MOUNT_SELECTED_LOCAL_SOURCES: "true"
       PYTHON_MAJOR_MINOR_VERSION: ${{needs.build-info.outputs.defaultPythonVersion}}
     if: needs.build-info.outputs.basic-checks-only == 'false'
@@ -396,10 +470,17 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
         with:
           path: 'airflow/ui/node_modules'
           key: ${{ runner.os }}-ui-node-modules-${{ hashFiles('airflow/ui/**/yarn.lock') }}
-      - name: "Static checks"
+      - name: "Static checks (no mypy)"
         run: ./scripts/ci/static_checks/run_static_checks.sh
         env:
           VERBOSE: false
+          SKIP: "identity,mypy"
+      - name: "MyPy static checks"
+        run: ./scripts/ci/static_checks/run_static_checks.sh mypy
+        env:
+          VERBOSE: false
+          DO_NOT_FAIL_ON_ERROR: "true"
+          COLUMNS: 300
 
   # Those checks are run if no image needs to be built for checks. This is for simple changes that
   # Do not touch any of the python code or any of the important files that might require building
@@ -587,6 +668,12 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
         env:
           USE_AIRFLOW_VERSION: "sdist"
           PACKAGE_FORMAT: "sdist"
+      - name: "Upload provider distribution artifacts"
+        uses: actions/upload-artifact@v2
+        with:
+          name: airflow-provider-packages
+          path: "./dist/apache-airflow-providers-*.tar.gz"
+          retention-days: 1
 
   tests-helm:
     timeout-minutes: 40
@@ -923,7 +1010,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
         uses: actions/upload-artifact@v2
         if: always()
         with:
-          name: quarantined_tests
+          name: quarantined-tests
           path: "files/test_result-*.xml"
           retention-days: 7
       - name: "Upload airflow logs"
@@ -1009,6 +1096,11 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
         run: ./scripts/ci/tools/free_space.sh
         if: |
           needs.build-info.outputs.waitForImage == 'true'
+      - name: "Cache virtualenv environmnent"
+        uses: actions/cache@v2
+        with:
+          path: '.build/.docker_venv'
+          key: ${{ runner.os }}-docker-venv-${{ hashFiles('scripts/ci/images/ci_run_docker_tests.py') }}
       - name: >
           Wait for PROD images
           ${{ needs.build-info.outputs.pythonVersions }}:${{ env.GITHUB_REGISTRY_PULL_IMAGE_TAG }}

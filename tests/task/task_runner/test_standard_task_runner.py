@@ -24,6 +24,7 @@ from unittest import mock
 import psutil
 import pytest
 
+from airflow.config_templates.airflow_local_settings import DEFAULT_LOGGING_CONFIG
 from airflow.jobs.local_task_job import LocalTaskJob
 from airflow.models.dagbag import DagBag
 from airflow.models.taskinstance import TaskInstance
@@ -32,6 +33,7 @@ from airflow.utils import timezone
 from airflow.utils.platform import getuser
 from airflow.utils.session import create_session
 from airflow.utils.state import State
+from airflow.utils.timeout import timeout
 from tests.test_utils.db import clear_db_runs
 
 TEST_DAG_FOLDER = os.environ['AIRFLOW__CORE__DAGS_FOLDER']
@@ -69,6 +71,7 @@ class TestStandardTaskRunner:
         airflow_logger = logging.getLogger('airflow')
         airflow_logger.handlers = []
         clear_db_runs()
+        dictConfig(DEFAULT_LOGGING_CONFIG)
 
     def test_start_and_terminate(self):
         local_task_job = mock.Mock()
@@ -77,7 +80,7 @@ class TestStandardTaskRunner:
         local_task_job.task_instance.command_as_list.return_value = [
             'airflow',
             'tasks',
-            'test',
+            'run',
             'test_on_kill',
             'task1',
             '2016-01-01',
@@ -85,14 +88,17 @@ class TestStandardTaskRunner:
 
         runner = StandardTaskRunner(local_task_job)
         runner.start()
-        time.sleep(0.5)
+        # Wait until process sets its pgid to be equal to pid
+        with timeout(seconds=1):
+            while True:
+                runner_pgid = os.getpgid(runner.process.pid)
+                if runner_pgid == runner.process.pid:
+                    break
+                time.sleep(0.01)
 
-        pgid = os.getpgid(runner.process.pid)
-        assert pgid > 0
-        assert pgid != os.getpgid(0), "Task should be in a different process group to us"
-
-        processes = list(self._procs_in_pgroup(pgid))
-
+        assert runner_pgid > 0
+        assert runner_pgid != os.getpgid(0), "Task should be in a different process group to us"
+        processes = list(self._procs_in_pgroup(runner_pgid))
         runner.terminate()
 
         for process in processes:
@@ -173,9 +179,14 @@ class TestStandardTaskRunner:
         Test that ensures that clearing in the UI SIGTERMS
         the task
         """
-        path = "/tmp/airflow_on_kill"
+        path_on_kill_running = "/tmp/airflow_on_kill_running"
+        path_on_kill_killed = "/tmp/airflow_on_kill_killed"
         try:
-            os.unlink(path)
+            os.unlink(path_on_kill_running)
+        except OSError:
+            pass
+        try:
+            os.unlink(path_on_kill_killed)
         except OSError:
             pass
 
@@ -201,26 +212,36 @@ class TestStandardTaskRunner:
             runner = StandardTaskRunner(job1)
             runner.start()
 
-            # give the task some time to startup
+            with timeout(seconds=3):
+                while True:
+                    runner_pgid = os.getpgid(runner.process.pid)
+                    if runner_pgid == runner.process.pid:
+                        break
+                    time.sleep(0.01)
+
+            processes = list(self._procs_in_pgroup(runner_pgid))
+
+            logging.info("Waiting for the task to start")
+            with timeout(seconds=20):
+                while True:
+                    if os.path.exists(path_on_kill_running):
+                        break
+                    time.sleep(0.01)
+            logging.info("Task started. Give the task some time to settle")
             time.sleep(3)
-
-            pgid = os.getpgid(runner.process.pid)
-            assert pgid > 0
-            assert pgid != os.getpgid(0), "Task should be in a different process group to us"
-
-            processes = list(self._procs_in_pgroup(pgid))
-
+            logging.info(f"Terminating processes {processes} belonging to {runner_pgid} group")
             runner.terminate()
-
             session.close()  # explicitly close as `create_session`s commit will blow up otherwise
 
-        # Wait some time for the result
-        for _ in range(20):
-            if os.path.exists(path):
-                break
-            time.sleep(2)
+        logging.info("Waiting for the on kill killed file to appear")
+        with timeout(seconds=4):
+            while True:
+                if os.path.exists(path_on_kill_killed):
+                    break
+                time.sleep(0.01)
+        logging.info("The file appeared")
 
-        with open(path) as f:
+        with open(path_on_kill_killed) as f:
             assert "ON_KILL_TEST" == f.readline()
 
         for process in processes:

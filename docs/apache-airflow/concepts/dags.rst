@@ -195,16 +195,19 @@ Otherwise, you must pass it into each Operator with ``dag=``.
 Default Arguments
 -----------------
 
-Often, many Operators inside a DAG need the same set of default arguments (such as their ``start_date``). Rather than having to specify this individually for every Operator, you can instead pass ``default_args`` to the DAG when you create it, and it will auto-apply them to any operator tied to it::
+Often, many Operators inside a DAG need the same set of default arguments (such as their ``retries``). Rather than having to specify this individually for every Operator, you can instead pass ``default_args`` to the DAG when you create it, and it will auto-apply them to any operator tied to it::
 
-    default_args = {
-        'start_date': datetime(2016, 1, 1),
-        'owner': 'airflow'
-    }
 
-    with DAG('my_dag', default_args=default_args) as dag:
-        op = DummyOperator(task_id='dummy')
-        print(op.owner)  # "airflow"
+
+    with DAG(
+        dag_id='my_dag',
+        start_date=datetime(2016, 1, 1),
+        schedule_interval='@daily',
+        catchup=False,
+        default_args={'retries': 2},
+    ) as dag:
+        op = BashOperator(task_id='dummy', bash_command='Hello World!')
+        print(op.retries)  # 2
 
 
 .. _concepts:dag-decorator:
@@ -464,12 +467,18 @@ Dependency relationships can be applied across all tasks in a TaskGroup with the
 
 TaskGroup also supports ``default_args`` like DAG, it will overwrite the ``default_args`` in DAG level::
 
-    with DAG(dag_id='dag1', default_args={'start_date': datetime(2016, 1, 1), 'owner': 'dag'}):
-        with TaskGroup('group1', default_args={'owner': 'group'}):
+    with DAG(
+        dag_id='dag1',
+        start_date=datetime(2016, 1, 1),
+        schedule_interval="@daily",
+        catchup=False,
+        default_args={'retries': 1},
+    ):
+        with TaskGroup('group1', default_args={'retries': 3}):
             task1 = DummyOperator(task_id='task1')
-            task2 = DummyOperator(task_id='task2', owner='task2')
-            print(task1.owner) # "group"
-            print(task2.owner) # "task2"
+            task2 = BashOperator(task_id='task2', bash_command='echo Hello World!', retries=2)
+            print(task1.retries) # 3
+            print(task2.retries) # 2
 
 If you want to see a more advanced use of TaskGroup, you can look at the ``example_task_group.py`` example DAG that comes with Airflow.
 
@@ -539,7 +548,9 @@ This is especially useful if your tasks are built dynamically from configuration
     ### My great DAG
     """
 
-    dag = DAG("my_dag", default_args=default_args)
+    dag = DAG(
+        "my_dag", start_date=datetime(2021, 1, 1), schedule_interval="@daily", catchup=False
+    )
     dag.doc_md = __doc__
 
     t = BashOperator("foo", dag=dag)

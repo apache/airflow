@@ -34,6 +34,9 @@ from azure.mgmt.datafactory.models import (
 
 from airflow.exceptions import AirflowException
 from airflow.hooks.base import BaseHook
+from airflow.typing_compat import TypedDict
+
+Credentials = Union[ClientSecretCredential, DefaultAzureCredential]
 
 
 def provide_targeted_factory(func: Callable) -> Callable:
@@ -66,6 +69,14 @@ def provide_targeted_factory(func: Callable) -> Callable:
         return func(*bound_args.args, **bound_args.kwargs)
 
     return wrapper
+
+
+class PipelineRunInfo(TypedDict):
+    """Type class for the pipeline run info dictionary."""
+
+    run_id: str
+    factory_name: Optional[str]
+    resource_group_name: Optional[str]
 
 
 class AzureDataFactoryPipelineRunStatus:
@@ -104,13 +115,14 @@ class AzureDataFactoryHook(BaseHook):
         from flask_appbuilder.fieldwidgets import BS3TextFieldWidget
         from flask_babel import lazy_gettext
         from wtforms import StringField
+        from wtforms.validators import InputRequired
 
         return {
             "extra__azure_data_factory__tenantId": StringField(
                 lazy_gettext('Tenant ID'), widget=BS3TextFieldWidget()
             ),
             "extra__azure_data_factory__subscriptionId": StringField(
-                lazy_gettext('Subscription ID'), widget=BS3TextFieldWidget()
+                lazy_gettext('Subscription ID'), validators=[InputRequired()], widget=BS3TextFieldWidget()
             ),
             "extra__azure_data_factory__resource_group_name": StringField(
                 lazy_gettext('Resource Group Name'), widget=BS3TextFieldWidget()
@@ -131,7 +143,7 @@ class AzureDataFactoryHook(BaseHook):
             },
         }
 
-    def __init__(self, azure_data_factory_conn_id: Optional[str] = default_conn_name):
+    def __init__(self, azure_data_factory_conn_id: str = default_conn_name):
         self._conn: DataFactoryManagementClient = None
         self.conn_id = azure_data_factory_conn_id
         super().__init__()
@@ -142,10 +154,17 @@ class AzureDataFactoryHook(BaseHook):
 
         conn = self.get_connection(self.conn_id)
         tenant = conn.extra_dejson.get('extra__azure_data_factory__tenantId')
-        subscription_id = conn.extra_dejson.get('extra__azure_data_factory__subscriptionId')
 
-        credential = None
+        try:
+            subscription_id = conn.extra_dejson['extra__azure_data_factory__subscriptionId']
+        except KeyError:
+            raise ValueError("A Subscription ID is required to connect to Azure Data Factory.")
+
+        credential: Credentials
         if conn.login is not None and conn.password is not None:
+            if not tenant:
+                raise ValueError("A Tenant ID is required when authenticating with Client ID and Secret.")
+
             credential = ClientSecretCredential(
                 client_id=conn.login, client_secret=conn.password, tenant_id=tenant
             )
@@ -178,7 +197,7 @@ class AzureDataFactoryHook(BaseHook):
         return factory_name in factories
 
     @staticmethod
-    def _create_client(credential, subscription_id):
+    def _create_client(credential: Credentials, subscription_id: str):
         return DataFactoryManagementClient(
             credential=credential,
             subscription_id=subscription_id,
@@ -623,8 +642,8 @@ class AzureDataFactoryHook(BaseHook):
         expected_statuses: Union[str, Set[str]],
         resource_group_name: Optional[str] = None,
         factory_name: Optional[str] = None,
-        check_interval: Optional[int] = 60,
-        timeout: Optional[int] = 60 * 60 * 24 * 7,
+        check_interval: int = 60,
+        timeout: int = 60 * 60 * 24 * 7,
     ) -> bool:
         """
         Waits for a pipeline run to match an expected status.
@@ -638,11 +657,11 @@ class AzureDataFactoryHook(BaseHook):
             status.
         :return: Boolean indicating if the pipeline run has reached the ``expected_status``.
         """
-        pipeline_run_info = {
-            "run_id": run_id,
-            "factory_name": factory_name,
-            "resource_group_name": resource_group_name,
-        }
+        pipeline_run_info = PipelineRunInfo(
+            run_id=run_id,
+            factory_name=factory_name,
+            resource_group_name=resource_group_name,
+        )
         pipeline_run_status = self.get_pipeline_run_status(**pipeline_run_info)
 
         start_time = time.monotonic()

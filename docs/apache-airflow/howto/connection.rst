@@ -204,10 +204,10 @@ If storing the environment variable in something like ``~/.bashrc``, add as foll
 
     export AIRFLOW_CONN_MY_PROD_DATABASE='my-conn-type://login:password@host:port/schema?param1=val1&param2=val2'
 
-Using docker .env
+Using Docker .env
 ^^^^^^^^^^^^^^^^^
 
-If using with a docker ``.env`` file, you may need to remove the single quotes.
+If using with a Docker ``.env`` file, you may need to remove the single quotes.
 
 .. code-block::
 

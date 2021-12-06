@@ -22,6 +22,7 @@ import signal
 import time
 import uuid
 from multiprocessing import Lock, Value
+from typing import List, Union
 from unittest import mock
 from unittest.mock import patch
 
@@ -864,10 +865,10 @@ def clean_db_helper():
 
 
 @pytest.mark.usefixtures("clean_db_helper")
-@pytest.mark.parametrize("return_codes", [[0], 9 * [None] + [0]])
 @mock.patch("airflow.jobs.local_task_job.get_task_runner")
-def test_number_of_queries_single_loop(mock_get_task_runner, return_codes, dag_maker):
-    mock_get_task_runner.return_value.return_code.side_effects = return_codes
+def test_number_of_queries_single_loop(mock_get_task_runner, dag_maker):
+    codes: List[Union[int, None]] = 9 * [None] + [0]
+    mock_get_task_runner.return_value.return_code.side_effects = [[0], codes]
 
     unique_prefix = str(uuid.uuid4())
     with dag_maker(dag_id=f'{unique_prefix}_test_number_of_queries'):

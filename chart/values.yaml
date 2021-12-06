@@ -1306,7 +1306,7 @@ config:
     multi_namespace_mode: '{{ if .Values.multiNamespaceMode }}True{{ else }}False{{ end }}'
 # yamllint enable rule:line-length
 
-# Whether the KubernetesExecutor can launch workers and pods in multiple namespaces
+# Whether Airflow can launch workers and/or pods in multiple namespaces
 # If true, it creates ClusterRole/ClusterRolebinding (with access to entire cluster)
 multiNamespaceMode: false
 

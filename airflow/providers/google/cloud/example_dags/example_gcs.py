@@ -21,6 +21,7 @@ Example Airflow DAG for Google Cloud Storage operators.
 
 import os
 from datetime import datetime
+from tempfile import gettempdir
 
 from airflow import models
 from airflow.operators.bash import BashOperator
@@ -52,10 +53,17 @@ GCS_ACL_OBJECT_ROLE = "OWNER"
 
 BUCKET_2 = os.environ.get("GCP_GCS_BUCKET_2", "test-gcs-example-bucket-2")
 
-PATH_TO_TRANSFORM_SCRIPT = os.environ.get('GCP_GCS_PATH_TO_TRANSFORM_SCRIPT', 'test.py')
-PATH_TO_UPLOAD_FILE = os.environ.get("GCP_GCS_PATH_TO_UPLOAD_FILE", "test-gcs-example.txt")
+temp_dir_path = gettempdir()
+PATH_TO_TRANSFORM_SCRIPT = os.environ.get(
+    "GCP_GCS_PATH_TO_TRANSFORM_SCRIPT", os.path.join(temp_dir_path, "transform_script.py")
+)
+PATH_TO_UPLOAD_FILE = os.environ.get(
+    "GCP_GCS_PATH_TO_UPLOAD_FILE", os.path.join(temp_dir_path, "test-gcs-example-upload.txt")
+)
 PATH_TO_UPLOAD_FILE_PREFIX = os.environ.get("GCP_GCS_PATH_TO_UPLOAD_FILE_PREFIX", "test-gcs-")
-PATH_TO_SAVED_FILE = os.environ.get("GCP_GCS_PATH_TO_SAVED_FILE", "test-gcs-example-download.txt")
+PATH_TO_SAVED_FILE = os.environ.get(
+    "GCP_GCS_PATH_TO_SAVED_FILE", os.path.join(temp_dir_path, "test-gcs-example-download.txt")
+)
 
 BUCKET_FILE_LOCATION = PATH_TO_UPLOAD_FILE.rpartition("/")[-1]
 
@@ -67,7 +75,16 @@ with models.DAG(
     tags=['example'],
 ) as dag:
     create_bucket1 = GCSCreateBucketOperator(
-        task_id="create_bucket1", bucket_name=BUCKET_1, project_id=PROJECT_ID
+        task_id="create_bucket1",
+        bucket_name=BUCKET_1,
+        project_id=PROJECT_ID,
+        resource={
+            "iamConfiguration": {
+                "uniformBucketLevelAccess": {
+                    "enabled": False,
+                },
+            },
+        },
     )
 
     create_bucket2 = GCSCreateBucketOperator(
@@ -179,7 +196,7 @@ with models.DAG(
     # [START howto_sensor_object_exists_task]
     gcs_object_exists = GCSObjectExistenceSensor(
         bucket=BUCKET_1,
-        object=PATH_TO_UPLOAD_FILE,
+        object=BUCKET_FILE_LOCATION,
         mode='poke',
         task_id="gcs_object_exists_task",
     )

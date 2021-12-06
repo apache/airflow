@@ -81,7 +81,7 @@ class KubernetesJobWatcher(multiprocessing.Process, LoggingMixin):
         multi_namespace_mode: bool,
         watcher_queue: 'Queue[KubernetesWatchType]',
         resource_version: Optional[str],
-        scheduler_job_id: Optional[str],
+        scheduler_job_id: Optional[int],
         kube_config: Configuration,
     ):
         super().__init__()
@@ -120,7 +120,7 @@ class KubernetesJobWatcher(multiprocessing.Process, LoggingMixin):
         self,
         kube_client: client.CoreV1Api,
         resource_version: Optional[str],
-        scheduler_job_id: str,
+        scheduler_job_id: int,
         kube_config: Any,
     ) -> Optional[str]:
         self.log.info('Event: and now my watch begins starting at resource_version: %s', resource_version)
@@ -232,7 +232,7 @@ class AirflowKubernetesScheduler(LoggingMixin):
         task_queue: 'Queue[KubernetesJobType]',
         result_queue: 'Queue[KubernetesResultsType]',
         kube_client: client.CoreV1Api,
-        scheduler_job_id: str,
+        scheduler_job_id: int,
     ):
         super().__init__()
         self.log.debug("Creating Kubernetes executor")
@@ -431,9 +431,9 @@ class KubernetesExecutor(BaseExecutor):
         self.result_queue: 'Queue[KubernetesResultsType]' = self._manager.Queue()
         self.kube_scheduler: Optional[AirflowKubernetesScheduler] = None
         self.kube_client: Optional[client.CoreV1Api] = None
-        self.scheduler_job_id: Optional[str] = None
+        self.scheduler_job_id: Optional[int] = None
         self.event_scheduler: Optional[EventScheduler] = None
-        self.last_handled: Dict[TaskInstanceKey, int] = {}
+        self.last_handled: Dict[TaskInstanceKey, float] = {}
         super().__init__(parallelism=self.kube_config.parallelism)
 
     @provide_session
@@ -462,7 +462,6 @@ class KubernetesExecutor(BaseExecutor):
                 del self.last_handled[key]
 
         for task in queued_tasks:
-
             self.log.debug("Checking task %s", task)
 
             # Check to see if we've handled it ourselves recently
@@ -473,7 +472,7 @@ class KubernetesExecutor(BaseExecutor):
             base_label_selector = (
                 f"dag_id={pod_generator.make_safe_label_value(task.dag_id)},"
                 f"task_id={pod_generator.make_safe_label_value(task.task_id)},"
-                f"airflow-worker={pod_generator.make_safe_label_value(str(self.scheduler_job_id))}"
+                f"airflow-worker={pod_generator.make_safe_label_value(str(task.queued_by_job_id))}"
             )
             kwargs = dict(label_selector=base_label_selector)
             if self.kube_config.kube_client_request_args:
@@ -566,6 +565,8 @@ class KubernetesExecutor(BaseExecutor):
         if not self.result_queue:
             raise AirflowException(NOT_STARTED_MESSAGE)
         if not self.task_queue:
+            raise AirflowException(NOT_STARTED_MESSAGE)
+        if not self.event_scheduler:
             raise AirflowException(NOT_STARTED_MESSAGE)
         self.kube_scheduler.sync()
 

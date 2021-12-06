@@ -63,8 +63,8 @@ Most of the extras are also linked (same name) with provider packages - for exam
 extra also adds ``apache-airflow-providers-google`` as dependency. However there are some extras that do
 not install providers (examples ``github_enterprise``, ``kerberos``, ``async`` - they add some extra
 dependencies which are needed for those ``extra`` features of Airflow mentioned. The three examples
-above add respectively github enterprise oauth authentication, kerberos integration or
-asynchronous workers for gunicorn. None of those have providers, they are just extending Apache Airflow
+above add respectively GitHub Enterprise OAuth authentication, Kerberos integration or
+asynchronous workers for Gunicorn. None of those have providers, they are just extending Apache Airflow
 "core" package with new functionalities.
 
 System dependencies

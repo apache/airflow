@@ -17,8 +17,10 @@
 
 import unittest
 from unittest import mock
+from unittest.mock import Mock
 
 import pytest
+from google.api_core.exceptions import ServerError
 from google.cloud.dataproc_v1.types import JobStatus
 
 from airflow import AirflowException
@@ -163,4 +165,46 @@ class TestDataprocJobSensor(unittest.TestCase):
                 gcp_conn_id=GCP_CONN_ID,
                 timeout=TIMEOUT,
             )
+            sensor.poke(context={})
+
+    @mock.patch(DATAPROC_PATH.format("DataprocHook"))
+    def test_wait_timeout(self, mock_hook):
+        job_id = "job_id"
+        mock_hook.return_value.get_job.side_effect = ServerError("Job are not ready")
+
+        sensor = DataprocJobSensor(
+            task_id=TASK_ID,
+            region=GCP_LOCATION,
+            project_id=GCP_PROJECT,
+            dataproc_job_id=job_id,
+            gcp_conn_id=GCP_CONN_ID,
+            timeout=TIMEOUT,
+            wait_timeout=300,
+        )
+
+        sensor._duration = Mock()
+        sensor._duration.return_value = 200
+
+        result = sensor.poke(context={})
+        assert not result
+
+    @mock.patch(DATAPROC_PATH.format("DataprocHook"))
+    def test_wait_timeout_raise_exception(self, mock_hook):
+        job_id = "job_id"
+        mock_hook.return_value.get_job.side_effect = ServerError("Job are not ready")
+
+        sensor = DataprocJobSensor(
+            task_id=TASK_ID,
+            region=GCP_LOCATION,
+            project_id=GCP_PROJECT,
+            dataproc_job_id=job_id,
+            gcp_conn_id=GCP_CONN_ID,
+            timeout=TIMEOUT,
+            wait_timeout=300,
+        )
+
+        sensor._duration = Mock()
+        sensor._duration.return_value = 301
+
+        with pytest.raises(AirflowException, match="Timeout: dataproc job job_id is not ready after 300s"):
             sensor.poke(context={})

@@ -173,6 +173,7 @@ class HookInfo(NamedTuple):
     package_name: str
     hook_name: str
     connection_type: str
+    connection_testable: bool
 
 
 class ConnectionFormWidgetInfo(NamedTuple):
@@ -691,6 +692,7 @@ class ProvidersManager(LoggingMixin):
             package_name=package_name,
             hook_name=hook_name,
             connection_type=connection_type,
+            connection_testable=hasattr(hook_class, 'test_connection'),
         )
 
     def _add_widgets(self, package_name: str, hook_class: type, widgets: Dict[str, Any]):

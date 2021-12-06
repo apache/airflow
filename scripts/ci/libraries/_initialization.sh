@@ -115,7 +115,7 @@ function initialization::initialize_base_variables() {
     export CURRENT_PYTHON_MAJOR_MINOR_VERSIONS
 
     # Currently supported versions of Postgres
-    CURRENT_POSTGRES_VERSIONS+=("9.6" "13")
+    CURRENT_POSTGRES_VERSIONS+=("10" "13")
     export CURRENT_POSTGRES_VERSIONS
 
     # Currently supported versions of MySQL
@@ -416,30 +416,6 @@ function initialization::initialize_image_build_variables() {
     INSTALL_PROVIDERS_FROM_SOURCES=${INSTALL_PROVIDERS_FROM_SOURCES:="true"}
     export INSTALL_PROVIDERS_FROM_SOURCES
 
-    INSTALLED_PROVIDERS+=(
-        "amazon"
-        "celery"
-        "cncf.kubernetes"
-        "docker"
-        "elasticsearch"
-        "ftp"
-        "grpc"
-        "hashicorp"
-        "http"
-        "imap"
-        "google"
-        "microsoft.azure"
-        "mysql"
-        "postgres"
-        "redis"
-        "sendgrid"
-        "sqlite"
-        "sftp"
-        "slack"
-        "sqlite"
-        "ssh"
-    )
-    export INSTALLED_PROVIDERS
     export INSTALLED_EXTRAS="async,amazon,celery,cncf.kubernetes,docker,dask,elasticsearch,ftp,grpc,hashicorp,http,imap,ldap,google,microsoft.azure,mysql,postgres,redis,sendgrid,sftp,slack,ssh,statsd,virtualenv"
 
     AIRFLOW_PIP_VERSION=${AIRFLOW_PIP_VERSION:="21.2.4"}
@@ -511,7 +487,7 @@ function initialization::initialize_provider_package_building() {
 # Determine versions of kubernetes cluster and tools used
 function initialization::initialize_kubernetes_variables() {
     # Currently supported versions of Kubernetes
-    CURRENT_KUBERNETES_VERSIONS+=("v1.20.2" "v1.19.7" "v1.18.15")
+    CURRENT_KUBERNETES_VERSIONS+=("v1.21.1" "v1.20.2")
     export CURRENT_KUBERNETES_VERSIONS
     # Currently supported modes of Kubernetes
     CURRENT_KUBERNETES_MODES+=("image")

@@ -969,9 +969,7 @@ class TestPythonVirtualenvOperator(unittest.TestCase):
         ):
             pass
 
-        self._run_as_operator(
-            f, use_dill=True, system_site_packages=False, requirements=['pendulum', 'lazy_object_proxy']
-        )
+        self._run_as_operator(f, use_dill=True, system_site_packages=False, requirements=['pendulum'])
 
     def test_base_context(self):
         def f(
@@ -1076,7 +1074,7 @@ class MyContextAssertOperator(BaseOperator):
 
 def get_all_the_context(**context):
     current_context = get_current_context()
-    assert context == current_context
+    assert context == current_context._context
 
 
 @pytest.fixture()

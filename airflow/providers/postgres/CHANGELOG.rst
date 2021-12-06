@@ -19,6 +19,31 @@
 Changelog
 ---------
 
+2.4.0
+.....
+
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+
+Features
+~~~~~~~~
+
+* ``19489 - Pass client_encoding for postgres connections (#19827)``
+* ``Amazon provider remove deprecation, second try (#19815)``
+
+
+Bug Fixes
+~~~~~~~~~
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Adjust built-in base_aws methods to avoid Deprecation warnings (#19725)``
+   * ``Revert 'Adjust built-in base_aws methods to avoid Deprecation warnings (#19725)' (#19791)``
+   * ``Misc. documentation typos and language improvements (#19599)``
+   * ``Prepare documentation for October Provider's release (#19321)``
+   * ``More f-strings (#18855)``
+
 2.3.0
 .....
 

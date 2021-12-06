@@ -73,6 +73,7 @@ SIMPLE_LOG_FORMAT = conf.get('logging', 'simple_log_format')
 SQL_ALCHEMY_CONN: Optional[str] = None
 PLUGINS_FOLDER: Optional[str] = None
 LOGGING_CLASS_PATH: Optional[str] = None
+DONOT_MODIFY_HANDLERS: Optional[bool] = None
 DAGS_FOLDER: str = os.path.expanduser(conf.get('core', 'DAGS_FOLDER'))
 
 engine: Optional[Engine] = None
@@ -197,10 +198,18 @@ def configure_vars():
     global SQL_ALCHEMY_CONN
     global DAGS_FOLDER
     global PLUGINS_FOLDER
+    global DONOT_MODIFY_HANDLERS
     SQL_ALCHEMY_CONN = conf.get('core', 'SQL_ALCHEMY_CONN')
     DAGS_FOLDER = os.path.expanduser(conf.get('core', 'DAGS_FOLDER'))
 
     PLUGINS_FOLDER = conf.get('core', 'plugins_folder', fallback=os.path.join(AIRFLOW_HOME, 'plugins'))
+
+    # If donot_modify_handlers=True, we do not modify logging handlers in task_run command
+    # If the flag is set to False, we remove all handlers from the root logger
+    # and add all handlers from 'airflow.task' logger to the root Logger. This is done
+    # to get all the logs from the print & log statements in the DAG files before a task is run
+    # The handlers are restored after the task completes execution.
+    DONOT_MODIFY_HANDLERS = conf.getboolean('logging', 'donot_modify_handlers', fallback=False)
 
 
 def configure_orm(disable_connection_pool=False):
@@ -504,13 +513,6 @@ MIN_SERIALIZED_DAG_UPDATE_INTERVAL = conf.getint('core', 'min_serialized_dag_upd
 # Fetching serialized DAG can not be faster than a minimum interval to reduce database
 # read rate. This config controls when your DAGs are updated in the Webserver
 MIN_SERIALIZED_DAG_FETCH_INTERVAL = conf.getint('core', 'min_serialized_dag_fetch_interval', fallback=10)
-
-# If donot_modify_handlers=True, we do not modify logging handlers in task_run command
-# If the flag is set to False, we remove all handlers from the root logger
-# and add all handlers from 'airflow.task' logger to the root Logger. This is done
-# to get all the logs from the print & log statements in the DAG files before a task is run
-# The handlers are restored after the task completes execution.
-DONOT_MODIFY_HANDLERS = conf.getboolean('logging', 'donot_modify_handlers', fallback=False)
 
 CAN_FORK = hasattr(os, "fork")
 

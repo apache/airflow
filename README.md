@@ -82,14 +82,14 @@ Airflow is not a streaming solution, but it is often used to process real-time d
 
 Apache Airflow is tested with:
 
-|                      | Main version (dev)        | Stable version (2.2.2)   |
-| -------------------- | ------------------------- | ------------------------ |
-| Python               | 3.6, 3.7, 3.8, 3.9        | 3.6, 3.7, 3.8, 3.9       |
-| Kubernetes           | 1.18, 1.19, 1.20          | 1.18, 1.19, 1.20         |
-| PostgreSQL           | 9.6, 10, 11, 12, 13       | 9.6, 10, 11, 12, 13      |
-| MySQL                | 5.7, 8                    | 5.7, 8                   |
-| SQLite               | 3.15.0+                   | 3.15.0+                  |
-| MSSQL(Experimental)  | 2017, 2019                |                          |
+|                      | Main version (dev)   | Stable version (2.2.2)   |
+| -------------------- | -------------------- | ------------------------ |
+| Python               | 3.6, 3.7, 3.8, 3.9   | 3.6, 3.7, 3.8, 3.9       |
+| Kubernetes           | 1.20, 1.21           | 1.18, 1.19, 1.20         |
+| PostgreSQL           | 10, 11, 12, 13       | 9.6, 10, 11, 12, 13      |
+| MySQL                | 5.7, 8               | 5.7, 8                   |
+| SQLite               | 3.15.0+              | 3.15.0+                  |
+| MSSQL(Experimental)  | 2017, 2019           |                          |
 
 **Note**: MySQL 5.x versions are unable to or have limitations with
 running multiple schedulers -- please see the [Scheduler docs](https://airflow.apache.org/docs/apache-airflow/stable/scheduler.html).
@@ -99,6 +99,15 @@ MariaDB is not tested/recommended.
 using the latest stable version of SQLite for local development.
 
 **Note**: Python v3.10 is not supported yet. For details, see [#19059](https://github.com/apache/airflow/issues/19059).
+
+**Note**: Airflow currently can be run on POSIX-compliant Operating Systems. For development it is regularly
+tested on fairly modern Linux Distros and recent versions of MacOS.
+On Windows you can run it via WSL2 (Windows Subsystem for Linux 2) or via Linux Containers.
+The work to add Windows support is tracked via [#10388](https://github.com/apache/airflow/issues/10388) but
+it is not a high priority. You should only use Linux-based distros as "Production" execution environment
+as this is the only environment that is supported. The only distro that is used in our CI tests and that
+is used in the [Community managed DockerHub image](https://hub.docker.com/p/apache/airflow) is
+`Debian Buster`.
 
 ## Getting started
 

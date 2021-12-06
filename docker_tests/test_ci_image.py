@@ -1,4 +1,3 @@
-#!/usr/bin/env bash
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -16,16 +15,27 @@
 # specific language governing permissions and limitations
 # under the License.
 
-# This is an example docker build script. It is not intended for PRODUCTION use
-set -euo pipefail
-AIRFLOW_SOURCES="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../../../" && pwd)"
-cd "${AIRFLOW_SOURCES}"
+import subprocess
 
-# [START build]
-docker build . \
-    --build-arg PYTHON_BASE_IMAGE="python:3.8-slim-buster" \
-    --build-arg AIRFLOW_INSTALLATION_METHOD="https://github.com/apache/airflow/archive/v2-1-test.tar.gz#egg=apache-airflow" \
-    --build-arg AIRFLOW_CONSTRAINTS_REFERENCE="constraints-2-1" \
-    --tag "my-github-v2-1:0.0.1"
-# [END build]
-docker rmi --force "my-github-v2-1:0.0.1"
+from docker_tests.command_utils import run_command
+from docker_tests.docker_tests_utils import (
+    display_dependency_conflict_message,
+    docker_image,
+    run_bash_in_docker,
+)
+
+
+class TestFiles:
+    def test_dist_folder_should_exists(self):
+        run_bash_in_docker('[ -f /opt/airflow/airflow/www/static/dist/manifest.json ] || exit 1')
+
+
+class TestPythonPackages:
+    def test_pip_dependencies_conflict(self):
+        try:
+            run_command(
+                ["docker", "run", "--rm", "--entrypoint", "/bin/bash", docker_image, "-c", 'pip check']
+            )
+        except subprocess.CalledProcessError as ex:
+            display_dependency_conflict_message()
+            raise ex

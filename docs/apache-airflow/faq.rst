@@ -173,7 +173,8 @@ What's the deal with ``start_date``?
 
 ``start_date`` is partly legacy from the pre-DagRun era, but it is still
 relevant in many ways. When creating a new DAG, you probably want to set
-a global ``start_date`` for your tasks using ``default_args``. The first
+a global ``start_date`` for your tasks. This can be done by declaring your
+``start_date`` directly in the ``DAG()`` object. The first
 DagRun to be created will be based on the ``min(start_date)`` for all your
 tasks. From that point on, the scheduler creates new DagRuns based on
 your ``schedule_interval`` and the corresponding task instances run as your

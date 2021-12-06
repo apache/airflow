@@ -60,10 +60,10 @@ We approached the problem by:
 
    * Python versions (currently 3.6, 3.7, 3.8, 3.9)
    * Backend types (currently MySQL/Postgres)
-   * Backed version (currently MySQL 5.7, MySQL 8, Postgres 9.6, Postgres 13
+   * Backed version (currently MySQL 5.7, MySQL 8, Postgres 13
 
    We've decided that instead of running all the combinations of parameters for all matrix component we will
-   only run default values (Python 3.6, Mysql 5.7, Postgres 9.6) for all PRs which are not approved yet by
+   only run default values (Python 3.6, Mysql 5.7, Postgres 13) for all PRs which are not approved yet by
    the committers. This has a nice effect, that full set of tests (though with limited combinations of
    the matrix) are still run in the CI for every Pull Request that needs tests at all - allowing the
    contributors to make sure that their PR is "good enough" to be reviewed.
@@ -81,13 +81,9 @@ We approached the problem by:
    More about it can be found in `Approval workflow and Matrix tests <#approval-workflow-and-matrix-tests>`_
    chapter.
 
-4) We've also applied (and received) funds to run self-hosted runners. This is not yet implemented, due to
-   discussions about security of self-hosted runners for public repositories. Running self-hosted runners by
-   public repositories is currently (as of end of October 2020)
-   `Discouraged by GitHub <https://docs.github.com/en/free-pro-team@latest/actions/hosting-your-own-runners/about-self-hosted-runners#self-hosted-runner-security-with-public-repositories>`_
-   and we are working on solving the problem - also involving Apache Software Foundation infrastructure team.
-   This document does not describe this part of the approach. Most likely we will add soon a document
-   describing details of the approach taken there.
+4) We've also applied (and received) funds to run self-hosted runners. They are used for ``main`` runs
+   and whenever the PRs are done by one of the maintainers. Maintainers can force using Public GitHub runners
+   by applying "use public runners" label to the PR before submitting it.
 
 Selective CI Checks
 -------------------

@@ -139,8 +139,8 @@ class TestAirflowTaskDecorator(TestPythonBase):
 
     def test_manual_multiple_outputs_false_with_typings(self):
         @task_decorator(multiple_outputs=False)
-        def identity2(x: int, y: int) -> Dict[int, int]:
-            return (x, y)
+        def identity2(x: int, y: int) -> Tuple[int, int]:
+            return x, y
 
         with self.dag:
             res = identity2(8, 4)

@@ -45,7 +45,7 @@ DEFAULT_TIME_TO_WAIT_AFTER_SIGTERM = conf.getint('core', 'KILLED_TASK_CLEANUP_TI
 
 
 def reap_process_group(
-    pgid: int,
+    process_group_id: int,
     logger,
     sig: 'signal.Signals' = signal.SIGTERM,
     timeout: int = DEFAULT_TIME_TO_WAIT_AFTER_SIGTERM,
@@ -55,7 +55,11 @@ def reap_process_group(
     sig (SIGTERM) to the process group of pid. If any process is alive after timeout
     a SIGKILL will be send.
 
-    :param pgid: process group id to kill
+    :param process_group_id: process group id to kill.
+           The process that wants to create the group should run `os.setpgid(0, 0)` as the first
+           command it executes which will set group id = process_id. Effectively the process that is the
+           "root" of the group has pid = gid and all other processes in the group have different
+           pids but the same gid (equal the pid of the root process)
     :param logger: log handler
     :param sig: signal type
     :param timeout: how much time a process has to terminate
@@ -68,36 +72,57 @@ def reap_process_group(
 
     def signal_procs(sig):
         try:
-            os.killpg(pgid, sig)
-        except OSError as err:
+            logger.info("Sending the signal %s to group %s", sig, process_group_id)
+            os.killpg(process_group_id, sig)
+        except OSError as err_killpg:
             # If operation not permitted error is thrown due to run_as_user,
             # use sudo -n(--non-interactive) to kill the process
-            if err.errno == errno.EPERM:
+            if err_killpg.errno == errno.EPERM:
                 subprocess.check_call(
-                    ["sudo", "-n", "kill", "-" + str(int(sig))] + [str(p.pid) for p in children]
+                    ["sudo", "-n", "kill", "-" + str(int(sig))]
+                    + [str(p.pid) for p in all_processes_in_the_group]
                 )
+            elif err_killpg.errno == errno.ESRCH:
+                # There is a rare condition that the process has not managed yet to change it's process
+                # group. In this case os.killpg fails with ESRCH error
+                # So we additionally send a kill signal to the process itself.
+                logger.info(
+                    "Sending the signal %s to process %s as process group is missing.", sig, process_group_id
+                )
+                try:
+                    os.kill(process_group_id, sig)
+                except OSError as err_kill:
+                    if err_kill.errno == errno.EPERM:
+                        subprocess.check_call(["sudo", "-n", "kill", "-" + str(process_group_id)])
+                    else:
+                        raise
             else:
                 raise
 
-    if pgid == os.getpgid(0):
+    if process_group_id == os.getpgid(0):
         raise RuntimeError("I refuse to kill myself")
 
     try:
-        parent = psutil.Process(pgid)
+        parent = psutil.Process(process_group_id)
 
-        children = parent.children(recursive=True)
-        children.append(parent)
+        all_processes_in_the_group = parent.children(recursive=True)
+        all_processes_in_the_group.append(parent)
     except psutil.NoSuchProcess:
         # The process already exited, but maybe it's children haven't.
-        children = []
+        all_processes_in_the_group = []
         for proc in psutil.process_iter():
             try:
-                if os.getpgid(proc.pid) == pgid and proc.pid != 0:
-                    children.append(proc)
+                if os.getpgid(proc.pid) == process_group_id and proc.pid != 0:
+                    all_processes_in_the_group.append(proc)
             except OSError:
                 pass
 
-    logger.info("Sending %s to GPID %s", sig, pgid)
+    logger.info(
+        "Sending %s to group %s. PIDs of all processes in the group: %s",
+        sig,
+        process_group_id,
+        [p.pid for p in all_processes_in_the_group],
+    )
     try:
         signal_procs(sig)
     except OSError as err:
@@ -106,7 +131,7 @@ def reap_process_group(
         if err.errno == errno.ESRCH:
             return returncodes
 
-    _, alive = psutil.wait_procs(children, timeout=timeout, callback=on_terminate)
+    _, alive = psutil.wait_procs(all_processes_in_the_group, timeout=timeout, callback=on_terminate)
 
     if alive:
         for proc in alive:

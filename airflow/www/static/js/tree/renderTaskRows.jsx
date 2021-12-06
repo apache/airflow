@@ -93,6 +93,7 @@ const TaskInstances = ({ task, containerRef, dagRuns }) => (
             key={`${run.runId}-${task.id}`}
             instance={instance}
             containerRef={containerRef}
+            extraLinks={task.extraLinks}
             group={task}
           />
         )
