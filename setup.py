@@ -254,16 +254,16 @@ deprecated_api = [
 doc = [
     'click>=7.1,<9',
     # Sphinx is limited to < 3.5.0 because of https://github.com/sphinx-doc/sphinx/issues/8880
-    'sphinx>=2.1.2, <3.5.0',
+    'sphinx>=3.5.0, <5.0.0',
     'sphinx-airflow-theme',
     'sphinx-argparse>=0.1.13',
-    'sphinx-autoapi==1.0.0',
+    'sphinx-autoapi==1.8.0',
     'sphinx-copybutton',
     'sphinx-jinja~=1.1',
     'sphinx-rtd-theme>=0.1.6',
     'sphinxcontrib-httpdomain>=1.7.0',
     'sphinxcontrib-redoc>=1.6.0',
-    'sphinxcontrib-spelling==7.2.1',
+    'sphinxcontrib-spelling~=7.3',
 ]
 docker = [
     'docker>=5.0.3',

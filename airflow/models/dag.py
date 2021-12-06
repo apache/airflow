@@ -2961,7 +2961,7 @@ class DagModel(Base):
 def dag(*dag_args, **dag_kwargs):
     """
     Python dag decorator. Wraps a function into an Airflow DAG.
-    Accepts kwargs for operator kwarg. Can be used to parametrize DAGs.
+    Accepts kwargs for operator kwarg. Can be used to parameterize DAGs.
 
     :param dag_args: Arguments for DAG object
     :type dag_args: Any
@@ -3021,6 +3021,7 @@ if STATICA_HACK:  # pragma: no cover
     from airflow.models.serialized_dag import SerializedDagModel
 
     DagModel.serialized_dag = relationship(SerializedDagModel)
+    """:sphinx-autoapi-skip:"""
 
 
 class DagContext:
