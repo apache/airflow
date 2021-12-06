@@ -1051,7 +1051,11 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
     # Only upload coverage on merges to main
     if: >
       github.ref == 'refs/heads/main' && github.repository == 'apache/airflow' &&
-      github.event_name == 'push' &&
+      (
+        github.event_name == 'push' ||
+        github.event_name == 'pull_request' ||
+        github.event_name == 'pull_request_target'
+      ) &&
       needs.build-info.outputs.default-branch == 'main'
     steps:
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
