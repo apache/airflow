@@ -656,7 +656,6 @@ def check_migrations(timeout):
         )
 
 
-
 def _get_script_dir_and_config():
     """Get config and script directory"""
     from alembic.script import ScriptDirectory
@@ -704,7 +703,7 @@ def check_and_run_migrations():
                     print(error)
                     print(
                         "You still have unapplied migrations. "
-                        "You may need to reset the database by running `airflow db reset`",
+                        "You may need to {verb} the database by running `airflow db {command_name}`",
                         f"Make sure the command is run using airflow version {version}.",
                         file=sys.stderr,
                     )
