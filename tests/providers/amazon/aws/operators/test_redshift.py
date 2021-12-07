@@ -49,7 +49,7 @@ class TestRedshiftSQLOperator(unittest.TestCase):
         )
 
 
-class TestResumeClusterOperator(unittest.TestCase):
+class TestResumeClusterOperator:
     @staticmethod
     def _create_clusters():
         client = boto3.client('redshift', region_name='us-east-1')
@@ -82,7 +82,7 @@ class TestResumeClusterOperator(unittest.TestCase):
         pass
 
 
-class TestPauseClusterOperator(unittest.TestCase):
+class TestPauseClusterOperator:
     @staticmethod
     def _create_clusters():
         client = boto3.client('redshift', region_name='us-east-1')
