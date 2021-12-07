@@ -890,23 +890,6 @@ class TaskInstance(Base, LoggingMixin):
             return None
 
         dr = self.get_dagrun(session=session)
-
-        # LEGACY: most likely running from unit tests
-        if not dr:
-            # Means that this TaskInstance is NOT being run from a DR, but from a catchup
-            try:
-                # XXX: This uses DAG internals, but as the outer comment
-                # said, the block is only reached for legacy reasons for
-                # development code, so that's OK-ish.
-                schedule = dag.timetable._schedule  # type: ignore
-            except AttributeError:
-                return None
-            dt = pendulum.instance(self.execution_date)
-            return TaskInstance(
-                task=self.task,
-                execution_date=schedule.get_prev(dt),
-            )
-
         dr.dag = dag
 
         # We always ignore schedule in dagrun lookup when `state` is given
@@ -1121,7 +1104,7 @@ class TaskInstance(Base, LoggingMixin):
         return self.state == State.UP_FOR_RETRY and self.next_retry_datetime() < timezone.utcnow()
 
     @provide_session
-    def get_dagrun(self, session: Session = NEW_SESSION):
+    def get_dagrun(self, session: Session = NEW_SESSION) -> "DagRun":
         """
         Returns the DagRun for this TaskInstance
 
