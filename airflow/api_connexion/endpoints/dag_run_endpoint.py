@@ -158,8 +158,7 @@ def get_dag_runs(
     #  This endpoint allows specifying ~ as the dag_id to retrieve DAG Runs for all DAGs.
     if dag_id == "~":
         appbuilder = current_app.appbuilder
-        readable_dag_ids = {dag.dag_id for dag in appbuilder.sm.get_readable_dags(g.user)}
-        query = query.filter(DagRun.dag_id.in_(readable_dag_ids))
+        query = query.filter(DagRun.dag_id.in_(appbuilder.sm.get_readable_dag_ids(g.user)))
     else:
         query = query.filter(DagRun.dag_id == dag_id)
 
@@ -197,7 +196,7 @@ def get_dag_runs_batch(*, session: Session = NEW_SESSION) -> APIResponse:
         raise BadRequest(detail=str(err.messages))
 
     appbuilder = current_app.appbuilder
-    readable_dag_ids = {dag.dag_id for dag in appbuilder.sm.get_readable_dags(g.user)}
+    readable_dag_ids = appbuilder.sm.get_readable_dag_ids(g.user)
     query = session.query(DagRun)
     if data.get("dag_ids"):
         dag_ids = set(data["dag_ids"]) & readable_dag_ids
