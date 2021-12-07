@@ -99,4 +99,4 @@ class TestAwsRedshiftClusterSensor(unittest.TestCase):
             target_status=RedshiftClusterStates.NONEXISTENT,
         )
 
-        assert op.poke(None)
+        assert op.poke(None) is True
