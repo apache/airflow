@@ -87,11 +87,11 @@ How to drop the table using Kubernetes:
 2. Run the following commands in the python shell:
 
  .. code-block:: python
-   from airflow.settings import Session
+     from airflow.settings import Session
 
-   session = Session()
-   session.execute("DROP TABLE _airflow_moved__2_2__task_instance")
-   session.commit()
+     session = Session()
+     session.execute("DROP TABLE _airflow_moved__2_2__task_instance")
+     session.commit()
 
 Please replace ``<table>`` in the examples with the actual table name as printed in the warning message.
 
