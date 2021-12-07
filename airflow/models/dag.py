@@ -83,7 +83,7 @@ from airflow.utils.dates import cron_presets, date_range as utils_date_range
 from airflow.utils.file import correct_maybe_zipped
 from airflow.utils.helpers import validate_key
 from airflow.utils.log.logging_mixin import LoggingMixin
-from airflow.utils.session import provide_session
+from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.sqlalchemy import Interval, UtcDateTime, skip_locked, with_row_locks
 from airflow.utils.state import DagRunState, State, TaskInstanceState
 from airflow.utils.types import NOTSET, ArgNotSet, DagRunType, EdgeInfoType
@@ -410,6 +410,7 @@ class DAG(LoggingMixin):
             if not isinstance(date, datetime):
                 date = timezone.parse(date)
                 self.default_args['start_date'] = date
+
             tzinfo = None if date.tzinfo else settings.TIMEZONE
             tz = pendulum.instance(date, tz=tzinfo).timezone
         self.timezone = tz or settings.TIMEZONE
@@ -902,13 +903,13 @@ class DAG(LoggingMixin):
         return dttm
 
     @provide_session
-    def get_last_dagrun(self, session=None, include_externally_triggered=False):
+    def get_last_dagrun(self, session=NEW_SESSION, include_externally_triggered=False):
         return get_last_dagrun(
             self.dag_id, session=session, include_externally_triggered=include_externally_triggered
         )
 
     @provide_session
-    def has_dag_runs(self, session=None, include_externally_triggered=True) -> bool:
+    def has_dag_runs(self, session=NEW_SESSION, include_externally_triggered=True) -> bool:
         return (
             get_last_dagrun(
                 self.dag_id, session=session, include_externally_triggered=include_externally_triggered
@@ -1057,7 +1058,7 @@ class DAG(LoggingMixin):
         return settings.ALLOW_FUTURE_EXEC_DATES and not self.timetable.can_run
 
     @provide_session
-    def get_concurrency_reached(self, session=None) -> bool:
+    def get_concurrency_reached(self, session=NEW_SESSION) -> bool:
         """
         Returns a boolean indicating whether the max_active_tasks limit for this DAG
         has been reached
@@ -1080,13 +1081,13 @@ class DAG(LoggingMixin):
         return self.get_concurrency_reached()
 
     @provide_session
-    def get_is_active(self, session=None) -> Optional[None]:
+    def get_is_active(self, session=NEW_SESSION) -> Optional[None]:
         """Returns a boolean indicating whether this DAG is active"""
         qry = session.query(DagModel).filter(DagModel.dag_id == self.dag_id)
         return qry.value(DagModel.is_active)
 
     @provide_session
-    def get_is_paused(self, session=None) -> Optional[None]:
+    def get_is_paused(self, session=NEW_SESSION) -> Optional[None]:
         """Returns a boolean indicating whether this DAG is paused"""
         qry = session.query(DagModel).filter(DagModel.dag_id == self.dag_id)
         return qry.value(DagModel.is_paused)
@@ -1117,7 +1118,7 @@ class DAG(LoggingMixin):
         return _schedule_interval
 
     @provide_session
-    def handle_callback(self, dagrun, success=True, reason=None, session=None):
+    def handle_callback(self, dagrun, success=True, reason=None, session=NEW_SESSION):
         """
         Triggers the appropriate callback depending on the value of success, namely the
         on_failure_callback or on_success_callback. This method gets the context of a
@@ -1161,7 +1162,7 @@ class DAG(LoggingMixin):
         return active_dates
 
     @provide_session
-    def get_num_active_runs(self, external_trigger=None, only_running=True, session=None):
+    def get_num_active_runs(self, external_trigger=None, only_running=True, session=NEW_SESSION):
         """
         Returns the number of active "running" dag runs
 
@@ -1189,7 +1190,7 @@ class DAG(LoggingMixin):
         self,
         execution_date: Optional[str] = None,
         run_id: Optional[str] = None,
-        session: Session = None,
+        session: Session = NEW_SESSION,
     ):
         """
         Returns the dag run for a given execution date or run_id if it exists, otherwise
@@ -1210,7 +1211,7 @@ class DAG(LoggingMixin):
         return query.first()
 
     @provide_session
-    def get_dagruns_between(self, start_date, end_date, session=None):
+    def get_dagruns_between(self, start_date, end_date, session=NEW_SESSION):
         """
         Returns the list of dag runs between start_date (inclusive) and end_date (inclusive).
 
@@ -1312,7 +1313,7 @@ class DAG(LoggingMixin):
         base_date: datetime,
         num: int,
         *,
-        session: Session,
+        session: Session = NEW_SESSION,
     ) -> List[TaskInstance]:
         """Get ``num`` task instances before (including) ``base_date``.
 
@@ -1343,7 +1344,7 @@ class DAG(LoggingMixin):
         start_date: Optional[datetime] = None,
         end_date: Optional[datetime] = None,
         state: Optional[List[TaskInstanceState]] = None,
-        session: Session = None,
+        session: Session = NEW_SESSION,
     ) -> List[TaskInstance]:
         if not start_date:
             start_date = (timezone.utcnow() - timedelta(30)).replace(
@@ -1636,7 +1637,7 @@ class DAG(LoggingMixin):
         future: Optional[bool] = False,
         past: Optional[bool] = False,
         commit: Optional[bool] = True,
-        session=None,
+        session=NEW_SESSION,
     ) -> List[TaskInstance]:
         """
         Set the state of a TaskInstance to the given state, and clear its downstream tasks that are
@@ -1772,7 +1773,7 @@ class DAG(LoggingMixin):
     def set_dag_runs_state(
         self,
         state: str = State.RUNNING,
-        session: Session = None,
+        session: Session = NEW_SESSION,
         start_date: Optional[datetime] = None,
         end_date: Optional[datetime] = None,
         dag_ids: List[str] = [],
@@ -1803,7 +1804,7 @@ class DAG(LoggingMixin):
         include_parentdag: bool = True,
         dag_run_state: DagRunState = DagRunState.QUEUED,
         dry_run: bool = False,
-        session: Session = None,
+        session: Session = NEW_SESSION,
         get_tis: bool = False,
         recursion_depth: int = 0,
         max_recursion_depth: Optional[int] = None,
@@ -2117,7 +2118,7 @@ class DAG(LoggingMixin):
         return d
 
     @provide_session
-    def pickle(self, session=None) -> DagPickle:
+    def pickle(self, session=NEW_SESSION) -> DagPickle:
         dag = session.query(DagModel).filter(DagModel.dag_id == self.dag_id).first()
         dp = None
         if dag and dag.pickle_id:
@@ -2300,7 +2301,7 @@ class DAG(LoggingMixin):
         external_trigger: Optional[bool] = False,
         conf: Optional[dict] = None,
         run_type: Optional[DagRunType] = None,
-        session=None,
+        session=NEW_SESSION,
         dag_hash: Optional[str] = None,
         creating_job_id: Optional[int] = None,
         data_interval: Optional[Tuple[datetime, datetime]] = None,
@@ -2389,7 +2390,7 @@ class DAG(LoggingMixin):
 
     @classmethod
     @provide_session
-    def bulk_sync_to_db(cls, dags: Collection["DAG"], session=None):
+    def bulk_sync_to_db(cls, dags: Collection["DAG"], session=NEW_SESSION):
         """This method is deprecated in favor of bulk_write_to_db"""
         warnings.warn(
             "This method is deprecated and will be removed in a future version. Please use bulk_write_to_db",
@@ -2400,7 +2401,7 @@ class DAG(LoggingMixin):
 
     @classmethod
     @provide_session
-    def bulk_write_to_db(cls, dags: Collection["DAG"], session=None):
+    def bulk_write_to_db(cls, dags: Collection["DAG"], session=NEW_SESSION):
         """
         Ensure the DagModel rows for the given dags are up-to-date in the dag table in the DB, including
         calculated fields.
@@ -2513,7 +2514,7 @@ class DAG(LoggingMixin):
             cls.bulk_write_to_db(dag.subdags, session=session)
 
     @provide_session
-    def sync_to_db(self, session=None):
+    def sync_to_db(self, session=NEW_SESSION):
         """
         Save attributes about this DAG to the DB. Note that this method
         can be called for both DAGs and SubDAGs. A SubDag is actually a
@@ -2532,7 +2533,7 @@ class DAG(LoggingMixin):
 
     @staticmethod
     @provide_session
-    def deactivate_unknown_dags(active_dag_ids, session=None):
+    def deactivate_unknown_dags(active_dag_ids, session=NEW_SESSION):
         """
         Given a list of known DAGs, deactivate any other DAGs that are
         marked as active in the ORM
@@ -2550,7 +2551,7 @@ class DAG(LoggingMixin):
 
     @staticmethod
     @provide_session
-    def deactivate_stale_dags(expiration_date, session=None):
+    def deactivate_stale_dags(expiration_date, session=NEW_SESSION):
         """
         Deactivate any DAGs that were last touched by the scheduler before
         the expiration date. These DAGs were likely deleted.
@@ -2576,7 +2577,7 @@ class DAG(LoggingMixin):
 
     @staticmethod
     @provide_session
-    def get_num_task_instances(dag_id, task_ids=None, states=None, session=None):
+    def get_num_task_instances(dag_id, task_ids=None, states=None, session=NEW_SESSION):
         """
         Returns the number of task instances in the given DAG.
 
@@ -2800,23 +2801,23 @@ class DagModel(Base):
 
     @staticmethod
     @provide_session
-    def get_dagmodel(dag_id, session=None):
+    def get_dagmodel(dag_id, session=NEW_SESSION):
         return session.query(DagModel).options(joinedload(DagModel.parent_dag)).get(dag_id)
 
     @classmethod
     @provide_session
-    def get_current(cls, dag_id, session=None):
+    def get_current(cls, dag_id, session=NEW_SESSION):
         return session.query(cls).filter(cls.dag_id == dag_id).first()
 
     @provide_session
-    def get_last_dagrun(self, session=None, include_externally_triggered=False):
+    def get_last_dagrun(self, session=NEW_SESSION, include_externally_triggered=False):
         return get_last_dagrun(
             self.dag_id, session=session, include_externally_triggered=include_externally_triggered
         )
 
     @staticmethod
     @provide_session
-    def get_paused_dag_ids(dag_ids: List[str], session: Session = None) -> Set[str]:
+    def get_paused_dag_ids(dag_ids: List[str], session: Session = NEW_SESSION) -> Set[str]:
         """
         Given a list of dag_ids, get a set of Paused Dag Ids
 
@@ -2859,7 +2860,7 @@ class DagModel(Base):
             return path
 
     @provide_session
-    def set_is_paused(self, is_paused: bool, including_subdags: bool = True, session=None) -> None:
+    def set_is_paused(self, is_paused: bool, including_subdags: bool = True, session=NEW_SESSION) -> None:
         """
         Pause/Un-pause a DAG.
 
@@ -2879,7 +2880,7 @@ class DagModel(Base):
 
     @classmethod
     @provide_session
-    def deactivate_deleted_dags(cls, alive_dag_filelocs: List[str], session=None):
+    def deactivate_deleted_dags(cls, alive_dag_filelocs: List[str], session=NEW_SESSION):
         """
         Set ``is_active=False`` on the DAGs for which the DAG files have been removed.
 
