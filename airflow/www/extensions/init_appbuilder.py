@@ -22,10 +22,10 @@
 
 import logging
 from functools import reduce
-from typing import Dict
+from typing import Dict, List, Union
 
 from flask import Blueprint, current_app, url_for
-from flask_appbuilder import __version__
+from flask_appbuilder import BaseView, __version__
 from flask_appbuilder.api.manager import OpenApiManager
 from flask_appbuilder.babel.manager import BabelManager
 from flask_appbuilder.const import (
@@ -40,6 +40,7 @@ from flask_appbuilder.const import (
 from flask_appbuilder.filters import TemplateFilters
 from flask_appbuilder.menu import Menu, MenuApiManager
 from flask_appbuilder.views import IndexView, UtilView
+from sqlalchemy.orm import Session
 
 from airflow import settings
 from airflow.configuration import conf
@@ -90,7 +91,7 @@ class AirflowAppBuilder:
     You can also create everything as an application factory.
     """
 
-    baseviews = []
+    baseviews: List[Union[BaseView, Session]] = []
     security_manager_class = None
     # Flask app
     app = None
@@ -560,7 +561,7 @@ class AirflowAppBuilder:
         :param dry: If True will not change DB
         :return: Dict with all computed necessary operations
         """
-        return self.sm.security_converge(self.baseviews, self.menu, dry)
+        return self.sm.security_converge(self.baseviews, self.menu, dry)  # type: ignore
 
     @property
     def get_url_for_login(self):
