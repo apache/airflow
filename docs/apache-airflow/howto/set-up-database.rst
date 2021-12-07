@@ -64,7 +64,7 @@ Setting up a SQLite Database
 ----------------------------
 
 SQLite database can be used to run Airflow for development purpose as it does not require any database server
-(the database is stored in a local file). There are a few limitations of using the SQLite database (for example
+(the database is stored in a local file). There are many limitations of using the SQLite database (for example
 it only works with Sequential Executor) and it should NEVER be used for production.
 
 There is a minimum version of sqlite3 required to run Airflow 2.0+ - minimum version is 3.15.0. Some of the
