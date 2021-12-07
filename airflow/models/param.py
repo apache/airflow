@@ -184,8 +184,7 @@ class ParamsDict(MutableMapping[str, Any]):
         return ValuesView(self.__dict)
 
     def update(self, *args, **kwargs) -> None:
-
-        if len(args) == 1 and isinstance(args[0], ParamsDict):
+        if len(args) == 1 and not kwargs and isinstance(args[0], ParamsDict):
             return super().update(args[0].__dict)
         super().update(*args, **kwargs)
 
