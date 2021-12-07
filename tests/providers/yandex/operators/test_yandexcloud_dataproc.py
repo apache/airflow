@@ -60,6 +60,9 @@ SSH_PUBLIC_KEYS = [
     'cFDe6faKCxH6iDRteo4D8L8BxwzN42uZSB0nfmjkIxFTcEU3mFSXEbWByg78aoddMrAAjatyrhH1pON6P0='
 ]
 
+# https://cloud.yandex.com/en-ru/docs/logging/concepts/log-group
+LOG_GROUP_ID = 'my_log_group_id'
+
 
 class DataprocClusterCreateOperatorTest(TestCase):
     def setUp(self):
@@ -87,6 +90,7 @@ class DataprocClusterCreateOperatorTest(TestCase):
             connection_id=CONNECTION_ID,
             s3_bucket=S3_BUCKET_NAME_FOR_LOGS,
             cluster_image_version=CLUSTER_IMAGE_VERSION,
+            log_group_id=LOG_GROUP_ID,
         )
         context = {'task_instance': MagicMock()}
         operator.execute(context)
@@ -122,6 +126,7 @@ class DataprocClusterCreateOperatorTest(TestCase):
             ],
             subnet_id='my_subnet_id',
             zone='ru-central1-c',
+            log_group_id=LOG_GROUP_ID,
         )
         context['task_instance'].xcom_push.assert_has_calls(
             [

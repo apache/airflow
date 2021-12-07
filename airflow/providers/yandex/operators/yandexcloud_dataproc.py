@@ -93,6 +93,9 @@ class DataprocCreateClusterOperator(BaseOperator):
     :param computenode_decommission_timeout: Timeout to gracefully decommission nodes during downscaling.
                                              In seconds.
     :type computenode_decommission_timeout: int
+    :param log_group_id: Id of log group to write logs. By default logs will be sent to default log group.
+                    To disable cloud log sending set cluster property dataproc:disable_cloud_logging = true
+    :type log_group_id: str
     """
 
     def __init__(
@@ -127,6 +130,7 @@ class DataprocCreateClusterOperator(BaseOperator):
         computenode_cpu_utilization_target: Optional[int] = None,
         computenode_decommission_timeout: Optional[int] = None,
         connection_id: Optional[str] = None,
+        log_group_id: Optional[str] = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -159,6 +163,7 @@ class DataprocCreateClusterOperator(BaseOperator):
         self.computenode_preemptible = computenode_preemptible
         self.computenode_cpu_utilization_target = computenode_cpu_utilization_target
         self.computenode_decommission_timeout = computenode_decommission_timeout
+        self.log_group_id = log_group_id
 
         self.hook: Optional[DataprocHook] = None
 
@@ -195,6 +200,7 @@ class DataprocCreateClusterOperator(BaseOperator):
             computenode_preemptible=self.computenode_preemptible,
             computenode_cpu_utilization_target=self.computenode_cpu_utilization_target,
             computenode_decommission_timeout=self.computenode_decommission_timeout,
+            log_group_id=self.log_group_id,
         )
         context['task_instance'].xcom_push(key='cluster_id', value=operation_result.response.id)
         context['task_instance'].xcom_push(key='yandexcloud_connection_id', value=self.yandex_conn_id)
