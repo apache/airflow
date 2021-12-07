@@ -50,7 +50,7 @@ class Param:
     __NO_VALUE_SENTINEL = NoValueSentinel()
     CLASS_IDENTIFIER = '__class'
 
-    def __init__(self, default: Any = __NO_VALUE_SENTINEL, description: str = None, **kwargs):
+    def __init__(self, default: Any = __NO_VALUE_SENTINEL, description: Optional[str] = None, **kwargs):
         self.value = default
         self.description = description
         self.schema = kwargs.pop('schema') if 'schema' in kwargs else kwargs
