@@ -20,9 +20,14 @@ import unittest
 from unittest import mock
 from unittest.mock import MagicMock
 
+import boto3
 from parameterized import parameterized
 
-from airflow.providers.amazon.aws.operators.redshift import RedshiftSQLOperator
+from airflow.providers.amazon.aws.operators.redshift import (
+    RedshiftPauseClusterOperator,
+    RedshiftResumeClusterOperator,
+    RedshiftSQLOperator,
+)
 
 
 class TestRedshiftSQLOperator(unittest.TestCase):
@@ -42,3 +47,69 @@ class TestRedshiftSQLOperator(unittest.TestCase):
             autocommit=test_autocommit,
             parameters=test_parameters,
         )
+
+
+class TestResumeClusterOperator(unittest.TestCase):
+    @staticmethod
+    def _create_clusters():
+        client = boto3.client('redshift', region_name='us-east-1')
+        client.create_cluster(
+            ClusterIdentifier='test_cluster_to_pause',
+            NodeType='dc1.large',
+            MasterUsername='admin',
+            MasterUserPassword='mock_password',
+        )
+        client.create_cluster(
+            ClusterIdentifier='test_cluster_to_resume',
+            NodeType='dc1.large',
+            MasterUsername='admin',
+            MasterUserPassword='mock_password',
+        )
+        if not client.describe_clusters()['Clusters']:
+            raise ValueError('AWS not properly mocked')
+
+    def test_init(self):
+        redshift_operator = RedshiftResumeClusterOperator(
+            task_id="task_test", cluster_identifier="test_cluster", aws_conn_id="aws_conn_test"
+        )
+        assert redshift_operator.task_id == "task_test"
+        assert redshift_operator.cluster_identifier == "test_cluster"
+        assert redshift_operator.aws_conn_id == "aws_conn_test"
+
+    def test_resume_cluster(self):
+        # TODO: Add test once moto library supports pause_cluster() or resume_cluster() boto api calls:
+        #  https://github.com/spulec/moto/issues/4591
+        pass
+
+
+class TestPauseClusterOperator(unittest.TestCase):
+    @staticmethod
+    def _create_clusters():
+        client = boto3.client('redshift', region_name='us-east-1')
+        client.create_cluster(
+            ClusterIdentifier='test_cluster_to_pause',
+            NodeType='dc1.large',
+            MasterUsername='admin',
+            MasterUserPassword='mock_password',
+        )
+        client.create_cluster(
+            ClusterIdentifier='test_cluster_to_resume',
+            NodeType='dc1.large',
+            MasterUsername='admin',
+            MasterUserPassword='mock_password',
+        )
+        if not client.describe_clusters()['Clusters']:
+            raise ValueError('AWS not properly mocked')
+
+    def test_init(self):
+        redshift_operator = RedshiftPauseClusterOperator(
+            task_id="task_test", cluster_identifier="test_cluster", aws_conn_id="aws_conn_test"
+        )
+        assert redshift_operator.task_id == "task_test"
+        assert redshift_operator.cluster_identifier == "test_cluster"
+        assert redshift_operator.aws_conn_id == "aws_conn_test"
+
+    def test_pause_cluster(self):
+        # TODO: Add test once moto library supports pause_cluster() or resume_cluster() boto api calls:
+        #  https://github.com/spulec/moto/issues/4591
+        pass

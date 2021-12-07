@@ -26,7 +26,7 @@ from parameterized import parameterized
 
 from airflow.models import Connection
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
-from airflow.providers.amazon.aws.hooks.redshift import RedshiftClusterStates, RedshiftHook, RedshiftSQLHook
+from airflow.providers.amazon.aws.hooks.redshift import RedshiftHook, RedshiftSQLHook
 
 try:
     from moto import mock_redshift
@@ -98,7 +98,7 @@ class TestRedshiftHook(unittest.TestCase):
         self._create_clusters()
         hook = RedshiftHook(aws_conn_id='aws_default')
         status = hook.cluster_status('test_cluster_not_here')
-        assert status == RedshiftClusterStates.NONEXISTENT
+        assert status == 'cluster_not_found'
 
     @unittest.skipIf(mock_redshift is None, 'mock_redshift package not present')
     @mock_redshift
@@ -106,7 +106,7 @@ class TestRedshiftHook(unittest.TestCase):
         self._create_clusters()
         hook = RedshiftHook(aws_conn_id='aws_default')
         status = hook.cluster_status('test_cluster')
-        assert status == RedshiftClusterStates.AVAILABLE
+        assert status == 'available'
 
 
 class TestRedshiftSQLHookConn(unittest.TestCase):

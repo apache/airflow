@@ -16,14 +16,13 @@
 # specific language governing permissions and limitations
 # under the License.
 """Interact with AWS Redshift clusters."""
+
 from typing import Dict, List, Optional, Union
 
 try:
     from functools import cached_property
 except ImportError:
     from cached_property import cached_property
-
-from enum import Enum
 
 import redshift_connector
 from redshift_connector import Connection as RedshiftConnection
@@ -32,21 +31,6 @@ from sqlalchemy.engine.url import URL
 
 from airflow.hooks.dbapi import DbApiHook
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
-
-
-class RedshiftClusterStates(Enum):
-    """Contains the possible State values of a Redshift Cluster."""
-
-    AVAILABLE = 'available'
-    CREATING = 'creating'
-    DELETING = 'deleting'
-    RESUMING = 'resuming'
-    MODIFYING = 'modifying'
-    PAUSED = 'paused'
-    REBOOTING = 'rebooting'
-    RENAMING = 'renaming'
-    RESIZING = 'resizing'
-    NONEXISTENT = 'nonexistent'
 
 
 class RedshiftHook(AwsBaseHook):
@@ -68,7 +52,7 @@ class RedshiftHook(AwsBaseHook):
         super().__init__(*args, **kwargs)
 
     # TODO: Wrap create_cluster_snapshot
-    def cluster_status(self, cluster_identifier: str) -> RedshiftClusterStates:
+    def cluster_status(self, cluster_identifier: str) -> str:
         """
         Return status of a cluster
 
@@ -81,9 +65,9 @@ class RedshiftHook(AwsBaseHook):
         """
         try:
             response = self.get_conn().describe_clusters(ClusterIdentifier=cluster_identifier)['Clusters']
-            return RedshiftClusterStates(response[0]['ClusterStatus']) if response else None
+            return response[0]['ClusterStatus'] if response else None
         except self.get_conn().exceptions.ClusterNotFoundFault:
-            return RedshiftClusterStates.NONEXISTENT
+            return 'cluster_not_found'
 
     def delete_cluster(
         self,

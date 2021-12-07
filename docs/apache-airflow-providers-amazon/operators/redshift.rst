@@ -102,7 +102,7 @@ Resume a Redshift Cluster
 """""""""""""""""""""""""""""""""""""""""""
 
 To resume an existing AWS Redshift Cluster you can use
-:class:`~airflow.providers.amazon.aws.operators.redshift_resume_cluster.RedshiftResumeClusterOperator`.
+:class:`RedshiftResumeClusterOperator <airflow.providers.amazon.aws.operators.redshift>`
 
 This Operator leverages the AWS CLI
 `resume-cluster <https://docs.aws.amazon.com/cli/latest/reference/redshift/resume-cluster.html>`__ API
@@ -113,7 +113,6 @@ Pause a Redshift Cluster
 """""""""""""""""""""""""""""""""""""""""""
 
 To pause an existing AWS Redshift Cluster you can use
-:class:`~airflow.providers.amazon.aws.operators.redshift_pause_cluster.RedshiftPauseClusterOperator`.
-
+:class:`RedshiftPauseClusterOperator <airflow.providers.amazon.aws.operators.redshift>`
 This Operator leverages the AWS CLI
 `pause-cluster <https://docs.aws.amazon.com/cli/latest/reference/redshift/pause-cluster.html>`__ API

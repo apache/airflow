@@ -245,8 +245,6 @@ operators:
   - integration-name: Amazon Redshift
     python-modules:
       - airflow.providers.amazon.aws.operators.redshift
-      - airflow.providers.amazon.aws.operators.redshift_pause_cluster
-      - airflow.providers.amazon.aws.operators.redshift_resume_cluster
 
 sensors:
   - integration-name: Amazon Athena
