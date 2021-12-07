@@ -219,7 +219,7 @@ class SecretsMasker(logging.Filter):
             log.warning(
                 "Unable to redact %s, please report this via <https://github.com/apache/airflow/issues>. "
                 "Error was: %s: %s",
-                item.repr(),
+                repr(item),
                 type(e).__name__,
                 str(e),
             )
