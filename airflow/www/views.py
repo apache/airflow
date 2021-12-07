@@ -2889,7 +2889,7 @@ class Airflow(AirflowBaseView):
             task_dict['end_date'] = task_dict['end_date'] or timezone.utcnow()
             task_dict['extraLinks'] = dag.get_task(ti.task_id).extra_links
             task_dict['try_number'] = try_count
-            task_dict['execution_date'] = dttm
+            task_dict['execution_date'] = dttm.isoformat()
             tasks.append(task_dict)
 
         tf_count = 0
@@ -2911,7 +2911,7 @@ class Airflow(AirflowBaseView):
             task_dict['operator'] = task.task_type
             task_dict['try_number'] = try_count
             task_dict['extraLinks'] = task.extra_links
-            task_dict['execution_date'] = dttm
+            task_dict['execution_date'] = dttm.isoformat()
             tasks.append(task_dict)
 
         task_names = [ti.task_id for ti in tis]
