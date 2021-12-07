@@ -58,20 +58,6 @@ class TestAwsRedshiftClusterSensor(unittest.TestCase):
 
     @unittest.skipIf(mock_redshift is None, 'mock_redshift package not present')
     @mock_redshift
-    def test_poke_with_cluster_state(self):
-        self._create_cluster()
-        op = AwsRedshiftClusterSensor(
-            task_id='test_cluster_sensor',
-            poke_interval=1,
-            timeout=5,
-            aws_conn_id='aws_default',
-            cluster_identifier='test_cluster',
-            target_status=RedshiftClusterStates.AVAILABLE,
-        )
-        assert op.poke(None)
-
-    @unittest.skipIf(mock_redshift is None, 'mock_redshift package not present')
-    @mock_redshift
     def test_poke_false(self):
         self._create_cluster()
         op = AwsRedshiftClusterSensor(
@@ -84,3 +70,18 @@ class TestAwsRedshiftClusterSensor(unittest.TestCase):
         )
 
         assert not op.poke(None)
+
+    @unittest.skipIf(mock_redshift is None, 'mock_redshift package not present')
+    @mock_redshift
+    def test_poke_cluster_not_found(self):
+        self._create_cluster()
+        op = AwsRedshiftClusterSensor(
+            task_id='test_cluster_sensor',
+            poke_interval=1,
+            timeout=5,
+            aws_conn_id='aws_default',
+            cluster_identifier='test_cluster_not_found',
+            target_status='cluster_not_found',
+        )
+
+        assert op.poke(None)
