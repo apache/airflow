@@ -16,7 +16,6 @@
 # specific language governing permissions and limitations
 # under the License.
 #
-import pathlib
 import re
 import unittest
 from pathlib import Path
@@ -26,7 +25,6 @@ import pytest
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import rsa
-from py._path.local import LocalPath
 
 from airflow.models import Connection
 from airflow.providers.snowflake.hooks.snowflake import SnowflakeHook
@@ -48,25 +46,25 @@ BASE_CONNECTION_KWARGS = {
 
 
 @pytest.fixture()
-def non_encrypted_temporary_private_key(tmpdir: LocalPath):
+def non_encrypted_temporary_private_key(tmp_path: Path):
     key = rsa.generate_private_key(backend=default_backend(), public_exponent=65537, key_size=2048)
     private_key = key.private_bytes(
         serialization.Encoding.PEM, serialization.PrivateFormat.PKCS8, serialization.NoEncryption()
     )
-    test_key_file: Path = pathlib.Path(tmpdir / "test_key.pem")
+    test_key_file = tmp_path / "test_key.pem"
     test_key_file.write_bytes(private_key)
     return test_key_file
 
 
 @pytest.fixture()
-def encrypted_temporary_private_key(tmpdir: LocalPath):
+def encrypted_temporary_private_key(tmp_path: Path):
     key = rsa.generate_private_key(backend=default_backend(), public_exponent=65537, key_size=2048)
     private_key = key.private_bytes(
         serialization.Encoding.PEM,
         serialization.PrivateFormat.PKCS8,
         encryption_algorithm=serialization.BestAvailableEncryption(_PASSWORD.encode()),
     )
-    test_key_file: Path = pathlib.Path(tmpdir / "test_key.p8")
+    test_key_file: Path = tmp_path / "test_key.p8"
     test_key_file.write_bytes(private_key)
     return test_key_file
 
