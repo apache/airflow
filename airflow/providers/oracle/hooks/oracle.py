@@ -39,7 +39,7 @@ class OracleHook(DbApiHook):
     conn_type = 'oracle'
     hook_name = 'Oracle'
 
-    supports_autocommit = False
+    supports_autocommit = True
 
     def get_conn(self) -> 'OracleHook':
         """
@@ -177,10 +177,9 @@ class OracleHook(DbApiHook):
         else:
             target_fields = ''
         conn = self.get_conn()
-        cur = conn.cursor()  # type: ignore[attr-defined]
         if self.supports_autocommit:
-            cur.execute('SET autocommit = 0')
-        conn.commit()  # type: ignore[attr-defined]
+            self.set_autocommit(conn, False)
+        cur = conn.cursor()  # type: ignore[attr-defined]
         i = 0
         for row in rows:
             i += 1
@@ -238,6 +237,8 @@ class OracleHook(DbApiHook):
         if not rows:
             raise ValueError("parameter rows could not be None or empty iterable")
         conn = self.get_conn()
+        if self.supports_autocommit:
+            self.set_autocommit(conn, False)
         cursor = conn.cursor()  # type: ignore[attr-defined]
         values_base = target_fields if target_fields else rows[0]
         prepared_stm = 'insert into {tablename} {columns} values ({values})'.format(

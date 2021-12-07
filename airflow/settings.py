@@ -22,7 +22,7 @@ import logging
 import os
 import sys
 import warnings
-from typing import Optional
+from typing import TYPE_CHECKING, Callable, List, Optional
 
 import pendulum
 import sqlalchemy
@@ -36,6 +36,9 @@ from airflow.configuration import AIRFLOW_HOME, WEBSERVER_CONFIG, conf  # NOQA F
 from airflow.executors import executor_constants
 from airflow.logging_config import configure_logging
 from airflow.utils.orm_event_handlers import setup_event_handlers
+
+if TYPE_CHECKING:
+    from airflow.www.utils import UIAlert
 
 log = logging.getLogger(__name__)
 
@@ -77,7 +80,7 @@ DONOT_MODIFY_HANDLERS: Optional[bool] = None
 DAGS_FOLDER: str = os.path.expanduser(conf.get('core', 'DAGS_FOLDER'))
 
 engine: Optional[Engine] = None
-Session: Optional[SASession] = None
+Session: Callable[..., SASession]
 
 # The JSON library to use for DAG Serialization and De-Serialization
 json = json
@@ -563,8 +566,7 @@ MASK_SECRETS_IN_LOGS = False
 #       UIAlert('Visit <a href="http://airflow.apache.org">airflow.apache.org</a>', html=True),
 #   ]
 #
-# DASHBOARD_UIALERTS: List["UIAlert"]
-DASHBOARD_UIALERTS = []
+DASHBOARD_UIALERTS: List["UIAlert"] = []
 
 # Prefix used to identify tables holding data moved during migration.
 AIRFLOW_MOVED_TABLE_PREFIX = "_airflow_moved"
