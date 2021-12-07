@@ -1066,7 +1066,6 @@ class DagFileProcessorManager(LoggingMixin):
             TI = airflow.models.TaskInstance
             DM = airflow.models.DagModel
             limit_dttm = timezone.utcnow() - timedelta(seconds=self._zombie_threshold_secs)
-            self.log.info("Failing jobs without heartbeat after %s", limit_dttm)
 
             zombies = (
                 session.query(TI, DM.fileloc)
@@ -1081,6 +1080,9 @@ class DagFileProcessorManager(LoggingMixin):
                 )
                 .all()
             )
+
+            if zombies:
+                self.log.info("Failing (%s) jobs without heartbeat after %s", len(zombies), limit_dttm)
 
             self._last_zombie_query_time = timezone.utcnow()
             for ti, file_loc in zombies:
