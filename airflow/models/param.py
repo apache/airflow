@@ -135,7 +135,7 @@ class ParamsDict(MutableMapping[str, Any]):
         del self.__dict[v]
 
     def __iter__(self):
-        return self.__dict.__iter__()
+        return iter(self.__dict)
 
     def __setitem__(self, key: str, value: Any) -> None:
         """
