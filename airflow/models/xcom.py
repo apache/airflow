@@ -21,7 +21,7 @@ import json
 import logging
 import pickle
 import warnings
-from typing import TYPE_CHECKING, Any, Iterable, Optional, Type, Union, overload
+from typing import TYPE_CHECKING, Any, Iterable, Optional, Type, Union, cast, overload
 
 import pendulum
 from sqlalchemy import Column, LargeBinary, String
@@ -99,12 +99,25 @@ class BaseXCom(Base, LoggingMixin):
         key: str,
         value: Any,
         *,
-        task_id: str,
         dag_id: str,
+        task_id: str,
         run_id: str,
         session: Optional[Session] = None,
     ) -> None:
-        ...
+        """Store an XCom value.
+
+        A deprecated form of this function accepts ``execution_date`` instead of
+        ``run_id``. The two arguments are mutually exclusive.
+
+        :param key: Key to store the XCom.
+        :param value: XCom value to store.
+        :param dag_id: DAG ID.
+        :param task_id: Task ID.
+        :param run_id: DAG run ID for the task.
+        :param session: Database session. If not given, a new session will be
+            created for this function.
+        :type session: sqlalchemy.orm.session.Session
+        """
 
     @overload
     @classmethod
@@ -117,7 +130,7 @@ class BaseXCom(Base, LoggingMixin):
         execution_date: datetime.datetime,
         session: Optional[Session] = None,
     ) -> None:
-        ...
+        """:sphinx-autoapi-skip:"""
 
     @classmethod
     @provide_session
@@ -132,21 +145,7 @@ class BaseXCom(Base, LoggingMixin):
         run_id: Optional[str] = None,
         session: Session,
     ) -> None:
-        """Store an XCom value.
-
-        :param key: Key to store the value under.
-        :param value: Value to store. What types are possible depends on whether
-            ``enable_xcom_pickling`` is true or not. If so, this can be any
-            picklable object; only be JSON-serializable may be used otherwise.
-        :param task_id: Task ID of the task.
-        :param dag_id: DAG ID of the task.
-        :param run_id: DAG run ID of the task.
-        :param execution_date: Execution date of the task. Deprecated; use
-            ``run_id`` instead.
-        :type execution_date: datetime
-        :param session: database session
-        :type session: sqlalchemy.orm.session.Session
-        """
+        """:sphinx-autoapi-skip:"""
         if not (execution_date is None) ^ (run_id is None):
             raise ValueError("Exactly one of execution_date or run_id must be passed")
 
@@ -171,8 +170,7 @@ class BaseXCom(Base, LoggingMixin):
             cls.task_id == task_id,
             cls.dag_id == dag_id,
         ).delete()
-        klass: Any = cls  # Work around Mypy complaining SQLAlchemy model init kawrgs.
-        new = klass(
+        new = cast(Any, cls)(  # Work around Mypy complaining model not defining '__init__'.
             key=key,
             value=cls.serialize_value(value),
             execution_date=execution_date,
@@ -194,7 +192,31 @@ class BaseXCom(Base, LoggingMixin):
         include_prior_dates: bool = False,
         session: Optional[Session] = None,
     ) -> Optional[Any]:
-        ...
+        """Retrieve an XCom value, optionally meeting certain criteria.
+
+        This method returns "full" XCom values (i.e. uses ``deserialize_value``
+        from the XCom backend). Use :meth:`get_many` if you want the "shortened"
+        value via ``orm_deserialize_value``.
+
+        If there are no results, *None* is returned.
+
+        A deprecated form of this function accepts ``execution_date`` instead of
+        ``run_id``. The two arguments are mutually exclusive.
+
+        :param run_id: DAG run ID for the task.
+        :param key: A key for the XCom. If provided, only XCom with matching
+            keys will be returned. Pass *None* (default) to remove the filter.
+        :param task_id: Only XCom from task with matching ID will be pulled.
+            Pass *None* (default) to remove the filter.
+        :param dag_id: Only pull XCom from this DAG. If *None* (default), the
+            DAG of the calling task is used.
+        :param include_prior_dates: If *False* (default), only XCom from the
+            specified DAG run is returned. If *True*, the latest matching XCom is
+            returned regardless of the run it belongs to.
+        :param session: Database session. If not given, a new session will be
+            created for this function.
+        :type session: sqlalchemy.orm.session.Session
+        """
 
     @overload
     @classmethod
@@ -205,52 +227,24 @@ class BaseXCom(Base, LoggingMixin):
         task_id: Optional[str] = None,
         dag_id: Optional[str] = None,
         include_prior_dates: bool = False,
-        *,
         session: Optional[Session] = None,
     ) -> Optional[Any]:
-        ...
+        """:sphinx-autoapi-skip:"""
 
     @classmethod
     @provide_session
     def get_one(
         cls,
         execution_date: Optional[pendulum.DateTime] = None,
-        run_id: Optional[str] = None,
         key: Optional[str] = None,
         task_id: Optional[Union[str, Iterable[str]]] = None,
         dag_id: Optional[Union[str, Iterable[str]]] = None,
         include_prior_dates: bool = False,
         session: Session = None,
+        *,
+        run_id: Optional[str] = None,
     ) -> Optional[Any]:
-        """Retrieve an XCom value, optionally meeting certain criteria.
-
-        If there are no matching results, *None* is returned.
-
-        This method returns "full" XCom values (i.e. uses ``deserialize_value``
-        from the XCom backend). Use :meth:`get_many` if you want the "shortened"
-        value via ``orm_deserialize_value``.
-
-        :param run_id: DAG run ID of the task.
-        :type run_id: str
-        :param execution_date: Execution date of the task. Deprecated; use
-            ``run_id`` instead.
-        :type execution_date: pendulum.DateTime
-        :param key: If provided, only XComs matching the key will be returned.
-            Pass *None* to remove the filter.
-        :type key: str | None
-        :param task_id: If provided, only pulls XComs from task(s) with matching
-            ID. Pass *None* to remove the filter.
-        :type task_id: str | None
-        :param dag_id: If provided, only pulls XCom from this DAG.
-            If *None* (default), the DAG of the calling task is used.
-        :type dag_id: str | None
-        :param include_prior_dates: If *False* (default), only XCom values from
-            the current DAG run are returned. If *True*, XCom values from
-            previous DAG runs are returned as well.
-        :type include_prior_dates: bool
-        :param session: database session
-        :type session: sqlalchemy.orm.session.Session
-        """
+        """:sphinx-autoapi-skip:"""
         if not (execution_date is None) ^ (run_id is None):
             raise ValueError("Exactly one of execution_date or run_id must be passed")
 
@@ -296,7 +290,28 @@ class BaseXCom(Base, LoggingMixin):
         limit: Optional[int] = None,
         session: Optional[Session] = None,
     ) -> Query:
-        ...
+        """Composes a query to get one or more XCom entries.
+
+        This function returns an SQLAlchemy query of full XCom objects. If you
+        just want one stored value, use :meth:`get_one` instead.
+
+        A deprecated form of this function accepts ``execution_date`` instead of
+        ``run_id``. The two arguments are mutually exclusive.
+
+        :param run_id: DAG run ID for the task.
+        :param key: A key for the XComs. If provided, only XComs with matching
+            keys will be returned. Pass *None* (default) to remove the filter.
+        :param task_ids: Only XComs from task with matching IDs will be pulled.
+            Pass *None* (default) to remove the filter.
+        :param dag_id: Only pulls XComs from this DAG. If *None* (default), the
+            DAG of the calling task is used.
+        :param include_prior_dates: If *False* (default), only XComs from the
+            specified DAG run are returned. If *True*, all matching XComs are
+            returned regardless of the run it belongs to.
+        :param session: Database session. If not given, a new session will be
+            created for this function.
+        :type session: sqlalchemy.orm.session.Session
+        """
 
     @overload
     @classmethod
@@ -308,56 +323,25 @@ class BaseXCom(Base, LoggingMixin):
         dag_ids: Union[str, Iterable[str], None] = None,
         include_prior_dates: bool = False,
         limit: Optional[int] = None,
-        *,
         session: Optional[Session] = None,
     ) -> Query:
-        ...
+        """:sphinx-autoapi-skip:"""
 
     @classmethod
     @provide_session
     def get_many(
         cls,
         execution_date: Optional[pendulum.DateTime] = None,
-        run_id: Optional[str] = None,
         key: Optional[str] = None,
         task_ids: Optional[Union[str, Iterable[str]]] = None,
         dag_ids: Optional[Union[str, Iterable[str]]] = None,
         include_prior_dates: bool = False,
         limit: Optional[int] = None,
+        session: Session = None,
         *,
-        session: Session,
+        run_id: Optional[str] = None,
     ) -> Query:
-        """Composes a query to get XCom values.
-
-        An iterable of full XCom objects are returned. If you just want one
-        stored value, use :meth:`get_one` instead. The built-in XCom backend
-        implements this to return a SQLAlchemy query.
-
-        :param run_id: DAG run ID of the task.
-        :type run_id: str
-        :param execution_date: Execution date of the task. Deprecated; use
-            ``run_id`` instead.
-        :type execution_date: pendulum.DateTime
-        :param key: If provided, only XComs with matching keys will be returned.
-            Pass *None* to remove the filter.
-        :type key: str | list[str] | None
-        :param task_ids: If provided, only pulls XComs from task(s) with matching
-            ID. Pass *None* to remove the filter.
-        :type task_ids: str | list[str] | None
-        :param dag_ids: If provided, only pulls XCom from specified DAG(s).
-            If *None* (default), the DAG of the calling task is used.
-        :type dag_ids: str | list[str] | None
-        :param include_prior_dates: If *False*, only XCom values from the
-            current DAG run are returned. If True, XCom values from previous
-            DAG runs are returned as well.
-        :type include_prior_dates: bool
-        :param limit: If provided, limit the number of returned objects.
-            XCom objects can be quite big and you might want to limit the
-            number of rows.
-        :type limit: int
-        :param session: database session
-        :type session: sqlalchemy.orm.session.Session
-        """
+        """:sphinx-autoapi-skip:"""
         from airflow.models.dagrun import DagRun
 
         if not (execution_date is None) ^ (run_id is None):
@@ -403,8 +387,8 @@ class BaseXCom(Base, LoggingMixin):
 
     @classmethod
     @provide_session
-    def delete(cls, xcoms, session=None):
-        """Delete an XCom."""
+    def delete(cls, xcoms: Union["XCom", Iterable["XCom"]], session: Session) -> None:
+        """Delete one or multiple XCom entries."""
         if isinstance(xcoms, XCom):
             xcoms = [xcoms]
         for xcom in xcoms:
@@ -416,7 +400,18 @@ class BaseXCom(Base, LoggingMixin):
     @overload
     @classmethod
     def clear(cls, *, dag_id: str, task_id: str, run_id: str, session: Optional[Session] = None) -> None:
-        ...
+        """Clear all XCom data from the database for the given task instance.
+
+        A deprecated form of this function accepts ``execution_date`` instead of
+        ``run_id``. The two arguments are mutually exclusive.
+
+        :param dag_id: ID of DAG to clear the XCom for.
+        :param task_id: ID of task to clear the XCom for.
+        :param run_id: ID of DAG run to clear the XCom for.
+        :param session: Database session. If not given, a new session will be
+            created for this function.
+        :type session: sqlalchemy.orm.session.Session
+        """
 
     @overload
     @classmethod
@@ -427,7 +422,7 @@ class BaseXCom(Base, LoggingMixin):
         task_id: str,
         session: Optional[Session] = None,
     ) -> None:
-        ...
+        """:sphinx-autoapi-skip:"""
 
     @classmethod
     @provide_session
@@ -436,30 +431,15 @@ class BaseXCom(Base, LoggingMixin):
         execution_date: Optional[pendulum.DateTime] = None,
         dag_id: Optional[str] = None,
         task_id: Optional[str] = None,
-        *,
         run_id: Optional[str] = None,
-        session: Session,
+        session: Session = None,
     ) -> None:
-        """Clears XCom data for the task instance.
-
-        :param run_id: DAG run ID of the task.
-        :type run_id: str
-        :param execution_date: Execution date of the task. Deprecated; use
-            ``run_id`` instead.
-        :type execution_date: pendulum.DateTime
-        :param task_id: Clears XComs from task with matching ID.
-        :type task_ids: str
-        :param dag_id: Clears XCom from this DAG.
-        :type dag_id: str
-        :param session: database session
-        :type session: sqlalchemy.orm.session.Session
-        """
-        # Given the historic order of this function (execution_date was first
-        # argument), we need to add default values for everything to add a new
-        # optional parameter :(
-        if not dag_id:
+        """:sphinx-autoapi-skip:"""
+        # Given the historic order of this function (execution_date was first argument) to add a new optional
+        # param we need to add default values for everything :(
+        if dag_id is None:
             raise TypeError("clear() missing required argument: dag_id")
-        if not task_id:
+        if task_id is None:
             raise TypeError("clear() missing required argument: task_id")
         if not (execution_date is None) ^ (run_id is None):
             raise ValueError("Exactly one of execution_date or run_id must be passed")
@@ -534,6 +514,6 @@ def resolve_xcom_backend() -> Type[BaseXCom]:
 
 
 if TYPE_CHECKING:
-    XCom = BaseXCom  # Hack to avoid Mypy "Variable is not valid as a type".
+    XCom = BaseXCom  # Hack to avoid Mypy "Variable 'XCom' is not valid as a type".
 else:
     XCom = resolve_xcom_backend()

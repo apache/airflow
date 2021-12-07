@@ -59,7 +59,7 @@ class AwsGlueJobHook(AwsBaseHook):
         concurrent_run_limit: int = 1,
         script_location: Optional[str] = None,
         retry_limit: int = 0,
-        num_of_dpus: int = 10,
+        num_of_dpus: Optional[int] = None,
         iam_role_name: Optional[str] = None,
         create_job_kwargs: Optional[dict] = None,
         *args,
@@ -70,11 +70,26 @@ class AwsGlueJobHook(AwsBaseHook):
         self.concurrent_run_limit = concurrent_run_limit
         self.script_location = script_location
         self.retry_limit = retry_limit
-        self.num_of_dpus = num_of_dpus
         self.s3_bucket = s3_bucket
         self.role_name = iam_role_name
         self.s3_glue_logs = 'logs/glue-logs/'
         self.create_job_kwargs = create_job_kwargs or {}
+
+        worker_type_exists = "WorkerType" in self.create_job_kwargs
+        num_workers_exists = "NumberOfWorkers" in self.create_job_kwargs
+
+        if worker_type_exists and num_workers_exists:
+            if num_of_dpus is not None:
+                raise ValueError("Cannot specify num_of_dpus with custom WorkerType")
+        elif not worker_type_exists and num_workers_exists:
+            raise ValueError("Need to specify custom WorkerType when specifying NumberOfWorkers")
+        elif worker_type_exists and not num_workers_exists:
+            raise ValueError("Need to specify NumberOfWorkers when specifying custom WorkerType")
+        elif num_of_dpus is None:
+            self.num_of_dpus = 10
+        else:
+            self.num_of_dpus = num_of_dpus
+
         kwargs['client_type'] = 'glue'
         super().__init__(*args, **kwargs)
 
@@ -180,17 +195,29 @@ class AwsGlueJobHook(AwsBaseHook):
             s3_log_path = f's3://{self.s3_bucket}/{self.s3_glue_logs}{self.job_name}'
             execution_role = self.get_iam_execution_role()
             try:
-                create_job_response = glue_client.create_job(
-                    Name=self.job_name,
-                    Description=self.desc,
-                    LogUri=s3_log_path,
-                    Role=execution_role['Role']['Arn'],
-                    ExecutionProperty={"MaxConcurrentRuns": self.concurrent_run_limit},
-                    Command={"Name": "glueetl", "ScriptLocation": self.script_location},
-                    MaxRetries=self.retry_limit,
-                    AllocatedCapacity=self.num_of_dpus,
-                    **self.create_job_kwargs,
-                )
+                if "WorkerType" in self.create_job_kwargs and "NumberOfWorkers" in self.create_job_kwargs:
+                    create_job_response = glue_client.create_job(
+                        Name=self.job_name,
+                        Description=self.desc,
+                        LogUri=s3_log_path,
+                        Role=execution_role['Role']['Arn'],
+                        ExecutionProperty={"MaxConcurrentRuns": self.concurrent_run_limit},
+                        Command={"Name": "glueetl", "ScriptLocation": self.script_location},
+                        MaxRetries=self.retry_limit,
+                        **self.create_job_kwargs,
+                    )
+                else:
+                    create_job_response = glue_client.create_job(
+                        Name=self.job_name,
+                        Description=self.desc,
+                        LogUri=s3_log_path,
+                        Role=execution_role['Role']['Arn'],
+                        ExecutionProperty={"MaxConcurrentRuns": self.concurrent_run_limit},
+                        Command={"Name": "glueetl", "ScriptLocation": self.script_location},
+                        MaxRetries=self.retry_limit,
+                        MaxCapacity=self.num_of_dpus,
+                        **self.create_job_kwargs,
+                    )
                 return create_job_response['Name']
             except Exception as general_error:
                 self.log.error("Failed to create aws glue job, error: %s", general_error)

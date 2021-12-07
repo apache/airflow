@@ -25,8 +25,8 @@
 /docs/*.py @kaxil
 
 # API
-/airflow/api/ @mik-laj @kaxil
-/airflow/api_connexion/ @mik-laj @kaxil @ephraimbuddy
+/airflow/api/ @mik-laj
+/airflow/api_connexion/ @mik-laj @ephraimbuddy
 
 # UI
 /airflow/ui/ @ryanahamilton @ashb @bbovenzi

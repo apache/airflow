@@ -32,7 +32,7 @@ By default, Airflow uses **SQLite**, which is intended for development purposes 
 
 Airflow supports the following database engine versions, so make sure which version you have. Old versions may not support all SQL statements.
 
-* PostgreSQL:  9.6, 10, 11, 12, 13
+* PostgreSQL: 10, 11, 12, 13
 * MySQL: 5.7, 8
 * MsSQL: 2017, 2019
 * SQLite: 3.15.0+
@@ -64,7 +64,7 @@ Setting up a SQLite Database
 ----------------------------
 
 SQLite database can be used to run Airflow for development purpose as it does not require any database server
-(the database is stored in a local file). There are a few limitations of using the SQLite database (for example
+(the database is stored in a local file). There are many limitations of using the SQLite database (for example
 it only works with Sequential Executor) and it should NEVER be used for production.
 
 There is a minimum version of sqlite3 required to run Airflow 2.0+ - minimum version is 3.15.0. Some of the

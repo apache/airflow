@@ -26,6 +26,7 @@ from airflow.utils.session import create_session, provide_session
 from airflow.utils.state import State
 
 if TYPE_CHECKING:
+    from pendulum import DateTime
     from sqlalchemy import Session
 
     from airflow.models import DagRun
@@ -66,9 +67,9 @@ class SkipMixin(LoggingMixin):
     def skip(
         self,
         dag_run: "DagRun",
-        execution_date: "timezone.DateTime",
+        execution_date: "DateTime",
         tasks: Sequence["BaseOperator"],
-        session: "Session" = None,
+        session: "Session",
     ):
         """
         Sets tasks instances to skipped from the same dag run.

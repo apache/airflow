@@ -251,6 +251,9 @@ sensors:
   - integration-name: Amazon Athena
     python-modules:
       - airflow.providers.amazon.aws.sensors.athena
+  - integration-name: AWS Batch
+    python-modules:
+      - airflow.providers.amazon.aws.sensors.batch
   - integration-name: Amazon CloudFormation
     python-modules:
       - airflow.providers.amazon.aws.sensors.cloud_formation

@@ -76,6 +76,10 @@ class QuboleCheckOperator(_QuboleCheckOperatorMixin, SQLCheckOperator, QuboleOpe
     publishing dubious data, or on the side and receive email alerts
     without stopping the progress of the DAG.
 
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:QuboleCheckOperator`
+
     :param qubole_conn_id: Connection id which consists of qds auth_token
     :type qubole_conn_id: str
 

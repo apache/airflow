@@ -31,11 +31,14 @@ For high-level changelog, see :doc:`package information including changelog <ind
 2.1.0
 .....
 
-Latest change: 2021-11-24
+Latest change: 2021-12-05
 
 =================================================================================================  ===========  =============================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  =============================================================================
+`728e94a47e <https://github.com/apache/airflow/commit/728e94a47e0048829ce67096235d34019be9fac7>`_  2021-12-05   ``Refactor DatabricksHook (#19835)``
+`4925b37b66 <https://github.com/apache/airflow/commit/4925b37b661a1117dc9f1a10be11f03e67e1a413>`_  2021-12-04   ``Databricks hook: fix expiration time check (#20036)``
+`853576d901 <https://github.com/apache/airflow/commit/853576d9019d2aca8de1d9c587c883dcbe95b46a>`_  2021-11-30   ``Update documentation for November 2021 provider's release (#19882)``
 `11998848a4 <https://github.com/apache/airflow/commit/11998848a4b07f255ae8fcd78d6ad549dabea7e6>`_  2021-11-24   ``Databricks: add more methods to represent run state information (#19723)``
 `56bdfe7a84 <https://github.com/apache/airflow/commit/56bdfe7a840c25360d596ca94fd11d2ccfadb4ba>`_  2021-11-22   ``Databricks - allow Azure SP authentication on other Azure clouds (#19722)``
 `244627e3da <https://github.com/apache/airflow/commit/244627e3daa3e416696e5ddb20a2d4ea5e16b96e>`_  2021-11-14   ``Databricks: allow to specify PAT in Password field (#19585)``

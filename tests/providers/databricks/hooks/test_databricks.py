@@ -19,6 +19,7 @@
 
 import itertools
 import json
+import time
 import unittest
 from unittest import mock
 
@@ -31,9 +32,11 @@ from airflow.models import Connection
 from airflow.providers.databricks.hooks.databricks import (
     AZURE_DEFAULT_AD_ENDPOINT,
     AZURE_MANAGEMENT_ENDPOINT,
+    AZURE_METADATA_SERVICE_TOKEN_URL,
     AZURE_TOKEN_SERVICE_URL,
     DEFAULT_DATABRICKS_SCOPE,
     SUBMIT_RUN_ENDPOINT,
+    TOKEN_REFRESH_LEAD_TIME,
     DatabricksHook,
     RunState,
 )
@@ -63,7 +66,7 @@ GET_RUN_RESPONSE = {
 }
 NOTEBOOK_PARAMS = {"dry-run": "true", "oldest-time-to-consider": "1457570074236"}
 JAR_PARAMS = ["param1", "param2"]
-RESULT_STATE = None  # type: None
+RESULT_STATE = ''
 LIBRARIES = [
     {"jar": "dbfs:/mnt/libraries/library.jar"},
     {"maven": {"coordinates": "org.jsoup:jsoup:1.7.2", "exclusions": ["slf4j:slf4j"]}},
@@ -520,6 +523,14 @@ class TestDatabricksHook(unittest.TestCase):
             timeout=self.hook.timeout_seconds,
         )
 
+    def test_is_aad_token_valid_returns_true(self):
+        aad_token = {'token': 'my_token', 'expires_on': int(time.time()) + TOKEN_REFRESH_LEAD_TIME + 10}
+        self.assertTrue(self.hook._is_aad_token_valid(aad_token))
+
+    def test_is_aad_token_valid_returns_false(self):
+        aad_token = {'token': 'my_token', 'expires_on': int(time.time())}
+        self.assertFalse(self.hook._is_aad_token_valid(aad_token))
+
 
 class TestDatabricksHookToken(unittest.TestCase):
     """
@@ -762,3 +773,46 @@ class TestDatabricksHookAadTokenSpOutside(unittest.TestCase):
         assert kwargs['auth'].token == TOKEN
         assert kwargs['headers']['X-Databricks-Azure-Workspace-Resource-Id'] == '/Some/resource'
         assert kwargs['headers']['X-Databricks-Azure-SP-Management-Token'] == TOKEN
+
+
+class TestDatabricksHookAadTokenManagedIdentity(unittest.TestCase):
+    """
+    Tests for DatabricksHook when auth is done with AAD leveraging Managed Identity authentication
+    """
+
+    @provide_session
+    def setUp(self, session=None):
+        conn = session.query(Connection).filter(Connection.conn_id == DEFAULT_CONN_ID).first()
+        conn.host = HOST
+        conn.extra = json.dumps(
+            {
+                'use_azure_managed_identity': True,
+            }
+        )
+        session.commit()
+        self.hook = DatabricksHook()
+
+    @mock.patch('airflow.providers.databricks.hooks.databricks.requests')
+    def test_submit_run(self, mock_requests):
+        mock_requests.codes.ok = 200
+        mock_requests.get.side_effect = [
+            create_successful_response_mock({'compute': {'azEnvironment': 'AZUREPUBLICCLOUD'}}),
+            create_successful_response_mock(create_aad_token_for_resource(DEFAULT_DATABRICKS_SCOPE)),
+        ]
+        mock_requests.post.side_effect = [
+            create_successful_response_mock({'run_id': '1'}),
+        ]
+        status_code_mock = mock.PropertyMock(return_value=200)
+        type(mock_requests.post.return_value).status_code = status_code_mock
+        data = {'notebook_task': NOTEBOOK_TASK, 'new_cluster': NEW_CLUSTER}
+        run_id = self.hook.submit_run(data)
+
+        ad_call_args = mock_requests.method_calls[0]
+        assert ad_call_args[1][0] == AZURE_METADATA_SERVICE_TOKEN_URL
+        assert ad_call_args[2]['params']['api-version'] > '2018-02-01'
+        assert ad_call_args[2]['headers']['Metadata'] == 'true'
+
+        assert run_id == '1'
+        args = mock_requests.post.call_args
+        kwargs = args[1]
+        assert kwargs['auth'].token == TOKEN

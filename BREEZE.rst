@@ -393,11 +393,10 @@ you can also start integrations (separate Docker images) if specified as extra `
 chose which backend database should be used with ``--backend`` flag and python version with ``--python`` flag.
 
 You can also have breeze launch Airflow automatically ``breeze start-airflow``, this will drop you in a
-tmux session with four panes:
+tmux session with three panes:
 
    - one to monitor the scheduler,
    - one for the webserver,
-   - one monitors and compiles JavaScript files,
    - one with a shell for additional commands.
 
 Managing Prod environment (with ``--production-image`` flag):
@@ -1841,7 +1840,7 @@ This is the current syntax for  `./breeze <./breeze>`_:
   --postgres-version POSTGRES_VERSION
           Postgres version used. One of:
 
-                 9.6 10 11 12 13
+                 10 11 12 13
 
   --mysql-version MYSQL_VERSION
           MySql version used. One of:
@@ -2321,7 +2320,7 @@ This is the current syntax for  `./breeze <./breeze>`_:
   --postgres-version POSTGRES_VERSION
           Postgres version used. One of:
 
-                 9.6 10 11 12 13
+                 10 11 12 13
 
   --mysql-version MYSQL_VERSION
           MySql version used. One of:

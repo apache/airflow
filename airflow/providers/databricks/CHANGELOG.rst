@@ -36,11 +36,14 @@ Bug Fixes
 ~~~~~~~~~
 
 * ``Fixup string concatenations (#19099)``
+* ``Databricks hook: fix expiration time check (#20036)``
 
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):
    * ``Update Databricks operators to match latest version of API 2.0 (#19443)``
    * ``Prepare documentation for October Provider's release (#19321)``
+   * ``Refactor DatabricksHook (#19835)``
+   * ``Update documentation for November 2021 provider&#39;s release (#19882)``
 
 2.0.2
 .....
