@@ -87,11 +87,7 @@ class BaseTaskRunner(LoggingMixin):
 
         self._error_file = NamedTemporaryFile(delete=True)
         if self.run_as_user:
-            try:
-                os.chown(self._error_file.name, getpwnam(self.run_as_user).pw_uid, -1)
-            except KeyError:
-                # No user `run_as_user` found
-                pass
+            subprocess.call(['sudo', 'chown', self.run_as_user, self._error_file.name], close_fds=True)
 
         self._cfg_path = cfg_path
         self._command = (
