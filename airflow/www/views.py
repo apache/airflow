@@ -30,12 +30,13 @@ from datetime import timedelta
 from functools import wraps
 from json import JSONDecodeError
 from operator import itemgetter
-from typing import Any, Callable, List, Optional, Set, Tuple, Union
+from typing import Any, Callable, Dict, List, Optional, Set, Tuple, Union
 from urllib.parse import parse_qsl, unquote, urlencode, urlparse
 
 import lazy_object_proxy
 import markupsafe
 import nvd3
+import sqlalchemy
 import sqlalchemy as sqla
 from flask import (
     Markup,
@@ -543,7 +544,8 @@ class AirflowBaseView(BaseView):
     }
 
     if not conf.getboolean('core', 'unit_test_mode'):
-        extra_args['sqlite_warning'] = settings.Session.bind.dialect.name == 'sqlite'
+        session: sqlalchemy.orm.session.Session = settings.Session
+        extra_args['sqlite_warning'] = session.bind.dialect.name == 'sqlite'
         extra_args['sequential_executor_warning'] = conf.get('core', 'executor') == 'SequentialExecutor'
 
     line_chart_attr = {
@@ -3447,7 +3449,7 @@ class ConnectionModelView(AirflowModelView):
     edit_columns = add_columns.copy()
 
     # Initialized later by lazy_add_provider_discovered_options_to_connection_form
-    extra_fields = []
+    extra_fields: List[str] = []
 
     add_form = edit_form = ConnectionForm
     add_template = 'airflow/conn_create.html'
@@ -4150,7 +4152,7 @@ class DagRunModelView(AirflowPrivilegeVerifierModelView):
         try:
             count = 0
             cleared_ti_count = 0
-            dag_to_tis = {}
+            dag_to_tis: Dict[DAG, List[TaskInstance]] = {}
             for dr in session.query(DagRun).filter(DagRun.id.in_([dagrun.id for dagrun in drs])).all():
                 count += 1
                 dag = current_app.dag_bag.get_dag(dr.dag_id)
@@ -4562,8 +4564,8 @@ class DagDependenciesView(AirflowBaseView):
         )
     )
     last_refresh = timezone.utcnow() - refresh_interval
-    nodes = []
-    edges = []
+    nodes: List[Dict[str, Any]] = []
+    edges: List[Dict[str, str]] = []
 
     @expose('/dag-dependencies')
     @auth.has_access(
@@ -4599,8 +4601,8 @@ class DagDependenciesView(AirflowBaseView):
 
     def _calculate_graph(self):
 
-        nodes = []
-        edges = []
+        nodes: List[Dict[str, Any]] = []
+        edges: List[Dict[str, str]] = []
 
         for dag, dependencies in SerializedDagModel.get_dag_dependencies().items():
             dag_node_id = f"dag:{dag}"
