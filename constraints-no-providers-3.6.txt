@@ -90,7 +90,7 @@ gssapi==1.7.2
 gunicorn==20.1.0
 h11==0.12.0
 httpcore==0.13.7
-httpx==0.20.0
+httpx==0.19.0
 humanize==3.12.0
 idna==3.3
 immutables==0.16
