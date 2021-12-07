@@ -86,6 +86,7 @@ class RedshiftResumeClusterOperator(BaseOperator):
     :param aws_conn_id: aws connection to use
     :type aws_conn_id: str
     """
+
     template_fields = ("cluster_identifier",)
     ui_color = "#eeaa11"
     ui_fgcolor = "#ffffff"
