@@ -1067,6 +1067,7 @@ pem
 performant
 personalizations
 pformat
+picklable
 pid
 pigcmd
 pinodb
