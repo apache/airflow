@@ -32,7 +32,7 @@ from airflow.models.base import COLLATION_ARGS, ID_LEN, Base
 from airflow.utils import timezone
 from airflow.utils.helpers import is_container
 from airflow.utils.log.logging_mixin import LoggingMixin
-from airflow.utils.session import provide_session
+from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.sqlalchemy import UtcDateTime
 
 log = logging.getLogger(__name__)
@@ -90,7 +90,7 @@ class BaseXCom(Base, LoggingMixin):
         dag_id: str,
         task_id: str,
         run_id: str,
-        session: Optional[Session] = None,
+        session: Session = NEW_SESSION,
     ) -> None:
         """Store an XCom value.
 
@@ -116,7 +116,7 @@ class BaseXCom(Base, LoggingMixin):
         task_id: str,
         dag_id: str,
         execution_date: datetime.datetime,
-        session: Optional[Session] = None,
+        session: Session = NEW_SESSION,
     ) -> None:
         """:sphinx-autoapi-skip:"""
 
@@ -129,7 +129,7 @@ class BaseXCom(Base, LoggingMixin):
         task_id: str,
         dag_id: str,
         execution_date: Optional[datetime.datetime] = None,
-        session: Session = None,
+        session: Session = NEW_SESSION,
         *,
         run_id: Optional[str] = None,
     ) -> None:
@@ -170,7 +170,7 @@ class BaseXCom(Base, LoggingMixin):
         task_id: Optional[str] = None,
         dag_id: Optional[str] = None,
         include_prior_dates: bool = False,
-        session: Optional[Session] = None,
+        session: Session = NEW_SESSION,
     ) -> Optional[Any]:
         """Retrieve an XCom value, optionally meeting certain criteria.
 
@@ -207,7 +207,7 @@ class BaseXCom(Base, LoggingMixin):
         task_id: Optional[str] = None,
         dag_id: Optional[str] = None,
         include_prior_dates: bool = False,
-        session: Optional[Session] = None,
+        session: Session = NEW_SESSION,
     ) -> Optional[Any]:
         """:sphinx-autoapi-skip:"""
 
@@ -220,7 +220,7 @@ class BaseXCom(Base, LoggingMixin):
         task_id: Optional[Union[str, Iterable[str]]] = None,
         dag_id: Optional[Union[str, Iterable[str]]] = None,
         include_prior_dates: bool = False,
-        session: Session = None,
+        session: Session = NEW_SESSION,
         *,
         run_id: Optional[str] = None,
     ) -> Optional[Any]:
@@ -265,7 +265,7 @@ class BaseXCom(Base, LoggingMixin):
         dag_ids: Union[str, Iterable[str], None] = None,
         include_prior_dates: bool = False,
         limit: Optional[int] = None,
-        session: Optional[Session] = None,
+        session: Session = NEW_SESSION,
     ) -> Query:
         """Composes a query to get one or more XCom entries.
 
@@ -300,7 +300,7 @@ class BaseXCom(Base, LoggingMixin):
         dag_ids: Union[str, Iterable[str], None] = None,
         include_prior_dates: bool = False,
         limit: Optional[int] = None,
-        session: Optional[Session] = None,
+        session: Session = NEW_SESSION,
     ) -> Query:
         """:sphinx-autoapi-skip:"""
 
@@ -314,7 +314,7 @@ class BaseXCom(Base, LoggingMixin):
         dag_ids: Optional[Union[str, Iterable[str]]] = None,
         include_prior_dates: bool = False,
         limit: Optional[int] = None,
-        session: Session = None,
+        session: Session = NEW_SESSION,
         *,
         run_id: Optional[str] = None,
     ) -> Query:
@@ -397,7 +397,7 @@ class BaseXCom(Base, LoggingMixin):
         execution_date: pendulum.DateTime,
         dag_id: str,
         task_id: str,
-        session: Optional[Session] = None,
+        session: Session = NEW_SESSION,
     ) -> None:
         """:sphinx-autoapi-skip:"""
 
@@ -409,7 +409,7 @@ class BaseXCom(Base, LoggingMixin):
         dag_id: Optional[str] = None,
         task_id: Optional[str] = None,
         run_id: Optional[str] = None,
-        session: Session = None,
+        session: Session = NEW_SESSION,
     ) -> None:
         """:sphinx-autoapi-skip:"""
         # Given the historic order of this function (execution_date was first argument) to add a new optional
