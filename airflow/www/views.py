@@ -36,7 +36,6 @@ from urllib.parse import parse_qsl, unquote, urlencode, urlparse
 import lazy_object_proxy
 import markupsafe
 import nvd3
-import sqlalchemy
 import sqlalchemy as sqla
 from flask import (
     Markup,
@@ -544,8 +543,7 @@ class AirflowBaseView(BaseView):
     }
 
     if not conf.getboolean('core', 'unit_test_mode'):
-        session: sqlalchemy.orm.session.Session = settings.Session
-        extra_args['sqlite_warning'] = session.bind.dialect.name == 'sqlite'
+        extra_args['sqlite_warning'] = settings.Session.bind.dialect.name == 'sqlite'
         extra_args['sequential_executor_warning'] = conf.get('core', 'executor') == 'SequentialExecutor'
 
     line_chart_attr = {
