@@ -87,7 +87,7 @@ To install this chart using Helm 3, run the following commands:
 .. code-block:: bash
 
     helm repo add apache-airflow https://airflow.apache.org
-    helm upgrade airflow apache-airflow/airflow --namespace airflow --create-namespace --install
+    helm upgrade --install airflow apache-airflow/airflow --namespace airflow --create-namespace
 
 The command deploys Airflow on the Kubernetes cluster in the default configuration. The :doc:`parameters-ref`
 section lists the parameters that can be configured during installation.
