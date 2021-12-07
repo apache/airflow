@@ -91,7 +91,7 @@ class ExecutorLoader:
             return cls.__load_celery_kubernetes_executor()
         elif executor_name == LOCAL_KUBERNETES_EXECUTOR:
             return cls.__load_local_kubernetes_executor()
-          
+
         try:
             executor_cls, import_source = cls.import_executor_cls(executor_name)
             log.debug("Loading executor %s from %s", executor_name, import_source.value)
