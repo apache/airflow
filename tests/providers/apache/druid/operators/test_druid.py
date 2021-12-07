@@ -23,7 +23,6 @@ from airflow.utils import timezone
 from airflow.utils.types import DagRunType
 
 DEFAULT_DATE = timezone.datetime(2017, 1, 1)
-DEFAULT_TIMEOUT = 1
 
 JSON_INDEX_STR = """
     {
@@ -102,5 +101,5 @@ def test_init_default_timeout():
         json_index_file=JSON_INDEX_STR,
         params={"index_type": "index_hadoop", "datasource": "datasource_prd"},
     )
-
-    assert DEFAULT_TIMEOUT == operator.timeout
+    expected_default_timeout = 1
+    assert expected_default_timeout == operator.timeout
