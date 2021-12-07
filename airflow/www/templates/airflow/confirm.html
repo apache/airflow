@@ -38,6 +38,10 @@
     {% for name,val in request.values.items() if name != "csrf_token" %}
       <input type="hidden" name="{{ name }}" value="{{ val }}">
     {% endfor %}
+    <div class="form-group" style="max-width: 360px">
+      <label for="comment">(Optional) Add a comment explaining the reason for this action.</label>
+      <textarea class="form-control" name="comment">{{ comment }}</textarea>
+    </div>
     <button type="submit" class="btn btn-primary">OK</button>
     <button type="button" class="btn" onclick="window.history.back(); return false">Cancel</button>
   </form>
