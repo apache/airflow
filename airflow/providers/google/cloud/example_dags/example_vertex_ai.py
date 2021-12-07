@@ -22,9 +22,15 @@ Cloud Platform.
 
 This DAG relies on the following OS environment variables:
 
-* GCP_BUCKET_NAME - Google Cloud Storage bucket where the file exists.
+* GCP_VERTEX_AI_BUCKET - Google Cloud Storage bucket where the model will be saved
+after training process was finished.
+* CUSTOM_CONTAINER_URI - path to container with model.
+* PYTHON_PACKAGE_GSC_URI - path to test model in archive.
+* LOCAL_TRAINING_SCRIPT_PATH - path to local training script.
+* DATASET_ID - ID of dataset which will be used in training process.
 """
 import os
+from datetime import datetime
 from uuid import uuid4
 
 from airflow import models
@@ -44,7 +50,6 @@ from airflow.providers.google.cloud.operators.vertex_ai.dataset import (
     ListDatasetsOperator,
     UpdateDatasetOperator,
 )
-from airflow.utils.dates import days_ago
 
 PROJECT_ID = os.environ.get("GCP_PROJECT_ID", "an-id")
 REGION = os.environ.get("GCP_LOCATION", "us-central1")
@@ -116,8 +121,9 @@ TEST_UPDATE_MASK = {"paths": ["displayName"]}
 
 with models.DAG(
     "example_gcp_vertex_ai_custom_jobs",
-    start_date=days_ago(1),
     schedule_interval="@once",
+    start_date=datetime(2021, 1, 1),
+    catchup=False,
 ) as custom_jobs_dag:
     # [START how_to_cloud_vertex_ai_create_custom_container_training_job_operator]
     create_custom_container_training_job = CreateCustomContainerTrainingJobOperator(
@@ -205,8 +211,9 @@ with models.DAG(
 
 with models.DAG(
     "example_gcp_vertex_ai_dataset",
-    start_date=days_ago(1),
     schedule_interval="@once",
+    start_date=datetime(2021, 1, 1),
+    catchup=False,
 ) as dataset_dag:
     # [START how_to_cloud_vertex_ai_create_dataset_operator]
     create_image_dataset_job = CreateDatasetOperator(
