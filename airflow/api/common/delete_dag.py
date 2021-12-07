@@ -60,7 +60,12 @@ def delete_dag(dag_id: str, keep_records_in_log: bool = True, session=None) -> i
 
     count = 0
 
-    for model in models.base.Base._decl_class_registry.values():
+    try:
+        models_ = models.base.Base._decl_class_registry.values()
+    except AttributeError:
+        models_ = [mapper.class_ for mapper in models.base.Base.registry.mappers]
+
+    for model in models_:
         if hasattr(model, "dag_id"):
             if keep_records_in_log and model.__name__ == 'Log':
                 continue
