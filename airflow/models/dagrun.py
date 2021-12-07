@@ -15,6 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+import os
 import warnings
 from datetime import datetime
 from typing import TYPE_CHECKING, Any, Dict, Iterable, List, NamedTuple, Optional, Tuple, Union
@@ -94,7 +95,11 @@ class DagRun(Base, LoggingMixin):
     last_scheduling_decision = Column(UtcDateTime)
     dag_hash = Column(String(32))
 
-    dag: "Optional[DAG]" = None
+    # Remove this `if` after upgrading Sphinx-AutoAPI
+    if not TYPE_CHECKING and "BUILDING_AIRFLOW_DOCS" in os.environ:
+        dag: "Optional[DAG]"
+    else:
+        dag: "Optional[DAG]" = None
 
     __table_args__ = (
         Index('dag_id_state', dag_id, _state),
