@@ -164,7 +164,9 @@ class TestSFTPToWasbOperator(unittest.TestCase):
 
         operator.sftp_hook.retrieve_file.assert_has_calls([mock.call("main_dir/test_object3.json", mock.ANY)])
 
-        mock_hook.return_value.load_file.assert_called_once_with(mock.ANY, CONTAINER_NAME, EXPECTED_BLOB_NAME)
+        mock_hook.return_value.load_file.assert_called_once_with(
+            mock.ANY, CONTAINER_NAME, EXPECTED_BLOB_NAME, overwrite=False
+        )
 
         assert len(files) == 1, "no matched at expected uploaded files"
 
@@ -214,7 +216,9 @@ class TestSFTPToWasbOperator(unittest.TestCase):
             [mock.call("main_dir/test_object.json", mock.ANY)]
         )
 
-        mock_hook.return_value.load_file.assert_called_once_with(mock.ANY, CONTAINER_NAME, "test_object.json")
+        mock_hook.return_value.load_file.assert_called_once_with(
+            mock.ANY, CONTAINER_NAME, "test_object.json", overwrite=False
+        )
 
         sftp_hook.return_value.delete_file.assert_not_called()
 
@@ -248,6 +252,6 @@ class TestSFTPToWasbOperator(unittest.TestCase):
         )
 
         mock_hook.return_value.load_file.assert_called_once_with(
-            mock.ANY, CONTAINER_NAME, BLOB_PREFIX + "test_object.json"
+            mock.ANY, CONTAINER_NAME, BLOB_PREFIX + "test_object.json", overwrite=False
         )
         assert sftp_hook.return_value.delete_file.called is True, "File must be moved"
