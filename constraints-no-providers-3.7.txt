@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2021-12-07T08:19:50Z
+# This constraints file was automatically generated on 2021-12-08T06:35:25Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install just the 'bare' 'apache-airflow' package build from the HEAD of
 # the branch, without installing any of the providers.
@@ -24,7 +24,7 @@ HeapDict==1.0.1
 Jinja2==3.0.3
 Mako==1.1.6
 Markdown==3.3.6
-MarkupSafe==2.0.0
+MarkupSafe==2.0.1
 PyJWT==1.7.1
 PyYAML==5.4.1
 Pygments==2.10.0
@@ -77,10 +77,10 @@ flower==1.0.0
 fsspec==2021.11.1
 gevent==21.8.0
 google-ads==14.0.0
-google-api-core==2.2.2
+google-api-core==2.3.0
 google-auth-oauthlib==0.4.6
 google-auth==2.3.3
-googleapis-common-protos==1.53.0
+googleapis-common-protos==1.54.0
 graphviz==0.19
 greenlet==1.1.2
 grpcio==1.42.0
@@ -172,7 +172,7 @@ urllib3==1.26.7
 vine==5.0.0
 virtualenv==20.10.0
 wcwidth==0.2.5
-websocket-client==1.2.2
+websocket-client==1.2.3
 zict==2.0.0
 zipp==3.6.0
 zope.event==4.5.0
