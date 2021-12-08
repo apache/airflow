@@ -111,7 +111,7 @@ There's also some design constraints to be aware of:
 * ``run`` must ``yield`` its TriggerEvents, not return them. If it returns before yielding at least one event, Airflow will consider this an error and fail any Task Instances waiting on it. If it throws an exception, Airflow will also fail any dependent task instances.
 * You must assume that duplicates of your trigger instance may run simultaneously.  This can happen if a network partition happens and Airflow re-launches a trigger on a separated machine.
 * When events are emitted, and if your trigger is designed to emit more than one event, they *must* contain a payload that can be used to deduplicate events if the trigger is being run in multiple places. If you only fire one event, and don't want to pass information in the payload back to the Operator that deferred, you can just set the payload to ``None``.
-* A trigger may be suddenly removed from one triggerer service and started on a new one (e.g. if network partitions are being changed, or a deployment is happening). If desired you may implement ``cleanup`` method that is always called after ``run`` whether the trigger exits cleanly or otherwise.
+* A trigger may be suddenly removed from one triggerer service and started on a new one (e.g. if network partitions (Subnets for example) are being changed, or a deployment is happening). If desired you may implement ``cleanup`` method that is always called after ``run`` whether the trigger exits cleanly or otherwise.
 
 .. note::
 
