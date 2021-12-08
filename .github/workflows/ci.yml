@@ -568,7 +568,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
           github.ref == 'refs/heads/main' && github.repository == 'apache/airflow' &&
           github.event_name == 'push'
         with:
-          role-to-assume: ${{ secrets.DOCS_AWS_ROLE_TO_ASSUME }}
+          role-to-assume: 'arn:aws:iam::827901512104:role/GithubActionApacheAirflow'
           role-session-name: GitHubActions-${{ github.run_id }}
           aws-region: eu-central-1
       - name: "Upload documentation to AWS S3"
