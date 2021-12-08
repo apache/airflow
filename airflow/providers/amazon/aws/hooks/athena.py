@@ -245,6 +245,7 @@ class AWSAthenaHook(AwsBaseHook):
                     output_location = response['QueryExecution']['ResultConfiguration']['OutputLocation']
                 except KeyError:
                     self.log.error("Error retrieving OutputLocation")
+                    raise
         else:
             self.log.error("Invalid Query execution id")
 
