@@ -54,7 +54,7 @@ def _check_cli_args(args):
         )
 
 
-def action_cli(check_db=True):
+def action_cli(func=None, check_db=True):
     def action_logging(f: T) -> T:
         """
         Decorates function to execute function at the same time submitting action_logging

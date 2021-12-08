@@ -85,7 +85,7 @@ def _find_user(args):
     return user
 
 
-@cli_utils.action_cli()
+@cli_utils.action_cli
 def users_delete(args):
     """Deletes user from DB"""
     user = _find_user(args)
@@ -98,7 +98,7 @@ def users_delete(args):
         raise SystemExit('Failed to delete user')
 
 
-@cli_utils.action_cli()
+@cli_utils.action_cli
 def users_manage_role(args, remove=False):
     """Deletes or appends user roles"""
     user = _find_user(args)
@@ -152,7 +152,7 @@ def users_export(args):
         print(f"{len(users)} users successfully exported to {file.name}")
 
 
-@cli_utils.action_cli()
+@cli_utils.action_cli
 def users_import(args):
     """Imports users from the json file"""
     json_file = getattr(args, 'import')
