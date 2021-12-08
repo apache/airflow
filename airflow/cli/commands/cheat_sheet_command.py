@@ -37,14 +37,13 @@ def display_commands_index():
     ):
         actions: List[ActionCommand]
         groups: List[GroupCommand]
-        actions_iter: List[ActionCommand] = []
-        groups_iter: List[GroupCommand] = []
+        actions: List[ActionCommand] = []
+        groups: List[GroupCommand] = []
         for command in commands:
             if isinstance(command, GroupCommand):
-                groups_iter.append(command)
+                groups.append(command)
             else:
-                actions_iter.append(command)
-        actions, groups = list(actions_iter), list(groups_iter)
+                actions.append(command)
 
         console = AirflowConsole()
         if actions:
