@@ -20,7 +20,14 @@ from contextlib import contextmanager
 from typing import Any, Dict, Optional
 from weakref import WeakKeyDictionary
 
-from pypsrp.messages import ErrorRecord, InformationRecord, ProgressRecord
+from pypsrp.messages import (
+    DebugRecord,
+    ErrorRecord,
+    InformationRecord,
+    ProgressRecord,
+    VerboseRecord,
+    WarningRecord,
+)
 from pypsrp.powershell import PowerShell, PSInvocationState, RunspacePool
 from pypsrp.wsman import WSMan
 
@@ -120,10 +127,12 @@ class PSRPHook(BaseHook):
         ps.begin_invoke()
         if self._logging:
             streams = [
-                (ps.output, self._log_output),
                 (ps.streams.debug, self._log_record),
-                (ps.streams.information, self._log_record),
                 (ps.streams.error, self._log_record),
+                (ps.streams.information, self._log_record),
+                (ps.streams.progress, self._log_record),
+                (ps.streams.verbose, self._log_record),
+                (ps.streams.warning, self._log_record),
             ]
             offsets = [0 for _ in streams]
 
@@ -161,22 +170,29 @@ class PSRPHook(BaseHook):
             ps.add_script(script)
         return ps
 
-    def _log_output(self, message: str):
-        self.log.info("%s", message)
-
     def _log_record(self, record):
-        # TODO: Consider translating some or all of these records into
-        # normal logging levels, using `log(level, msg, *args)`.
+        if isinstance(record, DebugRecord):
+            self.log.debug("%s: %s", record.command_name, record.message)
+            return
+
         if isinstance(record, ErrorRecord):
-            self.log.info("Error: %s", record)
+            self.log.error("%s: %s", record.command_name, record.message)
+            return
+
+        if isinstance(record, VerboseRecord):
+            self.log.info("%s: %s", record.command_name, record.message)
+            return
+
+        if isinstance(record, WarningRecord):
+            self.log.warning("%s: %s", record.command_name, record.message)
             return
 
         if isinstance(record, InformationRecord):
-            self.log.info("Information: %s", record.message_data)
+            self.log.info("%s (%s): %s", record.computer, record.user, record.message_data)
             return
 
         if isinstance(record, ProgressRecord):
             self.log.info("Progress: %s (%s)", record.activity, record.description)
             return
 
-        self.log.info("Unsupported record type: %s", type(record).__name__)
+        self.log.warning("Unsupported record type: %s", type(record).__name__)

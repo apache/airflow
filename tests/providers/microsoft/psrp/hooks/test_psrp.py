@@ -21,8 +21,15 @@ from unittest import TestCase
 from unittest.mock import MagicMock, call, patch
 
 from parameterized import parameterized
-from pypsrp.messages import InformationRecord
-from pypsrp.powershell import PSInvocationState, RunspacePoolState
+from pypsrp.messages import (
+    DebugRecord,
+    ErrorRecord,
+    InformationRecord,
+    ProgressRecord,
+    VerboseRecord,
+    WarningRecord,
+)
+from pypsrp.powershell import PSInvocationState
 
 from airflow.models import Connection
 from airflow.providers.microsoft.psrp.hooks.psrp import PSRPHook
@@ -36,16 +43,32 @@ class MockPowerShell(MagicMock):
         self.state = PSInvocationState.NOT_STARTED
 
     def poll_invoke(self, timeout=None):
-        self.output.append("<output>")
-        self.streams.debug.append(MagicMock(spec=InformationRecord, message_data="<message>"))
+        self.output.append("output")
+
+        def record(spec, message):
+            return MagicMock(spec=spec, command_name="command", message=message)
+
+        self.streams.debug.append(record(DebugRecord, "debug"))
+        self.streams.error.append(record(ErrorRecord, "error"))
+        self.streams.verbose.append(record(VerboseRecord, "verbose"))
+        self.streams.warning.append(record(WarningRecord, "warning"))
+        self.streams.information.append(
+            MagicMock(spec=InformationRecord, computer="computer", user="user", message_data="information")
+        )
+        self.streams.progress.append(
+            MagicMock(spec=ProgressRecord, activity="activity", description="description")
+        )
         self.state = PSInvocationState.COMPLETED
 
     def begin_invoke(self):
         self.state = PSInvocationState.RUNNING
         self.output = []
         self.streams.debug = []
-        self.streams.information = []
         self.streams.error = []
+        self.streams.information = []
+        self.streams.progress = []
+        self.streams.verbose = []
+        self.streams.warning = []
 
     def end_invoke(self):
         while self.state == PSInvocationState.RUNNING:
@@ -69,10 +92,15 @@ def mock_powershell_factory():
 @patch(f"{PSRPHook.__module__}.WSMan")
 @patch(f"{PSRPHook.__module__}.PowerShell", new_callable=mock_powershell_factory)
 @patch(f"{PSRPHook.__module__}.RunspacePool")
-@patch("logging.Logger.info")
 class TestPSRPHook(TestCase):
     @parameterized.expand([(False,), (True,)])
-    def test_invoke(self, log_info, runspace_pool, powershell, ws_man, logging):
+    @patch("logging.Logger.warning")
+    @patch("logging.Logger.info")
+    @patch("logging.Logger.error")
+    @patch("logging.Logger.debug")
+    def test_invoke(
+        self, logging, log_debug, log_error, log_info, log_warning, runspace_pool, powershell, ws_man
+    ):
         runspace_options = {"connection_name": "foo"}
         with PSRPHook(CONNECTION_ID, logging=logging, runspace_options=runspace_options) as hook:
             with hook.invoke() as ps:
@@ -85,8 +113,17 @@ class TestPSRPHook(TestCase):
 
         assert runspace_pool.return_value.__exit__.mock_calls == [call(None, None, None)]
         assert ws_man().__exit__.mock_calls == [call(None, None, None)]
-        assert not (logging ^ (call('%s', '<output>') in log_info.mock_calls))
-        assert not (logging ^ (call('Information: %s', '<message>') in log_info.mock_calls))
+
+        def assert_log(f, *args):
+            assert not (logging ^ (call(*args) in f.mock_calls))
+
+        assert_log(log_debug, '%s: %s', 'command', 'debug')
+        assert_log(log_error, '%s: %s', 'command', 'error')
+        assert_log(log_info, '%s: %s', 'command', 'verbose')
+        assert_log(log_warning, '%s: %s', 'command', 'warning')
+        assert_log(log_info, 'Progress: %s (%s)', 'activity', 'description')
+        assert_log(log_info, '%s (%s): %s', 'computer', 'user', 'information')
+
         assert call('Invocation state: %s', 'Completed') in log_info.mock_calls
         assert runspace_pool.call_args == call(ws_man.return_value, connection_name='foo')
 
