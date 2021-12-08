@@ -88,7 +88,7 @@ Follow the steps below to enable custom logging config class:
         export PYTHON_PATH=~/airflow/
 
 #. Create a directory to store the config file e.g. ``~/airflow/config``
-#. Create file called ``~/airflow/config/log_config.py`` with following contents:
+#. Create file called ``~/airflow/config/log_config.py`` with following the contents:
 
     .. code-block:: python
 
