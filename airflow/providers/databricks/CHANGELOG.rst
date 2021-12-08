@@ -31,6 +31,7 @@ Features
 * ``Databricks jobs 2.1 (#19544)``
 * ``Update Databricks API from 2.0 to 2.1 (#19412)``
 * ``Authentication with AAD tokens in Databricks provider (#19335)``
+* ``Update Databricks operators to match latest version of API 2.0 (#19443)``
 
 Bug Fixes
 ~~~~~~~~~
@@ -40,7 +41,6 @@ Bug Fixes
 
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):
-   * ``Update Databricks operators to match latest version of API 2.0 (#19443)``
    * ``Prepare documentation for October Provider's release (#19321)``
    * ``Refactor DatabricksHook (#19835)``
    * ``Update documentation for November 2021 provider&#39;s release (#19882)``
