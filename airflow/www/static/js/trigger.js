@@ -20,7 +20,9 @@
 /* global document, CodeMirror, window */
 
 const textArea = document.getElementById('json');
-const height = window.innerHeight * 0.6;
+const minHeight = 300;
+const maxHeight = window.innerHeight - 450;
+const height = maxHeight > minHeight ? maxHeight : minHeight;
 
 CodeMirror.fromTextArea(textArea, {
   lineNumbers: true,
