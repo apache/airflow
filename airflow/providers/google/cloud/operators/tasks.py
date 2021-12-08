@@ -38,6 +38,10 @@ class CloudTasksQueueCreateOperator(BaseOperator):
     """
     Creates a queue in Cloud Tasks.
 
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:CloudTasksQueueCreateOperator`
+
     :param location: The location name in which the queue will be created.
     :type location: str
     :param task_queue: The task queue to create.
@@ -140,6 +144,10 @@ class CloudTasksQueueUpdateOperator(BaseOperator):
     """
     Updates a queue in Cloud Tasks.
 
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:CloudTasksQueueUpdateOperator`
+
     :param task_queue: The task queue to update.
         This method creates the queue if it does not exist and updates the queue if
         it does exist. The queue's name must be specified.
@@ -240,6 +248,10 @@ class CloudTasksQueueGetOperator(BaseOperator):
     """
     Gets a queue from Cloud Tasks.
 
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:CloudTasksQueueGetOperator`
+
     :param location: The location name in which the queue was created.
     :type location: str
     :param queue_name: The queue's name.
@@ -321,6 +333,10 @@ class CloudTasksQueueGetOperator(BaseOperator):
 class CloudTasksQueuesListOperator(BaseOperator):
     """
     Lists queues from Cloud Tasks.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:CloudTasksQueuesListOperator`
 
     :param location: The location name in which the queues were created.
     :type location: str
@@ -409,6 +425,10 @@ class CloudTasksQueueDeleteOperator(BaseOperator):
     """
     Deletes a queue from Cloud Tasks, even if it has tasks in it.
 
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:CloudTasksQueueDeleteOperator`
+
     :param location: The location name in which the queue will be deleted.
     :type location: str
     :param queue_name: The queue's name.
@@ -487,6 +507,10 @@ class CloudTasksQueueDeleteOperator(BaseOperator):
 class CloudTasksQueuePurgeOperator(BaseOperator):
     """
     Purges a queue by deleting all of its tasks from Cloud Tasks.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:CloudTasksQueuePurgeOperator`
 
     :param location: The location name in which the queue will be purged.
     :type location: str
@@ -570,6 +594,10 @@ class CloudTasksQueuePauseOperator(BaseOperator):
     """
     Pauses a queue in Cloud Tasks.
 
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:CloudTasksQueuePauseOperator`
+
     :param location: The location name in which the queue will be paused.
     :type location: str
     :param queue_name: The queue's name.
@@ -652,6 +680,10 @@ class CloudTasksQueueResumeOperator(BaseOperator):
     """
     Resumes a queue in Cloud Tasks.
 
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:CloudTasksQueueResumeOperator`
+
     :param location: The location name in which the queue will be resumed.
     :type location: str
     :param queue_name: The queue's name.
@@ -733,6 +765,10 @@ class CloudTasksQueueResumeOperator(BaseOperator):
 class CloudTasksTaskCreateOperator(BaseOperator):
     """
     Creates a task in Cloud Tasks.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:CloudTasksTaskCreateOperator`
 
     :param location: The location name in which the task will be created.
     :type location: str
@@ -836,6 +872,10 @@ class CloudTasksTaskGetOperator(BaseOperator):
     """
     Gets a task from Cloud Tasks.
 
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:CloudTasksTaskGetOperator`
+
     :param location: The location name in which the task was created.
     :type location: str
     :param queue_name: The queue's name.
@@ -929,6 +969,10 @@ class CloudTasksTaskGetOperator(BaseOperator):
 class CloudTasksTasksListOperator(BaseOperator):
     """
     Lists the tasks in Cloud Tasks.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:CloudTasksTasksListOperator`
 
     :param location: The location name in which the tasks were created.
     :type location: str
@@ -1024,6 +1068,10 @@ class CloudTasksTaskDeleteOperator(BaseOperator):
     """
     Deletes a task from Cloud Tasks.
 
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:CloudTasksTaskDeleteOperator`
+
     :param location: The location name in which the task will be deleted.
     :type location: str
     :param queue_name: The queue's name.
@@ -1108,6 +1156,10 @@ class CloudTasksTaskDeleteOperator(BaseOperator):
 class CloudTasksTaskRunOperator(BaseOperator):
     """
     Forces to run a task in Cloud Tasks.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:CloudTasksTaskRunOperator`
 
     :param location: The location name in which the task was created.
     :type location: str
