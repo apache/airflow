@@ -20,12 +20,12 @@
 Logging for Tasks
 =================
 
-Airflow writes logs for tasks in a way that allows to see the logs for each task separately via Airflow UI.
-The Core Airflow implements writing and serving logs locally. However you can also write logs to remote
-services - via community providers, but you can also write your own loggers.
+Airflow writes logs for tasks in a way that allows you to see the logs for each task separately in the Airflow UI.
+Core Airflow implements writing and serving logs locally. However, you can also write logs to remote
+services via community providers, or write your own loggers.
 
-Below we describe the local task logging, but Apache Airflow Community also releases providers for many
-services (:doc:`apache-airflow-providers:index`) and some of them also provide handlers that extend logging
+Below we describe the local task logging, the Apache Airflow Community also releases providers for many
+services (:doc:`apache-airflow-providers:index`) and some of them provide handlers that extend logging
 capability of Apache Airflow. You can see all those providers in :doc:`apache-airflow-providers:core-extensions/logging`.
 
 Writing logs Locally
@@ -44,7 +44,7 @@ In addition, users can supply a remote location to store current logs and backup
 
 In the Airflow Web UI, remote logs take precedence over local logs when remote logging is enabled. If remote logs
 can not be found or accessed, local logs will be displayed. Note that logs
-are only sent to remote storage once a task is complete (including failure); In other words, remote logs for
+are only sent to remote storage once a task is complete (including failure). In other words, remote logs for
 running tasks are unavailable (but local logs are available).
 
 
@@ -75,9 +75,9 @@ Advanced configuration
 ----------------------
 
 Not all configuration options are available from the ``airflow.cfg`` file. Some configuration options require
-that the logging config class be overwritten. This can be done by ``logging_config_class`` option
-in ``airflow.cfg`` file. This option should specify the import path indicating to a configuration compatible with
-:func:`logging.config.dictConfig`. If your file is a standard import location, then you should set a :envvar:`PYTHONPATH` environment.
+that the logging config class be overwritten. This can be done via the ``logging_config_class`` option
+in ``airflow.cfg`` file. This option should specify the import path to a configuration compatible with
+:func:`logging.config.dictConfig`. If your file is a standard import location, then you should set a :envvar:`PYTHONPATH` environment variable.
 
 Follow the steps below to enable custom logging config class:
 
@@ -88,7 +88,7 @@ Follow the steps below to enable custom logging config class:
         export PYTHON_PATH=~/airflow/
 
 #. Create a directory to store the config file e.g. ``~/airflow/config``
-#. Create file called ``~/airflow/config/log_config.py`` with following content:
+#. Create file called ``~/airflow/config/log_config.py`` with following contents:
 
     .. code-block:: python
 
