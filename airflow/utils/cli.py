@@ -104,6 +104,8 @@ def action_cli(check_db=True):
 
         return cast(T, wrapper)
 
+    if func:
+        return action_logging(func)
     return action_logging
 
 
