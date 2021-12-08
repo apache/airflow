@@ -24,7 +24,7 @@ from flask.json import JSONEncoder
 try:
     import numpy as np
 except ImportError:
-    np = None
+    np = None  # type: ignore
 
 try:
     from kubernetes.client import models as k8s
