@@ -243,3 +243,23 @@ class DAGNode(DependencyMixin):
         if not self.dag:
             raise AirflowException(f'Operator {self} has not been assigned to a DAG yet')
         return [self.dag.get_task(tid) for tid in self.upstream_task_ids]
+
+    def get_direct_relative_ids(self, upstream: bool = False) -> Set[str]:
+        """
+        Get set of the direct relative ids to the current task, upstream or
+        downstream.
+        """
+        if upstream:
+            return self.upstream_task_ids
+        else:
+            return self.downstream_task_ids
+
+    def get_direct_relatives(self, upstream: bool = False) -> Iterable["DAGNode"]:
+        """
+        Get list of the direct relatives to the current task, upstream or
+        downstream.
+        """
+        if upstream:
+            return self.upstream_list
+        else:
+            return self.downstream_list

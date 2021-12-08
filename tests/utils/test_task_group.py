@@ -21,6 +21,7 @@ import pytest
 
 from airflow.decorators import dag, task_group as task_group_decorator
 from airflow.models import DAG
+from airflow.models.baseoperator import MappedOperator
 from airflow.models.xcom_arg import XComArg
 from airflow.operators.bash import BashOperator
 from airflow.operators.dummy import DummyOperator
@@ -28,6 +29,8 @@ from airflow.operators.python import PythonOperator
 from airflow.utils.dates import days_ago
 from airflow.utils.task_group import TaskGroup
 from airflow.www.views import dag_edges, task_group_to_dict
+from tests.models import DEFAULT_DATE
+from tests.test_utils.mock_operators import MockOperator
 
 EXPECTED_JSON = {
     'id': None,
@@ -998,3 +1001,49 @@ def test_pass_taskgroup_output_to_task():
         assert isinstance(total_3, XComArg)
 
     wrap()
+
+
+def test_map() -> None:
+    with DAG("test-dag", start_date=DEFAULT_DATE) as dag:
+        start = MockOperator(task_id="start")
+        end = MockOperator(task_id="end")
+        literal = ['a', 'b', 'c']
+        with TaskGroup("process_one").map(literal) as process_one:
+            one = MockOperator(task_id='one')
+            two = MockOperator(task_id='two')
+            three = MockOperator(task_id='three')
+
+            one >> two >> three
+
+        start >> process_one >> end
+
+    # check the mapped operators are attached to the task broup
+    assert process_one.has_task(one)
+
+    assert isinstance(one, MappedOperator)
+    assert start.downstream_list == [one]
+    assert one in dag.tasks
+    # At parse time there should only be two tasks!
+    assert len(dag.tasks) == 5
+
+    assert end.upstream_list == [three]
+    assert three.downstream_list == [end]
+
+
+def test_nested_map() -> None:
+    with DAG("test-dag", start_date=DEFAULT_DATE):
+        start = MockOperator(task_id="start")
+        end = MockOperator(task_id="end")
+        literal = ['a', 'b', 'c']
+        with TaskGroup("process_one").map(literal) as process_one:
+            one = MockOperator(task_id='one')
+
+            with TaskGroup("process_two").map(literal) as process_one_two:
+                two = MockOperator(task_id='two')
+                three = MockOperator(task_id='three')
+                two >> three
+
+            four = MockOperator(task_id='four')
+            one >> process_one_two >> four
+
+        start >> process_one >> end

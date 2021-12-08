@@ -2197,9 +2197,14 @@ class DAG(LoggingMixin):
         for task in tasks:
             self.add_task(task)
 
-    def remove_task(self, task_id: str) -> None:
-        del self.task_dict[task_id]
-        self._task_group.used_group_ids.remove(task_id)
+    def _remove_task(self, task_id: str) -> None:
+        # This is "private" as removing could leave a whole in dependencies if done incorrectly, and this
+        # doesn't guard against that
+        task = self.task_dict.pop(task_id)
+        tg = getattr(task, 'task_group', None)
+        if tg:
+            tg._remove(task)
+
         self.task_count = len(self.task_dict)
 
     def run(

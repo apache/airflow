@@ -236,7 +236,7 @@ class BaseOperatorMeta(abc.ABCMeta):
         return new_cls
 
     # The class level partial function. This is what handles the actual mapping
-    def partial(cls, *, task_id: str, **kwargs):
+    def partial(cls, *, task_id: str, dag: Optional["DAG"] = None, **kwargs):
         unknown_args = set(kwargs.keys())
         # Validate that the args we passed are known -- at call/DAG parse time, not run time!
         #
@@ -263,7 +263,7 @@ class BaseOperatorMeta(abc.ABCMeta):
                 raise TypeError(f'{cls.__name__}.partial got unexpected keyword arguments {names}')
         operator_class = cast("Type[BaseOperator]", cls)
         return MappedOperator(
-            task_id=task_id, operator_class=operator_class, partial_kwargs=kwargs, mapped_kwargs={}
+            task_id=task_id, operator_class=operator_class, dag=dag, partial_kwargs=kwargs, mapped_kwargs={}
         )
 
 
@@ -560,6 +560,19 @@ class BaseOperator(Operator, LoggingMixin, DAGNode, metaclass=BaseOperatorMeta):
 
     start_date: Optional[pendulum.DateTime] = None
     end_date: Optional[pendulum.DateTime] = None
+
+    def __new__(cls, dag: Optional['DAG'] = None, task_group: Optional["TaskGroup"] = None, **kwargs):
+        # If we are creating a new Task _and_ we are in the context of a MappedTaskGroup, then we should only
+        # create mapped operators.
+        from airflow.models.dag import DagContext
+        from airflow.utils.task_group import MappedTaskGroup, TaskGroupContext
+
+        dag = dag or DagContext.get_current_dag()
+        task_group = task_group or TaskGroupContext.get_current_task_group(dag)
+
+        if isinstance(task_group, MappedTaskGroup):
+            return cls.partial(dag=dag, task_group=task_group, **kwargs)
+        return super().__new__(cls)
 
     def __init__(
         self,
@@ -1665,16 +1678,28 @@ class MappedOperator(DAGNode):
     upstream_task_ids: Set[str] = attr.ib(factory=set, repr=False)
     downstream_task_ids: Set[str] = attr.ib(factory=set, repr=False)
 
-    task_group: Optional["TaskGroup"] = attr.ib(repr=False, default=None)
+    task_group: Optional["TaskGroup"] = attr.ib(repr=False)
     # BaseOperator-like interface -- needed so we can add oursleves to the dag.tasks
     start_date: Optional[pendulum.DateTime] = attr.ib(repr=False, default=None)
     end_date: Optional[pendulum.DateTime] = attr.ib(repr=False, default=None)
 
     def __attrs_post_init__(self):
         if self.dag and self.operator:
-            # As soon as we are a mapped task, replace the unmapped version in the list of tasks
-            self.dag.remove_task(self.task_id)
+            # When BaseOperator() was called with a DAG, it would have been added straight away, but now we
+            # are mapped, we want to _remove_ that task (`self.operator`) from the dag
+            self.dag._remove_task(self.task_id)
+
+        if self.task_group:
+            self.task_id = self.task_group.child_id(self.task_id)
+            self.task_group.add(self)
+        if self.dag:
             self.dag.add_task(self)
+
+    @task_group.default
+    def _default_task_group(self):
+        from airflow.utils.task_group import TaskGroupContext
+
+        return TaskGroupContext.get_current_task_group(self.dag)
 
     @property
     def node_id(self):

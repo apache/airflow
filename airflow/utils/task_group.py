@@ -22,7 +22,7 @@ together when the DAG is displayed graphically.
 import copy
 import re
 import weakref
-from typing import TYPE_CHECKING, Dict, Generator, List, Optional, Sequence, Set, Union
+from typing import TYPE_CHECKING, Dict, Generator, Iterable, List, Optional, Sequence, Set, Union
 
 from airflow.exceptions import AirflowException, DuplicateTaskIdFound
 from airflow.models.taskmixin import DAGNode, DependencyMixin
@@ -90,6 +90,8 @@ class TaskGroup(DAGNode):
         self.prefix_group_id = prefix_group_id
         self.default_args = copy.deepcopy(default_args or {})
 
+        dag = dag or DagContext.get_current_dag()
+
         if group_id is None:
             # This creates a root TaskGroup.
             if parent_group:
@@ -98,6 +100,7 @@ class TaskGroup(DAGNode):
             # of used group_id to avoid duplication.
             self.used_group_ids = set()
             self._parent_group = None
+            self.dag = dag
         else:
             if prefix_group_id:
                 # If group id is used as prefix, it should not contain spaces nor dots
@@ -109,14 +112,17 @@ class TaskGroup(DAGNode):
                 if not group_id:
                     raise ValueError("group_id must not be empty")
 
-            dag = dag or DagContext.get_current_dag()
-
             if not parent_group and not dag:
                 raise AirflowException("TaskGroup can only be used inside a dag")
 
             self._parent_group = parent_group or TaskGroupContext.get_current_task_group(dag)
             if not self._parent_group:
                 raise AirflowException("TaskGroup must have a parent_group except for the root TaskGroup")
+            if dag is not self._parent_group.dag:
+                raise RuntimeError(
+                    "Cannot mix TaskGroups from different DAGs: %s and %s", dag, self._parent_group.dag
+                )
+
             self.used_group_ids = self._parent_group.used_group_ids
 
         # if given group_id already used assign suffix by incrementing largest used suffix integer
@@ -177,6 +183,14 @@ class TaskGroup(DAGNode):
         """Returns True if this TaskGroup is the root TaskGroup. Otherwise False"""
         return not self.group_id
 
+    @property
+    def upstream_task_ids(self) -> Set[str]:
+        return self.__dict__['upstream_task_ids']
+
+    @property
+    def downstream_task_ids(self) -> Set[str]:
+        return self.__dict__['downstream_task_ids']
+
     def __iter__(self):
         for child in self.children.values():
             if isinstance(child, TaskGroup):
@@ -193,11 +207,27 @@ class TaskGroup(DAGNode):
             raise DuplicateTaskIdFound(f"{node_type} id '{key}' has already been added to the DAG")
 
         if isinstance(task, TaskGroup):
+            if self.dag:
+                if task.dag is not None and self.dag is not task.dag:
+                    raise RuntimeError(
+                        "Cannot mix TaskGroups from different DAGs: %s and %s", self.dag, task.dag
+                    )
+                task.dag = self.dag
             if task.children:
                 raise AirflowException("Cannot add a non-empty TaskGroup")
 
         self.children[key] = task
         task.task_group = weakref.proxy(self)
+
+    def _remove(self, task: DAGNode) -> None:
+        key = task.node_id
+
+        if key not in self.children:
+            raise KeyError(f"Node id {key!r} not part of this task group")
+
+        self.used_group_ids.remove(key)
+        del self.children[key]
+        task.task_group = None
 
     @property
     def group_id(self) -> Optional[str]:
@@ -242,7 +272,7 @@ class TaskGroup(DAGNode):
                 else:
                     self.downstream_task_ids.add(task.node_id)
 
-    def _set_relative(
+    def _set_relatives(
         self,
         task_or_task_list: Union["DependencyMixin", Sequence["DependencyMixin"]],
         upstream: bool = False,
@@ -354,6 +384,23 @@ class TaskGroup(DAGNode):
     def get_child_by_label(self, label: str) -> DAGNode:
         """Get a child task/TaskGroup by its label (i.e. task_id/group_id without the group_id prefix)"""
         return self.children[self.child_id(label)]
+
+    def map(self, arg: Iterable) -> "MappedTaskGroup":
+        if self.children:
+            raise RuntimeError("Cannot map a TaskGroup that already has children")
+        if not self.group_id:
+            raise RuntimeError("Cannot map a TaskGroup before it has a group_id")
+        if self._parent_group:
+            self._parent_group._remove(self)
+        return MappedTaskGroup(self._group_id)
+
+
+class MappedTaskGroup(TaskGroup):
+    """
+    A TaskGroup that is dynamically expanded at run time.
+
+    Do not create instances of this class directly, instead use :meth:`TaskGroup.map`
+    """
 
 
 class TaskGroupContext:
