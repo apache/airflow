@@ -57,7 +57,8 @@ class BaseTaskRunner(LoggingMixin):
             except AirflowConfigException:
                 self.run_as_user = None
 
-        self._error_file = NamedTemporaryFile(delete=True)
+        self._error_file = NamedTemporaryFile(delete=False)
+        os.chmod(self._error_file.name, 0o644)
 
         # Add sudo commands to change user if we need to. Needed to handle SubDagOperator
         # case using a SequentialExecutor.
@@ -175,12 +176,12 @@ class BaseTaskRunner(LoggingMixin):
         """A callback that should be called when this is done running."""
         if self._cfg_path and os.path.isfile(self._cfg_path):
             if self.run_as_user:
-                subprocess.call(['sudo', 'rm', self._cfg_path], close_fds=True)
+                subprocess.call(['sudo', 'rm', '-f', self._cfg_path], close_fds=True)
             else:
                 os.remove(self._cfg_path)
-        try:
-            self._error_file.close()
-        except FileNotFoundError:
-            # The subprocess has deleted this file before we do
-            # so we ignore
-            pass
+
+        if os.path.isfile(self._error_file.name):
+            if self.run_as_user:
+                subprocess.call(['sudo', 'rm', '-f', self._error_file.name], close_fds=True)
+            else:
+                os.remove(self._error_file.name)
