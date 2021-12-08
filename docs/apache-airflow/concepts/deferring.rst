@@ -109,9 +109,9 @@ There's also some design constraints to be aware of:
 
 * The ``run`` method *must be asynchronous* (using Python's asyncio), and correctly ``await`` whenever it does a blocking operation.
 * ``run`` must ``yield`` its TriggerEvents, not return them. If it returns before yielding at least one event, Airflow will consider this an error and fail any Task Instances waiting on it. If it throws an exception, Airflow will also fail any dependent task instances.
-* You should assume that a trigger instance may run *more than once* (this can happen if a network partition occurs and Airflow re-launches a trigger on a separated machine). So you must be mindful about side effects. E.g. you might not want to use a trigger to insert database rows.
+* You should assume that a trigger instance may run *more than once* (this can happen if a network partition occurs and Airflow re-launches a trigger on a separated machine). So you must be mindful about side effects. For example you might not want to use a trigger to insert database rows.
 * If your trigger is designed to emit more than one event (not currently supported), then each emitted event *must* contain a payload that can be used to deduplicate events if the trigger is being run in multiple places. If you only fire one event and don't need to pass information back to the Operator, you can just set the payload to ``None``.
-* A trigger may be suddenly removed from one triggerer service and started on a new one (e.g. if network partitions (Subnets for example) are being changed, or a deployment is happening). If desired you may implement ``cleanup`` method that is always called after ``run`` whether the trigger exits cleanly or otherwise.
+* A trigger may be suddenly removed from one triggerer service and started on a new one, for example if subnets are changed and a network partition results, or if there is a deployment. If desired you may implement the ``cleanup`` method, which is always called after ``run`` whether the trigger exits cleanly or otherwise.
 
 .. note::
 
