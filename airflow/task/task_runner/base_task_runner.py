@@ -57,13 +57,18 @@ class BaseTaskRunner(LoggingMixin):
             except AirflowConfigException:
                 self.run_as_user = None
 
-        self._error_file = NamedTemporaryFile(delete=False)
-        os.chmod(self._error_file.name, 0o644)
+        self.impersonation = self.run_as_user and (self.run_as_user != getuser())
+
+        # This temporary file stores error output of the airflow task. If we
+        # running with impersonation then this file must be deleted manually
+        # (in the on_finish function) but otherwise we will let it clean
+        # itself up.
+        self._error_file = NamedTemporaryFile(delete=not self.impersonation)
 
         # Add sudo commands to change user if we need to. Needed to handle SubDagOperator
         # case using a SequentialExecutor.
         self.log.debug("Planning to run as the %s user", self.run_as_user)
-        if self.run_as_user and (self.run_as_user != getuser()):
+        if self.impersonation:
             # We want to include any environment variables now, as we won't
             # want to have to specify them in the sudo call - they would show
             # up in `ps` that way! And run commands now, as the other user
@@ -174,14 +179,12 @@ class BaseTaskRunner(LoggingMixin):
 
     def on_finish(self) -> None:
         """A callback that should be called when this is done running."""
-        if self._cfg_path and os.path.isfile(self._cfg_path):
-            if self.run_as_user:
-                subprocess.call(['sudo', 'rm', '-f', self._cfg_path], close_fds=True)
-            else:
+        if self.impersonation:
+            # Clean up all temporary files with sudo since they were made with
+            # sudo and the regular airflow user does not own them anymore.
+            subprocess.call(
+              ['sudo', 'rm', '-f', self._cfg_path, self._error_file.name], close_fds=True
+            )
+        else:
+            if self._cfg_path and os.path.isfile(self._cfg_path):
                 os.remove(self._cfg_path)
-
-        if os.path.isfile(self._error_file.name):
-            if self.run_as_user:
-                subprocess.call(['sudo', 'rm', '-f', self._error_file.name], close_fds=True)
-            else:
-                os.remove(self._error_file.name)
