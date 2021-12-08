@@ -1618,6 +1618,7 @@ class Airflow(AirflowBaseView):
             return redirect(origin)
 
         ti.refresh_from_task(task)
+        settings.task_instance_mutation_hook(ti)
 
         # Make sure the task instance can be run
         dep_context = DepContext(
