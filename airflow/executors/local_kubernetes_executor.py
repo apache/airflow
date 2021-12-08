@@ -28,7 +28,7 @@ from airflow.utils.log.logging_mixin import LoggingMixin
 class LocalKubernetesExecutor(LoggingMixin):
     """
     LocalKubernetesExecutor consists of LocalExecutor and KubernetesExecutor.
-    It chooses an executor to use based on the queue defined on the task.
+    It chooses the executor to use based on the queue defined on the task.
     When the task's queue is the value of ``kubernetes_queue`` in section ``[local_kubernetes_executor]``
     of the configuration (default value: `kubernetes`), KubernetesExecutor is selected to run the task,
     otherwise, LocalExecutor is used.
