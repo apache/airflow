@@ -45,7 +45,7 @@ def test_config_copy_mode(tmp_configuration_copy, subprocess_call, dag_maker, im
 
     if impersonation:
         subprocess_call.assert_called_with(
-            ['sudo', 'chown', impersonation, tmp_configuration_copy.return_value], close_fds=True
+            ['sudo', 'chown', impersonation, tmp_configuration_copy.return_value, runner._error_file], close_fds=True
         )
     else:
         subprocess_call.not_assert_called()
