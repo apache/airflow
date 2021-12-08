@@ -320,3 +320,18 @@ class RedisTest(unittest.TestCase):
         )
         annotations = jmespath.search("metadata.annotations", docs[0])
         assert annotations["helm.sh/hook-weight"] == "0"
+
+    def test_redis_uid_is_not_added_by_default(self):
+        docs = render_chart(
+            show_only=["templates/redis/redis-statefulset.yaml"],
+        )
+        assert jmespath.search("spec.template.spec.containers[0].securityContext", docs[0]) is None
+
+    def test_redis_uid(self):
+        docs = render_chart(
+            values={
+                "redis": {"uid": 1001},
+            },
+            show_only=["templates/redis/redis-statefulset.yaml"],
+        )
+        assert jmespath.search("spec.template.spec.containers[0].securityContext", docs[0]) == 1001
