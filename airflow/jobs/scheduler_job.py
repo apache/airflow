@@ -144,6 +144,12 @@ class SchedulerJob(BaseJob):
 
         self.dagbag = DagBag(dag_folder=self.subdir, read_dags_from_db=True, load_op_links=False)
 
+        if conf.getboolean('smart_sensor', 'use_smart_sensor'):
+            warnings.warn(
+                'Smart sensors are deprecated. Please use Deferrable Operators instead.',
+                DeprecationWarning,
+            )
+
     def register_signals(self) -> None:
         """Register signals that stop child processes"""
         signal.signal(signal.SIGINT, self._exit_gracefully)
