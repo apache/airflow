@@ -113,6 +113,9 @@ with DAG(
         properties={
             'spark.submit.deployMode': 'cluster',
         },
+        packages=['org.slf4j:slf4j-simple:1.7.30'],
+        repositories=['https://repo1.maven.org/maven2'],
+        exclude_packages=['com.amazonaws:amazon-kinesis-client'],
     )
 
     create_pyspark_job = DataprocCreatePysparkJobOperator(
@@ -139,6 +142,9 @@ with DAG(
         properties={
             'spark.submit.deployMode': 'cluster',
         },
+        packages=['org.slf4j:slf4j-simple:1.7.30'],
+        repositories=['https://repo1.maven.org/maven2'],
+        exclude_packages=['com.amazonaws:amazon-kinesis-client'],
     )
 
     delete_cluster = DataprocDeleteClusterOperator(

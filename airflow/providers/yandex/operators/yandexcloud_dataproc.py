@@ -405,6 +405,12 @@ class DataprocCreateSparkJobOperator(BaseOperator):
     :type cluster_id: Optional[str]
     :param connection_id: ID of the Yandex.Cloud Airflow connection.
     :type connection_id: Optional[str]
+    :param packages: List of maven coordinates of jars to include on the driver and executor classpaths.
+    :type packages: Optional[Iterable[str]]
+    :param repositories: List of additional remote repositories to search for the maven coordinates given with --packages.
+    :type repositories: Optional[Iterable[str]]
+    :param exclude_packages: List of groupId:artifactId, to exclude while resolving the dependencies provided in --packages to avoid dependency conflicts.
+    :type exclude_packages: Optional[Iterable[str]]
     """
 
     template_fields = ['cluster_id']
@@ -422,6 +428,9 @@ class DataprocCreateSparkJobOperator(BaseOperator):
         name: str = 'Spark job',
         cluster_id: Optional[str] = None,
         connection_id: Optional[str] = None,
+        packages: Optional[Iterable[str]] = None,
+        repositories: Optional[Iterable[str]] = None,
+        exclude_packages: Optional[Iterable[str]] = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -435,6 +444,9 @@ class DataprocCreateSparkJobOperator(BaseOperator):
         self.name = name
         self.cluster_id = cluster_id
         self.connection_id = connection_id
+        self.packages = packages
+        self.repositories = repositories
+        self.exclude_packages = exclude_packages
         self.hook: Optional[DataprocHook] = None
 
     def execute(self, context) -> None:
@@ -453,6 +465,9 @@ class DataprocCreateSparkJobOperator(BaseOperator):
             file_uris=self.file_uris,
             args=self.args,
             properties=self.properties,
+            packages=self.packages,
+            repositories=self.repositories,
+            exclude_packages=self.exclude_packages,
             name=self.name,
             cluster_id=cluster_id,
         )
@@ -482,6 +497,12 @@ class DataprocCreatePysparkJobOperator(BaseOperator):
     :type cluster_id: Optional[str]
     :param connection_id: ID of the Yandex.Cloud Airflow connection.
     :type connection_id: Optional[str]
+    :param packages: List of maven coordinates of jars to include on the driver and executor classpaths.
+    :type packages: Optional[Iterable[str]]
+    :param repositories: List of additional remote repositories to search for the maven coordinates given with --packages.
+    :type repositories: Optional[Iterable[str]]
+    :param exclude_packages: List of groupId:artifactId, to exclude while resolving the dependencies provided in --packages to avoid dependency conflicts.
+    :type exclude_packages: Optional[Iterable[str]]
     """
 
     template_fields = ['cluster_id']
@@ -499,6 +520,9 @@ class DataprocCreatePysparkJobOperator(BaseOperator):
         name: str = 'Pyspark job',
         cluster_id: Optional[str] = None,
         connection_id: Optional[str] = None,
+        packages: Optional[Iterable[str]] = None,
+        repositories: Optional[Iterable[str]] = None,
+        exclude_packages: Optional[Iterable[str]] = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -512,6 +536,9 @@ class DataprocCreatePysparkJobOperator(BaseOperator):
         self.name = name
         self.cluster_id = cluster_id
         self.connection_id = connection_id
+        self.packages = packages
+        self.repositories = repositories
+        self.exclude_packages = exclude_packages
         self.hook: Optional[DataprocHook] = None
 
     def execute(self, context) -> None:
@@ -530,6 +557,9 @@ class DataprocCreatePysparkJobOperator(BaseOperator):
             file_uris=self.file_uris,
             args=self.args,
             properties=self.properties,
+            packages=self.packages,
+            repositories=self.repositories,
+            exclude_packages=self.exclude_packages,
             name=self.name,
             cluster_id=cluster_id,
         )
