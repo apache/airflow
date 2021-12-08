@@ -26,9 +26,8 @@ from airflow.task.task_runner.base_task_runner import BaseTaskRunner
 
 @pytest.mark.parametrize(["impersonation"], (("nobody",), (None,)))
 @mock.patch('subprocess.call')
-@mock.patch('os.chown')
 @mock.patch('airflow.task.task_runner.base_task_runner.tmp_configuration_copy')
-def test_config_copy_mode(tmp_configuration_copy, chown, subprocess_call, dag_maker, impersonation):
+def test_config_copy_mode(tmp_configuration_copy, subprocess_call, dag_maker, impersonation):
     with dag_maker("test"):
         BaseOperator(task_id="task_1", run_as_user=impersonation)
 
@@ -45,10 +44,8 @@ def test_config_copy_mode(tmp_configuration_copy, chown, subprocess_call, dag_ma
     tmp_configuration_copy.assert_called_with(chmod=0o600, include_env=includes, include_cmds=includes)
 
     if impersonation:
-        chown.assert_called()
         subprocess_call.assert_called_with(
             ['sudo', 'chown', impersonation, tmp_configuration_copy.return_value], close_fds=True
         )
     else:
-        chown.assert_not_called()
         subprocess_call.not_assert_called()
