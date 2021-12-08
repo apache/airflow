@@ -24,6 +24,7 @@ from typing import Any, Optional
 import dateutil  # noqa
 
 from airflow.macros import hive  # noqa
+from airflow.utils import timezone
 
 
 def ds_add(ds: str, days: int) -> str:
@@ -80,4 +81,4 @@ def datetime_diff_for_humans(dt: Any, since: Optional[datetime] = None) -> str:
     """
     import pendulum
 
-    return pendulum.instance(dt).diff_for_humans(since)
+    return pendulum.instance(dt).diff_for_humans(timezone.coerce_datetime(since))

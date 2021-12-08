@@ -17,34 +17,41 @@
 # under the License.
 
 import datetime
+from typing import Any, Dict, Iterable, Optional
 
 
 def max_partition(
-    table, schema="default", field=None, filter_map=None, metastore_conn_id='metastore_default'
-):
-    """
-    Gets the max partition for a table.
+    table: str,
+    schema: str = "default",
+    field: Optional[str] = None,
+    filter_map: Optional[Dict[str, Any]] = None,
+    metastore_conn_id: str = "metastore_default",
+) -> Any:
+    """Get the max partition for a table.
 
-    :param schema: The hive schema the table lives in
-    :type schema: str
-    :param table: The hive table you are interested in, supports the dot
-        notation as in "my_database.my_table", if a dot is found,
-        the schema param is disregarded
+    Example::
+
+        >>> max_partition('airflow.static_babynames_partitioned')
+        '2015-01-01'
+
+    :param table: The Hive table you are interested in. This supports the dot
+        notation as in ``my_database.my_table``. If a dot is found, the *schema*
+        parameter is ignored.
     :type table: str
-    :param metastore_conn_id: The hive connection you are interested in.
-        If your default is set you don't need to use this parameter.
-    :type metastore_conn_id: str
-    :param filter_map: partition_key:partition_value map used for partition filtering,
-                       e.g. {'key1': 'value1', 'key2': 'value2'}.
-                       Only partitions matching all partition_key:partition_value
-                       pairs will be considered as candidates of max partition.
-    :type filter_map: dict
-    :param field: the field to get the max value from. If there's only
-        one partition field, this will be inferred
+    :param schema: The Hive schema the table lives in. This is ignored if
+        *table* uses the dot notation. The default is ``default``.
+    :type schema: str
+    :param field: The field to get the max value from. This can be omitted if
+        there's only one partition field.
     :type field: str
-
-    >>> max_partition('airflow.static_babynames_partitioned')
-    '2015-01-01'
+    :param filter_map: If given, a *partition_key: partition_value* mapping used
+        for partition filtering, e.g. ``{'key1': 'value1', 'key2': 'value2'}``.
+        Only partitions matching all entries in the mapping will be considered
+        as candidates of the max partition.
+    :type filter_map: dict[str, Any]
+    :param metastore_conn_id: The Hive connection ID. The default is the same as
+        ``HiveMetastoreHook.default_conn_name`` (``metastore_default``).
+    :type metastore_conn_id: str
     """
     from airflow.providers.apache.hive.hooks.hive import HiveMetastoreHook
 
@@ -54,52 +61,87 @@ def max_partition(
     return hive_hook.max_partition(schema=schema, table_name=table, field=field, filter_map=filter_map)
 
 
-def _closest_date(target_dt, date_list, before_target=None):
-    """
-    This function finds the date in a list closest to the target date.
+def _closest_date(
+    target_dt: datetime.date,
+    date_list: Iterable[datetime.date],
+    before_target: Optional[bool] = None,
+) -> datetime.date:
+    """Find the date in a list closest to the target date.
+
     An optional parameter can be given to get the closest before or after.
 
-    :param target_dt: The target date
+    :param target_dt: The target date.
     :type target_dt: datetime.date
-    :param date_list: The list of dates to search
+    :param date_list: List of dates to search.
     :type date_list: list[datetime.date]
-    :param before_target: closest before or after the target
-    :type before_target: bool or None
-    :returns: The closest date
-    :rtype: datetime.date or None
+    :param before_target: Consider only dates before or after *target_dt*. If
+        *None* (default), all dates are considered. If *True*, only dates before
+        *target_dt* are considered. If *False*, only dates after *target_dt* are
+        considered.
+    :type before_target: bool | None
+    :returns: The closest date.
+    :rtype: datetime.date
     """
-    time_before = lambda d: target_dt - d if d <= target_dt else datetime.timedelta.max
-    time_after = lambda d: d - target_dt if d >= target_dt else datetime.timedelta.max
-    any_time = lambda d: target_dt - d if d < target_dt else d - target_dt
     if before_target is None:
-        return min(date_list, key=any_time).date()
-    if before_target:
-        return min(date_list, key=time_before).date()
+
+        def key(d: datetime.date) -> datetime.timedelta:
+            return abs(target_dt - d)
+
+    elif before_target:
+
+        def key(d: datetime.date) -> datetime.timedelta:
+            if d <= target_dt:
+                return target_dt - d
+            return datetime.timedelta.max
+
     else:
-        return min(date_list, key=time_after).date()
+
+        def key(d: datetime.date) -> datetime.timedelta:
+            if d >= target_dt:
+                return d - target_dt
+            return datetime.timedelta.max
+
+    closest_date = min(date_list, key=key)
+    if isinstance(closest_date, datetime.datetime):
+        return closest_date.date()
+    return closest_date
 
 
-def closest_ds_partition(table, ds, before=True, schema="default", metastore_conn_id='metastore_default'):
-    """
-    This function finds the date in a list closest to the target date.
+def closest_ds_partition(
+    table: str,
+    ds: str,
+    before: bool = True,
+    schema: str = "default",
+    metastore_conn_id: str = "metastore_default",
+) -> Optional[str]:
+    """Find the date in a list closest to the target date.
+
     An optional parameter can be given to get the closest before or after.
 
-    :param table: A hive table name
-    :type table: str
-    :param ds: A datestamp ``%Y-%m-%d`` e.g. ``yyyy-mm-dd``
-    :type ds: list[datetime.date]
-    :param before: closest before (True), after (False) or either side of ds
-    :type before: bool or None
-    :param schema: table schema
-    :type schema: str
-    :param metastore_conn_id: which metastore connection to use
-    :type metastore_conn_id: str
-    :returns: The closest date
-    :rtype: str or None
+    Example::
 
-    >>> tbl = 'airflow.static_babynames_partitioned'
-    >>> closest_ds_partition(tbl, '2015-01-02')
-    '2015-01-01'
+        >>> tbl = 'airflow.static_babynames_partitioned'
+        >>> closest_ds_partition(tbl, '2015-01-02')
+        '2015-01-01'
+
+    :param table: The Hive table name. This supports the dot notation as in
+        ``my_database.my_table``. If a dot is found, the *schema* parameter is
+        ignored.
+    :type table: str
+    :param ds: The target date, in ``%Y-%m-%d`` format.
+    :type ds: str
+    :param before: Consider only dates before or after *ds*. If *None*
+        (default), all dates are considered. If *True*, only dates before *ds*
+        are considered. If *False*, only dates after *ds* are considered.
+    :type before: bool | None
+    :param schema: The Hive schema the table lives in. This is ignored if
+        *table* uses the dot notation. The default is ``default``.
+    :type schema: str
+    :param metastore_conn_id: The Hive connection ID. The default is the same as
+        ``HiveMetastoreHook.default_conn_name`` (``metastore_default``).
+    :type metastore_conn_id: str
+    :returns: The date closest to *ds*, or *None* if no matching date is found.
+    :rtype: str | None
     """
     from airflow.providers.apache.hive.hooks.hive import HiveMetastoreHook
 
@@ -112,8 +154,9 @@ def closest_ds_partition(table, ds, before=True, schema="default", metastore_con
     part_vals = [list(p.values())[0] for p in partitions]
     if ds in part_vals:
         return ds
-    else:
-        parts = [datetime.datetime.strptime(pv, '%Y-%m-%d') for pv in part_vals]
-        target_dt = datetime.datetime.strptime(ds, '%Y-%m-%d')
-        closest_ds = _closest_date(target_dt, parts, before_target=before)
-        return closest_ds.isoformat()
+    parts = [datetime.datetime.strptime(pv, '%Y-%m-%d') for pv in part_vals]
+    if not parts:
+        return None
+    target_dt = datetime.datetime.strptime(ds, '%Y-%m-%d')
+    closest_ds = _closest_date(target_dt, parts, before_target=before)
+    return closest_ds.isoformat()
