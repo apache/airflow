@@ -24,7 +24,7 @@ Smart Sensors
 .. warning::
 
   This is a **deprecated early-access** feature that will be removed in Airflow 2.4.0.
-  It is superseded by :doc: `Deferrable Operators <deferring>`, which offer a more flexible way to
+  It is superseded by :doc:`Deferrable Operators <deferring>`, which offer a more flexible way to
   achieve efficient long-running sensors, as well as allowing Operators to also achieve similar
   efficiency gains. If you are considering writing a new Smart Sensor, you should instead write it
   as a Deferrable Operator.
@@ -92,3 +92,15 @@ Support new operators in the smart sensor service
     include all key names used for initializing a sensor object.
 *   In ``airflow.cfg``, add the new operator's classname to ``[smart_sensor] sensors_enabled``.
     All supported sensors' classname should be comma separated.
+
+Migrating to Deferrable Operators
+----------------------------------
+
+There is not a direct migration path from Smart Sensors to :doc:`Deferrable Operators <deferring>`.
+You have a few paths forward, depending on your needs and situation:
+
+*   Do nothing - your DAGs will continue to run as-is, however they will no longer get the optimization smart sensors brought
+*   Deferrable Operator - move to a Deferrable Operator that alleviates the need for a sensor all-together
+*   Deferrable Sensor - move to an async version of the sensor you are already using
+
+See :ref:`Writing Deferrable Operators <deferring/writing>` for details on writing Deferrable Operators and Sensors.

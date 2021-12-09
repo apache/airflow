@@ -49,6 +49,7 @@ That's it; everything else will be automatically handled for you. If you're upgr
 
 Note that you cannot yet use the deferral ability from inside custom PythonOperator/TaskFlow Python functions; it is only available to traditional, class-based Operators at the moment.
 
+.. _deferring/writing:
 
 Writing Deferrable Operators
 ----------------------------
