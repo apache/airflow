@@ -20,7 +20,7 @@
 
 import warnings
 
-from airflow.providers.amazon.aws.operators.ec2 import EC2StopInstanceOperator # noqa
+from airflow.providers.amazon.aws.operators.ec2 import EC2StopInstanceOperator  # noqa
 
 warnings.warn(
     "This module is deprecated. Please use `airflow.providers.amazon.aws.operators.ec2`.",

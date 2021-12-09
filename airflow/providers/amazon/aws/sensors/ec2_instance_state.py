@@ -19,7 +19,7 @@
 
 import warnings
 
-from airflow.providers.amazon.aws.sensors.ec2 import EC2InstanceStateSensor # noqa
+from airflow.providers.amazon.aws.sensors.ec2 import EC2InstanceStateSensor  # noqa
 
 warnings.warn(
     "This module is deprecated. Please use `airflow.providers.amazon.aws.sensors.ec2`.",
