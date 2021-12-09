@@ -108,7 +108,7 @@ class KerberosTest(unittest.TestCase):
                     "ccacheFileName": "ccache",
                 },
             },
-            show_only=["templates/secrets/kerberos-keytab.yaml"],
+            show_only=["templates/secrets/kerberos-keytab-secret.yaml"],
         )
 
         assert jmespath.search('data."kerberos.keytab"', docs[0]) == "dGVzdGtleXRhYg=="
@@ -124,7 +124,7 @@ class KerberosTest(unittest.TestCase):
                     "ccacheFileName": "ccache",
                 },
             },
-            show_only=["templates/secrets/kerberos-keytab.yaml"],
+            show_only=["templates/secrets/kerberos-keytab-secret.yaml"],
         )
 
         assert 0 == len(docs)

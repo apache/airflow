@@ -33,7 +33,7 @@ from tests.test_utils.gcp_system_helpers import CLOUD_DAG_FOLDER, GoogleSystemTe
 
 
 @pytest.mark.credential_file(GCP_GCS_KEY)
-class GoogleCloudStorageExampleDagsTest(GoogleSystemTest):
+class GCSTimespanFileTransformExampleDagsTest(GoogleSystemTest):
     helper = GcsSystemTestHelper()
     testfile_content = ["This is a test file"]
 

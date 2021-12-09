@@ -39,6 +39,13 @@ MOCK_SUCCEEDED_QUERY_EXECUTION = {'QueryExecution': {'Status': {'State': 'SUCCEE
 
 MOCK_QUERY_EXECUTION = {'QueryExecutionId': MOCK_DATA['query_execution_id']}
 
+MOCK_QUERY_EXECUTION_OUTPUT = {
+    'QueryExecution': {
+        'QueryExecutionId': MOCK_DATA['query_execution_id'],
+        'ResultConfiguration': {'OutputLocation': 's3://test_bucket/test.csv'},
+    }
+}
+
 
 class TestAWSAthenaHook(unittest.TestCase):
     def setUp(self):
@@ -160,6 +167,12 @@ class TestAWSAthenaHook(unittest.TestCase):
         )
         mock_conn.return_value.get_query_execution.assert_called_once()
         assert result == 'RUNNING'
+
+    @mock.patch.object(AWSAthenaHook, 'get_conn')
+    def test_hook_get_output_location(self, mock_conn):
+        mock_conn.return_value.get_query_execution.return_value = MOCK_QUERY_EXECUTION_OUTPUT
+        result = self.athena.get_output_location(query_execution_id=MOCK_DATA['query_execution_id'])
+        assert result == 's3://test_bucket/test.csv'
 
 
 if __name__ == '__main__':

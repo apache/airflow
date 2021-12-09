@@ -123,7 +123,9 @@ class EMRContainerHook(AwsBaseHook):
                 virtualClusterId=self.virtual_cluster_id,
                 id=job_id,
             )
-            reason = response['jobRun']['failureReason']
+            failure_reason = response['jobRun']['failureReason']
+            state_details = response["jobRun"]["stateDetails"]
+            reason = f"{failure_reason} - {state_details}"
         except KeyError:
             self.log.error('Could not get status of the EMR on EKS job')
         except ClientError as ex:

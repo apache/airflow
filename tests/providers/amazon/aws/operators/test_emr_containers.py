@@ -96,11 +96,13 @@ class TestEMRContainerOperator(unittest.TestCase):
     ):
         mock_submit_job.return_value = "jobid_123456"
         mock_check_query_status.return_value = 'FAILED'
-        mock_get_job_failure_reason.return_value = "CLUSTER_UNAVAILABLE"
+        mock_get_job_failure_reason.return_value = (
+            "CLUSTER_UNAVAILABLE - Cluster EKS eks123456 does not exist."
+        )
         with pytest.raises(AirflowException) as ctx:
             self.emr_container.execute(None)
         assert 'EMR Containers job failed' in str(ctx.value)
-        assert 'Error: CLUSTER_UNAVAILABLE' in str(ctx.value)
+        assert 'Error: CLUSTER_UNAVAILABLE - Cluster EKS eks123456 does not exist.' in str(ctx.value)
 
     @mock.patch.object(
         EMRContainerHook,

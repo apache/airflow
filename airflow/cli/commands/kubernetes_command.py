@@ -32,7 +32,7 @@ from airflow.utils import cli as cli_utils, yaml
 from airflow.utils.cli import get_dag
 
 
-@cli_utils.action_logging
+@cli_utils.action_cli
 def generate_pod_yaml(args):
     """Generates yaml files for each task in the DAG. Used for testing output of KubernetesExecutor"""
     execution_date = args.execution_date
@@ -67,7 +67,7 @@ def generate_pod_yaml(args):
     print(f"YAML output can be found at {yaml_output_path}/airflow_yaml_output/")
 
 
-@cli_utils.action_logging
+@cli_utils.action_cli
 def cleanup_pods(args):
     """Clean up k8s pods in evicted/failed/succeeded states"""
     namespace = args.namespace

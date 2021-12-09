@@ -264,7 +264,7 @@ def create_evaluate_ops(
             raise ValueError(f"Wrong format prediction_path: {prediction_path}")
         summary = os.path.join(obj.strip("/"), "prediction.summary.json")
         gcs_hook = GCSHook()
-        summary = json.loads(gcs_hook.download(bucket, summary))
+        summary = json.loads(gcs_hook.download(bucket, summary).decode("utf-8"))
         return validate_fn(summary)
 
     evaluate_validation = PythonOperator(

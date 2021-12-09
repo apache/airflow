@@ -22,6 +22,7 @@ from airflow.models.dag import DAG
 from airflow.operators.bash import BashOperator
 from airflow.operators.dummy import DummyOperator
 from airflow.operators.python import PythonOperator
+from airflow.serialization.serialized_objects import DagDependency
 from airflow.utils import dot_renderer, timezone
 from airflow.utils.state import State
 from airflow.utils.task_group import TaskGroup
@@ -36,6 +37,27 @@ class TestDotRenderer:
 
     def teardown_method(self):
         clear_db_dags()
+
+    def test_should_render_dag_dependencies(self):
+        dag_dep_1 = DagDependency(
+            source='dag_one', target='dag_two', dependency_type='Sensor', dependency_id='task_1'
+        )
+        dag_dep_2 = DagDependency(
+            source='dag_two', target='dag_three', dependency_type='Sensor', dependency_id='task_2'
+        )
+
+        dag_dependency_list = []
+        dag_dependency_list.append(dag_dep_1)
+        dag_dependency_list.append(dag_dep_2)
+
+        dag_dependency_dict = {}
+        dag_dependency_dict['dag_one'] = dag_dependency_list
+        dot = dot_renderer.render_dag_dependencies(dag_dependency_dict)
+
+        assert "dag_one -> task_1" in dot.source
+        assert "task_1 -> dag_two" in dot.source
+        assert "dag_two -> task_2" in dot.source
+        assert "task_2 -> dag_three" in dot.source
 
     def test_should_render_dag(self):
         with DAG(dag_id="DAG_ID") as dag:

@@ -324,7 +324,7 @@ runtime user id which is unknown at the time of building the image.
     functionality - only added confusion - so it has been removed.
 
 
-Those additional variables are useful in case you are trying out/testing Airflow installation via docker compose.
+Those additional variables are useful in case you are trying out/testing Airflow installation via Docker Compose.
 They are not intended to be used in production, but they make the environment faster to bootstrap for first time
 users with the most common customizations.
 

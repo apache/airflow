@@ -109,7 +109,7 @@ class TestPodGenerator:
             kind="Pod",
             metadata=k8s.V1ObjectMeta(
                 namespace="default",
-                name='myapp-pod.' + self.static_uuid.hex,
+                name='myapp-pod-' + self.static_uuid.hex,
                 labels={'app': 'myapp'},
             ),
             spec=k8s.V1PodSpec(
@@ -433,7 +433,7 @@ class TestPodGenerator:
         expected.metadata.labels = self.labels
         expected.metadata.labels['app'] = 'myapp'
         expected.metadata.annotations = self.annotations
-        expected.metadata.name = 'pod_id.' + self.static_uuid.hex
+        expected.metadata.name = 'pod_id-' + self.static_uuid.hex
         expected.metadata.namespace = 'test_namespace'
         expected.spec.containers[0].args = ['command']
         expected.spec.containers[0].image = expected_image
@@ -475,7 +475,7 @@ class TestPodGenerator:
         worker_config.metadata.annotations = self.annotations
         worker_config.metadata.labels = self.labels
         worker_config.metadata.labels['app'] = 'myapp'
-        worker_config.metadata.name = 'pod_id.' + self.static_uuid.hex
+        worker_config.metadata.name = 'pod_id-' + self.static_uuid.hex
         worker_config.metadata.namespace = 'namespace'
         worker_config.spec.containers[0].env.append(
             k8s.V1EnvVar(name="AIRFLOW_IS_K8S_EXECUTOR_POD", value='True')
@@ -503,7 +503,7 @@ class TestPodGenerator:
             base_worker_pod=worker_config,
         )
 
-        assert result.metadata.name == 'a' * 63 + '.' + self.static_uuid.hex
+        assert result.metadata.name == 'a' * 30 + '-' + self.static_uuid.hex
         for _, v in result.metadata.labels.items():
             assert len(v) <= 63
 
@@ -664,12 +664,14 @@ class TestPodGenerator:
     def test_pod_name_confirm_to_max_length(self, _, pod_id):
         name = PodGenerator.make_unique_pod_id(pod_id)
         assert len(name) <= 253
-        parts = name.split(".")
-        if len(pod_id) <= 63:
-            assert len(parts[0]) == len(pod_id)
-        else:
-            assert len(parts[0]) <= 63
-        assert len(parts[1]) <= 63
+        parts = name.split("-")
+
+        # 63 is the MAX_LABEL_LEN in pod_generator.py
+        # 33 is the length of uuid4 + 1 for the separating '-' (32 + 1)
+        # 30 is the max length of the prefix
+        # so 30 = 63 - (32 + 1)
+        assert len(parts[0]) <= 30
+        assert len(parts[1]) == 32
 
     @parameterized.expand(
         (
@@ -690,7 +692,7 @@ class TestPodGenerator:
             len(name) <= 253 and all(ch.lower() == ch for ch in name) and re.match(regex, name)
         ), "pod_id is invalid - fails allowed regex check"
 
-        assert name.rsplit(".")[0] == expected_starts_with
+        assert name.rsplit("-", 1)[0] == expected_starts_with
 
     def test_deserialize_model_string(self):
         fixture = """

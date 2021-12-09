@@ -109,13 +109,13 @@ There's also some design constraints to be aware of:
 
 * The ``run`` method *must be asynchronous* (using Python's asyncio), and correctly ``await`` whenever it does a blocking operation.
 * ``run`` must ``yield`` its TriggerEvents, not return them. If it returns before yielding at least one event, Airflow will consider this an error and fail any Task Instances waiting on it. If it throws an exception, Airflow will also fail any dependent task instances.
-* A Trigger *must be able to run in parallel* with other copies of itself. This can happen both when two tasks defer based on the same trigger, and also if a network partition happens and Airflow re-launches a trigger on a separated machine.
-* When events are emitted, and if your trigger is designed to emit more than one event, they *must* contain a payload that can be used to deduplicate events if the trigger is being run in multiple places. If you only fire one event, and don't want to pass information in the payload back to the Operator that deferred, you can just set the payload to ``None``.
-* A trigger may be suddenly removed from one process and started on a new one (if partitions are being changed, or a deployment is happening). You may provide an optional ``cleanup`` method that gets called when this happens.
+* You should assume that a trigger instance may run *more than once* (this can happen if a network partition occurs and Airflow re-launches a trigger on a separated machine). So you must be mindful about side effects. For example you might not want to use a trigger to insert database rows.
+* If your trigger is designed to emit more than one event (not currently supported), then each emitted event *must* contain a payload that can be used to deduplicate events if the trigger is being run in multiple places. If you only fire one event and don't need to pass information back to the Operator, you can just set the payload to ``None``.
+* A trigger may be suddenly removed from one triggerer service and started on a new one, for example if subnets are changed and a network partition results, or if there is a deployment. If desired you may implement the ``cleanup`` method, which is always called after ``run`` whether the trigger exits cleanly or otherwise.
 
 .. note::
 
-    Right now, Triggers are only used up to their first event, as they are only used for resuming deferred tasks (which happens on the first event fired). However, we plan to allow DAGs to be launched from triggers in future, which is where multi-event triggers will be more useful.
+    Currently Triggers are only used up to their first event, as they are only used for resuming deferred tasks (which happens on the first event fired). However, we plan to allow DAGs to be launched from triggers in future, which is where multi-event triggers will be more useful.
 
 
 Here's the structure of a basic Trigger::

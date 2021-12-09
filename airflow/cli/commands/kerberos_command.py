@@ -25,7 +25,7 @@ from airflow.utils import cli as cli_utils
 from airflow.utils.cli import setup_locations
 
 
-@cli_utils.action_logging
+@cli_utils.action_cli
 def kerberos(args):
     """Start a kerberos ticket renewer"""
     print(settings.HEADER)

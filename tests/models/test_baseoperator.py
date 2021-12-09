@@ -17,6 +17,7 @@
 # under the License.
 import uuid
 from datetime import date, datetime
+from typing import Any
 from unittest import mock
 
 import jinja2
@@ -577,9 +578,11 @@ class TestBaseOperator:
 
 def test_init_subclass_args():
     class InitSubclassOp(BaseOperator):
+        _class_arg: Any
+
         def __init_subclass__(cls, class_arg=None, **kwargs) -> None:
             cls._class_arg = class_arg
-            super().__init_subclass__(**kwargs)
+            super().__init_subclass__()
 
         def execute(self, context):
             self.context_arg = context

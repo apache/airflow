@@ -918,7 +918,6 @@ class SerializedDAG(DAG, BaseSerialization):
 
             if serializable_task.subdag is not None:
                 setattr(serializable_task.subdag, 'parent_dag', dag)
-                serializable_task.subdag.is_subdag = True
 
             for task_id in serializable_task.downstream_task_ids:
                 # Bypass set_upstream etc here - it does more than we want

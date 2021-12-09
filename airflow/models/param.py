@@ -14,7 +14,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from typing import Any, Dict, Optional
+from typing import Any, Dict, ItemsView, MutableMapping, Optional, ValuesView
 
 import jsonschema
 from jsonschema import FormatChecker
@@ -50,7 +50,7 @@ class Param:
     __NO_VALUE_SENTINEL = NoValueSentinel()
     CLASS_IDENTIFIER = '__class'
 
-    def __init__(self, default: Any = __NO_VALUE_SENTINEL, description: str = None, **kwargs):
+    def __init__(self, default: Any = __NO_VALUE_SENTINEL, description: Optional[str] = None, **kwargs):
         self.value = default
         self.description = description
         self.schema = kwargs.pop('schema') if 'schema' in kwargs else kwargs
@@ -99,16 +99,17 @@ class Param:
         return not isinstance(self.value, NoValueSentinel)
 
 
-class ParamsDict(dict):
+class ParamsDict(MutableMapping[str, Any]):
     """
     Class to hold all params for dags or tasks. All the keys are strictly string and values
     are converted into Param's object if they are not already. This class is to replace param's
     dictionary implicitly and ideally not needed to be used directly.
     """
 
+    __slots__ = ['__dict', 'suppress_exception']
+
     def __init__(self, dict_obj: Optional[Dict] = None, suppress_exception: bool = False):
         """
-        Init override for ParamsDict
         :param dict_obj: A dict or dict like object to init ParamsDict
         :type dict_obj: Optional[dict]
         :param suppress_exception: Flag to suppress value exceptions while initializing the ParamsDict
@@ -121,8 +122,20 @@ class ParamsDict(dict):
                 params_dict[k] = Param(v)
             else:
                 params_dict[k] = v
-        super().__init__(params_dict)
+        self.__dict = params_dict
         self.suppress_exception = suppress_exception
+
+    def __contains__(self, o: object) -> bool:
+        return o in self.__dict
+
+    def __len__(self) -> int:
+        return len(self.__dict)
+
+    def __delitem__(self, v: str) -> None:
+        del self.__dict[v]
+
+    def __iter__(self):
+        return iter(self.__dict)
 
     def __setitem__(self, key: str, value: Any) -> None:
         """
@@ -137,14 +150,17 @@ class ParamsDict(dict):
         """
         if isinstance(value, Param):
             param = value
-        elif key in self:
-            param = dict.__getitem__(self, key)
-            param.resolve(value=value, suppress_exception=self.suppress_exception)
+        elif key in self.__dict:
+            param = self.__dict[key]
+            try:
+                param.resolve(value=value, suppress_exception=self.suppress_exception)
+            except ValueError as ve:
+                raise ValueError(f'Invalid input for param {key}: {ve}') from None
         else:
             # if the key isn't there already and if the value isn't of Param type create a new Param object
             param = Param(value)
 
-        super().__setitem__(key, param)
+        self.__dict[key] = param
 
     def __getitem__(self, key: str) -> Any:
         """
@@ -154,30 +170,33 @@ class ParamsDict(dict):
         :param key: The key to fetch
         :type key: str
         """
-        param = super().__getitem__(key)
+        param = self.__dict[key]
         return param.resolve(suppress_exception=self.suppress_exception)
+
+    def get_param(self, key: str) -> Param:
+        """Get the internal :class:`.Param` object for this key"""
+        return self.__dict[key]
+
+    def items(self):
+        return ItemsView(self.__dict)
+
+    def values(self):
+        return ValuesView(self.__dict)
+
+    def update(self, *args, **kwargs) -> None:
+        if len(args) == 1 and not kwargs and isinstance(args[0], ParamsDict):
+            return super().update(args[0].__dict)
+        super().update(*args, **kwargs)
 
     def dump(self) -> dict:
         """Dumps the ParamsDict object as a dictionary, while suppressing exceptions"""
         return {k: v.resolve(suppress_exception=True) for k, v in self.items()}
 
-    def update(self, other_dict: dict) -> None:
-        """
-        Override for dictionary's update method.
-        :param other_dict: A dict type object which needs to be merged in the ParamsDict object
-        :type other_dict: dict
-        """
-        try:
-            for k, v in other_dict.items():
-                self.__setitem__(k, v)
-        except ValueError as ve:
-            raise ValueError(f'Invalid input for param {k}: {ve}') from None
-
     def validate(self) -> dict:
         """Validates & returns all the Params object stored in the dictionary"""
         resolved_dict = {}
         try:
-            for k, v in dict.items(self):
+            for k, v in self.items():
                 resolved_dict[k] = v.resolve(suppress_exception=self.suppress_exception)
         except ValueError as ve:
             raise ValueError(f'Invalid input for param {k}: {ve}') from None

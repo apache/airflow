@@ -19,6 +19,30 @@
 Changelog
 ---------
 
+2.5.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Adding support for using ''client_type'' API for interacting with EC2 and support filters (#9011)``
+* ``Do not check for S3 key before attempting download (#19504)``
+* ``MySQLToS3Operator  actually allow writing parquet files to s3. (#19094)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Amazon provider remove deprecation, second try (#19815)``
+* ``Catch AccessDeniedException in AWS Secrets Manager Backend (#19324)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Fix duplicate changelog entries (#19759)``
+   * ``Revert 'Adjust built-in base_aws methods to avoid Deprecation warnings (#19725)' (#19791)``
+   * ``Adjust built-in base_aws methods to avoid Deprecation warnings (#19725)``
+   * ``Cleanup of start_date and default arg use for Amazon example DAGs (#19237)``
+   * ``Remove remaining 'pylint: disable' comments (#19541)``
+
 2.4.0
 .....
 
@@ -46,7 +70,7 @@ Bug Fixes
    * ``Prepare documentation for RC2 Amazon Provider release for September (#18830)``
    * ``Doc: Fix typos in variable and comments (#19349)``
    * ``Remove duplicated entries in changelog (#19331)``
-   * ``Prepare documentation for October Provider&#39;s release (#19321)``
+   * ``Prepare documentation for October Provider's release (#19321)``
 
 2.3.0
 .....

@@ -141,23 +141,23 @@ class TestParam(unittest.TestCase):
         assert dump['schema'] == {'type': 'string', 'minLength': 2}
 
 
-class TestParamsDict(unittest.TestCase):
+class TestParamsDict:
     def test_params_dict(self):
         # Init with a simple dictionary
         pd = ParamsDict(dict_obj={'key': 'value'})
-        assert pd.get('key').__class__ == Param
+        assert isinstance(pd.get_param('key'), Param)
         assert pd['key'] == 'value'
         assert pd.suppress_exception is False
 
         # Init with a dict which contains Param objects
         pd2 = ParamsDict({'key': Param('value', type='string')}, suppress_exception=True)
-        assert pd2.get('key').__class__ == Param
+        assert isinstance(pd2.get_param('key'), Param)
         assert pd2['key'] == 'value'
         assert pd2.suppress_exception is True
 
         # Init with another object of another ParamsDict
         pd3 = ParamsDict(pd2)
-        assert pd3.get('key').__class__ == Param
+        assert isinstance(pd3.get_param('key'), Param)
         assert pd3['key'] == 'value'
         assert pd3.suppress_exception is False  # as it's not a deepcopy of pd2
 
@@ -167,17 +167,27 @@ class TestParamsDict(unittest.TestCase):
         assert pd3.dump() == {'key': 'value'}
 
         # Validate the ParamsDict
-        pd.validate()
+        plain_dict = pd.validate()
+        assert type(plain_dict) == dict
         pd2.validate()
         pd3.validate()
 
         # Update the ParamsDict
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError, match=r'Invalid input for param key: 1 is not'):
             pd3['key'] = 1
 
         # Should not raise an error as suppress_exception is True
         pd2['key'] = 1
         pd2.validate()
+
+    def test_update(self):
+        pd = ParamsDict({'key': Param('value', type='string')})
+
+        pd.update({'key': 'a'})
+        internal_value = pd.get_param('key')
+        assert isinstance(internal_value, Param)
+        with pytest.raises(ValueError, match=r'Invalid input for param key: 1 is not'):
+            pd.update({'key': 1})
 
 
 class TestDagParamRuntime:

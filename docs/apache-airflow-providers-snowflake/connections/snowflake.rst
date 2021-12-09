@@ -63,8 +63,6 @@ Extra (optional)
     * ``private_key_file``: Specify the path to the private key file.
     * ``session_parameters``: Specify `session level parameters
       <https://docs.snowflake.com/en/user-guide/python-connector-example.html#setting-session-parameters>`_
-    * ``aws_access_key_id``: Specify your aws S3 access key for use with the S3ToSnowflakeOperator.
-    * ``aws_secret_access_key``: Specify your aws S3 secret access key for use with the S3ToSnowflakeOperator.
 
 When specifying the connection in environment variable you should specify
 it using URI syntax.

@@ -38,7 +38,7 @@ Password (required)
     Specify the password to connect.
 
 Extra (optional)
-    Specify the extra parameters (as json dictionary) that can be used in postgres
+    Specify the extra parameters (as json dictionary) that can be used in Postgres
     connection. The following parameters out of the standard python parameters
     are supported:
 

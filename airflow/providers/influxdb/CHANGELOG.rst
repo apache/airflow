@@ -20,6 +20,22 @@
 Changelog
 ---------
 
+1.1.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add influxdb operator (#19356)``
+
+Bug Fixes
+~~~~~~~~~
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Prepare documentation for October Provider's release (#19321)``
+   * ``Remove empty doc from influxdb provider (#18647)``
+
 1.0.0
 .....
 
