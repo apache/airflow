@@ -1056,7 +1056,7 @@ OPERATORS = [
         'airflow.contrib.operators.emr_terminate_job_flow_operator.EmrTerminateJobFlowOperator',
     ),
     (
-        'airflow.providers.amazon.aws.operators.S3CopyObjectOperator',
+        'airflow.providers.amazon.aws.operators.s3.S3CopyObjectOperator',
         'airflow.contrib.operators.s3_copy_object_operator.S3CopyObjectOperator',
     ),
     (
