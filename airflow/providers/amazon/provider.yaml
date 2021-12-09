@@ -192,6 +192,7 @@ operators:
     python-modules:
       - airflow.providers.amazon.aws.operators.ec2_start_instance
       - airflow.providers.amazon.aws.operators.ec2_stop_instance
+      - airflow.providers.amazon.aws.operators.ec2
   - integration-name: Amazon ECS
     python-modules:
       - airflow.providers.amazon.aws.operators.ecs
@@ -263,6 +264,7 @@ sensors:
   - integration-name: Amazon EC2
     python-modules:
       - airflow.providers.amazon.aws.sensors.ec2_instance_state
+      - airflow.providers.amazon.aws.sensors.ec2
   - integration-name: Amazon Elastic Kubernetes Service (EKS)
     python-modules:
       - airflow.providers.amazon.aws.sensors.eks
