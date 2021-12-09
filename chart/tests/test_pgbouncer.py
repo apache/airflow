@@ -453,7 +453,7 @@ class PgbouncerExporterTest(unittest.TestCase):
     def test_exporter_secret_with_overrides(self):
         connection = self._get_connection(
             {
-                "pgbouncer": {"enabled": True, "metricsExporterSidecar": {"sslmode": "disable"}},
+                "pgbouncer": {"enabled": True, "metricsExporterSidecar": {"sslmode": "require"}},
                 "data": {
                     "metadataConnection": {
                         "user": "username@123123",
