@@ -3015,7 +3015,10 @@
                 "extraVolumeMounts": {
                     "description": "Mount additional volumes into PgBouncer.",
                     "type": "array",
-                    "default": []
+                    "default": [],
+                    "items": {
+                        "$ref": "https://raw.githubusercontent.com/yannh/kubernetes-json-schema/master/v1.22.0-standalone-strict/volumemount-v1.json"
+                    }
                 },
                 "serviceAccount": {
                     "description": "Create ServiceAccount.",
