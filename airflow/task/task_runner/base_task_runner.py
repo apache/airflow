@@ -59,11 +59,12 @@ class BaseTaskRunner(LoggingMixin):
 
         self.impersonation = self.run_as_user and (self.run_as_user != getuser())
 
-        # This temporary file stores error output of the airflow task. If we
-        # running with impersonation then this file must be deleted manually
-        # (in the on_finish function) but otherwise we will let it clean
-        # itself up.
-        self._error_file = NamedTemporaryFile(delete=not self.impersonation)
+        # This temporary file stores error output of the airflow task. We will
+        # immediately close it because it's just going to be used by the other
+        # process and we do not want to keep a file handle to it. The file gets
+        # cleaned up in the on_finish function.
+        self._error_file = NamedTemporaryFile(delete=False)
+        self._error_file.close()
 
         # Add sudo commands to change user if we need to. Needed to handle SubDagOperator
         # case using a SequentialExecutor.
@@ -186,5 +187,13 @@ class BaseTaskRunner(LoggingMixin):
               ['sudo', 'rm', '-f', self._cfg_path, self._error_file.name], close_fds=True
             )
         else:
-            if self._cfg_path and os.path.isfile(self._cfg_path):
-                os.remove(self._cfg_path)
+            if self._cfg_path:
+                try:
+                    os.remove(self._cfg_path)
+                except FileNotFoundError:
+                    pass
+
+            try:
+                os.remove(self._error_file.name)
+            except FileNotFoundError:
+                pass
