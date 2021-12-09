@@ -22,9 +22,10 @@ import os
 import sys
 import time
 from tempfile import gettempdir
-from typing import Iterable
+from typing import Any, Iterable, List
 
 from sqlalchemy import Table, exc, func, inspect, or_, text
+from sqlalchemy.orm.session import Session
 
 from airflow import settings
 from airflow.configuration import conf
@@ -57,7 +58,7 @@ from airflow.models.serialized_dag import SerializedDagModel  # noqa: F401
 from airflow.utils import helpers
 
 # TODO: remove create_session once we decide to break backward compatibility
-from airflow.utils.session import create_session, provide_session  # noqa: F401
+from airflow.utils.session import NEW_SESSION, create_session, provide_session  # noqa: F401
 from airflow.version import version
 
 log = logging.getLogger(__name__)
@@ -719,7 +720,7 @@ def check_and_run_migrations():
         sys.exit(1)
 
 
-def check_conn_id_duplicates(session=None) -> Iterable[str]:
+def check_conn_id_duplicates(session: Session) -> Iterable[str]:
     """
     Check unique conn_id in connection table
 
@@ -742,7 +743,7 @@ def check_conn_id_duplicates(session=None) -> Iterable[str]:
         )
 
 
-def check_conn_type_null(session=None) -> Iterable[str]:
+def check_conn_type_null(session: Session) -> Iterable[str]:
     """
     Check nullable conn_type column in Connection table
 
@@ -840,7 +841,7 @@ def _move_dangling_table(session, source_table: "Table", target_table_name: str,
             )
 
 
-def check_run_id_null(session) -> Iterable[str]:
+def check_run_id_null(session: Session) -> Iterable[str]:
     import sqlalchemy.schema
 
     metadata = sqlalchemy.schema.MetaData(session.bind)
@@ -882,12 +883,12 @@ def _move_dangling_task_data_to_new_table(session, source_table: "Table", target
     _move_dangling_table(session, source_table, target_table_name, where_clause)
 
 
-def check_task_tables_without_matching_dagruns(session) -> Iterable[str]:
+def check_task_tables_without_matching_dagruns(session: Session) -> Iterable[str]:
     import sqlalchemy.schema
     from sqlalchemy import and_, outerjoin
 
     metadata = sqlalchemy.schema.MetaData(session.bind)
-    models_to_dagrun = [TaskInstance, TaskReschedule]
+    models_to_dagrun: List[Any] = [TaskInstance, TaskReschedule]
     for model in models_to_dagrun + [DagRun]:
         try:
             metadata.reflect(only=[model.__tablename__], extend_existing=True, resolve_fks=False)
@@ -950,7 +951,7 @@ def check_task_tables_without_matching_dagruns(session) -> Iterable[str]:
 
 
 @provide_session
-def _check_migration_errors(session=None) -> Iterable[str]:
+def _check_migration_errors(session: Session = NEW_SESSION) -> Iterable[str]:
     """
     :session: session of the sqlalchemy
     :rtype: list[str]
