@@ -1511,12 +1511,26 @@ SENSORS = [
         'airflow.operators.s3_file_transform_operator.S3FileTransformOperator',
     ),
     (
+        'airflow.providers.amazon.aws.operators.step_function.StepFunctionStartExecutionOperator',
+        'airflow.providers.amazon.aws.operators.step_function_start_execution'
+        '.StepFunctionStartExecutionOperator',
+    ),
+    (
+        'airflow.providers.amazon.aws.operators.step_function.StepFunctionGetExecutionOutputOperator',
+        'airflow.providers.amazon.aws.operators.step_function_get_execution_output'
+        '.StepFunctionGetExecutionOutputOperator',
+    ),
+    (
         'airflow.providers.amazon.aws.sensors.s3_key.S3KeySensor',
         'airflow.sensors.s3_key_sensor.S3KeySensor',
     ),
     (
         'airflow.providers.amazon.aws.sensors.s3_prefix.S3PrefixSensor',
         'airflow.sensors.s3_prefix_sensor.S3PrefixSensor',
+    ),
+    (
+        'airflow.providers.amazon.aws.sensors.step_function.StepFunctionExecutionSensor',
+        'airflow.providers.amazon.aws.sensors.step_function_execution.StepFunctionExecutionSensor',
     ),
     (
         'airflow.sensors.bash.BashSensor',
