@@ -1060,7 +1060,7 @@ OPERATORS = [
         'airflow.contrib.operators.s3_copy_object_operator.S3CopyObjectOperator',
     ),
     (
-        'airflow.providers.amazon.aws.operators.S3DeleteObjectsOperator',
+        'airflow.providers.amazon.aws.operators.s3.S3DeleteObjectsOperator',
         'airflow.contrib.operators.s3_delete_objects_operator.S3DeleteObjectsOperator',
     ),
     (
