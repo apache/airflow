@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module contains SFTP hook."""
+import warnings
 import datetime
 import stat
 from typing import Dict, List, Optional, Tuple
@@ -32,7 +33,7 @@ class SFTPHook(SSHHook):
     This hook is inherited from SSH hook. Please refer to SSH hook for the input
     arguments.
 
-    Interact with SFTP. Aims to be interchangeable with FTPHook.
+    Interact with SFTP.
 
     :Pitfalls::
 
@@ -50,7 +51,7 @@ class SFTPHook(SSHHook):
     :type sftp_conn_id: str
     """
 
-    conn_name_attr = 'ftp_conn_id'
+    conn_name_attr = 'ssh_conn_id'
     default_conn_name = 'sftp_default'
     conn_type = 'sftp'
     hook_name = 'SFTP'
@@ -64,8 +65,22 @@ class SFTPHook(SSHHook):
             },
         }
 
-    def __init__(self, ftp_conn_id: str = 'sftp_default', *args, **kwargs) -> None:
-        kwargs['ssh_conn_id'] = ftp_conn_id
+    def __init__(
+        self,
+        ssh_conn_id: Optional[str] = 'sftp_default',
+        ftp_conn_id: Optional[str] = 'sftp_default',
+        *args, **kwargs
+    ) -> None:
+
+        if ftp_conn_id:
+            warnings.warn(
+                'Parameter `ftp_conn_id` is deprecated.'
+                'Please use `ssh_conn_id` instead.',
+                DeprecationWarning,
+                stacklevel=2,
+            )
+            kwargs['ssh_conn_id'] = ftp_conn_id
+        self.ssh_conn_id = ssh_conn_id
         super().__init__(*args, **kwargs)
 
         self.conn = None
@@ -82,7 +97,6 @@ class SFTPHook(SSHHook):
 
                 # For backward compatibility
                 # TODO: remove in Airflow 2.1
-                import warnings
 
                 if 'private_key_pass' in extra_options:
                     warnings.warn(
