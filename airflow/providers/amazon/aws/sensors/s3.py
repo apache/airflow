@@ -16,8 +16,9 @@
 # specific language governing permissions and limitations
 # under the License.
 #
-import re
+
 import os
+import re
 from datetime import datetime
 from typing import Any, Callable, Dict, List, Optional, Set, Union
 from urllib.parse import urlparse

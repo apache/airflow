@@ -22,7 +22,7 @@ data and upload to an S3 bucket.
 from datetime import datetime
 
 from airflow import DAG
-from airflow.providers.amazon.aws.operators.s3 import S3DeleteObjectsOperator, S3CopyObjectOperator
+from airflow.providers.amazon.aws.operators.s3 import S3CopyObjectOperator, S3DeleteObjectsOperator
 from airflow.providers.amazon.aws.transfers.salesforce_to_s3 import SalesforceToS3Operator
 
 BASE_PATH = "salesforce/customers"

@@ -1056,19 +1056,19 @@ OPERATORS = [
         'airflow.contrib.operators.emr_terminate_job_flow_operator.EmrTerminateJobFlowOperator',
     ),
     (
-        'airflow.providers.amazon.aws.operators.S3CopyObjectOperator',
+        'airflow.providers.amazon.aws.operators.s3.S3CopyObjectOperator',
         'airflow.contrib.operators.s3_copy_object_operator.S3CopyObjectOperator',
     ),
     (
-        'airflow.providers.amazon.aws.operators.S3DeleteObjectsOperator',
+        'airflow.providers.amazon.aws.operators.s3.S3DeleteObjectsOperator',
         'airflow.contrib.operators.s3_delete_objects_operator.S3DeleteObjectsOperator',
     ),
     (
-        'airflow.providers.amazon.aws.operators.S3ListOperator',
+        'airflow.providers.amazon.aws.operators.s3.S3ListOperator',
         'airflow.contrib.operators.s3_list_operator.S3ListOperator',
     ),
     (
-        'airflow.providers.amazon.aws.operators.S3FileTransformOperator',
+        'airflow.providers.amazon.aws.operators.s3.S3FileTransformOperator',
         'airflow.operators.s3_file_transform_operator.S3FileTransformOperator',
     ),
     (
@@ -1559,11 +1559,11 @@ SENSORS = [
         'airflow.contrib.sensors.sagemaker_tuning_sensor.SageMakerTuningSensor',
     ),
     (
-        'airflow.providers.amazon.aws.sensors.S3KeySensor',
+        'airflow.providers.amazon.aws.sensors.s3.S3KeySensor',
         'airflow.sensors.s3_key_sensor.S3KeySensor',
     ),
     (
-        'airflow.providers.amazon.aws.sensors.S3PrefixSensor',
+        'airflow.providers.amazon.aws.sensors.s3.S3PrefixSensor',
         'airflow.sensors.s3_prefix_sensor.S3PrefixSensor',
     ),
     (

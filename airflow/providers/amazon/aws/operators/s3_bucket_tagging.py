@@ -19,8 +19,11 @@
 
 import warnings
 
-from airflow.providers.amazon.aws.operators.s3 import (S3GetBucketTaggingOperator, S3PutBucketTaggingOperator, S3DeleteBucketTaggingOperator)  # noqa
-
+from airflow.providers.amazon.aws.operators.s3 import (  # noqa
+    S3DeleteBucketTaggingOperator,
+    S3GetBucketTaggingOperator,
+    S3PutBucketTaggingOperator,
+)
 warnings.warn(
     "This module is deprecated. Please use `airflow.providers.amazon.aws.operators.s3`.",
     DeprecationWarning,
