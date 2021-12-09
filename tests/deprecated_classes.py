@@ -1343,6 +1343,47 @@ OPERATORS = [
         "airflow.operators.dummy.DummyOperator",
         "airflow.operators.dummy_operator.DummyOperator",
     ),
+    (
+        "airflow.providers.amazon.aws.operators.s3.S3FileTransformOperator",
+        "airflow.providers.amazon.aws.operators.s3_file_transform.S3FileTransformOperator",
+    ),
+    (
+        "airflow.providers.amazon.aws.operators.s3.S3ListOperator",
+        "airflow.providers.amazon.aws.operators.s3_list.S3ListOperator",
+    ),
+    (
+        "airflow.providers.amazon.aws.operators.s3.S3CreateBucketOperator",
+        "airflow.providers.amazon.aws.operators.s3_bucket.S3CreateBucketOperator",
+    ),
+    (
+        "airflow.providers.amazon.aws.operators.s3.S3DeleteBucketOperator",
+        "airflow.providers.amazon.aws.operators.s3_bucket.S3DeleteBucketOperator",
+    ),
+    (
+        "airflow.providers.amazon.aws.operators.s3.S3GetBucketTaggingOperator",
+        "airflow.providers.amazon.aws.operators.s3_bucket_tagging.S3GetBucketTaggingOperator",
+    ),
+    (
+        "airflow.providers.amazon.aws.operators.s3.S3PutBucketTaggingOperator",
+        "airflow.providers.amazon.aws.operators.s3_bucket_tagging.S3PutBucketTaggingOperator",
+    ),
+    (
+        "airflow.providers.amazon.aws.operators.s3.S3DeleteBucketTaggingOperator",
+        "airflow.providers.amazon.aws.operators.s3_bucket_tagging.S3DeleteBucketTaggingOperator",
+    ),
+    (
+        "airflow.providers.amazon.aws.operators.s3.S3CopyObjectOperator",
+        "airflow.providers.amazon.aws.operators.s3_copy_object.S3CopyObjectOperator",
+    ),
+    (
+        "airflow.providers.amazon.aws.operators.s3.S3DeleteObjectsOperator",
+        "airflow.providers.amazon.aws.operators.s3_delete_objects.S3DeleteObjectsOperator",
+    ),
+    (
+        "airflow.providers.amazon.aws.operators.s3.S3ListPrefixesOperator",
+        "airflow.providers.amazon.aws.operators.s3_list_prefixes.S3ListPrefixesOperator",
+    ),
+
 ]
 
 SECRETS = [
@@ -1586,6 +1627,22 @@ SENSORS = [
         'airflow.providers.sftp.sensors.sftp.SFTPSensor',
         'airflow.contrib.sensors.sftp_sensor.SFTPSensor',
     ),
+    (
+        'airflow.providers.amazon.aws.sensors.s3.S3KeySensor',
+        'airflow.providers.amazon.aws.sensors.s3_key.S3KeySensor',
+    ),
+    (
+        'airflow.providers.amazon.aws.sensors.s3.S3KeySizeSensor',
+        'airflow.providers.amazon.aws.sensors.s3_key.S3KeySizeSensor',
+    ),
+    (
+        'airflow.providers.amazon.aws.sensors.s3.S3KeysUnchangedSensor',
+        'airflow.providers.amazon.aws.sensors.s3_keys_unchanged.S3KeysUnchangedSensor',
+    ),
+    (
+        "airflow.providers.amazon.aws.sensors.s3.S3PrefixSensor"
+        "airflow.providers.amazon.aws.sensors.s3_prefix.S3PrefixSensor",
+    )
 ]
 
 TRANSFERS = [

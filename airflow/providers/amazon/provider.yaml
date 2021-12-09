@@ -223,6 +223,7 @@ operators:
       - airflow.providers.amazon.aws.operators.s3_file_transform
       - airflow.providers.amazon.aws.operators.s3_list
       - airflow.providers.amazon.aws.operators.s3_list_prefixes
+      - airflow.providers.amazon.aws.operators.s3
   - integration-name: Amazon SageMaker
     python-modules:
       - airflow.providers.amazon.aws.operators.sagemaker_base
@@ -290,6 +291,7 @@ sensors:
       - airflow.providers.amazon.aws.sensors.s3_key
       - airflow.providers.amazon.aws.sensors.s3_keys_unchanged
       - airflow.providers.amazon.aws.sensors.s3_prefix
+      - airflow.providers.amazon.aws.sensors.s3
   - integration-name: Amazon SageMaker
     python-modules:
       - airflow.providers.amazon.aws.sensors.sagemaker_base
