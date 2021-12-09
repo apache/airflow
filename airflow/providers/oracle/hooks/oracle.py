@@ -266,3 +266,16 @@ class OracleHook(DbApiHook):
         self.log.info('[%s] inserted %s rows', table, row_count)
         cursor.close()
         conn.close()  # type: ignore[attr-defined]
+
+    def test_connection(self):
+        """Tests the connection by executing a select 1 from dual query"""
+        status, message = False, ''
+        try:
+            if self.get_first("select 1 from dual"):
+                status = True
+                message = 'Connection successfully tested'
+        except Exception as e:
+            status = False
+            message = str(e)
+
+        return status, message        
