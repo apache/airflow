@@ -139,7 +139,7 @@ FILTER_STATUS_COOKIE = 'dag_status_filter'
 LINECHART_X_AXIS_TICKFORMAT = (
     "function (d, i) { let xLabel;"
     "if (i === undefined) {xLabel = d3.time.format('%H:%M, %d %b %Y')(new Date(parseInt(d)));"
-    "} else {xLabel = d3.time.format('%H:%M')(new Date(parseInt(d)));} return xLabel;}"
+    "} else {xLabel = d3.time.format('%H:%M, %d %b')(new Date(parseInt(d)));} return xLabel;}"
 )
 
 
