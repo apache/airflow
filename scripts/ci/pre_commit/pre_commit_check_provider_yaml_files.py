@@ -151,7 +151,10 @@ def parse_module_data(provider_data, resource_type, yaml_file_path):
     package_dir = ROOT_DIR + "/" + os.path.dirname(yaml_file_path)
     provider_package = os.path.dirname(yaml_file_path).replace(os.sep, ".")
     py_files = chain(
-        glob(f"{package_dir}/**/{resource_type}/*.py"), glob(f"{package_dir}/{resource_type}/*.py")
+        glob(f"{package_dir}/**/{resource_type}/*.py"),
+        glob(f"{package_dir}/{resource_type}/*.py"),
+        glob(f"{package_dir}/**/{resource_type}/**/*.py"),
+        glob(f"{package_dir}/{resource_type}/**/*.py"),
     )
     expected_modules = {_filepath_to_module(f) for f in py_files if not f.endswith("/__init__.py")}
     resource_data = provider_data.get(resource_type, [])
