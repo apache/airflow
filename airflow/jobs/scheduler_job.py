@@ -151,7 +151,7 @@ class SchedulerJob(BaseJob):
             )
             docs_url = get_docs_url('concepts/smart-sensors.html#migrating-to-deferrable-operators')
             warnings.warn(
-                f'Smart sensors are deprecated, yet are used for {compatible_sensors} sensors.'
+                f'Smart sensors are deprecated, yet can be used for {compatible_sensors} sensors.'
                 f' Please use Deferrable Operators instead. See {docs_url} for more info.',
                 DeprecationWarning,
             )
