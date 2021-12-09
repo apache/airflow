@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2021-12-08T18:55:39Z
+# This constraints file was automatically generated on 2021-12-09T19:17:09Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -42,7 +42,7 @@ SQLAlchemy-JSONField==1.0.0
 SQLAlchemy-Utils==0.37.9
 SQLAlchemy==1.3.24
 SecretStorage==3.3.1
-Sphinx==3.4.3
+Sphinx==4.3.1
 Unidecode==1.3.2
 WTForms==2.3.3
 Werkzeug==1.0.1
@@ -202,7 +202,7 @@ cryptography==3.4.8
 curlify==2.2.1
 cx-Oracle==8.3.0
 dask==2021.6.0
-datadog==0.42.0
+datadog==0.43.0
 decorator==5.1.0
 defusedxml==0.7.1
 dill==0.3.1.1
@@ -391,7 +391,7 @@ pre-commit==2.16.0
 presto-python-client==0.7.0
 prison==0.2.1
 prometheus-client==0.12.0
-prompt-toolkit==3.0.23
+prompt-toolkit==3.0.24
 proto-plus==1.18.1
 protobuf==3.19.1
 psutil==5.8.0
@@ -485,21 +485,19 @@ sortedcontainers==2.4.0
 soupsieve==2.3.1
 sphinx-airflow-theme==0.0.6
 sphinx-argparse==0.3.1
-sphinx-autoapi==1.0.0
+sphinx-autoapi==1.8.0
 sphinx-copybutton==0.4.0
 sphinx-jinja==1.1.1
 sphinx-rtd-theme==1.0.0
 sphinxcontrib-applehelp==1.0.2
 sphinxcontrib-devhelp==1.0.2
-sphinxcontrib-dotnetdomain==0.4
-sphinxcontrib-golangdomain==0.2.0.dev0
 sphinxcontrib-htmlhelp==2.0.0
 sphinxcontrib-httpdomain==1.8.0
 sphinxcontrib-jsmath==1.0.1
 sphinxcontrib-qthelp==1.0.3
 sphinxcontrib-redoc==1.6.0
 sphinxcontrib-serializinghtml==1.1.5
-sphinxcontrib-spelling==7.2.1
+sphinxcontrib-spelling==7.3.0
 spython==0.1.17
 sqlalchemy-drill==1.1.1
 sqlalchemy-redshift==0.8.8
@@ -538,7 +536,7 @@ types-paramiko==2.8.4
 types-protobuf==3.18.2
 types-python-dateutil==2.8.3
 types-python-slugify==5.0.2
-types-pytz==2021.3.1
+types-pytz==2021.3.2
 types-redis==4.0.3
 types-requests==2.26.1
 types-setuptools==57.4.4
