@@ -1064,7 +1064,7 @@ OPERATORS = [
         'airflow.contrib.operators.s3_delete_objects_operator.S3DeleteObjectsOperator',
     ),
     (
-        'airflow.providers.amazon.aws.operators.S3ListOperator',
+        'airflow.providers.amazon.aws.operators.s3.S3ListOperator',
         'airflow.contrib.operators.s3_list_operator.S3ListOperator',
     ),
     (
