@@ -2137,6 +2137,8 @@ KNOWN_DEPRECATED_DIRECT_IMPORTS: Set[str] = {
     "This module is deprecated. Please use `kubernetes.client.models.V1VolumeMount`.",
     'numpy.ufunc size changed, may indicate binary incompatibility. Expected 192 from C header,'
     ' got 216 from PyObject',
+    'This module is deprecated. Please use `airflow.providers.amazon.aws.operators.ec2`.',
+    'This module is deprecated. Please use `airflow.providers.amazon.aws.sensors.ec2`.',
 }
 
 
