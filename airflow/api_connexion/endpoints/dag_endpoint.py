@@ -32,13 +32,12 @@ from airflow.api_connexion.schemas.dag_schema import (
 from airflow.exceptions import AirflowException, DagNotFound
 from airflow.models.dag import DagModel, DagTag
 from airflow.security import permissions
-from airflow.settings import Session
-from airflow.utils.session import provide_session
+from airflow.utils.session import NEW_SESSION, provide_session
 
 
 @security.requires_access([(permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG)])
 @provide_session
-def get_dag(dag_id, session):
+def get_dag(dag_id, session=NEW_SESSION):
     """Get basic information about a DAG."""
     dag = session.query(DagModel).filter(DagModel.dag_id == dag_id).one_or_none()
 
@@ -60,7 +59,7 @@ def get_dag_details(dag_id):
 @security.requires_access([(permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG)])
 @format_parameters({'limit': check_limit})
 @provide_session
-def get_dags(limit, session, offset=0, only_active=True, tags=None, dag_id_pattern=None):
+def get_dags(limit, session=NEW_SESSION, offset=0, only_active=True, tags=None, dag_id_pattern=None):
     """Get all DAGs."""
     if only_active:
         dags_query = session.query(DagModel).filter(~DagModel.is_subdag, DagModel.is_active)
@@ -86,7 +85,7 @@ def get_dags(limit, session, offset=0, only_active=True, tags=None, dag_id_patte
 
 @security.requires_access([(permissions.ACTION_CAN_EDIT, permissions.RESOURCE_DAG)])
 @provide_session
-def patch_dag(session, dag_id, update_mask=None):
+def patch_dag(dag_id, session=NEW_SESSION, update_mask=None):
     """Update the specific DAG"""
     dag = session.query(DagModel).filter(DagModel.dag_id == dag_id).one_or_none()
     if not dag:
@@ -111,15 +110,15 @@ def patch_dag(session, dag_id, update_mask=None):
 
 @security.requires_access([(permissions.ACTION_CAN_DELETE, permissions.RESOURCE_DAG)])
 @provide_session
-def delete_dag(dag_id: str, session: Session):
+def delete_dag(dag_id: str, session=NEW_SESSION):
     """Delete the specific DAG."""
     # TODO: This function is shared with the /delete endpoint used by the web
     # UI, so we're reusing it to simplify maintenance. Refactor the function to
     # another place when the experimental/legacy API is removed.
-    from airflow.api.common.experimental import delete_dag
+    from airflow.api.common.experimental import delete_dag as delete_dag_module
 
     try:
-        delete_dag.delete_dag(dag_id, session=session)
+        delete_dag_module.delete_dag(dag_id, session=session)
     except DagNotFound:
         raise NotFound(f"Dag with id: '{dag_id}' not found")
     except AirflowException:

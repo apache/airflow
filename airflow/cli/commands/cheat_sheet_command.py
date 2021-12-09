@@ -19,7 +19,6 @@ from typing import Iterable, List, Optional, Union
 from airflow.cli.cli_parser import ActionCommand, GroupCommand, airflow_commands
 from airflow.cli.simple_table import AirflowConsole, SimpleTable
 from airflow.utils.cli import suppress_logs_and_warning
-from airflow.utils.helpers import partition
 
 
 @suppress_logs_and_warning
@@ -38,8 +37,13 @@ def display_commands_index():
     ):
         actions: List[ActionCommand]
         groups: List[GroupCommand]
-        actions_iter, groups_iter = partition(lambda x: isinstance(x, GroupCommand), commands)
-        actions, groups = list(actions_iter), list(groups_iter)
+        actions: List[ActionCommand] = []
+        groups: List[GroupCommand] = []
+        for command in commands:
+            if isinstance(command, GroupCommand):
+                groups.append(command)
+            else:
+                actions.append(command)
 
         console = AirflowConsole()
         if actions:

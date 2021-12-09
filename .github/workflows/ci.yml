@@ -536,9 +536,6 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
         env:
           VERBOSE: false
   docs:
-    permissions:
-      contents: write  # Required for actions/checkout
-      id-token: write  # Required for aws-actions/configure-aws-credentials
     timeout-minutes: 45
     name: "Build docs"
     runs-on: ${{ fromJson(needs.build-info.outputs.runsOn) }}
@@ -574,8 +571,8 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
           github.ref == 'refs/heads/main' && github.repository == 'apache/airflow' &&
           github.event_name == 'push'
         with:
-          role-to-assume: 'arn:aws:iam::827901512104:role/GithubActionApacheAirflow'
-          role-session-name: GitHubActions-${{ github.run_id }}
+          aws-access-key-id: ${{ secrets.DOCS_AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.DOCS_AWS_SECRET_ACCESS_KEY }}
           aws-region: eu-central-1
       - name: "Upload documentation to AWS S3"
         if: >
