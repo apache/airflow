@@ -24,10 +24,14 @@ from typing import Dict, List, Optional, Union
 from airflow.api.common.trigger_dag import trigger_dag
 from airflow.exceptions import AirflowException, DagNotFound, DagRunAlreadyExists
 from airflow.models import BaseOperator, BaseOperatorLink, DagBag, DagModel, DagRun
+from airflow.models.xcom import XCom
 from airflow.utils import timezone
 from airflow.utils.helpers import build_airflow_url_with_query
 from airflow.utils.state import State
 from airflow.utils.types import DagRunType
+
+XCOM_EXECUTION_DATE_ISO = "trigger_execution_date_iso"
+XCOM_RUN_ID = "trigger_run_id"
 
 
 class TriggerDagRunLink(BaseOperatorLink):
@@ -39,7 +43,13 @@ class TriggerDagRunLink(BaseOperatorLink):
     name = 'Triggered DAG'
 
     def get_link(self, operator, dttm):
-        query = {"dag_id": operator.trigger_dag_id, "execution_date": dttm.isoformat()}
+        # Fetch the correct execution date for the triggerED dag which is
+        # stored in xcom during execution of the triggerING task.
+        trigger_execution_date_iso = XCom.get_one(
+            execution_date=dttm, key=XCOM_EXECUTION_DATE_ISO, task_id=operator.task_id, dag_id=operator.dag_id
+        )
+
+        query = {"dag_id": operator.trigger_dag_id, "base_date": trigger_execution_date_iso}
         return build_airflow_url_with_query(query)
 
 
@@ -140,6 +150,7 @@ class TriggerDagRunOperator(BaseOperator):
                 execution_date=self.execution_date,
                 replace_microseconds=False,
             )
+
         except DagRunAlreadyExists as e:
             if self.reset_dag_run:
                 self.log.info("Clearing %s on %s", self.trigger_dag_id, self.execution_date)
@@ -156,6 +167,12 @@ class TriggerDagRunOperator(BaseOperator):
                 dag_run = DagRun.find(dag_id=dag.dag_id, run_id=run_id)[0]
             else:
                 raise e
+
+        # Store the execution date from the dag run (either created or found above) to
+        # be used when creating the extra link on the webserver.
+        ti = context['task_instance']
+        ti.xcom_push(key=XCOM_EXECUTION_DATE_ISO, value=dag_run.execution_date.isoformat())
+        ti.xcom_push(key=XCOM_RUN_ID, value=dag_run.run_id)
 
         if self.wait_for_completion:
             # wait for dag to complete
