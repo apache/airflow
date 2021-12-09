@@ -17,56 +17,43 @@
 # under the License.
 
 """
-Example Airflow DAG showing usage of 'impersonation_chain' argument of Google operators.
+Example Airflow DAG showing usage of impersonation chain argument for Google BigQuery service.
 """
 import os
-import time
-from urllib.parse import urlparse
+from datetime import datetime
 
 from airflow import models
-from airflow.operators.bash import BashOperator
 from airflow.providers.google.cloud.operators.bigquery import (
     BigQueryCreateEmptyDatasetOperator,
     BigQueryDeleteDatasetOperator,
 )
-from airflow.utils.dates import days_ago
+from airflow.providers.google.cloud.transfers.bigquery_to_bigquery import BigQueryToBigQueryOperator
 
 PROJECT_ID = os.environ.get("GCP_PROJECT_ID", "example-project")
-BQ_LOCATION = "europe-north1"
-
-DATASET_NAME = os.environ.get("GCP_BIGQUERY_DATASET_NAME", "test_dataset_operations")
-LOCATION_DATASET_NAME = f"{DATASET_NAME}_location"
-DATA_SAMPLE_GCS_URL = os.environ.get(
-    "GCP_BIGQUERY_DATA_GCS_URL",
-    "gs://cloud-samples-data/bigquery/us-states/us-states.csv",
-)
-IMPERSONATION_CHAIN = "impersonated_account@your_project_id.iam.gserviceaccount.com"
-
-DATA_SAMPLE_GCS_URL_PARTS = urlparse(DATA_SAMPLE_GCS_URL)
-DATA_SAMPLE_GCS_BUCKET_NAME = DATA_SAMPLE_GCS_URL_PARTS.netloc
-DATA_SAMPLE_GCS_OBJECT_NAME = DATA_SAMPLE_GCS_URL_PARTS.path[1:]
-
+DATASET_NAME = os.environ.get("GCP_BIGQUERY_DATASET_NAME", "test_dataset_transfer")
+IMPERSONATION_CHAIN = f"impersonated_account@{PROJECT_ID}.iam.gserviceaccount.com"
 
 with models.DAG(
-    "example_bigquery_operations",
-    schedule_interval=None,  # Override to match your needs
-    start_date=days_ago(1),
+    "example_bigquery_to_bigquery",
+    schedule_interval='@once',  # Override to match your needs
+    start_date=datetime(2021, 1, 1),
+    catchup=False,
     tags=["example"],
 ) as dag:
-    # [START howto_operator_bigquery_create_dataset]
     create_dataset = BigQueryCreateEmptyDatasetOperator(
-        task_id="create-dataset", 
+        task_id="create-dataset",
+        project_id=PROJECT_ID,
         dataset_id=DATASET_NAME,
-        impersonation_chain=IMPERSONATION_CHAIN
+        location="us-central1",
+        impersonation_chain=IMPERSONATION_CHAIN,
     )
-    # [END howto_operator_bigquery_create_dataset]
 
-
-    # [START howto_operator_bigquery_delete_dataset]
     delete_dataset = BigQueryDeleteDatasetOperator(
         task_id="delete_dataset", 
         dataset_id=DATASET_NAME, 
-        delete_contents=True,
-        impersonation_chain=IMPERSONATION_CHAIN
+        location="us-central1",
+        impersonation_chain=IMPERSONATION_CHAIN,
+        delete_contents=True
     )
-    # [END howto_operator_bigquery_delete_dataset]
+
+    create_dataset >> delete_dataset
