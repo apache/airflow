@@ -401,6 +401,13 @@ class CeleryExecutor(BaseExecutor):
             # We only want to do this for database backends where
             # this case has been spotted
             return
+        # We use this instead of using bulk_state_fetcher because we
+        # may not have the stuck task in self.tasks and we don't want
+        # to clear task in self.tasks too
+        session_ = app.backend.ResultSession()
+        task_cls = getattr(app.backend, "task_cls", TaskDb)
+        with session_cleanup(session_):
+            celery_task_ids = [t.task_id for t in session_.query(task_cls.task_id).all()]
         self.log.debug("Checking for stuck queued tasks")
 
         max_allowed_time = utcnow() - self.task_adoption_timeout
@@ -414,16 +421,9 @@ class CeleryExecutor(BaseExecutor):
             if task.key in self.queued_tasks or task.key in self.running:
                 continue
 
-            session = app.backend.ResultSession()
-            task_cls = getattr(app.backend, "task_cls", TaskDb)
-            with session_cleanup(session):
-                if (
-                    session.query(task_cls)
-                    .filter(task_cls.task_id == task.external_executor_id)
-                    .one_or_none()
-                ):
-                    # The task is still running in the worker
-                    continue
+            if task.external_executor_id in celery_task_ids:
+                # The task is still running in the worker
+                continue
 
             self.log.info(
                 'TaskInstance: %s found in queued state for more than %s seconds, rescheduling',

@@ -23,6 +23,7 @@ import signal
 import sys
 import time
 import unittest
+from collections import namedtuple
 from datetime import datetime, timedelta
 from unittest import mock
 
@@ -506,10 +507,9 @@ class TestCeleryExecutor:
             mock_backend = DatabaseBackend(app=celery_executor.app, url="sqlite3://")
             with mock.patch('airflow.executors.celery_executor.Celery.backend', mock_backend):
                 mock_session = mock_backend.ResultSession.return_value
-                mock_session.query.return_value.filter.return_value.all.return_value = [
+                mock_session.query.return_value.all.return_value = [
                     mock.MagicMock(**{"to_dict.return_value": {"status": "SUCCESS", "task_id": "123"}})
                 ]
-                mock_session.query.return_value.filter.return_value.one_or_none.return_value = None
                 if state == State.SCHEDULED:
                     last_check_time = time.time() - 302  # should clear ti state
                 else:
@@ -532,16 +532,16 @@ class TestCeleryExecutor:
     @pytest.mark.backend("mysql", "postgres")
     @freeze_time("2020-01-01")
     @pytest.mark.parametrize(
-        "query_return_value, state",
+        "task_id, state",
         [
-            (True, State.QUEUED),
-            (None, State.SCHEDULED),
+            ('231', State.QUEUED),
+            ('111', State.SCHEDULED),
         ],
     )
     def test_the_check_interval_to_clear_stuck_queued_task_is_correct_for_db_query(
         self,
         mock_result_session,
-        query_return_value,
+        task_id,
         state,
         session,
         dag_maker,
@@ -549,16 +549,13 @@ class TestCeleryExecutor:
         create_task_instance,
     ):
         """Here we test that task are not cleared if found in celery database"""
+        result_obj = namedtuple('Result', ['status', 'task_id'])
         with _prepare_app():
             mock_backend = DatabaseBackend(app=celery_executor.app, url="sqlite3://")
             with mock.patch('airflow.executors.celery_executor.Celery.backend', mock_backend):
                 mock_session = mock_backend.ResultSession.return_value
-                mock_session.query.return_value.filter.return_value.all.return_value = [
-                    mock.MagicMock(**{"to_dict.return_value": {"status": "SUCCESS", "task_id": "123"}})
-                ]
-                mock_session.query.return_value.filter.return_value.one_or_none.return_value = (
-                    query_return_value
-                )
+                mock_session.query.return_value.all.return_value = [result_obj("SUCCESS", task_id)]
+
                 last_check_time = time.time() - 302  # should clear ti state
 
                 ti = create_task_instance(state=State.QUEUED)
