@@ -472,7 +472,8 @@ operators:
       - airflow.providers.google.leveldb.operators.leveldb
   - integration-name: Google Vertex AI
     python-modules:
-      - airflow.providers.google.cloud.operators.vertex_ai
+      - airflow.providers.google.cloud.operators.vertex_ai.dataset
+      - airflow.providers.google.cloud.operators.vertex_ai.custom_job
 
 sensors:
   - integration-name: Google BigQuery
@@ -669,7 +670,8 @@ hooks:
       - airflow.providers.google.leveldb.hooks.leveldb
   - integration-name: Google Vertex AI
     python-modules:
-      - airflow.providers.google.cloud.hooks.vertex_ai
+      - airflow.providers.google.cloud.hooks.vertex_ai.dataset
+      - airflow.providers.google.cloud.hooks.vertex_ai.custom_job
 
 transfers:
   - source-integration-name: Presto
