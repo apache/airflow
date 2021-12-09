@@ -1065,15 +1065,51 @@ OPERATORS = [
     ),
     (
         'airflow.providers.amazon.aws.operators.emr_add_steps.EmrAddStepsOperator',
-        'airflow.contrib.operators.emr_add_steps_operator.EmrAddStepsOperator',
+        'airflow.providers.amazon.aws.emr_add_steps_operator.EmrAddStepsOperator',
     ),
     (
         'airflow.providers.amazon.aws.operators.emr_create_job_flow.EmrCreateJobFlowOperator',
-        'airflow.contrib.operators.emr_create_job_flow_operator.EmrCreateJobFlowOperator',
+        'airflow.providers.amazon.aws.emr_create_job_flow_operator.EmrCreateJobFlowOperator',
     ),
     (
-        'airflow.providers.amazon.aws.operators.emr_terminate_job_flow.EmrTerminateJobFlowOperator',
-        'airflow.contrib.operators.emr_terminate_job_flow_operator.EmrTerminateJobFlowOperator',
+        'airflow.providers.amazon.aws.operators.emr.EmrAddStepsOperator',
+        'airflow.providers.amazon.aws.emr_add_steps.EmrAddStepsOperator',
+    ),
+    (
+        'airflow.providers.amazon.aws.operators.emr.EMRContainerOperator',
+        'airflow.providers.amazon.aws.emr_containers.EMRContainerOperator',
+    ),
+    (
+        'airflow.providers.amazon.aws.operators.emr.EmrCreateJobFlowOperator',
+        'airflow.providers.amazon.aws.emr_create_job_flow.EmrCreateJobFlowOperator',
+    ),
+    (
+        'airflow.providers.amazon.aws.operators.emr.EmrClusterLink',
+        'airflow.providers.amazon.aws.emr_modify_cluster.EmrClusterLink',
+    ),
+    (
+        'airflow.providers.amazon.aws.operators.emr.EmrModifyClusterOperator',
+        'airflow.providers.amazon.aws.emr_modify_cluster.EmrModifyClusterOperator',
+    ),
+    (
+        'airflow.providers.amazon.aws.operators.emr.EmrTerminateJobFlowOperator',
+        'airflow.providers.amazon.aws.emr_terminate_job_flow.EmrTerminateJobFlowOperator',
+    ),
+    (
+        "airflow.providers.amazon.aws.sensors.emr.EmrBaseSensor",
+        "airflow.providers.amazon.aws.sensors.emr_base.EmrBaseSensor",
+    ),
+    (
+        "airflow.providers.amazon.aws.sensors.emr.EMRContainerSensor",
+        "airflow.providers.amazon.aws.sensors.emr_containers.EMRContainerSensor",
+    ),
+    (
+        "airflow.providers.amazon.aws.sensors.emr.EmrJobFlowSensor",
+        "airflow.providers.amazon.aws.sensors.emr_job_flow.EmrJobFlowSensor",
+    ),
+    (
+        "airflow.providers.amazon.aws.sensors.emr.EmrStepSensor",
+        "airflow.providers.amazon.aws.sensors.emr_step.EmrStepSensor",
     ),
     (
         'airflow.providers.amazon.aws.operators.s3.S3CopyObjectOperator',

@@ -21,7 +21,7 @@ import os
 from datetime import datetime, timedelta
 
 from airflow import DAG
-from airflow.providers.amazon.aws.operators.emr_containers import EMRContainerOperator
+from airflow.providers.amazon.aws.operators.emr import EMRContainerOperator
 
 # [START howto_operator_emr_eks_env_variables]
 VIRTUAL_CLUSTER_ID = os.getenv("VIRTUAL_CLUSTER_ID", "test-cluster")

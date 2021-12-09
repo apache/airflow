@@ -202,12 +202,14 @@ operators:
       - airflow.providers.amazon.aws.operators.eks
   - integration-name: Amazon EMR
     python-modules:
+      - airflow.providers.amazon.aws.operators.emr
       - airflow.providers.amazon.aws.operators.emr_add_steps
       - airflow.providers.amazon.aws.operators.emr_create_job_flow
       - airflow.providers.amazon.aws.operators.emr_modify_cluster
       - airflow.providers.amazon.aws.operators.emr_terminate_job_flow
   - integration-name: Amazon EMR on EKS
     python-modules:
+      - airflow.providers.amazon.aws.operators.emr
       - airflow.providers.amazon.aws.operators.emr_containers
   - integration-name: Amazon Glacier
     python-modules:
@@ -274,11 +276,13 @@ sensors:
       - airflow.providers.amazon.aws.sensors.eks
   - integration-name: Amazon EMR
     python-modules:
+      - airflow.providers.amazon.aws.sensors.emr
       - airflow.providers.amazon.aws.sensors.emr_base
       - airflow.providers.amazon.aws.sensors.emr_job_flow
       - airflow.providers.amazon.aws.sensors.emr_step
   - integration-name: Amazon EMR on EKS
     python-modules:
+      - airflow.providers.amazon.aws.sensors.emr
       - airflow.providers.amazon.aws.sensors.emr_containers
   - integration-name: Amazon Glacier
     python-modules:
@@ -460,6 +464,7 @@ hook-class-names:  # deprecated - to be removed after providers add dependency o
   - airflow.providers.amazon.aws.hooks.redshift.RedshiftSQLHook
 
 extra-links:
+  - airflow.providers.amazon.aws.operators.emr.EmrClusterLink
   - airflow.providers.amazon.aws.operators.emr_create_job_flow.EmrClusterLink
 
 connection-types:
