@@ -25,8 +25,8 @@ from os import path
 
 from docutils import nodes
 from docutils.parsers.rst import directives
-from sphinx import addnodes
 from sphinx.directives.code import LiteralIncludeReader
+from sphinx.ext.viewcode import viewcode_anchor
 from sphinx.locale import _
 from sphinx.pycode import ModuleAnalyzer
 from sphinx.util import logging, parselinenos
@@ -194,11 +194,7 @@ def create_node(env, relative_path, show_button):
     paragraph = nodes.paragraph(relative_path, classes=header_classes)
     paragraph += nodes.inline("", relative_path, classes=["example-title"])
     if show_button:
-        pending_ref = addnodes.pending_xref(
-            "",
-            reftype="viewcode",
-            refdomain="std",
-            refexplicit=False,
+        pending_ref = viewcode_anchor(
             reftarget=pagename,
             refid="",
             refdoc=env.docname,

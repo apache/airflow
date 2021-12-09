@@ -78,8 +78,8 @@ def build_gcp_conn(
 @contextmanager
 def provide_gcp_credentials(key_file_path: Optional[str] = None, key_file_dict: Optional[Dict] = None):
     """
-    Context manager that provides a Google Cloud credentials for application supporting `Application
-    Default Credentials (ADC) strategy <https://cloud.google.com/docs/authentication/production>`__.
+    Context manager that provides a Google Cloud credentials for application supporting
+    `Application Default Credentials (ADC) strategy`__.
 
     It can be used to provide credentials for external programs (e.g. gcloud) that expect authorization
     file in ``GOOGLE_APPLICATION_CREDENTIALS`` environment variable.
@@ -88,6 +88,8 @@ def provide_gcp_credentials(key_file_path: Optional[str] = None, key_file_dict: 
     :type key_file_path: str
     :param key_file_dict: Dictionary with credentials.
     :type key_file_dict: Dict
+
+    __ https://cloud.google.com/docs/authentication/production
     """
     if not key_file_path and not key_file_dict:
         raise ValueError("Please provide `key_file_path` or `key_file_dict`.")
@@ -145,7 +147,7 @@ def provide_gcp_conn_and_credentials(
     Context manager that provides both:
 
     - Google Cloud credentials for application supporting `Application Default Credentials (ADC)
-      strategy <https://cloud.google.com/docs/authentication/production>`__.
+      strategy`__.
     - temporary value of :envvar:`AIRFLOW_CONN_GOOGLE_CLOUD_DEFAULT` connection
 
     :param key_file_path: Path to file with Google Cloud Service Account .json file.
@@ -154,6 +156,8 @@ def provide_gcp_conn_and_credentials(
     :type scopes: Sequence
     :param project_id: The id of Google Cloud project for the connection.
     :type project_id: str
+
+    __ https://cloud.google.com/docs/authentication/production
     """
     with ExitStack() as stack:
         if key_file_path:

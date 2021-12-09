@@ -18,7 +18,6 @@
 
 import datetime
 import hashlib
-import os
 import time
 from datetime import timedelta
 from typing import Any, Callable, Dict, Iterable
@@ -39,7 +38,7 @@ from airflow.utils import timezone
 # We need to keep the import here because GCSToLocalFilesystemOperator released in
 # Google Provider before 3.0.0 imported apply_defaults from here.
 # See  https://github.com/apache/airflow/issues/16035
-from airflow.utils.decorators import apply_defaults
+from airflow.utils.decorators import apply_defaults  # noqa: F401
 
 
 class BaseSensorOperator(BaseOperator, SkipMixin):
@@ -122,13 +121,8 @@ class BaseSensorOperator(BaseOperator, SkipMixin):
             raise AirflowException("The timeout must be a non-negative number")
         if self.mode not in self.valid_modes:
             raise AirflowException(
-                "The mode must be one of {valid_modes},"
-                "'{d}.{t}'; received '{m}'.".format(
-                    valid_modes=self.valid_modes,
-                    d=self.dag.dag_id if self.has_dag() else "",
-                    t=self.task_id,
-                    m=self.mode,
-                )
+                f"The mode must be one of {self.valid_modes},'{self.dag.dag_id if self.has_dag() else ''} "
+                f".{self.task_id}'; received '{self.mode}'."
             )
 
     def poke(self, context: Dict) -> bool:
@@ -324,9 +318,3 @@ def poke_mode_only(cls):
         return cls_type
 
     return decorate(cls)
-
-
-if 'BUILDING_AIRFLOW_DOCS' in os.environ:
-    # flake8: noqa: F811
-    # Monkey patch hook to get good function headers while building docs
-    apply_defaults = lambda x: x
