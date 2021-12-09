@@ -20,7 +20,6 @@ import unittest
 from unittest import mock
 from unittest.mock import MagicMock
 
-import boto3
 from parameterized import parameterized
 
 from airflow.providers.amazon.aws.operators.redshift import (
@@ -50,24 +49,6 @@ class TestRedshiftSQLOperator(unittest.TestCase):
 
 
 class TestResumeClusterOperator:
-    @staticmethod
-    def _create_clusters():
-        client = boto3.client('redshift', region_name='us-east-1')
-        client.create_cluster(
-            ClusterIdentifier='test_cluster_to_pause',
-            NodeType='dc1.large',
-            MasterUsername='admin',
-            MasterUserPassword='mock_password',
-        )
-        client.create_cluster(
-            ClusterIdentifier='test_cluster_to_resume',
-            NodeType='dc1.large',
-            MasterUsername='admin',
-            MasterUserPassword='mock_password',
-        )
-        if not client.describe_clusters()['Clusters']:
-            raise ValueError('AWS not properly mocked')
-
     def test_init(self):
         redshift_operator = RedshiftResumeClusterOperator(
             task_id="task_test", cluster_identifier="test_cluster", aws_conn_id="aws_conn_test"
@@ -79,49 +60,25 @@ class TestResumeClusterOperator:
     @mock.patch("airflow.providers.amazon.aws.hooks.redshift.RedshiftHook.cluster_status")
     @mock.patch("airflow.providers.amazon.aws.hooks.redshift.RedshiftHook.get_conn")
     def test_resume_cluster_is_called_when_cluster_is_paused(self, mock_get_conn, mock_cluster_status):
-        conn = MagicMock()
-        mock_run = conn.resume_cluster
-        mock_get_conn.return_value = conn
-
         mock_cluster_status.return_value = 'paused'
         redshift_operator = RedshiftResumeClusterOperator(
             task_id="task_test", cluster_identifier="test_cluster", aws_conn_id="aws_conn_test"
         )
         redshift_operator.execute(None)
-        mock_run.assert_called_once_with(ClusterIdentifier='test_cluster')
+        mock_get_conn.return_value.resume_cluster.assert_called_once_with(ClusterIdentifier='test_cluster')
 
     @mock.patch("airflow.providers.amazon.aws.hooks.redshift.RedshiftHook.cluster_status")
     @mock.patch("airflow.providers.amazon.aws.hooks.redshift.RedshiftHook.get_conn")
     def test_resume_cluster_not_called_when_cluster_is_not_paused(self, mock_get_conn, mock_cluster_status):
-        conn = MagicMock()
-        mock_run = conn.resume_cluster
-        mock_get_conn.return_value = conn
-
         mock_cluster_status.return_value = 'available'
         redshift_operator = RedshiftResumeClusterOperator(
             task_id="task_test", cluster_identifier="test_cluster", aws_conn_id="aws_conn_test"
         )
         redshift_operator.execute(None)
-        mock_run.assert_not_called()
+        mock_get_conn.return_value.resume_cluster.assert_not_called()
 
 
 class TestPauseClusterOperator:
-    @staticmethod
-    def _create_clusters():
-        client = boto3.client('redshift', region_name='us-east-1')
-        client.create_cluster(
-            ClusterIdentifier='test_cluster_to_pause',
-            NodeType='dc1.large',
-            MasterUsername='admin',
-            MasterUserPassword='mock_password',
-        )
-        client.create_cluster(
-            ClusterIdentifier='test_cluster_to_resume',
-            NodeType='dc1.large',
-            MasterUsername='admin',
-            MasterUserPassword='mock_password',
-        )
-
     def test_init(self):
         redshift_operator = RedshiftPauseClusterOperator(
             task_id="task_test", cluster_identifier="test_cluster", aws_conn_id="aws_conn_test"
@@ -133,27 +90,19 @@ class TestPauseClusterOperator:
     @mock.patch("airflow.providers.amazon.aws.hooks.redshift.RedshiftHook.cluster_status")
     @mock.patch("airflow.providers.amazon.aws.hooks.redshift.RedshiftHook.get_conn")
     def test_pause_cluster_is_called_when_cluster_is_available(self, mock_get_conn, mock_cluster_status):
-        conn = MagicMock()
-        mock_run = conn.pause_cluster
-        mock_get_conn.return_value = conn
-
         mock_cluster_status.return_value = 'available'
         redshift_operator = RedshiftPauseClusterOperator(
             task_id="task_test", cluster_identifier="test_cluster", aws_conn_id="aws_conn_test"
         )
         redshift_operator.execute(None)
-        mock_run.assert_called_once_with(ClusterIdentifier='test_cluster')
+        mock_get_conn.return_value.pause_cluster.assert_called_once_with(ClusterIdentifier='test_cluster')
 
     @mock.patch("airflow.providers.amazon.aws.hooks.redshift.RedshiftHook.cluster_status")
     @mock.patch("airflow.providers.amazon.aws.hooks.redshift.RedshiftHook.get_conn")
     def test_pause_cluster_not_called_when_cluster_is_not_available(self, mock_get_conn, mock_cluster_status):
-        conn = MagicMock()
-        mock_run = conn.pause_cluster
-        mock_get_conn.return_value = conn
-
         mock_cluster_status.return_value = 'paused'
         redshift_operator = RedshiftPauseClusterOperator(
             task_id="task_test", cluster_identifier="test_cluster", aws_conn_id="aws_conn_test"
         )
         redshift_operator.execute(None)
-        mock_run.assert_not_called()
+        mock_get_conn.return_value.pause_cluster.assert_not_called()
