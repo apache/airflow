@@ -19,7 +19,7 @@
 import re
 import os
 from datetime import datetime
-from typing import Callable, Set, Any, Dict, List, Optional, Union
+from typing import Any, Callable, Dict, List, Optional, Set, Union
 from urllib.parse import urlparse
 
 try:

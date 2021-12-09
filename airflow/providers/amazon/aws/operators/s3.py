@@ -21,7 +21,7 @@
 import subprocess
 import sys
 from tempfile import NamedTemporaryFile
-from typing import Optional, Dict, List, Union, Sequence, Iterable
+from typing import Dict, Iterable, List, Optional, Sequence, Union
 
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator

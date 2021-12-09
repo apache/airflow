@@ -19,10 +19,10 @@
 
 import warnings
 
-from airflow.providers.amazon.aws.sensors.s3 import S3KeySensor, S3KeySizeSensor # noqa
+from airflow.providers.amazon.aws.sensors.s3 import S3KeySensor, S3KeySizeSensor  # noqa
 
 warnings.warn(
     "This module is deprecated. Please use `airflow.providers.amazon.aws.sensors.s3`.",
     DeprecationWarning,
-    stacklevel=2
+    stacklevel=2,
 )

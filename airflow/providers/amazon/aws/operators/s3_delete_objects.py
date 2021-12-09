@@ -24,5 +24,5 @@ from airflow.providers.amazon.aws.operators.s3 import S3DeleteObjectsOperator # 
 warnings.warn(
     "This module is deprecated. Please use `airflow.providers.amazon.aws.operators.s3`.",
     DeprecationWarning,
-    stacklevel=2
+    stacklevel=2,
 )

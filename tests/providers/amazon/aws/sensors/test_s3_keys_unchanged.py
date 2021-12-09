@@ -24,7 +24,7 @@ from freezegun import freeze_time
 from parameterized import parameterized
 
 from airflow.models.dag import DAG, AirflowException
-from airflow.providers.amazon.aws.sensors.s3 import S3KeysUnchangedSensor
+from airflow.providers.amazon.aws.sensors.s3_keys_unchanged import S3KeysUnchangedSensor
 
 TEST_DAG_ID = 'unit_tests_aws_sensor'
 DEFAULT_DATE = datetime(2015, 1, 1)

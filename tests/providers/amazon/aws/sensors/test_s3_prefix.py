@@ -19,7 +19,7 @@
 from unittest import mock
 from unittest.mock import call
 
-from airflow.providers.amazon.aws.sensors.s3 import S3PrefixSensor
+from airflow.providers.amazon.aws.sensors.s3_prefix import S3PrefixSensor
 
 
 @mock.patch('airflow.providers.amazon.aws.sensors.s3_prefix.S3Hook')

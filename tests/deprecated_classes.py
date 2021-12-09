@@ -1383,7 +1383,6 @@ OPERATORS = [
         "airflow.providers.amazon.aws.operators.s3.S3ListPrefixesOperator",
         "airflow.providers.amazon.aws.operators.s3_list_prefixes.S3ListPrefixesOperator",
     ),
-
 ]
 
 SECRETS = [
@@ -1640,9 +1639,9 @@ SENSORS = [
         'airflow.providers.amazon.aws.sensors.s3_keys_unchanged.S3KeysUnchangedSensor',
     ),
     (
-        "airflow.providers.amazon.aws.sensors.s3.S3PrefixSensor"
+        "airflow.providers.amazon.aws.sensors.s3.S3PrefixSensor",
         "airflow.providers.amazon.aws.sensors.s3_prefix.S3PrefixSensor",
-    )
+    ),
 ]
 
 TRANSFERS = [
