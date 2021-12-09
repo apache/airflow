@@ -943,7 +943,10 @@ class DagRun(Base, LoggingMixin):
         if self.log_filename_id is None:  # DagRun created before LogFilename introduction.
             template = session.query(LogFilename.template).order_by(LogFilename.id).limit(1).scalar()
         else:
-            template = session.query(LogFilename.template).filter_by(id=self.log_filename_id).one_or_none()
-        if template is not None:
-            return template
-        return airflow_conf.get("logging", "LOG_FILENAME_TEMPLATE")
+            template = session.query(LogFilename.template).filter_by(id=self.log_filename_id).scalar()
+        if template is None:
+            raise AirflowException(
+                f"No log_filename entry found for ID {self.log_filename_id!r}. "
+                f"Please make sure you set up the metadatabase correctly."
+            )
+        return template
