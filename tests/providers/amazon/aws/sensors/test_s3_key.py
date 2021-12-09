@@ -25,7 +25,7 @@ from parameterized import parameterized
 from airflow.exceptions import AirflowException
 from airflow.models import DAG, DagRun, TaskInstance
 from airflow.models.variable import Variable
-from airflow.providers.amazon.aws.sensors.s3 import S3KeySensor, S3KeySizeSensor
+from airflow.providers.amazon.aws.sensors.s3_key import S3KeySensor, S3KeySizeSensor
 from airflow.utils import timezone
 
 
