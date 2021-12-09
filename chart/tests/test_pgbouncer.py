@@ -285,8 +285,6 @@ class PgbouncerTest(unittest.TestCase):
             show_only=["templates/pgbouncer/pgbouncer-deployment.yaml"],
         )
 
-        print(docs[0])
-
         assert "pgbouncer-client-certificates" in jmespath.search(
             "spec.template.spec.volumes[*].name", docs[0]
         )
@@ -455,7 +453,7 @@ class PgbouncerExporterTest(unittest.TestCase):
     def test_exporter_secret_with_overrides(self):
         connection = self._get_connection(
             {
-                "pgbouncer": {"enabled": True, "metricsExporterSidecar": {"sslmode": "require"}},
+                "pgbouncer": {"enabled": True, "metricsExporterSidecar": {"sslmode": "disable"}},
                 "data": {
                     "metadataConnection": {
                         "user": "username@123123",
