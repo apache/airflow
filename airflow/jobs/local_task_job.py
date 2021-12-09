@@ -210,10 +210,9 @@ class LocalTaskJob(BaseJob):
         elif self.task_runner.return_code() is None and hasattr(self.task_runner, 'process'):
             if ti.state == State.SKIPPED:
                 # A DagRun timeout will cause tasks to be externally marked as skipped.
-                dagrun = ti.dag_run
+                dagrun = ti.get_dagrun()
                 execution_time = (dagrun.end_date or timezone.utcnow()) - dagrun.start_date
                 dagrun_timeout = ti.task.dag.dagrun_timeout
-                self.log.debug(f"dagrun_timeout: {dagrun_timeout}")
                 if dagrun_timeout and execution_time > dagrun_timeout:
                     self.log.warning("DagRun timed out after %s.", str(execution_time))
             self.log.warning(
