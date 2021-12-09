@@ -21,8 +21,10 @@ import re
 from inspect import signature
 from typing import Any, Callable, Collection, Dict, Mapping, Optional, Sequence, Type, TypeVar, cast
 
+import attr
+
 from airflow.exceptions import AirflowException
-from airflow.models import BaseOperator
+from airflow.models.baseoperator import BaseOperator, MappedOperator
 from airflow.models.dag import DAG, DagContext
 from airflow.models.xcom_arg import XComArg
 from airflow.utils.context import Context
@@ -179,6 +181,87 @@ class DecoratedOperator(BaseOperator):
 
 T = TypeVar("T", bound=Callable)
 
+OperatorSubclass = TypeVar("OperatorSubclass", bound=BaseOperator)
+
+
+@attr.define
+class OperatorWrapper(Generic[T, OperatorSubclass]):
+    """
+    Helper class for providing dynamic task mapping to decorated functions.
+
+    ``task_decorator_factory`` returns an instance of this, instead of just a plain wrapped function.
+
+    :meta private:
+    """
+    function: T = attr.ib(validator=attr.validators.is_callable())
+    operator_class: Type[BaseOperator]
+    multiple_outputs: bool = attr.ib()
+    kwargs: Dict[str, Any] = attr.ib(factory=dict)
+
+    function_arg_names: Set[str] = attr.ib(repr=False)
+
+    @function_arg_names.default
+    def _get_arg_names(self):
+        return set(signature(self.function).parameters)
+
+    @function.validator
+    def _validate_function(self, _, f):
+        if not callable(f):
+            # Not likely to be hit -- checked by the decorator first!
+            raise TypeError('`python_callable` param must be callable')
+        if 'self' in self.function_arg_names:
+            raise TypeError('@task does not support methods')
+
+    @multiple_outputs.default
+    def _infer_multiple_outputs(self):
+        sig = signature(self.function).return_annotation
+        ttype = getattr(sig, "__origin__", None)
+
+        return sig is not inspect.Signature.empty and ttype in (dict, Dict)
+
+    def __attrs_post_init__(self):
+        self.kwargs.setdefault('task_id', self.function.__name__)
+
+    def __call__(self, *args, **kwargs) -> XComArg:
+        op = self.operator_class(
+            python_callable=self.function,
+            op_args=args,
+            op_kwargs=kwargs,
+            multiple_outputs=self.multiple_outputs,
+            **self.kwargs,
+        )
+        if self.function.__doc__:
+            op.doc_md = self.function.__doc__
+        return XComArg(op)
+
+    def map(
+        self, *args, dag: Optional["DAG"] = None, task_group: Optional["TaskGroup"] = None, **kwargs
+    ) -> XComArg:
+
+        dag = dag or DagContext.get_current_dag()
+        task_group = task_group or TaskGroupContext.get_current_task_group(dag)
+        task_id = get_unique_task_id(self.kwargs['task_id'], dag, task_group)
+
+        mapped_arg = XComArg(
+            operator=MappedOperator(
+                operator_class=self.operator_class,
+                task_id=task_id,
+                dag=dag,
+                task_group=task_group,
+                partial_kwargs=self.kwargs,
+                mapped_kwargs=kwargs,
+            ),
+        )
+
+        return mapped_arg
+
+    def partial(
+        self, *args, dag: Optional["DAG"] = None, task_group: Optional["TaskGroup"] = None, **kwargs
+    ) -> "OperatorWrapper[T, OperatorSubclass]":
+        partial_kwargs = self.kwargs.copy()
+        partial_kwargs.update(kwargs)
+        return attr.evolve(self, kwargs=partial_kwargs)
+
 
 def task_decorator_factory(
     python_callable: Optional[Callable] = None,
@@ -202,38 +285,23 @@ def task_decorator_factory(
     :type decorated_operator_class: BaseOperator
 
     """
-    # try to infer from  type annotation
-    if python_callable and multiple_outputs is None:
-        sig = signature(python_callable).return_annotation
-        ttype = getattr(sig, "__origin__", None)
-
-        multiple_outputs = sig != inspect.Signature.empty and ttype in (dict, Dict)
-
-    def wrapper(f: T):
-        """
-        Python wrapper to generate PythonDecoratedOperator out of simple python functions.
-        Used for Airflow Decorated interface
-        """
-        validate_python_callable(f)
-        kwargs.setdefault('task_id', f.__name__)
-
-        @functools.wraps(f)
-        def factory(*args, **f_kwargs):
-            op = decorated_operator_class(
-                python_callable=f,
-                op_args=args,
-                op_kwargs=f_kwargs,
-                multiple_outputs=multiple_outputs,
-                **kwargs,
-            )
-            if f.__doc__:
-                op.doc_md = f.__doc__
-            return XComArg(op)
-
-        return cast(T, factory)
-
-    if callable(python_callable):
-        return wrapper(python_callable)
+    if multiple_outputs is None:
+        multiple_outputs = attr.NOTHING
+    if python_callable:
+        return OperatorWrapper(
+            function=python_callable,
+            multiple_outputs=multiple_outputs,
+            operator_class=decorated_operator_class,
+            kwargs=kwargs,
+        )  # type: ignore
     elif python_callable is not None:
-        raise AirflowException('No args allowed while using @task, use kwargs instead')
-    return wrapper
+        raise TypeError('No args allowed while using @task, use kwargs instead')
+    return cast(
+        "Callable[[T], T]",
+        functools.partial(
+            OperatorWrapper,
+            multiple_outputs=multiple_outputs,
+            operator_class=decorated_operator_class,
+            kwargs=kwargs,
+        ),
+    )
