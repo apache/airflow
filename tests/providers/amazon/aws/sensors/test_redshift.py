@@ -39,6 +39,8 @@ class TestAwsRedshiftClusterSensor(unittest.TestCase):
             MasterUsername='admin',
             MasterUserPassword='mock_password',
         )
+        if not client.describe_clusters()['Clusters']:
+            raise ValueError('AWS not properly mocked')
 
     @unittest.skipIf(mock_redshift is None, 'mock_redshift package not present')
     @mock_redshift

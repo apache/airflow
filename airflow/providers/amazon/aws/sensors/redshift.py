@@ -48,7 +48,7 @@ class AwsRedshiftClusterSensor(BaseSensorOperator):
         self.hook: Optional[RedshiftHook] = None
 
     def poke(self, context):
-        self.log.info('Checking cluster %r for status %r', self.cluster_identifier, self.target_status)
+        self.log.info('Poking for status : %s\nfor cluster %s', self.target_status, self.cluster_identifier)
         return self.get_hook().cluster_status(self.cluster_identifier) == self.target_status
 
     def get_hook(self) -> RedshiftHook:
