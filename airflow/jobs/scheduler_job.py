@@ -327,6 +327,13 @@ class SchedulerJob(BaseJob):
                 self.log.warning("Tasks using non-existent pool '%s' will not be scheduled", pool)
                 continue
 
+            pool_total = pools[pool]["total"]
+            if task_instance.pool_slots > pool_total:
+                self.log.warning(
+                    "Tasks requesting more slots than pool configured. pool '%s' will not be scheduled", pool
+                )
+                continue
+
             open_slots = pools[pool]["open"]
 
             num_ready = len(task_instances)
