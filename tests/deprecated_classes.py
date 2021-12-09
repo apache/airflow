@@ -1345,11 +1345,11 @@ OPERATORS = [
     ),
     (
         "airflow.providers.amazon.aws.operators.ec2.EC2StartInstanceOperator",
-        "airflow.providers.amazon.aws.operators.ec2_instance_start.EC2StartInstanceOperator",
+        "airflow.providers.amazon.aws.operators.ec2_start_instance.EC2StartInstanceOperator",
     ),
     (
         "airflow.providers.amazon.aws.operators.ec2.EC2StopInstanceOperator",
-        "airflow.providers.amazon.aws.operators.ec2_instance_stop.EC2StopInstanceOperator",
+        "airflow.providers.amazon.aws.operators.ec2_stop_instance.EC2StopInstanceOperator",
     ),
 ]
 
