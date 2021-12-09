@@ -31,7 +31,9 @@ from airflow.providers.google.cloud.operators.datastore import (
     CloudDatastoreAllocateIdsOperator,
     CloudDatastoreBeginTransactionOperator,
     CloudDatastoreCommitOperator,
+    CloudDatastoreDeleteOperationOperator,
     CloudDatastoreExportEntitiesOperator,
+    CloudDatastoreGetOperationOperator,
     CloudDatastoreImportEntitiesOperator,
     CloudDatastoreRollbackOperator,
     CloudDatastoreRunQueryOperator,
@@ -164,3 +166,20 @@ with models.DAG(
     #   begin_transaction_commit >> commit_task
     #   begin_transaction_to_rollback >> rollback_transaction
     #   begin_transaction_query >> run_query
+
+    OPERATION_NAME = 'operations/example-operation-unique-id'
+    # [START get_operation_state]
+    get_operation = CloudDatastoreGetOperationOperator(
+        task_id='get_operation',
+        name=OPERATION_NAME,
+        gcp_conn_id='google_cloud_default',
+    )
+    # [END get_operation_state]
+
+    # [START delete_operation]
+    delete_operation = CloudDatastoreDeleteOperationOperator(
+        task_id='delete_operation',
+        name=OPERATION_NAME,
+        gcp_conn_id='google_cloud_default',
+    )
+    # [END delete_operation]

@@ -33,6 +33,9 @@ class CloudDatastoreExportEntitiesOperator(BaseOperator):
         For more information on how to use this operator, take a look at the guide:
         :ref:`howto/operator:CloudDatastoreExportEntitiesOperator`
 
+    .. seealso::
+        https://cloud.google.com/datastore/docs/export-import-entities
+
     :param bucket: name of the cloud storage bucket to backup data
     :type bucket: str
     :param namespace: optional namespace path in the specified Cloud Storage bucket
@@ -146,6 +149,9 @@ class CloudDatastoreImportEntitiesOperator(BaseOperator):
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
         :ref:`howto/operator:CloudDatastoreImportEntitiesOperator`
+
+    .. seealso::
+        https://cloud.google.com/datastore/docs/export-import-entities
 
     :param bucket: container in Cloud Storage to store data
     :type bucket: str
@@ -583,6 +589,10 @@ class CloudDatastoreGetOperationOperator(BaseOperator):
     Gets the latest state of a long-running operation.
 
     .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:CloudDatastoreGetOperationOperator`
+
+    .. seealso::
         https://cloud.google.com/datastore/docs/reference/data/rest/v1/projects.operations/get
 
     :param name: the name of the operation resource.
@@ -637,6 +647,10 @@ class CloudDatastoreGetOperationOperator(BaseOperator):
 class CloudDatastoreDeleteOperationOperator(BaseOperator):
     """
     Deletes the long-running operation.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:CloudDatastoreDeleteOperationOperator`
 
     .. seealso::
         https://cloud.google.com/datastore/docs/reference/data/rest/v1/projects.operations/delete
