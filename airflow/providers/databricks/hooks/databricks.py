@@ -300,12 +300,13 @@ class DatabricksHook(BaseHook):
         """
         method, endpoint = endpoint_info
 
-        self.databricks_conn = self.get_connection(self.databricks_conn_id)
+        if self.databricks_conn is None:
+            self.databricks_conn = self.get_connection(self.databricks_conn_id)
 
-        if 'host' in self.databricks_conn.extra_dejson:
-            self.host = self._parse_host(self.databricks_conn.extra_dejson['host'])
-        else:
-            self.host = self._parse_host(self.databricks_conn.host)
+            if 'host' in self.databricks_conn.extra_dejson:
+                self.host = self._parse_host(self.databricks_conn.extra_dejson['host'])
+            else:
+                self.host = self._parse_host(self.databricks_conn.host)
 
         url = f'https://{self.host}/{endpoint}'
 
