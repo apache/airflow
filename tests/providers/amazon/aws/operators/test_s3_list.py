@@ -19,7 +19,7 @@
 import unittest
 from unittest import mock
 
-from airflow.providers.amazon.aws.operators.s3 import S3ListOperator
+from airflow.providers.amazon.aws.operators.s3_list import S3ListOperator
 
 TASK_ID = 'test-s3-list-operator'
 BUCKET = 'test-bucket'
