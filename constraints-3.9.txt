@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2021-12-10T02:44:01Z
+# This constraints file was automatically generated on 2021-12-10T17:03:28Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -423,12 +423,12 @@ pyspark==3.2.0
 pyspnego==0.3.1
 pytest-asyncio==0.16.0
 pytest-cov==3.0.0
-pytest-forked==1.3.0
+pytest-forked==1.4.0
 pytest-httpx==0.15.0
 pytest-instafail==0.4.2
 pytest-rerunfailures==9.1.1
 pytest-timeouts==1.2.1
-pytest-xdist==2.4.0
+pytest-xdist==2.5.0
 pytest==6.2.5
 python-daemon==2.3.0
 python-dateutil==2.8.2
@@ -480,7 +480,7 @@ sortedcontainers==2.4.0
 soupsieve==2.3.1
 sphinx-airflow-theme==0.0.6
 sphinx-argparse==0.3.1
-sphinx-autoapi==1.8.0
+sphinx-autoapi==1.8.4
 sphinx-copybutton==0.4.0
 sphinx-jinja==1.1.1
 sphinx-rtd-theme==1.0.0
