@@ -17,6 +17,7 @@
 # under the License.
 
 """This module allows to connect to a Neo4j database."""
+from typing import Dict
 
 from neo4j import GraphDatabase, Neo4jDriver, Result
 
@@ -44,8 +45,8 @@ class Neo4jHook(BaseHook):
         self.neo4j_conn_id = conn_id
         self.connection = kwargs.pop("connection", None)
         self.client = None
-        self.extras = None
-        self.uri = None
+        self.extras: Dict = {}
+        self.uri: str = ""
 
     def get_conn(self) -> Neo4jDriver:
         """
