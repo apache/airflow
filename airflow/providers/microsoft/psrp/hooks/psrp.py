@@ -53,6 +53,10 @@ class PSRPHook(BaseHook):
         :py:class:`~pypsrp.powershell.RunspacePool` for a description of the
         available options.
     :type runspace_options: dict
+    :param exchange_keys:
+        If true (default), automatically initiate a session key exchange when the
+        hook is used as a context manager.
+    :type exchange_keys: bool
 
     You can provide an alternative `configuration_name` using either `runspace_options`
     or by setting this key as the extra fields of your connection.
@@ -68,16 +72,20 @@ class PSRPHook(BaseHook):
         logging: bool = True,
         operation_timeout: Optional[float] = None,
         runspace_options: Optional[Dict[str, Any]] = None,
+        exchange_keys: bool = True,
     ):
         self.conn_id = psrp_conn_id
         self._logging = logging
         self._operation_timeout = operation_timeout
         self._runspace_options = runspace_options or {}
+        self._exchange_keys = exchange_keys
 
     def __enter__(self):
         conn = self.get_conn()
         self._wsman_ref[conn].__enter__()
         conn.__enter__()
+        if self._exchange_keys:
+            conn.exchange_keys()
         self._conn = conn
         return self
 
