@@ -15,7 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from typing import Any, Optional, SupportsAbs
+from typing import Any, List, Optional, SupportsAbs
 
 from airflow.models import BaseOperator
 from airflow.operators.sql import SQLCheckOperator, SQLIntervalCheckOperator, SQLValueCheckOperator
@@ -117,7 +117,7 @@ class SnowflakeOperator(BaseOperator):
         self.schema = schema
         self.authenticator = authenticator
         self.session_parameters = session_parameters
-        self.query_ids = []
+        self.query_ids: List[str] = []
 
     def get_db_hook(self) -> SnowflakeHook:
         return get_db_hook(self)
@@ -230,7 +230,7 @@ class SnowflakeCheckOperator(SQLCheckOperator):
         self.schema = schema
         self.authenticator = authenticator
         self.session_parameters = session_parameters
-        self.query_ids = []
+        self.query_ids: List[str] = []
 
     def get_db_hook(self) -> SnowflakeHook:
         return get_db_hook(self)
@@ -311,7 +311,7 @@ class SnowflakeValueCheckOperator(SQLValueCheckOperator):
         self.schema = schema
         self.authenticator = authenticator
         self.session_parameters = session_parameters
-        self.query_ids = []
+        self.query_ids: List[str] = []
 
     def get_db_hook(self) -> SnowflakeHook:
         return get_db_hook(self)
@@ -405,7 +405,7 @@ class SnowflakeIntervalCheckOperator(SQLIntervalCheckOperator):
         self.schema = schema
         self.authenticator = authenticator
         self.session_parameters = session_parameters
-        self.query_ids = []
+        self.query_ids: List[str] = []
 
     def get_db_hook(self) -> SnowflakeHook:
         return get_db_hook(self)

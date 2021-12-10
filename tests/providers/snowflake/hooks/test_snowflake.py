@@ -19,6 +19,7 @@
 import re
 import unittest
 from pathlib import Path
+from typing import Dict, Union
 from unittest import mock
 
 import pytest
@@ -31,7 +32,7 @@ from airflow.providers.snowflake.hooks.snowflake import SnowflakeHook
 
 _PASSWORD = 'snowflake42'
 
-BASE_CONNECTION_KWARGS = {
+BASE_CONNECTION_KWARGS: Dict[str, Union[str, Dict[str, str]]] = {
     'login': 'user',
     'password': 'pw',
     'schema': 'public',
@@ -96,12 +97,14 @@ class TestPytestSnowflakeHook:
             (
                 {
                     **BASE_CONNECTION_KWARGS,
-                    'extra': {
-                        'extra__snowflake__database': 'db',
-                        'extra__snowflake__account': 'airflow',
-                        'extra__snowflake__warehouse': 'af_wh',
-                        'extra__snowflake__region': 'af_region',
-                        'extra__snowflake__role': 'af_role',
+                    **{
+                        'extra': {
+                            'extra__snowflake__database': 'db',
+                            'extra__snowflake__account': 'airflow',
+                            'extra__snowflake__warehouse': 'af_wh',
+                            'extra__snowflake__region': 'af_region',
+                            'extra__snowflake__role': 'af_role',
+                        },
                     },
                 },
                 (

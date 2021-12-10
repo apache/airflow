@@ -18,7 +18,7 @@
 import os
 from contextlib import closing
 from io import StringIO
-from typing import Any, Dict, Optional, Union
+from typing import Any, Callable, Dict, Iterable, List, Optional, Union
 
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import serialization
@@ -135,7 +135,7 @@ class SnowflakeHook(DbApiHook):
         self.schema = kwargs.pop("schema", None)
         self.authenticator = kwargs.pop("authenticator", None)
         self.session_parameters = kwargs.pop("session_parameters", None)
-        self.query_ids = []
+        self.query_ids: List[str] = []
 
     def _get_conn_params(self) -> Dict[str, Optional[str]]:
         """
@@ -222,7 +222,13 @@ class SnowflakeHook(DbApiHook):
     def get_autocommit(self, conn):
         return getattr(conn, 'autocommit_mode', False)
 
-    def run(self, sql: Union[str, list], autocommit: bool = False, parameters: Optional[dict] = None):
+    def run(
+        self,
+        sql: Union[str, list],
+        autocommit: bool = False,
+        parameters: Optional[Union[dict, Iterable]] = None,
+        handler: Optional[Callable] = None,
+    ):
         """
         Runs a command or a list of commands. Pass a list of sql
         statements to the sql parameter to get them to execute
@@ -239,6 +245,8 @@ class SnowflakeHook(DbApiHook):
         :type autocommit: bool
         :param parameters: The parameters to render the SQL query with.
         :type parameters: dict or iterable
+        :param handler: The result handler which is called with the result of each statement.
+        :type handler: callable
         """
         self.query_ids = []
 
@@ -261,6 +269,8 @@ class SnowflakeHook(DbApiHook):
                         cur.execute(sql_statement)
 
                     execution_info = []
+                    if handler is not None:
+                        cur = handler(cur)
                     for row in cur:
                         self.log.info("Statement execution info - %s", row)
                         execution_info.append(row)
