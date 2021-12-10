@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 import re
-from itertools import combinations
+from itertools import combinations, product
 
 import pytest
 
@@ -238,32 +238,27 @@ class TestHelpers:
         else:
             validate_group_key(key_id)
 
+    def test_exactly_one(self):
+        """
+        Checks that when we set ``true_count`` elements to "truthy", and others to "falsy",
+        we get the expected return.
 
-@pytest.mark.parametrize('true, false', [('a', ''), (True, False)])
-@pytest.mark.parametrize(
-    'true_count, expected',
-    [
-        (0, False),
-        (1, True),
-        (2, False),
-        (3, False),
-        (4, False),
-        (5, False),
-    ],
-)
-def test_exactly_one(true_count, expected, true, false):
-    """
-    Checks that when we set ``true_count`` elements to "truthy", and others to "falsy",
-    we get the expected return.
+        We check for both True / False, and truthy / falsy values 'a' and '', and verify that
+        they can safely be used in any combination.
+        """
 
-    We use ``itertools.combinations`` in order to verify that the logic works no matter where
-    in the sample set the "true" values are located.
+        def assert_exactly_one(true=0, truthy=0, false=0, falsy=0):
+            sample = []
+            for truth_value, num in [(True, true), (False, false), ('a', truthy), ('', falsy)]:
+                if num:
+                    sample.extend([truth_value] * num)
+            if sample:
+                expected = True if true + truthy == 1 else False
+                assert exactly_one(*sample) is expected
 
-    Verified, using parameterization, for both True / False, and truthy / falsy values 'a' and ''.
-    """
-    for length in range(1, 5):
-        for tup in combinations(range(length), true_count):
-            sample = [false] * length
-            for t in tup:
-                sample[t] = true
-            assert exactly_one(*sample) is expected
+        for row in product(range(4), range(4), range(4), range(4)):
+            assert_exactly_one(*row)
+
+    def test_exactly_one_should_fail(self):
+        with pytest.raises(ValueError):
+            exactly_one([True, False])

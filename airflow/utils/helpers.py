@@ -288,11 +288,14 @@ def render_template_as_native(template: jinja2.Template, context: Context) -> An
     return render_template(template, context, native=True)
 
 
-def exactly_one(*args):
+def exactly_one(*args) -> bool:
     """
     Returns True if exactly one of *args is "truthy", and False otherwise.
 
-    :param args:
-    :return:
+    If user supplies an iterable, we raise ValueError and force them to unpack.
     """
+    if is_container(args[0]):
+        raise ValueError(
+            "Not supported for iterable args. Use `*` to unpack your iterable in the function call."
+        )
     return sum(map(bool, args)) == 1
