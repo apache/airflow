@@ -19,7 +19,7 @@ import sys
 import unittest.mock
 from collections import namedtuple
 from datetime import date, timedelta
-from typing import Dict, Tuple
+from typing import Tuple
 
 import pytest
 from parameterized import parameterized
