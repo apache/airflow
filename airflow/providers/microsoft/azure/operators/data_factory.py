@@ -39,12 +39,11 @@ class AzureDataFactoryPipelineRunLink(BaseOperatorLink):
         subscription_id = conn.extra_dejson["extra__azure_data_factory__subscriptionId"]
         # Both Resource Group Name and Factory Name can either be declared in the Azure Data Factory
         # connection or passed directly to the operator.
-        resource_group_name = (
-            conn.extra_dejson.get("extra__azure_data_factory__resource_group_name")
-            or operator.resource_group_name
+        resource_group_name = operator.resource_group_name or conn.extra_dejson.get(
+            "extra__azure_data_factory__resource_group_name"
         )
-        factory_name = (
-            conn.extra_dejson.get("extra__azure_data_factory__factory_name") or operator.factory_name
+        factory_name = operator.factory_name or conn.extra_dejson.get(
+            "extra__azure_data_factory__factory_name")
         )
         url = (
             f"https://adf.azure.com/en-us/monitoring/pipelineruns/{run_id}"
