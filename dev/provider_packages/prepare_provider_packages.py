@@ -2139,6 +2139,8 @@ KNOWN_DEPRECATED_DIRECT_IMPORTS: Set[str] = {
     ' got 216 from PyObject',
     "This module is deprecated. Please use `airflow.providers.amazon.aws.sensors.step_function`.",
     "This module is deprecated. Please use `airflow.providers.amazon.aws.operators.step_function`.",
+    'This module is deprecated. Please use `airflow.providers.amazon.aws.operators.ec2`.',
+    'This module is deprecated. Please use `airflow.providers.amazon.aws.sensors.ec2`.',
 }
 
 

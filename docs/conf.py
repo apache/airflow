@@ -121,6 +121,9 @@ rst_epilog = f"""
 .. |experimental| replace:: This is an :ref:`experimental feature <experimental>`.
 """
 
+smartquotes_excludes = {'builders': ['man', 'text', 'spelling']}
+
+
 # -- General configuration -----------------------------------------------------
 # See: https://www.sphinx-doc.org/en/master/usage/configuration.html
 
@@ -674,6 +677,8 @@ autoapi_ignore = [
 ]
 if PACKAGE_NAME == 'apache-airflow':
     autoapi_ignore.append('*/airflow/providers/*')
+else:
+    autoapi_ignore.append('*/airflow/providers/cncf/kubernetes/backcompat/*')
 # Keep the AutoAPI generated files on the filesystem after the run.
 # Useful for debugging.
 autoapi_keep_files = True
@@ -696,6 +701,10 @@ autoapi_options = [
     'special-members',
 ]
 
+suppress_warnings = [
+    "autoapi.python_import_resolution",
+]
+
 # -- Options for ext.exampleinclude --------------------------------------------
 exampleinclude_sourceroot = os.path.abspath('..')
 
@@ -709,6 +718,7 @@ if PACKAGE_NAME == 'apache-airflow':
 if PACKAGE_NAME == 'helm-chart':
     spelling_exclude_patterns = ['changelog.rst']
 spelling_ignore_contributor_names = False
+spelling_ignore_importable_modules = True
 
 # -- Options for sphinxcontrib.redoc -------------------------------------------
 # See: https://sphinxcontrib-redoc.readthedocs.io/en/stable/
@@ -730,3 +740,14 @@ if PACKAGE_NAME == 'apache-airflow':
 
     # Options for script updater
     redoc_script_url = "https://cdn.jsdelivr.net/npm/redoc@2.0.0-rc.48/bundles/redoc.standalone.js"
+
+
+def skip_util_classes(app, what, name, obj, skip, options):
+    if (what == "data" and "STATICA_HACK" in name) or ":sphinx-autoapi-skip:" in obj.docstring:
+        skip = True
+    return skip
+
+
+def setup(sphinx):
+    if 'autoapi.extension' in extensions:
+        sphinx.connect("autoapi-skip-member", skip_util_classes)
