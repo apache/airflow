@@ -30,7 +30,7 @@ from sqlalchemy.orm import Query, Session, reconstructor, relationship
 from airflow.configuration import conf
 from airflow.models.base import COLLATION_ARGS, ID_LEN, Base
 from airflow.utils import timezone
-from airflow.utils.helpers import is_container
+from airflow.utils.helpers import exactly_one, is_container
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.sqlalchemy import UtcDateTime
@@ -134,7 +134,7 @@ class BaseXCom(Base, LoggingMixin):
         run_id: Optional[str] = None,
     ) -> None:
         """:sphinx-autoapi-skip:"""
-        if not (execution_date is None) ^ (run_id is None):
+        if not exactly_one(execution_date is not None, run_id is not None):
             raise ValueError("Exactly one of execution_date or run_id must be passed")
 
         if run_id:
@@ -225,7 +225,7 @@ class BaseXCom(Base, LoggingMixin):
         run_id: Optional[str] = None,
     ) -> Optional[Any]:
         """:sphinx-autoapi-skip:"""
-        if not (execution_date is None) ^ (run_id is None):
+        if not exactly_one(execution_date is not None, run_id is not None):
             raise ValueError("Exactly one of execution_date or run_id must be passed")
 
         if run_id is not None:
@@ -319,7 +319,7 @@ class BaseXCom(Base, LoggingMixin):
         run_id: Optional[str] = None,
     ) -> Query:
         """:sphinx-autoapi-skip:"""
-        if not (execution_date is None) ^ (run_id is None):
+        if not exactly_one(execution_date is not None, run_id is not None):
             raise ValueError("Exactly one of execution_date or run_id must be passed")
 
         filters = []
@@ -420,7 +420,7 @@ class BaseXCom(Base, LoggingMixin):
         if task_id is None:
             raise TypeError("clear() missing required argument: task_id")
 
-        if not (execution_date is None) ^ (run_id is None):
+        if not exactly_one(execution_date is not None, run_id is not None):
             raise ValueError("Exactly one of execution_date or run_id must be passed")
 
         query = session.query(cls).filter(

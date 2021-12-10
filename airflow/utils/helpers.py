@@ -286,3 +286,13 @@ def render_template_to_string(template: jinja2.Template, context: Context) -> st
 def render_template_as_native(template: jinja2.Template, context: Context) -> Any:
     """Shorthand to ``render_template(native=True)`` with better typing support."""
     return render_template(template, context, native=True)
+
+
+def exactly_one(*args):
+    """
+    Returns True if exactly one of *args is "truthy", and False otherwise.
+
+    :param args:
+    :return:
+    """
+    return sum(map(bool, args)) == 1

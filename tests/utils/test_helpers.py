@@ -16,12 +16,19 @@
 # specific language governing permissions and limitations
 # under the License.
 import re
+from itertools import combinations
 
 import pytest
 
 from airflow import AirflowException
 from airflow.utils import helpers, timezone
-from airflow.utils.helpers import build_airflow_url_with_query, merge_dicts, validate_group_key, validate_key
+from airflow.utils.helpers import (
+    build_airflow_url_with_query,
+    exactly_one,
+    merge_dicts,
+    validate_group_key,
+    validate_key,
+)
 from tests.test_utils.config import conf_vars
 from tests.test_utils.db import clear_db_dags, clear_db_runs
 
@@ -230,3 +237,33 @@ class TestHelpers:
                 validate_group_key(key_id)
         else:
             validate_group_key(key_id)
+
+
+@pytest.mark.parametrize('true, false', [('a', ''), (True, False)])
+@pytest.mark.parametrize(
+    'true_count, expected',
+    [
+        (0, False),
+        (1, True),
+        (2, False),
+        (3, False),
+        (4, False),
+        (5, False),
+    ],
+)
+def test_exactly_one(true_count, expected, true, false):
+    """
+    Checks that when we set ``true_count`` elements to "truthy", and others to "falsy",
+    we get the expected return.
+
+    We use ``itertools.combinations`` in order to verify that the logic works no matter where
+    in the sample set the "true" values are located.
+
+    Verified, using parameterization, for both True / False, and truthy / falsy values 'a' and ''.
+    """
+    for length in range(1, 5):
+        for tup in combinations(range(length), true_count):
+            sample = [false] * length
+            for t in tup:
+                sample[t] = true
+            assert exactly_one(*sample) is expected
