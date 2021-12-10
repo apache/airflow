@@ -39,6 +39,7 @@ from flask_appbuilder.const import (
 )
 from flask_appbuilder.filters import TemplateFilters
 from flask_appbuilder.menu import Menu, MenuApiManager
+from flask_appbuilder.security.manager import BaseSecurityManager
 from flask_appbuilder.views import IndexView, UtilView
 from sqlalchemy.orm import Session
 
@@ -98,7 +99,7 @@ class AirflowAppBuilder:
     # Database Session
     session = None
     # Security Manager Class
-    sm = None
+    sm: BaseSecurityManager
     # Babel Manager Class
     bm = None
     # OpenAPI Manager Class
@@ -561,7 +562,7 @@ class AirflowAppBuilder:
         :param dry: If True will not change DB
         :return: Dict with all computed necessary operations
         """
-        return self.sm.security_converge(self.baseviews, self.menu, dry)  # type: ignore
+        return self.sm.security_converge(self.baseviews, self.menu, dry)
 
     @property
     def get_url_for_login(self):
