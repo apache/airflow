@@ -112,7 +112,7 @@ if fixed_types:
         f"Some types that were known to be invalid have been fixed. Can you update the variable "
         f"`known_invalid_types` in file {current_file!r}? You just need to delete the following items:"
     )
-    print("\n".join(KNOWN_INVALID_TYPES))
+    print("\n".join(fixed_types))
 
 if fixed_types or invalid_paths:
     sys.exit(1)
