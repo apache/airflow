@@ -2158,12 +2158,12 @@
                                     },
                                     "default": [
                                         {
-                                            "port": "airflow-ui"
+                                            "port": "{{ .Values.ports.airflowUI }}"
                                         }
                                     ],
                                     "examples": [
                                         {
-                                            "port": "sidecar"
+                                            "port": "8080"
                                         }
                                     ]
                                 }
@@ -2463,12 +2463,12 @@
                                     "type": "array",
                                     "default": [
                                         {
-                                            "port": "flower-ui"
+                                            "port": "{{ .Values.ports.flowerUI }}"
                                         }
                                     ],
                                     "examples": [
                                         {
-                                            "port": "sidecar"
+                                            "port": "5555"
                                         }
                                     ]
                                 }
