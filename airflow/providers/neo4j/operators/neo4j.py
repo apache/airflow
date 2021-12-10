@@ -51,10 +51,7 @@ class Neo4jOperator(BaseOperator):
         self.sql = sql
         self.parameters = parameters
 
-    def get_hook(self):
-        """Function to retrieve the Neo4j Hook."""
-        return Neo4jHook(conn_id=self.neo4j_conn_id)
-
     def execute(self, context: Dict) -> None:
         self.log.info('Executing: %s', self.sql)
-        self.get_hook().run(self.sql)
+        hook = Neo4jHook(conn_id=self.neo4j_conn_id)
+        hook.run(self.sql)
