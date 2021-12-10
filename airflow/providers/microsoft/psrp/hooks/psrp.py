@@ -16,23 +16,25 @@
 # specific language governing permissions and limitations
 # under the License.
 
+import re
 from contextlib import contextmanager
+from logging import DEBUG, ERROR, INFO, WARNING
 from typing import Any, Dict, Optional
 from weakref import WeakKeyDictionary
 
-from pypsrp.messages import (
-    DebugRecord,
-    ErrorRecord,
-    InformationRecord,
-    ProgressRecord,
-    VerboseRecord,
-    WarningRecord,
-)
+from pypsrp.messages import MessageType
 from pypsrp.powershell import PowerShell, PSInvocationState, RunspacePool
 from pypsrp.wsman import WSMan
 
 from airflow.exceptions import AirflowException
 from airflow.hooks.base import BaseHook
+
+INFORMATIONAL_RECORD_LEVEL_MAP = {
+    MessageType.DEBUG_RECORD: DEBUG,
+    MessageType.ERROR_RECORD: ERROR,
+    MessageType.VERBOSE_RECORD: INFO,
+    MessageType.WARNING_RECORD: WARNING,
+}
 
 
 class PSRPHook(BaseHook):
@@ -183,10 +185,9 @@ class PSRPHook(BaseHook):
             # stopped running in any case.
             ps.end_invoke()
 
+            self.log.info("Invocation state: %s", str(PSInvocationState(ps.state)))
             if ps.streams.error:
                 raise AirflowException("Process had one or more errors")
-
-            self.log.info("Invocation state: %s", str(PSInvocationState(ps.state)))
         finally:
             if local_context:
                 self.__exit__(None, None, None)
@@ -205,28 +206,32 @@ class PSRPHook(BaseHook):
         return ps
 
     def _log_record(self, record):
-        if isinstance(record, DebugRecord):
-            self.log.debug("%s: %s", record.command_name, record.message)
-            return
+        message_type = getattr(record, "MESSAGE_TYPE", None)
 
-        if isinstance(record, ErrorRecord):
-            self.log.error("%s: %s", record.command_name, record.message)
-            return
+        # There seems to be a problem with some record types; we'll assume
+        # that the class name matches a message type.
+        if message_type is None:
+            message_type = getattr(
+                MessageType, re.sub('(?!^)([A-Z]+)', r'_\1', type(record).__name__).upper()
+            )
 
-        if isinstance(record, VerboseRecord):
-            self.log.info("%s: %s", record.command_name, record.message)
-            return
+        if message_type == MessageType.ERROR_RECORD:
+            self.log.info("%s: %s", record.reason, record)
+            if record.script_stacktrace:
+                for trace in record.script_stacktrace.split('\r\n'):
+                    self.log.info(trace)
 
-        if isinstance(record, WarningRecord):
-            self.log.warning("%s: %s", record.command_name, record.message)
-            return
-
-        if isinstance(record, InformationRecord):
+        level = INFORMATIONAL_RECORD_LEVEL_MAP.get(message_type)
+        if level is not None:
+            try:
+                message = str(record.message)
+            except BaseException as exc:
+                # See https://github.com/jborean93/pypsrp/pull/130
+                message = str(exc)
+            self.log.log(level, "%s: %s", record.command_name, message)
+        elif message_type == MessageType.INFORMATION_RECORD:
             self.log.info("%s (%s): %s", record.computer, record.user, record.message_data)
-            return
-
-        if isinstance(record, ProgressRecord):
+        elif message_type == MessageType.PROGRESS_RECORD:
             self.log.info("Progress: %s (%s)", record.activity, record.description)
-            return
-
-        self.log.warning("Unsupported record type: %s", type(record).__name__)
+        else:
+            self.log.warning("Unsupported message type: %s", message_type)

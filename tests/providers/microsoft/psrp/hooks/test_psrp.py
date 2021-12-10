@@ -17,18 +17,12 @@
 # under the License.
 #
 
+from logging import DEBUG, ERROR, INFO, WARNING
 from unittest import TestCase
-from unittest.mock import MagicMock, call, patch
+from unittest.mock import MagicMock, Mock, call, patch
 
 from parameterized import parameterized
-from pypsrp.messages import (
-    DebugRecord,
-    ErrorRecord,
-    InformationRecord,
-    ProgressRecord,
-    VerboseRecord,
-    WarningRecord,
-)
+from pypsrp.messages import MessageType
 from pypsrp.powershell import PSInvocationState
 from pytest import raises
 
@@ -37,30 +31,57 @@ from airflow.models import Connection
 from airflow.providers.microsoft.psrp.hooks.psrp import PSRPHook
 
 CONNECTION_ID = "conn_id"
+DUMMY_STACKTRACE = [
+    r"at Invoke-Foo, C:\module.psm1: line 113",
+    r"at Invoke-Bar, C:\module.psm1: line 125",
+]
 
 
 class MockPowerShell(MagicMock):
+    had_errors = False
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.state = PSInvocationState.NOT_STARTED
 
     def poll_invoke(self, timeout=None):
+        self.state = PSInvocationState.COMPLETED
         self.output.append("output")
 
-        def record(spec, message):
-            return MagicMock(spec=spec, command_name="command", message=message)
+        def informational(message_type, message, **kwargs):
+            return Mock(MESSAGE_TYPE=message_type, command_name="command", message=message, **kwargs)
 
-        self.streams.debug.append(record(DebugRecord, "debug"))
-        self.streams.error.append(record(ErrorRecord, "error"))
-        self.streams.verbose.append(record(VerboseRecord, "verbose"))
-        self.streams.warning.append(record(WarningRecord, "warning"))
+        self.streams.debug.append(informational(MessageType.DEBUG_RECORD, "debug"))
+        self.streams.verbose.append(informational(MessageType.VERBOSE_RECORD, "verbose"))
+        self.streams.warning.append(informational(MessageType.WARNING_RECORD, "warning"))
         self.streams.information.append(
-            MagicMock(spec=InformationRecord, computer="computer", user="user", message_data="information")
+            Mock(
+                MESSAGE_TYPE=MessageType.INFORMATION_RECORD,
+                computer="computer",
+                user="user",
+                message_data="information",
+            )
         )
         self.streams.progress.append(
-            MagicMock(spec=ProgressRecord, activity="activity", description="description")
+            Mock(MESSAGE_TYPE=MessageType.PROGRESS_RECORD, activity="activity", description="description")
         )
-        self.state = PSInvocationState.COMPLETED
+
+        if self.had_errors:
+            # There seems to be cases where an error record does not have a
+            # message type; in this case, we match on the class name as a
+            # workaround.
+            class ErrorRecord(Mock):
+                pass
+
+            self.streams.error.append(
+                ErrorRecord(
+                    MESSAGE_TYPE=None,
+                    command_name="command",
+                    message="error",
+                    reason="reason",
+                    script_stacktrace="\r\n".join(DUMMY_STACKTRACE),
+                )
+            )
 
     def begin_invoke(self):
         self.state = PSInvocationState.RUNNING
@@ -75,7 +96,6 @@ class MockPowerShell(MagicMock):
     def end_invoke(self):
         while self.state == PSInvocationState.RUNNING:
             self.poll_invoke()
-        self.streams.error = []
 
 
 def mock_powershell_factory():
@@ -112,41 +132,47 @@ class TestPSRPHook(TestCase):
             hook.get_conn()
 
     @parameterized.expand([(False,), (True,)])
-    @patch("logging.Logger.warning")
-    @patch("logging.Logger.info")
-    @patch("logging.Logger.error")
-    @patch("logging.Logger.debug")
-    def test_invoke(
-        self, logging, log_debug, log_error, log_info, log_warning, runspace_pool, powershell, ws_man
-    ):
+    def test_invoke(self, runspace_pool, powershell, ws_man, logging):
         runspace_options = {"connection_name": "foo"}
         wsman_options = {"encryption": "auto"}
+
+        def assert_log(method_name, *args):
+            method = getattr(call, method_name)
+            assert not (logging ^ (method(*args) in logger.method_calls))
+
         with PSRPHook(
             CONNECTION_ID, logging=logging, runspace_options=runspace_options, wsman_options=wsman_options
-        ) as hook:
-            with hook.invoke() as ps:
-                assert ps.state == PSInvocationState.NOT_STARTED
-            assert ps.state == PSInvocationState.COMPLETED
+        ) as hook, patch.object(type(hook), "log") as logger:
+            try:
+                with hook.invoke() as ps:
+                    assert ps.state == PSInvocationState.NOT_STARTED
 
-            # Since we've entered into the hook context, the
-            # `get_conn` method returns the active runspace pool.
-            assert hook.get_conn() is runspace_pool.return_value
+                    # We're simulating an error in order to test error
+                    # handling as well as the logging of error exception
+                    # details.
+                    ps.had_errors = True
+            except AirflowException as exc:
+                assert str(exc) == 'Process had one or more errors'
+            else:
+                self.fail("Expected an error")
+            assert ps.state == PSInvocationState.COMPLETED
 
         assert runspace_pool.return_value.__exit__.mock_calls == [call(None, None, None)]
         assert ws_man().__exit__.mock_calls == [call(None, None, None)]
         assert ws_man.call_args_list[0][1]["encryption"] == "auto"
 
-        def assert_log(f, *args):
-            assert not (logging ^ (call(*args) in f.mock_calls))
+        assert_log("log", DEBUG, '%s: %s', 'command', 'debug')
+        assert_log("log", ERROR, '%s: %s', 'command', 'error')
+        assert_log("log", INFO, '%s: %s', 'command', 'verbose')
+        assert_log("log", WARNING, '%s: %s', 'command', 'warning')
+        assert_log("info", 'Progress: %s (%s)', 'activity', 'description')
+        assert_log("info", '%s (%s): %s', 'computer', 'user', 'information')
+        assert_log("info", '%s: %s', 'reason', ps.streams.error[0])
+        assert_log("info", DUMMY_STACKTRACE[0])
+        assert_log("info", DUMMY_STACKTRACE[1])
 
-        assert_log(log_debug, '%s: %s', 'command', 'debug')
-        assert_log(log_error, '%s: %s', 'command', 'error')
-        assert_log(log_info, '%s: %s', 'command', 'verbose')
-        assert_log(log_warning, '%s: %s', 'command', 'warning')
-        assert_log(log_info, 'Progress: %s (%s)', 'activity', 'description')
-        assert_log(log_info, '%s (%s): %s', 'computer', 'user', 'information')
+        assert call('Invocation state: %s', 'Completed') in logger.info.mock_calls
 
-        assert call('Invocation state: %s', 'Completed') in log_info.mock_calls
         assert runspace_pool.call_args == call(ws_man.return_value, connection_name='foo')
 
     def test_invoke_cmdlet(self, *mocks):
